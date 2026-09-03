@@ -50,3 +50,14 @@ class TestMeEndpoint(HttpCase):
                       groups='base.group_user')
         self.authenticate('plain', 'plain_password_123')
         self.assertEqual(self.url_open('/api/v1/me').json()['role'], 'employee')
+
+    def test_user_without_lang_falls_back_to_arabic(self):
+        # lang is False whenever the linked partner has no language; MeSchema
+        # requires a string, so a null would break every page for that user.
+        user = new_test_user(self.env, login='nolang', password='nolang_password_123',
+                             groups='nasq_core.group_employee')
+        user.write({'lang': False})
+        self.assertFalse(user.lang)
+        self.authenticate('nolang', 'nolang_password_123')
+
+        self.assertEqual(self.url_open('/api/v1/me').json()['lang'], 'ar_001')
