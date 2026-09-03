@@ -260,7 +260,7 @@ every schema change; supported core versions: current + previous.
 
 | Phase | Delivers | Duration |
 |---|---|---|
-| 0 — Foundation | Monorepo, `nasq_core` groups + branding fields, `nasq_api` skeleton (`/branding`, `/me`), Nuxt shell (login, sidebar, ⌘K, tokens, RTL, proxy), `deploy/` compose, remove OCA modules | 1 week |
+| 0 — Foundation | Monorepo, `nasq_core` groups + branding fields, `nasq_api` skeleton (`/branding`, `/me`), Nuxt shell (login, sidebar, ⌘K, tokens, RTL, proxy), `deploy/` compose, remove OCA modules | 1 week — done 2026-09-04 |
 | 1 — Core | My tasks table, task drawer (autosave, comments, time, subtasks), real-time | 3 weeks |
 | 2 — Projects | Projects list, project screen (board/list/milestones/updates), transitions | 3 weeks |
 | **Demo to Erada** | | **~7 weeks** |
