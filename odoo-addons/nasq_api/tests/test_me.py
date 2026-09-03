@@ -37,4 +37,16 @@ class TestMeEndpoint(HttpCase):
         new_test_user(self.env, login='vendor', password='vendor_password_123',
                       groups='nasq_core.group_vendor_support')
         self.authenticate('vendor', 'vendor_password_123')
+
+        vendor = self.env['res.users'].search([('login', '=', 'vendor')])
+        # implied_ids: vendor_support ⊃ customer_admin ⊃ employee — role_of must pick the highest
+        self.assertTrue(vendor.has_group('nasq_core.group_customer_admin'))
+        self.assertTrue(vendor.has_group('nasq_core.group_employee'))
+
         self.assertEqual(self.url_open('/api/v1/me').json()['role'], 'vendor')
+
+    def test_user_without_nasq_group_is_employee(self):
+        new_test_user(self.env, login='plain', password='plain_password_123',
+                      groups='base.group_user')
+        self.authenticate('plain', 'plain_password_123')
+        self.assertEqual(self.url_open('/api/v1/me').json()['role'], 'employee')
