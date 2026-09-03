@@ -1,0 +1,14 @@
+.git
+.superpowers
+node_modules
+**/node_modules
+**/.nuxt
+**/.output
+**/dist
+**/__pycache__
+**/test-results
+**/playwright-report
+deploy/.env
+deploy/branding.json
+deploy/data
+*.log
