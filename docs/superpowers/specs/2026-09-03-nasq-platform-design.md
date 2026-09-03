@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-03
 **Target:** Odoo 19.0 Community (pinned to `19.0` stable, never forked) + Nuxt 4
-**Status:** Draft — awaiting review before planning
+**Status:** Approved — phase 0 planned
 
 ## Goal
 

@@ -1,0 +1,11 @@
+{
+  "name": "nasq",
+  "private": true,
+  "workspaces": ["apps/*", "packages/*"],
+  "scripts": {
+    "dev": "npm -w apps/web run dev",
+    "build": "npm -w packages/contracts run build && npm -w apps/web run build",
+    "test": "npm -w packages/contracts run test && npm -w apps/web run test",
+    "lint": "npm -w apps/web run lint && ruff check odoo-addons"
+  }
+}

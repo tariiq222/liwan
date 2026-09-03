@@ -1,0 +1,92 @@
+// Part of Odoo. See LICENSE file for full copyright and licensing details.
+// Component polish that variables alone cannot express. Everything scoped to .o_web_client.
+// Screen-only: the theme must not repaint printed documents.
+@include media-only(screen) {
+    .o_web_client {
+        // ---- Control panel
+        .o_control_panel {
+            background: #fff;
+            border-bottom: 1px solid #e4e4e7;
+            box-shadow: none;
+            .o_breadcrumb .o_last_breadcrumb_item { font-weight: 600; color: #18181b; }
+            .o_breadcrumb .breadcrumb-item a { color: #71717a; &:hover { color: #18181b; } }
+        }
+        .o_searchview {
+            background: #fff;
+            border: 1px solid #e4e4e7;
+            border-radius: .5rem;
+            &:focus-within { border-color: #18181b; box-shadow: 0 0 0 2px #fff, 0 0 0 4px #18181b; }
+        }
+
+        // ---- Buttons
+        .btn-secondary, .btn-outline-secondary {
+            background: #fff;
+            border-color: #e4e4e7;
+            color: #18181b;
+            &:hover { background: #f4f4f5; border-color: #e4e4e7; color: #18181b; }
+        }
+        .btn:focus-visible { outline: none; box-shadow: 0 0 0 2px #fff, 0 0 0 4px #18181b; }
+
+        // ---- Form view
+        .o_form_view .o_form_sheet_bg { background: #fafafa; }
+        .o_form_sheet {
+            // Only the colour and the radius: the width/padding custom properties are
+            // upstream's responsibility (they change per breakpoint in
+            // web/static/src/views/form/form_controller.scss).
+            --formView-sheet-border-radius: .75rem;
+            background: #fff;
+            border-color: #e4e4e7;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, .05);
+        }
+        .o_form_view .o_form_statusbar { background: #fff; border-bottom: 1px solid #e4e4e7; }
+        .o_notebook .nav-tabs {
+            border-bottom: 1px solid #e4e4e7;
+            .nav-link {
+                border: 0;
+                border-bottom: 2px solid transparent;
+                color: #71717a;
+                font-weight: 500;
+                &.active { color: #18181b; border-bottom-color: #18181b; background: transparent; }
+            }
+        }
+
+        // ---- List view
+        .o_list_view {
+            .o_list_table thead {
+                background: #fafafa;
+                th {
+                    color: #71717a;
+                    font-size: .75rem;
+                    font-weight: 500;
+                    text-transform: uppercase;
+                    letter-spacing: .04em;
+                    border-bottom: 1px solid #e4e4e7;
+                }
+            }
+            .o_list_table tbody td { border-color: #f4f4f5; }
+            .o_data_row:hover { background: #fafafa; }
+            .o_data_row.o_data_row_selected { background: #f4f4f5; }
+        }
+
+        // ---- Kanban
+        .o_kanban_view .o_kanban_group { background: transparent; }
+        .o_kanban_view .o_kanban_header .o_column_title { color: #18181b; font-weight: 600; }
+        .o_kanban_record {
+            background: #fff;
+            border: 1px solid #e4e4e7;
+            border-radius: .5rem;
+            box-shadow: none;
+            &:hover { box-shadow: 0 1px 2px rgba(0, 0, 0, .05); border-color: #d4d4d8; }
+        }
+
+        // ---- Dialogs
+        .modal-content { border: 1px solid #e4e4e7; }
+        .modal-header { border-bottom: 0; .modal-title { font-weight: 600; color: #18181b; } }
+        .modal-footer { border-top: 1px solid #f4f4f5; }
+
+        // ---- Misc surfaces
+        .o_notification { border-radius: .5rem; border: 1px solid #e4e4e7; }
+        .o-dropdown--menu { padding: .25rem; }
+        .o-dropdown--menu .dropdown-item { border-radius: .375rem; }
+    }
+}

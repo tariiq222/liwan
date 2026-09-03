@@ -1,0 +1,45 @@
+// Part of Odoo. See LICENSE file for full copyright and licensing details.
+// Injected BEFORE web/static/src/scss/bootstrap_overridden.scss ($o-* already defined).
+$btn-border-radius: .5rem !default;
+$btn-border-radius-sm: .375rem !default;
+$btn-padding-y: .5rem !default;
+$btn-padding-x: 1rem !default;
+$btn-font-weight: 500 !default;
+$btn-focus-width: 2px !default;
+$btn-box-shadow: none !default;
+
+$input-border-width: 1px !default;
+$input-border-color: #e4e4e7 !default;
+$input-focus-border-color: #18181b !default;
+$input-focus-box-shadow: 0 0 0 2px #fff, 0 0 0 4px #18181b !default;
+$input-border-radius: .5rem !default;
+
+$box-shadow-sm: 0 1px 2px rgba(0, 0, 0, .05) !default;
+$box-shadow: 0 4px 12px rgba(0, 0, 0, .08) !default;
+
+$dropdown-border-color: #e4e4e7 !default;
+$dropdown-border-radius: .5rem !default;
+$dropdown-box-shadow: 0 4px 12px rgba(0, 0, 0, .08) !default;
+$dropdown-link-hover-bg: #f4f4f5 !default;
+$dropdown-link-active-bg: #f4f4f5 !default;
+$dropdown-link-active-color: #18181b !default;
+$dropdown-item-padding-y: .375rem !default;
+
+$modal-content-border-radius: .75rem !default;
+$modal-content-border-color: #e4e4e7 !default;
+$modal-backdrop-opacity: .6 !default;
+
+$table-border-color: #e4e4e7 !default;
+$table-hover-bg: #fafafa !default;
+
+$badge-border-radius: 9999px !default;
+$badge-font-weight: 500 !default;
+
+$nav-tabs-border-color: #e4e4e7 !default;
+$nav-tabs-link-active-border-color: transparent transparent #18181b !default;
+$nav-tabs-link-active-color: #18181b !default;
+
+$tooltip-bg: #18181b !default;
+$tooltip-border-radius: .375rem !default;
+$popover-border-color: #e4e4e7 !default;
+$popover-border-radius: .5rem !default;
