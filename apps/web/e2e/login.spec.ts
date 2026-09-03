@@ -16,6 +16,5 @@ test('admin logs in and lands on the app shell', async ({ page }) => {
   await page.getByLabel('كلمة المرور').fill('admin')
   await page.getByRole('button', { name: 'دخول' }).click()
   await expect(page).toHaveURL('http://localhost:3000/')
-  // Task 9 replaces this with the sidebar assertion
-  await expect(page.getByText('nasq')).toBeVisible()
+  await expect(page.getByRole('navigation')).toContainText('مهامي')
 })
