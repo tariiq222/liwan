@@ -11,9 +11,9 @@ const base: NavItem[] = [
   { to: '/people', label: 'الأشخاص', icon: Users, shortcut: '4' },
   { to: '/reports', label: 'التقارير', icon: BarChart3, shortcut: '5' },
 ]
-// Until phase 3 ships the in-app Settings section, admins open the vendor console.
-const settings: NavItem = { to: '/odoo', label: 'الإعدادات', icon: Settings, shortcut: 's' }
+// Vendor console. The customer_admin Settings section arrives in phase 3.
+const vendorConsole: NavItem = { to: '/odoo', label: 'وحدة التحكم', icon: Settings, shortcut: 's' }
 
 export function useNav(role: Role | null | undefined): NavItem[] {
-  return role === 'admin' || role === 'vendor' ? [...base, settings] : base
+  return role === 'vendor' ? [...base, vendorConsole] : base
 }

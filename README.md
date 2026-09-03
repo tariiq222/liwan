@@ -17,6 +17,15 @@ Project & task management product on Odoo 19 CE. See
 - `odoo-addons` — `nasq_core`, `nasq_api`, `web_theme_shadcn`
 - `deploy` — per-customer docker-compose + provisioning
 
+## Patched generated files
+
+shadcn-vue copies components into the repo, so these hand-edits are lost on a
+regenerate — re-apply after `npx shadcn-vue add … --overwrite`:
+
+- `apps/web/app/components/ui/sidebar/SidebarProvider.vue` — `useMediaQuery(…, { ssrWidth: 1024 })` so the mobile branch does not mismatch during hydration.
+- `apps/web/app/components/ui/sidebar/index.ts` — `text-left` → `text-start` in `sidebarMenuButtonVariants` (RTL).
+- `apps/web/app/components/ui/command/CommandShortcut.vue` — `ml-auto` → `ms-auto` (RTL).
+
 ## Tests
 
     # Odoo addons (fresh scratch DB)

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useMagicKeys, whenever } from '@vueuse/core'
+import { useEventListener, useMagicKeys, whenever } from '@vueuse/core'
 
 const open = useState<boolean>('command-open', () => false)
 const { me } = useMe()
@@ -12,6 +12,19 @@ async function go(to: string) {
   if (to === '/odoo') window.open(to, '_blank', 'noopener')
   else await navigateTo(to)
 }
+
+// Every row advertises a key, so the key has to do something. The palette opens
+// with CommandInput focused; capture phase lets a bare shortcut jump instead of
+// typing into the search box. Modifier combinations stay untouched.
+const shortcuts = computed(() => new Map(nav.value.map(item => [item.shortcut, item.to])))
+useEventListener('keydown', (event: KeyboardEvent) => {
+  if (!open.value || event.metaKey || event.ctrlKey || event.altKey) return
+  const to = shortcuts.value.get(event.key)
+  if (!to) return
+  event.preventDefault()
+  event.stopPropagation()
+  go(to)
+}, { capture: true })
 </script>
 
 <template>
