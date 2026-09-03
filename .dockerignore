@@ -8,7 +8,8 @@ node_modules
 **/__pycache__
 **/test-results
 **/playwright-report
-deploy/.env
+**/.env
+**/.env.*
 deploy/branding.json
 deploy/data
 *.log

@@ -20,9 +20,10 @@ export default defineNuxtConfig({
     odooUrl: odoo,
     odooDb: process.env.NUXT_ODOO_DB ?? 'odoo19',
   },
-  // Dev only: in production Caddy sends these paths straight to Odoo (deploy/Caddyfile).
+  // Browser-only paths, dev convenience: in production Caddy routes them to Odoo. SSR
+  // fetches to /api/v1/** go through server/routes/api/v1/[...path].ts, which reads
+  // odooUrl at runtime.
   routeRules: {
-    '/api/v1/**': { proxy: `${odoo}/api/v1/**` },
     '/web/**': { proxy: `${odoo}/web/**` },
     '/odoo/**': { proxy: `${odoo}/odoo/**` },
   },

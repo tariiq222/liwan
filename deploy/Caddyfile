@@ -1,7 +1,7 @@
 {$DOMAIN} {
 	encode zstd gzip
 
-	@odoo path /api/v1/* /web/* /odoo/* /json/* /doc/*
+	@odoo path /api/v1/* /web/* /odoo/* /json/* /doc/* /*/static/* /report/* /mail/*
 	handle @odoo {
 		reverse_proxy odoo:8069
 	}
