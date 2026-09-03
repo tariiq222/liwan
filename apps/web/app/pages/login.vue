@@ -7,13 +7,23 @@ const login = ref('')
 const password = ref('')
 const pending = ref(false)
 const errorMessage = ref<string | null>(null)
-// Guards the form so inputs/button stay disabled (and Playwright/native
-// interaction waits) until the client has hydrated — interacting before
-// hydration would otherwise race Vue's own v-model mount sync and either
-// fall through to a native, unhandled form submission or have typed values
-// clobbered when hydration reaches that node.
+// Guards the submit button until the client has hydrated: submitting before
+// hydration falls through to a native, unhandled form POST. The inputs stay
+// enabled so a password manager can fill the server-rendered form on first
+// paint — but v-model resets those nodes when hydration reaches them, so read
+// whatever is already in the DOM before that happens and adopt it.
 const mounted = ref(false)
-onMounted(() => { mounted.value = true })
+const prefilled: Record<string, string> = {}
+onBeforeMount(() => {
+  for (const id of ['login', 'password']) {
+    prefilled[id] = (document.getElementById(id) as HTMLInputElement | null)?.value ?? ''
+  }
+})
+onMounted(() => {
+  if (!login.value && prefilled.login) login.value = prefilled.login
+  if (!password.value && prefilled.password) password.value = prefilled.password
+  mounted.value = true
+})
 
 async function submit() {
   pending.value = true
@@ -42,11 +52,11 @@ async function submit() {
         <form class="grid gap-4" @submit.prevent="submit">
           <div class="grid gap-2">
             <Label for="login">اسم المستخدم</Label>
-            <Input id="login" v-model="login" autocomplete="username" required dir="ltr" class="text-start" :disabled="!mounted" />
+            <Input id="login" v-model="login" autocomplete="username" required dir="ltr" class="text-start" />
           </div>
           <div class="grid gap-2">
             <Label for="password">كلمة المرور</Label>
-            <Input id="password" v-model="password" type="password" autocomplete="current-password" required dir="ltr" :disabled="!mounted" />
+            <Input id="password" v-model="password" type="password" autocomplete="current-password" required dir="ltr" />
           </div>
           <p v-if="errorMessage" role="alert" class="text-sm text-destructive">{{ errorMessage }}</p>
           <Button type="submit" class="w-full" :disabled="pending || !mounted">دخول</Button>

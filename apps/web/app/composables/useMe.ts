@@ -7,14 +7,22 @@ export function isLoggedOutError(error: unknown): boolean {
   return (error as { statusCode?: number } | null | undefined)?.statusCode === 403
 }
 
+// A zod failure thrown inside `transform` reaches us as a plain Error with no
+// statusCode: the server answered, our contract no longer matches it. That is a
+// different fault from "the server is unreachable" and deserves its own message.
+export function isSchemaError(error: unknown): boolean {
+  const e = error as { statusCode?: number; name?: string; message?: string } | null | undefined
+  if (!e || e.statusCode) return false
+  return e.name === 'ZodError' || /ZodError|invalid/i.test(e.message ?? '')
+}
+
 export function useMe() {
   const headers = useRequestHeaders(['cookie'])
   const request = useFetch<Me | null>('/api/v1/me', {
     key: 'me',
     headers,
+    // 403 = not logged in: the request still errors, and `me` resolves to null below.
     transform: (raw) => (raw ? MeSchema.parse(raw) : null),
-    // 403 = not logged in; surface as null instead of an error
-    onResponseError({ response }) { if (response.status === 403) response._data = null },
   })
   const { data, refresh, error } = request
   const me = computed(() => (error.value ? null : data.value ?? null))

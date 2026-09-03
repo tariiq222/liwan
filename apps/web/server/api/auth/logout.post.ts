@@ -1,4 +1,5 @@
 export default defineEventHandler(async (event) => {
+  assertSameSiteJson(event)
   const { odooUrl } = useRuntimeConfig(event)
   const cookie = getHeader(event, 'cookie') ?? ''
   await fetch(`${odooUrl}/web/session/destroy`, {

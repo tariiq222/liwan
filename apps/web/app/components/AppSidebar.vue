@@ -8,7 +8,8 @@ const nav = computed(() => useNav(me.value?.role))
 const initials = computed(() => (me.value?.name ?? '?').trim().slice(0, 1))
 
 async function logout() {
-  await $fetch('/api/auth/logout', { method: 'POST' })
+  // body: {} so ofetch sets application/json — the endpoint rejects anything else.
+  await $fetch('/api/auth/logout', { method: 'POST', body: {} })
   await refreshNuxtData('me')
   await navigateTo('/login')
 }
