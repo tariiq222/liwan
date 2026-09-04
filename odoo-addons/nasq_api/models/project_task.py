@@ -34,6 +34,25 @@ class ProjectTask(models.Model):
         # a comment was added. Reuse the same partner-targeting logic as
         # write()/create() so a live comment refreshes the activity timeline
         # the same way any other task change does.
+        #
+        # _message_post_after_hook() is called unconditionally from
+        # message_post() (mail_thread.py) for every message it creates, not
+        # just manual comments. MailThread.write() defers tracking messages
+        # via _track_finalize() -> _message_track(), which itself calls
+        # record.message_post(...) whenever a tracked field resolves a
+        # subtype (e.g. this module's stage_id/state transitions). Without
+        # the guard below, a routine write() that changes such a field would
+        # notify twice for the same user action: once from write() above,
+        # once here for the tracking message write() triggered internally.
+        # Restrict this hook to genuine user comments.
+        #
+        # message.message_type (not msg_values.get('message_type')) is used
+        # here: the created `message` record is authoritative, and
+        # mail_thread.py itself doesn't fully trust msg_values to carry the
+        # key in every call context (see its own fallback, e.g.
+        # `msg_vals.get('message_type') or message.sudo().message_type` in
+        # _notify_thread_by_inbox).
         res = super()._message_post_after_hook(message, msg_values)
-        self._nasq_notify('updated')
+        if message.message_type == 'comment':
+            self._nasq_notify('updated')
         return res
