@@ -51,8 +51,14 @@ class TaskController(http.Controller):
             & Domain('is_closed', '=', closed in ('1', 'true', True))
         )
         if state:
-            codes = [API_TO_STATE[s] for s in str(state).split(',') if s in API_TO_STATE]
-            domain &= Domain('state', 'in', codes)
+            # Silently dropping an unknown value used to answer 200 with a list
+            # filtered by whatever was left — a typo'd filter looked like "no
+            # such tasks" instead of a bad request.
+            names = [s.strip() for s in str(state).split(',') if s.strip()]
+            unknown = [s for s in names if s not in API_TO_STATE]
+            if unknown:
+                raise ApiError(422, 'invalid', f"unknown state {unknown[0]!r}", field='state')
+            domain &= Domain('state', 'in', [API_TO_STATE[s] for s in names])
         if project_id:
             domain &= Domain('project_id', '=', int(project_id))
         if q:

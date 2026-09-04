@@ -155,6 +155,11 @@ class TestTaskWrite(NasqApiCase):
         self.assertEqual(res.json()['date_deadline'], '2030-01-15T09:00:00Z')
         self.assertEqual(res.json()['personal_stage']['id'], stages[1]['id'])
         self.assertFalse(res.json()['is_overdue'])
+        # Date.prototype.toISOString() always emits milliseconds — accepted,
+        # and normalised away in the stored (second-precision) value.
+        res = self.api('PATCH', f'/api/v1/tasks/{self.task_overdue.id}', {'date_deadline': '2030-02-20T09:30:00.000Z'})
+        self.assertEqual(res.status_code, 200, res.text)
+        self.assertEqual(res.json()['date_deadline'], '2030-02-20T09:30:00Z')
 
     def test_patch_empty_payload_is_422(self):
         self.authenticate('api_emp', 'api_emp_pass_123')
@@ -181,3 +186,51 @@ class TestTaskWrite(NasqApiCase):
         res = self.api('POST', f'/api/v1/tasks/{self.task_other.id}/transition', {'state': 'nope'})
         self.assertEqual(res.status_code, 422)
         self.assertEqual(res.json()['code'], 'invalid_state')
+
+    def test_patch_malformed_values_are_422_not_500(self):
+        """Every coercion in parse_task_vals must raise ApiError, not escape as a 500.
+
+        api_handler only maps ApiError/MissingError/AccessError/ValidationError/
+        UserError — a bare ValueError or AttributeError from int()/float()/
+        str.replace() propagated out as an HTTP 500 with no contract body.
+        """
+        self.authenticate('api_mgr', 'api_mgr_pass_123')
+        tid = self.task_other.id
+        for payload, field in (
+            ({'personal_stage_type_id': 'abc'}, 'personal_stage_type_id'),
+            ({'allocated_hours': 'x'}, 'allocated_hours'),
+            ({'date_deadline': 123}, 'date_deadline'),
+            # offset-bearing ISO: deadlines are UTC instants, so this is rejected
+            # rather than silently truncated to the wrong instant.
+            ({'date_deadline': '2030-01-15T09:00:00+03:00'}, 'date_deadline'),
+        ):
+            with self.subTest(payload=payload):
+                res = self.api('PATCH', f'/api/v1/tasks/{tid}', payload)
+                self.assertEqual(res.status_code, 422, res.text)
+                body = res.json()
+                self.assertEqual(body['code'], 'invalid')
+                self.assertEqual(body['field'], field)
+
+    def test_patch_rejects_another_users_personal_stage(self):
+        """personal_stage_type_id's domain is UI-only — the API must own the check."""
+        self.authenticate('api_mgr', 'api_mgr_pass_123')
+        manager_stages = self.api('GET', '/api/v1/me/personal-stages').json()
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        own_stages = self.api('GET', '/api/v1/me/personal-stages').json()
+        foreign = manager_stages[0]['id']
+        self.assertNotIn(foreign, [s['id'] for s in own_stages])
+        res = self.api('PATCH', f'/api/v1/tasks/{self.task_overdue.id}', {'personal_stage_type_id': foreign})
+        self.assertEqual(res.status_code, 422, res.text)
+        self.assertEqual(res.json()['code'], 'invalid')
+        self.assertEqual(res.json()['field'], 'personal_stage_type_id')
+        # ...and a stage id that does not exist at all is rejected the same way.
+        res = self.api('PATCH', f'/api/v1/tasks/{self.task_overdue.id}', {'personal_stage_type_id': 999999})
+        self.assertEqual(res.status_code, 422)
+        self.assertEqual(res.json()['field'], 'personal_stage_type_id')
+
+    def test_list_unknown_state_filter_is_422(self):
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        res = self.api('GET', '/api/v1/tasks?filter=mine&state=in_progress,bogus')
+        self.assertEqual(res.status_code, 422, res.text)
+        self.assertEqual(res.json()['code'], 'invalid')
+        self.assertEqual(res.json()['field'], 'state')

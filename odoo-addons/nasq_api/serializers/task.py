@@ -1,7 +1,8 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from datetime import date
+import re
 
 from odoo import fields
+from odoo.http import request
 
 from odoo.addons.nasq_api.controllers.common import ApiError
 from odoo.addons.nasq_api.serializers.common import iso
@@ -20,10 +21,21 @@ EMPLOYEE_FIELDS = {'name', 'description', 'date_deadline', 'priority', 'user_ids
 MANAGER_FIELDS = EMPLOYEE_FIELDS | {'allocated_hours'}
 
 
-def _days_remaining(task, today):
+def _today(task, today=None):
+    """The reader's calendar day.
+
+    `date.today()` is the *server process*' day, so for any user whose timezone
+    sits on the other side of midnight from the server every deadline count was
+    off by one. Deadlines are UTC instants (see TaskDetails.vue's setDeadline);
+    "today" is the requesting user's day.
+    """
+    return today or fields.Date.context_today(task)
+
+
+def _days_remaining(task, today=None):
     if not task.date_deadline:
         return None
-    return (task.date_deadline.date() - today).days
+    return (task.date_deadline.date() - _today(task, today)).days
 
 
 def _ref(record):
@@ -31,7 +43,7 @@ def _ref(record):
 
 
 def dump_task(task, today=None):
-    today = today or date.today()
+    today = _today(task, today)
     days = _days_remaining(task, today)
     stage = task.personal_stage_type_id
     return {
@@ -51,7 +63,7 @@ def dump_task(task, today=None):
 
 
 def dump_task_detail(task, today=None):
-    today = today or date.today()
+    today = _today(task, today)
     data = dump_task(task, today)
     start = task.date_assign or task.create_date
     cycle = (task.date_end - start).days if task.is_closed and task.date_end and start else None
@@ -73,6 +85,52 @@ def dump_task_detail(task, today=None):
     return data
 
 
+def _parse_deadline(value, key):
+    """Coerce an ISO 8601 *UTC* deadline into a naive UTC datetime.
+
+    Deadlines are UTC instants, so the only accepted shapes are `...Z` (what
+    the client sends) and a bare `YYYY-MM-DD[ HH:MM:SS]`. An offset-bearing
+    string ("2030-01-15T09:00:00+03:00") is rejected rather than silently
+    truncated to the wrong instant. Every failure mode here — a non-string, a
+    malformed string, an offset — used to escape `api_handler` as a raw
+    ValueError/AttributeError and surface as a 500.
+    """
+    if not value:
+        return False
+    if not isinstance(value, str):
+        raise ApiError(422, 'invalid', "date_deadline must be an ISO 8601 UTC datetime string", field=key)
+    text = value.strip().replace('T', ' ')
+    if text.endswith('Z'):
+        text = text[:-1]
+    # Date.prototype.toISOString() always emits milliseconds; Odoo's
+    # to_datetime does not accept them. Anything else left over (notably a
+    # '+03:00' offset) still fails below, which is the point.
+    text = re.sub(r'\.\d+$', '', text)
+    try:
+        return fields.Datetime.to_datetime(text)
+    except (TypeError, ValueError) as e:
+        raise ApiError(422, 'invalid', "date_deadline must be an ISO 8601 UTC datetime string", field=key) from e
+
+
+def _parse_personal_stage(value, key):
+    """Coerce + authorise a personal stage id.
+
+    `personal_stage_type_id`'s `domain="[('user_id','=',uid)]"` is a UI-only
+    hint: nothing in the ORM stops a direct PATCH from pointing the field at
+    another user's personal stage, so the ownership check has to live here.
+    """
+    if not value:
+        return False
+    try:
+        stage_id = int(value)
+    except (TypeError, ValueError) as e:
+        raise ApiError(422, 'invalid', "personal_stage_type_id must be a personal stage id", field=key) from e
+    stage = request.env['project.task.type'].sudo().browse(stage_id).exists()
+    if not stage or stage.user_id.id != request.env.uid:
+        raise ApiError(422, 'invalid', "personal_stage_type_id must be one of your own personal stages", field=key)
+    return stage.id
+
+
 def parse_task_vals(payload, can_manage):
     """Whitelist + coerce a PATCH payload into ORM vals. Raises ApiError(422)."""
     allowed = MANAGER_FIELDS if can_manage else EMPLOYEE_FIELDS
@@ -81,7 +139,7 @@ def parse_task_vals(payload, can_manage):
         if key not in allowed:
             raise ApiError(422, 'unknown_field', f"field {key!r} is not writable", field=key)
         if key == 'date_deadline':
-            vals[key] = fields.Datetime.to_datetime(value.replace('Z', '').replace('T', ' ')) if value else False
+            vals[key] = _parse_deadline(value, key)
         elif key == 'priority':
             if value not in ('0', '1', '2', '3'):
                 raise ApiError(422, 'invalid', "priority must be one of '0'..'3'", field=key)
@@ -91,9 +149,14 @@ def parse_task_vals(payload, can_manage):
                 raise ApiError(422, 'invalid', f"{key} must be a list of ids", field=key)
             vals[key] = [(6, 0, value)]
         elif key == 'personal_stage_type_id':
-            vals[key] = int(value) if value else False
+            vals[key] = _parse_personal_stage(value, key)
         elif key == 'allocated_hours':
-            vals[key] = float(value or 0)
+            # float() raises ValueError on 'x' and TypeError on a list/dict;
+            # both must surface as the contract's 422 shape, not a 500.
+            try:
+                vals[key] = float(value or 0)
+            except (TypeError, ValueError) as e:
+                raise ApiError(422, 'invalid', "allocated_hours must be a number", field=key) from e
         elif key == 'name':
             if not isinstance(value, str) or not value.strip():
                 raise ApiError(422, 'invalid', "name must not be empty", field=key)

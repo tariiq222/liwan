@@ -1,6 +1,4 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from odoo import tools
-
 from odoo.addons.nasq_api.serializers.common import iso
 
 
@@ -28,8 +26,9 @@ def dump_message(message):
             'old': _display(t, new=False),
             'new': _display(t, new=True),
         } for t in tracking]
-        if message.body and not tools.is_html_empty(message.body):
-            base['body_html'] = message.body
+        # No body_html on a tracking entry: Timeline.vue renders `changes` for
+        # `kind === 'tracking'` and never reads body_html there, so emitting it
+        # only shipped unrendered (and unsanitised-on-the-client) markup.
     else:
         base['kind'] = 'comment'
         base['body_html'] = message.body
