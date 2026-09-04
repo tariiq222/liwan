@@ -11,7 +11,6 @@ import StateBadge from './StateBadge.vue'
 // so `canApprove` defaults to true here and the server is the real gate —
 // a 403 `transition_forbidden` surfaces as a toast instead of hiding items.
 const props = withDefaults(defineProps<{ task: Task; canApprove?: boolean }>(), { canApprove: true })
-const emit = defineEmits<{ transition: [state: TaskState] }>()
 
 const { t } = useI18n()
 const { mutate, isPending } = useTransitionTask()
@@ -19,12 +18,13 @@ const { mutate, isPending } = useTransitionTask()
 const states = computed(() => nextStates(props.task.state, props.canApprove))
 
 function onSelect(state: TaskState) {
-  emit('transition', state)
   mutate(
     { id: props.task.id, state },
     {
       onError: (err) => {
         if (err instanceof ApiError && err.code === 'transition_forbidden') toast.error(t('tasks.transition.forbidden'))
+        else if (err instanceof ApiError) toast.error(err.message)
+        else toast.error(t('errors.generic'))
       },
     },
   )

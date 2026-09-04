@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Task, TaskState } from '@nasq/contracts'
+import type { Task } from '@nasq/contracts'
 import { FlexRender, createColumnHelper, getCoreRowModel, useVueTable } from '@tanstack/vue-table'
 import { h } from 'vue'
 import type { TaskListParams } from '@/composables/useTasks'
@@ -11,7 +11,6 @@ import StateMenu from './StateMenu.vue'
 const props = defineProps<{ params: TaskListParams }>()
 const emit = defineEmits<{
   open: [id: number]
-  transition: [payload: { id: number; state: TaskState }]
   create: []
 }>()
 
@@ -23,8 +22,16 @@ const { data, isLoading, hasNextPage, fetchNextPage, isFetchingNextPage } = useT
 const items = computed<Task[]>(() => data.value?.pages.flatMap((page) => page.items) ?? [])
 // A search/state/project filter yielding zero rows is a different situation
 // from genuinely having no tasks — the empty state (with a "create" action)
-// only makes sense when nothing is filtered out.
+// only makes sense when nothing is filtered out. `closed` is a tab, not a
+// filter in that sense, but an empty closed tab still isn't "no tasks
+// assigned to you" (that copy — and its create action — belongs to the open
+// tab only) so it gets its own message and no create action.
 const hasActiveFilters = computed(() => !!props.params.q || !!props.params.project_id || !!props.params.state?.length)
+const emptyTitleKey = computed(() => {
+  if (hasActiveFilters.value) return 'app.noResults'
+  return props.params.closed ? 'tasks.empty.closedTitle' : 'tasks.empty.title'
+})
+const showCreateAction = computed(() => !hasActiveFilters.value && !props.params.closed)
 
 const columnHelper = createColumnHelper<Task>()
 const columns = [
@@ -40,11 +47,7 @@ const columns = [
   columnHelper.display({
     id: 'state',
     header: () => t('tasks.columns.state'),
-    cell: (info) =>
-      h(StateMenu, {
-        task: info.row.original,
-        onTransition: (state: TaskState) => emit('transition', { id: info.row.original.id, state }),
-      }),
+    cell: (info) => h(StateMenu, { task: info.row.original }),
   }),
   columnHelper.display({
     id: 'deadline',
@@ -123,8 +126,8 @@ function onRowClick(task: Task, event: MouseEvent) {
           </template>
           <TableEmpty v-else-if="items.length === 0" :colspan="columns.length">
             <div class="flex flex-col items-center gap-2 text-center">
-              <p class="text-muted-foreground">{{ hasActiveFilters ? t('app.noResults') : t('tasks.empty.title') }}</p>
-              <Button v-if="!hasActiveFilters" size="sm" @click="emit('create')">{{ t('tasks.empty.action') }}</Button>
+              <p class="text-muted-foreground">{{ t(emptyTitleKey) }}</p>
+              <Button v-if="showCreateAction" size="sm" @click="emit('create')">{{ t('tasks.empty.action') }}</Button>
             </div>
           </TableEmpty>
           <template v-else>

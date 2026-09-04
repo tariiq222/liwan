@@ -9,7 +9,7 @@
     "title": "My tasks", "table": "Table", "board": "Board", "new": "New task", "newTitle": "Task title", "project": "Project",
     "columns": { "title": "Title", "project": "Project", "state": "State", "deadline": "Deadline", "priority": "Priority", "stage": "Stage" },
     "filters": { "open": "Open", "closed": "Done", "allStates": "All states", "allProjects": "All projects", "search": "Search titles…" },
-    "empty": { "title": "No tasks assigned to you", "action": "Create task" },
+    "empty": { "title": "No tasks assigned to you", "action": "Create task", "closedTitle": "No completed tasks yet" },
     "state": { "in_progress": "In progress", "changes_requested": "Changes requested", "approved": "Approved", "waiting": "Waiting", "done": "Done", "cancelled": "Cancelled" },
     "priority": { "0": "Normal", "1": "Important", "2": "High", "3": "Urgent" },
     "deadline": { "none": "No deadline", "today": "Today", "tomorrow": "Tomorrow", "inDays": "In {n} days", "overdueDays": "{n} days overdue" },

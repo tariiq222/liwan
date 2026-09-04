@@ -30,3 +30,42 @@ test('inline transition to done moves the task to the closed filter', async ({ p
   await page.getByRole('tab', { name: 'منجزة' }).click()
   await expect(page.getByRole('row', { name: new RegExp(name) })).toBeVisible()
 })
+test('closed tab shows a closed-specific empty state with no create action', async ({ page }) => {
+  await login(page)
+  await page.goto('/tasks')
+  await expect(page.getByRole('heading', { name: 'مهامي' })).toBeVisible()
+  // The heading is SSR-rendered and visible before Nuxt finishes hydrating,
+  // so a plain click can land before the tab's listener is attached and be
+  // silently dropped. Retry the click until the tab actually registers as
+  // selected instead of assuming the first click always lands post-hydration.
+  const closedTab = page.getByRole('tab', { name: 'منجزة' })
+  await expect(async () => {
+    await closedTab.click()
+    await expect(closedTab).toHaveAttribute('aria-selected', 'true')
+  }).toPass()
+  // Filtered case: a nonsense search on the closed tab is unambiguous — "no
+  // results", not "no completed tasks" — regardless of what earlier tests
+  // left behind.
+  await page.getByPlaceholder('بحث في العناوين…').fill('zzz-no-such-closed-task')
+  await expect(page.getByText('لا نتائج.')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'إنشاء مهمة' })).toHaveCount(0)
+  // Clear the search: whether or not closed tasks exist (earlier e2e runs
+  // create them), the create action must stay hidden on the closed tab; the
+  // closed-empty copy only applies when the row count is actually zero.
+  await page.getByPlaceholder('بحث في العناوين…').fill('')
+  await expect(page.getByRole('button', { name: 'إنشاء مهمة' })).toHaveCount(0)
+  // Data rows carry a StateMenu trigger button; the empty-state row does
+  // not (its only button, when present, is the create action already
+  // asserted absent above) — this distinguishes "0 closed tasks" from "1+
+  // closed tasks" without depending on run order across the suite.
+  const dataRows = page.locator('tbody tr').filter({ has: page.getByRole('button') })
+  // The search clear is debounced (300ms) and then refetched; poll instead
+  // of reading the count immediately, which would still see the "zzz…"
+  // filtered (empty) result and race the settled state.
+  await expect
+    .poll(async () => (await dataRows.count()) > 0 || (await page.getByText('لا مهام منجزة بعد').isVisible()))
+    .toBe(true)
+  if ((await dataRows.count()) === 0) {
+    await expect(page.getByText('لا مهام منجزة بعد')).toBeVisible()
+  }
+})

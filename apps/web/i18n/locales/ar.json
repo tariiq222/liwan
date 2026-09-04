@@ -9,7 +9,7 @@
     "title": "مهامي", "table": "جدول", "board": "لوحة", "new": "مهمة جديدة", "newTitle": "عنوان المهمة", "project": "المشروع",
     "columns": { "title": "العنوان", "project": "المشروع", "state": "الحالة", "deadline": "الموعد", "priority": "الأولوية", "stage": "المرحلة" },
     "filters": { "open": "مفتوحة", "closed": "منجزة", "allStates": "كل الحالات", "allProjects": "كل المشاريع", "search": "بحث في العناوين…" },
-    "empty": { "title": "لا مهام مسندة إليك", "action": "إنشاء مهمة" },
+    "empty": { "title": "لا مهام مسندة إليك", "action": "إنشاء مهمة", "closedTitle": "لا مهام منجزة بعد" },
     "state": { "in_progress": "قيد التنفيذ", "changes_requested": "تعديلات مطلوبة", "approved": "معتمد", "waiting": "بانتظار", "done": "منجز", "cancelled": "ملغى" },
     "priority": { "0": "عادية", "1": "مهمة", "2": "عالية", "3": "عاجلة" },
     "deadline": { "none": "بلا موعد", "today": "اليوم", "tomorrow": "غدًا", "inDays": "خلال {n} يوم", "overdueDays": "متأخرة {n} يوم" },
