@@ -6,7 +6,7 @@
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
     'license': 'LGPL-3',
-    'depends': ['nasq_core', 'nasq_pmo'],
+    'depends': ['nasq_core', 'nasq_pmo', 'auth_totp', 'bus'],
     'installable': True,
     'application': False,
 }

@@ -7,4 +7,5 @@ from . import (
     test_personal_stages,
     test_tasks,
     test_timeline,
+    test_totp,
 )
