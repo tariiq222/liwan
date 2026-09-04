@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ChevronLeft, ChevronRight, X } from 'lucide-vue-next'
+import { useTaskFilters } from '@/composables/useTaskFilters'
 import { useTask, useTaskSiblings, useUpdateTask } from '@/composables/useTasks'
 import DeadlineBadge from './DeadlineBadge.vue'
 import StateMenu from './StateMenu.vue'
@@ -24,7 +25,11 @@ const isDesktop = useMediaQuery('(min-width: 768px)', { ssrWidth: 1024 })
 
 const idRef = computed(() => props.taskId)
 const { data: task } = useTask(idRef)
-const siblings = useTaskSiblings(idRef)
+// Same localStorage-backed filters ref the table itself queries with, so
+// prev/next reads the cache entry for the filter actually visible behind
+// this modal rather than whichever list happened to be cached first.
+const filterParams = useTaskFilters()
+const siblings = useTaskSiblings(idRef, filterParams)
 const { mutate: updateTask } = useUpdateTask()
 
 const titleDraft = ref('')
@@ -112,7 +117,7 @@ useEventListener(document, 'keydown', onKeydown)
       -->
       <div v-if="isDesktop" class="grid flex-1 overflow-hidden md:grid-cols-[minmax(0,1fr)_380px]">
         <div class="overflow-y-auto p-4">
-          <TaskDetails :task="task" />
+          <TaskDetails :key="task.id" :task="task" />
         </div>
         <!-- Activity feed: Task 11 fills this placeholder with <TaskActivity>. -->
         <div class="overflow-y-auto border-s p-4" />
@@ -124,7 +129,7 @@ useEventListener(document, 'keydown', onKeydown)
           <TabsTrigger value="activity">{{ t('tasks.drawer.activity') }}</TabsTrigger>
         </TabsList>
         <TabsContent value="details" class="flex-1 overflow-y-auto p-4">
-          <TaskDetails :task="task" />
+          <TaskDetails :key="task.id" :task="task" />
         </TabsContent>
         <!-- Task 11 placeholder, mirrors the md+ column above. -->
         <TabsContent value="activity" class="flex-1 overflow-y-auto p-4" />

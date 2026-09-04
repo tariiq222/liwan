@@ -3,16 +3,24 @@ import Link from '@tiptap/extension-link'
 import StarterKit from '@tiptap/starter-kit'
 import { EditorContent, useEditor } from '@tiptap/vue-3'
 import { Bold, Italic, Link as LinkIcon, List, ListOrdered } from 'lucide-vue-next'
+import { createDebouncedFlush } from '@/lib/debouncedFlush'
 
 // Tiptap StarterKit + Link, rendered client-only (SSR has no DOM for
 // ProseMirror). Round-trips Odoo HTML: modelValue is the field's raw HTML,
 // and every change is pushed back out debounced 800ms via getHTML().
-const props = defineProps<{ modelValue: string }>()
-const emit = defineEmits<{ 'update:modelValue': [string] }>()
+//
+// `taskId` identifies which task the current `modelValue`/edits belong to.
+// Vue Router/Nuxt can reuse this component instance across a /tasks/A ->
+// /tasks/B navigation (same component at the same position in the tree), so
+// a pending debounced edit from A must not survive to fire 800ms later
+// against B — see flush() below and the parent's :key="task.id", which is
+// belt-and-braces with this fix, not a replacement for it.
+const props = defineProps<{ modelValue: string; taskId: number }>()
+const emit = defineEmits<{ 'update:modelValue': [{ html: string; taskId: number }] }>()
 
 const { t } = useI18n()
 
-let debounceTimer: ReturnType<typeof setTimeout> | undefined
+const buffer = createDebouncedFlush<{ html: string; taskId: number }>(800, (value) => emit('update:modelValue', value))
 
 const editor = useEditor({
   content: props.modelValue,
@@ -26,8 +34,10 @@ const editor = useEditor({
     },
   },
   onUpdate: ({ editor: ed }) => {
-    if (debounceTimer) clearTimeout(debounceTimer)
-    debounceTimer = setTimeout(() => emit('update:modelValue', ed.getHTML()), 800)
+    // Capture the task this edit belongs to at schedule time, not read it
+    // later from (possibly-by-then-stale) props — so flush() always emits
+    // against the right task regardless of when it actually runs.
+    buffer.schedule({ html: ed.getHTML(), taskId: props.taskId })
   },
 })
 
@@ -42,8 +52,18 @@ watch(
   },
 )
 
+// Belt-and-braces with the parent's :key="task.id" (which normally makes
+// this whole component remount on task change, hitting onBeforeUnmount
+// below instead): if this instance is ever reused across a task change
+// anyway, flush the pending edit *before* it starts rendering the new task.
+watch(
+  () => props.taskId,
+  () => buffer.flush(),
+  { flush: 'pre' },
+)
+
 onBeforeUnmount(() => {
-  if (debounceTimer) clearTimeout(debounceTimer)
+  buffer.flush()
   editor.value?.destroy()
 })
 
@@ -62,7 +82,7 @@ function toggleOrderedList() {
 function toggleLink() {
   const previous = editor.value?.getAttributes('link').href as string | undefined
   // eslint-disable-next-line no-alert
-  const url = window.prompt(t('tasks.drawer.description'), previous ?? 'https://')
+  const url = window.prompt(t('tasks.detail.linkPrompt'), previous ?? 'https://')
   if (url === null) return
   if (!url) editor.value?.chain().focus().unsetLink().run()
   else editor.value?.chain().focus().extendMarkRange('link').setLink({ href: url }).run()

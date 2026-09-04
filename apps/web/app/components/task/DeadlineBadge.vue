@@ -29,5 +29,5 @@ const label = computed(() => deadlineLabel(props.daysRemaining, t))
 </script>
 
 <template>
-  <Badge variant="outline" :class="TONE_CLASS[tone]">{{ label }}</Badge>
+  <Badge variant="outline" data-testid="deadline-badge" :class="TONE_CLASS[tone]">{{ label }}</Badge>
 </template>

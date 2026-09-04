@@ -132,16 +132,21 @@ export function useTransitionTask() {
 }
 
 // Prev/next for the detail modal: looks across every cached list query
-// (any filter/tab), takes the first one that actually contains `currentId`,
-// and returns the neighbouring ids in that list's order. Both null when the
-// list was never fetched in this session (e.g. a direct /tasks/123 load) or
+// (the exact cache entry for `params` first — the filter actually visible
+// behind the modal — falling back to a broad scan across every cached list
+// query only when that exact entry isn't cached, e.g. a direct /tasks/123
+// load that never went through the table with these params). Returns the
+// neighbouring ids in that list's order; both null when nothing matches or
 // the id sits at an end of the list.
-export function useTaskSiblings(currentId: Ref<number>) {
+export function useTaskSiblings(currentId: Ref<number>, params: Ref<TaskListParams>) {
   const qc = useQueryClient()
   return computed<{ prevId: number | null; nextId: number | null }>(() => {
     const id = currentId.value
-    const matches = qc.getQueriesData<{ pages: { items: Task[]; total: number }[] }>({ queryKey: ['tasks', 'list'] })
-    for (const [, data] of matches) {
+    const exact = qc.getQueryData<{ pages: { items: Task[]; total: number }[] }>(taskKeys.list(params.value))
+    const candidates = exact
+      ? [exact]
+      : qc.getQueriesData<{ pages: { items: Task[]; total: number }[] }>({ queryKey: ['tasks', 'list'] }).map(([, data]) => data)
+    for (const data of candidates) {
       if (!data) continue
       const items = data.pages.flatMap((p) => p.items)
       const idx = items.findIndex((t) => t.id === id)

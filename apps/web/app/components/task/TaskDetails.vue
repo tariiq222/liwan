@@ -89,8 +89,12 @@ function onHoursChange() {
 }
 
 // --- description ---------------------------------------------------------
-function onDescriptionChange(html: string) {
-  patch({ description: html })
+// Addressed to the task id the editor captured *at typing time*, not the
+// live `props.task.id` — with a prev/next navigation this closure can still
+// be running (a flush fired during unmount) after `task` has already moved
+// on to another id, so a live read would misdirect the PATCH.
+function onDescriptionChange({ html, taskId }: { html: string; taskId: number }) {
+  updateTask({ id: taskId, patch: { description: html } })
 }
 
 // --- metrics ---------------------------------------------------------------
@@ -166,7 +170,7 @@ const updatedLabel = computed(() => dateTimeFmt.format(new Date(props.task.updat
 
     <section class="space-y-2">
       <Label>{{ t('tasks.drawer.description') }}</Label>
-      <DescriptionEditor :model-value="task.description_html" @update:model-value="onDescriptionChange" />
+      <DescriptionEditor :model-value="task.description_html" :task-id="task.id" @update:model-value="onDescriptionChange" />
     </section>
 
     <Separator />

@@ -2,7 +2,7 @@
 import CreateTaskDialog from '@/components/task/CreateTaskDialog.vue'
 import TaskTable from '@/components/task/TaskTable.vue'
 import TaskToolbar from '@/components/task/TaskToolbar.vue'
-import type { TaskListParams } from '@/composables/useTasks'
+import { useTaskFilters } from '@/composables/useTaskFilters'
 
 const route = useRoute()
 const router = useRouter()
@@ -20,9 +20,10 @@ function openTask(id: number) {
   router.push({ path: `/tasks/${id}`, query: route.query })
 }
 
-// Filters persist per browser, per the toolbar's contract; `mergeDefaults`
-// means a stored value from before a new filter field existed still works.
-const params = useLocalStorage<TaskListParams>('nasq.tasks.filters', { closed: false }, { mergeDefaults: true })
+// Filters persist per browser, per the toolbar's contract; useTaskFilters
+// centralizes the localStorage key/defaults so the detail modal's prev/next
+// lookup can read the exact same cache entry this table queries with.
+const params = useTaskFilters()
 
 const createOpen = ref(false)
 </script>
