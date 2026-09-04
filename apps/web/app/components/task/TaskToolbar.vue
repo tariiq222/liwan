@@ -6,7 +6,7 @@ import type { TaskListParams } from '@/composables/useTasks'
 import { STATE_LABEL_KEY } from '@/composables/taskState'
 import { useProjects } from '@/composables/useProjects'
 
-const props = defineProps<{ modelValue: TaskListParams }>()
+const props = defineProps<{ modelValue: TaskListParams; hideProjectFilter?: boolean }>()
 const emit = defineEmits<{ 'update:modelValue': [TaskListParams]; create: [] }>()
 const { t } = useI18n()
 // Every control below is SSR-rendered and visible/clickable before Nuxt
@@ -78,18 +78,20 @@ watch(
       </DropdownMenuContent>
     </DropdownMenu>
 
-    <Select
-      :model-value="modelValue.project_id ? String(modelValue.project_id) : 'all'"
-      @update:model-value="(v) => patch({ project_id: v === 'all' ? undefined : Number(v) })"
-    >
-      <SelectTrigger size="sm" class="w-40" :disabled="!hydrated">
-        <SelectValue :placeholder="t('tasks.filters.allProjects')" />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value="all">{{ t('tasks.filters.allProjects') }}</SelectItem>
-        <SelectItem v-for="p in projects ?? []" :key="p.id" :value="String(p.id)">{{ p.name }}</SelectItem>
-      </SelectContent>
-    </Select>
+    <template v-if="!hideProjectFilter">
+      <Select
+        :model-value="modelValue.project_id ? String(modelValue.project_id) : 'all'"
+        @update:model-value="(v) => patch({ project_id: v === 'all' ? undefined : Number(v) })"
+      >
+        <SelectTrigger size="sm" class="w-40" :disabled="!hydrated">
+          <SelectValue :placeholder="t('tasks.filters.allProjects')" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">{{ t('tasks.filters.allProjects') }}</SelectItem>
+          <SelectItem v-for="p in projects ?? []" :key="p.id" :value="String(p.id)">{{ p.name }}</SelectItem>
+        </SelectContent>
+      </Select>
+    </template>
 
     <div class="relative min-w-48 flex-1">
       <Search class="pointer-events-none absolute start-2 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />

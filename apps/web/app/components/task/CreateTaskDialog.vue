@@ -3,7 +3,7 @@ import { ApiError } from '@/composables/useApi'
 import { useProjects } from '@/composables/useProjects'
 import { useCreateTask } from '@/composables/useTasks'
 
-const props = defineProps<{ open: boolean }>()
+const props = defineProps<{ open: boolean; projectId?: number }>()
 const emit = defineEmits<{ 'update:open': [boolean]; created: [id: number] }>()
 
 const { t } = useI18n()
@@ -22,10 +22,12 @@ watch(
   (isOpen) => {
     if (!isOpen) return
     name.value = ''
-    projectId.value = projects.value?.[0]?.id
+    projectId.value = props.projectId ?? projects.value?.[0]?.id
     error.value = null
   },
 )
+
+const lockedProjectName = computed(() => projects.value?.find((p) => p.id === props.projectId)?.name ?? '')
 
 async function submit() {
   error.value = null
@@ -53,7 +55,8 @@ async function submit() {
         </div>
         <div class="grid gap-2">
           <Label for="new-task-project">{{ t('tasks.project') }}</Label>
-          <Select :model-value="projectId ? String(projectId) : undefined" @update:model-value="(v) => (projectId = v ? Number(v) : undefined)">
+          <p v-if="props.projectId" id="new-task-project" class="text-sm">{{ lockedProjectName }}</p>
+          <Select v-else :model-value="projectId ? String(projectId) : undefined" @update:model-value="(v) => (projectId = v ? Number(v) : undefined)">
             <SelectTrigger id="new-task-project" class="w-full">
               <SelectValue :placeholder="t('tasks.project')" />
             </SelectTrigger>

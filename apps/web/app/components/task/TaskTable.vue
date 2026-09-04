@@ -8,7 +8,7 @@ import DeadlineBadge from './DeadlineBadge.vue'
 import PrioritySelect from './PrioritySelect.vue'
 import StateMenu from './StateMenu.vue'
 
-const props = defineProps<{ params: TaskListParams }>()
+const props = withDefaults(defineProps<{ params: TaskListParams; variant?: 'mine' | 'project' }>(), { variant: 'mine' })
 const emit = defineEmits<{
   open: [id: number]
   create: []
@@ -32,7 +32,9 @@ const items = computed<Task[]>(() => data.value?.pages.flatMap((page) => page.it
 // filter in that sense, but an empty closed tab still isn't "no tasks
 // assigned to you" (that copy — and its create action — belongs to the open
 // tab only) so it gets its own message and no create action.
-const hasActiveFilters = computed(() => !!props.params.q || !!props.params.project_id || !!props.params.state?.length)
+const hasActiveFilters = computed(
+  () => !!props.params.q || (props.variant === 'mine' && !!props.params.project_id) || !!props.params.state?.length,
+)
 const emptyTitleKey = computed(() => {
   if (hasActiveFilters.value) return 'app.noResults'
   return props.params.closed ? 'tasks.empty.closedTitle' : 'tasks.empty.title'
@@ -40,48 +42,70 @@ const emptyTitleKey = computed(() => {
 const showCreateAction = computed(() => !hasActiveFilters.value && !props.params.closed)
 
 const columnHelper = createColumnHelper<Task>()
-const columns = [
-  columnHelper.accessor('name', {
-    id: 'title',
-    header: () => t('tasks.columns.title'),
-  }),
-  columnHelper.display({
-    id: 'project',
-    header: () => t('tasks.columns.project'),
-    cell: (info) => info.row.original.project?.name ?? '—',
-  }),
-  columnHelper.display({
-    id: 'state',
-    header: () => t('tasks.columns.state'),
-    cell: (info) => h(StateMenu, { task: info.row.original }),
-  }),
-  columnHelper.display({
-    id: 'deadline',
-    header: () => t('tasks.columns.deadline'),
-    cell: (info) =>
-      h(DeadlineBadge, {
-        deadline: info.row.original.date_deadline,
-        daysRemaining: info.row.original.days_remaining,
-        isClosed: info.row.original.is_closed,
-      }),
-  }),
-  columnHelper.display({
-    id: 'priority',
-    header: () => t('tasks.columns.priority'),
-    cell: (info) => h(PrioritySelect, { task: info.row.original }),
-  }),
-  columnHelper.display({
-    id: 'stage',
-    header: () => t('tasks.columns.stage'),
-    cell: (info) => info.row.original.personal_stage?.name ?? '—',
-  }),
-]
+const titleColumn = columnHelper.accessor('name', {
+  id: 'title',
+  header: () => t('tasks.columns.title'),
+})
+const projectColumn = columnHelper.display({
+  id: 'project',
+  header: () => t('tasks.columns.project'),
+  cell: (info) => info.row.original.project?.name ?? '—',
+})
+const stateColumn = columnHelper.display({
+  id: 'state',
+  header: () => t('tasks.columns.state'),
+  cell: (info) => h(StateMenu, { task: info.row.original }),
+})
+const deadlineColumn = columnHelper.display({
+  id: 'deadline',
+  header: () => t('tasks.columns.deadline'),
+  cell: (info) =>
+    h(DeadlineBadge, {
+      deadline: info.row.original.date_deadline,
+      daysRemaining: info.row.original.days_remaining,
+      isClosed: info.row.original.is_closed,
+    }),
+})
+const priorityColumn = columnHelper.display({
+  id: 'priority',
+  header: () => t('tasks.columns.priority'),
+  cell: (info) => h(PrioritySelect, { task: info.row.original }),
+})
+const personalStageColumn = columnHelper.display({
+  id: 'stage',
+  header: () => t('tasks.columns.stage'),
+  cell: (info) => info.row.original.personal_stage?.name ?? '—',
+})
+const projectStageColumn = columnHelper.display({
+  id: 'stage',
+  header: () => t('tasks.columns.stage'),
+  cell: (info) => info.row.original.stage?.name ?? '—',
+})
+const assigneesColumn = columnHelper.display({
+  id: 'assignees',
+  header: () => t('tasks.columns.assignees'),
+  cell: (info) => h('span', { class: 'truncate text-xs text-muted-foreground' }, info.row.original.assignees.map((a) => a.name).join('، ')),
+})
+
+const columns = computed(() =>
+  props.variant === 'project'
+    ? [titleColumn, stateColumn, projectStageColumn, deadlineColumn, priorityColumn, assigneesColumn]
+    : [titleColumn, projectColumn, stateColumn, deadlineColumn, priorityColumn, personalStageColumn],
+)
+
+const colgroupClasses = computed(() =>
+  props.variant === 'project'
+    ? ['w-[46%]', 'w-[12%]', 'w-[12%]', 'w-[10%]', 'w-[8%]', 'w-[12%]']
+    : ['w-[52%]', 'w-[12%]', 'w-[10%]', 'w-[10%]', 'w-[10%]', 'w-[6%]'],
+)
 
 const table = useVueTable({
   get data() {
     return items.value
   },
-  columns,
+  get columns() {
+    return columns.value
+  },
   getCoreRowModel: getCoreRowModel(),
 })
 
@@ -109,12 +133,7 @@ function onRowClick(task: Task, event: MouseEvent) {
           instead of landing on the narrower state/priority controls.
         -->
         <colgroup>
-          <col class="w-[52%]" />
-          <col class="w-[12%]" />
-          <col class="w-[10%]" />
-          <col class="w-[10%]" />
-          <col class="w-[10%]" />
-          <col class="w-[6%]" />
+          <col v-for="(cls, i) in colgroupClasses" :key="i" :class="cls" />
         </colgroup>
         <TableHeader>
           <TableRow v-for="headerGroup in table.getHeaderGroups()" :key="headerGroup.id">
