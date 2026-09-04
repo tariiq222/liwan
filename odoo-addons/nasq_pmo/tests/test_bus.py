@@ -36,7 +36,7 @@ class TestTaskBus(TransactionCase):
         # project.task's own create() override writes computed fields (e.g.
         # date_assign, when user_ids is set at creation) back onto the new
         # record via a plain task.write(...) call made *inside* create(),
-        # before nasq_api's create() override gets to call
+        # before nasq_pmo's create() override gets to call
         # _nasq_notify('created') on the result. So a create() with
         # user_ids set legitimately queues both an 'updated' triple (from
         # that internal write()) and a 'created' triple (from create()

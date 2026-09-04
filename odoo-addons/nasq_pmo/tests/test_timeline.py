@@ -1,11 +1,11 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo.tests import tagged
 
-from .common import NasqApiCase
+from .common import NasqPmoCase
 
 
 @tagged('post_install', '-at_install', 'nasq')
-class TestTimeline(NasqApiCase):
+class TestTimeline(NasqPmoCase):
 
     def test_comment_then_timeline_mixes_tracking(self):
         self.authenticate('api_emp', 'api_emp_pass_123')

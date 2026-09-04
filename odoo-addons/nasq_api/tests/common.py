@@ -1,11 +1,14 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from datetime import timedelta
-
-from odoo import fields
 from odoo.tests import HttpCase, new_test_user
 
 
 class NasqApiCase(HttpCase):
+    """Shared HTTP fixture: the two nasq roles plus a JSON ``api()`` helper.
+
+    Holds nothing pillar-specific — a pillar addon subclasses this and adds
+    its own records (see ``nasq_pmo/tests/common.py``) so the pillars never
+    write to this file.
+    """
 
     @classmethod
     def setUpClass(cls):
@@ -14,19 +17,6 @@ class NasqApiCase(HttpCase):
                                      name='Sara', groups='nasq_core.group_employee')
         cls.manager = new_test_user(cls.env, login='api_mgr', password='api_mgr_pass_123',
                                     name='Mona', groups='nasq_core.group_employee,project.group_project_manager')
-        cls.project = cls.env['project.project'].create({'name': 'Erada Portal'})
-        now = fields.Datetime.now()
-        cls.task_overdue = cls.env['project.task'].create({
-            'name': 'Overdue task', 'project_id': cls.project.id,
-            'user_ids': [(4, cls.employee.id)], 'date_deadline': now - timedelta(days=3), 'priority': '1',
-        })
-        cls.task_done = cls.env['project.task'].create({
-            'name': 'Done task', 'project_id': cls.project.id,
-            'user_ids': [(4, cls.employee.id)], 'state': '1_done',
-        })
-        cls.task_other = cls.env['project.task'].create({
-            'name': 'Someone else', 'project_id': cls.project.id, 'user_ids': [(4, cls.manager.id)],
-        })
 
     def api(self, method, path, json=None):
         headers = {'Content-Type': 'application/json'}

@@ -10,7 +10,7 @@ from odoo.addons.nasq_api.controllers.common import (
     get_record,
     parse_nonneg_int,
 )
-from odoo.addons.nasq_api.serializers.task import (
+from odoo.addons.nasq_pmo.serializers.task import (
     API_TO_STATE,
     dump_task,
     dump_task_detail,

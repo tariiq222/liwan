@@ -1,11 +1,11 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo.tests import tagged
 
-from .common import NasqApiCase
+from .common import NasqPmoCase
 
 
 @tagged('post_install', '-at_install', 'nasq')
-class TestPersonalStagesAndLookups(NasqApiCase):
+class TestPersonalStagesAndLookups(NasqPmoCase):
 
     def test_personal_stages_created_on_first_call(self):
         self.authenticate('api_emp', 'api_emp_pass_123')

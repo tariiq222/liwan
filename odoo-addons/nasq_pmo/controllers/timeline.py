@@ -4,7 +4,7 @@ from odoo.http import request
 from odoo.tools.mail import plaintext2html
 
 from odoo.addons.nasq_api.controllers.common import ApiError, api_handler, get_record
-from odoo.addons.nasq_api.serializers.timeline import dump_message
+from odoo.addons.nasq_pmo.serializers.timeline import dump_message
 
 
 class TimelineController(http.Controller):

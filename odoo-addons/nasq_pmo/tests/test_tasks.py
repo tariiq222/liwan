@@ -1,7 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo.tests import tagged
 
-from .common import NasqApiCase
+from .common import NasqPmoCase
 
 TASK_KEYS = {'id', 'name', 'project', 'state', 'priority', 'date_deadline',
              'days_remaining', 'is_overdue', 'is_closed', 'personal_stage',
@@ -9,7 +9,7 @@ TASK_KEYS = {'id', 'name', 'project', 'state', 'priority', 'date_deadline',
 
 
 @tagged('post_install', '-at_install', 'nasq')
-class TestTaskRead(NasqApiCase):
+class TestTaskRead(NasqPmoCase):
 
     def test_list_requires_mine_filter(self):
         self.authenticate('api_emp', 'api_emp_pass_123')
@@ -101,7 +101,7 @@ class TestTaskRead(NasqApiCase):
 
 
 @tagged('post_install', '-at_install', 'nasq')
-class TestTaskWrite(NasqApiCase):
+class TestTaskWrite(NasqPmoCase):
 
     def test_create(self):
         self.authenticate('api_emp', 'api_emp_pass_123')
