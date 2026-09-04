@@ -22,7 +22,6 @@ export default defineNuxtConfig({
     ],
     defaultLocale: 'ar',
     strategy: 'no_prefix',
-    lazy: true,
     detectBrowserLanguage: false,
   },
   nitro: {
