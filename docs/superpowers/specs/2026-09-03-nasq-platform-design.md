@@ -28,7 +28,8 @@ not the scope.
 | API | Addon `nasq_api` (shared plumbing) plus one addon per pillar (`nasq_pmo`, …), routes `type='json2'`, `auth='user'`, versioned `/api/v1`. Serializers whitelist fields. Permissions stay in Odoo (ACL + `ir.rule`). |
 | Login | Custom Nuxt login page calling `/web/session/authenticate`. Password + 2FA (TOTP) in v1. SSO deferred (Enterprise package). |
 | Users | Internal employees only in v1. External/portal users deferred. |
-| MVP scope | Projects + tasks + time + people (read) + settings. |
+| MVP scope | Projects + tasks + people (read) + settings. |
+| Time logging | **None, product-wide** (decided 2026-09-04). No timesheets, no time tab, no time reports; `hr_timesheet` is not a dependency. `allocated_hours` on a task is a planned-effort estimate, not a log. |
 | Deferred | Risks, initiatives, meetings, KPIs, Gantt, external users, SSO, native app. |
 | Writes | Optimistic only for plain field edits; state transitions / approvals are pending → server-validated → confirmed. Every write response returns the full record; the client always replaces its cache with it. |
 | Notifications | In-app real-time (bus) + daily email digest. No per-event email by default. |
@@ -49,9 +50,9 @@ not the scope.
 | My tasks | Table with sort/filter/group + personal stages | Inline state change | `project.task` + personal stage |
 | Projects | List with status (on_track / at_risk / off_track) and progress | Open | `project.project` + latest `project.update` |
 | Project | Tabs: board · list · milestones · updates | Add task | `project.task`, `project.milestone`, `project.update` |
-| Task (drawer) | Title, state, assignee, deadline, description, subtasks, dependencies, comments, time | Autosave | `project.task`, `mail.message`, `account.analytic.line` |
+| Task (modal) | Title, state, assignee, deadline, description, subtasks, dependencies, comments | Autosave | `project.task`, `mail.message` |
 | People | Employees, departments, load per person | Open | `hr.employee`, `hr.department` |
-| Reports | Time by project/person, overdue, completion | Export | aggregates over tasks + timesheets |
+| Reports | Overdue, completion, workload per person | Export | aggregates over tasks |
 | Login | Customer-branded, password + 2FA | Sign in | `/web/session/authenticate`, `auth_totp` |
 
 ### Settings section (customer_admin only)
@@ -288,10 +289,10 @@ are phase-4-and-later work, not out-of-scope forever.
 | Phase | Delivers | Duration |
 |---|---|---|
 | 0 — Foundation | Monorepo, `nasq_core` groups + branding fields, `nasq_api` skeleton (`/branding`, `/me`), Nuxt shell (login, sidebar, ⌘K, tokens, RTL, proxy), `deploy/` compose, remove OCA modules | 1 week — done 2026-09-04 |
-| 1 — Core | My tasks table + board, task detail **modal** at `/tasks/{id}` (autosave, comments, sub-tasks), real-time | Delivered 2026-09-04 — time logging deferred |
-| 2 — Projects | Projects list, project screen (board/list/milestones/updates), transitions | 3 weeks |
+| 1 — Core | My tasks table + board, task detail **modal** at `/tasks/{id}` (autosave, comments, sub-tasks), real-time | Delivered 2026-09-04 |
+| 2 — Projects | Projects list, project screen (list / board by project stage, status set by managers) — spec `2026-09-04-nasq-phase-2-projects-design.md` | 3 weeks |
 | **Demo to Erada** | | **~7 weeks** |
-| 3 — Completion | Today, People, Reports, Settings (4 pages), hide Odoo noise, PWA | 3 weeks |
+| 3 — Completion | Today, People, Reports, Settings (4 pages, incl. create/edit project and stages), milestones and project updates, hide Odoo noise, PWA | 3 weeks |
 | 4 — Later packages | Gantt (custom build), risks, initiatives, meetings, KPIs, SSO, portal users | per package |
 
 ## Out of scope (v1)
