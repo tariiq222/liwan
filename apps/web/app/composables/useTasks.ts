@@ -131,6 +131,30 @@ export function useTransitionTask() {
   })
 }
 
+// Prev/next for the detail modal: looks across every cached list query
+// (any filter/tab), takes the first one that actually contains `currentId`,
+// and returns the neighbouring ids in that list's order. Both null when the
+// list was never fetched in this session (e.g. a direct /tasks/123 load) or
+// the id sits at an end of the list.
+export function useTaskSiblings(currentId: Ref<number>) {
+  const qc = useQueryClient()
+  return computed<{ prevId: number | null; nextId: number | null }>(() => {
+    const id = currentId.value
+    const matches = qc.getQueriesData<{ pages: { items: Task[]; total: number }[] }>({ queryKey: ['tasks', 'list'] })
+    for (const [, data] of matches) {
+      if (!data) continue
+      const items = data.pages.flatMap((p) => p.items)
+      const idx = items.findIndex((t) => t.id === id)
+      if (idx === -1) continue
+      return {
+        prevId: idx > 0 ? (items[idx - 1]?.id ?? null) : null,
+        nextId: idx < items.length - 1 ? (items[idx + 1]?.id ?? null) : null,
+      }
+    }
+    return { prevId: null, nextId: null }
+  })
+}
+
 export function useCreateTask() {
   const qc = useQueryClient()
   const { $api } = useApi()

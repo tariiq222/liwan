@@ -3,7 +3,6 @@ import CreateTaskDialog from '@/components/task/CreateTaskDialog.vue'
 import TaskTable from '@/components/task/TaskTable.vue'
 import TaskToolbar from '@/components/task/TaskToolbar.vue'
 import type { TaskListParams } from '@/composables/useTasks'
-import { useTask } from '@/composables/useTasks'
 
 const route = useRoute()
 const router = useRouter()
@@ -14,32 +13,18 @@ function onTabChange(v: unknown) {
   router.replace({ query: { ...route.query, tab: v === 'board' ? 'board' : undefined } })
 }
 
-const taskId = computed(() => {
-  const raw = route.query.task
-  const n = Number(Array.isArray(raw) ? raw[0] : raw)
-  return Number.isFinite(n) && n > 0 ? n : null
-})
+// Detail is now a real route (/tasks/{id}, see pages/tasks/[id].vue) rather
+// than a ?task= query param. Row click / create both push there, carrying
+// the current query (?tab and any filters) forward so closing can restore it.
 function openTask(id: number) {
-  router.push({ query: { ...route.query, task: id } })
+  router.push({ path: `/tasks/${id}`, query: route.query })
 }
-function closeDrawer() {
-  const { task: _task, ...rest } = route.query
-  router.push({ query: rest })
-}
-const drawerOpen = computed({
-  get: () => taskId.value !== null,
-  set: (v: boolean) => {
-    if (!v) closeDrawer()
-  },
-})
 
 // Filters persist per browser, per the toolbar's contract; `mergeDefaults`
 // means a stored value from before a new filter field existed still works.
 const params = useLocalStorage<TaskListParams>('nasq.tasks.filters', { closed: false }, { mergeDefaults: true })
 
 const createOpen = ref(false)
-
-const { data: activeTask } = useTask(taskId)
 </script>
 
 <template>
@@ -62,12 +47,7 @@ const { data: activeTask } = useTask(taskId)
 
     <CreateTaskDialog v-model:open="createOpen" @created="openTask" />
 
-    <Sheet v-model:open="drawerOpen">
-      <SheetContent>
-        <SheetHeader>
-          <SheetTitle>{{ activeTask?.name }}</SheetTitle>
-        </SheetHeader>
-      </SheetContent>
-    </Sheet>
+    <!-- pages/tasks/[id].vue renders the detail modal above this view. -->
+    <NuxtPage />
   </div>
 </template>

@@ -14,8 +14,8 @@ test('my tasks table lists my open tasks, filters and opens the drawer', async (
   await expect(page.getByText('لا نتائج.')).toBeVisible()
   await page.getByPlaceholder('بحث في العناوين…').fill(name)
   await row.click()
-  await expect(page).toHaveURL(new RegExp('/tasks\\?.*task=\\d+'))
-  await expect(page.getByRole('dialog')).toContainText(name)
+  await expect(page).toHaveURL(new RegExp('/tasks/\\d+$'))
+  await expect(page.getByRole('dialog').getByRole('textbox', { name: 'عنوان المهمة' })).toHaveValue(name)
 })
 test('inline transition to done moves the task to the closed filter', async ({ page }) => {
   await login(page)

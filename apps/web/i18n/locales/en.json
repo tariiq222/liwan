@@ -13,6 +13,7 @@
     "state": { "in_progress": "In progress", "changes_requested": "Changes requested", "approved": "Approved", "waiting": "Waiting", "done": "Done", "cancelled": "Cancelled" },
     "priority": { "0": "Normal", "1": "Important", "2": "High", "3": "Urgent" },
     "deadline": { "none": "No deadline", "today": "Today", "tomorrow": "Tomorrow", "inDays": "In {n} days", "overdueDays": "{n} days overdue" },
+    "detail": { "next": "Next", "prev": "Previous", "close": "Close" },
     "drawer": { "details": "Details", "activity": "Activity", "assignees": "Assignees", "deadline": "Deadline", "priority": "Priority", "tags": "Tags", "stage": "Personal stage", "allocatedHours": "Allocated hours", "description": "Description", "subtasks": "Subtasks", "addSubtask": "Add subtask", "dependsOn": "Depends on", "attachments": "Attachments", "metrics": "Metrics", "age": "Age", "cycle": "Cycle time", "days": "{n} days", "created": "Created", "updated": "Last updated", "unassigned": "Unassigned" },
     "transition": { "to": "Change state", "forbidden": "This transition requires project manager permission", "pending": "Updating…" },
     "activity": { "comment": "Comment", "changed": "Changed {field} from \"{old}\" to \"{new}\"", "set": "Set {field}: \"{new}\"", "cleared": "Cleared {field}", "write": "Write a comment…", "post": "Post", "empty": "No activity yet" },
