@@ -4,6 +4,7 @@
   "auth": { "username": "Username", "password": "Password", "signIn": "Sign in", "continue": "Continue", "signInToContinue": "Sign in to continue", "invalidCredentials": "Invalid credentials", "loginFailed": "Sign-in failed", "totpTitle": "Verification code", "totpHint": "Enter the 6-digit code from your authenticator app", "totpInvalid": "Invalid verification code" },
   "errors": { "serverUnreachable": "Unable to reach the server", "badPayload": "Invalid response from the server", "forbidden": "You don't have permission for this action", "notFound": "Item not found", "generic": "An unexpected error occurred" },
   "today": { "title": "Today", "greeting": "Hi {name} — nothing due today." },
+  "bus": { "connected": "Connected", "disconnected": "Disconnected" },
   "pages": { "projects": "Projects", "people": "People", "reports": "Reports" },
   "tasks": {
     "title": "My tasks", "table": "Table", "board": "Board", "new": "New task", "newTitle": "Task title", "project": "Project",

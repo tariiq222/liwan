@@ -10,6 +10,11 @@ Project & task management product on Odoo 19 CE. See
     # Product UI
     cd ~/code/nasq && npm install && npm run dev      # http://localhost:3000
 
+Real-time task updates connect over `/websocket`. The Nitro dev proxy does
+not upgrade websockets, so in dev `useBus()` connects straight to Odoo's
+`ws://localhost:8069/websocket` (`runtimeConfig.public.wsUrl`, overridable
+with `NUXT_PUBLIC_WS_URL`); in prod it's same-origin, routed through Caddy.
+
 ## Layout
 
 - `apps/web` — Nuxt 4 product UI

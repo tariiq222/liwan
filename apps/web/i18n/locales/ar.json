@@ -4,6 +4,7 @@
   "auth": { "username": "اسم المستخدم", "password": "كلمة المرور", "signIn": "دخول", "continue": "متابعة", "signInToContinue": "سجّل الدخول للمتابعة", "invalidCredentials": "بيانات الدخول غير صحيحة", "loginFailed": "تعذّر تسجيل الدخول", "totpTitle": "رمز التحقق", "totpHint": "أدخل الرمز المكوّن من 6 أرقام من تطبيق المصادقة", "totpInvalid": "رمز التحقق غير صحيح" },
   "errors": { "serverUnreachable": "تعذّر الوصول إلى الخادم", "badPayload": "استجابة غير صالحة من الخادم", "forbidden": "لا تملك صلاحية لهذا الإجراء", "notFound": "العنصر غير موجود", "generic": "حدث خطأ غير متوقع" },
   "today": { "title": "اليوم", "greeting": "مرحبًا {name} — لا شيء مستحق اليوم." },
+  "bus": { "connected": "متصل", "disconnected": "غير متصل" },
   "pages": { "projects": "المشاريع", "people": "الأشخاص", "reports": "التقارير" },
   "tasks": {
     "title": "مهامي", "table": "جدول", "board": "لوحة", "new": "مهمة جديدة", "newTitle": "عنوان المهمة", "project": "المشروع",

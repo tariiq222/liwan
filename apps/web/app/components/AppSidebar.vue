@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { LogOut } from 'lucide-vue-next'
 
+const { t } = useI18n()
 const { me } = useMe()
 const { branding } = useBranding()
+const { connected } = useBus()
 const route = useRoute()
 const nav = computed(() => useNav(me.value?.role))
 const initials = computed(() => (me.value?.name ?? '?').trim().slice(0, 1))
@@ -47,7 +49,24 @@ async function logout() {
       <DropdownMenu>
         <DropdownMenuTrigger as-child>
           <SidebarMenuButton size="lg">
-            <Avatar class="size-8 rounded-md"><AvatarFallback class="rounded-md">{{ initials }}</AvatarFallback></Avatar>
+            <div class="relative">
+              <Avatar class="size-8 rounded-md"><AvatarFallback class="rounded-md">{{ initials }}</AvatarFallback></Avatar>
+              <!--
+                Client-only: the bus connection genuinely doesn't exist during
+                SSR (bus.client.ts never runs there), so an SSR-rendered dot
+                would always render "disconnected" and cause a hydration
+                mismatch the instant the client connects.
+              -->
+              <ClientOnly>
+                <span
+                  class="absolute -bottom-0.5 -end-0.5 block size-2.5 rounded-full ring-2 ring-sidebar"
+                  :class="connected ? 'bg-emerald-500' : 'bg-muted-foreground/50'"
+                  :title="connected ? t('bus.connected') : t('bus.disconnected')"
+                  :aria-label="connected ? t('bus.connected') : t('bus.disconnected')"
+                  role="status"
+                />
+              </ClientOnly>
+            </div>
             <div class="grid flex-1 text-start text-sm leading-tight group-data-[collapsible=icon]:hidden">
               <span class="truncate font-medium">{{ me?.name }}</span>
               <span class="truncate text-xs text-muted-foreground">{{ me?.email }}</span>
