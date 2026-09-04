@@ -21,8 +21,11 @@ vals = {
     'primary_color': primary_color,
     'font': branding.get('font', 'IBM_Plex_Sans_Arabic'),
 }
-logo_path = os.path.join('/seed', branding.get('logo_path', ''))
-if branding.get('logo_path') and os.path.exists(logo_path):
+raw_logo_path = branding.get('logo_path', '')
+if raw_logo_path:
+    logo_path = os.path.join('/seed', raw_logo_path)
+    if not os.path.exists(logo_path):
+        sys.exit(f"branding.json: logo_path '{raw_logo_path}' not found under /seed")
     with open(logo_path, 'rb') as f:
         vals['logo'] = base64.b64encode(f.read())
 company.write(vals)
