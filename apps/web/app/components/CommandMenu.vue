@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { useEventListener, useMagicKeys, whenever } from '@vueuse/core'
+import { useProjects } from '@/composables/useProjects'
 
 const open = useState<boolean>('command-open', () => false)
 const { me } = useMe()
 const nav = computed(() => useNav(me.value?.role))
+const { data: projects } = useProjects()
 const keys = useMagicKeys()
 whenever(() => keys['Meta+K']?.value || keys['Ctrl+K']?.value, () => { open.value = !open.value })
 
@@ -50,6 +52,11 @@ useEventListener('keydown', (event: KeyboardEvent) => {
           <component :is="item.icon" class="me-2 size-4" />
           <span>{{ $t(item.labelKey) }}</span>
           <CommandShortcut>{{ item.shortcut }}</CommandShortcut>
+        </CommandItem>
+      </CommandGroup>
+      <CommandGroup v-if="projects?.length" :heading="$t('nav.projects')">
+        <CommandItem v-for="p in projects" :key="p.id" :value="p.name" @select="go(`/projects/${p.id}`)">
+          <span>{{ p.name }}</span>
         </CommandItem>
       </CommandGroup>
     </CommandList>
