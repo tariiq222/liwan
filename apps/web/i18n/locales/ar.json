@@ -16,6 +16,6 @@
     "drawer": { "details": "التفاصيل", "activity": "النشاط", "assignees": "المسؤولون", "deadline": "الموعد", "priority": "الأولوية", "tags": "الوسوم", "stage": "المرحلة الشخصية", "allocatedHours": "الساعات المخصَّصة", "description": "الوصف", "subtasks": "المهام الفرعية", "addSubtask": "إضافة مهمة فرعية", "dependsOn": "تعتمد على", "attachments": "المرفقات", "metrics": "المؤشرات", "age": "العمر", "cycle": "زمن الإنجاز", "days": "{n} يوم", "created": "أُنشئت", "updated": "آخر تحديث", "unassigned": "غير مسند" },
     "transition": { "to": "تغيير الحالة", "forbidden": "هذا الانتقال يتطلب صلاحية مدير المشروع", "pending": "جارٍ التحديث…" },
     "activity": { "comment": "علّق", "changed": "غيّر {field} من «{old}» إلى «{new}»", "set": "عيّن {field}: «{new}»", "cleared": "أزال {field}", "write": "اكتب تعليقًا…", "post": "نشر", "empty": "لا نشاط بعد" },
-    "board": { "moveTo": "نقل إلى…", "emptyColumn": "لا مهام" }
+    "kanban": { "moveTo": "نقل إلى…", "emptyColumn": "لا مهام" }
   }
 }

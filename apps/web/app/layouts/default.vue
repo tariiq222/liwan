@@ -22,5 +22,6 @@ const commandOpen = useState<boolean>('command-open', () => false)
       </main>
     </SidebarInset>
     <CommandMenu />
+    <Toaster dir="rtl" />
   </SidebarProvider>
 </template>
