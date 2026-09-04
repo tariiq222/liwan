@@ -26,3 +26,9 @@ class TestPersonalStagesAndLookups(NasqApiCase):
         self.authenticate('api_emp', 'api_emp_pass_123')
         items = self.api('GET', '/api/v1/people?q=sara').json()
         self.assertEqual(items, [{'id': self.employee.id, 'name': 'Sara', 'user_id': self.employee.id}])
+
+    def test_people_bad_limit_is_422(self):
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        res = self.api('GET', '/api/v1/people?limit=abc')
+        self.assertEqual(res.status_code, 422)
+        self.assertEqual(res.json()['field'], 'limit')

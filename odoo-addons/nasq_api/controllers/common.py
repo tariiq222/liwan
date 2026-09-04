@@ -45,3 +45,14 @@ def get_record(model, rec_id):
         raise MissingError(request.env._("%(model)s %(id)s does not exist", model=model, id=rec_id))
     record.check_access('read')
     return record
+
+
+def parse_nonneg_int(value, field):
+    """Coerce a query-string value into a non-negative int → ApiError(422) otherwise."""
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        raise ApiError(422, 'invalid', "limit and offset must be non-negative integers", field=field) from None
+    if parsed < 0:
+        raise ApiError(422, 'invalid', "limit and offset must be non-negative integers", field=field)
+    return parsed

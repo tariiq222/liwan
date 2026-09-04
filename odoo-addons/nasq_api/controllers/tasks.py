@@ -4,7 +4,12 @@ from odoo.exceptions import AccessError
 from odoo.fields import Domain
 from odoo.http import request
 
-from odoo.addons.nasq_api.controllers.common import ApiError, api_handler, get_record
+from odoo.addons.nasq_api.controllers.common import (
+    ApiError,
+    api_handler,
+    get_record,
+    parse_nonneg_int,
+)
 from odoo.addons.nasq_api.serializers.task import (
     API_TO_STATE,
     dump_task,
@@ -14,16 +19,6 @@ from odoo.addons.nasq_api.serializers.task import (
 
 SORTABLE = {'date_deadline', 'priority', 'name', 'create_date', 'write_date'}
 MAX_LIMIT = 200
-
-
-def _parse_nonneg_int(value, field):
-    try:
-        parsed = int(value)
-    except (TypeError, ValueError):
-        raise ApiError(422, 'invalid', "limit and offset must be non-negative integers", field=field) from None
-    if parsed < 0:
-        raise ApiError(422, 'invalid', "limit and offset must be non-negative integers", field=field)
-    return parsed
 
 
 class TaskController(http.Controller):
@@ -45,8 +40,8 @@ class TaskController(http.Controller):
 
         if filter_ != 'mine':
             raise ApiError(400, 'unsupported_filter', "phase 1 supports filter=mine only")
-        limit = _parse_nonneg_int(limit, 'limit')
-        offset = _parse_nonneg_int(offset, 'offset')
+        limit = parse_nonneg_int(limit, 'limit')
+        offset = parse_nonneg_int(offset, 'offset')
         # project_todo (auto-installed alongside project) gives every new internal user a
         # personal "Welcome" project.task with no project_id; the nasq task list is about
         # project work, so exclude those to-dos rather than surfacing them as "mine".
