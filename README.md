@@ -50,7 +50,7 @@ for where phase 1 sits in the four-pillar platform.
 
 - `apps/web` — Nuxt 4 product UI
 - `packages/contracts` — zod schemas shared with the UI
-- `odoo-addons` — `nasq_core`, `nasq_api`, `web_theme_shadcn`
+- `odoo-addons` — `nasq_core`, `nasq_pmo`, `nasq_api`, `web_theme_shadcn`
 - `deploy` — per-customer docker-compose + provisioning
 
 ## Patched generated files
@@ -61,6 +61,11 @@ regenerate — re-apply after `npx shadcn-vue add … --overwrite`:
 - `apps/web/app/components/ui/sidebar/SidebarProvider.vue` — `useMediaQuery(…, { ssrWidth: 1024 })` so the mobile branch does not mismatch during hydration.
 - `apps/web/app/components/ui/sidebar/index.ts` — `text-left` → `text-start` in `sidebarMenuButtonVariants` (RTL).
 - `apps/web/app/components/ui/command/CommandShortcut.vue` — `ml-auto` → `ms-auto` (RTL).
+- `apps/web/app/components/ui/calendar/Calendar.vue` — `pl-2`/`pr-6` → `ps-2`/`pe-6`, and the native-select icon override `right-1` → `end-1` (RTL).
+- `apps/web/app/components/ui/native-select/NativeSelect.vue` — `pr-9` → `pe-9` and the chevron's `right-3.5` → `end-3.5` (RTL; the Calendar override above only works if the base is logical too).
+- `apps/web/app/components/ui/dropdown-menu/DropdownMenuCheckboxItem.vue` — `pr-2 pl-8` → `pe-2 ps-8` and the indicator's `absolute left-2` → `absolute start-2` (RTL).
+- `apps/web/app/components/ui/dialog/DialogHeader.vue` — `sm:text-left` → `sm:text-start` (RTL).
+- `apps/web/app/components/ui/dialog/DialogContent.vue` — the close button's `right-4` → `end-4` (RTL).
 
 ## SSR hydration and interactive controls
 
@@ -93,13 +98,13 @@ actual contract being protected, and is what these tests prove.
 
 ## Tests
 
-    # Odoo addons (fresh scratch DB) — 0 failed, 0 error(s) of 52 tests
+    # Odoo addons (fresh scratch DB) — 0 failed, 0 error(s) of 57 tests
     cd ~/code/odoo && .venv/bin/python odoo-bin -c odoo.conf -d nasq_test -u nasq_core,nasq_api,nasq_pmo --test-tags /nasq_core,/nasq_api,/nasq_pmo
     # tip: if a dev server already holds :8069, add --http-port=8169 to the command above
     # lint
     ruff check odoo-addons deploy/seed_branding.py     # clean
     npm -w apps/web run lint                           # vue-tsc --build --noEmit, 0 errors
-    # contracts + web unit — 15 + 98 = 113 tests passing
+    # contracts + web unit — 15 + 118 = 133 tests passing
     npm test
-    # e2e (needs Odoo on :8069 with nasq_api installed and `npm run dev` on :3000) — 24 passed
+    # e2e (needs Odoo on :8069 with nasq_api installed and `npm run dev` on :3000) — 25 passed
     cd apps/web && npm run test:e2e

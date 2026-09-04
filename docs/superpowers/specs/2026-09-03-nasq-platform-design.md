@@ -255,7 +255,7 @@ every schema change; supported core versions: current + previous.
   one test per endpoint + one per role (employee cannot reach `/admin/*`).
 - Contract test: serializer output validates against `packages/contracts` zod schemas.
 - Frontend: Vitest for composables/components; Playwright e2e against a real
-  Odoo (`nasq_test` DB) for login, task drawer, state transition, settings.
+  Odoo (`nasq_test` DB) for login, the task detail modal, state transition, settings.
 - CI matrix: core alone (`-i nasq_core,nasq_api,nasq_pmo`) **and** core + each
   `customer_*` overlay. Core tests must pass with every overlay installed.
 - Lint: `ruff check odoo-addons/`, `npx eslint`, `vue-tsc --noEmit`.
@@ -271,7 +271,7 @@ are phase-4-and-later work, not out-of-scope forever.
 | Phase | Delivers | Duration |
 |---|---|---|
 | 0 — Foundation | Monorepo, `nasq_core` groups + branding fields, `nasq_api` skeleton (`/branding`, `/me`), Nuxt shell (login, sidebar, ⌘K, tokens, RTL, proxy), `deploy/` compose, remove OCA modules | 1 week — done 2026-09-04 |
-| 1 — Core | My tasks table, task drawer (autosave, comments, time, subtasks), real-time | Delivered 2026-09-04 |
+| 1 — Core | My tasks table + board, task detail **modal** at `/tasks/{id}` (autosave, comments, sub-tasks), real-time | Delivered 2026-09-04 — time logging deferred |
 | 2 — Projects | Projects list, project screen (board/list/milestones/updates), transitions | 3 weeks |
 | **Demo to Erada** | | **~7 weeks** |
 | 3 — Completion | Today, People, Reports, Settings (4 pages), hide Odoo noise, PWA | 3 weeks |
