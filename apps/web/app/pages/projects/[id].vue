@@ -61,11 +61,11 @@ const stageSource = computed(() => ({ kind: 'project' as const, stages: project.
           <TabsTrigger value="board" :disabled="!hydrated">{{ t('projects.tabs.board') }}</TabsTrigger>
         </TabsList>
         <TabsContent value="list" class="space-y-4">
-          <TaskToolbar :model-value="params" hide-project-filter @update:model-value="onParams" @create="createOpen = true" />
+          <TaskToolbar :model-value="params" hide-project-filter hide-create @update:model-value="onParams" @create="createOpen = true" />
           <TaskTable :params="params" variant="project" @open="openTask" @create="createOpen = true" />
         </TabsContent>
         <TabsContent value="board" class="space-y-4">
-          <TaskToolbar :model-value="params" hide-project-filter @update:model-value="onParams" @create="createOpen = true" />
+          <TaskToolbar :model-value="params" hide-project-filter hide-create @update:model-value="onParams" @create="createOpen = true" />
           <TaskBoard v-if="project" :params="params" :stage-source="stageSource" @open="openTask" />
         </TabsContent>
       </Tabs>

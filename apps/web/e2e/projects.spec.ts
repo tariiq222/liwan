@@ -78,7 +78,11 @@ test('project list shows every task of the project (not only mine), the modal cl
   await expect(page).toHaveURL(new RegExp(`/projects/${id}/tasks/${t}\\?`))
   await expect(page.getByRole('dialog').getByRole('textbox', { name: 'عنوان المهمة' })).toHaveValue(`${name} task`)
   await page.keyboard.press('Escape')
-  await expect(page).toHaveURL(new RegExp(`/projects/${id}\\?tab=list&q=`))
+  // vue-router serialises the query with URLSearchParams semantics (spaces as
+  // '+'), so build the expected value the same way rather than with
+  // encodeURIComponent ('%20'), and regex-escape it.
+  const q = new URLSearchParams({ q: name }).toString().slice(2).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  await expect(page).toHaveURL(new RegExp(`/projects/${id}\\?tab=list&q=${q}$`))
 })
 
 test('project board groups by project stage, and a drag persists', async ({ page }) => {
@@ -106,13 +110,14 @@ test('create task from the project locks the project, and a manager sets the sta
   const id = await createProjectWithStages(page, name)
 
   await page.goto(`/projects/${id}`)
-  await page.getByRole('button', { name: 'مهمة جديدة' }).first().click()
+  await page.getByRole('button', { name: 'مهمة جديدة' }).click()
   const dialog = page.getByRole('dialog')
   await expect(dialog.getByText(name)).toBeVisible()
   await dialog.getByLabel('عنوان المهمة').fill(`${name} new`)
   await dialog.getByRole('button', { name: 'إنشاء' }).click()
   await expect(page).toHaveURL(new RegExp(`/projects/${id}/tasks/\\d+`))
   await page.keyboard.press('Escape')
+  await expect(page).toHaveURL(new RegExp(`/projects/${id}$`))
 
   await page.getByTestId('project-status-select').click()
   await page.getByRole('option', { name: 'خارج المسار' }).click()

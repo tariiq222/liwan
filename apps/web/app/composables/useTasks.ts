@@ -128,7 +128,11 @@ export function useUpdateTask() {
     onSuccess: (detail, { id }) => {
       qc.setQueryData(taskKeys.detail(id), detail)
     },
-    onSettled: () => qc.invalidateQueries({ queryKey: ['tasks', 'list'] }),
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: ['tasks', 'list'] })
+      qc.invalidateQueries({ queryKey: ['projects'] })
+      qc.invalidateQueries({ queryKey: ['project'] })
+    },
   })
 }
 
@@ -145,6 +149,8 @@ export function useTransitionTask() {
       qc.setQueryData(taskKeys.detail(id), detail)
       qc.invalidateQueries({ queryKey: ['tasks', 'list'] })
       qc.invalidateQueries({ queryKey: taskKeys.timeline(id) })
+      qc.invalidateQueries({ queryKey: ['projects'] })
+      qc.invalidateQueries({ queryKey: ['project'] })
     },
   })
 }
@@ -179,6 +185,8 @@ export function useCreateTask() {
     mutationFn: (body: TaskCreate) => $api('/api/v1/tasks', { method: 'POST', body, schema: TaskDetailSchema }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['tasks', 'list'] })
+      qc.invalidateQueries({ queryKey: ['projects'] })
+      qc.invalidateQueries({ queryKey: ['project'] })
     },
   })
 }
