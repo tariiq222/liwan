@@ -4,6 +4,7 @@ import { useTaskFilters } from '@/composables/useTaskFilters'
 import { useTask, useTaskSiblings, useUpdateTask } from '@/composables/useTasks'
 import DeadlineBadge from './DeadlineBadge.vue'
 import StateMenu from './StateMenu.vue'
+import TaskActivity from './TaskActivity.vue'
 import TaskDetails from './TaskDetails.vue'
 
 // Container-agnostic body: header (title, state, project chip, deadline
@@ -119,8 +120,15 @@ useEventListener(document, 'keydown', onKeydown)
         <div class="overflow-y-auto p-4">
           <TaskDetails :key="task.id" :task="task" />
         </div>
-        <!-- Activity feed: Task 11 fills this placeholder with <TaskActivity>. -->
-        <div class="overflow-y-auto border-s p-4" />
+        <!--
+          Unlike the details column, this one does not scroll itself:
+          TaskActivity owns its own internal scroll region for the timeline
+          so the composer can stay pinned at the foot of the column instead
+          of scrolling away with it.
+        -->
+        <div class="overflow-hidden border-s">
+          <TaskActivity :task="task" />
+        </div>
       </div>
 
       <Tabs v-else default-value="details" class="flex flex-1 flex-col overflow-hidden">
@@ -131,8 +139,10 @@ useEventListener(document, 'keydown', onKeydown)
         <TabsContent value="details" class="flex-1 overflow-y-auto p-4">
           <TaskDetails :key="task.id" :task="task" />
         </TabsContent>
-        <!-- Task 11 placeholder, mirrors the md+ column above. -->
-        <TabsContent value="activity" class="flex-1 overflow-y-auto p-4" />
+        <!-- Same "TaskActivity owns its own scroll" reasoning as the md+ column above. -->
+        <TabsContent value="activity" class="flex-1 overflow-hidden">
+          <TaskActivity :task="task" />
+        </TabsContent>
       </Tabs>
     </template>
   </div>
