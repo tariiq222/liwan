@@ -13,7 +13,19 @@ export interface BusNotification {
 // subscribe/reconnect. `lastId` is undefined for an empty frame so the caller
 // can leave its tracked `last` untouched rather than resetting it to undefined.
 export function parseBusFrame(raw: string): { notifications: BusNotification[]; lastId?: number } {
-  const notifications = JSON.parse(raw) as BusNotification[]
+  // Guarded: this runs straight inside the socket's `onmessage`, where a throw
+  // would surface as an unhandled error with the frame lost either way. A
+  // malformed or non-array frame is treated as "nothing to do" — the caller
+  // then leaves its tracked `last` untouched, so the next reconnect replays
+  // from the last id it actually understood.
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(raw)
+  } catch {
+    return { notifications: [] }
+  }
+  if (!Array.isArray(parsed)) return { notifications: [] }
+  const notifications = parsed as BusNotification[]
   const last = notifications.at(-1)
   return { notifications, lastId: last?.id }
 }

@@ -16,7 +16,11 @@ const emit = defineEmits<{ close: [] }>()
 
 const route = useRoute()
 const router = useRouter()
-const { t } = useI18n()
+const { t, localeProperties } = useI18n()
+// The chevrons point at list *order*, not at a fixed screen side: in RTL
+// "previous" is the right-hand arrow, in LTR the left-hand one. They were
+// hardcoded to the RTL pairing, so an `en` user saw them swapped.
+const isRtl = computed(() => localeProperties.value.dir === 'rtl')
 
 // Direct loads of /tasks/{id} are SSR'd, so this needs an SSR guess:
 // ssrWidth assumes desktop (matches the md breakpoint) to avoid rendering
@@ -93,10 +97,10 @@ useEventListener(document, 'keydown', onKeydown)
 
       <div class="flex items-center gap-1">
         <Button variant="ghost" size="icon" type="button" :aria-label="t('tasks.detail.prev')" :disabled="!siblings.prevId" @click="goTo(siblings.prevId)">
-          <ChevronRight class="size-4" />
+          <component :is="isRtl ? ChevronRight : ChevronLeft" class="size-4" />
         </Button>
         <Button variant="ghost" size="icon" type="button" :aria-label="t('tasks.detail.next')" :disabled="!siblings.nextId" @click="goTo(siblings.nextId)">
-          <ChevronLeft class="size-4" />
+          <component :is="isRtl ? ChevronLeft : ChevronRight" class="size-4" />
         </Button>
         <Button variant="ghost" size="icon" type="button" :aria-label="t('tasks.detail.close')" @click="emit('close')">
           <X class="size-4" />

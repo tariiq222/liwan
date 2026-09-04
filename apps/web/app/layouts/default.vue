@@ -2,6 +2,10 @@
 import { Search } from 'lucide-vue-next'
 
 const commandOpen = useState<boolean>('command-open', () => false)
+// The toaster was hardcoded to rtl, so an `en` user got right-anchored toasts
+// with mirrored padding. Follow the active locale's direction instead.
+const { localeProperties } = useI18n()
+const dir = computed(() => localeProperties.value.dir ?? 'ltr')
 // SSR-rendered with an attached listener, racy the same way as the other
 // controls documented in README's "SSR hydration and interactive controls".
 const hydrated = useHydrated()
@@ -25,6 +29,6 @@ const hydrated = useHydrated()
       </main>
     </SidebarInset>
     <CommandMenu />
-    <Toaster dir="rtl" />
+    <Toaster :dir="dir" />
   </SidebarProvider>
 </template>

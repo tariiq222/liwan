@@ -31,6 +31,21 @@ describe('parseBusFrame', () => {
     const { notifications } = parseBusFrame(raw)
     expect(notifications[0]!.message.type).toBe('some/other')
   })
+
+  // Runs inside the socket's onmessage: a throw there is an unhandled error,
+  // so a malformed frame must degrade to "nothing to do" instead.
+  it('returns an empty frame for malformed JSON instead of throwing', () => {
+    expect(() => parseBusFrame('{not json')).not.toThrow()
+    const { notifications, lastId } = parseBusFrame('{not json')
+    expect(notifications).toEqual([])
+    expect(lastId).toBeUndefined()
+  })
+
+  it('returns an empty frame for valid JSON that is not an array', () => {
+    const { notifications, lastId } = parseBusFrame('{"id":1}')
+    expect(notifications).toEqual([])
+    expect(lastId).toBeUndefined()
+  })
 })
 
 describe('collectTaskIds', () => {

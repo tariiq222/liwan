@@ -18,8 +18,10 @@ export default defineEventHandler(async (event) => {
   }
 
   if (!upstream.ok) {
-    const data = await upstream.json().catch(() => ({})) as { code?: string; message?: string }
-    throw createError({ statusCode: upstream.status, data: { code: data.code ?? 'invalid_code', message: data.message ?? 'Invalid code' } })
+    // Same rule as login.post.ts: pass the code, never a human-readable
+    // message — login.vue maps the code to a translated string.
+    const data = await upstream.json().catch(() => ({})) as { code?: string }
+    throw createError({ statusCode: upstream.status, data: { code: data.code ?? 'invalid_code' } })
   }
 
   return { ok: true }

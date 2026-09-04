@@ -28,6 +28,14 @@ onMounted(() => {
   if (!password.value && prefilled.password) password.value = prefilled.password
 })
 
+// The Nitro auth endpoints answer with a machine code only (no prose), so the
+// wording is chosen here, in the active locale. Anything unmapped falls back
+// to the generic "sign-in failed" string.
+const AUTH_ERROR_KEYS: Record<string, string> = {
+  invalid_credentials: 'auth.invalidCredentials',
+  missing_credentials: 'auth.loginFailed',
+}
+
 async function submit() {
   pending.value = true
   errorMessage.value = null
@@ -40,7 +48,8 @@ async function submit() {
     await refreshNuxtData('me')
     await navigateTo((route.query.next as string) || '/')
   } catch (e: any) {
-    errorMessage.value = e?.data?.data?.message ?? t('auth.loginFailed')
+    const code = e?.data?.data?.code as string | undefined
+    errorMessage.value = t((code && AUTH_ERROR_KEYS[code]) || 'auth.loginFailed')
   } finally {
     pending.value = false
   }

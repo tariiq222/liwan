@@ -2,7 +2,7 @@ export default defineEventHandler(async (event) => {
   assertSameSiteJson(event)
   const { login, password } = await readBody<{ login?: string; password?: string }>(event)
   if (!login || !password) {
-    throw createError({ statusCode: 400, data: { code: 'missing_credentials', message: 'login and password are required' } })
+    throw createError({ statusCode: 400, data: { code: 'missing_credentials' } })
   }
   const { odooUrl, odooDb } = useRuntimeConfig(event)
 
@@ -14,7 +14,10 @@ export default defineEventHandler(async (event) => {
   const body = await upstream.json() as { result?: { uid?: number | null }; error?: unknown }
 
   if (body.error || body.result?.uid === undefined) {
-    throw createError({ statusCode: 401, data: { code: 'invalid_credentials', message: 'بيانات الدخول غير صحيحة' } })
+    // Code only, no message: the *client* owns the wording so it lands in the
+    // active locale. A literal here was rendered verbatim, so an `en` user was
+    // shown Arabic.
+    throw createError({ statusCode: 401, data: { code: 'invalid_credentials' } })
   }
 
   // Odoo answers this hop over plain http and marks the cookie accordingly; when the

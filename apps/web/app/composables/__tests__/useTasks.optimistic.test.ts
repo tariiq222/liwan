@@ -42,6 +42,34 @@ describe('applyPatchToTask on a list item', () => {
     expect(next.id).toBe(1)
   })
 
+  it('recomputes days_remaining and is_overdue when the deadline is patched', () => {
+    // Deadline moved into the past → overdue, negative day count.
+    const past = applyPatchToTask(baseTask, { date_deadline: '2000-01-01T09:00:00Z' })
+    expect(past.days_remaining).not.toBeNull()
+    expect(past.days_remaining!).toBeLessThan(0)
+    expect(past.is_overdue).toBe(true)
+
+    // Deadline moved far into the future → not overdue, positive day count.
+    const future = applyPatchToTask({ ...baseTask, days_remaining: -3, is_overdue: true }, { date_deadline: '2099-01-01T09:00:00Z' })
+    expect(future.days_remaining!).toBeGreaterThan(0)
+    expect(future.is_overdue).toBe(false)
+
+    // Cleared deadline → no day count, never overdue.
+    const cleared = applyPatchToTask({ ...baseTask, days_remaining: -3, is_overdue: true }, { date_deadline: null })
+    expect(cleared.days_remaining).toBeNull()
+    expect(cleared.is_overdue).toBe(false)
+
+    // A closed task is never flagged overdue, however old the deadline.
+    const closed = applyPatchToTask({ ...baseTask, is_closed: true }, { date_deadline: '2000-01-01T09:00:00Z' })
+    expect(closed.days_remaining!).toBeLessThan(0)
+    expect(closed.is_overdue).toBe(false)
+
+    // A patch that does not touch the deadline leaves both alone.
+    const untouched = applyPatchToTask({ ...baseTask, days_remaining: 42, is_overdue: true }, { name: 'x' })
+    expect(untouched.days_remaining).toBe(42)
+    expect(untouched.is_overdue).toBe(true)
+  })
+
   it('does not mutate the original task', () => {
     const next = applyPatchToTask(baseTask, { name: 'Changed' })
     expect(next).not.toBe(baseTask)

@@ -1,6 +1,7 @@
 import type { Ref } from 'vue'
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { TaskDetailSchema, TaskListSchema, type Task, type TaskCreate, type TaskDetail, type TaskPatch, type TaskState } from '@nasq/contracts'
+import { daysRemaining } from './taskState'
 
 export interface TaskListParams {
   closed: boolean
@@ -37,7 +38,17 @@ export function applyPatchToTask<T extends Task>(task: T, patch: TaskPatch, reso
   const next: any = { ...task }
   if (patch.name !== undefined) next.name = patch.name
   if (patch.priority !== undefined) next.priority = patch.priority
-  if (patch.date_deadline !== undefined) next.date_deadline = patch.date_deadline
+  if (patch.date_deadline !== undefined) {
+    next.date_deadline = patch.date_deadline
+    // days_remaining/is_overdue are server-derived from the deadline; an
+    // optimistic deadline edit that left them alone showed the *old* badge
+    // (e.g. "3 days overdue" on a deadline just moved to next week) until the
+    // PATCH response landed. Recompute them from the same helper the badge
+    // labels use so the optimistic row is self-consistent.
+    const days = daysRemaining(patch.date_deadline)
+    next.days_remaining = days
+    next.is_overdue = days !== null && days < 0 && !next.is_closed
+  }
   if (patch.user_ids !== undefined && resolved.assignees) next.assignees = resolved.assignees
   if (patch.tag_ids !== undefined && resolved.tags) next.tags = resolved.tags
   if (patch.personal_stage_type_id !== undefined && resolved.personal_stage !== undefined) next.personal_stage = resolved.personal_stage
@@ -134,32 +145,26 @@ export function useTransitionTask() {
   })
 }
 
-// Prev/next for the detail modal: looks across every cached list query
-// (the exact cache entry for `params` first — the filter actually visible
-// behind the modal — falling back to a broad scan across every cached list
-// query only when that exact entry isn't cached, e.g. a direct /tasks/123
-// load that never went through the table with these params). Returns the
-// neighbouring ids in that list's order; both null when nothing matches or
-// the id sits at an end of the list.
+// Prev/next for the detail modal. Derived from a live `useTasks(params)`
+// result rather than an imperative cache read: `getQueryData`/`getQueriesData`
+// create no reactive dependency on the query cache, so on a cold direct
+// /tasks/{id} load (a shared link — nothing ever populated the list) the old
+// computed evaluated once to `{prevId: null, nextId: null}` and never
+// re-evaluated when the list arrived. Subscribing to the query instead means
+// the panel shares the table's exact cache entry (same key, so no extra
+// request when the table is already mounted behind it) and re-renders when it
+// fills. Returns the neighbouring ids in that list's order; both null when the
+// task isn't in the filtered list or sits at one of its ends.
 export function useTaskSiblings(currentId: Ref<number>, params: Ref<TaskListParams>) {
-  const qc = useQueryClient()
+  const { data } = useTasks(params)
   return computed<{ prevId: number | null; nextId: number | null }>(() => {
-    const id = currentId.value
-    const exact = qc.getQueryData<{ pages: { items: Task[]; total: number }[] }>(taskKeys.list(params.value))
-    const candidates = exact
-      ? [exact]
-      : qc.getQueriesData<{ pages: { items: Task[]; total: number }[] }>({ queryKey: ['tasks', 'list'] }).map(([, data]) => data)
-    for (const data of candidates) {
-      if (!data) continue
-      const items = data.pages.flatMap((p) => p.items)
-      const idx = items.findIndex((t) => t.id === id)
-      if (idx === -1) continue
-      return {
-        prevId: idx > 0 ? (items[idx - 1]?.id ?? null) : null,
-        nextId: idx < items.length - 1 ? (items[idx + 1]?.id ?? null) : null,
-      }
+    const items = (data.value?.pages ?? []).flatMap((p) => p.items)
+    const idx = items.findIndex((t) => t.id === currentId.value)
+    if (idx === -1) return { prevId: null, nextId: null }
+    return {
+      prevId: idx > 0 ? (items[idx - 1]?.id ?? null) : null,
+      nextId: idx < items.length - 1 ? (items[idx + 1]?.id ?? null) : null,
     }
-    return { prevId: null, nextId: null }
   })
 }
 

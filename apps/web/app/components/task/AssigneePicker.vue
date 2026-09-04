@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Task } from '@nasq/contracts'
+import { refDebounced } from '@vueuse/core'
 import { Check, X } from 'lucide-vue-next'
 import { usePeople } from '@/composables/usePeople'
 
@@ -15,7 +16,10 @@ const emit = defineEmits<{ 'update:modelValue': [{ ids: number[]; resolved: Pers
 const { t } = useI18n()
 const open = ref(false)
 const q = ref('')
-const { data: people } = usePeople(q)
+// Debounced: usePeople keys its query on the search term, so passing the raw
+// input ref fired one request per keystroke.
+const debouncedQ = refDebounced(q, 250)
+const { data: people } = usePeople(debouncedQ)
 
 const selectedIds = computed(() => new Set(props.modelValue.map((p) => p.id)))
 
@@ -44,7 +48,7 @@ function remove(id: number) {
         <button
           type="button"
           class="rounded-full hover:bg-muted-foreground/20"
-          :aria-label="t('app.cancel')"
+          :aria-label="t('tasks.drawer.removeAssignee')"
           @click="remove(p.id)"
         >
           <X class="size-3" />

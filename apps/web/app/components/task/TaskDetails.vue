@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { TaskDetail } from '@nasq/contracts'
-import { CalendarDate, parseDate } from '@internationalized/date'
+import { CalendarDate } from '@internationalized/date'
 import { usePersonalStages } from '@/composables/usePersonalStages'
 import { useUpdateTask } from '@/composables/useTasks'
 import AssigneePicker from './AssigneePicker.vue'
@@ -11,7 +11,7 @@ import SubtaskList from './SubtaskList.vue'
 
 const props = defineProps<{ task: TaskDetail }>()
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const { mutate: updateTask } = useUpdateTask()
 const { data: stages } = usePersonalStages()
 
@@ -24,31 +24,63 @@ function onAssigneesChange({ ids, resolved }: { ids: number[]; resolved: TaskDet
   patch({ user_ids: ids }, { assignees: resolved })
 }
 
-// --- deadline (date + time, stored/round-tripped as an ISO UTC string) ---
-const dateFmt = new Intl.DateTimeFormat('ar-SA', { dateStyle: 'medium' })
+// --- formatters ----------------------------------------------------------
+// Driven by the active locale, never a hardcoded 'ar-SA': V8 resolves ar-SA
+// to the Umm al-Qura (Hijri) calendar, so every date here rendered Hijri in
+// *both* locales by accident. `calendar: 'gregory'` pins the calendar system
+// explicitly so an Arabic locale still gets Gregorian dates (with
+// Arabic-Indic digits). Timeline.vue already follows this pattern.
+const dateFmt = computed(() => new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium', calendar: 'gregory' }))
+const dateTimeFmt = computed(() => new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium', timeStyle: 'short', calendar: 'gregory' }))
 
-const calendarValue = computed(() => {
-  if (!props.task.date_deadline) return undefined
-  try {
-    return parseDate(props.task.date_deadline.slice(0, 10))
-  } catch {
-    return undefined
-  }
+// --- deadline ------------------------------------------------------------
+// Contract: a deadline is a UTC *instant* (the API stores/returns an ISO
+// `...Z` string). Everything below therefore converts once, at the boundary:
+// reads project that instant into the viewer's local zone, and the write
+// converts the viewer's local wall clock back to an instant. Previously the
+// button label was formatted in the local zone while the calendar highlight
+// and the time input were sliced out of the raw UTC string, so on either side
+// of midnight the two disagreed — and the write stamped the local wall clock
+// with a literal 'Z', shifting the saved instant by the whole tz offset.
+const deadlineInstant = computed(() => {
+  if (!props.task.date_deadline) return null
+  const d = new Date(props.task.date_deadline)
+  return Number.isNaN(d.getTime()) ? null : d
 })
 
-const timeDraft = ref(props.task.date_deadline ? props.task.date_deadline.slice(11, 16) : '09:00')
-watch(
-  () => props.task.date_deadline,
-  (v) => {
-    if (v) timeDraft.value = v.slice(11, 16)
-  },
-)
+const calendarValue = computed(() => {
+  const d = deadlineInstant.value
+  if (!d) return undefined
+  return new CalendarDate(d.getFullYear(), d.getMonth() + 1, d.getDate())
+})
 
-const deadlineButtonLabel = computed(() => (props.task.date_deadline ? dateFmt.format(new Date(props.task.date_deadline)) : t('tasks.deadline.none')))
+function localTimeOf(d: Date): string {
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+}
+
+const timeDraft = ref(deadlineInstant.value ? localTimeOf(deadlineInstant.value) : '09:00')
+watch(deadlineInstant, (d) => {
+  if (d) timeDraft.value = localTimeOf(d)
+})
+
+const deadlineButtonLabel = computed(() =>
+  deadlineInstant.value ? dateFmt.value.format(deadlineInstant.value) : t('tasks.deadline.none'),
+)
 
 function setDeadline(date: CalendarDate | undefined, time: string) {
   if (!date) return
-  patch({ date_deadline: `${date.toString()}T${time}:00Z` })
+  const [rawHours = '0', rawMinutes = '0'] = time.split(':')
+  const hours = Number(rawHours)
+  const minutes = Number(rawMinutes)
+  const local = new Date(
+    date.year, date.month - 1, date.day,
+    Number.isFinite(hours) ? hours : 0,
+    Number.isFinite(minutes) ? minutes : 0,
+    0, 0,
+  )
+  // Second precision: toISOString() emits milliseconds, and the API's
+  // contract shape (serializers/common.py::iso) has none.
+  patch({ date_deadline: `${local.toISOString().slice(0, 19)}Z` })
 }
 
 function onCalendarChange(v: unknown) {
@@ -98,9 +130,8 @@ function onDescriptionChange({ html, taskId }: { html: string; taskId: number })
 }
 
 // --- metrics ---------------------------------------------------------------
-const dateTimeFmt = new Intl.DateTimeFormat('ar-SA', { dateStyle: 'medium', timeStyle: 'short' })
-const createdLabel = computed(() => dateTimeFmt.format(new Date(props.task.created_at)))
-const updatedLabel = computed(() => dateTimeFmt.format(new Date(props.task.updated_at)))
+const createdLabel = computed(() => dateTimeFmt.value.format(new Date(props.task.created_at)))
+const updatedLabel = computed(() => dateTimeFmt.value.format(new Date(props.task.updated_at)))
 </script>
 
 <template>

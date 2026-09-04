@@ -89,19 +89,26 @@ test('task detail modal: open, edit fields, nested layers, prev/next, close', as
   await expect(deadlineBadge).not.toHaveText(deadlineBefore)
 
   // 8. prev/next
+  // The stamp goes *before* the A/B suffix so the search term below is a real
+  // substring of both names: the API filters with `name ilike q`, and the
+  // previous "E2E siblings {stamp}" never matched "E2E siblings A {stamp}" —
+  // the filtered list was empty and prev/next only worked because the old
+  // implementation fell back to scanning every other cached list.
   const stamp = Date.now()
-  const nameA = `E2E siblings A ${stamp}`
-  const nameB = `E2E siblings B ${stamp}`
+  const prefix = `E2E siblings ${stamp}`
+  const nameA = `${prefix} A`
+  const nameB = `${prefix} B`
   const idA = await createTask(page, nameA)
   const idB = await createTask(page, nameB)
   await page.goto('/tasks')
-  await page.getByPlaceholder('بحث في العناوين…').fill(`E2E siblings ${stamp}`)
+  await page.getByPlaceholder('بحث في العناوين…').fill(prefix)
   // The list's default sort ties on date_deadline/priority for both (neither
   // set), so the API's `id desc` tiebreak puts the more-recently-created
   // idB first and idA second — open the first row and go `j` (next) to idA.
   const rowB = page.getByRole('row', { name: nameB })
   await rowB.click()
   await expect(page).toHaveURL(new RegExp(`/tasks/${idB}$`))
+  await expect(page.getByRole('dialog').getByRole('button', { name: 'التالية' })).toBeEnabled()
   await page.keyboard.press('j')
   await expect(page).toHaveURL(new RegExp(`/tasks/${idA}$`))
 
@@ -121,13 +128,16 @@ test('task detail modal: open, edit fields, nested layers, prev/next, close', as
 test('a description edit made just before navigating away is not lost', async ({ page }) => {
   await login(page)
   const stamp = Date.now()
-  const name1 = `E2E flush 1 ${stamp}`
-  const name2 = `E2E flush 2 ${stamp}`
+  // Stamp before the suffix so the search term is a real substring of both
+  // names — see the note in the prev/next step of the test above.
+  const prefix = `E2E flush ${stamp}`
+  const name1 = `${prefix} 1`
+  const name2 = `${prefix} 2`
   const id1 = await createTask(page, name1)
   await createTask(page, name2)
 
   await page.goto('/tasks')
-  await page.getByPlaceholder('بحث في العناوين…').fill(`E2E flush ${stamp}`)
+  await page.getByPlaceholder('بحث في العناوين…').fill(prefix)
   await page.getByRole('row', { name: name1 }).click()
   await expect(page).toHaveURL(new RegExp(`/tasks/${id1}$`))
 
@@ -149,4 +159,33 @@ test('a description edit made just before navigating away is not lost', async ({
   // Reload the original task directly and confirm the edit reached the server.
   await page.goto(`/tasks/${id1}`)
   await expect(page.getByRole('textbox', { name: 'الوصف' })).toContainText(text)
+})
+
+// Regression: useTaskSiblings used to be a `computed` whose only reactive
+// dependencies were the current id and the filter params — it read the list
+// out of the query cache with `getQueryData`/`getQueriesData`, which are
+// imperative and register no dependency. On a cold direct /tasks/{id} load
+// (a shared link) nothing had populated that cache yet, so it evaluated once
+// to {prevId: null, nextId: null} and never re-evaluated when the list
+// arrived: prev/next and J/K were permanently dead. This test deliberately
+// never clicks through the table — `page.goto` straight at the detail route.
+test('prev/next is live on a direct /tasks/{id} load', async ({ page }) => {
+  await login(page)
+  const stamp = Date.now()
+  const idA = await createTask(page, `E2E direct A ${stamp}`)
+  const idB = await createTask(page, `E2E direct B ${stamp}`)
+
+  await page.goto(`/tasks/${idB}`)
+  const dialog = page.getByRole('dialog')
+  await expect(dialog).toBeVisible()
+
+  // The list behind the modal is fetched by the panel itself; wait for it to
+  // land by watching prev/next go from "no siblings" to enabled.
+  const nextBtn = dialog.getByRole('button', { name: 'التالية' })
+  await expect(nextBtn).toBeEnabled()
+
+  // Neither task has a deadline, so the default sort falls through to the
+  // API's `id desc` tiebreak: the newer idB sits immediately before idA.
+  await page.keyboard.press('j')
+  await expect(page).toHaveURL(new RegExp(`/tasks/${idA}$`))
 })
