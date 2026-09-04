@@ -1,14 +1,16 @@
 <script setup lang="ts">
-import type { PersonalStage } from '@nasq/contracts'
 import type { Task } from '@nasq/contracts'
 import { Flag } from 'lucide-vue-next'
+import type { BoardStage } from '@/composables/boardStages'
 import { PRIORITY_LABEL_KEY } from '@/composables/taskState'
 import DeadlineBadge from './DeadlineBadge.vue'
 
-const props = defineProps<{ task: Task; stages: PersonalStage[] }>()
+const props = withDefaults(defineProps<{ task: Task; stages: BoardStage[]; currentStageId: number | null; showProject?: boolean }>(), {
+  showProject: true,
+})
 const emit = defineEmits<{
   open: [id: number]
-  move: [stage: PersonalStage]
+  move: [stage: BoardStage]
 }>()
 
 const { t } = useI18n()
@@ -75,7 +77,7 @@ function onCardKeydown(event: KeyboardEvent) {
             <DropdownMenuItem
               v-for="stage in stages"
               :key="stage.id"
-              :disabled="task.personal_stage?.id === stage.id"
+              :disabled="currentStageId === stage.id"
               @select="emit('move', stage)"
             >
               {{ stage.name }}
@@ -84,7 +86,7 @@ function onCardKeydown(event: KeyboardEvent) {
         </DropdownMenu>
       </div>
 
-      <p v-if="task.project" class="truncate text-xs text-muted-foreground">{{ task.project.name }}</p>
+      <p v-if="showProject && task.project" class="truncate text-xs text-muted-foreground">{{ task.project.name }}</p>
 
       <div class="flex items-center justify-between gap-2 pt-1">
         <div class="flex items-center gap-2">

@@ -1,12 +1,16 @@
 <script setup lang="ts">
-import type { PersonalStage, Task } from '@nasq/contracts'
+import type { Task } from '@nasq/contracts'
 import { VueDraggable } from 'vue-draggable-plus'
+import type { BoardStage, StageSource } from '@/composables/boardStages'
+import { moveTo, stageOf } from '@/composables/boardStages'
 import type { TaskListParams } from '@/composables/useTasks'
 import { useUpdateTask, useTasks } from '@/composables/useTasks'
 import { usePersonalStages } from '@/composables/usePersonalStages'
 import TaskCard from './TaskCard.vue'
 
-const props = defineProps<{ params: TaskListParams }>()
+const props = withDefaults(defineProps<{ params: TaskListParams; stageSource?: StageSource }>(), {
+  stageSource: () => ({ kind: 'personal' }),
+})
 const emit = defineEmits<{ open: [id: number] }>()
 
 const { t } = useI18n()
@@ -32,7 +36,11 @@ watchEffect(() => {
 const isCapped = computed(() => allItems.value.length >= CAP && hasNextPage.value === true)
 const items = computed(() => allItems.value.slice(0, CAP))
 
-const sortedStages = computed<PersonalStage[]>(() => [...(stagesData.value ?? [])].sort((a, b) => a.sequence - b.sequence))
+const kind = computed(() => props.stageSource.kind)
+const sortedStages = computed<BoardStage[]>(() => {
+  const src = props.stageSource.kind === 'project' ? props.stageSource.stages : (stagesData.value ?? [])
+  return [...src].sort((a, b) => a.sequence - b.sequence || a.id - b.id)
+})
 
 const UNSTAGED = 'unstaged'
 
@@ -47,7 +55,8 @@ watch(
     const byStage: Record<string, Task[]> = { [UNSTAGED]: [] }
     for (const stage of stages) byStage[String(stage.id)] = []
     for (const task of tasks) {
-      const key = task.personal_stage ? String(task.personal_stage.id) : UNSTAGED
+      const stage = stageOf(task, kind.value)
+      const key = stage ? String(stage.id) : UNSTAGED
       ;(byStage[key] ??= []).push(task)
     }
     columns.value = byStage
@@ -55,17 +64,17 @@ watch(
   { immediate: true },
 )
 
-// Single move implementation shared by every way a task can change personal
-// stage: a cross-column drag (onColumnAdd below, for both a real stage and
-// the unstaged column) and the "..." menu on the card (@move in the
-// template). `stage: null` targets the unstaged column.
-function applyMove(task: Task, stage: PersonalStage | null) {
-  if ((task.personal_stage?.id ?? null) === (stage?.id ?? null)) return
-  updateTask({
-    id: task.id,
-    patch: { personal_stage_type_id: stage?.id ?? null },
-    resolved: { personal_stage: stage ? { id: stage.id, name: stage.name } : null },
-  })
+// Single move implementation shared by every way a task can change stage: a
+// cross-column drag (onColumnAdd below, for both a real stage and the
+// unstaged column) and the "..." menu on the card (@move in the template).
+// `stage: null` targets the unstaged column (personal board only — a
+// project task always has a stage, so moveTo returns null and this is a
+// no-op).
+function applyMove(task: Task, stage: BoardStage | null) {
+  const move = moveTo(kind.value, stage)
+  if (!move) return
+  if ((stageOf(task, kind.value)?.id ?? null) === (stage?.id ?? null)) return
+  updateTask({ id: task.id, ...move })
 }
 
 // Fired only for real cross-column drops (SortableJS's @add via
@@ -92,7 +101,7 @@ function toggleFold(stageId: number) {
   else next.add(stageId)
   expandedFolded.value = next
 }
-function isCollapsed(stage: PersonalStage): boolean {
+function isCollapsed(stage: BoardStage): boolean {
   return stage.fold && !expandedFolded.value.has(stage.id)
 }
 </script>
@@ -107,8 +116,12 @@ function isCollapsed(stage: PersonalStage): boolean {
       cards a stage holds — the board only scrolls horizontally, per spec.
     -->
     <div class="flex h-[calc(100vh-260px)] min-h-[420px] items-start gap-3 overflow-x-auto pb-2">
-      <!-- Leading "unstaged" column: tasks with no personal stage yet. -->
+      <!-- Leading "unstaged" column: tasks with no stage yet. Always shown on
+           the personal board; on a project board only when it actually holds
+           cards, since a project task always has a stage and the column
+           can't accept drops there. -->
       <div
+        v-if="kind === 'personal' || (columns[UNSTAGED]?.length ?? 0) > 0"
         data-testid="board-column"
         data-stage-id="unstaged"
         class="flex h-full w-72 shrink-0 flex-col gap-2 rounded-lg border bg-muted/30 p-2"
@@ -120,7 +133,7 @@ function isCollapsed(stage: PersonalStage): boolean {
         <VueDraggable
           v-model="columns[UNSTAGED]!"
           class="flex min-h-16 flex-1 flex-col gap-2 overflow-y-auto"
-          group="tasks"
+          :group="kind === 'project' ? { name: 'tasks', put: false } : 'tasks'"
           :animation="150"
           @add="(e: any) => onColumnAdd(e, UNSTAGED)"
         >
@@ -129,6 +142,8 @@ function isCollapsed(stage: PersonalStage): boolean {
             :key="task.id"
             :task="task"
             :stages="sortedStages"
+            :current-stage-id="stageOf(task, kind)?.id ?? null"
+            :show-project="kind === 'personal'"
             @open="emit('open', $event)"
             @move="applyMove(task, $event)"
           />
@@ -179,6 +194,8 @@ function isCollapsed(stage: PersonalStage): boolean {
               :key="task.id"
               :task="task"
               :stages="sortedStages"
+              :current-stage-id="stageOf(task, kind)?.id ?? null"
+              :show-project="kind === 'personal'"
               @open="emit('open', $event)"
               @move="applyMove(task, $event)"
             />
@@ -189,5 +206,6 @@ function isCollapsed(stage: PersonalStage): boolean {
         </div>
       </template>
     </div>
+    <p v-if="kind === 'project' && sortedStages.length === 0" class="text-sm text-muted-foreground">{{ t('tasks.kanban.noStages') }}</p>
   </div>
 </template>
