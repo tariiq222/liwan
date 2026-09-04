@@ -18,6 +18,20 @@ export function parseBusFrame(raw: string): { notifications: BusNotification[]; 
   return { notifications, lastId: last?.id }
 }
 
+// Pure: the unique task ids carried by a frame's `nasq/task` notifications,
+// in first-seen order. A frame with several notifications for the same task
+// (e.g. two quick writes) must only trigger one invalidation per query, not
+// one per occurrence.
+export function collectTaskIds(notifications: BusNotification[]): number[] {
+  const seen = new Set<number>()
+  for (const notification of notifications) {
+    if (notification.message?.type !== 'nasq/task') continue
+    const id = notification.message.payload?.id
+    if (typeof id === 'number') seen.add(id)
+  }
+  return [...seen]
+}
+
 // Pure: exponential backoff, 1s doubling up to a 30s ceiling, with +/-20%
 // jitter so many tabs reconnecting after a server bounce don't all land on
 // the same instant. `attempt` is the 0-indexed retry count.
@@ -28,11 +42,16 @@ export function nextBackoffDelay(attempt: number, random: () => number = Math.ra
 }
 
 // Module-level singleton: one socket per tab regardless of how many
-// components call useBus(). The query client is captured once, the first
-// time useBus() runs inside a Vue/Nuxt context (the bus.client.ts plugin),
-// and reused from the async WebSocket callbacks afterwards, since those
-// callbacks run outside any component's setup and can't call useQueryClient()
-// themselves.
+// components call useBus(). The query client is captured exactly once, by
+// setBusQueryClient() from the client-only bus.client.ts plugin, and reused
+// from the async WebSocket callbacks afterwards, since those callbacks run
+// outside any component's setup and can't call useQueryClient() themselves.
+//
+// It is NOT captured by useBus() itself: useBus() is also called from
+// AppSidebar.vue (for `connected`), which renders during SSR, and
+// useQueryClient() there would latch onto whichever request's query client
+// happened to render first in this Node process - then get reused for every
+// later request/user. See setBusQueryClient() below.
 let queryClient: ReturnType<typeof useQueryClient> | null = null
 let socket: WebSocket | null = null
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null
@@ -47,32 +66,77 @@ let manuallyClosed = true
 let generation = 0
 const connected = ref(false)
 
+// Called once, client-only, from bus.client.ts's plugin setup() (that file's
+// .client.ts suffix guarantees it never runs during SSR). Captures the query
+// client for use by the WebSocket callbacks below.
+export function setBusQueryClient(client: ReturnType<typeof useQueryClient>): void {
+  if (import.meta.server) {
+    throw new Error('setBusQueryClient must only be called on the client (see plugins/bus.client.ts)')
+  }
+  queryClient = client
+}
+
 // addons/bus/websocket.py `WebsocketConnectionHandler._VERSION`: the server
 // force-closes the connection with "OUTDATED_VERSION" unless the client's
 // `?version=` query param matches this exactly (it only guards against
 // stale cached JS across a deploy, not real compatibility - see
-// `_serve_forever`). The web client normally reads this from `session_info`
-// via `/web/session/get_session_info`, but that route isn't CORS-enabled,
-// so it can't be fetched cross-origin from the dev-mode direct connection to
-// :8069 (see the dev-vs-prod URL note on wsUrl below). Pinned here instead,
-// same as any other client pinning to a fixed backend protocol version -
-// bump it if `addons/bus/websocket.py` `_VERSION` ever changes on this
-// stable branch.
-const ODOO_WEBSOCKET_WORKER_VERSION = '19.0-2'
+// `_serve_forever`). The real web client reads this from `session_info` via
+// `/web/session/get_session_info`, which we do too (see
+// resolveWorkerVersion) for any same-origin connection - i.e. production,
+// and dev when NUXT_PUBLIC_WS_URL isn't set. This pinned value is only a
+// fallback: for the dev cross-origin connection to :8069 (where that route
+// can't be fetched - it isn't CORS-enabled) and as a last resort if the
+// fetch fails for any other reason. If it ever goes stale in a fallback
+// path, the server closes with "OUTDATED_VERSION" and the connect loop below
+// gives up after 3 consecutive such closes rather than retrying forever.
+const FALLBACK_WEBSOCKET_WORKER_VERSION = '19.0-2'
 
-function wsUrl(): string {
-  const config = useRuntimeConfig()
-  const base = (config.public.wsUrl as string) || `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/websocket`
-  return `${base}?version=${encodeURIComponent(ODOO_WEBSOCKET_WORKER_VERSION)}`
+let cachedVersion: string | null = null
+let warnedFallback = false
+
+function warnFallbackOnce(reason: string) {
+  if (warnedFallback) return
+  warnedFallback = true
+  // eslint-disable-next-line no-console
+  console.warn(`[bus] using the pinned websocket worker version (${FALLBACK_WEBSOCKET_WORKER_VERSION}) - ${reason}`)
 }
 
-function invalidateForNotification(notification: BusNotification) {
+// Resolves the websocket protocol version to send as `?version=`. Same-origin
+// (production, and dev without NUXT_PUBLIC_WS_URL/wsUrl set): fetches the
+// live value from /web/session/get_session_info and caches it for the tab.
+// Cross-origin dev, or if that fetch fails: falls back to the pinned
+// constant above and warns once.
+async function resolveWorkerVersion(crossOrigin: boolean): Promise<string> {
+  if (cachedVersion) return cachedVersion
+  if (!crossOrigin) {
+    try {
+      const response = await $fetch<{ result?: { websocket_worker_version?: string } }>('/web/session/get_session_info', {
+        method: 'POST',
+        body: { jsonrpc: '2.0', method: 'call', params: {} },
+      })
+      const version = response?.result?.websocket_worker_version
+      if (typeof version === 'string' && version) {
+        cachedVersion = version
+        return cachedVersion
+      }
+    } catch {
+      // fall through to the pinned fallback below
+    }
+    warnFallbackOnce('failed to fetch /web/session/get_session_info')
+  } else {
+    warnFallbackOnce('cross-origin dev connection cannot fetch /web/session/get_session_info (no CORS)')
+  }
+  return FALLBACK_WEBSOCKET_WORKER_VERSION
+}
+
+function invalidateForFrame(notifications: BusNotification[]) {
   if (!queryClient) return
-  if (notification.message?.type !== 'nasq/task') return
-  const id = notification.message.payload?.id
-  if (typeof id !== 'number') return
-  queryClient.invalidateQueries({ queryKey: taskKeys.detail(id) })
-  queryClient.invalidateQueries({ queryKey: taskKeys.timeline(id) })
+  const ids = collectTaskIds(notifications)
+  if (ids.length === 0) return
+  for (const id of ids) {
+    queryClient.invalidateQueries({ queryKey: taskKeys.detail(id) })
+    queryClient.invalidateQueries({ queryKey: taskKeys.timeline(id) })
+  }
   queryClient.invalidateQueries({ queryKey: ['tasks', 'list'] })
 }
 
@@ -80,7 +144,7 @@ function handleMessage(event: MessageEvent) {
   if (typeof event.data !== 'string') return
   const { notifications, lastId: newLast } = parseBusFrame(event.data)
   if (newLast !== undefined) lastId = newLast
-  for (const notification of notifications) invalidateForNotification(notification)
+  invalidateForFrame(notifications)
 }
 
 function subscribe() {
@@ -100,25 +164,54 @@ function scheduleReconnect() {
   reconnectTimer = setTimeout(connect, delay)
 }
 
-function connect() {
+// Consecutive closes carrying the server's "outdated worker version" reason.
+// A stale pinned fallback (see FALLBACK_WEBSOCKET_WORKER_VERSION) would
+// otherwise retry forever via backoff, hammering the server for no reason:
+// the version mismatch never resolves itself without a client redeploy.
+let versionCloseStreak = 0
+let stopped = false
+
+async function connect() {
   clearReconnectTimer()
+  if (stopped) return
   manuallyClosed = false
   const myGeneration = ++generation
-  const ws = new WebSocket(wsUrl())
+  const config = useRuntimeConfig()
+  const configuredUrl = config.public.wsUrl as string
+  const version = await resolveWorkerVersion(!!configuredUrl)
+  // A disconnect()/reconnect() may have happened while awaiting the version
+  // fetch; if so this attempt is stale and the newer one owns the socket.
+  if (myGeneration !== generation) return
+  const base = configuredUrl || `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/websocket`
+  const ws = new WebSocket(`${base}?version=${encodeURIComponent(version)}`)
   socket = ws
   ws.onopen = () => {
     if (myGeneration !== generation) return
     connected.value = true
     attempt = 0
+    versionCloseStreak = 0
     subscribe()
   }
   ws.onmessage = (event) => {
     if (myGeneration !== generation) return
     handleMessage(event)
   }
-  ws.onclose = () => {
+  ws.onclose = (event) => {
     if (myGeneration !== generation) return
     connected.value = false
+    const versionRelated = event.code === 1000 && event.reason === 'OUTDATED_VERSION'
+    if (versionRelated) {
+      // The cached value (fetched or fallback) turned out to be wrong -
+      // drop it so the next attempt, if any, re-resolves from scratch.
+      cachedVersion = null
+      versionCloseStreak++
+      if (versionCloseStreak >= 3) {
+        stopped = true
+        return
+      }
+    } else {
+      versionCloseStreak = 0
+    }
     if (!manuallyClosed) scheduleReconnect()
   }
   ws.onerror = () => {
@@ -133,6 +226,8 @@ function disconnect() {
   clearReconnectTimer()
   attempt = 0
   lastId = 0
+  stopped = false
+  versionCloseStreak = 0
   const s = socket
   socket = null
   connected.value = false
@@ -140,6 +235,5 @@ function disconnect() {
 }
 
 export function useBus(): { connected: Ref<boolean>; connect: () => void; disconnect: () => void } {
-  if (!queryClient) queryClient = useQueryClient()
   return { connected, connect, disconnect }
 }

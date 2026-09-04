@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { nextBackoffDelay, parseBusFrame } from '../useBus'
+import { collectTaskIds, nextBackoffDelay, parseBusFrame } from '../useBus'
 
 describe('parseBusFrame', () => {
   it('parses a frame with one notification and returns its id as lastId', () => {
@@ -30,6 +30,39 @@ describe('parseBusFrame', () => {
     const raw = JSON.stringify([{ id: 1, message: { type: 'some/other', payload: {} } }])
     const { notifications } = parseBusFrame(raw)
     expect(notifications[0]!.message.type).toBe('some/other')
+  })
+})
+
+describe('collectTaskIds', () => {
+  it('dedupes multiple notifications for the same task id, keeping first-seen order', () => {
+    const raw = [
+      { id: 1, message: { type: 'nasq/task', payload: { id: 7 } } },
+      { id: 2, message: { type: 'nasq/task', payload: { id: 9 } } },
+      { id: 3, message: { type: 'nasq/task', payload: { id: 7 } } },
+      { id: 4, message: { type: 'nasq/task', payload: { id: 7 } } },
+    ]
+    expect(collectTaskIds(raw)).toEqual([7, 9])
+  })
+
+  it('ignores notification types other than nasq/task', () => {
+    const raw = [
+      { id: 1, message: { type: 'some/other', payload: { id: 1 } } },
+      { id: 2, message: { type: 'nasq/task', payload: { id: 2 } } },
+    ]
+    expect(collectTaskIds(raw)).toEqual([2])
+  })
+
+  it('ignores notifications missing a numeric payload id', () => {
+    const raw = [
+      { id: 1, message: { type: 'nasq/task', payload: {} } },
+      { id: 2, message: { type: 'nasq/task' } },
+      { id: 3, message: { type: 'nasq/task', payload: { id: 'not-a-number' } } },
+    ]
+    expect(collectTaskIds(raw as any)).toEqual([])
+  })
+
+  it('returns an empty array for an empty frame', () => {
+    expect(collectTaskIds([])).toEqual([])
   })
 })
 

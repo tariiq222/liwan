@@ -28,3 +28,18 @@ class TestTaskBus(TransactionCase):
             task = self.env['project.task'].with_user(a).create({'name': 'T2', 'project_id': project.id, 'user_ids': [(4, a.id)]})
         calls = [call for call in sendone.call_args_list if call.args[1] == 'nasq/task']
         self.assertEqual(calls[-1].args, (a.partner_id, 'nasq/task', {'id': task.id, 'event': 'created'}))
+
+    def test_comment_notifies_assignee(self):
+        # message_post() doesn't go through write(), so without
+        # _message_post_after_hook a comment would never reach a second tab
+        # watching the task over the bus - see project_task.py.
+        a = new_test_user(self.env, login='bus_d', groups='nasq_core.group_employee')
+        project = self.env['project.project'].create({'name': 'Bus3'})
+        task = self.env['project.task'].create({'name': 'T3', 'project_id': project.id, 'user_ids': [(4, a.id)]})
+        with patch.object(type(self.env['bus.bus']), '_sendone') as sendone:
+            task.message_post(body='hi', message_type='comment', subtype_xmlid='mail.mt_comment')
+        calls = [call for call in sendone.call_args_list if call.args[1] == 'nasq/task']
+        targets = {call.args[0] for call in calls}
+        self.assertIn(a.partner_id, targets)
+        for call in calls:
+            self.assertEqual(call.args[2], {'id': task.id, 'event': 'updated'})

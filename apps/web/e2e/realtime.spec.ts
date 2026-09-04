@@ -17,10 +17,7 @@ async function createTask(page, name: string) {
 // Two independent browser contexts, both authenticated as admin: A watches the
 // UI, B mutates data via the API only (no UI interaction on B's side),
 // simulating a second user's change arriving over the bus while A's page
-// sits idle. Server side (nasq_api's project.task create/write override)
-// only notifies on task field changes, not on comments (message_post isn't
-// overridden) - so this only exercises the ['tasks','list'] and
-// taskKeys.detail(id) invalidations useBus() actually triggers.
+// sits idle.
 test('a task rename from another session arrives over the bus, live, without a reload', async ({ browser }: { browser: Browser }) => {
   const contextA = await browser.newContext()
   const contextB = await browser.newContext()
@@ -56,6 +53,36 @@ test('a task rename from another session arrives over the bus, live, without a r
   await pageB.request.patch(`/api/v1/tasks/${id}`, { data: { name: renamed2 } })
 
   await expect(titleInput).toHaveValue(renamed2, { timeout: 5000 })
+
+  await contextA.close()
+  await contextB.close()
+})
+
+// A has the task's activity column open (drawer/detail already mounted, so
+// taskKeys.timeline(id) is a live query); B posts a comment purely over the
+// API. project_task.py's _message_post_after_hook makes message_post() emit
+// the same nasq/task bus notification write()/create() do, so A's
+// useBus()-driven invalidation picks it up without any reload.
+test('a comment posted from another session arrives in the activity column, live', async ({ browser }: { browser: Browser }) => {
+  const contextA = await browser.newContext()
+  const contextB = await browser.newContext()
+  const pageA = await contextA.newPage()
+  const pageB = await contextB.newPage()
+
+  await login(pageA)
+  await login(pageB)
+
+  const name = `E2E realtime comment ${Date.now()}`
+  const id = await createTask(pageA, name)
+
+  await pageA.goto(`/tasks/${id}`)
+  await expect(pageA.getByRole('dialog')).toBeVisible()
+
+  const commentBody = `hello from B ${Date.now()}`
+  const res = await pageB.request.post(`/api/v1/tasks/${id}/comments`, { data: { body: commentBody } })
+  expect(res.ok()).toBe(true)
+
+  await expect(pageA.getByText(commentBody)).toBeVisible({ timeout: 10_000 })
 
   await contextA.close()
   await contextB.close()
