@@ -43,12 +43,22 @@ in dev on `/login` and `/tasks`, this window is on the order of 100–200ms
 Ruling: gate any control whose first interaction must not be lost on
 `useHydrated()` (`apps/web/app/composables/useHydrated.ts`) — `:disabled="!hydrated"`
 until the component has hydrated. This replaced login.vue's phase-0
-per-component `mounted` workaround and now also gates the `/tasks` filter
-tabs. Do not re-introduce a per-component `mounted`/`onMounted` flag for this
-purpose; use the shared composable. `ssr: false` for the whole authenticated
-app was considered and rejected — it would trade the fast SSR first paint
-(the product's whole premise) for a client-only blank/spinner load on every
-navigation, for a problem the composable already solves without that cost.
+per-component `mounted` workaround and now also gates every interactive
+control in `TaskToolbar.vue`, the `/tasks` table/board tabs, the ⌘K button,
+the account menu trigger, and the table row/StateMenu/PrioritySelect/"load
+more" controls in `TaskTable.vue`. Do not re-introduce a per-component
+`mounted`/`onMounted` flag for this purpose; use the shared composable.
+`ssr: false` for the whole authenticated app was considered and rejected —
+it would trade the fast SSR first paint (the product's whole premise) for a
+client-only blank/spinner load on every navigation, for a problem the
+composable already solves without that cost.
+
+`hydration.spec.ts`'s tests assert the disabled → enabled transition and
+only click afterward, rather than racing a click immediately on page load.
+That's deliberate, not a gap: a disabled element cannot receive a real
+click, so under this gate an unguarded pre-hydration click is structurally
+impossible to provoke — the disabled → enabled → click sequence is the
+actual contract being protected, and is what these tests prove.
 
 ## Tests
 

@@ -9,6 +9,11 @@ const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
 
+// Same race as TaskToolbar's own tabs (see useHydrated()): this SSR-rendered
+// table/board switcher is visible and clickable before hydration attaches
+// its listener.
+const hydrated = useHydrated()
+
 const tab = computed(() => (route.query.tab === 'board' ? 'board' : 'table'))
 function onTabChange(v: unknown) {
   router.replace({ query: { ...route.query, tab: v === 'board' ? 'board' : undefined } })
@@ -35,8 +40,8 @@ const createOpen = ref(false)
 
     <Tabs :model-value="tab" @update:model-value="onTabChange">
       <TabsList>
-        <TabsTrigger value="table">{{ t('tasks.table') }}</TabsTrigger>
-        <TabsTrigger value="board">{{ t('tasks.board') }}</TabsTrigger>
+        <TabsTrigger value="table" :disabled="!hydrated">{{ t('tasks.table') }}</TabsTrigger>
+        <TabsTrigger value="board" :disabled="!hydrated">{{ t('tasks.board') }}</TabsTrigger>
       </TabsList>
 
       <TabsContent value="table" class="space-y-4">

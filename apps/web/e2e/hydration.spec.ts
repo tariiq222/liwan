@@ -45,3 +45,18 @@ test('login: submit button is disabled pre-hydration and becomes enabled once hy
   await submit.click()
   await expect(page).toHaveURL('http://localhost:3000/')
 })
+
+test('tasks: "New task" button is disabled pre-hydration, then an immediate click opens the create dialog', async ({ page }) => {
+  await login(page)
+  await page.goto('/tasks')
+  const createButton = page.getByRole('button', { name: 'مهمة جديدة' })
+  // Same silently-dropped-click risk as the tab: SSR-rendered, visible, with
+  // a listener attached only post-hydration — and the one most likely to
+  // matter in practice (a user's first action on the page).
+  await expect(createButton).toBeVisible()
+  await expect(createButton).toBeDisabled()
+  await expect(createButton).toBeEnabled()
+  await createButton.click()
+  await expect(page.getByRole('dialog')).toBeVisible()
+  await expect(page.getByLabel('عنوان المهمة')).toBeVisible()
+})

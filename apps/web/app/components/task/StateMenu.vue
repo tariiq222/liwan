@@ -14,6 +14,10 @@ const props = withDefaults(defineProps<{ task: Task; canApprove?: boolean }>(), 
 
 const { t } = useI18n()
 const { mutate, isPending } = useTransitionTask()
+// Rendered as a table cell that can be SSR-rendered with data already
+// available, so the trigger is racy the same way as the other controls
+// documented in README's "SSR hydration and interactive controls".
+const hydrated = useHydrated()
 
 const states = computed(() => nextStates(props.task.state, props.canApprove))
 
@@ -33,8 +37,8 @@ function onSelect(state: TaskState) {
 
 <template>
   <DropdownMenu>
-    <DropdownMenuTrigger as-child :disabled="isPending">
-      <button type="button" class="inline-flex items-center disabled:opacity-60" :disabled="isPending">
+    <DropdownMenuTrigger as-child :disabled="isPending || !hydrated">
+      <button type="button" class="inline-flex items-center disabled:opacity-60" :disabled="isPending || !hydrated">
         <Loader2 v-if="isPending" class="size-4 animate-spin text-muted-foreground" />
         <StateBadge v-else :state="task.state" />
       </button>

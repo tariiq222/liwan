@@ -34,15 +34,13 @@ test('closed tab shows a closed-specific empty state with no create action', asy
   await login(page)
   await page.goto('/tasks')
   await expect(page.getByRole('heading', { name: 'مهامي' })).toBeVisible()
-  // The heading is SSR-rendered and visible before Nuxt finishes hydrating,
-  // so a plain click can land before the tab's listener is attached and be
-  // silently dropped. Retry the click until the tab actually registers as
-  // selected instead of assuming the first click always lands post-hydration.
+  // The tabs are gated by useHydrated(): they stay disabled until Nuxt has
+  // hydrated, so a click that lands after they enable can never be dropped.
+  // No retry loop is needed.
   const closedTab = page.getByRole('tab', { name: 'منجزة' })
-  await expect(async () => {
-    await closedTab.click()
-    await expect(closedTab).toHaveAttribute('aria-selected', 'true')
-  }).toPass()
+  await expect(closedTab).toBeEnabled()
+  await closedTab.click()
+  await expect(closedTab).toHaveAttribute('aria-selected', 'true')
   // Filtered case: a nonsense search on the closed tab is unambiguous — "no
   // results", not "no completed tasks" — regardless of what earlier tests
   // left behind.

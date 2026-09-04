@@ -10,6 +10,10 @@ const props = defineProps<{ task: Task }>()
 
 const { t } = useI18n()
 const { mutate, isPending } = useUpdateTask()
+// Rendered as a table cell that can be SSR-rendered with data already
+// available, so the trigger is racy the same way as the other controls
+// documented in README's "SSR hydration and interactive controls".
+const hydrated = useHydrated()
 
 const PRIORITIES = ['0', '1', '2', '3'] as const
 
@@ -22,7 +26,7 @@ function onChange(value: unknown) {
 
 <template>
   <Select :model-value="task.priority" @update:model-value="onChange">
-    <SelectTrigger size="sm" class="w-full" :disabled="isPending">
+    <SelectTrigger size="sm" class="w-full" :disabled="isPending || !hydrated">
       <SelectValue />
     </SelectTrigger>
     <SelectContent>

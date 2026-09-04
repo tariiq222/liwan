@@ -9,9 +9,12 @@ import { useProjects } from '@/composables/useProjects'
 const props = defineProps<{ modelValue: TaskListParams }>()
 const emit = defineEmits<{ 'update:modelValue': [TaskListParams]; create: [] }>()
 const { t } = useI18n()
-// The tab triggers are SSR-rendered and visible/clickable before Nuxt
-// hydrates and attaches their listeners; a click in that window is silently
-// dropped (see useHydrated()). Disable them until hydration completes.
+// Every control below is SSR-rendered and visible/clickable before Nuxt
+// hydrates and attaches its listeners; an interaction in that window is
+// silently dropped (see useHydrated()). Disable them all until hydration
+// completes — the tab triggers, the state/project filter triggers, the
+// search input, and the "new task" button all have JS listeners and are
+// racy in the exact same way.
 const hydrated = useHydrated()
 
 const { data: projects } = useProjects()
@@ -59,8 +62,8 @@ watch(
     </Tabs>
 
     <DropdownMenu>
-      <DropdownMenuTrigger as-child>
-        <Button variant="outline" size="sm">{{ t('tasks.filters.allStates') }}</Button>
+      <DropdownMenuTrigger as-child :disabled="!hydrated">
+        <Button variant="outline" size="sm" :disabled="!hydrated">{{ t('tasks.filters.allStates') }}</Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start">
         <DropdownMenuCheckboxItem
@@ -79,7 +82,7 @@ watch(
       :model-value="modelValue.project_id ? String(modelValue.project_id) : 'all'"
       @update:model-value="(v) => patch({ project_id: v === 'all' ? undefined : Number(v) })"
     >
-      <SelectTrigger size="sm" class="w-40">
+      <SelectTrigger size="sm" class="w-40" :disabled="!hydrated">
         <SelectValue :placeholder="t('tasks.filters.allProjects')" />
       </SelectTrigger>
       <SelectContent>
@@ -90,10 +93,10 @@ watch(
 
     <div class="relative min-w-48 flex-1">
       <Search class="pointer-events-none absolute start-2 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-      <Input v-model="search" :placeholder="t('tasks.filters.search')" class="ps-8" />
+      <Input v-model="search" :disabled="!hydrated" :placeholder="t('tasks.filters.search')" class="ps-8" />
     </div>
 
-    <Button size="sm" class="gap-1.5" @click="emit('create')">
+    <Button size="sm" class="gap-1.5" :disabled="!hydrated" @click="emit('create')">
       <Plus class="size-4" />{{ t('tasks.new') }}
     </Button>
   </div>

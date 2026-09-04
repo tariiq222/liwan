@@ -15,6 +15,12 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+// Rows (and the row-open click handler, "load more", and the empty state's
+// "create" action) can be SSR-rendered with data already available, making
+// them clickable before Nuxt hydrates and attaches listeners — the same
+// race documented in README's "SSR hydration and interactive controls".
+// The per-cell StateMenu/PrioritySelect controls gate themselves.
+const hydrated = useHydrated()
 
 const paramsRef = computed(() => props.params)
 const { data, isLoading, hasNextPage, fetchNextPage, isFetchingNextPage } = useTasks(paramsRef)
@@ -83,6 +89,7 @@ const table = useVueTable({
 // trigger, select trigger); a click that lands on one of them must not also
 // open the row.
 function onRowClick(task: Task, event: MouseEvent) {
+  if (!hydrated.value) return
   const target = event.target as HTMLElement
   if (target.closest('button, [role="combobox"], [data-slot="select-trigger"]')) return
   emit('open', task.id)
@@ -127,7 +134,7 @@ function onRowClick(task: Task, event: MouseEvent) {
           <TableEmpty v-else-if="items.length === 0" :colspan="columns.length">
             <div class="flex flex-col items-center gap-2 text-center">
               <p class="text-muted-foreground">{{ t(emptyTitleKey) }}</p>
-              <Button v-if="showCreateAction" size="sm" @click="emit('create')">{{ t('tasks.empty.action') }}</Button>
+              <Button v-if="showCreateAction" size="sm" :disabled="!hydrated" @click="emit('create')">{{ t('tasks.empty.action') }}</Button>
             </div>
           </TableEmpty>
           <template v-else>
@@ -146,7 +153,7 @@ function onRowClick(task: Task, event: MouseEvent) {
       </Table>
     </div>
     <div v-if="hasNextPage" class="flex justify-center">
-      <Button variant="outline" size="sm" :disabled="isFetchingNextPage" @click="fetchNextPage()">
+      <Button variant="outline" size="sm" :disabled="isFetchingNextPage || !hydrated" @click="fetchNextPage()">
         {{ t('app.loadMore') }}
       </Button>
     </div>

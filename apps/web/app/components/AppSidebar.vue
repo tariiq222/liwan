@@ -8,6 +8,11 @@ const { connected } = useBus()
 const route = useRoute()
 const nav = computed(() => useNav(me.value?.role))
 const initials = computed(() => (me.value?.name ?? '?').trim().slice(0, 1))
+// The nav links above are NuxtLink/<a> — they navigate natively and work
+// fine before hydration, so they're left ungated. The account menu trigger
+// below (opening to the logout item) is SSR-rendered with an attached
+// listener and is racy the same way TaskToolbar's controls are; gate it.
+const hydrated = useHydrated()
 
 async function logout() {
   // body: {} so ofetch sets application/json — the endpoint rejects anything else.
@@ -47,8 +52,8 @@ async function logout() {
 
     <SidebarFooter>
       <DropdownMenu>
-        <DropdownMenuTrigger as-child>
-          <SidebarMenuButton size="lg">
+        <DropdownMenuTrigger as-child :disabled="!hydrated">
+          <SidebarMenuButton size="lg" :disabled="!hydrated">
             <div class="relative">
               <Avatar class="size-8 rounded-md"><AvatarFallback class="rounded-md">{{ initials }}</AvatarFallback></Avatar>
               <!--
