@@ -1,0 +1,99 @@
+{
+  "tasks": {
+    "title": "مهامي",
+    "table": "جدول",
+    "board": "لوحة",
+    "new": "مهمة جديدة",
+    "newTitle": "عنوان المهمة",
+    "project": "المشروع",
+    "columns": {
+      "title": "العنوان",
+      "project": "المشروع",
+      "state": "الحالة",
+      "deadline": "الموعد",
+      "priority": "الأولوية",
+      "stage": "المرحلة"
+    },
+    "filters": {
+      "open": "مفتوحة",
+      "closed": "منجزة",
+      "allStates": "كل الحالات",
+      "allProjects": "كل المشاريع",
+      "search": "بحث في العناوين…"
+    },
+    "empty": {
+      "title": "لا مهام مسندة إليك",
+      "action": "إنشاء مهمة",
+      "closedTitle": "لا مهام منجزة بعد"
+    },
+    "state": {
+      "in_progress": "قيد التنفيذ",
+      "changes_requested": "تعديلات مطلوبة",
+      "approved": "معتمد",
+      "waiting": "بانتظار",
+      "done": "منجز",
+      "cancelled": "ملغى"
+    },
+    "priority": {
+      "0": "عادية",
+      "1": "مهمة",
+      "2": "عالية",
+      "3": "عاجلة"
+    },
+    "deadline": {
+      "none": "بلا موعد",
+      "today": "اليوم",
+      "tomorrow": "غدًا",
+      "inDays": "خلال {n} يوم",
+      "overdueDays": "متأخرة {n} يوم"
+    },
+    "detail": {
+      "next": "التالية",
+      "prev": "السابقة",
+      "close": "إغلاق",
+      "linkPrompt": "عنوان الرابط"
+    },
+    "drawer": {
+      "details": "التفاصيل",
+      "activity": "النشاط",
+      "assignees": "المسؤولون",
+      "deadline": "الموعد",
+      "priority": "الأولوية",
+      "tags": "الوسوم",
+      "stage": "المرحلة الشخصية",
+      "allocatedHours": "الساعات المخصَّصة",
+      "description": "الوصف",
+      "subtasks": "المهام الفرعية",
+      "addSubtask": "إضافة مهمة فرعية",
+      "dependsOn": "تعتمد على",
+      "attachments": "المرفقات",
+      "metrics": "المؤشرات",
+      "age": "العمر",
+      "cycle": "زمن الإنجاز",
+      "days": "{n} يوم",
+      "created": "أُنشئت",
+      "updated": "آخر تحديث",
+      "unassigned": "غير مسند",
+      "removeAssignee": "إزالة المكلّف"
+    },
+    "transition": {
+      "forbidden": "هذا الانتقال يتطلب صلاحية مدير المشروع"
+    },
+    "activity": {
+      "comment": "علّق",
+      "system": "النظام",
+      "changed": "غيّر {field} من «{old}» إلى «{new}»",
+      "set": "عيّن {field}: «{new}»",
+      "cleared": "أزال {field}",
+      "write": "اكتب تعليقًا…",
+      "post": "نشر",
+      "empty": "لا نشاط بعد"
+    },
+    "kanban": {
+      "moveTo": "نقل إلى…",
+      "emptyColumn": "لا مهام",
+      "unstaged": "بلا مرحلة",
+      "capped": "تُعرض أول 200 مهمة"
+    }
+  }
+}

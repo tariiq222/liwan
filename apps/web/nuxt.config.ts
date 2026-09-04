@@ -16,9 +16,14 @@ export default defineNuxtConfig({
     },
   },
   i18n: {
+    // One file per pillar namespace, merged by @nuxtjs/i18n into a single
+    // message object per locale — key paths are unchanged ($t('tasks.state.done')
+    // still resolves). A pillar owns its own namespace file: the HR pillar adds
+    // i18n/locales/{ar,en}/hr.json and one entry per locale here, and never
+    // touches common.json or tasks.json.
     locales: [
-      { code: 'ar', language: 'ar-SA', dir: 'rtl', name: 'العربية', file: 'ar.json' },
-      { code: 'en', language: 'en', dir: 'ltr', name: 'English', file: 'en.json' },
+      { code: 'ar', language: 'ar-SA', dir: 'rtl', name: 'العربية', files: ['ar/common.json', 'ar/tasks.json'] },
+      { code: 'en', language: 'en', dir: 'ltr', name: 'English', files: ['en/common.json', 'en/tasks.json'] },
     ],
     defaultLocale: 'ar',
     strategy: 'no_prefix',

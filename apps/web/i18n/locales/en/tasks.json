@@ -1,0 +1,99 @@
+{
+  "tasks": {
+    "title": "My tasks",
+    "table": "Table",
+    "board": "Board",
+    "new": "New task",
+    "newTitle": "Task title",
+    "project": "Project",
+    "columns": {
+      "title": "Title",
+      "project": "Project",
+      "state": "State",
+      "deadline": "Deadline",
+      "priority": "Priority",
+      "stage": "Stage"
+    },
+    "filters": {
+      "open": "Open",
+      "closed": "Done",
+      "allStates": "All states",
+      "allProjects": "All projects",
+      "search": "Search titles…"
+    },
+    "empty": {
+      "title": "No tasks assigned to you",
+      "action": "Create task",
+      "closedTitle": "No completed tasks yet"
+    },
+    "state": {
+      "in_progress": "In progress",
+      "changes_requested": "Changes requested",
+      "approved": "Approved",
+      "waiting": "Waiting",
+      "done": "Done",
+      "cancelled": "Cancelled"
+    },
+    "priority": {
+      "0": "Normal",
+      "1": "Important",
+      "2": "High",
+      "3": "Urgent"
+    },
+    "deadline": {
+      "none": "No deadline",
+      "today": "Today",
+      "tomorrow": "Tomorrow",
+      "inDays": "In {n} days",
+      "overdueDays": "{n} days overdue"
+    },
+    "detail": {
+      "next": "Next",
+      "prev": "Previous",
+      "close": "Close",
+      "linkPrompt": "Link URL"
+    },
+    "drawer": {
+      "details": "Details",
+      "activity": "Activity",
+      "assignees": "Assignees",
+      "deadline": "Deadline",
+      "priority": "Priority",
+      "tags": "Tags",
+      "stage": "Personal stage",
+      "allocatedHours": "Allocated hours",
+      "description": "Description",
+      "subtasks": "Subtasks",
+      "addSubtask": "Add subtask",
+      "dependsOn": "Depends on",
+      "attachments": "Attachments",
+      "metrics": "Metrics",
+      "age": "Age",
+      "cycle": "Cycle time",
+      "days": "{n} days",
+      "created": "Created",
+      "updated": "Last updated",
+      "unassigned": "Unassigned",
+      "removeAssignee": "Remove assignee"
+    },
+    "transition": {
+      "forbidden": "This transition requires project manager permission"
+    },
+    "activity": {
+      "comment": "Comment",
+      "system": "System",
+      "changed": "Changed {field} from \"{old}\" to \"{new}\"",
+      "set": "Set {field}: \"{new}\"",
+      "cleared": "Cleared {field}",
+      "write": "Write a comment…",
+      "post": "Post",
+      "empty": "No activity yet"
+    },
+    "kanban": {
+      "moveTo": "Move to…",
+      "emptyColumn": "No tasks",
+      "unstaged": "No stage",
+      "capped": "Showing the first 200 tasks"
+    }
+  }
+}

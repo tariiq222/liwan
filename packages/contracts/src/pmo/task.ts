@@ -31,7 +31,6 @@ export const TaskPatchSchema = z.object({
 
 export const TaskCreateSchema = z.object({ name: z.string().min(1), project_id: z.number().int(), parent_id: z.number().int().optional() }).strict()
 
-export const ApiErrorSchema = z.object({ code: z.string(), message: z.string(), field: z.string().optional() }).strict()
 
 export type Task = z.infer<typeof TaskSchema>
 export type TaskDetail = z.infer<typeof TaskDetailSchema>
