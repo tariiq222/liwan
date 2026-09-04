@@ -290,7 +290,7 @@ are phase-4-and-later work, not out-of-scope forever.
 |---|---|---|
 | 0 — Foundation | Monorepo, `nasq_core` groups + branding fields, `nasq_api` skeleton (`/branding`, `/me`), Nuxt shell (login, sidebar, ⌘K, tokens, RTL, proxy), `deploy/` compose, remove OCA modules | 1 week — done 2026-09-04 |
 | 1 — Core | My tasks table + board, task detail **modal** at `/tasks/{id}` (autosave, comments, sub-tasks), real-time | Delivered 2026-09-04 |
-| 2 — Projects | Projects list, project screen (list / board by project stage, status set by managers) — spec `2026-09-04-nasq-phase-2-projects-design.md` | 3 weeks |
+| 2 — Projects | Projects list, project screen (list / board by project stage, status set by managers) — spec `2026-09-04-nasq-phase-2-projects-design.md` | Delivered 2026-09-05 |
 | **Demo to Erada** | | **~7 weeks** |
 | 3 — Completion | Today, People, Reports, Settings (4 pages, incl. create/edit project and stages), milestones and project updates, hide Odoo noise, PWA | 3 weeks |
 | 4 — Later packages | Gantt (custom build), risks, initiatives, meetings, KPIs, SSO, portal users | per package |

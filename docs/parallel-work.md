@@ -12,7 +12,7 @@ read, and it changes rarely and deliberately.
 | Controllers | `controllers/common.py`, `auth.py`, `branding.py`, `me.py` | `nasq_pmo/controllers/*` | `nasq_hr/controllers/*` |
 | Serializers | `serializers/common.py` (`iso`), `company.py`, `user.py` | `nasq_pmo/serializers/*` | `nasq_hr/serializers/*` |
 | Tests | `nasq_api/tests/common.py` (`NasqApiCase`) + its own tests | `nasq_pmo/tests/*` (`NasqPmoCase`) | `nasq_hr/tests/*` |
-| Messages | `i18n/locales/{ar,en}/common.json` | `…/tasks.json` | `…/hr.json` |
+| Messages | `i18n/locales/{ar,en}/common.json` | `…/{tasks,projects}.json` | `…/hr.json` |
 | Contracts | `packages/contracts/src/common/` | `src/pmo/` | `src/hr/` |
 | Web pages/components | `app/components/ui/*`, layout, `useApi`/`useMe`/`useBranding` | task pages & components | people/employee pages |
 

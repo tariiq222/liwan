@@ -46,6 +46,39 @@ See `docs/superpowers/specs/2026-09-04-nasq-phase-1-my-tasks-design.md` for
 the full design and `docs/superpowers/specs/2026-09-03-nasq-platform-design.md`
 for where phase 1 sits in the four-pillar platform.
 
+## Phase 2
+
+Phase 2 ("projects") shipped on the `phase-2` branch. nasq has **no time
+logging anywhere in the product** — no allocated-vs-logged-hours reporting,
+no timesheet endpoints or fields, a deliberate product decision, not a gap.
+
+- **Projects table** (`/projects`) — every project the user can read, with
+  status badge and progress; opens a project by row.
+- **Project screen** (`/projects/{id}`) — header (name, status — a `Select`
+  for managers, a read-only badge otherwise — and progress), list/board tabs
+  (`?tab=list|board`, task filters kept in the query too), and its own
+  create-task action (project locked to the current one). A non-numeric or
+  unreadable/nonexistent id renders a not-found state instead of querying.
+- **Project-scoped task list** — the board groups by the project's own
+  stages (not personal stages); the table adds a project-stage column and
+  hides the per-row project filter.
+- **Nested task modal** at `/projects/{id}/tasks/{taskId}` — the same task
+  detail modal as مهامي, opened over the project screen; closing it restores
+  the project screen's filters and tab from the URL.
+- **⌘K** — projects are searchable alongside tasks.
+- **API**: `GET /api/v1/projects` (`?minimal=1` for `{id, name}` pairs used
+  by pickers, full project shape otherwise, capped at 200, sorted by name),
+  `GET /api/v1/projects/{id}` (adds `stages`), `POST /api/v1/projects/{id}/status`
+  (managers only, 403 `status_forbidden` otherwise). `GET /api/v1/tasks` takes
+  `project_id` (paired with `filter=mine` and/or on its own — at least one of
+  the two is required); `PATCH /api/v1/tasks/{id}` takes `stage_id` to move a
+  task between its project's stages.
+- **Locale** — `projects.json` alongside `tasks.json` in each pillar's
+  namespace (see Layout below).
+
+See `docs/superpowers/specs/2026-09-04-nasq-phase-2-projects-design.md` for
+the full design.
+
 ## Layout
 
 Ownership rule: shared plumbing lives in `nasq_api`, each pillar lives in its
@@ -53,11 +86,11 @@ own addon, and each pillar owns its own locale namespace and contract
 namespace — so two pillar teams never write the same file.
 
 - `apps/web` — Nuxt 4 product UI. Messages are per-pillar namespace files,
-  `i18n/locales/<locale>/{common,tasks}.json`, merged by `@nuxtjs/i18n`'s
+  `i18n/locales/<locale>/{common,tasks,projects}.json`, merged by `@nuxtjs/i18n`'s
   per-locale `files: [...]` (key paths are flat: `$t('tasks.state.done')`).
 - `packages/contracts` — zod schemas shared with the UI: `src/common/`
   (branding, error envelope, me) and `src/pmo/` (state, task, timeline,
-  personal stage), each with its own `index.ts`; `src/index.ts` re-exports
+  personal stage, project), each with its own `index.ts`; `src/index.ts` re-exports
   them, so consumers keep importing from `@nasq/contracts`.
 - `odoo-addons`
   - `nasq_core` — groups and branding defaults.
@@ -118,13 +151,13 @@ actual contract being protected, and is what these tests prove.
 
 ## Tests
 
-    # Odoo addons (fresh scratch DB) — 0 failed, 0 error(s) of 57 tests
+    # Odoo addons (fresh scratch DB) — 0 failed, 0 error(s) of 81 tests
     cd ~/code/odoo && .venv/bin/python odoo-bin -c odoo.conf -d nasq_test -i nasq_core,nasq_api,nasq_pmo --test-tags /nasq_core,/nasq_api,/nasq_pmo
     # tip: if a dev server already holds :8069, add --http-port=8169 to the command above
     # lint
     ruff check odoo-addons deploy/seed_branding.py     # clean
     npm -w apps/web run lint                           # vue-tsc --build --noEmit, 0 errors
-    # contracts + web unit — 15 + 118 = 133 tests passing
+    # contracts + web unit — 21 + 127 = 148 tests passing
     npm test
-    # e2e (needs Odoo on :8069 with nasq_core, nasq_api and nasq_pmo installed and `npm run dev` on :3000) — 25 passed
+    # e2e (needs Odoo on :8069 with nasq_core, nasq_api and nasq_pmo installed and `npm run dev` on :3000) — 30 passed
     cd apps/web && npm run test:e2e

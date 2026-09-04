@@ -9,18 +9,22 @@ logic lives in a `customer_<name>_*` overlay addon, never in core. Full design:
 
 ## Layout
 
-- `odoo-addons/` — `nasq_core` (groups, company branding fields, seed data), `nasq_api`
+- `odoo-addons/` — `nasq_core` (depends `base`, `project`, `hr`; groups, company branding
+  fields, seed data), `nasq_api`
   (shared `/api/v1` plumbing only: `controllers/{common,auth,branding,me}.py`,
   `serializers/{common,company,user}.py`, and the `NasqApiCase` test fixture the pillars
   subclass — it never imports a pillar), `nasq_pmo` (the project pillar:
   `controllers/{tasks,timeline,personal_stages,projects,people}.py`,
-  `serializers/{task,timeline}.py`, `models/project_task.py` holding the transition hooks
-  and bus notifier, the `NasqPmoCase` task/timeline/stage API tests plus `TransactionCase`
-  transition/bus tests), `web_theme_shadcn`
+  `serializers/{task,timeline,project}.py`, `models/{project_task,project_project}.py`
+  holding the transition/status hooks and bus notifier, the `NasqPmoCase`
+  task/timeline/stage/project API tests (incl. `tests/test_projects.py`,
+  `tests/test_project_status.py`) plus `TransactionCase` transition/bus tests),
+  `web_theme_shadcn`
   (vendor console theme). Ownership rule between pillars: `docs/parallel-work.md`.
 - `packages/contracts` — zod schemas mirroring every wire shape (`@nasq/contracts`), split
   per pillar: `src/common/` (branding, error envelope, me), `src/pmo/` (state, task,
-  timeline, personal stage), each with its own `index.ts` re-exported from `src/index.ts`.
+  timeline, personal stage, `project.ts`), each with its own `index.ts` re-exported from
+  `src/index.ts`.
 - `apps/web` — Nuxt 4 / Vue 3.5 / Tailwind v4 / shadcn-vue (reka-ui) / `@tanstack/vue-query`
   / `@nuxtjs/i18n` / Vitest / Playwright.
 - `deploy/` — per-customer docker-compose, Caddyfile, `provision.sh`, `seed_branding.py`.
@@ -64,6 +68,10 @@ they obey.
   Settings), vendor support = `nasq_core.group_vendor_support` (implies `base.group_system`, full Odoo). Nobody at the customer opens Odoo.
 - Bus: task create/write notifies assignees' partner channels; the web app invalidates
   vue-query caches on those events.
+- No time logging anywhere in the product: no `hr_timesheet` dependency (see `nasq_core`'s
+  manifest comment), no timesheet fields/endpoints, no "allocated hours vs. logged hours"
+  reporting. This is a deliberate product decision (`2026-09-04-nasq-phase-2-projects-design.md`),
+  not a gap to fill later.
 - Branding source of truth is the DB (`res.company` + nasq fields); `deploy/branding.json`
   only seeds it. `GET /api/v1/branding` is public + cached.
 
@@ -74,7 +82,7 @@ they obey.
   addon's manifest `depends` are real instead of the install riding on whatever the other
   pillar already pulled in:
   `.venv/bin/python odoo-bin -c odoo.conf -d nasq_test -i nasq_core,nasq_pmo,nasq_api --test-tags /nasq_core,/nasq_pmo,/nasq_api --http-port=8169`
-  (timeout 300000 ms). API tests extend `NasqApiCase` (shared — `nasq_api/tests/common.py`,
+  (timeout 300000 ms; 81 tests, 0 failed). API tests extend `NasqApiCase` (shared — `nasq_api/tests/common.py`,
   an `HttpCase` with `self.api(method, path, json)`) or `NasqPmoCase` (PMO — it subclasses
   `NasqApiCase` and adds the project/task fixtures). Every `test_*.py` must be imported from
   `tests/__init__.py`.
@@ -89,7 +97,7 @@ they obey.
 
 - Arabic default (`ar`), English secondary, `@nuxtjs/i18n` strategy `no_prefix`; every
   user-facing string via `$t()`/`t()` in per-pillar namespace files under
-  `apps/web/i18n/locales/{ar,en}/{common,tasks}.json` (key paths are flat after the merge).
+  `apps/web/i18n/locales/{ar,en}/{common,tasks,projects}.json` (key paths are flat after the merge).
 - RTL-first: Tailwind logical properties only (`ms-`/`me-`/`ps-`/`pe-`/`start-`/`end-`,
   `text-start`), never `ml-`/`pl-`/`left-`. Design tokens are fixed; do not add colours.
 - shadcn-vue components are generated into `apps/web/app/components/ui/` and some are

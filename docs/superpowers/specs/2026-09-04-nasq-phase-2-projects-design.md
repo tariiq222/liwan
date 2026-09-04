@@ -3,7 +3,7 @@
 **Date:** 2026-09-04
 **Target:** nasq `main` @ `48017fa` (phase 1 delivered as `v0.2.0-phase1`, pillar
 split merged)
-**Status:** Approved — ready for planning
+**Status:** Delivered 2026-09-05
 **Parent spec:** `2026-09-03-nasq-platform-design.md` (binding). This document
 refines the parent's Phase 2 row after two decisions taken with the product
 owner on 2026-09-04: (1) nasq is a four-pillar suite and the project pillar
