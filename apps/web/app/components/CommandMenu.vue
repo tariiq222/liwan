@@ -15,10 +15,23 @@ async function go(to: string) {
 
 // Every row advertises a key, so the key has to do something. The palette opens
 // with CommandInput focused; capture phase lets a bare shortcut jump instead of
-// typing into the search box. Modifier combinations stay untouched.
+// typing into the search box — but only while the box is still empty, so the
+// same characters remain typeable once the user starts filtering. Modifier
+// combinations stay untouched.
+//
+// The generated CommandInput (app/components/ui/command/CommandInput.vue)
+// doesn't forward a search-term prop from Command/CommandDialog, so there is
+// no `v-model:search-term` to read here. It does still accept an external
+// `v-model` though: Vue merges the `v-model="query"` passed to it below with
+// CommandInput's own internal `v-model="filterState.search"` via
+// `mergeProps`, which fires both `update:modelValue` handlers on every
+// keystroke, so `query` tracks the live filter text without any change to
+// the generated component.
+const query = ref('')
 const shortcuts = computed(() => new Map(nav.value.map(item => [item.shortcut, item.to])))
 useEventListener('keydown', (event: KeyboardEvent) => {
   if (!open.value || event.metaKey || event.ctrlKey || event.altKey) return
+  if (query.value) return
   const to = shortcuts.value.get(event.key)
   if (!to) return
   event.preventDefault()
@@ -29,7 +42,7 @@ useEventListener('keydown', (event: KeyboardEvent) => {
 
 <template>
   <CommandDialog v-model:open="open">
-    <CommandInput placeholder="اكتب للانتقال…" />
+    <CommandInput v-model="query" placeholder="اكتب للانتقال…" />
     <CommandList>
       <CommandEmpty>لا نتائج.</CommandEmpty>
       <CommandGroup heading="الانتقال إلى">

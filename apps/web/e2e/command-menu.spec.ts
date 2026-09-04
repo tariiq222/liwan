@@ -15,3 +15,22 @@ test('the ⌘K palette navigates with the shortcut it advertises', async ({ page
   await page.keyboard.press('2')
   await expect(page).toHaveURL(/\/tasks$/)
 })
+
+// Once the user is filtering, the same characters must land in the search
+// box instead of being hijacked as navigation shortcuts.
+test('the ⌘K search box receives shortcut characters once it has a query', async ({ page }) => {
+  await page.goto('/login')
+  await page.getByLabel('اسم المستخدم').fill('admin')
+  await page.getByLabel('كلمة المرور').fill('admin')
+  await page.getByRole('button', { name: 'دخول' }).click()
+  await expect(page.getByRole('navigation')).toContainText('مهامي')
+  await page.locator('body').click({ position: { x: 400, y: 400 } })
+
+  await page.keyboard.press('ControlOrMeta+k')
+  const input = page.getByPlaceholder('اكتب للانتقال…')
+  await expect(input).toBeVisible()
+
+  await page.keyboard.type('x2')
+  await expect(page).toHaveURL(/\/$/)
+  await expect(input).toHaveValue('x2')
+})
