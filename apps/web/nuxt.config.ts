@@ -22,8 +22,8 @@ export default defineNuxtConfig({
     // i18n/locales/{ar,en}/hr.json and one entry per locale here, and never
     // touches common.json or tasks.json.
     locales: [
-      { code: 'ar', language: 'ar-SA', dir: 'rtl', name: 'العربية', files: ['ar/common.json', 'ar/tasks.json'] },
-      { code: 'en', language: 'en', dir: 'ltr', name: 'English', files: ['en/common.json', 'en/tasks.json'] },
+      { code: 'ar', language: 'ar-SA', dir: 'rtl', name: 'العربية', files: ['ar/common.json', 'ar/tasks.json', 'ar/projects.json'] },
+      { code: 'en', language: 'en', dir: 'ltr', name: 'English', files: ['en/common.json', 'en/tasks.json', 'en/projects.json'] },
     ],
     defaultLocale: 'ar',
     strategy: 'no_prefix',

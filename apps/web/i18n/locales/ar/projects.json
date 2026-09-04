@@ -1,0 +1,22 @@
+{
+  "projects": {
+    "title": "المشاريع",
+    "empty": "لا مشاريع بعد",
+    "capped": "يعرض الجدول أول 200 مشروع فقط",
+    "notFound": "المشروع غير موجود أو لا تملك صلاحية عرضه",
+    "backToProjects": "العودة إلى المشاريع",
+    "columns": { "name": "الاسم", "status": "الحالة", "progress": "التقدم" },
+    "status": {
+      "on_track": "على المسار",
+      "at_risk": "معرض للخطر",
+      "off_track": "خارج المسار",
+      "on_hold": "معلّق",
+      "done": "منجز",
+      "unset": "غير محدد"
+    },
+    "setStatus": "حالة المشروع",
+    "statusUpdated": "تم تحديث حالة المشروع",
+    "progressOf": "{closed} من {total} مهمة",
+    "tabs": { "list": "قائمة", "board": "لوحة" }
+  }
+}

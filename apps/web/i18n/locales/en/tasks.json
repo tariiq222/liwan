@@ -12,7 +12,8 @@
       "state": "State",
       "deadline": "Deadline",
       "priority": "Priority",
-      "stage": "Stage"
+      "stage": "Stage",
+      "assignees": "Assignees"
     },
     "filters": {
       "open": "Open",
@@ -93,7 +94,8 @@
       "moveTo": "Move to…",
       "emptyColumn": "No tasks",
       "unstaged": "No stage",
-      "capped": "Showing the first 200 tasks"
+      "capped": "Showing the first 200 tasks",
+      "noStages": "This project has no stages yet. Stages are managed in Settings later."
     }
   }
 }
