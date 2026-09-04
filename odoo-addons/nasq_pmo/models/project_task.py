@@ -12,7 +12,7 @@ class ProjectTask(models.Model):
     _inherit = 'project.task'
 
     def _nasq_can_approve(self):
-        """True when the current user may approve / request changes on ``self``."""
+        """True when the current user (regardless of ``self``) may approve / request changes."""
         return (
             self.env.user.has_group('project.group_project_manager')
             or self.env.user.has_group('nasq_core.group_customer_admin')
@@ -31,16 +31,18 @@ class ProjectTask(models.Model):
         return self
 
     def _nasq_check_transition_allowed(self, state):
+        """Raise AccessError when the current user may not move to ``state``."""
         if state in MANAGER_STATES and not self._nasq_can_approve():
             raise AccessError(self.env._("Only a project manager can approve or request changes."))
 
     def _nasq_do_transition(self, state):
-        vals = {'state': state}
+        """Write ``state`` and keep ``date_end`` consistent: set on close, cleared on reopen."""
         if state in CLOSED_STATES:
-            vals['date_end'] = fields.Datetime.now()
-        elif self.filtered(lambda t: t.state in CLOSED_STATES):
-            vals['date_end'] = False
-        self.write(vals)
+            self.write({'state': state, 'date_end': fields.Datetime.now()})
+            return
+        reopened = self.filtered(lambda t: t.state in CLOSED_STATES)
+        (self - reopened).write({'state': state})
+        reopened.write({'state': state, 'date_end': False})
 
     def _nasq_post_transition_hook(self, state):
         """Extension point (notifications, side effects). No-op in core."""
