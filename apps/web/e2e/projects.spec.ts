@@ -75,21 +75,6 @@ test('project list shows every task of the project (not only mine), the modal cl
   await expect(row).toBeVisible()
   await expect(row.getByText('To Do')).toBeVisible()
   await row.click()
-  // FAILS: TaskTable.vue's `project` variant sets the title column's width to
-  // `w-[46%]` (colgroupClasses, apps/web/app/components/task/TaskTable.vue
-  // ~line 98), below the 50% the file's own comment a few lines below (~119)
-  // documents as required: "keeps the title column at >=50% of the row's
-  // width ... a click on the row lands at its bounding-box's horizontal
-  // center ... reliably opens it instead of landing on the narrower
-  // state/priority controls." At 46%, the row's horizontal midpoint (50%)
-  // falls inside the *second* column instead, which for the `project`
-  // variant is stateColumn (columns = [titleColumn, stateColumn, ...]). So
-  // row.click() opens the StateMenu dropdown instead of navigating to the
-  // task — confirmed via the accessibility snapshot at failure time, which
-  // shows the state-transition menu open rather than the task dialog.
-  // Expected: clicking anywhere on a project-list row opens the task detail
-  // modal, same as it does on مهامي (variant "mine", whose title column is
-  // 52%). Fix belongs in TaskTable.vue's project-variant colgroupClasses.
   await expect(page).toHaveURL(new RegExp(`/projects/${id}/tasks/${t}\\?`))
   await expect(page.getByRole('dialog').getByRole('textbox', { name: 'عنوان المهمة' })).toHaveValue(`${name} task`)
   await page.keyboard.press('Escape')
