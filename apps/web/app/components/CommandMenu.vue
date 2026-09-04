@@ -55,7 +55,7 @@ useEventListener('keydown', (event: KeyboardEvent) => {
         </CommandItem>
       </CommandGroup>
       <CommandGroup v-if="projects?.length" :heading="$t('nav.projects')">
-        <CommandItem v-for="p in projects" :key="p.id" :value="p.name" @select="go(`/projects/${p.id}`)">
+        <CommandItem v-for="p in projects" :key="p.id" :value="`${p.name} #${p.id}`" @select="go(`/projects/${p.id}`)">
           <span>{{ p.name }}</span>
         </CommandItem>
       </CommandGroup>

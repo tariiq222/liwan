@@ -14,10 +14,14 @@ const router = useRouter()
 const { t } = useI18n()
 const hydrated = useHydrated()
 
-const projectId = computed(() => Number(route.params.id))
+const projectId = computed(() => {
+  const n = Number(route.params.id)
+  return Number.isInteger(n) && n > 0 ? n : null
+})
 const { data: project, isLoading, error } = useProject(projectId)
-// 404 (missing) and 403 (exists, unreadable) both mean "not yours to see".
-const notFound = computed(() => error.value instanceof ApiError && (error.value.status === 404 || error.value.status === 403))
+// A non-numeric route param never resolves to a project. 404 (missing) and
+// 403 (exists, unreadable) both mean "not yours to see" once it does query.
+const notFound = computed(() => projectId.value === null || (error.value instanceof ApiError && (error.value.status === 404 || error.value.status === 403)))
 
 const tab = computed(() => (route.query.tab === 'board' ? 'board' : 'list'))
 function onTabChange(v: unknown) {
@@ -26,7 +30,8 @@ function onTabChange(v: unknown) {
 
 // Filters live in the URL (see projectTaskParams.ts) so the nested task modal
 // and this page query the same cache key and closing the modal restores them.
-const params = computed<TaskListParams>(() => projectTaskParams(projectId.value, route.query))
+// Only evaluated behind the v-else (i.e. once notFound is false, so projectId is non-null).
+const params = computed<TaskListParams>(() => projectTaskParams(projectId.value!, route.query))
 function onParams(p: TaskListParams) {
   router.replace({ query: { ...route.query, ...projectTaskQuery(p) } })
 }
@@ -65,7 +70,7 @@ const stageSource = computed(() => ({ kind: 'project' as const, stages: project.
         </TabsContent>
       </Tabs>
 
-      <CreateTaskDialog v-model:open="createOpen" :project-id="projectId" @created="openTask" />
+      <CreateTaskDialog v-model:open="createOpen" :project-id="projectId ?? undefined" @created="openTask" />
       <NuxtPage />
     </template>
   </div>
