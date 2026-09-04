@@ -45,23 +45,25 @@ class TaskController(http.Controller):
                 project_id = int(project_id)
             except ValueError:
                 raise ApiError(422, 'invalid', "project_id must be an integer", field='project_id') from None
-        if filter_ != 'mine' and not project_id:
+            if project_id <= 0:
+                raise ApiError(422, 'invalid', "project_id must be a positive integer", field='project_id')
+        if filter_ != 'mine' and project_id is None:
             raise ApiError(400, 'unsupported_filter', "pass filter=mine and/or project_id")
-        if project_id and not request.env['project.project'].search_count([('id', '=', project_id)]):
+        limit = parse_nonneg_int(limit, 'limit')
+        offset = parse_nonneg_int(offset, 'offset')
+        if project_id is not None and not request.env['project.project'].search_count([('id', '=', project_id)]):
             # ACL/ir.rule decide readability; an unreadable (or nonexistent) project simply
             # yields nothing. Checked up front: project.task's own visibility rule also grants
             # read on a task assigned to the caller regardless of the project's own privacy, so
             # scoping by project_id alone would otherwise still surface that one task.
             return {'items': [], 'total': 0}
-        limit = parse_nonneg_int(limit, 'limit')
-        offset = parse_nonneg_int(offset, 'offset')
         # project_todo (auto-installed alongside project) gives every new internal user a
         # personal "Welcome" project.task with no project_id; the nasq task list is about
         # project work, so exclude those to-dos rather than surfacing them as "mine".
         domain = Domain('project_id', '!=', False) & Domain('is_closed', '=', closed in ('1', 'true', True))
         if filter_ == 'mine':
             domain &= Domain('user_ids', 'in', [request.env.uid])
-        if project_id:
+        if project_id is not None:
             domain &= Domain('project_id', '=', project_id)
         if state:
             # Silently dropping an unknown value used to answer 200 with a list

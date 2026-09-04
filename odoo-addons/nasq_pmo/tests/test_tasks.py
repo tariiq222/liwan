@@ -281,6 +281,43 @@ class TestTaskProjectScope(NasqPmoCase):
         body = self.api('GET', f'/api/v1/tasks?project_id={self.project.id}').json()
         self.assertEqual(body, {'items': [], 'total': 0})
 
+    def test_list_unknown_project_id_is_empty_not_404(self):
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        body = self.api('GET', '/api/v1/tasks?project_id=999999').json()
+        self.assertEqual(body, {'items': [], 'total': 0})
+
+    def test_list_project_id_zero_is_422(self):
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        res = self.api('GET', '/api/v1/tasks?project_id=0')
+        self.assertEqual(res.status_code, 422)
+        self.assertEqual(res.json()['field'], 'project_id')
+        # ...and it must not silently drop the project scope when paired with filter=mine.
+        res = self.api('GET', '/api/v1/tasks?filter=mine&project_id=0')
+        self.assertEqual(res.status_code, 422)
+        self.assertEqual(res.json()['field'], 'project_id')
+
+    def test_list_unreadable_project_id_with_bad_limit_is_422_not_200(self):
+        # limit/offset must be validated even when project_id short-circuits to an empty list.
+        self.project.write({'privacy_visibility': 'followers'})
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        res = self.api('GET', f'/api/v1/tasks?project_id={self.project.id}&limit=abc')
+        self.assertEqual(res.status_code, 422)
+        self.assertEqual(res.json()['field'], 'limit')
+
+    def test_assignee_of_task_in_followers_project_sees_it(self):
+        """An assignee doesn't need to follow their own private project to read its name."""
+        private = self.env['project.project'].create({'name': 'Private HQ', 'privacy_visibility': 'followers'})
+        task = self.env['project.task'].create({
+            'name': 'Confidential', 'project_id': private.id, 'user_ids': [(4, self.employee.id)],
+        })
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        body = self.api('GET', '/api/v1/tasks?filter=mine').json()
+        item = next(t for t in body['items'] if t['id'] == task.id)
+        self.assertEqual(item['project'], {'id': private.id, 'name': 'Private HQ'})
+        res = self.api('GET', f'/api/v1/tasks/{task.id}')
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()['project'], {'id': private.id, 'name': 'Private HQ'})
+
     def test_detail_includes_stage(self):
         self.authenticate('api_emp', 'api_emp_pass_123')
         body = self.api('GET', f'/api/v1/tasks/{self.task_overdue.id}').json()
@@ -302,3 +339,17 @@ class TestTaskProjectScope(NasqPmoCase):
         self.assertEqual(res.status_code, 422)
         res = self.api('PATCH', f'/api/v1/tasks/{self.task_overdue.id}', {'stage_id': 'x'})
         self.assertEqual(res.status_code, 422)
+
+    def test_patch_stage_id_of_another_users_personal_stage_is_422_not_403(self):
+        """A *personal* stage id (user_id set, no project_ids) isn't one of the project's
+        stages, but `task_type_visibility_rule` denies read on someone else's personal
+        stage — so this must not leak that ir.rule AccessError as a 403."""
+        foreign_personal_stage = self.env['project.task.type'].sudo().create({
+            'name': 'Mine', 'user_id': self.manager.id,
+        })
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        res = self.api('PATCH', f'/api/v1/tasks/{self.task_overdue.id}',
+                       {'stage_id': foreign_personal_stage.id})
+        self.assertEqual(res.status_code, 422, res.text)
+        self.assertEqual(res.json()['code'], 'invalid')
+        self.assertEqual(res.json()['field'], 'stage_id')

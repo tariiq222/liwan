@@ -43,6 +43,21 @@ def _ref(record):
     return {'id': record.id, 'name': record.display_name}
 
 
+def _project_ref(project):
+    """{'id', 'name'} for a task's project, with the name resolved in sudo.
+
+    The task itself was already access-checked before dump_task runs; an assignee
+    of a task inside a privacy_visibility='followers' project they don't follow is
+    still entitled to see that task (and its project's name) via the task's own
+    visibility rule. Reading project.display_name in the caller's env instead hits
+    project_public_members_rule and turns a legitimate 200 into a 403. Resolving the
+    name in sudo here mirrors the Odoo web client, which resolves many2one display
+    names in sudo — this is not an access dodge on project data in general, just on
+    the name of a project whose task the caller can already read.
+    """
+    return {'id': project.id, 'name': project.sudo().display_name}
+
+
 def dump_task(task, today=None):
     today = _today(task, today)
     days = _days_remaining(task, today)
@@ -50,7 +65,7 @@ def dump_task(task, today=None):
     return {
         'id': task.id,
         'name': task.name,
-        'project': _ref(task.project_id) if task.project_id else None,
+        'project': _project_ref(task.project_id) if task.project_id else None,
         'state': STATE_TO_API[task.state],
         'priority': task.priority,
         'date_deadline': iso(task.date_deadline),
@@ -136,12 +151,20 @@ def _parse_personal_stage(value, key):
 
 
 def _parse_stage(task, value, key):
-    """Coerce + authorise a project stage id: it must be one of the task's project's stages."""
+    """Coerce + authorise a project stage id: it must be one of the task's project's stages.
+
+    Browsed in sudo, mirroring `_parse_personal_stage`: a foreign *personal* stage id
+    (user_id set, no project_ids) passes `exists()` (raw SQL, ignores ir.rule) but then
+    reading `stage.project_ids` in the caller's own env hits `task_type_visibility_rule`
+    and raises AccessError instead of the contracted 422 — an existence oracle to boot.
+    The `task.project_id in stage.project_ids` membership test is the real authorization
+    here; `task` was already access-checked before parse_task_vals runs.
+    """
     try:
         stage_id = int(value)
     except (TypeError, ValueError) as e:
         raise ApiError(422, 'invalid', "stage_id must be one of the project's stage ids", field=key) from e
-    stage = request.env['project.task.type'].browse(stage_id).exists()
+    stage = request.env['project.task.type'].sudo().browse(stage_id).exists()
     if not stage or task.project_id not in stage.project_ids:
         raise ApiError(422, 'invalid', "stage_id must be one of the project's stage ids", field=key)
     return stage.id
