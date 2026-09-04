@@ -4,4 +4,3 @@ export const PersonalStageSchema = z.object({ id: z.number().int().positive(), n
 export type PersonalStage = z.infer<typeof PersonalStageSchema>
 
 export const PersonRefSchema = z.object({ id: z.number().int(), name: z.string(), user_id: z.number().int() }).strict()
-export const ProjectRefSchema = z.object({ id: z.number().int(), name: z.string() }).strict()

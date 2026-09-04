@@ -9,7 +9,7 @@ export const TaskSchema = z.object({
   // Phase 1 rules add priority values '2' and '3' on top of the design spec's '0'/'1' —
   // see odoo-addons/nasq_api/serializers/task.py::parse_task_vals, which accepts '0'..'3'.
   priority: z.enum(['0', '1', '2', '3']), date_deadline: z.string().nullable(), days_remaining: z.number().int().nullable(),
-  is_overdue: z.boolean(), is_closed: z.boolean(), personal_stage: RefSchema.nullable(),
+  is_overdue: z.boolean(), is_closed: z.boolean(), personal_stage: RefSchema.nullable(), stage: RefSchema.nullable(),
   assignees: z.array(RefSchema), tags: z.array(TagSchema),
 }).strict()
 
@@ -26,7 +26,7 @@ export const TaskListSchema = z.object({ items: z.array(TaskSchema), total: z.nu
 export const TaskPatchSchema = z.object({
   name: z.string().min(1).optional(), description: z.string().optional(), date_deadline: z.string().nullable().optional(),
   priority: z.enum(['0', '1', '2', '3']).optional(), user_ids: z.array(z.number().int()).optional(), tag_ids: z.array(z.number().int()).optional(),
-  personal_stage_type_id: z.number().int().nullable().optional(), allocated_hours: z.number().optional(),
+  personal_stage_type_id: z.number().int().nullable().optional(), allocated_hours: z.number().optional(), stage_id: z.number().int().optional(),
 }).strict()
 
 export const TaskCreateSchema = z.object({ name: z.string().min(1), project_id: z.number().int(), parent_id: z.number().int().optional() }).strict()

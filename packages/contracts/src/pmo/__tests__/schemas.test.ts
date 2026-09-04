@@ -1,6 +1,7 @@
 import {
   TaskSchema, TaskDetailSchema, TaskStateSchema, TaskPatchSchema,
   TaskCreateSchema, TimelineEntrySchema, PersonalStageSchema,
+  ProjectSchema, ProjectDetailSchema, ProjectStatusBodySchema, PROJECT_STATUSES,
 } from '../index'
 
 // The literal below matches TASK_KEYS in odoo-addons/nasq_pmo/tests/test_tasks.py exactly —
@@ -8,7 +9,7 @@ import {
 const TASK_JSON = {
   id: 12, name: 'Overdue task', project: { id: 3, name: 'Erada Portal' }, state: 'in_progress',
   priority: '1', date_deadline: '2026-08-01T09:00:00Z', days_remaining: -3,
-  is_overdue: true, is_closed: false, personal_stage: { id: 5, name: 'Inbox' },
+  is_overdue: true, is_closed: false, personal_stage: { id: 5, name: 'Inbox' }, stage: { id: 9, name: 'To Do' },
   assignees: [{ id: 7, name: 'Sara' }], tags: [{ id: 1, name: 'urgent', color: 2 }],
 }
 
@@ -81,5 +82,42 @@ describe('PersonalStageSchema', () => {
   it('accepts the shape served by GET /api/v1/me/personal-stages', () => {
     const parsed = PersonalStageSchema.parse({ id: 1, name: 'Inbox', sequence: 1, fold: false })
     expect(parsed.name).toBe('Inbox')
+  })
+})
+
+const PROJECT_JSON = { id: 3, name: 'Erada Portal', status: null, progress: 33, task_count: 3, closed_task_count: 1 }
+
+describe('ProjectSchema', () => {
+  it('accepts the list shape with a null (unset) status', () => {
+    expect(ProjectSchema.parse(PROJECT_JSON).status).toBeNull()
+  })
+  it('rejects to_define — it is never on the wire', () => {
+    expect(() => ProjectSchema.parse({ ...PROJECT_JSON, status: 'to_define' })).toThrow()
+  })
+  it('rejects a progress outside 0..100', () => {
+    expect(() => ProjectSchema.parse({ ...PROJECT_JSON, progress: 101 })).toThrow()
+  })
+})
+
+describe('ProjectDetailSchema', () => {
+  it('accepts stages and can_manage', () => {
+    const parsed = ProjectDetailSchema.parse({
+      ...PROJECT_JSON, status: 'at_risk', can_manage: true,
+      stages: [{ id: 1, name: 'A', sequence: 10, fold: true }],
+    })
+    expect(parsed.stages[0]!.fold).toBe(true)
+  })
+})
+
+describe('ProjectStatusBodySchema', () => {
+  it('lists exactly the five writable statuses and rejects to_define', () => {
+    expect(PROJECT_STATUSES).toEqual(['on_track', 'at_risk', 'off_track', 'on_hold', 'done'])
+    expect(() => ProjectStatusBodySchema.parse({ status: 'to_define' })).toThrow()
+  })
+})
+
+describe('TaskPatchSchema stage_id', () => {
+  it('accepts stage_id', () => {
+    expect(TaskPatchSchema.parse({ stage_id: 4 })).toEqual({ stage_id: 4 })
   })
 })
