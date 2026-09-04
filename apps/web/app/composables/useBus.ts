@@ -101,11 +101,17 @@ function warnFallbackOnce(reason: string) {
   console.warn(`[bus] using the pinned websocket worker version (${FALLBACK_WEBSOCKET_WORKER_VERSION}) - ${reason}`)
 }
 
+// Bounded so a hung request can't delay the socket open indefinitely - see
+// resolveWorkerVersion. ofetch aborts the request itself once this elapses,
+// which lands in the same catch block as any other fetch failure below.
+const WORKER_VERSION_FETCH_TIMEOUT_MS = 3_000
+
 // Resolves the websocket protocol version to send as `?version=`. Same-origin
 // (production, and dev without NUXT_PUBLIC_WS_URL/wsUrl set): fetches the
 // live value from /web/session/get_session_info and caches it for the tab.
-// Cross-origin dev, or if that fetch fails: falls back to the pinned
-// constant above and warns once.
+// Cross-origin dev, that fetch failing, or it not completing within
+// WORKER_VERSION_FETCH_TIMEOUT_MS: falls back to the pinned constant above
+// and warns once.
 async function resolveWorkerVersion(crossOrigin: boolean): Promise<string> {
   if (cachedVersion) return cachedVersion
   if (!crossOrigin) {
@@ -113,6 +119,7 @@ async function resolveWorkerVersion(crossOrigin: boolean): Promise<string> {
       const response = await $fetch<{ result?: { websocket_worker_version?: string } }>('/web/session/get_session_info', {
         method: 'POST',
         body: { jsonrpc: '2.0', method: 'call', params: {} },
+        timeout: WORKER_VERSION_FETCH_TIMEOUT_MS,
       })
       const version = response?.result?.websocket_worker_version
       if (typeof version === 'string' && version) {
@@ -120,7 +127,8 @@ async function resolveWorkerVersion(crossOrigin: boolean): Promise<string> {
         return cachedVersion
       }
     } catch {
-      // fall through to the pinned fallback below
+      // fall through to the pinned fallback below - covers both a request
+      // error and the timeout above aborting the request
     }
     warnFallbackOnce('failed to fetch /web/session/get_session_info')
   } else {

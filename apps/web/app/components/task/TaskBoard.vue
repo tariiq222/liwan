@@ -55,12 +55,16 @@ watch(
   { immediate: true },
 )
 
-function moveTaskTo(task: Task, stage: PersonalStage) {
-  if (task.personal_stage?.id === stage.id) return
+// Single move implementation shared by every way a task can change personal
+// stage: a cross-column drag (onColumnAdd below, for both a real stage and
+// the unstaged column) and the "..." menu on the card (@move in the
+// template). `stage: null` targets the unstaged column.
+function applyMove(task: Task, stage: PersonalStage | null) {
+  if ((task.personal_stage?.id ?? null) === (stage?.id ?? null)) return
   updateTask({
     id: task.id,
-    patch: { personal_stage_type_id: stage.id },
-    resolved: { personal_stage: { id: stage.id, name: stage.name } },
+    patch: { personal_stage_type_id: stage?.id ?? null },
+    resolved: { personal_stage: stage ? { id: stage.id, name: stage.name } : null },
   })
 }
 
@@ -72,12 +76,11 @@ function onColumnAdd(event: { data?: Task }, targetKey: string) {
   const task = event.data
   if (!task) return
   if (targetKey === UNSTAGED) {
-    if (task.personal_stage === null) return
-    updateTask({ id: task.id, patch: { personal_stage_type_id: null }, resolved: { personal_stage: null } })
+    applyMove(task, null)
     return
   }
   const stage = sortedStages.value.find((s) => String(s.id) === targetKey)
-  if (stage) moveTaskTo(task, stage)
+  if (stage) applyMove(task, stage)
 }
 
 // Folded stages (fold: true) render collapsed by default; clicking a
@@ -127,7 +130,7 @@ function isCollapsed(stage: PersonalStage): boolean {
             :task="task"
             :stages="sortedStages"
             @open="emit('open', $event)"
-            @move="moveTaskTo(task, $event)"
+            @move="applyMove(task, $event)"
           />
         </VueDraggable>
         <p v-if="(columns[UNSTAGED]?.length ?? 0) === 0" class="px-1 text-xs text-muted-foreground">{{ t('tasks.kanban.emptyColumn') }}</p>
@@ -177,7 +180,7 @@ function isCollapsed(stage: PersonalStage): boolean {
               :task="task"
               :stages="sortedStages"
               @open="emit('open', $event)"
-              @move="moveTaskTo(task, $event)"
+              @move="applyMove(task, $event)"
             />
           </VueDraggable>
           <p v-if="(columns[String(stage.id)]?.length ?? 0) === 0" class="px-1 text-xs text-muted-foreground">

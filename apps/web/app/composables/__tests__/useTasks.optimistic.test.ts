@@ -119,6 +119,15 @@ describe('applyPatchToTask on a detail object', () => {
     expect(next).not.toBe(baseDetail)
     expect(baseDetail.description_html).toBe('<p>old</p>')
   })
+
+  it('leaves description_html untouched when patch.description is explicitly undefined', () => {
+    // Regression test: the check must be `patch.description !== undefined`,
+    // not `'description' in patch` - a patch object with the key present
+    // but set to undefined (e.g. built by spreading a partial form state)
+    // must not clear the field.
+    const next = applyPatchToTask(baseDetail, { description: undefined, name: 'Something else' })
+    expect(next.description_html).toBe(baseDetail.description_html)
+  })
 })
 
 describe('taskKeys', () => {

@@ -25,8 +25,10 @@ class TestTaskBus(TransactionCase):
             self.env.flush_all()
             self.env.cr.precommit.run()
         calls = [call for call in sendone.call_args_list if call.args[1] == 'nasq/task']
-        targets = {call.args[0] for call in calls}
-        self.assertEqual(targets, {a.partner_id, b.partner_id, mgr.partner_id})
+        targets = [call.args[0] for call in calls]
+        for partner in (a.partner_id, b.partner_id, mgr.partner_id):
+            self.assertEqual(targets.count(partner), 1, f"expected exactly one notification per partner, got {targets}")
+        self.assertEqual(len(targets), 3, f"expected no notifications to unrelated partners, got {targets}")
         for call in calls:
             self.assertEqual(call.args[2], {'id': task.id, 'event': 'updated'})
 
@@ -139,7 +141,8 @@ class TestTaskBus(TransactionCase):
             self.env.flush_all()
             self.env.cr.precommit.run()
         calls = [call for call in sendone.call_args_list if call.args[1] == 'nasq/task']
-        targets = {call.args[0] for call in calls}
+        targets = [call.args[0] for call in calls]
         self.assertIn(a.partner_id, targets)
+        self.assertEqual(targets.count(a.partner_id), 1, f"expected exactly one notification per partner, got {targets}")
         for call in calls:
             self.assertEqual(call.args[2], {'id': task.id, 'event': 'updated'})

@@ -1,7 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import tools
 
-from odoo.addons.nasq_api.serializers.task import _iso
+from odoo.addons.nasq_api.serializers.common import iso
 
 
 def _display(tracking, new):
@@ -14,7 +14,7 @@ def dump_message(message):
     base = {
         'id': message.id,
         'author': {'id': author.id, 'name': author.name} if author else None,
-        'at': _iso(message.date),
+        'at': iso(message.date),
     }
     # tracking_value_ids is group_system-only on mail.message; read it sudo'd and then keep
     # only the trackings the requesting user actually has field-level read access to, same as

@@ -24,6 +24,20 @@ class TestTaskRead(NasqApiCase):
         self.assertEqual(res.json()['code'], 'invalid')
         self.assertEqual(res.json()['field'], 'limit')
 
+    def test_list_negative_limit_is_422(self):
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        res = self.api('GET', '/api/v1/tasks?filter=mine&limit=-1')
+        self.assertEqual(res.status_code, 422)
+        self.assertEqual(res.json()['code'], 'invalid')
+        self.assertEqual(res.json()['field'], 'limit')
+
+    def test_list_non_numeric_offset_is_422(self):
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        res = self.api('GET', '/api/v1/tasks?filter=mine&offset=abc')
+        self.assertEqual(res.status_code, 422)
+        self.assertEqual(res.json()['code'], 'invalid')
+        self.assertEqual(res.json()['field'], 'offset')
+
     def test_list_mine_open_by_default(self):
         self.authenticate('api_emp', 'api_emp_pass_123')
         res = self.api('GET', '/api/v1/tasks?filter=mine')

@@ -4,6 +4,7 @@ from datetime import date
 from odoo import fields
 
 from odoo.addons.nasq_api.controllers.common import ApiError
+from odoo.addons.nasq_api.serializers.common import iso
 
 STATE_TO_API = {
     '01_in_progress': 'in_progress',
@@ -25,10 +26,6 @@ def _days_remaining(task, today):
     return (task.date_deadline.date() - today).days
 
 
-def _iso(dt):
-    return fields.Datetime.to_string(dt).replace(' ', 'T') + 'Z' if dt else None
-
-
 def _ref(record):
     return {'id': record.id, 'name': record.display_name}
 
@@ -43,7 +40,7 @@ def dump_task(task, today=None):
         'project': _ref(task.project_id) if task.project_id else None,
         'state': STATE_TO_API[task.state],
         'priority': task.priority,
-        'date_deadline': _iso(task.date_deadline),
+        'date_deadline': iso(task.date_deadline),
         'days_remaining': days,
         'is_overdue': bool(days is not None and days < 0 and not task.is_closed),
         'is_closed': task.is_closed,
@@ -70,8 +67,8 @@ def dump_task_detail(task, today=None):
             'url': f'/web/content/{a.id}?download=true',
         } for a in task.attachment_ids],
         'can_approve': task._nasq_can_approve(),
-        'created_at': _iso(task.create_date),
-        'updated_at': _iso(task.write_date),
+        'created_at': iso(task.create_date),
+        'updated_at': iso(task.write_date),
     })
     return data
 

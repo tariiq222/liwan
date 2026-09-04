@@ -67,6 +67,14 @@ describe('sanitizeHtml', () => {
       expect(sanitizeHtml('<a href="java\x00script:alert(1)">click</a>')).toBe('<a>click</a>')
     })
 
+    it('strips a href with a capitalized &Tab; entity inside the scheme name', () => {
+      expect(sanitizeHtml('<a href="java&Tab;script:alert(1)">click</a>')).toBe('<a>click</a>')
+    })
+
+    it('strips a href with a capitalized &NewLine; entity inside the scheme name', () => {
+      expect(sanitizeHtml('<a href="java&NewLine;script:alert(1)">click</a>')).toBe('<a>click</a>')
+    })
+
     it('strips protocol-relative hrefs', () => {
       expect(sanitizeHtml('<a href="//evil.com">click</a>')).toBe('<a>click</a>')
     })

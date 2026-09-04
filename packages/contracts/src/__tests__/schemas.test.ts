@@ -1,6 +1,6 @@
 import {
   BrandingSchema, MeSchema, TaskSchema, TaskDetailSchema, TaskStateSchema, TaskPatchSchema,
-  TimelineEntrySchema, PersonalStageSchema,
+  TaskCreateSchema, TimelineEntrySchema, PersonalStageSchema,
 } from '../index'
 
 describe('BrandingSchema', () => {
@@ -68,6 +68,23 @@ describe('TaskStateSchema', () => {
 describe('TaskPatchSchema', () => {
   it('rejects project_id (not writable, .strict() catches unknown keys)', () => {
     expect(() => TaskPatchSchema.parse({ project_id: 1 })).toThrow()
+  })
+})
+
+describe('TaskCreateSchema', () => {
+  it('accepts a valid create payload', () => {
+    const parsed = TaskCreateSchema.parse({ name: 'New task', project_id: 3 })
+    expect(parsed).toEqual({ name: 'New task', project_id: 3 })
+  })
+  it('accepts an optional parent_id', () => {
+    const parsed = TaskCreateSchema.parse({ name: 'Subtask', project_id: 3, parent_id: 12 })
+    expect(parsed.parent_id).toBe(12)
+  })
+  it('rejects a payload missing project_id', () => {
+    expect(() => TaskCreateSchema.parse({ name: 'New task' })).toThrow()
+  })
+  it('rejects an unknown extra key (.strict() catches it)', () => {
+    expect(() => TaskCreateSchema.parse({ name: 'New task', project_id: 3, state: 'done' })).toThrow()
   })
 })
 

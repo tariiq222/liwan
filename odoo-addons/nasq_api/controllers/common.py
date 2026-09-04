@@ -39,7 +39,15 @@ def api_handler(func):
 
 
 def get_record(model, rec_id):
-    """Browse + existence/access check → MissingError/AccessError for api_handler."""
+    """Browse + existence/access check → MissingError/AccessError for api_handler.
+
+    The int(rec_id) cast looks redundant at call sites like get_task(task_id)
+    where task_id comes from a `<int:...>` route converter, but get_record is
+    also called with ids taken straight from a JSON POST/PATCH body (e.g.
+    create_task's project_id/parent_id in tasks.py), which carry no such
+    guarantee - keeping the cast here makes the helper safe for every caller
+    without each one having to remember to coerce first.
+    """
     record = request.env[model].browse(int(rec_id))
     if not record.exists():
         raise MissingError(request.env._("%(model)s %(id)s does not exist", model=model, id=rec_id))

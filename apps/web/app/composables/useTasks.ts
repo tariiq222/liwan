@@ -42,7 +42,10 @@ export function applyPatchToTask<T extends Task>(task: T, patch: TaskPatch, reso
   if (patch.tag_ids !== undefined && resolved.tags) next.tags = resolved.tags
   if (patch.personal_stage_type_id !== undefined && resolved.personal_stage !== undefined) next.personal_stage = resolved.personal_stage
   // description_html only exists on a TaskDetail; a plain list Task never has it.
-  if ('description' in patch && 'description_html' in next) next.description_html = patch.description ?? ''
+  // Checked explicitly against undefined (not `'description' in patch`) so a
+  // patch that carries `description: undefined` - e.g. a partial object
+  // built with all keys present - doesn't clear the field.
+  if (patch.description !== undefined && 'description_html' in next) next.description_html = patch.description ?? ''
   if (patch.allocated_hours !== undefined && 'allocated_hours' in next) next.allocated_hours = patch.allocated_hours
   return next
 }

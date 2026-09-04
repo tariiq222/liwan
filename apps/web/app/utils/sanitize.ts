@@ -16,7 +16,13 @@ const VOID_TAGS = new Set(['br'])
 // handled separately below since they cover an unbounded code point range.
 const NAMED_ENTITIES: Record<string, string> = {
   colon: ':',
+  // `tab` and `newline` (lowercase) are not real HTML5 named character
+  // references; `Tab` and `NewLine` (capitalized) are the actual spec'd
+  // entities (https://html.spec.whatwg.org/multipage/named-characters.html).
+  // Keep the lowercase spellings too in case any input relies on the
+  // (non-conformant but historically-accepted-by-this-parser) lowercase form.
   tab: '\t',
+  Tab: '\t',
   newline: '\n',
   NewLine: '\n',
   amp: '&',
@@ -42,6 +48,13 @@ function decodeEntities(value: string): string {
     if (next === out) break
     out = next
   }
+  // Deliberately strips control characters from the *whole* decoded string
+  // rather than just decoding entities and edge-trimming: a control
+  // character anywhere in the value (not only at the edges) can split a
+  // scheme the browser would otherwise still honour (e.g. "java\tscript:" or
+  // a decoded "java&Tab;script:"), so removing them outright — matching how
+  // browsers strip these before treating the value as a URL — is simpler and
+  // safer than trying to special-case "only edges" or "only certain slots".
   // eslint-disable-next-line no-control-regex
   return out.replace(/[\x00-\x20\x7f]/g, '')
 }

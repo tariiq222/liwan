@@ -36,12 +36,12 @@ const ALL_STATES: TaskState[] = ['in_progress', 'waiting', 'changes_requested', 
 
 export function canTransition(from: TaskState, to: TaskState, canApprove: boolean): boolean {
   if (to === from) return false
-  if ((MANAGER_STATES as TaskState[]).includes(to) && !canApprove) return false
+  if (MANAGER_STATES.includes(to) && !canApprove) return false
   return true
 }
 
 export function nextStates(from: TaskState, canApprove: boolean): TaskState[] {
-  return ALL_STATES.filter((s) => s !== from && !((MANAGER_STATES as TaskState[]).includes(s) && !canApprove))
+  return ALL_STATES.filter((s) => s !== from && !(MANAGER_STATES.includes(s) && !canApprove))
 }
 
 // Calendar-date difference in UTC: deadlines are dates, not instants, so a
