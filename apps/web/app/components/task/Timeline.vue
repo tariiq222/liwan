@@ -44,7 +44,7 @@ function changeMessage(change: { field: string; label: string; old: unknown; new
       </Avatar>
       <div class="min-w-0 flex-1 space-y-1">
         <div class="flex items-center gap-2 text-sm">
-          <span class="font-medium">{{ entry.author?.name ?? t('tasks.activity.comment') }}</span>
+          <span class="font-medium">{{ entry.author?.name ?? (entry.kind === 'comment' ? t('tasks.activity.comment') : t('tasks.activity.system')) }}</span>
           <span class="text-xs text-muted-foreground">{{ relativeTime(entry.at) }}</span>
         </div>
         <div

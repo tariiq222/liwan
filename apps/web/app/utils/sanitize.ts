@@ -10,10 +10,55 @@ const ALLOWED_TAGS = new Set([
 ])
 const VOID_TAGS = new Set(['br'])
 
-const UNSAFE_HREF_SCHEMES = /^\s*(javascript|data):/i
+// Named entities relevant to smuggling a scheme past the href check (e.g.
+// `&colon;` for `:`) plus the handful of general-purpose named entities that
+// commonly appear in comment bodies. Numeric (decimal/hex) references are
+// handled separately below since they cover an unbounded code point range.
+const NAMED_ENTITIES: Record<string, string> = {
+  colon: ':',
+  tab: '\t',
+  newline: '\n',
+  NewLine: '\n',
+  amp: '&',
+  quot: '"',
+  apos: '\'',
+  lt: '<',
+  gt: '>',
+}
 
-function isSafeHref(href: string): boolean {
-  return href.length > 0 && !UNSAFE_HREF_SCHEMES.test(href)
+// Decodes HTML character references so a scheme check can't be bypassed by
+// entity-encoding it (e.g. `&#106;avascript:` or `javascript&#58;`). Runs
+// repeatedly until the string stops changing (capped) to catch double
+// encoding, then strips ASCII control characters, which browsers also strip
+// from attribute values before treating them as a URL (e.g. a literal tab
+// inside "java\tscript:").
+function decodeEntities(value: string): string {
+  let out = value
+  for (let pass = 0; pass < 5; pass++) {
+    const next = out
+      .replace(/&#0*([0-9]+);?/g, (_m, dec: string) => String.fromCodePoint(Number(dec)))
+      .replace(/&#[xX]0*([0-9a-fA-F]+);?/g, (_m, hex: string) => String.fromCodePoint(parseInt(hex, 16)))
+      .replace(/&([a-zA-Z]+);?/g, (m, name: string) => (name in NAMED_ENTITIES ? NAMED_ENTITIES[name]! : m))
+    if (next === out) break
+    out = next
+  }
+  // eslint-disable-next-line no-control-regex
+  return out.replace(/[\x00-\x20\x7f]/g, '')
+}
+
+function isSafeHref(raw: string): boolean {
+  const href = decodeEntities(raw).toLowerCase().trim()
+  if (!href) return false
+  if (href.startsWith('http://') || href.startsWith('https://') || href.startsWith('mailto:')) return true
+  if (href.startsWith('//')) return false // protocol-relative
+  if (href.startsWith('/') || href.startsWith('./') || href.startsWith('../')
+    || href.startsWith('#') || href.startsWith('?')) return true
+  // Relative path with no scheme: safe only if there's no ':' before the
+  // first path/query/fragment delimiter (otherwise it's an unknown scheme,
+  // e.g. "javascript:...", "vbscript:...", "file:...").
+  const delimiterIndex = href.search(/[/?#]/)
+  const beforeDelimiter = delimiterIndex === -1 ? href : href.slice(0, delimiterIndex)
+  return !beforeDelimiter.includes(':')
 }
 
 function extractHref(attrs: string): string | null {

@@ -14,6 +14,9 @@ export function useTimeline(id: Ref<number | null>) {
   })
 }
 
+// The timeline trusts the server to return entries newest-first; usePostComment
+// below prepends the newly posted comment onto the cached list on that same
+// assumption, so if the server's ordering ever changes this prepend must change too.
 export function usePostComment() {
   const qc = useQueryClient()
   const { $api } = useApi()
