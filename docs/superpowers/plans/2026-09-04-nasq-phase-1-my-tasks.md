@@ -1,10 +1,10 @@
-# nasq Phase 1 — My Tasks & Task Drawer Implementation Plan
+# nasq Phase 1 — My Tasks & Task Detail Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Ship the employee's daily screen — **مهامي** as a table and a personal-stage board — plus the task drawer (details, Tiptap description, sub-tasks, dependencies, attachments, duration metrics, merged comment/tracking timeline), server-enforced state transitions, real-time updates over Odoo's bus, and the deferred phase-0 debt (vue-query, i18n, TOTP login step).
+**Goal:** Ship the employee's daily screen — **مهامي** as a table and a personal-stage board — plus the task detail modal (details, Tiptap description, sub-tasks, dependencies, attachments, duration metrics, merged comment/tracking timeline), server-enforced state transitions, real-time updates over Odoo's bus, and the deferred phase-0 debt (vue-query, i18n, TOTP login step).
 
-**Architecture:** Odoo stays the engine: `nasq_pmo` (new) owns transition hooks; `nasq_api` gains task/timeline/personal-stage/people/projects endpoints (`type='json2'`, `auth='user'`, serializer-whitelisted) and bus notifications to assignees' partner channels; `packages/contracts` mirrors every shape in zod. The Nuxt app gets a vue-query data layer with optimistic field edits and pending-confirm transitions, shadcn DataTable, a drag-and-drop board, a Tiptap editor inside a `Sheet` drawer, and a `useBus` websocket composable that invalidates queries.
+**Architecture:** Odoo stays the engine: `nasq_pmo` (new) owns transition hooks; `nasq_api` gains task/timeline/personal-stage/people/projects endpoints (`type='json2'`, `auth='user'`, serializer-whitelisted) and bus notifications to assignees' partner channels; `packages/contracts` mirrors every shape in zod. The Nuxt app gets a vue-query data layer with optimistic field edits and pending-confirm transitions, shadcn DataTable, a drag-and-drop board, a Tiptap editor inside a large two-column detail modal at `/tasks/{id}`, and a `useBus` websocket composable that invalidates queries.
 
 **Tech Stack:** Odoo 19.0 CE (Python 3.12), Nuxt 4.5 / Vue 3.5 / TS, Tailwind v4, shadcn-vue, `@tanstack/vue-query` 5.102, `@tanstack/vue-table`, `@nuxtjs/i18n` 10.6, `@tiptap/vue-3` 3.31 (+ starter-kit, extension-link), `vue-draggable-plus` 0.6, zod 4, Vitest, Playwright.
 
@@ -19,7 +19,7 @@
 - Task state names on the wire: `in_progress | changes_requested | approved | waiting | done | cancelled` ↔ Odoo `01_in_progress | 02_changes_requested | 03_approved | 04_waiting_normal | 1_done | 1_canceled`.
 - Transition rule: employees may set `in_progress`, `waiting`, `done`, `cancelled` on tasks they can write; `approved` and `changes_requested` require `project.group_project_manager` or `nasq_core.group_customer_admin`. Enforced in `nasq_pmo`, returned as HTTP 403 `{code:'transition_forbidden'}`.
 - Writes: field edits optimistic; state transitions pending → confirmed; every write returns the full `TaskDetail` and the client replaces its cache with it.
-- Frontend: Arabic default (`ar`), English secondary, `@nuxtjs/i18n` `no_prefix`; all user-facing strings via `$t()`/`t()`; Tailwind logical properties only (`ms-`/`me-`/`ps-`/`pe-`/`start-`/`end-`); tokens unchanged; drawer not page; badges vocabulary: قيد التنفيذ · تعديلات مطلوبة · معتمد · بانتظار · منجز · ملغى.
+- Frontend: Arabic default (`ar`), English secondary, `@nuxtjs/i18n` `no_prefix`; all user-facing strings via `$t()`/`t()`; Tailwind logical properties only (`ms-`/`me-`/`ps-`/`pe-`/`start-`/`end-`); tokens unchanged; task detail is an overlay at `/tasks/{id}`, not a separate full page; badges vocabulary: قيد التنفيذ · تعديلات مطلوبة · معتمد · بانتظار · منجز · ملغى.
 - Dev servers: Odoo :8069 (`--dev=all`), Nuxt :3000 (`npm run dev` from repo root; restart after `nuxt.config.ts`/`server/` changes: `pkill -f "node_modules/.bin/nuxt dev"; pkill -f "@nuxt/cli/dist/dev/index.mjs"`, then `nohup npm run dev > /tmp/nuxt-dev.log 2>&1 &`, wait for `curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/login` = 200).
 - npm: the user's global `~/.npmrc` is malformed — always `--ignore-scripts` on `npm install`, and `npm_config_userconfig=/tmp/empty.npmrc npx shadcn-vue@latest add …` (create the empty file). Never edit `~/.npmrc`. After adding a shadcn component dir, restart Nuxt.
 - Commit messages: `[ADD]|[IMP]|[FIX] <scope>: <summary>` + trailer `Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>`. One commit per task unless stated.
@@ -62,15 +62,16 @@ apps/web/
 │   └── __tests__/taskState.test.ts · optimistic.test.ts
 ├── app/components/task/
 │   ├── TaskTable.vue · TaskToolbar.vue · TaskBoard.vue · TaskCard.vue
-│   ├── TaskDrawer.vue · TaskDetails.vue · TaskActivity.vue
+│   ├── TaskDetailModal.vue · TaskDetailPanel.vue · TaskDetails.vue · TaskActivity.vue
 │   ├── StateBadge.vue · StateMenu.vue · DeadlineBadge.vue · PriorityToggle.vue
 │   ├── AssigneePicker.vue · TagPicker.vue · DescriptionEditor.vue
 │   ├── SubtaskList.vue · Timeline.vue · CommentComposer.vue · CreateTaskDialog.vue
-├── app/pages/tasks.vue                     tabs: table | board; drawer via ?task=<id>
+├── app/pages/tasks.vue                     tabs: table | board; hosts <NuxtPage> for the modal
+├── app/pages/tasks/[id].vue                task detail modal route
 ├── app/pages/login.vue                     + TOTP step
 ├── server/api/auth/login.post.ts           mfa detection
 ├── server/api/auth/totp.post.ts            NEW
-└── e2e/tasks.spec.ts · drawer.spec.ts · board.spec.ts · activity.spec.ts · realtime.spec.ts · totp.spec.ts · contracts.spec.ts
+└── e2e/tasks.spec.ts · detail.spec.ts · board.spec.ts · activity.spec.ts · realtime.spec.ts · totp.spec.ts · contracts.spec.ts
 ```
 
 ---
@@ -1323,7 +1324,7 @@ export function useCreateTask() { /* POST /api/v1/tasks → TaskDetailSchema; on
 ```ts
 import { test, expect } from '@playwright/test'
 async function login(page) { await page.goto('/login'); await page.getByLabel('اسم المستخدم').fill('admin'); await page.getByLabel('كلمة المرور').fill('admin'); await page.getByRole('button', { name: 'دخول' }).click(); await expect(page).toHaveURL('http://localhost:3000/') }
-test('my tasks table lists my open tasks, filters and opens the drawer', async ({ page }) => {
+test('my tasks table lists my open tasks, filters and opens the detail', async ({ page }) => {
   await login(page)
   const projects = await (await page.request.get('/api/v1/projects?minimal=1')).json()
   const name = `E2E table ${Date.now()}`
@@ -1354,43 +1355,77 @@ test('inline transition to done moves the task to the closed filter', async ({ p
   await expect(page.getByRole('row', { name: new RegExp(name) })).toBeVisible()
 })
 ```
-- [ ] **Step 2: Implement.** `tasks.vue`: heading + `Tabs` (`جدول`/`لوحة`) synced to `?tab`, `TaskToolbar` (open/closed segmented control, state multi-select, project select, search input debounced 300 ms, `مهمة جديدة` button), `TaskTable` for `tab=table` (Task 12 adds the board), `TaskDrawer` placeholder mount reading `?task` (Task 10 fills it — in this task render `<Sheet>` with the task name only so the e2e passes), `CreateTaskDialog` (title + project select → `useCreateTask`, then opens the drawer). `TaskTable`: `@tanstack/vue-table` with columns per the spec; row `role="row"` accessible name includes the title (default for `<tr>`); state cell is `StateMenu` (a `DropdownMenu` whose trigger is the `StateBadge` button; items = `nextStates(task.state, canApprove)`; manager-only items disabled with tooltip `tasks.transition.forbidden` when `!canApprove` — `canApprove` for the list comes from `me.role !== 'employee' || project-manager` → simplest: fetch once from any `TaskDetail`? No: expose `can_approve` on the list too? **Ruling:** the list shows all next states; the server answers 403 for forbidden ones and the UI toasts `tasks.transition.forbidden`. Keep the contract unchanged.) Empty state per spec. Skeleton rows while loading. "تحميل المزيد" button when `hasNextPage`. Deadline cell: `DeadlineBadge` (tone: overdue red, ≤2 days amber, else muted; label from `deadlineLabel`). Priority: star toggle → `useUpdateTask`.
+- [ ] **Step 2: Implement.** `tasks.vue`: heading + `Tabs` (`جدول`/`لوحة`) synced to `?tab`, `TaskToolbar` (open/closed segmented control, state multi-select, project select, search input debounced 300 ms, `مهمة جديدة` button), `TaskTable` for `tab=table` (Task 12 adds the board), `TaskDrawer` placeholder mount reading `?task` (**superseded by the 2026-09-04 revision**: Task 10 replaces this with the `/tasks/{id}` modal route; the placeholder as shipped in Task 9 is a `<Sheet>` with the task name only), `CreateTaskDialog` (title + project select → `useCreateTask`, then opens the drawer). `TaskTable`: `@tanstack/vue-table` with columns per the spec; row `role="row"` accessible name includes the title (default for `<tr>`); state cell is `StateMenu` (a `DropdownMenu` whose trigger is the `StateBadge` button; items = `nextStates(task.state, canApprove)`; manager-only items disabled with tooltip `tasks.transition.forbidden` when `!canApprove` — `canApprove` for the list comes from `me.role !== 'employee' || project-manager` → simplest: fetch once from any `TaskDetail`? No: expose `can_approve` on the list too? **Ruling:** the list shows all next states; the server answers 403 for forbidden ones and the UI toasts `tasks.transition.forbidden`. Keep the contract unchanged.) Empty state per spec. Skeleton rows while loading. "تحميل المزيد" button when `hasNextPage`. Deadline cell: `DeadlineBadge` (tone: overdue red, ≤2 days amber, else muted; label from `deadlineLabel`). Priority: star toggle → `useUpdateTask`.
 - [ ] **Step 3: Run** e2e `tasks.spec.ts` 2/2 + full suite; `vue-tsc`; screenshot in the Browser pane (RTL table, badges).
 - [ ] **Step 4: Commit** `[ADD] web: my-tasks table with filters, inline transitions, create dialog`.
 
 ---
 
-### Task 10: Task drawer — details tab (Tiptap, pickers, sub-tasks, metrics)
+### Task 10: Task detail modal — route, shell, details column
 
 **Files:**
-- Create: `app/components/task/{TaskDrawer,TaskDetails,AssigneePicker,TagPicker,DescriptionEditor,SubtaskList}.vue`
-- shadcn: `add sheet combobox command separator textarea` (some already present) → restart Nuxt
-- Install: `npm -w apps/web install --ignore-scripts @tiptap/vue-3@^3.31 @tiptap/starter-kit@^3.31 @tiptap/extension-link@^3.31`
-- Create: `apps/web/e2e/drawer.spec.ts`
+- Create: `app/pages/tasks/[id].vue` (the modal route), `app/components/task/{TaskDetailModal,TaskDetailPanel,TaskDetails,AssigneePicker,DescriptionEditor,SubtaskList}.vue`
+- Modify: `app/pages/tasks.vue` (drop the `?task=` Sheet placeholder; row click and create now `router.push('/tasks/' + id)` keeping `?tab` and filters in the query), `app/composables/useTasks.ts` if a sibling-ids helper is needed
+- shadcn: `add dialog separator textarea` (most already present) → restart Nuxt if any dir is new
+- Install: `npm -w apps/web install --ignore-scripts @tiptap/vue-3@^3 @tiptap/starter-kit@^3 @tiptap/extension-link@^3`
+- Create: `apps/web/e2e/detail.spec.ts`
 
 **Interfaces:**
-- `TaskDrawer { taskId: number|null }` emits `close`; internally `useTask`, `useUpdateTask`, `useTransitionTask`; header = inline-editable title (`contenteditable`-free: an `Input` that looks like a heading, saves on blur/Enter), `StateMenu` (pending spinner while `isPending`), project chip, `DeadlineBadge`; tabs `التفاصيل` / `النشاط`.
-- `DescriptionEditor { modelValue: string }` emits `update:modelValue` debounced 800 ms; wrapped in `<ClientOnly>`; Tiptap `StarterKit` + `Link`; toolbar: bold, italic, bullet list, ordered list, link; `dir` inherits; `prose` styles via Tailwind (`@tailwindcss/typography` is NOT installed — style the editor with a small scoped CSS block instead).
-- `AssigneePicker { modelValue: Ref[] }` — `Combobox` over `usePeople(q)` (search on type), multi-select chips; emits ids + resolved refs for the optimistic reducer.
-- `TagPicker` — same over `GET /api/v1/tags`? **Not in scope**: phase 1 tags are read-only chips (no endpoint). Render only.
-- `SubtaskList { subtasks, parentId, projectId }` — list of `Task` rows (state badge + title, click switches the drawer to that task) + "إضافة مهمة فرعية" input → `useCreateTask({ parent_id })`.
+- Route `/tasks/{id}`: `pages/tasks.vue` stays mounted as the parent view; `pages/tasks/[id].vue` renders `<TaskDetailModal :task-id="Number(route.params.id)" />`. Closing → `router.push({ path: '/tasks', query: route.query })`. Direct load of `/tasks/123` renders the list underneath and the modal above it.
+- `TaskDetailModal { taskId: number }` — shadcn `Dialog`, `DialogContent` class `max-w-[1100px] h-[85vh] p-0 gap-0` on `md+`, `max-w-none w-screen h-screen rounded-none` below `md`. Header: title `Input` (heading-styled, saves on blur/Enter, optimistic), `StateMenu`, project chip, `DeadlineBadge`, prev/next buttons, close. Body: two columns on `md+` (`grid md:grid-cols-[minmax(0,1fr)_380px]`), each `overflow-y-auto`; below `md` one column with `Tabs` (`التفاصيل` / `النشاط`). Details column = `<TaskDetails>`; activity column = an empty `<div>` placeholder in this task (Task 11 fills it with `<TaskActivity>`).
+- `TaskDetailPanel` is the container-agnostic body (header + columns) so a later phase can host it in a split view without touching its internals; `TaskDetailModal` is only the `Dialog` wrapper around it.
+- **Prev/next:** `useTaskSiblings(currentId)` in `useTasks.ts` — reads the cached infinite list for the *current* filter params (`queryClient.getQueriesData({queryKey: ['tasks','list']})`, first match), returns `{ prevId, nextId }` around `currentId`, both `null` when the list is not cached (direct URL load). Header buttons and the `J` (next) / `K` (prev) hotkeys (`useMagicKeys`, ignored while focus is in an input/textarea/contenteditable) `router.push` to the sibling, keeping the query. Buttons disabled when the corresponding id is null.
+- `TaskDetails { task: TaskDetail }` — assignees (`AssigneePicker`), deadline (`Popover` + `Calendar` + time `Input`), priority (`PrioritySelect`), tags (read-only chips), personal stage (`Select` from `usePersonalStages`), allocated hours (`Input`, only when `task.can_approve`), description (`DescriptionEditor`), sub-tasks (`SubtaskList`), dependencies (read-only rows with `StateBadge`), attachments (read-only links, `target="_blank" rel="noopener"`), metrics (age, cycle when non-null, created/updated via `Intl.DateTimeFormat('ar-SA')`). Every change calls `useUpdateTask` with `resolved` refs where the reducer needs them.
+- `AssigneePicker { modelValue: Ref[] }` — `Command`-based combobox in a `Popover` over `usePeople(q)`, multi-select chips, emits `{ ids, resolved }`.
+- `DescriptionEditor { modelValue: string }` — Tiptap `StarterKit` + `Link` inside `<ClientOnly>`, `aria-label` = `t('tasks.drawer.description')`, toolbar (bold, italic, bullet list, ordered list, link), scoped CSS (no typography plugin), emits `update:modelValue` debounced 800 ms, round-trips Odoo HTML.
+- `SubtaskList { task: TaskDetail }` — rows (state badge + title, click → `router.push('/tasks/' + subId)`), plus a title `Input` + button creating via `useCreateTask({name, project_id: task.project.id, parent_id: task.id})`, then invalidating `taskKeys.detail(task.id)`.
 
-- [ ] **Step 1: Failing e2e** `e2e/drawer.spec.ts`: create a task via API, open `/tasks?task=<id>`, edit the title (fill + Enter), reload, expect the new title in the drawer and in the row; set priority via the star, expect `مهمة`; type in the description editor (`page.getByRole('textbox', { name: /الوصف/ })` — give the editor `aria-label`), wait 1.2 s, reload, expect the text; add a sub-task, expect it listed; expect metrics block shows `العمر`.
-- [ ] **Step 2: Implement** fully (all components above; `TaskDetails` lays out: assignees, deadline (`Popover` + `Calendar` + time `Input`), priority, personal stage `Select` (from `usePersonalStages`), allocated hours (`Input` shown only when `task.can_approve`), description, sub-tasks, dependencies (read-only list with `StateBadge`), attachments (links `target=_blank`), metrics (age, cycle, created, updated with `Intl.DateTimeFormat('ar-SA')`)). Every field change → `useUpdateTask` with `resolved` refs.
-- [ ] **Step 3: Run** e2e drawer + full; `vue-tsc`; screenshot.
-- [ ] **Step 4: Commit** `[ADD] web: task drawer details — editor, pickers, sub-tasks, duration metrics`.
+- [ ] **Step 1: Write the failing e2e**
+
+`apps/web/e2e/detail.spec.ts` — a `login(page)` helper as in `tasks.spec.ts`, then a task created through the API (`page.request.post('/api/v1/tasks', { data: { name, project_id } })` after a JSON login) and:
+1. `goto('/tasks/' + id)` → the dialog is visible and contains the task name; the URL stays `/tasks/{id}`.
+2. Title edit: fill the heading input with a new name, press Enter, `page.reload()`, expect the new name in the dialog **and** in the row behind it after closing.
+3. Priority: choose `عاجلة`, reload, expect it selected.
+4. Description: click the editor (`getByRole('textbox', { name: 'الوصف' })`), type text, wait 1200 ms, reload, expect the text.
+5. Sub-task: type a title, submit, expect it listed; click it → URL becomes the sub-task's id.
+6. Metrics: expect the `العمر` label visible.
+7. **Nested layer:** open the deadline `Popover`, click a day in the `Calendar`, expect the dialog still open and the deadline badge updated.
+8. **Prev/next:** create two tasks, open the first from the list, press `J`, expect the URL to move to the other id.
+9. Close: press `Escape`, expect URL `/tasks` and the table visible.
+
+Run it: `cd apps/web && npm run test:e2e -- detail.spec.ts` → fails (no route).
+
+- [ ] **Step 2: Route + modal shell**
+
+Create `app/pages/tasks/[id].vue` and confirm Nuxt keeps `pages/tasks.vue` mounted for `/tasks/123` (Nuxt 4 treats `tasks.vue` + `tasks/[id].vue` as a parent view with `<NuxtPage>` only if `tasks.vue` renders `<NuxtPage>`; add `<NuxtPage />` to `pages/tasks.vue`). Verify by loading `/tasks/1` and seeing the table behind the modal. If that layout proves impractical, render the modal *inside* `pages/tasks.vue` driven by `useRoute().params` via a catch-all — record whichever you used in the report.
+
+- [ ] **Step 3: `TaskDetailPanel` + `TaskDetails` + pickers + editor + sub-tasks**
+
+- [ ] **Step 4: Prev/next + `J`/`K`**
+
+- [ ] **Step 5: Verify**
+
+`cd apps/web && npm run test:e2e` (13 existing + the new file, all green), `npm -w apps/web run test` (51), `npm -w apps/web run lint` (0), plus a Browser-pane screenshot of the open modal (describe: two columns, RTL, editor toolbar, header controls).
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add -A && git commit -m "[ADD] web: task detail modal at /tasks/{id} with details column, editor and sub-tasks
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
+```
 
 ---
 
-### Task 11: Task drawer — activity tab (timeline + composer)
+### Task 11: Task detail modal — activity column (timeline + composer)
 
 **Files:**
 - Create: `app/components/task/{TaskActivity,Timeline,CommentComposer}.vue`, `apps/web/e2e/activity.spec.ts`
-- Modify: `TaskDrawer.vue` (tab wiring)
+- Modify: `TaskDetailPanel.vue` (replace the activity placeholder with `<TaskActivity>`; on `md+` it is the end column, below `md` the `النشاط` tab)
 
 **Interfaces:** `Timeline { entries }` renders comments (author initials avatar, relative time via `Intl.RelativeTimeFormat('ar')`, sanitised HTML — render with `v-html` ONLY after passing through a tiny allowlist sanitiser `sanitizeHtml()` in `app/utils/sanitize.ts` (strip `<script>`, `on*` attrs, `javascript:` hrefs) — the server already sanitises; this is defence in depth) and tracking entries (`$t('tasks.activity.changed', { field: label, old, new })`, `set`/`cleared` variants when old/new empty). `CommentComposer` — `Textarea`, Ctrl/⌘+Enter posts, `usePostComment`, clears on success, shows `ApiError.message` on failure.
 
-- [ ] **Step 1: Failing e2e**: open drawer → tab `النشاط` → type a comment → post → expect it at the top with author `Administrator`; change the state via the header menu → expect a tracking entry mentioning `الحالة`.
+- [ ] **Step 1: Failing e2e**: open `/tasks/{id}` → the activity column (or the `النشاط` tab on a narrow viewport) → type a comment → post → expect it at the top with author `Administrator`; change the state via the header menu → expect a tracking entry mentioning `الحالة`.
 - [ ] **Step 2: Implement**; unit test `sanitizeHtml` (script stripped, `onclick` stripped, `href="javascript:..."` removed, `<b>` kept).
 - [ ] **Step 3: Run**; **Step 4: Commit** `[ADD] web: task activity timeline and comment composer`.
 
@@ -1403,7 +1438,7 @@ test('inline transition to done moves the task to the closed filter', async ({ p
 - Install: `npm -w apps/web install --ignore-scripts vue-draggable-plus@^0.6`
 - Modify: `app/pages/tasks.vue`
 
-**Interfaces:** `TaskBoard { params }` builds columns from `usePersonalStages()`; tasks from `useTasks(params)` (all pages loaded lazily; the board calls `fetchNextPage` until `!hasNextPage` up to 200 tasks); each column a `VueDraggable` list with `group="tasks"`; on `@add`/`@update` to a column → `useUpdateTask({ id, patch: { personal_stage_type_id: stage.id }, resolved: { personal_stage: {id,name} } })`. Keyboard fallback: each `TaskCard` has a `⋯` menu `نقل إلى…` listing stages. Cards show title, project, `DeadlineBadge`, priority flag, assignee initials; click opens the drawer. Folded stages (`fold: true`) render collapsed with a count.
+**Interfaces:** `TaskBoard { params }` builds columns from `usePersonalStages()`; tasks from `useTasks(params)` (all pages loaded lazily; the board calls `fetchNextPage` until `!hasNextPage` up to 200 tasks); each column a `VueDraggable` list with `group="tasks"`; on `@add`/`@update` to a column → `useUpdateTask({ id, patch: { personal_stage_type_id: stage.id }, resolved: { personal_stage: {id,name} } })`. Keyboard fallback: each `TaskCard` has a `⋯` menu `نقل إلى…` listing stages. Cards show title, project, `DeadlineBadge`, priority flag, assignee initials; click navigates to `/tasks/{id}` (the same modal). Folded stages (`fold: true`) render collapsed with a count.
 
 - [ ] **Step 1: Failing e2e** `board.spec.ts`: create a task, open `/tasks?tab=board`, expect the card in the first column, `dragTo` the second column, expect it there, reload and expect it persisted; keyboard path: open the card menu → `نقل إلى…` → third stage → expect moved.
 - [ ] **Step 2: Implement**; **Step 3: Run**; **Step 4: Commit** `[ADD] web: personal-stage board with drag-and-drop`.
@@ -1417,7 +1452,7 @@ test('inline transition to done moves the task to the closed filter', async ({ p
 
 **Interfaces:** `useBus()` (client-only plugin instantiates one connection per tab after login): opens `new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/websocket`)`; on open sends `JSON.stringify({ event_name: 'subscribe', data: { channels: [], last: 0 } })` (the server adds the user's partner channel itself — verify the exact payload against `addons/bus/static/src/workers/websocket_worker.js` `_sendToServer` and the `subscribe` handler in `addons/bus/websocket.py`; adapt if a `version`/`options` key is required); on message parses the JSON array of `{ id, message: { type, payload } }`, tracks `last = id`, and for `type === 'nasq/task'` invalidates `taskKeys.detail(payload.id)`, `taskKeys.timeline(payload.id)` and `['tasks','list']`; reconnects with exponential backoff (1 s → 30 s) resending `last`; closes on logout. Exposes `connected: Ref<boolean>` for a subtle dot in the sidebar footer (title `متصل`/`غير متصل` — add the two keys to the locale files).
 
-- [ ] **Step 1: Failing e2e** `realtime.spec.ts`: two browser contexts both logged in as admin; context A opens `/tasks`; context B patches the task name via `page.request`; A expects the row to show the new name within 5 s **without reload**; then B posts a comment while A has the drawer's activity tab open → A sees it.
+- [ ] **Step 1: Failing e2e** `realtime.spec.ts`: two browser contexts both logged in as admin; context A opens `/tasks`; context B patches the task name via `page.request`; A expects the row to show the new name within 5 s **without reload**; then B posts a comment while A has `/tasks/{id}` open → A sees it in the activity column.
 - [ ] **Step 2: Implement**; verify the dev proxy carries the upgrade (`nitro.devProxy` from Task 1; if the Nitro dev proxy does not upgrade websockets, switch the client to connect directly to `ws://localhost:8069/websocket` **in dev only** via `runtimeConfig.public.wsUrl` and document that prod uses the same origin through Caddy).
 - [ ] **Step 3: Run**; **Step 4: Commit** `[ADD] web: real-time task updates over the Odoo bus`.
 
@@ -1442,15 +1477,30 @@ test('inline transition to done moves the task to the closed filter', async ({ p
 
 ### Task 15: Acceptance, docs, spec status
 
-- [ ] **Step 1: Full sweep** — Odoo `-u nasq_core,nasq_api,nasq_pmo --test-tags /nasq_core,/nasq_api,/nasq_pmo` `0 failed`; `ruff check odoo-addons`; `npm test`; `vue-tsc`; e2e (all specs); browser walkthrough: `/tasks` table → drawer → activity → board → real-time (two windows).
+- [ ] **Step 1: Full sweep** — Odoo `-u nasq_core,nasq_api,nasq_pmo --test-tags /nasq_core,/nasq_api,/nasq_pmo` `0 failed`; `ruff check odoo-addons`; `npm test`; `vue-tsc`; e2e (all specs); browser walkthrough: `/tasks` table → `/tasks/{id}` modal (two columns, prev/next, nested date picker) → activity → board → real-time (two windows).
 - [ ] **Step 2: Docs** — README: phase-1 dev notes (Tiptap client-only, `nitro.devProxy` ws, TOTP flow), update the "Patched generated files" list if any new shadcn file was edited; spec Phases table row 1 → `done <date>`; note `useNav` label-key change.
 - [ ] **Step 3: Commit** `[IMP] docs: phase 1 acceptance`.
 
 ---
 
+## Revision log
+
+**2026-09-04 — task detail becomes a large modal.** The plan originally put the task
+detail in a right-side `Sheet` opened by `?task=<id>`. Two problems: ~480px cannot
+hold description + sub-tasks + dependencies + attachments + activity without endless
+scrolling, and a query parameter is a poor identity for a link people share. Revised:
+a **large two-column modal** (`max-w-[1100px]`, `h-[85vh]`; full-screen below `md`) on
+a real route **`/tasks/{id}`**, with **prev/next (`J`/`K`)** inside it to keep triage
+alive now that the list is behind an overlay, and an explicit e2e case for nested
+layers (date picker inside the modal must not dismiss it). The body is
+`TaskDetailPanel`, deliberately container-agnostic so a later phase can host it in a
+split view without touching its internals. Affected: T10 (rewritten), T11/T12/T13/T15
+(references), the file structure, and the Global Constraints line. Task 9 shipped the
+`?task=` `Sheet` placeholder; T10 removes it.
+
 ## Self-review
 
-**Spec coverage:** "my tasks" definition → T3 domain; table (columns/filters/sort/pagination/inline state/empty state) → T9; board + DnD + folded stages + keyboard fallback → T12; drawer header/details/editor/sub-tasks/deps/attachments/metrics → T10; activity (comments + tracking, composer) → T5 + T11; transition rule (server) → T2/T4, UI → T8/T9; duration metrics → T3 serializer + T8 helpers + T9/T10 badges; real-time (partner channels, no ir.websocket override) → T6 + T13; API additions incl. `/me/personal-stages`, `/projects?minimal=1`, `/people` → T3–T5; zod mirror + live contract e2e → T7; vue-query → T1/T8; i18n → T1; TOTP → T14; error shape → T3 `api_handler`; tests per spec → each task. Tags: read-only chips (no tag endpoint) — consistent with the spec's "tags" field being display-only in phase 1 (spec says tags are editable in PATCH; **deviation**: the picker needs a tags endpoint that the spec's API list omits — T10 renders tags read-only; ledger it and add `GET /api/v1/tags` in phase 2 or as a follow-up).
+**Spec coverage:** "my tasks" definition → T3 domain; table (columns/filters/sort/pagination/inline state/empty state) → T9; board + DnD + folded stages + keyboard fallback → T12; detail modal (route, header, details column, editor, sub-tasks, deps, attachments, metrics, prev/next) → T10; activity (comments + tracking, composer) → T5 + T11; transition rule (server) → T2/T4, UI → T8/T9; duration metrics → T3 serializer + T8 helpers + T9/T10 badges; real-time (partner channels, no ir.websocket override) → T6 + T13; API additions incl. `/me/personal-stages`, `/projects?minimal=1`, `/people` → T3–T5; zod mirror + live contract e2e → T7; vue-query → T1/T8; i18n → T1; TOTP → T14; error shape → T3 `api_handler`; tests per spec → each task. Tags: read-only chips (no tag endpoint) — consistent with the spec's "tags" field being display-only in phase 1 (spec says tags are editable in PATCH; **deviation**: the picker needs a tags endpoint that the spec's API list omits — T10 renders tags read-only; ledger it and add `GET /api/v1/tags` in phase 2 or as a follow-up).
 
 **Placeholder scan:** T8 asks the implementer to "write in full" four composables following an explicit pattern with named keys and behaviours — acceptable (interfaces are fully specified); no TBD/TODO steps elsewhere. T5 `_display` and T13 subscribe payload carry explicit "verify against file X and adapt" instructions rather than guesses.
 

@@ -1,4 +1,4 @@
-# nasq — Phase 1: My Tasks & Task Drawer — Design Spec
+# nasq — Phase 1: My Tasks & Task Detail — Design Spec
 
 **Date:** 2026-09-04
 **Target:** nasq `main` @ `v0.1.0-phase0` (Odoo 19.0 CE engine, Nuxt 4 UI)
@@ -8,7 +8,7 @@
 ## Goal
 
 The first screens a customer's employee lives in every day: **مهامي** (my
-tasks, as a table and as a personal-stage board) and the **task drawer**
+tasks, as a table and as a personal-stage board) and the **task detail modal**
 (everything about one task without leaving the list), with a live activity
 timeline and real-time updates. Time logging is deferred; what matters now is
 **task and project duration** (deadlines, age, cycle time, overdue), not
@@ -19,9 +19,9 @@ per-user hours.
 | Question | Decision |
 |---|---|
 | "My tasks" means | Tasks where the current user is in `user_ids`. |
-| Presentation | Two tabs: **table** (default; sort/filter/search/group) and **board** by personal stage with drag-and-drop. |
+| Presentation | Two tabs: **table** (default; sort/filter/search/group) and **board** by personal stage with drag-and-drop. Task detail is a **large two-column modal at `/tasks/{id}`** (revised 2026-09-04: was a side drawer). |
 | Description editor | Tiptap (bold, italic, bullet/ordered lists, links), RTL-aware; stores HTML compatible with Odoo's `Html` field. |
-| Drawer relations | Sub-tasks (list + create by title), dependencies (read-only), attachments (read-only list). Upload and dependency editing → phase 2. |
+| Detail relations | Sub-tasks (list + create by title), dependencies (read-only), attachments (read-only list). Upload and dependency editing → phase 2. |
 | Activity | Comments (`mail.message` type `comment`) **and** field-tracking entries, merged into one timeline. |
 | Time logging | **Deferred to phase 2.** Phase 1 shows duration metrics only. |
 | Approvals | Employees may set `in_progress`, `waiting`, `done` on their tasks; `approved` and `changes_requested` require a project manager (`project.group_project_manager`) or `nasq_core.group_customer_admin`. Enforced server-side. |
@@ -36,14 +36,14 @@ computed `working_days_open` / `working_days_close`. Phase 1 exposes, per task:
 
 | Metric | Definition | Where shown |
 |---|---|---|
-| `days_remaining` | `date_deadline − today` in calendar days; negative when overdue; `null` without a deadline | table column, board card, drawer header |
+| `days_remaining` | `date_deadline − today` in calendar days; negative when overdue; `null` without a deadline | table column, board card, modal header |
 | `is_overdue` | `days_remaining < 0 and not is_closed` | badge |
-| `age_days` | `today − create_date` | drawer |
-| `cycle_days` | `date_end − (date_assign or create_date)` when closed, else `null` | drawer |
-| `allocated_hours` | as stored (planning figure, not time spent) | drawer, editable by managers |
+| `age_days` | `today − create_date` | modal |
+| `cycle_days` | `date_end − (date_assign or create_date)` when closed, else `null` | modal |
+| `allocated_hours` | as stored (planning figure, not time spent) | modal, editable by managers |
 
 Project-level duration (`date_start`, `date`, open/closed counts, overdue count)
-belongs to the project screen in phase 2; the drawer shows only the project name.
+belongs to the project screen in phase 2; the modal shows only the project name.
 
 ## Screens
 
@@ -53,7 +53,7 @@ belongs to the project screen in phase 2; the drawer shows only the project name
 - Filters (in the toolbar, persisted per browser): state (multi), project, "مفتوحة / منجزة" toggle (default: open), free-text search on title (server-side `ilike`).
 - Sort: any column; default `date_deadline asc, priority desc`. Group-by: project or personal stage (client-side over the current page).
 - Pagination: server-side, 50 per page, "تحميل المزيد".
-- Row click → drawer. Inline state change from the badge (transition rules apply).
+- Row click → navigates to `/tasks/{id}`, which renders the detail modal over the list. Inline state change from the badge (transition rules apply).
 - Empty state: "لا مهام مسندة إليك" + action "إنشاء مهمة" (creates a task in a project the user picks).
 
 ### مهامي — board
@@ -63,12 +63,41 @@ belongs to the project screen in phase 2; the drawer shows only the project name
 - Drag a card between columns → `PATCH /tasks/{id} {personal_stage_type_id}` (optimistic). Reorder inside a column is visual only (no server sequence) in phase 1.
 - Same filters as the table.
 
-### Task drawer (`Sheet`, right side in RTL)
+### Task detail — large modal on `/tasks/{id}`
 
-Header: title (inline edit, autosave), state badge (transition menu), project chip, `days_remaining` / overdue badge.
-Body tabs:
-1. **التفاصيل** — assignees (multi, from `/people`), deadline (date-time picker), priority, tags, personal stage, allocated hours (managers), description (Tiptap, autosave debounced 800 ms), sub-tasks (list with state badges + "إضافة مهمة فرعية" title input), dependencies (read-only list with state), attachments (read-only list with `/web/content/<id>` links), metrics (age, cycle).
-2. **النشاط** — merged timeline newest-first: comments (author avatar, body HTML sanitised, relative time) and tracking entries ("غيّر الحالة من X إلى Y"); composer at the bottom posts a comment.
+**Decision (2026-09-04, revised):** the detail is a **large centred modal**, not a side
+drawer. A drawer at ~480px cannot hold a description, sub-tasks, dependencies,
+attachments and an activity feed without endless scrolling, and it reads as an
+afterthought when opened from the board. The modal is the same presentation from
+the table and from the board.
+
+- **Route:** `/tasks/{id}` (a real route, not `?task=`), so a task link is
+  shareable and browser back/forward work. Opening the URL directly renders the
+  list underneath and the modal on top. Closing returns to `/tasks` preserving the
+  current `?tab` and filters.
+- **Size:** `max-w-[1100px]`, `h-[85vh]`, with a dimmed margin around it — the
+  margin is what tells the eye this is a dismissible layer. Full-screen
+  (`inset-0`, slide-up) below the `md` breakpoint.
+- **Interior:** two columns on `md+` — **details** (start side) and **activity**
+  (end side), each scrolling independently. One column, tabbed
+  (`التفاصيل` / `النشاط`), below `md`.
+- **Prev/next:** arrows in the header plus `J` / `K` move through the *current
+  filtered list* without closing, so triage survives the loss of the visible list
+  behind the overlay. Disabled at the ends; hidden when the modal was opened
+  directly by URL with no list loaded.
+- **Header:** title (inline edit, autosave), state badge + transition menu,
+  project chip, `days_remaining` / overdue badge, prev/next, close.
+- **Details column:** assignees (multi, from `/people`), deadline (date-time
+  picker), priority (4 values), tags (read-only chips in phase 1), personal
+  stage, allocated hours (managers only), description (Tiptap, autosave debounced
+  800 ms), sub-tasks (list with state badges + "إضافة مهمة فرعية"), dependencies
+  (read-only), attachments (read-only links), metrics (age, cycle, created,
+  updated).
+- **Activity column:** merged timeline newest-first (comments + tracking) with the
+  composer pinned at its foot.
+- **Nested layers:** the date picker, the assignee combobox and the state menu open
+  *inside* the modal. This is the pattern's classic failure point — a click inside
+  a popover must not dismiss the modal. Covered by an explicit e2e case.
 
 Write semantics (platform rule): field edits are optimistic; **state transitions are pending → confirmed**; every write response returns the full task and replaces the cache.
 
@@ -120,10 +149,10 @@ Rules:
 ## Frontend
 
 - **State**: `@tanstack/vue-query` becomes the server-state layer: `useTasks(params)`, `useTask(id)`, `useTimeline(id)`, `usePersonalStages()`, mutations with optimistic updates for PATCH and pending-confirm for `/transition`. `useMe`/`useBranding` stay on `useFetch` (SSR-critical).
-- **Components**: `TaskTable` (shadcn DataTable), `TaskBoard` (`vue-draggable-plus`, keyboard-accessible fallback: a "نقل إلى…" menu on each card), `TaskDrawer` (`Sheet`), `StateBadge` + `StateMenu`, `DeadlineBadge`, `AssigneePicker` (`Combobox`), `DescriptionEditor` (Tiptap), `Timeline`, `CommentComposer`, `SubtaskList`.
+- **Components**: `TaskTable` (shadcn DataTable), `TaskBoard` (`vue-draggable-plus`, keyboard-accessible fallback: a "نقل إلى…" menu on each card), `TaskDetailModal` (`Dialog`, two columns) + `TaskDetailPanel` (container-agnostic body), `StateBadge` + `StateMenu`, `DeadlineBadge`, `AssigneePicker` (`Combobox`), `DescriptionEditor` (Tiptap), `Timeline`, `CommentComposer`, `SubtaskList`.
 - **i18n**: `@nuxtjs/i18n`, `strategy: 'no_prefix'`, `ar` default with `dir: 'rtl'`, `en` secondary; all phase-0 literals move to `i18n/locales/ar.json` / `en.json`.
 - **TOTP**: the Nitro login handler detects Odoo's MFA requirement (`/web/session/authenticate` succeeds but `/web/session/check`/`get_session_info` reports `mfa` pending, or the TOTP challenge route) and returns `{ok:false, mfa:'totp'}`; the login page shows a 6-digit step that posts to a new `POST /api/auth/totp` proxying Odoo's `auth_totp` verification. Exact routes are verified against `addons/auth_totp/controllers` during planning.
-- Design rules from the parent spec apply unchanged (tables default, drawer not page, one primary action, skeletons, badges vocabulary, ⌘K, empty states, tokens, logical properties).
+- Design rules from the parent spec apply unchanged (tables default, detail as an overlay not a separate page, one primary action, skeletons, badges vocabulary, ⌘K, empty states, tokens, logical properties).
 
 ## Odoo side
 
@@ -136,7 +165,7 @@ Rules:
 - `HttpCase` per endpoint + per rule (list scoped to me; PATCH whitelist; transition 403 for employee → approved, 200 for manager; timeline mixes comment + tracking; personal stages auto-created).
 - Contract e2e (`contracts.spec.ts`) extended to every new endpoint.
 - Vitest: query-key helpers, state mapping, `daysRemaining()` pure helper, optimistic reducers.
-- Playwright: list renders my tasks; open drawer, edit title, see it persisted after reload; transition as employee to approved → error toast; drag a card to another stage; post a comment and see it in the timeline; real-time: a second browser context sees the update without reload.
+- Playwright: list renders my tasks; open the modal at `/tasks/{id}`, edit title, see it persisted after reload; transition as employee to approved → error toast; drag a card to another stage; post a comment and see it in the timeline; open the date picker inside the modal and pick a date without the modal closing; `J`/`K` move to the next task; real-time: a second browser context sees the update without reload.
 - Odoo suite + ruff + vue-tsc + `npm test` + e2e stay the gate.
 
 ## Out of scope (phase 1)
