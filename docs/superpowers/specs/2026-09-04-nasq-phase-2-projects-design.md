@@ -36,7 +36,7 @@ Settings, reports and Gantt are phase 3 or later.
 | Progress | `task_completion_percentage` = `closed_task_count / task_count`; `0` when there are no tasks. Not `project.update.progress`. |
 | Task detail from a project | Same `TaskDetailModal` mounted on a nested route `/projects/{id}/tasks/{taskId}`; close returns to the project with `?tab` and filters intact; J/K and prev/next walk that project's list. `/tasks/{id}` stays the canonical shareable URL. |
 | Wire | **Extend** phase-1 `GET /projects?minimal=1` and `GET /tasks?filter=mine`; never replace them. |
-| Access | Odoo ACL + `ir.rule` only. No `sudo()`. A project the user cannot read is a 404. |
+| Access | Odoo ACL + `ir.rule` only. No `sudo()`. A missing project is a 404; an existing project the user cannot read is a 403 `forbidden`, exactly as tasks behave through `get_record` in phase 1. Lists simply omit unreadable projects. |
 
 ## Status and progress (project)
 
@@ -87,7 +87,7 @@ Project-level dates, overdue counts and cycle time are **not** in this phase.
   `CreateTaskDialog` with the project locked (no project picker). Success
   invalidates the project's task lists and the project itself (counts), and
   opens the new task at `/projects/{id}/tasks/{taskId}`.
-- Unknown / unreadable id → 404 empty state with a link back to `/projects`.
+- Unknown / unreadable id (404 or 403) → not-found empty state with a link back to `/projects`.
 
 ### قائمة (project task table)
 
@@ -139,7 +139,7 @@ GET    /api/v1/projects
 
 GET    /api/v1/projects/{id}
        → ProjectDetail                              NEW
-       404 {code:'not_found'} when missing or unreadable.
+       404 {code:'not_found'} when missing, 403 {code:'forbidden'} when unreadable.
 
 POST   /api/v1/projects/{id}/status  {status}       NEW, managers only
        → ProjectDetail
@@ -257,8 +257,9 @@ invalidate locally on mutation success.
   `GET /projects` returns the whitelisted keys, `status` null for
   `to_define`, `progress` 50 for one closed of two; `GET /projects/{id}`
   includes ordered `stages` and `can_manage` (false for employee, true for
-  manager); 404 for a missing id and for a project with
-  `privacy_visibility='followers'` the employee does not follow; `POST
+  manager); 404 for a missing id, 403 for a project with
+  `privacy_visibility='followers'` the employee does not follow, and that
+  project is absent from the employee's `GET /projects`; `POST
   status` 403 `status_forbidden` for the employee, 200 for the manager and
   a `project.update` now exists with that status, 422 `invalid_status` for
   `to_define`/garbage; `GET /tasks` with neither param → 400;
