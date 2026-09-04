@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ChevronLeft, ChevronRight, X } from 'lucide-vue-next'
 import { useTaskFilters } from '@/composables/useTaskFilters'
+import type { TaskListParams } from '@/composables/useTasks'
 import { useTask, useTaskSiblings, useUpdateTask } from '@/composables/useTasks'
 import DeadlineBadge from './DeadlineBadge.vue'
 import StateMenu from './StateMenu.vue'
@@ -11,7 +12,12 @@ import TaskDetails from './TaskDetails.vue'
 // badge, prev/next, close) + the two-column (details/activity) layout. The
 // Dialog wrapper lives in TaskDetailModal.vue so a later split-view host can
 // reuse this without depending on Dialog internals.
-const props = defineProps<{ taskId: number }>()
+// basePath routes prev/next within the host's own URL space (default /tasks,
+// مهامي's own list). siblingParams lets a host that keeps its filters in the
+// URL (the project screen) drive prev/next from those instead of the
+// localStorage-backed filters — decided once per instance since the two
+// branches are different composables.
+const props = withDefaults(defineProps<{ taskId: number; basePath?: string; siblingParams?: TaskListParams }>(), { basePath: '/tasks' })
 const emit = defineEmits<{ close: [] }>()
 
 const route = useRoute()
@@ -30,10 +36,14 @@ const isDesktop = useMediaQuery('(min-width: 768px)', { ssrWidth: 1024 })
 
 const idRef = computed(() => props.taskId)
 const { data: task } = useTask(idRef)
-// Same localStorage-backed filters ref the table itself queries with, so
-// prev/next reads the cache entry for the filter actually visible behind
-// this modal rather than whichever list happened to be cached first.
-const filterParams = useTaskFilters()
+// A host that keeps its filters in the URL (the project screen) passes them
+// in via siblingParams; مهامي's host passes nothing, so this falls back to
+// the same localStorage-backed filters ref the table itself queries with,
+// meaning prev/next reads the cache entry for the filter actually visible
+// behind this modal rather than whichever list happened to be cached first.
+// Decided once per instance: the two branches are different composables.
+const localFilters = props.siblingParams ? null : useTaskFilters()
+const filterParams = computed<TaskListParams>(() => props.siblingParams ?? localFilters!.value)
 const siblings = useTaskSiblings(idRef, filterParams)
 const { mutate: updateTask } = useUpdateTask()
 
@@ -58,7 +68,7 @@ function saveTitle() {
 
 function goTo(id: number | null) {
   if (id === null) return
-  router.push({ path: `/tasks/${id}`, query: route.query })
+  router.push({ path: `${props.basePath}/${id}`, query: route.query })
 }
 
 function isEditableTarget(el: EventTarget | null) {
