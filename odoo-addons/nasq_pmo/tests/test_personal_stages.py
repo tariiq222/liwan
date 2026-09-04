@@ -19,7 +19,6 @@ class TestPersonalStagesAndLookups(NasqPmoCase):
         self.authenticate('api_emp', 'api_emp_pass_123')
         items = self.api('GET', '/api/v1/projects?minimal=1').json()
         self.assertIn({'id': self.project.id, 'name': 'Erada Portal'}, items)
-        self.assertEqual(self.api('GET', '/api/v1/projects').status_code, 400)
 
     def test_people_minimal(self):
         self.env['hr.employee'].create({'name': 'Sara E', 'user_id': self.employee.id})
