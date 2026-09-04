@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import CreateTaskDialog from '@/components/task/CreateTaskDialog.vue'
+import TaskBoard from '@/components/task/TaskBoard.vue'
 import TaskTable from '@/components/task/TaskTable.vue'
 import TaskToolbar from '@/components/task/TaskToolbar.vue'
 import { useTaskFilters } from '@/composables/useTaskFilters'
@@ -43,7 +44,10 @@ const createOpen = ref(false)
         <TaskTable :params="params" @open="openTask" @create="createOpen = true" />
       </TabsContent>
 
-      <TabsContent value="board" />
+      <TabsContent value="board" class="space-y-4">
+        <TaskToolbar v-model="params" @create="createOpen = true" />
+        <TaskBoard :params="params" @open="openTask" />
+      </TabsContent>
     </Tabs>
 
     <CreateTaskDialog v-model:open="createOpen" @created="openTask" />
