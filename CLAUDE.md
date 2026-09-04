@@ -15,7 +15,8 @@ logic lives in a `customer_<name>_*` overlay addon, never in core. Full design:
   subclass — it never imports a pillar), `nasq_pmo` (the project pillar:
   `controllers/{tasks,timeline,personal_stages,projects,people}.py`,
   `serializers/{task,timeline}.py`, `models/project_task.py` holding the transition hooks
-  and bus notifier, and the `NasqPmoCase` task/timeline/stage/bus tests), `web_theme_shadcn`
+  and bus notifier, the `NasqPmoCase` task/timeline/stage API tests plus `TransactionCase`
+  transition/bus tests), `web_theme_shadcn`
   (vendor console theme). Ownership rule between pillars: `docs/parallel-work.md`.
 - `packages/contracts` — zod schemas mirroring every wire shape (`@nasq/contracts`), split
   per pillar: `src/common/` (branding, error envelope, me), `src/pmo/` (state, task,
@@ -33,7 +34,7 @@ CLAUDE.md covers the framework). **Never modify it and never run `git` there.** 
 
 One branch per phase (`phase-N`) from `main`; spec → `superpowers:writing-plans` →
 `superpowers:subagent-driven-development` → `superpowers:finishing-a-development-branch`;
-fast-forward merge + tag `v0.N.0-phaseN`. Commit messages: `[ADD]|[IMP]|[FIX] <scope>: <summary>`
+fast-forward merge + tag `v0.<N+1>.0-phaseN` (e.g. `v0.2.0-phase1`). Commit messages: `[ADD]|[IMP]|[FIX] <scope>: <summary>`
 with trailer `Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>`. One commit per task.
 
 Project skills in `.claude/skills/` (`/nasq-api-endpoint`, `/nasq-odoo-test`,
@@ -60,7 +61,7 @@ they obey.
   `cancelled` on tasks they can write; `approved` and `changes_requested` need
   `project.group_project_manager` or `nasq_core.group_customer_admin` → HTTP 403 `transition_forbidden`.
 - Roles: `nasq_core.group_employee` (Nuxt only), `nasq_core.group_customer_admin` (Nuxt +
-  Settings), vendor support = `base.group_system` (full Odoo). Nobody at the customer opens Odoo.
+  Settings), vendor support = `nasq_core.group_vendor_support` (implies `base.group_system`, full Odoo). Nobody at the customer opens Odoo.
 - Bus: task create/write notifies assignees' partner channels; the web app invalidates
   vue-query caches on those events.
 - Branding source of truth is the DB (`res.company` + nasq fields); `deploy/branding.json`
@@ -97,7 +98,7 @@ they obey.
   `useApi()` fetch wrapper that throws `ApiError {status, code, message, field}`.
   Plain field edits are optimistic; state transitions/approvals are pending → server →
   confirmed. The client replaces its cache with whatever the server returns.
-- Task detail is an overlay (`Sheet`) at `/tasks/{id}`, not a full page. Status badge
+- Task detail is a large two-column modal (`Dialog`, `TaskDetailModal.vue`) at `/tasks/{id}`, not a full page. Status badge
   vocabulary: قيد التنفيذ · تعديلات مطلوبة · معتمد · بانتظار · منجز · ملغى.
 - Same-origin topology behind a reverse proxy: Nuxt at `/`, Odoo at `/api/v1`, `/web/content`,
   `/websocket`, vendor console at `/odoo`. Session cookie only, no CORS, no bearer tokens.
