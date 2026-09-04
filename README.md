@@ -126,5 +126,5 @@ actual contract being protected, and is what these tests prove.
     npm -w apps/web run lint                           # vue-tsc --build --noEmit, 0 errors
     # contracts + web unit — 15 + 118 = 133 tests passing
     npm test
-    # e2e (needs Odoo on :8069 with nasq_api installed and `npm run dev` on :3000) — 25 passed
+    # e2e (needs Odoo on :8069 with nasq_core, nasq_api and nasq_pmo installed and `npm run dev` on :3000) — 25 passed
     cd apps/web && npm run test:e2e

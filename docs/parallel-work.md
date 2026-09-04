@@ -28,13 +28,24 @@ read, and it changes rarely and deliberately.
 - **A schema**: a file under `src/<pillar>/`, one line in that pillar's
   `index.ts`.
 
-## The three files both teams still touch
+## The four files both teams still touch
 
 Keep changes to these to a single added line, and rebase early:
 
 1. `packages/contracts/src/index.ts` — one `export * from './<pillar>'`.
 2. `apps/web/nuxt.config.ts` — one entry per locale in `i18n.locales[].files`.
 3. `apps/web/app/composables/useNav.ts` — the pillar's nav entry.
+4. `deploy/provision.sh`'s `-i` list — a new pillar must be added there
+   explicitly, since pillars depend on `nasq_api` and not the other way
+   round; nothing else pulls it in.
+
+A pillar's nav label key is the one deliberate exception to the "your
+namespace only" rule: it lives under `nav.*` in the shared
+`i18n/locales/{ar,en}/common.json`, alongside the entry it adds in
+`useNav.ts`.
+
+`/api/v1/people` lives in `nasq_pmo`, not the HR pillar — it feeds the
+assignee picker, so PMO owns it even though "people" sounds like HR's.
 
 Run the Odoo suite installed from scratch (`-i`, see the README's Tests
 section), not `-u`: a manifest dependency you forgot to declare then fails

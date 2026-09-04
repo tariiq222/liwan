@@ -81,8 +81,9 @@ for _ in $(seq 1 60); do
 done
 docker compose exec -T db pg_isready -U odoo >/dev/null 2>&1 || { echo "db not ready after 60s"; exit 1; }
 
+# Every pillar must be listed explicitly: pillars depend on nasq_api, not the other way round.
 docker compose run --rm -v "$PWD/data/odoo.conf:/etc/odoo/odoo.conf:ro" odoo \
-  odoo -c /etc/odoo/odoo.conf -d "$DB_NAME" -i nasq_core,nasq_api,web_theme_shadcn --stop-after-init
+  odoo -c /etc/odoo/odoo.conf -d "$DB_NAME" -i nasq_core,nasq_api,nasq_pmo,web_theme_shadcn --stop-after-init
 docker compose run --rm -e VENDOR_PASSWORD -v "$PWD/data/odoo.conf:/etc/odoo/odoo.conf:ro" -v "$PWD/data/seed:/seed:ro" odoo \
   sh -c 'odoo shell -c /etc/odoo/odoo.conf -d "$1" --no-http < /seed/seed_branding.py' sh "$DB_NAME"
 docker compose up -d
