@@ -86,8 +86,8 @@ def parse_task_vals(payload, can_manage):
         if key == 'date_deadline':
             vals[key] = fields.Datetime.to_datetime(value.replace('Z', '').replace('T', ' ')) if value else False
         elif key == 'priority':
-            if value not in ('0', '1'):
-                raise ApiError(422, 'invalid', "priority must be '0' or '1'", field=key)
+            if value not in ('0', '1', '2', '3'):
+                raise ApiError(422, 'invalid', "priority must be one of '0'..'3'", field=key)
             vals[key] = value
         elif key in ('user_ids', 'tag_ids'):
             if not isinstance(value, list) or not all(isinstance(i, int) for i in value):

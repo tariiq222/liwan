@@ -1,17 +1,29 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import http
+from odoo.exceptions import AccessError
+from odoo.fields import Domain
 from odoo.http import request
-from odoo.osv.expression import AND
 
 from odoo.addons.nasq_api.controllers.common import ApiError, api_handler, get_record
 from odoo.addons.nasq_api.serializers.task import (
     API_TO_STATE,
     dump_task,
     dump_task_detail,
+    parse_task_vals,
 )
 
 SORTABLE = {'date_deadline', 'priority', 'name', 'create_date', 'write_date'}
 MAX_LIMIT = 200
+
+
+def _parse_nonneg_int(value, field):
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        raise ApiError(422, 'invalid', "limit and offset must be non-negative integers", field=field) from None
+    if parsed < 0:
+        raise ApiError(422, 'invalid', "limit and offset must be non-negative integers", field=field)
+    return parsed
 
 
 class TaskController(http.Controller):
@@ -33,18 +45,23 @@ class TaskController(http.Controller):
 
         if filter_ != 'mine':
             raise ApiError(400, 'unsupported_filter', "phase 1 supports filter=mine only")
+        limit = _parse_nonneg_int(limit, 'limit')
+        offset = _parse_nonneg_int(offset, 'offset')
         # project_todo (auto-installed alongside project) gives every new internal user a
         # personal "Welcome" project.task with no project_id; the nasq task list is about
         # project work, so exclude those to-dos rather than surfacing them as "mine".
-        domain = [('user_ids', 'in', [request.env.uid]), ('project_id', '!=', False)]
-        domain = AND([domain, [('is_closed', '=', closed in ('1', 'true', True))]])
+        domain = (
+            Domain('user_ids', 'in', [request.env.uid])
+            & Domain('project_id', '!=', False)
+            & Domain('is_closed', '=', closed in ('1', 'true', True))
+        )
         if state:
             codes = [API_TO_STATE[s] for s in str(state).split(',') if s in API_TO_STATE]
-            domain = AND([domain, [('state', 'in', codes)]])
+            domain &= Domain('state', 'in', codes)
         if project_id:
-            domain = AND([domain, [('project_id', '=', int(project_id))]])
+            domain &= Domain('project_id', '=', int(project_id))
         if q:
-            domain = AND([domain, [('name', 'ilike', q)]])
+            domain &= Domain('name', 'ilike', q)
         order_parts = []
         for part in str(sort).split(','):
             field, _, direction = part.strip().partition(' ')
@@ -52,12 +69,49 @@ class TaskController(http.Controller):
                 order_parts.append(f"{field} {'desc' if direction == 'desc' else 'asc'}")
         order = ', '.join(order_parts) or 'date_deadline asc, priority desc'
         Task = request.env['project.task']
-        limit = min(int(limit), MAX_LIMIT)
-        tasks = Task.search(domain, order=f"{order}, id desc", limit=limit, offset=int(offset))
+        limit = min(limit, MAX_LIMIT)
+        tasks = Task.search(domain, order=f"{order}, id desc", limit=limit, offset=offset)
         return {'items': [dump_task(t) for t in tasks], 'total': Task.search_count(domain)}
 
     @http.route('/api/v1/tasks/<int:task_id>', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
     def get_task(self, task_id):
         task = get_record('project.task', task_id)
+        return dump_task_detail(task)
+
+    @http.route('/api/v1/tasks', type='json2', auth='user', methods=['POST'], readonly=False)
+    @api_handler
+    def create_task(self, name=None, project_id=None, parent_id=None, **_):
+        if not isinstance(name, str) or not name.strip():
+            raise ApiError(422, 'invalid', "name must not be empty", field='name')
+        if not project_id:
+            raise ApiError(422, 'invalid', "project_id is required", field='project_id')
+        project = get_record('project.project', project_id)
+        vals = {'name': name.strip(), 'project_id': project.id, 'user_ids': [(4, request.env.uid)]}
+        if parent_id:
+            vals['parent_id'] = get_record('project.task', parent_id).id
+        task = request.env['project.task'].create(vals)
+        return request.make_json_response(dump_task_detail(task), status=201)
+
+    @http.route('/api/v1/tasks/<int:task_id>', type='json2', auth='user', methods=['PATCH'], readonly=False)
+    @api_handler
+    def patch_task(self, task_id, **payload):
+        payload.pop('task_id', None)
+        if not payload:
+            raise ApiError(422, 'invalid', "no fields to update")
+        task = get_record('project.task', task_id)
+        vals = parse_task_vals(payload, can_manage=task._nasq_can_approve())
+        task.write(vals)
+        return dump_task_detail(task)
+
+    @http.route('/api/v1/tasks/<int:task_id>/transition', type='json2', auth='user', methods=['POST'], readonly=False)
+    @api_handler
+    def transition_task(self, task_id, state=None, **_):
+        if state not in API_TO_STATE:
+            raise ApiError(422, 'invalid_state', f"unknown state {state!r}", field='state')
+        task = get_record('project.task', task_id)
+        try:
+            task._nasq_transition(API_TO_STATE[state])
+        except AccessError as e:
+            raise ApiError(403, 'transition_forbidden', str(e)) from e
         return dump_task_detail(task)
