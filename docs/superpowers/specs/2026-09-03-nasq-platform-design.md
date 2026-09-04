@@ -25,7 +25,7 @@ not the scope.
 | Engine | Odoo 19 CE pinned to `origin/19.0`, fixes pulled on our schedule. Zero modifications inside `odoo/` or `addons/`. Everything in our addons. Major migration every ~3 years via OpenUpgrade. |
 | Frontend | Nuxt 4 + Vue 3 + TypeScript + Tailwind v4 + shadcn-vue. PWA. Arabic-first RTL, English secondary. |
 | Topology | Single origin behind a reverse proxy. Nuxt at `/`, Odoo at `/api/v1`, `/web/content`, `/websocket`, `/odoo`. Session cookie only; no CORS, no bearer keys for humans. |
-| API | Addon `nasq_api`, routes `type='json2'`, `auth='user'`, versioned `/api/v1`. Serializers whitelist fields. Permissions stay in Odoo (ACL + `ir.rule`). |
+| API | Addon `nasq_api` (shared plumbing) plus one addon per pillar (`nasq_pmo`, …), routes `type='json2'`, `auth='user'`, versioned `/api/v1`. Serializers whitelist fields. Permissions stay in Odoo (ACL + `ir.rule`). |
 | Login | Custom Nuxt login page calling `/web/session/authenticate`. Password + 2FA (TOTP) in v1. SSO deferred (Enterprise package). |
 | Users | Internal employees only in v1. External/portal users deferred. |
 | MVP scope | Projects + tasks + time + people (read) + settings. |
@@ -137,21 +137,38 @@ Client replaces cache with the returned record; on 4xx rolls back + toast.
 
 ### Odoo side
 
+One addon per pillar, plus one addon of shared plumbing under it. A pillar
+never edits another pillar's files; `nasq_api` is the only addon both may
+read from, and neither may import from the other.
+
 ```
 odoo-addons/
-├── nasq_core/                    groups, branding fields on res.company, hide Odoo noise for
-│                                 non-vendor groups, CSS variables for web_theme_shadcn
-├── nasq_api/                     depends: nasq_core, project, hr_timesheet, mail
-│   ├── controllers/  auth.py · branding.py · tasks.py · projects.py · people.py
-│   │                 reports.py · admin.py
-│   ├── serializers/  task.py · project.py · person.py · company.py
-│   ├── models/       project_task.py (bus events on write) · mail_message.py
-│   └── tests/        test_api.py (HttpCase, post_install)
-├── nasq_pmo/                     small domain additions: task code (ir.sequence),
-│                                 milestone status, project defaults
+├── nasq_core/                    depends: base, project, hr, hr_timesheet — the group
+│                                 records, whose implied_ids are why project/hr/
+│                                 hr_timesheet are declared, plus the branding
+│                                 fields and defaults on res.company
+├── nasq_api/                     depends: nasq_core, auth_totp — SHARED PLUMBING ONLY
+│   ├── controllers/  common.py (ApiError · api_handler · get_record ·
+│   │                 parse_nonneg_int) · auth.py · branding.py · me.py
+│   ├── serializers/  common.py (iso) · company.py · user.py
+│   └── tests/        common.py (NasqApiCase: the two roles + api()) ·
+│                     test_branding.py · test_me.py · test_totp.py
+├── nasq_pmo/                     depends: nasq_api, project, hr, mail, bus — THE PROJECT PILLAR
+│   ├── controllers/  tasks.py · timeline.py · personal_stages.py · projects.py · people.py
+│   ├── serializers/  task.py · timeline.py
+│   ├── models/       project_task.py (transition hooks + bus notifier, one class)
+│   └── tests/        common.py (NasqPmoCase: NasqApiCase + project/task records) ·
+│                     test_tasks.py · test_timeline.py · test_personal_stages.py ·
+│                     test_bus.py · test_transition.py
+├── nasq_hr/                      the HR pillar, same shape, built on the same nasq_api
 ├── web_theme_shadcn/             vendor console theme (moved from odoo-addons repo)
 └── customer_<name>/              per-customer overlays; never merged into core
 ```
+
+The same rule shapes the web side: `apps/web/i18n/locales/<locale>/<pillar>.json`
+merged by `@nuxtjs/i18n`'s per-locale `files: [...]`, and
+`packages/contracts/src/{common,pmo,hr}/` each with its own `index.ts` behind a
+root barrel. See `docs/parallel-work.md`.
 
 Route conventions:
 

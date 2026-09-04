@@ -48,10 +48,30 @@ for where phase 1 sits in the four-pillar platform.
 
 ## Layout
 
-- `apps/web` — Nuxt 4 product UI
-- `packages/contracts` — zod schemas shared with the UI
-- `odoo-addons` — `nasq_core`, `nasq_pmo`, `nasq_api`, `web_theme_shadcn`
+Ownership rule: shared plumbing lives in `nasq_api`, each pillar lives in its
+own addon, and each pillar owns its own locale namespace and contract
+namespace — so two pillar teams never write the same file.
+
+- `apps/web` — Nuxt 4 product UI. Messages are per-pillar namespace files,
+  `i18n/locales/<locale>/{common,tasks}.json`, merged by `@nuxtjs/i18n`'s
+  per-locale `files: [...]` (key paths are flat: `$t('tasks.state.done')`).
+- `packages/contracts` — zod schemas shared with the UI: `src/common/`
+  (branding, error envelope, me) and `src/pmo/` (state, task, timeline,
+  personal stage), each with its own `index.ts`; `src/index.ts` re-exports
+  them, so consumers keep importing from `@nasq/contracts`.
+- `odoo-addons`
+  - `nasq_core` — groups and branding defaults.
+  - `nasq_api` — shared `/api/v1` plumbing only: `controllers/common.py`
+    (`ApiError`, `api_handler`, `get_record`, `parse_nonneg_int`),
+    `auth`/`branding`/`me`, the company/user serializers and `iso()`, and the
+    `NasqApiCase` test fixture the pillars subclass. It never imports a pillar.
+  - `nasq_pmo` — the project pillar: the task/timeline/personal-stage/project/
+    people endpoints, their serializers, the `project.task` transition hooks
+    and bus notifier, and their tests.
+  - `web_theme_shadcn` — vendor console theme.
 - `deploy` — per-customer docker-compose + provisioning
+
+A second team working a second pillar: see `docs/parallel-work.md`.
 
 ## Patched generated files
 
@@ -99,7 +119,7 @@ actual contract being protected, and is what these tests prove.
 ## Tests
 
     # Odoo addons (fresh scratch DB) — 0 failed, 0 error(s) of 57 tests
-    cd ~/code/odoo && .venv/bin/python odoo-bin -c odoo.conf -d nasq_test -u nasq_core,nasq_api,nasq_pmo --test-tags /nasq_core,/nasq_api,/nasq_pmo
+    cd ~/code/odoo && .venv/bin/python odoo-bin -c odoo.conf -d nasq_test -i nasq_core,nasq_api,nasq_pmo --test-tags /nasq_core,/nasq_api,/nasq_pmo
     # tip: if a dev server already holds :8069, add --http-port=8169 to the command above
     # lint
     ruff check odoo-addons deploy/seed_branding.py     # clean
