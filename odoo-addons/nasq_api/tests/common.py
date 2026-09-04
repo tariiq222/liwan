@@ -3,7 +3,7 @@ from odoo.tests import HttpCase, new_test_user
 
 
 class NasqApiCase(HttpCase):
-    """Shared HTTP fixture: the two nasq roles plus a JSON ``api()`` helper.
+    """Shared HTTP fixture: the base nasq employee role plus a JSON ``api()`` helper.
 
     Holds nothing pillar-specific — a pillar addon subclasses this and adds
     its own records (see ``nasq_pmo/tests/common.py``) so the pillars never
@@ -15,8 +15,6 @@ class NasqApiCase(HttpCase):
         super().setUpClass()
         cls.employee = new_test_user(cls.env, login='api_emp', password='api_emp_pass_123',
                                      name='Sara', groups='nasq_core.group_employee')
-        cls.manager = new_test_user(cls.env, login='api_mgr', password='api_mgr_pass_123',
-                                    name='Mona', groups='nasq_core.group_employee,project.group_project_manager')
 
     def api(self, method, path, json=None):
         headers = {'Content-Type': 'application/json'}
