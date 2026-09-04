@@ -6,11 +6,15 @@
 
 ## Goal
 
-**nasq** (نَسَق) is a resellable project & task management product with a
-Stripe-level UI, built on Odoo 19 Community as its engine. Customers' staff use
-a Nuxt web app and never see Odoo; Odoo's own web client is reserved for the
-vendor (us). Each customer runs an independent deployment (managed by us or
-on-premise). Erada is customer #1, not the scope.
+**nasq** (نَسَق) is a resellable, **full integrated enterprise management
+suite** — initiatives, projects, HR (human resources), and meeting management
+as core pillars — with a Stripe-level UI, built on Odoo 19 Community as its
+engine. It is delivered in phases; **phase 1 delivers project/task management
+only**, with initiatives, HR, and meetings following in later phases (see
+Phases below). Customers' staff use a Nuxt web app and never see Odoo; Odoo's
+own web client is reserved for the vendor (us). Each customer runs an
+independent deployment (managed by us or on-premise). Erada is customer #1,
+not the scope.
 
 ## Decisions (from brainstorming / grilling, 2026-09-03)
 
@@ -258,10 +262,16 @@ every schema change; supported core versions: current + previous.
 
 ## Phases
 
+nasq's full scope is the four pillars in Goal (initiatives, projects, HR,
+meetings). Phases 0-3 below deliver the **project-management pillar only**,
+built first because it is the fastest path to a demo-able product for Erada.
+The remaining pillars (initiatives, HR beyond read-only "People", meetings)
+are phase-4-and-later work, not out-of-scope forever.
+
 | Phase | Delivers | Duration |
 |---|---|---|
 | 0 — Foundation | Monorepo, `nasq_core` groups + branding fields, `nasq_api` skeleton (`/branding`, `/me`), Nuxt shell (login, sidebar, ⌘K, tokens, RTL, proxy), `deploy/` compose, remove OCA modules | 1 week — done 2026-09-04 |
-| 1 — Core | My tasks table, task drawer (autosave, comments, time, subtasks), real-time | 3 weeks |
+| 1 — Core | My tasks table, task drawer (autosave, comments, time, subtasks), real-time | Delivered 2026-09-04 |
 | 2 — Projects | Projects list, project screen (board/list/milestones/updates), transitions | 3 weeks |
 | **Demo to Erada** | | **~7 weeks** |
 | 3 — Completion | Today, People, Reports, Settings (4 pages), hide Odoo noise, PWA | 3 weeks |

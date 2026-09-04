@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-04
 **Target:** nasq `main` @ `v0.1.0-phase0` (Odoo 19.0 CE engine, Nuxt 4 UI)
-**Status:** Approved for planning
+**Status:** Delivered 2026-09-04
 **Parent spec:** `2026-09-03-nasq-platform-design.md` (binding; this document refines its Phase 1 row)
 
 ## Goal

@@ -15,6 +15,37 @@ not upgrade websockets, so in dev `useBus()` connects straight to Odoo's
 `ws://localhost:8069/websocket` (`runtimeConfig.public.wsUrl`, overridable
 with `NUXT_PUBLIC_WS_URL`); in prod it's same-origin, routed through Caddy.
 
+## Phase 1
+
+Phase 1 ("my tasks") shipped on the `phase-1` branch:
+
+- **My tasks table** (`/tasks`) — open/closed tabs, project/state filters, title
+  search, sort, pagination ("load more"), inline stage/priority edits, a
+  closed-specific empty state.
+- **Board view** (`/tasks?tab=board`) — drag-and-drop between personal stages,
+  folded stages past a card-count threshold, and a keyboard fallback (a
+  per-card "…" menu with "move to…") for moving cards without a mouse drag.
+- **Task detail** at a real route, `/tasks/{id}` — a large two-column modal
+  (full-screen below `md`) with header, details column (assignees, deadline,
+  priority, tags, allocated hours, personal stage, description editor,
+  sub-tasks, dependencies, attachments, duration metrics) and an activity
+  column; `J`/`K` (and prev/next buttons) step through the list without
+  closing the modal. Nested layers (e.g. the deadline date picker) open
+  inside the modal and dismiss on their own without closing it.
+- **Activity timeline** — comments (sanitised HTML) interleaved with Odoo
+  tracking entries (state/field changes), a composer that posts inline.
+- **Real-time** — task and comment changes from another session arrive over
+  the Odoo bus (`useBus()`, partner channels) and update the table/board/modal
+  live, no reload, no `ir.websocket` override.
+- **Auth** — session login plus a TOTP step when MFA is enabled
+  (`/api/auth/totp`), CSRF-protected auth endpoints.
+- **i18n** — Arabic default, RTL layout; nav labels are `nav.*` keys resolved
+  by `useNav()` per role.
+
+See `docs/superpowers/specs/2026-09-04-nasq-phase-1-my-tasks-design.md` for
+the full design and `docs/superpowers/specs/2026-09-03-nasq-platform-design.md`
+for where phase 1 sits in the four-pillar platform.
+
 ## Layout
 
 - `apps/web` — Nuxt 4 product UI
@@ -62,10 +93,13 @@ actual contract being protected, and is what these tests prove.
 
 ## Tests
 
-    # Odoo addons (fresh scratch DB)
-    cd ~/code/odoo && .venv/bin/python odoo-bin -c odoo.conf -d nasq_test -i nasq_core,nasq_api --test-tags /nasq_core,/nasq_api
+    # Odoo addons (fresh scratch DB) — 0 failed, 0 error(s) of 52 tests
+    cd ~/code/odoo && .venv/bin/python odoo-bin -c odoo.conf -d nasq_test -u nasq_core,nasq_api,nasq_pmo --test-tags /nasq_core,/nasq_api,/nasq_pmo
     # tip: if a dev server already holds :8069, add --http-port=8169 to the command above
-    # contracts + web unit
+    # lint
+    ruff check odoo-addons deploy/seed_branding.py     # clean
+    npm -w apps/web run lint                           # vue-tsc --build --noEmit, 0 errors
+    # contracts + web unit — 15 + 98 = 113 tests passing
     npm test
-    # e2e (needs Odoo on :8069 with nasq_api installed and `npm run dev` on :3000)
+    # e2e (needs Odoo on :8069 with nasq_api installed and `npm run dev` on :3000) — 24 passed
     cd apps/web && npm run test:e2e
