@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test'
 import {
   BrandingSchema, MeSchema, TaskListSchema, TaskDetailSchema, TimelineEntrySchema,
   PersonalStageSchema, ProjectRefSchema, PersonRefSchema, ApiErrorSchema,
+  ProjectSchema, ProjectDetailSchema,
 } from '@nasq/contracts'
 import { z } from 'zod'
 
@@ -79,4 +80,27 @@ test('task lifecycle: create, read, patch, comment, timeline, transition, and re
   expect(bad.status()).toBe(422)
   const err = ApiErrorSchema.parse(await bad.json())
   expect(err.field).toBe('name')
+})
+
+test('projects: list, detail, status and the project-scoped task list match their schemas', async ({ page }) => {
+  const login = await page.request.post('/api/auth/login', { data: { login: 'admin', password: 'admin' } })
+  expect(login.status()).toBe(200)
+
+  const listRes = await page.request.get('/api/v1/projects')
+  expect(listRes.status()).toBe(200)
+  const projects = ProjectSchema.array().parse(await listRes.json())
+  expect(projects.length).toBeGreaterThan(0)
+
+  const detailRes = await page.request.get(`/api/v1/projects/${projects[0]!.id}`)
+  expect(detailRes.status()).toBe(200)
+  const detail = ProjectDetailSchema.parse(await detailRes.json())
+  expect(detail.can_manage).toBe(true)
+
+  const statusRes = await page.request.post(`/api/v1/projects/${detail.id}/status`, { data: { status: 'on_track' } })
+  expect(statusRes.status()).toBe(200)
+  expect(ProjectDetailSchema.parse(await statusRes.json()).status).toBe('on_track')
+
+  const tasksRes = await page.request.get(`/api/v1/tasks?project_id=${detail.id}`)
+  expect(tasksRes.status()).toBe(200)
+  TaskListSchema.parse(await tasksRes.json())
 })
