@@ -9,6 +9,8 @@ export interface TaskListParams {
   project_id?: number
   q?: string
   sort?: string
+  // undefined = true: مهامي. false = every task of `project_id` the user can read (project screen).
+  mine?: boolean
 }
 
 // Page size for both the infinite list and the offset math in getNextPageParam.
@@ -29,6 +31,7 @@ export interface Resolved {
   assignees?: Task['assignees']
   tags?: Task['tags']
   personal_stage?: Task['personal_stage']
+  stage?: Task['stage']
 }
 
 // Pure reducer, exported so it can be unit tested without booting Nuxt/vue-query
@@ -52,6 +55,7 @@ export function applyPatchToTask<T extends Task>(task: T, patch: TaskPatch, reso
   if (patch.user_ids !== undefined && resolved.assignees) next.assignees = resolved.assignees
   if (patch.tag_ids !== undefined && resolved.tags) next.tags = resolved.tags
   if (patch.personal_stage_type_id !== undefined && resolved.personal_stage !== undefined) next.personal_stage = resolved.personal_stage
+  if (patch.stage_id !== undefined && resolved.stage !== undefined) next.stage = resolved.stage
   // description_html only exists on a TaskDetail; a plain list Task never has it.
   // Checked explicitly against undefined (not `'description' in patch`) so a
   // patch that carries `description: undefined` - e.g. a partial object
@@ -68,7 +72,7 @@ export function useTasks(params: Ref<TaskListParams>) {
     queryFn: ({ pageParam }) =>
       $api('/api/v1/tasks', {
         query: {
-          filter: 'mine',
+          filter: params.value.mine === false ? undefined : 'mine',
           closed: params.value.closed ? 1 : 0,
           state: params.value.state?.join(','),
           project_id: params.value.project_id,

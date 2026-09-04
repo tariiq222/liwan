@@ -13,6 +13,7 @@ const baseTask: Task = {
   is_overdue: false,
   is_closed: false,
   personal_stage: { id: 5, name: 'Doing' },
+  stage: { id: 9, name: 'To Do' },
   assignees: [{ id: 2, name: 'Sara' }],
   tags: [{ id: 3, name: 'urgent', color: 1 }],
 }
@@ -102,6 +103,12 @@ describe('applyPatchToTask on a list item', () => {
     const resolvedStage = { id: 6, name: 'Review' }
     const next = applyPatchToTask(baseTask, { personal_stage_type_id: 6 }, { personal_stage: resolvedStage })
     expect(next.personal_stage).toEqual(resolvedStage)
+  })
+
+  it('applies stage_id with the resolved project stage', () => {
+    const next = applyPatchToTask(baseTask, { stage_id: 7 }, { stage: { id: 7, name: 'Review' } })
+    expect(next.stage).toEqual({ id: 7, name: 'Review' })
+    expect(next.personal_stage).toEqual(baseTask.personal_stage)
   })
 
   it('does not touch description_html on a plain list Task (it has none)', () => {

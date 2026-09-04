@@ -61,3 +61,12 @@ export function deadlineLabel(days: number | null, t: (key: string, params?: Rec
   if (days > 1) return t('tasks.deadline.inDays', { n: days })
   return t('tasks.deadline.overdueDays', { n: Math.abs(days) })
 }
+
+// Badge classes per tone, shared by task-state and project-status badges.
+export const TONE_CLASS: Record<StateTone, string> = {
+  neutral: 'border-transparent bg-muted text-muted-foreground',
+  info: 'border-transparent bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300',
+  warning: 'border-transparent bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300',
+  success: 'border-transparent bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300',
+  destructive: 'border-transparent bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300',
+}

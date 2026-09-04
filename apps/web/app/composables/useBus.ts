@@ -158,6 +158,10 @@ function invalidateForFrame(notifications: BusNotification[]) {
     queryClient.invalidateQueries({ queryKey: taskKeys.timeline(id) })
   }
   queryClient.invalidateQueries({ queryKey: ['tasks', 'list'] })
+  // Task changes move project progress/counts; the project list and any open
+  // project header must catch up too.
+  queryClient.invalidateQueries({ queryKey: ['projects'] })
+  queryClient.invalidateQueries({ queryKey: ['project'] })
 }
 
 function handleMessage(event: MessageEvent) {
