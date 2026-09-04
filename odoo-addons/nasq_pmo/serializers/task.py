@@ -17,7 +17,8 @@ STATE_TO_API = {
 }
 API_TO_STATE = {v: k for k, v in STATE_TO_API.items()}
 
-EMPLOYEE_FIELDS = {'name', 'description', 'date_deadline', 'priority', 'user_ids', 'tag_ids', 'personal_stage_type_id'}
+EMPLOYEE_FIELDS = {'name', 'description', 'date_deadline', 'priority', 'user_ids', 'tag_ids',
+                   'personal_stage_type_id', 'stage_id'}
 MANAGER_FIELDS = EMPLOYEE_FIELDS | {'allocated_hours'}
 
 
@@ -57,6 +58,9 @@ def dump_task(task, today=None):
         'is_overdue': bool(days is not None and days < 0 and not task.is_closed),
         'is_closed': task.is_closed,
         'personal_stage': _ref(stage) if stage else None,
+        # The *project* stage (kanban column on the project screen); personal_stage
+        # is the user's private column on مهامي.
+        'stage': _ref(task.stage_id) if task.stage_id else None,
         'assignees': [_ref(u) for u in task.user_ids],
         'tags': [{'id': t.id, 'name': t.name, 'color': t.color} for t in task.tag_ids],
     }
@@ -131,8 +135,20 @@ def _parse_personal_stage(value, key):
     return stage.id
 
 
-def parse_task_vals(payload, can_manage):
-    """Whitelist + coerce a PATCH payload into ORM vals. Raises ApiError(422)."""
+def _parse_stage(task, value, key):
+    """Coerce + authorise a project stage id: it must be one of the task's project's stages."""
+    try:
+        stage_id = int(value)
+    except (TypeError, ValueError) as e:
+        raise ApiError(422, 'invalid', "stage_id must be one of the project's stage ids", field=key) from e
+    stage = request.env['project.task.type'].browse(stage_id).exists()
+    if not stage or task.project_id not in stage.project_ids:
+        raise ApiError(422, 'invalid', "stage_id must be one of the project's stage ids", field=key)
+    return stage.id
+
+
+def parse_task_vals(payload, can_manage, task):
+    """Whitelist + coerce a PATCH payload for ``task`` into ORM vals. Raises ApiError(422)."""
     allowed = MANAGER_FIELDS if can_manage else EMPLOYEE_FIELDS
     vals = {}
     for key, value in payload.items():
@@ -150,6 +166,8 @@ def parse_task_vals(payload, can_manage):
             vals[key] = [(6, 0, value)]
         elif key == 'personal_stage_type_id':
             vals[key] = _parse_personal_stage(value, key)
+        elif key == 'stage_id':
+            vals[key] = _parse_stage(task, value, key)
         elif key == 'allocated_hours':
             # float() raises ValueError on 'x' and TypeError on a list/dict;
             # both must surface as the contract's 422 shape, not a 500.

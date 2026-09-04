@@ -4,7 +4,7 @@ from odoo.tests import tagged
 from .common import NasqPmoCase
 
 TASK_KEYS = {'id', 'name', 'project', 'state', 'priority', 'date_deadline',
-             'days_remaining', 'is_overdue', 'is_closed', 'personal_stage',
+             'days_remaining', 'is_overdue', 'is_closed', 'personal_stage', 'stage',
              'assignees', 'tags'}
 
 
@@ -234,3 +234,71 @@ class TestTaskWrite(NasqPmoCase):
         self.assertEqual(res.status_code, 422, res.text)
         self.assertEqual(res.json()['code'], 'invalid')
         self.assertEqual(res.json()['field'], 'state')
+
+
+@tagged('post_install', '-at_install', 'nasq')
+class TestTaskProjectScope(NasqPmoCase):
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        Stage = cls.env['project.task.type']
+        cls.stage_todo = Stage.create({'name': 'To Do', 'sequence': 1, 'project_ids': [(4, cls.project.id)]})
+        cls.stage_doing = Stage.create({'name': 'Doing', 'sequence': 2, 'project_ids': [(4, cls.project.id)]})
+        cls.other_project = cls.env['project.project'].create({'name': 'Other'})
+        cls.stage_elsewhere = Stage.create({'name': 'Elsewhere', 'project_ids': [(4, cls.other_project.id)]})
+        # Force the fixture tasks onto the new first stage (they were created before it existed).
+        (cls.task_overdue + cls.task_done + cls.task_other).write({'stage_id': cls.stage_todo.id})
+
+    def test_list_project_id_alone_lists_every_readable_task(self):
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        body = self.api('GET', f'/api/v1/tasks?project_id={self.project.id}').json()
+        self.assertEqual({t['id'] for t in body['items']}, {self.task_overdue.id, self.task_other.id})
+        self.assertEqual(body['items'][0]['stage'], {'id': self.stage_todo.id, 'name': 'To Do'})
+
+    def test_list_mine_and_project_id_is_the_intersection(self):
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        body = self.api('GET', f'/api/v1/tasks?filter=mine&project_id={self.project.id}').json()
+        self.assertEqual([t['id'] for t in body['items']], [self.task_overdue.id])
+        body = self.api('GET', f'/api/v1/tasks?filter=mine&project_id={self.other_project.id}').json()
+        self.assertEqual(body['items'], [])
+
+    def test_list_project_id_must_be_an_int(self):
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        res = self.api('GET', '/api/v1/tasks?project_id=abc')
+        self.assertEqual(res.status_code, 422)
+        self.assertEqual(res.json()['field'], 'project_id')
+
+    def test_list_unknown_filter_is_400(self):
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        res = self.api('GET', f'/api/v1/tasks?filter=theirs&project_id={self.project.id}')
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()['code'], 'unsupported_filter')
+
+    def test_list_unreadable_project_is_empty_not_404(self):
+        self.project.write({'privacy_visibility': 'followers'})
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        body = self.api('GET', f'/api/v1/tasks?project_id={self.project.id}').json()
+        self.assertEqual(body, {'items': [], 'total': 0})
+
+    def test_detail_includes_stage(self):
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        body = self.api('GET', f'/api/v1/tasks/{self.task_overdue.id}').json()
+        self.assertEqual(body['stage'], {'id': self.stage_todo.id, 'name': 'To Do'})
+
+    def test_patch_stage_id_moves_the_task(self):
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        res = self.api('PATCH', f'/api/v1/tasks/{self.task_overdue.id}', {'stage_id': self.stage_doing.id})
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()['stage'], {'id': self.stage_doing.id, 'name': 'Doing'})
+        self.assertEqual(self.task_overdue.stage_id, self.stage_doing)
+
+    def test_patch_stage_of_another_project_is_422(self):
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        res = self.api('PATCH', f'/api/v1/tasks/{self.task_overdue.id}', {'stage_id': self.stage_elsewhere.id})
+        self.assertEqual(res.status_code, 422)
+        self.assertEqual(res.json()['field'], 'stage_id')
+        res = self.api('PATCH', f'/api/v1/tasks/{self.task_overdue.id}', {'stage_id': None})
+        self.assertEqual(res.status_code, 422)
+        res = self.api('PATCH', f'/api/v1/tasks/{self.task_overdue.id}', {'stage_id': 'x'})
+        self.assertEqual(res.status_code, 422)
