@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test'
 import {
   BrandingSchema, MeSchema, TaskListSchema, TaskDetailSchema, TimelineEntrySchema,
-  PersonalStageSchema, ProjectRefSchema, PersonRefSchema,
+  PersonalStageSchema, ProjectRefSchema, PersonRefSchema, ApiErrorSchema,
 } from '@nasq/contracts'
 import { z } from 'zod'
 
@@ -55,6 +55,8 @@ test('task lifecycle: create, read, patch, comment, timeline, transition, and re
 
   const commentRes = await page.request.post(`/api/v1/tasks/${created.id}/comments`, { data: { body: 'contract e2e comment' } })
   expect(commentRes.status()).toBe(201)
+  const comment = TimelineEntrySchema.parse(await commentRes.json())
+  expect(comment.kind).toBe('comment')
 
   const timelineRes = await page.request.get(`/api/v1/tasks/${created.id}/timeline`)
   expect(timelineRes.status()).toBe(200)
@@ -72,4 +74,9 @@ test('task lifecycle: create, read, patch, comment, timeline, transition, and re
   const peopleRes = await page.request.get('/api/v1/people')
   expect(peopleRes.status()).toBe(200)
   z.array(PersonRefSchema).parse(await peopleRes.json())
+
+  const bad = await page.request.post('/api/v1/tasks', { data: { name: '   ', project_id: projects[0]!.id } })
+  expect(bad.status()).toBe(422)
+  const err = ApiErrorSchema.parse(await bad.json())
+  expect(err.field).toBe('name')
 })
