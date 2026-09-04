@@ -2,6 +2,7 @@
 from . import (
     common,
     test_branding,
+    test_bus,
     test_me,
     test_personal_stages,
     test_tasks,
