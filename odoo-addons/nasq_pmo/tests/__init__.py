@@ -4,6 +4,7 @@ from . import (
     test_bus,
     test_personal_stages,
     test_project_status,
+    test_projects,
     test_tasks,
     test_timeline,
     test_transition,

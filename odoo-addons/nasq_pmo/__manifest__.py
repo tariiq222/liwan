@@ -1,7 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 {
     'name': 'nasq PMO',
-    'summary': 'nasq platform: the project pillar — /api/v1 tasks, timeline, projects, people',
+    'summary': 'nasq platform: the project pillar — /api/v1 tasks, timeline, projects (status, stages), people',
     'version': '19.0.1.0.0',
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
