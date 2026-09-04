@@ -7,13 +7,19 @@ export function isLoggedOutError(error: unknown): boolean {
   return (error as { statusCode?: number } | null | undefined)?.statusCode === 403
 }
 
-// A zod failure thrown inside `transform` reaches us as a plain Error with no
-// statusCode: the server answered, our contract no longer matches it. That is a
-// different fault from "the server is unreachable" and deserves its own message.
+// A zod failure thrown inside `transform` reaches us wrapped: Nuxt's useAsyncData
+// catches the thrown ZodError and rewraps it with h3's `createError(error)`, which
+// produces an H3Error (statusCode: 500) that preserves the original as `.cause`.
+// So a schema error is never a bare ZodError in practice - it's an H3Error wrapper
+// around one. Detect both the wrapped and bare shapes without gating on statusCode,
+// since the wrapper's statusCode (500) does not distinguish it from other server errors.
 export function isSchemaError(error: unknown): boolean {
-  const e = error as { statusCode?: number; name?: string; message?: string } | null | undefined
-  if (!e || e.statusCode) return false
-  return e.name === 'ZodError' || /ZodError|invalid/i.test(e.message ?? '')
+  if (!error || typeof error !== 'object') return false
+  const e = error as { name?: string; cause?: unknown; data?: { name?: string } }
+  if (e.name === 'ZodError') return true
+  if (e.cause && typeof e.cause === 'object' && (e.cause as { name?: string }).name === 'ZodError') return true
+  if (e.data?.name === 'ZodError') return true
+  return false
 }
 
 export function useMe() {
