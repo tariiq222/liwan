@@ -34,7 +34,7 @@ class ProjectController(http.Controller):
     @http.route('/api/v1/projects/<int:project_id>/status', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
     def set_status(self, project_id, status=None, **_):
-        if status not in STATUS_VALUES:
+        if not isinstance(status, str) or status not in STATUS_VALUES:
             raise ApiError(422, 'invalid_status', f"status must be one of {sorted(STATUS_VALUES)}", field='status')
         project = get_record('project.project', project_id)
         try:

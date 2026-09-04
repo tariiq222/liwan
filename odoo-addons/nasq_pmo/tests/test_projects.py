@@ -75,7 +75,7 @@ class TestProjects(NasqPmoCase):
 
     def test_status_invalid_value(self):
         self.authenticate('api_mgr', 'api_mgr_pass_123')
-        for bad in ('to_define', 'purple', None):
+        for bad in ('to_define', 'purple', None, [], {}):
             res = self.api('POST', f'/api/v1/projects/{self.project.id}/status', {'status': bad})
             self.assertEqual(res.status_code, 422, bad)
             self.assertEqual(res.json()['code'], 'invalid_status')
