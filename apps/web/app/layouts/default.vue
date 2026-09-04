@@ -13,7 +13,7 @@ const commandOpen = useState<boolean>('command-open', () => false)
         <div class="flex-1" />
         <Button variant="outline" size="sm" class="gap-2 text-muted-foreground" @click="commandOpen = true">
           <Search class="size-4" />
-          <span class="hidden sm:inline">بحث</span>
+          <span class="hidden sm:inline">{{ $t('app.search') }}</span>
           <kbd class="pointer-events-none rounded border bg-muted px-1.5 font-mono text-[10px]">⌘K</kbd>
         </Button>
       </header>

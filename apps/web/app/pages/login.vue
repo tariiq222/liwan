@@ -1,6 +1,7 @@
 <script setup lang="ts">
 definePageMeta({ layout: false })
 
+const { t } = useI18n()
 const { branding } = useBranding()
 const route = useRoute()
 const login = ref('')
@@ -33,7 +34,7 @@ async function submit() {
     await refreshNuxtData('me')
     await navigateTo((route.query.next as string) || '/')
   } catch (e: any) {
-    errorMessage.value = e?.data?.data?.message ?? 'تعذّر تسجيل الدخول'
+    errorMessage.value = e?.data?.data?.message ?? t('auth.loginFailed')
   } finally {
     pending.value = false
   }
@@ -46,20 +47,20 @@ async function submit() {
       <CardHeader class="items-center text-center">
         <img v-if="branding" :src="branding.logo_url" :alt="branding.name" class="h-12 w-auto mb-2" />
         <CardTitle class="text-xl">{{ branding?.name ?? 'nasq' }}</CardTitle>
-        <CardDescription>سجّل الدخول للمتابعة</CardDescription>
+        <CardDescription>{{ $t('auth.signInToContinue') }}</CardDescription>
       </CardHeader>
       <CardContent>
         <form class="grid gap-4" @submit.prevent="submit">
           <div class="grid gap-2">
-            <Label for="login">اسم المستخدم</Label>
+            <Label for="login">{{ $t('auth.username') }}</Label>
             <Input id="login" v-model="login" autocomplete="username" required dir="ltr" class="text-start" />
           </div>
           <div class="grid gap-2">
-            <Label for="password">كلمة المرور</Label>
+            <Label for="password">{{ $t('auth.password') }}</Label>
             <Input id="password" v-model="password" type="password" autocomplete="current-password" required dir="ltr" />
           </div>
           <p v-if="errorMessage" role="alert" class="text-sm text-destructive">{{ errorMessage }}</p>
-          <Button type="submit" class="w-full" :disabled="pending || !mounted">دخول</Button>
+          <Button type="submit" class="w-full" :disabled="pending || !mounted">{{ $t('auth.signIn') }}</Button>
         </form>
       </CardContent>
     </Card>

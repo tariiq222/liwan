@@ -1,0 +1,21 @@
+{
+  "app": { "name": "nasq", "search": "بحث", "loading": "جارٍ التحميل…", "save": "حفظ", "cancel": "إلغاء", "create": "إنشاء", "close": "إغلاق", "noResults": "لا نتائج.", "loadMore": "تحميل المزيد" },
+  "nav": { "today": "اليوم", "tasks": "مهامي", "projects": "المشاريع", "people": "الأشخاص", "reports": "التقارير", "console": "وحدة التحكم", "goTo": "الانتقال إلى", "typeToNavigate": "اكتب للانتقال…", "logout": "تسجيل الخروج" },
+  "auth": { "username": "اسم المستخدم", "password": "كلمة المرور", "signIn": "دخول", "continue": "متابعة", "signInToContinue": "سجّل الدخول للمتابعة", "invalidCredentials": "بيانات الدخول غير صحيحة", "loginFailed": "تعذّر تسجيل الدخول", "totpTitle": "رمز التحقق", "totpHint": "أدخل الرمز المكوّن من 6 أرقام من تطبيق المصادقة", "totpInvalid": "رمز التحقق غير صحيح" },
+  "errors": { "serverUnreachable": "تعذّر الوصول إلى الخادم", "badPayload": "استجابة غير صالحة من الخادم", "forbidden": "لا تملك صلاحية لهذا الإجراء", "notFound": "العنصر غير موجود", "generic": "حدث خطأ غير متوقع" },
+  "today": { "title": "اليوم", "greeting": "مرحبًا {name} — لا شيء مستحق اليوم." },
+  "pages": { "projects": "المشاريع", "people": "الأشخاص", "reports": "التقارير" },
+  "tasks": {
+    "title": "مهامي", "table": "جدول", "board": "لوحة", "new": "مهمة جديدة", "newTitle": "عنوان المهمة", "project": "المشروع",
+    "columns": { "title": "العنوان", "project": "المشروع", "state": "الحالة", "deadline": "الموعد", "priority": "الأولوية", "stage": "المرحلة" },
+    "filters": { "open": "مفتوحة", "closed": "منجزة", "allStates": "كل الحالات", "allProjects": "كل المشاريع", "search": "بحث في العناوين…" },
+    "empty": { "title": "لا مهام مسندة إليك", "action": "إنشاء مهمة" },
+    "state": { "in_progress": "قيد التنفيذ", "changes_requested": "تعديلات مطلوبة", "approved": "معتمد", "waiting": "بانتظار", "done": "منجز", "cancelled": "ملغى" },
+    "priority": { "0": "عادية", "1": "مهمة" },
+    "deadline": { "none": "بلا موعد", "today": "اليوم", "tomorrow": "غدًا", "inDays": "خلال {n} يوم", "overdueDays": "متأخرة {n} يوم" },
+    "drawer": { "details": "التفاصيل", "activity": "النشاط", "assignees": "المسؤولون", "deadline": "الموعد", "priority": "الأولوية", "tags": "الوسوم", "stage": "المرحلة الشخصية", "allocatedHours": "الساعات المخصَّصة", "description": "الوصف", "subtasks": "المهام الفرعية", "addSubtask": "إضافة مهمة فرعية", "dependsOn": "تعتمد على", "attachments": "المرفقات", "metrics": "المؤشرات", "age": "العمر", "cycle": "زمن الإنجاز", "days": "{n} يوم", "created": "أُنشئت", "updated": "آخر تحديث", "unassigned": "غير مسند" },
+    "transition": { "to": "تغيير الحالة", "forbidden": "هذا الانتقال يتطلب صلاحية مدير المشروع", "pending": "جارٍ التحديث…" },
+    "activity": { "comment": "علّق", "changed": "غيّر {field} من «{old}» إلى «{new}»", "set": "عيّن {field}: «{new}»", "cleared": "أزال {field}", "write": "اكتب تعليقًا…", "post": "نشر", "empty": "لا نشاط بعد" },
+    "board": { "moveTo": "نقل إلى…", "emptyColumn": "لا مهام" }
+  }
+}

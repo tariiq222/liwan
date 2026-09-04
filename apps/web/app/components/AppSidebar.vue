@@ -28,14 +28,14 @@ async function logout() {
       <SidebarGroup>
         <SidebarMenu>
           <SidebarMenuItem v-for="item in nav" :key="item.to">
-            <SidebarMenuButton as-child :is-active="route.path === item.to" :tooltip="item.label">
+            <SidebarMenuButton as-child :is-active="route.path === item.to" :tooltip="$t(item.labelKey)">
               <NuxtLink v-if="item.to !== '/odoo'" :to="item.to">
                 <component :is="item.icon" />
-                <span>{{ item.label }}</span>
+                <span>{{ $t(item.labelKey) }}</span>
               </NuxtLink>
               <a v-else :href="item.to" target="_blank" rel="noopener">
                 <component :is="item.icon" />
-                <span>{{ item.label }}</span>
+                <span>{{ $t(item.labelKey) }}</span>
               </a>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -55,7 +55,7 @@ async function logout() {
           </SidebarMenuButton>
         </DropdownMenuTrigger>
         <DropdownMenuContent side="top" align="end" class="w-56">
-          <DropdownMenuItem @select="logout"><LogOut class="me-2 size-4" />تسجيل الخروج</DropdownMenuItem>
+          <DropdownMenuItem @select="logout"><LogOut class="me-2 size-4" />{{ $t('nav.logout') }}</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     </SidebarFooter>

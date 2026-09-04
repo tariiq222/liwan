@@ -42,13 +42,13 @@ useEventListener('keydown', (event: KeyboardEvent) => {
 
 <template>
   <CommandDialog v-model:open="open">
-    <CommandInput v-model="query" placeholder="اكتب للانتقال…" />
+    <CommandInput v-model="query" :placeholder="$t('nav.typeToNavigate')" />
     <CommandList>
-      <CommandEmpty>لا نتائج.</CommandEmpty>
-      <CommandGroup heading="الانتقال إلى">
-        <CommandItem v-for="item in nav" :key="item.to" :value="item.label" @select="go(item.to)">
+      <CommandEmpty>{{ $t('app.noResults') }}</CommandEmpty>
+      <CommandGroup :heading="$t('nav.goTo')">
+        <CommandItem v-for="item in nav" :key="item.to" :value="$t(item.labelKey)" @select="go(item.to)">
           <component :is="item.icon" class="me-2 size-4" />
-          <span>{{ item.label }}</span>
+          <span>{{ $t(item.labelKey) }}</span>
           <CommandShortcut>{{ item.shortcut }}</CommandShortcut>
         </CommandItem>
       </CommandGroup>

@@ -2,17 +2,17 @@ import type { Component } from 'vue'
 import { Sun, CheckSquare, FolderKanban, Users, BarChart3, Settings } from 'lucide-vue-next'
 import type { Role } from '@nasq/contracts'
 
-export interface NavItem { to: string; label: string; icon: Component; shortcut: string }
+export interface NavItem { to: string; labelKey: string; icon: Component; shortcut: string }
 
 const base: NavItem[] = [
-  { to: '/', label: 'اليوم', icon: Sun, shortcut: '1' },
-  { to: '/tasks', label: 'مهامي', icon: CheckSquare, shortcut: '2' },
-  { to: '/projects', label: 'المشاريع', icon: FolderKanban, shortcut: '3' },
-  { to: '/people', label: 'الأشخاص', icon: Users, shortcut: '4' },
-  { to: '/reports', label: 'التقارير', icon: BarChart3, shortcut: '5' },
+  { to: '/', labelKey: 'nav.today', icon: Sun, shortcut: '1' },
+  { to: '/tasks', labelKey: 'nav.tasks', icon: CheckSquare, shortcut: '2' },
+  { to: '/projects', labelKey: 'nav.projects', icon: FolderKanban, shortcut: '3' },
+  { to: '/people', labelKey: 'nav.people', icon: Users, shortcut: '4' },
+  { to: '/reports', labelKey: 'nav.reports', icon: BarChart3, shortcut: '5' },
 ]
 // Vendor console. The customer_admin Settings section arrives in phase 3.
-const vendorConsole: NavItem = { to: '/odoo', label: 'وحدة التحكم', icon: Settings, shortcut: 's' }
+const vendorConsole: NavItem = { to: '/odoo', labelKey: 'nav.console', icon: Settings, shortcut: 's' }
 
 export function useNav(role: Role | null | undefined): NavItem[] {
   return role === 'vendor' ? [...base, vendorConsole] : base
