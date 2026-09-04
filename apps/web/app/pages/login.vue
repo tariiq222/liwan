@@ -11,11 +11,12 @@ const pending = ref(false)
 const errorMessage = ref<string | null>(null)
 const mfaPending = ref(false)
 // Guards the submit button until the client has hydrated: submitting before
-// hydration falls through to a native, unhandled form POST. The inputs stay
-// enabled so a password manager can fill the server-rendered form on first
-// paint — but v-model resets those nodes when hydration reaches them, so read
-// whatever is already in the DOM before that happens and adopt it.
-const mounted = ref(false)
+// hydration falls through to a native, unhandled form POST. See
+// useHydrated() for why. The inputs stay enabled so a password manager can
+// fill the server-rendered form on first paint — but v-model resets those
+// nodes when hydration reaches them, so read whatever is already in the DOM
+// before that happens and adopt it.
+const hydrated = useHydrated()
 const prefilled: Record<string, string> = {}
 onBeforeMount(() => {
   for (const id of ['login', 'password']) {
@@ -25,7 +26,6 @@ onBeforeMount(() => {
 onMounted(() => {
   if (!login.value && prefilled.login) login.value = prefilled.login
   if (!password.value && prefilled.password) password.value = prefilled.password
-  mounted.value = true
 })
 
 async function submit() {
@@ -80,7 +80,7 @@ async function submitTotp() {
             <Input id="password" v-model="password" type="password" autocomplete="current-password" required dir="ltr" />
           </div>
           <p v-if="errorMessage" role="alert" class="text-sm text-destructive">{{ errorMessage }}</p>
-          <Button type="submit" class="w-full" :disabled="pending || !mounted">{{ $t('auth.signIn') }}</Button>
+          <Button type="submit" class="w-full" :disabled="pending || !hydrated">{{ $t('auth.signIn') }}</Button>
         </form>
         <form v-else class="grid gap-4" @submit.prevent="submitTotp">
           <div class="grid gap-2">

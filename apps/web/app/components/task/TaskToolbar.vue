@@ -9,6 +9,10 @@ import { useProjects } from '@/composables/useProjects'
 const props = defineProps<{ modelValue: TaskListParams }>()
 const emit = defineEmits<{ 'update:modelValue': [TaskListParams]; create: [] }>()
 const { t } = useI18n()
+// The tab triggers are SSR-rendered and visible/clickable before Nuxt
+// hydrates and attaches their listeners; a click in that window is silently
+// dropped (see useHydrated()). Disable them until hydration completes.
+const hydrated = useHydrated()
 
 const { data: projects } = useProjects()
 
@@ -49,8 +53,8 @@ watch(
       @update:model-value="(v) => patch({ closed: v === 'closed' })"
     >
       <TabsList>
-        <TabsTrigger value="open">{{ t('tasks.filters.open') }}</TabsTrigger>
-        <TabsTrigger value="closed">{{ t('tasks.filters.closed') }}</TabsTrigger>
+        <TabsTrigger value="open" :disabled="!hydrated">{{ t('tasks.filters.open') }}</TabsTrigger>
+        <TabsTrigger value="closed" :disabled="!hydrated">{{ t('tasks.filters.closed') }}</TabsTrigger>
       </TabsList>
     </Tabs>
 
