@@ -117,4 +117,89 @@ describe('sanitizeHtml', () => {
       expect(sanitizeHtml('<a href="relative/path">link</a>')).toBe('<a href="relative/path">link</a>')
     })
   })
+
+  // The parser used to require whitespace before attributes and matched the
+  // attribute run with `[^<>]*`, so none of these four payloads matched the
+  // tag regex at all — they were copied through to `v-html` byte-for-byte.
+  // They must now come back with no live element in them.
+  describe('unmatched-input payloads are escaped, never passed through', () => {
+    const payloads = [
+      '<img/src=x onerror=alert(1)>',
+      '<svg/onload=alert(1)>',
+      '<img src=x onerror=alert(1) alt="<">',
+      '<iframe/src="javascript:alert(1)">',
+    ]
+
+    for (const payload of payloads) {
+      it(`neutralises ${payload}`, () => {
+        const out = sanitizeHtml(payload)
+        // No live element survives: no raw '<' introducing a tag, and none of
+        // the handler/scheme text can be sitting inside markup.
+        expect(out).not.toMatch(/<[a-zA-Z/]/)
+        expect(out.toLowerCase()).not.toContain('<img')
+        expect(out.toLowerCase()).not.toContain('<svg')
+        expect(out.toLowerCase()).not.toContain('<iframe')
+        expect(out.toLowerCase()).not.toContain('onerror=')
+        expect(out.toLowerCase()).not.toContain('onload=')
+      })
+    }
+
+    it('drops the whole slash-form tag rather than leaking its attributes as text', () => {
+      expect(sanitizeHtml('<img/src=x onerror=alert(1)>after')).toBe('after')
+    })
+
+    it('drops a quoted attribute containing > and keeps only the trailing text', () => {
+      expect(sanitizeHtml('<img src=x onerror=alert(1) alt="<">tail')).toBe('tail')
+    })
+  })
+
+  describe('hostile / malformed input is escaped rather than emitted', () => {
+    it('keeps a > inside a quoted attribute from ending an allowed tag early', () => {
+      expect(sanitizeHtml('<a href="https://x.test" title="a>b">t</a>')).toBe('<a href="https://x.test">t</a>')
+    })
+
+    it('drops a non-allowlisted tag whose name contains a digit', () => {
+      expect(sanitizeHtml('<img2 src=x onerror=alert(1)>text')).toBe('text')
+    })
+
+    it('keeps an allowlisted tag whose name contains a digit', () => {
+      expect(sanitizeHtml('<h1>title</h1>')).toBe('<h1>title</h1>')
+    })
+
+    it('accepts spaces around = in an attribute', () => {
+      expect(sanitizeHtml('<a href = "https://x.test">t</a>')).toBe('<a href="https://x.test">t</a>')
+    })
+
+    it('accepts an unquoted href value', () => {
+      expect(sanitizeHtml('<a href=https://x.test>t</a>')).toBe('<a href="https://x.test">t</a>')
+    })
+
+    it('escapes a lone < that does not start a tag', () => {
+      expect(sanitizeHtml('1 < 2 and 3 > 2')).toBe('1 &lt; 2 and 3 &gt; 2')
+    })
+
+    it('escapes an unterminated tag instead of passing it through', () => {
+      expect(sanitizeHtml('<a href="https://x.test')).toBe('&lt;a href="https://x.test')
+    })
+
+    it('escapes a tag with an unterminated attribute quote', () => {
+      const out = sanitizeHtml('<p class="oops>hi')
+      expect(out.startsWith('&lt;')).toBe(true)
+      expect(out).not.toContain('<p')
+    })
+
+    it('drops HTML comments entirely', () => {
+      expect(sanitizeHtml('a<!-- <img src=x onerror=alert(1)> -->b')).toBe('ab')
+    })
+
+    it('escapes an unterminated comment', () => {
+      expect(sanitizeHtml('a<!-- dangling')).toBe('a&lt;!-- dangling')
+    })
+
+    it('drops a script tag left unclosed and escapes its body as text', () => {
+      const out = sanitizeHtml('<script>alert(1)')
+      expect(out).not.toContain('<script')
+      expect(out).toBe('alert(1)')
+    })
+  })
 })

@@ -74,35 +74,147 @@ function isSafeHref(raw: string): boolean {
   return !beforeDelimiter.includes(':')
 }
 
-function extractHref(attrs: string): string | null {
-  const match = attrs.match(/\shref\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i)
-  if (!match) return null
-  return match[1] ?? match[2] ?? match[3] ?? ''
+// --- tokenizer ------------------------------------------------------------
+// The parser is deliberately fail-closed: `sanitizeHtml` walks the input once
+// and emits either a *rebuilt* allowed tag or escaped text. Anything the
+// tokenizer does not fully understand — a stray `<`, an unterminated tag, an
+// unclosed attribute quote — is escaped and rendered as literal text rather
+// than passed through as markup. A previous regex-based pass matched only
+// well-shaped `<tag attrs>` forms and copied everything else through
+// verbatim, which let `<img/src=x onerror=alert(1)>`, `<svg/onload=…>`,
+// `<img src=x onerror=… alt="<">` and `<iframe/src="javascript:…">` reach
+// `v-html` byte-for-byte.
+
+interface Attr { name: string; value: string }
+interface Tag { end: number; closing: boolean; name: string; attrs: Attr[] }
+
+function isSpace(c: string | undefined): boolean {
+  return c === ' ' || c === '\t' || c === '\n' || c === '\r' || c === '\f'
+}
+
+function isAlpha(c: string | undefined): boolean {
+  return !!c && ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'))
+}
+
+function isAlnum(c: string | undefined): boolean {
+  return isAlpha(c) || (!!c && c >= '0' && c <= '9')
+}
+
+// Parses one tag starting at `src[start] === '<'`. Returns null when the run
+// is not a complete, well-formed tag — the caller then escapes the `<`.
+// Handles the shapes the old regex missed: `/` immediately after the tag name
+// (`<img/src=x>`), quoted attribute values containing `>` or `<`, unquoted
+// values, and whitespace around `=`.
+function readTag(src: string, start: number): Tag | null {
+  let i = start + 1
+  const closing = src[i] === '/'
+  if (closing) i++
+  if (!isAlpha(src[i])) return null
+  const nameStart = i
+  while (i < src.length && isAlnum(src[i])) i++
+  const name = src.slice(nameStart, i).toLowerCase()
+
+  const attrs: Attr[] = []
+  for (;;) {
+    // `/` is a separator here, not part of a name: `<br/>` and `<img/src=x>`.
+    while (i < src.length && (isSpace(src[i]) || src[i] === '/')) i++
+    if (i >= src.length) return null // unterminated tag
+    if (src[i] === '>') { i++; break }
+
+    const nStart = i
+    while (i < src.length && !isSpace(src[i]) && src[i] !== '/' && src[i] !== '>' && src[i] !== '=') i++
+    if (i === nStart) return null // bogus (e.g. a bare '=' where a name belongs)
+    const attrName = src.slice(nStart, i).toLowerCase()
+
+    let value = ''
+    let j = i
+    while (j < src.length && isSpace(src[j])) j++
+    if (src[j] === '=') {
+      j++
+      while (j < src.length && isSpace(src[j])) j++
+      const quote = src[j]
+      if (quote === '"' || quote === '\'') {
+        const close = src.indexOf(quote, j + 1)
+        if (close === -1) return null // unterminated quote
+        value = src.slice(j + 1, close)
+        i = close + 1
+      } else {
+        const vStart = j
+        while (j < src.length && !isSpace(src[j]) && src[j] !== '>') j++
+        if (j === vStart) return null // '=' with no value
+        value = src.slice(vStart, j)
+        i = j
+      }
+    }
+    attrs.push({ name: attrName, value })
+  }
+  return { end: i, closing, name, attrs }
+}
+
+// Text nodes: only `<`/`>` are escaped. `&` is left alone deliberately so
+// server-produced entities (`&amp;`, `&nbsp;`) keep rendering as themselves
+// instead of being double-encoded.
+function escapeText(text: string): string {
+  return text.replace(/</g, '&lt;').replace(/>/g, '&gt;')
+}
+
+function escapeAttr(value: string): string {
+  return value.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+}
+
+// Rebuilds an allowed tag, or returns '' for a well-formed tag that is simply
+// not on the allowlist (its inner text is kept by the caller's normal walk).
+function renderTag(tag: Tag): string {
+  if (!ALLOWED_TAGS.has(tag.name)) return ''
+  if (tag.closing) return VOID_TAGS.has(tag.name) ? '' : `</${tag.name}>`
+  if (VOID_TAGS.has(tag.name)) return `<${tag.name}>`
+  if (tag.name === 'a') {
+    const href = tag.attrs.find((a) => a.name === 'href')
+    if (href && isSafeHref(href.value)) return `<a href="${escapeAttr(href.value)}">`
+    return '<a>'
+  }
+  return `<${tag.name}>`
 }
 
 export function sanitizeHtml(html: string): string {
   if (!html) return ''
 
   // Drop <script>/<style> tags along with their content entirely — their
-  // inner text is never safe to surface even after tag-stripping.
-  let out = html.replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, '')
+  // inner text is never safe to surface even after tag-stripping. (Anything
+  // this misses is still handled by the tokenizer below, which drops the tag
+  // and escapes what follows.)
+  const src = html.replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, '')
 
-  // Every other tag is rebuilt from the allowlist below: unknown tags are
-  // stripped but their inner text is kept, and attributes are dropped
-  // wholesale (including any `on*` handler) except a validated `href` on
-  // `<a>`, so nothing carries a handler or attacker-controlled markup.
-  out = out.replace(/<(\/?)([a-zA-Z][a-zA-Z0-9]*)((?:\s+[^<>]*)?)\/?>/g, (_match, closingSlash: string, tagName: string, attrs: string) => {
-    const tag = tagName.toLowerCase()
-    if (!ALLOWED_TAGS.has(tag)) return ''
-    if (closingSlash) return VOID_TAGS.has(tag) ? '' : `</${tag}>`
-    if (VOID_TAGS.has(tag)) return `<${tag}>`
-    if (tag === 'a') {
-      const href = extractHref(attrs)
-      if (href !== null && isSafeHref(href)) return `<a href="${href.replace(/"/g, '&quot;')}">`
-      return '<a>'
+  let out = ''
+  let i = 0
+  while (i < src.length) {
+    const lt = src.indexOf('<', i)
+    if (lt === -1) {
+      out += escapeText(src.slice(i))
+      break
     }
-    return `<${tag}>`
-  })
+    out += escapeText(src.slice(i, lt))
+
+    // Comments are understood markup: drop them (content included). An
+    // unterminated one falls through to the escape below.
+    if (src.startsWith('<!--', lt)) {
+      const close = src.indexOf('-->', lt + 4)
+      if (close !== -1) { i = close + 3; continue }
+      out += '&lt;'
+      i = lt + 1
+      continue
+    }
+
+    const tag = readTag(src, lt)
+    if (!tag) {
+      // Not a tag we understand — fail closed and render the `<` as text.
+      out += '&lt;'
+      i = lt + 1
+      continue
+    }
+    out += renderTag(tag)
+    i = tag.end
+  }
 
   return out
 }
