@@ -12,7 +12,14 @@ class TestNasqGroups(TransactionCase):
 
         self.assertIn(self.env.ref('base.group_user'), employee.all_implied_ids)
         self.assertIn(self.env.ref('project.group_project_user'), employee.all_implied_ids)
-        self.assertIn(self.env.ref('hr_timesheet.group_hr_timesheet_user'), employee.all_implied_ids)
+
+        # nasq has no time logging (spec 2026-09-04): the employee role must not
+        # carry the timesheet group even on a database where hr_timesheet happens
+        # to be installed.
+        timesheet_group = self.env.ref('hr_timesheet.group_hr_timesheet_user', raise_if_not_found=False)
+        if timesheet_group:
+            self.assertNotIn(timesheet_group, employee.all_implied_ids)
+        self.assertNotIn('hr_timesheet', self.env['ir.module.module']._get('nasq_core').dependencies_id.mapped('name'))
 
         self.assertIn(employee, admin.all_implied_ids)
         self.assertIn(self.env.ref('project.group_project_manager'), admin.all_implied_ids)

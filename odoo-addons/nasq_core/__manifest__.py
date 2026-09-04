@@ -6,10 +6,10 @@
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
     'license': 'LGPL-3',
-    # project / hr / hr_timesheet: security/nasq_core_security.xml's groups imply
-    # project.group_project_user + _manager, hr.group_hr_manager and
-    # hr_timesheet.group_hr_timesheet_user; res.company.font / primary_color are base fields.
-    'depends': ['base', 'project', 'hr', 'hr_timesheet'],
+    # project / hr: security/nasq_core_security.xml's groups imply
+    # project.group_project_user + _manager and hr.group_hr_manager; res.company.font /
+    # primary_color are base fields. No hr_timesheet: nasq has no time logging.
+    'depends': ['base', 'project', 'hr'],
     'data': [
         'security/nasq_core_security.xml',
         'data/res_company_data.xml',
