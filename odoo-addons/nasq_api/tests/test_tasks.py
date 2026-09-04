@@ -132,6 +132,22 @@ class TestTaskWrite(NasqApiCase):
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()['allocated_hours'], 4.0)
 
+    def test_patch_deadline_and_stage(self):
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        stages = self.api('GET', '/api/v1/me/personal-stages').json()
+        res = self.api('PATCH', f'/api/v1/tasks/{self.task_overdue.id}',
+                       {'date_deadline': '2030-01-15T09:00:00Z', 'personal_stage_type_id': stages[1]['id']})
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()['date_deadline'], '2030-01-15T09:00:00Z')
+        self.assertEqual(res.json()['personal_stage']['id'], stages[1]['id'])
+        self.assertFalse(res.json()['is_overdue'])
+
+    def test_patch_empty_payload_is_422(self):
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        res = self.api('PATCH', f'/api/v1/tasks/{self.task_overdue.id}', {})
+        self.assertEqual(res.status_code, 422)
+        self.assertEqual(res.json()['code'], 'invalid')
+
     def test_transition_employee(self):
         self.authenticate('api_emp', 'api_emp_pass_123')
         res = self.api('POST', f'/api/v1/tasks/{self.task_overdue.id}/transition', {'state': 'done'})
