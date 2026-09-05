@@ -36,7 +36,7 @@ export function useReorderStages() {
   const { $api } = useApi()
   return useMutation({
     mutationFn: ({ projectId, ids }: { projectId: number; ids: number[] }) =>
-      $api(`/api/v1/projects/${projectId}/stages/reorder`, { method: 'POST', body: { ids }, schema: ProjectStageListSchema }),
+      $api(`/api/v1/projects/${projectId}/stages/order`, { method: 'PUT', body: { ids }, schema: ProjectStageListSchema }),
     onSuccess: (_stages: ProjectStage[], { projectId }) => {
       qc.invalidateQueries({ queryKey: projectKeys.detail(projectId) })
     },
