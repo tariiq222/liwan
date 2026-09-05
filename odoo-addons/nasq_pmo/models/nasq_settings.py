@@ -33,10 +33,17 @@ class NasqPmoSettings(models.AbstractModel):
     def get(self):
         creators = self._params().get_param(PARAM_CREATORS, 'managers')
         raw = self._params().get_param(PARAM_STAGES)
-        try:
-            stages = json.loads(raw) if raw else FALLBACK_STAGES
-        except ValueError:
-            stages = FALLBACK_STAGES
+        stages = FALLBACK_STAGES
+        if raw:
+            try:
+                parsed = json.loads(raw)
+            except ValueError:
+                parsed = None
+            if isinstance(parsed, list) and parsed and all(
+                isinstance(s, dict) and isinstance(s.get('name'), str) and s['name'].strip()
+                for s in parsed
+            ):
+                stages = parsed
         return {
             'project_creators': creators if creators in CREATORS else 'managers',
             'default_stages': [{'name': s['name'], 'fold': bool(s.get('fold'))} for s in stages],

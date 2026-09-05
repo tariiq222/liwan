@@ -2,11 +2,22 @@
 from odoo import fields, models
 from odoo.exceptions import AccessError, UserError
 
+from .nasq_settings import CREATORS
+
 # The five statuses a manager may set. Odoo's sixth value, 'to_define', means
 # "unset" and is never written by nasq (it is what a project starts as).
 STATUS_VALUES = {'on_track', 'at_risk', 'off_track', 'on_hold', 'done'}
-PROJECT_CREATORS = ('managers', 'employees')
+# Kept as a distinct exported name: other nasq_pmo modules import
+# PROJECT_CREATORS, not nasq_settings.CREATORS, from here.
+PROJECT_CREATORS = CREATORS
 VISIBILITY_VALUES = ('employees', 'followers')
+# Fields a nasq manager (group or per-project assigned user) may write via
+# _nasq_write_as_manager/_nasq_write_sudo. Anything else must go through a
+# dedicated, explicitly-reviewed path instead of this generic sudo'd write.
+MANAGER_WRITABLE = {
+    'name', 'description', 'user_id', 'privacy_visibility', 'date_start', 'date',
+    'tag_ids', 'active', 'last_update_status', 'allow_milestones', 'type_ids',
+}
 
 
 def _not_empty(message, count):
@@ -38,21 +49,38 @@ class ProjectProject(models.Model):
     def _nasq_can_create(self):
         return self._nasq_is_manager() or self.env['nasq.pmo.settings'].get()['project_creators'] == 'employees'
 
-    def _nasq_write_as_manager(self, vals):
-        """Write project fields on behalf of a nasq manager.
+    def _nasq_write_sudo(self, vals):
+        """Write project fields in sudo, whitelisted, with NO manage-rule check.
 
-        Odoo's project ACL has no notion of "the manager of this project": only the
-        project-manager *group* may write project.project. nasq's rule (see
-        _nasq_can_manage) also lets the project's assigned user manage it, so the
-        rule is enforced here first and the write itself runs in sudo. Every
-        project-level write nasq performs on a manager's behalf goes through this
-        one method; the vals are whitelisted by the callers. Third documented
-        sudo() in nasq_pmo (settings, policy create, this).
+        This is the *do* step only: it trusts the caller already proved the
+        write is authorized. It exists separately from _nasq_write_as_manager
+        so a *do* step (e.g. _nasq_do_set_status) never re-runs
+        _nasq_can_manage after its own check step has already run — an
+        overlay that widens a check step (e.g. _nasq_check_status_allowed)
+        must not be blocked again here by the unwidened base rule. Odoo's
+        project ACL has no notion of "the manager of this project" (only the
+        project-manager *group* may write project.project), which is why the
+        write itself runs in sudo once the caller has done its own check.
+        Third documented sudo() in nasq_pmo (settings, policy create, this).
         """
         self.ensure_one()
-        self._nasq_check_manage()
+        bad = set(vals) - MANAGER_WRITABLE
+        if bad:
+            msg = f"cannot write non-whitelisted project fields: {sorted(bad)}"
+            raise ValueError(msg)
         self.sudo().write(vals)
         return self
+
+    def _nasq_write_as_manager(self, vals):
+        """Check the manage rule, then write project fields on the caller's behalf.
+
+        The check-and-write pair for every project-level write nasq performs
+        on a manager's behalf outside of a dedicated *do* step. See
+        _nasq_write_sudo for the write itself and why a *do* step bypasses
+        this check.
+        """
+        self._nasq_check_manage()
+        return self._nasq_write_sudo(vals)
 
     # --- create --------------------------------------------------------------
     def _nasq_create_from_policy(self, name):
@@ -102,7 +130,8 @@ class ProjectProject(models.Model):
             raise AccessError(self.env._("Only a project manager can set the project status."))
 
     def _nasq_do_set_status(self, status):
-        self._nasq_write_as_manager({'last_update_status': status})
+        """The *do* step: no manage-rule check (see _nasq_check_status_allowed)."""
+        self._nasq_write_sudo({'last_update_status': status})
 
     def _nasq_post_status_hook(self, status):
         """Extension point; nothing in core."""
@@ -123,7 +152,11 @@ class ProjectProject(models.Model):
 
     # --- stages --------------------------------------------------------------
     def _nasq_stage_task_count(self, stage):
-        return self.env['project.task'].with_context(active_test=False).search_count(
+        # sudo(): only an integer count is returned (never task records), so this
+        # cannot leak data; without it, ir.rule on a followers-only project would
+        # under-count hidden tasks and let a stage with tasks the caller can't see
+        # be deleted out from under them.
+        return self.env['project.task'].sudo().with_context(active_test=False).search_count(
             [('project_id', '=', self.id), ('stage_id', '=', stage.id)])
 
     def _nasq_add_stage(self, name, fold=False):
@@ -171,17 +204,25 @@ class ProjectProject(models.Model):
 
     def _nasq_add_follower(self, user):
         self._nasq_check_manage()
-        self.message_subscribe(partner_ids=[user.partner_id.id])
+        # sudo(): mail.thread.message_subscribe checks 'write' on the project
+        # itself, which Odoo's ACL grants only to the project-manager group —
+        # same rationale as _nasq_write_as_manager, for the assigned-user-as-
+        # manager case Odoo's own ACL doesn't know about.
+        self.sudo().message_subscribe(partner_ids=[user.partner_id.id])
         return self._nasq_followers()
 
     def _nasq_remove_follower(self, user):
         self._nasq_check_manage()
-        self.message_unsubscribe(partner_ids=[user.partner_id.id])
+        # sudo(): same rationale as _nasq_add_follower above.
+        self.sudo().message_unsubscribe(partner_ids=[user.partner_id.id])
         return self._nasq_followers()
 
     # --- milestones ----------------------------------------------------------
     def _nasq_milestone_task_counts(self, milestone):
-        Task = self.env['project.task']
+        # sudo(): only integer counts are returned (never task records); see
+        # _nasq_stage_task_count for why an unsudo'd count would under-count on
+        # followers-only projects and let a non-empty milestone be deleted.
+        Task = self.env['project.task'].sudo()
         domain = [('project_id', '=', self.id), ('milestone_id', '=', milestone.id)]
         return Task.search_count(domain), Task.search_count(domain + [('state', 'in', ('1_done', '1_canceled'))])
 

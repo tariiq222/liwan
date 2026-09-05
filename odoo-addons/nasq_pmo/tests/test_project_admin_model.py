@@ -58,6 +58,18 @@ class TestProjectAdminModel(TransactionCase):
         self.assertEqual(json.loads(self.env['ir.config_parameter'].sudo().get_param('nasq_pmo.default_stages')),
                          [{'name': 'A', 'fold': True}])
 
+    def test_settings_get_falls_back_on_malformed_stored_stages(self):
+        params = self.env['ir.config_parameter'].sudo()
+        params.set_param('nasq_pmo.default_stages', '{"x": 1}')
+        stages = self.Settings.get()['default_stages']
+        self.assertEqual(len(stages), 4)
+        self.assertEqual([s['name'] for s in stages], ['جديد', 'قيد التنفيذ', 'مراجعة', 'منجز'])
+
+        params.set_param('nasq_pmo.default_stages', '[{"fold": true}]')
+        stages = self.Settings.get()['default_stages']
+        self.assertEqual(len(stages), 4)
+        self.assertEqual([s['name'] for s in stages], ['جديد', 'قيد التنفيذ', 'مراجعة', 'منجز'])
+
     # --- archive -----------------------------------------------------------
     def test_archive_rules(self):
         with self.assertRaises(AccessError):
@@ -66,6 +78,10 @@ class TestProjectAdminModel(TransactionCase):
         self.assertFalse(self.project.active)
         self.project.with_user(self.manager)._nasq_unarchive()
         self.assertTrue(self.project.active)
+
+    def test_write_as_manager_rejects_non_whitelisted_field(self):
+        with self.assertRaises(ValueError):
+            self.project.with_user(self.manager)._nasq_write_as_manager({'company_id': 1})
 
     # --- stages ------------------------------------------------------------
     def test_stage_lifecycle(self):
@@ -95,6 +111,15 @@ class TestProjectAdminModel(TransactionCase):
     # --- followers ---------------------------------------------------------
     def test_followers(self):
         p = self.project.with_user(self.manager)
+        p._nasq_add_follower(self.other)
+        self.assertIn(self.other, p._nasq_followers())
+        p._nasq_remove_follower(self.other)
+        self.assertNotIn(self.other, p._nasq_followers())
+        with self.assertRaises(AccessError):
+            self.project.with_user(self.other)._nasq_add_follower(self.other)
+
+    def test_assigned_user_manages_followers(self):
+        p = self.project.with_user(self.employee)
         p._nasq_add_follower(self.other)
         self.assertIn(self.other, p._nasq_followers())
         p._nasq_remove_follower(self.other)
