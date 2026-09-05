@@ -48,16 +48,19 @@ function onDragEnd() {
 // --- inline rename (double-click, or Enter/Space while the name is focused) --
 const editingId = ref<StageRow['id'] | null>(null)
 const editDraft = ref('')
-// Single ref is safe: only one row is ever in rename mode at a time (the
-// Input is v-if'd to just that row), so there is no v-for ref collision.
-const renameInputEl = ref<{ $el: HTMLInputElement } | null>(null)
+// The Input sits inside v-for, so a named string ref would be marked
+// ref_for by Vue and renameInputEl.value would come back as an array
+// ([componentInstance]) instead of the element, leaving focus()/select()
+// silently doing nothing. A function ref sidesteps that: Vue calls it with
+// the element (or null on unmount) for each v-for instance individually.
+const renameInputEl = shallowRef<HTMLInputElement | null>(null)
 
 async function startRename(stage: StageRow) {
   if (disabled.value) return
   editingId.value = stage.id
   editDraft.value = stage.name
   await nextTick()
-  const el = renameInputEl.value?.$el
+  const el = renameInputEl.value
   el?.focus()
   el?.select()
 }
@@ -96,7 +99,7 @@ function submitAdd() {
 
         <Input
           v-if="editingId === stage.id"
-          ref="renameInputEl"
+          :ref="(el) => { if (stage.id === editingId) renameInputEl = (el as any)?.$el ?? el ?? null }"
           v-model="editDraft"
           class="h-8 flex-1"
           :disabled="disabled"
