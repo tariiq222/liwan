@@ -24,10 +24,19 @@ test('inline transition to done moves the task to the closed filter', async ({ p
   const name = `E2E done ${Date.now()}`
   await page.request.post('/api/v1/tasks', { data: { name, project_id: projects[0].id } })
   await page.goto('/tasks')
+  await expect(page.getByRole('status', { name: 'متصل' })).toBeVisible()
   await page.getByPlaceholder('بحث في العناوين…').fill(name)
   const row = page.getByRole('row', { name: new RegExp(name) })
+  await expect(row).toBeVisible()
   await row.getByRole('button', { name: 'قيد التنفيذ' }).click()
-  await page.getByRole('menuitem', { name: 'منجز' }).click()
+  const transitioned = page.waitForResponse((r) => r.url().includes('/transition') && r.request().method() === 'POST')
+  const doneItem = page.getByRole('menuitem', { name: 'منجز' })
+  await expect(doneItem).toBeVisible()
+  await doneItem.focus()
+  await page.keyboard.press('Enter')
+  const transitionResponse = await transitioned
+  expect(transitionResponse.status()).toBe(200)
+  await transitionResponse.finished()
   await expect(row).toBeHidden()
   await page.getByRole('tab', { name: 'منجزة' }).click()
   // The closed list is paged (50 rows, starred tasks first); on a long-lived

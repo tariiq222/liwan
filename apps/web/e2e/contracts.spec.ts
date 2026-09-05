@@ -7,6 +7,9 @@ import {
 } from '@nasq/contracts'
 import { z } from 'zod'
 
+const ADMIN_LOGIN = process.env.E2E_ADMIN_LOGIN ?? 'admin'
+const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD ?? 'admin'
+
 // The zod schemas and the Odoo serializers are written independently; only a
 // round trip against the live API proves they still describe the same payload.
 test('GET /api/v1/branding matches BrandingSchema', async ({ page }) => {
@@ -27,6 +30,59 @@ test('GET /api/v1/me matches MeSchema', async ({ page }) => {
   expect(() => MeSchema.parse(body)).not.toThrow()
 })
 
+test('admin branding and self password mutation responses match their schemas', async ({ page }) => {
+  const login = await page.request.post('/api/auth/login', {
+    data: { login: ADMIN_LOGIN, password: ADMIN_PASSWORD },
+  })
+  expect(login.status()).toBe(200)
+
+  const brandingGetRes = await page.request.get('/api/v1/admin/branding')
+  expect(brandingGetRes.status()).toBe(200)
+  const originalBranding = BrandingSchema.parse(await brandingGetRes.json())
+  const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+  const updatedName = `E2E contract branding ${suffix}`
+  const updatedColor = '#123456'
+  let brandingChanged = false
+
+  try {
+    const brandingPatchRes = await page.request.patch('/api/v1/admin/branding', {
+      data: { name: updatedName, primary_color: updatedColor },
+    })
+    if (brandingPatchRes.status() === 200) brandingChanged = true
+    expect(brandingPatchRes.status()).toBe(200)
+    const patchedBranding = BrandingSchema.parse(await brandingPatchRes.json())
+    expect(patchedBranding.name).toBe(updatedName)
+    expect(patchedBranding.primary_color).toBe(updatedColor)
+
+    const temporaryPassword = `E2E-contract-password-${suffix}`
+    let passwordChanged = false
+    try {
+      const passwordRes = await page.request.post('/api/v1/me/password', {
+        data: { current: ADMIN_PASSWORD, new: temporaryPassword },
+      })
+      if (passwordRes.status() === 200) passwordChanged = true
+      expect(passwordRes.status()).toBe(200)
+      MeSchema.parse(await passwordRes.json())
+    } finally {
+      if (passwordChanged) {
+        const restorePasswordRes = await page.request.post('/api/v1/me/password', {
+          data: { current: temporaryPassword, new: ADMIN_PASSWORD },
+        })
+        expect(restorePasswordRes.status()).toBe(200)
+        MeSchema.parse(await restorePasswordRes.json())
+      }
+    }
+  } finally {
+    if (brandingChanged) {
+      const restoreBrandingRes = await page.request.patch('/api/v1/admin/branding', {
+        data: { name: originalBranding.name, primary_color: originalBranding.primary_color },
+      })
+      expect(restoreBrandingRes.status()).toBe(200)
+      BrandingSchema.parse(await restoreBrandingRes.json())
+    }
+  }
+})
+
 test('task lifecycle: create, read, patch, comment, timeline, transition, and reference lists all match their schemas', async ({ page }) => {
   const login = await page.request.post('/api/auth/login', { data: { login: 'admin', password: 'admin' } })
   expect(login.status()).toBe(200)
@@ -37,7 +93,17 @@ test('task lifecycle: create, read, patch, comment, timeline, transition, and re
 
   const projectsRes = await page.request.get('/api/v1/projects?minimal=1')
   expect(projectsRes.status()).toBe(200)
-  const projects = ProjectRefSchema.array().parse(await projectsRes.json())
+  let projects = ProjectRefSchema.array().parse(await projectsRes.json())
+  if (projects.length === 0) {
+    const projectRes = await page.request.post('/api/v1/projects', {
+      data: { name: `E2E contract task project ${Date.now()}` },
+    })
+    expect(projectRes.status()).toBe(201)
+    ProjectDetailSchema.parse(await projectRes.json())
+    const refreshedProjectsRes = await page.request.get('/api/v1/projects?minimal=1')
+    expect(refreshedProjectsRes.status()).toBe(200)
+    projects = ProjectRefSchema.array().parse(await refreshedProjectsRes.json())
+  }
   expect(projects.length).toBeGreaterThan(0)
 
   const createRes = await page.request.post('/api/v1/tasks', {
@@ -89,7 +155,17 @@ test('projects: list, detail, status and the project-scoped task list match thei
 
   const listRes = await page.request.get('/api/v1/projects')
   expect(listRes.status()).toBe(200)
-  const list = ProjectListSchema.parse(await listRes.json())
+  let list = ProjectListSchema.parse(await listRes.json())
+  if (list.items.length === 0) {
+    const createRes = await page.request.post('/api/v1/projects', {
+      data: { name: `E2E contract list project ${Date.now()}` },
+    })
+    expect(createRes.status()).toBe(201)
+    ProjectDetailSchema.parse(await createRes.json())
+    const refreshedListRes = await page.request.get('/api/v1/projects')
+    expect(refreshedListRes.status()).toBe(200)
+    list = ProjectListSchema.parse(await refreshedListRes.json())
+  }
   expect(list.items.length).toBeGreaterThan(0)
   const projects = list.items
 

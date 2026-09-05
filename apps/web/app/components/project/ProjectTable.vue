@@ -70,7 +70,13 @@ const table = useVueTable({
           </TableRow>
         </TableHeader>
         <TableBody>
-          <template v-if="isLoading">
+          <!--
+            Vue Query can finish between the server render and client
+            hydration. Keep the initial table shape deterministic so rows
+            are mounted with their click handlers instead of being patched
+            over SSR skeletons during hydration.
+          -->
+          <template v-if="isLoading || !hydrated">
             <TableRow v-for="n in 5" :key="n">
               <TableCell v-for="col in columns" :key="col.id">
                 <Skeleton class="h-5 w-full" />
@@ -86,7 +92,7 @@ const table = useVueTable({
           <template v-else>
             <TableRow
               v-for="row in table.getRowModel().rows"
-              :key="row.id"
+              :key="row.original.id"
               class="cursor-pointer"
               data-testid="project-row"
               @click="hydrated && emit('open', row.original.id)"

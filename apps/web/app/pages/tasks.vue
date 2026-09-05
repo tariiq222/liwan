@@ -53,12 +53,16 @@ const createOpen = ref(false)
 
       <TabsContent value="table" class="space-y-4">
         <TaskToolbar v-model="params" hide-create />
-        <TaskTable :params="params" @open="openTask" @create="createOpen = true" />
+        <!-- Query data may resolve after SSR markup is emitted but before
+             client hydration starts. Mount the dynamic result surface only
+             after this page has hydrated so the toolbar controls above keep
+             their listeners and their first click is never lost. -->
+        <TaskTable v-if="hydrated" :params="params" @open="openTask" @create="createOpen = true" />
       </TabsContent>
 
       <TabsContent value="board" class="space-y-4">
         <TaskToolbar v-model="params" hide-create />
-        <TaskBoard :params="params" @open="openTask" />
+        <TaskBoard v-if="hydrated" :params="params" @open="openTask" />
       </TabsContent>
     </Tabs>
 

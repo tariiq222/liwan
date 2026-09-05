@@ -1,9 +1,12 @@
 import { test, expect } from '@playwright/test'
 
+const ADMIN_LOGIN = process.env.E2E_ADMIN_LOGIN ?? 'admin'
+const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD ?? 'admin'
+
 async function login(page) {
   await page.goto('/login')
-  await page.getByLabel('اسم المستخدم').fill('admin')
-  await page.getByLabel('كلمة المرور').fill('admin')
+  await page.getByLabel('اسم المستخدم').fill(ADMIN_LOGIN)
+  await page.getByLabel('كلمة المرور').fill(ADMIN_PASSWORD)
   await page.getByRole('button', { name: 'دخول' }).click()
   await expect(page).toHaveURL(/\/tasks$/)
 }
@@ -25,8 +28,8 @@ test('admin selects a department, creates a document, searches by name, and open
   await page.goto('/hr')
   await expect(page.getByRole('heading', { name: 'الأشخاص' })).toBeVisible()
 
-  await page.getByRole('combobox').filter({ hasText: 'كل الأقسام' }).click()
-  await page.getByRole('option', { name: deptName, exact: true }).click()
+  await page.getByRole('tab', { name: 'الأقسام' }).click()
+  await page.getByTestId('hr-department-table').getByRole('button', { name: new RegExp(deptName) }).click()
 
   await expect(page.getByRole('heading', { name: 'المستندات' })).toBeVisible()
   await page.getByRole('button', { name: 'مستند جديد' }).first().click()

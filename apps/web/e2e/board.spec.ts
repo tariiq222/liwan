@@ -9,8 +9,17 @@ async function login(page) {
 }
 
 async function createTask(page, name: string) {
-  const projects = await (await page.request.get('/api/v1/projects?minimal=1')).json()
-  const res = await page.request.post('/api/v1/tasks', { data: { name, project_id: projects[0].id } })
+  const projectsRes = await page.request.get('/api/v1/projects?minimal=1')
+  expect(projectsRes.ok()).toBe(true)
+  const projects = await projectsRes.json()
+  let projectId = projects[0]?.id as number | undefined
+  if (!projectId) {
+    const projectRes = await page.request.post('/api/v1/projects', { data: { name: `E2E board project ${Date.now()}` } })
+    expect(projectRes.status()).toBe(201)
+    projectId = (await projectRes.json()).id as number
+  }
+  const res = await page.request.post('/api/v1/tasks', { data: { name, project_id: projectId } })
+  expect(res.status()).toBe(201)
   return (await res.json()).id as number
 }
 
@@ -64,7 +73,11 @@ test('board tab: drag between stages persists, and the keyboard menu moves a car
   // Drag it into the second real stage column.
   const targetColumn = stageColumns.nth(1)
   const targetStageName = await targetColumn.getByTestId('board-column-title').innerText()
+  const dragged = page.waitForResponse((r) => r.url().includes(`/api/v1/tasks/${id}`) && r.request().method() === 'PATCH')
   await dragCard(page, card, targetColumn)
+  const dragResponse = await dragged
+  expect(dragResponse.status()).toBe(200)
+  await dragResponse.finished()
   await expect(targetColumn.getByTestId(`board-card-${id}`)).toBeVisible({ timeout: 10_000 })
 
   // Persists after reload.
@@ -82,7 +95,9 @@ test('board tab: drag between stages persists, and the keyboard menu moves a car
   const thirdStageName = await thirdStageColumn.getByTestId('board-column-title').innerText()
   const patched = page.waitForResponse((r) => r.url().includes(`/api/v1/tasks/${id}`) && r.request().method() === 'PATCH')
   await page.getByRole('menuitem', { name: thirdStageName, exact: true }).click()
-  await patched
+  const patchResponse = await patched
+  expect(patchResponse.status()).toBe(200)
+  await patchResponse.finished()
 
   await page.reload()
   const reloadedThirdColumn = page.getByTestId('board-column').filter({ hasText: thirdStageName })

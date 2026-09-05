@@ -31,6 +31,7 @@ test('a task rename from another session arrives over the bus, live, without a r
   const id = await createTask(pageA, name)
 
   await pageA.goto('/tasks')
+  await expect(pageA.getByRole('status', { name: 'متصل' })).toBeVisible()
   // Keep the fixture visible even when the database has multiple result pages.
   await pageA.getByPlaceholder('بحث في العناوين…').fill(name)
   const row = pageA.getByRole('row', { name: new RegExp(name) })
@@ -38,7 +39,9 @@ test('a task rename from another session arrives over the bus, live, without a r
 
   // B renames the task purely over the API - no UI interaction on B's side.
   const renamed1 = `${name}-renamed-1`
-  await pageB.request.patch(`/api/v1/tasks/${id}`, { data: { name: renamed1 } })
+  const firstRename = await pageB.request.patch(`/api/v1/tasks/${id}`, { data: { name: renamed1 } })
+  expect(firstRename.status()).toBe(200)
+  await firstRename.body()
 
   // A must show the new name within 5s, with no reload triggered from the test.
   await expect(pageA.getByRole('row', { name: new RegExp(renamed1) })).toBeVisible({ timeout: 5000 })
@@ -50,9 +53,14 @@ test('a task rename from another session arrives over the bus, live, without a r
   await expect(dialog).toBeVisible()
   const titleInput = dialog.getByRole('textbox', { name: 'عنوان المهمة' })
   await expect(titleInput).toHaveValue(renamed1)
+  // page.goto creates a new document and therefore a new bus socket. Wait for
+  // its subscription before the second context emits the change under test.
+  await expect(pageA.getByRole('status', { name: 'متصل' })).toBeVisible()
 
   const renamed2 = `${name}-renamed-2`
-  await pageB.request.patch(`/api/v1/tasks/${id}`, { data: { name: renamed2 } })
+  const secondRename = await pageB.request.patch(`/api/v1/tasks/${id}`, { data: { name: renamed2 } })
+  expect(secondRename.status()).toBe(200)
+  await secondRename.body()
 
   await expect(titleInput).toHaveValue(renamed2, { timeout: 5000 })
 

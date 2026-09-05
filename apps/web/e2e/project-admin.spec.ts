@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { ProjectListSchema } from '@nasq/contracts'
 
 // Phase 3a admin screens: create/settings/stages/followers/milestones/updates
 // on the project, task archive, project archive/unarchive, the settings ›
@@ -13,8 +14,13 @@ const DEFAULT_STAGES = [
   { name: 'Done', fold: true },
 ]
 
+const ADMIN_LOGIN = process.env.E2E_ADMIN_LOGIN ?? 'admin'
+const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD ?? 'admin'
+const EMPLOYEE_LOGIN = 'e2e_emp@example.com'
+const EMPLOYEE_PASSWORD = 'e2e_emp_pass_123'
+
 test.beforeAll(async ({ request }) => {
-  const login = await request.post('/api/auth/login', { data: { login: 'admin', password: 'admin' } })
+  const login = await request.post('/api/auth/login', { data: { login: ADMIN_LOGIN, password: ADMIN_PASSWORD } })
   if (login.status() !== 200) throw new Error(`admin login failed in beforeAll: ${login.status()}`)
   const patched = await request.patch('/api/v1/settings/projects', {
     data: { project_creators: 'managers', default_stages: DEFAULT_STAGES },
@@ -31,39 +37,33 @@ async function loginAs(page, username: string, password: string) {
 }
 
 async function login(page) {
-  await loginAs(page, 'admin', 'admin')
+  await loginAs(page, ADMIN_LOGIN, ADMIN_PASSWORD)
 }
 
-// Odoo RPC fixtures (same session cookie as the UI login), same pattern as
-// projects.spec.ts used before phase 3a had a create-project endpoint.
-async function callKw(page, model: string, method: string, args: unknown[]) {
-  const res = await page.request.post(`/web/dataset/call_kw/${model}/${method}`, {
-    data: { jsonrpc: '2.0', method: 'call', params: { model, method, args, kwargs: {} } },
-  })
-  const body = await res.json()
-  if (body.error) throw new Error(JSON.stringify(body.error.data?.message ?? body.error))
-  return body.result
-}
-
-// Idempotent: reuses the user if a previous run already created it.
-// create_employee:true (odoo/addons/hr/models/res_users.py) makes the create
-// also create a linked hr.employee row, which is what /api/v1/people (and so
-// the follower/manager pickers) actually query.
+// Idempotent production-flow fixture: create an HR employee, then grant access.
+// This keeps the test inside the company-scoped HR security boundary instead
+// of relying on low-level res.users RPC to auto-create an unscoped contact.
 async function ensureEmployeeUser(page): Promise<number> {
-  const existing = await callKw(page, 'res.users', 'search_read', [[['login', '=', 'e2e_emp']], ['id']])
-  if (existing.length > 0) return existing[0].id
-  const groupRows = await callKw(page, 'ir.model.data', 'search_read', [
-    [['module', '=', 'nasq_core'], ['name', '=', 'group_employee']],
-    ['res_id'],
-  ])
-  const groupId = groupRows[0].res_id
-  return callKw(page, 'res.users', 'create', [{
-    login: 'e2e_emp',
-    password: 'e2e_emp_pass_123',
-    name: 'E2E Employee',
-    group_ids: [[6, 0, [groupId]]],
-    create_employee: true,
-  }])
+  const listRes = await page.request.get('/api/v1/hr/employees?q=E2E%20Employee&limit=200')
+  expect(listRes.status()).toBe(200)
+  const list = await listRes.json()
+  let employee = list.items.find((item) => item.work_email === EMPLOYEE_LOGIN)
+  if (!employee) {
+    const createRes = await page.request.post('/api/v1/hr/employees', {
+      data: { name: 'E2E Employee', work_email: EMPLOYEE_LOGIN },
+    })
+    expect(createRes.status()).toBe(201)
+    employee = await createRes.json()
+  }
+  if (!employee.access?.active) {
+    const grantRes = await page.request.post(`/api/v1/hr/employees/${employee.id}/access`, {
+      data: { password: EMPLOYEE_PASSWORD, role: 'employee' },
+    })
+    expect(grantRes.status()).toBe(200)
+    employee = await grantRes.json()
+  }
+  expect(employee.user_id).toBeTruthy()
+  return employee.user_id as number
 }
 
 async function createProject(page, name: string): Promise<number> {
@@ -208,7 +208,11 @@ test('a milestone created on the project can be linked from the task detail page
   const taskDetail = page.getByTestId('task-detail-page')
   await taskDetail.getByText('تفاصيل إضافية').click()
   await taskDetail.getByTestId('milestone-select').click()
+  const milestoneSaved = page.waitForResponse((r) => r.url().includes(`/api/v1/tasks/${taskId}`) && r.request().method() === 'PATCH')
   await page.getByRole('option', { name: milestoneName }).click()
+  const milestoneResponse = await milestoneSaved
+  expect(milestoneResponse.status()).toBe(200)
+  await milestoneResponse.finished()
   await page.keyboard.press('Escape')
 
   await page.goto(`/projects/${id}?tab=milestones`)
@@ -257,9 +261,14 @@ test('archiving and unarchiving a project moves it between the active and archiv
   const name = `E2E project archive ${Date.now()}`
   const id = await createProject(page, name)
 
+  const activeListResponse = await page.request.get('/api/v1/projects')
+  expect(activeListResponse.status()).toBe(200)
+  const activeList = ProjectListSchema.parse(await activeListResponse.json())
+  expect(activeList.items.some((project) => project.id === id)).toBe(true)
+
   await page.goto('/projects')
   const activeRow = page.getByTestId('project-row').filter({ hasText: name })
-  await expect(activeRow).toBeVisible()
+  await expect(activeRow).toBeVisible({ timeout: 10_000 })
   await activeRow.getByTestId('project-menu').click()
   await page.getByRole('menuitem', { name: 'أرشفة المشروع' }).click()
   const archived = page.waitForResponse((r) => r.url().includes(`/api/v1/projects/${id}/archive`) && r.request().method() === 'POST')
@@ -273,13 +282,19 @@ test('archiving and unarchiving a project moves it between the active and archiv
   await archivedRow.getByTestId('project-menu').click()
   const unarchived = page.waitForResponse((r) => r.url().includes(`/api/v1/projects/${id}/unarchive`) && r.request().method() === 'POST')
   await page.getByRole('menuitem', { name: 'إلغاء الأرشفة' }).click()
-  await unarchived
+  const unarchiveResponse = await unarchived
+  expect(unarchiveResponse.status()).toBe(200)
+  await unarchiveResponse.finished()
   await expect(page.getByTestId('project-row').filter({ hasText: name })).toHaveCount(0)
 
   await page.getByRole('tab', { name: 'النشطة' }).click()
   await expect(page).not.toHaveURL(/archived=1/)
+  const restoredListResponse = await page.request.get('/api/v1/projects')
+  expect(restoredListResponse.status()).toBe(200)
+  const restoredList = ProjectListSchema.parse(await restoredListResponse.json())
+  expect(restoredList.items.some((project) => project.id === id)).toBe(true)
   await page.reload()
-  await expect(page.getByTestId('project-row').filter({ hasText: name })).toBeVisible()
+  await expect(page.getByTestId('project-row').filter({ hasText: name })).toBeVisible({ timeout: 10_000 })
 })
 
 test('changing the default stages in settings applies to the next created project', async ({ page }) => {
@@ -303,7 +318,7 @@ test('an employee sees no project-create button and no settings nav entry', asyn
   await ensureEmployeeUser(page)
   await page.context().clearCookies()
 
-  await loginAs(page, 'e2e_emp', 'e2e_emp_pass_123')
+  await loginAs(page, EMPLOYEE_LOGIN, EMPLOYEE_PASSWORD)
   await expect(page.getByRole('navigation').getByRole('link', { name: 'الإعدادات' })).toHaveCount(0)
 
   await page.goto('/projects')
