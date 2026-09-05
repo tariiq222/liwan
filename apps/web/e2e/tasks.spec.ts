@@ -28,6 +28,9 @@ test('inline transition to done moves the task to the closed filter', async ({ p
   await page.getByRole('menuitem', { name: 'منجز' }).click()
   await expect(row).toBeHidden()
   await page.getByRole('tab', { name: 'منجزة' }).click()
+  // The closed list is paged (50 rows, starred tasks first); on a long-lived
+  // dev DB the new task may not be on page one, so search for it by name.
+  await page.getByPlaceholder('بحث في العناوين…').fill(name)
   await expect(page.getByRole('row', { name: new RegExp(name) })).toBeVisible()
 })
 test('closed tab shows a closed-specific empty state with no create action', async ({ page }) => {
