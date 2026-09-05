@@ -4,6 +4,7 @@ from io import BytesIO
 
 from PIL import Image
 
+from odoo.exceptions import AccessError
 from odoo.tests import HttpCase, new_test_user, tagged
 
 
@@ -44,9 +45,6 @@ class TestAdminBranding(HttpCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        # The scoped customer-admin partner rule grants access to contacts
-        # belonging to the active company, including its company contact.
-        cls.env.company.partner_id.company_id = cls.env.company
         cls.employee = new_test_user(
             cls.env, login='branding_employee', password='branding_employee_pass_123',
             groups='nasq_core.group_employee',
@@ -78,6 +76,10 @@ class TestAdminBranding(HttpCase):
         self.assertEqual(response.status_code, 200, response.text)
         self.assertEqual(response.json()['name'], 'Erada Admin')
         self.assertEqual(response.json()['primary_color'], '#0055ff')
+
+        foreign_company = self.env['res.company'].create({'name': 'Foreign Branding Company'})
+        with self.assertRaises(AccessError):
+            foreign_company.partner_id.with_user(self.admin).write({'name': 'Foreign Branding Write'})
 
     def test_vendor_can_read_and_update_via_implied_admin_role(self):
         self.authenticate('branding_vendor', 'branding_vendor_pass_123')

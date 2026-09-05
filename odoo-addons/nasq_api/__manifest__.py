@@ -9,6 +9,10 @@
     # Shared plumbing only: nasq_core for the role groups serializers/user.py reads,
     # auth_totp for controllers/auth.py's MFA step. No pillar addon may be depended on.
     'depends': ['nasq_core', 'auth_totp'],
+    'data': [
+        'security/ir.model.access.csv',
+        'security/branding_rules.xml',
+    ],
     'installable': True,
     'application': False,
 }
