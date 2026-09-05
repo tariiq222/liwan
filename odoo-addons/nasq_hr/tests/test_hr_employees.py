@@ -64,13 +64,17 @@ class TestHrEmployees(NasqHrCase):
         missed = self.api('GET', '/api/v1/hr/employees?q=zzz-no-such').json()
         self.assertEqual(missed['total'], 0)
 
-    def test_people_picker_still_returns_user_ids(self):
+    def test_employee_ids_are_hr_ids_not_user_ids(self):
+        # The HR directory keys rows by hr.employee id and carries the linked
+        # res.users id separately; the PMO assignee picker (/api/v1/people, owned
+        # by nasq_pmo) keys by user id. Assert the distinction from this pillar's
+        # own payload: nasq_hr never calls another pillar's route.
         self.authenticate('api_emp', 'api_emp_pass_123')
-        items = self.api('GET', '/api/v1/people?q=sara').json()
-        self.assertTrue(items)
-        self.assertEqual(items[0]['id'], self.employee.id)
-        self.assertEqual(items[0]['user_id'], self.employee.id)
-        self.assertNotEqual(items[0]['id'], self.hr_emp.id)
+        body = self.api('GET', '/api/v1/hr/employees?q=sara').json()
+        self.assertTrue(body['items'])
+        row = next(e for e in body['items'] if e['id'] == self.hr_emp.id)
+        self.assertEqual(row['user_id'], self.employee.id)
+        self.assertNotEqual(row['id'], self.employee.id)
 
     def test_get_unknown_is_404(self):
         self.authenticate('api_emp', 'api_emp_pass_123')
