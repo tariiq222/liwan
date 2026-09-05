@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <record id="param_project_creators" model="ir.config_parameter">
+        <field name="key">nasq_pmo.project_creators</field>
+        <field name="value">managers</field>
+    </record>
+    <record id="param_default_stages" model="ir.config_parameter">
+        <field name="key">nasq_pmo.default_stages</field>
+        <field name="value">[{"name": "جديد", "fold": false}, {"name": "قيد التنفيذ", "fold": false}, {"name": "مراجعة", "fold": false}, {"name": "منجز", "fold": true}]</field>
+    </record>
+</odoo>
