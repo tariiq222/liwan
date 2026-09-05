@@ -18,7 +18,7 @@ STATE_TO_API = {
 API_TO_STATE = {v: k for k, v in STATE_TO_API.items()}
 
 EMPLOYEE_FIELDS = {'name', 'description', 'date_deadline', 'priority', 'user_ids', 'tag_ids',
-                   'personal_stage_type_id', 'stage_id'}
+                   'personal_stage_type_id', 'stage_id', 'milestone_id'}
 MANAGER_FIELDS = EMPLOYEE_FIELDS | {'allocated_hours'}
 
 
@@ -100,6 +100,7 @@ def dump_task_detail(task, today=None):
         'can_approve': task._nasq_can_approve(),
         'created_at': iso(task.create_date),
         'updated_at': iso(task.write_date),
+        'milestone': _ref(task.milestone_id) if task.milestone_id else None,
     })
     return data
 
@@ -170,6 +171,19 @@ def _parse_stage(task, value, key):
     return stage.id
 
 
+def _parse_milestone(task, value, key):
+    if value is None or value is False:
+        return False
+    try:
+        milestone_id = int(value)
+    except (TypeError, ValueError) as e:
+        raise ApiError(422, 'invalid', "milestone_id must be one of the project's milestones", field=key) from e
+    milestone = request.env['project.milestone'].browse(milestone_id).exists()
+    if not milestone or milestone.project_id != task.project_id:
+        raise ApiError(422, 'invalid', "milestone_id must be one of the project's milestones", field=key)
+    return milestone.id
+
+
 def parse_task_vals(payload, can_manage, task):
     """Whitelist + coerce a PATCH payload for ``task`` into ORM vals. Raises ApiError(422)."""
     allowed = MANAGER_FIELDS if can_manage else EMPLOYEE_FIELDS
@@ -191,6 +205,8 @@ def parse_task_vals(payload, can_manage, task):
             vals[key] = _parse_personal_stage(value, key)
         elif key == 'stage_id':
             vals[key] = _parse_stage(task, value, key)
+        elif key == 'milestone_id':
+            vals[key] = _parse_milestone(task, value, key)
         elif key == 'allocated_hours':
             # float() raises ValueError on 'x' and TypeError on a list/dict;
             # both must surface as the contract's 422 shape, not a 500.

@@ -129,3 +129,10 @@ class TaskController(http.Controller):
         except AccessError as e:
             raise ApiError(403, 'transition_forbidden', str(e)) from e
         return dump_task_detail(task)
+
+    @http.route('/api/v1/tasks/<int:task_id>/archive', type='json2', auth='user', methods=['POST'], readonly=False)
+    @api_handler
+    def archive_task(self, task_id, **_):
+        task = get_record('project.task', task_id)
+        task._nasq_archive()  # AccessError → 403 forbidden via api_handler
+        return dump_task_detail(task)

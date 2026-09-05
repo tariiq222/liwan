@@ -82,7 +82,7 @@ class TestTaskRead(NasqPmoCase):
         self.assertIn('description_html', body)
         self.assertEqual(set(body), TASK_KEYS | {'description_html', 'allocated_hours', 'age_days',
                                                    'cycle_days', 'subtasks', 'depends_on', 'attachments',
-                                                   'can_approve', 'created_at', 'updated_at'})
+                                                   'can_approve', 'created_at', 'updated_at', 'milestone'})
 
     def test_get_other_users_task_is_forbidden_or_hidden(self):
         # employees may read tasks in projects they can see; a task in a private project is 403/404
@@ -353,3 +353,38 @@ class TestTaskProjectScope(NasqPmoCase):
         self.assertEqual(res.status_code, 422, res.text)
         self.assertEqual(res.json()['code'], 'invalid')
         self.assertEqual(res.json()['field'], 'stage_id')
+
+
+@tagged('post_install', '-at_install', 'nasq')
+class TestTaskArchiveAndMilestone(NasqPmoCase):
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.milestone = cls.env['project.milestone'].create({'name': 'M', 'project_id': cls.project.id})
+        cls.other_project = cls.env['project.project'].create({'name': 'Other'})
+        cls.foreign_milestone = cls.env['project.milestone'].create({'name': 'F', 'project_id': cls.other_project.id})
+        cls.mine = cls.env['project.task'].with_user(cls.employee).create({'name': 'Mine', 'project_id': cls.project.id})
+
+    def test_patch_milestone(self):
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        res = self.api('PATCH', f'/api/v1/tasks/{self.task_overdue.id}', {'milestone_id': self.milestone.id})
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()['milestone'], {'id': self.milestone.id, 'name': 'M'})
+        res = self.api('PATCH', f'/api/v1/tasks/{self.task_overdue.id}', {'milestone_id': self.foreign_milestone.id})
+        self.assertEqual((res.status_code, res.json()['field']), (422, 'milestone_id'))
+        res = self.api('PATCH', f'/api/v1/tasks/{self.task_overdue.id}', {'milestone_id': None})
+        self.assertIsNone(res.json()['milestone'])
+
+    def test_archive_rules(self):
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        # creator may archive their own task
+        res = self.api('POST', f'/api/v1/tasks/{self.mine.id}/archive')
+        self.assertEqual(res.status_code, 200)
+        self.assertFalse(self.mine.active)
+        self.assertEqual(self.api('GET', '/api/v1/tasks?filter=mine').json()['total'], 1)
+        # not creator, not manager → 403
+        res = self.api('POST', f'/api/v1/tasks/{self.task_other.id}/archive')
+        self.assertEqual((res.status_code, res.json()['code']), (403, 'forbidden'))
+        self.authenticate('api_mgr', 'api_mgr_pass_123')
+        self.assertEqual(self.api('POST', f'/api/v1/tasks/{self.task_other.id}/archive').status_code, 200)
