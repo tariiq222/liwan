@@ -2,6 +2,30 @@
   "settings": {
     "title": "Settings",
     "forbidden": "This page is for administrators only",
+    "tabs": {
+      "label": "Settings sections"
+    },
+    "branding": {
+      "title": "Branding",
+      "name": "Company name",
+      "color": "Primary color",
+      "logo": "Logo",
+      "logoHint": "PNG or JPEG, up to 1 MiB",
+      "save": "Save branding",
+      "saving": "Saving…",
+      "saved": "Branding saved",
+      "preview": {
+        "title": "Live preview",
+        "hint": "Changes appear here before you save",
+        "action": "Primary action"
+      },
+      "errors": {
+        "invalid": "Enter a valid name and six-digit color",
+        "logoFormat": "Use a PNG or JPEG image",
+        "logoSize": "The logo must not exceed 1 MiB",
+        "logoRead": "The logo image could not be read"
+      }
+    },
     "projects": {
       "title": "Projects",
       "creators": {
