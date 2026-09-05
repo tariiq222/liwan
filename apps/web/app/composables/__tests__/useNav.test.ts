@@ -8,15 +8,15 @@ describe('useNav', () => {
     expect(useNav('employee').map(i => i.labelKey)).toEqual(PRODUCT_SECTIONS)
   })
 
-  // The spec is explicit: nobody at the customer opens Odoo. customer_admin gets
-  // an in-app Settings section in phase 3, not a link into the vendor console.
-  it('customer_admin sees exactly the five product sections', () => {
-    expect(useNav('admin').map(i => i.labelKey)).toEqual(PRODUCT_SECTIONS)
+  // Phase 3a: customer_admin gets an in-app Settings section for project
+  // administration, but never a link into the vendor console.
+  it('customer_admin sees the five product sections plus Settings', () => {
+    expect(useNav('admin').map(i => i.labelKey)).toEqual([...PRODUCT_SECTIONS, 'nav.settings'])
   })
 
-  it('vendor gets the vendor console last', () => {
+  it('vendor gets Settings and the vendor console last', () => {
     const nav = useNav('vendor')
-    expect(nav.map(i => i.labelKey)).toEqual([...PRODUCT_SECTIONS, 'nav.console'])
+    expect(nav.map(i => i.labelKey)).toEqual([...PRODUCT_SECTIONS, 'nav.settings', 'nav.console'])
     expect(nav.at(-1)?.to).toBe('/odoo')
   })
 

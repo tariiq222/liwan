@@ -11,8 +11,8 @@ const emit = defineEmits<{ open: [id: number] }>()
 const { t } = useI18n()
 const hydrated = useHydrated()
 
-const { data, isLoading } = useProjectList()
-const items = computed<Project[]>(() => data.value ?? [])
+const { data, isLoading } = useProjectList(ref(false))
+const items = computed<Project[]>(() => data.value?.items ?? [])
 
 const columnHelper = createColumnHelper<Project>()
 const columns = [
@@ -90,6 +90,6 @@ const table = useVueTable({
         </TableBody>
       </Table>
     </div>
-    <p v-if="(data?.length ?? 0) >= 200" class="text-xs text-muted-foreground">{{ t('projects.capped') }}</p>
+    <p v-if="(data?.items.length ?? 0) >= 200" class="text-xs text-muted-foreground">{{ t('projects.capped') }}</p>
   </div>
 </template>
