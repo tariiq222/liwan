@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-05
 **Target:** nasq `main` @ `v0.3.0-phase2` (`217d8bc`)
-**Status:** Approved — ready for planning
+**Status:** Delivered 2026-09-05
 **Parent spec:** `2026-09-03-nasq-platform-design.md` (binding). Phase 3 was
 decomposed on 2026-09-05 into five packages; this is the first: **3a project
 administration**. The others (3b platform settings: users + branding; 3c Today;

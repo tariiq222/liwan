@@ -12,7 +12,7 @@ read, and it changes rarely and deliberately.
 | Controllers | `controllers/common.py`, `auth.py`, `branding.py`, `me.py` | `nasq_pmo/controllers/*` | `nasq_hr/controllers/*` |
 | Serializers | `serializers/common.py` (`iso`), `company.py`, `user.py` | `nasq_pmo/serializers/*` | `nasq_hr/serializers/*` |
 | Tests | `nasq_api/tests/common.py` (`NasqApiCase`) + its own tests | `nasq_pmo/tests/*` (`NasqPmoCase`) | `nasq_hr/tests/*` |
-| Messages | `i18n/locales/{ar,en}/common.json` | `…/{tasks,projects}.json` | `…/hr.json` |
+| Messages | `i18n/locales/{ar,en}/common.json` | `…/{tasks,projects,settings}.json` | `…/hr.json` |
 | Contracts | `packages/contracts/src/common/` | `src/pmo/` | `src/hr/` |
 | Web pages/components | `app/components/ui/*`, layout, `useApi`/`useMe`/`useBranding` | task pages & components | people/employee pages |
 
@@ -42,7 +42,8 @@ Keep changes to these to a single added line, and rebase early:
 A pillar's nav label key is the one deliberate exception to the "your
 namespace only" rule: it lives under `nav.*` in the shared
 `i18n/locales/{ar,en}/common.json`, alongside the entry it adds in
-`useNav.ts`.
+`useNav.ts`. `nav.settings` (the الإعدادات sidebar entry, PMO's
+`/settings/projects`) is the concrete instance of this exception so far.
 
 `/api/v1/people` lives in `nasq_pmo`, not the HR pillar — it feeds the
 assignee picker, so PMO owns it even though "people" sounds like HR's.
