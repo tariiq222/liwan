@@ -38,7 +38,7 @@ filter-preserving back navigation; destructive confirmation stays inline.
 
 ## Local development
 
-The canonical checkout after integration is `/Users/tariq/code/nasq`. A
+The canonical checkout is `/Users/tariq/code/nasq`. A
 temporary worktree may be used for a bounded task. Always point the Odoo
 addons path at that chosen Nasq worktree; `/Users/tariq/code/odoo` is the
 read-only Odoo 19 upstream source checkout. Authorized commands may use an

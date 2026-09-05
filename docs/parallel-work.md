@@ -1,7 +1,6 @@
 # Parallel work and workspace operations
 
-Nasq uses temporary worktrees for bounded tasks. The canonical runtime after
-integration is `/Users/tariq/code/nasq` on `main`; a task worktree is not a
+Nasq uses temporary worktrees for bounded tasks. The canonical checkout is `/Users/tariq/code/nasq` on `main`; a task worktree is not a
 permanent product pillar checkout. One writer owns each file. One orchestrator
 owns shared files, Git integration, runtime state, and final verification.
 

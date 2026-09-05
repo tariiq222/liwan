@@ -1,6 +1,8 @@
 # Nasq branch unification — 2026-09-05
 
-Status: combined verification passed; ready for the authorized main promotion and preserved-worktree cleanup.
+Status: complete locally. Verified integration `a284019` was fast-forwarded to
+`main`; 12 extra worktrees and 13 preserved branches were removed. The sole
+remaining checkout is `/Users/tariq/code/nasq` on `main`.
 
 ## Scope and decisions
 
@@ -40,7 +42,7 @@ Fresh combined verification has passed the following gates:
 - Authenticated tasks, HR, branding and users screenshots were visually
   inspected: all four are RTL, and Nasq identity editing is colour-only.
 
-The isolated runtime uses
+The completed verification runtime used
 `nasq_unified_20260905`, Odoo `9479`, web `3479`; legacy upgrade and rollback
 use `nasq_unify_legacy_20260905` and `nasq_unify_rollback_20260905`.
 Tests never target `odoo19`; stock Odoo source and configuration are unchanged.
@@ -58,15 +60,19 @@ were rechecked after integration preparation with zero drift.
 
 Working recovery directory: `/private/tmp/nasq-unify-recovery-20260905`.
 Durable recovery directory: `/Users/tariq/code/nasq-recovery-unification-20260905`.
-Initial copy was verified; the final additive sync includes integration worker
-snapshots, test logs, screenshots, migration checks and the final Git bundle.
+Before cleanup, **1,314 archive files** were copied and checked byte-for-byte
+with SHA256. The verified `final-all-refs.bundle` preserves all original branch
+heads, tags, stash and integrated history; source and worker dirty snapshots,
+test logs, screenshots and migration checks accompany it. Final closure records
+are added separately after cleanup.
 The final pre-cleanup recheck covered every original HEAD, complete dirty path
 set, all 579 content hashes and 54 ignored workflow files, with zero drift.
 No Git remote is configured. This work authorizes local commits, main merge
 and cleanup after checks; it does not include push or deployment.
 
-New collaboration endpoints currently require the current company. Legacy
-company-less collaboration compatibility is awaiting explicit authorization;
+New collaboration endpoints require the current company. Legacy company-less
+collaboration compatibility was excluded because explicit authorization did not
+arrive after automatic approval review rejected the proposed access expansion;
 existing baseline record rules are unchanged. New Nasq projects use the current
 company and explicit foreign-company projects/tasks remain excluded.
 
@@ -88,3 +94,24 @@ Authoritative local logs are preserved in the recovery `logs/` directory:
 `nasq-unify-final-unit.log`, `nasq-unify-final-odoo3.log`,
 `nasq-unify-final-e2e4.log`, `nasq-unify-final-types2.log`,
 `nasq-unify-final-build2.log`, plus legacy/rollback/concurrency/version logs.
+
+## Final local state
+
+- `main` and the tested integration had the identical tree
+  `33b1424b67f72229203cb4e29d0a6aa126dcb786` at promotion. Final closure changes
+  are documentation only. The existing Phase 3b history is retained.
+- Original stash stays `cc89a2bb8c96667fdb288f18dddbbb5c17eaedd8`.
+  Archive tags remain; branch deletion does not remove the preserved WIP object.
+- Open-file checks found no process using any worktree before deletion. Old
+  Phase 3b/collaboration previews and the integration verification servers were
+  stopped. No server remains configured to the deleted integration checkout.
+- The three isolated migration/verification/rollback databases are retained for
+  inspection; no production-style database was tested or upgraded. Existing
+  `odoo19`, stock Odoo source and configuration remain unchanged.
+- No Git remote, push or deployment. Starting the unified application against
+  an existing database is a separate runtime/upgrade operation.
+
+The unapplied legacy-company compatibility patch and its regression test plan
+are under the durable recovery directory. They are review artifacts, not
+delivered behavior. Automatic review classified applying them as widening the
+visibility/mutation boundary, requiring separate explicit approval.

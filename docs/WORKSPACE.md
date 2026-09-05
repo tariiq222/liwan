@@ -15,14 +15,27 @@ material in recovery is quarantined and is not delivered product content.
 
 ## 2026-09-05 unification
 
-The active integration is `/private/tmp/nasq-unified-20260905` on
-`codex/unified-20260905`. Its final checks and main promotion are tracked in
-[the unification report](unification-2026-09-05.md). Older branch delivery
-counts below are historical and do not represent the unified release.
+The verified integration is merged locally into `main` at `a284019`. All 12
+extra worktrees and 13 source/integration branches have been removed after
+content preservation and open-file checks. Only `/Users/tariq/code/nasq` on
+`main` remains. Final closure commits change documentation only.
 
-The former Phase 3b, access, design, sidebar and collaboration work is
-reconciled in that integration. Original dirty worktrees remain preserved
-until final verification and authorized cleanup complete.
+Fresh evidence: 80 contract, 235 web unit, 266 Odoo and 72 browser tests passed;
+web types, Ruff, production build, legacy upgrade/repeat, rollback and real
+concurrent transaction checks passed. See [the unification report](unification-2026-09-05.md)
+for scope, repairs, limitations and runtime state. Historical counts below
+belong to the earlier reorganization.
+
+Recovery: `/Users/tariq/code/nasq-recovery-unification-20260905`, including
+`final-all-refs.bundle`, original dirty snapshots, both worker snapshots,
+SHA256 manifests, test logs and screenshots. The original stash and archive
+tags remain. Read its `RESTORE.md` before restoring into a separate directory.
+
+Old previews and verification servers were stopped. The unified source has not
+been deployed or used to upgrade `odoo19`. Scratch databases remain available
+for inspection. New collaboration endpoints use explicit current-company
+records; the proposed legacy company-less extension remains unapplied pending
+separate approval.
 
 ## Start and inspect
 
@@ -72,7 +85,7 @@ before any explicitly authorized cleanup or integration action.
 | `nasq-hr` / `phase-hr` | Retired; all commits were already in main. Dependency symlinks were removed without touching their targets. |
 | `nasq-docs-hr` / `docs/hr` | Retired; original untracked HR documents are preserved under `docs/archive/` and the external recovery directory. |
 | Old `phase-3b` | Renamed `archive/phase-3b-wip-20260905`, with recovery tag and bundle; incomplete contracts are excluded from the integrated product. |
-| `nasq-integration` | Removed with its merged branch after integration and runtime verification. At that historical point only the canonical worktree remained; the later Phase 3b worktree is listed above. |
+| `nasq-integration` | Removed with its merged branch after integration and runtime verification. At that historical point only the canonical worktree remained; later task worktrees were consolidated by the unification above. |
 | Odoo repository | Source, config, and branches unchanged. Its `web-theme-shadcn` branch is outside this cleanup. |
 | HR architecture | Stock `hr` plus `nasq_hr`; stock `project` plus `nasq_pmo`. `/hr` stays; the dead `/people` page is removed. |
 | Next product work at reorganization | Reconciled Phase 3b: 10 tasks in 4 dependency waves; subsequently completed on `codex/phase-3b` as recorded above. |

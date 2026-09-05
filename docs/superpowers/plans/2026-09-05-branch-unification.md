@@ -23,7 +23,7 @@ Spec: /Users/tariq/.codex/visualizations/2026/09/05/01a072e0-4452-7012-afe3-be75
 - [x] 4. Integrate sidebar department tree and document draft/cache helpers into access-admin routed pages; preserve useAccess policy. Tests: tree ordering and ancestry, draft preservation, cache invalidation, routed HR filters/reload/back.
 - [x] 5. Integrate collaboration once from project-collaboration. Adapt archive/attachment/dependency permissions to capability policy. Tests: file bytes/download/deletion, notification second-user/read state, dependency and restore persistence; exact company and permission revocation.
 - [x] 6. Fresh combined contracts/web/unit/type/Ruff/build, isolated fresh-install and legacy-upgrade Odoo, concurrency/rollback, integrated Playwright. Diagnose failures by actual traces before repairs; regression checks must exercise real behavior. Reviewer checks requirements and code quality, with no Critical/Important issues left.
-- [ ] 7. Commit verified integration, fast-forward main, verify matching tree/main cleanliness, preserve original branch snapshot refs in final bundle. Clean only proven-preserved worktrees after process recheck; leave original source snapshot and Git recovery outside repository.
+- [x] 7. Commit verified integration, fast-forward main, verify matching tree/main cleanliness, preserve original branch snapshot refs in final bundle. Clean only proven-preserved worktrees after process recheck; leave original source snapshot and Git recovery outside repository.
 
 ## Shared contracts and decisions
 | Tasks | Boundary | Resolution |
