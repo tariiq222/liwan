@@ -75,7 +75,7 @@ function onCreate() {
         <button
           type="button"
           class="rounded-full hover:bg-muted-foreground/20"
-          :aria-label="t('tasks.drawer.removeAssignee')"
+          :aria-label="t('projects.followers.remove')"
           :disabled="!hydrated"
           @click="remove(tag.id)"
         >
