@@ -34,7 +34,11 @@ class ProjectController(http.Controller):
         projects = Project.with_context(active_test=not archived).search(domain, order='name, id', limit=MAX_PROJECTS)
         if args.get('minimal') in ('1', 'true'):
             return [{'id': p.id, 'name': p.name} for p in projects]
-        return {'items': [dump_project(p) for p in projects], 'can_create': Project._nasq_can_create()}
+        return {
+            'items': [dump_project(p) for p in projects],
+            'can_create': Project._nasq_can_create(),
+            'can_list_archived': Project._nasq_is_manager(),
+        }
 
     @http.route('/api/v1/projects', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler

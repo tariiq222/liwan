@@ -24,7 +24,7 @@ export const ProjectDetailSchema = ProjectSchema.extend({
   tags: z.array(TagSchema), followers_count: z.number().int(), milestone_count: z.number().int(),
 }).strict()
 
-export const ProjectListSchema = z.object({ items: z.array(ProjectSchema), can_create: z.boolean() }).strict()
+export const ProjectListSchema = z.object({ items: z.array(ProjectSchema), can_create: z.boolean(), can_list_archived: z.boolean() }).strict()
 export const ProjectCreateSchema = z.object({ name: z.string().min(1) }).strict()
 export const ProjectPatchSchema = z.object({
   name: z.string().min(1).optional(), description: z.string().optional(), user_id: z.number().int().nullable().optional(),

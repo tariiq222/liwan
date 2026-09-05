@@ -55,7 +55,8 @@ const stageSource = computed(() => ({ kind: 'project' as const, stages: project.
 
 // ProjectMenu already toasts on archive/unarchive (projects.archived /
 // projects.unarchived) before emitting this event, so this handler only
-// navigates away — the settings dialog and the header menu both fire it.
+// navigates away — the header menu's ProjectMenu is the only thing that
+// fires it (the settings dialog has no archive control).
 function onArchived() {
   router.push('/projects')
 }

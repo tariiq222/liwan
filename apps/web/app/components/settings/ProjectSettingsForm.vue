@@ -14,6 +14,9 @@ const { mutate: updateSettings, isPending } = useUpdateProjectSettings()
 
 function onApiError(e: unknown) {
   toast.error(e instanceof ApiError ? e.message : t('errors.generic'))
+  // Undo the optimistic row mutation: resync from the last-known-good cached
+  // settings rather than leaving the rejected edit displayed.
+  rows.value = withIds(settings.value?.default_stages ?? [])
 }
 function onSaved() {
   toast.success(t('settings.projects.saved'))

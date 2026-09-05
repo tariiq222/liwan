@@ -131,9 +131,14 @@ const STAGE = { id: 1, name: 'A', sequence: 10, fold: false, task_count: 2 }
 const PROJECT = { id: 3, name: 'P', status: null, progress: 0, task_count: 0, closed_task_count: 0, active: true, can_manage: true }
 
 describe('ProjectListSchema', () => {
-  it('is an object with items and can_create, not the phase-2 bare array', () => {
-    expect(ProjectListSchema.parse({ items: [PROJECT], can_create: false }).can_create).toBe(false)
+  it('is an object with items, can_create and can_list_archived, not the phase-2 bare array', () => {
+    const parsed = ProjectListSchema.parse({ items: [PROJECT], can_create: false, can_list_archived: true })
+    expect(parsed.can_create).toBe(false)
+    expect(parsed.can_list_archived).toBe(true)
     expect(() => ProjectListSchema.parse([PROJECT])).toThrow()
+  })
+  it('rejects a payload missing can_list_archived (.strict() catches it)', () => {
+    expect(() => ProjectListSchema.parse({ items: [PROJECT], can_create: false })).toThrow()
   })
 })
 

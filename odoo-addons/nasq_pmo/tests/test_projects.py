@@ -24,6 +24,16 @@ class TestProjects(NasqPmoCase):
         self.assertIn({'id': self.project.id, 'name': 'Erada Portal'}, items)
         self.assertEqual(set(items[0]), {'id', 'name'})
 
+    def test_can_list_archived_flag(self):
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        body = self.api('GET', '/api/v1/projects').json()
+        self.assertEqual(set(body), {'items', 'can_create', 'can_list_archived'})
+        self.assertFalse(body['can_list_archived'])
+        self.authenticate('api_mgr', 'api_mgr_pass_123')
+        body = self.api('GET', '/api/v1/projects').json()
+        self.assertEqual(set(body), {'items', 'can_create', 'can_list_archived'})
+        self.assertTrue(body['can_list_archived'])
+
     def test_list_full_shape_and_progress(self):
         self.authenticate('api_emp', 'api_emp_pass_123')
         items = self.api('GET', '/api/v1/projects').json()['items']
