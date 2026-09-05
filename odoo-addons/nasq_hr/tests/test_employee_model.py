@@ -183,6 +183,26 @@ class TestEmployeeModel(TransactionCase):
             })
         with self.assertRaises(AccessError):
             foreign_partner.with_user(self.admin).write({'name': 'Foreign Write'})
+
+        # The stock global partner rule admits every internal-user partner,
+        # even outside the caller's companies. The nasq customer-admin rule
+        # must still reject that write.
+        foreign_internal = new_test_user(
+            self.env, login='model_foreign_internal', password='model_foreign_internal_pass',
+            groups='nasq_core.group_employee', company_id=other_company.id,
+            company_ids=[other_company.id],
+        )
+        with self.assertRaises(AccessError):
+            foreign_internal.partner_id.with_user(self.admin).write({'name': 'Foreign Internal Write'})
+
+        # Companyless contacts are also visible through the stock global rule;
+        # customer admins may write them only when they are linked to an
+        # in-scope user.
+        unrelated_shared = self.env['res.partner'].create({
+            'name': 'Unrelated Shared Contact', 'company_id': False,
+        })
+        with self.assertRaises(AccessError):
+            unrelated_shared.with_user(self.admin).write({'name': 'Unrelated Shared Write'})
         self.assertFalse(self.env['res.partner'].with_user(self.employee_user).search([
             ('id', '=', foreign_partner.id),
         ]))
