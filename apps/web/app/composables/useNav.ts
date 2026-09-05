@@ -8,7 +8,7 @@ const base: NavItem[] = [
   { to: '/', labelKey: 'nav.today', icon: Sun, shortcut: '1' },
   { to: '/tasks', labelKey: 'nav.tasks', icon: CheckSquare, shortcut: '2' },
   { to: '/projects', labelKey: 'nav.projects', icon: FolderKanban, shortcut: '3' },
-  { to: '/people', labelKey: 'nav.people', icon: Users, shortcut: '4' },
+  { to: '/hr', labelKey: 'nav.people', icon: Users, shortcut: '4' },
   { to: '/reports', labelKey: 'nav.reports', icon: BarChart3, shortcut: '5' },
 ]
 // Vendor console. The customer_admin Settings section arrives in phase 3.

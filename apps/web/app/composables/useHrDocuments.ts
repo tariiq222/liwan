@@ -83,3 +83,27 @@ export function useUpdateDocument() {
     onSuccess: (doc) => replaceDocumentInLists(qc, doc, false),
   })
 }
+
+export function useUploadDocumentAttachment() {
+  const qc = useQueryClient()
+  const { $api } = useApi()
+  return useMutation({
+    mutationFn: ({
+      id,
+      name,
+      datas,
+      mimetype,
+    }: {
+      id: number
+      name: string
+      datas: string
+      mimetype?: string
+    }) =>
+      $api(`/api/v1/hr/documents/${id}/attachments`, {
+        method: 'POST',
+        body: { name, datas, mimetype },
+        schema: HrDocumentSchema,
+      }),
+    onSuccess: (doc) => replaceDocumentInLists(qc, doc, false),
+  })
+}

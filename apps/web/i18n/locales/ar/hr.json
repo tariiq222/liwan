@@ -32,6 +32,7 @@
       "body": "المحتوى",
       "linkPrompt": "عنوان الرابط",
       "attachments": "المرفقات",
+      "upload": "رفع ملف",
       "download": "تنزيل",
       "columns": { "name": "العنوان", "updated": "آخر تحديث", "department": "القسم" }
     }

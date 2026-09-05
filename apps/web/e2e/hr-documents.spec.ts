@@ -44,6 +44,16 @@ test('admin selects a department, creates a document, searches by name, and open
   await page.waitForTimeout(1200)
   await expect(sheet.getByText('الوسوم')).toHaveCount(0)
 
+  const filename = `e2e-att-${Date.now()}.txt`
+  await sheet.getByLabel('رفع ملف').setInputFiles({
+    name: filename,
+    mimeType: 'text/plain',
+    buffer: Buffer.from('hello nasq'),
+  })
+  await expect(sheet.getByRole('link', { name: filename })).toBeVisible()
+  await expect(page).toHaveURL(/\/hr/)
+  await expect(page).not.toHaveURL(/\/people/)
+
   await page.keyboard.press('Escape')
 
   await page.getByPlaceholder('بحث بالعنوان…').fill('zzz-no-such-document')
@@ -55,5 +65,8 @@ test('admin selects a department, creates a document, searches by name, and open
   await row.click()
   await expect(page.getByRole('dialog').getByRole('heading', { name: title })).toBeVisible()
   await expect(page.getByRole('dialog').getByRole('textbox', { name: 'المحتوى' })).toContainText(body)
+  await expect(page.getByRole('dialog').getByRole('link', { name: filename })).toBeVisible()
   await expect(page.getByRole('dialog').getByText('الوسوم')).toHaveCount(0)
+  await expect(page).toHaveURL(/\/hr/)
+  await expect(page).not.toHaveURL(/\/people/)
 })

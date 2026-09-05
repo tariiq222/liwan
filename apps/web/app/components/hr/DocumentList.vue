@@ -3,7 +3,7 @@ import { Plus, Search } from 'lucide-vue-next'
 import { refDebounced } from '@vueuse/core'
 import { toast } from 'vue-sonner'
 import { ApiError } from '@/composables/useApi'
-import { useCreateDocument, useHrDocument, useHrDocuments, useUpdateDocument, type HrDocument } from '@/composables/useHrDocuments'
+import { useCreateDocument, useHrDocument, useHrDocuments, useUpdateDocument, useUploadDocumentAttachment, type HrDocument } from '@/composables/useHrDocuments'
 import DocumentEditor from './DocumentEditor.vue'
 import DocumentReader from './DocumentReader.vue'
 
@@ -26,6 +26,7 @@ const selectedRef = computed(() => selectedId.value)
 const { data: selected } = useHrDocument(selectedRef)
 const { mutateAsync: createDoc, isPending: creating } = useCreateDocument()
 const { mutateAsync: updateDoc } = useUpdateDocument()
+const { mutateAsync: uploadAttachment, isPending: uploading } = useUploadDocumentAttachment()
 
 const items = computed<HrDocument[]>(() => data.value?.items ?? [])
 
@@ -64,6 +65,38 @@ async function onBody(html: string) {
     await updateDoc({ id: selected.value.id, patch: { body: html } })
   } catch (e) {
     toast.error(e instanceof ApiError ? e.message : t('errors.generic'))
+  }
+}
+
+function readFileAsBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      const result = String(reader.result ?? '')
+      const comma = result.indexOf(',')
+      resolve(comma >= 0 ? result.slice(comma + 1) : result)
+    }
+    reader.onerror = () => reject(reader.error ?? new Error('read failed'))
+    reader.readAsDataURL(file)
+  })
+}
+
+async function onUploadFile(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file || !selected.value) return
+  try {
+    const datas = await readFileAsBase64(file)
+    await uploadAttachment({
+      id: selected.value.id,
+      name: file.name,
+      datas,
+      mimetype: file.type || undefined,
+    })
+  } catch (e) {
+    toast.error(e instanceof ApiError ? e.message : t('errors.generic'))
+  } finally {
+    input.value = ''
   }
 }
 
@@ -136,13 +169,23 @@ watch(
               <Input id="hr-doc-title" :model-value="selected.name" @blur="onTitleBlur" />
             </div>
             <DocumentEditor :key="selected.id" :model-value="selected.body" :document-id="selected.id" @update:model-value="onBody" />
-            <div v-if="selected.attachment_ids.length" class="grid gap-2">
+            <div class="grid gap-2">
               <h3 class="text-sm font-medium">{{ t('hr.docs.attachments') }}</h3>
-              <ul class="grid gap-1 text-sm">
+              <ul v-if="selected.attachment_ids.length" class="grid gap-1 text-sm">
                 <li v-for="att in selected.attachment_ids" :key="att.id">
                   <a :href="`/web/content/${att.id}`" class="underline" target="_blank" rel="noreferrer">{{ att.name }}</a>
                 </li>
               </ul>
+              <div class="grid gap-2">
+                <Label for="hr-doc-upload">{{ t('hr.docs.upload') }}</Label>
+                <input
+                  id="hr-doc-upload"
+                  type="file"
+                  class="border-input h-9 w-full min-w-0 rounded-md border bg-transparent px-3 py-1 text-sm shadow-xs file:me-2 file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium"
+                  :disabled="uploading"
+                  @change="onUploadFile"
+                >
+              </div>
             </div>
           </template>
           <DocumentReader v-else :document="selected" />

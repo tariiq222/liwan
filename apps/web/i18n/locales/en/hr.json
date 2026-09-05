@@ -32,6 +32,7 @@
       "body": "Body",
       "linkPrompt": "Link URL",
       "attachments": "Attachments",
+      "upload": "Upload file",
       "download": "Download",
       "columns": { "name": "Title", "updated": "Last updated", "department": "Department" }
     }
