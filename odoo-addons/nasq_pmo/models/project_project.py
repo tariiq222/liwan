@@ -38,6 +38,22 @@ class ProjectProject(models.Model):
     def _nasq_can_create(self):
         return self._nasq_is_manager() or self.env['nasq.pmo.settings'].get()['project_creators'] == 'employees'
 
+    def _nasq_write_as_manager(self, vals):
+        """Write project fields on behalf of a nasq manager.
+
+        Odoo's project ACL has no notion of "the manager of this project": only the
+        project-manager *group* may write project.project. nasq's rule (see
+        _nasq_can_manage) also lets the project's assigned user manage it, so the
+        rule is enforced here first and the write itself runs in sudo. Every
+        project-level write nasq performs on a manager's behalf goes through this
+        one method; the vals are whitelisted by the callers. Third documented
+        sudo() in nasq_pmo (settings, policy create, this).
+        """
+        self.ensure_one()
+        self._nasq_check_manage()
+        self.sudo().write(vals)
+        return self
+
     # --- create --------------------------------------------------------------
     def _nasq_create_from_policy(self, name):
         """Create a project the nasq way: policy check, defaults, default stages.
@@ -67,21 +83,10 @@ class ProjectProject(models.Model):
 
     # --- archive -------------------------------------------------------------
     def _nasq_archive(self):
-        """Archive ``self``; ``_nasq_check_manage`` is the real gate.
-
-        Odoo's ACL only lets ``project.group_project_manager`` write
-        ``project.project``, but nasq's per-project rule also lets the project's
-        assigned (non-manager) user manage it, so the write itself runs in sudo
-        once that check passes. Third documented ``sudo()`` in nasq_pmo.
-        """
-        self._nasq_check_manage()
-        self.sudo().write({'active': False})
-        return self
+        return self._nasq_write_as_manager({'active': False})
 
     def _nasq_unarchive(self):
-        self._nasq_check_manage()
-        self.sudo().write({'active': True})
-        return self
+        return self._nasq_write_as_manager({'active': True})
 
     # --- status (phase 2) ----------------------------------------------------
     def _nasq_set_status(self, status):
@@ -97,7 +102,7 @@ class ProjectProject(models.Model):
             raise AccessError(self.env._("Only a project manager can set the project status."))
 
     def _nasq_do_set_status(self, status):
-        self.write({'last_update_status': status})
+        self._nasq_write_as_manager({'last_update_status': status})
 
     def _nasq_post_status_hook(self, status):
         """Extension point; nothing in core."""
@@ -155,7 +160,7 @@ class ProjectProject(models.Model):
             raise _not_empty(self.env._("This stage still holds tasks."), count)
         if len(stage.project_ids) > 1:
             # Shared stage: detach from this project only.
-            self.write({'type_ids': [(3, stage.id)]})
+            self._nasq_write_as_manager({'type_ids': [(3, stage.id)]})
         else:
             stage.unlink()
 
@@ -183,7 +188,7 @@ class ProjectProject(models.Model):
     def _nasq_create_milestone(self, name, deadline=None):
         self._nasq_check_manage()
         if not self.allow_milestones:
-            self.write({'allow_milestones': True})
+            self._nasq_write_as_manager({'allow_milestones': True})
         return self.env['project.milestone'].create({
             'project_id': self.id, 'name': name, 'deadline': fields.Date.to_date(deadline) if deadline else False,
         })

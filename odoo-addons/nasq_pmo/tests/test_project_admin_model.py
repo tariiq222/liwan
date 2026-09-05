@@ -130,3 +130,26 @@ class TestProjectAdminModel(TransactionCase):
             self.project.with_user(self.other)._nasq_post_update('done', 'x')
         with self.assertRaises(ValueError):
             p._nasq_post_update('to_define', 'x')
+
+    # --- assigned-user-as-manager (Odoo ACL has no notion of it) -----------
+    def test_assigned_user_sets_status(self):
+        p = self.project.with_user(self.employee)
+        p._nasq_set_status('at_risk')
+        self.assertEqual(self.project.last_update_status, 'at_risk')
+        with self.assertRaises(AccessError):
+            self.project.with_user(self.other)._nasq_set_status('on_track')
+
+    def test_assigned_user_creates_milestone_and_detaches_shared_stage(self):
+        self.assertFalse(self.project.allow_milestones)
+        p = self.project.with_user(self.employee)
+        m = p._nasq_create_milestone('M1')
+        self.assertTrue(self.project.allow_milestones)
+        self.assertEqual(m.project_id, self.project)
+
+        other_project = self.env['project.project'].create({'name': 'Other project'})
+        stage = self.env['project.task.type'].create({
+            'name': 'Shared', 'project_ids': [(6, 0, (self.project | other_project).ids)],
+        })
+        p._nasq_delete_stage(stage)
+        self.assertNotIn(stage.id, self.project.type_ids.ids)
+        self.assertIn(stage.id, other_project.type_ids.ids)
