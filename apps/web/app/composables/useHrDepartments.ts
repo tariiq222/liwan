@@ -63,3 +63,16 @@ export function useUpdateDepartment() {
     },
   })
 }
+
+export function useDeleteHrDepartment() {
+  const qc = useQueryClient()
+  const { $api } = useApi()
+  return useMutation({
+    mutationFn: (id: number) => $api(`/api/v1/hr/departments/${id}`, { method: 'DELETE' }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: hrDepartmentKeys.list })
+      void qc.invalidateQueries({ queryKey: ['hr', 'employees'] })
+      void qc.invalidateQueries({ queryKey: ['hr', 'documents'] })
+    },
+  })
+}

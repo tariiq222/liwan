@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useHrEmployee } from '@/composables/useHrEmployees'
+import AccessBadge from './AccessBadge.vue'
 
 const props = defineProps<{ employeeId: number }>()
 
@@ -44,6 +45,14 @@ const { data: employee, isLoading } = useHrEmployee(id)
         <div>
           <dt class="text-muted-foreground">{{ t('hr.card.phone') }}</dt>
           <dd>{{ employee.work_phone || '—' }}</dd>
+        </div>
+        <div>
+          <dt class="text-muted-foreground">{{ t('hr.card.manager') }}</dt>
+          <dd>{{ employee.manager?.name || '—' }}</dd>
+        </div>
+        <div class="flex items-center justify-between">
+          <dt class="text-muted-foreground">{{ t('hr.card.account') }}</dt>
+          <dd><AccessBadge :access="employee.access" /></dd>
         </div>
       </dl>
     </template>
