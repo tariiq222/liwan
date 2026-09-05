@@ -74,11 +74,13 @@ export const HrAccessPatchSchema = z.object({
 export const HrDepartmentCreateSchema = z.object({
   name: nonEmptyTrimmedName,
   parent_id: relationId,
+  manager_id: relationId,
 }).strict()
 
 export const HrDepartmentPatchSchema = z.object({
   name: nonEmptyTrimmedName.optional(),
   parent_id: relationId,
+  manager_id: relationId,
 }).strict().refine(requirePatchField, { message: 'At least one field is required' })
 
 export const HrDocumentAttachmentSchema = z.object({
