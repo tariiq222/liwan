@@ -1,5 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+from odoo.exceptions import AccessDenied
 from odoo.tests import HttpCase, new_test_user, tagged
+from odoo.tests.common import HOST, Opener
 
 
 @tagged('post_install', '-at_install', 'nasq')
@@ -61,3 +63,98 @@ class TestMeEndpoint(HttpCase):
         self.authenticate('nolang', 'nolang_password_123')
 
         self.assertEqual(self.url_open('/api/v1/me').json()['lang'], 'ar_001')
+
+
+@tagged('post_install', '-at_install', 'nasq')
+class TestChangePassword(HttpCase):
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.user = new_test_user(
+            cls.env,
+            login='password_change_user',
+            password='old_password_123',
+            name='Password Change User',
+            groups='nasq_core.group_employee',
+        )
+
+    def api(self, method, path, json=None):
+        return self.url_open(
+            path,
+            json=json,
+            headers={'Content-Type': 'application/json'},
+            method=method,
+        )
+
+    def use_session(self, sid):
+        self.opener = Opener(self)
+        self.opener.cookies.set('session_id', sid, domain=HOST)
+
+    def test_anonymous_and_invalid_inputs_are_rejected(self):
+        response = self.api('POST', '/api/v1/me/password', {
+            'current': 'old_password_123',
+            'new': 'new_password_123',
+        })
+        self.assertEqual(response.status_code, 403)
+
+        self.authenticate('password_change_user', 'old_password_123')
+        response = self.api('POST', '/api/v1/me/password', {'new': 'new_password_123'})
+        self.assertEqual(response.status_code, 422)
+        self.assertEqual(response.json()['code'], 'wrong_password')
+        self.assertEqual(response.json()['field'], 'current')
+
+        response = self.api('POST', '/api/v1/me/password', {
+            'current': 'wrong_password',
+            'new': 'new_password_123',
+        })
+        self.assertEqual(response.status_code, 422)
+        self.assertEqual(response.json()['code'], 'wrong_password')
+        self.assertEqual(response.json()['field'], 'current')
+
+        response = self.api('POST', '/api/v1/me/password', {
+            'current': 'old_password_123',
+            'new': '  1234567  ',
+        })
+        self.assertEqual(response.status_code, 422)
+        self.assertEqual(response.json()['code'], 'weak_password')
+        self.assertEqual(response.json()['field'], 'new')
+
+    def test_success_preserves_caller_session_and_invalidates_other_sessions(self):
+        old_session = self.authenticate('password_change_user', 'old_password_123')
+        old_sid = old_session.sid
+        caller_session = self.authenticate('password_change_user', 'old_password_123')
+        caller_sid = caller_session.sid
+
+        response = self.api('POST', '/api/v1/me/password', {
+            'current': 'old_password_123',
+            'new': 'new_password_123',
+        })
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()['login'], 'password_change_user')
+        self.assertEqual(self.api('GET', '/api/v1/me').status_code, 200)
+
+        self.use_session(old_sid)
+        self.assertEqual(self.api('GET', '/api/v1/me').status_code, 403)
+
+        self.use_session(caller_sid)
+        self.assertEqual(self.api('GET', '/api/v1/me').status_code, 200)
+
+        authenticated = self.env['res.users'].authenticate(
+            {
+                'login': 'password_change_user',
+                'password': 'new_password_123',
+                'type': 'password',
+            },
+            {'interactive': False},
+        )
+        self.assertEqual(authenticated['uid'], self.user.id)
+        with self.assertRaises(AccessDenied):
+            self.env['res.users'].authenticate(
+                {
+                    'login': 'password_change_user',
+                    'password': 'old_password_123',
+                    'type': 'password',
+                },
+                {'interactive': False},
+            )
