@@ -28,6 +28,24 @@ direction.
 - `deploy` holds per-customer Docker, Caddy, provisioning, and branding
   templates.
 
+## Phase 3b delivery state
+
+Phase 3b is delivered on the local `codex/phase-3b` branch. `/hr` now covers
+the employee directory, admin employee create/edit/access/archive flows,
+department management and safe deletion, while preserving department
+documents and their create/edit/read/attachment actions. Vendor-linked
+account role/access and archive controls are protected from HR admin
+mutations. Branding administration is available under `/settings/branding`,
+and signed-in users change their own password under `/account`. The
+`/api/v1/hr/*` employee resources remain distinct from the user-id
+`/api/v1/people` picker.
+
+Final local verification records Odoo aggregate `182`, contracts `52`, web
+unit `152`, and Playwright `47` green, plus clean `ruff`, `vue-tsc`, and
+production-build gates. Canonical `main` remains the pre-Phase-3b baseline;
+these checks do not claim a merge, push, deployment, DNS cutover, or release
+approval. See the Phase 3b delivery report under `docs/superpowers/plans/`.
+
 The Odoo upstream checkout is `/Users/tariq/code/odoo`, branch `19.0`. Its
 source, configuration, and Git state are read-only for this project; source
 inspection and read-only Git audits are allowed. Authorized Odoo commands may

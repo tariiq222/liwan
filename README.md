@@ -8,16 +8,19 @@ layer. The platform design is in
 
 ## Current product
 
-The current main line contains the PMO and HR pillars:
+This Phase 3b checkout contains the PMO and HR pillars:
 
 - Tasks at `/tasks`, including personal stages, board and table views,
   timelines, comments, task updates, and real-time bus updates.
 - Projects at `/projects`, including project tasks, stages, milestones, status
   updates, followers, archive actions, tags, and project settings.
 - The HR directory at `/hr`, including company-wide employee cards, department
-  administration, and department documents. HR routes live under
-  `/api/v1/hr/*` and use employee ids. The PMO assignee picker at
-  `/api/v1/people` remains a user-id resource.
+  administration, employee access/archive controls, and department documents.
+  HR routes live under `/api/v1/hr/*` and use employee ids. The PMO assignee
+  picker at `/api/v1/people` remains a user-id resource.
+- Phase 3b also delivers customer branding administration and `/account`
+  password changes. Existing HR document create/edit/read and attachment
+  actions remain available from the departments tab.
 - Arabic is the default locale and the UI supports RTL. The sidebar exposes
   tasks, projects, HR, and role-gated settings/admin entries.
 
@@ -25,11 +28,19 @@ Task detail is a full page at `/tasks/{id}` and at
 `/projects/{id}/tasks/{taskId}`. Returning from a nested task preserves the
 query filters in the URL; scroll restoration is not part of the contract.
 
-Phase 3b is pending. It expands the existing people/HR, branding, and account
-surfaces; it does not replace the shipped HR API or the PMO people picker. Its
+Phase 3b is delivered in this local checkout. It expands the existing
+people/HR, branding, and account surfaces; it does not replace the shipped HR
+API or the PMO people picker. Its
 working documents are [`docs/superpowers/specs/2026-09-05-nasq-phase-3b-people-branding-design.md`](docs/superpowers/specs/2026-09-05-nasq-phase-3b-people-branding-design.md),
 [`docs/superpowers/plans/2026-09-05-nasq-phase-3b-people-branding.md`](docs/superpowers/plans/2026-09-05-nasq-phase-3b-people-branding.md),
 and [`docs/superpowers/plans/2026-09-05-nasq-phase-3b-handoff.md`](docs/superpowers/plans/2026-09-05-nasq-phase-3b-handoff.md).
+
+The final local verification records Odoo aggregate `182` green, contracts
+`52` green, web `152` green, Playwright `47` green, and clean `ruff`,
+`vue-tsc`, and production-build gates. This is branch-local evidence only;
+canonical `main` remains the pre-Phase-3b baseline and no merge, push,
+deployment, DNS cutover, or release approval is implied. Detailed evidence is
+recorded in the [Phase 3b delivery report](docs/superpowers/plans/2026-09-05-nasq-phase-3b-delivery.md).
 
 ## Local development
 
@@ -52,7 +63,7 @@ cd /Users/tariq/code/odoo
 cd /path/to/nasq-worktree
 NUXT_ODOO_URL=http://127.0.0.1:8169 \
 NUXT_ODOO_DB=nasq_scratch \
-NUXT_PUBLIC_WS_URL=ws://127.0.0.1:8169/websocket \
+NUXT_PUBLIC_WS_URL=ws://localhost:8169/websocket \
 npm -w apps/web run dev -- --port 3100
 ```
 

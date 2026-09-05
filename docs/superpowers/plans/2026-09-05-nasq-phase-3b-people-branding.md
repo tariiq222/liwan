@@ -1,6 +1,6 @@
 # nasq Phase 3b — People Access, Branding, and Account Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Extend the delivered `/hr` directory with employee/access administration, add company branding settings and self-service password change, while preserving the shipped HR document system and PMO people picker.
 
@@ -9,6 +9,12 @@
 **Tech Stack:** Odoo 19.0 CE, Python 3.12, Nuxt 4/Vue 3/TypeScript, Tailwind v4, shadcn-vue, `@tanstack/vue-query`, zod 4, Vitest, Playwright.
 
 **Spec:** `docs/superpowers/specs/2026-09-05-nasq-phase-3b-people-branding-design.md`
+
+**Status:** Completed locally on `codex/phase-3b` on 2026-09-05. Final evidence:
+Odoo aggregate 182, contracts 52, web unit 152, and Playwright 47 green;
+`ruff`, `vue-tsc`, production build, and preservation checks passed. Canonical
+`main` remains the pre-Phase-3b baseline; no merge, push, or deployment is
+claimed. See `2026-09-05-nasq-phase-3b-delivery.md`.
 
 ## Global Constraints
 
@@ -107,7 +113,7 @@ password constant produced by T2 but do not modify its file.
 - Extend `ApiErrorSchema` with optional strict numeric `details`; extend web
   `ApiError` with `details?: Record<string, number>`.
 
-- [ ] **Step 1: Write contract failures before changing schemas.** Add fixtures
+- [x] **Step 1: Write contract failures before changing schemas.** Add fixtures
   that parse the exact compatibility block above, a `{items,total}` employee
   list, and the existing document fixture in the same run. Assert extra keys,
   `role: 'vendor'` on a write, blank names, passwords shorter than 8, and a
@@ -122,23 +128,23 @@ expect(() => HrAccessGrantSchema.parse({ password: '12345678', role: 'vendor' })
 expect(ApiErrorSchema.parse(inUse).details?.documents).toBe(2)
 ```
 
-- [ ] **Step 2: Run focused tests** from `packages/contracts` with
+- [x] **Step 2: Run focused tests** from `packages/contracts` with
   `npx vitest run src/hr/__tests__/schemas.test.ts src/common/__tests__/error-details.test.ts`.
   Expected: failures for missing additive fields/schemas and `details`; the HR
   file's existing document tests must still execute.
-- [ ] **Step 3: Implement the schemas.** Use `HrRefSchema` internally. Keep
+- [x] **Step 3: Implement the schemas.** Use `HrRefSchema` internally. Keep
   `HrEmployeeSchema`/`HrDepartmentSchema` names, add the new fields, and keep
   existing list/document exports. Write schemas are `.strict()` and accept
   nullable relation ids where the API clears a relation.
-- [ ] **Step 4: Thread error details through `useApi`.** Parse the additive
+- [x] **Step 4: Thread error details through `useApi`.** Parse the additive
   field and pass it to `new ApiError(status, code, message, field, details)`.
   Add a unit test that mocks a 422 response and observes all three counts.
-- [ ] **Step 5: Run the two focused contract files and**
+- [x] **Step 5: Run the two focused contract files and**
   `npx vitest run app/composables/__tests__/useApi.test.ts` from `apps/web`.
   Expected: green;
   `rg -n "export const RefSchema" packages/contracts/src` still reports only
   the PMO declaration.
-- [ ] **Step 6: Commit** only the listed paths with
+- [x] **Step 6: Commit** only the listed paths with
   `[IMP] contracts: extend compatible HR people and API error shapes`.
 
 ### Task 2: Add employee access and safe department lifecycle model rules
@@ -165,33 +171,33 @@ expect(ApiErrorSchema.parse(inUse).details?.documents).toBe(2)
 - Department helpers: `_nasq_create(vals)`, `_nasq_write(vals)`,
   `_nasq_usage() -> dict`, `_nasq_delete()`.
 
-- [ ] **Step 1: Write employee model tests.** Cover employee 403-equivalent
+- [x] **Step 1: Write employee model tests.** Cover employee 403-equivalent
   `AccessError`; grant with normalized email; missing/duplicate email; weak
   password; invalid role; grant on archived employee; re-grant same inactive
   user id; exact role change in both directions while preserving unrelated
   groups; password-only reset; no-op access patch; self role/deactivation;
   vendor protection; archive deactivates both records; unarchive keeps access
   off; work-email edit leaves login unchanged.
-- [ ] **Step 2: Write department model tests.** `_nasq_usage()` counts active
+- [x] **Step 2: Write department model tests.** `_nasq_usage()` counts active
   and archived employees, direct children, and `nasq.hr.document` rows. Delete
   succeeds only when all counts are zero and otherwise raises
   `department_in_use` with all three counts. Include a parent-cycle rejection.
-- [ ] **Step 3: Run focused Odoo model tests on a disposable DB** with tags
+- [x] **Step 3: Run focused Odoo model tests on a disposable DB** with tags
   `/nasq_hr:TestEmployeeModel,/nasq_hr:TestDepartmentModel,/nasq_hr:TestHrDocumentAcl`.
   Expected: missing helper failures while the existing document ACL tests pass.
-- [ ] **Step 4: Implement the rules and shared error extension.** Add the
+- [x] **Step 4: Implement the rules and shared error extension.** Add the
   password constant and optional `details` plumbing to the existing common
   handler; all old callers keep working unchanged. Admin checks use
   `nasq_core.group_customer_admin`. Vendor-linked employees reject archive and
   access writes with status 403. Role updates remove only the competing nasq
   role and preserve unrelated explicit groups. User creation uses normalized
   work email and `no_reset_password=True`; passwords never leave ORM writes.
-- [ ] **Step 5: Implement archive/delete semantics.** Use `active_test=False`
+- [x] **Step 5: Implement archive/delete semantics.** Use `active_test=False`
   when counting employees. Do not bypass the existing document restriction;
   surface it before unlink as structured `department_in_use`.
-- [ ] **Step 6: Re-run those focused model/document ACL classes.** The
+- [x] **Step 6: Re-run those focused model/document ACL classes.** The
   orchestrator owns ruff in T10.
-- [ ] **Step 7: Commit** with
+- [x] **Step 7: Commit** with
   `[ADD] nasq_hr: employee access and safe department lifecycle rules`.
 
 ### Task 3: Add shared branding and password contracts
@@ -209,15 +215,15 @@ expect(ApiErrorSchema.parse(inUse).details?.documents).toBe(2)
 - `PasswordChangeSchema`: strict `{current: nonempty string, new: min(8)}`;
   export `MIN_PASSWORD_LENGTH = 8`.
 
-- [ ] **Step 1:** Add tests for valid partial branding patches and password
+- [x] **Step 1:** Add tests for valid partial branding patches and password
   changes; reject empty patch, blank/long name, bad colour, `data:` logo,
   missing current, short new password, and extra keys.
-- [ ] **Step 2:** From `packages/contracts`, run
+- [x] **Step 2:** From `packages/contracts`, run
   `npx vitest run src/common/__tests__/branding-admin.test.ts src/common/__tests__/password.test.ts`;
   expect missing-schema failures.
-- [ ] **Step 3:** Implement and export the schemas without changing the
+- [x] **Step 3:** Implement and export the schemas without changing the
   four-field `BrandingSchema` or `MeSchema`.
-- [ ] **Step 4:** Re-run those two focused files and commit
+- [x] **Step 4:** Re-run those two focused files and commit
   `[ADD] contracts: branding patch and password change inputs`.
 
 ### Task 4: Extend the existing HR API without duplicating routes
@@ -245,32 +251,32 @@ expect(ApiErrorSchema.parse(inUse).details?.documents).toBe(2)
 - `hr_rule_handler(func)` converts `NasqHrRule` into `ApiError` with status,
   code, field, and details; place it inside `@api_handler` on mutation routes.
 
-- [ ] **Step 1: Expand endpoint key-set tests.** Existing active list/get tests
+- [x] **Step 1: Expand endpoint key-set tests.** Existing active list/get tests
   must now expect the additive fields and the paginated wrapper. Add POST/PATCH,
   archived-only list, archive/unarchive, cross-company invisibility, and
   login-not-renamed cases. Assert a
   plain employee gets 403 before any referenced-record lookup.
-- [ ] **Step 2: Add access/session HttpCase tests.** Prove every business error,
+- [x] **Step 2: Add access/session HttpCase tests.** Prove every business error,
   grant/re-grant, role changes, password reset, revoke, self guards, and vendor
   protection. Open a target session before admin reset/revoke and prove its
   next `/api/v1/me` fails; prove an untouched session remains valid.
-- [ ] **Step 3: Extend department tests.** Assert `employee_count` includes an
+- [x] **Step 3: Extend department tests.** Assert `employee_count` includes an
   archived employee. DELETE returns 204 when unused and 422 with exact
   `{employees,children,documents}` counts for each blocking reference.
-- [ ] **Step 4: Run focused endpoint tests** with tags
+- [x] **Step 4: Run focused endpoint tests** with tags
   `/nasq_hr:TestHrEmployees,/nasq_hr:TestHrAccess,/nasq_hr:TestHrDepartments,/nasq_hr:TestHrDocuments`.
   Expected failures are missing routes/keys only; existing document endpoint
   tests must remain green.
-- [ ] **Step 5: Implement serializers first, then extend the existing routes.**
+- [x] **Step 5: Implement serializers first, then extend the existing routes.**
   Preserve `q`, `department_id`, `limit`, `offset`, ordering, and total count.
   `archived=1|true` is archived-only/admin-only. Active non-admin reads use
   `hr.employee.public`; archived reads and all writes use `hr.employee` after
   the admin check, with `active_test=False`.
-- [ ] **Step 6: Map `NasqHrRule` to `ApiError`, including `details`.** Return
+- [x] **Step 6: Map `NasqHrRule` to `ApiError`, including `details`.** Return
   full employee bodies for every mutation and 204 for department deletion.
-- [ ] **Step 7: Re-run those four focused HR classes.** Cross-pillar PMO people
+- [x] **Step 7: Re-run those four focused HR classes.** Cross-pillar PMO people
   regression belongs to the orchestrator's T10 contract gate.
-- [ ] **Step 8: Commit** `[IMP] nasq_hr: employee administration and department delete API`.
+- [x] **Step 8: Commit** `[IMP] nasq_hr: employee administration and department delete API`.
 
 ### Task 5: Add authenticated branding administration
 
@@ -285,15 +291,15 @@ expect(ApiErrorSchema.parse(inUse).details?.documents).toBe(2)
 - `GET/PATCH /api/v1/admin/branding` requires customer admin; vendor qualifies
   through the implied group.
 
-- [ ] **Step 1:** Add tests for employee GET/PATCH 403, admin GET, partial
+- [x] **Step 1:** Add tests for employee GET/PATCH 403, admin GET, partial
   name/colour PATCH, 1px PNG/JPEG acceptance, malformed base64/GIF/over-1-MiB
   rejection, unknown fields, empty patch, and a changed versioned logo URL.
-- [ ] **Step 2:** Run focused Odoo classes
+- [x] **Step 2:** Run focused Odoo classes
   `/nasq_api:TestBrandingEndpoint,/nasq_api:TestAdminBranding`; expect
   404/validation failures.
-- [ ] **Step 3:** Implement parser and routes. Keep the public cache header and
+- [x] **Step 3:** Implement parser and routes. Keep the public cache header and
   its existing anonymous-read `sudo()`; use caller rights on admin routes.
-- [ ] **Step 4:** Re-run those focused classes; the orchestrator owns ruff.
+- [x] **Step 4:** Re-run those focused classes; the orchestrator owns ruff.
   Commit
   `[ADD] nasq_api: authenticated company branding updates`.
 
@@ -308,16 +314,16 @@ expect(ApiErrorSchema.parse(inUse).details?.documents).toBe(2)
 - The current session token is recomputed after success; other existing
   sessions naturally fail after the password hash changes.
 
-- [ ] **Step 1:** Add tests for anonymous 403, missing/wrong current password,
+- [x] **Step 1:** Add tests for anonymous 403, missing/wrong current password,
   weak new password, exact error fields, successful `Me` response, same-cookie
   `/me` success after change, new credential success, old credential failure,
   and a separately opened old session failing.
-- [ ] **Step 2:** Run focused Odoo classes
+- [x] **Step 2:** Run focused Odoo classes
   `/nasq_api:TestMeEndpoint,/nasq_api:TestChangePassword`; expect route 404.
-- [ ] **Step 3:** Implement using Odoo's `res.users.change_password`, catch only
+- [x] **Step 3:** Implement using Odoo's `res.users.change_password`, catch only
   credential denial as `wrong_password`, flush, and recompute the caller's
   session token. Do not return or cache either password.
-- [ ] **Step 4:** Re-run those focused classes; the orchestrator owns ruff.
+- [x] **Step 4:** Re-run those focused classes; the orchestrator owns ruff.
   Commit
   `[ADD] nasq_api: self password change with session continuity`.
 
@@ -354,33 +360,33 @@ expect(ApiErrorSchema.parse(inUse).details?.documents).toBe(2)
 - `hrAccess.ts` maps exact wire state to locale keys for no account, employee,
   admin, vendor, and access stopped.
 
-- [ ] **Step 1:** Unit-test badge mapping, archived parameter serialization,
+- [x] **Step 1:** Unit-test badge mapping, archived parameter serialization,
   and mutation cache invalidation. Password bodies must never appear in query
   keys or persisted cache data.
-- [ ] **Step 2:** Extend composables against T1/T4 schemas. Employee mutations
+- [x] **Step 2:** Extend composables against T1/T4 schemas. Employee mutations
   replace detail/list cache or invalidate `['hr','employees']`; they also
   invalidate `['people']` after access changes because PMO picker membership
   may change, without editing the picker itself.
-- [ ] **Step 3:** Build the employee dialogs. `EmployeeCard` remains the
+- [x] **Step 3:** Build the employee dialogs. `EmployeeCard` remains the
   read-only presentation for non-admins. Admin general fields save together;
   access actions are explicit, state-aware, and confirm destructive actions.
   Vendor state is read-only. Show the fixed-login warning after email edits.
-- [ ] **Step 4:** Extend `DirectoryTable` and `/hr` with top-level employee and
+- [x] **Step 4:** Extend `DirectoryTable` and `/hr` with top-level employee and
   department tabs. The employee table adds manager/account columns, admin
   create, archived view, and row management without moving the route to
   `/people`. In the departments tab, selecting a department mounts the
   existing `DocumentList` workflow and all document actions.
-- [ ] **Step 5:** Use `DeptPanel`, `DepartmentTable`, and `DepartmentDialog` for
+- [x] **Step 5:** Use `DeptPanel`, `DepartmentTable`, and `DepartmentDialog` for
   employee count and safe delete. For
   `department_in_use`, render separate employee/child/document reasons from
   `ApiError.details`; do not replace the server check with client-only logic.
-- [ ] **Step 6:** Add Arabic/English keys additively. Do not remove or rename
+- [x] **Step 6:** Add Arabic/English keys additively. Do not remove or rename
   `hr.docs.*`, `hr.directory.*`, or the delivered editor/reader messages.
-- [ ] **Step 7:** Run only
+- [x] **Step 7:** Run only
   `npx vitest run app/composables/__tests__/hrAccess.test.ts app/composables/__tests__/hrAdmin.test.ts`
   from `apps/web`. The orchestrator owns lint, browser acceptance, and the
   broad web suite in T10.
-- [ ] **Step 8:** Commit `[IMP] web: manage employees and access from the HR directory`.
+- [x] **Step 8:** Commit `[IMP] web: manage employees and access from the HR directory`.
 
 ### Task 8: Add branding settings with live preview
 
@@ -402,15 +408,15 @@ expect(ApiErrorSchema.parse(inUse).details?.documents).toBe(2)
 - `useBrandingAdmin()` parses `BrandingSchema`; `useUpdateBranding()` accepts
   `BrandingPatch`, replaces admin cache, and updates Nuxt data key `branding`.
 
-- [ ] **Step 1:** Test colour normalization and patch construction boundaries.
-- [ ] **Step 2:** Implement composable and settings tabs. Employee sees the
+- [x] **Step 1:** Test colour normalization and patch construction boundaries.
+- [x] **Step 2:** Implement composable and settings tabs. Employee sees the
   existing forbidden copy; admin/vendor can open the form.
-- [ ] **Step 3:** Implement explicit-save form and preview. Validate PNG/JPEG
+- [x] **Step 3:** Implement explicit-save form and preview. Validate PNG/JPEG
   and 1 MiB before base64 conversion; strip the `data:` prefix from the body.
-- [ ] **Step 4:** Update the public branding state from the PATCH response so
+- [x] **Step 4:** Update the public branding state from the PATCH response so
   sidebar/title/colour change immediately; retain server cache behavior on
   hard reload.
-- [ ] **Step 5:** Run
+- [x] **Step 5:** Run
   `npx vitest run app/composables/__tests__/colorHex.test.ts` from `apps/web`;
   the orchestrator owns lint and the broad web suite. Commit
   `[ADD] web: company branding settings and live preview`.
@@ -435,15 +441,15 @@ expect(ApiErrorSchema.parse(inUse).details?.documents).toBe(2)
 - Form test ids: `pw-current`, `pw-new`, `pw-confirm`, `pw-submit`;
   sidebar item: `nav-account`.
 
-- [ ] **Step 1:** Add pure helper tests for mismatch, minimum length, and
+- [x] **Step 1:** Add pure helper tests for mismatch, minimum length, and
   wrong-current/weak-new error mapping. Browser acceptance in T10 covers field
   clearing and hydration-disabled controls because this repository has no Vue
   component-mounting test dependency.
-- [ ] **Step 2:** Implement mutation and form. Map only `wrong_password` to the
+- [x] **Step 2:** Implement mutation and form. Map only `wrong_password` to the
   current field and `weak_password` to the new field; preserve other API text.
-- [ ] **Step 3:** Add `/account` and the user-menu item above logout. Add mirrored
+- [x] **Step 3:** Add `/account` and the user-menu item above logout. Add mirrored
   `account.*` and `nav.account` copy to common locales.
-- [ ] **Step 4:** Run
+- [x] **Step 4:** Run
   `npx vitest run app/composables/__tests__/passwordForm.test.ts` from
   `apps/web`; the orchestrator owns lint and the broad web suite. Commit
   `[ADD] web: self-service password change from account`.
@@ -465,22 +471,22 @@ expect(ApiErrorSchema.parse(inUse).details?.documents).toBe(2)
 - No test relies only on hidden UI for authorization; backend HttpCase remains
   the direct security proof.
 
-- [ ] **Step 1: Extend live contract checks.** Parse all HR list envelopes and
+- [x] **Step 1: Extend live contract checks.** Parse all HR list envelopes and
   mutation responses; parse branding/account responses; assert PMO people ids
   resolve to the linked `res.users` record, using fixtures whose user and
   employee ids deliberately differ (the two models may otherwise share the
   same numeric id).
-- [ ] **Step 2: Add HR access scenario.** Admin creates an employee on `/hr`,
+- [x] **Step 2: Add HR access scenario.** Admin creates an employee on `/hr`,
   grants access, signs in through a second context, sees read-only HR, promotes
   then demotes the user, resets password, revokes access, and observes the old
   context redirect to login. Exercise archive/unarchive and confirm documents
   remain usable throughout.
-- [ ] **Step 3: Add branding scenario.** Save name/colour and a small PNG,
+- [x] **Step 3: Add branding scenario.** Save name/colour and a small PNG,
   observe sidebar update without reload, then reload and parse admin branding.
-- [ ] **Step 4: Add account scenario.** Change the admin password, remain signed
+- [x] **Step 4: Add account scenario.** Change the admin password, remain signed
   in, authenticate with the new password, then restore the original password in
   teardown even if an intermediate assertion fails.
-- [ ] **Step 5: Run the final gate once on a fresh disposable DB:** Odoo four
+- [x] **Step 5: Run the final gate once on a fresh disposable DB:** Odoo four
   addons with all four tags, `ruff check odoo-addons`, contracts unit, web unit,
   web lint/vue-tsc, then Playwright with the required services. Stop the task
   Nuxt dev server before `npm run build` so generated state is not shared
@@ -488,10 +494,10 @@ expect(ApiErrorSchema.parse(inUse).details?.documents).toBe(2)
   counts; the pre-plan baseline reported by the integration lead was 144 Odoo,
   41 contracts, and 136 web unit tests, with ruff/lint green, but completion
   requires fresh post-change evidence.
-- [ ] **Step 6:** Run explicit preservation checks: no diff in PMO people picker;
+- [x] **Step 6:** Run explicit preservation checks: no diff in PMO people picker;
   all `HrDocument*` exports remain; existing HR document tests/e2e pass; `/hr`
   is still the sidebar destination; `rg -n "sudo\("` shows no new occurrence.
-- [ ] **Step 7:** Update delivery docs additively and verify provisioning still
+- [x] **Step 7:** Update delivery docs additively and verify provisioning still
   installs `nasq_hr`; do not rewrite `deploy/provision.sh` without an actual
   missing entry. Do not mark the archived pre-reorganization WIP as shipped. Commit
   `[IMP] docs: deliver reconciled phase 3b people branding and account`.

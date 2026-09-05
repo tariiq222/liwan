@@ -7,7 +7,28 @@ this order:
 2. `docs/superpowers/plans/2026-09-05-nasq-phase-3b-people-branding.md`
 3. `CLAUDE.md` and `docs/parallel-work.md`
 
-## Starting point
+## Delivery result — 2026-09-05
+
+The plan is complete on the local `codex/phase-3b` worktree. All T1–T9
+packages passed focused review and T10 passed its integrated gate: Odoo
+aggregate `182`, contracts `52`, web unit `152`, and Playwright `47`, with
+clean `ruff`, `vue-tsc`, production build, and preservation checks. The live
+browser gate includes effective role demotion, old-session reset/revoke
+invalidation, current-session password continuity, credential-field cleanup,
+branding preview/save/reload, and preserved HR documents.
+
+Two legacy PMO UI races found by the full gate were corrected: project rows
+now keep stable project-id keys and render a deterministic pre-hydration
+skeleton, while query-driven task table/board surfaces mount after their page
+has hydrated. The affected three cases passed nine consecutive focused runs
+before the fresh 47-case gate.
+
+Canonical `/Users/tariq/code/nasq` `main` remains the pre-Phase-3b baseline.
+The branch has not been merged, pushed, tagged, or deployed. The detailed
+commands, artifacts, and preview runtime are in
+`2026-09-05-nasq-phase-3b-delivery.md`.
+
+## Historical starting point
 
 - After workspace reorganization lands, start from canonical
   `/Users/tariq/code/nasq` `main` and create a fresh Codex task worktree using
@@ -134,7 +155,7 @@ project skill and repository instructions at execution time.
 - The final report lists commits, exact gate summaries, preservation checks,
   and any deviation. A failed gate blocks merge/tag claims.
 
-## Starter prompt
+## Historical starter prompt
 
 > Execute the reconciled nasq phase 3b from a fresh Codex task worktree created
 > from canonical `/Users/tariq/code/nasq` `main` after workspace reorganization.

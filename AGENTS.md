@@ -15,8 +15,10 @@ These are repository instructions for every coding agent, regardless of tool.
   through `nasq_hr`. Do not recreate either pillar.
 - The HR page is `/hr`; `/api/v1/people` remains the PMO user-id picker. Preserve
   HR documents and the `{items, total}` list envelopes.
-- Phase 3b is planned, not delivered. Read its current spec, plan, and handoff
-  under `docs/superpowers/`; archived plans and WIP are reference material.
+- Phase 3b is delivered on the local `codex/phase-3b` branch and remains
+  unmerged into canonical `main`. Read its spec, plan, handoff, and delivery
+  report under `docs/superpowers/`; archived plans and WIP are reference
+  material.
 - Never run tests on `odoo19`. Do not commit, merge, push, deploy, remove
   worktrees/branches, or discard work without authorization for that action.
 - Local verification does not prove production deployment. Report fresh test

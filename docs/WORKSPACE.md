@@ -13,11 +13,22 @@ tagged `archive/pre-reorganization-20260905` at `e4e8e9b`, with the preserved bu
 `/Users/tariq/code/nasq-recovery-20260905/preserved-work.bundle`. WIP contract
 material in recovery is quarantined and is not delivered product content.
 
-Phase 3b remains pending. Its current execution documents are:
+Phase 3b is complete on the separate local worktree
+`/Users/tariq/code/nasq-phase-3b`, branch `codex/phase-3b`. Canonical
+`/Users/tariq/code/nasq` `main` remains at the pre-Phase-3b baseline until an
+explicit integration is authorized. Its delivery documents are:
 
 - [`people-branding plan`](superpowers/plans/2026-09-05-nasq-phase-3b-people-branding.md)
 - [`handoff`](superpowers/plans/2026-09-05-nasq-phase-3b-handoff.md)
+- [`delivery report`](superpowers/plans/2026-09-05-nasq-phase-3b-delivery.md)
 - [`parallel-work`](parallel-work.md)
+
+The branch-local final gates record Odoo aggregate `182`, contracts `52`, web
+unit `152`, and Playwright `47` green, plus clean `ruff`, `vue-tsc`, and
+production-build gates. A built review preview uses Nuxt `3200`, isolated
+Odoo `9169`, and scratch database
+`nasq_phase3b_e2e_final4_20260905_1653`. This runtime is local review evidence,
+not a deployment.
 
 ## Start and inspect
 
@@ -67,10 +78,10 @@ before any explicitly authorized cleanup or integration action.
 | `nasq-hr` / `phase-hr` | Retired; all commits were already in main. Dependency symlinks were removed without touching their targets. |
 | `nasq-docs-hr` / `docs/hr` | Retired; original untracked HR documents are preserved under `docs/archive/` and the external recovery directory. |
 | Old `phase-3b` | Renamed `archive/phase-3b-wip-20260905`, with recovery tag and bundle; incomplete contracts are excluded from the integrated product. |
-| `nasq-integration` | Removed with its merged branch after integration and runtime verification. Only the canonical worktree remains; future tasks create fresh worktrees from main. |
+| `nasq-integration` | Removed with its merged branch after integration and runtime verification. At that historical point only the canonical worktree remained; the later Phase 3b worktree is listed above. |
 | Odoo repository | Source, config, and branches unchanged. Its `web-theme-shadcn` branch is outside this cleanup. |
 | HR architecture | Stock `hr` plus `nasq_hr`; stock `project` plus `nasq_pmo`. `/hr` stays; the dead `/people` page is removed. |
-| Next product work | Reconciled phase 3b: 10 tasks in 4 dependency waves; Codex team only. No phase-3b features claimed delivered. |
+| Next product work at reorganization | Reconciled Phase 3b: 10 tasks in 4 dependency waves; subsequently completed on `codex/phase-3b` as recorded above. |
 
 ### Recovery
 

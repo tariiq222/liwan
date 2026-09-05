@@ -5,6 +5,21 @@ integration is `/Users/tariq/code/nasq` on `main`; a task worktree is not a
 permanent product pillar checkout. One writer owns each file. One orchestrator
 owns shared files, Git integration, runtime state, and final verification.
 
+## Current delivery status
+
+Phase 3b is delivered on the local `codex/phase-3b` branch. The HR owner
+covers `/hr`, employee administration and access/archive actions, department
+management, and the preserved department document workflows. Vendor-linked
+account role/access and archive controls are protected from HR admin
+mutations. Branding administration and `/account` password changes are also
+delivered. The HR employee-id API remains separate from the PMO user-id
+`/api/v1/people` picker.
+
+The final local gates are Odoo aggregate `182`, contracts `52`, web unit
+`152`, and Playwright `47` green, plus clean `ruff`, `vue-tsc`, and
+production-build gates. Canonical `main` remains the pre-Phase-3b baseline;
+no merge, push, deployment, DNS cutover, or release approval is implied.
+
 ## File ownership
 
 | Surface | Shared | PMO | HR |
@@ -67,7 +82,7 @@ cd /Users/tariq/code/odoo
 cd /path/to/nasq-worktree
 NUXT_ODOO_URL=http://127.0.0.1:8169 \
 NUXT_ODOO_DB=nasq_scratch \
-NUXT_PUBLIC_WS_URL=ws://127.0.0.1:8169/websocket \
+NUXT_PUBLIC_WS_URL=ws://localhost:8169/websocket \
 npm -w apps/web run dev -- --port 3100
 ```
 

@@ -2,16 +2,16 @@
 
 **Date:** 2026-09-03
 **Target:** Odoo 19.0 Community (pinned to `19.0` stable, never forked) + Nuxt 4
-**Status:** Approved — phase 0 planned
+**Status:** Approved — phases 0–3b delivered locally; later packages remain planned
 
 ## Goal
 
 **nasq** (نَسَق) is a resellable, **full integrated enterprise management
 suite** — initiatives, projects, HR (human resources), and meeting management
 as core pillars — with a Stripe-level UI, built on Odoo 19 Community as its
-engine. It is delivered in phases; **phase 1 delivers project/task management
-only**, with initiatives, HR, and meetings following in later phases (see
-Phases below). Customers' staff use a Nuxt web app and never see Odoo; Odoo's
+engine. It is delivered in phases; the original phase-1 scope delivered
+project/task management first, followed by the delivered HR, branding, and
+account work in phase 3b (see Phases below). Customers' staff use a Nuxt web app and never see Odoo; Odoo's
 own web client is reserved for the vendor (us). Each customer runs an
 independent deployment (managed by us or on-premise). Erada is customer #1,
 not the scope.
@@ -213,6 +213,20 @@ WS    /websocket                             bus, unchanged
 emit OpenAPI; the serializers are the server-side mirror and are tested against
 the zod schemas in CI.
 
+### Phase 3b delivered surfaces
+
+The delivered phase 3b extension keeps `/hr` as the canonical people screen.
+It adds employee administration, access/archive controls, department
+management, and safe deletion, while preserving department document
+create/edit/read and attachment actions. Vendor-linked account role/access
+and archive controls are protected from HR admin mutations. HR employee ids
+remain separate from the PMO user-id resource at `/api/v1/people`.
+
+It also delivers customer branding administration at `/settings/branding` and
+self-service password changes at `/account`. These surfaces use the existing
+session-cookie topology and strict wire contracts; no new deployment or
+multi-tenant layer is introduced.
+
 ### Frontend stack
 
 | Layer | Choice | Role |
@@ -281,10 +295,9 @@ every schema change; supported core versions: current + previous.
 ## Phases
 
 nasq's full scope is the four pillars in Goal (initiatives, projects, HR,
-meetings). Phases 0-3 below deliver the **project-management pillar only**,
-built first because it is the fastest path to a demo-able product for Erada.
-The remaining pillars (initiatives, HR beyond read-only "People", meetings)
-are phase-4-and-later work, not out-of-scope forever.
+meetings). Phases 0-3 below record the project-management-first delivery and
+the phase 3b HR, branding, and account extension. Initiatives, meetings, and
+the remaining later packages are phase-4-and-later work.
 
 | Phase | Delivers | Duration |
 |---|---|---|
@@ -292,8 +305,14 @@ are phase-4-and-later work, not out-of-scope forever.
 | 1 — Core | My tasks table + board, task detail **modal** at `/tasks/{id}` (autosave, comments, sub-tasks), real-time | Delivered 2026-09-04 |
 | 2 — Projects | Projects list, project screen (list / board by project stage, status set by managers) — spec `2026-09-04-nasq-phase-2-projects-design.md` | Delivered 2026-09-05 |
 | **Demo to Erada** | | **~7 weeks** |
-| 3 — Completion | Decomposed 2026-09-05 into five packages — spec `2026-09-05-nasq-phase-3a-project-admin-design.md` and successors: **3a project administration delivered 2026-09-05**; 3b platform settings (users + branding), 3c Today, 3d Reports, 3e PWA/polish pending | 3 weeks |
+| 3 — Completion | Decomposed 2026-09-05 into five packages — **3a project administration delivered 2026-09-05**; **3b people/access, branding, and account delivered locally 2026-09-05**; 3c Today, 3d Reports, 3e PWA/polish pending | 3 weeks |
 | 4 — Later packages | Gantt (custom build), risks, initiatives, meetings, KPIs, SSO, portal users | per package |
+
+The final delivery evidence is local to `codex/phase-3b`: Odoo aggregate
+`182`, contracts `52`, web unit `152`, and Playwright `47` green, plus clean
+`ruff`, `vue-tsc`, and production-build gates. Canonical `main` remains the
+pre-Phase-3b baseline; no merge, push, deployment, DNS cutover, or release
+approval is implied.
 
 ## Out of scope (v1)
 
