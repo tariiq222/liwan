@@ -2,6 +2,8 @@ import {
   TaskSchema, TaskDetailSchema, TaskStateSchema, TaskPatchSchema,
   TaskCreateSchema, TimelineEntrySchema, PersonalStageSchema,
   ProjectSchema, ProjectDetailSchema, ProjectStatusBodySchema, PROJECT_STATUSES,
+  ProjectListSchema, VisibilitySchema, ProjectPatchSchema,
+  MilestoneSchema, ProjectUpdateSchema, ProjectSettingsSchema, StageOrderBodySchema,
 } from '../index'
 
 // The literal below matches TASK_KEYS in odoo-addons/nasq_pmo/tests/test_tasks.py exactly —
@@ -27,6 +29,7 @@ describe('TaskDetailSchema', () => {
       description_html: '<p>desc</p>', allocated_hours: 4, age_days: 0, cycle_days: null,
       subtasks: [], depends_on: [], attachments: [], can_approve: false,
       created_at: '2026-08-01T09:00:00Z', updated_at: '2026-08-01T09:00:00Z',
+      milestone: null,
     })
     expect(parsed.cycle_days).toBeNull()
   })
@@ -85,7 +88,7 @@ describe('PersonalStageSchema', () => {
   })
 })
 
-const PROJECT_JSON = { id: 3, name: 'Erada Portal', status: null, progress: 33, task_count: 3, closed_task_count: 1 }
+const PROJECT_JSON = { id: 3, name: 'Erada Portal', status: null, progress: 33, task_count: 3, closed_task_count: 1, active: true, can_manage: false }
 
 describe('ProjectSchema', () => {
   it('accepts the list shape with a null (unset) status', () => {
@@ -103,7 +106,9 @@ describe('ProjectDetailSchema', () => {
   it('accepts stages and can_manage', () => {
     const parsed = ProjectDetailSchema.parse({
       ...PROJECT_JSON, status: 'at_risk', can_manage: true,
-      stages: [{ id: 1, name: 'A', sequence: 10, fold: true }],
+      stages: [{ id: 1, name: 'A', sequence: 10, fold: true, task_count: 0 }],
+      description_html: '', manager: null, privacy_visibility: 'employees',
+      date_start: null, date_end: null, tags: [], followers_count: 0, milestone_count: 0,
     })
     expect(parsed.stages[0]!.fold).toBe(true)
   })
@@ -119,5 +124,51 @@ describe('ProjectStatusBodySchema', () => {
 describe('TaskPatchSchema stage_id', () => {
   it('accepts stage_id', () => {
     expect(TaskPatchSchema.parse({ stage_id: 4 })).toEqual({ stage_id: 4 })
+  })
+})
+
+const STAGE = { id: 1, name: 'A', sequence: 10, fold: false, task_count: 2 }
+const PROJECT = { id: 3, name: 'P', status: null, progress: 0, task_count: 0, closed_task_count: 0, active: true, can_manage: true }
+
+describe('ProjectListSchema', () => {
+  it('is an object with items and can_create, not the phase-2 bare array', () => {
+    expect(ProjectListSchema.parse({ items: [PROJECT], can_create: false }).can_create).toBe(false)
+    expect(() => ProjectListSchema.parse([PROJECT])).toThrow()
+  })
+})
+
+describe('ProjectDetailSchema (3a)', () => {
+  it('carries settings fields', () => {
+    const d = ProjectDetailSchema.parse({
+      ...PROJECT, stages: [STAGE], description_html: '', manager: { id: 2, name: 'M' }, privacy_visibility: 'followers',
+      date_start: '2030-01-01', date_end: null, tags: [], followers_count: 1, milestone_count: 0,
+    })
+    expect(d.stages[0]!.task_count).toBe(2)
+  })
+  it('rejects portal visibility', () => {
+    expect(() => VisibilitySchema.parse('portal')).toThrow()
+  })
+})
+
+describe('ProjectPatchSchema', () => {
+  it('accepts nullable dates and manager, rejects unknown keys', () => {
+    expect(ProjectPatchSchema.parse({ date_start: null, user_id: null, tag_ids: [1] })).toEqual({ date_start: null, user_id: null, tag_ids: [1] })
+    expect(() => ProjectPatchSchema.parse({ active: false })).toThrow()
+  })
+})
+
+describe('Milestone / ProjectUpdate / Settings', () => {
+  it('parse their fixtures', () => {
+    MilestoneSchema.parse({ id: 1, name: 'M', deadline: null, is_reached: false, reached_date: null, task_count: 0, done_task_count: 0 })
+    ProjectUpdateSchema.parse({ id: 1, name: 'W1', status: 'on_track', description_html: '<p>x</p>', date: '2030-01-01', author: { id: 2, name: 'M' } })
+    expect(ProjectSettingsSchema.parse({ project_creators: 'managers', default_stages: [{ name: 'A', fold: true }] }).default_stages).toHaveLength(1)
+    expect(() => ProjectSettingsSchema.parse({ project_creators: 'anyone', default_stages: [] })).toThrow()
+    expect(StageOrderBodySchema.parse({ ids: [2, 1] }).ids).toEqual([2, 1])
+  })
+})
+
+describe('Task milestone', () => {
+  it('detail carries milestone and patch accepts milestone_id null', () => {
+    expect(TaskPatchSchema.parse({ milestone_id: null })).toEqual({ milestone_id: null })
   })
 })
