@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { LogOut } from 'lucide-vue-next'
+import { LogOut, UserRound } from 'lucide-vue-next'
 
 const { t } = useI18n()
 const { me } = useMe()
@@ -84,6 +84,9 @@ async function logout() {
           </SidebarMenuButton>
         </DropdownMenuTrigger>
         <DropdownMenuContent side="top" align="end" class="w-56">
+          <DropdownMenuItem as-child>
+            <NuxtLink to="/account" data-testid="nav-account"><UserRound class="me-2 size-4" />{{ $t('nav.account') }}</NuxtLink>
+          </DropdownMenuItem>
           <DropdownMenuItem @select="logout"><LogOut class="me-2 size-4" />{{ $t('nav.logout') }}</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

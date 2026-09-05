@@ -16,6 +16,7 @@
     "console": "Console",
     "goTo": "Go to",
     "typeToNavigate": "Type to navigate…",
+    "account": "Account",
     "logout": "Log out",
     "settings": "Settings"
   },
@@ -35,6 +36,18 @@
     "serverUnreachable": "Unable to reach the server",
     "badPayload": "Invalid response from the server",
     "generic": "An unexpected error occurred"
+  },
+  "account": {
+    "title": "Account",
+    "description": "Manage your account settings.",
+    "passwordTitle": "Change password",
+    "currentPassword": "Current password",
+    "newPassword": "New password",
+    "confirmPassword": "Confirm new password",
+    "passwordMismatch": "Passwords do not match.",
+    "passwordTooShort": "The new password must be at least 8 characters.",
+    "submit": "Change password",
+    "success": "Password changed successfully."
   },
   "bus": {
     "connected": "Connected",
