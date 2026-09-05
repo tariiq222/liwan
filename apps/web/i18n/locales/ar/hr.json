@@ -1,0 +1,39 @@
+{
+  "hr": {
+    "directory": {
+      "title": "الأشخاص",
+      "empty": "لا موظفون بعد",
+      "search": "بحث بالاسم…",
+      "allDepartments": "كل الأقسام",
+      "columns": { "name": "الاسم", "jobTitle": "المسمى الوظيفي", "department": "القسم" }
+    },
+    "card": {
+      "title": "بطاقة الموظف",
+      "name": "الاسم",
+      "jobTitle": "المسمى الوظيفي",
+      "department": "القسم",
+      "email": "البريد",
+      "phone": "الهاتف"
+    },
+    "depts": {
+      "title": "الأقسام",
+      "new": "قسم جديد",
+      "manager": "مدير القسم",
+      "parent": "القسم الأب",
+      "name": "الاسم",
+      "none": "بلا"
+    },
+    "docs": {
+      "title": "المستندات",
+      "new": "مستند جديد",
+      "empty": "لا مستندات",
+      "search": "بحث بالعنوان…",
+      "newTitle": "عنوان المستند",
+      "body": "المحتوى",
+      "linkPrompt": "عنوان الرابط",
+      "attachments": "المرفقات",
+      "download": "تنزيل",
+      "columns": { "name": "العنوان", "updated": "آخر تحديث", "department": "القسم" }
+    }
+  }
+}

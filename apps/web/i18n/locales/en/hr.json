@@ -1,0 +1,39 @@
+{
+  "hr": {
+    "directory": {
+      "title": "People",
+      "empty": "No employees yet",
+      "search": "Search by name…",
+      "allDepartments": "All departments",
+      "columns": { "name": "Name", "jobTitle": "Job title", "department": "Department" }
+    },
+    "card": {
+      "title": "Employee card",
+      "name": "Name",
+      "jobTitle": "Job title",
+      "department": "Department",
+      "email": "Email",
+      "phone": "Phone"
+    },
+    "depts": {
+      "title": "Departments",
+      "new": "New department",
+      "manager": "Department manager",
+      "parent": "Parent department",
+      "name": "Name",
+      "none": "None"
+    },
+    "docs": {
+      "title": "Documents",
+      "new": "New document",
+      "empty": "No documents",
+      "search": "Search by title…",
+      "newTitle": "Document title",
+      "body": "Body",
+      "linkPrompt": "Link URL",
+      "attachments": "Attachments",
+      "download": "Download",
+      "columns": { "name": "Title", "updated": "Last updated", "department": "Department" }
+    }
+  }
+}
