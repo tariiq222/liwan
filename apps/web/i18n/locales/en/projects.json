@@ -17,6 +17,74 @@
     "setStatus": "Project status",
     "statusUpdated": "Project status updated",
     "progressOf": "{closed} of {total} tasks",
-    "tabs": { "list": "List", "board": "Board" }
+    "new": "New project",
+    "newName": "Project name",
+    "created": "Project created",
+    "createForbidden": "You may not create projects",
+    "filters": { "active": "Active", "archived": "Archived" },
+    "archivedEmpty": "No archived projects",
+    "menu": { "settings": "Project settings", "archive": "Archive project", "unarchive": "Unarchive" },
+    "archiveConfirmTitle": "Archive this project?",
+    "archiveConfirmText": "The project and its tasks leave the lists. You can unarchive it later from the Archived filter.",
+    "archived": "Project archived",
+    "unarchived": "Project unarchived",
+    "settings": {
+      "title": "Project settings",
+      "tabs": { "general": "General", "stages": "Stages", "followers": "Followers" },
+      "name": "Name",
+      "description": "Description",
+      "manager": "Manager",
+      "noManager": "No manager",
+      "visibility": "Visibility",
+      "visibilityEmployees": "All employees",
+      "visibilityFollowers": "Followers only",
+      "dateStart": "Start date",
+      "dateEnd": "End date",
+      "noDate": "No date",
+      "tags": "Tags",
+      "saved": "Saved"
+    },
+    "stages": {
+      "add": "New stage",
+      "addPlaceholder": "Stage name",
+      "rename": "Rename",
+      "fold": "Folded",
+      "delete": "Delete",
+      "notEmpty": "This stage holds {count} tasks",
+      "deleted": "Stage deleted",
+      "empty": "No stages yet"
+    },
+    "followers": {
+      "add": "Add follower",
+      "remove": "Remove",
+      "empty": "No followers yet",
+      "hint": "With \"Followers only\", only people on this list see the project."
+    },
+    "tabs": { "list": "List", "board": "Board", "milestones": "Milestones", "updates": "Updates" },
+    "milestones": {
+      "new": "New milestone",
+      "edit": "Edit milestone",
+      "name": "Name",
+      "deadline": "Deadline",
+      "tasks": "Tasks",
+      "state": "State",
+      "reached": "Reached",
+      "notReached": "Not reached",
+      "markReached": "Mark reached",
+      "reopen": "Reopen",
+      "delete": "Delete",
+      "hasTasks": "{count} tasks are linked to this milestone",
+      "empty": "No milestones yet",
+      "tasksOf": "{done} of {total}"
+    },
+    "updates": {
+      "new": "New update",
+      "title": "Title",
+      "body": "Body",
+      "status": "Status",
+      "empty": "No updates yet",
+      "by": "by {name}",
+      "posted": "Update posted"
+    }
   }
 }

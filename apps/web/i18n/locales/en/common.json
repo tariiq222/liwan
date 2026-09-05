@@ -15,7 +15,8 @@
     "console": "Console",
     "goTo": "Go to",
     "typeToNavigate": "Type to navigate…",
-    "logout": "Log out"
+    "logout": "Log out",
+    "settings": "Settings"
   },
   "auth": {
     "username": "Username",

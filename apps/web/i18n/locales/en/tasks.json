@@ -75,7 +75,14 @@
       "created": "Created",
       "updated": "Last updated",
       "unassigned": "Unassigned",
-      "removeAssignee": "Remove assignee"
+      "removeAssignee": "Remove assignee",
+      "milestone": "Milestone",
+      "noMilestone": "No milestone",
+      "addTag": "Add tag",
+      "createTag": "Create \"{name}\"",
+      "archive": "Archive task",
+      "archiveConfirm": "The task leaves every list. Continue?",
+      "archived": "Task archived"
     },
     "transition": {
       "forbidden": "This transition requires project manager permission"
