@@ -3,6 +3,7 @@ import { toast } from 'vue-sonner'
 import { ApiError } from '@/composables/useApi'
 import { buildBrandingPatch, normalizeHex } from '@/composables/colorHex'
 import { useBrandingAdmin, useUpdateBranding } from '@/composables/useBrandingAdmin'
+import BrandingPreview from '@/components/settings/BrandingPreview.vue'
 
 const MAX_LOGO_BYTES = 1024 * 1024
 const ALLOWED_LOGO_TYPES = new Set(['image/png', 'image/jpeg'])
@@ -17,6 +18,8 @@ const color = ref('#18181b')
 const logo = ref<string | null>(null)
 const logoPreview = ref<string | null>(null)
 const validationError = ref('')
+const logoReadPending = ref(false)
+let logoReadGeneration = 0
 
 watch(branding, (value) => {
   if (!value) return
@@ -40,9 +43,11 @@ function readLogo(file: File): Promise<string> {
 }
 
 async function onLogo(event: Event) {
+  const generation = ++logoReadGeneration
   validationError.value = ''
   logo.value = null
   logoPreview.value = null
+  logoReadPending.value = false
   const input = event.target as HTMLInputElement
   const file = input.files?.[0]
   if (!file) return
@@ -56,20 +61,29 @@ async function onLogo(event: Event) {
     input.value = ''
     return
   }
+  logoReadPending.value = true
   try {
     const dataUrl = await readLogo(file)
+    if (generation !== logoReadGeneration) return
     const separator = dataUrl.indexOf(',')
     if (separator < 0) throw new Error('invalid_data_url')
     logo.value = dataUrl.slice(separator + 1)
     logoPreview.value = dataUrl
   } catch {
+    if (generation !== logoReadGeneration) return
     validationError.value = t('settings.branding.errors.logoRead')
     input.value = ''
+  } finally {
+    if (generation === logoReadGeneration) logoReadPending.value = false
   }
 }
 
 async function save() {
   validationError.value = ''
+  if (logoReadPending.value) {
+    validationError.value = t('settings.branding.errors.logoReading')
+    return
+  }
   const patch = buildBrandingPatch({
     name: name.value,
     primaryColor: color.value,
@@ -95,7 +109,10 @@ async function save() {
   }
 }
 
-onBeforeUnmount(() => update.reset())
+onBeforeUnmount(() => {
+  logoReadGeneration += 1
+  update.reset()
+})
 </script>
 
 <template>
@@ -104,7 +121,7 @@ onBeforeUnmount(() => update.reset())
     <form class="space-y-5" data-testid="branding-form" @submit.prevent="save">
       <div class="space-y-2">
         <Label for="branding-name">{{ t('settings.branding.name') }}</Label>
-        <Input id="branding-name" v-model="name" data-testid="branding-name" maxlength="100" :disabled="!hydrated || update.isPending.value" />
+        <Input id="branding-name" v-model="name" data-testid="branding-name" maxlength="100" :disabled="!hydrated || update.isPending.value || logoReadPending" />
       </div>
       <div class="space-y-2">
         <Label for="branding-color">{{ t('settings.branding.color') }}</Label>
@@ -115,9 +132,9 @@ onBeforeUnmount(() => update.reset())
             data-testid="branding-color"
             dir="ltr"
             class="font-mono"
-            :disabled="!hydrated || update.isPending.value"
+            :disabled="!hydrated || update.isPending.value || logoReadPending"
           />
-          <input v-model="color" type="color" class="h-9 w-12 rounded border p-1" :disabled="!hydrated || update.isPending.value">
+          <input v-model="color" type="color" class="h-9 w-12 rounded border p-1" :disabled="!hydrated || update.isPending.value || logoReadPending">
         </div>
       </div>
       <div class="space-y-2">
@@ -133,7 +150,7 @@ onBeforeUnmount(() => update.reset())
         <p class="text-xs text-muted-foreground">{{ t('settings.branding.logoHint') }}</p>
       </div>
       <p v-if="validationError" role="alert" class="text-sm text-destructive">{{ validationError }}</p>
-      <Button type="submit" data-testid="branding-submit" :disabled="!hydrated || update.isPending.value">
+      <Button type="submit" data-testid="branding-submit" :disabled="!hydrated || update.isPending.value || logoReadPending">
         {{ update.isPending.value ? t('settings.branding.saving') : t('settings.branding.save') }}
       </Button>
     </form>

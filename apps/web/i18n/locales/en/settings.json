@@ -23,6 +23,7 @@
         "invalid": "Enter a valid name and six-digit color",
         "logoFormat": "Use a PNG or JPEG image",
         "logoSize": "The logo must not exceed 1 MiB",
+        "logoReading": "Wait for the logo to finish loading",
         "logoRead": "The logo image could not be read"
       }
     },
