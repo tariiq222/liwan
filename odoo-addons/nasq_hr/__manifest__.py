@@ -12,6 +12,7 @@
     'depends': ['nasq_api', 'hr', 'mail'],
     'data': [
         'security/hr_document_rules.xml',
+        'security/hr_people_rules.xml',
         'security/ir.model.access.csv',
     ],
     'installable': True,

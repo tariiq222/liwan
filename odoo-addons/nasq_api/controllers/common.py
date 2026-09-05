@@ -6,18 +6,23 @@ from odoo.exceptions import AccessError, MissingError, UserError, ValidationErro
 from odoo.http import request
 
 _logger = logging.getLogger(__name__)
+MIN_PASSWORD_LENGTH = 8
 
 
 class ApiError(Exception):
-    def __init__(self, status, code, message, field=None):
+    def __init__(self, status, code, message, field=None, details=None):
         super().__init__(message)
-        self.status, self.code, self.message, self.field = status, code, message, field
+        self.status, self.code, self.message, self.field, self.details = (
+            status, code, message, field, details
+        )
 
 
-def error_response(status, code, message, field=None):
+def error_response(status, code, message, field=None, details=None):
     body = {'code': code, 'message': message}
     if field:
         body['field'] = field
+    if details is not None:
+        body['details'] = details
     return request.make_json_response(body, status=status)
 
 
@@ -28,7 +33,7 @@ def api_handler(func):
         try:
             return func(*args, **kwargs)
         except ApiError as e:
-            return error_response(e.status, e.code, e.message, e.field)
+            return error_response(e.status, e.code, e.message, e.field, e.details)
         except MissingError as e:
             return error_response(404, 'not_found', str(e))
         except AccessError as e:
