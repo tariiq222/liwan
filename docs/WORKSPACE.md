@@ -67,7 +67,7 @@ before any explicitly authorized cleanup or integration action.
 | `nasq-hr` / `phase-hr` | Retired; all commits were already in main. Dependency symlinks were removed without touching their targets. |
 | `nasq-docs-hr` / `docs/hr` | Retired; original untracked HR documents are preserved under `docs/archive/` and the external recovery directory. |
 | Old `phase-3b` | Renamed `archive/phase-3b-wip-20260905`, with recovery tag and bundle; incomplete contracts are excluded from the integrated product. |
-| `nasq-integration` | Temporary verification worktree; remove after integration and runtime verification. Future tasks create fresh worktrees from main. |
+| `nasq-integration` | Removed with its merged branch after integration and runtime verification. Only the canonical worktree remains; future tasks create fresh worktrees from main. |
 | Odoo repository | Source, config, and branches unchanged. Its `web-theme-shadcn` branch is outside this cleanup. |
 | HR architecture | Stock `hr` plus `nasq_hr`; stock `project` plus `nasq_pmo`. `/hr` stays; the dead `/people` page is removed. |
 | Next product work | Reconciled phase 3b: 10 tasks in 4 dependency waves; Codex team only. No phase-3b features claimed delivered. |
@@ -93,15 +93,24 @@ its full tree, which combines obsolete contracts with the recovered UI.
   200-project response is filtered to zero matches; correct filtered-empty
   copy. This check mocked responses and wrote no business data.
 - `npm run build`: passed (contracts TypeScript and Nuxt production build).
-- Canonical runtime verification is recorded after integration in the local
-  recovery logs; local results do not establish a deployment.
+- Canonical `http://localhost:3000` authenticated smoke: login, HR directory,
+  employee/department APIs, full-page task detail, and return preserving query
+  filters all passed. No business records were written by this smoke check.
+- Local results do not establish a deployment.
 
 ### Database scope
 
 `nasq_hr` was installed on `odoo19` after a database and filestore backup.
-Tests run only on isolated databases. Retire `nasq_hr_e2e` after backing it up
-and verifying the canonical HR runtime; retire this reorganization's two
-scratch databases after their services stop. Other historical test databases
+Tests ran only on isolated databases. `nasq_hr_e2e` was backed up and removed
+after the canonical HR runtime passed. This reorganization's two scratch
+databases were removed after their services stopped; their filestores were
+moved to recovery. Other historical test databases
 (`nasq_p2*`, `nasq_p3*`, `nasq_split*`, `nasq_test`, `oca_test`, `shadcn_test`)
 are not needed for the canonical runtime, but were not deleted: their contents
 and ownership were not part of the verified worktree preservation.
+
+
+The original `stash@{0}` from phase 2 remains untouched and is also present in
+the preserved Git bundle. `main` contains UI integration commit `958dea1` and
+workspace/plan reconciliation commit `a1d9405`. No remote was configured and no
+push or deployment was performed.
