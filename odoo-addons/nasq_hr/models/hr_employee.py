@@ -3,7 +3,10 @@ from odoo import models
 from odoo.exceptions import AccessError
 from odoo.tools import email_normalize
 
-from odoo.addons.nasq_api.controllers.common import MIN_PASSWORD_LENGTH
+from odoo.addons.nasq_api.controllers.common import (
+    MIN_PASSWORD_LENGTH,
+    clear_security_caches_after_commit,
+)
 from odoo.addons.nasq_hr.rules import NasqHrRule
 
 ROLE_XMLIDS = {
@@ -98,6 +101,8 @@ class NasqHrEmployee(models.Model):
             users = self.mapped('user_id')
             if users:
                 users.write({'active': False})
+        if users:
+            clear_security_caches_after_commit(self.env)
         return True
 
     def _nasq_unarchive(self):
@@ -186,6 +191,7 @@ class NasqHrEmployee(models.Model):
                         'group_ids': self._nasq_role_commands(user, role),
                     })
                     user._change_password(password)
+        clear_security_caches_after_commit(self.env)
         return self
 
     def _nasq_update_access(self, role=None, password=None):
@@ -212,6 +218,7 @@ class NasqHrEmployee(models.Model):
             if password is not None:
                 for user in users:
                     user._change_password(password)
+        clear_security_caches_after_commit(self.env)
         return self
 
     def _nasq_revoke_access(self):
@@ -224,4 +231,5 @@ class NasqHrEmployee(models.Model):
             raise NasqHrRule(ACCESS_MISSING_CODE, 'the employee has no linked access')
         with self.env.cr.savepoint():
             users.write({'active': False})
+        clear_security_caches_after_commit(self.env)
         return self

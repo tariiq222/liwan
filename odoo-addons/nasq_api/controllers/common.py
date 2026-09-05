@@ -9,6 +9,17 @@ _logger = logging.getLogger(__name__)
 MIN_PASSWORD_LENGTH = 8
 
 
+def clear_security_caches_after_commit(env):
+    """Discard security cache entries refilled before a user mutation commits."""
+    env.cr.postcommit.add(env.registry.clear_cache)
+
+
+def fresh_session_token(user, sid):
+    """Compute a session token from the current row without consulting ormcache."""
+    values = user._session_token_get_values()
+    return user._session_token_hash_compute(sid, values)
+
+
 class ApiError(Exception):
     def __init__(self, status, code, message, field=None, details=None):
         super().__init__(message)

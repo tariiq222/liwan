@@ -1,7 +1,15 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+from unittest.mock import patch
+
 from odoo.exceptions import AccessDenied
+from odoo.http import root
 from odoo.tests import HttpCase, new_test_user, tagged
 from odoo.tests.common import HOST, Opener
+
+from odoo.addons.nasq_api.controllers.common import (
+    clear_security_caches_after_commit,
+    fresh_session_token,
+)
 
 
 @tagged('post_install', '-at_install', 'nasq')
@@ -120,11 +128,29 @@ class TestChangePassword(HttpCase):
         self.assertEqual(response.json()['code'], 'weak_password')
         self.assertEqual(response.json()['field'], 'new')
 
+    def test_postcommit_clear_discards_a_concurrent_old_token_refill(self):
+        sid = 'password-cache-refill'
+        old_values = self.user._session_token_get_values()
+        old_token = self.user._session_token_hash_compute(sid, old_values)
+        self.env.cr.postcommit.clear()
+
+        self.user._change_password('new_password_123')
+        clear_security_caches_after_commit(self.env)
+
+        self.env.registry.clear_cache()
+        with patch.object(type(self.user), '_session_token_get_values', return_value=old_values):
+            self.assertEqual(self.user._compute_session_token(sid), old_token)
+
+        self.assertNotEqual(fresh_session_token(self.user, sid), old_token)
+        self.env.cr.postcommit.run()
+        self.assertNotEqual(self.user._compute_session_token(sid), old_token)
+
     def test_success_preserves_caller_session_and_invalidates_other_sessions(self):
         old_session = self.authenticate('password_change_user', 'old_password_123')
         old_sid = old_session.sid
         caller_session = self.authenticate('password_change_user', 'old_password_123')
         caller_sid = caller_session.sid
+        root.session_store.save(old_session)
 
         response = self.api('POST', '/api/v1/me/password', {
             'current': 'old_password_123',

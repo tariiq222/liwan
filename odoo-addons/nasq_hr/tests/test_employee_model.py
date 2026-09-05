@@ -1,4 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+from unittest.mock import patch
+
 from odoo.exceptions import AccessError
 from odoo.tests import TransactionCase, new_test_user, tagged
 
@@ -80,6 +82,34 @@ class TestEmployeeModel(TransactionCase):
         employee._nasq_grant_access('valid pass', 'employee')
         self.assertEqual(employee.user_id.id, user_id)
         self.assertTrue(employee.user_id.active)
+
+    def test_security_token_cache_refill_is_cleared_after_commit(self):
+        for operation in ('revoke', 'reset'):
+            with self.subTest(operation=operation):
+                employee = self._employee(
+                    name=f'Cache Race {operation}',
+                    email=f'cache.race.{operation}@example.com',
+                ).with_user(self.admin)
+                employee._nasq_grant_access('initial pass', 'employee')
+                user = employee.user_id
+                sid = f'cache-race-{operation}'
+                old_values = user._session_token_get_values()
+                old_token = user._session_token_hash_compute(sid, old_values)
+                self.env.cr.postcommit.clear()
+
+                if operation == 'revoke':
+                    employee._nasq_revoke_access()
+                else:
+                    employee._nasq_update_access(password='changed pass')
+
+                # A request admitted before this transaction commits can refill
+                # the process-wide ormcache from the previously committed row.
+                self.env.registry.clear_cache()
+                with patch.object(type(user), '_session_token_get_values', return_value=old_values):
+                    self.assertEqual(user._compute_session_token(sid), old_token)
+
+                self.env.cr.postcommit.run()
+                self.assertNotEqual(user._compute_session_token(sid), old_token)
 
     def test_role_changes_preserve_unrelated_groups(self):
         employee = self._employee().with_user(self.admin)

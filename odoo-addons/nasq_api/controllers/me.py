@@ -7,6 +7,8 @@ from odoo.addons.nasq_api.controllers.common import (
     MIN_PASSWORD_LENGTH,
     ApiError,
     api_handler,
+    clear_security_caches_after_commit,
+    fresh_session_token,
 )
 from odoo.addons.nasq_api.serializers.user import dump_me
 
@@ -39,5 +41,6 @@ class MeController(http.Controller):
             raise ApiError(422, 'wrong_password', 'current password is incorrect', field='current') from None
 
         request.env.user.flush_recordset(['password'])
-        request.session.session_token = request.env.user._compute_session_token(request.session.sid)
+        request.session.session_token = fresh_session_token(request.env.user, request.session.sid)
+        clear_security_caches_after_commit(request.env)
         return dump_me(request.env.user)
