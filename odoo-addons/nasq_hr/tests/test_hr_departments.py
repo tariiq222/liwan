@@ -3,7 +3,7 @@ from odoo.tests import new_test_user, tagged
 
 from .common import NasqHrCase
 
-DEPT_KEYS = {'id', 'name', 'parent_id', 'manager', 'child_ids'}
+DEPT_KEYS = {'id', 'name', 'parent_id', 'manager', 'child_ids', 'employee_count'}
 
 
 @tagged('post_install', '-at_install', 'nasq')
@@ -29,6 +29,7 @@ class TestHrDepartments(NasqHrCase):
         })
 
     def test_employee_can_list_and_get(self):
+        self.env['hr.employee'].create({'name': 'Counted Employee', 'department_id': self.dept_a.id})
         self.authenticate('api_emp', 'api_emp_pass_123')
         res = self.api('GET', '/api/v1/hr/departments')
         self.assertEqual(res.status_code, 200)
@@ -43,9 +44,23 @@ class TestHrDepartments(NasqHrCase):
         self.assertIsNone(item['parent_id'])
         self.assertEqual(item['manager'], {'id': self.hr_emp.id, 'name': self.hr_emp.name})
         self.assertIn(self.dept_child.id, item['child_ids'])
+        self.assertEqual(item['employee_count'], 1)
         detail = self.api('GET', f'/api/v1/hr/departments/{self.dept_child.id}').json()
         self.assertEqual(detail['parent_id'], self.dept_a.id)
         self.assertEqual(set(detail), DEPT_KEYS)
+
+    def test_employee_count_includes_archived_employee(self):
+        self.env['hr.employee'].create({
+            'name': 'Active Department Employee', 'department_id': self.dept_a.id,
+        })
+        archived = self.env['hr.employee'].create({
+            'name': 'Archived Department Employee', 'department_id': self.dept_a.id,
+            'active': False,
+        })
+        self.authenticate('hr_dept_admin', 'hr_dept_admin_pass_123')
+        body = self.api('GET', f'/api/v1/hr/departments/{self.dept_a.id}').json()
+        self.assertEqual(body['employee_count'], 2)
+        self.assertFalse(archived.active)
 
     def test_employee_write_is_403(self):
         self.authenticate('api_emp', 'api_emp_pass_123')
@@ -71,6 +86,16 @@ class TestHrDepartments(NasqHrCase):
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()['name'], 'Legal Affairs')
 
+    def test_patch_parent_cycle_rolls_back(self):
+        self.authenticate('hr_dept_admin', 'hr_dept_admin_pass_123')
+        res = self.api(
+            'PATCH', f'/api/v1/hr/departments/{self.dept_a.id}',
+            {'parent_id': self.dept_child.id},
+        )
+        self.assertEqual((res.status_code, res.json()['code']), (422, 'invalid'))
+        self.dept_a.invalidate_recordset(['parent_id'])
+        self.assertFalse(self.dept_a.parent_id)
+
     def test_get_unknown_is_404(self):
         self.authenticate('api_emp', 'api_emp_pass_123')
         res = self.api('GET', '/api/v1/hr/departments/999999')
@@ -83,3 +108,51 @@ class TestHrDepartments(NasqHrCase):
         self.assertEqual(res.status_code, 422)
         self.assertEqual(res.json()['code'], 'invalid')
         self.assertEqual(res.json()['field'], 'name')
+
+        res = self.api('POST', '/api/v1/hr/departments', {})
+        self.assertEqual(res.status_code, 422)
+        self.assertEqual((res.json()['code'], res.json()['field']), ('invalid', 'name'))
+
+    def test_relation_ids_reject_booleans_and_zero(self):
+        self.authenticate('hr_dept_admin', 'hr_dept_admin_pass_123')
+        for payload, field in (
+            ({'name': 'Boolean Parent', 'parent_id': True}, 'parent_id'),
+            ({'name': 'Zero Manager', 'manager_id': 0}, 'manager_id'),
+        ):
+            res = self.api('POST', '/api/v1/hr/departments', payload)
+            self.assertEqual(res.status_code, 422, (payload, res.text))
+            self.assertEqual((res.json()['code'], res.json()['field']), ('invalid', field))
+
+    def test_delete_empty_department_returns_204(self):
+        empty = self.env['hr.department'].create({'name': 'Delete Empty'})
+        self.authenticate('hr_dept_admin', 'hr_dept_admin_pass_123')
+        res = self.api('DELETE', f'/api/v1/hr/departments/{empty.id}')
+        self.assertEqual(res.status_code, 204, res.text)
+        self.assertFalse(empty.exists())
+
+    def test_delete_reports_each_blocking_reference_including_archived_employee(self):
+        employee_department = self.env['hr.department'].create({'name': 'Employee Blocked'})
+        self.env['hr.employee'].create({
+            'name': 'Archived Blocker',
+            'department_id': employee_department.id,
+            'active': False,
+        })
+        child_department = self.env['hr.department'].create({'name': 'Child Blocked'})
+        self.env['hr.department'].create({'name': 'Blocking Child', 'parent_id': child_department.id})
+        document_department = self.env['hr.department'].create({'name': 'Document Blocked'})
+        self.env['nasq.hr.document'].create({
+            'name': 'Blocking Document', 'department_id': document_department.id,
+        })
+
+        self.authenticate('hr_dept_admin', 'hr_dept_admin_pass_123')
+        cases = (
+            (employee_department, {'employees': 1, 'children': 0, 'documents': 0}),
+            (child_department, {'employees': 0, 'children': 1, 'documents': 0}),
+            (document_department, {'employees': 0, 'children': 0, 'documents': 1}),
+        )
+        for department, details in cases:
+            res = self.api('DELETE', f'/api/v1/hr/departments/{department.id}')
+            self.assertEqual(res.status_code, 422, (department.name, res.text))
+            self.assertEqual(res.json()['code'], 'department_in_use')
+            self.assertEqual(res.json()['details'], details)
+            self.assertTrue(department.exists())

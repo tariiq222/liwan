@@ -1,11 +1,11 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import http
+from odoo.exceptions import AccessError, MissingError
 from odoo.http import request
 
 from odoo.addons.nasq_api.controllers.common import (
     ApiError,
     api_handler,
-    get_record,
     parse_nonneg_int,
 )
 from odoo.addons.nasq_hr.serializers.hr_department import (
@@ -13,12 +13,41 @@ from odoo.addons.nasq_hr.serializers.hr_department import (
     parse_department_vals,
 )
 
+from .common import hr_rule_handler
+
 MAX_LIMIT = 200
 
 
 def _require_customer_admin():
     if not request.env.user.has_group('nasq_core.group_customer_admin'):
-        raise ApiError(403, 'forbidden', "only a customer administrator can write this resource")
+        raise ApiError(403, 'forbidden', 'only a customer administrator can write this resource')
+
+
+def _admin_department(department_id):
+    department = request.env['hr.department'].with_context(active_test=False).browse(int(department_id))
+    if not department.exists():
+        raise MissingError(request.env._('hr.department %(id)s does not exist', id=department_id))
+    if department.company_id not in request.env.companies:
+        raise AccessError('department is outside the current company')
+    department.check_access('read')
+    return department
+
+
+def _relation(model, record_id, field):
+    record = request.env[model].browse(int(record_id))
+    if not record.exists():
+        raise MissingError(request.env._('%(model)s %(id)s does not exist', model=model, id=record_id))
+    if record.company_id not in request.env.companies:
+        raise AccessError('%s is outside the current company' % field)
+    record.check_access('read')
+    return record
+
+
+def _validate_relations(vals):
+    if vals.get('parent_id'):
+        _relation('hr.department', vals['parent_id'], 'parent_id')
+    if vals.get('manager_id'):
+        _relation('hr.employee', vals['manager_id'], 'manager_id')
 
 
 class HrDepartmentController(http.Controller):
@@ -32,42 +61,49 @@ class HrDepartmentController(http.Controller):
         Department = request.env['hr.department']
         domain = []
         recs = Department.search(domain, order='name, id', limit=limit, offset=offset)
-        return {'items': [dump_department(d) for d in recs], 'total': Department.search_count(domain)}
+        return {'items': [dump_department(department) for department in recs], 'total': Department.search_count(domain)}
 
     @http.route('/api/v1/hr/departments/<int:department_id>', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
     def get_department(self, department_id):
-        return dump_department(get_record('hr.department', department_id))
+        Department = request.env['hr.department']
+        department = Department.browse(int(department_id))
+        if not department.exists():
+            raise MissingError(request.env._('hr.department %(id)s does not exist', id=department_id))
+        department.check_access('read')
+        return dump_department(department)
 
     @http.route('/api/v1/hr/departments', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
-    def create_department(self, name=None, parent_id=None, manager_id=None, **_):
+    @hr_rule_handler
+    def create_department(self, **payload):
         _require_customer_admin()
-        payload = {'name': name}
-        if parent_id is not None:
-            payload['parent_id'] = parent_id
-        if manager_id is not None:
-            payload['manager_id'] = manager_id
+        if 'name' not in payload:
+            raise ApiError(422, 'invalid', 'name is required', field='name')
         vals = parse_department_vals(payload)
-        if vals.get('parent_id'):
-            get_record('hr.department', vals['parent_id'])
-        if vals.get('manager_id'):
-            get_record('hr.employee.public', vals['manager_id'])
-        dept = request.env['hr.department'].create(vals)
-        return request.make_json_response(dump_department(dept), status=201)
+        _validate_relations(vals)
+        department = request.env['hr.department']._nasq_create(vals)
+        return request.make_json_response(dump_department(department), status=201)
 
     @http.route('/api/v1/hr/departments/<int:department_id>', type='json2', auth='user', methods=['PATCH'], readonly=False)
     @api_handler
+    @hr_rule_handler
     def patch_department(self, department_id, **payload):
         _require_customer_admin()
+        department = _admin_department(department_id)
         payload.pop('department_id', None)
         if not payload:
-            raise ApiError(422, 'invalid', "no fields to update")
-        dept = get_record('hr.department', department_id)
+            raise ApiError(422, 'invalid', 'no fields to update')
         vals = parse_department_vals(payload)
-        if vals.get('parent_id'):
-            get_record('hr.department', vals['parent_id'])
-        if vals.get('manager_id'):
-            get_record('hr.employee.public', vals['manager_id'])
-        dept.write(vals)
-        return dump_department(dept)
+        _validate_relations(vals)
+        department._nasq_write(vals)
+        return dump_department(department)
+
+    @http.route('/api/v1/hr/departments/<int:department_id>', type='json2', auth='user', methods=['DELETE'], readonly=False)
+    @api_handler
+    @hr_rule_handler
+    def delete_department(self, department_id, **_):
+        _require_customer_admin()
+        department = _admin_department(department_id)
+        department._nasq_delete()
+        return request.make_json_response('', status=204)

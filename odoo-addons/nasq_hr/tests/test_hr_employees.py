@@ -1,9 +1,12 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from odoo.tests import tagged
+from odoo.tests import new_test_user, tagged
 
 from .common import NasqHrCase
 
-EMP_KEYS = {'id', 'name', 'job_title', 'department', 'work_email', 'work_phone', 'user_id'}
+EMP_KEYS = {
+    'id', 'name', 'job_title', 'department', 'work_email', 'work_phone', 'user_id',
+    'manager', 'active', 'access',
+}
 
 
 @tagged('post_install', '-at_install', 'nasq')
@@ -12,6 +15,10 @@ class TestHrEmployees(NasqHrCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
+        cls.admin = new_test_user(
+            cls.env, login='hr_emp_admin', password='hr_emp_admin_pass_123',
+            name='Employee Admin', groups='nasq_core.group_customer_admin',
+        )
         cls.dept_a = cls.env['hr.department'].create({'name': 'Engineering'})
         cls.dept_b = cls.env['hr.department'].create({'name': 'Finance'})
         cls.hr_emp = cls.env['hr.employee'].search([('user_id', '=', cls.employee.id)], limit=1)
@@ -88,3 +95,101 @@ class TestHrEmployees(NasqHrCase):
         self.assertEqual(res.status_code, 422)
         self.assertEqual(res.json()['code'], 'invalid')
         self.assertEqual(res.json()['field'], 'limit')
+
+    def test_admin_can_create_patch_and_archive_employee(self):
+        self.authenticate('hr_emp_admin', 'hr_emp_admin_pass_123')
+        res = self.api('POST', '/api/v1/hr/employees', {
+            'name': 'New HR Employee', 'work_email': 'new.hr@example.com',
+            'job_title': 'Analyst', 'department_id': self.dept_a.id,
+        })
+        self.assertEqual(res.status_code, 201)
+        body = res.json()
+        self.assertEqual(set(body), EMP_KEYS)
+        self.assertTrue(body['active'])
+        self.assertIsNone(body['access'])
+        employee_id = body['id']
+        res = self.api('PATCH', f'/api/v1/hr/employees/{employee_id}', {
+            'job_title': 'Senior Analyst', 'work_email': 'renamed@example.com',
+        })
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()['job_title'], 'Senior Analyst')
+        res = self.api('POST', f'/api/v1/hr/employees/{employee_id}/archive', {})
+        self.assertEqual(res.status_code, 200)
+        self.assertFalse(res.json()['active'])
+        res = self.api('POST', f'/api/v1/hr/employees/{employee_id}/unarchive', {})
+        self.assertEqual(res.status_code, 200)
+        self.assertTrue(res.json()['active'])
+
+    def test_archived_list_is_admin_only_and_cross_company_employee_is_hidden(self):
+        archived = self.env['hr.employee'].create({'name': 'Archived API Employee', 'active': False})
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        res = self.api('GET', '/api/v1/hr/employees?archived=1')
+        self.assertEqual(res.status_code, 403)
+        self.assertEqual(res.json()['code'], 'forbidden')
+
+        self.authenticate('hr_emp_admin', 'hr_emp_admin_pass_123')
+        res = self.api('GET', '/api/v1/hr/employees?archived=true')
+        self.assertEqual(res.status_code, 200)
+        self.assertIn(archived.id, [item['id'] for item in res.json()['items']])
+
+        other_company = self.env['res.company'].create({'name': 'HR API Other Company'})
+        foreign = self.env['hr.employee'].create({'name': 'Foreign API Employee', 'company_id': other_company.id})
+        res = self.api('GET', f'/api/v1/hr/employees/{foreign.id}')
+        self.assertIn(res.status_code, (403, 404))
+
+    def test_employee_write_checks_authorization_before_relation_lookup(self):
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        res = self.api('POST', '/api/v1/hr/employees', {
+            'name': 'Should Not Be Created', 'parent_id': 999999,
+        })
+        self.assertEqual(res.status_code, 403)
+        self.assertEqual(res.json()['code'], 'forbidden')
+
+    def test_admin_relation_and_email_errors_are_field_specific(self):
+        self.authenticate('hr_emp_admin', 'hr_emp_admin_pass_123')
+        cases = [
+            ({'name': 'Missing relation', 'department_id': 999999}, 'department_id'),
+            ({'name': 'Boolean relation', 'parent_id': True}, 'parent_id'),
+            ({'name': 'Zero relation', 'department_id': 0}, 'department_id'),
+            ({'name': 'Invalid email', 'work_email': 'not-an-email'}, 'work_email'),
+            ({'name': 'Numeric email', 'work_email': 0}, 'work_email'),
+            ({'name': 'Numeric title', 'job_title': 0}, 'job_title'),
+        ]
+        for payload, field in cases:
+            res = self.api('POST', '/api/v1/hr/employees', payload)
+            self.assertEqual(res.status_code, 422, (payload, res.text))
+            self.assertEqual((res.json()['code'], res.json()['field']), ('invalid', field))
+
+        other_company = self.env['res.company'].create({'name': 'Foreign Relation Company'})
+        foreign_department = self.env['hr.department'].create({
+            'name': 'Foreign Relation Department', 'company_id': other_company.id,
+        })
+        res = self.api('POST', '/api/v1/hr/employees', {
+            'name': 'Foreign relation', 'department_id': foreign_department.id,
+        })
+        self.assertEqual(res.status_code, 422, res.text)
+        self.assertEqual((res.json()['code'], res.json()['field']), ('invalid', 'department_id'))
+
+    def test_employee_cannot_be_their_own_manager(self):
+        self.authenticate('hr_emp_admin', 'hr_emp_admin_pass_123')
+        res = self.api('PATCH', f'/api/v1/hr/employees/{self.hr_other.id}', {
+            'parent_id': self.hr_other.id,
+        })
+        self.assertEqual(res.status_code, 422, res.text)
+        self.assertEqual((res.json()['code'], res.json()['field']), ('invalid', 'parent_id'))
+
+    def test_work_email_patch_does_not_rename_login(self):
+        employee = self.env['hr.employee'].create({
+            'name': 'Login Stability', 'work_email': 'fixed.login@example.com',
+        })
+        self.authenticate('hr_emp_admin', 'hr_emp_admin_pass_123')
+        res = self.api('POST', f'/api/v1/hr/employees/{employee.id}/access', {
+            'password': 'valid pass', 'role': 'employee',
+        })
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()['access']['login'], 'fixed.login@example.com')
+        res = self.api('PATCH', f'/api/v1/hr/employees/{employee.id}', {
+            'work_email': 'changed.login@example.com',
+        })
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()['access']['login'], 'fixed.login@example.com')
