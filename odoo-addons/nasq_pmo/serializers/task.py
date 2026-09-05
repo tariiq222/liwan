@@ -58,6 +58,19 @@ def _project_ref(project):
     return {'id': project.id, 'name': project.sudo().display_name}
 
 
+def _milestone_ref(milestone):
+    """{'id', 'name'} for a task's milestone, with the name resolved in sudo.
+
+    Same rationale as `_project_ref`: the task itself was already access-checked
+    before dump_task_detail runs, and an assignee of a task inside a
+    privacy_visibility='followers' project they don't follow is still entitled
+    to see that task's milestone via the task's own visibility rule. Reading
+    milestone.display_name in the caller's env instead hits
+    milestone_visibility_rule and turns a legitimate 200 into a 403.
+    """
+    return {'id': milestone.id, 'name': milestone.sudo().display_name}
+
+
 def dump_task(task, today=None):
     today = _today(task, today)
     days = _days_remaining(task, today)
@@ -100,7 +113,7 @@ def dump_task_detail(task, today=None):
         'can_approve': task._nasq_can_approve(),
         'created_at': iso(task.create_date),
         'updated_at': iso(task.write_date),
-        'milestone': _ref(task.milestone_id) if task.milestone_id else None,
+        'milestone': _milestone_ref(task.milestone_id) if task.milestone_id else None,
     })
     return data
 
@@ -172,13 +185,23 @@ def _parse_stage(task, value, key):
 
 
 def _parse_milestone(task, value, key):
+    """Coerce + authorise a milestone id: it must belong to the task's own project.
+
+    Browsed in sudo, mirroring `_parse_stage`: a milestone belonging to another,
+    unreadable project (e.g. `privacy_visibility='followers'`) passes `exists()`
+    (raw SQL, ignores ir.rule) but then reading `milestone.project_id` in the
+    caller's own env hits `milestone_visibility_rule` and raises AccessError
+    instead of the contracted 422 — an existence oracle to boot. The
+    `milestone.project_id != task.project_id` membership test is the real
+    authorization here; `task` was already access-checked before parse_task_vals runs.
+    """
     if value is None or value is False:
         return False
     try:
         milestone_id = int(value)
     except (TypeError, ValueError) as e:
         raise ApiError(422, 'invalid', "milestone_id must be one of the project's milestones", field=key) from e
-    milestone = request.env['project.milestone'].browse(milestone_id).exists()
+    milestone = request.env['project.milestone'].sudo().browse(milestone_id).exists()
     if not milestone or milestone.project_id != task.project_id:
         raise ApiError(422, 'invalid', "milestone_id must be one of the project's milestones", field=key)
     return milestone.id

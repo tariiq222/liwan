@@ -376,6 +376,31 @@ class TestTaskArchiveAndMilestone(NasqPmoCase):
         res = self.api('PATCH', f'/api/v1/tasks/{self.task_overdue.id}', {'milestone_id': None})
         self.assertIsNone(res.json()['milestone'])
 
+    def test_patch_milestone_of_unreadable_project_is_422_not_403(self):
+        """A milestone belonging to a private project the employee can't read must not
+        leak `milestone_visibility_rule`'s AccessError as a 403 - the contract for an
+        invalid milestone_id is 422, not 403 (existence oracle aside)."""
+        private = self.env['project.project'].create({'name': 'Private', 'privacy_visibility': 'followers'})
+        private_milestone = self.env['project.milestone'].create({'name': 'Confidential M', 'project_id': private.id})
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        res = self.api('PATCH', f'/api/v1/tasks/{self.task_overdue.id}', {'milestone_id': private_milestone.id})
+        self.assertEqual(res.status_code, 422, res.text)
+        self.assertEqual(res.json()['field'], 'milestone_id')
+
+    def test_detail_milestone_name_of_task_in_followers_project(self):
+        """An assignee of a task in a followers-only project they don't follow must still
+        see the milestone's name (resolved in sudo, mirroring _project_ref)."""
+        private = self.env['project.project'].create({'name': 'Private HQ', 'privacy_visibility': 'followers'})
+        private_milestone = self.env['project.milestone'].create({'name': 'Launch', 'project_id': private.id})
+        task = self.env['project.task'].create({
+            'name': 'Confidential', 'project_id': private.id, 'user_ids': [(4, self.employee.id)],
+            'milestone_id': private_milestone.id,
+        })
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        res = self.api('GET', f'/api/v1/tasks/{task.id}')
+        self.assertEqual(res.status_code, 200, res.text)
+        self.assertEqual(res.json()['milestone']['name'], private_milestone.name)
+
     def test_archive_rules(self):
         self.authenticate('api_emp', 'api_emp_pass_123')
         # creator may archive their own task
