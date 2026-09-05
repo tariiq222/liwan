@@ -2,7 +2,8 @@
 from odoo import http
 from odoo.http import request
 
-from odoo.addons.nasq_api.serializers.company import dump_branding
+from odoo.addons.nasq_api.controllers.common import ApiError, api_handler
+from odoo.addons.nasq_api.serializers.company import dump_branding, parse_branding_vals
 
 
 class BrandingController(http.Controller):
@@ -14,3 +15,22 @@ class BrandingController(http.Controller):
             dump_branding(company),
             headers=[('Cache-Control', 'public, max-age=300')],
         )
+
+    @staticmethod
+    def _check_admin():
+        if not request.env.user.has_group('nasq_core.group_customer_admin'):
+            raise ApiError(403, 'forbidden', 'branding administration requires customer admin access')
+
+    @http.route('/api/v1/admin/branding', type='json2', auth='user', methods=['GET'], readonly=True)
+    @api_handler
+    def admin_branding(self):
+        self._check_admin()
+        return dump_branding(request.env.company)
+
+    @http.route('/api/v1/admin/branding', type='json2', auth='user', methods=['PATCH'], readonly=False)
+    @api_handler
+    def patch_admin_branding(self, **payload):
+        self._check_admin()
+        company = request.env.company
+        company.write(parse_branding_vals(payload))
+        return dump_branding(company)
