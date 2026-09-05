@@ -8,7 +8,7 @@ from odoo.addons.nasq_api.controllers.common import (
     get_record,
     parse_nonneg_int,
 )
-from odoo.addons.nasq_api.serializers.hr_document import (
+from odoo.addons.nasq_hr.serializers.hr_document import (
     dump_document,
     parse_attachment_upload,
     parse_document_create,

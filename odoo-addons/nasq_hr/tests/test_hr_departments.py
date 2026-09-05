@@ -1,13 +1,13 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo.tests import new_test_user, tagged
 
-from .common import NasqApiCase
+from .common import NasqHrCase
 
 DEPT_KEYS = {'id', 'name', 'parent_id', 'manager', 'child_ids'}
 
 
 @tagged('post_install', '-at_install', 'nasq')
-class TestHrDepartments(NasqApiCase):
+class TestHrDepartments(NasqHrCase):
 
     @classmethod
     def setUpClass(cls):

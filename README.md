@@ -241,7 +241,7 @@ actual contract being protected, and is what these tests prove.
 ## Tests
 
     # Odoo addons (fresh scratch DB) — 0 failed, 0 error(s) of 115 tests
-    cd ~/code/odoo && .venv/bin/python odoo-bin -c odoo.conf -d nasq_test -i nasq_core,nasq_api,nasq_pmo --test-tags /nasq_core,/nasq_api,/nasq_pmo
+    cd ~/code/odoo && .venv/bin/python odoo-bin -c odoo.conf -d nasq_test -i nasq_core,nasq_api,nasq_pmo,nasq_hr --test-tags /nasq_core,/nasq_api,/nasq_pmo,/nasq_hr
     # tip: if a dev server already holds :8069, add --http-port=8169 to the command above
     # lint
     ruff check odoo-addons deploy/seed_branding.py     # clean

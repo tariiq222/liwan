@@ -8,7 +8,7 @@ from odoo.addons.nasq_api.controllers.common import (
     get_record,
     parse_nonneg_int,
 )
-from odoo.addons.nasq_api.serializers.hr_department import (
+from odoo.addons.nasq_hr.serializers.hr_department import (
     dump_department,
     parse_department_vals,
 )

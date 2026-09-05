@@ -4,7 +4,7 @@ import {
   HrDocumentDetailSchema,
   HrDocumentSchema,
   HrEmployeeSchema,
-} from '../index'
+} from '..'
 
 const DEPARTMENT = {
   id: 4,

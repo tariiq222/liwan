@@ -6,7 +6,7 @@ import {
   HrDocumentSchema,
   type HrDocument,
   type HrDocumentList,
-} from '../../../../packages/contracts/src/hr'
+} from '@nasq/contracts'
 
 export type { HrDocument, HrDocumentList }
 

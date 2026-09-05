@@ -1,13 +1,13 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo.tests import tagged
 
-from .common import NasqApiCase
+from .common import NasqHrCase
 
 EMP_KEYS = {'id', 'name', 'job_title', 'department', 'work_email', 'work_phone', 'user_id'}
 
 
 @tagged('post_install', '-at_install', 'nasq')
-class TestHrEmployees(NasqApiCase):
+class TestHrEmployees(NasqHrCase):
 
     @classmethod
     def setUpClass(cls):

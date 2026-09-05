@@ -6,7 +6,7 @@ import {
   HrEmployeeSchema,
   type HrEmployee,
   type HrEmployeeList,
-} from '../../../../packages/contracts/src/hr'
+} from '@nasq/contracts'
 
 export type { HrEmployee, HrEmployeeList }
 

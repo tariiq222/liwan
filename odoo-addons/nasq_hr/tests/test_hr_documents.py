@@ -3,13 +3,13 @@ import base64
 
 from odoo.tests import new_test_user, tagged
 
-from .common import NasqApiCase
+from .common import NasqHrCase
 
 DOC_KEYS = {'id', 'name', 'department', 'body', 'attachment_ids', 'write_date'}
 
 
 @tagged('post_install', '-at_install', 'nasq')
-class TestHrDocuments(NasqApiCase):
+class TestHrDocuments(NasqHrCase):
 
     @classmethod
     def setUpClass(cls):

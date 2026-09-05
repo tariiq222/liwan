@@ -4,7 +4,7 @@ import {
   HrDepartmentSchema,
   type HrDepartment,
   type HrDepartmentList,
-} from '../../../../packages/contracts/src/hr'
+} from '@nasq/contracts'
 
 export type { HrDepartment, HrDepartmentList }
 

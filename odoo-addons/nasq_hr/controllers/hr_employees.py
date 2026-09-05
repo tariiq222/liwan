@@ -8,7 +8,7 @@ from odoo.addons.nasq_api.controllers.common import (
     get_record,
     parse_nonneg_int,
 )
-from odoo.addons.nasq_api.serializers.hr_employee import dump_employee
+from odoo.addons.nasq_hr.serializers.hr_employee import dump_employee
 
 MAX_LIMIT = 200
 
