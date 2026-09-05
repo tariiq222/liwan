@@ -21,6 +21,31 @@ export type HrDepartmentWrite = {
   manager_id?: number | null
 }
 
+const DEPARTMENT_PAGE_SIZE = 200
+
+async function fetchAllDepartments(api: ReturnType<typeof useApi>['$api']): Promise<HrDepartmentList> {
+  const items = new Map<number, HrDepartment>()
+  let offset = 0
+  let total = 0
+
+  while (offset === 0 || offset < total) {
+    const page = await api('/api/v1/hr/departments', {
+      query: { limit: DEPARTMENT_PAGE_SIZE, offset },
+      schema: HrDepartmentListSchema,
+    })
+    total = page.total
+    for (const department of page.items) items.set(department.id, department)
+    if (page.items.length === 0) {
+      if (items.size < total) throw new Error('Department list ended before all records were fetched')
+      break
+    }
+    offset += page.items.length
+  }
+
+  if (items.size < total) throw new Error('Department list is incomplete')
+  return { items: [...items.values()], total }
+}
+
 function replaceDepartmentInList(list: HrDepartmentList | undefined, dept: HrDepartment, insert: boolean): HrDepartmentList {
   if (!list) return { items: [dept], total: 1 }
   const idx = list.items.findIndex((d) => d.id === dept.id)
@@ -39,7 +64,7 @@ export function useHrDepartments() {
   return useQuery({
     queryKey: hrDepartmentKeys.list,
     enabled: computed(() => can('hr.departments.read')),
-    queryFn: () => $api('/api/v1/hr/departments', { query: { limit: 200 }, schema: HrDepartmentListSchema }),
+    queryFn: () => fetchAllDepartments($api),
   })
 }
 
@@ -62,6 +87,7 @@ export function useCreateDepartment() {
       const prev = qc.getQueryData<HrDepartmentList>(hrDepartmentKeys.list)
       qc.setQueryData(hrDepartmentKeys.list, replaceDepartmentInList(prev, dept, true))
       qc.setQueryData(hrDepartmentKeys.detail(dept.id), dept)
+      return qc.invalidateQueries({ queryKey: hrDepartmentKeys.list })
     },
   })
 }
@@ -76,6 +102,7 @@ export function useUpdateDepartment() {
       const prev = qc.getQueryData<HrDepartmentList>(hrDepartmentKeys.list)
       qc.setQueryData(hrDepartmentKeys.list, replaceDepartmentInList(prev, dept, false))
       qc.setQueryData(hrDepartmentKeys.detail(dept.id), dept)
+      return qc.invalidateQueries({ queryKey: hrDepartmentKeys.list })
     },
   })
 }

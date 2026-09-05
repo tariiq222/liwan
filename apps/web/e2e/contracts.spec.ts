@@ -9,6 +9,34 @@ import { z } from 'zod'
 
 const ADMIN_LOGIN = process.env.E2E_ADMIN_LOGIN ?? 'admin'
 const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD ?? 'admin'
+const BASE_URL = process.env.E2E_BASE_URL ?? 'http://localhost:3000'
+const FIXTURE_PASSWORD = 'NasqContract-Initial-123!'
+
+async function createPasswordFixture(request, suffix: string) {
+  const meRes = await request.get('/api/v1/me')
+  expect(meRes.status()).toBe(200)
+  const me = MeSchema.parse(await meRes.json())
+  const rolesRes = await request.get('/api/v1/admin/roles')
+  expect(rolesRes.status()).toBe(200)
+  const roles = await rolesRes.json()
+  const employeeRole = roles.items.find((role: { key: string }) => role.key === 'employee')
+  expect(employeeRole).toBeTruthy()
+  const login = `contract-password-${suffix}@example.test`
+  const employeeRes = await request.post('/api/v1/hr/employees', {
+    data: { name: `Contract password ${suffix}`, work_email: login },
+  })
+  expect(employeeRes.status()).toBe(201)
+  const employee = await employeeRes.json()
+  const userRes = await request.post('/api/v1/admin/users', {
+    data: {
+      employee_id: employee.id,
+      password: FIXTURE_PASSWORD,
+      assignments: [{ role_id: employeeRole.id, scope: { kind: 'company', id: me.company.id } }],
+    },
+  })
+  expect(userRes.status()).toBe(201)
+  return login
+}
 
 // The zod schemas and the Odoo serializers are written independently; only a
 // round trip against the live API proves they still describe the same payload.
@@ -30,7 +58,7 @@ test('GET /api/v1/me matches MeSchema', async ({ page }) => {
   expect(() => MeSchema.parse(body)).not.toThrow()
 })
 
-test('admin branding and self password mutation responses match their schemas', async ({ page }) => {
+test('admin branding and employee self password mutation responses match their schemas', async ({ page, browser }) => {
   const login = await page.request.post('/api/auth/login', {
     data: { login: ADMIN_LOGIN, password: ADMIN_PASSWORD },
   })
@@ -40,42 +68,56 @@ test('admin branding and self password mutation responses match their schemas', 
   expect(brandingGetRes.status()).toBe(200)
   const originalBranding = BrandingSchema.parse(await brandingGetRes.json())
   const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+  const employeeLogin = await createPasswordFixture(page.request, suffix)
   const updatedName = `E2E contract branding ${suffix}`
   const updatedColor = '#123456'
   let brandingChanged = false
 
   try {
     const brandingPatchRes = await page.request.patch('/api/v1/admin/branding', {
-      data: { name: updatedName, primary_color: updatedColor },
+      data: { primary_color: updatedColor },
     })
     if (brandingPatchRes.status() === 200) brandingChanged = true
     expect(brandingPatchRes.status()).toBe(200)
     const patchedBranding = BrandingSchema.parse(await brandingPatchRes.json())
-    expect(patchedBranding.name).toBe(updatedName)
+    expect(patchedBranding.name).toBe(originalBranding.name)
     expect(patchedBranding.primary_color).toBe(updatedColor)
 
+    const forbidden = await page.request.patch('/api/v1/admin/branding', { data: { name: updatedName, primary_color: '#654321' } })
+    expect(forbidden.status()).toBe(403)
+    expect(BrandingSchema.parse(await (await page.request.get('/api/v1/admin/branding')).json())).toEqual(patchedBranding)
+
+    const employeeContext = await browser.newContext({ baseURL: BASE_URL, locale: 'ar-SA' })
     const temporaryPassword = `E2E-contract-password-${suffix}`
     let passwordChanged = false
     try {
-      const passwordRes = await page.request.post('/api/v1/me/password', {
-        data: { current: ADMIN_PASSWORD, new: temporaryPassword },
+      const employeeLoginRes = await employeeContext.request.post('/api/auth/login', {
+        data: { login: employeeLogin, password: FIXTURE_PASSWORD },
+      })
+      expect(employeeLoginRes.status()).toBe(200)
+      const passwordRes = await employeeContext.request.post('/api/v1/me/password', {
+        data: { current: FIXTURE_PASSWORD, new: temporaryPassword },
       })
       if (passwordRes.status() === 200) passwordChanged = true
       expect(passwordRes.status()).toBe(200)
       MeSchema.parse(await passwordRes.json())
     } finally {
-      if (passwordChanged) {
-        const restorePasswordRes = await page.request.post('/api/v1/me/password', {
-          data: { current: temporaryPassword, new: ADMIN_PASSWORD },
-        })
-        expect(restorePasswordRes.status()).toBe(200)
-        MeSchema.parse(await restorePasswordRes.json())
+      try {
+        if (passwordChanged) {
+          const restorePasswordRes = await employeeContext.request.post('/api/v1/me/password', {
+            data: { current: temporaryPassword, new: FIXTURE_PASSWORD },
+          })
+          expect(restorePasswordRes.status()).toBe(200)
+          MeSchema.parse(await restorePasswordRes.json())
+        }
+      } finally {
+        await employeeContext.close()
       }
     }
   } finally {
     if (brandingChanged) {
       const restoreBrandingRes = await page.request.patch('/api/v1/admin/branding', {
-        data: { name: originalBranding.name, primary_color: originalBranding.primary_color },
+        data: { primary_color: originalBranding.primary_color },
       })
       expect(restoreBrandingRes.status()).toBe(200)
       BrandingSchema.parse(await restoreBrandingRes.json())

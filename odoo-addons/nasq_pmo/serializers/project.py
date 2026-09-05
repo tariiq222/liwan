@@ -9,7 +9,7 @@ from odoo.addons.nasq_pmo.serializers.dates import parse_date
 STATUS_TO_API = {'on_track': 'on_track', 'at_risk': 'at_risk', 'off_track': 'off_track', 'on_hold': 'on_hold', 'done': 'done', 'to_define': None}
 # Odoo's 'portal' (its default) means "all internal users" for nasq: there are no portal users.
 VISIBILITY_TO_API = {'followers': 'followers', 'employees': 'employees', 'portal': 'employees', 'invited_users': 'followers'}
-PROJECT_FIELDS = {'name', 'description', 'user_id', 'privacy_visibility', 'date_start', 'date', 'tag_ids'}
+PROJECT_FIELDS = {'name', 'description', 'user_id', 'privacy_visibility', 'date_start', 'date', 'tag_ids', 'allow_task_dependencies'}
 
 
 def _user_ref(user):
@@ -48,6 +48,7 @@ def dump_project_detail(project):
         'tags': [{'id': t.id, 'name': t.name, 'color': t.color} for t in project.tag_ids],
         'followers_count': len(project._nasq_followers()),
         'milestone_count': len(project.milestone_ids),
+        'allow_task_dependencies': bool(project.allow_task_dependencies),
     })
     return data
 
@@ -80,6 +81,10 @@ def parse_project_vals(payload):
             vals[key] = value
         elif key in ('date_start', 'date'):
             vals[key] = parse_date(value, key)
+        elif key == 'allow_task_dependencies':
+            if not isinstance(value, bool):
+                raise ApiError(422, 'invalid', "allow_task_dependencies must be a boolean", field=key)
+            vals[key] = value
         elif key == 'tag_ids':
             if not isinstance(value, list) or not all(isinstance(i, int) and not isinstance(i, bool) for i in value):
                 raise ApiError(422, 'invalid', "tag_ids must be a list of ids", field=key)

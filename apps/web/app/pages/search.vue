@@ -17,6 +17,13 @@ const { data: projects, isLoading, error, refetch } = useQuery({ queryKey: ['sea
 const matchingProjects = computed(() => (projects.value ?? []).filter(p => p.name.toLocaleLowerCase().includes(query.value.toLocaleLowerCase())))
 watch(query, value => { void router.replace({ path: '/search', query: { ...route.query, q: value || undefined } }) })
 watch(() => route.query.q, value => { query.value = typeof value === 'string' ? value : '' })
+onMounted(async () => {
+  // `autofocus` only runs when the browser inserts the input. Client-side
+  // navigation keeps focus on the header trigger, so move it after the routed
+  // page has mounted; the same hook also makes reload hydration deterministic.
+  await nextTick()
+  document.getElementById('navigation-search')?.focus()
+})
 useEventListener('keydown', (event: KeyboardEvent) => {
   if (event.metaKey || event.ctrlKey || event.altKey || query.value) return
   const item = available.value.find(item => item.shortcut === event.key)

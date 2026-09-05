@@ -24,8 +24,23 @@
         "logoFormat": "Use a PNG or JPEG image",
         "logoSize": "The logo must not exceed 1 MiB",
         "logoReading": "Wait for the logo to finish loading",
-        "logoRead": "The logo image could not be read"
-      }
+        "logoRead": "The logo image could not be read",
+        "invalidColor": "Enter a six-digit colour",
+        "load": "Branding settings could not be loaded"
+      },
+      "colorPicker": "Choose primary colour",
+      "loading": "Loading branding settings",
+      "retry": "Try again",
+      "cancel": "Cancel changes",
+      "resetDefault": "Reset to default colour",
+      "presets": {
+        "label": "Colour presets",
+        "default": "nasq default",
+        "blue": "Blue",
+        "teal": "Teal",
+        "amber": "Amber"
+      },
+      "managedIdentity": "The institution name and logo are managed by the system administrator in Odoo. You can customize the primary colour here."
     },
     "projects": {
       "title": "Projects",

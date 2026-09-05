@@ -1,8 +1,10 @@
 <script setup lang="ts">
+import NotificationCenter from '@/components/notifications/NotificationCenter.vue'
 import { Search } from 'lucide-vue-next'
 
 import { useEventListener } from '@vueuse/core'
 const route = useRoute()
+const { can } = useAccess()
 function openSearch() {
   if (route.path !== '/search') void navigateTo({ path: '/search', query: { returnTo: route.fullPath } })
 }
@@ -25,7 +27,8 @@ const hydrated = useHydrated()
       <header class="flex h-14 items-center gap-2 border-b px-4">
         <SidebarTrigger />
         <div class="flex-1" />
-        <Button variant="outline" size="sm" class="gap-2 text-muted-foreground" :disabled="!hydrated" @click="openSearch">
+        <NotificationCenter v-if="can('pmo.tasks.read')" />
+        <Button :aria-label="$t('app.search')" variant="outline" size="sm" class="gap-2 text-muted-foreground" :disabled="!hydrated" @click="openSearch">
           <Search class="size-4" />
           <span class="hidden sm:inline">{{ $t('app.search') }}</span>
           <kbd class="pointer-events-none rounded border bg-muted px-1.5 font-mono text-[10px]">⌘K</kbd>

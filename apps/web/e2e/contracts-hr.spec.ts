@@ -7,6 +7,7 @@ import {
   HrEmployeeSchema,
   HrEmployeeListSchema,
   PersonRefSchema,
+  MeSchema, RoleListSchema, AdminUserDetailSchema,
 } from '@nasq/contracts'
 
 const ADMIN_LOGIN = process.env.E2E_ADMIN_LOGIN ?? 'admin'
@@ -80,32 +81,34 @@ test('HR mutation responses match schemas and PMO people refs use the linked use
   expect(unarchiveRes.status()).toBe(200)
   HrEmployeeSchema.parse(await unarchiveRes.json())
 
-  // Deliberately prove that the HR record id and the linked res.users id are
-  // distinct before checking the PMO picker contract.
-  const accessRes = await page.request.post(`/api/v1/hr/employees/${employee.id}/access`, {
-    data: { password: `E2E-contract-${suffix}`, role: 'employee' },
+  const me = MeSchema.parse(await (await page.request.get('/api/v1/me')).json())
+  const roles = RoleListSchema.parse(await (await page.request.get('/api/v1/admin/roles')).json())
+  const employeeRole = roles.items.find(role => role.key === 'employee')!
+  const assignments = [{ role_id: employeeRole.id, scope: { kind: 'company', id: me.company.id } }]
+  const accessRes = await page.request.post('/api/v1/admin/users', {
+    data: { employee_id: employee.id, password: `E2E-contract-${suffix}`, assignments },
   })
-  expect(accessRes.status()).toBe(200)
-  const linkedEmployee = HrEmployeeSchema.parse(await accessRes.json())
-  expect(linkedEmployee.access).not.toBeNull()
-  expect(linkedEmployee.access!.user_id).not.toBe(linkedEmployee.id)
+  expect(accessRes.status()).toBe(201)
+  const account = AdminUserDetailSchema.parse(await accessRes.json())
+  const linkedEmployee = HrEmployeeSchema.parse(await (await page.request.get(`/api/v1/hr/employees/${employee.id}`)).json())
+  expect(linkedEmployee.access?.user_id).toBe(account.id)
+  expect(account.employee?.id).toBe(employee.id)
 
   const peopleRes = await page.request.get(`/api/v1/people?q=${encodeURIComponent(linkedEmployee.name)}`)
   expect(peopleRes.status()).toBe(200)
   const matchingPeople = PersonRefSchema.array().parse(await peopleRes.json())
-  expect(matchingPeople).toContainEqual(expect.objectContaining({
-    id: linkedEmployee.access!.user_id,
-    user_id: linkedEmployee.access!.user_id,
-  }))
+  expect(matchingPeople).toContainEqual(expect.objectContaining({ id: account.id, user_id: account.id }))
 
-  const accessPatchRes = await page.request.patch(`/api/v1/hr/employees/${employee.id}/access`, {
-    data: { role: 'admin' },
+  const accessPatchRes = await page.request.patch(`/api/v1/admin/users/${account.id}/access`, {
+    data: { assignments, expected_version: account.version },
   })
   expect(accessPatchRes.status()).toBe(200)
-  HrEmployeeSchema.parse(await accessPatchRes.json())
-  const accessDeleteRes = await page.request.delete(`/api/v1/hr/employees/${employee.id}/access`)
-  expect(accessDeleteRes.status()).toBe(200)
-  HrEmployeeSchema.parse(await accessDeleteRes.json())
+  const updated = AdminUserDetailSchema.parse(await accessPatchRes.json())
+  const disableRes = await page.request.post(`/api/v1/admin/users/${account.id}/disable`, {
+    data: { expected_version: updated.version },
+  })
+  expect(disableRes.status()).toBe(200)
+  expect(AdminUserDetailSchema.parse(await disableRes.json()).active).toBe(false)
 
   const documentRes = await page.request.post('/api/v1/hr/documents', {
     data: { name: `E2E contract document ${suffix}`, body: 'contract body', department_id: department.id },

@@ -8,39 +8,33 @@ layer. The platform design is in
 
 ## Current product
 
-This Phase 3b checkout contains the PMO and HR pillars:
+This unified checkout contains the PMO, HR and access administration surfaces:
 
 - Tasks at `/tasks`, including personal stages, board and table views,
   timelines, comments, task updates, and real-time bus updates.
 - Projects at `/projects`, including project tasks, stages, milestones, status
   updates, followers, archive actions, tags, and project settings.
 - The HR directory at `/hr`, including company-wide employee cards, department
-  administration, employee access/archive controls, and department documents.
+  hierarchy, employee archive controls, and department documents.
   HR routes live under `/api/v1/hr/*` and use employee ids. The PMO assignee
   picker at `/api/v1/people` remains a user-id resource.
-- Phase 3b also delivers customer branding administration and `/account`
-  password changes. Existing HR document create/edit/read and attachment
-  actions remain available from the departments tab.
+- Access administration at `/settings/users`, roles and audit with capability
+  checks. Branding settings edit the primary colour; Odoo system administrators
+  manage institution name/logo. `/account` handles self password changes.
+- PMO adds task attachments, recipient notifications, dependencies and a routed
+  archived-task list with restore. HR document creation and edits use pages.
 - Arabic is the default locale and the UI supports RTL. The sidebar exposes
-  tasks, projects, HR, and role-gated settings/admin entries.
+  tasks, projects, HR, and capability-gated settings/admin entries.
 
 Task detail is a full page at `/tasks/{id}` and at
 `/projects/{id}/tasks/{taskId}`. Returning from a nested task preserves the
 query filters in the URL; scroll restoration is not part of the contract.
 
-Phase 3b is delivered in this local checkout. It expands the existing
-people/HR, branding, and account surfaces; it does not replace the shipped HR
-API or the PMO people picker. Its
-working documents are [`docs/superpowers/specs/2026-09-05-nasq-phase-3b-people-branding-design.md`](docs/superpowers/specs/2026-09-05-nasq-phase-3b-people-branding-design.md),
-[`docs/superpowers/plans/2026-09-05-nasq-phase-3b-people-branding.md`](docs/superpowers/plans/2026-09-05-nasq-phase-3b-people-branding.md),
-and [`docs/superpowers/plans/2026-09-05-nasq-phase-3b-handoff.md`](docs/superpowers/plans/2026-09-05-nasq-phase-3b-handoff.md).
-
-The final local verification records Odoo aggregate `182` green, contracts
-`52` green, web `152` green, Playwright `47` green, and clean `ruff`,
-`vue-tsc`, and production-build gates. This is branch-local evidence only;
-canonical `main` remains the pre-Phase-3b baseline and no merge, push,
-deployment, DNS cutover, or release approval is implied. Detailed evidence is
-recorded in the [Phase 3b delivery report](docs/superpowers/plans/2026-09-05-nasq-phase-3b-delivery.md).
+The [unification report](docs/unification-2026-09-05.md) records current
+verification and recovery. [WORKSPACE.md](docs/WORKSPACE.md) is the canonical
+workspace map. Earlier branch delivery reports under `docs/superpowers/` are
+historical evidence. All business workflows use normal internal pages with
+filter-preserving back navigation; destructive confirmation stays inline.
 
 ## Local development
 

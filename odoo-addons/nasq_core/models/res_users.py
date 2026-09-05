@@ -96,14 +96,16 @@ class NasqResUsers(models.Model):
         partner_id = vals.get('partner_id')
         marker = self.env.cr.precommit.data
         previous = marker.get(PARTNER_GRANT_MARKER)
-        marker[USER_CREATE_MARKER] = marker.get(USER_CREATE_MARKER, 0) + 1
+        previous_depth = marker.get(USER_CREATE_MARKER)
+        marker[USER_CREATE_MARKER] = (previous_depth or 0) + 1
         marker[PARTNER_GRANT_MARKER] = {partner_id} if partner_id else set()
         try:
             return super().create(vals)
         finally:
-            marker[USER_CREATE_MARKER] -= 1
-            if not marker[USER_CREATE_MARKER]:
+            if previous_depth is None:
                 marker.pop(USER_CREATE_MARKER, None)
+            else:
+                marker[USER_CREATE_MARKER] = previous_depth
             if previous is None:
                 marker.pop(PARTNER_GRANT_MARKER, None)
             else:

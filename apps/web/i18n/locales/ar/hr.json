@@ -33,7 +33,11 @@
         "vendor": "مورّد",
         "stopped": "الدخول موقوف"
       },
-      "description": "دليل الموظفين وبياناتهم الوظيفية."
+      "description": "دليل الموظفين وبياناتهم الوظيفية.",
+      "filteredEmpty": "لا موظفون يطابقون الفلاتر",
+      "filteredEmptyHint": "غيّر الفلاتر أو امسحها.",
+      "searchValue": "بحث: {value}",
+      "clear": "مسح الفلاتر"
     },
     "card": {
       "title": "بطاقة الموظف",
@@ -63,7 +67,31 @@
       "inUse": "القسم مستخدم.",
       "employeeReason": "{count} موظف",
       "childReason": "{count} قسم فرعي",
-      "documentReason": "{count} مستند"
+      "documentReason": "{count} مستند",
+      "newTitle": "إضافة قسم",
+      "editTitle": "تعديل القسم",
+      "create": "إنشاء القسم",
+      "newChild": "إضافة قسم فرعي",
+      "managerSearch": "ابحث عن موظف…",
+      "managerLoading": "جارٍ البحث عن الموظفين…",
+      "managerLimitNotice": "النتائج محدودة؛ حسّن البحث لرؤية موظفين آخرين.",
+      "noManagers": "لم يتم العثور على موظفين",
+      "search": "بحث في الأقسام…",
+      "hierarchy": "الهيكل التنظيمي",
+      "pageDescription": "استعرض الأقسام وعلاقاتها التنظيمية.",
+      "selectedDescription": "الإجراءات والروابط الخاصة بالقسم المحدد.",
+      "noManager": "لا يوجد مدير",
+      "viewEmployees": "عرض الموظفين",
+      "viewDocuments": "عرض المستندات",
+      "expand": "توسيع القسم",
+      "collapse": "طي القسم",
+      "loadError": "تعذر تحميل الأقسام",
+      "retry": "إعادة المحاولة",
+      "formDescription": "حدّد اسم القسم وعلاقته ومديره.",
+      "children": "الأقسام الفرعية",
+      "save": "حفظ",
+      "managerLoadError": "تعذر تحميل قائمة الموظفين",
+      "listView": "القائمة"
     },
     "tabs": {
       "employees": "الموظفون",
@@ -121,7 +149,17 @@
         "name": "العنوان",
         "updated": "آخر تحديث",
         "department": "القسم"
-      }
+      },
+      "description": "مستندات الموارد البشرية مرتبة حسب القسم.",
+      "allDepartments": "كل الأقسام",
+      "department": "القسم",
+      "chooseDepartment": "اختر قسمًا",
+      "loadError": "تعذّر تحميل المستند.",
+      "departmentsError": "تعذّر تحميل الأقسام.",
+      "retry": "إعادة المحاولة",
+      "previous": "السابق",
+      "next": "التالي",
+      "pagination": "عرض {from}–{to} من {total}"
     }
   }
 }

@@ -23,13 +23,14 @@ export const ProjectDetailSchema = ProjectSchema.extend({
   stages: z.array(ProjectStageSchema), description_html: z.string(), manager: UserRefSchema.nullable(),
   privacy_visibility: VisibilitySchema, date_start: z.string().nullable(), date_end: z.string().nullable(),
   tags: z.array(TagSchema), followers_count: z.number().int(), milestone_count: z.number().int(),
+  allow_task_dependencies: z.boolean().default(false),
 }).strict()
 
 export const ProjectListSchema = z.object({ items: z.array(ProjectSchema), total: z.number().int().nonnegative(), can_create: z.boolean(), can_list_archived: z.boolean() }).strict()
 export const ProjectCreateSchema = z.object({ name: z.string().min(1) }).strict()
 export const ProjectPatchSchema = z.object({
   name: z.string().min(1).optional(), description: z.string().optional(), user_id: z.number().int().nullable().optional(),
-  privacy_visibility: VisibilitySchema.optional(), date_start: z.string().nullable().optional(), date: z.string().nullable().optional(),
+  privacy_visibility: VisibilitySchema.optional(), allow_task_dependencies: z.boolean().optional(), date_start: z.string().nullable().optional(), date: z.string().nullable().optional(),
   tag_ids: z.array(z.number().int()).optional(),
 }).strict()
 export const ProjectStatusBodySchema = z.object({ status: ProjectStatusSchema }).strict()

@@ -18,7 +18,8 @@
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.141 0.005 285.823);
   --primary: #18181b;                       /* overridden at runtime by branding.primary_color */
-  --primary-foreground: oklch(0.985 0 0);
+  --primary-foreground: #ffffff;
+  --brand-link: #18181b;
   --secondary: oklch(0.967 0.001 286.375);
   --secondary-foreground: oklch(0.21 0.006 285.885);
   --muted: oklch(0.967 0.001 286.375);
@@ -28,15 +29,15 @@
   --destructive: oklch(0.577 0.245 27.325);
   --border: oklch(0.92 0.004 286.32);
   --input: oklch(0.92 0.004 286.32);
-  --ring: oklch(0.705 0.015 286.067);
+  --ring: #18181b;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.141 0.005 285.823);
   --sidebar-primary: var(--primary);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: oklch(0.967 0.001 286.375);
   --sidebar-accent-foreground: oklch(0.21 0.006 285.885);
   --sidebar-border: oklch(0.92 0.004 286.32);
-  --sidebar-ring: oklch(0.705 0.015 286.067);
+  --sidebar-ring: #18181b;
 }
 
 @theme inline {
@@ -53,6 +54,7 @@
   --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-brand-link: var(--brand-link);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
@@ -74,6 +76,6 @@
 }
 
 @layer base {
-  * { @apply border-border outline-ring/50; }
+  * { @apply border-border outline-ring; }
   body { @apply bg-background text-foreground font-sans antialiased; }
 }

@@ -212,6 +212,20 @@ function onTagsChange({ ids }: { ids: number[]; resolved: TagRef[] }) {
       </div>
     </section>
 
+    <section class="flex items-center justify-between gap-3">
+      <div>
+        <Label>{{ t('taskLifecycle.enableDependencies') }}</Label>
+        <p class="text-sm text-muted-foreground">{{ t('taskLifecycle.enableDependenciesHint') }}</p>
+      </div>
+      <input
+        type="checkbox"
+        :checked="project.allow_task_dependencies"
+        :disabled="!hydrated || !project.can_manage"
+        :aria-label="t('taskLifecycle.enableDependencies')"
+        @change="patch({ allow_task_dependencies: ($event.target as HTMLInputElement).checked })"
+      />
+    </section>
+
     <section class="space-y-2">
       <Label>{{ t('projects.settings.tags') }}</Label>
       <TagPicker :model-value="project.tags" :can-create="project.can_manage" @update:model-value="onTagsChange" />

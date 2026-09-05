@@ -7,9 +7,12 @@ export function useBranding() {
     transform: (raw) => BrandingSchema.parse(raw),
   })
   const branding = computed(() => data.value ?? null)
+  const themeStyle = computed(() => Object.entries(createBrandTheme(branding.value?.primary_color ?? ''))
+    .map(([key, value]) => `${key}:${value}`)
+    .join(';'))
   useHead(() => ({
     title: branding.value?.name ?? 'nasq',
-    style: branding.value ? [{ innerHTML: `:root{${Object.entries(createBrandTheme(branding.value.primary_color)).map(([key, value]) => `${key}:${value}`).join(';')}}` }] : [],
+    htmlAttrs: branding.value ? { style: themeStyle.value } : {},
   }))
   return { branding, refresh }
 }

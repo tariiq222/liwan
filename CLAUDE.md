@@ -10,17 +10,18 @@ direction.
 
 ## Repository layout
 
-- `odoo-addons/nasq_core` owns product groups and branding defaults.
+- `odoo-addons/nasq_core` owns the capability catalog, roles, assignments, access audit, migration and identity protection.
 - `odoo-addons/nasq_api` owns shared `/api/v1` plumbing, common serializers,
   authentication, branding, and the shared test fixture. It does not import a
   pillar.
 - `odoo-addons/nasq_pmo` owns projects, tasks, timelines, project settings,
+  attachments, dependencies, archive/restore, recipient notifications,
   and `/api/v1/people` (the task assignee picker, whose ids are `res.users`
   ids).
 - `odoo-addons/nasq_hr` owns the HR directory, departments, documents, HR
   serializers/controllers, and `/api/v1/hr/*` (employee ids are
   `hr.employee` ids).
-- `packages/contracts/src/common`, `src/pmo`, and `src/hr` hold the Zod wire
+- `packages/contracts/src/common`, `src/access`, `src/pmo`, and `src/hr` hold the Zod wire
   contracts; each namespace has a barrel re-exported from `src/index.ts`.
 - `apps/web` holds Nuxt pages, components, composables, and per-pillar locale
   files. `/hr` is the shipped HR directory; `/people` is not the HR route.
@@ -28,23 +29,21 @@ direction.
 - `deploy` holds per-customer Docker, Caddy, provisioning, and branding
   templates.
 
-## Phase 3b delivery state
+## Unified product state
 
-Phase 3b is delivered on the local `codex/phase-3b` branch. `/hr` now covers
-the employee directory, admin employee create/edit/access/archive flows,
-department management and safe deletion, while preserving department
-documents and their create/edit/read/attachment actions. Vendor-linked
-account role/access and archive controls are protected from HR admin
-mutations. Branding administration is available under `/settings/branding`,
-and signed-in users change their own password under `/account`. The
-`/api/v1/hr/*` employee resources remain distinct from the user-id
-`/api/v1/people` picker.
+The unified checkout brings together Phase 3b, routed internal pages, capability
+administration, the design system, HR hierarchy/documents, and PMO collaboration.
+The current integration evidence and recovery map are in `docs/WORKSPACE.md`
+and `docs/unification-2026-09-05.md`. Older branch delivery reports are historical
+snapshots and do not override the capability policy below.
 
-Final local verification records Odoo aggregate `182`, contracts `52`, web
-unit `152`, and Playwright `47` green, plus clean `ruff`, `vue-tsc`, and
-production-build gates. Canonical `main` remains the pre-Phase-3b baseline;
-these checks do not claim a merge, push, deployment, DNS cutover, or release
-approval. See the Phase 3b delivery report under `docs/superpowers/plans/`.
+HR manages employee records and archival. Account grants, role assignments,
+password resets and reactivation belong to `/settings/users` and the
+`/api/v1/admin/users` API. Archiving an employee disables linked access;
+unarchiving does not reactivate the login. `/account` changes one's own password.
+Nasq branding settings edit only `primary_color`. Institution name and logo
+are managed in Odoo by `base.group_system`, with company, related partner and
+attachment guards against indirect identity changes.
 
 The Odoo upstream checkout is `/Users/tariq/code/odoo`, branch `19.0`. Its
 source, configuration, and Git state are read-only for this project; source
@@ -76,7 +75,7 @@ explicitly; do not assume an Odoo config points at a particular Nasq checkout.
 - Keep `/api/v1/people?q=` and its user-id `PersonRef` contract unchanged.
   HR employee ids and user ids are distinct resources and must not be merged.
 - `nasq_hr` has no `sudo()` path. In PMO, only the documented manager-write,
-  policy/config, display-lookup, and integer-count cases use `sudo()` after the
+  policy/config, display-lookup, integer-count and notification cases use `sudo()` after the
   caller's authorization check; do not add another case without documenting
   it and fixing ACLs/rules where possible.
 - nasq has no time logging or payroll product surface. Do not add
@@ -115,11 +114,12 @@ Avoid Enterprise and OCA dependencies. Serializers explicitly whitelist wire
 fields; never send a raw `read()` result. A write returns the full server
 shape, and the client replaces its cache with that response.
 
-Groups are `nasq_core.group_employee` for the customer UI,
-`nasq_core.group_customer_admin` for customer administration, and
-`nasq_core.group_vendor_support` for vendor support. Customers do not open
-Odoo. Fix ACLs and record rules when access is wrong instead of hiding an
-access error behind `sudo()`.
+Authorization uses the 25 capabilities in `nasq.access.service`, built-in and
+custom roles, and company-scoped assignments. `system_admin` manages access
+and settings without implicitly granting HR/PMO write access. Project ownership
+contributes contextual PMO capabilities. Legacy groups are migration/ORM support,
+not a substitute for capability checks. Every resource operation also enforces
+current-company and record visibility. Customers do not open Odoo.
 
 ## Verification boundary
 
@@ -155,32 +155,24 @@ worktrees only after their content is preserved and no process is using them.
 - Task state names on the wire are
   `in_progress | changes_requested | approved | waiting | done | cancelled`,
   mapped to Odoo `01_in_progress | 02_changes_requested | 03_approved |
-  04_waiting_normal | 1_done | 1_canceled`. Employees may set
-  `in_progress`, `waiting`, `done`, and `cancelled` on writable tasks;
-  `approved` and `changes_requested` require
-  `project.group_project_manager` or `nasq_core.group_customer_admin`, with
-  403 `transition_forbidden` otherwise.
-- Roles are `nasq_core.group_employee` (Nuxt),
-  `nasq_core.group_customer_admin` (Nuxt and settings), and
-  `nasq_core.group_vendor_support` (vendor support; implies
-  `base.group_system`). Customers do not open Odoo. Task create/write emits
-  partner-channel bus notifications and the web app invalidates vue-query
-  caches from those events.
-- Branding source of truth is `res.company` and its nasq fields;
-  `deploy/branding.json` only seeds it. `GET /api/v1/branding` is public and
-  cached. Nasq has no time logging: do not add `hr_timesheet`, timesheet
-  fields/endpoints, or allocated-versus-logged reporting.
-- PMO project management uses `_nasq_can_manage`: project manager group,
-  customer admin, or the project's assigned `user_id`. Project writes pass
-  `_nasq_check_manage()` and `_nasq_write_as_manager`/
-  `_nasq_write_sudo` or a dedicated do step.
-  The five documented PMO `sudo()` cases are: (1) gated
-  `ir.config_parameter` policy access; (2) policy-based project creation when
-  creators are employees; (3) manager writes and archive/status/stage/
-  milestone helpers plus follower subscribe/unsubscribe; (4) serializer
-  display-name/stage/milestone lookups; and (5) integer-only
-  `_nasq_stage_task_count`/`_nasq_milestone_task_counts` values needed for
-  safe deletion. Do not add an undocumented case.
+  04_waiting_normal | 1_done | 1_canceled`. Write and approve capabilities
+  and record-specific allowed actions decide transitions; do not infer them
+  from a legacy role label.
+- Branding source of truth is `res.company`; `deploy/branding.json` seeds it.
+  The public branding response is cached. The admin API accepts only
+  `primary_color` and rejects mixed identity/color requests before any write.
+- PMO project management uses record-scoped `_nasq_can_manage` and checked
+  private mutation helpers. Task writes, approvals, archive, dependency edits
+  and attachment mutations preserve their dedicated capability/visibility gates.
+- Documented PMO elevated operations are policy/config access, policy-based
+  project creation, checked manager mutations, serializer display lookups,
+  integer counts, and notification delivery/recipient-owned reads. Notification
+  elevated reads must first restrict recipient and readable current-company
+  tasks; they never bypass task visibility. Do not add an undocumented bypass.
+- Task attachment uploads accept PDF, PNG, JPEG, text, DOCX and XLSX up to
+  10 MiB decoded, with exact binary task linkage and ordinary attachment ACLs.
+  Dependency edits require project management, same active project, positive
+  unique IDs and no cycles. Restores require a readable active parent project.
 
 ## Frontend and machine rules
 
@@ -241,3 +233,8 @@ The global `~/.npmrc` may be malformed. Use `npm ci --ignore-scripts`, never
 edit that file, and set `npm_config_userconfig=/tmp/empty.npmrc` when running
 `npx shadcn-vue@latest ...`. Semantic searches across Odoo and Nasq addons
 may use the configured semtree index; resync it after installing addons.
+
+New collaboration endpoints currently require the current company. Legacy
+company-less collaboration compatibility is awaiting explicit authorization;
+existing baseline record rules are unchanged. New Nasq projects use the current
+company and explicit foreign-company projects/tasks remain excluded.

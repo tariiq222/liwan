@@ -2,6 +2,8 @@
 import { PROJECT_STATUSES, type ProjectStatus } from '@nasq/contracts'
 import { Search, X } from 'lucide-vue-next'
 import { refDebounced } from '@vueuse/core'
+import FilterBar from '@/components/shared/FilterBar.vue'
+import PageHeader from '@/components/shared/PageHeader.vue'
 import ProjectTable from '@/components/project/ProjectTable.vue'
 import { useProjectList } from '@/composables/useProjects'
 import { returnToQuery } from '@/utils/safeReturnTo'
@@ -79,26 +81,29 @@ function openProject(id: number) {
 
 <template>
   <div class="space-y-4">
-    <header class="flex flex-wrap items-center justify-between gap-3">
-      <h1 class="text-2xl font-semibold">{{ t('projects.title') }}</h1>
-      <Button v-if="canCreate" data-testid="project-new" :disabled="!hydrated" @click="openCreate">
-        {{ t('projects.new') }}
-      </Button>
-    </header>
+    <PageHeader :title="t('projects.title')">
+      <template #actions>
+        <Button v-if="canCreate" data-testid="project-new" :disabled="!hydrated" @click="openCreate">
+          {{ t('projects.new') }}
+        </Button>
+      </template>
+    </PageHeader>
 
-    <Tabs v-if="canListArchived" :model-value="archived ? 'archived' : 'active'" @update:model-value="onFilterChange">
-      <TabsList>
-        <TabsTrigger value="active" :disabled="!hydrated">{{ t('projects.filters.active') }}</TabsTrigger>
-        <TabsTrigger value="archived" :disabled="!hydrated">{{ t('projects.filters.archived') }}</TabsTrigger>
-      </TabsList>
-    </Tabs>
-
-    <div class="space-y-2">
-      <div class="flex flex-wrap items-center gap-2">
+    <FilterBar>
+      <template #search>
         <div class="relative min-w-52 flex-1">
           <Search class="pointer-events-none absolute start-2 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input v-model="search" :disabled="!hydrated" :placeholder="t('projects.filters.search')" class="ps-8" />
         </div>
+      </template>
+
+      <template #default>
+        <Tabs v-if="canListArchived" :model-value="archived ? 'archived' : 'active'" @update:model-value="onFilterChange">
+          <TabsList>
+            <TabsTrigger value="active" :disabled="!hydrated">{{ t('projects.filters.active') }}</TabsTrigger>
+            <TabsTrigger value="archived" :disabled="!hydrated">{{ t('projects.filters.archived') }}</TabsTrigger>
+          </TabsList>
+        </Tabs>
         <Select :model-value="statusFilter" @update:model-value="onStatusChange">
           <SelectTrigger class="w-40" :disabled="!hydrated">
             <SelectValue />
@@ -109,15 +114,18 @@ function openProject(id: number) {
             <SelectItem v-for="status in PROJECT_STATUSES" :key="status" :value="status">{{ t(`projects.status.${status}`) }}</SelectItem>
           </SelectContent>
         </Select>
-      </div>
-      <div v-if="rawSearch || statusFilter !== 'all'" class="flex flex-wrap items-center gap-2">
-        <Badge v-if="rawSearch" variant="secondary">{{ t('projects.filters.searchValue', { value: rawSearch }) }}</Badge>
-        <Badge v-if="statusFilter !== 'all'" variant="secondary">{{ t(statusFilter === 'unset' ? 'projects.filters.unset' : `projects.status.${statusFilter}`) }}</Badge>
-        <Button variant="ghost" size="sm" class="gap-1" :disabled="!hydrated" @click="clearFilters">
-          <X class="size-3.5" />{{ t('projects.filters.clear') }}
-        </Button>
-      </div>
-    </div>
+      </template>
+
+      <template #active>
+        <div v-if="rawSearch || statusFilter !== 'all'" class="flex flex-wrap items-center gap-2">
+          <Badge v-if="rawSearch" variant="secondary">{{ t('projects.filters.searchValue', { value: rawSearch }) }}</Badge>
+          <Badge v-if="statusFilter !== 'all'" variant="secondary">{{ t(statusFilter === 'unset' ? 'projects.filters.unset' : `projects.status.${statusFilter}`) }}</Badge>
+          <Button variant="ghost" size="sm" class="gap-1" :disabled="!hydrated" @click="clearFilters">
+            <X class="size-3.5" />{{ t('projects.filters.clear') }}
+          </Button>
+        </div>
+      </template>
+    </FilterBar>
 
     <ProjectTable
       :items="filteredItems"

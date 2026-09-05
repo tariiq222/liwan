@@ -7,6 +7,7 @@ import type { TaskListParams } from '@/composables/useTasks'
 import { useUpdateTask, useTasks } from '@/composables/useTasks'
 import { usePersonalStages } from '@/composables/usePersonalStages'
 import TaskCard from './TaskCard.vue'
+import EmptyState from '@/components/shared/EmptyState.vue'
 
 const props = withDefaults(defineProps<{ params: TaskListParams; stageSource?: StageSource }>(), {
   stageSource: () => ({ kind: 'personal' }),
@@ -188,7 +189,7 @@ function isCollapsed(stage: BoardStage): boolean {
             class="flex min-h-16 flex-1 flex-col gap-2 overflow-y-auto"
             group="tasks"
             :animation="150"
-          filter="[data-readonly=true]"
+            filter="[data-readonly=true]"
             @add="(e: any) => onColumnAdd(e, String(stage.id))"
           >
             <TaskCard
@@ -208,6 +209,10 @@ function isCollapsed(stage: BoardStage): boolean {
         </div>
       </template>
     </div>
-    <p v-if="kind === 'project' && sortedStages.length === 0" class="text-sm text-muted-foreground">{{ t('tasks.kanban.noStages') }}</p>
+    <EmptyState
+      v-if="kind === 'project' && sortedStages.length === 0"
+      :title="t('tasks.kanban.noStages')"
+      class="py-6"
+    />
   </div>
 </template>

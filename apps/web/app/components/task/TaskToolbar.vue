@@ -5,6 +5,7 @@ import { refDebounced } from '@vueuse/core'
 import type { TaskListParams } from '@/composables/useTasks'
 import { STATE_LABEL_KEY } from '@/composables/taskState'
 import { useProjects } from '@/composables/useProjects'
+import FilterBar from '@/components/shared/FilterBar.vue'
 
 const props = defineProps<{ modelValue: TaskListParams; hideProjectFilter?: boolean; hideCreate?: boolean }>()
 const emit = defineEmits<{ 'update:modelValue': [TaskListParams]; create: [] }>()
@@ -57,18 +58,15 @@ function clearFilters() {
 </script>
 
 <template>
-  <div class="space-y-2">
-    <div class="flex flex-wrap items-center gap-2">
-      <Tabs
-        :model-value="modelValue.closed ? 'closed' : 'open'"
-        @update:model-value="(v) => patch({ closed: v === 'closed' })"
-      >
-        <TabsList>
-          <TabsTrigger value="open" :disabled="!hydrated">{{ t('tasks.filters.open') }}</TabsTrigger>
-          <TabsTrigger value="closed" :disabled="!hydrated">{{ t('tasks.filters.closed') }}</TabsTrigger>
-        </TabsList>
-      </Tabs>
+  <FilterBar>
+    <template #search>
+      <div class="relative min-w-48 flex-1">
+        <Search class="pointer-events-none absolute start-2 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+        <Input v-model="search" :disabled="!hydrated" :placeholder="t('tasks.filters.search')" class="ps-8" />
+      </div>
+    </template>
 
+    <template #default>
       <DropdownMenu>
         <DropdownMenuTrigger as-child :disabled="!hydrated">
           <Button variant="outline" size="sm" :disabled="!hydrated">{{ t('tasks.filters.allStates') }}</Button>
@@ -101,23 +99,32 @@ function clearFilters() {
         </Select>
       </template>
 
-      <div class="relative min-w-48 flex-1">
-        <Search class="pointer-events-none absolute start-2 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input v-model="search" :disabled="!hydrated" :placeholder="t('tasks.filters.search')" class="ps-8" />
-      </div>
-
       <Button v-if="!hideCreate && can('pmo.tasks.create')" size="sm" class="gap-1.5" :disabled="!hydrated" @click="emit('create')">
         <Plus class="size-4" />{{ t('tasks.new') }}
       </Button>
-    </div>
+    </template>
 
-    <div v-if="modelValue.q || selectedStates.length || (!hideProjectFilter && selectedProject)" class="flex flex-wrap items-center gap-2">
-      <Badge v-if="modelValue.q" variant="secondary">{{ t('tasks.filters.searchValue', { value: modelValue.q }) }}</Badge>
-      <Badge v-for="state in selectedStates" :key="state" variant="secondary">{{ t(STATE_LABEL_KEY[state]) }}</Badge>
-      <Badge v-if="!hideProjectFilter && selectedProject" variant="secondary">{{ selectedProject.name }}</Badge>
-      <Button variant="ghost" size="sm" class="gap-1" :disabled="!hydrated" @click="clearFilters">
-        <X class="size-3.5" />{{ t('tasks.filters.clear') }}
-      </Button>
-    </div>
-  </div>
+    <template #active>
+      <div v-if="modelValue.q || selectedStates.length || (!hideProjectFilter && selectedProject)" class="flex flex-wrap items-center gap-2">
+        <Badge v-if="modelValue.q" variant="secondary">{{ t('tasks.filters.searchValue', { value: modelValue.q }) }}</Badge>
+        <Badge v-for="state in selectedStates" :key="state" variant="secondary">{{ t(STATE_LABEL_KEY[state]) }}</Badge>
+        <Badge v-if="!hideProjectFilter && selectedProject" variant="secondary">{{ selectedProject.name }}</Badge>
+        <Button variant="ghost" size="sm" class="gap-1" :disabled="!hydrated" @click="clearFilters">
+          <X class="size-3.5" />{{ t('tasks.filters.clear') }}
+        </Button>
+      </div>
+    </template>
+
+    <template #view>
+      <Tabs
+        :model-value="modelValue.closed ? 'closed' : 'open'"
+        @update:model-value="(v) => patch({ closed: v === 'closed' })"
+      >
+        <TabsList>
+          <TabsTrigger value="open" :disabled="!hydrated">{{ t('tasks.filters.open') }}</TabsTrigger>
+          <TabsTrigger value="closed" :disabled="!hydrated">{{ t('tasks.filters.closed') }}</TabsTrigger>
+        </TabsList>
+      </Tabs>
+    </template>
+  </FilterBar>
 </template>

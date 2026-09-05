@@ -7,36 +7,24 @@ import {
   type HrDocument,
   type HrDocumentList,
 } from '@nasq/contracts'
+import {
+  documentListQueryKey,
+  invalidateDocumentLists,
+  replaceDocumentDetail,
+  type DocumentListQueryParams,
+} from '../lib/documentListCache'
 
 export type { HrDocument, HrDocumentList }
 
-export type HrDocumentListParams = {
-  q?: string
-  department_id?: number
-  limit?: number
-  offset?: number
-}
+export type HrDocumentListParams = DocumentListQueryParams
+
+// TanStack serializes mutations sharing this scope. A single scope keeps
+// update and attachment responses ordered when the same document is edited.
+const documentWriteScope = { id: 'hr-document-write' }
 
 export const hrDocumentKeys = {
-  list: (params: HrDocumentListParams) => ['hr', 'documents', params] as const,
+  list: (params: HrDocumentListParams) => documentListQueryKey(params),
   detail: (id: number) => ['hr', 'document', id] as const,
-}
-
-function replaceDocumentInLists(qc: ReturnType<typeof useQueryClient>, doc: HrDocument, insert: boolean) {
-  qc.setQueryData(hrDocumentKeys.detail(doc.id), doc)
-  const lists = qc.getQueriesData<HrDocumentList>({ queryKey: ['hr', 'documents'] })
-  for (const [key, data] of lists) {
-    if (!data) continue
-    const idx = data.items.findIndex((d) => d.id === doc.id)
-    if (idx === -1) {
-      if (!insert) continue
-      qc.setQueryData(key, { items: [doc, ...data.items], total: data.total + 1 })
-    } else {
-      const items = data.items.slice()
-      items[idx] = doc
-      qc.setQueryData(key, { ...data, items })
-    }
-  }
 }
 
 export function useHrDocuments(params: MaybeRefOrGetter<HrDocumentListParams>) {
@@ -73,7 +61,10 @@ export function useCreateDocument() {
   return useMutation({
     mutationFn: (body: { name: string; body?: string; department_id: number }) =>
       $api('/api/v1/hr/documents', { method: 'POST', body, schema: HrDocumentSchema }),
-    onSuccess: (doc) => replaceDocumentInLists(qc, doc, true),
+    onSuccess: async (doc) => {
+      replaceDocumentDetail(qc, doc)
+      await invalidateDocumentLists(qc)
+    },
   })
 }
 
@@ -81,9 +72,13 @@ export function useUpdateDocument() {
   const qc = useQueryClient()
   const { $api } = useApi()
   return useMutation({
+    scope: documentWriteScope,
     mutationFn: ({ id, patch }: { id: number; patch: { name?: string; body?: string } }) =>
       $api(`/api/v1/hr/documents/${id}`, { method: 'PATCH', body: patch, schema: HrDocumentSchema }),
-    onSuccess: (doc) => replaceDocumentInLists(qc, doc, false),
+    onSuccess: async (doc) => {
+      replaceDocumentDetail(qc, doc)
+      await invalidateDocumentLists(qc)
+    },
   })
 }
 
@@ -91,6 +86,7 @@ export function useUploadDocumentAttachment() {
   const qc = useQueryClient()
   const { $api } = useApi()
   return useMutation({
+    scope: documentWriteScope,
     mutationFn: ({
       id,
       name,
@@ -107,6 +103,9 @@ export function useUploadDocumentAttachment() {
         body: { name, datas, mimetype },
         schema: HrDocumentSchema,
       }),
-    onSuccess: (doc) => replaceDocumentInLists(qc, doc, false),
+    onSuccess: async (doc) => {
+      replaceDocumentDetail(qc, doc)
+      await invalidateDocumentLists(qc)
+    },
   })
 }

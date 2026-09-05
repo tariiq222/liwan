@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import PageHeader from '@/components/shared/PageHeader.vue'
 import TaskBoard from '@/components/task/TaskBoard.vue'
 import TaskTable from '@/components/task/TaskTable.vue'
 import TaskToolbar from '@/components/task/TaskToolbar.vue'
@@ -42,12 +43,16 @@ function openCreate() {
 
 <template>
   <div v-if="isBaseRoute" class="space-y-4">
-    <header class="flex flex-wrap items-center justify-between gap-3">
-      <h1 class="text-2xl font-semibold">{{ t('tasks.title') }}</h1>
+    <PageHeader :title="t('tasks.title')">
+      <template #actions>
+      <div class="flex items-center gap-2">
+      <NuxtLink :to="{ path: '/archived-tasks', query: returnToQuery(route.fullPath) }" class="text-sm underline">{{ t('taskLifecycle.archivedTasks') }}</NuxtLink>
       <Button v-if="can('pmo.tasks.create')" class="gap-1.5" :disabled="!hydrated" @click="openCreate">
         <Plus class="size-4" />{{ t('tasks.new') }}
       </Button>
-    </header>
+      </div>
+      </template>
+    </PageHeader>
 
     <Tabs :model-value="tab" @update:model-value="onTabChange">
       <TabsList>

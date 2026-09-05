@@ -7,18 +7,15 @@ owns shared files, Git integration, runtime state, and final verification.
 
 ## Current delivery status
 
-Phase 3b is delivered on the local `codex/phase-3b` branch. The HR owner
-covers `/hr`, employee administration and access/archive actions, department
-management, and the preserved department document workflows. Vendor-linked
-account role/access and archive controls are protected from HR admin
-mutations. Branding administration and `/account` password changes are also
-delivered. The HR employee-id API remains separate from the PMO user-id
-`/api/v1/people` picker.
+The 2026-09-05 unification combines the former task worktrees into the canonical
+checkout. See `docs/WORKSPACE.md` and `docs/unification-2026-09-05.md` for the
+actual branch, verification and recovery state. Historical Phase 3b, access,
+design and collaboration reports preserve prior evidence only.
 
-The final local gates are Odoo aggregate `182`, contracts `52`, web unit
-`152`, and Playwright `47` green, plus clean `ruff`, `vue-tsc`, and
-production-build gates. Canonical `main` remains the pre-Phase-3b baseline;
-no merge, push, deployment, DNS cutover, or release approval is implied.
+Account administration belongs to the access capability domain; HR archival
+can disable a linked account but cannot grant roles or reactivate access.
+Branding settings accept only the primary colour; Odoo system administrators
+own institution identity. PMO collaboration preserves record and company guards.
 
 ## File ownership
 

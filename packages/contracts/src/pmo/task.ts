@@ -20,9 +20,13 @@ export const TaskDetailSchema = TaskSchema.extend({
   subtasks: z.array(TaskSchema),
   depends_on: z.array(z.object({ id: z.number().int().positive(), name: z.string(), state: TaskStateSchema }).strict()),
   attachments: z.array(z.object({ id: z.number().int().positive(), name: z.string(), mimetype: z.string(), url: z.string() }).strict()),
-  milestone: RefSchema.nullable(), created_at: z.string(), updated_at: z.string(),
+  can_manage_dependencies: z.boolean().default(false), milestone: RefSchema.nullable(), created_at: z.string(), updated_at: z.string(),
   allowed_actions: z.array(z.enum(['read', 'write', 'archive', 'approve'])).optional().default([]),
 }).strict()
+
+export const DependencySchema = z.object({ id: z.number().int().positive(), name: z.string(), state: TaskStateSchema }).strict()
+export const DependencyListSchema = z.object({ items: z.array(DependencySchema), total: z.number().int(), can_manage: z.boolean(), enabled: z.boolean() }).strict()
+export const DependencyCandidateListSchema = z.object({ items: z.array(DependencySchema), total: z.number().int() }).strict()
 
 export const TaskListSchema = z.object({ items: z.array(TaskSchema), total: z.number().int() }).strict()
 

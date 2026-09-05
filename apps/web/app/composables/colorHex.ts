@@ -6,19 +6,9 @@ export function normalizeHex(value: string): string | null {
   return /^#[0-9a-fA-F]{6}$/.test(withHash) ? withHash.toLowerCase() : null
 }
 
-export function buildBrandingPatch(input: {
-  name: string
-  primaryColor: string
-  logo?: string | null
-}): BrandingPatch | null {
+export function buildBrandingPatch(input: { primaryColor: string }): BrandingPatch | null {
   const primaryColor = normalizeHex(input.primaryColor)
   if (!primaryColor) return null
-
-  const candidate: Record<string, string> = {
-    name: input.name.trim(),
-    primary_color: primaryColor,
-  }
-  if (input.logo) candidate.logo = input.logo
-  const parsed = BrandingPatchSchema.safeParse(candidate)
+  const parsed = BrandingPatchSchema.safeParse({ primary_color: primaryColor })
   return parsed.success ? parsed.data : null
 }

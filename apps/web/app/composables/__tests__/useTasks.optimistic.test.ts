@@ -28,7 +28,7 @@ const baseDetail: TaskDetail = {
   subtasks: [],
   depends_on: [],
   attachments: [],
-  can_approve: false,
+  can_approve: false, can_manage_dependencies: false,
   milestone: null,
   created_at: '2030-01-01T00:00:00Z',
   updated_at: '2030-01-01T00:00:00Z',

@@ -4,6 +4,8 @@ import { CalendarDate } from '@internationalized/date'
 import { usePersonalStages } from '@/composables/usePersonalStages'
 import { useUpdateTask } from '@/composables/useTasks'
 import AssigneePicker from './AssigneePicker.vue'
+import DependencyPicker from './DependencyPicker.vue'
+import TaskAttachments from './TaskAttachments.vue'
 import DescriptionEditor from './DescriptionEditor.vue'
 import MilestoneSelect from './MilestoneSelect.vue'
 import PrioritySelect from './PrioritySelect.vue'
@@ -227,7 +229,9 @@ const updatedLabel = computed(() => dateTimeFmt.value.format(new Date(props.task
       <SubtaskList :task="task" />
     </section>
 
-    <section v-if="task.depends_on.length" class="space-y-2">
+    <DependencyPicker :task="task" />
+
+    <section v-if="!task.can_manage_dependencies && task.depends_on.length" class="space-y-2">
       <Label>{{ t('tasks.drawer.dependsOn') }}</Label>
       <ul class="space-y-1">
         <li v-for="dep in task.depends_on" :key="dep.id" class="flex items-center gap-2 text-sm">
@@ -237,14 +241,7 @@ const updatedLabel = computed(() => dateTimeFmt.value.format(new Date(props.task
       </ul>
     </section>
 
-    <section v-if="task.attachments.length" class="space-y-2">
-      <Label>{{ t('tasks.drawer.attachments') }}</Label>
-      <ul class="space-y-1">
-        <li v-for="att in task.attachments" :key="att.id" class="text-sm">
-          <a :href="att.url" target="_blank" rel="noopener" class="text-primary underline">{{ att.name }}</a>
-        </li>
-      </ul>
-    </section>
+    <TaskAttachments :key="task.id" :task-id="task.id" :can-write="task.can_write" />
 
     <Separator />
 

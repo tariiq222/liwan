@@ -5,6 +5,7 @@ import { h } from 'vue'
 import ProjectMenu from './ProjectMenu.vue'
 import ProjectProgress from './ProjectProgress.vue'
 import ProjectStatusBadge from './ProjectStatusBadge.vue'
+import EmptyState from '@/components/shared/EmptyState.vue'
 
 const props = defineProps<{ items: Project[]; isLoading: boolean; archived: boolean; capped: boolean; filtered: boolean }>()
 const emit = defineEmits<{ open: [id: number] }>()
@@ -84,10 +85,10 @@ const table = useVueTable({
             </TableRow>
           </template>
           <TableEmpty v-else-if="items.length === 0" :colspan="columns.length">
-            <div class="space-y-1 py-3 text-center">
-              <p class="font-medium">{{ t(filtered ? 'projects.filteredEmpty' : archived ? 'projects.archivedEmpty' : 'projects.empty') }}</p>
-              <p class="text-sm text-muted-foreground">{{ t(filtered ? 'projects.filteredEmptyHint' : archived ? 'projects.archivedEmptyHint' : 'projects.emptyHint') }}</p>
-            </div>
+            <EmptyState
+              :title="t(filtered ? 'projects.filteredEmpty' : archived ? 'projects.archivedEmpty' : 'projects.empty')"
+              :description="t(filtered ? 'projects.filteredEmptyHint' : archived ? 'projects.archivedEmptyHint' : 'projects.emptyHint')"
+            />
           </TableEmpty>
           <template v-else>
             <TableRow

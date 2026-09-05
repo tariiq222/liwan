@@ -5,6 +5,7 @@ import ProjectMenu from './ProjectMenu.vue'
 import ProjectProgress from './ProjectProgress.vue'
 import ProjectStatusBadge from './ProjectStatusBadge.vue'
 import ProjectStatusSelect from './ProjectStatusSelect.vue'
+import PageHeader from '@/components/shared/PageHeader.vue'
 
 const props = defineProps<{ project: ProjectDetail; backTo?: string }>()
 // ONE primary action stays in the header (create task) — settings/archive
@@ -16,21 +17,19 @@ const hydrated = useHydrated()
 </script>
 
 <template>
-  <header class="space-y-3">
-    <NuxtLink :to="props.backTo ?? '/projects'" class="inline-block text-sm text-muted-foreground hover:text-foreground hover:underline">
-      {{ t('projects.backToProjects') }}
-    </NuxtLink>
-    <div class="flex flex-wrap items-center gap-3">
-      <h1 class="min-w-0 flex-1 text-2xl font-semibold">{{ project.name }}</h1>
+  <PageHeader
+    :title="project.name"
+    :back-to="props.backTo ?? '/projects'"
+    :back-label="t('projects.backToProjects')"
+  >
+    <template #actions>
       <ProjectStatusSelect v-if="project.can_manage" :project="project" />
       <ProjectStatusBadge v-else :status="project.status" />
       <ProjectProgress :progress="project.progress" :task-count="project.task_count" :closed-task-count="project.closed_task_count" />
-      <div class="ms-auto flex items-center gap-1">
-        <Button v-if="can('pmo.tasks.create')" size="sm" class="gap-1.5" :disabled="!hydrated" @click="emit('create')">
-          <Plus class="size-4" />{{ t('tasks.new') }}
-        </Button>
-        <ProjectMenu :project="project" @settings="emit('settings')" @archived="emit('archived')" @unarchived="emit('unarchived')" />
-      </div>
-    </div>
-  </header>
+      <Button v-if="can('pmo.tasks.create')" size="sm" class="gap-1.5" :disabled="!hydrated" @click="emit('create')">
+        <Plus class="size-4" />{{ t('tasks.new') }}
+      </Button>
+      <ProjectMenu :project="project" @settings="emit('settings')" @archived="emit('archived')" @unarchived="emit('unarchived')" />
+    </template>
+  </PageHeader>
 </template>

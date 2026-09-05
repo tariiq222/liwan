@@ -5,7 +5,7 @@ const { t } = useI18n()
 </script>
 
 <template>
-  <nav class="flex gap-2 border-b" :aria-label="t('settings.tabs.label')">
+  <nav class="flex flex-wrap gap-2 border-b" :aria-label="t('settings.tabs.label')">
     <NuxtLink
       v-if="can('pmo.settings.manage')" to="/settings/projects"
       data-testid="settings-projects-tab"

@@ -16,6 +16,9 @@ class NasqResPartner(models.Model):
     def write(self, vals):
         if self.env.is_superuser() or self.env.user.has_group('base.group_system'):
             return super().write(vals)
+        identity_fields = {'name', 'image_1920', 'image_1024', 'image_512', 'image_256', 'image_128'}
+        if identity_fields.intersection(vals) and self.env['res.company']._nasq_has_company_partner(self.ids):
+            raise AccessError(self.env._('Only Odoo system administrators can change institution name and logo.'))
         service = self.env['nasq.access.service']
         protected_actor = (
             self.env.user._nasq_is_customer_actor()

@@ -14,6 +14,7 @@ export function useBrandingAdmin() {
   return useQuery({
     queryKey: brandingAdminKeys.all,
     queryFn: () => $api('/api/v1/admin/branding', { schema: BrandingSchema }),
+    retry: false,
   })
 }
 
@@ -22,8 +23,6 @@ export function useUpdateBranding() {
   const { $api } = useApi()
   const { data: publicBranding } = useNuxtData<Branding>('branding')
   return useMutation({
-    // The optional logo can hold more than a megabyte of base64 text. Once
-    // BrandingForm detaches after settlement, collect its variables now.
     gcTime: 0,
     mutationFn: (patch: BrandingPatch) => $api('/api/v1/admin/branding', {
       method: 'PATCH',

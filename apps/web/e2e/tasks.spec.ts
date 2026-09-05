@@ -28,7 +28,12 @@ test('inline transition to done moves the task to the closed filter', async ({ p
   await page.request.post('/api/v1/tasks', { data: { name, project_id: projects[0].id } })
   await page.goto('/tasks')
   await expect(page.getByRole('status', { name: 'متصل' })).toBeVisible()
+  const filtered = page.waitForResponse(response => {
+    const url = new URL(response.url())
+    return response.request().method() === 'GET' && response.status() === 200 && url.pathname === '/api/v1/tasks' && url.searchParams.get('q') === name
+  })
   await page.getByPlaceholder('بحث في العناوين…').fill(name)
+  expect((await filtered).status()).toBe(200)
   const row = page.getByRole('row', { name: new RegExp(name) })
   await expect(row).toBeVisible()
   await row.getByRole('button', { name: 'قيد التنفيذ' }).click()

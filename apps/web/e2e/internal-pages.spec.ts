@@ -13,7 +13,7 @@ async function login(page) {
 
 test('global search is a reloadable page with no overlay layer', async ({ page }) => {
   await login(page)
-  await page.getByTestId('global-search-link').click()
+  await page.getByRole('button', { name: 'بحث', exact: true }).click()
   await expect(page).toHaveURL(/\/search\?returnTo=/)
   await expect(page.getByRole('heading', { name: 'بحث' })).toBeVisible()
   await expect(page.getByPlaceholder('اكتب للانتقال…')).toBeFocused()
@@ -46,16 +46,16 @@ test('mobile navigation expands inline and closes after route navigation', async
   await page.setViewportSize({ width: 390, height: 844 })
   await login(page)
 
-  const toggle = page.getByRole('button', { name: 'فتح أو إغلاق التنقل' })
+  const toggle = page.getByRole('button', { name: 'فتح القائمة أو طيها' })
   await expect(toggle).toHaveAttribute('aria-expanded', 'false')
-  await expect(toggle).toHaveAttribute('aria-controls', 'nasq-mobile-navigation')
+  await expect(toggle).toHaveAttribute('aria-controls', 'mobile-navigation')
   await toggle.click()
   await expect(toggle).toHaveAttribute('aria-expanded', 'true')
-  const mobileNav = page.locator('[data-slot="sidebar-mobile"]')
+  const mobileNav = page.locator('#mobile-navigation')
   await expect(mobileNav).toBeVisible()
   await expect(page.locator('[data-slot="sheet-content"], [data-slot="sheet-overlay"]')).toHaveCount(0)
 
-  await mobileNav.getByRole('link', { name: 'المشاريع' }).click()
+  await mobileNav.getByRole('link', { name: 'المشاريع', exact: true }).click()
   await expect(page).toHaveURL(/\/projects$/)
   await expect(mobileNav).toBeHidden()
   await expect(toggle).toHaveAttribute('aria-expanded', 'false')

@@ -1,166 +1,142 @@
 <script setup lang="ts">
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { toast } from 'vue-sonner'
 import { ApiError } from '@/composables/useApi'
 import { buildBrandingPatch, normalizeHex } from '@/composables/colorHex'
 import { useBrandingAdmin, useUpdateBranding } from '@/composables/useBrandingAdmin'
 import BrandingPreview from '@/components/settings/BrandingPreview.vue'
 
-const MAX_LOGO_BYTES = 1024 * 1024
-const ALLOWED_LOGO_TYPES = new Set(['image/png', 'image/jpeg'])
+const DEFAULT_COLOR = '#18181b'
+const PRESETS = [
+  { key: 'default', color: DEFAULT_COLOR, labelKey: 'settings.branding.presets.default' },
+  { key: 'blue', color: '#0055ff', labelKey: 'settings.branding.presets.blue' },
+  { key: 'teal', color: '#0f766e', labelKey: 'settings.branding.presets.teal' },
+  { key: 'amber', color: '#b45309', labelKey: 'settings.branding.presets.amber' },
+] as const
 
 const { t } = useI18n()
 const hydrated = useHydrated()
 const { data: branding, isLoading, error, refetch } = useBrandingAdmin()
 const update = useUpdateBranding()
 
-const name = ref('')
-const color = ref('#18181b')
-const logo = ref<string | null>(null)
-const logoPreview = ref<string | null>(null)
+const color = ref(DEFAULT_COLOR)
+const savedColor = ref(DEFAULT_COLOR)
+const dirty = ref(false)
 const validationError = ref('')
-const logoReadPending = ref(false)
-let logoReadGeneration = 0
+
+function loadSaved(value: { primary_color: string }) {
+  savedColor.value = normalizeHex(value.primary_color) ?? DEFAULT_COLOR
+  color.value = savedColor.value
+  dirty.value = false
+}
 
 watch(branding, (value) => {
-  if (!value) return
-  name.value = value.name
-  color.value = value.primary_color
-  logo.value = null
-  logoPreview.value = null
+  if (value && !dirty.value) loadSaved(value)
 }, { immediate: true })
 
-const previewName = computed(() => name.value.trim() || branding.value?.name || 'nasq')
-const previewColor = computed(() => normalizeHex(color.value) || branding.value?.primary_color || '#18181b')
-const previewLogo = computed(() => logoPreview.value || branding.value?.logo_url || '')
+const previewName = computed(() => branding.value?.name ?? '')
+const previewColor = computed(() => normalizeHex(color.value) ?? savedColor.value)
+const previewLogo = computed(() => branding.value?.logo_url ?? '')
+const isBusy = computed(() => update.isPending.value)
+const colorValid = computed(() => normalizeHex(color.value) !== null)
 
-function readLogo(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onerror = () => reject(new Error('read_failed'))
-    reader.onload = () => resolve(String(reader.result))
-    reader.readAsDataURL(file)
-  })
-}
-
-async function onLogo(event: Event) {
-  const generation = ++logoReadGeneration
-  validationError.value = ''
-  logo.value = null
-  logoPreview.value = null
-  logoReadPending.value = false
-  const input = event.target as HTMLInputElement
-  const file = input.files?.[0]
-  if (!file) return
-  if (!ALLOWED_LOGO_TYPES.has(file.type)) {
-    validationError.value = t('settings.branding.errors.logoFormat')
-    input.value = ''
-    return
-  }
-  if (file.size > MAX_LOGO_BYTES) {
-    validationError.value = t('settings.branding.errors.logoSize')
-    input.value = ''
-    return
-  }
-  logoReadPending.value = true
-  try {
-    const dataUrl = await readLogo(file)
-    if (generation !== logoReadGeneration) return
-    const separator = dataUrl.indexOf(',')
-    if (separator < 0) throw new Error('invalid_data_url')
-    logo.value = dataUrl.slice(separator + 1)
-    logoPreview.value = dataUrl
-  } catch {
-    if (generation !== logoReadGeneration) return
-    validationError.value = t('settings.branding.errors.logoRead')
-    input.value = ''
-  } finally {
-    if (generation === logoReadGeneration) logoReadPending.value = false
-  }
-}
-
-const dirty = computed(() => !!branding.value && (name.value !== branding.value.name || color.value !== branding.value.primary_color || logo.value !== null))
 function cancel() {
-  if (!branding.value) return
-  name.value = branding.value.name; color.value = branding.value.primary_color; logo.value = null; logoPreview.value = null; validationError.value = ''; logoReadGeneration += 1; logoReadPending.value = false
+  validationError.value = ''
+  color.value = savedColor.value
+  dirty.value = false
 }
+
+function resetDefault() {
+  validationError.value = ''
+  dirty.value = true
+  color.value = DEFAULT_COLOR
+}
+
+async function retryLoad() {
+  await refetch()
+}
+
 async function save() {
   validationError.value = ''
-  if (logoReadPending.value) {
-    validationError.value = t('settings.branding.errors.logoReading')
-    return
-  }
-  const patch = buildBrandingPatch({
-    name: name.value,
-    primaryColor: color.value,
-    logo: logo.value,
-  })
+  const patch = buildBrandingPatch({ primaryColor: color.value })
   if (!patch) {
-    validationError.value = t('settings.branding.errors.invalid')
+    validationError.value = t('settings.branding.errors.invalidColor')
     return
   }
   try {
     const saved = await update.mutateAsync(patch)
-    name.value = saved.name
-    color.value = saved.primary_color
-    logo.value = null
-    logoPreview.value = null
+    loadSaved(saved)
     toast.success(t('settings.branding.saved'))
   } catch (error) {
+    // Keep the colour draft after a transient save failure.
     toast.error(error instanceof ApiError ? error.message : t('errors.generic'))
   } finally {
-    // A logo can be a 1 MiB base64 mutation variable. Clear TanStack's retained
-    // variables after either outcome instead of keeping that payload in memory.
     update.reset()
   }
 }
 
-onBeforeUnmount(() => {
-  logoReadGeneration += 1
-  update.reset()
-})
+onBeforeUnmount(() => update.reset())
 </script>
 
 <template>
-  <Skeleton v-if="isLoading" class="h-80 w-full" />
-  <SharedPageState v-else-if="error" :error="error" @retry="refetch()" />
+  <div v-if="isLoading" role="status" aria-live="polite" aria-busy="true" :aria-label="t('settings.branding.loading')">
+    <Skeleton class="h-80 w-full" />
+  </div>
+  <div v-else-if="error" data-testid="branding-load-error" class="space-y-3 rounded-lg border border-destructive/50 p-6">
+    <p role="alert" class="text-sm text-destructive">{{ t('settings.branding.errors.load') }}</p>
+    <Button type="button" data-testid="branding-retry" :disabled="!hydrated" @click="retryLoad">
+      {{ t('settings.branding.retry') }}
+    </Button>
+  </div>
   <div v-else-if="branding" class="grid gap-6 lg:grid-cols-2">
     <form class="space-y-5" data-testid="branding-form" @submit.prevent="save">
       <SharedUnsavedChanges :dirty="dirty" />
-      <div class="space-y-2">
-        <Label for="branding-name">{{ t('settings.branding.name') }}</Label>
-        <Input id="branding-name" v-model="name" data-testid="branding-name" maxlength="100" :disabled="!hydrated || update.isPending.value || logoReadPending" />
-      </div>
+      <p data-testid="branding-managed-identity" class="text-sm text-muted-foreground">
+        {{ t('settings.branding.managedIdentity') }}
+      </p>
       <div class="space-y-2">
         <Label for="branding-color">{{ t('settings.branding.color') }}</Label>
-        <div class="flex gap-2">
-          <Input
-            id="branding-color"
+        <div class="flex items-center gap-2">
+          <Input id="branding-color" v-model="color" data-testid="branding-color" dir="ltr" class="min-w-0 flex-1 font-mono" :aria-invalid="!colorValid" :disabled="!hydrated || isBusy" @update:model-value="dirty = true" />
+          <input
             v-model="color"
-            data-testid="branding-color"
-            dir="ltr"
-            class="font-mono"
-            :disabled="!hydrated || update.isPending.value || logoReadPending"
-          />
-          <input v-model="color" type="color" class="h-9 w-12 rounded border p-1" :disabled="!hydrated || update.isPending.value || logoReadPending">
+            data-testid="branding-color-picker"
+            type="color"
+            :aria-label="t('settings.branding.colorPicker')"
+            class="h-9 w-12 shrink-0 rounded border p-1"
+            :disabled="!hydrated || isBusy"
+            @input="dirty = true"
+          >
+        </div>
+        <p v-if="color && !colorValid" role="alert" class="text-sm text-destructive">{{ t('settings.branding.errors.invalidColor') }}</p>
+        <div class="flex flex-wrap gap-2" :aria-label="t('settings.branding.presets.label')">
+          <Button
+            v-for="preset in PRESETS"
+            :key="preset.key"
+            type="button"
+            variant="outline"
+            data-testid="branding-preset"
+            :aria-label="t(preset.labelKey)"
+            :disabled="!hydrated || isBusy"
+            @click="dirty = true; color = preset.color"
+          >
+            <span class="size-4 rounded-full border" :style="{ backgroundColor: preset.color }" aria-hidden="true" />
+            {{ t(preset.labelKey) }}
+          </Button>
         </div>
       </div>
-      <div class="space-y-2">
-        <Label for="branding-logo">{{ t('settings.branding.logo') }}</Label>
-        <Input
-          id="branding-logo"
-          data-testid="branding-logo"
-          type="file"
-          accept="image/png,image/jpeg"
-          :disabled="!hydrated || update.isPending.value"
-          @change="onLogo"
-        />
-        <p class="text-xs text-muted-foreground">{{ t('settings.branding.logoHint') }}</p>
-      </div>
       <p v-if="validationError" role="alert" class="text-sm text-destructive">{{ validationError }}</p>
-      <Button type="submit" data-testid="branding-submit" :disabled="!hydrated || update.isPending.value || logoReadPending">
-        {{ update.isPending.value ? t('settings.branding.saving') : t('settings.branding.save') }}
-      </Button>
-      <Button type="button" variant="outline" class="ms-2" :disabled="!hydrated || update.isPending.value || !dirty" @click="cancel">{{ t('app.cancel') }}</Button>
+      <div class="flex flex-wrap gap-2">
+        <Button type="submit" data-testid="branding-submit" :aria-invalid="!colorValid" :disabled="!hydrated || isBusy || !colorValid">
+          {{ update.isPending.value ? t('settings.branding.saving') : t('settings.branding.save') }}
+        </Button>
+        <Button type="button" variant="outline" data-testid="branding-cancel" :disabled="!hydrated || isBusy" @click="cancel">
+          {{ t('settings.branding.cancel') }}
+        </Button>
+        <Button type="button" variant="ghost" data-testid="branding-default" :disabled="!hydrated || isBusy" @click="resetDefault">
+          {{ t('settings.branding.resetDefault') }}
+        </Button>
+      </div>
     </form>
 
     <BrandingPreview :name="previewName" :color="previewColor" :logo-url="previewLogo" />

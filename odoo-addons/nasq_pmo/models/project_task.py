@@ -1,6 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import api, fields, models
-from odoo.exceptions import AccessError
+from odoo.exceptions import AccessError, ValidationError
 
 from odoo.addons.project.models.project_task import CLOSED_STATES
 
@@ -8,6 +8,7 @@ MANAGER_STATES = {'03_approved', '02_changes_requested'}
 ALL_STATES = {'01_in_progress', '02_changes_requested', '03_approved', '04_waiting_normal', *CLOSED_STATES}
 TASK_CREATE_MARKER = 'nasq_pmo.task_create_depth'
 ACCESS_USER_CREATE_MARKER = 'nasq_core.access_user_create_depth'
+DEPENDENCY_WRITE_MARKER = 'nasq_pmo.dependency_write_depth'
 APPROVAL_WRITE_FIELDS = {'state', 'date_end', 'date_last_stage_update'}
 TASK_WRITABLE_FIELDS = {
     'active', 'allocated_hours', 'date_deadline', 'date_end', 'date_last_stage_update',
@@ -80,6 +81,81 @@ class ProjectTask(models.Model):
         return self._nasq_can_write() and (
             self.create_uid == self.env.user or self._nasq_can_approve()
         )
+
+    def _nasq_can_manage_dependencies(self):
+        self.ensure_one()
+        project = self.project_id
+        return bool(
+            project
+            and project.active
+            and project.company_id == self.env.company
+            and project._nasq_can_manage(),
+        )
+
+    def _nasq_set_dependencies(self, ids):
+        """Replace prerequisites after the project-scoped manage check.
+
+        ``depend_on_ids`` is intentionally absent from TASK_WRITABLE_FIELDS;
+        this operation has its own project-manager capability and validation
+        boundary rather than becoming a generic task write field.
+        """
+        self.ensure_one()
+        self._nasq_check_visible_current()
+        project = self.project_id
+        if not project or not project.active or project.company_id != self.env.company:
+            raise ValidationError(self.env._("Dependencies require an active current-company project."))
+        if not self._nasq_can_manage_dependencies():
+            raise AccessError(self.env._("Only the project manager can change task dependencies."))
+        if any(isinstance(value, bool) or not isinstance(value, int) or value <= 0 for value in ids):
+            raise ValidationError(self.env._("Dependency ids must be positive integers."))
+        if not project.allow_task_dependencies and ids:
+            raise ValidationError(self.env._("Task dependencies are disabled for this project."))
+        if len(ids) != len(set(ids)):
+            raise ValidationError(self.env._("Dependency ids must be unique."))
+        candidates = self.env['project.task'].search([
+            ('id', 'in', ids),
+            ('active', '=', True),
+            ('company_id', '=', self.env.company.id),
+            ('project_id', '=', project.id),
+            ('project_id.active', '=', True),
+            ('project_id.company_id', '=', self.env.company.id),
+        ])
+        if len(candidates) != len(ids):
+            raise ValidationError(self.env._("Dependencies must belong to the same readable project."))
+        candidates._nasq_check_visible_current()
+        if self.id in candidates.ids:
+            raise ValidationError(self.env._("A task cannot depend on itself."))
+        all_tasks = self.env['project.task'].with_context(active_test=False).search([
+            ('company_id', '=', self.env.company.id),
+            ('project_id', '=', project.id),
+            ('project_id.active', '=', True),
+            ('project_id.company_id', '=', self.env.company.id),
+        ])
+        dependency_graph = {
+            task.id: set(task.depend_on_ids.ids) & set(all_tasks.ids)
+            for task in all_tasks
+        }
+        pending = list(ids)
+        visited = set()
+        while pending:
+            dependency_id = pending.pop()
+            if dependency_id == self.id:
+                raise ValidationError(self.env._("Task dependencies cannot contain a cycle."))
+            if dependency_id in visited:
+                continue
+            visited.add(dependency_id)
+            pending.extend(dependency_graph.get(dependency_id, ()))
+        marker = self.env.cr.precommit.data
+        previous_depth = marker.get(DEPENDENCY_WRITE_MARKER)
+        marker[DEPENDENCY_WRITE_MARKER] = (previous_depth or 0) + 1
+        try:
+            self.write({'depend_on_ids': [(6, 0, ids)]})
+        finally:
+            if previous_depth is None:
+                marker.pop(DEPENDENCY_WRITE_MARKER, None)
+            else:
+                marker[DEPENDENCY_WRITE_MARKER] = previous_depth
+        return self
 
     def _nasq_archive(self):
         self.ensure_one()
@@ -196,11 +272,16 @@ class ProjectTask(models.Model):
         return tasks
 
     def write(self, vals):
+        dependency_write = (
+            self.env.cr.precommit.data.get(DEPENDENCY_WRITE_MARKER)
+            and set(vals) <= {'depend_on_ids'}
+        )
         trusted = (
             self.env.is_superuser()
             or self.env.user.has_group('base.group_system')
             or self.env.cr.precommit.data.get(TASK_CREATE_MARKER)
             or self.env.cr.precommit.data.get(ACCESS_USER_CREATE_MARKER)
+            or dependency_write
         )
         if not trusted:
             self._nasq_check_visible_current()

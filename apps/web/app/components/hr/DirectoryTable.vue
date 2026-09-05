@@ -1,13 +1,15 @@
 <script setup lang="ts">
 import { FlexRender, createColumnHelper, getCoreRowModel, useVueTable } from '@tanstack/vue-table'
 import { h } from 'vue'
-import { Search } from 'lucide-vue-next'
+import FilterBar from '@/components/shared/FilterBar.vue'
+import EmptyState from '@/components/shared/EmptyState.vue'
+import { Search, X } from 'lucide-vue-next'
 import { useHrDepartments } from '@/composables/useHrDepartments'
 import { useHrEmployees, type HrEmployee } from '@/composables/useHrEmployees'
 import AccessBadge from './AccessBadge.vue'
 
 const departmentId = defineModel<number | null>('departmentId', { default: null })
-const emit = defineEmits<{ open: [id: number]; manage: [id: number]; archive: [id: number]; create: [] }>()
+const emit = defineEmits<{ open: [id: number]; manage: [id: number]; archive: [id: number] }>()
 
 const { t } = useI18n()
 const route = useRoute()
@@ -37,15 +39,18 @@ const { data: deptData } = useHrDepartments()
 
 const items = computed<HrEmployee[]>(() => data.value?.items ?? [])
 const departments = computed(() => deptData.value?.items ?? [])
+const selectedDepartment = computed(() => departments.value.find(item => item.id === departmentId.value) ?? null)
+const hasActiveFilters = computed(() => Boolean(search.value.trim()) || departmentId.value !== null)
 const page = computed(() => Math.floor(offset.value / 25) + 1)
 const pages = computed(() => Math.max(1, Math.ceil((data.value?.total ?? 0) / 25)))
 
 watch(() => [route.query.q, route.query.department_id, route.query.archived, route.query.offset], ([q, department, archivedQuery, nextOffset]) => {
   search.value = String(q ?? '')
-  departmentId.value = department ? Number(department) : null
+  const id = typeof department === 'string' ? Number(department) : NaN
+  departmentId.value = Number.isSafeInteger(id) && id > 0 ? id : null
   archived.value = archivedQuery === '1'
   offset.value = Math.max(0, Number(nextOffset ?? 0) || 0)
-})
+}, { immediate: true })
 watch(search, (value) => { if (value !== String(route.query.q ?? '')) updateQuery() })
 
 function updateQuery() {
@@ -114,14 +119,23 @@ function onDepartmentChange(value: unknown) {
   departmentId.value = value === 'all' || !value ? null : Number(value)
   updateQuery()
 }
+function clearFilters() {
+  search.value = ''
+  departmentId.value = null
+  updateQuery()
+}
 </script>
 
 <template>
   <div class="space-y-2">
-    <div class="flex flex-wrap items-center gap-2">
-      <Button v-if="canManage" size="sm" :disabled="!hydrated" @click="emit('create')">
-        {{ t('hr.directory.newEmployee') }}
-      </Button>
+    <FilterBar>
+      <template #search>
+      <div class="relative min-w-48 flex-1">
+        <Search class="pointer-events-none absolute start-2 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+        <Input v-model="search" :disabled="!hydrated" :placeholder="t('hr.directory.search')" class="ps-8" @change="updateQuery" />
+      </div>
+      </template>
+      <template #default>
       <Button v-if="canArchive" variant="outline" size="sm" :disabled="!hydrated" @click="archived = !archived; updateQuery()">
         {{ archived ? t('hr.directory.showActive') : t('hr.directory.showArchived') }}
       </Button>
@@ -134,11 +148,15 @@ function onDepartmentChange(value: unknown) {
           <SelectItem v-for="dept in departments" :key="dept.id" :value="String(dept.id)">{{ dept.name }}</SelectItem>
         </SelectContent>
       </Select>
-      <div class="relative min-w-48 flex-1">
-        <Search class="pointer-events-none absolute start-2 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input v-model="search" :disabled="!hydrated" :placeholder="t('hr.directory.search')" class="ps-8" @change="updateQuery" />
-      </div>
-    </div>
+      </template>
+      <template #active>
+        <div v-if="hasActiveFilters" class="flex flex-wrap items-center gap-2">
+          <Badge v-if="search.trim()" variant="secondary">{{ t('hr.directory.searchValue', { value: search }) }}</Badge>
+          <Badge v-if="selectedDepartment" variant="secondary">{{ selectedDepartment.name }}</Badge>
+          <Button variant="ghost" size="sm" :disabled="!hydrated" @click="clearFilters"><X class="size-3.5" />{{ t('hr.directory.clear') }}</Button>
+        </div>
+      </template>
+    </FilterBar>
 
     <div class="rounded-md border">
       <Table>
@@ -158,7 +176,9 @@ function onDepartmentChange(value: unknown) {
             </TableRow>
           </template>
           <TableEmpty v-else-if="items.length === 0" :colspan="columns.length">
-            <p class="text-muted-foreground">{{ t('hr.directory.empty') }}</p>
+            <EmptyState :title="t(hasActiveFilters ? 'hr.directory.filteredEmpty' : 'hr.directory.empty')" :description="hasActiveFilters ? t('hr.directory.filteredEmptyHint') : undefined">
+              <template v-if="hasActiveFilters" #action><Button size="sm" :disabled="!hydrated" @click="clearFilters">{{ t('hr.directory.clear') }}</Button></template>
+            </EmptyState>
           </TableEmpty>
           <template v-else>
             <TableRow

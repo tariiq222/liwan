@@ -11,7 +11,7 @@
     # controllers/people.py. mail: message_post / _message_post_after_hook in the
     # timeline. bus: bus.bus in the task notifier.
     'depends': ['nasq_api', 'project', 'hr', 'mail', 'bus'],
-    'data': ['security/nasq_pmo_rules.xml', 'data/nasq_pmo_data.xml'],
+    'data': ['security/nasq_pmo_rules.xml', 'data/nasq_pmo_data.xml', 'data/nasq_notification_cron.xml'],
     'installable': True,
     'application': False,
 }

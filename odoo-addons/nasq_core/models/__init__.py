@@ -5,6 +5,7 @@ from . import (
     access_permission,
     access_role,
     access_service,
+    ir_attachment,
     res_company,
     res_partner,
     res_users,

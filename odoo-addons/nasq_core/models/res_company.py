@@ -1,11 +1,11 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from odoo import fields, models
+from odoo import api, fields, models
 from odoo.exceptions import AccessError
 
 from .res_partner import PARTNER_BRANDING_MARKER
 
 BRANDING_COMPANY_MARKER = 'nasq_core.branding_company_ids'
-BRANDING_COMPANY_FIELDS = {'logo', 'name', 'primary_color'}
+BRANDING_COMPANY_FIELDS = {'primary_color'}
 
 
 class ResCompany(models.Model):
@@ -19,7 +19,15 @@ class ResCompany(models.Model):
         ondelete={'IBM_Plex_Sans_Arabic': 'set default'},
     )
 
+    @api.model_create_multi
+    def create(self, vals_list):
+        if not self.env.is_system():
+            raise AccessError(self.env._('Only Odoo system administrators can create institutions.'))
+        return super().create(vals_list)
+
     def write(self, vals):
+        if {'name', 'logo', 'logo_web', 'partner_id'}.intersection(vals) and not self.env.is_system():
+            raise AccessError(self.env._('Only Odoo system administrators can change institution name and logo.'))
         service = self.env['nasq.access.service']
         if (
             not self.env.is_superuser()
@@ -66,3 +74,11 @@ class ResCompany(models.Model):
                 marker.pop(PARTNER_BRANDING_MARKER, None)
             else:
                 marker[PARTNER_BRANDING_MARKER] = previous_partners
+
+    @api.model
+    def _nasq_has_company_partner(self, partner_ids):
+        # Read-only security classification across record rules, never a write or data response.
+        # A hidden or archived company must not turn its partner into an editable contact.
+        return bool(self.sudo().with_context(active_test=False).search_count([
+            ('partner_id', 'in', partner_ids),
+        ], limit=1))

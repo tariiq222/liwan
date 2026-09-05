@@ -16,7 +16,7 @@ export const PROJECT_STATUS_TONE: Record<ProjectStatus, StateTone> = {
   at_risk: 'warning',
   off_track: 'destructive',
   on_hold: 'neutral',
-  done: 'info',
+  done: 'success',
 }
 
 export function projectStatusLabelKey(status: ProjectStatus | null): string {

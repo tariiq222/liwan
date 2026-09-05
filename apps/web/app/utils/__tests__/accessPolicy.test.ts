@@ -40,6 +40,7 @@ describe('access policy navigation', () => {
     expect(requiredCapabilityForPath('/settings/roles/4')).toBe('access.roles.read')
     expect(requiredCapabilityForPath('/hr/employees/2/edit')).toBe('hr.employees.manage')
     expect(requiredCapabilityForPath('/hr/departments/7/documents/new')).toBe('hr.documents.manage')
+    expect(requiredCapabilityForPath('/hr/documents/new')).toBe('hr.documents.manage')
     expect(requiredCapabilityForPath('/tasks/new')).toBe('pmo.tasks.create')
     expect(requiredCapabilityForPath('/projects/7/tasks/new')).toBe('pmo.tasks.create')
     expect(requiredCapabilityForPath('/projects/new')).toBe('pmo.projects.create')

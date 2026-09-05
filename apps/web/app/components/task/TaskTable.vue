@@ -7,6 +7,7 @@ import { useTasks } from '@/composables/useTasks'
 import DeadlineBadge from './DeadlineBadge.vue'
 import PrioritySelect from './PrioritySelect.vue'
 import StateMenu from './StateMenu.vue'
+import EmptyState from '@/components/shared/EmptyState.vue'
 
 const props = withDefaults(defineProps<{ params: TaskListParams; variant?: 'mine' | 'project' }>(), { variant: 'mine' })
 const emit = defineEmits<{
@@ -153,10 +154,11 @@ function onRowClick(task: Task, event: MouseEvent) {
             </TableRow>
           </template>
           <TableEmpty v-else-if="items.length === 0" :colspan="columns.length">
-            <div class="flex flex-col items-center gap-2 text-center">
-              <p class="text-muted-foreground">{{ t(emptyTitleKey) }}</p>
-              <Button v-if="showCreateAction" size="sm" :disabled="!hydrated" @click="emit('create')">{{ t('tasks.empty.action') }}</Button>
-            </div>
+            <EmptyState :title="t(emptyTitleKey)">
+              <template v-if="showCreateAction" #action>
+                <Button size="sm" :disabled="!hydrated" @click="emit('create')">{{ t('tasks.empty.action') }}</Button>
+              </template>
+            </EmptyState>
           </TableEmpty>
           <template v-else>
             <TableRow
@@ -183,10 +185,13 @@ function onRowClick(task: Task, event: MouseEvent) {
           </div>
         </template>
         <div v-else-if="items.length === 0" class="p-6 text-center">
-          <p class="text-sm text-muted-foreground">{{ t(emptyTitleKey) }}</p>
-          <Button v-if="showCreateAction" size="sm" class="mt-3" :disabled="!hydrated" @click="emit('create')">
-            {{ t('tasks.empty.action') }}
-          </Button>
+          <EmptyState :title="t(emptyTitleKey)">
+            <template v-if="showCreateAction" #action>
+              <Button size="sm" :disabled="!hydrated" @click="emit('create')">
+                {{ t('tasks.empty.action') }}
+              </Button>
+            </template>
+          </EmptyState>
         </div>
         <template v-else>
           <article

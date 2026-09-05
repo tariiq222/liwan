@@ -51,7 +51,7 @@ class TestAdminBranding(HttpCase):
         )
         cls.admin = new_test_user(
             cls.env, login='branding_admin', password='branding_admin_pass_123',
-            groups='nasq_core.group_access_admin',
+            groups='nasq_core.group_customer_admin',
         )
         cls.vendor = new_test_user(
             cls.env, login='branding_vendor', password='branding_vendor_pass_123',
@@ -66,58 +66,103 @@ class TestAdminBranding(HttpCase):
         self.assertEqual(self.api('GET', '/api/v1/admin/branding').status_code, 403)
         self.assertEqual(self.api('PATCH', '/api/v1/admin/branding', {'name': 'Nope'}).status_code, 403)
 
-    def test_admin_can_read_and_update_partial_branding(self):
+    def test_admin_can_read_and_update_only_colour(self):
         self.authenticate('branding_admin', 'branding_admin_pass_123')
-        response = self.api('GET', '/api/v1/admin/branding')
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(set(response.json()), {'name', 'logo_url', 'primary_color', 'font'})
-
-        response = self.api('PATCH', '/api/v1/admin/branding', {'name': '  Erada Admin  ', 'primary_color': '#0055ff'})
+        original = self.api('GET', '/api/v1/admin/branding')
+        self.assertEqual(original.status_code, 200)
+        response = self.api('PATCH', '/api/v1/admin/branding', {'primary_color': '#0055ff'})
         self.assertEqual(response.status_code, 200, response.text)
-        self.assertEqual(response.json()['name'], 'Erada Admin')
+        self.assertEqual(response.json()['name'], original.json()['name'])
         self.assertEqual(response.json()['primary_color'], '#0055ff')
 
-        with self.assertRaises(AccessError):
-            self.env.company.with_user(self.admin).write({'name': 'Generic bypass'})
+    def test_identity_patches_are_forbidden_for_admin_and_vendor_atomically(self):
+        for login, password in [
+            ('branding_admin', 'branding_admin_pass_123'),
+            ('branding_vendor', 'branding_vendor_pass_123'),
+        ]:
+            self.authenticate(login, password)
+            original = self.api('GET', '/api/v1/admin/branding').json()
+            for identity in [{'name': 'Forbidden rename'}, {'logo': image_base64('PNG')}, {'logo': False}]:
+                for payload in [identity, {'primary_color': '#123456', **identity}]:
+                    response = self.api('PATCH', '/api/v1/admin/branding', payload)
+                    self.assertEqual(response.status_code, 403, response.text)
+                    self.assertEqual(response.json()['code'], 'forbidden')
+                    self.assertEqual(self.api('GET', '/api/v1/admin/branding').json(), original)
 
-        foreign_company = self.env['res.company'].create({'name': 'Foreign Branding Company'})
-        with self.assertRaises(AccessError):
-            foreign_company.partner_id.with_user(self.admin).write({'name': 'Foreign Branding Write'})
+    def test_customer_admin_cannot_write_company_identity_through_orm(self):
+        company = self.env.company.with_user(self.admin)
+        for vals in [{'name': 'Forbidden'}, {'logo': image_base64('PNG')}, {'logo_web': False},
+                     {'partner_id': self.admin.partner_id.id}]:
+            with self.assertRaises(AccessError), self.cr.savepoint():
+                company.write(vals)
+        for vals in [{'name': 'Forbidden'}, {'image_1920': image_base64('PNG')}, {'image_128': False}]:
+            with self.assertRaises(AccessError), self.cr.savepoint():
+                company.partner_id.write(vals)
 
-    def test_vendor_can_read_and_update_via_implied_admin_role(self):
+    def test_vendor_can_manage_identity_in_odoo_and_public_branding_reflects_it(self):
+        company = self.env.company.with_user(self.vendor)
+        company.write({'name': 'Odoo managed name', 'logo': image_base64('PNG')})
+        original = self.api('GET', '/api/v1/branding').json()
+        self.assertEqual(original['name'], 'Odoo managed name')
+        company.write({'logo': image_base64('JPEG')})
+        self.assertNotEqual(original['logo_url'], self.api('GET', '/api/v1/branding').json()['logo_url'])
+
+    def test_customer_admin_cannot_bypass_logo_guard_through_attachments(self):
+        self.admin.group_ids |= self.env.ref('base.group_partner_manager')
+        company = self.env.company
+        company.logo = image_base64('PNG')
+        attachment = self.env['ir.attachment'].search([
+            ('res_model', '=', 'res.partner'), ('res_id', '=', company.partner_id.id),
+            ('res_field', '=', 'image_1920'),
+        ], limit=1)
+        self.assertTrue(attachment)
+        with self.assertRaises(AccessError), self.cr.savepoint():
+            attachment.with_user(self.admin).write({'datas': image_base64('JPEG')})
+        with self.assertRaises(AccessError), self.cr.savepoint():
+            attachment.with_user(self.admin).unlink()
+        with self.assertRaises(AccessError), self.cr.savepoint():
+            attachment.with_user(self.admin).write({'res_id': self.admin.partner_id.id})
+        target = {'res_model': 'res.partner', 'res_id': company.partner_id.id, 'res_field': 'image_1920'}
+        with self.assertRaises(AccessError), self.cr.savepoint():
+            self.env['ir.attachment'].with_user(self.admin).create({
+                **target, 'name': 'Replacement', 'datas': image_base64('PNG'),
+            })
+        ordinary = self.env['ir.attachment'].create({'name': 'Ordinary attachment', 'datas': image_base64('PNG')})
+        with self.assertRaises(AccessError), self.cr.savepoint():
+            ordinary.with_user(self.admin).write(target)
+
+    def test_customer_admin_cannot_create_a_company_to_replace_identity(self):
+        partner = self.env['res.partner'].create({'name': 'Unlinked institution contact'})
+        with self.assertRaises(AccessError), self.cr.savepoint():
+            self.env['res.company'].with_user(self.admin).create({
+                'name': 'Customer-controlled institution', 'partner_id': partner.id,
+            })
+        company = self.env['res.company'].with_user(self.vendor).create({'name': 'Vendor-managed institution'})
+        self.assertEqual(company.name, 'Vendor-managed institution')
+
+    def test_contact_manager_can_still_edit_an_ordinary_contact(self):
+        contact_manager = new_test_user(
+            self.env, login='branding_contacts', groups='base.group_user,base.group_partner_manager',
+        )
+        partner = self.env['res.partner'].create({'name': 'Ordinary contact'})
+        partner.with_user(contact_manager).write({'name': 'Updated contact', 'image_1920': image_base64('PNG')})
+        self.assertEqual(partner.name, 'Updated contact')
+
+    def test_contact_manager_cannot_edit_company_partner_identity(self):
+        contact_manager = new_test_user(
+            self.env, login='branding_company_contact', groups='base.group_user,base.group_partner_manager',
+        )
+        with self.assertRaises(AccessError):
+            self.env.company.partner_id.with_user(contact_manager).write({'name': 'Contact manager rename'})
+
+    def test_vendor_can_update_colour_via_implied_admin_role(self):
         self.authenticate('branding_vendor', 'branding_vendor_pass_123')
-        self.assertEqual(self.api('GET', '/api/v1/admin/branding').status_code, 200)
         response = self.api('PATCH', '/api/v1/admin/branding', {'primary_color': '#123456'})
         self.assertEqual(response.status_code, 200, response.text)
 
-    def test_logo_accepts_png_and_jpeg_and_changes_version_rapidly(self):
+    def test_invalid_colour_and_unknown_fields_are_rejected(self):
         self.authenticate('branding_admin', 'branding_admin_pass_123')
-        png = self.api('PATCH', '/api/v1/admin/branding', {'logo': image_base64('PNG')})
-        self.assertEqual(png.status_code, 200, png.text)
-        png_url = png.json()['logo_url']
-        jpeg = self.api('PATCH', '/api/v1/admin/branding', {'logo': image_base64('JPEG')})
-        self.assertEqual(jpeg.status_code, 200, jpeg.text)
-        self.assertNotEqual(png_url, jpeg.json()['logo_url'])
-
-    def test_logo_and_payload_validation_return_contract_errors(self):
-        self.authenticate('branding_admin', 'branding_admin_pass_123')
-        invalid_payloads = [
-            {'logo': '@@@'},
-            {'logo': base64.b64encode(b'GIF89a').decode()},
-            {'logo': base64.b64encode(b'corrupt-image').decode()},
-            {'logo': 'data:image/png;base64,' + image_base64('PNG')},
-            {},
-        ]
-        for payload in invalid_payloads:
+        for payload in [{}, {'primary_color': '#abc'}, {'primary_color': None}, {'unknown': True}]:
             response = self.api('PATCH', '/api/v1/admin/branding', payload)
-            self.assertEqual(response.status_code, 422, (payload, response.text))
-
-        unknown = self.api('PATCH', '/api/v1/admin/branding', {'unknown': True})
-        self.assertEqual(unknown.status_code, 422, unknown.text)
-        self.assertEqual(unknown.json()['code'], 'invalid')
-        self.assertEqual(unknown.json()['field'], 'unknown')
-
-        oversized = base64.b64encode(b'x' * (1024 * 1024 + 1)).decode()
-        response = self.api('PATCH', '/api/v1/admin/branding', {'logo': oversized})
-        self.assertEqual(response.status_code, 422)
-        self.assertEqual(response.json()['code'], 'logo_too_large')
+            self.assertEqual(response.status_code, 422, response.text)
+            self.assertEqual(response.json()['code'], 'invalid')

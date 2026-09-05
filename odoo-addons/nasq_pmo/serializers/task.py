@@ -101,23 +101,31 @@ def dump_task_detail(task, today=None):
     data = dump_task(task, today)
     start = task.date_assign or task.create_date
     cycle = (task.date_end - start).days if task.is_closed and task.date_end and start else None
+    dependencies = task.env['project.task'].search([
+        ('id', 'in', task.depend_on_ids.ids),
+        ('company_id', '=', task.env.company.id),
+        ('project_id', '=', task.project_id.id),
+        ('project_id.active', '=', True),
+        ('project_id.company_id', '=', task.env.company.id),
+    ])
     data.update({
         'description_html': task.description or '',
         'allocated_hours': task.allocated_hours,
         'age_days': (today - task.create_date.date()).days,
         'cycle_days': cycle,
         'subtasks': [dump_task(t, today) for t in task.child_ids],
-        'depends_on': [{'id': t.id, 'name': t.name, 'state': STATE_TO_API[t.state]} for t in task.depend_on_ids],
+        'depends_on': [{'id': t.id, 'name': t.name, 'state': STATE_TO_API[t.state]} for t in dependencies],
         'attachments': [{
             'id': a.id, 'name': a.name, 'mimetype': a.mimetype or '',
             'url': f'/web/content/{a.id}?download=true',
-        } for a in task.attachment_ids],
+        } for a in task._nasq_task_attachments()],
         'allowed_actions': [
             'read',
             *(['write'] if task._nasq_can_write() else []),
             *(['archive'] if task._nasq_can_archive() else []),
             *(['approve'] if task._nasq_can_approve() else []),
         ],
+        'can_manage_dependencies': bool(task._nasq_can_manage_dependencies()),
         'created_at': iso(task.create_date),
         'updated_at': iso(task.write_date),
         'milestone': _milestone_ref(task.milestone_id) if task.milestone_id else None,

@@ -13,4 +13,8 @@ describe('projectStatus', () => {
     expect(projectStatusLabelKey(null)).toBe(PROJECT_STATUS_UNSET_KEY)
     expect(projectStatusLabelKey('at_risk')).toBe('projects.status.at_risk')
   })
+
+  it('uses the shared success tone for completed projects, matching completed tasks', () => {
+    expect(PROJECT_STATUS_TONE.done).toBe('success')
+  })
 })

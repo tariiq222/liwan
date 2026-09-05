@@ -1,84 +1,27 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-import base64
-import binascii
 import hashlib
 import re
-import warnings
-from io import BytesIO
-
-from PIL import Image
 
 from odoo.addons.nasq_api.controllers.common import ApiError
 
 DEFAULT_PRIMARY_COLOR = '#18181b'
-MAX_LOGO_BYTES = 1024 * 1024
-MAX_LOGO_PIXELS = 25_000_000
-PNG_SIGNATURE = b'\x89PNG\r\n\x1a\n'
-JPEG_SIGNATURE = b'\xff\xd8\xff'
-LOGO_RAW_BASE64_MESSAGE = 'logo must be raw base64 PNG or JPEG data'
-LOGO_BASE64_MESSAGE = 'logo must be valid base64'
-LOGO_FORMAT_MESSAGE = 'logo must be a PNG or JPEG image'
-LOGO_HEADER_MESSAGE = 'logo image header does not match its format'
-LOGO_DIMENSIONS_MESSAGE = 'logo image dimensions are too large'
-LOGO_CORRUPT_MESSAGE = 'logo image is corrupt or unsupported'
-
-
-def _logo_error(message):
-    return ApiError(422, 'logo_format', message, field='logo')
-
-
-def _parse_logo(value):
-    if not isinstance(value, str) or value.startswith('data:'):
-        raise _logo_error(LOGO_RAW_BASE64_MESSAGE)
-    try:
-        decoded = base64.b64decode(value, validate=True)
-    except (ValueError, binascii.Error):
-        raise _logo_error(LOGO_BASE64_MESSAGE) from None
-    if len(decoded) > MAX_LOGO_BYTES:
-        raise ApiError(422, 'logo_too_large', 'logo must be at most 1 MiB decoded', field='logo')
-
-    expected_format = None
-    if decoded.startswith(PNG_SIGNATURE):
-        expected_format = 'PNG'
-    elif decoded.startswith(JPEG_SIGNATURE):
-        expected_format = 'JPEG'
-    if expected_format is None:
-        raise _logo_error(LOGO_FORMAT_MESSAGE)
-
-    try:
-        with warnings.catch_warnings():
-            warnings.simplefilter('error', Image.DecompressionBombWarning)
-            with Image.open(BytesIO(decoded)) as image:
-                if image.format != expected_format:
-                    raise _logo_error(LOGO_HEADER_MESSAGE)
-                if image.width * image.height > MAX_LOGO_PIXELS:
-                    raise _logo_error(LOGO_DIMENSIONS_MESSAGE)
-                image.verify()
-    except ApiError:
-        raise
-    except (Image.DecompressionBombError, Image.DecompressionBombWarning, OSError, ValueError):
-        raise _logo_error(LOGO_CORRUPT_MESSAGE) from None
-    return value
 
 
 def parse_branding_vals(payload):
     if not isinstance(payload, dict) or not payload:
-        raise ApiError(422, 'invalid', 'branding patch must include at least one field')
-    vals = {}
-    for key, value in payload.items():
-        if key not in {'name', 'primary_color', 'logo'}:
+        raise ApiError(422, 'invalid', 'branding patch must include primary_color')
+    # Reject the entire request, including a mixed colour/identity patch.
+    # Institution identity is managed through the Odoo console.
+    for key in ('name', 'logo'):
+        if key in payload:
+            raise ApiError(403, 'forbidden', 'institution identity is managed in Odoo', field=key)
+    for key in payload:
+        if key != 'primary_color':
             raise ApiError(422, 'invalid', f"field {key!r} is not writable", field=key)
-        if key == 'name':
-            if not isinstance(value, str) or not 1 <= len(value.strip()) <= 100:
-                raise ApiError(422, 'invalid', 'name must be between 1 and 100 characters', field=key)
-            vals[key] = value.strip()
-        elif key == 'primary_color':
-            if not isinstance(value, str) or not re.fullmatch(r'#[0-9a-fA-F]{6}', value):
-                raise ApiError(422, 'invalid', 'primary_color must be a six-digit hex color', field=key)
-            vals[key] = value
-        else:
-            vals[key] = _parse_logo(value)
-    return vals
+    value = payload['primary_color']
+    if not isinstance(value, str) or not re.fullmatch(r'#[0-9a-fA-F]{6}', value):
+        raise ApiError(422, 'invalid', 'primary_color must be a six-digit hex color', field='primary_color')
+    return {'primary_color': value}
 
 
 def _logo_version(company):

@@ -19,7 +19,7 @@
 
     <record id="group_customer_admin" model="res.groups">
         <field name="name">Customer Administrator</field>
-        <field name="comment">Manages users, employees, departments, project settings and branding for their company.</field>
+        <field name="comment">Manages users, employees, departments, project settings and the primary colour for their company.</field>
         <field name="sequence">20</field>
         <field name="privilege_id" ref="res_groups_privilege_nasq"/>
         <field name="implied_ids" eval="[

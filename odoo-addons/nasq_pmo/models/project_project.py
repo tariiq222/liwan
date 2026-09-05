@@ -17,7 +17,7 @@ ACCESS_USER_CREATE_MARKER = 'nasq_core.access_user_create_depth'
 # dedicated, explicitly-reviewed path instead of this generic sudo'd write.
 MANAGER_WRITABLE = {
     'name', 'description', 'user_id', 'privacy_visibility', 'date_start', 'date',
-    'tag_ids', 'active', 'last_update_status', 'allow_milestones', 'type_ids',
+    'tag_ids', 'active', 'last_update_status', 'allow_milestones', 'allow_task_dependencies', 'type_ids',
 }
 PROJECT_CREATE_FIELDS = MANAGER_WRITABLE | {'company_id'}
 
@@ -200,6 +200,7 @@ class ProjectProject(models.Model):
         return {
             'name': name,
             'user_id': self.env.uid,
+            'company_id': self.env.company.id,
             'privacy_visibility': 'employees',
             'allow_milestones': True,
             'type_ids': [(0, 0, s) for s in stages],

@@ -4,7 +4,7 @@ from odoo.tests import tagged
 from .common import NasqPmoCase
 
 PROJECT_KEYS = {'id', 'name', 'status', 'progress', 'task_count', 'closed_task_count', 'active', 'can_manage', 'allowed_actions'}
-DETAIL_KEYS = PROJECT_KEYS | {'stages', 'description_html', 'manager', 'privacy_visibility', 'date_start', 'date_end', 'tags', 'followers_count', 'milestone_count'}
+DETAIL_KEYS = PROJECT_KEYS | {'stages', 'description_html', 'manager', 'privacy_visibility', 'date_start', 'date_end', 'tags', 'followers_count', 'milestone_count', 'allow_task_dependencies'}
 
 
 @tagged('post_install', '-at_install', 'nasq')
@@ -112,6 +112,7 @@ class TestProjects(NasqPmoCase):
         self.assertEqual(res.status_code, 201)
         body = res.json()
         self.assertEqual(set(body), DETAIL_KEYS)
+        self.assertEqual(self.env['project.project'].browse(body['id']).company_id, self.env.company)
         self.assertEqual([s['name'] for s in body['stages']], ['جديد', 'قيد التنفيذ', 'مراجعة', 'منجز'])
         self.assertEqual(body['manager']['id'], self.manager.id)
         self.assertEqual(body['privacy_visibility'], 'employees')
@@ -173,3 +174,14 @@ class TestProjects(NasqPmoCase):
         self.authenticate('api_emp', 'api_emp_pass_123')
         res = self.api('GET', '/api/v1/projects?archived=1')
         self.assertEqual((res.status_code, res.json()['code']), (403, 'forbidden'))
+
+    def test_patch_dependency_feature_requires_manager_and_boolean(self):
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        res = self.api('PATCH', f'/api/v1/projects/{self.project.id}', {'allow_task_dependencies': True})
+        self.assertEqual(res.status_code, 403)
+        self.authenticate('api_mgr', 'api_mgr_pass_123')
+        res = self.api('PATCH', f'/api/v1/projects/{self.project.id}', {'allow_task_dependencies': 'yes'})
+        self.assertEqual((res.status_code, res.json()['code'], res.json()['field']), (422, 'invalid', 'allow_task_dependencies'))
+        res = self.api('PATCH', f'/api/v1/projects/{self.project.id}', {'allow_task_dependencies': True})
+        self.assertEqual(res.status_code, 200)
+        self.assertTrue(res.json()['allow_task_dependencies'])

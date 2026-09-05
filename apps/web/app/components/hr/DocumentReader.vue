@@ -24,7 +24,7 @@ function formatSize(n: number) {
       <h3 class="text-sm font-medium">{{ t('hr.docs.attachments') }}</h3>
       <ul class="grid gap-1 text-sm">
         <li v-for="att in props.document.attachment_ids" :key="att.id">
-          <a :href="`/web/content/${att.id}`" class="underline" target="_blank" rel="noreferrer">
+          <a :href="`/web/content/${att.id}`" class="underline" target="_blank" rel="noreferrer" download>
             {{ att.name }}
           </a>
           <span class="ms-2 text-muted-foreground">{{ formatSize(att.file_size) }}</span>

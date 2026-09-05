@@ -33,7 +33,11 @@
         "vendor": "Vendor",
         "stopped": "Access stopped"
       },
-      "description": "Employee directory and work details."
+      "description": "Employee directory and work details.",
+      "filteredEmpty": "No employees match these filters",
+      "filteredEmptyHint": "Change or clear the filters.",
+      "searchValue": "Search: {value}",
+      "clear": "Clear filters"
     },
     "card": {
       "title": "Employee card",
@@ -63,7 +67,31 @@
       "inUse": "This department is in use.",
       "employeeReason": "{count} employee(s)",
       "childReason": "{count} child department(s)",
-      "documentReason": "{count} document(s)"
+      "documentReason": "{count} document(s)",
+      "newTitle": "Add department",
+      "editTitle": "Edit department",
+      "create": "Create department",
+      "newChild": "Add child department",
+      "managerSearch": "Search employees…",
+      "managerLoading": "Searching employees…",
+      "managerLimitNotice": "Results are limited; refine the search to see more employees.",
+      "noManagers": "No employees found",
+      "search": "Search departments…",
+      "hierarchy": "Organizational hierarchy",
+      "pageDescription": "Browse departments and their organizational relationships.",
+      "selectedDescription": "Actions and links for the selected department.",
+      "noManager": "No manager",
+      "viewEmployees": "View employees",
+      "viewDocuments": "View documents",
+      "expand": "Expand department",
+      "collapse": "Collapse department",
+      "loadError": "Unable to load departments",
+      "retry": "Retry",
+      "formDescription": "Set the department name, relationship, and manager.",
+      "children": "Child departments",
+      "save": "Save",
+      "managerLoadError": "Unable to load employees",
+      "listView": "List"
     },
     "tabs": {
       "employees": "Employees",
@@ -121,7 +149,17 @@
         "name": "Title",
         "updated": "Last updated",
         "department": "Department"
-      }
+      },
+      "description": "Human resources documents organized by department.",
+      "allDepartments": "All departments",
+      "department": "Department",
+      "chooseDepartment": "Choose a department",
+      "loadError": "Unable to load the document.",
+      "departmentsError": "Unable to load departments.",
+      "retry": "Retry",
+      "previous": "Previous",
+      "next": "Next",
+      "pagination": "Showing {from}–{to} of {total}"
     }
   }
 }

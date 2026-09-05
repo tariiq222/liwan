@@ -18,18 +18,20 @@ export function firstAllowedPath(identity: AccessIdentity): string {
 }
 export function postLoginPath(identity: AccessIdentity, next: unknown): string {
   const fallback = firstAllowedPath(identity)
-  const target = safeReturnTo(next, fallback, [...destinations.map(([path]) => path), '/account', '/search'])
+  const target = safeReturnTo(next, fallback, [...destinations.map(([path]) => path), '/account', '/search', '/notifications', '/archived-tasks'])
   const capability = requiredCapabilityForPath(new URL(target, 'http://nasq.local').pathname)
   return capability && !hasCapability(identity, capability) ? fallback : target
 }
 export function isNavPathActive(path: string, target: string): boolean {
   const document = /^\/hr\/departments\/[^/]+\/documents(?:\/|$)/.test(path)
   if (target === '/hr') return path === '/hr' || path.startsWith('/hr/employees/')
-  if (target === '/hr/documents') return path === target || document
+  if (target === '/hr/documents') return path === target || path.startsWith(`${target}/`) || document
   if (target === '/hr/departments' && document) return false
   return path === target || path.startsWith(`${target}/`)
 }
 export function requiredCapabilityForPath(path: string): string | null {
+  if (path === '/notifications' || path === '/archived-tasks') return 'pmo.tasks.read'
+  if (path === '/hr/documents/new') return 'hr.documents.manage'
   if (path === '/tasks/new' || /^\/projects\/[^/]+\/tasks\/new$/.test(path)) return 'pmo.tasks.create'
   if (path === '/projects/new') return 'pmo.projects.create'
   if (path === '/settings/users/new') return 'access.users.grant'

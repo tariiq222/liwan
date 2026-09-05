@@ -4,15 +4,17 @@ import StarterKit from '@tiptap/starter-kit'
 import { EditorContent, useEditor } from '@tiptap/vue-3'
 import { Bold, Italic, Link as LinkIcon, List, ListOrdered } from 'lucide-vue-next'
 import { createDebouncedFlush } from '@/lib/debouncedFlush'
+import { shouldApplyDocumentBodyModel } from '@/lib/documentEditorDraft'
 
 const props = withDefaults(defineProps<{ modelValue: string; documentId: number; debounce?: boolean; disabled?: boolean }>(), { debounce: true, disabled: false })
-const emit = defineEmits<{ 'update:modelValue': [string]; escape: [] }>()
+const emit = defineEmits<{ 'update:modelValue': [string, number]; escape: [] }>()
 
 const { t } = useI18n()
 const linkEditing = ref(false)
 const linkUrl = ref('')
 
-const buffer = createDebouncedFlush<string>(800, (html) => emit('update:modelValue', html))
+const pendingBodyDraft = ref<string | null>(null)
+const buffer = createDebouncedFlush<{ documentId: number; html: string }>(800, ({ html, documentId }) => emit('update:modelValue', html, documentId))
 
 const editor = useEditor({
   content: props.modelValue,
@@ -27,8 +29,10 @@ const editor = useEditor({
     },
   },
   onUpdate: ({ editor: ed }) => {
-    if (props.debounce) buffer.schedule(ed.getHTML())
-    else emit('update:modelValue', ed.getHTML())
+    const html = ed.getHTML()
+    pendingBodyDraft.value = html
+    if (props.debounce) buffer.schedule({ documentId: props.documentId, html })
+    else emit('update:modelValue', html, props.documentId)
   },
 })
 watch(() => props.disabled, (disabled) => editor.value?.setEditable(!disabled))
@@ -36,14 +40,18 @@ watch(() => props.disabled, (disabled) => editor.value?.setEditable(!disabled))
 watch(
   () => props.modelValue,
   (html) => {
-    if (!editor.value || editor.value.getHTML() === html) return
+    if (!editor.value) return
+    const editorHtml = editor.value.getHTML()
+    if (!shouldApplyDocumentBodyModel(editorHtml, html, pendingBodyDraft.value)) return
+    if (html === pendingBodyDraft.value) pendingBodyDraft.value = null
+    if (editorHtml === html) return
     editor.value.commands.setContent(html, { emitUpdate: false })
   },
 )
 
 watch(
   () => props.documentId,
-  () => buffer.flush(),
+  () => { buffer.flush(); pendingBodyDraft.value = null },
   { flush: 'pre' },
 )
 

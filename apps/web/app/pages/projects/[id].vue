@@ -88,6 +88,7 @@ function onUnarchived() {}
       <ProjectHeader v-if="project" :project="project" :back-to="projectReturnTo" @create="openTaskCreate" @settings="openSettings" @archived="onArchived" @unarchived="onUnarchived" />
       <Skeleton v-else-if="isLoading" class="h-9 w-1/2" />
 
+      <NuxtLink v-if="project" :to="{ path: '/archived-tasks', query: { project_id: project.id, ...returnToQuery(route.fullPath) } }" class="text-sm underline">{{ t('taskLifecycle.archivedTasks') }}</NuxtLink>
       <Tabs :model-value="tab" @update:model-value="onTabChange">
         <TabsList>
           <TabsTrigger value="list" :disabled="!hydrated">{{ t('projects.tabs.list') }}</TabsTrigger>

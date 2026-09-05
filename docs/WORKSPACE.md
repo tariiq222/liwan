@@ -13,22 +13,16 @@ tagged `archive/pre-reorganization-20260905` at `e4e8e9b`, with the preserved bu
 `/Users/tariq/code/nasq-recovery-20260905/preserved-work.bundle`. WIP contract
 material in recovery is quarantined and is not delivered product content.
 
-Phase 3b is complete on the separate local worktree
-`/Users/tariq/code/nasq-phase-3b`, branch `codex/phase-3b`. Canonical
-`/Users/tariq/code/nasq` `main` remains at the pre-Phase-3b baseline until an
-explicit integration is authorized. Its delivery documents are:
+## 2026-09-05 unification
 
-- [`people-branding plan`](superpowers/plans/2026-09-05-nasq-phase-3b-people-branding.md)
-- [`handoff`](superpowers/plans/2026-09-05-nasq-phase-3b-handoff.md)
-- [`delivery report`](superpowers/plans/2026-09-05-nasq-phase-3b-delivery.md)
-- [`parallel-work`](parallel-work.md)
+The active integration is `/private/tmp/nasq-unified-20260905` on
+`codex/unified-20260905`. Its final checks and main promotion are tracked in
+[the unification report](unification-2026-09-05.md). Older branch delivery
+counts below are historical and do not represent the unified release.
 
-The branch-local final gates record Odoo aggregate `182`, contracts `52`, web
-unit `152`, and Playwright `47` green, plus clean `ruff`, `vue-tsc`, and
-production-build gates. A built review preview uses Nuxt `3200`, isolated
-Odoo `9169`, and scratch database
-`nasq_phase3b_e2e_final4_20260905_1653`. This runtime is local review evidence,
-not a deployment.
+The former Phase 3b, access, design, sidebar and collaboration work is
+reconciled in that integration. Original dirty worktrees remain preserved
+until final verification and authorized cleanup complete.
 
 ## Start and inspect
 
