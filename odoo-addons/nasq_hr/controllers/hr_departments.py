@@ -3,6 +3,7 @@ from odoo import http
 from odoo.exceptions import AccessError, MissingError
 from odoo.http import request
 
+from .common import hr_rule_handler
 from odoo.addons.nasq_api.controllers.common import (
     ApiError,
     api_handler,
@@ -13,9 +14,8 @@ from odoo.addons.nasq_hr.serializers.hr_department import (
     parse_department_vals,
 )
 
-from .common import hr_rule_handler
-
 MAX_LIMIT = 200
+DEPARTMENT_SCOPE_ERROR = 'department is outside the current company'
 
 
 def _require_customer_admin():
@@ -28,7 +28,7 @@ def _admin_department(department_id):
     if not department.exists():
         raise MissingError(request.env._('hr.department %(id)s does not exist', id=department_id))
     if department.company_id not in request.env.companies:
-        raise AccessError('department is outside the current company')
+        raise AccessError(DEPARTMENT_SCOPE_ERROR)
     department.check_access('read')
     return department
 

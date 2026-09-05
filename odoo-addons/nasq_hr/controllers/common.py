@@ -2,8 +2,7 @@
 import functools
 
 from odoo.addons.nasq_api.controllers.common import ApiError
-
-from ..rules import NasqHrRule
+from odoo.addons.nasq_hr.rules import NasqHrRule
 
 
 def hr_rule_handler(func):

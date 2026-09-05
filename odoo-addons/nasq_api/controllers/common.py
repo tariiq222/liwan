@@ -13,7 +13,7 @@ class ApiError(Exception):
     def __init__(self, status, code, message, field=None, details=None):
         super().__init__(message)
         self.status, self.code, self.message, self.field, self.details = (
-            status, code, message, field, details
+            status, code, message, field, details,
         )
 
 

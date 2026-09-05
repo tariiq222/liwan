@@ -22,8 +22,9 @@ describe('useApi', () => {
 
     const { $api } = useApi()
     const error = await $api('/api/v1/hr/departments/1', { method: 'DELETE' }).catch((value) => value)
-    expect(error).toBeInstanceOf(ApiError)
-    expect(error).toMatchObject({ status: 422, code: 'department_in_use', message: 'x' })
-    expect(error.details).toEqual({ employees: 1, children: 0, documents: 2 })
+    const apiError = error as ApiError
+    expect(apiError).toBeInstanceOf(ApiError)
+    expect(apiError).toMatchObject({ status: 422, code: 'department_in_use', message: 'x' })
+    expect(apiError.details).toEqual({ employees: 1, children: 0, documents: 2 })
   })
 })

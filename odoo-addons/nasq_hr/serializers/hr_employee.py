@@ -1,13 +1,13 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from odoo.addons.nasq_api.controllers.common import ApiError
 from odoo.tools import email_normalize
 
+from odoo.addons.nasq_api.controllers.common import ApiError
 
 EMPLOYEE_FIELDS = {'name', 'work_email', 'work_phone', 'job_title', 'department_id', 'parent_id'}
 
 
 def _optional_id(value, field):
-    if value is None or value is False or value == '':
+    if value is None or value is False or (isinstance(value, str) and not value):
         return False
     if isinstance(value, bool):
         raise ApiError(422, 'invalid', f'{field} must be an integer', field=field)
@@ -31,7 +31,7 @@ def _optional_text(value, field):
 
 
 def _optional_email(value):
-    if value is None or value is False or value == '':
+    if value is None or value is False or (isinstance(value, str) and not value):
         return False
     if not isinstance(value, str):
         raise ApiError(422, 'invalid', 'work_email must be a valid email address', field='work_email')

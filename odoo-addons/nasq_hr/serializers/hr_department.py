@@ -27,7 +27,7 @@ def dump_department(dept):
 
 
 def _optional_id(value, field):
-    if value is None or value is False or value == '':
+    if value is None or value is False or (isinstance(value, str) and not value):
         return False
     if isinstance(value, bool):
         raise ApiError(422, 'invalid', f"{field} must be an integer", field=field)

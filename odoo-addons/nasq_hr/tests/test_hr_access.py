@@ -1,7 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+from odoo.http import root
 from odoo.tests import new_test_user, tagged
 from odoo.tests.common import HOST, Opener
-from odoo.http import root
 
 from .common import NasqHrCase
 

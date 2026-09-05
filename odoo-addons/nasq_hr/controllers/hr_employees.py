@@ -3,6 +3,7 @@ from odoo import http
 from odoo.exceptions import AccessError, MissingError
 from odoo.http import request
 
+from .common import hr_rule_handler
 from odoo.addons.nasq_api.controllers.common import (
     ApiError,
     api_handler,
@@ -16,9 +17,8 @@ from odoo.addons.nasq_hr.serializers.hr_employee import (
     parse_employee_patch,
 )
 
-from .common import hr_rule_handler
-
 MAX_LIMIT = 200
+EMPLOYEE_SCOPE_ERROR = 'employee is outside the current company'
 
 
 def _is_admin():
@@ -35,7 +35,7 @@ def _admin_employee(employee_id):
     if not employee.exists():
         raise MissingError(request.env._('hr.employee %(id)s does not exist', id=employee_id))
     if employee.company_id not in request.env.companies:
-        raise AccessError('employee is outside the current company')
+        raise AccessError(EMPLOYEE_SCOPE_ERROR)
     employee.check_access('read')
     return employee
 

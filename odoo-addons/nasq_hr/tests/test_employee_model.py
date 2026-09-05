@@ -2,7 +2,7 @@
 from odoo.exceptions import AccessError
 from odoo.tests import TransactionCase, new_test_user, tagged
 
-from ..rules import NasqHrRule
+from odoo.addons.nasq_hr.rules import NasqHrRule
 
 
 @tagged('nasq', '-at_install', 'post_install')

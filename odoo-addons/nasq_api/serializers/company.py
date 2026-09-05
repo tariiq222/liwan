@@ -15,6 +15,12 @@ MAX_LOGO_BYTES = 1024 * 1024
 MAX_LOGO_PIXELS = 25_000_000
 PNG_SIGNATURE = b'\x89PNG\r\n\x1a\n'
 JPEG_SIGNATURE = b'\xff\xd8\xff'
+LOGO_RAW_BASE64_MESSAGE = 'logo must be raw base64 PNG or JPEG data'
+LOGO_BASE64_MESSAGE = 'logo must be valid base64'
+LOGO_FORMAT_MESSAGE = 'logo must be a PNG or JPEG image'
+LOGO_HEADER_MESSAGE = 'logo image header does not match its format'
+LOGO_DIMENSIONS_MESSAGE = 'logo image dimensions are too large'
+LOGO_CORRUPT_MESSAGE = 'logo image is corrupt or unsupported'
 
 
 def _logo_error(message):
@@ -23,11 +29,11 @@ def _logo_error(message):
 
 def _parse_logo(value):
     if not isinstance(value, str) or value.startswith('data:'):
-        raise _logo_error('logo must be raw base64 PNG or JPEG data')
+        raise _logo_error(LOGO_RAW_BASE64_MESSAGE)
     try:
         decoded = base64.b64decode(value, validate=True)
     except (ValueError, binascii.Error):
-        raise _logo_error('logo must be valid base64') from None
+        raise _logo_error(LOGO_BASE64_MESSAGE) from None
     if len(decoded) > MAX_LOGO_BYTES:
         raise ApiError(422, 'logo_too_large', 'logo must be at most 1 MiB decoded', field='logo')
 
@@ -37,21 +43,21 @@ def _parse_logo(value):
     elif decoded.startswith(JPEG_SIGNATURE):
         expected_format = 'JPEG'
     if expected_format is None:
-        raise _logo_error('logo must be a PNG or JPEG image')
+        raise _logo_error(LOGO_FORMAT_MESSAGE)
 
     try:
         with warnings.catch_warnings():
             warnings.simplefilter('error', Image.DecompressionBombWarning)
             with Image.open(BytesIO(decoded)) as image:
                 if image.format != expected_format:
-                    raise _logo_error('logo image header does not match its format')
+                    raise _logo_error(LOGO_HEADER_MESSAGE)
                 if image.width * image.height > MAX_LOGO_PIXELS:
-                    raise _logo_error('logo image dimensions are too large')
+                    raise _logo_error(LOGO_DIMENSIONS_MESSAGE)
                 image.verify()
     except ApiError:
         raise
     except (Image.DecompressionBombError, Image.DecompressionBombWarning, OSError, ValueError):
-        raise _logo_error('logo image is corrupt or unsupported') from None
+        raise _logo_error(LOGO_CORRUPT_MESSAGE) from None
     return value
 
 

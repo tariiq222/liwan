@@ -6,7 +6,7 @@ import { useHrEmployees } from '@/composables/useHrEmployees'
 import DepartmentDialog from './DepartmentDialog.vue'
 import DepartmentTable from './DepartmentTable.vue'
 
-defineProps<{ open: boolean; selectedId?: number | null }>()
+const props = defineProps<{ open: boolean; selectedId?: number | null }>()
 const emit = defineEmits<{ 'update:open': [boolean]; select: [id: number | null] }>()
 const { t } = useI18n()
 const hydrated = useHydrated()

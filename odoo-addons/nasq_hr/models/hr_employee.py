@@ -3,15 +3,28 @@ from odoo import models
 from odoo.exceptions import AccessError
 from odoo.tools import email_normalize
 
-from ..rules import NasqHrRule
 from odoo.addons.nasq_api.controllers.common import MIN_PASSWORD_LENGTH
-
+from odoo.addons.nasq_hr.rules import NasqHrRule
 
 ROLE_XMLIDS = {
     'employee': 'nasq_core.group_employee',
     'admin': 'nasq_core.group_customer_admin',
 }
 NASQ_ROLE_XMLIDS = tuple(ROLE_XMLIDS.values()) + ('nasq_core.group_vendor_support',)
+EMPLOYEE_WRITE_ERROR = 'only a customer administrator can write employees'
+EMPLOYEE_SCOPE_ERROR = 'employee is outside the current company'
+WEAK_PASSWORD_CODE = 'weak_password'
+INVALID_ROLE_CODE = 'invalid_role'
+VENDOR_PROTECTED_CODE = 'vendor_protected'
+INVALID_FIELD_CODE = 'invalid_field'
+SELF_DEACTIVATE_CODE = 'self_deactivate'
+ROLE_CONFLICT_CODE = 'role_conflict'
+LOGIN_TAKEN_CODE = 'login_taken'
+SELF_ROLE_CODE = 'self_role'
+EMPLOYEE_ARCHIVED_CODE = 'employee_archived'
+EMAIL_REQUIRED_CODE = 'email_required'
+ACCESS_EXISTS_CODE = 'access_exists'
+ACCESS_MISSING_CODE = 'access_missing'
 
 
 class NasqHrEmployee(models.Model):
@@ -19,11 +32,11 @@ class NasqHrEmployee(models.Model):
 
     def _nasq_require_admin(self):
         if not self.env.user.has_group('nasq_core.group_customer_admin'):
-            raise AccessError('only a customer administrator can write employees')
+            raise AccessError(EMPLOYEE_WRITE_ERROR)
 
     def _nasq_validate_scope(self):
         if any(employee.company_id not in self.env.companies for employee in self):
-            raise AccessError('employee is outside the current company')
+            raise AccessError(EMPLOYEE_SCOPE_ERROR)
 
     def _nasq_validate_mutation(self):
         self._nasq_require_admin()
@@ -39,20 +52,20 @@ class NasqHrEmployee(models.Model):
     @staticmethod
     def _nasq_password(value):
         if not isinstance(value, str):
-            raise NasqHrRule('weak_password', 'password must be at least 8 characters', field='password')
+            raise NasqHrRule(WEAK_PASSWORD_CODE, 'password must be at least 8 characters', field='password')
         value = value.strip()
         if len(value) < MIN_PASSWORD_LENGTH:
-            raise NasqHrRule('weak_password', 'password must be at least 8 characters', field='password')
+            raise NasqHrRule(WEAK_PASSWORD_CODE, 'password must be at least 8 characters', field='password')
         return value
 
     def _nasq_validate_role(self, role):
         if role not in ROLE_XMLIDS:
-            raise NasqHrRule('invalid_role', 'role must be employee or admin', field='role')
+            raise NasqHrRule(INVALID_ROLE_CODE, 'role must be employee or admin', field='role')
 
     def _nasq_validate_vendor(self):
         if any(employee.user_id and employee.user_id.has_group('nasq_core.group_vendor_support') for employee in self):
             raise NasqHrRule(
-                'vendor_protected', 'vendor-linked employees cannot be changed from nasq', status=403,
+                VENDOR_PROTECTED_CODE, 'vendor-linked employees cannot be changed from nasq', status=403,
             )
 
     def _nasq_create(self, vals):
@@ -60,7 +73,7 @@ class NasqHrEmployee(models.Model):
         company_id = vals.get('company_id') or self.env.company.id
         company = self.env['res.company'].browse(company_id)
         if not company.exists() or company not in self.env.companies:
-            raise AccessError('employee is outside the current company')
+            raise AccessError(EMPLOYEE_SCOPE_ERROR)
         vals = dict(vals)
         vals['company_id'] = company.id
         vals.pop('user_id', None)
@@ -71,14 +84,14 @@ class NasqHrEmployee(models.Model):
         self._nasq_validate_mutation()
         vals = dict(vals)
         if 'user_id' in vals or 'active' in vals:
-            raise NasqHrRule('invalid_field', 'user access is managed by the access actions', field='user_id')
+            raise NasqHrRule(INVALID_FIELD_CODE, 'user access is managed by the access actions', field='user_id')
         with self.env.cr.savepoint():
             return super().write(vals)
 
     def _nasq_archive(self):
         self._nasq_validate_mutation()
         if any(employee.user_id == self.env.user for employee in self):
-            raise NasqHrRule('self_deactivate', 'an administrator cannot deactivate themselves', status=422)
+            raise NasqHrRule(SELF_DEACTIVATE_CODE, 'an administrator cannot deactivate themselves', status=422)
         self._nasq_validate_vendor()
         with self.env.cr.savepoint():
             self.write({'active': False})
@@ -113,7 +126,7 @@ class NasqHrEmployee(models.Model):
         admin_group = self.env.ref('nasq_core.group_customer_admin')
         if role == 'employee' and any(admin_group in group.all_implied_ids for group in unrelated):
             raise NasqHrRule(
-                'role_conflict', 'cannot demote while another explicit group still grants administrator access',
+                ROLE_CONFLICT_CODE, 'cannot demote while another explicit group still grants administrator access',
                 field='role',
             )
         group_ids = (unrelated | desired).ids
@@ -122,25 +135,25 @@ class NasqHrEmployee(models.Model):
     def _nasq_validate_email_available(self, normalized, current_user=None):
         users = self.env['res.users'].with_context(active_test=False).search([('login', '=', normalized)])
         if users - current_user:
-            raise NasqHrRule('login_taken', 'this work email is already used as a login', field='work_email')
+            raise NasqHrRule(LOGIN_TAKEN_CODE, 'this work email is already used as a login', field='work_email')
 
     def _nasq_grant_access(self, password, role):
         self._nasq_validate_mutation()
         if any(employee.user_id == self.env.user for employee in self):
-            raise NasqHrRule('self_role', 'an administrator cannot change their own role', field='role')
+            raise NasqHrRule(SELF_ROLE_CODE, 'an administrator cannot change their own role', field='role')
         self._nasq_validate_vendor()
         self._nasq_validate_role(role)
         password = self._nasq_password(password)
         for employee in self:
             if not employee.active:
-                raise NasqHrRule('employee_archived', 'archived employees cannot receive access')
+                raise NasqHrRule(EMPLOYEE_ARCHIVED_CODE, 'archived employees cannot receive access')
             normalized = self._nasq_normalize_email(employee.work_email)
             if not normalized:
-                raise NasqHrRule('email_required', 'a work email is required before granting access', field='work_email')
+                raise NasqHrRule(EMAIL_REQUIRED_CODE, 'a work email is required before granting access', field='work_email')
             current = employee.user_id
             self._nasq_validate_email_available(normalized, current)
             if current and current.active:
-                raise NasqHrRule('access_exists', 'this employee already has active access')
+                raise NasqHrRule(ACCESS_EXISTS_CODE, 'this employee already has active access')
         with self.env.cr.savepoint():
             for employee in self:
                 normalized = self._nasq_normalize_email(employee.work_email)
@@ -184,11 +197,11 @@ class NasqHrEmployee(models.Model):
             password = self._nasq_password(password)
         users = self.mapped('user_id')
         if len(users) != len(self):
-            raise NasqHrRule('access_missing', 'the employee has no linked access')
+            raise NasqHrRule(ACCESS_MISSING_CODE, 'the employee has no linked access')
         if role is not None:
             for employee in self:
                 if employee.user_id == self.env.user:
-                    raise NasqHrRule('self_role', 'an administrator cannot change their own role', field='role')
+                    raise NasqHrRule(SELF_ROLE_CODE, 'an administrator cannot change their own role', field='role')
                 self._nasq_role_commands(employee.user_id, role)
         if role is None and password is None:
             return self
@@ -204,11 +217,11 @@ class NasqHrEmployee(models.Model):
     def _nasq_revoke_access(self):
         self._nasq_validate_mutation()
         if any(employee.user_id == self.env.user for employee in self):
-            raise NasqHrRule('self_deactivate', 'an administrator cannot deactivate themselves', status=422)
+            raise NasqHrRule(SELF_DEACTIVATE_CODE, 'an administrator cannot deactivate themselves', status=422)
         self._nasq_validate_vendor()
         users = self.mapped('user_id')
         if len(users) != len(self):
-            raise NasqHrRule('access_missing', 'the employee has no linked access')
+            raise NasqHrRule(ACCESS_MISSING_CODE, 'the employee has no linked access')
         with self.env.cr.savepoint():
             users.write({'active': False})
         return self

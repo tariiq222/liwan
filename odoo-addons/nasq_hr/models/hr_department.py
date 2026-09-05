@@ -2,7 +2,11 @@
 from odoo import models
 from odoo.exceptions import AccessError
 
-from ..rules import NasqHrRule
+from odoo.addons.nasq_hr.rules import NasqHrRule
+
+DEPARTMENT_WRITE_ERROR = 'only a customer administrator can write departments'
+DEPARTMENT_SCOPE_ERROR = 'department is outside the current company'
+DEPARTMENT_IN_USE_CODE = 'department_in_use'
 
 
 class NasqHrDepartment(models.Model):
@@ -10,11 +14,11 @@ class NasqHrDepartment(models.Model):
 
     def _nasq_require_admin(self):
         if not self.env.user.has_group('nasq_core.group_customer_admin'):
-            raise AccessError('only a customer administrator can write departments')
+            raise AccessError(DEPARTMENT_WRITE_ERROR)
 
     def _nasq_validate_scope(self):
         if any(department.company_id not in self.env.companies for department in self):
-            raise AccessError('department is outside the current company')
+            raise AccessError(DEPARTMENT_SCOPE_ERROR)
 
     @staticmethod
     def _nasq_relation_id(value):
@@ -63,7 +67,7 @@ class NasqHrDepartment(models.Model):
         for department, details in usages:
             if any(details.values()):
                 raise NasqHrRule(
-                    'department_in_use', 'department still has employees, children, or documents',
+                    DEPARTMENT_IN_USE_CODE, 'department still has employees, children, or documents',
                     details=details,
                 )
         with self.env.cr.savepoint():
