@@ -60,12 +60,15 @@ def parse_project_vals(payload):
                 raise ApiError(422, 'invalid', "name must not be empty", field=key)
             vals[key] = value.strip()
         elif key == 'description':
-            vals[key] = value if isinstance(value, str) else ''
+            if value is not None and not isinstance(value, str):
+                raise ApiError(422, 'invalid', "description must be a string", field=key)
+            vals[key] = value or ''
         elif key == 'user_id':
             if value is None:
                 vals[key] = False
             else:
-                user = request.env['res.users'].browse(int(value)).exists() if isinstance(value, int) else None
+                is_int = isinstance(value, int) and not isinstance(value, bool)
+                user = request.env['res.users'].browse(int(value)).exists() if is_int else None
                 if not user or user.share or not user.active:
                     raise ApiError(422, 'invalid', "user_id must be an active internal user", field=key)
                 vals[key] = user.id
@@ -76,7 +79,11 @@ def parse_project_vals(payload):
         elif key in ('date_start', 'date'):
             vals[key] = parse_date(value, key)
         elif key == 'tag_ids':
-            if not isinstance(value, list) or not all(isinstance(i, int) for i in value):
+            if not isinstance(value, list) or not all(isinstance(i, int) and not isinstance(i, bool) for i in value):
                 raise ApiError(422, 'invalid', "tag_ids must be a list of ids", field=key)
-            vals[key] = [(6, 0, value)]
+            tags = request.env['project.tags'].browse(value).exists()
+            if len(tags) != len(set(value)):
+                message = "unknown tag id"
+                raise ApiError(422, 'invalid', message, field=key)
+            vals[key] = [(6, 0, tags.ids)]
     return vals

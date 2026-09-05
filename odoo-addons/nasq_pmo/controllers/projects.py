@@ -23,8 +23,11 @@ class ProjectController(http.Controller):
         unknown = set(args) - {'minimal', 'archived'}
         if unknown:
             raise ApiError(400, 'unsupported_filter', f"unsupported query parameter {sorted(unknown)[0]!r}")
+        archived_param = args.get('archived')
+        if archived_param is not None and archived_param not in ('1', 'true', '0', 'false'):
+            raise ApiError(422, 'invalid', "archived must be '1', 'true', '0' or 'false'", field='archived')
         Project = request.env['project.project']
-        archived = args.get('archived') in ('1', 'true')
+        archived = archived_param in ('1', 'true')
         if archived and not Project._nasq_is_manager():
             raise AccessError(request.env._("Only a project manager can list archived projects."))
         domain = [('active', '=', False)] if archived else []
@@ -56,7 +59,9 @@ class ProjectController(http.Controller):
         if not payload:
             raise ApiError(422, 'invalid', "no fields to update")
         project = get_record('project.project', project_id)
-        project._nasq_write_as_manager(parse_project_vals(payload))
+        project._nasq_check_manage()
+        vals = parse_project_vals(payload)
+        project._nasq_write_as_manager(vals)
         return dump_project_detail(project)
 
     @http.route('/api/v1/projects/<int:project_id>/archive', type='json2', auth='user', methods=['POST'], readonly=False)

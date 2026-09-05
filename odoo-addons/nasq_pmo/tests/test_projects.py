@@ -126,6 +126,26 @@ class TestProjects(NasqPmoCase):
         res = self.api('PATCH', f'/api/v1/projects/{other.id}', {'name': 'x'})
         self.assertEqual((res.status_code, res.json()['code']), (403, 'forbidden'))
 
+    def test_patch_invalid_tags_description_and_booleans(self):
+        self.authenticate('api_mgr', 'api_mgr_pass_123')
+        res = self.api('PATCH', f'/api/v1/projects/{self.project.id}', {'tag_ids': [999999]})
+        self.assertEqual((res.status_code, res.json()['code'], res.json()['field']), (422, 'invalid', 'tag_ids'))
+        res = self.api('PATCH', f'/api/v1/projects/{self.project.id}', {'description': 42})
+        self.assertEqual((res.status_code, res.json()['code'], res.json()['field']), (422, 'invalid', 'description'))
+        res = self.api('PATCH', f'/api/v1/projects/{self.project.id}', {'user_id': True})
+        self.assertEqual((res.status_code, res.json()['code'], res.json()['field']), (422, 'invalid', 'user_id'))
+
+    def test_patch_manage_check_precedes_validation(self):
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        other = self.env['project.project'].create({'name': 'Not mine either'})
+        res = self.api('PATCH', f'/api/v1/projects/{other.id}', {'user_id': 999999})
+        self.assertEqual(res.status_code, 403)
+
+    def test_archived_filter_invalid_value(self):
+        self.authenticate('api_mgr', 'api_mgr_pass_123')
+        res = self.api('GET', '/api/v1/projects?archived=yes')
+        self.assertEqual((res.status_code, res.json()['code'], res.json()['field']), (422, 'invalid', 'archived'))
+
     def test_archive_and_archived_filter(self):
         self.authenticate('api_mgr', 'api_mgr_pass_123')
         res = self.api('POST', f'/api/v1/projects/{self.project.id}/archive')
