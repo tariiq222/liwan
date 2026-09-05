@@ -228,6 +228,16 @@ class TestTaskWrite(NasqPmoCase):
         self.assertEqual(res.status_code, 422)
         self.assertEqual(res.json()['field'], 'personal_stage_type_id')
 
+    def test_patch_tag_ids_unknown_id_is_422_not_500(self):
+        """tag_ids ids were shape-checked but never resolved against project.tags,
+        so an unknown id used to reach the ORM write and raise a FK IntegrityError
+        (500) instead of the contracted 422."""
+        self.authenticate('api_mgr', 'api_mgr_pass_123')
+        res = self.api('PATCH', f'/api/v1/tasks/{self.task_other.id}', {'tag_ids': [999999]})
+        self.assertEqual(res.status_code, 422, res.text)
+        self.assertEqual(res.json()['code'], 'invalid')
+        self.assertEqual(res.json()['field'], 'tag_ids')
+
     def test_list_unknown_state_filter_is_422(self):
         self.authenticate('api_emp', 'api_emp_pass_123')
         res = self.api('GET', '/api/v1/tasks?filter=mine&state=in_progress,bogus')

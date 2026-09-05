@@ -9,7 +9,7 @@ import ProjectStatusSelect from './ProjectStatusSelect.vue'
 defineProps<{ project: ProjectDetail }>()
 // ONE primary action stays in the header (create task) — settings/archive
 // move into ProjectMenu, matching the project table row's menu.
-const emit = defineEmits<{ create: []; settings: []; archived: [] }>()
+const emit = defineEmits<{ create: []; settings: []; archived: []; unarchived: [] }>()
 const { t } = useI18n()
 const hydrated = useHydrated()
 </script>
@@ -24,7 +24,7 @@ const hydrated = useHydrated()
       <Button size="sm" class="gap-1.5" :disabled="!hydrated" @click="emit('create')">
         <Plus class="size-4" />{{ t('tasks.new') }}
       </Button>
-      <ProjectMenu :project="project" @settings="emit('settings')" @archived="emit('archived')" />
+      <ProjectMenu :project="project" @settings="emit('settings')" @archived="emit('archived')" @unarchived="emit('unarchived')" />
     </div>
   </header>
 </template>

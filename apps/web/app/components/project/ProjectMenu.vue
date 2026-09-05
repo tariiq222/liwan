@@ -5,7 +5,7 @@ import { ApiError } from '@/composables/useApi'
 import { useArchiveProject, useUnarchiveProject } from '@/composables/useProjects'
 
 const props = withDefaults(defineProps<{ project: Project | ProjectDetail; hideSettings?: boolean }>(), { hideSettings: false })
-const emit = defineEmits<{ settings: []; archived: [] }>()
+const emit = defineEmits<{ settings: []; archived: []; unarchived: [] }>()
 
 const { t } = useI18n()
 const hydrated = useHydrated()
@@ -31,7 +31,7 @@ async function doUnarchive() {
   try {
     await unarchiveMutate({ id: props.project.id })
     toast.success(t('projects.unarchived'))
-    emit('archived')
+    emit('unarchived')
   } catch (e) {
     toast.error(e instanceof ApiError ? e.message : t('errors.generic'))
   }

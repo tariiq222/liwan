@@ -10,7 +10,8 @@ def _dump_users(users):
 
 
 def _user(value):
-    user = request.env['res.users'].browse(int(value)).exists() if isinstance(value, int) else None
+    is_int = isinstance(value, int) and not isinstance(value, bool)
+    user = request.env['res.users'].browse(int(value)).exists() if is_int else None
     if not user or user.share or not user.active:
         raise ApiError(422, 'invalid', "user_id must be an active internal user", field='user_id')
     return user

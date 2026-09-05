@@ -47,7 +47,11 @@ function commitName() {
 // DescriptionEditor is the task drawer's Tiptap editor, reused as-is: it
 // keys its debounced-flush buffer on `taskId`, which here is the project id
 // (there's no separate project-scoped variant of the field).
-function onDescriptionChange({ html }: { html: string; taskId: number }) {
+function onDescriptionChange({ html, taskId }: { html: string; taskId: number }) {
+  // The editor's debounced flush is keyed by that id: a stale flush from a
+  // previously-mounted editor instance (a different task/project id) must
+  // not overwrite this project's description.
+  if (taskId !== props.project.id) return
   patch({ description: html })
 }
 

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { ProjectUpdate } from '@nasq/contracts'
 import { sanitizeHtml } from '@/utils/sanitize'
+import { formatCalendarDate } from '@/composables/calendarDate'
 import { useProjectUpdates } from '@/composables/useProjectUpdates'
 import ProjectStatusBadge from './ProjectStatusBadge.vue'
 import ProjectUpdateDialog from './ProjectUpdateDialog.vue'
@@ -14,9 +15,10 @@ const projectIdRef = computed(() => props.projectId)
 const { data, isLoading } = useProjectUpdates(projectIdRef)
 const items = computed<ProjectUpdate[]>(() => data.value ?? [])
 
-const dateFmt = computed(() => new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium', calendar: 'gregory' }))
+// u.date is a YYYY-MM-DD calendar date, not an instant — new Date(iso) parses
+// it as UTC midnight and renders a day early west of Greenwich.
 function dateLabel(iso: string): string {
-  return dateFmt.value.format(new Date(iso))
+  return formatCalendarDate(iso, locale.value)
 }
 
 const dialogOpen = ref(false)

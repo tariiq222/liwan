@@ -220,10 +220,17 @@ def parse_task_vals(payload, can_manage, task):
             if value not in ('0', '1', '2', '3'):
                 raise ApiError(422, 'invalid', "priority must be one of '0'..'3'", field=key)
             vals[key] = value
-        elif key in ('user_ids', 'tag_ids'):
+        elif key == 'user_ids':
             if not isinstance(value, list) or not all(isinstance(i, int) for i in value):
                 raise ApiError(422, 'invalid', f"{key} must be a list of ids", field=key)
             vals[key] = [(6, 0, value)]
+        elif key == 'tag_ids':
+            if not isinstance(value, list) or not all(isinstance(i, int) and not isinstance(i, bool) for i in value):
+                raise ApiError(422, 'invalid', "tag_ids must be a list of ids", field=key)
+            tags = request.env['project.tags'].browse(value).exists()
+            if len(tags) != len(set(value)):
+                raise ApiError(422, 'invalid', "unknown tag id", field=key)
+            vals[key] = [(6, 0, tags.ids)]
         elif key == 'personal_stage_type_id':
             vals[key] = _parse_personal_stage(value, key)
         elif key == 'stage_id':

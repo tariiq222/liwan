@@ -90,9 +90,12 @@ they obey.
   writes (and `message_(un)subscribe` for followers) run in `sudo()` once the caller's own
   check has passed — this, `nasq.pmo.settings`' `ir.config_parameter` reads/writes (gated on
   `group_customer_admin`), `_nasq_create_from_policy`'s sudo'd `create()` when the company
-  policy is `employees`, and the display-name/stage/milestone lookups in
-  `serializers/task.py` are the four documented `sudo()` cases in `nasq_pmo` — never add a
-  fifth without documenting it the same way.
+  policy is `employees`, the display-name/stage/milestone lookups in
+  `serializers/task.py`, and `_nasq_stage_task_count`/`_nasq_milestone_task_counts`'
+  integer-only task counts (needed so `ir.rule` on a followers-only project can't
+  under-count and allow deleting a stage/milestone that still holds hidden tasks) are
+  the five documented `sudo()` cases in `nasq_pmo` — never add a sixth without
+  documenting it the same way.
 
 ## Tests
 

@@ -37,3 +37,14 @@ class TestMilestones(NasqPmoCase):
         other = self.env['project.project'].create({'name': 'O'})
         foreign = self.env['project.milestone'].create({'name': 'F', 'project_id': other.id})
         self.assertEqual(self.api('PATCH', f'{url}/{foreign.id}', {'name': 'x'}).status_code, 422)
+
+    def test_patch_milestone_of_unreadable_project_is_422_not_403(self):
+        """A milestone belonging to a private project the caller can't read must not
+        leak `milestone_visibility_rule`'s AccessError as a 403 - the contract for an
+        invalid milestone_id is 422, not 403 (existence oracle aside)."""
+        private = self.env['project.project'].create({'name': 'Private', 'privacy_visibility': 'followers'})
+        foreign = self.env['project.milestone'].create({'name': 'Confidential', 'project_id': private.id})
+        self.authenticate('api_mgr', 'api_mgr_pass_123')
+        res = self.api('PATCH', f'/api/v1/projects/{self.project.id}/milestones/{foreign.id}', {'name': 'x'})
+        self.assertEqual(res.status_code, 422, res.text)
+        self.assertEqual(res.json()['field'], 'milestone_id')

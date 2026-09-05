@@ -156,6 +156,11 @@ post status updates, tag and retire tasks.
      (`_project_ref`, `_milestone_ref`, `_parse_stage`, `_parse_milestone`, …) — mirrors
      the Odoo web client resolving many2one display names in sudo, not an
      access dodge on task data itself.
+  5. `_nasq_stage_task_count` / `_nasq_milestone_task_counts` in
+     `models/project_project.py` return integer-only task counts — never task
+     records — so this cannot leak data; without it, `ir.rule` on a
+     followers-only project would under-count hidden tasks and let a stage or
+     milestone that still holds them be deleted.
 - **Locale** — `settings.json` joins `{common,tasks,projects}.json`.
 
 See `docs/superpowers/specs/2026-09-05-nasq-phase-3a-project-admin-design.md`
@@ -243,6 +248,5 @@ actual contract being protected, and is what these tests prove.
     npm -w apps/web run lint                           # vue-tsc --build --noEmit, 0 errors
     # contracts + web unit — 28 + 130 = 158 tests passing
     npm test
-    # e2e (needs Odoo on :8069 with nasq_core, nasq_api and nasq_pmo installed and `npm run dev` on :3000) — ≈30 passed
-    # (phase-3a e2e coverage was still landing on a separate branch at doc time; count will grow)
+    # e2e (needs Odoo on :8069 with nasq_core, nasq_api and nasq_pmo installed and `npm run dev` on :3000) — 39 passed
     cd apps/web && npm run test:e2e

@@ -9,8 +9,18 @@ from odoo.addons.nasq_pmo.serializers.milestone import dump_milestone
 
 
 def _milestone_of(project, mid):
-    m = request.env['project.milestone'].browse(int(mid)).exists()
-    if not m or m.project_id != project:
+    """Coerce + authorise a milestone id: it must belong to `project`.
+
+    Browsed in sudo, mirroring `serializers/task.py::_parse_milestone`: a milestone
+    belonging to another, unreadable project (e.g. `privacy_visibility='followers'`)
+    passes `exists()` (raw SQL, ignores ir.rule) but then reading `milestone.project_id`
+    in the caller's own env hits `milestone_visibility_rule` and raises AccessError
+    instead of the contracted 422 — an existence oracle to boot. The
+    `milestone.project_id.id != project.id` membership test is the real authorization
+    here; `project` was already access-checked by `get_record`.
+    """
+    m = request.env['project.milestone'].sudo().browse(int(mid)).exists()
+    if not m or m.project_id.id != project.id:
         raise ApiError(422, 'invalid', "milestone must belong to this project", field='milestone_id')
     return m
 

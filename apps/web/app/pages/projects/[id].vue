@@ -60,6 +60,11 @@ const stageSource = computed(() => ({ kind: 'project' as const, stages: project.
 function onArchived() {
   router.push('/projects')
 }
+
+// Unarchive stays on the project page: ProjectMenu already toasted and
+// useUnarchiveProject's mutation already replaced the cached ProjectDetail,
+// so there is nothing left to do here beyond not navigating away.
+function onUnarchived() {}
 </script>
 
 <template>
@@ -70,7 +75,7 @@ function onArchived() {
     </div>
 
     <template v-else>
-      <ProjectHeader v-if="project" :project="project" @create="createOpen = true" @settings="settingsOpen = true" @archived="onArchived" />
+      <ProjectHeader v-if="project" :project="project" @create="createOpen = true" @settings="settingsOpen = true" @archived="onArchived" @unarchived="onUnarchived" />
       <Skeleton v-else-if="isLoading" class="h-9 w-1/2" />
 
       <Tabs :model-value="tab" @update:model-value="onTabChange">
