@@ -7,6 +7,7 @@ defineProps<{
   canManage?: boolean
 }>()
 const emit = defineEmits<{ select: [id: number]; edit: [department: HrDepartment]; delete: [department: HrDepartment] }>()
+const hydrated = useHydrated()
 </script>
 
 <template>
@@ -17,7 +18,7 @@ const emit = defineEmits<{ select: [id: number]; edit: [department: HrDepartment
       class="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-accent"
       :class="{ 'bg-accent': selectedId === department.id }"
     >
-      <button type="button" class="min-w-0 flex-1 text-start text-sm" @click="emit('select', department.id)">
+      <button type="button" class="min-w-0 flex-1 text-start text-sm" :disabled="!hydrated" @click="emit('select', department.id)">
         <span class="font-medium">{{ department.name }}</span>
         <span class="ms-2 text-muted-foreground">{{ department.employee_count }}</span>
       </button>
