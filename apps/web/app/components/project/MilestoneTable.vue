@@ -102,7 +102,15 @@ async function confirmDelete() {
             </TableRow>
           </template>
           <TableEmpty v-else-if="items.length === 0" :colspan="columnCount">
-            <p class="text-muted-foreground">{{ t('projects.milestones.empty') }}</p>
+            <div class="space-y-3 py-3 text-center">
+              <div class="space-y-1">
+                <p class="font-medium">{{ t('projects.milestones.empty') }}</p>
+                <p class="text-sm text-muted-foreground">{{ t('projects.milestones.emptyHint') }}</p>
+              </div>
+              <Button v-if="canManage" size="sm" :disabled="!hydrated" @click="openCreate">
+                {{ t('projects.milestones.new') }}
+              </Button>
+            </div>
           </TableEmpty>
           <template v-else>
             <TableRow v-for="m in items" :key="m.id" data-testid="milestone-row">

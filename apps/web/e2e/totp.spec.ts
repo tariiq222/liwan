@@ -28,5 +28,5 @@ test('MFA-pending login shows and submits the TOTP step', async ({ page }) => {
   await page.getByLabel('رمز التحقق').fill('123456')
   await page.getByRole('button', { name: 'متابعة' }).click()
 
-  await expect(page).toHaveURL('http://localhost:3000/')
+  await expect(page).toHaveURL(/\/tasks$/)
 })

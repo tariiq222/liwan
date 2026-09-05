@@ -16,6 +16,7 @@ const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
 const hydrated = useHydrated()
+const isTaskDetailRoute = computed(() => route.params.taskId !== undefined)
 
 const projectId = computed(() => {
   const n = Number(route.params.id)
@@ -37,8 +38,8 @@ function onTabChange(v: unknown) {
   router.replace({ query: { ...route.query, tab: next === 'list' ? undefined : next } })
 }
 
-// Filters live in the URL (see projectTaskParams.ts) so the nested task modal
-// and this page query the same cache key and closing the modal restores them.
+// Filters live in the URL (see projectTaskParams.ts) so the nested task page
+// and this page query the same cache key and returning restores them.
 // Only evaluated behind the v-else (i.e. once notFound is false, so projectId is non-null).
 const params = computed<TaskListParams>(() => projectTaskParams(projectId.value!, route.query))
 function onParams(p: TaskListParams) {
@@ -68,7 +69,7 @@ function onUnarchived() {}
 </script>
 
 <template>
-  <div class="space-y-4">
+  <div v-if="!isTaskDetailRoute" class="space-y-4">
     <div v-if="notFound" class="flex flex-col items-start gap-3">
       <p class="text-muted-foreground">{{ t('projects.notFound') }}</p>
       <NuxtLink to="/projects" class="text-sm underline">{{ t('projects.backToProjects') }}</NuxtLink>
@@ -103,7 +104,7 @@ function onUnarchived() {}
 
       <CreateTaskDialog v-model:open="createOpen" :project-id="projectId ?? undefined" @created="openTask" />
       <ProjectSettingsDialog v-if="project" v-model:open="settingsOpen" :project="project" />
-      <NuxtPage />
     </template>
   </div>
+  <NuxtPage />
 </template>

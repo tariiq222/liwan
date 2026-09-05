@@ -5,7 +5,7 @@ async function login(page) {
   await page.getByLabel('اسم المستخدم').fill('admin')
   await page.getByLabel('كلمة المرور').fill('admin')
   await page.getByRole('button', { name: 'دخول' }).click()
-  await expect(page).toHaveURL('http://localhost:3000/')
+  await expect(page).toHaveURL(/\/tasks$/)
 }
 
 async function createTask(page, name: string) {
@@ -31,6 +31,8 @@ test('a task rename from another session arrives over the bus, live, without a r
   const id = await createTask(pageA, name)
 
   await pageA.goto('/tasks')
+  // Keep the fixture visible even when the database has multiple result pages.
+  await pageA.getByPlaceholder('بحث في العناوين…').fill(name)
   const row = pageA.getByRole('row', { name: new RegExp(name) })
   await expect(row).toBeVisible()
 
@@ -44,7 +46,7 @@ test('a task rename from another session arrives over the bus, live, without a r
   // Now A opens the task detail (SSR-independent client route) so the open
   // detail query (taskKeys.detail) is live-mounted, and B renames again.
   await pageA.goto(`/tasks/${id}`)
-  const dialog = pageA.getByRole('dialog')
+  const dialog = pageA.getByTestId('task-detail-page')
   await expect(dialog).toBeVisible()
   const titleInput = dialog.getByRole('textbox', { name: 'عنوان المهمة' })
   await expect(titleInput).toHaveValue(renamed1)
@@ -76,7 +78,7 @@ test('a comment posted from another session arrives in the activity column, live
   const id = await createTask(pageA, name)
 
   await pageA.goto(`/tasks/${id}`)
-  await expect(pageA.getByRole('dialog')).toBeVisible()
+  await expect(pageA.getByTestId('task-detail-page')).toBeVisible()
 
   const commentBody = `hello from B ${Date.now()}`
   const res = await pageB.request.post(`/api/v1/tasks/${id}/comments`, { data: { body: commentBody } })

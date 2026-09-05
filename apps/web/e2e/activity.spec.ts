@@ -5,7 +5,7 @@ async function login(page) {
   await page.getByLabel('اسم المستخدم').fill('admin')
   await page.getByLabel('كلمة المرور').fill('admin')
   await page.getByRole('button', { name: 'دخول' }).click()
-  await expect(page).toHaveURL('http://localhost:3000/')
+  await expect(page).toHaveURL(/\/tasks$/)
 }
 
 async function createTask(page, name: string) {
@@ -20,12 +20,12 @@ test('task activity: post a comment and see a tracking entry after a state chang
   const id = await createTask(page, name)
 
   await page.goto(`/tasks/${id}`)
-  const dialog = page.getByRole('dialog')
-  await expect(dialog).toBeVisible()
+  const detail = page.getByTestId('task-detail-page')
+  await expect(detail).toBeVisible()
   // wait for the client-rendered detail body before interacting (SSR hydration race)
-  await expect(dialog.getByRole('textbox', { name: 'عنوان المهمة' })).toHaveValue(name)
+  await expect(detail.getByRole('textbox', { name: 'عنوان المهمة' })).toHaveValue(name)
 
-  const composer = dialog.getByPlaceholder('اكتب تعليقًا…')
+  const composer = detail.getByPlaceholder('اكتب تعليقًا…')
   await expect(composer).toBeVisible()
   const commentText = `تعليق تجريبي ${Date.now()}`
   await composer.fill(commentText)
@@ -34,16 +34,16 @@ test('task activity: post a comment and see a tracking entry after a state chang
   await commentPosted
   await expect(composer).toHaveValue('')
 
-  const timeline = dialog.getByRole('list').first()
+  const timeline = detail.getByRole('list').first()
   const firstEntry = timeline.locator('li').first()
   await expect(firstEntry).toContainText(commentText)
   await expect(firstEntry).toContainText('Administrator')
 
   // change state via the header menu -> expect a tracking entry mentioning "الحالة"
-  const stateTrigger = dialog.getByRole('button').filter({ hasText: /قيد التنفيذ|بانتظار|تعديلات مطلوبة|معتمد|منجز|ملغى/ }).first()
+  const stateTrigger = detail.getByRole('button').filter({ hasText: /قيد التنفيذ|بانتظار|تعديلات مطلوبة|معتمد|منجز|ملغى/ }).first()
   await stateTrigger.click()
   const transitioned = page.waitForResponse((r) => r.url().includes(`/api/v1/tasks/${id}/transition`) && r.request().method() === 'POST')
   await page.getByRole('menuitem').first().click()
   await transitioned
-  await expect(dialog.locator('li').filter({ hasText: 'الحالة' }).first()).toBeVisible()
+  await expect(detail.locator('li').filter({ hasText: 'الحالة' }).first()).toBeVisible()
 })

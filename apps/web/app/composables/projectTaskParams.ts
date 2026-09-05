@@ -2,9 +2,9 @@ import type { TaskState } from '@nasq/contracts'
 import type { TaskListParams } from './useTasks'
 
 // The project screen keeps its task filters in the URL query (not localStorage
-// like مهامي) so closing the task modal restores exactly the list that was
+// like مهامي) so returning from the task page restores exactly the list that was
 // behind it. These two pure functions are the only translation between the
-// query and TaskListParams; both the page and the nested modal use them so
+// query and TaskListParams; both the page and the nested task page use them so
 // they hit the same vue-query cache key.
 export function projectTaskParams(projectId: number, query: Record<string, unknown>): TaskListParams {
   const state = typeof query.state === 'string' && query.state ? (query.state.split(',') as TaskState[]) : undefined

@@ -3,6 +3,7 @@ import CreateTaskDialog from '@/components/task/CreateTaskDialog.vue'
 import TaskBoard from '@/components/task/TaskBoard.vue'
 import TaskTable from '@/components/task/TaskTable.vue'
 import TaskToolbar from '@/components/task/TaskToolbar.vue'
+import { Plus } from 'lucide-vue-next'
 import { useTaskFilters } from '@/composables/useTaskFilters'
 
 const route = useRoute()
@@ -15,6 +16,7 @@ const { t } = useI18n()
 const hydrated = useHydrated()
 
 const tab = computed(() => (route.query.tab === 'board' ? 'board' : 'table'))
+const isDetailRoute = computed(() => route.params.id !== undefined)
 function onTabChange(v: unknown) {
   router.replace({ query: { ...route.query, tab: v === 'board' ? 'board' : undefined } })
 }
@@ -27,7 +29,7 @@ function openTask(id: number) {
 }
 
 // Filters persist per browser, per the toolbar's contract; useTaskFilters
-// centralizes the localStorage key/defaults so the detail modal's prev/next
+// centralizes the localStorage key/defaults so the detail page's prev/next
 // lookup can read the exact same cache entry this table queries with.
 const params = useTaskFilters()
 
@@ -35,8 +37,13 @@ const createOpen = ref(false)
 </script>
 
 <template>
-  <div class="space-y-4">
-    <h1 class="text-2xl font-semibold">{{ t('tasks.title') }}</h1>
+  <div v-if="!isDetailRoute" class="space-y-4">
+    <header class="flex flex-wrap items-center justify-between gap-3">
+      <h1 class="text-2xl font-semibold">{{ t('tasks.title') }}</h1>
+      <Button class="gap-1.5" :disabled="!hydrated" @click="createOpen = true">
+        <Plus class="size-4" />{{ t('tasks.new') }}
+      </Button>
+    </header>
 
     <Tabs :model-value="tab" @update:model-value="onTabChange">
       <TabsList>
@@ -45,19 +52,18 @@ const createOpen = ref(false)
       </TabsList>
 
       <TabsContent value="table" class="space-y-4">
-        <TaskToolbar v-model="params" @create="createOpen = true" />
+        <TaskToolbar v-model="params" hide-create />
         <TaskTable :params="params" @open="openTask" @create="createOpen = true" />
       </TabsContent>
 
       <TabsContent value="board" class="space-y-4">
-        <TaskToolbar v-model="params" @create="createOpen = true" />
+        <TaskToolbar v-model="params" hide-create />
         <TaskBoard :params="params" @open="openTask" />
       </TabsContent>
     </Tabs>
 
     <CreateTaskDialog v-model:open="createOpen" @created="openTask" />
 
-    <!-- pages/tasks/[id].vue renders the detail modal above this view. -->
-    <NuxtPage />
   </div>
+  <NuxtPage />
 </template>

@@ -5,7 +5,7 @@ async function login(page) {
   await page.getByLabel('اسم المستخدم').fill('admin')
   await page.getByLabel('كلمة المرور').fill('admin')
   await page.getByRole('button', { name: 'دخول' }).click()
-  await expect(page).toHaveURL('http://localhost:3000/')
+  await expect(page).toHaveURL(/\/tasks$/)
 }
 
 async function createTask(page, name: string) {
@@ -14,16 +14,16 @@ async function createTask(page, name: string) {
   return (await res.json()).id as number
 }
 
-test('task detail modal: open, edit fields, nested layers, prev/next, close', async ({ page }) => {
+test('task detail page: open, edit fields, nested layers, prev/next, return', async ({ page }) => {
   await login(page)
   const name = `E2E detail ${Date.now()}`
   const id = await createTask(page, name)
 
   // 1. direct route load
   await page.goto(`/tasks/${id}`)
-  const dialog = page.getByRole('dialog')
-  await expect(dialog).toBeVisible()
-  const titleInput = dialog.getByRole('textbox', { name: 'عنوان المهمة' })
+  const detail = page.getByTestId('task-detail-page')
+  await expect(detail).toBeVisible()
+  const titleInput = detail.getByRole('textbox', { name: 'عنوان المهمة' })
   await expect(titleInput).toHaveValue(name)
   await expect(page).toHaveURL(new RegExp(`/tasks/${id}$`))
 
@@ -34,9 +34,10 @@ test('task detail modal: open, edit fields, nested layers, prev/next, close', as
   await titleInput.press('Enter')
   await titleSaved
   await page.reload()
-  await expect(page.getByRole('dialog').getByRole('textbox', { name: 'عنوان المهمة' })).toHaveValue(newName)
+  await expect(page.getByTestId('task-detail-page').getByRole('textbox', { name: 'عنوان المهمة' })).toHaveValue(newName)
   await page.keyboard.press('Escape')
   await expect(page).toHaveURL(/\/tasks$/)
+  await page.getByPlaceholder('بحث في العناوين…').fill(newName)
   await expect(page.getByRole('row', { name: new RegExp(newName) })).toBeVisible()
 
   // re-open for the rest of the flow
@@ -63,7 +64,7 @@ test('task detail modal: open, edit fields, nested layers, prev/next, close', as
   const subtaskCreated = page.waitForResponse((r) => r.url().includes('/api/v1/tasks') && r.request().method() === 'POST')
   await subtaskInput.press('Enter')
   const subtaskId = (await (await subtaskCreated).json()).id as number
-  const subtaskRow = page.getByRole('dialog').getByText('مهمة فرعية تجريبية')
+  const subtaskRow = page.getByTestId('task-detail-page').getByText('مهمة فرعية تجريبية')
   await expect(subtaskRow).toBeVisible()
   await subtaskRow.click()
   await expect(page).toHaveURL(new RegExp(`/tasks/${subtaskId}$`))
@@ -74,10 +75,9 @@ test('task detail modal: open, edit fields, nested layers, prev/next, close', as
   // 6. metrics
   await expect(page.getByText('العمر')).toBeVisible()
 
-  // 7. nested layer: deadline popover + calendar must not dismiss the dialog,
-  // and picking a day must actually update the deadline badge (not just leave
-  // the dialog open with the old value)
-  const deadlineBadge = page.getByRole('dialog').getByTestId('deadline-badge')
+  // 7. nested layer: deadline popover + calendar must not leave the page,
+  // and picking a day must actually update the deadline badge.
+  const deadlineBadge = page.getByTestId('task-detail-page').getByTestId('deadline-badge')
   const deadlineBefore = (await deadlineBadge.textContent()) ?? ''
   await page.getByRole('button', { name: 'الموعد' }).click()
   // any in-month day that isn't today, so the deadline is guaranteed to change
@@ -85,7 +85,7 @@ test('task detail modal: open, edit fields, nested layers, prev/next, close', as
   const deadlineSaved = page.waitForResponse((r) => r.url().includes(`/api/v1/tasks/${id}`) && r.request().method() === 'PATCH')
   await calendarDay.click()
   await deadlineSaved
-  await expect(page.getByRole('dialog', { name: 'التفاصيل' })).toBeVisible()
+  await expect(page.getByTestId('task-detail-page')).toBeVisible()
   await expect(deadlineBadge).not.toHaveText(deadlineBefore)
 
   // 8. prev/next
@@ -101,14 +101,17 @@ test('task detail modal: open, edit fields, nested layers, prev/next, close', as
   const idA = await createTask(page, nameA)
   const idB = await createTask(page, nameB)
   await page.goto('/tasks')
+  // A matching row may already exist before the 300ms search debounce.
+  const filtered = page.waitForResponse(r => new URL(r.url()).pathname === '/api/v1/tasks' && new URL(r.url()).searchParams.get('q') === prefix)
   await page.getByPlaceholder('بحث في العناوين…').fill(prefix)
+  await filtered
   // The list's default sort ties on date_deadline/priority for both (neither
   // set), so the API's `id desc` tiebreak puts the more-recently-created
   // idB first and idA second — open the first row and go `j` (next) to idA.
   const rowB = page.getByRole('row', { name: nameB })
   await rowB.click()
   await expect(page).toHaveURL(new RegExp(`/tasks/${idB}$`))
-  await expect(page.getByRole('dialog').getByRole('button', { name: 'التالية' })).toBeEnabled()
+  await expect(page.getByTestId('task-detail-page').getByRole('button', { name: 'التالية' })).toBeEnabled()
   await page.keyboard.press('j')
   await expect(page).toHaveURL(new RegExp(`/tasks/${idA}$`))
 
@@ -137,7 +140,10 @@ test('a description edit made just before navigating away is not lost', async ({
   await createTask(page, name2)
 
   await page.goto('/tasks')
+  // A matching row may already exist before the 300ms search debounce.
+  const filtered = page.waitForResponse(r => new URL(r.url()).pathname === '/api/v1/tasks' && new URL(r.url()).searchParams.get('q') === prefix)
   await page.getByPlaceholder('بحث في العناوين…').fill(prefix)
+  await filtered
   await page.getByRole('row', { name: name1 }).click()
   await expect(page).toHaveURL(new RegExp(`/tasks/${id1}$`))
 
@@ -149,9 +155,9 @@ test('a description edit made just before navigating away is not lost', async ({
   // Still well within the 800ms debounce window: leave immediately via
   // whichever prev/next button is enabled for this task's position in the
   // (two-item) filtered list.
-  const dialog = page.getByRole('dialog')
-  const nextBtn = dialog.getByRole('button', { name: 'التالية' })
-  const prevBtn = dialog.getByRole('button', { name: 'السابقة' })
+  const detail = page.getByTestId('task-detail-page')
+  const nextBtn = detail.getByRole('button', { name: 'التالية' })
+  const prevBtn = detail.getByRole('button', { name: 'السابقة' })
   if (await nextBtn.isEnabled()) await nextBtn.click()
   else await prevBtn.click()
   await expect(page).not.toHaveURL(new RegExp(`/tasks/${id1}$`))
@@ -172,16 +178,21 @@ test('a description edit made just before navigating away is not lost', async ({
 test('prev/next is live on a direct /tasks/{id} load', async ({ page }) => {
   await login(page)
   const stamp = Date.now()
-  const idA = await createTask(page, `E2E direct A ${stamp}`)
-  const idB = await createTask(page, `E2E direct B ${stamp}`)
+  const prefix = `E2E direct ${stamp}`
+  const idA = await createTask(page, `${prefix} A`)
+  const idB = await createTask(page, `${prefix} B`)
+  // Seed a bounded persisted filter without visiting the table. The detail
+  // route must fetch its own list on this cold navigation, even when the
+  // database contains more than one page of higher-priority tasks.
+  await page.evaluate(q => localStorage.setItem('nasq.tasks.filters', JSON.stringify({ closed: false, q })), prefix)
 
   await page.goto(`/tasks/${idB}`)
-  const dialog = page.getByRole('dialog')
-  await expect(dialog).toBeVisible()
+  const detail = page.getByTestId('task-detail-page')
+  await expect(detail).toBeVisible()
 
-  // The list behind the modal is fetched by the panel itself; wait for it to
+  // The sibling list is fetched by the panel itself; wait for it to
   // land by watching prev/next go from "no siblings" to enabled.
-  const nextBtn = dialog.getByRole('button', { name: 'التالية' })
+  const nextBtn = detail.getByRole('button', { name: 'التالية' })
   await expect(nextBtn).toBeEnabled()
 
   // Neither task has a deadline, so the default sort falls through to the

@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest'
 import { useNav } from '../useNav'
 
-const PRODUCT_SECTIONS = ['nav.today', 'nav.tasks', 'nav.projects', 'nav.people', 'nav.reports']
+const PRODUCT_SECTIONS = ['nav.tasks', 'nav.projects', 'nav.people']
 
 describe('useNav', () => {
-  it('employee sees exactly the five product sections', () => {
+  it('employee sees exactly the three product sections', () => {
     expect(useNav('employee').map(i => i.labelKey)).toEqual(PRODUCT_SECTIONS)
   })
 
@@ -14,7 +14,7 @@ describe('useNav', () => {
 
   // Phase 3a: customer_admin gets an in-app Settings section for project
   // administration, but never a link into the vendor console.
-  it('customer_admin sees the five product sections plus Settings', () => {
+  it('customer_admin sees the three product sections plus Settings', () => {
     expect(useNav('admin').map(i => i.labelKey)).toEqual([...PRODUCT_SECTIONS, 'nav.settings'])
   })
 

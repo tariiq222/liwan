@@ -15,6 +15,6 @@ test('admin logs in and lands on the app shell', async ({ page }) => {
   await page.getByLabel('اسم المستخدم').fill('admin')
   await page.getByLabel('كلمة المرور').fill('admin')
   await page.getByRole('button', { name: 'دخول' }).click()
-  await expect(page).toHaveURL('http://localhost:3000/')
+  await expect(page).toHaveURL(/\/tasks$/)
   await expect(page.getByRole('navigation')).toContainText('مهامي')
 })

@@ -1,21 +1,22 @@
 import { test, expect } from '@playwright/test'
-async function login(page) { await page.goto('/login'); await page.getByLabel('اسم المستخدم').fill('admin'); await page.getByLabel('كلمة المرور').fill('admin'); await page.getByRole('button', { name: 'دخول' }).click(); await expect(page).toHaveURL('http://localhost:3000/') }
-test('my tasks table lists my open tasks, filters and opens the drawer', async ({ page }) => {
+async function login(page) { await page.goto('/login'); await page.getByLabel('اسم المستخدم').fill('admin'); await page.getByLabel('كلمة المرور').fill('admin'); await page.getByRole('button', { name: 'دخول' }).click(); await expect(page).toHaveURL(/\/tasks$/) }
+test('my tasks table lists my open tasks, filters and opens the detail page', async ({ page }) => {
   await login(page)
   const projects = await (await page.request.get('/api/v1/projects?minimal=1')).json()
   const name = `E2E table ${Date.now()}`
   await page.request.post('/api/v1/tasks', { data: { name, project_id: projects[0].id } })
   await page.goto('/tasks')
   await expect(page.getByRole('heading', { name: 'مهامي' })).toBeVisible()
+  await page.getByPlaceholder('بحث في العناوين…').fill(name)
   const row = page.getByRole('row', { name: new RegExp(name) })
   await expect(row).toBeVisible()
   await expect(row.getByText('قيد التنفيذ')).toBeVisible()
   await page.getByPlaceholder('بحث في العناوين…').fill('zzz-no-such-task')
-  await expect(page.getByText('لا نتائج.')).toBeVisible()
+  await expect(page.getByText('لا نتائج.').filter({ visible: true })).toBeVisible()
   await page.getByPlaceholder('بحث في العناوين…').fill(name)
   await row.click()
   await expect(page).toHaveURL(new RegExp('/tasks/\\d+$'))
-  await expect(page.getByRole('dialog').getByRole('textbox', { name: 'عنوان المهمة' })).toHaveValue(name)
+  await expect(page.getByTestId('task-detail-page').getByRole('textbox', { name: 'عنوان المهمة' })).toHaveValue(name)
 })
 test('inline transition to done moves the task to the closed filter', async ({ page }) => {
   await login(page)
@@ -23,6 +24,7 @@ test('inline transition to done moves the task to the closed filter', async ({ p
   const name = `E2E done ${Date.now()}`
   await page.request.post('/api/v1/tasks', { data: { name, project_id: projects[0].id } })
   await page.goto('/tasks')
+  await page.getByPlaceholder('بحث في العناوين…').fill(name)
   const row = page.getByRole('row', { name: new RegExp(name) })
   await row.getByRole('button', { name: 'قيد التنفيذ' }).click()
   await page.getByRole('menuitem', { name: 'منجز' }).click()
@@ -48,7 +50,7 @@ test('closed tab shows a closed-specific empty state with no create action', asy
   // results", not "no completed tasks" — regardless of what earlier tests
   // left behind.
   await page.getByPlaceholder('بحث في العناوين…').fill('zzz-no-such-closed-task')
-  await expect(page.getByText('لا نتائج.')).toBeVisible()
+  await expect(page.getByText('لا نتائج.').filter({ visible: true })).toBeVisible()
   await expect(page.getByRole('button', { name: 'إنشاء مهمة' })).toHaveCount(0)
   // Clear the search: whether or not closed tasks exist (earlier e2e runs
   // create them), the create action must stay hidden on the closed tab; the
@@ -64,9 +66,9 @@ test('closed tab shows a closed-specific empty state with no create action', asy
   // of reading the count immediately, which would still see the "zzz…"
   // filtered (empty) result and race the settled state.
   await expect
-    .poll(async () => (await dataRows.count()) > 0 || (await page.getByText('لا مهام منجزة بعد').isVisible()))
+    .poll(async () => (await dataRows.count()) > 0 || (await page.getByText('لا مهام منجزة بعد').filter({ visible: true }).isVisible()))
     .toBe(true)
   if ((await dataRows.count()) === 0) {
-    await expect(page.getByText('لا مهام منجزة بعد')).toBeVisible()
+    await expect(page.getByText('لا مهام منجزة بعد').filter({ visible: true })).toBeVisible()
   }
 })

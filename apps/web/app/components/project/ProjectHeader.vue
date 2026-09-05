@@ -15,16 +15,21 @@ const hydrated = useHydrated()
 </script>
 
 <template>
-  <header class="flex flex-wrap items-center gap-3">
-    <h1 class="text-2xl font-semibold">{{ project.name }}</h1>
-    <ProjectStatusSelect v-if="project.can_manage" :project="project" />
-    <ProjectStatusBadge v-else :status="project.status" />
-    <ProjectProgress :progress="project.progress" :task-count="project.task_count" :closed-task-count="project.closed_task_count" />
-    <div class="ms-auto flex items-center gap-1">
-      <Button size="sm" class="gap-1.5" :disabled="!hydrated" @click="emit('create')">
-        <Plus class="size-4" />{{ t('tasks.new') }}
-      </Button>
-      <ProjectMenu :project="project" @settings="emit('settings')" @archived="emit('archived')" @unarchived="emit('unarchived')" />
+  <header class="space-y-3">
+    <NuxtLink to="/projects" class="inline-block text-sm text-muted-foreground hover:text-foreground hover:underline">
+      {{ t('projects.backToProjects') }}
+    </NuxtLink>
+    <div class="flex flex-wrap items-center gap-3">
+      <h1 class="min-w-0 flex-1 text-2xl font-semibold">{{ project.name }}</h1>
+      <ProjectStatusSelect v-if="project.can_manage" :project="project" />
+      <ProjectStatusBadge v-else :status="project.status" />
+      <ProjectProgress :progress="project.progress" :task-count="project.task_count" :closed-task-count="project.closed_task_count" />
+      <div class="ms-auto flex items-center gap-1">
+        <Button size="sm" class="gap-1.5" :disabled="!hydrated" @click="emit('create')">
+          <Plus class="size-4" />{{ t('tasks.new') }}
+        </Button>
+        <ProjectMenu :project="project" @settings="emit('settings')" @archived="emit('archived')" @unarchived="emit('unarchived')" />
+      </div>
     </div>
   </header>
 </template>

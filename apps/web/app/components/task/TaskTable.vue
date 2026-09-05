@@ -123,7 +123,8 @@ function onRowClick(task: Task, event: MouseEvent) {
 <template>
   <div class="space-y-2">
     <div class="rounded-md border">
-      <Table class="table-fixed">
+      <div class="hidden overflow-x-auto md:block">
+        <Table class="table-fixed min-w-[760px]">
         <!--
           `table-fixed` + an explicit colgroup keeps the title column at
           >=50% of the row's width. That's not just cosmetic: the title is
@@ -163,13 +164,62 @@ function onRowClick(task: Task, event: MouseEvent) {
               class="cursor-pointer"
               @click="onRowClick(row.original, $event)"
             >
-              <TableCell v-for="cell in row.getVisibleCells()" :key="cell.id">
+              <TableCell v-for="cell in row.getVisibleCells()" :key="cell.id" class="max-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
                 <FlexRender :render="cell.column.columnDef.cell" :props="cell.getContext()" />
               </TableCell>
             </TableRow>
           </template>
         </TableBody>
-      </Table>
+        </Table>
+      </div>
+
+      <div class="divide-y md:hidden">
+        <template v-if="isLoading">
+          <div v-for="n in 5" :key="`mobile-skeleton-${n}`" class="space-y-3 p-4">
+            <Skeleton class="h-5 w-4/5" />
+            <Skeleton class="h-4 w-2/5" />
+            <div class="flex gap-2"><Skeleton class="h-6 w-20" /><Skeleton class="h-6 w-20" /></div>
+          </div>
+        </template>
+        <div v-else-if="items.length === 0" class="p-6 text-center">
+          <p class="text-sm text-muted-foreground">{{ t(emptyTitleKey) }}</p>
+          <Button v-if="showCreateAction" size="sm" class="mt-3" :disabled="!hydrated" @click="emit('create')">
+            {{ t('tasks.empty.action') }}
+          </Button>
+        </div>
+        <template v-else>
+          <article
+            v-for="task in items"
+            :key="`mobile-${task.id}`"
+            class="space-y-3 p-4"
+            :class="hydrated ? 'cursor-pointer active:bg-muted/50' : ''"
+            @click="onRowClick(task, $event)"
+          >
+            <div class="flex items-start justify-between gap-3">
+              <p class="min-w-0 flex-1 truncate font-medium">{{ task.name }}</p>
+              <DeadlineBadge
+                class="shrink-0"
+                :deadline="task.date_deadline"
+                :days-remaining="task.days_remaining"
+                :is-closed="task.is_closed"
+              />
+            </div>
+            <p class="truncate text-sm text-muted-foreground">
+              {{ task.project?.name ?? (props.variant === 'project' ? task.stage?.name : '—') }}
+            </p>
+            <div class="flex flex-wrap items-center gap-2">
+              <StateMenu :task="task" />
+              <PrioritySelect :task="task" />
+              <span v-if="props.variant === 'project' && task.stage" class="text-xs text-muted-foreground">
+                {{ task.stage.name }}
+              </span>
+              <span v-else-if="task.personal_stage" class="text-xs text-muted-foreground">
+                {{ task.personal_stage.name }}
+              </span>
+            </div>
+          </article>
+        </template>
+      </div>
     </div>
     <div v-if="hasNextPage" class="flex justify-center">
       <Button variant="outline" size="sm" :disabled="isFetchingNextPage || !hydrated" @click="fetchNextPage()">

@@ -148,6 +148,11 @@ const updatedLabel = computed(() => dateTimeFmt.value.format(new Date(props.task
       <AssigneePicker :model-value="task.assignees" @update:model-value="onAssigneesChange" />
     </section>
 
+    <section class="space-y-2">
+      <Label>{{ t('tasks.drawer.description') }}</Label>
+      <DescriptionEditor :model-value="task.description_html" :task-id="task.id" @update:model-value="onDescriptionChange" />
+    </section>
+
     <section class="grid grid-cols-2 gap-4">
       <div class="space-y-2">
         <Label>{{ t('tasks.drawer.deadline') }}</Label>
@@ -176,42 +181,40 @@ const updatedLabel = computed(() => dateTimeFmt.value.format(new Date(props.task
       </div>
     </section>
 
-    <section class="space-y-2">
-      <Label>{{ t('tasks.drawer.tags') }}</Label>
-      <TagPicker :model-value="task.tags" :can-create="task.can_approve" @update:model-value="onTagsChange" />
-    </section>
+    <details class="rounded-md border px-3 py-2">
+      <summary class="cursor-pointer text-sm font-medium">{{ t('tasks.drawer.additionalDetails') }}</summary>
+      <div class="mt-4 space-y-4 border-t pt-4">
+        <section class="space-y-2">
+          <Label>{{ t('tasks.drawer.tags') }}</Label>
+          <TagPicker :model-value="task.tags" :can-create="task.can_approve" @update:model-value="onTagsChange" />
+        </section>
 
-    <section class="grid grid-cols-2 gap-4">
-      <div class="space-y-2">
-        <Label>{{ t('tasks.drawer.stage') }}</Label>
-        <Select :model-value="task.personal_stage ? String(task.personal_stage.id) : NONE" @update:model-value="onStageChange">
-          <SelectTrigger size="sm" class="w-full">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem :value="NONE">{{ t('tasks.drawer.unassigned') }}</SelectItem>
-            <SelectItem v-for="s in stages ?? []" :key="s.id" :value="String(s.id)">{{ s.name }}</SelectItem>
-          </SelectContent>
-        </Select>
+        <section class="grid grid-cols-2 gap-4">
+          <div class="space-y-2">
+            <Label>{{ t('tasks.drawer.stage') }}</Label>
+            <Select :model-value="task.personal_stage ? String(task.personal_stage.id) : NONE" @update:model-value="onStageChange">
+              <SelectTrigger size="sm" class="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem :value="NONE">{{ t('tasks.drawer.unassigned') }}</SelectItem>
+                <SelectItem v-for="s in stages ?? []" :key="s.id" :value="String(s.id)">{{ s.name }}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div v-if="task.project" class="space-y-2">
+            <Label>{{ t('tasks.drawer.milestone') }}</Label>
+            <MilestoneSelect :task="task" />
+          </div>
+
+          <div v-if="task.can_approve" class="space-y-2">
+            <Label for="allocated-hours">{{ t('tasks.drawer.allocatedHours') }}</Label>
+            <Input id="allocated-hours" v-model="hoursDraft" type="number" min="0" step="0.5" @change="onHoursChange" />
+          </div>
+        </section>
       </div>
-
-      <div v-if="task.project" class="space-y-2">
-        <Label>{{ t('tasks.drawer.milestone') }}</Label>
-        <MilestoneSelect :task="task" />
-      </div>
-
-      <div v-if="task.can_approve" class="space-y-2">
-        <Label for="allocated-hours">{{ t('tasks.drawer.allocatedHours') }}</Label>
-        <Input id="allocated-hours" v-model="hoursDraft" type="number" min="0" step="0.5" @change="onHoursChange" />
-      </div>
-    </section>
-
-    <Separator />
-
-    <section class="space-y-2">
-      <Label>{{ t('tasks.drawer.description') }}</Label>
-      <DescriptionEditor :model-value="task.description_html" :task-id="task.id" @update:model-value="onDescriptionChange" />
-    </section>
+    </details>
 
     <Separator />
 

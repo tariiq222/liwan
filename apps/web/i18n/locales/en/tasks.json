@@ -20,7 +20,9 @@
       "closed": "Done",
       "allStates": "All states",
       "allProjects": "All projects",
-      "search": "Search titles…"
+      "search": "Search titles…",
+      "searchValue": "Search: {value}",
+      "clear": "Clear filters"
     },
     "empty": {
       "title": "No tasks assigned to you",
@@ -52,11 +54,15 @@
       "next": "Next",
       "prev": "Previous",
       "close": "Close",
+      "back": "Back to tasks",
+      "pageLabel": "Task details",
+      "navigation": "Task detail navigation",
       "linkPrompt": "Link URL"
     },
     "drawer": {
       "details": "Details",
       "activity": "Activity",
+      "additionalDetails": "Additional details",
       "assignees": "Assignees",
       "deadline": "Deadline",
       "priority": "Priority",

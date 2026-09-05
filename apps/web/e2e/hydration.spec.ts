@@ -16,7 +16,7 @@ async function login(page) {
   await page.getByLabel('اسم المستخدم').fill('admin')
   await page.getByLabel('كلمة المرور').fill('admin')
   await page.getByRole('button', { name: 'دخول' }).click()
-  await expect(page).toHaveURL('http://localhost:3000/')
+  await expect(page).toHaveURL(/\/tasks$/)
 }
 
 test('tasks: closed tab is disabled pre-hydration, then an immediate click switches it with no retry', async ({ page }) => {
@@ -43,7 +43,7 @@ test('login: submit button is disabled pre-hydration and becomes enabled once hy
   await page.getByLabel('اسم المستخدم').fill('admin')
   await page.getByLabel('كلمة المرور').fill('admin')
   await submit.click()
-  await expect(page).toHaveURL('http://localhost:3000/')
+  await expect(page).toHaveURL(/\/tasks$/)
 })
 
 test('tasks: "New task" button is disabled pre-hydration, then an immediate click opens the create dialog', async ({ page }) => {

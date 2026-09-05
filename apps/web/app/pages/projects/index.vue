@@ -1,5 +1,8 @@
 <script setup lang="ts">
 import { toast } from 'vue-sonner'
+import { PROJECT_STATUSES, type ProjectStatus } from '@nasq/contracts'
+import { Search, X } from 'lucide-vue-next'
+import { refDebounced } from '@vueuse/core'
 import CreateProjectDialog from '@/components/project/CreateProjectDialog.vue'
 import ProjectTable from '@/components/project/ProjectTable.vue'
 import { useProjectList } from '@/composables/useProjects'
@@ -22,6 +25,46 @@ const canListArchived = computed(() => activeList.data.value?.can_list_archived 
 // employee following a stale/shared `?archived=1` link sees a silent empty
 // table instead of the active list.
 const archived = computed(() => canListArchived.value && route.query.archived === '1')
+const projectList = useProjectList(archived)
+const items = computed(() => projectList.data.value?.items ?? [])
+const canCreate = computed(() => projectList.data.value?.can_create ?? false)
+
+const rawSearch = computed(() => typeof route.query.q === 'string' ? route.query.q : '')
+const search = ref(rawSearch.value)
+const debouncedSearch = refDebounced(search, 250)
+watch(rawSearch, (value) => {
+  if (value !== search.value) search.value = value
+})
+watch(debouncedSearch, (value) => {
+  const q = value.trim()
+  if (q === rawSearch.value) return
+  router.replace({ query: { ...route.query, q: q || undefined } })
+})
+
+const statusFilter = computed<'all' | 'unset' | ProjectStatus>(() => {
+  const value = route.query.status
+  if (value === 'unset') return 'unset'
+  if (typeof value === 'string' && PROJECT_STATUSES.includes(value as ProjectStatus)) return value as ProjectStatus
+  return 'all'
+})
+function onStatusChange(value: unknown) {
+  const status = typeof value === 'string' ? value : 'all'
+  router.replace({ query: { ...route.query, status: status === 'all' ? undefined : status } })
+}
+function clearFilters() {
+  search.value = ''
+  router.replace({ query: { ...route.query, q: undefined, status: undefined } })
+}
+const filteredItems = computed(() => {
+  const query = rawSearch.value.trim().toLocaleLowerCase()
+  return items.value.filter((project) => {
+    const matchesSearch = !query || project.name.toLocaleLowerCase().includes(query)
+    const matchesStatus = statusFilter.value === 'all'
+      || (statusFilter.value === 'unset' ? project.status === null : project.status === statusFilter.value)
+    return matchesSearch && matchesStatus
+  })
+})
+const isLoading = computed(() => projectList.isLoading.value)
 
 function onFilterChange(v: unknown) {
   router.replace({ query: { ...route.query, archived: v === 'archived' ? '1' : undefined } })
@@ -36,7 +79,12 @@ function onCreated(id: number) {
 
 <template>
   <div class="space-y-4">
-    <h1 class="text-2xl font-semibold">{{ t('projects.title') }}</h1>
+    <header class="flex flex-wrap items-center justify-between gap-3">
+      <h1 class="text-2xl font-semibold">{{ t('projects.title') }}</h1>
+      <Button v-if="canCreate" data-testid="project-new" :disabled="!hydrated" @click="createOpen = true">
+        {{ t('projects.new') }}
+      </Button>
+    </header>
 
     <Tabs v-if="canListArchived" :model-value="archived ? 'archived' : 'active'" @update:model-value="onFilterChange">
       <TabsList>
@@ -45,7 +93,40 @@ function onCreated(id: number) {
       </TabsList>
     </Tabs>
 
-    <ProjectTable :archived="archived" @open="(id) => router.push(`/projects/${id}`)" @create="createOpen = true" />
+    <div class="space-y-2">
+      <div class="flex flex-wrap items-center gap-2">
+        <div class="relative min-w-52 flex-1">
+          <Search class="pointer-events-none absolute start-2 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input v-model="search" :disabled="!hydrated" :placeholder="t('projects.filters.search')" class="ps-8" />
+        </div>
+        <Select :model-value="statusFilter" @update:model-value="onStatusChange">
+          <SelectTrigger class="w-40" :disabled="!hydrated">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{{ t('projects.filters.allStatuses') }}</SelectItem>
+            <SelectItem value="unset">{{ t('projects.filters.unset') }}</SelectItem>
+            <SelectItem v-for="status in PROJECT_STATUSES" :key="status" :value="status">{{ t(`projects.status.${status}`) }}</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <div v-if="rawSearch || statusFilter !== 'all'" class="flex flex-wrap items-center gap-2">
+        <Badge v-if="rawSearch" variant="secondary">{{ t('projects.filters.searchValue', { value: rawSearch }) }}</Badge>
+        <Badge v-if="statusFilter !== 'all'" variant="secondary">{{ t(statusFilter === 'unset' ? 'projects.filters.unset' : `projects.status.${statusFilter}`) }}</Badge>
+        <Button variant="ghost" size="sm" class="gap-1" :disabled="!hydrated" @click="clearFilters">
+          <X class="size-3.5" />{{ t('projects.filters.clear') }}
+        </Button>
+      </div>
+    </div>
+
+    <ProjectTable
+      :items="filteredItems"
+      :capped="items.length >= 200"
+      :filtered="Boolean(rawSearch.trim()) || statusFilter !== 'all'"
+      :is-loading="isLoading"
+      :archived="archived"
+      @open="(id) => router.push(`/projects/${id}`)"
+    />
     <CreateProjectDialog v-model:open="createOpen" @created="onCreated" />
   </div>
 </template>

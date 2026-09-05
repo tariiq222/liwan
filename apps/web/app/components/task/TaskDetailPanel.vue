@@ -12,8 +12,8 @@ import TaskDetails from './TaskDetails.vue'
 
 // Container-agnostic body: header (title, state, project chip, deadline
 // badge, prev/next, close) + the two-column (details/activity) layout. The
-// Dialog wrapper lives in TaskDetailModal.vue so a later split-view host can
-// reuse this without depending on Dialog internals.
+// The page wrapper lives in TaskDetailPage.vue so this component stays focused
+// on task data, editing, activity, and navigation.
 // basePath routes prev/next within the host's own URL space (default /tasks,
 // مهامي's own list). siblingParams lets a host that keeps its filters in the
 // URL (the project screen) drive prev/next from those instead of the
@@ -42,7 +42,7 @@ const { data: task } = useTask(idRef)
 // in via siblingParams; مهامي's host passes nothing, so this falls back to
 // the same localStorage-backed filters ref the table itself queries with,
 // meaning prev/next reads the cache entry for the filter actually visible
-// behind this modal rather than whichever list happened to be cached first.
+// in the list rather than whichever list happened to be cached first.
 // Decided once per instance: the two branches are different composables.
 const localFilters = props.siblingParams ? null : useTaskFilters()
 const filterParams = computed<TaskListParams>(() => props.siblingParams ?? localFilters!.value)
@@ -101,6 +101,13 @@ function isEditableTarget(el: EventTarget | null) {
 function onKeydown(e: KeyboardEvent) {
   if (e.metaKey || e.ctrlKey || e.altKey) return
   if (isEditableTarget(e.target)) return
+  if (e.key === 'Escape') {
+    // Let nested menus/popovers and the archive confirmation consume their
+    // own Escape key before the page-level back action runs.
+    if (archiveConfirmOpen.value || document.querySelector('[data-state="open"][data-slot$="content"]')) return
+    emit('close')
+    return
+  }
   if (e.key === 'j' || e.key === 'J') goTo(siblings.value.nextId)
   else if (e.key === 'k' || e.key === 'K') goTo(siblings.value.prevId)
 }
@@ -110,52 +117,54 @@ useEventListener(document, 'keydown', onKeydown)
 
 <template>
   <div class="flex h-full flex-col overflow-hidden">
-    <header class="flex items-center gap-3 border-b p-4">
-      <Input
-        v-if="task"
-        v-model="titleDraft"
-        :aria-label="t('tasks.newTitle')"
-        class="h-9 flex-1 border-none px-0 text-lg font-semibold shadow-none focus-visible:ring-0"
-        @keydown.enter="($event.target as HTMLInputElement).blur()"
-        @blur="saveTitle"
-      />
-      <Skeleton v-else class="h-7 flex-1" />
+    <header class="space-y-3 border-b p-3 sm:p-4">
+      <div class="flex min-w-0 items-center gap-2">
+        <Input
+          v-if="task"
+          v-model="titleDraft"
+          :aria-label="t('tasks.newTitle')"
+          class="h-9 min-w-0 flex-1 border-none px-0 text-base font-semibold shadow-none focus-visible:ring-0 sm:text-lg"
+          @keydown.enter="($event.target as HTMLInputElement).blur()"
+          @blur="saveTitle"
+        />
+        <Skeleton v-else class="h-7 min-w-0 flex-1" />
 
-      <template v-if="task">
+        <div class="flex shrink-0 items-center gap-1">
+          <Button variant="ghost" size="icon" type="button" :aria-label="t('tasks.detail.prev')" :disabled="!siblings.prevId" @click="goTo(siblings.prevId)">
+            <component :is="isRtl ? ChevronRight : ChevronLeft" class="size-4" />
+          </Button>
+          <Button variant="ghost" size="icon" type="button" :aria-label="t('tasks.detail.next')" :disabled="!siblings.nextId" @click="goTo(siblings.nextId)">
+            <component :is="isRtl ? ChevronLeft : ChevronRight" class="size-4" />
+          </Button>
+
+          <DropdownMenu v-if="task">
+            <DropdownMenuTrigger as-child :disabled="!hydrated">
+              <button
+                type="button"
+                data-testid="task-menu"
+                class="inline-flex items-center rounded px-1 text-sm leading-none text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-60"
+                :disabled="!hydrated"
+              >
+                ⋯
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem data-testid="task-archive" variant="destructive" @select="archiveConfirmOpen = true">
+                {{ t('tasks.drawer.archive') }}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <Button variant="ghost" size="icon" type="button" :aria-label="t('tasks.detail.close')" @click="emit('close')">
+            <X class="size-4" />
+          </Button>
+        </div>
+      </div>
+
+      <div v-if="task" class="flex flex-wrap items-center gap-2">
         <StateMenu :task="task" :can-approve="task.can_approve" />
-        <Badge v-if="task.project" variant="outline">{{ task.project.name }}</Badge>
+        <Badge v-if="task.project" variant="outline" class="max-w-full truncate">{{ task.project.name }}</Badge>
         <DeadlineBadge :deadline="task.date_deadline" :days-remaining="task.days_remaining" :is-closed="task.is_closed" />
-      </template>
-
-      <div class="flex items-center gap-1">
-        <Button variant="ghost" size="icon" type="button" :aria-label="t('tasks.detail.prev')" :disabled="!siblings.prevId" @click="goTo(siblings.prevId)">
-          <component :is="isRtl ? ChevronRight : ChevronLeft" class="size-4" />
-        </Button>
-        <Button variant="ghost" size="icon" type="button" :aria-label="t('tasks.detail.next')" :disabled="!siblings.nextId" @click="goTo(siblings.nextId)">
-          <component :is="isRtl ? ChevronLeft : ChevronRight" class="size-4" />
-        </Button>
-
-        <DropdownMenu v-if="task">
-          <DropdownMenuTrigger as-child :disabled="!hydrated">
-            <button
-              type="button"
-              data-testid="task-menu"
-              class="inline-flex items-center rounded px-1 text-sm leading-none text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-60"
-              :disabled="!hydrated"
-            >
-              ⋯
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem data-testid="task-archive" variant="destructive" @select="archiveConfirmOpen = true">
-              {{ t('tasks.drawer.archive') }}
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        <Button variant="ghost" size="icon" type="button" :aria-label="t('tasks.detail.close')" @click="emit('close')">
-          <X class="size-4" />
-        </Button>
       </div>
     </header>
 

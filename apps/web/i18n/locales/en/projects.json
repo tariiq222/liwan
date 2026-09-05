@@ -2,9 +2,13 @@
   "projects": {
     "title": "Projects",
     "empty": "No projects yet",
-    "capped": "Showing the first 200 projects only",
+    "emptyHint": "Create a project to keep its tasks, milestones, and updates together.",
+    "filteredEmpty": "No projects match these filters",
+    "filteredEmptyHint": "Change the search or status, or clear the filters.",
+    "capped": "Search and filters apply only to the first 200 loaded projects",
     "notFound": "This project does not exist or you cannot view it",
     "backToProjects": "Back to projects",
+    "backToProject": "Back to project",
     "columns": { "name": "Name", "status": "Status", "progress": "Progress" },
     "status": {
       "on_track": "On track",
@@ -21,8 +25,17 @@
     "newName": "Project name",
     "created": "Project created",
     "createForbidden": "You may not create projects",
-    "filters": { "active": "Active", "archived": "Archived" },
+    "filters": {
+      "active": "Active",
+      "archived": "Archived",
+      "search": "Search project names…",
+      "searchValue": "Search: {value}",
+      "allStatuses": "All statuses",
+      "unset": "Not set",
+      "clear": "Clear filters"
+    },
     "archivedEmpty": "No archived projects",
+    "archivedEmptyHint": "Archived projects appear here and can be restored when needed.",
     "menu": { "settings": "Project settings", "archive": "Archive project", "unarchive": "Unarchive" },
     "archiveConfirmTitle": "Archive this project?",
     "archiveConfirmText": "The project and its tasks leave the lists. You can unarchive it later from the Archived filter.",
@@ -75,6 +88,7 @@
       "delete": "Delete",
       "hasTasks": "{count} tasks are linked to this milestone",
       "empty": "No milestones yet",
+      "emptyHint": "Add a milestone to track an important delivery date.",
       "tasksOf": "{done} of {total}"
     },
     "updates": {
@@ -82,6 +96,7 @@
       "title": "Title",
       "body": "Body",
       "status": "Status",
+      "emptyHint": "Post a concise update so followers know where the project stands.",
       "empty": "No updates yet",
       "by": "by {name}",
       "posted": "Update posted"

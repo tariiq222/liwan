@@ -3,6 +3,7 @@ definePageMeta({ layout: false })
 
 const { t } = useI18n()
 const { branding } = useBranding()
+const productName = computed(() => branding.value?.name ?? t('app.productName'))
 const route = useRoute()
 const login = ref('')
 const password = ref('')
@@ -46,7 +47,7 @@ async function submit() {
       return
     }
     await refreshNuxtData('me')
-    await navigateTo((route.query.next as string) || '/')
+    await navigateTo((route.query.next as string) || '/tasks')
   } catch (e: any) {
     const code = e?.data?.data?.code as string | undefined
     errorMessage.value = t((code && AUTH_ERROR_KEYS[code]) || 'auth.loginFailed')
@@ -61,7 +62,7 @@ async function submitTotp() {
   try {
     await $fetch('/api/auth/totp', { method: 'POST', body: { code: totpCode.value } })
     await refreshNuxtData('me')
-    await navigateTo((route.query.next as string) || '/')
+    await navigateTo((route.query.next as string) || '/tasks')
   } catch {
     errorMessage.value = t('auth.totpInvalid')
   } finally {
@@ -75,7 +76,8 @@ async function submitTotp() {
     <Card class="w-full max-w-sm">
       <CardHeader class="items-center text-center">
         <img v-if="branding" :src="branding.logo_url" :alt="branding.name" class="h-12 w-auto mb-2" />
-        <CardTitle class="text-xl">{{ branding?.name ?? 'nasq' }}</CardTitle>
+        <span v-else class="mb-2 grid size-12 place-items-center rounded-xl bg-primary text-lg font-bold text-primary-foreground">ن</span>
+        <CardTitle class="text-xl">{{ productName }}</CardTitle>
         <CardDescription>{{ $t('auth.signInToContinue') }}</CardDescription>
       </CardHeader>
       <CardContent>

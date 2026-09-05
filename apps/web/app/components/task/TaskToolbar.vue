@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { TaskState } from '@nasq/contracts'
-import { Plus, Search } from 'lucide-vue-next'
+import { Plus, Search, X } from 'lucide-vue-next'
 import { refDebounced } from '@vueuse/core'
 import type { TaskListParams } from '@/composables/useTasks'
 import { STATE_LABEL_KEY } from '@/composables/taskState'
@@ -26,6 +26,7 @@ function patch(changes: Partial<TaskListParams>) {
 }
 
 const selectedStates = computed(() => props.modelValue.state ?? [])
+const selectedProject = computed(() => (projects.value ?? []).find((project) => project.id === props.modelValue.project_id) ?? null)
 function toggleState(s: TaskState, checked: boolean) {
   const next = new Set(selectedStates.value)
   if (checked) next.add(s)
@@ -47,59 +48,75 @@ watch(
     if ((q ?? '') !== search.value) search.value = q ?? ''
   },
 )
+
+function clearFilters() {
+  search.value = ''
+  patch({ q: undefined, state: undefined, project_id: props.hideProjectFilter ? props.modelValue.project_id : undefined })
+}
 </script>
 
 <template>
-  <div class="flex flex-wrap items-center gap-2">
-    <Tabs
-      :model-value="modelValue.closed ? 'closed' : 'open'"
-      @update:model-value="(v) => patch({ closed: v === 'closed' })"
-    >
-      <TabsList>
-        <TabsTrigger value="open" :disabled="!hydrated">{{ t('tasks.filters.open') }}</TabsTrigger>
-        <TabsTrigger value="closed" :disabled="!hydrated">{{ t('tasks.filters.closed') }}</TabsTrigger>
-      </TabsList>
-    </Tabs>
-
-    <DropdownMenu>
-      <DropdownMenuTrigger as-child :disabled="!hydrated">
-        <Button variant="outline" size="sm" :disabled="!hydrated">{{ t('tasks.filters.allStates') }}</Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start">
-        <DropdownMenuCheckboxItem
-          v-for="s in ALL_STATES"
-          :key="s"
-          :model-value="selectedStates.includes(s)"
-          @select.prevent
-          @update:model-value="(checked) => toggleState(s, checked)"
-        >
-          {{ t(STATE_LABEL_KEY[s]) }}
-        </DropdownMenuCheckboxItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-
-    <template v-if="!hideProjectFilter">
-      <Select
-        :model-value="modelValue.project_id ? String(modelValue.project_id) : 'all'"
-        @update:model-value="(v) => patch({ project_id: v === 'all' ? undefined : Number(v) })"
+  <div class="space-y-2">
+    <div class="flex flex-wrap items-center gap-2">
+      <Tabs
+        :model-value="modelValue.closed ? 'closed' : 'open'"
+        @update:model-value="(v) => patch({ closed: v === 'closed' })"
       >
-        <SelectTrigger size="sm" class="w-40" :disabled="!hydrated">
-          <SelectValue :placeholder="t('tasks.filters.allProjects')" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">{{ t('tasks.filters.allProjects') }}</SelectItem>
-          <SelectItem v-for="p in projects ?? []" :key="p.id" :value="String(p.id)">{{ p.name }}</SelectItem>
-        </SelectContent>
-      </Select>
-    </template>
+        <TabsList>
+          <TabsTrigger value="open" :disabled="!hydrated">{{ t('tasks.filters.open') }}</TabsTrigger>
+          <TabsTrigger value="closed" :disabled="!hydrated">{{ t('tasks.filters.closed') }}</TabsTrigger>
+        </TabsList>
+      </Tabs>
 
-    <div class="relative min-w-48 flex-1">
-      <Search class="pointer-events-none absolute start-2 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-      <Input v-model="search" :disabled="!hydrated" :placeholder="t('tasks.filters.search')" class="ps-8" />
+      <DropdownMenu>
+        <DropdownMenuTrigger as-child :disabled="!hydrated">
+          <Button variant="outline" size="sm" :disabled="!hydrated">{{ t('tasks.filters.allStates') }}</Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start">
+          <DropdownMenuCheckboxItem
+            v-for="s in ALL_STATES"
+            :key="s"
+            :model-value="selectedStates.includes(s)"
+            @select.prevent
+            @update:model-value="(checked) => toggleState(s, checked)"
+          >
+            {{ t(STATE_LABEL_KEY[s]) }}
+          </DropdownMenuCheckboxItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <template v-if="!hideProjectFilter">
+        <Select
+          :model-value="modelValue.project_id ? String(modelValue.project_id) : 'all'"
+          @update:model-value="(v) => patch({ project_id: v === 'all' ? undefined : Number(v) })"
+        >
+          <SelectTrigger size="sm" class="w-40" :disabled="!hydrated">
+            <SelectValue :placeholder="t('tasks.filters.allProjects')" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{{ t('tasks.filters.allProjects') }}</SelectItem>
+            <SelectItem v-for="p in projects ?? []" :key="p.id" :value="String(p.id)">{{ p.name }}</SelectItem>
+          </SelectContent>
+        </Select>
+      </template>
+
+      <div class="relative min-w-48 flex-1">
+        <Search class="pointer-events-none absolute start-2 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+        <Input v-model="search" :disabled="!hydrated" :placeholder="t('tasks.filters.search')" class="ps-8" />
+      </div>
+
+      <Button v-if="!hideCreate" size="sm" class="gap-1.5" :disabled="!hydrated" @click="emit('create')">
+        <Plus class="size-4" />{{ t('tasks.new') }}
+      </Button>
     </div>
 
-    <Button v-if="!hideCreate" size="sm" class="gap-1.5" :disabled="!hydrated" @click="emit('create')">
-      <Plus class="size-4" />{{ t('tasks.new') }}
-    </Button>
+    <div v-if="modelValue.q || selectedStates.length || (!hideProjectFilter && selectedProject)" class="flex flex-wrap items-center gap-2">
+      <Badge v-if="modelValue.q" variant="secondary">{{ t('tasks.filters.searchValue', { value: modelValue.q }) }}</Badge>
+      <Badge v-for="state in selectedStates" :key="state" variant="secondary">{{ t(STATE_LABEL_KEY[state]) }}</Badge>
+      <Badge v-if="!hideProjectFilter && selectedProject" variant="secondary">{{ selectedProject.name }}</Badge>
+      <Button variant="ghost" size="sm" class="gap-1" :disabled="!hydrated" @click="clearFilters">
+        <X class="size-3.5" />{{ t('tasks.filters.clear') }}
+      </Button>
+    </div>
   </div>
 </template>

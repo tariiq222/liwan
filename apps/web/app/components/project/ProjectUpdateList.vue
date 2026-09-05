@@ -35,7 +35,13 @@ const dialogOpen = ref(false)
     <template v-if="isLoading">
       <Skeleton v-for="n in 3" :key="n" class="h-24 w-full" />
     </template>
-    <p v-else-if="items.length === 0" class="text-muted-foreground">{{ t('projects.updates.empty') }}</p>
+    <div v-else-if="items.length === 0" class="rounded-md border border-dashed p-6 text-center">
+      <p class="font-medium">{{ t('projects.updates.empty') }}</p>
+      <p class="mt-1 text-sm text-muted-foreground">{{ t('projects.updates.emptyHint') }}</p>
+      <Button v-if="canManage" size="sm" class="mt-3" :disabled="!hydrated" @click="dialogOpen = true">
+        {{ t('projects.updates.new') }}
+      </Button>
+    </div>
     <template v-else>
       <Card v-for="u in items" :key="u.id" data-testid="project-update">
         <CardContent class="space-y-2 p-4">

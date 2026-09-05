@@ -167,7 +167,7 @@ export function useTransitionTask() {
   })
 }
 
-// Prev/next for the detail modal. Derived from a live `useTasks(params)`
+// Prev/next for the detail page. Derived from a live `useTasks(params)`
 // result rather than an imperative cache read: `getQueryData`/`getQueriesData`
 // create no reactive dependency on the query cache, so on a cold direct
 // /tasks/{id} load (a shared link — nothing ever populated the list) the old

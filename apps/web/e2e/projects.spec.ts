@@ -23,7 +23,7 @@ async function login(page) {
   await page.getByLabel('اسم المستخدم').fill('admin')
   await page.getByLabel('كلمة المرور').fill('admin')
   await page.getByRole('button', { name: 'دخول' }).click()
-  await expect(page).toHaveURL('http://localhost:3000/')
+  await expect(page).toHaveURL(/\/tasks$/)
 }
 
 async function createProjectWithStages(page, name: string) {
@@ -62,12 +62,18 @@ test('projects table shows status and progress, and a row opens the project', as
   const row = page.getByTestId('project-row').filter({ hasText: name })
   await expect(row.getByTestId('project-status')).toHaveText('معرض للخطر')
   await expect(row.getByTestId('project-progress')).toHaveText('50%')
+  await page.getByPlaceholder('ابحث باسم المشروع…').fill(name)
+  await expect(row).toBeVisible()
+  await page.getByRole('combobox').click()
+  await page.getByRole('option', { name: 'معرض للخطر' }).click()
+  await expect(row).toBeVisible()
+  await expect(page).toHaveURL(new RegExp('status=at_risk'))
   await row.click()
   await expect(page).toHaveURL(new RegExp(`/projects/${id}$`))
   await expect(page.getByRole('heading', { name })).toBeVisible()
 })
 
-test('project list shows every task of the project (not only mine), the modal closes back to the project', async ({ page }) => {
+test('project list shows every task of the project (not only mine), the detail page returns to the project', async ({ page }) => {
   await login(page)
   const name = `E2E plist ${Date.now()}`
   const id = await createProjectWithStages(page, name)
@@ -81,7 +87,7 @@ test('project list shows every task of the project (not only mine), the modal cl
   await expect(row.getByText('To Do')).toBeVisible()
   await row.click()
   await expect(page).toHaveURL(new RegExp(`/projects/${id}/tasks/${t}\\?`))
-  await expect(page.getByRole('dialog').getByRole('textbox', { name: 'عنوان المهمة' })).toHaveValue(`${name} task`)
+  await expect(page.getByTestId('task-detail-page').getByRole('textbox', { name: 'عنوان المهمة' })).toHaveValue(`${name} task`)
   await page.keyboard.press('Escape')
   // vue-router serialises the query with URLSearchParams semantics (spaces as
   // '+'), so build the expected value the same way rather than with

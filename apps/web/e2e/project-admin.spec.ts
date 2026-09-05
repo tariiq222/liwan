@@ -27,7 +27,7 @@ async function loginAs(page, username: string, password: string) {
   await page.getByLabel('اسم المستخدم').fill(username)
   await page.getByLabel('كلمة المرور').fill(password)
   await page.getByRole('button', { name: 'دخول' }).click()
-  await expect(page).toHaveURL('http://localhost:3000/')
+  await expect(page).toHaveURL(/\/tasks$/)
 }
 
 async function login(page) {
@@ -189,7 +189,7 @@ test('project settings: rename and visibility, followers, and the full stage lif
   await expect(dialog.getByTestId('follower-row').filter({ hasText: 'E2E Employee' })).toBeVisible()
 })
 
-test('a milestone created on the project can be linked from the task modal and its count updates', async ({ page }) => {
+test('a milestone created on the project can be linked from the task detail page and its count updates', async ({ page }) => {
   await login(page)
   const name = `E2E milestone ${Date.now()}`
   const id = await createProject(page, name)
@@ -201,17 +201,18 @@ test('a milestone created on the project can be linked from the task modal and i
   const dialog = page.getByRole('dialog')
   await dialog.getByLabel('الاسم').fill(milestoneName)
   await dialog.getByRole('button', { name: 'إنشاء' }).click()
-  await expect(page.getByTestId('milestone-row').filter({ hasText: milestoneName })).toBeVisible()
-  await expect(page.getByTestId('milestone-row').filter({ hasText: milestoneName })).toContainText('0 من 0')
+  await expect(page.getByRole('row').filter({ hasText: milestoneName })).toBeVisible()
+  await expect(page.getByRole('row').filter({ hasText: milestoneName })).toContainText('0 من 0')
 
   await page.goto(`/projects/${id}/tasks/${taskId}?tab=milestones`)
-  const taskDialog = page.getByRole('dialog')
-  await taskDialog.getByTestId('milestone-select').click()
+  const taskDetail = page.getByTestId('task-detail-page')
+  await taskDetail.getByText('تفاصيل إضافية').click()
+  await taskDetail.getByTestId('milestone-select').click()
   await page.getByRole('option', { name: milestoneName }).click()
   await page.keyboard.press('Escape')
 
   await page.goto(`/projects/${id}?tab=milestones`)
-  await expect(page.getByTestId('milestone-row').filter({ hasText: milestoneName })).toContainText('0 من 1')
+  await expect(page.getByRole('row').filter({ hasText: milestoneName })).toContainText('0 من 1')
 })
 
 test('posting a project update changes the header status badge', async ({ page }) => {
@@ -241,9 +242,9 @@ test('archiving a task removes it from the project list', async ({ page }) => {
 
   await page.goto(`/projects/${id}?tab=list`)
   await page.getByRole('row', { name: new RegExp(`${name} task`) }).click()
-  const dialog = page.getByRole('dialog')
-  await expect(dialog).toBeVisible()
-  await dialog.getByTestId('task-menu').click()
+  const taskDetail = page.getByTestId('task-detail-page')
+  await expect(taskDetail).toBeVisible()
+  await taskDetail.getByTestId('task-menu').click()
   await page.getByTestId('task-archive').click()
   await page.getByRole('button', { name: 'أرشفة المهمة' }).click()
 

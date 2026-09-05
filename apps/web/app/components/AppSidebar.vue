@@ -8,6 +8,10 @@ const { connected } = useBus()
 const route = useRoute()
 const nav = computed(() => useNav(me.value?.role))
 const initials = computed(() => (me.value?.name ?? '?').trim().slice(0, 1))
+const productName = computed(() => branding.value?.name ?? t('app.productName'))
+function isActive(path: string) {
+  return route.path === path || route.path.startsWith(`${path}/`)
+}
 // The nav links above are NuxtLink/<a> — they navigate natively and work
 // fine before hydration, so they're left ungated. The account menu trigger
 // below (opening to the logout item) is SSR-rendered with an attached
@@ -27,7 +31,8 @@ async function logout() {
     <SidebarHeader>
       <div class="flex items-center gap-2 px-2 py-1.5">
         <img v-if="branding" :src="branding.logo_url" :alt="branding.name" class="size-8 rounded-md object-contain" />
-        <span class="truncate font-semibold group-data-[collapsible=icon]:hidden">{{ branding?.name ?? 'nasq' }}</span>
+        <span v-else class="grid size-8 place-items-center rounded-md bg-primary text-sm font-bold text-primary-foreground">ن</span>
+        <span class="truncate font-semibold group-data-[collapsible=icon]:hidden">{{ productName }}</span>
       </div>
     </SidebarHeader>
 
@@ -35,7 +40,7 @@ async function logout() {
       <SidebarGroup>
         <SidebarMenu>
           <SidebarMenuItem v-for="item in nav" :key="item.to">
-            <SidebarMenuButton as-child :is-active="route.path === item.to" :tooltip="$t(item.labelKey)">
+            <SidebarMenuButton as-child :is-active="isActive(item.to)" :tooltip="$t(item.labelKey)">
               <NuxtLink v-if="item.to !== '/odoo'" :to="item.to">
                 <component :is="item.icon" />
                 <span>{{ $t(item.labelKey) }}</span>

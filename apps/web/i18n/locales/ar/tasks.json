@@ -20,7 +20,9 @@
       "closed": "منجزة",
       "allStates": "كل الحالات",
       "allProjects": "كل المشاريع",
-      "search": "بحث في العناوين…"
+      "search": "بحث في العناوين…",
+      "searchValue": "بحث: {value}",
+      "clear": "مسح الفلاتر"
     },
     "empty": {
       "title": "لا مهام مسندة إليك",
@@ -52,11 +54,15 @@
       "next": "التالية",
       "prev": "السابقة",
       "close": "إغلاق",
+      "back": "العودة إلى المهام",
+      "pageLabel": "تفاصيل المهمة",
+      "navigation": "التنقل في تفاصيل المهمة",
       "linkPrompt": "عنوان الرابط"
     },
     "drawer": {
       "details": "التفاصيل",
       "activity": "النشاط",
+      "additionalDetails": "تفاصيل إضافية",
       "assignees": "المسؤولون",
       "deadline": "الموعد",
       "priority": "الأولوية",
