@@ -30,7 +30,15 @@ function onEmployeeOpen(open: boolean) {
   if (!open) selectedEmployeeId.value = null
 }
 function onEmployeeManage(id: number) { managedEmployeeId.value = id }
-function onEmployeeArchive(id: number) { requestArchive.value = true; managedEmployeeId.value = id }
+async function onEmployeeArchive(id: number) {
+  // Open the employee first, then raise the archive request on a distinct
+  // tick. A batched open+request could run before EmployeeDialog had observed
+  // its closed state, leaving the row action in the general tab.
+  requestArchive.value = false
+  managedEmployeeId.value = id
+  await nextTick()
+  requestArchive.value = true
+}
 function onEmployeeManageOpen(open: boolean) { if (!open) { managedEmployeeId.value = null; requestArchive.value = false } }
 </script>
 
