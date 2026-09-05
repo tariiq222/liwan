@@ -1,53 +1,91 @@
-# Working on two pillars at once
+# Parallel work and workspace operations
 
-One rule: **a pillar never edits another pillar's files, nor the other's
-locale or contract namespace.** Shared plumbing is the only thing both teams
-read, and it changes rarely and deliberately.
+Nasq uses temporary worktrees for bounded tasks. The canonical runtime after
+integration is `/Users/tariq/code/nasq` on `main`; a task worktree is not a
+permanent product pillar checkout. One writer owns each file. One orchestrator
+owns shared files, Git integration, runtime state, and final verification.
 
-## Who owns what
+## File ownership
 
-| Area | Shared (`nasq_api` / `common`) | PMO pillar | HR pillar |
-|---|---|---|---|
-| Odoo addon | `nasq_api` (+ `nasq_core` for groups/branding) | `nasq_pmo` | `nasq_hr` |
-| Controllers | `controllers/common.py`, `auth.py`, `branding.py`, `me.py` | `nasq_pmo/controllers/*` | `nasq_hr/controllers/*` |
-| Serializers | `serializers/common.py` (`iso`), `company.py`, `user.py` | `nasq_pmo/serializers/*` | `nasq_hr/serializers/*` |
-| Tests | `nasq_api/tests/common.py` (`NasqApiCase`) + its own tests | `nasq_pmo/tests/*` (`NasqPmoCase`) | `nasq_hr/tests/*` |
-| Messages | `i18n/locales/{ar,en}/common.json` | `…/{tasks,projects,settings}.json` | `…/hr.json` |
-| Contracts | `packages/contracts/src/common/` | `src/pmo/` | `src/hr/` |
-| Web pages/components | `app/components/ui/*`, layout, `useApi`/`useMe`/`useBranding` | task pages & components | people/employee pages |
+| Surface | Shared | PMO | HR |
+| --- | --- | --- | --- |
+| Odoo addon | `nasq_api`, plus `nasq_core` groups/branding | `nasq_pmo` | `nasq_hr` |
+| Controllers and serializers | `nasq_api` common/auth/branding/me | `nasq_pmo/**` | `nasq_hr/**` |
+| Tests | shared fixture and `nasq_api` tests | `nasq_pmo/tests/**` | `nasq_hr/tests/**` |
+| Contracts | `packages/contracts/src/common/**` | `packages/contracts/src/pmo/**` | `packages/contracts/src/hr/**` |
+| Locale namespace | `common.json` | `tasks.json`, `projects.json`, `settings.json` | `hr.json` |
+| Web surface | layout, UI primitives, `useApi`, `useMe`, `useBranding` | task/project pages and components | `/hr`, HR composables/components |
 
-## Adding to your pillar
+The PMO pillar owns `/api/v1/people` because it is the task assignee picker.
+Its `id` is a `res.users` id. HR owns `/api/v1/hr/*`, where employee records
+use `hr.employee` ids. Keep these contracts separate.
 
-- **An endpoint**: a file under `<addon>/controllers/`, one line in that
-  addon's `controllers/__init__.py`. Import helpers from
-  `odoo.addons.nasq_api.controllers.common`; never from another pillar.
-- **A test fixture record**: put it on your pillar's own `tests/common.py`
-  case (`NasqPmoCase`), not on the shared `NasqApiCase`.
-- **A message**: your namespace file only. Key paths are flat after the
-  merge, so `hr.json` holds `{"hr": {...}}` and `$t('hr.…')` resolves.
-- **A schema**: a file under `src/<pillar>/`, one line in that pillar's
-  `index.ts`.
+## Shared-file protocol
 
-## The four files both teams still touch
+Only the orchestrator edits these shared integration points, or coordinates a
+single one-line addition from the owning team:
 
-Keep changes to these to a single added line, and rebase early:
+- `packages/contracts/src/index.ts` — one pillar barrel export.
+- `apps/web/nuxt.config.ts` — one locale file entry per pillar.
+- `apps/web/app/composables/useNav.ts` — the pillar navigation item.
+- `deploy/provision.sh` — the pillar addon in the install list.
+- `apps/web/i18n/locales/{ar,en}/common.json` — shared navigation labels.
 
-1. `packages/contracts/src/index.ts` — one `export * from './<pillar>'`.
-2. `apps/web/nuxt.config.ts` — one entry per locale in `i18n.locales[].files`.
-3. `apps/web/app/composables/useNav.ts` — the pillar's nav entry.
-4. `deploy/provision.sh`'s `-i` list — a new pillar must be added there
-   explicitly, since pillars depend on `nasq_api` and not the other way
-   round; nothing else pulls it in.
+Merge/integrate a pillar before touching a shared file. Do not edit another
+pillar's controllers, serializers, tests, components, composables, contracts,
+or locale namespace to make integration convenient. A new feature that needs a
+shared change must state the contract and the single writer before work starts.
 
-A pillar's nav label key is the one deliberate exception to the "your
-namespace only" rule: it lives under `nav.*` in the shared
-`i18n/locales/{ar,en}/common.json`, alongside the entry it adds in
-`useNav.ts`. `nav.settings` (the الإعدادات sidebar entry, PMO's
-`/settings/projects`) is the concrete instance of this exception so far.
+## Starting a task
 
-`/api/v1/people` lives in `nasq_pmo`, not the HR pillar — it feeds the
-assignee picker, so PMO owns it even though "people" sounds like HR's.
+1. Inspect the selected worktree's branch, status, remotes, and changed paths.
+   Preserve unrelated edits. Use `codex/<task>` for a task branch.
+2. Decide file ownership and list collisions before editing. Keep dependent
+   work sequential; run independent slices in separate worktrees.
+3. Give each worktree independent `node_modules` and `.nuxt` directories. Use
+   `npm ci --ignore-scripts`; if offline, use the available local npm cache.
+   Never symlink dependency or generated-state directories between worktrees.
+4. Set per-worktree `NUXT_ODOO_URL`, `NUXT_ODOO_DB`, and
+   `NUXT_PUBLIC_WS_URL`, and choose a distinct Nuxt `--port`.
 
-Run the Odoo suite installed from scratch (`-i`, see the README's Tests
-section), not `-u`: a manifest dependency you forgot to declare then fails
-loudly instead of riding on the other pillar's.
+The Odoo checkout at `/Users/tariq/code/odoo` is upstream and its source,
+configuration, and Git state are read-only. Source inspection and read-only Git
+audits there are allowed. Authorized test or development commands may mutate an
+explicitly isolated scratch database; do not operate on arbitrary databases or
+run tests against the dev `odoo19` database. Start Odoo with the selected Nasq
+worktree's addons path explicitly, an isolated scratch database, and a unique
+`--http-port`.
+
+For example, for a worktree at `/path/to/nasq-worktree`:
+
+```sh
+cd /Users/tariq/code/odoo
+.venv/bin/python odoo-bin -c /Users/tariq/code/odoo/odoo.conf \
+  --addons-path=/Users/tariq/code/odoo/addons,/path/to/nasq-worktree/odoo-addons \
+  -d nasq_scratch --http-port=8169
+
+cd /path/to/nasq-worktree
+NUXT_ODOO_URL=http://127.0.0.1:8169 \
+NUXT_ODOO_DB=nasq_scratch \
+NUXT_PUBLIC_WS_URL=ws://127.0.0.1:8169/websocket \
+npm -w apps/web run dev -- --port 3100
+```
+
+The ordinary local development topology is Odoo `:8069` and Nuxt `:3000`.
+Use distinct database, Odoo port, Nuxt port, and log paths for concurrent
+worktrees. Temporary integration values are disposable and must not be
+presented as production evidence.
+
+## Finishing a task
+
+The task owner reports the files changed and focused verification. The
+orchestrator then runs the relevant final checks once, resolves shared-file
+conflicts, and records the resulting branch and runtime state. A passing local
+test, health endpoint, or UI observation proves only the checked layer; it does
+not prove deployment, DNS, or release approval.
+
+No Nasq Git remote is currently configured. Do not invent one or imply that a
+push occurred. Do not remove a branch or worktree until its content is
+preserved and no process is using it. A production deployment or DNS cutover
+requires separate authorization; local `:8069`/`:3000` development is not
+production evidence.

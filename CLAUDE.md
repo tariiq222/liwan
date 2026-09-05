@@ -1,149 +1,217 @@
 # CLAUDE.md — nasq
 
-nasq (نَسَق) is a resellable project & task management product built on Odoo 19 CE:
-Odoo is the engine, `apps/web` (Nuxt 4) is the only UI customers ever see. Each customer
-gets an independent deployment (own server, own DB, own Odoo, own frontend). There is
-deliberately **no tenant layer**. Erada is customer #1, not the scope; customer-specific
-logic lives in a `customer_<name>_*` overlay addon, never in core. Full design:
-`docs/superpowers/specs/2026-09-03-nasq-platform-design.md`.
+nasq (نَسَق) is a resellable project and task management product on Odoo 19
+CE. Odoo is the engine and `apps/web` (Nuxt 4) is the customer UI. Each
+customer has an independent deployment, database, Odoo instance, and frontend;
+there is no shared tenant layer. Customer-specific behavior belongs in a
+`customer_<name>_*` overlay, never in the core pillars. See
+`docs/superpowers/specs/2026-09-03-nasq-platform-design.md` for the platform
+direction.
 
-## Layout
+## Repository layout
 
-- `odoo-addons/` — `nasq_core` (depends `base`, `project`, `hr`; groups, company branding
-  fields, seed data), `nasq_api`
-  (shared `/api/v1` plumbing only: `controllers/{common,auth,branding,me}.py`,
-  `serializers/{common,company,user}.py`, and the `NasqApiCase` test fixture the pillars
-  subclass — it never imports a pillar), `nasq_pmo` (the project pillar:
-  `controllers/{tasks,timeline,personal_stages,projects,people,project_stages,
-  project_followers,milestones,project_updates,tags,settings}.py`,
-  `serializers/{task,timeline,project,milestone,project_update,dates}.py`,
-  `models/{project_task,project_project,nasq_settings}.py` — `project_project.py` holds
-  the transition/status hooks, the bus notifier, the manager rule and every
-  project-level write/archive/stage/follower/milestone helper; `nasq_settings.py` is the
-  `nasq.pmo.settings` policy model — plus the `NasqPmoCase` task/timeline/stage/project/
-  milestone/settings API tests (`tests/test_projects.py`, `tests/test_project_status.py`,
-  `tests/test_project_admin_model.py`, `tests/test_project_stages.py`,
-  `tests/test_project_followers.py`, `tests/test_milestones.py`,
-  `tests/test_project_updates.py`, `tests/test_tags.py`, `tests/test_settings.py`) plus
-  `TransactionCase` transition/bus tests),
-  `web_theme_shadcn`
-  (vendor console theme). Ownership rule between pillars: `docs/parallel-work.md`.
-- `packages/contracts` — zod schemas mirroring every wire shape (`@nasq/contracts`), split
-  per pillar: `src/common/` (branding, error envelope, me), `src/pmo/` (state, task,
-  timeline, personal stage, `project.ts`, `milestone.ts`, `project-update.ts`,
-  `settings.ts`, `tag.ts`), each with its own `index.ts` re-exported from `src/index.ts`.
-- `apps/web` — Nuxt 4 / Vue 3.5 / Tailwind v4 / shadcn-vue (reka-ui) / `@tanstack/vue-query`
-  / `@nuxtjs/i18n` / Vitest / Playwright.
-- `deploy/` — per-customer docker-compose, Caddyfile, `provision.sh`, `seed_branding.py`.
-- `docs/superpowers/{specs,plans}` — one spec + one plan per phase.
+- `odoo-addons/nasq_core` owns product groups and branding defaults.
+- `odoo-addons/nasq_api` owns shared `/api/v1` plumbing, common serializers,
+  authentication, branding, and the shared test fixture. It does not import a
+  pillar.
+- `odoo-addons/nasq_pmo` owns projects, tasks, timelines, project settings,
+  and `/api/v1/people` (the task assignee picker, whose ids are `res.users`
+  ids).
+- `odoo-addons/nasq_hr` owns the HR directory, departments, documents, HR
+  serializers/controllers, and `/api/v1/hr/*` (employee ids are
+  `hr.employee` ids).
+- `packages/contracts/src/common`, `src/pmo`, and `src/hr` hold the Zod wire
+  contracts; each namespace has a barrel re-exported from `src/index.ts`.
+- `apps/web` holds Nuxt pages, components, composables, and per-pillar locale
+  files. `/hr` is the shipped HR directory; `/people` is not the HR route.
+- `odoo-addons/web_theme_shadcn` holds the vendor-console theme.
+- `deploy` holds per-customer Docker, Caddy, provisioning, and branding
+  templates.
 
-The Odoo checkout is `/Users/tariq/code/odoo` (branch 19.0, tracks upstream, its own
-CLAUDE.md covers the framework). **Never modify it and never run `git` there.** Its
-`odoo.conf` already has `~/code/nasq/odoo-addons` on `addons_path`.
+The Odoo upstream checkout is `/Users/tariq/code/odoo`, branch `19.0`. Its
+source, configuration, and Git state are read-only for this project; source
+inspection and read-only Git audits are allowed. Authorized Odoo commands may
+create or update an explicitly isolated test/development database, but never
+operate arbitrarily on a database or run tests against the dev `odoo19`
+database. Always pass the selected Nasq worktree's `odoo-addons` path
+explicitly; do not assume an Odoo config points at a particular Nasq checkout.
 
-## Workflow
+## Product contracts
 
-One branch per phase (`phase-N`) from `main`; spec → `superpowers:writing-plans` →
-`superpowers:subagent-driven-development` → `superpowers:finishing-a-development-branch`;
-fast-forward merge + tag `v0.<N+1>.0-phaseN` (e.g. `v0.2.0-phase1`). Commit messages: `[ADD]|[IMP]|[FIX] <scope>: <summary>`
-with trailer `Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>`. One commit per task.
+- Arabic (`ar`) is the default locale and the UI is RTL-first. User-facing
+  strings use `$t()`/`t()` and the owning locale namespace.
+- Use Tailwind logical properties (`ms-`, `me-`, `ps-`, `pe-`, `start-`,
+  `end-`, `text-start`); preserve the existing design tokens.
+- API routes use `type='json2'`, `auth='user'`, explicit methods, and the
+  shared `api_handler`. Return serializer-whitelisted shapes and structured
+  errors with a real HTTP status: 403 `forbidden`, 404 `not_found`, and 422
+  `invalid` where applicable. Browser traffic uses the session cookie, not a
+  bearer token.
+- Keep `/api/v1/people?q=` and its user-id `PersonRef` contract unchanged.
+  HR employee ids and user ids are distinct resources and must not be merged.
+- `nasq_hr` has no `sudo()` path. In PMO, only the documented manager-write,
+  policy/config, display-lookup, and integer-count cases use `sudo()` after the
+  caller's authorization check; do not add another case without documenting
+  it and fixing ACLs/rules where possible.
+- nasq has no time logging or payroll product surface. Do not add
+  `hr_timesheet`, timesheet fields/endpoints, payroll, bank, or compensation
+  data to the customer UI.
+- Task detail is a full page at `/tasks/{id}` and the nested project route
+  `/projects/{id}/tasks/{taskId}`. Preserve URL query filters when returning;
+  do not promise scroll restoration without evidence.
 
-Project skills in `.claude/skills/` (`/nasq-api-endpoint`, `/nasq-odoo-test`,
-`/nasq-dev-servers`) hold the step-by-step recipes; the rules below are the constraints
-they obey.
+## Safe worktree workflow
 
-## Odoo addons — rules
+Use one temporary worktree per bounded task, named `codex/<task>`. Worktrees
+must have independent `node_modules` and `.nuxt` directories; do not symlink
+either one. One writer owns each file, and one orchestrator owns shared files,
+Git integration, runtime state, and final checks. The ownership and collision
+map is in `docs/parallel-work.md`.
 
-- Every Python file starts with `# Part of Odoo. See LICENSE file for full copyright and licensing details.`
-  Manifests: `'license': 'LGPL-3'`, `'version': '19.0.1.0.0'`, `'author': 'Tariq Alwalidi'`.
-- No OCA, no Enterprise dependencies. `ruff check odoo-addons` must be clean (`ruff.toml` = Odoo's).
-- API routes: `@http.route('/api/v1/...', type='json2', auth='user', methods=[...], readonly=<bool>)`
-  wrapped in `@api_handler` (`nasq_api/controllers/common.py`). Errors are
-  `{"code": "<snake_case>", "message": "<human>", "field"?: "<name>"}` with a real HTTP status
-  (403 `forbidden`/`transition_forbidden`, 404 `not_found`, 422 `invalid`).
-  Never `type='http'` for JSON, never `auth='bearer'` for browser traffic, never `sudo()` to
-  dodge an access error — fix the group/rule instead.
-- Serializers whitelist fields explicitly (`nasq_api/serializers/*.py` for shared shapes,
-  `nasq_pmo/serializers/*.py` for task/timeline); never `read()` a record straight onto the
-  wire. Every write returns the full detail shape.
-- Task state names on the wire: `in_progress | changes_requested | approved | waiting | done | cancelled`
-  ↔ Odoo `01_in_progress | 02_changes_requested | 03_approved | 04_waiting_normal | 1_done | 1_canceled`.
-  Transition rule lives in `nasq_pmo`: employees may set `in_progress`, `waiting`, `done`,
-  `cancelled` on tasks they can write; `approved` and `changes_requested` need
-  `project.group_project_manager` or `nasq_core.group_customer_admin` → HTTP 403 `transition_forbidden`.
-- Roles: `nasq_core.group_employee` (Nuxt only), `nasq_core.group_customer_admin` (Nuxt +
-  Settings), vendor support = `nasq_core.group_vendor_support` (implies `base.group_system`, full Odoo). Nobody at the customer opens Odoo.
-- Bus: task create/write notifies assignees' partner channels; the web app invalidates
-  vue-query caches on those events.
-- No time logging anywhere in the product: no `hr_timesheet` dependency (see `nasq_core`'s
-  manifest comment), no timesheet fields/endpoints, no "allocated hours vs. logged hours"
-  reporting. This is a deliberate product decision (`2026-09-04-nasq-phase-2-projects-design.md`),
-  not a gap to fill later.
-- Branding source of truth is the DB (`res.company` + nasq fields); `deploy/branding.json`
-  only seeds it. `GET /api/v1/branding` is public + cached.
-- Project-level manage rule (`_nasq_can_manage`, `nasq_pmo/models/project_project.py`):
-  `project.group_project_manager`, `nasq_core.group_customer_admin`, **or the project's own
-  `user_id`** — a manager by assignment even outside the group. Every project-level write
-  (settings, archive, stages, followers, milestones, updates, status) goes through
-  `_nasq_check_manage()` then `_nasq_write_as_manager`/a dedicated *do* step, never a raw
-  `.write()`. Odoo's own project ACL only grants write to the manager *group*, so those
-  writes (and `message_(un)subscribe` for followers) run in `sudo()` once the caller's own
-  check has passed — this, `nasq.pmo.settings`' `ir.config_parameter` reads/writes (gated on
-  `group_customer_admin`), `_nasq_create_from_policy`'s sudo'd `create()` when the company
-  policy is `employees`, the display-name/stage/milestone lookups in
-  `serializers/task.py`, and `_nasq_stage_task_count`/`_nasq_milestone_task_counts`'
-  integer-only task counts (needed so `ir.rule` on a followers-only project can't
-  under-count and allow deleting a stage/milestone that still holds hidden tasks) are
-  the five documented `sudo()` cases in `nasq_pmo` — never add a sixth without
-  documenting it the same way.
+For a worktree, install with `npm ci --ignore-scripts` (using the local cache
+when offline). Set its own `NUXT_ODOO_URL`, `NUXT_ODOO_DB`,
+`NUXT_PUBLIC_WS_URL`, and Nuxt `--port`. Start Odoo with an explicit addons
+path, an isolated scratch database, and a unique `--http-port`. Never run
+tests against the production-style `odoo19` database. Temporary integration
+databases, ports, and logs are disposable and must not be described as
+production evidence.
 
-## Tests
+No Nasq Git remote is currently configured. Local commits and branches are
+valid; do not fabricate a remote URL or imply a push, merge, deployment, DNS
+cutover, or release approval that did not happen. Preserve unrelated user
+changes and inspect status/diffs before editing overlapping files.
 
-- Odoo (run from `/Users/tariq/code/odoo`, throwaway DB `nasq_test`, never `odoo19`), always
-  `-i` on a fresh DB, never `-u` on an old one (`docs/parallel-work.md`): `-i` proves each
-  addon's manifest `depends` are real instead of the install riding on whatever the other
-  pillar already pulled in:
-  `.venv/bin/python odoo-bin -c odoo.conf -d nasq_test -i nasq_core,nasq_pmo,nasq_api --test-tags /nasq_core,/nasq_pmo,/nasq_api --http-port=8169`
-  (timeout 300000 ms; 115 tests, 0 failed). API tests extend `NasqApiCase` (shared — `nasq_api/tests/common.py`,
-  an `HttpCase` with `self.api(method, path, json)`) or `NasqPmoCase` (PMO — it subclasses
-  `NasqApiCase` and adds the project/task fixtures). Every `test_*.py` must be imported from
-  `tests/__init__.py`.
-- Load Python/data changes into the dev DB: `-d odoo19 -u <addon> --no-http --stop-after-init`.
-- Contracts + web unit: `npm test` (repo root). E2E: `cd apps/web && npm run test:e2e`
-  (needs Odoo :8069 with nasq addons installed and Nuxt :3000). Login `admin`/`admin`.
-  Tests needing an employee user create one through Odoo, never through the UI.
-- Zod schemas in `packages/contracts` get a schema test **and** a live contract e2e test
-  against the real endpoint.
+## Python and API conventions
 
-## Frontend — rules
+Every Python file begins with the Odoo copyright header. Addons use
+`'license': 'LGPL-3'`, version `19.0.1.0.0`, and author `Tariq Alwalidi`.
+Avoid Enterprise and OCA dependencies. Serializers explicitly whitelist wire
+fields; never send a raw `read()` result. A write returns the full server
+shape, and the client replaces its cache with that response.
 
-- Arabic default (`ar`), English secondary, `@nuxtjs/i18n` strategy `no_prefix`; every
-  user-facing string via `$t()`/`t()` in per-pillar namespace files under
-  `apps/web/i18n/locales/{ar,en}/{common,tasks,projects,settings}.json` (key paths are flat
-  after the merge). One exception: a pillar's nav label key lives under `nav.*` in the
-  shared `common.json` (`nav.settings` for the settings sidebar entry), not in its own
-  namespace — see `docs/parallel-work.md`.
-- RTL-first: Tailwind logical properties only (`ms-`/`me-`/`ps-`/`pe-`/`start-`/`end-`,
-  `text-start`), never `ml-`/`pl-`/`left-`. Design tokens are fixed; do not add colours.
-- shadcn-vue components are generated into `apps/web/app/components/ui/` and some are
-  hand-patched (list in `README.md`); re-apply patches after `--overwrite`.
-- Data layer is `@tanstack/vue-query` composables in `app/composables/` over a single
-  `useApi()` fetch wrapper that throws `ApiError {status, code, message, field}`.
-  Plain field edits are optimistic; state transitions/approvals are pending → server →
-  confirmed. The client replaces its cache with whatever the server returns.
-- Task detail is a large two-column modal (`Dialog`, `TaskDetailModal.vue`) at `/tasks/{id}`, not a full page. Status badge
-  vocabulary: قيد التنفيذ · تعديلات مطلوبة · معتمد · بانتظار · منجز · ملغى.
-- Same-origin topology behind a reverse proxy: Nuxt at `/`, Odoo at `/api/v1`, `/web/content`,
-  `/websocket`, vendor console at `/odoo`. Session cookie only, no CORS, no bearer tokens.
+Groups are `nasq_core.group_employee` for the customer UI,
+`nasq_core.group_customer_admin` for customer administration, and
+`nasq_core.group_vendor_support` for vendor support. Customers do not open
+Odoo. Fix ACLs and record rules when access is wrong instead of hiding an
+access error behind `sudo()`.
 
-## Machine quirks
+## Verification boundary
 
-- Dev servers: Odoo `:8069` (`--dev=all` from the Odoo checkout), Nuxt `:3000` (`npm run dev`
-  from repo root). Restart Nuxt after `nuxt.config.ts`/`server/` changes or after adding a
-  shadcn component dir — use `/nasq-dev-servers`.
-- The global `~/.npmrc` is malformed: always `npm install --ignore-scripts`, and run
-  `npx shadcn-vue@latest …` with `npm_config_userconfig=/tmp/empty.npmrc` (create the empty
-  file). Never edit `~/.npmrc`.
-- Semantic code search over Odoo core + installed addons + nasq addons: the `semtree` MCP
-  server (`search_code` / `get_context`); resync with `~/code/odoo/semtree-sync.sh` after
-  installing addons.
+Run focused checks appropriate to the changed layer, then the owning
+orchestrator runs broader gates once. Odoo addon checks run from
+`/Users/tariq/code/odoo` against a fresh scratch database with the selected
+Nasq worktree's addons path. Web checks run from the selected worktree. Fresh
+test output proves that checked layer only; it is not production or DNS proof.
+Before claiming completion, report changed files, fresh command evidence, and
+any residual risk.
+
+Integration is a merge operation owned by the orchestrator. Do not rewrite
+history on another worker's branch. Remove branches or
+worktrees only after their content is preserved and no process is using them.
+
+## Odoo addon and API rules
+
+- Every Python file starts with `# Part of Odoo. See LICENSE file for full
+  copyright and licensing details.` Addon manifests use `'license': 'LGPL-3'`,
+  version `19.0.1.0.0`, and author `Tariq Alwalidi`. Do not add OCA or
+  Enterprise dependencies. Keep `ruff check odoo-addons` clean.
+- Routes use `@http.route('/api/v1/...', type='json2', auth='user',
+  methods=[...], readonly=<bool>)` and `@api_handler`. Errors use
+  `{"code": "<snake_case>", "message": "<human>", "field"?: "<name>"}`
+  with a real HTTP status: 403 `forbidden` or `transition_forbidden`, 404
+  `not_found`, and 422 `invalid`. Never use `type='http'` for JSON or
+  `auth='bearer'` for browser traffic. Never use `sudo()` to dodge an access
+  error; fix the group or record rule.
+- Serializers whitelist fields explicitly: shared shapes belong in
+  `nasq_api/serializers`, PMO shapes in `nasq_pmo/serializers`, and HR shapes
+  in `nasq_hr/serializers`. Never send a raw ORM `read()` result. Every write
+  returns the full detail shape.
+- Task state names on the wire are
+  `in_progress | changes_requested | approved | waiting | done | cancelled`,
+  mapped to Odoo `01_in_progress | 02_changes_requested | 03_approved |
+  04_waiting_normal | 1_done | 1_canceled`. Employees may set
+  `in_progress`, `waiting`, `done`, and `cancelled` on writable tasks;
+  `approved` and `changes_requested` require
+  `project.group_project_manager` or `nasq_core.group_customer_admin`, with
+  403 `transition_forbidden` otherwise.
+- Roles are `nasq_core.group_employee` (Nuxt),
+  `nasq_core.group_customer_admin` (Nuxt and settings), and
+  `nasq_core.group_vendor_support` (vendor support; implies
+  `base.group_system`). Customers do not open Odoo. Task create/write emits
+  partner-channel bus notifications and the web app invalidates vue-query
+  caches from those events.
+- Branding source of truth is `res.company` and its nasq fields;
+  `deploy/branding.json` only seeds it. `GET /api/v1/branding` is public and
+  cached. Nasq has no time logging: do not add `hr_timesheet`, timesheet
+  fields/endpoints, or allocated-versus-logged reporting.
+- PMO project management uses `_nasq_can_manage`: project manager group,
+  customer admin, or the project's assigned `user_id`. Project writes pass
+  `_nasq_check_manage()` and `_nasq_write_as_manager`/
+  `_nasq_write_sudo` or a dedicated do step.
+  The five documented PMO `sudo()` cases are: (1) gated
+  `ir.config_parameter` policy access; (2) policy-based project creation when
+  creators are employees; (3) manager writes and archive/status/stage/
+  milestone helpers plus follower subscribe/unsubscribe; (4) serializer
+  display-name/stage/milestone lookups; and (5) integer-only
+  `_nasq_stage_task_count`/`_nasq_milestone_task_counts` values needed for
+  safe deletion. Do not add an undocumented case.
+
+## Frontend and machine rules
+
+- Arabic is default (`ar`), English is secondary, and i18n uses `no_prefix`.
+  Every user-facing string uses `$t()`/`t()` in the owning per-pillar file
+  under `apps/web/i18n/locales/{ar,en}`. A pillar's `nav.*` label is the
+  deliberate shared `common.json` exception. HR owns `hr.json` and the `/hr`
+  page; PMO owns `tasks.json`, `projects.json`, `settings.json`, and the
+  unchanged user-id people picker.
+- RTL styling uses logical Tailwind properties only (`ms-`, `me-`, `ps-`,
+  `pe-`, `start-`, `end-`, `text-start`), never physical `ml-`, `pl-`, or
+  `left-` classes. Keep the existing design tokens. Generated shadcn-vue
+  components under `apps/web/app/components/ui` include deliberate RTL and
+  hydration patches; re-apply them after `npx shadcn-vue add ... --overwrite`.
+- Authenticated interactive controls whose first click must not be lost during
+  SSR hydration use the shared `useHydrated()` composable and stay disabled
+  until hydrated. Do not replace this with per-component `mounted` flags or
+  make the whole authenticated app client-only. Hydration tests assert the
+  disabled-to-enabled transition before clicking.
+- The generated shadcn-vue components have intentional RTL patches: `SidebarProvider.vue`
+  uses `useMediaQuery(..., { ssrWidth: 1024 })`; sidebar and dialog text use
+  `text-start`; `CommandShortcut.vue` uses `ms-auto`; Calendar and
+  NativeSelect use `ps-`/`pe-` and `end-`; DropdownMenuCheckboxItem uses
+  logical padding and `start-`; and the dialog close button uses `end-4`.
+  Re-apply these patches after regeneration.
+- The data layer uses `@tanstack/vue-query` composables over `useApi()`, which
+  throws `ApiError {status, code, message, field}`. Plain edits may be
+  optimistic; transitions and approvals remain pending until the server
+  confirms them. Replace cache entries with the server response.
+- The topology is same-origin behind a reverse proxy: Nuxt `/`, Odoo
+  `/api/v1`, `/web/content`, and `/websocket`, and vendor console `/odoo`.
+  Session cookies are used; no CORS or bearer tokens for browser flows.
+
+## Check commands
+
+Run Odoo checks from `/Users/tariq/code/odoo` using a fresh scratch database
+and the selected Nasq worktree's explicit addons path:
+
+```sh
+cd /Users/tariq/code/odoo
+.venv/bin/python odoo-bin -c /Users/tariq/code/odoo/odoo.conf \
+  --addons-path=/Users/tariq/code/odoo/addons,/path/to/nasq-worktree/odoo-addons \
+  -d nasq_scratch -i nasq_core,nasq_api,nasq_pmo,nasq_hr \
+  --test-tags /nasq_core,/nasq_api,/nasq_pmo,/nasq_hr \
+  --http-port=8169 --stop-after-init
+```
+
+Use `npm test` for contracts and web unit tests, `npx -w apps/web vue-tsc
+--noEmit` for the web type check, and `cd apps/web && npm run test:e2e` for
+Playwright. Employee fixtures are created through Odoo, never through the
+Nuxt UI. API tests extend `NasqApiCase` from `nasq_api/tests/common.py` or
+`NasqPmoCase` for PMO fixtures; every `test_*.py` must be imported by its
+addon `tests/__init__.py`. Loading a code/data change into an authorized
+development database may use `-u <addon> --no-http --stop-after-init`; never
+run tests against the dev `odoo19` database.
+
+The global `~/.npmrc` may be malformed. Use `npm ci --ignore-scripts`, never
+edit that file, and set `npm_config_userconfig=/tmp/empty.npmrc` when running
+`npx shadcn-vue@latest ...`. Semantic searches across Odoo and Nasq addons
+may use the configured semtree index; resync it after installing addons.

@@ -10,3 +10,9 @@ deploy/branding.json
 deploy/data/
 test-results/
 playwright-report/
+
+# Local worktrees and generated tooling artifacts
+.worktrees/
+.fastembed_cache/
+.playwright-mcp/
+.DS_Store
