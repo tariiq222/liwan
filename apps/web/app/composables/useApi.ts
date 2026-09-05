@@ -7,6 +7,7 @@ export class ApiError extends Error {
     public code: string,
     message: string,
     public field?: string,
+    public details?: Record<string, number>,
   ) {
     super(message)
   }
@@ -35,7 +36,7 @@ export function useApi() {
       if (e?.name === 'ZodError' || e?.cause?.name === 'ZodError') throw e
       const status: number = e?.statusCode ?? e?.response?.status ?? 0
       const parsed = ApiErrorSchema.safeParse(e?.data)
-      if (parsed.success) throw new ApiError(status, parsed.data.code, parsed.data.message, parsed.data.field)
+      if (parsed.success) throw new ApiError(status, parsed.data.code, parsed.data.message, parsed.data.field, parsed.data.details)
       throw new ApiError(status, 'http_error', e?.message ?? 'request failed')
     }
   }
