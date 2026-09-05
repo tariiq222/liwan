@@ -168,7 +168,13 @@ watch(
               <Label for="hr-doc-title">{{ t('hr.docs.columns.name') }}</Label>
               <Input id="hr-doc-title" :model-value="selected.name" @blur="onTitleBlur" />
             </div>
-            <DocumentEditor :key="selected.id" :model-value="selected.body" :document-id="selected.id" @update:model-value="onBody" />
+            <DocumentEditor
+              :key="selected.id"
+              :model-value="selected.body"
+              :document-id="selected.id"
+              @update:model-value="onBody"
+              @escape="selectedId = null"
+            />
             <div class="grid gap-2">
               <h3 class="text-sm font-medium">{{ t('hr.docs.attachments') }}</h3>
               <ul v-if="selected.attachment_ids.length" class="grid gap-1 text-sm">

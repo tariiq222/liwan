@@ -6,7 +6,7 @@ import { Bold, Italic, Link as LinkIcon, List, ListOrdered } from 'lucide-vue-ne
 import { createDebouncedFlush } from '@/lib/debouncedFlush'
 
 const props = defineProps<{ modelValue: string; documentId: number }>()
-const emit = defineEmits<{ 'update:modelValue': [string] }>()
+const emit = defineEmits<{ 'update:modelValue': [string]; escape: [] }>()
 
 const { t } = useI18n()
 
@@ -71,7 +71,22 @@ function toggleLink() {
 
 <template>
   <ClientOnly>
-    <div class="rounded-md border">
+    <!--
+      ProseMirror's own keydown handler unconditionally calls
+      event.preventDefault() for Escape while the editor has focus (it
+      reserves the key for its own future use, regardless of whether any
+      command handles it). It does not stopPropagation, so the keydown still
+      reaches the parent Sheet's dismissable-layer handler, but that handler
+      checks event.defaultPrevented and — correctly, so a rich text editor
+      can veto an accidental close — declines to dismiss when it's set. Net
+      effect: pressing Escape to close the document sheet silently does
+      nothing while the caret is inside this editor. A capture-phase
+      listener on this wrapper runs before the event reaches the
+      contenteditable node, so it sees Escape first and can tell the parent
+      to close explicitly, sidestepping the defaultPrevented gate rather
+      than fighting it.
+    -->
+    <div class="rounded-md border" @keydown.esc.capture="emit('escape')">
       <div class="flex items-center gap-1 border-b p-1">
         <Button variant="ghost" size="icon" class="size-7" :class="{ 'bg-accent': editor?.isActive('bold') }" type="button" @click="toggleBold">
           <Bold class="size-3.5" />

@@ -9,6 +9,11 @@ const departmentId = defineModel<number | null>('departmentId', { default: null 
 const emit = defineEmits<{ open: [id: number] }>()
 
 const { t } = useI18n()
+// SSR renders the department Select trigger and search input as real,
+// focusable/clickable markup before Nuxt hydrates and attaches reka-ui's
+// listeners; a click in that window is silently dropped (see
+// useHydrated()). Gate both on hydration, same as TaskToolbar.vue.
+const hydrated = useHydrated()
 const search = ref('')
 const debouncedSearch = refDebounced(search, 300)
 
@@ -58,7 +63,7 @@ function onDepartmentChange(value: unknown) {
   <div class="space-y-2">
     <div class="flex flex-wrap items-center gap-2">
       <Select :model-value="departmentId ? String(departmentId) : 'all'" @update:model-value="onDepartmentChange">
-        <SelectTrigger size="sm" class="w-48">
+        <SelectTrigger size="sm" class="w-48" :disabled="!hydrated">
           <SelectValue :placeholder="t('hr.directory.allDepartments')" />
         </SelectTrigger>
         <SelectContent>
@@ -68,7 +73,7 @@ function onDepartmentChange(value: unknown) {
       </Select>
       <div class="relative min-w-48 flex-1">
         <Search class="pointer-events-none absolute start-2 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input v-model="search" :placeholder="t('hr.directory.search')" class="ps-8" />
+        <Input v-model="search" :disabled="!hydrated" :placeholder="t('hr.directory.search')" class="ps-8" />
       </div>
     </div>
 
