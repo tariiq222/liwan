@@ -70,6 +70,8 @@ class TestHrDepartments(NasqHrCase):
         res = self.api('PATCH', f'/api/v1/hr/departments/{self.dept_a.id}', {'name': 'Eng 2'})
         self.assertEqual(res.status_code, 403)
         self.assertEqual(res.json()['code'], 'forbidden')
+        res = self.api('DELETE', '/api/v1/hr/departments/999999')
+        self.assertEqual((res.status_code, res.json()['code']), (403, 'forbidden'))
 
     def test_admin_create_and_patch(self):
         self.authenticate('hr_dept_admin', 'hr_dept_admin_pass_123')
@@ -117,6 +119,7 @@ class TestHrDepartments(NasqHrCase):
         self.authenticate('hr_dept_admin', 'hr_dept_admin_pass_123')
         for payload, field in (
             ({'name': 'Boolean Parent', 'parent_id': True}, 'parent_id'),
+            ({'name': 'Float Parent', 'parent_id': 1.9}, 'parent_id'),
             ({'name': 'Zero Manager', 'manager_id': 0}, 'manager_id'),
         ):
             res = self.api('POST', '/api/v1/hr/departments', payload)

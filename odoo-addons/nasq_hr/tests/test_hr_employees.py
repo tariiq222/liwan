@@ -139,17 +139,26 @@ class TestHrEmployees(NasqHrCase):
 
     def test_employee_write_checks_authorization_before_relation_lookup(self):
         self.authenticate('api_emp', 'api_emp_pass_123')
-        res = self.api('POST', '/api/v1/hr/employees', {
-            'name': 'Should Not Be Created', 'parent_id': 999999,
-        })
-        self.assertEqual(res.status_code, 403)
-        self.assertEqual(res.json()['code'], 'forbidden')
+        cases = (
+            ('POST', '/api/v1/hr/employees', {'name': 'Should Not Be Created', 'parent_id': 999999}),
+            ('PATCH', '/api/v1/hr/employees/999999', {'name': 'Forbidden'}),
+            ('POST', '/api/v1/hr/employees/999999/archive', {}),
+            ('POST', '/api/v1/hr/employees/999999/unarchive', {}),
+            ('POST', '/api/v1/hr/employees/999999/access', {'password': 'valid pass', 'role': 'employee'}),
+            ('PATCH', '/api/v1/hr/employees/999999/access', {'role': 'employee'}),
+            ('DELETE', '/api/v1/hr/employees/999999/access', None),
+        )
+        for method, path, body in cases:
+            res = self.api(method, path, body)
+            self.assertEqual(res.status_code, 403, (method, path, res.text))
+            self.assertEqual(res.json()['code'], 'forbidden')
 
     def test_admin_relation_and_email_errors_are_field_specific(self):
         self.authenticate('hr_emp_admin', 'hr_emp_admin_pass_123')
         cases = [
             ({'name': 'Missing relation', 'department_id': 999999}, 'department_id'),
             ({'name': 'Boolean relation', 'parent_id': True}, 'parent_id'),
+            ({'name': 'Float relation', 'parent_id': 1.9}, 'parent_id'),
             ({'name': 'Zero relation', 'department_id': 0}, 'department_id'),
             ({'name': 'Invalid email', 'work_email': 'not-an-email'}, 'work_email'),
             ({'name': 'Numeric email', 'work_email': 0}, 'work_email'),
@@ -169,6 +178,12 @@ class TestHrEmployees(NasqHrCase):
         })
         self.assertEqual(res.status_code, 422, res.text)
         self.assertEqual((res.json()['code'], res.json()['field']), ('invalid', 'department_id'))
+
+    def test_archived_employee_is_not_readable_by_known_id_for_nonadmin(self):
+        archived = self.env['hr.employee'].create({'name': 'Hidden Archived Employee', 'active': False})
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        res = self.api('GET', f'/api/v1/hr/employees/{archived.id}')
+        self.assertEqual((res.status_code, res.json()['code']), (404, 'not_found'))
 
     def test_employee_cannot_be_their_own_manager(self):
         self.authenticate('hr_emp_admin', 'hr_emp_admin_pass_123')

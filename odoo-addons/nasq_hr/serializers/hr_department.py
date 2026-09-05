@@ -31,9 +31,11 @@ def _optional_id(value, field):
         return False
     if isinstance(value, bool):
         raise ApiError(422, 'invalid', f"{field} must be an integer", field=field)
+    if isinstance(value, float):
+        raise ApiError(422, 'invalid', f"{field} must be an integer", field=field)
     try:
         parsed = int(value)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         raise ApiError(422, 'invalid', f"{field} must be an integer", field=field) from None
     if parsed <= 0:
         raise ApiError(422, 'invalid', f"{field} must be a positive integer", field=field)

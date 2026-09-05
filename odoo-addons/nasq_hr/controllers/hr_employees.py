@@ -6,7 +6,6 @@ from odoo.http import request
 from odoo.addons.nasq_api.controllers.common import (
     ApiError,
     api_handler,
-    get_record,
     parse_nonneg_int,
 )
 from odoo.addons.nasq_hr.serializers.hr_employee import (
@@ -38,6 +37,17 @@ def _admin_employee(employee_id):
     if employee.company_id not in request.env.companies:
         raise AccessError('employee is outside the current company')
     employee.check_access('read')
+    return employee
+
+
+def _public_employee(employee_id):
+    employee = request.env['hr.employee.public'].search([
+        ('id', '=', int(employee_id)),
+        ('active', '=', True),
+        ('company_id', 'in', request.env.companies.ids),
+    ], limit=1)
+    if not employee:
+        raise MissingError(request.env._('hr.employee %(id)s does not exist', id=employee_id))
     return employee
 
 
@@ -79,7 +89,7 @@ class HrEmployeeController(http.Controller):
             raise ApiError(403, 'forbidden', 'only a customer administrator can list archived employees')
         limit = min(parse_nonneg_int(args.get('limit', 50), 'limit'), MAX_LIMIT)
         offset = parse_nonneg_int(args.get('offset', 0), 'offset')
-        domain = []
+        domain = [('company_id', 'in', request.env.companies.ids)]
         if q:
             domain.append(('name', 'ilike', q))
         if department_id not in (None, ''):
@@ -103,7 +113,7 @@ class HrEmployeeController(http.Controller):
     @http.route('/api/v1/hr/employees/<int:employee_id>', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
     def get_employee(self, employee_id):
-        employee = _admin_employee(employee_id) if _is_admin() else get_record('hr.employee.public', employee_id)
+        employee = _admin_employee(employee_id) if _is_admin() else _public_employee(employee_id)
         return dump_employee(employee)
 
     @http.route('/api/v1/hr/employees', type='json2', auth='user', methods=['POST'], readonly=False)
