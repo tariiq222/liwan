@@ -7,9 +7,17 @@
     "filteredEmptyHint": "Change the search or status, or clear the filters.",
     "capped": "Search and filters apply only to the first 200 loaded projects",
     "notFound": "This project does not exist or you cannot view it",
+    "invalidId": "The project ID is invalid",
+    "forbidden": "You may not manage this project",
+    "loading": "Loading project…",
+    "loadError": "Could not load project data",
     "backToProjects": "Back to projects",
     "backToProject": "Back to project",
-    "columns": { "name": "Name", "status": "Status", "progress": "Progress" },
+    "columns": {
+      "name": "Name",
+      "status": "Status",
+      "progress": "Progress"
+    },
     "status": {
       "on_track": "On track",
       "at_risk": "At risk",
@@ -36,14 +44,22 @@
     },
     "archivedEmpty": "No archived projects",
     "archivedEmptyHint": "Archived projects appear here and can be restored when needed.",
-    "menu": { "settings": "Project settings", "archive": "Archive project", "unarchive": "Unarchive" },
+    "menu": {
+      "settings": "Project settings",
+      "archive": "Archive project",
+      "unarchive": "Unarchive"
+    },
     "archiveConfirmTitle": "Archive this project?",
     "archiveConfirmText": "The project and its tasks leave the lists. You can unarchive it later from the Archived filter.",
     "archived": "Project archived",
     "unarchived": "Project unarchived",
     "settings": {
       "title": "Project settings",
-      "tabs": { "general": "General", "stages": "Stages", "followers": "Followers" },
+      "tabs": {
+        "general": "General",
+        "stages": "Stages",
+        "followers": "Followers"
+      },
       "name": "Name",
       "description": "Description",
       "manager": "Manager",
@@ -61,6 +77,8 @@
       "add": "New stage",
       "addPlaceholder": "Stage name",
       "rename": "Rename",
+      "reorder": "Reorder stage {name}",
+      "reorderHelp": "Drag the handle, or focus it and use Arrow Up, Arrow Down, Home, and End.",
       "fold": "Folded",
       "delete": "Delete",
       "notEmpty": "This stage holds {count} tasks",
@@ -73,7 +91,12 @@
       "empty": "No followers yet",
       "hint": "With \"Followers only\", only people on this list see the project."
     },
-    "tabs": { "list": "List", "board": "Board", "milestones": "Milestones", "updates": "Updates" },
+    "tabs": {
+      "list": "List",
+      "board": "Board",
+      "milestones": "Milestones",
+      "updates": "Updates"
+    },
     "milestones": {
       "new": "New milestone",
       "edit": "Edit milestone",
@@ -89,7 +112,10 @@
       "hasTasks": "{count} tasks are linked to this milestone",
       "empty": "No milestones yet",
       "emptyHint": "Add a milestone to track an important delivery date.",
-      "tasksOf": "{done} of {total}"
+      "tasksOf": "{done} of {total}",
+      "notFound": "This milestone does not exist or you cannot view it",
+      "deleteError": "Could not delete the milestone",
+      "deleted": "Milestone deleted"
     },
     "updates": {
       "new": "New update",

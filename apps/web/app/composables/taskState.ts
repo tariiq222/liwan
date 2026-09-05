@@ -70,3 +70,8 @@ export const TONE_CLASS: Record<StateTone, string> = {
   success: 'border-transparent bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300',
   destructive: 'border-transparent bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300',
 }
+
+/** Approval can be assigned without general task editing. */
+export function permittedNextStates(current: TaskState, canWrite: boolean, canApprove: boolean): TaskState[] {
+  return nextStates(current, canApprove).filter(state => canWrite || (canApprove && MANAGER_STATES.includes(state)))
+}

@@ -1,30 +1,31 @@
 import { describe, it, expect } from 'vitest'
 import { useNav } from '../useNav'
 
-const PRODUCT_SECTIONS = ['nav.tasks', 'nav.projects', 'nav.people']
+const employee = { role: 'employee', capabilities: ['pmo.tasks.read', 'pmo.projects.read', 'hr.employees.read', 'hr.departments.read', 'hr.documents.read'] }
+const admin = { role: 'admin', capabilities: [...employee.capabilities, 'access.users.read', 'access.roles.read', 'access.audit.read', 'settings.branding.manage'] }
 
-describe('useNav', () => {
-  it('employee sees exactly the three product sections', () => {
-    expect(useNav('employee').map(i => i.labelKey)).toEqual(PRODUCT_SECTIONS)
+describe('capability-based navigation', () => {
+  it('has no links before authenticated capabilities arrive', () => {
+    expect(useNav(undefined)).toEqual([])
+    expect(useNav({ role: 'admin' })).toEqual([])
   })
-
-  it('people section routes to /hr', () => {
-    expect(useNav('employee').find(i => i.labelKey === 'nav.people')?.to).toBe('/hr')
+  it('groups the employee product pages without administrative links', () => {
+    const nav = useNav(employee)
+    expect(nav.map(item => item.to)).toEqual(['/projects', '/tasks', '/hr', '/hr/departments', '/hr/documents'])
+    expect(nav.filter(item => item.group === 'hr')).toHaveLength(3)
   })
-
-  // Phase 3a: customer_admin gets an in-app Settings section for project
-  // administration, but never a link into the vendor console.
-  it('customer_admin sees the three product sections plus Settings', () => {
-    expect(useNav('admin').map(i => i.labelKey)).toEqual([...PRODUCT_SECTIONS, 'nav.settings'])
+  it('an access administrator does not inherit project settings', () => {
+    const paths = useNav(admin).map(item => item.to)
+    expect(paths).toContain('/settings/users')
+    expect(paths).toContain('/settings/roles')
+    expect(paths).not.toContain('/settings/projects')
+    expect(paths).not.toContain('/odoo')
   })
-
-  it('vendor gets Settings and the vendor console last', () => {
-    const nav = useNav('vendor')
-    expect(nav.map(i => i.labelKey)).toEqual([...PRODUCT_SECTIONS, 'nav.settings', 'nav.console'])
+  it('combines capabilities without duplicate paths or shortcuts', () => {
+    const nav = useNav({ ...admin, role: 'vendor', capabilities: [...admin.capabilities, 'pmo.settings.manage'] })
     expect(nav.at(-1)?.to).toBe('/odoo')
-  })
-
-  it('every item has a single-key shortcut for ⌘K', () => {
-    for (const item of useNav('vendor')) expect(item.shortcut).toMatch(/^[a-z0-9]$/)
+    expect(new Set(nav.map(item => item.to)).size).toBe(nav.length)
+    expect(new Set(nav.map(item => item.shortcut)).size).toBe(nav.length)
+    for (const item of nav) expect(item.shortcut).toMatch(/^[a-z0-9]$/)
   })
 })

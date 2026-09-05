@@ -13,6 +13,8 @@ export type { HrDocument, HrDocumentList }
 export type HrDocumentListParams = {
   q?: string
   department_id?: number
+  limit?: number
+  offset?: number
 }
 
 export const hrDocumentKeys = {
@@ -47,7 +49,8 @@ export function useHrDocuments(params: MaybeRefOrGetter<HrDocumentListParams>) {
         query: {
           q: p.q || undefined,
           department_id: p.department_id,
-          limit: 200,
+          limit: Math.min(Math.max(p.limit ?? 200, 1), 200),
+          offset: Math.max(p.offset ?? 0, 0),
         },
         schema: HrDocumentListSchema,
       })

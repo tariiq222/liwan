@@ -16,6 +16,7 @@ test('MFA-pending login shows and submits the TOTP step', async ({ page }) => {
       body: JSON.stringify({
         id: 1, name: 'Admin', login: 'admin', email: '', lang: 'ar_001', tz: '',
         role: 'admin', company: { id: 1, name: 'nasq' },
+        roles: [], capabilities: ['pmo.tasks.read'], access_policy_version: 1,
       }),
     }))
 

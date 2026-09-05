@@ -1,5 +1,8 @@
 <script setup lang="ts">
-await navigateTo('/tasks')
+import { firstAllowedPath } from '@/utils/accessPolicy'
+const { me, ready } = useMe()
+await ready
+await navigateTo(firstAllowedPath(me.value))
 </script>
 
 <template><span class="sr-only" /></template>

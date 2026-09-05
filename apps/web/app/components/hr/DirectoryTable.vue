@@ -2,7 +2,6 @@
 import { FlexRender, createColumnHelper, getCoreRowModel, useVueTable } from '@tanstack/vue-table'
 import { h } from 'vue'
 import { Search } from 'lucide-vue-next'
-import { refDebounced } from '@vueuse/core'
 import { useHrDepartments } from '@/composables/useHrDepartments'
 import { useHrEmployees, type HrEmployee } from '@/composables/useHrEmployees'
 import AccessBadge from './AccessBadge.vue'
@@ -11,23 +10,26 @@ const departmentId = defineModel<number | null>('departmentId', { default: null 
 const emit = defineEmits<{ open: [id: number]; manage: [id: number]; archive: [id: number]; create: [] }>()
 
 const { t } = useI18n()
+const route = useRoute()
+const router = useRouter()
 // SSR renders the department Select trigger and search input as real,
 // focusable/clickable markup before Nuxt hydrates and attaches reka-ui's
 // listeners; a click in that window is silently dropped (see
 // useHydrated()). Gate both on hydration, same as TaskToolbar.vue.
 const hydrated = useHydrated()
-const search = ref('')
-const debouncedSearch = refDebounced(search, 300)
-const archived = ref(false)
-const { me } = useMe()
-const canAdmin = computed(() => me.value?.role === 'admin')
+const search = ref(String(route.query.q ?? ''))
+const archived = ref(route.query.archived === '1')
+const offset = ref(Math.max(0, Number(route.query.offset ?? 0) || 0))
+const { can } = useAccess()
+const canManage = computed(() => can('hr.employees.manage'))
+const canArchive = computed(() => can('hr.employees.archive'))
 
 const params = computed(() => ({
-  q: debouncedSearch.value || undefined,
+  q: search.value.trim() || undefined,
   department_id: departmentId.value ?? undefined,
   archived: archived.value || undefined,
-  limit: 200,
-  offset: 0,
+  limit: 25,
+  offset: offset.value,
 }))
 
 const { data, isLoading } = useHrEmployees(params)
@@ -35,6 +37,26 @@ const { data: deptData } = useHrDepartments()
 
 const items = computed<HrEmployee[]>(() => data.value?.items ?? [])
 const departments = computed(() => deptData.value?.items ?? [])
+const page = computed(() => Math.floor(offset.value / 25) + 1)
+const pages = computed(() => Math.max(1, Math.ceil((data.value?.total ?? 0) / 25)))
+
+watch(() => [route.query.q, route.query.department_id, route.query.archived, route.query.offset], ([q, department, archivedQuery, nextOffset]) => {
+  search.value = String(q ?? '')
+  departmentId.value = department ? Number(department) : null
+  archived.value = archivedQuery === '1'
+  offset.value = Math.max(0, Number(nextOffset ?? 0) || 0)
+})
+watch(search, (value) => { if (value !== String(route.query.q ?? '')) updateQuery() })
+
+function updateQuery() {
+  offset.value = 0
+  void router.replace({ query: { ...route.query, ...(search.value.trim() ? { q: search.value.trim() } : { q: undefined }), ...(departmentId.value ? { department_id: departmentId.value } : { department_id: undefined }), ...(archived.value ? { archived: '1' } : { archived: undefined }), offset: undefined } })
+}
+function setPage(next: number) {
+  if (!hydrated.value || isLoading.value || next < 1 || next > pages.value) return
+  offset.value = (next - 1) * 25
+  void router.replace({ query: { ...route.query, ...(offset.value ? { offset: offset.value } : { offset: undefined }) } })
+}
 
 const columnHelper = createColumnHelper<HrEmployee>()
 const columns = [
@@ -64,17 +86,17 @@ const columns = [
   }),
   columnHelper.display({
     id: 'manage',
-    header: () => canAdmin.value ? t('hr.directory.columns.actions') : '',
-    cell: (info) => canAdmin.value
+    header: () => canManage.value || canArchive.value ? t('hr.directory.columns.actions') : '',
+    cell: (info) => canManage.value || canArchive.value
       ? h('div', { class: 'flex gap-1' }, [
-          h('button', {
+          canManage.value ? h('button', {
             type: 'button', class: 'rounded-md border px-2 py-1 text-xs hover:bg-accent', disabled: !hydrated.value,
             'data-testid': 'hr-employee-manage', onClick: (event: Event) => { event.stopPropagation(); emit('manage', info.row.original.id) },
-          }, t('hr.directory.manage')),
-          info.row.original.access?.role === 'vendor' ? null : h('button', {
+          }, t('hr.directory.manage')) : null,
+          canArchive.value ? h('button', {
             type: 'button', class: 'rounded-md border px-2 py-1 text-xs hover:bg-accent', disabled: !hydrated.value,
             'data-testid': 'hr-employee-archive-row', onClick: (event: Event) => { event.stopPropagation(); emit('archive', info.row.original.id) },
-          }, info.row.original.active ? t('hr.employee.archive') : t('hr.employee.unarchive')),
+          }, info.row.original.active ? t('hr.employee.archive') : t('hr.employee.unarchive')) : null,
         ])
       : null,
   }),
@@ -90,19 +112,20 @@ const table = useVueTable({
 
 function onDepartmentChange(value: unknown) {
   departmentId.value = value === 'all' || !value ? null : Number(value)
+  updateQuery()
 }
 </script>
 
 <template>
   <div class="space-y-2">
     <div class="flex flex-wrap items-center gap-2">
-      <Button v-if="canAdmin" size="sm" :disabled="!hydrated" @click="emit('create')">
+      <Button v-if="canManage" size="sm" :disabled="!hydrated" @click="emit('create')">
         {{ t('hr.directory.newEmployee') }}
       </Button>
-      <Button v-if="canAdmin" variant="outline" size="sm" :disabled="!hydrated" @click="archived = !archived">
+      <Button v-if="canArchive" variant="outline" size="sm" :disabled="!hydrated" @click="archived = !archived; updateQuery()">
         {{ archived ? t('hr.directory.showActive') : t('hr.directory.showArchived') }}
       </Button>
-      <Select :model-value="departmentId ? String(departmentId) : 'all'" @update:model-value="onDepartmentChange">
+      <Select v-if="can('hr.departments.read')" :model-value="departmentId ? String(departmentId) : 'all'" @update:model-value="onDepartmentChange">
         <SelectTrigger size="sm" class="w-48" :disabled="!hydrated">
           <SelectValue :placeholder="t('hr.directory.allDepartments')" />
         </SelectTrigger>
@@ -113,7 +136,7 @@ function onDepartmentChange(value: unknown) {
       </Select>
       <div class="relative min-w-48 flex-1">
         <Search class="pointer-events-none absolute start-2 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input v-model="search" :disabled="!hydrated" :placeholder="t('hr.directory.search')" class="ps-8" />
+        <Input v-model="search" :disabled="!hydrated" :placeholder="t('hr.directory.search')" class="ps-8" @change="updateQuery" />
       </div>
     </div>
 
@@ -152,5 +175,6 @@ function onDepartmentChange(value: unknown) {
         </TableBody>
       </Table>
     </div>
+    <div v-if="pages > 1" class="flex items-center justify-between text-sm text-muted-foreground"><Button variant="ghost" :disabled="!hydrated || page === 1 || isLoading" @click="setPage(page - 1)">{{ t('access.previousPage') }}</Button><span>{{ t('access.pageOf', { page, pages }) }}</span><Button variant="ghost" :disabled="!hydrated || page >= pages || isLoading" @click="setPage(page + 1)">{{ t('access.nextPage') }}</Button></div>
   </div>
 </template>

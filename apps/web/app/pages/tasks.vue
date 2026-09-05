@@ -1,14 +1,15 @@
 <script setup lang="ts">
-import CreateTaskDialog from '@/components/task/CreateTaskDialog.vue'
 import TaskBoard from '@/components/task/TaskBoard.vue'
 import TaskTable from '@/components/task/TaskTable.vue'
 import TaskToolbar from '@/components/task/TaskToolbar.vue'
 import { Plus } from 'lucide-vue-next'
 import { useTaskFilters } from '@/composables/useTaskFilters'
+import { returnToQuery } from '@/utils/safeReturnTo'
 
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
+const { can } = useAccess()
 
 // Same race as TaskToolbar's own tabs (see useHydrated()): this SSR-rendered
 // table/board switcher is visible and clickable before hydration attaches
@@ -16,7 +17,8 @@ const { t } = useI18n()
 const hydrated = useHydrated()
 
 const tab = computed(() => (route.query.tab === 'board' ? 'board' : 'table'))
-const isDetailRoute = computed(() => route.params.id !== undefined)
+const normalizedPath = computed(() => route.path.replace(/\/+$/, '') || '/')
+const isBaseRoute = computed(() => normalizedPath.value === '/tasks')
 function onTabChange(v: unknown) {
   router.replace({ query: { ...route.query, tab: v === 'board' ? 'board' : undefined } })
 }
@@ -25,7 +27,7 @@ function onTabChange(v: unknown) {
 // than a ?task= query param. Row click / create both push there, carrying
 // the current query (?tab and any filters) forward so closing can restore it.
 function openTask(id: number) {
-  router.push({ path: `/tasks/${id}`, query: route.query })
+  router.push({ path: `/tasks/${id}`, query: returnToQuery(route.fullPath) })
 }
 
 // Filters persist per browser, per the toolbar's contract; useTaskFilters
@@ -33,14 +35,16 @@ function openTask(id: number) {
 // lookup can read the exact same cache entry this table queries with.
 const params = useTaskFilters()
 
-const createOpen = ref(false)
+function openCreate() {
+  router.push({ path: '/tasks/new', query: returnToQuery(route.fullPath) })
+}
 </script>
 
 <template>
-  <div v-if="!isDetailRoute" class="space-y-4">
+  <div v-if="isBaseRoute" class="space-y-4">
     <header class="flex flex-wrap items-center justify-between gap-3">
       <h1 class="text-2xl font-semibold">{{ t('tasks.title') }}</h1>
-      <Button class="gap-1.5" :disabled="!hydrated" @click="createOpen = true">
+      <Button v-if="can('pmo.tasks.create')" class="gap-1.5" :disabled="!hydrated" @click="openCreate">
         <Plus class="size-4" />{{ t('tasks.new') }}
       </Button>
     </header>
@@ -52,21 +56,19 @@ const createOpen = ref(false)
       </TabsList>
 
       <TabsContent value="table" class="space-y-4">
-        <TaskToolbar v-model="params" hide-create />
+        <TaskToolbar v-model="params" hide-create @create="openCreate" />
         <!-- Query data may resolve after SSR markup is emitted but before
              client hydration starts. Mount the dynamic result surface only
              after this page has hydrated so the toolbar controls above keep
              their listeners and their first click is never lost. -->
-        <TaskTable v-if="hydrated" :params="params" @open="openTask" @create="createOpen = true" />
+        <TaskTable v-if="hydrated" :params="params" @open="openTask" @create="openCreate" />
       </TabsContent>
 
       <TabsContent value="board" class="space-y-4">
-        <TaskToolbar v-model="params" hide-create />
+        <TaskToolbar v-model="params" hide-create @create="openCreate" />
         <TaskBoard v-if="hydrated" :params="params" @open="openTask" />
       </TabsContent>
     </Tabs>
-
-    <CreateTaskDialog v-model:open="createOpen" @created="openTask" />
 
   </div>
   <NuxtPage />

@@ -1,81 +1,132 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from odoo import models
+from odoo import api, models
 from odoo.exceptions import AccessError
-from odoo.tools import email_normalize
+from odoo.fields import Domain
+from odoo.tools import SQL
 
-from odoo.addons.nasq_api.controllers.common import (
-    MIN_PASSWORD_LENGTH,
-    clear_security_caches_after_commit,
-)
 from odoo.addons.nasq_hr.rules import NasqHrRule
 
-ROLE_XMLIDS = {
-    'employee': 'nasq_core.group_employee',
-    'admin': 'nasq_core.group_customer_admin',
-}
-NASQ_ROLE_XMLIDS = tuple(ROLE_XMLIDS.values()) + ('nasq_core.group_vendor_support',)
-EMPLOYEE_WRITE_ERROR = 'only a customer administrator can write employees'
+EMPLOYEE_WRITE_ERROR = 'employee management capability is required'
 EMPLOYEE_SCOPE_ERROR = 'employee is outside the current company'
-WEAK_PASSWORD_CODE = 'weak_password'
-INVALID_ROLE_CODE = 'invalid_role'
-VENDOR_PROTECTED_CODE = 'vendor_protected'
 INVALID_FIELD_CODE = 'invalid_field'
-SELF_DEACTIVATE_CODE = 'self_deactivate'
-ROLE_CONFLICT_CODE = 'role_conflict'
-LOGIN_TAKEN_CODE = 'login_taken'
-SELF_ROLE_CODE = 'self_role'
-EMPLOYEE_ARCHIVED_CODE = 'employee_archived'
-EMAIL_REQUIRED_CODE = 'email_required'
-ACCESS_EXISTS_CODE = 'access_exists'
-ACCESS_MISSING_CODE = 'access_missing'
+ACCESS_USER_CREATE_MARKER = 'nasq_core.access_user_create_depth'
+ACCESS_USER_WRITE_MARKER = 'nasq_core.access_user_write'
 
 
 class NasqHrEmployee(models.Model):
     _inherit = 'hr.employee'
 
-    def _nasq_require_admin(self):
-        if not self.env.user.has_group('nasq_core.group_customer_admin'):
+    @api.model
+    def _search(
+        self, domain, offset=0, limit=None, order=None, *,
+        active_test=True, bypass_access=False,
+    ):
+        if (
+            not bypass_access
+            and not self.env.is_superuser()
+            and not self.env.user.has_group('base.group_system')
+            and not self.env.cr.precommit.data.get(ACCESS_USER_CREATE_MARKER)
+            and not self.env.cr.precommit.data.get(ACCESS_USER_WRITE_MARKER)
+        ):
+            self._nasq_require_capability('hr.employees.read')
+            domain = Domain(domain) & Domain('company_id', '=', self.env.company.id)
+        return super()._search(
+            domain, offset=offset, limit=limit, order=order,
+            active_test=active_test, bypass_access=bypass_access,
+        )
+
+    def check_access(self, operation):
+        if (
+            operation == 'read'
+            and not self.env.is_superuser()
+            and not self.env.user.has_group('base.group_system')
+            and not self.env.cr.precommit.data.get(ACCESS_USER_CREATE_MARKER)
+            and not self.env.cr.precommit.data.get(ACCESS_USER_WRITE_MARKER)
+        ):
+            self._nasq_require_capability('hr.employees.read')
+            self._nasq_validate_scope()
+        return super().check_access(operation)
+
+    def _nasq_has_capability(self, capability):
+        return self.env['nasq.access.service']._nasq_has_capability(self.env.user, capability)
+
+    def _nasq_require_capability(self, capability):
+        if not self._nasq_has_capability(capability):
             raise AccessError(EMPLOYEE_WRITE_ERROR)
 
     def _nasq_validate_scope(self):
-        if any(employee.company_id not in self.env.companies for employee in self):
+        if not self.ids:
+            return
+        self.env.cr.execute(SQL(
+            'SELECT company_id FROM %s WHERE id = ANY(%s)',
+            SQL.identifier(self._table), self.ids,
+        ))
+        if any(company_id != self.env.company.id for company_id, in self.env.cr.fetchall()):
             raise AccessError(EMPLOYEE_SCOPE_ERROR)
 
     def _nasq_validate_mutation(self):
-        self._nasq_require_admin()
+        self._nasq_require_capability('hr.employees.manage')
         self._nasq_validate_scope()
 
-    @staticmethod
-    def _nasq_normalize_email(value):
-        if not isinstance(value, str):
-            return False
-        value = value.strip()
-        return email_normalize(value) if value else False
+    def _nasq_relation_refs(self):
+        self.ensure_one()
+        self._nasq_validate_scope()
+        self.env.cr.execute(
+            '''
+                SELECT department.id, department.name, manager.id, manager.name
+                  FROM hr_employee employee
+                  LEFT JOIN hr_version version ON version.id = employee.current_version_id
+                  LEFT JOIN hr_department department ON department.id = version.department_id
+                  LEFT JOIN hr_employee manager ON manager.id = employee.parent_id
+                 WHERE employee.id = %s AND employee.company_id = %s
+            ''',
+            [self.id, self.env.company.id],
+        )
+        row = self.env.cr.fetchone()
+        if not row:
+            raise AccessError(EMPLOYEE_SCOPE_ERROR)
+        text = self.env['nasq.access.service']._nasq_hr_text
+        return {
+            'department': {'id': row[0], 'name': text(row[1])} if row[0] else None,
+            'manager': {'id': row[2], 'name': text(row[3])} if row[2] else None,
+        }
 
-    @staticmethod
-    def _nasq_password(value):
-        if not isinstance(value, str):
-            raise NasqHrRule(WEAK_PASSWORD_CODE, 'password must be at least 8 characters', field='password')
-        value = value.strip()
-        if len(value) < MIN_PASSWORD_LENGTH:
-            raise NasqHrRule(WEAK_PASSWORD_CODE, 'password must be at least 8 characters', field='password')
-        return value
+    def write(self, vals):
+        # Keep the archive capability separate while preventing a caller with
+        # only that capability from using the generic ORM write path.
+        if not self.env.is_superuser():
+            self._nasq_require_capability('hr.employees.manage')
+            self._nasq_validate_scope()
+            if 'user_id' in vals or 'active' in vals:
+                raise NasqHrRule(
+                    INVALID_FIELD_CODE,
+                    'user access is managed by the access actions',
+                    field='user_id',
+                )
+        return super().write(vals)
 
-    def _nasq_validate_role(self, role):
-        if role not in ROLE_XMLIDS:
-            raise NasqHrRule(INVALID_ROLE_CODE, 'role must be employee or admin', field='role')
-
-    def _nasq_validate_vendor(self):
-        if any(employee.user_id and employee.user_id.has_group('nasq_core.group_vendor_support') for employee in self):
-            raise NasqHrRule(
-                VENDOR_PROTECTED_CODE, 'vendor-linked employees cannot be changed from nasq', status=403,
-            )
+    @api.model_create_multi
+    def create(self, vals_list):
+        if self.env.is_superuser():
+            return super().create(vals_list)
+        self._nasq_require_capability('hr.employees.manage')
+        for vals in vals_list:
+            if 'user_id' in vals or 'active' in vals:
+                raise NasqHrRule(
+                    INVALID_FIELD_CODE,
+                    'user access is managed by the access actions',
+                    field='user_id',
+                )
+            company_id = vals.get('company_id')
+            if company_id and company_id != self.env.company.id:
+                raise AccessError(EMPLOYEE_SCOPE_ERROR)
+        return super().create(vals_list)
 
     def _nasq_create(self, vals):
-        self._nasq_require_admin()
+        self._nasq_require_capability('hr.employees.manage')
         company_id = vals.get('company_id') or self.env.company.id
         company = self.env['res.company'].browse(company_id)
-        if not company.exists() or company not in self.env.companies:
+        if not company.exists() or company != self.env.company:
             raise AccessError(EMPLOYEE_SCOPE_ERROR)
         vals = dict(vals)
         vals['company_id'] = company.id
@@ -92,144 +143,139 @@ class NasqHrEmployee(models.Model):
             return super().write(vals)
 
     def _nasq_archive(self):
-        self._nasq_validate_mutation()
-        if any(employee.user_id == self.env.user for employee in self):
-            raise NasqHrRule(SELF_DEACTIVATE_CODE, 'an administrator cannot deactivate themselves', status=422)
-        self._nasq_validate_vendor()
+        self._nasq_require_capability('hr.employees.archive')
+        self._nasq_validate_scope()
+        service = self.env['nasq.access.service'].with_user(self.env.user)
         with self.env.cr.savepoint():
-            self.write({'active': False})
-            users = self.mapped('user_id')
-            if users:
-                users.write({'active': False})
-        if users:
-            clear_security_caches_after_commit(self.env)
+            for employee in self:
+                if employee.user_id:
+                    service._nasq_disable_linked_user_from_hr(
+                        employee.id,
+                        employee.user_id.id,
+                        service._nasq_user_version(employee.user_id),
+                    )
+            # The resource model is deliberately protected against generic
+            # active writes. Update the two stored columns here as the
+            # capability-scoped archive operation after the core hook has
+            # completed its guarded account transition.
+            resource_ids = self.mapped('resource_id').ids
+            self.env.cr.execute(
+                'UPDATE resource_resource SET active = FALSE WHERE id = ANY(%s)',
+                [resource_ids],
+            )
+            self.env.cr.execute(
+                'UPDATE hr_employee SET active = FALSE WHERE id = ANY(%s)',
+                [self.ids],
+            )
+            resources = self.mapped('resource_id')
+            resources.invalidate_recordset(['active'])
+            resources.modified(['active'])
+            self.invalidate_recordset(['active'])
+            self.modified(['active'])
         return True
 
     def _nasq_unarchive(self):
-        self._nasq_require_admin()
+        self._nasq_require_capability('hr.employees.archive')
         self._nasq_validate_scope()
         with self.env.cr.savepoint():
-            self.write({'active': True})
+            resource_ids = self.mapped('resource_id').ids
+            self.env.cr.execute(
+                'UPDATE resource_resource SET active = TRUE WHERE id = ANY(%s)',
+                [resource_ids],
+            )
+            self.env.cr.execute(
+                'UPDATE hr_employee SET active = TRUE WHERE id = ANY(%s)',
+                [self.ids],
+            )
+            resources = self.mapped('resource_id')
+            resources.invalidate_recordset(['active'])
+            resources.modified(['active'])
+            self.invalidate_recordset(['active'])
+            self.modified(['active'])
         return True
 
-    def _nasq_existing_role(self, user):
-        if user.has_group('nasq_core.group_vendor_support'):
-            return 'vendor'
-        if user.has_group('nasq_core.group_customer_admin'):
-            return 'admin'
-        if user.has_group('nasq_core.group_employee'):
-            return 'employee'
-        return 'employee'
 
-    def _nasq_role_commands(self, user, role):
-        desired = self.env.ref(ROLE_XMLIDS[role])
-        nasq_groups = self.env['res.groups'].browse([
-            self.env.ref(xmlid).id for xmlid in NASQ_ROLE_XMLIDS
-        ])
-        explicit = user.group_ids
-        unrelated = explicit - nasq_groups
-        admin_group = self.env.ref('nasq_core.group_customer_admin')
-        if role == 'employee' and any(admin_group in group.all_implied_ids for group in unrelated):
-            raise NasqHrRule(
-                ROLE_CONFLICT_CODE, 'cannot demote while another explicit group still grants administrator access',
-                field='role',
-            )
-        group_ids = (unrelated | desired).ids
-        return [(6, 0, group_ids)]
+class NasqHrResource(models.Model):
+    _inherit = 'resource.resource'
 
-    def _nasq_validate_email_available(self, normalized, current_user=None):
-        users = self.env['res.users'].with_context(active_test=False).search([('login', '=', normalized)])
-        if users - current_user:
-            raise NasqHrRule(LOGIN_TAKEN_CODE, 'this work email is already used as a login', field='work_email')
+    def write(self, vals):
+        if not self.env.is_superuser():
+            # Stock HR lifecycle code may write the current value while
+            # creating or synchronising a resource. Reject only an actual
+            # sensitive transition so those normal writes remain valid while
+            # generic resource ORM callers cannot link, unlink, archive, or
+            # restore an employee behind the protected HR actions.
+            for resource in self:
+                if 'user_id' in vals and vals['user_id'] != resource.user_id.id:
+                    msg = 'employee user access is managed by the access actions'
+                    raise AccessError(msg)
+                if 'active' in vals and bool(vals['active']) != bool(resource.active):
+                    msg = 'employee activity is managed by the HR actions'
+                    raise AccessError(msg)
+        return super().write(vals)
 
-    def _nasq_grant_access(self, password, role):
-        self._nasq_validate_mutation()
-        if any(employee.user_id == self.env.user for employee in self):
-            raise NasqHrRule(SELF_ROLE_CODE, 'an administrator cannot change their own role', field='role')
-        self._nasq_validate_vendor()
-        self._nasq_validate_role(role)
-        password = self._nasq_password(password)
-        for employee in self:
-            if not employee.active:
-                raise NasqHrRule(EMPLOYEE_ARCHIVED_CODE, 'archived employees cannot receive access')
-            normalized = self._nasq_normalize_email(employee.work_email)
-            if not normalized:
-                raise NasqHrRule(EMAIL_REQUIRED_CODE, 'a work email is required before granting access', field='work_email')
-            current = employee.user_id
-            self._nasq_validate_email_available(normalized, current)
-            if current and current.active:
-                raise NasqHrRule(ACCESS_EXISTS_CODE, 'this employee already has active access')
-        with self.env.cr.savepoint():
-            for employee in self:
-                normalized = self._nasq_normalize_email(employee.work_email)
-                user = employee.user_id
-                if not user:
-                    if not employee.work_contact_id:
-                        contact = self.env['res.partner'].create({
-                            'email': employee.work_email,
-                            'phone': employee.work_phone,
-                            'name': employee.name,
-                            'image_1920': employee.image_1920,
-                            'company_id': employee.company_id.id,
-                        })
-                        employee.write({'work_contact_id': contact.id})
-                        employee.invalidate_recordset(['work_contact_id'])
-                    user = self.env['res.users'].with_context(no_reset_password=True).create({
-                        'login': normalized,
-                        'partner_id': employee.work_contact_id.id or False,
-                        'password': password,
-                        'company_id': employee.company_id.id,
-                        'company_ids': [(6, 0, [employee.company_id.id])],
-                        'group_ids': self._nasq_role_commands(
-                            self.env['res.users'].new({'group_ids': []}), role,
-                        ),
-                    })
-                    employee.write({'user_id': user.id})
-                else:
-                    user.write({
-                        'active': True,
-                        'group_ids': self._nasq_role_commands(user, role),
-                    })
-                    user._change_password(password)
-        clear_security_caches_after_commit(self.env)
-        return self
 
-    def _nasq_update_access(self, role=None, password=None):
-        self._nasq_validate_mutation()
-        self._nasq_validate_vendor()
-        if role is not None:
-            self._nasq_validate_role(role)
-        if password is not None:
-            password = self._nasq_password(password)
-        users = self.mapped('user_id')
-        if len(users) != len(self):
-            raise NasqHrRule(ACCESS_MISSING_CODE, 'the employee has no linked access')
-        if role is not None:
-            for employee in self:
-                if employee.user_id == self.env.user:
-                    raise NasqHrRule(SELF_ROLE_CODE, 'an administrator cannot change their own role', field='role')
-                self._nasq_role_commands(employee.user_id, role)
-        if role is None and password is None:
-            return self
-        with self.env.cr.savepoint():
-            if role is not None:
-                for employee in self:
-                    employee.user_id.write({'group_ids': self._nasq_role_commands(employee.user_id, role)})
-            if password is not None:
-                for user in users:
-                    user._change_password(password)
-        clear_security_caches_after_commit(self.env)
-        return self
+class NasqHrEmployeePublic(models.Model):
+    _inherit = 'hr.employee.public'
 
-    def _nasq_revoke_access(self):
-        self._nasq_validate_mutation()
-        if any(employee.user_id == self.env.user for employee in self):
-            raise NasqHrRule(SELF_DEACTIVATE_CODE, 'an administrator cannot deactivate themselves', status=422)
-        self._nasq_validate_vendor()
-        users = self.mapped('user_id')
-        if len(users) != len(self):
-            raise NasqHrRule(ACCESS_MISSING_CODE, 'the employee has no linked access')
-        with self.env.cr.savepoint():
-            users.write({'active': False})
-        clear_security_caches_after_commit(self.env)
-        return self
+    @api.model
+    def _search(
+        self, domain, offset=0, limit=None, order=None, *,
+        active_test=True, bypass_access=False,
+    ):
+        if (
+            not bypass_access
+            and not self.env.is_superuser()
+            and not self.env.user.has_group('base.group_system')
+            and not self.env.cr.precommit.data.get(ACCESS_USER_CREATE_MARKER)
+            and not self.env.cr.precommit.data.get(ACCESS_USER_WRITE_MARKER)
+        ):
+            self.env['nasq.access.service']._nasq_require_capability('hr.employees.read')
+            domain = Domain(domain) & Domain('company_id', '=', self.env.company.id)
+        return super()._search(
+            domain, offset=offset, limit=limit, order=order,
+            active_test=active_test, bypass_access=bypass_access,
+        )
+
+    def check_access(self, operation):
+        if (
+            operation == 'read'
+            and not self.env.is_superuser()
+            and not self.env.user.has_group('base.group_system')
+            and not self.env.cr.precommit.data.get(ACCESS_USER_CREATE_MARKER)
+            and not self.env.cr.precommit.data.get(ACCESS_USER_WRITE_MARKER)
+        ):
+            self.env['nasq.access.service']._nasq_require_capability('hr.employees.read')
+            if self.ids:
+                self.env.cr.execute(SQL(
+                    'SELECT company_id FROM %s WHERE id = ANY(%s)',
+                    SQL.identifier(self._table), self.ids,
+                ))
+            if self.ids and any(
+                company_id != self.env.company.id
+                for company_id, in self.env.cr.fetchall()
+            ):
+                raise AccessError(EMPLOYEE_SCOPE_ERROR)
+        return super().check_access(operation)
+
+    def _nasq_relation_refs(self):
+        self.ensure_one()
+        self.check_access('read')
+        self.env.cr.execute(
+            '''
+                SELECT department.id, department.name, manager.id, manager.name
+                  FROM hr_employee_public employee
+                  LEFT JOIN hr_department department ON department.id = employee.department_id
+                  LEFT JOIN hr_employee_public manager ON manager.id = employee.parent_id
+                 WHERE employee.id = %s AND employee.company_id = %s
+            ''',
+            [self.id, self.env.company.id],
+        )
+        row = self.env.cr.fetchone()
+        if not row:
+            raise AccessError(EMPLOYEE_SCOPE_ERROR)
+        text = self.env['nasq.access.service']._nasq_hr_text
+        return {
+            'department': {'id': row[0], 'name': text(row[1])} if row[0] else None,
+            'manager': {'id': row[2], 'name': text(row[3])} if row[2] else None,
+        }

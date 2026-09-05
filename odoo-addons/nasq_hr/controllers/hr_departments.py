@@ -15,20 +15,24 @@ from odoo.addons.nasq_hr.serializers.hr_department import (
 )
 
 MAX_LIMIT = 200
-DEPARTMENT_SCOPE_ERROR = 'department is outside the current company'
 
 
-def _require_customer_admin():
-    if not request.env.user.has_group('nasq_core.group_customer_admin'):
-        raise ApiError(403, 'forbidden', 'only a customer administrator can write this resource')
+def _can(capability):
+    return request.env['nasq.access.service']._nasq_has_capability(request.env.user, capability)
+
+
+def _require(capability):
+    if not _can(capability):
+        raise ApiError(403, 'forbidden', f'{capability} capability is required')
 
 
 def _admin_department(department_id):
-    department = request.env['hr.department'].with_context(active_test=False).browse(int(department_id))
-    if not department.exists():
+    department = request.env['hr.department'].with_context(active_test=False).search([
+        ('id', '=', int(department_id)),
+        ('company_id', '=', request.env.company.id),
+    ], limit=1)
+    if not department:
         raise MissingError(request.env._('hr.department %(id)s does not exist', id=department_id))
-    if department.company_id not in request.env.companies:
-        raise AccessError(DEPARTMENT_SCOPE_ERROR)
     department.check_access('read')
     return department
 
@@ -37,7 +41,7 @@ def _relation(model, record_id, field):
     record = request.env[model].browse(int(record_id))
     if not record.exists():
         raise MissingError(request.env._('%(model)s %(id)s does not exist', model=model, id=record_id))
-    if record.company_id not in request.env.companies:
+    if record.company_id != request.env.company:
         raise AccessError('%s is outside the current company' % field)
     record.check_access('read')
     return record
@@ -55,20 +59,24 @@ class HrDepartmentController(http.Controller):
     @http.route('/api/v1/hr/departments', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
     def list_departments(self, **_):
+        _require('hr.departments.read')
         args = request.httprequest.args
         limit = min(parse_nonneg_int(args.get('limit', 50), 'limit'), MAX_LIMIT)
         offset = parse_nonneg_int(args.get('offset', 0), 'offset')
         Department = request.env['hr.department']
-        domain = []
+        domain = [('company_id', '=', request.env.company.id)]
         recs = Department.search(domain, order='name, id', limit=limit, offset=offset)
         return {'items': [dump_department(department) for department in recs], 'total': Department.search_count(domain)}
 
     @http.route('/api/v1/hr/departments/<int:department_id>', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
     def get_department(self, department_id):
-        Department = request.env['hr.department']
-        department = Department.browse(int(department_id))
-        if not department.exists():
+        _require('hr.departments.read')
+        department = request.env['hr.department'].search([
+            ('id', '=', int(department_id)),
+            ('company_id', '=', request.env.company.id),
+        ], limit=1)
+        if not department:
             raise MissingError(request.env._('hr.department %(id)s does not exist', id=department_id))
         department.check_access('read')
         return dump_department(department)
@@ -77,7 +85,7 @@ class HrDepartmentController(http.Controller):
     @api_handler
     @hr_rule_handler
     def create_department(self, **payload):
-        _require_customer_admin()
+        _require('hr.departments.manage')
         if 'name' not in payload:
             raise ApiError(422, 'invalid', 'name is required', field='name')
         vals = parse_department_vals(payload)
@@ -89,7 +97,7 @@ class HrDepartmentController(http.Controller):
     @api_handler
     @hr_rule_handler
     def patch_department(self, department_id, **payload):
-        _require_customer_admin()
+        _require('hr.departments.manage')
         department = _admin_department(department_id)
         payload.pop('department_id', None)
         if not payload:
@@ -103,7 +111,7 @@ class HrDepartmentController(http.Controller):
     @api_handler
     @hr_rule_handler
     def delete_department(self, department_id, **_):
-        _require_customer_admin()
+        _require('hr.departments.manage')
         department = _admin_department(department_id)
         department._nasq_delete()
         return request.make_json_response('', status=204)

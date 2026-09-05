@@ -132,13 +132,13 @@ const PROJECT = { id: 3, name: 'P', status: null, progress: 0, task_count: 0, cl
 
 describe('ProjectListSchema', () => {
   it('is an object with items, can_create and can_list_archived, not the phase-2 bare array', () => {
-    const parsed = ProjectListSchema.parse({ items: [PROJECT], can_create: false, can_list_archived: true })
+    const parsed = ProjectListSchema.parse({ items: [PROJECT], total: 1, can_create: false, can_list_archived: true })
     expect(parsed.can_create).toBe(false)
     expect(parsed.can_list_archived).toBe(true)
     expect(() => ProjectListSchema.parse([PROJECT])).toThrow()
   })
   it('rejects a payload missing can_list_archived (.strict() catches it)', () => {
-    expect(() => ProjectListSchema.parse({ items: [PROJECT], can_create: false })).toThrow()
+    expect(() => ProjectListSchema.parse({ items: [PROJECT], total: 1, can_create: false })).toThrow()
   })
 })
 

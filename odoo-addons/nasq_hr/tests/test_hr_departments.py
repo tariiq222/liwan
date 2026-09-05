@@ -14,8 +14,12 @@ class TestHrDepartments(NasqHrCase):
         super().setUpClass()
         cls.admin = new_test_user(
             cls.env, login='hr_dept_admin', password='hr_dept_admin_pass_123',
-            name='Dept Admin', groups='nasq_core.group_customer_admin',
+            name='Dept Admin', groups='nasq_core.group_employee',
         )
+        cls.env['nasq.access.service']._nasq_replace_assignments(cls.admin, [{
+            'role_id': cls.env.ref('nasq_core.role_hr_manager').id,
+            'company_id': cls.env.company.id,
+        }])
         cls.dept_a = cls.env['hr.department'].create({'name': 'Engineering'})
         cls.dept_b = cls.env['hr.department'].create({'name': 'Finance'})
         cls.hr_emp = cls.env['hr.employee'].search([('user_id', '=', cls.employee.id)], limit=1)
@@ -48,6 +52,17 @@ class TestHrDepartments(NasqHrCase):
         detail = self.api('GET', f'/api/v1/hr/departments/{self.dept_child.id}').json()
         self.assertEqual(detail['parent_id'], self.dept_a.id)
         self.assertEqual(set(detail), DEPT_KEYS)
+
+    def test_department_pagination_keeps_server_total(self):
+        expected_total = self.env['hr.department'].search_count([
+            ('company_id', '=', self.env.company.id),
+        ]) + 3
+        for index in range(3):
+            self.env['hr.department'].create({'name': f'Pagination Department {index}'})
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        body = self.api('GET', '/api/v1/hr/departments?limit=1&offset=1').json()
+        self.assertEqual(len(body['items']), 1)
+        self.assertEqual(body['total'], expected_total)
 
     def test_employee_count_includes_archived_employee(self):
         self.env['hr.employee'].create({

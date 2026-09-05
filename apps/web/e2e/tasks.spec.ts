@@ -15,8 +15,11 @@ test('my tasks table lists my open tasks, filters and opens the detail page', as
   await expect(page.getByText('لا نتائج.').filter({ visible: true })).toBeVisible()
   await page.getByPlaceholder('بحث في العناوين…').fill(name)
   await row.click()
-  await expect(page).toHaveURL(new RegExp('/tasks/\\d+$'))
+  await expect.poll(() => new URL(page.url()).searchParams.get('returnTo')).toBe('/tasks')
   await expect(page.getByTestId('task-detail-page').getByRole('textbox', { name: 'عنوان المهمة' })).toHaveValue(name)
+  await page.goBack()
+  await expect(page).toHaveURL(/\/tasks$/)
+  await expect(page.getByPlaceholder('بحث في العناوين…')).toHaveValue(name)
 })
 test('inline transition to done moves the task to the closed filter', async ({ page }) => {
   await login(page)
@@ -80,4 +83,17 @@ test('closed tab shows a closed-specific empty state with no create action', asy
   if ((await dataRows.count()) === 0) {
     await expect(page.getByText('لا مهام منجزة بعد').filter({ visible: true })).toBeVisible()
   }
+})
+
+test('task creation is a reloadable page with a safe return target', async ({ page }) => {
+  await login(page)
+  await page.goto('/tasks?q=return-check')
+  await page.getByRole('button', { name: 'مهمة جديدة' }).click()
+  await expect.poll(() => new URL(page.url()).searchParams.get('returnTo')).toBe('/tasks?q=return-check')
+  await page.reload()
+  await expect(page.getByRole('heading', { name: 'مهمة جديدة' })).toBeVisible()
+  await expect(page.getByTestId('task-create-form')).toBeVisible()
+  await expect(page.locator('[data-slot="dialog-content"], [data-slot="sheet-content"], [data-slot="dialog-overlay"], [data-slot="sheet-overlay"]')).toHaveCount(0)
+  await page.getByRole('button', { name: 'إلغاء' }).click()
+  await expect(page).toHaveURL(/\/tasks\?q=return-check/)
 })

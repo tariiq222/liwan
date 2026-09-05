@@ -19,6 +19,6 @@ const { data: entries } = useTimeline(idRef)
     <div class="flex-1 overflow-y-auto p-4">
       <Timeline :entries="entries ?? []" />
     </div>
-    <CommentComposer :task-id="task.id" />
+    <CommentComposer v-if="task.can_write" :task-id="task.id" />
   </div>
 </template>

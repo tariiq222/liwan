@@ -7,5 +7,5 @@ export const ApiErrorSchema = z.object({
   code: z.string(),
   message: z.string(),
   field: z.string().optional(),
-  details: z.record(z.string(), z.number()).optional(),
+  details: z.record(z.string(), z.unknown()).optional(),
 }).strict()

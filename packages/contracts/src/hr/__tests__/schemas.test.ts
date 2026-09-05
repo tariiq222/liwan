@@ -4,9 +4,11 @@ import {
   HrAccessRoleSchema,
   HrDepartmentSchema,
   HrDepartmentCreateSchema,
+  HrDepartmentListSchema,
   HrDepartmentPatchSchema,
   HrDocumentAttachmentSchema,
   HrDocumentDetailSchema,
+  HrDocumentListSchema,
   HrDocumentSchema,
   HrEmployeeAccessSchema,
   HrEmployeeCreateSchema,
@@ -119,6 +121,15 @@ describe('Phase 3b HR input and compatibility schemas', () => {
     expect(() => HrEmployeeSchema.parse({ ...EMPLOYEE, extra: true })).toThrow()
     expect(() => HrAccessGrantSchema.parse({ password: '12345678', role: 'vendor' })).toThrow()
     expect(() => HrAccessPatchSchema.parse({})).toThrow()
+  })
+
+  it('keeps every HR list envelope server-counted and rejects invalid totals', () => {
+    expect(HrEmployeeListSchema.parse({ items: [EMPLOYEE], total: 1 })).toEqual({ items: [EMPLOYEE], total: 1 })
+    expect(HrDepartmentListSchema.parse({ items: [DEPARTMENT], total: 1 }).total).toBe(1)
+    expect(HrDocumentListSchema.parse({ items: [DOCUMENT], total: 1 }).total).toBe(1)
+    expect(() => HrEmployeeListSchema.parse({ items: [], total: -1 })).toThrow()
+    expect(() => HrDepartmentListSchema.parse({ items: [], total: -1 })).toThrow()
+    expect(() => HrDocumentListSchema.parse({ items: [], total: -1 })).toThrow()
   })
 
   it('accepts strict employee and department writes with nullable relations', () => {

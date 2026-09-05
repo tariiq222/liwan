@@ -1,5 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from odoo import fields, models
+from odoo import api, fields, models
 from odoo.exceptions import AccessError, UserError
 
 from .nasq_settings import CREATORS
@@ -11,6 +11,7 @@ STATUS_VALUES = {'on_track', 'at_risk', 'off_track', 'on_hold', 'done'}
 # PROJECT_CREATORS, not nasq_settings.CREATORS, from here.
 PROJECT_CREATORS = CREATORS
 VISIBILITY_VALUES = ('employees', 'followers')
+ACCESS_USER_CREATE_MARKER = 'nasq_core.access_user_create_depth'
 # Fields a nasq manager (group or per-project assigned user) may write via
 # _nasq_write_as_manager/_nasq_write_sudo. Anything else must go through a
 # dedicated, explicitly-reviewed path instead of this generic sudo'd write.
@@ -18,6 +19,7 @@ MANAGER_WRITABLE = {
     'name', 'description', 'user_id', 'privacy_visibility', 'date_start', 'date',
     'tag_ids', 'active', 'last_update_status', 'allow_milestones', 'type_ids',
 }
+PROJECT_CREATE_FIELDS = MANAGER_WRITABLE | {'company_id'}
 
 
 def _not_empty(message, count):
@@ -29,25 +31,119 @@ def _not_empty(message, count):
 class ProjectProject(models.Model):
     _inherit = 'project.project'
 
+    @api.model
+    def _search(
+        self, domain, offset=0, limit=None, order=None, *,
+        active_test=True, bypass_access=False,
+    ):
+        if (
+            not bypass_access
+            and not self.env.is_superuser()
+            and not self.env.user.has_group('base.group_system')
+            and not self.env.cr.precommit.data.get(ACCESS_USER_CREATE_MARKER)
+        ):
+            self.env['nasq.access.service']._nasq_require_capability(
+                'pmo.projects.read',
+            )
+        return super()._search(
+            domain, offset=offset, limit=limit, order=order,
+            active_test=active_test, bypass_access=bypass_access,
+        )
+
+    def check_access(self, operation):
+        if (
+            operation == 'read'
+            and not self.env.is_superuser()
+            and not self.env.user.has_group('base.group_system')
+            and not self.env.cr.precommit.data.get(ACCESS_USER_CREATE_MARKER)
+        ):
+            self.env['nasq.access.service']._nasq_require_capability(
+                'pmo.projects.read',
+            )
+        return super().check_access(operation)
+
+    def _nasq_check_visible_current(self):
+        if not self:
+            return self
+        if any(
+            project.company_id and project.company_id != self.env.company
+            for project in self
+        ):
+            raise AccessError(self.env._("Project is outside the current company."))
+        self.check_access('read')
+        return self
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        if (
+            not self.env.is_superuser()
+            and not self.env.user.has_group('base.group_system')
+            and not self.env.cr.precommit.data.get(ACCESS_USER_CREATE_MARKER)
+        ):
+            if any(
+                set(vals) - PROJECT_CREATE_FIELDS
+                or vals.get('company_id', self.env.company.id) != self.env.company.id
+                for vals in vals_list
+            ):
+                raise AccessError(self.env._("Project fields are not allowed."))
+            if not self._nasq_can_create():
+                raise AccessError(self.env._("You are not allowed to create projects."))
+        return super().create(vals_list)
+
+    def write(self, vals):
+        if (
+            not self.env.is_superuser()
+            and not self.env.user.has_group('base.group_system')
+            and not self.env.cr.precommit.data.get(ACCESS_USER_CREATE_MARKER)
+        ):
+            self._nasq_check_visible_current()
+            if set(vals) - MANAGER_WRITABLE:
+                raise AccessError(self.env._("Project fields are not allowed."))
+            if any(not project._nasq_can_manage() for project in self):
+                raise AccessError(self.env._("Only the project manager can change this project."))
+        return super().write(vals)
+
+    def unlink(self):
+        if (
+            not self.env.is_superuser()
+            and not self.env.user.has_group('base.group_system')
+            and not self.env.cr.precommit.data.get(ACCESS_USER_CREATE_MARKER)
+        ):
+            raise AccessError(self.env._("Projects cannot be permanently deleted."))
+        return super().unlink()
+
     # --- rules ---------------------------------------------------------------
     def _nasq_is_admin(self):
-        return self.env.user.has_group('nasq_core.group_customer_admin')
+        return self.env['nasq.access.service']._nasq_has_capability(
+            self.env.user, 'pmo.projects.manage',
+        )
 
     def _nasq_is_manager(self):
         """Group-level rule: project managers and customer admins (any project)."""
-        return self.env.user.has_group('project.group_project_manager') or self._nasq_is_admin()
+        return self._nasq_is_admin()
 
     def _nasq_can_manage(self):
         """Per-project rule: the group rule OR being this project's assigned manager."""
         self.ensure_one()
-        return self._nasq_is_manager() or self.user_id == self.env.user
+        return self.env['nasq.access.service']._nasq_has_capability(
+            self.env.user, 'pmo.projects.manage', record=self,
+        )
 
     def _nasq_check_manage(self):
         if not self._nasq_can_manage():
             raise AccessError(self.env._("Only the project manager can change this project."))
 
     def _nasq_can_create(self):
-        return self._nasq_is_manager() or self.env['nasq.pmo.settings'].get()['project_creators'] == 'employees'
+        service = self.env['nasq.access.service']
+        return (
+            service._nasq_has_capability(
+                self.env.user, 'pmo.projects.create',
+            )
+            or (
+                service._nasq_is_employee_principal(self.env.user)
+                and self.env['nasq.pmo.settings'].get()['project_creators'] == 'employees'
+            )
+        )
 
     def _nasq_write_sudo(self, vals):
         """Write project fields in sudo, whitelisted, with NO manage-rule check.

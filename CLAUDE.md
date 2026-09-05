@@ -56,6 +56,14 @@ explicitly; do not assume an Odoo config points at a particular Nasq checkout.
 
 ## Product contracts
 
+- Every business screen is an internal page in the normal system layout,
+  including detail, create, edit, settings, and search. Do not implement these
+  workflows in Dialog, AlertDialog, Sheet, Drawer, or CommandDialog overlays.
+  Use stable routes, visible page headings, direct-link/refresh support, and
+  back navigation preserving list filters. Destructive actions use explicit
+  inline confirmation on the relevant page. Simple selection menus remain
+  controls; they must not become containers for business screens. This is a
+  standing user requirement across Nasq and applies to future features.
 - Arabic (`ar`) is the default locale and the UI is RTL-first. User-facing
   strings use `$t()`/`t()` and the owning locale namespace.
 - Use Tailwind logical properties (`ms-`, `me-`, `ps-`, `pe-`, `start-`,

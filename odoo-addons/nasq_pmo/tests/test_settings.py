@@ -10,13 +10,26 @@ class TestSettings(NasqPmoCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        cls.admin = new_test_user(cls.env, login='api_admin', password='api_admin_pass_123', groups='nasq_core.group_customer_admin')
+        cls.admin = new_test_user(
+            cls.env, login='api_admin', password='api_admin_pass_123',
+            groups='nasq_core.group_pmo_manager',
+        )
 
-    def test_admin_only(self):
-        for login, pwd in (('api_emp', 'api_emp_pass_123'), ('api_mgr', 'api_mgr_pass_123')):
-            self.authenticate(login, pwd)
-            self.assertEqual(self.api('GET', '/api/v1/settings/projects').status_code, 403)
-            self.assertEqual(self.api('PATCH', '/api/v1/settings/projects', {'project_creators': 'employees'}).status_code, 403)
+    def setUp(self):
+        super().setUp()
+        params = self.env['ir.config_parameter'].sudo()
+        params.set_param('nasq_pmo.project_creators', 'managers')
+        params.set_param('nasq_pmo.default_stages', False)
+
+    def test_employee_is_forbidden_and_legacy_pmo_manager_is_allowed(self):
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        self.assertEqual(self.api('GET', '/api/v1/settings/projects').status_code, 403)
+        self.assertEqual(self.api(
+            'PATCH', '/api/v1/settings/projects', {'project_creators': 'employees'},
+        ).status_code, 403)
+
+        self.authenticate('api_mgr', 'api_mgr_pass_123')
+        self.assertEqual(self.api('GET', '/api/v1/settings/projects').status_code, 200)
 
     def test_get_and_patch(self):
         self.authenticate('api_admin', 'api_admin_pass_123')

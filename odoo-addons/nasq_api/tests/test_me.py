@@ -10,6 +10,7 @@ from odoo.addons.nasq_api.controllers.common import (
     clear_security_caches_after_commit,
     fresh_session_token,
 )
+from odoo.addons.nasq_api.serializers.user import dump_me
 
 
 @tagged('post_install', '-at_install', 'nasq')
@@ -35,13 +36,36 @@ class TestMeEndpoint(HttpCase):
         self.assertEqual(body['tz'], 'Asia/Riyadh')
         self.assertEqual(body['role'], 'employee')
         self.assertEqual(body['company']['id'], self.env.ref('base.main_company').id)
-        self.assertEqual(set(body), {'id', 'name', 'login', 'email', 'lang', 'tz', 'role', 'company'})
+        self.assertEqual(set(body), {
+            'id', 'name', 'login', 'email', 'lang', 'tz', 'role', 'company',
+            'roles', 'capabilities', 'access_policy_version',
+        })
 
     def test_customer_admin(self):
         new_test_user(self.env, login='cadmin', password='cadmin_password_123',
                       groups='nasq_core.group_customer_admin')
         self.authenticate('cadmin', 'cadmin_password_123')
         self.assertEqual(self.url_open('/api/v1/me').json()['role'], 'admin')
+
+    def test_access_identity_is_additive_sorted_and_versioned(self):
+        user = new_test_user(
+            self.env, login='me_multi_role', password='me_multi_role_pass_123',
+            groups='nasq_core.group_employee',
+        )
+        for key in ('hr_manager', 'pmo_manager'):
+            self.env['nasq.access.assignment'].create({
+                'user_id': user.id,
+                'role_id': self.env.ref(f'nasq_core.role_{key}').id,
+                'company_id': self.env.company.id,
+            })
+        self.authenticate('me_multi_role', 'me_multi_role_pass_123')
+        body = self.url_open('/api/v1/me').json()
+        self.assertEqual(body['capabilities'], sorted(set(body['capabilities'])))
+        self.assertIn('hr.employees.manage', body['capabilities'])
+        self.assertIn('pmo.projects.manage', body['capabilities'])
+        self.assertNotIn('access.users.assign_roles', body['capabilities'])
+        self.assertEqual({role['key'] for role in body['roles']}, {'hr_manager', 'pmo_manager'})
+        self.assertGreaterEqual(body['access_policy_version'], 1)
 
     def test_vendor(self):
         new_test_user(self.env, login='vendor', password='vendor_password_123',
@@ -71,6 +95,29 @@ class TestMeEndpoint(HttpCase):
         self.authenticate('nolang', 'nolang_password_123')
 
         self.assertEqual(self.url_open('/api/v1/me').json()['lang'], 'ar_001')
+
+    def test_me_uses_current_company_for_scoped_capabilities(self):
+        company_b = self.env['res.company'].create({'name': 'Me company B'})
+        user = new_test_user(
+            self.env, login='me_company_scope', groups='base.group_user',
+            company_id=self.env.company.id,
+        )
+        user.write({
+            'company_ids': [(6, 0, [self.env.company.id, company_b.id])],
+        })
+        self.env['nasq.access.service']._nasq_replace_assignments(user, [{
+            'role_id': self.env.ref('nasq_core.role_system_admin').id,
+            'company_id': self.env.company.id,
+        }])
+        env_b = self.env(
+            user=user,
+            context={'allowed_company_ids': [company_b.id, self.env.company.id]},
+        )
+
+        body = dump_me(user.with_env(env_b))
+
+        self.assertEqual(body['company']['id'], company_b.id)
+        self.assertNotIn('access.users.assign_roles', body['capabilities'])
 
 
 @tagged('post_install', '-at_install', 'nasq')

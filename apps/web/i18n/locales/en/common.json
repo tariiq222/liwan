@@ -6,20 +6,41 @@
     "save": "Save",
     "create": "Create",
     "noResults": "No results.",
-    "loadMore": "Load more"
+    "loadMore": "Load more",
+    "loading": "Loading",
+    "back": "Back",
+    "retry": "Try again",
+    "unsavedChanges": "You have unsaved changes. Stay on this page or leave without saving?",
+    "stay": "Stay on this page",
+    "discardAndLeave": "Leave without saving"
   },
   "nav": {
     "today": "Today",
     "tasks": "My tasks",
     "projects": "Projects",
+    "toggleNavigation": "Toggle navigation",
     "people": "People",
     "reports": "Reports",
     "console": "Console",
     "goTo": "Go to",
     "typeToNavigate": "Type to navigate…",
+    "searchDescription": "Find a page or project and open it directly.",
+    "back": "Back",
+    "loading": "Loading…",
     "account": "Account",
     "logout": "Log out",
-    "settings": "Settings"
+    "settings": "Settings",
+    "employees": "Employees",
+    "departments": "Departments",
+    "documents": "Documents",
+    "users": "Users",
+    "roles": "Roles & permissions",
+    "accessLog": "Access change log",
+    "branding": "Company identity",
+    "projectSettings": "Project settings",
+    "humanResources": "Human resources",
+    "systemAdministration": "System administration",
+    "toggleSidebar": "Toggle navigation"
   },
   "auth": {
     "username": "Username",
@@ -36,7 +57,10 @@
   "errors": {
     "serverUnreachable": "Unable to reach the server",
     "badPayload": "Invalid response from the server",
-    "generic": "An unexpected error occurred"
+    "generic": "An unexpected error occurred",
+    "forbidden": "You do not have permission to view this page.",
+    "notFound": "This record is unavailable or no longer exists.",
+    "conflict": "The data changed since you opened this page. Reload it and try again."
   },
   "account": {
     "title": "Account",

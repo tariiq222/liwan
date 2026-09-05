@@ -6,21 +6,80 @@ from odoo.addons.project.models.project_task import CLOSED_STATES
 
 MANAGER_STATES = {'03_approved', '02_changes_requested'}
 ALL_STATES = {'01_in_progress', '02_changes_requested', '03_approved', '04_waiting_normal', *CLOSED_STATES}
+TASK_CREATE_MARKER = 'nasq_pmo.task_create_depth'
+ACCESS_USER_CREATE_MARKER = 'nasq_core.access_user_create_depth'
+APPROVAL_WRITE_FIELDS = {'state', 'date_end', 'date_last_stage_update'}
+TASK_WRITABLE_FIELDS = {
+    'active', 'allocated_hours', 'date_deadline', 'date_end', 'date_last_stage_update',
+    'description', 'milestone_id', 'name', 'personal_stage_type_id', 'priority',
+    'stage_id', 'state', 'tag_ids', 'user_ids',
+}
+TASK_CREATE_FIELDS = TASK_WRITABLE_FIELDS | {'parent_id', 'project_id'}
 
 
 class ProjectTask(models.Model):
     _inherit = 'project.task'
 
+    @api.model
+    def _search(
+        self, domain, offset=0, limit=None, order=None, *,
+        active_test=True, bypass_access=False,
+    ):
+        if (
+            not bypass_access
+            and not self.env.is_superuser()
+            and not self.env.user.has_group('base.group_system')
+            and not self.env.cr.precommit.data.get(ACCESS_USER_CREATE_MARKER)
+        ):
+            self.env['nasq.access.service']._nasq_require_capability(
+                'pmo.tasks.read',
+            )
+        return super()._search(
+            domain, offset=offset, limit=limit, order=order,
+            active_test=active_test, bypass_access=bypass_access,
+        )
+
+    def check_access(self, operation):
+        if (
+            operation == 'read'
+            and not self.env.is_superuser()
+            and not self.env.user.has_group('base.group_system')
+            and not self.env.cr.precommit.data.get(ACCESS_USER_CREATE_MARKER)
+        ):
+            self.env['nasq.access.service']._nasq_require_capability(
+                'pmo.tasks.read',
+            )
+        return super().check_access(operation)
+
+    def _nasq_check_visible_current(self):
+        if not self:
+            return self
+        if any(
+            task.company_id and task.company_id != self.env.company
+            for task in self
+        ):
+            raise AccessError(self.env._("Task is outside the current company."))
+        self.check_access('read')
+        return self
+
     def _nasq_can_approve(self):
         """True when the current user (regardless of ``self``) may approve / request changes."""
-        return (
-            self.env.user.has_group('project.group_project_manager')
-            or self.env.user.has_group('nasq_core.group_customer_admin')
+        self.ensure_one()
+        return self.env['nasq.access.service']._nasq_has_capability(
+            self.env.user, 'pmo.tasks.approve', record=self,
+        )
+
+    def _nasq_can_write(self):
+        self.ensure_one()
+        return self.env['nasq.access.service']._nasq_has_capability(
+            self.env.user, 'pmo.tasks.write', record=self,
         )
 
     def _nasq_can_archive(self):
         self.ensure_one()
-        return self.project_id._nasq_can_manage() or self.create_uid == self.env.user
+        return self._nasq_can_write() and (
+            self.create_uid == self.env.user or self._nasq_can_approve()
+        )
 
     def _nasq_archive(self):
         self.ensure_one()
@@ -99,15 +158,78 @@ class ProjectTask(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
-        tasks = super().create(vals_list)
+        trusted = (
+            self.env.is_superuser()
+            or self.env.user.has_group('base.group_system')
+            or self.env.cr.precommit.data.get(ACCESS_USER_CREATE_MARKER)
+        )
+        if not trusted:
+            service = self.env['nasq.access.service']
+            for vals in vals_list:
+                if set(vals) - TASK_CREATE_FIELDS:
+                    raise AccessError(self.env._("Task fields are not allowed."))
+                parent = self.browse(vals.get('parent_id')).exists()
+                if parent:
+                    parent._nasq_check_visible_current()
+                project = self.env['project.project'].browse(
+                    vals.get('project_id'),
+                ).exists()
+                if not project and parent:
+                    project = parent.project_id
+                if not project:
+                    raise AccessError(self.env._("A visible current-company project is required."))
+                project._nasq_check_visible_current()
+                if parent and parent.project_id != project:
+                    raise AccessError(self.env._("Parent task must belong to the same project."))
+                service._nasq_require_capability('pmo.tasks.create', record=project)
+                if vals.get('state') in MANAGER_STATES:
+                    service._nasq_require_capability('pmo.tasks.approve', record=project)
+        marker = self.env.cr.precommit.data
+        marker[TASK_CREATE_MARKER] = marker.get(TASK_CREATE_MARKER, 0) + 1
+        try:
+            tasks = super().create(vals_list)
+        finally:
+            marker[TASK_CREATE_MARKER] -= 1
+            if not marker[TASK_CREATE_MARKER]:
+                marker.pop(TASK_CREATE_MARKER, None)
         tasks._nasq_notify('created')
         return tasks
 
     def write(self, vals):
+        trusted = (
+            self.env.is_superuser()
+            or self.env.user.has_group('base.group_system')
+            or self.env.cr.precommit.data.get(TASK_CREATE_MARKER)
+            or self.env.cr.precommit.data.get(ACCESS_USER_CREATE_MARKER)
+        )
+        if not trusted:
+            self._nasq_check_visible_current()
+            if set(vals) - TASK_WRITABLE_FIELDS:
+                raise AccessError(self.env._("Task fields are not allowed."))
+            if 'active' in vals and any(not task._nasq_can_archive() for task in self):
+                raise AccessError(self.env._(
+                    "Only the project manager or the task's creator can archive it.",
+                ))
+            approval_write = vals.get('state') in MANAGER_STATES
+            if approval_write and any(not task._nasq_can_approve() for task in self):
+                raise AccessError(self.env._("Only a project manager can approve or request changes."))
+            if (not approval_write or set(vals) - APPROVAL_WRITE_FIELDS) and any(
+                not task._nasq_can_write() for task in self
+            ):
+                raise AccessError(self.env._("You are not allowed to change this task."))
         before = {task.id: task.user_ids.partner_id for task in self}
         res = super().write(vals)
         self._nasq_notify('updated', extra_partners=before)
         return res
+
+    def unlink(self):
+        if (
+            not self.env.is_superuser()
+            and not self.env.user.has_group('base.group_system')
+            and not self.env.cr.precommit.data.get(ACCESS_USER_CREATE_MARKER)
+        ):
+            raise AccessError(self.env._("Tasks cannot be permanently deleted."))
+        return super().unlink()
 
     def _message_post_after_hook(self, message, msg_values):
         # message_post() (used for comments, e.g. by

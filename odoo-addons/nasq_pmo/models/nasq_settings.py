@@ -50,11 +50,14 @@ class NasqPmoSettings(models.AbstractModel):
         }
 
     def _can_edit(self):
-        return self.env.user.has_group('nasq_core.group_customer_admin')
+        return self.env['nasq.access.service']._nasq_has_capability(
+            self.env.user, 'pmo.settings.manage',
+        )
 
     def set_values(self, vals):
         if not self._can_edit():
             raise AccessError(self.env._("Only a customer administrator can change project policies."))
+        before = self.get()
         if 'project_creators' in vals:
             if vals['project_creators'] not in CREATORS:
                 field, msg = 'project_creators', "project_creators must be 'managers' or 'employees'"
@@ -73,7 +76,10 @@ class NasqPmoSettings(models.AbstractModel):
                     raise _invalid(field, msg)
                 clean.append({'name': name.strip(), 'fold': bool(s.get('fold'))})
             self._params().set_param(PARAM_STAGES, json.dumps(clean, ensure_ascii=False))
-        return self.get()
+        result = self.get()
+        if result != before:
+            self.env['nasq.access.service']._nasq_bump_policy(self.env.company)
+        return result
 
     def _default_stage_vals(self):
         """Create-ready vals for a new project's stages, in policy order."""

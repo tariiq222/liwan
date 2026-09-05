@@ -19,6 +19,9 @@ class ProjectController(http.Controller):
     @http.route('/api/v1/projects', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
     def list_projects(self, **_):
+        request.env['nasq.access.service']._nasq_require_capability(
+            'pmo.projects.read',
+        )
         args = request.httprequest.args
         unknown = set(args) - {'minimal', 'archived'}
         if unknown:
@@ -36,6 +39,7 @@ class ProjectController(http.Controller):
             return [{'id': p.id, 'name': p.name} for p in projects]
         return {
             'items': [dump_project(p) for p in projects],
+            'total': Project.with_context(active_test=not archived).search_count(domain),
             'can_create': Project._nasq_can_create(),
             'can_list_archived': Project._nasq_is_manager(),
         }
@@ -54,6 +58,9 @@ class ProjectController(http.Controller):
     @http.route('/api/v1/projects/<int:project_id>', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
     def get_project(self, project_id):
+        request.env['nasq.access.service']._nasq_require_capability(
+            'pmo.projects.read',
+        )
         return dump_project_detail(get_record('project.project', project_id))
 
     @http.route('/api/v1/projects/<int:project_id>', type='json2', auth='user', methods=['PATCH'], readonly=False)

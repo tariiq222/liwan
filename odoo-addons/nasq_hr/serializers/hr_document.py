@@ -17,11 +17,10 @@ def _iso(dt):
 
 
 def dump_document(doc):
-    dept = doc.department_id
     return {
         'id': doc.id,
         'name': doc.name,
-        'department': {'id': dept.id, 'name': dept.name},
+        'department': doc._nasq_department_ref(),
         'body': doc.body or '',
         'attachment_ids': [{
             'id': a.id,

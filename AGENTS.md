@@ -15,6 +15,12 @@ These are repository instructions for every coding agent, regardless of tool.
   through `nasq_hr`. Do not recreate either pillar.
 - The HR page is `/hr`; `/api/v1/people` remains the PMO user-id picker. Preserve
   HR documents and the `{items, total}` list envelopes.
+- All business screens use internal page routes in the normal app layout.
+  Do not introduce drawers, sheets, or modal popups for detail, create, edit,
+  settings, or search workflows. Give pages direct links and working refresh
+  and back navigation that preserves list filters. Confirm destructive actions
+  inline in the relevant page. This is the user's standing design rule for
+  the entire system; simple value-selection menus are controls, not screens.
 - Phase 3b is delivered on the local `codex/phase-3b` branch and remains
   unmerged into canonical `main`. Read its spec, plan, handoff, and delivery
   report under `docs/superpowers/`; archived plans and WIP are reference

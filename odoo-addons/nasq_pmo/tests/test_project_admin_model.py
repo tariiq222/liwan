@@ -15,9 +15,17 @@ class TestProjectAdminModel(TransactionCase):
         cls.other = new_test_user(cls.env, login='pa_other', groups='nasq_core.group_employee')
         cls.manager = new_test_user(cls.env, login='pa_mgr',
                                     groups='nasq_core.group_employee,project.group_project_manager')
-        cls.admin = new_test_user(cls.env, login='pa_admin', groups='nasq_core.group_customer_admin')
+        cls.admin = new_test_user(
+            cls.env, login='pa_admin', groups='nasq_core.group_pmo_manager',
+        )
         cls.project = cls.env['project.project'].create({'name': 'Admin project', 'user_id': cls.employee.id})
         cls.Settings = cls.env['nasq.pmo.settings']
+
+    def setUp(self):
+        super().setUp()
+        params = self.env['ir.config_parameter'].sudo()
+        params.set_param('nasq_pmo.project_creators', 'managers')
+        params.set_param('nasq_pmo.default_stages', False)
 
     # --- rules -------------------------------------------------------------
     def test_can_manage_assigned_user_outside_group(self):
@@ -45,8 +53,12 @@ class TestProjectAdminModel(TransactionCase):
         self.assertTrue(p.with_user(self.other)._nasq_can_manage())
 
     def test_settings_validation_and_access(self):
-        with self.assertRaises(AccessError):
-            self.Settings.with_user(self.manager).set_values({'project_creators': 'employees'})
+        self.assertEqual(
+            self.Settings.with_user(self.manager).set_values({
+                'project_creators': 'employees',
+            })['project_creators'],
+            'employees',
+        )
         with self.assertRaises(ValueError):
             self.Settings.with_user(self.admin).set_values({'project_creators': 'anyone'})
         with self.assertRaises(ValueError):

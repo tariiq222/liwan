@@ -1,64 +1,69 @@
 import { test, expect } from '@playwright/test'
 
-const ADMIN_LOGIN = process.env.E2E_ADMIN_LOGIN ?? 'admin'
-const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD ?? 'admin'
-
 async function login(page) {
   await page.goto('/login')
-  await page.getByLabel('اسم المستخدم').fill(ADMIN_LOGIN)
-  await page.getByLabel('كلمة المرور').fill(ADMIN_PASSWORD)
+  await page.getByLabel('اسم المستخدم').fill('admin')
+  await page.getByLabel('كلمة المرور').fill('admin')
   await page.getByRole('button', { name: 'دخول' }).click()
   await expect(page).toHaveURL(/\/tasks$/)
 }
 
-// Employee users are created through Odoo (or the API), never the Nuxt UI.
-// Checks that an employee does not see قسم جديد / مستند جديد (and gets 403 on
-// writes) therefore need an Odoo-created nasq_core.group_employee user and
-// are not exercised in this file.
-
-test('admin directory: table, search, read-only card, and write actions', async ({ page }) => {
+test('HR routes create, edit, reload, and archive an employee', async ({ page }) => {
   await login(page)
+
+  const employeeName = `E2E employee ${Date.now()}`
+  await page.goto('/hr/employees/new')
+  await expect(page.getByRole('heading', { name: 'موظف جديد' })).toBeVisible()
+  await page.getByLabel('الاسم').fill(employeeName)
+  await page.getByLabel('البريد الوظيفي').fill(`e2e-${Date.now()}@example.com`)
+  await page.getByRole('button', { name: 'حفظ' }).click()
+  await expect(page).toHaveURL(/\/hr\/employees\/\d+(?:\?|$)/)
+  await expect(page.getByText(employeeName).first()).toBeVisible()
+
+  const employeeId = Number(new URL(page.url()).pathname.split('/').at(-1))
+  expect(employeeId).toBeGreaterThan(0)
+  await page.goto(`/hr/employees/${employeeId}/edit`)
+  await page.getByLabel('المسمى الوظيفي').fill('E2E coordinator')
+  await page.getByRole('button', { name: 'حفظ' }).click()
+  await expect(page).toHaveURL(new RegExp(`/hr/employees/${employeeId}(?:\\?|$)`))
+  await page.goto(`/hr/employees/${employeeId}/edit`)
+  await page.reload()
+  await expect(page.getByLabel('المسمى الوظيفي')).toHaveValue('E2E coordinator')
+
   await page.goto('/hr')
-  await expect(page.getByRole('heading', { name: 'الأشخاص' })).toBeVisible()
-  await expect(page.getByRole('columnheader', { name: 'الاسم' })).toBeVisible()
-  await expect(page.getByRole('columnheader', { name: 'المسمى الوظيفي' })).toBeVisible()
-  await expect(page.getByRole('columnheader', { name: 'القسم' })).toBeVisible()
+  await page.getByPlaceholder('بحث بالاسم…').fill(employeeName)
+  await page.getByRole('row', { name: new RegExp(employeeName) }).click()
+  await expect(page).toHaveURL(new RegExp(`/hr/employees/${employeeId}(?:\\?|$)`))
+  await page.getByRole('button', { name: 'أرشفة الموظف' }).first().click()
+  await page.getByRole('button', { name: 'أرشفة الموظف' }).last().click()
 
-  const employees = await (await page.request.get('/api/v1/hr/employees')).json()
-  expect(employees.items.length).toBeGreaterThan(0)
-  const employee = employees.items[0]
+  await expect.poll(async () => (await (await page.request.get(`/api/v1/hr/employees/${employeeId}`)).json()).active).toBe(false)
+  await page.goto('/hr')
+  await page.getByRole('button', { name: 'عرض المؤرشفين' }).click()
+  await page.getByPlaceholder('بحث بالاسم…').fill(employeeName)
+  await expect(page.getByRole('row', { name: new RegExp(employeeName) })).toBeVisible()
+  const archived = await (await page.request.get(`/api/v1/hr/employees/${employeeId}`)).json()
+  expect(archived.active).toBe(false)
+})
 
-  await page.getByPlaceholder('بحث بالاسم…').fill('zzz-no-such-employee')
-  await expect(page.getByText('لا موظفون بعد')).toBeVisible()
+test('HR department route creates, edits, and reloads a department', async ({ page }) => {
+  await login(page)
 
-  await page.getByPlaceholder('بحث بالاسم…').fill(employee.name)
-  const row = page.getByRole('row', { name: new RegExp(employee.name) })
-  await expect(row).toBeVisible()
-  await row.click()
+  const departmentName = `E2E department ${Date.now()}`
+  const editedName = `${departmentName} edited`
+  await page.goto('/hr/departments/new')
+  await expect(page.getByRole('heading', { name: 'قسم جديد' })).toBeVisible()
+  await page.getByLabel('الاسم').fill(departmentName)
+  await page.getByRole('button', { name: 'حفظ' }).click()
+  await expect(page).toHaveURL(/\/hr\/departments\/\d+(?:\?|$)/)
+  await expect(page.getByText(departmentName).first()).toBeVisible()
 
-  const card = page.getByRole('dialog')
-  await expect(card.getByRole('heading', { name: 'بطاقة الموظف' })).toBeVisible()
-  await expect(card.getByText(employee.name).first()).toBeVisible()
-  await expect(card.getByRole('button', { name: 'حفظ' })).toHaveCount(0)
-  await expect(card.getByRole('textbox')).toHaveCount(0)
-
-  await page.keyboard.press('Escape')
-
-  await page.getByRole('button', { name: 'الأقسام' }).click()
-  await expect(page.getByRole('button', { name: 'قسم جديد' })).toBeVisible()
-  await page.keyboard.press('Escape')
-
-  let departments = await (await page.request.get('/api/v1/hr/departments')).json()
-  if (!departments.items.length) {
-    const created = await page.request.post('/api/v1/hr/departments', {
-      data: { name: `E2E dept ${Date.now()}` },
-    })
-    expect(created.status()).toBe(201)
-    await page.reload()
-    departments = await (await page.request.get('/api/v1/hr/departments')).json()
-  }
-  const dept = departments.items[0]
-  await page.getByRole('tab', { name: 'الأقسام' }).click()
-  await page.getByTestId('hr-department-table').getByRole('button', { name: new RegExp(dept.name) }).click()
-  await expect(page.getByRole('button', { name: 'مستند جديد' }).first()).toBeVisible()
+  const departmentId = Number(new URL(page.url()).pathname.split('/').at(-1))
+  expect(departmentId).toBeGreaterThan(0)
+  await page.goto(`/hr/departments/${departmentId}/edit`)
+  await page.getByLabel('الاسم').fill(editedName)
+  await page.getByRole('button', { name: 'حفظ' }).click()
+  await expect(page).toHaveURL(new RegExp(`/hr/departments/${departmentId}(?:\\?|$)`))
+  await page.reload()
+  await expect(page.getByRole('heading', { name: editedName, exact: true })).toBeVisible()
 })

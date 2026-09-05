@@ -1,0 +1,219 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="permission_access_users_read" model="nasq.access.permission">
+        <field name="key">access.users.read</field><field name="domain">access</field>
+        <field name="resource">users</field><field name="action">read</field>
+        <field name="name_ar">قراءة المستخدمين</field><field name="name_en">Read users</field>
+        <field name="description_ar">قراءة المستخدمين</field><field name="description_en">Read users</field>
+        <field name="group_xmlid">nasq_core.group_cap_access_users_read</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/><field name="project_contextual" eval="False"/>
+    </record>
+    <record id="permission_access_users_grant" model="nasq.access.permission">
+        <field name="key">access.users.grant</field><field name="domain">access</field>
+        <field name="resource">users</field><field name="action">grant</field>
+        <field name="name_ar">منح حساب</field><field name="name_en">Grant account</field>
+        <field name="description_ar">منح حساب</field><field name="description_en">Grant account</field>
+        <field name="group_xmlid">nasq_core.group_cap_access_users_grant</field>
+        <field name="custom_role_allowed" eval="False"/><field name="sensitive" eval="True"/><field name="project_contextual" eval="False"/>
+    </record>
+    <record id="permission_access_users_assign_roles" model="nasq.access.permission">
+        <field name="key">access.users.assign_roles</field><field name="domain">access</field>
+        <field name="resource">users</field><field name="action">assign_roles</field>
+        <field name="name_ar">إسناد الأدوار</field><field name="name_en">Assign roles</field>
+        <field name="description_ar">إسناد الأدوار</field><field name="description_en">Assign roles</field>
+        <field name="group_xmlid">nasq_core.group_cap_access_users_assign_roles</field>
+        <field name="custom_role_allowed" eval="False"/><field name="sensitive" eval="True"/><field name="project_contextual" eval="False"/>
+    </record>
+    <record id="permission_access_users_disable" model="nasq.access.permission">
+        <field name="key">access.users.disable</field><field name="domain">access</field>
+        <field name="resource">users</field><field name="action">disable</field>
+        <field name="name_ar">تعطيل المستخدمين</field><field name="name_en">Disable users</field>
+        <field name="description_ar">تعطيل المستخدمين</field><field name="description_en">Disable users</field>
+        <field name="group_xmlid">nasq_core.group_cap_access_users_disable</field>
+        <field name="custom_role_allowed" eval="False"/><field name="sensitive" eval="True"/><field name="project_contextual" eval="False"/>
+    </record>
+    <record id="permission_access_users_reset_password" model="nasq.access.permission">
+        <field name="key">access.users.reset_password</field><field name="domain">access</field>
+        <field name="resource">users</field><field name="action">reset_password</field>
+        <field name="name_ar">إعادة كلمة المرور</field><field name="name_en">Reset passwords</field>
+        <field name="description_ar">إعادة كلمة المرور</field><field name="description_en">Reset passwords</field>
+        <field name="group_xmlid">nasq_core.group_cap_access_users_reset_password</field>
+        <field name="custom_role_allowed" eval="False"/><field name="sensitive" eval="True"/><field name="project_contextual" eval="False"/>
+    </record>
+    <record id="permission_access_roles_read" model="nasq.access.permission">
+        <field name="key">access.roles.read</field><field name="domain">access</field>
+        <field name="resource">roles</field><field name="action">read</field>
+        <field name="name_ar">قراءة الأدوار</field><field name="name_en">Read roles</field>
+        <field name="description_ar">قراءة الأدوار</field><field name="description_en">Read roles</field>
+        <field name="group_xmlid">nasq_core.group_cap_access_roles_read</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/><field name="project_contextual" eval="False"/>
+    </record>
+    <record id="permission_access_roles_manage" model="nasq.access.permission">
+        <field name="key">access.roles.manage</field><field name="domain">access</field>
+        <field name="resource">roles</field><field name="action">manage</field>
+        <field name="name_ar">إدارة الأدوار</field><field name="name_en">Manage roles</field>
+        <field name="description_ar">إدارة الأدوار</field><field name="description_en">Manage roles</field>
+        <field name="group_xmlid">nasq_core.group_cap_access_roles_manage</field>
+        <field name="custom_role_allowed" eval="False"/><field name="sensitive" eval="True"/><field name="project_contextual" eval="False"/>
+    </record>
+    <record id="permission_access_audit_read" model="nasq.access.permission">
+        <field name="key">access.audit.read</field><field name="domain">access</field>
+        <field name="resource">audit</field><field name="action">read</field>
+        <field name="name_ar">قراءة سجل الصلاحيات</field><field name="name_en">Read access audit</field>
+        <field name="description_ar">قراءة سجل الصلاحيات</field><field name="description_en">Read access audit</field>
+        <field name="group_xmlid">nasq_core.group_cap_access_audit_read</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/><field name="project_contextual" eval="False"/>
+    </record>
+    <record id="permission_hr_employees_read" model="nasq.access.permission">
+        <field name="key">hr.employees.read</field><field name="domain">hr</field>
+        <field name="resource">employees</field><field name="action">read</field>
+        <field name="name_ar">قراءة الموظفين</field><field name="name_en">Read employees</field>
+        <field name="description_ar">قراءة الموظفين</field><field name="description_en">Read employees</field>
+        <field name="group_xmlid">nasq_core.group_cap_hr_employees_read</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/><field name="project_contextual" eval="False"/>
+    </record>
+    <record id="permission_hr_employees_manage" model="nasq.access.permission">
+        <field name="key">hr.employees.manage</field><field name="domain">hr</field>
+        <field name="resource">employees</field><field name="action">manage</field>
+        <field name="name_ar">إدارة الموظفين</field><field name="name_en">Manage employees</field>
+        <field name="description_ar">إدارة الموظفين</field><field name="description_en">Manage employees</field>
+        <field name="group_xmlid">nasq_core.group_cap_hr_employees_manage</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/><field name="project_contextual" eval="False"/>
+    </record>
+    <record id="permission_hr_employees_archive" model="nasq.access.permission">
+        <field name="key">hr.employees.archive</field><field name="domain">hr</field>
+        <field name="resource">employees</field><field name="action">archive</field>
+        <field name="name_ar">أرشفة الموظفين</field><field name="name_en">Archive employees</field>
+        <field name="description_ar">أرشفة الموظفين</field><field name="description_en">Archive employees</field>
+        <field name="group_xmlid">nasq_core.group_cap_hr_employees_archive</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/><field name="project_contextual" eval="False"/>
+    </record>
+    <record id="permission_hr_employees_access_status_read" model="nasq.access.permission">
+        <field name="key">hr.employees.access_status.read</field><field name="domain">hr</field>
+        <field name="resource">employees</field><field name="action">access_status_read</field>
+        <field name="name_ar">قراءة حالة الوصول</field><field name="name_en">Read access status</field>
+        <field name="description_ar">قراءة حالة الوصول</field><field name="description_en">Read access status</field>
+        <field name="group_xmlid">nasq_core.group_cap_hr_employees_access_status_read</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/><field name="project_contextual" eval="False"/>
+    </record>
+    <record id="permission_hr_departments_read" model="nasq.access.permission">
+        <field name="key">hr.departments.read</field><field name="domain">hr</field>
+        <field name="resource">departments</field><field name="action">read</field>
+        <field name="name_ar">قراءة الأقسام</field><field name="name_en">Read departments</field>
+        <field name="description_ar">قراءة الأقسام</field><field name="description_en">Read departments</field>
+        <field name="group_xmlid">nasq_core.group_cap_hr_departments_read</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/><field name="project_contextual" eval="False"/>
+    </record>
+    <record id="permission_hr_departments_manage" model="nasq.access.permission">
+        <field name="key">hr.departments.manage</field><field name="domain">hr</field>
+        <field name="resource">departments</field><field name="action">manage</field>
+        <field name="name_ar">إدارة الأقسام</field><field name="name_en">Manage departments</field>
+        <field name="description_ar">إدارة الأقسام</field><field name="description_en">Manage departments</field>
+        <field name="group_xmlid">nasq_core.group_cap_hr_departments_manage</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/><field name="project_contextual" eval="False"/>
+    </record>
+    <record id="permission_hr_documents_read" model="nasq.access.permission">
+        <field name="key">hr.documents.read</field><field name="domain">hr</field>
+        <field name="resource">documents</field><field name="action">read</field>
+        <field name="name_ar">قراءة المستندات</field><field name="name_en">Read documents</field>
+        <field name="description_ar">قراءة المستندات</field><field name="description_en">Read documents</field>
+        <field name="group_xmlid">nasq_core.group_cap_hr_documents_read</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/><field name="project_contextual" eval="False"/>
+    </record>
+    <record id="permission_hr_documents_manage" model="nasq.access.permission">
+        <field name="key">hr.documents.manage</field><field name="domain">hr</field>
+        <field name="resource">documents</field><field name="action">manage</field>
+        <field name="name_ar">إدارة المستندات</field><field name="name_en">Manage documents</field>
+        <field name="description_ar">إدارة المستندات</field><field name="description_en">Manage documents</field>
+        <field name="group_xmlid">nasq_core.group_cap_hr_documents_manage</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/><field name="project_contextual" eval="False"/>
+    </record>
+    <record id="permission_pmo_projects_read" model="nasq.access.permission">
+        <field name="key">pmo.projects.read</field><field name="domain">pmo</field>
+        <field name="resource">projects</field><field name="action">read</field>
+        <field name="name_ar">قراءة المشاريع</field><field name="name_en">Read projects</field>
+        <field name="description_ar">قراءة المشاريع</field><field name="description_en">Read projects</field>
+        <field name="group_xmlid">nasq_core.group_cap_pmo_projects_read</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/><field name="project_contextual" eval="False"/>
+    </record>
+    <record id="permission_pmo_projects_create" model="nasq.access.permission">
+        <field name="key">pmo.projects.create</field><field name="domain">pmo</field>
+        <field name="resource">projects</field><field name="action">create</field>
+        <field name="name_ar">إنشاء المشاريع</field><field name="name_en">Create projects</field>
+        <field name="description_ar">إنشاء المشاريع</field><field name="description_en">Create projects</field>
+        <field name="group_xmlid">nasq_core.group_cap_pmo_projects_create</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/><field name="project_contextual" eval="False"/>
+    </record>
+    <record id="permission_pmo_projects_manage" model="nasq.access.permission">
+        <field name="key">pmo.projects.manage</field><field name="domain">pmo</field>
+        <field name="resource">projects</field><field name="action">manage</field>
+        <field name="name_ar">إدارة المشاريع</field><field name="name_en">Manage projects</field>
+        <field name="description_ar">إدارة المشاريع</field><field name="description_en">Manage projects</field>
+        <field name="group_xmlid">nasq_core.group_cap_pmo_projects_manage</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/><field name="project_contextual" eval="True"/>
+    </record>
+    <record id="permission_pmo_settings_manage" model="nasq.access.permission">
+        <field name="key">pmo.settings.manage</field><field name="domain">pmo</field>
+        <field name="resource">settings</field><field name="action">manage</field>
+        <field name="name_ar">إدارة إعدادات المشاريع</field><field name="name_en">Manage PMO settings</field>
+        <field name="description_ar">إدارة إعدادات المشاريع</field><field name="description_en">Manage PMO settings</field>
+        <field name="group_xmlid">nasq_core.group_cap_pmo_settings_manage</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/><field name="project_contextual" eval="False"/>
+    </record>
+    <record id="permission_pmo_tasks_read" model="nasq.access.permission">
+        <field name="key">pmo.tasks.read</field><field name="domain">pmo</field>
+        <field name="resource">tasks</field><field name="action">read</field>
+        <field name="name_ar">قراءة المهام</field><field name="name_en">Read tasks</field>
+        <field name="description_ar">قراءة المهام</field><field name="description_en">Read tasks</field>
+        <field name="group_xmlid">nasq_core.group_cap_pmo_tasks_read</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/><field name="project_contextual" eval="False"/>
+    </record>
+    <record id="permission_pmo_tasks_create" model="nasq.access.permission">
+        <field name="key">pmo.tasks.create</field><field name="domain">pmo</field>
+        <field name="resource">tasks</field><field name="action">create</field>
+        <field name="name_ar">إنشاء المهام</field><field name="name_en">Create tasks</field>
+        <field name="description_ar">إنشاء المهام</field><field name="description_en">Create tasks</field>
+        <field name="group_xmlid">nasq_core.group_cap_pmo_tasks_create</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/><field name="project_contextual" eval="False"/>
+    </record>
+    <record id="permission_pmo_tasks_write" model="nasq.access.permission">
+        <field name="key">pmo.tasks.write</field><field name="domain">pmo</field>
+        <field name="resource">tasks</field><field name="action">write</field>
+        <field name="name_ar">تعديل المهام</field><field name="name_en">Write tasks</field>
+        <field name="description_ar">تعديل المهام</field><field name="description_en">Write tasks</field>
+        <field name="group_xmlid">nasq_core.group_cap_pmo_tasks_write</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/><field name="project_contextual" eval="True"/>
+    </record>
+    <record id="permission_pmo_tasks_approve" model="nasq.access.permission">
+        <field name="key">pmo.tasks.approve</field><field name="domain">pmo</field>
+        <field name="resource">tasks</field><field name="action">approve</field>
+        <field name="name_ar">اعتماد المهام</field><field name="name_en">Approve tasks</field>
+        <field name="description_ar">اعتماد المهام</field><field name="description_en">Approve tasks</field>
+        <field name="group_xmlid">nasq_core.group_cap_pmo_tasks_approve</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/><field name="project_contextual" eval="True"/>
+    </record>
+    <record id="permission_settings_branding_manage" model="nasq.access.permission">
+        <field name="key">settings.branding.manage</field><field name="domain">settings</field>
+        <field name="resource">branding</field><field name="action">manage</field>
+        <field name="name_ar">إدارة الهوية</field><field name="name_en">Manage branding</field>
+        <field name="description_ar">إدارة الهوية</field><field name="description_en">Manage branding</field>
+        <field name="group_xmlid">nasq_core.group_cap_settings_branding_manage</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/><field name="project_contextual" eval="False"/>
+    </record>
+    <record id="permission_access_users_grant" model="nasq.access.permission"><field name="dependency_ids" eval="[Command.set([ref('permission_access_users_read'),ref('permission_access_roles_read')])]"/></record>
+    <record id="permission_access_users_assign_roles" model="nasq.access.permission"><field name="dependency_ids" eval="[Command.set([ref('permission_access_users_read'),ref('permission_access_roles_read')])]"/></record>
+    <record id="permission_access_users_disable" model="nasq.access.permission"><field name="dependency_ids" eval="[Command.set([ref('permission_access_users_read')])]"/></record>
+    <record id="permission_access_users_reset_password" model="nasq.access.permission"><field name="dependency_ids" eval="[Command.set([ref('permission_access_users_read')])]"/></record>
+    <record id="permission_access_roles_manage" model="nasq.access.permission"><field name="dependency_ids" eval="[Command.set([ref('permission_access_roles_read')])]"/></record>
+    <record id="permission_hr_employees_manage" model="nasq.access.permission"><field name="dependency_ids" eval="[Command.set([ref('permission_hr_employees_read')])]"/></record>
+    <record id="permission_hr_employees_archive" model="nasq.access.permission"><field name="dependency_ids" eval="[Command.set([ref('permission_hr_employees_read')])]"/></record>
+    <record id="permission_hr_employees_access_status_read" model="nasq.access.permission"><field name="dependency_ids" eval="[Command.set([ref('permission_hr_employees_read')])]"/></record>
+    <record id="permission_hr_departments_manage" model="nasq.access.permission"><field name="dependency_ids" eval="[Command.set([ref('permission_hr_departments_read')])]"/></record>
+    <record id="permission_hr_documents_manage" model="nasq.access.permission"><field name="dependency_ids" eval="[Command.set([ref('permission_hr_documents_read')])]"/></record>
+    <record id="permission_pmo_projects_create" model="nasq.access.permission"><field name="dependency_ids" eval="[Command.set([ref('permission_pmo_projects_read')])]"/></record>
+    <record id="permission_pmo_projects_manage" model="nasq.access.permission"><field name="dependency_ids" eval="[Command.set([ref('permission_pmo_projects_read')])]"/></record>
+    <record id="permission_pmo_settings_manage" model="nasq.access.permission"><field name="dependency_ids" eval="[Command.set([ref('permission_pmo_projects_read')])]"/></record>
+    <record id="permission_pmo_tasks_create" model="nasq.access.permission"><field name="dependency_ids" eval="[Command.set([ref('permission_pmo_tasks_read'),ref('permission_pmo_projects_read')])]"/></record>
+    <record id="permission_pmo_tasks_write" model="nasq.access.permission"><field name="dependency_ids" eval="[Command.set([ref('permission_pmo_tasks_read')])]"/></record>
+    <record id="permission_pmo_tasks_approve" model="nasq.access.permission"><field name="dependency_ids" eval="[Command.set([ref('permission_pmo_tasks_read')])]"/></record>
+</odoo>

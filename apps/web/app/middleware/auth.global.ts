@@ -1,7 +1,9 @@
+import { hasCapability, requiredCapabilityForPath } from '@/utils/accessPolicy'
 export default defineNuxtRouteMiddleware(async (to) => {
   const { $i18n } = useNuxtApp()
-  const { me, error, ready } = useMe()
+  const { me, error, ready, refresh } = useMe()
   await ready
+  if (import.meta.client && me.value) await refresh()
   if (error.value && !isLoggedOutError(error.value)) {
     if (isSchemaError(error.value)) {
       console.error('[nasq] /api/v1/me failed schema validation', error.value)
@@ -14,4 +16,6 @@ export default defineNuxtRouteMiddleware(async (to) => {
     return
   }
   if (!me.value) return navigateTo({ path: '/login', query: to.fullPath === '/' ? {} : { next: to.fullPath } })
+  const capability = requiredCapabilityForPath(to.path)
+  if (capability && !hasCapability(me.value, capability)) throw createError({ statusCode: 403, statusMessage: $i18n.t('settings.forbidden') })
 })

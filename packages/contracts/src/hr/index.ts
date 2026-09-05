@@ -103,17 +103,17 @@ export const HrDocumentDetailSchema = HrDocumentSchema
 
 export const HrDepartmentListSchema = z.object({
   items: z.array(HrDepartmentSchema),
-  total: z.number().int(),
+  total: z.number().int().nonnegative(),
 }).strict()
 
 export const HrEmployeeListSchema = z.object({
   items: z.array(HrEmployeeSchema),
-  total: z.number().int(),
+  total: z.number().int().nonnegative(),
 }).strict()
 
 export const HrDocumentListSchema = z.object({
   items: z.array(HrDocumentSchema),
-  total: z.number().int(),
+  total: z.number().int().nonnegative(),
 }).strict()
 
 export type HrDepartment = z.infer<typeof HrDepartmentSchema>

@@ -45,7 +45,9 @@ test('task detail page: open, edit fields, nested layers, prev/next, return', as
 
   // 3. priority
   await page.getByRole('combobox').filter({ hasText: /عادية|مهمة|عالية|عاجلة/ }).first().click()
+  const prioritySaved = page.waitForResponse((r) => r.url().includes(`/api/v1/tasks/${id}`) && r.request().method() === 'PATCH')
   await page.getByRole('option', { name: 'عاجلة' }).click()
+  await prioritySaved
   await page.reload()
   await expect(page.getByRole('combobox').filter({ hasText: 'عاجلة' }).first()).toBeVisible()
 
@@ -110,10 +112,10 @@ test('task detail page: open, edit fields, nested layers, prev/next, return', as
   // idB first and idA second — open the first row and go `j` (next) to idA.
   const rowB = page.getByRole('row', { name: nameB })
   await rowB.click()
-  await expect(page).toHaveURL(new RegExp(`/tasks/${idB}$`))
+  await expect.poll(() => new URL(page.url()).searchParams.get('returnTo')).toBe('/tasks')
   await expect(page.getByTestId('task-detail-page').getByRole('button', { name: 'التالية' })).toBeEnabled()
   await page.keyboard.press('j')
-  await expect(page).toHaveURL(new RegExp(`/tasks/${idA}$`))
+  await expect.poll(() => new URL(page.url()).pathname).toBe(`/tasks/${idA}`)
 
   // 9. close
   await page.keyboard.press('Escape')
@@ -145,7 +147,7 @@ test('a description edit made just before navigating away is not lost', async ({
   await page.getByPlaceholder('بحث في العناوين…').fill(prefix)
   await filtered
   await page.getByRole('row', { name: name1 }).click()
-  await expect(page).toHaveURL(new RegExp(`/tasks/${id1}$`))
+  await expect.poll(() => new URL(page.url()).searchParams.get('returnTo')).toBe('/tasks')
 
   const editor = page.getByRole('textbox', { name: 'الوصف' })
   await editor.click()
@@ -160,7 +162,7 @@ test('a description edit made just before navigating away is not lost', async ({
   const prevBtn = detail.getByRole('button', { name: 'السابقة' })
   if (await nextBtn.isEnabled()) await nextBtn.click()
   else await prevBtn.click()
-  await expect(page).not.toHaveURL(new RegExp(`/tasks/${id1}$`))
+  await expect(page).not.toHaveURL(new RegExp(`/tasks/${id1}(?:\\?|$)`))
 
   // Reload the original task directly and confirm the edit reached the server.
   await page.goto(`/tasks/${id1}`)
@@ -199,4 +201,33 @@ test('prev/next is live on a direct /tasks/{id} load', async ({ page }) => {
   // API's `id desc` tiebreak: the newer idB sits immediately before idA.
   await page.keyboard.press('j')
   await expect(page).toHaveURL(new RegExp(`/tasks/${idA}$`))
+})
+
+test('task archive and link editing stay inline on the direct detail page', async ({ page }) => {
+  await login(page)
+  const id = await createTask(page, `E2E inline detail ${Date.now()}`)
+  await page.goto(`/tasks/${id}`)
+  const detail = page.getByTestId('task-detail-page')
+  await expect(detail).toBeVisible()
+
+  await detail.getByRole('button', { name: 'عنوان الرابط' }).click()
+  const linkEditor = detail.getByTestId('link-editor')
+  await expect(linkEditor).toBeVisible()
+  await expect(page.locator('[data-slot="dialog-content"], [data-slot="sheet-content"], [data-slot="dialog-overlay"], [data-slot="sheet-overlay"]')).toHaveCount(0)
+  await linkEditor.getByPlaceholder('عنوان الرابط').fill('https://example.com')
+  await linkEditor.getByRole('button', { name: 'تطبيق الرابط' }).click()
+  await expect(linkEditor).toHaveCount(0)
+
+  await detail.getByTestId('task-menu').click()
+  await page.getByTestId('task-archive').click()
+  const confirmation = detail.getByTestId('task-archive-confirm')
+  await expect(confirmation).toBeVisible()
+  await confirmation.getByRole('button', { name: 'إلغاء' }).click()
+  await expect(confirmation).toHaveCount(0)
+  await detail.getByTestId('task-menu').click()
+  await page.getByTestId('task-archive').click()
+  const archived = page.waitForResponse((response) => response.url().includes(`/api/v1/tasks/${id}/archive`) && response.request().method() === 'POST')
+  await detail.getByTestId('task-archive-confirm').getByRole('button', { name: 'أرشفة المهمة' }).click()
+  await archived
+  await expect(page).toHaveURL(/\/tasks$/)
 })

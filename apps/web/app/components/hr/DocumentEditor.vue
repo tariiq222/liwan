@@ -5,15 +5,18 @@ import { EditorContent, useEditor } from '@tiptap/vue-3'
 import { Bold, Italic, Link as LinkIcon, List, ListOrdered } from 'lucide-vue-next'
 import { createDebouncedFlush } from '@/lib/debouncedFlush'
 
-const props = defineProps<{ modelValue: string; documentId: number }>()
+const props = withDefaults(defineProps<{ modelValue: string; documentId: number; debounce?: boolean; disabled?: boolean }>(), { debounce: true, disabled: false })
 const emit = defineEmits<{ 'update:modelValue': [string]; escape: [] }>()
 
 const { t } = useI18n()
+const linkEditing = ref(false)
+const linkUrl = ref('')
 
 const buffer = createDebouncedFlush<string>(800, (html) => emit('update:modelValue', html))
 
 const editor = useEditor({
   content: props.modelValue,
+  editable: !props.disabled,
   extensions: [StarterKit, Link.configure({ openOnClick: false })],
   editorProps: {
     attributes: {
@@ -24,9 +27,11 @@ const editor = useEditor({
     },
   },
   onUpdate: ({ editor: ed }) => {
-    buffer.schedule(ed.getHTML())
+    if (props.debounce) buffer.schedule(ed.getHTML())
+    else emit('update:modelValue', ed.getHTML())
   },
 })
+watch(() => props.disabled, (disabled) => editor.value?.setEditable(!disabled))
 
 watch(
   () => props.modelValue,
@@ -60,13 +65,18 @@ function toggleOrderedList() {
   editor.value?.chain().focus().toggleOrderedList().run()
 }
 function toggleLink() {
-  const previous = editor.value?.getAttributes('link').href as string | undefined
-  // eslint-disable-next-line no-alert
-  const url = window.prompt(t('hr.docs.linkPrompt'), previous ?? 'https://')
-  if (url === null) return
-  if (!url) editor.value?.chain().focus().unsetLink().run()
-  else editor.value?.chain().focus().extendMarkRange('link').setLink({ href: url }).run()
+  if (props.disabled) return
+  linkUrl.value = (editor.value?.getAttributes('link').href as string | undefined) ?? ''
+  linkEditing.value = true
 }
+function applyLink() {
+  if (props.disabled || !editor.value) return
+  const url = linkUrl.value.trim()
+  if (!url) editor.value.chain().focus().unsetLink().run()
+  else editor.value.chain().focus().extendMarkRange('link').setLink({ href: url }).run()
+  linkEditing.value = false
+}
+
 </script>
 
 <template>
@@ -76,25 +86,19 @@ function toggleLink() {
       event.preventDefault() for Escape while the editor has focus (it
       reserves the key for its own future use, regardless of whether any
       command handles it). It does not stopPropagation, so the keydown still
-      reaches the parent Sheet's dismissable-layer handler, but that handler
-      checks event.defaultPrevented and — correctly, so a rich text editor
-      can veto an accidental close — declines to dismiss when it's set. Net
-      effect: pressing Escape to close the document sheet silently does
-      nothing while the caret is inside this editor. A capture-phase
-      listener on this wrapper runs before the event reaches the
-      contenteditable node, so it sees Escape first and can tell the parent
-      to close explicitly, sidestepping the defaultPrevented gate rather
-      than fighting it.
+      ProseMirror reserves Escape and prevents the browser default while the
+      editor has focus. Keep the capture listener so page-level keyboard
+      handling can still observe Escape before it reaches contenteditable.
     -->
     <div class="rounded-md border" @keydown.esc.capture="emit('escape')">
       <div class="flex items-center gap-1 border-b p-1">
-        <Button variant="ghost" size="icon" class="size-7" :class="{ 'bg-accent': editor?.isActive('bold') }" type="button" @click="toggleBold">
+        <Button variant="ghost" size="icon" class="size-7" :class="{ 'bg-accent': editor?.isActive('bold') }" type="button" :disabled="disabled" @click="toggleBold">
           <Bold class="size-3.5" />
         </Button>
-        <Button variant="ghost" size="icon" class="size-7" :class="{ 'bg-accent': editor?.isActive('italic') }" type="button" @click="toggleItalic">
+        <Button variant="ghost" size="icon" class="size-7" :class="{ 'bg-accent': editor?.isActive('italic') }" type="button" :disabled="disabled" @click="toggleItalic">
           <Italic class="size-3.5" />
         </Button>
-        <Button variant="ghost" size="icon" class="size-7" :class="{ 'bg-accent': editor?.isActive('bulletList') }" type="button" @click="toggleBulletList">
+        <Button variant="ghost" size="icon" class="size-7" :class="{ 'bg-accent': editor?.isActive('bulletList') }" type="button" :disabled="disabled" @click="toggleBulletList">
           <List class="size-3.5" />
         </Button>
         <Button
@@ -103,9 +107,14 @@ function toggleLink() {
         >
           <ListOrdered class="size-3.5" />
         </Button>
-        <Button variant="ghost" size="icon" class="size-7" :class="{ 'bg-accent': editor?.isActive('link') }" type="button" @click="toggleLink">
+        <Button variant="ghost" size="icon" class="size-7" :class="{ 'bg-accent': editor?.isActive('link') }" type="button" :disabled="disabled" @click="toggleLink">
           <LinkIcon class="size-3.5" />
         </Button>
+      </div>
+      <div v-if="linkEditing" class="flex gap-2 border-b p-2">
+        <Input v-model="linkUrl" :disabled="disabled" :aria-label="t('hr.docs.linkPrompt')" :placeholder="t('hr.docs.linkPrompt')" />
+        <Button type="button" size="sm" :disabled="disabled" @click="applyLink">{{ t('app.save') }}</Button>
+        <Button type="button" size="sm" variant="outline" @click="linkEditing = false">{{ t('app.cancel') }}</Button>
       </div>
       <EditorContent :editor="editor" />
     </div>

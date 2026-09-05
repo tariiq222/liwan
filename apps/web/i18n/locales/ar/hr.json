@@ -1,5 +1,14 @@
 {
   "hr": {
+    "actions": {
+      "back": "رجوع"
+    },
+    "states": {
+      "loading": "جار التحميل…",
+      "notFound": "العنصر غير موجود أو لا تملك صلاحية عرضه.",
+      "forbidden": "لا تملك صلاحية تنفيذ هذا الإجراء.",
+      "error": "تعذر تحميل البيانات."
+    },
     "directory": {
       "title": "الأشخاص",
       "empty": "لا موظفون بعد",
@@ -9,8 +18,22 @@
       "showArchived": "عرض المؤرشفين",
       "showActive": "عرض النشطين",
       "manage": "إدارة",
-      "columns": { "name": "الاسم", "jobTitle": "المسمى الوظيفي", "department": "القسم", "manager": "المدير", "account": "الحساب", "actions": "الإجراءات" },
-      "access": { "noAccount": "بدون حساب", "employee": "موظف", "admin": "مدير نظام", "vendor": "مورّد", "stopped": "الدخول موقوف" }
+      "columns": {
+        "name": "الاسم",
+        "jobTitle": "المسمى الوظيفي",
+        "department": "القسم",
+        "manager": "المدير",
+        "account": "الحساب",
+        "actions": "الإجراءات"
+      },
+      "access": {
+        "noAccount": "بدون حساب",
+        "employee": "موظف",
+        "admin": "مدير نظام",
+        "vendor": "مورّد",
+        "stopped": "الدخول موقوف"
+      },
+      "description": "دليل الموظفين وبياناتهم الوظيفية."
     },
     "card": {
       "title": "بطاقة الموظف",
@@ -33,6 +56,7 @@
       "manage": "إدارة الأقسام",
       "empty": "لا أقسام",
       "selectHelp": "اختر قسمًا لعرض مستنداته.",
+      "detail": "مستندات القسم",
       "delete": "حذف",
       "deleteConfirm": "حذف {name}؟",
       "deleted": "تم حذف القسم",
@@ -41,7 +65,10 @@
       "childReason": "{count} قسم فرعي",
       "documentReason": "{count} مستند"
     },
-    "tabs": { "employees": "الموظفون", "departments": "الأقسام" },
+    "tabs": {
+      "employees": "الموظفون",
+      "departments": "الأقسام"
+    },
     "employee": {
       "title": "الموظف",
       "createTitle": "موظف جديد",
@@ -72,7 +99,10 @@
       "archive": "أرشفة الموظف",
       "unarchive": "استعادة الموظف",
       "archiveConfirm": "هل تريد تغيير حالة نشاط هذا الموظف؟",
-      "archiveVendorReadOnly": "لا يمكن أرشفة الموظف المرتبط بمورّد من هنا."
+      "archiveVendorReadOnly": "لا يمكن أرشفة الموظف المرتبط بمورّد من هنا.",
+      "edit": "تعديل الموظف",
+      "accessManagedInSettings": "تُدار صلاحيات الدخول من إدارة النظام.",
+      "manageAccount": "إدارة الحساب"
     },
     "docs": {
       "title": "المستندات",
@@ -84,8 +114,14 @@
       "linkPrompt": "عنوان الرابط",
       "attachments": "المرفقات",
       "upload": "رفع ملف",
+      "edit": "تعديل المستند",
+      "saved": "تم حفظ المستند",
       "download": "تنزيل",
-      "columns": { "name": "العنوان", "updated": "آخر تحديث", "department": "القسم" }
+      "columns": {
+        "name": "العنوان",
+        "updated": "آخر تحديث",
+        "department": "القسم"
+      }
     }
   }
 }

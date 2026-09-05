@@ -1,11 +1,10 @@
 <script setup lang="ts">
-import { toast } from 'vue-sonner'
 import { PROJECT_STATUSES, type ProjectStatus } from '@nasq/contracts'
 import { Search, X } from 'lucide-vue-next'
 import { refDebounced } from '@vueuse/core'
-import CreateProjectDialog from '@/components/project/CreateProjectDialog.vue'
 import ProjectTable from '@/components/project/ProjectTable.vue'
 import { useProjectList } from '@/composables/useProjects'
+import { returnToQuery } from '@/utils/safeReturnTo'
 
 const router = useRouter()
 const route = useRoute()
@@ -70,10 +69,11 @@ function onFilterChange(v: unknown) {
   router.replace({ query: { ...route.query, archived: v === 'archived' ? '1' : undefined } })
 }
 
-const createOpen = ref(false)
-function onCreated(id: number) {
-  toast.success(t('projects.created'))
-  router.push(`/projects/${id}`)
+function openCreate() {
+  router.push({ path: '/projects/new', query: returnToQuery(route.fullPath) })
+}
+function openProject(id: number) {
+  router.push({ path: `/projects/${id}`, query: returnToQuery(route.fullPath) })
 }
 </script>
 
@@ -81,7 +81,7 @@ function onCreated(id: number) {
   <div class="space-y-4">
     <header class="flex flex-wrap items-center justify-between gap-3">
       <h1 class="text-2xl font-semibold">{{ t('projects.title') }}</h1>
-      <Button v-if="canCreate" data-testid="project-new" :disabled="!hydrated" @click="createOpen = true">
+      <Button v-if="canCreate" data-testid="project-new" :disabled="!hydrated" @click="openCreate">
         {{ t('projects.new') }}
       </Button>
     </header>
@@ -125,8 +125,7 @@ function onCreated(id: number) {
       :filtered="Boolean(rawSearch.trim()) || statusFilter !== 'all'"
       :is-loading="isLoading"
       :archived="archived"
-      @open="(id) => router.push(`/projects/${id}`)"
+      @open="openProject"
     />
-    <CreateProjectDialog v-model:open="createOpen" @created="onCreated" />
   </div>
 </template>

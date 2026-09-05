@@ -3,7 +3,7 @@ import type { Task, TaskDetail } from '@nasq/contracts'
 import { applyPatchToTask, PAGE, taskKeys } from '../useTasks'
 
 const baseTask: Task = {
-  id: 1,
+  id: 1, can_write: true, can_approve: false,
   name: 'Write the report',
   project: { id: 10, name: 'Q1 Planning' },
   state: 'in_progress',
@@ -19,6 +19,7 @@ const baseTask: Task = {
 }
 
 const baseDetail: TaskDetail = {
+  allowed_actions: ['read', 'write', 'archive'],
   ...baseTask,
   description_html: '<p>old</p>',
   allocated_hours: 4,

@@ -6,20 +6,41 @@
     "save": "حفظ",
     "create": "إنشاء",
     "noResults": "لا نتائج.",
-    "loadMore": "تحميل المزيد"
+    "loadMore": "تحميل المزيد",
+    "loading": "جارٍ التحميل",
+    "back": "رجوع",
+    "retry": "إعادة المحاولة",
+    "unsavedChanges": "عندك تغييرات غير محفوظة. تبي تبقى في الصفحة أو تغادر بدون حفظ؟",
+    "stay": "البقاء في الصفحة",
+    "discardAndLeave": "المغادرة بدون حفظ"
   },
   "nav": {
     "today": "اليوم",
     "tasks": "مهامي",
     "projects": "المشاريع",
+    "toggleNavigation": "فتح أو إغلاق التنقل",
     "people": "الأشخاص",
     "reports": "التقارير",
     "console": "وحدة التحكم",
     "goTo": "الانتقال إلى",
     "typeToNavigate": "اكتب للانتقال…",
+    "searchDescription": "ابحث عن صفحة أو مشروع وانتقل إليه مباشرة.",
+    "back": "رجوع",
+    "loading": "جارٍ التحميل…",
     "account": "حسابي",
     "logout": "تسجيل الخروج",
-    "settings": "الإعدادات"
+    "settings": "الإعدادات",
+    "employees": "الموظفون",
+    "departments": "الأقسام",
+    "documents": "المستندات",
+    "users": "المستخدمون",
+    "roles": "الأدوار والصلاحيات",
+    "accessLog": "سجل تغييرات الوصول",
+    "branding": "هوية الجهة",
+    "projectSettings": "إعدادات المشاريع",
+    "humanResources": "الموارد البشرية",
+    "systemAdministration": "إدارة النظام",
+    "toggleSidebar": "فتح القائمة أو طيها"
   },
   "auth": {
     "username": "اسم المستخدم",
@@ -36,7 +57,10 @@
   "errors": {
     "serverUnreachable": "تعذّر الوصول إلى الخادم",
     "badPayload": "استجابة غير صالحة من الخادم",
-    "generic": "حدث خطأ غير متوقع"
+    "generic": "حدث خطأ غير متوقع",
+    "forbidden": "ليس لديك صلاحية لعرض هذه الصفحة.",
+    "notFound": "هذا السجل غير متاح أو لم يعد موجودًا.",
+    "conflict": "تغيرت البيانات منذ فتح الصفحة. أعد تحميلها ثم حاول مرة أخرى."
   },
   "account": {
     "title": "الحساب",

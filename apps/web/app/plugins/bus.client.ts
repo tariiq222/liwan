@@ -4,7 +4,7 @@ import { setBusQueryClient } from '../composables/useBus'
 // Client-only: opens exactly one bus WebSocket per tab once a user is
 // logged in, and tears it down on logout. `useMe()`'s `me` query is keyed
 // 'me' and shared with the rest of the app (middleware, AppSidebar,
-// CommandMenu, the login/logout flows' `refreshNuxtData('me')`), so this
+// authenticated pages, and the login/logout flows' `refreshNuxtData('me')`), so this
 // plugin reacts to the same login state everything else does rather than
 // fetching its own copy.
 //

@@ -6,7 +6,7 @@ import { ApiError } from '@/composables/useApi'
 import { formatCalendarDate, toCalendarDate } from '@/composables/calendarDate'
 import { TONE_CLASS } from '@/composables/taskState'
 import { useDeleteMilestone, useMilestones, useUpdateMilestone } from '@/composables/useMilestones'
-import MilestoneDialog from './MilestoneDialog.vue'
+import { returnToQuery } from '@/utils/safeReturnTo'
 
 const props = defineProps<{ projectId: number; canManage: boolean }>()
 
@@ -18,18 +18,14 @@ const { data, isLoading } = useMilestones(projectIdRef)
 const items = computed<Milestone[]>(() => data.value ?? [])
 const columnCount = computed(() => (props.canManage ? 5 : 4))
 
-// --- create/edit: the table owns the dialog, the "New milestone" button
-// emits nothing (see task-11 brief) --------------------------------------
-const dialogOpen = ref(false)
-const editingMilestone = ref<Milestone | undefined>(undefined)
+const router = useRouter()
+const route = useRoute()
 
 function openCreate() {
-  editingMilestone.value = undefined
-  dialogOpen.value = true
+  router.push({ path: `/projects/${props.projectId}/milestones/new`, query: returnToQuery(route.fullPath) })
 }
 function openEdit(m: Milestone) {
-  editingMilestone.value = m
-  dialogOpen.value = true
+  router.push({ path: `/projects/${props.projectId}/milestones/${m.id}/edit`, query: returnToQuery(route.fullPath) })
 }
 
 // --- deadline tone ---------------------------------------------------------
@@ -59,9 +55,6 @@ async function toggleReached(m: Milestone) {
 }
 
 // --- delete ------------------------------------------------------------
-// No `ui/alert-dialog` component exists yet in this tree (another task is
-// adding one) — a plain Dialog stands in for the delete confirm, same
-// workaround ProjectMenu.vue and TaskDetailPanel.vue use elsewhere.
 const { mutateAsync: deleteMutate, isPending: deleting } = useDeleteMilestone()
 const deleteTarget = ref<Milestone | null>(null)
 
@@ -162,18 +155,12 @@ async function confirmDelete() {
     </div>
   </div>
 
-  <MilestoneDialog :open="dialogOpen" :project-id="projectId" :milestone="editingMilestone" @update:open="(v) => (dialogOpen = v)" />
-
-  <Dialog :open="!!deleteTarget" @update:open="(v) => { if (!v) deleteTarget = null }">
-    <DialogContent v-if="deleteTarget">
-      <DialogHeader>
-        <DialogTitle>{{ t('projects.milestones.delete') }}</DialogTitle>
-        <DialogDescription>{{ deleteTarget.name }}</DialogDescription>
-      </DialogHeader>
-      <DialogFooter>
-        <Button variant="outline" type="button" :disabled="deleting" @click="deleteTarget = null">{{ t('app.cancel') }}</Button>
-        <Button variant="destructive" type="button" :disabled="deleting" @click="confirmDelete">{{ t('projects.milestones.delete') }}</Button>
-      </DialogFooter>
-    </DialogContent>
-  </Dialog>
+  <div v-if="deleteTarget" data-testid="milestone-delete-confirm" class="space-y-2 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm">
+    <p class="font-medium">{{ t('projects.milestones.delete') }}</p>
+    <p class="text-muted-foreground">{{ deleteTarget.name }}</p>
+    <div class="flex flex-wrap gap-2">
+      <Button variant="outline" type="button" :disabled="deleting" @click="deleteTarget = null">{{ t('app.cancel') }}</Button>
+      <Button variant="destructive" type="button" :disabled="deleting" @click="confirmDelete">{{ t('projects.milestones.delete') }}</Button>
+    </div>
+  </div>
 </template>

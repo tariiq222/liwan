@@ -51,7 +51,7 @@ class TestAdminBranding(HttpCase):
         )
         cls.admin = new_test_user(
             cls.env, login='branding_admin', password='branding_admin_pass_123',
-            groups='nasq_core.group_customer_admin',
+            groups='nasq_core.group_access_admin',
         )
         cls.vendor = new_test_user(
             cls.env, login='branding_vendor', password='branding_vendor_pass_123',
@@ -76,6 +76,9 @@ class TestAdminBranding(HttpCase):
         self.assertEqual(response.status_code, 200, response.text)
         self.assertEqual(response.json()['name'], 'Erada Admin')
         self.assertEqual(response.json()['primary_color'], '#0055ff')
+
+        with self.assertRaises(AccessError):
+            self.env.company.with_user(self.admin).write({'name': 'Generic bypass'})
 
         foreign_company = self.env['res.company'].create({'name': 'Foreign Branding Company'})
         with self.assertRaises(AccessError):

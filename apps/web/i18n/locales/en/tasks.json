@@ -4,6 +4,11 @@
     "table": "Table",
     "board": "Board",
     "new": "New task",
+    "created": "Task created",
+    "loading": "Loading tasks…",
+    "invalidId": "The project ID is invalid",
+    "notFound": "This project does not exist or you cannot view it",
+    "loadError": "Could not load project data",
     "newTitle": "Task title",
     "project": "Project",
     "columns": {
@@ -57,7 +62,9 @@
       "back": "Back to tasks",
       "pageLabel": "Task details",
       "navigation": "Task detail navigation",
-      "linkPrompt": "Link URL"
+      "linkPrompt": "Link URL",
+      "applyLink": "Apply link",
+      "cancelLink": "Cancel"
     },
     "drawer": {
       "details": "Details",

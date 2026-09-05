@@ -1,13 +1,17 @@
 <script setup lang="ts">
 import type { HrDepartment } from '@/composables/useHrDepartments'
+import { returnToQuery } from '@/utils/safeReturnTo'
 
-defineProps<{
+const props = defineProps<{
   departments: HrDepartment[]
   selectedId?: number | null
   canManage?: boolean
 }>()
 const emit = defineEmits<{ select: [id: number]; edit: [department: HrDepartment]; delete: [department: HrDepartment] }>()
 const hydrated = useHydrated()
+const { can } = useAccess()
+const route = useRoute()
+const canManage = computed(() => !!props.canManage && can('hr.departments.manage'))
 </script>
 
 <template>
@@ -22,8 +26,10 @@ const hydrated = useHydrated()
         <span class="font-medium">{{ department.name }}</span>
         <span class="ms-2 text-muted-foreground">{{ department.employee_count }}</span>
       </button>
-      <Button v-if="canManage" variant="ghost" size="sm" @click="emit('edit', department)">{{ $t('hr.depts.edit') }}</Button>
-      <Button v-if="canManage" variant="ghost" size="sm" class="text-destructive" @click="emit('delete', department)">
+      <NuxtLink v-if="canManage" :to="{ path: `/hr/departments/${department.id}/edit`, query: returnToQuery(route.fullPath) }" @click.stop="!hydrated && $event.preventDefault()">
+        <Button variant="ghost" size="sm" :disabled="!hydrated">{{ $t('hr.depts.edit') }}</Button>
+      </NuxtLink>
+      <Button v-if="canManage" variant="ghost" size="sm" class="text-destructive" :disabled="!hydrated" @click="emit('delete', department)">
         {{ $t('hr.depts.delete') }}
       </Button>
     </div>

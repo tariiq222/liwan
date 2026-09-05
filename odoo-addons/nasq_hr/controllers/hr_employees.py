@@ -11,31 +11,29 @@ from odoo.addons.nasq_api.controllers.common import (
 )
 from odoo.addons.nasq_hr.serializers.hr_employee import (
     dump_employee,
-    parse_access_grant,
-    parse_access_patch,
     parse_employee_create,
     parse_employee_patch,
 )
 
 MAX_LIMIT = 200
-EMPLOYEE_SCOPE_ERROR = 'employee is outside the current company'
 
 
-def _is_admin():
-    return request.env.user.has_group('nasq_core.group_customer_admin')
+def _can(capability):
+    return request.env['nasq.access.service']._nasq_has_capability(request.env.user, capability)
 
 
-def _require_customer_admin():
-    if not _is_admin():
-        raise ApiError(403, 'forbidden', 'only a customer administrator can write this resource')
+def _require(capability):
+    if not _can(capability):
+        raise ApiError(403, 'forbidden', f'{capability} capability is required')
 
 
 def _admin_employee(employee_id):
-    employee = request.env['hr.employee'].with_context(active_test=False).browse(int(employee_id))
-    if not employee.exists():
+    employee = request.env['hr.employee'].with_context(active_test=False).search([
+        ('id', '=', int(employee_id)),
+        ('company_id', '=', request.env.company.id),
+    ], limit=1)
+    if not employee:
         raise MissingError(request.env._('hr.employee %(id)s does not exist', id=employee_id))
-    if employee.company_id not in request.env.companies:
-        raise AccessError(EMPLOYEE_SCOPE_ERROR)
     employee.check_access('read')
     return employee
 
@@ -44,7 +42,7 @@ def _public_employee(employee_id):
     employee = request.env['hr.employee.public'].search([
         ('id', '=', int(employee_id)),
         ('active', '=', True),
-        ('company_id', 'in', request.env.companies.ids),
+        ('company_id', '=', request.env.company.id),
     ], limit=1)
     if not employee:
         raise MissingError(request.env._('hr.employee %(id)s does not exist', id=employee_id))
@@ -56,7 +54,7 @@ def _relation(model, record_id, field):
     try:
         if not record.exists():
             raise ApiError(422, 'invalid', f'{field} does not reference an existing record', field=field)
-        if record.company_id not in request.env.companies:
+        if record.company_id != request.env.company:
             raise ApiError(422, 'invalid', f'{field} is outside the current company', field=field)
         record.check_access('read')
     except AccessError:
@@ -85,11 +83,13 @@ class HrEmployeeController(http.Controller):
         if archived_param not in (None, '0', 'false', '1', 'true'):
             raise ApiError(422, 'invalid', "archived must be '0', 'false', '1' or 'true'", field='archived')
         archived = archived_param in ('1', 'true')
-        if archived and not _is_admin():
-            raise ApiError(403, 'forbidden', 'only a customer administrator can list archived employees')
+        if not _can('hr.employees.read'):
+            raise ApiError(403, 'forbidden', 'hr.employees.read capability is required')
+        if archived and not _can('hr.employees.archive'):
+            raise ApiError(403, 'forbidden', 'hr.employees.archive capability is required')
         limit = min(parse_nonneg_int(args.get('limit', 50), 'limit'), MAX_LIMIT)
         offset = parse_nonneg_int(args.get('offset', 0), 'offset')
-        domain = [('company_id', 'in', request.env.companies.ids)]
+        domain = [('company_id', '=', request.env.company.id)]
         if q:
             domain.append(('name', 'ilike', q))
         if department_id not in (None, ''):
@@ -103,34 +103,47 @@ class HrEmployeeController(http.Controller):
         if archived:
             Employee = request.env['hr.employee'].with_context(active_test=False)
             domain.append(('active', '=', False))
-        elif _is_admin():
+        elif _can('hr.employees.access_status.read'):
             Employee = request.env['hr.employee']
         else:
             Employee = request.env['hr.employee.public']
         recs = Employee.search(domain, order='name, id', limit=limit, offset=offset)
-        return {'items': [dump_employee(employee) for employee in recs], 'total': Employee.search_count(domain)}
+        return {
+            'items': [
+                dump_employee(
+                    employee,
+                    include_access=_can('hr.employees.access_status.read'),
+                ) for employee in recs
+            ],
+            'total': Employee.search_count(domain),
+        }
 
     @http.route('/api/v1/hr/employees/<int:employee_id>', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
     def get_employee(self, employee_id):
-        employee = _admin_employee(employee_id) if _is_admin() else _public_employee(employee_id)
-        return dump_employee(employee)
+        _require('hr.employees.read')
+        privileged = _can('hr.employees.archive') or _can('hr.employees.access_status.read')
+        employee = _admin_employee(employee_id) if privileged else _public_employee(employee_id)
+        return dump_employee(employee, include_access=_can('hr.employees.access_status.read'))
 
     @http.route('/api/v1/hr/employees', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
     @hr_rule_handler
     def create_employee(self, **payload):
-        _require_customer_admin()
+        _require('hr.employees.manage')
         vals = parse_employee_create(payload)
         _validate_employee_relations(vals)
         employee = request.env['hr.employee']._nasq_create(vals)
-        return request.make_json_response(dump_employee(employee), status=201)
+        return request.make_json_response(
+            dump_employee(employee, include_access=_can('hr.employees.access_status.read')),
+            status=201,
+        )
 
     @http.route('/api/v1/hr/employees/<int:employee_id>', type='json2', auth='user', methods=['PATCH'], readonly=False)
     @api_handler
     @hr_rule_handler
     def patch_employee(self, employee_id, **payload):
-        _require_customer_admin()
+        _require('hr.employees.manage')
         employee = _admin_employee(employee_id)
         payload.pop('employee_id', None)
         if not payload:
@@ -138,51 +151,22 @@ class HrEmployeeController(http.Controller):
         vals = parse_employee_patch(payload)
         _validate_employee_relations(vals, employee)
         employee._nasq_write(vals)
-        return dump_employee(employee)
+        return dump_employee(employee, include_access=_can('hr.employees.access_status.read'))
 
     @http.route('/api/v1/hr/employees/<int:employee_id>/archive', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
     @hr_rule_handler
     def archive_employee(self, employee_id, **_):
-        _require_customer_admin()
+        _require('hr.employees.archive')
         employee = _admin_employee(employee_id)
         employee._nasq_archive()
-        return dump_employee(employee)
+        return dump_employee(employee, include_access=_can('hr.employees.access_status.read'))
 
     @http.route('/api/v1/hr/employees/<int:employee_id>/unarchive', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
     @hr_rule_handler
     def unarchive_employee(self, employee_id, **_):
-        _require_customer_admin()
+        _require('hr.employees.archive')
         employee = _admin_employee(employee_id)
         employee._nasq_unarchive()
-        return dump_employee(employee)
-
-    @http.route('/api/v1/hr/employees/<int:employee_id>/access', type='json2', auth='user', methods=['POST'], readonly=False)
-    @api_handler
-    @hr_rule_handler
-    def grant_employee_access(self, employee_id, **payload):
-        _require_customer_admin()
-        employee = _admin_employee(employee_id)
-        values = parse_access_grant(payload)
-        employee._nasq_grant_access(values['password'], values['role'])
-        return dump_employee(employee)
-
-    @http.route('/api/v1/hr/employees/<int:employee_id>/access', type='json2', auth='user', methods=['PATCH'], readonly=False)
-    @api_handler
-    @hr_rule_handler
-    def patch_employee_access(self, employee_id, **payload):
-        _require_customer_admin()
-        employee = _admin_employee(employee_id)
-        values = parse_access_patch(payload)
-        employee._nasq_update_access(**values)
-        return dump_employee(employee)
-
-    @http.route('/api/v1/hr/employees/<int:employee_id>/access', type='json2', auth='user', methods=['DELETE'], readonly=False)
-    @api_handler
-    @hr_rule_handler
-    def revoke_employee_access(self, employee_id, **_):
-        _require_customer_admin()
-        employee = _admin_employee(employee_id)
-        employee._nasq_revoke_access()
-        return dump_employee(employee)
+        return dump_employee(employee, include_access=_can('hr.employees.access_status.read'))

@@ -5,6 +5,8 @@ import logging
 from odoo.exceptions import AccessError, MissingError, UserError, ValidationError
 from odoo.http import request
 
+from odoo.addons.nasq_core.models.access_service import NasqAccessRule
+
 _logger = logging.getLogger(__name__)
 MIN_PASSWORD_LENGTH = 8
 
@@ -42,8 +44,14 @@ def api_handler(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         try:
-            return func(*args, **kwargs)
+            # A handled controller exception still becomes a normal HTTP response,
+            # so Odoo would otherwise commit mutations performed before the error.
+            # Catch outside the savepoint to guarantee an atomic request operation.
+            with request.env.cr.savepoint():
+                return func(*args, **kwargs)
         except ApiError as e:
+            return error_response(e.status, e.code, e.message, e.field, e.details)
+        except NasqAccessRule as e:
             return error_response(e.status, e.code, e.message, e.field, e.details)
         except MissingError as e:
             return error_response(404, 'not_found', str(e))

@@ -11,8 +11,8 @@
     # alone never gets HR installed.
     'depends': ['nasq_api', 'hr', 'mail'],
     'data': [
+        'security/hr_capability_groups.xml',
         'security/hr_document_rules.xml',
-        'security/hr_people_rules.xml',
         'security/ir.model.access.csv',
     ],
     'installable': True,

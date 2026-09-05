@@ -7,7 +7,7 @@ export class ApiError extends Error {
     public code: string,
     message: string,
     public field?: string,
-    public details?: Record<string, number>,
+    public details?: Record<string, unknown>,
   ) {
     super(message)
   }

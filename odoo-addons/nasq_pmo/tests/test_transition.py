@@ -41,8 +41,10 @@ class TestTransition(TransactionCase):
         task._nasq_transition('02_changes_requested')
         self.assertEqual(task.state, '02_changes_requested')
 
-    def test_customer_admin_can_approve(self):
-        admin = new_test_user(self.env, login='pmo_cadmin', groups='nasq_core.group_customer_admin')
+    def test_pmo_manager_can_approve(self):
+        admin = new_test_user(
+            self.env, login='pmo_admin', groups='nasq_core.group_pmo_manager',
+        )
         self.assertTrue(self.task.with_user(admin)._nasq_can_approve())
         self.task.with_user(admin)._nasq_transition('02_changes_requested')
         self.assertEqual(self.task.state, '02_changes_requested')

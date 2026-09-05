@@ -26,6 +26,9 @@ class TaskController(http.Controller):
     @http.route('/api/v1/tasks', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
     def list_tasks(self, **_):
+        request.env['nasq.access.service']._nasq_require_capability(
+            'pmo.tasks.read',
+        )
         # type='json2' routes only merge the JSON body with path args — the query string
         # is not passed as kwargs (see odoo/http.py Json2Dispatcher). Read it ourselves.
         args = request.httprequest.args
@@ -90,6 +93,9 @@ class TaskController(http.Controller):
     @http.route('/api/v1/tasks/<int:task_id>', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
     def get_task(self, task_id):
+        request.env['nasq.access.service']._nasq_require_capability(
+            'pmo.tasks.read',
+        )
         task = get_record('project.task', task_id)
         return dump_task_detail(task)
 
@@ -101,6 +107,7 @@ class TaskController(http.Controller):
         if not project_id:
             raise ApiError(422, 'invalid', "project_id is required", field='project_id')
         project = get_record('project.project', project_id)
+        request.env['nasq.access.service']._nasq_require_capability('pmo.tasks.create', record=project)
         vals = {'name': name.strip(), 'project_id': project.id, 'user_ids': [(4, request.env.uid)]}
         if parent_id:
             vals['parent_id'] = get_record('project.task', parent_id).id
@@ -114,6 +121,8 @@ class TaskController(http.Controller):
         if not payload:
             raise ApiError(422, 'invalid', "no fields to update")
         task = get_record('project.task', task_id)
+        if not task._nasq_can_write():
+            raise AccessError(request.env._("You are not allowed to change this task."))
         vals = parse_task_vals(payload, can_manage=task._nasq_can_approve(), task=task)
         task.write(vals)
         return dump_task_detail(task)

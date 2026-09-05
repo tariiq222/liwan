@@ -2,7 +2,7 @@
 import { sanitizeHtml } from '@/utils/sanitize'
 import type { HrDocument } from '@/composables/useHrDocuments'
 
-const props = defineProps<{ document: HrDocument }>()
+const props = defineProps<{ document: HrDocument; hideTitle?: boolean }>()
 
 const { t } = useI18n()
 
@@ -16,7 +16,7 @@ function formatSize(n: number) {
 <template>
   <div class="grid gap-4">
     <div>
-      <h2 class="text-lg font-semibold">{{ props.document.name }}</h2>
+      <h2 v-if="!hideTitle" class="text-lg font-semibold">{{ props.document.name }}</h2>
       <p class="text-sm text-muted-foreground">{{ props.document.department.name }}</p>
     </div>
     <div class="text-sm" v-html="sanitizeHtml(props.document.body)" />

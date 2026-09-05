@@ -11,6 +11,8 @@ export const TaskSchema = z.object({
   priority: z.enum(['0', '1', '2', '3']), date_deadline: z.string().nullable(), days_remaining: z.number().int().nullable(),
   is_overdue: z.boolean(), is_closed: z.boolean(), personal_stage: RefSchema.nullable(), stage: RefSchema.nullable(),
   assignees: z.array(RefSchema), tags: z.array(TagSchema),
+  can_write: z.boolean().optional().default(false),
+  can_approve: z.boolean().optional().default(false),
 }).strict()
 
 export const TaskDetailSchema = TaskSchema.extend({
@@ -18,7 +20,8 @@ export const TaskDetailSchema = TaskSchema.extend({
   subtasks: z.array(TaskSchema),
   depends_on: z.array(z.object({ id: z.number().int().positive(), name: z.string(), state: TaskStateSchema }).strict()),
   attachments: z.array(z.object({ id: z.number().int().positive(), name: z.string(), mimetype: z.string(), url: z.string() }).strict()),
-  can_approve: z.boolean(), milestone: RefSchema.nullable(), created_at: z.string(), updated_at: z.string(),
+  milestone: RefSchema.nullable(), created_at: z.string(), updated_at: z.string(),
+  allowed_actions: z.array(z.enum(['read', 'write', 'archive', 'approve'])).optional().default([]),
 }).strict()
 
 export const TaskListSchema = z.object({ items: z.array(TaskSchema), total: z.number().int() }).strict()

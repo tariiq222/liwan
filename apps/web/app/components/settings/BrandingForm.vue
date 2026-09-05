@@ -10,7 +10,7 @@ const ALLOWED_LOGO_TYPES = new Set(['image/png', 'image/jpeg'])
 
 const { t } = useI18n()
 const hydrated = useHydrated()
-const { data: branding, isLoading } = useBrandingAdmin()
+const { data: branding, isLoading, error, refetch } = useBrandingAdmin()
 const update = useUpdateBranding()
 
 const name = ref('')
@@ -78,6 +78,11 @@ async function onLogo(event: Event) {
   }
 }
 
+const dirty = computed(() => !!branding.value && (name.value !== branding.value.name || color.value !== branding.value.primary_color || logo.value !== null))
+function cancel() {
+  if (!branding.value) return
+  name.value = branding.value.name; color.value = branding.value.primary_color; logo.value = null; logoPreview.value = null; validationError.value = ''; logoReadGeneration += 1; logoReadPending.value = false
+}
 async function save() {
   validationError.value = ''
   if (logoReadPending.value) {
@@ -117,8 +122,10 @@ onBeforeUnmount(() => {
 
 <template>
   <Skeleton v-if="isLoading" class="h-80 w-full" />
+  <SharedPageState v-else-if="error" :error="error" @retry="refetch()" />
   <div v-else-if="branding" class="grid gap-6 lg:grid-cols-2">
     <form class="space-y-5" data-testid="branding-form" @submit.prevent="save">
+      <SharedUnsavedChanges :dirty="dirty" />
       <div class="space-y-2">
         <Label for="branding-name">{{ t('settings.branding.name') }}</Label>
         <Input id="branding-name" v-model="name" data-testid="branding-name" maxlength="100" :disabled="!hydrated || update.isPending.value || logoReadPending" />
@@ -153,6 +160,7 @@ onBeforeUnmount(() => {
       <Button type="submit" data-testid="branding-submit" :disabled="!hydrated || update.isPending.value || logoReadPending">
         {{ update.isPending.value ? t('settings.branding.saving') : t('settings.branding.save') }}
       </Button>
+      <Button type="button" variant="outline" class="ms-2" :disabled="!hydrated || update.isPending.value || !dirty" @click="cancel">{{ t('app.cancel') }}</Button>
     </form>
 
     <BrandingPreview :name="previewName" :color="previewColor" :logo-url="previewLogo" />

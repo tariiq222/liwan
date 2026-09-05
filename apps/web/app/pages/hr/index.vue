@@ -1,0 +1,39 @@
+<script setup lang="ts">
+import DirectoryTable from '@/components/hr/DirectoryTable.vue'
+import DepartmentTable from '@/components/hr/DepartmentTable.vue'
+import { useHrDepartments } from '@/composables/useHrDepartments'
+import { returnToQuery } from '@/utils/safeReturnTo'
+
+const { t } = useI18n()
+const { can } = useAccess()
+const hydrated = useHydrated()
+const route = useRoute()
+const tab = ref<'employees' | 'departments'>('employees')
+const selectedDepartmentId = ref<number | null>(null)
+const { data: departmentData } = useHrDepartments()
+const departments = computed(() => departmentData.value?.items ?? [])
+function openEmployee(id: number) { void navigateTo({ path: `/hr/employees/${id}`, query: returnToQuery(route.fullPath) }) }
+function createEmployee() { void navigateTo({ path: '/hr/employees/new', query: returnToQuery(route.fullPath) }) }
+function editEmployee(id: number) { void navigateTo({ path: `/hr/employees/${id}/edit`, query: returnToQuery(route.fullPath) }) }
+</script>
+
+<template>
+  <div class="space-y-6">
+    <SharedPageHeader :title="t('hr.directory.title')" :description="t('hr.directory.description')">
+      <NuxtLink v-if="can('hr.employees.manage')" :to="{ path: '/hr/employees/new', query: returnToQuery(route.fullPath) }"><Button :disabled="!hydrated">
+        {{ t('hr.directory.newEmployee') }}
+      </Button></NuxtLink>
+    </SharedPageHeader>
+    <Tabs v-model="tab">
+      <TabsList>
+        <TabsTrigger value="employees">{{ t('hr.tabs.employees') }}</TabsTrigger>
+        <TabsTrigger v-if="can('hr.departments.read')" value="departments">{{ t('hr.tabs.departments') }}</TabsTrigger>
+      </TabsList>
+      <TabsContent value="employees"><DirectoryTable v-model:department-id="selectedDepartmentId" @open="openEmployee" @manage="editEmployee" @archive="openEmployee" @create="createEmployee" /></TabsContent>
+      <TabsContent v-if="can('hr.departments.read')" value="departments" class="space-y-4">
+        <DepartmentTable :departments="departments" :selected-id="selectedDepartmentId" :can-manage="can('hr.departments.manage')" @select="selectedDepartmentId = $event" />
+        <NuxtLink v-if="selectedDepartmentId && can('hr.documents.read')" :to="{ path: `/hr/departments/${selectedDepartmentId}`, query: returnToQuery(route.fullPath) }" class="text-sm underline">{{ t('hr.depts.selectHelp') }}</NuxtLink>
+      </TabsContent>
+    </Tabs>
+  </div>
+</template>

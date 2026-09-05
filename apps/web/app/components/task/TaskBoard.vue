@@ -72,7 +72,7 @@ watch(
 // no-op).
 function applyMove(task: Task, stage: BoardStage | null) {
   const move = moveTo(kind.value, stage)
-  if (!move) return
+  if (!move || !task.can_write) return
   if ((stageOf(task, kind.value)?.id ?? null) === (stage?.id ?? null)) return
   updateTask({ id: task.id, ...move })
 }
@@ -135,6 +135,7 @@ function isCollapsed(stage: BoardStage): boolean {
           class="flex min-h-16 flex-1 flex-col gap-2 overflow-y-auto"
           :group="kind === 'project' ? { name: 'tasks', put: false } : 'tasks'"
           :animation="150"
+          filter="[data-readonly=true]"
           @add="(e: any) => onColumnAdd(e, UNSTAGED)"
         >
           <TaskCard
@@ -187,6 +188,7 @@ function isCollapsed(stage: BoardStage): boolean {
             class="flex min-h-16 flex-1 flex-col gap-2 overflow-y-auto"
             group="tasks"
             :animation="150"
+          filter="[data-readonly=true]"
             @add="(e: any) => onColumnAdd(e, String(stage.id))"
           >
             <TaskCard

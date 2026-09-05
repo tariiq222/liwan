@@ -1,8 +1,6 @@
 <script setup lang="ts">
-import CreateTaskDialog from '@/components/task/CreateTaskDialog.vue'
 import MilestoneTable from '@/components/project/MilestoneTable.vue'
 import ProjectHeader from '@/components/project/ProjectHeader.vue'
-import ProjectSettingsDialog from '@/components/project/ProjectSettingsDialog.vue'
 import ProjectUpdateList from '@/components/project/ProjectUpdateList.vue'
 import TaskBoard from '@/components/task/TaskBoard.vue'
 import TaskTable from '@/components/task/TaskTable.vue'
@@ -11,12 +9,14 @@ import { ApiError } from '@/composables/useApi'
 import { projectTaskParams, projectTaskQuery } from '@/composables/projectTaskParams'
 import { useProject } from '@/composables/useProjects'
 import type { TaskListParams } from '@/composables/useTasks'
+import { safeReturnTo, returnToQuery } from '@/utils/safeReturnTo'
 
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
 const hydrated = useHydrated()
-const isTaskDetailRoute = computed(() => route.params.taskId !== undefined)
+const normalizedPath = computed(() => route.path.replace(/\/+$/, '') || '/')
+const isBaseRoute = computed(() => normalizedPath.value === `/projects/${route.params.id}`)
 
 const projectId = computed(() => {
   const n = Number(route.params.id)
@@ -47,12 +47,21 @@ function onParams(p: TaskListParams) {
 }
 
 function openTask(taskId: number) {
-  router.push({ path: `/projects/${projectId.value}/tasks/${taskId}`, query: route.query })
+  router.push({
+    path: `/projects/${projectId.value}/tasks/${taskId}`,
+    query: { ...route.query, ...returnToQuery(route.fullPath) },
+  })
 }
 
-const createOpen = ref(false)
-const settingsOpen = ref(false)
 const stageSource = computed(() => ({ kind: 'project' as const, stages: project.value?.stages ?? [] }))
+const projectReturnTo = computed(() => safeReturnTo(route.query.returnTo, '/projects', ['/projects']))
+
+function openTaskCreate() {
+  router.push({ path: `/projects/${projectId.value}/tasks/new`, query: returnToQuery(route.fullPath) })
+}
+function openSettings() {
+  router.push({ path: `/projects/${projectId.value}/settings`, query: returnToQuery(route.fullPath) })
+}
 
 // ProjectMenu already toasts on archive/unarchive (projects.archived /
 // projects.unarchived) before emitting this event, so this handler only
@@ -69,14 +78,14 @@ function onUnarchived() {}
 </script>
 
 <template>
-  <div v-if="!isTaskDetailRoute" class="space-y-4">
+  <div v-if="isBaseRoute" class="space-y-4">
     <div v-if="notFound" class="flex flex-col items-start gap-3">
       <p class="text-muted-foreground">{{ t('projects.notFound') }}</p>
-      <NuxtLink to="/projects" class="text-sm underline">{{ t('projects.backToProjects') }}</NuxtLink>
+      <button type="button" class="text-sm underline" @click="router.push(projectReturnTo)">{{ t('projects.backToProjects') }}</button>
     </div>
 
     <template v-else>
-      <ProjectHeader v-if="project" :project="project" @create="createOpen = true" @settings="settingsOpen = true" @archived="onArchived" @unarchived="onUnarchived" />
+      <ProjectHeader v-if="project" :project="project" :back-to="projectReturnTo" @create="openTaskCreate" @settings="openSettings" @archived="onArchived" @unarchived="onUnarchived" />
       <Skeleton v-else-if="isLoading" class="h-9 w-1/2" />
 
       <Tabs :model-value="tab" @update:model-value="onTabChange">
@@ -87,11 +96,11 @@ function onUnarchived() {}
           <TabsTrigger value="updates" :disabled="!hydrated">{{ t('projects.tabs.updates') }}</TabsTrigger>
         </TabsList>
         <TabsContent value="list" class="space-y-4">
-          <TaskToolbar :model-value="params" hide-project-filter hide-create @update:model-value="onParams" @create="createOpen = true" />
-          <TaskTable :params="params" variant="project" @open="openTask" @create="createOpen = true" />
+          <TaskToolbar :model-value="params" hide-project-filter hide-create @update:model-value="onParams" @create="openTaskCreate" />
+          <TaskTable :params="params" variant="project" @open="openTask" @create="openTaskCreate" />
         </TabsContent>
         <TabsContent value="board" class="space-y-4">
-          <TaskToolbar :model-value="params" hide-project-filter hide-create @update:model-value="onParams" @create="createOpen = true" />
+          <TaskToolbar :model-value="params" hide-project-filter hide-create @update:model-value="onParams" @create="openTaskCreate" />
           <TaskBoard v-if="project" :params="params" :stage-source="stageSource" @open="openTask" />
         </TabsContent>
         <TabsContent value="milestones" class="space-y-4">
@@ -102,8 +111,6 @@ function onUnarchived() {}
         </TabsContent>
       </Tabs>
 
-      <CreateTaskDialog v-model:open="createOpen" :project-id="projectId ?? undefined" @created="openTask" />
-      <ProjectSettingsDialog v-if="project" v-model:open="settingsOpen" :project="project" />
     </template>
   </div>
   <NuxtPage />

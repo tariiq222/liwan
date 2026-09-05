@@ -1,15 +1,17 @@
 <script setup lang="ts">
-defineProps<{
+import { createBrandTheme } from '@/utils/brandTheme'
+const props = defineProps<{
   name: string
   color: string
   logoUrl: string
 }>()
 
 const { t } = useI18n()
+const theme = computed(() => createBrandTheme(props.color))
 </script>
 
 <template>
-  <Card data-testid="branding-preview" :style="{ '--preview-primary': color }">
+  <Card data-testid="branding-preview" :style="theme">
     <CardHeader>
       <CardTitle>{{ t('settings.branding.preview.title') }}</CardTitle>
       <CardDescription>{{ t('settings.branding.preview.hint') }}</CardDescription>
@@ -20,7 +22,7 @@ const { t } = useI18n()
         <span class="font-semibold">{{ name }}</span>
       </div>
       <div class="rounded-lg border p-4">
-        <Button type="button" :style="{ backgroundColor: 'var(--preview-primary)' }">
+        <Button type="button" >
           {{ t('settings.branding.preview.action') }}
         </Button>
       </div>

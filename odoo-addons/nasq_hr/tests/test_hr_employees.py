@@ -17,8 +17,12 @@ class TestHrEmployees(NasqHrCase):
         super().setUpClass()
         cls.admin = new_test_user(
             cls.env, login='hr_emp_admin', password='hr_emp_admin_pass_123',
-            name='Employee Admin', groups='nasq_core.group_customer_admin',
+            name='Employee Admin', groups='nasq_core.group_employee',
         )
+        cls.env['nasq.access.service']._nasq_replace_assignments(cls.admin, [{
+            'role_id': cls.env.ref('nasq_core.role_hr_manager').id,
+            'company_id': cls.env.company.id,
+        }])
         cls.dept_a = cls.env['hr.department'].create({'name': 'Engineering'})
         cls.dept_b = cls.env['hr.department'].create({'name': 'Finance'})
         cls.hr_emp = cls.env['hr.employee'].search([('user_id', '=', cls.employee.id)], limit=1)
@@ -70,6 +74,17 @@ class TestHrEmployees(NasqHrCase):
         self.assertTrue(any(e['id'] == self.hr_other.id for e in found['items']))
         missed = self.api('GET', '/api/v1/hr/employees?q=zzz-no-such').json()
         self.assertEqual(missed['total'], 0)
+
+    def test_employee_pagination_keeps_server_total(self):
+        for index in range(3):
+            self.env['hr.employee'].create({
+                'name': f'Pagination Employee {index}',
+                'work_email': f'pagination.employee.{index}@example.com',
+            })
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        body = self.api('GET', '/api/v1/hr/employees?q=Pagination&limit=1&offset=1').json()
+        self.assertEqual(len(body['items']), 1)
+        self.assertEqual(body['total'], 3)
 
     def test_employee_ids_are_hr_ids_not_user_ids(self):
         # The HR directory keys rows by hr.employee id and carries the linked
@@ -133,9 +148,23 @@ class TestHrEmployees(NasqHrCase):
         self.assertIn(archived.id, [item['id'] for item in res.json()['items']])
 
         other_company = self.env['res.company'].create({'name': 'HR API Other Company'})
+        self.admin.write({
+            'company_ids': [(6, 0, [self.env.company.id, other_company.id])],
+        })
         foreign = self.env['hr.employee'].create({'name': 'Foreign API Employee', 'company_id': other_company.id})
+        listing = self.api('GET', '/api/v1/hr/employees?archived=true').json()
+        self.assertNotIn(foreign.id, [item['id'] for item in listing['items']])
         res = self.api('GET', f'/api/v1/hr/employees/{foreign.id}')
-        self.assertIn(res.status_code, (403, 404))
+        self.assertEqual((res.status_code, res.json()['code']), (404, 'not_found'))
+        for method, path, body in (
+            ('PATCH', f'/api/v1/hr/employees/{foreign.id}', {'name': 'Takeover'}),
+            ('POST', f'/api/v1/hr/employees/{foreign.id}/archive', {}),
+        ):
+            result = self.api(method, path, body)
+            self.assertEqual(
+                (result.status_code, result.json()['code']),
+                (404, 'not_found'),
+            )
 
     def test_employee_write_checks_authorization_before_relation_lookup(self):
         self.authenticate('api_emp', 'api_emp_pass_123')
@@ -148,10 +177,13 @@ class TestHrEmployees(NasqHrCase):
             ('PATCH', '/api/v1/hr/employees/999999/access', {'role': 'employee'}),
             ('DELETE', '/api/v1/hr/employees/999999/access', None),
         )
-        for method, path, body in cases:
+        for method, path, body in cases[:4]:
             res = self.api(method, path, body)
             self.assertEqual(res.status_code, 403, (method, path, res.text))
             self.assertEqual(res.json()['code'], 'forbidden')
+        for method, path, body in cases[4:]:
+            res = self.api(method, path, body)
+            self.assertEqual(res.status_code, 404, (method, path, res.text))
 
     def test_admin_relation_and_email_errors_are_field_specific(self):
         self.authenticate('hr_emp_admin', 'hr_emp_admin_pass_123')
@@ -193,18 +225,14 @@ class TestHrEmployees(NasqHrCase):
         self.assertEqual(res.status_code, 422, res.text)
         self.assertEqual((res.json()['code'], res.json()['field']), ('invalid', 'parent_id'))
 
-    def test_work_email_patch_does_not_rename_login(self):
+    def test_work_email_patch_does_not_create_or_mutate_an_account(self):
         employee = self.env['hr.employee'].create({
             'name': 'Login Stability', 'work_email': 'fixed.login@example.com',
         })
         self.authenticate('hr_emp_admin', 'hr_emp_admin_pass_123')
-        res = self.api('POST', f'/api/v1/hr/employees/{employee.id}/access', {
-            'password': 'valid pass', 'role': 'employee',
-        })
-        self.assertEqual(res.status_code, 200)
-        self.assertEqual(res.json()['access']['login'], 'fixed.login@example.com')
         res = self.api('PATCH', f'/api/v1/hr/employees/{employee.id}', {
             'work_email': 'changed.login@example.com',
         })
         self.assertEqual(res.status_code, 200)
-        self.assertEqual(res.json()['access']['login'], 'fixed.login@example.com')
+        self.assertIsNone(res.json()['user_id'])
+        self.assertIsNone(res.json()['access'])

@@ -30,10 +30,14 @@ class TestHrDocumentAcl(TransactionCase):
             cls.env, login='hr_emp', groups='nasq_core.group_employee',
             company_id=cls.company.id, company_ids=[cls.company.id],
         )
-        cls.customer_admin = new_test_user(
-            cls.env, login='hr_cadmin', groups='nasq_core.group_customer_admin',
+        cls.hr_manager = new_test_user(
+            cls.env, login='hr_cadmin', groups='nasq_core.group_employee',
             company_id=cls.company.id, company_ids=[cls.company.id],
         )
+        cls.env['nasq.access.service']._nasq_replace_assignments(cls.hr_manager, [{
+            'role_id': cls.env.ref('nasq_core.role_hr_manager').id,
+            'company_id': cls.company.id,
+        }])
         cls.doc_other = cls.env['nasq.hr.document'].create({
             'name': 'Other Co Policy',
             'department_id': cls.dept_other.id,
@@ -62,8 +66,8 @@ class TestHrDocumentAcl(TransactionCase):
                 'department_id': self.dept_a.id,
             })
 
-    def test_customer_admin_crud_any_department(self):
-        Document = self.env['nasq.hr.document'].with_user(self.customer_admin)
+    def test_hr_manager_creates_and_updates_but_cannot_hard_delete(self):
+        Document = self.env['nasq.hr.document'].with_user(self.hr_manager)
         doc_a = Document.create({
             'name': 'Doc A',
             'department_id': self.dept_a.id,
@@ -74,13 +78,13 @@ class TestHrDocumentAcl(TransactionCase):
         })
         doc_a.write({'name': 'Doc A2', 'body': '<p>Hi</p>'})
         self.assertEqual(doc_a.name, 'Doc A2')
-        doc_b.unlink()
-        self.assertFalse(Document.search([('id', '=', doc_b.id)]))
-        doc_a.unlink()
-        self.assertFalse(Document.search([('id', '=', doc_a.id)]))
+        with self.assertRaises(AccessError):
+            doc_b.unlink()
+        with self.assertRaises(AccessError):
+            doc_a.unlink()
 
     def test_other_company_document_invisible(self):
-        for user in (self.employee, self.customer_admin):
+        for user in (self.employee, self.hr_manager):
             found = self.env['nasq.hr.document'].with_user(user).search([
                 ('id', '=', self.doc_other.id),
             ])

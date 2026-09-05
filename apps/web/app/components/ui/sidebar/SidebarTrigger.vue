@@ -9,7 +9,8 @@ const props = defineProps<{
   class?: HTMLAttributes["class"]
 }>()
 
-const { toggleSidebar } = useSidebar()
+const { toggleSidebar, openMobile, isMobile } = useSidebar()
+const hydrated = useHydrated()
 </script>
 
 <template>
@@ -19,9 +20,9 @@ const { toggleSidebar } = useSidebar()
     variant="ghost"
     size="icon"
     :class="cn('h-7 w-7', props.class)"
-    @click="toggleSidebar"
+    :disabled="!hydrated" :aria-expanded="isMobile ? openMobile : undefined" :aria-controls="isMobile ? 'mobile-navigation' : undefined" @click="toggleSidebar"
   >
     <PanelLeft />
-    <span class="sr-only">Toggle Sidebar</span>
+    <span class="sr-only">{{ $t('nav.toggleSidebar') }}</span>
   </Button>
 </template>

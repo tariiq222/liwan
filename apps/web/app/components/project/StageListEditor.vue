@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { GripVertical, Trash2 } from 'lucide-vue-next'
 import { VueDraggable } from 'vue-draggable-plus'
+import { moveId, stageMoveIndex, type StageMoveTarget } from '@/composables/stageOrder'
 
-// Presentational: no composable calls here. The host (ProjectSettingsDialog)
+// Presentational: no composable calls here. The host (ProjectSettingsForm)
 // owns the mutations and wires every emit to useAddStage/useUpdateStage/
 // useReorderStages/useDeleteStage, so this component only ever reflects
 // `stages` back out as edit intents.
@@ -43,6 +44,32 @@ function onDragEnd() {
     'reorder',
     localStages.value.map((s) => s.id),
   )
+}
+
+function moveStage(stageId: StageRow['id'], target: StageMoveTarget) {
+  if (disabled.value) return
+  const from = localStages.value.findIndex((stage) => stage.id === stageId)
+  if (from < 0) return
+  const to = stageMoveIndex(localStages.value.length, from, target)
+  if (from === to) return
+  const next = moveId(localStages.value, from, to)
+  localStages.value = next
+  emit('reorder', next.map((stage) => stage.id))
+}
+
+function onHandleKeydown(event: KeyboardEvent, stage: StageRow) {
+  const target: StageMoveTarget | null = event.key === 'ArrowUp'
+    ? 'up'
+    : event.key === 'ArrowDown'
+      ? 'down'
+      : event.key === 'Home'
+        ? 'first'
+        : event.key === 'End'
+          ? 'last'
+          : null
+  if (!target) return
+  event.preventDefault()
+  moveStage(stage.id, target)
 }
 
 // --- inline rename (double-click, or Enter/Space while the name is focused) --
@@ -92,10 +119,23 @@ function submitAdd() {
 <template>
   <div class="space-y-3">
     <p v-if="stages.length === 0" class="text-sm text-muted-foreground">{{ t('projects.stages.empty') }}</p>
+    <p v-else id="stage-reorder-help" class="text-xs text-muted-foreground">
+      {{ t('projects.stages.reorderHelp') }}
+    </p>
 
     <VueDraggable v-model="localStages" :disabled="disabled" handle=".stage-drag-handle" :animation="150" class="space-y-1" @end="onDragEnd">
       <div v-for="stage in localStages" :key="stage.id" data-testid="stage-row" class="flex items-center gap-2 rounded-md border p-2">
-        <GripVertical class="stage-drag-handle size-4 shrink-0 text-muted-foreground" :class="disabled ? 'cursor-not-allowed' : 'cursor-grab'" />
+        <button
+          type="button"
+          class="stage-drag-handle shrink-0 rounded p-1 text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          :class="disabled ? 'cursor-not-allowed' : 'cursor-grab'"
+          :disabled="disabled"
+          :aria-label="t('projects.stages.reorder', { name: stage.name })"
+          aria-describedby="stage-reorder-help"
+          @keydown="onHandleKeydown($event, stage)"
+        >
+          <GripVertical class="size-4" />
+        </button>
 
         <Input
           v-if="editingId === stage.id"

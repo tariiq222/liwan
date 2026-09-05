@@ -3,7 +3,7 @@ from odoo.tests import tagged
 
 from .common import NasqPmoCase
 
-PROJECT_KEYS = {'id', 'name', 'status', 'progress', 'task_count', 'closed_task_count', 'active', 'can_manage'}
+PROJECT_KEYS = {'id', 'name', 'status', 'progress', 'task_count', 'closed_task_count', 'active', 'can_manage', 'allowed_actions'}
 DETAIL_KEYS = PROJECT_KEYS | {'stages', 'description_html', 'manager', 'privacy_visibility', 'date_start', 'date_end', 'tags', 'followers_count', 'milestone_count'}
 
 
@@ -18,6 +18,12 @@ class TestProjects(NasqPmoCase):
         cls.stage_a = Stage.create({'name': 'A', 'sequence': 10, 'fold': True, 'project_ids': [(4, cls.project.id)]})
         cls.private = cls.env['project.project'].create({'name': 'Private', 'privacy_visibility': 'followers'})
 
+    def setUp(self):
+        super().setUp()
+        params = self.env['ir.config_parameter'].sudo()
+        params.set_param('nasq_pmo.project_creators', 'managers')
+        params.set_param('nasq_pmo.default_stages', False)
+
     def test_minimal_unchanged(self):
         self.authenticate('api_emp', 'api_emp_pass_123')
         items = self.api('GET', '/api/v1/projects?minimal=1').json()
@@ -27,11 +33,11 @@ class TestProjects(NasqPmoCase):
     def test_can_list_archived_flag(self):
         self.authenticate('api_emp', 'api_emp_pass_123')
         body = self.api('GET', '/api/v1/projects').json()
-        self.assertEqual(set(body), {'items', 'can_create', 'can_list_archived'})
+        self.assertEqual(set(body), {'items', 'total', 'can_create', 'can_list_archived'})
         self.assertFalse(body['can_list_archived'])
         self.authenticate('api_mgr', 'api_mgr_pass_123')
         body = self.api('GET', '/api/v1/projects').json()
-        self.assertEqual(set(body), {'items', 'can_create', 'can_list_archived'})
+        self.assertEqual(set(body), {'items', 'total', 'can_create', 'can_list_archived'})
         self.assertTrue(body['can_list_archived'])
 
     def test_list_full_shape_and_progress(self):

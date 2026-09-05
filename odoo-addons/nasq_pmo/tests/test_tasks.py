@@ -5,7 +5,7 @@ from .common import NasqPmoCase
 
 TASK_KEYS = {'id', 'name', 'project', 'state', 'priority', 'date_deadline',
              'days_remaining', 'is_overdue', 'is_closed', 'personal_stage', 'stage',
-             'assignees', 'tags'}
+             'assignees', 'tags', 'can_write', 'can_approve'}
 
 
 @tagged('post_install', '-at_install', 'nasq')
@@ -82,7 +82,7 @@ class TestTaskRead(NasqPmoCase):
         self.assertIn('description_html', body)
         self.assertEqual(set(body), TASK_KEYS | {'description_html', 'allocated_hours', 'age_days',
                                                    'cycle_days', 'subtasks', 'depends_on', 'attachments',
-                                                   'can_approve', 'created_at', 'updated_at', 'milestone'})
+                                                   'created_at', 'updated_at', 'milestone', 'allowed_actions'})
 
     def test_get_other_users_task_is_forbidden_or_hidden(self):
         # employees may read tasks in projects they can see; a task in a private project is 403/404

@@ -8,6 +8,7 @@ import StateBadge from './StateBadge.vue'
 const props = defineProps<{ task: TaskDetail }>()
 
 const { t } = useI18n()
+const { can } = useAccess()
 const router = useRouter()
 const route = useRoute()
 const qc = useQueryClient()
@@ -47,7 +48,7 @@ function openSubtask(id: number) {
         <span class="flex-1 truncate">{{ sub.name }}</span>
       </li>
     </ul>
-    <form class="flex gap-2" @submit.prevent="addSubtask">
+    <form v-if="can('pmo.tasks.create') && task.can_write" class="flex gap-2" @submit.prevent="addSubtask">
       <Input v-model="title" :placeholder="t('tasks.drawer.addSubtask')" class="h-8" />
       <Button type="submit" size="sm" :disabled="isPending || !title.trim()">{{ t('app.create') }}</Button>
     </form>

@@ -69,8 +69,10 @@ test('projects table shows status and progress, and a row opens the project', as
   await expect(row).toBeVisible()
   await expect(page).toHaveURL(new RegExp('status=at_risk'))
   await row.click()
-  await expect(page).toHaveURL(new RegExp(`/projects/${id}$`))
+  await expect(page).toHaveURL(new RegExp(`/projects/${id}\\?returnTo=`))
   await expect(page.getByRole('heading', { name })).toBeVisible()
+  await page.getByRole('link', { name: 'العودة إلى المشاريع' }).click()
+  await expect(page).toHaveURL(/\/projects\?status=at_risk&q=/)
 })
 
 test('project list shows every task of the project (not only mine), the detail page returns to the project', async ({ page }) => {
@@ -122,10 +124,11 @@ test('create task from the project locks the project, and a manager sets the sta
 
   await page.goto(`/projects/${id}`)
   await page.getByRole('button', { name: 'مهمة جديدة' }).click()
-  const dialog = page.getByRole('dialog')
-  await expect(dialog.getByText(name)).toBeVisible()
-  await dialog.getByLabel('عنوان المهمة').fill(`${name} new`)
-  await dialog.getByRole('button', { name: 'إنشاء' }).click()
+  await expect(page).toHaveURL(new RegExp(`/projects/${id}/tasks/new\\?returnTo=`))
+  const form = page.getByTestId('task-create-form')
+  await expect(form.getByText(name)).toBeVisible()
+  await form.getByLabel('عنوان المهمة').fill(`${name} new`)
+  await form.getByRole('button', { name: 'إنشاء' }).click()
   await expect(page).toHaveURL(new RegExp(`/projects/${id}/tasks/\\d+`))
   await page.keyboard.press('Escape')
   await expect(page).toHaveURL(new RegExp(`/projects/${id}$`))

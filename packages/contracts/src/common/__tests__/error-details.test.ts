@@ -6,8 +6,8 @@ describe('ApiErrorSchema details', () => {
     expect(ApiErrorSchema.parse(inUse).details?.documents).toBe(2)
   })
 
-  it('rejects non-numeric details and unknown envelope keys', () => {
-    expect(() => ApiErrorSchema.parse({ code: 'x', message: 'x', details: { employees: '1' } })).toThrow()
+  it('accepts structured access details but rejects unknown envelope keys', () => {
+    expect(ApiErrorSchema.parse({ code: 'missing_dependency', message: 'x', details: { permission: 'pmo.tasks.write', missing: ['pmo.tasks.read'] } }).details?.permission).toBe('pmo.tasks.write')
     expect(() => ApiErrorSchema.parse({ code: 'x', message: 'x', extra: true })).toThrow()
   })
 })

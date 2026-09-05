@@ -15,15 +15,17 @@ import { createDebouncedFlush } from '@/lib/debouncedFlush'
 // a pending debounced edit from A must not survive to fire 800ms later
 // against B — see flush() below and the parent's :key="task.id", which is
 // belt-and-braces with this fix, not a replacement for it.
-const props = defineProps<{ modelValue: string; taskId: number }>()
+const props = defineProps<{ modelValue: string; taskId: number; readonly?: boolean }>()
 const emit = defineEmits<{ 'update:modelValue': [{ html: string; taskId: number }] }>()
 
 const { t } = useI18n()
+const hydrated = useHydrated()
 
 const buffer = createDebouncedFlush<{ html: string; taskId: number }>(800, (value) => emit('update:modelValue', value))
 
 const editor = useEditor({
   content: props.modelValue,
+  editable: !props.readonly,
   extensions: [StarterKit, Link.configure({ openOnClick: false })],
   editorProps: {
     attributes: {
@@ -37,7 +39,7 @@ const editor = useEditor({
     // Capture the task this edit belongs to at schedule time, not read it
     // later from (possibly-by-then-stale) props — so flush() always emits
     // against the right task regardless of when it actually runs.
-    buffer.schedule({ html: ed.getHTML(), taskId: props.taskId })
+    if (!props.readonly) buffer.schedule({ html: ed.getHTML(), taskId: props.taskId })
   },
 })
 
@@ -79,38 +81,53 @@ function toggleBulletList() {
 function toggleOrderedList() {
   editor.value?.chain().focus().toggleOrderedList().run()
 }
+watch(() => props.readonly, value => editor.value?.setEditable(!value))
+const linkEditorOpen = ref(false)
+const linkDraft = ref('')
 function toggleLink() {
   const previous = editor.value?.getAttributes('link').href as string | undefined
-  // eslint-disable-next-line no-alert
-  const url = window.prompt(t('tasks.detail.linkPrompt'), previous ?? 'https://')
-  if (url === null) return
+  linkDraft.value = previous ?? ''
+  linkEditorOpen.value = true
+}
+function cancelLink() {
+  linkEditorOpen.value = false
+}
+function applyLink() {
+  const url = linkDraft.value.trim()
   if (!url) editor.value?.chain().focus().unsetLink().run()
   else editor.value?.chain().focus().extendMarkRange('link').setLink({ href: url }).run()
+  linkEditorOpen.value = false
 }
 </script>
 
 <template>
   <ClientOnly>
     <div class="rounded-md border">
-      <div class="flex items-center gap-1 border-b p-1">
-        <Button variant="ghost" size="icon" class="size-7" :class="{ 'bg-accent': editor?.isActive('bold') }" type="button" @click="toggleBold">
+      <div v-if="!readonly" class="flex items-center gap-1 border-b p-1">
+        <Button variant="ghost" size="icon" class="size-7" :disabled="!hydrated" :class="{ 'bg-accent': editor?.isActive('bold') }" type="button" @click="toggleBold">
           <Bold class="size-3.5" />
         </Button>
-        <Button variant="ghost" size="icon" class="size-7" :class="{ 'bg-accent': editor?.isActive('italic') }" type="button" @click="toggleItalic">
+        <Button variant="ghost" size="icon" class="size-7" :disabled="!hydrated" :class="{ 'bg-accent': editor?.isActive('italic') }" type="button" @click="toggleItalic">
           <Italic class="size-3.5" />
         </Button>
-        <Button variant="ghost" size="icon" class="size-7" :class="{ 'bg-accent': editor?.isActive('bulletList') }" type="button" @click="toggleBulletList">
+        <Button variant="ghost" size="icon" class="size-7" :disabled="!hydrated" :class="{ 'bg-accent': editor?.isActive('bulletList') }" type="button" @click="toggleBulletList">
           <List class="size-3.5" />
         </Button>
         <Button
           variant="ghost" size="icon" class="size-7" :class="{ 'bg-accent': editor?.isActive('orderedList') }" type="button"
-          @click="toggleOrderedList"
+          :disabled="!hydrated" @click="toggleOrderedList"
         >
           <ListOrdered class="size-3.5" />
         </Button>
-        <Button variant="ghost" size="icon" class="size-7" :class="{ 'bg-accent': editor?.isActive('link') }" type="button" @click="toggleLink">
+        <Button variant="ghost" size="icon" class="size-7" :disabled="!hydrated" :aria-label="t('tasks.detail.linkPrompt')" :class="{ 'bg-accent': editor?.isActive('link') }" type="button" @click="toggleLink">
           <LinkIcon class="size-3.5" />
         </Button>
+      </div>
+      <div v-if="linkEditorOpen" data-testid="link-editor" class="flex flex-wrap items-center gap-2 border-b p-2">
+        <Label for="description-link-url" class="sr-only">{{ t('tasks.detail.linkPrompt') }}</Label>
+        <Input id="description-link-url" v-model="linkDraft" :placeholder="t('tasks.detail.linkPrompt')" class="min-w-48 flex-1" dir="ltr" @keydown.enter.prevent="applyLink" @keydown.escape="cancelLink" />
+        <Button type="button" size="sm" :disabled="!hydrated" @click="applyLink">{{ t('tasks.detail.applyLink') }}</Button>
+        <Button type="button" size="sm" variant="ghost" @click="cancelLink">{{ t('tasks.detail.cancelLink') }}</Button>
       </div>
       <EditorContent :editor="editor" />
     </div>

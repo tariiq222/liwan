@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import TaskDetailPage from '@/components/task/TaskDetailPage.vue'
 import { projectTaskParams } from '@/composables/projectTaskParams'
+import { safeReturnTo } from '@/utils/safeReturnTo'
 
 function toPositiveInt(v: unknown): number | null {
   const n = Number(v)
@@ -13,7 +14,10 @@ const { t } = useI18n()
 const projectId = computed(() => toPositiveInt(route.params.id))
 const taskId = computed(() => toPositiveInt(route.params.taskId))
 const siblingParams = computed(() => projectTaskParams(projectId.value ?? 0, route.query))
-const closeTo = computed(() => ({ path: `/projects/${projectId.value ?? ''}`, query: route.query }))
+const closeTo = computed(() => {
+  const fallback = `/projects/${projectId.value ?? ''}`
+  return safeReturnTo(route.query.returnTo, fallback, [fallback])
+})
 
 // A non-numeric project or task id (e.g. /projects/1/tasks/abc) has nothing to
 // render; bounce back to the project instead of leaving a broken detail page.

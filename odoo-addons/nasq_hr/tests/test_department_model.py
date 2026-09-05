@@ -14,9 +14,13 @@ class TestDepartmentModel(TransactionCase):
         cls.company = cls.env.company
         cls.admin = new_test_user(
             cls.env, login='model_dept_admin', password='model_dept_admin_pass',
-            groups='nasq_core.group_customer_admin', company_id=cls.company.id,
+            groups='nasq_core.group_employee', company_id=cls.company.id,
             company_ids=[cls.company.id],
         )
+        cls.env['nasq.access.service']._nasq_replace_assignments(cls.admin, [{
+            'role_id': cls.env.ref('nasq_core.role_hr_manager').id,
+            'company_id': cls.company.id,
+        }])
 
     def test_usage_counts_archived_employees_children_and_documents(self):
         department = self.env['hr.department'].create({'name': 'Usage Department'})

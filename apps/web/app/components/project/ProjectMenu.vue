@@ -12,8 +12,6 @@ const hydrated = useHydrated()
 const { mutateAsync: archiveMutate, isPending: archiving } = useArchiveProject()
 const { mutateAsync: unarchiveMutate, isPending: unarchiving } = useUnarchiveProject()
 
-// No `ui/alert-dialog` component exists yet in this tree (another task is
-// adding one) — a plain Dialog stands in for the archive confirm.
 const confirmOpen = ref(false)
 
 async function doArchive() {
@@ -64,16 +62,12 @@ async function doUnarchive() {
     </DropdownMenuContent>
   </DropdownMenu>
 
-  <Dialog v-if="project.active" :open="confirmOpen" @update:open="(v) => (confirmOpen = v)">
-    <DialogContent>
-      <DialogHeader>
-        <DialogTitle>{{ t('projects.archiveConfirmTitle') }}</DialogTitle>
-        <DialogDescription>{{ t('projects.archiveConfirmText') }}</DialogDescription>
-      </DialogHeader>
-      <DialogFooter>
-        <Button variant="outline" :disabled="archiving" @click="confirmOpen = false">{{ t('app.cancel') }}</Button>
-        <Button variant="destructive" :disabled="archiving" @click="doArchive">{{ t('projects.menu.archive') }}</Button>
-      </DialogFooter>
-    </DialogContent>
-  </Dialog>
+  <div v-if="project.active && confirmOpen" data-testid="project-archive-confirm" class="mt-2 space-y-2 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm">
+    <p class="font-medium">{{ t('projects.archiveConfirmTitle') }}</p>
+    <p class="text-muted-foreground">{{ t('projects.archiveConfirmText') }}</p>
+    <div class="flex flex-wrap gap-2">
+      <Button variant="outline" size="sm" :disabled="archiving" @click.stop="confirmOpen = false">{{ t('app.cancel') }}</Button>
+      <Button variant="destructive" size="sm" :disabled="archiving" @click.stop="doArchive">{{ t('projects.menu.archive') }}</Button>
+    </div>
+  </div>
 </template>

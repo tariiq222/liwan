@@ -21,10 +21,12 @@ class TestNasqGroups(TransactionCase):
             self.assertNotIn(timesheet_group, employee.all_implied_ids)
         self.assertNotIn('hr_timesheet', self.env['ir.module.module']._get('nasq_core').dependencies_id.mapped('name'))
 
-        self.assertIn(employee, admin.all_implied_ids)
-        self.assertIn(self.env.ref('project.group_project_manager'), admin.all_implied_ids)
-        self.assertIn(self.env.ref('hr.group_hr_manager'), admin.all_implied_ids)
-        self.assertIn(self.env.ref('base.group_erp_manager'), admin.all_implied_ids)
+        self.assertIn(self.env.ref('base.group_user'), admin.all_implied_ids)
+        self.assertIn(self.env.ref('nasq_core.group_cap_access_users_assign_roles'), admin.all_implied_ids)
+        self.assertNotIn(employee, admin.all_implied_ids)
+        self.assertNotIn(self.env.ref('project.group_project_manager'), admin.all_implied_ids)
+        self.assertNotIn(self.env.ref('hr.group_hr_manager'), admin.all_implied_ids)
+        self.assertNotIn(self.env.ref('base.group_erp_manager'), admin.all_implied_ids)
         self.assertNotIn(self.env.ref('base.group_system'), admin.all_implied_ids)
 
         self.assertIn(self.env.ref('base.group_system'), vendor.all_implied_ids)

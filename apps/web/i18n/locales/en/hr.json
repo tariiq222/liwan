@@ -1,5 +1,14 @@
 {
   "hr": {
+    "actions": {
+      "back": "Back"
+    },
+    "states": {
+      "loading": "Loading…",
+      "notFound": "This item was not found or you do not have access.",
+      "forbidden": "You do not have permission to perform this action.",
+      "error": "Unable to load the data."
+    },
     "directory": {
       "title": "People",
       "empty": "No employees yet",
@@ -9,8 +18,22 @@
       "showArchived": "Show archived",
       "showActive": "Show active",
       "manage": "Manage",
-      "columns": { "name": "Name", "jobTitle": "Job title", "department": "Department", "manager": "Manager", "account": "Account", "actions": "Actions" },
-      "access": { "noAccount": "No account", "employee": "Employee", "admin": "Administrator", "vendor": "Vendor", "stopped": "Access stopped" }
+      "columns": {
+        "name": "Name",
+        "jobTitle": "Job title",
+        "department": "Department",
+        "manager": "Manager",
+        "account": "Account",
+        "actions": "Actions"
+      },
+      "access": {
+        "noAccount": "No account",
+        "employee": "Employee",
+        "admin": "Administrator",
+        "vendor": "Vendor",
+        "stopped": "Access stopped"
+      },
+      "description": "Employee directory and work details."
     },
     "card": {
       "title": "Employee card",
@@ -33,6 +56,7 @@
       "manage": "Manage departments",
       "empty": "No departments",
       "selectHelp": "Choose a department to view its documents.",
+      "detail": "Department documents",
       "delete": "Delete",
       "deleteConfirm": "Delete {name}?",
       "deleted": "Department deleted",
@@ -41,7 +65,10 @@
       "childReason": "{count} child department(s)",
       "documentReason": "{count} document(s)"
     },
-    "tabs": { "employees": "Employees", "departments": "Departments" },
+    "tabs": {
+      "employees": "Employees",
+      "departments": "Departments"
+    },
     "employee": {
       "title": "Employee",
       "createTitle": "New employee",
@@ -72,7 +99,10 @@
       "archive": "Archive employee",
       "unarchive": "Restore employee",
       "archiveConfirm": "Change this employee's active status?",
-      "archiveVendorReadOnly": "Vendor linked employees cannot be archived here."
+      "archiveVendorReadOnly": "Vendor linked employees cannot be archived here.",
+      "edit": "Edit employee",
+      "accessManagedInSettings": "Sign-in access is managed in System administration.",
+      "manageAccount": "Manage account"
     },
     "docs": {
       "title": "Documents",
@@ -84,8 +114,14 @@
       "linkPrompt": "Link URL",
       "attachments": "Attachments",
       "upload": "Upload file",
+      "edit": "Edit document",
+      "saved": "Document saved",
       "download": "Download",
-      "columns": { "name": "Title", "updated": "Last updated", "department": "Department" }
+      "columns": {
+        "name": "Title",
+        "updated": "Last updated",
+        "department": "Department"
+      }
     }
   }
 }

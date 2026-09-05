@@ -1,6 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from . import (
     common,
+    test_access_capabilities,
     test_bus,
     test_milestones,
     test_personal_stages,

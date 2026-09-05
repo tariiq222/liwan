@@ -56,11 +56,23 @@ async function ensureEmployeeUser(page): Promise<number> {
     employee = await createRes.json()
   }
   if (!employee.access?.active) {
-    const grantRes = await page.request.post(`/api/v1/hr/employees/${employee.id}/access`, {
-      data: { password: EMPLOYEE_PASSWORD, role: 'employee' },
-    })
-    expect(grantRes.status()).toBe(200)
-    employee = await grantRes.json()
+    const me = await (await page.request.get('/api/v1/me')).json()
+    const roles = await (await page.request.get('/api/v1/admin/roles')).json()
+    const role = roles.items.find((item) => item.key === 'employee')
+    expect(role).toBeTruthy()
+    if (employee.user_id) {
+      const account = await (await page.request.get(`/api/v1/admin/users/${employee.user_id}`)).json()
+      const restored = await page.request.post(`/api/v1/admin/users/${account.id}/reactivate`, {
+        data: { password: EMPLOYEE_PASSWORD, expected_version: account.version },
+      })
+      expect(restored.status()).toBe(200)
+    } else {
+      const grantRes = await page.request.post('/api/v1/admin/users', {
+        data: { employee_id: employee.id, password: EMPLOYEE_PASSWORD, assignments: [{ role_id: role.id, scope: { kind: 'company', id: me.company.id } }] },
+      })
+      expect(grantRes.status()).toBe(201)
+      employee.user_id = (await grantRes.json()).id
+    }
   }
   expect(employee.user_id).toBeTruthy()
   return employee.user_id as number
@@ -77,34 +89,16 @@ async function createTask(page, name: string, projectId: number): Promise<number
   return (await res.json()).id as number
 }
 
-// Real pointer-event drag (vue-draggable-plus/SortableJS reacts to pointer
-// events, not the HTML5 drag protocol) — same technique as projects.spec.ts
-// and board.spec.ts's dragCard, generalised for any two locators.
-async function drag(page, fromLocator, toLocator) {
-  await fromLocator.scrollIntoViewIfNeeded()
-  const from = await fromLocator.boundingBox()
-  const to = await toLocator.boundingBox()
-  if (!from || !to) throw new Error('missing bounding box for drag')
-  await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2)
-  await page.mouse.down()
-  const targetX = to.x + to.width / 2
-  const targetY = to.y + Math.min(8, to.height / 2)
-  for (let i = 1; i <= 10; i++) {
-    await page.mouse.move(from.x + from.width / 2 + ((targetX - (from.x + from.width / 2)) * i) / 10, from.y + from.height / 2 + ((targetY - (from.y + from.height / 2)) * i) / 10)
-    await page.waitForTimeout(20)
-  }
-  await page.mouse.up()
-}
-
 test('creating a project from the table lands on its page with the default stage columns', async ({ page }) => {
   await login(page)
   const name = `E2E admin create ${Date.now()}`
 
   await page.goto('/projects')
   await page.getByTestId('project-new').click()
-  const createDialog = page.getByRole('dialog')
-  await createDialog.getByTestId('project-create-name').fill(name)
-  await createDialog.getByRole('button', { name: 'إنشاء' }).click()
+  await expect(page).toHaveURL(/\/projects\/new\?returnTo=/)
+  const createForm = page.getByTestId('project-create-form')
+  await createForm.getByTestId('project-create-name').fill(name)
+  await createForm.getByRole('button', { name: 'إنشاء' }).click()
   await expect(page).toHaveURL(/\/projects\/\d+$/)
   const id = Number(new URL(page.url()).pathname.split('/').pop())
 
@@ -129,64 +123,69 @@ test('project settings: rename and visibility, followers, and the full stage lif
   await page.goto(`/projects/${id}`)
   await page.getByTestId('project-menu').click()
   await page.getByRole('menuitem', { name: 'إعدادات المشروع' }).click()
-  const dialog = page.getByTestId('project-settings-dialog')
-  await expect(dialog).toBeVisible()
+  await expect(page).toHaveURL(new RegExp(`/projects/${id}/settings\\?returnTo=`))
+  let settings = page.getByTestId('project-settings-page')
+  await expect(settings).toBeVisible()
 
   // --- general: rename + visibility ---------------------------------------
   const renamed = `${name} renamed`
-  const nameInput = dialog.getByLabel('الاسم')
+  const nameInput = settings.getByLabel('الاسم')
   await nameInput.fill(renamed)
   const nameSaved = page.waitForResponse((r) => r.url().includes(`/api/v1/projects/${id}`) && r.request().method() === 'PATCH')
   await nameInput.blur()
   await nameSaved
 
   const visibilitySaved = page.waitForResponse((r) => r.url().includes(`/api/v1/projects/${id}`) && r.request().method() === 'PATCH')
-  await dialog.getByRole('combobox').click()
+  await settings.getByRole('combobox').click()
   await page.getByRole('option', { name: 'المتابعون فقط' }).click()
   await visibilitySaved
 
   // --- stages: add, board reflects it, reorder, delete empty, delete non-empty disabled ---
-  await dialog.getByRole('tab', { name: 'المراحل' }).click()
   const extraStage = `Extra ${Date.now()}`
   const stageAdded = page.waitForResponse((r) => r.url().includes(`/api/v1/projects/${id}/stages`) && r.request().method() === 'POST')
-  await dialog.getByTestId('stage-add-input').fill(extraStage)
-  await dialog.getByTestId('stage-add-input').press('Enter')
+  await settings.getByTestId('stage-add-input').fill(extraStage)
+  await settings.getByTestId('stage-add-input').press('Enter')
   await stageAdded
-  const extraRow = dialog.getByTestId('stage-row').filter({ hasText: extraStage })
+  const extraRow = settings.getByTestId('stage-row').filter({ hasText: extraStage })
   await expect(extraRow).toBeVisible()
 
-  // Reorder: drag the new (last) stage above "To Do" (the first).
-  const todoRow = dialog.getByTestId('stage-row').filter({ hasText: 'To Do' })
+  // The same handle supports pointer drag and keyboard ordering. Home moves
+  // the new last stage to the first position through the real UI event path.
+  const reorderHandle = extraRow.getByRole('button', { name: new RegExp(`إعادة ترتيب المرحلة ${extraStage}`) })
+  await expect(reorderHandle).toBeEnabled()
   const reordered = page.waitForResponse((r) => r.url().includes(`/api/v1/projects/${id}/stages/order`) && r.request().method() === 'PUT')
-  await drag(page, extraRow.locator('.stage-drag-handle'), todoRow)
+  await reorderHandle.press('Home')
   await reordered
-  await expect(dialog.getByTestId('stage-row').first()).toContainText(extraStage)
+  await expect(settings.getByTestId('stage-row').first()).toContainText(extraStage)
+  await page.reload()
+  settings = page.getByTestId('project-settings-page')
+  await expect(settings.getByTestId('stage-row').first()).toContainText(extraStage)
 
   // The board reflects the new stage and the new order.
   await page.keyboard.press('Escape')
   await page.goto(`/projects/${id}?tab=board`)
   await expect(page.getByTestId('board-column').filter({ hasText: extraStage })).toBeVisible()
 
-  // Re-open settings > stages to finish the lifecycle checks.
-  await page.getByTestId('project-menu').click()
-  await page.getByRole('menuitem', { name: 'إعدادات المشروع' }).click()
-  await dialog.getByRole('tab', { name: 'المراحل' }).click()
+  // Continue the lifecycle on the routed settings page after checking the
+  // board; the settings form is intentionally unmounted on the project route.
+  await page.goto(`/projects/${id}/settings?returnTo=${encodeURIComponent(`/projects/${id}?tab=board`)}`)
+  settings = page.getByTestId('project-settings-page')
+  await expect(settings).toBeVisible()
 
   // Delete the (empty) stage we just added.
-  const extraRowAgain = dialog.getByTestId('stage-row').filter({ hasText: extraStage })
+  const extraRowAgain = settings.getByTestId('stage-row').filter({ hasText: extraStage })
   await extraRowAgain.getByTestId('stage-delete').click()
-  await expect(dialog.getByTestId('stage-row').filter({ hasText: extraStage })).toHaveCount(0)
+  await expect(settings.getByTestId('stage-row').filter({ hasText: extraStage })).toHaveCount(0)
 
   // "To Do" holds a task: its delete button stays disabled.
-  await expect(dialog.getByTestId('stage-row').filter({ hasText: 'To Do' }).getByTestId('stage-delete')).toBeDisabled()
+  await expect(settings.getByTestId('stage-row').filter({ hasText: 'To Do' }).getByTestId('stage-delete')).toBeDisabled()
 
   // --- followers -----------------------------------------------------------
-  await dialog.getByRole('tab', { name: 'المتابعون' }).click()
-  await expect(dialog.getByText('عند اختيار')).toBeVisible()
-  await dialog.getByTestId('follower-add').click()
+  await expect(settings.getByText('عند اختيار')).toBeVisible()
+  await settings.getByTestId('follower-add').click()
   await page.getByPlaceholder('بحث', { exact: true }).fill('E2E Employee')
   await page.getByRole('option', { name: 'E2E Employee' }).click()
-  await expect(dialog.getByTestId('follower-row').filter({ hasText: 'E2E Employee' })).toBeVisible()
+  await expect(settings.getByTestId('follower-row').filter({ hasText: 'E2E Employee' })).toBeVisible()
 })
 
 test('a milestone created on the project can be linked from the task detail page and its count updates', async ({ page }) => {
@@ -198,9 +197,12 @@ test('a milestone created on the project can be linked from the task detail page
 
   await page.goto(`/projects/${id}?tab=milestones`)
   await page.getByTestId('milestone-new').click()
-  const dialog = page.getByRole('dialog')
-  await dialog.getByLabel('الاسم').fill(milestoneName)
-  await dialog.getByRole('button', { name: 'إنشاء' }).click()
+  await expect(page).toHaveURL(new RegExp(`/projects/${id}/milestones/new\\?returnTo=`))
+  const milestoneForm = page.getByTestId('milestone-form')
+  await milestoneForm.getByLabel('الاسم').fill(milestoneName)
+  await milestoneForm.getByRole('button', { name: 'إنشاء' }).click()
+  await expect(page).toHaveURL(new RegExp(`/projects/${id}/milestones/\\d+/edit\\?returnTo=`))
+  await page.goto(`/projects/${id}?tab=milestones`)
   await expect(page.getByRole('row').filter({ hasText: milestoneName })).toBeVisible()
   await expect(page.getByRole('row').filter({ hasText: milestoneName })).toContainText('0 من 0')
 
@@ -226,11 +228,13 @@ test('posting a project update changes the header status badge', async ({ page }
 
   await page.goto(`/projects/${id}?tab=updates`)
   await page.getByTestId('project-update-new').click()
-  const dialog = page.getByRole('dialog')
-  await dialog.getByLabel('الحالة').click()
+  await expect(page).toHaveURL(new RegExp(`/projects/${id}/updates/new\\?returnTo=`))
+  const updateForm = page.getByTestId('project-update-form')
+  await updateForm.getByLabel('الحالة').click()
   await page.getByRole('option', { name: 'خارج المسار' }).click()
-  await dialog.getByLabel('العنوان').fill(`${name} update`)
-  await dialog.getByRole('button', { name: 'إنشاء' }).click()
+  await updateForm.getByLabel('العنوان').fill(`${name} update`)
+  await updateForm.getByRole('button', { name: 'إنشاء' }).click()
+  await expect(page).toHaveURL(new RegExp(`/projects/${id}\\?tab=updates`))
 
   await expect(page.getByTestId('project-update').filter({ hasText: `${name} update` })).toBeVisible()
   await expect(page.getByTestId('project-status-select')).toContainText('خارج المسار')
@@ -250,7 +254,9 @@ test('archiving a task removes it from the project list', async ({ page }) => {
   await expect(taskDetail).toBeVisible()
   await taskDetail.getByTestId('task-menu').click()
   await page.getByTestId('task-archive').click()
-  await page.getByRole('button', { name: 'أرشفة المهمة' }).click()
+  const taskConfirm = taskDetail.getByTestId('task-archive-confirm')
+  await expect(taskConfirm).toBeVisible()
+  await taskConfirm.getByRole('button', { name: 'أرشفة المهمة' }).click()
 
   await expect(page).toHaveURL(new RegExp(`/projects/${id}\\?tab=list`))
   await expect(page.getByRole('row', { name: new RegExp(`${name} task`) })).toHaveCount(0)
@@ -271,8 +277,10 @@ test('archiving and unarchiving a project moves it between the active and archiv
   await expect(activeRow).toBeVisible({ timeout: 10_000 })
   await activeRow.getByTestId('project-menu').click()
   await page.getByRole('menuitem', { name: 'أرشفة المشروع' }).click()
+  const projectConfirm = activeRow.getByTestId('project-archive-confirm')
+  await expect(projectConfirm).toBeVisible()
   const archived = page.waitForResponse((r) => r.url().includes(`/api/v1/projects/${id}/archive`) && r.request().method() === 'POST')
-  await page.getByRole('button', { name: 'أرشفة المشروع' }).click()
+  await projectConfirm.getByRole('button', { name: 'أرشفة المشروع' }).click()
   await archived
   await expect(page.getByTestId('project-row').filter({ hasText: name })).toHaveCount(0)
 
@@ -316,15 +324,32 @@ test('changing the default stages in settings applies to the next created projec
 test('an employee sees no project-create button and no settings nav entry', async ({ page }) => {
   await login(page)
   await ensureEmployeeUser(page)
+  const guardedProject = await createProject(page, `E2E guarded project ${Date.now()}`)
   await page.context().clearCookies()
 
   await loginAs(page, EMPLOYEE_LOGIN, EMPLOYEE_PASSWORD)
-  await expect(page.getByRole('navigation').getByRole('link', { name: 'الإعدادات' })).toHaveCount(0)
+  await expect(page.getByRole('navigation').getByRole('link', { name: 'إعدادات المشاريع', exact: true })).toHaveCount(0)
+  await expect(page.getByRole('navigation').getByRole('link', { name: 'المستخدمون', exact: true })).toHaveCount(0)
 
   await page.goto('/projects')
   await expect(page.getByRole('heading', { name: 'المشاريع' })).toBeVisible()
   await expect(page.getByTestId('project-new')).toHaveCount(0)
 
   await page.goto('/settings/projects')
-  await expect(page.getByText('هذه الصفحة لمدير النظام فقط')).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'هذه الصفحة لمدير النظام فقط' })).toBeVisible()
+  await page.goto(`/projects/${guardedProject}/settings`)
+  await expect(page.getByText('لا تملك صلاحية إدارة هذا المشروع')).toBeVisible()
+})
+
+test('project administration direct links expose invalid and forbidden states without overlays', async ({ page }) => {
+  await login(page)
+
+  await page.goto('/projects/not-an-id/settings')
+  await expect(page.getByText('معرّف المشروع غير صالح')).toBeVisible()
+  await expect(page.locator('[data-slot="dialog-content"], [data-slot="sheet-content"], [data-slot="dialog-overlay"], [data-slot="sheet-overlay"]')).toHaveCount(0)
+
+  await page.goto('/projects/999999/milestones/new')
+  await expect(page.getByText('المشروع غير موجود أو لا تملك صلاحية عرضه')).toBeVisible()
+  await page.reload()
+  await expect(page.getByText('المشروع غير موجود أو لا تملك صلاحية عرضه')).toBeVisible()
 })

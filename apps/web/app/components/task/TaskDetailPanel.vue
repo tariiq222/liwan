@@ -51,14 +51,12 @@ const { mutate: updateTask } = useUpdateTask()
 const hydrated = useHydrated()
 
 // --- archive -------------------------------------------------------------
-// Shown always (no can_approve-style gate here): the server decides and a
-// forbidden attempt surfaces as a toast, same pattern as StateMenu's
-// transition_forbidden handling.
+// The server exposes the record-specific archive action.
 const { mutateAsync: archiveMutate, isPending: archiving } = useArchiveTask()
 const archiveConfirmOpen = ref(false)
 
 async function doArchive() {
-  if (!task.value) return
+  if (!task.value?.allowed_actions.includes('archive')) return
   try {
     await archiveMutate({ id: task.value.id })
     archiveConfirmOpen.value = false
@@ -79,7 +77,7 @@ watch(
 )
 
 function saveTitle() {
-  if (!task.value) return
+  if (!task.value?.can_write) return
   const name = titleDraft.value.trim()
   if (!name || name === task.value.name) {
     titleDraft.value = task.value.name
@@ -121,6 +119,7 @@ useEventListener(document, 'keydown', onKeydown)
       <div class="flex min-w-0 items-center gap-2">
         <Input
           v-if="task"
+          :readonly="!task.can_write"
           v-model="titleDraft"
           :aria-label="t('tasks.newTitle')"
           class="h-9 min-w-0 flex-1 border-none px-0 text-base font-semibold shadow-none focus-visible:ring-0 sm:text-lg"
@@ -137,7 +136,7 @@ useEventListener(document, 'keydown', onKeydown)
             <component :is="isRtl ? ChevronLeft : ChevronRight" class="size-4" />
           </Button>
 
-          <DropdownMenu v-if="task">
+          <DropdownMenu v-if="task?.allowed_actions.includes('archive')">
             <DropdownMenuTrigger as-child :disabled="!hydrated">
               <button
                 type="button"
@@ -168,23 +167,14 @@ useEventListener(document, 'keydown', onKeydown)
       </div>
     </header>
 
-    <!--
-      No `ui/alert-dialog` component exists yet in this tree (another task is
-      adding one) — a plain Dialog stands in for the archive confirm, same
-      workaround ProjectMenu.vue uses for the project archive flow.
-    -->
-    <Dialog v-if="task" :open="archiveConfirmOpen" @update:open="(v) => (archiveConfirmOpen = v)">
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{{ t('tasks.drawer.archive') }}</DialogTitle>
-          <DialogDescription>{{ t('tasks.drawer.archiveConfirm') }}</DialogDescription>
-        </DialogHeader>
-        <DialogFooter>
-          <Button variant="outline" type="button" :disabled="archiving" @click="archiveConfirmOpen = false">{{ t('app.cancel') }}</Button>
-          <Button variant="destructive" type="button" :disabled="archiving" @click="doArchive">{{ t('tasks.drawer.archive') }}</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <div v-if="task && archiveConfirmOpen" data-testid="task-archive-confirm" class="space-y-2 border-b border-destructive/40 bg-destructive/5 p-3 text-sm">
+      <p class="font-medium">{{ t('tasks.drawer.archive') }}</p>
+      <p class="text-muted-foreground">{{ t('tasks.drawer.archiveConfirm') }}</p>
+      <div class="flex flex-wrap gap-2">
+        <Button variant="outline" type="button" :disabled="archiving" @click="archiveConfirmOpen = false">{{ t('app.cancel') }}</Button>
+        <Button variant="destructive" type="button" :disabled="archiving" @click="doArchive">{{ t('tasks.drawer.archive') }}</Button>
+      </div>
+    </div>
 
     <div v-if="!task" class="flex flex-1 items-center justify-center p-4">
       <Skeleton class="h-40 w-full" />

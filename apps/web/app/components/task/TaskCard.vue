@@ -53,6 +53,7 @@ function onCardKeydown(event: KeyboardEvent) {
   <Card
     :data-testid="`board-card-${task.id}`"
     :data-task-id="task.id"
+    :data-readonly="!task.can_write"
     role="button"
     tabindex="0"
     class="cursor-pointer gap-2 py-3 shadow-sm transition-shadow hover:shadow-md"
@@ -62,7 +63,7 @@ function onCardKeydown(event: KeyboardEvent) {
     <CardContent class="space-y-2 px-3">
       <div class="flex items-start justify-between gap-2">
         <p class="line-clamp-2 text-sm font-medium">{{ task.name }}</p>
-        <DropdownMenu>
+        <DropdownMenu v-if="task.can_write">
           <DropdownMenuTrigger as-child>
             <button
               type="button"

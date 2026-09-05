@@ -9,6 +9,7 @@ import { useProjects } from '@/composables/useProjects'
 const props = defineProps<{ modelValue: TaskListParams; hideProjectFilter?: boolean; hideCreate?: boolean }>()
 const emit = defineEmits<{ 'update:modelValue': [TaskListParams]; create: [] }>()
 const { t } = useI18n()
+const { can } = useAccess()
 // Every control below is SSR-rendered and visible/clickable before Nuxt
 // hydrates and attaches its listeners; an interaction in that window is
 // silently dropped (see useHydrated()). Disable them all until hydration
@@ -105,7 +106,7 @@ function clearFilters() {
         <Input v-model="search" :disabled="!hydrated" :placeholder="t('tasks.filters.search')" class="ps-8" />
       </div>
 
-      <Button v-if="!hideCreate" size="sm" class="gap-1.5" :disabled="!hydrated" @click="emit('create')">
+      <Button v-if="!hideCreate && can('pmo.tasks.create')" size="sm" class="gap-1.5" :disabled="!hydrated" @click="emit('create')">
         <Plus class="size-4" />{{ t('tasks.new') }}
       </Button>
     </div>

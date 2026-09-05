@@ -15,6 +15,7 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const { can } = useAccess()
 // Rows (and the row-open click handler, "load more", and the empty state's
 // "create" action) can be SSR-rendered with data already available, making
 // them clickable before Nuxt hydrates and attaches listeners — the same
@@ -39,7 +40,7 @@ const emptyTitleKey = computed(() => {
   if (hasActiveFilters.value) return 'app.noResults'
   return props.params.closed ? 'tasks.empty.closedTitle' : 'tasks.empty.title'
 })
-const showCreateAction = computed(() => !hasActiveFilters.value && !props.params.closed)
+const showCreateAction = computed(() => can('pmo.tasks.create') && !hasActiveFilters.value && !props.params.closed)
 
 const columnHelper = createColumnHelper<Task>()
 const titleColumn = columnHelper.accessor('name', {

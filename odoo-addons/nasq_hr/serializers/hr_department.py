@@ -5,24 +5,14 @@ WRITABLE = {'name', 'parent_id', 'manager_id'}
 
 
 def dump_department(dept):
-    manager = None
-    if dept.manager_id:
-        public = dept.env['hr.employee.public'].browse(dept.manager_id.id)
-        if public.exists():
-            manager = {'id': public.id, 'name': public.name}
-    if dept.env.user.has_group('nasq_core.group_customer_admin'):
-        employee_count = dept.with_context(active_test=False)._nasq_usage()['employees']
-    else:
-        employee_count = dept.env['hr.employee.public'].search_count([
-            ('department_id', '=', dept.id), ('active', '=', True),
-        ])
+    refs = dept._nasq_serialized_relations()
     return {
         'id': dept.id,
         'name': dept.name,
-        'parent_id': dept.parent_id.id or None,
-        'manager': manager,
-        'child_ids': list(dept.child_ids.ids),
-        'employee_count': employee_count,
+        'parent_id': refs['parent_id'],
+        'manager': refs['manager'],
+        'child_ids': refs['child_ids'],
+        'employee_count': refs['employee_count'],
     }
 
 

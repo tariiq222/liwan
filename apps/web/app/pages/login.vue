@@ -1,10 +1,12 @@
 <script setup lang="ts">
+import { postLoginPath } from '~/utils/accessPolicy'
 definePageMeta({ layout: false })
 
 const { t } = useI18n()
 const { branding } = useBranding()
 const productName = computed(() => branding.value?.name ?? t('app.productName'))
 const route = useRoute()
+const { me, refresh } = useMe()
 const login = ref('')
 const password = ref('')
 const totpCode = ref('')
@@ -46,8 +48,8 @@ async function submit() {
       mfaPending.value = true
       return
     }
-    await refreshNuxtData('me')
-    await navigateTo((route.query.next as string) || '/tasks')
+    await refresh()
+    await navigateTo(postLoginPath(me.value, route.query.next))
   } catch (e: any) {
     const code = e?.data?.data?.code as string | undefined
     errorMessage.value = t((code && AUTH_ERROR_KEYS[code]) || 'auth.loginFailed')
@@ -61,8 +63,8 @@ async function submitTotp() {
   errorMessage.value = null
   try {
     await $fetch('/api/auth/totp', { method: 'POST', body: { code: totpCode.value } })
-    await refreshNuxtData('me')
-    await navigateTo((route.query.next as string) || '/tasks')
+    await refresh()
+    await navigateTo(postLoginPath(me.value, route.query.next))
   } catch {
     errorMessage.value = t('auth.totpInvalid')
   } finally {

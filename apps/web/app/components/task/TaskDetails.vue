@@ -18,7 +18,7 @@ const { mutate: updateTask } = useUpdateTask()
 const { data: stages } = usePersonalStages()
 
 function patch(body: Parameters<typeof updateTask>[0]['patch'], resolved?: Parameters<typeof updateTask>[0]['resolved']) {
-  updateTask({ id: props.task.id, patch: body, resolved })
+  if (props.task.can_write) updateTask({ id: props.task.id, patch: body, resolved })
 }
 
 // --- assignees -------------------------------------------------------
@@ -133,7 +133,7 @@ function onHoursChange() {
 // be running (a flush fired during unmount) after `task` has already moved
 // on to another id, so a live read would misdirect the PATCH.
 function onDescriptionChange({ html, taskId }: { html: string; taskId: number }) {
-  updateTask({ id: taskId, patch: { description: html } })
+  if (props.task.can_write) updateTask({ id: taskId, patch: { description: html } })
 }
 
 // --- metrics ---------------------------------------------------------------
@@ -145,18 +145,20 @@ const updatedLabel = computed(() => dateTimeFmt.value.format(new Date(props.task
   <div class="space-y-6">
     <section class="space-y-2">
       <Label>{{ t('tasks.drawer.assignees') }}</Label>
-      <AssigneePicker :model-value="task.assignees" @update:model-value="onAssigneesChange" />
+      <p v-if="!task.can_write" class="text-sm">{{ task.assignees.map(person => person.name).join('، ') || '—' }}</p>
+      <AssigneePicker v-else :model-value="task.assignees" @update:model-value="onAssigneesChange" />
     </section>
 
     <section class="space-y-2">
       <Label>{{ t('tasks.drawer.description') }}</Label>
-      <DescriptionEditor :model-value="task.description_html" :task-id="task.id" @update:model-value="onDescriptionChange" />
+      <DescriptionEditor :readonly="!task.can_write" :model-value="task.description_html" :task-id="task.id" @update:model-value="onDescriptionChange" />
     </section>
 
     <section class="grid grid-cols-2 gap-4">
       <div class="space-y-2">
         <Label>{{ t('tasks.drawer.deadline') }}</Label>
-        <Popover>
+        <p v-if="!task.can_write" class="text-sm">{{ deadlineButtonLabel }}</p>
+        <Popover v-else>
           <PopoverTrigger as-child>
             <Button variant="outline" class="w-full justify-start" type="button" :aria-label="t('tasks.drawer.deadline')">
               {{ deadlineButtonLabel }}
@@ -186,13 +188,15 @@ const updatedLabel = computed(() => dateTimeFmt.value.format(new Date(props.task
       <div class="mt-4 space-y-4 border-t pt-4">
         <section class="space-y-2">
           <Label>{{ t('tasks.drawer.tags') }}</Label>
-          <TagPicker :model-value="task.tags" :can-create="task.can_approve" @update:model-value="onTagsChange" />
+          <p v-if="!task.can_write" class="text-sm">{{ task.tags.map(tag => tag.name).join('، ') || '—' }}</p>
+          <TagPicker v-else :model-value="task.tags" :can-create="task.can_approve" @update:model-value="onTagsChange" />
         </section>
 
         <section class="grid grid-cols-2 gap-4">
           <div class="space-y-2">
             <Label>{{ t('tasks.drawer.stage') }}</Label>
-            <Select :model-value="task.personal_stage ? String(task.personal_stage.id) : NONE" @update:model-value="onStageChange">
+            <p v-if="!task.can_write" class="text-sm">{{ task.personal_stage?.name || '—' }}</p>
+            <Select v-else :model-value="task.personal_stage ? String(task.personal_stage.id) : NONE" @update:model-value="onStageChange">
               <SelectTrigger size="sm" class="w-full">
                 <SelectValue />
               </SelectTrigger>
@@ -205,10 +209,10 @@ const updatedLabel = computed(() => dateTimeFmt.value.format(new Date(props.task
 
           <div v-if="task.project" class="space-y-2">
             <Label>{{ t('tasks.drawer.milestone') }}</Label>
-            <MilestoneSelect :task="task" />
+            <MilestoneSelect v-if="task.can_write" :task="task" /><p v-else class="text-sm">{{ task.milestone?.name || '—' }}</p>
           </div>
 
-          <div v-if="task.can_approve" class="space-y-2">
+          <div v-if="task.can_write && task.can_approve" class="space-y-2">
             <Label for="allocated-hours">{{ t('tasks.drawer.allocatedHours') }}</Label>
             <Input id="allocated-hours" v-model="hoursDraft" type="number" min="0" step="0.5" @change="onHoursChange" />
           </div>

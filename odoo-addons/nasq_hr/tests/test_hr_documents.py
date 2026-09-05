@@ -16,8 +16,12 @@ class TestHrDocuments(NasqHrCase):
         super().setUpClass()
         cls.admin = new_test_user(
             cls.env, login='hr_doc_admin', password='hr_doc_admin_pass_123',
-            name='Doc Admin', groups='nasq_core.group_customer_admin',
+            name='Doc Admin', groups='nasq_core.group_employee',
         )
+        cls.env['nasq.access.service']._nasq_replace_assignments(cls.admin, [{
+            'role_id': cls.env.ref('nasq_core.role_hr_manager').id,
+            'company_id': cls.env.company.id,
+        }])
         cls.dept_a = cls.env['hr.department'].create({'name': 'Engineering'})
         cls.dept_b = cls.env['hr.department'].create({'name': 'Finance'})
         cls.hr_emp = cls.env['hr.employee'].search([('user_id', '=', cls.employee.id)], limit=1)
@@ -104,6 +108,18 @@ class TestHrDocuments(NasqHrCase):
         self.assertNotIn(self.doc_a.id, ids)
         self.assertEqual(set(body['items'][0]), DOC_KEYS)
 
+    def test_list_pagination_keeps_server_total(self):
+        for index in range(3):
+            self.env['nasq.hr.document'].create({
+                'name': f'Pagination Document {index}',
+                'department_id': self.dept_a.id,
+            })
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        body = self.api('GET', '/api/v1/hr/documents?q=Pagination&limit=1&offset=1').json()
+        self.assertEqual(len(body['items']), 1)
+        self.assertEqual(body['total'], 3)
+        self.assertEqual(set(body['items'][0]), DOC_KEYS)
+
     def test_search_by_name(self):
         self.authenticate('api_emp', 'api_emp_pass_123')
         found = self.api('GET', '/api/v1/hr/documents?q=handbook').json()
@@ -116,6 +132,34 @@ class TestHrDocuments(NasqHrCase):
         res = self.api('GET', '/api/v1/hr/documents/999999')
         self.assertEqual(res.status_code, 404)
         self.assertEqual(res.json()['code'], 'not_found')
+
+    def test_cross_company_document_and_attachment_remain_hidden(self):
+        other_company = self.env['res.company'].create({'name': 'Document Other Co'})
+        self.employee.write({
+            'company_ids': [(6, 0, [self.env.company.id, other_company.id])],
+        })
+        other_department = self.env['hr.department'].create({
+            'name': 'Other Documents', 'company_id': other_company.id,
+        })
+        other_document = self.env['nasq.hr.document'].create({
+            'name': 'Private Other Policy',
+            'department_id': other_department.id,
+            'company_id': other_company.id,
+        })
+        attachment = self.env['ir.attachment'].create({
+            'name': 'private.pdf',
+            'datas': base64.b64encode(b'private document').decode(),
+            'mimetype': 'application/pdf',
+            'res_model': 'nasq.hr.document',
+            'res_id': other_document.id,
+            'company_id': other_company.id,
+        })
+
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        result = self.api('GET', f'/api/v1/hr/documents/{other_document.id}')
+        self.assertEqual((result.status_code, result.json()['code']), (404, 'not_found'))
+        download = self.url_open(f'/web/content/{attachment.id}')
+        self.assertIn(download.status_code, (403, 404))
 
     def test_patch_cannot_reparent(self):
         self.authenticate('hr_doc_admin', 'hr_doc_admin_pass_123')
@@ -141,6 +185,10 @@ class TestHrDocuments(NasqHrCase):
         self.assertEqual(att['name'], 'policy.pdf')
         self.assertEqual(att['mimetype'], 'application/pdf')
         self.assertGreater(att['file_size'], 0)
+
+        download = self.url_open(f'/web/content/{att["id"]}')
+        self.assertEqual(download.status_code, 200)
+        self.assertIn(b'%PDF-1.4 test', download.content)
 
     def test_employee_upload_is_403(self):
         self.authenticate('api_emp', 'api_emp_pass_123')

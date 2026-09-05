@@ -5,6 +5,8 @@ import AccessBadge from './AccessBadge.vue'
 const props = defineProps<{ employeeId: number }>()
 
 const { t } = useI18n()
+const { can } = useAccess()
+const canSeeAccess = computed(() => can('hr.employees.access_status.read'))
 const id = computed(() => props.employeeId)
 const { data: employee, isLoading } = useHrEmployee(id)
 </script>
@@ -50,7 +52,7 @@ const { data: employee, isLoading } = useHrEmployee(id)
           <dt class="text-muted-foreground">{{ t('hr.card.manager') }}</dt>
           <dd>{{ employee.manager?.name || '—' }}</dd>
         </div>
-        <div class="flex items-center justify-between">
+        <div v-if="canSeeAccess" class="flex items-center justify-between">
           <dt class="text-muted-foreground">{{ t('hr.card.account') }}</dt>
           <dd><AccessBadge :access="employee.access" /></dd>
         </div>

@@ -2,15 +2,12 @@
 import type { Task, TaskState } from '@nasq/contracts'
 import { Loader2 } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
-import { STATE_LABEL_KEY, nextStates } from '@/composables/taskState'
+import { STATE_LABEL_KEY, permittedNextStates } from '@/composables/taskState'
 import { ApiError } from '@/composables/useApi'
 import { useTransitionTask } from '@/composables/useTasks'
 import StateBadge from './StateBadge.vue'
 
-// Ruling: the list view has no can_approve on Task (only TaskDetail has it),
-// so `canApprove` defaults to true here and the server is the real gate —
-// a 403 `transition_forbidden` surfaces as a toast instead of hiding items.
-const props = withDefaults(defineProps<{ task: Task; canApprove?: boolean }>(), { canApprove: true })
+const props = defineProps<{ task: Task; canApprove?: boolean }>()
 
 const { t } = useI18n()
 const { mutate, isPending } = useTransitionTask()
@@ -19,7 +16,7 @@ const { mutate, isPending } = useTransitionTask()
 // documented in README's "SSR hydration and interactive controls".
 const hydrated = useHydrated()
 
-const states = computed(() => nextStates(props.task.state, props.canApprove))
+const states = computed(() => permittedNextStates(props.task.state, props.task.can_write, props.canApprove ?? props.task.can_approve))
 
 function onSelect(state: TaskState) {
   mutate(
@@ -36,7 +33,8 @@ function onSelect(state: TaskState) {
 </script>
 
 <template>
-  <DropdownMenu>
+  <StateBadge v-if="!states.length" :state="task.state" />
+  <DropdownMenu v-else>
     <DropdownMenuTrigger as-child :disabled="isPending || !hydrated">
       <button type="button" class="inline-flex items-center disabled:opacity-60" :disabled="isPending || !hydrated">
         <Loader2 v-if="isPending" class="size-4 animate-spin text-muted-foreground" />

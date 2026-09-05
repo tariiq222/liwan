@@ -71,42 +71,9 @@ def parse_employee_patch(payload):
     return _parse_employee_vals(payload, create=False)
 
 
-def _parse_access_payload(payload, *, grant):
-    allowed = {'password', 'role'}
-    unknown = set(payload) - allowed
-    if unknown:
-        field = sorted(unknown)[0]
-        raise ApiError(422, 'invalid', f"field {field!r} is not writable", field=field)
-    if grant and 'password' not in payload:
-        raise ApiError(422, 'invalid', 'password is required', field='password')
-    if grant and 'role' not in payload:
-        raise ApiError(422, 'invalid', 'role is required', field='role')
-    if not grant and not payload:
-        raise ApiError(422, 'invalid', 'at least one access field is required')
-    values = {}
-    if 'password' in payload:
-        if not isinstance(payload['password'], str):
-            raise ApiError(422, 'invalid', 'password must be a string', field='password')
-        values['password'] = payload['password']
-    if 'role' in payload:
-        if not isinstance(payload['role'], str) or not payload['role']:
-            raise ApiError(422, 'invalid', 'role must be a string', field='role')
-        values['role'] = payload['role']
-    return values
-
-
-def parse_access_grant(payload):
-    return _parse_access_payload(payload, grant=True)
-
-
-def parse_access_patch(payload):
-    return _parse_access_payload(payload, grant=False)
-
-
-def dump_employee(employee):
+def dump_employee(employee, *, include_access=True):
     """Serialize an hr.employee or hr.employee.public record. ``id`` is the employee id."""
-    dept = employee.department_id
-    manager = employee.parent_id
+    refs = employee._nasq_relation_refs()
     user = employee.user_id
     role = None
     if user:
@@ -120,16 +87,16 @@ def dump_employee(employee):
         'id': employee.id,
         'name': employee.name,
         'job_title': employee.job_title or '',
-        'department': {'id': dept.id, 'name': dept.name} if dept else None,
+        'department': refs['department'],
         'work_email': employee.work_email or '',
         'work_phone': employee.work_phone or '',
         'user_id': user.id or None,
-        'manager': {'id': manager.id, 'name': manager.name} if manager else None,
+        'manager': refs['manager'],
         'active': bool(employee.active),
         'access': {
             'user_id': user.id,
             'login': user.login,
             'role': role,
             'active': bool(user.active),
-        } if user else None,
+        } if user and include_access else None,
     }

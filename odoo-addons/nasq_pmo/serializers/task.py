@@ -91,6 +91,8 @@ def dump_task(task, today=None):
         'stage': _ref(task.stage_id) if task.stage_id else None,
         'assignees': [_ref(u) for u in task.user_ids],
         'tags': [{'id': t.id, 'name': t.name, 'color': t.color} for t in task.tag_ids],
+        'can_write': task._nasq_can_write(),
+        'can_approve': task._nasq_can_approve(),
     }
 
 
@@ -110,7 +112,12 @@ def dump_task_detail(task, today=None):
             'id': a.id, 'name': a.name, 'mimetype': a.mimetype or '',
             'url': f'/web/content/{a.id}?download=true',
         } for a in task.attachment_ids],
-        'can_approve': task._nasq_can_approve(),
+        'allowed_actions': [
+            'read',
+            *(['write'] if task._nasq_can_write() else []),
+            *(['archive'] if task._nasq_can_archive() else []),
+            *(['approve'] if task._nasq_can_approve() else []),
+        ],
         'created_at': iso(task.create_date),
         'updated_at': iso(task.write_date),
         'milestone': _milestone_ref(task.milestone_id) if task.milestone_id else None,

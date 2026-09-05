@@ -3,11 +3,11 @@ import ProjectSettingsForm from '@/components/settings/ProjectSettingsForm.vue'
 import SettingsTabs from '@/components/settings/SettingsTabs.vue'
 
 const { t } = useI18n()
-const { me } = useMe()
+const { can } = useAccess()
 
 // The global auth middleware already resolved `me` before this page renders,
 // so `me.value` is never null here — only the role varies.
-const forbidden = computed(() => me.value?.role === 'employee')
+const forbidden = computed(() => !can('pmo.settings.manage'))
 </script>
 
 <template>

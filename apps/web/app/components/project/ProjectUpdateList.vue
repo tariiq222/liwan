@@ -4,7 +4,7 @@ import { sanitizeHtml } from '@/utils/sanitize'
 import { formatCalendarDate } from '@/composables/calendarDate'
 import { useProjectUpdates } from '@/composables/useProjectUpdates'
 import ProjectStatusBadge from './ProjectStatusBadge.vue'
-import ProjectUpdateDialog from './ProjectUpdateDialog.vue'
+import { returnToQuery } from '@/utils/safeReturnTo'
 
 const props = defineProps<{ projectId: number; canManage: boolean }>()
 
@@ -14,6 +14,8 @@ const hydrated = useHydrated()
 const projectIdRef = computed(() => props.projectId)
 const { data, isLoading } = useProjectUpdates(projectIdRef)
 const items = computed<ProjectUpdate[]>(() => data.value ?? [])
+const router = useRouter()
+const route = useRoute()
 
 // u.date is a YYYY-MM-DD calendar date, not an instant — new Date(iso) parses
 // it as UTC midnight and renders a day early west of Greenwich.
@@ -21,13 +23,15 @@ function dateLabel(iso: string): string {
   return formatCalendarDate(iso, locale.value)
 }
 
-const dialogOpen = ref(false)
+function openCreate() {
+  router.push({ path: `/projects/${props.projectId}/updates/new`, query: returnToQuery(route.fullPath) })
+}
 </script>
 
 <template>
   <div class="space-y-3">
     <div v-if="canManage" class="flex justify-end">
-      <Button data-testid="project-update-new" :disabled="!hydrated" @click="dialogOpen = true">
+      <Button data-testid="project-update-new" :disabled="!hydrated" @click="openCreate">
         {{ t('projects.updates.new') }}
       </Button>
     </div>
@@ -38,7 +42,7 @@ const dialogOpen = ref(false)
     <div v-else-if="items.length === 0" class="rounded-md border border-dashed p-6 text-center">
       <p class="font-medium">{{ t('projects.updates.empty') }}</p>
       <p class="mt-1 text-sm text-muted-foreground">{{ t('projects.updates.emptyHint') }}</p>
-      <Button v-if="canManage" size="sm" class="mt-3" :disabled="!hydrated" @click="dialogOpen = true">
+      <Button v-if="canManage" size="sm" class="mt-3" :disabled="!hydrated" @click="openCreate">
         {{ t('projects.updates.new') }}
       </Button>
     </div>
@@ -59,5 +63,4 @@ const dialogOpen = ref(false)
     </template>
   </div>
 
-  <ProjectUpdateDialog :open="dialogOpen" :project-id="projectId" @update:open="(v) => (dialogOpen = v)" />
 </template>

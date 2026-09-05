@@ -22,6 +22,7 @@ def dump_stage(project, stage):
 
 
 def dump_project(project):
+    can_manage = project._nasq_can_manage()
     return {
         'id': project.id,
         'name': project.name,
@@ -30,7 +31,8 @@ def dump_project(project):
         'task_count': project.task_count,
         'closed_task_count': project.closed_task_count,
         'active': project.active,
-        'can_manage': project._nasq_can_manage(),
+        'can_manage': can_manage,
+        'allowed_actions': ['read', *(['write', 'archive'] if can_manage else [])],
     }
 
 

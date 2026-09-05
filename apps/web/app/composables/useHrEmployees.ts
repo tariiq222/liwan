@@ -2,14 +2,10 @@ import type { MaybeRefOrGetter } from 'vue'
 import { computed, toValue } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import {
-  HrAccessGrantSchema,
-  HrAccessPatchSchema,
   HrEmployeeCreateSchema,
   HrEmployeeListSchema,
   HrEmployeePatchSchema,
   HrEmployeeSchema,
-  type HrAccessGrant,
-  type HrAccessPatch,
   type HrEmployee,
   type HrEmployeeCreate,
   type HrEmployeeList,
@@ -18,6 +14,10 @@ import {
 
 export type { HrEmployee, HrEmployeeList }
 
+// Kept as a compatibility export for consumers that used the old HR access
+// mutation cache policy. Account mutations now belong to the access module.
+export const HR_ACCESS_MUTATION_GC_TIME = 0
+
 export type HrEmployeeListParams = {
   q?: string
   department_id?: number
@@ -25,8 +25,6 @@ export type HrEmployeeListParams = {
   limit?: number
   offset?: number
 }
-
-export const HR_ACCESS_MUTATION_GC_TIME = 0
 
 export const hrEmployeeKeys = {
   list: (params: HrEmployeeListParams) => ['hr', 'employees', params] as const,
@@ -107,35 +105,4 @@ function useEmployeeArchiveMutation(action: 'archive' | 'unarchive') {
 export function useArchiveHrEmployee() { return useEmployeeArchiveMutation('archive') }
 export function useUnarchiveHrEmployee() { return useEmployeeArchiveMutation('unarchive') }
 
-function useSecureAccessMutation<TBody>(mutationFn: (input: TBody) => Promise<HrEmployee>) {
-  const qc = useQueryClient(); const resetRef: { value: () => void } = { value: () => {} }
-  const mutation = useMutation({
-    gcTime: HR_ACCESS_MUTATION_GC_TIME,
-    mutationFn,
-    onSuccess: (employee) => setEmployeeDetailAndInvalidate(qc, employee, true, false),
-    onSettled: () => resetRef.value(),
-  })
-  resetRef.value = mutation.reset
-  return mutation
-}
-
-export function useGrantHrAccess() {
-  const { $api } = useApi()
-  return useSecureAccessMutation<{ id: number; body: HrAccessGrant }>(({ id, body }) =>
-    $api(`/api/v1/hr/employees/${id}/access`, { method: 'POST', body, schema: HrEmployeeSchema }),
-  )
-}
-export function useUpdateHrAccess() {
-  const { $api } = useApi()
-  return useSecureAccessMutation<{ id: number; body: HrAccessPatch }>(({ id, body }) =>
-    $api(`/api/v1/hr/employees/${id}/access`, { method: 'PATCH', body, schema: HrEmployeeSchema }),
-  )
-}
-export function useRevokeHrAccess() {
-  const { $api } = useApi()
-  return useSecureAccessMutation<{ id: number }>(({ id }) =>
-    $api(`/api/v1/hr/employees/${id}/access`, { method: 'DELETE', schema: HrEmployeeSchema }),
-  )
-}
-
-export { HrAccessGrantSchema, HrAccessPatchSchema, HrEmployeeCreateSchema, HrEmployeePatchSchema }
+export { HrEmployeeCreateSchema, HrEmployeePatchSchema }
