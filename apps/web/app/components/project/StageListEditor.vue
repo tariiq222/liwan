@@ -45,14 +45,21 @@ function onDragEnd() {
   )
 }
 
-// --- inline rename (double-click, or Enter while the name is focused) ------
+// --- inline rename (double-click, or Enter/Space while the name is focused) --
 const editingId = ref<StageRow['id'] | null>(null)
 const editDraft = ref('')
+// Single ref is safe: only one row is ever in rename mode at a time (the
+// Input is v-if'd to just that row), so there is no v-for ref collision.
+const renameInputEl = ref<{ $el: HTMLInputElement } | null>(null)
 
-function startRename(stage: StageRow) {
+async function startRename(stage: StageRow) {
   if (disabled.value) return
   editingId.value = stage.id
   editDraft.value = stage.name
+  await nextTick()
+  const el = renameInputEl.value?.$el
+  el?.focus()
+  el?.select()
 }
 function cancelRename() {
   editingId.value = null
@@ -89,21 +96,23 @@ function submitAdd() {
 
         <Input
           v-if="editingId === stage.id"
+          ref="renameInputEl"
           v-model="editDraft"
           class="h-8 flex-1"
           :disabled="disabled"
           @keydown.enter="($event.target as HTMLInputElement).blur()"
-          @keydown.escape="cancelRename"
+          @keydown.escape.stop.prevent="cancelRename"
           @blur="commitRename(stage)"
         />
         <span
           v-else
           role="button"
-          tabindex="0"
+          :tabindex="hydrated ? 0 : -1"
           class="flex-1 truncate rounded px-1 text-start text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
           :aria-label="t('projects.stages.rename')"
           @dblclick="startRename(stage)"
-          @keydown.enter="startRename(stage)"
+          @keydown.enter.prevent="startRename(stage)"
+          @keydown.space.prevent="startRename(stage)"
         >{{ stage.name }}</span>
 
         <Toggle

@@ -13,7 +13,7 @@ export function useAddStage() {
   return useMutation({
     mutationFn: ({ projectId, name, fold }: { projectId: number; name: string; fold?: boolean }) =>
       $api(`/api/v1/projects/${projectId}/stages`, { method: 'POST', body: { name, fold }, schema: ProjectStageSchema }),
-    onSuccess: (_stage, { projectId }) => {
+    onSettled: (_stage, _error, { projectId }) => {
       qc.invalidateQueries({ queryKey: projectKeys.detail(projectId) })
     },
   })
@@ -25,7 +25,7 @@ export function useUpdateStage() {
   return useMutation({
     mutationFn: ({ projectId, id, patch }: { projectId: number; id: number; patch: { name?: string; fold?: boolean } }) =>
       $api(`/api/v1/projects/${projectId}/stages/${id}`, { method: 'PATCH', body: patch, schema: ProjectStageSchema }),
-    onSuccess: (_stage, { projectId }) => {
+    onSettled: (_stage, _error, { projectId }) => {
       qc.invalidateQueries({ queryKey: projectKeys.detail(projectId) })
     },
   })
@@ -37,7 +37,7 @@ export function useReorderStages() {
   return useMutation({
     mutationFn: ({ projectId, ids }: { projectId: number; ids: number[] }) =>
       $api(`/api/v1/projects/${projectId}/stages/order`, { method: 'PUT', body: { ids }, schema: ProjectStageListSchema }),
-    onSuccess: (_stages: ProjectStage[], { projectId }) => {
+    onSettled: (_stages: ProjectStage[] | undefined, _error, { projectId }) => {
       qc.invalidateQueries({ queryKey: projectKeys.detail(projectId) })
     },
   })
@@ -48,7 +48,7 @@ export function useDeleteStage() {
   const { $api } = useApi()
   return useMutation({
     mutationFn: ({ projectId, id }: { projectId: number; id: number }) => $api(`/api/v1/projects/${projectId}/stages/${id}`, { method: 'DELETE' }),
-    onSuccess: (_r, { projectId }) => {
+    onSettled: (_r, _error, { projectId }) => {
       qc.invalidateQueries({ queryKey: projectKeys.detail(projectId) })
     },
   })
