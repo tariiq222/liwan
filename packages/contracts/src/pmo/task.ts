@@ -18,7 +18,7 @@ export const TaskDetailSchema = TaskSchema.extend({
   subtasks: z.array(TaskSchema),
   depends_on: z.array(z.object({ id: z.number().int().positive(), name: z.string(), state: TaskStateSchema }).strict()),
   attachments: z.array(z.object({ id: z.number().int().positive(), name: z.string(), mimetype: z.string(), url: z.string() }).strict()),
-  can_approve: z.boolean(), created_at: z.string(), updated_at: z.string(),
+  can_approve: z.boolean(), milestone: RefSchema.nullable(), created_at: z.string(), updated_at: z.string(),
 }).strict()
 
 export const TaskListSchema = z.object({ items: z.array(TaskSchema), total: z.number().int() }).strict()
@@ -27,6 +27,7 @@ export const TaskPatchSchema = z.object({
   name: z.string().min(1).optional(), description: z.string().optional(), date_deadline: z.string().nullable().optional(),
   priority: z.enum(['0', '1', '2', '3']).optional(), user_ids: z.array(z.number().int()).optional(), tag_ids: z.array(z.number().int()).optional(),
   personal_stage_type_id: z.number().int().nullable().optional(), allocated_hours: z.number().optional(), stage_id: z.number().int().optional(),
+  milestone_id: z.number().int().nullable().optional(),
 }).strict()
 
 export const TaskCreateSchema = z.object({ name: z.string().min(1), project_id: z.number().int(), parent_id: z.number().int().optional() }).strict()

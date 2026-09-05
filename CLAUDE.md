@@ -14,17 +14,24 @@ logic lives in a `customer_<name>_*` overlay addon, never in core. Full design:
   (shared `/api/v1` plumbing only: `controllers/{common,auth,branding,me}.py`,
   `serializers/{common,company,user}.py`, and the `NasqApiCase` test fixture the pillars
   subclass — it never imports a pillar), `nasq_pmo` (the project pillar:
-  `controllers/{tasks,timeline,personal_stages,projects,people}.py`,
-  `serializers/{task,timeline,project}.py`, `models/{project_task,project_project}.py`
-  holding the transition/status hooks and bus notifier, the `NasqPmoCase`
-  task/timeline/stage/project API tests (incl. `tests/test_projects.py`,
-  `tests/test_project_status.py`) plus `TransactionCase` transition/bus tests),
+  `controllers/{tasks,timeline,personal_stages,projects,people,project_stages,
+  project_followers,milestones,project_updates,tags,settings}.py`,
+  `serializers/{task,timeline,project,milestone,project_update,dates}.py`,
+  `models/{project_task,project_project,nasq_settings}.py` — `project_project.py` holds
+  the transition/status hooks, the bus notifier, the manager rule and every
+  project-level write/archive/stage/follower/milestone helper; `nasq_settings.py` is the
+  `nasq.pmo.settings` policy model — plus the `NasqPmoCase` task/timeline/stage/project/
+  milestone/settings API tests (`tests/test_projects.py`, `tests/test_project_status.py`,
+  `tests/test_project_admin_model.py`, `tests/test_project_stages.py`,
+  `tests/test_project_followers.py`, `tests/test_milestones.py`,
+  `tests/test_project_updates.py`, `tests/test_tags.py`, `tests/test_settings.py`) plus
+  `TransactionCase` transition/bus tests),
   `web_theme_shadcn`
   (vendor console theme). Ownership rule between pillars: `docs/parallel-work.md`.
 - `packages/contracts` — zod schemas mirroring every wire shape (`@nasq/contracts`), split
   per pillar: `src/common/` (branding, error envelope, me), `src/pmo/` (state, task,
-  timeline, personal stage, `project.ts`), each with its own `index.ts` re-exported from
-  `src/index.ts`.
+  timeline, personal stage, `project.ts`, `milestone.ts`, `project-update.ts`,
+  `settings.ts`, `tag.ts`), each with its own `index.ts` re-exported from `src/index.ts`.
 - `apps/web` — Nuxt 4 / Vue 3.5 / Tailwind v4 / shadcn-vue (reka-ui) / `@tanstack/vue-query`
   / `@nuxtjs/i18n` / Vitest / Playwright.
 - `deploy/` — per-customer docker-compose, Caddyfile, `provision.sh`, `seed_branding.py`.
@@ -74,6 +81,21 @@ they obey.
   not a gap to fill later.
 - Branding source of truth is the DB (`res.company` + nasq fields); `deploy/branding.json`
   only seeds it. `GET /api/v1/branding` is public + cached.
+- Project-level manage rule (`_nasq_can_manage`, `nasq_pmo/models/project_project.py`):
+  `project.group_project_manager`, `nasq_core.group_customer_admin`, **or the project's own
+  `user_id`** — a manager by assignment even outside the group. Every project-level write
+  (settings, archive, stages, followers, milestones, updates, status) goes through
+  `_nasq_check_manage()` then `_nasq_write_as_manager`/a dedicated *do* step, never a raw
+  `.write()`. Odoo's own project ACL only grants write to the manager *group*, so those
+  writes (and `message_(un)subscribe` for followers) run in `sudo()` once the caller's own
+  check has passed — this, `nasq.pmo.settings`' `ir.config_parameter` reads/writes (gated on
+  `group_customer_admin`), `_nasq_create_from_policy`'s sudo'd `create()` when the company
+  policy is `employees`, the display-name/stage/milestone lookups in
+  `serializers/task.py`, and `_nasq_stage_task_count`/`_nasq_milestone_task_counts`'
+  integer-only task counts (needed so `ir.rule` on a followers-only project can't
+  under-count and allow deleting a stage/milestone that still holds hidden tasks) are
+  the five documented `sudo()` cases in `nasq_pmo` — never add a sixth without
+  documenting it the same way.
 
 ## Tests
 
@@ -82,7 +104,7 @@ they obey.
   addon's manifest `depends` are real instead of the install riding on whatever the other
   pillar already pulled in:
   `.venv/bin/python odoo-bin -c odoo.conf -d nasq_test -i nasq_core,nasq_pmo,nasq_api --test-tags /nasq_core,/nasq_pmo,/nasq_api --http-port=8169`
-  (timeout 300000 ms; 81 tests, 0 failed). API tests extend `NasqApiCase` (shared — `nasq_api/tests/common.py`,
+  (timeout 300000 ms; 115 tests, 0 failed). API tests extend `NasqApiCase` (shared — `nasq_api/tests/common.py`,
   an `HttpCase` with `self.api(method, path, json)`) or `NasqPmoCase` (PMO — it subclasses
   `NasqApiCase` and adds the project/task fixtures). Every `test_*.py` must be imported from
   `tests/__init__.py`.
@@ -97,7 +119,10 @@ they obey.
 
 - Arabic default (`ar`), English secondary, `@nuxtjs/i18n` strategy `no_prefix`; every
   user-facing string via `$t()`/`t()` in per-pillar namespace files under
-  `apps/web/i18n/locales/{ar,en}/{common,tasks,projects}.json` (key paths are flat after the merge).
+  `apps/web/i18n/locales/{ar,en}/{common,tasks,projects,settings}.json` (key paths are flat
+  after the merge). One exception: a pillar's nav label key lives under `nav.*` in the
+  shared `common.json` (`nav.settings` for the settings sidebar entry), not in its own
+  namespace — see `docs/parallel-work.md`.
 - RTL-first: Tailwind logical properties only (`ms-`/`me-`/`ps-`/`pe-`/`start-`/`end-`,
   `text-start`), never `ml-`/`pl-`/`left-`. Design tokens are fixed; do not add colours.
 - shadcn-vue components are generated into `apps/web/app/components/ui/` and some are

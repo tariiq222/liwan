@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import CreateTaskDialog from '@/components/task/CreateTaskDialog.vue'
+import MilestoneTable from '@/components/project/MilestoneTable.vue'
+import ProjectHeader from '@/components/project/ProjectHeader.vue'
+import ProjectSettingsDialog from '@/components/project/ProjectSettingsDialog.vue'
+import ProjectUpdateList from '@/components/project/ProjectUpdateList.vue'
 import TaskBoard from '@/components/task/TaskBoard.vue'
 import TaskTable from '@/components/task/TaskTable.vue'
 import TaskToolbar from '@/components/task/TaskToolbar.vue'
-import ProjectHeader from '@/components/project/ProjectHeader.vue'
 import { ApiError } from '@/composables/useApi'
 import { projectTaskParams, projectTaskQuery } from '@/composables/projectTaskParams'
 import { useProject } from '@/composables/useProjects'
@@ -23,9 +26,15 @@ const { data: project, isLoading, error } = useProject(projectId)
 // 403 (exists, unreadable) both mean "not yours to see" once it does query.
 const notFound = computed(() => projectId.value === null || (error.value instanceof ApiError && (error.value.status === 404 || error.value.status === 403)))
 
-const tab = computed(() => (route.query.tab === 'board' ? 'board' : 'list'))
+const TABS = ['list', 'board', 'milestones', 'updates'] as const
+type ProjectTab = (typeof TABS)[number]
+function isProjectTab(v: unknown): v is ProjectTab {
+  return typeof v === 'string' && (TABS as readonly string[]).includes(v)
+}
+const tab = computed<ProjectTab>(() => (isProjectTab(route.query.tab) ? route.query.tab : 'list'))
 function onTabChange(v: unknown) {
-  router.replace({ query: { ...route.query, tab: v === 'board' ? 'board' : undefined } })
+  const next = isProjectTab(v) ? v : 'list'
+  router.replace({ query: { ...route.query, tab: next === 'list' ? undefined : next } })
 }
 
 // Filters live in the URL (see projectTaskParams.ts) so the nested task modal
@@ -41,7 +50,21 @@ function openTask(taskId: number) {
 }
 
 const createOpen = ref(false)
+const settingsOpen = ref(false)
 const stageSource = computed(() => ({ kind: 'project' as const, stages: project.value?.stages ?? [] }))
+
+// ProjectMenu already toasts on archive/unarchive (projects.archived /
+// projects.unarchived) before emitting this event, so this handler only
+// navigates away — the header menu's ProjectMenu is the only thing that
+// fires it (the settings dialog has no archive control).
+function onArchived() {
+  router.push('/projects')
+}
+
+// Unarchive stays on the project page: ProjectMenu already toasted and
+// useUnarchiveProject's mutation already replaced the cached ProjectDetail,
+// so there is nothing left to do here beyond not navigating away.
+function onUnarchived() {}
 </script>
 
 <template>
@@ -52,13 +75,15 @@ const stageSource = computed(() => ({ kind: 'project' as const, stages: project.
     </div>
 
     <template v-else>
-      <ProjectHeader v-if="project" :project="project" @create="createOpen = true" />
+      <ProjectHeader v-if="project" :project="project" @create="createOpen = true" @settings="settingsOpen = true" @archived="onArchived" @unarchived="onUnarchived" />
       <Skeleton v-else-if="isLoading" class="h-9 w-1/2" />
 
       <Tabs :model-value="tab" @update:model-value="onTabChange">
         <TabsList>
           <TabsTrigger value="list" :disabled="!hydrated">{{ t('projects.tabs.list') }}</TabsTrigger>
           <TabsTrigger value="board" :disabled="!hydrated">{{ t('projects.tabs.board') }}</TabsTrigger>
+          <TabsTrigger value="milestones" :disabled="!hydrated">{{ t('projects.tabs.milestones') }}</TabsTrigger>
+          <TabsTrigger value="updates" :disabled="!hydrated">{{ t('projects.tabs.updates') }}</TabsTrigger>
         </TabsList>
         <TabsContent value="list" class="space-y-4">
           <TaskToolbar :model-value="params" hide-project-filter hide-create @update:model-value="onParams" @create="createOpen = true" />
@@ -68,9 +93,16 @@ const stageSource = computed(() => ({ kind: 'project' as const, stages: project.
           <TaskToolbar :model-value="params" hide-project-filter hide-create @update:model-value="onParams" @create="createOpen = true" />
           <TaskBoard v-if="project" :params="params" :stage-source="stageSource" @open="openTask" />
         </TabsContent>
+        <TabsContent value="milestones" class="space-y-4">
+          <MilestoneTable :project-id="projectId!" :can-manage="project?.can_manage ?? false" />
+        </TabsContent>
+        <TabsContent value="updates" class="space-y-4">
+          <ProjectUpdateList :project-id="projectId!" :can-manage="project?.can_manage ?? false" />
+        </TabsContent>
       </Tabs>
 
       <CreateTaskDialog v-model:open="createOpen" :project-id="projectId ?? undefined" @created="openTask" />
+      <ProjectSettingsDialog v-if="project" v-model:open="settingsOpen" :project="project" />
       <NuxtPage />
     </template>
   </div>

@@ -5,7 +5,11 @@ from odoo.http import request
 
 from odoo.addons.nasq_api.controllers.common import ApiError, api_handler, get_record
 from odoo.addons.nasq_pmo.models.project_project import STATUS_VALUES
-from odoo.addons.nasq_pmo.serializers.project import dump_project, dump_project_detail
+from odoo.addons.nasq_pmo.serializers.project import (
+    dump_project,
+    dump_project_detail,
+    parse_project_vals,
+)
 
 MAX_PROJECTS = 200
 
@@ -15,21 +19,69 @@ class ProjectController(http.Controller):
     @http.route('/api/v1/projects', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
     def list_projects(self, **_):
-        # json2 routes do not receive query-string params as kwargs — read them from the
-        # raw request (see the same note in controllers/tasks.py::list_tasks).
         args = request.httprequest.args
-        unknown = set(args) - {'minimal'}
+        unknown = set(args) - {'minimal', 'archived'}
         if unknown:
             raise ApiError(400, 'unsupported_filter', f"unsupported query parameter {sorted(unknown)[0]!r}")
-        projects = request.env['project.project'].search([], order='name, id', limit=MAX_PROJECTS)
+        archived_param = args.get('archived')
+        if archived_param is not None and archived_param not in ('1', 'true', '0', 'false'):
+            raise ApiError(422, 'invalid', "archived must be '1', 'true', '0' or 'false'", field='archived')
+        Project = request.env['project.project']
+        archived = archived_param in ('1', 'true')
+        if archived and not Project._nasq_is_manager():
+            raise AccessError(request.env._("Only a project manager can list archived projects."))
+        domain = [('active', '=', False)] if archived else []
+        projects = Project.with_context(active_test=not archived).search(domain, order='name, id', limit=MAX_PROJECTS)
         if args.get('minimal') in ('1', 'true'):
             return [{'id': p.id, 'name': p.name} for p in projects]
-        return [dump_project(p) for p in projects]
+        return {
+            'items': [dump_project(p) for p in projects],
+            'can_create': Project._nasq_can_create(),
+            'can_list_archived': Project._nasq_is_manager(),
+        }
+
+    @http.route('/api/v1/projects', type='json2', auth='user', methods=['POST'], readonly=False)
+    @api_handler
+    def create_project(self, name=None, **_):
+        if not isinstance(name, str) or not name.strip():
+            raise ApiError(422, 'invalid', "name must not be empty", field='name')
+        try:
+            project = request.env['project.project']._nasq_create_from_policy(name.strip())
+        except AccessError as e:
+            raise ApiError(403, 'create_forbidden', str(e)) from e
+        return request.make_json_response(dump_project_detail(project), status=201)
 
     @http.route('/api/v1/projects/<int:project_id>', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
     def get_project(self, project_id):
         return dump_project_detail(get_record('project.project', project_id))
+
+    @http.route('/api/v1/projects/<int:project_id>', type='json2', auth='user', methods=['PATCH'], readonly=False)
+    @api_handler
+    def patch_project(self, project_id, **payload):
+        payload.pop('project_id', None)
+        if not payload:
+            raise ApiError(422, 'invalid', "no fields to update")
+        project = get_record('project.project', project_id)
+        project._nasq_check_manage()
+        vals = parse_project_vals(payload)
+        project._nasq_write_as_manager(vals)
+        return dump_project_detail(project)
+
+    @http.route('/api/v1/projects/<int:project_id>/archive', type='json2', auth='user', methods=['POST'], readonly=False)
+    @api_handler
+    def archive_project(self, project_id, **_):
+        project = get_record('project.project', project_id)
+        return dump_project_detail(project._nasq_archive())
+
+    @http.route('/api/v1/projects/<int:project_id>/unarchive', type='json2', auth='user', methods=['POST'], readonly=False)
+    @api_handler
+    def unarchive_project(self, project_id, **_):
+        project = request.env['project.project'].with_context(active_test=False).browse(int(project_id)).exists()
+        if not project:
+            raise ApiError(404, 'not_found', "project not found")
+        project.check_access('read')
+        return dump_project_detail(project._nasq_unarchive())
 
     @http.route('/api/v1/projects/<int:project_id>/status', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler

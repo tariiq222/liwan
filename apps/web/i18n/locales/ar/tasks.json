@@ -75,7 +75,14 @@
       "created": "أُنشئت",
       "updated": "آخر تحديث",
       "unassigned": "غير مسند",
-      "removeAssignee": "إزالة المكلّف"
+      "removeAssignee": "إزالة المكلّف",
+      "milestone": "المعلم",
+      "noMilestone": "بلا معلم",
+      "addTag": "إضافة وسم",
+      "createTag": "إنشاء \"{name}\"",
+      "archive": "أرشفة المهمة",
+      "archiveConfirm": "تختفي المهمة من كل القوائم. متابعة؟",
+      "archived": "تمت أرشفة المهمة"
     },
     "transition": {
       "forbidden": "هذا الانتقال يتطلب صلاحية مدير المشروع"

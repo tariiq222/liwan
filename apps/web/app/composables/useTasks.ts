@@ -1,6 +1,14 @@
 import type { Ref } from 'vue'
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
-import { TaskDetailSchema, TaskListSchema, type Task, type TaskCreate, type TaskDetail, type TaskPatch, type TaskState } from '@nasq/contracts'
+import {
+  TaskDetailSchema,
+  TaskListSchema,
+  type Task,
+  type TaskCreate,
+  type TaskDetail,
+  type TaskPatch,
+  type TaskState,
+} from '@nasq/contracts'
 import { daysRemaining } from './taskState'
 
 export interface TaskListParams {
@@ -32,6 +40,8 @@ export interface Resolved {
   tags?: Task['tags']
   personal_stage?: Task['personal_stage']
   stage?: Task['stage']
+  // Only present on a TaskDetail (a plain list Task carries no milestone field).
+  milestone?: TaskDetail['milestone']
 }
 
 // Pure reducer, exported so it can be unit tested without booting Nuxt/vue-query
@@ -56,6 +66,8 @@ export function applyPatchToTask<T extends Task>(task: T, patch: TaskPatch, reso
   if (patch.tag_ids !== undefined && resolved.tags) next.tags = resolved.tags
   if (patch.personal_stage_type_id !== undefined && resolved.personal_stage !== undefined) next.personal_stage = resolved.personal_stage
   if (patch.stage_id !== undefined && resolved.stage !== undefined) next.stage = resolved.stage
+  // milestone only exists on a TaskDetail, like description_html below.
+  if (patch.milestone_id !== undefined && resolved.milestone !== undefined && 'milestone' in next) next.milestone = resolved.milestone
   // description_html only exists on a TaskDetail; a plain list Task never has it.
   // Checked explicitly against undefined (not `'description' in patch`) so a
   // patch that carries `description: undefined` - e.g. a partial object
@@ -184,6 +196,20 @@ export function useCreateTask() {
   return useMutation({
     mutationFn: (body: TaskCreate) => $api('/api/v1/tasks', { method: 'POST', body, schema: TaskDetailSchema }),
     onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['tasks', 'list'] })
+      qc.invalidateQueries({ queryKey: ['projects'] })
+      qc.invalidateQueries({ queryKey: ['project'] })
+    },
+  })
+}
+
+export function useArchiveTask() {
+  const qc = useQueryClient()
+  const { $api } = useApi()
+  return useMutation({
+    mutationFn: ({ id }: { id: number }) => $api(`/api/v1/tasks/${id}/archive`, { method: 'POST', body: {}, schema: TaskDetailSchema }),
+    onSuccess: (detail, { id }) => {
+      qc.setQueryData(taskKeys.detail(id), detail)
       qc.invalidateQueries({ queryKey: ['tasks', 'list'] })
       qc.invalidateQueries({ queryKey: ['projects'] })
       qc.invalidateQueries({ queryKey: ['project'] })

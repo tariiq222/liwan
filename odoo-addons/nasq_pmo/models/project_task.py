@@ -18,6 +18,17 @@ class ProjectTask(models.Model):
             or self.env.user.has_group('nasq_core.group_customer_admin')
         )
 
+    def _nasq_can_archive(self):
+        self.ensure_one()
+        return self.project_id._nasq_can_manage() or self.create_uid == self.env.user
+
+    def _nasq_archive(self):
+        self.ensure_one()
+        if not self._nasq_can_archive():
+            raise AccessError(self.env._("Only the project manager or the task's creator can archive it."))
+        self.write({'active': False})
+        return self
+
     def _nasq_transition(self, state):
         """Move ``self`` to ``state`` (Odoo code) applying nasq's approval rule.
 

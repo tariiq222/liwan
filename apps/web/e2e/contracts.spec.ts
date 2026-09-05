@@ -2,7 +2,8 @@ import { test, expect } from '@playwright/test'
 import {
   BrandingSchema, MeSchema, TaskListSchema, TaskDetailSchema, TimelineEntrySchema,
   PersonalStageSchema, ProjectRefSchema, PersonRefSchema, ApiErrorSchema,
-  ProjectSchema, ProjectDetailSchema,
+  ProjectDetailSchema, ProjectListSchema, ProjectStageSchema, UserRefSchema,
+  MilestoneSchema, ProjectUpdateSchema, ProjectSettingsSchema, TagSchema,
 } from '@nasq/contracts'
 import { z } from 'zod'
 
@@ -88,8 +89,9 @@ test('projects: list, detail, status and the project-scoped task list match thei
 
   const listRes = await page.request.get('/api/v1/projects')
   expect(listRes.status()).toBe(200)
-  const projects = ProjectSchema.array().parse(await listRes.json())
-  expect(projects.length).toBeGreaterThan(0)
+  const list = ProjectListSchema.parse(await listRes.json())
+  expect(list.items.length).toBeGreaterThan(0)
+  const projects = list.items
 
   const detailRes = await page.request.get(`/api/v1/projects/${projects[0]!.id}`)
   expect(detailRes.status()).toBe(200)
@@ -103,4 +105,97 @@ test('projects: list, detail, status and the project-scoped task list match thei
   const tasksRes = await page.request.get(`/api/v1/tasks?project_id=${detail.id}`)
   expect(tasksRes.status()).toBe(200)
   TaskListSchema.parse(await tasksRes.json())
+})
+
+test('project admin round trip: create, patch, stages, followers, milestones, updates, tags, and settings all match their schemas', async ({ page }) => {
+  const login = await page.request.post('/api/auth/login', { data: { login: 'admin', password: 'admin' } })
+  expect(login.status()).toBe(200)
+
+  // settings: GET/PATCH as admin
+  const settingsGetRes = await page.request.get('/api/v1/settings/projects')
+  expect(settingsGetRes.status()).toBe(200)
+  const settings = ProjectSettingsSchema.parse(await settingsGetRes.json())
+
+  const settingsPatchRes = await page.request.patch('/api/v1/settings/projects', {
+    data: { project_creators: settings.project_creators, default_stages: settings.default_stages },
+  })
+  expect(settingsPatchRes.status()).toBe(200)
+  ProjectSettingsSchema.parse(await settingsPatchRes.json())
+
+  // create
+  const createRes = await page.request.post('/api/v1/projects', { data: { name: `E2E contract project ${Date.now()}` } })
+  expect(createRes.status()).toBe(201)
+  const project = ProjectDetailSchema.parse(await createRes.json())
+  expect(project.can_manage).toBe(true)
+
+  // patch
+  const patchRes = await page.request.patch(`/api/v1/projects/${project.id}`, {
+    data: { description: 'contract e2e', privacy_visibility: 'followers' },
+  })
+  expect(patchRes.status()).toBe(200)
+  const patched = ProjectDetailSchema.parse(await patchRes.json())
+  expect(patched.privacy_visibility).toBe('followers')
+
+  // stages: add, order, delete
+  const addStageRes = await page.request.post(`/api/v1/projects/${project.id}/stages`, { data: { name: 'Contract Stage' } })
+  expect(addStageRes.status()).toBe(201)
+  const stage = ProjectStageSchema.parse(await addStageRes.json())
+
+  const orderRes = await page.request.put(`/api/v1/projects/${project.id}/stages/order`, {
+    data: { ids: [stage.id, ...patched.stages.map((s) => s.id)] },
+  })
+  expect(orderRes.status()).toBe(200)
+  z.array(ProjectStageSchema).parse(await orderRes.json())
+
+  const deleteStageRes = await page.request.delete(`/api/v1/projects/${project.id}/stages/${stage.id}`)
+  expect(deleteStageRes.status()).toBe(204)
+
+  // followers
+  const meRes = await page.request.get('/api/v1/me')
+  const me = MeSchema.parse(await meRes.json())
+
+  const followersRes = await page.request.get(`/api/v1/projects/${project.id}/followers`)
+  expect(followersRes.status()).toBe(200)
+  z.array(UserRefSchema).parse(await followersRes.json())
+
+  const addFollowerRes = await page.request.post(`/api/v1/projects/${project.id}/followers`, { data: { user_id: me.id } })
+  expect(addFollowerRes.status()).toBe(200)
+  const followers = z.array(UserRefSchema).parse(await addFollowerRes.json())
+  expect(followers.some((f) => f.id === me.id)).toBe(true)
+
+  const removeFollowerRes = await page.request.delete(`/api/v1/projects/${project.id}/followers/${me.id}`)
+  expect(removeFollowerRes.status()).toBe(200)
+  z.array(UserRefSchema).parse(await removeFollowerRes.json())
+
+  // milestones
+  const createMilestoneRes = await page.request.post(`/api/v1/projects/${project.id}/milestones`, { data: { name: 'Contract Milestone' } })
+  expect(createMilestoneRes.status()).toBe(201)
+  const milestone = MilestoneSchema.parse(await createMilestoneRes.json())
+
+  const patchMilestoneRes = await page.request.patch(`/api/v1/projects/${project.id}/milestones/${milestone.id}`, { data: { is_reached: true } })
+  expect(patchMilestoneRes.status()).toBe(200)
+  expect(MilestoneSchema.parse(await patchMilestoneRes.json()).is_reached).toBe(true)
+
+  const deleteMilestoneRes = await page.request.delete(`/api/v1/projects/${project.id}/milestones/${milestone.id}`)
+  expect(deleteMilestoneRes.status()).toBe(204)
+
+  // updates
+  const createUpdateRes = await page.request.post(`/api/v1/projects/${project.id}/updates`, {
+    data: { status: 'on_track', name: 'Contract update' },
+  })
+  expect(createUpdateRes.status()).toBe(201)
+  ProjectUpdateSchema.parse(await createUpdateRes.json())
+
+  const updatesListRes = await page.request.get(`/api/v1/projects/${project.id}/updates`)
+  expect(updatesListRes.status()).toBe(200)
+  z.array(ProjectUpdateSchema).parse(await updatesListRes.json())
+
+  // tags
+  const createTagRes = await page.request.post('/api/v1/tags', { data: { name: `contract-tag-${Date.now()}` } })
+  expect(createTagRes.status()).toBe(201)
+  TagSchema.parse(await createTagRes.json())
+
+  const tagsListRes = await page.request.get('/api/v1/tags')
+  expect(tagsListRes.status()).toBe(200)
+  z.array(TagSchema).parse(await tagsListRes.json())
 })

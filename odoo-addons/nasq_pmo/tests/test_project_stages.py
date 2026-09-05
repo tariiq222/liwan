@@ -1,0 +1,51 @@
+# Part of Odoo. See LICENSE file for full copyright and licensing details.
+from odoo.tests import tagged
+
+from .common import NasqPmoCase
+
+STAGE_KEYS = {'id', 'name', 'sequence', 'fold', 'task_count'}
+
+
+@tagged('post_install', '-at_install', 'nasq')
+class TestProjectStages(NasqPmoCase):
+
+    def _url(self, suffix=''):
+        return f'/api/v1/projects/{self.project.id}/stages{suffix}'
+
+    def test_employee_forbidden(self):
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        res = self.api('POST', self._url(), {'name': 'X'})
+        self.assertEqual((res.status_code, res.json()['code']), (403, 'forbidden'))
+
+    def test_lifecycle(self):
+        self.authenticate('api_mgr', 'api_mgr_pass_123')
+        a = self.api('POST', self._url(), {'name': 'A'})
+        self.assertEqual(a.status_code, 201)
+        self.assertEqual(set(a.json()), STAGE_KEYS)
+        b = self.api('POST', self._url(), {'name': 'B', 'fold': True}).json()
+        self.assertTrue(b['fold'])
+        ids = [s['id'] for s in self.api('GET', f'/api/v1/projects/{self.project.id}').json()['stages']]
+        self.assertEqual(ids[-2:], [a.json()['id'], b['id']])
+        res = self.api('PUT', self._url('/order'), {'ids': list(reversed(ids))})
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual([s['id'] for s in res.json()], list(reversed(ids)))
+        res = self.api('PUT', self._url('/order'), {'ids': ids[:1]})
+        self.assertEqual((res.status_code, res.json()['field']), (422, 'ids'))
+        res = self.api('PATCH', self._url(f"/{a.json()['id']}"), {'name': 'A2', 'fold': True})
+        self.assertEqual((res.json()['name'], res.json()['fold']), ('A2', True))
+        self.assertEqual(self.api('POST', self._url(), {'name': ''}).status_code, 422)
+
+    def test_delete_rules(self):
+        self.authenticate('api_mgr', 'api_mgr_pass_123')
+        s = self.api('POST', self._url(), {'name': 'S'}).json()
+        self.env['project.task'].create({'name': 't', 'project_id': self.project.id, 'stage_id': s['id']})
+        res = self.api('DELETE', self._url(f"/{s['id']}"))
+        self.assertEqual((res.status_code, res.json()['code']), (422, 'stage_not_empty'))
+        self.assertEqual(self.api('GET', f'/api/v1/projects/{self.project.id}').json()['stages'][-1]['task_count'], 1)
+        empty = self.api('POST', self._url(), {'name': 'E'}).json()
+        res = self.api('DELETE', self._url(f"/{empty['id']}"))
+        self.assertEqual(res.status_code, 204)
+        self.assertFalse(self.env['project.task.type'].browse(empty['id']).exists())
+        other = self.env['project.project'].create({'name': 'O'})
+        foreign = self.env['project.task.type'].create({'name': 'F', 'project_ids': [(4, other.id)]})
+        self.assertEqual(self.api('DELETE', self._url(f'/{foreign.id}')).status_code, 422)

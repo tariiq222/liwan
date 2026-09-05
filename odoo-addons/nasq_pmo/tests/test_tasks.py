@@ -82,7 +82,7 @@ class TestTaskRead(NasqPmoCase):
         self.assertIn('description_html', body)
         self.assertEqual(set(body), TASK_KEYS | {'description_html', 'allocated_hours', 'age_days',
                                                    'cycle_days', 'subtasks', 'depends_on', 'attachments',
-                                                   'can_approve', 'created_at', 'updated_at'})
+                                                   'can_approve', 'created_at', 'updated_at', 'milestone'})
 
     def test_get_other_users_task_is_forbidden_or_hidden(self):
         # employees may read tasks in projects they can see; a task in a private project is 403/404
@@ -228,6 +228,16 @@ class TestTaskWrite(NasqPmoCase):
         self.assertEqual(res.status_code, 422)
         self.assertEqual(res.json()['field'], 'personal_stage_type_id')
 
+    def test_patch_tag_ids_unknown_id_is_422_not_500(self):
+        """tag_ids ids were shape-checked but never resolved against project.tags,
+        so an unknown id used to reach the ORM write and raise a FK IntegrityError
+        (500) instead of the contracted 422."""
+        self.authenticate('api_mgr', 'api_mgr_pass_123')
+        res = self.api('PATCH', f'/api/v1/tasks/{self.task_other.id}', {'tag_ids': [999999]})
+        self.assertEqual(res.status_code, 422, res.text)
+        self.assertEqual(res.json()['code'], 'invalid')
+        self.assertEqual(res.json()['field'], 'tag_ids')
+
     def test_list_unknown_state_filter_is_422(self):
         self.authenticate('api_emp', 'api_emp_pass_123')
         res = self.api('GET', '/api/v1/tasks?filter=mine&state=in_progress,bogus')
@@ -353,3 +363,63 @@ class TestTaskProjectScope(NasqPmoCase):
         self.assertEqual(res.status_code, 422, res.text)
         self.assertEqual(res.json()['code'], 'invalid')
         self.assertEqual(res.json()['field'], 'stage_id')
+
+
+@tagged('post_install', '-at_install', 'nasq')
+class TestTaskArchiveAndMilestone(NasqPmoCase):
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.milestone = cls.env['project.milestone'].create({'name': 'M', 'project_id': cls.project.id})
+        cls.other_project = cls.env['project.project'].create({'name': 'Other'})
+        cls.foreign_milestone = cls.env['project.milestone'].create({'name': 'F', 'project_id': cls.other_project.id})
+        cls.mine = cls.env['project.task'].with_user(cls.employee).create({'name': 'Mine', 'project_id': cls.project.id})
+
+    def test_patch_milestone(self):
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        res = self.api('PATCH', f'/api/v1/tasks/{self.task_overdue.id}', {'milestone_id': self.milestone.id})
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()['milestone'], {'id': self.milestone.id, 'name': 'M'})
+        res = self.api('PATCH', f'/api/v1/tasks/{self.task_overdue.id}', {'milestone_id': self.foreign_milestone.id})
+        self.assertEqual((res.status_code, res.json()['field']), (422, 'milestone_id'))
+        res = self.api('PATCH', f'/api/v1/tasks/{self.task_overdue.id}', {'milestone_id': None})
+        self.assertIsNone(res.json()['milestone'])
+
+    def test_patch_milestone_of_unreadable_project_is_422_not_403(self):
+        """A milestone belonging to a private project the employee can't read must not
+        leak `milestone_visibility_rule`'s AccessError as a 403 - the contract for an
+        invalid milestone_id is 422, not 403 (existence oracle aside)."""
+        private = self.env['project.project'].create({'name': 'Private', 'privacy_visibility': 'followers'})
+        private_milestone = self.env['project.milestone'].create({'name': 'Confidential M', 'project_id': private.id})
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        res = self.api('PATCH', f'/api/v1/tasks/{self.task_overdue.id}', {'milestone_id': private_milestone.id})
+        self.assertEqual(res.status_code, 422, res.text)
+        self.assertEqual(res.json()['field'], 'milestone_id')
+
+    def test_detail_milestone_name_of_task_in_followers_project(self):
+        """An assignee of a task in a followers-only project they don't follow must still
+        see the milestone's name (resolved in sudo, mirroring _project_ref)."""
+        private = self.env['project.project'].create({'name': 'Private HQ', 'privacy_visibility': 'followers'})
+        private_milestone = self.env['project.milestone'].create({'name': 'Launch', 'project_id': private.id})
+        task = self.env['project.task'].create({
+            'name': 'Confidential', 'project_id': private.id, 'user_ids': [(4, self.employee.id)],
+            'milestone_id': private_milestone.id,
+        })
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        res = self.api('GET', f'/api/v1/tasks/{task.id}')
+        self.assertEqual(res.status_code, 200, res.text)
+        self.assertEqual(res.json()['milestone']['name'], private_milestone.name)
+
+    def test_archive_rules(self):
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        # creator may archive their own task
+        res = self.api('POST', f'/api/v1/tasks/{self.mine.id}/archive')
+        self.assertEqual(res.status_code, 200)
+        self.assertFalse(self.mine.active)
+        self.assertEqual(self.api('GET', '/api/v1/tasks?filter=mine').json()['total'], 1)
+        # not creator, not manager → 403
+        res = self.api('POST', f'/api/v1/tasks/{self.task_other.id}/archive')
+        self.assertEqual((res.status_code, res.json()['code']), (403, 'forbidden'))
+        self.authenticate('api_mgr', 'api_mgr_pass_123')
+        self.assertEqual(self.api('POST', f'/api/v1/tasks/{self.task_other.id}/archive').status_code, 200)

@@ -1,5 +1,23 @@
 import { test, expect } from '@playwright/test'
 
+// Phase 3a: there is now a real create-project endpoint, and every new
+// project's stages come from the company's default_stages policy rather than
+// an explicit type_ids list — pin that policy once, up front, so the fixture
+// below still gets the "To Do"/"Doing"/"Done" names these screens assert on.
+const DEFAULT_STAGES = [
+  { name: 'To Do', fold: false },
+  { name: 'Doing', fold: false },
+  { name: 'Review', fold: false },
+  { name: 'Done', fold: true },
+]
+
+test.beforeAll(async ({ request }) => {
+  const login = await request.post('/api/auth/login', { data: { login: 'admin', password: 'admin' } })
+  if (login.status() !== 200) throw new Error(`admin login failed in beforeAll: ${login.status()}`)
+  const patched = await request.patch('/api/v1/settings/projects', { data: { default_stages: DEFAULT_STAGES } })
+  if (patched.status() !== 200) throw new Error(`settings patch failed in beforeAll: ${patched.status()}`)
+})
+
 async function login(page) {
   await page.goto('/login')
   await page.getByLabel('اسم المستخدم').fill('admin')
@@ -8,23 +26,10 @@ async function login(page) {
   await expect(page).toHaveURL('http://localhost:3000/')
 }
 
-// There is no create-project endpoint in phase 2; fixtures go through Odoo's
-// own RPC with the same session cookie (same origin, /web/* is proxied).
-async function callKw(page, model: string, method: string, args: unknown[]) {
-  const res = await page.request.post(`/web/dataset/call_kw/${model}/${method}`, {
-    data: { jsonrpc: '2.0', method: 'call', params: { model, method, args, kwargs: {} } },
-  })
-  const body = await res.json()
-  if (body.error) throw new Error(JSON.stringify(body.error.data?.message ?? body.error))
-  return body.result
-}
-
 async function createProjectWithStages(page, name: string) {
-  const id = await callKw(page, 'project.project', 'create', [{
-    name,
-    type_ids: [[0, 0, { name: 'To Do', sequence: 1 }], [0, 0, { name: 'Doing', sequence: 2 }], [0, 0, { name: 'Done', sequence: 3, fold: true }]],
-  }])
-  return id as number
+  const res = await page.request.post('/api/v1/projects', { data: { name } })
+  const body = await res.json()
+  return body.id as number
 }
 
 async function dragCard(page, fromLocator, toLocator) {

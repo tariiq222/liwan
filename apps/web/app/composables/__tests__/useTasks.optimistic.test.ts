@@ -28,6 +28,7 @@ const baseDetail: TaskDetail = {
   depends_on: [],
   attachments: [],
   can_approve: false,
+  milestone: null,
   created_at: '2030-01-01T00:00:00Z',
   updated_at: '2030-01-01T00:00:00Z',
 }
@@ -147,6 +148,12 @@ describe('applyPatchToTask on a detail object', () => {
     const resolvedAssignees = [{ id: 8, name: 'Lina' }]
     const next = applyPatchToTask(baseDetail, { user_ids: [8] }, { assignees: resolvedAssignees })
     expect(next.assignees).toEqual(resolvedAssignees)
+  })
+
+  it('applies milestone_id with the resolved milestone on a detail', () => {
+    const resolvedMilestone = { id: 4, name: 'Beta launch' }
+    const next = applyPatchToTask(baseDetail, { milestone_id: 4 }, { milestone: resolvedMilestone })
+    expect(next.milestone).toEqual(resolvedMilestone)
   })
 
   it('does not mutate the original detail', () => {

@@ -18,7 +18,7 @@ STATE_TO_API = {
 API_TO_STATE = {v: k for k, v in STATE_TO_API.items()}
 
 EMPLOYEE_FIELDS = {'name', 'description', 'date_deadline', 'priority', 'user_ids', 'tag_ids',
-                   'personal_stage_type_id', 'stage_id'}
+                   'personal_stage_type_id', 'stage_id', 'milestone_id'}
 MANAGER_FIELDS = EMPLOYEE_FIELDS | {'allocated_hours'}
 
 
@@ -56,6 +56,19 @@ def _project_ref(project):
     the name of a project whose task the caller can already read.
     """
     return {'id': project.id, 'name': project.sudo().display_name}
+
+
+def _milestone_ref(milestone):
+    """{'id', 'name'} for a task's milestone, with the name resolved in sudo.
+
+    Same rationale as `_project_ref`: the task itself was already access-checked
+    before dump_task_detail runs, and an assignee of a task inside a
+    privacy_visibility='followers' project they don't follow is still entitled
+    to see that task's milestone via the task's own visibility rule. Reading
+    milestone.display_name in the caller's env instead hits
+    milestone_visibility_rule and turns a legitimate 200 into a 403.
+    """
+    return {'id': milestone.id, 'name': milestone.sudo().display_name}
 
 
 def dump_task(task, today=None):
@@ -100,6 +113,7 @@ def dump_task_detail(task, today=None):
         'can_approve': task._nasq_can_approve(),
         'created_at': iso(task.create_date),
         'updated_at': iso(task.write_date),
+        'milestone': _milestone_ref(task.milestone_id) if task.milestone_id else None,
     })
     return data
 
@@ -170,6 +184,29 @@ def _parse_stage(task, value, key):
     return stage.id
 
 
+def _parse_milestone(task, value, key):
+    """Coerce + authorise a milestone id: it must belong to the task's own project.
+
+    Browsed in sudo, mirroring `_parse_stage`: a milestone belonging to another,
+    unreadable project (e.g. `privacy_visibility='followers'`) passes `exists()`
+    (raw SQL, ignores ir.rule) but then reading `milestone.project_id` in the
+    caller's own env hits `milestone_visibility_rule` and raises AccessError
+    instead of the contracted 422 — an existence oracle to boot. The
+    `milestone.project_id != task.project_id` membership test is the real
+    authorization here; `task` was already access-checked before parse_task_vals runs.
+    """
+    if value is None or value is False:
+        return False
+    try:
+        milestone_id = int(value)
+    except (TypeError, ValueError) as e:
+        raise ApiError(422, 'invalid', "milestone_id must be one of the project's milestones", field=key) from e
+    milestone = request.env['project.milestone'].sudo().browse(milestone_id).exists()
+    if not milestone or milestone.project_id != task.project_id:
+        raise ApiError(422, 'invalid', "milestone_id must be one of the project's milestones", field=key)
+    return milestone.id
+
+
 def parse_task_vals(payload, can_manage, task):
     """Whitelist + coerce a PATCH payload for ``task`` into ORM vals. Raises ApiError(422)."""
     allowed = MANAGER_FIELDS if can_manage else EMPLOYEE_FIELDS
@@ -183,14 +220,23 @@ def parse_task_vals(payload, can_manage, task):
             if value not in ('0', '1', '2', '3'):
                 raise ApiError(422, 'invalid', "priority must be one of '0'..'3'", field=key)
             vals[key] = value
-        elif key in ('user_ids', 'tag_ids'):
+        elif key == 'user_ids':
             if not isinstance(value, list) or not all(isinstance(i, int) for i in value):
                 raise ApiError(422, 'invalid', f"{key} must be a list of ids", field=key)
             vals[key] = [(6, 0, value)]
+        elif key == 'tag_ids':
+            if not isinstance(value, list) or not all(isinstance(i, int) and not isinstance(i, bool) for i in value):
+                raise ApiError(422, 'invalid', "tag_ids must be a list of ids", field=key)
+            tags = request.env['project.tags'].browse(value).exists()
+            if len(tags) != len(set(value)):
+                raise ApiError(422, 'invalid', "unknown tag id", field=key)
+            vals[key] = [(6, 0, tags.ids)]
         elif key == 'personal_stage_type_id':
             vals[key] = _parse_personal_stage(value, key)
         elif key == 'stage_id':
             vals[key] = _parse_stage(task, value, key)
+        elif key == 'milestone_id':
+            vals[key] = _parse_milestone(task, value, key)
         elif key == 'allocated_hours':
             # float() raises ValueError on 'x' and TypeError on a list/dict;
             # both must surface as the contract's 422 shape, not a 500.

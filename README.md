@@ -79,6 +79,93 @@ no timesheet endpoints or fields, a deliberate product decision, not a gap.
 See `docs/superpowers/specs/2026-09-04-nasq-phase-2-projects-design.md` for
 the full design.
 
+## Phase 3a
+
+Phase 3a ("project administration") shipped on the `phase-3a` branch. A
+customer runs the project pillar end to end without ever opening Odoo:
+create a project, shape its stages, keep its settings, follow milestones,
+post status updates, tag and retire tasks.
+
+- **Projects table** (`/projects`) — a **مشروع جديد** action gated on
+  `can_create` (policy below); an **النشطة / المؤرشفة** filter (managers/
+  `customer_admin` only, gated on `can_list_archived`) that lists archived
+  projects with an **إلغاء الأرشفة** row action.
+- **Project screen** (`/projects/{id}?tab=list|board|milestones|updates`) —
+  two new tabs after قائمة / لوحة: **المعالم** (milestones) and
+  **التحديثات** (status updates). A `⋯` menu for managers opens
+  **إعدادات المشروع** (dialog, tabs عام / المراحل / المتابعون) and
+  **أرشفة المشروع** (confirm, then navigates back to `/projects`).
+- **Settings** (`/settings/projects`) — sidebar entry visible to `admin`/
+  `vendor` roles only (see manager rule and `nav.settings` below); sets the
+  two company-wide project policies (below). 403s (empty state) for anyone
+  else who reaches the page directly.
+- **The manager rule**, `_nasq_can_manage(project)`
+  (`odoo-addons/nasq_pmo/models/project_project.py`): the
+  `project.group_project_manager` group, `nasq_core.group_customer_admin`,
+  **or the project's own `user_id`** — a manager by assignment even outside
+  the group. This replaces the phase-2 group-only rule everywhere a
+  project-level write happens: status, settings, stages, followers,
+  milestones, updates, archive.
+- **Archive semantics** — projects and tasks are archived (`active = False`),
+  **never deleted**. There is no unarchive UI for tasks in 3a (vendor
+  console only); projects unarchive from the **المؤرشفة** filter.
+- **Company policies** (`odoo-addons/nasq_pmo/models/nasq_settings.py`,
+  `nasq.pmo.settings`), stored in `ir.config_parameter`, read/written only by
+  `nasq_core.group_customer_admin`:
+  - `nasq_pmo.project_creators` — `managers` (default) or `employees`; when
+    `employees`, every employee may create a project.
+  - `nasq_pmo.default_stages` — JSON `[{name, fold}]` copied onto every new
+    project's stages (seed: جديد · قيد التنفيذ · مراجعة · منجز مطوي).
+- **API** (all `type='json2'`, `auth='user'`, whitelisted serializers):
+  - Projects: `GET /api/v1/projects` (now `{items, can_create,
+    can_list_archived}` when not `?minimal=1`; `?archived=1` for managers),
+    `POST /api/v1/projects {name}` (201; 403 `create_forbidden`),
+    `PATCH /api/v1/projects/{id}` (name/description/user_id/
+    privacy_visibility/date_start/date/tag_ids; 403 `forbidden`, 422 per
+    field), `POST /api/v1/projects/{id}/archive`,
+    `POST /api/v1/projects/{id}/unarchive`.
+  - Stages: `POST|PATCH|DELETE /api/v1/projects/{id}/stages[/{stage_id}]`,
+    `PUT /api/v1/projects/{id}/stages/order` (422 if `ids` isn't a
+    permutation of the project's stage ids; delete 422s `stage_not_empty`
+    `{count}` when the stage still holds tasks).
+  - Followers: `GET|POST /api/v1/projects/{id}/followers`,
+    `DELETE /api/v1/projects/{id}/followers/{user_id}` — internal users only.
+  - Milestones: `GET|POST /api/v1/projects/{id}/milestones`,
+    `PATCH|DELETE /api/v1/projects/{id}/milestones/{mid}` (delete 422s
+    `milestone_has_tasks` when tasks are still linked); tasks gain a
+    `milestone_id`.
+  - Updates: `GET|POST /api/v1/projects/{id}/updates` — status + title +
+    rich-text body, prepended chronologically.
+  - Tags: `GET|POST /api/v1/tags` — managers may create a tag by name.
+  - Settings: `GET|PATCH /api/v1/settings/projects` — the two policies above.
+  - Tasks: `POST /api/v1/tasks/{id}/archive`.
+- **Documented `sudo()` cases in `nasq_pmo`** (every other write goes through
+  the caller's own ACL — see CLAUDE.md's routes rule):
+  1. `nasq.pmo.settings` reads/writes `ir.config_parameter` (config, not
+     business data; every caller is gated on `group_customer_admin` first).
+  2. `_nasq_create_from_policy` runs the `create()` call in sudo only when
+     the company policy is `employees` (Odoo's ACL reserves project creation
+     to managers; `create_uid`/`user_id` still record the employee).
+  3. `_nasq_write_sudo` (used by `_nasq_write_as_manager` and the archive/
+     status/stage/milestone *do* steps) and `message_(un)subscribe` in
+     `_nasq_add_follower`/`_nasq_remove_follower` — all for the
+     assigned-`user_id`-as-manager case, which Odoo's own project ACL (grants
+     write only to the manager *group*) doesn't know about; the caller's own
+     `_nasq_check_manage()` has already run first.
+  4. Display-name / stage / milestone lookups in `serializers/task.py`
+     (`_project_ref`, `_milestone_ref`, `_parse_stage`, `_parse_milestone`, …) — mirrors
+     the Odoo web client resolving many2one display names in sudo, not an
+     access dodge on task data itself.
+  5. `_nasq_stage_task_count` / `_nasq_milestone_task_counts` in
+     `models/project_project.py` return integer-only task counts — never task
+     records — so this cannot leak data; without it, `ir.rule` on a
+     followers-only project would under-count hidden tasks and let a stage or
+     milestone that still holds them be deleted.
+- **Locale** — `settings.json` joins `{common,tasks,projects}.json`.
+
+See `docs/superpowers/specs/2026-09-05-nasq-phase-3a-project-admin-design.md`
+for the full design.
+
 ## Layout
 
 Ownership rule: shared plumbing lives in `nasq_api`, each pillar lives in its
@@ -86,12 +173,14 @@ own addon, and each pillar owns its own locale namespace and contract
 namespace — so two pillar teams never write the same file.
 
 - `apps/web` — Nuxt 4 product UI. Messages are per-pillar namespace files,
-  `i18n/locales/<locale>/{common,tasks,projects}.json`, merged by `@nuxtjs/i18n`'s
-  per-locale `files: [...]` (key paths are flat: `$t('tasks.state.done')`).
+  `i18n/locales/<locale>/{common,tasks,projects,settings}.json`, merged by
+  `@nuxtjs/i18n`'s per-locale `files: [...]` (key paths are flat:
+  `$t('tasks.state.done')`).
 - `packages/contracts` — zod schemas shared with the UI: `src/common/`
   (branding, error envelope, me) and `src/pmo/` (state, task, timeline,
-  personal stage, project), each with its own `index.ts`; `src/index.ts` re-exports
-  them, so consumers keep importing from `@nasq/contracts`.
+  personal stage, project, milestone, project-update, settings, tag), each
+  with its own `index.ts`; `src/index.ts` re-exports them, so consumers keep
+  importing from `@nasq/contracts`.
 - `odoo-addons`
   - `nasq_core` — groups and branding defaults.
   - `nasq_api` — shared `/api/v1` plumbing only: `controllers/common.py`
@@ -151,13 +240,13 @@ actual contract being protected, and is what these tests prove.
 
 ## Tests
 
-    # Odoo addons (fresh scratch DB) — 0 failed, 0 error(s) of 81 tests
+    # Odoo addons (fresh scratch DB) — 0 failed, 0 error(s) of 115 tests
     cd ~/code/odoo && .venv/bin/python odoo-bin -c odoo.conf -d nasq_test -i nasq_core,nasq_api,nasq_pmo --test-tags /nasq_core,/nasq_api,/nasq_pmo
     # tip: if a dev server already holds :8069, add --http-port=8169 to the command above
     # lint
     ruff check odoo-addons deploy/seed_branding.py     # clean
     npm -w apps/web run lint                           # vue-tsc --build --noEmit, 0 errors
-    # contracts + web unit — 21 + 127 = 148 tests passing
+    # contracts + web unit — 28 + 130 = 158 tests passing
     npm test
-    # e2e (needs Odoo on :8069 with nasq_core, nasq_api and nasq_pmo installed and `npm run dev` on :3000) — 30 passed
+    # e2e (needs Odoo on :8069 with nasq_core, nasq_api and nasq_pmo installed and `npm run dev` on :3000) — 39 passed
     cd apps/web && npm run test:e2e

@@ -292,7 +292,7 @@ are phase-4-and-later work, not out-of-scope forever.
 | 1 — Core | My tasks table + board, task detail **modal** at `/tasks/{id}` (autosave, comments, sub-tasks), real-time | Delivered 2026-09-04 |
 | 2 — Projects | Projects list, project screen (list / board by project stage, status set by managers) — spec `2026-09-04-nasq-phase-2-projects-design.md` | Delivered 2026-09-05 |
 | **Demo to Erada** | | **~7 weeks** |
-| 3 — Completion | Today, People, Reports, Settings (4 pages, incl. create/edit project and stages), milestones and project updates, hide Odoo noise, PWA | 3 weeks |
+| 3 — Completion | Decomposed 2026-09-05 into five packages — spec `2026-09-05-nasq-phase-3a-project-admin-design.md` and successors: **3a project administration delivered 2026-09-05**; 3b platform settings (users + branding), 3c Today, 3d Reports, 3e PWA/polish pending | 3 weeks |
 | 4 — Later packages | Gantt (custom build), risks, initiatives, meetings, KPIs, SSO, portal users | per package |
 
 ## Out of scope (v1)

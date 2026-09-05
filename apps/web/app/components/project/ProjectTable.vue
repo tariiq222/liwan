@@ -3,16 +3,21 @@ import type { Project } from '@nasq/contracts'
 import { FlexRender, createColumnHelper, getCoreRowModel, useVueTable } from '@tanstack/vue-table'
 import { h } from 'vue'
 import { useProjectList } from '@/composables/useProjects'
+import ProjectMenu from './ProjectMenu.vue'
 import ProjectProgress from './ProjectProgress.vue'
 import ProjectStatusBadge from './ProjectStatusBadge.vue'
 
-const emit = defineEmits<{ open: [id: number] }>()
+// Defaults to the active list so a caller that doesn't yet pass `archived`
+// (the filter chips land on the page in Task 14) keeps today's behaviour.
+const props = withDefaults(defineProps<{ archived?: boolean }>(), { archived: false })
+const emit = defineEmits<{ open: [id: number]; create: [] }>()
 
 const { t } = useI18n()
 const hydrated = useHydrated()
 
-const { data, isLoading } = useProjectList()
-const items = computed<Project[]>(() => data.value ?? [])
+const archived = toRef(props, 'archived')
+const { data, isLoading } = useProjectList(archived)
+const items = computed<Project[]>(() => data.value?.items ?? [])
 
 const columnHelper = createColumnHelper<Project>()
 const columns = [
@@ -36,6 +41,13 @@ const columns = [
         compact: true,
       }),
   }),
+  columnHelper.display({
+    id: 'menu',
+    header: () => '',
+    // Settings live on the project page, not the table row — only
+    // archive/unarchive is reachable from here.
+    cell: (info) => h(ProjectMenu, { project: info.row.original, hideSettings: true }),
+  }),
 ]
 
 const table = useVueTable({
@@ -49,12 +61,18 @@ const table = useVueTable({
 
 <template>
   <div class="space-y-2">
+    <div v-if="data?.can_create" class="flex justify-end">
+      <Button data-testid="project-new" :disabled="!hydrated" @click="emit('create')">
+        {{ t('projects.new') }}
+      </Button>
+    </div>
     <div class="rounded-md border">
       <Table class="table-fixed">
         <colgroup>
-          <col class="w-[50%]" />
+          <col class="w-[40%]" />
           <col class="w-[20%]" />
           <col class="w-[30%]" />
+          <col class="w-[10%]" />
         </colgroup>
         <TableHeader>
           <TableRow v-for="headerGroup in table.getHeaderGroups()" :key="headerGroup.id">
@@ -72,7 +90,7 @@ const table = useVueTable({
             </TableRow>
           </template>
           <TableEmpty v-else-if="items.length === 0" :colspan="columns.length">
-            <p class="text-muted-foreground">{{ t('projects.empty') }}</p>
+            <p class="text-muted-foreground">{{ t(archived ? 'projects.archivedEmpty' : 'projects.empty') }}</p>
           </TableEmpty>
           <template v-else>
             <TableRow
@@ -90,6 +108,6 @@ const table = useVueTable({
         </TableBody>
       </Table>
     </div>
-    <p v-if="(data?.length ?? 0) >= 200" class="text-xs text-muted-foreground">{{ t('projects.capped') }}</p>
+    <p v-if="(data?.items.length ?? 0) >= 200" class="text-xs text-muted-foreground">{{ t('projects.capped') }}</p>
   </div>
 </template>

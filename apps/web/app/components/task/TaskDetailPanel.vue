@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { ChevronLeft, ChevronRight, X } from 'lucide-vue-next'
+import { toast } from 'vue-sonner'
+import { ApiError } from '@/composables/useApi'
 import { useTaskFilters } from '@/composables/useTaskFilters'
 import type { TaskListParams } from '@/composables/useTasks'
-import { useTask, useTaskSiblings, useUpdateTask } from '@/composables/useTasks'
+import { useArchiveTask, useTask, useTaskSiblings, useUpdateTask } from '@/composables/useTasks'
 import DeadlineBadge from './DeadlineBadge.vue'
 import StateMenu from './StateMenu.vue'
 import TaskActivity from './TaskActivity.vue'
@@ -46,6 +48,26 @@ const localFilters = props.siblingParams ? null : useTaskFilters()
 const filterParams = computed<TaskListParams>(() => props.siblingParams ?? localFilters!.value)
 const siblings = useTaskSiblings(idRef, filterParams)
 const { mutate: updateTask } = useUpdateTask()
+const hydrated = useHydrated()
+
+// --- archive -------------------------------------------------------------
+// Shown always (no can_approve-style gate here): the server decides and a
+// forbidden attempt surfaces as a toast, same pattern as StateMenu's
+// transition_forbidden handling.
+const { mutateAsync: archiveMutate, isPending: archiving } = useArchiveTask()
+const archiveConfirmOpen = ref(false)
+
+async function doArchive() {
+  if (!task.value) return
+  try {
+    await archiveMutate({ id: task.value.id })
+    archiveConfirmOpen.value = false
+    toast.success(t('tasks.drawer.archived'))
+    emit('close')
+  } catch (e) {
+    toast.error(e instanceof ApiError ? e.message : t('errors.generic'))
+  }
+}
 
 const titleDraft = ref('')
 watch(
@@ -112,11 +134,48 @@ useEventListener(document, 'keydown', onKeydown)
         <Button variant="ghost" size="icon" type="button" :aria-label="t('tasks.detail.next')" :disabled="!siblings.nextId" @click="goTo(siblings.nextId)">
           <component :is="isRtl ? ChevronLeft : ChevronRight" class="size-4" />
         </Button>
+
+        <DropdownMenu v-if="task">
+          <DropdownMenuTrigger as-child :disabled="!hydrated">
+            <button
+              type="button"
+              data-testid="task-menu"
+              class="inline-flex items-center rounded px-1 text-sm leading-none text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-60"
+              :disabled="!hydrated"
+            >
+              ⋯
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem data-testid="task-archive" variant="destructive" @select="archiveConfirmOpen = true">
+              {{ t('tasks.drawer.archive') }}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
         <Button variant="ghost" size="icon" type="button" :aria-label="t('tasks.detail.close')" @click="emit('close')">
           <X class="size-4" />
         </Button>
       </div>
     </header>
+
+    <!--
+      No `ui/alert-dialog` component exists yet in this tree (another task is
+      adding one) — a plain Dialog stands in for the archive confirm, same
+      workaround ProjectMenu.vue uses for the project archive flow.
+    -->
+    <Dialog v-if="task" :open="archiveConfirmOpen" @update:open="(v) => (archiveConfirmOpen = v)">
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{{ t('tasks.drawer.archive') }}</DialogTitle>
+          <DialogDescription>{{ t('tasks.drawer.archiveConfirm') }}</DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button variant="outline" type="button" :disabled="archiving" @click="archiveConfirmOpen = false">{{ t('app.cancel') }}</Button>
+          <Button variant="destructive" type="button" :disabled="archiving" @click="doArchive">{{ t('tasks.drawer.archive') }}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
 
     <div v-if="!task" class="flex flex-1 items-center justify-center p-4">
       <Skeleton class="h-40 w-full" />
