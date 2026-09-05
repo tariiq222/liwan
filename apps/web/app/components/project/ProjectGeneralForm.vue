@@ -5,6 +5,7 @@ import { refDebounced } from '@vueuse/core'
 import { Check } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
 import DescriptionEditor from '@/components/task/DescriptionEditor.vue'
+import TagPicker from '@/components/task/TagPicker.vue'
 import { formatCalendarDate, fromCalendarDate, toCalendarDate } from '@/composables/calendarDate'
 import { ApiError } from '@/composables/useApi'
 import { usePeople } from '@/composables/usePeople'
@@ -97,6 +98,15 @@ function onEndChange(v: unknown) {
 }
 function clearDates() {
   patch({ date_start: null, date: null })
+}
+
+// --- tags --------------------------------------------------------------------
+// TagPicker emits both the bare ids (the PATCH body) and the resolved tag
+// objects; the resolved list isn't needed here since useUpdateProject's
+// onSuccess replaces the whole cached ProjectDetail with the server response.
+type TagRef = ProjectDetail['tags'][number]
+function onTagsChange({ ids }: { ids: number[]; resolved: TagRef[] }) {
+  patch({ tag_ids: ids })
 }
 </script>
 
@@ -198,13 +208,9 @@ function clearDates() {
       </div>
     </section>
 
-    <!-- Read-only in this task: Task 14 swaps this section for TagPicker (Task 12). -->
     <section class="space-y-2">
       <Label>{{ t('projects.settings.tags') }}</Label>
-      <div class="flex flex-wrap gap-1">
-        <Badge v-for="tag in project.tags" :key="tag.id" variant="outline">{{ tag.name }}</Badge>
-        <span v-if="project.tags.length === 0" class="text-sm text-muted-foreground">—</span>
-      </div>
+      <TagPicker :model-value="project.tags" :can-create="project.can_manage" @update:model-value="onTagsChange" />
     </section>
 
     <Separator />
