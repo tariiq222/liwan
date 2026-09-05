@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import PasswordForm from '@/components/account/PasswordForm.vue'
+
 const { t } = useI18n()
 </script>
 

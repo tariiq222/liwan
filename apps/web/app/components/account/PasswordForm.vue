@@ -34,6 +34,7 @@ function clearMessages() {
 async function submit() {
   clearMessages()
   const validation = validatePasswordForm(current.value, next.value, confirm.value)
+  if (!current.value) currentError.value = t('account.currentRequired')
   if (validation.mismatch) formError.value = t('account.passwordMismatch')
   if (validation.weak) newError.value = t('account.passwordTooShort')
   if (!validation.valid) return

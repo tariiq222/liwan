@@ -16,7 +16,7 @@
     "console": "وحدة التحكم",
     "goTo": "الانتقال إلى",
     "typeToNavigate": "اكتب للانتقال…",
-    "account": "الحساب",
+    "account": "حسابي",
     "logout": "تسجيل الخروج",
     "settings": "الإعدادات"
   },
@@ -44,6 +44,7 @@
     "currentPassword": "كلمة المرور الحالية",
     "newPassword": "كلمة المرور الجديدة",
     "confirmPassword": "تأكيد كلمة المرور الجديدة",
+    "currentRequired": "أدخل كلمة المرور الحالية.",
     "passwordMismatch": "كلمتا المرور غير متطابقتين.",
     "passwordTooShort": "يجب أن تتكون كلمة المرور الجديدة من 8 أحرف على الأقل.",
     "submit": "تغيير كلمة المرور",

@@ -44,6 +44,7 @@
     "currentPassword": "Current password",
     "newPassword": "New password",
     "confirmPassword": "Confirm new password",
+    "currentRequired": "Enter your current password.",
     "passwordMismatch": "Passwords do not match.",
     "passwordTooShort": "The new password must be at least 8 characters.",
     "submit": "Change password",

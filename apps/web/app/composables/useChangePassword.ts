@@ -1,10 +1,13 @@
 import { useMutation } from '@tanstack/vue-query'
 import { MeSchema, type Me, type PasswordChange } from '@nasq/contracts'
 
+export const PASSWORD_MUTATION_GC_TIME = 0
+
 export function useChangePassword() {
   const { $api } = useApi()
   const resetAfterSettlement: { reset: () => void } = { reset: () => {} }
   const mutation = useMutation<Me, unknown, PasswordChange>({
+    gcTime: PASSWORD_MUTATION_GC_TIME,
     mutationFn: (payload) => $api('/api/v1/me/password', {
       method: 'POST',
       body: payload,
