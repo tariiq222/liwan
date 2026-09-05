@@ -1,4 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+import base64
+
 from odoo.tests import new_test_user, tagged
 
 from .common import NasqApiCase
@@ -123,3 +125,38 @@ class TestHrDocuments(NasqApiCase):
         self.assertEqual(res.status_code, 422)
         self.assertEqual(res.json()['code'], 'invalid')
         self.assertEqual(res.json()['field'], 'department_id')
+
+    def test_admin_upload_appears_in_attachment_ids(self):
+        self.authenticate('hr_doc_admin', 'hr_doc_admin_pass_123')
+        res = self.api('POST', f'/api/v1/hr/documents/{self.doc_a.id}/attachments', {
+            'name': 'policy.pdf',
+            'datas': base64.b64encode(b'%PDF-1.4 test').decode(),
+            'mimetype': 'application/pdf',
+        })
+        self.assertEqual(res.status_code, 200)
+        body = res.json()
+        self.assertEqual(set(body), DOC_KEYS)
+        self.assertEqual(len(body['attachment_ids']), 1)
+        att = body['attachment_ids'][0]
+        self.assertEqual(att['name'], 'policy.pdf')
+        self.assertEqual(att['mimetype'], 'application/pdf')
+        self.assertGreater(att['file_size'], 0)
+
+    def test_employee_upload_is_403(self):
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        res = self.api('POST', f'/api/v1/hr/documents/{self.doc_a.id}/attachments', {
+            'name': 'nope.txt',
+            'datas': base64.b64encode(b'x').decode(),
+        })
+        self.assertEqual(res.status_code, 403)
+        self.assertEqual(res.json()['code'], 'forbidden')
+
+    def test_upload_empty_datas_is_422(self):
+        self.authenticate('hr_doc_admin', 'hr_doc_admin_pass_123')
+        res = self.api('POST', f'/api/v1/hr/documents/{self.doc_a.id}/attachments', {
+            'name': 'empty.txt',
+            'datas': '',
+        })
+        self.assertEqual(res.status_code, 422)
+        self.assertEqual(res.json()['code'], 'invalid')
+        self.assertEqual(res.json()['field'], 'datas')

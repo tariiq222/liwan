@@ -1,10 +1,15 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+import base64
+import binascii
+
 from odoo import fields
 
 from odoo.addons.nasq_api.controllers.common import ApiError
 
 CREATE_FIELDS = {'name', 'body', 'department_id'}
 PATCH_FIELDS = {'name', 'body'}
+UPLOAD_FIELDS = {'name', 'datas', 'mimetype'}
+MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024
 
 
 def _iso(dt):
@@ -73,3 +78,30 @@ def parse_document_patch(payload):
         else:
             vals['body'] = value
     return vals
+
+
+def parse_attachment_upload(payload):
+    extra = set(payload) - UPLOAD_FIELDS
+    if extra:
+        field = sorted(extra)[0]
+        raise ApiError(422, 'invalid', f"field {field!r} is not writable", field=field)
+    datas = payload.get('datas')
+    if not isinstance(datas, str) or not datas.strip():
+        raise ApiError(422, 'invalid', "datas is required", field='datas')
+    cleaned = ''.join(datas.split())
+    try:
+        raw = base64.b64decode(cleaned, validate=True)
+    except (binascii.Error, ValueError):
+        raise ApiError(422, 'invalid', "datas must be valid base64", field='datas') from None
+    if len(raw) > MAX_ATTACHMENT_BYTES:
+        raise ApiError(422, 'invalid', "attachment exceeds 10MB", field='datas')
+    mimetype = payload.get('mimetype')
+    if mimetype in (None, False, ''):
+        mimetype = False
+    elif not isinstance(mimetype, str):
+        raise ApiError(422, 'invalid', "mimetype must be a string", field='mimetype')
+    return {
+        'name': _parse_name(payload.get('name')),
+        'datas': cleaned,
+        'mimetype': mimetype,
+    }

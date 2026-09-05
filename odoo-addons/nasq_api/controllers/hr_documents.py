@@ -10,6 +10,7 @@ from odoo.addons.nasq_api.controllers.common import (
 )
 from odoo.addons.nasq_api.serializers.hr_document import (
     dump_document,
+    parse_attachment_upload,
     parse_document_create,
     parse_document_patch,
 )
@@ -71,4 +72,26 @@ class HrDocumentController(http.Controller):
         doc = get_record('nasq.hr.document', document_id)
         vals = parse_document_patch(payload)
         doc.write(vals)
+        return dump_document(doc)
+
+    @http.route(
+        '/api/v1/hr/documents/<int:document_id>/attachments',
+        type='json2', auth='user', methods=['POST'], readonly=False,
+    )
+    @api_handler
+    def upload_document_attachment(self, document_id, **payload):
+        _require_customer_admin()
+        payload.pop('document_id', None)
+        doc = get_record('nasq.hr.document', document_id)
+        vals = parse_attachment_upload(payload)
+        attachment_vals = {
+            'name': vals['name'],
+            'datas': vals['datas'],
+            'res_model': 'nasq.hr.document',
+            'res_id': doc.id,
+        }
+        if vals['mimetype']:
+            attachment_vals['mimetype'] = vals['mimetype']
+        attachment = request.env['ir.attachment'].create(attachment_vals)
+        doc.write({'attachment_ids': [(4, attachment.id)]})
         return dump_document(doc)
