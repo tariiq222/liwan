@@ -1,0 +1,3 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_nasq_hr_document_employee,nasq.hr.document.employee,model_nasq_hr_document,nasq_core.group_employee,1,0,0,0
+access_nasq_hr_document_customer_admin,nasq.hr.document.customer_admin,model_nasq_hr_document,nasq_core.group_customer_admin,1,1,1,1
