@@ -5,9 +5,11 @@ import { usePersonalStages } from '@/composables/usePersonalStages'
 import { useUpdateTask } from '@/composables/useTasks'
 import AssigneePicker from './AssigneePicker.vue'
 import DescriptionEditor from './DescriptionEditor.vue'
+import MilestoneSelect from './MilestoneSelect.vue'
 import PrioritySelect from './PrioritySelect.vue'
 import StateBadge from './StateBadge.vue'
 import SubtaskList from './SubtaskList.vue'
+import TagPicker from './TagPicker.vue'
 
 const props = defineProps<{ task: TaskDetail }>()
 
@@ -22,6 +24,11 @@ function patch(body: Parameters<typeof updateTask>[0]['patch'], resolved?: Param
 // --- assignees -------------------------------------------------------
 function onAssigneesChange({ ids, resolved }: { ids: number[]; resolved: TaskDetail['assignees'] }) {
   patch({ user_ids: ids }, { assignees: resolved })
+}
+
+// --- tags --------------------------------------------------------------
+function onTagsChange({ ids, resolved }: { ids: number[]; resolved: TaskDetail['tags'] }) {
+  patch({ tag_ids: ids }, { tags: resolved })
 }
 
 // --- formatters ----------------------------------------------------------
@@ -171,10 +178,7 @@ const updatedLabel = computed(() => dateTimeFmt.value.format(new Date(props.task
 
     <section class="space-y-2">
       <Label>{{ t('tasks.drawer.tags') }}</Label>
-      <div class="flex flex-wrap gap-1">
-        <Badge v-for="tag in task.tags" :key="tag.id" variant="outline">{{ tag.name }}</Badge>
-        <span v-if="task.tags.length === 0" class="text-sm text-muted-foreground">—</span>
-      </div>
+      <TagPicker :model-value="task.tags" :can-create="task.can_approve" @update:model-value="onTagsChange" />
     </section>
 
     <section class="grid grid-cols-2 gap-4">
@@ -189,6 +193,11 @@ const updatedLabel = computed(() => dateTimeFmt.value.format(new Date(props.task
             <SelectItem v-for="s in stages ?? []" :key="s.id" :value="String(s.id)">{{ s.name }}</SelectItem>
           </SelectContent>
         </Select>
+      </div>
+
+      <div v-if="task.project" class="space-y-2">
+        <Label>{{ t('tasks.drawer.milestone') }}</Label>
+        <MilestoneSelect :task="task" />
       </div>
 
       <div v-if="task.can_approve" class="space-y-2">
