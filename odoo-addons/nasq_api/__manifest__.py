@@ -6,9 +6,10 @@
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
     'license': 'LGPL-3',
-    # Shared plumbing only: nasq_core for the role groups serializers/user.py reads,
-    # auth_totp for controllers/auth.py's MFA step. No pillar addon may be depended on.
-    'depends': ['nasq_core', 'auth_totp'],
+    # Shared plumbing: nasq_core for the role groups serializers/user.py reads,
+    # auth_totp for controllers/auth.py's MFA step. nasq_hr for the HR /api/v1
+    # routes (departments, employees, documents).
+    'depends': ['nasq_core', 'auth_totp', 'nasq_hr'],
     'installable': True,
     'application': False,
 }

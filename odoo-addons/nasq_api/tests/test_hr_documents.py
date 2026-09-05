@@ -1,0 +1,125 @@
+# Part of Odoo. See LICENSE file for full copyright and licensing details.
+from odoo.tests import new_test_user, tagged
+
+from .common import NasqApiCase
+
+DOC_KEYS = {'id', 'name', 'department', 'body', 'attachment_ids', 'write_date'}
+
+
+@tagged('post_install', '-at_install', 'nasq')
+class TestHrDocuments(NasqApiCase):
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.admin = new_test_user(
+            cls.env, login='hr_doc_admin', password='hr_doc_admin_pass_123',
+            name='Doc Admin', groups='nasq_core.group_customer_admin',
+        )
+        cls.dept_a = cls.env['hr.department'].create({'name': 'Engineering'})
+        cls.dept_b = cls.env['hr.department'].create({'name': 'Finance'})
+        cls.hr_emp = cls.env['hr.employee'].search([('user_id', '=', cls.employee.id)], limit=1)
+        if not cls.hr_emp:
+            cls.hr_emp = cls.env['hr.employee'].create({
+                'name': cls.employee.name, 'user_id': cls.employee.id,
+                'department_id': cls.dept_a.id,
+            })
+        cls.doc_a = cls.env['nasq.hr.document'].create({
+            'name': 'Eng Handbook',
+            'body': '<p>Engineering</p>',
+            'department_id': cls.dept_a.id,
+        })
+        cls.doc_b = cls.env['nasq.hr.document'].create({
+            'name': 'Finance Policy',
+            'body': '<p>Finance</p>',
+            'department_id': cls.dept_b.id,
+        })
+
+    def test_employee_can_get_other_department_document(self):
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        res = self.api('GET', f'/api/v1/hr/documents/{self.doc_b.id}')
+        self.assertEqual(res.status_code, 200)
+        body = res.json()
+        self.assertEqual(set(body), DOC_KEYS)
+        self.assertEqual(body['id'], self.doc_b.id)
+        self.assertEqual(body['name'], 'Finance Policy')
+        self.assertEqual(body['department'], {'id': self.dept_b.id, 'name': 'Finance'})
+        self.assertEqual(body['attachment_ids'], [])
+        self.assertTrue(body['write_date'])
+        self.assertIn('T', body['write_date'])
+        self.assertTrue(body['write_date'].endswith('Z'))
+
+    def test_employee_write_is_403(self):
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        res = self.api('POST', '/api/v1/hr/documents', {
+            'name': 'Nope', 'department_id': self.dept_a.id,
+        })
+        self.assertEqual(res.status_code, 403)
+        self.assertEqual(res.json()['code'], 'forbidden')
+        res = self.api('PATCH', f'/api/v1/hr/documents/{self.doc_a.id}', {'name': 'Renamed'})
+        self.assertEqual(res.status_code, 403)
+        self.assertEqual(res.json()['code'], 'forbidden')
+
+    def test_admin_create_and_patch(self):
+        self.authenticate('hr_doc_admin', 'hr_doc_admin_pass_123')
+        res = self.api('POST', '/api/v1/hr/documents', {
+            'name': 'Leave Guide',
+            'body': '<p>How to leave</p>',
+            'department_id': self.dept_a.id,
+        })
+        self.assertEqual(res.status_code, 201)
+        body = res.json()
+        self.assertEqual(set(body), DOC_KEYS)
+        self.assertEqual(body['name'], 'Leave Guide')
+        self.assertEqual(body['department']['id'], self.dept_a.id)
+        res = self.api('PATCH', f'/api/v1/hr/documents/{body["id"]}', {
+            'name': 'Leave Guide v2', 'body': '<p>Updated</p>',
+        })
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()['name'], 'Leave Guide v2')
+
+    def test_create_without_department_id_is_422(self):
+        self.authenticate('hr_doc_admin', 'hr_doc_admin_pass_123')
+        res = self.api('POST', '/api/v1/hr/documents', {'name': 'Orphan'})
+        self.assertEqual(res.status_code, 422)
+        self.assertEqual(res.json()['code'], 'invalid')
+        self.assertEqual(res.json()['field'], 'department_id')
+
+    def test_create_empty_name_is_422(self):
+        self.authenticate('hr_doc_admin', 'hr_doc_admin_pass_123')
+        res = self.api('POST', '/api/v1/hr/documents', {
+            'name': '', 'department_id': self.dept_a.id,
+        })
+        self.assertEqual(res.status_code, 422)
+        self.assertEqual(res.json()['code'], 'invalid')
+        self.assertEqual(res.json()['field'], 'name')
+
+    def test_list_by_department_id(self):
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        body = self.api('GET', f'/api/v1/hr/documents?department_id={self.dept_b.id}').json()
+        ids = [d['id'] for d in body['items']]
+        self.assertIn(self.doc_b.id, ids)
+        self.assertNotIn(self.doc_a.id, ids)
+        self.assertEqual(set(body['items'][0]), DOC_KEYS)
+
+    def test_search_by_name(self):
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        found = self.api('GET', '/api/v1/hr/documents?q=handbook').json()
+        self.assertTrue(any(d['id'] == self.doc_a.id for d in found['items']))
+        missed = self.api('GET', '/api/v1/hr/documents?q=zzz-no-such').json()
+        self.assertEqual(missed['total'], 0)
+
+    def test_get_unknown_is_404(self):
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        res = self.api('GET', '/api/v1/hr/documents/999999')
+        self.assertEqual(res.status_code, 404)
+        self.assertEqual(res.json()['code'], 'not_found')
+
+    def test_patch_cannot_reparent(self):
+        self.authenticate('hr_doc_admin', 'hr_doc_admin_pass_123')
+        res = self.api('PATCH', f'/api/v1/hr/documents/{self.doc_a.id}', {
+            'department_id': self.dept_b.id,
+        })
+        self.assertEqual(res.status_code, 422)
+        self.assertEqual(res.json()['code'], 'invalid')
+        self.assertEqual(res.json()['field'], 'department_id')
