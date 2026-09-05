@@ -1,0 +1,19 @@
+{
+  "settings": {
+    "title": "Settings",
+    "forbidden": "This page is for administrators only",
+    "projects": {
+      "title": "Projects",
+      "creators": {
+        "label": "Who can create projects",
+        "managers": "Project managers and administrators",
+        "employees": "All employees"
+      },
+      "defaultStages": {
+        "label": "Default stages for new projects",
+        "hint": "Copied into every new project. Existing projects are not affected."
+      },
+      "saved": "Settings saved"
+    }
+  }
+}
