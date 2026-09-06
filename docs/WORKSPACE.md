@@ -9,9 +9,11 @@ an arbitrary database.
 
 ## 2026-09-07 consolidation (current)
 
-Local consolidation is being verified in `codex/consolidation-20260907`.
+Local consolidation is promoted into `main` (product commit `8af1060`).
+18 old source worktrees/branches are retired with full-directory recovery;
+the temporary integration worktree is retired at closure.
 See [the current consolidation report](consolidation-2026-09-07.md) for the
-scope, gate results and promotion state. Older dated states below are
+scope, passing gates and final recovery state. Older dated states below are
 historical; their branch counts and pending-work statements are not current.
 
 The user excludes both `codex/chat-workspace` and `codex/cyan-meetings-trial`

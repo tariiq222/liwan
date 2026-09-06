@@ -7,8 +7,10 @@ The user authorized local integration, verification, and workspace cleanup.
 branches and processes are excluded from integration and cleanup.
 
 The starting main commit is `07fed619644392e50bded94163532785feef8922`.
-Integration is prepared in `/Users/tariq/code/nasq-consolidation-20260907`,
-branch `codex/consolidation-20260907`.
+The verified product integration was fast-forwarded locally into `main` at
+`8af1060f9b961ffa67e8d5fc6dd1fe38c3beb816`. Final closure changes documentation
+only. The temporary `codex/consolidation-20260907` worktree is retired as the
+last cleanup step; the final registry is captured in recovery.
 
 Recovery is `/Users/tariq/code/nasq-recovery-merge-20260907-004623`.
 Its verified Git bundle and 20 source snapshots preserve original non-chat
@@ -56,5 +58,36 @@ reviewer eligibility, charter/catalog unsaved guards, stale-search protection,
 and containment of the assigned-users table on mobile. No production rollout
 or database upgrade is implied by these isolated checks.
 
-The tested source is ready for local promotion; Git promotion and retirement
-will be recorded after execution. Main's existing local edits remain separate.
+## Promotion and cleanup
+
+Local promotion is complete. Every non-document file in main, including the
+preserved local runtime edits, matched the recorded tested effective-source
+manifest after fast-forward. The original stash remains unchanged.
+
+18 original worktrees and their local branch refs were retired after a fresh
+source/hash/HEAD check, full-directory preservation, and process ownership
+checks. Their complete original directories, including ignored local files,
+are retained in `retired-worktrees`; `retired-map.json` maps original paths to
+archives. The original bundle retains their committed history and snapshots
+retain staged/uncommitted source and interrupted merge states.
+
+The retained working set is:
+
+- `/Users/tariq/code/nasq` — `main`.
+- The original `nasq-chat-workspace` — `codex/chat-workspace`, excluded.
+- The original Cyan meetings trial — `codex/cyan-meetings-trial`, excluded.
+
+The temporary integration worktree is archived after this closure record is
+promoted. `final-worktrees.json` and `final-branches.txt` in recovery record the
+actual closing registry; `final-main.bundle` preserves the final main history.
+Old preview/scratch servers belonging to retired worktrees were stopped.
+Temporary verification servers are shut down during final cleanup. Scratch
+databases are retained; no database or protected worktree is deleted.
+
+## Remaining work and boundaries
+
+Chat and meetings remain ongoing and unmerged. Main's prior runtime changes in
+`apps/web/nuxt.config.ts` and `deploy/Caddyfile` remain uncommitted; `.agent/`
+remains local. No remote push, deployment, production upgrade or `odoo19`
+verification occurred. Older branch plans/reports are recovery/history, not
+new outstanding work in this consolidated source.
