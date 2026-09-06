@@ -33,11 +33,16 @@ Final candidate gates passed on the integrated source:
   test was corrected to request all three pages for its 107 messages.
 
 Fresh logs are in recovery `logs/final-*`; reviewer acceptance is
-`review-final.md`. The candidate is ready for local fast-forward promotion.
-`promotion-proof.txt` and `cleanup-proof.txt` record actual final operations.
+`review-final.md`. Product commit `651e179` was fast-forwarded into local `main`. All effective
+tracked files matched the tested candidate after promotion. The original chat
+and temporary integration directories and both branch refs were deleted.
+Source snapshots, bundles and meaningful test evidence are retained; generated
+dependencies and caches were removed. Exact chat/verification processes were
+stopped. Meetings and the four independent Phase 1 worktrees were preserved.
+`promotion-proof.txt` and `cleanup-proof.txt` record the final operations.
 No production deployment or production database upgrade is claimed.
 
-Cleanup removes the original and temporary worktree directories after source
+Cleanup removed the original and temporary worktree directories after source
 preservation and stopped-process checks. Source/test evidence is retained;
 regenerable dependencies and build caches are discarded. Meetings and main's
 unrelated local runtime edits are preserved uncommitted. Independently created

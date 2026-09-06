@@ -9,7 +9,8 @@ an arbitrary database.
 
 ## 2026-09-07 chat integration (current)
 
-The user subsequently authorized chat integration and cleanup. See
+Chat is integrated locally at product commit `651e179`. Its original and
+temporary integration worktree directories and branch refs have been removed. See
 [the chat integration report](chat-integration-2026-09-07.md) for scope,
 verification, recovery and final promotion status. Only the chat source and
 its temporary integration worktree are in this cleanup scope. The meetings
