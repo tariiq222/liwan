@@ -3,7 +3,7 @@ from odoo.tests import tagged
 
 from .common import NasqPmoCase
 
-PROJECT_KEYS = {'id', 'name', 'status', 'progress', 'task_count', 'closed_task_count', 'active', 'can_manage', 'allowed_actions'}
+PROJECT_KEYS = {'id', 'name', 'status', 'progress', 'task_count', 'closed_task_count', 'active', 'can_manage', 'allowed_actions', 'manager', 'date_end'}
 DETAIL_KEYS = PROJECT_KEYS | {'stages', 'description_html', 'manager', 'privacy_visibility', 'date_start', 'date_end', 'tags', 'followers_count', 'milestone_count', 'allow_task_dependencies'}
 
 
@@ -50,6 +50,18 @@ class TestProjects(NasqPmoCase):
         self.assertEqual((mine['task_count'], mine['closed_task_count'], mine['progress']), (3, 1, 33))
         self.assertNotIn(self.private.id, [p['id'] for p in items])
         self.assertEqual([p['name'] for p in items], sorted(p['name'] for p in items))
+
+    def test_list_carries_existing_manager_and_end_date(self):
+        self.project.write({'user_id': self.manager.id, 'date_start': '2030-01-01', 'date': '2030-12-31'})
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        items = self.api('GET', '/api/v1/projects').json()['items']
+        row = next(p for p in items if p['id'] == self.project.id)
+        self.assertEqual(row['manager'], {'id': self.manager.id, 'name': self.manager.name})
+        self.assertEqual(row['date_end'], '2030-12-31')
+        self.project.write({'user_id': False, 'date': False})
+        row = next(p for p in self.api('GET', '/api/v1/projects').json()['items'] if p['id'] == self.project.id)
+        self.assertIsNone(row['manager'])
+        self.assertIsNone(row['date_end'])
 
     def test_list_unknown_query_is_400(self):
         self.authenticate('api_emp', 'api_emp_pass_123')

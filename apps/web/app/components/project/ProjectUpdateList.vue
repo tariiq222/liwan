@@ -13,7 +13,7 @@ const hydrated = useHydrated()
 
 const projectIdRef = computed(() => props.projectId)
 const { data, isLoading } = useProjectUpdates(projectIdRef)
-const items = computed<ProjectUpdate[]>(() => data.value ?? [])
+const items = computed<ProjectUpdate[]>(() => [...(data.value ?? [])].sort((a, b) => b.date.localeCompare(a.date)))
 const router = useRouter()
 const route = useRoute()
 
@@ -29,38 +29,39 @@ function openCreate() {
 </script>
 
 <template>
-  <div class="space-y-3">
-    <div v-if="canManage" class="flex justify-end">
-      <Button data-testid="project-update-new" :disabled="!hydrated" @click="openCreate">
-        {{ t('projects.updates.new') }}
-      </Button>
-    </div>
-
-    <template v-if="isLoading">
-      <Skeleton v-for="n in 3" :key="n" class="h-24 w-full" />
-    </template>
-    <div v-else-if="items.length === 0" class="rounded-md border border-dashed p-6 text-center">
-      <p class="font-medium">{{ t('projects.updates.empty') }}</p>
-      <p class="mt-1 text-sm text-muted-foreground">{{ t('projects.updates.emptyHint') }}</p>
-      <Button v-if="canManage" size="sm" class="mt-3" :disabled="!hydrated" @click="openCreate">
-        {{ t('projects.updates.new') }}
-      </Button>
-    </div>
-    <template v-else>
-      <Card v-for="u in items" :key="u.id" data-testid="project-update">
-        <CardContent class="space-y-2 p-4">
-          <div class="flex items-center justify-between gap-2">
-            <div class="flex items-center gap-2">
-              <ProjectStatusBadge :status="u.status" />
-              <span class="font-medium">{{ u.name }}</span>
-            </div>
-            <span class="shrink-0 text-xs text-muted-foreground">{{ dateLabel(u.date) }}</span>
+  <Card class="nasq-panel">
+    <CardHeader class="flex flex-row items-center justify-between gap-3">
+      <div>
+        <CardTitle class="text-base">{{ t('projects.tabs.updates') }}</CardTitle>
+        <CardDescription>{{ t('projects.updates.emptyHint') }}</CardDescription>
+      </div>
+      <Button v-if="canManage" data-testid="project-update-new" size="sm" :disabled="!hydrated" @click="openCreate">{{ t('projects.updates.new') }}</Button>
+    </CardHeader>
+    <CardContent class="p-0">
+      <div v-if="isLoading" class="space-y-3 p-[18px]">
+        <Skeleton v-for="n in 3" :key="n" class="h-24 w-full" />
+      </div>
+      <div v-else-if="items.length === 0" class="p-8 text-center">
+        <p class="font-medium">{{ t('projects.updates.empty') }}</p>
+        <p class="mt-1 text-sm text-muted-foreground">{{ t('projects.updates.emptyHint') }}</p>
+        <Button v-if="canManage" size="sm" class="mt-3" :disabled="!hydrated" @click="openCreate">{{ t('projects.updates.new') }}</Button>
+      </div>
+      <div v-else class="px-[18px] py-1">
+        <article v-for="(u, index) in items" :key="u.id" data-testid="project-update" class="relative flex gap-4 py-4">
+          <div class="relative flex w-3 shrink-0 justify-center">
+            <span class="mt-1.5 size-2.5 rounded-full border-2 border-background bg-primary ring-1 ring-primary" />
+            <span v-if="index < items.length - 1" class="absolute bottom-[-16px] top-5 w-px bg-border" />
           </div>
-          <p class="text-xs text-muted-foreground">{{ t('projects.updates.by', { name: u.author.name }) }}</p>
-          <div class="prose prose-sm max-w-none text-sm break-words" v-html="sanitizeHtml(u.description_html)" />
-        </CardContent>
-      </Card>
-    </template>
-  </div>
-
+          <div class="min-w-0 flex-1 space-y-2">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div class="flex min-w-0 items-center gap-2"><ProjectStatusBadge :status="u.status" /><span class="truncate font-medium">{{ u.name }}</span></div>
+              <span class="shrink-0 text-xs text-muted-foreground">{{ dateLabel(u.date) }}</span>
+            </div>
+            <p class="text-xs text-muted-foreground">{{ t('projects.updates.by', { name: u.author.name }) }}</p>
+            <div class="prose prose-sm max-w-none break-words text-sm" v-html="sanitizeHtml(u.description_html)" />
+          </div>
+        </article>
+      </div>
+    </CardContent>
+  </Card>
 </template>

@@ -127,8 +127,8 @@ function clearFilters() {
 </script>
 
 <template>
-  <div class="space-y-2">
-    <FilterBar>
+  <div class="grid gap-3">
+    <div class="nasq-toolbar"><FilterBar class="w-full">
       <template #search>
       <div class="relative min-w-48 flex-1">
         <Search class="pointer-events-none absolute start-2 top-1/2 size-[18px] -translate-y-1/2 text-muted-foreground" />
@@ -156,9 +156,9 @@ function clearFilters() {
           <Button variant="ghost" size="sm" :disabled="!hydrated" @click="clearFilters"><X class="size-3.5" />{{ t('hr.directory.clear') }}</Button>
         </div>
       </template>
-    </FilterBar>
+    </FilterBar></div>
 
-    <div class="overflow-x-auto rounded-lg border border-border/80 bg-card">
+    <div class="nasq-panel overflow-x-auto">
       <Table>
         <TableHeader>
           <TableRow v-for="headerGroup in table.getHeaderGroups()" :key="headerGroup.id">

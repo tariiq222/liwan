@@ -64,7 +64,7 @@ test('projects table shows status and progress, and a row opens the project', as
   await expect(row.getByTestId('project-progress')).toHaveText('50%')
   await page.getByPlaceholder('ابحث باسم المشروع…').fill(name)
   await expect(row).toBeVisible()
-  await page.getByRole('combobox').click()
+  await page.getByTestId('projects-status-filter').click()
   await page.getByRole('option', { name: 'معرض للخطر' }).click()
   await expect(row).toBeVisible()
   await expect(page).toHaveURL(new RegExp('status=at_risk'))
@@ -111,7 +111,7 @@ test('project list shows every task of the project (not only mine), the detail p
   await expect(row.getByText('To Do')).toBeVisible()
   await row.click()
   await expect(page).toHaveURL(new RegExp(`/projects/${id}/tasks/${t}\\?`))
-  await expect(page.getByTestId('task-detail-page').getByRole('textbox', { name: 'عنوان المهمة' })).toHaveValue(`${name} task`)
+  await expect(page.locator('h1')).toHaveText(`${name} task`)
   await page.keyboard.press('Escape')
   // vue-router serialises the query with URLSearchParams semantics (spaces as
   // '+'), so build the expected value the same way rather than with

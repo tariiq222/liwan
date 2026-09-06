@@ -24,7 +24,7 @@ test('task activity: post a comment and see a tracking entry after a state chang
   const detail = page.getByTestId('task-detail-page')
   await expect(detail).toBeVisible()
   // wait for the client-rendered detail body before interacting (SSR hydration race)
-  await expect(detail.getByRole('textbox', { name: 'عنوان المهمة' })).toHaveValue(name)
+  await expect(page.locator('h1')).toHaveText(name)
 
   const composer = detail.getByPlaceholder('اكتب تعليقًا…')
   await expect(composer).toBeVisible()

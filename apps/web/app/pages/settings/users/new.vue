@@ -2,6 +2,7 @@
 import { ApiError } from '@/composables/useApi'
 import { useAdminUser, useGrantAdminAccount, useReactivateAdminUser, useUpdateAdminUserAccess, useAdminUserCandidates } from '@/composables/useAdminUsers'
 import { useAdminPermissionCatalog, useAdminRoleDetails, useAdminRoles } from '@/composables/useAdminRoles'
+import SettingsLayout from '@/components/settings/SettingsLayout.vue'
 
 const { t, locale } = useI18n()
 const { can } = useAccess()
@@ -94,10 +95,10 @@ async function submit() {
 </script>
 
 <template>
-  <div class="mx-auto w-full max-w-5xl space-y-8">
+  <SettingsLayout><div class="nasq-page-stack mx-auto w-full max-w-5xl">
     <SharedPageHeader :title="t('access.users.grantTitle')" :back-to="backTo" />
     <SharedPageState v-if="forbidden" :empty="true" :empty-text="t('access.forbidden')" />
-    <form v-else class="max-w-3xl space-y-5 rounded-lg border border-border/80 bg-card p-4 sm:p-6" @submit.prevent="submit">
+    <form v-else class="nasq-form nasq-panel nasq-panel-body max-w-3xl space-y-5" @submit.prevent="submit">
       <SharedUnsavedChanges :dirty="dirty" />
       <div class="space-y-2"><Label for="employee-search">{{ t('access.users.employee') }}</Label><Input id="employee-search" v-model="candidateParams.q" :placeholder="t('access.users.filters.search')" :disabled="!hydrated || hasRequestedEmployee" /><select id="employee" v-model="employeeId" class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm" :disabled="!hydrated || employees.isLoading.value"><option :value="undefined">{{ t('access.users.chooseEmployee') }}</option><option v-for="employee in employees.data.value?.items ?? []" :key="employee.id" :value="employee.id" :disabled="employee.user_id !== null && employee.access_active !== false">{{ employee.name }}{{ employee.work_email ? ` — ${employee.work_email}` : '' }}{{ employee.user_id && employee.access_active === false ? ` — ${t('access.users.stoppedAccount')}` : '' }}</option></select><p v-if="employees.isLoading.value" class="text-xs text-muted-foreground">{{ t('access.users.loadingCandidates') }}</p><p v-else-if="employees.error.value" role="alert" class="text-xs text-destructive">{{ t('errors.generic') }}</p><p v-if="selectedCandidate?.user_id && selectedCandidate.access_active !== false" role="alert" class="text-xs text-destructive">{{ t('access.users.alreadyHasAccount') }}</p><div v-if="candidatePages > 1" class="flex items-center justify-between text-xs text-muted-foreground"><Button type="button" variant="ghost" size="sm" :disabled="!hydrated || candidateParams.offset === 0 || employees.isFetching.value" @click="previousCandidates">{{ t('access.users.previousCandidates') }}</Button><span>{{ t('access.users.candidatePage', { page: candidatePage, pages: candidatePages }) }}</span><Button type="button" variant="ghost" size="sm" :disabled="!hydrated || candidatePage >= candidatePages || employees.isFetching.value" @click="nextCandidates">{{ t('access.users.nextCandidates') }}</Button></div></div>
       <fieldset class="space-y-2" :disabled="!hydrated || roles.isLoading.value"><legend class="font-medium">{{ t('access.users.role') }}</legend><label v-for="role in availableRoles" :key="role.id" class="flex items-center gap-2 rounded-lg border border-border/80 bg-card p-3 transition-colors hover:bg-muted/40"><input v-model="selectedRoleIds" type="checkbox" :value="role.id"><span>{{ role.name[locale === 'ar' ? 'ar' : 'en'] ?? role.name.ar }}</span><span class="text-xs text-muted-foreground">{{ t('access.roles.companyScope') }}</span></label><p v-if="roles.isLoading.value" class="text-xs text-muted-foreground">{{ t('access.users.loadingRoles') }}</p><p v-else-if="roles.error.value" role="alert" class="text-xs text-destructive">{{ t('errors.generic') }}</p></fieldset>
@@ -107,5 +108,5 @@ async function submit() {
       <p v-if="errorKey" role="alert" class="text-sm text-destructive">{{ errorKey }}</p>
       <Button type="submit" :disabled="!hydrated || grant.isPending.value || reactivate.isPending.value || updateAccess.isPending.value || employees.isLoading.value || roles.isLoading.value || existingUser.isLoading.value || !employeeId || selectedRoleIds.length === 0 || !selectedCandidate || (selectedCandidate.user_id !== null && selectedCandidate.access_active !== false) || password.length < 8 || password !== passwordConfirmation">{{ isReactivation ? t('access.users.reactivateAccount') : t('access.users.grantAccount') }}</Button>
     </form>
-  </div>
+  </div></SettingsLayout>
 </template>

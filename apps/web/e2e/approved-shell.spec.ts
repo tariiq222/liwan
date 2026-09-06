@@ -57,7 +57,7 @@ for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844
         await page.goto(route)
         // Measure loaded record content, not the shell's initial skeleton.
         if (name === 'task') {
-          await expect(page.getByRole('textbox', { name: 'عنوان المهمة' })).toHaveValue(task.name)
+          await expect(page.locator('h1')).toHaveText(task.name)
           await expect(page.getByRole('textbox', { name: 'الوصف' })).toBeVisible()
         }
         if (name === 'project') await expect(page.locator('h1')).toHaveText(project.name)

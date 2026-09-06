@@ -67,38 +67,40 @@ async function submit() {
 
 <template>
   <SharedUnsavedChanges :dirty="dirty" />
-  <form class="grid max-w-xl gap-4" @submit.prevent="submit">
-    <div class="grid gap-2">
-      <Label for="hr-dept-name">{{ t('hr.depts.name') }}</Label>
-      <Input id="hr-dept-name" v-model="name" :disabled="!canManage || !hydrated || pending" required />
-    </div>
-    <div class="grid gap-2">
-      <Label for="hr-dept-parent">{{ t('hr.depts.parent') }}</Label>
-      <Select :model-value="parentId ? String(parentId) : 'none'" :disabled="!canManage || !hydrated || pending" @update:model-value="parentId = idOrNull($event)">
-        <SelectTrigger id="hr-dept-parent"><SelectValue /></SelectTrigger>
-        <SelectContent>
-          <SelectItem value="none">{{ t('hr.depts.none') }}</SelectItem>
-          <SelectItem v-for="department in parentOptions" :key="department.id" :value="String(department.id)">{{ department.name }}</SelectItem>
-        </SelectContent>
-      </Select>
-    </div>
-    <div class="grid gap-2">
-      <Label for="hr-dept-manager">{{ t('hr.depts.manager') }}</Label>
-      <Input v-model="managerSearch" :disabled="!canManage || !hydrated || pending" :aria-label="t('hr.depts.managerSearch')" :placeholder="t('hr.depts.managerSearch')" />
-      <div v-if="employeeQuery.error.value || selectedManagerQuery.error.value" class="text-sm text-destructive"><p>{{ t('hr.depts.managerLoadError') }}</p><Button type="button" variant="outline" @click="employeeQuery.refetch(); selectedManagerQuery.refetch()">{{ t('hr.depts.retry') }}</Button></div>
-      <p v-else-if="employeeQuery.isFetching.value" class="text-xs text-muted-foreground">{{ t('hr.depts.managerLoading') }}</p>
-      <p v-else-if="(employeeQuery.data.value?.total ?? 0) > managerOptions.length" class="text-xs text-muted-foreground">{{ t('hr.depts.managerLimitNotice') }}</p>
-      <Select :model-value="managerId ? String(managerId) : 'none'" :disabled="!canManage || !hydrated || pending" @update:model-value="managerId = idOrNull($event)">
-        <SelectTrigger id="hr-dept-manager"><SelectValue /></SelectTrigger>
-        <SelectContent>
-          <SelectItem value="none">{{ t('hr.depts.none') }}</SelectItem>
-          <SelectItem v-for="employee in managerOptions" :key="employee.id" :value="String(employee.id)">{{ employee.name }}</SelectItem>
-        </SelectContent>
-      </Select>
-    </div>
-    <div class="flex flex-wrap gap-2">
-      <Button type="submit" :disabled="!canManage || !hydrated || pending || !name.trim()">{{ t('app.save') }}</Button>
-      <NuxtLink :to="props.backTo ?? (props.department ? `/hr/departments/${props.department.id}` : '/hr/departments')"><Button type="button" variant="outline">{{ t('app.cancel') }}</Button></NuxtLink>
-    </div>
+  <form class="nasq-form" @submit.prevent="submit">
+    <section class="nasq-form-section">
+      <h2 class="text-sm font-semibold">{{ t('hr.depts.formDescription') }}</h2>
+      <div class="nasq-form-grid mt-4">
+        <div class="grid gap-2">
+          <Label for="hr-dept-name">{{ t('hr.depts.name') }}</Label>
+          <Input id="hr-dept-name" v-model="name" :disabled="!canManage || !hydrated || pending" required />
+        </div>
+        <div class="grid gap-2">
+          <Label for="hr-dept-parent">{{ t('hr.depts.parent') }}</Label>
+          <Select :model-value="parentId ? String(parentId) : 'none'" :disabled="!canManage || !hydrated || pending" @update:model-value="parentId = idOrNull($event)">
+            <SelectTrigger id="hr-dept-parent"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">{{ t('hr.depts.none') }}</SelectItem>
+              <SelectItem v-for="department in parentOptions" :key="department.id" :value="String(department.id)">{{ department.name }}</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div class="grid gap-2">
+          <Label for="hr-dept-manager">{{ t('hr.depts.manager') }}</Label>
+          <Input v-model="managerSearch" :disabled="!canManage || !hydrated || pending" :aria-label="t('hr.depts.managerSearch')" :placeholder="t('hr.depts.managerSearch')" />
+          <div v-if="employeeQuery.error.value || selectedManagerQuery.error.value" class="text-sm text-destructive"><p>{{ t('hr.depts.managerLoadError') }}</p><Button type="button" variant="outline" @click="employeeQuery.refetch(); selectedManagerQuery.refetch()">{{ t('hr.depts.retry') }}</Button></div>
+          <p v-else-if="employeeQuery.isFetching.value" class="text-xs text-muted-foreground">{{ t('hr.depts.managerLoading') }}</p>
+          <p v-else-if="(employeeQuery.data.value?.total ?? 0) > managerOptions.length" class="text-xs text-muted-foreground">{{ t('hr.depts.managerLimitNotice') }}</p>
+          <Select :model-value="managerId ? String(managerId) : 'none'" :disabled="!canManage || !hydrated || pending" @update:model-value="managerId = idOrNull($event)">
+            <SelectTrigger id="hr-dept-manager"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">{{ t('hr.depts.none') }}</SelectItem>
+              <SelectItem v-for="employee in managerOptions" :key="employee.id" :value="String(employee.id)">{{ employee.name }}</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+    </section>
+    <div class="nasq-form-footer"><NuxtLink :to="props.backTo ?? (props.department ? `/hr/departments/${props.department.id}` : '/hr/departments')"><Button type="button" variant="outline">{{ t('app.cancel') }}</Button></NuxtLink><Button type="submit" :disabled="!canManage || !hydrated || pending || !name.trim()">{{ t('app.save') }}</Button></div>
   </form>
 </template>

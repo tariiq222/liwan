@@ -17,6 +17,8 @@
     "columns": {
       "name": "الاسم",
       "status": "الحالة",
+      "manager": "المدير",
+      "dateEnd": "تاريخ الانتهاء",
       "progress": "التقدم"
     },
     "status": {
@@ -35,6 +37,9 @@
       "displayed": "المشاريع المعروضة",
       "attention": "تحتاج متابعة",
       "completed": "المشاريع المكتملة",
+      "tasks": "{count} مهمة",
+      "remaining": "{count} مهمة مفتوحة",
+      "completedTasks": "{count} مهمة مكتملة",
       "show": "إظهار ملخص المشاريع",
       "hide": "إخفاء ملخص المشاريع"
     },
@@ -46,7 +51,19 @@
       "milestones": "المعالم",
       "activeTasks": "المهام النشطة",
       "activeTasksEmpty": "لا توجد مهام نشطة",
-      "activeTasksCap": "تُعرض أول 5 مهام من القائمة المحمّلة"
+      "activeTasksCap": "تُعرض أول 5 مهام من القائمة المحمّلة",
+      "followers": "المتابعون",
+      "workSummary": "ملخص العمل",
+      "tasks": "المهام",
+      "completedOf": "{closed} من {total} مكتملة",
+      "workflowStages": "مراحل سير العمل",
+      "noDescription": "لم تتم إضافة وصف.",
+      "completedSummary": "اكتملت {closed} من {total} مهمة",
+      "nextMilestone": "أقرب معلم",
+      "noUpcomingMilestone": "لا يوجد معلم قادم",
+      "latestUpdate": "آخر تحديث",
+      "noUpdates": "لا توجد تحديثات بعد",
+      "noDates": "لا توجد تواريخ للمشروع"
     },
     "new": "مشروع جديد",
     "newName": "اسم المشروع",
@@ -59,6 +76,13 @@
       "searchValue": "بحث: {value}",
       "allStatuses": "كل الحالات",
       "unset": "غير محدد",
+      "sortDefault": "الترتيب الافتراضي",
+      "sortName": "الاسم",
+      "sortProgress": "نسبة الإنجاز",
+      "view": "طريقة عرض المشاريع",
+      "tableView": "عرض الجدول",
+      "cardView": "عرض البطاقات",
+      "boardView": "عرض اللوحة",
       "clear": "مسح الفلاتر"
     },
     "archivedEmpty": "لا مشاريع مؤرشفة",
@@ -113,6 +137,7 @@
     },
     "tabs": {
       "overview": "نظرة عامة",
+      "tasks": "المهام",
       "list": "قائمة",
       "board": "لوحة",
       "milestones": "المعالم",
@@ -128,6 +153,8 @@
       "state": "الحالة",
       "reached": "تم",
       "notReached": "لم يتم",
+      "upcoming": "قادم",
+      "overdue": "متأخر",
       "markReached": "تحديد كمنجز",
       "reopen": "إعادة فتح",
       "delete": "حذف",

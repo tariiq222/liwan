@@ -16,6 +16,7 @@ export const ProjectSchema = z.object({
   id: z.number().int().positive(), name: z.string(), status: ProjectStatusSchema.nullable(),
   progress: z.number().int().min(0).max(100), task_count: z.number().int(), closed_task_count: z.number().int(),
   active: z.boolean(), can_manage: z.boolean(),
+  manager: UserRefSchema.nullable().optional(), date_end: z.string().nullable().optional(),
   allowed_actions: z.array(z.enum(['read', 'write', 'archive'])).optional().default([]),
 }).strict()
 

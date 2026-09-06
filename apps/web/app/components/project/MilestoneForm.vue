@@ -45,7 +45,7 @@ async function submit() {
 </script>
 
 <template>
-  <form data-testid="milestone-form" class="grid gap-4" @submit.prevent="submit">
+  <form data-testid="milestone-form" class="nasq-form-grid" @submit.prevent="submit">
     <div class="grid gap-2">
       <Label for="milestone-name">{{ t('projects.milestones.name') }}</Label>
       <Input id="milestone-name" v-model="name" required :disabled="!hydrated || isPending" />
@@ -64,8 +64,8 @@ async function submit() {
         </PopoverContent>
       </Popover>
     </div>
-    <p v-if="error" role="alert" class="text-sm text-destructive">{{ error }}</p>
-    <div class="flex flex-wrap justify-end gap-2">
+    <p v-if="error" role="alert" class="text-sm text-destructive sm:col-span-2">{{ error }}</p>
+    <div class="nasq-form-footer sm:col-span-2">
       <Button type="button" variant="outline" :disabled="isPending" @click="emit('cancel')">{{ t('app.cancel') }}</Button>
       <Button type="submit" :disabled="!hydrated || isPending || !name.trim()">{{ isEdit ? t('app.save') : t('app.create') }}</Button>
     </div>

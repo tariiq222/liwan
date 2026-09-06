@@ -7,6 +7,7 @@ const props = defineProps<{ taskId: number }>()
 
 const { t } = useI18n()
 const { mutate: postComment, isPending } = usePostComment()
+const hydrated = useHydrated()
 
 const body = ref('')
 
@@ -35,18 +36,30 @@ function onKeydown(e: KeyboardEvent) {
 </script>
 
 <template>
-  <div class="border-t p-3">
+  <form class="task-comment-form" @submit.prevent="submit">
+    <Label :for="`task-comment-${props.taskId}`" class="text-xs font-medium">{{ t('tasks.activity.add') }}</Label>
     <Textarea
+      :id="`task-comment-${props.taskId}`"
       v-model="body"
       :placeholder="t('tasks.activity.write')"
-      :disabled="isPending"
-      class="min-h-16 resize-none"
+      :disabled="!hydrated || isPending"
+      class="min-h-[88px] resize-none"
       @keydown="onKeydown"
     />
-    <div class="mt-2 flex justify-end">
-      <Button type="button" size="sm" :disabled="isPending || !body.trim()" @click="submit">
+    <div class="flex justify-end">
+      <Button type="submit" size="sm" :disabled="!hydrated || isPending || !body.trim()">
         {{ t('tasks.activity.post') }}
       </Button>
     </div>
-  </div>
+  </form>
 </template>
+
+<style scoped>
+.task-comment-form {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+</style>

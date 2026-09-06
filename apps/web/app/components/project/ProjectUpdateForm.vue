@@ -35,7 +35,7 @@ async function submit() {
 </script>
 
 <template>
-  <form data-testid="project-update-form" class="grid gap-4" @submit.prevent="submit">
+  <form data-testid="project-update-form" class="nasq-form-grid" @submit.prevent="submit">
     <div class="grid gap-2">
       <Label for="project-update-status">{{ t('projects.updates.status') }}</Label>
       <Select :model-value="status" :disabled="!hydrated || isPending" @update:model-value="(v) => (status = v as ProjectStatus)">
@@ -47,12 +47,12 @@ async function submit() {
       <Label for="project-update-title">{{ t('projects.updates.title') }}</Label>
       <Input id="project-update-title" v-model="title" required :disabled="!hydrated || isPending" />
     </div>
-    <div class="grid gap-2">
+    <div class="grid gap-2 sm:col-span-2">
       <Label>{{ t('projects.updates.body') }}</Label>
       <DescriptionEditor :model-value="description" :task-id="projectId" @update:model-value="onDescriptionChange" />
     </div>
-    <p v-if="error" role="alert" class="text-sm text-destructive">{{ error }}</p>
-    <div class="flex flex-wrap justify-end gap-2">
+    <p v-if="error" role="alert" class="text-sm text-destructive sm:col-span-2">{{ error }}</p>
+    <div class="nasq-form-footer sm:col-span-2">
       <Button type="button" variant="outline" :disabled="isPending" @click="emit('cancel')">{{ t('app.cancel') }}</Button>
       <Button type="submit" :disabled="!hydrated || isPending || !status || !title.trim()">{{ t('app.create') }}</Button>
     </div>

@@ -45,11 +45,11 @@ function detailsTo(document: HrDocument) {
       <h2 class="text-lg font-semibold">{{ t('hr.docs.title') }}</h2>
       <NuxtLink v-if="canWriteAllowed" :to="{ path: `/hr/departments/${props.departmentId}/documents/new`, query: returnToQuery(route.fullPath) }"><Button :disabled="!hydrated">{{ t('hr.docs.new') }}</Button></NuxtLink>
     </div>
-    <div class="relative min-w-48">
+    <div class="nasq-toolbar nasq-panel relative min-w-48">
       <Search class="pointer-events-none absolute start-2 top-1/2 size-[18px] -translate-y-1/2 text-muted-foreground" />
       <Input v-model="search" :disabled="!hydrated" :placeholder="t('hr.docs.search')" class="ps-8" @change="updateSearch" />
     </div>
-    <div class="overflow-x-auto rounded-lg border border-border/80 bg-card">
+    <div class="nasq-panel overflow-x-auto">
       <Table>
         <TableHeader><TableRow><TableHead class="text-start">{{ t('hr.docs.columns.name') }}</TableHead><TableHead class="text-start">{{ t('hr.docs.columns.updated') }}</TableHead></TableRow></TableHeader>
         <TableBody>

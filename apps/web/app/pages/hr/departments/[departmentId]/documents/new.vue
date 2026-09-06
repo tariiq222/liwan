@@ -5,4 +5,4 @@ const route = useRoute(); const { t } = useI18n(); const id = computed(() => Num
 const returnTo = computed(() => safeReturnTo(route.query.returnTo, `/hr/departments/${id.value}`, ['/hr']))
 function saved(documentId: number) { void navigateTo({ path: `/hr/departments/${id.value}/documents/${documentId}`, query: returnToQuery(returnTo.value) }) }
 </script>
-<template><div class="mx-auto w-full max-w-5xl space-y-8"><SharedPageHeader :title="t('hr.docs.new')" :back-to="returnTo" /><SharedPageState v-if="!can('hr.documents.manage')" :empty="true" :empty-text="t('errors.forbidden')" /><section v-else class="rounded-lg border border-border/80 bg-card p-4 sm:p-6"><DocumentCreateForm :department-id="id" :back-to="returnTo" @saved="saved" /></section></div></template>
+<template><div class="nasq-page-stack mx-auto w-full max-w-5xl"><SharedPageHeader :title="t('hr.docs.new')" :back-to="returnTo" /><SharedPageState v-if="!can('hr.documents.manage')" :empty="true" :empty-text="t('errors.forbidden')" /><section v-else class="nasq-panel nasq-panel-body"><DocumentCreateForm :department-id="id" :back-to="returnTo" @saved="saved" /></section></div></template>

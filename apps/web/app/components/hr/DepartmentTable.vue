@@ -15,7 +15,7 @@ const canManage = computed(() => !!props.canManage && can('hr.departments.manage
 </script>
 
 <template>
-  <div class="grid gap-1" data-testid="hr-department-table">
+  <div class="nasq-panel nasq-panel-body grid gap-1" data-testid="hr-department-table">
     <div
       v-for="department in departments"
       :key="department.id"

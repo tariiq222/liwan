@@ -13,11 +13,11 @@ const projectId = computed(() => {
 const { data: project, isLoading, error } = useProject(projectId)
 const notFound = computed(() => projectId.value === null || (error.value instanceof ApiError && [403, 404].includes(error.value.status)))
 const canManage = computed(() => project.value?.can_manage ?? false)
-const returnTo = computed(() => projectId.value ? safeReturnTo(route.query.returnTo, '/projects/' + projectId.value + '?tab=list', ['/projects']) : '/projects')
+const returnTo = computed(() => projectId.value ? safeReturnTo(route.query.returnTo, '/projects/' + projectId.value + '?tab=tasks', ['/projects']) : '/projects')
 </script>
 
 <template>
-  <section class="mx-auto w-full max-w-4xl space-y-6">
+  <section class="nasq-page-stack">
     <SharedPageHeader :title="t('projects.settings.title')" :back-to="returnTo" :back-label="t('projects.backToProject')" />
     <template v-if="projectId === null">
       <p class="text-muted-foreground">{{ t('projects.invalidId') }}</p>
@@ -35,7 +35,7 @@ const returnTo = computed(() => projectId.value ? safeReturnTo(route.query.retur
       <p class="text-muted-foreground">{{ t('projects.forbidden') }}</p>
     </template>
     <template v-else>
-      <Card><CardContent class="pt-6"><ProjectSettingsForm :project="project" /></CardContent></Card>
+      <Card class="nasq-form"><CardContent><ProjectSettingsForm :project="project" /></CardContent></Card>
     </template>
   </section>
 </template>

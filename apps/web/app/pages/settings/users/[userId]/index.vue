@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { PermissionDefinition } from '@nasq/contracts'
+import SettingsLayout from '@/components/settings/SettingsLayout.vue'
 const route = useRoute()
 const { t, locale } = useI18n()
 const { can } = useAccess()
@@ -25,7 +26,7 @@ const sourceLabel = (source: { role: { name: { ar: string; en: string | null } }
 </script>
 
 <template>
-  <div class="mx-auto w-full max-w-7xl space-y-8">
+  <SettingsLayout><div class="nasq-page-stack mx-auto w-full max-w-[1440px]">
     <SharedPageHeader :title="query.data.value?.name ?? t('access.users.title')" :description="query.data.value?.login" :back-to="returnTo">
       <Button v-if="query.data.value?.allowed_actions.includes('assign_roles')" variant="outline" @click="navigateTo(accessTo)">{{ t('access.users.editAccess') }}</Button>
       <Button v-if="query.data.value?.allowed_actions.includes('reset_password') || query.data.value?.allowed_actions.includes('disable') || query.data.value?.allowed_actions.includes('reactivate')" variant="outline" @click="navigateTo(securityTo)">{{ t('access.users.security') }}</Button>
@@ -45,5 +46,5 @@ const sourceLabel = (source: { role: { name: { ar: string; en: string | null } }
         <Card><CardHeader><CardTitle>{{ t('access.users.capabilities') }}</CardTitle></CardHeader><CardContent><ul class="space-y-2 text-sm"><li v-for="capability in query.data.value.capabilities" :key="capability.key">{{ permissionLabel(capability.key) }}<span v-if="capability.sources.length" class="block text-xs text-muted-foreground">{{ capability.sources.map(sourceLabel).join('، ') }}</span></li></ul></CardContent></Card>
       </div>
     </SharedPageState>
-  </div>
+  </div></SettingsLayout>
 </template>

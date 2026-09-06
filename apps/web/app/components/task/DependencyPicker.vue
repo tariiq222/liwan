@@ -4,6 +4,7 @@ import { toast } from 'vue-sonner'
 import type { TaskDetail } from '@nasq/contracts'
 import { ApiError } from '@/composables/useApi'
 import { useTaskDependencies, useTaskDependencyCandidates, useUpdateTaskDependencies } from '@/composables/useTaskDependencies'
+import StateBadge from './StateBadge.vue'
 
 const props = defineProps<{ task: TaskDetail }>()
 const { t } = useI18n()
@@ -34,20 +35,33 @@ function remove(id: number) {
 </script>
 
 <template>
-  <section v-if="task.can_manage_dependencies" class="space-y-2" data-testid="dependency-picker">
-    <Label>{{ t('taskLifecycle.dependencies') }}</Label>
-    <div class="flex flex-wrap gap-1">
-      <Badge v-for="dep in dependencies" :key="dep.id" variant="outline" class="gap-1 pe-1">
-        {{ dep.name }}
-        <button type="button" :aria-label="t('taskLifecycle.removeDependency')" :disabled="!hydrated || isPending" @click="remove(dep.id)">
-          <X class="size-3" />
-        </button>
-      </Badge>
-      <span v-if="!dependencies.length" class="text-sm text-muted-foreground">—</span>
+  <section class="task-section" data-testid="dependency-picker">
+    <div class="task-section-head">
+      <h2>{{ t('taskLifecycle.dependencies') }}</h2>
     </div>
-    <Popover v-model:open="open">
+
+    <ul v-if="dependencies.length" class="task-list">
+      <li v-for="dep in dependencies" :key="dep.id" class="task-dependency-row">
+        <StateBadge :state="dep.state" />
+        <span class="min-w-0 flex-1 truncate text-sm font-medium">{{ dep.name }}</span>
+        <Button
+          v-if="task.can_manage_dependencies"
+          variant="ghost"
+          size="icon"
+          type="button"
+          :aria-label="t('taskLifecycle.removeDependency')"
+          :disabled="!hydrated || isPending"
+          @click="remove(dep.id)"
+        >
+          <X class="size-[18px]" />
+        </Button>
+      </li>
+    </ul>
+    <p v-else class="task-empty-inline">{{ t('tasks.detail.noDependencies') }}</p>
+
+    <Popover v-if="task.can_manage_dependencies" v-model:open="open">
       <PopoverTrigger as-child>
-        <Button variant="outline" size="sm" type="button" :disabled="!hydrated || isPending || !dependencyState?.enabled">{{ t('taskLifecycle.addDependency') }}</Button>
+        <Button variant="outline" size="sm" type="button" class="mt-3" :disabled="!hydrated || isPending || !dependencyState?.enabled">{{ t('taskLifecycle.addDependency') }}</Button>
       </PopoverTrigger>
       <PopoverContent class="w-72 p-0" align="start">
         <div class="border-b p-2">
@@ -72,3 +86,46 @@ function remove(id: number) {
   </section>
 </template>
 
+<style scoped>
+.task-section {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.task-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.task-section-head h2 {
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.task-list {
+  display: grid;
+  margin-top: 10px;
+}
+
+.task-dependency-row {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.task-dependency-row:last-child {
+  border-bottom: 0;
+}
+
+.task-empty-inline {
+  padding: 10px 0;
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+}
+</style>

@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { PROJECT_STATUSES, type ProjectStatus } from '@nasq/contracts'
 import type { LocationQueryRaw } from 'vue-router'
-import { CircleAlert, CircleCheck, Eye, EyeOff, FolderKanban, Search, X } from '@lucide/vue'
+import { CircleAlert, CircleCheck, Eye, EyeOff, FolderKanban, LayoutGrid, List, Plus, Search, X } from '@lucide/vue'
 import { refDebounced } from '@vueuse/core'
 import FilterBar from '@/components/shared/FilterBar.vue'
 import ProjectTable from '@/components/project/ProjectTable.vue'
+import ProjectCards from '@/components/project/ProjectCards.vue'
 import { useProjectList } from '@/composables/useProjects'
 import { returnToQuery } from '@/utils/safeReturnTo'
 
@@ -12,6 +13,7 @@ const router = useRouter()
 const route = useRoute()
 const { t } = useI18n()
 const hydrated = useHydrated()
+usePageHeader(() => t('projects.title'), () => t('projects.description'))
 
 // Always fetch the active list — same query key as ProjectTable's own
 // useProjectList(archived) call whenever archived is false, so this doesn't
@@ -61,13 +63,24 @@ const statusFilter = computed<'all' | 'unset' | ProjectStatus>(() => {
   if (typeof value === 'string' && PROJECT_STATUSES.includes(value as ProjectStatus)) return value as ProjectStatus
   return 'all'
 })
+type ProjectSort = 'default' | 'name' | 'progress'
+const sort = computed<ProjectSort>(() => route.query.sort === 'name' || route.query.sort === 'progress' ? route.query.sort : 'default')
+const view = computed<'table' | 'cards'>(() => route.query.view === 'cards' ? 'cards' : 'table')
+
 function onStatusChange(value: unknown) {
   const status = typeof value === 'string' ? value : 'all'
   replaceFilters({ status: status === 'all' ? undefined : status })
 }
+function onSortChange(value: unknown) {
+  const next = value === 'name' || value === 'progress' ? value : 'default'
+  replaceFilters({ sort: next === 'default' ? undefined : next })
+}
+function onViewChange(next: 'table' | 'cards') {
+  replaceFilters({ view: next === 'table' ? undefined : next })
+}
 function clearFilters() {
   search.value = ''
-  replaceFilters({ q: undefined, status: undefined })
+  replaceFilters({ q: undefined, status: undefined, sort: undefined })
 }
 const filteredItems = computed(() => {
   const query = rawSearch.value.trim().toLocaleLowerCase()
@@ -78,10 +91,23 @@ const filteredItems = computed(() => {
     return matchesSearch && matchesStatus
   })
 })
+const displayedItems = computed(() => {
+  const list = [...filteredItems.value]
+  if (sort.value === 'name') return list.sort((a, b) => a.name.localeCompare(b.name))
+  if (sort.value === 'progress') return list.sort((a, b) => b.progress - a.progress || a.name.localeCompare(b.name))
+  return list
+})
 const summary = computed(() => ({
   displayed: filteredItems.value.length,
-  attention: filteredItems.value.filter(project => project.status === 'at_risk' || project.status === 'off_track' || project.status === 'on_hold').length,
+  attention: filteredItems.value.filter(project => project.status === 'at_risk' || project.status === 'off_track').length,
   completed: filteredItems.value.filter(project => project.status === 'done').length,
+  tasks: filteredItems.value.reduce((total, project) => total + project.task_count, 0),
+  attentionOpen: filteredItems.value
+    .filter(project => project.status === 'at_risk' || project.status === 'off_track')
+    .reduce((total, project) => total + Math.max(0, project.task_count - project.closed_task_count), 0),
+  completedTasks: filteredItems.value
+    .filter(project => project.status === 'done')
+    .reduce((total, project) => total + project.closed_task_count, 0),
 }))
 const isLoading = computed(() => projectList.isLoading.value)
 
@@ -106,15 +132,7 @@ function openProject(id: number) {
 </script>
 
 <template>
-  <div class="space-y-6">
-    <SharedPageHeader :title="t('projects.title')" :description="t('projects.description')">
-      <template #actions>
-        <Button v-if="canCreate" data-testid="project-new" :disabled="!hydrated" class="gap-2" @click="openCreate">
-          {{ t('projects.new') }}
-        </Button>
-      </template>
-    </SharedPageHeader>
-
+  <div class="nasq-page-stack">
     <section data-testid="projects-summary" class="space-y-2">
       <div class="flex items-center justify-end">
         <Button
@@ -135,28 +153,37 @@ function openProject(id: number) {
           <span class="grid size-[32px] shrink-0 place-items-center rounded-lg border bg-muted text-muted-foreground"><FolderKanban class="size-[18px]" /></span>
           <div class="min-w-0">
             <p class="text-xs text-muted-foreground">{{ t('projects.summary.displayed') }}</p>
-            <p data-testid="projects-summary-displayed" class="mt-1 text-2xl font-semibold tabular-nums">{{ summary.displayed }}</p>
+            <div class="mt-1 flex flex-wrap items-baseline gap-2">
+              <p data-testid="projects-summary-displayed" class="text-2xl font-semibold tabular-nums">{{ summary.displayed }}</p>
+              <p class="text-[11px] text-muted-foreground">{{ t('projects.summary.tasks', { count: summary.tasks }) }}</p>
+            </div>
           </div>
         </div>
         <div class="flex items-center gap-3 rounded-lg border bg-card p-4">
-          <span class="grid size-[32px] shrink-0 place-items-center rounded-lg border bg-muted text-muted-foreground"><CircleAlert class="size-[18px]" /></span>
+          <span class="grid size-[32px] shrink-0 place-items-center rounded-lg border border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-400"><CircleAlert class="size-[18px]" /></span>
           <div class="min-w-0">
             <p class="text-xs text-muted-foreground">{{ t('projects.summary.attention') }}</p>
-            <p data-testid="projects-summary-attention" class="mt-1 text-2xl font-semibold tabular-nums">{{ summary.attention }}</p>
+            <div class="mt-1 flex flex-wrap items-baseline gap-2">
+              <p data-testid="projects-summary-attention" class="text-2xl font-semibold tabular-nums">{{ summary.attention }}</p>
+              <p class="text-[11px] text-muted-foreground">{{ t('projects.summary.remaining', { count: summary.attentionOpen }) }}</p>
+            </div>
           </div>
         </div>
         <div class="flex items-center gap-3 rounded-lg border bg-card p-4">
-          <span class="grid size-[32px] shrink-0 place-items-center rounded-lg border bg-muted text-muted-foreground"><CircleCheck class="size-[18px]" /></span>
+          <span class="grid size-[32px] shrink-0 place-items-center rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-400"><CircleCheck class="size-[18px]" /></span>
           <div class="min-w-0">
             <p class="text-xs text-muted-foreground">{{ t('projects.summary.completed') }}</p>
-            <p data-testid="projects-summary-completed" class="mt-1 text-2xl font-semibold tabular-nums">{{ summary.completed }}</p>
+            <div class="mt-1 flex flex-wrap items-baseline gap-2">
+              <p data-testid="projects-summary-completed" class="text-2xl font-semibold tabular-nums">{{ summary.completed }}</p>
+              <p class="text-[11px] text-muted-foreground">{{ t('projects.summary.completedTasks', { count: summary.completedTasks }) }}</p>
+            </div>
           </div>
         </div>
       </div>
     </section>
 
-    <div class="rounded-lg border bg-card p-3">
-      <FilterBar>
+    <div class="nasq-toolbar" data-testid="projects-toolbar">
+      <FilterBar class="w-full">
       <template #search>
         <div class="relative min-w-52 flex-1">
           <Search class="pointer-events-none absolute start-2 top-1/2 size-[18px] -translate-y-1/2 text-muted-foreground" />
@@ -172,7 +199,7 @@ function openProject(id: number) {
           </TabsList>
         </Tabs>
         <Select :model-value="statusFilter" @update:model-value="onStatusChange">
-          <SelectTrigger class="w-40" :disabled="!hydrated">
+          <SelectTrigger data-testid="projects-status-filter" class="w-40" :disabled="!hydrated">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -181,12 +208,34 @@ function openProject(id: number) {
             <SelectItem v-for="status in PROJECT_STATUSES" :key="status" :value="status">{{ t(`projects.status.${status}`) }}</SelectItem>
           </SelectContent>
         </Select>
+        <Select :model-value="sort" @update:model-value="onSortChange">
+          <SelectTrigger data-testid="projects-sort" class="w-40" :disabled="!hydrated">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="default">{{ t('projects.filters.sortDefault') }}</SelectItem>
+            <SelectItem value="name">{{ t('projects.filters.sortName') }}</SelectItem>
+            <SelectItem value="progress">{{ t('projects.filters.sortProgress') }}</SelectItem>
+          </SelectContent>
+        </Select>
+        <div role="group" class="inline-flex h-[40px] items-center rounded-lg border bg-muted/40 p-0.5" :aria-label="t('projects.filters.view')">
+          <Button data-testid="projects-view-table" type="button" variant="ghost" size="icon" class="size-[32px] rounded-md" :class="view === 'table' ? 'bg-background shadow-sm' : ''" :disabled="!hydrated" :aria-label="t('projects.filters.tableView')" :aria-pressed="view === 'table'" @click="onViewChange('table')">
+            <List class="size-[18px]" />
+          </Button>
+          <Button data-testid="projects-view-cards" type="button" variant="ghost" size="icon" class="size-[32px] rounded-md" :class="view === 'cards' ? 'bg-background shadow-sm' : ''" :disabled="!hydrated" :aria-label="t('projects.filters.cardView')" :aria-pressed="view === 'cards'" @click="onViewChange('cards')">
+            <LayoutGrid class="size-[18px]" />
+          </Button>
+        </div>
+        <Button v-if="canCreate" data-testid="project-new" :disabled="!hydrated" class="gap-2" @click="openCreate">
+          <Plus class="size-[18px]" />{{ t('projects.new') }}
+        </Button>
       </template>
 
       <template #active>
-        <div v-if="rawSearch || statusFilter !== 'all'" class="flex flex-wrap items-center gap-2">
+        <div v-if="rawSearch || statusFilter !== 'all' || sort !== 'default'" class="flex flex-wrap items-center gap-2">
           <Badge v-if="rawSearch" variant="secondary">{{ t('projects.filters.searchValue', { value: rawSearch }) }}</Badge>
           <Badge v-if="statusFilter !== 'all'" variant="secondary">{{ t(statusFilter === 'unset' ? 'projects.filters.unset' : `projects.status.${statusFilter}`) }}</Badge>
+          <Badge v-if="sort !== 'default'" variant="secondary">{{ t(sort === 'name' ? 'projects.filters.sortName' : 'projects.filters.sortProgress') }}</Badge>
           <Button variant="ghost" size="sm" class="gap-1" :disabled="!hydrated" @click="clearFilters">
             <X class="size-3.5" />{{ t('projects.filters.clear') }}
           </Button>
@@ -196,11 +245,21 @@ function openProject(id: number) {
     </div>
 
     <ProjectTable
-      :items="filteredItems"
+      v-if="view === 'table'"
+      :items="displayedItems"
       :capped="items.length >= 200"
       :filtered="Boolean(rawSearch.trim()) || statusFilter !== 'all'"
       :is-loading="isLoading"
       :archived="archived"
+      @open="openProject"
+    />
+    <ProjectCards
+      v-else
+      :items="displayedItems"
+      :is-loading="isLoading"
+      :filtered="Boolean(rawSearch.trim()) || statusFilter !== 'all'"
+      :archived="archived"
+      :capped="items.length >= 200"
       @open="openProject"
     />
   </div>

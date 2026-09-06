@@ -6,31 +6,46 @@ import ProjectMenu from './ProjectMenu.vue'
 import ProjectProgress from './ProjectProgress.vue'
 import ProjectStatusBadge from './ProjectStatusBadge.vue'
 import EmptyState from '@/components/shared/EmptyState.vue'
+import { formatCalendarDate } from '@/composables/calendarDate'
 import { returnToQuery } from '@/utils/safeReturnTo'
 
-const props = defineProps<{ items: Project[]; isLoading: boolean; archived: boolean; capped: boolean; filtered: boolean }>()
+type ProjectListItem = Project & { manager?: { id: number; name: string } | null; date_end?: string | null }
+const props = defineProps<{ items: ProjectListItem[]; isLoading: boolean; archived: boolean; capped: boolean; filtered: boolean }>()
 const emit = defineEmits<{ open: [id: number] }>()
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const hydrated = useHydrated()
 const NuxtLink = resolveComponent('NuxtLink')
 const route = useRoute()
 
-const columnHelper = createColumnHelper<Project>()
+const columnHelper = createColumnHelper<ProjectListItem>()
 const columns = [
   columnHelper.accessor('name', {
     id: 'name',
     header: () => t('projects.columns.name'),
-    cell: (info) => h(NuxtLink, {
-      to: { path: `/projects/${info.row.original.id}`, query: returnToQuery(route.fullPath) },
-      class: 'font-medium hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-      onClick: (event: MouseEvent) => event.stopPropagation(),
-    }, () => info.row.original.name),
+    cell: (info) => h('div', { class: 'min-w-0' }, [
+      h(NuxtLink, {
+        to: { path: `/projects/${info.row.original.id}`, query: returnToQuery(route.fullPath) },
+        class: 'block truncate font-medium hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+        onClick: (event: MouseEvent) => event.stopPropagation(),
+      }, () => info.row.original.name),
+      h('span', { class: 'mt-0.5 block font-mono text-[11px] text-muted-foreground', dir: 'ltr' }, t('projects.projectId', { id: info.row.original.id })),
+    ]),
+  }),
+  columnHelper.display({
+    id: 'manager',
+    header: () => t('projects.columns.manager'),
+    cell: (info) => info.row.original.manager?.name ?? '—',
   }),
   columnHelper.display({
     id: 'status',
     header: () => t('projects.columns.status'),
     cell: (info) => h(ProjectStatusBadge, { status: info.row.original.status }),
+  }),
+  columnHelper.display({
+    id: 'date_end',
+    header: () => t('projects.columns.dateEnd'),
+    cell: (info) => info.row.original.date_end ? formatCalendarDate(info.row.original.date_end, locale.value) : '—',
   }),
   columnHelper.display({
     id: 'progress',
@@ -63,14 +78,16 @@ const table = useVueTable({
 
 <template>
   <div class="space-y-2">
-    <div class="overflow-hidden rounded-lg border bg-card">
+    <div class="nasq-panel overflow-hidden">
       <div class="overflow-x-auto">
-      <Table class="table-fixed min-w-[640px]">
+      <Table class="table-fixed min-w-[820px]">
         <colgroup>
-          <col class="w-[40%]" />
+          <col class="w-[28%]" />
+          <col class="w-[14%]" />
+          <col class="w-[16%]" />
+          <col class="w-[14%]" />
           <col class="w-[20%]" />
-          <col class="w-[30%]" />
-          <col class="w-[10%]" />
+          <col class="w-[8%]" />
         </colgroup>
         <TableHeader>
           <TableRow v-for="headerGroup in table.getHeaderGroups()" :key="headerGroup.id">

@@ -9,7 +9,7 @@ import PrioritySelect from './PrioritySelect.vue'
 import StateMenu from './StateMenu.vue'
 import EmptyState from '@/components/shared/EmptyState.vue'
 
-const props = withDefaults(defineProps<{ params: TaskListParams; variant?: 'mine' | 'project' }>(), { variant: 'mine' })
+const props = withDefaults(defineProps<{ params: TaskListParams; variant?: 'mine' | 'project'; embedded?: boolean }>(), { variant: 'mine', embedded: false })
 const emit = defineEmits<{
   open: [id: number]
   create: []
@@ -47,6 +47,12 @@ const columnHelper = createColumnHelper<Task>()
 const titleColumn = columnHelper.accessor('name', {
   id: 'title',
   header: () => t('tasks.columns.title'),
+  cell: (info) => h('button', {
+    type: 'button',
+    class: 'block max-w-full truncate rounded-sm text-start font-medium hover:underline',
+    disabled: !hydrated.value,
+    onClick: (event: MouseEvent) => { event.stopPropagation(); if (hydrated.value) emit('open', info.row.original.id) },
+  }, info.row.original.name),
 })
 const projectColumn = columnHelper.display({
   id: 'project',
@@ -91,13 +97,13 @@ const assigneesColumn = columnHelper.display({
 
 const columns = computed(() =>
   props.variant === 'project'
-    ? [titleColumn, stateColumn, projectStageColumn, deadlineColumn, priorityColumn, assigneesColumn]
+    ? [titleColumn, assigneesColumn, projectStageColumn, deadlineColumn, priorityColumn, stateColumn]
     : [titleColumn, projectColumn, stateColumn, deadlineColumn, priorityColumn, personalStageColumn],
 )
 
 const colgroupClasses = computed(() =>
   props.variant === 'project'
-    ? ['w-[52%]', 'w-[10%]', 'w-[10%]', 'w-[10%]', 'w-[8%]', 'w-[10%]']
+    ? ['w-[42%]', 'w-[14%]', 'w-[12%]', 'w-[12%]', 'w-[8%]', 'w-[12%]']
     : ['w-[52%]', 'w-[12%]', 'w-[10%]', 'w-[10%]', 'w-[10%]', 'w-[6%]'],
 )
 
@@ -123,8 +129,8 @@ function onRowClick(task: Task, event: MouseEvent) {
 </script>
 
 <template>
-  <div class="space-y-2">
-    <div class="rounded-md border">
+  <div :class="embedded ? 'space-y-0' : 'space-y-2'">
+    <div :class="embedded ? 'border-0' : 'rounded-md border'">
       <div class="hidden overflow-x-auto md:block">
         <Table class="table-fixed min-w-[760px]">
         <!--
@@ -202,7 +208,7 @@ function onRowClick(task: Task, event: MouseEvent) {
             @click="onRowClick(task, $event)"
           >
             <div class="flex items-start justify-between gap-3">
-              <p class="min-w-0 flex-1 truncate font-medium">{{ task.name }}</p>
+              <button type="button" class="min-w-0 flex-1 truncate rounded-sm text-start font-medium hover:underline" :disabled="!hydrated" @click.stop="emit('open', task.id)">{{ task.name }}</button>
               <DeadlineBadge
                 class="shrink-0"
                 :deadline="task.date_deadline"

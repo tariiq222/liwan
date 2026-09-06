@@ -30,18 +30,16 @@ function onDeleteStage(id: number | string) {
 </script>
 
 <template>
-  <div data-testid="project-settings-page" class="space-y-6">
-    <section>
+  <div data-testid="project-settings-page">
+    <section class="nasq-form-section pt-0">
       <h2 class="text-lg font-semibold">{{ t('projects.settings.tabs.general') }}</h2>
       <ProjectGeneralForm :project="project" />
     </section>
-    <Separator />
-    <section class="space-y-3">
+    <section class="nasq-form-section space-y-3">
       <h2 class="text-lg font-semibold">{{ t('projects.settings.tabs.stages') }}</h2>
       <StageListEditor :stages="sortedStages" :busy="stagesBusy" @add="onAddStage" @rename="onRenameStage" @fold="onFoldStage" @reorder="onReorderStages" @delete="onDeleteStage" />
     </section>
-    <Separator />
-    <section class="space-y-3">
+    <section class="nasq-form-section space-y-3 border-b-0 pb-0">
       <h2 class="text-lg font-semibold">{{ t('projects.settings.tabs.followers') }}</h2>
       <FollowerList :project="project" />
     </section>

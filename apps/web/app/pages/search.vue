@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Search, Folder, ArrowLeft } from '@lucide/vue'
 import { useQuery } from '@tanstack/vue-query'
 import { ProjectRefSchema } from '@nasq/contracts'
 import { safeReturnTo } from '@/utils/safeReturnTo'
@@ -34,12 +35,12 @@ useEventListener('keydown', (event: KeyboardEvent) => {
 })
 </script>
 <template>
-  <section class="mx-auto w-full max-w-5xl space-y-8" data-testid="search-page">
+  <section class="nasq-page-stack mx-auto w-full max-w-[940px]" data-testid="search-page">
     <SharedPageHeader :title="t('app.search')" :back-to="backTo" />
-    <div class="grid gap-2 rounded-lg border border-border/80 bg-card p-4"><Label for="navigation-search">{{ t('nav.typeToNavigate') }}</Label><Input id="navigation-search" v-model="query" :placeholder="t('nav.typeToNavigate')" autofocus /></div>
-    <section class="space-y-3"><h2 class="text-sm font-semibold text-muted-foreground">{{ t('nav.goTo') }}</h2><div class="grid gap-3 sm:grid-cols-2"><template v-for="item in nav" :key="item.to"><a v-if="item.to === '/odoo'" :href="item.to" target="_blank" rel="noopener" class="flex items-center gap-3 rounded-lg border border-border/80 bg-card p-4 transition-colors hover:bg-muted/70">{{ t(item.labelKey) }}</a><NuxtLink v-else :to="item.to" class="flex items-center gap-3 rounded-lg border border-border/80 bg-card p-4 transition-colors hover:bg-muted/70"><component :is="item.icon" class="size-[18px] text-muted-foreground" />{{ t(item.labelKey) }}<kbd class="ms-auto text-xs text-muted-foreground">{{ item.shortcut }}</kbd></NuxtLink></template></div></section>
-    <SharedPageState v-if="can('pmo.projects.read')" :loading="isLoading" :error="error" @retry="refetch()" />
-    <section v-if="can('pmo.projects.read') && matchingProjects.length" class="space-y-3"><h2 class="text-sm font-semibold text-muted-foreground">{{ t('nav.projects') }}</h2><NuxtLink v-for="project in matchingProjects" :key="project.id" :to="`/projects/${project.id}`" class="block rounded-lg border border-border/80 bg-card p-4 transition-colors hover:bg-muted/70">{{ project.name }}</NuxtLink></section>
-    <p v-if="!nav.length && !matchingProjects.length && !isLoading && !error" class="text-sm text-muted-foreground">{{ t('app.noResults') }}</p>
+    <div class="nasq-panel nasq-panel-body relative"><Search aria-hidden="true" class="pointer-events-none absolute start-8 top-1/2 size-[18px] -translate-y-1/2 text-muted-foreground" /><Label class="sr-only" for="navigation-search">{{ t('nav.typeToNavigate') }}</Label><Input id="navigation-search" v-model="query" class="ps-10" :placeholder="t('nav.typeToNavigate')" autofocus /></div>
+    <section v-if="nav.length" class="grid gap-3"><h2 class="text-sm font-semibold text-muted-foreground">{{ t('nav.goTo') }}</h2><div class="nasq-panel overflow-hidden"><template v-for="item in nav" :key="item.to"><a v-if="item.to === '/odoo'" :href="item.to" target="_blank" rel="noopener" class="flex items-center gap-3 border-b border-border/80 p-3 transition-colors last:border-0 hover:bg-muted/70"><component :is="item.icon" class="size-[18px] text-muted-foreground" />{{ t(item.labelKey) }}<kbd class="ms-auto text-xs text-muted-foreground">{{ item.shortcut }}</kbd></a><NuxtLink v-else :to="item.to" class="flex items-center gap-3 border-b border-border/80 p-3 transition-colors last:border-0 hover:bg-muted/70"><component :is="item.icon" class="size-[18px] text-muted-foreground" />{{ t(item.labelKey) }}<kbd class="ms-auto text-xs text-muted-foreground">{{ item.shortcut }}</kbd></NuxtLink></template></div></section>
+    <div v-if="can('pmo.projects.read') && (isLoading || error)" class="nasq-panel"><SharedPageState :loading="isLoading" :error="error" @retry="refetch()" /></div>
+    <section v-if="can('pmo.projects.read') && matchingProjects.length" class="grid gap-3"><h2 class="text-sm font-semibold text-muted-foreground">{{ t('nav.projects') }}</h2><div class="nasq-panel overflow-hidden"><NuxtLink v-for="project in matchingProjects" :key="project.id" :to="`/projects/${project.id}`" class="flex items-center gap-3 border-b border-border/80 p-3 transition-colors last:border-0 hover:bg-muted/70"><Folder aria-hidden="true" class="size-[18px] text-muted-foreground" /><span class="min-w-0 flex-1 truncate">{{ project.name }}</span><ArrowLeft aria-hidden="true" class="size-[18px] text-muted-foreground ltr:rotate-180" /></NuxtLink></div></section>
+    <div v-if="!nav.length && !matchingProjects.length && !isLoading && !error" class="nasq-panel nasq-panel-body"><p class="text-sm text-muted-foreground">{{ t('app.noResults') }}</p></div>
   </section>
 </template>

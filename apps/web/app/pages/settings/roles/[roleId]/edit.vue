@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import RolePermissionForm from '@/components/access/roles/RolePermissionForm.vue'
+import SettingsLayout from '@/components/settings/SettingsLayout.vue'
 import { useAdminPermissionCatalog, useAdminRole } from '@/composables/useAdminRoles'
 
 const route = useRoute()
@@ -18,11 +19,11 @@ const catalog = useAdminPermissionCatalog(computed(() => !forbidden.value))
 </script>
 
 <template>
-  <div class="mx-auto w-full max-w-5xl space-y-8">
+  <SettingsLayout><div class="nasq-page-stack mx-auto w-full max-w-5xl">
     <SharedPageHeader :title="t('access.roles.editTitle')" :back-to="returnTo" />
     <SharedPageState v-if="forbidden" :empty="true" :empty-text="t('access.forbidden')" />
     <SharedPageState v-else :loading="role.isLoading.value" :error="role.error.value" :empty="!role.data.value" :empty-text="t('access.notFound')" @retry="role.refetch">
-      <section v-if="role.data.value" class="rounded-lg border border-border/80 bg-card p-4 sm:p-6"><RolePermissionForm :role="role.data.value" :permissions="catalog.data.value?.items ?? []" @saved="navigateTo(returnTo)" /></section>
+      <section v-if="role.data.value" class="nasq-panel nasq-panel-body"><RolePermissionForm :role="role.data.value" :permissions="catalog.data.value?.items ?? []" @saved="navigateTo(returnTo)" /></section>
     </SharedPageState>
-  </div>
+  </div></SettingsLayout>
 </template>

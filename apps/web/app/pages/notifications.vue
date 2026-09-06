@@ -73,7 +73,7 @@ async function retryNextPage() {
 </script>
 
 <template>
-  <main data-testid="notification-center" class="mx-auto flex min-h-[calc(100vh-7rem)] w-full max-w-4xl flex-col gap-6">
+  <main data-testid="notification-center" class="nasq-page-stack mx-auto flex min-h-[calc(100vh-7rem)] w-full max-w-4xl flex-col">
     <SharedPageHeader :title="t('notifications.title')" :description="hydrated ? `${unreadCount} ${t('notifications.unread')}` : undefined">
       <template #back>
         <Button variant="ghost" size="sm" class="gap-2 px-2 text-muted-foreground" type="button" @click="router.back()">
@@ -91,9 +91,9 @@ async function retryNextPage() {
         >{{ t('notifications.markAllRead') }}</Button>
     </SharedPageHeader>
 
-    <section class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-border/80 bg-card">
+    <section class="nasq-panel flex min-h-0 flex-1 flex-col overflow-hidden">
 
-      <div class="flex-1 overflow-y-auto p-4 sm:p-6">
+      <div class="flex-1 overflow-y-auto">
         <div v-if="hasQueryError && !items.length" class="grid gap-3 py-8 text-center" role="alert">
           <p class="text-sm text-destructive">{{ queryErrorMessage }}</p>
           <Button type="button" variant="outline" size="sm" class="mx-auto" :disabled="!hydrated || isFetching" @click="retryNotifications">
@@ -102,13 +102,13 @@ async function retryNextPage() {
         </div>
         <p v-else-if="isLoading" class="py-8 text-center text-sm text-muted-foreground" aria-live="polite">{{ t('notifications.loading') }}</p>
         <p v-else-if="!items.length" class="py-8 text-center text-sm text-muted-foreground">{{ t('notifications.empty') }}</p>
-        <div v-else class="grid gap-2">
+        <div v-else class="grid gap-0">
           <button
             v-for="item in items"
             :key="item.id"
             type="button"
-            class="grid gap-1 rounded-lg border border-border/80 p-4 text-start transition-colors hover:bg-muted/70"
-            :class="item.is_read ? 'bg-background' : 'border-brand-border bg-brand-soft'"
+            class="grid gap-1 border-b border-border/80 p-3 text-start transition-colors last:border-0 hover:bg-muted/70"
+            :class="item.is_read ? 'bg-background' : 'bg-brand-soft'"
             :disabled="!hydrated || actionPending"
             :data-testid="`notification-${item.id}`"
             @click="openNotification(item)"

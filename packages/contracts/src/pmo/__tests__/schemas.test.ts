@@ -91,6 +91,12 @@ describe('PersonalStageSchema', () => {
 const PROJECT_JSON = { id: 3, name: 'Erada Portal', status: null, progress: 33, task_count: 3, closed_task_count: 1, active: true, can_manage: false }
 
 describe('ProjectSchema', () => {
+  it('carries existing manager and end date in list rows without exposing other user fields', () => {
+    const value = { ...PROJECT_JSON, manager: { id: 7, name: 'Mona' }, date_end: '2030-12-31' }
+    expect(ProjectSchema.parse(value)).toMatchObject(value)
+    expect(ProjectSchema.parse({ ...PROJECT_JSON, manager: null, date_end: null }).manager).toBeNull()
+    expect(() => ProjectSchema.parse({ ...value, manager: { ...value.manager, email: 'private@example.test' } })).toThrow()
+  })
   it('accepts the list shape with a null (unset) status', () => {
     expect(ProjectSchema.parse(PROJECT_JSON).status).toBeNull()
   })

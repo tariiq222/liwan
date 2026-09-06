@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import type { TaskState } from '@nasq/contracts'
-import { Plus, Search, X } from '@lucide/vue'
+import { LayoutGrid, List, Plus, Search, X } from '@lucide/vue'
 import { refDebounced } from '@vueuse/core'
 import type { TaskListParams } from '@/composables/useTasks'
 import { STATE_LABEL_KEY } from '@/composables/taskState'
 import { useProjects } from '@/composables/useProjects'
 import FilterBar from '@/components/shared/FilterBar.vue'
 
-const props = defineProps<{ modelValue: TaskListParams; hideProjectFilter?: boolean; hideCreate?: boolean }>()
-const emit = defineEmits<{ 'update:modelValue': [TaskListParams]; create: [] }>()
+const props = defineProps<{ modelValue: TaskListParams; hideProjectFilter?: boolean; hideCreate?: boolean; view?: 'table' | 'board'; embedded?: boolean }>()
+const emit = defineEmits<{ 'update:modelValue': [TaskListParams]; 'update:view': ['table' | 'board']; create: [] }>()
 const { t } = useI18n()
 const { can } = useAccess()
 // Every control below is SSR-rendered and visible/clickable before Nuxt
@@ -58,8 +58,8 @@ function clearFilters() {
 </script>
 
 <template>
-  <div class="rounded-lg border bg-card p-3">
-  <FilterBar>
+  <div :class="embedded ? 'nasq-toolbar rounded-none border-x-0 border-t-0 bg-muted/30' : 'nasq-toolbar'">
+  <FilterBar class="w-full">
     <template #search>
       <div class="relative min-w-48 flex-1">
         <Search class="pointer-events-none absolute start-2 top-1/2 size-[18px] -translate-y-1/2 text-muted-foreground" />
@@ -117,6 +117,14 @@ function clearFilters() {
     </template>
 
     <template #view>
+      <div v-if="view" role="group" class="inline-flex h-[40px] items-center rounded-lg border bg-background p-0.5" :aria-label="t('projects.filters.view')">
+        <Button data-testid="project-tasks-view-table" type="button" variant="ghost" size="icon" class="size-[32px] rounded-md" :class="view === 'table' ? 'bg-muted shadow-sm' : ''" :disabled="!hydrated" :aria-label="t('projects.filters.tableView')" :aria-pressed="view === 'table'" @click="emit('update:view', 'table')">
+          <List class="size-[18px]" />
+        </Button>
+        <Button data-testid="project-tasks-view-board" type="button" variant="ghost" size="icon" class="size-[32px] rounded-md" :class="view === 'board' ? 'bg-muted shadow-sm' : ''" :disabled="!hydrated" :aria-label="t('projects.filters.boardView')" :aria-pressed="view === 'board'" @click="emit('update:view', 'board')">
+          <LayoutGrid class="size-[18px]" />
+        </Button>
+      </div>
       <Tabs
         :model-value="modelValue.closed ? 'closed' : 'open'"
         @update:model-value="(v) => patch({ closed: v === 'closed' })"

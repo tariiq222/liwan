@@ -88,8 +88,8 @@ onBeforeUnmount(() => update.reset())
       {{ t('settings.branding.retry') }}
     </Button>
   </div>
-  <div v-else-if="branding" class="grid gap-6 lg:grid-cols-2">
-    <form class="space-y-5" data-testid="branding-form" @submit.prevent="save">
+  <div v-else-if="branding" class="nasq-detail-grid">
+    <form class="nasq-form space-y-5" data-testid="branding-form" @submit.prevent="save">
       <SharedUnsavedChanges :dirty="dirty" />
       <p data-testid="branding-managed-identity" class="text-sm text-muted-foreground">
         {{ t('settings.branding.managedIdentity') }}

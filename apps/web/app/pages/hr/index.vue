@@ -18,7 +18,7 @@ function editEmployee(id: number) { void navigateTo({ path: `/hr/employees/${id}
 </script>
 
 <template>
-  <div class="mx-auto w-full max-w-7xl space-y-8">
+  <div class="nasq-page-stack mx-auto w-full max-w-[1440px]">
     <SharedPageHeader :title="t('hr.directory.title')" :description="t('hr.directory.description')">
       <NuxtLink v-if="can('hr.employees.manage')" :to="{ path: '/hr/employees/new', query: returnToQuery(route.fullPath) }"><Button :disabled="!hydrated">
         {{ t('hr.directory.newEmployee') }}

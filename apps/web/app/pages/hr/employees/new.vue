@@ -11,5 +11,5 @@ const { data: employees } = useHrEmployees({})
 function created(employee: { id: number }) { void navigateTo({ path: `/hr/employees/${employee.id}`, query: returnToQuery(returnTo.value) }) }
 </script>
 <template>
-  <div class="mx-auto w-full max-w-4xl space-y-8"><SharedPageHeader :title="t('hr.employee.createTitle')" :back-to="returnTo" /><section class="rounded-lg border border-border/80 bg-card p-4 sm:p-6"><EmployeeGeneralForm :departments="departments?.items ?? []" :employees="employees?.items ?? []" @saved="created" /></section></div>
+  <div class="nasq-page-stack mx-auto w-full max-w-[940px]"><SharedPageHeader :title="t('hr.employee.createTitle')" :back-to="returnTo" /><section class="nasq-panel nasq-panel-body"><EmployeeGeneralForm :departments="departments?.items ?? []" :employees="employees?.items ?? []" @saved="created" /></section></div>
 </template>

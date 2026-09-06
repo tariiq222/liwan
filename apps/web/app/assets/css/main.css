@@ -33,7 +33,7 @@
   --border: oklch(0.92 0.004 286.32);
   --input: oklch(0.92 0.004 286.32);
   --ring: #18181b;
-  --sidebar: oklch(0.985 0 0);
+  --sidebar: #f1f1f3;
   --sidebar-foreground: oklch(0.141 0.005 285.823);
   --sidebar-primary: var(--primary);
   --sidebar-primary-foreground: #ffffff;

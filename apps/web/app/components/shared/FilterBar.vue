@@ -1,7 +1,7 @@
 <template>
   <div class="space-y-2">
     <div data-slot="filter-row" class="flex flex-wrap items-center gap-2">
-      <div data-slot="search" class="basis-full min-w-0 sm:min-w-48 sm:flex-1">
+      <div data-slot="search" class="basis-full min-w-0 sm:basis-auto sm:min-w-48 sm:flex-1">
         <slot name="search" />
       </div>
       <div data-slot="controls" class="contents">

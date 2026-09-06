@@ -19,7 +19,7 @@ function onCreated(id: number) {
 </script>
 
 <template>
-  <section class="mx-auto w-full max-w-2xl space-y-6">
+  <section class="nasq-page-stack">
     <SharedPageHeader :title="t('projects.new')" :back-to="returnTo" :back-label="t('projects.backToProjects')" />
     <p v-if="isLoading" role="status" class="text-muted-foreground">
       {{ t('projects.loading') }}
@@ -30,8 +30,8 @@ function onCreated(id: number) {
     <p v-else-if="!canCreate" class="text-muted-foreground">
       {{ t('projects.createForbidden') }}
     </p>
-    <Card v-else>
-      <CardContent class="pt-6">
+    <Card v-else class="nasq-form">
+      <CardContent>
         <ProjectCreateForm
           @created="onCreated"
           @cancel="router.push(returnTo)"

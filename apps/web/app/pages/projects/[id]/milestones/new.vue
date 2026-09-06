@@ -21,7 +21,7 @@ function saved(id?: number) {
 </script>
 
 <template>
-  <section class="mx-auto w-full max-w-2xl space-y-6">
+  <section class="nasq-page-stack">
     <SharedPageHeader :title="t('projects.milestones.new')" :description="project?.name" :back-to="returnTo" :back-label="t('projects.backToProject')" />
     <template v-if="projectId === null">
       <p class="text-muted-foreground">{{ t('projects.invalidId') }}</p>
@@ -39,7 +39,7 @@ function saved(id?: number) {
       <p class="text-muted-foreground">{{ t('projects.forbidden') }}</p>
     </template>
     <template v-else>
-      <Card><CardContent class="pt-6"><MilestoneForm :project-id="projectId" @saved="saved" @cancel="router.push(returnTo)" /></CardContent></Card>
+      <Card class="nasq-form"><CardContent><MilestoneForm :project-id="projectId" @saved="saved" @cancel="router.push(returnTo)" /></CardContent></Card>
     </template>
   </section>
 </template>

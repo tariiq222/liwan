@@ -74,16 +74,16 @@ async function confirmDelete(id: number) {
 </script>
 
 <template>
-  <section data-testid="task-attachments" class="space-y-3">
-    <div class="flex items-center gap-2">
+  <section data-testid="task-attachments" class="task-section">
+    <div class="task-section-head">
       <Paperclip class="size-[18px] text-muted-foreground" />
-      <h3 class="text-sm font-medium">{{ t('attachments.title') }}</h3>
+      <h2>{{ t('attachments.title') }}</h2>
     </div>
 
-    <p v-if="isLoading" class="text-sm text-muted-foreground">{{ t('attachments.loading') }}</p>
-    <p v-else-if="!data?.items.length" class="text-sm text-muted-foreground">{{ t('attachments.empty') }}</p>
-    <ul v-else class="grid gap-2">
-      <li v-for="attachment in data.items" :key="attachment.id" class="grid gap-2 rounded-lg border p-2 text-sm">
+    <p v-if="isLoading" class="task-empty-inline">{{ t('attachments.loading') }}</p>
+    <p v-else-if="!data?.items.length" class="task-empty-inline">{{ t('attachments.empty') }}</p>
+    <ul v-else class="task-list">
+      <li v-for="attachment in data.items" :key="attachment.id" class="task-attachment-row">
         <div class="flex items-center gap-2">
           <a :href="attachment.url" target="_blank" rel="noopener" class="min-w-0 flex-1 truncate text-brand-link underline">
             {{ attachment.name }}
@@ -120,7 +120,7 @@ async function confirmDelete(id: number) {
       </li>
     </ul>
 
-    <div v-if="props.canWrite" class="grid gap-2">
+    <div v-if="props.canWrite" class="mt-3 grid gap-2">
       <Label for="task-attachment-upload">{{ t('attachments.upload') }}</Label>
       <input
         id="task-attachment-upload"
@@ -135,3 +135,46 @@ async function confirmDelete(id: number) {
     </div>
   </section>
 </template>
+
+<style scoped>
+.task-section {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.task-section-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.task-section-head h2 {
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.task-list {
+  display: grid;
+  margin-top: 10px;
+}
+
+.task-attachment-row {
+  display: grid;
+  min-width: 0;
+  gap: 8px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.875rem;
+}
+
+.task-attachment-row:last-child {
+  border-bottom: 0;
+}
+
+.task-empty-inline {
+  padding: 10px 0;
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+}
+</style>

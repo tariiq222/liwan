@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import UserTable from '@/components/access/users/UserTable.vue'
+import SettingsLayout from '@/components/settings/SettingsLayout.vue'
 import { useAdminUsers, type AdminUserListParams } from '@/composables/useAdminUsers'
 import { useAdminRoles } from '@/composables/useAdminRoles'
 import { useHrDepartments } from '@/composables/useHrDepartments'
@@ -47,21 +48,21 @@ function openUser(id: number) { void navigateTo({ path: `/settings/users/${id}`,
 </script>
 
 <template>
-  <div class="mx-auto w-full max-w-7xl space-y-8">
+  <SettingsLayout><div class="nasq-page-stack mx-auto w-full max-w-[1440px]">
     <SharedPageHeader :title="t('access.users.title')" :description="t('access.users.description')">
       <Button v-if="can('access.users.grant')" :disabled="!hydrated" @click="navigateTo('/settings/users/new')">{{ t('access.users.grantAccount') }}</Button>
     </SharedPageHeader>
     <SharedPageState v-if="forbidden" :empty="true" :empty-text="t('access.forbidden')" />
     <template v-else>
-      <div class="grid gap-3 rounded-lg border border-border/80 bg-card/70 p-3 sm:grid-cols-[minmax(0,1fr)_auto_auto_auto_auto]">
-        <Input v-model="filters.q" :placeholder="t('access.users.filters.search')" :disabled="!hydrated" @change="updateFilters" />
-        <select v-model="filters.status" class="h-9 rounded-md border border-input bg-background px-3 text-sm" :disabled="!hydrated" @change="updateFilters">
+      <div class="nasq-toolbar">
+        <Input class="min-w-[180px] flex-1" v-model="filters.q" :placeholder="t('access.users.filters.search')" :disabled="!hydrated" @change="updateFilters" />
+        <select v-model="filters.status" class="h-[40px] rounded-lg border border-input bg-background px-3 text-sm" :disabled="!hydrated" @change="updateFilters">
           <option :value="undefined">{{ t('access.users.filters.allStatuses') }}</option>
           <option value="active">{{ t('access.active') }}</option>
           <option value="stopped">{{ t('access.disabled') }}</option>
         </select>
-        <select v-model="filters.role_id" class="h-9 rounded-md border border-input bg-background px-3 text-sm" :disabled="!hydrated" @change="updateFilters"><option :value="undefined">{{ t('access.users.filters.allRoles') }}</option><option v-for="role in roles.data.value?.items ?? []" :key="role.id" :value="role.id">{{ role.name.ar }}</option></select>
-        <select v-model="filters.department_id" class="h-9 rounded-md border border-input bg-background px-3 text-sm" :disabled="!hydrated || !can('hr.departments.read')" @change="updateFilters"><option :value="undefined">{{ t('access.users.filters.allDepartments') }}</option><option v-for="department in departments.data.value?.items ?? []" :key="department.id" :value="department.id">{{ department.name }}</option></select>
+        <select v-model="filters.role_id" class="h-[40px] rounded-lg border border-input bg-background px-3 text-sm" :disabled="!hydrated" @change="updateFilters"><option :value="undefined">{{ t('access.users.filters.allRoles') }}</option><option v-for="role in roles.data.value?.items ?? []" :key="role.id" :value="role.id">{{ role.name.ar }}</option></select>
+        <select v-model="filters.department_id" class="h-[40px] rounded-lg border border-input bg-background px-3 text-sm" :disabled="!hydrated || !can('hr.departments.read')" @change="updateFilters"><option :value="undefined">{{ t('access.users.filters.allDepartments') }}</option><option v-for="department in departments.data.value?.items ?? []" :key="department.id" :value="department.id">{{ department.name }}</option></select>
         <Button variant="outline" :disabled="!hydrated" @click="filters.q = ''; filters.status = undefined; filters.role_id = undefined; filters.department_id = undefined; updateFilters()">{{ t('access.clearFilters') }}</Button>
       </div>
       <SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!query.isLoading.value && !query.error.value && query.data.value?.items.length === 0" :empty-text="t('access.users.empty')" @retry="query.refetch">
@@ -69,5 +70,5 @@ function openUser(id: number) { void navigateTo({ path: `/settings/users/${id}`,
       </SharedPageState>
       <div v-if="pages > 1" class="flex items-center justify-between text-sm text-muted-foreground"><Button variant="ghost" :disabled="!hydrated || page === 1 || query.isFetching.value" @click="previousPage">{{ t('access.previousPage') }}</Button><span>{{ t('access.pageOf', { page, pages }) }}</span><Button variant="ghost" :disabled="!hydrated || page >= pages || query.isFetching.value" @click="nextPage">{{ t('access.nextPage') }}</Button></div>
     </template>
-  </div>
+  </div></SettingsLayout>
 </template>

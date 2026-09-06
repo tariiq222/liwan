@@ -32,7 +32,7 @@ const editor = useEditor({
       role: 'textbox',
       'aria-label': t('tasks.drawer.description'),
       'aria-multiline': 'true',
-      class: 'tiptap min-h-[160px] px-3 py-2 text-sm outline-none',
+      class: 'tiptap min-h-[80px] px-3 py-2 text-sm outline-none',
     },
   },
   onUpdate: ({ editor: ed }) => {
@@ -132,7 +132,7 @@ function applyLink() {
       <EditorContent :editor="editor" />
     </div>
     <template #fallback>
-      <Skeleton class="h-40 w-full" />
+      <Skeleton class="h-28 w-full" />
     </template>
   </ClientOnly>
 </template>

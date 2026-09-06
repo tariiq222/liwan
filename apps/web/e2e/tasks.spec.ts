@@ -16,7 +16,7 @@ test('my tasks table lists my open tasks, filters and opens the detail page', as
   await page.getByPlaceholder('بحث في العناوين…').fill(name)
   await row.click()
   await expect.poll(() => new URL(page.url()).searchParams.get('returnTo')).toBe('/tasks')
-  await expect(page.getByTestId('task-detail-page').getByRole('textbox', { name: 'عنوان المهمة' })).toHaveValue(name)
+  await expect(page.locator('h1')).toHaveText(name)
   await page.goBack()
   await expect(page).toHaveURL(/\/tasks$/)
   await expect(page.getByPlaceholder('بحث في العناوين…')).toHaveValue(name)

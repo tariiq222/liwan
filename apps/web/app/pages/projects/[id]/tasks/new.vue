@@ -15,7 +15,7 @@ const projectId = computed(() => {
 })
 const { data: project, isLoading, error } = useProject(projectId)
 const notFound = computed(() => projectId.value === null || (error.value instanceof ApiError && [403, 404].includes(error.value.status)))
-const returnTo = computed(() => projectId.value ? safeReturnTo(route.query.returnTo, '/projects/' + projectId.value + '?tab=list', ['/projects']) : '/projects')
+const returnTo = computed(() => projectId.value ? safeReturnTo(route.query.returnTo, '/projects/' + projectId.value + '?tab=tasks', ['/projects']) : '/projects')
 function created(id: number) {
   toast.success(t('tasks.created'))
   router.push({ path: '/projects/' + projectId.value + '/tasks/' + id, query: returnToQuery(returnTo.value) })
@@ -23,7 +23,7 @@ function created(id: number) {
 </script>
 
 <template>
-  <section class="mx-auto w-full max-w-2xl space-y-6">
+  <section class="nasq-page-stack">
     <SharedPageHeader :title="t('tasks.new')" :description="project?.name" :back-to="returnTo" :back-label="t('projects.backToProject')" />
     <template v-if="projectId === null">
       <p class="text-muted-foreground">{{ t('tasks.invalidId') }}</p>
@@ -38,7 +38,7 @@ function created(id: number) {
       <p role="alert" class="text-destructive">{{ t('tasks.loadError') }}</p>
     </template>
     <template v-else>
-      <Card><CardContent class="pt-6"><TaskCreateForm :project-id="projectId" @created="created" @cancel="router.push(returnTo)" /></CardContent></Card>
+      <Card class="nasq-form"><CardContent><TaskCreateForm :project-id="projectId" @created="created" @cancel="router.push(returnTo)" /></CardContent></Card>
     </template>
     <p v-if="!hydrated" class="sr-only">{{ t('tasks.loading') }}</p>
   </section>

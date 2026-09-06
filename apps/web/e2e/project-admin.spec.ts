@@ -202,12 +202,11 @@ test('a milestone created on the project can be linked from the task detail page
   await milestoneForm.getByRole('button', { name: 'إنشاء' }).click()
   await expect(page).toHaveURL(new RegExp(`/projects/${id}/milestones/\\d+/edit\\?returnTo=`))
   await page.goto(`/projects/${id}?tab=milestones`)
-  await expect(page.getByRole('row').filter({ hasText: milestoneName })).toBeVisible()
-  await expect(page.getByRole('row').filter({ hasText: milestoneName })).toContainText('0 من 0')
+  await expect(page.getByTestId('milestone-row').filter({ hasText: milestoneName })).toBeVisible()
+  await expect(page.getByTestId('milestone-row').filter({ hasText: milestoneName })).toContainText('0 من 0')
 
   await page.goto(`/projects/${id}/tasks/${taskId}?tab=milestones`)
   const taskDetail = page.getByTestId('task-detail-page')
-  await taskDetail.getByText('تفاصيل إضافية').click()
   await taskDetail.getByTestId('milestone-select').click()
   const milestoneSaved = page.waitForResponse((r) => r.url().includes(`/api/v1/tasks/${taskId}`) && r.request().method() === 'PATCH')
   await page.getByRole('option', { name: milestoneName }).click()
@@ -217,7 +216,7 @@ test('a milestone created on the project can be linked from the task detail page
   await page.keyboard.press('Escape')
 
   await page.goto(`/projects/${id}?tab=milestones`)
-  await expect(page.getByRole('row').filter({ hasText: milestoneName })).toContainText('0 من 1')
+  await expect(page.getByTestId('milestone-row').filter({ hasText: milestoneName })).toContainText('0 من 1')
 })
 
 test('posting a project update changes the header status badge', async ({ page }) => {

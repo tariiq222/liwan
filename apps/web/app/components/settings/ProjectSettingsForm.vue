@@ -89,7 +89,7 @@ function onDeleteStage(id: number | string) {
 </script>
 
 <template>
-  <div class="max-w-2xl space-y-8">
+  <div class="nasq-form max-w-2xl space-y-8">
     <Skeleton v-if="isLoading" class="h-64 w-full" />
 
     <template v-else-if="settings">

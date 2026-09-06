@@ -37,26 +37,82 @@ function changeMessage(change: { field: string; label: string; old: unknown; new
 </script>
 
 <template>
-  <ol v-if="entries.length" class="space-y-4">
-    <li v-for="entry in entries" :key="entry.id" class="flex gap-3">
-      <Avatar class="size-8 shrink-0">
-        <AvatarFallback class="text-xs">{{ entry.author ? initials(entry.author.name) : '?' }}</AvatarFallback>
-      </Avatar>
-      <div class="min-w-0 flex-1 space-y-1">
-        <div class="flex items-center gap-2 text-sm">
-          <span class="font-medium">{{ entry.author?.name ?? (entry.kind === 'comment' ? t('tasks.activity.comment') : t('tasks.activity.system')) }}</span>
-          <span class="text-xs text-muted-foreground">{{ relativeTime(entry.at) }}</span>
+  <ol v-if="entries.length" class="task-activity-list">
+    <li v-for="entry in entries" :key="entry.id" class="task-activity-item">
+      <div class="task-activity-marker" aria-hidden="true">
+        <Avatar class="size-7">
+          <AvatarFallback class="text-[10px]">{{ entry.author ? initials(entry.author.name) : '?' }}</AvatarFallback>
+        </Avatar>
+      </div>
+      <div class="min-w-0">
+        <div class="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+          <span class="task-activity-title">{{ entry.author?.name ?? (entry.kind === 'comment' ? t('tasks.activity.comment') : t('tasks.activity.system')) }}</span>
+          <span class="task-activity-meta">{{ relativeTime(entry.at) }}</span>
         </div>
         <div
           v-if="entry.kind === 'comment'"
-          class="prose prose-sm max-w-none text-sm break-words"
+          class="task-activity-body prose prose-sm max-w-none break-words"
           v-html="sanitizeHtml(entry.body_html ?? '')"
         />
-        <ul v-else class="space-y-0.5 text-sm text-muted-foreground">
+        <ul v-else class="task-activity-body space-y-0.5">
           <li v-for="(change, i) in entry.changes ?? []" :key="i">{{ changeMessage(change) }}</li>
         </ul>
       </div>
     </li>
   </ol>
-  <p v-else class="text-sm text-muted-foreground">{{ t('tasks.activity.empty') }}</p>
+  <p v-else class="py-2 text-xs text-muted-foreground">{{ t('tasks.activity.empty') }}</p>
 </template>
+
+<style scoped>
+.task-activity-list {
+  display: grid;
+}
+
+.task-activity-item {
+  position: relative;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 9px;
+  padding-bottom: 16px;
+}
+
+.task-activity-item:not(:last-child)::after {
+  position: absolute;
+  inset-block: 28px 0;
+  inset-inline-start: 13px;
+  width: 1px;
+  background: var(--border);
+  content: '';
+}
+
+.task-activity-marker {
+  z-index: 1;
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--muted);
+  color: var(--muted-foreground);
+}
+
+.task-activity-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.55;
+}
+
+.task-activity-meta {
+  color: var(--muted-foreground);
+  font-size: 0.6875rem;
+}
+
+.task-activity-body {
+  margin-top: 5px;
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+  line-height: 1.75;
+  white-space: pre-wrap;
+}
+</style>

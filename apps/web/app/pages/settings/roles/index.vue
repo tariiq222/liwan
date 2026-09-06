@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import RoleTable from '@/components/access/roles/RoleTable.vue'
+import SettingsLayout from '@/components/settings/SettingsLayout.vue'
 import { useAdminRoles, type AdminRoleListParams } from '@/composables/useAdminRoles'
 
 const route = useRoute()
@@ -23,16 +24,16 @@ function cloneRole(id: number) { void navigateTo({ path: '/settings/roles/new', 
 </script>
 
 <template>
-  <div class="mx-auto w-full max-w-7xl space-y-8">
+  <SettingsLayout><div class="nasq-page-stack mx-auto w-full max-w-[1440px]">
     <SharedPageHeader :title="t('access.roles.title')" :description="t('access.roles.description')">
       <Button v-if="can('access.roles.manage')" :disabled="!hydrated" @click="navigateTo('/settings/roles/new')">{{ t('access.roles.create') }}</Button>
     </SharedPageHeader>
     <SharedPageState v-if="forbidden" :empty="true" :empty-text="t('access.forbidden')" />
     <template v-else>
-      <div class="grid gap-3 rounded-lg border border-border/80 bg-card/70 p-3 sm:grid-cols-[minmax(0,1fr)_auto_auto_auto]">
-        <Input v-model="filters.q" :placeholder="t('access.roles.filters.search')" :disabled="!hydrated" @change="updateFilters" />
-        <select v-model="filters.type" :disabled="!hydrated" class="h-9 rounded-md border border-input bg-background px-3 text-sm" @change="updateFilters"><option :value="undefined">{{ t('access.roles.filters.allTypes') }}</option><option value="built_in">{{ t('access.roles.builtIn') }}</option><option value="custom">{{ t('access.roles.custom') }}</option></select>
-        <select v-model="filters.status" :disabled="!hydrated" class="h-9 rounded-md border border-input bg-background px-3 text-sm" @change="updateFilters"><option :value="undefined">{{ t('access.roles.filters.allStatuses') }}</option><option value="active">{{ t('access.active') }}</option><option value="disabled">{{ t('access.disabled') }}</option></select>
+      <div class="nasq-toolbar">
+        <Input class="min-w-[180px] flex-1" v-model="filters.q" :placeholder="t('access.roles.filters.search')" :disabled="!hydrated" @change="updateFilters" />
+        <select v-model="filters.type" :disabled="!hydrated" class="h-[40px] rounded-lg border border-input bg-background px-3 text-sm" @change="updateFilters"><option :value="undefined">{{ t('access.roles.filters.allTypes') }}</option><option value="built_in">{{ t('access.roles.builtIn') }}</option><option value="custom">{{ t('access.roles.custom') }}</option></select>
+        <select v-model="filters.status" :disabled="!hydrated" class="h-[40px] rounded-lg border border-input bg-background px-3 text-sm" @change="updateFilters"><option :value="undefined">{{ t('access.roles.filters.allStatuses') }}</option><option value="active">{{ t('access.active') }}</option><option value="disabled">{{ t('access.disabled') }}</option></select>
         <Button variant="outline" :disabled="!hydrated" @click="filters.q = ''; filters.type = undefined; filters.status = undefined; updateFilters()">{{ t('access.clearFilters') }}</Button>
       </div>
       <SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!query.isLoading.value && !query.error.value && query.data.value?.items.length === 0" :empty-text="t('access.roles.empty')" @retry="query.refetch">
@@ -40,5 +41,5 @@ function cloneRole(id: number) { void navigateTo({ path: '/settings/roles/new', 
       </SharedPageState>
       <div v-if="pages > 1" class="flex items-center justify-between text-sm text-muted-foreground"><Button variant="ghost" :disabled="!hydrated || page === 1 || query.isFetching.value" @click="previousPage">{{ t('access.previousPage') }}</Button><span>{{ t('access.pageOf', { page, pages }) }}</span><Button variant="ghost" :disabled="!hydrated || page >= pages || query.isFetching.value" @click="nextPage">{{ t('access.nextPage') }}</Button></div>
     </template>
-  </div>
+  </div></SettingsLayout>
 </template>

@@ -37,14 +37,14 @@ function back() {
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div class="nasq-page-stack">
     <SharedPageHeader :title="t('taskLifecycle.archivedTasks')" :description="t('taskLifecycle.archivedTasksHint')">
       <template #back>
         <Button variant="ghost" size="sm" type="button" :disabled="!hydrated" @click="back">{{ t('taskLifecycle.back') }}</Button>
       </template>
     </SharedPageHeader>
 
-    <div class="flex flex-wrap items-center gap-2 rounded-lg border bg-card p-3">
+    <div class="nasq-toolbar">
       <Input v-model="q" :disabled="!hydrated" :placeholder="t('taskLifecycle.searchArchived')" class="min-w-56 max-w-sm" />
       <Badge v-if="data" variant="secondary">{{ total }}</Badge>
     </div>
@@ -55,7 +55,7 @@ function back() {
     <div v-else-if="!items.length" class="rounded-lg border bg-card p-8 text-center text-muted-foreground">
       {{ t('taskLifecycle.noArchivedTasks') }}
     </div>
-    <div v-else class="overflow-hidden rounded-lg border bg-card">
+    <div v-else class="nasq-panel overflow-hidden">
       <ul class="divide-y">
         <li v-for="task in items" :key="task.id" class="flex items-center justify-between gap-3 p-3">
           <div class="min-w-0">

@@ -72,7 +72,7 @@ test('notification preview keeps a failed read open and opens the task after ret
   failRead = false
   await page.getByTestId('notification-preview-901').click()
   await expect(page).toHaveURL(new RegExp(`/tasks/${task.id}$`))
-  await expect(page.getByRole('textbox', { name: 'عنوان المهمة' })).toHaveValue(task.name)
+  await expect(page.locator('h1')).toHaveText(task.name)
   await page.close()
 })
 

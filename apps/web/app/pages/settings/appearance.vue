@@ -1,16 +1,15 @@
 <script setup lang="ts">
 import AppearanceForm from '@/components/settings/AppearanceForm.vue'
-import SettingsTabs from '@/components/settings/SettingsTabs.vue'
+import SettingsLayout from '@/components/settings/SettingsLayout.vue'
 
 const { t } = useI18n()
 </script>
 
 <template>
-  <div class="space-y-6">
-    <SharedPageHeader :title="t('settings.appearance.title')" :description="t('settings.appearance.description')" />
-    <SettingsTabs />
-    <div class="max-w-3xl">
+  <SettingsLayout>
+    <div class="nasq-page-stack">
+      <SharedPageHeader :title="t('settings.appearance.title')" />
       <AppearanceForm />
     </div>
-  </div>
+  </SettingsLayout>
 </template>

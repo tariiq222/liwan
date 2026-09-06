@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { AuditAction } from '@nasq/contracts'
+import SettingsLayout from '@/components/settings/SettingsLayout.vue'
 const route = useRoute()
 const { t } = useI18n()
 const { can } = useAccess()
@@ -18,11 +19,11 @@ const actionLabels: Record<AuditAction, string> = {
 </script>
 
 <template>
-  <div class="mx-auto w-full max-w-5xl space-y-8">
+  <SettingsLayout><div class="nasq-page-stack mx-auto w-full max-w-5xl">
     <SharedPageHeader :title="t('access.audit.detailTitle')" :back-to="returnTo" />
     <SharedPageState v-if="forbidden" :empty="true" :empty-text="t('access.forbidden')" />
     <SharedPageState v-else :loading="event.isLoading.value" :error="event.error.value" :empty="!event.data.value" :empty-text="t('access.notFound')" @retry="event.refetch">
       <Card v-if="event.data.value" class="rounded-lg border-border/80 bg-card"><CardContent class="space-y-5 p-4 text-sm sm:p-6"><p>{{ t('access.audit.columns.time') }}: <span dir="ltr">{{ event.data.value.occurred_at }}</span></p><p>{{ t('access.audit.columns.actor') }}: {{ event.data.value.actor?.name ?? t('access.audit.system') }}</p><p>{{ t('access.audit.columns.action') }}: {{ t(actionLabels[event.data.value.action]) }}</p><p>{{ t('access.audit.columns.target') }}: {{ event.data.value.target.name }}</p><div><h2 class="font-medium">{{ t('access.audit.before') }}</h2><pre class="overflow-auto rounded-lg border border-border/80 bg-muted p-3" dir="ltr">{{ JSON.stringify(event.data.value.before, null, 2) }}</pre></div><div><h2 class="font-medium">{{ t('access.audit.after') }}</h2><pre class="overflow-auto rounded-lg border border-border/80 bg-muted p-3" dir="ltr">{{ JSON.stringify(event.data.value.after, null, 2) }}</pre></div><p v-if="event.data.value.reason">{{ t('access.audit.reason') }}: {{ event.data.value.reason }}</p></CardContent></Card>
     </SharedPageState>
-  </div>
+  </div></SettingsLayout>
 </template>

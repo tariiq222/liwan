@@ -30,9 +30,14 @@ async function submit() {
 
 <template>
   <SharedUnsavedChanges :dirty="dirty" />
-  <form class="grid max-w-2xl gap-4" @submit.prevent="submit">
-    <div class="grid gap-2"><Label for="hr-doc-new-name">{{ t('hr.docs.newTitle') }}</Label><Input id="hr-doc-new-name" v-model="name" :disabled="!hydrated || isPending" required /></div>
-    <div class="grid gap-2"><Label>{{ t('hr.docs.body') }}</Label><DocumentEditor :model-value="body" :document-id="0" :debounce="false" :disabled="isPending" @update:model-value="body = $event" /></div>
-    <div class="flex flex-wrap gap-2"><Button type="submit" :disabled="!hydrated || isPending || !name.trim()">{{ t('app.create') }}</Button><NuxtLink :to="props.backTo"><Button type="button" variant="outline">{{ t('app.cancel') }}</Button></NuxtLink></div>
+  <form class="nasq-form" @submit.prevent="submit">
+    <section class="nasq-form-section">
+      <h2 class="text-sm font-semibold">{{ t('hr.docs.newTitle') }}</h2>
+      <div class="nasq-form-grid mt-4">
+        <div class="grid gap-2"><Label for="hr-doc-new-name">{{ t('hr.docs.newTitle') }}</Label><Input id="hr-doc-new-name" v-model="name" :disabled="!hydrated || isPending" required /></div>
+        <div class="grid gap-2 sm:col-span-2"><Label>{{ t('hr.docs.body') }}</Label><DocumentEditor :model-value="body" :document-id="0" :debounce="false" :disabled="isPending" @update:model-value="body = $event" /></div>
+      </div>
+    </section>
+    <div class="nasq-form-footer"><NuxtLink :to="props.backTo"><Button type="button" variant="outline">{{ t('app.cancel') }}</Button></NuxtLink><Button type="submit" :disabled="!hydrated || isPending || !name.trim()">{{ t('app.create') }}</Button></div>
   </form>
 </template>

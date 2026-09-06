@@ -105,7 +105,7 @@ async function save() {
 </script>
 
 <template>
-  <form class="space-y-4" @submit.prevent="save">
+  <form class="nasq-form space-y-4" @submit.prevent="save">
     <SharedUnsavedChanges :dirty="dirty" />
     <fieldset :disabled="!canEdit || update.isPending.value" class="space-y-3">
       <legend class="text-sm font-medium">{{ t('access.users.rolesTitle') }}</legend>

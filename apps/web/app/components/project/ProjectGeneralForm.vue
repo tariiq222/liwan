@@ -115,7 +115,7 @@ function onTagsChange({ ids }: { ids: number[]; resolved: TagRef[] }) {
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div class="space-y-5">
     <section class="space-y-2">
       <Label for="project-settings-name">{{ t('projects.settings.name') }}</Label>
       <Input
@@ -127,7 +127,7 @@ function onTagsChange({ ids }: { ids: number[]; resolved: TagRef[] }) {
       />
     </section>
 
-    <section class="grid grid-cols-2 gap-4">
+    <section class="grid gap-4 sm:grid-cols-2">
       <div class="space-y-2">
         <Label>{{ t('projects.settings.manager') }}</Label>
         <Popover v-model:open="managerOpen">
@@ -181,7 +181,7 @@ function onTagsChange({ ids }: { ids: number[]; resolved: TagRef[] }) {
     -->
     <section class="space-y-2">
       <Label>{{ t('projects.settings.dateStart') }} / {{ t('projects.settings.dateEnd') }}</Label>
-      <div class="grid grid-cols-2 gap-2">
+      <div class="grid gap-2 sm:grid-cols-2">
         <Popover>
           <PopoverTrigger as-child>
             <Button variant="outline" class="justify-start" type="button" :disabled="!hydrated" :aria-label="t('projects.settings.dateStart')">

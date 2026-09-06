@@ -6,14 +6,14 @@ const { me } = useMe()
 </script>
 
 <template>
-  <div class="mx-auto w-full max-w-4xl space-y-8">
+  <div class="nasq-page-stack mx-auto w-full max-w-4xl">
     <SharedPageHeader :title="t('account.title')" :description="t('account.description')" />
-    <Card v-if="me" class="rounded-lg border-border/80 bg-card"><CardHeader><CardTitle>{{ me.name }}</CardTitle></CardHeader><CardContent><p dir="ltr" class="text-start text-sm text-muted-foreground">{{ me.login }}</p><p class="mt-2 text-sm text-muted-foreground">{{ me.company.name }}</p></CardContent></Card>
-    <Card class="rounded-lg border-border/80 bg-card">
+    <Card v-if="me" class="nasq-panel"><CardHeader class="nasq-panel-header"><CardTitle>{{ me.name }}</CardTitle></CardHeader><CardContent class="nasq-panel-body"><dl class="nasq-metadata"><div><dt>{{ t('auth.username') }}</dt><dd dir="ltr">{{ me.login }}</dd></div><div><dt>{{ t('account.company') }}</dt><dd>{{ me.company.name }}</dd></div></dl></CardContent></Card>
+    <Card class="nasq-panel">
       <CardHeader>
         <CardTitle>{{ t('account.passwordTitle') }}</CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent class="nasq-panel-body">
         <PasswordForm />
       </CardContent>
     </Card>

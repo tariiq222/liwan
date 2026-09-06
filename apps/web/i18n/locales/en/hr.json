@@ -41,6 +41,7 @@
     },
     "card": {
       "title": "Employee card",
+      "overview": "Overview",
       "name": "Name",
       "jobTitle": "Job title",
       "department": "Department",
@@ -98,9 +99,13 @@
       "departments": "Departments"
     },
     "employee": {
+      "editTitle": "Edit employee",
       "title": "Employee",
       "createTitle": "New employee",
       "general": "General",
+      "generalHint": "The basic information shown on the employee profile.",
+      "assignment": "Organizational assignment",
+      "formHint": "Save after reviewing the employee information.",
       "access": "Access",
       "name": "Name",
       "workEmail": "Work email",

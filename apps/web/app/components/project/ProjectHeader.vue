@@ -4,9 +4,6 @@ import { toast } from 'vue-sonner'
 import type { ProjectDetail } from '@nasq/contracts'
 import { ApiError } from '@/composables/useApi'
 import { useArchiveProject, useUnarchiveProject } from '@/composables/useProjects'
-import ProjectProgress from './ProjectProgress.vue'
-import ProjectStatusBadge from './ProjectStatusBadge.vue'
-import ProjectStatusSelect from './ProjectStatusSelect.vue'
 
 const props = defineProps<{ project: ProjectDetail; backTo?: string }>()
 const emit = defineEmits<{ create: []; settings: []; archived: []; unarchived: [] }>()
@@ -46,9 +43,6 @@ async function doUnarchive() {
     :back-label="t('projects.backToProjects')"
   >
     <template #actions>
-      <ProjectStatusSelect v-if="project.can_manage" :project="project" />
-      <ProjectStatusBadge v-else :status="project.status" />
-      <ProjectProgress :progress="project.progress" :task-count="project.task_count" :closed-task-count="project.closed_task_count" />
       <Button
         v-if="can('pmo.tasks.create')"
         variant="default"

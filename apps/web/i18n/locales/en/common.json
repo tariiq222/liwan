@@ -1,5 +1,6 @@
 {
   "app": {
+    "edit": "Edit",
     "productName": "Nasq",
     "search": "Search",
     "cancel": "Cancel",
@@ -65,6 +66,7 @@
   "account": {
     "title": "Account",
     "description": "Manage your account settings.",
+    "company": "Organization",
     "passwordTitle": "Change password",
     "currentPassword": "Current password",
     "newPassword": "New password",

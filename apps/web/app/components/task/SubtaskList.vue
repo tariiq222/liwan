@@ -5,10 +5,13 @@ import { ApiError } from '@/composables/useApi'
 import { taskKeys, useCreateTask } from '@/composables/useTasks'
 import StateBadge from './StateBadge.vue'
 
-const props = defineProps<{ task: TaskDetail }>()
+const props = withDefaults(defineProps<{ task: TaskDetail; basePath?: string }>(), {
+  basePath: '/tasks',
+})
 
 const { t } = useI18n()
 const { can } = useAccess()
+const hydrated = useHydrated()
 const router = useRouter()
 const route = useRoute()
 const qc = useQueryClient()
@@ -31,27 +34,70 @@ async function addSubtask() {
 }
 
 function openSubtask(id: number) {
-  router.push({ path: `/tasks/${id}`, query: route.query })
+  router.push({ path: `${props.basePath}/${id}`, query: route.query })
 }
 </script>
 
 <template>
-  <div class="space-y-2">
-    <ul v-if="task.subtasks.length" class="space-y-1">
-      <li
-        v-for="sub in task.subtasks"
-        :key="sub.id"
-        class="flex cursor-pointer items-center gap-2 rounded-md p-1.5 text-sm hover:bg-muted"
-        @click="openSubtask(sub.id)"
-      >
-        <StateBadge :state="sub.state" />
-        <span class="flex-1 truncate">{{ sub.name }}</span>
+  <div>
+    <ul v-if="task.subtasks.length" class="task-list">
+      <li v-for="sub in task.subtasks" :key="sub.id" class="task-subtask-row">
+        <button type="button" class="flex min-w-0 flex-1 items-center gap-2 rounded-lg text-start" :disabled="!hydrated" @click="openSubtask(sub.id)">
+          <StateBadge :state="sub.state" />
+          <span class="flex-1 truncate text-sm">{{ sub.name }}</span>
+        </button>
       </li>
     </ul>
-    <form v-if="can('pmo.tasks.create') && task.can_write" class="flex gap-2" @submit.prevent="addSubtask">
+    <p v-else class="task-empty-inline">{{ t('tasks.detail.noSubtasks') }}</p>
+    <form v-if="can('pmo.tasks.create') && task.can_write" class="task-inline-form" @submit.prevent="addSubtask">
       <Input v-model="title" :placeholder="t('tasks.drawer.addSubtask')" class="h-8" />
-      <Button type="submit" size="sm" :disabled="isPending || !title.trim()">{{ t('app.create') }}</Button>
+      <Button type="submit" size="sm" variant="outline" :disabled="!hydrated || isPending || !title.trim()">{{ t('app.create') }}</Button>
     </form>
     <p v-if="error" role="alert" class="text-sm text-destructive">{{ error }}</p>
   </div>
 </template>
+
+<style scoped>
+.task-list {
+  display: grid;
+}
+
+.task-subtask-row {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.task-subtask-row:last-child {
+  border-bottom: 0;
+}
+
+.task-inline-form {
+  display: flex;
+  align-items: end;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.task-inline-form > :first-child {
+  min-width: 0;
+  flex: 1;
+}
+
+.task-empty-inline {
+  padding: 10px 0;
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+}
+
+@media (max-width: 600px) {
+  .task-inline-form {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: stretch;
+  }
+}
+</style>

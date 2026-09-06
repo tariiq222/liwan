@@ -17,7 +17,7 @@ const returnTo = computed(() => projectId.value ? safeReturnTo(route.query.retur
 </script>
 
 <template>
-  <section class="mx-auto w-full max-w-2xl space-y-6">
+  <section class="nasq-page-stack">
     <SharedPageHeader :title="t('projects.updates.new')" :description="project?.name" :back-to="returnTo" :back-label="t('projects.backToProject')" />
     <template v-if="projectId === null">
       <p class="text-muted-foreground">{{ t('projects.invalidId') }}</p>
@@ -35,7 +35,7 @@ const returnTo = computed(() => projectId.value ? safeReturnTo(route.query.retur
       <p class="text-muted-foreground">{{ t('projects.forbidden') }}</p>
     </template>
     <template v-else>
-      <Card><CardContent class="pt-6"><ProjectUpdateForm :project-id="projectId" @saved="router.push(returnTo)" @cancel="router.push(returnTo)" /></CardContent></Card>
+      <Card class="nasq-form"><CardContent><ProjectUpdateForm :project-id="projectId" @saved="router.push(returnTo)" @cancel="router.push(returnTo)" /></CardContent></Card>
     </template>
   </section>
 </template>

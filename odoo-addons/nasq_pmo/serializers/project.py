@@ -26,6 +26,8 @@ def dump_project(project):
     return {
         'id': project.id,
         'name': project.name,
+        'manager': _user_ref(project.user_id),
+        'date_end': fields.Date.to_string(project.date) if project.date else None,
         'status': STATUS_TO_API.get(project.last_update_status),
         'progress': round(project.task_completion_percentage * 100),
         'task_count': project.task_count,
@@ -41,10 +43,8 @@ def dump_project_detail(project):
     data.update({
         'stages': [dump_stage(project, s) for s in project.type_ids.sorted(lambda s: (s.sequence, s.id))],
         'description_html': project.description or '',
-        'manager': _user_ref(project.user_id),
         'privacy_visibility': VISIBILITY_TO_API.get(project.privacy_visibility, 'employees'),
         'date_start': fields.Date.to_string(project.date_start) if project.date_start else None,
-        'date_end': fields.Date.to_string(project.date) if project.date else None,
         'tags': [{'id': t.id, 'name': t.name, 'color': t.color} for t in project.tag_ids],
         'followers_count': len(project._nasq_followers()),
         'milestone_count': len(project.milestone_ids),

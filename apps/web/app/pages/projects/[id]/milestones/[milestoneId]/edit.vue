@@ -35,7 +35,7 @@ async function confirmDelete() {
 </script>
 
 <template>
-  <section class="mx-auto w-full max-w-2xl space-y-6">
+  <section class="nasq-page-stack">
     <SharedPageHeader :title="t('projects.milestones.edit')" :description="project?.name" :back-to="returnTo" :back-label="t('projects.backToProject')" />
     <template v-if="projectId === null || milestoneId === null">
       <p class="text-muted-foreground">{{ t('projects.invalidId') }}</p>
@@ -53,7 +53,7 @@ async function confirmDelete() {
       <p class="text-muted-foreground">{{ t('projects.forbidden') }}</p>
     </template>
     <template v-else>
-      <Card><CardContent class="space-y-5 pt-6">
+      <Card class="nasq-form"><CardContent class="space-y-5">
         <MilestoneForm :project-id="projectId" :milestone="milestone" @saved="router.push(returnTo)" @cancel="router.push(returnTo)" />
         <div v-if="milestone.task_count > 0" class="rounded-md border border-muted p-3 text-sm text-muted-foreground">{{ t('projects.milestones.hasTasks', { count: milestone.task_count }) }}</div>
         <div v-if="deleteOpen" data-testid="milestone-delete-confirm" class="space-y-2 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm">

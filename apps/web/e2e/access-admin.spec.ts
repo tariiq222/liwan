@@ -192,7 +192,8 @@ test('custom read-only task access is enforced in the page and direct ORM', asyn
     })
     expect((await rpc.json()).error).toBeTruthy()
     await reader.goto(`/tasks/${task.id}`)
-    await expect(reader.getByLabel('عنوان المهمة')).toHaveAttribute('readonly', '')
+    await expect(reader.getByTestId('task-title-edit')).toHaveCount(0)
+    await expect(reader.locator('h1')).toHaveText(task.name)
     await expect(reader.getByTestId('task-menu')).toHaveCount(0)
     await expect(reader.getByRole('dialog')).toHaveCount(0)
 

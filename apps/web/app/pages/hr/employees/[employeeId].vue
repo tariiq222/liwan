@@ -17,7 +17,7 @@ async function toggleArchive() {
 }
 </script>
 <template>
-  <div v-if="isDetail" class="mx-auto w-full max-w-5xl space-y-8"><SharedPageHeader :title="query.data.value?.name || t('hr.employee.title')" :back-to="returnTo">
+  <div v-if="isDetail" class="nasq-page-stack mx-auto w-full max-w-[1440px]"><SharedPageHeader :title="query.data.value?.name || t('hr.employee.title')" :back-to="returnTo">
     <div class="flex flex-wrap gap-2">
       <NuxtLink v-if="query.data.value && can('hr.employees.manage')" :to="{ path: `/hr/employees/${id}/edit`, query: returnToQuery(route.fullPath) }" @click="!hydrated && $event.preventDefault()"><Button :disabled="!hydrated">{{ t('app.edit') }}</Button></NuxtLink>
       <NuxtLink v-if="query.data.value?.user_id && can('access.users.read')" :to="{ path: `/settings/users/${query.data.value.user_id}`, query: returnToQuery(route.fullPath) }" @click="!hydrated && $event.preventDefault()"><Button variant="outline" :disabled="!hydrated">{{ t('hr.employee.manageAccount') }}</Button></NuxtLink>

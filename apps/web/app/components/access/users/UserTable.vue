@@ -9,16 +9,16 @@ const hydrated = useHydrated()
 </script>
 
 <template>
-  <div class="overflow-x-auto rounded-lg border border-border/80 bg-card">
+  <div class="nasq-panel overflow-x-auto">
     <table class="w-full min-w-[700px] text-sm">
       <thead class="border-b border-border/80 bg-muted/50 text-start">
         <tr>
-          <th class="p-3 text-start font-medium">{{ t('access.users.columns.name') }}</th>
-          <th class="p-3 text-start font-medium">{{ t('access.users.columns.login') }}</th>
-          <th class="p-3 text-start font-medium">{{ t('access.users.columns.employee') }}</th>
-          <th class="p-3 text-start font-medium">{{ t('access.users.columns.roles') }}</th>
-          <th class="p-3 text-start font-medium">{{ t('access.users.columns.status') }}</th>
-          <th class="p-3 text-end font-medium">{{ t('access.users.columns.actions') }}</th>
+          <th class="px-4 py-3 text-start font-medium">{{ t('access.users.columns.name') }}</th>
+          <th class="px-4 py-3 text-start font-medium">{{ t('access.users.columns.login') }}</th>
+          <th class="px-4 py-3 text-start font-medium">{{ t('access.users.columns.employee') }}</th>
+          <th class="px-4 py-3 text-start font-medium">{{ t('access.users.columns.roles') }}</th>
+          <th class="px-4 py-3 text-start font-medium">{{ t('access.users.columns.status') }}</th>
+          <th class="px-4 py-3 text-end font-medium">{{ t('access.users.columns.actions') }}</th>
         </tr>
       </thead>
       <tbody>

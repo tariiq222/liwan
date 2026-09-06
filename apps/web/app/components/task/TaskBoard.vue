@@ -9,8 +9,9 @@ import { usePersonalStages } from '@/composables/usePersonalStages'
 import TaskCard from './TaskCard.vue'
 import EmptyState from '@/components/shared/EmptyState.vue'
 
-const props = withDefaults(defineProps<{ params: TaskListParams; stageSource?: StageSource }>(), {
+const props = withDefaults(defineProps<{ params: TaskListParams; stageSource?: StageSource; embedded?: boolean }>(), {
   stageSource: () => ({ kind: 'personal' }),
+  embedded: false,
 })
 const emit = defineEmits<{ open: [id: number] }>()
 
@@ -108,7 +109,7 @@ function isCollapsed(stage: BoardStage): boolean {
 </script>
 
 <template>
-  <div class="space-y-2">
+  <div :class="embedded ? 'space-y-2 p-[18px]' : 'space-y-2'">
     <p v-if="isCapped" class="text-xs text-muted-foreground">{{ t('tasks.kanban.capped') }}</p>
     <!--
       A fixed board height with per-column vertical scroll (rather than
@@ -116,7 +117,7 @@ function isCollapsed(stage: BoardStage): boolean {
       column's header and drop target reachable regardless of how many
       cards a stage holds — the board only scrolls horizontally, per spec.
     -->
-    <div class="flex h-[calc(100vh-260px)] min-h-[420px] items-start gap-3 overflow-x-auto pb-2">
+    <div class="flex min-h-[420px] items-start gap-3 overflow-x-auto pb-2" :class="embedded ? 'h-[calc(100vh-340px)]' : 'h-[calc(100vh-260px)]'">
       <!-- Leading "unstaged" column: tasks with no stage yet. Always shown on
            the personal board; on a project board only when it actually holds
            cards, since a project task always has a stage and the column

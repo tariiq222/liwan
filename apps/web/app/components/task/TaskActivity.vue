@@ -4,10 +4,8 @@ import { useTimeline } from '@/composables/useTimeline'
 import CommentComposer from './CommentComposer.vue'
 import Timeline from './Timeline.vue'
 
-// Header-less activity column: the timeline scrolls on its own, the composer
-// stays pinned at the foot regardless of how tall the timeline grows. The
-// parent (TaskDetailPanel) gives this component the full column height and
-// leaves scrolling entirely to it — see the comment there.
+// Activity follows the page's natural scroll. On wide screens the complete
+// card stays near the viewport while the longer task body continues below it.
 const props = defineProps<{ task: TaskDetail }>()
 const { t } = useI18n()
 
@@ -16,13 +14,16 @@ const { data: entries } = useTimeline(idRef)
 </script>
 
 <template>
-  <div class="flex h-full flex-col overflow-hidden">
-    <header class="shrink-0 border-b px-4 py-3">
-      <h2 class="text-sm font-semibold">{{ t('tasks.detail.activityTitle') }}</h2>
+  <section data-testid="task-activity-card" class="nasq-panel task-activity-card">
+    <header class="nasq-panel-header">
+      <div>
+        <h2 class="text-sm font-semibold">{{ t('tasks.detail.activityTitle') }}</h2>
+        <p class="mt-1 text-xs text-muted-foreground">{{ t('tasks.detail.activityDescription') }}</p>
+      </div>
     </header>
-    <div class="flex-1 overflow-y-auto p-4">
+    <div class="nasq-panel-body">
       <Timeline :entries="entries ?? []" />
+      <CommentComposer v-if="task.can_write" :task-id="task.id" />
     </div>
-    <CommentComposer v-if="task.can_write" :task-id="task.id" />
-  </div>
+  </section>
 </template>

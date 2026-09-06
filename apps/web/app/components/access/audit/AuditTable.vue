@@ -24,7 +24,7 @@ function open(id: number) { if (hydrated.value) emit('open', id) }
 </script>
 
 <template>
-  <div class="overflow-x-auto rounded-lg border border-border/80 bg-card">
+  <div class="nasq-panel overflow-x-auto">
     <table class="w-full min-w-[680px] text-sm">
       <thead class="border-b border-border/80 bg-muted/50">
         <tr>

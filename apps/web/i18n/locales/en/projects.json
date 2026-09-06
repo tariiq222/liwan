@@ -17,6 +17,8 @@
     "columns": {
       "name": "Name",
       "status": "Status",
+      "manager": "Manager",
+      "dateEnd": "End date",
       "progress": "Progress"
     },
     "status": {
@@ -35,6 +37,9 @@
       "displayed": "Projects shown",
       "attention": "Needs attention",
       "completed": "Completed projects",
+      "tasks": "{count} tasks",
+      "remaining": "{count} open tasks",
+      "completedTasks": "{count} completed tasks",
       "show": "Show project summary",
       "hide": "Hide project summary"
     },
@@ -46,7 +51,19 @@
       "milestones": "Milestones",
       "activeTasks": "Active tasks",
       "activeTasksEmpty": "No active tasks",
-      "activeTasksCap": "Showing the first 5 tasks from the loaded list"
+      "activeTasksCap": "Showing the first 5 tasks from the loaded list",
+      "followers": "Followers",
+      "workSummary": "Work summary",
+      "tasks": "Tasks",
+      "completedOf": "{closed} of {total} completed",
+      "workflowStages": "Workflow stages",
+      "noDescription": "No description has been added.",
+      "completedSummary": "{closed} of {total} tasks completed",
+      "nextMilestone": "Nearest milestone",
+      "noUpcomingMilestone": "No upcoming milestone",
+      "latestUpdate": "Latest update",
+      "noUpdates": "No updates yet",
+      "noDates": "No project dates"
     },
     "new": "New project",
     "newName": "Project name",
@@ -59,6 +76,13 @@
       "searchValue": "Search: {value}",
       "allStatuses": "All statuses",
       "unset": "Not set",
+      "sortDefault": "Default order",
+      "sortName": "Name",
+      "sortProgress": "Progress",
+      "view": "Project view",
+      "tableView": "Table view",
+      "cardView": "Card view",
+      "boardView": "Board view",
       "clear": "Clear filters"
     },
     "archivedEmpty": "No archived projects",
@@ -113,6 +137,7 @@
     },
     "tabs": {
       "overview": "Overview",
+      "tasks": "Tasks",
       "list": "List",
       "board": "Board",
       "milestones": "Milestones",
@@ -128,6 +153,8 @@
       "state": "State",
       "reached": "Reached",
       "notReached": "Not reached",
+      "upcoming": "Upcoming",
+      "overdue": "Overdue",
       "markReached": "Mark reached",
       "reopen": "Reopen",
       "delete": "Delete",

@@ -32,11 +32,11 @@ async function confirmDelete() {
 }
 </script>
 <template>
-  <div class="mx-auto w-full max-w-7xl space-y-8">
+  <div class="nasq-page-stack mx-auto w-full max-w-[1440px]">
     <SharedPageHeader :title="t('hr.depts.title')" back-to="/hr">
       <NuxtLink v-if="can('hr.departments.manage')" :to="{ path: '/hr/departments/new', query: returnToQuery(route.fullPath) }"><Button>{{ t('hr.depts.new') }}</Button></NuxtLink>
     </SharedPageHeader>
-    <div class="flex flex-wrap items-center gap-3 rounded-lg border border-border/80 bg-card/70 p-3">
+    <div class="nasq-toolbar nasq-panel flex flex-wrap items-center">
       <Input v-model="search" :disabled="!hydrated" :aria-label="t('hr.depts.search')" :placeholder="t('hr.depts.search')" class="max-w-sm" />
       <Button variant="outline" :disabled="!hydrated" :aria-pressed="!treeView" @click="setView(false)">{{ t('hr.depts.listView') }}</Button>
       <Button variant="outline" :disabled="!hydrated" :aria-pressed="treeView" @click="setView(true)">{{ t('hr.depts.hierarchy') }}</Button>

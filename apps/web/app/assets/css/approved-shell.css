@@ -13,7 +13,7 @@
   gap: 20px;
   padding-inline: 24px;
   border-block-end: 1px solid var(--border);
-  background: color-mix(in oklab, var(--background) 92%, transparent);
+  background: color-mix(in oklab, var(--card) 96%, transparent);
   backdrop-filter: blur(10px);
 }
 
@@ -75,6 +75,8 @@
   width: 100%;
   min-width: 0;
   flex: 1;
+  max-width: 1440px;
+  margin-inline: auto;
   padding: 30px clamp(18px, 3vw, 48px) 56px;
   background: var(--background);
 }
@@ -192,13 +194,11 @@
 }
 
 [data-slot="page-header"] {
-  border-block-end: 1px solid color-mix(in oklab, var(--border) 70%, transparent);
-  padding-block-end: 18px;
+  min-height: 40px;
 }
 
 [data-slot="page-header"][data-empty="true"] {
-  border-block-end: 0;
-  padding-block-end: 0;
+  display: none;
 }
 
 @media (max-width: 1100px) and (min-width: 769px) {
@@ -252,4 +252,39 @@
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
   }
+}
+
+/* Page anatomy from the final approved OpenDesign render. */
+.nasq-page-stack { display: grid; min-width: 0; gap: 24px; }
+.nasq-panel { min-width: 0; border: 1px solid var(--border); border-radius: 8px; background: var(--card); }
+.nasq-panel-header { display: flex; min-height: 60px; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 18px; border-block-end: 1px solid var(--border); }
+.nasq-panel-body { padding: 18px; }
+.nasq-toolbar { display: flex; min-width: 0; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--card); }
+.nasq-detail-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr); align-items: start; gap: 16px; }
+.nasq-form { width: 100%; max-width: 940px; margin-inline: auto; }
+.nasq-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.nasq-form-section { padding-block: 20px; border-block-end: 1px solid var(--border); }
+.nasq-form-section:first-child { padding-block-start: 0; }
+.nasq-form-section:last-of-type { border-block-end: 0; }
+.nasq-form-footer { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding-block-start: 20px; border-block-start: 1px solid var(--border); }
+.nasq-tabs { display: flex; min-width: 0; align-items: center; gap: 4px; overflow-x: auto; border-block-end: 1px solid var(--border); }
+.nasq-tabs > :is(a, button) { display: inline-flex; min-height: 45px; flex: none; align-items: center; gap: 7px; border: 0; border-block-end: 2px solid transparent; border-radius: 0; background: transparent; box-shadow: none; padding-inline: 12px; color: var(--muted-foreground); font-size: 0.929rem; }
+.nasq-tabs > [aria-selected="true"], .nasq-tabs > [aria-current="page"], .nasq-tabs > [data-state="active"] { border-block-end-color: var(--foreground); color: var(--foreground); }
+.nasq-metadata > div { display: flex; align-items: start; justify-content: space-between; gap: 16px; padding-block: 12px; border-block-end: 1px solid var(--border); font-size: 0.929rem; }
+.nasq-metadata > div:last-child { border-block-end: 0; }
+.nasq-metadata dt { color: var(--muted-foreground); }
+.nasq-metadata dd { min-width: 0; text-align: end; overflow-wrap: anywhere; }
+.nasq-settings-layout { display: grid; grid-template-columns: 220px minmax(0, 1fr); align-items: start; gap: 16px; }
+.nasq-settings-nav { display: grid; gap: 4px; padding: 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--card); }
+.nasq-settings-nav a { display: flex; min-height: 40px; align-items: center; gap: 9px; border: 1px solid transparent; border-radius: 6px; padding: 9px 10px; color: var(--muted-foreground); font-size: 0.929rem; }
+.nasq-settings-nav a:hover { background: var(--muted); }
+.nasq-settings-nav a[aria-current="page"] { border-color: var(--border); background: var(--muted); color: var(--foreground); font-weight: 600; }
+.nasq-settings-nav .lucide { width: 18px; height: 18px; flex-shrink: 0; stroke-width: 2; }
+@media (max-width: 820px) {
+  .nasq-detail-grid, .nasq-settings-layout { grid-template-columns: minmax(0, 1fr); }
+  .nasq-settings-nav { display: flex; flex-wrap: wrap; }
+}
+@media (max-width: 600px) {
+  .nasq-form-grid { grid-template-columns: minmax(0, 1fr); }
+  .nasq-panel-header { flex-wrap: wrap; }
 }

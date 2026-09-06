@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import UserSecurityForm from '@/components/access/users/UserSecurityForm.vue'
+import SettingsLayout from '@/components/settings/SettingsLayout.vue'
 
 const route = useRoute()
 const { t } = useI18n()
@@ -11,11 +12,11 @@ const user = useAdminUser(id, computed(() => !forbidden.value))
 </script>
 
 <template>
-  <div class="mx-auto w-full max-w-5xl space-y-8">
+  <SettingsLayout><div class="nasq-page-stack mx-auto w-full max-w-5xl">
     <SharedPageHeader :title="t('access.users.security')" :back-to="backTo" />
     <SharedPageState v-if="forbidden" :empty="true" :empty-text="t('access.forbidden')" />
     <SharedPageState v-else :loading="user.isLoading.value" :error="user.error.value" :empty="!user.data.value" :empty-text="t('access.notFound')" @retry="user.refetch">
       <UserSecurityForm v-if="user.data.value" :user="user.data.value" />
     </SharedPageState>
-  </div>
+  </div></SettingsLayout>
 </template>

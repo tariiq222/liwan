@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { AuditAction } from '@nasq/contracts'
 import AuditTable from '@/components/access/audit/AuditTable.vue'
+import SettingsLayout from '@/components/settings/SettingsLayout.vue'
 import { useAdminAuditLog, type AdminAuditListParams } from '@/composables/useAdminAudit'
 import { useAdminUsers } from '@/composables/useAdminUsers'
 import { useAdminRoles } from '@/composables/useAdminRoles'
@@ -31,7 +32,7 @@ watch(() => [route.query.from, route.query.to, route.query.actor_id, route.query
 </script>
 
 <template>
-  <div class="mx-auto w-full max-w-7xl space-y-8">
+  <SettingsLayout><div class="nasq-page-stack mx-auto w-full max-w-[1440px]">
     <SharedPageHeader :title="t('access.audit.title')" :description="t('access.audit.description')" />
     <SharedPageState v-if="forbidden" :empty="true" :empty-text="t('access.forbidden')" />
     <template v-else>
@@ -39,5 +40,5 @@ watch(() => [route.query.from, route.query.to, route.query.actor_id, route.query
       <SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!query.isLoading.value && !query.error.value && query.data.value?.items.length === 0" :empty-text="t('access.audit.empty')" @retry="query.refetch"><AuditTable :events="query.data.value?.items ?? []" @open="(id) => navigateTo(`/settings/access-log/${id}`)" /></SharedPageState>
       <div v-if="pages > 1" class="flex items-center justify-between text-sm text-muted-foreground"><Button variant="ghost" :disabled="!hydrated || page === 1 || query.isFetching.value" @click="previousPage">{{ t('access.previousPage') }}</Button><span>{{ t('access.pageOf', { page, pages }) }}</span><Button variant="ghost" :disabled="!hydrated || page >= pages || query.isFetching.value" @click="nextPage">{{ t('access.nextPage') }}</Button></div>
     </template>
-  </div>
+  </div></SettingsLayout>
 </template>

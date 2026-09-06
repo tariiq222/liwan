@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import RolePermissionForm from '@/components/access/roles/RolePermissionForm.vue'
+import SettingsLayout from '@/components/settings/SettingsLayout.vue'
 import UserTable from '@/components/access/users/UserTable.vue'
 import { ApiError } from '@/composables/useApi'
 import { useAdminUsers } from '@/composables/useAdminUsers'
@@ -55,7 +56,7 @@ function openUser(userId: number) { void navigateTo(`/settings/users/${userId}`)
 </script>
 
 <template>
-  <div class="mx-auto w-full max-w-7xl space-y-8">
+  <SettingsLayout><div class="nasq-page-stack mx-auto w-full max-w-[1440px]">
     <SharedPageHeader :title="role.data.value?.name.ar ?? t('access.roles.title')" :back-to="returnTo">
       <Button v-if="role.data.value?.allowed_actions.includes('edit')" variant="outline" :disabled="!role.data.value" @click="navigateTo(editTo)">{{ t('access.roles.editTitle') }}</Button>
       <Button v-if="role.data.value?.allowed_actions.includes('clone')" variant="outline" :disabled="!role.data.value" @click="navigateTo(cloneTo)">{{ t('access.roles.clone') }}</Button>
@@ -71,5 +72,5 @@ function openUser(userId: number) { void navigateTo(`/settings/users/${userId}`)
       <p v-if="actionError" role="alert" class="text-sm text-destructive">{{ actionError }}</p>
       <section v-if="role.data.value && can('access.users.read')" id="assigned-users" class="space-y-3"><h2 class="text-lg font-semibold">{{ t('access.roles.assignedUsers') }}</h2><SharedPageState :loading="assignedUsers.isLoading.value" :error="assignedUsers.error.value" :empty="!assignedUsers.isLoading.value && !assignedUsers.error.value && assignedUsers.data.value?.items.length === 0" :empty-text="t('access.roles.noAssignedUsers')" @retry="assignedUsers.refetch"><UserTable :users="assignedUsers.data.value?.items ?? []" @open="openUser" /></SharedPageState></section>
     </SharedPageState>
-  </div>
+  </div></SettingsLayout>
 </template>

@@ -22,6 +22,9 @@ const isBaseRoute = computed(() => normalizedPath.value === '/tasks')
 function onTabChange(v: unknown) {
   router.replace({ query: { ...route.query, tab: v === 'board' ? 'board' : undefined } })
 }
+function onViewChange(view: 'table' | 'board') {
+  onTabChange(view)
+}
 
 // Detail is now a real route (/tasks/{id}, see pages/tasks/[id].vue) rather
 // than a ?task= query param. Row click / create both push there, carrying
@@ -41,7 +44,7 @@ function openCreate() {
 </script>
 
 <template>
-  <div v-if="isBaseRoute" class="space-y-4">
+  <div v-if="isBaseRoute" class="nasq-page-stack">
     <SharedPageHeader :title="t('tasks.title')" :description="t('tasks.description')">
       <template #actions>
       <div class="flex items-center gap-2">
@@ -53,26 +56,13 @@ function openCreate() {
       </template>
     </SharedPageHeader>
 
-    <Tabs :model-value="tab" @update:model-value="onTabChange">
-      <TabsList>
-        <TabsTrigger value="table" :disabled="!hydrated">{{ t('tasks.table') }}</TabsTrigger>
-        <TabsTrigger value="board" :disabled="!hydrated">{{ t('tasks.board') }}</TabsTrigger>
-      </TabsList>
-
-      <TabsContent value="table" class="space-y-4">
-        <TaskToolbar v-model="params" hide-create @create="openCreate" />
-        <!-- Query data may resolve after SSR markup is emitted but before
-             client hydration starts. Mount the dynamic result surface only
-             after this page has hydrated so the toolbar controls above keep
-             their listeners and their first click is never lost. -->
-        <TaskTable v-if="hydrated" :params="params" @open="openTask" @create="openCreate" />
-      </TabsContent>
-
-      <TabsContent value="board" class="space-y-4">
-        <TaskToolbar v-model="params" hide-create @create="openCreate" />
-        <TaskBoard v-if="hydrated" :params="params" @open="openTask" />
-      </TabsContent>
-    </Tabs>
+    <TaskToolbar v-model="params" :view="tab" hide-create @update:view="onViewChange" @create="openCreate" />
+    <!-- Query data may resolve after SSR markup is emitted but before
+         client hydration starts. Mount the dynamic result surface only
+         after this page has hydrated so the toolbar controls above keep
+         their listeners and their first click is never lost. -->
+    <TaskTable v-if="hydrated && tab === 'table'" :params="params" @open="openTask" @create="openCreate" />
+    <TaskBoard v-else-if="hydrated" :params="params" @open="openTask" />
 
   </div>
   <NuxtPage />

@@ -81,7 +81,7 @@ async function save() {
 </script>
 
 <template>
-  <form class="space-y-6" @submit.prevent="save">
+  <form class="nasq-form space-y-6" @submit.prevent="save">
     <SharedUnsavedChanges :dirty="dirty" />
     <div class="grid gap-4 sm:grid-cols-2">
       <div class="space-y-2"><Label for="role-name-ar">{{ t('access.roles.nameArabic') }}</Label><Input id="role-name-ar" v-model="nameAr" :disabled="!canEdit" /></div>

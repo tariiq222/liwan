@@ -39,7 +39,7 @@ async function submit() {
 </script>
 
 <template>
-  <form data-testid="task-create-form" class="grid gap-4" @submit.prevent="submit">
+  <form data-testid="task-create-form" class="nasq-form-grid" @submit.prevent="submit">
     <div class="grid gap-2">
       <Label for="new-task-name">{{ t('tasks.newTitle') }}</Label>
       <Input id="new-task-name" v-model="name" required :disabled="!hydrated || isPending" />
@@ -56,8 +56,8 @@ async function submit() {
         </SelectContent>
       </Select>
     </div>
-    <p v-if="error" role="alert" class="text-sm text-destructive">{{ error }}</p>
-    <div class="flex flex-wrap justify-end gap-2">
+    <p v-if="error" role="alert" class="sm:col-span-2 text-sm text-destructive">{{ error }}</p>
+    <div class="nasq-form-footer justify-end sm:col-span-2">
       <Button type="button" variant="outline" :disabled="isPending" @click="emit('cancel')">{{ t('app.cancel') }}</Button>
       <Button type="submit" :disabled="!hydrated || isPending || !name.trim() || !selectedProjectId">{{ t('app.create') }}</Button>
     </div>

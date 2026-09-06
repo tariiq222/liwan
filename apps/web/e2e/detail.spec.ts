@@ -23,6 +23,7 @@ test('task detail page: open, edit fields, nested layers, prev/next, return', as
   await page.goto(`/tasks/${id}`)
   const detail = page.getByTestId('task-detail-page')
   await expect(detail).toBeVisible()
+  await detail.getByTestId('task-title-edit').click()
   const titleInput = detail.getByRole('textbox', { name: 'عنوان المهمة' })
   await expect(titleInput).toHaveValue(name)
   await expect(page).toHaveURL(new RegExp(`/tasks/${id}$`))
@@ -34,7 +35,7 @@ test('task detail page: open, edit fields, nested layers, prev/next, return', as
   await titleInput.press('Enter')
   await titleSaved
   await page.reload()
-  await expect(page.getByTestId('task-detail-page').getByRole('textbox', { name: 'عنوان المهمة' })).toHaveValue(newName)
+  await expect(page.locator('h1')).toHaveText(newName)
   await page.keyboard.press('Escape')
   await expect(page).toHaveURL(/\/tasks$/)
   await page.getByPlaceholder('بحث في العناوين…').fill(newName)
@@ -133,7 +134,7 @@ test('task detail uses the shared page title and keeps activity beside the work 
   await expect(page.getByRole('heading', { name })).toBeVisible()
   const detail = page.getByTestId('task-detail-page')
   await expect(detail.getByRole('heading', { name: 'النشاط' })).toBeVisible()
-  await expect(detail.getByRole('textbox', { name: 'عنوان المهمة' })).toHaveValue(name)
+  await expect(page.locator('h1')).toHaveText(name)
   await expect(page.locator('[data-slot="dialog-content"], [data-slot="sheet-content"], [data-slot="dialog-overlay"], [data-slot="sheet-overlay"]')).toHaveCount(0)
 })
 

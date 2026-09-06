@@ -51,8 +51,8 @@ test('a task rename from another session arrives over the bus, live, without a r
   await pageA.goto(`/tasks/${id}`)
   const dialog = pageA.getByTestId('task-detail-page')
   await expect(dialog).toBeVisible()
-  const titleInput = dialog.getByRole('textbox', { name: 'عنوان المهمة' })
-  await expect(titleInput).toHaveValue(renamed1)
+  const title = pageA.locator('h1')
+  await expect(title).toHaveText(renamed1)
   // page.goto creates a new document and therefore a new bus socket. Wait for
   // its subscription before the second context emits the change under test.
   await expect(pageA.getByRole('status', { name: 'متصل' })).toBeVisible()
@@ -62,7 +62,7 @@ test('a task rename from another session arrives over the bus, live, without a r
   expect(secondRename.status()).toBe(200)
   await secondRename.body()
 
-  await expect(titleInput).toHaveValue(renamed2, { timeout: 5000 })
+  await expect(title).toHaveText(renamed2, { timeout: 5000 })
 
   await contextA.close()
   await contextB.close()

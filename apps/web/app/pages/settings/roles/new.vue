@@ -2,6 +2,7 @@
 import type { Capability } from '@nasq/contracts'
 import { ApiError } from '@/composables/useApi'
 import { useAdminPermissionCatalog, useAdminRole, useCreateAdminRole } from '@/composables/useAdminRoles'
+import SettingsLayout from '@/components/settings/SettingsLayout.vue'
 
 const { t, locale } = useI18n()
 const route = useRoute()
@@ -85,10 +86,10 @@ async function submit() {
 </script>
 
 <template>
-  <div class="mx-auto w-full max-w-5xl space-y-8">
+  <SettingsLayout><div class="nasq-page-stack mx-auto w-full max-w-5xl">
     <SharedPageHeader :title="t('access.roles.createTitle')" :back-to="backTo" />
     <SharedPageState v-if="forbidden" :empty="true" :empty-text="t('access.forbidden')" />
-    <form v-else class="max-w-3xl space-y-5 rounded-lg border border-border/80 bg-card p-4 sm:p-6" @submit.prevent="submit">
+    <form v-else class="nasq-form nasq-panel nasq-panel-body max-w-3xl space-y-5" @submit.prevent="submit">
       <SharedUnsavedChanges :dirty="dirty" />
       <div class="grid gap-4 sm:grid-cols-2"><div class="space-y-2"><Label for="name-ar">{{ t('access.roles.nameArabic') }}</Label><Input id="name-ar" v-model="nameAr" /></div><div class="space-y-2"><Label for="name-en">{{ t('access.roles.nameEnglish') }}</Label><Input id="name-en" v-model="nameEn" dir="ltr" /></div></div>
       <div class="space-y-2"><Label for="description">{{ t('access.roles.descriptionLabel') }}</Label><Textarea id="description" v-model="description" /></div>
@@ -96,5 +97,5 @@ async function submit() {
       <p v-if="errorKey" role="alert" class="text-sm text-destructive">{{ errorKey }}</p>
       <Button type="submit" :disabled="!hydrated || create.isPending.value || !nameAr.trim()">{{ t('access.roles.create') }}</Button>
     </form>
-  </div>
+  </div></SettingsLayout>
 </template>
