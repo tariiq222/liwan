@@ -19,8 +19,8 @@ const canManage = computed(() => !!props.canManage && can('hr.departments.manage
     <div
       v-for="department in departments"
       :key="department.id"
-      class="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-accent"
-      :class="{ 'bg-accent': selectedId === department.id }"
+      class="flex items-center gap-2 rounded-lg border border-transparent px-3 py-2 transition-colors hover:border-border hover:bg-muted/60"
+      :class="{ 'border-border bg-muted/70': selectedId === department.id }"
     >
       <button type="button" class="min-w-0 flex-1 text-start text-sm" :disabled="!hydrated" @click="emit('select', department.id)">
         <span class="font-medium">{{ department.name }}</span>

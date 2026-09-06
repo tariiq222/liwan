@@ -22,29 +22,23 @@ function saved(id?: number) {
 
 <template>
   <section class="mx-auto w-full max-w-2xl space-y-6">
-    <nav><button type="button" class="text-sm text-muted-foreground hover:underline" @click="router.push(returnTo)">{{ t('projects.backToProject') }}</button></nav>
+    <SharedPageHeader :title="t('projects.milestones.new')" :description="project?.name" :back-to="returnTo" :back-label="t('projects.backToProject')" />
     <template v-if="projectId === null">
-      <h1 class="text-2xl font-semibold">{{ t('projects.milestones.new') }}</h1>
       <p class="text-muted-foreground">{{ t('projects.invalidId') }}</p>
     </template>
     <template v-else-if="isLoading && !project">
-      <h1 class="text-2xl font-semibold">{{ t('projects.milestones.new') }}</h1>
       <p role="status" class="text-muted-foreground">{{ t('projects.loading') }}</p>
     </template>
     <template v-else-if="notFound">
-      <h1 class="text-2xl font-semibold">{{ t('projects.milestones.new') }}</h1>
       <p class="text-muted-foreground">{{ t('projects.notFound') }}</p>
     </template>
     <template v-else-if="error || !project">
-      <h1 class="text-2xl font-semibold">{{ t('projects.milestones.new') }}</h1>
       <p role="alert" class="text-destructive">{{ t('projects.loadError') }}</p>
     </template>
     <template v-else-if="!project.can_manage">
-      <h1 class="text-2xl font-semibold">{{ t('projects.milestones.new') }}</h1>
       <p class="text-muted-foreground">{{ t('projects.forbidden') }}</p>
     </template>
     <template v-else>
-      <header><h1 class="text-2xl font-semibold">{{ t('projects.milestones.new') }}</h1></header>
       <Card><CardContent class="pt-6"><MilestoneForm :project-id="projectId" @saved="saved" @cancel="router.push(returnTo)" /></CardContent></Card>
     </template>
   </section>

@@ -55,7 +55,7 @@ function openUser(userId: number) { void navigateTo(`/settings/users/${userId}`)
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div class="mx-auto w-full max-w-7xl space-y-8">
     <SharedPageHeader :title="role.data.value?.name.ar ?? t('access.roles.title')" :back-to="returnTo">
       <Button v-if="role.data.value?.allowed_actions.includes('edit')" variant="outline" :disabled="!role.data.value" @click="navigateTo(editTo)">{{ t('access.roles.editTitle') }}</Button>
       <Button v-if="role.data.value?.allowed_actions.includes('clone')" variant="outline" :disabled="!role.data.value" @click="navigateTo(cloneTo)">{{ t('access.roles.clone') }}</Button>
@@ -63,7 +63,7 @@ function openUser(userId: number) { void navigateTo(`/settings/users/${userId}`)
       <Button v-if="role.data.value?.allowed_actions.includes('enable')" variant="outline" :disabled="!hydrated || actionBusy" @click="requestAction('enable')">{{ pendingAction === 'enable' ? t('access.roles.confirmAction') : t('access.roles.enable') }}</Button>
       <Button v-if="role.data.value?.allowed_actions.includes('delete')" variant="destructive" :disabled="!hydrated || actionBusy" @click="requestAction('delete')">{{ pendingAction === 'delete' ? t('access.roles.confirmAction') : t('access.roles.delete') }}</Button>
     </SharedPageHeader>
-    <nav class="flex flex-wrap gap-2 border-b pb-3" :aria-label="t('access.roles.navigation')"><NuxtLink to="."><Button variant="ghost">{{ t('access.roles.permissions') }}</Button></NuxtLink><NuxtLink v-if="can('access.users.read')" to="#assigned-users"><Button variant="ghost">{{ t('access.roles.assignedUsers') }}</Button></NuxtLink><NuxtLink v-if="can('access.audit.read')" :to="`/settings/access-log?target_type=role&target_id=${id}`"><Button variant="ghost">{{ t('access.roles.changes') }}</Button></NuxtLink></nav>
+    <nav class="flex flex-wrap gap-2 rounded-lg border border-border/80 bg-card/70 p-2" :aria-label="t('access.roles.navigation')"><NuxtLink to="."><Button variant="ghost">{{ t('access.roles.permissions') }}</Button></NuxtLink><NuxtLink v-if="can('access.users.read')" to="#assigned-users"><Button variant="ghost">{{ t('access.roles.assignedUsers') }}</Button></NuxtLink><NuxtLink v-if="can('access.audit.read')" :to="`/settings/access-log?target_type=role&target_id=${id}`"><Button variant="ghost">{{ t('access.roles.changes') }}</Button></NuxtLink></nav>
     <SharedPageState v-if="forbidden" :empty="true" :empty-text="t('access.forbidden')" />
     <p v-else-if="versionConflict" role="alert" class="text-sm text-destructive">{{ t('access.roles.conflict') }}</p>
     <SharedPageState v-else :loading="role.isLoading.value" :error="role.error.value" :empty="!role.data.value" :empty-text="t('access.notFound')" @retry="role.refetch">

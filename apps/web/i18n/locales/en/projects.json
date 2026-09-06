@@ -1,6 +1,7 @@
 {
   "projects": {
     "title": "Projects",
+    "description": "One workspace for project status, progress, and the next step.",
     "empty": "No projects yet",
     "emptyHint": "Create a project to keep its tasks, milestones, and updates together.",
     "filteredEmpty": "No projects match these filters",
@@ -29,6 +30,24 @@
     "setStatus": "Project status",
     "statusUpdated": "Project status updated",
     "progressOf": "{closed} of {total} tasks",
+    "projectId": "Project #{id}",
+    "summary": {
+      "displayed": "Projects shown",
+      "attention": "Needs attention",
+      "completed": "Completed projects",
+      "show": "Show project summary",
+      "hide": "Hide project summary"
+    },
+    "overview": {
+      "title": "Overview",
+      "metadata": "Project details",
+      "progress": "Progress",
+      "openTasks": "Open tasks",
+      "milestones": "Milestones",
+      "activeTasks": "Active tasks",
+      "activeTasksEmpty": "No active tasks",
+      "activeTasksCap": "Showing the first 5 tasks from the loaded list"
+    },
     "new": "New project",
     "newName": "Project name",
     "created": "Project created",
@@ -45,6 +64,7 @@
     "archivedEmpty": "No archived projects",
     "archivedEmptyHint": "Archived projects appear here and can be restored when needed.",
     "menu": {
+      "label": "Project actions",
       "settings": "Project settings",
       "archive": "Archive project",
       "unarchive": "Unarchive"
@@ -92,12 +112,14 @@
       "hint": "With \"Followers only\", only people on this list see the project."
     },
     "tabs": {
+      "overview": "Overview",
       "list": "List",
       "board": "Board",
       "milestones": "Milestones",
       "updates": "Updates"
     },
     "milestones": {
+      "actions": "Milestone actions",
       "new": "New milestone",
       "edit": "Edit milestone",
       "name": "Name",

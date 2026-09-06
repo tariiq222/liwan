@@ -25,12 +25,12 @@ const sourceLabel = (source: { role: { name: { ar: string; en: string | null } }
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div class="mx-auto w-full max-w-7xl space-y-8">
     <SharedPageHeader :title="query.data.value?.name ?? t('access.users.title')" :description="query.data.value?.login" :back-to="returnTo">
       <Button v-if="query.data.value?.allowed_actions.includes('assign_roles')" variant="outline" @click="navigateTo(accessTo)">{{ t('access.users.editAccess') }}</Button>
       <Button v-if="query.data.value?.allowed_actions.includes('reset_password') || query.data.value?.allowed_actions.includes('disable') || query.data.value?.allowed_actions.includes('reactivate')" variant="outline" @click="navigateTo(securityTo)">{{ t('access.users.security') }}</Button>
     </SharedPageHeader>
-    <nav class="flex flex-wrap gap-2 border-b pb-3" :aria-label="t('access.users.accountNavigation')">
+    <nav class="flex flex-wrap gap-2 rounded-lg border border-border/80 bg-card/70 p-2" :aria-label="t('access.users.accountNavigation')">
       <NuxtLink to="."><Button variant="ghost">{{ t('access.users.account') }}</Button></NuxtLink>
       <NuxtLink v-if="query.data.value?.allowed_actions.includes('assign_roles')" :to="accessTo"><Button variant="ghost">{{ t('access.users.editAccess') }}</Button></NuxtLink>
       <NuxtLink v-if="query.data.value?.allowed_actions.includes('reset_password') || query.data.value?.allowed_actions.includes('disable') || query.data.value?.allowed_actions.includes('reactivate')" :to="securityTo"><Button variant="ghost">{{ t('access.users.security') }}</Button></NuxtLink>
@@ -40,7 +40,7 @@ const sourceLabel = (source: { role: { name: { ar: string; en: string | null } }
     <SharedPageState v-if="forbidden" :empty="true" :empty-text="t('access.forbidden')" />
     <SharedPageState v-else :loading="query.isLoading.value" :error="query.error.value" :empty="!query.isLoading.value && !query.error.value && !query.data.value" :empty-text="t('access.notFound')" @retry="query.refetch">
       <div v-if="query.data.value" class="grid gap-4 sm:grid-cols-2">
-        <Card><CardHeader><CardTitle>{{ t('access.users.account') }}</CardTitle></CardHeader><CardContent class="space-y-2 text-sm"><p>{{ t('access.users.login') }}: <span dir="ltr">{{ query.data.value.login }}</span></p><p>{{ t('access.users.employee') }}: {{ query.data.value.employee?.name ?? t('access.users.noEmployee') }}</p><AccessStateBadge :active="query.data.value.active" :protected="query.data.value.protected" /></CardContent></Card>
+        <Card class="rounded-lg border-border/80 bg-card"><CardHeader><CardTitle>{{ t('access.users.account') }}</CardTitle></CardHeader><CardContent class="space-y-2 text-sm"><p>{{ t('access.users.login') }}: <span dir="ltr">{{ query.data.value.login }}</span></p><p>{{ t('access.users.employee') }}: {{ query.data.value.employee?.name ?? t('access.users.noEmployee') }}</p><AccessStateBadge :active="query.data.value.active" :protected="query.data.value.protected" /></CardContent></Card>
         <Card><CardHeader><CardTitle>{{ t('access.users.rolesAndScopes') }}</CardTitle></CardHeader><CardContent><ul class="space-y-2 text-sm"><li v-for="assignment in query.data.value.assignments" :key="assignment.id"><span class="font-medium">{{ assignment.role.name[locale === 'ar' ? 'ar' : 'en'] ?? assignment.role.name.ar }}</span><span class="block text-xs text-muted-foreground">{{ assignment.scope.name }}</span></li></ul><p v-if="!query.data.value.assignments.length" class="text-sm text-muted-foreground">{{ t('access.users.noRoles') }}</p></CardContent></Card>
         <Card><CardHeader><CardTitle>{{ t('access.users.capabilities') }}</CardTitle></CardHeader><CardContent><ul class="space-y-2 text-sm"><li v-for="capability in query.data.value.capabilities" :key="capability.key">{{ permissionLabel(capability.key) }}<span v-if="capability.sources.length" class="block text-xs text-muted-foreground">{{ capability.sources.map(sourceLabel).join('، ') }}</span></li></ul></CardContent></Card>
       </div>

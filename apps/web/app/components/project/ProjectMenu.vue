@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Project, ProjectDetail } from '@nasq/contracts'
+import { MoreHorizontal } from '@lucide/vue'
 import { toast } from 'vue-sonner'
 import { ApiError } from '@/composables/useApi'
 import { useArchiveProject, useUnarchiveProject } from '@/composables/useProjects'
@@ -42,11 +43,12 @@ async function doUnarchive() {
       <button
         type="button"
         data-testid="project-menu"
-        class="inline-flex items-center rounded px-1 text-sm leading-none text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-60"
+        class="inline-flex size-[32px] items-center justify-center rounded-lg border border-border text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-60"
         :disabled="!hydrated"
+        :aria-label="t('projects.menu.label')"
         @click.stop
       >
-        ⋯
+        <MoreHorizontal class="size-[18px]" />
       </button>
     </DropdownMenuTrigger>
     <DropdownMenuContent align="end">
@@ -62,7 +64,7 @@ async function doUnarchive() {
     </DropdownMenuContent>
   </DropdownMenu>
 
-  <div v-if="project.active && confirmOpen" data-testid="project-archive-confirm" class="mt-2 space-y-2 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm">
+  <div v-if="project.active && confirmOpen" data-testid="project-archive-confirm" class="mt-2 space-y-2 rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm">
     <p class="font-medium">{{ t('projects.archiveConfirmTitle') }}</p>
     <p class="text-muted-foreground">{{ t('projects.archiveConfirmText') }}</p>
     <div class="flex flex-wrap gap-2">

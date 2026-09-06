@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Milestone } from '@nasq/contracts'
+import { MoreHorizontal } from '@lucide/vue'
 import { getLocalTimeZone, today } from '@internationalized/date'
 import { toast } from 'vue-sonner'
 import { ApiError } from '@/composables/useApi'
@@ -122,10 +123,11 @@ async function confirmDelete() {
                   <DropdownMenuTrigger as-child :disabled="!hydrated">
                     <button
                       type="button"
-                      class="inline-flex items-center rounded px-1 text-sm leading-none text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-60"
+                      class="inline-flex size-[32px] items-center justify-center rounded-lg border border-border text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-60"
                       :disabled="!hydrated"
+                      :aria-label="t('projects.milestones.actions')"
                     >
-                      ⋯
+                      <MoreHorizontal class="size-[18px]" />
                     </button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">

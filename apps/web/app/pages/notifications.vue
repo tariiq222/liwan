@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ArrowLeft, ArrowRight } from 'lucide-vue-next'
+import { ArrowLeft, ArrowRight } from '@lucide/vue'
 import { toast } from 'vue-sonner'
 import { ApiError } from '@/composables/useApi'
 import {
@@ -73,32 +73,27 @@ async function retryNextPage() {
 </script>
 
 <template>
-  <main data-testid="notification-center" class="mx-auto flex min-h-[calc(100vh-7rem)] w-full max-w-3xl flex-col gap-4">
-    <nav class="flex items-center justify-between gap-3">
-      <Button variant="ghost" size="sm" class="gap-2 px-2 text-muted-foreground" type="button" @click="router.back()">
-        <component :is="isRtl ? ArrowRight : ArrowLeft" class="size-4" />
-        {{ t('notifications.back') }}
-      </Button>
-      <span class="text-xs text-muted-foreground">{{ t('notifications.pageLabel') }}</span>
-    </nav>
-
-    <section class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border bg-card shadow-sm">
-      <header class="flex items-center justify-between gap-3 border-b px-5 py-4">
-        <div>
-          <h1 class="text-2xl font-semibold">{{ t('notifications.title') }}</h1>
-          <p class="text-sm text-muted-foreground">{{ unreadCount }} {{ t('notifications.unread') }}</p>
-        </div>
+  <main data-testid="notification-center" class="mx-auto flex min-h-[calc(100vh-7rem)] w-full max-w-4xl flex-col gap-6">
+    <SharedPageHeader :title="t('notifications.title')" :description="hydrated ? `${unreadCount} ${t('notifications.unread')}` : undefined">
+      <template #back>
+        <Button variant="ghost" size="sm" class="gap-2 px-2 text-muted-foreground" type="button" @click="router.back()">
+          <component :is="isRtl ? ArrowRight : ArrowLeft" class="size-[18px]" />
+          {{ t('notifications.back') }}
+        </Button>
+      </template>
         <Button
-          v-if="unreadCount"
+          v-if="hydrated && unreadCount"
           type="button"
           variant="outline"
           size="sm"
           :disabled="!hydrated || actionPending"
           @click="markAll"
         >{{ t('notifications.markAllRead') }}</Button>
-      </header>
+    </SharedPageHeader>
 
-      <div class="flex-1 overflow-y-auto p-4">
+    <section class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-border/80 bg-card">
+
+      <div class="flex-1 overflow-y-auto p-4 sm:p-6">
         <div v-if="hasQueryError && !items.length" class="grid gap-3 py-8 text-center" role="alert">
           <p class="text-sm text-destructive">{{ queryErrorMessage }}</p>
           <Button type="button" variant="outline" size="sm" class="mx-auto" :disabled="!hydrated || isFetching" @click="retryNotifications">
@@ -112,8 +107,8 @@ async function retryNextPage() {
             v-for="item in items"
             :key="item.id"
             type="button"
-            class="grid gap-1 rounded-lg border p-3 text-start transition-colors hover:bg-muted"
-            :class="item.is_read ? 'bg-background' : 'border-primary/40 bg-primary/5'"
+            class="grid gap-1 rounded-lg border border-border/80 p-4 text-start transition-colors hover:bg-muted/70"
+            :class="item.is_read ? 'bg-background' : 'border-brand-border bg-brand-soft'"
             :disabled="!hydrated || actionPending"
             :data-testid="`notification-${item.id}`"
             @click="openNotification(item)"
@@ -147,4 +142,3 @@ async function retryNextPage() {
     </section>
   </main>
 </template>
-

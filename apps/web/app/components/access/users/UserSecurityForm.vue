@@ -74,7 +74,7 @@ onBeforeUnmount(clearSecrets)
 </script>
 
 <template>
-  <section class="space-y-4">
+  <section class="space-y-5 rounded-lg border border-border/80 bg-card p-4 sm:p-6">
     <h2 class="text-lg font-semibold">{{ t('access.users.securityTitle') }}</h2>
     <p v-if="props.user.protected" class="text-sm text-muted-foreground">{{ t('access.protectedUser') }}</p>
     <template v-else>
@@ -85,19 +85,19 @@ onBeforeUnmount(clearSecrets)
         <Input id="admin-password-confirmation" v-model="passwordConfirmation" type="password" autocomplete="new-password" dir="ltr" :disabled="!hydrated || anyPending" />
         <p v-if="passwordConfirmation && password !== passwordConfirmation" class="text-xs text-destructive">{{ t('access.users.passwordMismatch') }}</p>
         <Button v-if="canReset" :disabled="anyPending || !password.length || password !== passwordConfirmation" @click="resetPassword">{{ pendingAction === 'reset' ? t('access.users.confirmAction') : t('access.users.resetPassword') }}</Button>
-        <div v-if="pendingAction === 'reset'" role="alert" class="flex items-center gap-2 text-xs text-amber-700"><span>{{ t('access.users.confirmResetPassword', { name: props.user.name }) }}</span><Button type="button" variant="ghost" size="sm" @click="pendingAction = null">{{ t('common.cancel') }}</Button></div>
+        <div v-if="pendingAction === 'reset'" role="alert" class="flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-700 dark:text-amber-300"><span>{{ t('access.users.confirmResetPassword', { name: props.user.name }) }}</span><Button type="button" variant="ghost" size="sm" @click="pendingAction = null">{{ t('common.cancel') }}</Button></div>
       </div>
       <div v-if="canDisable || canReactivate" class="flex flex-wrap items-center gap-3">
         <Button variant="outline" :disabled="anyPending || (canReactivate && (!password.length || password !== passwordConfirmation))" @click="changeState">
           {{ pendingAction === (props.user.active ? 'disable' : 'reactivate') ? t('access.users.confirmAction') : (props.user.active ? t('access.users.disable') : t('access.users.reactivate')) }}
         </Button>
         <span class="text-sm text-muted-foreground">{{ props.user.active ? t('access.users.disableHint') : t('access.users.reactivateHint') }}</span>
-        <div v-if="pendingAction === 'disable'" role="alert" class="basis-full flex items-center gap-2 text-xs text-amber-700"><span>{{ t('access.users.confirmDisable', { name: props.user.name }) }}</span><Button type="button" variant="ghost" size="sm" @click="pendingAction = null">{{ t('common.cancel') }}</Button></div>
-        <div v-if="pendingAction === 'reactivate'" role="alert" class="basis-full flex items-center gap-2 text-xs text-amber-700"><span>{{ t('access.users.confirmReactivate', { name: props.user.name }) }}</span><Button type="button" variant="ghost" size="sm" @click="pendingAction = null">{{ t('common.cancel') }}</Button></div>
+        <div v-if="pendingAction === 'disable'" role="alert" class="basis-full flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-700 dark:text-amber-300"><span>{{ t('access.users.confirmDisable', { name: props.user.name }) }}</span><Button type="button" variant="ghost" size="sm" @click="pendingAction = null">{{ t('common.cancel') }}</Button></div>
+        <div v-if="pendingAction === 'reactivate'" role="alert" class="basis-full flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-700 dark:text-amber-300"><span>{{ t('access.users.confirmReactivate', { name: props.user.name }) }}</span><Button type="button" variant="ghost" size="sm" @click="pendingAction = null">{{ t('common.cancel') }}</Button></div>
       </div>
       <p v-if="!canReset && !canDisable && !canReactivate" class="text-sm text-muted-foreground">{{ t('access.readOnly') }}</p>
     </template>
-    <p v-if="successKey" role="status" class="text-sm text-emerald-700">{{ t(successKey) }}</p>
+    <p v-if="successKey" role="status" class="text-sm text-emerald-700 dark:text-emerald-300">{{ t(successKey) }}</p>
     <p v-if="errorKey" role="alert" class="text-sm text-destructive">{{ errorKey.startsWith('access.') || errorKey === 'errors.generic' ? t(errorKey) : errorKey }}</p>
   </section>
 </template>

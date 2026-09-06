@@ -36,29 +36,23 @@ async function confirmDelete() {
 
 <template>
   <section class="mx-auto w-full max-w-2xl space-y-6">
-    <nav><button type="button" class="text-sm text-muted-foreground hover:underline" @click="router.push(returnTo)">{{ t('projects.backToProject') }}</button></nav>
+    <SharedPageHeader :title="t('projects.milestones.edit')" :description="project?.name" :back-to="returnTo" :back-label="t('projects.backToProject')" />
     <template v-if="projectId === null || milestoneId === null">
-      <h1 class="text-2xl font-semibold">{{ t('projects.milestones.edit') }}</h1>
       <p class="text-muted-foreground">{{ t('projects.invalidId') }}</p>
     </template>
     <template v-else-if="(projectLoading || milestonesLoading) && !milestone">
-      <h1 class="text-2xl font-semibold">{{ t('projects.milestones.edit') }}</h1>
       <p role="status" class="text-muted-foreground">{{ t('projects.loading') }}</p>
     </template>
     <template v-else-if="projectError || milestonesError">
-      <h1 class="text-2xl font-semibold">{{ t('projects.milestones.edit') }}</h1>
       <p role="alert" class="text-destructive">{{ t('projects.loadError') }}</p>
     </template>
     <template v-else-if="notFound || !milestone">
-      <h1 class="text-2xl font-semibold">{{ t('projects.milestones.edit') }}</h1>
       <p class="text-muted-foreground">{{ t('projects.milestones.notFound') }}</p>
     </template>
     <template v-else-if="!project?.can_manage">
-      <h1 class="text-2xl font-semibold">{{ t('projects.milestones.edit') }}</h1>
       <p class="text-muted-foreground">{{ t('projects.forbidden') }}</p>
     </template>
     <template v-else>
-      <header><h1 class="text-2xl font-semibold">{{ t('projects.milestones.edit') }}</h1><p class="mt-1 text-muted-foreground">{{ project?.name }}</p></header>
       <Card><CardContent class="space-y-5 pt-6">
         <MilestoneForm :project-id="projectId" :milestone="milestone" @saved="router.push(returnTo)" @cancel="router.push(returnTo)" />
         <div v-if="milestone.task_count > 0" class="rounded-md border border-muted p-3 text-sm text-muted-foreground">{{ t('projects.milestones.hasTasks', { count: milestone.task_count }) }}</div>

@@ -1,0 +1,255 @@
+[data-nasq-shell] {
+  min-height: 100svh;
+}
+
+[data-nasq-shell] .nasq-app-header {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 30;
+  display: grid;
+  min-height: 72px;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 360px) minmax(0, 1fr);
+  align-items: center;
+  gap: 20px;
+  padding-inline: 24px;
+  border-block-end: 1px solid var(--border);
+  background: color-mix(in oklab, var(--background) 92%, transparent);
+  backdrop-filter: blur(10px);
+}
+
+[data-nasq-shell] .nasq-header-start,
+[data-nasq-shell] .nasq-header-end {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+}
+
+[data-nasq-shell] .nasq-header-start {
+  gap: 12px;
+}
+
+[data-nasq-shell] .nasq-header-end {
+  justify-self: end;
+  gap: 8px;
+}
+
+[data-nasq-shell] .nasq-header-context {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+}
+
+[data-nasq-shell] .nasq-header-title,
+[data-nasq-shell] .nasq-header-description {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+[data-nasq-shell] .nasq-header-title {
+  color: var(--foreground);
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+[data-nasq-shell] .nasq-header-description {
+  max-width: 38ch;
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+}
+
+[data-nasq-shell] .nasq-search-trigger {
+  width: 100%;
+  min-width: 0;
+  height: 40px;
+  justify-content: space-between;
+  border-color: var(--border);
+  border-radius: 8px;
+  background: var(--muted);
+  color: var(--muted-foreground);
+  box-shadow: none;
+}
+
+[data-nasq-shell] .nasq-shell-content {
+  width: 100%;
+  min-width: 0;
+  flex: 1;
+  padding: 30px clamp(18px, 3vw, 48px) 56px;
+  background: var(--background);
+}
+
+[data-nasq-shell] [data-slot="sidebar-header"] {
+  min-height: 72px;
+  justify-content: center;
+  border-block-end: 1px solid var(--sidebar-border);
+  padding: 16px;
+}
+
+[data-nasq-shell] [data-slot="sidebar-content"] {
+  padding: 12px 4px 20px;
+}
+
+[data-nasq-shell] [data-sidebar="group"] {
+  padding-block: 8px;
+}
+
+[data-nasq-shell] [data-sidebar="menu-button"] {
+  min-height: 40px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+}
+
+[data-nasq-shell] [data-sidebar="menu-button"][data-active="true"] {
+  border-color: var(--sidebar-border);
+  box-shadow: 0 1px 2px color-mix(in oklab, var(--foreground) 5%, transparent);
+}
+
+[data-nasq-shell] :where(
+  [data-slot="sidebar-trigger"],
+  [data-slot="header-icon-action"],
+  [data-testid="notification-bell"]
+) {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--background);
+  box-shadow: none;
+}
+
+[data-nasq-shell] :where(
+  [data-slot="sidebar-trigger"],
+  [data-slot="header-icon-action"],
+  [data-testid="notification-bell"],
+  [data-sidebar="menu-button"],
+  [data-slot="header-account"],
+  [data-slot="dropdown-menu-content"],
+  [data-slot="page-header"]
+) .lucide {
+  width: 18px;
+  height: 18px;
+  stroke-width: 2;
+}
+
+.approved-account-menu .lucide {
+  width: 18px;
+  height: 18px;
+  stroke-width: 2;
+}
+
+[data-nasq-shell] .header-account {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 9px;
+  padding: 4px 7px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: var(--foreground);
+  text-align: start;
+  transition: background-color 150ms, border-color 150ms;
+}
+
+[data-nasq-shell] .header-account:hover,
+[data-nasq-shell] .header-account[data-state="open"] {
+  border-color: var(--border);
+  background: var(--muted);
+}
+
+[data-nasq-shell] .header-account:focus-visible {
+  outline: 1px solid var(--focus-color);
+  outline-offset: 2px;
+}
+
+[data-nasq-shell] .account-copy {
+  display: grid;
+  min-width: 0;
+  max-width: 170px;
+  line-height: 1.3;
+}
+
+[data-nasq-shell] .account-name,
+[data-nasq-shell] .account-role {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+[data-nasq-shell] .account-name {
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+[data-nasq-shell] .account-role {
+  color: var(--muted-foreground);
+  font-size: 0.6875rem;
+}
+
+[data-slot="page-container"] {
+  container-type: inline-size;
+}
+
+[data-slot="page-header"] {
+  border-block-end: 1px solid color-mix(in oklab, var(--border) 70%, transparent);
+  padding-block-end: 18px;
+}
+
+[data-slot="page-header"][data-empty="true"] {
+  border-block-end: 0;
+  padding-block-end: 0;
+}
+
+@media (max-width: 1100px) and (min-width: 769px) {
+  [data-nasq-shell] .nasq-app-header {
+    grid-template-columns: minmax(0, 1fr) minmax(180px, 260px) minmax(0, 1fr);
+    gap: 12px;
+    padding-inline: 16px;
+  }
+
+  [data-nasq-shell] .account-copy {
+    max-width: 82px;
+  }
+
+  [data-nasq-shell] .account-role {
+    display: none;
+  }
+}
+
+@media (max-width: 768px) {
+  [data-nasq-shell] .nasq-app-header {
+    min-height: 112px;
+    grid-template-areas:
+      "start end"
+      "search search";
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px 12px;
+    padding: 10px 14px;
+  }
+
+  [data-nasq-shell] .nasq-header-start { grid-area: start; }
+  [data-nasq-shell] .nasq-search-trigger { grid-area: search; max-width: 480px; justify-self: center; height: 36px; }
+  [data-nasq-shell] .nasq-header-end { grid-area: end; gap: 4px; }
+  [data-nasq-shell] .nasq-header-description,
+  [data-nasq-shell] .account-role { display: none; }
+  [data-nasq-shell] .account-copy { max-width: 88px; }
+  [data-nasq-shell] .header-account { gap: 6px; padding: 3px; }
+  [data-nasq-shell] .nasq-shell-content { padding: 22px 16px 40px; }
+}
+
+@media (max-width: 480px) {
+  [data-nasq-shell] .account-copy { display: none; }
+  [data-nasq-shell] .nasq-header-title { font-size: 0.9375rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-nasq-shell] *,
+  [data-nasq-shell] *::before,
+  [data-nasq-shell] *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

@@ -11,8 +11,8 @@ const forbidden = computed(() => !can('pmo.settings.manage'))
 </script>
 
 <template>
-  <div class="space-y-6">
-    <h1 class="text-2xl font-semibold">{{ t('settings.title') }}</h1>
+  <div class="mx-auto w-full max-w-5xl space-y-8">
+    <SharedPageHeader :title="t('settings.title')" />
     <SettingsTabs />
 
     <p v-if="forbidden" class="text-muted-foreground">{{ t('settings.forbidden') }}</p>

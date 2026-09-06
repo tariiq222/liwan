@@ -24,9 +24,9 @@ function open(id: number) { if (hydrated.value) emit('open', id) }
 </script>
 
 <template>
-  <div class="overflow-x-auto rounded-lg border">
+  <div class="overflow-x-auto rounded-lg border border-border/80 bg-card">
     <table class="w-full min-w-[680px] text-sm">
-      <thead class="border-b bg-muted/30">
+      <thead class="border-b border-border/80 bg-muted/50">
         <tr>
           <th class="p-3 text-start font-medium">{{ t('access.audit.columns.time') }}</th>
           <th class="p-3 text-start font-medium">{{ t('access.audit.columns.actor') }}</th>
@@ -36,12 +36,12 @@ function open(id: number) { if (hydrated.value) emit('open', id) }
         </tr>
       </thead>
       <tbody>
-        <tr v-for="event in events" :key="event.id" class="cursor-pointer border-b last:border-0 hover:bg-muted/20" @click="open(event.id)">
+        <tr v-for="event in events" :key="event.id" class="cursor-pointer border-b border-border/70 transition-colors last:border-0 hover:bg-muted/50" @click="open(event.id)">
           <td class="p-3" dir="ltr">{{ d(new Date(event.occurred_at), 'short') }}</td>
           <td class="p-3">{{ event.actor?.name ?? t('access.audit.system') }}</td>
           <td class="p-3">{{ actionLabel(event.action) }}</td>
           <td class="p-3">{{ event.target.name }}</td>
-          <td class="p-3 text-emerald-700">{{ t('access.audit.succeeded') }}</td>
+          <td class="p-3 text-emerald-700 dark:text-emerald-300">{{ t('access.audit.succeeded') }}</td>
         </tr>
       </tbody>
     </table>

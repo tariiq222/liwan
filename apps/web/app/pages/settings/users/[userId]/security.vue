@@ -11,7 +11,7 @@ const user = useAdminUser(id, computed(() => !forbidden.value))
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div class="mx-auto w-full max-w-5xl space-y-8">
     <SharedPageHeader :title="t('access.users.security')" :back-to="backTo" />
     <SharedPageState v-if="forbidden" :empty="true" :empty-text="t('access.forbidden')" />
     <SharedPageState v-else :loading="user.isLoading.value" :error="user.error.value" :empty="!user.data.value" :empty-text="t('access.notFound')" @retry="user.refetch">

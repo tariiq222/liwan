@@ -1,3 +1,5 @@
+import type { AppearanceMode } from './appearance'
+
 export const DEFAULT_PRIMARY = '#18181b'
 
 const HEX_COLOR = /^#[0-9a-fA-F]{6}$/
@@ -37,23 +39,24 @@ function toHex(values: number[]): string {
   return `#${values.map(value => Math.round(value).toString(16).padStart(2, '0')).join('')}`
 }
 
-function darkenUntil(hex: string, minimumContrast: number): string {
+function contrastTone(hex: string, minimumContrast: number, mode: AppearanceMode): string {
   const rgb = channels(hex)
+  const surfaces = mode === 'dark' ? ['#09090b', '#18181b', '#27272a'] : ['#ffffff', '#fafafa', '#f4f4f5']
+  const target = mode === 'dark' ? 255 : 0
   for (let step = 0; step <= 100; step += 1) {
-    const factor = 1 - step / 100
-    const candidate = toHex(rgb.map(value => value * factor))
-    if (contrast(candidate, '#ffffff') >= minimumContrast) return candidate
+    const candidate = toHex(rgb.map(value => value + (target - value) * step / 100))
+    if (surfaces.every(surface => contrast(candidate, surface) >= minimumContrast)) return candidate
   }
-  return '#000000'
+  return mode === 'dark' ? '#ffffff' : '#000000'
 }
 
-export function createBrandTheme(input: string): Record<string, string> {
+export function createBrandTheme(input: string, mode: AppearanceMode = 'light'): Record<string, string> {
   const primary = normalizeHex(input)
   const foreground = contrast(primary, '#000000') >= contrast(primary, '#ffffff')
     ? '#000000'
     : '#ffffff'
-  const link = darkenUntil(primary, 4.5)
-  const ring = darkenUntil(primary, 3)
+  const link = contrastTone(primary, 4.5, mode)
+  const ring = contrastTone(primary, 3, mode)
 
   return {
     '--primary': primary,

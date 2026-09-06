@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Task } from '@nasq/contracts'
-import { Flag } from 'lucide-vue-next'
+import { Flag, MoreHorizontal } from '@lucide/vue'
 import type { BoardStage } from '@/composables/boardStages'
 import { PRIORITY_LABEL_KEY } from '@/composables/taskState'
 import DeadlineBadge from './DeadlineBadge.vue'
@@ -30,8 +30,8 @@ function initials(name: string): string {
 // card stays quiet, matching the badge vocabulary elsewhere (deadline tones,
 // state colors) of reserving color for things that need attention.
 const PRIORITY_TONE: Record<string, string> = {
-  '2': 'text-amber-600 dark:text-amber-400',
-  '3': 'text-red-600 dark:text-red-400',
+  '2': 'text-brand-link',
+  '3': 'text-destructive',
 }
 
 function onCardClick(event: MouseEvent) {
@@ -67,10 +67,11 @@ function onCardKeydown(event: KeyboardEvent) {
           <DropdownMenuTrigger as-child>
             <button
               type="button"
-              class="shrink-0 rounded px-1 text-sm leading-none text-muted-foreground hover:bg-muted hover:text-foreground"
+              class="inline-flex size-[32px] shrink-0 items-center justify-center rounded-lg border border-border text-muted-foreground hover:bg-muted hover:text-foreground"
+              :aria-label="t('tasks.detail.menu')"
               @click.stop
             >
-              ⋯
+              <MoreHorizontal class="size-[18px]" />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">

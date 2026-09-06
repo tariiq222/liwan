@@ -22,9 +22,9 @@ function formatSize(n: number) {
     <div class="text-sm" v-html="sanitizeHtml(props.document.body)" />
     <div v-if="props.document.attachment_ids.length" class="grid gap-2">
       <h3 class="text-sm font-medium">{{ t('hr.docs.attachments') }}</h3>
-      <ul class="grid gap-1 text-sm">
+      <ul class="grid gap-2 text-sm">
         <li v-for="att in props.document.attachment_ids" :key="att.id">
-          <a :href="`/web/content/${att.id}`" class="underline" target="_blank" rel="noreferrer" download>
+          <a :href="`/web/content/${att.id}`" class="inline-flex rounded-md px-1 py-0.5 underline decoration-primary/60 underline-offset-2 hover:bg-muted" target="_blank" rel="noreferrer" download>
             {{ att.name }}
           </a>
           <span class="ms-2 text-muted-foreground">{{ formatSize(att.file_size) }}</span>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ChevronDown, FileText, Pencil, Plus, Users } from 'lucide-vue-next'
+import { ChevronDown, FileText, Pencil, Plus, Users } from '@lucide/vue'
 import { filterDepartmentTree, flattenDepartmentTree, type DepartmentTreeNode } from '@/lib/departmentTree'
 
 const props = defineProps<{
@@ -70,15 +70,15 @@ function toggle(node: DepartmentTreeNode) {
         type="button"
         variant="ghost"
         size="icon"
-        class="size-8 shrink-0"
+        class="size-[32px] shrink-0 rounded-lg border border-border"
         :disabled="!hydrated || isSearching"
         :aria-label="isExpanded(node) ? $t('hr.depts.collapse') : $t('hr.depts.expand')"
         :aria-expanded="isExpanded(node)"
         @click="toggle(node)"
       >
-        <ChevronDown class="size-4 transition-transform" :class="{ '-rotate-90': !isExpanded(node) }" />
+        <ChevronDown class="size-[18px] transition-transform" :class="{ '-rotate-90': !isExpanded(node) }" />
       </Button>
-      <span v-else class="size-8 shrink-0" aria-hidden="true" />
+      <span v-else class="size-[32px] shrink-0" aria-hidden="true" />
       <button
         type="button"
         class="min-w-0 flex-1 rounded px-1 py-1 text-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -97,40 +97,40 @@ function toggle(node: DepartmentTreeNode) {
           type="button"
           variant="ghost"
           size="icon"
-          class="size-8"
+          class="size-[32px] rounded-lg border border-border"
           :disabled="!hydrated"
           :aria-label="$t('hr.depts.edit')"
           @click="emit('edit', node.department.id)"
         >
-          <Pencil class="size-4" />
+          <Pencil class="size-[18px]" />
         </Button>
         <Button
           v-if="canManage"
           type="button"
           variant="ghost"
           size="icon"
-          class="size-8"
+          class="size-[32px] rounded-lg border border-border"
           :disabled="!hydrated"
           :aria-label="$t('hr.depts.newChild')"
           @click="emit('createChild', node.department.id)"
         >
-          <Plus class="size-4" />
+          <Plus class="size-[18px]" />
         </Button>
         <NuxtLink
           v-if="canReadEmployees"
           :to="`/hr?department_id=${node.department.id}`"
-          class="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+          class="inline-flex size-[32px] items-center justify-center rounded-lg border border-border text-muted-foreground hover:bg-accent hover:text-foreground"
           :aria-label="$t('hr.depts.viewEmployees')"
         >
-          <Users class="size-4" />
+          <Users class="size-[18px]" />
         </NuxtLink>
         <NuxtLink
           v-if="canReadDocuments"
           :to="`/hr/documents?department_id=${node.department.id}`"
-          class="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+          class="inline-flex size-[32px] items-center justify-center rounded-lg border border-border text-muted-foreground hover:bg-accent hover:text-foreground"
           :aria-label="$t('hr.depts.viewDocuments')"
         >
-          <FileText class="size-4" />
+          <FileText class="size-[18px]" />
         </NuxtLink>
       </div>
     </div>

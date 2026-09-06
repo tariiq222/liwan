@@ -13,7 +13,8 @@
     "back": "Back",
     "pageLabel": "Notification center",
     "loadError": "Notifications could not be loaded",
-    "retry": "Retry"
+    "retry": "Retry",
+    "more": "More",
+    "latestFive": "Latest 5 notifications"
   }
 }
-

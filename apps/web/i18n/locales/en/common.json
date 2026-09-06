@@ -87,5 +87,10 @@
     "projects": "Projects",
     "people": "People",
     "reports": "Reports"
+  },
+  "search": {
+    "description": "Search pages, projects and tasks…",
+    "close": "Close search",
+    "tasks": "Tasks"
   }
 }

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Task } from '@nasq/contracts'
 import { refDebounced } from '@vueuse/core'
-import { Check, X } from 'lucide-vue-next'
+import { Check, X } from '@lucide/vue'
 import { usePeople } from '@/composables/usePeople'
 
 type PersonRef = Task['assignees'][number]

@@ -15,4 +15,5 @@ playwright-report/
 .worktrees/
 .fastembed_cache/
 .playwright-mcp/
+.runtime/
 .DS_Store

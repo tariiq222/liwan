@@ -1,5 +1,5 @@
 import type { Component } from 'vue'
-import { CheckSquare, FolderKanban, Users, Settings, Wrench, Network, Files, ShieldCheck, UserCog, History, Palette } from 'lucide-vue-next'
+import { CheckSquare, FolderKanban, Users, Settings, Wrench, Network, Files, ShieldCheck, UserCog, History, Palette } from '@lucide/vue'
 import { hasCapability, type AccessIdentity } from '../utils/accessPolicy'
 
 export type NavGroup = 'projects' | 'hr' | 'admin'

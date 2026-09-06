@@ -9,9 +9,9 @@ const hydrated = useHydrated()
 </script>
 
 <template>
-  <div class="overflow-x-auto rounded-lg border">
+  <div class="overflow-x-auto rounded-lg border border-border/80 bg-card">
     <table class="w-full min-w-[680px] text-sm">
-      <thead class="border-b bg-muted/30">
+      <thead class="border-b border-border/80 bg-muted/50">
         <tr>
           <th class="p-3 text-start font-medium">{{ t('access.roles.columns.name') }}</th>
           <th class="p-3 text-start font-medium">{{ t('access.roles.columns.description') }}</th>
@@ -22,7 +22,7 @@ const hydrated = useHydrated()
         </tr>
       </thead>
       <tbody>
-        <tr v-for="role in roles" :key="role.id" class="border-b last:border-0">
+        <tr v-for="role in roles" :key="role.id" class="border-b border-border/70 transition-colors last:border-0 hover:bg-muted/50">
           <td class="p-3 font-medium">{{ role.name.ar }}</td>
           <td class="max-w-xs p-3">{{ role.description }}</td>
           <td class="p-3">{{ role.type === 'built_in' ? t('access.roles.builtIn') : t('access.roles.custom') }}</td>

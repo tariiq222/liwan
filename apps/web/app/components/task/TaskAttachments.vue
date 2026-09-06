@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Paperclip, Trash2 } from 'lucide-vue-next'
+import { Paperclip, Trash2 } from '@lucide/vue'
 import { toast } from 'vue-sonner'
 import { ApiError } from '@/composables/useApi'
 import { useDeleteTaskAttachment, useTaskAttachments, useUploadTaskAttachment } from '@/composables/useTaskAttachments'
@@ -76,16 +76,16 @@ async function confirmDelete(id: number) {
 <template>
   <section data-testid="task-attachments" class="space-y-3">
     <div class="flex items-center gap-2">
-      <Paperclip class="size-4 text-muted-foreground" />
+      <Paperclip class="size-[18px] text-muted-foreground" />
       <h3 class="text-sm font-medium">{{ t('attachments.title') }}</h3>
     </div>
 
     <p v-if="isLoading" class="text-sm text-muted-foreground">{{ t('attachments.loading') }}</p>
     <p v-else-if="!data?.items.length" class="text-sm text-muted-foreground">{{ t('attachments.empty') }}</p>
     <ul v-else class="grid gap-2">
-      <li v-for="attachment in data.items" :key="attachment.id" class="grid gap-2 rounded-md border p-2 text-sm">
+      <li v-for="attachment in data.items" :key="attachment.id" class="grid gap-2 rounded-lg border p-2 text-sm">
         <div class="flex items-center gap-2">
-          <a :href="attachment.url" target="_blank" rel="noopener" class="min-w-0 flex-1 truncate text-primary underline">
+          <a :href="attachment.url" target="_blank" rel="noopener" class="min-w-0 flex-1 truncate text-brand-link underline">
             {{ attachment.name }}
           </a>
           <Button
@@ -93,12 +93,12 @@ async function confirmDelete(id: number) {
             type="button"
             variant="ghost"
             size="icon"
-            class="size-8 shrink-0"
+            class="size-[32px] shrink-0 rounded-lg"
             :aria-label="t('attachments.delete')"
             :disabled="!hydrated || deleting || pendingDeleteId !== null"
             @click="requestDelete(attachment.id)"
           >
-            <Trash2 class="size-4" />
+            <Trash2 class="size-[18px]" />
           </Button>
         </div>
         <div
@@ -126,7 +126,7 @@ async function confirmDelete(id: number) {
         id="task-attachment-upload"
         type="file"
         accept=".txt,.pdf,.png,.jpg,.jpeg,.docx,.xlsx,text/plain,application/pdf,image/png,image/jpeg,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        class="border-input h-9 w-full min-w-0 rounded-md border bg-transparent px-3 py-1 text-sm shadow-xs file:me-2 file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium"
+        class="border-input h-9 w-full min-w-0 rounded-lg border bg-transparent px-3 py-1 text-sm shadow-xs file:me-2 file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium"
         :disabled="!hydrated || uploading"
         @change="onFileChange"
       >

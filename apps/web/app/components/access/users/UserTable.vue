@@ -9,9 +9,9 @@ const hydrated = useHydrated()
 </script>
 
 <template>
-  <div class="overflow-x-auto rounded-lg border">
+  <div class="overflow-x-auto rounded-lg border border-border/80 bg-card">
     <table class="w-full min-w-[700px] text-sm">
-      <thead class="border-b bg-muted/30 text-start">
+      <thead class="border-b border-border/80 bg-muted/50 text-start">
         <tr>
           <th class="p-3 text-start font-medium">{{ t('access.users.columns.name') }}</th>
           <th class="p-3 text-start font-medium">{{ t('access.users.columns.login') }}</th>
@@ -22,7 +22,7 @@ const hydrated = useHydrated()
         </tr>
       </thead>
       <tbody>
-        <tr v-for="user in users" :key="user.id" class="border-b last:border-0">
+        <tr v-for="user in users" :key="user.id" class="border-b border-border/70 transition-colors last:border-0 hover:bg-muted/50">
           <td class="p-3 font-medium">{{ user.name }}</td>
           <td class="p-3" dir="ltr">{{ user.login }}</td>
           <td class="p-3">{{ user.employee?.name ?? t('access.users.noEmployee') }}</td>

@@ -13,7 +13,7 @@ async function login(page) {
 
 test('global search is a reloadable page with no overlay layer', async ({ page }) => {
   await login(page)
-  await page.getByRole('button', { name: 'بحث', exact: true }).click()
+  await page.goto('/search?returnTo=/tasks')
   await expect(page).toHaveURL(/\/search\?returnTo=/)
   await expect(page.getByRole('heading', { name: 'بحث' })).toBeVisible()
   await expect(page.getByPlaceholder('اكتب للانتقال…')).toBeFocused()

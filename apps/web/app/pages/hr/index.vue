@@ -18,13 +18,13 @@ function editEmployee(id: number) { void navigateTo({ path: `/hr/employees/${id}
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div class="mx-auto w-full max-w-7xl space-y-8">
     <SharedPageHeader :title="t('hr.directory.title')" :description="t('hr.directory.description')">
       <NuxtLink v-if="can('hr.employees.manage')" :to="{ path: '/hr/employees/new', query: returnToQuery(route.fullPath) }"><Button :disabled="!hydrated">
         {{ t('hr.directory.newEmployee') }}
       </Button></NuxtLink>
     </SharedPageHeader>
-    <Tabs v-model="tab">
+    <Tabs v-model="tab" class="space-y-4">
       <TabsList>
         <TabsTrigger value="employees">{{ t('hr.tabs.employees') }}</TabsTrigger>
         <TabsTrigger v-if="can('hr.departments.read')" value="departments">{{ t('hr.tabs.departments') }}</TabsTrigger>

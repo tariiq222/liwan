@@ -16,8 +16,7 @@ function created(id: number) {
 
 <template>
   <section class="mx-auto w-full max-w-2xl space-y-6">
-    <nav><button type="button" class="text-sm text-muted-foreground hover:underline" @click="router.push(returnTo)">{{ t('tasks.detail.back') }}</button></nav>
-    <header><h1 class="text-2xl font-semibold">{{ t('tasks.new') }}</h1></header>
+    <SharedPageHeader :title="t('tasks.new')" :back-to="returnTo" :back-label="t('tasks.detail.back')" />
     <Card><CardContent class="pt-6"><TaskCreateForm @created="created" @cancel="router.push(returnTo)" /></CardContent></Card>
     <p v-if="!hydrated" class="sr-only">{{ t('tasks.loading') }}</p>
   </section>

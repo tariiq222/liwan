@@ -1,23 +1,31 @@
 <script setup lang="ts">
 import type { Project } from '@nasq/contracts'
 import { FlexRender, createColumnHelper, getCoreRowModel, useVueTable } from '@tanstack/vue-table'
-import { h } from 'vue'
+import { h, resolveComponent } from 'vue'
 import ProjectMenu from './ProjectMenu.vue'
 import ProjectProgress from './ProjectProgress.vue'
 import ProjectStatusBadge from './ProjectStatusBadge.vue'
 import EmptyState from '@/components/shared/EmptyState.vue'
+import { returnToQuery } from '@/utils/safeReturnTo'
 
 const props = defineProps<{ items: Project[]; isLoading: boolean; archived: boolean; capped: boolean; filtered: boolean }>()
 const emit = defineEmits<{ open: [id: number] }>()
 
 const { t } = useI18n()
 const hydrated = useHydrated()
+const NuxtLink = resolveComponent('NuxtLink')
+const route = useRoute()
 
 const columnHelper = createColumnHelper<Project>()
 const columns = [
   columnHelper.accessor('name', {
     id: 'name',
     header: () => t('projects.columns.name'),
+    cell: (info) => h(NuxtLink, {
+      to: { path: `/projects/${info.row.original.id}`, query: returnToQuery(route.fullPath) },
+      class: 'font-medium hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+      onClick: (event: MouseEvent) => event.stopPropagation(),
+    }, () => info.row.original.name),
   }),
   columnHelper.display({
     id: 'status',
@@ -55,8 +63,9 @@ const table = useVueTable({
 
 <template>
   <div class="space-y-2">
-    <div class="rounded-md border">
-      <Table class="table-fixed">
+    <div class="overflow-hidden rounded-lg border bg-card">
+      <div class="overflow-x-auto">
+      <Table class="table-fixed min-w-[640px]">
         <colgroup>
           <col class="w-[40%]" />
           <col class="w-[20%]" />
@@ -105,6 +114,7 @@ const table = useVueTable({
           </template>
         </TableBody>
       </Table>
+      </div>
     </div>
     <p v-if="capped" class="text-xs text-muted-foreground">{{ t('projects.capped') }}</p>
   </div>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ChevronLeft, ChevronRight, X } from 'lucide-vue-next'
+import { Archive, ChevronLeft, ChevronRight, X } from '@lucide/vue'
 import { toast } from 'vue-sonner'
 import { ApiError } from '@/composables/useApi'
 import { useTaskFilters } from '@/composables/useTaskFilters'
@@ -29,12 +29,6 @@ const { t, localeProperties } = useI18n()
 // "previous" is the right-hand arrow, in LTR the left-hand one. They were
 // hardcoded to the RTL pairing, so an `en` user saw them swapped.
 const isRtl = computed(() => localeProperties.value.dir === 'rtl')
-
-// Direct loads of /tasks/{id} are SSR'd, so this needs an SSR guess:
-// ssrWidth assumes desktop (matches the md breakpoint) to avoid rendering
-// the mobile Tabs layout — and its editor/pickers — only to replace it on
-// hydration for the common case.
-const isDesktop = useMediaQuery('(min-width: 768px)', { ssrWidth: 1024 })
 
 const idRef = computed(() => props.taskId)
 const { data: task } = useTask(idRef)
@@ -115,7 +109,7 @@ useEventListener(document, 'keydown', onKeydown)
 
 <template>
   <div class="flex h-full flex-col overflow-hidden">
-    <header class="space-y-3 border-b p-3 sm:p-4">
+    <header class="space-y-3 border-b bg-card p-4 sm:p-5">
       <div class="flex min-w-0 items-center gap-2">
         <Input
           v-if="task"
@@ -129,33 +123,28 @@ useEventListener(document, 'keydown', onKeydown)
         <Skeleton v-else class="h-7 min-w-0 flex-1" />
 
         <div class="flex shrink-0 items-center gap-1">
-          <Button variant="ghost" size="icon" type="button" :aria-label="t('tasks.detail.prev')" :disabled="!siblings.prevId" @click="goTo(siblings.prevId)">
-            <component :is="isRtl ? ChevronRight : ChevronLeft" class="size-4" />
+          <Button variant="outline" size="icon" type="button" :aria-label="t('tasks.detail.prev')" :disabled="!siblings.prevId" @click="goTo(siblings.prevId)">
+            <component :is="isRtl ? ChevronRight : ChevronLeft" class="size-[18px]" />
           </Button>
-          <Button variant="ghost" size="icon" type="button" :aria-label="t('tasks.detail.next')" :disabled="!siblings.nextId" @click="goTo(siblings.nextId)">
-            <component :is="isRtl ? ChevronLeft : ChevronRight" class="size-4" />
+          <Button variant="outline" size="icon" type="button" :aria-label="t('tasks.detail.next')" :disabled="!siblings.nextId" @click="goTo(siblings.nextId)">
+            <component :is="isRtl ? ChevronLeft : ChevronRight" class="size-[18px]" />
           </Button>
 
-          <DropdownMenu v-if="task?.allowed_actions.includes('archive')">
-            <DropdownMenuTrigger as-child :disabled="!hydrated">
-              <button
-                type="button"
-                data-testid="task-menu"
-                class="inline-flex items-center rounded px-1 text-sm leading-none text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-60"
-                :disabled="!hydrated"
-              >
-                ⋯
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem data-testid="task-archive" variant="destructive" @select="archiveConfirmOpen = true">
-                {{ t('tasks.drawer.archive') }}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <button
+            v-if="task?.allowed_actions.includes('archive')"
+            type="button"
+            data-testid="task-archive"
+            class="inline-flex size-[32px] items-center justify-center rounded-lg border border-border text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-60"
+            :disabled="!hydrated || archiving"
+            :aria-label="t('tasks.drawer.archive')"
+            :title="t('tasks.drawer.archive')"
+            @click="archiveConfirmOpen = true"
+          >
+            <Archive class="size-[18px]" />
+          </button>
 
-          <Button variant="ghost" size="icon" type="button" :aria-label="t('tasks.detail.close')" @click="emit('close')">
-            <X class="size-4" />
+          <Button variant="outline" size="icon" type="button" :aria-label="t('tasks.detail.close')" @click="emit('close')">
+            <X class="size-[18px]" />
           </Button>
         </div>
       </div>
@@ -167,7 +156,7 @@ useEventListener(document, 'keydown', onKeydown)
       </div>
     </header>
 
-    <div v-if="task && archiveConfirmOpen" data-testid="task-archive-confirm" class="space-y-2 border-b border-destructive/40 bg-destructive/5 p-3 text-sm">
+    <div v-if="task && archiveConfirmOpen" data-testid="task-archive-confirm" class="space-y-2 border-b border-destructive/40 bg-destructive/5 p-4 text-sm">
       <p class="font-medium">{{ t('tasks.drawer.archive') }}</p>
       <p class="text-muted-foreground">{{ t('tasks.drawer.archiveConfirm') }}</p>
       <div class="flex flex-wrap gap-2">
@@ -181,41 +170,14 @@ useEventListener(document, 'keydown', onKeydown)
     </div>
 
     <template v-else>
-      <!--
-        Only one layout is ever mounted at a time (gated on `isDesktop`,
-        not a CSS breakpoint class): TaskDetails owns a live Tiptap editor
-        and popover state, so mounting both the two-column and the tabbed
-        layout simultaneously (one merely hidden via CSS) would run two
-        live editors bound to the same field.
-      -->
-      <div v-if="isDesktop" class="grid flex-1 overflow-hidden md:grid-cols-[minmax(0,1fr)_380px]">
-        <div class="overflow-y-auto p-4">
+      <div class="grid min-h-0 flex-1 overflow-hidden lg:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
+        <div class="min-h-0 overflow-y-auto p-4 sm:p-5">
           <TaskDetails :key="task.id" :task="task" />
         </div>
-        <!--
-          Unlike the details column, this one does not scroll itself:
-          TaskActivity owns its own internal scroll region for the timeline
-          so the composer can stay pinned at the foot of the column instead
-          of scrolling away with it.
-        -->
-        <div class="overflow-hidden border-s">
+        <div class="min-h-[360px] overflow-hidden border-t bg-card lg:min-h-0 lg:border-s lg:border-t-0">
           <TaskActivity :task="task" />
         </div>
       </div>
-
-      <Tabs v-else default-value="details" class="flex flex-1 flex-col overflow-hidden">
-        <TabsList class="mx-4 mt-2 w-fit">
-          <TabsTrigger value="details">{{ t('tasks.drawer.details') }}</TabsTrigger>
-          <TabsTrigger value="activity">{{ t('tasks.drawer.activity') }}</TabsTrigger>
-        </TabsList>
-        <TabsContent value="details" class="flex-1 overflow-y-auto p-4">
-          <TaskDetails :key="task.id" :task="task" />
-        </TabsContent>
-        <!-- Same "TaskActivity owns its own scroll" reasoning as the md+ column above. -->
-        <TabsContent value="activity" class="flex-1 overflow-hidden">
-          <TaskActivity :task="task" />
-        </TabsContent>
-      </Tabs>
     </template>
   </div>
 </template>

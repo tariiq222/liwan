@@ -31,7 +31,7 @@ watch(() => [route.query.from, route.query.to, route.query.actor_id, route.query
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div class="mx-auto w-full max-w-7xl space-y-8">
     <SharedPageHeader :title="t('access.audit.title')" :description="t('access.audit.description')" />
     <SharedPageState v-if="forbidden" :empty="true" :empty-text="t('access.forbidden')" />
     <template v-else>

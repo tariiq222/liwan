@@ -104,6 +104,7 @@ test('second user receives real assignment and comment events and read state sur
   const comment = events.find((item: NotificationItem) => item.kind === 'comment') as NotificationItem
 
   await recipientPage.getByTestId('notification-bell').click()
+  await recipientPage.getByTestId('notification-preview').getByRole('link', { name: 'المزيد', exact: true }).click()
   await expect(recipientPage).toHaveURL(/\/notifications$/)
   await expect(recipientPage.getByTestId('notification-center')).toBeVisible()
   await expect(recipientPage.getByTestId('notification-count')).toHaveText('2')
@@ -129,8 +130,8 @@ test('second user receives real assignment and comment events and read state sur
   await recipientPage.reload()
   await expect(recipientPage.getByTestId('notification-count')).toHaveText('1')
   const assignmentClass = await recipientPage.getByTestId(`notification-${assignment.id}`).getAttribute('class')
-  expect(assignmentClass ?? '').not.toContain('border-primary/40')
-  await expect(recipientPage.getByTestId(`notification-${comment.id}`)).toHaveClass(/border-primary\/40/)
+  expect(assignmentClass ?? '').not.toContain('border-brand-border')
+  await expect(recipientPage.getByTestId(`notification-${comment.id}`)).toHaveClass(/border-brand-border/)
 
   const secondRead = recipientPage.waitForResponse((response) => (
     response.url().endsWith(`/api/v1/notifications/${comment.id}/read`)

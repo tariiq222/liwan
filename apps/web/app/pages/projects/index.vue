@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { PROJECT_STATUSES, type ProjectStatus } from '@nasq/contracts'
-import { Search, X } from 'lucide-vue-next'
+import type { LocationQueryRaw } from 'vue-router'
+import { CircleAlert, CircleCheck, Eye, EyeOff, FolderKanban, Search, X } from '@lucide/vue'
 import { refDebounced } from '@vueuse/core'
 import FilterBar from '@/components/shared/FilterBar.vue'
-import PageHeader from '@/components/shared/PageHeader.vue'
 import ProjectTable from '@/components/project/ProjectTable.vue'
 import { useProjectList } from '@/composables/useProjects'
 import { returnToQuery } from '@/utils/safeReturnTo'
@@ -29,6 +29,19 @@ const archived = computed(() => canListArchived.value && route.query.archived ==
 const projectList = useProjectList(archived)
 const items = computed(() => projectList.data.value?.items ?? [])
 const canCreate = computed(() => projectList.data.value?.can_create ?? false)
+const summaryVisible = ref(true)
+const summaryStorageKey = 'nasq.projects.summary-visible'
+
+// Search can debounce while a select navigation is still pending. Merge into
+// the latest requested query so neither control overwrites the other's value.
+let pendingQuery: LocationQueryRaw | null = null
+function replaceFilters(patch: LocationQueryRaw) {
+  const next = { ...(pendingQuery ?? router.currentRoute.value.query), ...patch }
+  pendingQuery = next
+  void router.replace({ query: next }).finally(() => {
+    if (pendingQuery === next) pendingQuery = null
+  })
+}
 
 const rawSearch = computed(() => typeof route.query.q === 'string' ? route.query.q : '')
 const search = ref(rawSearch.value)
@@ -39,7 +52,7 @@ watch(rawSearch, (value) => {
 watch(debouncedSearch, (value) => {
   const q = value.trim()
   if (q === rawSearch.value) return
-  router.replace({ query: { ...route.query, q: q || undefined } })
+  replaceFilters({ q: q || undefined })
 })
 
 const statusFilter = computed<'all' | 'unset' | ProjectStatus>(() => {
@@ -50,11 +63,11 @@ const statusFilter = computed<'all' | 'unset' | ProjectStatus>(() => {
 })
 function onStatusChange(value: unknown) {
   const status = typeof value === 'string' ? value : 'all'
-  router.replace({ query: { ...route.query, status: status === 'all' ? undefined : status } })
+  replaceFilters({ status: status === 'all' ? undefined : status })
 }
 function clearFilters() {
   search.value = ''
-  router.replace({ query: { ...route.query, q: undefined, status: undefined } })
+  replaceFilters({ q: undefined, status: undefined })
 }
 const filteredItems = computed(() => {
   const query = rawSearch.value.trim().toLocaleLowerCase()
@@ -65,10 +78,23 @@ const filteredItems = computed(() => {
     return matchesSearch && matchesStatus
   })
 })
+const summary = computed(() => ({
+  displayed: filteredItems.value.length,
+  attention: filteredItems.value.filter(project => project.status === 'at_risk' || project.status === 'off_track' || project.status === 'on_hold').length,
+  completed: filteredItems.value.filter(project => project.status === 'done').length,
+}))
 const isLoading = computed(() => projectList.isLoading.value)
 
+onMounted(() => {
+  const saved = window.localStorage.getItem(summaryStorageKey)
+  if (saved === 'hidden' || saved === 'visible') summaryVisible.value = saved === 'visible'
+})
+watch(summaryVisible, (visible) => {
+  if (import.meta.client) window.localStorage.setItem(summaryStorageKey, visible ? 'visible' : 'hidden')
+})
+
 function onFilterChange(v: unknown) {
-  router.replace({ query: { ...route.query, archived: v === 'archived' ? '1' : undefined } })
+  replaceFilters({ archived: v === 'archived' ? '1' : undefined })
 }
 
 function openCreate() {
@@ -80,19 +106,60 @@ function openProject(id: number) {
 </script>
 
 <template>
-  <div class="space-y-4">
-    <PageHeader :title="t('projects.title')">
+  <div class="space-y-6">
+    <SharedPageHeader :title="t('projects.title')" :description="t('projects.description')">
       <template #actions>
-        <Button v-if="canCreate" data-testid="project-new" :disabled="!hydrated" @click="openCreate">
+        <Button v-if="canCreate" data-testid="project-new" :disabled="!hydrated" class="gap-2" @click="openCreate">
           {{ t('projects.new') }}
         </Button>
       </template>
-    </PageHeader>
+    </SharedPageHeader>
 
-    <FilterBar>
+    <section data-testid="projects-summary" class="space-y-2">
+      <div class="flex items-center justify-end">
+        <Button
+          variant="ghost"
+          size="icon"
+          class="size-[32px] rounded-lg border border-border"
+          :disabled="!hydrated"
+          :aria-label="t(summaryVisible ? 'projects.summary.hide' : 'projects.summary.show')"
+          :aria-pressed="summaryVisible"
+          @click="summaryVisible = !summaryVisible"
+        >
+          <EyeOff v-if="summaryVisible" class="size-[18px]" />
+          <Eye v-else class="size-[18px]" />
+        </Button>
+      </div>
+      <div v-if="summaryVisible" data-testid="projects-summary-cards" class="grid gap-3 sm:grid-cols-3">
+        <div class="flex items-center gap-3 rounded-lg border bg-card p-4">
+          <span class="grid size-[32px] shrink-0 place-items-center rounded-lg border bg-muted text-muted-foreground"><FolderKanban class="size-[18px]" /></span>
+          <div class="min-w-0">
+            <p class="text-xs text-muted-foreground">{{ t('projects.summary.displayed') }}</p>
+            <p data-testid="projects-summary-displayed" class="mt-1 text-2xl font-semibold tabular-nums">{{ summary.displayed }}</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-3 rounded-lg border bg-card p-4">
+          <span class="grid size-[32px] shrink-0 place-items-center rounded-lg border bg-muted text-muted-foreground"><CircleAlert class="size-[18px]" /></span>
+          <div class="min-w-0">
+            <p class="text-xs text-muted-foreground">{{ t('projects.summary.attention') }}</p>
+            <p data-testid="projects-summary-attention" class="mt-1 text-2xl font-semibold tabular-nums">{{ summary.attention }}</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-3 rounded-lg border bg-card p-4">
+          <span class="grid size-[32px] shrink-0 place-items-center rounded-lg border bg-muted text-muted-foreground"><CircleCheck class="size-[18px]" /></span>
+          <div class="min-w-0">
+            <p class="text-xs text-muted-foreground">{{ t('projects.summary.completed') }}</p>
+            <p data-testid="projects-summary-completed" class="mt-1 text-2xl font-semibold tabular-nums">{{ summary.completed }}</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="rounded-lg border bg-card p-3">
+      <FilterBar>
       <template #search>
         <div class="relative min-w-52 flex-1">
-          <Search class="pointer-events-none absolute start-2 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Search class="pointer-events-none absolute start-2 top-1/2 size-[18px] -translate-y-1/2 text-muted-foreground" />
           <Input v-model="search" :disabled="!hydrated" :placeholder="t('projects.filters.search')" class="ps-8" />
         </div>
       </template>
@@ -125,7 +192,8 @@ function openProject(id: number) {
           </Button>
         </div>
       </template>
-    </FilterBar>
+      </FilterBar>
+    </div>
 
     <ProjectTable
       :items="filteredItems"

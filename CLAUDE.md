@@ -63,6 +63,10 @@ explicitly; do not assume an Odoo config points at a particular Nasq checkout.
   inline confirmation on the relevant page. Simple selection menus remain
   controls; they must not become containers for business screens. This is a
   standing user requirement across Nasq and applies to future features.
+  Exception approved by the user on 2026-09-06: the header global search uses
+  a centered dialog (`GlobalSearch.vue`), and the notification bell previews
+  the latest five notifications in a popover with More linking to the full
+  `/notifications` page. Search results and business records still open routes.
 - Arabic (`ar`) is the default locale and the UI is RTL-first. User-facing
   strings use `$t()`/`t()` and the owning locale namespace.
 - Use Tailwind logical properties (`ms-`, `me-`, `ps-`, `pe-`, `start-`,

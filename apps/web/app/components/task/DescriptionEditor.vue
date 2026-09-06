@@ -2,7 +2,7 @@
 import Link from '@tiptap/extension-link'
 import StarterKit from '@tiptap/starter-kit'
 import { EditorContent, useEditor } from '@tiptap/vue-3'
-import { Bold, Italic, Link as LinkIcon, List, ListOrdered } from 'lucide-vue-next'
+import { Bold, Italic, Link as LinkIcon, List, ListOrdered } from '@lucide/vue'
 import { createDebouncedFlush } from '@/lib/debouncedFlush'
 
 // Tiptap StarterKit + Link, rendered client-only (SSR has no DOM for
@@ -104,23 +104,23 @@ function applyLink() {
   <ClientOnly>
     <div class="rounded-md border">
       <div v-if="!readonly" class="flex items-center gap-1 border-b p-1">
-        <Button variant="ghost" size="icon" class="size-7" :disabled="!hydrated" :class="{ 'bg-accent': editor?.isActive('bold') }" type="button" @click="toggleBold">
-          <Bold class="size-3.5" />
+        <Button variant="ghost" size="icon" class="size-[32px] rounded-lg" :disabled="!hydrated" :aria-label="t('tasks.detail.bold')" :class="{ 'bg-accent': editor?.isActive('bold') }" type="button" @click="toggleBold">
+          <Bold class="size-[18px]" />
         </Button>
-        <Button variant="ghost" size="icon" class="size-7" :disabled="!hydrated" :class="{ 'bg-accent': editor?.isActive('italic') }" type="button" @click="toggleItalic">
-          <Italic class="size-3.5" />
+        <Button variant="ghost" size="icon" class="size-[32px] rounded-lg" :disabled="!hydrated" :aria-label="t('tasks.detail.italic')" :class="{ 'bg-accent': editor?.isActive('italic') }" type="button" @click="toggleItalic">
+          <Italic class="size-[18px]" />
         </Button>
-        <Button variant="ghost" size="icon" class="size-7" :disabled="!hydrated" :class="{ 'bg-accent': editor?.isActive('bulletList') }" type="button" @click="toggleBulletList">
-          <List class="size-3.5" />
+        <Button variant="ghost" size="icon" class="size-[32px] rounded-lg" :disabled="!hydrated" :aria-label="t('tasks.detail.bulletList')" :class="{ 'bg-accent': editor?.isActive('bulletList') }" type="button" @click="toggleBulletList">
+          <List class="size-[18px]" />
         </Button>
         <Button
-          variant="ghost" size="icon" class="size-7" :class="{ 'bg-accent': editor?.isActive('orderedList') }" type="button"
+          variant="ghost" size="icon" class="size-[32px] rounded-lg" :aria-label="t('tasks.detail.orderedList')" :class="{ 'bg-accent': editor?.isActive('orderedList') }" type="button"
           :disabled="!hydrated" @click="toggleOrderedList"
         >
-          <ListOrdered class="size-3.5" />
+          <ListOrdered class="size-[18px]" />
         </Button>
-        <Button variant="ghost" size="icon" class="size-7" :disabled="!hydrated" :aria-label="t('tasks.detail.linkPrompt')" :class="{ 'bg-accent': editor?.isActive('link') }" type="button" @click="toggleLink">
-          <LinkIcon class="size-3.5" />
+        <Button variant="ghost" size="icon" class="size-[32px] rounded-lg" :disabled="!hydrated" :aria-label="t('tasks.detail.linkPrompt')" :class="{ 'bg-accent': editor?.isActive('link') }" type="button" @click="toggleLink">
+          <LinkIcon class="size-[18px]" />
         </Button>
       </div>
       <div v-if="linkEditorOpen" data-testid="link-editor" class="flex flex-wrap items-center gap-2 border-b p-2">
@@ -150,7 +150,7 @@ function applyLink() {
   padding-inline-start: 1.5em;
 }
 :deep(.tiptap a) {
-  color: var(--primary);
+  color: var(--brand-link);
   text-decoration: underline;
 }
 </style>

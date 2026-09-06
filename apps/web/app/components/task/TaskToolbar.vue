@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { TaskState } from '@nasq/contracts'
-import { Plus, Search, X } from 'lucide-vue-next'
+import { Plus, Search, X } from '@lucide/vue'
 import { refDebounced } from '@vueuse/core'
 import type { TaskListParams } from '@/composables/useTasks'
 import { STATE_LABEL_KEY } from '@/composables/taskState'
@@ -58,10 +58,11 @@ function clearFilters() {
 </script>
 
 <template>
+  <div class="rounded-lg border bg-card p-3">
   <FilterBar>
     <template #search>
       <div class="relative min-w-48 flex-1">
-        <Search class="pointer-events-none absolute start-2 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+        <Search class="pointer-events-none absolute start-2 top-1/2 size-[18px] -translate-y-1/2 text-muted-foreground" />
         <Input v-model="search" :disabled="!hydrated" :placeholder="t('tasks.filters.search')" class="ps-8" />
       </div>
     </template>
@@ -100,7 +101,7 @@ function clearFilters() {
       </template>
 
       <Button v-if="!hideCreate && can('pmo.tasks.create')" size="sm" class="gap-1.5" :disabled="!hydrated" @click="emit('create')">
-        <Plus class="size-4" />{{ t('tasks.new') }}
+        <Plus class="size-[18px]" />{{ t('tasks.new') }}
       </Button>
     </template>
 
@@ -127,4 +128,5 @@ function clearFilters() {
       </Tabs>
     </template>
   </FilterBar>
+  </div>
 </template>

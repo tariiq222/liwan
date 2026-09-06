@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Task, TaskState } from '@nasq/contracts'
-import { Loader2 } from 'lucide-vue-next'
+import { Loader2 } from '@lucide/vue'
 import { toast } from 'vue-sonner'
 import { STATE_LABEL_KEY, permittedNextStates } from '@/composables/taskState'
 import { ApiError } from '@/composables/useApi'

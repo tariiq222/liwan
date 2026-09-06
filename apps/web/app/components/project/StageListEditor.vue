@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { GripVertical, Trash2 } from 'lucide-vue-next'
+import { GripVertical, Trash2 } from '@lucide/vue'
 import { VueDraggable } from 'vue-draggable-plus'
 import { moveId, stageMoveIndex, type StageMoveTarget } from '@/composables/stageOrder'
 

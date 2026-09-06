@@ -64,7 +64,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <form class="grid max-w-lg gap-5" @submit.prevent="submit">
+  <form class="grid max-w-xl gap-5" @submit.prevent="submit">
     <div class="grid gap-2">
       <Label for="pw-current">{{ t('account.currentPassword') }}</Label>
       <Input
@@ -95,7 +95,7 @@ onBeforeUnmount(() => {
     </div>
 
     <p v-if="formError" role="alert" class="text-sm text-destructive">{{ formError }}</p>
-    <p v-if="success" role="status" class="text-sm text-emerald-600">{{ t('account.success') }}</p>
+    <p v-if="success" role="status" class="text-sm text-emerald-700 dark:text-emerald-300">{{ t('account.success') }}</p>
     <Button type="submit" data-testid="pw-submit" class="w-full sm:w-auto" :disabled="disabled">
       {{ t('account.submit') }}
     </Button>

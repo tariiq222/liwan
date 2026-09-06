@@ -8,7 +8,7 @@ const forbidden = computed(() => !can('settings.branding.manage'))
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div class="mx-auto w-full max-w-5xl space-y-8">
     <SharedPageHeader :title="t('nav.branding')" />
     <SettingsTabs />
     <p v-if="forbidden" class="text-muted-foreground">{{ t('settings.forbidden') }}</p>

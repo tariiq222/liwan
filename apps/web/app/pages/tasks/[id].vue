@@ -8,7 +8,7 @@ const taskId = computed(() => {
   const n = Number(route.params.id)
   return Number.isInteger(n) && n > 0 ? n : null
 })
-const closeTo = computed(() => safeReturnTo(route.query.returnTo, '/tasks', ['/tasks']))
+const closeTo = computed(() => safeReturnTo(route.query.returnTo, '/tasks', ['/tasks', '/projects', '/hr', '/settings', '/account', '/search', '/notifications']))
 
 onMounted(() => {
   if (taskId.value === null) router.replace('/tasks')

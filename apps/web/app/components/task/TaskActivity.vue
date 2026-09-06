@@ -9,6 +9,7 @@ import Timeline from './Timeline.vue'
 // parent (TaskDetailPanel) gives this component the full column height and
 // leaves scrolling entirely to it — see the comment there.
 const props = defineProps<{ task: TaskDetail }>()
+const { t } = useI18n()
 
 const idRef = computed(() => props.task.id)
 const { data: entries } = useTimeline(idRef)
@@ -16,6 +17,9 @@ const { data: entries } = useTimeline(idRef)
 
 <template>
   <div class="flex h-full flex-col overflow-hidden">
+    <header class="shrink-0 border-b px-4 py-3">
+      <h2 class="text-sm font-semibold">{{ t('tasks.detail.activityTitle') }}</h2>
+    </header>
     <div class="flex-1 overflow-y-auto p-4">
       <Timeline :entries="entries ?? []" />
     </div>
