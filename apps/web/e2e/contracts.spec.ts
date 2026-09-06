@@ -5,6 +5,8 @@ import {
   ProjectDetailSchema, ProjectListSchema, ProjectStageSchema, UserRefSchema,
   MilestoneSchema, ProjectUpdateSchema, ProjectSettingsSchema, TagSchema,
   ProjectCharterDefaultsSchema, ProjectCharterReferenceListSchema, ProjectCharterSchema,
+  ChatConversationListSchema, ChatConversationSchema, ChatMessageListSchema,
+  ChatRecipientListSchema,
 } from '@nasq/contracts'
 import { z } from 'zod'
 
@@ -356,4 +358,55 @@ test('project charter detail, defaults, and catalogs match their schemas', async
   const patched = ProjectDetailSchema.parse(await patchRes.json())
   expect(patched.charter.budget_state).toBe('estimate')
   expect(patched.charter.amount).toBe(0)
+})
+
+test('chat list and recipients match Chat schemas', async ({ page }) => {
+  const login = await page.request.post('/api/auth/login', {
+    data: { login: ADMIN_LOGIN, password: ADMIN_PASSWORD },
+  })
+  expect(login.status()).toBe(200)
+  const listRes = await page.request.get('/api/v1/chat/conversations?filter=all&limit=10&offset=0')
+  expect(listRes.status()).toBe(200)
+  ChatConversationListSchema.parse(await listRes.json())
+  const recipientsRes = await page.request.get('/api/v1/chat/recipients?limit=10')
+  expect(recipientsRes.status()).toBe(200)
+  ChatRecipientListSchema.parse(await recipientsRes.json())
+})
+
+test('chat create send and messages match Chat schemas', async ({ page }) => {
+  const login = await page.request.post('/api/auth/login', {
+    data: { login: ADMIN_LOGIN, password: ADMIN_PASSWORD },
+  })
+  expect(login.status()).toBe(200)
+  const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+  const me = MeSchema.parse(await (await page.request.get('/api/v1/me')).json())
+  const roles = await (await page.request.get('/api/v1/admin/roles')).json()
+  const employeeRole = roles.items.find((role: { key: string }) => role.key === 'employee')
+  expect(employeeRole).toBeTruthy()
+  const employeeRes = await page.request.post('/api/v1/hr/employees', {
+    data: { name: `Chat contract ${suffix}`, work_email: `chat-contract-${suffix}@example.test` },
+  })
+  expect(employeeRes.status()).toBe(201)
+  const employee = await employeeRes.json()
+  const userRes = await page.request.post('/api/v1/admin/users', {
+    data: {
+      employee_id: employee.id,
+      password: FIXTURE_PASSWORD,
+      assignments: [{ role_id: employeeRole.id, scope: { kind: 'company', id: me.company.id } }],
+    },
+  })
+  expect(userRes.status()).toBe(201)
+  const peer = await userRes.json()
+  const createdRes = await page.request.post('/api/v1/chat/conversations', {
+    data: { user_ids: [peer.id] },
+  })
+  expect(createdRes.status()).toBe(201)
+  const conversation = ChatConversationSchema.parse(await createdRes.json())
+  const sentRes = await page.request.post(`/api/v1/chat/conversations/${conversation.id}/messages`, {
+    data: { body: 'contract chat' },
+  })
+  expect(sentRes.status()).toBe(201)
+  const messagesRes = await page.request.get(`/api/v1/chat/conversations/${conversation.id}/messages`)
+  expect(messagesRes.status()).toBe(200)
+  ChatMessageListSchema.parse(await messagesRes.json())
 })

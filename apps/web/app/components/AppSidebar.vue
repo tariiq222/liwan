@@ -11,11 +11,12 @@ const route = useRoute()
 // Detailed settings links remain available in settings and global search.
 const nav = computed(() => useNav(me.value).filter(item => !item.to.startsWith('/settings/')))
 const groups = computed(() => [
+  { id: 'chat', labelKey: 'nav.chat' },
   { id: 'projects', labelKey: 'nav.projects' },
   { id: 'hr', labelKey: 'nav.humanResources' },
 ].map(group => ({ ...group, items: nav.value.filter(item => item.group === group.id) })).filter(group => group.items.length))
 const standalone = computed(() => nav.value.filter(item => !item.group))
-const openGroups = ref<Record<string, boolean>>({ projects: true, hr: true })
+const openGroups = ref<Record<string, boolean>>({ chat: true, projects: true, hr: true })
 const preferenceKey = computed(() => `nasq-nav:${me.value?.id ?? 'anonymous'}`)
 const restoredPreferenceKey = ref<string | null>(null)
 

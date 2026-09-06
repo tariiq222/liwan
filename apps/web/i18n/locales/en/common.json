@@ -42,7 +42,8 @@
     "projectSettings": "Project settings",
     "humanResources": "Human resources",
     "systemAdministration": "System administration",
-    "toggleSidebar": "Toggle navigation"
+    "toggleSidebar": "Toggle navigation",
+    "chat": "Chat"
   },
   "auth": {
     "username": "Username",

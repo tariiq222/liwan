@@ -2,7 +2,10 @@ import { safeReturnTo } from './safeReturnTo'
 
 /** Server capabilities gate navigation; resource authorization remains on the API. */
 export type AccessIdentity = { role?: string; capabilities?: readonly string[] } | null | undefined
+/** Authenticated Nasq /api/v1/me identities carry a capabilities array. Portal/legacy role-only objects do not. */
+export const INTERNAL_NASQ_ACCESS = 'nasq.internal'
 export function hasCapability(identity: AccessIdentity, capability: string): boolean {
+  if (capability === INTERNAL_NASQ_ACCESS) return Array.isArray(identity?.capabilities)
   return identity?.capabilities?.includes(capability) ?? false
 }
 
@@ -18,7 +21,7 @@ export function firstAllowedPath(identity: AccessIdentity): string {
 }
 export function postLoginPath(identity: AccessIdentity, next: unknown): string {
   const fallback = firstAllowedPath(identity)
-  const target = safeReturnTo(next, fallback, [...destinations.map(([path]) => path), '/account', '/search', '/notifications', '/archived-tasks', '/settings/appearance'])
+  const target = safeReturnTo(next, fallback, [...destinations.map(([path]) => path), '/account', '/search', '/notifications', '/archived-tasks', '/settings/appearance', '/chat'])
   const capability = requiredCapabilityForPath(new URL(target, 'http://nasq.local').pathname)
   return capability && !hasCapability(identity, capability) ? fallback : target
 }
@@ -30,6 +33,7 @@ export function isNavPathActive(path: string, target: string): boolean {
   return path === target || path.startsWith(`${target}/`)
 }
 export function requiredCapabilityForPath(path: string): string | null {
+  if (path === '/chat' || path.startsWith('/chat/')) return INTERNAL_NASQ_ACCESS
   if (path === '/notifications' || path === '/archived-tasks') return 'pmo.tasks.read'
   if (path === '/hr/documents/new') return 'hr.documents.manage'
   if (path === '/tasks/new' || /^\/projects\/[^/]+\/tasks\/new$/.test(path)) return 'pmo.tasks.create'

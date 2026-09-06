@@ -7,7 +7,15 @@ source, configuration, and Git state read-only for Nasq work. Authorized tests
 or development may use an explicitly isolated database, but never operate on
 an arbitrary database.
 
-## 2026-09-07 consolidation (current)
+## 2026-09-07 chat integration (current)
+
+The user subsequently authorized chat integration and cleanup. See
+[the chat integration report](chat-integration-2026-09-07.md) for scope,
+verification, recovery and final promotion status. Only the chat source and
+its temporary integration worktree are in this cleanup scope. The meetings
+trial remains excluded; independently created Phase 1 worktrees remain active.
+
+## 2026-09-07 consolidation
 
 Local consolidation is promoted into `main` (product commit `8af1060`).
 18 old source worktrees/branches are retired with full-directory recovery;
@@ -16,8 +24,8 @@ See [the current consolidation report](consolidation-2026-09-07.md) for the
 scope, passing gates and final recovery state. Older dated states below are
 historical; their branch counts and pending-work statements are not current.
 
-The user excludes both `codex/chat-workspace` and `codex/cyan-meetings-trial`
-from integration and cleanup. Their original worktrees remain active.
+At that consolidation, the user excluded chat and meetings. The later chat
+authorization above supersedes the chat exclusion. Meetings remains excluded.
 Recovery for the other work is
 `/Users/tariq/code/nasq-recovery-merge-20260907-004623`; its `RESTORE.md`,
 bundle, source snapshots and full retired directories are the recovery map.

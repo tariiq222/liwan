@@ -48,4 +48,23 @@ describe('access policy navigation', () => {
     expect(requiredCapabilityForPath('/projects/new')).toBe('pmo.projects.create')
     expect(requiredCapabilityForPath('/account')).toBe(null)
   })
+  it('keeps /chat for internal Nasq identities and rejects portal or role-only objects', () => {
+    const internal = { capabilities: ['access.users.read'] }
+    const employee = { capabilities: ['pmo.tasks.read'] }
+    expect(requiredCapabilityForPath('/chat')).toBe('nasq.internal')
+    expect(requiredCapabilityForPath('/chat/new')).toBe('nasq.internal')
+    expect(requiredCapabilityForPath('/chat/42')).toBe('nasq.internal')
+    expect(requiredCapabilityForPath('/chat/42/info')).toBe('nasq.internal')
+    expect(hasCapability(internal, 'nasq.internal')).toBe(true)
+    expect(hasCapability(employee, 'nasq.internal')).toBe(true)
+    expect(hasCapability({ role: 'portal' }, 'nasq.internal')).toBe(false)
+    expect(hasCapability({ role: 'admin' }, 'nasq.internal')).toBe(false)
+    expect(hasCapability(null, 'nasq.internal')).toBe(false)
+    expect(postLoginPath(internal, '/chat')).toBe('/chat')
+    expect(postLoginPath(employee, '/chat/42?q=ops&filter=unread')).toBe('/chat/42?q=ops&filter=unread')
+    expect(postLoginPath(internal, '/chat/new')).toBe('/chat/new')
+    expect(postLoginPath({ role: 'portal' }, '/chat')).toBe('/account')
+    expect(postLoginPath({ capabilities: [] }, '/chat')).toBe('/chat')
+    expect(isNavPathActive('/chat/42/info', '/chat')).toBe(true)
+  })
 })

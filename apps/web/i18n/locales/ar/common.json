@@ -42,7 +42,8 @@
     "projectSettings": "إعدادات المشاريع",
     "humanResources": "الموارد البشرية",
     "systemAdministration": "إدارة النظام",
-    "toggleSidebar": "فتح القائمة أو طيها"
+    "toggleSidebar": "فتح القائمة أو طيها",
+    "chat": "المحادثة"
   },
   "auth": {
     "username": "اسم المستخدم",
