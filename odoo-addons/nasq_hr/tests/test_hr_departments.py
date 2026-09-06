@@ -1,7 +1,15 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+from unittest.mock import patch
+
+from odoo.exceptions import AccessError
 from odoo.tests import new_test_user, tagged
 
 from .common import NasqHrCase
+from odoo.addons.nasq_hr.models.hr_department import DEPARTMENT_SCOPE_ERROR
+from odoo.addons.nasq_hr.serializers.hr_department import (
+    dump_department,
+    dump_departments,
+)
 
 DEPT_KEYS = {'id', 'name', 'parent_id', 'manager', 'child_ids', 'employee_count'}
 
@@ -174,3 +182,118 @@ class TestHrDepartments(NasqHrCase):
             self.assertEqual(res.json()['code'], 'department_in_use')
             self.assertEqual(res.json()['details'], details)
             self.assertTrue(department.exists())
+
+    def test_batch_dump_matches_singleton_for_all_fields(self):
+        self.env['hr.employee'].create({
+            'name': 'Batch Counted Employee', 'department_id': self.dept_a.id,
+        })
+        departments = self.dept_a | self.dept_b | self.dept_child
+        batched = dump_departments(departments)
+        singles = [dump_department(department) for department in departments]
+        self.assertEqual(batched, singles)
+        self.assertEqual(len(batched), 3)
+        for item in batched:
+            self.assertEqual(set(item), DEPT_KEYS)
+        engineering = next(item for item in batched if item['id'] == self.dept_a.id)
+        self.assertEqual(engineering['name'], 'Engineering')
+        self.assertIsNone(engineering['parent_id'])
+        self.assertEqual(engineering['manager'], {'id': self.hr_emp.id, 'name': self.hr_emp.name})
+        self.assertEqual(engineering['child_ids'], [self.dept_child.id])
+        self.assertEqual(engineering['employee_count'], 1)
+        qa = next(item for item in batched if item['id'] == self.dept_child.id)
+        self.assertEqual(qa['parent_id'], self.dept_a.id)
+        self.assertEqual(dump_departments(self.env['hr.department']), [])
+
+    def test_batch_serialization_hides_foreign_company(self):
+        other = self.env['res.company'].create({'name': 'Foreign HR Co'})
+        foreign_dept = self.env['hr.department'].create({
+            'name': 'Foreign Engineering', 'company_id': other.id,
+        })
+        foreign_child = self.env['hr.department'].create({
+            'name': 'Foreign Child', 'company_id': other.id, 'parent_id': foreign_dept.id,
+        })
+        self.env['hr.employee'].create({
+            'name': 'Foreign Employee',
+            'company_id': other.id,
+            'department_id': foreign_dept.id,
+        })
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        body = self.api('GET', '/api/v1/hr/departments?limit=200').json()
+        ids = {item['id'] for item in body['items']}
+        self.assertNotIn(foreign_dept.id, ids)
+        self.assertNotIn(foreign_child.id, ids)
+        for item in body['items']:
+            self.assertEqual(set(item), DEPT_KEYS)
+            self.assertNotIn(foreign_dept.id, item['child_ids'])
+            self.assertNotIn(foreign_child.id, item['child_ids'])
+            self.assertNotEqual(item['parent_id'], foreign_dept.id)
+            self.assertNotEqual(item['parent_id'], foreign_child.id)
+        local = self.dept_a | self.dept_b | self.dept_child
+        payload = local._nasq_serialized_relations_map()
+        for refs in payload.values():
+            self.assertNotIn(foreign_dept.id, refs['child_ids'])
+            self.assertNotIn(foreign_child.id, refs['child_ids'])
+            self.assertNotEqual(refs['parent_id'], foreign_dept.id)
+        mixed = local | foreign_dept
+        with self.assertRaises(AccessError) as error:
+            mixed._nasq_serialized_relations_map()
+        self.assertIn(DEPARTMENT_SCOPE_ERROR, str(error.exception))
+
+    def test_employee_count_excludes_archived_without_archive_capability(self):
+        self.env['hr.employee'].create({
+            'name': 'Active Finance Employee', 'department_id': self.dept_b.id,
+        })
+        archived = self.env['hr.employee'].create({
+            'name': 'Archived Finance Employee',
+            'department_id': self.dept_b.id,
+            'active': False,
+        })
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        body = self.api('GET', f'/api/v1/hr/departments/{self.dept_b.id}').json()
+        self.assertEqual(body['employee_count'], 1)
+        self.assertFalse(archived.active)
+
+    def test_child_ids_include_archived_department(self):
+        archived_child = self.env['hr.department'].create({
+            'name': 'Archived QA', 'parent_id': self.dept_a.id, 'active': False,
+        })
+        refs = self.dept_a._nasq_serialized_relations()
+        self.assertIn(self.dept_child.id, refs['child_ids'])
+        self.assertIn(archived_child.id, refs['child_ids'])
+        self.assertLess(
+            refs['child_ids'].index(self.dept_child.id),
+            refs['child_ids'].index(archived_child.id),
+        )
+
+    def test_batch_relation_query_count_does_not_grow_with_recordset(self):
+        extras = self.env['hr.department'].create([
+            {'name': f'Batch Dept {index}'} for index in range(6)
+        ])
+        small = self.dept_a | self.dept_b
+        large = small | self.dept_child | extras
+        self.env.flush_all()
+
+        def relation_query_count(recordset):
+            counted = []
+            real_execute = recordset.env.cr.execute
+
+            def wrapped(query, params=None, log_exceptions=True):
+                sql = query.code if hasattr(query, 'code') else str(query)
+                if (
+                    'LEFT JOIN hr_employee manager ON manager.id = department.manager_id' in sql
+                    or ('parent_id = ANY' in sql and 'FROM hr_department' in sql)
+                    or 'version.id = employee.current_version_id' in sql
+                ):
+                    counted.append(sql)
+                return real_execute(query, params, log_exceptions)
+
+            with patch.object(recordset.env.cr, 'execute', wrapped):
+                recordset._nasq_serialized_relations_map()
+            return len(counted)
+
+        # Source-derived bound (not a runtime profiler measurement):
+        # before: 3 relation queries per department; after: 3 per recordset.
+        small_count = relation_query_count(small)
+        large_count = relation_query_count(large)
+        self.assertEqual(small_count, 3)
+        self.assertEqual(large_count, small_count)

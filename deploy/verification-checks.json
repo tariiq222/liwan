@@ -1,0 +1,83 @@
+{
+  "id": "nasq-isolated-odoo-e2e",
+  "description": "Required Odoo and Playwright E2E checks that must be invoked through deploy/check_isolated.py with explicit worktree, scratch database, and non-default ports/URLs. Do not substitute environment variables. Do not fall back to odoo.conf db_name, port 8069, or http://localhost:3000.",
+  "integration": {
+    "instructions": [
+      "Copy or merge the checks array into the quality/flow checks list for this worktree only after replacing every REPLACE_WITH_* token with a concrete absolute path, scratch database name, port, and URL.",
+      "Leave required=true. Do not wrap the argv in a shell, and do not prepend env VAR=value.",
+      "Do not add E2E_BASE_URL, NUXT_ODOO_URL, NUXT_ODOO_DB, or NUXT_PUBLIC_WS_URL as implicit environment fallbacks. The wrapper overwrites those keys from CLI flags and refuses default dev values.",
+      "Do not point --scratch-db at odoo19, production, postgres, or any name lacking 'scratch'. A name containing scratch is not enough: --scratch-lifecycle CREATE_NEW_SCRATCH is required. That token is operator attestation only; the wrapper does not inspect PostgreSQL and does not verify that the database is new.",
+      "Do not use --http-port 8069 or --base-url http://localhost:3000. Playwright's config default is unsafe; the wrapper exists to prevent that default from being used. --base-url, --odoo-url, and --ws-url must be loopback (127.0.0.1, localhost, or ::1) with no unexpected path, query, or fragment.",
+      "Run Odoo checks from the upstream Odoo checkout via --python/--odoo-bin/--odoo-conf/--stock-addons. --stock-addons is the extra addons dir that contains project and hr (for example /Users/tariq/code/odoo/addons). Core base is <odoo-bin-dir>/odoo/addons/base, not stock/base. Pass the selected Nasq worktree addons as --addons-path <worktree>/odoo-addons.",
+      "A passing local isolated check is evidence for that scratch database and those ports only. It is not production, DNS, backup, or release proof."
+    ],
+    "silent_environment_fallback": false,
+    "forbidden_defaults": [
+      "odoo19",
+      "http://localhost:3000",
+      "http://127.0.0.1:3000",
+      "8069",
+      "3000"
+    ]
+  },
+  "checks": [
+    {
+      "id": "odoo-isolated",
+      "category": "odoo",
+      "required": true,
+      "timeoutMs": 900000,
+      "argv": [
+        "python3",
+        "deploy/check_isolated.py",
+        "odoo",
+        "--worktree",
+        "REPLACE_WITH_WORKTREE_ABSOLUTE_PATH",
+        "--addons-path",
+        "REPLACE_WITH_WORKTREE_ABSOLUTE_PATH/odoo-addons",
+        "--stock-addons",
+        "REPLACE_WITH_ODOO_STOCK_ADDONS_ABSOLUTE_PATH",
+        "--python",
+        "REPLACE_WITH_ODOO_PYTHON_ABSOLUTE_PATH",
+        "--odoo-bin",
+        "REPLACE_WITH_ODOO_BIN_ABSOLUTE_PATH",
+        "--odoo-conf",
+        "REPLACE_WITH_ODOO_CONF_ABSOLUTE_PATH",
+        "--scratch-db",
+        "REPLACE_WITH_SCRATCH_DB_NAME",
+        "--scratch-lifecycle",
+        "CREATE_NEW_SCRATCH",
+        "--http-port",
+        "REPLACE_WITH_NONDEFAULT_ODOO_HTTP_PORT",
+        "--modules",
+        "nasq_core,nasq_api,nasq_pmo,nasq_hr",
+        "--test-tags",
+        "/nasq_core,/nasq_api,/nasq_pmo,/nasq_hr"
+      ]
+    },
+    {
+      "id": "e2e-isolated",
+      "category": "e2e",
+      "required": true,
+      "timeoutMs": 600000,
+      "argv": [
+        "python3",
+        "deploy/check_isolated.py",
+        "e2e",
+        "--worktree",
+        "REPLACE_WITH_WORKTREE_ABSOLUTE_PATH",
+        "--addons-path",
+        "REPLACE_WITH_WORKTREE_ABSOLUTE_PATH/odoo-addons",
+        "--scratch-db",
+        "REPLACE_WITH_SCRATCH_DB_NAME",
+        "--scratch-lifecycle",
+        "CREATE_NEW_SCRATCH",
+        "--base-url",
+        "REPLACE_WITH_NONDEFAULT_E2E_BASE_URL",
+        "--odoo-url",
+        "REPLACE_WITH_NONDEFAULT_ODOO_URL",
+        "--ws-url",
+        "REPLACE_WITH_NONDEFAULT_WS_URL"
+      ]
+    }
+  ]
+}

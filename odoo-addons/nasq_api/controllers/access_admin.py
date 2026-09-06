@@ -8,6 +8,7 @@ from odoo.addons.nasq_api.controllers.common import (
     api_handler,
     clear_security_caches_after_commit,
     parse_nonneg_int,
+    parse_positive_int,
 )
 from odoo.addons.nasq_api.serializers.access import (
     dump_admin_user,
@@ -15,6 +16,7 @@ from odoo.addons.nasq_api.serializers.access import (
     dump_permission,
     dump_role,
     role_user_count,
+    role_user_counts,
 )
 from odoo.addons.nasq_core.models.access_service import NasqAccessRule
 
@@ -31,16 +33,6 @@ def _query(allowed):
     return args, limit, offset
 
 
-def _integer(value, field):
-    try:
-        parsed = int(value)
-    except (TypeError, ValueError):
-        raise ApiError(422, 'invalid', '%s must be an integer' % field, field=field) from None
-    if parsed <= 0:
-        raise ApiError(422, 'invalid', '%s must be positive' % field, field=field)
-    return parsed
-
-
 def _exact(payload, allowed, required=()):
     extra = set(payload) - set(allowed)
     if extra:
@@ -55,7 +47,7 @@ def _exact(payload, allowed, required=()):
 def _password(value, field='password'):
     if not isinstance(value, str) or len(value.strip()) < MIN_PASSWORD_LENGTH:
         raise ApiError(422, 'weak_password', 'password must be at least 8 characters', field=field)
-    return value.strip()
+    return value
 
 
 def _assignments(value):
@@ -69,8 +61,8 @@ def _assignments(value):
         scope = item['scope']
         if not isinstance(scope, dict) or set(scope) != {'kind', 'id'} or scope.get('kind') != 'company':
             raise ApiError(422, 'unsupported_scope', 'only company scope is supported', field='assignments')
-        role_id = _integer(item['role_id'], 'assignments')
-        company_id = _integer(scope['id'], 'assignments')
+        role_id = parse_positive_int(item['role_id'], 'assignments')
+        company_id = parse_positive_int(scope['id'], 'assignments')
         key = (role_id, company_id)
         if key in seen:
             raise ApiError(422, 'invalid', 'assignments must be unique', field='assignments')
@@ -109,10 +101,10 @@ class AccessAdminUsersController(http.Controller):
         if status:
             domain.append(('active', '=', status == 'active'))
         if filters.get('role_id'):
-            role_id = _integer(filters['role_id'], 'role_id')
+            role_id = parse_positive_int(filters['role_id'], 'role_id')
             domain.append(('nasq_access_assignment_ids.role_id', '=', role_id))
         if filters.get('department_id'):
-            filters['department_id'] = _integer(filters['department_id'], 'department_id')
+            filters['department_id'] = parse_positive_int(filters['department_id'], 'department_id')
             domain += list(service._nasq_hr_user_domain(filters))
         users = request.env['res.users'].with_context(active_test=False).search(
             domain, order='name, id', limit=limit, offset=offset,
@@ -128,7 +120,7 @@ class AccessAdminUsersController(http.Controller):
         service._nasq_require_capability('access.users.grant')
         filters, limit, offset = _query({'q', 'employee_id', 'limit', 'offset'})
         if filters.get('employee_id'):
-            filters['employee_id'] = _integer(filters['employee_id'], 'employee_id')
+            filters['employee_id'] = parse_positive_int(filters['employee_id'], 'employee_id')
         return service._nasq_hr_account_candidates(filters, limit, offset)
 
     @http.route('/api/v1/admin/users/<int:user_id>', type='json2', auth='user', methods=['GET'], readonly=True)
@@ -145,7 +137,7 @@ class AccessAdminUsersController(http.Controller):
         _exact(payload, {'employee_id', 'password', 'assignments'}, {'employee_id', 'password', 'assignments'})
         service = request.env['nasq.access.service']
         service._nasq_require_capability('access.users.grant')
-        employee_id = _integer(payload['employee_id'], 'employee_id')
+        employee_id = parse_positive_int(payload['employee_id'], 'employee_id')
         prepared = service._nasq_hr_prepare_account(employee_id, 'grant')
         if not prepared['employee_active']:
             msg = 'employee_archived'
@@ -260,7 +252,11 @@ class AccessAdminRolesController(http.Controller):
             domain.append(('active', '=', filters['status'] == 'active'))
         Role = request.env['nasq.access.role'].with_context(active_test=False)
         records = Role.search(domain, limit=limit, offset=offset)
-        return {'items': [dump_role(role) for role in records], 'total': Role.search_count(domain)}
+        counts = role_user_counts(records)
+        return {
+            'items': [dump_role(role, user_count=counts.get(role.id, 0)) for role in records],
+            'total': Role.search_count(domain),
+        }
 
     @http.route('/api/v1/admin/roles/<int:role_id>', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
@@ -379,10 +375,15 @@ class AccessAdminRolesController(http.Controller):
                 raise ApiError(422, 'invalid', 'description must be a string', field='description')
             vals['description'] = payload['description']
         if 'permissions' in payload:
-            if not isinstance(payload['permissions'], list) or len(set(payload['permissions'])) != len(payload['permissions']):
+            permissions = payload['permissions']
+            if (
+                not isinstance(permissions, list)
+                or any(not isinstance(item, str) for item in permissions)
+                or len(set(permissions)) != len(permissions)
+            ):
                 raise ApiError(422, 'invalid', 'permissions must be unique', field='permissions')
-            records = request.env['nasq.access.permission'].search([('key', 'in', payload['permissions'])])
-            if len(records) != len(payload['permissions']):
+            records = request.env['nasq.access.permission'].search([('key', 'in', permissions)])
+            if len(records) != len(permissions):
                 raise ApiError(422, 'invalid', 'unknown permission', field='permissions')
             forbidden = records.filtered(lambda item: not item.custom_role_allowed)
             if forbidden:
@@ -414,7 +415,7 @@ class AccessAdminAuditController(http.Controller):
                 domain.append((field, operator, filters[key]))
         for key in ('actor_id', 'target_id'):
             if filters.get(key):
-                domain.append((key, '=', _integer(filters[key], key)))
+                domain.append((key, '=', parse_positive_int(filters[key], key)))
         if filters.get('target_type'):
             if filters['target_type'] not in ('user', 'role'):
                 raise ApiError(422, 'invalid', 'unknown target type', field='target_type')

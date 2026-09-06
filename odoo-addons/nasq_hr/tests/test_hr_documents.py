@@ -1,9 +1,18 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 import base64
+from unittest.mock import patch
 
 from odoo.tests import new_test_user, tagged
 
 from .common import NasqHrCase
+from odoo.addons.nasq_api.controllers.common import ApiError, parse_positive_int
+from odoo.addons.nasq_hr.serializers.hr_document import (
+    MAX_ATTACHMENT_BYTES,
+    MAX_ENCODED_CHARS,
+    _parse_department_id,
+    parse_attachment_upload,
+    parse_document_create,
+)
 
 DOC_KEYS = {'id', 'name', 'department', 'body', 'attachment_ids', 'write_date'}
 
@@ -108,6 +117,43 @@ class TestHrDocuments(NasqHrCase):
         self.assertNotIn(self.doc_a.id, ids)
         self.assertEqual(set(body['items'][0]), DOC_KEYS)
 
+    def test_list_omitted_and_empty_department_id_are_unfiltered(self):
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        omitted = self.api('GET', '/api/v1/hr/documents').json()
+        empty = self.api('GET', '/api/v1/hr/documents?department_id=').json()
+        self.assertEqual(omitted['total'], empty['total'])
+        ids = {item['id'] for item in omitted['items']}
+        self.assertIn(self.doc_a.id, ids)
+        self.assertIn(self.doc_b.id, ids)
+
+    def test_list_invalid_department_id_query_is_422_without_writes(self):
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        snapshot = {
+            rec.id: (rec.name, rec.department_id.id, rec.body)
+            for rec in self.env['nasq.hr.document'].search([])
+        }
+        for value in ('0', '-1', 'true', '1.5', '1.0', '[]', '{}'):
+            with self.subTest(value=value):
+                res = self.api('GET', f'/api/v1/hr/documents?department_id={value}')
+                self.assertEqual(res.status_code, 422, res.text)
+                body = res.json()
+                self.assertEqual(body['code'], 'invalid')
+                self.assertEqual(body['field'], 'department_id')
+        after = {
+            rec.id: (rec.name, rec.department_id.id, rec.body)
+            for rec in self.env['nasq.hr.document'].search([])
+        }
+        self.assertEqual(after, snapshot)
+
+    def test_list_department_id_direct_rejects_invalid_types(self):
+        for value in (True, False, 1.5, 1.0, [], {}, (), set(), object(), 0, -1):
+            with self.subTest(value=value):
+                with self.assertRaises(ApiError) as ctx:
+                    parse_positive_int(value, 'department_id')
+                self._assert_invalid_field(ctx.exception, 'department_id')
+        self.assertEqual(parse_positive_int(self.dept_b.id, 'department_id'), self.dept_b.id)
+        self.assertEqual(parse_positive_int(str(self.dept_b.id), 'department_id'), self.dept_b.id)
+
     def test_list_pagination_keeps_server_total(self):
         for index in range(3):
             self.env['nasq.hr.document'].create({
@@ -208,3 +254,98 @@ class TestHrDocuments(NasqHrCase):
         self.assertEqual(res.status_code, 422)
         self.assertEqual(res.json()['code'], 'invalid')
         self.assertEqual(res.json()['field'], 'datas')
+
+    def _assert_invalid_field(self, error, field):
+        self.assertEqual(error.status, 422)
+        self.assertEqual(error.code, 'invalid')
+        self.assertEqual(error.field, field)
+
+    def test_parse_department_id_rejects_bool_float_container_zero_negative(self):
+        for value in (
+            True, 1.5, 1.0, [], {}, (), set(), object(),
+            ' 7 ', ' 1', '1 ', '+1', '١٢', '١٢٣', '-3',
+        ):
+            with self.subTest(value=value):
+                with self.assertRaises(ApiError) as ctx:
+                    parse_document_create({'name': 'Doc', 'department_id': value})
+                self._assert_invalid_field(ctx.exception, 'department_id')
+                self.assertIn('integer', ctx.exception.message)
+        for value in (0, -1, '0'):
+            with self.subTest(value=value):
+                with self.assertRaises(ApiError) as ctx:
+                    parse_document_create({'name': 'Doc', 'department_id': value})
+                self._assert_invalid_field(ctx.exception, 'department_id')
+                self.assertIn('positive', ctx.exception.message)
+
+    def test_parse_department_id_accepts_integer_strings_and_optional_empty(self):
+        parsed = parse_document_create({'name': 'Doc', 'department_id': '12'})
+        self.assertEqual(parsed['department_id'], 12)
+        parsed = parse_document_create({'name': 'Doc', 'department_id': '007'})
+        self.assertEqual(parsed['department_id'], 7)
+        parsed = parse_document_create({'name': 'Doc', 'department_id': 9})
+        self.assertEqual(parsed['department_id'], 9)
+        self.assertIs(False, _parse_department_id(None, required=False))
+        self.assertIs(False, _parse_department_id(False, required=False))
+        self.assertIs(False, _parse_department_id('', required=False))
+        with self.assertRaises(ApiError) as ctx:
+            parse_document_create({'name': 'Doc'})
+        self._assert_invalid_field(ctx.exception, 'department_id')
+        with self.assertRaises(ApiError) as ctx:
+            parse_document_create({'name': 'Doc', 'department_id': None})
+        self._assert_invalid_field(ctx.exception, 'department_id')
+        with self.assertRaises(ApiError) as ctx:
+            parse_document_create({'name': 'Doc', 'department_id': False})
+        self._assert_invalid_field(ctx.exception, 'department_id')
+        with self.assertRaises(ApiError) as ctx:
+            parse_document_create({'name': 'Doc', 'department_id': ''})
+        self._assert_invalid_field(ctx.exception, 'department_id')
+
+    def test_parse_attachment_encoded_threshold_does_not_decode(self):
+        oversized = 'A' * (MAX_ENCODED_CHARS + 1)
+        with patch('odoo.addons.nasq_hr.serializers.hr_document.base64.b64decode') as decode:
+            with self.assertRaises(ApiError) as ctx:
+                parse_attachment_upload({'name': 'big.bin', 'datas': oversized})
+            decode.assert_not_called()
+        self._assert_invalid_field(ctx.exception, 'datas')
+        self.assertIn('10MB', ctx.exception.message)
+
+    def test_parse_attachment_rejects_decoded_10mib_plus_one(self):
+        class _Sized:
+            def __init__(self, size):
+                self._size = size
+
+            def __len__(self):
+                return self._size
+
+        with patch(
+            'odoo.addons.nasq_hr.serializers.hr_document.base64.b64decode',
+            return_value=_Sized(MAX_ATTACHMENT_BYTES + 1),
+        ):
+            with self.assertRaises(ApiError) as ctx:
+                parse_attachment_upload({'name': 'big.bin', 'datas': 'QQ=='})
+        self._assert_invalid_field(ctx.exception, 'datas')
+        self.assertIn('10MB', ctx.exception.message)
+
+    def test_parse_attachment_padding_boundaries_and_malformed(self):
+        # 10MiB % 3 == 1, so 10MiB, 10MiB+1 and 10MiB+2 share one encoded length.
+        self.assertEqual(MAX_ATTACHMENT_BYTES % 3, 1)
+        self.assertEqual(MAX_ENCODED_CHARS, 4 * ((MAX_ATTACHMENT_BYTES + 2) // 3))
+        self.assertEqual(4 * ((MAX_ATTACHMENT_BYTES + 1 + 2) // 3), MAX_ENCODED_CHARS)
+        self.assertEqual(4 * ((MAX_ATTACHMENT_BYTES + 2 + 2) // 3), MAX_ENCODED_CHARS)
+        self.assertGreater(4 * ((MAX_ATTACHMENT_BYTES + 3 + 2) // 3), MAX_ENCODED_CHARS)
+
+        parsed = parse_attachment_upload({'name': 'ok.bin', 'datas': 'QQ=='})
+        self.assertEqual(parsed['datas'], 'QQ==')
+        for datas in ('QQ=', 'QQ', 'QQ===', '%%%not-base64%%%'):
+            with self.subTest(datas=datas):
+                with self.assertRaises(ApiError) as ctx:
+                    parse_attachment_upload({'name': 'bad.bin', 'datas': datas})
+                self._assert_invalid_field(ctx.exception, 'datas')
+                self.assertIn('base64', ctx.exception.message)
+
+    def test_parse_attachment_accepts_whitespace_in_base64(self):
+        parsed = parse_attachment_upload({'name': 'ok.bin', 'datas': 'QQ==\n\t'})
+        self.assertEqual(base64.b64decode(parsed['datas'], validate=True), b'A')
+        parsed = parse_attachment_upload({'name': 'ok.bin', 'datas': 'Q Q =\n='})
+        self.assertEqual(parsed['datas'], 'QQ==')
+        self.assertEqual(base64.b64decode(parsed['datas'], validate=True), b'A')

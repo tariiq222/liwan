@@ -46,6 +46,50 @@ test('HR routes create, edit, reload, and archive an employee', async ({ page })
   expect(archived.active).toBe(false)
 })
 
+test('HR directory shows a translated error and retry instead of an empty list', async ({ page }) => {
+  await login(page)
+  let fail = true
+  await page.route('**/api/v1/hr/employees**', async (route) => {
+    if (route.request().method() !== 'GET' || !fail) {
+      await route.continue()
+      return
+    }
+    await route.fulfill({
+      status: 503,
+      contentType: 'application/json',
+      body: JSON.stringify({ code: 'unavailable', message: 'temporarily unavailable' }),
+    })
+  })
+  await page.goto('/hr')
+  await expect(page.getByRole('alert')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'إعادة المحاولة' })).toBeVisible()
+  await expect(page.getByText('لا موظفون بعد')).toHaveCount(0)
+  fail = false
+  await page.getByRole('button', { name: 'إعادة المحاولة' }).click()
+  await expect(page.getByRole('alert')).toHaveCount(0)
+})
+
+test('HR employee names are real links that preserve filters; actions do not steal navigation', async ({ page }) => {
+  await login(page)
+  const employeeName = `E2E link ${Date.now()}`
+  const employee = await (await page.request.post('/api/v1/hr/employees', {
+    data: { name: employeeName, work_email: `e2e-link-${Date.now()}@example.com` },
+  })).json()
+  await page.goto(`/hr?q=${encodeURIComponent(employeeName)}`)
+  const nameLink = page.getByTestId('hr-employee-name').filter({ hasText: employeeName })
+  await expect(nameLink).toBeVisible()
+  await expect(nameLink).toHaveAttribute('href', new RegExp(`/hr/employees/${employee.id}\\?returnTo=`))
+  await nameLink.focus()
+  await expect(nameLink).toBeFocused()
+  await page.keyboard.press('Enter')
+  await expect(page).toHaveURL(new RegExp(`/hr/employees/${employee.id}(?:\\?|$)`))
+
+  await page.goto(`/hr?q=${encodeURIComponent(employeeName)}`)
+  await page.getByTestId('hr-employee-manage').click()
+  await expect(page).toHaveURL(new RegExp(`/hr/employees/${employee.id}/edit(?:\\?|$)`))
+  await expect(page.locator('[data-slot="dialog-content"], [data-slot="sheet-content"]').first()).toHaveCount(0)
+})
+
 test('HR department route creates, edits, and reloads a department', async ({ page }) => {
   await login(page)
 

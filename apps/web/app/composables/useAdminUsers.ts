@@ -1,5 +1,5 @@
 import type { MaybeRefOrGetter } from 'vue'
-import { computed, toValue } from 'vue'
+import { computed, nextTick, toValue } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import {
   AdminUserDetailSchema,
@@ -28,6 +28,7 @@ export type AdminUserListParams = {
 }
 
 export const ACCESS_MUTATION_GC_TIME = 0
+export const adminUserMutationKey = ['access', 'users', 'write'] as const
 export const adminUserKeys = {
   all: ['access', 'users'] as const,
   list: (params: AdminUserListParams) => ['access', 'users', 'list', params] as const,
@@ -80,22 +81,109 @@ export function useAdminUser(id: MaybeRefOrGetter<number | null>, enabled: Maybe
   })
 }
 
-function invalidateAdminUserCaches(queryClient: ReturnType<typeof useQueryClient>, user: AdminUserDetail) {
+// Mirrors NuxtApp.runWithContext without widening through `any`:
+// <T extends () => any>(fn: T) => ReturnType<T> | Promise<Awaited<ReturnType<T>>>
+export type NuxtContextRunner = {
+  runWithContext: <R>(fn: () => R) => R | Promise<Awaited<R>>
+  $waitForAccessRefresh?: () => Promise<void>
+}
+
+export type AccessRefreshInFlightState = {
+  inFlight: Promise<void> | null
+}
+
+// Register the current reset promise synchronously before any await. Only the
+// latest promise may clear `inFlight` — a finally that always nulls it races
+// a second refresh that started while the first was pending.
+export function beginAccessRefreshInFlight(
+  state: AccessRefreshInFlightState,
+  work: () => Promise<void>,
+): Promise<void> {
+  const current = work()
+  state.inFlight = current
+  const settle = () => {
+    if (state.inFlight === current) state.inFlight = null
+  }
+  void current.then(settle, settle)
+  return current
+}
+
+export async function drainAccessRefreshInFlight(
+  getInFlight: () => Promise<void> | null | undefined,
+): Promise<void> {
+  await nextTick()
+  for (;;) {
+    const current = getInFlight()
+    if (!current) return
+    await current
+    await nextTick()
+  }
+}
+
+// `me` lives in Nuxt's async-data cache (`useFetch` key `'me'`), not vue-query.
+// Mutation callbacks run outside setup, so refresh through the composable's
+// captured Nuxt app rather than a fictitious `['me']` query key.
+export function refreshMeInNuxtContext<R>(
+  nuxt: NuxtContextRunner | null | undefined,
+  refreshMe: () => R,
+): R | Promise<Awaited<R>> | undefined {
+  if (!nuxt) return
+  return nuxt.runWithContext(refreshMe)
+}
+
+export function accessRefreshWait(
+  nuxt?: NuxtContextRunner | null,
+  wait?: () => unknown,
+): (() => unknown) | undefined {
+  return wait ?? nuxt?.$waitForAccessRefresh
+}
+
+// Page-owned security success: ignore late callbacks from a previous user or
+// after the current page is forbidden/errored. `undefined` means "do not change".
+export function nextAdminUserSecuritySuccess(
+  currentUserId: number,
+  reportedUserId: number,
+  key: string,
+  blocked = false,
+): string | undefined {
+  if (blocked || reportedUserId !== currentUserId) return undefined
+  return key
+}
+
+export async function invalidateAdminUserCaches(
+  queryClient: ReturnType<typeof useQueryClient>,
+  user: AdminUserDetail,
+  options?: {
+    nuxt?: NuxtContextRunner | null
+    refreshMe?: () => unknown
+    waitForAccessRefresh?: () => unknown
+  },
+) {
   queryClient.setQueryData(adminUserKeys.detail(user.id), user)
-  void queryClient.invalidateQueries({ queryKey: adminUserKeys.all })
-  void queryClient.invalidateQueries({ queryKey: ['me'] })
-  void queryClient.invalidateQueries({ queryKey: ['people'] })
-  void queryClient.invalidateQueries({ queryKey: ['hr', 'employees'] })
-  void queryClient.invalidateQueries({ queryKey: ['access', 'audit'] })
+  await refreshMeInNuxtContext(
+    options?.nuxt,
+    options?.refreshMe ?? (() => refreshNuxtData('me')),
+  )
+  const wait = accessRefreshWait(options?.nuxt, options?.waitForAccessRefresh)
+  if (wait) await wait()
+  await queryClient.invalidateQueries({ queryKey: adminUserKeys.all })
+  await queryClient.invalidateQueries({ queryKey: ['people'] })
+  await queryClient.invalidateQueries({ queryKey: ['hr', 'employees'] })
+  await queryClient.invalidateQueries({ queryKey: ['access', 'audit'] })
 }
 
 function useSecureAdminUserMutation<TBody>(mutationFn: (body: TBody) => Promise<AdminUserDetail>) {
   const queryClient = useQueryClient()
+  const nuxt = tryUseNuxtApp()
   const resetRef: { value: () => void } = { value: () => {} }
   const mutation = useMutation({
+    mutationKey: adminUserMutationKey,
     gcTime: ACCESS_MUTATION_GC_TIME,
     mutationFn,
-    onSuccess: (user) => invalidateAdminUserCaches(queryClient, user),
+    onSuccess: (user) => invalidateAdminUserCaches(queryClient, user, {
+      nuxt,
+      refreshMe: () => refreshNuxtData('me'),
+    }),
     onSettled: () => resetRef.value(),
   })
   resetRef.value = mutation.reset

@@ -17,6 +17,7 @@ import {
   type RolePatchInput,
   type RoleStateInput,
 } from '@nasq/contracts'
+import { accessRefreshWait, refreshMeInNuxtContext, type NuxtContextRunner } from './useAdminUsers'
 
 export type AdminRoleListParams = {
   q?: string
@@ -85,63 +86,87 @@ export function useAdminPermissionCatalog(enabled: MaybeRefOrGetter<boolean> = t
   })
 }
 
-function invalidateAdminRoleCaches(queryClient: ReturnType<typeof useQueryClient>, role: RoleDetail) {
+export async function invalidateAdminRoleCaches(
+  queryClient: ReturnType<typeof useQueryClient>,
+  role: RoleDetail,
+  options?: {
+    nuxt?: NuxtContextRunner | null
+    refreshMe?: () => unknown
+    waitForAccessRefresh?: () => unknown
+  },
+) {
   queryClient.setQueryData(adminRoleKeys.detail(role.id), role)
-  void queryClient.invalidateQueries({ queryKey: adminRoleKeys.all })
-  void queryClient.invalidateQueries({ queryKey: ['access', 'users'] })
-  void queryClient.invalidateQueries({ queryKey: ['access', 'audit'] })
-  void queryClient.invalidateQueries({ queryKey: ['me'] })
+  // `me` lives in Nuxt's async-data cache, not vue-query. Mutation callbacks
+  // run outside setup, so refresh through the composable's captured Nuxt app.
+  await refreshMeInNuxtContext(
+    options?.nuxt,
+    options?.refreshMe ?? (() => refreshNuxtData('me')),
+  )
+  const wait = accessRefreshWait(options?.nuxt, options?.waitForAccessRefresh)
+  if (wait) await wait()
+  await queryClient.invalidateQueries({ queryKey: adminRoleKeys.all })
+  await queryClient.invalidateQueries({ queryKey: ['access', 'users'] })
+  await queryClient.invalidateQueries({ queryKey: ['access', 'audit'] })
+}
+
+function useAdminRoleSuccessInvalidation() {
+  const queryClient = useQueryClient()
+  const nuxt = tryUseNuxtApp()
+  return (role: RoleDetail) => invalidateAdminRoleCaches(queryClient, role, {
+    nuxt,
+    refreshMe: () => refreshNuxtData('me'),
+  })
 }
 
 export function useCreateAdminRole() {
-  const queryClient = useQueryClient()
   const { $api } = useApi()
+  const invalidate = useAdminRoleSuccessInvalidation()
   return useMutation({
     mutationFn: (body: RoleCreateInput) => $api('/api/v1/admin/roles', {
       method: 'POST',
       body: RoleCreateInputSchema.parse(body),
       schema: RoleDetailSchema,
     }),
-    onSuccess: (role) => invalidateAdminRoleCaches(queryClient, role),
+    onSuccess: invalidate,
   })
 }
 
 export function useUpdateAdminRole() {
-  const queryClient = useQueryClient()
   const { $api } = useApi()
+  const invalidate = useAdminRoleSuccessInvalidation()
   return useMutation({
     mutationFn: ({ id, patch }: { id: number; patch: RolePatchInput }) => $api(`/api/v1/admin/roles/${id}`, {
       method: 'PATCH',
       body: RolePatchInputSchema.parse(patch),
       schema: RoleDetailSchema,
     }),
-    onSuccess: (role) => invalidateAdminRoleCaches(queryClient, role),
+    onSuccess: invalidate,
   })
 }
 
 export function useCloneAdminRole() {
-  const queryClient = useQueryClient()
   const { $api } = useApi()
+  const invalidate = useAdminRoleSuccessInvalidation()
   return useMutation({
     mutationFn: ({ id, body }: { id: number; body: RoleCloneInput }) => $api(`/api/v1/admin/roles/${id}/clone`, {
       method: 'POST',
       body: RoleCloneInputSchema.parse(body),
       schema: RoleDetailSchema,
     }),
-    onSuccess: (role) => invalidateAdminRoleCaches(queryClient, role),
+    onSuccess: invalidate,
   })
 }
 
 function useAdminRoleStateMutation(action: 'disable' | 'enable') {
-  const queryClient = useQueryClient()
   const { $api } = useApi()
+  const invalidate = useAdminRoleSuccessInvalidation()
   return useMutation({
     mutationFn: ({ id, body }: { id: number; body: RoleStateInput }) => $api(`/api/v1/admin/roles/${id}/${action}`, {
       method: 'POST',
       body: RoleStateInputSchema.parse(body),
       schema: RoleDetailSchema,
     }),
-    onSuccess: (role) => invalidateAdminRoleCaches(queryClient, role),
+    onSuccess: invalidate,
   })
 }
 
@@ -156,9 +181,9 @@ export function useDeleteAdminRole() {
       method: 'DELETE',
       query: { expected_version },
     }),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: adminRoleKeys.all })
-      void queryClient.invalidateQueries({ queryKey: ['access', 'audit'] })
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: adminRoleKeys.all })
+      await queryClient.invalidateQueries({ queryKey: ['access', 'audit'] })
     },
   })
 }

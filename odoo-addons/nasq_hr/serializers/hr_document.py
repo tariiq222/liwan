@@ -4,12 +4,15 @@ import binascii
 
 from odoo import fields
 
-from odoo.addons.nasq_api.controllers.common import ApiError
+from odoo.addons.nasq_api.controllers.common import ApiError, parse_positive_int
 
 CREATE_FIELDS = {'name', 'body', 'department_id'}
 PATCH_FIELDS = {'name', 'body'}
 UPLOAD_FIELDS = {'name', 'datas', 'mimetype'}
 MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024
+# Four base64 characters encode three bytes. This is the largest canonical
+# base64 representation that can contain exactly MAX_ATTACHMENT_BYTES.
+MAX_ENCODED_CHARS = 4 * ((MAX_ATTACHMENT_BYTES + 2) // 3)
 
 
 def _iso(dt):
@@ -38,17 +41,23 @@ def _parse_name(value):
     return value.strip()
 
 
+def _parse_department_id(value, *, required=True):
+    """Coerce a department id. Missing/empty is optional unless required=True."""
+    if value is None or value is False or (isinstance(value, str) and not value):
+        if required:
+            raise ApiError(422, 'invalid', "department_id is required", field='department_id')
+        return False
+    return parse_positive_int(value, 'department_id')
+
+
 def parse_document_create(payload):
     extra = set(payload) - CREATE_FIELDS
     if extra:
         field = sorted(extra)[0]
         raise ApiError(422, 'invalid', f"field {field!r} is not writable", field=field)
-    if 'department_id' not in payload or not payload.get('department_id'):
+    if 'department_id' not in payload:
         raise ApiError(422, 'invalid', "department_id is required", field='department_id')
-    try:
-        department_id = int(payload['department_id'])
-    except (TypeError, ValueError):
-        raise ApiError(422, 'invalid', "department_id must be an integer", field='department_id') from None
+    department_id = _parse_department_id(payload['department_id'])
     body = payload.get('body')
     if body in (None, False):
         body = ''
@@ -88,6 +97,8 @@ def parse_attachment_upload(payload):
     if not isinstance(datas, str) or not datas.strip():
         raise ApiError(422, 'invalid', "datas is required", field='datas')
     cleaned = ''.join(datas.split())
+    if len(cleaned) > MAX_ENCODED_CHARS:
+        raise ApiError(422, 'invalid', "attachment exceeds 10MB", field='datas')
     try:
         raw = base64.b64decode(cleaned, validate=True)
     except (binascii.Error, ValueError):

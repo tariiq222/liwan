@@ -11,6 +11,7 @@ from odoo.addons.nasq_api.controllers.common import (
 )
 from odoo.addons.nasq_hr.serializers.hr_department import (
     dump_department,
+    dump_departments,
     parse_department_vals,
 )
 
@@ -66,7 +67,7 @@ class HrDepartmentController(http.Controller):
         Department = request.env['hr.department']
         domain = [('company_id', '=', request.env.company.id)]
         recs = Department.search(domain, order='name, id', limit=limit, offset=offset)
-        return {'items': [dump_department(department) for department in recs], 'total': Department.search_count(domain)}
+        return {'items': dump_departments(recs), 'total': Department.search_count(domain)}
 
     @http.route('/api/v1/hr/departments/<int:department_id>', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler

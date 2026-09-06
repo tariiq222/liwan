@@ -34,7 +34,7 @@ test('search opens centered, searches real tasks, closes with Escape and navigat
   await dialog.getByRole('link', { name: task.name, exact: true }).click()
   await expect(page).toHaveURL(new RegExp(`/tasks/${task.id}\\?returnTo=`))
   await expect(dialog).toBeHidden()
-  await page.getByRole('button', { name: 'العودة إلى المهام', exact: true }).click()
+  await page.getByRole('link', { name: 'العودة إلى المهام', exact: true }).click()
   await expect(page).toHaveURL(/\/tasks\?q=kept-search&sort=deadline$/)
 })
 

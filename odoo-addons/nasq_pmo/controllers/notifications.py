@@ -13,21 +13,53 @@ from odoo.addons.nasq_pmo.serializers.notification import dump_notification
 MAX_LIMIT = 200
 
 
+def recipient_candidate_task_ids(env):
+    """Task ids on inbox nasq rows owned by the current partner.
+
+    The recipient restriction is in the domain before the elevated
+    ``mail.notification`` read. This does not search ``project.task``.
+    """
+    rows = env['mail.notification'].sudo().search([
+        ('res_partner_id', '=', env.user.partner_id.id),
+        ('mail_message_id.nasq_notification', '=', True),
+        ('mail_message_id.model', '=', 'project.task'),
+        ('notification_type', '=', 'inbox'),
+    ])
+    return rows.mapped('mail_message_id.nasq_task_id').ids
+
+
+def readable_active_task_ids(env, candidate_ids=None):
+    """Caller-visible active current-company tasks among recipient candidates.
+
+    Task search is never sudo'd. Company-less tasks stay excluded: the
+    domain requires ``company_id`` of the current company on both the
+    task and its project.
+    """
+    if candidate_ids is None:
+        candidate_ids = recipient_candidate_task_ids(env)
+    if not candidate_ids:
+        return []
+    company_id = env.company.id
+    projects = env['project.project'].search([
+        ('active', '=', True),
+        ('company_id', '=', company_id),
+    ])
+    if not projects:
+        return []
+    return env['project.task'].search([
+        ('id', 'in', candidate_ids),
+        ('active', '=', True),
+        ('company_id', '=', company_id),
+        ('project_id', 'in', projects.ids),
+        ('project_id.company_id', '=', company_id),
+        ('project_id.active', '=', True),
+    ]).ids
+
+
 class NotificationController(http.Controller):
 
     def _readable_active_task_ids(self):
-        Project = request.env['project.project']
-        company_id = request.env.company.id
-        projects = Project.search([('active', '=', True), ('company_id', '=', company_id)])
-        if not projects:
-            return []
-        return request.env['project.task'].search([
-            ('active', '=', True),
-            ('company_id', '=', company_id),
-            ('project_id', 'in', projects.ids),
-            ('project_id.company_id', '=', company_id),
-            ('project_id.active', '=', True),
-        ]).ids
+        return readable_active_task_ids(request.env)
 
     def _domain(self, unread=None, task_ids=None):
         domain = [

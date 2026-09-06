@@ -7,6 +7,27 @@ from odoo.addons.nasq_api.controllers.common import ApiError, api_handler
 from odoo.addons.nasq_pmo.serializers.task import dump_task, dump_task_detail
 
 MAX_LIMIT = 200
+# Field fetches for `_nasq_can_archive` are isolated per batch so the
+# candidate id list is not kept as one prefetched recordset. Capability
+# checks remain per record; this is not an asymptotic SQL improvement.
+ARCHIVE_SCAN_BATCH = 200
+
+
+def eligible_archived_task_ids(tasks, domain, batch_size=ARCHIVE_SCAN_BATCH):
+    """Ids the caller may restore, in `write_date desc, id desc` order.
+
+    Eligibility is fully applied before any caller pagination. Candidates
+    are scanned in batches so the whole matching recordset is not
+    materialized at once.
+    """
+    candidate_ids = tasks._search(domain, order='write_date desc, id desc').get_result_ids()
+    batch_size = max(int(batch_size), 1)
+    eligible_ids = []
+    for start in range(0, len(candidate_ids), batch_size):
+        batch_ids = candidate_ids[start:start + batch_size]
+        batch = tasks.browse(batch_ids).with_prefetch(batch_ids)
+        eligible_ids.extend(task.id for task in batch if task._nasq_can_archive())
+    return eligible_ids
 
 
 class TaskArchiveController(http.Controller):
@@ -65,11 +86,11 @@ class TaskArchiveController(http.Controller):
         # Capability checks are record-scoped and cannot be represented by the
         # ORM domain. Filter before pagination so totals and pages contain only
         # tasks this user may actually restore.
-        eligible = Task.search(domain, order='write_date desc, id desc').filtered(
-            lambda task: task._nasq_can_archive(),
-        )
-        tasks = eligible[offset:offset + min(limit, MAX_LIMIT)]
-        return {'items': [dump_task(task) for task in tasks], 'total': len(eligible)}
+        page_limit = min(limit, MAX_LIMIT)
+        eligible_ids = eligible_archived_task_ids(Task, domain)
+        page_ids = eligible_ids[offset:offset + page_limit]
+        tasks = Task.browse(page_ids)
+        return {'items': [dump_task(task) for task in tasks], 'total': len(eligible_ids)}
 
     @http.route('/api/v1/tasks/<int:task_id>/unarchive', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler

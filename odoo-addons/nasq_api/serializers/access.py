@@ -25,19 +25,29 @@ def assignment_ref(assignment):
     }
 
 
-def role_user_count(role):
-    role.env.cr.execute(
-        '''SELECT COUNT(*)
+def role_user_counts(roles):
+    """Map role ids to assignment counts in the current company (one query)."""
+    if not roles:
+        return {}
+    roles.env.cr.execute(
+        '''SELECT role_id, COUNT(*)
              FROM nasq_access_assignment
-            WHERE role_id = %s AND company_id = %s''',
-        [role.id, role.env.company.id],
+            WHERE role_id IN %s AND company_id = %s
+            GROUP BY role_id''',
+        [tuple(roles.ids), roles.env.company.id],
     )
-    return role.env.cr.fetchone()[0]
+    counted = dict(roles.env.cr.fetchall())
+    return {role_id: counted.get(role_id, 0) for role_id in roles.ids}
 
 
-def dump_role(role, detail=False, actor=None):
+def role_user_count(role):
+    return role_user_counts(role).get(role.id, 0)
+
+
+def dump_role(role, detail=False, actor=None, user_count=None):
     service = role.env['nasq.access.service']
-    user_count = role_user_count(role)
+    if user_count is None:
+        user_count = role_user_count(role)
     result = {
         **role_ref(role),
         'description': role.description or '',

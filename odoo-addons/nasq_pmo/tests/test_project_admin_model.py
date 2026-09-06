@@ -53,6 +53,11 @@ class TestProjectAdminModel(TransactionCase):
         self.assertTrue(p.with_user(self.other)._nasq_can_manage())
 
     def test_settings_validation_and_access(self):
+        params = self.env['ir.config_parameter'].sudo()
+        legacy_before = (
+            params.get_param('nasq_pmo.project_creators'),
+            params.get_param('nasq_pmo.default_stages'),
+        )
         self.assertEqual(
             self.Settings.with_user(self.manager).set_values({
                 'project_creators': 'employees',
@@ -67,8 +72,25 @@ class TestProjectAdminModel(TransactionCase):
             self.Settings.with_user(self.admin).set_values({'default_stages': [{'name': ' ', 'fold': False}]})
         out = self.Settings.with_user(self.admin).set_values({'default_stages': [{'name': 'A', 'fold': True}]})
         self.assertEqual(out['default_stages'], [{'name': 'A', 'fold': True}])
-        self.assertEqual(json.loads(self.env['ir.config_parameter'].sudo().get_param('nasq_pmo.default_stages')),
-                         [{'name': 'A', 'fold': True}])
+        company = self.env.company
+        company.invalidate_recordset([
+            'nasq_pmo_settings_initialized', 'nasq_pmo_project_creators',
+            'nasq_pmo_default_stages',
+        ])
+        self.assertTrue(company.nasq_pmo_settings_initialized)
+        self.assertEqual(company.nasq_pmo_project_creators, 'employees')
+        self.assertEqual(
+            json.loads(company.nasq_pmo_default_stages),
+            [{'name': 'A', 'fold': True}],
+        )
+        self.assertEqual(
+            self.Settings.get(),
+            {'project_creators': 'employees', 'default_stages': [{'name': 'A', 'fold': True}]},
+        )
+        self.assertEqual(
+            (params.get_param('nasq_pmo.project_creators'), params.get_param('nasq_pmo.default_stages')),
+            legacy_before,
+        )
 
     def test_settings_get_falls_back_on_malformed_stored_stages(self):
         params = self.env['ir.config_parameter'].sudo()

@@ -1,7 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 import json
 
-from odoo import models
+from odoo import fields, models
 from odoo.exceptions import AccessError
 
 PARAM_CREATORS = 'nasq_pmo.project_creators'
@@ -14,15 +14,70 @@ FALLBACK_STAGES = [
     {'name': 'مراجعة', 'fold': False},
     {'name': 'منجز', 'fold': True},
 ]
+PMO_SETTINGS_COMPANY_MARKER = 'nasq_pmo.settings_company_ids'
+PMO_SETTINGS_COMPANY_FIELDS = {
+    'nasq_pmo_settings_initialized',
+    'nasq_pmo_project_creators',
+    'nasq_pmo_default_stages',
+}
+
+
+class ResCompany(models.Model):
+    _inherit = 'res.company'
+
+    nasq_pmo_settings_initialized = fields.Boolean(default=False)
+    nasq_pmo_project_creators = fields.Selection(
+        selection=[('managers', 'Managers'), ('employees', 'Employees')],
+        default='managers',
+    )
+    nasq_pmo_default_stages = fields.Text()
+
+    def write(self, vals):
+        if PMO_SETTINGS_COMPANY_FIELDS.intersection(vals):
+            allowed_ids = self.env.cr.precommit.data.get(
+                PMO_SETTINGS_COMPANY_MARKER, set(),
+            )
+            if (
+                not self.ids
+                or not set(self.ids) <= allowed_ids
+                or not set(vals) <= PMO_SETTINGS_COMPANY_FIELDS
+            ):
+                msg = 'use_protected_nasq_access_operation'
+                raise AccessError(msg)
+        return super().write(vals)
+
+    def _nasq_write_pmo_settings(self, vals):
+        self.ensure_one()
+        self.env['nasq.access.service']._nasq_require_capability('pmo.settings.manage')
+        if self != self.env.company:
+            msg = 'forbidden'
+            raise AccessError(msg)
+        if not vals or set(vals) - PMO_SETTINGS_COMPANY_FIELDS:
+            msg = 'use_protected_nasq_access_operation'
+            raise AccessError(msg)
+        marker = self.env.cr.precommit.data
+        previous = marker.get(PMO_SETTINGS_COMPANY_MARKER)
+        marker[PMO_SETTINGS_COMPANY_MARKER] = {self.id}
+        try:
+            # Documented nasq_pmo configuration sudo(): policy fields, not
+            # business data. Callers are gated on pmo.settings.manage; the
+            # precommit marker (not a forgeable context key) is the only ORM
+            # write path. Branding/identity guards on super() stay intact.
+            return self.sudo().write(vals)
+        finally:
+            if previous is None:
+                marker.pop(PMO_SETTINGS_COMPANY_MARKER, None)
+            else:
+                marker[PMO_SETTINGS_COMPANY_MARKER] = previous
 
 
 class NasqPmoSettings(models.AbstractModel):
-    """The two company-wide project policies, stored in ir.config_parameter.
+    """Company-scoped project policies, with a read-only legacy fallback.
 
-    ir.config_parameter is readable only by admins, so the reads/writes below are
-    the one documented ``sudo()`` for configuration in nasq_pmo: this is policy,
-    not business data, and every caller of ``set_values`` is gated on
-    ``nasq_core.group_customer_admin`` first.
+    Until a company saves, ``get()`` reads the global ir.config_parameter keys
+    (the documented configuration ``sudo()``). The first ``set_values`` snapshots
+    the effective settings onto the current company and never mutates those
+    keys, so other companies keep the same fallback until they save.
     """
     _name = 'nasq.pmo.settings'
     _description = 'nasq project policies'
@@ -30,23 +85,35 @@ class NasqPmoSettings(models.AbstractModel):
     def _params(self):
         return self.env['ir.config_parameter'].sudo()
 
-    def get(self):
-        creators = self._params().get_param(PARAM_CREATORS, 'managers')
-        raw = self._params().get_param(PARAM_STAGES)
-        stages = FALLBACK_STAGES
-        if raw:
+    def _coerce_stages(self, raw):
+        parsed = raw
+        if isinstance(raw, str) and raw:
             try:
                 parsed = json.loads(raw)
             except ValueError:
                 parsed = None
-            if isinstance(parsed, list) and parsed and all(
-                isinstance(s, dict) and isinstance(s.get('name'), str) and s['name'].strip()
-                for s in parsed
-            ):
-                stages = parsed
+        if isinstance(parsed, list) and parsed and all(
+            isinstance(s, dict) and isinstance(s.get('name'), str) and s['name'].strip()
+            for s in parsed
+        ):
+            return [{'name': s['name'], 'fold': bool(s.get('fold'))} for s in parsed]
+        return [{'name': s['name'], 'fold': bool(s.get('fold'))} for s in FALLBACK_STAGES]
+
+    def _legacy_get(self):
+        creators = self._params().get_param(PARAM_CREATORS, 'managers')
         return {
             'project_creators': creators if creators in CREATORS else 'managers',
-            'default_stages': [{'name': s['name'], 'fold': bool(s.get('fold'))} for s in stages],
+            'default_stages': self._coerce_stages(self._params().get_param(PARAM_STAGES)),
+        }
+
+    def get(self):
+        company = self.env.company
+        if not company.nasq_pmo_settings_initialized:
+            return self._legacy_get()
+        creators = company.nasq_pmo_project_creators
+        return {
+            'project_creators': creators if creators in CREATORS else 'managers',
+            'default_stages': self._coerce_stages(company.nasq_pmo_default_stages),
         }
 
     def _can_edit(self):
@@ -54,31 +121,57 @@ class NasqPmoSettings(models.AbstractModel):
             self.env.user, 'pmo.settings.manage',
         )
 
+    def _clean_stages(self, stages):
+        if not isinstance(stages, list) or not stages or len(stages) > MAX_STAGES:
+            field, msg = 'default_stages', f"default_stages must hold 1..{MAX_STAGES} stages"
+            raise _invalid(field, msg)
+        clean = []
+        for s in stages:
+            name = (s.get('name') if isinstance(s, dict) else None)
+            if not isinstance(name, str) or not name.strip():
+                field, msg = 'default_stages', "every default stage needs a name"
+                raise _invalid(field, msg)
+            clean.append({'name': name.strip(), 'fold': bool(s.get('fold'))})
+        return clean
+
     def set_values(self, vals):
         if not self._can_edit():
             raise AccessError(self.env._("Only a customer administrator can change project policies."))
         before = self.get()
+        effective = {
+            'project_creators': before['project_creators'],
+            'default_stages': [dict(stage) for stage in before['default_stages']],
+        }
         if 'project_creators' in vals:
             if vals['project_creators'] not in CREATORS:
                 field, msg = 'project_creators', "project_creators must be 'managers' or 'employees'"
                 raise _invalid(field, msg)
-            self._params().set_param(PARAM_CREATORS, vals['project_creators'])
+            effective['project_creators'] = vals['project_creators']
         if 'default_stages' in vals:
-            stages = vals['default_stages']
-            if not isinstance(stages, list) or not stages or len(stages) > MAX_STAGES:
-                field, msg = 'default_stages', f"default_stages must hold 1..{MAX_STAGES} stages"
-                raise _invalid(field, msg)
-            clean = []
-            for s in stages:
-                name = (s.get('name') if isinstance(s, dict) else None)
-                if not isinstance(name, str) or not name.strip():
-                    field, msg = 'default_stages', "every default stage needs a name"
-                    raise _invalid(field, msg)
-                clean.append({'name': name.strip(), 'fold': bool(s.get('fold'))})
-            self._params().set_param(PARAM_STAGES, json.dumps(clean, ensure_ascii=False))
+            effective['default_stages'] = self._clean_stages(vals['default_stages'])
+        company = self.env.company
+        snapshot = not company.nasq_pmo_settings_initialized
+        write_vals = {}
+        if snapshot:
+            write_vals = {
+                'nasq_pmo_settings_initialized': True,
+                'nasq_pmo_project_creators': effective['project_creators'],
+                'nasq_pmo_default_stages': json.dumps(
+                    effective['default_stages'], ensure_ascii=False,
+                ),
+            }
+        else:
+            if 'project_creators' in vals:
+                write_vals['nasq_pmo_project_creators'] = effective['project_creators']
+            if 'default_stages' in vals:
+                write_vals['nasq_pmo_default_stages'] = json.dumps(
+                    effective['default_stages'], ensure_ascii=False,
+                )
+        if write_vals and (snapshot or effective != before):
+            company._nasq_write_pmo_settings(write_vals)
         result = self.get()
         if result != before:
-            self.env['nasq.access.service']._nasq_bump_policy(self.env.company)
+            self.env['nasq.access.service']._nasq_bump_policy(company)
         return result
 
     def _default_stage_vals(self):

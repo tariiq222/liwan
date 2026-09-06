@@ -34,7 +34,7 @@
     "progressOf": "{closed} of {total} tasks",
     "projectId": "Project #{id}",
     "summary": {
-      "displayed": "Projects shown",
+      "displayed": "Shown on this page",
       "attention": "Needs attention",
       "completed": "Completed projects",
       "tasks": "{count} tasks",
@@ -85,6 +85,9 @@
       "boardView": "Board view",
       "clear": "Clear filters"
     },
+    "previousPage": "Previous",
+    "pageOf": "Page {page} of {pages}",
+    "nextPage": "Next",
     "archivedEmpty": "No archived projects",
     "archivedEmptyHint": "Archived projects appear here and can be restored when needed.",
     "menu": {

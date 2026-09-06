@@ -1,8 +1,11 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+from unittest.mock import patch
+
 from odoo.exceptions import AccessError
 from odoo.tests import new_test_user, tagged
 
 from .common import NasqPmoCase
+from odoo.addons.nasq_pmo.controllers.task_archive import eligible_archived_task_ids
 
 
 @tagged('post_install', '-at_install', 'nasq')
@@ -190,3 +193,146 @@ class TestTaskLifecycle(NasqPmoCase):
         self.assertEqual(self.api('POST', f'/api/v1/projects/{self.other_project.id}/archive', {}).status_code, 200)
         body = self.api('GET', f'/api/v1/tasks/archived?project_id={self.other_project.id}').json()
         self.assertEqual(body, {'items': [], 'total': 0})
+
+    def test_archive_list_paginates_after_eligibility_with_stable_total_and_order(self):
+        self.authenticate('api_mgr', 'api_mgr_pass_123')
+        created_ids = []
+        for index in range(3):
+            created = self.api('POST', '/api/v1/tasks', {
+                'name': f'WP7 Archive page {index}', 'project_id': self.project.id,
+            })
+            self.assertEqual(created.status_code, 201)
+            task_id = created.json()['id']
+            self.assertEqual(self.api('POST', f'/api/v1/tasks/{task_id}/archive', {}).status_code, 200)
+            created_ids.append(task_id)
+        query = 'WP7 Archive page'
+        pages = [
+            self.api(
+                'GET',
+                f'/api/v1/tasks/archived?project_id={self.project.id}&q={query}&limit=1&offset={offset}',
+            ).json()
+            for offset in range(3)
+        ]
+        self.assertEqual({page['total'] for page in pages}, {3})
+        page_ids = [page['items'][0]['id'] for page in pages]
+        self.assertEqual(len(page_ids), 3)
+        self.assertEqual(set(page_ids), set(created_ids))
+        full = self.api(
+            'GET',
+            f'/api/v1/tasks/archived?project_id={self.project.id}&q={query}&limit=200',
+        ).json()
+        self.assertEqual(full['total'], 3)
+        self.assertEqual([item['id'] for item in full['items']], page_ids)
+        empty = self.api(
+            'GET',
+            f'/api/v1/tasks/archived?project_id={self.project.id}&q={query}&limit=1&offset=3',
+        ).json()
+        self.assertEqual((empty['total'], empty['items']), (3, []))
+
+    def test_archive_list_hides_cross_company_and_hidden_tasks(self):
+        company_b = self.env['res.company'].create({'name': 'Archive company B'})
+        self.manager.write({'company_ids': [(4, company_b.id)]})
+        project_b = self.env['project.project'].create({
+            'name': 'Foreign archive project', 'company_id': company_b.id, 'user_id': self.manager.id,
+        })
+        foreign = self.env['project.task'].create({
+            'name': 'Foreign archived', 'project_id': project_b.id, 'company_id': company_b.id,
+            'user_ids': [(4, self.manager.id)], 'active': False,
+        })
+        hidden_project = self.env['project.project'].create({
+            'name': 'Hidden archive project', 'privacy_visibility': 'followers',
+            'company_id': self.env.company.id, 'user_id': self.manager.id,
+        })
+        hidden = self.env['project.task'].create({
+            'name': 'Hidden archived', 'project_id': hidden_project.id,
+            'company_id': self.env.company.id, 'user_ids': [(4, self.manager.id)], 'active': False,
+        })
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        mine = self.api('GET', '/api/v1/tasks/archived?filter=mine').json()
+        listed_ids = {item['id'] for item in mine['items']}
+        self.assertNotIn(foreign.id, listed_ids)
+        self.assertNotIn(hidden.id, listed_ids)
+        self.assertEqual(
+            self.api('POST', f'/api/v1/tasks/{foreign.id}/unarchive').status_code,
+            404,
+        )
+        self.assertEqual(
+            self.api('POST', f'/api/v1/tasks/{hidden.id}/unarchive').status_code,
+            404,
+        )
+
+    def test_archive_eligibility_skips_ineligible_before_pagination(self):
+        company = self.env.company
+        archived = self.env['project.task'].create([
+            {
+                'name': f'Eligible skip {index}',
+                'project_id': self.project.id,
+                'company_id': company.id,
+                'user_ids': [(4, self.manager.id)],
+                'active': False,
+            }
+            for index in range(6)
+        ])
+        Task = self.env['project.task'].with_user(self.manager).with_context(active_test=False)
+        domain = [
+            ('active', '=', False),
+            ('company_id', '=', company.id),
+            ('project_id', '=', self.project.id),
+            ('id', 'in', archived.ids),
+        ]
+        allowed = {archived[1].id, archived[3].id, archived[5].id}
+
+        def can_archive(task):
+            task.ensure_one()
+            return task.id in allowed
+
+        with patch.object(type(Task), '_nasq_can_archive', can_archive):
+            eligible_ids = eligible_archived_task_ids(Task, domain, batch_size=4)
+        ordered = Task.search(domain, order='write_date desc, id desc').ids
+        expected = [task_id for task_id in ordered if task_id in allowed]
+        self.assertEqual(list(eligible_ids), expected)
+        self.assertEqual(eligible_ids[1:2], expected[1:2])
+
+    def test_archive_scan_batch_load_is_bounded_and_matches_filtered_search(self):
+        company = self.env.company
+        archived = self.env['project.task'].create([
+            {
+                'name': f'Batch archive {index}',
+                'project_id': self.project.id,
+                'company_id': company.id,
+                'user_ids': [(4, self.manager.id)],
+                'active': False,
+            }
+            for index in range(12)
+        ])
+        Task = self.env['project.task'].with_user(self.manager).with_context(active_test=False)
+        domain = [
+            ('active', '=', False),
+            ('company_id', '=', company.id),
+            ('project_id.company_id', '=', company.id),
+            ('project_id.active', '=', True),
+            ('project_id', '=', self.project.id),
+            ('id', 'in', archived.ids),
+        ]
+        self.env.flush_all()
+        prefetch_sizes = []
+        orig_can_archive = type(Task)._nasq_can_archive
+
+        def wrapped_can_archive(task):
+            prefetch_sizes.append(len(tuple(task._prefetch_ids)))
+            return orig_can_archive(task)
+
+        with patch.object(type(Task), '_nasq_can_archive', wrapped_can_archive):
+            eligible_ids = eligible_archived_task_ids(Task, domain, batch_size=5)
+        legacy = Task.search(domain, order='write_date desc, id desc').filtered(
+            lambda task: task._nasq_can_archive(),
+        ).ids
+        self.assertEqual(list(eligible_ids), list(legacy))
+        self.assertEqual(len(eligible_ids), 12)
+        self.assertEqual(len(prefetch_sizes), 12)
+        self.assertTrue(prefetch_sizes)
+        self.assertLessEqual(max(prefetch_sizes), 5)
+        self.assertGreater(max(prefetch_sizes), 1)
+        # Proven bound: eligibility walks isolated batches; prefetch never
+        # holds the whole 12-row candidate set. Unmeasured: SQL count from
+        # `_nasq_can_archive` / capability checks (cache may skip fetches).

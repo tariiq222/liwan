@@ -24,6 +24,16 @@ test('global search is a reloadable page with no overlay layer', async ({ page }
   await expect(page.getByPlaceholder('اكتب للانتقال…')).toBeFocused()
 })
 
+test('header search stays a centered popup and does not replace the current route', async ({ page }) => {
+  await login(page)
+  await page.goto('/tasks?q=kept-search')
+  await page.getByRole('button', { name: 'بحث', exact: true }).click()
+  const dialog = page.getByRole('dialog', { name: 'بحث', exact: true })
+  await expect(dialog).toBeVisible()
+  await expect(page).toHaveURL(/\/tasks\?q=kept-search/)
+  await expect(dialog.getByRole('textbox')).toBeFocused()
+})
+
 test('HR and projects index pages survive direct navigation and reload', async ({ page }) => {
   await login(page)
 

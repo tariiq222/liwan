@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Archive, ArrowLeft, ArrowRight, Check, ChevronLeft, ChevronRight, Pencil, X } from '@lucide/vue'
+import type { RouteLocationRaw } from 'vue-router'
 import { toast } from 'vue-sonner'
 import { ApiError } from '@/composables/useApi'
 import { useTaskFilters } from '@/composables/useTaskFilters'
@@ -18,7 +19,7 @@ import TaskDetails from './TaskDetails.vue'
 // URL (the project screen) drive prev/next from those instead of the
 // localStorage-backed filters — decided once per instance since the two
 // branches are different composables.
-const props = withDefaults(defineProps<{ taskId: number; basePath?: string; siblingParams?: TaskListParams; backLabel?: string }>(), {
+const props = withDefaults(defineProps<{ taskId: number; basePath?: string; siblingParams?: TaskListParams; backLabel?: string; backTo?: RouteLocationRaw }>(), {
   basePath: '/tasks',
 })
 const emit = defineEmits<{ close: [] }>()
@@ -99,7 +100,7 @@ async function cancelTitleEdit() {
 }
 
 function saveTitle() {
-  if (!task.value?.can_write) return
+  if (!hydrated.value || !task.value?.can_write) return
   const name = titleDraft.value.trim()
   if (!name || name === task.value.name) {
     titleDraft.value = task.value.name
@@ -121,9 +122,13 @@ function saveTitle() {
   )
 }
 
+function siblingTo(id: number) {
+  return { path: `${props.basePath}/${id}`, query: route.query }
+}
+
 function goTo(id: number | null) {
-  if (id === null) return
-  router.push({ path: `${props.basePath}/${id}`, query: route.query })
+  if (!hydrated.value || id === null) return
+  router.push(siblingTo(id))
 }
 
 function isEditableTarget(el: EventTarget | null) {
@@ -132,6 +137,7 @@ function isEditableTarget(el: EventTarget | null) {
 }
 
 function onKeydown(e: KeyboardEvent) {
+  if (!hydrated.value) return
   if (e.metaKey || e.ctrlKey || e.altKey) return
   if (isEditableTarget(e.target)) return
   if (editingTitle.value || titleSaving.value) {
@@ -156,10 +162,10 @@ useEventListener(document, 'keydown', onKeydown)
   <div class="space-y-4">
     <div class="task-context-row" data-testid="task-detail-context">
       <div class="flex min-w-0 flex-1 items-center gap-2">
-        <Button variant="ghost" size="sm" type="button" class="shrink-0 gap-2 px-2 text-muted-foreground" :disabled="!hydrated || editingTitle || titleSaving" @click="emit('close')">
+        <NuxtLink :to="props.backTo ?? { path: '/tasks', query: route.query }" class="inline-flex min-h-8 shrink-0 items-center gap-2 rounded-lg px-2 text-sm text-muted-foreground hover:bg-muted" :aria-label="props.backLabel ?? t('tasks.detail.back')" :aria-disabled="!hydrated || editingTitle || titleSaving" :tabindex="!hydrated || editingTitle || titleSaving ? -1 : undefined" @click="(!hydrated || editingTitle || titleSaving) && $event.preventDefault()">
           <component :is="isRtl ? ArrowRight : ArrowLeft" class="size-[18px]" />
           <span>{{ props.backLabel ?? t('tasks.detail.back') }}</span>
-        </Button>
+        </NuxtLink>
 
         <template v-if="task && editingTitle">
           <Input

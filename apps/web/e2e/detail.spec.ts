@@ -131,6 +131,7 @@ test('task detail uses the shared page title and keeps activity beside the work 
   const id = await createTask(page, name)
 
   await page.goto(`/tasks/${id}`)
+  await expect(page.locator('.nasq-app-header h1')).toHaveText(name)
   await expect(page.getByRole('heading', { name })).toBeVisible()
   const detail = page.getByTestId('task-detail-page')
   await expect(detail.getByRole('heading', { name: 'النشاط' })).toBeVisible()

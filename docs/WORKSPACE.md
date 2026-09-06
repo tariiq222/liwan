@@ -37,6 +37,68 @@ for inspection. New collaboration endpoints use explicit current-company
 records; the proposed legacy company-less extension remains unapplied pending
 separate approval.
 
+## 2026-09-06 repair-task state
+
+The repair task remains in `/Users/tariq/code/الاصلاحات`, branch
+`codex/الاصلاحات`. Saved-fix HEAD is `4a991da`. Canonical `main` is pinned at
+design commit `b748ca1`. The current merge candidate is that saved fix plus
+that design pin; there is no final merge commit yet. Independent review is
+pending. Do not claim merged, cleaned, PASS, or DONE. No push, production
+upgrade, restart, or deploy.
+
+This worktree path is temporary/historical and may be removed only after the
+candidate is promoted onto committed `main`. If cleanup is later authorized, it
+is bounded to this branch/worktree after reachability and open-file checks.
+Other worktrees stay. Scratch databases
+`nasq_fixes_scratch_final_20260906_1215` and
+`nasq_fixes_scratch_20260906_0945` are retained; no deletion. Final promotion
+and cleanup proof will live in the external recovery directory and the user
+report; this file does not promise those statuses ahead of time. The 2026-09-05
+unification record below is historical and is not a current sole-worktree
+claim.
+
+Canonical `main` remains dirty in `apps/web/nuxt.config.ts` and
+`deploy/Caddyfile`, with untracked `.agent/` preserved and excluded from this
+candidate; do not overwrite those paths. The approved header exception remains:
+centered search popup and notification latest-five popover, with More opening
+`/notifications`. Other business screens stay internal routes.
+
+Approved company settings are per-company and read-only through the legacy
+fallback until first save; no existing projects or stages migration is planned.
+
+Historical source-only layer (do not treat as the combined candidate): npm
+lint 0; npm test 0 (80 contracts, 259 web); browser E2E 78 passed in 3 minutes.
+Those 80/259/78 counts belong to the saved-fix source layer only.
+
+Combined fresh gates on the merge candidate, not production evidence. Raw logs:
+`/Users/tariq/code/nasq-recovery-fixes-merge-20260906/new-gates-logs/`
+(`lint-ready.log`, `test-ready.log`, `combined-node-gates.log`,
+`e2e-ready.log`, `security-ready.log`). Combined results: lint 0; contracts 80;
+web 275; build 0; ops 35 mock-only (`ops-confirm.log` /
+`ops-deploy-cwd.log`; the wrong-cwd `ops.log` import failure is preserved and
+is not the ops evidence); pycompile 25 files, 0. Fresh full E2E: 96 passed in
+3.7m, exit 0. Security: 10 passed, no retries, exit 0.
+
+Backend, contracts, and deploy trees are byte-equal to saved fix `4a991da`
+(`git diff --exit-code` 0). Odoo 300 tests, 0 failures, 0 errors from earlier
+`odoo-test4` on `nasq_fixes_scratch_final_20260906_1215` (HTTP 9579) is REUSED
+evidence and was not rerun for this integration. Combined E2E used isolated DB
+`nasq_fixes_scratch_20260906_0945`, Odoo 9569, and web 3569.
+
+Recovery is external at `/Users/tariq/code/nasq-recovery-fixes-merge-20260906`,
+including `saved-fixes.bundle` and the 51-path source snapshot
+(`source-snapshot/reviewed-51.txt`, fingerprint
+`63199300166ba1f7cf37cbea72a08d02758b11ff858cdbfccc922c5d368b6cdc`).
+
+Remaining gaps: reports/global search are product-spec work; MIME download
+needs a broader audit; production backup restore retention, encryption, and
+offsite work is not done; new `backup.py` is a non-atomic candidate and
+UNVERIFIED, not recovery-ready; checks fragment `verification-checks.json` is
+opt-in and not active in `.agent/`; large-inbox performance is unmeasured;
+legacy company-less collaboration remains excluded; stock theme and upstream
+Odoo remain unchanged. Role-create prehydration checkbox interaction is not
+fully guarded; future dedicated UI hardening must not be described as fixed.
+
 ## Start and inspect
 
 Use these read-only commands before starting work:

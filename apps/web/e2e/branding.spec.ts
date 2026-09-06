@@ -133,7 +133,6 @@ test('a failed branding save keeps the draft visible', async ({ page }) => {
 
 test('branding load errors are visible and retry is hydrated', async ({ page }) => {
   await loginAsAdmin(page)
-  await page.goto('/settings/projects')
   let available = false
   await page.route('**/api/v1/admin/branding', async (route) => {
     if (route.request().method() !== 'GET' || available) {
@@ -142,8 +141,22 @@ test('branding load errors are visible and retry is hydrated', async ({ page }) 
     }
     await route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ code: 'unavailable', message: 'temporarily unavailable' }) })
   })
-  await page.getByTestId('settings-branding-tab').click()
+  await page.goto('/settings/branding')
   await expect(page).toHaveURL(/\/settings\/branding$/)
+  await page.waitForFunction(() => (document.getElementById('__nuxt') as { __vue_app__?: unknown } | null)?.__vue_app__)
+  await page.evaluate(async () => {
+    const app = (document.getElementById('__nuxt') as { __vue_app__?: { _context?: { provides?: Record<PropertyKey, unknown> } } } | null)?.__vue_app__
+    const provides = app?._context?.provides ?? {}
+    const provided = [
+      ...Object.values(provides),
+      ...Object.getOwnPropertySymbols(provides).map((key) => provides[key]),
+    ]
+    const client = provided.find((value) => (
+      value && typeof value === 'object' && typeof (value as { resetQueries?: unknown }).resetQueries === 'function' && typeof (value as { getQueryCache?: unknown }).getQueryCache === 'function'
+    )) as { resetQueries: (opts: { queryKey: string[] }) => Promise<unknown> } | undefined
+    if (!client) throw new Error('vue-query client missing')
+    await client.resetQueries({ queryKey: ['branding-admin'] })
+  })
   await expect(page.getByTestId('branding-load-error')).toBeVisible()
   const retry = page.getByTestId('branding-retry')
   await expect(retry).toBeEnabled()

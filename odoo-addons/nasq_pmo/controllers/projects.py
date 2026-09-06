@@ -3,7 +3,12 @@ from odoo import http
 from odoo.exceptions import AccessError
 from odoo.http import request
 
-from odoo.addons.nasq_api.controllers.common import ApiError, api_handler, get_record
+from odoo.addons.nasq_api.controllers.common import (
+    ApiError,
+    api_handler,
+    get_record,
+    parse_nonneg_int,
+)
 from odoo.addons.nasq_pmo.models.project_project import STATUS_VALUES
 from odoo.addons.nasq_pmo.serializers.project import (
     dump_project,
@@ -12,6 +17,7 @@ from odoo.addons.nasq_pmo.serializers.project import (
 )
 
 MAX_PROJECTS = 200
+LIST_QUERY = {'minimal', 'archived', 'limit', 'offset', 'q', 'status'}
 
 
 class ProjectController(http.Controller):
@@ -23,23 +29,42 @@ class ProjectController(http.Controller):
             'pmo.projects.read',
         )
         args = request.httprequest.args
-        unknown = set(args) - {'minimal', 'archived'}
+        unknown = set(args) - LIST_QUERY
         if unknown:
             raise ApiError(400, 'unsupported_filter', f"unsupported query parameter {sorted(unknown)[0]!r}")
         archived_param = args.get('archived')
         if archived_param is not None and archived_param not in ('1', 'true', '0', 'false'):
             raise ApiError(422, 'invalid', "archived must be '1', 'true', '0' or 'false'", field='archived')
+        # Odoo search(limit=0) means unlimited; treat an explicit 0 as the cap.
+        limit = parse_nonneg_int(args.get('limit', MAX_PROJECTS), 'limit') or MAX_PROJECTS
+        limit = min(limit, MAX_PROJECTS)
+        offset = parse_nonneg_int(args.get('offset', 0), 'offset')
+        status = args.get('status')
+        if status is not None and status != 'unset' and status not in STATUS_VALUES:
+            raise ApiError(
+                422, 'invalid',
+                f"status must be one of {sorted(STATUS_VALUES)} or 'unset'",
+                field='status',
+            )
         Project = request.env['project.project']
         archived = archived_param in ('1', 'true')
         if archived and not Project._nasq_is_manager():
             raise AccessError(request.env._("Only a project manager can list archived projects."))
         domain = [('active', '=', False)] if archived else []
-        projects = Project.with_context(active_test=not archived).search(domain, order='name, id', limit=MAX_PROJECTS)
+        q = (args.get('q') or '').strip()
+        if q:
+            domain.append(('name', 'ilike', q))
+        if status == 'unset':
+            domain.append(('last_update_status', '=', 'to_define'))
+        elif status:
+            domain.append(('last_update_status', '=', status))
+        Project = Project.with_context(active_test=not archived)
+        projects = Project.search(domain, order='name, id', limit=limit, offset=offset)
         if args.get('minimal') in ('1', 'true'):
             return [{'id': p.id, 'name': p.name} for p in projects]
         return {
             'items': [dump_project(p) for p in projects],
-            'total': Project.with_context(active_test=not archived).search_count(domain),
+            'total': Project.search_count(domain),
             'can_create': Project._nasq_can_create(),
             'can_list_archived': Project._nasq_is_manager(),
         }

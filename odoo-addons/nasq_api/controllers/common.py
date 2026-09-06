@@ -88,3 +88,24 @@ def parse_nonneg_int(value, field):
     if parsed < 0:
         raise ApiError(422, 'invalid', "limit and offset must be non-negative integers", field=field)
     return parsed
+
+
+def parse_positive_int(value, field):
+    """Parse a strictly positive integer for JSON/query fields.
+
+    Stable WP-2 signature: ``parse_positive_int(value, field) -> int``.
+
+    Accepts Python ``int`` (not ``bool``) and decimal digit strings such as
+    ``'42'``. Rejects bool, float, containers, non-decimal strings, zero, and
+    negatives with ``ApiError(422, 'invalid', ..., field=field)``. Does not
+    catch ``TypeError``/``ValueError``.
+    """
+    if isinstance(value, int) and not isinstance(value, bool):
+        parsed = value
+    elif isinstance(value, str) and value.isascii() and value.isdecimal():
+        parsed = int(value)
+    else:
+        raise ApiError(422, 'invalid', '%s must be an integer' % field, field=field)
+    if parsed <= 0:
+        raise ApiError(422, 'invalid', '%s must be positive' % field, field=field)
+    return parsed
