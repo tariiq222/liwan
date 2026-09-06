@@ -16,6 +16,7 @@ const baseTask: Task = {
   stage: { id: 9, name: 'To Do' },
   assignees: [{ id: 2, name: 'Sara' }],
   tags: [{ id: 3, name: 'urgent', color: 1 }],
+  allowed_transitions: ['waiting', 'done', 'cancelled'],
 }
 
 const baseDetail: TaskDetail = {
@@ -32,6 +33,12 @@ const baseDetail: TaskDetail = {
   milestone: null,
   created_at: '2030-01-01T00:00:00Z',
   updated_at: '2030-01-01T00:00:00Z',
+  completion_pending: false,
+  completion_revision: 0,
+  completion_return_note: null,
+  completion_policy: 'none',
+  completion_approver: null,
+  completion_blocked_reason: null,
 }
 
 describe('applyPatchToTask on a list item', () => {

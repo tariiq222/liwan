@@ -111,7 +111,7 @@ class TestTaskLifecycle(NasqPmoCase):
         self.assertEqual(set(body['items'][0]), {
             'id', 'name', 'project', 'state', 'priority', 'date_deadline', 'days_remaining',
             'is_overdue', 'is_closed', 'personal_stage', 'stage', 'assignees', 'tags',
-            'can_write', 'can_approve',
+            'can_write', 'can_approve', 'allowed_transitions',
         })
 
     def test_creator_can_restore_but_archived_project_blocks_restore(self):

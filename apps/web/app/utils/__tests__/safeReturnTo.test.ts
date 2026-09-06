@@ -34,6 +34,13 @@ describe('safeReturnTo', () => {
     expect(safeReturnTo('/projects/80', '/tasks', ['/tasks', '/projects/8'])).toBe('/tasks')
   })
 
+  it('allows task detail to return to an internal digest path and rejects others', () => {
+    const allowed = ['/tasks', '/notification-digests'] as const
+    expect(safeReturnTo('/notification-digests/12?returnTo=%2Fnotifications', '/tasks', allowed)).toBe('/notification-digests/12?returnTo=%2Fnotifications')
+    expect(safeReturnTo('/notifications', '/tasks', allowed)).toBe('/tasks')
+    expect(safeReturnTo('https://evil.example/notification-digests/1', '/tasks', allowed)).toBe('/tasks')
+  })
+
   it('builds the shared returnTo query contract', () => {
     expect(returnToQuery('/projects?q=one&status=on_track')).toEqual({ returnTo: '/projects?q=one&status=on_track' })
   })

@@ -2,7 +2,7 @@
 import { Bell } from '@lucide/vue'
 import { toast } from 'vue-sonner'
 import { ApiError } from '@/composables/useApi'
-import { useNotifications, useMarkNotificationRead, type Notification } from '@/composables/useNotifications'
+import { useNotifications, useMarkNotificationRead, isDigestNotification, type Notification } from '@/composables/useNotifications'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 
 const { t, localeProperties } = useI18n()
@@ -14,12 +14,17 @@ const { mutateAsync: markRead, isPending } = useMarkNotificationRead()
 // The API orders newest first (id desc), including read and unread records.
 const items = computed(() => data.value?.items.slice(0, 5) ?? [])
 watch(() => route.fullPath, () => { open.value = false })
+function notificationHref(item: Notification) {
+  if (isDigestNotification(item)) return `/notification-digests/${item.digest_id}`
+  return `/tasks/${item.task_id}`
+}
+
 async function openNotification(item: Notification) {
   if (isPending.value) return
   try {
     if (!item.is_read) await markRead(item.id)
     open.value = false
-    await navigateTo(`/tasks/${item.task_id}`)
+    await navigateTo(notificationHref(item))
   } catch (error) {
     toast.error(error instanceof ApiError ? error.message : t('errors.generic'))
   }
@@ -48,10 +53,10 @@ async function openNotification(item: Notification) {
         <p v-else-if="!items.length" class="p-6 text-center text-sm text-muted-foreground">{{ t('notifications.empty') }}</p>
         <div v-else class="space-y-1">
           <button v-for="item in items" :key="item.id" data-notification-preview-item :data-testid="`notification-preview-${item.id}`" type="button" class="grid w-full gap-1 rounded-lg p-3 text-start transition-colors hover:bg-muted focus-visible:bg-muted" :class="!item.is_read ? 'bg-brand-soft' : ''" :disabled="isPending" @click="openNotification(item)">
-            <span class="text-xs text-muted-foreground">{{ item.kind === 'comment' ? t('notifications.comment') : t(`notifications.${item.kind}`, { task: item.task_name }) }}</span>
+            <span class="text-xs text-muted-foreground">{{ isDigestNotification(item) ? t('tasks.digest.kind') : item.kind === 'comment' ? t('notifications.comment') : t(`notifications.${item.kind}`, { task: item.task_name }) }}</span>
             <span v-if="!item.is_read" class="sr-only">{{ t('notifications.unread') }}</span>
-            <span class="line-clamp-2 text-sm font-medium">{{ item.task_name }}</span>
-            <span v-if="item.kind === 'comment'" class="line-clamp-2 text-xs text-muted-foreground">{{ item.body }}</span>
+            <span class="line-clamp-2 text-sm font-medium">{{ isDigestNotification(item) ? t('tasks.digest.count', item.overdue_count) : item.task_name }}</span>
+            <span v-if="item.kind === 'comment' || isDigestNotification(item)" class="line-clamp-2 text-xs text-muted-foreground">{{ item.body }}</span>
             <span class="text-xs text-muted-foreground" dir="ltr">{{ item.created_at }}</span>
           </button>
         </div>

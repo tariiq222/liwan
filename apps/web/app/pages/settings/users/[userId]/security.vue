@@ -22,7 +22,7 @@ onBeforeUnmount(() => { successKey.value = '' })
 </script>
 
 <template>
-  <SettingsLayout><div class="nasq-page-stack mx-auto w-full max-w-5xl">
+  <SettingsLayout><div class="nasq-page-stack nasq-settings-form-page">
     <SharedPageHeader :title="t('access.users.security')" :back-to="backTo" />
     <p v-if="successKey && !blocked" role="status" class="text-sm text-emerald-700 dark:text-emerald-300">{{ t(successKey) }}</p>
     <SharedPageState v-if="forbidden" :empty="true" :empty-text="t('access.forbidden')" />

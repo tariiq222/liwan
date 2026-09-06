@@ -76,14 +76,8 @@ function onVisibilityChange(v: unknown) {
 }
 
 // --- dates -----------------------------------------------------------------------
-// Odoo semantics (ruling, not a guess): PATCH /projects/{id} clears BOTH
-// date_start and date on the server whenever either is sent as null, because
-// project.project treats the pair as a single range rather than two
-// independent fields. The UI mirrors that: setting one edge alone sends only
-// that field (the other is left untouched, whatever it currently is), but
-// clearing either edge sends {date_start: null, date: null} together and
-// shows both as empty afterwards — never a half-cleared range that no longer
-// matches what the server actually stored.
+// A lone end-date PATCH sends only `{ date }`. Clearing still sends both
+// nulls together so an explicit clear cannot leave a half-range.
 const startValue = computed(() => toCalendarDate(props.project.date_start))
 const endValue = computed(() => toCalendarDate(props.project.date_end))
 const startLabel = computed(() => formatCalendarDate(props.project.date_start, locale.value) || t('projects.settings.noDate'))
@@ -112,6 +106,89 @@ type TagRef = ProjectDetail['tags'][number]
 function onTagsChange({ ids }: { ids: number[]; resolved: TagRef[] }) {
   patch({ tag_ids: ids })
 }
+
+const approverOpen = ref(false)
+const approverQ = ref('')
+const debouncedApproverQ = refDebounced(approverQ, 250)
+const { data: approverPeople } = usePeople(debouncedApproverQ)
+const pendingMode = ref<ProjectDetail['completion_approval'] | null>(null)
+const pendingApproverId = ref<number | null>(null)
+const approvalError = ref<string | null>(null)
+const approvalBusy = ref(false)
+const displayedMode = computed(() => pendingMode.value ?? props.project.completion_approval)
+
+watch(
+  () => [props.project.completion_approval, props.project.completion_approver?.id],
+  () => {
+    pendingMode.value = null
+    pendingApproverId.value = null
+    approvalError.value = null
+  },
+)
+
+function saveApproval(mode: ProjectDetail['completion_approval'], approverId: number | null) {
+  if (approvalBusy.value) return
+  approvalBusy.value = true
+  approvalError.value = null
+  updateProject(
+    {
+      id: props.project.id,
+      patch: {
+        nasq_completion_approval: mode,
+        nasq_completion_approver_id: mode === 'specific_user' ? approverId : null,
+      },
+    },
+    {
+      onError: (e) => {
+        approvalError.value = e instanceof ApiError ? e.message : t('errors.generic')
+        toast.error(approvalError.value)
+      },
+      onSuccess: () => {
+        pendingMode.value = null
+        pendingApproverId.value = null
+        toast.success(t('projects.settings.saved'))
+      },
+      onSettled: () => {
+        approvalBusy.value = false
+      },
+    },
+  )
+}
+
+function onApprovalChange(v: unknown) {
+  const mode = v as ProjectDetail['completion_approval']
+  if (!mode || mode === displayedMode.value || approvalBusy.value) return
+  if (mode === 'specific_user') {
+    pendingMode.value = mode
+    pendingApproverId.value = props.project.completion_approver?.id ?? null
+    return
+  }
+  pendingMode.value = null
+  saveApproval(mode, null)
+}
+
+function selectApprover(userId: number) {
+  approverOpen.value = false
+  approverQ.value = ''
+  pendingApproverId.value = userId
+  saveApproval('specific_user', userId)
+}
+
+function cancelPendingApproval() {
+  pendingMode.value = null
+  pendingApproverId.value = null
+  approvalError.value = null
+}
+
+const displayedApproverName = computed(() => {
+  if (pendingApproverId.value) {
+    return approverPeople.value?.find(person => person.id === pendingApproverId.value)?.name
+      ?? props.project.completion_approver?.name
+      ?? t('projects.settings.noApprover')
+  }
+  return props.project.completion_approver?.name ?? t('projects.settings.noApprover')
+})
+const approvalLocked = computed(() => approvalBusy.value)
 </script>
 
 <template>
@@ -173,12 +250,7 @@ function onTagsChange({ ids }: { ids: number[]; resolved: TagRef[] }) {
       </div>
     </section>
 
-    <!--
-      One paired control for the project's date range (see the Odoo-semantics
-      comment above): two triggers, each opening its own Calendar popover,
-      but both "no date" buttons call the same clearDates() so clearing
-      either edge always nulls the pair together, matching the server.
-    -->
+    <!-- Lone end-date edits PATCH `{ date }` only; clear still nulls the pair. -->
     <section class="space-y-2">
       <Label>{{ t('projects.settings.dateStart') }} / {{ t('projects.settings.dateEnd') }}</Label>
       <div class="grid gap-2 sm:grid-cols-2">
@@ -224,6 +296,49 @@ function onTagsChange({ ids }: { ids: number[]; resolved: TagRef[] }) {
         :aria-label="t('taskLifecycle.enableDependencies')"
         @change="patch({ allow_task_dependencies: ($event.target as HTMLInputElement).checked })"
       />
+    </section>
+
+    <section class="space-y-2">
+      <Label>{{ t('projects.settings.approval') }}</Label>
+      <p class="text-sm text-muted-foreground">{{ t('projects.settings.approvalHint') }}</p>
+      <Select :model-value="displayedMode" :disabled="!hydrated || approvalLocked" @update:model-value="onApprovalChange">
+        <SelectTrigger class="w-full" data-testid="project-approval-mode">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="none">{{ t('projects.settings.approvalNone') }}</SelectItem>
+          <SelectItem value="project_manager">{{ t('projects.settings.approvalManager') }}</SelectItem>
+          <SelectItem value="specific_user">{{ t('projects.settings.approvalUser') }}</SelectItem>
+        </SelectContent>
+      </Select>
+      <p v-if="displayedMode === 'specific_user'" class="text-sm text-muted-foreground">{{ t('projects.settings.approverEligibility') }}</p>
+      <p v-if="approvalError" role="alert" class="text-sm text-destructive">{{ approvalError }}</p>
+      <div v-if="pendingMode === 'specific_user'" class="flex flex-wrap gap-2">
+        <Button type="button" variant="outline" size="sm" data-testid="project-approval-cancel" :disabled="approvalLocked" @click="cancelPendingApproval">{{ t('app.cancel') }}</Button>
+      </div>
+      <Popover v-if="displayedMode === 'specific_user'" v-model:open="approverOpen">
+        <PopoverTrigger as-child>
+          <Button variant="outline" class="w-full justify-start" type="button" data-testid="project-approver" :disabled="!hydrated || approvalLocked">
+            {{ displayedApproverName }}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent class="w-64 p-0" align="start">
+          <div class="border-b p-2">
+            <Input v-model="approverQ" :placeholder="t('app.search')" class="h-8" />
+          </div>
+          <Command>
+            <CommandList>
+              <CommandEmpty>{{ t('app.noResults') }}</CommandEmpty>
+              <CommandGroup>
+                <CommandItem v-for="p in approverPeople ?? []" :key="p.id" :value="String(p.id)" @select="selectApprover(p.id)">
+                  <span class="flex-1">{{ p.name }}</span>
+                  <Check v-if="project.completion_approver?.id === p.id" class="size-4" />
+                </CommandItem>
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
     </section>
 
     <section class="space-y-2">

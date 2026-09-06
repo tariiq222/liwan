@@ -2,9 +2,11 @@ import { expect, test } from '@playwright/test'
 
 async function loginAsAdmin(page) {
   await page.goto('/login')
+  const submit = page.getByRole('button', { name: 'دخول' })
+  await expect(submit).toBeEnabled()
   await page.getByLabel('اسم المستخدم').fill('admin')
   await page.getByLabel('كلمة المرور').fill('admin')
-  await page.getByRole('button', { name: 'دخول' }).click()
+  await submit.click()
   await expect(page).toHaveURL(/\/tasks$/)
 }
 
@@ -15,6 +17,8 @@ test('branding draft previews, cancels, resets to default, and saves explicitly'
   const colour = page.getByTestId('branding-color')
   const preview = page.getByTestId('branding-preview')
   await expect(colour).toBeVisible()
+  await expect(page.locator('.nasq-settings-branding')).toBeVisible()
+  await expect(page.getByRole('status', { name: 'جارٍ تحميل إعدادات الهوية' })).toHaveCount(0)
   await expect(page.getByTestId('branding-name')).toHaveCount(0)
   await expect(page.getByTestId('branding-logo')).toHaveCount(0)
   await expect(page.getByTestId('branding-managed-identity')).toBeVisible()
@@ -73,10 +77,13 @@ test('branding draft previews, cancels, resets to default, and saves explicitly'
   await page.getByTestId('branding-submit').click()
   expect((await savedWhite).status()).toBe(200)
   const productionPrimary = page.getByTestId('branding-submit')
+  await page.mouse.move(0, 0)
   await expect(productionPrimary).toHaveCSS('background-color', 'rgb(255, 255, 255)')
   await expect(productionPrimary).toHaveCSS('color', 'rgb(0, 0, 0)')
   await expect(productionPrimary).toHaveCSS('border-top-style', 'solid')
   await expect(productionPrimary).toHaveCSS('border-top-width', /[1-9]px/)
+  await productionPrimary.hover()
+  await expect(productionPrimary).toHaveCSS('background-color', 'rgb(230, 230, 230)')
 
   await colour.fill('#123456')
   const saved = page.waitForResponse((response) => (
@@ -139,10 +146,14 @@ test('branding load errors are visible and retry is hydrated', async ({ page }) 
       await route.continue()
       return
     }
-    await route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ code: 'unavailable', message: 'temporarily unavailable' }) })
+    await route.fulfill({
+      status: 503,
+      contentType: 'application/json',
+      body: JSON.stringify({ code: 'unavailable', message: 'temporarily unavailable' }),
+    })
   })
   await page.goto('/settings/branding')
-  await expect(page).toHaveURL(/\/settings\/branding$/)
+  await expect(page).toHaveURL(/\/settings\/appearance#branding$/)
   await page.waitForFunction(() => (document.getElementById('__nuxt') as { __vue_app__?: unknown } | null)?.__vue_app__)
   await page.evaluate(async () => {
     const app = (document.getElementById('__nuxt') as { __vue_app__?: { _context?: { provides?: Record<PropertyKey, unknown> } } } | null)?.__vue_app__

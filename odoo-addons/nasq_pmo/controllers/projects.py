@@ -1,6 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import http
-from odoo.exceptions import AccessError
+from odoo.exceptions import AccessError, UserError
 from odoo.http import request
 
 from odoo.addons.nasq_api.controllers.common import (
@@ -9,15 +9,18 @@ from odoo.addons.nasq_api.controllers.common import (
     get_record,
     parse_nonneg_int,
 )
-from odoo.addons.nasq_pmo.models.project_project import STATUS_VALUES
+from odoo.addons.nasq_pmo.models.project_project import STATUS_VALUES, NasqStaleWrite
 from odoo.addons.nasq_pmo.serializers.project import (
     dump_project,
     dump_project_detail,
+    parse_project_create,
     parse_project_vals,
 )
+from odoo.addons.nasq_pmo.serializers.project_charter import parse_charter_vals
 
 MAX_PROJECTS = 200
 LIST_QUERY = {'minimal', 'archived', 'limit', 'offset', 'q', 'status'}
+_ABSENT = object()
 
 
 class ProjectController(http.Controller):
@@ -71,13 +74,17 @@ class ProjectController(http.Controller):
 
     @http.route('/api/v1/projects', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
-    def create_project(self, name=None, **_):
-        if not isinstance(name, str) or not name.strip():
-            raise ApiError(422, 'invalid', "name must not be empty", field='name')
+    def create_project(self, **payload):
+        Project = request.env['project.project']
+        if not Project._nasq_can_create():
+            raise ApiError(403, 'create_forbidden', request.env._("You are not allowed to create projects."))
+        name, extra = parse_project_create(payload)
         try:
-            project = request.env['project.project']._nasq_create_from_policy(name.strip())
+            project = Project._nasq_create_from_policy(name, extra or None)
         except AccessError as e:
             raise ApiError(403, 'create_forbidden', str(e)) from e
+        except UserError as e:
+            raise ApiError(422, 'invalid', str(e)) from e
         return request.make_json_response(dump_project_detail(project), status=201)
 
     @http.route('/api/v1/projects/<int:project_id>', type='json2', auth='user', methods=['GET'], readonly=True)
@@ -92,11 +99,27 @@ class ProjectController(http.Controller):
     @api_handler
     def patch_project(self, project_id, **payload):
         payload.pop('project_id', None)
-        if not payload:
+        charter = payload.pop('charter', _ABSENT)
+        expected = payload.pop('expected_updated_at', _ABSENT)
+        if not payload and charter is _ABSENT:
             raise ApiError(422, 'invalid', "no fields to update")
         project = get_record('project.project', project_id)
-        project._nasq_check_manage()
-        vals = parse_project_vals(payload)
+        if charter is not _ABSENT and expected is _ABSENT:
+            raise ApiError(422, 'invalid', "expected_updated_at is required when charter is present", field='expected_updated_at')
+        if expected is not _ABSENT:
+            if not isinstance(expected, str) or not expected.startswith('v') or not expected[1:].isdigit():
+                raise ApiError(422, 'invalid', "expected_updated_at is not a valid write token", field='expected_updated_at')
+            try:
+                project._nasq_lock_for_write(expected)
+            except NasqStaleWrite as e:
+                raise ApiError(409, 'stale_write', str(e), field='expected_updated_at') from e
+        else:
+            project._nasq_check_manage()
+        vals = parse_project_vals(payload, project) if payload else {}
+        if charter is not _ABSENT:
+            vals.update(parse_charter_vals(charter, project))
+        if not vals:
+            return dump_project_detail(project)
         project._nasq_write_as_manager(vals)
         return dump_project_detail(project)
 

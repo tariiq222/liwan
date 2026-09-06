@@ -81,16 +81,16 @@ async function save() {
 </script>
 
 <template>
-  <form class="nasq-form space-y-6" @submit.prevent="save">
+  <form class="nasq-form min-w-0 space-y-5" @submit.prevent="save">
     <SharedUnsavedChanges :dirty="dirty" />
-    <div class="grid gap-4 sm:grid-cols-2">
+    <div class="nasq-form-grid">
       <div class="space-y-2"><Label for="role-name-ar">{{ t('access.roles.nameArabic') }}</Label><Input id="role-name-ar" v-model="nameAr" :disabled="!canEdit" /></div>
       <div class="space-y-2"><Label for="role-name-en">{{ t('access.roles.nameEnglish') }}</Label><Input id="role-name-en" v-model="nameEn" dir="ltr" :disabled="!canEdit" /></div>
     </div>
     <div class="space-y-2"><Label for="role-description">{{ t('access.roles.descriptionLabel') }}</Label><Textarea id="role-description" v-model="description" :disabled="!canEdit" /></div>
-    <fieldset class="space-y-2" :disabled="!canEdit">
+    <fieldset class="min-w-0 space-y-2" :disabled="!canEdit">
       <legend class="font-medium">{{ t('access.roles.permissions') }}</legend>
-      <section v-for="[domain, domainPermissions] in groupedPermissions" :key="domain" class="space-y-2"><h3 class="text-sm font-medium">{{ domainLabel(domain) }}</h3><label v-for="permission in domainPermissions" :key="permission.key" class="flex items-start gap-2 rounded-lg border border-border/80 bg-card p-3 transition-colors hover:bg-muted/40"><input type="checkbox" :checked="selected.includes(permission.key)" :disabled="!permission.custom_role_allowed || !canEdit" @change="togglePermission(permission, !selected.includes(permission.key))"><span><span class="font-medium">{{ permissionLabel(permission.key) }}</span><span class="block text-xs text-muted-foreground">{{ permissionDescription(permission) }}</span><span v-if="permission.dependencies.length" class="block text-xs text-muted-foreground">{{ t('access.roles.requires') }}: <span>{{ permission.dependencies.map((key) => permissionLabel(key)).join('، ') }}</span></span></span></label></section>
+      <section v-for="[domain, domainPermissions] in groupedPermissions" :key="domain" class="nasq-form-section space-y-3"><h3 class="text-sm font-medium">{{ domainLabel(domain) }}</h3><div class="nasq-settings-options"><label v-for="permission in domainPermissions" :key="permission.key" class="nasq-settings-option"><input type="checkbox" :checked="selected.includes(permission.key)" :disabled="!permission.custom_role_allowed || !canEdit" @change="togglePermission(permission, !selected.includes(permission.key))"><span><span class="font-medium">{{ permissionLabel(permission.key) }}</span><span class="block text-xs text-muted-foreground">{{ permissionDescription(permission) }}</span><span v-if="permission.dependencies.length" class="block text-xs text-muted-foreground">{{ t('access.roles.requires') }}: <span>{{ permission.dependencies.map((key) => permissionLabel(key)).join('، ') }}</span></span></span></label></div></section>
     </fieldset>
     <div v-if="dirty" class="space-y-1 rounded-lg border border-border/80 bg-muted/30 p-3 text-xs"><p class="font-medium">{{ t('access.roles.permissionChanges') }}</p><p v-if="addedPermissions.length">{{ t('access.roles.added') }}: {{ addedPermissions.map((key) => permissionLabel(key)).join('، ') }}</p><p v-if="removedPermissions.length">{{ t('access.roles.removed') }}: {{ removedPermissions.map((key) => permissionLabel(key)).join('، ') }}</p><p v-if="retainedPermissions.length">{{ t('access.roles.retained') }}: {{ retainedPermissions.map((key) => permissionLabel(key)).join('، ') }}</p></div>
     <p v-if="props.role.protected" class="text-sm text-muted-foreground">{{ t('access.protectedRole') }}</p>
@@ -98,6 +98,6 @@ async function save() {
     <p v-if="!props.role.active" class="text-sm text-amber-700 dark:text-amber-300">{{ t('access.roles.disabledExistingAssignments') }}</p>
     <p v-if="dirty && props.role.user_count" class="text-sm text-amber-700 dark:text-amber-300">{{ t('access.roles.affectedUsers', { count: props.role.user_count }) }}</p>
     <p v-if="errorMessage" role="alert" class="text-sm text-destructive">{{ errorMessage }}</p>
-    <Button v-if="canEdit" type="submit" :disabled="!dirty || update.isPending.value">{{ t('access.save') }}</Button>
+    <div class="nasq-form-footer"><Button v-if="canEdit" type="submit" :disabled="!dirty || update.isPending.value">{{ t('access.save') }}</Button></div>
   </form>
 </template>

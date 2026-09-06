@@ -36,7 +36,8 @@ def _today(task, today=None):
 def _days_remaining(task, today=None):
     if not task.date_deadline:
         return None
-    return (task.date_deadline.date() - _today(task, today)).days
+    deadline_day = fields.Date.context_today(task, task.date_deadline)
+    return (deadline_day - _today(task, today)).days
 
 
 def _ref(record):
@@ -93,6 +94,7 @@ def dump_task(task, today=None):
         'tags': [{'id': t.id, 'name': t.name, 'color': t.color} for t in task.tag_ids],
         'can_write': task._nasq_can_write(),
         'can_approve': task._nasq_can_approve(),
+        'allowed_transitions': task._nasq_allowed_transitions(),
     }
 
 
@@ -124,11 +126,20 @@ def dump_task_detail(task, today=None):
             *(['write'] if task._nasq_can_write() else []),
             *(['archive'] if task._nasq_can_archive() else []),
             *(['approve'] if task._nasq_can_approve() else []),
+            *(['request_completion'] if task._nasq_can_request_completion() else []),
+            *(['accept_completion', 'return_completion'] if task._nasq_can_decide_completion() else []),
+            *(['withdraw_completion'] if task._nasq_can_withdraw_completion() else []),
         ],
         'can_manage_dependencies': bool(task._nasq_can_manage_dependencies()),
         'created_at': iso(task.create_date),
         'updated_at': iso(task.write_date),
         'milestone': _milestone_ref(task.milestone_id) if task.milestone_id else None,
+        'completion_pending': bool(task.nasq_completion_pending),
+        'completion_revision': task.nasq_completion_revision or 0,
+        'completion_return_note': task.nasq_completion_return_note or None,
+        'completion_policy': task.project_id.nasq_completion_approval if task.project_id else 'none',
+        'completion_approver': _ref(task._nasq_completion_reviewer()) if task._nasq_completion_reviewer() else None,
+        'completion_blocked_reason': task._nasq_completion_blocked_reason(),
     })
     return data
 

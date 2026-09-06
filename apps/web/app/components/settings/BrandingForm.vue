@@ -79,7 +79,7 @@ onBeforeUnmount(() => update.reset())
 </script>
 
 <template>
-  <div v-if="isLoading" role="status" aria-live="polite" aria-busy="true" :aria-label="t('settings.branding.loading')">
+  <div v-if="!hydrated || isLoading" role="status" aria-live="polite" aria-busy="true" :aria-label="t('settings.branding.loading')">
     <Skeleton class="h-80 w-full" />
   </div>
   <div v-else-if="error" data-testid="branding-load-error" class="space-y-3 rounded-lg border border-destructive/50 p-6">
@@ -88,7 +88,7 @@ onBeforeUnmount(() => update.reset())
       {{ t('settings.branding.retry') }}
     </Button>
   </div>
-  <div v-else-if="branding" class="nasq-detail-grid">
+  <div v-else-if="branding" class="nasq-settings-branding">
     <form class="nasq-form space-y-5" data-testid="branding-form" @submit.prevent="save">
       <SharedUnsavedChanges :dirty="dirty" />
       <p data-testid="branding-managed-identity" class="text-sm text-muted-foreground">
@@ -103,7 +103,7 @@ onBeforeUnmount(() => update.reset())
             data-testid="branding-color-picker"
             type="color"
             :aria-label="t('settings.branding.colorPicker')"
-            class="h-9 w-12 shrink-0 rounded border p-1"
+            class="h-[40px] w-[40px] shrink-0 rounded-lg border bg-background p-1"
             :disabled="!hydrated || isBusy"
             @input="dirty = true"
           >
@@ -126,7 +126,7 @@ onBeforeUnmount(() => update.reset())
         </div>
       </div>
       <p v-if="validationError" role="alert" class="text-sm text-destructive">{{ validationError }}</p>
-      <div class="flex flex-wrap gap-2">
+      <div class="nasq-form-footer">
         <Button type="submit" data-testid="branding-submit" :aria-invalid="!colorValid" :disabled="!hydrated || isBusy || !colorValid">
           {{ update.isPending.value ? t('settings.branding.saving') : t('settings.branding.save') }}
         </Button>

@@ -1,22 +1,57 @@
 <script setup lang="ts">
 import { onBeforeRouteLeave } from 'vue-router'
+import { AlertDialogRoot, AlertDialogPortal, AlertDialogOverlay, AlertDialogContent, AlertDialogTitle, AlertDialogDescription, AlertDialogCancel } from 'reka-ui'
+
 const props = defineProps<{ dirty: boolean }>()
 const pendingPath = ref<string | null>(null)
-let leaving = false
+const leaving = ref(false)
+let returnFocus: HTMLElement | null = null
+
 onBeforeRouteLeave(to => {
-  if (!props.dirty || leaving) return true
+  if (!props.dirty || leaving.value) return true
+  if (import.meta.client) returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null
   pendingPath.value = to.fullPath
   return false
 })
+
+watch(() => props.dirty, dirty => {
+  if (!dirty) pendingPath.value = null
+})
+
+function restoreFocus() {
+  if (!leaving.value && returnFocus?.isConnected) returnFocus.focus({ preventScroll: true })
+}
+
 async function discard() {
-  if (!pendingPath.value) return
-  leaving = true
-  await navigateTo(pendingPath.value)
+  const destination = pendingPath.value
+  if (!destination || leaving.value) return
+  leaving.value = true
+  try {
+    await navigateTo(destination)
+  } finally {
+    leaving.value = false
+  }
 }
 </script>
+
 <template>
-  <div v-if="pendingPath" role="alert" class="my-4 rounded-lg border border-amber-400/50 bg-amber-50 p-4 text-sm text-amber-950 dark:bg-amber-950 dark:text-amber-100">
-    <p>{{ $t('app.unsavedChanges') }}</p>
-    <div class="mt-3 flex flex-wrap gap-2"><Button type="button" variant="outline" @click="pendingPath = null">{{ $t('app.stay') }}</Button><Button type="button" variant="destructive" @click="discard">{{ $t('app.discardAndLeave') }}</Button></div>
-  </div>
+  <AlertDialogRoot :open="pendingPath !== null" @update:open="open => { if (!open && !leaving) pendingPath = null }">
+    <AlertDialogPortal>
+      <AlertDialogOverlay class="fixed inset-0 z-50 bg-black/30" />
+      <AlertDialogContent
+        data-testid="unsaved-changes-dialog"
+        @close-auto-focus.prevent="restoreFocus"
+        class="fixed start-1/2 top-1/2 z-50 w-[calc(100%-2rem)] max-w-[420px] -translate-y-1/2 rounded-lg border bg-card p-6 text-start text-card-foreground shadow-lg ltr:-translate-x-1/2 rtl:translate-x-1/2"
+      >
+        <AlertDialogTitle class="text-base font-semibold">{{ $t('app.unsavedChangesTitle') }}</AlertDialogTitle>
+        <AlertDialogDescription class="mt-2 text-sm leading-6 text-muted-foreground">{{ $t('app.unsavedChanges') }}</AlertDialogDescription>
+        <div class="mt-6 flex flex-wrap justify-end gap-2">
+          <AlertDialogCancel as-child>
+            <Button type="button" variant="outline" :disabled="leaving">{{ $t('app.stay') }}</Button>
+          </AlertDialogCancel>
+          <Button type="button" :disabled="leaving" @click="discard">{{ $t('app.discardAndLeave') }}</Button>
+        </div>
+      </AlertDialogContent>
+    </AlertDialogPortal>
+  </AlertDialogRoot>
 </template>

@@ -19,11 +19,29 @@ const actionLabels: Record<AuditAction, string> = {
 </script>
 
 <template>
-  <SettingsLayout><div class="nasq-page-stack mx-auto w-full max-w-5xl">
-    <SharedPageHeader :title="t('access.audit.detailTitle')" :back-to="returnTo" />
-    <SharedPageState v-if="forbidden" :empty="true" :empty-text="t('access.forbidden')" />
-    <SharedPageState v-else :loading="event.isLoading.value" :error="event.error.value" :empty="!event.data.value" :empty-text="t('access.notFound')" @retry="event.refetch">
-      <Card v-if="event.data.value" class="rounded-lg border-border/80 bg-card"><CardContent class="space-y-5 p-4 text-sm sm:p-6"><p>{{ t('access.audit.columns.time') }}: <span dir="ltr">{{ event.data.value.occurred_at }}</span></p><p>{{ t('access.audit.columns.actor') }}: {{ event.data.value.actor?.name ?? t('access.audit.system') }}</p><p>{{ t('access.audit.columns.action') }}: {{ t(actionLabels[event.data.value.action]) }}</p><p>{{ t('access.audit.columns.target') }}: {{ event.data.value.target.name }}</p><div><h2 class="font-medium">{{ t('access.audit.before') }}</h2><pre class="overflow-auto rounded-lg border border-border/80 bg-muted p-3" dir="ltr">{{ JSON.stringify(event.data.value.before, null, 2) }}</pre></div><div><h2 class="font-medium">{{ t('access.audit.after') }}</h2><pre class="overflow-auto rounded-lg border border-border/80 bg-muted p-3" dir="ltr">{{ JSON.stringify(event.data.value.after, null, 2) }}</pre></div><p v-if="event.data.value.reason">{{ t('access.audit.reason') }}: {{ event.data.value.reason }}</p></CardContent></Card>
-    </SharedPageState>
-  </div></SettingsLayout>
+  <SettingsLayout>
+    <div class="nasq-page-stack">
+      <SharedPageHeader :title="t('access.audit.detailTitle')" :back-to="returnTo" />
+      <SharedPageState v-if="forbidden" :empty="true" :empty-text="t('access.forbidden')" />
+      <SharedPageState v-else :loading="event.isLoading.value" :error="event.error.value" :empty="!event.data.value" :empty-text="t('access.notFound')" @retry="event.refetch">
+        <template v-if="event.data.value">
+          <section class="nasq-panel nasq-panel-body">
+            <dl class="nasq-metadata">
+              <div><dt>{{ t('access.audit.columns.time') }}</dt><dd dir="ltr">{{ event.data.value.occurred_at }}</dd></div>
+              <div><dt>{{ t('access.audit.columns.actor') }}</dt><dd>{{ event.data.value.actor?.name ?? t('access.audit.system') }}</dd></div>
+              <div><dt>{{ t('access.audit.columns.action') }}</dt><dd>{{ t(actionLabels[event.data.value.action]) }}</dd></div>
+              <div><dt>{{ t('access.audit.columns.target') }}</dt><dd>{{ event.data.value.target.name }}</dd></div>
+              <div v-if="event.data.value.reason"><dt>{{ t('access.audit.reason') }}</dt><dd>{{ event.data.value.reason }}</dd></div>
+            </dl>
+          </section>
+          <div class="nasq-settings-cards mt-4">
+            <section v-for="side in (['before', 'after'] as const)" :key="side" class="nasq-panel">
+              <header class="nasq-panel-header"><h2 class="font-semibold">{{ t(`access.audit.${side}`) }}</h2></header>
+              <div class="nasq-panel-body"><pre class="overflow-x-auto rounded-lg bg-muted p-3 text-xs leading-6" dir="ltr">{{ JSON.stringify(event.data.value[side], null, 2) }}</pre></div>
+            </section>
+          </div>
+        </template>
+      </SharedPageState>
+    </div>
+  </SettingsLayout>
 </template>

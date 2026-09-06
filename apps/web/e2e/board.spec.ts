@@ -14,7 +14,7 @@ async function createTask(page, name: string) {
   const projects = await projectsRes.json()
   let projectId = projects[0]?.id as number | undefined
   if (!projectId) {
-    const projectRes = await page.request.post('/api/v1/projects', { data: { name: `E2E board project ${Date.now()}` } })
+    const projectRes = await page.request.post('/api/v1/projects', { data: { name: `E2E board project ${Date.now()}`, date_end: '2035-12-31' } })
     expect(projectRes.status()).toBe(201)
     projectId = (await projectRes.json()).id as number
   }

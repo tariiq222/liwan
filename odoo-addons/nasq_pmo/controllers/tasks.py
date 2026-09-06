@@ -1,6 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import http
-from odoo.exceptions import AccessError
+from odoo.exceptions import AccessError, UserError
 from odoo.fields import Domain
 from odoo.http import request
 
@@ -53,7 +53,7 @@ class TaskController(http.Controller):
                 raise ApiError(422, 'invalid', "project_id must be a positive integer", field='project_id')
         if filter_ != 'mine' and project_id is None:
             raise ApiError(400, 'unsupported_filter', "pass filter=mine and/or project_id")
-        limit = parse_nonneg_int(limit, 'limit')
+        limit = parse_nonneg_int(limit, 'limit') or 50
         offset = parse_nonneg_int(offset, 'offset')
         if project_id is not None and not request.env['project.project'].search_count([('id', '=', project_id)]):
             # ACL/ir.rule decide readability; an unreadable (or nonexistent) project simply
@@ -147,4 +147,65 @@ class TaskController(http.Controller):
     def archive_task(self, task_id, **_):
         task = get_record('project.task', task_id)
         task._nasq_archive()  # AccessError → 403 forbidden via api_handler
+        return dump_task_detail(task)
+
+    @http.route('/api/v1/tasks/<int:task_id>/completion/request', type='json2', auth='user', methods=['POST'], readonly=False)
+    @api_handler
+    def request_completion(self, task_id, **extra):
+        if extra:
+            field = sorted(extra)[0]
+            raise ApiError(422, 'unknown_field', f"field {field!r} is not writable", field=field)
+        task = get_record('project.task', task_id)
+        try:
+            task._nasq_request_completion()
+        except AccessError as e:
+            raise ApiError(403, 'transition_forbidden', str(e)) from e
+        except UserError as e:
+            raise ApiError(422, 'invalid', str(e)) from e
+        return dump_task_detail(task)
+
+    @http.route('/api/v1/tasks/<int:task_id>/completion/accept', type='json2', auth='user', methods=['POST'], readonly=False)
+    @api_handler
+    def accept_completion(self, task_id, revision=None, **extra):
+        if extra:
+            field = sorted(extra)[0]
+            raise ApiError(422, 'unknown_field', f"field {field!r} is not writable", field=field)
+        task = get_record('project.task', task_id)
+        try:
+            task._nasq_accept_completion(revision)
+        except AccessError as e:
+            raise ApiError(403, 'transition_forbidden', str(e)) from e
+        except UserError as e:
+            raise ApiError(422, 'invalid', str(e), field='revision') from e
+        return dump_task_detail(task)
+
+    @http.route('/api/v1/tasks/<int:task_id>/completion/return', type='json2', auth='user', methods=['POST'], readonly=False)
+    @api_handler
+    def return_completion(self, task_id, revision=None, note=None, **extra):
+        if extra:
+            field = sorted(extra)[0]
+            raise ApiError(422, 'unknown_field', f"field {field!r} is not writable", field=field)
+        task = get_record('project.task', task_id)
+        try:
+            task._nasq_return_completion(revision, note)
+        except AccessError as e:
+            raise ApiError(403, 'transition_forbidden', str(e)) from e
+        except UserError as e:
+            field = 'note' if not (isinstance(note, str) and note.strip()) else 'revision'
+            raise ApiError(422, 'invalid', str(e), field=field) from e
+        return dump_task_detail(task)
+
+    @http.route('/api/v1/tasks/<int:task_id>/completion/withdraw', type='json2', auth='user', methods=['POST'], readonly=False)
+    @api_handler
+    def withdraw_completion(self, task_id, revision=None, **extra):
+        if extra:
+            field = sorted(extra)[0]
+            raise ApiError(422, 'unknown_field', f"field {field!r} is not writable", field=field)
+        task = get_record('project.task', task_id)
+        try:
+            task._nasq_withdraw_completion(revision)
+        except AccessError as e:
+            raise ApiError(403, 'transition_forbidden', str(e)) from e
+        except UserError as e:
+            raise ApiError(422, 'invalid', str(e), field='revision') from e
         return dump_task_detail(task)

@@ -4,8 +4,25 @@ from odoo.tools import html2plaintext
 from odoo.addons.nasq_api.serializers.common import iso
 
 
-def dump_notification(notification):
+def dump_notification(notification, live_tasks=None):
     message = notification.mail_message_id
+    if message.nasq_notification_kind == 'overdue_digest':
+        if live_tasks is None:
+            message_text = 'live_tasks is required for overdue digest serialization'
+            raise ValueError(message_text)
+        tasks = live_tasks
+        local_date = message.nasq_digest_date
+        count = len(tasks)
+        return {
+            'id': notification.id,
+            'kind': 'overdue_digest',
+            'digest_id': notification.id,
+            'overdue_count': count,
+            'local_date': local_date.isoformat() if local_date else None,
+            'body': f'{count} overdue tasks',
+            'created_at': iso(message.date),
+            'is_read': bool(notification.is_read),
+        }
     task = message.nasq_task_id
     return {
         'id': notification.id,

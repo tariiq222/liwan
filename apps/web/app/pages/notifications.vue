@@ -3,6 +3,7 @@ import { ArrowLeft, ArrowRight } from '@lucide/vue'
 import { toast } from 'vue-sonner'
 import { ApiError } from '@/composables/useApi'
 import {
+  isDigestNotification,
   useMarkAllNotificationsRead,
   useMarkNotificationRead,
   useNotificationsPage,
@@ -36,7 +37,12 @@ const queryErrorMessage = computed(() => (
 ))
 
 function kindLabel(item: Notification) {
+  if (isDigestNotification(item)) return t('tasks.digest.kind')
   return item.kind === 'comment' ? t('notifications.comment') : t(`notifications.${item.kind}`, { task: item.task_name })
+}
+
+function itemTitle(item: Notification) {
+  return isDigestNotification(item) ? t('tasks.digest.count', { n: item.overdue_count }) : item.task_name
 }
 
 async function openNotification(item: Notification) {
@@ -44,7 +50,8 @@ async function openNotification(item: Notification) {
   pendingReadId.value = item.id
   try {
     await markRead(item.id)
-    await navigateTo(`/tasks/${item.task_id}`)
+    if (isDigestNotification(item)) await navigateTo(`/notification-digests/${item.id}`)
+    else await navigateTo(`/tasks/${item.task_id}`)
   } catch (error) {
     toast.error(error instanceof ApiError ? error.message : t('errors.generic'))
   } finally {
@@ -107,14 +114,20 @@ async function retryNextPage() {
             v-for="item in items"
             :key="item.id"
             type="button"
-            class="grid gap-1 border-b border-border/80 p-3 text-start transition-colors last:border-0 hover:bg-muted/70"
-            :class="item.is_read ? 'bg-background' : 'bg-brand-soft'"
+            class="grid gap-1 border-b border-border/80 p-3 text-start transition-colors last:border-b-0 hover:bg-muted/70"
+            :class="item.is_read ? 'bg-background' : 'border-s-2 border-s-brand-link bg-brand-soft'"
             :disabled="!hydrated || actionPending"
             :data-testid="`notification-${item.id}`"
             @click="openNotification(item)"
           >
-            <span class="text-xs font-medium text-muted-foreground">{{ kindLabel(item) }}</span>
-            <span class="font-medium">{{ item.task_name }}</span>
+            <span class="flex items-center gap-2 text-xs font-medium" :class="item.is_read ? 'text-muted-foreground' : 'text-brand-link'">
+              <span>{{ kindLabel(item) }}</span>
+              <span v-if="!item.is_read" class="inline-flex items-center gap-1 font-semibold">
+                <span class="size-1.5 shrink-0 rounded-full bg-brand-link" aria-hidden="true" />
+                {{ t('notifications.unread') }}
+              </span>
+            </span>
+            <span class="font-medium">{{ itemTitle(item) }}</span>
             <span v-if="item.kind === 'comment'" class="line-clamp-3 text-sm text-muted-foreground">{{ item.body }}</span>
             <span class="text-xs text-muted-foreground" dir="ltr">{{ item.created_at }}</span>
           </button>

@@ -4,9 +4,12 @@ const TEST_PASSWORD = 'NasqAccess-Test-123!'
 
 type NotificationItem = {
   id: number
-  kind: 'assignment' | 'comment' | 'deadline'
-  task_id: number
-  task_name: string
+  kind: 'assignment' | 'comment' | 'deadline' | 'overdue_digest'
+  task_id?: number
+  task_name?: string
+  digest_id?: number
+  overdue_count?: number
+  local_date?: string | null
   body: string
   created_at: string
   is_read: boolean
@@ -62,7 +65,7 @@ test('second user receives real assignment and comment events and read state sur
   const recipientId = await ensureRecipientUser(page, recipientLogin, recipientPassword)
 
   const projectResponse = await page.request.post('/api/v1/projects', {
-    data: { name: `E2E notifications ${Date.now()}` },
+    data: { name: `E2E notifications ${Date.now()}`, date_end: '2035-12-31' },
   })
   expect(projectResponse.status()).toBe(201)
   const project = await projectResponse.json()
@@ -130,8 +133,10 @@ test('second user receives real assignment and comment events and read state sur
   await recipientPage.reload()
   await expect(recipientPage.getByTestId('notification-count')).toHaveText('1')
   const assignmentClass = await recipientPage.getByTestId(`notification-${assignment.id}`).getAttribute('class')
-  expect(assignmentClass ?? '').not.toContain('border-brand-border')
-  await expect(recipientPage.getByTestId(`notification-${comment.id}`)).toHaveClass(/border-brand-border/)
+  expect(assignmentClass ?? '').not.toContain('bg-brand-soft')
+  const unreadComment = recipientPage.getByTestId(`notification-${comment.id}`)
+  await expect(unreadComment).toHaveClass(/bg-brand-soft/)
+  await expect(unreadComment.getByText('غير مقروءة', { exact: true })).toBeVisible()
 
   const secondRead = recipientPage.waitForResponse((response) => (
     response.url().endsWith(`/api/v1/notifications/${comment.id}/read`)

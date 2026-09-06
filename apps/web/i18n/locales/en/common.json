@@ -11,7 +11,8 @@
     "loading": "Loading",
     "back": "Back",
     "retry": "Try again",
-    "unsavedChanges": "You have unsaved changes. Stay on this page or leave without saving?",
+    "unsavedChangesTitle": "Unsaved changes",
+    "unsavedChanges": "If you leave now, your changes will not be saved.",
     "stay": "Stay on this page",
     "discardAndLeave": "Leave without saving"
   },

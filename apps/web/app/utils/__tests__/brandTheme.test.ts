@@ -33,6 +33,15 @@ describe('createBrandTheme', () => {
     expect(theme['--sidebar-primary-foreground']).toBe(expectedForeground)
   })
 
+  it.each(['#000000', '#010101', '#ffffff', DEFAULT_PRIMARY])('keeps resting, hover and pressed tones distinct for %s', (primary) => {
+    const theme = createBrandTheme(primary)
+
+    expect(new Set([theme['--primary'], theme['--primary-hover'], theme['--primary-active']]).size).toBe(3)
+    for (const state of ['primary', 'primary-hover', 'primary-active']) {
+      expect(contrast(theme[`--${state}`]!, theme[`--${state}-foreground`]!), `${primary}: ${state}`).toBeGreaterThanOrEqual(4.5)
+    }
+  })
+
   it.each(['not-a-colour', '#fff', '#123456;', 'red}body{display:none}', 'url(javascript:alert(1))'])
     ('falls back without reflecting malformed CSS input %s', (input) => {
       const theme = createBrandTheme(input)
@@ -55,6 +64,8 @@ describe('createBrandTheme', () => {
     const theme = createBrandTheme(primary, 'dark')
     expect(theme['--primary']).toBe(primary)
     expect(contrast(primary, theme['--primary-foreground']!)).toBeGreaterThanOrEqual(4.5)
+    expect(theme['--sidebar-primary']).toBe(primary)
+    expect(theme['--sidebar-ring']).toBe(theme['--ring'])
     for (const surface of ['#09090b', '#18181b', '#27272a']) {
       expect(contrast(theme['--brand-link']!, surface)).toBeGreaterThanOrEqual(4.5)
       expect(contrast(theme['--ring']!, surface)).toBeGreaterThanOrEqual(3)
@@ -65,7 +76,11 @@ describe('createBrandTheme', () => {
     expect(Object.keys(createBrandTheme('#0055ff')).sort()).toEqual([
       '--brand-link',
       '--primary',
+      '--primary-active',
+      '--primary-active-foreground',
       '--primary-foreground',
+      '--primary-hover',
+      '--primary-hover-foreground',
       '--ring',
       '--sidebar-primary',
       '--sidebar-primary-foreground',

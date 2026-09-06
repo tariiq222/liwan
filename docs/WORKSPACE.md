@@ -7,6 +7,21 @@ source, configuration, and Git state read-only for Nasq work. Authorized tests
 or development may use an explicitly isolated database, but never operate on
 an arbitrary database.
 
+## 2026-09-07 consolidation (current)
+
+Local consolidation is being verified in `codex/consolidation-20260907`.
+See [the current consolidation report](consolidation-2026-09-07.md) for the
+scope, gate results and promotion state. Older dated states below are
+historical; their branch counts and pending-work statements are not current.
+
+The user excludes both `codex/chat-workspace` and `codex/cyan-meetings-trial`
+from integration and cleanup. Their original worktrees remain active.
+Recovery for the other work is
+`/Users/tariq/code/nasq-recovery-merge-20260907-004623`; its `RESTORE.md`,
+bundle, source snapshots and full retired directories are the recovery map.
+Main's existing `apps/web/nuxt.config.ts`, `deploy/Caddyfile` and `.agent/`
+local changes are preserved separately from the integration commit.
+
 The retired HR and documentation worktrees and their merged branches have
 been removed after preserving the original documents and verifying ancestry. The recovery archive is
 tagged `archive/pre-reorganization-20260905` at `e4e8e9b`, with the preserved bundle at

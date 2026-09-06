@@ -180,6 +180,86 @@ class TestOdooWrapper(unittest.TestCase):
             self.assertIn('--stop-after-init', argv)
             self.assertEqual(worktree.name, 'worktree')
 
+    def test_venv_python_symlink_is_kept_in_argv(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _worktree, addons, stock = _fake_worktree(root)
+            real = root / 'real-python'
+            _touch(real, 'x')
+            real.chmod(0o755)
+            link = root / 'venv-python'
+            link.symlink_to(real)
+            argv = check_isolated.build_odoo_argv(
+                python=str(link),
+                odoo_bin=str(root / 'odoo-bin'),
+                odoo_conf=str(root / 'odoo.conf'),
+                stock_addons=str(stock),
+                worktree_addons=str(addons),
+                scratch_db='nasq_scratch_wp8_iso',
+                scratch_lifecycle=check_isolated.SCRATCH_LIFECYCLE_TOKEN,
+                http_port=8169,
+                modules='nasq_core,nasq_api,nasq_pmo,nasq_hr',
+                test_tags='/nasq_core',
+            )
+            self.assertEqual(argv[0], str(link))
+            self.assertNotEqual(argv[0], str(real.resolve()))
+
+    def test_rejects_bool_ports_and_comma_database_names(self) -> None:
+        with self.assertRaises(check_isolated.IsolationError):
+            check_isolated.validate_port(True)  # noqa: FBT003
+        with self.assertRaises(check_isolated.IsolationError):
+            check_isolated.validate_scratch_db(
+                'nasq_scratch,odoo19',
+                lifecycle=check_isolated.SCRATCH_LIFECYCLE_TOKEN,
+            )
+
+    def test_rejects_addons_path_outside_worktree(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            worktree, addons, _stock = _fake_worktree(root)
+            other = root / 'other' / 'odoo-addons'
+            _touch(other / 'nasq_core' / '__manifest__.py', '{}')
+            with self.assertRaises(check_isolated.IsolationError):
+                check_isolated.validate_worktree_addons(str(worktree), str(other))
+            with self.assertRaises(check_isolated.IsolationError):
+                check_isolated.validate_worktree_addons(str(worktree / 'missing'), str(addons))
+
+    def test_upgrade_and_runtime_argv_stay_fail_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            worktree, addons, stock = _fake_worktree(root)
+            kwargs = dict(
+                python=str(root / 'python'),
+                odoo_bin=str(root / 'odoo-bin'),
+                odoo_conf=str(root / 'odoo.conf'),
+                stock_addons=str(stock),
+                worktree_addons=str(addons),
+                scratch_db='nasq_psc_scratch_integration_e2e_20260906',
+                scratch_lifecycle=check_isolated.SCRATCH_LIFECYCLE_TOKEN,
+                http_port=9791,
+            )
+            upgrade = check_isolated.build_upgrade_argv(
+                **kwargs,
+                modules='nasq_core,nasq_api,nasq_pmo,nasq_hr',
+                test_tags='/nasq_pmo',
+            )
+            self.assertIn('-u', upgrade)
+            self.assertNotIn('-i', upgrade)
+            self.assertIn('--stop-after-init', upgrade)
+            runtime = check_isolated.build_runtime_argv(**kwargs)
+            self.assertNotIn('--stop-after-init', runtime)
+            self.assertNotIn('-i', runtime)
+            self.assertIn('--db-filter=^nasq_psc_scratch_integration_e2e_20260906$', runtime)
+            self.assertEqual(runtime[runtime.index('--http-port') + 1], '9791')
+            parser = check_isolated.build_parser()
+            with self.assertRaises(SystemExit):
+                parser.parse_args(['upgrade'])
+            with self.assertRaises(SystemExit):
+                parser.parse_args(['runtime'])
+            with self.assertRaises(SystemExit):
+                parser.parse_args(['odoo', '--http-port', '8069'])
+            self.assertEqual(worktree.name, 'worktree')
+
     def test_nested_base_layout_is_accepted_and_bad_addon_dirs_fail(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

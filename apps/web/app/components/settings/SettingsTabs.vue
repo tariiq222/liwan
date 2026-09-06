@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Palette, SlidersHorizontal, FolderKanban, Users, ShieldCheck, ScrollText } from '@lucide/vue'
+import { SlidersHorizontal, FolderKanban, Users, ShieldCheck, ScrollText } from '@lucide/vue'
 const route = useRoute()
 const { can } = useAccess()
 const { t } = useI18n()
@@ -22,14 +22,6 @@ const { t } = useI18n()
     >
       <FolderKanban aria-hidden="true" />
       {{ t('settings.projects.title') }}
-    </NuxtLink>
-    <NuxtLink
-      v-if="can('settings.branding.manage')" to="/settings/branding"
-      data-testid="settings-branding-tab"
-      :aria-current="route.path === '/settings/branding' ? 'page' : undefined"
-    >
-      <Palette aria-hidden="true" />
-      {{ t('settings.branding.title') }}
     </NuxtLink>
     <NuxtLink v-if="can('access.users.read')" to="/settings/users" :aria-current="route.path.startsWith('/settings/users') ? 'page' : undefined">
       <Users aria-hidden="true" />{{ t('nav.users') }}

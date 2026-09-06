@@ -13,6 +13,7 @@ export const TaskSchema = z.object({
   assignees: z.array(RefSchema), tags: z.array(TagSchema),
   can_write: z.boolean().optional().default(false),
   can_approve: z.boolean().optional().default(false),
+  allowed_transitions: z.array(TaskStateSchema),
 }).strict()
 
 export const TaskDetailSchema = TaskSchema.extend({
@@ -21,7 +22,15 @@ export const TaskDetailSchema = TaskSchema.extend({
   depends_on: z.array(z.object({ id: z.number().int().positive(), name: z.string(), state: TaskStateSchema }).strict()),
   attachments: z.array(z.object({ id: z.number().int().positive(), name: z.string(), mimetype: z.string(), url: z.string() }).strict()),
   can_manage_dependencies: z.boolean().default(false), milestone: RefSchema.nullable(), created_at: z.string(), updated_at: z.string(),
-  allowed_actions: z.array(z.enum(['read', 'write', 'archive', 'approve'])).optional().default([]),
+  allowed_actions: z.array(z.enum([
+    'read', 'write', 'archive', 'approve', 'request_completion', 'accept_completion', 'return_completion', 'withdraw_completion',
+  ])).optional().default([]),
+  completion_pending: z.boolean(),
+  completion_revision: z.number().int().nonnegative(),
+  completion_return_note: z.string().nullable(),
+  completion_policy: z.enum(['none', 'project_manager', 'specific_user']),
+  completion_approver: RefSchema.nullable(),
+  completion_blocked_reason: z.enum(['no_reviewer', 'reviewer_ineligible']).nullable(),
 }).strict()
 
 export const DependencySchema = z.object({ id: z.number().int().positive(), name: z.string(), state: TaskStateSchema }).strict()

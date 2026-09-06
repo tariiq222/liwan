@@ -10,7 +10,7 @@ async function login(page: Page) {
 
 test('search opens centered, searches real tasks, closes with Escape and navigates a result', async ({ page }) => {
   await login(page)
-  const project = await (await page.request.post('/api/v1/projects', { data: { name: `Popup project ${Date.now()}` } })).json()
+  const project = await (await page.request.post('/api/v1/projects', { data: { name: `Popup project ${Date.now()}`, date_end: '2035-12-31' } })).json()
   const task = await (await page.request.post('/api/v1/tasks', { data: { name: `Popup task ${Date.now()}`, project_id: project.id } })).json()
   await page.goto('/tasks?q=kept-search&sort=deadline')
   await page.getByRole('button', { name: 'بحث', exact: true }).click()
@@ -38,6 +38,28 @@ test('search opens centered, searches real tasks, closes with Escape and navigat
   await expect(page).toHaveURL(/\/tasks\?q=kept-search&sort=deadline$/)
 })
 
+test('bell preview routes a digest item to the digest page instead of a task id', async ({ page }) => {
+  await page.route('**/api/v1/notifications?*', route => route.fulfill({
+    json: {
+      items: [
+        {
+          id: 501, kind: 'overdue_digest', digest_id: 501, overdue_count: 2, local_date: '2026-09-06',
+          body: 'ملخص المتأخرات', created_at: '2026-09-06T12:00:00', is_read: false,
+        },
+        { id: 502, kind: 'comment', task_id: 77, task_name: 'Task comment', body: 'hi', created_at: '2026-09-06T12:00:00', is_read: true },
+      ],
+      total: 2,
+      unread_count: 1,
+    },
+  }))
+  await page.route('**/api/v1/notifications/501/read', route => route.fulfill({ json: { updated: 1 } }))
+  await login(page)
+  await page.getByTestId('notification-bell').click()
+  await page.getByTestId('notification-preview-501').click()
+  await expect(page).toHaveURL(/\/notification-digests\/501/)
+  await expect(page).not.toHaveURL(/\/tasks\/undefined/)
+})
+
 test('bell previews latest five and More opens the full notification page', async ({ page }) => {
   // Deterministic notification history verifies the preview cap independently of recipient events.
   const items = Array.from({ length: 8 }, (_, i) => ({ id: 108 - i, kind: 'comment', task_id: 2, task_name: `Notification ${8 - i}`, body: 'Preview body', created_at: '2026-09-06T12:00:00', is_read: false }))
@@ -57,7 +79,7 @@ test('bell previews latest five and More opens the full notification page', asyn
 
 test('notification preview keeps a failed read open and opens the task after retry', async ({ page: setupPage, browser }) => {
   await login(setupPage)
-  const project = await (await setupPage.request.post('/api/v1/projects', { data: { name: `Notification preview ${Date.now()}` } })).json()
+  const project = await (await setupPage.request.post('/api/v1/projects', { data: { name: `Notification preview ${Date.now()}`, date_end: '2035-12-31' } })).json()
   const task = await (await setupPage.request.post('/api/v1/tasks', { data: { name: 'مهمة من قائمة الإشعارات', project_id: project.id } })).json()
   const page = await browser.newPage({ baseURL: process.env.E2E_BASE_URL ?? 'http://localhost:3000' })
   await page.route('**/api/v1/notifications?*', route => route.fulfill({ json: { items: [{ id: 901, kind: 'comment', task_id: task.id, task_name: task.name, body: 'تعليق تجريبي', created_at: '2026-09-06T12:00:00', is_read: false }], total: 1, unread_count: 1 } }))

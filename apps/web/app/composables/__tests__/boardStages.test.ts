@@ -6,6 +6,7 @@ const task = {
   id: 1, can_write: true, can_approve: false, name: 't', project: { id: 1, name: 'p' }, state: 'in_progress', priority: '0', date_deadline: null,
   days_remaining: null, is_overdue: false, is_closed: false,
   personal_stage: { id: 5, name: 'Doing' }, stage: { id: 9, name: 'To Do' }, assignees: [], tags: [],
+  allowed_transitions: ['waiting', 'done', 'cancelled'],
 } satisfies Task
 
 describe('stageOf', () => {

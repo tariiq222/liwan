@@ -48,27 +48,27 @@ function openUser(id: number) { void navigateTo({ path: `/settings/users/${id}`,
 </script>
 
 <template>
-  <SettingsLayout><div class="nasq-page-stack mx-auto w-full max-w-[1440px]">
+  <SettingsLayout><div class="nasq-page-stack">
     <SharedPageHeader :title="t('access.users.title')" :description="t('access.users.description')">
       <Button v-if="can('access.users.grant')" :disabled="!hydrated" @click="navigateTo('/settings/users/new')">{{ t('access.users.grantAccount') }}</Button>
     </SharedPageHeader>
     <SharedPageState v-if="forbidden" :empty="true" :empty-text="t('access.forbidden')" />
     <template v-else>
-      <div class="nasq-toolbar">
-        <Input class="min-w-[180px] flex-1" v-model="filters.q" :placeholder="t('access.users.filters.search')" :disabled="!hydrated" @change="updateFilters" />
-        <select v-model="filters.status" class="h-[40px] rounded-lg border border-input bg-background px-3 text-sm" :disabled="!hydrated" @change="updateFilters">
+      <div class="nasq-settings-filters">
+        <label class="nasq-settings-field nasq-settings-search"><span>{{ t('access.users.filters.search') }}</span><Input class="w-full" v-model="filters.q" :placeholder="t('access.users.filters.search')" :disabled="!hydrated" @change="updateFilters" /></label>
+        <label class="nasq-settings-field"><span>{{ t('access.users.columns.status') }}</span><select v-model="filters.status" class="h-[40px] rounded-lg border border-input bg-background px-3 text-sm" :disabled="!hydrated" @change="updateFilters">
           <option :value="undefined">{{ t('access.users.filters.allStatuses') }}</option>
           <option value="active">{{ t('access.active') }}</option>
           <option value="stopped">{{ t('access.disabled') }}</option>
-        </select>
-        <select v-model="filters.role_id" class="h-[40px] rounded-lg border border-input bg-background px-3 text-sm" :disabled="!hydrated" @change="updateFilters"><option :value="undefined">{{ t('access.users.filters.allRoles') }}</option><option v-for="role in roles.data.value?.items ?? []" :key="role.id" :value="role.id">{{ role.name.ar }}</option></select>
-        <select v-model="filters.department_id" class="h-[40px] rounded-lg border border-input bg-background px-3 text-sm" :disabled="!hydrated || !can('hr.departments.read')" @change="updateFilters"><option :value="undefined">{{ t('access.users.filters.allDepartments') }}</option><option v-for="department in departments.data.value?.items ?? []" :key="department.id" :value="department.id">{{ department.name }}</option></select>
-        <Button variant="outline" :disabled="!hydrated" @click="filters.q = ''; filters.status = undefined; filters.role_id = undefined; filters.department_id = undefined; updateFilters()">{{ t('access.clearFilters') }}</Button>
+        </select></label>
+        <label class="nasq-settings-field"><span>{{ t('access.users.role') }}</span><select v-model="filters.role_id" class="h-[40px] rounded-lg border border-input bg-background px-3 text-sm" :disabled="!hydrated" @change="updateFilters"><option :value="undefined">{{ t('access.users.filters.allRoles') }}</option><option v-for="role in roles.data.value?.items ?? []" :key="role.id" :value="role.id">{{ role.name.ar }}</option></select></label>
+        <label class="nasq-settings-field"><span>{{ t('nav.departments') }}</span><select v-model="filters.department_id" class="h-[40px] rounded-lg border border-input bg-background px-3 text-sm" :disabled="!hydrated || !can('hr.departments.read')" @change="updateFilters"><option :value="undefined">{{ t('access.users.filters.allDepartments') }}</option><option v-for="department in departments.data.value?.items ?? []" :key="department.id" :value="department.id">{{ department.name }}</option></select></label>
+        <div class="nasq-settings-filter-actions"><Button variant="outline" :disabled="!hydrated" @click="filters.q = ''; filters.status = undefined; filters.role_id = undefined; filters.department_id = undefined; updateFilters()">{{ t('access.clearFilters') }}</Button></div>
       </div>
       <SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!query.isLoading.value && !query.error.value && query.data.value?.items.length === 0" :empty-text="t('access.users.empty')" @retry="query.refetch">
         <UserTable :users="query.data.value?.items ?? []" @open="openUser" />
       </SharedPageState>
-      <div v-if="pages > 1" class="flex items-center justify-between text-sm text-muted-foreground"><Button variant="ghost" :disabled="!hydrated || page === 1 || query.isFetching.value" @click="previousPage">{{ t('access.previousPage') }}</Button><span>{{ t('access.pageOf', { page, pages }) }}</span><Button variant="ghost" :disabled="!hydrated || page >= pages || query.isFetching.value" @click="nextPage">{{ t('access.nextPage') }}</Button></div>
+      <div v-if="pages > 1" class="nasq-settings-pagination"><Button variant="ghost" :disabled="!hydrated || page === 1 || query.isFetching.value" @click="previousPage">{{ t('access.previousPage') }}</Button><span>{{ t('access.pageOf', { page, pages }) }}</span><Button variant="ghost" :disabled="!hydrated || page >= pages || query.isFetching.value" @click="nextPage">{{ t('access.nextPage') }}</Button></div>
     </template>
   </div></SettingsLayout>
 </template>

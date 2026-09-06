@@ -36,3 +36,9 @@ The user explicitly changed header search to a centered popup and the
 notification bell to a latest-five popover with More opening `/notifications`.
 This narrow exception supersedes the older no-popup search wording above.
 All other business screens remain internal routes.
+
+## Approved unsaved-changes exception (2026-09-07)
+
+The user approved a centered confirmation popup for leaving a form with unsaved
+changes. SharedUnsavedChanges owns this confirmation across forms. Detail, create,
+edit and settings workflows themselves remain internal pages.

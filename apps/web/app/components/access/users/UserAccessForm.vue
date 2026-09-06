@@ -105,14 +105,14 @@ async function save() {
 </script>
 
 <template>
-  <form class="nasq-form space-y-4" @submit.prevent="save">
+  <form class="nasq-form space-y-5" @submit.prevent="save">
     <SharedUnsavedChanges :dirty="dirty" />
     <fieldset :disabled="!canEdit || update.isPending.value" class="space-y-3">
       <legend class="text-sm font-medium">{{ t('access.users.rolesTitle') }}</legend>
-      <label v-for="role in roles" :key="role.id" class="flex items-start gap-2 rounded-lg border border-border/80 bg-card p-3 transition-colors hover:bg-muted/40">
+      <div class="nasq-settings-options"><label v-for="role in roles" :key="role.id" class="nasq-settings-option">
         <input v-model="selectedRoleIds" type="checkbox" :value="role.id" :disabled="(!role.active || !role.assignable) && !selectedRoleIds.includes(role.id)" class="mt-1">
         <span><span class="font-medium">{{ roleLabel(role) }}</span><span class="block text-xs text-muted-foreground">{{ role.description }}</span><span class="block text-xs text-muted-foreground">{{ t('access.roles.companyScope') }}</span><span v-if="!role.active" class="block text-xs text-amber-700 dark:text-amber-300">{{ t('access.roles.disabledExistingAssignments') }}</span></span>
-      </label>
+      </label></div>
       <p v-if="props.user.protected" class="text-sm text-muted-foreground">{{ t('access.protectedUser') }}</p>
       <p v-else-if="!canEdit" class="text-sm text-muted-foreground">{{ t('access.readOnly') }}</p>
       <div class="space-y-2 rounded-lg border border-border/80 bg-muted/30 p-3"><p class="text-sm font-medium">{{ t('access.users.currentCapabilities') }}</p><ul class="space-y-1 text-xs"><li v-for="capability in currentCapabilities" :key="capability.key">{{ capability.label }} <span class="text-muted-foreground">({{ capability.sources }})</span></li></ul></div>
@@ -122,7 +122,7 @@ async function save() {
       <div v-else-if="dirty" class="space-y-1 rounded-lg border border-border/80 bg-muted/30 p-3 text-xs"><p class="font-medium">{{ t('access.users.capabilityChanges') }}</p><p v-if="capabilityChanges.added.length">{{ t('access.roles.added') }}: {{ capabilityChanges.added.map((item) => capabilityLabel(item.key)).join('، ') }}</p><p v-if="capabilityChanges.removed.length">{{ t('access.roles.removed') }}: {{ capabilityChanges.removed.map((item) => capabilityLabel(item.key)).join('، ') }}</p><p v-if="capabilityChanges.retained.length">{{ t('access.roles.retained') }}: {{ capabilityChanges.retained.map((item) => `${capabilityLabel(item.key)} (${item.sources.map((source) => source.role.name.ar).join('، ')})`).join('؛ ') }}</p></div>
       <p v-if="addingAccessAdminRole" role="alert" class="text-sm text-amber-700 dark:text-amber-300">{{ t('access.users.accessAdminWarning') }}</p>
       <p v-if="errorKey" role="alert" class="text-sm text-destructive">{{ errorKey.startsWith('access.') || errorKey === 'errors.generic' ? t(errorKey) : errorKey }}</p>
-      <Button v-if="canEdit" type="submit" :disabled="!dirty || update.isPending.value || !previewReady">{{ t('access.save') }}</Button>
+      <div class="nasq-form-footer"><Button v-if="canEdit" type="submit" :disabled="!dirty || update.isPending.value || !previewReady">{{ t('access.save') }}</Button></div>
     </fieldset>
   </form>
 </template>

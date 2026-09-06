@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ChevronDown } from '@lucide/vue'
+import { ChevronDown, Settings } from '@lucide/vue'
 import { isNavPathActive } from '@/utils/accessPolicy'
 import { useSidebar } from '@/components/ui/sidebar/utils'
 const { state, setOpenMobile } = useSidebar()
@@ -8,21 +8,34 @@ const { t, localeProperties } = useI18n()
 const { me } = useMe()
 const { branding } = useBranding()
 const route = useRoute()
-const nav = computed(() => useNav(me.value))
+// Detailed settings links remain available in settings and global search.
+const nav = computed(() => useNav(me.value).filter(item => !item.to.startsWith('/settings/')))
 const groups = computed(() => [
   { id: 'projects', labelKey: 'nav.projects' },
   { id: 'hr', labelKey: 'nav.humanResources' },
-  { id: 'admin', labelKey: 'nav.systemAdministration' },
 ].map(group => ({ ...group, items: nav.value.filter(item => item.group === group.id) })).filter(group => group.items.length))
 const standalone = computed(() => nav.value.filter(item => !item.group))
-const openGroups = ref<Record<string, boolean>>({ projects: true, hr: true, admin: true })
+const openGroups = ref<Record<string, boolean>>({ projects: true, hr: true })
 const preferenceKey = computed(() => `nasq-nav:${me.value?.id ?? 'anonymous'}`)
-onMounted(() => {
-  try { const saved = sessionStorage.getItem(preferenceKey.value); if (saved) openGroups.value = { ...openGroups.value, ...JSON.parse(saved) } } catch { /* Optional preference. */ }
-})
-watch(() => route.path, () => {
+const restoredPreferenceKey = ref<string | null>(null)
+
+function openActiveGroup() {
   for (const group of groups.value) if (group.items.some(item => isActive(item.to))) openGroups.value[group.id] = true
+}
+
+function restoreGroupPreferences() {
+  const key = preferenceKey.value
+  if (restoredPreferenceKey.value === key) return
+  restoredPreferenceKey.value = key
+  try { const saved = sessionStorage.getItem(key); if (saved) openGroups.value = { ...openGroups.value, ...JSON.parse(saved) } } catch { /* Optional preference. */ }
+  openActiveGroup()
+}
+
+onMounted(() => {
+  restoreGroupPreferences()
 })
+watch(preferenceKey, restoreGroupPreferences)
+watch([() => route.path, groups], openActiveGroup)
 function toggleGroup(id: string) {
   openGroups.value[id] = !openGroups.value[id]
   try { sessionStorage.setItem(preferenceKey.value, JSON.stringify(openGroups.value)) } catch { /* Navigation works without storage. */ }
@@ -59,6 +72,18 @@ const hydrated = useHydrated()
       </SidebarGroup>
       <SidebarGroup v-if="standalone.length"><SidebarMenu><SidebarMenuItem v-for="item in standalone" :key="item.to"><SidebarMenuButton as-child :tooltip="$t(item.labelKey)"><a :href="item.to" target="_blank" rel="noopener"><component :is="item.icon" /><span>{{ $t(item.labelKey) }}</span></a></SidebarMenuButton></SidebarMenuItem></SidebarMenu></SidebarGroup>
     </SidebarContent>
+
+    <SidebarFooter class="border-t border-sidebar-border" role="navigation" :aria-label="$t('nav.settings')">
+      <SidebarMenu>
+        <SidebarMenuItem>
+          <SidebarMenuButton as-child :is-active="isActive('/settings')" :tooltip="$t('nav.settings')" class="h-10 px-3 group-data-[collapsible=icon]:mx-auto group-data-[collapsible=icon]:size-[32px]! group-data-[collapsible=icon]:p-1.5!">
+            <NuxtLink to="/settings/appearance" data-testid="sidebar-settings" :aria-current="isActive('/settings') ? 'page' : undefined" @click="setOpenMobile(false)">
+              <Settings aria-hidden="true" /><span>{{ $t('nav.settings') }}</span>
+            </NuxtLink>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+      </SidebarMenu>
+    </SidebarFooter>
 
     <SidebarRail />
   </Sidebar>

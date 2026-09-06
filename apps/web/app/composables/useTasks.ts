@@ -203,6 +203,62 @@ export function useCreateTask() {
   })
 }
 
+export function useRequestTaskCompletion() {
+  const qc = useQueryClient()
+  const { $api } = useApi()
+  return useMutation({
+    mutationFn: ({ id }: { id: number }) =>
+      $api(`/api/v1/tasks/${id}/completion/request`, { method: 'POST', body: {}, schema: TaskDetailSchema }),
+    onSuccess: (detail, { id }) => {
+      qc.setQueryData(taskKeys.detail(id), detail)
+      qc.invalidateQueries({ queryKey: ['tasks', 'list'] })
+      qc.invalidateQueries({ queryKey: ['projects'] })
+    },
+  })
+}
+
+export function useAcceptTaskCompletion() {
+  const qc = useQueryClient()
+  const { $api } = useApi()
+  return useMutation({
+    mutationFn: ({ id, revision }: { id: number; revision: number }) =>
+      $api(`/api/v1/tasks/${id}/completion/accept`, { method: 'POST', body: { revision }, schema: TaskDetailSchema }),
+    onSuccess: (detail, { id }) => {
+      qc.setQueryData(taskKeys.detail(id), detail)
+      qc.invalidateQueries({ queryKey: ['tasks', 'list'] })
+      qc.invalidateQueries({ queryKey: ['projects'] })
+    },
+  })
+}
+
+export function useReturnTaskCompletion() {
+  const qc = useQueryClient()
+  const { $api } = useApi()
+  return useMutation({
+    mutationFn: ({ id, revision, note }: { id: number; revision: number; note: string }) =>
+      $api(`/api/v1/tasks/${id}/completion/return`, { method: 'POST', body: { revision, note }, schema: TaskDetailSchema }),
+    onSuccess: (detail, { id }) => {
+      qc.setQueryData(taskKeys.detail(id), detail)
+      qc.invalidateQueries({ queryKey: ['tasks', 'list'] })
+      qc.invalidateQueries({ queryKey: ['projects'] })
+    },
+  })
+}
+
+export function useWithdrawTaskCompletion() {
+  const qc = useQueryClient()
+  const { $api } = useApi()
+  return useMutation({
+    mutationFn: ({ id, revision }: { id: number; revision: number }) =>
+      $api(`/api/v1/tasks/${id}/completion/withdraw`, { method: 'POST', body: { revision }, schema: TaskDetailSchema }),
+    onSuccess: (detail, { id }) => {
+      qc.setQueryData(taskKeys.detail(id), detail)
+      qc.invalidateQueries({ queryKey: ['tasks', 'list'] })
+      qc.invalidateQueries({ queryKey: ['projects'] })
+    },
+  })
+}
+
 export function useArchiveTask() {
   const qc = useQueryClient()
   const { $api } = useApi()

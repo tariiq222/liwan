@@ -2,8 +2,10 @@
 from . import (
     mail_notification_nasq,
     nasq_settings,
+    project_charter_reference,
     project_project,
     project_task,
+    res_company,
     task_attachments,
     task_notifications,
 )

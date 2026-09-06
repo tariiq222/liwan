@@ -11,7 +11,7 @@ async function login(page) {
 }
 
 async function createProject(page, name: string) {
-  const response = await page.request.post('/api/v1/projects', { data: { name } })
+  const response = await page.request.post('/api/v1/projects', { data: { name, date_end: '2035-12-31' } })
   return ((await response.json()).id as number)
 }
 

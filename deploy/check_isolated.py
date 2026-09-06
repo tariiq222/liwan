@@ -138,6 +138,11 @@ def validate_existing_file(path_str: str, *, what: str) -> Path:
     path = Path(path_str)
     if not path.is_absolute():
         fail(f'{what} must be an absolute path')
+    # Keep venv interpreter symlinks as given so site-packages stay on sys.path.
+    if path.is_symlink():
+        if not path.exists():
+            fail(f'{what} is not an existing file')
+        return path
     resolved = path.resolve()
     if not resolved.is_file():
         fail(f'{what} is not an existing file')
@@ -249,6 +254,143 @@ def build_odoo_argv(
     ]
 
 
+def build_install_argv(
+    *,
+    python: str,
+    odoo_bin: str,
+    odoo_conf: str,
+    stock_addons: str,
+    worktree_addons: str,
+    scratch_db: str,
+    scratch_lifecycle: str,
+    http_port: int,
+    modules: str,
+) -> list[str]:
+    argv = build_odoo_argv(
+        python=python,
+        odoo_bin=odoo_bin,
+        odoo_conf=odoo_conf,
+        stock_addons=stock_addons,
+        worktree_addons=worktree_addons,
+        scratch_db=scratch_db,
+        scratch_lifecycle=scratch_lifecycle,
+        http_port=http_port,
+        modules=modules,
+        test_tags='/nasq_core',
+    )
+    tag_at = argv.index('--test-tags')
+    del argv[tag_at:tag_at + 2]
+    return argv
+
+
+def build_upgrade_argv(
+    *,
+    python: str,
+    odoo_bin: str,
+    odoo_conf: str,
+    stock_addons: str,
+    worktree_addons: str,
+    scratch_db: str,
+    scratch_lifecycle: str,
+    http_port: int,
+    modules: str,
+    test_tags: str,
+) -> list[str]:
+    argv = build_odoo_argv(
+        python=python,
+        odoo_bin=odoo_bin,
+        odoo_conf=odoo_conf,
+        stock_addons=stock_addons,
+        worktree_addons=worktree_addons,
+        scratch_db=scratch_db,
+        scratch_lifecycle=scratch_lifecycle,
+        http_port=http_port,
+        modules=modules,
+        test_tags=test_tags,
+    )
+    argv[argv.index('-i')] = '-u'
+    return argv
+
+
+def build_runtime_argv(
+    *,
+    python: str,
+    odoo_bin: str,
+    odoo_conf: str,
+    stock_addons: str,
+    worktree_addons: str,
+    scratch_db: str,
+    scratch_lifecycle: str,
+    http_port: int,
+) -> list[str]:
+    python_path = validate_existing_file(python, what='python interpreter')
+    bin_path = validate_existing_file(odoo_bin, what='odoo-bin')
+    conf_path = validate_existing_file(odoo_conf, what='odoo conf')
+    stock = validate_stock_addons(stock_addons)
+    core = validate_core_addons(bin_path)
+    if stock == core:
+        fail('stock extra addons path must not be the core odoo/addons directory')
+    _worktree, addons = validate_worktree_addons(
+        str(Path(worktree_addons).resolve().parent),
+        worktree_addons,
+    )
+    db = validate_scratch_db(scratch_db, lifecycle=scratch_lifecycle)
+    port = validate_port(http_port)
+    addons_joined = f'{core},{stock},{addons}'
+    return [
+        str(python_path),
+        str(bin_path),
+        '-c',
+        str(conf_path),
+        f'--addons-path={addons_joined}',
+        '-d',
+        db,
+        '--http-port',
+        str(port),
+        '--http-interface',
+        '127.0.0.1',
+        '--max-cron-threads',
+        '0',
+        f'--db-filter=^{db}$',
+    ]
+
+
+def build_shell_argv(
+    *,
+    python: str,
+    odoo_bin: str,
+    odoo_conf: str,
+    stock_addons: str,
+    worktree_addons: str,
+    scratch_db: str,
+    scratch_lifecycle: str,
+) -> list[str]:
+    python_path = validate_existing_file(python, what='python interpreter')
+    bin_path = validate_existing_file(odoo_bin, what='odoo-bin')
+    conf_path = validate_existing_file(odoo_conf, what='odoo conf')
+    stock = validate_stock_addons(stock_addons)
+    core = validate_core_addons(bin_path)
+    if stock == core:
+        fail('stock extra addons path must not be the core odoo/addons directory')
+    _worktree, addons = validate_worktree_addons(
+        str(Path(worktree_addons).resolve().parent),
+        worktree_addons,
+    )
+    db = validate_scratch_db(scratch_db, lifecycle=scratch_lifecycle)
+    addons_joined = f'{core},{stock},{addons}'
+    return [
+        str(python_path),
+        str(bin_path),
+        'shell',
+        '-c',
+        str(conf_path),
+        f'--addons-path={addons_joined}',
+        '-d',
+        db,
+        '--no-http',
+    ]
+
+
 def build_e2e_env(
     *,
     base_url: str,
@@ -336,16 +478,32 @@ def build_parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest='command', required=True)
     odoo_parser = sub.add_parser('odoo', help='run Odoo tests on an explicit scratch database')
     _add_odoo_flags(odoo_parser)
+    upgrade_parser = sub.add_parser('upgrade', help='upgrade nasq modules on an explicit scratch database')
+    _add_odoo_flags(upgrade_parser)
+    runtime_parser = sub.add_parser('runtime', help='serve Odoo on an explicit scratch database without stop-after-init')
+    runtime_parser.add_argument('--worktree', required=True)
+    runtime_parser.add_argument('--addons-path', required=True, help='selected worktree odoo-addons directory')
+    runtime_parser.add_argument('--stock-addons', required=True, help='upstream Odoo addons directory')
+    runtime_parser.add_argument('--python', required=True, help='absolute python used to launch odoo-bin')
+    runtime_parser.add_argument('--odoo-bin', required=True)
+    runtime_parser.add_argument('--odoo-conf', required=True)
+    runtime_parser.add_argument('--scratch-db', required=True)
+    runtime_parser.add_argument(
+        '--scratch-lifecycle',
+        required=True,
+        help='must be CREATE_NEW_SCRATCH; name-only scratch is not accepted',
+    )
+    runtime_parser.add_argument('--http-port', required=True, type=int)
     e2e_parser = sub.add_parser('e2e', help='run Playwright against an explicit non-default base URL')
     _add_e2e_flags(e2e_parser)
     return parser
 
 
-def command_odoo(args: argparse.Namespace, *, runner=subprocess.run) -> int:
+def _command_odoo_like(args: argparse.Namespace, *, builder, runner=subprocess.run) -> int:
     _worktree, addons = validate_worktree_addons(args.worktree, args.addons_path)
     if addons != Path(args.addons_path).resolve():
         fail('addons path failed resolution check')
-    argv = build_odoo_argv(
+    argv = builder(
         python=args.python,
         odoo_bin=args.odoo_bin,
         odoo_conf=args.odoo_conf,
@@ -356,6 +514,32 @@ def command_odoo(args: argparse.Namespace, *, runner=subprocess.run) -> int:
         http_port=args.http_port,
         modules=args.modules,
         test_tags=args.test_tags,
+    )
+    odoo_root = validate_existing_file(args.odoo_bin, what='odoo-bin').parent
+    return run_argv(argv, cwd=str(odoo_root), env=os.environ, runner=runner)
+
+
+def command_odoo(args: argparse.Namespace, *, runner=subprocess.run) -> int:
+    return _command_odoo_like(args, builder=build_odoo_argv, runner=runner)
+
+
+def command_upgrade(args: argparse.Namespace, *, runner=subprocess.run) -> int:
+    return _command_odoo_like(args, builder=build_upgrade_argv, runner=runner)
+
+
+def command_runtime(args: argparse.Namespace, *, runner=subprocess.run) -> int:
+    _worktree, addons = validate_worktree_addons(args.worktree, args.addons_path)
+    if addons != Path(args.addons_path).resolve():
+        fail('addons path failed resolution check')
+    argv = build_runtime_argv(
+        python=args.python,
+        odoo_bin=args.odoo_bin,
+        odoo_conf=args.odoo_conf,
+        stock_addons=args.stock_addons,
+        worktree_addons=str(addons),
+        scratch_db=args.scratch_db,
+        scratch_lifecycle=args.scratch_lifecycle,
+        http_port=args.http_port,
     )
     odoo_root = validate_existing_file(args.odoo_bin, what='odoo-bin').parent
     return run_argv(argv, cwd=str(odoo_root), env=os.environ, runner=runner)
@@ -380,6 +564,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         args = parser.parse_args(list(argv) if argv is not None else None)
         if args.command == 'odoo':
             return command_odoo(args)
+        if args.command == 'upgrade':
+            return command_upgrade(args)
+        if args.command == 'runtime':
+            return command_runtime(args)
         if args.command == 'e2e':
             return command_e2e(args)
         fail('unknown command')

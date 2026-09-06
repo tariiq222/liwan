@@ -30,9 +30,11 @@ test.beforeAll(async ({ request }) => {
 
 async function loginAs(page, username: string, password: string) {
   await page.goto('/login')
+  const submit = page.getByRole('button', { name: 'دخول' })
+  await expect(submit).toBeEnabled()
   await page.getByLabel('اسم المستخدم').fill(username)
   await page.getByLabel('كلمة المرور').fill(password)
-  await page.getByRole('button', { name: 'دخول' }).click()
+  await submit.click()
   await expect(page).toHaveURL(/\/tasks$/)
 }
 
@@ -79,7 +81,7 @@ async function ensureEmployeeUser(page): Promise<number> {
 }
 
 async function createProject(page, name: string): Promise<number> {
-  const res = await page.request.post('/api/v1/projects', { data: { name } })
+  const res = await page.request.post('/api/v1/projects', { data: { name, date_end: '2035-12-31' } })
   const body = await res.json()
   return body.id as number
 }
@@ -105,9 +107,14 @@ test('creating a project from the table lands on its page with the default stage
   await expect(page).toHaveURL(/\/projects\/new\?returnTo=/)
   const createForm = page.getByTestId('project-create-form')
   await createForm.getByTestId('project-create-name').fill(name)
+  await createForm.getByTestId('project-create-end-date').click()
+  await page.locator('[data-slot="calendar-cell-trigger"]:not([data-outside-view])').nth(10).click()
   await createForm.getByRole('button', { name: 'إنشاء' }).click()
-  await expect(page).toHaveURL(/\/projects\/\d+$/)
-  const id = Number(new URL(page.url()).pathname.split('/').pop())
+  await expect(page).toHaveURL(/\/projects\/\d+\?returnTo=/)
+  const createdUrl = new URL(page.url())
+  expect(createdUrl.pathname).toMatch(/^\/projects\/\d+$/)
+  expect(createdUrl.searchParams.get('returnTo')).toBe('/projects')
+  const id = Number(createdUrl.pathname.split('/').pop())
 
   await page.goto(`/projects/${id}?tab=board`)
   for (const stage of DEFAULT_STAGES) {
@@ -142,7 +149,7 @@ test('project settings: rename and visibility, followers, and the full stage lif
   await nameSaved
 
   const visibilitySaved = page.waitForResponse((r) => r.url().includes(`/api/v1/projects/${id}`) && r.request().method() === 'PATCH')
-  await settings.getByRole('combobox').click()
+  await settings.getByText('كل الموظفين', { exact: true }).click()
   await page.getByRole('option', { name: 'المتابعون فقط' }).click()
   await visibilitySaved
 

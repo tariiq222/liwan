@@ -37,6 +37,23 @@ function onCreatorsChange(v: unknown) {
   updateSettings({ project_creators: value }, { onSuccess: onSaved, onError: onApiError })
 }
 
+function onBool(field: 'require_manager_on_create' | 'require_end_date_on_create' | 'deadline_reminders_enabled' | 'overdue_digest_enabled', checked: boolean) {
+  if (checked === settings.value?.[field]) return
+  updateSettings({ [field]: checked }, { onSuccess: onSaved, onError: onApiError })
+}
+
+function onApprovalDefault(v: unknown) {
+  const value = v as ProjectSettings['default_completion_approval']
+  if (!value || value === settings.value?.default_completion_approval) return
+  updateSettings({ default_completion_approval: value }, { onSuccess: onSaved, onError: onApiError })
+}
+
+function onDaysBefore(event: Event) {
+  const days = Number((event.target as HTMLInputElement).value)
+  if (!Number.isInteger(days) || days === settings.value?.deadline_reminders_days_before) return
+  updateSettings({ deadline_reminders_days_before: days }, { onSuccess: onSaved, onError: onApiError })
+}
+
 // --- default stages ------------------------------------------------------------
 // A settings default_stage is just {name, fold} — there's no id and no
 // per-stage endpoint (unlike a real project's stages). StageListEditor still
@@ -89,11 +106,11 @@ function onDeleteStage(id: number | string) {
 </script>
 
 <template>
-  <div class="nasq-form max-w-2xl space-y-8">
+  <div class="nasq-form nasq-panel nasq-panel-body">
     <Skeleton v-if="isLoading" class="h-64 w-full" />
 
     <template v-else-if="settings">
-      <section class="space-y-3">
+      <section class="nasq-form-section space-y-4">
         <Label>{{ t('settings.projects.creators.label') }}</Label>
         <RadioGroup :model-value="settings.project_creators" :disabled="!hydrated || isPending" @update:model-value="onCreatorsChange">
           <div v-for="option in CREATOR_OPTIONS" :key="option.value" class="flex items-center gap-2">
@@ -103,7 +120,7 @@ function onDeleteStage(id: number | string) {
         </RadioGroup>
       </section>
 
-      <section class="space-y-2">
+      <section class="nasq-form-section space-y-4">
         <Label>{{ t('settings.projects.defaultStages.label') }}</Label>
         <p class="text-sm text-muted-foreground">{{ t('settings.projects.defaultStages.hint') }}</p>
         <StageListEditor
@@ -115,6 +132,78 @@ function onDeleteStage(id: number | string) {
           @reorder="onReorderStages"
           @delete="onDeleteStage"
         />
+      </section>
+
+      <section class="space-y-3">
+        <Label>{{ t('settings.projects.createRequirements.label') }}</Label>
+        <p class="text-sm text-muted-foreground">{{ t('settings.projects.createRequirements.hint') }}</p>
+        <label class="flex items-center gap-2">
+          <input
+            type="checkbox"
+            :checked="settings.require_manager_on_create"
+            :disabled="!hydrated || isPending"
+            @change="onBool('require_manager_on_create', ($event.target as HTMLInputElement).checked)"
+          >
+          <span>{{ t('settings.projects.createRequirements.manager') }}</span>
+        </label>
+        <label class="flex items-center gap-2">
+          <input
+            type="checkbox"
+            :checked="settings.require_end_date_on_create"
+            :disabled="!hydrated || isPending"
+            @change="onBool('require_end_date_on_create', ($event.target as HTMLInputElement).checked)"
+          >
+          <span>{{ t('settings.projects.createRequirements.endDate') }}</span>
+        </label>
+      </section>
+
+      <section class="space-y-3">
+        <Label>{{ t('settings.projects.approval.label') }}</Label>
+        <p class="text-sm text-muted-foreground">{{ t('settings.projects.approval.hint') }}</p>
+        <RadioGroup :model-value="settings.default_completion_approval" :disabled="!hydrated || isPending" @update:model-value="onApprovalDefault">
+          <div class="flex items-center gap-2">
+            <RadioGroupItem id="approval-none" value="none" />
+            <Label for="approval-none" class="font-normal">{{ t('settings.projects.approval.none') }}</Label>
+          </div>
+          <div class="flex items-center gap-2">
+            <RadioGroupItem id="approval-manager" value="project_manager" />
+            <Label for="approval-manager" class="font-normal">{{ t('settings.projects.approval.projectManager') }}</Label>
+          </div>
+        </RadioGroup>
+      </section>
+
+      <section class="space-y-3">
+        <Label>{{ t('settings.projects.reminders.label') }}</Label>
+        <label class="flex items-center gap-2">
+          <input
+            type="checkbox"
+            :checked="settings.deadline_reminders_enabled"
+            :disabled="!hydrated || isPending"
+            @change="onBool('deadline_reminders_enabled', ($event.target as HTMLInputElement).checked)"
+          >
+          <span>{{ t('settings.projects.reminders.enabled') }}</span>
+        </label>
+        <div class="grid gap-2">
+          <Label for="reminder-days">{{ t('settings.projects.reminders.daysBefore') }}</Label>
+          <Input
+            id="reminder-days"
+            type="number"
+            min="0"
+            max="30"
+            :model-value="settings.deadline_reminders_days_before"
+            :disabled="!hydrated || isPending"
+            @change="onDaysBefore"
+          />
+        </div>
+        <label class="flex items-center gap-2">
+          <input
+            type="checkbox"
+            :checked="settings.overdue_digest_enabled"
+            :disabled="!hydrated || isPending"
+            @change="onBool('overdue_digest_enabled', ($event.target as HTMLInputElement).checked)"
+          >
+          <span>{{ t('settings.projects.reminders.digest') }}</span>
+        </label>
       </section>
     </template>
   </div>

@@ -4,7 +4,11 @@ from odoo.tests import tagged
 from .common import NasqPmoCase
 
 PROJECT_KEYS = {'id', 'name', 'status', 'progress', 'task_count', 'closed_task_count', 'active', 'can_manage', 'allowed_actions', 'manager', 'date_end'}
-DETAIL_KEYS = PROJECT_KEYS | {'stages', 'description_html', 'manager', 'privacy_visibility', 'date_start', 'date_end', 'tags', 'followers_count', 'milestone_count', 'allow_task_dependencies'}
+DETAIL_KEYS = PROJECT_KEYS | {
+    'stages', 'description_html', 'privacy_visibility', 'date_start', 'tags',
+    'followers_count', 'milestone_count', 'allow_task_dependencies',
+    'completion_approval', 'completion_approver', 'updated_at', 'charter',
+}
 
 
 @tagged('post_install', '-at_install', 'nasq')
@@ -120,14 +124,20 @@ class TestProjects(NasqPmoCase):
         self.assertEqual((res.status_code, res.json()['code']), (403, 'create_forbidden'))
         self.authenticate('api_mgr', 'api_mgr_pass_123')
         self.assertTrue(self.api('GET', '/api/v1/projects').json()['can_create'])
-        res = self.api('POST', '/api/v1/projects', {'name': 'Fresh'})
+        self.assertEqual(self.api('POST', '/api/v1/projects', {'name': 'Fresh'}).status_code, 422)
+        res = self.api('POST', '/api/v1/projects', {'name': 'Fresh', 'date_end': '2030-12-31'})
         self.assertEqual(res.status_code, 201)
         body = res.json()
         self.assertEqual(set(body), DETAIL_KEYS)
         self.assertEqual(self.env['project.project'].browse(body['id']).company_id, self.env.company)
         self.assertEqual([s['name'] for s in body['stages']], ['جديد', 'قيد التنفيذ', 'مراجعة', 'منجز'])
         self.assertEqual(body['manager']['id'], self.manager.id)
+        self.assertEqual(body['date_end'], '2030-12-31')
+        self.assertIsNone(body['date_start'])
         self.assertEqual(body['privacy_visibility'], 'employees')
+        self.assertEqual(body['completion_approval'], 'none')
+        self.assertEqual(body['updated_at'], 'v1')
+        self.assertEqual(body['charter']['budget_state'], 'unknown')
         self.assertEqual(self.api('POST', '/api/v1/projects', {'name': ' '}).status_code, 422)
 
     def test_patch_whitelist(self):

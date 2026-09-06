@@ -2,7 +2,7 @@
 import type { Task, TaskState } from '@nasq/contracts'
 import { Loader2 } from '@lucide/vue'
 import { toast } from 'vue-sonner'
-import { STATE_LABEL_KEY, permittedNextStates } from '@/composables/taskState'
+import { STATE_LABEL_KEY } from '@/composables/taskState'
 import { ApiError } from '@/composables/useApi'
 import { useTransitionTask } from '@/composables/useTasks'
 import StateBadge from './StateBadge.vue'
@@ -11,12 +11,9 @@ const props = defineProps<{ task: Task; canApprove?: boolean }>()
 
 const { t } = useI18n()
 const { mutate, isPending } = useTransitionTask()
-// Rendered as a table cell that can be SSR-rendered with data already
-// available, so the trigger is racy the same way as the other controls
-// documented in README's "SSR hydration and interactive controls".
 const hydrated = useHydrated()
 
-const states = computed(() => permittedNextStates(props.task.state, props.task.can_write, props.canApprove ?? props.task.can_approve))
+const states = computed(() => props.task.allowed_transitions ?? [])
 
 function onSelect(state: TaskState) {
   mutate(

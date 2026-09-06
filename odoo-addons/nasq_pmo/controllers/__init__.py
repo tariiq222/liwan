@@ -4,6 +4,7 @@ from . import (
     notifications,
     people,
     personal_stages,
+    project_charter_catalogs,
     project_followers,
     project_stages,
     project_updates,

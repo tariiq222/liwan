@@ -38,7 +38,7 @@ class TestProjectAdminModel(TransactionCase):
         self.assertEqual(self.Settings.get()['project_creators'], 'managers')
         with self.assertRaises(AccessError):
             self.env['project.project'].with_user(self.other)._nasq_create_from_policy('Nope')
-        p = self.env['project.project'].with_user(self.manager)._nasq_create_from_policy('Ok')
+        p = self.env['project.project'].with_user(self.manager)._nasq_create_from_policy('Ok', date_end='2031-01-01')
         self.assertEqual(p.user_id, self.manager)
         self.assertEqual(p.privacy_visibility, 'employees')
         self.assertTrue(p.allow_milestones)
@@ -47,7 +47,7 @@ class TestProjectAdminModel(TransactionCase):
 
     def test_create_policy_employees_uses_sudo_but_keeps_creator(self):
         self.Settings.with_user(self.admin).set_values({'project_creators': 'employees'})
-        p = self.env['project.project'].with_user(self.other)._nasq_create_from_policy('Mine')
+        p = self.env['project.project'].with_user(self.other)._nasq_create_from_policy('Mine', date_end='2031-01-01')
         self.assertEqual(p.create_uid, self.other)
         self.assertEqual(p.user_id, self.other)
         self.assertTrue(p.with_user(self.other)._nasq_can_manage())
@@ -85,7 +85,16 @@ class TestProjectAdminModel(TransactionCase):
         )
         self.assertEqual(
             self.Settings.get(),
-            {'project_creators': 'employees', 'default_stages': [{'name': 'A', 'fold': True}]},
+            {
+                'project_creators': 'employees',
+                'default_stages': [{'name': 'A', 'fold': True}],
+                'require_manager_on_create': True,
+                'require_end_date_on_create': True,
+                'default_completion_approval': 'none',
+                'deadline_reminders_enabled': True,
+                'deadline_reminders_days_before': 1,
+                'overdue_digest_enabled': True,
+            },
         )
         self.assertEqual(
             (params.get_param('nasq_pmo.project_creators'), params.get_param('nasq_pmo.default_stages')),

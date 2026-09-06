@@ -39,6 +39,15 @@ function toHex(values: number[]): string {
   return `#${values.map(value => Math.round(value).toString(16).padStart(2, '0')).join('')}`
 }
 
+function mix(hex: string, target: string, amount: number): string {
+  const targetRgb = channels(target)
+  return toHex(channels(hex).map((value, index) => value * (1 - amount) + targetRgb[index]! * amount))
+}
+
+function foregroundFor(background: string): string {
+  return contrast(background, '#000000') >= contrast(background, '#ffffff') ? '#000000' : '#ffffff'
+}
+
 function contrastTone(hex: string, minimumContrast: number, mode: AppearanceMode): string {
   const rgb = channels(hex)
   const surfaces = mode === 'dark' ? ['#09090b', '#18181b', '#27272a'] : ['#ffffff', '#fafafa', '#f4f4f5']
@@ -52,15 +61,21 @@ function contrastTone(hex: string, minimumContrast: number, mode: AppearanceMode
 
 export function createBrandTheme(input: string, mode: AppearanceMode = 'light'): Record<string, string> {
   const primary = normalizeHex(input)
-  const foreground = contrast(primary, '#000000') >= contrast(primary, '#ffffff')
-    ? '#000000'
-    : '#ffffff'
+  const foreground = foregroundFor(primary)
+  // Near-black brands need lighter interaction tones so each state remains visible.
+  const nearBlack = relativeLuminance(primary) < 0.02
+  const hover = mix(primary, nearBlack ? '#ffffff' : '#000000', nearBlack ? 0.08 : 0.1)
+  const active = mix(primary, nearBlack ? '#ffffff' : '#000000', nearBlack ? 0.16 : 0.2)
   const link = contrastTone(primary, 4.5, mode)
   const ring = contrastTone(primary, 3, mode)
 
   return {
     '--primary': primary,
     '--primary-foreground': foreground,
+    '--primary-hover': hover,
+    '--primary-hover-foreground': foregroundFor(hover),
+    '--primary-active': active,
+    '--primary-active-foreground': foregroundFor(active),
     '--brand-link': link,
     '--ring': ring,
     '--sidebar-primary': primary,

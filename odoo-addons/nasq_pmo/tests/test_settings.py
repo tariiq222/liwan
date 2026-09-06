@@ -49,12 +49,16 @@ class TestSettings(NasqPmoCase):
     def test_get_and_patch(self):
         self.authenticate('api_admin', 'api_admin_pass_123')
         body = self.api('GET', '/api/v1/settings/projects').json()
-        self.assertEqual(set(body), {'project_creators', 'default_stages'})
+        self.assertGreaterEqual(set(body), {'project_creators', 'default_stages', 'require_manager_on_create', 'require_end_date_on_create', 'default_completion_approval', 'deadline_reminders_enabled', 'deadline_reminders_days_before', 'overdue_digest_enabled'})
         self.assertEqual(body['project_creators'], 'managers')
         self.assertEqual(len(body['default_stages']), 4)
+        self.assertTrue(body['require_manager_on_create'])
+        self.assertTrue(body['require_end_date_on_create'])
+        self.assertEqual(body['default_completion_approval'], 'none')
         res = self.api('PATCH', '/api/v1/settings/projects', {'project_creators': 'employees', 'default_stages': [{'name': 'Only', 'fold': False}]})
         self.assertEqual(res.status_code, 200)
-        self.assertEqual(res.json(), {'project_creators': 'employees', 'default_stages': [{'name': 'Only', 'fold': False}]})
+        self.assertEqual(res.json()['project_creators'], 'employees')
+        self.assertEqual(res.json()['default_stages'], [{'name': 'Only', 'fold': False}])
         res = self.api('PATCH', '/api/v1/settings/projects', {'default_stages': []})
         self.assertEqual((res.status_code, res.json()['field']), (422, 'default_stages'))
         res = self.api('PATCH', '/api/v1/settings/projects', {'project_creators': 'x'})
@@ -102,7 +106,16 @@ class TestSettings(NasqPmoCase):
         self.assertFalse(company_b.nasq_pmo_settings_initialized)
         self.assertEqual(
             settings_b.get(),
-            {'project_creators': 'employees', 'default_stages': [{'name': 'Legacy', 'fold': True}]},
+            {
+                'project_creators': 'employees',
+                'default_stages': [{'name': 'Legacy', 'fold': True}],
+                'require_manager_on_create': True,
+                'require_end_date_on_create': True,
+                'default_completion_approval': 'none',
+                'deadline_reminders_enabled': True,
+                'deadline_reminders_days_before': 1,
+                'overdue_digest_enabled': True,
+            },
         )
         self.assertEqual(self._legacy_raw(), legacy_before)
         self.assertGreater(company_a.nasq_access_policy_version, version_a)

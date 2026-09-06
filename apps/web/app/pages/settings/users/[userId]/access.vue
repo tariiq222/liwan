@@ -18,7 +18,7 @@ function retryAccessData() {
 </script>
 
 <template>
-  <SettingsLayout><div class="nasq-page-stack mx-auto w-full max-w-5xl">
+  <SettingsLayout><div class="nasq-page-stack nasq-settings-form-page">
     <SharedPageHeader :title="t('access.users.editAccess')" :back-to="backTo" />
     <SharedPageState v-if="forbidden" :empty="true" :empty-text="t('access.forbidden')" />
     <SharedPageState v-else :loading="user.isLoading.value || roles.isLoading.value || catalog.isLoading.value" :error="user.error.value || roles.error.value || catalog.error.value" :empty="!user.data.value" :empty-text="t('access.notFound')" @retry="retryAccessData">

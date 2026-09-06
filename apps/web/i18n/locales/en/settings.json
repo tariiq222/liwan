@@ -11,9 +11,9 @@
       "color": "Primary color",
       "logo": "Logo",
       "logoHint": "PNG or JPEG, up to 1 MiB",
-      "save": "Save branding",
+      "save": "Save colour",
       "saving": "Saving…",
-      "saved": "Branding saved",
+      "saved": "Organisation colour saved",
       "preview": {
         "title": "Live preview",
         "hint": "Changes appear here before you save",
@@ -53,7 +53,67 @@
         "label": "Default stages for new projects",
         "hint": "Copied into every new project. Existing projects are not affected."
       },
-      "saved": "Settings saved"
+      "saved": "Settings saved",
+      "createRequirements": {
+        "label": "Required on create",
+        "hint": "These rules apply only when creating a project. Existing projects stay editable even if they are incomplete.",
+        "manager": "Require a project manager",
+        "endDate": "Require an end date"
+      },
+      "approval": {
+        "label": "Default completion approval",
+        "hint": "Copied onto new projects. Existing projects retain their current approval policy.",
+        "none": "No approval",
+        "projectManager": "Project manager"
+      },
+      "reminders": {
+        "label": "Deadline reminders",
+        "enabled": "Send inbox reminders before the deadline",
+        "daysBefore": "Days before the deadline",
+        "digest": "Daily overdue digest for the project manager"
+      },
+      "catalogs": {
+        "title": "Charter catalogs",
+        "hint": "Project types and owning units are independent PMO lists.",
+        "types": "Project types",
+        "owningUnits": "Owning units",
+        "back": "Back to project settings",
+        "add": "Add",
+        "edit": "Edit",
+        "editTitle": "Edit value",
+        "newType": "New project type",
+        "newUnit": "New owning unit",
+        "name": "Name",
+        "sequence": "Sequence",
+        "sequenceValue": "Sequence {sequence}",
+        "active": "Active",
+        "inactive": "Inactive",
+        "showInactive": "Show inactive",
+        "disable": "Disable",
+        "enable": "Enable",
+        "delete": "Delete",
+        "disabled": "Disabled",
+        "enabled": "Enabled",
+        "deleted": "Deleted",
+        "created": "Created",
+        "saved": "Saved",
+        "empty": "This list has no values yet.",
+        "notFound": "This value was not found.",
+        "loadError": "The catalog could not be loaded.",
+        "previousPage": "Previous",
+        "nextPage": "Next",
+        "pageOf": "Page {page} of {pages}",
+        "confirm": {
+          "disable": "Disable “{name}”? It remains visible on charters that already use it.",
+          "enable": "Enable “{name}” again?",
+          "delete": "Delete “{name}”? This is allowed only when it is unused."
+        },
+        "errors": {
+          "nameRequired": "Name is required.",
+          "sequence": "Sequence must be a whole number.",
+          "inUse": "A value that is still in use cannot be deleted."
+        }
+      }
     },
     "appearance": {
       "title": "Appearance",
@@ -68,7 +128,7 @@
       "medium": "Medium",
       "large": "Large",
       "default": "Default",
-      "savedHint": "Your choices are saved automatically in this browser. The organization color stays the same."
+      "savedHint": "Display mode and font size are saved automatically in this browser."
     }
   }
 }

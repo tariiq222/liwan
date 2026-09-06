@@ -24,22 +24,22 @@ function cloneRole(id: number) { void navigateTo({ path: '/settings/roles/new', 
 </script>
 
 <template>
-  <SettingsLayout><div class="nasq-page-stack mx-auto w-full max-w-[1440px]">
+  <SettingsLayout><div class="nasq-page-stack">
     <SharedPageHeader :title="t('access.roles.title')" :description="t('access.roles.description')">
       <Button v-if="can('access.roles.manage')" :disabled="!hydrated" @click="navigateTo('/settings/roles/new')">{{ t('access.roles.create') }}</Button>
     </SharedPageHeader>
     <SharedPageState v-if="forbidden" :empty="true" :empty-text="t('access.forbidden')" />
     <template v-else>
-      <div class="nasq-toolbar">
-        <Input class="min-w-[180px] flex-1" v-model="filters.q" :placeholder="t('access.roles.filters.search')" :disabled="!hydrated" @change="updateFilters" />
-        <select v-model="filters.type" :disabled="!hydrated" class="h-[40px] rounded-lg border border-input bg-background px-3 text-sm" @change="updateFilters"><option :value="undefined">{{ t('access.roles.filters.allTypes') }}</option><option value="built_in">{{ t('access.roles.builtIn') }}</option><option value="custom">{{ t('access.roles.custom') }}</option></select>
-        <select v-model="filters.status" :disabled="!hydrated" class="h-[40px] rounded-lg border border-input bg-background px-3 text-sm" @change="updateFilters"><option :value="undefined">{{ t('access.roles.filters.allStatuses') }}</option><option value="active">{{ t('access.active') }}</option><option value="disabled">{{ t('access.disabled') }}</option></select>
-        <Button variant="outline" :disabled="!hydrated" @click="filters.q = ''; filters.type = undefined; filters.status = undefined; updateFilters()">{{ t('access.clearFilters') }}</Button>
+      <div class="nasq-settings-filters">
+        <label class="nasq-settings-field nasq-settings-search"><span>{{ t('access.roles.filters.search') }}</span><Input class="w-full" v-model="filters.q" :placeholder="t('access.roles.filters.search')" :disabled="!hydrated" @change="updateFilters" /></label>
+        <label class="nasq-settings-field"><span>{{ t('access.roles.columns.type') }}</span><select v-model="filters.type" :disabled="!hydrated" class="h-[40px] rounded-lg border border-input bg-background px-3 text-sm" @change="updateFilters"><option :value="undefined">{{ t('access.roles.filters.allTypes') }}</option><option value="built_in">{{ t('access.roles.builtIn') }}</option><option value="custom">{{ t('access.roles.custom') }}</option></select></label>
+        <label class="nasq-settings-field"><span>{{ t('access.roles.columns.status') }}</span><select v-model="filters.status" :disabled="!hydrated" class="h-[40px] rounded-lg border border-input bg-background px-3 text-sm" @change="updateFilters"><option :value="undefined">{{ t('access.roles.filters.allStatuses') }}</option><option value="active">{{ t('access.active') }}</option><option value="disabled">{{ t('access.disabled') }}</option></select></label>
+        <div class="nasq-settings-filter-actions"><Button variant="outline" :disabled="!hydrated" @click="filters.q = ''; filters.type = undefined; filters.status = undefined; updateFilters()">{{ t('access.clearFilters') }}</Button></div>
       </div>
       <SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!query.isLoading.value && !query.error.value && query.data.value?.items.length === 0" :empty-text="t('access.roles.empty')" @retry="query.refetch">
         <RoleTable :roles="query.data.value?.items ?? []" :can-manage="can('access.roles.manage')" @open="openRole" @clone="cloneRole" />
       </SharedPageState>
-      <div v-if="pages > 1" class="flex items-center justify-between text-sm text-muted-foreground"><Button variant="ghost" :disabled="!hydrated || page === 1 || query.isFetching.value" @click="previousPage">{{ t('access.previousPage') }}</Button><span>{{ t('access.pageOf', { page, pages }) }}</span><Button variant="ghost" :disabled="!hydrated || page >= pages || query.isFetching.value" @click="nextPage">{{ t('access.nextPage') }}</Button></div>
+      <div v-if="pages > 1" class="nasq-settings-pagination"><Button variant="ghost" :disabled="!hydrated || page === 1 || query.isFetching.value" @click="previousPage">{{ t('access.previousPage') }}</Button><span>{{ t('access.pageOf', { page, pages }) }}</span><Button variant="ghost" :disabled="!hydrated || page >= pages || query.isFetching.value" @click="nextPage">{{ t('access.nextPage') }}</Button></div>
     </template>
   </div></SettingsLayout>
 </template>

@@ -1,7 +1,8 @@
 import { toValue, type MaybeRefOrGetter, type Ref } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import type { z } from 'zod'
-import { PROJECT_STATUSES, ProjectDetailSchema, ProjectListSchema, ProjectRefSchema, type ProjectDetail, type ProjectPatch, type ProjectStatus } from '@nasq/contracts'
+import { PROJECT_STATUSES, ProjectDetailSchema, ProjectListSchema, ProjectRefSchema, type ProjectCreate, type ProjectDetail, type ProjectPatch, type ProjectStatus } from '@nasq/contracts'
+import { ApiError } from './useApi'
 
 export type ProjectRef = z.infer<typeof ProjectRefSchema>
 
@@ -172,11 +173,15 @@ export function useProject(id: Ref<number | null>) {
   })
 }
 
+export function isStaleProjectWrite(error: unknown): boolean {
+  return error instanceof ApiError && error.status === 409 && error.code === 'stale_write'
+}
+
 export function useCreateProject() {
   const qc = useQueryClient()
   const { $api } = useApi()
   return useMutation({
-    mutationFn: (body: { name: string }) => $api('/api/v1/projects', { method: 'POST', body, schema: ProjectDetailSchema }),
+    mutationFn: (body: ProjectCreate) => $api('/api/v1/projects', { method: 'POST', body, schema: ProjectDetailSchema }),
     onSuccess: (detail) => {
       qc.setQueryData(projectKeys.detail(detail.id), detail)
       qc.invalidateQueries({ queryKey: projectKeys.all })
@@ -193,7 +198,9 @@ export function useUpdateProject() {
     onMutate: async ({ id, patch }) => {
       await qc.cancelQueries({ queryKey: projectKeys.detail(id) })
       const prev = qc.getQueryData<ProjectDetail>(projectKeys.detail(id))
-      if (prev) {
+      // Native name/description may update optimistically. Charter writes stay
+      // in local form state so a refetch or 409 cannot wipe unsaved rows.
+      if (prev && patch.charter === undefined) {
         qc.setQueryData(projectKeys.detail(id), {
           ...prev,
           ...(patch.name !== undefined ? { name: patch.name } : {}),

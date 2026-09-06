@@ -4,9 +4,12 @@ import { DependencyListSchema, ProjectDetailSchema, TaskDetailSchema } from '../
 const task = {
   id: 1, name: 'Task', project: { id: 4, name: 'Project' }, state: 'in_progress', priority: '0',
   date_deadline: null, days_remaining: null, is_overdue: false, is_closed: false, personal_stage: null,
-  stage: null, assignees: [], tags: [], description_html: '', allocated_hours: 0, age_days: 0,
+  stage: null, assignees: [], tags: [], allowed_transitions: ['waiting', 'done', 'cancelled'],
+  description_html: '', allocated_hours: 0, age_days: 0,
   cycle_days: null, subtasks: [], depends_on: [], attachments: [], can_approve: false,
   created_at: '2030-01-01T00:00:00Z', updated_at: '2030-01-01T00:00:00Z', milestone: null,
+  completion_pending: false, completion_revision: 0, completion_return_note: null,
+  completion_policy: 'none', completion_approver: null, completion_blocked_reason: null,
 }
 
 describe('task lifecycle contracts', () => {
@@ -24,10 +27,16 @@ describe('task lifecycle contracts', () => {
       id: 4, name: 'Project', status: null, progress: 0, task_count: 0, closed_task_count: 0,
       active: true, can_manage: true, stages: [], description_html: '', manager: null,
       privacy_visibility: 'employees', date_start: null, date_end: null, tags: [], followers_count: 0,
-      milestone_count: 0,
+      milestone_count: 0, completion_approval: 'none', completion_approver: null,
+      updated_at: 'v1',
+      charter: {
+        code: null, type: null, owning_unit: null, sponsor: null, authority: '', rationale: '',
+        objectives: [], benefits: '', scope: '', exclusions: '', high_level_requirements: '',
+        deliverables: [], success: '', budget_state: 'unknown', amount: null, currency: null,
+        priority: null, assumptions: '', constraints: '', closure: '',
+      },
     }
     expect(ProjectDetailSchema.parse(project).allow_task_dependencies).toBe(false)
     expect(ProjectDetailSchema.parse({ ...project, allow_task_dependencies: true }).allow_task_dependencies).toBe(true)
   })
 })
-

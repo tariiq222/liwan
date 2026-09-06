@@ -10,7 +10,7 @@ async function login(page: Page) {
 
 async function fixture(page: Page) {
   const name = `Fidelity ${Date.now()}`
-  const response = await page.request.post('/api/v1/projects', { data: { name } })
+  const response = await page.request.post('/api/v1/projects', { data: { name, date_end: '2035-12-31' } })
   expect(response.ok()).toBeTruthy()
   const project = await response.json()
   const taskResponse = await page.request.post('/api/v1/tasks', { data: { name: `${name} task`, project_id: project.id } })

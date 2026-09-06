@@ -117,6 +117,28 @@
     "transition": {
       "forbidden": "This transition requires project manager permission"
     },
+    "completion": {
+      "title": "Task completion approval",
+      "hint": "Request task completion approval. The task stays open until the designated reviewer accepts it.",
+      "pending": "Task completion approval requested. Waiting for the designated reviewer.",
+      "returned": "Returned: {note}",
+      "request": "Request completion approval",
+      "accept": "Accept and mark done",
+      "return": "Return with note",
+      "withdraw": "Withdraw request",
+      "note": "Return note",
+      "contactManager": "Contact the project manager. If you requested this, you can withdraw it and request again after the reviewer is repaired.",
+      "noReviewer": "No reviewer is assigned, so completion approval cannot be requested. Contact the project manager.",
+      "reviewerIneligible": "The designated reviewer can no longer approve this task. Contact the project manager. If you requested completion approval, you can withdraw it and request again after the reviewer is repaired."
+    },
+    "digest": {
+      "kind": "Overdue digest",
+      "title": "Overdue tasks",
+      "count": "{n} overdue task | {n} overdue tasks",
+      "empty": "No overdue tasks are visible now",
+      "invalid": "This digest is not valid",
+      "loadMoreError": "Could not load more overdue tasks"
+    },
     "activity": {
       "comment": "Comment",
       "system": "System",

@@ -117,6 +117,15 @@ const dateRange = computed(() => {
               </div>
               <ProjectProgress :progress="project.progress" :task-count="project.task_count" :closed-task-count="project.closed_task_count" />
             </div>
+            <div class="flex flex-wrap gap-3 text-sm">
+              <NuxtLink
+                :to="{ path: `/projects/${project.id}/charter`, query: returnToQuery(route.fullPath) }"
+                class="text-muted-foreground underline underline-offset-4"
+                data-testid="project-charter-link"
+              >
+                {{ t('projects.charter.open') }}
+              </NuxtLink>
+            </div>
             <TabsList class="nasq-tabs h-auto w-full justify-start rounded-none bg-transparent p-0">
               <TabsTrigger value="overview" :disabled="!hydrated">{{ t('projects.tabs.overview') }}</TabsTrigger>
               <TabsTrigger value="tasks" :disabled="!hydrated">{{ t('projects.tabs.tasks') }}</TabsTrigger>

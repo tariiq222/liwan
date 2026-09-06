@@ -2,7 +2,7 @@ import {
   TaskSchema, TaskDetailSchema, TaskStateSchema, TaskPatchSchema,
   TaskCreateSchema, TimelineEntrySchema, PersonalStageSchema,
   ProjectSchema, ProjectDetailSchema, ProjectStatusBodySchema, PROJECT_STATUSES,
-  ProjectListSchema, VisibilitySchema, ProjectPatchSchema,
+  ProjectListSchema, VisibilitySchema, ProjectPatchSchema, ProjectCreateSchema,
   MilestoneSchema, ProjectUpdateSchema, ProjectSettingsSchema, StageOrderBodySchema,
 } from '../index'
 
@@ -13,6 +13,7 @@ const TASK_JSON = {
   priority: '1', date_deadline: '2026-08-01T09:00:00Z', days_remaining: -3,
   is_overdue: true, is_closed: false, personal_stage: { id: 5, name: 'Inbox' }, stage: { id: 9, name: 'To Do' },
   assignees: [{ id: 7, name: 'Sara' }], tags: [{ id: 1, name: 'urgent', color: 2 }],
+  allowed_transitions: ['waiting', 'changes_requested', 'approved', 'done', 'cancelled'],
 }
 
 describe('TaskSchema', () => {
@@ -29,7 +30,8 @@ describe('TaskDetailSchema', () => {
       description_html: '<p>desc</p>', allocated_hours: 4, age_days: 0, cycle_days: null,
       subtasks: [], depends_on: [], attachments: [], can_approve: false,
       created_at: '2026-08-01T09:00:00Z', updated_at: '2026-08-01T09:00:00Z',
-      milestone: null,
+      milestone: null, completion_pending: false, completion_revision: 0, completion_return_note: null,
+      completion_policy: 'none', completion_approver: null, completion_blocked_reason: null,
     })
     expect(parsed.cycle_days).toBeNull()
   })
@@ -88,6 +90,13 @@ describe('PersonalStageSchema', () => {
   })
 })
 
+const EMPTY_CHARTER = {
+  code: null, type: null, owning_unit: null, sponsor: null, authority: '', rationale: '',
+  objectives: [], benefits: '', scope: '', exclusions: '', high_level_requirements: '',
+  deliverables: [], success: '', budget_state: 'unknown', amount: null,
+  currency: { id: 1, name: 'SAR', symbol: 'ر.س', decimal_places: 2 },
+  priority: null, assumptions: '', constraints: '', closure: '',
+}
 const PROJECT_JSON = { id: 3, name: 'Erada Portal', status: null, progress: 33, task_count: 3, closed_task_count: 1, active: true, can_manage: false }
 
 describe('ProjectSchema', () => {
@@ -115,8 +124,21 @@ describe('ProjectDetailSchema', () => {
       stages: [{ id: 1, name: 'A', sequence: 10, fold: true, task_count: 0 }],
       description_html: '', manager: null, privacy_visibility: 'employees',
       date_start: null, date_end: null, tags: [], followers_count: 0, milestone_count: 0,
+      completion_approval: 'none', completion_approver: null,
+      updated_at: 'v1', charter: EMPTY_CHARTER,
     })
     expect(parsed.stages[0]!.fold).toBe(true)
+  })
+  it('requires completion fields instead of defaulting a server omission', () => {
+    const base = {
+      ...PROJECT_JSON, status: 'at_risk', can_manage: true,
+      stages: [{ id: 1, name: 'A', sequence: 10, fold: true, task_count: 0 }],
+      description_html: '', manager: null, privacy_visibility: 'employees',
+      date_start: null, date_end: null, tags: [], followers_count: 0, milestone_count: 0,
+      updated_at: 'v1', charter: EMPTY_CHARTER,
+    }
+    expect(() => ProjectDetailSchema.parse(base)).toThrow()
+    expect(() => ProjectDetailSchema.parse({ ...base, completion_approval: 'none' })).toThrow()
   })
 })
 
@@ -153,6 +175,8 @@ describe('ProjectDetailSchema (3a)', () => {
     const d = ProjectDetailSchema.parse({
       ...PROJECT, stages: [STAGE], description_html: '', manager: { id: 2, name: 'M' }, privacy_visibility: 'followers',
       date_start: '2030-01-01', date_end: null, tags: [], followers_count: 1, milestone_count: 0,
+      completion_approval: 'none', completion_approver: null,
+      updated_at: 'v2', charter: EMPTY_CHARTER,
     })
     expect(d.stages[0]!.task_count).toBe(2)
   })
@@ -166,13 +190,29 @@ describe('ProjectPatchSchema', () => {
     expect(ProjectPatchSchema.parse({ date_start: null, user_id: null, tag_ids: [1] })).toEqual({ date_start: null, user_id: null, tag_ids: [1] })
     expect(() => ProjectPatchSchema.parse({ active: false })).toThrow()
   })
+  it('requires expected_updated_at when charter is present', () => {
+    expect(() => ProjectPatchSchema.parse({ charter: {} })).toThrow()
+    expect(ProjectPatchSchema.parse({ charter: {}, expected_updated_at: 'v3' }).expected_updated_at).toBe('v3')
+  })
+})
+
+describe('ProjectCreateSchema', () => {
+  it('still accepts name only and optional charter', () => {
+    expect(ProjectCreateSchema.parse({ name: 'N' })).toEqual({ name: 'N' })
+    expect(ProjectCreateSchema.parse({ name: 'N', charter: { budget_state: 'estimate', amount: 0 } }).charter?.amount).toBe(0)
+  })
 })
 
 describe('Milestone / ProjectUpdate / Settings', () => {
   it('parse their fixtures', () => {
     MilestoneSchema.parse({ id: 1, name: 'M', deadline: null, is_reached: false, reached_date: null, task_count: 0, done_task_count: 0 })
     ProjectUpdateSchema.parse({ id: 1, name: 'W1', status: 'on_track', description_html: '<p>x</p>', date: '2030-01-01', author: { id: 2, name: 'M' } })
-    expect(ProjectSettingsSchema.parse({ project_creators: 'managers', default_stages: [{ name: 'A', fold: true }] }).default_stages).toHaveLength(1)
+    expect(ProjectSettingsSchema.parse({
+      project_creators: 'managers', default_stages: [{ name: 'A', fold: true }],
+      require_manager_on_create: true, require_end_date_on_create: true,
+      default_completion_approval: 'none', deadline_reminders_enabled: true,
+      deadline_reminders_days_before: 1, overdue_digest_enabled: true,
+    }).default_stages).toHaveLength(1)
     expect(() => ProjectSettingsSchema.parse({ project_creators: 'anyone', default_stages: [] })).toThrow()
     expect(StageOrderBodySchema.parse({ ids: [2, 1] }).ids).toEqual([2, 1])
   })

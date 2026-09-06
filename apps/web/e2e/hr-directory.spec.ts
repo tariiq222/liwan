@@ -8,6 +8,16 @@ async function login(page) {
   await expect(page).toHaveURL(/\/tasks$/)
 }
 
+test('HR employee creation Cancel returns to the filtered directory', async ({ page }) => {
+  await login(page)
+
+  const returnTo = '/hr?q=cancel-filter'
+  await page.goto(`/hr/employees/new?returnTo=${encodeURIComponent(returnTo)}`)
+  await expect(page.getByRole('heading', { name: 'موظف جديد' })).toBeVisible()
+  await page.getByRole('button', { name: 'إلغاء' }).click()
+  await expect(page).toHaveURL(/\/hr\?q=cancel-filter$/)
+})
+
 test('HR routes create, edit, reload, and archive an employee', async ({ page }) => {
   await login(page)
 

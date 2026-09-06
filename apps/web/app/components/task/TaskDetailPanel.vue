@@ -9,6 +9,7 @@ import { useArchiveTask, useTask, useTaskSiblings, useUpdateTask } from '@/compo
 import DeadlineBadge from './DeadlineBadge.vue'
 import StateMenu from './StateMenu.vue'
 import TaskActivity from './TaskActivity.vue'
+import TaskCompletionApproval from './TaskCompletionApproval.vue'
 import TaskDetails from './TaskDetails.vue'
 
 // Container-agnostic body: a compact task context row followed by the
@@ -244,6 +245,7 @@ useEventListener(document, 'keydown', onKeydown)
               </span>
               <DeadlineBadge :deadline="task.date_deadline" :days-remaining="task.days_remaining" :is-closed="task.is_closed" />
             </div>
+            <TaskCompletionApproval :task="task" />
             <TaskDetails :key="task.id" :task="task" :base-path="props.basePath" />
           </div>
         </section>

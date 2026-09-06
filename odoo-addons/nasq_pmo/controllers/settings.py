@@ -5,7 +5,16 @@ from odoo.http import request
 
 from odoo.addons.nasq_api.controllers.common import ApiError, api_handler
 
-ALLOWED = {'project_creators', 'default_stages'}
+ALLOWED = {
+    'project_creators',
+    'default_stages',
+    'require_manager_on_create',
+    'require_end_date_on_create',
+    'default_completion_approval',
+    'deadline_reminders_enabled',
+    'deadline_reminders_days_before',
+    'overdue_digest_enabled',
+}
 
 
 class SettingsController(http.Controller):
@@ -17,6 +26,13 @@ class SettingsController(http.Controller):
         if not settings._can_edit():
             raise AccessError(request.env._("Only a customer administrator can read project policies."))
         return settings.get()
+
+    @http.route('/api/v1/settings/projects/create-defaults', type='json2', auth='user', methods=['GET'], readonly=True)
+    @api_handler
+    def get_project_create_defaults(self):
+        if not request.env['project.project']._nasq_can_create():
+            raise AccessError(request.env._("You are not allowed to create projects."))
+        return request.env['nasq.pmo.settings'].get_create_defaults()
 
     @http.route('/api/v1/settings/projects', type='json2', auth='user', methods=['PATCH'], readonly=False)
     @api_handler

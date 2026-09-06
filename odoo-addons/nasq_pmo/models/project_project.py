@@ -1,8 +1,13 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+import math
+
 from odoo import api, fields, models
-from odoo.exceptions import AccessError, UserError
+from odoo.exceptions import AccessError, UserError, ValidationError
 
 from .nasq_settings import CREATORS
+from odoo.addons.project.models.project_project import (
+    ProjectProject as StockProjectProject,
+)
 
 # The five statuses a manager may set. Odoo's sixth value, 'to_define', means
 # "unset" and is never written by nasq (it is what a project starts as).
@@ -12,14 +17,34 @@ STATUS_VALUES = {'on_track', 'at_risk', 'off_track', 'on_hold', 'done'}
 PROJECT_CREATORS = CREATORS
 VISIBILITY_VALUES = ('employees', 'followers')
 ACCESS_USER_CREATE_MARKER = 'nasq_core.access_user_create_depth'
+POLICY_CREATE_MARKER = 'nasq_pmo.policy_create'
+OBJECTIVE_KEYS = ('goal', 'metric', 'target')
+DELIVERABLE_KEYS = ('name', 'description', 'acceptance')
+BUDGET_STATES = ('unknown', 'estimate')
+PRIORITY_VALUES = ('low', 'normal', 'high', 'critical')
+CHARTER_TEXT_FIELDS = (
+    'nasq_authority', 'nasq_rationale', 'nasq_benefits', 'nasq_scope',
+    'nasq_exclusions', 'nasq_high_level_requirements', 'nasq_success',
+    'nasq_assumptions', 'nasq_constraints', 'nasq_closure',
+)
+CHARTER_JSON_FIELDS = ('nasq_objectives', 'nasq_deliverables')
+CHARTER_MANAGER_FIELDS = {
+    'nasq_type_id', 'nasq_owning_unit_id', 'nasq_sponsor_id',
+    'nasq_budget_state', 'nasq_budget_amount', 'nasq_priority',
+    *CHARTER_TEXT_FIELDS, *CHARTER_JSON_FIELDS,
+}
+PROTECTED_FIELDS = {'nasq_code', 'nasq_revision'}
 # Fields a nasq manager (group or per-project assigned user) may write via
 # _nasq_write_as_manager/_nasq_write_sudo. Anything else must go through a
 # dedicated, explicitly-reviewed path instead of this generic sudo'd write.
 MANAGER_WRITABLE = {
     'name', 'description', 'user_id', 'privacy_visibility', 'date_start', 'date',
     'tag_ids', 'active', 'last_update_status', 'allow_milestones', 'allow_task_dependencies', 'type_ids',
-}
-PROJECT_CREATE_FIELDS = MANAGER_WRITABLE | {'company_id'}
+    'nasq_completion_approval', 'nasq_completion_approver_id',
+} | CHARTER_MANAGER_FIELDS
+PROJECT_CREATE_FIELDS = MANAGER_WRITABLE | {'company_id', 'nasq_code'}
+REVISION_CONTENT_FIELDS = MANAGER_WRITABLE | {'company_id'}
+COMPLETION_APPROVAL_VALUES = ('none', 'project_manager', 'specific_user')
 
 
 def _not_empty(message, count):
@@ -28,8 +53,88 @@ def _not_empty(message, count):
     return err
 
 
+class NasqStaleWrite(Exception):
+    """Write token no longer matches the locked row."""
+
+
+def _validate_charter_rows(rows, keys, label):
+    if rows is None or rows is False:
+        return
+    if not isinstance(rows, list):
+        raise ValidationError(f"{label} must be a list.")
+    expected = set(keys)
+    for row in rows:
+        if not isinstance(row, dict) or set(row) != expected:
+            raise ValidationError(f"{label} rows must use exactly {keys}.")
+        if any(not isinstance(row[key], str) for key in keys):
+            raise ValidationError(f"{label} values must be strings.")
+        if not any(row[key].strip() for key in keys):
+            raise ValidationError(f"{label} rows must include at least one non-blank value.")
+
+
 class ProjectProject(models.Model):
     _inherit = 'project.project'
+
+    nasq_completion_approval = fields.Selection(
+        [
+            ('none', 'None'),
+            ('project_manager', 'Project manager'),
+            ('specific_user', 'Specific user'),
+        ],
+        string='Completion approval',
+        default='none',
+        required=True,
+        copy=False,
+    )
+    nasq_completion_approver_id = fields.Many2one(
+        'res.users', string='Completion approver', ondelete='restrict', copy=False, index=True,
+    )
+    nasq_code = fields.Char(copy=False, index=True)
+    nasq_revision = fields.Integer(default=1, required=True, copy=False)
+    nasq_type_id = fields.Many2one(
+        'nasq.project.type', ondelete='restrict', check_company=True, index=True,
+    )
+    nasq_owning_unit_id = fields.Many2one(
+        'nasq.project.owning.unit', ondelete='restrict', check_company=True, index=True,
+    )
+    nasq_sponsor_id = fields.Many2one('res.users', ondelete='set null', index=True)
+    nasq_authority = fields.Text(default='')
+    nasq_rationale = fields.Text(default='')
+    nasq_objectives = fields.Json(default=list)
+    nasq_benefits = fields.Text(default='')
+    nasq_scope = fields.Text(default='')
+    nasq_exclusions = fields.Text(default='')
+    nasq_high_level_requirements = fields.Text(default='')
+    nasq_deliverables = fields.Json(default=list)
+    nasq_success = fields.Text(default='')
+    nasq_budget_state = fields.Selection(
+        [('unknown', 'Unknown'), ('estimate', 'Estimate')],
+        default='unknown',
+        required=True,
+    )
+    nasq_budget_amount = fields.Monetary(currency_field='currency_id', default=0.0)
+    nasq_priority = fields.Selection([
+        ('low', 'Low'),
+        ('normal', 'Normal'),
+        ('high', 'High'),
+        ('critical', 'Critical'),
+    ])
+    nasq_assumptions = fields.Text(default='')
+    nasq_constraints = fields.Text(default='')
+    nasq_closure = fields.Text(default='')
+
+    _nasq_code_uniq = models.Constraint(
+        'UNIQUE(nasq_code)',
+        'Project code must be unique.',
+    )
+    _nasq_budget_unknown_zero = models.Constraint(
+        "CHECK(nasq_budget_state != 'unknown' OR nasq_budget_amount = 0)",
+        'Unknown budget amount must be zero.',
+    )
+    _nasq_budget_nonnegative = models.Constraint(
+        'CHECK(nasq_budget_amount >= 0 AND nasq_budget_amount = nasq_budget_amount)',
+        'Budget amount must be finite and non-negative.',
+    )
 
     @api.model
     def _search(
@@ -73,24 +178,125 @@ class ProjectProject(models.Model):
         self.check_access('read')
         return self
 
+    def _nasq_is_bootstrap_create(self):
+        """Stock superuser install/import compatibility only.
+
+        Not a caller-controlled exemption. Ordinary internal users and
+        ``base.group_system`` business API still receive create requirements.
+        ``_nasq_create_from_policy`` enforces the same rules before any
+        elevated create.
+        """
+        return bool(
+            self.env.is_superuser()
+            or self.env.cr.precommit.data.get(ACCESS_USER_CREATE_MARKER),
+        )
+
+    def _nasq_resolved_create_vals(self, vals):
+        merged = dict(vals)
+        ctx = self.env.context
+        if 'user_id' not in merged and 'default_user_id' in ctx:
+            merged['user_id'] = ctx['default_user_id']
+        if 'date' not in merged and 'default_date' in ctx:
+            merged['date'] = ctx['default_date']
+        if 'nasq_completion_approval' not in merged:
+            if 'default_nasq_completion_approval' in ctx:
+                merged['nasq_completion_approval'] = ctx['default_nasq_completion_approval']
+            else:
+                merged['nasq_completion_approval'] = self.env['nasq.pmo.settings'].get()[
+                    'default_completion_approval'
+                ]
+        if 'nasq_completion_approver_id' not in merged and 'default_nasq_completion_approver_id' in ctx:
+            merged['nasq_completion_approver_id'] = ctx['default_nasq_completion_approver_id']
+        if 'user_id' not in merged:
+            merged['user_id'] = self.env.uid
+        return merged
+
+    def _nasq_check_create_requirements(self, vals):
+        settings = self.env['nasq.pmo.settings'].get()
+        manager_id = vals.get('user_id')
+        if settings['require_manager_on_create'] and not manager_id:
+            raise UserError(self.env._("A project manager is required to create a project."))
+        if manager_id:
+            self._nasq_check_manager_user(self.env['res.users'].browse(manager_id).exists())
+        if settings['require_end_date_on_create'] and not vals.get('date'):
+            raise UserError(self.env._("An end date is required to create a project."))
+        mode = vals.get('nasq_completion_approval', 'none')
+        if mode not in COMPLETION_APPROVAL_VALUES:
+            raise UserError(self.env._("Unknown completion approval mode."))
+        if mode == 'specific_user' and not vals.get('nasq_completion_approver_id'):
+            raise UserError(self.env._("A specific approver is required."))
+        if mode != 'specific_user' and vals.get('nasq_completion_approver_id'):
+            raise UserError(self.env._("A specific approver is only valid for specific_user mode."))
+
+    def _nasq_check_manager_user(self, user):
+        if not user or user.share or not user.active:
+            raise UserError(self.env._("The project manager must be an active internal user."))
+        if self.env.company not in user.company_ids:
+            raise UserError(self.env._("The project manager is outside the current company."))
+
     @api.model_create_multi
     def create(self, vals_list):
-        if (
+        policy_create = bool(self.env.cr.precommit.data.get(POLICY_CREATE_MARKER))
+        public = (
             not self.env.is_superuser()
             and not self.env.user.has_group('base.group_system')
             and not self.env.cr.precommit.data.get(ACCESS_USER_CREATE_MARKER)
-        ):
-            if any(
-                set(vals) - PROJECT_CREATE_FIELDS
-                or vals.get('company_id', self.env.company.id) != self.env.company.id
-                for vals in vals_list
-            ):
-                raise AccessError(self.env._("Project fields are not allowed."))
-            if not self._nasq_can_create():
-                raise AccessError(self.env._("You are not allowed to create projects."))
-        return super().create(vals_list)
+        )
+        # A policy create may elevate to sudo for Odoo ACL compatibility, but
+        # it is still a business create and must retain company requirements.
+        bootstrap = self._nasq_is_bootstrap_create() and not policy_create
+        prepared = []
+        for vals in vals_list:
+            vals = dict(vals)
+            if public:
+                if (
+                    set(vals) - PROJECT_CREATE_FIELDS
+                    or vals.get('company_id', self.env.company.id) != self.env.company.id
+                ):
+                    raise AccessError(self.env._("Project fields are not allowed."))
+                if not self._nasq_can_create():
+                    raise AccessError(self.env._("You are not allowed to create projects."))
+            if not policy_create and not self.env.is_superuser():
+                vals.pop('nasq_code', None)
+            if 'nasq_revision' in vals:
+                raise AccessError(self.env._("Project revision cannot be set."))
+            self._nasq_prepare_charter_vals(vals)
+            if not bootstrap:
+                vals = self._nasq_resolved_create_vals(vals)
+                self._nasq_check_create_requirements(vals)
+            prepared.append(vals)
+        projects = super().create(prepared)
+        if not bootstrap:
+            for project in projects:
+                if project.nasq_completion_approval == 'specific_user':
+                    project._nasq_check_approver_eligible(project.nasq_completion_approver_id)
+        return projects
+
+    def _nasq_write_vals(self, vals):
+        lone_end = 'date' in vals and 'date_start' not in vals and vals.get('date')
+        if not lone_end:
+            return super().write(vals)
+        missing_start = self.filtered(lambda project: not project.date_start)
+        if not missing_start:
+            return super().write(vals)
+        has_start = self - missing_start
+        other = {key: value for key, value in vals.items() if key != 'date'}
+        result = True
+        if has_start:
+            result = super(ProjectProject, has_start).write(vals) and result
+        if other:
+            result = super(ProjectProject, missing_start).write(other) and result
+        # Isolated continuation past stock project.project.write date pairing
+        # (addons/project/models/project_project.py:666-679). Nasq authorization
+        # already ran. Do not use models.Model.write/_write/raw SQL.
+        return super(StockProjectProject, missing_start).write({'date': vals['date']}) and result
 
     def write(self, vals):
+        vals = dict(vals)
+        if 'nasq_revision' in vals:
+            raise AccessError(self.env._("Project revision cannot be set."))
+        if 'nasq_code' in vals and not self.env.is_superuser():
+            raise AccessError(self.env._("Project code cannot be set."))
         if (
             not self.env.is_superuser()
             and not self.env.user.has_group('base.group_system')
@@ -101,7 +307,35 @@ class ProjectProject(models.Model):
                 raise AccessError(self.env._("Project fields are not allowed."))
             if any(not project._nasq_can_manage() for project in self):
                 raise AccessError(self.env._("Only the project manager can change this project."))
-        return super().write(vals)
+        policy_changed = 'nasq_completion_approval' in vals or 'nasq_completion_approver_id' in vals
+        manager_changed = 'user_id' in vals
+        archived = vals.get('active') is False
+        old_modes = {project.id: project.nasq_completion_approval for project in self}
+        if policy_changed or manager_changed or archived:
+            pending = self.env['project.task'].sudo().search([
+                ('project_id', 'in', self.ids),
+                ('nasq_completion_pending', '=', True),
+            ])
+            self.env['project.task']._nasq_lock_projects_then_tasks(self, pending)
+            self.invalidate_recordset()
+            pending.invalidate_recordset()
+        if policy_changed:
+            self._nasq_check_completion_policy_vals(vals)
+        self._nasq_prepare_charter_vals(vals, records=self)
+        content = set(vals) & REVISION_CONTENT_FIELDS
+        result = self._nasq_write_vals(vals)
+        if content and self.ids:
+            self._nasq_bump_revision()
+        if policy_changed or archived:
+            self._nasq_invalidate_completion_requests()
+        elif manager_changed:
+            stale = self.filtered(
+                lambda project: old_modes.get(project.id) == 'project_manager'
+                or project.nasq_completion_approval == 'project_manager',
+            )
+            if stale:
+                stale._nasq_invalidate_completion_requests()
+        return result
 
     def unlink(self):
         if (
@@ -179,7 +413,7 @@ class ProjectProject(models.Model):
         return self._nasq_write_sudo(vals)
 
     # --- create --------------------------------------------------------------
-    def _nasq_create_from_policy(self, name):
+    def _nasq_create_from_policy(self, name, extra=None, user_id=None, date_end=None):
         """Create a project the nasq way: policy check, defaults, default stages.
 
         When the company policy lets every employee create projects, the create
@@ -187,24 +421,254 @@ class ProjectProject(models.Model):
         the policy is the explicit, admin-set widening of that ACL, and
         ``create_uid``/``user_id`` still record the employee. Second documented
         ``sudo()`` in nasq_pmo.
+
+        Required-on-create company settings are enforced here for every
+        policy create, including ordinary ORM callers of this helper, even
+        when the subsequent ``create`` is elevated. Stock superuser
+        ``project.create`` used by install/import fixtures is the documented
+        compatibility boundary and is not a caller-controlled exemption.
         """
         if not self._nasq_can_create():
             raise AccessError(self.env._("You are not allowed to create projects."))
-        vals = self._nasq_create_vals(name)
+        vals = self._nasq_create_vals(name, user_id=user_id, date_end=date_end)
+        if extra:
+            vals.update(extra)
         env = self.env if self._nasq_is_manager() else self.sudo().env
-        project = env['project.project'].create(vals)
+        marker = self.env.cr.precommit.data
+        previous = marker.get(POLICY_CREATE_MARKER)
+        marker[POLICY_CREATE_MARKER] = True
+        try:
+            project = env['project.project'].create(vals)
+        finally:
+            if previous is None:
+                marker.pop(POLICY_CREATE_MARKER, None)
+            else:
+                marker[POLICY_CREATE_MARKER] = previous
         return self.browse(project.id)
 
-    def _nasq_create_vals(self, name):
+    def _nasq_create_vals(self, name, user_id=None, date_end=None):
         stages = self.env['nasq.pmo.settings']._default_stage_vals()
-        return {
+        settings = self.env['nasq.pmo.settings'].get()
+        manager_id = self.env.uid if user_id is None else user_id
+        vals = {
             'name': name,
-            'user_id': self.env.uid,
+            'user_id': manager_id or False,
             'company_id': self.env.company.id,
             'privacy_visibility': 'employees',
             'allow_milestones': True,
+            'nasq_completion_approval': settings['default_completion_approval'],
             'type_ids': [(0, 0, s) for s in stages],
+            'nasq_code': self._nasq_next_code(),
         }
+        if date_end:
+            # Upstream project.create preserves a lone end date. Do not invent
+            # a start date; only persist the supplied end.
+            vals['date'] = date_end
+        return vals
+
+    def _nasq_check_completion_policy_vals(self, vals):
+        mode = vals.get('nasq_completion_approval')
+        if mode is not None and mode not in COMPLETION_APPROVAL_VALUES:
+            raise UserError(self.env._("Unknown completion approval mode."))
+        for project in self:
+            next_mode = vals.get('nasq_completion_approval', project.nasq_completion_approval)
+            approver_id = vals.get('nasq_completion_approver_id', project.nasq_completion_approver_id.id)
+            if next_mode == 'specific_user':
+                user = self.env['res.users'].browse(approver_id).exists() if approver_id else self.env['res.users']
+                if not user:
+                    raise UserError(self.env._("A specific approver is required."))
+                project._nasq_check_approver_eligible(user)
+            elif vals.get('nasq_completion_approver_id'):
+                raise UserError(self.env._("A specific approver is only valid for specific_user mode."))
+
+    def _nasq_check_approver_eligible(self, user):
+        self.ensure_one()
+        if not user or user.share or not user.active:
+            raise UserError(self.env._("The selected approver must be an active internal user."))
+        if self.env.company not in user.company_ids:
+            raise UserError(self.env._("The selected approver is outside the current company."))
+        if not self.env['nasq.access.service']._nasq_has_capability(
+            user, 'pmo.tasks.approve', record=self,
+        ):
+            raise UserError(self.env._("The selected approver must already have approval capability."))
+        try:
+            self.with_user(user).with_company(self.env.company)._nasq_check_visible_current()
+        except AccessError as error:
+            raise UserError(self.env._("The selected approver cannot see this project.")) from error
+
+    def _nasq_invalidate_completion_requests(self):
+        tasks = self.env['project.task'].sudo().search([
+            ('project_id', 'in', self.ids),
+            ('nasq_completion_pending', '=', True),
+        ])
+        if tasks:
+            tasks._nasq_clear_completion_request(invalidate=True)
+
+    def _nasq_completion_reviewer(self):
+        self.ensure_one()
+        if self.nasq_completion_approval == 'project_manager':
+            return self.user_id
+        if self.nasq_completion_approval == 'specific_user':
+            return self.nasq_completion_approver_id
+        return self.env['res.users']
+
+    @api.model
+    def _nasq_next_code(self):
+        # Fourth documented nasq_pmo elevated case: ir.sequence nextval is
+        # provisioning of a new code (with settings, policy create, manager
+        # write). Not a visibility bypass and not a CLAUDE.md change.
+        return self.env['ir.sequence'].sudo().next_by_code('nasq.project.code') or False
+
+    def _nasq_updated_at(self):
+        self.ensure_one()
+        return 'v%s' % (self.nasq_revision or 0)
+
+    def _nasq_lock_for_write(self, expected):
+        self.ensure_one()
+        self.env.cr.execute(
+            '''
+                SELECT nasq_revision, company_id
+                  FROM project_project
+                 WHERE id = %s
+                   FOR UPDATE
+            ''',
+            [self.id],
+        )
+        row = self.env.cr.fetchone()
+        if not row:
+            raise AccessError(self.env._("Project is outside the current company."))
+        self.invalidate_recordset()
+        self._nasq_check_visible_current()
+        self._nasq_check_manage()
+        current = 'v%s' % (row[0] or 0)
+        if expected != current:
+            raise NasqStaleWrite(self.env._("This project was changed by someone else."))
+
+    def _nasq_bump_revision(self):
+        self.env.flush_all()
+        self.env.cr.execute(
+            'UPDATE project_project SET nasq_revision = COALESCE(nasq_revision, 0) + 1 WHERE id IN %s',
+            [tuple(self.ids)],
+        )
+        self.invalidate_recordset(['nasq_revision'])
+
+    @api.model
+    def _nasq_eligible_user(self, user, current_id=None):
+        if not user:
+            return False
+        if user.share:
+            return False
+        # Validation must reject foreign-company ids generically. Reading the
+        # related companies as the caller can trip res.company record rules and
+        # turn the intended 422 into a 403 that leaks an authorization boundary.
+        if self.env.company.id not in user.sudo().company_ids.ids:
+            return False
+        return user.active or user.id == current_id
+
+    def _nasq_prepare_charter_vals(self, vals, records=None):
+        self._nasq_prepare_json_vals(vals)
+        self._nasq_prepare_budget_vals(vals)
+        self._nasq_prepare_assignment_vals(vals, records)
+
+    def _nasq_prepare_json_vals(self, vals):
+        for field, keys, label in (
+            ('nasq_objectives', OBJECTIVE_KEYS, 'objectives'),
+            ('nasq_deliverables', DELIVERABLE_KEYS, 'deliverables'),
+        ):
+            if field not in vals:
+                continue
+            value = vals[field]
+            if value is None or value is False:
+                vals[field] = []
+                continue
+            if isinstance(value, bool | int | float) or not isinstance(value, list):
+                raise ValidationError(f"{label} must be a list.")
+            _validate_charter_rows(value, keys, label)
+
+    def _nasq_prepare_budget_vals(self, vals):
+        if 'nasq_budget_amount' in vals:
+            amount = vals['nasq_budget_amount']
+            if isinstance(amount, bool | str):
+                raise ValidationError(self.env._("Budget amount must be a finite non-negative number."))
+            if amount is not None and amount is not False:
+                if not isinstance(amount, int | float) or not math.isfinite(amount) or amount < 0:
+                    raise ValidationError(self.env._("Budget amount must be a finite non-negative number."))
+        if vals.get('nasq_budget_state') != 'unknown':
+            return
+        if 'nasq_budget_amount' in vals:
+            amount = vals['nasq_budget_amount']
+            if amount not in (0, 0.0, None, False):
+                raise ValidationError(self.env._("Unknown budget amount must be zero."))
+        vals['nasq_budget_amount'] = 0.0
+
+    def _nasq_prepare_assignment_vals(self, vals, records=None):
+        records = records if records is not None else self.browse()
+        if 'nasq_sponsor_id' in vals:
+            sponsor = vals['nasq_sponsor_id']
+            if sponsor:
+                user = self.env['res.users'].with_context(active_test=False).browse(int(sponsor)).exists()
+                current_ids = {project.nasq_sponsor_id.id for project in records if project.nasq_sponsor_id}
+                current_id = next(iter(current_ids)) if len(current_ids) == 1 else None
+                if not self._nasq_eligible_user(user, current_id=current_id):
+                    raise ValidationError(self.env._("Sponsor must be an active internal user in the current company."))
+        for field, model in (
+            ('nasq_type_id', 'nasq.project.type'),
+            ('nasq_owning_unit_id', 'nasq.project.owning.unit'),
+        ):
+            if field not in vals or not vals[field]:
+                continue
+            record = self.env[model].with_context(active_test=False).browse(int(vals[field])).exists()
+            if not record:
+                raise ValidationError(self.env._("Catalog references must belong to the project company."))
+            current_ids = {project[field].id for project in records if project[field]}
+            current_id = next(iter(current_ids)) if len(current_ids) == 1 else None
+            if not record.active and record.id != current_id:
+                raise ValidationError(self.env._("Catalog references must be active."))
+            for project in records:
+                if not project.company_id:
+                    raise ValidationError(self.env._("A company-less project cannot take a catalog reference."))
+                if record.company_id != project.company_id:
+                    raise ValidationError(self.env._("Catalog references must belong to the project company."))
+            if not records and record.company_id != self.env.company:
+                raise ValidationError(self.env._("Catalog references must belong to the project company."))
+
+    @api.constrains('nasq_objectives')
+    def _check_nasq_objectives(self):
+        for project in self:
+            _validate_charter_rows(project.nasq_objectives, OBJECTIVE_KEYS, 'objectives')
+
+    @api.constrains('nasq_deliverables')
+    def _check_nasq_deliverables(self):
+        for project in self:
+            _validate_charter_rows(project.nasq_deliverables, DELIVERABLE_KEYS, 'deliverables')
+
+    @api.constrains('nasq_type_id', 'nasq_owning_unit_id', 'company_id')
+    def _check_nasq_catalog_company(self):
+        for project in self:
+            for record in (project.nasq_type_id, project.nasq_owning_unit_id):
+                if not record:
+                    continue
+                if not project.company_id:
+                    raise ValidationError(self.env._("A company-less project cannot take a catalog reference."))
+                if record.company_id != project.company_id:
+                    raise ValidationError(self.env._("Catalog references must belong to the project company."))
+
+    @api.constrains('nasq_priority')
+    def _check_nasq_priority(self):
+        for project in self:
+            if project.nasq_priority and project.nasq_priority not in PRIORITY_VALUES:
+                raise ValidationError(self.env._("Invalid project priority."))
+
+    @api.constrains('nasq_budget_state', 'nasq_budget_amount')
+    def _check_nasq_budget(self):
+        for project in self:
+            if project.nasq_budget_state not in BUDGET_STATES:
+                raise ValidationError(self.env._("Budget state must be unknown or estimate."))
+            amount = project.nasq_budget_amount
+            if isinstance(amount, bool) or not isinstance(amount, int | float) or not math.isfinite(amount) or amount < 0:
+                raise ValidationError(self.env._("Budget amount must be a finite non-negative number."))
+            if project.nasq_budget_state == 'unknown' and amount:
+                raise ValidationError(self.env._("Unknown budget amount must be zero."))
 
     # --- archive -------------------------------------------------------------
     def _nasq_archive(self):

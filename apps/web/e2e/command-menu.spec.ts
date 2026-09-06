@@ -7,7 +7,7 @@ test('the ⌘K search dialog navigates with the shortcut it advertises', async (
   await page.getByLabel('اسم المستخدم').fill('admin')
   await page.getByLabel('كلمة المرور').fill('admin')
   await page.getByRole('button', { name: 'دخول' }).click()
-  await expect(page.getByRole('navigation')).toContainText('مهامي')
+  await expect(page.getByRole('navigation', { name: 'الانتقال إلى' })).toContainText('مهامي')
   // Focus a non-interactive heading; fixed coordinates can click a task row.
   await page.getByRole('heading', { name: 'مهامي' }).click()
 
@@ -31,7 +31,7 @@ test('the search dialog receives shortcut characters once it has a query and clo
   await page.getByLabel('اسم المستخدم').fill('admin')
   await page.getByLabel('كلمة المرور').fill('admin')
   await page.getByRole('button', { name: 'دخول' }).click()
-  await expect(page.getByRole('navigation')).toContainText('مهامي')
+  await expect(page.getByRole('navigation', { name: 'الانتقال إلى' })).toContainText('مهامي')
   // Focus a non-interactive heading; fixed coordinates can click a task row.
   await page.getByRole('heading', { name: 'مهامي' }).click()
 

@@ -1,5 +1,5 @@
 import type { Component } from 'vue'
-import { CheckSquare, FolderKanban, Users, Settings, Wrench, Network, Files, ShieldCheck, UserCog, History, Palette } from '@lucide/vue'
+import { CheckSquare, FolderKanban, Users, Settings, Wrench, Network, Files, ShieldCheck, UserCog, History, SlidersHorizontal } from '@lucide/vue'
 import { hasCapability, type AccessIdentity } from '../utils/accessPolicy'
 
 export type NavGroup = 'projects' | 'hr' | 'admin'
@@ -14,7 +14,7 @@ const items: NavItem[] = [
   { to: '/settings/users', labelKey: 'nav.users', icon: UserCog, shortcut: '7', group: 'admin', capability: 'access.users.read' },
   { to: '/settings/roles', labelKey: 'nav.roles', icon: ShieldCheck, shortcut: '8', group: 'admin', capability: 'access.roles.read' },
   { to: '/settings/access-log', labelKey: 'nav.accessLog', icon: History, shortcut: '9', group: 'admin', capability: 'access.audit.read' },
-  { to: '/settings/branding', labelKey: 'nav.branding', icon: Palette, shortcut: 'b', group: 'admin', capability: 'settings.branding.manage' },
+  { to: '/settings/appearance', labelKey: 'settings.appearance.title', icon: SlidersHorizontal, shortcut: 'b', group: 'admin', capability: 'settings.branding.manage' },
 ]
 export function useNav(identity: AccessIdentity): NavItem[] {
   const visible = items.filter(item => hasCapability(identity, item.capability))

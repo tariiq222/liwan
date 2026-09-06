@@ -37,8 +37,8 @@ const previewStyle = computed(() => Object.fromEntries(
         <Button
           type="button"
           data-testid="branding-preview-action"
-          class="border border-border"
-          :style="{ backgroundColor: 'var(--preview-primary)', color: 'var(--preview-primary-foreground)' }"
+          variant="ghost"
+          class="branding-preview-action"
         >
           {{ t('settings.branding.preview.action') }}
         </Button>
@@ -46,3 +46,21 @@ const previewStyle = computed(() => Object.fromEntries(
     </CardContent>
   </Card>
 </template>
+
+<style scoped>
+.branding-preview-action {
+  border: 1px solid var(--border);
+  background-color: var(--preview-primary);
+  color: var(--preview-primary-foreground);
+}
+
+.branding-preview-action:hover {
+  background-color: var(--preview-primary-hover);
+  color: var(--preview-primary-hover-foreground);
+}
+
+.branding-preview-action:active {
+  background-color: var(--preview-primary-active);
+  color: var(--preview-primary-active-foreground);
+}
+</style>

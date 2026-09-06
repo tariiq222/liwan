@@ -1,15 +1,30 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import api, fields, models
-from odoo.exceptions import AccessError, ValidationError
+from odoo.exceptions import AccessError, UserError, ValidationError
 
 from odoo.addons.project.models.project_task import CLOSED_STATES
 
 MANAGER_STATES = {'03_approved', '02_changes_requested'}
 ALL_STATES = {'01_in_progress', '02_changes_requested', '03_approved', '04_waiting_normal', *CLOSED_STATES}
+DONE_STATE = '1_done'
 TASK_CREATE_MARKER = 'nasq_pmo.task_create_depth'
 ACCESS_USER_CREATE_MARKER = 'nasq_core.access_user_create_depth'
 DEPENDENCY_WRITE_MARKER = 'nasq_pmo.dependency_write_depth'
+COMPLETION_ACCEPT_IDS = 'nasq_pmo.completion_accept_ids'
+COMPLETION_META_IDS = 'nasq_pmo.completion_meta_ids'
 APPROVAL_WRITE_FIELDS = {'state', 'date_end', 'date_last_stage_update'}
+COMPLETION_META_FIELDS = {
+    'nasq_completion_pending', 'nasq_completion_revision',
+    'nasq_completion_requested_by', 'nasq_completion_requested_at',
+    'nasq_completion_return_note',
+}
+COMPLETION_PRISTINE = {
+    'nasq_completion_pending': False,
+    'nasq_completion_revision': 0,
+    'nasq_completion_requested_by': False,
+    'nasq_completion_requested_at': False,
+    'nasq_completion_return_note': False,
+}
 TASK_WRITABLE_FIELDS = {
     'active', 'allocated_hours', 'date_deadline', 'date_end', 'date_last_stage_update',
     'description', 'milestone_id', 'name', 'personal_stage_type_id', 'priority',
@@ -20,6 +35,12 @@ TASK_CREATE_FIELDS = TASK_WRITABLE_FIELDS | {'parent_id', 'project_id'}
 
 class ProjectTask(models.Model):
     _inherit = 'project.task'
+
+    nasq_completion_pending = fields.Boolean(default=False, copy=False, index=True)
+    nasq_completion_revision = fields.Integer(default=0, copy=False)
+    nasq_completion_requested_by = fields.Many2one('res.users', copy=False, ondelete='set null')
+    nasq_completion_requested_at = fields.Datetime(copy=False)
+    nasq_completion_return_note = fields.Text(copy=False)
 
     @api.model
     def _search(
@@ -64,11 +85,123 @@ class ProjectTask(models.Model):
         return self
 
     def _nasq_can_approve(self):
-        """True when the current user (regardless of ``self``) may approve / request changes."""
+        """True when the current user may use the broad approve / request-changes states."""
         self.ensure_one()
         return self.env['nasq.access.service']._nasq_has_capability(
             self.env.user, 'pmo.tasks.approve', record=self,
         )
+
+    def _nasq_completion_required(self):
+        self.ensure_one()
+        project = self.project_id
+        return bool(project and project.nasq_completion_approval != 'none')
+
+    def _nasq_completion_reviewer(self):
+        self.ensure_one()
+        return self.project_id._nasq_completion_reviewer() if self.project_id else self.env['res.users']
+
+    def _nasq_task_is_open_for_completion(self):
+        self.ensure_one()
+        return bool(
+            self.active
+            and not self.is_closed
+            and self.project_id
+            and self.project_id.active,
+        )
+
+    def _nasq_can_request_completion(self):
+        self.ensure_one()
+        return bool(
+            self._nasq_completion_required()
+            and self._nasq_task_is_open_for_completion()
+            and not self.nasq_completion_pending
+            and self._nasq_can_write()
+            and self.env.user in self.user_ids,
+        )
+
+    def _nasq_can_decide_completion(self):
+        self.ensure_one()
+        if (
+            not self._nasq_completion_required()
+            or not self.nasq_completion_pending
+            or not self._nasq_task_is_open_for_completion()
+        ):
+            return False
+        return self._nasq_reviewer_is_current()
+
+    def _nasq_can_withdraw_completion(self):
+        self.ensure_one()
+        return bool(
+            self._nasq_task_is_open_for_completion()
+            and self.nasq_completion_pending
+            and self.nasq_completion_requested_by == self.env.user
+            and self._nasq_can_write(),
+        )
+
+    def _nasq_reviewer_eligible(self, user):
+        self.ensure_one()
+        if not user or not user.active or user.share:
+            return False
+        # This is a boolean eligibility boundary, not a foreign-company read.
+        # Caller-context traversal can raise on res.company record rules and
+        # break task serialization before it can report reviewer_ineligible.
+        if self.env.company.id not in user.sudo().company_ids.ids:
+            return False
+        try:
+            self.with_user(user).with_company(self.env.company)._nasq_check_visible_current()
+            if self.project_id:
+                self.project_id.with_user(user).with_company(self.env.company)._nasq_check_visible_current()
+        except AccessError:
+            return False
+        return self.env['nasq.access.service']._nasq_has_capability(
+            user, 'pmo.tasks.approve', record=self,
+        )
+
+    def _nasq_reviewer_is_current(self):
+        self.ensure_one()
+        reviewer = self._nasq_completion_reviewer()
+        return bool(reviewer and reviewer == self.env.user and self._nasq_reviewer_eligible(reviewer))
+
+    def _nasq_completion_blocked_reason(self):
+        self.ensure_one()
+        if not self._nasq_completion_required() or self.is_closed or not self.active:
+            return None
+        if self.project_id and not self.project_id.active:
+            return None
+        reviewer = self._nasq_completion_reviewer()
+        if not reviewer:
+            return 'no_reviewer'
+        if not self._nasq_reviewer_eligible(reviewer):
+            return 'reviewer_ineligible'
+        return None
+
+    def _nasq_allowed_transitions(self):
+        self.ensure_one()
+        api_to_state = {
+            'in_progress': '01_in_progress',
+            'changes_requested': '02_changes_requested',
+            'approved': '03_approved',
+            'waiting': '04_waiting_normal',
+            'done': '1_done',
+            'cancelled': '1_canceled',
+        }
+        state_to_api = {odoo: api for api, odoo in api_to_state.items()}
+        current = state_to_api.get(self.state)
+        allowed = []
+        can_write = self._nasq_can_write()
+        can_approve = self._nasq_can_approve()
+        required = self._nasq_completion_required()
+        for api_state, odoo_state in api_to_state.items():
+            if api_state == current:
+                continue
+            if odoo_state in MANAGER_STATES and not can_approve:
+                continue
+            if odoo_state == DONE_STATE and required:
+                continue
+            if not can_write and not (can_approve and odoo_state in MANAGER_STATES):
+                continue
+            allowed.append(api_state)
+        return allowed
 
     def _nasq_can_write(self):
         self.ensure_one()
@@ -180,6 +313,10 @@ class ProjectTask(models.Model):
         """Raise AccessError when the current user may not move to ``state``."""
         if state in MANAGER_STATES and not self._nasq_can_approve():
             raise AccessError(self.env._("Only a project manager can approve or request changes."))
+        if state == DONE_STATE:
+            accept_ids = self._nasq_accept_ids()
+            if any(task._nasq_completion_required() and task.id not in accept_ids for task in self):
+                raise AccessError(self.env._("This task requires completion approval."))
 
     def _nasq_do_transition(self, state):
         """Write ``state`` and keep ``date_end`` consistent: set on close, cleared on reopen."""
@@ -232,8 +369,33 @@ class ProjectTask(models.Model):
             for partner in partners:
                 pending.add((partner.id, task.id, event))
 
+    def _nasq_vals_with_defaults(self, vals):
+        merged = dict(vals)
+        ctx = self.env.context
+        if 'state' not in merged and ctx.get('default_state'):
+            merged['state'] = ctx['default_state']
+        if 'project_id' not in merged and ctx.get('default_project_id'):
+            merged['project_id'] = ctx['default_project_id']
+        if 'parent_id' not in merged and ctx.get('default_parent_id'):
+            merged['parent_id'] = ctx['default_parent_id']
+        return merged
+
+    def _nasq_accept_ids(self):
+        return set(self.env.cr.precommit.data.get(COMPLETION_ACCEPT_IDS) or ())
+
+    def _nasq_reject_unauthorized_done(self, tasks):
+        accept_ids = self._nasq_accept_ids()
+        illegal = tasks.filtered(
+            lambda task: task.state == DONE_STATE
+            and task._nasq_completion_required()
+            and task.id not in accept_ids,
+        )
+        if illegal:
+            raise AccessError(self.env._("This task requires completion approval."))
+
     @api.model_create_multi
     def create(self, vals_list):
+        vals_list = [self._nasq_vals_with_defaults(vals) for vals in vals_list]
         trusted = (
             self.env.is_superuser()
             or self.env.user.has_group('base.group_system')
@@ -260,6 +422,10 @@ class ProjectTask(models.Model):
                 service._nasq_require_capability('pmo.tasks.create', record=project)
                 if vals.get('state') in MANAGER_STATES:
                     service._nasq_require_capability('pmo.tasks.approve', record=project)
+                if vals.get('state') == DONE_STATE and project.nasq_completion_approval != 'none':
+                    raise AccessError(self.env._("This task requires completion approval."))
+        # Context default_* and copy/batch must not manufacture a pending request.
+        vals_list = [{**vals, **COMPLETION_PRISTINE} for vals in vals_list]
         marker = self.env.cr.precommit.data
         marker[TASK_CREATE_MARKER] = marker.get(TASK_CREATE_MARKER, 0) + 1
         try:
@@ -268,6 +434,18 @@ class ProjectTask(models.Model):
             marker[TASK_CREATE_MARKER] -= 1
             if not marker[TASK_CREATE_MARKER]:
                 marker.pop(TASK_CREATE_MARKER, None)
+        self._nasq_reject_unauthorized_done(tasks)
+        dirty = tasks.filtered(
+            lambda task: (
+                task.nasq_completion_pending
+                or task.nasq_completion_revision
+                or task.nasq_completion_requested_by
+                or task.nasq_completion_requested_at
+                or task.nasq_completion_return_note
+            ),
+        )
+        if dirty:
+            raise AccessError(self.env._("Completion metadata cannot be set on create."))
         tasks._nasq_notify('created')
         return tasks
 
@@ -276,12 +454,28 @@ class ProjectTask(models.Model):
             self.env.cr.precommit.data.get(DEPENDENCY_WRITE_MARKER)
             and set(vals) <= {'depend_on_ids'}
         )
+        meta_ids = set(self.env.cr.precommit.data.get(COMPLETION_META_IDS) or ())
+        completion_meta_write = bool(
+            self.ids
+            and meta_ids
+            and set(self.ids) <= meta_ids
+            and set(vals) <= COMPLETION_META_FIELDS,
+        )
+        accept_ids = self._nasq_accept_ids()
+        accept_write = bool(
+            self.ids
+            and accept_ids
+            and set(self.ids) <= accept_ids
+            and set(vals) <= APPROVAL_WRITE_FIELDS,
+        )
         trusted = (
             self.env.is_superuser()
             or self.env.user.has_group('base.group_system')
             or self.env.cr.precommit.data.get(TASK_CREATE_MARKER)
             or self.env.cr.precommit.data.get(ACCESS_USER_CREATE_MARKER)
             or dependency_write
+            or completion_meta_write
+            or accept_write
         )
         if not trusted:
             self._nasq_check_visible_current()
@@ -298,10 +492,168 @@ class ProjectTask(models.Model):
                 not task._nasq_can_write() for task in self
             ):
                 raise AccessError(self.env._("You are not allowed to change this task."))
+        if vals.get('state') == DONE_STATE:
+            unauthorized = self.filtered(
+                lambda task: task._nasq_completion_required() and task.id not in accept_ids,
+            )
+            if unauthorized:
+                raise AccessError(self.env._("This task requires completion approval."))
+        clears_request = (
+            not completion_meta_write
+            and (
+                vals.get('state') in CLOSED_STATES
+                or (vals.get('state') and vals['state'] not in CLOSED_STATES)
+                or vals.get('active') is False
+                or 'user_ids' in vals
+            )
+        )
+        if clears_request and self.filtered('nasq_completion_pending'):
+            self._nasq_lock_projects_then_tasks(self.mapped('project_id'), self)
+            self.invalidate_recordset()
+            self.mapped('project_id').invalidate_recordset()
         before = {task.id: task.user_ids.partner_id for task in self}
         res = super().write(vals)
+        if vals.get('state') == DONE_STATE:
+            self._nasq_reject_unauthorized_done(self)
+        if not completion_meta_write:
+            if vals.get('state') or vals.get('active') is False:
+                pending = self.filtered('nasq_completion_pending')
+                if pending:
+                    pending._nasq_clear_completion_request(invalidate=True)
+            if 'user_ids' in vals:
+                for task in self.filtered('nasq_completion_pending'):
+                    requester = task.nasq_completion_requested_by
+                    if requester and requester not in task.user_ids:
+                        task._nasq_clear_completion_request(invalidate=True)
         self._nasq_notify('updated', extra_partners=before)
         return res
+
+    def _nasq_write_completion_meta(self, vals):
+        marker = self.env.cr.precommit.data
+        previous = set(marker.get(COMPLETION_META_IDS) or ())
+        authorized = set(previous)
+        authorized.update(self.ids)
+        marker[COMPLETION_META_IDS] = authorized
+        try:
+            self.write(vals)
+        finally:
+            marker[COMPLETION_META_IDS] = previous
+            if not previous:
+                marker.pop(COMPLETION_META_IDS, None)
+        return self
+
+    def _nasq_clear_completion_request(self, note=None, invalidate=False):
+        for task in self:
+            values = {
+                'nasq_completion_pending': False,
+                'nasq_completion_requested_by': False,
+                'nasq_completion_requested_at': False,
+            }
+            if note is not None:
+                values['nasq_completion_return_note'] = note
+            if invalidate:
+                values['nasq_completion_revision'] = task.nasq_completion_revision + 1
+            task._nasq_write_completion_meta(values)
+        return self
+
+    @api.model
+    def _nasq_lock_projects_then_tasks(self, projects, tasks):
+        """Lock PROJECT then TASK by sorted id. Never task-then-project."""
+        for project_id in sorted(project_id for project_id in projects.ids if project_id):
+            self.env.cr.execute(
+                'SELECT id FROM project_project WHERE id = %s FOR UPDATE',
+                [project_id],
+            )
+        for task_id in sorted(tasks.ids):
+            self.env.cr.execute(
+                'SELECT id FROM project_task WHERE id = %s FOR UPDATE',
+                [task_id],
+            )
+
+    def _nasq_lock_completion(self):
+        self.ensure_one()
+        self._nasq_lock_projects_then_tasks(self.project_id, self)
+
+    def _nasq_request_completion(self):
+        self.ensure_one()
+        self._nasq_check_visible_current()
+        self._nasq_lock_completion()
+        self.invalidate_recordset()
+        if self.project_id:
+            self.project_id.invalidate_recordset()
+        if not self._nasq_can_request_completion():
+            raise AccessError(self.env._("You cannot request completion for this task."))
+        reviewer = self._nasq_completion_reviewer()
+        if not reviewer or not self._nasq_reviewer_eligible(reviewer):
+            raise UserError(self.env._("There is no eligible reviewer for this task."))
+        return self._nasq_write_completion_meta({
+            'nasq_completion_pending': True,
+            'nasq_completion_revision': self.nasq_completion_revision + 1,
+            'nasq_completion_requested_by': self.env.uid,
+            'nasq_completion_requested_at': fields.Datetime.now(),
+            'nasq_completion_return_note': False,
+        })
+
+    def _nasq_check_completion_decision(self, revision):
+        self.ensure_one()
+        self._nasq_check_visible_current()
+        self._nasq_lock_completion()
+        self.invalidate_recordset()
+        if self.project_id:
+            self.project_id.invalidate_recordset()
+        if not isinstance(revision, int) or isinstance(revision, bool):
+            raise UserError(self.env._("A completion revision is required."))
+        if not self._nasq_task_is_open_for_completion():
+            raise UserError(self.env._("This task is not open for a completion decision."))
+        if not self.nasq_completion_pending:
+            raise UserError(self.env._("There is no pending completion request."))
+        if revision != self.nasq_completion_revision:
+            raise UserError(self.env._("This completion request is stale."))
+        if not self._nasq_reviewer_is_current():
+            raise AccessError(self.env._("Only the designated reviewer can decide this request."))
+
+    def _nasq_accept_completion(self, revision):
+        self.ensure_one()
+        self._nasq_check_completion_decision(revision)
+        marker = self.env.cr.precommit.data
+        previous = set(marker.get(COMPLETION_ACCEPT_IDS) or ())
+        authorized = set(previous)
+        authorized.add(self.id)
+        marker[COMPLETION_ACCEPT_IDS] = authorized
+        try:
+            self._nasq_clear_completion_request()
+            self._nasq_transition(DONE_STATE)
+        finally:
+            marker[COMPLETION_ACCEPT_IDS] = previous
+            if not previous:
+                marker.pop(COMPLETION_ACCEPT_IDS, None)
+        return self
+
+    def _nasq_return_completion(self, revision, note):
+        self.ensure_one()
+        if not isinstance(note, str) or not note.strip():
+            raise UserError(self.env._("A return note is required."))
+        self._nasq_check_completion_decision(revision)
+        return self._nasq_clear_completion_request(note=note.strip())
+
+    def _nasq_withdraw_completion(self, revision):
+        self.ensure_one()
+        self._nasq_check_visible_current()
+        self._nasq_lock_completion()
+        self.invalidate_recordset()
+        if self.project_id:
+            self.project_id.invalidate_recordset()
+        if not isinstance(revision, int) or isinstance(revision, bool):
+            raise UserError(self.env._("A completion revision is required."))
+        if not self._nasq_task_is_open_for_completion():
+            raise UserError(self.env._("This task is not open for a completion decision."))
+        if not self.nasq_completion_pending:
+            raise UserError(self.env._("There is no pending completion request."))
+        if revision != self.nasq_completion_revision:
+            raise UserError(self.env._("This completion request is stale."))
+        if self.nasq_completion_requested_by != self.env.user or not self._nasq_can_write():
+            raise AccessError(self.env._("Only the requester can withdraw this completion request."))
+        return self._nasq_clear_completion_request()
 
     def unlink(self):
         if (

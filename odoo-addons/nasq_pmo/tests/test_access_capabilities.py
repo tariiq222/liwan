@@ -151,7 +151,7 @@ class TestPmoAccessCapabilityModels(TransactionCase):
         })
         project = self.env['project.project'].with_user(
             self.assigned_employee,
-        )._nasq_create_from_policy('Assigned employee project')
+        )._nasq_create_from_policy('Assigned employee project', date_end='2031-01-01')
         self.assertEqual(project.user_id, self.assigned_employee)
 
         admin_identity = self.env['nasq.access.service']._nasq_identity(self.system_admin)

@@ -90,7 +90,7 @@ test('hr: directory tabs are disabled pre-hydration, then an immediate click swi
 
 test('task detail: JS controls are disabled pre-hydration, then an immediate click works with no retry', async ({ page }) => {
   await login(page)
-  const project = await (await page.request.post('/api/v1/projects', { data: { name: `E2E hydrate ${Date.now()}` } })).json()
+  const project = await (await page.request.post('/api/v1/projects', { data: { name: `E2E hydrate ${Date.now()}`, date_end: '2035-12-31' } })).json()
   const task = await (await page.request.post('/api/v1/tasks', { data: { name: `E2E hydrate task ${Date.now()}`, project_id: project.id } })).json()
   const hydrate = await beforeHydration(page, `/tasks/${task.id}`)
   const detail = page.getByTestId('task-detail-page')

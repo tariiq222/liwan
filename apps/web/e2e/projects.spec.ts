@@ -31,7 +31,7 @@ async function login(page) {
 }
 
 async function createProjectWithStages(page, name: string) {
-  const res = await page.request.post('/api/v1/projects', { data: { name } })
+  const res = await page.request.post('/api/v1/projects', { data: { name, date_end: '2035-12-31' } })
   const body = await res.json()
   return body.id as number
 }

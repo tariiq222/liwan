@@ -25,23 +25,23 @@ function open(id: number) { if (hydrated.value) emit('open', id) }
 
 <template>
   <div class="nasq-panel overflow-x-auto">
-    <table class="w-full min-w-[680px] text-sm">
+    <table class="nasq-settings-table">
       <thead class="border-b border-border/80 bg-muted/50">
         <tr>
-          <th class="p-3 text-start font-medium">{{ t('access.audit.columns.time') }}</th>
-          <th class="p-3 text-start font-medium">{{ t('access.audit.columns.actor') }}</th>
-          <th class="p-3 text-start font-medium">{{ t('access.audit.columns.action') }}</th>
-          <th class="p-3 text-start font-medium">{{ t('access.audit.columns.target') }}</th>
-          <th class="p-3 text-start font-medium">{{ t('access.audit.columns.result') }}</th>
+          <th class="text-start font-medium">{{ t('access.audit.columns.time') }}</th>
+          <th class="text-start font-medium">{{ t('access.audit.columns.actor') }}</th>
+          <th class="text-start font-medium">{{ t('access.audit.columns.action') }}</th>
+          <th class="text-start font-medium">{{ t('access.audit.columns.target') }}</th>
+          <th class="text-start font-medium">{{ t('access.audit.columns.result') }}</th>
         </tr>
       </thead>
       <tbody>
         <tr v-for="event in events" :key="event.id" class="cursor-pointer border-b border-border/70 transition-colors last:border-0 hover:bg-muted/50" @click="open(event.id)">
-          <td class="p-3" dir="ltr">{{ d(new Date(event.occurred_at), 'short') }}</td>
-          <td class="p-3">{{ event.actor?.name ?? t('access.audit.system') }}</td>
-          <td class="p-3">{{ actionLabel(event.action) }}</td>
-          <td class="p-3">{{ event.target.name }}</td>
-          <td class="p-3 text-emerald-700 dark:text-emerald-300">{{ t('access.audit.succeeded') }}</td>
+          <td  dir="ltr"><button type="button" class="rounded text-start hover:underline" :disabled="!hydrated" :aria-label="`${t('access.audit.detailTitle')}: ${d(new Date(event.occurred_at), 'short')}`" @click.stop="open(event.id)">{{ d(new Date(event.occurred_at), 'short') }}</button></td>
+          <td>{{ event.actor?.name ?? t('access.audit.system') }}</td>
+          <td>{{ actionLabel(event.action) }}</td>
+          <td>{{ event.target.name }}</td>
+          <td class="text-emerald-700 dark:text-emerald-300">{{ t('access.audit.succeeded') }}</td>
         </tr>
       </tbody>
     </table>

@@ -75,7 +75,7 @@ test('saving organization color preserves personal mode and font preferences', a
   await page.goto('/settings/appearance')
   await page.getByTestId('appearance-mode-dark').check()
   await page.getByTestId('appearance-font-medium').check()
-  await page.getByTestId('settings-branding-tab').click()
+  await expect(page.getByTestId('settings-branding-tab')).toHaveCount(0)
   const color = page.getByTestId('branding-color')
   await expect(color).toBeVisible()
   const savedColor = await color.inputValue()

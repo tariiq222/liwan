@@ -25,7 +25,7 @@ const previewSizes = { small: '14px', medium: '16px', large: '18px' }
             :checked="mode === value" :data-testid="`appearance-mode-${value}`"
             @change="setMode(value)"
           >
-          <span class="flex min-h-24 items-center justify-center gap-3 rounded-lg border bg-background p-4 text-sm peer-checked:border-ring peer-checked:bg-brand-soft peer-checked:text-brand-link peer-focus-visible:ring-1 peer-focus-visible:ring-[var(--focus-color)] peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-background">
+          <span class="flex h-full min-h-24 items-center justify-center gap-3 rounded-lg border bg-background p-4 text-sm peer-checked:border-ring peer-checked:bg-brand-soft peer-checked:text-brand-link peer-focus-visible:ring-1 peer-focus-visible:ring-[var(--focus-color)] peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-background">
             <component :is="value === 'light' ? Sun : Moon" class="size-[18px]" aria-hidden="true" />
             {{ t(`settings.appearance.${value}`) }}
             <Check v-if="mode === value" class="size-[18px]" aria-hidden="true" />
@@ -47,7 +47,7 @@ const previewSizes = { small: '14px', medium: '16px', large: '18px' }
             :checked="fontSize === value" :data-testid="`appearance-font-${value}`"
             @change="setFontSize(value)"
           >
-          <span class="flex min-h-24 flex-col items-center justify-center gap-2 rounded-lg border bg-background p-3 text-sm peer-checked:border-ring peer-checked:bg-brand-soft peer-checked:text-brand-link peer-focus-visible:ring-1 peer-focus-visible:ring-[var(--focus-color)] peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-background">
+          <span class="flex h-full min-h-24 flex-col items-center justify-center gap-2 rounded-lg border bg-background p-3 text-sm peer-checked:border-ring peer-checked:bg-brand-soft peer-checked:text-brand-link peer-focus-visible:ring-1 peer-focus-visible:ring-[var(--focus-color)] peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-background">
             <span class="font-semibold" :style="{ fontSize: previewSizes[value] }">{{ t(`settings.appearance.${value}`) }}</span>
             <span v-if="value === 'small'" class="text-xs text-muted-foreground">{{ t('settings.appearance.default') }}</span>
             <Check v-if="fontSize === value" class="size-[18px]" aria-hidden="true" />

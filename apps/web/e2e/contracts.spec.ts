@@ -4,6 +4,7 @@ import {
   PersonalStageSchema, ProjectRefSchema, PersonRefSchema, ApiErrorSchema,
   ProjectDetailSchema, ProjectListSchema, ProjectStageSchema, UserRefSchema,
   MilestoneSchema, ProjectUpdateSchema, ProjectSettingsSchema, TagSchema,
+  ProjectCharterDefaultsSchema, ProjectCharterReferenceListSchema, ProjectCharterSchema,
 } from '@nasq/contracts'
 import { z } from 'zod'
 
@@ -138,7 +139,7 @@ test('task lifecycle: create, read, patch, comment, timeline, transition, and re
   let projects = ProjectRefSchema.array().parse(await projectsRes.json())
   if (projects.length === 0) {
     const projectRes = await page.request.post('/api/v1/projects', {
-      data: { name: `E2E contract task project ${Date.now()}` },
+      data: { name: `E2E contract task project ${Date.now()}`, date_end: '2035-12-31' },
     })
     expect(projectRes.status()).toBe(201)
     ProjectDetailSchema.parse(await projectRes.json())
@@ -200,7 +201,7 @@ test('projects: list, detail, status and the project-scoped task list match thei
   let list = ProjectListSchema.parse(await listRes.json())
   if (list.items.length === 0) {
     const createRes = await page.request.post('/api/v1/projects', {
-      data: { name: `E2E contract list project ${Date.now()}` },
+      data: { name: `E2E contract list project ${Date.now()}`, date_end: '2035-12-31' },
     })
     expect(createRes.status()).toBe(201)
     ProjectDetailSchema.parse(await createRes.json())
@@ -241,7 +242,7 @@ test('project admin round trip: create, patch, stages, followers, milestones, up
   ProjectSettingsSchema.parse(await settingsPatchRes.json())
 
   // create
-  const createRes = await page.request.post('/api/v1/projects', { data: { name: `E2E contract project ${Date.now()}` } })
+  const createRes = await page.request.post('/api/v1/projects', { data: { name: `E2E contract project ${Date.now()}`, date_end: '2035-12-31' } })
   expect(createRes.status()).toBe(201)
   const project = ProjectDetailSchema.parse(await createRes.json())
   expect(project.can_manage).toBe(true)
@@ -316,4 +317,43 @@ test('project admin round trip: create, patch, stages, followers, milestones, up
   const tagsListRes = await page.request.get('/api/v1/tags')
   expect(tagsListRes.status()).toBe(200)
   z.array(TagSchema).parse(await tagsListRes.json())
+})
+
+test('project charter detail, defaults, and catalogs match their schemas', async ({ page }) => {
+  const login = await page.request.post('/api/auth/login', { data: { login: 'admin', password: 'admin' } })
+  expect(login.status()).toBe(200)
+
+  const defaultsRes = await page.request.get('/api/v1/project-charter/defaults')
+  expect(defaultsRes.status()).toBe(200)
+  ProjectCharterDefaultsSchema.parse(await defaultsRes.json())
+
+  const typesRes = await page.request.get('/api/v1/project-charter/catalogs/types?active=1&limit=50&offset=0')
+  expect(typesRes.status()).toBe(200)
+  const types = ProjectCharterReferenceListSchema.parse(await typesRes.json())
+  expect(types.total).toBeGreaterThanOrEqual(4)
+
+  const unitsRes = await page.request.get('/api/v1/project-charter/catalogs/owning-units?active=1&limit=50&offset=0')
+  expect(unitsRes.status()).toBe(200)
+  ProjectCharterReferenceListSchema.parse(await unitsRes.json())
+
+  const createRes = await page.request.post('/api/v1/projects', {
+    data: { name: `E2E charter contract ${Date.now()}`, date_end: '2035-12-31' },
+  })
+  expect(createRes.status()).toBe(201)
+  const created = ProjectDetailSchema.parse(await createRes.json())
+  expect(created.updated_at).toMatch(/^v\d+$/)
+  ProjectCharterSchema.parse(created.charter)
+  expect(created.charter.budget_state).toBe('unknown')
+  expect(created.charter.amount).toBeNull()
+
+  const patchRes = await page.request.patch(`/api/v1/projects/${created.id}`, {
+    data: {
+      expected_updated_at: created.updated_at,
+      charter: { budget_state: 'estimate', amount: 0, rationale: 'contract' },
+    },
+  })
+  expect(patchRes.status()).toBe(200)
+  const patched = ProjectDetailSchema.parse(await patchRes.json())
+  expect(patched.charter.budget_state).toBe('estimate')
+  expect(patched.charter.amount).toBe(0)
 })

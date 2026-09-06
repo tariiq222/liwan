@@ -19,7 +19,7 @@ const catalog = useAdminPermissionCatalog(computed(() => !forbidden.value))
 </script>
 
 <template>
-  <SettingsLayout><div class="nasq-page-stack mx-auto w-full max-w-5xl">
+  <SettingsLayout><div class="nasq-page-stack nasq-settings-form-page">
     <SharedPageHeader :title="t('access.roles.editTitle')" :back-to="returnTo" />
     <SharedPageState v-if="forbidden" :empty="true" :empty-text="t('access.forbidden')" />
     <SharedPageState v-else :loading="role.isLoading.value" :error="role.error.value" :empty="!role.data.value" :empty-text="t('access.notFound')" @retry="role.refetch">
