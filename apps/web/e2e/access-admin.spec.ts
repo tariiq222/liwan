@@ -58,11 +58,18 @@ test('custom role is created through the Arabic editor and audited', async ({ pa
   await login(page)
   const catalog = await json(page.request, 'get', '/api/v1/admin/permissions')
   const permission = catalog.items.find((item: { key: string }) => item.key === 'hr.employees.read')
+  expect(permission).toBeTruthy()
   const name = `قارئ الدليل ${Date.now()}`
   await page.goto('/settings/roles/new')
   await page.getByLabel('الاسم بالعربية').fill(name)
-  await page.getByRole('checkbox', { name: new RegExp(`^${permission.label.ar} `) }).check()
-  await page.getByRole('button', { name: 'إنشاء دور', exact: true }).click()
+  const createButton = page.getByRole('button', { name: 'إنشاء دور', exact: true })
+  await expect(createButton).toBeEnabled()
+  const checkbox = page.getByRole('checkbox', { name: new RegExp(`^${permission.label.ar.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} `) })
+  await expect(checkbox).toBeVisible()
+  await expect(checkbox).toBeEnabled()
+  await checkbox.check()
+  await expect(checkbox).toBeChecked()
+  await createButton.click()
   await expect(page).toHaveURL(/\/settings\/roles\/\d+$/)
   await expect(page.getByRole('heading', { name, exact: true })).toBeVisible()
   const roleId = Number(new URL(page.url()).pathname.split('/').at(-1))
@@ -154,11 +161,31 @@ test('security page resets a password and reactivates the same account', async (
     expect((await member.request.get('/api/v1/me')).status()).toBe(403)
     await expect(page.locator('#admin-password')).toHaveValue('')
     await login(member, fixture.login, replacement)
+    let holdMe = false
+    let releaseMe: (() => void) | undefined
+    let meHold: Promise<void> | undefined
+    await page.route('**/api/v1/me', async (route) => {
+      if (holdMe && route.request().method() === 'GET') {
+        meHold ??= new Promise<void>((resolve) => { releaseMe = resolve })
+        await meHold
+      }
+      await route.continue()
+    })
+    holdMe = true
+    meHold = new Promise<void>((resolve) => { releaseMe = resolve })
     await page.getByRole('button', { name: 'إيقاف الدخول', exact: true }).click()
     await page.getByRole('button', { name: 'تأكيد', exact: true }).click()
+    await expect(page.getByRole('button', { name: 'إيقاف الدخول', exact: true })).toBeDisabled()
+    await expect(page.getByRole('status').filter({ hasText: 'تم إيقاف الوصول' })).toHaveCount(0)
+    holdMe = false
+    releaseMe?.()
+    await expect(page.getByRole('status').filter({ hasText: 'تم إيقاف الوصول' })).toBeVisible()
+    await expect(page.getByRole('alert')).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'إيقاف الدخول', exact: true })).toHaveCount(0)
     await expect(page.getByRole('button', { name: 'إعادة تفعيل الدخول', exact: true })).toBeVisible()
     await page.locator('#admin-password').fill(TEST_PASSWORD)
     await page.locator('#admin-password-confirmation').fill(TEST_PASSWORD)
+    await expect(page.getByRole('button', { name: 'إعادة تفعيل الدخول', exact: true })).toBeEnabled()
     await page.getByRole('button', { name: 'إعادة تفعيل الدخول', exact: true }).click()
     await page.getByRole('button', { name: 'تأكيد', exact: true }).click()
     await expect(page.getByRole('status').filter({ hasText: 'تمت إعادة تفعيل الوصول' })).toBeVisible()
@@ -166,6 +193,10 @@ test('security page resets a password and reactivates the same account', async (
     expect(account.id).toBe(fixture.user.id)
     expect(account.active).toBe(true)
     await login(member, fixture.login, TEST_PASSWORD)
+    await page.goto(`/settings/users/${fixture.user.id}`)
+    await page.goto(`/settings/users/${fixture.user.id}/security`)
+    await expect(page.getByRole('heading', { level: 1, name: 'أمان الحساب', exact: true })).toBeVisible()
+    await expect(page.getByRole('status').filter({ hasText: 'تمت إعادة تفعيل الوصول' })).toHaveCount(0)
   } finally { await memberContext.close() }
 })
 
@@ -207,5 +238,50 @@ test('custom read-only task access is enforced in the page and direct ORM', asyn
     expect((await json(reader.request, 'get', '/api/v1/me')).capabilities).toEqual(['hr.employees.read'])
     await reader.goto('/account')
     await expect(reader.getByRole('navigation').getByRole('link', { name: 'مهامي', exact: true })).toHaveCount(0)
+  } finally { await context.close() }
+})
+
+test('custom role save refreshes the actor Nuxt me request without focus', async ({ page, browser }) => {
+  await login(page)
+  const catalog = await json(page.request, 'get', '/api/v1/admin/permissions')
+  const directoryPermission = catalog.items.find((item: { key: string }) => item.key === 'hr.employees.read')
+  expect(directoryPermission).toBeTruthy()
+  const extraRole = await json(page.request, 'post', '/api/v1/admin/roles', {
+    name: { ar: `صلاحيات الممثل ${Date.now()}`, en: null }, description: '', permissions: ['access.audit.read'],
+  })
+  const actor = await grantFixture(page.request, 'system_admin', 'actor')
+  const adminMe = await json(page.request, 'get', '/api/v1/me')
+  const roles = await json(page.request, 'get', '/api/v1/admin/roles')
+  const systemAdminRole = roles.items.find((item: { key: string }) => item.key === 'system_admin')
+  expect(systemAdminRole).toBeTruthy()
+  const account = await json(page.request, 'get', `/api/v1/admin/users/${actor.user.id}`)
+  await json(page.request, 'patch', `/api/v1/admin/users/${actor.user.id}/access`, {
+    assignments: [
+      { role_id: systemAdminRole.id, scope: { kind: 'company', id: adminMe.company.id } },
+      { role_id: extraRole.id, scope: { kind: 'company', id: adminMe.company.id } },
+    ],
+    expected_version: account.version,
+  })
+  const context = await browser.newContext()
+  try {
+    const actorPage = await context.newPage()
+    await login(actorPage, actor.login, TEST_PASSWORD)
+    await actorPage.goto(`/settings/roles/${extraRole.id}/edit`)
+    await expect(actorPage.getByRole('heading', { name: 'تعديل الدور', exact: true })).toBeVisible()
+    await expect(actorPage.getByRole('navigation').getByRole('link', { name: 'الموظفون', exact: true })).toHaveCount(0)
+    await actorPage.getByRole('checkbox', { name: new RegExp(`^${directoryPermission.label.ar} `) }).check()
+    await expect(actorPage.getByRole('button', { name: 'حفظ', exact: true })).toBeEnabled()
+    const savedRole = actorPage.waitForResponse((response) => (
+      response.url().includes(`/api/v1/admin/roles/${extraRole.id}`) && response.request().method() === 'PATCH'
+    ))
+    const actorMe = actorPage.waitForRequest((request) => {
+      if (request.method() !== 'GET') return false
+      return new URL(request.url()).pathname.replace(/\/$/, '') === '/api/v1/me'
+    })
+    await actorPage.getByRole('button', { name: 'حفظ', exact: true }).click()
+    expect((await savedRole).status()).toBe(200)
+    await actorMe
+    await expect(actorPage.getByRole('navigation').getByRole('link', { name: 'الموظفون', exact: true })).toBeVisible()
+    await expect(actorPage.locator('[data-slot="dialog-content"], [data-slot="sheet-content"]').first()).toHaveCount(0)
   } finally { await context.close() }
 })

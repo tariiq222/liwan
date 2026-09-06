@@ -26,8 +26,8 @@ function editEmployee(id: number) { void navigateTo({ path: `/hr/employees/${id}
     </SharedPageHeader>
     <Tabs v-model="tab">
       <TabsList>
-        <TabsTrigger value="employees">{{ t('hr.tabs.employees') }}</TabsTrigger>
-        <TabsTrigger v-if="can('hr.departments.read')" value="departments">{{ t('hr.tabs.departments') }}</TabsTrigger>
+        <TabsTrigger value="employees" :disabled="!hydrated">{{ t('hr.tabs.employees') }}</TabsTrigger>
+        <TabsTrigger v-if="can('hr.departments.read')" value="departments" :disabled="!hydrated">{{ t('hr.tabs.departments') }}</TabsTrigger>
       </TabsList>
       <TabsContent value="employees"><DirectoryTable v-model:department-id="selectedDepartmentId" @open="openEmployee" @manage="editEmployee" @archive="openEmployee" /></TabsContent>
       <TabsContent v-if="can('hr.departments.read')" value="departments" class="space-y-4">

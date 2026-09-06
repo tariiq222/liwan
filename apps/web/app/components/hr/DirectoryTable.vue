@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { FlexRender, createColumnHelper, getCoreRowModel, useVueTable } from '@tanstack/vue-table'
-import { h } from 'vue'
+import { h, resolveComponent } from 'vue'
 import FilterBar from '@/components/shared/FilterBar.vue'
 import EmptyState from '@/components/shared/EmptyState.vue'
 import { Search, X } from 'lucide-vue-next'
 import { useHrDepartments } from '@/composables/useHrDepartments'
 import { useHrEmployees, type HrEmployee } from '@/composables/useHrEmployees'
+import { returnToQuery } from '@/utils/safeReturnTo'
 import AccessBadge from './AccessBadge.vue'
 
 const departmentId = defineModel<number | null>('departmentId', { default: null })
@@ -34,8 +35,9 @@ const params = computed(() => ({
   offset: offset.value,
 }))
 
-const { data, isLoading } = useHrEmployees(params)
+const { data, isLoading, error, refetch } = useHrEmployees(params)
 const { data: deptData } = useHrDepartments()
+const NuxtLink = resolveComponent('NuxtLink')
 
 const items = computed<HrEmployee[]>(() => data.value?.items ?? [])
 const departments = computed(() => deptData.value?.items ?? [])
@@ -63,11 +65,28 @@ function setPage(next: number) {
   void router.replace({ query: { ...route.query, ...(offset.value ? { offset: offset.value } : { offset: undefined }) } })
 }
 
+function employeeTo(id: number) {
+  return { path: `/hr/employees/${id}`, query: returnToQuery(route.fullPath) }
+}
+
+function onRowClick(id: number, event: MouseEvent) {
+  if (!hydrated.value) return
+  const target = event.target as HTMLElement
+  if (target.closest('a, button')) return
+  emit('open', id)
+}
+
 const columnHelper = createColumnHelper<HrEmployee>()
-const columns = [
+const columns = computed(() => [
   columnHelper.accessor('name', {
     id: 'name',
     header: () => t('hr.directory.columns.name'),
+    cell: (info) => h(NuxtLink, {
+      to: employeeTo(info.row.original.id),
+      class: 'font-medium hover:underline',
+      'data-testid': 'hr-employee-name',
+      onClick: (event: Event) => event.stopPropagation(),
+    }, () => info.getValue()),
   }),
   columnHelper.display({
     id: 'jobTitle',
@@ -105,13 +124,15 @@ const columns = [
         ])
       : null,
   }),
-]
+])
 
 const table = useVueTable({
   get data() {
     return items.value
   },
-  columns,
+  get columns() {
+    return columns.value
+  },
   getCoreRowModel: getCoreRowModel(),
 })
 
@@ -158,6 +179,7 @@ function clearFilters() {
       </template>
     </FilterBar>
 
+    <SharedPageState :error="error" @retry="refetch">
     <div class="rounded-md border">
       <Table>
         <TableHeader>
@@ -185,7 +207,7 @@ function clearFilters() {
               v-for="row in table.getRowModel().rows"
               :key="row.id"
               class="cursor-pointer"
-              @click="emit('open', row.original.id)"
+              @click="onRowClick(row.original.id, $event)"
             >
               <TableCell v-for="cell in row.getVisibleCells()" :key="cell.id" class="text-start">
                 <FlexRender :render="cell.column.columnDef.cell" :props="cell.getContext()" />
@@ -195,6 +217,7 @@ function clearFilters() {
         </TableBody>
       </Table>
     </div>
+    </SharedPageState>
     <div v-if="pages > 1" class="flex items-center justify-between text-sm text-muted-foreground"><Button variant="ghost" :disabled="!hydrated || page === 1 || isLoading" @click="setPage(page - 1)">{{ t('access.previousPage') }}</Button><span>{{ t('access.pageOf', { page, pages }) }}</span><Button variant="ghost" :disabled="!hydrated || page >= pages || isLoading" @click="setPage(page + 1)">{{ t('access.nextPage') }}</Button></div>
   </div>
 </template>

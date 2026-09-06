@@ -4,8 +4,9 @@ from odoo.addons.nasq_api.controllers.common import ApiError
 WRITABLE = {'name', 'parent_id', 'manager_id'}
 
 
-def dump_department(dept):
-    refs = dept._nasq_serialized_relations()
+def dump_department(dept, refs=None):
+    if refs is None:
+        refs = dept._nasq_serialized_relations()
     return {
         'id': dept.id,
         'name': dept.name,
@@ -14,6 +15,13 @@ def dump_department(dept):
         'child_ids': refs['child_ids'],
         'employee_count': refs['employee_count'],
     }
+
+
+def dump_departments(depts):
+    if not depts:
+        return []
+    refs_map = depts._nasq_serialized_relations_map()
+    return [dump_department(dept, refs_map[dept.id]) for dept in depts]
 
 
 def _optional_id(value, field):

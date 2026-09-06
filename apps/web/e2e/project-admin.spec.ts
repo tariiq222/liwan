@@ -89,6 +89,13 @@ async function createTask(page, name: string, projectId: number): Promise<number
   return (await res.json()).id as number
 }
 
+async function searchProjectList(page, name: string) {
+  const search = page.getByPlaceholder('ابحث باسم المشروع…')
+  await expect(search).toBeEnabled()
+  await search.fill(name)
+  await expect(page).toHaveURL((url) => url.searchParams.get('q') === name)
+}
+
 test('creating a project from the table lands on its page with the default stage columns', async ({ page }) => {
   await login(page)
   const name = `E2E admin create ${Date.now()}`
@@ -267,12 +274,13 @@ test('archiving and unarchiving a project moves it between the active and archiv
   const name = `E2E project archive ${Date.now()}`
   const id = await createProject(page, name)
 
-  const activeListResponse = await page.request.get('/api/v1/projects')
+  const activeListResponse = await page.request.get(`/api/v1/projects?q=${encodeURIComponent(name)}`)
   expect(activeListResponse.status()).toBe(200)
   const activeList = ProjectListSchema.parse(await activeListResponse.json())
   expect(activeList.items.some((project) => project.id === id)).toBe(true)
 
   await page.goto('/projects')
+  await searchProjectList(page, name)
   const activeRow = page.getByTestId('project-row').filter({ hasText: name })
   await expect(activeRow).toBeVisible({ timeout: 10_000 })
   await activeRow.getByTestId('project-menu').click()
@@ -285,6 +293,7 @@ test('archiving and unarchiving a project moves it between the active and archiv
   await expect(page.getByTestId('project-row').filter({ hasText: name })).toHaveCount(0)
 
   await page.getByRole('tab', { name: 'المؤرشفة' }).click()
+  await expect(page).toHaveURL((url) => url.searchParams.get('q') === name && url.searchParams.get('archived') === '1')
   const archivedRow = page.getByTestId('project-row').filter({ hasText: name })
   await expect(archivedRow).toBeVisible()
   await archivedRow.getByTestId('project-menu').click()
@@ -297,11 +306,13 @@ test('archiving and unarchiving a project moves it between the active and archiv
 
   await page.getByRole('tab', { name: 'النشطة' }).click()
   await expect(page).not.toHaveURL(/archived=1/)
-  const restoredListResponse = await page.request.get('/api/v1/projects')
+  await expect(page).toHaveURL((url) => url.searchParams.get('q') === name)
+  const restoredListResponse = await page.request.get(`/api/v1/projects?q=${encodeURIComponent(name)}`)
   expect(restoredListResponse.status()).toBe(200)
   const restoredList = ProjectListSchema.parse(await restoredListResponse.json())
   expect(restoredList.items.some((project) => project.id === id)).toBe(true)
   await page.reload()
+  await expect(page).toHaveURL((url) => url.searchParams.get('q') === name)
   await expect(page.getByTestId('project-row').filter({ hasText: name })).toBeVisible({ timeout: 10_000 })
 })
 

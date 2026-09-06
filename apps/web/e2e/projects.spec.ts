@@ -1,4 +1,8 @@
-import { test, expect } from '@playwright/test'
+import { test, expect, type Page } from '@playwright/test'
+
+function projectListParams(page: Page) {
+  return new URL(page.url()).searchParams
+}
 
 // Phase 3a: there is now a real create-project endpoint, and every new
 // project's stages come from the company's default_stages policy rather than
@@ -59,20 +63,30 @@ test('projects table shows status and progress, and a row opens the project', as
 
   await page.goto('/projects')
   await expect(page.getByRole('heading', { name: 'المشاريع' })).toBeVisible()
+  const search = page.getByPlaceholder('ابحث باسم المشروع…')
+  await expect(search).toBeEnabled()
+  await search.fill(name)
   const row = page.getByTestId('project-row').filter({ hasText: name })
+  await expect(row).toBeVisible()
   await expect(row.getByTestId('project-status')).toHaveText('معرض للخطر')
   await expect(row.getByTestId('project-progress')).toHaveText('50%')
-  await page.getByPlaceholder('ابحث باسم المشروع…').fill(name)
-  await expect(row).toBeVisible()
   await page.getByRole('combobox').click()
   await page.getByRole('option', { name: 'معرض للخطر' }).click()
   await expect(row).toBeVisible()
-  await expect(page).toHaveURL(new RegExp('status=at_risk'))
+  await expect(page).toHaveURL((url) => url.searchParams.get('status') === 'at_risk' && url.searchParams.get('q') === name)
+  await page.reload()
+  await expect(row).toBeVisible()
+  await expect(page).toHaveURL((url) => url.searchParams.get('status') === 'at_risk' && url.searchParams.get('q') === name)
   await row.click()
   await expect(page).toHaveURL(new RegExp(`/projects/${id}\\?returnTo=`))
   await expect(page.getByRole('heading', { name })).toBeVisible()
   await page.getByRole('link', { name: 'العودة إلى المشاريع' }).click()
-  await expect(page).toHaveURL(/\/projects\?status=at_risk&q=/)
+  await expect(page).toHaveURL((url) => (
+    url.pathname === '/projects'
+    && url.searchParams.get('status') === 'at_risk'
+    && url.searchParams.get('q') === name
+  ))
+  await expect(page.getByTestId('project-row').filter({ hasText: name })).toBeVisible()
 })
 
 test('project list shows every task of the project (not only mine), the detail page returns to the project', async ({ page }) => {
@@ -138,4 +152,73 @@ test('create task from the project locks the project, and a manager sets the sta
   await expect(page.getByTestId('project-status-select')).toContainText('خارج المسار')
   await page.reload()
   await expect(page.getByTestId('project-status-select')).toContainText('خارج المسار')
+})
+
+function mockProject(id: number, name: string, status: 'on_track' | null = 'on_track') {
+  return {
+    id,
+    name,
+    status,
+    progress: 0,
+    task_count: 0,
+    closed_task_count: 0,
+    active: true,
+    can_manage: true,
+    allowed_actions: ['read', 'write', 'archive'],
+  }
+}
+
+test('project list next/previous pages keep q, status, and offset in the URL', async ({ page }) => {
+  await login(page)
+  const total = 201
+  await page.route('**/api/v1/projects**', async (route) => {
+    const request = route.request()
+    if (request.method() !== 'GET') {
+      await route.continue()
+      return
+    }
+    const url = new URL(request.url())
+    if (!url.pathname.endsWith('/api/v1/projects')) {
+      await route.continue()
+      return
+    }
+    if (url.searchParams.get('minimal') === '1') {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) })
+      return
+    }
+    const limit = Math.max(1, Number(url.searchParams.get('limit') || '50') || 50)
+    const offset = Math.max(0, Number(url.searchParams.get('offset') || '0') || 0)
+    const items = Array.from({ length: Math.max(0, Math.min(limit, total - offset)) }, (_, i) => (
+      mockProject(offset + i + 1, `Mock Bulk ${offset + i + 1}`)
+    ))
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ items, total, can_create: true, can_list_archived: true }),
+    })
+  })
+
+  await page.goto('/projects')
+  await expect(page.getByRole('heading', { name: 'المشاريع' })).toBeVisible()
+  await page.getByPlaceholder('ابحث باسم المشروع…').fill('Bulk')
+  await page.getByRole('combobox').click()
+  await page.getByRole('option', { name: 'على المسار' }).click()
+  await expect(page).toHaveURL((url) => url.searchParams.get('q') === 'Bulk' && url.searchParams.get('status') === 'on_track')
+  await expect(page.getByText('صفحة 1 من 5')).toBeVisible()
+  await page.getByRole('button', { name: 'التالي' }).click()
+  await expect(page).toHaveURL((url) => (
+    url.searchParams.get('q') === 'Bulk'
+    && url.searchParams.get('status') === 'on_track'
+    && url.searchParams.get('offset') === '50'
+  ))
+  await expect(page.getByText('صفحة 2 من 5')).toBeVisible()
+  await page.getByRole('button', { name: 'السابق' }).click()
+  await expect(page).toHaveURL((url) => (
+    url.searchParams.get('q') === 'Bulk'
+    && url.searchParams.get('status') === 'on_track'
+    && !url.searchParams.has('offset')
+  ))
+  await expect(page.getByText('صفحة 1 من 5')).toBeVisible()
+  expect(projectListParams(page).get('q')).toBe('Bulk')
+  expect(projectListParams(page).get('status')).toBe('on_track')
 })

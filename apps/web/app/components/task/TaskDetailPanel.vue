@@ -77,7 +77,7 @@ watch(
 )
 
 function saveTitle() {
-  if (!task.value?.can_write) return
+  if (!hydrated.value || !task.value?.can_write) return
   const name = titleDraft.value.trim()
   if (!name || name === task.value.name) {
     titleDraft.value = task.value.name
@@ -86,9 +86,13 @@ function saveTitle() {
   updateTask({ id: task.value.id, patch: { name } })
 }
 
+function siblingTo(id: number) {
+  return { path: `${props.basePath}/${id}`, query: route.query }
+}
+
 function goTo(id: number | null) {
-  if (id === null) return
-  router.push({ path: `${props.basePath}/${id}`, query: route.query })
+  if (!hydrated.value || id === null) return
+  router.push(siblingTo(id))
 }
 
 function isEditableTarget(el: EventTarget | null) {
@@ -97,6 +101,7 @@ function isEditableTarget(el: EventTarget | null) {
 }
 
 function onKeydown(e: KeyboardEvent) {
+  if (!hydrated.value) return
   if (e.metaKey || e.ctrlKey || e.altKey) return
   if (isEditableTarget(e.target)) return
   if (e.key === 'Escape') {
@@ -119,7 +124,7 @@ useEventListener(document, 'keydown', onKeydown)
       <div class="flex min-w-0 items-center gap-2">
         <Input
           v-if="task"
-          :readonly="!task.can_write"
+          :readonly="!hydrated || !task.can_write"
           v-model="titleDraft"
           :aria-label="t('tasks.newTitle')"
           class="h-9 min-w-0 flex-1 border-none px-0 text-base font-semibold shadow-none focus-visible:ring-0 sm:text-lg"
@@ -129,10 +134,10 @@ useEventListener(document, 'keydown', onKeydown)
         <Skeleton v-else class="h-7 min-w-0 flex-1" />
 
         <div class="flex shrink-0 items-center gap-1">
-          <Button variant="ghost" size="icon" type="button" :aria-label="t('tasks.detail.prev')" :disabled="!siblings.prevId" @click="goTo(siblings.prevId)">
+          <Button variant="ghost" size="icon" type="button" :aria-label="t('tasks.detail.prev')" :disabled="!hydrated || !siblings.prevId" @click="goTo(siblings.prevId)">
             <component :is="isRtl ? ChevronRight : ChevronLeft" class="size-4" />
           </Button>
-          <Button variant="ghost" size="icon" type="button" :aria-label="t('tasks.detail.next')" :disabled="!siblings.nextId" @click="goTo(siblings.nextId)">
+          <Button variant="ghost" size="icon" type="button" :aria-label="t('tasks.detail.next')" :disabled="!hydrated || !siblings.nextId" @click="goTo(siblings.nextId)">
             <component :is="isRtl ? ChevronLeft : ChevronRight" class="size-4" />
           </Button>
 
@@ -154,7 +159,7 @@ useEventListener(document, 'keydown', onKeydown)
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <Button variant="ghost" size="icon" type="button" :aria-label="t('tasks.detail.close')" @click="emit('close')">
+          <Button variant="ghost" size="icon" type="button" :aria-label="t('tasks.detail.close')" :disabled="!hydrated" @click="emit('close')">
             <X class="size-4" />
           </Button>
         </div>
@@ -205,8 +210,8 @@ useEventListener(document, 'keydown', onKeydown)
 
       <Tabs v-else default-value="details" class="flex flex-1 flex-col overflow-hidden">
         <TabsList class="mx-4 mt-2 w-fit">
-          <TabsTrigger value="details">{{ t('tasks.drawer.details') }}</TabsTrigger>
-          <TabsTrigger value="activity">{{ t('tasks.drawer.activity') }}</TabsTrigger>
+          <TabsTrigger value="details" :disabled="!hydrated">{{ t('tasks.drawer.details') }}</TabsTrigger>
+          <TabsTrigger value="activity" :disabled="!hydrated">{{ t('tasks.drawer.activity') }}</TabsTrigger>
         </TabsList>
         <TabsContent value="details" class="flex-1 overflow-y-auto p-4">
           <TaskDetails :key="task.id" :task="task" />

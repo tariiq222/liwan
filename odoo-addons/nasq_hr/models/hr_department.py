@@ -107,43 +107,71 @@ class NasqHrDepartment(models.Model):
 
     def _nasq_serialized_relations(self):
         self.ensure_one()
+        return self._nasq_serialized_relations_map()[self.id]
+
+    def _nasq_serialized_relations_map(self):
+        if not self.ids:
+            return {}
         self._nasq_validate_scope()
-        self.env.cr.execute(
+        company_id = self.env.company.id
+        self.env.cr.execute(SQL(
             '''
-                SELECT department.parent_id, manager.id, manager.name
+                SELECT department.id, department.parent_id, manager.id, manager.name
                   FROM hr_department department
                   LEFT JOIN hr_employee manager ON manager.id = department.manager_id
-                 WHERE department.id = %s AND department.company_id = %s
+                 WHERE department.id = ANY(%s) AND department.company_id = %s
             ''',
-            [self.id, self.env.company.id],
-        )
-        row = self.env.cr.fetchone()
-        if not row:
+            self.ids, company_id,
+        ))
+        rows = self.env.cr.fetchall()
+        if len(rows) != len(set(self.ids)):
             raise AccessError(DEPARTMENT_SCOPE_ERROR)
-        self.env.cr.execute(
-            'SELECT id FROM hr_department WHERE parent_id = %s AND company_id = %s ORDER BY id',
-            [self.id, self.env.company.id],
-        )
-        child_ids = [child_id for child_id, in self.env.cr.fetchall()]
+        text = self.env['nasq.access.service']._nasq_hr_text
+        parents = {}
+        managers = {}
+        for department_id, parent_id, manager_id, manager_name in rows:
+            parents[department_id] = parent_id or None
+            managers[department_id] = (
+                {'id': manager_id, 'name': text(manager_name)} if manager_id else None
+            )
+        self.env.cr.execute(SQL(
+            '''
+                SELECT parent_id, id
+                  FROM hr_department
+                 WHERE parent_id = ANY(%s) AND company_id = %s
+                 ORDER BY id
+            ''',
+            self.ids, company_id,
+        ))
+        child_ids = {department_id: [] for department_id in self.ids}
+        for parent_id, child_id in self.env.cr.fetchall():
+            child_ids[parent_id].append(child_id)
         include_archived = self.env['nasq.access.service']._nasq_has_capability(
             self.env.user, 'hr.employees.archive',
         )
-        self.env.cr.execute(
+        self.env.cr.execute(SQL(
             '''
-                SELECT COUNT(*)
+                SELECT version.department_id, COUNT(*)
                   FROM hr_employee employee
                   JOIN hr_version version ON version.id = employee.current_version_id
-                 WHERE employee.company_id = %s AND version.department_id = %s
+                 WHERE employee.company_id = %s
+                   AND version.department_id = ANY(%s)
                    AND (%s OR employee.active IS TRUE)
+                 GROUP BY version.department_id
             ''',
-            [self.env.company.id, self.id, include_archived],
-        )
-        text = self.env['nasq.access.service']._nasq_hr_text
+            company_id, self.ids, include_archived,
+        ))
+        counts = dict.fromkeys(self.ids, 0)
+        for department_id, count in self.env.cr.fetchall():
+            counts[department_id] = count
         return {
-            'parent_id': row[0] or None,
-            'manager': {'id': row[1], 'name': text(row[2])} if row[1] else None,
-            'child_ids': child_ids,
-            'employee_count': self.env.cr.fetchone()[0],
+            department.id: {
+                'parent_id': parents[department.id],
+                'manager': managers[department.id],
+                'child_ids': child_ids[department.id],
+                'employee_count': counts[department.id],
+            }
+            for department in self
         }
 
     def _nasq_delete(self):

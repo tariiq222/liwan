@@ -37,6 +37,38 @@ for inspection. New collaboration endpoints use explicit current-company
 records; the proposed legacy company-less extension remains unapplied pending
 separate approval.
 
+## 2026-09-06 repair-task state
+
+The repair task is in `/Users/tariq/code/الاصلاحات`, branch
+`codex/الاصلاحات`, based on `main4b15cb1`, with uncommitted work. No commit,
+merge, push, or deployment was performed. The canonical `main` checkout remains
+dirty in `nuxt.config.ts`, `Caddyfile`, and the untouched untracked `.agent/`
+surface; do not overwrite those paths.
+
+Approved company settings are per-company and read-only through the legacy
+fallback until first save; no existing projects or stages migration is planned.
+Fresh final evidence: npm lint 0; npm test 0 (80 contracts, 259 web); Ruff 0;
+ops 35 mock-only, 0; Odoo 300 tests, 0 failures, 0 errors, exit 0; browser E2E
+78 passed in 3 minutes, exit 0; security repeat 10/10 without fill-retry; npm
+build 0. Odoo used test-only DB `nasq_fixes_scratch_final_20260906_1215` on
+HTTP 9579; E2E used isolated DB `nasq_fixes_scratch_20260906_0945`, Odoo 9569,
+and web 3569. This is layer evidence, not production evidence.
+
+The final gate review is in progress; do not claim PASS or DONE. Web 3569 is
+stopped for the build; isolated E2E Odoo 9569 is active. No source/shared-config
+changes were made during verification. Remaining gaps: reports/global search
+are product-spec work; MIME download needs a broader audit; production backup
+restore retention, encryption, and offsite work is not done; new `backup.py` is
+a non-atomic candidate and UNVERIFIED, not recovery-ready; checks fragment
+`verification-checks.json` is opt-in and not active in `.agent/`; large-inbox
+performance is unmeasured; legacy company-less collaboration remains excluded;
+stock theme and upstream Odoo remain unchanged. Role-create prehydration
+checkbox interaction is not fully guarded; future dedicated UI hardening must
+not be described as fixed.
+
+For recovery, preserve worktrees, scratch databases, logs, and reports; do not
+delete them while the repair review is active.
+
 ## Start and inspect
 
 Use these read-only commands before starting work:

@@ -42,6 +42,9 @@
       "unset": "غير محدد",
       "clear": "مسح الفلاتر"
     },
+    "previousPage": "السابق",
+    "pageOf": "صفحة {page} من {pages}",
+    "nextPage": "التالي",
     "archivedEmpty": "لا مشاريع مؤرشفة",
     "archivedEmptyHint": "ستظهر هنا المشاريع التي أرشفتها ويمكنك استعادتها عند الحاجة.",
     "menu": {

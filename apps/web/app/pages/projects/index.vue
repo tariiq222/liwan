@@ -1,11 +1,20 @@
 <script setup lang="ts">
-import { PROJECT_STATUSES, type ProjectStatus } from '@nasq/contracts'
+import { PROJECT_STATUSES } from '@nasq/contracts'
 import { Search, X } from 'lucide-vue-next'
 import { refDebounced } from '@vueuse/core'
 import FilterBar from '@/components/shared/FilterBar.vue'
 import PageHeader from '@/components/shared/PageHeader.vue'
 import ProjectTable from '@/components/project/ProjectTable.vue'
-import { useProjectList } from '@/composables/useProjects'
+import {
+  PROJECT_PAGE,
+  parseProjectListRoute,
+  parseProjectListStatus,
+  patchProjectListRoute,
+  sameProjectListRoute,
+  serializeProjectListRoute,
+  useProjectList,
+  type ProjectListRouteState,
+} from '@/composables/useProjects'
 import { returnToQuery } from '@/utils/safeReturnTo'
 
 const router = useRouter()
@@ -13,62 +22,100 @@ const route = useRoute()
 const { t } = useI18n()
 const hydrated = useHydrated()
 
-// Always fetch the active list — same query key as ProjectTable's own
-// useProjectList(archived) call whenever archived is false, so this doesn't
-// cause a second network request in the common case, and it's the only
-// source of truth for can_list_archived (the server only sets that flag on
-// the full, non-minimal response).
-const activeList = useProjectList(ref(false))
+// Capability probe: full envelope (not minimal) so can_list_archived is set,
+// but limit=1 avoids a second 200-row fetch beside the table query.
+const activeList = useProjectList(ref(false), { limit: 1 })
 const canListArchived = computed(() => activeList.data.value?.can_list_archived ?? false)
+
+const filters = reactive<ProjectListRouteState>(parseProjectListRoute(route.query as Record<string, unknown>))
+const search = ref(filters.q)
+const debouncedSearch = refDebounced(search, 250)
+let applyingRoute = false
+let writeQuery: Promise<void> = Promise.resolve()
+
+function committedState(): ProjectListRouteState {
+  return {
+    q: filters.q,
+    status: filters.status,
+    offset: filters.offset,
+    archived: canListArchived.value && filters.archived,
+  }
+}
+
+function applyPatch(patch: Partial<ProjectListRouteState>) {
+  Object.assign(filters, patchProjectListRoute(filters, patch))
+}
+
+function scheduleQueryWrite() {
+  writeQuery = writeQuery.then(async () => {
+    const query = serializeProjectListRoute(committedState())
+    if (sameProjectListRoute(query, serializeProjectListRoute(parseProjectListRoute(route.query as Record<string, unknown>)))) return
+    applyingRoute = true
+    try {
+      await router.replace({ query })
+    } finally {
+      applyingRoute = false
+    }
+  }).catch(() => undefined)
+}
 
 // Never resolve to true unless the server says this user may list archived
 // projects — a manager-gated 403 must never reach useProjectList, or an
 // employee following a stale/shared `?archived=1` link sees a silent empty
 // table instead of the active list.
-const archived = computed(() => canListArchived.value && route.query.archived === '1')
-const projectList = useProjectList(archived)
+const archived = computed(() => canListArchived.value && filters.archived)
+const rawSearch = computed(() => filters.q)
+const statusFilter = computed(() => filters.status)
+const listOffset = computed(() => filters.offset)
+const listFilters = computed(() => ({
+  q: filters.q.trim() || undefined,
+  status: filters.status === 'all' ? undefined : filters.status,
+  limit: PROJECT_PAGE,
+  offset: filters.offset,
+}))
+const projectList = useProjectList(archived, listFilters)
 const items = computed(() => projectList.data.value?.items ?? [])
 const canCreate = computed(() => projectList.data.value?.can_create ?? false)
+const total = computed(() => projectList.data.value?.total ?? 0)
+const page = computed(() => Math.floor(listOffset.value / PROJECT_PAGE) + 1)
+const pages = computed(() => Math.max(1, Math.ceil(total.value / PROJECT_PAGE)))
 
-const rawSearch = computed(() => typeof route.query.q === 'string' ? route.query.q : '')
-const search = ref(rawSearch.value)
-const debouncedSearch = refDebounced(search, 250)
-watch(rawSearch, (value) => {
-  if (value !== search.value) search.value = value
-})
 watch(debouncedSearch, (value) => {
-  const q = value.trim()
-  if (q === rawSearch.value) return
-  router.replace({ query: { ...route.query, q: q || undefined } })
+  if (value.trim() === filters.q.trim()) return
+  applyPatch({ q: value })
+})
+watch(
+  [() => filters.q, () => filters.status, () => filters.offset, () => canListArchived.value && filters.archived],
+  () => {
+    scheduleQueryWrite()
+  },
+)
+watch(() => route.query, (query) => {
+  if (applyingRoute) return
+  const parsed = parseProjectListRoute(query as Record<string, unknown>)
+  const fromRoute = serializeProjectListRoute({ ...parsed, archived: canListArchived.value && parsed.archived })
+  if (sameProjectListRoute(serializeProjectListRoute(committedState()), fromRoute)) return
+  applyingRoute = true
+  search.value = parsed.q
+  Object.assign(filters, parsed)
+  queueMicrotask(() => { applyingRoute = false })
 })
 
-const statusFilter = computed<'all' | 'unset' | ProjectStatus>(() => {
-  const value = route.query.status
-  if (value === 'unset') return 'unset'
-  if (typeof value === 'string' && PROJECT_STATUSES.includes(value as ProjectStatus)) return value as ProjectStatus
-  return 'all'
-})
 function onStatusChange(value: unknown) {
-  const status = typeof value === 'string' ? value : 'all'
-  router.replace({ query: { ...route.query, status: status === 'all' ? undefined : status } })
+  applyPatch({ status: parseProjectListStatus(value) })
 }
 function clearFilters() {
   search.value = ''
-  router.replace({ query: { ...route.query, q: undefined, status: undefined } })
+  applyPatch({ q: '', status: 'all' })
 }
-const filteredItems = computed(() => {
-  const query = rawSearch.value.trim().toLocaleLowerCase()
-  return items.value.filter((project) => {
-    const matchesSearch = !query || project.name.toLocaleLowerCase().includes(query)
-    const matchesStatus = statusFilter.value === 'all'
-      || (statusFilter.value === 'unset' ? project.status === null : project.status === statusFilter.value)
-    return matchesSearch && matchesStatus
-  })
-})
 const isLoading = computed(() => projectList.isLoading.value)
 
 function onFilterChange(v: unknown) {
-  router.replace({ query: { ...route.query, archived: v === 'archived' ? '1' : undefined } })
+  applyPatch({ archived: v === 'archived' })
+}
+function setPage(next: number) {
+  if (!hydrated.value || projectList.isFetching.value || next < 1 || next > pages.value) return
+  applyPatch({ offset: (next - 1) * PROJECT_PAGE })
 }
 
 function openCreate() {
@@ -127,13 +174,25 @@ function openProject(id: number) {
       </template>
     </FilterBar>
 
-    <ProjectTable
-      :items="filteredItems"
-      :capped="items.length >= 200"
-      :filtered="Boolean(rawSearch.trim()) || statusFilter !== 'all'"
-      :is-loading="isLoading"
-      :archived="archived"
-      @open="openProject"
-    />
+    <SharedPageState v-if="projectList.error.value" :error="projectList.error.value" @retry="projectList.refetch" />
+    <template v-else>
+      <ProjectTable
+        :items="items"
+        :capped="false"
+        :filtered="Boolean(rawSearch.trim()) || statusFilter !== 'all'"
+        :is-loading="isLoading"
+        :archived="archived"
+        @open="openProject"
+      />
+      <div v-if="pages > 1" class="flex items-center justify-between text-sm text-muted-foreground">
+        <Button variant="ghost" :disabled="!hydrated || page === 1 || projectList.isFetching.value" @click="setPage(page - 1)">
+          {{ t('projects.previousPage') }}
+        </Button>
+        <span>{{ t('projects.pageOf', { page, pages }) }}</span>
+        <Button variant="ghost" :disabled="!hydrated || page >= pages || projectList.isFetching.value" @click="setPage(page + 1)">
+          {{ t('projects.nextPage') }}
+        </Button>
+      </div>
+    </template>
   </div>
 </template>

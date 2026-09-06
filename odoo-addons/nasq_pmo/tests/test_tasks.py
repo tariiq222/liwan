@@ -125,6 +125,84 @@ class TestTaskWrite(NasqPmoCase):
         self.assertEqual(res.status_code, 422)
         self.assertEqual(res.json()['field'], 'name')
 
+    def test_create_rejects_invalid_id_shapes_without_writing(self):
+        """project_id/parent_id must be parsed before lookup so True/1.0 cannot alias id 1."""
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        invalid = (True, False, 1.0, 1.5, 0, -3, [], {}, '1.5', 'abc', '0', ' 1', '')
+        for value in invalid:
+            with self.subTest(field='project_id', value=value):
+                res = self.api('POST', '/api/v1/tasks', {'name': 'Shape alias', 'project_id': value})
+                self.assertEqual(res.status_code, 422, res.text)
+                body = res.json()
+                self.assertEqual(body['code'], 'invalid')
+                self.assertEqual(body['field'], 'project_id')
+            with self.subTest(field='parent_id', value=value):
+                res = self.api('POST', '/api/v1/tasks', {
+                    'name': 'Shape alias',
+                    'project_id': self.project.id,
+                    'parent_id': value,
+                })
+                self.assertEqual(res.status_code, 422, res.text)
+                body = res.json()
+                self.assertEqual(body['code'], 'invalid')
+                self.assertEqual(body['field'], 'parent_id')
+        self.assertFalse(self.env['project.task'].search([('name', '=', 'Shape alias')]))
+        self.assertFalse(self.env['project.task'].search([
+            ('project_id', '=', 1), ('name', '=', 'Shape alias'),
+        ]))
+
+    def test_create_accepts_digit_string_ids(self):
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        res = self.api('POST', '/api/v1/tasks', {
+            'name': 'String ids',
+            'project_id': str(self.project.id),
+            'parent_id': str(self.task_overdue.id),
+        })
+        self.assertEqual(res.status_code, 201, res.text)
+        self.assertEqual(res.json()['project']['id'], self.project.id)
+        parent = self.api('GET', f'/api/v1/tasks/{self.task_overdue.id}').json()
+        self.assertIn('String ids', [t['name'] for t in parent['subtasks']])
+
+    def test_create_null_parent_id_is_optional(self):
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        res = self.api('POST', '/api/v1/tasks', {
+            'name': 'Null parent', 'project_id': self.project.id, 'parent_id': None,
+        })
+        self.assertEqual(res.status_code, 201, res.text)
+        self.assertFalse(self.env['project.task'].browse(res.json()['id']).parent_id)
+
+    def test_create_unknown_foreign_ids_do_not_write(self):
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        res = self.api('POST', '/api/v1/tasks', {'name': 'Ghost', 'project_id': 999999})
+        self.assertEqual(res.status_code, 404)
+        self.assertEqual(res.json()['code'], 'not_found')
+        self.assertFalse(self.env['project.task'].search([('name', '=', 'Ghost')]))
+
+        res = self.api('POST', '/api/v1/tasks', {
+            'name': 'Ghost child', 'project_id': self.project.id, 'parent_id': 999999,
+        })
+        self.assertEqual(res.status_code, 404)
+        self.assertEqual(res.json()['code'], 'not_found')
+        self.assertFalse(self.env['project.task'].search([('name', '=', 'Ghost child')]))
+
+        private = self.env['project.project'].create({
+            'name': 'Private create', 'privacy_visibility': 'followers',
+        })
+        secret = self.env['project.task'].create({
+            'name': 'Secret parent', 'project_id': private.id,
+        })
+        res = self.api('POST', '/api/v1/tasks', {'name': 'Into private', 'project_id': private.id})
+        self.assertIn(res.status_code, (403, 404))
+        self.assertIn(res.json()['code'], ('forbidden', 'not_found'))
+        self.assertFalse(self.env['project.task'].search([('name', '=', 'Into private')]))
+
+        res = self.api('POST', '/api/v1/tasks', {
+            'name': 'Child of secret', 'project_id': self.project.id, 'parent_id': secret.id,
+        })
+        self.assertIn(res.status_code, (403, 404))
+        self.assertIn(res.json()['code'], ('forbidden', 'not_found'))
+        self.assertFalse(self.env['project.task'].search([('name', '=', 'Child of secret')]))
+
     def test_patch_whitelist(self):
         self.authenticate('api_emp', 'api_emp_pass_123')
         res = self.api('PATCH', f'/api/v1/tasks/{self.task_overdue.id}', {'name': 'Renamed', 'priority': '3'})

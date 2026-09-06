@@ -1,9 +1,11 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from datetime import timedelta
+from unittest.mock import patch
 
 from odoo import fields
 from odoo.tests import new_test_user, tagged
 
+from odoo.addons.nasq_pmo.controllers.notifications import readable_active_task_ids
 from odoo.addons.nasq_pmo.tests.common import NasqPmoCase
 
 
@@ -237,3 +239,151 @@ class TestTaskNotifications(NasqPmoCase):
         unsupported = self.api('GET', '/api/v1/notifications?unexpected=1')
         self.assertEqual(unsupported.status_code, 422)
         self.assertEqual(unsupported.json()['field'], 'unexpected')
+
+    def test_cross_company_and_hidden_notifications_are_excluded(self):
+        company_b = self.env['res.company'].create({'name': 'Notify company B'})
+        self.other.write({'company_ids': [(4, company_b.id)]})
+        project_b = self.env['project.project'].with_company(company_b).create({
+            'name': 'Foreign notify project', 'company_id': company_b.id,
+        })
+        foreign = self.env['project.task'].with_company(company_b).create({
+            'name': 'Foreign notify task', 'project_id': project_b.id,
+            'company_id': company_b.id, 'user_ids': [(4, self.other.id)],
+        })
+        foreign.with_company(company_b)._nasq_create_notification(
+            kind='assignment', partner=self.other.partner_id, body='Foreign alert',
+        )
+        hidden_project = self.env['project.project'].create({
+            'name': 'Hidden notify project', 'privacy_visibility': 'followers',
+            'company_id': self.env.company.id, 'user_id': self.manager.id,
+        })
+        hidden = self.env['project.task'].create({
+            'name': 'Hidden notify task', 'project_id': hidden_project.id,
+            'company_id': self.env.company.id, 'user_ids': [(4, self.manager.id)],
+        })
+        hidden._nasq_create_notification(
+            kind='assignment', partner=self.other.partner_id, body='Hidden alert',
+        )
+        visible = self.env['project.task'].with_user(self.manager).create({
+            'name': 'Visible notify task', 'project_id': self.project.id,
+            'user_ids': [(4, self.other.id)],
+        })
+        self.authenticate(self.other.login, 'api_nora_pass_123')
+        body = self.api('GET', '/api/v1/notifications').json()
+        listed = {item['task_id'] for item in body['items']}
+        self.assertIn(visible.id, listed)
+        self.assertNotIn(foreign.id, listed)
+        self.assertNotIn(hidden.id, listed)
+        foreign_row = self.env['mail.notification'].sudo().search([
+            ('mail_message_id.nasq_task_id', '=', foreign.id),
+            ('res_partner_id', '=', self.other.partner_id.id),
+        ], limit=1)
+        hidden_row = self.env['mail.notification'].sudo().search([
+            ('mail_message_id.nasq_task_id', '=', hidden.id),
+            ('res_partner_id', '=', self.other.partner_id.id),
+        ], limit=1)
+        self.assertTrue(foreign_row)
+        self.assertTrue(hidden_row)
+        self.assertEqual(
+            self.api('POST', f'/api/v1/notifications/{foreign_row.id}/read', {}).status_code,
+            404,
+        )
+        self.assertEqual(
+            self.api('POST', f'/api/v1/notifications/{hidden_row.id}/read', {}).status_code,
+            404,
+        )
+
+    def test_unrelated_readable_tasks_do_not_change_notification_total(self):
+        task = self.env['project.task'].with_user(self.manager).create({
+            'name': 'Narrow notify', 'project_id': self.project.id,
+            'user_ids': [(4, self.other.id)],
+        })
+        extras = self.env['project.task'].create([
+            {
+                'name': f'Unrelated readable {index}',
+                'project_id': self.project.id,
+                'company_id': self.env.company.id,
+                'user_ids': [(4, self.employee.id)],
+            }
+            for index in range(20)
+        ])
+        self.authenticate(self.other.login, 'api_nora_pass_123')
+        body = self.api('GET', '/api/v1/notifications').json()
+        listed = {item['task_id'] for item in body['items']}
+        self.assertIn(task.id, listed)
+        self.assertFalse(set(extras.ids) & listed)
+
+    def test_readable_task_lookup_is_narrowed_to_recipient_candidates(self):
+        notified = self.env['project.task'].with_user(self.manager).create({
+            'name': 'Candidate notify', 'project_id': self.project.id,
+            'user_ids': [(4, self.other.id)],
+        })
+        extras = self.env['project.task'].create([
+            {
+                'name': f'Extra readable {index}',
+                'project_id': self.project.id,
+                'company_id': self.env.company.id,
+                'user_ids': [(4, self.employee.id)],
+            }
+            for index in range(20)
+        ])
+        env = self.env(user=self.other)
+        self.env.flush_all()
+        captured = []
+        Task = env['project.task']
+        orig_search = type(Task)._search
+
+        def wrapped_search(records, domain, offset=0, limit=None, order=None, *, active_test=True, bypass_access=False):
+            if records._name == 'project.task':
+                captured.append((list(domain), bool(records.env.su), bypass_access))
+            return orig_search(
+                records, domain, offset=offset, limit=limit, order=order,
+                active_test=active_test, bypass_access=bypass_access,
+            )
+
+        def candidate_searches(rows):
+            found = []
+            for domain, sudoed, bypass in rows:
+                id_leaf = next((leaf for leaf in domain if tuple(leaf[:2]) == ('id', 'in')), None)
+                if id_leaf is None:
+                    continue
+                found.append((set(id_leaf[2] or ()), sudoed, bypass, domain))
+            return found
+
+        with patch.object(type(Task), '_search', wrapped_search):
+            readable = readable_active_task_ids(env)
+        self.assertEqual(set(readable), {notified.id})
+        first = candidate_searches(captured)
+        self.assertEqual(len(first), 1)
+        candidate_ids, sudoed, bypass, domain = first[0]
+        self.assertFalse(sudoed)
+        self.assertFalse(bypass)
+        self.assertIn(('company_id', '=', env.company.id), domain)
+        self.assertIn(('active', '=', True), domain)
+        self.assertEqual(candidate_ids, {notified.id})
+        self.assertFalse(set(extras.ids) & candidate_ids)
+        more_extras = self.env['project.task'].create([
+            {
+                'name': f'More extra readable {index}',
+                'project_id': self.project.id,
+                'company_id': self.env.company.id,
+                'user_ids': [(4, self.employee.id)],
+            }
+            for index in range(20)
+        ])
+        self.env.flush_all()
+        captured.clear()
+        with patch.object(type(Task), '_search', wrapped_search):
+            again = readable_active_task_ids(env)
+        self.assertEqual(set(again), {notified.id})
+        second = candidate_searches(captured)
+        self.assertEqual(len(second), 1)
+        again_ids, again_sudoed, again_bypass, _ = second[0]
+        self.assertFalse(again_sudoed)
+        self.assertFalse(again_bypass)
+        self.assertEqual(again_ids, {notified.id})
+        self.assertFalse(set(more_extras.ids) & again_ids)
+        # Proven bound: one caller-env task search of recipient candidates,
+        # independent of unrelated readable task count. ORM may sudo inside
+        # `_search` to apply ir.rule; that is not a sudo task search.
+        # Unmeasured: mail.notification query cost vs inbox row count.

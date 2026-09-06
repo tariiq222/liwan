@@ -42,6 +42,9 @@
       "unset": "Not set",
       "clear": "Clear filters"
     },
+    "previousPage": "Previous",
+    "pageOf": "Page {page} of {pages}",
+    "nextPage": "Next",
     "archivedEmpty": "No archived projects",
     "archivedEmptyHint": "Archived projects appear here and can be restored when needed.",
     "menu": {

@@ -9,6 +9,7 @@ from odoo.addons.nasq_api.controllers.common import (
     api_handler,
     get_record,
     parse_nonneg_int,
+    parse_positive_int,
 )
 from odoo.addons.nasq_pmo.serializers.task import (
     API_TO_STATE,
@@ -104,12 +105,14 @@ class TaskController(http.Controller):
     def create_task(self, name=None, project_id=None, parent_id=None, **_):
         if not isinstance(name, str) or not name.strip():
             raise ApiError(422, 'invalid', "name must not be empty", field='name')
-        if not project_id:
+        if project_id is None:
             raise ApiError(422, 'invalid', "project_id is required", field='project_id')
+        project_id = parse_positive_int(project_id, 'project_id')
         project = get_record('project.project', project_id)
         request.env['nasq.access.service']._nasq_require_capability('pmo.tasks.create', record=project)
         vals = {'name': name.strip(), 'project_id': project.id, 'user_ids': [(4, request.env.uid)]}
-        if parent_id:
+        if parent_id is not None:
+            parent_id = parse_positive_int(parent_id, 'parent_id')
             vals['parent_id'] = get_record('project.task', parent_id).id
         task = request.env['project.task'].create(vals)
         return request.make_json_response(dump_task_detail(task), status=201)

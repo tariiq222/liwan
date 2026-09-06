@@ -17,9 +17,12 @@ const route = useRoute()
 const router = useRouter()
 const { t, localeProperties } = useI18n()
 const isRtl = computed(() => localeProperties.value.dir === 'rtl')
+const hydrated = useHydrated()
+const backTo = computed(() => props.closeTo ?? { path: '/tasks', query: route.query })
 
 function close() {
-  router.push(props.closeTo ?? { path: '/tasks', query: route.query })
+  if (!hydrated.value) return
+  router.push(backTo.value)
 }
 </script>
 
@@ -27,10 +30,16 @@ function close() {
   <section data-testid="task-detail-page" class="mx-auto flex min-h-[calc(100vh-7rem)] w-full max-w-[1440px] flex-col gap-4">
     <PageHeader :title="t('tasks.detail.pageLabel')">
       <template #back>
-        <Button variant="ghost" size="sm" class="gap-2 px-2 text-muted-foreground" type="button" :aria-label="props.backLabel ?? t('tasks.detail.back')" @click="close">
+        <NuxtLink
+          :to="backTo"
+          class="inline-flex items-center gap-2 px-2 text-sm text-muted-foreground hover:text-foreground"
+          :aria-label="props.backLabel ?? t('tasks.detail.back')"
+          :tabindex="hydrated ? undefined : -1"
+          @click="!hydrated && $event.preventDefault()"
+        >
           <component :is="isRtl ? ArrowRight : ArrowLeft" class="size-4" />
           {{ props.backLabel ?? t('tasks.detail.back') }}
-        </Button>
+        </NuxtLink>
       </template>
     </PageHeader>
 

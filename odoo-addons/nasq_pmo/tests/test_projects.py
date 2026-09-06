@@ -185,3 +185,70 @@ class TestProjects(NasqPmoCase):
         res = self.api('PATCH', f'/api/v1/projects/{self.project.id}', {'allow_task_dependencies': True})
         self.assertEqual(res.status_code, 200)
         self.assertTrue(res.json()['allow_task_dependencies'])
+
+    def test_list_invalid_limit_offset_and_status(self):
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        res = self.api('GET', '/api/v1/projects?limit=-1')
+        self.assertEqual((res.status_code, res.json()['code'], res.json()['field']), (422, 'invalid', 'limit'))
+        res = self.api('GET', '/api/v1/projects?offset=abc')
+        self.assertEqual((res.status_code, res.json()['code'], res.json()['field']), (422, 'invalid', 'offset'))
+        res = self.api('GET', '/api/v1/projects?status=purple')
+        self.assertEqual((res.status_code, res.json()['code'], res.json()['field']), (422, 'invalid', 'status'))
+        res = self.api('GET', '/api/v1/projects?status=to_define')
+        self.assertEqual((res.status_code, res.json()['code'], res.json()['field']), (422, 'invalid', 'status'))
+
+    def test_list_pagination_filters_and_visibility(self):
+        Project = self.env['project.project']
+        bulk = Project.create([{'name': f'WP4 Bulk {i:03d}'} for i in range(201)])
+        tracked = bulk[200]
+        tracked.write({'last_update_status': 'on_track'})
+        hidden = Project.create({'name': 'WP4 Hidden Private', 'privacy_visibility': 'followers'})
+
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        capped = self.api('GET', '/api/v1/projects?q=WP4%20Bulk').json()
+        self.assertEqual(set(capped), {'items', 'total', 'can_create', 'can_list_archived'})
+        self.assertEqual(capped['total'], 201)
+        self.assertEqual(len(capped['items']), 200)
+        self.assertNotIn(hidden.id, [p['id'] for p in capped['items']])
+        self.assertEqual(self.api('GET', '/api/v1/projects?q=WP4%20Hidden').json()['total'], 0)
+
+        over_cap = self.api('GET', '/api/v1/projects?q=WP4%20Bulk&limit=500').json()
+        self.assertEqual(len(over_cap['items']), 200)
+        self.assertEqual(over_cap['total'], 201)
+
+        # limit=0 is Odoo-unlimited; normalize to MAX_PROJECTS so 201 rows stay capped.
+        zero = self.api('GET', '/api/v1/projects?q=WP4%20Bulk&limit=0').json()
+        self.assertEqual(set(zero), {'items', 'total', 'can_create', 'can_list_archived'})
+        self.assertEqual(len(zero['items']), 200)
+        self.assertEqual(zero['total'], 201)
+        zero_min = self.api('GET', '/api/v1/projects?minimal=1&q=WP4%20Bulk&limit=0').json()
+        self.assertIsInstance(zero_min, list)
+        self.assertEqual(len(zero_min), 200)
+
+        page = self.api('GET', '/api/v1/projects?q=WP4%20Bulk%2015&limit=5&offset=5').json()
+        self.assertEqual(page['total'], 10)
+        self.assertEqual(len(page['items']), 5)
+        self.assertEqual([p['name'] for p in page['items']], [f'WP4 Bulk {i:03d}' for i in range(155, 160)])
+
+        empty_tail = self.api('GET', '/api/v1/projects?q=WP4%20Bulk%2015&limit=5&offset=10').json()
+        self.assertEqual(empty_tail['total'], 10)
+        self.assertEqual(empty_tail['items'], [])
+
+        beyond_first = self.api('GET', '/api/v1/projects?q=WP4%20Bulk&status=on_track').json()
+        self.assertEqual(beyond_first['total'], 1)
+        self.assertEqual([p['id'] for p in beyond_first['items']], [tracked.id])
+
+        unset = self.api('GET', '/api/v1/projects?q=WP4%20Bulk%20200&status=unset').json()
+        self.assertEqual(unset['total'], 0)
+        unset_ok = self.api('GET', '/api/v1/projects?q=WP4%20Bulk%20000&status=unset').json()
+        self.assertEqual(unset_ok['total'], 1)
+        self.assertIsNone(unset_ok['items'][0]['status'])
+
+        refs = self.api('GET', '/api/v1/projects?minimal=1&q=WP4%20Bulk&limit=200&offset=0').json()
+        self.assertIsInstance(refs, list)
+        self.assertEqual(len(refs), 200)
+        self.assertEqual(set(refs[0]), {'id', 'name'})
+        rest = self.api('GET', '/api/v1/projects?minimal=1&q=WP4%20Bulk&limit=200&offset=200').json()
+        self.assertIsInstance(rest, list)
+        self.assertEqual(len(rest), 1)
+        self.assertEqual(rest[0]['id'], tracked.id)

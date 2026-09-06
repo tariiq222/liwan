@@ -7,6 +7,7 @@ from odoo.addons.nasq_api.controllers.common import (
     ApiError,
     api_handler,
     parse_nonneg_int,
+    parse_positive_int,
 )
 from odoo.addons.nasq_hr.serializers.hr_document import (
     dump_document,
@@ -65,11 +66,9 @@ class HrDocumentController(http.Controller):
         domain = [('company_id', '=', request.env.company.id)]
         if q:
             domain.append(('name', 'ilike', q))
+        # GET department_id is optional: omitted/empty leaves the list unfiltered.
         if department_id not in (None, ''):
-            try:
-                domain.append(('department_id', '=', int(department_id)))
-            except (TypeError, ValueError):
-                raise ApiError(422, 'invalid', "department_id must be an integer", field='department_id') from None
+            domain.append(('department_id', '=', parse_positive_int(department_id, 'department_id')))
         Document = request.env['nasq.hr.document']
         recs = Document.search(domain, order='name, id', limit=limit, offset=offset)
         return {'items': [dump_document(d) for d in recs], 'total': Document.search_count(domain)}
