@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "./approved-shell.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -10,8 +11,10 @@
 
 :root {
   --font-sans: "IBM Plex Sans Arabic", ui-sans-serif, system-ui, sans-serif;
-  --radius: 0.5rem;
-  --background: oklch(1 0 0);
+  color-scheme: light;
+  font-size: 14px;
+  --radius: 8px;
+  --background: #fafafa;
   --foreground: oklch(0.141 0.005 285.823);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.141 0.005 285.823);
@@ -23,7 +26,7 @@
   --secondary: oklch(0.967 0.001 286.375);
   --secondary-foreground: oklch(0.21 0.006 285.885);
   --muted: oklch(0.967 0.001 286.375);
-  --muted-foreground: oklch(0.552 0.016 285.938);
+  --muted-foreground: #71717a;
   --accent: oklch(0.967 0.001 286.375);
   --accent-foreground: oklch(0.21 0.006 285.885);
   --destructive: oklch(0.577 0.245 27.325);
@@ -38,6 +41,37 @@
   --sidebar-accent-foreground: oklch(0.21 0.006 285.885);
   --sidebar-border: oklch(0.92 0.004 286.32);
   --sidebar-ring: #18181b;
+  --brand-soft: color-mix(in srgb, var(--primary) 8%, var(--card));
+  --brand-border: color-mix(in srgb, var(--primary) 24%, var(--border));
+}
+
+:root[data-font-size="medium"] { font-size: 16px; }
+:root[data-font-size="large"] { font-size: 18px; }
+
+.dark {
+  color-scheme: dark;
+  --background: #09090b;
+  --foreground: #fafafa;
+  --card: #18181b;
+  --card-foreground: #fafafa;
+  --popover: #18181b;
+  --popover-foreground: #fafafa;
+  --secondary: #27272a;
+  --secondary-foreground: #fafafa;
+  --muted: #27272a;
+  --muted-foreground: #a1a1aa;
+  --accent: #27272a;
+  --accent-foreground: #fafafa;
+  --destructive: #fb7185;
+  --border: #3f3f46;
+  --input: #3f3f46;
+  --sidebar: #18181b;
+  --sidebar-foreground: #fafafa;
+  --sidebar-accent: #27272a;
+  --sidebar-accent-foreground: #fafafa;
+  --sidebar-border: #3f3f46;
+  --brand-soft: color-mix(in srgb, var(--brand-link) 12%, var(--card));
+  --brand-border: color-mix(in srgb, var(--brand-link) 30%, var(--border));
 }
 
 @theme inline {
@@ -55,6 +89,8 @@
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
   --color-brand-link: var(--brand-link);
+  --color-brand-soft: var(--brand-soft);
+  --color-brand-border: var(--brand-border);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
@@ -78,4 +114,50 @@
 @layer base {
   * { @apply border-border outline-ring; }
   body { @apply bg-background text-foreground font-sans antialiased; }
+}
+
+/* The approved icon system uses one fixed Lucide geometry everywhere. */
+.lucide {
+  width: 18px;
+  height: 18px;
+  stroke-width: 2;
+}
+
+/* Action geometry is independent of the reader's text-size preference. */
+[data-slot="button"][data-size="icon"] {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  min-height: 32px;
+  padding: 0;
+  border-width: 1px;
+  border-style: solid;
+  border-radius: 8px;
+}
+[data-slot="button"][data-size="icon"] .lucide {
+  width: 18px;
+  height: 18px;
+  stroke-width: 2;
+}
+
+/* One quiet focus treatment for every keyboard control, without stacked rings. */
+:root {
+  --focus-color: color-mix(in srgb, var(--foreground) 55%, var(--background));
+}
+:focus-visible {
+  --tw-ring-shadow: 0 0 #0000;
+  --tw-ring-offset-shadow: 0 0 #0000;
+  outline: 1px solid var(--focus-color);
+  outline-offset: 2px;
+}
+:where(input:not([type="checkbox"]):not([type="radio"]), textarea, select, [role="combobox"], [contenteditable="true"]):focus-visible {
+  border-color: var(--focus-color);
+  outline: none;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--focus-color) 15%, transparent);
+}
+:where(input, textarea, select, [role="combobox"])[aria-invalid="true"]:focus-visible {
+  border-color: var(--destructive);
+}
+@media (forced-colors: active) {
+  :focus-visible { outline: 1px solid Highlight; outline-offset: 2px; }
 }

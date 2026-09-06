@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Search } from 'lucide-vue-next'
+import { Search } from '@lucide/vue'
 import type { HrDocument } from '@/composables/useHrDocuments'
 import { useHrDocuments } from '@/composables/useHrDocuments'
 import { returnToQuery } from '@/utils/safeReturnTo'
@@ -46,16 +46,16 @@ function detailsTo(document: HrDocument) {
       <NuxtLink v-if="canWriteAllowed" :to="{ path: `/hr/departments/${props.departmentId}/documents/new`, query: returnToQuery(route.fullPath) }"><Button :disabled="!hydrated">{{ t('hr.docs.new') }}</Button></NuxtLink>
     </div>
     <div class="relative min-w-48">
-      <Search class="pointer-events-none absolute start-2 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+      <Search class="pointer-events-none absolute start-2 top-1/2 size-[18px] -translate-y-1/2 text-muted-foreground" />
       <Input v-model="search" :disabled="!hydrated" :placeholder="t('hr.docs.search')" class="ps-8" @change="updateSearch" />
     </div>
-    <div class="rounded-md border">
+    <div class="overflow-x-auto rounded-lg border border-border/80 bg-card">
       <Table>
         <TableHeader><TableRow><TableHead class="text-start">{{ t('hr.docs.columns.name') }}</TableHead><TableHead class="text-start">{{ t('hr.docs.columns.updated') }}</TableHead></TableRow></TableHeader>
         <TableBody>
           <template v-if="query.isLoading.value"><TableRow v-for="n in 3" :key="n"><TableCell><Skeleton class="h-5 w-full" /></TableCell><TableCell><Skeleton class="h-5 w-24" /></TableCell></TableRow></template>
           <TableEmpty v-else-if="items.length === 0" :colspan="2"><p class="text-muted-foreground">{{ t('hr.docs.empty') }}</p></TableEmpty>
-          <template v-else><TableRow v-for="document in items" :key="document.id" class="cursor-pointer" @click="navigateTo(detailsTo(document))"><TableCell class="text-start">{{ document.name }}</TableCell><TableCell class="text-start text-muted-foreground">{{ new Date(document.write_date).toLocaleDateString() }}</TableCell></TableRow></template>
+          <template v-else><TableRow v-for="document in items" :key="document.id" class="cursor-pointer transition-colors hover:bg-muted/50" @click="navigateTo(detailsTo(document))"><TableCell class="text-start">{{ document.name }}</TableCell><TableCell class="text-start text-muted-foreground">{{ new Date(document.write_date).toLocaleDateString() }}</TableCell></TableRow></template>
         </TableBody>
       </Table>
     </div>

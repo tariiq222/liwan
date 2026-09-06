@@ -15,15 +15,24 @@ async function json(request: APIRequestContext, method: 'get' | 'post' | 'patch'
   expect(response.ok(), `${method} ${url}: ${response.status()} ${await response.text()}`).toBeTruthy()
   return response.json()
 }
-async function grantFixture(request: APIRequestContext, roleKey: string, suffix: string) {
-  const me = await json(request, 'get', '/api/v1/me')
-  const roles = await json(request, 'get', '/api/v1/admin/roles')
+async function builtinRole(request: APIRequestContext, roleKey: string) {
+  const roles = await json(request, 'get', '/api/v1/admin/roles?type=built_in')
   const role = roles.items.find((item: { key: string }) => item.key === roleKey)
-  expect(role).toBeTruthy()
+  expect(
+    role,
+    `built-in role ${roleKey} missing from /api/v1/admin/roles?type=built_in (items=${roles.items.length}, total=${roles.total})`,
+  ).toBeTruthy()
+  return role
+}
+async function grantRole(request: APIRequestContext, role: { id: number }, suffix: string) {
+  const me = await json(request, 'get', '/api/v1/me')
   const login = `access-${suffix}-${Date.now()}@example.test`
   const employee = await json(request, 'post', '/api/v1/hr/employees', { name: `اختبار ${suffix}`, work_email: login })
   const user = await json(request, 'post', '/api/v1/admin/users', { employee_id: employee.id, password: TEST_PASSWORD, assignments: [{ role_id: role.id, scope: { kind: 'company', id: me.company.id } }] })
   return { user, employee, login }
+}
+async function grantFixture(request: APIRequestContext, roleKey: string, suffix: string) {
+  return grantRole(request, await builtinRole(request, roleKey), suffix)
 }
 
 test('system administrator and HR have separate real API and page access', async ({ page, browser }) => {
@@ -92,9 +101,7 @@ test('employee preselection grants an account through the complete routed form',
   await login(page)
   const loginName = `access-form-${Date.now()}@example.test`
   const employee = await json(page.request, 'post', '/api/v1/hr/employees', { name: 'موظف تجربة منح الحساب', work_email: loginName })
-  const roles = await json(page.request, 'get', '/api/v1/admin/roles')
-  const employeeRole = roles.items.find((role: { key: string }) => role.key === 'employee')
-  expect(employeeRole).toBeTruthy()
+  const employeeRole = await builtinRole(page.request, 'employee')
   await page.goto(`/settings/users/new?employee_id=${employee.id}`)
   await expect(page.locator('select#employee')).toHaveValue(String(employee.id))
   await page.locator(`input[type="checkbox"][value="${employeeRole.id}"]`).check()
@@ -143,6 +150,9 @@ test('navigation supports mobile inline expansion and role page reload', async (
   await expect(page.locator('html')).toHaveAttribute('dir', 'rtl')
   await page.screenshot({ path: testInfo.outputPath('mobile-roles.png'), fullPage: true })
 })
+
+test.describe('account security race', () => {
+  test.describe.configure({ retries: 0 })
 
 test('security page resets a password and reactivates the same account', async ({ page, browser }) => {
   await login(page)
@@ -199,6 +209,7 @@ test('security page resets a password and reactivates the same account', async (
     await expect(page.getByRole('status').filter({ hasText: 'تمت إعادة تفعيل الوصول' })).toHaveCount(0)
   } finally { await memberContext.close() }
 })
+})
 
 test('custom read-only task access is enforced in the page and direct ORM', async ({ page, browser }) => {
   await login(page)
@@ -206,7 +217,7 @@ test('custom read-only task access is enforced in the page and direct ORM', asyn
     name: { ar: `قراءة المهام ${Date.now()}`, en: null }, description: '',
     permissions: ['pmo.projects.read', 'pmo.tasks.read'],
   })
-  const fixture = await grantFixture(page.request, role.key, 'readonly')
+  const fixture = await grantRole(page.request, role, 'readonly')
   const project = await json(page.request, 'post', '/api/v1/projects', { name: `مشروع القراءة ${Date.now()}` })
   const task = await json(page.request, 'post', '/api/v1/tasks', { name: 'مهمة للقراءة فقط', project_id: project.id })
   await json(page.request, 'patch', `/api/v1/tasks/${task.id}`, { user_ids: [fixture.user.id] })
@@ -251,9 +262,7 @@ test('custom role save refreshes the actor Nuxt me request without focus', async
   })
   const actor = await grantFixture(page.request, 'system_admin', 'actor')
   const adminMe = await json(page.request, 'get', '/api/v1/me')
-  const roles = await json(page.request, 'get', '/api/v1/admin/roles')
-  const systemAdminRole = roles.items.find((item: { key: string }) => item.key === 'system_admin')
-  expect(systemAdminRole).toBeTruthy()
+  const systemAdminRole = await builtinRole(page.request, 'system_admin')
   const account = await json(page.request, 'get', `/api/v1/admin/users/${actor.user.id}`)
   await json(page.request, 'patch', `/api/v1/admin/users/${actor.user.id}/access`, {
     assignments: [

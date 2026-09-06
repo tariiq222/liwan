@@ -3,7 +3,7 @@ import { FlexRender, createColumnHelper, getCoreRowModel, useVueTable } from '@t
 import { h, resolveComponent } from 'vue'
 import FilterBar from '@/components/shared/FilterBar.vue'
 import EmptyState from '@/components/shared/EmptyState.vue'
-import { Search, X } from 'lucide-vue-next'
+import { Search, X } from '@lucide/vue'
 import { useHrDepartments } from '@/composables/useHrDepartments'
 import { useHrEmployees, type HrEmployee } from '@/composables/useHrEmployees'
 import { returnToQuery } from '@/utils/safeReturnTo'
@@ -152,7 +152,7 @@ function clearFilters() {
     <FilterBar>
       <template #search>
       <div class="relative min-w-48 flex-1">
-        <Search class="pointer-events-none absolute start-2 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+        <Search class="pointer-events-none absolute start-2 top-1/2 size-[18px] -translate-y-1/2 text-muted-foreground" />
         <Input v-model="search" :disabled="!hydrated" :placeholder="t('hr.directory.search')" class="ps-8" @change="updateQuery" />
       </div>
       </template>
@@ -180,7 +180,7 @@ function clearFilters() {
     </FilterBar>
 
     <SharedPageState :error="error" @retry="refetch">
-    <div class="rounded-md border">
+    <div class="overflow-x-auto rounded-lg border border-border/80 bg-card">
       <Table>
         <TableHeader>
           <TableRow v-for="headerGroup in table.getHeaderGroups()" :key="headerGroup.id">
@@ -206,7 +206,7 @@ function clearFilters() {
             <TableRow
               v-for="row in table.getRowModel().rows"
               :key="row.id"
-              class="cursor-pointer"
+              class="cursor-pointer transition-colors hover:bg-muted/50"
               @click="onRowClick(row.original.id, $event)"
             >
               <TableCell v-for="cell in row.getVisibleCells()" :key="cell.id" class="text-start">

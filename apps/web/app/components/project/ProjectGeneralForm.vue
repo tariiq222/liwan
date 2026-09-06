@@ -2,7 +2,7 @@
 import type { CalendarDate } from '@internationalized/date'
 import type { ProjectDetail, ProjectPatch, Visibility } from '@nasq/contracts'
 import { refDebounced } from '@vueuse/core'
-import { Check } from 'lucide-vue-next'
+import { Check } from '@lucide/vue'
 import { toast } from 'vue-sonner'
 import DescriptionEditor from '@/components/task/DescriptionEditor.vue'
 import TagPicker from '@/components/task/TagPicker.vue'

@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import { PROJECT_STATUSES } from '@nasq/contracts'
-import { Search, X } from 'lucide-vue-next'
+import { CircleAlert, CircleCheck, Eye, EyeOff, FolderKanban, Search, X } from '@lucide/vue'
 import { refDebounced } from '@vueuse/core'
 import FilterBar from '@/components/shared/FilterBar.vue'
-import PageHeader from '@/components/shared/PageHeader.vue'
 import ProjectTable from '@/components/project/ProjectTable.vue'
 import {
   PROJECT_PAGE,
@@ -79,6 +78,13 @@ const canCreate = computed(() => projectList.data.value?.can_create ?? false)
 const total = computed(() => projectList.data.value?.total ?? 0)
 const page = computed(() => Math.floor(listOffset.value / PROJECT_PAGE) + 1)
 const pages = computed(() => Math.max(1, Math.ceil(total.value / PROJECT_PAGE)))
+const summaryVisible = ref(true)
+const summaryStorageKey = 'nasq.projects.summary-visible'
+const summary = computed(() => ({
+  displayed: items.value.length,
+  attention: items.value.filter(project => project.status === 'at_risk' || project.status === 'off_track' || project.status === 'on_hold').length,
+  completed: items.value.filter(project => project.status === 'done').length,
+}))
 
 watch(debouncedSearch, (value) => {
   if (value.trim() === filters.q.trim()) return
@@ -110,6 +116,14 @@ function clearFilters() {
 }
 const isLoading = computed(() => projectList.isLoading.value)
 
+onMounted(() => {
+  const saved = window.localStorage.getItem(summaryStorageKey)
+  if (saved === 'hidden' || saved === 'visible') summaryVisible.value = saved === 'visible'
+})
+watch(summaryVisible, (visible) => {
+  if (import.meta.client) window.localStorage.setItem(summaryStorageKey, visible ? 'visible' : 'hidden')
+})
+
 function onFilterChange(v: unknown) {
   applyPatch({ archived: v === 'archived' })
 }
@@ -127,19 +141,60 @@ function openProject(id: number) {
 </script>
 
 <template>
-  <div class="space-y-4">
-    <PageHeader :title="t('projects.title')">
+  <div class="space-y-6">
+    <SharedPageHeader :title="t('projects.title')" :description="t('projects.description')">
       <template #actions>
-        <Button v-if="canCreate" data-testid="project-new" :disabled="!hydrated" @click="openCreate">
+        <Button v-if="canCreate" data-testid="project-new" :disabled="!hydrated" class="gap-2" @click="openCreate">
           {{ t('projects.new') }}
         </Button>
       </template>
-    </PageHeader>
+    </SharedPageHeader>
 
-    <FilterBar>
+    <section data-testid="projects-summary" class="space-y-2">
+      <div class="flex items-center justify-end">
+        <Button
+          variant="ghost"
+          size="icon"
+          class="size-[32px] rounded-lg border border-border"
+          :disabled="!hydrated"
+          :aria-label="t(summaryVisible ? 'projects.summary.hide' : 'projects.summary.show')"
+          :aria-pressed="summaryVisible"
+          @click="summaryVisible = !summaryVisible"
+        >
+          <EyeOff v-if="summaryVisible" class="size-[18px]" />
+          <Eye v-else class="size-[18px]" />
+        </Button>
+      </div>
+      <div v-if="summaryVisible" data-testid="projects-summary-cards" class="grid gap-3 sm:grid-cols-3">
+        <div class="flex items-center gap-3 rounded-lg border bg-card p-4">
+          <span class="grid size-[32px] shrink-0 place-items-center rounded-lg border bg-muted text-muted-foreground"><FolderKanban class="size-[18px]" /></span>
+          <div class="min-w-0">
+            <p class="text-xs text-muted-foreground">{{ t('projects.summary.displayed') }}</p>
+            <p data-testid="projects-summary-displayed" class="mt-1 text-2xl font-semibold tabular-nums">{{ summary.displayed }}</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-3 rounded-lg border bg-card p-4">
+          <span class="grid size-[32px] shrink-0 place-items-center rounded-lg border bg-muted text-muted-foreground"><CircleAlert class="size-[18px]" /></span>
+          <div class="min-w-0">
+            <p class="text-xs text-muted-foreground">{{ t('projects.summary.attention') }}</p>
+            <p data-testid="projects-summary-attention" class="mt-1 text-2xl font-semibold tabular-nums">{{ summary.attention }}</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-3 rounded-lg border bg-card p-4">
+          <span class="grid size-[32px] shrink-0 place-items-center rounded-lg border bg-muted text-muted-foreground"><CircleCheck class="size-[18px]" /></span>
+          <div class="min-w-0">
+            <p class="text-xs text-muted-foreground">{{ t('projects.summary.completed') }}</p>
+            <p data-testid="projects-summary-completed" class="mt-1 text-2xl font-semibold tabular-nums">{{ summary.completed }}</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="rounded-lg border bg-card p-3">
+      <FilterBar>
       <template #search>
         <div class="relative min-w-52 flex-1">
-          <Search class="pointer-events-none absolute start-2 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Search class="pointer-events-none absolute start-2 top-1/2 size-[18px] -translate-y-1/2 text-muted-foreground" />
           <Input v-model="search" :disabled="!hydrated" :placeholder="t('projects.filters.search')" class="ps-8" />
         </div>
       </template>
@@ -172,7 +227,8 @@ function openProject(id: number) {
           </Button>
         </div>
       </template>
-    </FilterBar>
+      </FilterBar>
+    </div>
 
     <SharedPageState v-if="projectList.error.value" :error="projectList.error.value" @retry="projectList.refetch" />
     <template v-else>

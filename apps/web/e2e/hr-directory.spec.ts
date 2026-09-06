@@ -80,6 +80,7 @@ test('HR employee names are real links that preserve filters; actions do not ste
   await expect(nameLink).toBeVisible()
   await expect(nameLink).toHaveAttribute('href', new RegExp(`/hr/employees/${employee.id}\\?returnTo=`))
   await nameLink.focus()
+  await expect(nameLink).toBeFocused()
   await page.keyboard.press('Enter')
   await expect(page).toHaveURL(new RegExp(`/hr/employees/${employee.id}(?:\\?|$)`))
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Check, X } from 'lucide-vue-next'
+import { Check, X } from '@lucide/vue'
 import { toast } from 'vue-sonner'
 import type { TaskDetail } from '@nasq/contracts'
 import { ApiError } from '@/composables/useApi'

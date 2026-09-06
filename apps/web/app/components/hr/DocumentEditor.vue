@@ -2,7 +2,7 @@
 import Link from '@tiptap/extension-link'
 import StarterKit from '@tiptap/starter-kit'
 import { EditorContent, useEditor } from '@tiptap/vue-3'
-import { Bold, Italic, Link as LinkIcon, List, ListOrdered } from 'lucide-vue-next'
+import { Bold, Italic, Link as LinkIcon, List, ListOrdered } from '@lucide/vue'
 import { createDebouncedFlush } from '@/lib/debouncedFlush'
 import { shouldApplyDocumentBodyModel } from '@/lib/documentEditorDraft'
 
@@ -98,25 +98,25 @@ function applyLink() {
       editor has focus. Keep the capture listener so page-level keyboard
       handling can still observe Escape before it reaches contenteditable.
     -->
-    <div class="rounded-md border" @keydown.esc.capture="emit('escape')">
+    <div class="rounded-lg border border-border/80 bg-card" @keydown.esc.capture="emit('escape')">
       <div class="flex items-center gap-1 border-b p-1">
-        <Button variant="ghost" size="icon" class="size-7" :class="{ 'bg-accent': editor?.isActive('bold') }" type="button" :disabled="disabled" @click="toggleBold">
-          <Bold class="size-3.5" />
+        <Button variant="ghost" size="icon" class="size-[32px] rounded-lg border border-border" :class="{ 'bg-accent': editor?.isActive('bold') }" type="button" :disabled="disabled" :aria-label="t('tasks.detail.bold')" @click="toggleBold">
+          <Bold class="size-[18px]" />
         </Button>
-        <Button variant="ghost" size="icon" class="size-7" :class="{ 'bg-accent': editor?.isActive('italic') }" type="button" :disabled="disabled" @click="toggleItalic">
-          <Italic class="size-3.5" />
+        <Button variant="ghost" size="icon" class="size-[32px] rounded-lg border border-border" :class="{ 'bg-accent': editor?.isActive('italic') }" type="button" :disabled="disabled" :aria-label="t('tasks.detail.italic')" @click="toggleItalic">
+          <Italic class="size-[18px]" />
         </Button>
-        <Button variant="ghost" size="icon" class="size-7" :class="{ 'bg-accent': editor?.isActive('bulletList') }" type="button" :disabled="disabled" @click="toggleBulletList">
-          <List class="size-3.5" />
+        <Button variant="ghost" size="icon" class="size-[32px] rounded-lg border border-border" :class="{ 'bg-accent': editor?.isActive('bulletList') }" type="button" :disabled="disabled" :aria-label="t('tasks.detail.bulletList')" @click="toggleBulletList">
+          <List class="size-[18px]" />
         </Button>
         <Button
-          variant="ghost" size="icon" class="size-7" :class="{ 'bg-accent': editor?.isActive('orderedList') }" type="button"
+          variant="ghost" size="icon" class="size-[32px] rounded-lg border border-border" :class="{ 'bg-accent': editor?.isActive('orderedList') }" type="button" :aria-label="t('tasks.detail.orderedList')"
           @click="toggleOrderedList"
         >
-          <ListOrdered class="size-3.5" />
+          <ListOrdered class="size-[18px]" />
         </Button>
-        <Button variant="ghost" size="icon" class="size-7" :class="{ 'bg-accent': editor?.isActive('link') }" type="button" :disabled="disabled" @click="toggleLink">
-          <LinkIcon class="size-3.5" />
+        <Button variant="ghost" size="icon" class="size-[32px] rounded-lg border border-border" :class="{ 'bg-accent': editor?.isActive('link') }" type="button" :disabled="disabled" :aria-label="t('tasks.detail.linkPrompt')" @click="toggleLink">
+          <LinkIcon class="size-[18px]" />
         </Button>
       </div>
       <div v-if="linkEditing" class="flex gap-2 border-b p-2">

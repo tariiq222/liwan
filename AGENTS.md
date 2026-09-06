@@ -29,3 +29,10 @@ These are repository instructions for every coding agent, regardless of tool.
   worktrees/branches, or discard work without authorization for that action.
 - Local verification does not prove production deployment. Report fresh test
   evidence and the actual branch/runtime state.
+
+## Approved header exception (2026-09-06)
+
+The user explicitly changed header search to a centered popup and the
+notification bell to a latest-five popover with More opening `/notifications`.
+This narrow exception supersedes the older no-popup search wording above.
+All other business screens remain internal routes.

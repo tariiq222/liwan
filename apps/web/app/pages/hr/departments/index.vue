@@ -32,11 +32,11 @@ async function confirmDelete() {
 }
 </script>
 <template>
-  <div class="space-y-6">
+  <div class="mx-auto w-full max-w-7xl space-y-8">
     <SharedPageHeader :title="t('hr.depts.title')" back-to="/hr">
       <NuxtLink v-if="can('hr.departments.manage')" :to="{ path: '/hr/departments/new', query: returnToQuery(route.fullPath) }"><Button>{{ t('hr.depts.new') }}</Button></NuxtLink>
     </SharedPageHeader>
-    <div class="flex flex-wrap gap-2">
+    <div class="flex flex-wrap items-center gap-3 rounded-lg border border-border/80 bg-card/70 p-3">
       <Input v-model="search" :disabled="!hydrated" :aria-label="t('hr.depts.search')" :placeholder="t('hr.depts.search')" class="max-w-sm" />
       <Button variant="outline" :disabled="!hydrated" :aria-pressed="!treeView" @click="setView(false)">{{ t('hr.depts.listView') }}</Button>
       <Button variant="outline" :disabled="!hydrated" :aria-pressed="treeView" @click="setView(true)">{{ t('hr.depts.hierarchy') }}</Button>
@@ -45,7 +45,7 @@ async function confirmDelete() {
       <DepartmentTree v-if="treeView" :roots="roots" :query="search" :hydrated="hydrated" :can-manage="can('hr.departments.manage')" :can-read-employees="can('hr.employees.read')" :can-read-documents="can('hr.documents.read')" @select="openDepartment" @edit="editDepartment" @create-child="createChild" />
       <DepartmentTable v-else :departments="filtered" :can-manage="can('hr.departments.manage')" @select="openDepartment" @delete="askDelete" />
     </SharedPageState>
-    <div v-if="deleting" class="rounded-md border border-destructive/50 p-4">
+    <div v-if="deleting" class="rounded-lg border border-destructive/50 bg-destructive/5 p-4">
       <p class="text-sm">{{ t('hr.depts.deleteConfirm', { name: deleting.name }) }}</p><p v-if="deleteError" class="mt-2 text-sm text-destructive">{{ deleteError.message }}</p>
       <div class="mt-3 flex gap-2"><Button variant="outline" :disabled="deletingPending" @click="deleting = null">{{ t('app.cancel') }}</Button><Button variant="destructive" :disabled="!hydrated || deletingPending" @click="confirmDelete">{{ t('hr.depts.delete') }}</Button></div>
     </div>

@@ -20,8 +20,7 @@ function onCreated(id: number) {
 
 <template>
   <section class="mx-auto w-full max-w-2xl space-y-6">
-    <nav><button type="button" class="text-sm text-muted-foreground hover:underline" @click="router.push(returnTo)">{{ t('projects.backToProjects') }}</button></nav>
-    <header><h1 class="text-2xl font-semibold">{{ t('projects.new') }}</h1></header>
+    <SharedPageHeader :title="t('projects.new')" :back-to="returnTo" :back-label="t('projects.backToProjects')" />
     <p v-if="isLoading" role="status" class="text-muted-foreground">
       {{ t('projects.loading') }}
     </p>

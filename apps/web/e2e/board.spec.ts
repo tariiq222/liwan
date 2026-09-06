@@ -86,10 +86,10 @@ test('board tab: drag between stages persists, and the keyboard menu moves a car
   const reloadedTargetColumn = page.getByTestId('board-column').filter({ hasText: targetStageName })
   await expect(reloadedTargetColumn.getByTestId(`board-card-${id}`)).toBeVisible({ timeout: 10_000 })
 
-  // Keyboard fallback: the "..." menu's "نقل إلى..." lists every stage;
-  // picking a third stage moves the card there too.
+  // Keyboard fallback: the card menu (lucide trigger, aria-label) lists
+  // every stage under "نقل إلى…"; picking a third stage moves the card too.
   card = page.getByTestId(`board-card-${id}`)
-  await card.getByRole('button', { name: '⋯' }).click()
+  await card.getByRole('button', { name: 'إجراءات المهمة', exact: true }).click()
   await expect(page.getByText('نقل إلى…')).toBeVisible()
   const thirdStageColumn = stageColumns.nth(2)
   const thirdStageName = await thirdStageColumn.getByTestId('board-column-title').innerText()

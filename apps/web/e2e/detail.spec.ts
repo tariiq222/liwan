@@ -75,6 +75,7 @@ test('task detail page: open, edit fields, nested layers, prev/next, return', as
   await page.goto(`/tasks/${id}`)
 
   // 6. metrics
+  await page.locator('summary').filter({ hasText: 'تفاصيل إضافية' }).click()
   await expect(page.getByText('العمر')).toBeVisible()
 
   // 7. nested layer: deadline popover + calendar must not leave the page,
@@ -121,6 +122,20 @@ test('task detail page: open, edit fields, nested layers, prev/next, return', as
   await page.keyboard.press('Escape')
   await expect(page).toHaveURL(/\/tasks$/)
   await expect(page.getByRole('table')).toBeVisible()
+})
+
+test('task detail uses the shared page title and keeps activity beside the work area', async ({ page }) => {
+  await login(page)
+  const name = `E2E layout ${Date.now()}`
+  const id = await createTask(page, name)
+
+  await page.goto(`/tasks/${id}`)
+  await expect(page.locator('.nasq-app-header h1')).toHaveText(name)
+  await expect(page.getByRole('heading', { name })).toBeVisible()
+  const detail = page.getByTestId('task-detail-page')
+  await expect(detail.getByRole('heading', { name: 'النشاط' })).toBeVisible()
+  await expect(detail.getByRole('textbox', { name: 'عنوان المهمة' })).toHaveValue(name)
+  await expect(page.locator('[data-slot="dialog-content"], [data-slot="sheet-content"], [data-slot="dialog-overlay"], [data-slot="sheet-overlay"]')).toHaveCount(0)
 })
 
 // Code-review regression case: Vue Router/Nuxt can reuse the same
@@ -218,14 +233,12 @@ test('task archive and link editing stay inline on the direct detail page', asyn
   await linkEditor.getByRole('button', { name: 'تطبيق الرابط' }).click()
   await expect(linkEditor).toHaveCount(0)
 
-  await detail.getByTestId('task-menu').click()
-  await page.getByTestId('task-archive').click()
+  await detail.getByTestId('task-archive').click()
   const confirmation = detail.getByTestId('task-archive-confirm')
   await expect(confirmation).toBeVisible()
   await confirmation.getByRole('button', { name: 'إلغاء' }).click()
   await expect(confirmation).toHaveCount(0)
-  await detail.getByTestId('task-menu').click()
-  await page.getByTestId('task-archive').click()
+  await detail.getByTestId('task-archive').click()
   const archived = page.waitForResponse((response) => response.url().includes(`/api/v1/tasks/${id}/archive`) && response.request().method() === 'POST')
   await detail.getByTestId('task-archive-confirm').getByRole('button', { name: 'أرشفة المهمة' }).click()
   await archived

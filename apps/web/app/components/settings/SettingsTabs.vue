@@ -7,10 +7,18 @@ const { t } = useI18n()
 <template>
   <nav class="flex flex-wrap gap-2 border-b" :aria-label="t('settings.tabs.label')">
     <NuxtLink
+      to="/settings/appearance"
+      data-testid="settings-appearance-tab"
+      class="border-b-2 px-3 py-2 text-sm font-medium"
+      :class="route.path === '/settings/appearance' ? 'border-ring text-foreground' : 'border-transparent text-muted-foreground'"
+    >
+      {{ t('settings.appearance.title') }}
+    </NuxtLink>
+    <NuxtLink
       v-if="can('pmo.settings.manage')" to="/settings/projects"
       data-testid="settings-projects-tab"
       class="border-b-2 px-3 py-2 text-sm font-medium"
-      :class="route.path === '/settings/projects' ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground'"
+      :class="route.path === '/settings/projects' ? 'border-ring text-foreground' : 'border-transparent text-muted-foreground'"
     >
       {{ t('settings.projects.title') }}
     </NuxtLink>
@@ -18,7 +26,7 @@ const { t } = useI18n()
       v-if="can('settings.branding.manage')" to="/settings/branding"
       data-testid="settings-branding-tab"
       class="border-b-2 px-3 py-2 text-sm font-medium"
-      :class="route.path === '/settings/branding' ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground'"
+      :class="route.path === '/settings/branding' ? 'border-ring text-foreground' : 'border-transparent text-muted-foreground'"
     >
       {{ t('settings.branding.title') }}
     </NuxtLink>

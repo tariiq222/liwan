@@ -85,14 +85,14 @@ async function submit() {
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div class="mx-auto w-full max-w-5xl space-y-8">
     <SharedPageHeader :title="t('access.roles.createTitle')" :back-to="backTo" />
     <SharedPageState v-if="forbidden" :empty="true" :empty-text="t('access.forbidden')" />
-    <form v-else class="max-w-2xl space-y-5" @submit.prevent="submit">
+    <form v-else class="max-w-3xl space-y-5 rounded-lg border border-border/80 bg-card p-4 sm:p-6" @submit.prevent="submit">
       <SharedUnsavedChanges :dirty="dirty" />
       <div class="grid gap-4 sm:grid-cols-2"><div class="space-y-2"><Label for="name-ar">{{ t('access.roles.nameArabic') }}</Label><Input id="name-ar" v-model="nameAr" /></div><div class="space-y-2"><Label for="name-en">{{ t('access.roles.nameEnglish') }}</Label><Input id="name-en" v-model="nameEn" dir="ltr" /></div></div>
       <div class="space-y-2"><Label for="description">{{ t('access.roles.descriptionLabel') }}</Label><Textarea id="description" v-model="description" /></div>
-      <fieldset class="space-y-2"><legend class="font-medium">{{ t('access.roles.permissions') }}</legend><label v-for="permission in availablePermissions" :key="permission.key" class="flex items-start gap-2 rounded-md border p-3"><input type="checkbox" :checked="selected.includes(permission.key)" @change="togglePermission(permission.key, !selected.includes(permission.key))"><span><span class="font-medium">{{ permissionLabel(permission.key) }}</span><span class="block text-sm text-muted-foreground">{{ permissionDescription(permission.key) }}</span><span class="block text-xs text-muted-foreground">{{ permission.dependencies.length ? `${t('access.roles.requires')}: ${permission.dependencies.map((key) => permissionLabel(key)).join('، ')}` : t('access.roles.noDependencies') }}</span><span class="block text-xs text-muted-foreground">{{ t('access.roles.companyScope') }}</span></span></label></fieldset>
+      <fieldset class="space-y-2"><legend class="font-medium">{{ t('access.roles.permissions') }}</legend><label v-for="permission in availablePermissions" :key="permission.key" class="flex items-start gap-2 rounded-lg border border-border/80 bg-card p-3 transition-colors hover:bg-muted/40"><input type="checkbox" :checked="selected.includes(permission.key)" @change="togglePermission(permission.key, !selected.includes(permission.key))"><span><span class="font-medium">{{ permissionLabel(permission.key) }}</span><span class="block text-sm text-muted-foreground">{{ permissionDescription(permission.key) }}</span><span class="block text-xs text-muted-foreground">{{ permission.dependencies.length ? `${t('access.roles.requires')}: ${permission.dependencies.map((key) => permissionLabel(key)).join('، ')}` : t('access.roles.noDependencies') }}</span><span class="block text-xs text-muted-foreground">{{ t('access.roles.companyScope') }}</span></span></label></fieldset>
       <p v-if="errorKey" role="alert" class="text-sm text-destructive">{{ errorKey }}</p>
       <Button type="submit" :disabled="!hydrated || create.isPending.value || !nameAr.trim()">{{ t('access.roles.create') }}</Button>
     </form>

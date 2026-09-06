@@ -23,16 +23,16 @@ function cloneRole(id: number) { void navigateTo({ path: '/settings/roles/new', 
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div class="mx-auto w-full max-w-7xl space-y-8">
     <SharedPageHeader :title="t('access.roles.title')" :description="t('access.roles.description')">
       <Button v-if="can('access.roles.manage')" :disabled="!hydrated" @click="navigateTo('/settings/roles/new')">{{ t('access.roles.create') }}</Button>
     </SharedPageHeader>
     <SharedPageState v-if="forbidden" :empty="true" :empty-text="t('access.forbidden')" />
     <template v-else>
-      <div class="grid gap-3 sm:grid-cols-[1fr_auto_auto_auto]">
+      <div class="grid gap-3 rounded-lg border border-border/80 bg-card/70 p-3 sm:grid-cols-[minmax(0,1fr)_auto_auto_auto]">
         <Input v-model="filters.q" :placeholder="t('access.roles.filters.search')" :disabled="!hydrated" @change="updateFilters" />
-        <select v-model="filters.type" :disabled="!hydrated" class="h-9 rounded-md border bg-background px-3 text-sm" @change="updateFilters"><option :value="undefined">{{ t('access.roles.filters.allTypes') }}</option><option value="built_in">{{ t('access.roles.builtIn') }}</option><option value="custom">{{ t('access.roles.custom') }}</option></select>
-        <select v-model="filters.status" :disabled="!hydrated" class="h-9 rounded-md border bg-background px-3 text-sm" @change="updateFilters"><option :value="undefined">{{ t('access.roles.filters.allStatuses') }}</option><option value="active">{{ t('access.active') }}</option><option value="disabled">{{ t('access.disabled') }}</option></select>
+        <select v-model="filters.type" :disabled="!hydrated" class="h-9 rounded-md border border-input bg-background px-3 text-sm" @change="updateFilters"><option :value="undefined">{{ t('access.roles.filters.allTypes') }}</option><option value="built_in">{{ t('access.roles.builtIn') }}</option><option value="custom">{{ t('access.roles.custom') }}</option></select>
+        <select v-model="filters.status" :disabled="!hydrated" class="h-9 rounded-md border border-input bg-background px-3 text-sm" @change="updateFilters"><option :value="undefined">{{ t('access.roles.filters.allStatuses') }}</option><option value="active">{{ t('access.active') }}</option><option value="disabled">{{ t('access.disabled') }}</option></select>
         <Button variant="outline" :disabled="!hydrated" @click="filters.q = ''; filters.type = undefined; filters.status = undefined; updateFilters()">{{ t('access.clearFilters') }}</Button>
       </div>
       <SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!query.isLoading.value && !query.error.value && query.data.value?.items.length === 0" :empty-text="t('access.roles.empty')" @retry="query.refetch">

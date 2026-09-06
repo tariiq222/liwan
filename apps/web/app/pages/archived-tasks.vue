@@ -37,27 +37,25 @@ function back() {
 </script>
 
 <template>
-  <div class="space-y-4">
-    <header class="flex flex-wrap items-center justify-between gap-3">
-      <div>
-        <h1 class="text-2xl font-semibold">{{ t('taskLifecycle.archivedTasks') }}</h1>
-        <p class="text-sm text-muted-foreground">{{ t('taskLifecycle.archivedTasksHint') }}</p>
-      </div>
-      <Button variant="outline" type="button" :disabled="!hydrated" @click="back">{{ t('taskLifecycle.back') }}</Button>
-    </header>
+  <div class="space-y-6">
+    <SharedPageHeader :title="t('taskLifecycle.archivedTasks')" :description="t('taskLifecycle.archivedTasksHint')">
+      <template #back>
+        <Button variant="ghost" size="sm" type="button" :disabled="!hydrated" @click="back">{{ t('taskLifecycle.back') }}</Button>
+      </template>
+    </SharedPageHeader>
 
-    <div class="flex gap-2">
-      <Input v-model="q" :placeholder="t('taskLifecycle.searchArchived')" class="max-w-sm" />
+    <div class="flex flex-wrap items-center gap-2 rounded-lg border bg-card p-3">
+      <Input v-model="q" :disabled="!hydrated" :placeholder="t('taskLifecycle.searchArchived')" class="min-w-56 max-w-sm" />
       <Badge v-if="data" variant="secondary">{{ total }}</Badge>
     </div>
 
     <div v-if="isLoading" class="space-y-2">
       <Skeleton v-for="n in 3" :key="n" class="h-12 w-full" />
     </div>
-    <div v-else-if="!items.length" class="rounded-lg border p-8 text-center text-muted-foreground">
+    <div v-else-if="!items.length" class="rounded-lg border bg-card p-8 text-center text-muted-foreground">
       {{ t('taskLifecycle.noArchivedTasks') }}
     </div>
-    <div v-else class="overflow-hidden rounded-lg border">
+    <div v-else class="overflow-hidden rounded-lg border bg-card">
       <ul class="divide-y">
         <li v-for="task in items" :key="task.id" class="flex items-center justify-between gap-3 p-3">
           <div class="min-w-0">
@@ -75,4 +73,3 @@ function back() {
     </div>
   </div>
 </template>
-

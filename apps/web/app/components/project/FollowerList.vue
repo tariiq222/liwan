@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { ProjectDetail } from '@nasq/contracts'
 import { refDebounced } from '@vueuse/core'
-import { Check, X } from 'lucide-vue-next'
+import { Check, X } from '@lucide/vue'
 import { toast } from 'vue-sonner'
 import { ApiError } from '@/composables/useApi'
 import { usePeople } from '@/composables/usePeople'

@@ -53,10 +53,10 @@ async function uploadFile(event: Event) {
 }
 </script>
 <template>
-  <div class="space-y-6">
+  <div class="mx-auto w-full max-w-5xl space-y-8">
     <SharedPageHeader :title="t('hr.docs.title')" :back-to="returnTo" />
     <SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!query.data.value" @retry="query.refetch">
-      <form v-if="query.data.value" class="grid max-w-2xl gap-4" @submit.prevent="save">
+      <form v-if="query.data.value" class="grid max-w-3xl gap-5 rounded-lg border border-border/80 bg-card p-4 sm:p-6" @submit.prevent="save">
         <SharedUnsavedChanges :dirty="dirty" />
         <div class="grid gap-2"><Label for="hr-doc-title">{{ t('hr.docs.columns.name') }}</Label><Input id="hr-doc-title" v-model="name" :disabled="!hydrated || updating" /></div>
         <div class="grid gap-2"><Label>{{ t('hr.docs.body') }}</Label><DocumentEditor v-model="body" :document-id="documentId" :debounce="false" :disabled="updating" /></div>

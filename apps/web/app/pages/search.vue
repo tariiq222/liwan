@@ -34,12 +34,12 @@ useEventListener('keydown', (event: KeyboardEvent) => {
 })
 </script>
 <template>
-  <section class="mx-auto max-w-4xl space-y-6" data-testid="search-page">
+  <section class="mx-auto w-full max-w-5xl space-y-8" data-testid="search-page">
     <SharedPageHeader :title="t('app.search')" :back-to="backTo" />
-    <div class="space-y-2"><Label for="navigation-search">{{ t('nav.typeToNavigate') }}</Label><Input id="navigation-search" v-model="query" :placeholder="t('nav.typeToNavigate')" autofocus /></div>
-    <section class="space-y-2"><h2 class="text-sm font-semibold text-muted-foreground">{{ t('nav.goTo') }}</h2><div class="grid gap-2 sm:grid-cols-2"><template v-for="item in nav" :key="item.to"><a v-if="item.to === '/odoo'" :href="item.to" target="_blank" rel="noopener" class="rounded-lg border p-4">{{ t(item.labelKey) }}</a><NuxtLink v-else :to="item.to" class="flex items-center gap-3 rounded-lg border p-4 hover:bg-muted"><component :is="item.icon" class="size-4 text-muted-foreground" />{{ t(item.labelKey) }}<kbd class="ms-auto text-xs text-muted-foreground">{{ item.shortcut }}</kbd></NuxtLink></template></div></section>
+    <div class="grid gap-2 rounded-lg border border-border/80 bg-card p-4"><Label for="navigation-search">{{ t('nav.typeToNavigate') }}</Label><Input id="navigation-search" v-model="query" :placeholder="t('nav.typeToNavigate')" autofocus /></div>
+    <section class="space-y-3"><h2 class="text-sm font-semibold text-muted-foreground">{{ t('nav.goTo') }}</h2><div class="grid gap-3 sm:grid-cols-2"><template v-for="item in nav" :key="item.to"><a v-if="item.to === '/odoo'" :href="item.to" target="_blank" rel="noopener" class="flex items-center gap-3 rounded-lg border border-border/80 bg-card p-4 transition-colors hover:bg-muted/70">{{ t(item.labelKey) }}</a><NuxtLink v-else :to="item.to" class="flex items-center gap-3 rounded-lg border border-border/80 bg-card p-4 transition-colors hover:bg-muted/70"><component :is="item.icon" class="size-[18px] text-muted-foreground" />{{ t(item.labelKey) }}<kbd class="ms-auto text-xs text-muted-foreground">{{ item.shortcut }}</kbd></NuxtLink></template></div></section>
     <SharedPageState v-if="can('pmo.projects.read')" :loading="isLoading" :error="error" @retry="refetch()" />
-    <section v-if="can('pmo.projects.read') && matchingProjects.length" class="space-y-2"><h2 class="text-sm font-semibold text-muted-foreground">{{ t('nav.projects') }}</h2><NuxtLink v-for="project in matchingProjects" :key="project.id" :to="`/projects/${project.id}`" class="block rounded-lg border p-4 hover:bg-muted">{{ project.name }}</NuxtLink></section>
+    <section v-if="can('pmo.projects.read') && matchingProjects.length" class="space-y-3"><h2 class="text-sm font-semibold text-muted-foreground">{{ t('nav.projects') }}</h2><NuxtLink v-for="project in matchingProjects" :key="project.id" :to="`/projects/${project.id}`" class="block rounded-lg border border-border/80 bg-card p-4 transition-colors hover:bg-muted/70">{{ project.name }}</NuxtLink></section>
     <p v-if="!nav.length && !matchingProjects.length && !isLoading && !error" class="text-sm text-muted-foreground">{{ t('app.noResults') }}</p>
   </section>
 </template>

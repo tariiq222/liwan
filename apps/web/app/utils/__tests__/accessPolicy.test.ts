@@ -26,6 +26,8 @@ describe('access policy navigation', () => {
     expect(postLoginPath(admin, '//example.test')).toBe('/settings/users')
     expect(postLoginPath(admin, '/login')).toBe('/settings/users')
     expect(postLoginPath({ capabilities: [] }, '/account')).toBe('/account')
+    expect(postLoginPath({ capabilities: [] }, '/settings/appearance')).toBe('/settings/appearance')
+    expect(postLoginPath({ capabilities: [] }, '/settings/branding')).toBe('/account')
   })
   it('does not activate the employee item for departments or documents', () => {
     expect(isNavPathActive('/hr/employees/7/edit', '/hr')).toBe(true)

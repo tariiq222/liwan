@@ -14,7 +14,7 @@ const accountTo = computed(() => {
 </script>
 
 <template>
-  <section v-if="can('hr.employees.access_status.read')" class="grid gap-3">
+  <section v-if="can('hr.employees.access_status.read')" class="grid gap-3 rounded-lg border border-border/80 bg-muted/20 p-4">
     <div class="flex items-center justify-between">
       <span class="text-sm text-muted-foreground">{{ $t('hr.employee.account') }}</span>
       <AccessBadge :access="employee.access" />

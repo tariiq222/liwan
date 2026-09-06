@@ -12,8 +12,8 @@ const { t } = useI18n()
 
 const TONE_CLASS: Record<DeadlineTone, string> = {
   neutral: 'border-transparent bg-muted text-muted-foreground',
-  warning: 'border-transparent bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300',
-  destructive: 'border-transparent bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300',
+  warning: 'border-transparent bg-muted text-muted-foreground',
+  destructive: 'border-transparent bg-destructive/10 text-destructive',
 }
 
 // A closed task is never "urgent" regardless of how the deadline compares to

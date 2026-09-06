@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { HTMLAttributes } from "vue"
-import { PanelLeft } from "lucide-vue-next"
+import { PanelLeft } from "@lucide/vue"
 import { cn } from "@/lib/utils"
 import { Button } from '@/components/ui/button'
 import { useSidebar } from "./utils"
@@ -19,7 +19,7 @@ const hydrated = useHydrated()
     data-slot="sidebar-trigger"
     variant="ghost"
     size="icon"
-    :class="cn('h-7 w-7', props.class)"
+    :class="cn('size-[32px] rounded-lg', props.class)"
     :disabled="!hydrated" :aria-expanded="isMobile ? openMobile : undefined" :aria-controls="isMobile ? 'mobile-navigation' : undefined" @click="toggleSidebar"
   >
     <PanelLeft />

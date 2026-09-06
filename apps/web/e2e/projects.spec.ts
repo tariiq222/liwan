@@ -70,6 +70,7 @@ test('projects table shows status and progress, and a row opens the project', as
   await expect(row).toBeVisible()
   await expect(row.getByTestId('project-status')).toHaveText('معرض للخطر')
   await expect(row.getByTestId('project-progress')).toHaveText('50%')
+  await expect(row.getByRole('link', { name })).toHaveAttribute('href', new RegExp(`/projects/${id}\\?returnTo=`))
   await page.getByRole('combobox').click()
   await page.getByRole('option', { name: 'معرض للخطر' }).click()
   await expect(row).toBeVisible()
@@ -87,6 +88,41 @@ test('projects table shows status and progress, and a row opens the project', as
     && url.searchParams.get('q') === name
   ))
   await expect(page.getByTestId('project-row').filter({ hasText: name })).toBeVisible()
+})
+
+test('overlapping search and status updates keep both filters in the URL', async ({ page }) => {
+  await login(page)
+  await page.goto('/projects')
+  await expect(page.getByRole('heading', { name: 'المشاريع' })).toBeVisible()
+  const search = page.getByPlaceholder('ابحث باسم المشروع…')
+  await expect(search).toBeEnabled()
+  await search.fill('RapidQ')
+  await page.getByRole('combobox').click()
+  await page.getByRole('option', { name: 'على المسار' }).click()
+  await expect(page).toHaveURL((url) => url.searchParams.get('q') === 'RapidQ' && url.searchParams.get('status') === 'on_track')
+  expect(projectListParams(page).get('q')).toBe('RapidQ')
+  expect(projectListParams(page).get('status')).toBe('on_track')
+})
+
+test('project summary follows filtered records and persists its visibility', async ({ page }) => {
+  await login(page)
+  await page.evaluate(() => localStorage.removeItem('nasq.projects.summary-visible'))
+  const name = `E2E summary ${Date.now()}`
+  const id = await createProjectWithStages(page, name)
+  await page.request.post(`/api/v1/projects/${id}/status`, { data: { status: 'at_risk' } })
+
+  await page.goto(`/projects?q=${encodeURIComponent(name)}`)
+  await expect(page.getByTestId('projects-summary-cards')).toBeVisible()
+  await expect(page.getByText('المعروضة في هذه الصفحة')).toBeVisible()
+  await expect(page.getByTestId('projects-summary-displayed')).toHaveText('1')
+  await expect(page.getByTestId('projects-summary-attention')).toHaveText('1')
+  await expect(page.getByRole('button', { name: 'إخفاء ملخص المشاريع' })).toBeVisible()
+
+  await page.getByRole('button', { name: 'إخفاء ملخص المشاريع' }).click()
+  await expect(page.getByTestId('projects-summary-cards')).toHaveCount(0)
+  await page.reload()
+  await expect(page.getByTestId('projects-summary-cards')).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'إظهار ملخص المشاريع' })).toBeVisible()
 })
 
 test('project list shows every task of the project (not only mine), the detail page returns to the project', async ({ page }) => {
@@ -131,13 +167,67 @@ test('project board groups by project stage, and a drag persists', async ({ page
   await expect(page.getByTestId('board-column-folded')).toBeVisible()
 })
 
+test('project task routes preserve the explicit board tab and filters', async ({ page }) => {
+  await login(page)
+  const name = `E2E board return ${Date.now()}`
+  const id = await createProjectWithStages(page, name)
+  const taskName = `${name} task`
+  const task = (await (await page.request.post('/api/v1/tasks', { data: { name: taskName, project_id: id } })).json()).id as number
+  const returnPath = `/projects/${id}?${new URLSearchParams({ tab: 'board', q: name })}`
+
+  await page.goto(returnPath)
+  await expect(page.getByTestId(`board-card-${task}`)).toBeVisible()
+  await page.getByTestId(`board-card-${task}`).click()
+  await expect(page).toHaveURL(new RegExp(`/projects/${id}/tasks/${task}\\?`))
+  await expect.poll(() => new URL(page.url()).searchParams.get('returnTo')).toBe(returnPath)
+  await page.keyboard.press('Escape')
+  await expect(page).toHaveURL(returnPath)
+})
+
+test('project header icon actions stay 32px at small and large font sizes', async ({ page, context }) => {
+  await login(page)
+  const id = await createProjectWithStages(page, `E2E header actions ${Date.now()}`)
+  await page.goto(`/projects/${id}`)
+
+  const hostname = new URL(page.url()).hostname
+  for (const fontSize of ['small', 'large'] as const) {
+    await context.addCookies([{
+      name: 'nasq-appearance',
+      value: encodeURIComponent(JSON.stringify({ mode: 'light', fontSize })),
+      domain: hostname,
+      path: '/',
+    }])
+    await page.reload()
+    for (const testId of ['project-header-create', 'project-header-settings', 'project-header-archive']) {
+      const action = page.getByTestId(testId)
+      await expect(action).toBeVisible()
+      const box = await action.boundingBox()
+      expect(box?.width).toBe(32)
+      expect(box?.height).toBe(32)
+    }
+  }
+})
+
+test('project task creation preserves the explicit board tab and filters', async ({ page }) => {
+  await login(page)
+  const id = await createProjectWithStages(page, `E2E create return ${Date.now()}`)
+  const returnPath = `/projects/${id}?tab=board&q=return-check`
+
+  await page.goto(returnPath)
+  await page.getByTestId('project-header-create').click()
+  await expect(page).toHaveURL(new RegExp(`/projects/${id}/tasks/new\\?`))
+  await expect.poll(() => new URL(page.url()).searchParams.get('returnTo')).toBe(returnPath)
+  await page.getByRole('link', { name: 'العودة إلى المشروع' }).click()
+  await expect(page).toHaveURL(returnPath)
+})
+
 test('create task from the project locks the project, and a manager sets the status', async ({ page }) => {
   await login(page)
   const name = `E2E pcreate ${Date.now()}`
   const id = await createProjectWithStages(page, name)
 
   await page.goto(`/projects/${id}`)
-  await page.getByRole('button', { name: 'مهمة جديدة' }).click()
+  await page.getByTestId('project-header-create').click()
   await expect(page).toHaveURL(new RegExp(`/projects/${id}/tasks/new\\?returnTo=`))
   const form = page.getByTestId('task-create-form')
   await expect(form.getByText(name)).toBeVisible()
@@ -154,7 +244,7 @@ test('create task from the project locks the project, and a manager sets the sta
   await expect(page.getByTestId('project-status-select')).toContainText('خارج المسار')
 })
 
-function mockProject(id: number, name: string, status: 'on_track' | null = 'on_track') {
+function mockProject(id: number, name: string, status: 'on_track' | 'at_risk' | null = 'on_track') {
   return {
     id,
     name,
@@ -188,9 +278,10 @@ test('project list next/previous pages keep q, status, and offset in the URL', a
     }
     const limit = Math.max(1, Number(url.searchParams.get('limit') || '50') || 50)
     const offset = Math.max(0, Number(url.searchParams.get('offset') || '0') || 0)
-    const items = Array.from({ length: Math.max(0, Math.min(limit, total - offset)) }, (_, i) => (
-      mockProject(offset + i + 1, `Mock Bulk ${offset + i + 1}`)
-    ))
+    const items = Array.from({ length: Math.max(0, Math.min(limit, total - offset)) }, (_, i) => {
+      const id = offset + i + 1
+      return mockProject(id, `Mock Bulk ${id}`, id % 10 === 0 ? 'at_risk' : 'on_track')
+    })
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -205,6 +296,9 @@ test('project list next/previous pages keep q, status, and offset in the URL', a
   await page.getByRole('option', { name: 'على المسار' }).click()
   await expect(page).toHaveURL((url) => url.searchParams.get('q') === 'Bulk' && url.searchParams.get('status') === 'on_track')
   await expect(page.getByText('صفحة 1 من 5')).toBeVisible()
+  await expect(page.getByText('المعروضة في هذه الصفحة')).toBeVisible()
+  await expect(page.getByTestId('projects-summary-displayed')).toHaveText('50')
+  await expect(page.getByTestId('projects-summary-attention')).toHaveText('5')
   await page.getByRole('button', { name: 'التالي' }).click()
   await expect(page).toHaveURL((url) => (
     url.searchParams.get('q') === 'Bulk'
@@ -212,6 +306,8 @@ test('project list next/previous pages keep q, status, and offset in the URL', a
     && url.searchParams.get('offset') === '50'
   ))
   await expect(page.getByText('صفحة 2 من 5')).toBeVisible()
+  await expect(page.getByTestId('projects-summary-displayed')).toHaveText('50')
+  await expect(page.getByTestId('projects-summary-attention')).toHaveText('5')
   await page.getByRole('button', { name: 'السابق' }).click()
   await expect(page).toHaveURL((url) => (
     url.searchParams.get('q') === 'Bulk'
@@ -219,6 +315,7 @@ test('project list next/previous pages keep q, status, and offset in the URL', a
     && !url.searchParams.has('offset')
   ))
   await expect(page.getByText('صفحة 1 من 5')).toBeVisible()
+  await expect(page.getByTestId('projects-summary-displayed')).toHaveText('50')
   expect(projectListParams(page).get('q')).toBe('Bulk')
   expect(projectListParams(page).get('status')).toBe('on_track')
 })

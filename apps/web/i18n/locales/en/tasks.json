@@ -1,6 +1,7 @@
 {
   "tasks": {
     "title": "My tasks",
+    "description": "Track assigned tasks, status, and deadlines in one place.",
     "table": "Table",
     "board": "Board",
     "new": "New task",
@@ -62,6 +63,12 @@
       "back": "Back to tasks",
       "pageLabel": "Task details",
       "navigation": "Task detail navigation",
+      "menu": "Task actions",
+      "activityTitle": "Activity",
+      "bold": "Bold",
+      "italic": "Italic",
+      "bulletList": "Bulleted list",
+      "orderedList": "Numbered list",
       "linkPrompt": "Link URL",
       "applyLink": "Apply link",
       "cancelLink": "Cancel"

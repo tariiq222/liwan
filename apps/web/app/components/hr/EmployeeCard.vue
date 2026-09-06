@@ -12,7 +12,7 @@ const { data: employee, isLoading } = useHrEmployee(id)
 </script>
 
 <template>
-  <div class="grid gap-4 ps-4 pe-4 pb-4">
+  <div class="grid gap-5 rounded-lg border border-border/80 bg-card p-4 sm:p-6">
     <template v-if="isLoading">
       <Skeleton class="size-16 rounded-full" />
       <Skeleton class="h-5 w-40" />
