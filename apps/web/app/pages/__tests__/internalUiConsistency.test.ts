@@ -44,6 +44,7 @@ describe('internal UI width and status vocabulary', () => {
     const skipped = new Set([
       'index.vue',
       'login.vue',
+      'reports.vue', // Legacy query-preserving redirect to /projects/dashboard.
       'settings/branding.vue',
       'hr/employees/[employeeId]/access.vue',
     ])

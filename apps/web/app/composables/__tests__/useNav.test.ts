@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { activeShellModule, projectContextId, projectContextLinks, visibleShellModules, useNav } from '../useNav'
+import { activeShellModule, contextLinksForModule, projectContextId, projectContextLinks, visibleShellModules, useNav } from '../useNav'
 
 const employee = { role: 'employee', capabilities: ['pmo.tasks.read', 'pmo.projects.read', 'meetings.read', 'hr.employees.read', 'hr.departments.read', 'hr.documents.read'] }
 const admin = { role: 'admin', capabilities: [...employee.capabilities, 'access.users.read', 'access.roles.read', 'access.audit.read', 'settings.branding.manage'] }
@@ -11,11 +11,11 @@ describe('capability-based navigation', () => {
   })
   it('groups the employee product pages without administrative links', () => {
     const nav = useNav(employee)
-    expect(nav.map(item => item.to)).toEqual(['/chat', '/projects', '/tasks', '/reports', '/meetings', '/meetings/calendar', '/hr', '/hr/departments', '/hr/documents', '/settings/appearance'])
+    expect(nav.map(item => item.to)).toEqual(['/chat', '/projects/dashboard', '/tasks', '/meetings', '/meetings/calendar', '/hr', '/hr/departments', '/hr/documents', '/settings/appearance'])
     expect(nav.filter(item => item.group === 'hr')).toHaveLength(3)
     expect(nav.filter(item => item.group === 'chat')).toHaveLength(1)
     expect(nav.filter(item => item.group === 'settings').map(item => item.to)).toEqual(['/settings/appearance'])
-    expect(nav.filter(item => item.group === 'projects').map(item => item.to)).toEqual(['/projects', '/tasks', '/reports'])
+    expect(nav.filter(item => item.group === 'projects').map(item => item.to)).toEqual(['/projects/dashboard', '/tasks'])
   })
   it('an access administrator does not inherit project settings', () => {
     const nav = useNav(admin)
@@ -86,5 +86,22 @@ describe('module rail and project context continuity', () => {
     expect(projectContextId('/projects/12/milestones/3/edit')).toBe('planning')
     expect(projectContextLinks(12, employee, true, false).some(item => item.id === 'settings')).toBe(false)
     expect(projectContextLinks(12, employee, true, true).some(item => item.id === 'settings')).toBe(true)
+  })
+})
+
+
+describe('projects dashboard navigation', () => {
+  it('opens the Projects module at its dashboard without a separate Reports module', () => {
+    const modules = visibleShellModules(employee)
+    expect(modules.find(item => item.id === 'projects')?.to).toBe('/projects/dashboard')
+    expect(modules.some(item => item.id === 'reports')).toBe(false)
+    expect(activeShellModule('/reports')).toBe('projects')
+    expect(activeShellModule('/projects/dashboard')).toBe('projects')
+  })
+  it('orders dashboard, creation, all projects and mine with real capability gates', () => {
+    const creator = { capabilities: ['pmo.projects.read', 'pmo.projects.create'] }
+    expect(contextLinksForModule('projects', creator).map(link => link.id)).toEqual(['project-dashboard', 'new-project', 'projects', 'my-projects'])
+    expect(contextLinksForModule('projects', employee).map(link => link.id)).toEqual(['project-dashboard', 'projects', 'my-projects'])
+    expect(contextLinksForModule('projects', undefined)).toEqual([])
   })
 })

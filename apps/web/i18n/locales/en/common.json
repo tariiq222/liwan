@@ -62,7 +62,11 @@
     "toggleSidebar": "Toggle navigation",
     "chat": "Chat",
     "meetings": "Meetings",
-    "meetingCalendar": "Calendar"
+    "meetingCalendar": "Calendar",
+    "projectDashboard": "Project dashboard",
+    "newProject": "New project",
+    "allProjects": "All projects",
+    "myProjects": "My projects"
   },
   "auth": {
     "username": "Username",

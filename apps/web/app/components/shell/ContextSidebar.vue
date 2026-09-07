@@ -2,6 +2,7 @@
 import { ArrowRight, ChevronLeft } from '@lucide/vue'
 import { useShellNavigation } from '@/composables/useShellNavigation'
 import { activeShellModule, shellModules } from '@/composables/useNav'
+import { safeReturnTo } from '@/utils/safeReturnTo'
 
 const { t, localeProperties } = useI18n()
 const { me } = useMe()
@@ -11,6 +12,7 @@ const activeModule = computed(() => activeShellModule(route.path))
 const moduleDefinition = computed(() => shellModules.find(item => item.id === activeModule.value) ?? module.value)
 const contextTitle = computed(() => projectId.value && project.data.value ? project.data.value.name : moduleDefinition.value ? t(moduleDefinition.value.labelKey) : t('app.productName'))
 const contextDescription = computed(() => projectId.value ? (project.data.value?.description_html?.replace(/<[^>]+>/g, '').trim() || '') : '')
+const projectsReturnTo = computed(() => safeReturnTo(route.query.returnTo, '/projects', ['/projects']))
 const isProject = computed(() => !!projectId.value && activeModule.value === 'projects')
 
 function href(link: { to: import('vue-router').RouteLocationRaw }) {
@@ -27,7 +29,7 @@ function href(link: { to: import('vue-router').RouteLocationRaw }) {
     :aria-label="t('nav.context')"
   >
     <div class="nasq-context-sidebar-inner">
-      <NuxtLink v-if="isProject" to="/projects" class="nasq-context-back" :aria-label="t('nav.backToProjects')">
+      <NuxtLink v-if="isProject" :to="projectsReturnTo" class="nasq-context-back" :aria-label="t('nav.backToProjects')">
         <ArrowRight aria-hidden="true" class="ltr:rotate-180" />
         <span>{{ t('nav.backToProjects') }}</span>
       </NuxtLink>

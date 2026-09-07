@@ -9,12 +9,14 @@ from odoo.addons.nasq_api.controllers.common import (
 )
 from odoo.addons.nasq_pmo.models.project_project import STATUS_VALUES
 from odoo.addons.nasq_pmo.serializers.project_reports import (
+    build_dashboard_summary,
     build_report_totals,
     dump_report_row,
     today_utc,
 )
 
 LIST_QUERY = {'q', 'status', 'limit', 'offset'}
+SUMMARY_QUERY = {'q', 'status'}
 
 
 def _parse_limit(value):
@@ -26,12 +28,8 @@ def _parse_limit(value):
 
 class ProjectReportsController(http.Controller):
 
-    @http.route('/api/v1/reports/projects', type='json2', auth='user', methods=['GET'], readonly=True)
-    @api_handler
-    def list_project_reports(self, **_):
-        request.env['nasq.access.service']._nasq_require_capability('pmo.projects.read')
-        args = request.httprequest.args
-        unknown = set(args) - LIST_QUERY
+    def _project_report_domain(self, args, allowed_query):
+        unknown = set(args) - allowed_query
         if unknown:
             raise ApiError(400, 'unsupported_filter', f"unsupported query parameter {sorted(unknown)[0]!r}")
         status = args.get('status')
@@ -39,14 +37,7 @@ class ProjectReportsController(http.Controller):
             raise ApiError(
                 422, 'invalid', f"status must be one of {sorted(STATUS_VALUES)} or 'unset'", field='status',
             )
-        limit = _parse_limit(args.get('limit', 50))
-        offset = parse_nonneg_int(args.get('offset', 0), 'offset')
         q = (args.get('q') or '').strip()
-        # Explicit active/current-company floor, not just project.project's
-        # own _search restriction: reports must exclude archived and
-        # company-less/foreign-company projects even for a caller (e.g. a
-        # base.group_system admin who separately holds pmo.projects.read)
-        # whose capability grant might otherwise widen visibility.
         domain = [('active', '=', True), ('company_id', '=', request.env.company.id)]
         if q:
             domain.append(('name', 'ilike', q))
@@ -54,13 +45,22 @@ class ProjectReportsController(http.Controller):
             domain.append(('last_update_status', '=', 'to_define'))
         elif status:
             domain.append(('last_update_status', '=', status))
-        Project = request.env['project.project']
+        return domain
+
+    @http.route('/api/v1/reports/projects', type='json2', auth='user', methods=['GET'], readonly=True)
+    @api_handler
+    def list_project_reports(self, **_):
+        request.env['nasq.access.service']._nasq_require_capability('pmo.projects.read')
+        args = request.httprequest.args
+        domain = self._project_report_domain(args, LIST_QUERY)
+        limit = _parse_limit(args.get('limit', 50))
+        offset = parse_nonneg_int(args.get('offset', 0), 'offset')
         # No 200 cap here: totals must reflect every filtered, visible project,
         # not just the returned page (see docs/superpowers/specs/2026-09-07-
         # projects-phase2-design.md). Project.search already applies the live
         # pmo.projects.read + current-company + active + follower-visibility
         # floor via project.project's own _search override.
-        all_projects = Project.search(domain, order='name, id')
+        all_projects = request.env['project.project'].search(domain, order='name, id')
         total = len(all_projects)
         page = all_projects[offset:offset + limit]
         today = today_utc()
@@ -72,3 +72,14 @@ class ProjectReportsController(http.Controller):
             'total': total,
             'totals': build_report_totals(all_projects),
         }
+
+    @http.route('/api/v1/reports/projects/summary', type='json2', auth='user', methods=['GET'], readonly=True)
+    @api_handler
+    def project_dashboard_summary(self, **_):
+        request.env['nasq.access.service']._nasq_require_capability('pmo.projects.read')
+        domain = self._project_report_domain(request.httprequest.args, SUMMARY_QUERY)
+        projects = request.env['project.project'].search(domain, order='name, id')
+        can_read_tasks = request.env['nasq.access.service']._nasq_has_capability(
+            request.env.user, 'pmo.tasks.read',
+        )
+        return build_dashboard_summary(projects, today_utc(), can_read_tasks)

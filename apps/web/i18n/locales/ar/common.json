@@ -62,7 +62,11 @@
     "toggleSidebar": "فتح القائمة أو طيها",
     "chat": "المحادثة",
     "meetings": "الاجتماعات",
-    "meetingCalendar": "التقويم"
+    "meetingCalendar": "التقويم",
+    "projectDashboard": "إحصائية المشاريع",
+    "newProject": "مشروع جديد",
+    "allProjects": "كل المشاريع",
+    "myProjects": "مشاريعي"
   },
   "auth": {
     "username": "اسم المستخدم",

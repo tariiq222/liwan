@@ -19,7 +19,7 @@ from odoo.addons.nasq_pmo.serializers.project import (
 from odoo.addons.nasq_pmo.serializers.project_charter import parse_charter_vals
 
 MAX_PROJECTS = 200
-LIST_QUERY = {'minimal', 'archived', 'limit', 'offset', 'q', 'status', 'sort'}
+LIST_QUERY = {'minimal', 'archived', 'limit', 'offset', 'q', 'status', 'sort', 'mine'}
 _ABSENT = object()
 
 
@@ -38,6 +38,9 @@ class ProjectController(http.Controller):
         archived_param = args.get('archived')
         if archived_param is not None and archived_param not in ('1', 'true', '0', 'false'):
             raise ApiError(422, 'invalid', "archived must be '1', 'true', '0' or 'false'", field='archived')
+        mine_param = args.get('mine')
+        if mine_param is not None and mine_param not in ('1', 'true', '0', 'false'):
+            raise ApiError(422, 'invalid', "mine must be '1', 'true', '0' or 'false'", field='mine')
         # Odoo search(limit=0) means unlimited; treat an explicit 0 as the cap.
         limit = parse_nonneg_int(args.get('limit', MAX_PROJECTS), 'limit') or MAX_PROJECTS
         limit = min(limit, MAX_PROJECTS)
@@ -57,6 +60,8 @@ class ProjectController(http.Controller):
         if archived and not Project._nasq_is_manager():
             raise AccessError(request.env._("Only a project manager can list archived projects."))
         domain = [('active', '=', False)] if archived else []
+        if mine_param in ('1', 'true'):
+            domain.append(('user_id', '=', request.env.uid))
         q = (args.get('q') or '').strip()
         if q:
             domain.append(('name', 'ilike', q))

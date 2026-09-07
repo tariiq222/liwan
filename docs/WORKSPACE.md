@@ -279,3 +279,7 @@ push or deployment was performed.
 ## Approved UI integration — 2026-09-07
 
 Local main now includes the approved shell, project workspace and compact global search (`cc89d69`, combined as `054766d`). Existing branding/login changes were preserved. Combined typecheck, 120 contract tests, 522 web tests and build passed in the isolated integration checkout. See [the UI verification ledger](approved-ui-migration-2026-09-07.md) for browser coverage and remaining cases. Temporary UI worktrees remain preserved; port3980 uses the scratch database, while canonical runtime verification is separate.
+
+## Project dashboard task — isolated, 2026-09-07
+
+The dashboard and four-item Projects contextual navigation are implemented in `/Users/tariq/code/nasq-project-dashboard` on `codex/project-dashboard`, based on c8f0448. This task is uncommitted and unmerged. See [the dashboard delivery report](project-dashboard-2026-09-07.md) for behavior, test evidence and isolated runtime. Canonical main is not updated by this task.

@@ -57,7 +57,7 @@ export function useShellNavigation(identity: MaybeRefOrGetter<AccessIdentity>) {
     }
     if (!currentModule) return []
     return contextLinksForModule(currentModule, identityValue.value)
-      .map(link => ({ ...link, active: isContextPathActive(route.path, link.to) }))
+      .map(link => ({ ...link, active: isContextPathActive(route.path, link.to, route.query) }))
   })
   const module = computed(() => visibleShellModules(identityValue.value).find(item => item.id === activeModule.value) ?? null)
   const breadcrumbs = computed<ShellBreadcrumb[]>(() => {
@@ -74,14 +74,18 @@ export function useShellNavigation(identity: MaybeRefOrGetter<AccessIdentity>) {
   return { activeModule, module, projectId, project, contextLinks, breadcrumbs }
 }
 
-export function isContextPathActive(path: string, to: ShellContextLink['to']): boolean {
+export function isContextPathActive(path: string, to: ShellContextLink['to'], query: Record<string, unknown> = {}): boolean {
   const target = typeof to === 'string' ? to : to.path
   if (target === '/hr') return path === '/hr' || path.startsWith('/hr/employees/')
   if (target === '/hr/documents') return path === target || path.startsWith(`${target}/`) || /^\/hr\/departments\/[^/]+\/documents(?:\/|$)/.test(path)
   if (target === '/hr/departments') return path === target || (path.startsWith(`${target}/`) && !/\/documents(?:\/|$)/.test(path))
   if (target === '/meetings') return path === target || (path.startsWith(`${target}/`) && !path.startsWith('/meetings/calendar'))
   if (target === '/meetings/calendar') return path === target
-  if (target === '/projects') return path === target || path.startsWith('/projects/')
+  if (target === '/projects') {
+    const mine = query.mine === '1' || query.mine === 'true'
+    const targetMine = typeof to === 'object' && 'query' in to && (to.query?.mine === '1' || to.query?.mine === 'true')
+    return path === target && mine === Boolean(targetMine)
+  }
   if (target === '/tasks') return path === target || path.startsWith('/tasks/')
   if (target === '/settings/appearance') return path === target || path.startsWith(`${target}/`)
   return path === target || path.startsWith(`${target}/`)

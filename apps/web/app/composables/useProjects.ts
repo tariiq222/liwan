@@ -11,6 +11,7 @@ export const PROJECT_REF_PAGE = 200
 
 export type ProjectListFilters = {
   q?: string
+  mine?: boolean
   sort?: 'default' | 'name' | 'progress'
   status?: 'unset' | ProjectStatus
   limit?: number
@@ -21,6 +22,7 @@ export type ProjectListStatusFilter = 'all' | 'unset' | ProjectStatus
 
 export type ProjectListRouteState = {
   q: string
+  mine: boolean
   status: ProjectListStatusFilter
   offset: number
   archived: boolean
@@ -44,6 +46,7 @@ export function parseProjectListStatus(value: unknown): ProjectListStatusFilter 
 export function parseProjectListRoute(query: Record<string, unknown>): ProjectListRouteState {
   return {
     q: typeof query.q === 'string' ? query.q : '',
+    mine: query.mine === '1' || query.mine === 'true',
     status: parseProjectListStatus(query.status),
     offset: parseProjectListOffset(query.offset),
     archived: query.archived === '1' || query.archived === 1,
@@ -55,6 +58,7 @@ export function parseProjectListRoute(query: Record<string, unknown>): ProjectLi
 export function serializeProjectListRoute(state: ProjectListRouteState) {
   return {
     q: state.q.trim() || undefined,
+    ...(state.mine ? { mine: '1' } : {}),
     status: state.status === 'all' ? undefined : state.status,
     offset: state.offset || undefined,
     archived: state.archived ? '1' : undefined,
@@ -69,17 +73,19 @@ export function patchProjectListRoute(
 ): ProjectListRouteState {
   const next: ProjectListRouteState = {
     q: patch.q ?? current.q,
+    mine: patch.mine ?? current.mine,
     status: patch.status ?? current.status,
     offset: patch.offset ?? current.offset,
     archived: patch.archived ?? current.archived,
     sort: patch.sort ?? current.sort,
     view: patch.view ?? current.view,
   }
-  if (patch.offset === undefined && (patch.q !== undefined || patch.status !== undefined || patch.archived !== undefined || patch.sort !== undefined)) {
+  if (patch.offset === undefined && (patch.q !== undefined || patch.mine !== undefined || patch.status !== undefined || patch.archived !== undefined || patch.sort !== undefined)) {
     next.offset = 0
   }
   return {
     q: next.q,
+    mine: next.mine,
     status: parseProjectListStatus(next.status === 'all' ? undefined : next.status),
     offset: parseProjectListOffset(next.offset),
     archived: next.archived,
@@ -92,7 +98,7 @@ export function sameProjectListRoute(
   left: ReturnType<typeof serializeProjectListRoute>,
   right: ReturnType<typeof serializeProjectListRoute>,
 ) {
-  return left.q === right.q && left.status === right.status && left.offset === right.offset && left.archived === right.archived && left.sort === right.sort && left.view === right.view
+  return left.q === right.q && left.mine === right.mine && left.status === right.status && left.offset === right.offset && left.archived === right.archived && left.sort === right.sort && left.view === right.view
 }
 
 export const projectKeys = {
@@ -115,6 +121,7 @@ export function projectListQuery(archived: boolean, filters: ProjectListFilters 
   const offset = Number.isInteger(rawOffset) && rawOffset > 0 ? rawOffset : 0
   return {
     archived: archived ? 1 : undefined,
+    ...(filters.mine ? { mine: 1 } : {}),
     q: filters.q?.trim() || undefined,
     status: filters.status,
     ...(filters.sort && filters.sort !== 'default' ? { sort: filters.sort } : {}),
