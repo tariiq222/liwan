@@ -2,6 +2,7 @@
   "projects": {
     "title": "Projects",
     "description": "One workspace for project status, progress, and the next step.",
+    "myDescription": "Projects you manage",
     "empty": "No projects yet",
     "emptyHint": "Create a project to keep its tasks, milestones, and updates together.",
     "filteredEmpty": "No projects match these filters",
@@ -597,6 +598,43 @@
         "tasks": "Tasks",
         "progress": "Progress"
       }
+    },
+    "dashboard": {
+      "title": "Project statistics",
+      "description": "A live summary of project status, tasks, and budgets for the current filters.",
+      "summaryTitle": "Project summary",
+      "summaryDescription": "Metrics and totals cover every matching project, not only the current page.",
+      "projectCount": "Matching projects",
+      "attentionCount": "Needs attention",
+      "overdueCount": "Overdue tasks",
+      "statusTitle": "Project status distribution",
+      "statusDescription": "The project count and share for each status.",
+      "financeTitle": "Budget and costs",
+      "financeDescription": "Totals stay grouped by currency and are never mixed.",
+      "planned": "Planned",
+      "actual": "Actual",
+      "budgetStatus": "Budget status",
+      "overBudget": "Over budget",
+      "overBudgetProjects": "{count} of {budgeted} budgeted projects are over budget",
+      "withinBudgetKnown": "Within budget for budgeted projects ({budgeted} of {total})",
+      "withinBudget": "Within budget",
+      "remaining": "Remaining",
+      "budgetComparison": "Planned versus actual comparison",
+      "budgetCoverage": "Planned and remaining cover {budgeted} of {total} budgeted projects; actual includes all projects.",
+      "attentionTitle": "Projects needing attention",
+      "attentionDescription": "The top ten projects by overdue work, status, and budget.",
+      "overdue": "{count} overdue tasks",
+      "closedOf": "{closed} of {total} tasks closed",
+      "unknown": "Unknown",
+      "unavailable": "Unavailable",
+      "retry": "Retry",
+      "summaryError": "Could not load the project summary. You can continue with the table below.",
+      "empty": "No projects match these filters.",
+      "noStatusData": "No status data is available.",
+      "noFinanceData": "No finance data is available.",
+      "noAttention": "No projects currently need attention.",
+      "tableTitle": "Project details",
+      "tableDescription": "The full table with search, filters, and pagination."
     }
   }
 }
