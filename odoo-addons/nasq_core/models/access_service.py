@@ -19,6 +19,13 @@ PMO_PERMISSIONS = {
     'pmo.settings.manage', 'pmo.tasks.read', 'pmo.tasks.create',
     'pmo.tasks.write', 'pmo.tasks.approve',
 }
+MEETINGS_PERMISSIONS = {
+    'meetings.read', 'meetings.create', 'meetings.manage',
+}
+CAPABILITIES = frozenset(
+    SYSTEM_PERMISSIONS | HR_PERMISSIONS | PMO_PERMISSIONS | MEETINGS_PERMISSIONS,
+)
+assert len(CAPABILITIES) == 28
 
 PERMISSION_DEPENDENCIES = {
     'access.users.grant': {'access.users.read', 'access.roles.read'},
@@ -37,6 +44,8 @@ PERMISSION_DEPENDENCIES = {
     'pmo.tasks.create': {'pmo.tasks.read', 'pmo.projects.read'},
     'pmo.tasks.write': {'pmo.tasks.read'},
     'pmo.tasks.approve': {'pmo.tasks.read'},
+    'meetings.create': {'meetings.read'},
+    'meetings.manage': {'meetings.read'},
 }
 
 
@@ -76,7 +85,7 @@ class NasqAccessService(models.AbstractModel):
         user = user or self.env.user
         company = company or self.env.company
         if user._is_superuser() or user.has_group('nasq_core.group_vendor_support'):
-            return SYSTEM_PERMISSIONS | HR_PERMISSIONS | PMO_PERMISSIONS
+            return set(CAPABILITIES)
         self.env.cr.execute(
             '''
                 SELECT DISTINCT permission.key
@@ -94,7 +103,7 @@ class NasqAccessService(models.AbstractModel):
             user.has_group('nasq_core.group_access_admin')
             or user.has_group('nasq_core.group_customer_admin')
         ):
-            keys |= SYSTEM_PERMISSIONS
+            keys |= SYSTEM_PERMISSIONS | MEETINGS_PERMISSIONS
         if legacy_current and (
             user.has_group('nasq_core.group_hr_manager')
             or user.has_group('hr.group_hr_manager')
@@ -109,6 +118,7 @@ class NasqAccessService(models.AbstractModel):
             keys |= {
                 'hr.employees.read', 'hr.departments.read', 'hr.documents.read',
                 'pmo.projects.read', 'pmo.tasks.read', 'pmo.tasks.create', 'pmo.tasks.write',
+                'meetings.read',
             }
         return keys
 

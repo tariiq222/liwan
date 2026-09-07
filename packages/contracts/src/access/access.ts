@@ -28,6 +28,9 @@ export const CapabilitySchema = z.enum([
   'pmo.tasks.write',
   'pmo.tasks.approve',
   'settings.branding.manage',
+  'meetings.read',
+  'meetings.create',
+  'meetings.manage',
 ])
 export type Capability = z.infer<typeof CapabilitySchema>
 
@@ -124,7 +127,7 @@ export const RoleStateInputSchema = z.object({ expected_version: z.string().trim
 export type RoleStateInput = z.infer<typeof RoleStateInputSchema>
 export const PermissionDefinitionSchema = z.object({
   key: CapabilitySchema,
-  domain: z.enum(['access', 'hr', 'pmo', 'settings']),
+  domain: z.enum(['access', 'hr', 'pmo', 'meetings', 'settings']),
   resource: z.string(),
   action: z.string(),
   label: LocalizedLabelSchema,

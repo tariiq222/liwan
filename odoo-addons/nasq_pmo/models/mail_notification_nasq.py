@@ -12,9 +12,13 @@ class NasqMailMessage(models.Model):
             ('comment', 'Comment'),
             ('deadline', 'Deadline'),
             ('overdue_digest', 'Overdue digest'),
+            ('meeting_invite', 'Meeting invite'),
+            ('meeting_resolution', 'Meeting resolution'),
+            ('meeting_converted', 'Meeting converted'),
         ],
         string='nasq Notification Kind', copy=False, index=True,
     )
+    nasq_meeting_id = fields.Integer(copy=False, index=True)
     nasq_notification_key = fields.Char('nasq Notification Key', copy=False, index=True)
     nasq_task_id = fields.Many2one('project.task', string='nasq Task', index=True, copy=False, ondelete='cascade')
     nasq_digest_count = fields.Integer('nasq Digest Count', copy=False)

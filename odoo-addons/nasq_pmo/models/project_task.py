@@ -36,6 +36,8 @@ TASK_WRITABLE_FIELDS = {
     'stage_id', 'state', 'tag_ids', 'user_ids',
 }
 TASK_CREATE_FIELDS = TASK_WRITABLE_FIELDS | {'parent_id', 'project_id'}
+ORIGIN_FIELDS = frozenset({'meeting_id', 'resolution_id'})
+CONVERT_MARKER = 'nasq_pmo.resolution_convert_depth'
 
 
 class ProjectTask(models.Model):
@@ -47,6 +49,8 @@ class ProjectTask(models.Model):
     nasq_completion_requested_at = fields.Datetime(copy=False)
     nasq_completion_return_note = fields.Text(copy=False)
     nasq_planned_start = fields.Date(copy=False, index=True)
+    meeting_id = fields.Integer(copy=False, index=True)
+    resolution_id = fields.Integer(copy=False, index=True)
 
     @api.model
     def _nasq_template_population_domain(self):
@@ -528,7 +532,10 @@ class ProjectTask(models.Model):
         if not trusted:
             service = self.env['nasq.access.service']
             for vals in vals_list:
-                if set(vals) - TASK_CREATE_FIELDS:
+                allowed = TASK_CREATE_FIELDS
+                if self.env.cr.precommit.data.get(CONVERT_MARKER):
+                    allowed = allowed | ORIGIN_FIELDS
+                if set(vals) - allowed:
                     raise AccessError(self.env._("Task fields are not allowed."))
                 parent = self.browse(vals.get('parent_id')).exists()
                 if parent:

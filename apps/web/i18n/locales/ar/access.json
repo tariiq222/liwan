@@ -102,7 +102,7 @@
       "noDependencies": "لا توجد صلاحيات تابعة",
       "companyScope": "متاح على مستوى الشركة",
       "unknownPermission": "صلاحية غير متاحة",
-      "domains": { "access": "إدارة الوصول", "hr": "الموارد البشرية", "pmo": "المشاريع", "settings": "الإعدادات" },
+      "domains": { "access": "إدارة الوصول", "hr": "الموارد البشرية", "pmo": "المشاريع", "meetings": "الاجتماعات", "settings": "الإعدادات" },
       "clone": "نسخ",
       "builtIn": "جاهز",
       "custom": "مخصص",

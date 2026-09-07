@@ -12,6 +12,7 @@ export function hasCapability(identity: AccessIdentity, capability: string): boo
 const destinations = [
   ['/tasks', 'pmo.tasks.read'], ['/projects', 'pmo.projects.read'],
   ['/project-templates', 'pmo.projects.read'], ['/reports', 'pmo.projects.read'],
+  ['/meetings', 'meetings.read'], ['/meetings/calendar', 'meetings.read'],
   ['/hr', 'hr.employees.read'], ['/hr/departments', 'hr.departments.read'],
   ['/hr/documents', 'hr.documents.read'], ['/settings/users', 'access.users.read'],
   ['/settings/roles', 'access.roles.read'], ['/settings/access-log', 'access.audit.read'],
@@ -31,12 +32,16 @@ export function isNavPathActive(path: string, target: string): boolean {
   if (target === '/hr') return path === '/hr' || path.startsWith('/hr/employees/')
   if (target === '/hr/documents') return path === target || path.startsWith(`${target}/`) || document
   if (target === '/hr/departments' && document) return false
+  if (target === '/meetings' && path.startsWith('/meetings/calendar')) return false
+  if (target === '/meetings/calendar') return path === '/meetings/calendar'
   return path === target || path.startsWith(`${target}/`)
 }
 export function requiredCapabilityForPath(path: string): string | null {
   if (path === '/chat' || path.startsWith('/chat/')) return INTERNAL_NASQ_ACCESS
   if (/^\/project-templates\/(new|[^/]+\/edit)$/.test(path)) return 'pmo.settings.manage'
   if (path === '/notifications' || path === '/archived-tasks') return 'pmo.tasks.read'
+  if (path === '/meetings/new') return 'meetings.create'
+  if (/^\/meetings\/[^/]+\/(edit|resolutions\/new)$/.test(path)) return 'meetings.read'
   if (path === '/hr/documents/new') return 'hr.documents.manage'
   if (path === '/tasks/new' || /^\/projects\/[^/]+\/tasks\/new$/.test(path)) return 'pmo.tasks.create'
   if (path === '/projects/new') return 'pmo.projects.create'

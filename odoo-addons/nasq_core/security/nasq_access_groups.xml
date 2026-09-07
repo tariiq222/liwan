@@ -25,11 +25,10 @@
     <record id="group_cap_pmo_tasks_write" model="res.groups"><field name="name">Capability: write tasks</field><field name="privilege_id" ref="res_groups_privilege_nasq"/></record>
     <record id="group_cap_pmo_tasks_approve" model="res.groups"><field name="name">Capability: approve tasks</field><field name="privilege_id" ref="res_groups_privilege_nasq"/></record>
     <record id="group_cap_settings_branding_manage" model="res.groups"><field name="name">Capability: manage branding</field><field name="privilege_id" ref="res_groups_privilege_nasq"/></record>
+    <record id="group_cap_meetings_read" model="res.groups"><field name="name">Capability: read meetings</field><field name="privilege_id" ref="res_groups_privilege_nasq"/><field name="implied_ids" eval="[Command.link(ref('cyan_meeting_minutes.group_meeting_user'))]"/></record>
+    <record id="group_cap_meetings_create" model="res.groups"><field name="name">Capability: create meetings</field><field name="privilege_id" ref="res_groups_privilege_nasq"/></record>
+    <record id="group_cap_meetings_manage" model="res.groups"><field name="name">Capability: manage meetings</field><field name="privilege_id" ref="res_groups_privilege_nasq"/><field name="implied_ids" eval="[Command.link(ref('cyan_meeting_minutes.group_meeting_manager'))]"/></record>
 
-    <record id="group_access_admin" model="res.groups">
-        <field name="name">System Administrator</field><field name="privilege_id" ref="res_groups_privilege_nasq"/>
-        <field name="implied_ids" eval="[Command.set([ref('base.group_user'),ref('group_cap_access_users_read'),ref('group_cap_access_users_grant'),ref('group_cap_access_users_assign_roles'),ref('group_cap_access_users_disable'),ref('group_cap_access_users_reset_password'),ref('group_cap_access_roles_read'),ref('group_cap_access_roles_manage'),ref('group_cap_access_audit_read'),ref('group_cap_settings_branding_manage')])]"/>
-    </record>
     <record id="group_hr_manager" model="res.groups">
         <field name="name">HR Manager</field><field name="privilege_id" ref="res_groups_privilege_nasq"/>
         <field name="implied_ids" eval="[Command.set([ref('group_employee'),ref('group_cap_hr_employees_read'),ref('group_cap_hr_employees_manage'),ref('group_cap_hr_employees_archive'),ref('group_cap_hr_employees_access_status_read'),ref('group_cap_hr_departments_read'),ref('group_cap_hr_departments_manage'),ref('group_cap_hr_documents_read'),ref('group_cap_hr_documents_manage')])]"/>
@@ -38,12 +37,16 @@
         <field name="name">PMO Manager</field><field name="privilege_id" ref="res_groups_privilege_nasq"/>
         <field name="implied_ids" eval="[Command.set([ref('group_employee'),ref('project.group_project_manager'),ref('group_cap_pmo_projects_read'),ref('group_cap_pmo_projects_create'),ref('group_cap_pmo_projects_manage'),ref('group_cap_pmo_settings_manage'),ref('group_cap_pmo_tasks_read'),ref('group_cap_pmo_tasks_create'),ref('group_cap_pmo_tasks_write'),ref('group_cap_pmo_tasks_approve')])]"/>
     </record>
+    <record id="group_access_admin" model="res.groups">
+        <field name="name">System Administrator</field><field name="privilege_id" ref="res_groups_privilege_nasq"/>
+        <field name="implied_ids" eval="[Command.set([ref('base.group_user'),ref('group_cap_meetings_manage'),ref('group_cap_access_users_read'),ref('group_cap_access_users_grant'),ref('group_cap_access_users_assign_roles'),ref('group_cap_access_users_disable'),ref('group_cap_access_users_reset_password'),ref('group_cap_access_roles_read'),ref('group_cap_access_roles_manage'),ref('group_cap_access_audit_read'),ref('group_cap_settings_branding_manage')])]"/>
+    </record>
     <record id="group_customer_admin" model="res.groups">
         <field name="name">Legacy Customer Administrator</field>
         <field name="comment">Compatibility alias for system access administration only.</field>
         <field name="implied_ids" eval="[Command.set([ref('group_access_admin')])]"/>
     </record>
     <record id="group_vendor_support" model="res.groups">
-        <field name="implied_ids" eval="[Command.set([ref('group_customer_admin'),ref('group_hr_manager'),ref('group_pmo_manager'),ref('base.group_system')])]"/>
+        <field name="implied_ids" eval="[Command.set([ref('group_customer_admin'),ref('group_hr_manager'),ref('group_pmo_manager'),ref('group_cap_meetings_manage'),ref('base.group_system')])]"/>
     </record>
 </odoo>

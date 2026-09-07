@@ -9,7 +9,7 @@
     # project / hr: security/nasq_core_security.xml's groups imply
     # project.group_project_user + _manager and hr.group_hr_manager; res.company.font /
     # primary_color are base fields. No hr_timesheet: nasq has no time logging.
-    'depends': ['base', 'project', 'hr'],
+    'depends': ['base', 'project', 'hr', 'cyan_meeting_minutes'],
     'data': [
         'security/nasq_core_security.xml',
         'data/access_migration_pre.xml',
@@ -19,6 +19,7 @@
         'data/access_permissions.xml',
         'data/access_permission_dependencies.xml',
         'data/access_roles.xml',
+        'data/access_roles_org_admin.xml',
         'data/access_migration_post.xml',
         'data/res_company_data.xml',
         'data/res_users_data.xml',

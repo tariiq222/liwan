@@ -4,6 +4,7 @@ import { toast } from 'vue-sonner'
 import { ApiError } from '@/composables/useApi'
 import {
   isDigestNotification,
+  isMeetingNotification,
   useMarkAllNotificationsRead,
   useMarkNotificationRead,
   useNotificationsPage,
@@ -38,11 +39,14 @@ const queryErrorMessage = computed(() => (
 
 function kindLabel(item: Notification) {
   if (isDigestNotification(item)) return t('tasks.digest.kind')
+  if (isMeetingNotification(item)) return t(`meetingsUi.notify.${item.kind}`)
   return item.kind === 'comment' ? t('notifications.comment') : t(`notifications.${item.kind}`, { task: item.task_name })
 }
 
 function itemTitle(item: Notification) {
-  return isDigestNotification(item) ? t('tasks.digest.count', { n: item.overdue_count }) : item.task_name
+  if (isDigestNotification(item)) return t('tasks.digest.count', { n: item.overdue_count })
+  if (isMeetingNotification(item)) return item.meeting_name
+  return item.task_name
 }
 
 async function openNotification(item: Notification) {
@@ -51,6 +55,7 @@ async function openNotification(item: Notification) {
   try {
     await markRead(item.id)
     if (isDigestNotification(item)) await navigateTo(`/notification-digests/${item.id}`)
+    else if (isMeetingNotification(item)) await navigateTo(`/meetings/${item.meeting_id}`)
     else await navigateTo(`/tasks/${item.task_id}`)
   } catch (error) {
     toast.error(error instanceof ApiError ? error.message : t('errors.generic'))

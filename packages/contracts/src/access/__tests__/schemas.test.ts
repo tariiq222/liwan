@@ -51,6 +51,9 @@ const CAPABILITIES = [
   'pmo.tasks.write',
   'pmo.tasks.approve',
   'settings.branding.manage',
+  'meetings.read',
+  'meetings.create',
+  'meetings.manage',
 ] as const
 
 const COMPANY = { kind: 'company' as const, id: 1, name: 'شركة المثال' }
@@ -102,7 +105,7 @@ const AUDIT_SUMMARY = {
 describe('access capability and reference schemas', () => {
   it('exposes exactly the frozen capability catalog', () => {
     expect(CapabilitySchema.options).toEqual(CAPABILITIES)
-    expect(CapabilitySchema.options).toHaveLength(25)
+    expect(CapabilitySchema.options).toHaveLength(28)
   })
 
   it('accepts company scopes and rejects contextual project scopes for writes', () => {

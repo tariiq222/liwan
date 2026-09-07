@@ -43,7 +43,9 @@
     "humanResources": "Human resources",
     "systemAdministration": "System administration",
     "toggleSidebar": "Toggle navigation",
-    "chat": "Chat"
+    "chat": "Chat",
+    "meetings": "Meetings",
+    "meetingCalendar": "Calendar"
   },
   "auth": {
     "username": "Username",
@@ -90,7 +92,56 @@
   "pages": {
     "projects": "Projects",
     "people": "People",
-    "reports": "Reports"
+    "reports": "Reports",
+    "meetings": "Meetings"
+  },
+  "meetingsUi": {
+    "new": "New meeting",
+    "search": "Search meetings",
+    "title": "Meeting title",
+    "empty": "No meetings visible to you.",
+    "organizer": "Organizer",
+    "date": "Date",
+    "location": "Location",
+    "attendees": "Attendees",
+    "agenda": "Agenda",
+    "minutes": "Minutes",
+    "edit": "Edit meeting",
+    "start": "Start",
+    "end": "End",
+    "url": "Meeting link",
+    "secretary": "Secretary",
+    "resolutions": "Recommendations",
+    "newResolution": "New recommendation",
+    "responsible": "Responsible",
+    "deadline": "Deadline",
+    "priority": "Priority",
+    "convert": "Convert to task",
+    "project": "Project",
+    "openTask": "Open task",
+    "notify": {
+      "meeting_invite": "Meeting invitation",
+      "meeting_resolution": "Recommendation assigned to you",
+      "meeting_converted": "Converted to a task"
+    },
+    "priorityLabel": {
+      "0": "Normal",
+      "1": "Important",
+      "2": "Very important",
+      "3": "Urgent"
+    },
+    "resolutionState": {
+      "open": "Open",
+      "in_progress": "In progress",
+      "done": "Done",
+      "cancelled": "Cancelled"
+    },
+    "state": {
+      "draft": "Draft",
+      "confirmed": "Confirmed",
+      "done": "Completed",
+      "cancelled": "Cancelled"
+    }
   },
   "search": {
     "description": "Search pages, projects and tasks…",
