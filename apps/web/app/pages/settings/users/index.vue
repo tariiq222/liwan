@@ -4,10 +4,11 @@ import SettingsLayout from '@/components/settings/SettingsLayout.vue'
 import { useAdminUsers, type AdminUserListParams } from '@/composables/useAdminUsers'
 import { useAdminRoles } from '@/composables/useAdminRoles'
 import { useHrDepartments } from '@/composables/useHrDepartments'
+import { ADMIN_PAGE_SIZE, adminListQuery, adminQueryWithOffset, parseAdminOffset } from '@/composables/adminSettingsPaths'
 
 const route = useRoute()
 const router = useRouter()
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const { can } = useAccess()
 const hydrated = useHydrated()
 const forbidden = computed(() => !can('access.users.read'))
@@ -16,8 +17,8 @@ const filters = reactive<AdminUserListParams>({
   status: route.query.status === 'stopped' ? 'stopped' : route.query.status === 'active' ? 'active' : undefined,
   role_id: route.query.role_id ? Number(route.query.role_id) : undefined,
   department_id: route.query.department_id ? Number(route.query.department_id) : undefined,
-  limit: 25,
-  offset: route.query.offset ? Number(route.query.offset) : 0,
+  limit: ADMIN_PAGE_SIZE,
+  offset: parseAdminOffset(route.query.offset),
 })
 const query = useAdminUsers(filters, computed(() => !forbidden.value))
 const roles = useAdminRoles({}, computed(() => !forbidden.value && can('access.roles.read')))
@@ -34,7 +35,7 @@ function updateFilters() {
     ...(filters.department_id ? { department_id: filters.department_id } : {}),
   } })
 }
-function syncPage() { void router.replace({ query: { ...route.query, ...(filters.offset ? { offset: filters.offset } : {}) } }) }
+function syncPage() { void router.replace({ query: adminQueryWithOffset(route.query, filters.offset ?? 0) }) }
 function previousPage() { if (hydrated.value) { filters.offset = Math.max(0, (filters.offset ?? 0) - (filters.limit ?? 25)); syncPage() } }
 function nextPage() { if (hydrated.value && page.value < pages.value) { filters.offset = (filters.offset ?? 0) + (filters.limit ?? 25); syncPage() } }
 watch(() => [route.query.q, route.query.status, route.query.role_id, route.query.department_id, route.query.offset], ([q, status, roleId, departmentId, offset]) => {
@@ -42,15 +43,16 @@ watch(() => [route.query.q, route.query.status, route.query.role_id, route.query
   filters.status = status === 'stopped' ? 'stopped' : status === 'active' ? 'active' : undefined
   filters.role_id = roleId ? Number(roleId) : undefined
   filters.department_id = departmentId ? Number(departmentId) : undefined
-  filters.offset = offset ? Number(offset) : 0
+  filters.offset = parseAdminOffset(offset)
 })
-function openUser(id: number) { void navigateTo({ path: `/settings/users/${id}`, query: route.query }) }
+const listQuery = computed(() => adminListQuery(route.query, ['q', 'status', 'role_id', 'department_id', 'offset']))
+function openUser(id: number) { void navigateTo({ path: `/settings/users/${id}`, query: listQuery.value }) }
 </script>
 
 <template>
   <SettingsLayout><div class="nasq-page-stack">
     <SharedPageHeader :title="t('access.users.title')" :description="t('access.users.description')">
-      <Button v-if="can('access.users.grant')" :disabled="!hydrated" @click="navigateTo('/settings/users/new')">{{ t('access.users.grantAccount') }}</Button>
+      <Button v-if="can('access.users.grant')" :disabled="!hydrated" @click="navigateTo({ path: '/settings/users/new', query: listQuery })">{{ t('access.users.grantAccount') }}</Button>
     </SharedPageHeader>
     <SharedPageState v-if="forbidden" :empty="true" :empty-text="t('access.forbidden')" />
     <template v-else>
@@ -61,7 +63,7 @@ function openUser(id: number) { void navigateTo({ path: `/settings/users/${id}`,
           <option value="active">{{ t('access.active') }}</option>
           <option value="stopped">{{ t('access.disabled') }}</option>
         </select></label>
-        <label class="nasq-settings-field"><span>{{ t('access.users.role') }}</span><select v-model="filters.role_id" class="h-[40px] rounded-lg border border-input bg-background px-3 text-sm" :disabled="!hydrated" @change="updateFilters"><option :value="undefined">{{ t('access.users.filters.allRoles') }}</option><option v-for="role in roles.data.value?.items ?? []" :key="role.id" :value="role.id">{{ role.name.ar }}</option></select></label>
+        <label class="nasq-settings-field"><span>{{ t('access.users.role') }}</span><select v-model="filters.role_id" class="h-[40px] rounded-lg border border-input bg-background px-3 text-sm" :disabled="!hydrated" @change="updateFilters"><option :value="undefined">{{ t('access.users.filters.allRoles') }}</option><option v-for="role in roles.data.value?.items ?? []" :key="role.id" :value="role.id">{{ role.name[locale === 'ar' ? 'ar' : 'en'] ?? role.name.ar }}</option></select></label>
         <label class="nasq-settings-field"><span>{{ t('nav.departments') }}</span><select v-model="filters.department_id" class="h-[40px] rounded-lg border border-input bg-background px-3 text-sm" :disabled="!hydrated || !can('hr.departments.read')" @change="updateFilters"><option :value="undefined">{{ t('access.users.filters.allDepartments') }}</option><option v-for="department in departments.data.value?.items ?? []" :key="department.id" :value="department.id">{{ department.name }}</option></select></label>
         <div class="nasq-settings-filter-actions"><Button variant="outline" :disabled="!hydrated" @click="filters.q = ''; filters.status = undefined; filters.role_id = undefined; filters.department_id = undefined; updateFilters()">{{ t('access.clearFilters') }}</Button></div>
       </div>

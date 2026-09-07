@@ -84,6 +84,8 @@
       "confirmAction": "Confirm",
       "assignedUsers": "Users assigned to this role",
       "noAssignedUsers": "No users are assigned to this role.",
+      "assignedUsersCount": "This role is assigned to {count} users. View the complete filtered list.",
+      "viewAllAssignedUsers": "View all assigned users",
       "navigation": "Role sections",
       "changes": "Change log",
       "createTitle": "Create custom role",

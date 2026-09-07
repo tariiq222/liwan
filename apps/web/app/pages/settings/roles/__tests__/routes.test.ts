@@ -21,4 +21,11 @@ describe('settings roles routes', () => {
     expect(sources).toMatch(/access\.roles\.read|access\.roles\.manage/)
     expect(sources).toMatch(/expected_version|conflict|current_version|reload/i)
   })
+
+  it('exposes a complete role assignment path when the first page is truncated', () => {
+    const source = readFileSync(join(import.meta.dirname, '..', '[roleId]/index.vue'), 'utf8')
+    expect(source).toContain('limit: ADMIN_PAGE_SIZE')
+    expect(source).toContain('assignedUsers.data.value.total > assignedUsers.data.value.items.length')
+    expect(source).toContain("path: '/settings/users'")
+  })
 })

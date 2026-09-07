@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/vue-query'
 import { ProjectRefSchema } from '@nasq/contracts'
 import { safeReturnTo } from '@/utils/safeReturnTo'
 import { firstAllowedPath } from '@/utils/accessPolicy'
+import { findSearchShortcut } from '@/composables/searchKeyboard'
 const { t } = useI18n()
 const { me } = useMe()
 const { can } = useAccess()
@@ -26,8 +27,7 @@ onMounted(async () => {
   document.getElementById('navigation-search')?.focus()
 })
 useEventListener('keydown', (event: KeyboardEvent) => {
-  if (event.metaKey || event.ctrlKey || event.altKey || query.value) return
-  const item = available.value.find(item => item.shortcut === event.key)
+  const item = findSearchShortcut(event, query.value, available.value)
   if (!item) return
   event.preventDefault()
   if (item.to === '/odoo') window.open(item.to, '_blank', 'noopener')

@@ -28,4 +28,18 @@ describe('access locale contract', () => {
       expect(hasPath(en, path), `English access locale missing ${path}`).toBe(true)
     }
   })
+
+  it('selects the active locale with Arabic fallback in access role surfaces', () => {
+    const sources = [
+      join(import.meta.dirname, '../roles/RoleTable.vue'),
+      join(import.meta.dirname, '../users/UserTable.vue'),
+      join(import.meta.dirname, '../users/UserAccessForm.vue'),
+      join(import.meta.dirname, '../../../pages/settings/users/index.vue'),
+      join(import.meta.dirname, '../../../pages/settings/roles/index.vue'),
+      join(import.meta.dirname, '../../../pages/settings/roles/[roleId]/index.vue'),
+      join(import.meta.dirname, '../../../pages/settings/access-log/index.vue'),
+    ].map((path) => readFileSync(path, 'utf8')).join('\n')
+    expect(sources).toContain("locale.value === 'ar' ? 'ar' : 'en'")
+    expect(sources).toContain("?? role.name.ar")
+  })
 })
