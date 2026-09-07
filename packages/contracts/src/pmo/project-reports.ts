@@ -22,8 +22,15 @@ export const ProjectDashboardSummarySchema = z.object({
   totals: z.array(ProjectReportTotalsSchema),
   attention: z.array(ProjectReportRowSchema),
 }).strict()
+export const ProjectDashboardAnalyticsSchema = ProjectDashboardSummarySchema.extend({
+  projects: z.array(ProjectReportRowSchema),
+  recent_projects: z.array(
+    ProjectReportRowSchema.extend({ updated_at: z.string().datetime().nullable() }).strict(),
+  ).max(5),
+}).strict()
 export type ProjectReportRow = z.infer<typeof ProjectReportRowSchema>
 export type ProjectReportTotals = z.infer<typeof ProjectReportTotalsSchema>
 export type ProjectReportList = z.infer<typeof ProjectReportListSchema>
 export type ProjectDashboardStatusCount = z.infer<typeof ProjectDashboardStatusCountSchema>
 export type ProjectDashboardSummary = z.infer<typeof ProjectDashboardSummarySchema>
+export type ProjectDashboardAnalytics = z.infer<typeof ProjectDashboardAnalyticsSchema>
