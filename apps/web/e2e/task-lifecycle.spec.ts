@@ -73,7 +73,7 @@ test('a creator can restore an archived task from the dedicated page', async ({ 
   expect((await archivedAgain.json()).items.some((task) => task.id === taskId)).toBeFalsy()
   await page.reload()
   await expect(page.getByText(`E2E archived task ${stamp}`)).toHaveCount(0)
-  await page.getByRole('button', { name: 'عودة', exact: true }).click()
+  await page.getByRole('link', { name: 'عودة', exact: true }).click()
   await expect.poll(() => new URL(page.url()).pathname + new URL(page.url()).search).toBe(returnTo)
 })
 
