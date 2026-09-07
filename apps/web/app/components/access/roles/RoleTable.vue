@@ -4,8 +4,9 @@ import AccessStateBadge from '@/components/access/AccessStateBadge.vue'
 
 defineProps<{ roles: RoleSummary[]; canManage?: boolean }>()
 defineEmits<{ open: [id: number]; clone: [id: number] }>()
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const hydrated = useHydrated()
+const roleLabel = (role: { name: { ar: string; en: string | null } }) => role.name[locale.value === 'ar' ? 'ar' : 'en'] ?? role.name.ar
 </script>
 
 <template>
@@ -24,7 +25,7 @@ const hydrated = useHydrated()
         </TableHeader>
         <TableBody>
           <TableRow v-for="role in roles" :key="role.id">
-            <TableCell class="font-medium">{{ role.name.ar }}</TableCell>
+            <TableCell class="font-medium">{{ roleLabel(role) }}</TableCell>
             <TableCell class="max-w-xs whitespace-normal">{{ role.description }}</TableCell>
             <TableCell>{{ role.type === 'built_in' ? t('access.roles.builtIn') : t('access.roles.custom') }}</TableCell>
             <TableCell>{{ role.user_count }}</TableCell>

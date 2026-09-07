@@ -19,11 +19,11 @@ const companyId = computed(() => me.value?.company.id ?? null)
 const canEdit = computed(() => hydrated.value && companyId.value !== null && props.user.allowed_actions.includes('assign_roles') && !props.user.protected)
 const permissionLabels = computed(() => new Map<string, string>((props.permissions ?? []).map((permission) => [permission.key, permission.label[locale.value === 'ar' ? 'ar' : 'en'] ?? permission.label.ar])))
 const capabilityLabel = (key: string) => permissionLabels.value.get(key) ?? t('access.roles.unknownPermission')
-const roleLabel = (role: RoleSummary) => role.name[locale.value === 'ar' ? 'ar' : 'en'] ?? role.name.ar
+const roleLabel = (role: { name: { ar: string; en: string | null } }) => role.name[locale.value === 'ar' ? 'ar' : 'en'] ?? role.name.ar
 const currentCapabilities = computed(() => props.user.capabilities.map((capability) => ({
   key: capability.key,
   label: capabilityLabel(capability.key),
-  sources: capability.sources.map((source) => source.role.name[locale.value === 'ar' ? 'ar' : 'en'] ?? source.role.name.ar).join('، '),
+  sources: capability.sources.map((source) => roleLabel(source.role)).join('، '),
 })))
 const originalRoleIds = computed(() => props.user.assignments.map((assignment) => assignment.role.id).filter((id): id is number => id !== null))
 const previewRoleIds = computed(() => [...new Set([...originalRoleIds.value, ...selectedRoleIds.value])])

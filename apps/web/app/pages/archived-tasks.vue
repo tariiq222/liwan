@@ -71,6 +71,7 @@ function restoreTask(task: Task) {
           </Button>
         </div>
       </div>
+      </div>
     </SharedPageState>
   </SharedPageContainer>
 </template>
