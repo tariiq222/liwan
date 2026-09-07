@@ -44,7 +44,7 @@ class TestNasqAccessModels(TransactionCase):
             'employee', 'pmo_manager', 'hr_manager', 'system_admin', 'vendor_support',
         })
         self.assertEqual(by_key['system_admin'] & {'hr.employees.manage', 'pmo.projects.manage'}, set())
-        self.assertTrue(MEETINGS <= by_key['system_admin'])
+        self.assertTrue(by_key['system_admin'] >= MEETINGS)
         self.assertIn('hr.employees.manage', by_key['hr_manager'])
         self.assertNotIn('access.users.assign_roles', by_key['hr_manager'])
         self.assertIn('pmo.projects.manage', by_key['pmo_manager'])
