@@ -165,11 +165,11 @@ function clearFilters() {
       </div>
       </template>
       <template #default>
-      <Button v-if="canArchive" variant="outline" :disabled="!hydrated" @click="archived = !archived; updateQuery()">
+      <Button v-if="canArchive" variant="outline" size="sm" :disabled="!hydrated" @click="archived = !archived; updateQuery()">
         {{ archived ? t('hr.directory.showActive') : t('hr.directory.showArchived') }}
       </Button>
       <Select v-if="can('hr.departments.read')" :model-value="departmentId ? String(departmentId) : 'all'" @update:model-value="onDepartmentChange">
-        <SelectTrigger class="w-48" :disabled="!hydrated">
+        <SelectTrigger size="sm" class="w-48" :disabled="!hydrated">
           <SelectValue :placeholder="t('hr.directory.allDepartments')" />
         </SelectTrigger>
         <SelectContent>
