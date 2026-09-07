@@ -25,6 +25,7 @@
       "open": "Open",
       "closed": "Done",
       "allStates": "All states",
+      "selectedStates": "{count} states",
       "allProjects": "All projects",
       "search": "Search titles…",
       "searchValue": "Search: {value}",

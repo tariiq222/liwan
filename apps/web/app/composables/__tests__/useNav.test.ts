@@ -49,6 +49,10 @@ describe('shell route classification', () => {
     expect(activeShellModule('/archived-tasks')).toBe('tasks')
     expect(activeShellModule('/meetings/calendar')).toBe('meetings')
     expect(activeShellModule('/settings/users/18/access')).toBe('settings')
+    expect(activeShellModule('/search')).toBe('projects')
+    expect(activeShellModule('/notifications')).toBeNull()
+    expect(activeShellModule('/notification-digests')).toBeNull()
+    expect(activeShellModule('/notification-digests/12')).toBeNull()
   })
 
   it('maps every project area to one contextual section', () => {
@@ -60,6 +64,13 @@ describe('shell route classification', () => {
     expect(projectContextId('/projects/12/finance', {})).toBe('finance')
     expect(projectContextId('/projects/12/charter', {})).toBe('charter')
     expect(projectContextId('/projects/12/settings', {})).toBe('settings')
+  })
+
+  it('gates and pins meeting and chat creation links', () => {
+    const internal = { capabilities: ['nasq.internal', 'meetings.read', 'meetings.create'] }
+    expect(contextLinksForModule('meetings', internal)[0]).toMatchObject({ id: 'new-meeting', pinned: true, capability: 'meetings.create' })
+    expect(contextLinksForModule('meetings', employee).some(link => link.id === 'new-meeting')).toBe(false)
+    expect(contextLinksForModule('chat', internal)[0]).toMatchObject({ id: 'new-chat', pinned: true, capability: 'nasq.internal' })
   })
 })
 

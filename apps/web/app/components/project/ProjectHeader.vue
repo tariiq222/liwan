@@ -43,7 +43,7 @@ async function doUnarchive() {
 <template>
   <SharedPageHeader
     :title="props.title ?? project.name"
-    :back-to="props.backTo ?? '/projects'"
+    :back-to="props.backTo"
     :back-label="t('projects.backToProjects')"
   >
     <template #actions>
@@ -75,20 +75,18 @@ async function doUnarchive() {
       <template v-if="project.can_manage">
         <Button
           variant="outline"
-          size="icon"
-          class="size-[32px] rounded-lg"
+          class="gap-2"
           data-testid="project-header-settings"
           :disabled="!hydrated"
           :aria-label="t('projects.menu.settings')"
           :title="t('projects.menu.settings')"
           @click="emit('settings')"
         >
-          <Settings class="size-[18px]" />
+          <Settings class="size-[18px]" />{{ t('projects.menu.settings') }}
         </Button>
         <Button
           variant="outline"
-          size="icon"
-          class="size-[32px] rounded-lg"
+          class="gap-2"
           data-testid="project-header-archive"
           :disabled="!hydrated || archiving || unarchiving"
           :aria-label="t(project.active ? 'projects.menu.archive' : 'projects.menu.unarchive')"
@@ -97,6 +95,7 @@ async function doUnarchive() {
         >
           <Archive v-if="project.active" class="size-[18px]" />
           <ArchiveRestore v-else class="size-[18px]" />
+          {{ t(project.active ? 'projects.menu.archive' : 'projects.menu.unarchive') }}
         </Button>
       </template>
     </template>

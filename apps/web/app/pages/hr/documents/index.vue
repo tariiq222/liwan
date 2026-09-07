@@ -73,11 +73,22 @@ function setPage(next: number) {
 
 <template>
   <SharedPageContainer width="list">
-    <SharedPageHeader :title="t('hr.docs.title')" :back-to="'/hr'" />
+    <SharedPageHeader :title="t('hr.docs.title')" :back-to="'/hr'">
+      <template #actions>
+        <NuxtLink
+          v-if="can('hr.documents.manage')"
+          :to="{ path: '/hr/documents/new', query: { ...returnToQuery(route.fullPath), department_id: departmentId } }"
+        >
+          <Button :disabled="!hydrated" class="gap-2">
+            <Plus class="size-[18px]" />{{ t('hr.docs.new') }}
+          </Button>
+        </NuxtLink>
+      </template>
+    </SharedPageHeader>
     <div class="nasq-toolbar" data-testid="documents-toolbar">
       <FilterBar class="w-full">
         <template #search>
-          <div class="relative min-w-52 flex-1">
+          <div class="relative min-w-52">
             <Search class="pointer-events-none absolute start-2 top-1/2 size-[18px] -translate-y-1/2 text-muted-foreground" />
             <Input
               v-model="search"
@@ -105,14 +116,6 @@ function setPage(next: number) {
               </SelectItem>
             </SelectContent>
           </Select>
-          <NuxtLink
-            v-if="can('hr.documents.manage')"
-            :to="{ path: '/hr/documents/new', query: { ...returnToQuery(route.fullPath), department_id: departmentId } }"
-          >
-            <Button :disabled="!hydrated" class="gap-2">
-              <Plus class="size-[18px]" />{{ t('hr.docs.new') }}
-            </Button>
-          </NuxtLink>
         </template>
         <template #active>
           <div v-if="hasActiveFilters" class="flex flex-wrap items-center gap-2">

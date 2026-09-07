@@ -65,6 +65,8 @@
     "meetingCalendar": "Calendar",
     "projectDashboard": "Project dashboard",
     "newProject": "New project",
+    "newMeeting": "New meeting",
+    "newConversation": "New conversation",
     "allProjects": "All projects",
     "myProjects": "My projects"
   },
@@ -119,6 +121,9 @@
   "meetingsUi": {
     "new": "New meeting",
     "search": "Search meetings",
+    "searchValue": "Search: {value}",
+    "clear": "Clear filters",
+    "pageOf": "Page {page} of {pages}",
     "title": "Meeting title",
     "empty": "No meetings visible to you.",
     "organizer": "Organizer",

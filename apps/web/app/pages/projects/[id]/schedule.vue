@@ -25,7 +25,7 @@ function retry() { void Promise.all([refetchProject(), refetch()]) }
 <template>
   <SharedPageContainer v-if="isBaseRoute" width="list">
     <SharedPageHeader
-      :title="t('projects.schedule.title')"
+      :title="t('nav.projectPlanning')"
       :description="t('projects.schedule.timeline')"
       :back-to="returnTo"
       :back-label="t('projects.backToProject')"

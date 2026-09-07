@@ -146,7 +146,22 @@ function financeChildKey(target: { path: string; params: Record<string, string |
       :description="t('projects.finance.description')"
       :back-to="returnTo"
       :back-label="t('projects.backToProject')"
-    />
+    >
+      <template #actions>
+        <template v-if="canManage && projectId">
+          <NuxtLink :to="{ path: `/projects/${projectId}/finance/new`, query: newQuery('budget') }" @click="!hydrated && $event.preventDefault()">
+            <Button :disabled="!hydrated" class="gap-2">
+              <Plus class="size-[18px]" />{{ t('projects.finance.newBudget') }}
+            </Button>
+          </NuxtLink>
+          <NuxtLink :to="{ path: `/projects/${projectId}/finance/new`, query: newQuery('expense') }" @click="!hydrated && $event.preventDefault()">
+            <Button variant="outline" :disabled="!hydrated" class="gap-2">
+              <Plus class="size-[18px]" />{{ t('projects.finance.newExpense') }}
+            </Button>
+          </NuxtLink>
+        </template>
+      </template>
+    </SharedPageHeader>
     <template v-if="projectId === null">
       <p class="text-muted-foreground">{{ t('projects.invalidId') }}</p>
     </template>
@@ -165,25 +180,15 @@ function financeChildKey(target: { path: string; params: Record<string, string |
             <template #search>
               <Input v-model="search" :disabled="!hydrated" :placeholder="t('projects.finance.search')" :aria-label="t('projects.finance.search')" data-testid="finance-search" class="min-w-52" />
             </template>
-            <Tabs :model-value="filters.kind" data-testid="finance-kind-filter" @update:model-value="onKindChange">
-              <TabsList>
-                <TabsTrigger value="all" :disabled="!hydrated">{{ t('projects.finance.kind.all') }}</TabsTrigger>
-                <TabsTrigger value="budget" :disabled="!hydrated">{{ t('projects.finance.kind.budget') }}</TabsTrigger>
-                <TabsTrigger value="expense" :disabled="!hydrated">{{ t('projects.finance.kind.expense') }}</TabsTrigger>
-              </TabsList>
-            </Tabs>
-            <div v-if="canManage && projectId" class="flex gap-2">
-              <NuxtLink :to="{ path: `/projects/${projectId}/finance/new`, query: newQuery('budget') }" @click="!hydrated && $event.preventDefault()">
-                <Button size="icon" :disabled="!hydrated" :aria-label="t('projects.finance.newBudget')">
-                  <Plus class="size-4" />
-                </Button>
-              </NuxtLink>
-              <NuxtLink :to="{ path: `/projects/${projectId}/finance/new`, query: newQuery('expense') }" @click="!hydrated && $event.preventDefault()">
-                <Button variant="outline" size="icon" :disabled="!hydrated" :aria-label="t('projects.finance.newExpense')">
-                  <Plus class="size-4" />
-                </Button>
-              </NuxtLink>
-            </div>
+            <template #view>
+              <Tabs :model-value="filters.kind" data-testid="finance-kind-filter" @update:model-value="onKindChange">
+                <TabsList>
+                  <TabsTrigger value="all" :disabled="!hydrated">{{ t('projects.finance.kind.all') }}</TabsTrigger>
+                  <TabsTrigger value="budget" :disabled="!hydrated">{{ t('projects.finance.kind.budget') }}</TabsTrigger>
+                  <TabsTrigger value="expense" :disabled="!hydrated">{{ t('projects.finance.kind.expense') }}</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </template>
           </FilterBar>
         </div>
         <FinanceEntryTable

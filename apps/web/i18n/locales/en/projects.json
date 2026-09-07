@@ -416,6 +416,9 @@
     },
     "governance": {
       "stakeholders": "Stakeholders",
+      "newStakeholder": "New stakeholder",
+      "viewList": "List",
+      "viewMatrix": "Matrix",
       "stakeholder": {
         "name": "Name",
         "organization": "Organization",

@@ -8,7 +8,6 @@ import ProjectOverviewTasks from '@/components/project/ProjectOverviewTasks.vue'
 import ProjectProgress from '@/components/project/ProjectProgress.vue'
 import ProjectStatusBadge from '@/components/project/ProjectStatusBadge.vue'
 import ProjectStatusSelect from '@/components/project/ProjectStatusSelect.vue'
-import ProjectUpdateList from '@/components/project/ProjectUpdateList.vue'
 import TaskBoard from '@/components/task/TaskBoard.vue'
 import TaskTable from '@/components/task/TaskTable.vue'
 import TaskToolbar from '@/components/task/TaskToolbar.vue'
@@ -23,14 +22,8 @@ const route = useRoute()
 const router = useRouter()
 const { t, locale } = useI18n()
 const { can } = useAccess()
-const hydrated = useHydrated()
 const normalizedPath = computed(() => route.path.replace(/\/+$/, '') || '/')
 const isBaseRoute = computed(() => normalizedPath.value === `/projects/${route.params.id}`)
-const workspaceSection = computed(() => {
-  if (route.query.tab === 'list' || route.query.tab === 'board') return 'tasks'
-  if (isProjectTab(route.query.tab)) return route.query.tab
-  return 'overview'
-})
 
 const projectId = computed(() => {
   const n = Number(route.params.id)
@@ -39,15 +32,18 @@ const projectId = computed(() => {
 const { data: project, isLoading, error, refetch } = useProject(projectId)
 const notFound = computed(() => projectId.value === null || (error.value instanceof ApiError && (error.value.status === 404 || error.value.status === 403)))
 
-const TABS = ['overview', 'tasks', 'milestones', 'updates'] as const
+const TABS = ['overview', 'tasks', 'milestones'] as const
 type ProjectTab = (typeof TABS)[number]
 function isProjectTab(value: unknown): value is ProjectTab {
   return typeof value === 'string' && (TABS as readonly string[]).includes(value)
 }
 const tab = computed<ProjectTab>(() => {
   if (route.query.tab === 'list' || route.query.tab === 'board') return 'tasks'
+  if (route.query.tab === 'updates') return 'overview'
   return isProjectTab(route.query.tab) ? route.query.tab : 'overview'
 })
+const headerTitle = computed(() => tab.value === 'tasks' || tab.value === 'milestones' ? t('nav.projectPlanning') : t('nav.projectSummary'))
+const workspaceSection = computed(() => tab.value)
 const taskView = computed<'table' | 'board'>(() => route.query.view === 'board' || route.query.tab === 'board' ? 'board' : 'table')
 
 function onTaskViewChange(next: 'table' | 'board') {
@@ -120,9 +116,8 @@ const showWorkspaceCreate = computed(() => ['tasks', 'milestones', 'stakeholders
       <ProjectHeader
         v-if="project"
         :project="project"
-        :title="t(`projects.tabs.${tab}`)"
+        :title="headerTitle"
         :can-create="tab === 'milestones' ? project.can_manage : can('pmo.tasks.create')"
-        :back-to="projectReturnTo"
         :show-create="showWorkspaceCreate"
         :create-label="workspaceCreateLabel"
         @create="onWorkspaceCreate"
@@ -167,18 +162,13 @@ const showWorkspaceCreate = computed(() => ['tasks', 'milestones', 'stakeholders
             <h2 class="text-base font-semibold">{{ t('projects.tabs.tasks') }}</h2>
             <NuxtLink :to="{ path: '/archived-tasks', query: { project_id: project.id, ...returnToQuery(route.fullPath) } }" class="text-sm text-muted-foreground underline underline-offset-4">{{ t('taskLifecycle.archivedTasks') }}</NuxtLink>
           </div>
-          <TaskToolbar :model-value="params" :view="taskView" embedded hide-project-filter hide-create @update:model-value="onParams" @update:view="onTaskViewChange" @create="openTaskCreate" />
+          <TaskToolbar :model-value="params" :view="taskView" embedded hide-project-filter @update:model-value="onParams" @update:view="onTaskViewChange" />
           <TaskTable v-if="taskView === 'table'" :params="params" variant="project" embedded @open="openTask" @create="openTaskCreate" />
           <TaskBoard v-else :params="params" :stage-source="stageSource" embedded @open="openTask" />
         </section>
 
         <div v-if="isBaseRoute && project && tab === 'milestones'" class="nasq-detail-grid">
           <MilestoneTable :project-id="project.id" :can-manage="project.can_manage" />
-          <ProjectMetadataRail :project="project" />
-        </div>
-
-        <div v-if="isBaseRoute && project && tab === 'updates'" class="nasq-detail-grid">
-          <ProjectUpdateList :project-id="project.id" :can-manage="project.can_manage" />
           <ProjectMetadataRail :project="project" />
         </div>
       </div>

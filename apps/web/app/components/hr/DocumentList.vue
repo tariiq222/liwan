@@ -55,7 +55,7 @@ function detailsTo(document: HrDocument) {
             <Input v-model="search" :disabled="!hydrated" :placeholder="t('hr.docs.search')" class="ps-8" @change="updateSearch" />
           </div>
         </template>
-        <template #default>
+        <template #actions>
           <NuxtLink v-if="canWriteAllowed" :to="{ path: `/hr/departments/${props.departmentId}/documents/new`, query: returnToQuery(route.fullPath) }">
             <Button :disabled="!hydrated" class="gap-2"><Plus class="size-[18px]" />{{ t('hr.docs.new') }}</Button>
           </NuxtLink>

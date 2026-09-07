@@ -416,6 +416,9 @@
     },
     "governance": {
       "stakeholders": "أصحاب المصلحة",
+      "newStakeholder": "صاحب مصلحة جديد",
+      "viewList": "قائمة",
+      "viewMatrix": "مصفوفة",
       "stakeholder": {
         "name": "الاسم",
         "organization": "الجهة",

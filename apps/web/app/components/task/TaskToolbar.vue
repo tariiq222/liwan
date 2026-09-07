@@ -1,22 +1,15 @@
 <script setup lang="ts">
 import type { TaskState } from '@nasq/contracts'
-import { LayoutGrid, List, Plus, Search, X } from '@lucide/vue'
+import { LayoutGrid, List, Search, X } from '@lucide/vue'
 import { refDebounced } from '@vueuse/core'
 import type { TaskListParams } from '@/composables/useTasks'
 import { STATE_LABEL_KEY } from '@/composables/taskState'
 import { useProjects } from '@/composables/useProjects'
 import FilterBar from '@/components/shared/FilterBar.vue'
 
-const props = defineProps<{ modelValue: TaskListParams; hideProjectFilter?: boolean; hideCreate?: boolean; view?: 'table' | 'board'; embedded?: boolean }>()
-const emit = defineEmits<{ 'update:modelValue': [TaskListParams]; 'update:view': ['table' | 'board']; create: [] }>()
+const props = defineProps<{ modelValue: TaskListParams; hideProjectFilter?: boolean; view?: 'table' | 'board'; embedded?: boolean }>()
+const emit = defineEmits<{ 'update:modelValue': [TaskListParams]; 'update:view': ['table' | 'board'] }>()
 const { t } = useI18n()
-const { can } = useAccess()
-// Every control below is SSR-rendered and visible/clickable before Nuxt
-// hydrates and attaches its listeners; an interaction in that window is
-// silently dropped (see useHydrated()). Disable them all until hydration
-// completes — the tab triggers, the state/project filter triggers, the
-// search input, and the "new task" button all have JS listeners and are
-// racy in the exact same way.
 const hydrated = useHydrated()
 
 const { data: projects } = useProjects()
@@ -28,6 +21,12 @@ function patch(changes: Partial<TaskListParams>) {
 }
 
 const selectedStates = computed(() => props.modelValue.state ?? [])
+const stateFilterLabel = computed(() => {
+  const states = selectedStates.value
+  if (states.length === 1) return t(STATE_LABEL_KEY[states[0]!])
+  if (states.length > 1) return t('tasks.filters.selectedStates', { count: states.length })
+  return t('tasks.filters.allStates')
+})
 const selectedProject = computed(() => (projects.value ?? []).find((project) => project.id === props.modelValue.project_id) ?? null)
 function toggleState(s: TaskState, checked: boolean) {
   const next = new Set(selectedStates.value)
@@ -70,7 +69,7 @@ function clearFilters() {
     <template #default>
       <DropdownMenu>
         <DropdownMenuTrigger as-child :disabled="!hydrated">
-          <Button variant="outline" :disabled="!hydrated">{{ t('tasks.filters.allStates') }}</Button>
+          <Button variant="outline" :disabled="!hydrated">{{ stateFilterLabel }}</Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start">
           <DropdownMenuCheckboxItem
@@ -100,10 +99,6 @@ function clearFilters() {
         </Select>
       </template>
 
-      <Button v-if="!hideCreate && can('pmo.tasks.create')" class="gap-2" :disabled="!hydrated" @click="emit('create')">
-        <Plus class="size-[18px]" />{{ t('tasks.new') }}
-      </Button>
-      <slot name="trailing" />
     </template>
 
     <template #active>

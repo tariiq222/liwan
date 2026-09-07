@@ -39,39 +39,38 @@ function isOverdue(value: string | null) {
 </script>
 
 <template>
-  <Card data-testid="project-overview" class="nasq-panel">
-    <CardContent class="space-y-5 pt-5">
-      <div class="grid grid-cols-2 gap-3 xl:grid-cols-4">
-        <div class="rounded-lg border bg-muted/20 p-4">
-          <div class="flex items-center gap-2 text-xs font-medium text-muted-foreground"><CircleDot class="size-4" />{{ t('projects.setStatus') }}</div>
-          <ProjectStatusSelect v-if="project.can_manage" class="mt-3" :project="project" />
-          <ProjectStatusBadge v-else class="mt-3" :status="project.status" />
-        </div>
-        <div class="rounded-lg border bg-muted/20 p-4">
-          <div class="flex items-center gap-2 text-xs font-medium text-muted-foreground"><ListChecks class="size-4" />{{ t('projects.overview.progress') }}</div>
-          <ProjectProgress class="mt-3" :progress="project.progress" :task-count="project.task_count" :closed-task-count="project.closed_task_count" compact />
-        </div>
-        <div class="rounded-lg border bg-muted/20 p-4">
-          <div class="flex items-center gap-2 text-xs font-medium text-muted-foreground"><ListChecks class="size-4" />{{ t('projects.overview.openTasks') }}</div>
-          <p class="mt-2 text-2xl font-semibold tabular-nums">{{ openTaskCount }}</p>
-          <p class="text-xs text-muted-foreground">{{ t('projects.overview.completedOf', { closed: project.closed_task_count, total: project.task_count }) }}</p>
-        </div>
-        <div class="rounded-lg border bg-muted/20 p-4">
-          <div class="flex items-center gap-2 text-xs font-medium text-muted-foreground"><Flag class="size-4" />{{ t('projects.overview.milestones') }}</div>
-          <p class="mt-2 text-2xl font-semibold tabular-nums">{{ project.milestone_count }}</p>
-          <NuxtLink :to="{ path: `/projects/${project.id}`, query: { ...route.query, tab: 'milestones' } }" class="text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground">{{ t('projects.tabs.milestones') }}</NuxtLink>
-        </div>
-      </div>
+  <div data-testid="project-overview" class="grid gap-5">
+    <section class="nasq-metrics">
+      <article class="nasq-metric">
+        <div class="nasq-metric-title"><CircleDot class="size-4" />{{ t('projects.setStatus') }}</div>
+        <ProjectStatusSelect v-if="project.can_manage" class="mt-3" :project="project" />
+        <ProjectStatusBadge v-else class="mt-3" :status="project.status" />
+      </article>
+      <article class="nasq-metric">
+        <div class="nasq-metric-title"><ListChecks class="size-4" />{{ t('projects.overview.progress') }}</div>
+        <ProjectProgress class="mt-3" :progress="project.progress" :task-count="project.task_count" :closed-task-count="project.closed_task_count" compact />
+      </article>
+      <article class="nasq-metric">
+        <div class="nasq-metric-title"><ListChecks class="size-4" />{{ t('projects.overview.openTasks') }}</div>
+        <p class="nasq-metric-value tabular-nums">{{ openTaskCount }}</p>
+        <p class="nasq-metric-foot">{{ t('projects.overview.completedOf', { closed: project.closed_task_count, total: project.task_count }) }}</p>
+      </article>
+      <article class="nasq-metric">
+        <div class="nasq-metric-title"><Flag class="size-4" />{{ t('projects.overview.milestones') }}</div>
+        <p class="nasq-metric-value tabular-nums">{{ project.milestone_count }}</p>
+        <NuxtLink :to="{ path: `/projects/${project.id}`, query: { ...route.query, tab: 'milestones' } }" class="nasq-metric-foot underline underline-offset-4 hover:text-foreground">{{ t('projects.tabs.milestones') }}</NuxtLink>
+      </article>
+    </section>
 
-      <div class="grid gap-4 sm:grid-cols-2">
-        <div class="rounded-lg border p-4">
+    <div class="grid gap-4 sm:grid-cols-2">
+      <section class="nasq-panel nasq-panel-body">
           <p class="mb-2 text-xs font-medium text-muted-foreground">{{ t('projects.settings.description') }}</p>
         <div v-if="project.description_html" class="prose prose-sm max-w-none break-words text-sm" v-html="previewHtml(project.description_html)" />
         <p v-else class="text-sm text-muted-foreground">{{ t('projects.overview.noDescription') }}</p>
         <p class="mt-3 text-xs font-medium text-muted-foreground">{{ t('projects.overview.completedSummary', { closed: project.closed_task_count, total: project.task_count }) }}</p>
-        </div>
+      </section>
 
-        <div class="rounded-lg border p-4">
+      <section class="nasq-panel nasq-panel-body">
           <div class="mb-3 flex items-center justify-between gap-2">
             <div class="flex items-center gap-2 text-sm font-medium"><CalendarClock class="size-[18px] text-muted-foreground" />{{ t('projects.overview.nextMilestone') }}</div>
             <div class="flex items-center gap-3 text-xs text-muted-foreground">
@@ -89,8 +88,8 @@ function isOverdue(value: string | null) {
             <p class="mt-1 text-xs text-muted-foreground">{{ dateLabel(nearestMilestone.deadline) }} · {{ t('projects.milestones.tasksOf', { done: nearestMilestone.done_task_count, total: nearestMilestone.task_count }) }}</p>
           </template>
           <p v-else class="flex items-center gap-2 text-sm text-muted-foreground"><CheckCircle2 class="size-4" />{{ t('projects.overview.noUpcomingMilestone') }}</p>
-        </div>
-        <div class="rounded-lg border p-4 sm:col-span-2">
+      </section>
+        <section class="nasq-panel nasq-panel-body sm:col-span-2">
           <div class="mb-3 flex items-center justify-between gap-2">
             <div class="flex items-center gap-2 text-sm font-medium"><MessageSquareText class="size-[18px] text-muted-foreground" />{{ t('projects.overview.latestUpdate') }}</div>
             <NuxtLink :to="{ path: `/projects/${project.id}`, query: { ...route.query, tab: 'updates' } }" class="text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground">{{ t('projects.tabs.updates') }}</NuxtLink>
@@ -103,8 +102,7 @@ function isOverdue(value: string | null) {
             <div class="prose prose-sm mt-2 max-w-none break-words text-sm" v-html="previewHtml(latestUpdate.description_html)" />
           </template>
           <p v-else class="text-sm text-muted-foreground">{{ t('projects.overview.noUpdates') }}</p>
-        </div>
+        </section>
       </div>
-    </CardContent>
-  </Card>
+  </div>
 </template>

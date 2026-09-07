@@ -65,7 +65,18 @@ async function deleteItem(item: { id: number }) {
       :title="t('projects.governance.register.title')"
       :back-to="projectReturnTo"
       :back-label="t('projects.backToProject')"
-    />
+    >
+      <template #actions>
+        <NuxtLink
+          v-if="list.data.value?.can_manage && hydrated"
+          :to="{ path: `/projects/${id}/register/new`, query: { returnTo } }"
+        >
+          <Button class="gap-2" data-testid="register-create">
+            <Plus class="size-[18px]" />{{ t('app.create') }}
+          </Button>
+        </NuxtLink>
+      </template>
+    </SharedPageHeader>
     <div class="nasq-toolbar">
       <FilterBar class="w-full">
         <template #search>
@@ -113,14 +124,6 @@ async function deleteItem(item: { id: number }) {
             {{ t(`projects.governance.register.${value}`) }}
           </NativeSelectOption>
         </NativeSelect>
-        <NuxtLink
-          v-if="list.data.value?.can_manage && hydrated"
-          :to="{ path: `/projects/${id}/register/new`, query: { returnTo } }"
-        >
-           <Button size="icon" :aria-label="t('app.create')" data-testid="register-create">
-             <Plus />
-           </Button>
-        </NuxtLink>
       </FilterBar>
     </div>
     <p v-if="error" role="alert" class="text-sm text-destructive">{{ error }}</p>

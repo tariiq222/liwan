@@ -65,6 +65,8 @@
     "meetingCalendar": "التقويم",
     "projectDashboard": "إحصائية المشاريع",
     "newProject": "مشروع جديد",
+    "newMeeting": "اجتماع جديد",
+    "newConversation": "محادثة جديدة",
     "allProjects": "كل المشاريع",
     "myProjects": "مشاريعي"
   },
@@ -119,6 +121,9 @@
   "meetingsUi": {
     "new": "اجتماع جديد",
     "search": "بحث في الاجتماعات",
+    "searchValue": "بحث: {value}",
+    "clear": "مسح الفلاتر",
+    "pageOf": "صفحة {page} من {pages}",
     "title": "عنوان الاجتماع",
     "empty": "لا اجتماعات ظاهرة لك.",
     "organizer": "المنظّم",

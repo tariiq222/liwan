@@ -104,6 +104,7 @@ const financeOption = computed(() => selectedCurrency.value ? projectFinanceComp
       :has-data="progressBandsHasData"
       :empty-text="t('projects.dashboard.charts.noProgressData')"
       :accessible-label="t('projects.dashboard.charts.progressBandsTitle')"
+      height="240px"
     />
     <DashboardChartPanel
       test-id="chart-budget-health"
@@ -114,6 +115,7 @@ const financeOption = computed(() => selectedCurrency.value ? projectFinanceComp
       :has-data="budgetHasData"
       :empty-text="t('projects.dashboard.charts.noBudgetData')"
       :accessible-label="t('projects.dashboard.charts.budgetHealthTitle')"
+      height="240px"
     />
     <DashboardChartPanel
       test-id="chart-project-progress"
@@ -166,5 +168,10 @@ const financeOption = computed(() => selectedCurrency.value ? projectFinanceComp
   .dashboard-chart-grid > [data-testid="chart-project-finance"] {
     grid-column: span 2;
   }
+}
+
+.dashboard-chart-grid > [data-testid="chart-progress-bands"],
+.dashboard-chart-grid > [data-testid="chart-budget-health"] {
+  opacity: 0.88;
 }
 </style>

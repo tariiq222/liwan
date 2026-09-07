@@ -116,7 +116,7 @@ function clearFilters() {
     </div>
 
     <div v-if="!hydrated || (analytics.isLoading.value && !analytics.data.value)" role="status" class="space-y-5" :aria-label="t('app.loading')">
-      <div class="grid grid-cols-2 gap-px overflow-hidden rounded-lg border bg-border sm:grid-cols-4"><Skeleton v-for="n in 4" :key="n" class="h-24 rounded-none bg-card" /></div>
+      <div class="nasq-metrics"><Skeleton v-for="n in 4" :key="n" class="nasq-metric h-24 rounded-none" /></div>
       <div class="grid gap-5 xl:grid-cols-2"><Skeleton v-for="n in 6" :key="n" class="h-[350px] rounded-lg bg-card" /></div>
     </div>
 

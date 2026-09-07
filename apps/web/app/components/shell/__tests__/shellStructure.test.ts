@@ -18,6 +18,7 @@ describe('approved shell structure', () => {
   it('keeps context navigation visible and reflows it on mobile', () => {
     expect(shellCss).toContain('.nasq-context-sidebar {')
     expect(shellCss).toContain('.nasq-context-links { display: flex; overflow-x: auto;')
+    expect(shellCss).toContain('.nasq-context-create')
     expect(shellCss).not.toContain('.nasq-context-sidebar[aria-collapsed]')
   })
 

@@ -19,6 +19,12 @@ const confirmDeleteId = ref<number | null>(null)
 const error = ref<string | null>(null)
 const returnTo = computed(() => route.fullPath)
 const projectReturnTo = computed(() => safeReturnTo(route.query.returnTo, `/projects/${id.value}`, ['/projects']))
+const viewQuery = computed(() => {
+  const query: Record<string, string> = {}
+  if (typeof route.query.returnTo === 'string') query.returnTo = route.query.returnTo
+  if (typeof route.query.taskContext === 'string') query.taskContext = route.query.taskContext
+  return query
+})
 function setFilter(key: string, value: string) {
   router.replace({ query: { ...route.query, [key]: value || undefined, offset: undefined } })
 }
@@ -50,11 +56,26 @@ async function deleteItem(item: { id: number }) {
       :title="t('projects.governance.stakeholders')"
       :back-to="projectReturnTo"
       :back-label="t('projects.backToProject')"
-    />
+    >
+      <template #actions>
+        <NuxtLink
+          v-if="list.data.value?.can_manage && hydrated"
+          :to="{ path: `/projects/${id}/stakeholders/new`, query: { returnTo } }"
+        >
+          <Button class="gap-2" data-testid="stakeholders-create">
+            <Plus class="size-[18px]" />{{ t('projects.governance.newStakeholder') }}
+          </Button>
+        </NuxtLink>
+      </template>
+    </SharedPageHeader>
+    <nav class="nasq-tabs" :aria-label="t('nav.projectStakeholders')">
+      <NuxtLink :to="{ path: `/projects/${id}/stakeholders`, query: viewQuery }" aria-current="page">{{ t('projects.governance.viewList') }}</NuxtLink>
+      <NuxtLink :to="{ path: `/projects/${id}/raci`, query: viewQuery }">{{ t('projects.governance.viewMatrix') }}</NuxtLink>
+    </nav>
     <div class="nasq-toolbar" data-testid="stakeholders-toolbar">
       <FilterBar class="w-full">
         <template #search>
-          <div class="relative min-w-52 flex-1">
+          <div class="relative min-w-52">
             <Search class="pointer-events-none absolute start-2 top-1/2 size-[18px] -translate-y-1/2 text-muted-foreground" />
             <Input
               v-model="q"
@@ -65,14 +86,6 @@ async function deleteItem(item: { id: number }) {
             />
           </div>
         </template>
-        <NuxtLink
-          v-if="list.data.value?.can_manage && hydrated"
-          :to="{ path: `/projects/${id}/stakeholders/new`, query: { returnTo } }"
-        >
-          <Button size="icon" :aria-label="t('app.create')" data-testid="stakeholders-create">
-            <Plus class="size-[18px]" />
-          </Button>
-        </NuxtLink>
       </FilterBar>
     </div>
     <p v-if="error" role="alert" class="text-sm text-destructive">{{ error }}</p>

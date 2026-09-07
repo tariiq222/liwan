@@ -14,6 +14,16 @@ const contextTitle = computed(() => projectId.value && project.data.value ? proj
 const contextDescription = computed(() => projectId.value ? (project.data.value?.description_html?.replace(/<[^>]+>/g, '').trim() || '') : '')
 const projectsReturnTo = computed(() => safeReturnTo(route.query.returnTo, '/projects', ['/projects']))
 const isProject = computed(() => !!projectId.value && activeModule.value === 'projects')
+const primaryLinks = computed(() => contextLinks.value.filter(item => !isProject.value || item.id !== 'settings'))
+const moduleLinks = computed(() => {
+  const links = primaryLinks.value
+  return [...links.filter(item => item.pinned), ...links.filter(item => !item.pinned)]
+})
+const showContextNav = computed(() => {
+  const links = moduleLinks.value
+  if (links.length === 1 && links[0]!.labelKey === moduleDefinition.value?.labelKey) return false
+  return links.length > 0
+})
 
 function href(link: { to: import('vue-router').RouteLocationRaw }) {
   return link.to
@@ -40,16 +50,15 @@ function href(link: { to: import('vue-router').RouteLocationRaw }) {
         <div class="nasq-context-heading-copy">
           <h2>{{ contextTitle }}</h2>
           <p v-if="contextDescription">{{ contextDescription }}</p>
-          <p v-else-if="isProject">{{ t('nav.projectWorkspace') }}</p>
         </div>
       </div>
 
-      <nav class="nasq-context-links" :aria-label="contextTitle">
+      <nav v-if="showContextNav" class="nasq-context-links" :aria-label="contextTitle">
         <NuxtLink
-          v-for="link in contextLinks.filter(item => !isProject || item.id !== 'settings')"
+          v-for="link in moduleLinks"
           :key="link.id"
           :to="href(link)"
-          class="nasq-context-link"
+          :class="['nasq-context-link', link.pinned && 'nasq-context-create']"
           :data-active="link.active"
           :aria-current="link.active ? 'page' : undefined"
           :data-testid="link.id === 'appearance' ? 'sidebar-settings' : link.id === 'project-settings' ? 'settings-projects-tab' : `context-link-${link.id}`"

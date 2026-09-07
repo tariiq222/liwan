@@ -104,25 +104,18 @@ test('overlapping search and status updates keep both filters in the URL', async
   expect(projectListParams(page).get('status')).toBe('on_track')
 })
 
-test('project summary follows filtered records and persists its visibility', async ({ page }) => {
+test('project summary follows filtered records', async ({ page }) => {
   await login(page)
-  await page.evaluate(() => localStorage.removeItem('nasq.projects.summary-visible'))
   const name = `E2E summary ${Date.now()}`
   const id = await createProjectWithStages(page, name)
   await page.request.post(`/api/v1/projects/${id}/status`, { data: { status: 'at_risk' } })
 
   await page.goto(`/projects?q=${encodeURIComponent(name)}`)
   await expect(page.getByTestId('projects-summary-cards')).toBeVisible()
+  await expect(page.getByTestId('projects-summary-cards')).toHaveCount(1)
   await expect(page.getByText('المعروضة في هذه الصفحة')).toBeVisible()
   await expect(page.getByTestId('projects-summary-displayed')).toHaveText('1')
   await expect(page.getByTestId('projects-summary-attention')).toHaveText('1')
-  await expect(page.getByRole('button', { name: 'إخفاء ملخص المشاريع' })).toBeVisible()
-
-  await page.getByRole('button', { name: 'إخفاء ملخص المشاريع' }).click()
-  await expect(page.getByTestId('projects-summary-cards')).toHaveCount(0)
-  await page.reload()
-  await expect(page.getByTestId('projects-summary-cards')).toHaveCount(0)
-  await expect(page.getByRole('button', { name: 'إظهار ملخص المشاريع' })).toBeVisible()
 })
 
 test('project list shows every task of the project (not only mine), the detail page returns to the project', async ({ page }) => {

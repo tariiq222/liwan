@@ -8,17 +8,20 @@ const toolbar = readFileSync(resolve(appRoot, 'components/task/TaskToolbar.vue')
 const table = readFileSync(resolve(appRoot, 'components/task/TaskTable.vue'), 'utf8')
 
 describe('tasks list design', () => {
-  it('puts create and archive in the toolbar, not the page header', () => {
-    expect(page).toContain('<SharedPageHeader :title="t(\'tasks.title\')" :description="t(\'tasks.description\')" />')
-    expect(page).not.toContain('hide-create')
-    expect(page).toContain('#trailing')
+  it('puts create and archive in the page header, filters in the toolbar', () => {
+    expect(page).toContain('#actions')
+    expect(page).toContain("can('pmo.tasks.create')")
+    expect(page).toContain("t('tasks.new')")
     expect(page).toContain('/archived-tasks')
-    expect(toolbar).toContain('slot name="trailing"')
-    expect(toolbar).toContain("can('pmo.tasks.create')")
+    expect(page).not.toContain('hide-create')
+    expect(toolbar).not.toContain("can('pmo.tasks.create')")
+    expect(toolbar).not.toContain("t('tasks.new')")
     expect(toolbar).not.toMatch(/SelectTrigger size="sm"/)
     expect(toolbar).not.toMatch(/<Button variant="outline" size="sm"/)
     expect(toolbar).toContain('bg-muted/40')
     expect(toolbar).toContain("view === 'table' ? 'bg-background shadow-sm'")
+    expect(toolbar).toContain('stateFilterLabel')
+    expect(toolbar).toContain("tasks.filters.selectedStates")
   })
 
   it('wraps the standalone table in nasq-panel', () => {

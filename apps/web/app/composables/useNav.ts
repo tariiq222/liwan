@@ -67,7 +67,8 @@ export function activeShellModule(path: string): ShellModule | null {
   if (path === '/projects' || path.startsWith('/projects/') || path === '/project-templates' || path.startsWith('/project-templates/')) return 'projects'
   if (path === '/account' || path.startsWith('/account/')) return 'settings'
   if (path === '/search' || path.startsWith('/search/')) return 'projects'
-  if (path === '/notifications' || path.startsWith('/notifications/')) return 'tasks'
+  if (path === '/notifications' || path.startsWith('/notifications/')) return null
+  if (path === '/notification-digests' || path.startsWith('/notification-digests/')) return null
   if (path === '/odoo' || path.startsWith('/odoo/')) return 'vendor'
   return null
 }
@@ -79,6 +80,7 @@ export interface ShellContextLink {
   to: RouteLocationRaw
   capability: string
   active?: boolean
+  pinned?: boolean
 }
 type ShellQuery = LocationQueryRaw
 
@@ -104,7 +106,7 @@ export function contextLinksForModule(module: ShellModule, identity: AccessIdent
   const links: ShellContextLink[] = {
     projects: [
       { id: 'project-dashboard', labelKey: 'nav.projectDashboard', icon: ChartNoAxesCombined, to: '/projects/dashboard', capability: 'pmo.projects.read' },
-      { id: 'new-project', labelKey: 'nav.newProject', icon: Plus, to: '/projects/new', capability: 'pmo.projects.create' },
+      { id: 'new-project', labelKey: 'nav.newProject', icon: Plus, to: '/projects/new', capability: 'pmo.projects.create', pinned: true },
       { id: 'projects', labelKey: 'nav.allProjects', icon: FolderKanban, to: '/projects', capability: 'pmo.projects.read' },
       { id: 'my-projects', labelKey: 'nav.myProjects', icon: UserRound, to: { path: '/projects', query: { mine: '1' } }, capability: 'pmo.projects.read' },
     ],
@@ -116,9 +118,11 @@ export function contextLinksForModule(module: ShellModule, identity: AccessIdent
       { id: 'reports', labelKey: 'nav.reports', icon: ChartNoAxesCombined, to: '/reports', capability: 'pmo.projects.read' },
     ],
     chat: [
+      { id: 'new-chat', labelKey: 'nav.newConversation', icon: Plus, to: '/chat/new', capability: INTERNAL_NASQ_ACCESS, pinned: true },
       { id: 'chat', labelKey: 'nav.chat', icon: MessageCircle, to: '/chat', capability: INTERNAL_NASQ_ACCESS },
     ],
     meetings: [
+      { id: 'new-meeting', labelKey: 'nav.newMeeting', icon: Plus, to: '/meetings/new', capability: 'meetings.create', pinned: true },
       { id: 'meetings', labelKey: 'nav.meetings', icon: List, to: '/meetings', capability: 'meetings.read' },
       { id: 'meeting-calendar', labelKey: 'nav.meetingCalendar', icon: CalendarDays, to: '/meetings/calendar', capability: 'meetings.read' },
     ],

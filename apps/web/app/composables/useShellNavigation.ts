@@ -80,6 +80,7 @@ export function isContextPathActive(path: string, to: ShellContextLink['to'], qu
   if (target === '/hr/documents') return path === target || path.startsWith(`${target}/`) || /^\/hr\/departments\/[^/]+\/documents(?:\/|$)/.test(path)
   if (target === '/hr/departments') return path === target || (path.startsWith(`${target}/`) && !/\/documents(?:\/|$)/.test(path))
   if (target === '/meetings') return path === target || (path.startsWith(`${target}/`) && !path.startsWith('/meetings/calendar'))
+  if (target === '/chat') return path === target || (path.startsWith(`${target}/`) && !path.startsWith('/chat/new'))
   if (target === '/meetings/calendar') return path === target
   if (target === '/projects') {
     const mine = query.mine === '1' || query.mine === 'true'

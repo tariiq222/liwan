@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { PROJECT_STATUSES } from '@nasq/contracts'
-import { CircleAlert, CircleCheck, Eye, EyeOff, FolderKanban, LayoutGrid, List, Plus, Search, X } from '@lucide/vue'
+import { CircleAlert, CircleCheck, FolderKanban, LayoutGrid, List, Plus, Search, X } from '@lucide/vue'
 import { refDebounced } from '@vueuse/core'
 import FilterBar from '@/components/shared/FilterBar.vue'
 import ProjectTable from '@/components/project/ProjectTable.vue'
@@ -118,8 +118,6 @@ const canCreate = computed(() => latestCapability.value.allowed)
 const total = computed(() => projectList.data.value?.total ?? 0)
 const page = computed(() => Math.floor(listOffset.value / PROJECT_PAGE) + 1)
 const pages = computed(() => Math.max(1, Math.ceil(total.value / PROJECT_PAGE)))
-const summaryVisible = ref(true)
-const summaryStorageKey = 'nasq.projects.summary-visible'
 const summary = computed(() => ({
   displayed: items.value.length,
   attention: items.value.filter(project => project.status === 'at_risk' || project.status === 'off_track' || project.status === 'on_hold').length,
@@ -171,14 +169,6 @@ function onViewChange(value: 'table' | 'cards') { applyPatch({ view: value }) }
 const displayedItems = items
 const isLoading = computed(() => projectList.isLoading.value)
 
-onMounted(() => {
-  const saved = window.localStorage.getItem(summaryStorageKey)
-  if (saved === 'hidden' || saved === 'visible') summaryVisible.value = saved === 'visible'
-})
-watch(summaryVisible, (visible) => {
-  if (import.meta.client) window.localStorage.setItem(summaryStorageKey, visible ? 'visible' : 'hidden')
-})
-
 function onFilterChange(v: unknown) {
   applyPatch({ archived: v === 'archived' })
 }
@@ -223,52 +213,38 @@ function openProject(id: number) {
       <span>{{ t('projects.loadError') }}</span>
       <Button variant="outline" size="sm" @click="activeList.refetch()">{{ t('app.retry') }}</Button>
     </div>
-    <section data-testid="projects-summary" class="space-y-2">
-      <div class="flex items-center justify-end">
-        <Button
-          variant="ghost"
-          size="icon"
-          class="size-[32px] rounded-lg border border-border"
-          :disabled="!hydrated"
-          :aria-label="t(summaryVisible ? 'projects.summary.hide' : 'projects.summary.show')"
-          :aria-pressed="summaryVisible"
-          @click="summaryVisible = !summaryVisible"
-        >
-          <EyeOff v-if="summaryVisible" class="size-[18px]" />
-          <Eye v-else class="size-[18px]" />
-        </Button>
-      </div>
-      <div v-if="summaryVisible" data-testid="projects-summary-cards" class="grid gap-3 sm:grid-cols-3">
-        <div class="flex items-center gap-3 rounded-lg border bg-card p-4">
+    <section data-testid="projects-summary">
+      <div data-testid="projects-summary-cards" class="nasq-metrics" data-cols="3">
+        <article class="nasq-metric flex items-center gap-3">
           <span class="grid size-[32px] shrink-0 place-items-center rounded-lg border bg-muted text-muted-foreground"><FolderKanban class="size-[18px]" /></span>
           <div class="min-w-0">
-            <p class="text-xs text-muted-foreground">{{ t('projects.summary.displayed') }}</p>
-            <div class="mt-1 flex flex-wrap items-baseline gap-2">
-              <p data-testid="projects-summary-displayed" class="text-2xl font-semibold tabular-nums">{{ summary.displayed }}</p>
-              <p class="text-[11px] text-muted-foreground">{{ t('projects.summary.tasks', { count: summary.tasks }) }}</p>
+            <p class="nasq-metric-title">{{ t('projects.summary.displayed') }}</p>
+            <div class="flex flex-wrap items-baseline gap-2">
+              <p data-testid="projects-summary-displayed" class="nasq-metric-value">{{ summary.displayed }}</p>
+              <p class="nasq-metric-foot">{{ t('projects.summary.tasks', { count: summary.tasks }) }}</p>
             </div>
           </div>
-        </div>
-        <div class="flex items-center gap-3 rounded-lg border bg-card p-4">
+        </article>
+        <article class="nasq-metric flex items-center gap-3">
           <span class="nasq-status-icon-warning grid size-[32px] shrink-0 place-items-center rounded-lg"><CircleAlert class="size-[18px]" /></span>
           <div class="min-w-0">
-            <p class="text-xs text-muted-foreground">{{ t('projects.summary.attention') }}</p>
-            <div class="mt-1 flex flex-wrap items-baseline gap-2">
-              <p data-testid="projects-summary-attention" class="text-2xl font-semibold tabular-nums">{{ summary.attention }}</p>
-              <p class="text-[11px] text-muted-foreground">{{ t('projects.summary.remaining', { count: summary.attentionOpen }) }}</p>
+            <p class="nasq-metric-title">{{ t('projects.summary.attention') }}</p>
+            <div class="flex flex-wrap items-baseline gap-2">
+              <p data-testid="projects-summary-attention" class="nasq-metric-value">{{ summary.attention }}</p>
+              <p class="nasq-metric-foot">{{ t('projects.summary.remaining', { count: summary.attentionOpen }) }}</p>
             </div>
           </div>
-        </div>
-        <div class="flex items-center gap-3 rounded-lg border bg-card p-4">
+        </article>
+        <article class="nasq-metric flex items-center gap-3">
           <span class="nasq-status-icon-success grid size-[32px] shrink-0 place-items-center rounded-lg"><CircleCheck class="size-[18px]" /></span>
           <div class="min-w-0">
-            <p class="text-xs text-muted-foreground">{{ t('projects.summary.completed') }}</p>
-            <div class="mt-1 flex flex-wrap items-baseline gap-2">
-              <p data-testid="projects-summary-completed" class="text-2xl font-semibold tabular-nums">{{ summary.completed }}</p>
-              <p class="text-[11px] text-muted-foreground">{{ t('projects.summary.completedTasks', { count: summary.completedTasks }) }}</p>
+            <p class="nasq-metric-title">{{ t('projects.summary.completed') }}</p>
+            <div class="flex flex-wrap items-baseline gap-2">
+              <p data-testid="projects-summary-completed" class="nasq-metric-value">{{ summary.completed }}</p>
+              <p class="nasq-metric-foot">{{ t('projects.summary.completedTasks', { count: summary.completedTasks }) }}</p>
             </div>
           </div>
-        </div>
+        </article>
       </div>
     </section>
 
@@ -308,6 +284,8 @@ function openProject(id: number) {
             <SelectItem value="progress">{{ t('projects.filters.sortProgress') }}</SelectItem>
           </SelectContent>
         </Select>
+      </template>
+      <template #view>
         <div role="group" class="inline-flex h-[40px] items-center rounded-lg border bg-muted/40 p-0.5" :aria-label="t('projects.filters.view')">
           <Button data-testid="projects-view-table" type="button" variant="ghost" size="icon" class="size-[32px] rounded-md" :class="view === 'table' ? 'bg-background shadow-sm' : ''" :disabled="!hydrated" :aria-label="t('projects.filters.tableView')" :aria-pressed="view === 'table'" @click="onViewChange('table')">
             <List class="size-[18px]" />

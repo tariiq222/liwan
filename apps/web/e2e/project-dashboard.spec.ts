@@ -22,7 +22,7 @@ for (const width of [390, 768, 1440]) {
     await login(page)
     await page.getByTestId('module-rail').getByRole('link', { name: 'المشاريع', exact: true }).click()
     await expect(page).toHaveURL(/\/projects\/dashboard$/)
-    await expect(page.getByTestId('context-sidebar').locator('nav a')).toHaveText(['إحصائية المشاريع', 'مشروع جديد', 'كل المشاريع', 'مشاريعي'])
+    await expect(page.getByTestId('context-sidebar').locator('nav a')).toHaveText(['مشروع جديد', 'إحصائية المشاريع', 'كل المشاريع', 'مشاريعي'])
     await charts(page)
     const response = await page.request.get('/api/v1/reports/projects/analytics')
     expect(response.status()).toBe(200)

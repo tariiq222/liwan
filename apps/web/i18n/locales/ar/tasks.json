@@ -25,6 +25,7 @@
       "open": "مفتوحة",
       "closed": "منجزة",
       "allStates": "كل الحالات",
+      "selectedStates": "{count} حالات",
       "allProjects": "كل المشاريع",
       "search": "بحث في العناوين…",
       "searchValue": "بحث: {value}",

@@ -23,7 +23,7 @@ withDefaults(defineProps<{
   <section :data-testid="testId" class="nasq-panel flex min-w-0 flex-col overflow-hidden" :aria-labelledby="titleId">
     <header class="nasq-panel-header items-start">
       <div class="min-w-0">
-        <h2 :id="titleId" class="text-base font-semibold leading-6">{{ title }}</h2>
+        <h2 :id="titleId">{{ title }}</h2>
         <p class="mt-1 text-sm leading-6 text-muted-foreground">{{ description }}</p>
       </div>
     </header>

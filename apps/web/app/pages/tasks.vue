@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Plus } from '@lucide/vue'
 import TaskBoard from '@/components/task/TaskBoard.vue'
 import TaskTable from '@/components/task/TaskTable.vue'
 import TaskToolbar from '@/components/task/TaskToolbar.vue'
@@ -8,6 +9,7 @@ import { returnToQuery } from '@/utils/safeReturnTo'
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
+const { can } = useAccess()
 
 // Same race as TaskToolbar's own tabs (see useHydrated()): this SSR-rendered
 // table/board switcher is visible and clickable before hydration attaches
@@ -43,17 +45,20 @@ function openCreate() {
 
 <template>
   <SharedPageContainer v-if="isBaseRoute" width="list">
-    <SharedPageHeader :title="t('tasks.title')" :description="t('tasks.description')" />
-
-    <TaskToolbar v-model="params" :view="tab" @update:view="onViewChange" @create="openCreate">
-      <template #trailing>
+    <SharedPageHeader :title="t('tasks.title')" :description="t('tasks.description')">
+      <template #actions>
+        <Button v-if="can('pmo.tasks.create')" class="gap-2" :disabled="!hydrated" @click="openCreate">
+          <Plus class="size-[18px]" />{{ t('tasks.new') }}
+        </Button>
         <Button as-child variant="outline">
           <NuxtLink :to="{ path: '/archived-tasks', query: returnToQuery(route.fullPath) }">
             {{ t('taskLifecycle.archivedTasks') }}
           </NuxtLink>
         </Button>
       </template>
-    </TaskToolbar>
+    </SharedPageHeader>
+
+    <TaskToolbar v-model="params" :view="tab" @update:view="onViewChange" />
     <!-- Query data may resolve after SSR markup is emitted but before
          client hydration starts. Mount the dynamic result surface only
          after this page has hydrated so the toolbar controls above keep

@@ -11,6 +11,7 @@ describe('project list context selection', () => {
   })
   it('does not mark all-projects active on create or dashboard', () => {
     expect(isContextPathActive('/projects/new', '/projects')).toBe(false)
+    expect(isContextPathActive('/chat/new', '/chat')).toBe(false)
     expect(isContextPathActive('/projects/dashboard', '/projects')).toBe(false)
     expect(projectIdFromPath('/projects/dashboard')).toBeNull()
     expect(projectIdFromPath('/projects/new')).toBeNull()

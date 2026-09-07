@@ -7,6 +7,12 @@ import { safeReturnTo } from '@/utils/safeReturnTo'
 const route = useRoute(); const router = useRouter(); const { t } = useI18n(); const hydrated = useHydrated()
 const id = computed(() => Number(route.params.id)); const viewport = computed(() => governanceMatrixFilters(route.query))
 const returnTo = computed(() => safeReturnTo(route.query.returnTo, `/projects/${id.value}`, ['/projects']))
+const viewQuery = computed(() => {
+  const query: Record<string, string> = {}
+  if (typeof route.query.returnTo === 'string') query.returnTo = route.query.returnTo
+  if (typeof route.query.taskContext === 'string') query.taskContext = route.query.taskContext
+  return query
+})
 function replaceFilter(key: string, value: string | undefined, pageKey: string) { router.replace({ query: { ...route.query, [key]: value, [pageKey]: undefined } }) }
 const taskSearch = computed({ get: () => viewport.value.taskQ, set: value => replaceFilter('task_q', value || undefined, 'task_page') })
 const stakeholderSearch = computed({ get: () => viewport.value.stakeholderQ, set: value => replaceFilter('stakeholder_q', value || undefined, 'stakeholder_page') })
@@ -51,7 +57,10 @@ async function deleteRow() {
       :back-to="returnTo"
       :back-label="t('projects.backToProject')"
     />
-    <p class="text-sm text-muted-foreground">{{ t('projects.governance.raci.legend') }}</p>
+    <nav class="nasq-tabs" :aria-label="t('nav.projectStakeholders')">
+      <NuxtLink :to="{ path: `/projects/${id}/stakeholders`, query: viewQuery }">{{ t('projects.governance.viewList') }}</NuxtLink>
+      <NuxtLink :to="{ path: `/projects/${id}/raci`, query: viewQuery }" aria-current="page">{{ t('projects.governance.viewMatrix') }}</NuxtLink>
+    </nav>
     <div class="grid gap-3 sm:grid-cols-2">
       <div class="space-y-2"><Label for="raci-task-search">{{ t('projects.governance.raci.task') }}</Label><Input id="raci-task-search" v-model="taskSearch" :disabled="!hydrated || pending" :placeholder="t('app.search')" /><label class="flex gap-2 text-sm"><input v-model="closed" type="checkbox" :disabled="!hydrated || pending" />{{ t('projects.governance.closedTasks') }}</label></div>
       <div class="space-y-2"><Label for="raci-stakeholder-search">{{ t('projects.governance.raci.stakeholder') }}</Label><Input id="raci-stakeholder-search" v-model="stakeholderSearch" :disabled="!hydrated || pending" :placeholder="t('app.search')" /></div>
