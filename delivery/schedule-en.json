@@ -1,0 +1,24 @@
+{
+  "schedule": {
+    "title": "Schedule",
+    "editTitle": "Edit task schedule",
+    "editDescription": "Set the task start and end dates on the project timeline.",
+    "backToSchedule": "Back to schedule",
+    "timeline": "Project timeline",
+    "scale": "Timeline scale",
+    "week": "Week",
+    "month": "Month",
+    "task": "Task",
+    "milestones": "Milestones",
+    "start": "Start date",
+    "end": "End date",
+    "undated": "Undated",
+    "endOnly": "Ends {date}; no start date",
+    "dependencies": "Predecessor tasks",
+    "predecessor": "Predecessor task",
+    "empty": "There are no visible tasks in this project",
+    "invalidDates": "Enter two valid dates, with the start on or before the end.",
+    "saved": "Schedule saved",
+    "saveError": "Could not save the schedule"
+  }
+}

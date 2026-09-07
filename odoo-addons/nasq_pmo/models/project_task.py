@@ -1,4 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+from datetime import date, datetime
+
 from odoo import api, fields, models
 from odoo.exceptions import AccessError, UserError, ValidationError
 
@@ -10,6 +12,7 @@ DONE_STATE = '1_done'
 TASK_CREATE_MARKER = 'nasq_pmo.task_create_depth'
 ACCESS_USER_CREATE_MARKER = 'nasq_core.access_user_create_depth'
 DEPENDENCY_WRITE_MARKER = 'nasq_pmo.dependency_write_depth'
+SCHEDULE_WRITE_MARKER = 'nasq_pmo.schedule_write_depth'
 COMPLETION_ACCEPT_IDS = 'nasq_pmo.completion_accept_ids'
 COMPLETION_META_IDS = 'nasq_pmo.completion_meta_ids'
 APPROVAL_WRITE_FIELDS = {'state', 'date_end', 'date_last_stage_update'}
@@ -41,6 +44,7 @@ class ProjectTask(models.Model):
     nasq_completion_requested_by = fields.Many2one('res.users', copy=False, ondelete='set null')
     nasq_completion_requested_at = fields.Datetime(copy=False)
     nasq_completion_return_note = fields.Text(copy=False)
+    nasq_planned_start = fields.Date(copy=False, index=True)
 
     @api.model
     def _search(
@@ -225,6 +229,57 @@ class ProjectTask(models.Model):
             and project._nasq_can_manage(),
         )
 
+    def _nasq_can_manage_schedule(self):
+        self.ensure_one()
+        project = self.project_id
+        return bool(
+            project
+            and project.active
+            and project.company_id == self.env.company
+            and project._nasq_can_manage(),
+        )
+
+    def _nasq_set_schedule(self, start, end):
+        """Set the date-only schedule pair after its dedicated manager check.
+
+        This is intentionally separate from generic task writes. Template and
+        schedule callers use this checked mutation path, while direct ORM/RPC
+        writes cannot manufacture the internal marker used below.
+        """
+        self.ensure_one()
+        self._nasq_check_visible_current()
+        project = self.project_id
+        if not project or not project.active or project.company_id != self.env.company:
+            raise AccessError(self.env._("Scheduling requires an active current-company project."))
+        project._nasq_check_visible_current()
+        if not self._nasq_can_manage_schedule():
+            raise AccessError(self.env._("Only the project manager can change task scheduling."))
+        for value, label in ((start, 'start'), (end, 'end')):
+            if value is not False and value is not None and (
+                not isinstance(value, date) or isinstance(value, datetime)
+            ):
+                raise ValidationError(self.env._("Schedule %(field)s must be a calendar date or empty.", field=label))
+        start = start or False
+        end = end or False
+        if bool(start) != bool(end):
+            raise ValidationError(self.env._("Schedule start and end must be set together."))
+        if start and end and start > end:
+            raise ValidationError(self.env._("Schedule start must be on or before the end date."))
+        marker = self.env.cr.precommit.data
+        previous_depth = marker.get(SCHEDULE_WRITE_MARKER)
+        marker[SCHEDULE_WRITE_MARKER] = (previous_depth or 0) + 1
+        try:
+            self.write({
+                'nasq_planned_start': start,
+                'date_deadline': fields.Datetime.to_datetime(end) if end else False,
+            })
+        finally:
+            if previous_depth is None:
+                marker.pop(SCHEDULE_WRITE_MARKER, None)
+            else:
+                marker[SCHEDULE_WRITE_MARKER] = previous_depth
+        return self
+
     def _nasq_set_dependencies(self, ids):
         """Replace prerequisites after the project-scoped manage check.
 
@@ -380,6 +435,16 @@ class ProjectTask(models.Model):
             merged['parent_id'] = ctx['default_parent_id']
         return merged
 
+    def _nasq_validate_schedule_invariant(self):
+        for task in self:
+            start = task.nasq_planned_start
+            end = fields.Date.to_date(task.date_deadline) if task.date_deadline else False
+            if start and (not end or start > end):
+                raise ValidationError(self.env._(
+                    "Schedule start and end must be set together, with start on or before the end date.",
+                ))
+        return self
+
     def _nasq_accept_ids(self):
         return set(self.env.cr.precommit.data.get(COMPLETION_ACCEPT_IDS) or ())
 
@@ -434,7 +499,16 @@ class ProjectTask(models.Model):
             marker[TASK_CREATE_MARKER] -= 1
             if not marker[TASK_CREATE_MARKER]:
                 marker.pop(TASK_CREATE_MARKER, None)
+        # Stock project.task.create applies ``default_*`` context values after
+        # this model's whitelist. The planned start is a manager-only schedule
+        # operation, so a caller cannot smuggle it through default_get (or a
+        # copied/batched create) even when the requested range is valid.
+        if not self.env.is_superuser() and tasks.filtered('nasq_planned_start'):
+            raise AccessError(self.env._(
+                "Task scheduling must use the dedicated schedule operation.",
+            ))
         self._nasq_reject_unauthorized_done(tasks)
+        tasks._nasq_validate_schedule_invariant()
         dirty = tasks.filtered(
             lambda task: (
                 task.nasq_completion_pending
@@ -461,6 +535,11 @@ class ProjectTask(models.Model):
             and set(self.ids) <= meta_ids
             and set(vals) <= COMPLETION_META_FIELDS,
         )
+        schedule_write = bool(
+            self.ids
+            and self.env.cr.precommit.data.get(SCHEDULE_WRITE_MARKER)
+            and set(vals) <= {'nasq_planned_start', 'date_deadline'}
+        )
         accept_ids = self._nasq_accept_ids()
         accept_write = bool(
             self.ids
@@ -474,6 +553,7 @@ class ProjectTask(models.Model):
             or self.env.cr.precommit.data.get(TASK_CREATE_MARKER)
             or self.env.cr.precommit.data.get(ACCESS_USER_CREATE_MARKER)
             or dependency_write
+            or schedule_write
             or completion_meta_write
             or accept_write
         )
@@ -492,6 +572,18 @@ class ProjectTask(models.Model):
                 not task._nasq_can_write() for task in self
             ):
                 raise AccessError(self.env._("You are not allowed to change this task."))
+        if not schedule_write:
+            if 'nasq_planned_start' in vals:
+                raise AccessError(self.env._("Task scheduling must use the dedicated schedule operation."))
+            if 'date_deadline' in vals:
+                deadline = fields.Date.to_date(vals['date_deadline']) if vals['date_deadline'] else False
+                if any(
+                    task.nasq_planned_start and (
+                        not deadline or task.nasq_planned_start > deadline
+                    )
+                    for task in self
+                ):
+                    raise ValidationError(self.env._("Schedule start must be on or before the end date."))
         if vals.get('state') == DONE_STATE:
             unauthorized = self.filtered(
                 lambda task: task._nasq_completion_required() and task.id not in accept_ids,
