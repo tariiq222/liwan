@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Search } from '@lucide/vue'
+import { Plus, Search } from '@lucide/vue'
 import { useProjectRegister, useDeleteProjectRegister } from '@/composables/useProjectGovernance'
 import { governanceFilters } from '@/components/project/governance/state'
 import { ApiError } from '@/composables/useApi'
@@ -59,7 +59,6 @@ async function deleteItem(item: { id: number }) {
 
 <template>
   <SharedPageContainer width="list">
-    <SharedPageHeader :title="t('projects.governance.register.title')" :back-to="`/projects/${id}`" />
     <div class="nasq-toolbar">
       <FilterBar class="w-full">
         <template #search>
@@ -111,7 +110,9 @@ async function deleteItem(item: { id: number }) {
           v-if="list.data.value?.can_manage && hydrated"
           :to="{ path: `/projects/${id}/register/new`, query: { returnTo } }"
         >
-          <Button>{{ t('app.create') }}</Button>
+           <Button size="icon" :aria-label="t('app.create')" data-testid="register-create">
+             <Plus />
+           </Button>
         </NuxtLink>
       </FilterBar>
     </div>

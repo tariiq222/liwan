@@ -1,12 +1,15 @@
 <script setup lang="ts">
-import { Archive, ArchiveRestore, Plus, Settings } from '@lucide/vue'
+import { Archive, ArchiveRestore, Pencil, Plus, Settings } from '@lucide/vue'
 import { toast } from 'vue-sonner'
 import type { ProjectDetail } from '@nasq/contracts'
 import { ApiError } from '@/composables/useApi'
 import { useArchiveProject, useUnarchiveProject } from '@/composables/useProjects'
 
-const props = defineProps<{ project: ProjectDetail; backTo?: string }>()
-const emit = defineEmits<{ create: []; settings: []; archived: []; unarchived: [] }>()
+const props = withDefaults(defineProps<{ project: ProjectDetail; backTo?: string; showCreate?: boolean; showEdit?: boolean }>(), {
+  showCreate: true,
+  showEdit: false,
+})
+const emit = defineEmits<{ create: []; edit: []; settings: []; archived: []; unarchived: [] }>()
 const { t } = useI18n()
 const { can } = useAccess()
 const hydrated = useHydrated()
@@ -44,7 +47,7 @@ async function doUnarchive() {
   >
     <template #actions>
       <Button
-        v-if="can('pmo.tasks.create')"
+        v-if="showCreate && can('pmo.tasks.create')"
         variant="default"
         size="icon"
         class="size-[32px] rounded-lg"
@@ -55,6 +58,19 @@ async function doUnarchive() {
         @click="emit('create')"
       >
         <Plus class="size-[18px]" />
+      </Button>
+      <Button
+        v-if="showEdit && project.can_manage"
+        variant="default"
+        size="icon"
+        class="size-[32px] rounded-lg"
+        data-testid="project-header-edit"
+        :disabled="!hydrated"
+        :aria-label="t('app.edit')"
+        :title="t('app.edit')"
+        @click="emit('edit')"
+      >
+        <Pencil class="size-[18px]" />
       </Button>
       <template v-if="project.can_manage">
         <Button

@@ -44,7 +44,6 @@ async function deleteItem(item: { id: number }) {
 
 <template>
   <SharedPageContainer width="list">
-    <SharedPageHeader :title="t('projects.governance.stakeholders')" :back-to="`/projects/${id}`" />
     <div class="nasq-toolbar" data-testid="stakeholders-toolbar">
       <FilterBar class="w-full">
         <template #search>
@@ -63,8 +62,8 @@ async function deleteItem(item: { id: number }) {
           v-if="list.data.value?.can_manage && hydrated"
           :to="{ path: `/projects/${id}/stakeholders/new`, query: { returnTo } }"
         >
-          <Button class="gap-2">
-            <Plus class="size-[18px]" />{{ t('app.create') }}
+          <Button size="icon" :aria-label="t('app.create')" data-testid="stakeholders-create">
+            <Plus class="size-[18px]" />
           </Button>
         </NuxtLink>
       </FilterBar>

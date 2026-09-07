@@ -24,6 +24,14 @@ const { t, locale } = useI18n()
 const hydrated = useHydrated()
 const normalizedPath = computed(() => route.path.replace(/\/+$/, '') || '/')
 const isBaseRoute = computed(() => normalizedPath.value === `/projects/${route.params.id}`)
+const workspaceLeaf = computed(() => normalizedPath.value.replace(`/projects/${route.params.id}`, '').replace(/^\//, '').split('/')[0] ?? '')
+const showWorkspace = computed(() => isBaseRoute.value || ['charter', 'schedule', 'stakeholders', 'raci', 'register', 'finance'].includes(workspaceLeaf.value))
+const workspaceSection = computed(() => {
+  if (!isBaseRoute.value) return workspaceLeaf.value
+  if (route.query.tab === 'list' || route.query.tab === 'board') return 'tasks'
+  if (isProjectTab(route.query.tab)) return route.query.tab
+  return 'overview'
+})
 
 const projectId = computed(() => {
   const n = Number(route.params.id)
@@ -79,8 +87,20 @@ const projectReturnTo = computed(() => safeReturnTo(route.query.returnTo, '/proj
 function openTaskCreate() {
   router.push({ path: `/projects/${projectId.value}/tasks/new`, query: taskRouteQuery() })
 }
+function onWorkspaceCreate() {
+  const id = projectId.value
+  if (!id) return
+  const section = workspaceSection.value
+  if (section === 'stakeholders') router.push(`/projects/${id}/stakeholders/new`)
+  else if (section === 'register') router.push(`/projects/${id}/register/new`)
+  else if (section === 'finance') router.push(`/projects/${id}/finance/new`)
+  else openTaskCreate()
+}
 function openSettings() {
   router.push({ path: `/projects/${projectId.value}/settings`, query: returnToQuery(route.fullPath) })
+}
+function openCharterEdit() {
+  router.push({ path: `/projects/${projectId.value}/charter`, query: { edit: '1' } })
 }
 function onArchived() {
   router.push('/projects')
@@ -95,14 +115,25 @@ const dateRange = computed(() => {
 </script>
 
 <template>
-  <SharedPageContainer v-if="isBaseRoute" width="detail">
+  <SharedPageContainer v-if="showWorkspace" width="detail">
     <div v-if="notFound" class="flex flex-col items-start gap-3">
       <p class="text-muted-foreground">{{ t('projects.notFound') }}</p>
       <button type="button" class="text-sm underline" @click="router.push(projectReturnTo)">{{ t('projects.backToProjects') }}</button>
     </div>
 
     <template v-else>
-      <ProjectHeader v-if="project" :project="project" :back-to="projectReturnTo" @create="openTaskCreate" @settings="openSettings" @archived="onArchived" @unarchived="onUnarchived" />
+      <ProjectHeader
+        v-if="project"
+        :project="project"
+        :back-to="projectReturnTo"
+        :show-create="workspaceSection !== 'charter'"
+        :show-edit="workspaceSection === 'charter'"
+        @create="onWorkspaceCreate"
+        @edit="openCharterEdit"
+        @settings="openSettings"
+        @archived="onArchived"
+        @unarchived="onUnarchived"
+      />
       <Skeleton v-else-if="isLoading" class="h-9 w-1/2" />
 
       <Tabs :model-value="tab" class="space-y-4" @update:model-value="onTabChange">
@@ -117,53 +148,19 @@ const dateRange = computed(() => {
               </div>
               <ProjectProgress :progress="project.progress" :task-count="project.task_count" :closed-task-count="project.closed_task_count" />
             </div>
-            <nav class="nasq-tabs" :aria-label="t('projects.title')">
-              <button
-                v-for="item in TABS"
-                :key="item"
-                type="button"
-                :disabled="!hydrated"
-                :data-state="tab === item ? 'active' : undefined"
-                :aria-current="tab === item ? 'page' : undefined"
-                @click="onTabChange(item)"
-              >
-                {{ t(`projects.tabs.${item}`) }}
-              </button>
-              <NuxtLink
-                :to="{ path: `/projects/${project.id}/charter`, query: returnToQuery(route.fullPath) }"
-                data-testid="project-charter-link"
-              >
-                {{ t('projects.charter.open') }}
-              </NuxtLink>
-              <template v-if="project.active">
-                <NuxtLink
-                  v-for="section in ['schedule', 'stakeholders', 'raci', 'register']"
-                  :key="section"
-                  :to="{ path: `/projects/${project.id}/${section}`, query: returnToQuery(route.fullPath) }"
-                  :data-testid="`project-${section}-link`"
-                >
-                  {{ t(`projects.planningLinks.${section}`) }}
-                </NuxtLink>
-              </template>
-              <NuxtLink
-                :to="{ path: `/projects/${project.id}/finance`, query: returnToQuery(route.fullPath) }"
-                data-testid="project-finance-link"
-              >
-                {{ t('projects.finance.title') }}
-              </NuxtLink>
-            </nav>
+            <ProjectWorkspaceNav :project-id="project.id" :active="project.active" />
           </CardContent>
         </Card>
 
         <TabsContent value="overview">
-          <div v-if="project && tab === 'overview'" class="nasq-detail-grid">
+          <div v-if="isBaseRoute && project && tab === 'overview'" class="nasq-detail-grid">
             <ProjectOverview :project="project" />
             <ProjectMetadataRail :project="project" />
           </div>
         </TabsContent>
 
         <TabsContent value="tasks">
-          <section v-if="project && tab === 'tasks'" class="nasq-panel overflow-hidden">
+          <section v-if="isBaseRoute && project && tab === 'tasks'" class="nasq-panel overflow-hidden">
             <div class="nasq-panel-header flex items-center justify-between gap-3">
               <h2 class="text-base font-semibold">{{ t('projects.tabs.tasks') }}</h2>
               <NuxtLink :to="{ path: '/archived-tasks', query: { project_id: project.id, ...returnToQuery(route.fullPath) } }" class="text-sm text-muted-foreground underline underline-offset-4">{{ t('taskLifecycle.archivedTasks') }}</NuxtLink>
@@ -175,14 +172,14 @@ const dateRange = computed(() => {
         </TabsContent>
 
         <TabsContent value="milestones">
-          <div v-if="project && tab === 'milestones'" class="nasq-detail-grid">
+          <div v-if="isBaseRoute && project && tab === 'milestones'" class="nasq-detail-grid">
             <MilestoneTable :project-id="project.id" :can-manage="project.can_manage" />
             <ProjectMetadataRail :project="project" />
           </div>
         </TabsContent>
 
         <TabsContent value="updates">
-          <div v-if="project && tab === 'updates'" class="nasq-detail-grid">
+          <div v-if="isBaseRoute && project && tab === 'updates'" class="nasq-detail-grid">
             <ProjectUpdateList :project-id="project.id" :can-manage="project.can_manage" />
             <ProjectMetadataRail :project="project" />
           </div>

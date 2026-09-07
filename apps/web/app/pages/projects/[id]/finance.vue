@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Plus } from '@lucide/vue'
 import { refDebounced } from '@vueuse/core'
 import { ApiError } from '@/composables/useApi'
 import { useProjectFinanceList } from '@/composables/useProjectFinance'
@@ -140,22 +141,6 @@ function financeChildKey(target: { path: string; params: Record<string, string |
 
 <template>
   <SharedPageContainer v-if="isListRoute" width="list" data-testid="project-finance-page">
-    <SharedPageHeader
-      :title="t('projects.finance.title')"
-      :description="t('projects.finance.description')"
-      :back-to="returnTo"
-      :back-label="t('projects.backToProject')"
-    >
-      <div v-if="canManage && projectId" class="flex flex-wrap gap-2">
-        <NuxtLink :to="{ path: `/projects/${projectId}/finance/new`, query: newQuery('budget') }" @click="!hydrated && $event.preventDefault()">
-          <Button :disabled="!hydrated">{{ t('projects.finance.newBudget') }}</Button>
-        </NuxtLink>
-        <NuxtLink :to="{ path: `/projects/${projectId}/finance/new`, query: newQuery('expense') }" @click="!hydrated && $event.preventDefault()">
-          <Button variant="outline" :disabled="!hydrated">{{ t('projects.finance.newExpense') }}</Button>
-        </NuxtLink>
-      </div>
-    </SharedPageHeader>
-
     <template v-if="projectId === null">
       <p class="text-muted-foreground">{{ t('projects.invalidId') }}</p>
     </template>
@@ -181,6 +166,18 @@ function financeChildKey(target: { path: string; params: Record<string, string |
                 <TabsTrigger value="expense" :disabled="!hydrated">{{ t('projects.finance.kind.expense') }}</TabsTrigger>
               </TabsList>
             </Tabs>
+            <div v-if="canManage && projectId" class="flex gap-2">
+              <NuxtLink :to="{ path: `/projects/${projectId}/finance/new`, query: newQuery('budget') }" @click="!hydrated && $event.preventDefault()">
+                <Button size="icon" :disabled="!hydrated" :aria-label="t('projects.finance.newBudget')">
+                  <Plus class="size-4" />
+                </Button>
+              </NuxtLink>
+              <NuxtLink :to="{ path: `/projects/${projectId}/finance/new`, query: newQuery('expense') }" @click="!hydrated && $event.preventDefault()">
+                <Button variant="outline" size="icon" :disabled="!hydrated" :aria-label="t('projects.finance.newExpense')">
+                  <Plus class="size-4" />
+                </Button>
+              </NuxtLink>
+            </div>
           </FilterBar>
         </div>
         <FinanceEntryTable

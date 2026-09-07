@@ -43,7 +43,6 @@ async function deleteRow() {
 </script>
 <template>
   <SharedPageContainer width="list">
-    <SharedPageHeader :title="t('projects.governance.raci.title')" :back-to="`/projects/${id}`" />
     <p class="text-sm text-muted-foreground">{{ t('projects.governance.raci.legend') }}</p>
     <div class="grid gap-3 sm:grid-cols-2">
       <div class="space-y-2"><Label for="raci-task-search">{{ t('projects.governance.raci.task') }}</Label><Input id="raci-task-search" v-model="taskSearch" :disabled="!hydrated || pending" :placeholder="t('app.search')" /><label class="flex gap-2 text-sm"><input v-model="closed" type="checkbox" :disabled="!hydrated || pending" />{{ t('projects.governance.closedTasks') }}</label></div>
