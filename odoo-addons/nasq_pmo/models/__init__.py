@@ -3,6 +3,7 @@ from . import (
     mail_notification_nasq,
     nasq_settings,
     project_charter_reference,
+    project_finance,
     project_governance,
     project_project,
     project_task,

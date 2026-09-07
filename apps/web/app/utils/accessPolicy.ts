@@ -11,7 +11,7 @@ export function hasCapability(identity: AccessIdentity, capability: string): boo
 
 const destinations = [
   ['/tasks', 'pmo.tasks.read'], ['/projects', 'pmo.projects.read'],
-  ['/project-templates', 'pmo.projects.read'],
+  ['/project-templates', 'pmo.projects.read'], ['/reports', 'pmo.projects.read'],
   ['/hr', 'hr.employees.read'], ['/hr/departments', 'hr.departments.read'],
   ['/hr/documents', 'hr.documents.read'], ['/settings/users', 'access.users.read'],
   ['/settings/roles', 'access.roles.read'], ['/settings/access-log', 'access.audit.read'],

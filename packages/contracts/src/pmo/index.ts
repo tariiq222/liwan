@@ -14,3 +14,6 @@ export * from './notification'
 export * from './schedule'
 export * from './project-template'
 export * from './governance'
+
+export * from './project-finance'
+export * from './project-reports'
