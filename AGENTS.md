@@ -46,3 +46,10 @@ All other business screens remain internal routes.
 The user approved a centered confirmation popup for leaving a form with unsaved
 changes. SharedUnsavedChanges owns this confirmation across forms. Detail, create,
 edit and settings workflows themselves remain internal pages.
+
+## Implementation agent routing — 2026-09-07
+
+All implementation agents must use GPT-5.6 Luna with high reasoning effort
+(`luna-high`). This is the user's standing project preference. The coordinator
+owns planning, integration and review. Do not substitute another implementation
+model without a new user instruction. Read-only review agents may use Astra.
