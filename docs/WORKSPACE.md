@@ -11,7 +11,18 @@ source, configuration, and Git state read-only for Nasq work. Authorized tests
 or development may use an explicitly isolated database, but never operate on
 an arbitrary database.
 
-## 2026-09-07 sixteen-worktree integration (current)
+## 2026-09-07 runtime upgrade and cleanup (current)
+
+Canonical main includes the additive meeting-permission migration `f71e3a3`.
+The user authorized updating `odoo19` and cleaning Git. The update and restart
+completed; Nuxt3000 and Odoo8069 respond. Only main and its canonical worktree
+remain; 35 merged extra branches/worktrees are retired with full recovery.
+See [the runtime and cleanup report](runtime-upgrade-cleanup-2026-09-07.md)
+for backup paths, migration/rehearsal evidence and local verification limits.
+Earlier no-upgrade/no-cleanup statements describe their original delivery phase.
+The approved replacement layout remains the next implementation phase.
+
+## 2026-09-07 sixteen-worktree integration (historical)
 
 The user authorized all sixteen dirty worktrees, including meetings and Cyan,
 for coordinated local integration, now promoted to `main` (product `f117bac`).

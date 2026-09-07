@@ -41,7 +41,7 @@ direction.
 The unified checkout brings together Phase 3b, routed internal pages, capability
 administration, the design system, HR hierarchy/documents, and PMO collaboration.
 The current integration evidence and recovery map are in `docs/WORKSPACE.md`
-and `docs/unification-2026-09-05.md`. Older branch delivery reports are historical
+and `docs/runtime-upgrade-cleanup-2026-09-07.md`. Older branch delivery reports are historical
 snapshots and do not override the capability policy below.
 
 HR manages employee records and archival. Account grants, role assignments,

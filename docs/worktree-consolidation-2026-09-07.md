@@ -1,6 +1,6 @@
 # Coordinated worktree consolidation — 2026-09-07
 
-Status: accepted and promoted into local `main`; source snapshots and recovery branches retained.
+Status: accepted and promoted into local `main`. The later authorized [runtime upgrade and cleanup](runtime-upgrade-cleanup-2026-09-07.md) supersedes this phase's retained-worktree and no-database-update statements; source snapshots remain recoverable.
 
 ## Scope and preservation
 

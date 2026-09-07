@@ -27,7 +27,7 @@ These are repository instructions for every coding agent, regardless of tool.
   the entire system; simple value-selection menus are controls, not screens.
 - Phase 3b and the later access, design, HR hierarchy, and collaboration
   work are consolidated by the 2026-09-05 unification. Read
-  `docs/worktree-consolidation-2026-09-07.md` for current evidence and `docs/WORKSPACE.md`
+  `docs/runtime-upgrade-cleanup-2026-09-07.md` for current evidence and `docs/WORKSPACE.md`
   for recovery. Older branch plans/reports and WIP are historical material.
 - Never run tests on `odoo19`. Do not commit, merge, push, deploy, remove
   worktrees/branches, or discard work without authorization for that action.
