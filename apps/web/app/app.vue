@@ -9,7 +9,7 @@ const { mode, fontSize } = useAppearance()
 const i18nHead = useLocaleHead({ seo: false })
 useHead(() => ({
   htmlAttrs: {
-    class: mode.value === 'dark' ? 'dark' : '',
+    class: mode.value === 'dark' ? 'dark' : mode.value === 'cream' ? 'cream' : '',
     'data-font-size': fontSize.value,
     lang: i18nHead.value.htmlAttrs?.lang,
     dir: i18nHead.value.htmlAttrs?.dir,

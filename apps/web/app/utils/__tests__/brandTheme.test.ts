@@ -60,6 +60,16 @@ describe('createBrandTheme', () => {
       expect(theme['--sidebar-ring']).toBe(theme['--ring'])
     })
 
+  it.each(['#000000', '#ffffff', '#ffff00', '#0055ff', DEFAULT_PRIMARY])('preserves %s in cream mode with readable links and focus rings', (primary) => {
+    const theme = createBrandTheme(primary, 'cream')
+    expect(theme['--primary']).toBe(primary)
+    expect(contrast(primary, theme['--primary-foreground']!)).toBeGreaterThanOrEqual(4.5)
+    for (const surface of ['#fbf7ef', '#f6f1e7', '#efe8d9']) {
+      expect(contrast(theme['--brand-link']!, surface)).toBeGreaterThanOrEqual(4.5)
+      expect(contrast(theme['--ring']!, surface)).toBeGreaterThanOrEqual(3)
+    }
+  })
+
   it.each(['#000000', '#ffffff', '#ffff00', '#0055ff', DEFAULT_PRIMARY])('preserves %s in dark mode with readable links and focus rings', (primary) => {
     const theme = createBrandTheme(primary, 'dark')
     expect(theme['--primary']).toBe(primary)

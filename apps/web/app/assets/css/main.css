@@ -65,6 +65,29 @@
 :root[data-font-size="medium"] { font-size: 16px; }
 :root[data-font-size="large"] { font-size: 18px; }
 
+.cream {
+  color-scheme: light;
+  --background: #f6f1e7;
+  --foreground: #3f3428;
+  --card: #fbf7ef;
+  --card-foreground: #3f3428;
+  --popover: #fbf7ef;
+  --popover-foreground: #3f3428;
+  --secondary: #efe8d9;
+  --secondary-foreground: #3f3428;
+  --muted: #efe8d9;
+  --muted-foreground: #7a6e5f;
+  --accent: #efe8d9;
+  --accent-foreground: #3f3428;
+  --border: #e4d9c6;
+  --input: #e4d9c6;
+  --sidebar: #efe8d9;
+  --sidebar-foreground: #3f3428;
+  --sidebar-accent: #e4d9c6;
+  --sidebar-accent-foreground: #3f3428;
+  --sidebar-border: #e4d9c6;
+}
+
 .dark {
   color-scheme: dark;
   --background: #09090b;

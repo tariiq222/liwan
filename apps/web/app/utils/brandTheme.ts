@@ -50,7 +50,11 @@ function foregroundFor(background: string): string {
 
 function contrastTone(hex: string, minimumContrast: number, mode: AppearanceMode): string {
   const rgb = channels(hex)
-  const surfaces = mode === 'dark' ? ['#09090b', '#18181b', '#27272a'] : ['#ffffff', '#fafafa', '#f4f4f5']
+  const surfaces = mode === 'dark'
+    ? ['#09090b', '#18181b', '#27272a']
+    : mode === 'cream'
+      ? ['#fbf7ef', '#f6f1e7', '#efe8d9']
+      : ['#ffffff', '#fafafa', '#f4f4f5']
   const target = mode === 'dark' ? 255 : 0
   for (let step = 0; step <= 100; step += 1) {
     const candidate = toHex(rgb.map(value => value + (target - value) * step / 100))

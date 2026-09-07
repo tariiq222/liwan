@@ -8,6 +8,7 @@ describe('saved appearance preferences', () => {
 
   it('keeps a valid preference when the other field is invalid', () => {
     expect(normalizeAppearance({ mode: 'dark', fontSize: 'huge' })).toEqual({ mode: 'dark', fontSize: 'small' })
+    expect(normalizeAppearance({ mode: 'cream', fontSize: 'medium' })).toEqual({ mode: 'cream', fontSize: 'medium' })
     expect(normalizeAppearance({ mode: 'system', fontSize: 'large' })).toEqual({ mode: 'light', fontSize: 'large' })
   })
 

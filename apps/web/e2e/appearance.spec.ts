@@ -21,8 +21,16 @@ test('appearance changes apply across routes and survive reload without changing
   await expect(html).toHaveCSS('font-size', '14px')
   await expect(page.getByTestId('appearance-mode-light')).toBeChecked()
 
+  await page.getByTestId('appearance-mode-cream').check()
+  await expect(html).toHaveClass(/cream/)
+  await expect(html).not.toHaveClass(/dark/)
+  await expect(html).toHaveCSS('color-scheme', 'light')
+  expect(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--background').trim())).toBe('#f6f1e7')
+  expect(await primary(page)).toBe(originalColor)
+
   await page.getByTestId('appearance-mode-dark').check()
   await expect(html).toHaveClass(/dark/)
+  await expect(html).not.toHaveClass(/cream/)
   await expect(html).toHaveCSS('color-scheme', 'dark')
   for (const [size, pixels] of [['medium', '16px'], ['large', '18px'], ['small', '14px']] as const) {
     await page.getByTestId(`appearance-font-${size}`).check()
@@ -42,6 +50,7 @@ test('appearance changes apply across routes and survive reload without changing
   await expect(page.getByTestId('appearance-font-large')).toBeChecked()
   await page.getByTestId('appearance-mode-light').check()
   await expect(html).not.toHaveClass(/dark/)
+  await expect(html).not.toHaveClass(/cream/)
   await expect(html).toHaveCSS('font-size', '18px')
 })
 
