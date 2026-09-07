@@ -1,36 +1,37 @@
 <script setup lang="ts">
-import { SlidersHorizontal, FolderKanban, Users, ShieldCheck, ScrollText } from '@lucide/vue'
+const { sections = [] } = defineProps<{ sections?: { id: string; label: string }[] }>()
 const route = useRoute()
-const { can } = useAccess()
+const router = useRouter()
 const { t } = useI18n()
+const windowHash = ref('')
+onMounted(() => {
+  windowHash.value = window.location.hash
+})
+useEventListener(window, 'hashchange', () => {
+  windowHash.value = window.location.hash
+})
+const activeId = computed(() => decodeURIComponent((route.hash || windowHash.value).replace(/^#/, '')))
+function isCurrent(id: string, index: number) {
+  return activeId.value ? activeId.value === id : index === 0
+}
+function go(id: string, event: Event) {
+  event.preventDefault()
+  const hash = `#${id}`
+  windowHash.value = hash
+  void router.replace({ path: route.path, query: { ...route.query }, hash })
+}
 </script>
 
 <template>
-  <nav class="nasq-settings-nav" :aria-label="t('settings.tabs.label')">
-    <NuxtLink
-      to="/settings/appearance"
-      data-testid="settings-appearance-tab"
-      :aria-current="route.path === '/settings/appearance' ? 'page' : undefined"
+  <nav v-if="sections.length" class="nasq-settings-nav" :aria-label="t('settings.toc.label')">
+    <a
+      v-for="(section, index) in sections"
+      :key="section.id"
+      :href="`#${section.id}`"
+      :aria-current="isCurrent(section.id, index) ? 'location' : undefined"
+      @click="go(section.id, $event)"
     >
-      <SlidersHorizontal aria-hidden="true" />
-      {{ t('settings.appearance.title') }}
-    </NuxtLink>
-    <NuxtLink
-      v-if="can('pmo.settings.manage')" to="/settings/projects"
-      data-testid="settings-projects-tab"
-      :aria-current="route.path === '/settings/projects' ? 'page' : undefined"
-    >
-      <FolderKanban aria-hidden="true" />
-      {{ t('settings.projects.title') }}
-    </NuxtLink>
-    <NuxtLink v-if="can('access.users.read')" to="/settings/users" :aria-current="route.path.startsWith('/settings/users') ? 'page' : undefined">
-      <Users aria-hidden="true" />{{ t('nav.users') }}
-    </NuxtLink>
-    <NuxtLink v-if="can('access.roles.read')" to="/settings/roles" :aria-current="route.path.startsWith('/settings/roles') ? 'page' : undefined">
-      <ShieldCheck aria-hidden="true" />{{ t('nav.roles') }}
-    </NuxtLink>
-    <NuxtLink v-if="can('access.audit.read')" to="/settings/access-log" :aria-current="route.path.startsWith('/settings/access-log') ? 'page' : undefined">
-      <ScrollText aria-hidden="true" />{{ t('nav.accessLog') }}
-    </NuxtLink>
+      {{ section.label }}
+    </a>
   </nav>
 </template>

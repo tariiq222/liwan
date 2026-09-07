@@ -53,10 +53,14 @@ async function confirmAction(action: RoleAction) {
   }
 }
 function openUser(userId: number) { void navigateTo(`/settings/users/${userId}`) }
+const sections = computed(() => role.data.value ? [
+  { id: 'permissions', label: t('access.roles.permissions') },
+  ...(can('access.users.read') ? [{ id: 'assigned-users', label: t('access.roles.assignedUsers') }] : []),
+] : [])
 </script>
 
 <template>
-  <SettingsLayout><div class="nasq-page-stack">
+  <SettingsLayout :sections><div class="nasq-page-stack">
     <SharedPageHeader :title="role.data.value?.name.ar ?? t('access.roles.title')" :back-to="returnTo">
       <Button v-if="role.data.value?.allowed_actions.includes('edit')" variant="outline" :disabled="!role.data.value" @click="navigateTo(editTo)">{{ t('access.roles.editTitle') }}</Button>
       <Button v-if="role.data.value?.allowed_actions.includes('clone')" variant="outline" :disabled="!role.data.value" @click="navigateTo(cloneTo)">{{ t('access.roles.clone') }}</Button>
@@ -68,9 +72,11 @@ function openUser(userId: number) { void navigateTo(`/settings/users/${userId}`)
     <SharedPageState v-if="forbidden" :empty="true" :empty-text="t('access.forbidden')" />
     <p v-else-if="versionConflict" role="alert" class="text-sm text-destructive">{{ t('access.roles.conflict') }}</p>
     <SharedPageState v-else :loading="role.isLoading.value" :error="role.error.value" :empty="!role.data.value" :empty-text="t('access.notFound')" @retry="role.refetch">
-      <section v-if="role.data.value" class="nasq-panel nasq-panel-body"><RolePermissionForm :role="role.data.value" :permissions="catalog.data.value?.items ?? []" :readonly="true" /></section>
-      <p v-if="actionError" role="alert" class="text-sm text-destructive">{{ actionError }}</p>
-      <section v-if="role.data.value && can('access.users.read')" id="assigned-users" class="min-w-0 space-y-3"><h2 class="text-lg font-semibold">{{ t('access.roles.assignedUsers') }}</h2><SharedPageState :loading="assignedUsers.isLoading.value" :error="assignedUsers.error.value" :empty="!assignedUsers.isLoading.value && !assignedUsers.error.value && assignedUsers.data.value?.items.length === 0" :empty-text="t('access.roles.noAssignedUsers')" @retry="assignedUsers.refetch"><UserTable :users="assignedUsers.data.value?.items ?? []" @open="openUser" /></SharedPageState></section>
+      <div v-if="role.data.value" class="nasq-panel nasq-panel-body">
+        <section id="permissions" class="nasq-form-section nasq-settings-anchor"><RolePermissionForm :role="role.data.value" :permissions="catalog.data.value?.items ?? []" :readonly="true" /></section>
+        <p v-if="actionError" role="alert" class="text-sm text-destructive">{{ actionError }}</p>
+        <section v-if="can('access.users.read')" id="assigned-users" class="nasq-form-section nasq-settings-anchor min-w-0 space-y-3"><h2 class="font-semibold">{{ t('access.roles.assignedUsers') }}</h2><SharedPageState :loading="assignedUsers.isLoading.value" :error="assignedUsers.error.value" :empty="!assignedUsers.isLoading.value && !assignedUsers.error.value && assignedUsers.data.value?.items.length === 0" :empty-text="t('access.roles.noAssignedUsers')" @retry="assignedUsers.refetch"><UserTable :users="assignedUsers.data.value?.items ?? []" @open="openUser" /></SharedPageState></section>
+      </div>
     </SharedPageState>
   </div></SettingsLayout>
 </template>

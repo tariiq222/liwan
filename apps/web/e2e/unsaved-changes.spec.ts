@@ -13,6 +13,7 @@ for (const width of [1440, 390]) {
     const saved = await color.inputValue()
     const draft = saved === '#abcdef' ? '#123456' : '#abcdef'
     await color.fill(draft)
+    if (width <= 390) await page.getByRole('button', { name: 'فتح القائمة أو طيها' }).click()
     const projects = page.getByTestId('settings-projects-tab')
     await projects.click()
     const dialog = page.getByRole('alertdialog', { name: 'تغييرات غير محفوظة' })
@@ -38,6 +39,7 @@ for (const width of [1440, 390]) {
     // The same guard also protects non-branding forms, with no data writes.
     await page.goto('/settings/roles/new')
     await page.getByLabel('الاسم بالعربية').fill('مسودة دور')
+    if (width <= 390) await page.getByRole('button', { name: 'فتح القائمة أو طيها' }).click()
     await page.getByTestId('settings-appearance-tab').click()
     await expect(dialog).toBeVisible()
     await dialog.getByRole('button', { name: 'المغادرة بدون حفظ' }).click()

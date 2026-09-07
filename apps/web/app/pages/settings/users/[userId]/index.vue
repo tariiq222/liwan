@@ -23,10 +23,15 @@ const catalog = useAdminPermissionCatalog(computed(() => !forbidden.value && can
 const permissionLabels = computed(() => new Map<string, PermissionDefinition['label']>((catalog.data.value?.items ?? []).map((permission) => [permission.key, permission.label])))
 const permissionLabel = (key: string) => permissionLabels.value.get(key)?.[locale.value === 'ar' ? 'ar' : 'en'] ?? permissionLabels.value.get(key)?.ar ?? t('access.roles.unknownPermission')
 const sourceLabel = (source: { role: { name: { ar: string; en: string | null } } }) => source.role.name[locale.value === 'ar' ? 'ar' : 'en'] ?? source.role.name.ar
+const sections = computed(() => query.data.value ? [
+  { id: 'account', label: t('access.users.account') },
+  { id: 'roles', label: t('access.users.rolesAndScopes') },
+  { id: 'capabilities', label: t('access.users.capabilities') },
+] : [])
 </script>
 
 <template>
-  <SettingsLayout><div class="nasq-page-stack">
+  <SettingsLayout :sections><div class="nasq-page-stack">
     <SharedPageHeader :title="query.data.value?.name ?? t('access.users.title')" :description="query.data.value?.login" :back-to="returnTo" />
     <nav class="nasq-tabs" :aria-label="t('access.users.accountNavigation')">
       <NuxtLink :to="route.path" aria-current="page">{{ t('access.users.account') }}</NuxtLink>
@@ -37,10 +42,22 @@ const sourceLabel = (source: { role: { name: { ar: string; en: string | null } }
     </nav>
     <SharedPageState v-if="forbidden" :empty="true" :empty-text="t('access.forbidden')" />
     <SharedPageState v-else :loading="query.isLoading.value" :error="query.error.value" :empty="!query.isLoading.value && !query.error.value && !query.data.value" :empty-text="t('access.notFound')" @retry="query.refetch">
-      <div v-if="query.data.value" class="nasq-settings-cards">
-        <Card class="rounded-lg border-border/80 bg-card"><CardHeader><CardTitle>{{ t('access.users.account') }}</CardTitle></CardHeader><CardContent class="space-y-2 text-sm"><p>{{ t('access.users.login') }}: <span dir="ltr">{{ query.data.value.login }}</span></p><p>{{ t('access.users.employee') }}: {{ query.data.value.employee?.name ?? t('access.users.noEmployee') }}</p><AccessStateBadge :active="query.data.value.active" :protected="query.data.value.protected" /></CardContent></Card>
-        <Card><CardHeader><CardTitle>{{ t('access.users.rolesAndScopes') }}</CardTitle></CardHeader><CardContent><ul class="space-y-2 text-sm"><li v-for="assignment in query.data.value.assignments" :key="assignment.id"><span class="font-medium">{{ assignment.role.name[locale === 'ar' ? 'ar' : 'en'] ?? assignment.role.name.ar }}</span><span class="block text-xs text-muted-foreground">{{ assignment.scope.name }}</span></li></ul><p v-if="!query.data.value.assignments.length" class="text-sm text-muted-foreground">{{ t('access.users.noRoles') }}</p></CardContent></Card>
-        <Card><CardHeader><CardTitle>{{ t('access.users.capabilities') }}</CardTitle></CardHeader><CardContent><ul class="space-y-2 text-sm"><li v-for="capability in query.data.value.capabilities" :key="capability.key">{{ permissionLabel(capability.key) }}<span v-if="capability.sources.length" class="block text-xs text-muted-foreground">{{ capability.sources.map(sourceLabel).join('، ') }}</span></li></ul></CardContent></Card>
+      <div v-if="query.data.value" class="nasq-panel nasq-panel-body">
+        <section id="account" class="nasq-form-section nasq-settings-anchor space-y-2 text-sm">
+          <h2 class="font-semibold">{{ t('access.users.account') }}</h2>
+          <p>{{ t('access.users.login') }}: <span dir="ltr">{{ query.data.value.login }}</span></p>
+          <p>{{ t('access.users.employee') }}: {{ query.data.value.employee?.name ?? t('access.users.noEmployee') }}</p>
+          <AccessStateBadge :active="query.data.value.active" :protected="query.data.value.protected" />
+        </section>
+        <section id="roles" class="nasq-form-section nasq-settings-anchor space-y-2 text-sm">
+          <h2 class="font-semibold">{{ t('access.users.rolesAndScopes') }}</h2>
+          <ul class="space-y-2"><li v-for="assignment in query.data.value.assignments" :key="assignment.id"><span class="font-medium">{{ assignment.role.name[locale === 'ar' ? 'ar' : 'en'] ?? assignment.role.name.ar }}</span><span class="block text-xs text-muted-foreground">{{ assignment.scope.name }}</span></li></ul>
+          <p v-if="!query.data.value.assignments.length" class="text-muted-foreground">{{ t('access.users.noRoles') }}</p>
+        </section>
+        <section id="capabilities" class="nasq-form-section nasq-settings-anchor space-y-2 text-sm">
+          <h2 class="font-semibold">{{ t('access.users.capabilities') }}</h2>
+          <ul class="space-y-2"><li v-for="capability in query.data.value.capabilities" :key="capability.key">{{ permissionLabel(capability.key) }}<span v-if="capability.sources.length" class="block text-xs text-muted-foreground">{{ capability.sources.map(sourceLabel).join('، ') }}</span></li></ul>
+        </section>
       </div>
     </SharedPageState>
   </div></SettingsLayout>
