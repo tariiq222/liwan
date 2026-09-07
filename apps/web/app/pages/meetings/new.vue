@@ -18,7 +18,12 @@ const peopleQ = ref('')
 const people = usePeople(peopleQ)
 const { mutateAsync, isPending, error } = useCreateMeeting()
 const returnTo = computed(() => safeReturnTo(route.query.returnTo, '/meetings', ['/meetings']))
-const dirty = computed(() => Boolean(name.value || meetingDate.value || start.value || location.value || meetingUrl.value || attendeeIds.value.length))
+function snapshot() {
+  return JSON.stringify([name.value, meetingDate.value, start.value, end.value, location.value,
+    meetingUrl.value, [...attendeeIds.value].sort((a, b) => a - b)])
+}
+const baseline = ref(snapshot())
+const dirty = computed(() => snapshot() !== baseline.value)
 
 function toggleAttendee(userId: number) {
   attendeeIds.value = attendeeIds.value.includes(userId)
@@ -37,6 +42,8 @@ async function save() {
     meeting_url: meetingUrl.value || undefined,
     attendee_ids: attendeeIds.value,
   })
+  baseline.value = snapshot()
+  await nextTick()
   await navigateTo({ path: `/meetings/${meeting.id}`, query: returnToQuery(returnTo.value) })
 }
 </script>

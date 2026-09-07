@@ -46,11 +46,21 @@ class CyanMeetingMinute(models.Model):
         if not (self.start_datetime and self.end_datetime):
             return
         try:
-            if not self.calendar_event_id:
-                self.action_schedule_calendar_event()
-            event = self.calendar_event_id
-            if event and self.meeting_url:
-                event.videocall_location = self.meeting_url
+            with self.env.cr.savepoint():
+                if not self.calendar_event_id:
+                    self.action_schedule_calendar_event()
+                event = self.calendar_event_id
+                if event:
+                    values = {
+                        'name': self.name,
+                        'start': self.start_datetime,
+                        'stop': self.end_datetime,
+                        'location': self.location,
+                        'videocall_location': self.meeting_url or False,
+                    }
+                    changes = {key: value for key, value in values.items() if event[key] != value}
+                    if changes:
+                        event.write(changes)
         except (AccessError, UserError):
             return
 
@@ -58,7 +68,8 @@ class CyanMeetingMinute(models.Model):
     def create(self, vals_list):
         records = super().create(vals_list)
         for meeting in records:
-            meeting._nasq_sync_calendar()
+            if not self.env.context.get('nasq_calendar_import'):
+                meeting._nasq_sync_calendar()
             partners = meeting._cyan_participant_users().mapped('partner_id') - meeting.env.user.partner_id
             meeting._nasq_notify_partners(partners, 'meeting_invite', meeting.name, key=f'meeting-invite:{meeting.id}')
         return records
@@ -77,3 +88,13 @@ class CyanMeetingMinute(models.Model):
                     key=f'meeting-invite:{meeting.id}',
                 )
         return result
+
+
+class CalendarEvent(models.Model):
+    _inherit = 'calendar.event'
+
+    def action_open_meeting_minutes(self):
+        # Cyan links the existing event after create. Suppress only Nasq's
+        # optional auto-scheduling to avoid creating an orphan second event.
+        # This flag carries no authorization and bypasses no Cyan ACL checks.
+        return super(CalendarEvent, self.with_context(nasq_calendar_import=True)).action_open_meeting_minutes()

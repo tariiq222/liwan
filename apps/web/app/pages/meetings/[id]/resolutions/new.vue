@@ -13,7 +13,11 @@ const name = ref('')
 const responsibleId = ref<number | ''>('')
 const deadline = ref('')
 const priority = ref<'0' | '1' | '2' | '3'>('0')
-const dirty = computed(() => Boolean(name.value || responsibleId.value || deadline.value))
+function snapshot() {
+  return JSON.stringify([name.value, responsibleId.value, deadline.value, priority.value])
+}
+const baseline = ref(snapshot())
+const dirty = computed(() => snapshot() !== baseline.value)
 
 async function save() {
   if (!hydrated.value || !name.value.trim() || !responsibleId.value || !deadline.value) return
@@ -21,6 +25,8 @@ async function save() {
     meetingId: id.value,
     body: { name: name.value.trim(), responsible_id: Number(responsibleId.value), deadline: deadline.value, priority: priority.value },
   })
+  baseline.value = snapshot()
+  await nextTick()
   await navigateTo(returnTo.value)
 }
 </script>

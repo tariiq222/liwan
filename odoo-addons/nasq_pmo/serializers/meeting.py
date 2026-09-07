@@ -28,7 +28,16 @@ def dump_meeting(meeting, *, detail=False):
         'organizer': dump_person(meeting.organizer_id) if meeting.organizer_id else None,
     }
     if detail:
-        tasks = meeting.env['project.task'].search([('resolution_id', 'in', meeting.resolution_ids.ids)])
+        Task = meeting.env['project.task']
+        can_read_tasks = meeting.env['nasq.access.service']._nasq_has_capability(
+            meeting.env.user, 'pmo.tasks.read',
+        ) and Task.has_access('read')
+        tasks = Task.search([
+            ('resolution_id', 'in', meeting.resolution_ids.ids),
+            ('company_id', '=', meeting.env.company.id),
+            ('project_id.company_id', '=', meeting.env.company.id),
+            ('project_id.active', '=', True),
+        ]) if can_read_tasks else Task.browse()
         task_by_resolution = {task.resolution_id: task.id for task in tasks}
         payload['agenda'] = meeting.agenda or ''
         payload['minutes'] = meeting.minutes or ''
@@ -36,7 +45,7 @@ def dump_meeting(meeting, *, detail=False):
         payload['start_datetime'] = iso(meeting.start_datetime)
         payload['end_datetime'] = iso(meeting.end_datetime)
         payload['meeting_url'] = meeting.meeting_url or ''
-        payload['can_edit'] = bool(meeting.can_edit or meeting.can_manage)
+        payload['can_edit'] = bool(meeting.can_edit)
         payload['secretary'] = dump_person(meeting.secretary_id) if meeting.secretary_id else None
         payload['attendees'] = [dump_person(user) for user in meeting.attendee_ids]
         payload['resolutions'] = [

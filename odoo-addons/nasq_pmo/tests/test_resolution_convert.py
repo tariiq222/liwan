@@ -1,6 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import fields
-from odoo.exceptions import AccessError
+from odoo.exceptions import AccessError, UserError
 from odoo.tests import TransactionCase, new_test_user, tagged
 
 from odoo.addons.nasq_pmo.serializers.task import dump_task, dump_task_detail
@@ -161,3 +161,45 @@ class TestResolutionConvert(TransactionCase):
         resolution = self._create_resolution(meeting)
         with self.assertRaises(AccessError):
             resolution.with_user(self.organizer).action_convert_to_task(project_b.id)
+
+
+    def test_repeat_conversion_does_not_create_second_task(self):
+        resolution = self._create_resolution(self._create_meeting())
+        task = resolution.with_user(self.organizer).action_convert_to_task(self.project.id)
+        with self.assertRaises(UserError):
+            resolution.with_user(self.organizer).action_convert_to_task(self.project.id)
+        self.assertEqual(self.env['project.task'].search([('resolution_id', '=', resolution.id)]), task)
+
+    def test_locked_meeting_does_not_offer_edit_or_allow_conversion(self):
+        from odoo.addons.nasq_pmo.serializers.meeting import dump_meeting
+
+        meeting = self._create_meeting()
+        resolution = self._create_resolution(meeting)
+        meeting.sudo().write({'state': 'done'})
+        self.assertFalse(dump_meeting(meeting.with_user(self.manager_cap), detail=True)['can_edit'])
+        with self.assertRaises(UserError):
+            resolution.with_user(self.manager_cap).action_convert_to_task(self.project.id)
+
+
+    def test_edit_meeting_schedule_updates_existing_calendar_event(self):
+        meeting = self._create_meeting()
+        event = meeting.calendar_event_id
+        self.assertTrue(event)
+        meeting.write({'name': 'Updated meeting', 'start_datetime': '2026-09-08 10:00:00',
+                       'end_datetime': '2026-09-08 11:00:00', 'location': 'New room'})
+        self.assertEqual(meeting.calendar_event_id, event)
+        self.assertEqual(event.name, 'Updated meeting')
+        self.assertEqual(event.start, meeting.start_datetime)
+        self.assertEqual(event.stop, meeting.end_datetime)
+        self.assertEqual(event.location, 'New room')
+
+
+    def test_calendar_import_does_not_create_an_extra_event(self):
+        Event = self.env['calendar.event'].with_user(self.organizer)
+        event = Event.create({'name': 'Import calendar', 'start': '2026-09-08 10:00:00',
+                              'stop': '2026-09-08 11:00:00', 'user_id': self.organizer.id})
+        before = Event.search_count([])
+        action = event.action_open_meeting_minutes()
+        meeting = self.Meeting.browse(action['res_id'])
+        self.assertEqual(meeting.calendar_event_id, event)
+        self.assertEqual(Event.search_count([]), before)
