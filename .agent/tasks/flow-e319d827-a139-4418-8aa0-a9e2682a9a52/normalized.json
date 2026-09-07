@@ -1,0 +1,90 @@
+{
+  "id": "flow-e319d827-a139-4418-8aa0-a9e2682a9a52",
+  "request": "ابي منك تحليل الواجهه بالكامل في نسق من منظور مستخدم  ابي تحليل تفصيلي لتنظيم الصفحات والقوائم الجانبيه وغيرها من الصفحات لكل الصفحات ",
+  "goal": "تحليل تجربة المستخدم وتنظيم الواجهات والقوائم الجانبية ومسارات الصفحات الظاهرة في نطاق الأدلة المتاحة، مع تحديد نقاط القوة والفجوات ومقترحات التحسين دون تعديل الملفات.",
+  "kind": "analysis",
+  "allowedFiles": [
+    "apps/web/app/app.vue",
+    "apps/web/app/assets/css/main.css",
+    "apps/web/app/components/AppSidebar.vue",
+    "apps/web/app/components/shared/PageHeader.vue",
+    "apps/web/app/components/shared/FilterBar.vue",
+    "apps/web/app/components/shared/PageState.vue",
+    "apps/web/app/components/shared/EmptyState.vue",
+    "apps/web/app/components/project/ProjectMenu.vue",
+    "apps/web/app/components/project/ProjectHeader.vue",
+    "apps/web/app/components/project/ProjectTable.vue",
+    "apps/web/app/components/project/ProjectCreateForm.vue",
+    "apps/web/app/components/project/ProjectUpdateForm.vue",
+    "apps/web/app/components/project/ProjectSettingsForm.vue",
+    "apps/web/app/components/task/TaskBoard.vue",
+    "apps/web/app/components/task/TaskTable.vue",
+    "apps/web/app/components/task/TaskDetailPage.vue",
+    "apps/web/app/components/task/TaskDetailPanel.vue",
+    "apps/web/app/components/hr/DirectoryTable.vue",
+    "apps/web/app/components/hr/DepartmentTable.vue",
+    "apps/web/app/components/hr/DepartmentTree.vue",
+    "apps/web/app/components/hr/EmployeeCard.vue",
+    "apps/web/app/components/hr/EmployeeCreateForm.vue",
+    "apps/web/app/components/hr/DocumentList.vue",
+    "apps/web/app/components/hr/DocumentReader.vue",
+    "apps/web/app/components/access/users/UserTable.vue",
+    "apps/web/app/components/access/roles/RoleTable.vue",
+    "apps/web/app/components/access/audit/AuditTable.vue",
+    "apps/web/app/components/settings/SettingsTabs.vue",
+    "apps/web/app/components/settings/BrandingForm.vue",
+    "apps/web/app/components/notifications/NotificationCenter.vue",
+    "apps/web/app/components/account/PasswordForm.vue"
+  ],
+  "forbiddenFiles": [],
+  "criteria": [
+    {
+      "id": "navigation-structure",
+      "description": "يوثق التنظيم الحالي للتنقل العام والقائمة الجانبية والقوائم الخاصة بالمشاريع والموارد البشرية والإعدادات والصلاحيات، مع رصد التكرار أو الغموض في التسميات والتجميع.",
+      "checkIds": [
+        "scope",
+        "snapshot"
+      ]
+    },
+    {
+      "id": "page-inventory",
+      "description": "ينشئ جرداً منظماً للصفحات والواجهات الظاهرة في نطاق الملفات، مصنفاً إلى صفحات قوائم وتفاصيل وإنشاء وتعديل وإعدادات، مع توضيح ما يمكن إثباته من الأدلة وما لا يمكن إثباته.",
+      "checkIds": [
+        "scope",
+        "snapshot"
+      ]
+    },
+    {
+      "id": "user-flows",
+      "description": "يحلل المسارات الأساسية للمستخدم من القائمة إلى القوائم والتفاصيل والنماذج، بما في ذلك الرجوع والتحديث وحفظ الفلاتر وحالات التحميل والفراغ والخطأ.",
+      "checkIds": [
+        "scope",
+        "snapshot"
+      ]
+    },
+    {
+      "id": "consistency-review",
+      "description": "يقارن أنماط العناوين والفلاتر والجداول والنماذج والحالات المشتركة بين وحدات المشاريع والمهام والموارد البشرية والصلاحيات والإعدادات، ويحدد فرص الاتساق.",
+      "checkIds": [
+        "scope",
+        "snapshot"
+      ]
+    },
+    {
+      "id": "findings-priorities",
+      "description": "يقدم ملاحظات تجربة مستخدم مرتبة حسب الأولوية، مع فصل المشكلات المثبتة من الملفات عن الأسئلة التي تتطلب فحص المسارات أو التشغيل الفعلي.",
+      "checkIds": [
+        "scope",
+        "snapshot"
+      ]
+    }
+  ],
+  "risks": [
+    "لا تتضمن الأدلة المقدمة ملفات المسارات الفعلية أو إعدادات التخطيط الكامل، لذلك لا يمكن الجزم بكل الصفحات أو الروابط المتاحة.",
+    "لا يمكن تقييم السلوك التفاعلي الفعلي أو الاستجابة للشاشات المختلفة أو صلاحيات ظهور عناصر القائمة دون تشغيل التطبيق أو أدلة إضافية.",
+    "قد تختلف الواجهة النهائية عن أسماء المكونات إذا كانت بعض المكونات غير مستخدمة في الصفحات الحالية."
+  ],
+  "complexity": 9,
+  "risk": "critical",
+  "architecture": false
+}

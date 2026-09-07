@@ -1,0 +1,4 @@
+/Users/tariq/code/odoo/.venv/bin/python /Users/tariq/code/odoo/odoo-bin -c /Users/tariq/code/odoo/odoo.conf --addons-path=/Users/tariq/code/odoo/odoo/addons,/Users/tariq/code/odoo/addons,/Users/tariq/code/nasq-psc-integration-current/odoo-addons -d nasq_psc_scratch_integration_e2e_20260906 -i nasq_core,nasq_api,nasq_pmo,nasq_hr --http-port 9792 --http-interface 127.0.0.1 --max-cron-threads 0 --stop-after-init
+NO_TEST_TAGS True
+STOP True
+INSTALL_EXIT 0

@@ -1,0 +1,10 @@
+{
+  "taskId": "flow-ad093c17-420f-4bdc-8d84-b573b6c2f941",
+  "state": "BLOCKED",
+  "goal": "تحليل بنية النظام الحالية ضمن الملفات المتاحة وتحديد المكونات والأنماط والمخاطر دون إجراء تعديلات.",
+  "reason": "Analysis context is incomplete; narrow scope",
+  "changedFiles": [],
+  "fixLoops": 0,
+  "reviewLoops": 0,
+  "calls": 1
+}

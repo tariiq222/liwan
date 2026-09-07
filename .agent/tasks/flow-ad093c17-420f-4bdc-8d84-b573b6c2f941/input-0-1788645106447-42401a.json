@@ -1,0 +1,679 @@
+{
+  "role": "luna",
+  "effort": "low",
+  "purpose": "normalize",
+  "input": {
+    "request": "حلل النظام",
+    "generatedTaskId": "flow-ad093c17-420f-4bdc-8d84-b573b6c2f941",
+    "projectScope": {
+      "forbiddenFiles": []
+    },
+    "configuredCheckIds": [
+      "lint",
+      "test",
+      "build",
+      "ruff",
+      "pycompile",
+      "scope",
+      "snapshot"
+    ],
+    "configuredChecks": [
+      {
+        "id": "lint",
+        "category": "lint",
+        "required": true,
+        "appliesToFiles": [
+          "**/*.ts",
+          "**/*.tsx",
+          "**/*.js",
+          "**/*.jsx",
+          "**/*.mjs",
+          "**/*.cjs",
+          "**/*.vue",
+          "**/*.svelte",
+          "**/*.json",
+          "**/*.css",
+          "**/*.scss"
+        ]
+      },
+      {
+        "id": "test",
+        "category": "unit",
+        "required": true,
+        "appliesToFiles": [
+          "**/*.ts",
+          "**/*.tsx",
+          "**/*.js",
+          "**/*.jsx",
+          "**/*.mjs",
+          "**/*.cjs",
+          "**/*.vue",
+          "**/*.svelte",
+          "**/*.json",
+          "**/*.css",
+          "**/*.scss"
+        ]
+      },
+      {
+        "id": "build",
+        "category": "build",
+        "required": false,
+        "appliesToFiles": [
+          "**/*.ts",
+          "**/*.tsx",
+          "**/*.js",
+          "**/*.jsx",
+          "**/*.mjs",
+          "**/*.cjs",
+          "**/*.vue",
+          "**/*.svelte",
+          "**/*.json",
+          "**/*.css",
+          "**/*.scss"
+        ]
+      },
+      {
+        "id": "ruff",
+        "category": "lint",
+        "required": true,
+        "appliesToFiles": [
+          "**/*.py"
+        ]
+      },
+      {
+        "id": "pycompile",
+        "category": "typecheck",
+        "required": true,
+        "appliesToFiles": [
+          "**/*.py"
+        ]
+      }
+    ],
+    "instruction": "Return only JSON matching schema. Do not echo or rewrite request: code preserves it. Do not invent files or check IDs. For requests to analyze, review or search without edits use kind analysis, review or search, respectively; allowedFiles is the read scope and criteria may reference only scope and snapshot. For source edits at least one behavior criterion must reference a configured project command whose appliesToFiles (if any) matches an allowed file; separate structural criteria may use scope/snapshot. Documentation edits use kind docs.",
+    "repositoryInventory": [
+      {
+        "path": "AGENTS.md",
+        "score": 0,
+        "module": "root"
+      },
+      {
+        "path": "apps/web/app/app.vue",
+        "score": 0,
+        "module": "apps/web/app"
+      },
+      {
+        "path": "apps/web/app/assets/css/main.css",
+        "score": 0,
+        "module": "apps/web/app/assets/css"
+      },
+      {
+        "path": "apps/web/app/components/access/__tests__/locale-contract.test.ts",
+        "score": 0,
+        "module": "apps/web/app/components/access/__tests__"
+      },
+      {
+        "path": "apps/web/app/components/access/__tests__/permissionDiff.test.ts",
+        "score": 0,
+        "module": "apps/web/app/components/access/__tests__"
+      },
+      {
+        "path": "apps/web/app/components/access/__tests__/state-contract.test.ts",
+        "score": 0,
+        "module": "apps/web/app/components/access/__tests__"
+      },
+      {
+        "path": "apps/web/app/components/access/AccessStateBadge.vue",
+        "score": 0,
+        "module": "apps/web/app/components/access"
+      },
+      {
+        "path": "apps/web/app/components/access/audit/AuditTable.vue",
+        "score": 0,
+        "module": "apps/web/app/components/access/audit"
+      },
+      {
+        "path": "apps/web/app/components/access/permissionDiff.ts",
+        "score": 0,
+        "module": "apps/web/app/components/access"
+      },
+      {
+        "path": "apps/web/app/components/access/roles/RolePermissionForm.vue",
+        "score": 0,
+        "module": "apps/web/app/components/access/roles"
+      },
+      {
+        "path": "apps/web/app/components/access/roles/RoleTable.vue",
+        "score": 0,
+        "module": "apps/web/app/components/access/roles"
+      },
+      {
+        "path": "apps/web/app/components/access/users/UserAccessForm.vue",
+        "score": 0,
+        "module": "apps/web/app/components/access/users"
+      },
+      {
+        "path": "apps/web/app/components/access/users/UserSecurityForm.vue",
+        "score": 0,
+        "module": "apps/web/app/components/access/users"
+      },
+      {
+        "path": "apps/web/app/components/access/users/UserTable.vue",
+        "score": 0,
+        "module": "apps/web/app/components/access/users"
+      },
+      {
+        "path": "apps/web/app/components/account/PasswordForm.vue",
+        "score": 0,
+        "module": "apps/web/app/components/account"
+      },
+      {
+        "path": "apps/web/app/components/AppSidebar.vue",
+        "score": 0,
+        "module": "apps/web/app/components"
+      },
+      {
+        "path": "apps/web/app/components/hr/__tests__/hr-separation.test.ts",
+        "score": 0,
+        "module": "apps/web/app/components/hr/__tests__"
+      },
+      {
+        "path": "apps/web/app/components/hr/AccessBadge.vue",
+        "score": 0,
+        "module": "apps/web/app/components/hr"
+      },
+      {
+        "path": "apps/web/app/components/hr/DepartmentForm.vue",
+        "score": 0,
+        "module": "apps/web/app/components/hr"
+      },
+      {
+        "path": "apps/web/app/components/hr/DepartmentTable.vue",
+        "score": 0,
+        "module": "apps/web/app/components/hr"
+      },
+      {
+        "path": "apps/web/app/components/hr/DepartmentTree.vue",
+        "score": 0,
+        "module": "apps/web/app/components/hr"
+      },
+      {
+        "path": "apps/web/app/components/hr/DirectoryTable.vue",
+        "score": 0,
+        "module": "apps/web/app/components/hr"
+      },
+      {
+        "path": "apps/web/app/components/hr/DocumentCreateForm.vue",
+        "score": 0,
+        "module": "apps/web/app/components/hr"
+      },
+      {
+        "path": "apps/web/app/components/hr/DocumentEditor.vue",
+        "score": 0,
+        "module": "apps/web/app/components/hr"
+      },
+      {
+        "path": "apps/web/app/components/hr/DocumentList.vue",
+        "score": 0,
+        "module": "apps/web/app/components/hr"
+      },
+      {
+        "path": "apps/web/app/components/hr/DocumentReader.vue",
+        "score": 0,
+        "module": "apps/web/app/components/hr"
+      },
+      {
+        "path": "apps/web/app/components/hr/EmployeeAccessPanel.vue",
+        "score": 0,
+        "module": "apps/web/app/components/hr"
+      },
+      {
+        "path": "apps/web/app/components/hr/EmployeeCard.vue",
+        "score": 0,
+        "module": "apps/web/app/components/hr"
+      },
+      {
+        "path": "apps/web/app/components/hr/EmployeeCreateForm.vue",
+        "score": 0,
+        "module": "apps/web/app/components/hr"
+      },
+      {
+        "path": "apps/web/app/components/hr/EmployeeGeneralForm.vue",
+        "score": 0,
+        "module": "apps/web/app/components/hr"
+      },
+      {
+        "path": "apps/web/app/components/notifications/NotificationCenter.vue",
+        "score": 0,
+        "module": "apps/web/app/components/notifications"
+      },
+      {
+        "path": "apps/web/app/components/project/FollowerList.vue",
+        "score": 0,
+        "module": "apps/web/app/components/project"
+      },
+      {
+        "path": "apps/web/app/components/project/MilestoneForm.vue",
+        "score": 0,
+        "module": "apps/web/app/components/project"
+      },
+      {
+        "path": "apps/web/app/components/project/MilestoneTable.vue",
+        "score": 0,
+        "module": "apps/web/app/components/project"
+      },
+      {
+        "path": "apps/web/app/components/project/ProjectCreateForm.vue",
+        "score": 0,
+        "module": "apps/web/app/components/project"
+      },
+      {
+        "path": "apps/web/app/components/project/ProjectGeneralForm.vue",
+        "score": 0,
+        "module": "apps/web/app/components/project"
+      },
+      {
+        "path": "apps/web/app/components/project/ProjectHeader.vue",
+        "score": 0,
+        "module": "apps/web/app/components/project"
+      },
+      {
+        "path": "apps/web/app/components/project/ProjectMenu.vue",
+        "score": 0,
+        "module": "apps/web/app/components/project"
+      },
+      {
+        "path": "apps/web/app/components/project/ProjectProgress.vue",
+        "score": 0,
+        "module": "apps/web/app/components/project"
+      },
+      {
+        "path": "apps/web/app/components/project/ProjectSettingsForm.vue",
+        "score": 0,
+        "module": "apps/web/app/components/project"
+      },
+      {
+        "path": "apps/web/app/components/project/ProjectStatusBadge.vue",
+        "score": 0,
+        "module": "apps/web/app/components/project"
+      },
+      {
+        "path": "apps/web/app/components/project/ProjectStatusSelect.vue",
+        "score": 0,
+        "module": "apps/web/app/components/project"
+      },
+      {
+        "path": "apps/web/app/components/project/ProjectTable.vue",
+        "score": 0,
+        "module": "apps/web/app/components/project"
+      },
+      {
+        "path": "apps/web/app/components/project/ProjectUpdateForm.vue",
+        "score": 0,
+        "module": "apps/web/app/components/project"
+      },
+      {
+        "path": "apps/web/app/components/project/ProjectUpdateList.vue",
+        "score": 0,
+        "module": "apps/web/app/components/project"
+      },
+      {
+        "path": "apps/web/app/components/project/StageListEditor.vue",
+        "score": 0,
+        "module": "apps/web/app/components/project"
+      },
+      {
+        "path": "apps/web/app/components/settings/BrandingForm.vue",
+        "score": 0,
+        "module": "apps/web/app/components/settings"
+      },
+      {
+        "path": "apps/web/app/components/settings/BrandingPreview.vue",
+        "score": 0,
+        "module": "apps/web/app/components/settings"
+      },
+      {
+        "path": "apps/web/app/components/settings/ProjectSettingsForm.vue",
+        "score": 0,
+        "module": "apps/web/app/components/settings"
+      },
+      {
+        "path": "apps/web/app/components/settings/SettingsTabs.vue",
+        "score": 0,
+        "module": "apps/web/app/components/settings"
+      },
+      {
+        "path": "apps/web/app/components/shared/__tests__/composition.test.ts",
+        "score": 0,
+        "module": "apps/web/app/components/shared/__tests__"
+      },
+      {
+        "path": "apps/web/app/components/shared/EmptyState.vue",
+        "score": 0,
+        "module": "apps/web/app/components/shared"
+      },
+      {
+        "path": "apps/web/app/components/shared/FilterBar.vue",
+        "score": 0,
+        "module": "apps/web/app/components/shared"
+      },
+      {
+        "path": "apps/web/app/components/shared/PageHeader.vue",
+        "score": 0,
+        "module": "apps/web/app/components/shared"
+      },
+      {
+        "path": "apps/web/app/components/shared/PageState.vue",
+        "score": 0,
+        "module": "apps/web/app/components/shared"
+      },
+      {
+        "path": "apps/web/app/components/shared/UnsavedChanges.vue",
+        "score": 0,
+        "module": "apps/web/app/components/shared"
+      },
+      {
+        "path": "apps/web/app/components/task/AssigneePicker.vue",
+        "score": 0,
+        "module": "apps/web/app/components/task"
+      },
+      {
+        "path": "apps/web/app/components/task/CommentComposer.vue",
+        "score": 0,
+        "module": "apps/web/app/components/task"
+      },
+      {
+        "path": "apps/web/app/components/task/DeadlineBadge.vue",
+        "score": 0,
+        "module": "apps/web/app/components/task"
+      },
+      {
+        "path": "apps/web/app/components/task/DependencyPicker.vue",
+        "score": 0,
+        "module": "apps/web/app/components/task"
+      },
+      {
+        "path": "apps/web/app/components/task/DescriptionEditor.vue",
+        "score": 0,
+        "module": "apps/web/app/components/task"
+      },
+      {
+        "path": "apps/web/app/components/task/MilestoneSelect.vue",
+        "score": 0,
+        "module": "apps/web/app/components/task"
+      },
+      {
+        "path": "apps/web/app/components/task/PrioritySelect.vue",
+        "score": 0,
+        "module": "apps/web/app/components/task"
+      },
+      {
+        "path": "apps/web/app/components/task/StateBadge.vue",
+        "score": 0,
+        "module": "apps/web/app/components/task"
+      },
+      {
+        "path": "apps/web/app/components/task/StateMenu.vue",
+        "score": 0,
+        "module": "apps/web/app/components/task"
+      },
+      {
+        "path": "apps/web/app/components/task/SubtaskList.vue",
+        "score": 0,
+        "module": "apps/web/app/components/task"
+      },
+      {
+        "path": "apps/web/app/components/task/TagPicker.vue",
+        "score": 0,
+        "module": "apps/web/app/components/task"
+      },
+      {
+        "path": "apps/web/app/components/task/TaskActivity.vue",
+        "score": 0,
+        "module": "apps/web/app/components/task"
+      },
+      {
+        "path": "apps/web/app/components/task/TaskAttachments.vue",
+        "score": 0,
+        "module": "apps/web/app/components/task"
+      },
+      {
+        "path": "apps/web/app/components/task/TaskBoard.vue",
+        "score": 0,
+        "module": "apps/web/app/components/task"
+      },
+      {
+        "path": "apps/web/app/components/task/TaskCard.vue",
+        "score": 0,
+        "module": "apps/web/app/components/task"
+      },
+      {
+        "path": "apps/web/app/components/task/TaskCreateForm.vue",
+        "score": 0,
+        "module": "apps/web/app/components/task"
+      },
+      {
+        "path": "apps/web/app/components/task/TaskDetailPage.vue",
+        "score": 0,
+        "module": "apps/web/app/components/task"
+      },
+      {
+        "path": "apps/web/app/components/task/TaskDetailPanel.vue",
+        "score": 0,
+        "module": "apps/web/app/components/task"
+      },
+      {
+        "path": "apps/web/app/components/task/TaskDetails.vue",
+        "score": 0,
+        "module": "apps/web/app/components/task"
+      },
+      {
+        "path": "apps/web/app/components/task/TaskTable.vue",
+        "score": 0,
+        "module": "apps/web/app/components/task"
+      },
+      {
+        "path": "apps/web/app/components/task/TaskToolbar.vue",
+        "score": 0,
+        "module": "apps/web/app/components/task"
+      },
+      {
+        "path": "apps/web/app/components/task/Timeline.vue",
+        "score": 0,
+        "module": "apps/web/app/components/task"
+      },
+      {
+        "path": "apps/web/app/components/ui/alert-dialog/AlertDialog.vue",
+        "score": 0,
+        "module": "apps/web/app/components/ui/alert-dialog"
+      },
+      {
+        "path": "apps/web/app/components/ui/alert-dialog/AlertDialogAction.vue",
+        "score": 0,
+        "module": "apps/web/app/components/ui/alert-dialog"
+      }
+    ],
+    "existingModules": [
+      "apps/web",
+      "apps/web/app",
+      "apps/web/app/assets/css",
+      "apps/web/app/components",
+      "apps/web/app/components/access",
+      "apps/web/app/components/access/__tests__",
+      "apps/web/app/components/access/audit",
+      "apps/web/app/components/access/roles",
+      "apps/web/app/components/access/users",
+      "apps/web/app/components/account",
+      "apps/web/app/components/hr",
+      "apps/web/app/components/hr/__tests__",
+      "apps/web/app/components/notifications",
+      "apps/web/app/components/project",
+      "apps/web/app/components/settings",
+      "apps/web/app/components/shared",
+      "apps/web/app/components/shared/__tests__",
+      "apps/web/app/components/task",
+      "apps/web/app/components/ui/alert-dialog",
+      "apps/web/app/components/ui/avatar",
+      "apps/web/app/components/ui/badge",
+      "apps/web/app/components/ui/button",
+      "apps/web/app/components/ui/calendar",
+      "apps/web/app/components/ui/card",
+      "apps/web/app/components/ui/command",
+      "apps/web/app/components/ui/dialog",
+      "apps/web/app/components/ui/dropdown-menu",
+      "apps/web/app/components/ui/input",
+      "apps/web/app/components/ui/label",
+      "apps/web/app/components/ui/native-select",
+      "apps/web/app/components/ui/popover",
+      "apps/web/app/components/ui/progress",
+      "apps/web/app/components/ui/radio-group",
+      "apps/web/app/components/ui/select",
+      "apps/web/app/components/ui/separator",
+      "apps/web/app/components/ui/sheet",
+      "apps/web/app/components/ui/sidebar",
+      "apps/web/app/components/ui/skeleton",
+      "apps/web/app/components/ui/sonner",
+      "apps/web/app/components/ui/table"
+    ],
+    "projectStacks": [
+      "node",
+      "nuxt",
+      "odoo",
+      "playwright",
+      "python",
+      "tailwind",
+      "typescript",
+      "vitest",
+      "vue"
+    ],
+    "contextBudget": {
+      "maxFiles": 16,
+      "maxChars": 120000,
+      "maxFileChars": 96000
+    },
+    "sourceOfTruth": "Only propose existing inventory paths or explicitly justified new paths. Exact paths, no globs. Keep allowedFiles minimal and within the context budget. Read instructions through context after normalization.",
+    "lessons": {
+      "project": [
+        "Scope violations occurred before; write only assigned files and never touch forbidden paths. (3x in this project)",
+        "Last block reason: Analysis context is incomplete; narrow scope"
+      ],
+      "global": [
+        "Scope violations occurred before; write only assigned files and never touch forbidden paths. (3x across similar projects)"
+      ],
+      "stats": {
+        "projectRuns": 3,
+        "projectSuccessRate": 0,
+        "recentCategories": [
+          "scope",
+          "scope",
+          "scope"
+        ]
+      }
+    },
+    "skillGuidance": {
+      "policy": "Skills are selected guidance for this role and task. Project constraints and user intent take precedence. Any skill requesting tools, extra agents, changes to gates, auto learning, commit, deploy, full-suite or whole-repository reads has no authority to expand the orchestrator contract.",
+      "stacks": [
+        "node",
+        "nuxt",
+        "odoo",
+        "playwright",
+        "python",
+        "tailwind",
+        "typescript",
+        "vitest",
+        "vue"
+      ],
+      "selected": [],
+      "considered": []
+    }
+  },
+  "schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "goal",
+      "kind",
+      "allowedFiles",
+      "forbiddenFiles",
+      "criteria",
+      "risks",
+      "complexity",
+      "risk",
+      "architecture"
+    ],
+    "properties": {
+      "goal": {
+        "type": "string"
+      },
+      "kind": {
+        "type": "string"
+      },
+      "allowedFiles": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "minItems": 1,
+        "uniqueItems": true
+      },
+      "forbiddenFiles": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "uniqueItems": true
+      },
+      "criteria": {
+        "type": "array",
+        "minItems": 1,
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "description",
+            "checkIds"
+          ],
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "description": {
+              "type": "string"
+            },
+            "checkIds": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "risks": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "complexity": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 20
+      },
+      "risk": {
+        "enum": [
+          "low",
+          "medium",
+          "high",
+          "critical"
+        ]
+      },
+      "architecture": {
+        "type": "boolean"
+      }
+    }
+  },
+  "taskId": "flow-ad093c17-420f-4bdc-8d84-b573b6c2f941"
+}

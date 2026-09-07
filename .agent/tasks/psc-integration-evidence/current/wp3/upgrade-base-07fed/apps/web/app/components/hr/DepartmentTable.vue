@@ -1,0 +1,38 @@
+<script setup lang="ts">
+import type { HrDepartment } from '@/composables/useHrDepartments'
+import { returnToQuery } from '@/utils/safeReturnTo'
+
+const props = defineProps<{
+  departments: HrDepartment[]
+  selectedId?: number | null
+  canManage?: boolean
+}>()
+const emit = defineEmits<{ select: [id: number]; edit: [department: HrDepartment]; delete: [department: HrDepartment] }>()
+const hydrated = useHydrated()
+const { can } = useAccess()
+const route = useRoute()
+const canManage = computed(() => !!props.canManage && can('hr.departments.manage'))
+</script>
+
+<template>
+  <div class="nasq-panel nasq-panel-body grid gap-1" data-testid="hr-department-table">
+    <div
+      v-for="department in departments"
+      :key="department.id"
+      class="flex items-center gap-2 rounded-lg border border-transparent px-3 py-2 transition-colors hover:border-border hover:bg-muted/60"
+      :class="{ 'border-border bg-muted/70': selectedId === department.id }"
+    >
+      <button type="button" class="min-w-0 flex-1 text-start text-sm" :disabled="!hydrated" @click="emit('select', department.id)">
+        <span class="font-medium">{{ department.name }}</span>
+        <span class="ms-2 text-muted-foreground">{{ department.employee_count }}</span>
+      </button>
+      <NuxtLink v-if="canManage" :to="{ path: `/hr/departments/${department.id}/edit`, query: returnToQuery(route.fullPath) }" @click.stop="!hydrated && $event.preventDefault()">
+        <Button variant="ghost" size="sm" :disabled="!hydrated">{{ $t('hr.depts.edit') }}</Button>
+      </NuxtLink>
+      <Button v-if="canManage" variant="ghost" size="sm" class="text-destructive" :disabled="!hydrated" @click="emit('delete', department)">
+        {{ $t('hr.depts.delete') }}
+      </Button>
+    </div>
+    <p v-if="departments.length === 0" class="text-sm text-muted-foreground">{{ $t('hr.depts.empty') }}</p>
+  </div>
+</template>

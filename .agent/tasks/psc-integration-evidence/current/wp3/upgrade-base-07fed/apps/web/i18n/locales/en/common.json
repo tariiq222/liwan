@@ -1,0 +1,98 @@
+{
+  "app": {
+    "edit": "Edit",
+    "productName": "Nasq",
+    "search": "Search",
+    "cancel": "Cancel",
+    "save": "Save",
+    "create": "Create",
+    "noResults": "No results.",
+    "loadMore": "Load more",
+    "loading": "Loading",
+    "back": "Back",
+    "retry": "Try again",
+    "unsavedChanges": "You have unsaved changes. Stay on this page or leave without saving?",
+    "stay": "Stay on this page",
+    "discardAndLeave": "Leave without saving"
+  },
+  "nav": {
+    "today": "Today",
+    "tasks": "My tasks",
+    "projects": "Projects",
+    "toggleNavigation": "Toggle navigation",
+    "people": "People",
+    "reports": "Reports",
+    "console": "Console",
+    "goTo": "Go to",
+    "typeToNavigate": "Type to navigate…",
+    "searchDescription": "Find a page or project and open it directly.",
+    "back": "Back",
+    "loading": "Loading…",
+    "account": "Account",
+    "logout": "Log out",
+    "settings": "Settings",
+    "employees": "Employees",
+    "departments": "Departments",
+    "documents": "Documents",
+    "users": "Users",
+    "roles": "Roles & permissions",
+    "accessLog": "Access change log",
+    "branding": "Company identity",
+    "projectSettings": "Project settings",
+    "humanResources": "Human resources",
+    "systemAdministration": "System administration",
+    "toggleSidebar": "Toggle navigation"
+  },
+  "auth": {
+    "username": "Username",
+    "password": "Password",
+    "signIn": "Sign in",
+    "continue": "Continue",
+    "signInToContinue": "Sign in to continue",
+    "invalidCredentials": "Invalid credentials",
+    "loginFailed": "Sign-in failed",
+    "totpTitle": "Verification code",
+    "totpHint": "Enter the 6-digit code from your authenticator app",
+    "totpInvalid": "Invalid verification code"
+  },
+  "errors": {
+    "serverUnreachable": "Unable to reach the server",
+    "badPayload": "Invalid response from the server",
+    "generic": "An unexpected error occurred",
+    "forbidden": "You do not have permission to view this page.",
+    "notFound": "This record is unavailable or no longer exists.",
+    "conflict": "The data changed since you opened this page. Reload it and try again."
+  },
+  "account": {
+    "title": "Account",
+    "description": "Manage your account settings.",
+    "company": "Organization",
+    "passwordTitle": "Change password",
+    "currentPassword": "Current password",
+    "newPassword": "New password",
+    "confirmPassword": "Confirm new password",
+    "currentRequired": "Enter your current password.",
+    "passwordMismatch": "Passwords do not match.",
+    "passwordTooShort": "The new password must be at least 8 characters.",
+    "submit": "Change password",
+    "success": "Password changed successfully."
+  },
+  "bus": {
+    "connected": "Connected",
+    "disconnected": "Disconnected"
+  },
+  "today": {
+    "title": "Today",
+    "greeting": "Hi {name} — nothing due today."
+  },
+  "pages": {
+    "projects": "Projects",
+    "people": "People",
+    "reports": "Reports"
+  },
+  "search": {
+    "description": "Search pages, projects and tasks…",
+    "close": "Close search",
+    "tasks": "Tasks"
+  }
+}

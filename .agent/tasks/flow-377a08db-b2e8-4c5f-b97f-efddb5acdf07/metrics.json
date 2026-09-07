@@ -1,0 +1,36 @@
+{
+  "at": "2026-09-05T21:46:43.862Z",
+  "result": {
+    "taskId": "flow-377a08db-b2e8-4c5f-b97f-efddb5acdf07",
+    "state": "BLOCKED",
+    "goal": "تحليل النظام محجوب بسبب نقص سياق المستودع المطلوب.",
+    "reason": "Denied path: AGENTS.md",
+    "changedFiles": [],
+    "fixLoops": 0,
+    "reviewLoops": 0,
+    "calls": 1
+  },
+  "agents": [
+    {
+      "role": "luna",
+      "model": "openai/gpt-5.6-luna",
+      "effort": "low",
+      "purpose": "normalize",
+      "inputTokens": 3927,
+      "outputTokens": 118,
+      "durationMs": 6412
+    }
+  ],
+  "fallbacks": [],
+  "stacks": [
+    "node",
+    "nuxt",
+    "odoo",
+    "playwright",
+    "python",
+    "tailwind",
+    "typescript",
+    "vitest",
+    "vue"
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "id": "flow-34df01c1-4f2d-4a79-9993-8ca16d2a6079",
+  "request": "حلل النظام",
+  "goal": "تحليل بنية النظام الحالية ضمن الملفات المفهرسة وتحديد نطاق المكونات والاختبارات دون إجراء تعديلات.",
+  "kind": "analysis",
+  "allowedFiles": [
+    "apps/web/app/app.vue",
+    "apps/web/app/components/AppSidebar.vue",
+    "apps/web/app/components/shared/PageHeader.vue",
+    "apps/web/app/components/shared/PageState.vue",
+    "apps/web/app/components/access/__tests__/state-contract.test.ts",
+    "apps/web/app/components/hr/__tests__/hr-separation.test.ts",
+    "apps/web/app/components/shared/__tests__/composition.test.ts"
+  ],
+  "forbiddenFiles": [],
+  "criteria": [
+    {
+      "id": "architecture-inventory",
+      "description": "توثيق البنية الظاهرة للمسارات والمكونات ضمن نطاق القراءة المحدد.",
+      "checkIds": [
+        "scope"
+      ]
+    },
+    {
+      "id": "test-surface",
+      "description": "حصر الاختبارات والعقود الموجودة ضمن نطاق القراءة دون افتراض نتائج تشغيل.",
+      "checkIds": [
+        "snapshot"
+      ]
+    }
+  ],
+  "risks": [
+    "النطاق المتاح يمثل مقتطفاً من المستودع وليس النظام كاملاً.",
+    "لا توجد أدلة تشغيل أو نتائج اختبارات في المدخلات."
+  ],
+  "complexity": 9,
+  "risk": "high",
+  "architecture": true
+}

@@ -1,0 +1,24 @@
+{
+  "at": "2026-09-05T21:08:26.104Z",
+  "result": {
+    "taskId": "flow-4947173d-922f-4fbb-9f7f-89557a4dd763",
+    "state": "BLOCKED",
+    "reason": "normalized task request must exactly preserve the original request",
+    "changedFiles": [],
+    "fixLoops": 0,
+    "reviewLoops": 0,
+    "calls": 1
+  },
+  "agents": [
+    {
+      "role": "luna",
+      "model": "openai/gpt-5.6-luna",
+      "effort": "low",
+      "purpose": "normalize",
+      "inputTokens": 3459,
+      "outputTokens": 707,
+      "durationMs": 16718
+    }
+  ],
+  "fallbacks": []
+}

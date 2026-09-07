@@ -1,0 +1,42 @@
+{
+  "id": "flow-cd067af1-10aa-4dff-bd90-7f02adb804f2",
+  "request": "حلل النظام",
+  "goal": "تقييم بنية واجهة التطبيق الحالية وتحديد التنظيم والاعتماديات ومواطن المخاطر",
+  "kind": "analysis",
+  "allowedFiles": [
+    "apps/web/app/app.vue",
+    "apps/web/app/components/AppSidebar.vue",
+    "apps/web/app/components/shared/PageHeader.vue",
+    "apps/web/app/components/shared/PageState.vue",
+    "apps/web/app/components/shared/FilterBar.vue",
+    "apps/web/app/components/project/ProjectTable.vue",
+    "apps/web/app/components/task/TaskTable.vue",
+    "apps/web/app/components/hr/DirectoryTable.vue",
+    "apps/web/app/components/access/roles/RoleTable.vue",
+    "apps/web/app/components/settings/SettingsTabs.vue"
+  ],
+  "forbiddenFiles": [],
+  "criteria": [
+    {
+      "id": "architecture-overview",
+      "description": "تحديد حدود الوحدات ومسارات تدفق البيانات وأنماط تركيب المكونات ضمن الملفات المسموح بها",
+      "checkIds": [
+        "scope"
+      ]
+    },
+    {
+      "id": "consistency-review",
+      "description": "رصد الاتساق في حالات التحميل والخطأ والتنقل وتنسيق صفحات القوائم",
+      "checkIds": [
+        "snapshot"
+      ]
+    }
+  ],
+  "risks": [
+    "قد تكون النتائج محدودة بالملفات المختارة ولا تمثل كامل النظام.",
+    "لا يتضمن التحليل تشغيل اختبارات أو التحقق من بيئة الإنتاج."
+  ],
+  "complexity": 9,
+  "risk": "high",
+  "architecture": true
+}

@@ -1,0 +1,2598 @@
+{
+  "AGENTS.md": [],
+  "apps/web/app/app.vue": [
+    "reka-ui"
+  ],
+  "apps/web/app/assets/css/main.css": [
+    "tailwindcss",
+    "tw-animate-css"
+  ],
+  "apps/web/app/components/access/__tests__/locale-contract.test.ts": [
+    "node:fs",
+    "node:path",
+    "vitest"
+  ],
+  "apps/web/app/components/access/__tests__/permissionDiff.test.ts": [
+    "vitest",
+    "../permissionDiff"
+  ],
+  "apps/web/app/components/access/__tests__/state-contract.test.ts": [
+    "node:fs",
+    "node:path",
+    "vitest"
+  ],
+  "apps/web/app/components/access/AccessStateBadge.vue": [],
+  "apps/web/app/components/access/audit/AuditTable.vue": [
+    "@nasq/contracts"
+  ],
+  "apps/web/app/components/access/permissionDiff.ts": [
+    "@nasq/contracts"
+  ],
+  "apps/web/app/components/access/roles/RolePermissionForm.vue": [
+    "@nasq/contracts",
+    "@/composables/useApi",
+    "@/composables/useAdminRoles"
+  ],
+  "apps/web/app/components/access/roles/RoleTable.vue": [
+    "@nasq/contracts",
+    "@/components/access/AccessStateBadge.vue"
+  ],
+  "apps/web/app/components/access/users/UserAccessForm.vue": [
+    "@nasq/contracts",
+    "@/composables/useApi",
+    "@/composables/useAdminRoles",
+    "@/composables/useAdminUsers",
+    "@/components/access/permissionDiff"
+  ],
+  "apps/web/app/components/access/users/UserSecurityForm.vue": [
+    "vue",
+    "@nasq/contracts",
+    "@/composables/useApi",
+    "@/composables/useAdminUsers"
+  ],
+  "apps/web/app/components/access/users/UserTable.vue": [
+    "@nasq/contracts",
+    "@/components/access/AccessStateBadge.vue"
+  ],
+  "apps/web/app/components/account/PasswordForm.vue": [
+    "@nasq/contracts",
+    "vue-sonner",
+    "@/composables/useApi",
+    "@/composables/passwordForm",
+    "@/composables/useChangePassword"
+  ],
+  "apps/web/app/components/AppSidebar.vue": [
+    "lucide-vue-next",
+    "@/utils/accessPolicy",
+    "@tanstack/vue-query",
+    "@/components/ui/sidebar/utils"
+  ],
+  "apps/web/app/components/hr/__tests__/hr-separation.test.ts": [
+    "node:fs",
+    "node:path",
+    "vitest"
+  ],
+  "apps/web/app/components/hr/AccessBadge.vue": [
+    "@nasq/contracts",
+    "@/composables/hrAccess"
+  ],
+  "apps/web/app/components/hr/DepartmentForm.vue": [
+    "vue-sonner",
+    "@/composables/useApi",
+    "@/composables/useHrDepartments",
+    "@/composables/useHrEmployees",
+    "@vueuse/core",
+    "@/lib/departmentTree"
+  ],
+  "apps/web/app/components/hr/DepartmentTable.vue": [
+    "@/composables/useHrDepartments",
+    "@/utils/safeReturnTo"
+  ],
+  "apps/web/app/components/hr/DepartmentTree.vue": [
+    "lucide-vue-next",
+    "@/lib/departmentTree"
+  ],
+  "apps/web/app/components/hr/DirectoryTable.vue": [
+    "@tanstack/vue-table",
+    "vue",
+    "@/components/shared/FilterBar.vue",
+    "@/components/shared/EmptyState.vue",
+    "lucide-vue-next",
+    "@/composables/useHrDepartments",
+    "@/composables/useHrEmployees",
+    "./AccessBadge.vue"
+  ],
+  "apps/web/app/components/hr/DocumentCreateForm.vue": [
+    "vue-sonner",
+    "@/composables/useApi",
+    "@/composables/useHrDocuments",
+    "./DocumentEditor.vue"
+  ],
+  "apps/web/app/components/hr/DocumentEditor.vue": [
+    "@tiptap/extension-link",
+    "@tiptap/starter-kit",
+    "@tiptap/vue-3",
+    "lucide-vue-next",
+    "@/lib/debouncedFlush",
+    "@/lib/documentEditorDraft"
+  ],
+  "apps/web/app/components/hr/DocumentList.vue": [
+    "lucide-vue-next",
+    "@/composables/useHrDocuments",
+    "@/utils/safeReturnTo"
+  ],
+  "apps/web/app/components/hr/DocumentReader.vue": [
+    "@/utils/sanitize",
+    "@/composables/useHrDocuments"
+  ],
+  "apps/web/app/components/hr/EmployeeAccessPanel.vue": [
+    "@nasq/contracts",
+    "./AccessBadge.vue"
+  ],
+  "apps/web/app/components/hr/EmployeeCard.vue": [
+    "@/composables/useHrEmployees",
+    "./AccessBadge.vue"
+  ],
+  "apps/web/app/components/hr/EmployeeCreateForm.vue": [
+    "vue-sonner",
+    "@/composables/useHrDepartments",
+    "@/composables/useHrEmployees"
+  ],
+  "apps/web/app/components/hr/EmployeeGeneralForm.vue": [
+    "vue-sonner",
+    "@/composables/useHrDepartments",
+    "@/composables/useHrEmployees"
+  ],
+  "apps/web/app/components/notifications/NotificationCenter.vue": [
+    "lucide-vue-next",
+    "@/composables/useNotifications"
+  ],
+  "apps/web/app/components/project/FollowerList.vue": [
+    "@nasq/contracts",
+    "@vueuse/core",
+    "lucide-vue-next",
+    "vue-sonner",
+    "@/composables/useApi",
+    "@/composables/usePeople",
+    "@/composables/useProjectFollowers"
+  ],
+  "apps/web/app/components/project/MilestoneForm.vue": [
+    "@internationalized/date",
+    "@nasq/contracts",
+    "@/composables/useApi",
+    "@/composables/calendarDate",
+    "@/composables/useMilestones"
+  ],
+  "apps/web/app/components/project/MilestoneTable.vue": [
+    "@nasq/contracts",
+    "@internationalized/date",
+    "vue-sonner",
+    "@/composables/useApi",
+    "@/composables/calendarDate",
+    "@/composables/taskState",
+    "@/composables/useMilestones",
+    "@/utils/safeReturnTo"
+  ],
+  "apps/web/app/components/project/ProjectCreateForm.vue": [
+    "@/composables/useApi",
+    "@/composables/useProjects"
+  ],
+  "apps/web/app/components/project/ProjectGeneralForm.vue": [
+    "@internationalized/date",
+    "@nasq/contracts",
+    "@vueuse/core",
+    "lucide-vue-next",
+    "vue-sonner",
+    "@/components/task/DescriptionEditor.vue",
+    "@/components/task/TagPicker.vue",
+    "@/composables/calendarDate",
+    "@/composables/useApi",
+    "@/composables/usePeople",
+    "@/composables/useProjects"
+  ],
+  "apps/web/app/components/project/ProjectHeader.vue": [
+    "lucide-vue-next",
+    "@nasq/contracts",
+    "./ProjectMenu.vue",
+    "./ProjectProgress.vue",
+    "./ProjectStatusBadge.vue",
+    "./ProjectStatusSelect.vue",
+    "@/components/shared/PageHeader.vue"
+  ],
+  "apps/web/app/components/project/ProjectMenu.vue": [
+    "@nasq/contracts",
+    "vue-sonner",
+    "@/composables/useApi",
+    "@/composables/useProjects"
+  ],
+  "apps/web/app/components/project/ProjectProgress.vue": [
+    "@/components/ui/progress"
+  ],
+  "apps/web/app/components/project/ProjectSettingsForm.vue": [
+    "@nasq/contracts",
+    "vue-sonner",
+    "@/composables/useApi",
+    "@/composables/useProjectStages",
+    "./FollowerList.vue",
+    "./ProjectGeneralForm.vue",
+    "./StageListEditor.vue"
+  ],
+  "apps/web/app/components/project/ProjectStatusBadge.vue": [
+    "@nasq/contracts",
+    "@/composables/projectStatus",
+    "@/composables/taskState"
+  ],
+  "apps/web/app/components/project/ProjectStatusSelect.vue": [
+    "vue-sonner",
+    "@nasq/contracts",
+    "@/composables/useApi",
+    "@/composables/projectStatus",
+    "@/composables/useProjects"
+  ],
+  "apps/web/app/components/project/ProjectTable.vue": [
+    "@nasq/contracts",
+    "@tanstack/vue-table",
+    "vue",
+    "./ProjectMenu.vue",
+    "./ProjectProgress.vue",
+    "./ProjectStatusBadge.vue",
+    "@/components/shared/EmptyState.vue"
+  ],
+  "apps/web/app/components/project/ProjectUpdateForm.vue": [
+    "@nasq/contracts",
+    "vue-sonner",
+    "@/components/task/DescriptionEditor.vue",
+    "@/composables/projectStatus",
+    "@/composables/useApi",
+    "@/composables/useProjectUpdates"
+  ],
+  "apps/web/app/components/project/ProjectUpdateList.vue": [
+    "@nasq/contracts",
+    "@/utils/sanitize",
+    "@/composables/calendarDate",
+    "@/composables/useProjectUpdates",
+    "./ProjectStatusBadge.vue",
+    "@/utils/safeReturnTo"
+  ],
+  "apps/web/app/components/project/StageListEditor.vue": [
+    "lucide-vue-next",
+    "vue-draggable-plus",
+    "@/composables/stageOrder"
+  ],
+  "apps/web/app/components/settings/BrandingForm.vue": [
+    "vue",
+    "vue-sonner",
+    "@/composables/useApi",
+    "@/composables/colorHex",
+    "@/composables/useBrandingAdmin",
+    "@/components/settings/BrandingPreview.vue"
+  ],
+  "apps/web/app/components/settings/BrandingPreview.vue": [
+    "vue",
+    "@/utils/brandTheme"
+  ],
+  "apps/web/app/components/settings/ProjectSettingsForm.vue": [
+    "@nasq/contracts",
+    "vue-sonner",
+    "@/components/project/StageListEditor.vue",
+    "@/components/ui/radio-group",
+    "@/composables/useApi",
+    "@/composables/useProjectSettings"
+  ],
+  "apps/web/app/components/settings/SettingsTabs.vue": [],
+  "apps/web/app/components/shared/__tests__/composition.test.ts": [
+    "node:fs",
+    "node:path",
+    "node:url",
+    "@vue/compiler-sfc",
+    "@vue/server-renderer",
+    "typescript",
+    "vue",
+    "vitest"
+  ],
+  "apps/web/app/components/shared/EmptyState.vue": [],
+  "apps/web/app/components/shared/FilterBar.vue": [],
+  "apps/web/app/components/shared/PageHeader.vue": [
+    "lucide-vue-next",
+    "vue-router"
+  ],
+  "apps/web/app/components/shared/PageState.vue": [],
+  "apps/web/app/components/shared/UnsavedChanges.vue": [
+    "vue-router"
+  ],
+  "apps/web/app/components/task/AssigneePicker.vue": [
+    "@nasq/contracts",
+    "@vueuse/core",
+    "lucide-vue-next",
+    "@/composables/usePeople"
+  ],
+  "apps/web/app/components/task/CommentComposer.vue": [
+    "vue-sonner",
+    "@/composables/useApi",
+    "@/composables/useTimeline"
+  ],
+  "apps/web/app/components/task/DeadlineBadge.vue": [
+    "@/composables/taskState"
+  ],
+  "apps/web/app/components/task/DependencyPicker.vue": [
+    "lucide-vue-next",
+    "vue-sonner",
+    "@nasq/contracts",
+    "@/composables/useApi",
+    "@/composables/useTaskDependencies"
+  ],
+  "apps/web/app/components/task/DescriptionEditor.vue": [
+    "@tiptap/extension-link",
+    "@tiptap/starter-kit",
+    "@tiptap/vue-3",
+    "lucide-vue-next",
+    "@/lib/debouncedFlush"
+  ],
+  "apps/web/app/components/task/MilestoneSelect.vue": [
+    "@nasq/contracts",
+    "@/composables/useMilestones",
+    "@/composables/useTasks"
+  ],
+  "apps/web/app/components/task/PrioritySelect.vue": [
+    "@nasq/contracts",
+    "@/composables/taskState",
+    "@/composables/useTasks"
+  ],
+  "apps/web/app/components/task/StateBadge.vue": [
+    "@nasq/contracts",
+    "@/composables/taskState"
+  ],
+  "apps/web/app/components/task/StateMenu.vue": [
+    "@nasq/contracts",
+    "lucide-vue-next",
+    "vue-sonner",
+    "@/composables/taskState",
+    "@/composables/useApi",
+    "@/composables/useTasks",
+    "./StateBadge.vue"
+  ],
+  "apps/web/app/components/task/SubtaskList.vue": [
+    "@nasq/contracts",
+    "@tanstack/vue-query",
+    "@/composables/useApi",
+    "@/composables/useTasks",
+    "./StateBadge.vue"
+  ],
+  "apps/web/app/components/task/TagPicker.vue": [
+    "@nasq/contracts",
+    "@vueuse/core",
+    "lucide-vue-next",
+    "vue-sonner",
+    "@/composables/useApi",
+    "@/composables/useTags"
+  ],
+  "apps/web/app/components/task/TaskActivity.vue": [
+    "@nasq/contracts",
+    "@/composables/useTimeline",
+    "./CommentComposer.vue",
+    "./Timeline.vue"
+  ],
+  "apps/web/app/components/task/TaskAttachments.vue": [
+    "lucide-vue-next",
+    "vue-sonner",
+    "@/composables/useApi",
+    "@/composables/useTaskAttachments"
+  ],
+  "apps/web/app/components/task/TaskBoard.vue": [
+    "@nasq/contracts",
+    "vue-draggable-plus",
+    "@/composables/boardStages",
+    "@/composables/useTasks",
+    "@/composables/usePersonalStages",
+    "./TaskCard.vue",
+    "@/components/shared/EmptyState.vue"
+  ],
+  "apps/web/app/components/task/TaskCard.vue": [
+    "@nasq/contracts",
+    "lucide-vue-next",
+    "@/composables/boardStages",
+    "@/composables/taskState",
+    "./DeadlineBadge.vue"
+  ],
+  "apps/web/app/components/task/TaskCreateForm.vue": [
+    "@/composables/useApi",
+    "@/composables/useProjects",
+    "@/composables/useTasks"
+  ],
+  "apps/web/app/components/task/TaskDetailPage.vue": [
+    "lucide-vue-next",
+    "vue-router",
+    "@/composables/useTasks",
+    "./TaskDetailPanel.vue",
+    "@/components/shared/PageHeader.vue"
+  ],
+  "apps/web/app/components/task/TaskDetailPanel.vue": [
+    "lucide-vue-next",
+    "vue-sonner",
+    "@/composables/useApi",
+    "@/composables/useTaskFilters",
+    "@/composables/useTasks",
+    "./DeadlineBadge.vue",
+    "./StateMenu.vue",
+    "./TaskActivity.vue",
+    "./TaskDetails.vue"
+  ],
+  "apps/web/app/components/task/TaskDetails.vue": [
+    "@nasq/contracts",
+    "@internationalized/date",
+    "@/composables/usePersonalStages",
+    "@/composables/useTasks",
+    "./AssigneePicker.vue",
+    "./DependencyPicker.vue",
+    "./TaskAttachments.vue",
+    "./DescriptionEditor.vue",
+    "./MilestoneSelect.vue",
+    "./PrioritySelect.vue",
+    "./StateBadge.vue",
+    "./SubtaskList.vue",
+    "./TagPicker.vue"
+  ],
+  "apps/web/app/components/task/TaskTable.vue": [
+    "@nasq/contracts",
+    "@tanstack/vue-table",
+    "vue",
+    "@/composables/useTasks",
+    "./DeadlineBadge.vue",
+    "./PrioritySelect.vue",
+    "./StateMenu.vue",
+    "@/components/shared/EmptyState.vue"
+  ],
+  "apps/web/app/components/task/TaskToolbar.vue": [
+    "@nasq/contracts",
+    "lucide-vue-next",
+    "@vueuse/core",
+    "@/composables/useTasks",
+    "@/composables/taskState",
+    "@/composables/useProjects",
+    "@/components/shared/FilterBar.vue"
+  ],
+  "apps/web/app/components/task/Timeline.vue": [
+    "@nasq/contracts",
+    "@/utils/sanitize"
+  ],
+  "apps/web/app/components/ui/alert-dialog/AlertDialog.vue": [
+    "reka-ui"
+  ],
+  "apps/web/app/components/ui/alert-dialog/AlertDialogAction.vue": [
+    "reka-ui",
+    "vue",
+    "@vueuse/core",
+    "@/lib/utils",
+    "@/components/ui/button"
+  ],
+  "apps/web/app/components/ui/alert-dialog/AlertDialogCancel.vue": [
+    "reka-ui",
+    "vue",
+    "@vueuse/core",
+    "@/lib/utils",
+    "@/components/ui/button"
+  ],
+  "apps/web/app/components/ui/alert-dialog/AlertDialogContent.vue": [
+    "reka-ui",
+    "vue",
+    "@vueuse/core",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/alert-dialog/AlertDialogDescription.vue": [
+    "reka-ui",
+    "vue",
+    "@vueuse/core",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/alert-dialog/AlertDialogFooter.vue": [
+    "vue",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/alert-dialog/AlertDialogHeader.vue": [
+    "vue",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/alert-dialog/AlertDialogTitle.vue": [
+    "reka-ui",
+    "vue",
+    "@vueuse/core",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/alert-dialog/AlertDialogTrigger.vue": [
+    "reka-ui"
+  ],
+  "apps/web/app/components/ui/alert-dialog/index.ts": [
+    "./AlertDialog.vue",
+    "./AlertDialogAction.vue",
+    "./AlertDialogCancel.vue",
+    "./AlertDialogContent.vue",
+    "./AlertDialogDescription.vue",
+    "./AlertDialogFooter.vue",
+    "./AlertDialogHeader.vue",
+    "./AlertDialogTitle.vue",
+    "./AlertDialogTrigger.vue"
+  ],
+  "apps/web/app/components/ui/avatar/Avatar.vue": [
+    "vue",
+    "reka-ui",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/avatar/AvatarFallback.vue": [
+    "reka-ui",
+    "vue",
+    "@vueuse/core",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/avatar/AvatarImage.vue": [
+    "reka-ui"
+  ],
+  "apps/web/app/components/ui/avatar/index.ts": [
+    "./Avatar.vue",
+    "./AvatarFallback.vue",
+    "./AvatarImage.vue"
+  ],
+  "apps/web/app/components/ui/badge/Badge.vue": [
+    "reka-ui",
+    "vue",
+    ".",
+    "@vueuse/core",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/badge/index.ts": [
+    "class-variance-authority",
+    "./Badge.vue"
+  ],
+  "apps/web/app/components/ui/button/Button.vue": [
+    "reka-ui",
+    "vue",
+    ".",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/button/index.ts": [
+    "class-variance-authority",
+    "./Button.vue"
+  ],
+  "apps/web/app/components/ui/calendar/Calendar.vue": [
+    "reka-ui",
+    "vue",
+    ".",
+    "@internationalized/date",
+    "@vueuse/core",
+    "reka-ui/date",
+    "@/lib/utils",
+    "@/components/ui/native-select"
+  ],
+  "apps/web/app/components/ui/calendar/CalendarCell.vue": [
+    "reka-ui",
+    "vue",
+    "@vueuse/core",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/calendar/CalendarCellTrigger.vue": [
+    "reka-ui",
+    "vue",
+    "@vueuse/core",
+    "@/lib/utils",
+    "@/components/ui/button"
+  ],
+  "apps/web/app/components/ui/calendar/CalendarGrid.vue": [
+    "reka-ui",
+    "vue",
+    "@vueuse/core",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/calendar/CalendarGridBody.vue": [
+    "reka-ui"
+  ],
+  "apps/web/app/components/ui/calendar/CalendarGridHead.vue": [
+    "reka-ui",
+    "vue"
+  ],
+  "apps/web/app/components/ui/calendar/CalendarGridRow.vue": [
+    "reka-ui",
+    "vue",
+    "@vueuse/core",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/calendar/CalendarHeadCell.vue": [
+    "reka-ui",
+    "vue",
+    "@vueuse/core",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/calendar/CalendarHeader.vue": [
+    "reka-ui",
+    "vue",
+    "@vueuse/core",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/calendar/CalendarHeading.vue": [
+    "reka-ui",
+    "vue",
+    "@vueuse/core",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/calendar/CalendarNextButton.vue": [
+    "reka-ui",
+    "vue",
+    "@lucide/vue",
+    "@vueuse/core",
+    "@/lib/utils",
+    "@/components/ui/button"
+  ],
+  "apps/web/app/components/ui/calendar/CalendarPrevButton.vue": [
+    "reka-ui",
+    "vue",
+    "@lucide/vue",
+    "@vueuse/core",
+    "@/lib/utils",
+    "@/components/ui/button"
+  ],
+  "apps/web/app/components/ui/calendar/index.ts": [
+    "./Calendar.vue",
+    "./CalendarCell.vue",
+    "./CalendarCellTrigger.vue",
+    "./CalendarGrid.vue",
+    "./CalendarGridBody.vue",
+    "./CalendarGridHead.vue",
+    "./CalendarGridRow.vue",
+    "./CalendarHeadCell.vue",
+    "./CalendarHeader.vue",
+    "./CalendarHeading.vue",
+    "./CalendarNextButton.vue",
+    "./CalendarPrevButton.vue"
+  ],
+  "apps/web/app/components/ui/card/Card.vue": [
+    "vue",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/card/CardAction.vue": [
+    "vue",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/card/CardContent.vue": [
+    "vue",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/card/CardDescription.vue": [
+    "vue",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/card/CardFooter.vue": [
+    "vue",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/card/CardHeader.vue": [
+    "vue",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/card/CardTitle.vue": [
+    "vue",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/card/index.ts": [
+    "./Card.vue",
+    "./CardAction.vue",
+    "./CardContent.vue",
+    "./CardDescription.vue",
+    "./CardFooter.vue",
+    "./CardHeader.vue",
+    "./CardTitle.vue"
+  ],
+  "apps/web/app/components/ui/command/Command.vue": [
+    "reka-ui",
+    "vue",
+    "@vueuse/core",
+    "@/lib/utils",
+    "."
+  ],
+  "apps/web/app/components/ui/command/CommandDialog.vue": [
+    "reka-ui",
+    "@/components/ui/dialog",
+    "./Command.vue"
+  ],
+  "apps/web/app/components/ui/command/CommandEmpty.vue": [
+    "reka-ui",
+    "vue",
+    "@vueuse/core",
+    "@/lib/utils",
+    "."
+  ],
+  "apps/web/app/components/ui/command/CommandGroup.vue": [
+    "reka-ui",
+    "vue",
+    "@vueuse/core",
+    "@/lib/utils",
+    "."
+  ],
+  "apps/web/app/components/ui/command/CommandInput.vue": [
+    "reka-ui",
+    "vue",
+    "lucide-vue-next",
+    "@vueuse/core",
+    "@/lib/utils",
+    "."
+  ],
+  "apps/web/app/components/ui/command/CommandItem.vue": [
+    "reka-ui",
+    "vue",
+    "@vueuse/core",
+    "@/lib/utils",
+    "."
+  ],
+  "apps/web/app/components/ui/command/CommandList.vue": [
+    "reka-ui",
+    "vue",
+    "@vueuse/core",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/command/CommandSeparator.vue": [
+    "reka-ui",
+    "vue",
+    "@vueuse/core",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/command/CommandShortcut.vue": [
+    "vue",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/command/index.ts": [
+    "vue",
+    "reka-ui",
+    "./Command.vue",
+    "./CommandDialog.vue",
+    "./CommandEmpty.vue",
+    "./CommandGroup.vue",
+    "./CommandInput.vue",
+    "./CommandItem.vue",
+    "./CommandList.vue",
+    "./CommandSeparator.vue",
+    "./CommandShortcut.vue"
+  ],
+  "apps/web/app/components/ui/dialog/Dialog.vue": [
+    "reka-ui"
+  ],
+  "apps/web/app/components/ui/dialog/DialogClose.vue": [
+    "reka-ui"
+  ],
+  "apps/web/app/components/ui/dialog/DialogContent.vue": [
+    "reka-ui",
+    "vue",
+    "@lucide/vue",
+    "@vueuse/core",
+    "@/lib/utils",
+    "./DialogOverlay.vue"
+  ],
+  "apps/web/app/components/ui/dialog/DialogDescription.vue": [
+    "reka-ui",
+    "vue",
+    "@vueuse/core",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/dialog/DialogFooter.vue": [
+    "vue",
+    "reka-ui",
+    "@/lib/utils",
+    "@/components/ui/button"
+  ],
+  "apps/web/app/components/ui/dialog/DialogHeader.vue": [
+    "vue",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/dialog/DialogOverlay.vue": [
+    "reka-ui",
+    "vue",
+    "@vueuse/core",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/dialog/DialogScrollContent.vue": [
+    "reka-ui",
+    "vue",
+    "@lucide/vue",
+    "@vueuse/core",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/dialog/DialogTitle.vue": [
+    "reka-ui",
+    "vue",
+    "@vueuse/core",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/dialog/DialogTrigger.vue": [
+    "reka-ui"
+  ],
+  "apps/web/app/components/ui/dialog/index.ts": [
+    "./Dialog.vue",
+    "./DialogClose.vue",
+    "./DialogContent.vue",
+    "./DialogDescription.vue",
+    "./DialogFooter.vue",
+    "./DialogHeader.vue",
+    "./DialogOverlay.vue",
+    "./DialogScrollContent.vue",
+    "./DialogTitle.vue",
+    "./DialogTrigger.vue"
+  ],
+  "apps/web/app/components/ui/dropdown-menu/DropdownMenu.vue": [
+    "reka-ui"
+  ],
+  "apps/web/app/components/ui/dropdown-menu/DropdownMenuCheckboxItem.vue": [
+    "reka-ui",
+    "vue",
+    "lucide-vue-next",
+    "@vueuse/core",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/dropdown-menu/DropdownMenuContent.vue": [
+    "reka-ui",
+    "vue",
+    "@vueuse/core",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/dropdown-menu/DropdownMenuGroup.vue": [
+    "reka-ui"
+  ],
+  "apps/web/app/components/ui/dropdown-menu/DropdownMenuItem.vue": [
+    "reka-ui",
+    "vue",
+    "@vueuse/core",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/dropdown-menu/DropdownMenuLabel.vue": [
+    "reka-ui",
+    "vue",
+    "@vueuse/core",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/dropdown-menu/DropdownMenuRadioGroup.vue": [
+    "reka-ui"
+  ],
+  "apps/web/app/components/ui/dropdown-menu/DropdownMenuRadioItem.vue": [
+    "reka-ui",
+    "vue",
+    "lucide-vue-next",
+    "@vueuse/core",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/dropdown-menu/DropdownMenuSeparator.vue": [
+    "reka-ui",
+    "vue",
+    "@vueuse/core",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/dropdown-menu/DropdownMenuShortcut.vue": [
+    "vue",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/dropdown-menu/DropdownMenuSub.vue": [
+    "reka-ui"
+  ],
+  "apps/web/app/components/ui/dropdown-menu/DropdownMenuSubContent.vue": [
+    "reka-ui",
+    "vue",
+    "@vueuse/core",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/dropdown-menu/DropdownMenuSubTrigger.vue": [
+    "reka-ui",
+    "vue",
+    "lucide-vue-next",
+    "@vueuse/core",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/dropdown-menu/DropdownMenuTrigger.vue": [
+    "reka-ui"
+  ],
+  "apps/web/app/components/ui/dropdown-menu/index.ts": [
+    "./DropdownMenu.vue",
+    "./DropdownMenuCheckboxItem.vue",
+    "./DropdownMenuContent.vue",
+    "./DropdownMenuGroup.vue",
+    "./DropdownMenuItem.vue",
+    "./DropdownMenuLabel.vue",
+    "./DropdownMenuRadioGroup.vue",
+    "./DropdownMenuRadioItem.vue",
+    "./DropdownMenuSeparator.vue",
+    "./DropdownMenuShortcut.vue",
+    "./DropdownMenuSub.vue",
+    "./DropdownMenuSubContent.vue",
+    "./DropdownMenuSubTrigger.vue",
+    "./DropdownMenuTrigger.vue",
+    "reka-ui"
+  ],
+  "apps/web/app/components/ui/input/index.ts": [
+    "./Input.vue"
+  ],
+  "apps/web/app/components/ui/input/Input.vue": [
+    "vue",
+    "@vueuse/core",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/label/index.ts": [
+    "./Label.vue"
+  ],
+  "apps/web/app/components/ui/label/Label.vue": [
+    "reka-ui",
+    "vue",
+    "@vueuse/core",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/native-select/index.ts": [
+    "./NativeSelect.vue",
+    "./NativeSelectOptGroup.vue",
+    "./NativeSelectOption.vue"
+  ],
+  "apps/web/app/components/ui/native-select/NativeSelect.vue": [
+    "reka-ui",
+    "vue",
+    "@lucide/vue",
+    "@vueuse/core",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/native-select/NativeSelectOptGroup.vue": [
+    "vue",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/native-select/NativeSelectOption.vue": [
+    "vue",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/popover/index.ts": [
+    "./Popover.vue",
+    "./PopoverAnchor.vue",
+    "./PopoverContent.vue",
+    "./PopoverTrigger.vue"
+  ],
+  "apps/web/app/components/ui/popover/Popover.vue": [
+    "reka-ui"
+  ],
+  "apps/web/app/components/ui/popover/PopoverAnchor.vue": [
+    "reka-ui"
+  ],
+  "apps/web/app/components/ui/popover/PopoverContent.vue": [
+    "reka-ui",
+    "vue",
+    "@vueuse/core",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/popover/PopoverTrigger.vue": [
+    "reka-ui"
+  ],
+  "apps/web/app/components/ui/progress/index.ts": [
+    "./Progress.vue"
+  ],
+  "apps/web/app/components/ui/progress/Progress.vue": [
+    "reka-ui",
+    "vue",
+    "@vueuse/core",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/radio-group/index.ts": [
+    "./RadioGroup.vue",
+    "./RadioGroupItem.vue"
+  ],
+  "apps/web/app/components/ui/radio-group/RadioGroup.vue": [
+    "reka-ui",
+    "vue",
+    "@vueuse/core",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/radio-group/RadioGroupItem.vue": [
+    "reka-ui",
+    "vue",
+    "@lucide/vue",
+    "@vueuse/core",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/select/index.ts": [
+    "./Select.vue",
+    "./SelectContent.vue",
+    "./SelectGroup.vue",
+    "./SelectItem.vue",
+    "./SelectItemText.vue",
+    "./SelectLabel.vue",
+    "./SelectScrollDownButton.vue",
+    "./SelectScrollUpButton.vue",
+    "./SelectSeparator.vue",
+    "./SelectTrigger.vue",
+    "./SelectValue.vue"
+  ],
+  "apps/web/app/components/ui/select/Select.vue": [
+    "reka-ui"
+  ],
+  "apps/web/app/components/ui/select/SelectContent.vue": [
+    "reka-ui",
+    "vue",
+    "@vueuse/core",
+    "@/lib/utils",
+    "."
+  ],
+  "apps/web/app/components/ui/select/SelectGroup.vue": [
+    "reka-ui"
+  ],
+  "apps/web/app/components/ui/select/SelectItem.vue": [
+    "reka-ui",
+    "vue",
+    "@lucide/vue",
+    "@vueuse/core",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/select/SelectItemText.vue": [
+    "reka-ui"
+  ],
+  "apps/web/app/components/ui/select/SelectLabel.vue": [
+    "reka-ui",
+    "vue",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/select/SelectScrollDownButton.vue": [
+    "reka-ui",
+    "vue",
+    "@lucide/vue",
+    "@vueuse/core",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/select/SelectScrollUpButton.vue": [
+    "reka-ui",
+    "vue",
+    "@lucide/vue",
+    "@vueuse/core",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/select/SelectSeparator.vue": [
+    "reka-ui",
+    "vue",
+    "@vueuse/core",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/select/SelectTrigger.vue": [
+    "reka-ui",
+    "vue",
+    "@lucide/vue",
+    "@vueuse/core",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/select/SelectValue.vue": [
+    "reka-ui"
+  ],
+  "apps/web/app/components/ui/separator/index.ts": [
+    "./Separator.vue"
+  ],
+  "apps/web/app/components/ui/separator/Separator.vue": [
+    "reka-ui",
+    "vue",
+    "@vueuse/core",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/sheet/index.ts": [
+    "./Sheet.vue",
+    "./SheetClose.vue",
+    "./SheetContent.vue",
+    "./SheetDescription.vue",
+    "./SheetFooter.vue",
+    "./SheetHeader.vue",
+    "./SheetTitle.vue",
+    "./SheetTrigger.vue"
+  ],
+  "apps/web/app/components/ui/sheet/Sheet.vue": [
+    "reka-ui"
+  ],
+  "apps/web/app/components/ui/sheet/SheetClose.vue": [
+    "reka-ui"
+  ],
+  "apps/web/app/components/ui/sheet/SheetContent.vue": [
+    "reka-ui",
+    "vue",
+    "lucide-vue-next",
+    "@vueuse/core",
+    "@/lib/utils",
+    "./SheetOverlay.vue"
+  ],
+  "apps/web/app/components/ui/sheet/SheetDescription.vue": [
+    "reka-ui",
+    "vue",
+    "@vueuse/core",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/sheet/SheetFooter.vue": [
+    "vue",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/sheet/SheetHeader.vue": [
+    "vue",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/sheet/SheetOverlay.vue": [
+    "reka-ui",
+    "vue",
+    "@vueuse/core",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/sheet/SheetTitle.vue": [
+    "reka-ui",
+    "vue",
+    "@vueuse/core",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/sheet/SheetTrigger.vue": [
+    "reka-ui"
+  ],
+  "apps/web/app/components/ui/sidebar/index.ts": [
+    "class-variance-authority",
+    "vue",
+    "./Sidebar.vue",
+    "./SidebarContent.vue",
+    "./SidebarFooter.vue",
+    "./SidebarGroup.vue",
+    "./SidebarGroupAction.vue",
+    "./SidebarGroupContent.vue",
+    "./SidebarGroupLabel.vue",
+    "./SidebarHeader.vue",
+    "./SidebarInput.vue",
+    "./SidebarInset.vue",
+    "./SidebarMenu.vue",
+    "./SidebarMenuAction.vue",
+    "./SidebarMenuBadge.vue",
+    "./SidebarMenuButton.vue",
+    "./SidebarMenuItem.vue",
+    "./SidebarMenuSkeleton.vue",
+    "./SidebarMenuSub.vue",
+    "./SidebarMenuSubButton.vue",
+    "./SidebarMenuSubItem.vue",
+    "./SidebarProvider.vue",
+    "./SidebarRail.vue",
+    "./SidebarSeparator.vue",
+    "./SidebarTrigger.vue",
+    "./utils"
+  ],
+  "apps/web/app/components/ui/sidebar/Sidebar.vue": [
+    ".",
+    "@/lib/utils",
+    "./utils"
+  ],
+  "apps/web/app/components/ui/sidebar/SidebarContent.vue": [
+    "vue",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/sidebar/SidebarFooter.vue": [
+    "vue",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/sidebar/SidebarGroup.vue": [
+    "vue",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/sidebar/SidebarGroupAction.vue": [
+    "reka-ui",
+    "vue",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/sidebar/SidebarGroupContent.vue": [
+    "vue",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/sidebar/SidebarGroupLabel.vue": [
+    "reka-ui",
+    "vue",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/sidebar/SidebarHeader.vue": [
+    "vue",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/sidebar/SidebarInput.vue": [
+    "vue",
+    "@/lib/utils",
+    "@/components/ui/input"
+  ],
+  "apps/web/app/components/ui/sidebar/SidebarInset.vue": [
+    "vue",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/sidebar/SidebarMenu.vue": [
+    "vue",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/sidebar/SidebarMenuAction.vue": [
+    "reka-ui",
+    "vue",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/sidebar/SidebarMenuBadge.vue": [
+    "vue",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/sidebar/SidebarMenuButton.vue": [
+    "vue",
+    "./SidebarMenuButtonChild.vue",
+    "@vueuse/core",
+    "@/components/ui/tooltip",
+    "./utils"
+  ],
+  "apps/web/app/components/ui/sidebar/SidebarMenuButtonChild.vue": [
+    "reka-ui",
+    "vue",
+    ".",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/sidebar/SidebarMenuItem.vue": [
+    "vue",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/sidebar/SidebarMenuSkeleton.vue": [
+    "vue",
+    "@/lib/utils",
+    "@/components/ui/skeleton"
+  ],
+  "apps/web/app/components/ui/sidebar/SidebarMenuSub.vue": [
+    "vue",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/sidebar/SidebarMenuSubButton.vue": [
+    "reka-ui",
+    "vue",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/sidebar/SidebarMenuSubItem.vue": [
+    "vue",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/sidebar/SidebarProvider.vue": [
+    "vue",
+    "@vueuse/core",
+    "reka-ui",
+    "@/lib/utils",
+    "./utils"
+  ],
+  "apps/web/app/components/ui/sidebar/SidebarRail.vue": [
+    "vue",
+    "@/lib/utils",
+    "./utils"
+  ],
+  "apps/web/app/components/ui/sidebar/SidebarSeparator.vue": [
+    "vue",
+    "@/lib/utils",
+    "@/components/ui/separator"
+  ],
+  "apps/web/app/components/ui/sidebar/SidebarTrigger.vue": [
+    "vue",
+    "lucide-vue-next",
+    "@/lib/utils",
+    "@/components/ui/button",
+    "./utils"
+  ],
+  "apps/web/app/components/ui/sidebar/utils.ts": [
+    "vue",
+    "reka-ui"
+  ],
+  "apps/web/app/components/ui/skeleton/index.ts": [
+    "./Skeleton.vue"
+  ],
+  "apps/web/app/components/ui/skeleton/Skeleton.vue": [
+    "vue",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/sonner/index.ts": [
+    "./Sonner.vue"
+  ],
+  "apps/web/app/components/ui/sonner/Sonner.vue": [
+    "vue-sonner",
+    "@lucide/vue",
+    "vue-sonner/style.css",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/table/index.ts": [
+    "./Table.vue",
+    "./TableBody.vue",
+    "./TableCaption.vue",
+    "./TableCell.vue",
+    "./TableEmpty.vue",
+    "./TableFooter.vue",
+    "./TableHead.vue",
+    "./TableHeader.vue",
+    "./TableRow.vue"
+  ],
+  "apps/web/app/components/ui/table/Table.vue": [
+    "vue",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/table/TableBody.vue": [
+    "vue",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/table/TableCaption.vue": [
+    "vue",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/table/TableCell.vue": [
+    "vue",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/table/TableEmpty.vue": [
+    "vue",
+    "@vueuse/core",
+    "@/lib/utils",
+    "./TableCell.vue",
+    "./TableRow.vue"
+  ],
+  "apps/web/app/components/ui/table/TableFooter.vue": [
+    "vue",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/table/TableHead.vue": [
+    "vue",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/table/TableHeader.vue": [
+    "vue",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/table/TableRow.vue": [
+    "vue",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/tabs/index.ts": [
+    "./Tabs.vue",
+    "./TabsContent.vue",
+    "./TabsList.vue",
+    "./TabsTrigger.vue"
+  ],
+  "apps/web/app/components/ui/tabs/Tabs.vue": [
+    "reka-ui",
+    "vue",
+    "@vueuse/core",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/tabs/TabsContent.vue": [
+    "reka-ui",
+    "vue",
+    "@vueuse/core",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/tabs/TabsList.vue": [
+    "reka-ui",
+    "vue",
+    "@vueuse/core",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/tabs/TabsTrigger.vue": [
+    "reka-ui",
+    "vue",
+    "@vueuse/core",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/textarea/index.ts": [
+    "./Textarea.vue"
+  ],
+  "apps/web/app/components/ui/textarea/Textarea.vue": [
+    "vue",
+    "@vueuse/core",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/toggle/index.ts": [
+    "class-variance-authority",
+    "./Toggle.vue"
+  ],
+  "apps/web/app/components/ui/toggle/Toggle.vue": [
+    "reka-ui",
+    "vue",
+    ".",
+    "@vueuse/core",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/tooltip/index.ts": [
+    "./Tooltip.vue",
+    "./TooltipContent.vue",
+    "./TooltipProvider.vue",
+    "./TooltipTrigger.vue"
+  ],
+  "apps/web/app/components/ui/tooltip/Tooltip.vue": [
+    "reka-ui"
+  ],
+  "apps/web/app/components/ui/tooltip/TooltipContent.vue": [
+    "reka-ui",
+    "vue",
+    "@vueuse/core",
+    "@/lib/utils"
+  ],
+  "apps/web/app/components/ui/tooltip/TooltipProvider.vue": [
+    "reka-ui"
+  ],
+  "apps/web/app/components/ui/tooltip/TooltipTrigger.vue": [
+    "reka-ui"
+  ],
+  "apps/web/app/composables/__tests__/boardStages.test.ts": [
+    "vitest",
+    "@nasq/contracts",
+    "../boardStages"
+  ],
+  "apps/web/app/composables/__tests__/calendarDate.test.ts": [
+    "vitest",
+    "../calendarDate"
+  ],
+  "apps/web/app/composables/__tests__/colorHex.test.ts": [
+    "vitest",
+    "../colorHex"
+  ],
+  "apps/web/app/composables/__tests__/hrAccess.test.ts": [
+    "vitest",
+    "../hrAccess"
+  ],
+  "apps/web/app/composables/__tests__/hrAdmin.test.ts": [
+    "@tanstack/query-core",
+    "vitest",
+    "../useHrEmployees"
+  ],
+  "apps/web/app/composables/__tests__/hrKeys.test.ts": [
+    "vitest",
+    "../useHrDepartments",
+    "../useHrEmployees",
+    "../useHrDocuments"
+  ],
+  "apps/web/app/composables/__tests__/passwordForm.test.ts": [
+    "vitest",
+    "@tanstack/query-core",
+    "../useChangePassword",
+    "../passwordForm"
+  ],
+  "apps/web/app/composables/__tests__/projectStatus.test.ts": [
+    "vitest",
+    "@nasq/contracts",
+    "../projectStatus"
+  ],
+  "apps/web/app/composables/__tests__/projectTaskParams.test.ts": [
+    "vitest",
+    "../projectTaskParams"
+  ],
+  "apps/web/app/composables/__tests__/stageOrder.test.ts": [
+    "vitest",
+    "../stageOrder"
+  ],
+  "apps/web/app/composables/__tests__/taskPermissions.test.ts": [
+    "vitest",
+    "../taskState"
+  ],
+  "apps/web/app/composables/__tests__/taskState.test.ts": [
+    "vitest",
+    "../taskState"
+  ],
+  "apps/web/app/composables/__tests__/useAdminPaths.test.ts": [
+    "node:fs",
+    "node:path",
+    "vitest",
+    "../useAdminAudit",
+    "../useAdminRoles",
+    "../useAdminUsers",
+    ", "
+  ],
+  "apps/web/app/composables/__tests__/useApi.test.ts": [
+    "vitest",
+    "../useApi"
+  ],
+  "apps/web/app/composables/__tests__/useBus.test.ts": [
+    "vitest",
+    "../useBus"
+  ],
+  "apps/web/app/composables/__tests__/useMe.test.ts": [
+    "@nasq/contracts",
+    "h3",
+    "vitest",
+    "../useMe"
+  ],
+  "apps/web/app/composables/__tests__/useNav.test.ts": [
+    "vitest",
+    "../useNav"
+  ],
+  "apps/web/app/composables/__tests__/useTasks.optimistic.test.ts": [
+    "vitest",
+    "@nasq/contracts",
+    "../useTasks"
+  ],
+  "apps/web/app/composables/boardStages.ts": [
+    "@nasq/contracts",
+    "./useTasks"
+  ],
+  "apps/web/app/composables/calendarDate.ts": [
+    "@internationalized/date"
+  ],
+  "apps/web/app/composables/colorHex.ts": [
+    "@nasq/contracts"
+  ],
+  "apps/web/app/composables/hrAccess.ts": [
+    "@nasq/contracts"
+  ],
+  "apps/web/app/composables/passwordForm.ts": [
+    "@nasq/contracts"
+  ],
+  "apps/web/app/composables/projectStatus.ts": [
+    "@nasq/contracts",
+    "./taskState"
+  ],
+  "apps/web/app/composables/projectTaskParams.ts": [
+    "@nasq/contracts",
+    "./useTasks"
+  ],
+  "apps/web/app/composables/stageOrder.ts": [],
+  "apps/web/app/composables/taskState.ts": [
+    "@nasq/contracts"
+  ],
+  "apps/web/app/composables/useAccess.ts": [
+    "vue",
+    "@/utils/accessPolicy"
+  ],
+  "apps/web/app/composables/useAdminAudit.ts": [
+    "vue",
+    "@tanstack/vue-query",
+    "@nasq/contracts"
+  ],
+  "apps/web/app/composables/useAdminRoles.ts": [
+    "vue",
+    "@tanstack/vue-query",
+    "@nasq/contracts"
+  ],
+  "apps/web/app/composables/useAdminUsers.ts": [
+    "vue",
+    "@tanstack/vue-query",
+    "@nasq/contracts"
+  ],
+  "apps/web/app/composables/useApi.ts": [
+    "zod",
+    "@nasq/contracts"
+  ],
+  "apps/web/app/composables/useArchivedTasks.ts": [
+    "@tanstack/vue-query",
+    "@nasq/contracts",
+    "vue"
+  ],
+  "apps/web/app/composables/useBranding.ts": [
+    "@nasq/contracts",
+    "@/utils/brandTheme"
+  ],
+  "apps/web/app/composables/useBrandingAdmin.ts": [
+    "@tanstack/vue-query",
+    "@nasq/contracts"
+  ],
+  "apps/web/app/composables/useBus.ts": [
+    "vue",
+    "@tanstack/vue-query",
+    "./useTasks"
+  ],
+  "apps/web/app/composables/useChangePassword.ts": [
+    "@tanstack/vue-query",
+    "@nasq/contracts"
+  ],
+  "apps/web/app/composables/useHrDepartments.ts": [
+    "vue",
+    "@tanstack/vue-query",
+    "@nasq/contracts"
+  ],
+  "apps/web/app/composables/useHrDocuments.ts": [
+    "vue",
+    "@tanstack/vue-query",
+    "@nasq/contracts",
+    "../lib/documentListCache"
+  ],
+  "apps/web/app/composables/useHrEmployees.ts": [
+    "vue",
+    "@tanstack/vue-query",
+    "@nasq/contracts"
+  ],
+  "apps/web/app/composables/useHydrated.ts": [],
+  "apps/web/app/composables/useMe.ts": [
+    "@nasq/contracts"
+  ],
+  "apps/web/app/composables/useMilestones.ts": [
+    "vue",
+    "@tanstack/vue-query",
+    "@nasq/contracts",
+    "./useProjects"
+  ],
+  "apps/web/app/composables/useNav.ts": [
+    "vue",
+    "lucide-vue-next",
+    "../utils/accessPolicy"
+  ],
+  "apps/web/app/composables/useNotifications.ts": [
+    "@tanstack/vue-query",
+    "@nasq/contracts"
+  ],
+  "apps/web/app/composables/usePeople.ts": [
+    "vue",
+    "@tanstack/vue-query",
+    "@nasq/contracts"
+  ],
+  "apps/web/app/composables/usePersonalStages.ts": [
+    "@tanstack/vue-query",
+    "@nasq/contracts",
+    "./useTasks"
+  ],
+  "apps/web/app/composables/useProjectFollowers.ts": [
+    "vue",
+    "@tanstack/vue-query",
+    "@nasq/contracts",
+    "./useProjects"
+  ],
+  "apps/web/app/composables/useProjects.ts": [
+    "vue",
+    "@tanstack/vue-query",
+    "@nasq/contracts"
+  ],
+  "apps/web/app/composables/useProjectSettings.ts": [
+    "@tanstack/vue-query",
+    "@nasq/contracts"
+  ],
+  "apps/web/app/composables/useProjectStages.ts": [
+    "@tanstack/vue-query",
+    "@nasq/contracts",
+    "./useProjects"
+  ],
+  "apps/web/app/composables/useProjectUpdates.ts": [
+    "vue",
+    "@tanstack/vue-query",
+    "@nasq/contracts",
+    "./useProjects"
+  ],
+  "apps/web/app/composables/useTags.ts": [
+    "vue",
+    "@tanstack/vue-query",
+    "@nasq/contracts"
+  ],
+  "apps/web/app/composables/useTaskAttachments.ts": [
+    "vue",
+    "@tanstack/vue-query",
+    "@nasq/contracts",
+    "./useTasks"
+  ],
+  "apps/web/app/composables/useTaskDependencies.ts": [
+    "@tanstack/vue-query",
+    "@nasq/contracts",
+    "vue",
+    "./useTasks"
+  ],
+  "apps/web/app/composables/useTaskFilters.ts": [
+    "@/composables/useTasks"
+  ],
+  "apps/web/app/composables/useTasks.ts": [
+    "vue",
+    "@tanstack/vue-query",
+    "@nasq/contracts",
+    "./taskState"
+  ],
+  "apps/web/app/composables/useTimeline.ts": [
+    "vue",
+    "@tanstack/vue-query",
+    "@nasq/contracts",
+    "./useTasks"
+  ],
+  "apps/web/app/layouts/default.vue": [
+    "@/components/notifications/NotificationCenter.vue",
+    "lucide-vue-next",
+    "@vueuse/core"
+  ],
+  "apps/web/app/lib/__tests__/debouncedFlush.test.ts": [
+    "vitest",
+    "../debouncedFlush"
+  ],
+  "apps/web/app/lib/__tests__/departmentTree.test.ts": [
+    "vitest",
+    "../departmentTree",
+    "@/composables/useHrDepartments"
+  ],
+  "apps/web/app/lib/__tests__/documentEditorDraft.test.ts": [
+    "vitest",
+    "../documentEditorDraft"
+  ],
+  "apps/web/app/lib/__tests__/documentListCache.test.ts": [
+    "@tanstack/vue-query",
+    "vitest",
+    "@/composables/useHrDocuments",
+    "../documentListCache"
+  ],
+  "apps/web/app/lib/debouncedFlush.ts": [],
+  "apps/web/app/lib/departmentTree.ts": [
+    "@/composables/useHrDepartments"
+  ],
+  "apps/web/app/lib/documentEditorDraft.ts": [],
+  "apps/web/app/lib/documentListCache.ts": [
+    "@tanstack/vue-query",
+    "@nasq/contracts"
+  ],
+  "apps/web/app/lib/utils.ts": [
+    "clsx",
+    "tailwind-merge"
+  ],
+  "apps/web/app/middleware/auth.global.ts": [
+    "@/utils/accessPolicy"
+  ],
+  "apps/web/app/pages/account.vue": [
+    "@/components/account/PasswordForm.vue"
+  ],
+  "apps/web/app/pages/archived-tasks.vue": [
+    "vue-sonner",
+    "@nasq/contracts",
+    "@/utils/safeReturnTo",
+    "@/composables/useApi",
+    "@/composables/useArchivedTasks"
+  ],
+  "apps/web/app/pages/hr/departments/[departmentId].vue": [
+    "@/components/hr/DocumentList.vue",
+    "@/composables/useHrDepartments",
+    "@/utils/safeReturnTo"
+  ],
+  "apps/web/app/pages/hr/departments/[departmentId]/documents/[documentId].vue": [
+    "@/components/hr/DocumentReader.vue",
+    "@/composables/useHrDocuments",
+    "@/utils/safeReturnTo"
+  ],
+  "apps/web/app/pages/hr/departments/[departmentId]/documents/[documentId]/edit.vue": [
+    "vue-sonner",
+    "@/components/hr/DocumentEditor.vue",
+    "@/composables/useHrDocuments",
+    "@/utils/safeReturnTo"
+  ],
+  "apps/web/app/pages/hr/departments/[departmentId]/documents/new.vue": [
+    "@/components/hr/DocumentCreateForm.vue",
+    "@/utils/safeReturnTo"
+  ],
+  "apps/web/app/pages/hr/departments/[departmentId]/edit.vue": [
+    "@/components/hr/DepartmentForm.vue",
+    "@/composables/useHrDepartments",
+    "@/composables/useHrEmployees",
+    "@/utils/safeReturnTo"
+  ],
+  "apps/web/app/pages/hr/departments/index.vue": [
+    "@/components/hr/DepartmentTable.vue",
+    "@/components/hr/DepartmentTree.vue",
+    "@/lib/departmentTree",
+    "vue-sonner",
+    "@/composables/useApi",
+    "@/composables/useHrDepartments",
+    "@/utils/safeReturnTo"
+  ],
+  "apps/web/app/pages/hr/departments/new.vue": [
+    "@/components/hr/DepartmentForm.vue",
+    "@/composables/useHrDepartments",
+    "@/composables/useHrEmployees",
+    "@/utils/safeReturnTo"
+  ],
+  "apps/web/app/pages/hr/documents/index.vue": [
+    "@/composables/useHrDocuments",
+    "@/composables/useHrDepartments",
+    "@/utils/safeReturnTo"
+  ],
+  "apps/web/app/pages/hr/documents/new.vue": [
+    "@/components/hr/DocumentCreateForm.vue",
+    "@/composables/useHrDepartments",
+    "@/utils/safeReturnTo"
+  ],
+  "apps/web/app/pages/hr/employees/[employeeId].vue": [
+    "@/components/hr/EmployeeCard.vue",
+    "@/composables/useHrEmployees",
+    "@/utils/safeReturnTo"
+  ],
+  "apps/web/app/pages/hr/employees/[employeeId]/access.vue": [
+    "@/composables/useAdminUsers",
+    "@/utils/safeReturnTo"
+  ],
+  "apps/web/app/pages/hr/employees/[employeeId]/edit.vue": [
+    "@/components/hr/EmployeeGeneralForm.vue",
+    "@/composables/useHrDepartments",
+    "@/composables/useHrEmployees",
+    "@/utils/safeReturnTo"
+  ],
+  "apps/web/app/pages/hr/employees/new.vue": [
+    "@/components/hr/EmployeeGeneralForm.vue",
+    "@/composables/useHrDepartments",
+    "@/composables/useHrEmployees",
+    "@/utils/safeReturnTo"
+  ],
+  "apps/web/app/pages/hr/index.vue": [
+    "@/components/hr/DirectoryTable.vue",
+    "@/components/hr/DepartmentTable.vue",
+    "@/composables/useHrDepartments",
+    "@/utils/safeReturnTo"
+  ],
+  "apps/web/app/pages/index.vue": [
+    "@/utils/accessPolicy"
+  ],
+  "apps/web/app/pages/login.vue": [
+    "~/utils/accessPolicy"
+  ],
+  "apps/web/app/pages/notifications.vue": [
+    "lucide-vue-next",
+    "vue-sonner",
+    "@/composables/useApi",
+    "@/composables/useNotifications"
+  ],
+  "apps/web/app/pages/projects/[id].vue": [
+    "@/components/project/MilestoneTable.vue",
+    "@/components/project/ProjectHeader.vue",
+    "@/components/project/ProjectUpdateList.vue",
+    "@/components/task/TaskBoard.vue",
+    "@/components/task/TaskTable.vue",
+    "@/components/task/TaskToolbar.vue",
+    "@/composables/useApi",
+    "@/composables/projectTaskParams",
+    "@/composables/useProjects",
+    "@/composables/useTasks",
+    "@/utils/safeReturnTo"
+  ],
+  "apps/web/app/pages/projects/[id]/milestones/[milestoneId]/edit.vue": [
+    "vue-sonner",
+    "@/components/project/MilestoneForm.vue",
+    "@/composables/useApi",
+    "@/composables/useMilestones",
+    "@/composables/useProjects",
+    "@/utils/safeReturnTo"
+  ],
+  "apps/web/app/pages/projects/[id]/milestones/new.vue": [
+    "@/components/project/MilestoneForm.vue",
+    "@/composables/useApi",
+    "@/composables/useProjects",
+    "@/utils/safeReturnTo"
+  ],
+  "apps/web/app/pages/projects/[id]/settings.vue": [
+    "@/composables/useApi",
+    "@/composables/useProjects",
+    "@/components/project/ProjectSettingsForm.vue",
+    "@/utils/safeReturnTo"
+  ],
+  "apps/web/app/pages/projects/[id]/tasks/[taskId].vue": [
+    "@/components/task/TaskDetailPage.vue",
+    "@/composables/projectTaskParams",
+    "@/utils/safeReturnTo"
+  ],
+  "apps/web/app/pages/projects/[id]/tasks/new.vue": [
+    "vue-sonner",
+    "@/components/task/TaskCreateForm.vue",
+    "@/composables/useApi",
+    "@/composables/useProjects",
+    "@/utils/safeReturnTo"
+  ],
+  "apps/web/app/pages/projects/[id]/updates/new.vue": [
+    "@/components/project/ProjectUpdateForm.vue",
+    "@/composables/useApi",
+    "@/composables/useProjects",
+    "@/utils/safeReturnTo"
+  ],
+  "apps/web/app/pages/projects/index.vue": [
+    "@nasq/contracts",
+    "lucide-vue-next",
+    "@vueuse/core",
+    "@/components/shared/FilterBar.vue",
+    "@/components/shared/PageHeader.vue",
+    "@/components/project/ProjectTable.vue",
+    "@/composables/useProjects",
+    "@/utils/safeReturnTo"
+  ],
+  "apps/web/app/pages/projects/new.vue": [
+    "vue-sonner",
+    "@/components/project/ProjectCreateForm.vue",
+    "@/utils/safeReturnTo",
+    "@/composables/useProjects"
+  ],
+  "apps/web/app/pages/reports.vue": [],
+  "apps/web/app/pages/search.vue": [
+    "@tanstack/vue-query",
+    "@nasq/contracts",
+    "@/utils/safeReturnTo",
+    "@/utils/accessPolicy"
+  ],
+  "apps/web/app/pages/settings/access-log/__tests__/routes.test.ts": [
+    "node:fs",
+    "node:path",
+    "vitest"
+  ],
+  "apps/web/app/pages/settings/access-log/[eventId].vue": [
+    "@nasq/contracts",
+    ", "
+  ],
+  "apps/web/app/pages/settings/access-log/index.vue": [
+    "@nasq/contracts",
+    "@/components/access/audit/AuditTable.vue",
+    "@/composables/useAdminAudit",
+    "@/composables/useAdminUsers",
+    "@/composables/useAdminRoles",
+    " type=",
+    ")"
+  ],
+  "apps/web/app/pages/settings/branding.vue": [
+    "@/components/settings/BrandingForm.vue",
+    "@/components/settings/SettingsTabs.vue"
+  ],
+  "apps/web/app/pages/settings/projects.vue": [
+    "@/components/settings/ProjectSettingsForm.vue",
+    "@/components/settings/SettingsTabs.vue"
+  ],
+  "apps/web/app/pages/settings/roles/__tests__/routes.test.ts": [
+    "node:fs",
+    "node:path",
+    "vitest"
+  ],
+  "apps/web/app/pages/settings/roles/[roleId]/edit.vue": [
+    "@/components/access/roles/RolePermissionForm.vue",
+    "@/composables/useAdminRoles"
+  ],
+  "apps/web/app/pages/settings/roles/[roleId]/index.vue": [
+    "@/components/access/roles/RolePermissionForm.vue",
+    "@/components/access/users/UserTable.vue",
+    "@/composables/useApi",
+    "@/composables/useAdminUsers",
+    "@/composables/useAdminRoles"
+  ],
+  "apps/web/app/pages/settings/roles/index.vue": [
+    "@/components/access/roles/RoleTable.vue",
+    "@/composables/useAdminRoles"
+  ],
+  "apps/web/app/pages/settings/roles/new.vue": [
+    "@nasq/contracts",
+    "@/composables/useApi",
+    "@/composables/useAdminRoles"
+  ],
+  "apps/web/app/pages/settings/users/__tests__/routes.test.ts": [
+    "node:fs",
+    "node:path",
+    "vitest"
+  ],
+  "apps/web/app/pages/settings/users/[userId]/access.vue": [
+    "@/components/access/users/UserAccessForm.vue",
+    "@/composables/useAdminRoles"
+  ],
+  "apps/web/app/pages/settings/users/[userId]/index.vue": [
+    "@nasq/contracts"
+  ],
+  "apps/web/app/pages/settings/users/[userId]/security.vue": [
+    "@/components/access/users/UserSecurityForm.vue"
+  ],
+  "apps/web/app/pages/settings/users/index.vue": [
+    "@/components/access/users/UserTable.vue",
+    "@/composables/useAdminUsers",
+    "@/composables/useAdminRoles",
+    "@/composables/useHrDepartments"
+  ],
+  "apps/web/app/pages/settings/users/new.vue": [
+    "@/composables/useApi",
+    "@/composables/useAdminUsers",
+    "@/composables/useAdminRoles"
+  ],
+  "apps/web/app/pages/tasks.vue": [
+    "@/components/shared/PageHeader.vue",
+    "@/components/task/TaskBoard.vue",
+    "@/components/task/TaskTable.vue",
+    "@/components/task/TaskToolbar.vue",
+    "lucide-vue-next",
+    "@/composables/useTaskFilters",
+    "@/utils/safeReturnTo"
+  ],
+  "apps/web/app/pages/tasks/[id].vue": [
+    "@/components/task/TaskDetailPage.vue",
+    "@/utils/safeReturnTo"
+  ],
+  "apps/web/app/pages/tasks/new.vue": [
+    "vue-sonner",
+    "@/components/task/TaskCreateForm.vue",
+    "@/utils/safeReturnTo"
+  ],
+  "apps/web/app/plugins/access-refresh.client.ts": [
+    "@vueuse/core",
+    "@tanstack/vue-query"
+  ],
+  "apps/web/app/plugins/bus.client.ts": [
+    "@tanstack/vue-query",
+    "../composables/useBus"
+  ],
+  "apps/web/app/plugins/vue-query.ts": [
+    "@tanstack/vue-query",
+    "@/composables/useApi"
+  ],
+  "apps/web/app/utils/__tests__/accessPolicy.test.ts": [
+    "vitest",
+    "../accessPolicy"
+  ],
+  "apps/web/app/utils/__tests__/brandTheme.test.ts": [
+    "vitest",
+    "../brandTheme"
+  ],
+  "apps/web/app/utils/__tests__/businessOverlays.test.ts": [
+    "vitest",
+    "node:fs",
+    "node:path",
+    "node:url",
+    ",\n        nativePopup.test(source) && "
+  ],
+  "apps/web/app/utils/__tests__/safeReturnTo.test.ts": [
+    "vitest",
+    "../safeReturnTo"
+  ],
+  "apps/web/app/utils/__tests__/sanitize.test.ts": [
+    "vitest",
+    "../sanitize"
+  ],
+  "apps/web/app/utils/accessPolicy.ts": [
+    "./safeReturnTo"
+  ],
+  "apps/web/app/utils/brandTheme.ts": [],
+  "apps/web/app/utils/safeReturnTo.ts": [],
+  "apps/web/app/utils/sanitize.ts": [],
+  "apps/web/components.json": [],
+  "apps/web/Dockerfile": [],
+  "apps/web/e2e/access-admin.spec.ts": [
+    "@playwright/test"
+  ],
+  "apps/web/e2e/account.spec.ts": [
+    "@playwright/test",
+    "@nasq/contracts"
+  ],
+  "apps/web/e2e/activity.spec.ts": [
+    "@playwright/test"
+  ],
+  "apps/web/e2e/auth-csrf.spec.ts": [
+    "@playwright/test"
+  ],
+  "apps/web/e2e/board.spec.ts": [
+    "@playwright/test"
+  ],
+  "apps/web/e2e/branding.spec.ts": [
+    "@playwright/test"
+  ],
+  "apps/web/e2e/command-menu.spec.ts": [
+    "@playwright/test"
+  ],
+  "apps/web/e2e/contracts-hr.spec.ts": [
+    "@playwright/test",
+    "@nasq/contracts"
+  ],
+  "apps/web/e2e/contracts.spec.ts": [
+    "@playwright/test",
+    "@nasq/contracts",
+    "zod"
+  ],
+  "apps/web/e2e/detail.spec.ts": [
+    "@playwright/test",
+    "no siblings"
+  ],
+  "apps/web/e2e/hr-directory.spec.ts": [
+    "@playwright/test"
+  ],
+  "apps/web/e2e/hr-documents.spec.ts": [
+    "@playwright/test"
+  ],
+  "apps/web/e2e/hr-people-access.spec.ts": [
+    "@playwright/test",
+    "@nasq/contracts"
+  ],
+  "apps/web/e2e/hydration.spec.ts": [
+    "@playwright/test"
+  ],
+  "apps/web/e2e/internal-pages.spec.ts": [
+    "@playwright/test"
+  ],
+  "apps/web/e2e/login.spec.ts": [
+    "@playwright/test"
+  ],
+  "apps/web/e2e/notifications.spec.ts": [
+    "@playwright/test"
+  ],
+  "apps/web/e2e/project-admin.spec.ts": [
+    "@playwright/test",
+    "@nasq/contracts"
+  ],
+  "apps/web/e2e/projects.spec.ts": [
+    "@playwright/test"
+  ],
+  "apps/web/e2e/realtime.spec.ts": [
+    "@playwright/test"
+  ],
+  "apps/web/e2e/task-attachments.spec.ts": [
+    "@playwright/test"
+  ],
+  "apps/web/e2e/task-lifecycle.spec.ts": [
+    "@playwright/test"
+  ],
+  "apps/web/e2e/tasks.spec.ts": [
+    "@playwright/test",
+    "1+\n  // closed tasks"
+  ],
+  "apps/web/e2e/totp.spec.ts": [
+    "@playwright/test"
+  ],
+  "apps/web/e2e/unified-hr-navigation.spec.ts": [
+    "@playwright/test"
+  ],
+  "apps/web/i18n/locales/ar/access.json": [
+    ": "
+  ],
+  "apps/web/i18n/locales/ar/attachments.json": [],
+  "apps/web/i18n/locales/ar/common.json": [],
+  "apps/web/i18n/locales/ar/hr.json": [],
+  "apps/web/i18n/locales/ar/notifications.json": [],
+  "apps/web/i18n/locales/ar/projects.json": [],
+  "apps/web/i18n/locales/ar/settings.json": [],
+  "apps/web/i18n/locales/ar/taskLifecycle.json": [],
+  "apps/web/i18n/locales/ar/tasks.json": [],
+  "apps/web/i18n/locales/en/access.json": [
+    ": "
+  ],
+  "apps/web/i18n/locales/en/attachments.json": [],
+  "apps/web/i18n/locales/en/common.json": [],
+  "apps/web/i18n/locales/en/hr.json": [],
+  "apps/web/i18n/locales/en/notifications.json": [],
+  "apps/web/i18n/locales/en/projects.json": [],
+  "apps/web/i18n/locales/en/settings.json": [],
+  "apps/web/i18n/locales/en/taskLifecycle.json": [],
+  "apps/web/i18n/locales/en/tasks.json": [],
+  "apps/web/nuxt.config.ts": [
+    "@tailwindcss/vite"
+  ],
+  "apps/web/package.json": [],
+  "apps/web/playwright.config.ts": [
+    "@playwright/test"
+  ],
+  "apps/web/server/api/auth/login.post.ts": [],
+  "apps/web/server/api/auth/logout.post.ts": [],
+  "apps/web/server/api/auth/totp.post.ts": [],
+  "apps/web/server/routes/api/v1/[...path].ts": [
+    "ufo"
+  ],
+  "apps/web/server/utils/same-site.ts": [
+    "h3"
+  ],
+  "apps/web/tsconfig.json": [],
+  "apps/web/vitest.config.ts": [
+    "vitest/config"
+  ],
+  "CLAUDE.md": [],
+  "deploy/branding.example.json": [],
+  "deploy/docker-compose.yml": [],
+  "deploy/provision.sh": [],
+  "deploy/seed_branding.py": [],
+  "docs/archive/2026-09-04-nasq-hr-design.md": [],
+  "docs/archive/2026-09-04-nasq-hr-phase-1.md": [
+    "./hr"
+  ],
+  "docs/branding-permissions-report.md": [],
+  "docs/design-system-review.md": [],
+  "docs/design-system-system-report.md": [],
+  "docs/design-system/build.mjs": [
+    "node:fs/promises",
+    "node:url",
+    "node:path",
+    "typescript",
+    "node:vm"
+  ],
+  "docs/design-system/Components.html": [],
+  "docs/design-system/README.md": [],
+  "docs/parallel-work.md": [],
+  "docs/superpowers/plans/2026-09-02-web-theme-shadcn.md": [
+    "@odoo/hoot",
+    "@web/../tests/web_test_helpers",
+    "@web/core/utils/patch",
+    "@web/webclient/menus/menu_service",
+    "@odoo/hoot-dom",
+    "@odoo/hoot-mock",
+    "@web/core/browser/browser",
+    "@web/webclient/navbar/navbar",
+    "@odoo/owl",
+    "@web/core/hotkeys/hotkey_hook",
+    "@web/core/utils/hooks",
+    "@web_theme_shadcn/webclient/app_rail/app_rail",
+    "@web_theme_shadcn/webclient/app_panel/app_panel",
+    "@web/core/registry"
+  ],
+  "docs/superpowers/plans/2026-09-03-nasq-phase-0-foundation.md": [
+    "vitest/config",
+    "../index",
+    "zod",
+    "./branding",
+    "./me",
+    "@tailwindcss/vite",
+    "clsx",
+    "tailwind-merge",
+    "tailwindcss",
+    "tw-animate-css",
+    "reka-ui",
+    "@playwright/test",
+    "@nasq/contracts",
+    "@nuxt/test-utils/config",
+    "vitest",
+    "../useNav",
+    "vue",
+    "lucide-vue-next",
+    "@vueuse/core"
+  ],
+  "docs/superpowers/plans/2026-09-04-nasq-hr-phase-1.md": [],
+  "docs/superpowers/plans/2026-09-04-nasq-phase-1-my-tasks.md": [
+    "@tanstack/vue-query",
+    "zod",
+    "./state",
+    "./task",
+    "@nasq/contracts",
+    "@playwright/test"
+  ],
+  "docs/superpowers/plans/2026-09-04-nasq-phase-2-projects.md": [
+    "zod",
+    "./project",
+    "vitest",
+    "@nasq/contracts",
+    "../projectStatus",
+    "../boardStages",
+    "../projectTaskParams",
+    "@/composables/taskState",
+    "./taskState",
+    "./useTasks",
+    "vue",
+    "@tanstack/vue-query",
+    "@/composables/boardStages",
+    "vue-router",
+    "@/composables/useTasks",
+    "@/composables/projectStatus",
+    "vue-sonner",
+    "@/composables/useApi",
+    "@/composables/useProjects",
+    "lucide-vue-next",
+    "./ProjectProgress.vue",
+    "./ProjectStatusBadge.vue",
+    "./ProjectStatusSelect.vue",
+    "@/components/project/ProjectTable.vue",
+    "@/components/task/CreateTaskDialog.vue",
+    "@/components/task/TaskBoard.vue",
+    "@/components/task/TaskTable.vue",
+    "@/components/task/TaskToolbar.vue",
+    "@/components/project/ProjectHeader.vue",
+    "@/composables/projectTaskParams",
+    "@/components/task/TaskDetailModal.vue",
+    "@playwright/test"
+  ],
+  "docs/superpowers/plans/2026-09-05-branch-unification.md": [],
+  "docs/superpowers/plans/2026-09-05-design-system.md": [],
+  "docs/superpowers/plans/2026-09-05-nasq-access-admin-handoff.md": [],
+  "docs/superpowers/plans/2026-09-05-nasq-access-admin.md": [],
+  "docs/superpowers/plans/2026-09-05-nasq-internal-pages.md": [],
+  "docs/superpowers/plans/2026-09-05-nasq-phase-3a-project-admin.md": [
+    "zod",
+    "./task",
+    "./project",
+    "./milestone",
+    "vitest",
+    "../calendarDate",
+    "../stageOrder",
+    "@internationalized/date"
+  ],
+  "docs/superpowers/plans/2026-09-05-nasq-phase-3b-delivery.md": [],
+  "docs/superpowers/plans/2026-09-05-nasq-phase-3b-handoff.md": [],
+  "docs/superpowers/plans/2026-09-05-nasq-phase-3b-people-branding.md": [],
+  "docs/superpowers/plans/2026-09-05-project-collaboration-delivery.md": [],
+  "docs/superpowers/plans/2026-09-05-project-collaboration.md": [],
+  "docs/superpowers/specs/2026-09-02-web-theme-shadcn-design.md": [],
+  "docs/superpowers/specs/2026-09-03-nasq-platform-design.md": [],
+  "docs/superpowers/specs/2026-09-04-nasq-hr-design.md": [],
+  "docs/superpowers/specs/2026-09-04-nasq-phase-1-my-tasks-design.md": [],
+  "docs/superpowers/specs/2026-09-04-nasq-phase-2-projects-design.md": [],
+  "docs/superpowers/specs/2026-09-05-design-system.md": [],
+  "docs/superpowers/specs/2026-09-05-nasq-access-admin-ui-design.md": [],
+  "docs/superpowers/specs/2026-09-05-nasq-internal-pages.md": [],
+  "docs/superpowers/specs/2026-09-05-nasq-phase-3a-project-admin-design.md": [],
+  "docs/superpowers/specs/2026-09-05-nasq-phase-3b-people-branding-design.md": [],
+  "docs/superpowers/specs/2026-09-05-project-collaboration-design.md": [],
+  "docs/unification-2026-09-05.md": [],
+  "docs/WORKSPACE.md": [],
+  "odoo-addons/nasq_api/__init__.py": [],
+  "odoo-addons/nasq_api/__manifest__.py": [],
+  "odoo-addons/nasq_api/controllers/__init__.py": [],
+  "odoo-addons/nasq_api/controllers/access_admin.py": [
+    ", ",
+    ": ("
+  ],
+  "odoo-addons/nasq_api/controllers/auth.py": [],
+  "odoo-addons/nasq_api/controllers/branding.py": [],
+  "odoo-addons/nasq_api/controllers/common.py": [],
+  "odoo-addons/nasq_api/controllers/me.py": [],
+  "odoo-addons/nasq_api/serializers/__init__.py": [],
+  "odoo-addons/nasq_api/serializers/access.py": [],
+  "odoo-addons/nasq_api/serializers/common.py": [],
+  "odoo-addons/nasq_api/serializers/company.py": [],
+  "odoo-addons/nasq_api/serializers/user.py": [],
+  "odoo-addons/nasq_api/tests/__init__.py": [],
+  "odoo-addons/nasq_api/tests/common.py": [],
+  "odoo-addons/nasq_api/tests/test_access_admin.py": [],
+  "odoo-addons/nasq_api/tests/test_branding.py": [],
+  "odoo-addons/nasq_api/tests/test_me.py": [],
+  "odoo-addons/nasq_api/tests/test_totp.py": [],
+  "odoo-addons/nasq_core/__init__.py": [],
+  "odoo-addons/nasq_core/__manifest__.py": [],
+  "odoo-addons/nasq_core/models/__init__.py": [],
+  "odoo-addons/nasq_core/models/access_assignment.py": [],
+  "odoo-addons/nasq_core/models/access_audit.py": [],
+  "odoo-addons/nasq_core/models/access_permission.py": [],
+  "odoo-addons/nasq_core/models/access_role.py": [],
+  "odoo-addons/nasq_core/models/access_service.py": [],
+  "odoo-addons/nasq_core/models/ir_attachment.py": [],
+  "odoo-addons/nasq_core/models/res_company.py": [],
+  "odoo-addons/nasq_core/models/res_partner.py": [],
+  "odoo-addons/nasq_core/models/res_users.py": [],
+  "odoo-addons/nasq_core/tests/__init__.py": [],
+  "odoo-addons/nasq_core/tests/test_access_migration.py": [],
+  "odoo-addons/nasq_core/tests/test_access_models.py": [],
+  "odoo-addons/nasq_core/tests/test_access_security.py": [],
+  "odoo-addons/nasq_core/tests/test_groups.py": [],
+  "odoo-addons/nasq_hr/__init__.py": [],
+  "odoo-addons/nasq_hr/__manifest__.py": [],
+  "odoo-addons/nasq_hr/controllers/__init__.py": [],
+  "odoo-addons/nasq_hr/controllers/common.py": [],
+  "odoo-addons/nasq_hr/controllers/hr_departments.py": [],
+  "odoo-addons/nasq_hr/controllers/hr_documents.py": [],
+  "odoo-addons/nasq_hr/controllers/hr_employees.py": [],
+  "odoo-addons/nasq_hr/models/__init__.py": [],
+  "odoo-addons/nasq_hr/models/access_service.py": [],
+  "odoo-addons/nasq_hr/models/hr_department.py": [],
+  "odoo-addons/nasq_hr/models/hr_document.py": [],
+  "odoo-addons/nasq_hr/models/hr_employee.py": [],
+  "odoo-addons/nasq_hr/models/hr_version.py": [],
+  "odoo-addons/nasq_hr/rules.py": [],
+  "odoo-addons/nasq_hr/serializers/__init__.py": [],
+  "odoo-addons/nasq_hr/serializers/hr_department.py": [],
+  "odoo-addons/nasq_hr/serializers/hr_document.py": [],
+  "odoo-addons/nasq_hr/serializers/hr_employee.py": [],
+  "odoo-addons/nasq_hr/tests/__init__.py": [],
+  "odoo-addons/nasq_hr/tests/common.py": [],
+  "odoo-addons/nasq_hr/tests/test_department_model.py": [],
+  "odoo-addons/nasq_hr/tests/test_employee_model.py": [],
+  "odoo-addons/nasq_hr/tests/test_hr_access.py": [],
+  "odoo-addons/nasq_hr/tests/test_hr_departments.py": [],
+  "odoo-addons/nasq_hr/tests/test_hr_document_acl.py": [],
+  "odoo-addons/nasq_hr/tests/test_hr_documents.py": [],
+  "odoo-addons/nasq_hr/tests/test_hr_employees.py": [],
+  "odoo-addons/nasq_pmo/__init__.py": [],
+  "odoo-addons/nasq_pmo/__manifest__.py": [],
+  "odoo-addons/nasq_pmo/controllers/__init__.py": [],
+  "odoo-addons/nasq_pmo/controllers/milestones.py": [],
+  "odoo-addons/nasq_pmo/controllers/notifications.py": [],
+  "odoo-addons/nasq_pmo/controllers/people.py": [],
+  "odoo-addons/nasq_pmo/controllers/personal_stages.py": [],
+  "odoo-addons/nasq_pmo/controllers/project_followers.py": [],
+  "odoo-addons/nasq_pmo/controllers/project_stages.py": [],
+  "odoo-addons/nasq_pmo/controllers/project_updates.py": [],
+  "odoo-addons/nasq_pmo/controllers/projects.py": [],
+  "odoo-addons/nasq_pmo/controllers/settings.py": [],
+  "odoo-addons/nasq_pmo/controllers/tags.py": [],
+  "odoo-addons/nasq_pmo/controllers/task_archive.py": [],
+  "odoo-addons/nasq_pmo/controllers/task_attachments.py": [],
+  "odoo-addons/nasq_pmo/controllers/task_dependencies.py": [],
+  "odoo-addons/nasq_pmo/controllers/tasks.py": [],
+  "odoo-addons/nasq_pmo/controllers/timeline.py": [],
+  "odoo-addons/nasq_pmo/models/__init__.py": [],
+  "odoo-addons/nasq_pmo/models/mail_notification_nasq.py": [],
+  "odoo-addons/nasq_pmo/models/nasq_settings.py": [],
+  "odoo-addons/nasq_pmo/models/project_project.py": [],
+  "odoo-addons/nasq_pmo/models/project_task.py": [],
+  "odoo-addons/nasq_pmo/models/task_attachments.py": [],
+  "odoo-addons/nasq_pmo/models/task_notifications.py": [],
+  "odoo-addons/nasq_pmo/serializers/__init__.py": [],
+  "odoo-addons/nasq_pmo/serializers/dates.py": [],
+  "odoo-addons/nasq_pmo/serializers/milestone.py": [],
+  "odoo-addons/nasq_pmo/serializers/notification.py": [],
+  "odoo-addons/nasq_pmo/serializers/project_update.py": [],
+  "odoo-addons/nasq_pmo/serializers/project.py": [],
+  "odoo-addons/nasq_pmo/serializers/task_attachment.py": [],
+  "odoo-addons/nasq_pmo/serializers/task.py": [],
+  "odoo-addons/nasq_pmo/serializers/timeline.py": [],
+  "odoo-addons/nasq_pmo/tests/__init__.py": [],
+  "odoo-addons/nasq_pmo/tests/common.py": [],
+  "odoo-addons/nasq_pmo/tests/test_access_capabilities.py": [],
+  "odoo-addons/nasq_pmo/tests/test_bus.py": [],
+  "odoo-addons/nasq_pmo/tests/test_milestones.py": [],
+  "odoo-addons/nasq_pmo/tests/test_notifications.py": [],
+  "odoo-addons/nasq_pmo/tests/test_personal_stages.py": [],
+  "odoo-addons/nasq_pmo/tests/test_project_admin_model.py": [],
+  "odoo-addons/nasq_pmo/tests/test_project_followers.py": [],
+  "odoo-addons/nasq_pmo/tests/test_project_stages.py": [],
+  "odoo-addons/nasq_pmo/tests/test_project_status.py": [],
+  "odoo-addons/nasq_pmo/tests/test_project_updates.py": [],
+  "odoo-addons/nasq_pmo/tests/test_projects.py": [],
+  "odoo-addons/nasq_pmo/tests/test_settings.py": [],
+  "odoo-addons/nasq_pmo/tests/test_tags.py": [],
+  "odoo-addons/nasq_pmo/tests/test_task_attachments.py": [],
+  "odoo-addons/nasq_pmo/tests/test_task_lifecycle.py": [],
+  "odoo-addons/nasq_pmo/tests/test_tasks.py": [],
+  "odoo-addons/nasq_pmo/tests/test_timeline.py": [],
+  "odoo-addons/nasq_pmo/tests/test_transition.py": [],
+  "odoo-addons/web_theme_shadcn/__init__.py": [],
+  "odoo-addons/web_theme_shadcn/__manifest__.py": [],
+  "odoo-addons/web_theme_shadcn/README.md": [],
+  "odoo-addons/web_theme_shadcn/static/src/scss/bootstrap_overridden.scss": [],
+  "odoo-addons/web_theme_shadcn/static/src/scss/fonts.scss": [],
+  "odoo-addons/web_theme_shadcn/static/src/scss/frontend_reset.scss": [],
+  "odoo-addons/web_theme_shadcn/static/src/scss/navbar.variables.scss": [],
+  "odoo-addons/web_theme_shadcn/static/src/scss/primary_variables.scss": [],
+  "odoo-addons/web_theme_shadcn/static/src/scss/theme.scss": [],
+  "odoo-addons/web_theme_shadcn/static/src/webclient/app_panel/app_panel.js": [
+    "@odoo/owl",
+    "@web/core/l10n/translation"
+  ],
+  "odoo-addons/web_theme_shadcn/static/src/webclient/app_panel/app_panel.scss": [],
+  "odoo-addons/web_theme_shadcn/static/src/webclient/app_rail/app_rail.js": [
+    "@odoo/owl"
+  ],
+  "odoo-addons/web_theme_shadcn/static/src/webclient/app_rail/app_rail.scss": [],
+  "odoo-addons/web_theme_shadcn/static/src/webclient/menu_service_patch.js": [
+    "@web/core/utils/patch",
+    "@web/webclient/menus/menu_service"
+  ],
+  "odoo-addons/web_theme_shadcn/static/src/webclient/navbar/navbar.js": [
+    "@odoo/owl",
+    "@web/core/browser/browser",
+    "@web/core/browser/feature_detection",
+    "@web/core/l10n/translation",
+    "@web/core/hotkeys/hotkey_hook",
+    "@web/core/utils/patch",
+    "@web/core/utils/hooks",
+    "@web/webclient/navbar/navbar",
+    "@web_theme_shadcn/webclient/app_rail/app_rail",
+    "@web_theme_shadcn/webclient/app_panel/app_panel"
+  ],
+  "odoo-addons/web_theme_shadcn/static/src/webclient/navbar/navbar.scss": [],
+  "odoo-addons/web_theme_shadcn/static/src/webclient/webclient_layout.scss": [],
+  "odoo-addons/web_theme_shadcn/static/tests/app_panel.test.js": [
+    "@odoo/hoot",
+    "@web/../tests/web_test_helpers",
+    "@web_theme_shadcn/webclient/app_panel/app_panel"
+  ],
+  "odoo-addons/web_theme_shadcn/static/tests/app_rail.test.js": [
+    "@odoo/hoot",
+    "@web/../tests/web_test_helpers",
+    "@web_theme_shadcn/webclient/app_rail/app_rail"
+  ],
+  "odoo-addons/web_theme_shadcn/static/tests/menu_service_patch.test.js": [
+    "@odoo/hoot",
+    "@web/../tests/web_test_helpers"
+  ],
+  "odoo-addons/web_theme_shadcn/static/tests/navbar.test.js": [
+    "@odoo/hoot",
+    "@odoo/hoot-dom",
+    "@odoo/hoot-mock",
+    "@web/../tests/web_test_helpers",
+    "@web/core/browser/browser",
+    "@web/webclient/navbar/navbar"
+  ],
+  "odoo-addons/web_theme_shadcn/static/tests/tours/web_theme_shadcn_tour.js": [
+    "@web/core/registry"
+  ],
+  "odoo-addons/web_theme_shadcn/tests/__init__.py": [],
+  "odoo-addons/web_theme_shadcn/tests/test_assets.py": [],
+  "odoo-addons/web_theme_shadcn/tests/test_ui.py": [],
+  "package-lock.json": [],
+  "package.json": [],
+  "packages/contracts/package.json": [],
+  "packages/contracts/src/access/__tests__/me-fail-closed.test.ts": [
+    "../../common",
+    "vitest"
+  ],
+  "packages/contracts/src/access/__tests__/schemas.test.ts": [
+    ".."
+  ],
+  "packages/contracts/src/access/access.ts": [
+    "zod"
+  ],
+  "packages/contracts/src/access/index.ts": [
+    "./access"
+  ],
+  "packages/contracts/src/common/__tests__/branding-admin.test.ts": [
+    "../branding"
+  ],
+  "packages/contracts/src/common/__tests__/branding.test.ts": [
+    "vitest",
+    "../branding"
+  ],
+  "packages/contracts/src/common/__tests__/error-details.test.ts": [
+    "../error"
+  ],
+  "packages/contracts/src/common/__tests__/password.test.ts": [
+    "../password"
+  ],
+  "packages/contracts/src/common/__tests__/schemas.test.ts": [
+    "../index"
+  ],
+  "packages/contracts/src/common/branding.ts": [
+    "zod"
+  ],
+  "packages/contracts/src/common/error.ts": [
+    "zod"
+  ],
+  "packages/contracts/src/common/index.ts": [
+    "./branding",
+    "./error",
+    "./me",
+    "./password"
+  ],
+  "packages/contracts/src/common/me.ts": [
+    "zod",
+    "../access"
+  ],
+  "packages/contracts/src/common/password.ts": [
+    "zod"
+  ],
+  "packages/contracts/src/hr/__tests__/schemas.test.ts": [
+    ".."
+  ],
+  "packages/contracts/src/hr/index.ts": [
+    "zod",
+    "../common/password"
+  ],
+  "packages/contracts/src/index.ts": [
+    "./common",
+    "./pmo",
+    "./hr",
+    "./access"
+  ],
+  "packages/contracts/src/pmo/__tests__/attachments.test.ts": [
+    "vitest",
+    "../attachment"
+  ],
+  "packages/contracts/src/pmo/__tests__/notifications.test.ts": [
+    "vitest",
+    "../notification"
+  ],
+  "packages/contracts/src/pmo/__tests__/schemas.test.ts": [
+    "../index"
+  ],
+  "packages/contracts/src/pmo/__tests__/task-lifecycle.test.ts": [
+    "vitest",
+    "../index"
+  ],
+  "packages/contracts/src/pmo/attachment.ts": [
+    "zod"
+  ],
+  "packages/contracts/src/pmo/index.ts": [
+    "./state",
+    "./task",
+    "./timeline",
+    "./personal-stage",
+    "./project",
+    "./milestone",
+    "./project-update",
+    "./settings",
+    "./tag",
+    "./attachment",
+    "./notification"
+  ],
+  "packages/contracts/src/pmo/milestone.ts": [
+    "zod"
+  ],
+  "packages/contracts/src/pmo/notification.ts": [
+    "zod"
+  ],
+  "packages/contracts/src/pmo/personal-stage.ts": [
+    "zod"
+  ],
+  "packages/contracts/src/pmo/project-update.ts": [
+    "zod",
+    "./project"
+  ],
+  "packages/contracts/src/pmo/project.ts": [
+    "zod",
+    "./task"
+  ],
+  "packages/contracts/src/pmo/settings.ts": [
+    "zod"
+  ],
+  "packages/contracts/src/pmo/state.ts": [
+    "zod"
+  ],
+  "packages/contracts/src/pmo/tag.ts": [
+    "zod"
+  ],
+  "packages/contracts/src/pmo/task.ts": [
+    "zod",
+    "./state"
+  ],
+  "packages/contracts/src/pmo/timeline.ts": [
+    "zod",
+    "./task"
+  ],
+  "packages/contracts/tsconfig.json": [],
+  "packages/contracts/vitest.config.ts": [
+    "vitest/config"
+  ],
+  "README.md": [],
+  "ruff.toml": []
+}

@@ -1,0 +1,4737 @@
+{
+  "AGENTS.md": [],
+  "apps/web/app/app.vue": [
+    "i18nHead"
+  ],
+  "apps/web/app/assets/css/main.css": [],
+  "apps/web/app/components/access/__tests__/locale-contract.test.ts": [
+    "localeSource",
+    "path",
+    "hasPath",
+    "ar",
+    "en",
+    "required"
+  ],
+  "apps/web/app/components/access/__tests__/permissionDiff.test.ts": [
+    "source",
+    "before",
+    "after",
+    "diff"
+  ],
+  "apps/web/app/components/access/__tests__/state-contract.test.ts": [
+    "collectVueFiles",
+    "path",
+    "accessComponentSource",
+    "directory",
+    "files",
+    "source"
+  ],
+  "apps/web/app/components/access/AccessStateBadge.vue": [],
+  "apps/web/app/components/access/audit/AuditTable.vue": [
+    "emit",
+    "hydrated",
+    "actionLabels",
+    "actionLabel",
+    "open"
+  ],
+  "apps/web/app/components/access/permissionDiff.ts": [
+    "PermissionDiff",
+    "permissionDiff",
+    "beforeByKey",
+    "afterByKey"
+  ],
+  "apps/web/app/components/access/roles/RolePermissionForm.vue": [
+    "props",
+    "emit",
+    "hydrated",
+    "update",
+    "nameAr",
+    "nameEn",
+    "description",
+    "selected",
+    "errorMessage",
+    "saved",
+    "dirty",
+    "canEdit",
+    "permissionByKey",
+    "permissionLabel",
+    "permissionDescription",
+    "domainLabel",
+    "groupedPermissions",
+    "addedPermissions",
+    "removedPermissions",
+    "retainedPermissions",
+    "showError",
+    "translated",
+    "togglePermission",
+    "next",
+    "visit",
+    "definition",
+    "dependency",
+    "remove",
+    "candidate",
+    "save"
+  ],
+  "apps/web/app/components/access/roles/RoleTable.vue": [
+    "hydrated"
+  ],
+  "apps/web/app/components/access/users/UserAccessForm.vue": [
+    "props",
+    "emit",
+    "hydrated",
+    "update",
+    "errorKey",
+    "saved",
+    "selectedRoleIds",
+    "dirty",
+    "companyId",
+    "canEdit",
+    "permissionLabels",
+    "capabilityLabel",
+    "roleLabel",
+    "currentCapabilities",
+    "originalRoleIds",
+    "previewRoleIds",
+    "roleDetails",
+    "catalogReady",
+    "catalogMissing",
+    "previewLoading",
+    "previewError",
+    "previewReady",
+    "retainedRoleCount",
+    "addedRoleCount",
+    "removedRoleCount",
+    "assignmentSource",
+    "assignment",
+    "beforeCapabilities",
+    "afterCapabilities",
+    "byKey",
+    "capability",
+    "retainedSources",
+    "role",
+    "source",
+    "key",
+    "existing",
+    "capabilityChanges",
+    "addingAccessAdminRole",
+    "retryPreview",
+    "showError",
+    "translated",
+    "save"
+  ],
+  "apps/web/app/components/access/users/UserSecurityForm.vue": [
+    "props",
+    "hydrated",
+    "passwordConfirmation",
+    "reset",
+    "disable",
+    "reactivate",
+    "errorKey",
+    "successKey",
+    "pendingAction",
+    "canReset",
+    "canDisable",
+    "canReactivate",
+    "anyPending",
+    "clearSecrets",
+    "beginOrConfirm",
+    "showError",
+    "translated",
+    "resetPassword",
+    "changeState",
+    "action"
+  ],
+  "apps/web/app/components/access/users/UserTable.vue": [
+    "hydrated"
+  ],
+  "apps/web/app/components/account/PasswordForm.vue": [
+    "hydrated",
+    "mutation",
+    "current",
+    "next",
+    "confirm",
+    "currentError",
+    "newError",
+    "formError",
+    "success",
+    "fields",
+    "disabled",
+    "clearSecrets",
+    "clearMessages",
+    "submit",
+    "validation",
+    "payload",
+    "apiError",
+    "field"
+  ],
+  "apps/web/app/components/AppSidebar.vue": [
+    "queryClient",
+    "route",
+    "nav",
+    "groups",
+    "standalone",
+    "openGroups",
+    "preferenceKey",
+    "saved",
+    "group",
+    "toggleGroup",
+    "initials",
+    "productName",
+    "isActive",
+    "hydrated",
+    "logout"
+  ],
+  "apps/web/app/components/hr/__tests__/hr-separation.test.ts": [
+    "appRoot",
+    "pagesRoot",
+    "hrRouteFiles",
+    "capabilityGatedFiles",
+    "route",
+    "sources",
+    "relative",
+    "source",
+    "path"
+  ],
+  "apps/web/app/components/hr/AccessBadge.vue": [
+    "props",
+    "label"
+  ],
+  "apps/web/app/components/hr/DepartmentForm.vue": [
+    "HrDepartment",
+    "HrEmployee",
+    "props",
+    "emit",
+    "hydrated",
+    "canManage",
+    "parentOptions",
+    "allowed",
+    "name",
+    "parentId",
+    "managerId",
+    "managerSearch",
+    "debouncedManagerSearch",
+    "employeeQuery",
+    "selectedManagerQuery",
+    "managerOptions",
+    "options",
+    "employees",
+    "employee",
+    "savedState",
+    "pending",
+    "state",
+    "dirty",
+    "idOrNull",
+    "submit",
+    "trimmed",
+    "department"
+  ],
+  "apps/web/app/components/hr/DepartmentTable.vue": [
+    "props",
+    "emit",
+    "hydrated",
+    "route",
+    "canManage"
+  ],
+  "apps/web/app/components/hr/DepartmentTree.vue": [
+    "DepartmentTreeNode",
+    "props",
+    "emit",
+    "expanded",
+    "filteredRoots",
+    "displayedNodes",
+    "result",
+    "searching",
+    "walk",
+    "child",
+    "root",
+    "isSearching",
+    "isExpanded",
+    "node",
+    "toggle",
+    "next"
+  ],
+  "apps/web/app/components/hr/DirectoryTable.vue": [
+    "HrEmployee",
+    "departmentId",
+    "emit",
+    "route",
+    "router",
+    "hydrated",
+    "search",
+    "archived",
+    "offset",
+    "canManage",
+    "canArchive",
+    "params",
+    "items",
+    "departments",
+    "selectedDepartment",
+    "hasActiveFilters",
+    "page",
+    "pages",
+    "id",
+    "updateQuery",
+    "setPage",
+    "columnHelper",
+    "columns",
+    "table",
+    "onDepartmentChange",
+    "clearFilters"
+  ],
+  "apps/web/app/components/hr/DocumentCreateForm.vue": [
+    "props",
+    "emit",
+    "hydrated",
+    "name",
+    "body",
+    "saved",
+    "dirty",
+    "submit",
+    "title",
+    "document"
+  ],
+  "apps/web/app/components/hr/DocumentEditor.vue": [
+    "props",
+    "emit",
+    "linkEditing",
+    "linkUrl",
+    "pendingBodyDraft",
+    "buffer",
+    "editor",
+    "html",
+    "editorHtml",
+    "toggleBold",
+    "toggleItalic",
+    "toggleBulletList",
+    "toggleOrderedList",
+    "toggleLink",
+    "applyLink",
+    "url"
+  ],
+  "apps/web/app/components/hr/DocumentList.vue": [
+    "props",
+    "hydrated",
+    "canWriteAllowed",
+    "route",
+    "router",
+    "search",
+    "limit",
+    "offset",
+    "params",
+    "query",
+    "items",
+    "page",
+    "pages",
+    "updateSearch",
+    "setPage",
+    "detailsTo"
+  ],
+  "apps/web/app/components/hr/DocumentReader.vue": [
+    "props",
+    "formatSize"
+  ],
+  "apps/web/app/components/hr/EmployeeAccessPanel.vue": [
+    "props",
+    "route",
+    "accountTo",
+    "employee",
+    "returnQuery"
+  ],
+  "apps/web/app/components/hr/EmployeeCard.vue": [
+    "props",
+    "canSeeAccess",
+    "id"
+  ],
+  "apps/web/app/components/hr/EmployeeCreateForm.vue": [
+    "HrEmployee",
+    "emit",
+    "hydrated",
+    "name",
+    "email",
+    "phone",
+    "jobTitle",
+    "departmentId",
+    "managerId",
+    "idOrNull",
+    "submit"
+  ],
+  "apps/web/app/components/hr/EmployeeGeneralForm.vue": [
+    "HrEmployee",
+    "props",
+    "emit",
+    "hydrated",
+    "canManage",
+    "name",
+    "email",
+    "originalEmail",
+    "phone",
+    "jobTitle",
+    "departmentId",
+    "managerId",
+    "savedState",
+    "isPending",
+    "emailChanged",
+    "state",
+    "dirty",
+    "idOrNull",
+    "submit",
+    "employee"
+  ],
+  "apps/web/app/components/notifications/NotificationCenter.vue": [],
+  "apps/web/app/components/project/FollowerList.vue": [
+    "props",
+    "hydrated",
+    "projectId",
+    "followerIds",
+    "onError",
+    "open",
+    "q",
+    "debouncedQ",
+    "addPerson",
+    "removePerson"
+  ],
+  "apps/web/app/components/project/MilestoneForm.vue": [
+    "props",
+    "emit",
+    "hydrated",
+    "isEdit",
+    "isPending",
+    "name",
+    "deadline",
+    "error",
+    "deadlineLabel",
+    "onCalendarChange",
+    "clearDeadline",
+    "submit",
+    "trimmed",
+    "created"
+  ],
+  "apps/web/app/components/project/MilestoneTable.vue": [
+    "props",
+    "hydrated",
+    "projectIdRef",
+    "items",
+    "columnCount",
+    "router",
+    "route",
+    "openCreate",
+    "openEdit",
+    "isPastDeadline",
+    "d",
+    "deadlineTone",
+    "deadlineText",
+    "toggleReached",
+    "deleteTarget",
+    "confirmDelete"
+  ],
+  "apps/web/app/components/project/ProjectCreateForm.vue": [
+    "emit",
+    "hydrated",
+    "name",
+    "error",
+    "submit",
+    "trimmed",
+    "created"
+  ],
+  "apps/web/app/components/project/ProjectGeneralForm.vue": [
+    "props",
+    "hydrated",
+    "patch",
+    "nameDraft",
+    "commitName",
+    "name",
+    "onDescriptionChange",
+    "managerOpen",
+    "managerQ",
+    "debouncedManagerQ",
+    "selectManager",
+    "onVisibilityChange",
+    "visibility",
+    "startValue",
+    "endValue",
+    "startLabel",
+    "endLabel",
+    "hasAnyDate",
+    "onStartChange",
+    "date",
+    "onEndChange",
+    "clearDates",
+    "TagRef",
+    "onTagsChange"
+  ],
+  "apps/web/app/components/project/ProjectHeader.vue": [
+    "props",
+    "emit",
+    "hydrated"
+  ],
+  "apps/web/app/components/project/ProjectMenu.vue": [
+    "props",
+    "emit",
+    "hydrated",
+    "confirmOpen",
+    "doArchive",
+    "doUnarchive"
+  ],
+  "apps/web/app/components/project/ProjectProgress.vue": [
+    "props"
+  ],
+  "apps/web/app/components/project/ProjectSettingsForm.vue": [
+    "props",
+    "stagesBusy",
+    "sortedStages",
+    "onApiError",
+    "onAddStage",
+    "onRenameStage",
+    "onFoldStage",
+    "onReorderStages",
+    "onDeleteStage"
+  ],
+  "apps/web/app/components/project/ProjectStatusBadge.vue": [
+    "props",
+    "cls"
+  ],
+  "apps/web/app/components/project/ProjectStatusSelect.vue": [
+    "ProjectDetail",
+    "ProjectStatus",
+    "props",
+    "hydrated",
+    "onChange",
+    "status"
+  ],
+  "apps/web/app/components/project/ProjectTable.vue": [
+    "props",
+    "emit",
+    "hydrated",
+    "columnHelper",
+    "columns",
+    "table"
+  ],
+  "apps/web/app/components/project/ProjectUpdateForm.vue": [
+    "props",
+    "emit",
+    "hydrated",
+    "status",
+    "title",
+    "description",
+    "error",
+    "onDescriptionChange",
+    "submit",
+    "name"
+  ],
+  "apps/web/app/components/project/ProjectUpdateList.vue": [
+    "props",
+    "hydrated",
+    "projectIdRef",
+    "items",
+    "router",
+    "route",
+    "dateLabel",
+    "openCreate"
+  ],
+  "apps/web/app/components/project/StageListEditor.vue": [
+    "StageMoveTarget",
+    "StageRow",
+    "props",
+    "emit",
+    "hydrated",
+    "disabled",
+    "localStages",
+    "onDragEnd",
+    "moveStage",
+    "from",
+    "to",
+    "next",
+    "onHandleKeydown",
+    "target",
+    "editingId",
+    "editDraft",
+    "ref",
+    "renameInputEl",
+    "startRename",
+    "el",
+    "cancelRename",
+    "commitRename",
+    "name",
+    "onFoldChange",
+    "newName",
+    "submitAdd"
+  ],
+  "apps/web/app/components/settings/BrandingForm.vue": [
+    "DEFAULT_COLOR",
+    "PRESETS",
+    "const",
+    "hydrated",
+    "update",
+    "color",
+    "savedColor",
+    "dirty",
+    "validationError",
+    "loadSaved",
+    "previewName",
+    "previewColor",
+    "previewLogo",
+    "isBusy",
+    "colorValid",
+    "cancel",
+    "resetDefault",
+    "retryLoad",
+    "save",
+    "patch",
+    "saved"
+  ],
+  "apps/web/app/components/settings/BrandingPreview.vue": [
+    "props",
+    "theme",
+    "previewStyle"
+  ],
+  "apps/web/app/components/settings/ProjectSettingsForm.vue": [
+    "hydrated",
+    "onApiError",
+    "onSaved",
+    "values",
+    "CREATOR_OPTIONS",
+    "onCreatorsChange",
+    "value",
+    "StageRow",
+    "withIds",
+    "rows",
+    "persist",
+    "onAddStage",
+    "onRenameStage",
+    "onFoldStage",
+    "onReorderStages",
+    "byId",
+    "onDeleteStage"
+  ],
+  "apps/web/app/components/settings/SettingsTabs.vue": [
+    "route"
+  ],
+  "apps/web/app/components/shared/__tests__/composition.test.ts": [
+    "Component",
+    "RenderFunction",
+    "VNode",
+    "webRoot",
+    "NuxtLinkStub",
+    "loadShared",
+    "filename",
+    "source",
+    "parsed",
+    "compiled",
+    "runnableCode",
+    "render",
+    "renderShared",
+    "app",
+    "html",
+    "searchMarker",
+    "controlsMarker",
+    "viewMarker",
+    "activeRowMarker"
+  ],
+  "apps/web/app/components/shared/EmptyState.vue": [
+    "props"
+  ],
+  "apps/web/app/components/shared/FilterBar.vue": [],
+  "apps/web/app/components/shared/PageHeader.vue": [
+    "props"
+  ],
+  "apps/web/app/components/shared/PageState.vue": [
+    "props",
+    "errorKey",
+    "error",
+    "status"
+  ],
+  "apps/web/app/components/shared/UnsavedChanges.vue": [
+    "props",
+    "pendingPath",
+    "leaving",
+    "discard"
+  ],
+  "apps/web/app/components/task/AssigneePicker.vue": [
+    "PersonRef",
+    "props",
+    "emit",
+    "open",
+    "q",
+    "debouncedQ",
+    "selectedIds",
+    "isSelected",
+    "commit",
+    "toggle",
+    "remove"
+  ],
+  "apps/web/app/components/task/CommentComposer.vue": [
+    "props",
+    "body",
+    "submit",
+    "text",
+    "onKeydown"
+  ],
+  "apps/web/app/components/task/DeadlineBadge.vue": [
+    "DeadlineTone",
+    "props",
+    "TONE_CLASS",
+    "tone",
+    "label"
+  ],
+  "apps/web/app/components/task/DependencyPicker.vue": [
+    "props",
+    "hydrated",
+    "open",
+    "q",
+    "taskId",
+    "dependencies",
+    "selected",
+    "available",
+    "commit",
+    "toggle",
+    "next",
+    "remove"
+  ],
+  "apps/web/app/components/task/DescriptionEditor.vue": [
+    "props",
+    "emit",
+    "hydrated",
+    "buffer",
+    "editor",
+    "toggleBold",
+    "toggleItalic",
+    "toggleBulletList",
+    "toggleOrderedList",
+    "linkEditorOpen",
+    "linkDraft",
+    "toggleLink",
+    "previous",
+    "cancelLink",
+    "applyLink",
+    "url"
+  ],
+  "apps/web/app/components/task/MilestoneSelect.vue": [
+    "props",
+    "hydrated",
+    "projectId",
+    "NONE",
+    "onChange",
+    "id",
+    "milestone"
+  ],
+  "apps/web/app/components/task/PrioritySelect.vue": [
+    "props",
+    "hydrated",
+    "PRIORITIES",
+    "function",
+    "priority"
+  ],
+  "apps/web/app/components/task/StateBadge.vue": [
+    "props",
+    "tone"
+  ],
+  "apps/web/app/components/task/StateMenu.vue": [
+    "props",
+    "hydrated",
+    "states",
+    "onSelect"
+  ],
+  "apps/web/app/components/task/SubtaskList.vue": [
+    "props",
+    "router",
+    "route",
+    "qc",
+    "title",
+    "error",
+    "addSubtask",
+    "name",
+    "openSubtask"
+  ],
+  "apps/web/app/components/task/TagPicker.vue": [
+    "TagRef",
+    "props",
+    "emit",
+    "hydrated",
+    "open",
+    "q",
+    "debouncedQ",
+    "selectedIds",
+    "isSelected",
+    "commit",
+    "toggle",
+    "remove",
+    "trimmedQ",
+    "hasExactMatch",
+    "showCreate",
+    "onCreate",
+    "name"
+  ],
+  "apps/web/app/components/task/TaskActivity.vue": [
+    "props",
+    "idRef"
+  ],
+  "apps/web/app/components/task/TaskAttachments.vue": [
+    "props",
+    "emit",
+    "hydrated",
+    "uploadError",
+    "pendingDeleteId",
+    "MAX_BYTES",
+    "readFileAsBase64",
+    "reader",
+    "result",
+    "comma",
+    "onFileChange",
+    "input",
+    "file",
+    "data",
+    "requestDelete",
+    "cancelDelete",
+    "confirmDelete"
+  ],
+  "apps/web/app/components/task/TaskBoard.vue": [
+    "props",
+    "emit",
+    "CAP",
+    "paramsRef",
+    "allItems",
+    "isCapped",
+    "items",
+    "kind",
+    "sortedStages",
+    "src",
+    "UNSTAGED",
+    "columns",
+    "byStage",
+    "stage",
+    "task",
+    "key",
+    "applyMove",
+    "move",
+    "onColumnAdd",
+    "expandedFolded",
+    "toggleFold",
+    "next",
+    "isCollapsed"
+  ],
+  "apps/web/app/components/task/TaskCard.vue": [
+    "props",
+    "emit",
+    "initials",
+    "parts",
+    "PRIORITY_TONE",
+    "onCardClick",
+    "target",
+    "onCardKeydown"
+  ],
+  "apps/web/app/components/task/TaskCreateForm.vue": [
+    "props",
+    "emit",
+    "hydrated",
+    "name",
+    "selectedProjectId",
+    "error",
+    "lockedProjectName",
+    "submit",
+    "trimmed",
+    "created"
+  ],
+  "apps/web/app/components/task/TaskDetailPage.vue": [
+    "props",
+    "route",
+    "router",
+    "isRtl",
+    "close"
+  ],
+  "apps/web/app/components/task/TaskDetailPanel.vue": [
+    "props",
+    "emit",
+    "route",
+    "router",
+    "isRtl",
+    "isDesktop",
+    "idRef",
+    "localFilters",
+    "filterParams",
+    "siblings",
+    "hydrated",
+    "archiveConfirmOpen",
+    "doArchive",
+    "titleDraft",
+    "saveTitle",
+    "name",
+    "goTo",
+    "isEditableTarget",
+    "onKeydown"
+  ],
+  "apps/web/app/components/task/TaskDetails.vue": [
+    "props",
+    "patch",
+    "onAssigneesChange",
+    "onTagsChange",
+    "dateFmt",
+    "dateTimeFmt",
+    "deadlineInstant",
+    "d",
+    "calendarValue",
+    "localTimeOf",
+    "timeDraft",
+    "deadlineButtonLabel",
+    "setDeadline",
+    "hours",
+    "minutes",
+    "local",
+    "onCalendarChange",
+    "onTimeChange",
+    "clearDeadline",
+    "NONE",
+    "onStageChange",
+    "id",
+    "stage",
+    "hoursDraft",
+    "onHoursChange",
+    "n",
+    "onDescriptionChange",
+    "createdLabel",
+    "updatedLabel"
+  ],
+  "apps/web/app/components/task/TaskTable.vue": [
+    "props",
+    "emit",
+    "hydrated",
+    "paramsRef",
+    "items",
+    "hasActiveFilters",
+    "emptyTitleKey",
+    "showCreateAction",
+    "columnHelper",
+    "titleColumn",
+    "projectColumn",
+    "stateColumn",
+    "deadlineColumn",
+    "priorityColumn",
+    "personalStageColumn",
+    "projectStageColumn",
+    "assigneesColumn",
+    "columns",
+    "colgroupClasses",
+    "table",
+    "onRowClick",
+    "target"
+  ],
+  "apps/web/app/components/task/TaskToolbar.vue": [
+    "props",
+    "emit",
+    "hydrated",
+    "ALL_STATES",
+    "patch",
+    "selectedStates",
+    "selectedProject",
+    "toggleState",
+    "next",
+    "search",
+    "debouncedSearch",
+    "clearFilters"
+  ],
+  "apps/web/app/components/task/Timeline.vue": [
+    "props",
+    "rtf",
+    "relativeTime",
+    "diffMs",
+    "diffMin",
+    "diffHour",
+    "diffDay",
+    "initials",
+    "parts",
+    "changeMessage",
+    "hasNew",
+    "hasOld"
+  ],
+  "apps/web/app/components/ui/alert-dialog/AlertDialog.vue": [
+    "props",
+    "emits",
+    "forwarded"
+  ],
+  "apps/web/app/components/ui/alert-dialog/AlertDialogAction.vue": [
+    "props",
+    "delegatedProps"
+  ],
+  "apps/web/app/components/ui/alert-dialog/AlertDialogCancel.vue": [
+    "props",
+    "delegatedProps"
+  ],
+  "apps/web/app/components/ui/alert-dialog/AlertDialogContent.vue": [
+    "props",
+    "emits",
+    "delegatedProps",
+    "forwarded"
+  ],
+  "apps/web/app/components/ui/alert-dialog/AlertDialogDescription.vue": [
+    "props",
+    "delegatedProps"
+  ],
+  "apps/web/app/components/ui/alert-dialog/AlertDialogFooter.vue": [
+    "props"
+  ],
+  "apps/web/app/components/ui/alert-dialog/AlertDialogHeader.vue": [
+    "props"
+  ],
+  "apps/web/app/components/ui/alert-dialog/AlertDialogTitle.vue": [
+    "props",
+    "delegatedProps"
+  ],
+  "apps/web/app/components/ui/alert-dialog/AlertDialogTrigger.vue": [
+    "props"
+  ],
+  "apps/web/app/components/ui/alert-dialog/index.ts": [],
+  "apps/web/app/components/ui/avatar/Avatar.vue": [
+    "props"
+  ],
+  "apps/web/app/components/ui/avatar/AvatarFallback.vue": [
+    "props",
+    "delegatedProps"
+  ],
+  "apps/web/app/components/ui/avatar/AvatarImage.vue": [
+    "props"
+  ],
+  "apps/web/app/components/ui/avatar/index.ts": [],
+  "apps/web/app/components/ui/badge/Badge.vue": [
+    "props",
+    "delegatedProps"
+  ],
+  "apps/web/app/components/ui/badge/index.ts": [
+    "badgeVariants",
+    "BadgeVariants"
+  ],
+  "apps/web/app/components/ui/button/Button.vue": [
+    "Props",
+    "props"
+  ],
+  "apps/web/app/components/ui/button/index.ts": [
+    "buttonVariants",
+    "ButtonVariants"
+  ],
+  "apps/web/app/components/ui/calendar/Calendar.vue": [
+    "props",
+    "emits",
+    "delegatedProps",
+    "placeholder",
+    "formatter",
+    "yearRange",
+    "forwarded"
+  ],
+  "apps/web/app/components/ui/calendar/CalendarCell.vue": [
+    "props",
+    "delegatedProps",
+    "forwardedProps"
+  ],
+  "apps/web/app/components/ui/calendar/CalendarCellTrigger.vue": [
+    "props",
+    "delegatedProps",
+    "forwardedProps"
+  ],
+  "apps/web/app/components/ui/calendar/CalendarGrid.vue": [
+    "props",
+    "delegatedProps",
+    "forwardedProps"
+  ],
+  "apps/web/app/components/ui/calendar/CalendarGridBody.vue": [
+    "props"
+  ],
+  "apps/web/app/components/ui/calendar/CalendarGridHead.vue": [
+    "props"
+  ],
+  "apps/web/app/components/ui/calendar/CalendarGridRow.vue": [
+    "props",
+    "delegatedProps",
+    "forwardedProps"
+  ],
+  "apps/web/app/components/ui/calendar/CalendarHeadCell.vue": [
+    "props",
+    "delegatedProps",
+    "forwardedProps"
+  ],
+  "apps/web/app/components/ui/calendar/CalendarHeader.vue": [
+    "props",
+    "delegatedProps",
+    "forwardedProps"
+  ],
+  "apps/web/app/components/ui/calendar/CalendarHeading.vue": [
+    "props",
+    "delegatedProps",
+    "forwardedProps"
+  ],
+  "apps/web/app/components/ui/calendar/CalendarNextButton.vue": [
+    "props",
+    "delegatedProps",
+    "forwardedProps"
+  ],
+  "apps/web/app/components/ui/calendar/CalendarPrevButton.vue": [
+    "props",
+    "delegatedProps",
+    "forwardedProps"
+  ],
+  "apps/web/app/components/ui/calendar/index.ts": [
+    "LayoutTypes"
+  ],
+  "apps/web/app/components/ui/card/Card.vue": [
+    "props"
+  ],
+  "apps/web/app/components/ui/card/CardAction.vue": [
+    "props"
+  ],
+  "apps/web/app/components/ui/card/CardContent.vue": [
+    "props"
+  ],
+  "apps/web/app/components/ui/card/CardDescription.vue": [
+    "props"
+  ],
+  "apps/web/app/components/ui/card/CardFooter.vue": [
+    "props"
+  ],
+  "apps/web/app/components/ui/card/CardHeader.vue": [
+    "props"
+  ],
+  "apps/web/app/components/ui/card/CardTitle.vue": [
+    "props"
+  ],
+  "apps/web/app/components/ui/card/index.ts": [],
+  "apps/web/app/components/ui/command/Command.vue": [
+    "props",
+    "emits",
+    "delegatedProps",
+    "forwarded",
+    "allItems",
+    "allGroups",
+    "filterState",
+    "filterItems",
+    "itemCount",
+    "score",
+    "itemId"
+  ],
+  "apps/web/app/components/ui/command/CommandDialog.vue": [
+    "props",
+    "emits",
+    "forwarded"
+  ],
+  "apps/web/app/components/ui/command/CommandEmpty.vue": [
+    "props",
+    "delegatedProps",
+    "isRender"
+  ],
+  "apps/web/app/components/ui/command/CommandGroup.vue": [
+    "props",
+    "delegatedProps",
+    "id",
+    "isRender"
+  ],
+  "apps/web/app/components/ui/command/CommandInput.vue": [
+    "props",
+    "delegatedProps",
+    "forwardedProps"
+  ],
+  "apps/web/app/components/ui/command/CommandItem.vue": [
+    "props",
+    "emits",
+    "delegatedProps",
+    "forwarded",
+    "id",
+    "groupContext",
+    "isRender",
+    "filteredCurrentItem",
+    "itemRef",
+    "currentElement",
+    "groupId"
+  ],
+  "apps/web/app/components/ui/command/CommandList.vue": [
+    "props",
+    "delegatedProps",
+    "forwarded"
+  ],
+  "apps/web/app/components/ui/command/CommandSeparator.vue": [
+    "props",
+    "delegatedProps"
+  ],
+  "apps/web/app/components/ui/command/CommandShortcut.vue": [
+    "props"
+  ],
+  "apps/web/app/components/ui/command/index.ts": [],
+  "apps/web/app/components/ui/dialog/Dialog.vue": [
+    "props",
+    "emits",
+    "forwarded"
+  ],
+  "apps/web/app/components/ui/dialog/DialogClose.vue": [
+    "props"
+  ],
+  "apps/web/app/components/ui/dialog/DialogContent.vue": [
+    "props",
+    "emits",
+    "delegatedProps",
+    "forwarded"
+  ],
+  "apps/web/app/components/ui/dialog/DialogDescription.vue": [
+    "props",
+    "delegatedProps",
+    "forwardedProps"
+  ],
+  "apps/web/app/components/ui/dialog/DialogFooter.vue": [
+    "props"
+  ],
+  "apps/web/app/components/ui/dialog/DialogHeader.vue": [
+    "props"
+  ],
+  "apps/web/app/components/ui/dialog/DialogOverlay.vue": [
+    "props",
+    "delegatedProps"
+  ],
+  "apps/web/app/components/ui/dialog/DialogScrollContent.vue": [
+    "props",
+    "emits",
+    "delegatedProps",
+    "forwarded",
+    "originalEvent",
+    "target"
+  ],
+  "apps/web/app/components/ui/dialog/DialogTitle.vue": [
+    "props",
+    "delegatedProps",
+    "forwardedProps"
+  ],
+  "apps/web/app/components/ui/dialog/DialogTrigger.vue": [
+    "props"
+  ],
+  "apps/web/app/components/ui/dialog/index.ts": [],
+  "apps/web/app/components/ui/dropdown-menu/DropdownMenu.vue": [
+    "props",
+    "emits",
+    "forwarded"
+  ],
+  "apps/web/app/components/ui/dropdown-menu/DropdownMenuCheckboxItem.vue": [
+    "props",
+    "emits",
+    "delegatedProps",
+    "forwarded"
+  ],
+  "apps/web/app/components/ui/dropdown-menu/DropdownMenuContent.vue": [
+    "props",
+    "emits",
+    "delegatedProps",
+    "forwarded"
+  ],
+  "apps/web/app/components/ui/dropdown-menu/DropdownMenuGroup.vue": [
+    "props"
+  ],
+  "apps/web/app/components/ui/dropdown-menu/DropdownMenuItem.vue": [
+    "props",
+    "delegatedProps",
+    "forwardedProps"
+  ],
+  "apps/web/app/components/ui/dropdown-menu/DropdownMenuLabel.vue": [
+    "props",
+    "delegatedProps",
+    "forwardedProps"
+  ],
+  "apps/web/app/components/ui/dropdown-menu/DropdownMenuRadioGroup.vue": [
+    "props",
+    "emits",
+    "forwarded"
+  ],
+  "apps/web/app/components/ui/dropdown-menu/DropdownMenuRadioItem.vue": [
+    "props",
+    "emits",
+    "delegatedProps",
+    "forwarded"
+  ],
+  "apps/web/app/components/ui/dropdown-menu/DropdownMenuSeparator.vue": [
+    "props",
+    "delegatedProps"
+  ],
+  "apps/web/app/components/ui/dropdown-menu/DropdownMenuShortcut.vue": [
+    "props"
+  ],
+  "apps/web/app/components/ui/dropdown-menu/DropdownMenuSub.vue": [
+    "props",
+    "emits",
+    "forwarded"
+  ],
+  "apps/web/app/components/ui/dropdown-menu/DropdownMenuSubContent.vue": [
+    "props",
+    "emits",
+    "delegatedProps",
+    "forwarded"
+  ],
+  "apps/web/app/components/ui/dropdown-menu/DropdownMenuSubTrigger.vue": [
+    "props",
+    "delegatedProps",
+    "forwardedProps"
+  ],
+  "apps/web/app/components/ui/dropdown-menu/DropdownMenuTrigger.vue": [
+    "props",
+    "forwardedProps"
+  ],
+  "apps/web/app/components/ui/dropdown-menu/index.ts": [],
+  "apps/web/app/components/ui/input/index.ts": [],
+  "apps/web/app/components/ui/input/Input.vue": [
+    "props",
+    "emits",
+    "modelValue"
+  ],
+  "apps/web/app/components/ui/label/index.ts": [],
+  "apps/web/app/components/ui/label/Label.vue": [
+    "props",
+    "delegatedProps"
+  ],
+  "apps/web/app/components/ui/native-select/index.ts": [],
+  "apps/web/app/components/ui/native-select/NativeSelect.vue": [
+    "props",
+    "emit",
+    "modelValue",
+    "delegatedProps"
+  ],
+  "apps/web/app/components/ui/native-select/NativeSelectOptGroup.vue": [
+    "props"
+  ],
+  "apps/web/app/components/ui/native-select/NativeSelectOption.vue": [
+    "props"
+  ],
+  "apps/web/app/components/ui/popover/index.ts": [],
+  "apps/web/app/components/ui/popover/Popover.vue": [
+    "props",
+    "emits",
+    "forwarded"
+  ],
+  "apps/web/app/components/ui/popover/PopoverAnchor.vue": [
+    "props"
+  ],
+  "apps/web/app/components/ui/popover/PopoverContent.vue": [
+    "props",
+    "emits",
+    "delegatedProps",
+    "forwarded"
+  ],
+  "apps/web/app/components/ui/popover/PopoverTrigger.vue": [
+    "props"
+  ],
+  "apps/web/app/components/ui/progress/index.ts": [],
+  "apps/web/app/components/ui/progress/Progress.vue": [
+    "props",
+    "delegatedProps"
+  ],
+  "apps/web/app/components/ui/radio-group/index.ts": [],
+  "apps/web/app/components/ui/radio-group/RadioGroup.vue": [
+    "props",
+    "emits",
+    "delegatedProps",
+    "forwarded"
+  ],
+  "apps/web/app/components/ui/radio-group/RadioGroupItem.vue": [
+    "props",
+    "delegatedProps",
+    "forwardedProps"
+  ],
+  "apps/web/app/components/ui/select/index.ts": [],
+  "apps/web/app/components/ui/select/Select.vue": [
+    "props",
+    "emits",
+    "forwarded"
+  ],
+  "apps/web/app/components/ui/select/SelectContent.vue": [
+    "props",
+    "emits",
+    "delegatedProps",
+    "forwarded"
+  ],
+  "apps/web/app/components/ui/select/SelectGroup.vue": [
+    "props"
+  ],
+  "apps/web/app/components/ui/select/SelectItem.vue": [
+    "props",
+    "delegatedProps",
+    "forwardedProps"
+  ],
+  "apps/web/app/components/ui/select/SelectItemText.vue": [
+    "props"
+  ],
+  "apps/web/app/components/ui/select/SelectLabel.vue": [
+    "props"
+  ],
+  "apps/web/app/components/ui/select/SelectScrollDownButton.vue": [
+    "props",
+    "delegatedProps",
+    "forwardedProps"
+  ],
+  "apps/web/app/components/ui/select/SelectScrollUpButton.vue": [
+    "props",
+    "delegatedProps",
+    "forwardedProps"
+  ],
+  "apps/web/app/components/ui/select/SelectSeparator.vue": [
+    "props",
+    "delegatedProps"
+  ],
+  "apps/web/app/components/ui/select/SelectTrigger.vue": [
+    "props",
+    "delegatedProps",
+    "forwardedProps"
+  ],
+  "apps/web/app/components/ui/select/SelectValue.vue": [
+    "props"
+  ],
+  "apps/web/app/components/ui/separator/index.ts": [],
+  "apps/web/app/components/ui/separator/Separator.vue": [
+    "props",
+    "delegatedProps"
+  ],
+  "apps/web/app/components/ui/sheet/index.ts": [],
+  "apps/web/app/components/ui/sheet/Sheet.vue": [
+    "props",
+    "emits",
+    "forwarded"
+  ],
+  "apps/web/app/components/ui/sheet/SheetClose.vue": [
+    "props"
+  ],
+  "apps/web/app/components/ui/sheet/SheetContent.vue": [
+    "SheetContentProps",
+    "props",
+    "emits",
+    "delegatedProps",
+    "forwarded"
+  ],
+  "apps/web/app/components/ui/sheet/SheetDescription.vue": [
+    "props",
+    "delegatedProps"
+  ],
+  "apps/web/app/components/ui/sheet/SheetFooter.vue": [
+    "props"
+  ],
+  "apps/web/app/components/ui/sheet/SheetHeader.vue": [
+    "props"
+  ],
+  "apps/web/app/components/ui/sheet/SheetOverlay.vue": [
+    "props",
+    "delegatedProps"
+  ],
+  "apps/web/app/components/ui/sheet/SheetTitle.vue": [
+    "props",
+    "delegatedProps"
+  ],
+  "apps/web/app/components/ui/sheet/SheetTrigger.vue": [
+    "props"
+  ],
+  "apps/web/app/components/ui/sidebar/index.ts": [
+    "SidebarProps",
+    "sidebarMenuButtonVariants",
+    "SidebarMenuButtonVariants"
+  ],
+  "apps/web/app/components/ui/sidebar/Sidebar.vue": [
+    "props"
+  ],
+  "apps/web/app/components/ui/sidebar/SidebarContent.vue": [
+    "props"
+  ],
+  "apps/web/app/components/ui/sidebar/SidebarFooter.vue": [
+    "props"
+  ],
+  "apps/web/app/components/ui/sidebar/SidebarGroup.vue": [
+    "props"
+  ],
+  "apps/web/app/components/ui/sidebar/SidebarGroupAction.vue": [
+    "props"
+  ],
+  "apps/web/app/components/ui/sidebar/SidebarGroupContent.vue": [
+    "props"
+  ],
+  "apps/web/app/components/ui/sidebar/SidebarGroupLabel.vue": [
+    "props"
+  ],
+  "apps/web/app/components/ui/sidebar/SidebarHeader.vue": [
+    "props"
+  ],
+  "apps/web/app/components/ui/sidebar/SidebarInput.vue": [
+    "props"
+  ],
+  "apps/web/app/components/ui/sidebar/SidebarInset.vue": [
+    "props"
+  ],
+  "apps/web/app/components/ui/sidebar/SidebarMenu.vue": [
+    "props"
+  ],
+  "apps/web/app/components/ui/sidebar/SidebarMenuAction.vue": [
+    "props"
+  ],
+  "apps/web/app/components/ui/sidebar/SidebarMenuBadge.vue": [
+    "props"
+  ],
+  "apps/web/app/components/ui/sidebar/SidebarMenuButton.vue": [
+    "props",
+    "delegatedProps"
+  ],
+  "apps/web/app/components/ui/sidebar/SidebarMenuButtonChild.vue": [
+    "SidebarMenuButtonProps",
+    "props"
+  ],
+  "apps/web/app/components/ui/sidebar/SidebarMenuItem.vue": [
+    "props"
+  ],
+  "apps/web/app/components/ui/sidebar/SidebarMenuSkeleton.vue": [
+    "props",
+    "width"
+  ],
+  "apps/web/app/components/ui/sidebar/SidebarMenuSub.vue": [
+    "props"
+  ],
+  "apps/web/app/components/ui/sidebar/SidebarMenuSubButton.vue": [
+    "props"
+  ],
+  "apps/web/app/components/ui/sidebar/SidebarMenuSubItem.vue": [
+    "props"
+  ],
+  "apps/web/app/components/ui/sidebar/SidebarProvider.vue": [
+    "props",
+    "emits",
+    "isMobile",
+    "openMobile",
+    "open",
+    "setOpen",
+    "setOpenMobile",
+    "toggleSidebar",
+    "state"
+  ],
+  "apps/web/app/components/ui/sidebar/SidebarRail.vue": [
+    "props"
+  ],
+  "apps/web/app/components/ui/sidebar/SidebarSeparator.vue": [
+    "props"
+  ],
+  "apps/web/app/components/ui/sidebar/SidebarTrigger.vue": [
+    "props",
+    "hydrated"
+  ],
+  "apps/web/app/components/ui/sidebar/utils.ts": [
+    "SIDEBAR_COOKIE_NAME",
+    "SIDEBAR_COOKIE_MAX_AGE",
+    "SIDEBAR_WIDTH",
+    "SIDEBAR_WIDTH_MOBILE",
+    "SIDEBAR_WIDTH_ICON",
+    "SIDEBAR_KEYBOARD_SHORTCUT"
+  ],
+  "apps/web/app/components/ui/skeleton/index.ts": [],
+  "apps/web/app/components/ui/skeleton/Skeleton.vue": [
+    "SkeletonProps",
+    "props"
+  ],
+  "apps/web/app/components/ui/sonner/index.ts": [],
+  "apps/web/app/components/ui/sonner/Sonner.vue": [
+    "props"
+  ],
+  "apps/web/app/components/ui/table/index.ts": [],
+  "apps/web/app/components/ui/table/Table.vue": [
+    "props"
+  ],
+  "apps/web/app/components/ui/table/TableBody.vue": [
+    "props"
+  ],
+  "apps/web/app/components/ui/table/TableCaption.vue": [
+    "props"
+  ],
+  "apps/web/app/components/ui/table/TableCell.vue": [
+    "props"
+  ],
+  "apps/web/app/components/ui/table/TableEmpty.vue": [
+    "props",
+    "delegatedProps"
+  ],
+  "apps/web/app/components/ui/table/TableFooter.vue": [
+    "props"
+  ],
+  "apps/web/app/components/ui/table/TableHead.vue": [
+    "props"
+  ],
+  "apps/web/app/components/ui/table/TableHeader.vue": [
+    "props"
+  ],
+  "apps/web/app/components/ui/table/TableRow.vue": [
+    "props"
+  ],
+  "apps/web/app/components/ui/tabs/index.ts": [],
+  "apps/web/app/components/ui/tabs/Tabs.vue": [
+    "props",
+    "emits",
+    "delegatedProps",
+    "forwarded"
+  ],
+  "apps/web/app/components/ui/tabs/TabsContent.vue": [
+    "props",
+    "delegatedProps"
+  ],
+  "apps/web/app/components/ui/tabs/TabsList.vue": [
+    "props",
+    "delegatedProps"
+  ],
+  "apps/web/app/components/ui/tabs/TabsTrigger.vue": [
+    "props",
+    "delegatedProps",
+    "forwardedProps"
+  ],
+  "apps/web/app/components/ui/textarea/index.ts": [],
+  "apps/web/app/components/ui/textarea/Textarea.vue": [
+    "props",
+    "emits",
+    "modelValue"
+  ],
+  "apps/web/app/components/ui/toggle/index.ts": [
+    "toggleVariants",
+    "ToggleVariants"
+  ],
+  "apps/web/app/components/ui/toggle/Toggle.vue": [
+    "props",
+    "emits",
+    "delegatedProps",
+    "forwarded"
+  ],
+  "apps/web/app/components/ui/tooltip/index.ts": [],
+  "apps/web/app/components/ui/tooltip/Tooltip.vue": [
+    "props",
+    "emits",
+    "forwarded"
+  ],
+  "apps/web/app/components/ui/tooltip/TooltipContent.vue": [
+    "props",
+    "emits",
+    "delegatedProps",
+    "forwarded"
+  ],
+  "apps/web/app/components/ui/tooltip/TooltipProvider.vue": [
+    "props"
+  ],
+  "apps/web/app/components/ui/tooltip/TooltipTrigger.vue": [
+    "props"
+  ],
+  "apps/web/app/composables/__tests__/boardStages.test.ts": [
+    "task",
+    "stage"
+  ],
+  "apps/web/app/composables/__tests__/calendarDate.test.ts": [
+    "d"
+  ],
+  "apps/web/app/composables/__tests__/colorHex.test.ts": [
+    "staleDraft"
+  ],
+  "apps/web/app/composables/__tests__/hrAccess.test.ts": [],
+  "apps/web/app/composables/__tests__/hrAdmin.test.ts": [
+    "queryClient",
+    "employeeKey",
+    "activeKey",
+    "archivedKey",
+    "reset",
+    "observer",
+    "unsubscribe"
+  ],
+  "apps/web/app/composables/__tests__/hrKeys.test.ts": [
+    "params"
+  ],
+  "apps/web/app/composables/__tests__/passwordForm.test.ts": [
+    "fields",
+    "run",
+    "queryClient",
+    "reset",
+    "observer",
+    "unsubscribe"
+  ],
+  "apps/web/app/composables/__tests__/projectStatus.test.ts": [
+    "s"
+  ],
+  "apps/web/app/composables/__tests__/projectTaskParams.test.ts": [
+    "params"
+  ],
+  "apps/web/app/composables/__tests__/stageOrder.test.ts": [
+    "ids"
+  ],
+  "apps/web/app/composables/__tests__/taskPermissions.test.ts": [],
+  "apps/web/app/composables/__tests__/taskState.test.ts": [
+    "t",
+    "state"
+  ],
+  "apps/web/app/composables/__tests__/useAdminPaths.test.ts": [
+    "adminComposableSources",
+    "directory",
+    "combinedSource",
+    "files",
+    "source",
+    "filter",
+    "method"
+  ],
+  "apps/web/app/composables/__tests__/useApi.test.ts": [
+    "error",
+    "apiError"
+  ],
+  "apps/web/app/composables/__tests__/useBus.test.ts": [
+    "raw",
+    "noJitter",
+    "maxRandom",
+    "minRandom",
+    "r"
+  ],
+  "apps/web/app/composables/__tests__/useMe.test.ts": [
+    "zodError",
+    "wrapped",
+    "serverError"
+  ],
+  "apps/web/app/composables/__tests__/useNav.test.ts": [
+    "employee",
+    "admin",
+    "nav",
+    "paths",
+    "item"
+  ],
+  "apps/web/app/composables/__tests__/useTasks.optimistic.test.ts": [
+    "baseTask",
+    "baseDetail",
+    "next",
+    "past",
+    "future",
+    "cleared",
+    "closed",
+    "untouched",
+    "resolvedAssignees",
+    "resolvedTags",
+    "resolvedStage",
+    "resolvedMilestone"
+  ],
+  "apps/web/app/composables/boardStages.ts": [
+    "BoardStage",
+    "StageSource",
+    "stageOf",
+    "moveTo",
+    "ref"
+  ],
+  "apps/web/app/composables/calendarDate.ts": [
+    "toCalendarDate",
+    "fromCalendarDate",
+    "formatCalendarDate",
+    "d"
+  ],
+  "apps/web/app/composables/colorHex.ts": [
+    "BrandingPatch",
+    "normalizeHex",
+    "candidate",
+    "withHash",
+    "buildBrandingPatch",
+    "primaryColor",
+    "parsed"
+  ],
+  "apps/web/app/composables/hrAccess.ts": [
+    "hrAccessLabelKey",
+    "access"
+  ],
+  "apps/web/app/composables/passwordForm.ts": [
+    "PasswordRef",
+    "PasswordRefs",
+    "validatePasswordForm",
+    "mismatch",
+    "weak",
+    "passwordErrorField",
+    "clearPasswordRefs"
+  ],
+  "apps/web/app/composables/projectStatus.ts": [
+    "PROJECT_STATUS_LABEL_KEY",
+    "PROJECT_STATUS_UNSET_KEY",
+    "PROJECT_STATUS_TONE",
+    "projectStatusLabelKey"
+  ],
+  "apps/web/app/composables/projectTaskParams.ts": [
+    "projectTaskParams",
+    "state",
+    "q",
+    "projectTaskQuery"
+  ],
+  "apps/web/app/composables/stageOrder.ts": [
+    "StageMoveTarget",
+    "moveId",
+    "next",
+    "stageMoveIndex",
+    "last"
+  ],
+  "apps/web/app/composables/taskState.ts": [
+    "STATE_LABEL_KEY",
+    "StateTone",
+    "STATE_TONE",
+    "PRIORITY_LABEL_KEY",
+    "ALL_STATES",
+    "canTransition",
+    "nextStates",
+    "daysRemaining",
+    "deadline",
+    "deadlineUTC",
+    "nowUTC",
+    "deadlineLabel",
+    "TONE_CLASS",
+    "permittedNextStates"
+  ],
+  "apps/web/app/composables/useAccess.ts": [
+    "useAccess",
+    "capabilities",
+    "can"
+  ],
+  "apps/web/app/composables/useAdminAudit.ts": [
+    "AccessAuditDetail",
+    "AccessAuditList",
+    "AdminAuditListParams",
+    "adminAuditKeys",
+    "adminAuditListQuery",
+    "useAdminAuditLog",
+    "useAdminAuditEvent"
+  ],
+  "apps/web/app/composables/useAdminRoles.ts": [
+    "PermissionCatalog",
+    "RoleCloneInput",
+    "RoleCreateInput",
+    "RoleDetail",
+    "RoleList",
+    "RolePatchInput",
+    "RoleStateInput",
+    "AdminRoleListParams",
+    "adminRoleKeys",
+    "adminRoleListQuery",
+    "useAdminRoles",
+    "useAdminRole",
+    "useAdminRoleDetails",
+    "useAdminPermissionCatalog",
+    "invalidateAdminRoleCaches",
+    "useCreateAdminRole",
+    "queryClient",
+    "useUpdateAdminRole",
+    "useCloneAdminRole",
+    "useAdminRoleStateMutation",
+    "useDisableAdminRole",
+    "useEnableAdminRole",
+    "useDeleteAdminRole"
+  ],
+  "apps/web/app/composables/useAdminUsers.ts": [
+    "AdminUserDetail",
+    "AdminUserCandidateList",
+    "AdminUserList",
+    "ChangeUserStateInput",
+    "GrantAccountInput",
+    "ResetPasswordInput",
+    "UpdateUserAccessInput",
+    "AdminUserListParams",
+    "ACCESS_MUTATION_GC_TIME",
+    "adminUserKeys",
+    "adminUserCandidateQuery",
+    "useAdminUserCandidates",
+    "adminUserListQuery",
+    "useAdminUsers",
+    "useAdminUser",
+    "invalidateAdminUserCaches",
+    "useSecureAdminUserMutation",
+    "queryClient",
+    "resetRef",
+    "mutation",
+    "useGrantAdminAccount",
+    "input",
+    "useUpdateAdminUserAccess",
+    "useResetAdminUserPassword",
+    "useChangeAdminUserState",
+    "useDisableAdminUser",
+    "useReactivateAdminUser",
+    "useGrantAccount",
+    "useUpdateUserAccess",
+    "useDisableUser",
+    "useReactivateUser"
+  ],
+  "apps/web/app/composables/useApi.ts": [
+    "ApiError",
+    "useApi",
+    "headers",
+    "$api",
+    "data",
+    "it",
+    "status",
+    "parsed"
+  ],
+  "apps/web/app/composables/useArchivedTasks.ts": [
+    "TaskDetail",
+    "PAGE",
+    "ArchivedTaskParams",
+    "archivedTaskKeys",
+    "useArchivedTasks",
+    "loaded",
+    "useRestoreTask",
+    "qc"
+  ],
+  "apps/web/app/composables/useBranding.ts": [
+    "Branding",
+    "useBranding",
+    "branding",
+    "themeStyle"
+  ],
+  "apps/web/app/composables/useBrandingAdmin.ts": [
+    "Branding",
+    "BrandingPatch",
+    "brandingAdminKeys",
+    "useBrandingAdmin",
+    "useUpdateBranding",
+    "queryClient"
+  ],
+  "apps/web/app/composables/useBus.ts": [
+    "Ref",
+    "BusNotification",
+    "parseBusFrame",
+    "parsed",
+    "notifications",
+    "last",
+    "collectTaskIds",
+    "seen",
+    "notification",
+    "id",
+    "nextBackoffDelay",
+    "base",
+    "jitter",
+    "queryClient",
+    "socket",
+    "reconnectTimer",
+    "attempt",
+    "lastId",
+    "manuallyClosed",
+    "generation",
+    "connected",
+    "setBusQueryClient",
+    "FALLBACK_WEBSOCKET_WORKER_VERSION",
+    "cachedVersion",
+    "warnedFallback",
+    "warnFallbackOnce",
+    "WORKER_VERSION_FETCH_TIMEOUT_MS",
+    "resolveWorkerVersion",
+    "response",
+    "version",
+    "invalidateForFrame",
+    "ids",
+    "handleMessage",
+    "subscribe",
+    "clearReconnectTimer",
+    "scheduleReconnect",
+    "delay",
+    "versionCloseStreak",
+    "stopped",
+    "connect",
+    "myGeneration",
+    "config",
+    "configuredUrl",
+    "ws",
+    "versionRelated",
+    "disconnect",
+    "s",
+    "useBus"
+  ],
+  "apps/web/app/composables/useChangePassword.ts": [
+    "Me",
+    "PasswordChange",
+    "PASSWORD_MUTATION_GC_TIME",
+    "useChangePassword",
+    "resetAfterSettlement",
+    "mutation"
+  ],
+  "apps/web/app/composables/useHrDepartments.ts": [
+    "HrDepartment",
+    "HrDepartmentList",
+    "hrDepartmentKeys",
+    "HrDepartmentWrite",
+    "DEPARTMENT_PAGE_SIZE",
+    "fetchAllDepartments",
+    "items",
+    "offset",
+    "total",
+    "page",
+    "department",
+    "replaceDepartmentInList",
+    "idx",
+    "useHrDepartments",
+    "useHrDepartment",
+    "useCreateDepartment",
+    "qc",
+    "prev",
+    "useUpdateDepartment",
+    "useDeleteHrDepartment"
+  ],
+  "apps/web/app/composables/useHrDocuments.ts": [
+    "HrDocument",
+    "HrDocumentList",
+    "DocumentListQueryParams",
+    "HrDocumentListParams",
+    "documentWriteScope",
+    "hrDocumentKeys",
+    "useHrDocuments",
+    "p",
+    "useHrDocument",
+    "useCreateDocument",
+    "qc",
+    "useUpdateDocument",
+    "useUploadDocumentAttachment"
+  ],
+  "apps/web/app/composables/useHrEmployees.ts": [
+    "HrEmployee",
+    "HrEmployeeCreate",
+    "HrEmployeeList",
+    "HrEmployeePatch",
+    "HR_ACCESS_MUTATION_GC_TIME",
+    "HrEmployeeListParams",
+    "hrEmployeeKeys",
+    "hrEmployeeListQuery",
+    "useHrEmployees",
+    "useHrEmployee",
+    "invalidateHrEmployeeLists",
+    "invalidateHrDepartmentLists",
+    "setEmployeeDetailAndInvalidate",
+    "invalidateHrAccessCaches",
+    "useCreateHrEmployee",
+    "qc",
+    "useUpdateHrEmployee",
+    "useEmployeeArchiveMutation",
+    "useArchiveHrEmployee",
+    "useUnarchiveHrEmployee"
+  ],
+  "apps/web/app/composables/useHydrated.ts": [
+    "useHydrated",
+    "hydrated"
+  ],
+  "apps/web/app/composables/useMe.ts": [
+    "Me",
+    "isLoggedOutError",
+    "isSchemaError",
+    "e",
+    "useMe",
+    "headers",
+    "request",
+    "me",
+    "loggedIn"
+  ],
+  "apps/web/app/composables/useMilestones.ts": [
+    "MilestonePatch",
+    "MilestoneListSchema",
+    "useMilestones",
+    "useCreateMilestone",
+    "qc",
+    "useUpdateMilestone",
+    "useDeleteMilestone"
+  ],
+  "apps/web/app/composables/useNav.ts": [
+    "AccessIdentity",
+    "NavGroup",
+    "NavItem",
+    "items",
+    "useNav",
+    "visible"
+  ],
+  "apps/web/app/composables/useNotifications.ts": [
+    "Notification",
+    "notificationKeys",
+    "NOTIFICATION_PAGE_SIZE",
+    "useNotifications",
+    "useNotificationsPage",
+    "loaded",
+    "useMarkNotificationRead",
+    "qc",
+    "useMarkAllNotificationsRead"
+  ],
+  "apps/web/app/composables/usePeople.ts": [
+    "PersonListSchema",
+    "usePeople"
+  ],
+  "apps/web/app/composables/usePersonalStages.ts": [
+    "PersonalStageListSchema",
+    "usePersonalStages"
+  ],
+  "apps/web/app/composables/useProjectFollowers.ts": [
+    "FollowerListSchema",
+    "useFollowers",
+    "useAddFollower",
+    "qc",
+    "useRemoveFollower"
+  ],
+  "apps/web/app/composables/useProjects.ts": [
+    "ProjectDetail",
+    "ProjectPatch",
+    "ProjectStatus",
+    "projectKeys",
+    "ProjectRefListSchema",
+    "useProjects",
+    "useProjectList",
+    "useProject",
+    "useCreateProject",
+    "qc",
+    "useUpdateProject",
+    "prev",
+    "useProjectAction",
+    "useArchiveProject",
+    "useUnarchiveProject",
+    "useSetProjectStatus"
+  ],
+  "apps/web/app/composables/useProjectSettings.ts": [
+    "ProjectSettings",
+    "projectSettingsKeys",
+    "useProjectSettings",
+    "useUpdateProjectSettings",
+    "qc"
+  ],
+  "apps/web/app/composables/useProjectStages.ts": [
+    "ProjectStage",
+    "ProjectStageListSchema",
+    "useAddStage",
+    "qc",
+    "useUpdateStage",
+    "useReorderStages",
+    "useDeleteStage"
+  ],
+  "apps/web/app/composables/useProjectUpdates.ts": [
+    "ProjectUpdate",
+    "ProjectUpdateBody",
+    "ProjectUpdateListSchema",
+    "useProjectUpdates",
+    "useCreateProjectUpdate",
+    "qc",
+    "key",
+    "prev"
+  ],
+  "apps/web/app/composables/useTags.ts": [
+    "tagKeys",
+    "TagListSchema",
+    "useTags",
+    "useCreateTag",
+    "qc"
+  ],
+  "apps/web/app/composables/useTaskAttachments.ts": [
+    "TaskAttachment",
+    "TaskAttachmentList",
+    "taskAttachmentKeys",
+    "useTaskAttachments",
+    "useUploadTaskAttachment",
+    "queryClient",
+    "useDeleteTaskAttachment"
+  ],
+  "apps/web/app/composables/useTaskDependencies.ts": [
+    "TaskDetail",
+    "PAGE",
+    "dependencyKeys",
+    "useTaskDependencies",
+    "useTaskDependencyCandidates",
+    "loaded",
+    "useUpdateTaskDependencies",
+    "qc"
+  ],
+  "apps/web/app/composables/useTaskFilters.ts": [
+    "useTaskFilters"
+  ],
+  "apps/web/app/composables/useTasks.ts": [
+    "Task",
+    "TaskCreate",
+    "TaskDetail",
+    "TaskPatch",
+    "TaskState",
+    "TaskListParams",
+    "PAGE",
+    "taskKeys",
+    "Resolved",
+    "applyPatchToTask",
+    "next",
+    "days",
+    "useTasks",
+    "loaded",
+    "useTask",
+    "useUpdateTask",
+    "qc",
+    "prevDetail",
+    "prevLists",
+    "useTransitionTask",
+    "useTaskSiblings",
+    "items",
+    "idx",
+    "useCreateTask",
+    "useArchiveTask"
+  ],
+  "apps/web/app/composables/useTimeline.ts": [
+    "TimelineEntry",
+    "TimelineListSchema",
+    "useTimeline",
+    "usePostComment",
+    "qc",
+    "key",
+    "prev"
+  ],
+  "apps/web/app/layouts/default.vue": [
+    "route",
+    "openSearch",
+    "dir",
+    "hydrated"
+  ],
+  "apps/web/app/lib/__tests__/debouncedFlush.test.ts": [
+    "onFlush",
+    "buffer"
+  ],
+  "apps/web/app/lib/__tests__/departmentTree.test.ts": [
+    "DepartmentTreeNode",
+    "department",
+    "names",
+    "roots",
+    "records",
+    "flattened",
+    "filtered"
+  ],
+  "apps/web/app/lib/__tests__/documentEditorDraft.test.ts": [
+    "oldBody",
+    "newBody",
+    "resolveTitle",
+    "unchangedTitleResponse",
+    "firstBody",
+    "latestBody"
+  ],
+  "apps/web/app/lib/__tests__/documentListCache.test.ts": [
+    "document",
+    "client",
+    "allKey",
+    "departmentKey",
+    "searchKey",
+    "pageKey",
+    "allData",
+    "departmentData",
+    "searchData",
+    "pageData"
+  ],
+  "apps/web/app/lib/debouncedFlush.ts": [
+    "createDebouncedFlush",
+    "timer",
+    "pending",
+    "flush",
+    "schedule",
+    "cancel"
+  ],
+  "apps/web/app/lib/departmentTree.ts": [
+    "DepartmentTreeNode",
+    "compareDepartments",
+    "buildDepartmentTree",
+    "byId",
+    "effectiveParent",
+    "department",
+    "visited",
+    "index",
+    "path",
+    "current",
+    "prior",
+    "cycle",
+    "cycleRoot",
+    "id",
+    "childrenByParent",
+    "roots",
+    "parentId",
+    "children",
+    "makeNode",
+    "nextPath",
+    "flattenDepartmentTree",
+    "result",
+    "walk",
+    "child",
+    "node",
+    "getAllowedParentIds",
+    "excluded",
+    "pending",
+    "childId",
+    "filterDepartmentTree",
+    "normalized",
+    "filter",
+    "matches"
+  ],
+  "apps/web/app/lib/documentEditorDraft.ts": [
+    "shouldApplyDocumentBodyModel"
+  ],
+  "apps/web/app/lib/documentListCache.ts": [
+    "DocumentListQueryParams",
+    "documentListQueryKey",
+    "export",
+    "documentListQueryPrefix",
+    "replaceDocumentDetail",
+    "invalidateDocumentLists"
+  ],
+  "apps/web/app/lib/utils.ts": [
+    "ClassValue",
+    "cn"
+  ],
+  "apps/web/app/middleware/auth.global.ts": [
+    "capability"
+  ],
+  "apps/web/app/pages/account.vue": [],
+  "apps/web/app/pages/archived-tasks.vue": [
+    "route",
+    "router",
+    "hydrated",
+    "q",
+    "projectId",
+    "value",
+    "mine",
+    "params",
+    "items",
+    "total",
+    "restoreTask",
+    "back"
+  ],
+  "apps/web/app/pages/hr/departments/[departmentId].vue": [
+    "route",
+    "id",
+    "isDetail",
+    "query",
+    "department",
+    "returnTo"
+  ],
+  "apps/web/app/pages/hr/departments/[departmentId]/documents/[documentId].vue": [
+    "route",
+    "id",
+    "documentId",
+    "query",
+    "returnTo",
+    "isEdit"
+  ],
+  "apps/web/app/pages/hr/departments/[departmentId]/documents/[documentId]/edit.vue": [
+    "route",
+    "hydrated",
+    "departmentId",
+    "documentId",
+    "query",
+    "returnTo",
+    "name",
+    "body",
+    "savedState",
+    "initializedId",
+    "dirty",
+    "save",
+    "saved",
+    "readFile",
+    "reader",
+    "uploadFile",
+    "input",
+    "file"
+  ],
+  "apps/web/app/pages/hr/departments/[departmentId]/documents/new.vue": [
+    "route",
+    "id",
+    "returnTo",
+    "saved"
+  ],
+  "apps/web/app/pages/hr/departments/[departmentId]/edit.vue": [
+    "route",
+    "id",
+    "query",
+    "department",
+    "fallback",
+    "returnTo",
+    "saved"
+  ],
+  "apps/web/app/pages/hr/departments/index.vue": [
+    "HrDepartment",
+    "route",
+    "router",
+    "query",
+    "hydrated",
+    "search",
+    "treeView",
+    "departments",
+    "roots",
+    "filtered",
+    "deleting",
+    "deleteError",
+    "openDepartment",
+    "editDepartment",
+    "createChild",
+    "setView",
+    "askDelete",
+    "confirmDelete"
+  ],
+  "apps/web/app/pages/hr/departments/new.vue": [
+    "route",
+    "initialParentId",
+    "raw",
+    "id",
+    "returnTo",
+    "saved"
+  ],
+  "apps/web/app/pages/hr/documents/index.vue": [
+    "route",
+    "router",
+    "hydrated",
+    "search",
+    "departmentId",
+    "limit",
+    "offset",
+    "query",
+    "departments",
+    "page",
+    "pages",
+    "updateFilters",
+    "updateDepartment",
+    "value",
+    "setPage"
+  ],
+  "apps/web/app/pages/hr/documents/new.vue": [
+    "route",
+    "hydrated",
+    "departments",
+    "departmentId",
+    "selectedDepartment",
+    "returnTo",
+    "selectDepartment",
+    "saved"
+  ],
+  "apps/web/app/pages/hr/employees/[employeeId].vue": [
+    "route",
+    "hydrated",
+    "id",
+    "isDetail",
+    "query",
+    "returnTo",
+    "confirmArchive",
+    "archivePending",
+    "toggleArchive"
+  ],
+  "apps/web/app/pages/hr/employees/[employeeId]/access.vue": [
+    "route",
+    "employeeId",
+    "candidates",
+    "employee",
+    "returnTo",
+    "target"
+  ],
+  "apps/web/app/pages/hr/employees/[employeeId]/edit.vue": [
+    "route",
+    "id",
+    "query",
+    "returnTo",
+    "saved"
+  ],
+  "apps/web/app/pages/hr/employees/new.vue": [
+    "route",
+    "returnTo",
+    "created"
+  ],
+  "apps/web/app/pages/hr/index.vue": [
+    "hydrated",
+    "route",
+    "tab",
+    "initialDepartmentId",
+    "selectedDepartmentId",
+    "departments",
+    "openEmployee",
+    "editEmployee"
+  ],
+  "apps/web/app/pages/index.vue": [],
+  "apps/web/app/pages/login.vue": [
+    "productName",
+    "route",
+    "login",
+    "totpCode",
+    "pending",
+    "errorMessage",
+    "mfaPending",
+    "hydrated",
+    "prefilled",
+    "id",
+    "AUTH_ERROR_KEYS",
+    "submit",
+    "code",
+    "submitTotp"
+  ],
+  "apps/web/app/pages/notifications.vue": [
+    "Notification",
+    "hydrated",
+    "router",
+    "isRtl",
+    "items",
+    "unreadCount",
+    "pendingReadId",
+    "actionPending",
+    "queryErrorMessage",
+    "kindLabel",
+    "openNotification",
+    "markAll",
+    "retryNotifications",
+    "retryNextPage"
+  ],
+  "apps/web/app/pages/projects/[id].vue": [
+    "route",
+    "router",
+    "hydrated",
+    "normalizedPath",
+    "isBaseRoute",
+    "projectId",
+    "n",
+    "notFound",
+    "TABS",
+    "type",
+    "isProjectTab",
+    "tab",
+    "onTabChange",
+    "next",
+    "params",
+    "onParams",
+    "openTask",
+    "stageSource",
+    "projectReturnTo",
+    "openTaskCreate",
+    "openSettings",
+    "onArchived",
+    "onUnarchived"
+  ],
+  "apps/web/app/pages/projects/[id]/milestones/[milestoneId]/edit.vue": [
+    "route",
+    "router",
+    "hydrated",
+    "projectId",
+    "n",
+    "milestoneId",
+    "milestone",
+    "notFound",
+    "returnTo",
+    "deleteOpen",
+    "mutationError",
+    "confirmDelete"
+  ],
+  "apps/web/app/pages/projects/[id]/milestones/new.vue": [
+    "route",
+    "router",
+    "projectId",
+    "n",
+    "notFound",
+    "returnTo",
+    "saved"
+  ],
+  "apps/web/app/pages/projects/[id]/settings.vue": [
+    "route",
+    "router",
+    "projectId",
+    "n",
+    "notFound",
+    "canManage",
+    "returnTo"
+  ],
+  "apps/web/app/pages/projects/[id]/tasks/[taskId].vue": [
+    "toPositiveInt",
+    "n",
+    "route",
+    "router",
+    "projectId",
+    "taskId",
+    "siblingParams",
+    "closeTo",
+    "fallback"
+  ],
+  "apps/web/app/pages/projects/[id]/tasks/new.vue": [
+    "route",
+    "router",
+    "hydrated",
+    "projectId",
+    "n",
+    "notFound",
+    "returnTo",
+    "created"
+  ],
+  "apps/web/app/pages/projects/[id]/updates/new.vue": [
+    "route",
+    "router",
+    "projectId",
+    "n",
+    "notFound",
+    "returnTo"
+  ],
+  "apps/web/app/pages/projects/index.vue": [
+    "ProjectStatus",
+    "router",
+    "route",
+    "hydrated",
+    "activeList",
+    "canListArchived",
+    "archived",
+    "projectList",
+    "items",
+    "canCreate",
+    "rawSearch",
+    "search",
+    "debouncedSearch",
+    "q",
+    "statusFilter",
+    "value",
+    "onStatusChange",
+    "status",
+    "clearFilters",
+    "filteredItems",
+    "query",
+    "matchesSearch",
+    "matchesStatus",
+    "isLoading",
+    "onFilterChange",
+    "openCreate",
+    "openProject"
+  ],
+  "apps/web/app/pages/projects/new.vue": [
+    "route",
+    "router",
+    "hydrated",
+    "returnTo",
+    "canCreate",
+    "onCreated"
+  ],
+  "apps/web/app/pages/reports.vue": [],
+  "apps/web/app/pages/search.vue": [
+    "route",
+    "router",
+    "query",
+    "backTo",
+    "available",
+    "nav",
+    "matchingProjects",
+    "item"
+  ],
+  "apps/web/app/pages/settings/access-log/__tests__/routes.test.ts": [
+    "ROUTES",
+    "directory",
+    "sources"
+  ],
+  "apps/web/app/pages/settings/access-log/[eventId].vue": [
+    "route",
+    "id",
+    "returnTo",
+    "query",
+    "key",
+    "suffix",
+    "forbidden",
+    "event",
+    "actionLabels"
+  ],
+  "apps/web/app/pages/settings/access-log/index.vue": [
+    "AdminAuditListParams",
+    "route",
+    "router",
+    "hydrated",
+    "forbidden",
+    "actionLabels",
+    "actionOptions",
+    "actionFromQuery",
+    "filters",
+    "query",
+    "actors",
+    "targetRoles",
+    "targetOptions",
+    "page",
+    "pages",
+    "updateFilters",
+    "syncPage",
+    "previousPage",
+    "nextPage"
+  ],
+  "apps/web/app/pages/settings/branding.vue": [
+    "forbidden"
+  ],
+  "apps/web/app/pages/settings/projects.vue": [
+    "forbidden"
+  ],
+  "apps/web/app/pages/settings/roles/__tests__/routes.test.ts": [
+    "ROUTES",
+    "path",
+    "directory",
+    "sources"
+  ],
+  "apps/web/app/pages/settings/roles/[roleId]/edit.vue": [
+    "route",
+    "id",
+    "returnTo",
+    "query",
+    "key",
+    "suffix",
+    "forbidden",
+    "role",
+    "catalog"
+  ],
+  "apps/web/app/pages/settings/roles/[roleId]/index.vue": [
+    "route",
+    "hydrated",
+    "id",
+    "returnTo",
+    "query",
+    "key",
+    "suffix",
+    "returnQuery",
+    "editTo",
+    "cloneTo",
+    "forbidden",
+    "role",
+    "catalog",
+    "assignedUsers",
+    "disable",
+    "enable",
+    "remove",
+    "RoleAction",
+    "pendingAction",
+    "actionError",
+    "versionConflict",
+    "actionBusy",
+    "requestAction",
+    "confirmAction",
+    "translated",
+    "openUser"
+  ],
+  "apps/web/app/pages/settings/roles/index.vue": [
+    "AdminRoleListParams",
+    "route",
+    "router",
+    "hydrated",
+    "forbidden",
+    "filters",
+    "query",
+    "page",
+    "pages",
+    "updateFilters",
+    "syncPage",
+    "previousPage",
+    "nextPage",
+    "listQuery",
+    "openRole",
+    "cloneRole"
+  ],
+  "apps/web/app/pages/settings/roles/new.vue": [
+    "route",
+    "hydrated",
+    "forbidden",
+    "create",
+    "catalog",
+    "cloneId",
+    "backTo",
+    "query",
+    "key",
+    "suffix",
+    "clone",
+    "nameAr",
+    "nameEn",
+    "description",
+    "selected",
+    "errorKey",
+    "saved",
+    "dirty",
+    "permissionByKey",
+    "permissionLabel",
+    "permissionDescription",
+    "availablePermissions",
+    "allowed",
+    "togglePermission",
+    "definition",
+    "next",
+    "visit",
+    "dependency",
+    "remove",
+    "candidate",
+    "showError",
+    "translated",
+    "submit",
+    "role"
+  ],
+  "apps/web/app/pages/settings/users/__tests__/routes.test.ts": [
+    "ROUTES",
+    "path",
+    "directory",
+    "sources"
+  ],
+  "apps/web/app/pages/settings/users/[userId]/access.vue": [
+    "route",
+    "id",
+    "backTo",
+    "forbidden",
+    "user",
+    "roles",
+    "catalog",
+    "retryAccessData"
+  ],
+  "apps/web/app/pages/settings/users/[userId]/index.vue": [
+    "route",
+    "id",
+    "returnTo",
+    "query",
+    "key",
+    "value",
+    "suffix",
+    "returnQuery",
+    "accessTo",
+    "securityTo",
+    "forbidden",
+    "catalog",
+    "permissionLabels",
+    "permissionLabel",
+    "sourceLabel"
+  ],
+  "apps/web/app/pages/settings/users/[userId]/security.vue": [
+    "route",
+    "id",
+    "backTo",
+    "forbidden",
+    "user"
+  ],
+  "apps/web/app/pages/settings/users/index.vue": [
+    "AdminUserListParams",
+    "route",
+    "router",
+    "hydrated",
+    "forbidden",
+    "filters",
+    "query",
+    "roles",
+    "departments",
+    "page",
+    "pages",
+    "updateFilters",
+    "syncPage",
+    "previousPage",
+    "nextPage",
+    "openUser"
+  ],
+  "apps/web/app/pages/settings/users/new.vue": [
+    "hydrated",
+    "forbidden",
+    "route",
+    "backTo",
+    "query",
+    "key",
+    "suffix",
+    "requestedEmployeeId",
+    "hasRequestedEmployee",
+    "candidateParams",
+    "employees",
+    "roles",
+    "grant",
+    "reactivate",
+    "updateAccess",
+    "employeeId",
+    "selectedRoleIds",
+    "passwordConfirmation",
+    "errorKey",
+    "saved",
+    "dirty",
+    "availableRoles",
+    "selectedCandidate",
+    "stoppedUserId",
+    "existingUser",
+    "catalog",
+    "permissionLabels",
+    "roleDetails",
+    "selectedCapabilities",
+    "isReactivation",
+    "candidatePage",
+    "candidatePages",
+    "showError",
+    "translated",
+    "previousCandidates",
+    "nextCandidates",
+    "submit",
+    "selectedEmployeeId",
+    "selectedRoleIdsSnapshot",
+    "companyId",
+    "assignments",
+    "user"
+  ],
+  "apps/web/app/pages/tasks.vue": [
+    "route",
+    "router",
+    "hydrated",
+    "tab",
+    "normalizedPath",
+    "isBaseRoute",
+    "onTabChange",
+    "openTask",
+    "params",
+    "openCreate"
+  ],
+  "apps/web/app/pages/tasks/[id].vue": [
+    "route",
+    "router",
+    "taskId",
+    "n",
+    "closeTo"
+  ],
+  "apps/web/app/pages/tasks/new.vue": [
+    "route",
+    "router",
+    "hydrated",
+    "returnTo",
+    "created"
+  ],
+  "apps/web/app/plugins/access-refresh.client.ts": [
+    "qc"
+  ],
+  "apps/web/app/plugins/bus.client.ts": [],
+  "apps/web/app/plugins/vue-query.ts": [
+    "AUTHORIZED_403_CODES",
+    "isPossibleSessionExpiry",
+    "vueQueryState",
+    "router",
+    "recovering",
+    "onMaybeExpiredSession",
+    "current",
+    "queryClient",
+    "options"
+  ],
+  "apps/web/app/utils/__tests__/accessPolicy.test.ts": [
+    "hr",
+    "admin"
+  ],
+  "apps/web/app/utils/__tests__/brandTheme.test.ts": [
+    "channel",
+    "normalized",
+    "luminance",
+    "bytes",
+    "contrast",
+    "theme"
+  ],
+  "apps/web/app/utils/__tests__/businessOverlays.test.ts": [
+    "appRoot",
+    "scanRoots",
+    "activeUiComposites",
+    "forbiddenTag",
+    "forbiddenUiImport",
+    "nativePopup",
+    "sourceFiles",
+    "path",
+    "violations",
+    "source",
+    "reasons"
+  ],
+  "apps/web/app/utils/__tests__/safeReturnTo.test.ts": [
+    "fallback",
+    "allowed",
+    "it"
+  ],
+  "apps/web/app/utils/__tests__/sanitize.test.ts": [
+    "payloads",
+    "payload",
+    "out"
+  ],
+  "apps/web/app/utils/accessPolicy.ts": [
+    "AccessIdentity",
+    "hasCapability",
+    "destinations",
+    "export",
+    "firstAllowedPath",
+    "postLoginPath",
+    "fallback",
+    "target",
+    "capability",
+    "isNavPathActive",
+    "document",
+    "requiredCapabilityForPath"
+  ],
+  "apps/web/app/utils/brandTheme.ts": [
+    "DEFAULT_PRIMARY",
+    "HEX_COLOR",
+    "normalizeHex",
+    "candidate",
+    "channels",
+    "relativeLuminance",
+    "linear",
+    "channel",
+    "contrast",
+    "firstLuminance",
+    "secondLuminance",
+    "light",
+    "dark",
+    "toHex",
+    "darkenUntil",
+    "rgb",
+    "step",
+    "factor",
+    "createBrandTheme",
+    "primary",
+    "foreground",
+    "link",
+    "ring"
+  ],
+  "apps/web/app/utils/safeReturnTo.ts": [
+    "CONTROL_OR_BACKSLASH",
+    "belongsToPrefix",
+    "normalized",
+    "safeReturnTo",
+    "parsed",
+    "returnToQuery"
+  ],
+  "apps/web/app/utils/sanitize.ts": [
+    "ALLOWED_TAGS",
+    "VOID_TAGS",
+    "NAMED_ENTITIES",
+    "decodeEntities",
+    "out",
+    "pass",
+    "next",
+    "isSafeHref",
+    "href",
+    "delimiterIndex",
+    "beforeDelimiter",
+    "Attr",
+    "Tag",
+    "isSpace",
+    "isAlpha",
+    "isAlnum",
+    "readTag",
+    "i",
+    "closing",
+    "nameStart",
+    "name",
+    "attrs",
+    "nStart",
+    "attrName",
+    "value",
+    "j",
+    "quote",
+    "close",
+    "vStart",
+    "escapeText",
+    "escapeAttr",
+    "renderTag",
+    "sanitizeHtml",
+    "src",
+    "lt",
+    "tag"
+  ],
+  "apps/web/components.json": [],
+  "apps/web/Dockerfile": [],
+  "apps/web/e2e/access-admin.spec.ts": [
+    "Page",
+    "APIRequestContext",
+    "button",
+    "json",
+    "response",
+    "grantFixture",
+    "me",
+    "roles",
+    "role",
+    "login",
+    "employee",
+    "admin",
+    "hr",
+    "adminContext",
+    "hrContext",
+    "adminPage",
+    "adminMe",
+    "candidates",
+    "hrPage",
+    "catalog",
+    "permission",
+    "name",
+    "roleId",
+    "events",
+    "loginName",
+    "employeeRole",
+    "context",
+    "employeePage",
+    "fixture",
+    "memberPage",
+    "detail",
+    "stopped",
+    "toggle",
+    "memberContext",
+    "replacement",
+    "member",
+    "account",
+    "project",
+    "task",
+    "reader",
+    "rpc",
+    "directoryRole"
+  ],
+  "apps/web/e2e/account.spec.ts": [
+    "ADMIN_LOGIN",
+    "BASE_URL",
+    "createPasswordFixture",
+    "suffix",
+    "loginName",
+    "meRes",
+    "me",
+    "rolesRes",
+    "roles",
+    "employeeRole",
+    "employeeRes",
+    "employee",
+    "userRes",
+    "restoreRes",
+    "recovery",
+    "recoveryLogin",
+    "fixture",
+    "employeeContext",
+    "employeePage",
+    "changed",
+    "rejectedMutation",
+    "passwordMutation",
+    "passwordMutationRes",
+    "newContext",
+    "newLogin",
+    "oldContext",
+    "oldLogin"
+  ],
+  "apps/web/e2e/activity.spec.ts": [
+    "login",
+    "createTask",
+    "projects",
+    "res",
+    "name",
+    "id",
+    "detail",
+    "composer",
+    "commentText",
+    "commentPosted",
+    "timeline",
+    "firstEntry",
+    "stateTrigger",
+    "transitioned"
+  ],
+  "apps/web/e2e/auth-csrf.spec.ts": [
+    "check",
+    "res"
+  ],
+  "apps/web/e2e/board.spec.ts": [
+    "login",
+    "createTask",
+    "projectsRes",
+    "projects",
+    "projectId",
+    "projectRes",
+    "res",
+    "dragCard",
+    "from",
+    "to",
+    "steps",
+    "targetX",
+    "targetY",
+    "i",
+    "name",
+    "id",
+    "unstagedColumn",
+    "stageColumns",
+    "firstColumn",
+    "card",
+    "targetColumn",
+    "targetStageName",
+    "dragged",
+    "dragResponse",
+    "reloadedTargetColumn",
+    "thirdStageColumn",
+    "thirdStageName",
+    "patched",
+    "patchResponse",
+    "reloadedThirdColumn",
+    "foldedColumn",
+    "stageId"
+  ],
+  "apps/web/e2e/branding.spec.ts": [
+    "loginAsAdmin",
+    "colour",
+    "preview",
+    "savedName",
+    "savedColour",
+    "initialTitle",
+    "initialPrimary",
+    "shell",
+    "shellBrand",
+    "invalidPatchCount",
+    "onInvalidRequest",
+    "resetPatchCount",
+    "onRequest",
+    "savedWhite",
+    "productionPrimary",
+    "saved",
+    "savedResponse",
+    "restored",
+    "preset",
+    "failed",
+    "available",
+    "retry"
+  ],
+  "apps/web/e2e/command-menu.spec.ts": [
+    "input"
+  ],
+  "apps/web/e2e/contracts-hr.spec.ts": [
+    "ADMIN_LOGIN",
+    "deptsRes",
+    "empsRes",
+    "docsRes",
+    "peopleRes",
+    "people",
+    "person",
+    "suffix",
+    "departmentRes",
+    "department",
+    "departmentPatchRes",
+    "employeeRes",
+    "employee",
+    "employeePatchRes",
+    "archiveRes",
+    "unarchiveRes",
+    "me",
+    "roles",
+    "employeeRole",
+    "assignments",
+    "accessRes",
+    "account",
+    "linkedEmployee",
+    "matchingPeople",
+    "accessPatchRes",
+    "updated",
+    "disableRes",
+    "documentRes",
+    "document",
+    "documentPatchRes",
+    "attachmentRes",
+    "emptyDepartmentRes",
+    "emptyDepartment",
+    "departmentDeleteRes"
+  ],
+  "apps/web/e2e/contracts.spec.ts": [
+    "ADMIN_LOGIN",
+    "BASE_URL",
+    "createPasswordFixture",
+    "meRes",
+    "me",
+    "rolesRes",
+    "roles",
+    "employeeRole",
+    "login",
+    "employeeRes",
+    "employee",
+    "userRes",
+    "res",
+    "body",
+    "brandingGetRes",
+    "originalBranding",
+    "suffix",
+    "employeeLogin",
+    "updatedName",
+    "updatedColor",
+    "brandingChanged",
+    "brandingPatchRes",
+    "patchedBranding",
+    "forbidden",
+    "employeeContext",
+    "passwordChanged",
+    "employeeLoginRes",
+    "passwordRes",
+    "restorePasswordRes",
+    "restoreBrandingRes",
+    "listRes",
+    "projectsRes",
+    "projects",
+    "projectRes",
+    "refreshedProjectsRes",
+    "createRes",
+    "created",
+    "getRes",
+    "patchRes",
+    "patched",
+    "commentRes",
+    "comment",
+    "timelineRes",
+    "transitionRes",
+    "transitioned",
+    "stagesRes",
+    "peopleRes",
+    "bad",
+    "err",
+    "list",
+    "refreshedListRes",
+    "detailRes",
+    "detail",
+    "statusRes",
+    "tasksRes",
+    "settingsGetRes",
+    "settings",
+    "settingsPatchRes",
+    "project",
+    "addStageRes",
+    "stage",
+    "orderRes",
+    "deleteStageRes",
+    "followersRes",
+    "addFollowerRes",
+    "followers",
+    "removeFollowerRes",
+    "createMilestoneRes",
+    "milestone",
+    "patchMilestoneRes",
+    "deleteMilestoneRes",
+    "createUpdateRes",
+    "updatesListRes",
+    "createTagRes",
+    "tagsListRes"
+  ],
+  "apps/web/e2e/detail.spec.ts": [
+    "login",
+    "createTask",
+    "projects",
+    "res",
+    "name",
+    "id",
+    "detail",
+    "titleInput",
+    "newName",
+    "titleSaved",
+    "prioritySaved",
+    "editor",
+    "subtaskInput",
+    "subtaskCreated",
+    "subtaskId",
+    "subtaskRow",
+    "deadlineBadge",
+    "deadlineBefore",
+    "calendarDay",
+    "deadlineSaved",
+    "stamp",
+    "prefix",
+    "nameA",
+    "nameB",
+    "idA",
+    "idB",
+    "filtered",
+    "rowB",
+    "name1",
+    "name2",
+    "id1",
+    "text",
+    "nextBtn",
+    "prevBtn",
+    "linkEditor",
+    "confirmation",
+    "archived"
+  ],
+  "apps/web/e2e/hr-directory.spec.ts": [
+    "login",
+    "employeeName",
+    "employeeId",
+    "archived",
+    "departmentName",
+    "editedName",
+    "departmentId"
+  ],
+  "apps/web/e2e/hr-documents.spec.ts": [
+    "login",
+    "departmentName",
+    "departmentResponse",
+    "department",
+    "title",
+    "body",
+    "documents",
+    "created",
+    "documentId",
+    "filename",
+    "editorPage",
+    "editedTitle",
+    "saved"
+  ],
+  "apps/web/e2e/hr-people-access.spec.ts": [
+    "suffix",
+    "email",
+    "employeeRes",
+    "employee",
+    "me",
+    "roles",
+    "role",
+    "grant",
+    "account",
+    "employeeContext",
+    "changed",
+    "archived",
+    "unarchive",
+    "disabled",
+    "reactivate"
+  ],
+  "apps/web/e2e/hydration.spec.ts": [
+    "Page",
+    "beforeHydration",
+    "resume",
+    "gate",
+    "login",
+    "hydrate",
+    "closedTab",
+    "submit",
+    "createButton"
+  ],
+  "apps/web/e2e/internal-pages.spec.ts": [
+    "ADMIN_LOGIN",
+    "login",
+    "toggle",
+    "mobileNav"
+  ],
+  "apps/web/e2e/login.spec.ts": [],
+  "apps/web/e2e/notifications.spec.ts": [
+    "APIRequestContext",
+    "Page",
+    "NotificationItem",
+    "json",
+    "response",
+    "me",
+    "roles",
+    "role",
+    "employee",
+    "user",
+    "body",
+    "runId",
+    "recipientLogin",
+    "recipientId",
+    "projectResponse",
+    "project",
+    "taskResponse",
+    "task",
+    "assignResponse",
+    "commentResponse",
+    "actorNotifications",
+    "actorBody",
+    "recipientPage",
+    "recipientNotifications",
+    "recipientBody",
+    "events",
+    "assignment",
+    "comment",
+    "firstRead",
+    "afterAssignment",
+    "afterAssignmentBody",
+    "persistedAssignment",
+    "assignmentClass",
+    "secondRead"
+  ],
+  "apps/web/e2e/project-admin.spec.ts": [
+    "DEFAULT_STAGES",
+    "ADMIN_LOGIN",
+    "EMPLOYEE_LOGIN",
+    "patched",
+    "login",
+    "ensureEmployeeUser",
+    "listRes",
+    "list",
+    "employee",
+    "createRes",
+    "me",
+    "roles",
+    "role",
+    "account",
+    "restored",
+    "grantRes",
+    "createProject",
+    "res",
+    "body",
+    "createTask",
+    "name",
+    "createForm",
+    "id",
+    "stage",
+    "testId",
+    "settings",
+    "renamed",
+    "nameInput",
+    "nameSaved",
+    "visibilitySaved",
+    "extraStage",
+    "stageAdded",
+    "extraRow",
+    "reorderHandle",
+    "reordered",
+    "extraRowAgain",
+    "taskId",
+    "milestoneName",
+    "milestoneForm",
+    "taskDetail",
+    "milestoneSaved",
+    "milestoneResponse",
+    "updateForm",
+    "taskConfirm",
+    "activeListResponse",
+    "activeList",
+    "activeRow",
+    "projectConfirm",
+    "archived",
+    "archivedRow",
+    "unarchived",
+    "unarchiveResponse",
+    "restoredListResponse",
+    "restoredList",
+    "saved",
+    "guardedProject"
+  ],
+  "apps/web/e2e/projects.spec.ts": [
+    "DEFAULT_STAGES",
+    "patched",
+    "login",
+    "createProjectWithStages",
+    "res",
+    "body",
+    "dragCard",
+    "from",
+    "to",
+    "targetX",
+    "targetY",
+    "i",
+    "name",
+    "id",
+    "a",
+    "row",
+    "t",
+    "q",
+    "columns",
+    "doing",
+    "form"
+  ],
+  "apps/web/e2e/realtime.spec.ts": [
+    "Browser",
+    "login",
+    "createTask",
+    "projects",
+    "res",
+    "contextA",
+    "contextB",
+    "pageA",
+    "pageB",
+    "name",
+    "id",
+    "row",
+    "renamed1",
+    "firstRename",
+    "dialog",
+    "titleInput",
+    "renamed2",
+    "secondRename",
+    "commentBody"
+  ],
+  "apps/web/e2e/task-attachments.spec.ts": [
+    "login",
+    "createTask",
+    "projects",
+    "response",
+    "taskId",
+    "section",
+    "filename",
+    "content",
+    "uploaded",
+    "link",
+    "href",
+    "downloaded",
+    "deleted"
+  ],
+  "apps/web/e2e/task-lifecycle.spec.ts": [
+    "login",
+    "loginButton",
+    "createProject",
+    "response",
+    "createTask",
+    "stamp",
+    "projectId",
+    "firstId",
+    "prerequisiteId",
+    "setting",
+    "picker",
+    "dependencySaved",
+    "dependencyDetail",
+    "reloadedPicker",
+    "dependencyRemoved",
+    "clearedDetail",
+    "taskId",
+    "archived",
+    "returnTo",
+    "row",
+    "restored",
+    "restoredTask",
+    "archivedAgain"
+  ],
+  "apps/web/e2e/tasks.spec.ts": [
+    "login",
+    "projects",
+    "name",
+    "row",
+    "filtered",
+    "url",
+    "transitioned",
+    "doneItem",
+    "transitionResponse",
+    "closedTab",
+    "dataRows"
+  ],
+  "apps/web/e2e/totp.spec.ts": [],
+  "apps/web/e2e/unified-hr-navigation.spec.ts": [
+    "suffix",
+    "parentResponse",
+    "parent",
+    "childResponse",
+    "child",
+    "parentButton",
+    "parentPicker",
+    "departmentResponse",
+    "department",
+    "back",
+    "name",
+    "documentId",
+    "response",
+    "saved",
+    "deptRes",
+    "included",
+    "excluded",
+    "pass",
+    "empty"
+  ],
+  "apps/web/i18n/locales/ar/access.json": [],
+  "apps/web/i18n/locales/ar/attachments.json": [],
+  "apps/web/i18n/locales/ar/common.json": [],
+  "apps/web/i18n/locales/ar/hr.json": [],
+  "apps/web/i18n/locales/ar/notifications.json": [],
+  "apps/web/i18n/locales/ar/projects.json": [],
+  "apps/web/i18n/locales/ar/settings.json": [],
+  "apps/web/i18n/locales/ar/taskLifecycle.json": [],
+  "apps/web/i18n/locales/ar/tasks.json": [],
+  "apps/web/i18n/locales/en/access.json": [],
+  "apps/web/i18n/locales/en/attachments.json": [],
+  "apps/web/i18n/locales/en/common.json": [],
+  "apps/web/i18n/locales/en/hr.json": [],
+  "apps/web/i18n/locales/en/notifications.json": [],
+  "apps/web/i18n/locales/en/projects.json": [],
+  "apps/web/i18n/locales/en/settings.json": [],
+  "apps/web/i18n/locales/en/taskLifecycle.json": [],
+  "apps/web/i18n/locales/en/tasks.json": [],
+  "apps/web/nuxt.config.ts": [
+    "odoo"
+  ],
+  "apps/web/package.json": [],
+  "apps/web/playwright.config.ts": [],
+  "apps/web/server/api/auth/login.post.ts": [
+    "upstream",
+    "body",
+    "https",
+    "cookie"
+  ],
+  "apps/web/server/api/auth/logout.post.ts": [
+    "cookie"
+  ],
+  "apps/web/server/api/auth/totp.post.ts": [
+    "cookie",
+    "upstream",
+    "https",
+    "setCookie",
+    "data"
+  ],
+  "apps/web/server/routes/api/v1/[...path].ts": [],
+  "apps/web/server/utils/same-site.ts": [
+    "assertSameSiteJson",
+    "site"
+  ],
+  "apps/web/tsconfig.json": [],
+  "apps/web/vitest.config.ts": [],
+  "CLAUDE.md": [
+    "check"
+  ],
+  "deploy/branding.example.json": [],
+  "deploy/docker-compose.yml": [],
+  "deploy/provision.sh": [],
+  "deploy/seed_branding.py": [],
+  "docs/archive/2026-09-04-nasq-hr-design.md": [],
+  "docs/archive/2026-09-04-nasq-hr-phase-1.md": [],
+  "docs/branding-permissions-report.md": [],
+  "docs/design-system-review.md": [],
+  "docs/design-system-system-report.md": [],
+  "docs/design-system/build.mjs": [
+    "here",
+    "root",
+    "source",
+    "parsed",
+    "names",
+    "defaultPrimary",
+    "node",
+    "declaration",
+    "result",
+    "compiled",
+    "htmlPath",
+    "html",
+    "begin",
+    "end",
+    "region",
+    "previousDefault",
+    "DEFAULT",
+    "neutralForeground",
+    "updated",
+    "defaults",
+    "temporary",
+    "name"
+  ],
+  "docs/design-system/Components.html": [
+    "DEFAULT",
+    "el",
+    "valid",
+    "rgb",
+    "luminance",
+    "c",
+    "s",
+    "ratio",
+    "x",
+    "DEFAULT_PRIMARY",
+    "HEX_COLOR",
+    "normalizeHex",
+    "candidate",
+    "channels",
+    "relativeLuminance",
+    "linear",
+    "channel",
+    "contrast",
+    "firstLuminance",
+    "secondLuminance",
+    "light",
+    "dark",
+    "toHex",
+    "darkenUntil",
+    "step",
+    "factor",
+    "createBrandTheme",
+    "primary",
+    "foreground",
+    "link",
+    "ring",
+    "theme",
+    "apply",
+    "saved",
+    "stored",
+    "toastTimer",
+    "notify",
+    "update",
+    "value",
+    "fg",
+    "setDraft",
+    "next",
+    "scope",
+    "filter",
+    "q",
+    "count",
+    "visible",
+    "clearFilters"
+  ],
+  "docs/design-system/README.md": [],
+  "docs/parallel-work.md": [],
+  "docs/superpowers/plans/2026-09-02-web-theme-shadcn.md": [
+    "TestShadcnAssets",
+    "is",
+    "env",
+    "menu",
+    "events",
+    "service",
+    "currentMenuId",
+    "setCurrentMenu",
+    "menuObj",
+    "calls",
+    "PANEL_STORAGE_KEY",
+    "AppRail",
+    "AppPanel",
+    "onCurrentChanged",
+    "client",
+    "still",
+    "apps",
+    "selected",
+    "and",
+    "app",
+    "sections",
+    "getHref",
+    "id",
+    "node",
+    "found",
+    "TestShadcnUi"
+  ],
+  "docs/superpowers/plans/2026-09-03-nasq-phase-0-foundation.md": [
+    "TestNasqGroups",
+    "ResCompany",
+    "TestBrandingEndpoint",
+    "BrandingController",
+    "TestMeEndpoint",
+    "MeController",
+    "parsed",
+    "me",
+    "BrandingSchema",
+    "Branding",
+    "RoleSchema",
+    "Role",
+    "MeSchema",
+    "Me",
+    "odoo",
+    "ClassValue",
+    "cn",
+    "upstream",
+    "body",
+    "cookie",
+    "useMe",
+    "headers",
+    "loggedIn",
+    "useBranding",
+    "branding",
+    "route",
+    "login",
+    "pending",
+    "errorMessage",
+    "submit",
+    "labels",
+    "item",
+    "NavItem",
+    "base",
+    "settings",
+    "useNav",
+    "nav",
+    "initials",
+    "logout",
+    "open",
+    "keys",
+    "go"
+  ],
+  "docs/superpowers/plans/2026-09-04-nasq-hr-phase-1.md": [],
+  "docs/superpowers/plans/2026-09-04-nasq-phase-1-my-tasks.md": [
+    "vueQueryState",
+    "queryClient",
+    "options",
+    "ws",
+    "TestTransition",
+    "ProjectTask",
+    "NasqApiCase",
+    "TestTaskRead",
+    "ApiError",
+    "TaskController",
+    "TestTaskWrite",
+    "TestTimeline",
+    "TestPersonalStagesAndLookups",
+    "TimelineController",
+    "PersonalStageController",
+    "ProjectController",
+    "PeopleController",
+    "TestTaskBus",
+    "TaskStateSchema",
+    "TaskState",
+    "MANAGER_STATES",
+    "RefSchema",
+    "TagSchema",
+    "TaskSchema",
+    "TaskDetailSchema",
+    "TaskListSchema",
+    "TaskPatchSchema",
+    "TaskCreateSchema",
+    "ApiErrorSchema",
+    "Task",
+    "TaskDetail",
+    "TaskPatch",
+    "TaskCreate",
+    "TimelineEntrySchema",
+    "TimelineEntry",
+    "PersonalStageSchema",
+    "PersonalStage",
+    "PersonRefSchema",
+    "ProjectRefSchema",
+    "useApi",
+    "headers",
+    "$api",
+    "data",
+    "status",
+    "parsed",
+    "TaskListParams",
+    "PAGE",
+    "taskKeys",
+    "Resolved",
+    "applyPatchToTask",
+    "next",
+    "useTasks",
+    "loaded",
+    "useTask",
+    "useUpdateTask",
+    "qc",
+    "prevDetail",
+    "prevLists",
+    "useTransitionTask",
+    "useCreateTask",
+    "login",
+    "projects",
+    "name",
+    "row",
+    "text",
+    "a"
+  ],
+  "docs/superpowers/plans/2026-09-04-nasq-phase-2-projects.md": [
+    "TestProjectStatus",
+    "ProjectProject",
+    "at",
+    "TestTaskProjectScope",
+    "TestProjects",
+    "ProjectController",
+    "of",
+    "PROJECT_JSON",
+    "parsed",
+    "ProjectRefSchema",
+    "ProjectStatusSchema",
+    "PROJECT_STATUSES",
+    "ProjectSchema",
+    "ProjectStageSchema",
+    "ProjectDetailSchema",
+    "ProjectStatusBodySchema",
+    "ProjectStatus",
+    "Project",
+    "ProjectStage",
+    "ProjectDetail",
+    "check",
+    "TONE_CLASS",
+    "BoardStage",
+    "StageSource",
+    "s",
+    "task",
+    "stage",
+    "params",
+    "next",
+    "PROJECT_STATUS_LABEL_KEY",
+    "PROJECT_STATUS_UNSET_KEY",
+    "PROJECT_STATUS_TONE",
+    "projectStatusLabelKey",
+    "stageOf",
+    "moveTo",
+    "ref",
+    "projectTaskParams",
+    "state",
+    "q",
+    "projectTaskQuery",
+    "projectKeys",
+    "ProjectRefListSchema",
+    "ProjectListSchema",
+    "useProjects",
+    "useProjectList",
+    "useProject",
+    "useSetProjectStatus",
+    "qc",
+    "props",
+    "emit",
+    "kind",
+    "sortedStages",
+    "src",
+    "move",
+    "hasActiveFilters",
+    "lockedProjectName",
+    "close",
+    "localFilters",
+    "filterParams",
+    "siblings",
+    "goTo",
+    "cls",
+    "hydrated",
+    "onChange",
+    "status",
+    "router",
+    "route",
+    "projectId",
+    "notFound",
+    "tab",
+    "onTabChange",
+    "onParams",
+    "openTask",
+    "createOpen",
+    "stageSource",
+    "taskId",
+    "siblingParams",
+    "closeTo",
+    "listRes",
+    "projects",
+    "detailRes",
+    "detail",
+    "statusRes",
+    "tasksRes",
+    "login",
+    "callKw",
+    "res",
+    "body",
+    "createProjectWithStages",
+    "id",
+    "dragCard",
+    "from",
+    "to",
+    "targetX",
+    "targetY",
+    "i",
+    "name",
+    "a",
+    "row",
+    "t"
+  ],
+  "docs/superpowers/plans/2026-09-05-branch-unification.md": [],
+  "docs/superpowers/plans/2026-09-05-design-system.md": [],
+  "docs/superpowers/plans/2026-09-05-nasq-access-admin-handoff.md": [],
+  "docs/superpowers/plans/2026-09-05-nasq-access-admin.md": [],
+  "docs/superpowers/plans/2026-09-05-nasq-internal-pages.md": [],
+  "docs/superpowers/plans/2026-09-05-nasq-phase-3a-project-admin.md": [
+    "TestProjectAdminModel",
+    "NasqPmoSettings",
+    "ProjectProject",
+    "STAGE",
+    "PROJECT",
+    "d",
+    "ProjectRefSchema",
+    "UserRefSchema",
+    "ProjectStatusSchema",
+    "PROJECT_STATUSES",
+    "VisibilitySchema",
+    "ProjectStageSchema",
+    "ProjectSchema",
+    "ProjectDetailSchema",
+    "ProjectListSchema",
+    "ProjectCreateSchema",
+    "ProjectPatchSchema",
+    "ProjectStatusBodySchema",
+    "StageBodySchema",
+    "StagePatchSchema",
+    "StageOrderBodySchema",
+    "ProjectStatus",
+    "Visibility",
+    "UserRef",
+    "Project",
+    "ProjectStage",
+    "ProjectDetail",
+    "ProjectList",
+    "ProjectPatch",
+    "MilestoneSchema",
+    "MilestoneBodySchema",
+    "MilestonePatchSchema",
+    "Milestone",
+    "MilestonePatch",
+    "ProjectUpdateSchema",
+    "ProjectUpdateBodySchema",
+    "ProjectUpdate",
+    "ProjectUpdateBody",
+    "ProjectCreatorsSchema",
+    "PROJECT_CREATORS",
+    "DefaultStageSchema",
+    "ProjectSettingsSchema",
+    "ProjectSettingsPatchSchema",
+    "ProjectSettings",
+    "DefaultStage",
+    "TagCreateSchema",
+    "TestTaskArchiveAndMilestone",
+    "TestTags",
+    "TagController",
+    "ProjectController",
+    "TestProjectStages",
+    "TestProjectFollowers",
+    "ProjectStageController",
+    "ProjectFollowerController",
+    "TestMilestones",
+    "TestProjectUpdates",
+    "MilestoneController",
+    "ProjectUpdateController",
+    "TestSettings",
+    "SettingsController",
+    "ids",
+    "toCalendarDate",
+    "fromCalendarDate",
+    "formatCalendarDate",
+    "moveId",
+    "next",
+    "useProjectList",
+    "useCreateProject",
+    "qc",
+    "useUpdateProject",
+    "prev",
+    "useProjectAction",
+    "useArchiveProject",
+    "useUnarchiveProject",
+    "settings",
+    "vendorConsole",
+    "useNav"
+  ],
+  "docs/superpowers/plans/2026-09-05-nasq-phase-3b-delivery.md": [],
+  "docs/superpowers/plans/2026-09-05-nasq-phase-3b-handoff.md": [],
+  "docs/superpowers/plans/2026-09-05-nasq-phase-3b-people-branding.md": [
+    "HrRef",
+    "HrEmployeeAccess",
+    "HrEmployee",
+    "HrEmployeeList",
+    "HrDepartment",
+    "HrDepartmentList",
+    "DepartmentInUseDetails",
+    "RefSchema"
+  ],
+  "docs/superpowers/plans/2026-09-05-project-collaboration-delivery.md": [],
+  "docs/superpowers/plans/2026-09-05-project-collaboration.md": [],
+  "docs/superpowers/specs/2026-09-02-web-theme-shadcn-design.md": [],
+  "docs/superpowers/specs/2026-09-03-nasq-platform-design.md": [],
+  "docs/superpowers/specs/2026-09-04-nasq-hr-design.md": [],
+  "docs/superpowers/specs/2026-09-04-nasq-phase-1-my-tasks-design.md": [],
+  "docs/superpowers/specs/2026-09-04-nasq-phase-2-projects-design.md": [],
+  "docs/superpowers/specs/2026-09-05-design-system.md": [
+    "brand"
+  ],
+  "docs/superpowers/specs/2026-09-05-nasq-access-admin-ui-design.md": [],
+  "docs/superpowers/specs/2026-09-05-nasq-internal-pages.md": [],
+  "docs/superpowers/specs/2026-09-05-nasq-phase-3a-project-admin-design.md": [],
+  "docs/superpowers/specs/2026-09-05-nasq-phase-3b-people-branding-design.md": [
+    "every",
+    "HrEmployeeList",
+    "HrEmployee"
+  ],
+  "docs/superpowers/specs/2026-09-05-project-collaboration-design.md": [],
+  "docs/unification-2026-09-05.md": [],
+  "docs/WORKSPACE.md": [],
+  "odoo-addons/nasq_api/__init__.py": [],
+  "odoo-addons/nasq_api/__manifest__.py": [],
+  "odoo-addons/nasq_api/controllers/__init__.py": [],
+  "odoo-addons/nasq_api/controllers/access_admin.py": [
+    "AccessAdminUsersController",
+    "AccessAdminRolesController",
+    "AccessAdminAuditController"
+  ],
+  "odoo-addons/nasq_api/controllers/auth.py": [
+    "AuthController"
+  ],
+  "odoo-addons/nasq_api/controllers/branding.py": [
+    "BrandingController"
+  ],
+  "odoo-addons/nasq_api/controllers/common.py": [
+    "ApiError"
+  ],
+  "odoo-addons/nasq_api/controllers/me.py": [
+    "MeController"
+  ],
+  "odoo-addons/nasq_api/serializers/__init__.py": [],
+  "odoo-addons/nasq_api/serializers/access.py": [],
+  "odoo-addons/nasq_api/serializers/common.py": [],
+  "odoo-addons/nasq_api/serializers/company.py": [],
+  "odoo-addons/nasq_api/serializers/user.py": [],
+  "odoo-addons/nasq_api/tests/__init__.py": [],
+  "odoo-addons/nasq_api/tests/common.py": [
+    "NasqApiCase"
+  ],
+  "odoo-addons/nasq_api/tests/test_access_admin.py": [
+    "TestAccessAdminUsers",
+    "TestAccessAdminRoles",
+    "TestAccessAdminAudit"
+  ],
+  "odoo-addons/nasq_api/tests/test_branding.py": [
+    "TestBrandingEndpoint",
+    "TestAdminBranding"
+  ],
+  "odoo-addons/nasq_api/tests/test_me.py": [
+    "TestMeEndpoint",
+    "TestChangePassword"
+  ],
+  "odoo-addons/nasq_api/tests/test_totp.py": [
+    "TestTotp"
+  ],
+  "odoo-addons/nasq_core/__init__.py": [],
+  "odoo-addons/nasq_core/__manifest__.py": [],
+  "odoo-addons/nasq_core/models/__init__.py": [],
+  "odoo-addons/nasq_core/models/access_assignment.py": [
+    "NasqAccessAssignment"
+  ],
+  "odoo-addons/nasq_core/models/access_audit.py": [
+    "NasqAccessAudit"
+  ],
+  "odoo-addons/nasq_core/models/access_permission.py": [
+    "NasqAccessPermission"
+  ],
+  "odoo-addons/nasq_core/models/access_role.py": [
+    "NasqAccessRole"
+  ],
+  "odoo-addons/nasq_core/models/access_service.py": [
+    "NasqAccessRule",
+    "NasqAccessService"
+  ],
+  "odoo-addons/nasq_core/models/ir_attachment.py": [
+    "IrAttachment"
+  ],
+  "odoo-addons/nasq_core/models/res_company.py": [
+    "ResCompany"
+  ],
+  "odoo-addons/nasq_core/models/res_partner.py": [
+    "NasqResPartner"
+  ],
+  "odoo-addons/nasq_core/models/res_users.py": [
+    "NasqResUsers"
+  ],
+  "odoo-addons/nasq_core/tests/__init__.py": [],
+  "odoo-addons/nasq_core/tests/test_access_migration.py": [
+    "TestNasqAccessMigration"
+  ],
+  "odoo-addons/nasq_core/tests/test_access_models.py": [
+    "TestNasqAccessModels"
+  ],
+  "odoo-addons/nasq_core/tests/test_access_security.py": [
+    "TestNasqAccessSecurity"
+  ],
+  "odoo-addons/nasq_core/tests/test_groups.py": [
+    "TestNasqGroups"
+  ],
+  "odoo-addons/nasq_hr/__init__.py": [],
+  "odoo-addons/nasq_hr/__manifest__.py": [],
+  "odoo-addons/nasq_hr/controllers/__init__.py": [],
+  "odoo-addons/nasq_hr/controllers/common.py": [],
+  "odoo-addons/nasq_hr/controllers/hr_departments.py": [
+    "HrDepartmentController"
+  ],
+  "odoo-addons/nasq_hr/controllers/hr_documents.py": [
+    "HrDocumentController"
+  ],
+  "odoo-addons/nasq_hr/controllers/hr_employees.py": [
+    "HrEmployeeController"
+  ],
+  "odoo-addons/nasq_hr/models/__init__.py": [],
+  "odoo-addons/nasq_hr/models/access_service.py": [
+    "NasqHrAccessService"
+  ],
+  "odoo-addons/nasq_hr/models/hr_department.py": [
+    "NasqHrDepartment"
+  ],
+  "odoo-addons/nasq_hr/models/hr_document.py": [
+    "NasqHrDocument"
+  ],
+  "odoo-addons/nasq_hr/models/hr_employee.py": [
+    "NasqHrEmployee",
+    "NasqHrResource",
+    "NasqHrEmployeePublic"
+  ],
+  "odoo-addons/nasq_hr/models/hr_version.py": [
+    "NasqHrVersion"
+  ],
+  "odoo-addons/nasq_hr/rules.py": [
+    "NasqHrRule"
+  ],
+  "odoo-addons/nasq_hr/serializers/__init__.py": [],
+  "odoo-addons/nasq_hr/serializers/hr_department.py": [],
+  "odoo-addons/nasq_hr/serializers/hr_document.py": [],
+  "odoo-addons/nasq_hr/serializers/hr_employee.py": [],
+  "odoo-addons/nasq_hr/tests/__init__.py": [],
+  "odoo-addons/nasq_hr/tests/common.py": [
+    "NasqHrCase"
+  ],
+  "odoo-addons/nasq_hr/tests/test_department_model.py": [
+    "TestDepartmentModel"
+  ],
+  "odoo-addons/nasq_hr/tests/test_employee_model.py": [
+    "TestEmployeeModel"
+  ],
+  "odoo-addons/nasq_hr/tests/test_hr_access.py": [
+    "TestHrAccessSeparation"
+  ],
+  "odoo-addons/nasq_hr/tests/test_hr_departments.py": [
+    "TestHrDepartments"
+  ],
+  "odoo-addons/nasq_hr/tests/test_hr_document_acl.py": [
+    "TestHrDocumentAcl"
+  ],
+  "odoo-addons/nasq_hr/tests/test_hr_documents.py": [
+    "TestHrDocuments"
+  ],
+  "odoo-addons/nasq_hr/tests/test_hr_employees.py": [
+    "TestHrEmployees"
+  ],
+  "odoo-addons/nasq_pmo/__init__.py": [],
+  "odoo-addons/nasq_pmo/__manifest__.py": [],
+  "odoo-addons/nasq_pmo/controllers/__init__.py": [],
+  "odoo-addons/nasq_pmo/controllers/milestones.py": [
+    "MilestoneController"
+  ],
+  "odoo-addons/nasq_pmo/controllers/notifications.py": [
+    "NotificationController"
+  ],
+  "odoo-addons/nasq_pmo/controllers/people.py": [
+    "PeopleController"
+  ],
+  "odoo-addons/nasq_pmo/controllers/personal_stages.py": [
+    "PersonalStageController"
+  ],
+  "odoo-addons/nasq_pmo/controllers/project_followers.py": [
+    "ProjectFollowerController"
+  ],
+  "odoo-addons/nasq_pmo/controllers/project_stages.py": [
+    "ProjectStageController"
+  ],
+  "odoo-addons/nasq_pmo/controllers/project_updates.py": [
+    "ProjectUpdateController"
+  ],
+  "odoo-addons/nasq_pmo/controllers/projects.py": [
+    "ProjectController"
+  ],
+  "odoo-addons/nasq_pmo/controllers/settings.py": [
+    "SettingsController"
+  ],
+  "odoo-addons/nasq_pmo/controllers/tags.py": [
+    "TagController"
+  ],
+  "odoo-addons/nasq_pmo/controllers/task_archive.py": [
+    "TaskArchiveController"
+  ],
+  "odoo-addons/nasq_pmo/controllers/task_attachments.py": [
+    "TaskAttachmentController"
+  ],
+  "odoo-addons/nasq_pmo/controllers/task_dependencies.py": [
+    "TaskDependencyController"
+  ],
+  "odoo-addons/nasq_pmo/controllers/tasks.py": [
+    "TaskController"
+  ],
+  "odoo-addons/nasq_pmo/controllers/timeline.py": [
+    "TimelineController"
+  ],
+  "odoo-addons/nasq_pmo/models/__init__.py": [],
+  "odoo-addons/nasq_pmo/models/mail_notification_nasq.py": [
+    "NasqMailMessage"
+  ],
+  "odoo-addons/nasq_pmo/models/nasq_settings.py": [
+    "NasqPmoSettings"
+  ],
+  "odoo-addons/nasq_pmo/models/project_project.py": [
+    "ProjectProject",
+    "a"
+  ],
+  "odoo-addons/nasq_pmo/models/project_task.py": [
+    "ProjectTask"
+  ],
+  "odoo-addons/nasq_pmo/models/task_attachments.py": [
+    "ProjectTaskAttachments"
+  ],
+  "odoo-addons/nasq_pmo/models/task_notifications.py": [
+    "ProjectTaskNotifications"
+  ],
+  "odoo-addons/nasq_pmo/serializers/__init__.py": [],
+  "odoo-addons/nasq_pmo/serializers/dates.py": [],
+  "odoo-addons/nasq_pmo/serializers/milestone.py": [],
+  "odoo-addons/nasq_pmo/serializers/notification.py": [],
+  "odoo-addons/nasq_pmo/serializers/project_update.py": [],
+  "odoo-addons/nasq_pmo/serializers/project.py": [],
+  "odoo-addons/nasq_pmo/serializers/task_attachment.py": [
+    "is"
+  ],
+  "odoo-addons/nasq_pmo/serializers/task.py": [],
+  "odoo-addons/nasq_pmo/serializers/timeline.py": [],
+  "odoo-addons/nasq_pmo/tests/__init__.py": [],
+  "odoo-addons/nasq_pmo/tests/common.py": [
+    "NasqPmoCase"
+  ],
+  "odoo-addons/nasq_pmo/tests/test_access_capabilities.py": [
+    "TestPmoAccessCapabilityModels",
+    "TestPmoAccessCapabilityApi"
+  ],
+  "odoo-addons/nasq_pmo/tests/test_bus.py": [
+    "TestTaskBus"
+  ],
+  "odoo-addons/nasq_pmo/tests/test_milestones.py": [
+    "TestMilestones"
+  ],
+  "odoo-addons/nasq_pmo/tests/test_notifications.py": [
+    "TestTaskNotifications"
+  ],
+  "odoo-addons/nasq_pmo/tests/test_personal_stages.py": [
+    "TestPersonalStagesAndLookups"
+  ],
+  "odoo-addons/nasq_pmo/tests/test_project_admin_model.py": [
+    "TestProjectAdminModel"
+  ],
+  "odoo-addons/nasq_pmo/tests/test_project_followers.py": [
+    "TestProjectFollowers"
+  ],
+  "odoo-addons/nasq_pmo/tests/test_project_stages.py": [
+    "TestProjectStages"
+  ],
+  "odoo-addons/nasq_pmo/tests/test_project_status.py": [
+    "TestProjectStatus"
+  ],
+  "odoo-addons/nasq_pmo/tests/test_project_updates.py": [
+    "TestProjectUpdates"
+  ],
+  "odoo-addons/nasq_pmo/tests/test_projects.py": [
+    "TestProjects"
+  ],
+  "odoo-addons/nasq_pmo/tests/test_settings.py": [
+    "TestSettings"
+  ],
+  "odoo-addons/nasq_pmo/tests/test_tags.py": [
+    "TestTags"
+  ],
+  "odoo-addons/nasq_pmo/tests/test_task_attachments.py": [
+    "TestTaskAttachments"
+  ],
+  "odoo-addons/nasq_pmo/tests/test_task_lifecycle.py": [
+    "TestTaskLifecycle"
+  ],
+  "odoo-addons/nasq_pmo/tests/test_tasks.py": [
+    "TestTaskRead",
+    "TestTaskWrite",
+    "TestTaskProjectScope",
+    "TestTaskArchiveAndMilestone"
+  ],
+  "odoo-addons/nasq_pmo/tests/test_timeline.py": [
+    "TestTimeline"
+  ],
+  "odoo-addons/nasq_pmo/tests/test_transition.py": [
+    "TestTransition"
+  ],
+  "odoo-addons/web_theme_shadcn/__init__.py": [],
+  "odoo-addons/web_theme_shadcn/__manifest__.py": [],
+  "odoo-addons/web_theme_shadcn/README.md": [],
+  "odoo-addons/web_theme_shadcn/static/src/scss/bootstrap_overridden.scss": [],
+  "odoo-addons/web_theme_shadcn/static/src/scss/fonts.scss": [],
+  "odoo-addons/web_theme_shadcn/static/src/scss/frontend_reset.scss": [],
+  "odoo-addons/web_theme_shadcn/static/src/scss/navbar.variables.scss": [],
+  "odoo-addons/web_theme_shadcn/static/src/scss/primary_variables.scss": [],
+  "odoo-addons/web_theme_shadcn/static/src/scss/theme.scss": [],
+  "odoo-addons/web_theme_shadcn/static/src/webclient/app_panel/app_panel.js": [
+    "AppPanel",
+    "id",
+    "node",
+    "found"
+  ],
+  "odoo-addons/web_theme_shadcn/static/src/webclient/app_panel/app_panel.scss": [],
+  "odoo-addons/web_theme_shadcn/static/src/webclient/app_rail/app_rail.js": [
+    "AppRail"
+  ],
+  "odoo-addons/web_theme_shadcn/static/src/webclient/app_rail/app_rail.scss": [],
+  "odoo-addons/web_theme_shadcn/static/src/webclient/menu_service_patch.js": [
+    "service",
+    "currentMenuId",
+    "setCurrentMenu",
+    "selectMenu",
+    "record",
+    "menuObj"
+  ],
+  "odoo-addons/web_theme_shadcn/static/src/webclient/navbar/navbar.js": [
+    "PANEL_STORAGE_KEY",
+    "onCurrentChanged",
+    "el"
+  ],
+  "odoo-addons/web_theme_shadcn/static/src/webclient/navbar/navbar.scss": [],
+  "odoo-addons/web_theme_shadcn/static/src/webclient/webclient_layout.scss": [
+    "in"
+  ],
+  "odoo-addons/web_theme_shadcn/static/tests/app_panel.test.js": [
+    "app",
+    "sections",
+    "getHref",
+    "selected",
+    "many"
+  ],
+  "odoo-addons/web_theme_shadcn/static/tests/app_rail.test.js": [
+    "apps",
+    "selected"
+  ],
+  "odoo-addons/web_theme_shadcn/static/tests/menu_service_patch.test.js": [
+    "env",
+    "menu",
+    "events"
+  ],
+  "odoo-addons/web_theme_shadcn/static/tests/navbar.test.js": [
+    "calls",
+    "is",
+    "navbar",
+    "without",
+    "when",
+    "stays"
+  ],
+  "odoo-addons/web_theme_shadcn/static/tests/tours/web_theme_shadcn_tour.js": [],
+  "odoo-addons/web_theme_shadcn/tests/__init__.py": [],
+  "odoo-addons/web_theme_shadcn/tests/test_assets.py": [
+    "TestShadcnAssets"
+  ],
+  "odoo-addons/web_theme_shadcn/tests/test_ui.py": [
+    "TestShadcnUi"
+  ],
+  "package-lock.json": [],
+  "package.json": [],
+  "packages/contracts/package.json": [],
+  "packages/contracts/src/access/__tests__/me-fail-closed.test.ts": [
+    "BASE_ME",
+    "parsed"
+  ],
+  "packages/contracts/src/access/__tests__/schemas.test.ts": [
+    "CAPABILITIES",
+    "const",
+    "ROLE",
+    "ASSIGNMENT",
+    "EMPLOYEE",
+    "USER_SUMMARY",
+    "USER_DETAIL",
+    "AUDIT_SUMMARY",
+    "parsed",
+    "roleSummary",
+    "detail",
+    "definition",
+    "accessChanging",
+    "for",
+    "key"
+  ],
+  "packages/contracts/src/access/access.ts": [
+    "LocalizedLabelSchema",
+    "CapabilitySchema",
+    "Capability",
+    "ScopeKindSchema",
+    "ScopeRefSchema",
+    "ScopeKind",
+    "ScopeRef",
+    "RoleAssignmentInputSchema",
+    "RoleAssignmentInput",
+    "RoleRefSchema",
+    "isContextualNullRole",
+    "RoleRef",
+    "RoleAssignmentSchema",
+    "RoleAssignment",
+    "AllowedRoleActionsSchema",
+    "RoleSummarySchema",
+    "RoleSummary",
+    "RoleDetailSchema",
+    "RoleDetail",
+    "RoleListSchema",
+    "RoleList",
+    "ACCESS_CHANGING_CAPABILITIES",
+    "RoleNameSchema",
+    "CustomRolePermissionsSchema",
+    "RoleCreateInputSchema",
+    "RoleCreateInput",
+    "RolePatchInputSchema",
+    "RolePatchInput",
+    "RoleCloneInputSchema",
+    "RoleCloneInput",
+    "RoleStateInputSchema",
+    "RoleStateInput",
+    "PermissionDefinitionSchema",
+    "PermissionDefinition",
+    "PermissionCatalogSchema",
+    "PermissionCatalog",
+    "MeRoleSchema",
+    "MeRole",
+    "EmployeeRefSchema",
+    "EmployeeRef",
+    "AdminUserCandidateSchema",
+    "AdminUserCandidate",
+    "AdminUserCandidateListSchema",
+    "AdminUserCandidateList",
+    "CapabilitySourceSchema",
+    "CapabilitySource",
+    "EffectiveCapabilitySchema",
+    "EffectiveCapability",
+    "AdminUserSummarySchema",
+    "AdminUserSummary",
+    "AdminUserDetailSchema",
+    "AdminUserDetail",
+    "AdminUserListSchema",
+    "AdminUserList",
+    "PasswordInputSchema",
+    "NonEmptyVersionSchema",
+    "uniqueAssignments",
+    "keys",
+    "AssignmentListSchema",
+    "GrantAccountInputSchema",
+    "GrantAccountInput",
+    "UpdateUserAccessInputSchema",
+    "UpdateUserAccessInput",
+    "ResetPasswordInput",
+    "ChangeUserStateInput",
+    "AuditActionSchema",
+    "AuditAction",
+    "AuditActorSchema",
+    "AuditTargetSchema",
+    "AccessAuditSummarySchema",
+    "AccessAuditSummary",
+    "AuditValuesSchema",
+    "containsSensitiveAuditKey",
+    "AccessAuditDetailSchema",
+    "AccessAuditDetail",
+    "AccessAuditListSchema",
+    "AccessAuditList"
+  ],
+  "packages/contracts/src/access/index.ts": [],
+  "packages/contracts/src/common/__tests__/branding-admin.test.ts": [],
+  "packages/contracts/src/common/__tests__/branding.test.ts": [
+    "identity",
+    "patch"
+  ],
+  "packages/contracts/src/common/__tests__/error-details.test.ts": [
+    "inUse"
+  ],
+  "packages/contracts/src/common/__tests__/password.test.ts": [
+    "current"
+  ],
+  "packages/contracts/src/common/__tests__/schemas.test.ts": [
+    "parsed",
+    "me"
+  ],
+  "packages/contracts/src/common/branding.ts": [
+    "BrandingSchema",
+    "Branding",
+    "BrandingPatchSchema",
+    "BrandingPatch"
+  ],
+  "packages/contracts/src/common/error.ts": [
+    "ApiErrorSchema"
+  ],
+  "packages/contracts/src/common/index.ts": [],
+  "packages/contracts/src/common/me.ts": [
+    "RoleSchema",
+    "Role",
+    "MeSchema",
+    "Me"
+  ],
+  "packages/contracts/src/common/password.ts": [
+    "MIN_PASSWORD_LENGTH",
+    "PasswordChangeSchema",
+    "PasswordChange"
+  ],
+  "packages/contracts/src/hr/__tests__/schemas.test.ts": [
+    "DEPARTMENT",
+    "EMPLOYEE",
+    "ATTACHMENT",
+    "DOCUMENT",
+    "parsed"
+  ],
+  "packages/contracts/src/hr/index.ts": [
+    "HrRefSchema",
+    "HrAccessRoleSchema",
+    "HrWritableRoleSchema",
+    "HrEmployeeAccessSchema",
+    "nonEmptyTrimmedName",
+    "optionalEmail",
+    "relationId",
+    "requirePatchField",
+    "HrDepartmentSchema",
+    "HrEmployeeSchema",
+    "HrEmployeeCreateSchema",
+    "HrEmployeePatchSchema",
+    "HrAccessGrantSchema",
+    "HrAccessPatchSchema",
+    "HrDepartmentCreateSchema",
+    "HrDepartmentPatchSchema",
+    "HrDocumentAttachmentSchema",
+    "HrDocumentSchema",
+    "HrDocumentDetailSchema",
+    "HrDepartmentListSchema",
+    "HrEmployeeListSchema",
+    "HrDocumentListSchema",
+    "HrDepartment",
+    "HrEmployee",
+    "HrRef",
+    "HrEmployeeAccess",
+    "HrEmployeeCreate",
+    "HrEmployeePatch",
+    "HrAccessGrant",
+    "HrAccessPatch",
+    "HrDepartmentCreate",
+    "HrDepartmentPatch",
+    "HrDocumentAttachment",
+    "HrDocument",
+    "HrDocumentDetail",
+    "HrDepartmentList",
+    "HrEmployeeList",
+    "HrDocumentList"
+  ],
+  "packages/contracts/src/index.ts": [],
+  "packages/contracts/src/pmo/__tests__/attachments.test.ts": [
+    "ATTACHMENT"
+  ],
+  "packages/contracts/src/pmo/__tests__/notifications.test.ts": [
+    "notification"
+  ],
+  "packages/contracts/src/pmo/__tests__/schemas.test.ts": [
+    "TASK_JSON",
+    "parsed",
+    "PROJECT_JSON",
+    "STAGE",
+    "PROJECT",
+    "d"
+  ],
+  "packages/contracts/src/pmo/__tests__/task-lifecycle.test.ts": [
+    "task",
+    "project"
+  ],
+  "packages/contracts/src/pmo/attachment.ts": [
+    "TaskAttachmentSchema",
+    "TaskAttachmentListSchema",
+    "TaskAttachmentUploadSchema",
+    "TaskAttachment",
+    "TaskAttachmentList",
+    "TaskAttachmentUpload"
+  ],
+  "packages/contracts/src/pmo/index.ts": [],
+  "packages/contracts/src/pmo/milestone.ts": [
+    "MilestoneSchema",
+    "MilestoneBodySchema",
+    "MilestonePatchSchema",
+    "Milestone",
+    "MilestonePatch"
+  ],
+  "packages/contracts/src/pmo/notification.ts": [
+    "NotificationKindSchema",
+    "NotificationSchema",
+    "NotificationListSchema",
+    "NotificationReadResultSchema",
+    "NotificationKind",
+    "Notification",
+    "NotificationList",
+    "NotificationReadResult"
+  ],
+  "packages/contracts/src/pmo/personal-stage.ts": [
+    "PersonalStageSchema",
+    "PersonalStage",
+    "PersonRefSchema"
+  ],
+  "packages/contracts/src/pmo/project-update.ts": [
+    "ProjectUpdateSchema",
+    "ProjectUpdateBodySchema",
+    "ProjectUpdate",
+    "ProjectUpdateBody"
+  ],
+  "packages/contracts/src/pmo/project.ts": [
+    "ProjectRefSchema",
+    "UserRefSchema",
+    "ProjectStatusSchema",
+    "PROJECT_STATUSES",
+    "VisibilitySchema",
+    "ProjectStageSchema",
+    "ProjectSchema",
+    "ProjectDetailSchema",
+    "ProjectListSchema",
+    "ProjectCreateSchema",
+    "ProjectPatchSchema",
+    "ProjectStatusBodySchema",
+    "StageBodySchema",
+    "StagePatchSchema",
+    "StageOrderBodySchema",
+    "ProjectStatus",
+    "Visibility",
+    "UserRef",
+    "Project",
+    "ProjectStage",
+    "ProjectDetail",
+    "ProjectList",
+    "ProjectPatch"
+  ],
+  "packages/contracts/src/pmo/settings.ts": [
+    "ProjectCreatorsSchema",
+    "PROJECT_CREATORS",
+    "DefaultStageSchema",
+    "ProjectSettingsSchema",
+    "ProjectSettingsPatchSchema",
+    "ProjectSettings",
+    "DefaultStage"
+  ],
+  "packages/contracts/src/pmo/state.ts": [
+    "TaskStateSchema",
+    "TaskState",
+    "MANAGER_STATES"
+  ],
+  "packages/contracts/src/pmo/tag.ts": [
+    "TagCreateSchema"
+  ],
+  "packages/contracts/src/pmo/task.ts": [
+    "RefSchema",
+    "TagSchema",
+    "TaskSchema",
+    "TaskDetailSchema",
+    "DependencySchema",
+    "DependencyListSchema",
+    "DependencyCandidateListSchema",
+    "TaskListSchema",
+    "TaskPatchSchema",
+    "TaskCreateSchema",
+    "Task",
+    "TaskDetail",
+    "TaskPatch",
+    "TaskCreate"
+  ],
+  "packages/contracts/src/pmo/timeline.ts": [
+    "TimelineEntrySchema",
+    "TimelineEntry"
+  ],
+  "packages/contracts/tsconfig.json": [],
+  "packages/contracts/vitest.config.ts": [],
+  "README.md": [],
+  "ruff.toml": []
+}

@@ -1,0 +1,5 @@
+/Users/tariq/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/bin/python3.12 /Users/tariq/code/odoo/odoo-bin -c /Users/tariq/code/odoo/odoo.conf --addons-path=/Users/tariq/code/odoo/odoo/addons,/Users/tariq/code/odoo/addons,/Users/tariq/code/nasq-psc-integration-current/odoo-addons -d nasq_psc_scratch_integration_unit_20260906 -i nasq_core,nasq_api,nasq_pmo,nasq_hr --test-tags /nasq_core,/nasq_api,/nasq_pmo,/nasq_hr --http-port 9791 --http-interface 127.0.0.1 --max-cron-threads 0 --stop-after-init
+HAS_STOP True
+HAS_MAXCRON 0
+DB nasq_psc_scratch_integration_unit_20260906
+PORT 9791

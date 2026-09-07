@@ -1,0 +1,139 @@
+{
+  "tasks": {
+    "title": "مهامي",
+    "description": "تابع المهام المسندة إليك، حالتها، ومواعيدها من مكان واحد.",
+    "table": "جدول",
+    "board": "لوحة",
+    "new": "مهمة جديدة",
+    "created": "تم إنشاء المهمة",
+    "loading": "جارٍ تحميل المهام…",
+    "invalidId": "معرّف المشروع غير صالح",
+    "notFound": "المشروع غير موجود أو لا تملك صلاحية عرضه",
+    "loadError": "تعذر تحميل بيانات المشروع",
+    "newTitle": "عنوان المهمة",
+    "project": "المشروع",
+    "columns": {
+      "title": "العنوان",
+      "project": "المشروع",
+      "state": "الحالة",
+      "deadline": "الموعد",
+      "priority": "الأولوية",
+      "stage": "المرحلة",
+      "assignees": "المكلّفون"
+    },
+    "filters": {
+      "open": "مفتوحة",
+      "closed": "منجزة",
+      "allStates": "كل الحالات",
+      "allProjects": "كل المشاريع",
+      "search": "بحث في العناوين…",
+      "searchValue": "بحث: {value}",
+      "clear": "مسح الفلاتر"
+    },
+    "empty": {
+      "title": "لا مهام مسندة إليك",
+      "action": "إنشاء مهمة",
+      "closedTitle": "لا مهام منجزة بعد"
+    },
+    "state": {
+      "in_progress": "قيد التنفيذ",
+      "changes_requested": "تعديلات مطلوبة",
+      "approved": "معتمد",
+      "waiting": "بانتظار",
+      "done": "منجز",
+      "cancelled": "ملغى"
+    },
+    "priority": {
+      "0": "عادية",
+      "1": "مهمة",
+      "2": "عالية",
+      "3": "عاجلة"
+    },
+    "deadline": {
+      "none": "بلا موعد",
+      "today": "اليوم",
+      "tomorrow": "غدًا",
+      "inDays": "خلال {n} يوم",
+      "overdueDays": "متأخرة {n} يوم"
+    },
+    "detail": {
+      "next": "التالية",
+      "prev": "السابقة",
+      "close": "إغلاق",
+      "back": "العودة إلى المهام",
+      "pageLabel": "تفاصيل المهمة",
+      "navigation": "التنقل في تفاصيل المهمة",
+      "menu": "إجراءات المهمة",
+      "activityTitle": "النشاط",
+      "activityDescription": "تغييرات وتعليقات هذه المهمة فقط.",
+      "editTitle": "تعديل عنوان المهمة",
+      "saveTitle": "حفظ عنوان المهمة",
+      "cancelTitle": "إلغاء تعديل العنوان",
+      "workflowStage": "مرحلة سير العمل",
+      "stageUnset": "غير محددة",
+      "primaryMetadata": "بيانات المهمة الأساسية",
+      "subtaskProgress": "{done} من {total}",
+      "noSubtasks": "لا توجد مهام فرعية بعد.",
+      "noDependencies": "لا توجد اعتماديات مرتبطة بهذه المهمة.",
+      "bold": "عريض",
+      "italic": "مائل",
+      "bulletList": "قائمة نقطية",
+      "orderedList": "قائمة مرقمة",
+      "linkPrompt": "عنوان الرابط",
+      "applyLink": "تطبيق الرابط",
+      "cancelLink": "إلغاء"
+    },
+    "drawer": {
+      "details": "التفاصيل",
+      "activity": "النشاط",
+      "additionalDetails": "تفاصيل إضافية",
+      "assignees": "المسؤولون",
+      "deadline": "الموعد",
+      "priority": "الأولوية",
+      "tags": "الوسوم",
+      "stage": "المرحلة الشخصية",
+      "allocatedHours": "الساعات المخصَّصة",
+      "description": "الوصف",
+      "subtasks": "المهام الفرعية",
+      "addSubtask": "إضافة مهمة فرعية",
+      "dependsOn": "تعتمد على",
+      "attachments": "المرفقات",
+      "metrics": "المؤشرات",
+      "age": "العمر",
+      "cycle": "زمن الإنجاز",
+      "days": "{n} يوم",
+      "created": "أُنشئت",
+      "updated": "آخر تحديث",
+      "unassigned": "غير مسند",
+      "removeAssignee": "إزالة المكلّف",
+      "milestone": "المعلم",
+      "noMilestone": "بلا معلم",
+      "addTag": "إضافة وسم",
+      "createTag": "إنشاء \"{name}\"",
+      "archive": "أرشفة المهمة",
+      "archiveConfirm": "تختفي المهمة من كل القوائم. متابعة؟",
+      "archived": "تمت أرشفة المهمة"
+    },
+    "transition": {
+      "forbidden": "هذا الانتقال يتطلب صلاحية مدير المشروع"
+    },
+    "activity": {
+      "comment": "علّق",
+      "system": "النظام",
+      "changed": "غيّر {field} من «{old}» إلى «{new}»",
+      "set": "عيّن {field}: «{new}»",
+      "cleared": "أزال {field}",
+      "add": "إضافة تعليق",
+      "write": "اكتب تعليقًا…",
+      "post": "نشر",
+      "empty": "لا نشاط بعد"
+    },
+    "kanban": {
+      "moveTo": "نقل إلى…",
+      "emptyColumn": "لا مهام",
+      "unstaged": "بلا مرحلة",
+      "capped": "تُعرض أول 200 مهمة",
+      "noStages": "لا مراحل لهذا المشروع بعد. تُدار المراحل من الإعدادات لاحقًا."
+    }
+  }
+}

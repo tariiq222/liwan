@@ -1,0 +1,23 @@
+{
+  "goal": "تحليل النظام محجوب بسبب نقص سياق المستودع المطلوب.",
+  "kind": "analysis",
+  "allowedFiles": [
+    "AGENTS.md"
+  ],
+  "forbiddenFiles": [],
+  "criteria": [
+    {
+      "id": "scope-complete",
+      "description": "توفير ملفات وتعليمات النظام اللازمة ضمن نطاق القراءة قبل التحليل.",
+      "checkIds": [
+        "scope"
+      ]
+    }
+  ],
+  "risks": [
+    "السياق الحالي لا يتضمن CLAUDE.md أو docs/WORKSPACE.md أو أدلة كافية لتحليل النظام."
+  ],
+  "complexity": 1,
+  "risk": "low",
+  "architecture": false
+}

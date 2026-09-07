@@ -1,0 +1,9 @@
+{
+  "taskId": "flow-331786c7-67f1-4e14-837c-998b41eeab70",
+  "state": "BLOCKED",
+  "reason": "criterion scope for non-documentation work requires a configured project check",
+  "changedFiles": [],
+  "fixLoops": 0,
+  "reviewLoops": 0,
+  "calls": 1
+}

@@ -1,0 +1,36 @@
+{
+  "at": "2026-09-05T21:50:32.890Z",
+  "result": {
+    "taskId": "flow-cd067af1-10aa-4dff-bd90-7f02adb804f2",
+    "state": "BLOCKED",
+    "goal": "تقييم بنية واجهة التطبيق الحالية وتحديد التنظيم والاعتماديات ومواطن المخاطر",
+    "reason": "Analysis context is incomplete; narrow scope",
+    "changedFiles": [],
+    "fixLoops": 0,
+    "reviewLoops": 0,
+    "calls": 1
+  },
+  "agents": [
+    {
+      "role": "luna",
+      "model": "openai/gpt-5.6-luna",
+      "effort": "low",
+      "purpose": "normalize",
+      "inputTokens": 3928,
+      "outputTokens": 263,
+      "durationMs": 8953
+    }
+  ],
+  "fallbacks": [],
+  "stacks": [
+    "node",
+    "nuxt",
+    "odoo",
+    "playwright",
+    "python",
+    "tailwind",
+    "typescript",
+    "vitest",
+    "vue"
+  ]
+}

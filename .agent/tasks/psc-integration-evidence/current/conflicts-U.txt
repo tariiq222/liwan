@@ -1,0 +1,9 @@
+apps/web/app/components/project/ProjectCreateForm.vue
+apps/web/app/components/task/TaskDetailPanel.vue
+apps/web/app/pages/tasks/[id].vue
+apps/web/e2e/access-admin.spec.ts
+apps/web/e2e/projects.spec.ts
+apps/web/i18n/locales/ar/settings.json
+apps/web/i18n/locales/en/settings.json
+odoo-addons/nasq_pmo/models/nasq_settings.py
+odoo-addons/nasq_pmo/tests/test_projects.py

@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <function model="nasq.access.service" name="_nasq_configure_permission_dependencies"/>
+</odoo>

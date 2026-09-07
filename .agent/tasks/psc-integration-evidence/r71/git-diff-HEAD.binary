@@ -1,0 +1,3302 @@
+diff --git a/apps/web/app/components/project/ProjectCreateForm.vue b/apps/web/app/components/project/ProjectCreateForm.vue
+index d2f6e60..f1d0f02 100644
+--- a/apps/web/app/components/project/ProjectCreateForm.vue
++++ b/apps/web/app/components/project/ProjectCreateForm.vue
+@@ -1,21 +1,99 @@
+ <script setup lang="ts">
++import type { CalendarDate } from '@internationalized/date'
++import { refDebounced } from '@vueuse/core'
++import { Check } from 'lucide-vue-next'
++import { formatCalendarDate, fromCalendarDate, toCalendarDate } from '@/composables/calendarDate'
+ import { ApiError } from '@/composables/useApi'
++import { usePeople } from '@/composables/usePeople'
++import { useProjectCreateDefaults } from '@/composables/useProjectSettings'
+ import { useCreateProject } from '@/composables/useProjects'
+ 
+ const emit = defineEmits<{ created: [id: number]; cancel: [] }>()
+-const { t } = useI18n()
++const { t, locale } = useI18n()
+ const hydrated = useHydrated()
++const { me } = useMe()
++const {
++  data: defaults,
++  isPending: defaultsLoading,
++  isError: defaultsFailed,
++  error: defaultsError,
++  refetch: refetchDefaults,
++  isFetching: defaultsFetching,
++} = useProjectCreateDefaults()
+ const { mutateAsync, isPending } = useCreateProject()
+ 
+ const name = ref('')
++const managerId = ref<number | null>(null)
++const dateEnd = ref<string | null>(null)
+ const error = ref<string | null>(null)
++const managerOpen = ref(false)
++const managerQ = ref('')
++const debouncedManagerQ = refDebounced(managerQ, 250)
++const { data: people } = usePeople(debouncedManagerQ)
++const defaultApplied = ref(false)
++const selectedManagerName = ref<string | null>(null)
++
++const forbidden = computed(() => (
++  defaultsError.value instanceof ApiError
++  && (defaultsError.value.status === 403 || defaultsError.value.code === 'create_forbidden')
++))
++const defaultsReady = computed(() => !!defaults.value && !forbidden.value)
++const requireManager = computed(() => !!defaults.value?.require_manager_on_create)
++const requireEndDate = computed(() => !!defaults.value?.require_end_date_on_create)
++const submitBlocked = computed(() => !hydrated.value || isPending.value || !defaultsReady.value || defaultsLoading.value || defaultsFailed.value)
++
++watch(
++  () => defaults.value,
++  (value) => {
++    if (!value || defaultApplied.value) return
++    defaultApplied.value = true
++    if (managerId.value === null && value.default_manager_id) {
++      managerId.value = value.default_manager_id
++      if (value.default_manager_id === me.value?.id) selectedManagerName.value = me.value.name
++    }
++  },
++  { immediate: true },
++)
++
++const endValue = computed(() => toCalendarDate(dateEnd.value))
++const endLabel = computed(() => formatCalendarDate(dateEnd.value, locale.value) || t('projects.create.chooseEndDate'))
++const managerName = computed(() => {
++  if (!managerId.value) return t('projects.settings.noManager')
++  if (selectedManagerName.value) return selectedManagerName.value
++  if (managerId.value === me.value?.id) return me.value.name
++  return people.value?.find(person => person.id === managerId.value)?.name ?? t('projects.settings.manager')
++})
++
++function selectManager(id: number | null, label: string | null) {
++  managerId.value = id
++  selectedManagerName.value = label
++  managerOpen.value = false
++}
++
++async function retryDefaults() {
++  error.value = null
++  await refetchDefaults()
++}
+ 
+ async function submit() {
+   error.value = null
++  if (!defaultsReady.value || !defaults.value) return
+   const trimmed = name.value.trim()
+   if (!trimmed) return
++  if (defaults.value.require_manager_on_create && !managerId.value) {
++    error.value = t('projects.create.managerRequired')
++    return
++  }
++  if (defaults.value.require_end_date_on_create && !dateEnd.value) {
++    error.value = t('projects.create.endDateRequired')
++    return
++  }
+   try {
+-    const created = await mutateAsync({ name: trimmed })
++    const created = await mutateAsync({
++      name: trimmed,
++      user_id: managerId.value,
++      date_end: dateEnd.value,
++    })
+     emit('created', created.id)
+   } catch (e) {
+     error.value = e instanceof ApiError && e.code === 'create_forbidden' ? t('projects.createForbidden') : e instanceof ApiError ? e.message : t('errors.generic')
+@@ -25,14 +103,95 @@ async function submit() {
+ 
+ <template>
+   <form data-testid="project-create-form" class="grid gap-4" @submit.prevent="submit">
++    <p class="text-sm text-muted-foreground">{{ t('projects.create.defaultsHint') }}</p>
++    <p v-if="defaultsLoading" data-testid="project-create-loading" class="text-sm text-muted-foreground">{{ t('projects.create.loading') }}</p>
++    <div v-else-if="forbidden" role="alert" class="grid gap-2" data-testid="project-create-forbidden">
++      <p class="text-sm text-destructive">{{ t('projects.createForbidden') }}</p>
++    </div>
++    <div v-else-if="defaultsFailed" role="alert" class="grid gap-2" data-testid="project-create-defaults-error">
++      <p class="text-sm text-destructive">{{ t('projects.create.defaultsError') }}</p>
++      <Button type="button" variant="outline" size="sm" :disabled="!hydrated || defaultsFetching" data-testid="project-create-retry" @click="retryDefaults">
++        {{ t('projects.create.retry') }}
++      </Button>
++    </div>
+     <div class="grid gap-2">
+       <Label for="new-project-name">{{ t('projects.newName') }}</Label>
+       <Input id="new-project-name" v-model="name" data-testid="project-create-name" required :disabled="!hydrated || isPending" />
+     </div>
++    <div class="grid gap-2">
++      <Label for="project-create-manager">
++        {{ t('projects.settings.manager') }}
++        <span v-if="requireManager" class="text-destructive">*</span>
++      </Label>
++      <Popover v-model:open="managerOpen">
++        <PopoverTrigger as-child>
++          <Button
++            id="project-create-manager"
++            variant="outline"
++            class="w-full justify-start"
++            type="button"
++            data-testid="project-create-manager"
++            :disabled="!hydrated || isPending || !defaultsReady"
++            :aria-required="requireManager"
++          >
++            {{ managerName }}
++          </Button>
++        </PopoverTrigger>
++        <PopoverContent class="w-64 p-0" align="start">
++          <div class="border-b p-2">
++            <Input v-model="managerQ" :placeholder="t('app.search')" class="h-8" />
++          </div>
++          <Command>
++            <CommandList>
++              <CommandEmpty>{{ t('app.noResults') }}</CommandEmpty>
++              <CommandGroup>
++                <CommandItem v-if="!requireManager" value="none" @select="selectManager(null, null)">
++                  <span class="flex-1">{{ t('projects.settings.noManager') }}</span>
++                  <Check v-if="!managerId" class="size-4" />
++                </CommandItem>
++                <CommandItem
++                  v-for="p in people ?? []"
++                  :key="p.id"
++                  :value="String(p.id)"
++                  @select="selectManager(p.id, p.name)"
++                >
++                  <span class="flex-1">{{ p.name }}</span>
++                  <Check v-if="managerId === p.id" class="size-4" />
++                </CommandItem>
++              </CommandGroup>
++            </CommandList>
++          </Command>
++        </PopoverContent>
++      </Popover>
++    </div>
++    <div class="grid gap-2">
++      <Label for="project-create-end-date">
++        {{ t('projects.settings.dateEnd') }}
++        <span v-if="requireEndDate" class="text-destructive">*</span>
++      </Label>
++      <Popover>
++        <PopoverTrigger as-child>
++          <Button
++            id="project-create-end-date"
++            variant="outline"
++            class="justify-start"
++            type="button"
++            data-testid="project-create-end-date"
++            :disabled="!hydrated || isPending || !defaultsReady"
++            :aria-required="requireEndDate"
++          >
++            {{ endLabel }}
++          </Button>
++        </PopoverTrigger>
++        <PopoverContent class="w-auto p-0" align="start">
++          <Calendar :model-value="endValue" @update:model-value="dateEnd = fromCalendarDate($event as CalendarDate | undefined)" />
++        </PopoverContent>
++      </Popover>
++    </div>
+     <p v-if="error" role="alert" class="text-sm text-destructive">{{ error }}</p>
+     <div class="flex flex-wrap justify-end gap-2">
+       <Button type="button" variant="outline" :disabled="isPending" @click="emit('cancel')">{{ t('app.cancel') }}</Button>
+-      <Button type="submit" :disabled="!hydrated || isPending || !name.trim()">{{ t('app.create') }}</Button>
++      <Button type="submit" data-testid="project-create-submit" :disabled="submitBlocked || !name.trim()">{{ t('app.create') }}</Button>
+     </div>
+   </form>
+ </template>
+diff --git a/apps/web/app/components/project/ProjectGeneralForm.vue b/apps/web/app/components/project/ProjectGeneralForm.vue
+index 6f194dd..b1f2150 100644
+--- a/apps/web/app/components/project/ProjectGeneralForm.vue
++++ b/apps/web/app/components/project/ProjectGeneralForm.vue
+@@ -76,14 +76,8 @@ function onVisibilityChange(v: unknown) {
+ }
+ 
+ // --- dates -----------------------------------------------------------------------
+-// Odoo semantics (ruling, not a guess): PATCH /projects/{id} clears BOTH
+-// date_start and date on the server whenever either is sent as null, because
+-// project.project treats the pair as a single range rather than two
+-// independent fields. The UI mirrors that: setting one edge alone sends only
+-// that field (the other is left untouched, whatever it currently is), but
+-// clearing either edge sends {date_start: null, date: null} together and
+-// shows both as empty afterwards — never a half-cleared range that no longer
+-// matches what the server actually stored.
++// A lone end-date PATCH sends only `{ date }`. Clearing still sends both
++// nulls together so an explicit clear cannot leave a half-range.
+ const startValue = computed(() => toCalendarDate(props.project.date_start))
+ const endValue = computed(() => toCalendarDate(props.project.date_end))
+ const startLabel = computed(() => formatCalendarDate(props.project.date_start, locale.value) || t('projects.settings.noDate'))
+@@ -112,6 +106,89 @@ type TagRef = ProjectDetail['tags'][number]
+ function onTagsChange({ ids }: { ids: number[]; resolved: TagRef[] }) {
+   patch({ tag_ids: ids })
+ }
++
++const approverOpen = ref(false)
++const approverQ = ref('')
++const debouncedApproverQ = refDebounced(approverQ, 250)
++const { data: approverPeople } = usePeople(debouncedApproverQ)
++const pendingMode = ref<ProjectDetail['completion_approval'] | null>(null)
++const pendingApproverId = ref<number | null>(null)
++const approvalError = ref<string | null>(null)
++const approvalBusy = ref(false)
++const displayedMode = computed(() => pendingMode.value ?? props.project.completion_approval)
++
++watch(
++  () => [props.project.completion_approval, props.project.completion_approver?.id],
++  () => {
++    pendingMode.value = null
++    pendingApproverId.value = null
++    approvalError.value = null
++  },
++)
++
++function saveApproval(mode: ProjectDetail['completion_approval'], approverId: number | null) {
++  if (approvalBusy.value) return
++  approvalBusy.value = true
++  approvalError.value = null
++  updateProject(
++    {
++      id: props.project.id,
++      patch: {
++        nasq_completion_approval: mode,
++        nasq_completion_approver_id: mode === 'specific_user' ? approverId : null,
++      },
++    },
++    {
++      onError: (e) => {
++        approvalError.value = e instanceof ApiError ? e.message : t('errors.generic')
++        toast.error(approvalError.value)
++      },
++      onSuccess: () => {
++        pendingMode.value = null
++        pendingApproverId.value = null
++        toast.success(t('projects.settings.saved'))
++      },
++      onSettled: () => {
++        approvalBusy.value = false
++      },
++    },
++  )
++}
++
++function onApprovalChange(v: unknown) {
++  const mode = v as ProjectDetail['completion_approval']
++  if (!mode || mode === displayedMode.value || approvalBusy.value) return
++  if (mode === 'specific_user') {
++    pendingMode.value = mode
++    pendingApproverId.value = props.project.completion_approver?.id ?? null
++    return
++  }
++  pendingMode.value = null
++  saveApproval(mode, null)
++}
++
++function selectApprover(userId: number) {
++  approverOpen.value = false
++  approverQ.value = ''
++  pendingApproverId.value = userId
++  saveApproval('specific_user', userId)
++}
++
++function cancelPendingApproval() {
++  pendingMode.value = null
++  pendingApproverId.value = null
++  approvalError.value = null
++}
++
++const displayedApproverName = computed(() => {
++  if (pendingApproverId.value) {
++    return approverPeople.value?.find(person => person.id === pendingApproverId.value)?.name
++      ?? props.project.completion_approver?.name
++      ?? t('projects.settings.noApprover')
++  }
++  return props.project.completion_approver?.name ?? t('projects.settings.noApprover')
++})
++const approvalLocked = computed(() => approvalBusy.value)
+ </script>
+ 
+ <template>
+@@ -173,12 +250,7 @@ function onTagsChange({ ids }: { ids: number[]; resolved: TagRef[] }) {
+       </div>
+     </section>
+ 
+-    <!--
+-      One paired control for the project's date range (see the Odoo-semantics
+-      comment above): two triggers, each opening its own Calendar popover,
+-      but both "no date" buttons call the same clearDates() so clearing
+-      either edge always nulls the pair together, matching the server.
+-    -->
++    <!-- Lone end-date edits PATCH `{ date }` only; clear still nulls the pair. -->
+     <section class="space-y-2">
+       <Label>{{ t('projects.settings.dateStart') }} / {{ t('projects.settings.dateEnd') }}</Label>
+       <div class="grid grid-cols-2 gap-2">
+@@ -226,6 +298,49 @@ function onTagsChange({ ids }: { ids: number[]; resolved: TagRef[] }) {
+       />
+     </section>
+ 
++    <section class="space-y-2">
++      <Label>{{ t('projects.settings.approval') }}</Label>
++      <p class="text-sm text-muted-foreground">{{ t('projects.settings.approvalHint') }}</p>
++      <Select :model-value="displayedMode" :disabled="!hydrated || approvalLocked" @update:model-value="onApprovalChange">
++        <SelectTrigger class="w-full" data-testid="project-approval-mode">
++          <SelectValue />
++        </SelectTrigger>
++        <SelectContent>
++          <SelectItem value="none">{{ t('projects.settings.approvalNone') }}</SelectItem>
++          <SelectItem value="project_manager">{{ t('projects.settings.approvalManager') }}</SelectItem>
++          <SelectItem value="specific_user">{{ t('projects.settings.approvalUser') }}</SelectItem>
++        </SelectContent>
++      </Select>
++      <p v-if="displayedMode === 'specific_user'" class="text-sm text-muted-foreground">{{ t('projects.settings.approverEligibility') }}</p>
++      <p v-if="approvalError" role="alert" class="text-sm text-destructive">{{ approvalError }}</p>
++      <div v-if="pendingMode === 'specific_user'" class="flex flex-wrap gap-2">
++        <Button type="button" variant="outline" size="sm" data-testid="project-approval-cancel" :disabled="approvalLocked" @click="cancelPendingApproval">{{ t('app.cancel') }}</Button>
++      </div>
++      <Popover v-if="displayedMode === 'specific_user'" v-model:open="approverOpen">
++        <PopoverTrigger as-child>
++          <Button variant="outline" class="w-full justify-start" type="button" data-testid="project-approver" :disabled="!hydrated || approvalLocked">
++            {{ displayedApproverName }}
++          </Button>
++        </PopoverTrigger>
++        <PopoverContent class="w-64 p-0" align="start">
++          <div class="border-b p-2">
++            <Input v-model="approverQ" :placeholder="t('app.search')" class="h-8" />
++          </div>
++          <Command>
++            <CommandList>
++              <CommandEmpty>{{ t('app.noResults') }}</CommandEmpty>
++              <CommandGroup>
++                <CommandItem v-for="p in approverPeople ?? []" :key="p.id" :value="String(p.id)" @select="selectApprover(p.id)">
++                  <span class="flex-1">{{ p.name }}</span>
++                  <Check v-if="project.completion_approver?.id === p.id" class="size-4" />
++                </CommandItem>
++              </CommandGroup>
++            </CommandList>
++          </Command>
++        </PopoverContent>
++      </Popover>
++    </section>
++
+     <section class="space-y-2">
+       <Label>{{ t('projects.settings.tags') }}</Label>
+       <TagPicker :model-value="project.tags" :can-create="project.can_manage" @update:model-value="onTagsChange" />
+diff --git a/apps/web/app/components/settings/ProjectSettingsForm.vue b/apps/web/app/components/settings/ProjectSettingsForm.vue
+index 5a3faf0..8f2a5de 100644
+--- a/apps/web/app/components/settings/ProjectSettingsForm.vue
++++ b/apps/web/app/components/settings/ProjectSettingsForm.vue
+@@ -37,6 +37,23 @@ function onCreatorsChange(v: unknown) {
+   updateSettings({ project_creators: value }, { onSuccess: onSaved, onError: onApiError })
+ }
+ 
++function onBool(field: 'require_manager_on_create' | 'require_end_date_on_create' | 'deadline_reminders_enabled' | 'overdue_digest_enabled', checked: boolean) {
++  if (checked === settings.value?.[field]) return
++  updateSettings({ [field]: checked }, { onSuccess: onSaved, onError: onApiError })
++}
++
++function onApprovalDefault(v: unknown) {
++  const value = v as ProjectSettings['default_completion_approval']
++  if (!value || value === settings.value?.default_completion_approval) return
++  updateSettings({ default_completion_approval: value }, { onSuccess: onSaved, onError: onApiError })
++}
++
++function onDaysBefore(event: Event) {
++  const days = Number((event.target as HTMLInputElement).value)
++  if (!Number.isInteger(days) || days === settings.value?.deadline_reminders_days_before) return
++  updateSettings({ deadline_reminders_days_before: days }, { onSuccess: onSaved, onError: onApiError })
++}
++
+ // --- default stages ------------------------------------------------------------
+ // A settings default_stage is just {name, fold} — there's no id and no
+ // per-stage endpoint (unlike a real project's stages). StageListEditor still
+@@ -116,6 +133,78 @@ function onDeleteStage(id: number | string) {
+           @delete="onDeleteStage"
+         />
+       </section>
++
++      <section class="space-y-3">
++        <Label>{{ t('settings.projects.createRequirements.label') }}</Label>
++        <p class="text-sm text-muted-foreground">{{ t('settings.projects.createRequirements.hint') }}</p>
++        <label class="flex items-center gap-2">
++          <input
++            type="checkbox"
++            :checked="settings.require_manager_on_create"
++            :disabled="!hydrated || isPending"
++            @change="onBool('require_manager_on_create', ($event.target as HTMLInputElement).checked)"
++          >
++          <span>{{ t('settings.projects.createRequirements.manager') }}</span>
++        </label>
++        <label class="flex items-center gap-2">
++          <input
++            type="checkbox"
++            :checked="settings.require_end_date_on_create"
++            :disabled="!hydrated || isPending"
++            @change="onBool('require_end_date_on_create', ($event.target as HTMLInputElement).checked)"
++          >
++          <span>{{ t('settings.projects.createRequirements.endDate') }}</span>
++        </label>
++      </section>
++
++      <section class="space-y-3">
++        <Label>{{ t('settings.projects.approval.label') }}</Label>
++        <p class="text-sm text-muted-foreground">{{ t('settings.projects.approval.hint') }}</p>
++        <RadioGroup :model-value="settings.default_completion_approval" :disabled="!hydrated || isPending" @update:model-value="onApprovalDefault">
++          <div class="flex items-center gap-2">
++            <RadioGroupItem id="approval-none" value="none" />
++            <Label for="approval-none" class="font-normal">{{ t('settings.projects.approval.none') }}</Label>
++          </div>
++          <div class="flex items-center gap-2">
++            <RadioGroupItem id="approval-manager" value="project_manager" />
++            <Label for="approval-manager" class="font-normal">{{ t('settings.projects.approval.projectManager') }}</Label>
++          </div>
++        </RadioGroup>
++      </section>
++
++      <section class="space-y-3">
++        <Label>{{ t('settings.projects.reminders.label') }}</Label>
++        <label class="flex items-center gap-2">
++          <input
++            type="checkbox"
++            :checked="settings.deadline_reminders_enabled"
++            :disabled="!hydrated || isPending"
++            @change="onBool('deadline_reminders_enabled', ($event.target as HTMLInputElement).checked)"
++          >
++          <span>{{ t('settings.projects.reminders.enabled') }}</span>
++        </label>
++        <div class="grid gap-2">
++          <Label for="reminder-days">{{ t('settings.projects.reminders.daysBefore') }}</Label>
++          <Input
++            id="reminder-days"
++            type="number"
++            min="0"
++            max="30"
++            :model-value="settings.deadline_reminders_days_before"
++            :disabled="!hydrated || isPending"
++            @change="onDaysBefore"
++          />
++        </div>
++        <label class="flex items-center gap-2">
++          <input
++            type="checkbox"
++            :checked="settings.overdue_digest_enabled"
++            :disabled="!hydrated || isPending"
++            @change="onBool('overdue_digest_enabled', ($event.target as HTMLInputElement).checked)"
++          >
++          <span>{{ t('settings.projects.reminders.digest') }}</span>
++        </label>
++      </section>
+     </template>
+   </div>
+ </template>
+diff --git a/apps/web/app/components/task/StateMenu.vue b/apps/web/app/components/task/StateMenu.vue
+index a690cf0..6f0c442 100644
+--- a/apps/web/app/components/task/StateMenu.vue
++++ b/apps/web/app/components/task/StateMenu.vue
+@@ -2,7 +2,7 @@
+ import type { Task, TaskState } from '@nasq/contracts'
+ import { Loader2 } from 'lucide-vue-next'
+ import { toast } from 'vue-sonner'
+-import { STATE_LABEL_KEY, permittedNextStates } from '@/composables/taskState'
++import { STATE_LABEL_KEY } from '@/composables/taskState'
+ import { ApiError } from '@/composables/useApi'
+ import { useTransitionTask } from '@/composables/useTasks'
+ import StateBadge from './StateBadge.vue'
+@@ -11,12 +11,9 @@ const props = defineProps<{ task: Task; canApprove?: boolean }>()
+ 
+ const { t } = useI18n()
+ const { mutate, isPending } = useTransitionTask()
+-// Rendered as a table cell that can be SSR-rendered with data already
+-// available, so the trigger is racy the same way as the other controls
+-// documented in README's "SSR hydration and interactive controls".
+ const hydrated = useHydrated()
+ 
+-const states = computed(() => permittedNextStates(props.task.state, props.task.can_write, props.canApprove ?? props.task.can_approve))
++const states = computed(() => props.task.allowed_transitions ?? [])
+ 
+ function onSelect(state: TaskState) {
+   mutate(
+diff --git a/apps/web/app/components/task/TaskDetailPanel.vue b/apps/web/app/components/task/TaskDetailPanel.vue
+index 6a0aee1..0169d80 100644
+--- a/apps/web/app/components/task/TaskDetailPanel.vue
++++ b/apps/web/app/components/task/TaskDetailPanel.vue
+@@ -8,6 +8,7 @@ import { useArchiveTask, useTask, useTaskSiblings, useUpdateTask } from '@/compo
+ import DeadlineBadge from './DeadlineBadge.vue'
+ import StateMenu from './StateMenu.vue'
+ import TaskActivity from './TaskActivity.vue'
++import TaskCompletionApproval from './TaskCompletionApproval.vue'
+ import TaskDetails from './TaskDetails.vue'
+ 
+ // Container-agnostic body: header (title, state, project chip, deadline
+@@ -190,7 +191,10 @@ useEventListener(document, 'keydown', onKeydown)
+       -->
+       <div v-if="isDesktop" class="grid flex-1 overflow-hidden md:grid-cols-[minmax(0,1fr)_380px]">
+         <div class="overflow-y-auto p-4">
+-          <TaskDetails :key="task.id" :task="task" />
++          <div class="space-y-4">
++            <TaskCompletionApproval :task="task" />
++            <TaskDetails :key="task.id" :task="task" />
++          </div>
+         </div>
+         <!--
+           Unlike the details column, this one does not scroll itself:
+@@ -209,7 +213,10 @@ useEventListener(document, 'keydown', onKeydown)
+           <TabsTrigger value="activity">{{ t('tasks.drawer.activity') }}</TabsTrigger>
+         </TabsList>
+         <TabsContent value="details" class="flex-1 overflow-y-auto p-4">
+-          <TaskDetails :key="task.id" :task="task" />
++          <div class="space-y-4">
++            <TaskCompletionApproval :task="task" />
++            <TaskDetails :key="task.id" :task="task" />
++          </div>
+         </TabsContent>
+         <!-- Same "TaskActivity owns its own scroll" reasoning as the md+ column above. -->
+         <TabsContent value="activity" class="flex-1 overflow-hidden">
+diff --git a/apps/web/app/composables/__tests__/boardStages.test.ts b/apps/web/app/composables/__tests__/boardStages.test.ts
+index c27f712..e070f68 100644
+--- a/apps/web/app/composables/__tests__/boardStages.test.ts
++++ b/apps/web/app/composables/__tests__/boardStages.test.ts
+@@ -6,6 +6,7 @@ const task = {
+   id: 1, can_write: true, can_approve: false, name: 't', project: { id: 1, name: 'p' }, state: 'in_progress', priority: '0', date_deadline: null,
+   days_remaining: null, is_overdue: false, is_closed: false,
+   personal_stage: { id: 5, name: 'Doing' }, stage: { id: 9, name: 'To Do' }, assignees: [], tags: [],
++  allowed_transitions: ['waiting', 'done', 'cancelled'],
+ } satisfies Task
+ 
+ describe('stageOf', () => {
+diff --git a/apps/web/app/composables/__tests__/useTasks.optimistic.test.ts b/apps/web/app/composables/__tests__/useTasks.optimistic.test.ts
+index 5f740a6..f064530 100644
+--- a/apps/web/app/composables/__tests__/useTasks.optimistic.test.ts
++++ b/apps/web/app/composables/__tests__/useTasks.optimistic.test.ts
+@@ -16,6 +16,7 @@ const baseTask: Task = {
+   stage: { id: 9, name: 'To Do' },
+   assignees: [{ id: 2, name: 'Sara' }],
+   tags: [{ id: 3, name: 'urgent', color: 1 }],
++  allowed_transitions: ['waiting', 'done', 'cancelled'],
+ }
+ 
+ const baseDetail: TaskDetail = {
+@@ -32,6 +33,12 @@ const baseDetail: TaskDetail = {
+   milestone: null,
+   created_at: '2030-01-01T00:00:00Z',
+   updated_at: '2030-01-01T00:00:00Z',
++  completion_pending: false,
++  completion_revision: 0,
++  completion_return_note: null,
++  completion_policy: 'none',
++  completion_approver: null,
++  completion_blocked_reason: null,
+ }
+ 
+ describe('applyPatchToTask on a list item', () => {
+diff --git a/apps/web/app/composables/useNotifications.ts b/apps/web/app/composables/useNotifications.ts
+index f91fb8d..3b858fd 100644
+--- a/apps/web/app/composables/useNotifications.ts
++++ b/apps/web/app/composables/useNotifications.ts
+@@ -1,5 +1,6 @@
+ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
+ import {
++  NotificationDigestDetailSchema,
+   NotificationListSchema,
+   NotificationReadResultSchema,
+   type Notification,
+@@ -58,5 +59,28 @@ export function useMarkAllNotificationsRead() {
+   })
+ }
+ 
++export const DIGEST_PAGE_SIZE = 50
++
++export function useNotificationDigest(id: { value: number | null }) {
++  const { $api } = useApi()
++  return useInfiniteQuery({
++    queryKey: computed(() => ['notification-digest', id.value] as const),
++    enabled: computed(() => !!id.value),
++    initialPageParam: 0,
++    queryFn: ({ pageParam }) => $api(`/api/v1/notification-digests/${id.value}`, {
++      query: { limit: DIGEST_PAGE_SIZE, offset: pageParam },
++      schema: NotificationDigestDetailSchema,
++    }),
++    getNextPageParam: (last, pages) => {
++      const loaded = pages.reduce((count, page) => count + page.items.length, 0)
++      return loaded < last.total ? loaded : undefined
++    },
++  })
++}
++
++export function isDigestNotification(item: Notification): item is Extract<Notification, { kind: 'overdue_digest' }> {
++  return item.kind === 'overdue_digest'
++}
++
+ export type { Notification }
+ 
+diff --git a/apps/web/app/composables/useProjectSettings.ts b/apps/web/app/composables/useProjectSettings.ts
+index d566f12..c74cafd 100644
+--- a/apps/web/app/composables/useProjectSettings.ts
++++ b/apps/web/app/composables/useProjectSettings.ts
+@@ -1,8 +1,9 @@
+ import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
+-import { ProjectSettingsSchema, type ProjectSettings } from '@nasq/contracts'
++import { ProjectCreateDefaultsSchema, ProjectSettingsSchema, type ProjectSettings } from '@nasq/contracts'
+ 
+ export const projectSettingsKeys = {
+   all: ['project-settings'] as const,
++  createDefaults: ['project-settings', 'create-defaults'] as const,
+ }
+ 
+ export function useProjectSettings() {
+@@ -13,6 +14,14 @@ export function useProjectSettings() {
+   })
+ }
+ 
++export function useProjectCreateDefaults() {
++  const { $api } = useApi()
++  return useQuery({
++    queryKey: projectSettingsKeys.createDefaults,
++    queryFn: () => $api('/api/v1/settings/projects/create-defaults', { schema: ProjectCreateDefaultsSchema }),
++  })
++}
++
+ export function useUpdateProjectSettings() {
+   const qc = useQueryClient()
+   const { $api } = useApi()
+@@ -20,6 +29,7 @@ export function useUpdateProjectSettings() {
+     mutationFn: (patch: Partial<ProjectSettings>) => $api('/api/v1/settings/projects', { method: 'PATCH', body: patch, schema: ProjectSettingsSchema }),
+     onSuccess: (settings) => {
+       qc.setQueryData(projectSettingsKeys.all, settings)
++      qc.invalidateQueries({ queryKey: projectSettingsKeys.createDefaults })
+     },
+   })
+ }
+diff --git a/apps/web/app/composables/useProjects.ts b/apps/web/app/composables/useProjects.ts
+index e7ea497..ef04944 100644
+--- a/apps/web/app/composables/useProjects.ts
++++ b/apps/web/app/composables/useProjects.ts
+@@ -47,7 +47,7 @@ export function useCreateProject() {
+   const qc = useQueryClient()
+   const { $api } = useApi()
+   return useMutation({
+-    mutationFn: (body: { name: string }) => $api('/api/v1/projects', { method: 'POST', body, schema: ProjectDetailSchema }),
++    mutationFn: (body: { name: string; user_id?: number | null; date_end?: string | null }) => $api('/api/v1/projects', { method: 'POST', body, schema: ProjectDetailSchema }),
+     onSuccess: (detail) => {
+       qc.setQueryData(projectKeys.detail(detail.id), detail)
+       qc.invalidateQueries({ queryKey: projectKeys.all })
+diff --git a/apps/web/app/composables/useTasks.ts b/apps/web/app/composables/useTasks.ts
+index e2c009f..1ed5c7f 100644
+--- a/apps/web/app/composables/useTasks.ts
++++ b/apps/web/app/composables/useTasks.ts
+@@ -203,6 +203,62 @@ export function useCreateTask() {
+   })
+ }
+ 
++export function useRequestTaskCompletion() {
++  const qc = useQueryClient()
++  const { $api } = useApi()
++  return useMutation({
++    mutationFn: ({ id }: { id: number }) =>
++      $api(`/api/v1/tasks/${id}/completion/request`, { method: 'POST', body: {}, schema: TaskDetailSchema }),
++    onSuccess: (detail, { id }) => {
++      qc.setQueryData(taskKeys.detail(id), detail)
++      qc.invalidateQueries({ queryKey: ['tasks', 'list'] })
++      qc.invalidateQueries({ queryKey: ['projects'] })
++    },
++  })
++}
++
++export function useAcceptTaskCompletion() {
++  const qc = useQueryClient()
++  const { $api } = useApi()
++  return useMutation({
++    mutationFn: ({ id, revision }: { id: number; revision: number }) =>
++      $api(`/api/v1/tasks/${id}/completion/accept`, { method: 'POST', body: { revision }, schema: TaskDetailSchema }),
++    onSuccess: (detail, { id }) => {
++      qc.setQueryData(taskKeys.detail(id), detail)
++      qc.invalidateQueries({ queryKey: ['tasks', 'list'] })
++      qc.invalidateQueries({ queryKey: ['projects'] })
++    },
++  })
++}
++
++export function useReturnTaskCompletion() {
++  const qc = useQueryClient()
++  const { $api } = useApi()
++  return useMutation({
++    mutationFn: ({ id, revision, note }: { id: number; revision: number; note: string }) =>
++      $api(`/api/v1/tasks/${id}/completion/return`, { method: 'POST', body: { revision, note }, schema: TaskDetailSchema }),
++    onSuccess: (detail, { id }) => {
++      qc.setQueryData(taskKeys.detail(id), detail)
++      qc.invalidateQueries({ queryKey: ['tasks', 'list'] })
++      qc.invalidateQueries({ queryKey: ['projects'] })
++    },
++  })
++}
++
++export function useWithdrawTaskCompletion() {
++  const qc = useQueryClient()
++  const { $api } = useApi()
++  return useMutation({
++    mutationFn: ({ id, revision }: { id: number; revision: number }) =>
++      $api(`/api/v1/tasks/${id}/completion/withdraw`, { method: 'POST', body: { revision }, schema: TaskDetailSchema }),
++    onSuccess: (detail, { id }) => {
++      qc.setQueryData(taskKeys.detail(id), detail)
++      qc.invalidateQueries({ queryKey: ['tasks', 'list'] })
++      qc.invalidateQueries({ queryKey: ['projects'] })
++    },
++  })
++}
++
+ export function useArchiveTask() {
+   const qc = useQueryClient()
+   const { $api } = useApi()
+diff --git a/apps/web/app/pages/notifications.vue b/apps/web/app/pages/notifications.vue
+index 86c6a52..10581ea 100644
+--- a/apps/web/app/pages/notifications.vue
++++ b/apps/web/app/pages/notifications.vue
+@@ -3,6 +3,7 @@ import { ArrowLeft, ArrowRight } from 'lucide-vue-next'
+ import { toast } from 'vue-sonner'
+ import { ApiError } from '@/composables/useApi'
+ import {
++  isDigestNotification,
+   useMarkAllNotificationsRead,
+   useMarkNotificationRead,
+   useNotificationsPage,
+@@ -36,15 +37,21 @@ const queryErrorMessage = computed(() => (
+ ))
+ 
+ function kindLabel(item: Notification) {
++  if (isDigestNotification(item)) return t('tasks.digest.kind')
+   return item.kind === 'comment' ? t('notifications.comment') : t(`notifications.${item.kind}`, { task: item.task_name })
+ }
+ 
++function itemTitle(item: Notification) {
++  return isDigestNotification(item) ? t('tasks.digest.count', { n: item.overdue_count }) : item.task_name
++}
++
+ async function openNotification(item: Notification) {
+   if (actionPending.value) return
+   pendingReadId.value = item.id
+   try {
+     await markRead(item.id)
+-    await navigateTo(`/tasks/${item.task_id}`)
++    if (isDigestNotification(item)) await navigateTo(`/notification-digests/${item.id}`)
++    else await navigateTo(`/tasks/${item.task_id}`)
+   } catch (error) {
+     toast.error(error instanceof ApiError ? error.message : t('errors.generic'))
+   } finally {
+@@ -119,7 +126,7 @@ async function retryNextPage() {
+             @click="openNotification(item)"
+           >
+             <span class="text-xs font-medium text-muted-foreground">{{ kindLabel(item) }}</span>
+-            <span class="font-medium">{{ item.task_name }}</span>
++            <span class="font-medium">{{ itemTitle(item) }}</span>
+             <span v-if="item.kind === 'comment'" class="line-clamp-3 text-sm text-muted-foreground">{{ item.body }}</span>
+             <span class="text-xs text-muted-foreground" dir="ltr">{{ item.created_at }}</span>
+           </button>
+diff --git a/apps/web/app/pages/tasks/[id].vue b/apps/web/app/pages/tasks/[id].vue
+index 9beb0bd..d2bf863 100644
+--- a/apps/web/app/pages/tasks/[id].vue
++++ b/apps/web/app/pages/tasks/[id].vue
+@@ -8,7 +8,7 @@ const taskId = computed(() => {
+   const n = Number(route.params.id)
+   return Number.isInteger(n) && n > 0 ? n : null
+ })
+-const closeTo = computed(() => safeReturnTo(route.query.returnTo, '/tasks', ['/tasks']))
++const closeTo = computed(() => safeReturnTo(route.query.returnTo, '/tasks', ['/tasks', '/notification-digests']))
+ 
+ onMounted(() => {
+   if (taskId.value === null) router.replace('/tasks')
+diff --git a/apps/web/app/utils/__tests__/safeReturnTo.test.ts b/apps/web/app/utils/__tests__/safeReturnTo.test.ts
+index 51c44c8..98e81a2 100644
+--- a/apps/web/app/utils/__tests__/safeReturnTo.test.ts
++++ b/apps/web/app/utils/__tests__/safeReturnTo.test.ts
+@@ -34,6 +34,13 @@ describe('safeReturnTo', () => {
+     expect(safeReturnTo('/projects/80', '/tasks', ['/tasks', '/projects/8'])).toBe('/tasks')
+   })
+ 
++  it('allows task detail to return to an internal digest path and rejects others', () => {
++    const allowed = ['/tasks', '/notification-digests'] as const
++    expect(safeReturnTo('/notification-digests/12?returnTo=%2Fnotifications', '/tasks', allowed)).toBe('/notification-digests/12?returnTo=%2Fnotifications')
++    expect(safeReturnTo('/notifications', '/tasks', allowed)).toBe('/tasks')
++    expect(safeReturnTo('https://evil.example/notification-digests/1', '/tasks', allowed)).toBe('/tasks')
++  })
++
+   it('builds the shared returnTo query contract', () => {
+     expect(returnToQuery('/projects?q=one&status=on_track')).toEqual({ returnTo: '/projects?q=one&status=on_track' })
+   })
+diff --git a/apps/web/e2e/access-admin.spec.ts b/apps/web/e2e/access-admin.spec.ts
+index ae5118d..2e74bc9 100644
+--- a/apps/web/e2e/access-admin.spec.ts
++++ b/apps/web/e2e/access-admin.spec.ts
+@@ -176,7 +176,7 @@ test('custom read-only task access is enforced in the page and direct ORM', asyn
+     permissions: ['pmo.projects.read', 'pmo.tasks.read'],
+   })
+   const fixture = await grantFixture(page.request, role.key, 'readonly')
+-  const project = await json(page.request, 'post', '/api/v1/projects', { name: `مشروع القراءة ${Date.now()}` })
++  const project = await json(page.request, 'post', '/api/v1/projects', { name: `مشروع القراءة ${Date.now()}`, date_end: '2035-12-31' })
+   const task = await json(page.request, 'post', '/api/v1/tasks', { name: 'مهمة للقراءة فقط', project_id: project.id })
+   await json(page.request, 'patch', `/api/v1/tasks/${task.id}`, { user_ids: [fixture.user.id] })
+   const context = await browser.newContext()
+diff --git a/apps/web/e2e/board.spec.ts b/apps/web/e2e/board.spec.ts
+index fa90a22..bdca24a 100644
+--- a/apps/web/e2e/board.spec.ts
++++ b/apps/web/e2e/board.spec.ts
+@@ -14,7 +14,7 @@ async function createTask(page, name: string) {
+   const projects = await projectsRes.json()
+   let projectId = projects[0]?.id as number | undefined
+   if (!projectId) {
+-    const projectRes = await page.request.post('/api/v1/projects', { data: { name: `E2E board project ${Date.now()}` } })
++    const projectRes = await page.request.post('/api/v1/projects', { data: { name: `E2E board project ${Date.now()}`, date_end: '2035-12-31' } })
+     expect(projectRes.status()).toBe(201)
+     projectId = (await projectRes.json()).id as number
+   }
+diff --git a/apps/web/e2e/contracts.spec.ts b/apps/web/e2e/contracts.spec.ts
+index 78a9d11..f0c702b 100644
+--- a/apps/web/e2e/contracts.spec.ts
++++ b/apps/web/e2e/contracts.spec.ts
+@@ -138,7 +138,7 @@ test('task lifecycle: create, read, patch, comment, timeline, transition, and re
+   let projects = ProjectRefSchema.array().parse(await projectsRes.json())
+   if (projects.length === 0) {
+     const projectRes = await page.request.post('/api/v1/projects', {
+-      data: { name: `E2E contract task project ${Date.now()}` },
++      data: { name: `E2E contract task project ${Date.now()}`, date_end: '2035-12-31' },
+     })
+     expect(projectRes.status()).toBe(201)
+     ProjectDetailSchema.parse(await projectRes.json())
+@@ -200,7 +200,7 @@ test('projects: list, detail, status and the project-scoped task list match thei
+   let list = ProjectListSchema.parse(await listRes.json())
+   if (list.items.length === 0) {
+     const createRes = await page.request.post('/api/v1/projects', {
+-      data: { name: `E2E contract list project ${Date.now()}` },
++      data: { name: `E2E contract list project ${Date.now()}`, date_end: '2035-12-31' },
+     })
+     expect(createRes.status()).toBe(201)
+     ProjectDetailSchema.parse(await createRes.json())
+@@ -241,7 +241,7 @@ test('project admin round trip: create, patch, stages, followers, milestones, up
+   ProjectSettingsSchema.parse(await settingsPatchRes.json())
+ 
+   // create
+-  const createRes = await page.request.post('/api/v1/projects', { data: { name: `E2E contract project ${Date.now()}` } })
++  const createRes = await page.request.post('/api/v1/projects', { data: { name: `E2E contract project ${Date.now()}`, date_end: '2035-12-31' } })
+   expect(createRes.status()).toBe(201)
+   const project = ProjectDetailSchema.parse(await createRes.json())
+   expect(project.can_manage).toBe(true)
+diff --git a/apps/web/e2e/notifications.spec.ts b/apps/web/e2e/notifications.spec.ts
+index 5d08610..cadce6b 100644
+--- a/apps/web/e2e/notifications.spec.ts
++++ b/apps/web/e2e/notifications.spec.ts
+@@ -4,9 +4,12 @@ const TEST_PASSWORD = 'NasqAccess-Test-123!'
+ 
+ type NotificationItem = {
+   id: number
+-  kind: 'assignment' | 'comment' | 'deadline'
+-  task_id: number
+-  task_name: string
++  kind: 'assignment' | 'comment' | 'deadline' | 'overdue_digest'
++  task_id?: number
++  task_name?: string
++  digest_id?: number
++  overdue_count?: number
++  local_date?: string | null
+   body: string
+   created_at: string
+   is_read: boolean
+@@ -62,7 +65,7 @@ test('second user receives real assignment and comment events and read state sur
+   const recipientId = await ensureRecipientUser(page, recipientLogin, recipientPassword)
+ 
+   const projectResponse = await page.request.post('/api/v1/projects', {
+-    data: { name: `E2E notifications ${Date.now()}` },
++    data: { name: `E2E notifications ${Date.now()}`, date_end: '2035-12-31' },
+   })
+   expect(projectResponse.status()).toBe(201)
+   const project = await projectResponse.json()
+diff --git a/apps/web/e2e/project-admin.spec.ts b/apps/web/e2e/project-admin.spec.ts
+index a4e8d76..dd4103b 100644
+--- a/apps/web/e2e/project-admin.spec.ts
++++ b/apps/web/e2e/project-admin.spec.ts
+@@ -79,7 +79,7 @@ async function ensureEmployeeUser(page): Promise<number> {
+ }
+ 
+ async function createProject(page, name: string): Promise<number> {
+-  const res = await page.request.post('/api/v1/projects', { data: { name } })
++  const res = await page.request.post('/api/v1/projects', { data: { name, date_end: '2035-12-31' } })
+   const body = await res.json()
+   return body.id as number
+ }
+@@ -98,6 +98,8 @@ test('creating a project from the table lands on its page with the default stage
+   await expect(page).toHaveURL(/\/projects\/new\?returnTo=/)
+   const createForm = page.getByTestId('project-create-form')
+   await createForm.getByTestId('project-create-name').fill(name)
++  await createForm.getByTestId('project-create-end-date').click()
++  await page.locator('[data-slot="calendar-cell-trigger"]:not([data-outside-view])').nth(10).click()
+   await createForm.getByRole('button', { name: 'إنشاء' }).click()
+   await expect(page).toHaveURL(/\/projects\/\d+$/)
+   const id = Number(new URL(page.url()).pathname.split('/').pop())
+@@ -136,7 +138,7 @@ test('project settings: rename and visibility, followers, and the full stage lif
+   await nameSaved
+ 
+   const visibilitySaved = page.waitForResponse((r) => r.url().includes(`/api/v1/projects/${id}`) && r.request().method() === 'PATCH')
+-  await settings.getByRole('combobox').click()
++  await settings.getByText('كل الموظفين', { exact: true }).click()
+   await page.getByRole('option', { name: 'المتابعون فقط' }).click()
+   await visibilitySaved
+ 
+diff --git a/apps/web/e2e/projects.spec.ts b/apps/web/e2e/projects.spec.ts
+index ec5f3d2..0986125 100644
+--- a/apps/web/e2e/projects.spec.ts
++++ b/apps/web/e2e/projects.spec.ts
+@@ -27,7 +27,7 @@ async function login(page) {
+ }
+ 
+ async function createProjectWithStages(page, name: string) {
+-  const res = await page.request.post('/api/v1/projects', { data: { name } })
++  const res = await page.request.post('/api/v1/projects', { data: { name, date_end: '2035-12-31' } })
+   const body = await res.json()
+   return body.id as number
+ }
+@@ -64,7 +64,7 @@ test('projects table shows status and progress, and a row opens the project', as
+   await expect(row.getByTestId('project-progress')).toHaveText('50%')
+   await page.getByPlaceholder('ابحث باسم المشروع…').fill(name)
+   await expect(row).toBeVisible()
+-  await page.getByRole('combobox').click()
++  await page.getByRole('combobox').filter({ hasText: /كل الحالات|معرض للخطر|غير معيّن/ }).click()
+   await page.getByRole('option', { name: 'معرض للخطر' }).click()
+   await expect(row).toBeVisible()
+   await expect(page).toHaveURL(new RegExp('status=at_risk'))
+diff --git a/apps/web/e2e/task-lifecycle.spec.ts b/apps/web/e2e/task-lifecycle.spec.ts
+index bbd95ef..329db61 100644
+--- a/apps/web/e2e/task-lifecycle.spec.ts
++++ b/apps/web/e2e/task-lifecycle.spec.ts
+@@ -11,7 +11,7 @@ async function login(page) {
+ }
+ 
+ async function createProject(page, name: string) {
+-  const response = await page.request.post('/api/v1/projects', { data: { name } })
++  const response = await page.request.post('/api/v1/projects', { data: { name, date_end: '2035-12-31' } })
+   return ((await response.json()).id as number)
+ }
+ 
+diff --git a/apps/web/i18n/locales/ar/projects.json b/apps/web/i18n/locales/ar/projects.json
+index 66c4fbd..f9eb433 100644
+--- a/apps/web/i18n/locales/ar/projects.json
++++ b/apps/web/i18n/locales/ar/projects.json
+@@ -33,6 +33,15 @@
+     "newName": "اسم المشروع",
+     "created": "تم إنشاء المشروع",
+     "createForbidden": "لا تملك صلاحية إنشاء مشاريع",
++    "create": {
++      "defaultsHint": "المدير الافتراضي هو أنت. اختر تاريخ الانتهاء عندما يكون مطلوبًا. الحقول المطلوبة تنطبق عند الإنشاء فقط.",
++      "managerRequired": "اختر مدير المشروع",
++      "endDateRequired": "اختر تاريخ الانتهاء",
++      "chooseEndDate": "اختر تاريخ الانتهاء",
++      "loading": "جارٍ تحميل متطلبات الإنشاء…",
++      "defaultsError": "تعذر تحميل متطلبات الإنشاء",
++      "retry": "إعادة المحاولة"
++    },
+     "filters": {
+       "active": "النشطة",
+       "archived": "المؤرشفة",
+@@ -71,7 +80,14 @@
+       "dateEnd": "تاريخ الانتهاء",
+       "noDate": "بلا تاريخ",
+       "tags": "الوسوم",
+-      "saved": "تم الحفظ"
++      "saved": "تم الحفظ",
++      "approval": "اعتماد إكمال المهام",
++      "approvalHint": "يطلب المكلّف اعتماد إكمال المهمة. يجب أن يملك المراجع المعيّن صلاحية الاعتماد والرؤية مسبقاً.",
++      "approvalNone": "بلا اعتماد",
++      "approvalManager": "مدير المشروع",
++      "approvalUser": "مستخدم محدد",
++      "approverEligibility": "يجب أن يستطيع المستخدم المحدد الاعتماد ورؤية هذا المشروع مسبقاً. اختياره لا يمنح صلاحية.",
++      "noApprover": "بلا مراجع"
+     },
+     "stages": {
+       "add": "مرحلة جديدة",
+diff --git a/apps/web/i18n/locales/ar/settings.json b/apps/web/i18n/locales/ar/settings.json
+index e85baca..f15f0bb 100644
+--- a/apps/web/i18n/locales/ar/settings.json
++++ b/apps/web/i18n/locales/ar/settings.json
+@@ -53,7 +53,25 @@
+         "label": "المراحل الافتراضية للمشاريع الجديدة",
+         "hint": "تُنسخ إلى كل مشروع جديد. المشاريع الحالية لا تتأثر."
+       },
+-      "saved": "تم حفظ الإعدادات"
++      "saved": "تم حفظ الإعدادات",
++      "createRequirements": {
++        "label": "مطلوب عند الإنشاء",
++        "hint": "تُطبَّق هذه القواعد عند إنشاء المشروع فقط. المشاريع الحالية تبقى قابلة للتعديل حتى إن كانت ناقصة.",
++        "manager": "يشترط مدير المشروع",
++        "endDate": "يشترط تاريخ الانتهاء"
++      },
++      "approval": {
++        "label": "اعتماد إكمال المهام الافتراضي",
++        "hint": "يُنسخ إلى المشاريع الجديدة. المشاريع الحالية تحتفظ بسياسة الاعتماد الحالية.",
++        "none": "بلا اعتماد",
++        "projectManager": "مدير المشروع"
++      },
++      "reminders": {
++        "label": "تذكير المواعيد",
++        "enabled": "إرسال تذكير في صندوق الوارد قبل الموعد",
++        "daysBefore": "الأيام قبل الموعد",
++        "digest": "ملخص يومي للمتأخرات لمدير المشروع"
++      }
+     }
+   }
+ }
+diff --git a/apps/web/i18n/locales/ar/tasks.json b/apps/web/i18n/locales/ar/tasks.json
+index a9c703c..cfb0b7f 100644
+--- a/apps/web/i18n/locales/ar/tasks.json
++++ b/apps/web/i18n/locales/ar/tasks.json
+@@ -100,6 +100,28 @@
+     "transition": {
+       "forbidden": "هذا الانتقال يتطلب صلاحية مدير المشروع"
+     },
++    "completion": {
++      "title": "اعتماد إكمال المهام",
++      "hint": "اطلب اعتماد إكمال المهمة. تبقى المهمة مفتوحة حتى يقبلها المراجع المعيّن.",
++      "pending": "طُلب اعتماد إكمال المهمة. بانتظار المراجع المعيّن.",
++      "returned": "أُعيدت: {note}",
++      "request": "طلب اعتماد الإكمال",
++      "accept": "قبول وتعيينها منجزة",
++      "return": "إعادة مع ملاحظة",
++      "withdraw": "سحب الطلب",
++      "note": "ملاحظة الإعادة",
++      "contactManager": "تواصل مع مدير المشروع. إن كنت صاحب الطلب يمكنك سحبه ثم طلب اعتماد الإكمال مجددًا بعد إصلاح المراجع.",
++      "noReviewer": "لا يوجد مراجع معيّن، لذلك لا يمكن طلب اعتماد إكمال المهمة. تواصل مع مدير المشروع.",
++      "reviewerIneligible": "المراجع المعيّن لم يعد يستطيع اعتماد إكمال هذه المهمة. تواصل مع مدير المشروع. إن كنت صاحب الطلب يمكنك سحبه ثم طلب اعتماد الإكمال مجددًا بعد إصلاح المراجع."
++    },
++    "digest": {
++      "kind": "ملخص المتأخرات",
++      "title": "المهام المتأخرة",
++      "count": "لا مهام متأخرة | مهمة متأخرة واحدة | {n} مهام متأخرة",
++      "empty": "لا توجد مهام متأخرة ظاهرة الآن",
++      "invalid": "ملخص المتأخرات غير صالح",
++      "loadMoreError": "تعذر تحميل المزيد من المهام المتأخرة"
++    },
+     "activity": {
+       "comment": "علّق",
+       "system": "النظام",
+diff --git a/apps/web/i18n/locales/en/projects.json b/apps/web/i18n/locales/en/projects.json
+index 93ca309..3dab287 100644
+--- a/apps/web/i18n/locales/en/projects.json
++++ b/apps/web/i18n/locales/en/projects.json
+@@ -33,6 +33,15 @@
+     "newName": "Project name",
+     "created": "Project created",
+     "createForbidden": "You may not create projects",
++    "create": {
++      "defaultsHint": "A manager defaults to you. Choose an end date when it is required. Required fields apply only at creation.",
++      "managerRequired": "Choose a project manager",
++      "endDateRequired": "Choose an end date",
++      "chooseEndDate": "Choose an end date",
++      "loading": "Loading create requirements…",
++      "defaultsError": "Could not load create requirements",
++      "retry": "Retry"
++    },
+     "filters": {
+       "active": "Active",
+       "archived": "Archived",
+@@ -71,7 +80,14 @@
+       "dateEnd": "End date",
+       "noDate": "No date",
+       "tags": "Tags",
+-      "saved": "Saved"
++      "saved": "Saved",
++      "approval": "Task completion approval",
++      "approvalHint": "Assignees request task completion approval. The designated reviewer must already have approval capability and visibility.",
++      "approvalNone": "None",
++      "approvalManager": "Project manager",
++      "approvalUser": "Specific user",
++      "approverEligibility": "The selected user must already be able to approve and see this project. Choosing them does not grant access.",
++      "noApprover": "No approver"
+     },
+     "stages": {
+       "add": "New stage",
+diff --git a/apps/web/i18n/locales/en/settings.json b/apps/web/i18n/locales/en/settings.json
+index 2416905..06dd8f7 100644
+--- a/apps/web/i18n/locales/en/settings.json
++++ b/apps/web/i18n/locales/en/settings.json
+@@ -53,7 +53,25 @@
+         "label": "Default stages for new projects",
+         "hint": "Copied into every new project. Existing projects are not affected."
+       },
+-      "saved": "Settings saved"
++      "saved": "Settings saved",
++      "createRequirements": {
++        "label": "Required on create",
++        "hint": "These rules apply only when creating a project. Existing projects stay editable even if they are incomplete.",
++        "manager": "Require a project manager",
++        "endDate": "Require an end date"
++      },
++      "approval": {
++        "label": "Default completion approval",
++        "hint": "Copied onto new projects. Existing projects retain their current approval policy.",
++        "none": "No approval",
++        "projectManager": "Project manager"
++      },
++      "reminders": {
++        "label": "Deadline reminders",
++        "enabled": "Send inbox reminders before the deadline",
++        "daysBefore": "Days before the deadline",
++        "digest": "Daily overdue digest for the project manager"
++      }
+     }
+   }
+ }
+diff --git a/apps/web/i18n/locales/en/tasks.json b/apps/web/i18n/locales/en/tasks.json
+index 068a887..4be185f 100644
+--- a/apps/web/i18n/locales/en/tasks.json
++++ b/apps/web/i18n/locales/en/tasks.json
+@@ -100,6 +100,28 @@
+     "transition": {
+       "forbidden": "This transition requires project manager permission"
+     },
++    "completion": {
++      "title": "Task completion approval",
++      "hint": "Request task completion approval. The task stays open until the designated reviewer accepts it.",
++      "pending": "Task completion approval requested. Waiting for the designated reviewer.",
++      "returned": "Returned: {note}",
++      "request": "Request completion approval",
++      "accept": "Accept and mark done",
++      "return": "Return with note",
++      "withdraw": "Withdraw request",
++      "note": "Return note",
++      "contactManager": "Contact the project manager. If you requested this, you can withdraw it and request again after the reviewer is repaired.",
++      "noReviewer": "No reviewer is assigned, so completion approval cannot be requested. Contact the project manager.",
++      "reviewerIneligible": "The designated reviewer can no longer approve this task. Contact the project manager. If you requested completion approval, you can withdraw it and request again after the reviewer is repaired."
++    },
++    "digest": {
++      "kind": "Overdue digest",
++      "title": "Overdue tasks",
++      "count": "{n} overdue task | {n} overdue tasks",
++      "empty": "No overdue tasks are visible now",
++      "invalid": "This digest is not valid",
++      "loadMoreError": "Could not load more overdue tasks"
++    },
+     "activity": {
+       "comment": "Comment",
+       "system": "System",
+diff --git a/odoo-addons/nasq_pmo/controllers/notifications.py b/odoo-addons/nasq_pmo/controllers/notifications.py
+index 010b1a8..ce643ea 100644
+--- a/odoo-addons/nasq_pmo/controllers/notifications.py
++++ b/odoo-addons/nasq_pmo/controllers/notifications.py
+@@ -1,4 +1,6 @@
+ # Part of Odoo. See LICENSE file for full copyright and licensing details.
++from datetime import datetime
++
+ from odoo import http
+ from odoo.exceptions import MissingError
+ from odoo.http import request
+@@ -9,8 +11,10 @@ from odoo.addons.nasq_api.controllers.common import (
+     parse_nonneg_int,
+ )
+ from odoo.addons.nasq_pmo.serializers.notification import dump_notification
++from odoo.addons.nasq_pmo.serializers.task import dump_task
+ 
+ MAX_LIMIT = 200
++SCAN_BATCH = 200
+ 
+ 
+ class NotificationController(http.Controller):
+@@ -30,19 +34,100 @@ class NotificationController(http.Controller):
+         ]).ids
+ 
+     def _domain(self, unread=None, task_ids=None):
++        task_ids = task_ids if task_ids is not None else self._readable_active_task_ids()
+         domain = [
+             ('res_partner_id', '=', request.env.user.partner_id.id),
+             ('mail_message_id.nasq_notification', '=', True),
+-            ('mail_message_id.model', '=', 'project.task'),
+-            ('mail_message_id.nasq_task_id', 'in', task_ids if task_ids is not None else self._readable_active_task_ids()),
+             ('notification_type', '=', 'inbox'),
++            '|',
++            '&', '&',
++            ('mail_message_id.nasq_notification_kind', '=', 'overdue_digest'),
++            ('mail_message_id.model', '=', 'res.company'),
++            ('mail_message_id.res_id', '=', request.env.company.id),
++            '&',
++            ('mail_message_id.model', '=', 'project.task'),
++            ('mail_message_id.nasq_task_id', 'in', task_ids),
+         ]
+         if unread is not None:
+-            # The wire filter is named for the desired state; Odoo stores the
+-            # inverse boolean (`is_read`).
+             domain.append(('is_read', '=', not unread))
+         return domain
+ 
++    def _digest_live_tasks(self, row):
++        Task = request.env['project.task']
++        snapshot = Task._nasq_digest_snapshot_ids(row.mail_message_id)
++        return Task._nasq_live_digest_tasks(snapshot)
++
++    def _row_visible(self, row):
++        if row.mail_message_id.nasq_notification_kind != 'overdue_digest':
++            return True, None
++        live = self._digest_live_tasks(row)
++        return bool(live), live
++
++    def _visible_rows(self, domain, limit=None, offset=0):
++        Notification = request.env['mail.notification'].sudo()
++        last_id = None
++        collected = []
++        needed = (offset or 0) + (limit if limit is not None else 10 ** 9)
++        while len(collected) < needed:
++            batch_domain = list(domain)
++            if last_id is not None:
++                batch_domain.append(('id', '<', last_id))
++            batch = Notification.search(batch_domain, order='id desc', limit=SCAN_BATCH)
++            if not batch:
++                break
++            last_id = batch.ids[-1]
++            for row in batch:
++                visible, live = self._row_visible(row)
++                if not visible:
++                    continue
++                collected.append((row, live))
++                if len(collected) >= needed:
++                    break
++        start = offset or 0
++        if limit is None:
++            return collected[start:]
++        return collected[start:start + limit]
++
++    def _visible_count(self, domain):
++        Notification = request.env['mail.notification'].sudo()
++        ordinary_domain = list(domain) + [
++            ('mail_message_id.nasq_notification_kind', '!=', 'overdue_digest'),
++        ]
++        digest_domain = list(domain) + [
++            ('mail_message_id.nasq_notification_kind', '=', 'overdue_digest'),
++        ]
++        total = Notification.search_count(ordinary_domain)
++        last_id = None
++        while True:
++            batch_domain = list(digest_domain)
++            if last_id is not None:
++                batch_domain.append(('id', '<', last_id))
++            batch = Notification.search(batch_domain, order='id desc', limit=SCAN_BATCH)
++            if not batch:
++                break
++            last_id = batch.ids[-1]
++            for row in batch:
++                visible, _live = self._row_visible(row)
++                if visible:
++                    total += 1
++        return total
++
++    def _digest_row(self, notification_id):
++        Notification = request.env['mail.notification'].sudo()
++        rows = Notification.search(
++            self._domain() + [
++                ('id', '=', notification_id),
++                ('mail_message_id.nasq_notification_kind', '=', 'overdue_digest'),
++            ],
++            limit=1,
++        )
++        if not rows:
++            raise MissingError(request.env._('Notification does not exist'))
++        visible, live = self._row_visible(rows)
++        if not visible:
++            raise MissingError(request.env._('Notification does not exist'))
++        return rows, live
++
+     @http.route('/api/v1/notifications', type='json2', auth='user', methods=['GET'], readonly=True)
+     @api_handler
+     def list_notifications(self, **_):
+@@ -62,15 +147,14 @@ class NotificationController(http.Controller):
+                 unread = False
+             else:
+                 raise ApiError(422, 'invalid', "unread must be a boolean", field='unread')
+-        Notification = request.env['mail.notification'].sudo()
+         task_ids = self._readable_active_task_ids()
+         base_domain = self._domain(task_ids=task_ids)
+         domain = self._domain(unread, task_ids=task_ids)
+-        rows = Notification.search(domain, order='id desc', limit=limit, offset=offset)
++        rows = self._visible_rows(domain, limit=limit, offset=offset)
+         return {
+-            'items': [dump_notification(row) for row in rows],
+-            'total': Notification.search_count(domain),
+-            'unread_count': Notification.search_count(base_domain + [('is_read', '=', False)]),
++            'items': [dump_notification(row, live) for row, live in rows],
++            'total': self._visible_count(domain),
++            'unread_count': self._visible_count(base_domain + [('is_read', '=', False)]),
+         }
+ 
+     @http.route('/api/v1/notifications/<int:notification_id>/read', type='json2', auth='user', methods=['POST'], readonly=False)
+@@ -80,6 +164,9 @@ class NotificationController(http.Controller):
+         rows = Notification.search(self._domain() + [('id', '=', notification_id)], limit=1)
+         if not rows:
+             raise MissingError(request.env._('Notification does not exist'))
++        visible, _live = self._row_visible(rows)
++        if not visible:
++            raise MissingError(request.env._('Notification does not exist'))
+         unread = rows.filtered(lambda row: not row.is_read)
+         if unread:
+             unread.write({'is_read': True})
+@@ -88,8 +175,27 @@ class NotificationController(http.Controller):
+     @http.route('/api/v1/notifications/read-all', type='json2', auth='user', methods=['POST'], readonly=False)
+     @api_handler
+     def mark_all_read(self, **_):
+-        rows = request.env['mail.notification'].sudo().search(self._domain() + [('is_read', '=', False)])
++        rows = self._visible_rows(self._domain() + [('is_read', '=', False)])
+         count = len(rows)
+         if rows:
+-            rows.write({'is_read': True})
++            request.env['mail.notification'].sudo().browse([row.id for row, _live in rows]).write({'is_read': True})
+         return {'updated': count}
++
++    @http.route('/api/v1/notification-digests/<int:notification_id>', type='json2', auth='user', methods=['GET'], readonly=True)
++    @api_handler
++    def get_digest(self, notification_id, **_):
++        args = request.httprequest.args
++        limit = min(parse_nonneg_int(args.get('limit', 50), 'limit'), MAX_LIMIT)
++        offset = parse_nonneg_int(args.get('offset', 0), 'offset')
++        row, live = self._digest_row(notification_id)
++        tasks = live.sorted(lambda task: (task.date_deadline or datetime.min, task.id))
++        page = tasks[offset:offset + limit]
++        local_date = row.mail_message_id.nasq_digest_date
++        return {
++            'id': row.id,
++            'kind': 'overdue_digest',
++            'local_date': local_date.isoformat() if local_date else None,
++            'overdue_count': len(tasks),
++            'items': [dump_task(task) for task in page],
++            'total': len(tasks),
++        }
+diff --git a/odoo-addons/nasq_pmo/controllers/projects.py b/odoo-addons/nasq_pmo/controllers/projects.py
+index 8311c2b..beff432 100644
+--- a/odoo-addons/nasq_pmo/controllers/projects.py
++++ b/odoo-addons/nasq_pmo/controllers/projects.py
+@@ -1,6 +1,6 @@
+ # Part of Odoo. See LICENSE file for full copyright and licensing details.
+ from odoo import http
+-from odoo.exceptions import AccessError
++from odoo.exceptions import AccessError, UserError
+ from odoo.http import request
+ 
+ from odoo.addons.nasq_api.controllers.common import ApiError, api_handler, get_record
+@@ -8,6 +8,7 @@ from odoo.addons.nasq_pmo.models.project_project import STATUS_VALUES
+ from odoo.addons.nasq_pmo.serializers.project import (
+     dump_project,
+     dump_project_detail,
++    parse_project_create,
+     parse_project_vals,
+ )
+ 
+@@ -46,13 +47,18 @@ class ProjectController(http.Controller):
+ 
+     @http.route('/api/v1/projects', type='json2', auth='user', methods=['POST'], readonly=False)
+     @api_handler
+-    def create_project(self, name=None, **_):
+-        if not isinstance(name, str) or not name.strip():
+-            raise ApiError(422, 'invalid', "name must not be empty", field='name')
++    def create_project(self, **payload):
++        if not request.env['project.project']._nasq_can_create():
++            raise ApiError(403, 'create_forbidden', request.env._("You are not allowed to create projects."))
++        parsed = parse_project_create(payload)
+         try:
+-            project = request.env['project.project']._nasq_create_from_policy(name.strip())
++            project = request.env['project.project']._nasq_create_from_policy(
++                parsed['name'], user_id=parsed['user_id'], date_end=parsed['date_end'],
++            )
+         except AccessError as e:
+             raise ApiError(403, 'create_forbidden', str(e)) from e
++        except UserError as e:
++            raise ApiError(422, 'invalid', str(e)) from e
+         return request.make_json_response(dump_project_detail(project), status=201)
+ 
+     @http.route('/api/v1/projects/<int:project_id>', type='json2', auth='user', methods=['GET'], readonly=True)
+diff --git a/odoo-addons/nasq_pmo/controllers/settings.py b/odoo-addons/nasq_pmo/controllers/settings.py
+index 167918e..82c8fb5 100644
+--- a/odoo-addons/nasq_pmo/controllers/settings.py
++++ b/odoo-addons/nasq_pmo/controllers/settings.py
+@@ -5,7 +5,16 @@ from odoo.http import request
+ 
+ from odoo.addons.nasq_api.controllers.common import ApiError, api_handler
+ 
+-ALLOWED = {'project_creators', 'default_stages'}
++ALLOWED = {
++    'project_creators',
++    'default_stages',
++    'require_manager_on_create',
++    'require_end_date_on_create',
++    'default_completion_approval',
++    'deadline_reminders_enabled',
++    'deadline_reminders_days_before',
++    'overdue_digest_enabled',
++}
+ 
+ 
+ class SettingsController(http.Controller):
+@@ -18,6 +27,13 @@ class SettingsController(http.Controller):
+             raise AccessError(request.env._("Only a customer administrator can read project policies."))
+         return settings.get()
+ 
++    @http.route('/api/v1/settings/projects/create-defaults', type='json2', auth='user', methods=['GET'], readonly=True)
++    @api_handler
++    def get_project_create_defaults(self):
++        if not request.env['project.project']._nasq_can_create():
++            raise AccessError(request.env._("You are not allowed to create projects."))
++        return request.env['nasq.pmo.settings'].get_create_defaults()
++
+     @http.route('/api/v1/settings/projects', type='json2', auth='user', methods=['PATCH'], readonly=False)
+     @api_handler
+     def patch_project_settings(self, **payload):
+diff --git a/odoo-addons/nasq_pmo/controllers/tasks.py b/odoo-addons/nasq_pmo/controllers/tasks.py
+index fa2a867..b12a7d7 100644
+--- a/odoo-addons/nasq_pmo/controllers/tasks.py
++++ b/odoo-addons/nasq_pmo/controllers/tasks.py
+@@ -1,6 +1,6 @@
+ # Part of Odoo. See LICENSE file for full copyright and licensing details.
+ from odoo import http
+-from odoo.exceptions import AccessError
++from odoo.exceptions import AccessError, UserError
+ from odoo.fields import Domain
+ from odoo.http import request
+ 
+@@ -145,3 +145,64 @@ class TaskController(http.Controller):
+         task = get_record('project.task', task_id)
+         task._nasq_archive()  # AccessError → 403 forbidden via api_handler
+         return dump_task_detail(task)
++
++    @http.route('/api/v1/tasks/<int:task_id>/completion/request', type='json2', auth='user', methods=['POST'], readonly=False)
++    @api_handler
++    def request_completion(self, task_id, **extra):
++        if extra:
++            field = sorted(extra)[0]
++            raise ApiError(422, 'unknown_field', f"field {field!r} is not writable", field=field)
++        task = get_record('project.task', task_id)
++        try:
++            task._nasq_request_completion()
++        except AccessError as e:
++            raise ApiError(403, 'transition_forbidden', str(e)) from e
++        except UserError as e:
++            raise ApiError(422, 'invalid', str(e)) from e
++        return dump_task_detail(task)
++
++    @http.route('/api/v1/tasks/<int:task_id>/completion/accept', type='json2', auth='user', methods=['POST'], readonly=False)
++    @api_handler
++    def accept_completion(self, task_id, revision=None, **extra):
++        if extra:
++            field = sorted(extra)[0]
++            raise ApiError(422, 'unknown_field', f"field {field!r} is not writable", field=field)
++        task = get_record('project.task', task_id)
++        try:
++            task._nasq_accept_completion(revision)
++        except AccessError as e:
++            raise ApiError(403, 'transition_forbidden', str(e)) from e
++        except UserError as e:
++            raise ApiError(422, 'invalid', str(e), field='revision') from e
++        return dump_task_detail(task)
++
++    @http.route('/api/v1/tasks/<int:task_id>/completion/return', type='json2', auth='user', methods=['POST'], readonly=False)
++    @api_handler
++    def return_completion(self, task_id, revision=None, note=None, **extra):
++        if extra:
++            field = sorted(extra)[0]
++            raise ApiError(422, 'unknown_field', f"field {field!r} is not writable", field=field)
++        task = get_record('project.task', task_id)
++        try:
++            task._nasq_return_completion(revision, note)
++        except AccessError as e:
++            raise ApiError(403, 'transition_forbidden', str(e)) from e
++        except UserError as e:
++            field = 'note' if not (isinstance(note, str) and note.strip()) else 'revision'
++            raise ApiError(422, 'invalid', str(e), field=field) from e
++        return dump_task_detail(task)
++
++    @http.route('/api/v1/tasks/<int:task_id>/completion/withdraw', type='json2', auth='user', methods=['POST'], readonly=False)
++    @api_handler
++    def withdraw_completion(self, task_id, revision=None, **extra):
++        if extra:
++            field = sorted(extra)[0]
++            raise ApiError(422, 'unknown_field', f"field {field!r} is not writable", field=field)
++        task = get_record('project.task', task_id)
++        try:
++            task._nasq_withdraw_completion(revision)
++        except AccessError as e:
++            raise ApiError(403, 'transition_forbidden', str(e)) from e
++        except UserError as e:
++            raise ApiError(422, 'invalid', str(e), field='revision') from e
++        return dump_task_detail(task)
+diff --git a/odoo-addons/nasq_pmo/models/mail_notification_nasq.py b/odoo-addons/nasq_pmo/models/mail_notification_nasq.py
+index 9bb61cd..fafd98d 100644
+--- a/odoo-addons/nasq_pmo/models/mail_notification_nasq.py
++++ b/odoo-addons/nasq_pmo/models/mail_notification_nasq.py
+@@ -7,11 +7,19 @@ class NasqMailMessage(models.Model):
+ 
+     nasq_notification = fields.Boolean('nasq Notification', index=True, copy=False)
+     nasq_notification_kind = fields.Selection(
+-        [('assignment', 'Assignment'), ('comment', 'Comment'), ('deadline', 'Deadline')],
++        [
++            ('assignment', 'Assignment'),
++            ('comment', 'Comment'),
++            ('deadline', 'Deadline'),
++            ('overdue_digest', 'Overdue digest'),
++        ],
+         string='nasq Notification Kind', copy=False, index=True,
+     )
+     nasq_notification_key = fields.Char('nasq Notification Key', copy=False, index=True)
+     nasq_task_id = fields.Many2one('project.task', string='nasq Task', index=True, copy=False, ondelete='cascade')
++    nasq_digest_count = fields.Integer('nasq Digest Count', copy=False)
++    nasq_digest_date = fields.Date('nasq Digest Date', copy=False)
++    nasq_digest_task_ids = fields.Char('nasq Digest Task Ids', copy=False)
+ 
+     _nasq_notification_key_unique = models.UniqueIndex(
+         '(nasq_notification_key) WHERE nasq_notification_key IS NOT NULL',
+diff --git a/odoo-addons/nasq_pmo/models/nasq_settings.py b/odoo-addons/nasq_pmo/models/nasq_settings.py
+index 5bc0bff..f42f211 100644
+--- a/odoo-addons/nasq_pmo/models/nasq_settings.py
++++ b/odoo-addons/nasq_pmo/models/nasq_settings.py
+@@ -6,8 +6,16 @@ from odoo.exceptions import AccessError
+ 
+ PARAM_CREATORS = 'nasq_pmo.project_creators'
+ PARAM_STAGES = 'nasq_pmo.default_stages'
++PARAM_REQUIRE_MANAGER = 'nasq_pmo.require_manager_on_create'
++PARAM_REQUIRE_END_DATE = 'nasq_pmo.require_end_date_on_create'
++PARAM_DEFAULT_APPROVAL = 'nasq_pmo.default_completion_approval'
++PARAM_REMINDERS_ENABLED = 'nasq_pmo.deadline_reminders_enabled'
++PARAM_REMINDERS_DAYS = 'nasq_pmo.deadline_reminders_days_before'
++PARAM_DIGEST_ENABLED = 'nasq_pmo.overdue_digest_enabled'
+ CREATORS = ('managers', 'employees')
++APPROVAL_DEFAULTS = ('none', 'project_manager')
+ MAX_STAGES = 20
++MAX_REMINDER_DAYS = 30
+ FALLBACK_STAGES = [
+     {'name': 'جديد', 'fold': False},
+     {'name': 'قيد التنفيذ', 'fold': False},
+@@ -17,12 +25,13 @@ FALLBACK_STAGES = [
+ 
+ 
+ class NasqPmoSettings(models.AbstractModel):
+-    """The two company-wide project policies, stored in ir.config_parameter.
++    """Company project policies stored in ir.config_parameter.
+ 
+-    ir.config_parameter is readable only by admins, so the reads/writes below are
+-    the one documented ``sudo()`` for configuration in nasq_pmo: this is policy,
+-    not business data, and every caller of ``set_values`` is gated on
+-    ``nasq_core.group_customer_admin`` first.
++    Legacy keys ``project_creators`` and ``default_stages`` stay global.
++    New keys are company-specific (``<key>.<company_id>``) and are never
++    migrated from the legacy keys. ir.config_parameter is readable only by
++    admins, so the reads/writes below are the documented ``sudo()`` for
++    configuration in nasq_pmo.
+     """
+     _name = 'nasq.pmo.settings'
+     _description = 'nasq project policies'
+@@ -30,6 +39,42 @@ class NasqPmoSettings(models.AbstractModel):
+     def _params(self):
+         return self.env['ir.config_parameter'].sudo()
+ 
++    def _company_key(self, base):
++        return f'{base}.{self.env.company.id}'
++
++    def _get_bool(self, base, default=True):
++        raw = self._params().get_param(self._company_key(base))
++        if raw in (None, False, ''):
++            return default
++        return str(raw).strip().lower() in ('1', 'true', 'yes')
++
++    def _get_int(self, base, default, minimum, maximum):
++        raw = self._params().get_param(self._company_key(base))
++        if raw in (None, False, ''):
++            return default
++        try:
++            value = int(raw)
++        except (TypeError, ValueError):
++            return default
++        if value < minimum or value > maximum:
++            return default
++        return value
++
++    def _company_values(self):
++        approval = self._params().get_param(self._company_key(PARAM_DEFAULT_APPROVAL), 'none')
++        return {
++            'require_manager_on_create': self._get_bool(PARAM_REQUIRE_MANAGER, True),
++            'require_end_date_on_create': self._get_bool(PARAM_REQUIRE_END_DATE, True),
++            'default_completion_approval': (
++                approval if approval in APPROVAL_DEFAULTS else 'none'
++            ),
++            'deadline_reminders_enabled': self._get_bool(PARAM_REMINDERS_ENABLED, True),
++            'deadline_reminders_days_before': self._get_int(
++                PARAM_REMINDERS_DAYS, 1, 0, MAX_REMINDER_DAYS,
++            ),
++            'overdue_digest_enabled': self._get_bool(PARAM_DIGEST_ENABLED, True),
++        }
++
+     def get(self):
+         creators = self._params().get_param(PARAM_CREATORS, 'managers')
+         raw = self._params().get_param(PARAM_STAGES)
+@@ -44,10 +89,20 @@ class NasqPmoSettings(models.AbstractModel):
+                 for s in parsed
+             ):
+                 stages = parsed
+-        return {
++        values = {
+             'project_creators': creators if creators in CREATORS else 'managers',
+             'default_stages': [{'name': s['name'], 'fold': bool(s.get('fold'))} for s in stages],
+         }
++        values.update(self._company_values())
++        return values
++
++    def get_create_defaults(self):
++        values = self._company_values()
++        return {
++            'require_manager_on_create': values['require_manager_on_create'],
++            'require_end_date_on_create': values['require_end_date_on_create'],
++            'default_manager_id': self.env.uid,
++        }
+ 
+     def _can_edit(self):
+         return self.env['nasq.access.service']._nasq_has_capability(
+@@ -58,11 +113,12 @@ class NasqPmoSettings(models.AbstractModel):
+         if not self._can_edit():
+             raise AccessError(self.env._("Only a customer administrator can change project policies."))
+         before = self.get()
++        writes = []
+         if 'project_creators' in vals:
+             if vals['project_creators'] not in CREATORS:
+                 field, msg = 'project_creators', "project_creators must be 'managers' or 'employees'"
+                 raise _invalid(field, msg)
+-            self._params().set_param(PARAM_CREATORS, vals['project_creators'])
++            writes.append((PARAM_CREATORS, vals['project_creators']))
+         if 'default_stages' in vals:
+             stages = vals['default_stages']
+             if not isinstance(stages, list) or not stages or len(stages) > MAX_STAGES:
+@@ -75,7 +131,53 @@ class NasqPmoSettings(models.AbstractModel):
+                     field, msg = 'default_stages', "every default stage needs a name"
+                     raise _invalid(field, msg)
+                 clean.append({'name': name.strip(), 'fold': bool(s.get('fold'))})
+-            self._params().set_param(PARAM_STAGES, json.dumps(clean, ensure_ascii=False))
++            writes.append((PARAM_STAGES, json.dumps(clean, ensure_ascii=False)))
++        if 'require_manager_on_create' in vals:
++            if not isinstance(vals['require_manager_on_create'], bool):
++                field, msg = 'require_manager_on_create', "require_manager_on_create must be a boolean"
++                raise _invalid(field, msg)
++            writes.append((
++                self._company_key(PARAM_REQUIRE_MANAGER),
++                'true' if vals['require_manager_on_create'] else 'false',
++            ))
++        if 'require_end_date_on_create' in vals:
++            if not isinstance(vals['require_end_date_on_create'], bool):
++                field, msg = 'require_end_date_on_create', "require_end_date_on_create must be a boolean"
++                raise _invalid(field, msg)
++            writes.append((
++                self._company_key(PARAM_REQUIRE_END_DATE),
++                'true' if vals['require_end_date_on_create'] else 'false',
++            ))
++        if 'default_completion_approval' in vals:
++            if vals['default_completion_approval'] not in APPROVAL_DEFAULTS:
++                field, msg = 'default_completion_approval', "default_completion_approval must be 'none' or 'project_manager'"
++                raise _invalid(field, msg)
++            writes.append((self._company_key(PARAM_DEFAULT_APPROVAL), vals['default_completion_approval']))
++        if 'deadline_reminders_enabled' in vals:
++            if not isinstance(vals['deadline_reminders_enabled'], bool):
++                field, msg = 'deadline_reminders_enabled', "deadline_reminders_enabled must be a boolean"
++                raise _invalid(field, msg)
++            writes.append((
++                self._company_key(PARAM_REMINDERS_ENABLED),
++                'true' if vals['deadline_reminders_enabled'] else 'false',
++            ))
++        if 'deadline_reminders_days_before' in vals:
++            days = vals['deadline_reminders_days_before']
++            if not isinstance(days, int) or isinstance(days, bool) or days < 0 or days > MAX_REMINDER_DAYS:
++                field, msg = 'deadline_reminders_days_before', f"deadline_reminders_days_before must be 0..{MAX_REMINDER_DAYS}"
++                raise _invalid(field, msg)
++            writes.append((self._company_key(PARAM_REMINDERS_DAYS), str(days)))
++        if 'overdue_digest_enabled' in vals:
++            if not isinstance(vals['overdue_digest_enabled'], bool):
++                field, msg = 'overdue_digest_enabled', "overdue_digest_enabled must be a boolean"
++                raise _invalid(field, msg)
++            writes.append((
++                self._company_key(PARAM_DIGEST_ENABLED),
++                'true' if vals['overdue_digest_enabled'] else 'false',
++            ))
++        params = self._params()
++        for key, value in writes:
++            params.set_param(key, value)
+         result = self.get()
+         if result != before:
+             self.env['nasq.access.service']._nasq_bump_policy(self.env.company)
+diff --git a/odoo-addons/nasq_pmo/models/project_project.py b/odoo-addons/nasq_pmo/models/project_project.py
+index 5e58bad..293dd86 100644
+--- a/odoo-addons/nasq_pmo/models/project_project.py
++++ b/odoo-addons/nasq_pmo/models/project_project.py
+@@ -3,6 +3,9 @@ from odoo import api, fields, models
+ from odoo.exceptions import AccessError, UserError
+ 
+ from .nasq_settings import CREATORS
++from odoo.addons.project.models.project_project import (
++    ProjectProject as StockProjectProject,
++)
+ 
+ # The five statuses a manager may set. Odoo's sixth value, 'to_define', means
+ # "unset" and is never written by nasq (it is what a project starts as).
+@@ -18,8 +21,10 @@ ACCESS_USER_CREATE_MARKER = 'nasq_core.access_user_create_depth'
+ MANAGER_WRITABLE = {
+     'name', 'description', 'user_id', 'privacy_visibility', 'date_start', 'date',
+     'tag_ids', 'active', 'last_update_status', 'allow_milestones', 'allow_task_dependencies', 'type_ids',
++    'nasq_completion_approval', 'nasq_completion_approver_id',
+ }
+ PROJECT_CREATE_FIELDS = MANAGER_WRITABLE | {'company_id'}
++COMPLETION_APPROVAL_VALUES = ('none', 'project_manager', 'specific_user')
+ 
+ 
+ def _not_empty(message, count):
+@@ -31,6 +36,21 @@ def _not_empty(message, count):
+ class ProjectProject(models.Model):
+     _inherit = 'project.project'
+ 
++    nasq_completion_approval = fields.Selection(
++        [
++            ('none', 'None'),
++            ('project_manager', 'Project manager'),
++            ('specific_user', 'Specific user'),
++        ],
++        string='Completion approval',
++        default='none',
++        required=True,
++        copy=False,
++    )
++    nasq_completion_approver_id = fields.Many2one(
++        'res.users', string='Completion approver', ondelete='restrict', copy=False, index=True,
++    )
++
+     @api.model
+     def _search(
+         self, domain, offset=0, limit=None, order=None, *,
+@@ -73,6 +93,62 @@ class ProjectProject(models.Model):
+         self.check_access('read')
+         return self
+ 
++    def _nasq_is_bootstrap_create(self):
++        """Stock superuser install/import compatibility only.
++
++        Not a caller-controlled exemption. Ordinary internal users and
++        ``base.group_system`` business API still receive create requirements.
++        ``_nasq_create_from_policy`` enforces the same rules before any
++        elevated create.
++        """
++        return bool(
++            self.env.is_superuser()
++            or self.env.cr.precommit.data.get(ACCESS_USER_CREATE_MARKER),
++        )
++
++    def _nasq_resolved_create_vals(self, vals):
++        merged = dict(vals)
++        ctx = self.env.context
++        if 'user_id' not in merged and 'default_user_id' in ctx:
++            merged['user_id'] = ctx['default_user_id']
++        if 'date' not in merged and 'default_date' in ctx:
++            merged['date'] = ctx['default_date']
++        if 'nasq_completion_approval' not in merged:
++            if 'default_nasq_completion_approval' in ctx:
++                merged['nasq_completion_approval'] = ctx['default_nasq_completion_approval']
++            else:
++                merged['nasq_completion_approval'] = self.env['nasq.pmo.settings'].get()[
++                    'default_completion_approval'
++                ]
++        if 'nasq_completion_approver_id' not in merged and 'default_nasq_completion_approver_id' in ctx:
++            merged['nasq_completion_approver_id'] = ctx['default_nasq_completion_approver_id']
++        if 'user_id' not in merged:
++            merged['user_id'] = self.env.uid
++        return merged
++
++    def _nasq_check_create_requirements(self, vals):
++        settings = self.env['nasq.pmo.settings'].get()
++        manager_id = vals.get('user_id')
++        if settings['require_manager_on_create'] and not manager_id:
++            raise UserError(self.env._("A project manager is required to create a project."))
++        if manager_id:
++            self._nasq_check_manager_user(self.env['res.users'].browse(manager_id).exists())
++        if settings['require_end_date_on_create'] and not vals.get('date'):
++            raise UserError(self.env._("An end date is required to create a project."))
++        mode = vals.get('nasq_completion_approval', 'none')
++        if mode not in COMPLETION_APPROVAL_VALUES:
++            raise UserError(self.env._("Unknown completion approval mode."))
++        if mode == 'specific_user' and not vals.get('nasq_completion_approver_id'):
++            raise UserError(self.env._("A specific approver is required."))
++        if mode != 'specific_user' and vals.get('nasq_completion_approver_id'):
++            raise UserError(self.env._("A specific approver is only valid for specific_user mode."))
++
++    def _nasq_check_manager_user(self, user):
++        if not user or user.share or not user.active:
++            raise UserError(self.env._("The project manager must be an active internal user."))
++        if self.env.company not in user.company_ids:
++            raise UserError(self.env._("The project manager is outside the current company."))
++
+     @api.model_create_multi
+     def create(self, vals_list):
+         if (
+@@ -88,7 +164,35 @@ class ProjectProject(models.Model):
+                 raise AccessError(self.env._("Project fields are not allowed."))
+             if not self._nasq_can_create():
+                 raise AccessError(self.env._("You are not allowed to create projects."))
+-        return super().create(vals_list)
++        if not self._nasq_is_bootstrap_create():
++            vals_list = [self._nasq_resolved_create_vals(vals) for vals in vals_list]
++            for vals in vals_list:
++                self._nasq_check_create_requirements(vals)
++        projects = super().create(vals_list)
++        if not self._nasq_is_bootstrap_create():
++            for project in projects:
++                if project.nasq_completion_approval == 'specific_user':
++                    project._nasq_check_approver_eligible(project.nasq_completion_approver_id)
++        return projects
++
++    def _nasq_write_vals(self, vals):
++        lone_end = 'date' in vals and 'date_start' not in vals and vals.get('date')
++        if not lone_end:
++            return super().write(vals)
++        missing_start = self.filtered(lambda project: not project.date_start)
++        if not missing_start:
++            return super().write(vals)
++        has_start = self - missing_start
++        other = {key: value for key, value in vals.items() if key != 'date'}
++        result = True
++        if has_start:
++            result = super(ProjectProject, has_start).write(vals) and result
++        if other:
++            result = super(ProjectProject, missing_start).write(other) and result
++        # Isolated continuation past stock project.project.write date pairing
++        # (addons/project/models/project_project.py:666-679). Nasq authorization
++        # already ran. Do not use models.Model.write/_write/raw SQL.
++        return super(StockProjectProject, missing_start).write({'date': vals['date']}) and result
+ 
+     def write(self, vals):
+         if (
+@@ -101,7 +205,31 @@ class ProjectProject(models.Model):
+                 raise AccessError(self.env._("Project fields are not allowed."))
+             if any(not project._nasq_can_manage() for project in self):
+                 raise AccessError(self.env._("Only the project manager can change this project."))
+-        return super().write(vals)
++        policy_changed = 'nasq_completion_approval' in vals or 'nasq_completion_approver_id' in vals
++        manager_changed = 'user_id' in vals
++        archived = vals.get('active') is False
++        old_modes = {project.id: project.nasq_completion_approval for project in self}
++        if policy_changed or manager_changed or archived:
++            pending = self.env['project.task'].sudo().search([
++                ('project_id', 'in', self.ids),
++                ('nasq_completion_pending', '=', True),
++            ])
++            self.env['project.task']._nasq_lock_projects_then_tasks(self, pending)
++            self.invalidate_recordset()
++            pending.invalidate_recordset()
++        if policy_changed:
++            self._nasq_check_completion_policy_vals(vals)
++        result = self._nasq_write_vals(vals)
++        if policy_changed or archived:
++            self._nasq_invalidate_completion_requests()
++        elif manager_changed:
++            stale = self.filtered(
++                lambda project: old_modes.get(project.id) == 'project_manager'
++                or project.nasq_completion_approval == 'project_manager',
++            )
++            if stale:
++                stale._nasq_invalidate_completion_requests()
++        return result
+ 
+     def unlink(self):
+         if (
+@@ -179,7 +307,7 @@ class ProjectProject(models.Model):
+         return self._nasq_write_sudo(vals)
+ 
+     # --- create --------------------------------------------------------------
+-    def _nasq_create_from_policy(self, name):
++    def _nasq_create_from_policy(self, name, user_id=None, date_end=None):
+         """Create a project the nasq way: policy check, defaults, default stages.
+ 
+         When the company policy lets every employee create projects, the create
+@@ -187,24 +315,92 @@ class ProjectProject(models.Model):
+         the policy is the explicit, admin-set widening of that ACL, and
+         ``create_uid``/``user_id`` still record the employee. Second documented
+         ``sudo()`` in nasq_pmo.
++
++        Required-on-create company settings are enforced here for every
++        policy create, including ordinary ORM callers of this helper, even
++        when the subsequent ``create`` is elevated. Stock superuser
++        ``project.create`` used by install/import fixtures is the documented
++        compatibility boundary and is not a caller-controlled exemption.
+         """
+         if not self._nasq_can_create():
+             raise AccessError(self.env._("You are not allowed to create projects."))
+-        vals = self._nasq_create_vals(name)
++        settings = self.env['nasq.pmo.settings'].get()
++        manager_id = self.env.uid if user_id is None else user_id
++        if settings['require_manager_on_create'] and not manager_id:
++            raise UserError(self.env._("A project manager is required to create a project."))
++        if manager_id:
++            self._nasq_check_manager_user(self.env['res.users'].browse(manager_id).exists())
++        if settings['require_end_date_on_create'] and not date_end:
++            raise UserError(self.env._("An end date is required to create a project."))
++        vals = self._nasq_create_vals(name, user_id=user_id, date_end=date_end)
+         env = self.env if self._nasq_is_manager() else self.sudo().env
+         project = env['project.project'].create(vals)
+         return self.browse(project.id)
+ 
+-    def _nasq_create_vals(self, name):
++    def _nasq_create_vals(self, name, user_id=None, date_end=None):
+         stages = self.env['nasq.pmo.settings']._default_stage_vals()
+-        return {
++        settings = self.env['nasq.pmo.settings'].get()
++        manager_id = self.env.uid if user_id is None else user_id
++        vals = {
+             'name': name,
+-            'user_id': self.env.uid,
++            'user_id': manager_id or False,
+             'company_id': self.env.company.id,
+             'privacy_visibility': 'employees',
+             'allow_milestones': True,
++            'nasq_completion_approval': settings['default_completion_approval'],
+             'type_ids': [(0, 0, s) for s in stages],
+         }
++        if date_end:
++            # Upstream project.create preserves a lone end date. Do not invent
++            # a start date; only persist the supplied end.
++            vals['date'] = date_end
++        return vals
++
++    def _nasq_check_completion_policy_vals(self, vals):
++        mode = vals.get('nasq_completion_approval')
++        if mode is not None and mode not in COMPLETION_APPROVAL_VALUES:
++            raise UserError(self.env._("Unknown completion approval mode."))
++        for project in self:
++            next_mode = vals.get('nasq_completion_approval', project.nasq_completion_approval)
++            approver_id = vals.get('nasq_completion_approver_id', project.nasq_completion_approver_id.id)
++            if next_mode == 'specific_user':
++                user = self.env['res.users'].browse(approver_id).exists() if approver_id else self.env['res.users']
++                if not user:
++                    raise UserError(self.env._("A specific approver is required."))
++                project._nasq_check_approver_eligible(user)
++            elif vals.get('nasq_completion_approver_id'):
++                raise UserError(self.env._("A specific approver is only valid for specific_user mode."))
++
++    def _nasq_check_approver_eligible(self, user):
++        self.ensure_one()
++        if not user or user.share or not user.active:
++            raise UserError(self.env._("The selected approver must be an active internal user."))
++        if self.env.company not in user.company_ids:
++            raise UserError(self.env._("The selected approver is outside the current company."))
++        if not self.env['nasq.access.service']._nasq_has_capability(
++            user, 'pmo.tasks.approve', record=self,
++        ):
++            raise UserError(self.env._("The selected approver must already have approval capability."))
++        try:
++            self.with_user(user).with_company(self.env.company)._nasq_check_visible_current()
++        except AccessError as error:
++            raise UserError(self.env._("The selected approver cannot see this project.")) from error
++
++    def _nasq_invalidate_completion_requests(self):
++        tasks = self.env['project.task'].sudo().search([
++            ('project_id', 'in', self.ids),
++            ('nasq_completion_pending', '=', True),
++        ])
++        if tasks:
++            tasks._nasq_clear_completion_request(invalidate=True)
++
++    def _nasq_completion_reviewer(self):
++        self.ensure_one()
++        if self.nasq_completion_approval == 'project_manager':
++            return self.user_id
++        if self.nasq_completion_approval == 'specific_user':
++            return self.nasq_completion_approver_id
++        return self.env['res.users']
+ 
+     # --- archive -------------------------------------------------------------
+     def _nasq_archive(self):
+diff --git a/odoo-addons/nasq_pmo/models/project_task.py b/odoo-addons/nasq_pmo/models/project_task.py
+index 334c908..8feafd6 100644
+--- a/odoo-addons/nasq_pmo/models/project_task.py
++++ b/odoo-addons/nasq_pmo/models/project_task.py
+@@ -1,15 +1,30 @@
+ # Part of Odoo. See LICENSE file for full copyright and licensing details.
+ from odoo import api, fields, models
+-from odoo.exceptions import AccessError, ValidationError
++from odoo.exceptions import AccessError, UserError, ValidationError
+ 
+ from odoo.addons.project.models.project_task import CLOSED_STATES
+ 
+ MANAGER_STATES = {'03_approved', '02_changes_requested'}
+ ALL_STATES = {'01_in_progress', '02_changes_requested', '03_approved', '04_waiting_normal', *CLOSED_STATES}
++DONE_STATE = '1_done'
+ TASK_CREATE_MARKER = 'nasq_pmo.task_create_depth'
+ ACCESS_USER_CREATE_MARKER = 'nasq_core.access_user_create_depth'
+ DEPENDENCY_WRITE_MARKER = 'nasq_pmo.dependency_write_depth'
++COMPLETION_ACCEPT_IDS = 'nasq_pmo.completion_accept_ids'
++COMPLETION_META_IDS = 'nasq_pmo.completion_meta_ids'
+ APPROVAL_WRITE_FIELDS = {'state', 'date_end', 'date_last_stage_update'}
++COMPLETION_META_FIELDS = {
++    'nasq_completion_pending', 'nasq_completion_revision',
++    'nasq_completion_requested_by', 'nasq_completion_requested_at',
++    'nasq_completion_return_note',
++}
++COMPLETION_PRISTINE = {
++    'nasq_completion_pending': False,
++    'nasq_completion_revision': 0,
++    'nasq_completion_requested_by': False,
++    'nasq_completion_requested_at': False,
++    'nasq_completion_return_note': False,
++}
+ TASK_WRITABLE_FIELDS = {
+     'active', 'allocated_hours', 'date_deadline', 'date_end', 'date_last_stage_update',
+     'description', 'milestone_id', 'name', 'personal_stage_type_id', 'priority',
+@@ -21,6 +36,12 @@ TASK_CREATE_FIELDS = TASK_WRITABLE_FIELDS | {'parent_id', 'project_id'}
+ class ProjectTask(models.Model):
+     _inherit = 'project.task'
+ 
++    nasq_completion_pending = fields.Boolean(default=False, copy=False, index=True)
++    nasq_completion_revision = fields.Integer(default=0, copy=False)
++    nasq_completion_requested_by = fields.Many2one('res.users', copy=False, ondelete='set null')
++    nasq_completion_requested_at = fields.Datetime(copy=False)
++    nasq_completion_return_note = fields.Text(copy=False)
++
+     @api.model
+     def _search(
+         self, domain, offset=0, limit=None, order=None, *,
+@@ -64,12 +85,121 @@ class ProjectTask(models.Model):
+         return self
+ 
+     def _nasq_can_approve(self):
+-        """True when the current user (regardless of ``self``) may approve / request changes."""
++        """True when the current user may use the broad approve / request-changes states."""
+         self.ensure_one()
+         return self.env['nasq.access.service']._nasq_has_capability(
+             self.env.user, 'pmo.tasks.approve', record=self,
+         )
+ 
++    def _nasq_completion_required(self):
++        self.ensure_one()
++        project = self.project_id
++        return bool(project and project.nasq_completion_approval != 'none')
++
++    def _nasq_completion_reviewer(self):
++        self.ensure_one()
++        return self.project_id._nasq_completion_reviewer() if self.project_id else self.env['res.users']
++
++    def _nasq_task_is_open_for_completion(self):
++        self.ensure_one()
++        return bool(
++            self.active
++            and not self.is_closed
++            and self.project_id
++            and self.project_id.active,
++        )
++
++    def _nasq_can_request_completion(self):
++        self.ensure_one()
++        return bool(
++            self._nasq_completion_required()
++            and self._nasq_task_is_open_for_completion()
++            and not self.nasq_completion_pending
++            and self._nasq_can_write()
++            and self.env.user in self.user_ids,
++        )
++
++    def _nasq_can_decide_completion(self):
++        self.ensure_one()
++        if (
++            not self._nasq_completion_required()
++            or not self.nasq_completion_pending
++            or not self._nasq_task_is_open_for_completion()
++        ):
++            return False
++        return self._nasq_reviewer_is_current()
++
++    def _nasq_can_withdraw_completion(self):
++        self.ensure_one()
++        return bool(
++            self._nasq_task_is_open_for_completion()
++            and self.nasq_completion_pending
++            and self.nasq_completion_requested_by == self.env.user
++            and self._nasq_can_write(),
++        )
++
++    def _nasq_reviewer_eligible(self, user):
++        self.ensure_one()
++        if not user or not user.active or user.share:
++            return False
++        if self.env.company not in user.company_ids:
++            return False
++        try:
++            self.with_user(user).with_company(self.env.company)._nasq_check_visible_current()
++            if self.project_id:
++                self.project_id.with_user(user).with_company(self.env.company)._nasq_check_visible_current()
++        except AccessError:
++            return False
++        return self.env['nasq.access.service']._nasq_has_capability(
++            user, 'pmo.tasks.approve', record=self,
++        )
++
++    def _nasq_reviewer_is_current(self):
++        self.ensure_one()
++        reviewer = self._nasq_completion_reviewer()
++        return bool(reviewer and reviewer == self.env.user and self._nasq_reviewer_eligible(reviewer))
++
++    def _nasq_completion_blocked_reason(self):
++        self.ensure_one()
++        if not self._nasq_completion_required() or self.is_closed or not self.active:
++            return None
++        if self.project_id and not self.project_id.active:
++            return None
++        reviewer = self._nasq_completion_reviewer()
++        if not reviewer:
++            return 'no_reviewer'
++        if not self._nasq_reviewer_eligible(reviewer):
++            return 'reviewer_ineligible'
++        return None
++
++    def _nasq_allowed_transitions(self):
++        self.ensure_one()
++        api_to_state = {
++            'in_progress': '01_in_progress',
++            'changes_requested': '02_changes_requested',
++            'approved': '03_approved',
++            'waiting': '04_waiting_normal',
++            'done': '1_done',
++            'cancelled': '1_canceled',
++        }
++        state_to_api = {odoo: api for api, odoo in api_to_state.items()}
++        current = state_to_api.get(self.state)
++        allowed = []
++        can_write = self._nasq_can_write()
++        can_approve = self._nasq_can_approve()
++        required = self._nasq_completion_required()
++        for api_state, odoo_state in api_to_state.items():
++            if api_state == current:
++                continue
++            if odoo_state in MANAGER_STATES and not can_approve:
++                continue
++            if odoo_state == DONE_STATE and required:
++                continue
++            if not can_write and not (can_approve and odoo_state in MANAGER_STATES):
++                continue
++            allowed.append(api_state)
++        return allowed
++
+     def _nasq_can_write(self):
+         self.ensure_one()
+         return self.env['nasq.access.service']._nasq_has_capability(
+@@ -180,6 +310,10 @@ class ProjectTask(models.Model):
+         """Raise AccessError when the current user may not move to ``state``."""
+         if state in MANAGER_STATES and not self._nasq_can_approve():
+             raise AccessError(self.env._("Only a project manager can approve or request changes."))
++        if state == DONE_STATE:
++            accept_ids = self._nasq_accept_ids()
++            if any(task._nasq_completion_required() and task.id not in accept_ids for task in self):
++                raise AccessError(self.env._("This task requires completion approval."))
+ 
+     def _nasq_do_transition(self, state):
+         """Write ``state`` and keep ``date_end`` consistent: set on close, cleared on reopen."""
+@@ -232,8 +366,33 @@ class ProjectTask(models.Model):
+             for partner in partners:
+                 pending.add((partner.id, task.id, event))
+ 
++    def _nasq_vals_with_defaults(self, vals):
++        merged = dict(vals)
++        ctx = self.env.context
++        if 'state' not in merged and ctx.get('default_state'):
++            merged['state'] = ctx['default_state']
++        if 'project_id' not in merged and ctx.get('default_project_id'):
++            merged['project_id'] = ctx['default_project_id']
++        if 'parent_id' not in merged and ctx.get('default_parent_id'):
++            merged['parent_id'] = ctx['default_parent_id']
++        return merged
++
++    def _nasq_accept_ids(self):
++        return set(self.env.cr.precommit.data.get(COMPLETION_ACCEPT_IDS) or ())
++
++    def _nasq_reject_unauthorized_done(self, tasks):
++        accept_ids = self._nasq_accept_ids()
++        illegal = tasks.filtered(
++            lambda task: task.state == DONE_STATE
++            and task._nasq_completion_required()
++            and task.id not in accept_ids,
++        )
++        if illegal:
++            raise AccessError(self.env._("This task requires completion approval."))
++
+     @api.model_create_multi
+     def create(self, vals_list):
++        vals_list = [self._nasq_vals_with_defaults(vals) for vals in vals_list]
+         trusted = (
+             self.env.is_superuser()
+             or self.env.user.has_group('base.group_system')
+@@ -260,6 +419,10 @@ class ProjectTask(models.Model):
+                 service._nasq_require_capability('pmo.tasks.create', record=project)
+                 if vals.get('state') in MANAGER_STATES:
+                     service._nasq_require_capability('pmo.tasks.approve', record=project)
++                if vals.get('state') == DONE_STATE and project.nasq_completion_approval != 'none':
++                    raise AccessError(self.env._("This task requires completion approval."))
++        # Context default_* and copy/batch must not manufacture a pending request.
++        vals_list = [{**vals, **COMPLETION_PRISTINE} for vals in vals_list]
+         marker = self.env.cr.precommit.data
+         marker[TASK_CREATE_MARKER] = marker.get(TASK_CREATE_MARKER, 0) + 1
+         try:
+@@ -268,6 +431,18 @@ class ProjectTask(models.Model):
+             marker[TASK_CREATE_MARKER] -= 1
+             if not marker[TASK_CREATE_MARKER]:
+                 marker.pop(TASK_CREATE_MARKER, None)
++        self._nasq_reject_unauthorized_done(tasks)
++        dirty = tasks.filtered(
++            lambda task: (
++                task.nasq_completion_pending
++                or task.nasq_completion_revision
++                or task.nasq_completion_requested_by
++                or task.nasq_completion_requested_at
++                or task.nasq_completion_return_note
++            ),
++        )
++        if dirty:
++            raise AccessError(self.env._("Completion metadata cannot be set on create."))
+         tasks._nasq_notify('created')
+         return tasks
+ 
+@@ -276,12 +451,28 @@ class ProjectTask(models.Model):
+             self.env.cr.precommit.data.get(DEPENDENCY_WRITE_MARKER)
+             and set(vals) <= {'depend_on_ids'}
+         )
++        meta_ids = set(self.env.cr.precommit.data.get(COMPLETION_META_IDS) or ())
++        completion_meta_write = bool(
++            self.ids
++            and meta_ids
++            and set(self.ids) <= meta_ids
++            and set(vals) <= COMPLETION_META_FIELDS,
++        )
++        accept_ids = self._nasq_accept_ids()
++        accept_write = bool(
++            self.ids
++            and accept_ids
++            and set(self.ids) <= accept_ids
++            and set(vals) <= APPROVAL_WRITE_FIELDS,
++        )
+         trusted = (
+             self.env.is_superuser()
+             or self.env.user.has_group('base.group_system')
+             or self.env.cr.precommit.data.get(TASK_CREATE_MARKER)
+             or self.env.cr.precommit.data.get(ACCESS_USER_CREATE_MARKER)
+             or dependency_write
++            or completion_meta_write
++            or accept_write
+         )
+         if not trusted:
+             self._nasq_check_visible_current()
+@@ -298,11 +489,169 @@ class ProjectTask(models.Model):
+                 not task._nasq_can_write() for task in self
+             ):
+                 raise AccessError(self.env._("You are not allowed to change this task."))
++        if vals.get('state') == DONE_STATE:
++            unauthorized = self.filtered(
++                lambda task: task._nasq_completion_required() and task.id not in accept_ids,
++            )
++            if unauthorized:
++                raise AccessError(self.env._("This task requires completion approval."))
++        clears_request = (
++            not completion_meta_write
++            and (
++                vals.get('state') in CLOSED_STATES
++                or (vals.get('state') and vals['state'] not in CLOSED_STATES)
++                or vals.get('active') is False
++                or 'user_ids' in vals
++            )
++        )
++        if clears_request and self.filtered('nasq_completion_pending'):
++            self._nasq_lock_projects_then_tasks(self.mapped('project_id'), self)
++            self.invalidate_recordset()
++            self.mapped('project_id').invalidate_recordset()
+         before = {task.id: task.user_ids.partner_id for task in self}
+         res = super().write(vals)
++        if vals.get('state') == DONE_STATE:
++            self._nasq_reject_unauthorized_done(self)
++        if not completion_meta_write:
++            if vals.get('state') or vals.get('active') is False:
++                pending = self.filtered('nasq_completion_pending')
++                if pending:
++                    pending._nasq_clear_completion_request(invalidate=True)
++            if 'user_ids' in vals:
++                for task in self.filtered('nasq_completion_pending'):
++                    requester = task.nasq_completion_requested_by
++                    if requester and requester not in task.user_ids:
++                        task._nasq_clear_completion_request(invalidate=True)
+         self._nasq_notify('updated', extra_partners=before)
+         return res
+ 
++    def _nasq_write_completion_meta(self, vals):
++        marker = self.env.cr.precommit.data
++        previous = set(marker.get(COMPLETION_META_IDS) or ())
++        authorized = set(previous)
++        authorized.update(self.ids)
++        marker[COMPLETION_META_IDS] = authorized
++        try:
++            self.write(vals)
++        finally:
++            marker[COMPLETION_META_IDS] = previous
++            if not previous:
++                marker.pop(COMPLETION_META_IDS, None)
++        return self
++
++    def _nasq_clear_completion_request(self, note=None, invalidate=False):
++        for task in self:
++            values = {
++                'nasq_completion_pending': False,
++                'nasq_completion_requested_by': False,
++                'nasq_completion_requested_at': False,
++            }
++            if note is not None:
++                values['nasq_completion_return_note'] = note
++            if invalidate:
++                values['nasq_completion_revision'] = task.nasq_completion_revision + 1
++            task._nasq_write_completion_meta(values)
++        return self
++
++    @api.model
++    def _nasq_lock_projects_then_tasks(self, projects, tasks):
++        """Lock PROJECT then TASK by sorted id. Never task-then-project."""
++        for project_id in sorted(project_id for project_id in projects.ids if project_id):
++            self.env.cr.execute(
++                'SELECT id FROM project_project WHERE id = %s FOR UPDATE',
++                [project_id],
++            )
++        for task_id in sorted(tasks.ids):
++            self.env.cr.execute(
++                'SELECT id FROM project_task WHERE id = %s FOR UPDATE',
++                [task_id],
++            )
++
++    def _nasq_lock_completion(self):
++        self.ensure_one()
++        self._nasq_lock_projects_then_tasks(self.project_id, self)
++
++    def _nasq_request_completion(self):
++        self.ensure_one()
++        self._nasq_check_visible_current()
++        self._nasq_lock_completion()
++        self.invalidate_recordset()
++        if self.project_id:
++            self.project_id.invalidate_recordset()
++        if not self._nasq_can_request_completion():
++            raise AccessError(self.env._("You cannot request completion for this task."))
++        reviewer = self._nasq_completion_reviewer()
++        if not reviewer or not self._nasq_reviewer_eligible(reviewer):
++            raise UserError(self.env._("There is no eligible reviewer for this task."))
++        return self._nasq_write_completion_meta({
++            'nasq_completion_pending': True,
++            'nasq_completion_revision': self.nasq_completion_revision + 1,
++            'nasq_completion_requested_by': self.env.uid,
++            'nasq_completion_requested_at': fields.Datetime.now(),
++            'nasq_completion_return_note': False,
++        })
++
++    def _nasq_check_completion_decision(self, revision):
++        self.ensure_one()
++        self._nasq_check_visible_current()
++        self._nasq_lock_completion()
++        self.invalidate_recordset()
++        if self.project_id:
++            self.project_id.invalidate_recordset()
++        if not isinstance(revision, int) or isinstance(revision, bool):
++            raise UserError(self.env._("A completion revision is required."))
++        if not self._nasq_task_is_open_for_completion():
++            raise UserError(self.env._("This task is not open for a completion decision."))
++        if not self.nasq_completion_pending:
++            raise UserError(self.env._("There is no pending completion request."))
++        if revision != self.nasq_completion_revision:
++            raise UserError(self.env._("This completion request is stale."))
++        if not self._nasq_reviewer_is_current():
++            raise AccessError(self.env._("Only the designated reviewer can decide this request."))
++
++    def _nasq_accept_completion(self, revision):
++        self.ensure_one()
++        self._nasq_check_completion_decision(revision)
++        marker = self.env.cr.precommit.data
++        previous = set(marker.get(COMPLETION_ACCEPT_IDS) or ())
++        authorized = set(previous)
++        authorized.add(self.id)
++        marker[COMPLETION_ACCEPT_IDS] = authorized
++        try:
++            self._nasq_clear_completion_request()
++            self._nasq_transition(DONE_STATE)
++        finally:
++            marker[COMPLETION_ACCEPT_IDS] = previous
++            if not previous:
++                marker.pop(COMPLETION_ACCEPT_IDS, None)
++        return self
++
++    def _nasq_return_completion(self, revision, note):
++        self.ensure_one()
++        if not isinstance(note, str) or not note.strip():
++            raise UserError(self.env._("A return note is required."))
++        self._nasq_check_completion_decision(revision)
++        return self._nasq_clear_completion_request(note=note.strip())
++
++    def _nasq_withdraw_completion(self, revision):
++        self.ensure_one()
++        self._nasq_check_visible_current()
++        self._nasq_lock_completion()
++        self.invalidate_recordset()
++        if self.project_id:
++            self.project_id.invalidate_recordset()
++        if not isinstance(revision, int) or isinstance(revision, bool):
++            raise UserError(self.env._("A completion revision is required."))
++        if not self._nasq_task_is_open_for_completion():
++            raise UserError(self.env._("This task is not open for a completion decision."))
++        if not self.nasq_completion_pending:
++            raise UserError(self.env._("There is no pending completion request."))
++        if revision != self.nasq_completion_revision:
++            raise UserError(self.env._("This completion request is stale."))
++        if self.nasq_completion_requested_by != self.env.user or not self._nasq_can_write():
++            raise AccessError(self.env._("Only the requester can withdraw this completion request."))
++        return self._nasq_clear_completion_request()
++
+     def unlink(self):
+         if (
+             not self.env.is_superuser()
+diff --git a/odoo-addons/nasq_pmo/models/task_notifications.py b/odoo-addons/nasq_pmo/models/task_notifications.py
+index 7ba9920..69b95c7 100644
+--- a/odoo-addons/nasq_pmo/models/task_notifications.py
++++ b/odoo-addons/nasq_pmo/models/task_notifications.py
+@@ -1,12 +1,38 @@
+ # Part of Odoo. See LICENSE file for full copyright and licensing details.
+-from datetime import timedelta
++import json
++from datetime import datetime, time, timedelta
+ 
+ from psycopg2 import IntegrityError
++from pytz import UTC
++from pytz import timezone as pytz_timezone
++from pytz.exceptions import UnknownTimeZoneError
+ 
+ from odoo import api, fields, models
+ from odoo.exceptions import AccessError
+ from odoo.tools import html2plaintext, plaintext2html
+ 
++SCAN_BATCH = 200
++
++
++def _nasq_iter_records(model, domain):
++    last_id = 0
++    while True:
++        batch = model.search(domain + [('id', '>', last_id)], order='id', limit=SCAN_BATCH)
++        if not batch:
++            break
++        yield batch
++        last_id = batch.ids[-1]
++
++
++def local_date_start_utc(user, local_date):
++    if not local_date:
++        return fields.Datetime.now()
++    try:
++        tzinfo = pytz_timezone(user.tz or 'UTC')
++    except UnknownTimeZoneError:
++        tzinfo = UTC
++    return tzinfo.localize(datetime.combine(local_date, time.min)).astimezone(UTC).replace(tzinfo=None)
++
+ 
+ class ProjectTaskNotifications(models.Model):
+     _inherit = 'project.task'
+@@ -106,35 +132,197 @@ class ProjectTaskNotifications(models.Model):
+         return message
+ 
+     @api.model
+-    def _nasq_run_deadline_notifications(self, now=None):
+-        now = now or fields.Datetime.now()
+-        company_id = self.env.company.id
+-        tasks = self.search([
++    def _nasq_user_local_now(self, user, now):
++        tz_name = user.tz or 'UTC'
++        try:
++            tzinfo = pytz_timezone(tz_name)
++        except UnknownTimeZoneError:
++            tzinfo = UTC
++        utc_now = UTC.localize(now) if now.tzinfo is None else now.astimezone(UTC)
++        return utc_now.astimezone(tzinfo)
++
++    @api.model
++    def _nasq_create_digest_notification(self, *, company, partner, body, key, overdue_count, local_date, task_ids=()):
++        Message = self.env['mail.message'].sudo()
++        if key and Message.search_count([('nasq_notification_key', '=', key)]):
++            return False
++        values = {
++            'model': 'res.company',
++            'res_id': company.id,
++            'nasq_task_id': False,
++            'nasq_notification': True,
++            'nasq_notification_kind': 'overdue_digest',
++            'nasq_notification_key': key,
++            'nasq_digest_count': overdue_count,
++            'nasq_digest_date': local_date,
++            'nasq_digest_task_ids': json.dumps([int(task_id) for task_id in task_ids]),
++            'message_type': 'notification',
++            'is_internal': True,
++            'author_id': self.env.user.partner_id.id,
++            'subtype_id': self.env.ref('mail.mt_note').id,
++            'body': plaintext2html(body),
++            'partner_ids': [(4, partner.id)],
++        }
++        try:
++            with self.env.cr.savepoint(flush=False):
++                message = Message.create(values)
++                self.env['mail.notification'].sudo().create({
++                    'author_id': message.author_id.id,
++                    'mail_message_id': message.id,
++                    'notification_status': 'sent',
++                    'notification_type': 'inbox',
++                    'res_partner_id': partner.id,
++                })
++        except IntegrityError as error:
++            constraint = getattr(getattr(error, 'diag', None), 'constraint_name', '')
++            if key and 'nasq_notification_key' in constraint:
++                return False
++            raise
++        return message
++
++    @api.model
++    def _nasq_digest_snapshot_ids(self, message):
++        raw = message.nasq_digest_task_ids
++        if not raw:
++            return []
++        try:
++            parsed = json.loads(raw)
++        except ValueError:
++            return []
++        return [int(item) for item in parsed if isinstance(item, int) and not isinstance(item, bool) and item > 0]
++
++    @api.model
++    def _nasq_live_digest_tasks(self, snapshot_ids):
++        """Visible members of a historical snapshot.
++
++        Membership stays the original snapshot: later deadline edits do not
++        admit new tasks. Callers must search in the user env; there is no
++        sudo fallback.
++        """
++        if not snapshot_ids:
++            return self.browse()
++        return self.search([
++            ('id', 'in', snapshot_ids),
+             ('active', '=', True),
+-            ('company_id', '=', company_id),
+-            ('project_id.company_id', '=', company_id),
+-            ('project_id.active', '=', True),
+             ('is_closed', '=', False),
+-            ('date_deadline', '!=', False),
++            ('company_id', '=', self.env.company.id),
++            ('project_id.company_id', '=', self.env.company.id),
++            ('project_id.active', '=', True),
+         ])
+-        for task in tasks:
+-            for user in task._nasq_internal_users():
+-                recipient_task = task.with_user(user)
+-                try:
+-                    recipient_task.check_access('read')
+-                    recipient_task.project_id.check_access('read')
+-                except AccessError:
++
++    @api.model
++    def _nasq_run_deadline_notifications(self, now=None):
++        now = now or fields.Datetime.now()
++        companies = self.env['res.company'].sudo().search([], order='id')
++        for company in companies:
++            self.with_company(company)._nasq_run_deadline_notifications_for_company(now)
++        return True
++
++    @api.model
++    def _nasq_run_deadline_notifications_for_company(self, now):
++        company = self.env.company
++        settings = self.env['nasq.pmo.settings'].get()
++        company_id = company.id
++        if settings['deadline_reminders_enabled']:
++            days_before = settings['deadline_reminders_days_before']
++            window_start = now - timedelta(hours=25)
++            window_end = now + timedelta(days=days_before) + timedelta(hours=25)
++            domain = [
++                ('active', '=', True),
++                ('company_id', '=', company_id),
++                ('project_id.company_id', '=', company_id),
++                ('project_id.active', '=', True),
++                ('is_closed', '=', False),
++                ('date_deadline', '>=', window_start),
++                ('date_deadline', '<=', window_end),
++            ]
++            for batch in _nasq_iter_records(self.sudo(), domain):
++                for task in batch:
++                    for user in task._nasq_internal_users():
++                        tz_name = user.tz or 'UTC'
++                        try:
++                            pytz_timezone(tz_name)
++                        except UnknownTimeZoneError:
++                            tz_name = 'UTC'
++                        recipient_task = task.with_user(user).with_context(tz=tz_name)
++                        try:
++                            recipient_task.check_access('read')
++                            recipient_task.project_id.check_access('read')
++                        except AccessError:
++                            continue
++                        today = fields.Date.context_today(recipient_task, now)
++                        deadline_day = fields.Date.context_today(recipient_task, task.date_deadline)
++                        remaining = (deadline_day - today).days
++                        if remaining < 0 or remaining > days_before:
++                            continue
++                        deadline = fields.Datetime.to_string(task.date_deadline)
++                        key = f'deadline:{task.id}:{user.partner_id.id}:{deadline}'
++                        task._nasq_create_notification(
++                            kind='deadline',
++                            partner=user.partner_id,
++                            body=f'{task.display_name} is due on {deadline_day.isoformat()}',
++                            key=key,
++                        )
++        if settings['overdue_digest_enabled']:
++            self._nasq_run_overdue_digest(now)
++
++    @api.model
++    def _nasq_run_overdue_digest(self, now):
++        company = self.env.company
++        # Documented notification sudo: the cron scans current-company rows,
++        # then live visibility is re-checked as each manager before delivery.
++        project_domain = [
++            ('active', '=', True),
++            ('company_id', '=', company.id),
++            ('user_id', '!=', False),
++        ]
++        by_manager = {}
++        for batch in _nasq_iter_records(self.env['project.project'].sudo(), project_domain):
++            for project in batch:
++                manager = project.user_id
++                if not manager or not manager.active or manager.share:
+                     continue
+-                today = fields.Date.context_today(recipient_task, now)
+-                deadline_day = fields.Date.context_today(recipient_task, task.date_deadline)
+-                if deadline_day not in (today, today + timedelta(days=1)):
++                if company.id not in manager.company_ids.ids:
+                     continue
+-                deadline = fields.Datetime.to_string(task.date_deadline)
+-                key = f'deadline:{task.id}:{user.partner_id.id}:{deadline}'
+-                task._nasq_create_notification(
+-                    kind='deadline',
+-                    partner=user.partner_id,
+-                    body=f'{task.display_name} is due on {deadline_day.isoformat()}',
+-                    key=key,
+-                )
+-        return True
++                grouped = by_manager.get(manager.id)
++                by_manager[manager.id] = project if grouped is None else grouped | project
++        Task = self.env['project.task'].sudo()
++        for manager_id, manager_projects in by_manager.items():
++            manager = self.env['res.users'].browse(manager_id)
++            local_now = self._nasq_user_local_now(manager, now)
++            if local_now.hour < 9:
++                continue
++            local_date = local_now.date()
++            start_utc = local_date_start_utc(manager, local_date)
++            overdue_domain = [
++                ('active', '=', True),
++                ('company_id', '=', company.id),
++                ('project_id', 'in', manager_projects.ids),
++                ('project_id.company_id', '=', company.id),
++                ('project_id.active', '=', True),
++                ('is_closed', '=', False),
++                ('date_deadline', '!=', False),
++                ('date_deadline', '<', start_utc),
++            ]
++            visible = Task.browse()
++            for batch in _nasq_iter_records(Task, overdue_domain):
++                for task in batch:
++                    recipient_task = task.with_user(manager).with_company(company)
++                    try:
++                        recipient_task.check_access('read')
++                        recipient_task.project_id.check_access('read')
++                    except AccessError:
++                        continue
++                    visible |= task
++            if not visible:
++                continue
++            key = f'overdue_digest:{company.id}:{manager.partner_id.id}:{local_date.isoformat()}'
++            self._nasq_create_digest_notification(
++                company=company,
++                partner=manager.partner_id,
++                body=f'{len(visible)} overdue tasks',
++                key=key,
++                overdue_count=len(visible),
++                local_date=local_date,
++                task_ids=visible.ids,
++            )
+diff --git a/odoo-addons/nasq_pmo/serializers/notification.py b/odoo-addons/nasq_pmo/serializers/notification.py
+index 5332042..cc808c3 100644
+--- a/odoo-addons/nasq_pmo/serializers/notification.py
++++ b/odoo-addons/nasq_pmo/serializers/notification.py
+@@ -4,8 +4,25 @@ from odoo.tools import html2plaintext
+ from odoo.addons.nasq_api.serializers.common import iso
+ 
+ 
+-def dump_notification(notification):
++def dump_notification(notification, live_tasks=None):
+     message = notification.mail_message_id
++    if message.nasq_notification_kind == 'overdue_digest':
++        if live_tasks is None:
++            message_text = 'live_tasks is required for overdue digest serialization'
++            raise ValueError(message_text)
++        tasks = live_tasks
++        local_date = message.nasq_digest_date
++        count = len(tasks)
++        return {
++            'id': notification.id,
++            'kind': 'overdue_digest',
++            'digest_id': notification.id,
++            'overdue_count': count,
++            'local_date': local_date.isoformat() if local_date else None,
++            'body': f'{count} overdue tasks',
++            'created_at': iso(message.date),
++            'is_read': bool(notification.is_read),
++        }
+     task = message.nasq_task_id
+     return {
+         'id': notification.id,
+diff --git a/odoo-addons/nasq_pmo/serializers/project.py b/odoo-addons/nasq_pmo/serializers/project.py
+index 76d6c70..059e4ae 100644
+--- a/odoo-addons/nasq_pmo/serializers/project.py
++++ b/odoo-addons/nasq_pmo/serializers/project.py
+@@ -9,7 +9,12 @@ from odoo.addons.nasq_pmo.serializers.dates import parse_date
+ STATUS_TO_API = {'on_track': 'on_track', 'at_risk': 'at_risk', 'off_track': 'off_track', 'on_hold': 'on_hold', 'done': 'done', 'to_define': None}
+ # Odoo's 'portal' (its default) means "all internal users" for nasq: there are no portal users.
+ VISIBILITY_TO_API = {'followers': 'followers', 'employees': 'employees', 'portal': 'employees', 'invited_users': 'followers'}
+-PROJECT_FIELDS = {'name', 'description', 'user_id', 'privacy_visibility', 'date_start', 'date', 'tag_ids', 'allow_task_dependencies'}
++PROJECT_FIELDS = {
++    'name', 'description', 'user_id', 'privacy_visibility', 'date_start', 'date', 'tag_ids',
++    'allow_task_dependencies', 'nasq_completion_approval', 'nasq_completion_approver_id',
++}
++CREATE_FIELDS = {'name', 'user_id', 'date_end'}
++COMPLETION_APPROVAL_VALUES = ('none', 'project_manager', 'specific_user')
+ 
+ 
+ def _user_ref(user):
+@@ -49,6 +54,8 @@ def dump_project_detail(project):
+         'followers_count': len(project._nasq_followers()),
+         'milestone_count': len(project.milestone_ids),
+         'allow_task_dependencies': bool(project.allow_task_dependencies),
++        'completion_approval': project.nasq_completion_approval or 'none',
++        'completion_approver': _user_ref(project.nasq_completion_approver_id),
+     })
+     return data
+ 
+@@ -74,6 +81,8 @@ def parse_project_vals(payload):
+                 user = request.env['res.users'].browse(int(value)).exists() if is_int else None
+                 if not user or user.share or not user.active:
+                     raise ApiError(422, 'invalid', "user_id must be an active internal user", field=key)
++                if request.env.company.id not in user.sudo().company_ids.ids:
++                    raise ApiError(422, 'invalid', "user_id must belong to the current company", field=key)
+                 vals[key] = user.id
+         elif key == 'privacy_visibility':
+             if value not in VISIBILITY_VALUES:
+@@ -93,4 +102,53 @@ def parse_project_vals(payload):
+                 message = "unknown tag id"
+                 raise ApiError(422, 'invalid', message, field=key)
+             vals[key] = [(6, 0, tags.ids)]
++        elif key == 'nasq_completion_approval':
++            if value not in COMPLETION_APPROVAL_VALUES:
++                raise ApiError(422, 'invalid', "nasq_completion_approval must be none, project_manager or specific_user", field=key)
++            vals[key] = value
++        elif key == 'nasq_completion_approver_id':
++            if value in (None, False):
++                vals[key] = False
++            else:
++                is_int = isinstance(value, int) and not isinstance(value, bool)
++                user = request.env['res.users'].browse(int(value)).exists() if is_int else None
++                if not user or user.share or not user.active:
++                    raise ApiError(422, 'invalid', "nasq_completion_approver_id must be an active internal user", field=key)
++                vals[key] = user.id
+     return vals
++
++
++def parse_project_create(payload):
++    unknown = set(payload) - CREATE_FIELDS
++    if unknown:
++        raise ApiError(422, 'unknown_field', f"field {sorted(unknown)[0]!r} is not writable", field=sorted(unknown)[0])
++    name = payload.get('name')
++    if not isinstance(name, str) or not name.strip():
++        raise ApiError(422, 'invalid', "name must not be empty", field='name')
++    settings = request.env['nasq.pmo.settings'].get()
++    if 'user_id' in payload:
++        value = payload['user_id']
++        if value in (None, False):
++            if settings['require_manager_on_create']:
++                raise ApiError(422, 'invalid', "manager is required to create a project", field='user_id')
++            user_id = False
++        else:
++            is_int = isinstance(value, int) and not isinstance(value, bool)
++            user = request.env['res.users'].browse(int(value)).exists() if is_int else None
++            if not user or user.share or not user.active:
++                raise ApiError(422, 'invalid', "user_id must be an active internal user", field='user_id')
++            if request.env.company.id not in user.sudo().company_ids.ids:
++                raise ApiError(422, 'invalid', "user_id must belong to the current company", field='user_id')
++            user_id = user.id
++    else:
++        user_id = request.env.uid
++        if settings['require_manager_on_create'] and not user_id:
++            raise ApiError(422, 'invalid', "manager is required to create a project", field='user_id')
++    date_end = None
++    if 'date_end' in payload:
++        date_end = parse_date(payload['date_end'], 'date_end')
++        if not date_end and settings['require_end_date_on_create']:
++            raise ApiError(422, 'invalid', "end date is required to create a project", field='date_end')
++    elif settings['require_end_date_on_create']:
++        raise ApiError(422, 'invalid', "end date is required to create a project", field='date_end')
++    return {'name': name.strip(), 'user_id': user_id, 'date_end': date_end or None}
+diff --git a/odoo-addons/nasq_pmo/serializers/task.py b/odoo-addons/nasq_pmo/serializers/task.py
+index e44c55a..a894483 100644
+--- a/odoo-addons/nasq_pmo/serializers/task.py
++++ b/odoo-addons/nasq_pmo/serializers/task.py
+@@ -36,7 +36,8 @@ def _today(task, today=None):
+ def _days_remaining(task, today=None):
+     if not task.date_deadline:
+         return None
+-    return (task.date_deadline.date() - _today(task, today)).days
++    deadline_day = fields.Date.context_today(task, task.date_deadline)
++    return (deadline_day - _today(task, today)).days
+ 
+ 
+ def _ref(record):
+@@ -93,6 +94,7 @@ def dump_task(task, today=None):
+         'tags': [{'id': t.id, 'name': t.name, 'color': t.color} for t in task.tag_ids],
+         'can_write': task._nasq_can_write(),
+         'can_approve': task._nasq_can_approve(),
++        'allowed_transitions': task._nasq_allowed_transitions(),
+     }
+ 
+ 
+@@ -124,11 +126,20 @@ def dump_task_detail(task, today=None):
+             *(['write'] if task._nasq_can_write() else []),
+             *(['archive'] if task._nasq_can_archive() else []),
+             *(['approve'] if task._nasq_can_approve() else []),
++            *(['request_completion'] if task._nasq_can_request_completion() else []),
++            *(['accept_completion', 'return_completion'] if task._nasq_can_decide_completion() else []),
++            *(['withdraw_completion'] if task._nasq_can_withdraw_completion() else []),
+         ],
+         'can_manage_dependencies': bool(task._nasq_can_manage_dependencies()),
+         'created_at': iso(task.create_date),
+         'updated_at': iso(task.write_date),
+         'milestone': _milestone_ref(task.milestone_id) if task.milestone_id else None,
++        'completion_pending': bool(task.nasq_completion_pending),
++        'completion_revision': task.nasq_completion_revision or 0,
++        'completion_return_note': task.nasq_completion_return_note or None,
++        'completion_policy': task.project_id.nasq_completion_approval if task.project_id else 'none',
++        'completion_approver': _ref(task._nasq_completion_reviewer()) if task._nasq_completion_reviewer() else None,
++        'completion_blocked_reason': task._nasq_completion_blocked_reason(),
+     })
+     return data
+ 
+diff --git a/odoo-addons/nasq_pmo/tests/__init__.py b/odoo-addons/nasq_pmo/tests/__init__.py
+index eb2e902..7cc80c8 100644
+--- a/odoo-addons/nasq_pmo/tests/__init__.py
++++ b/odoo-addons/nasq_pmo/tests/__init__.py
+@@ -3,11 +3,14 @@ from . import (
+     common,
+     test_access_capabilities,
+     test_bus,
++    test_completion_approval,
++    test_deadline_digest,
+     test_milestones,
+     test_notifications,
+     test_personal_stages,
+     test_project_admin_model,
+     test_project_followers,
++    test_project_settings_controls,
+     test_project_stages,
+     test_project_status,
+     test_project_updates,
+diff --git a/odoo-addons/nasq_pmo/tests/test_access_capabilities.py b/odoo-addons/nasq_pmo/tests/test_access_capabilities.py
+index 96df5a7..b003fe0 100644
+--- a/odoo-addons/nasq_pmo/tests/test_access_capabilities.py
++++ b/odoo-addons/nasq_pmo/tests/test_access_capabilities.py
+@@ -151,7 +151,7 @@ class TestPmoAccessCapabilityModels(TransactionCase):
+         })
+         project = self.env['project.project'].with_user(
+             self.assigned_employee,
+-        )._nasq_create_from_policy('Assigned employee project')
++        )._nasq_create_from_policy('Assigned employee project', date_end='2031-01-01')
+         self.assertEqual(project.user_id, self.assigned_employee)
+ 
+         admin_identity = self.env['nasq.access.service']._nasq_identity(self.system_admin)
+diff --git a/odoo-addons/nasq_pmo/tests/test_project_admin_model.py b/odoo-addons/nasq_pmo/tests/test_project_admin_model.py
+index f3dd25d..df136ff 100644
+--- a/odoo-addons/nasq_pmo/tests/test_project_admin_model.py
++++ b/odoo-addons/nasq_pmo/tests/test_project_admin_model.py
+@@ -38,7 +38,7 @@ class TestProjectAdminModel(TransactionCase):
+         self.assertEqual(self.Settings.get()['project_creators'], 'managers')
+         with self.assertRaises(AccessError):
+             self.env['project.project'].with_user(self.other)._nasq_create_from_policy('Nope')
+-        p = self.env['project.project'].with_user(self.manager)._nasq_create_from_policy('Ok')
++        p = self.env['project.project'].with_user(self.manager)._nasq_create_from_policy('Ok', date_end='2031-01-01')
+         self.assertEqual(p.user_id, self.manager)
+         self.assertEqual(p.privacy_visibility, 'employees')
+         self.assertTrue(p.allow_milestones)
+@@ -47,7 +47,7 @@ class TestProjectAdminModel(TransactionCase):
+ 
+     def test_create_policy_employees_uses_sudo_but_keeps_creator(self):
+         self.Settings.with_user(self.admin).set_values({'project_creators': 'employees'})
+-        p = self.env['project.project'].with_user(self.other)._nasq_create_from_policy('Mine')
++        p = self.env['project.project'].with_user(self.other)._nasq_create_from_policy('Mine', date_end='2031-01-01')
+         self.assertEqual(p.create_uid, self.other)
+         self.assertEqual(p.user_id, self.other)
+         self.assertTrue(p.with_user(self.other)._nasq_can_manage())
+diff --git a/odoo-addons/nasq_pmo/tests/test_projects.py b/odoo-addons/nasq_pmo/tests/test_projects.py
+index 4e432b4..4aa0ac8 100644
+--- a/odoo-addons/nasq_pmo/tests/test_projects.py
++++ b/odoo-addons/nasq_pmo/tests/test_projects.py
+@@ -4,7 +4,7 @@ from odoo.tests import tagged
+ from .common import NasqPmoCase
+ 
+ PROJECT_KEYS = {'id', 'name', 'status', 'progress', 'task_count', 'closed_task_count', 'active', 'can_manage', 'allowed_actions'}
+-DETAIL_KEYS = PROJECT_KEYS | {'stages', 'description_html', 'manager', 'privacy_visibility', 'date_start', 'date_end', 'tags', 'followers_count', 'milestone_count', 'allow_task_dependencies'}
++DETAIL_KEYS = PROJECT_KEYS | {'stages', 'description_html', 'manager', 'privacy_visibility', 'date_start', 'date_end', 'tags', 'followers_count', 'milestone_count', 'allow_task_dependencies', 'completion_approval', 'completion_approver'}
+ 
+ 
+ @tagged('post_install', '-at_install', 'nasq')
+@@ -108,14 +108,18 @@ class TestProjects(NasqPmoCase):
+         self.assertEqual((res.status_code, res.json()['code']), (403, 'create_forbidden'))
+         self.authenticate('api_mgr', 'api_mgr_pass_123')
+         self.assertTrue(self.api('GET', '/api/v1/projects').json()['can_create'])
+-        res = self.api('POST', '/api/v1/projects', {'name': 'Fresh'})
++        self.assertEqual(self.api('POST', '/api/v1/projects', {'name': 'Fresh'}).status_code, 422)
++        res = self.api('POST', '/api/v1/projects', {'name': 'Fresh', 'date_end': '2030-12-31'})
+         self.assertEqual(res.status_code, 201)
+         body = res.json()
+         self.assertEqual(set(body), DETAIL_KEYS)
+         self.assertEqual(self.env['project.project'].browse(body['id']).company_id, self.env.company)
+         self.assertEqual([s['name'] for s in body['stages']], ['جديد', 'قيد التنفيذ', 'مراجعة', 'منجز'])
+         self.assertEqual(body['manager']['id'], self.manager.id)
++        self.assertEqual(body['date_end'], '2030-12-31')
++        self.assertIsNone(body['date_start'])
+         self.assertEqual(body['privacy_visibility'], 'employees')
++        self.assertEqual(body['completion_approval'], 'none')
+         self.assertEqual(self.api('POST', '/api/v1/projects', {'name': ' '}).status_code, 422)
+ 
+     def test_patch_whitelist(self):
+diff --git a/odoo-addons/nasq_pmo/tests/test_settings.py b/odoo-addons/nasq_pmo/tests/test_settings.py
+index 50a7493..e061681 100644
+--- a/odoo-addons/nasq_pmo/tests/test_settings.py
++++ b/odoo-addons/nasq_pmo/tests/test_settings.py
+@@ -34,12 +34,16 @@ class TestSettings(NasqPmoCase):
+     def test_get_and_patch(self):
+         self.authenticate('api_admin', 'api_admin_pass_123')
+         body = self.api('GET', '/api/v1/settings/projects').json()
+-        self.assertEqual(set(body), {'project_creators', 'default_stages'})
++        self.assertGreaterEqual(set(body), {'project_creators', 'default_stages', 'require_manager_on_create', 'require_end_date_on_create', 'default_completion_approval', 'deadline_reminders_enabled', 'deadline_reminders_days_before', 'overdue_digest_enabled'})
+         self.assertEqual(body['project_creators'], 'managers')
+         self.assertEqual(len(body['default_stages']), 4)
++        self.assertTrue(body['require_manager_on_create'])
++        self.assertTrue(body['require_end_date_on_create'])
++        self.assertEqual(body['default_completion_approval'], 'none')
+         res = self.api('PATCH', '/api/v1/settings/projects', {'project_creators': 'employees', 'default_stages': [{'name': 'Only', 'fold': False}]})
+         self.assertEqual(res.status_code, 200)
+-        self.assertEqual(res.json(), {'project_creators': 'employees', 'default_stages': [{'name': 'Only', 'fold': False}]})
++        self.assertEqual(res.json()['project_creators'], 'employees')
++        self.assertEqual(res.json()['default_stages'], [{'name': 'Only', 'fold': False}])
+         res = self.api('PATCH', '/api/v1/settings/projects', {'default_stages': []})
+         self.assertEqual((res.status_code, res.json()['field']), (422, 'default_stages'))
+         res = self.api('PATCH', '/api/v1/settings/projects', {'project_creators': 'x'})
+diff --git a/odoo-addons/nasq_pmo/tests/test_task_lifecycle.py b/odoo-addons/nasq_pmo/tests/test_task_lifecycle.py
+index a1ce7fe..eeaf2d2 100644
+--- a/odoo-addons/nasq_pmo/tests/test_task_lifecycle.py
++++ b/odoo-addons/nasq_pmo/tests/test_task_lifecycle.py
+@@ -108,7 +108,7 @@ class TestTaskLifecycle(NasqPmoCase):
+         self.assertEqual(set(body['items'][0]), {
+             'id', 'name', 'project', 'state', 'priority', 'date_deadline', 'days_remaining',
+             'is_overdue', 'is_closed', 'personal_stage', 'stage', 'assignees', 'tags',
+-            'can_write', 'can_approve',
++            'can_write', 'can_approve', 'allowed_transitions',
+         })
+ 
+     def test_creator_can_restore_but_archived_project_blocks_restore(self):
+diff --git a/odoo-addons/nasq_pmo/tests/test_tasks.py b/odoo-addons/nasq_pmo/tests/test_tasks.py
+index fd27179..cb83ff7 100644
+--- a/odoo-addons/nasq_pmo/tests/test_tasks.py
++++ b/odoo-addons/nasq_pmo/tests/test_tasks.py
+@@ -5,7 +5,7 @@ from .common import NasqPmoCase
+ 
+ TASK_KEYS = {'id', 'name', 'project', 'state', 'priority', 'date_deadline',
+              'days_remaining', 'is_overdue', 'is_closed', 'personal_stage', 'stage',
+-             'assignees', 'tags', 'can_write', 'can_approve'}
++             'assignees', 'tags', 'can_write', 'can_approve', 'allowed_transitions'}
+ 
+ 
+ @tagged('post_install', '-at_install', 'nasq')
+@@ -82,7 +82,9 @@ class TestTaskRead(NasqPmoCase):
+         self.assertIn('description_html', body)
+         self.assertEqual(set(body), TASK_KEYS | {'description_html', 'allocated_hours', 'age_days',
+                                                    'cycle_days', 'subtasks', 'depends_on', 'attachments',
+-                                                   'can_manage_dependencies', 'created_at', 'updated_at', 'milestone', 'allowed_actions'})
++                                                   'can_manage_dependencies', 'created_at', 'updated_at', 'milestone', 'allowed_actions',
++                                                   'completion_pending', 'completion_revision', 'completion_return_note',
++                                                   'completion_policy', 'completion_approver', 'completion_blocked_reason'})
+ 
+     def test_get_other_users_task_is_forbidden_or_hidden(self):
+         # employees may read tasks in projects they can see; a task in a private project is 403/404
+diff --git a/packages/contracts/src/pmo/__tests__/notifications.test.ts b/packages/contracts/src/pmo/__tests__/notifications.test.ts
+index 1dbda69..b414192 100644
+--- a/packages/contracts/src/pmo/__tests__/notifications.test.ts
++++ b/packages/contracts/src/pmo/__tests__/notifications.test.ts
+@@ -17,6 +17,10 @@ describe('notification contracts', () => {
+   })
+ 
+   it('rejects unknown kinds and extra keys', () => {
++    expect(NotificationSchema.parse({
++      id: 8, kind: 'overdue_digest', digest_id: 8, overdue_count: 2, local_date: '2026-09-05',
++      body: '2 overdue tasks', created_at: '2026-09-05T10:00:00Z', is_read: true,
++    }).kind).toBe('overdue_digest')
+     expect(() => NotificationSchema.parse({
+       id: 1, kind: 'mention', task_id: 2, task_name: 'x', body: 'x',
+       created_at: '2026-09-05T10:00:00Z', is_read: false,
+diff --git a/packages/contracts/src/pmo/__tests__/schemas.test.ts b/packages/contracts/src/pmo/__tests__/schemas.test.ts
+index d99cac4..492fa63 100644
+--- a/packages/contracts/src/pmo/__tests__/schemas.test.ts
++++ b/packages/contracts/src/pmo/__tests__/schemas.test.ts
+@@ -13,6 +13,7 @@ const TASK_JSON = {
+   priority: '1', date_deadline: '2026-08-01T09:00:00Z', days_remaining: -3,
+   is_overdue: true, is_closed: false, personal_stage: { id: 5, name: 'Inbox' }, stage: { id: 9, name: 'To Do' },
+   assignees: [{ id: 7, name: 'Sara' }], tags: [{ id: 1, name: 'urgent', color: 2 }],
++  allowed_transitions: ['waiting', 'changes_requested', 'approved', 'done', 'cancelled'],
+ }
+ 
+ describe('TaskSchema', () => {
+@@ -29,7 +30,8 @@ describe('TaskDetailSchema', () => {
+       description_html: '<p>desc</p>', allocated_hours: 4, age_days: 0, cycle_days: null,
+       subtasks: [], depends_on: [], attachments: [], can_approve: false,
+       created_at: '2026-08-01T09:00:00Z', updated_at: '2026-08-01T09:00:00Z',
+-      milestone: null,
++      milestone: null, completion_pending: false, completion_revision: 0, completion_return_note: null,
++      completion_policy: 'none', completion_approver: null, completion_blocked_reason: null,
+     })
+     expect(parsed.cycle_days).toBeNull()
+   })
+@@ -109,6 +111,7 @@ describe('ProjectDetailSchema', () => {
+       stages: [{ id: 1, name: 'A', sequence: 10, fold: true, task_count: 0 }],
+       description_html: '', manager: null, privacy_visibility: 'employees',
+       date_start: null, date_end: null, tags: [], followers_count: 0, milestone_count: 0,
++      completion_approval: 'none', completion_approver: null,
+     })
+     expect(parsed.stages[0]!.fold).toBe(true)
+   })
+@@ -147,6 +150,7 @@ describe('ProjectDetailSchema (3a)', () => {
+     const d = ProjectDetailSchema.parse({
+       ...PROJECT, stages: [STAGE], description_html: '', manager: { id: 2, name: 'M' }, privacy_visibility: 'followers',
+       date_start: '2030-01-01', date_end: null, tags: [], followers_count: 1, milestone_count: 0,
++      completion_approval: 'none', completion_approver: null,
+     })
+     expect(d.stages[0]!.task_count).toBe(2)
+   })
+@@ -166,7 +170,12 @@ describe('Milestone / ProjectUpdate / Settings', () => {
+   it('parse their fixtures', () => {
+     MilestoneSchema.parse({ id: 1, name: 'M', deadline: null, is_reached: false, reached_date: null, task_count: 0, done_task_count: 0 })
+     ProjectUpdateSchema.parse({ id: 1, name: 'W1', status: 'on_track', description_html: '<p>x</p>', date: '2030-01-01', author: { id: 2, name: 'M' } })
+-    expect(ProjectSettingsSchema.parse({ project_creators: 'managers', default_stages: [{ name: 'A', fold: true }] }).default_stages).toHaveLength(1)
++    expect(ProjectSettingsSchema.parse({
++      project_creators: 'managers', default_stages: [{ name: 'A', fold: true }],
++      require_manager_on_create: true, require_end_date_on_create: true,
++      default_completion_approval: 'none', deadline_reminders_enabled: true,
++      deadline_reminders_days_before: 1, overdue_digest_enabled: true,
++    }).default_stages).toHaveLength(1)
+     expect(() => ProjectSettingsSchema.parse({ project_creators: 'anyone', default_stages: [] })).toThrow()
+     expect(StageOrderBodySchema.parse({ ids: [2, 1] }).ids).toEqual([2, 1])
+   })
+diff --git a/packages/contracts/src/pmo/__tests__/task-lifecycle.test.ts b/packages/contracts/src/pmo/__tests__/task-lifecycle.test.ts
+index 0ecf861..efa37a8 100644
+--- a/packages/contracts/src/pmo/__tests__/task-lifecycle.test.ts
++++ b/packages/contracts/src/pmo/__tests__/task-lifecycle.test.ts
+@@ -4,9 +4,12 @@ import { DependencyListSchema, ProjectDetailSchema, TaskDetailSchema } from '../
+ const task = {
+   id: 1, name: 'Task', project: { id: 4, name: 'Project' }, state: 'in_progress', priority: '0',
+   date_deadline: null, days_remaining: null, is_overdue: false, is_closed: false, personal_stage: null,
+-  stage: null, assignees: [], tags: [], description_html: '', allocated_hours: 0, age_days: 0,
++  stage: null, assignees: [], tags: [], allowed_transitions: ['waiting', 'done', 'cancelled'],
++  description_html: '', allocated_hours: 0, age_days: 0,
+   cycle_days: null, subtasks: [], depends_on: [], attachments: [], can_approve: false,
+   created_at: '2030-01-01T00:00:00Z', updated_at: '2030-01-01T00:00:00Z', milestone: null,
++  completion_pending: false, completion_revision: 0, completion_return_note: null,
++  completion_policy: 'none', completion_approver: null, completion_blocked_reason: null,
+ }
+ 
+ describe('task lifecycle contracts', () => {
+@@ -24,7 +27,7 @@ describe('task lifecycle contracts', () => {
+       id: 4, name: 'Project', status: null, progress: 0, task_count: 0, closed_task_count: 0,
+       active: true, can_manage: true, stages: [], description_html: '', manager: null,
+       privacy_visibility: 'employees', date_start: null, date_end: null, tags: [], followers_count: 0,
+-      milestone_count: 0,
++      milestone_count: 0, completion_approval: 'none', completion_approver: null,
+     }
+     expect(ProjectDetailSchema.parse(project).allow_task_dependencies).toBe(false)
+     expect(ProjectDetailSchema.parse({ ...project, allow_task_dependencies: true }).allow_task_dependencies).toBe(true)
+diff --git a/packages/contracts/src/pmo/notification.ts b/packages/contracts/src/pmo/notification.ts
+index d196130..c46632a 100644
+--- a/packages/contracts/src/pmo/notification.ts
++++ b/packages/contracts/src/pmo/notification.ts
+@@ -1,17 +1,51 @@
+ import { z } from 'zod'
++import { TaskSchema } from './task'
+ 
+-export const NotificationKindSchema = z.enum(['assignment', 'comment', 'deadline'])
++export const TaskNotificationKindSchema = z.enum(['assignment', 'comment', 'deadline'])
++export const NotificationKindSchema = z.enum(['assignment', 'comment', 'deadline', 'overdue_digest'])
+ 
+-export const NotificationSchema = z.object({
++const TaskNotificationBase = {
+   id: z.number().int().positive(),
+-  kind: NotificationKindSchema,
+   task_id: z.number().int().positive(),
+   task_name: z.string(),
+   body: z.string(),
+   created_at: z.string(),
+   is_read: z.boolean(),
++}
++
++export const AssignmentNotificationSchema = z.object({
++  kind: z.literal('assignment'),
++  ...TaskNotificationBase,
++}).strict()
++
++export const CommentNotificationSchema = z.object({
++  kind: z.literal('comment'),
++  ...TaskNotificationBase,
++}).strict()
++
++export const DeadlineNotificationSchema = z.object({
++  kind: z.literal('deadline'),
++  ...TaskNotificationBase,
+ }).strict()
+ 
++export const DigestNotificationSchema = z.object({
++  id: z.number().int().positive(),
++  kind: z.literal('overdue_digest'),
++  digest_id: z.number().int().positive(),
++  overdue_count: z.number().int().nonnegative(),
++  local_date: z.string().nullable(),
++  body: z.string(),
++  created_at: z.string(),
++  is_read: z.boolean(),
++}).strict()
++
++export const NotificationSchema = z.discriminatedUnion('kind', [
++  AssignmentNotificationSchema,
++  CommentNotificationSchema,
++  DeadlineNotificationSchema,
++  DigestNotificationSchema,
++])
++
+ export const NotificationListSchema = z.object({
+   items: z.array(NotificationSchema),
+   total: z.number().int().nonnegative(),
+@@ -22,8 +56,17 @@ export const NotificationReadResultSchema = z.object({
+   updated: z.number().int().nonnegative(),
+ }).strict()
+ 
++export const NotificationDigestDetailSchema = z.object({
++  id: z.number().int().positive(),
++  kind: z.literal('overdue_digest'),
++  local_date: z.string().nullable(),
++  overdue_count: z.number().int().nonnegative(),
++  items: z.array(TaskSchema),
++  total: z.number().int().nonnegative(),
++}).strict()
++
+ export type NotificationKind = z.infer<typeof NotificationKindSchema>
+ export type Notification = z.infer<typeof NotificationSchema>
+ export type NotificationList = z.infer<typeof NotificationListSchema>
+ export type NotificationReadResult = z.infer<typeof NotificationReadResultSchema>
+-
++export type NotificationDigestDetail = z.infer<typeof NotificationDigestDetailSchema>
+diff --git a/packages/contracts/src/pmo/project.ts b/packages/contracts/src/pmo/project.ts
+index 20b2518..a287fd6 100644
+--- a/packages/contracts/src/pmo/project.ts
++++ b/packages/contracts/src/pmo/project.ts
+@@ -19,25 +19,36 @@ export const ProjectSchema = z.object({
+   allowed_actions: z.array(z.enum(['read', 'write', 'archive'])).optional().default([]),
+ }).strict()
+ 
++export const ProjectCompletionApprovalSchema = z.enum(['none', 'project_manager', 'specific_user'])
++
+ export const ProjectDetailSchema = ProjectSchema.extend({
+   stages: z.array(ProjectStageSchema), description_html: z.string(), manager: UserRefSchema.nullable(),
+   privacy_visibility: VisibilitySchema, date_start: z.string().nullable(), date_end: z.string().nullable(),
+   tags: z.array(TagSchema), followers_count: z.number().int(), milestone_count: z.number().int(),
+   allow_task_dependencies: z.boolean().default(false),
++  completion_approval: ProjectCompletionApprovalSchema,
++  completion_approver: UserRefSchema.nullable(),
+ }).strict()
+ 
+ export const ProjectListSchema = z.object({ items: z.array(ProjectSchema), total: z.number().int().nonnegative(), can_create: z.boolean(), can_list_archived: z.boolean() }).strict()
+-export const ProjectCreateSchema = z.object({ name: z.string().min(1) }).strict()
++export const ProjectCreateSchema = z.object({
++  name: z.string().min(1),
++  user_id: z.number().int().positive().nullable().optional(),
++  date_end: z.string().nullable().optional(),
++}).strict()
+ export const ProjectPatchSchema = z.object({
+   name: z.string().min(1).optional(), description: z.string().optional(), user_id: z.number().int().nullable().optional(),
+   privacy_visibility: VisibilitySchema.optional(), allow_task_dependencies: z.boolean().optional(), date_start: z.string().nullable().optional(), date: z.string().nullable().optional(),
+   tag_ids: z.array(z.number().int()).optional(),
++  nasq_completion_approval: ProjectCompletionApprovalSchema.optional(),
++  nasq_completion_approver_id: z.number().int().positive().nullable().optional(),
+ }).strict()
+ export const ProjectStatusBodySchema = z.object({ status: ProjectStatusSchema }).strict()
+ export const StageBodySchema = z.object({ name: z.string().min(1), fold: z.boolean().optional() }).strict()
+ export const StagePatchSchema = z.object({ name: z.string().min(1).optional(), fold: z.boolean().optional() }).strict()
+ export const StageOrderBodySchema = z.object({ ids: z.array(z.number().int().positive()) }).strict()
+ 
++export type ProjectCompletionApproval = z.infer<typeof ProjectCompletionApprovalSchema>
+ export type ProjectStatus = z.infer<typeof ProjectStatusSchema>
+ export type Visibility = z.infer<typeof VisibilitySchema>
+ export type UserRef = z.infer<typeof UserRefSchema>
+diff --git a/packages/contracts/src/pmo/settings.ts b/packages/contracts/src/pmo/settings.ts
+index 393f7ce..dec7c5a 100644
+--- a/packages/contracts/src/pmo/settings.ts
++++ b/packages/contracts/src/pmo/settings.ts
+@@ -3,11 +3,29 @@ import { z } from 'zod'
+ export const ProjectCreatorsSchema = z.enum(['managers', 'employees'])
+ export const PROJECT_CREATORS = ProjectCreatorsSchema.options
+ 
++export const DefaultCompletionApprovalSchema = z.enum(['none', 'project_manager'])
++
+ export const DefaultStageSchema = z.object({ name: z.string().min(1), fold: z.boolean() }).strict()
+ 
+-export const ProjectSettingsSchema = z.object({ project_creators: ProjectCreatorsSchema, default_stages: z.array(DefaultStageSchema).min(1).max(20) }).strict()
++export const ProjectSettingsSchema = z.object({
++  project_creators: ProjectCreatorsSchema,
++  default_stages: z.array(DefaultStageSchema).min(1).max(20),
++  require_manager_on_create: z.boolean(),
++  require_end_date_on_create: z.boolean(),
++  default_completion_approval: DefaultCompletionApprovalSchema,
++  deadline_reminders_enabled: z.boolean(),
++  deadline_reminders_days_before: z.number().int().min(0).max(30),
++  overdue_digest_enabled: z.boolean(),
++}).strict()
+ 
+ export const ProjectSettingsPatchSchema = ProjectSettingsSchema.partial().strict()
+ 
++export const ProjectCreateDefaultsSchema = z.object({
++  require_manager_on_create: z.boolean(),
++  require_end_date_on_create: z.boolean(),
++  default_manager_id: z.number().int().positive(),
++}).strict()
++
+ export type ProjectSettings = z.infer<typeof ProjectSettingsSchema>
+ export type DefaultStage = z.infer<typeof DefaultStageSchema>
++export type ProjectCreateDefaults = z.infer<typeof ProjectCreateDefaultsSchema>
+diff --git a/packages/contracts/src/pmo/task.ts b/packages/contracts/src/pmo/task.ts
+index 61ca4fa..29e70e6 100644
+--- a/packages/contracts/src/pmo/task.ts
++++ b/packages/contracts/src/pmo/task.ts
+@@ -13,6 +13,7 @@ export const TaskSchema = z.object({
+   assignees: z.array(RefSchema), tags: z.array(TagSchema),
+   can_write: z.boolean().optional().default(false),
+   can_approve: z.boolean().optional().default(false),
++  allowed_transitions: z.array(TaskStateSchema),
+ }).strict()
+ 
+ export const TaskDetailSchema = TaskSchema.extend({
+@@ -21,7 +22,15 @@ export const TaskDetailSchema = TaskSchema.extend({
+   depends_on: z.array(z.object({ id: z.number().int().positive(), name: z.string(), state: TaskStateSchema }).strict()),
+   attachments: z.array(z.object({ id: z.number().int().positive(), name: z.string(), mimetype: z.string(), url: z.string() }).strict()),
+   can_manage_dependencies: z.boolean().default(false), milestone: RefSchema.nullable(), created_at: z.string(), updated_at: z.string(),
+-  allowed_actions: z.array(z.enum(['read', 'write', 'archive', 'approve'])).optional().default([]),
++  allowed_actions: z.array(z.enum([
++    'read', 'write', 'archive', 'approve', 'request_completion', 'accept_completion', 'return_completion', 'withdraw_completion',
++  ])).optional().default([]),
++  completion_pending: z.boolean(),
++  completion_revision: z.number().int().nonnegative(),
++  completion_return_note: z.string().nullable(),
++  completion_policy: z.enum(['none', 'project_manager', 'specific_user']),
++  completion_approver: RefSchema.nullable(),
++  completion_blocked_reason: z.enum(['no_reviewer', 'reviewer_ineligible']).nullable(),
+ }).strict()
+ 
+ export const DependencySchema = z.object({ id: z.number().int().positive(), name: z.string(), state: TaskStateSchema }).strict()

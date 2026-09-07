@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+  <t t-name="web_theme_shadcn.AppPanel">
+    <aside class="o_shadcn_panel d-print-none" role="navigation" t-att-aria-label="ariaLabel">
+      <div t-if="props.app" class="o_shadcn_panel_title" t-esc="props.app.name"/>
+      <ul class="o_shadcn_panel_list">
+        <t t-call="web_theme_shadcn.AppPanel.Nodes">
+          <t t-set="nodes" t-value="props.sections"/>
+          <t t-set="depth" t-value="0"/>
+        </t>
+      </ul>
+    </aside>
+  </t>
+
+  <t t-name="web_theme_shadcn.AppPanel.Nodes">
+    <t t-foreach="nodes" t-as="node" t-key="node.id">
+      <li t-if="node.childrenTree.length" class="o_shadcn_panel_li">
+        <button class="o_shadcn_panel_group"
+                t-att-aria-expanded="isOpen(node) ? 'true' : 'false'"
+                t-att-data-menu-xmlid="node.xmlid"
+                t-att-data-section="node.id"
+                t-att-data-hotkey="hotkeyFor(node_index, depth)"
+                t-attf-style="padding-inline-start: {{ .75 + depth * .75 }}rem"
+                t-on-click="() => this.toggle(node)">
+          <span t-esc="node.name"/>
+          <i class="fa fa-chevron-right o_shadcn_panel_chevron" aria-hidden="true"/>
+        </button>
+        <ul t-if="isOpen(node)" class="o_shadcn_panel_list">
+          <t t-call="web_theme_shadcn.AppPanel.Nodes">
+            <t t-set="nodes" t-value="node.childrenTree"/>
+            <t t-set="depth" t-value="depth + 1"/>
+          </t>
+        </ul>
+      </li>
+      <li t-else="" class="o_shadcn_panel_li">
+        <a class="o_shadcn_panel_item"
+           t-att-class="{ active: node.id === props.currentMenuId }"
+           t-att-href="props.getHref(node)"
+           t-att-data-menu-xmlid="node.xmlid"
+           t-att-data-section="node.id"
+           t-att-data-hotkey="hotkeyFor(node_index, depth)"
+           t-attf-style="padding-inline-start: {{ .75 + depth * .75 }}rem"
+           t-on-click="(ev) => this.onClick(ev, node)">
+          <span t-esc="node.name"/>
+        </a>
+      </li>
+    </t>
+  </t>
+
+</templates>

@@ -1,0 +1,25 @@
+{
+  "at": "2026-09-05T21:52:05.639Z",
+  "result": {
+    "taskId": "flow-271fa73c-b3ab-4617-966e-2a159194236d",
+    "state": "BLOCKED",
+    "reason": "OpenCode request timeout or network failure",
+    "changedFiles": [],
+    "fixLoops": 0,
+    "reviewLoops": 0,
+    "calls": 1
+  },
+  "agents": [],
+  "fallbacks": [],
+  "stacks": [
+    "node",
+    "nuxt",
+    "odoo",
+    "playwright",
+    "python",
+    "tailwind",
+    "typescript",
+    "vitest",
+    "vue"
+  ]
+}

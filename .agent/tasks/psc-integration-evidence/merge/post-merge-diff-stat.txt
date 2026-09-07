@@ -1,0 +1,15 @@
+ apps/web/app/components/task/TaskDetailPanel.vue | Unmerged
+ apps/web/app/components/task/TaskDetailPanel.vue |  37 ++++++
+ apps/web/app/pages/tasks/[id].vue                | Unmerged
+ apps/web/app/pages/tasks/[id].vue                |   4 +
+ apps/web/e2e/access-admin.spec.ts                | Unmerged
+ apps/web/e2e/access-admin.spec.ts                |   5 +
+ apps/web/e2e/projects.spec.ts                    | Unmerged
+ apps/web/e2e/projects.spec.ts                    |   8 +-
+ apps/web/i18n/locales/ar/settings.json           | Unmerged
+ apps/web/i18n/locales/ar/settings.json           |  22 ++++
+ apps/web/i18n/locales/en/settings.json           | Unmerged
+ apps/web/i18n/locales/en/settings.json           |  22 ++++
+ odoo-addons/nasq_pmo/models/nasq_settings.py     | Unmerged
+ odoo-addons/nasq_pmo/models/nasq_settings.py     | 148 +++++++++++++++++++++++
+ 7 files changed, 245 insertions(+), 1 deletion(-)

@@ -1,0 +1,70 @@
+## codex/project-settings-controls
+ M apps/web/app/components/project/ProjectCreateForm.vue
+ M apps/web/app/components/project/ProjectGeneralForm.vue
+ M apps/web/app/components/settings/ProjectSettingsForm.vue
+ M apps/web/app/components/task/StateMenu.vue
+ M apps/web/app/components/task/TaskDetailPanel.vue
+ M apps/web/app/composables/__tests__/boardStages.test.ts
+ M apps/web/app/composables/__tests__/useTasks.optimistic.test.ts
+ M apps/web/app/composables/useNotifications.ts
+ M apps/web/app/composables/useProjectSettings.ts
+ M apps/web/app/composables/useProjects.ts
+ M apps/web/app/composables/useTasks.ts
+ M apps/web/app/pages/notifications.vue
+ M apps/web/app/pages/tasks/[id].vue
+ M apps/web/app/utils/__tests__/safeReturnTo.test.ts
+ M apps/web/e2e/access-admin.spec.ts
+ M apps/web/e2e/board.spec.ts
+ M apps/web/e2e/contracts.spec.ts
+ M apps/web/e2e/notifications.spec.ts
+ M apps/web/e2e/project-admin.spec.ts
+ M apps/web/e2e/projects.spec.ts
+ M apps/web/e2e/task-lifecycle.spec.ts
+ M apps/web/i18n/locales/ar/projects.json
+ M apps/web/i18n/locales/ar/settings.json
+ M apps/web/i18n/locales/ar/tasks.json
+ M apps/web/i18n/locales/en/projects.json
+ M apps/web/i18n/locales/en/settings.json
+ M apps/web/i18n/locales/en/tasks.json
+ M odoo-addons/nasq_pmo/controllers/notifications.py
+ M odoo-addons/nasq_pmo/controllers/projects.py
+ M odoo-addons/nasq_pmo/controllers/settings.py
+ M odoo-addons/nasq_pmo/controllers/tasks.py
+ M odoo-addons/nasq_pmo/models/mail_notification_nasq.py
+ M odoo-addons/nasq_pmo/models/nasq_settings.py
+ M odoo-addons/nasq_pmo/models/project_project.py
+ M odoo-addons/nasq_pmo/models/project_task.py
+ M odoo-addons/nasq_pmo/models/task_notifications.py
+ M odoo-addons/nasq_pmo/serializers/notification.py
+ M odoo-addons/nasq_pmo/serializers/project.py
+ M odoo-addons/nasq_pmo/serializers/task.py
+ M odoo-addons/nasq_pmo/tests/__init__.py
+ M odoo-addons/nasq_pmo/tests/test_access_capabilities.py
+ M odoo-addons/nasq_pmo/tests/test_project_admin_model.py
+ M odoo-addons/nasq_pmo/tests/test_projects.py
+ M odoo-addons/nasq_pmo/tests/test_settings.py
+ M odoo-addons/nasq_pmo/tests/test_task_lifecycle.py
+ M odoo-addons/nasq_pmo/tests/test_tasks.py
+ M packages/contracts/src/pmo/__tests__/notifications.test.ts
+ M packages/contracts/src/pmo/__tests__/schemas.test.ts
+ M packages/contracts/src/pmo/__tests__/task-lifecycle.test.ts
+ M packages/contracts/src/pmo/notification.ts
+ M packages/contracts/src/pmo/project.ts
+ M packages/contracts/src/pmo/settings.ts
+ M packages/contracts/src/pmo/task.ts
+?? apps/web/app/components/project/__tests__/
+?? apps/web/app/components/settings/__tests__/
+?? apps/web/app/components/task/TaskCompletionApproval.vue
+?? apps/web/app/components/task/__tests__/
+?? apps/web/app/composables/__tests__/notificationDigest.test.ts
+?? apps/web/app/composables/__tests__/projectSettingsControls.test.ts
+?? apps/web/app/composables/__tests__/taskCompletionApproval.test.ts
+?? apps/web/app/pages/__tests__/
+?? apps/web/app/pages/notification-digests/
+?? apps/web/e2e/project-settings-controls.spec.ts
+?? docs/project-settings-controls.md
+?? odoo-addons/nasq_pmo/tests/test_completion_approval.py
+?? odoo-addons/nasq_pmo/tests/test_deadline_digest.py
+?? odoo-addons/nasq_pmo/tests/test_project_settings_controls.py
+?? packages/contracts/src/pmo/__tests__/project-settings-controls.test.ts
+?? scripts/

@@ -1,0 +1,9 @@
+port 9791 used=False
+port 9792 used=False
+port 3792 used=False
+port 9793 used=False
+port 9794 used=False
+port 8069 used=False
+port 3000 used=False
+port 9589 used=False
+port 3589 used=False

@@ -1,0 +1,61 @@
+{
+  "taskId": "flow-e0dee511-2325-4c5d-af3c-add685c1819f",
+  "state": "DONE",
+  "goal": "تحليل بنية النظام وتدفق تطبيق الويب ومكوّناته الرئيسية",
+  "report": "تحليل مقيد بملفات الواجهة المسموحة فقط. لا يشمل إعداد Nuxt أو الخادم أو صفحات التوجيه أو نصوص الاختبار، ولا يُثبت سلوك التشغيل.\n\nنقطة الدخول\napps/web/app/app.vue هو جذر تطبيق Nuxt: يلف الصفحة بـ ConfigProvider من reka-ui لاتجاه الواجهة (rtl إذا locale === 'ar' وإلا ltr)، ثم NuxtLayout ثم NuxtPage. التعليق في المصدر يثبت أن @nuxtjs/i18n لا يضع lang/dir على html بنفسه؛ التطبيق يطبّق useLocaleHead ثم useHead على htmlAttrs. هذا حقيقة مصدرية لا تشغيلية.\n\nالثيم\napps/web/app/assets/css/main.css يستورد Tailwind وtw-animate-css، يعرّف IBM Plex Sans Arabic بأوزان 400–700، ومتغيرات :root للألوان والـ sidebar و--primary مع تعليق أنها تُستبدل وقت التشغيل عبر branding.primary_color. @theme inline يربط المتغيرات بـ Tailwind. الطبقة base تطبق border/background/font-sans على body. لا يظهر في هذا الملف كيف تُحقن ألوان العلامة فعلياً.\n\nهيكل التنقل والصلاحيات\nAppSidebar.vue هو غلاف التنقل الداخلي: useNav(me) يُقسَّم إلى مجموعات projects / hr / admin وعناصر بلا مجموعة تُفتح في تبويب جديد. الجانب يمين في RTL. التفضيل nasq-nav:{userId} يُحفظ في sessionStorage. الحساب وقائمة الخروج مُبوَّبة بـ useHydrated() لتفادي سباق SSR. الخروج يستدعي POST /api/auth/logout بجسم JSON، يصفّي TanStack Query، يحدّث me، ثم ينتقل إلى /login. نقطة اتصال الحافلة ClientOnly لتفادي عدم تطابق الإماهة. NotificationCenter.vue ليس مركزاً منبثقاً: NuxtLink إلى /notifications مع عدّاد unread_count. SettingsTabs.vue تبويبات صفحة داخلية إلى /settings/projects و/settings/branding خلف can('pmo.settings.manage') وcan('settings.branding.manage'). AccessStateBadge.vue شارة حالة فقط (protected / readOnly / active / disabled).\n\nشاشات الأعمال التمثيلية\nالنمط المشترك: صفحات داخل التخطيط العادي، رجوع يحفظ المرشحات عبر الاستعلام، وتأكيد/إجراءات ضمن الصفحة لا أدراج. PageHeader.vue يوفّر عنواناً ووصفاً ورابط رجوع (سهم ينعكس بـ ltr:rotate-180) وفتحات actions. FilterBar.vue تخطيط فتحات search/controls/view/active بلا منطق بيانات.\n\nDirectoryTable.vue يجلب القائمة عبر useHrEmployees بمعاملات q/department_id/archived/limit/offset ويعرض غلاف {items, total} مع صفحات حجم 25. المرشحات تُزامَن مع route.query. الصلاحيات hr.employees.manage وhr.employees.archive وhr.departments.read. الصف ينبعث open؛ الأزرار تنبعث manage/archive. Hydration تعطّل الحقول قبل الإماهة.\n\nProjectTable.vue لا يجلب البيانات: يستقبل items/isLoading/archived/capped/filtered. أعمدة الاسم والحالة والتقدم وقائمة أرشفة فقط (التعليق: الإعدادات على صفحة المشروع). الهيكل الأولي هياكل عظمية حتى isLoading || !hydrated حتى لا تُرقَّع الصفوف فوق SSR. النقر يفتح المشروع بعد الإماهة.\n\nTaskDetailPage.vue صفحة تفصيل كاملة (data-testid=task-detail-page) بـ PageHeader وTaskDetailPanel. الإغلاق يدفع closeTo أو /tasks مع query الحالي. TaskBoard.vue كانبان شخصي/مشروعي: يسحب صفحات المهام حتى النفاذ أو سقف 200، يعيد بناء أعمدة vue-draggable-plus من نتيجة الاستعلام، والحركة تذهب عبر useUpdateTask فقط إذا can_write. عمود unstaged ظاهر دائماً في اللوحة الشخصية؛ في المشروع يُرفض الإفلات عليه. الطي محلي للجلسة. اللوحة تمرّر أفقياً والأعمدة عمودياً.\n\nعلاقات وأنماط\nالوحدات تشترك في Composition API وuseI18n وuseAccess وuseHydrated وTanStack Vue Table للقوائم وEmptyState للقوائم الفارغة. الجداول تنبعث أحداثاً للأب بدل التوجيه الداخلي. التفصيل والمهام يلتزمان بمسارات صفحة لا overlays. العقود ظاهرة عبر @nasq/contracts في المشاريع والمهام.\n\nحقائق مقابل افتراضات\nحقائق: المسؤوليات أعلاه مقتبسة من محتوى الملفات المرفقة. افتراضات غير مثبتة من هذا المخزون: شكل NuxtLayout، تعريف useNav/useMe/useAccess، مسارات pages/*، مصدر حقن --primary، وشكل استجابات API عدا ما يظهر في استدعاءات المكوّنات. السياق كان truncated فلا يُستند إلى ملفات غير مرفقة.\n\nحدود\nلا اختبارات ولا متصفح ولا خادم في النطاق. التحليل لا يثبت الإماهة أو الصلاحيات أو السحب في وقت التشغيل. المخاطر المذكورة في المهمة قائمة: المخزون واجهة مختارة فقط.",
+  "changedFiles": [],
+  "fixLoops": 0,
+  "reviewLoops": 0,
+  "calls": 3,
+  "quality": {
+    "pass": true,
+    "fingerprint": "e84d3d49ccf1ce857e3770a6762c7166258fcf593f4310bfdbfde73939afcc68",
+    "checks": [
+      {
+        "id": "scope",
+        "status": "PASS",
+        "exitCode": 0,
+        "summary": "Report paths belong to supplied source context; no patch applied",
+        "durationMs": 0
+      },
+      {
+        "id": "snapshot",
+        "status": "PASS",
+        "exitCode": 0,
+        "summary": "Source unchanged during read-only analysis",
+        "durationMs": 0
+      }
+    ]
+  },
+  "review": {
+    "status": "PASS",
+    "findings": [
+      {
+        "file": "apps/web/app/components/task/TaskBoard.vue",
+        "issue": "Report states the unstaged column rejects drops on project boards (correct: group put:false) but omits that on project boards the column is rendered only when it already holds cards (v-if kind==='personal' || columns[UNSTAGED].length>0). Minor completeness gap; no inaccuracy.",
+        "severity": "low"
+      },
+      {
+        "file": "apps/web/app/components/AppSidebar.vue",
+        "issue": "Report generalizes useAccess/useHydrated as shared across all units; AppSidebar uses useHydrated but not useAccess (access filtering is delegated to useNav(me)). Generalization is acceptable but imprecise.",
+        "severity": "low"
+      }
+    ],
+    "criteria": [
+      {
+        "id": "analysis-scope",
+        "status": "PASS",
+        "evidence": [
+          "snapshot"
+        ]
+      },
+      {
+        "id": "analysis-structure",
+        "status": "PASS",
+        "evidence": [
+          "snapshot"
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,74 @@
+{
+  "settings": {
+    "title": "Settings",
+    "forbidden": "This page is for administrators only",
+    "tabs": {
+      "label": "Settings sections"
+    },
+    "branding": {
+      "title": "Branding",
+      "name": "Company name",
+      "color": "Primary color",
+      "logo": "Logo",
+      "logoHint": "PNG or JPEG, up to 1 MiB",
+      "save": "Save branding",
+      "saving": "Saving…",
+      "saved": "Branding saved",
+      "preview": {
+        "title": "Live preview",
+        "hint": "Changes appear here before you save",
+        "action": "Primary action"
+      },
+      "errors": {
+        "invalid": "Enter a valid name and six-digit color",
+        "logoFormat": "Use a PNG or JPEG image",
+        "logoSize": "The logo must not exceed 1 MiB",
+        "logoReading": "Wait for the logo to finish loading",
+        "logoRead": "The logo image could not be read",
+        "invalidColor": "Enter a six-digit colour",
+        "load": "Branding settings could not be loaded"
+      },
+      "colorPicker": "Choose primary colour",
+      "loading": "Loading branding settings",
+      "retry": "Try again",
+      "cancel": "Cancel changes",
+      "resetDefault": "Reset to default colour",
+      "presets": {
+        "label": "Colour presets",
+        "default": "nasq default",
+        "blue": "Blue",
+        "teal": "Teal",
+        "amber": "Amber"
+      },
+      "managedIdentity": "The institution name and logo are managed by the system administrator in Odoo. You can customize the primary colour here."
+    },
+    "projects": {
+      "title": "Projects",
+      "creators": {
+        "label": "Who can create projects",
+        "managers": "Project managers and administrators",
+        "employees": "All employees"
+      },
+      "defaultStages": {
+        "label": "Default stages for new projects",
+        "hint": "Copied into every new project. Existing projects are not affected."
+      },
+      "saved": "Settings saved"
+    },
+    "appearance": {
+      "title": "Appearance",
+      "description": "Make Nasq comfortable to read and use",
+      "mode": "Display mode",
+      "modeHint": "Choose a light or dark appearance",
+      "light": "Light",
+      "dark": "Dark",
+      "fontSize": "Font size",
+      "fontHint": "Your chosen size applies across the system",
+      "small": "Small",
+      "medium": "Medium",
+      "large": "Large",
+      "default": "Default",
+      "savedHint": "Your choices are saved automatically in this browser. The organization color stays the same."
+    }
+  }
+}

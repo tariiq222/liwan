@@ -1,0 +1,24 @@
+{
+  "at": "2026-09-05T20:46:17.383Z",
+  "result": {
+    "taskId": "flow-331786c7-67f1-4e14-837c-998b41eeab70",
+    "state": "BLOCKED",
+    "reason": "criterion scope for non-documentation work requires a configured project check",
+    "changedFiles": [],
+    "fixLoops": 0,
+    "reviewLoops": 0,
+    "calls": 1
+  },
+  "agents": [
+    {
+      "role": "luna",
+      "model": "openai/gpt-5.6-luna",
+      "effort": "low",
+      "purpose": "normalize",
+      "inputTokens": 3430,
+      "outputTokens": 232,
+      "durationMs": 10248
+    }
+  ],
+  "fallbacks": []
+}

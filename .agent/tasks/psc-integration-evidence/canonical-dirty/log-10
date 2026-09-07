@@ -1,0 +1,10 @@
+cf20f1321108d5c950f513ad72681d0c4c1e3e28 Merge main fixes with approved page design
+2afb9c53ef8cdb596b49e55d9abdac6e761a094a Align Nasq pages with approved OpenDesign layouts
+8263bfd9105d99bcc5090e783bbc7d9b0e94c7f5 Merge verified fixes with approved Nasq design
+4a991da55ab827e7106f425a9afa2c82def3a56c Fix API validation, company policies and UI refresh races
+b748ca10f9a9fafab21d5b7c71ae101ebb6cd473 Apply approved Nasq design with appearance preferences and header search
+4b15cb107a062271d63389eec6a0dfaf462581a0 Fix toast styling and preserve Arabic typography
+02d4f743910eaf5cc0de58d177a6f02a4f10a316 Document verified unification and completed workspace cleanup
+a284019d695830a1f59251faa1658b4fc3d7f8be Unify access, HR, design and project collaboration workflows
+c54b00fa23c80b7874b01b0e296e41e4d5b3b192 [WIP] reconcile access policy and routed Phase 3b integration baseline
+91c0ee26e5e40a93318b92a5690a906134df43db [IMP] docs: record reconciled Phase 3b delivery

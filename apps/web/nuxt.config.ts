@@ -50,8 +50,15 @@ export default defineNuxtConfig({
   // fetches to /api/v1/** go through server/routes/api/v1/[...path].ts, which reads
   // odooUrl at runtime.
   routeRules: {
-    '/web/**': { proxy: `${odoo}/web/**` },
-    '/odoo/**': { proxy: `${odoo}/odoo/**` },
+    // Odoo's public login bootstrap also loads translations outside /web/.
+    '/website/translations': { proxy: `${odoo}/website/translations` },
+    '/base_setup/**': { proxy: `${odoo}/base_setup/**` },
+    '/mail/**': { proxy: `${odoo}/mail/**` },
+    '/discuss/**': { proxy: `${odoo}/discuss/**` },
+    '/bus/**': { proxy: `${odoo}/bus/**` },
+    // Keep Odoo's redirects and login Set-Cookie response in the browser.
+    '/web/**': { proxy: { to: `${odoo}/web/**`, fetchOptions: { redirect: 'manual' } } },
+    '/odoo/**': { proxy: { to: `${odoo}/odoo/**`, fetchOptions: { redirect: 'manual' } } },
   },
   typescript: { strict: true },
 })

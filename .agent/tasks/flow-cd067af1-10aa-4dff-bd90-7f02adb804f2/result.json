@@ -1,0 +1,10 @@
+{
+  "taskId": "flow-cd067af1-10aa-4dff-bd90-7f02adb804f2",
+  "state": "BLOCKED",
+  "goal": "تقييم بنية واجهة التطبيق الحالية وتحديد التنظيم والاعتماديات ومواطن المخاطر",
+  "reason": "Analysis context is incomplete; narrow scope",
+  "changedFiles": [],
+  "fixLoops": 0,
+  "reviewLoops": 0,
+  "calls": 1
+}

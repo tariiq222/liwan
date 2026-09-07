@@ -1,0 +1,47 @@
+import { safeReturnTo } from './safeReturnTo'
+
+/** Server capabilities gate navigation; resource authorization remains on the API. */
+export type AccessIdentity = { role?: string; capabilities?: readonly string[] } | null | undefined
+export function hasCapability(identity: AccessIdentity, capability: string): boolean {
+  return identity?.capabilities?.includes(capability) ?? false
+}
+
+const destinations = [
+  ['/tasks', 'pmo.tasks.read'], ['/projects', 'pmo.projects.read'],
+  ['/hr', 'hr.employees.read'], ['/hr/departments', 'hr.departments.read'],
+  ['/hr/documents', 'hr.documents.read'], ['/settings/users', 'access.users.read'],
+  ['/settings/roles', 'access.roles.read'], ['/settings/access-log', 'access.audit.read'],
+  ['/settings/projects', 'pmo.settings.manage'], ['/settings/branding', 'settings.branding.manage'],
+] as const
+export function firstAllowedPath(identity: AccessIdentity): string {
+  return destinations.find(([, capability]) => hasCapability(identity, capability))?.[0] ?? '/account'
+}
+export function postLoginPath(identity: AccessIdentity, next: unknown): string {
+  const fallback = firstAllowedPath(identity)
+  const target = safeReturnTo(next, fallback, [...destinations.map(([path]) => path), '/account', '/search', '/notifications', '/archived-tasks', '/settings/appearance'])
+  const capability = requiredCapabilityForPath(new URL(target, 'http://nasq.local').pathname)
+  return capability && !hasCapability(identity, capability) ? fallback : target
+}
+export function isNavPathActive(path: string, target: string): boolean {
+  const document = /^\/hr\/departments\/[^/]+\/documents(?:\/|$)/.test(path)
+  if (target === '/hr') return path === '/hr' || path.startsWith('/hr/employees/')
+  if (target === '/hr/documents') return path === target || path.startsWith(`${target}/`) || document
+  if (target === '/hr/departments' && document) return false
+  return path === target || path.startsWith(`${target}/`)
+}
+export function requiredCapabilityForPath(path: string): string | null {
+  if (path === '/notifications' || path === '/archived-tasks') return 'pmo.tasks.read'
+  if (path === '/hr/documents/new') return 'hr.documents.manage'
+  if (path === '/tasks/new' || /^\/projects\/[^/]+\/tasks\/new$/.test(path)) return 'pmo.tasks.create'
+  if (path === '/projects/new') return 'pmo.projects.create'
+  if (path === '/settings/users/new') return 'access.users.grant'
+  if (/^\/settings\/users\/[^/]+\/access$/.test(path)) return 'access.users.assign_roles'
+  if (/^\/settings\/roles\/(new|[^/]+\/edit)$/.test(path)) return 'access.roles.manage'
+  if (/^\/hr\/departments\/[^/]+\/documents(?:\/|$)/.test(path)) {
+    return /\/(new|edit)$/.test(path) ? 'hr.documents.manage' : 'hr.documents.read'
+  }
+  if (/^\/hr\/employees\/(new|[^/]+\/edit)$/.test(path)) return 'hr.employees.manage'
+  if (/^\/hr\/departments\/(new|[^/]+\/edit)$/.test(path)) return 'hr.departments.manage'
+  if (/^\/hr\/employees\/[^/]+\/access$/.test(path)) return 'access.users.grant'
+  return destinations.find(([target]) => isNavPathActive(path, target))?.[1] ?? null
+}

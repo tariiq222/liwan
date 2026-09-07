@@ -1,0 +1,10 @@
+{
+  "taskId": "flow-05794d67-3cde-432c-a802-606304878cf9",
+  "state": "BLOCKED",
+  "goal": "تحليل بنية النظام الحالية وتحديد المكونات والمسارات الرئيسية ونقاط المخاطر ضمن النطاق المتاح.",
+  "reason": "Analysis context is incomplete; narrow scope",
+  "changedFiles": [],
+  "fixLoops": 0,
+  "reviewLoops": 0,
+  "calls": 1
+}
