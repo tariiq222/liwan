@@ -7,7 +7,19 @@ source, configuration, and Git state read-only for Nasq work. Authorized tests
 or development may use an explicitly isolated database, but never operate on
 an arbitrary database.
 
-## 2026-09-07 project phases integration (current)
+## 2026-09-07 internal UI integration (current)
+
+Internal page dimensions, spacing and semantic status colors are integrated into
+local `main` at `327064d`, preserving the project phases already on `41964ca`.
+The UI source is `e6740da`. See [the UI integration report](internal-ui-integration-2026-09-07.md)
+for the reports conflict resolution, independent PASS, fresh 119 contract / 411
+web tests, type checking and isolated browser evidence. Tests passed again on main.
+
+The pre-existing `.agent/learnings.jsonl` edit is unchanged and uncommitted.
+Source/integration worktrees remain. No push, deployment, canonical service
+restart, `odoo19` update or cleanup was performed.
+
+## 2026-09-07 project phases integration
 
 Project phases one and two are merged into local `main` at `e6f7929`.
 Sources `9b579c9` (governance, schedules, templates) and `04c5729` (budgets,
