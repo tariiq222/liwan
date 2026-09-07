@@ -11,6 +11,7 @@ export function hasCapability(identity: AccessIdentity, capability: string): boo
 
 const destinations = [
   ['/tasks', 'pmo.tasks.read'], ['/projects', 'pmo.projects.read'],
+  ['/project-templates', 'pmo.projects.read'],
   ['/hr', 'hr.employees.read'], ['/hr/departments', 'hr.departments.read'],
   ['/hr/documents', 'hr.documents.read'], ['/settings/users', 'access.users.read'],
   ['/settings/roles', 'access.roles.read'], ['/settings/access-log', 'access.audit.read'],
@@ -34,6 +35,7 @@ export function isNavPathActive(path: string, target: string): boolean {
 }
 export function requiredCapabilityForPath(path: string): string | null {
   if (path === '/chat' || path.startsWith('/chat/')) return INTERNAL_NASQ_ACCESS
+  if (/^\/project-templates\/(new|[^/]+\/edit)$/.test(path)) return 'pmo.settings.manage'
   if (path === '/notifications' || path === '/archived-tasks') return 'pmo.tasks.read'
   if (path === '/hr/documents/new') return 'hr.documents.manage'
   if (path === '/tasks/new' || /^\/projects\/[^/]+\/tasks\/new$/.test(path)) return 'pmo.tasks.create'

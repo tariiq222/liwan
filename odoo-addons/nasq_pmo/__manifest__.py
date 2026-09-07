@@ -13,6 +13,10 @@
     'depends': ['nasq_api', 'project', 'hr', 'mail', 'bus'],
     'data': [
         'security/ir.model.access.csv',
+        'security/ir.model.access-governance.csv',
+        'security/project_governance_rules.xml',
+        'security/ir.model.access-templates.csv',
+        'security/project_template_rules.xml',
         'security/nasq_pmo_rules.xml',
         'security/project_charter_rules.xml',
         'data/nasq_pmo_data.xml',

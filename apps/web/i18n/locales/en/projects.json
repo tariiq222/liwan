@@ -301,6 +301,193 @@
         "unknown_amount": "An unknown budget cannot include an amount.",
         "estimate_required": "An estimate needs a non-negative amount; zero is valid."
       }
+    },
+    "planningLinks": {
+      "schedule": "Timeline / Gantt",
+      "stakeholders": "Stakeholders",
+      "raci": "RACI matrix",
+      "register": "Risks and issues",
+      "templates": "Project templates"
+    },
+    "schedule": {
+      "title": "Schedule",
+      "editTitle": "Edit task schedule",
+      "editDescription": "Set the task start and end dates on the project timeline.",
+      "backToSchedule": "Back to schedule",
+      "timeline": "Project timeline",
+      "scale": "Timeline scale",
+      "week": "Week",
+      "month": "Month",
+      "task": "Task",
+      "milestones": "Milestones",
+      "start": "Start date",
+      "end": "End date",
+      "undated": "Undated",
+      "endOnly": "Ends {date}; no start date",
+      "dependencies": "Predecessor tasks",
+      "predecessor": "Predecessor task",
+      "empty": "There are no visible tasks in this project",
+      "invalidDates": "Enter two valid dates, with the start on or before the end.",
+      "saved": "Schedule saved",
+      "saveError": "Could not save the schedule"
+    },
+    "templates": {
+      "title": "Project templates",
+      "description": "Reusable project stages, tasks and milestones.",
+      "new": "New project template",
+      "edit": "Edit project template",
+      "applyTitle": "Use project template",
+      "applyHint": "A new independent project will be created from this start date.",
+      "empty": "No project templates yet.",
+      "notFound": "Project template was not found.",
+      "canApply": "Available to use",
+      "days": "days",
+      "summary": "{stages} stages, {tasks} tasks, {milestones} milestones",
+      "saved": "Template saved.",
+      "deleted": "Template deleted.",
+      "applied": "Project created from template.",
+      "saveError": "Could not save the template.",
+      "applyError": "Could not use the template.",
+      "deleteConfirm": "Delete this template?",
+      "filters": {
+        "search": "Search templates"
+      },
+      "none": "No milestone",
+      "fields": {
+        "name": "Name",
+        "description": "Description",
+        "key": "Key",
+        "fold": "Fold stage",
+        "stage": "Stage",
+        "startOffset": "Start offset",
+        "duration": "Duration in days",
+        "milestone": "Milestone",
+        "dependencies": "Predecessor tasks",
+        "projectName": "New project name",
+        "startDate": "Start date",
+        "milestoneName": "Milestone name",
+        "offset": "Offset",
+        "taskName": "Task name"
+      },
+      "stages": {
+        "title": "Stages",
+        "hint": "Choose a stage for each task. Move its tasks before removing a stage."
+      },
+      "milestones": {
+        "title": "Milestones",
+        "hint": "The offset is calculated from the project start date."
+      },
+      "tasks": {
+        "title": "Tasks",
+        "hint": "Choose a stage, milestone and predecessor tasks."
+      },
+      "actions": {
+        "new": "New template",
+        "edit": "Edit",
+        "delete": "Delete",
+        "confirmDelete": "Confirm delete",
+        "apply": "Use template",
+        "addStage": "Add stage",
+        "addMilestone": "Add milestone",
+        "addTask": "Add task",
+        "remove": "Remove"
+      },
+      "validation": {
+        "stageInUse": "Move the tasks in this stage to another stage before removing it.",
+        "duplicateReference": "Each stage, milestone and task must be unique. Select each predecessor only once.",
+        "missingStage": "Choose an existing stage for every task.",
+        "missingMilestone": "Choose an existing milestone or No milestone.",
+        "missingDependency": "Choose predecessor tasks that still exist.",
+        "dependencyCycle": "Predecessor tasks form a loop. Remove a dependency to break the loop.",
+        "invalidFields": "Enter all names and check offsets (-3650 to 3650), durations (1 to 3650) and the limit of 100 rows per section.",
+        "applyFields": "Enter a project name and a valid start date."
+      },
+      "pagination": {
+        "label": "Template pages",
+        "count": "{from}–{to} of {total} templates",
+        "previous": "Previous",
+        "next": "Next"
+      }
+    },
+    "governance": {
+      "stakeholders": "Stakeholders",
+      "stakeholder": {
+        "name": "Name",
+        "organization": "Organization",
+        "role": "Role",
+        "contact": "Contact",
+        "notes": "Notes",
+        "internalUser": "Internal user",
+        "noInternalUser": "External stakeholder without a user",
+        "title": "Stakeholder",
+        "createTitle": "Add stakeholder",
+        "editTitle": "Edit stakeholder",
+        "noUsers": "No matching users"
+      },
+      "registerForm": {
+        "create": "Add item",
+        "edit": "Edit item"
+      },
+      "confirmDelete": "Delete this item?",
+      "confirmDeleteAction": "Confirm deletion",
+      "raci": {
+        "title": "RACI matrix",
+        "add": "Add assignment",
+        "task": "Task",
+        "stakeholder": "Stakeholder",
+        "role": "Role",
+        "tasksLoading": "Loading project tasks…",
+        "tasksError": "Project tasks could not be loaded.",
+        "noTasks": "No tasks are available in this project.",
+        "stakeholdersLoading": "Loading stakeholders…",
+        "stakeholdersError": "Stakeholders could not be loaded.",
+        "noStakeholders": "Add a stakeholder before creating an assignment.",
+        "legend": "R: Responsible; A: Accountable; C: Consulted; I: Informed. Each task allows one accountable stakeholder.",
+        "matrixHelp": "Choose a role to add or edit an assignment; choose — to remove it after confirmation. Search and page through all tasks and stakeholders."
+      },
+      "register": {
+        "title": "Risk and issue register",
+        "kind": "Kind",
+        "risk": "Risk",
+        "issue": "Issue",
+        "itemTitle": "Title",
+        "description": "Description",
+        "priority": "Priority",
+        "status": "Status",
+        "score": "Score",
+        "probability": "Probability",
+        "impact": "Impact",
+        "response": "Response",
+        "dueDate": "Due date",
+        "task": "Task",
+        "owner": "Owner",
+        "noTask": "No task",
+        "noTasks": "No tasks available",
+        "noOwner": "No owner",
+        "noOwners": "No matching users",
+        "taskId": "Task id",
+        "ownerId": "Owner id",
+        "low": "Low",
+        "normal": "Normal",
+        "high": "High",
+        "critical": "Critical",
+        "open": "Open",
+        "inProgress": "In progress",
+        "resolved": "Resolved",
+        "closed": "Closed",
+        "in_progress": "In progress"
+      },
+      "readOnly": "Project management permission is required to make changes.",
+      "stakeholderAssigned": "Remove this stakeholder’s RACI assignments first.",
+      "pagination": "Result pages",
+      "previous": "Previous",
+      "next": "Next",
+      "total": "Total: {total}",
+      "loadMore": "Load more",
+      "closedTasks": "Completed and cancelled tasks",
+      "all": "All",
+      "delete": "Delete",
+      "saving": "Saving…"
     }
   }
 }

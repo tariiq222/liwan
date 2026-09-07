@@ -67,4 +67,15 @@ describe('access policy navigation', () => {
     expect(postLoginPath({ capabilities: [] }, '/chat')).toBe('/chat')
     expect(isNavPathActive('/chat/42/info', '/chat')).toBe(true)
   })
+  it('gates template editing and retains accessible template deep links after login', () => {
+    expect(requiredCapabilityForPath('/project-templates')).toBe('pmo.projects.read')
+    expect(requiredCapabilityForPath('/project-templates/7')).toBe('pmo.projects.read')
+    expect(requiredCapabilityForPath('/project-templates/7/use')).toBe('pmo.projects.read')
+    expect(requiredCapabilityForPath('/project-templates/new')).toBe('pmo.settings.manage')
+    expect(requiredCapabilityForPath('/project-templates/7/edit')).toBe('pmo.settings.manage')
+    const reader = { capabilities: ['pmo.projects.read'] }
+    expect(postLoginPath(reader, '/project-templates/7?returnTo=%2Fprojects')).toBe('/project-templates/7?returnTo=%2Fprojects')
+    expect(postLoginPath(reader, '/project-templates/7/edit')).toBe('/projects')
+    expect(postLoginPath({ capabilities: [] }, '/project-templates')).toBe('/account')
+  })
 })

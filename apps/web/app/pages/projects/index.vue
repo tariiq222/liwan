@@ -261,6 +261,11 @@ function openProject(id: number) {
         <Button v-if="canCreate" data-testid="project-new" :disabled="!hydrated" class="gap-2" @click="openCreate">
           <Plus class="size-[18px]" />{{ t('projects.new') }}
         </Button>
+        <Button as-child variant="outline">
+          <NuxtLink :to="{ path: '/project-templates', query: returnToQuery(route.fullPath) }" data-testid="project-templates-link">
+            {{ t('projects.planningLinks.templates') }}
+          </NuxtLink>
+        </Button>
       </template>
 
       <template #active>
