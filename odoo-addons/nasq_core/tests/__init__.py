@@ -6,4 +6,3 @@ from . import (
     test_groups,
     test_meeting_access,
 )
-from . import test_meeting_access

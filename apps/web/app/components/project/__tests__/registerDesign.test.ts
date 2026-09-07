@@ -35,6 +35,11 @@ describe('register list design alignment', () => {
     expect(listSource).toContain('projects.governance.confirmDeleteAction')
     expect(listSource).toContain('query: { returnTo }')
     expect(listSource).toContain('`/projects/${id}/register/${item.id}`')
-    expect(listSource).toContain(':back-to="`/projects/${id}`"')
+    // The nested register uses its parent project's shared navigation chrome.
+    const projectSource = readFileSync(
+      resolve(dirname(fileURLToPath(import.meta.url)), '../../../pages/projects/[id].vue'), 'utf8',
+    )
+    expect(projectSource).toContain('<ProjectWorkspaceNav :project-id="project.id"')
+    expect(projectSource).toContain(':back-to="projectReturnTo"')
   })
 })

@@ -1,13 +1,22 @@
 import { describe, expect, it } from 'vitest'
 import { NotificationSchema } from '@nasq/contracts'
-import { isDigestNotification } from '../../../composables/useNotifications'
+import { isDigestNotification, isMeetingNotification } from '../../../composables/useNotifications'
 
 function href(item: ReturnType<typeof NotificationSchema.parse>) {
   if (isDigestNotification(item)) return `/notification-digests/${item.digest_id}`
+  if (isMeetingNotification(item)) return `/meetings/${item.meeting_id}`
   return `/tasks/${item.task_id}`
 }
 
 describe('NotificationCenter digest routing', () => {
+  it('routes meeting invitations to the meeting without inventing a task id', () => {
+    const meeting = NotificationSchema.parse({
+      id: 91, kind: 'meeting_invite', meeting_id: 7, meeting_name: 'Review', body: '',
+      created_at: '2026-09-07T12:00:00Z', is_read: false,
+    })
+    expect(href(meeting)).toBe('/meetings/7')
+    expect('task_id' in meeting).toBe(false)
+  })
   it('keeps ordinary task notifications on the task route in ar and en fixtures', () => {
     const comment = NotificationSchema.parse({
       id: 11, kind: 'comment', task_id: 44, task_name: 'مهمة', body: 'تعليق',
