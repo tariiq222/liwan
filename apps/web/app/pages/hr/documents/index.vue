@@ -19,12 +19,16 @@ const committedListParams = computed(() => hrCommittedListParams(route.query))
 const departmentId = ref(route.query.department_id ? Number(route.query.department_id) : undefined)
 const limit = 25
 const offset = ref(Math.max(0, Number(route.query.offset ?? 0) || 0))
-const query = useHrDocuments(computed(() => ({
-  q: committedListParams.value.q,
-  department_id: departmentId.value,
-  limit,
-  offset: committedListParams.value.offset,
-})))
+const params = computed(() => {
+  const query = route.query
+  const department = typeof query.department_id === 'string' ? Number(query.department_id) : NaN
+  return {
+    ...hrCommittedListParams(query),
+    department_id: Number.isSafeInteger(department) && department > 0 ? department : undefined,
+    limit,
+  }
+})
+const query = useHrDocuments(params)
 const departments = useHrDepartments()
 const page = computed(() => Math.floor(committedListParams.value.offset / limit) + 1)
 const pages = computed(() => Math.max(1, Math.ceil((query.data.value?.total ?? 0) / limit)))
@@ -63,7 +67,7 @@ function clearFilters() {
 function setPage(next: number) {
   if (!hydrated.value || query.isFetching.value || hasPendingSearch.value || next < 1 || next > pages.value) return
   offset.value = (next - 1) * limit
-  void router.replace({ query: { ...route.query, ...(offset.value ? { offset: offset.value } : {}) } })
+  void router.replace({ query: { ...route.query, offset: offset.value > 0 ? offset.value : undefined } })
 }
 </script>
 
