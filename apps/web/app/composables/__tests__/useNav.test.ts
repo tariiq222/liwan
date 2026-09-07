@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { useNav } from '../useNav'
 
-const employee = { role: 'employee', capabilities: ['pmo.tasks.read', 'pmo.projects.read', 'hr.employees.read', 'hr.departments.read', 'hr.documents.read'] }
+const employee = { role: 'employee', capabilities: ['pmo.tasks.read', 'pmo.projects.read', 'meetings.read', 'hr.employees.read', 'hr.departments.read', 'hr.documents.read'] }
 const admin = { role: 'admin', capabilities: [...employee.capabilities, 'access.users.read', 'access.roles.read', 'access.audit.read', 'settings.branding.manage'] }
 
 describe('capability-based navigation', () => {
@@ -11,7 +11,7 @@ describe('capability-based navigation', () => {
   })
   it('groups the employee product pages without administrative links', () => {
     const nav = useNav(employee)
-    expect(nav.map(item => item.to)).toEqual(['/chat', '/projects', '/tasks', '/reports', '/hr', '/hr/departments', '/hr/documents', '/settings/appearance'])
+    expect(nav.map(item => item.to)).toEqual(['/chat', '/projects', '/tasks', '/reports', '/meetings', '/meetings/calendar', '/hr', '/hr/departments', '/hr/documents', '/settings/appearance'])
     expect(nav.filter(item => item.group === 'hr')).toHaveLength(3)
     expect(nav.filter(item => item.group === 'chat')).toHaveLength(1)
     expect(nav.filter(item => item.group === 'settings').map(item => item.to)).toEqual(['/settings/appearance'])

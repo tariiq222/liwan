@@ -14,10 +14,11 @@ const settingsNav = computed(() => allNav.value.filter(item => item.group === 's
 const groups = computed(() => [
   { id: 'chat', labelKey: 'nav.chat' },
   { id: 'projects', labelKey: 'nav.projects' },
+  { id: 'meetings', labelKey: 'nav.meetings' },
   { id: 'hr', labelKey: 'nav.humanResources' },
 ].map(group => ({ ...group, items: nav.value.filter(item => item.group === group.id) })).filter(group => group.items.length))
 const standalone = computed(() => nav.value.filter(item => !item.group))
-const openGroups = ref<Record<string, boolean>>({ chat: true, projects: true, hr: true, settings: true })
+const openGroups = ref<Record<string, boolean>>({ chat: true, projects: true, meetings: true, hr: true, settings: true })
 const preferenceKey = computed(() => `nasq-nav:${me.value?.id ?? 'anonymous'}`)
 const restoredPreferenceKey = ref<string | null>(null)
 

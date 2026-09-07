@@ -12,7 +12,9 @@ CAPABILITIES = {
     'pmo.projects.read', 'pmo.projects.create', 'pmo.projects.manage',
     'pmo.settings.manage', 'pmo.tasks.read', 'pmo.tasks.create',
     'pmo.tasks.write', 'pmo.tasks.approve', 'settings.branding.manage',
+    'meetings.read', 'meetings.create', 'meetings.manage',
 }
+MEETINGS = {'meetings.read', 'meetings.create', 'meetings.manage'}
 
 
 @tagged('nasq', 'nasq_access')
@@ -30,20 +32,26 @@ class TestNasqAccessModels(TransactionCase):
     def test_catalog_and_built_in_role_boundaries(self):
         permissions = self.env['nasq.access.permission'].search([])
         self.assertEqual(set(permissions.mapped('key')), CAPABILITIES)
-        self.assertEqual(len(permissions), 25)
+        self.assertEqual(len(permissions), 28)
+        by_name = {permission.key: permission.name_ar for permission in permissions}
+        self.assertEqual(by_name['meetings.read'], 'قراءة الاجتماعات')
+        self.assertEqual(by_name['meetings.create'], 'إنشاء الاجتماعات')
+        self.assertEqual(by_name['meetings.manage'], 'إدارة ومتابعة الاجتماعات')
 
         roles = self.env['nasq.access.role'].search([('type', '=', 'built_in')])
         by_key = {role.key: set(role.permission_ids.mapped('key')) for role in roles}
         self.assertEqual(set(by_key), {
             'employee', 'pmo_manager', 'hr_manager', 'system_admin', 'vendor_support',
         })
-        self.assertIn('access.users.assign_roles', by_key['system_admin'])
-        self.assertNotIn('hr.employees.manage', by_key['system_admin'])
-        self.assertNotIn('pmo.projects.manage', by_key['system_admin'])
+        self.assertEqual(by_key['system_admin'] & {'hr.employees.manage', 'pmo.projects.manage'}, set())
+        self.assertTrue(MEETINGS <= by_key['system_admin'])
         self.assertIn('hr.employees.manage', by_key['hr_manager'])
         self.assertNotIn('access.users.assign_roles', by_key['hr_manager'])
         self.assertIn('pmo.projects.manage', by_key['pmo_manager'])
         self.assertEqual(by_key['vendor_support'], CAPABILITIES)
+        self.assertIn('meetings.read', by_key['employee'])
+        self.assertNotIn('meetings.create', by_key['employee'])
+        self.assertNotIn('meetings.manage', by_key['employee'])
 
     def test_custom_role_rejects_access_changing_permissions_and_dependencies(self):
         forbidden = self.env['nasq.access.permission'].search([

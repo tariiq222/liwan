@@ -100,7 +100,7 @@
       "noDependencies": "No dependent permissions",
       "companyScope": "Available for the company",
       "unknownPermission": "Unavailable permission",
-      "domains": { "access": "Access administration", "hr": "People and HR", "pmo": "Projects", "settings": "Settings" },
+      "domains": { "access": "Access administration", "hr": "People and HR", "pmo": "Projects", "meetings": "Meetings", "settings": "Settings" },
       "clone": "Clone",
       "builtIn": "Built-in",
       "custom": "Custom",

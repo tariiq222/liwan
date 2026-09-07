@@ -43,7 +43,9 @@
     "humanResources": "الموارد البشرية",
     "systemAdministration": "إدارة النظام",
     "toggleSidebar": "فتح القائمة أو طيها",
-    "chat": "المحادثة"
+    "chat": "المحادثة",
+    "meetings": "الاجتماعات",
+    "meetingCalendar": "التقويم"
   },
   "auth": {
     "username": "اسم المستخدم",
@@ -90,7 +92,56 @@
   "pages": {
     "projects": "المشاريع",
     "people": "الأشخاص",
-    "reports": "التقارير"
+    "reports": "التقارير",
+    "meetings": "الاجتماعات"
+  },
+  "meetingsUi": {
+    "new": "اجتماع جديد",
+    "search": "بحث في الاجتماعات",
+    "title": "عنوان الاجتماع",
+    "empty": "لا اجتماعات ظاهرة لك.",
+    "organizer": "المنظّم",
+    "date": "التاريخ",
+    "location": "المكان",
+    "attendees": "الحضور",
+    "agenda": "جدول الأعمال",
+    "minutes": "المحضر",
+    "edit": "تعديل الاجتماع",
+    "start": "البداية",
+    "end": "النهاية",
+    "url": "رابط الاجتماع",
+    "secretary": "كاتب المحضر",
+    "resolutions": "التوصيات",
+    "newResolution": "توصية جديدة",
+    "responsible": "المسؤول",
+    "deadline": "الموعد",
+    "priority": "الأولوية",
+    "convert": "تحويل لمهمة",
+    "project": "المشروع",
+    "openTask": "فتح المهمة",
+    "notify": {
+      "meeting_invite": "دعوة لاجتماع",
+      "meeting_resolution": "توصية باسمك",
+      "meeting_converted": "حُوّلت لمهمة"
+    },
+    "priorityLabel": {
+      "0": "عادية",
+      "1": "مهمة",
+      "2": "مهمة جداً",
+      "3": "عاجلة"
+    },
+    "resolutionState": {
+      "open": "مفتوحة",
+      "in_progress": "قيد التنفيذ",
+      "done": "منجزة",
+      "cancelled": "ملغاة"
+    },
+    "state": {
+      "draft": "مسودة",
+      "confirmed": "مؤكد",
+      "done": "مكتمل",
+      "cancelled": "ملغى"
+    }
   },
   "search": {
     "description": "ابحث في الصفحات والمشاريع والمهام…",

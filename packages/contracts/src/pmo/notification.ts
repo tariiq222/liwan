@@ -2,7 +2,10 @@ import { z } from 'zod'
 import { TaskSchema } from './task'
 
 export const TaskNotificationKindSchema = z.enum(['assignment', 'comment', 'deadline'])
-export const NotificationKindSchema = z.enum(['assignment', 'comment', 'deadline', 'overdue_digest'])
+export const NotificationKindSchema = z.enum([
+  'assignment', 'comment', 'deadline', 'overdue_digest',
+  'meeting_invite', 'meeting_resolution', 'meeting_converted',
+])
 
 const TaskNotificationBase = {
   id: z.number().int().positive(),
@@ -28,6 +31,16 @@ export const DeadlineNotificationSchema = z.object({
   ...TaskNotificationBase,
 }).strict()
 
+export const MeetingNotificationSchema = z.object({
+  id: z.number().int().positive(),
+  kind: z.enum(['meeting_invite', 'meeting_resolution', 'meeting_converted']),
+  meeting_id: z.number().int().positive(),
+  meeting_name: z.string(),
+  body: z.string(),
+  created_at: z.string(),
+  is_read: z.boolean(),
+}).strict()
+
 export const DigestNotificationSchema = z.object({
   id: z.number().int().positive(),
   kind: z.literal('overdue_digest'),
@@ -44,6 +57,7 @@ export const NotificationSchema = z.discriminatedUnion('kind', [
   CommentNotificationSchema,
   DeadlineNotificationSchema,
   DigestNotificationSchema,
+  MeetingNotificationSchema,
 ])
 
 export const NotificationListSchema = z.object({

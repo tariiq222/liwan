@@ -12,6 +12,7 @@ describe('access policy navigation', () => {
     expect(hasCapability(hr, 'access.users.grant')).toBe(false)
   })
   it('chooses an accessible home and has an account-only fallback', () => {
+    expect(firstAllowedPath({ capabilities: ['meetings.read'] })).toBe('/meetings')
     expect(firstAllowedPath({ capabilities: ['pmo.tasks.read'] })).toBe('/tasks')
     expect(firstAllowedPath({ capabilities: ['hr.employees.read'] })).toBe('/hr')
     expect(firstAllowedPath({ capabilities: ['access.users.read'] })).toBe('/settings/users')
@@ -46,6 +47,9 @@ describe('access policy navigation', () => {
     expect(requiredCapabilityForPath('/tasks/new')).toBe('pmo.tasks.create')
     expect(requiredCapabilityForPath('/projects/7/tasks/new')).toBe('pmo.tasks.create')
     expect(requiredCapabilityForPath('/projects/new')).toBe('pmo.projects.create')
+    expect(requiredCapabilityForPath('/meetings/calendar')).toBe('meetings.read')
+    expect(isNavPathActive('/meetings/calendar', '/meetings')).toBe(false)
+    expect(isNavPathActive('/meetings/calendar', '/meetings/calendar')).toBe(true)
     expect(requiredCapabilityForPath('/account')).toBe(null)
   })
   it('keeps /chat for internal Nasq identities and rejects portal or role-only objects', () => {

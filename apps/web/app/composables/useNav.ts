@@ -1,14 +1,16 @@
 import type { Component } from 'vue'
-import { CheckSquare, FolderKanban, Users, Settings, Wrench, Network, Files, ShieldCheck, UserCog, History, SlidersHorizontal, MessageCircle, ChartNoAxesCombined } from '@lucide/vue'
+import { CheckSquare, FolderKanban, Users, Settings, Wrench, Network, Files, ShieldCheck, UserCog, History, SlidersHorizontal, MessageCircle, ChartNoAxesCombined, CalendarDays, List } from '@lucide/vue'
 import { hasCapability, type AccessIdentity } from '../utils/accessPolicy'
 
-export type NavGroup = 'chat' | 'projects' | 'hr' | 'settings'
+export type NavGroup = 'chat' | 'projects' | 'meetings' | 'hr' | 'settings'
 export interface NavItem { to: string; labelKey: string; icon: Component; shortcut: string; group?: NavGroup; capability: string }
 const items: NavItem[] = [
   { to: '/chat', labelKey: 'nav.chat', icon: MessageCircle, shortcut: 'c', group: 'chat', capability: 'nasq.internal' },
   { to: '/projects', labelKey: 'nav.projects', icon: FolderKanban, shortcut: '2', group: 'projects', capability: 'pmo.projects.read' },
   { to: '/tasks', labelKey: 'nav.tasks', icon: CheckSquare, shortcut: '1', group: 'projects', capability: 'pmo.tasks.read' },
   { to: '/reports', labelKey: 'nav.reports', icon: ChartNoAxesCombined, shortcut: 'r', group: 'projects', capability: 'pmo.projects.read' },
+  { to: '/meetings', labelKey: 'nav.meetings', icon: List, shortcut: 'm', group: 'meetings', capability: 'meetings.read' },
+  { to: '/meetings/calendar', labelKey: 'nav.meetingCalendar', icon: CalendarDays, shortcut: 'k', group: 'meetings', capability: 'meetings.read' },
   { to: '/hr', labelKey: 'nav.employees', icon: Users, shortcut: '3', group: 'hr', capability: 'hr.employees.read' },
   { to: '/hr/departments', labelKey: 'nav.departments', icon: Network, shortcut: '5', group: 'hr', capability: 'hr.departments.read' },
   { to: '/hr/documents', labelKey: 'nav.documents', icon: Files, shortcut: '6', group: 'hr', capability: 'hr.documents.read' },

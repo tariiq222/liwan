@@ -1,0 +1,1217 @@
+# Translation of Odoo Server.
+# This file contains the translation of the following modules:
+# 	* cyan_meeting_minutes
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Odoo Server 19.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-09-07 10:09+0000\n"
+"PO-Revision-Date: 2026-09-07 10:09+0000\n"
+"Last-Translator: Nasq\n"
+"Language-Team: Arabic\n"
+"Language: ar\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=6; plural=n==0 ? 0 : n==1 ? 1 : n==2 ? 2 : n%100>=3 && n%100<=10 ? 3 : n%100>=11 && n%100<=99 ? 4 : 5;\n"
+
+#. module: cyan_meeting_minutes
+#: model:ir.actions.report,print_report_name:cyan_meeting_minutes.action_report_meeting_minutes
+msgid "'Meeting Minutes - %s' % (object.reference or '')"
+msgstr "'محضر اجتماع - %s' % (object.reference or '')"
+
+#. module: cyan_meeting_minutes
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.view_meeting_minute_form
+msgid "<span class=\"o_stat_text\">Calendar Event</span>"
+msgstr "<span class=\"o_stat_text\">حدث التقويم</span>"
+
+#. module: cyan_meeting_minutes
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.view_calendar_event_form_meeting_minutes
+msgid "<span class=\"o_stat_text\">Create Meeting Minutes</span>"
+msgstr "<span class=\"o_stat_text\">إنشاء محضر اجتماع</span>"
+
+#. module: cyan_meeting_minutes
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.view_meeting_minute_form
+msgid "<span class=\"o_stat_text\">Schedule in Calendar</span>"
+msgstr "<span class=\"o_stat_text\">جدولة في التقويم</span>"
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.constraint,message:cyan_meeting_minutes.constraint_cyan_meeting_minute_calendar_event_unique
+msgid "A Calendar Event can only be linked to one Meeting Minutes record."
+msgstr "يمكن ربط حدث التقويم بمحضر اجتماع واحد فقط."
+
+#. module: cyan_meeting_minutes
+#. odoo-python
+#: code:addons/cyan_meeting_minutes/models/resolution.py:0
+msgid "A meeting is required."
+msgstr "الاجتماع مطلوب."
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_minute__message_needaction
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_resolution__message_needaction
+msgid "Action Needed"
+msgstr "إجراء مطلوب"
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_minute__active
+msgid "Active"
+msgstr "نشط"
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_minute__activity_ids
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_resolution__activity_ids
+msgid "Activities"
+msgstr "الأنشطة"
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_resolution__activity_id
+msgid "Activity"
+msgstr "نشاط"
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_minute__activity_exception_decoration
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_resolution__activity_exception_decoration
+msgid "Activity Exception Decoration"
+msgstr "تمييز استثناء النشاط"
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_minute__activity_state
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_resolution__activity_state
+msgid "Activity State"
+msgstr "حالة النشاط"
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_minute__activity_type_icon
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_resolution__activity_type_icon
+msgid "Activity Type Icon"
+msgstr "أيقونة نوع النشاط"
+
+#. module: cyan_meeting_minutes
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.view_meeting_minute_form
+msgid "Additional Information"
+msgstr "معلومات إضافية"
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_minute__agenda
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.report_meeting_minutes_document
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.view_meeting_minute_form
+msgid "Agenda"
+msgstr "جدول الأعمال"
+
+#. module: cyan_meeting_minutes
+#: model:ir.ui.menu,name:cyan_meeting_minutes.menu_meeting_resolutions
+msgid "All Resolutions"
+msgstr "كل التوصيات"
+
+#. module: cyan_meeting_minutes
+#. odoo-python
+#: code:addons/cyan_meeting_minutes/models/resolution.py:0
+msgid "Assignees cannot cancel resolutions."
+msgstr "لا يمكن للمسؤول إلغاء التوصيات."
+
+#. module: cyan_meeting_minutes
+#. odoo-python
+#: code:addons/cyan_meeting_minutes/models/resolution.py:0
+msgid "Assignees may only update progress and completion notes."
+msgstr "يمكن للمسؤول تحديث التقدم وملاحظات الإنجاز فقط."
+
+#. module: cyan_meeting_minutes
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.view_meeting_minute_form
+msgid "Attach supporting files through the chatter below."
+msgstr "أرفق الملفات الداعمة عبر المحادثة أدناه."
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_minute__message_attachment_count
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_resolution__message_attachment_count
+msgid "Attachment Count"
+msgstr "عدد المرفقات"
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_minute__attendee_ids
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.report_meeting_minutes_document
+msgid "Attendees"
+msgstr "الحضور"
+
+#. module: cyan_meeting_minutes
+#. odoo-python
+#: code:addons/cyan_meeting_minutes/models/meeting.py:0
+#: model:ir.model,name:cyan_meeting_minutes.model_calendar_event
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_minute__calendar_event_id
+msgid "Calendar Event"
+msgstr "حدث التقويم"
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_minute__can_edit
+msgid "Can Edit"
+msgstr "يمكن التعديل"
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_resolution__can_edit_decision
+msgid "Can Edit Decision"
+msgstr "يمكن تعديل القرار"
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_minute__can_manage
+msgid "Can Manage"
+msgstr "يمكن الإدارة"
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_resolution__can_update_execution
+msgid "Can Update Execution"
+msgstr "يمكن تحديث التنفيذ"
+
+#. module: cyan_meeting_minutes
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.view_meeting_minute_form
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.view_meeting_resolution_form
+msgid "Cancel"
+msgstr "إلغاء"
+
+#. module: cyan_meeting_minutes
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.view_meeting_minute_form
+msgid "Cancel this meeting?"
+msgstr "إلغاء هذا الاجتماع؟"
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields.selection,name:cyan_meeting_minutes.selection__cyan_meeting_minute__state__cancelled
+#: model:ir.model.fields.selection,name:cyan_meeting_minutes.selection__cyan_meeting_resolution__state__cancelled
+msgid "Cancelled"
+msgstr "ملغى"
+
+#. module: cyan_meeting_minutes
+#. odoo-python
+#: code:addons/cyan_meeting_minutes/models/resolution.py:0
+msgid "Cannot add resolutions to a completed or cancelled meeting."
+msgstr "لا يمكن إضافة توصيات إلى اجتماع مكتمل أو ملغى."
+
+#. module: cyan_meeting_minutes
+#. odoo-python
+#: code:addons/cyan_meeting_minutes/models/resolution.py:0
+msgid "Cannot copy a resolution from a completed or cancelled meeting."
+msgstr "لا يمكن نسخ توصية من اجتماع مكتمل أو ملغى."
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_minute__company_id
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_resolution__company_id
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.view_management_followup_search
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.view_meeting_minute_search
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.view_meeting_resolution_search
+msgid "Company"
+msgstr "الشركة"
+
+#. module: cyan_meeting_minutes
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.view_meeting_minute_form
+msgid "Complete"
+msgstr "إكمال"
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields.selection,name:cyan_meeting_minutes.selection__cyan_meeting_minute__state__done
+#: model:ir.model.fields.selection,name:cyan_meeting_minutes.selection__cyan_meeting_resolution__deadline_status__completed
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.view_meeting_minute_search
+msgid "Completed"
+msgstr "مكتمل"
+
+#. module: cyan_meeting_minutes
+#. odoo-python
+#: code:addons/cyan_meeting_minutes/models/meeting.py:0
+msgid "Completed and cancelled meetings are immutable."
+msgstr "الاجتماعات المكتملة والملغاة غير قابلة للتعديل."
+
+#. module: cyan_meeting_minutes
+#. odoo-python
+#: code:addons/cyan_meeting_minutes/models/meeting.py:0
+msgid "Completed and cancelled meetings cannot be deleted."
+msgstr "لا يمكن حذف الاجتماعات المكتملة أو الملغاة."
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_resolution__completion_date
+msgid "Completion Date"
+msgstr "تاريخ الإنجاز"
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_resolution__result
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.view_meeting_resolution_form
+msgid "Completion Notes"
+msgstr "ملاحظات الإنجاز"
+
+#. module: cyan_meeting_minutes
+#. odoo-python
+#: code:addons/cyan_meeting_minutes/models/resolution.py:0
+msgid "Completion Notes are required to complete an escalated resolution."
+msgstr "ملاحظات الإنجاز مطلوبة لإكمال توصية مُصعَّدة."
+
+#. module: cyan_meeting_minutes
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.view_meeting_minute_form
+msgid "Confirm"
+msgstr "تأكيد"
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields.selection,name:cyan_meeting_minutes.selection__cyan_meeting_minute__state__confirmed
+msgid "Confirmed"
+msgstr "مؤكد"
+
+#. module: cyan_meeting_minutes
+#: model_terms:ir.actions.act_window,help:cyan_meeting_minutes.action_meeting_minute
+msgid "Create internal meeting minutes"
+msgstr "أنشئ محضر اجتماع داخلي"
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_minute__create_uid
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_resolution__create_uid
+msgid "Created by"
+msgstr "أنشئ بواسطة"
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_minute__create_date
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_resolution__create_date
+msgid "Created on"
+msgstr "تاريخ الإنشاء"
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_calendar_event__cyan_can_create_minutes
+msgid "Cyan Can Create Minutes"
+msgstr "يمكن إنشاء المحضر"
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_resolution__days_overdue
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.view_management_followup_list
+msgid "Days Late"
+msgstr "أيام التأخير"
+
+#. module: cyan_meeting_minutes
+#. odoo-python
+#: code:addons/cyan_meeting_minutes/models/resolution.py:0
+msgid "Days overdue"
+msgstr "أيام التأخير"
+
+#. module: cyan_meeting_minutes
+#. odoo-python
+#: code:addons/cyan_meeting_minutes/models/resolution.py:0
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_resolution__deadline
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.report_meeting_minutes_document
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.view_management_followup_search
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.view_meeting_resolution_search
+msgid "Deadline"
+msgstr "الموعد النهائي"
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_resolution__deadline_status
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.view_management_followup_list
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.view_my_meeting_resolution_list
+msgid "Deadline Status"
+msgstr "حالة الموعد"
+
+#. module: cyan_meeting_minutes
+#. odoo-python
+#: code:addons/cyan_meeting_minutes/models/resolution.py:0
+msgid "Deadline status only supports equality searches."
+msgstr "حالة الموعد تدعم بحث المساواة فقط."
+
+#. module: cyan_meeting_minutes
+#. odoo-python
+#: code:addons/cyan_meeting_minutes/models/resolution.py:0
+msgid "Decision fields of an approved meeting cannot be changed."
+msgstr "لا يمكن تغيير حقول القرار بعد اعتماد الاجتماع."
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_resolution__description
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.view_meeting_resolution_form
+msgid "Description"
+msgstr "الوصف"
+
+#. module: cyan_meeting_minutes
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.view_meeting_minute_form
+msgid "Detailed minutes and discussion notes..."
+msgstr "محضر مفصل وملاحظات النقاش..."
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_calendar_event__display_name
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_minute__display_name
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_resolution__display_name
+msgid "Display Name"
+msgstr "اسم العرض"
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields.selection,name:cyan_meeting_minutes.selection__cyan_meeting_resolution__state__done
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.view_meeting_resolution_search
+msgid "Done"
+msgstr "منجزة"
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields.selection,name:cyan_meeting_minutes.selection__cyan_meeting_minute__state__draft
+msgid "Draft"
+msgstr "مسودة"
+
+#. module: cyan_meeting_minutes
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.view_management_followup_search
+msgid "Due Soon"
+msgstr "يستحق قريباً"
+
+#. module: cyan_meeting_minutes
+#. odoo-python
+#: code:addons/cyan_meeting_minutes/models/resolution.py:0
+msgid "Due Soon only supports equality searches."
+msgstr "يستحق قريباً يدعم بحث المساواة فقط."
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields.selection,name:cyan_meeting_minutes.selection__cyan_meeting_resolution__deadline_status__today
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.view_management_followup_search
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.view_meeting_resolution_search
+msgid "Due Today"
+msgstr "تستحق اليوم"
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_minute__end_datetime
+msgid "End"
+msgstr "النهاية"
+
+#. module: cyan_meeting_minutes
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.view_management_followup_search
+msgid "Escalated"
+msgstr "مُصعَّد"
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_resolution__escalated_on
+msgid "Escalated On"
+msgstr "تاريخ التصعيد"
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_resolution__escalated_to_id
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.view_management_followup_search
+msgid "Escalated To"
+msgstr "صُعِّدت إلى"
+
+#. module: cyan_meeting_minutes
+#. odoo-python
+#: code:addons/cyan_meeting_minutes/models/resolution.py:0
+msgid "Escalated to"
+msgstr "صُعِّدت إلى"
+
+#. module: cyan_meeting_minutes
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.view_meeting_resolution_form
+msgid "Escalation"
+msgstr "التصعيد"
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_minute__message_follower_ids
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_resolution__message_follower_ids
+msgid "Followers"
+msgstr "المتابعون"
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_minute__message_partner_ids
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_resolution__message_partner_ids
+msgid "Followers (Partners)"
+msgstr "المتابعون (الشركاء)"
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields,help:cyan_meeting_minutes.field_cyan_meeting_minute__activity_type_icon
+#: model:ir.model.fields,help:cyan_meeting_minutes.field_cyan_meeting_resolution__activity_type_icon
+msgid "Font awesome icon e.g. fa-tasks"
+msgstr "أيقونة Font Awesome مثل fa-tasks"
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_minute__has_message
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_resolution__has_message
+msgid "Has Message"
+msgstr "يحتوي رسالة"
+
+#. module: cyan_meeting_minutes
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.view_management_followup_search
+msgid "High Priority"
+msgstr "أولوية عالية"
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_calendar_event__id
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_minute__id
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_resolution__id
+msgid "ID"
+msgstr "المعرف"
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_minute__activity_exception_icon
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_resolution__activity_exception_icon
+msgid "Icon"
+msgstr "أيقونة"
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields,help:cyan_meeting_minutes.field_cyan_meeting_minute__activity_exception_icon
+#: model:ir.model.fields,help:cyan_meeting_minutes.field_cyan_meeting_resolution__activity_exception_icon
+msgid "Icon to indicate an exception activity."
+msgstr "أيقونة لتمييز نشاط استثنائي."
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields,help:cyan_meeting_minutes.field_cyan_meeting_minute__message_needaction
+#: model:ir.model.fields,help:cyan_meeting_minutes.field_cyan_meeting_resolution__message_needaction
+msgid "If checked, new messages require your attention."
+msgstr "إذا حُدد، تتطلب الرسائل الجديدة انتباهك."
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields,help:cyan_meeting_minutes.field_cyan_meeting_minute__message_has_error
+#: model:ir.model.fields,help:cyan_meeting_minutes.field_cyan_meeting_resolution__message_has_error
+msgid "If checked, some messages have a delivery error."
+msgstr "إذا حُدد، فبعض الرسائل فيها خطأ تسليم."
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields.selection,name:cyan_meeting_minutes.selection__cyan_meeting_resolution__priority__1
+msgid "Important"
+msgstr "مهمة"
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields.selection,name:cyan_meeting_minutes.selection__cyan_meeting_resolution__state__in_progress
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.view_management_followup_search
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.view_meeting_resolution_search
+msgid "In Progress"
+msgstr "قيد التنفيذ"
+
+#. module: cyan_meeting_minutes
+#: model:ir.model,name:cyan_meeting_minutes.model_cyan_meeting_minute
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.report_meeting_minutes_document
+msgid "Internal Meeting Minutes"
+msgstr "محضر اجتماع داخلي"
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_resolution__is_due_soon
+msgid "Is Due Soon"
+msgstr "يستحق قريباً"
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_resolution__is_escalated
+msgid "Is Escalated"
+msgstr "مُصعَّد"
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_minute__message_is_follower
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_resolution__message_is_follower
+msgid "Is Follower"
+msgstr "متابع"
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_minute__write_uid
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_resolution__write_uid
+msgid "Last Updated by"
+msgstr "آخر تحديث بواسطة"
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_minute__write_date
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_resolution__write_date
+msgid "Last Updated on"
+msgstr "آخر تحديث في"
+
+#. module: cyan_meeting_minutes
+#. odoo-python
+#: code:addons/cyan_meeting_minutes/models/calendar_event.py:0
+#: code:addons/cyan_meeting_minutes/models/meeting.py:0
+msgid "Linked to Calendar event: %s"
+msgstr "مرتبط بحدث التقويم: %s"
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_minute__location
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.report_meeting_minutes_document
+msgid "Location"
+msgstr "الموقع"
+
+#. module: cyan_meeting_minutes
+#: model:ir.actions.act_window,name:cyan_meeting_minutes.action_management_followup
+#: model:ir.ui.menu,name:cyan_meeting_minutes.menu_management_followup
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.view_management_followup_list
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.view_management_followup_search
+msgid "Management Follow-up"
+msgstr "متابعة الإدارة"
+
+#. module: cyan_meeting_minutes
+#: model:res.groups,name:cyan_meeting_minutes.group_meeting_manager
+msgid "Manager"
+msgstr "مدير"
+
+#. module: cyan_meeting_minutes
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.view_meeting_resolution_form
+msgid "Mark Done"
+msgstr "تعليم كمنجزة"
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_resolution__meeting_id
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.view_management_followup_search
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.view_meeting_resolution_search
+msgid "Meeting"
+msgstr "اجتماع"
+
+#. module: cyan_meeting_minutes
+#. odoo-python
+#: code:addons/cyan_meeting_minutes/models/resolution.py:0
+msgid "Meeting %(reference)s — %(resolution)s"
+msgstr "اجتماع %(reference)s — %(resolution)s"
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_minute__meeting_date
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.report_meeting_minutes_document
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.view_meeting_minute_search
+msgid "Meeting Date"
+msgstr "تاريخ الاجتماع"
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_calendar_event__meeting_minute_count
+msgid "Meeting Minute Count"
+msgstr "عدد المحاضر"
+
+#. module: cyan_meeting_minutes
+#. odoo-python
+#: code:addons/cyan_meeting_minutes/models/calendar_event.py:0
+#: model:ir.actions.act_window,name:cyan_meeting_minutes.action_meeting_minute
+#: model:ir.actions.report,name:cyan_meeting_minutes.action_report_meeting_minutes
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_minute__minutes
+#: model:ir.ui.menu,name:cyan_meeting_minutes.menu_meeting_minutes
+#: model:res.groups.privilege,name:cyan_meeting_minutes.privilege_meeting_minutes
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.report_meeting_minutes_document
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.view_calendar_event_form_meeting_minutes
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.view_meeting_minute_form
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.view_meeting_minute_list
+msgid "Meeting Minutes"
+msgstr "محاضر الاجتماعات"
+
+#. module: cyan_meeting_minutes
+#: model:ir.actions.server,name:cyan_meeting_minutes.ir_cron_resolution_escalation_ir_actions_server
+msgid "Meeting Minutes: Check overdue resolution escalation"
+msgstr "محاضر الاجتماعات: فحص تصعيد التوصيات المتأخرة"
+
+#. module: cyan_meeting_minutes
+#: model:ir.model,name:cyan_meeting_minutes.model_cyan_meeting_resolution
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.view_meeting_resolution_form
+msgid "Meeting Resolution"
+msgstr "توصية اجتماع"
+
+#. module: cyan_meeting_minutes
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.view_meeting_resolution_list
+msgid "Meeting Resolutions"
+msgstr "توصيات الاجتماع"
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_minute__name
+msgid "Meeting Title"
+msgstr "عنوان الاجتماع"
+
+#. module: cyan_meeting_minutes
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.view_meeting_minute_form
+msgid "Meeting agenda..."
+msgstr "جدول أعمال الاجتماع..."
+
+#. module: cyan_meeting_minutes
+#. odoo-python
+#: code:addons/cyan_meeting_minutes/models/meeting.py:0
+msgid "Meeting participants must be active internal users."
+msgstr "يجب أن يكون المشاركون في الاجتماع مستخدمين داخليين نشطين."
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.constraint,message:cyan_meeting_minutes.constraint_cyan_meeting_minute_reference_unique
+msgid "Meeting reference must be unique."
+msgstr "يجب أن يكون مرجع الاجتماع فريداً."
+
+#. module: cyan_meeting_minutes
+#: model:ir.ui.menu,name:cyan_meeting_minutes.menu_meeting_root
+msgid "Meetings"
+msgstr "الاجتماعات"
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_minute__message_has_error
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_resolution__message_has_error
+msgid "Message Delivery error"
+msgstr "خطأ في تسليم الرسالة"
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_minute__message_ids
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_resolution__message_ids
+msgid "Messages"
+msgstr "الرسائل"
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_minute__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_resolution__my_activity_date_deadline
+msgid "My Activity Deadline"
+msgstr "موعد نشاطي"
+
+#. module: cyan_meeting_minutes
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.view_meeting_minute_search
+msgid "My Meetings"
+msgstr "اجتماعاتي"
+
+#. module: cyan_meeting_minutes
+#: model:ir.actions.act_window,name:cyan_meeting_minutes.action_my_meeting_resolution
+#: model:ir.ui.menu,name:cyan_meeting_minutes.menu_my_meeting_resolutions
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.view_meeting_resolution_search
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.view_my_meeting_resolution_list
+msgid "My Resolutions"
+msgstr "توصياتي"
+
+#. module: cyan_meeting_minutes
+#. odoo-python
+#: code:addons/cyan_meeting_minutes/models/meeting.py:0
+msgid "New"
+msgstr "جديد"
+
+#. module: cyan_meeting_minutes
+#. odoo-python
+#: code:addons/cyan_meeting_minutes/models/meeting.py:0
+msgid "New meetings must start in draft."
+msgstr "يجب أن تبدأ الاجتماعات الجديدة كمسودة."
+
+#. module: cyan_meeting_minutes
+#. odoo-python
+#: code:addons/cyan_meeting_minutes/models/resolution.py:0
+msgid "New resolutions must start open."
+msgstr "يجب أن تبدأ التوصيات الجديدة مفتوحة."
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_minute__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_resolution__activity_calendar_event_id
+msgid "Next Activity Calendar Event"
+msgstr "حدث تقويم النشاط التالي"
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_minute__activity_date_deadline
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_resolution__activity_date_deadline
+msgid "Next Activity Deadline"
+msgstr "موعد النشاط التالي"
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_minute__activity_summary
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_resolution__activity_summary
+msgid "Next Activity Summary"
+msgstr "ملخص النشاط التالي"
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_minute__activity_type_id
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_resolution__activity_type_id
+msgid "Next Activity Type"
+msgstr "نوع النشاط التالي"
+
+#. module: cyan_meeting_minutes
+#: model_terms:ir.actions.act_window,help:cyan_meeting_minutes.action_management_followup
+msgid "No unresolved meeting actions require follow-up"
+msgstr "لا توجد إجراءات اجتماع غير محلولة تحتاج متابعة"
+
+#. module: cyan_meeting_minutes
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.report_meeting_minutes_document
+msgid "No."
+msgstr "رقم"
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields.selection,name:cyan_meeting_minutes.selection__cyan_meeting_resolution__priority__0
+msgid "Normal"
+msgstr "عادية"
+
+#. module: cyan_meeting_minutes
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.view_management_followup_search
+msgid "Not Escalated"
+msgstr "غير مُصعَّد"
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_minute__message_needaction_counter
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_resolution__message_needaction_counter
+msgid "Number of Actions"
+msgstr "عدد الإجراءات"
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_minute__message_has_error_counter
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_resolution__message_has_error_counter
+msgid "Number of errors"
+msgstr "عدد الأخطاء"
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields,help:cyan_meeting_minutes.field_cyan_meeting_minute__message_needaction_counter
+#: model:ir.model.fields,help:cyan_meeting_minutes.field_cyan_meeting_resolution__message_needaction_counter
+msgid "Number of messages requiring action"
+msgstr "عدد الرسائل التي تتطلب إجراء"
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields,help:cyan_meeting_minutes.field_cyan_meeting_minute__message_has_error_counter
+#: model:ir.model.fields,help:cyan_meeting_minutes.field_cyan_meeting_resolution__message_has_error_counter
+msgid "Number of messages with delivery error"
+msgstr "عدد الرسائل ذات خطأ التسليم"
+
+#. module: cyan_meeting_minutes
+#. odoo-python
+#: code:addons/cyan_meeting_minutes/models/meeting.py:0
+msgid "Only a Meeting Manager may complete or cancel meetings."
+msgstr "يمكن لمدير الاجتماعات فقط إكمال الاجتماعات أو إلغاءها."
+
+#. module: cyan_meeting_minutes
+#. odoo-python
+#: code:addons/cyan_meeting_minutes/models/meeting.py:0
+msgid "Only a Meeting Manager may delete meetings."
+msgstr "يمكن لمدير الاجتماعات فقط حذف الاجتماعات."
+
+#. module: cyan_meeting_minutes
+#. odoo-python
+#: code:addons/cyan_meeting_minutes/models/resolution.py:0
+msgid "Only a Meeting Manager may delete resolutions."
+msgstr "يمكن لمدير الاجتماعات فقط حذف التوصيات."
+
+#. module: cyan_meeting_minutes
+#. odoo-python
+#: code:addons/cyan_meeting_minutes/models/meeting.py:0
+msgid "Only a Meeting Manager may reopen completed or cancelled meetings."
+msgstr "يمكن لمدير الاجتماعات فقط إعادة فتح الاجتماعات المكتملة أو الملغاة."
+
+#. module: cyan_meeting_minutes
+#. odoo-python
+#: code:addons/cyan_meeting_minutes/models/resolution.py:0
+msgid "Only a Meeting Manager may reopen this resolution."
+msgstr "يمكن لمدير الاجتماعات فقط إعادة فتح هذه التوصية."
+
+#. module: cyan_meeting_minutes
+#. odoo-python
+#: code:addons/cyan_meeting_minutes/models/meeting.py:0
+msgid "Only confirmed meetings can be completed."
+msgstr "يمكن إكمال الاجتماعات المؤكدة فقط."
+
+#. module: cyan_meeting_minutes
+#. odoo-python
+#: code:addons/cyan_meeting_minutes/models/meeting.py:0
+msgid "Only draft meetings can be confirmed."
+msgstr "يمكن تأكيد الاجتماعات المسودة فقط."
+
+#. module: cyan_meeting_minutes
+#. odoo-python
+#: code:addons/cyan_meeting_minutes/models/resolution.py:0
+msgid "Only the assignee or a meeting editor may update execution."
+msgstr "يمكن للمسؤول أو محرر الاجتماع فقط تحديث التنفيذ."
+
+#. module: cyan_meeting_minutes
+#. odoo-python
+#: code:addons/cyan_meeting_minutes/models/resolution.py:0
+msgid ""
+"Only the organizer, secretary or a Meeting Manager may change resolution "
+"contents."
+msgstr ""
+
+#. module: cyan_meeting_minutes
+#. odoo-python
+#: code:addons/cyan_meeting_minutes/models/meeting.py:0
+msgid ""
+"Only the organizer, secretary or a Meeting Manager may confirm this meeting."
+msgstr ""
+
+#. module: cyan_meeting_minutes
+#. odoo-python
+#: code:addons/cyan_meeting_minutes/models/resolution.py:0
+msgid ""
+"Only the organizer, secretary or a Meeting Manager may create resolutions."
+msgstr ""
+
+#. module: cyan_meeting_minutes
+#. odoo-python
+#: code:addons/cyan_meeting_minutes/models/meeting.py:0
+msgid ""
+"Only the organizer, secretary or a Meeting Manager may edit this meeting."
+msgstr ""
+
+#. module: cyan_meeting_minutes
+#. odoo-python
+#: code:addons/cyan_meeting_minutes/models/meeting.py:0
+msgid ""
+"Only the organizer, secretary or a Meeting Manager may link a calendar "
+"event."
+msgstr ""
+
+#. module: cyan_meeting_minutes
+#. odoo-python
+#: code:addons/cyan_meeting_minutes/models/resolution.py:0
+msgid ""
+"Only the organizer, secretary or a Meeting Manager may move a resolution."
+msgstr ""
+
+#. module: cyan_meeting_minutes
+#. odoo-python
+#: code:addons/cyan_meeting_minutes/models/meeting.py:0
+msgid ""
+"Only the organizer, secretary or a Meeting Manager may schedule this "
+"meeting."
+msgstr ""
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields.selection,name:cyan_meeting_minutes.selection__cyan_meeting_resolution__state__open
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.view_management_followup_search
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.view_meeting_minute_form
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.view_meeting_minute_search
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.view_meeting_resolution_search
+msgid "Open"
+msgstr "مفتوحة"
+
+#. module: cyan_meeting_minutes
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.view_meeting_minute_list
+msgid "Open Actions"
+msgstr "إجراءات مفتوحة"
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_minute__open_resolution_count
+msgid "Open Resolutions"
+msgstr "توصيات مفتوحة"
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_minute__organizer_id
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.report_meeting_minutes_document
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.view_meeting_minute_search
+msgid "Organizer"
+msgstr "المنظم"
+
+#. module: cyan_meeting_minutes
+#. odoo-python
+#: code:addons/cyan_meeting_minutes/models/meeting.py:0
+msgid ""
+"Organizer, secretary and attendees must have access to the meeting company."
+msgstr ""
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields.selection,name:cyan_meeting_minutes.selection__cyan_meeting_resolution__deadline_status__overdue
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.view_management_followup_search
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.view_meeting_minute_form
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.view_meeting_resolution_search
+msgid "Overdue"
+msgstr "متأخرة"
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_minute__overdue_resolution_count
+msgid "Overdue Resolutions"
+msgstr "توصيات متأخرة"
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_resolution__priority
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.view_management_followup_search
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.view_meeting_resolution_search
+msgid "Priority"
+msgstr "الأولوية"
+
+#. module: cyan_meeting_minutes
+#. odoo-python
+#: code:addons/cyan_meeting_minutes/models/meeting.py:0
+msgid "Reassign the responsible user before removing them from the meeting."
+msgstr "أعد تعيين المسؤول قبل إزالته من الاجتماع."
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_minute__reference
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.report_meeting_minutes_document
+msgid "Reference"
+msgstr "المرجع"
+
+#. module: cyan_meeting_minutes
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.view_meeting_resolution_form
+msgid "Reopen"
+msgstr "إعادة فتح"
+
+#. module: cyan_meeting_minutes
+#. odoo-python
+#: code:addons/cyan_meeting_minutes/models/meeting.py:0
+msgid "Reopen a completed or cancelled meeting before changing its content."
+msgstr "أعد فتح الاجتماع المكتمل أو الملغى قبل تغيير محتواه."
+
+#. module: cyan_meeting_minutes
+#. odoo-python
+#: code:addons/cyan_meeting_minutes/models/resolution.py:0
+msgid "Reopen the cancelled meeting before updating its resolutions."
+msgstr "أعد فتح الاجتماع الملغى قبل تحديث توصياته."
+
+#. module: cyan_meeting_minutes
+#. odoo-python
+#: code:addons/cyan_meeting_minutes/models/resolution.py:0
+msgid "Reopen the resolution before changing completion notes."
+msgstr "أعد فتح التوصية قبل تغيير ملاحظات الإنجاز."
+
+#. module: cyan_meeting_minutes
+#. odoo-python
+#: code:addons/cyan_meeting_minutes/models/resolution.py:0
+msgid "Reopen the resolution before changing other fields."
+msgstr "أعد فتح التوصية قبل تغيير الحقول الأخرى."
+
+#. module: cyan_meeting_minutes
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.view_meeting_minute_form
+msgid "Reset to Draft"
+msgstr "إعادة إلى المسودة"
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_resolution__name
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.report_meeting_minutes_document
+msgid "Resolution"
+msgstr "توصية"
+
+#. module: cyan_meeting_minutes
+#. odoo-python
+#: code:addons/cyan_meeting_minutes/models/resolution.py:0
+msgid "Resolution completed."
+msgstr "اكتملت التوصية."
+
+#. module: cyan_meeting_minutes
+#. odoo-python
+#: code:addons/cyan_meeting_minutes/models/resolution.py:0
+msgid "Resolution created: <strong>%s</strong>"
+msgstr "أُنشئت التوصية: <strong>%s</strong>"
+
+#. module: cyan_meeting_minutes
+#. odoo-python
+#: code:addons/cyan_meeting_minutes/models/resolution.py:0
+msgid "Resolution escalated"
+msgstr "صُعِّدت التوصية"
+
+#. module: cyan_meeting_minutes
+#: model:ir.actions.act_window,name:cyan_meeting_minutes.action_meeting_resolution
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_minute__resolution_ids
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.report_meeting_minutes_document
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.view_meeting_minute_form
+msgid "Resolutions"
+msgstr "التوصيات"
+
+#. module: cyan_meeting_minutes
+#. odoo-python
+#: code:addons/cyan_meeting_minutes/models/resolution.py:0
+msgid ""
+"Resolutions cannot be moved to or from a completed or cancelled meeting."
+msgstr ""
+
+#. module: cyan_meeting_minutes
+#. odoo-python
+#: code:addons/cyan_meeting_minutes/models/resolution.py:0
+msgid "Resolutions of a completed or cancelled meeting cannot be deleted."
+msgstr "لا يمكن حذف توصيات اجتماع مكتمل أو ملغى."
+
+#. module: cyan_meeting_minutes
+#. odoo-python
+#: code:addons/cyan_meeting_minutes/models/resolution.py:0
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_resolution__responsible_id
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.report_meeting_minutes_document
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.view_management_followup_search
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.view_meeting_resolution_search
+msgid "Responsible"
+msgstr "المسؤول"
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_minute__activity_user_id
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_resolution__activity_user_id
+msgid "Responsible User"
+msgstr "المستخدم المسؤول"
+
+#. module: cyan_meeting_minutes
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.view_meeting_minute_search
+msgid "Search Meeting Minutes"
+msgstr "بحث محاضر الاجتماعات"
+
+#. module: cyan_meeting_minutes
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.view_meeting_resolution_search
+msgid "Search Resolutions"
+msgstr "بحث التوصيات"
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_minute__secretary_id
+msgid "Secretary"
+msgstr "أمين السر"
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_resolution__sequence
+msgid "Sequence"
+msgstr "التسلسل"
+
+#. module: cyan_meeting_minutes
+#. odoo-python
+#: code:addons/cyan_meeting_minutes/models/meeting.py:0
+msgid "Set Start and End before scheduling this meeting in Calendar."
+msgstr "عيّن البداية والنهاية قبل جدولة هذا الاجتماع في التقويم."
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_minute__start_datetime
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.view_meeting_resolution_form
+msgid "Start"
+msgstr "البداية"
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_minute__state
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_resolution__state
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.view_management_followup_search
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.view_meeting_minute_search
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.view_meeting_resolution_search
+msgid "State"
+msgstr "الحالة"
+
+#. module: cyan_meeting_minutes
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.report_meeting_minutes_document
+msgid "Status"
+msgstr "الحالة"
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields,help:cyan_meeting_minutes.field_cyan_meeting_minute__activity_state
+#: model:ir.model.fields,help:cyan_meeting_minutes.field_cyan_meeting_resolution__activity_state
+msgid ""
+"Status based on activities\n"
+"Overdue: Due date is already passed\n"
+"Today: Activity date is today\n"
+"Planned: Future activities."
+msgstr ""
+
+#. module: cyan_meeting_minutes
+#. odoo-python
+#: code:addons/cyan_meeting_minutes/models/resolution.py:0
+msgid "System write is limited to maintenance fields."
+msgstr "الكتابة النظامية مقتصرة على حقول الصيانة."
+
+#. module: cyan_meeting_minutes
+#. odoo-python
+#: code:addons/cyan_meeting_minutes/models/calendar_event.py:0
+msgid ""
+"The Calendar organizer must have access to the Meeting Minutes company."
+msgstr ""
+
+#. module: cyan_meeting_minutes
+#. odoo-python
+#: code:addons/cyan_meeting_minutes/models/meeting.py:0
+msgid "The meeting end time cannot be earlier than its start time."
+msgstr "لا يمكن أن يكون وقت نهاية الاجتماع قبل بدايته."
+
+#. module: cyan_meeting_minutes
+#. odoo-python
+#: code:addons/cyan_meeting_minutes/models/resolution.py:0
+msgid "The responsible user must be an active internal user."
+msgstr "يجب أن يكون المستخدم المسؤول مستخدماً داخلياً نشطاً."
+
+#. module: cyan_meeting_minutes
+#. odoo-python
+#: code:addons/cyan_meeting_minutes/models/resolution.py:0
+msgid "The responsible user must be the organizer, secretary or an attendee."
+msgstr "يجب أن يكون المسؤول هو المنظم أو أمين السر أو أحد الحضور."
+
+#. module: cyan_meeting_minutes
+#. odoo-python
+#: code:addons/cyan_meeting_minutes/models/resolution.py:0
+msgid "The responsible user must have access to the meeting company."
+msgstr "يجب أن يملك المستخدم المسؤول صلاحية شركة الاجتماع."
+
+#. module: cyan_meeting_minutes
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.view_management_followup_search
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.view_meeting_resolution_search
+msgid "This Week"
+msgstr "هذا الأسبوع"
+
+#. module: cyan_meeting_minutes
+#. odoo-python
+#: code:addons/cyan_meeting_minutes/models/meeting.py:0
+msgid "This meeting is not linked to a Calendar Event."
+msgstr "هذا الاجتماع غير مرتبط بحدث تقويم."
+
+#. module: cyan_meeting_minutes
+#. odoo-python
+#: code:addons/cyan_meeting_minutes/models/meeting.py:0
+msgid "This meeting state change is not allowed."
+msgstr "تغيير حالة الاجتماع هذا غير مسموح."
+
+#. module: cyan_meeting_minutes
+#. odoo-python
+#: code:addons/cyan_meeting_minutes/models/resolution.py:0
+msgid "This resolution state change is not allowed."
+msgstr "تغيير حالة التوصية هذا غير مسموح."
+
+#. module: cyan_meeting_minutes
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.report_meeting_minutes_document
+msgid "Title"
+msgstr "العنوان"
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields,field_description:cyan_meeting_minutes.field_cyan_meeting_minute__resolution_count
+msgid "Total Resolutions"
+msgstr "إجمالي التوصيات"
+
+#. module: cyan_meeting_minutes
+#: model_terms:ir.actions.act_window,help:cyan_meeting_minutes.action_meeting_resolution
+msgid "Track meeting resolutions and action items"
+msgstr "تتبع توصيات الاجتماع وإجراءاتها"
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields,help:cyan_meeting_minutes.field_cyan_meeting_minute__activity_exception_decoration
+#: model:ir.model.fields,help:cyan_meeting_minutes.field_cyan_meeting_resolution__activity_exception_decoration
+msgid "Type of the exception activity on record."
+msgstr "نوع نشاط الاستثناء على السجل."
+
+#. module: cyan_meeting_minutes
+#. odoo-python
+#: code:addons/cyan_meeting_minutes/models/calendar_event.py:0
+msgid "Unlink the meeting minutes before deleting this calendar event."
+msgstr "فك ارتباط المحضر قبل حذف حدث التقويم."
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields.selection,name:cyan_meeting_minutes.selection__cyan_meeting_resolution__deadline_status__upcoming
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.view_meeting_resolution_search
+msgid "Upcoming"
+msgstr "قادمة"
+
+#. module: cyan_meeting_minutes
+#. odoo-python
+#: code:addons/cyan_meeting_minutes/models/meeting.py:0
+msgid ""
+"Updating the calendar event cannot change meeting minutes you cannot edit."
+msgstr ""
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields.selection,name:cyan_meeting_minutes.selection__cyan_meeting_resolution__priority__3
+msgid "Urgent"
+msgstr "عاجلة"
+
+#. module: cyan_meeting_minutes
+#: model:res.groups,name:cyan_meeting_minutes.group_meeting_user
+msgid "User"
+msgstr "مستخدم"
+
+#. module: cyan_meeting_minutes
+#: model:ir.model.fields.selection,name:cyan_meeting_minutes.selection__cyan_meeting_resolution__priority__2
+msgid "Very Important"
+msgstr "مهمة جداً"
+
+#. module: cyan_meeting_minutes
+#. odoo-python
+#: code:addons/cyan_meeting_minutes/models/meeting.py:0
+#: code:addons/cyan_meeting_minutes/models/resolution.py:0
+msgid "You cannot add followers who cannot access this record."
+msgstr "لا يمكن إضافة متابعين لا يملكون صلاحية هذا السجل."
+
+#. module: cyan_meeting_minutes
+#. odoo-python
+#: code:addons/cyan_meeting_minutes/models/calendar_event.py:0
+msgid "You cannot create meeting minutes for this calendar event."
+msgstr "لا يمكنك إنشاء محضر اجتماع لهذا الحدث."
+
+#. module: cyan_meeting_minutes
+#. odoo-python
+#: code:addons/cyan_meeting_minutes/models/meeting.py:0
+#: code:addons/cyan_meeting_minutes/models/resolution.py:0
+msgid "You cannot notify partners who cannot access this record."
+msgstr "لا يمكن إشعار شركاء لا يملكون صلاحية هذا السجل."
+
+#. module: cyan_meeting_minutes
+#. odoo-python
+#: code:addons/cyan_meeting_minutes/models/meeting.py:0
+#: code:addons/cyan_meeting_minutes/models/resolution.py:0
+msgid "You cannot attach files from another record."
+msgstr "لا يمكن إرفاق ملفات من سجل آخر."
+
+#. module: cyan_meeting_minutes
+#. odoo-python
+#: code:addons/cyan_meeting_minutes/models/meeting.py:0
+#: code:addons/cyan_meeting_minutes/models/resolution.py:0
+msgid "You cannot reply to a message from another record."
+msgstr "لا يمكن الرد على رسالة من سجل آخر."
+
+#. module: cyan_meeting_minutes
+#. odoo-python
+#: code:addons/cyan_meeting_minutes/models/meeting.py:0
+msgid "You cannot set internal meeting fields."
+msgstr "لا يمكن تعيين حقول الاجتماع الداخلية."
+
+#. module: cyan_meeting_minutes
+#. odoo-python
+#: code:addons/cyan_meeting_minutes/models/resolution.py:0
+msgid "You cannot set internal resolution fields."
+msgstr "لا يمكن تعيين حقول التوصية الداخلية."
+
+#. module: cyan_meeting_minutes
+#: model_terms:ir.actions.act_window,help:cyan_meeting_minutes.action_my_meeting_resolution
+msgid "Your active meeting resolutions will appear here"
+msgstr "ستظهر توصياتك النشطة هنا"
+
+#. module: cyan_meeting_minutes
+#: model_terms:ir.ui.view,arch_db:cyan_meeting_minutes.view_meeting_minute_form
+msgid "e.g. Weekly Operations Meeting"
+msgstr "مثال: اجتماع العمليات الأسبوعي"

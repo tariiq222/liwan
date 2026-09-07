@@ -9,7 +9,7 @@ class NasqAccessPermission(models.Model):
 
     key = fields.Char(required=True, index=True)
     domain = fields.Selection(
-        [('access', 'Access'), ('hr', 'HR'), ('pmo', 'PMO'), ('settings', 'Settings')],
+        [('access', 'Access'), ('hr', 'HR'), ('pmo', 'PMO'), ('meetings', 'Meetings'), ('settings', 'Settings')],
         required=True,
     )
     resource = fields.Char(required=True)

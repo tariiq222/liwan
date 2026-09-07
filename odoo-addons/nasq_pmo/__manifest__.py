@@ -10,7 +10,7 @@
     # project: _inherit'd model and CLOSED_STATES. hr: hr.employee.public in
     # controllers/people.py. mail: message_post / _message_post_after_hook in the
     # timeline. bus: bus.bus in the task notifier.
-    'depends': ['nasq_api', 'project', 'hr', 'mail', 'bus'],
+    'depends': ['nasq_api', 'project', 'hr', 'mail', 'bus', 'cyan_meeting_minutes'],
     'data': [
         'security/project_finance_rules.xml',
         'security/ir.model.access-finance.csv',

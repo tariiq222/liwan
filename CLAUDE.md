@@ -118,7 +118,7 @@ Avoid Enterprise and OCA dependencies. Serializers explicitly whitelist wire
 fields; never send a raw `read()` result. A write returns the full server
 shape, and the client replaces its cache with that response.
 
-Authorization uses the 25 capabilities in `nasq.access.service`, built-in and
+Authorization uses the 28 capabilities in `nasq.access.service`, built-in and
 custom roles, and company-scoped assignments. `system_admin` manages access
 and settings without implicitly granting HR/PMO write access. Project ownership
 contributes contextual PMO capabilities. Legacy groups are migration/ORM support,

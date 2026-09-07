@@ -29,6 +29,9 @@ class TestNasqAccessSecurity(TransactionCase):
         self.assertTrue(self.service._nasq_has_capability(
             self.admin_a, 'access.users.assign_roles',
         ))
+        self.assertTrue(self.service._nasq_has_capability(
+            self.admin_a, 'meetings.manage',
+        ))
         self.assertFalse(self.service._nasq_has_capability(
             self.admin_a, 'hr.employees.manage',
         ))
