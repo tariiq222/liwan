@@ -40,7 +40,7 @@ function clearFilters() {
 function setPage(next: number) {
   if (!hydrated.value || query.isFetching.value || next < 1 || next > pages.value) return
   offset.value = (next - 1) * limit
-  void router.replace({ query: { ...route.query, ...(offset.value ? { offset: offset.value } : {}) } })
+  void router.replace({ query: { ...route.query, offset: offset.value || undefined } })
 }
 </script>
 
