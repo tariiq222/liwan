@@ -49,7 +49,10 @@ test('create page shows every charter field and allows a name-only save', async 
     await expect(page.getByRole('heading', { name })).toBeVisible()
     await page.getByTestId('project-charter-link').click()
     await expect(page).toHaveURL(/\/projects\/\d+\/charter/)
+    await expect(page).not.toHaveURL(/edit=1/)
     await expect(page.getByRole('heading', { name: 'ميثاق المشروع' })).toBeVisible()
+    await expect(page.getByTestId('project-charter-form')).toBeVisible()
+    await expect(page.getByRole('button', { name: 'حفظ' })).toHaveCount(0)
     for (const key of FIELD_KEYS) {
       await expect(page.getByTestId(`charter-field-${key}`)).toBeVisible()
     }
@@ -117,17 +120,23 @@ test('creating a project keeps the list returnTo on the new record', async ({ pa
   await expect(page).toHaveURL(/\/projects\?q=charter-keep/)
 })
 
-test('project list filters survive the charter back link', async ({ page }) => {
+test('charter tab is readonly until header edit or edit=1', async ({ page }) => {
   await login(page)
-  const name = `E2E charter back ${Date.now()}`
+  const name = `E2E charter view ${Date.now()}`
   const created = await page.request.post('/api/v1/projects', { data: { name, date_end: '2035-12-31' } })
   expect(created.status()).toBe(201)
   const project = await created.json()
-  await page.goto(`/projects/${project.id}?q=${encodeURIComponent(name)}`)
+  await page.goto(`/projects/${project.id}`)
   await page.getByTestId('project-charter-link').click()
-  await expect(page).toHaveURL(new RegExp(`/projects/${project.id}/charter`))
-  await page.getByRole('link', { name: 'العودة إلى المشروع' }).click()
-  await expect(page).toHaveURL(new RegExp(`/projects/${project.id}`))
+  await expect(page).toHaveURL(new RegExp(`/projects/${project.id}/charter$`))
+  await expect(page.getByRole('heading', { name })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'ميثاق المشروع' })).toBeVisible()
+  await expect(page.getByTestId('project-charter-form')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'حفظ' })).toHaveCount(0)
+  await expect(page.getByRole('link', { name: 'العودة إلى المشروع' })).toHaveCount(0)
+  await page.getByTestId('project-header-edit').click()
+  await expect(page).toHaveURL(/edit=1/)
+  await expect(page.getByRole('button', { name: 'حفظ' })).toBeVisible()
 })
 
 test('charter departure is guarded while preserving the draft', async ({ page }) => {
@@ -136,19 +145,20 @@ test('charter departure is guarded while preserving the draft', async ({ page })
   const created = await page.request.post('/api/v1/projects', { data: { name, date_end: '2035-12-31' } })
   expect(created.status()).toBe(201)
   const project = await created.json()
-  await page.goto(`/projects/${project.id}/charter?returnTo=${encodeURIComponent(`/projects?q=${name}`)}`)
+  await page.goto(`/projects/${project.id}/charter?edit=1`)
   const rationale = page.locator('#charter-rationale')
   await rationale.fill('مسودة محلية')
-  await page.getByRole('link', { name: 'العودة إلى المشروع' }).click()
+  await page.getByTestId('project-charter-form').getByRole('button', { name: 'إلغاء' }).click()
 
   const dialog = page.getByRole('alertdialog', { name: 'تغييرات غير محفوظة' })
   await expect(dialog).toBeVisible()
   await expect(rationale).toHaveValue('مسودة محلية')
   await dialog.getByRole('button', { name: 'البقاء في الصفحة' }).click()
   await expect(rationale).toHaveValue('مسودة محلية')
-  await page.getByRole('link', { name: 'العودة إلى المشروع' }).click()
+  await page.getByTestId('project-charter-form').getByRole('button', { name: 'إلغاء' }).click()
   await dialog.getByRole('button', { name: 'المغادرة بدون حفظ' }).click()
-  await expect.poll(() => new URL(page.url()).searchParams.get('q')).toBe(name)
+  await expect(page).toHaveURL(new RegExp(`/projects/${project.id}/charter$`))
+  await expect(page.getByRole('button', { name: 'حفظ' })).toHaveCount(0)
 })
 
 test('a 409 keeps the draft until an explicit overwrite after the newer version loads', async ({ page }) => {
@@ -185,7 +195,7 @@ test('a 409 keeps the draft until an explicit overwrite after the newer version 
     }
     await route.continue()
   })
-  await page.goto(`/projects/${project.id}/charter`)
+  await page.goto(`/projects/${project.id}/charter?edit=1`)
   await page.locator('#charter-rationale').fill('kept locally')
   await page.getByRole('button', { name: 'حفظ' }).click()
   await expect(page.getByTestId('charter-stale-write')).toBeVisible()
@@ -321,6 +331,9 @@ test('charter create/edit round-trip persists every field through the UI and API
 
   await page.getByTestId('project-charter-link').click()
   await expect(page.getByRole('heading', { name: 'ميثاق المشروع' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'حفظ' })).toHaveCount(0)
+  await page.getByTestId('project-header-edit').click()
+  await expect(page).toHaveURL(/edit=1/)
   await expect(page.locator('#charter-code')).toHaveValue(created.charter.code)
   await expect(page.locator('#charter-code')).toBeDisabled()
   await expect(page.locator('#charter-currency')).toBeDisabled()
