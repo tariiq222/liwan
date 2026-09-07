@@ -1,10 +1,60 @@
 <script setup lang="ts">
+import { ApiError } from '@/composables/useApi'
 import { useProject } from '@/composables/useProjects'
+import { useProjectStakeholder } from '@/composables/useProjectGovernance'
+import { safeReturnTo } from '@/utils/safeReturnTo'
 
-import { ApiError } from '@/composables/useApi'; import { useProjectStakeholder } from '@/composables/useProjectGovernance'; import { safeReturnTo } from '@/utils/safeReturnTo'
-const route = useRoute(); const { t } = useI18n(); const id = computed(() => Number(route.params.id)); const itemId = computed(() => Number(route.params.stakeholderId)); const item = useProjectStakeholder(id, itemId); const returnTo = computed(() => safeReturnTo(route.query.returnTo, `/projects/${id.value}/stakeholders`, ['/projects'])); const notFound = computed(() => item.error.value instanceof ApiError && [403, 404].includes(item.error.value.status))
-
-const access = useProject(computed(() => Number(route.params.id)))
+const route = useRoute()
+const { t } = useI18n()
+const projectId = computed(() => Number(route.params.id))
+const stakeholderId = computed(() => Number(route.params.stakeholderId))
+const item = useProjectStakeholder(projectId, stakeholderId)
+const returnTo = computed(() => safeReturnTo(route.query.returnTo, `/projects/${projectId.value}/stakeholders`, ['/projects']))
+const notFound = computed(() => item.error.value instanceof ApiError && [403, 404].includes(item.error.value.status))
+const access = useProject(projectId)
 const hydrated = useHydrated()
 </script>
-<template><SharedPageContainer v-if="route.path.replace(/\/+$/, '') === `/projects/${id}/stakeholders/${itemId}`" width="detail"><SharedPageHeader :title="item.data?.value?.name ?? t('projects.governance.stakeholder.title')" :back-to="returnTo" /><SharedPageState :loading="item.isLoading.value" :error="notFound ? null : item.error.value" :empty="notFound || !item.data.value" @retry="item.refetch" /><section v-if="item.data?.value" class="nasq-panel nasq-panel-body space-y-4"><dl class="grid gap-4 sm:grid-cols-2"><div><dt class="text-sm text-muted-foreground">{{ t('projects.governance.stakeholder.internalUser') }}</dt><dd>{{ item.data.value.user?.name || t('projects.governance.stakeholder.noInternalUser') }}</dd></div><div><dt class="text-sm text-muted-foreground">{{ t('projects.governance.stakeholder.organization') }}</dt><dd>{{ item.data.value.organization || '—' }}</dd></div><div><dt class="text-sm text-muted-foreground">{{ t('projects.governance.stakeholder.role') }}</dt><dd>{{ item.data.value.role || '—' }}</dd></div><div><dt class="text-sm text-muted-foreground">{{ t('projects.governance.stakeholder.contact') }}</dt><dd dir="ltr" class="text-start">{{ item.data.value.contact || '—' }}</dd></div><div class="sm:col-span-2"><dt class="text-sm text-muted-foreground">{{ t('projects.governance.stakeholder.notes') }}</dt><dd class="whitespace-pre-wrap">{{ item.data.value.notes || '—' }}</dd></div></dl><NuxtLink v-if="access.data.value?.can_manage && hydrated" :to="{ path: `/projects/${id}/stakeholders/${itemId}/edit`, query: { returnTo } }"><Button>{{ t('app.edit') }}</Button></NuxtLink></section></SharedPageContainer><NuxtPage /></template>
+
+<template>
+  <SharedPageContainer v-if="route.path.replace(/\/+$/, '') === `/projects/${projectId}/stakeholders/${stakeholderId}`" width="detail">
+    <SharedPageHeader :title="item.data?.value?.name ?? t('projects.governance.stakeholder.title')" :back-to="returnTo" :back-label="t('projects.governance.stakeholders')" />
+    <SharedPageState
+      :loading="item.isLoading.value"
+      :error="notFound ? null : item.error.value"
+      :empty="notFound || !item.data.value"
+      :empty-text="notFound ? t('projects.notFound') : t('app.noResults')"
+      @retry="item.refetch"
+    />
+    <section v-if="item.data?.value" class="nasq-panel nasq-panel-body space-y-4">
+      <dl class="grid gap-4 sm:grid-cols-2">
+        <div>
+          <dt class="text-sm text-muted-foreground">{{ t('projects.governance.stakeholder.internalUser') }}</dt>
+          <dd>{{ item.data.value.user?.name || t('projects.governance.stakeholder.noInternalUser') }}</dd>
+        </div>
+        <div>
+          <dt class="text-sm text-muted-foreground">{{ t('projects.governance.stakeholder.organization') }}</dt>
+          <dd>{{ item.data.value.organization || '—' }}</dd>
+        </div>
+        <div>
+          <dt class="text-sm text-muted-foreground">{{ t('projects.governance.stakeholder.role') }}</dt>
+          <dd>{{ item.data.value.role || '—' }}</dd>
+        </div>
+        <div>
+          <dt class="text-sm text-muted-foreground">{{ t('projects.governance.stakeholder.contact') }}</dt>
+          <dd dir="ltr" class="text-start">{{ item.data.value.contact || '—' }}</dd>
+        </div>
+        <div class="sm:col-span-2">
+          <dt class="text-sm text-muted-foreground">{{ t('projects.governance.stakeholder.notes') }}</dt>
+          <dd class="whitespace-pre-wrap">{{ item.data.value.notes || '—' }}</dd>
+        </div>
+      </dl>
+      <NuxtLink
+        v-if="access.data.value?.can_manage && hydrated"
+        :to="{ path: `/projects/${projectId}/stakeholders/${stakeholderId}/edit`, query: { returnTo } }"
+      >
+        <Button>{{ t('app.edit') }}</Button>
+      </NuxtLink>
+    </section>
+  </SharedPageContainer>
+  <NuxtPage />
+</template>

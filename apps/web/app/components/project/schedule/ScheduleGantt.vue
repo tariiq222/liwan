@@ -37,6 +37,9 @@ const gridStyle = computed(() => ({
 const stateLabel = (state: string) => t(`tasks.state.${state}`)
 const returnQuery = computed(() => new URLSearchParams(returnToQuery(route.fullPath)).toString())
 const taskLink = (taskId: number) => props.schedule.can_manage ? `/projects/${props.schedule.project_id}/schedule/tasks/${taskId}?${returnQuery.value}` : `/tasks/${taskId}?${returnQuery.value}`
+const milestoneLink = (milestoneId: number) => props.schedule.can_manage
+  ? { path: `/projects/${props.schedule.project_id}/milestones/${milestoneId}/edit`, query: { returnTo: route.fullPath } }
+  : { path: `/projects/${props.schedule.project_id}`, query: { tab: 'milestones', returnTo: route.fullPath } }
 const datePosition = (value: string) => scheduleDatePosition(value, axis.value)
 const markerPosition = (value: string) => ({ insetInlineStart: `clamp(8px, ${datePosition(value).insetInlineStart}, calc(100% - 8px))` })
 const barClass = (state: string) => BAR_TONE[(STATE_TONE as Record<string, StateTone>)[state] ?? 'neutral']
@@ -66,13 +69,15 @@ const barClass = (state: string) => BAR_TONE[(STATE_TONE as Record<string, State
           <template v-if="datedMilestones.length">
             <div class="nasq-gantt-name">{{ t('projects.schedule.milestones') }}</div>
             <div class="nasq-gantt-track">
-              <span
+              <NuxtLink
                 v-for="milestone in datedMilestones"
                 :key="milestone.id"
                 class="nasq-gantt-mark nasq-status-dot-warning"
                 :style="markerPosition(milestone.deadline!)"
                 :title="`${milestone.name} · ${milestone.deadline}`"
                 :data-milestone-id="milestone.id"
+                :to="milestoneLink(milestone.id)"
+                :aria-label="milestone.name"
               />
             </div>
           </template>

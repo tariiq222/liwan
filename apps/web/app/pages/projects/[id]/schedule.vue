@@ -4,6 +4,7 @@ import { useProject } from '@/composables/useProjects'
 import { useProjectSchedule } from '@/composables/useProjectSchedule'
 import ScheduleGantt from '@/components/project/schedule/ScheduleGantt.vue'
 import type { ScheduleScale } from '@/utils/projectSchedule'
+import { safeReturnTo } from '@/utils/safeReturnTo'
 
 const route = useRoute()
 const router = useRouter()
@@ -17,17 +18,26 @@ const scale = computed<ScheduleScale>({
   set: value => { void router.replace({ query: { ...route.query, scale: value } }) },
 })
 const notFound = computed(() => projectId.value === null || (projectError.value instanceof ApiError && [403, 404].includes(projectError.value.status)))
+const returnTo = computed(() => projectId.value ? safeReturnTo(route.query.returnTo, `/projects/${projectId.value}`, ['/projects']) : '/projects')
 </script>
 
 <template>
   <SharedPageContainer v-if="isBaseRoute" width="list">
-    <p v-if="projectId === null || notFound" class="text-muted-foreground">{{ t('projects.notFound') }}</p>
-    <p v-else-if="isLoading && !schedule" role="status" class="text-muted-foreground">{{ t('projects.loading') }}</p>
-    <div v-else-if="error || !schedule" role="alert">
-      <p class="text-destructive">{{ t('projects.loadError') }}</p>
-      <Button class="mt-3" type="button" variant="outline" @click="refetch()">{{ t('app.retry') }}</Button>
-    </div>
-    <ScheduleGantt v-else :schedule="schedule" :scale="scale" :project-start="project?.date_start" :project-end="project?.date_end" @update:scale="scale = $event" />
+    <SharedPageHeader
+      :title="t('projects.schedule.title')"
+      :description="t('projects.schedule.timeline')"
+      :back-to="returnTo"
+      :back-label="t('projects.backToProject')"
+    />
+    <SharedPageState
+      :loading="isLoading && !schedule"
+      :error="projectError || error"
+      :empty="projectId === null || notFound || (!isLoading && !schedule && !error)"
+      :empty-text="projectId === null || notFound ? t('projects.notFound') : t('projects.schedule.empty')"
+      @retry="() => { void refetch() }"
+    >
+      <ScheduleGantt v-if="schedule" :schedule="schedule" :scale="scale" :project-start="project?.date_start" :project-end="project?.date_end" @update:scale="scale = $event" />
+    </SharedPageState>
   </SharedPageContainer>
   <NuxtPage />
 </template>
