@@ -105,11 +105,11 @@
 [data-nasq-shell] [data-sidebar="menu-button"][data-active="true"] {
   border-color: var(--sidebar-border);
   box-shadow: 0 1px 2px color-mix(in oklab, var(--foreground) 5%, transparent);
-  color: var(--primary);
+  color: var(--brand-link);
 }
 
 [data-nasq-shell] [data-slot="tabs-trigger"][data-state="active"] {
-  color: var(--primary);
+  color: var(--brand-link);
 }
 
 [data-nasq-shell] :where(
@@ -286,7 +286,7 @@
 .nasq-form-footer { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding-block-start: 20px; border-block-start: 1px solid var(--border); }
 .nasq-tabs { display: flex; min-width: 0; align-items: center; gap: 4px; overflow-x: auto; border-block-end: 1px solid var(--border); }
 .nasq-tabs > :is(a, button) { display: inline-flex; min-height: 45px; flex: none; align-items: center; gap: 7px; border: 0; border-block-end: 2px solid transparent; border-radius: 0; background: transparent; box-shadow: none; padding-inline: 12px; color: var(--muted-foreground); font-size: 0.929rem; white-space: nowrap; }
-.nasq-tabs > [aria-selected="true"], .nasq-tabs > [aria-current="page"], .nasq-tabs > [data-state="active"] { border-block-end-color: var(--primary); color: var(--primary); }
+.nasq-tabs > [aria-selected="true"], .nasq-tabs > [aria-current="page"], .nasq-tabs > [data-state="active"] { border-block-end-color: var(--brand-link); color: var(--brand-link); }
 .nasq-gantt { overflow-x: auto; }
 .nasq-gantt-grid { display: grid; min-width: 720px; }
 .nasq-gantt-name { position: sticky; inset-inline-start: 0; z-index: 2; display: flex; min-height: 48px; align-items: center; padding: 8px 12px; background: var(--card); border-block-end: 1px solid var(--border); box-shadow: -8px 0 16px -12px color-mix(in srgb, var(--foreground) 18%, transparent); font-size: 0.8125rem; color: var(--muted-foreground); }
@@ -333,7 +333,7 @@ html[dir="rtl"] .nasq-gantt-name { box-shadow: 8px 0 16px -12px color-mix(in srg
 .nasq-settings-nav { display: grid; gap: 4px; padding: 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--card); }
 .nasq-settings-nav a { display: flex; min-height: 40px; align-items: center; gap: 9px; border: 1px solid transparent; border-radius: 6px; padding: 9px 10px; color: var(--muted-foreground); font-size: 0.929rem; }
 .nasq-settings-nav a:hover { background: var(--muted); }
-.nasq-settings-nav a[aria-current="page"] { border-color: var(--border); background: var(--muted); color: var(--primary); font-weight: 600; }
+.nasq-settings-nav a[aria-current="page"] { border-color: var(--border); background: var(--muted); color: var(--brand-link); font-weight: 600; }
 .nasq-settings-nav .lucide { width: 18px; height: 18px; flex-shrink: 0; stroke-width: 2; }
 @media (max-width: 820px) {
   .nasq-detail-grid, .nasq-settings-layout { grid-template-columns: minmax(0, 1fr); }
