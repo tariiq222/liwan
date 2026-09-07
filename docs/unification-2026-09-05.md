@@ -1,5 +1,7 @@
 # Nasq branch unification — 2026-09-05
 
+> UI authority update — 2026-09-07: [DESIGN.md](../DESIGN.md) supersedes this document's customer-UI appearance, component and navigation prescriptions wherever they conflict. Preserve historical implementation/verification evidence and still-valid API, permission, business and delivery contracts. This document is not a second theme source.
+
 Status: complete locally. Verified integration `a284019` was fast-forwarded to
 `main`; 12 extra worktrees and 13 preserved branches were removed. The sole
 remaining checkout is `/Users/tariq/code/nasq` on `main`.

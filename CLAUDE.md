@@ -1,5 +1,9 @@
 # CLAUDE.md — nasq
 
+## Current UI authority — 2026-09-07
+
+For all Nasq customer-UI work, read [DESIGN.md](DESIGN.md) first, then the component catalog and frontend/theme role linked there. The approved module rail and contextual sidebar supersede older visual/navigation instructions. This is project-local policy; existing business, security and delivery rules still apply. The reference is approved; runtime migration remains a separate implementation phase.
+
 nasq (نَسَق) is a resellable project and task management product on Odoo 19
 CE. Odoo is the engine and `apps/web` (Nuxt 4) is the customer UI. Each
 customer has an independent deployment, database, Odoo instance, and frontend;

@@ -1,5 +1,7 @@
 # nasq Phase 2 — Projects List & Project Screen Implementation Plan
 
+> UI authority update — 2026-09-07: [DESIGN.md](../../../DESIGN.md) supersedes this document's customer-UI appearance, component and navigation prescriptions wherever they conflict. Preserve historical implementation/verification evidence and still-valid API, permission, business and delivery contracts. This document is not a second theme source.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Ship **المشاريع** (projects table with status + progress) and **المشروع** (header with manager-settable status, قائمة / لوحة of the project's tasks by *project* stage, إنشاء مهمة, the phase-1 task modal on a nested route), and remove time logging from the product.

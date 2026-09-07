@@ -1,5 +1,7 @@
 # nasq Phase 0 — Foundation Implementation Plan
 
+> UI authority update — 2026-09-07: [DESIGN.md](../../../DESIGN.md) supersedes this document's customer-UI appearance, component and navigation prescriptions wherever they conflict. Preserve historical implementation/verification evidence and still-valid API, permission, business and delivery contracts. This document is not a second theme source.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Stand up the nasq monorepo with a working vertical slice — a customer-branded Nuxt login → shell (sidebar, ⌘K) backed by two Odoo endpoints (`/api/v1/branding`, `/api/v1/me`) — plus the deployment skeleton, and purge the AGPL OCA modules from the dev database.

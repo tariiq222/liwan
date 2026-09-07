@@ -1,5 +1,7 @@
 # nasq Phase 1 — My Tasks & Task Detail Implementation Plan
 
+> UI authority update — 2026-09-07: [DESIGN.md](../../../DESIGN.md) supersedes this document's customer-UI appearance, component and navigation prescriptions wherever they conflict. Preserve historical implementation/verification evidence and still-valid API, permission, business and delivery contracts. This document is not a second theme source.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Ship the employee's daily screen — **مهامي** as a table and a personal-stage board — plus the task detail modal (details, Tiptap description, sub-tasks, dependencies, attachments, duration metrics, merged comment/tracking timeline), server-enforced state transitions, real-time updates over Odoo's bus, and the deferred phase-0 debt (vue-query, i18n, TOTP login step).

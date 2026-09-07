@@ -1,5 +1,7 @@
 # تسليم ميزات التعاون في مشاريع نسق
 
+> UI authority update — 2026-09-07: [DESIGN.md](../../../DESIGN.md) supersedes this document's customer-UI appearance, component and navigation prescriptions wherever they conflict. Preserve historical implementation/verification evidence and still-valid API, permission, business and delivery contracts. This document is not a second theme source.
+
 التاريخ: 2026-09-05. التنفيذ: ثلاثة منفذين Luna، مراجعة Sol، والتجميع والتحقق لدى المنسق.
 
 ## المنجز

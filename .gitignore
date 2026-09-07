@@ -17,3 +17,10 @@ playwright-report/
 .playwright-mcp/
 .runtime/
 .DS_Store
+
+# Share only the project frontend role; keep other machine-local Claude setup private.
+!/.claude/
+/.claude/*
+!/.claude/agents/
+/.claude/agents/*
+!/.claude/agents/frontend-theme.md

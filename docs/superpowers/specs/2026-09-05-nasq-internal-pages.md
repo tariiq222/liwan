@@ -1,5 +1,7 @@
 # Nasq Internal Pages Design
 
+> UI authority update — 2026-09-07: [DESIGN.md](../../../DESIGN.md) supersedes this document's customer-UI appearance, component and navigation prescriptions wherever they conflict. Preserve historical implementation/verification evidence and still-valid API, permission, business and delivery contracts. This document is not a second theme source.
+
 ## Purpose
 
 Nasq renders every business screen as an addressable page inside the normal application layout. Business detail, create, edit, settings, search, and destructive confirmation flows must support browser back, reload, and direct links without opening a modal layer.

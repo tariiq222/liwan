@@ -1,5 +1,9 @@
 # Parallel work and workspace operations
 
+## Current UI authority — 2026-09-07
+
+For all Nasq customer-UI work, read [DESIGN.md](../DESIGN.md) first, then the component catalog and frontend/theme role linked there. The approved module rail and contextual sidebar supersede older visual/navigation instructions. This is project-local policy; existing business, security and delivery rules still apply. The reference is approved; runtime migration remains a separate implementation phase.
+
 Nasq uses temporary worktrees for bounded tasks. The canonical checkout is `/Users/tariq/code/nasq` on `main`; a task worktree is not a
 permanent product pillar checkout. One writer owns each file. One orchestrator
 owns shared files, Git integration, runtime state, and final verification.

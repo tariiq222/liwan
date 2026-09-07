@@ -1,5 +1,7 @@
 # nasq — Phase 3b: People Access, Branding, and Account
 
+> UI authority update — 2026-09-07: [DESIGN.md](../../../DESIGN.md) supersedes this document's customer-UI appearance, component and navigation prescriptions wherever they conflict. Preserve historical implementation/verification evidence and still-valid API, permission, business and delivery contracts. This document is not a second theme source.
+
 **Date:** 2026-09-05
 **Target baseline:** canonical `main` after the 2026-09-05 workspace reorganization
 **Status:** Delivered locally on 2026-09-05; approved scope and HR compatibility requirements retained

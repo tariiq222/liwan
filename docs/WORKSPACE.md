@@ -1,5 +1,9 @@
 # Nasq workspace index
 
+## Current UI authority — 2026-09-07
+
+For all Nasq customer-UI work, read [DESIGN.md](../DESIGN.md) first, then the component catalog and frontend/theme role linked there. The approved module rail and contextual sidebar supersede older visual/navigation instructions. This is project-local policy; existing business, security and delivery rules still apply. The reference is approved; runtime migration remains a separate implementation phase.
+
 The canonical Nasq checkout is `/Users/tariq/code/nasq` on `main`. Main is
 local-only; no Nasq Git remote is configured. The Odoo checkout at
 `/Users/tariq/code/odoo` is the unchanged Odoo 19 source checkout. Keep its

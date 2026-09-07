@@ -1,5 +1,7 @@
 # shadcn Backend Theme (web_theme_shadcn)
 
+> Scope: Odoo vendor-console theme only. This is not the Nasq Nuxt customer-UI theme. Customer UI follows [DESIGN.md](../../DESIGN.md); vendor-console implementation and licensing remain separate.
+
 Odoo 19.0 community backend restyled after shadcn/ui: icon app rail,
 collapsible app panel, white top bar, zinc palette, IBM Plex Sans Arabic.
 

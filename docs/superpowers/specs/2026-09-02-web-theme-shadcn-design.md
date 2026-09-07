@@ -1,5 +1,7 @@
 # web_theme_shadcn — Design Spec
 
+> Scope: Odoo vendor-console theme only. This is not the Nasq Nuxt customer-UI theme. Customer UI follows [DESIGN.md](../../../DESIGN.md); vendor-console implementation and licensing remain separate.
+
 **Date:** 2026-09-02
 **Target:** Odoo 19.0 (stable), community backend only
 **Status:** Approved for planning
