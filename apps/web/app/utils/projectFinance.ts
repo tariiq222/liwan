@@ -220,11 +220,12 @@ export function reportListQuery(filters: {
 export function reportListPath(state: ReportListRouteState): string {
   const query = serializeReportListRoute(state)
   const params = new URLSearchParams()
+  params.set('view', 'reports')
   if (query.q) params.set('q', query.q)
   if (query.status) params.set('status', query.status)
   if (query.offset) params.set('offset', String(query.offset))
   const suffix = params.toString()
-  return suffix ? `/reports?${suffix}` : '/reports'
+  return `/projects?${suffix}`
 }
 
 function mapDigit(char: string): string {

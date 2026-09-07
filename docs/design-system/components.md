@@ -18,6 +18,7 @@ Authority: [DESIGN.md](../../DESIGN.md). This catalog records current reusable c
 | Unsaved form exit | `components/shared/UnsavedChanges.vue` | Existing approved shared confirmation only |
 | Buttons/fields/tables/menus | `components/ui/**` | Existing shadcn-vue/Reka primitives with local RTL/hydration patches |
 | Specialized PMO views | `components/project/**`, `components/task/**` | Reuse task/schedule/RACI data; do not clone shared chrome |
+| Projects report view | `components/project/ProjectReportsView.vue` | Receives `q`, `status`, `offset`; emits `update:offset`. Reuses finance totals/table and shared data states. The Projects page owns the title, filters, creation action and route. |
 
 Paths starting `components/` and `composables/` are relative to `apps/web/app/`.
 Inspect actual props before use. This catalog does not rename or regenerate any component.

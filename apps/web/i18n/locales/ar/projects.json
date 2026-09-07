@@ -91,6 +91,10 @@
       "view": "طريقة عرض المشاريع",
       "tableView": "عرض الجدول",
       "cardView": "عرض البطاقات",
+      "reportsView": "عرض التقارير",
+      "tableLabel": "جدول",
+      "cardsLabel": "بطاقات",
+      "reportsLabel": "تقارير",
       "boardView": "عرض اللوحة",
       "clear": "مسح الفلاتر"
     },

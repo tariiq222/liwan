@@ -11,11 +11,11 @@ describe('capability-based navigation', () => {
   })
   it('groups the employee product pages without administrative links', () => {
     const nav = useNav(employee)
-    expect(nav.map(item => item.to)).toEqual(['/chat', '/projects', '/tasks', '/reports', '/meetings', '/meetings/calendar', '/hr', '/hr/departments', '/hr/documents', '/settings/appearance'])
+    expect(nav.map(item => item.to)).toEqual(['/chat', '/projects', '/tasks', '/meetings', '/meetings/calendar', '/hr', '/hr/departments', '/hr/documents', '/settings/appearance'])
     expect(nav.filter(item => item.group === 'hr')).toHaveLength(3)
     expect(nav.filter(item => item.group === 'chat')).toHaveLength(1)
     expect(nav.filter(item => item.group === 'settings').map(item => item.to)).toEqual(['/settings/appearance'])
-    expect(nav.filter(item => item.group === 'projects').map(item => item.to)).toEqual(['/projects', '/tasks', '/reports'])
+    expect(nav.filter(item => item.group === 'projects').map(item => item.to)).toEqual(['/projects', '/tasks'])
   })
   it('an access administrator does not inherit project settings', () => {
     const nav = useNav(admin)

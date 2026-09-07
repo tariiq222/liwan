@@ -200,7 +200,7 @@ describe('report list route helpers', () => {
 
   it('preserves the reports URL so a project finance link can return to the same filters', () => {
     expect(reportListPath({ q: 'portal', status: 'off_track', offset: 50 })).toBe(
-      '/reports?q=portal&status=off_track&offset=50',
+      '/projects?view=reports&q=portal&status=off_track&offset=50',
     )
     expect(reportListQuery({ q: '  ', status: 'all', limit: REPORT_PAGE, offset: 0 })).toEqual({
       q: undefined,

@@ -25,7 +25,7 @@ export type ProjectListRouteState = {
   offset: number
   archived: boolean
   sort?: 'default' | 'name' | 'progress'
-  view?: 'table' | 'cards'
+  view?: 'table' | 'cards' | 'reports'
 }
 
 export function parseProjectListOffset(value: unknown): number {
@@ -42,13 +42,14 @@ export function parseProjectListStatus(value: unknown): ProjectListStatusFilter 
 }
 
 export function parseProjectListRoute(query: Record<string, unknown>): ProjectListRouteState {
+  const view = query.view === 'reports' ? 'reports' as const : query.view === 'cards' ? 'cards' as const : undefined
   return {
     q: typeof query.q === 'string' ? query.q : '',
     status: parseProjectListStatus(query.status),
     offset: parseProjectListOffset(query.offset),
-    archived: query.archived === '1' || query.archived === 1,
+    archived: view === 'reports' ? false : query.archived === '1' || query.archived === 1,
     ...(query.sort === 'name' || query.sort === 'progress' ? { sort: query.sort } : {}),
-    ...(query.view === 'cards' ? { view: 'cards' as const } : {}),
+    ...(view ? { view } : {}),
   }
 }
 
@@ -59,7 +60,7 @@ export function serializeProjectListRoute(state: ProjectListRouteState) {
     offset: state.offset || undefined,
     archived: state.archived ? '1' : undefined,
     ...(state.sort && state.sort !== 'default' ? { sort: state.sort } : {}),
-    ...(state.view === 'cards' ? { view: state.view } : {}),
+    ...(state.view === 'cards' || state.view === 'reports' ? { view: state.view } : {}),
   }
 }
 
@@ -67,15 +68,18 @@ export function patchProjectListRoute(
   current: ProjectListRouteState,
   patch: Partial<ProjectListRouteState>,
 ): ProjectListRouteState {
+  const currentView = current.view ?? 'table'
+  const nextView = patch.view ?? current.view
   const next: ProjectListRouteState = {
     q: patch.q ?? current.q,
     status: patch.status ?? current.status,
     offset: patch.offset ?? current.offset,
-    archived: patch.archived ?? current.archived,
+    archived: patch.view === 'reports' ? false : patch.archived ?? current.archived,
     sort: patch.sort ?? current.sort,
     view: patch.view ?? current.view,
   }
-  if (patch.offset === undefined && (patch.q !== undefined || patch.status !== undefined || patch.archived !== undefined || patch.sort !== undefined)) {
+  const reportBoundaryChanged = patch.view !== undefined && ((currentView === 'reports') !== (nextView === 'reports'))
+  if (patch.offset === undefined && (patch.q !== undefined || patch.status !== undefined || patch.archived !== undefined || patch.sort !== undefined || reportBoundaryChanged)) {
     next.offset = 0
   }
   return {
@@ -159,10 +163,15 @@ export function useProjects(enabled: MaybeRefOrGetter<boolean> = true) {
 }
 
 // The projects table: status + progress per project.
-export function useProjectList(archived: Ref<boolean>, filters: MaybeRefOrGetter<ProjectListFilters> = {}) {
+export function useProjectList(
+  archived: Ref<boolean>,
+  filters: MaybeRefOrGetter<ProjectListFilters> = {},
+  enabled: MaybeRefOrGetter<boolean> = true,
+) {
   const { $api } = useApi()
   return useQuery({
     queryKey: computed(() => [...projectKeys.list, projectListQuery(archived.value, toValue(filters))] as const),
+    enabled: computed(() => toValue(enabled)),
     queryFn: () => $api('/api/v1/projects', { query: projectListQuery(archived.value, toValue(filters)), schema: ProjectListSchema }),
   })
 }
