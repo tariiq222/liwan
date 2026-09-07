@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import DepartmentOrgChart from '@/components/hr/DepartmentOrgChart.vue'
 import DepartmentTable from '@/components/hr/DepartmentTable.vue'
 import DepartmentTree from '@/components/hr/DepartmentTree.vue'
 import { buildDepartmentTree } from '@/lib/departmentTree'
@@ -14,6 +15,7 @@ const query = useHrDepartments()
 const hydrated = useHydrated()
 const search = computed({ get: () => typeof route.query.q === 'string' ? route.query.q : '', set: q => { void router.replace({ query: { ...route.query, q: q || undefined } }) } })
 const treeView = computed(() => route.query.view === 'tree')
+const canvasView = computed(() => route.query.view === 'canvas')
 const departments = computed(() => query.data.value?.items ?? [])
 const roots = computed(() => buildDepartmentTree(departments.value))
 const filtered = computed(() => departments.value.filter(d => `${d.name} ${d.manager?.name ?? ''}`.toLocaleLowerCase().includes(search.value.trim().toLocaleLowerCase())))
@@ -24,6 +26,7 @@ function openDepartment(id: number) { void navigateTo({ path: `/hr/departments/$
 function editDepartment(id: number) { void navigateTo({ path: `/hr/departments/${id}/edit`, query: returnToQuery(route.fullPath) }) }
 function createChild(id: number) { void navigateTo({ path: '/hr/departments/new', query: { ...returnToQuery(route.fullPath), parent_id: id } }) }
 function setView(tree: boolean) { void router.replace({ query: { ...route.query, view: tree ? 'tree' : undefined } }) }
+function setCanvasView() { void router.replace({ query: { ...route.query, view: 'canvas' } }) }
 function askDelete(department: HrDepartment) { deleting.value = department; deleteError.value = null }
 async function confirmDelete() {
   if (!deleting.value || !hydrated.value || deletingPending.value || !can('hr.departments.manage')) return
@@ -37,12 +40,50 @@ async function confirmDelete() {
       <NuxtLink v-if="can('hr.departments.manage')" :to="{ path: '/hr/departments/new', query: returnToQuery(route.fullPath) }"><Button>{{ t('hr.depts.new') }}</Button></NuxtLink>
     </SharedPageHeader>
     <div class="nasq-toolbar nasq-panel flex flex-wrap items-center">
-      <Input v-model="search" :disabled="!hydrated" :aria-label="t('hr.depts.search')" :placeholder="t('hr.depts.search')" class="max-w-sm" />
-      <Button variant="outline" :disabled="!hydrated" :aria-pressed="!treeView" @click="setView(false)">{{ t('hr.depts.listView') }}</Button>
-      <Button variant="outline" :disabled="!hydrated" :aria-pressed="treeView" @click="setView(true)">{{ t('hr.depts.hierarchy') }}</Button>
+      <Input v-model="search" :disabled="!hydrated" :aria-label="t('hr.depts.search')" :placeholder="t('hr.depts.search')" class="min-w-52 max-w-sm flex-1" />
+      <div
+        role="group"
+        class="inline-flex h-[40px] items-center rounded-lg border bg-muted/40 p-0.5"
+        :aria-label="`${t('hr.depts.listView')} / ${t('hr.depts.hierarchy')} / ${t('hr.depts.orgChart')}`"
+      >
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          class="h-[32px] rounded-md"
+          :class="!treeView && !canvasView ? 'bg-background shadow-sm' : ''"
+          :disabled="!hydrated"
+          :aria-pressed="!treeView && !canvasView"
+          data-testid="hr-departments-view-list"
+          @click="setView(false)"
+        >{{ t('hr.depts.listView') }}</Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          class="h-[32px] rounded-md"
+          :class="treeView ? 'bg-background shadow-sm' : ''"
+          :disabled="!hydrated"
+          :aria-pressed="treeView"
+          data-testid="hr-departments-view-tree"
+          @click="setView(true)"
+        >{{ t('hr.depts.hierarchy') }}</Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          class="h-[32px] rounded-md"
+          :class="canvasView ? 'bg-background shadow-sm' : ''"
+          :disabled="!hydrated"
+          :aria-pressed="canvasView"
+          data-testid="hr-departments-view-canvas"
+          @click="setCanvasView"
+        >{{ t('hr.depts.orgChart') }}</Button>
+      </div>
     </div>
     <SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!departments.length" @retry="query.refetch">
-      <DepartmentTree v-if="treeView" :roots="roots" :query="search" :hydrated="hydrated" :can-manage="can('hr.departments.manage')" :can-read-employees="can('hr.employees.read')" :can-read-documents="can('hr.documents.read')" @select="openDepartment" @edit="editDepartment" @create-child="createChild" />
+      <DepartmentOrgChart v-if="canvasView" :roots="roots" :query="search" :hydrated="hydrated" :return-to="route.fullPath" />
+      <DepartmentTree v-else-if="treeView" :roots="roots" :query="search" :hydrated="hydrated" :can-manage="can('hr.departments.manage')" :can-read-employees="can('hr.employees.read')" :can-read-documents="can('hr.documents.read')" @select="openDepartment" @edit="editDepartment" @create-child="createChild" />
       <DepartmentTable v-else :departments="filtered" :can-manage="can('hr.departments.manage')" @select="openDepartment" @delete="askDelete" />
     </SharedPageState>
     <div v-if="deleting" class="nasq-status-callout-danger p-4">
