@@ -36,7 +36,6 @@ class TestMeetingsApi(NasqPmoCase):
         self.assertEqual(hidden_res.status_code, 403)
         self.assertEqual(hidden_res.json()['code'], 'forbidden')
 
-
     def test_manage_group_reads_company_meetings_and_outsider_cannot(self):
         # Nasq-dependent coverage recovered from the Cyan source conflict.
         office = new_test_user(
@@ -98,7 +97,6 @@ class TestMeetingsApi(NasqPmoCase):
         self.assertEqual(self.api('POST', f'/api/v1/notifications/{row_id}/read', {}).status_code, 404)
         self.authenticate('api_mgr', 'api_mgr_pass_123')
         self.assertEqual(self.api('POST', f'/api/v1/notifications/{row_id}/read', {}).status_code, 404)
-
 
     def test_meetings_only_role_can_open_detail_without_task_access(self):
         role = self.env['nasq.access.role'].create({

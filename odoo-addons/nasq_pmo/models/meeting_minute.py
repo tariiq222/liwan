@@ -5,7 +5,6 @@ from odoo import api, fields, models
 from odoo.exceptions import AccessError, UserError
 from odoo.tools.mail import plaintext2html
 
-
 _CALENDAR_IMPORT = ContextVar('nasq_calendar_import', default=False)
 _CALENDAR_OUTBOUND = ContextVar('nasq_calendar_outbound', default=frozenset())
 
@@ -49,9 +48,10 @@ class CyanMeetingMinute(models.Model):
 
     def _nasq_sync_calendar(self):
         self.ensure_one()
-        if not (self.start_datetime and self.end_datetime):
-            return
         linked = bool(self.calendar_event_id)
+        complete_schedule = bool(self.start_datetime and self.end_datetime)
+        if not linked and not complete_schedule:
+            return
         try:
             with self.env.cr.savepoint():
                 if not self.calendar_event_id:
@@ -60,12 +60,14 @@ class CyanMeetingMinute(models.Model):
                 if event:
                     values = {
                         'name': self.name,
-                        'start': self.start_datetime,
-                        'stop': self.end_datetime,
                         'location': self.location,
                         'user_id': self.organizer_id.id,
                         'videocall_location': self.meeting_url or False,
                     }
+                    # A linked event still needs membership revocation when
+                    # meeting dates are cleared. Keep its last valid schedule.
+                    if complete_schedule:
+                        values.update(start=self.start_datetime, stop=self.end_datetime)
                     changes = {key: value for key, value in values.items()
                                if (event[key].id if key == 'user_id' else event[key]) != value}
                     partner_ids = self._cyan_participant_users().mapped('partner_id').ids
@@ -106,7 +108,6 @@ class CyanMeetingMinute(models.Model):
                     key=f'meeting-invite:{meeting.id}',
                 )
         return result
-
 
     @api.private
     def _cyan_write_calendar_schedule(self, values):
