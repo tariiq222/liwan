@@ -5,17 +5,15 @@ import UserTable from '@/components/access/users/UserTable.vue'
 import { ApiError } from '@/composables/useApi'
 import { useAdminUsers } from '@/composables/useAdminUsers'
 import { useAdminPermissionCatalog, useAdminRole, useDeleteAdminRole, useDisableAdminRole, useEnableAdminRole } from '@/composables/useAdminRoles'
+import { ADMIN_PAGE_SIZE, adminListQuery, adminPathWithQuery } from '@/composables/adminSettingsPaths'
 
 const route = useRoute()
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const { can } = useAccess()
 const hydrated = useHydrated()
 const id = computed(() => Number(route.params.roleId))
 const returnTo = computed(() => {
-  const query = new URLSearchParams()
-  for (const key of ['q', 'type', 'status', 'offset']) if (route.query[key]) query.set(key, String(route.query[key]))
-  const suffix = query.toString()
-  return `/settings/roles${suffix ? `?${suffix}` : ''}`
+  return adminPathWithQuery('/settings/roles', adminListQuery(route.query, ['q', 'type', 'status', 'offset']))
 })
 const returnQuery = computed(() => returnTo.value.includes('?') ? `?${returnTo.value.split('?')[1]}` : '')
 const editTo = computed(() => `/settings/roles/${id.value}/edit${returnQuery.value}`)
@@ -23,7 +21,7 @@ const cloneTo = computed(() => `/settings/roles/new?clone=${id.value}${returnQue
 const forbidden = computed(() => !can('access.roles.read'))
 const role = useAdminRole(id, computed(() => !forbidden.value))
 const catalog = useAdminPermissionCatalog(computed(() => !forbidden.value))
-const assignedUsers = useAdminUsers(computed(() => ({ role_id: id.value })), computed(() => !forbidden.value && can('access.users.read')))
+const assignedUsers = useAdminUsers(computed(() => ({ role_id: id.value, limit: ADMIN_PAGE_SIZE, offset: 0 })), computed(() => !forbidden.value && can('access.users.read')))
 const disable = useDisableAdminRole()
 const enable = useEnableAdminRole()
 const remove = useDeleteAdminRole()
@@ -52,7 +50,7 @@ async function confirmAction(action: RoleAction) {
     } else actionError.value = t('errors.generic')
   }
 }
-function openUser(userId: number) { void navigateTo(`/settings/users/${userId}`) }
+function openUser(userId: number) { void navigateTo(`/settings/users/${userId}?role_id=${id.value}`) }
 const sections = computed(() => role.data.value ? [
   { id: 'permissions', label: t('access.roles.permissions') },
   ...(can('access.users.read') ? [{ id: 'assigned-users', label: t('access.roles.assignedUsers') }] : []),
@@ -61,7 +59,7 @@ const sections = computed(() => role.data.value ? [
 
 <template>
   <SettingsLayout :sections><div class="nasq-page-stack">
-    <SharedPageHeader :title="role.data.value?.name.ar ?? t('access.roles.title')" :back-to="returnTo">
+    <SharedPageHeader :title="role.data.value?.name[locale === 'ar' ? 'ar' : 'en'] ?? role.data.value?.name.ar ?? t('access.roles.title')" :back-to="returnTo">
       <Button v-if="role.data.value?.allowed_actions.includes('edit')" variant="outline" :disabled="!role.data.value" @click="navigateTo(editTo)">{{ t('access.roles.editTitle') }}</Button>
       <Button v-if="role.data.value?.allowed_actions.includes('clone')" variant="outline" :disabled="!role.data.value" @click="navigateTo(cloneTo)">{{ t('access.roles.clone') }}</Button>
       <Button v-if="role.data.value?.allowed_actions.includes('disable')" variant="outline" :disabled="!hydrated || actionBusy" @click="requestAction('disable')">{{ pendingAction === 'disable' ? t('access.roles.confirmAction') : t('access.roles.disable') }}</Button>
@@ -75,7 +73,7 @@ const sections = computed(() => role.data.value ? [
       <div v-if="role.data.value" class="nasq-panel nasq-panel-body">
         <section id="permissions" class="nasq-form-section nasq-settings-anchor"><RolePermissionForm :role="role.data.value" :permissions="catalog.data.value?.items ?? []" :readonly="true" /></section>
         <p v-if="actionError" role="alert" class="text-sm text-destructive">{{ actionError }}</p>
-        <section v-if="can('access.users.read')" id="assigned-users" class="nasq-form-section nasq-settings-anchor min-w-0 space-y-3"><h2 class="font-semibold">{{ t('access.roles.assignedUsers') }}</h2><SharedPageState :loading="assignedUsers.isLoading.value" :error="assignedUsers.error.value" :empty="!assignedUsers.isLoading.value && !assignedUsers.error.value && assignedUsers.data.value?.items.length === 0" :empty-text="t('access.roles.noAssignedUsers')" @retry="assignedUsers.refetch"><UserTable :users="assignedUsers.data.value?.items ?? []" @open="openUser" /></SharedPageState></section>
+        <section v-if="can('access.users.read')" id="assigned-users" class="nasq-form-section nasq-settings-anchor min-w-0 space-y-3"><h2 class="font-semibold">{{ t('access.roles.assignedUsers') }}</h2><SharedPageState :loading="assignedUsers.isLoading.value" :error="assignedUsers.error.value" :empty="!assignedUsers.isLoading.value && !assignedUsers.error.value && assignedUsers.data.value?.items.length === 0" :empty-text="t('access.roles.noAssignedUsers')" @retry="assignedUsers.refetch"><UserTable :users="assignedUsers.data.value?.items ?? []" @open="openUser" /><template v-if="assignedUsers.data.value && assignedUsers.data.value.total > assignedUsers.data.value.items.length"><p class="text-sm text-muted-foreground">{{ t('access.roles.assignedUsersCount', { count: assignedUsers.data.value.total }) }}</p><NuxtLink class="text-sm font-medium text-primary hover:underline" :to="{ path: '/settings/users', query: { role_id: id } }">{{ t('access.roles.viewAllAssignedUsers') }}</NuxtLink></template></SharedPageState></section>
       </div>
     </SharedPageState>
   </div></SettingsLayout>

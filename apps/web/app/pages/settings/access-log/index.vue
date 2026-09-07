@@ -5,10 +5,11 @@ import SettingsLayout from '@/components/settings/SettingsLayout.vue'
 import { useAdminAuditLog, type AdminAuditListParams } from '@/composables/useAdminAudit'
 import { useAdminUsers } from '@/composables/useAdminUsers'
 import { useAdminRoles } from '@/composables/useAdminRoles'
+import { ADMIN_PAGE_SIZE, adminQueryWithOffset, parseAdminOffset } from '@/composables/adminSettingsPaths'
 
 const route = useRoute()
 const router = useRouter()
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const { can } = useAccess()
 const hydrated = useHydrated()
 const forbidden = computed(() => !can('access.audit.read'))
@@ -17,18 +18,18 @@ const actionLabels: Record<AuditAction, string> = {
 }
 const actionOptions = Object.keys(actionLabels) as AuditAction[]
 const actionFromQuery = String(route.query.action ?? '')
-const filters = reactive<AdminAuditListParams>({ from: String(route.query.from ?? '') || undefined, to: String(route.query.to ?? '') || undefined, actor_id: route.query.actor_id ? Number(route.query.actor_id) : undefined, target_type: route.query.target_type === 'role' ? 'role' : route.query.target_type === 'user' ? 'user' : undefined, target_id: route.query.target_id ? Number(route.query.target_id) : undefined, action: actionOptions.includes(actionFromQuery as AuditAction) ? actionFromQuery : undefined })
+const filters = reactive<AdminAuditListParams>({ from: String(route.query.from ?? '') || undefined, to: String(route.query.to ?? '') || undefined, actor_id: route.query.actor_id ? Number(route.query.actor_id) : undefined, target_type: route.query.target_type === 'role' ? 'role' : route.query.target_type === 'user' ? 'user' : undefined, target_id: route.query.target_id ? Number(route.query.target_id) : undefined, action: actionOptions.includes(actionFromQuery as AuditAction) ? actionFromQuery : undefined, limit: ADMIN_PAGE_SIZE, offset: parseAdminOffset(route.query.offset) })
 const query = useAdminAuditLog(filters, computed(() => !forbidden.value))
 const actors = useAdminUsers({}, computed(() => !forbidden.value && can('access.users.read')))
 const targetRoles = useAdminRoles({}, computed(() => !forbidden.value && can('access.roles.read')))
-const targetOptions = computed(() => filters.target_type === 'role' ? (targetRoles.data.value?.items ?? []).map((role) => ({ id: role.id, name: role.name.ar })) : (actors.data.value?.items ?? []).map((user) => ({ id: user.id, name: user.name })))
-const page = computed(() => Math.floor((filters.offset ?? 0) / 25) + 1)
-const pages = computed(() => Math.max(1, Math.ceil((query.data.value?.total ?? 0) / 25)))
+const targetOptions = computed(() => filters.target_type === 'role' ? (targetRoles.data.value?.items ?? []).map((role) => ({ id: role.id, name: role.name[locale.value === 'ar' ? 'ar' : 'en'] ?? role.name.ar })) : (actors.data.value?.items ?? []).map((user) => ({ id: user.id, name: user.name })))
+const page = computed(() => Math.floor((filters.offset ?? 0) / (filters.limit ?? ADMIN_PAGE_SIZE)) + 1)
+const pages = computed(() => Math.max(1, Math.ceil((query.data.value?.total ?? 0) / (filters.limit ?? ADMIN_PAGE_SIZE))))
 function updateFilters() { filters.offset = 0; void router.replace({ query: { ...(filters.from ? { from: filters.from } : {}), ...(filters.to ? { to: filters.to } : {}), ...(filters.actor_id ? { actor_id: filters.actor_id } : {}), ...(filters.target_type ? { target_type: filters.target_type } : {}), ...(filters.target_id ? { target_id: filters.target_id } : {}), ...(filters.action ? { action: filters.action } : {}) } }) }
-function syncPage() { void router.replace({ query: { ...route.query, ...(filters.offset ? { offset: filters.offset } : {}) } }) }
-function previousPage() { if (hydrated.value) { filters.offset = Math.max(0, (filters.offset ?? 0) - 25); syncPage() } }
-function nextPage() { if (hydrated.value && page.value < pages.value) { filters.offset = (filters.offset ?? 0) + 25; syncPage() } }
-watch(() => [route.query.from, route.query.to, route.query.actor_id, route.query.target_type, route.query.target_id, route.query.action, route.query.offset], ([from, to, actorId, targetType, targetId, action, offset]) => { filters.from = String(from ?? '') || undefined; filters.to = String(to ?? '') || undefined; filters.actor_id = actorId ? Number(actorId) : undefined; filters.target_type = targetType === 'role' ? 'role' : targetType === 'user' ? 'user' : undefined; filters.target_id = targetId ? Number(targetId) : undefined; filters.action = actionOptions.includes(String(action) as AuditAction) ? String(action) : undefined; filters.offset = offset ? Number(offset) : 0 })
+function syncPage() { void router.replace({ query: adminQueryWithOffset(route.query, filters.offset ?? 0) }) }
+function previousPage() { if (hydrated.value) { filters.offset = Math.max(0, (filters.offset ?? 0) - (filters.limit ?? ADMIN_PAGE_SIZE)); syncPage() } }
+function nextPage() { if (hydrated.value && page.value < pages.value) { filters.offset = (filters.offset ?? 0) + (filters.limit ?? ADMIN_PAGE_SIZE); syncPage() } }
+watch(() => [route.query.from, route.query.to, route.query.actor_id, route.query.target_type, route.query.target_id, route.query.action, route.query.offset], ([from, to, actorId, targetType, targetId, action, offset]) => { filters.from = String(from ?? '') || undefined; filters.to = String(to ?? '') || undefined; filters.actor_id = actorId ? Number(actorId) : undefined; filters.target_type = targetType === 'role' ? 'role' : targetType === 'user' ? 'user' : undefined; filters.target_id = targetId ? Number(targetId) : undefined; filters.action = actionOptions.includes(String(action) as AuditAction) ? String(action) : undefined; filters.offset = parseAdminOffset(offset) })
 const sections = computed(() => forbidden.value ? [] : [
   { id: 'filters', label: t('settings.toc.filters') },
   { id: 'results', label: t('settings.toc.list') },
