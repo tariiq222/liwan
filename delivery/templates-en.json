@@ -1,0 +1,80 @@
+{
+  "templates": {
+    "title": "Project templates",
+    "description": "Reusable project stages, tasks and milestones.",
+    "new": "New project template",
+    "edit": "Edit project template",
+    "applyTitle": "Use project template",
+    "applyHint": "A new independent project will be created from this start date.",
+    "empty": "No project templates yet.",
+    "notFound": "Project template was not found.",
+    "canApply": "Available to use",
+    "days": "days",
+    "summary": "{stages} stages, {tasks} tasks, {milestones} milestones",
+    "saved": "Template saved.",
+    "deleted": "Template deleted.",
+    "applied": "Project created from template.",
+    "saveError": "Could not save the template.",
+    "applyError": "Could not use the template.",
+    "deleteConfirm": "Delete this template?",
+    "filters": {
+      "search": "Search templates"
+    },
+    "none": "No milestone",
+    "fields": {
+      "name": "Name",
+      "description": "Description",
+      "key": "Key",
+      "fold": "Fold stage",
+      "stage": "Stage",
+      "startOffset": "Start offset",
+      "duration": "Duration in days",
+      "milestone": "Milestone",
+      "dependencies": "Predecessor tasks",
+      "projectName": "New project name",
+      "startDate": "Start date",
+      "milestoneName": "Milestone name",
+      "offset": "Offset",
+      "taskName": "Task name"
+    },
+    "stages": {
+      "title": "Stages",
+      "hint": "Choose a stage for each task. Move its tasks before removing a stage."
+    },
+    "milestones": {
+      "title": "Milestones",
+      "hint": "The offset is calculated from the project start date."
+    },
+    "tasks": {
+      "title": "Tasks",
+      "hint": "Choose a stage, milestone and predecessor tasks."
+    },
+    "actions": {
+      "new": "New template",
+      "edit": "Edit",
+      "delete": "Delete",
+      "confirmDelete": "Confirm delete",
+      "apply": "Use template",
+      "addStage": "Add stage",
+      "addMilestone": "Add milestone",
+      "addTask": "Add task",
+      "remove": "Remove"
+    },
+    "validation": {
+      "stageInUse": "Move the tasks in this stage to another stage before removing it.",
+      "duplicateReference": "Each stage, milestone and task must be unique. Select each predecessor only once.",
+      "missingStage": "Choose an existing stage for every task.",
+      "missingMilestone": "Choose an existing milestone or No milestone.",
+      "missingDependency": "Choose predecessor tasks that still exist.",
+      "dependencyCycle": "Predecessor tasks form a loop. Remove a dependency to break the loop.",
+      "invalidFields": "Enter all names and check offsets (-3650 to 3650), durations (1 to 3650) and the limit of 100 rows per section.",
+      "applyFields": "Enter a project name and a valid start date."
+    },
+    "pagination": {
+      "label": "Template pages",
+      "count": "{from}–{to} of {total} templates",
+      "previous": "Previous",
+      "next": "Next"
+    }
+  }
+}
