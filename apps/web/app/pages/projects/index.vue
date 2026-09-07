@@ -164,7 +164,7 @@ function openProject(id: number) {
 </script>
 
 <template>
-  <div class="nasq-page-stack">
+  <SharedPageContainer width="list">
     <section data-testid="projects-summary" class="space-y-2">
       <div class="flex items-center justify-end">
         <Button
@@ -192,7 +192,7 @@ function openProject(id: number) {
           </div>
         </div>
         <div class="flex items-center gap-3 rounded-lg border bg-card p-4">
-          <span class="grid size-[32px] shrink-0 place-items-center rounded-lg border border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-400"><CircleAlert class="size-[18px]" /></span>
+          <span class="nasq-status-icon-warning grid size-[32px] shrink-0 place-items-center rounded-lg"><CircleAlert class="size-[18px]" /></span>
           <div class="min-w-0">
             <p class="text-xs text-muted-foreground">{{ t('projects.summary.attention') }}</p>
             <div class="mt-1 flex flex-wrap items-baseline gap-2">
@@ -202,7 +202,7 @@ function openProject(id: number) {
           </div>
         </div>
         <div class="flex items-center gap-3 rounded-lg border bg-card p-4">
-          <span class="grid size-[32px] shrink-0 place-items-center rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-400"><CircleCheck class="size-[18px]" /></span>
+          <span class="nasq-status-icon-success grid size-[32px] shrink-0 place-items-center rounded-lg"><CircleCheck class="size-[18px]" /></span>
           <div class="min-w-0">
             <p class="text-xs text-muted-foreground">{{ t('projects.summary.completed') }}</p>
             <div class="mt-1 flex flex-wrap items-baseline gap-2">
@@ -306,5 +306,5 @@ function openProject(id: number) {
         </Button>
       </div>
     </template>
-  </div>
+  </SharedPageContainer>
 </template>

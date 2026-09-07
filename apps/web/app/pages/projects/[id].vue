@@ -95,7 +95,7 @@ const dateRange = computed(() => {
 </script>
 
 <template>
-  <div v-if="isBaseRoute" class="nasq-page-stack">
+  <SharedPageContainer v-if="isBaseRoute" width="detail">
     <div v-if="notFound" class="flex flex-col items-start gap-3">
       <p class="text-muted-foreground">{{ t('projects.notFound') }}</p>
       <button type="button" class="text-sm underline" @click="router.push(projectReturnTo)">{{ t('projects.backToProjects') }}</button>
@@ -169,6 +169,6 @@ const dateRange = computed(() => {
         </TabsContent>
       </Tabs>
     </template>
-  </div>
+  </SharedPageContainer>
   <NuxtPage />
 </template>

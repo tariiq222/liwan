@@ -44,7 +44,7 @@ function openCreate() {
 </script>
 
 <template>
-  <div v-if="isBaseRoute" class="nasq-page-stack">
+  <SharedPageContainer v-if="isBaseRoute" width="list">
     <SharedPageHeader :title="t('tasks.title')" :description="t('tasks.description')">
       <template #actions>
       <div class="flex items-center gap-2">
@@ -64,6 +64,6 @@ function openCreate() {
     <TaskTable v-if="hydrated && tab === 'table'" :params="params" @open="openTask" @create="openCreate" />
     <TaskBoard v-else-if="hydrated" :params="params" @open="openTask" />
 
-  </div>
+  </SharedPageContainer>
   <NuxtPage />
 </template>

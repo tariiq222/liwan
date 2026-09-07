@@ -47,6 +47,19 @@
   --sidebar-ring: #18181b;
   --brand-soft: color-mix(in srgb, var(--primary) 8%, var(--card));
   --brand-border: color-mix(in srgb, var(--primary) 24%, var(--border));
+  --status-success: oklch(0.45 0.12 155);
+  --status-success-foreground: oklch(0.38 0.11 155);
+  --status-success-soft: color-mix(in srgb, var(--status-success) 12%, var(--card));
+  --status-success-border: color-mix(in srgb, var(--status-success) 28%, var(--border));
+  --status-warning: oklch(0.62 0.14 70);
+  --status-warning-foreground: oklch(0.45 0.12 65);
+  --status-warning-soft: color-mix(in srgb, var(--status-warning) 14%, var(--card));
+  --status-warning-border: color-mix(in srgb, var(--status-warning) 32%, var(--border));
+  --status-info-foreground: var(--brand-link);
+  --status-info-soft: var(--brand-soft);
+  --status-info-border: var(--brand-border);
+  --status-danger-foreground: oklch(0.40 0.19 27);
+  --unread-count-foreground: #ffffff;
 }
 
 :root[data-font-size="medium"] { font-size: 16px; }
@@ -76,6 +89,12 @@
   --sidebar-border: #3f3f46;
   --brand-soft: color-mix(in srgb, var(--brand-link) 12%, var(--card));
   --brand-border: color-mix(in srgb, var(--brand-link) 30%, var(--border));
+  --status-success: oklch(0.76 0.12 155);
+  --status-success-foreground: oklch(0.82 0.1 155);
+  --status-warning: oklch(0.8 0.12 80);
+  --status-warning-foreground: oklch(0.86 0.1 80);
+  --status-danger-foreground: #fb7185;
+  --unread-count-foreground: var(--background);
 }
 
 @theme inline {
@@ -99,6 +118,10 @@
   --color-brand-link: var(--brand-link);
   --color-brand-soft: var(--brand-soft);
   --color-brand-border: var(--brand-border);
+  --color-status-success: var(--status-success);
+  --color-status-success-foreground: var(--status-success-foreground);
+  --color-status-warning: var(--status-warning);
+  --color-status-warning-foreground: var(--status-warning-foreground);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
@@ -168,4 +191,61 @@
 }
 @media (forced-colors: active) {
   :focus-visible { outline: 1px solid Highlight; outline-offset: 2px; }
+}
+
+/* Semantic status surfaces: theme tokens, not ad-hoc Tailwind palettes. */
+.nasq-status-text-success { color: var(--status-success-foreground); }
+.nasq-status-text-warning { color: var(--status-warning-foreground); }
+.nasq-status-text-danger { color: var(--status-danger-foreground); }
+.nasq-status-chip-muted {
+  border-color: transparent;
+  background: var(--muted);
+  color: var(--muted-foreground);
+}
+.nasq-status-chip-info {
+  border-color: transparent;
+  background: var(--status-info-soft);
+  color: var(--status-info-foreground);
+}
+.nasq-status-chip-warning {
+  border-color: transparent;
+  background: var(--status-warning-soft);
+  color: var(--status-warning-foreground);
+}
+.nasq-status-chip-success {
+  border-color: transparent;
+  background: var(--status-success-soft);
+  color: var(--status-success-foreground);
+}
+.nasq-status-chip-danger {
+  border-color: transparent;
+  background: color-mix(in srgb, var(--destructive) 12%, var(--card));
+  color: var(--status-danger-foreground);
+}
+.nasq-status-callout-warning {
+  border: 1px solid var(--status-warning-border);
+  background: var(--status-warning-soft);
+  color: var(--status-warning-foreground);
+  border-radius: 8px;
+}
+.nasq-status-callout-danger {
+  border: 1px solid color-mix(in srgb, var(--destructive) 40%, var(--border));
+  background: color-mix(in srgb, var(--destructive) 8%, var(--card));
+  color: var(--foreground);
+  border-radius: 8px;
+}
+.nasq-status-icon-warning {
+  border: 1px solid var(--status-warning-border);
+  background: var(--status-warning-soft);
+  color: var(--status-warning-foreground);
+}
+.nasq-status-icon-success {
+  border: 1px solid var(--status-success-border);
+  background: var(--status-success-soft);
+  color: var(--status-success-foreground);
+}
+.nasq-status-dot-success { background: var(--status-success); }
+.nasq-unread-count {
+  background: var(--destructive);
+  color: var(--unread-count-foreground);
 }

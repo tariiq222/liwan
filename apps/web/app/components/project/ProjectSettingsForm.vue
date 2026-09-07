@@ -31,17 +31,14 @@ function onDeleteStage(id: number | string) {
 
 <template>
   <div data-testid="project-settings-page">
-    <section class="nasq-form-section pt-0">
-      <h2 class="text-lg font-semibold">{{ t('projects.settings.tabs.general') }}</h2>
+    <SharedFormSection :title="t('projects.settings.tabs.general')">
       <ProjectGeneralForm :project="project" />
-    </section>
-    <section class="nasq-form-section space-y-3">
-      <h2 class="text-lg font-semibold">{{ t('projects.settings.tabs.stages') }}</h2>
+    </SharedFormSection>
+    <SharedFormSection class="space-y-3" :title="t('projects.settings.tabs.stages')">
       <StageListEditor :stages="sortedStages" :busy="stagesBusy" @add="onAddStage" @rename="onRenameStage" @fold="onFoldStage" @reorder="onReorderStages" @delete="onDeleteStage" />
-    </section>
-    <section class="nasq-form-section space-y-3 border-b-0 pb-0">
-      <h2 class="text-lg font-semibold">{{ t('projects.settings.tabs.followers') }}</h2>
+    </SharedFormSection>
+    <SharedFormSection class="space-y-3 pb-0" :title="t('projects.settings.tabs.followers')">
       <FollowerList :project="project" />
-    </section>
+    </SharedFormSection>
   </div>
 </template>

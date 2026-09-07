@@ -23,7 +23,7 @@ function created(id: number) {
 </script>
 
 <template>
-  <section class="nasq-page-stack">
+  <SharedPageContainer width="form">
     <SharedPageHeader :title="t('tasks.new')" :description="project?.name" :back-to="returnTo" :back-label="t('projects.backToProject')" />
     <template v-if="projectId === null">
       <p class="text-muted-foreground">{{ t('tasks.invalidId') }}</p>
@@ -41,5 +41,5 @@ function created(id: number) {
       <Card class="nasq-form"><CardContent><TaskCreateForm :project-id="projectId" @created="created" @cancel="router.push(returnTo)" /></CardContent></Card>
     </template>
     <p v-if="!hydrated" class="sr-only">{{ t('tasks.loading') }}</p>
-  </section>
+  </SharedPageContainer>
 </template>

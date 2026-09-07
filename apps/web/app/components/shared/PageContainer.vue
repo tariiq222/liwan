@@ -5,18 +5,14 @@ const props = withDefaults(defineProps<{
   width: 'list',
 })
 
-const widthClass = computed(() => ({
-  list: 'max-w-[1440px]',
-  detail: 'max-w-[1440px]',
-  form: 'max-w-[940px]',
-}[props.width]))
+const widthClass = computed(() => `nasq-page-width-${props.width}`)
 </script>
 
 <template>
   <div
     data-slot="page-container"
     :data-layout-width="props.width"
-    :class="['nasq-page-stack mx-auto w-full', widthClass]"
+    :class="['nasq-page-stack', widthClass]"
   >
     <slot />
   </div>

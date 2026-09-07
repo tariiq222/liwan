@@ -32,7 +32,7 @@ async function confirmDelete() {
 }
 </script>
 <template>
-  <div class="nasq-page-stack mx-auto w-full max-w-[1440px]">
+  <SharedPageContainer width="list">
     <SharedPageHeader :title="t('hr.depts.title')" back-to="/hr">
       <NuxtLink v-if="can('hr.departments.manage')" :to="{ path: '/hr/departments/new', query: returnToQuery(route.fullPath) }"><Button>{{ t('hr.depts.new') }}</Button></NuxtLink>
     </SharedPageHeader>
@@ -45,9 +45,9 @@ async function confirmDelete() {
       <DepartmentTree v-if="treeView" :roots="roots" :query="search" :hydrated="hydrated" :can-manage="can('hr.departments.manage')" :can-read-employees="can('hr.employees.read')" :can-read-documents="can('hr.documents.read')" @select="openDepartment" @edit="editDepartment" @create-child="createChild" />
       <DepartmentTable v-else :departments="filtered" :can-manage="can('hr.departments.manage')" @select="openDepartment" @delete="askDelete" />
     </SharedPageState>
-    <div v-if="deleting" class="rounded-lg border border-destructive/50 bg-destructive/5 p-4">
+    <div v-if="deleting" class="nasq-status-callout-danger p-4">
       <p class="text-sm">{{ t('hr.depts.deleteConfirm', { name: deleting.name }) }}</p><p v-if="deleteError" class="mt-2 text-sm text-destructive">{{ deleteError.message }}</p>
       <div class="mt-3 flex gap-2"><Button variant="outline" :disabled="deletingPending" @click="deleting = null">{{ t('app.cancel') }}</Button><Button variant="destructive" :disabled="!hydrated || deletingPending" @click="confirmDelete">{{ t('hr.depts.delete') }}</Button></div>
     </div>
-  </div>
+  </SharedPageContainer>
 </template>

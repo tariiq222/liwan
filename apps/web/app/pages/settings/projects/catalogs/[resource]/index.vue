@@ -103,12 +103,10 @@ async function confirmAction() {
 </script>
 
 <template>
-  <div class="space-y-6">
-    <nav><NuxtLink :to="returnTo" class="text-sm text-muted-foreground hover:underline">{{ t('settings.projects.catalogs.back') }}</NuxtLink></nav>
-    <header class="flex flex-wrap items-center justify-between gap-3">
-      <h1 class="text-2xl font-semibold">{{ title }}</h1>
+  <SharedPageContainer width="list">
+    <SharedPageHeader :title="title" :back-to="returnTo" :back-label="t('settings.projects.catalogs.back')">
       <Button v-if="resource && !forbidden" :disabled="!hydrated" @click="openNew">{{ t('settings.projects.catalogs.add') }}</Button>
-    </header>
+    </SharedPageHeader>
     <p v-if="!resource" class="text-muted-foreground">{{ t('settings.projects.catalogs.notFound') }}</p>
     <p v-else-if="forbidden" class="text-muted-foreground">{{ t('settings.forbidden') }}</p>
     <template v-else>
@@ -140,7 +138,7 @@ async function confirmAction() {
         <span>{{ t('settings.projects.catalogs.pageOf', { page, pages }) }}</span>
         <Button variant="ghost" :disabled="!hydrated || page >= pages" @click="router.replace({ query: listQuery({ offset: String(page * CHARTER_CATALOG_PAGE_SIZE) }) })">{{ t('settings.projects.catalogs.nextPage') }}</Button>
       </div>
-      <div v-if="pendingItem && pendingAction" class="space-y-2 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm">
+      <div v-if="pendingItem && pendingAction" class="nasq-status-callout-danger space-y-2 p-3 text-sm">
         <p>{{ t(`settings.projects.catalogs.confirm.${pendingAction}`, { name: pendingItem.name }) }}</p>
         <p v-if="actionError" role="alert" class="text-destructive">{{ actionError }}</p>
         <div class="flex flex-wrap gap-2">
@@ -149,5 +147,5 @@ async function confirmAction() {
         </div>
       </div>
     </template>
-  </div>
+  </SharedPageContainer>
 </template>

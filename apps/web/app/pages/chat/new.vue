@@ -42,7 +42,7 @@ async function submit() {
 </script>
 
 <template>
-  <div class="nasq-page-stack mx-auto w-full max-w-3xl">
+  <SharedPageContainer width="form">
     <SharedPageHeader :title="t('chat.newTitle')" :description="t('chat.newDescription')" :back-to="{ path: '/chat', query: listQuery }" />
     <form class="nasq-panel nasq-panel-body flex flex-col gap-4" @submit.prevent="submit">
       <Input v-model="q" :placeholder="t('chat.recipientSearch')" :disabled="!hydrated" />
@@ -65,5 +65,5 @@ async function submit() {
       </div>
       <Button type="submit" :disabled="!hydrated || isPending || selected.length < 1">{{ t('chat.create') }}</Button>
     </form>
-  </div>
+  </SharedPageContainer>
 </template>

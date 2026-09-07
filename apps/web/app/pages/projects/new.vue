@@ -19,7 +19,7 @@ function onCreated(id: number) {
 </script>
 
 <template>
-  <section class="nasq-page-stack">
+  <SharedPageContainer width="form">
     <SharedPageHeader :title="t('projects.new')" :back-to="returnTo" :back-label="t('projects.backToProjects')" />
     <p v-if="isLoading" role="status" class="text-muted-foreground">
       {{ t('projects.loading') }}
@@ -39,5 +39,5 @@ function onCreated(id: number) {
       </CardContent>
     </Card>
     <p v-if="!hydrated" class="sr-only">{{ t('app.loading') }}</p>
-  </section>
+  </SharedPageContainer>
 </template>

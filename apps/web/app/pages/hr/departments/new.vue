@@ -8,4 +8,4 @@ const initialParentId = computed(() => { const raw = route.query.parent_id; cons
 const returnTo = computed(() => safeReturnTo(route.query.returnTo, '/hr/departments', ['/hr']))
 function saved(department: { id: number }) { void navigateTo({ path: `/hr/departments/${department.id}`, query: returnToQuery(returnTo.value) }) }
 </script>
-<template><div class="nasq-page-stack mx-auto w-full max-w-[940px]"><SharedPageHeader :title="t('hr.depts.new')" :back-to="returnTo" /><section class="nasq-panel nasq-panel-body"><DepartmentForm :initial-parent-id="initialParentId" :departments="departments?.items ?? []" :employees="employees?.items ?? []" :back-to="returnTo" @saved="saved" /></section></div></template>
+<template><SharedPageContainer width="form"><SharedPageHeader :title="t('hr.depts.new')" :back-to="returnTo" /><section class="nasq-panel nasq-panel-body"><DepartmentForm :initial-parent-id="initialParentId" :departments="departments?.items ?? []" :employees="employees?.items ?? []" :back-to="returnTo" @saved="saved" /></section></SharedPageContainer></template>

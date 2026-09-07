@@ -203,7 +203,7 @@ function discardToServer() {
       :require-manager="mode === 'create' && !!createDefaults?.require_manager_on_create"
       :require-end-date="mode === 'create' && !!createDefaults?.require_end_date_on_create"
     />
-    <div v-if="stale" role="alert" data-testid="charter-stale-write" class="space-y-3 rounded-md border border-amber-400/50 bg-amber-50 p-3 text-sm">
+    <div v-if="stale" role="alert" data-testid="charter-stale-write" class="nasq-status-callout-warning space-y-3 p-3 text-sm">
       <p>{{ t('projects.charter.staleWrite') }}</p>
       <p>{{ t('projects.charter.staleWriteHint') }}</p>
       <div class="flex flex-wrap gap-2">

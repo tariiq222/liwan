@@ -5,7 +5,7 @@ import { getLocalTimeZone, today } from '@internationalized/date'
 import { formatCalendarDate, toCalendarDate } from '@/composables/calendarDate'
 import { useMilestones } from '@/composables/useMilestones'
 import { useProjectUpdates } from '@/composables/useProjectUpdates'
-import { TONE_CLASS } from '@/composables/taskState'
+import { STATUS_CHIP_CLASS } from '@/utils/statusTone'
 import { sanitizeHtml } from '@/utils/sanitize'
 import ProjectStatusBadge from './ProjectStatusBadge.vue'
 
@@ -51,7 +51,7 @@ function isOverdue(value: string | null) {
           <template v-else-if="nearestMilestone">
             <div class="flex flex-wrap items-center justify-between gap-2">
               <p class="text-sm font-medium">{{ nearestMilestone.name }}</p>
-              <Badge variant="outline" :class="TONE_CLASS[isOverdue(nearestMilestone.deadline) ? 'destructive' : 'info']">{{ t(isOverdue(nearestMilestone.deadline) ? 'projects.milestones.overdue' : 'projects.milestones.upcoming') }}</Badge>
+              <Badge variant="outline" :class="STATUS_CHIP_CLASS[isOverdue(nearestMilestone.deadline) ? 'destructive' : 'info']">{{ t(isOverdue(nearestMilestone.deadline) ? 'projects.milestones.overdue' : 'projects.milestones.upcoming') }}</Badge>
             </div>
             <p class="mt-1 text-xs text-muted-foreground">{{ dateLabel(nearestMilestone.deadline) }} · {{ t('projects.milestones.tasksOf', { done: nearestMilestone.done_task_count, total: nearestMilestone.task_count }) }}</p>
           </template>

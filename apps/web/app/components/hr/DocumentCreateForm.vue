@@ -31,13 +31,12 @@ async function submit() {
 <template>
   <SharedUnsavedChanges :dirty="dirty" />
   <form class="nasq-form" @submit.prevent="submit">
-    <section class="nasq-form-section">
-      <h2 class="text-sm font-semibold">{{ t('hr.docs.newTitle') }}</h2>
+    <SharedFormSection :title="t('hr.docs.newTitle')">
       <div class="nasq-form-grid mt-4">
         <div class="grid gap-2"><Label for="hr-doc-new-name">{{ t('hr.docs.newTitle') }}</Label><Input id="hr-doc-new-name" v-model="name" :disabled="!hydrated || isPending" required /></div>
         <div class="grid gap-2 sm:col-span-2"><Label>{{ t('hr.docs.body') }}</Label><DocumentEditor :model-value="body" :document-id="0" :debounce="false" :disabled="isPending" @update:model-value="body = $event" /></div>
       </div>
-    </section>
+    </SharedFormSection>
     <div class="nasq-form-footer"><NuxtLink :to="props.backTo"><Button type="button" variant="outline">{{ t('app.cancel') }}</Button></NuxtLink><Button type="submit" :disabled="!hydrated || isPending || !name.trim()">{{ t('app.create') }}</Button></div>
   </form>
 </template>

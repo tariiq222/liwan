@@ -29,7 +29,7 @@ function close() {
 </script>
 
 <template>
-  <section data-testid="task-detail-page" class="nasq-page-stack mx-auto w-full max-w-[1440px]">
+  <SharedPageContainer data-testid="task-detail-page" width="detail">
     <TaskDetailPanel
       :task-id="props.taskId"
       :base-path="props.basePath"
@@ -38,5 +38,5 @@ function close() {
       :back-label="props.backLabel ?? t('tasks.detail.back')"
       @close="close"
     />
-  </section>
+  </SharedPageContainer>
 </template>

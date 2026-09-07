@@ -52,7 +52,7 @@ function updateRoute(next: ChatListRoute) {
 </script>
 
 <template>
-  <div class="nasq-page-stack mx-auto flex min-h-[calc(100vh-7rem)] w-full max-w-[1440px] flex-col">
+  <SharedPageContainer width="list" class="flex min-h-[calc(100vh-7rem)] flex-col">
     <SharedPageHeader :title="data?.name || t('chat.title')" :description="t('chat.description')" :back-to="props.conversationId && !isDesktop ? { path: '/chat', query: listQuery } : undefined">
       <NuxtLink :to="{ path: '/chat/new', query: listQuery }">
         <Button :disabled="!hydrated">{{ t('chat.new') }}</Button>
@@ -79,5 +79,5 @@ function updateRoute(next: ChatListRoute) {
         <EmptyState v-else :title="t('chat.select')" />
       </section>
     </div>
-  </div>
+  </SharedPageContainer>
 </template>

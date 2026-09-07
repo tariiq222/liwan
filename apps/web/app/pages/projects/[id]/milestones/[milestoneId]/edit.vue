@@ -35,7 +35,7 @@ async function confirmDelete() {
 </script>
 
 <template>
-  <section class="nasq-page-stack">
+  <SharedPageContainer width="form">
     <SharedPageHeader :title="t('projects.milestones.edit')" :description="project?.name" :back-to="returnTo" :back-label="t('projects.backToProject')" />
     <template v-if="projectId === null || milestoneId === null">
       <p class="text-muted-foreground">{{ t('projects.invalidId') }}</p>
@@ -56,7 +56,7 @@ async function confirmDelete() {
       <Card class="nasq-form"><CardContent class="space-y-5">
         <MilestoneForm :project-id="projectId" :milestone="milestone" @saved="router.push(returnTo)" @cancel="router.push(returnTo)" />
         <div v-if="milestone.task_count > 0" class="rounded-md border border-muted p-3 text-sm text-muted-foreground">{{ t('projects.milestones.hasTasks', { count: milestone.task_count }) }}</div>
-        <div v-if="deleteOpen" data-testid="milestone-delete-confirm" class="space-y-2 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm">
+        <div v-if="deleteOpen" data-testid="milestone-delete-confirm" class="nasq-status-callout-danger space-y-2 p-3 text-sm">
           <p class="font-medium">{{ t('projects.milestones.delete') }}</p><p class="text-muted-foreground">{{ milestone.name }}</p>
           <div class="flex flex-wrap gap-2"><Button variant="outline" :disabled="deleting" @click="deleteOpen = false">{{ t('app.cancel') }}</Button><Button variant="destructive" :disabled="deleting" @click="confirmDelete">{{ t('projects.milestones.delete') }}</Button></div>
           <p v-if="mutationError" role="alert" class="text-destructive">{{ mutationError }}</p>
@@ -64,5 +64,5 @@ async function confirmDelete() {
         <Button v-else-if="milestone.task_count === 0" data-testid="milestone-delete" variant="destructive" :disabled="!hydrated" @click="deleteOpen = true">{{ t('projects.milestones.delete') }}</Button>
       </CardContent></Card>
     </template>
-  </section>
+  </SharedPageContainer>
 </template>
