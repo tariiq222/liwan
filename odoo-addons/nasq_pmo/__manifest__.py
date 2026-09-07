@@ -12,6 +12,8 @@
     # timeline. bus: bus.bus in the task notifier.
     'depends': ['nasq_api', 'project', 'hr', 'mail', 'bus'],
     'data': [
+        'security/project_finance_rules.xml',
+        'security/ir.model.access-finance.csv',
         'security/ir.model.access.csv',
         'security/nasq_pmo_rules.xml',
         'security/project_charter_rules.xml',

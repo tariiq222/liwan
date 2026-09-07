@@ -1,5 +1,5 @@
 import type { Component } from 'vue'
-import { CheckSquare, FolderKanban, Users, Settings, Wrench, Network, Files, ShieldCheck, UserCog, History, SlidersHorizontal, MessageCircle } from '@lucide/vue'
+import { CheckSquare, FolderKanban, Users, Settings, Wrench, Network, Files, ShieldCheck, UserCog, History, SlidersHorizontal, MessageCircle, ChartNoAxesCombined } from '@lucide/vue'
 import { hasCapability, type AccessIdentity } from '../utils/accessPolicy'
 
 export type NavGroup = 'chat' | 'projects' | 'hr' | 'admin'
@@ -8,6 +8,7 @@ const items: NavItem[] = [
   { to: '/chat', labelKey: 'nav.chat', icon: MessageCircle, shortcut: 'c', group: 'chat', capability: 'nasq.internal' },
   { to: '/projects', labelKey: 'nav.projects', icon: FolderKanban, shortcut: '2', group: 'projects', capability: 'pmo.projects.read' },
   { to: '/tasks', labelKey: 'nav.tasks', icon: CheckSquare, shortcut: '1', group: 'projects', capability: 'pmo.tasks.read' },
+  { to: '/reports', labelKey: 'nav.reports', icon: ChartNoAxesCombined, shortcut: 'r', group: 'projects', capability: 'pmo.projects.read' },
   { to: '/settings/projects', labelKey: 'nav.projectSettings', icon: Settings, shortcut: '4', group: 'projects', capability: 'pmo.settings.manage' },
   { to: '/hr', labelKey: 'nav.employees', icon: Users, shortcut: '3', group: 'hr', capability: 'hr.employees.read' },
   { to: '/hr/departments', labelKey: 'nav.departments', icon: Network, shortcut: '5', group: 'hr', capability: 'hr.departments.read' },

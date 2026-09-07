@@ -74,7 +74,7 @@ function openTask(taskId: number) {
 }
 
 const stageSource = computed(() => ({ kind: 'project' as const, stages: project.value?.stages ?? [] }))
-const projectReturnTo = computed(() => safeReturnTo(route.query.returnTo, '/projects', ['/projects', '/tasks', '/hr', '/settings', '/account', '/search', '/notifications']))
+const projectReturnTo = computed(() => safeReturnTo(route.query.returnTo, '/projects', ['/projects', '/tasks', '/hr', '/settings', '/account', '/search', '/notifications', '/reports']))
 
 function openTaskCreate() {
   router.push({ path: `/projects/${projectId.value}/tasks/new`, query: taskRouteQuery() })
@@ -124,6 +124,13 @@ const dateRange = computed(() => {
                 data-testid="project-charter-link"
               >
                 {{ t('projects.charter.open') }}
+              </NuxtLink>
+              <NuxtLink
+                :to="{ path: `/projects/${project.id}/finance`, query: returnToQuery(route.fullPath) }"
+                class="text-muted-foreground underline underline-offset-4"
+                data-testid="project-finance-link"
+              >
+                {{ t('projects.finance.title') }}
               </NuxtLink>
             </div>
             <TabsList class="nasq-tabs h-auto w-full justify-start rounded-none bg-transparent p-0">

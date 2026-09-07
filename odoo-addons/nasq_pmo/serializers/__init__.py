@@ -5,6 +5,8 @@ from . import (
     project,
     project_charter,
     project_charter_reference,
+    project_finance,
+    project_reports,
     project_update,
     task,
     timeline,

@@ -11,7 +11,7 @@ describe('capability-based navigation', () => {
   })
   it('groups the employee product pages without administrative links', () => {
     const nav = useNav(employee)
-    expect(nav.map(item => item.to)).toEqual(['/chat', '/projects', '/tasks', '/hr', '/hr/departments', '/hr/documents'])
+    expect(nav.map(item => item.to)).toEqual(['/chat', '/projects', '/tasks', '/reports', '/hr', '/hr/departments', '/hr/documents'])
     expect(nav.filter(item => item.group === 'hr')).toHaveLength(3)
     expect(nav.filter(item => item.group === 'chat')).toHaveLength(1)
   })
