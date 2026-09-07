@@ -256,7 +256,11 @@
 }
 
 /* Page anatomy from the final approved OpenDesign render. */
-.nasq-page-stack { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; gap: 24px; }
+/* Full-height workspaces can override the default grid with Tailwind flex. */
+@layer components {
+  .nasq-page-stack { display: grid; }
+}
+.nasq-page-stack { grid-template-columns: minmax(0, 1fr); min-width: 0; gap: 24px; }
 .nasq-page-width-list,
 .nasq-page-width-detail { width: 100%; max-width: 1440px; margin-inline: auto; }
 .nasq-page-width-form { width: 100%; max-width: 940px; margin-inline: auto; }

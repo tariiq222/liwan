@@ -84,6 +84,14 @@ async function visit(page: Page, route: (typeof ROUTES)[number], opts: { checkWi
   await assertNoErrorPage(page)
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)
   if (overflow > 1) defects.push(`overflow ${overflow}px`)
+  if (route.id === 'chat' || route.id === 'notifications') {
+    const layout = await page.locator('[data-slot="page-container"]').first().evaluate((container) => {
+      const header = container.querySelector('[data-slot="page-header"]')!
+      return { display: getComputedStyle(container).display, headerHeight: header.getBoundingClientRect().height }
+    })
+    if (layout.display !== 'flex') defects.push(`full-height page overrides flex: ${layout.display}`)
+    if (layout.headerHeight > 96) defects.push(`stretched page header: ${layout.headerHeight}px`)
+  }
   if (opts.checkWidth && route.width) {
     const count = await page.locator(`[data-slot="page-container"][data-layout-width="${route.width}"]`).count()
     if (!count) defects.push(`missing page-container width=${route.width}`)
