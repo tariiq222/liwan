@@ -48,7 +48,7 @@ function applyPatch(patch: Partial<ProjectListRouteState>) {
   Object.assign(filters, patchProjectListRoute(filters, patch))
 }
 
-function scheduleQueryWrite() {
+function scheduleQueryWrite(): Promise<void> {
   writeQuery = writeQuery.then(async () => {
     const query = serializeProjectListRoute(committedState())
     if (sameProjectListRoute(query, serializeProjectListRoute(parseProjectListRoute(route.query as Record<string, unknown>)))) return
@@ -59,6 +59,7 @@ function scheduleQueryWrite() {
       applyingRoute = false
     }
   }).catch(() => undefined)
+  return writeQuery
 }
 
 // Never resolve to true unless the server says this user may list archived
@@ -79,7 +80,41 @@ const listFilters = computed(() => ({
 }))
 const projectList = useProjectList(archived, listFilters)
 const items = computed(() => projectList.data.value?.items ?? [])
-const canCreate = computed(() => projectList.data.value?.can_create ?? false)
+type CapabilityOutcome = { at: number; allowed: boolean }
+const latestCapability = ref<CapabilityOutcome>({ at: 0, allowed: false })
+
+function recordCapabilityOutcome(at: number, allowed: boolean) {
+  const current = latestCapability.value
+  if (at > current.at || (at === current.at && current.allowed && !allowed)) {
+    latestCapability.value = { at, allowed }
+  }
+}
+
+function watchCapability(query: ReturnType<typeof useProjectList>) {
+  watch(
+    [() => query.dataUpdatedAt.value, () => query.data.value?.can_create],
+    ([at, allowed]) => {
+      if (typeof at === 'number' && at > 0 && typeof allowed === 'boolean') recordCapabilityOutcome(at, allowed)
+    },
+    { immediate: true },
+  )
+  watch(
+    [() => query.errorUpdatedAt.value, () => query.error.value],
+    ([at, error]) => {
+      if (error && typeof at === 'number' && at > 0) recordCapabilityOutcome(at, false)
+    },
+    { immediate: true },
+  )
+}
+
+watchCapability(activeList)
+watchCapability(projectList)
+
+// Keep the latest server outcome across query-key changes. Cached page data
+// can be older than a denial or error observed on another page; only a newer
+// response may grant the action again. Refetches retain the current outcome so
+// an authorized button does not flicker while a request is in flight.
+const canCreate = computed(() => latestCapability.value.allowed)
 const total = computed(() => projectList.data.value?.total ?? 0)
 const page = computed(() => Math.floor(listOffset.value / PROJECT_PAGE) + 1)
 const pages = computed(() => Math.max(1, Math.ceil(total.value / PROJECT_PAGE)))
@@ -152,8 +187,18 @@ function setPage(next: number) {
   applyPatch({ offset: (next - 1) * PROJECT_PAGE })
 }
 
-function openCreate() {
-  router.push({ path: '/projects/new', query: returnToQuery(route.fullPath) })
+async function flushPendingSearch() {
+  if (search.value.trim() !== filters.q.trim()) applyPatch({ q: search.value })
+  await scheduleQueryWrite()
+}
+
+async function openCreate() {
+  await flushPendingSearch()
+  const returnPath = router.resolve({
+    path: '/projects',
+    query: serializeProjectListRoute(committedState()),
+  }).fullPath
+  router.push({ path: '/projects/new', query: returnToQuery(returnPath) })
 }
 function openProject(id: number) {
   router.push({ path: `/projects/${id}`, query: returnToQuery(route.fullPath) })
@@ -174,6 +219,10 @@ function openProject(id: number) {
         </Button>
       </template>
     </SharedPageHeader>
+    <div v-if="activeList.error.value && !projectList.error.value" role="alert" class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+      <span>{{ t('projects.loadError') }}</span>
+      <Button variant="outline" size="sm" @click="activeList.refetch()">{{ t('app.retry') }}</Button>
+    </div>
     <section data-testid="projects-summary" class="space-y-2">
       <div class="flex items-center justify-end">
         <Button
