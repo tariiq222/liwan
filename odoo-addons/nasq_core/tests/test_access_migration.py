@@ -1,11 +1,92 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from unittest.mock import patch
 
+from odoo import fields
+from odoo.exceptions import AccessError
 from odoo.tests import TransactionCase, new_test_user, tagged
+
+from odoo.addons.nasq_core.models.access_service import MEETINGS_PERMISSIONS
 
 
 @tagged('nasq', 'nasq_access')
 class TestNasqAccessMigration(TransactionCase):
+
+    def test_builtin_meeting_upgrade_is_additive_and_idempotent(self):
+        role_xmlids = {
+            'employee': 'nasq_core.role_employee',
+            'pmo_manager': 'nasq_core.role_pmo_manager',
+            'hr_manager': 'nasq_core.role_hr_manager',
+            'system_admin': 'nasq_core.role_system_admin',
+            'vendor_support': 'nasq_core.role_vendor_support',
+        }
+        expected_meetings = {
+            'employee': {'meetings.read'},
+            'pmo_manager': set(),
+            'hr_manager': set(),
+            'system_admin': set(MEETINGS_PERMISSIONS),
+            'vendor_support': set(MEETINGS_PERMISSIONS),
+        }
+        roles = {
+            key: self.env.ref(xmlid).sudo()
+            for key, xmlid in role_xmlids.items()
+        }
+        meeting_permissions = self.env['nasq.access.permission'].sudo().search([
+            ('key', 'in', list(MEETINGS_PERMISSIONS)),
+        ])
+
+        # Recreate the pre-upgrade database state while retaining all other
+        # role links and a custom role for the isolation assertion.
+        for role in roles.values():
+            role.write({
+                'permission_ids': [
+                    fields.Command.unlink(permission.id)
+                    for permission in meeting_permissions
+                ],
+            })
+        nonmeeting_before = {
+            key: set(role.permission_ids.mapped('key')) - MEETINGS_PERMISSIONS
+            for key, role in roles.items()
+        }
+        custom = self.env['nasq.access.role'].sudo().create({
+            'name_ar': 'دور اختبار الترحيل',
+            'name_en': 'Migration test role',
+            'type': 'custom',
+            'company_id': self.env.company.id,
+            'permission_ids': [fields.Command.link(
+                self.env.ref('nasq_core.permission_meetings_read').id,
+            )],
+        })
+        custom_keys = set(custom.permission_ids.mapped('key'))
+        custom_version = custom.version
+
+        service = self.env['nasq.access.service'].sudo()
+        self.assertTrue(service._nasq_upgrade_builtin_meeting_permissions())
+
+        for key, role in roles.items():
+            actual_meetings = set(role.permission_ids.mapped('key')) & MEETINGS_PERMISSIONS
+            self.assertEqual(actual_meetings, expected_meetings[key])
+            self.assertEqual(
+                set(role.permission_ids.mapped('key')) - MEETINGS_PERMISSIONS,
+                nonmeeting_before[key],
+            )
+        self.assertEqual(set(custom.permission_ids.mapped('key')), custom_keys)
+        self.assertEqual(custom.version, custom_version)
+
+        versions_after_first_run = {
+            key: role.version for key, role in roles.items()
+        }
+        self.assertTrue(service._nasq_upgrade_builtin_meeting_permissions())
+        self.assertEqual(
+            {key: role.version for key, role in roles.items()},
+            versions_after_first_run,
+        )
+
+    def test_builtin_meeting_upgrade_requires_superuser(self):
+        user = new_test_user(
+            self.env, login='meeting_upgrade_non_superuser', groups='base.group_user',
+        )
+        with self.assertRaisesRegex(AccessError, 'requires superuser'):
+            self.env['nasq.access.service'].with_user(user)._nasq_upgrade_builtin_meeting_permissions()
 
     def test_legacy_admin_preservation_is_idempotent_and_excludes_vendor(self):
         legacy = new_test_user(

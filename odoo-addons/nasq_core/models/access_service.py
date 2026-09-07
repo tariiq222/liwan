@@ -3,6 +3,7 @@ import json
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import api, models
 from odoo.exceptions import AccessError, ValidationError
+from odoo.fields import Command
 
 SYSTEM_PERMISSIONS = {
     'access.users.read', 'access.users.grant', 'access.users.assign_roles',
@@ -21,6 +22,14 @@ PMO_PERMISSIONS = {
 }
 MEETINGS_PERMISSIONS = {
     'meetings.read', 'meetings.create', 'meetings.manage',
+}
+# Keep this map aligned with the approved built-in role seeds.  The role XMLIDs
+# are intentional: protected roles may have been created before meeting access
+# was added to the seed files, so the upgrade must repair those exact records.
+BUILTIN_MEETING_PERMISSION_KEYS = {
+    'nasq_core.role_employee': {'meetings.read'},
+    'nasq_core.role_system_admin': MEETINGS_PERMISSIONS,
+    'nasq_core.role_vendor_support': MEETINGS_PERMISSIONS,
 }
 CAPABILITIES = frozenset(
     SYSTEM_PERMISSIONS | HR_PERMISSIONS | PMO_PERMISSIONS | MEETINGS_PERMISSIONS,
@@ -539,6 +548,44 @@ class NasqAccessService(models.AbstractModel):
             records[key].write({
                 'dependency_ids': [(6, 0, [records[item].id for item in dependency_keys])],
             })
+        return True
+
+    @api.model
+    def _nasq_upgrade_builtin_meeting_permissions(self):
+        """Repair meeting grants on protected roles during a module upgrade.
+
+        The built-in role records are seeded with ``noupdate=1``.  Updating the
+        seed XML therefore cannot repair databases that were installed before
+        meeting permissions were added.  This hook links only the approved
+        missing meeting permissions and leaves every existing relation intact.
+        It is private and must run as the superuser from trusted module data.
+        """
+        if not self.env.is_superuser():
+            msg = 'builtin meeting permission upgrade requires superuser'
+            raise AccessError(msg)
+
+        Permission = self.env['nasq.access.permission']
+        for role_xmlid, permission_keys in BUILTIN_MEETING_PERMISSION_KEYS.items():
+            if not permission_keys <= MEETINGS_PERMISSIONS:
+                msg = 'invalid built-in meeting permission upgrade'
+                raise ValidationError(msg)
+
+            role = self.env.ref(role_xmlid)
+            if role.type != 'built_in' or not role.protected:
+                msg = 'built-in meeting permission upgrade target is not protected'
+                raise ValidationError(msg)
+
+            permissions = Permission.browse([
+                self.env.ref(
+                    'nasq_core.permission_%s' % key.replace('.', '_'),
+                ).id
+                for key in sorted(permission_keys)
+            ])
+            missing = permissions - role.permission_ids
+            if missing:
+                role.write({
+                    'permission_ids': [Command.link(permission.id) for permission in missing],
+                })
         return True
 
     @api.model
