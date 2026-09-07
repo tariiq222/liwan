@@ -61,9 +61,9 @@ function toggle(node: DepartmentTreeNode) {
     <div
       v-for="node in displayedNodes"
       :key="node.department.id"
-      class="flex min-w-0 items-center gap-1 rounded-md border border-transparent p-1.5"
+      class="department-tree-row flex min-w-0 flex-wrap items-center gap-1 rounded-md border border-transparent p-1.5"
       :class="{ 'border-border bg-accent/50': selectedId === node.department.id }"
-      :style="{ paddingInlineStart: `${0.375 + node.depth * 1.5}rem` }"
+      :style="{ '--department-indent': `${node.depth * 1.5}rem` }"
     >
       <Button
         v-if="node.children.length"
@@ -91,7 +91,7 @@ function toggle(node: DepartmentTreeNode) {
         </span>
         <span v-else class="block truncate text-xs text-muted-foreground">{{ $t('hr.depts.noManager') }}</span>
       </button>
-      <div class="flex shrink-0 items-center gap-0.5">
+      <div class="department-tree-actions flex shrink-0 items-center gap-0.5 max-sm:basis-full max-sm:w-full max-sm:justify-end">
         <Button
           v-if="canManage"
           type="button"
@@ -137,3 +137,15 @@ function toggle(node: DepartmentTreeNode) {
   </div>
   <p v-else class="py-10 text-center text-sm text-muted-foreground">{{ $t('hr.depts.empty') }}</p>
 </template>
+
+<style scoped>
+.department-tree-row {
+  padding-inline-start: calc(0.375rem + var(--department-indent));
+}
+
+@media (max-width: 639px) {
+  .department-tree-row {
+    padding-inline-start: min(calc(0.375rem + var(--department-indent)), 4.875rem);
+  }
+}
+</style>

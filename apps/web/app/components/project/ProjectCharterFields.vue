@@ -148,14 +148,14 @@ const readonlyDescription = computed(() => (
     <div class="grid gap-4 md:grid-cols-2">
       <div class="grid gap-2" data-testid="charter-field-type">
         <div class="flex items-center gap-1">
-          <Label>{{ t('projects.charter.fields.type') }}</Label>
+          <Label id="charter-type-label" for="charter-type">{{ t('projects.charter.fields.type') }}</Label>
           <ProjectFieldHelp :label="helpLabel(t('projects.charter.fields.type'))" :text="t('projects.charter.help.type')" />
         </div>
         <p v-if="readonly" class="text-sm">{{ draft.typeName || t('projects.charter.none') }}</p>
         <Popover v-else v-model:open="typeOpen">
           <PopoverTrigger as-child>
-            <Button variant="outline" class="w-full justify-start" type="button" :disabled="controlsDisabled">
-              {{ draft.typeName || t('projects.charter.none') }}
+            <Button id="charter-type" variant="outline" class="w-full min-w-0 justify-start" type="button" :disabled="controlsDisabled" aria-labelledby="charter-type-label charter-type-value">
+              <span id="charter-type-value" class="min-w-0 truncate" :title="draft.typeName || t('projects.charter.none')">{{ draft.typeName || t('projects.charter.none') }}</span>
             </Button>
           </PopoverTrigger>
           <PopoverContent class="w-64 p-0" align="start">
@@ -194,14 +194,14 @@ const readonlyDescription = computed(() => (
 
       <div class="grid gap-2" data-testid="charter-field-owning_unit">
         <div class="flex items-center gap-1">
-          <Label>{{ t('projects.charter.fields.owning_unit') }}</Label>
+          <Label id="charter-owning-unit-label" for="charter-owning-unit">{{ t('projects.charter.fields.owning_unit') }}</Label>
           <ProjectFieldHelp :label="helpLabel(t('projects.charter.fields.owning_unit'))" :text="t('projects.charter.help.owning_unit')" />
         </div>
         <p v-if="readonly" class="text-sm">{{ draft.owningUnitName || t('projects.charter.none') }}</p>
         <Popover v-else v-model:open="unitOpen">
           <PopoverTrigger as-child>
-            <Button variant="outline" class="w-full justify-start" type="button" :disabled="controlsDisabled">
-              {{ draft.owningUnitName || t('projects.charter.none') }}
+            <Button id="charter-owning-unit" variant="outline" class="w-full min-w-0 justify-start" type="button" :disabled="controlsDisabled" aria-labelledby="charter-owning-unit-label charter-owning-unit-value">
+              <span id="charter-owning-unit-value" class="min-w-0 truncate" :title="draft.owningUnitName || t('projects.charter.none')">{{ draft.owningUnitName || t('projects.charter.none') }}</span>
             </Button>
           </PopoverTrigger>
           <PopoverContent class="w-64 p-0" align="start">
@@ -242,14 +242,14 @@ const readonlyDescription = computed(() => (
     <div class="grid gap-4 md:grid-cols-2">
       <div class="grid gap-2" data-testid="charter-field-sponsor">
         <div class="flex items-center gap-1">
-          <Label>{{ t('projects.charter.fields.sponsor') }}</Label>
+          <Label id="charter-sponsor-label" for="charter-sponsor">{{ t('projects.charter.fields.sponsor') }}</Label>
           <ProjectFieldHelp :label="helpLabel(t('projects.charter.fields.sponsor'))" :text="t('projects.charter.help.sponsor')" />
         </div>
         <p v-if="readonly" class="text-sm">{{ draft.sponsorName || t('projects.charter.none') }}</p>
         <Popover v-else v-model:open="sponsorOpen">
           <PopoverTrigger as-child>
-            <Button variant="outline" class="w-full justify-start" type="button" :disabled="controlsDisabled">
-              {{ draft.sponsorName || t('projects.charter.none') }}
+            <Button id="charter-sponsor" variant="outline" class="w-full min-w-0 justify-start" type="button" :disabled="controlsDisabled" aria-labelledby="charter-sponsor-label charter-sponsor-value">
+              <span id="charter-sponsor-value" class="min-w-0 truncate" :title="draft.sponsorName || t('projects.charter.none')">{{ draft.sponsorName || t('projects.charter.none') }}</span>
             </Button>
           </PopoverTrigger>
           <PopoverContent class="w-64 p-0" align="start">
@@ -277,7 +277,7 @@ const readonlyDescription = computed(() => (
 
       <div class="grid gap-2" data-testid="charter-field-manager">
         <div class="flex items-center gap-1">
-          <Label>
+          <Label id="charter-manager-label" for="charter-manager">
             {{ t('projects.charter.fields.manager') }}
             <span v-if="requireManager" class="text-destructive">*</span>
           </Label>
@@ -288,13 +288,15 @@ const readonlyDescription = computed(() => (
           <PopoverTrigger as-child>
             <Button
               variant="outline"
-              class="w-full justify-start"
+              id="charter-manager"
+              class="w-full min-w-0 justify-start"
               type="button"
               data-testid="project-create-manager"
               :disabled="controlsDisabled"
               :aria-required="requireManager"
+              aria-labelledby="charter-manager-label charter-manager-value"
             >
-              {{ draft.managerName || t('projects.settings.noManager') }}
+              <span id="charter-manager-value" class="min-w-0 truncate" :title="draft.managerName || t('projects.settings.noManager')">{{ draft.managerName || t('projects.settings.noManager') }}</span>
             </Button>
           </PopoverTrigger>
           <PopoverContent class="w-64 p-0" align="start">
@@ -382,14 +384,14 @@ const readonlyDescription = computed(() => (
     <div class="grid gap-4 md:grid-cols-2">
       <div class="grid gap-2" data-testid="charter-field-date_start">
         <div class="flex items-center gap-1">
-          <Label>{{ t('projects.charter.fields.date_start') }}</Label>
+          <Label id="charter-date-start-label" for="charter-date-start">{{ t('projects.charter.fields.date_start') }}</Label>
           <ProjectFieldHelp :label="helpLabel(t('projects.charter.fields.date_start'))" :text="t('projects.charter.help.date_start')" />
         </div>
         <p v-if="readonly" class="text-sm">{{ startLabel }}</p>
         <Popover v-else>
           <PopoverTrigger as-child>
-            <Button variant="outline" class="justify-start" type="button" :disabled="controlsDisabled" :aria-label="t('projects.charter.fields.date_start')">
-              {{ startLabel }}
+            <Button id="charter-date-start" variant="outline" class="justify-start" type="button" :disabled="controlsDisabled" aria-labelledby="charter-date-start-label charter-date-start-value">
+              <span id="charter-date-start-value">{{ startLabel }}</span>
             </Button>
           </PopoverTrigger>
           <PopoverContent class="w-auto p-0" align="start">
@@ -403,7 +405,7 @@ const readonlyDescription = computed(() => (
       </div>
       <div class="grid gap-2" data-testid="charter-field-date_end">
         <div class="flex items-center gap-1">
-          <Label>
+          <Label id="charter-date-end-label" for="charter-date-end">
             {{ t('projects.charter.fields.date_end') }}
             <span v-if="requireEndDate" class="text-destructive">*</span>
           </Label>
@@ -416,12 +418,13 @@ const readonlyDescription = computed(() => (
               variant="outline"
               class="justify-start"
               type="button"
+              id="charter-date-end"
               data-testid="project-create-end-date"
               :disabled="controlsDisabled"
-              :aria-label="t('projects.charter.fields.date_end')"
+              aria-labelledby="charter-date-end-label charter-date-end-value"
               :aria-required="requireEndDate"
             >
-              {{ endLabel }}
+              <span id="charter-date-end-value">{{ endLabel }}</span>
             </Button>
           </PopoverTrigger>
           <PopoverContent class="w-auto p-0" align="start">
@@ -438,12 +441,12 @@ const readonlyDescription = computed(() => (
     <div class="grid gap-4 md:grid-cols-3">
       <div class="grid gap-2" data-testid="charter-field-budget_state">
         <div class="flex items-center gap-1">
-          <Label>{{ t('projects.charter.fields.budget_state') }}</Label>
+          <Label id="charter-budget-state-label" for="charter-budget-state">{{ t('projects.charter.fields.budget_state') }}</Label>
           <ProjectFieldHelp :label="helpLabel(t('projects.charter.fields.budget_state'))" :text="t('projects.charter.help.budget_state')" />
         </div>
         <p v-if="readonly" class="text-sm">{{ t(`projects.charter.budget.${draft.budgetState}`) }}</p>
         <Select v-else :model-value="draft.budgetState" :disabled="controlsDisabled" @update:model-value="onBudgetState">
-          <SelectTrigger class="w-full">
+          <SelectTrigger id="charter-budget-state" class="w-full" aria-labelledby="charter-budget-state-label">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -478,12 +481,12 @@ const readonlyDescription = computed(() => (
 
     <div class="grid gap-2" data-testid="charter-field-priority">
       <div class="flex items-center gap-1">
-        <Label>{{ t('projects.charter.fields.priority') }}</Label>
+        <Label id="charter-priority-label" for="charter-priority">{{ t('projects.charter.fields.priority') }}</Label>
         <ProjectFieldHelp :label="helpLabel(t('projects.charter.fields.priority'))" :text="t('projects.charter.help.priority')" />
       </div>
       <p v-if="readonly" class="text-sm">{{ draft.priority ? t(`projects.charter.priority.${draft.priority}`) : t('projects.charter.none') }}</p>
       <Select v-else :model-value="draft.priority ?? 'none'" :disabled="controlsDisabled" @update:model-value="draft.priority = $event === 'none' ? null : ($event as typeof PROJECT_PRIORITIES[number])">
-        <SelectTrigger class="w-full">
+        <SelectTrigger id="charter-priority" class="w-full" aria-labelledby="charter-priority-label">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>

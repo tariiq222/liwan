@@ -144,6 +144,7 @@
       "reorderHelp": "Drag the handle, or focus it and use Arrow Up, Arrow Down, Home, and End.",
       "fold": "Folded",
       "delete": "Delete",
+      "deleteConfirm": "Delete this stage?",
       "notEmpty": "This stage holds {count} tasks",
       "deleted": "Stage deleted",
       "empty": "No stages yet"

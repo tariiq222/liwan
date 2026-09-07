@@ -1,15 +1,13 @@
 <script setup lang="ts">
 import type { AuditAction } from '@nasq/contracts'
 import SettingsLayout from '@/components/settings/SettingsLayout.vue'
+import { adminListQuery, adminPathWithQuery } from '@/composables/adminSettingsPaths'
 const route = useRoute()
 const { t } = useI18n()
 const { can } = useAccess()
 const id = computed(() => Number(route.params.eventId))
 const returnTo = computed(() => {
-  const query = new URLSearchParams()
-  for (const key of ['from', 'to', 'actor_id', 'target_type', 'target_id', 'action', 'offset']) if (route.query[key]) query.set(key, String(route.query[key]))
-  const suffix = query.toString()
-  return `/settings/access-log${suffix ? `?${suffix}` : ''}`
+  return adminPathWithQuery('/settings/access-log', adminListQuery(route.query, ['from', 'to', 'actor_id', 'target_type', 'target_id', 'action', 'offset']))
 })
 const forbidden = computed(() => !can('access.audit.read'))
 const event = useAdminAuditEvent(id, computed(() => !forbidden.value))

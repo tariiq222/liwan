@@ -148,6 +148,7 @@
       "add": "Add comment",
       "write": "Write a comment…",
       "post": "Post",
+      "loading": "Loading activity…",
       "empty": "No activity yet"
     },
     "kanban": {
@@ -155,6 +156,8 @@
       "emptyColumn": "No tasks",
       "unstaged": "No stage",
       "capped": "Showing the first 200 tasks",
+      "expand": "Expand {name}",
+      "collapse": "Collapse {name}",
       "noStages": "This project has no stages yet. Stages are managed in Settings later."
     }
   }

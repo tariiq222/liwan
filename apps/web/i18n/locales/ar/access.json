@@ -84,6 +84,8 @@
       "confirmAction": "تأكيد",
       "assignedUsers": "المستخدمون المسند إليهم هذا الدور",
       "noAssignedUsers": "لا يوجد مستخدمون مسند إليهم هذا الدور.",
+      "assignedUsersCount": "هذا الدور مسند إلى {count} مستخدم. اعرض القائمة المفلترة كاملة.",
+      "viewAllAssignedUsers": "عرض جميع المستخدمين المسندين",
       "navigation": "أقسام الدور",
       "changes": "سجل التغييرات",
       "createTitle": "إنشاء دور مخصص",

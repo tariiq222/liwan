@@ -10,7 +10,7 @@ const projectId = computed(() => {
   const n = Number(route.params.id)
   return Number.isInteger(n) && n > 0 ? n : null
 })
-const { data: project, isLoading, error } = useProject(projectId)
+const { data: project, isLoading, error, refetch } = useProject(projectId)
 const notFound = computed(() => projectId.value === null || (error.value instanceof ApiError && [403, 404].includes(error.value.status)))
 const canManage = computed(() => project.value?.can_manage ?? false)
 const returnTo = computed(() => projectId.value ? safeReturnTo(route.query.returnTo, '/projects/' + projectId.value + '?tab=tasks', ['/projects']) : '/projects')
@@ -28,9 +28,7 @@ const returnTo = computed(() => projectId.value ? safeReturnTo(route.query.retur
     <template v-else-if="notFound">
       <p class="text-muted-foreground">{{ t('projects.notFound') }}</p>
     </template>
-    <template v-else-if="error || !project">
-      <p role="alert" class="text-destructive">{{ t('projects.loadError') }}</p>
-    </template>
+    <SharedPageState v-else-if="error || !project" :error="error" :empty="!error && !project" @retry="refetch" />
     <template v-else-if="!canManage">
       <p class="text-muted-foreground">{{ t('projects.forbidden') }}</p>
     </template>

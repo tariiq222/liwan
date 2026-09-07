@@ -63,7 +63,7 @@ async function uploadFile(event: Event) {
         <div class="grid gap-2">
           <h2 class="text-sm font-medium">{{ t('hr.docs.attachments') }}</h2>
           <ul class="grid gap-1 text-sm"><li v-for="attachment in query.data.value.attachment_ids" :key="attachment.id"><a :href="`/web/content/${attachment.id}`" class="underline" target="_blank" rel="noreferrer">{{ attachment.name }}</a></li></ul>
-          <Label for="hr-doc-upload">{{ t('hr.docs.upload') }}</Label><input id="hr-doc-upload" type="file" :disabled="!hydrated || uploading || updating" @change="uploadFile">
+          <Label for="hr-doc-upload">{{ t('hr.docs.upload') }}</Label><input id="hr-doc-upload" type="file" class="block w-full min-w-0 max-w-full text-sm" :disabled="!hydrated || uploading || updating" @change="uploadFile">
         </div>
         <div class="flex gap-2"><NuxtLink :to="returnTo"><Button type="button" variant="outline" :disabled="updating">{{ t('app.cancel') }}</Button></NuxtLink><Button type="submit" :disabled="!hydrated || updating || uploading || !name.trim()">{{ t('app.save') }}</Button></div>
       </form>

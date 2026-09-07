@@ -37,7 +37,7 @@ const projectId = computed(() => {
   const n = Number(route.params.id)
   return Number.isInteger(n) && n > 0 ? n : null
 })
-const { data: project, isLoading, error } = useProject(projectId)
+const { data: project, isLoading, error, refetch } = useProject(projectId)
 const notFound = computed(() => projectId.value === null || (error.value instanceof ApiError && (error.value.status === 404 || error.value.status === 403)))
 
 const TABS = ['overview', 'tasks', 'milestones', 'updates'] as const
@@ -120,6 +120,8 @@ const dateRange = computed(() => {
       <p class="text-muted-foreground">{{ t('projects.notFound') }}</p>
       <button type="button" class="text-sm underline" @click="router.push(projectReturnTo)">{{ t('projects.backToProjects') }}</button>
     </div>
+
+    <SharedPageState v-else-if="error" :error="error" @retry="refetch" />
 
     <template v-else>
       <ProjectHeader

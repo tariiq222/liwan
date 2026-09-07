@@ -19,7 +19,7 @@ from odoo.addons.nasq_pmo.serializers.project import (
 from odoo.addons.nasq_pmo.serializers.project_charter import parse_charter_vals
 
 MAX_PROJECTS = 200
-LIST_QUERY = {'minimal', 'archived', 'limit', 'offset', 'q', 'status'}
+LIST_QUERY = {'minimal', 'archived', 'limit', 'offset', 'q', 'status', 'sort'}
 _ABSENT = object()
 
 
@@ -42,6 +42,9 @@ class ProjectController(http.Controller):
         limit = parse_nonneg_int(args.get('limit', MAX_PROJECTS), 'limit') or MAX_PROJECTS
         limit = min(limit, MAX_PROJECTS)
         offset = parse_nonneg_int(args.get('offset', 0), 'offset')
+        sort = args.get('sort', 'default')
+        if sort not in ('default', 'name', 'progress'):
+            raise ApiError(422, 'invalid', "sort must be 'default', 'name' or 'progress'", field='sort')
         status = args.get('status')
         if status is not None and status != 'unset' and status not in STATUS_VALUES:
             raise ApiError(
@@ -62,7 +65,16 @@ class ProjectController(http.Controller):
         elif status:
             domain.append(('last_update_status', '=', status))
         Project = Project.with_context(active_test=not archived)
-        projects = Project.search(domain, order='name, id', limit=limit, offset=offset)
+        if sort == 'progress':
+            # This native percentage is computed with the caller's task access,
+            # not stored. Sort the readable recordset before slicing; stable
+            # name/id order breaks ties at the same rounded value shown in UI.
+            readable = Project.search(domain, order='name, id')
+            projects = readable.sorted(
+                key=lambda project: -round(project.task_completion_percentage * 100),
+            )[offset:offset + limit]
+        else:
+            projects = Project.search(domain, order='name, id', limit=limit, offset=offset)
         if args.get('minimal') in ('1', 'true'):
             return [{'id': p.id, 'name': p.name} for p in projects]
         return {

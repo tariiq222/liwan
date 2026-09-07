@@ -73,6 +73,7 @@ const listOffset = computed(() => filters.offset)
 const listFilters = computed(() => ({
   q: filters.q.trim() || undefined,
   status: filters.status === 'all' ? undefined : filters.status,
+  sort: filters.sort,
   limit: PROJECT_PAGE,
   offset: filters.offset,
 }))
@@ -131,12 +132,8 @@ function onSortChange(value: unknown) {
   applyPatch({ sort: value === 'name' || value === 'progress' ? value : 'default' })
 }
 function onViewChange(value: 'table' | 'cards') { applyPatch({ view: value }) }
-const displayedItems = computed(() => {
-  const list = [...items.value]
-  if (sort.value === 'name') return list.sort((a, b) => a.name.localeCompare(b.name))
-  if (sort.value === 'progress') return list.sort((a, b) => b.progress - a.progress || a.name.localeCompare(b.name))
-  return list
-})
+// Ordering belongs to the server, before pagination.
+const displayedItems = items
 const isLoading = computed(() => projectList.isLoading.value)
 
 onMounted(() => {

@@ -25,7 +25,7 @@ const { can } = useAccess()
 const hydrated = useHydrated()
 
 const paramsRef = computed(() => props.params)
-const { data, isLoading, hasNextPage, fetchNextPage, isFetchingNextPage } = useTasks(paramsRef)
+const { data, isLoading, hasNextPage, fetchNextPage, isFetchingNextPage, error, refetch } = useTasks(paramsRef)
 
 const items = computed<Task[]>(() => data.value?.pages.flatMap((page) => page.items) ?? [])
 // A search/state/project filter yielding zero rows is a different situation
@@ -159,6 +159,9 @@ function onRowClick(task: Task, event: MouseEvent) {
               </TableCell>
             </TableRow>
           </template>
+          <TableEmpty v-else-if="error" :colspan="columns.length">
+            <SharedPageState :error="error" @retry="refetch" />
+          </TableEmpty>
           <TableEmpty v-else-if="items.length === 0" :colspan="columns.length">
             <EmptyState :title="t(emptyTitleKey)">
               <template v-if="showCreateAction" #action>
@@ -190,6 +193,9 @@ function onRowClick(task: Task, event: MouseEvent) {
             <div class="flex gap-2"><Skeleton class="h-6 w-20" /><Skeleton class="h-6 w-20" /></div>
           </div>
         </template>
+        <div v-else-if="error" class="p-6 text-center">
+          <SharedPageState :error="error" @retry="refetch" />
+        </div>
         <div v-else-if="items.length === 0" class="p-6 text-center">
           <EmptyState :title="t(emptyTitleKey)">
             <template v-if="showCreateAction" #action>

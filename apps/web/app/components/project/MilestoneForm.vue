@@ -4,6 +4,7 @@ import type { Milestone } from '@nasq/contracts'
 import { ApiError } from '@/composables/useApi'
 import { formatCalendarDate, fromCalendarDate, toCalendarDate } from '@/composables/calendarDate'
 import { useCreateMilestone, useUpdateMilestone } from '@/composables/useMilestones'
+import { isDirtySnapshot } from '@/lib/formDirty'
 
 const props = defineProps<{ projectId: number; milestone?: Milestone }>()
 const emit = defineEmits<{ saved: [id?: number]; cancel: [] }>()
@@ -16,10 +17,20 @@ const isPending = computed(() => creating.value || updating.value)
 const name = ref(props.milestone?.name ?? '')
 const deadline = shallowRef<CalendarDate | undefined>(toCalendarDate(props.milestone?.deadline ?? null))
 const error = ref<string | null>(null)
+const submitted = ref(false)
+const baseline = ref('')
+
+function state() {
+  return JSON.stringify([name.value, fromCalendarDate(deadline.value)])
+}
+
+const dirty = computed(() => isDirtySnapshot(baseline.value, state(), submitted.value))
 
 watch(() => props.milestone, (milestone) => {
   name.value = milestone?.name ?? ''
   deadline.value = toCalendarDate(milestone?.deadline ?? null)
+  submitted.value = false
+  baseline.value = state()
 }, { immediate: true })
 
 const deadlineLabel = computed(() => deadline.value ? formatCalendarDate(fromCalendarDate(deadline.value), locale.value) : t('projects.milestones.deadline'))
@@ -29,13 +40,15 @@ function clearDeadline() { deadline.value = undefined }
 async function submit() {
   error.value = null
   const trimmed = name.value.trim()
-  if (!trimmed) return
+  if (!hydrated.value || isPending.value || !trimmed) return
   try {
     if (props.milestone) {
       await updateMutate({ projectId: props.projectId, id: props.milestone.id, patch: { name: trimmed, deadline: fromCalendarDate(deadline.value) } })
+      submitted.value = true
       emit('saved', props.milestone.id)
     } else {
       const created = await createMutate({ projectId: props.projectId, name: trimmed, deadline: fromCalendarDate(deadline.value) })
+      submitted.value = true
       emit('saved', created.id)
     }
   } catch (e) {
@@ -45,6 +58,7 @@ async function submit() {
 </script>
 
 <template>
+  <SharedUnsavedChanges :dirty="dirty" />
   <form data-testid="milestone-form" class="nasq-form-grid" @submit.prevent="submit">
     <div class="grid gap-2">
       <Label for="milestone-name">{{ t('projects.milestones.name') }}</Label>

@@ -7,6 +7,7 @@ import {
   type AccessAuditDetail,
   type AccessAuditList,
 } from '@nasq/contracts'
+import { ADMIN_PAGE_SIZE } from './adminSettingsPaths'
 
 export type AdminAuditListParams = {
   from?: string
@@ -33,7 +34,7 @@ export function adminAuditListQuery(params: AdminAuditListParams = {}) {
     target_type: params.target_type,
     target_id: params.target_id,
     action: params.action,
-    limit: Math.min(Math.max(params.limit ?? 200, 0), 200),
+    limit: Math.min(Math.max(params.limit ?? ADMIN_PAGE_SIZE, 0), 200),
     offset: Math.max(params.offset ?? 0, 0),
   }
 }

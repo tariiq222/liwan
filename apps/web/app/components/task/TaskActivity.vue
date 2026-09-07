@@ -10,7 +10,7 @@ const props = defineProps<{ task: TaskDetail }>()
 const { t } = useI18n()
 
 const idRef = computed(() => props.task.id)
-const { data: entries } = useTimeline(idRef)
+const { data: entries, error, refetch, isLoading } = useTimeline(idRef)
 </script>
 
 <template>
@@ -22,8 +22,12 @@ const { data: entries } = useTimeline(idRef)
       </div>
     </header>
     <div class="nasq-panel-body">
-      <Timeline :entries="entries ?? []" />
-      <CommentComposer v-if="task.can_write" :task-id="task.id" />
+      <SharedPageState v-if="error" :error="error" @retry="refetch" />
+      <div v-else-if="isLoading" role="status" class="py-4 text-sm text-muted-foreground">{{ t('tasks.activity.loading') }}</div>
+      <template v-else>
+        <Timeline :entries="entries ?? []" />
+        <CommentComposer v-if="task.can_write" :task-id="task.id" />
+      </template>
     </div>
   </section>
 </template>

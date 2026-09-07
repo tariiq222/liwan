@@ -149,23 +149,23 @@ const completedSubtasks = computed(() => props.task.subtasks.filter(subtask => s
   <div>
     <section class="task-meta-grid" role="group" :aria-label="t('tasks.detail.primaryMetadata')">
       <div class="task-meta-item">
-        <span class="task-meta-label">{{ t('tasks.drawer.assignees') }}</span>
+        <span id="task-assignees-label" class="task-meta-label">{{ t('tasks.drawer.assignees') }}</span>
         <p v-if="!task.can_write" class="task-meta-value">{{ task.assignees.map(person => person.name).join('، ') || t('tasks.drawer.unassigned') }}</p>
-        <AssigneePicker v-else :model-value="task.assignees" @update:model-value="onAssigneesChange" />
+        <AssigneePicker v-else :model-value="task.assignees" labelledby="task-assignees-label" @update:model-value="onAssigneesChange" />
       </div>
 
       <div class="task-meta-item">
-        <span class="task-meta-label">{{ t('tasks.drawer.priority') }}</span>
-        <PrioritySelect :task="task" />
+        <span id="task-priority-label" class="task-meta-label">{{ t('tasks.drawer.priority') }}</span>
+        <PrioritySelect :task="task" labelledby="task-priority-label" />
       </div>
 
       <div class="task-meta-item">
-        <span class="task-meta-label">{{ t('tasks.drawer.deadline') }}</span>
+        <span id="task-deadline-label" class="task-meta-label">{{ t('tasks.drawer.deadline') }}</span>
         <p v-if="!task.can_write" class="task-meta-value">{{ deadlineButtonLabel }}</p>
         <Popover v-else>
           <PopoverTrigger as-child>
-            <Button variant="outline" size="sm" class="w-full justify-start" type="button" :aria-label="t('tasks.drawer.deadline')">
-              {{ deadlineButtonLabel }}
+            <Button variant="outline" size="sm" class="w-full justify-start" type="button" aria-labelledby="task-deadline-label task-deadline-value">
+              <span id="task-deadline-value">{{ deadlineButtonLabel }}</span>
             </Button>
           </PopoverTrigger>
           <PopoverContent class="w-auto p-0" align="start">
@@ -182,8 +182,8 @@ const completedSubtasks = computed(() => props.task.subtasks.filter(subtask => s
       </div>
 
       <div class="task-meta-item">
-        <span class="task-meta-label">{{ t('tasks.drawer.milestone') }}</span>
-        <MilestoneSelect v-if="task.project && task.can_write" :task="task" />
+        <span id="task-milestone-label" class="task-meta-label">{{ t('tasks.drawer.milestone') }}</span>
+        <MilestoneSelect v-if="task.project && task.can_write" :task="task" labelledby="task-milestone-label" />
         <p v-else class="task-meta-value">{{ task.milestone?.name || t('tasks.drawer.noMilestone') }}</p>
       </div>
     </section>
@@ -213,10 +213,10 @@ const completedSubtasks = computed(() => props.task.subtasks.filter(subtask => s
       <summary class="task-details-summary">{{ t('tasks.drawer.additionalDetails') }}</summary>
       <div class="task-additional-grid">
         <section class="task-additional-item">
-          <span>{{ t('tasks.drawer.stage') }}</span>
+          <span id="task-stage-label">{{ t('tasks.drawer.stage') }}</span>
           <strong v-if="!task.can_write">{{ task.personal_stage?.name || t('tasks.drawer.unassigned') }}</strong>
           <Select v-else :model-value="task.personal_stage ? String(task.personal_stage.id) : NONE" @update:model-value="onStageChange">
-            <SelectTrigger size="sm" class="w-full"><SelectValue /></SelectTrigger>
+            <SelectTrigger size="sm" class="w-full" aria-labelledby="task-stage-label"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem :value="NONE">{{ t('tasks.drawer.unassigned') }}</SelectItem>
               <SelectItem v-for="s in stages ?? []" :key="s.id" :value="String(s.id)">{{ s.name }}</SelectItem>
@@ -225,9 +225,9 @@ const completedSubtasks = computed(() => props.task.subtasks.filter(subtask => s
         </section>
 
         <section class="task-additional-item">
-          <span>{{ t('tasks.drawer.tags') }}</span>
+          <span id="task-tags-label">{{ t('tasks.drawer.tags') }}</span>
           <strong v-if="!task.can_write">{{ task.tags.map(tag => tag.name).join('، ') || '—' }}</strong>
-          <TagPicker v-else :model-value="task.tags" :can-create="task.can_approve" @update:model-value="onTagsChange" />
+          <TagPicker v-else :model-value="task.tags" :can-create="task.can_approve" labelledby="task-tags-label" @update:model-value="onTagsChange" />
         </section>
 
         <section v-if="task.can_write && task.can_approve" class="task-additional-item">

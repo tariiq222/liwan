@@ -12,14 +12,18 @@ const { t } = useI18n()
 const hydrated = useHydrated()
 const projectId = computed(() => { const n = Number(route.params.id); return Number.isInteger(n) && n > 0 ? n : null })
 const milestoneId = computed(() => { const n = Number(route.params.milestoneId); return Number.isInteger(n) && n > 0 ? n : null })
-const { data: project, isLoading: projectLoading, error: projectError } = useProject(projectId)
-const { data: milestones, isLoading: milestonesLoading, error: milestonesError } = useMilestones(projectId)
+const { data: project, isLoading: projectLoading, error: projectError, refetch: refetchProject } = useProject(projectId)
+const { data: milestones, isLoading: milestonesLoading, error: milestonesError, refetch: refetchMilestones } = useMilestones(projectId)
 const milestone = computed(() => milestones.value?.find((item) => item.id === milestoneId.value))
 const notFound = computed(() => projectId.value === null || milestoneId.value === null || (projectError.value instanceof ApiError && [403, 404].includes(projectError.value.status)))
 const returnTo = computed(() => projectId.value ? safeReturnTo(route.query.returnTo, '/projects/' + projectId.value + '?tab=milestones', ['/projects']) : '/projects')
 const deleteOpen = ref(false)
 const mutationError = ref<string | null>(null)
 const { mutateAsync: deleteMilestone, isPending: deleting } = useDeleteMilestone()
+
+function retry() {
+  void Promise.all([refetchProject(), refetchMilestones()])
+}
 
 async function confirmDelete() {
   if (!milestone.value || milestone.value.task_count > 0 || !projectId.value) return
@@ -43,9 +47,7 @@ async function confirmDelete() {
     <template v-else-if="(projectLoading || milestonesLoading) && !milestone">
       <p role="status" class="text-muted-foreground">{{ t('projects.loading') }}</p>
     </template>
-    <template v-else-if="projectError || milestonesError">
-      <p role="alert" class="text-destructive">{{ t('projects.loadError') }}</p>
-    </template>
+    <SharedPageState v-else-if="projectError || milestonesError" :error="projectError || milestonesError" @retry="retry" />
     <template v-else-if="notFound || !milestone">
       <p class="text-muted-foreground">{{ t('projects.milestones.notFound') }}</p>
     </template>

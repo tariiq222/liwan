@@ -34,7 +34,7 @@ const { t, localeProperties } = useI18n()
 const isRtl = computed(() => localeProperties.value.dir === 'rtl')
 
 const idRef = computed(() => props.taskId)
-const { data: task } = useTask(idRef)
+const { data: task, error, refetch } = useTask(idRef)
 // A host that keeps its filters in the URL (the project screen) passes them
 // in via siblingParams; مهامي's host passes nothing, so this falls back to
 // the same localStorage-backed filters ref the table itself queries with,
@@ -230,7 +230,9 @@ useEventListener(document, 'keydown', onKeydown)
       </div>
     </div>
 
-    <div v-if="!task" class="nasq-panel flex min-h-56 items-center justify-center p-4">
+    <SharedPageState v-if="error" :error="error" @retry="refetch" />
+
+    <div v-else-if="!task" class="nasq-panel flex min-h-56 items-center justify-center p-4">
       <Skeleton class="h-40 w-full" />
     </div>
 

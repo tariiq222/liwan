@@ -24,6 +24,7 @@ describe('admin composable request and response contracts', () => {
     expect(adminUserCandidateQuery({ q: '  sara@example.com ', limit: 500, offset: 3 })).toEqual({ q: 'sara@example.com', limit: 200, offset: 3 })
     expect(adminUserCandidateQuery({ employee_id: 18, limit: 25, offset: 0 })).toEqual({ q: undefined, employee_id: 18, limit: 25, offset: 0 })
     expect(adminRoleListQuery({ q: '', type: 'custom', status: 'disabled', limit: 50, offset: 10 })).toEqual({ q: undefined, type: 'custom', status: 'disabled', limit: 50, offset: 10 })
+    expect(adminAuditListQuery({})).toMatchObject({ limit: 25, offset: 0 })
     expect(adminAuditListQuery({ target_type: 'role', target_id: 12, action: 'role.updated', limit: 500 })).toEqual({ from: undefined, to: undefined, actor_id: undefined, target_type: 'role', target_id: 12, action: 'role.updated', limit: 200, offset: 0 })
   })
 

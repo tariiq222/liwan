@@ -1,18 +1,13 @@
 <script setup lang="ts">
 import type { PermissionDefinition } from '@nasq/contracts'
 import SettingsLayout from '@/components/settings/SettingsLayout.vue'
+import { adminListQuery, adminPathWithQuery } from '@/composables/adminSettingsPaths'
 const route = useRoute()
 const { t, locale } = useI18n()
 const { can } = useAccess()
 const id = computed(() => Number(route.params.userId))
 const returnTo = computed(() => {
-  const query = new URLSearchParams()
-  for (const key of ['q', 'status', 'role_id', 'department_id', 'offset']) {
-    const value = route.query[key]
-    if (value) query.set(key, String(value))
-  }
-  const suffix = query.toString()
-  return `/settings/users${suffix ? `?${suffix}` : ''}`
+  return adminPathWithQuery('/settings/users', adminListQuery(route.query, ['q', 'status', 'role_id', 'department_id', 'offset']))
 })
 const returnQuery = computed(() => returnTo.value.includes('?') ? `?${returnTo.value.split('?')[1]}` : '')
 const accessTo = computed(() => `/settings/users/${id.value}/access${returnQuery.value}`)

@@ -77,7 +77,7 @@ const table = useVueTable({
 </script>
 
 <template>
-  <div class="space-y-2">
+  <div class="min-w-0 space-y-2">
     <div class="nasq-panel overflow-hidden">
       <div class="overflow-x-auto">
       <Table class="table-fixed min-w-[820px]">
