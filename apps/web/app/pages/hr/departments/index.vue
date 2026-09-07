@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import { List, Network, Search } from '@lucide/vue'
 import DepartmentTable from '@/components/hr/DepartmentTable.vue'
 import DepartmentTree from '@/components/hr/DepartmentTree.vue'
+import FilterBar from '@/components/shared/FilterBar.vue'
 import { buildDepartmentTree } from '@/lib/departmentTree'
 import { toast } from 'vue-sonner'
 import { ApiError } from '@/composables/useApi'
@@ -36,10 +38,25 @@ async function confirmDelete() {
     <SharedPageHeader :title="t('hr.depts.title')" back-to="/hr">
       <NuxtLink v-if="can('hr.departments.manage')" :to="{ path: '/hr/departments/new', query: returnToQuery(route.fullPath) }"><Button>{{ t('hr.depts.new') }}</Button></NuxtLink>
     </SharedPageHeader>
-    <div class="nasq-toolbar nasq-panel flex flex-wrap items-center">
-      <Input v-model="search" :disabled="!hydrated" :aria-label="t('hr.depts.search')" :placeholder="t('hr.depts.search')" class="max-w-sm" />
-      <Button variant="outline" :disabled="!hydrated" :aria-pressed="!treeView" @click="setView(false)">{{ t('hr.depts.listView') }}</Button>
-      <Button variant="outline" :disabled="!hydrated" :aria-pressed="treeView" @click="setView(true)">{{ t('hr.depts.hierarchy') }}</Button>
+    <div class="nasq-toolbar">
+      <FilterBar class="w-full">
+        <template #search>
+          <div class="relative min-w-52 flex-1">
+            <Search class="pointer-events-none absolute start-2 top-1/2 size-[18px] -translate-y-1/2 text-muted-foreground" />
+            <Input v-model="search" :disabled="!hydrated" :aria-label="t('hr.depts.search')" :placeholder="t('hr.depts.search')" class="ps-8" />
+          </div>
+        </template>
+        <template #view>
+          <div role="group" class="inline-flex h-[40px] items-center rounded-lg border bg-muted/40 p-0.5" :aria-label="t('hr.depts.title')">
+            <Button type="button" variant="ghost" size="icon" class="size-[32px] rounded-md" :class="!treeView ? 'bg-background shadow-sm' : ''" :disabled="!hydrated" :aria-label="t('hr.depts.listView')" :aria-pressed="!treeView" @click="setView(false)">
+              <List class="size-[18px]" />
+            </Button>
+            <Button type="button" variant="ghost" size="icon" class="size-[32px] rounded-md" :class="treeView ? 'bg-background shadow-sm' : ''" :disabled="!hydrated" :aria-label="t('hr.depts.hierarchy')" :aria-pressed="treeView" @click="setView(true)">
+              <Network class="size-[18px]" />
+            </Button>
+          </div>
+        </template>
+      </FilterBar>
     </div>
     <SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!departments.length" @retry="query.refetch">
       <DepartmentTree v-if="treeView" :roots="roots" :query="search" :hydrated="hydrated" :can-manage="can('hr.departments.manage')" :can-read-employees="can('hr.employees.read')" :can-read-documents="can('hr.documents.read')" @select="openDepartment" @edit="editDepartment" @create-child="createChild" />

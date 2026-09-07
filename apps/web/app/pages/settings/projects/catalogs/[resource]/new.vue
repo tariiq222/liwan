@@ -29,10 +29,8 @@ function onSaved() {
     <SharedPageHeader :title="title" :back-to="returnTo" :back-label="t('settings.projects.catalogs.back')" />
     <p v-if="!resource" class="text-muted-foreground">{{ t('settings.projects.catalogs.notFound') }}</p>
     <p v-else-if="forbidden" class="text-muted-foreground">{{ t('settings.forbidden') }}</p>
-    <Card v-else>
-      <CardContent class="pt-6">
-        <ProjectCharterReferenceForm :resource="resource" @saved="onSaved" @cancel="router.push(returnTo)" />
-      </CardContent>
-    </Card>
+    <section v-else class="nasq-panel nasq-panel-body">
+      <ProjectCharterReferenceForm :resource="resource" @saved="onSaved" @cancel="router.push(returnTo)" />
+    </section>
   </SharedPageContainer>
 </template>

@@ -5,7 +5,7 @@ import { useProjectTemplate, useUpdateProjectTemplate, useProjectTemplateNavigat
 
 const route = useRoute(); const router = useRouter(); const { t } = useI18n()
 const id = computed(() => { const value = Number(route.params.id); return Number.isInteger(value) && value > 0 ? value : null })
-const { data: template, isPending, error } = useProjectTemplate(id); const mutation = useUpdateProjectTemplate(); const resetKey = ref(0)
+const { data: template, isLoading, error, refetch } = useProjectTemplate(id); const mutation = useUpdateProjectTemplate(); const resetKey = ref(0)
 const { returnTo, templatePath } = useProjectTemplateNavigation()
 async function save(patch: Parameters<typeof mutation.mutate>[0]['patch']) {
   if (!id.value || !template.value?.can_manage || mutation.isPending.value) return
@@ -19,4 +19,4 @@ async function save(patch: Parameters<typeof mutation.mutate>[0]['patch']) {
 }
 </script>
 
-<template><SharedPageContainer width="form"><SharedPageHeader :title="t('projects.templates.edit')" :back-to="id ? templatePath(id) : returnTo" /><p v-if="isPending && !template" role="status" class="text-muted-foreground">{{ t('projects.loading') }}</p><p v-else-if="error || !template" role="alert" class="text-destructive">{{ t('projects.templates.notFound') }}</p><p v-else-if="!template.can_manage" role="alert">{{ t('projects.forbidden') }}</p><Card v-else class="nasq-form"><CardContent><ProjectTemplateEditor :reset-key="resetKey" :template="template" :busy="mutation.isPending.value" @save="save" @cancel="router.push(templatePath(template.id))" /></CardContent></Card><p v-if="mutation.error.value" role="alert" class="text-destructive">{{ t('projects.templates.saveError') }}</p></SharedPageContainer></template>
+<template><SharedPageContainer width="form"><SharedPageHeader :title="t('projects.templates.edit')" :back-to="id ? templatePath(id) : returnTo" /><SharedPageState :loading="isLoading && !template" :error="template ? null : error" :empty="!isLoading && !error && !template" :empty-text="t('projects.templates.notFound')" @retry="refetch"><p v-if="template && !template.can_manage" role="alert">{{ t('projects.forbidden') }}</p><Card v-else-if="template" class="nasq-form"><CardContent><ProjectTemplateEditor :reset-key="resetKey" :template="template" :busy="mutation.isPending.value" @save="save" @cancel="router.push(templatePath(template.id))" /></CardContent></Card></SharedPageState><p v-if="mutation.error.value" role="alert" class="text-destructive">{{ t('projects.templates.saveError') }}</p></SharedPageContainer></template>

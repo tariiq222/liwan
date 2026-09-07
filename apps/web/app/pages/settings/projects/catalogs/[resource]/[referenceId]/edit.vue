@@ -36,13 +36,17 @@ function onSaved() {
   <SharedPageContainer width="form">
     <SharedPageHeader :title="t('settings.projects.catalogs.editTitle')" :back-to="returnTo" :back-label="t('settings.projects.catalogs.back')" />
     <p v-if="forbidden" class="text-muted-foreground">{{ t('settings.forbidden') }}</p>
-    <p v-else-if="query.isLoading.value" role="status" class="text-muted-foreground">{{ t('app.loading') }}</p>
-    <p v-else-if="notFound" class="text-muted-foreground">{{ t('settings.projects.catalogs.notFound') }}</p>
-    <p v-else-if="query.error.value || !query.data.value" role="alert" class="text-destructive">{{ t('settings.projects.catalogs.loadError') }}</p>
-    <Card v-else>
-      <CardContent class="pt-6">
-        <ProjectCharterReferenceForm :resource="resource!" :reference="query.data.value" @saved="onSaved" @cancel="router.push(returnTo)" />
-      </CardContent>
-    </Card>
+    <SharedPageState
+      v-else
+      :loading="query.isLoading.value"
+      :error="notFound ? null : query.error.value"
+      :empty="notFound || !query.data.value"
+      :empty-text="t('settings.projects.catalogs.notFound')"
+      @retry="query.refetch"
+    >
+      <section v-if="query.data.value && resource" class="nasq-panel nasq-panel-body">
+        <ProjectCharterReferenceForm :resource="resource" :reference="query.data.value" @saved="onSaved" @cancel="router.push(returnTo)" />
+      </section>
+    </SharedPageState>
   </SharedPageContainer>
 </template>

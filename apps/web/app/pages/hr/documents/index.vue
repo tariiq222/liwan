@@ -1,15 +1,146 @@
 <script setup lang="ts">
+import { Plus, Search, X } from '@lucide/vue'
+import FilterBar from '@/components/shared/FilterBar.vue'
 import { useHrDocuments } from '@/composables/useHrDocuments'
 import { useHrDepartments } from '@/composables/useHrDepartments'
 import { returnToQuery } from '@/utils/safeReturnTo'
-const route = useRoute(); const router = useRouter(); const { t } = useI18n(); const hydrated = useHydrated(); const { can } = useAccess()
-const search = ref(String(route.query.q ?? '')); const departmentId = ref(route.query.department_id ? Number(route.query.department_id) : undefined); const limit = 25; const offset = ref(Math.max(0, Number(route.query.offset ?? 0) || 0))
-const query = useHrDocuments(computed(() => ({ q: search.value.trim() || undefined, department_id: departmentId.value, limit, offset: offset.value }))); const departments = useHrDepartments()
-const page = computed(() => Math.floor(offset.value / limit) + 1); const pages = computed(() => Math.max(1, Math.ceil((query.data.value?.total ?? 0) / limit)))
-watch(() => [route.query.q, route.query.department_id, route.query.offset], ([q, department, nextOffset]) => { search.value = String(q ?? ''); departmentId.value = department ? Number(department) : undefined; offset.value = Math.max(0, Number(nextOffset ?? 0) || 0) })
-watch(search, (value) => { if (value !== String(route.query.q ?? '')) updateFilters() })
-function updateFilters() { offset.value = 0; void router.replace({ query: { ...(search.value.trim() ? { q: search.value.trim() } : {}), ...(departmentId.value ? { department_id: departmentId.value } : {}) } }) }
-function updateDepartment(event: Event) { const value = (event.target as HTMLSelectElement).value; departmentId.value = value ? Number(value) : undefined; updateFilters() }
-function setPage(next: number) { if (!hydrated.value || query.isFetching.value || next < 1 || next > pages.value) return; offset.value = (next - 1) * limit; void router.replace({ query: { ...route.query, ...(offset.value ? { offset: offset.value } : {}) } }) }
+
+const route = useRoute()
+const router = useRouter()
+const { t } = useI18n()
+const hydrated = useHydrated()
+const { can } = useAccess()
+const search = ref(String(route.query.q ?? ''))
+const departmentId = ref(route.query.department_id ? Number(route.query.department_id) : undefined)
+const limit = 25
+const offset = ref(Math.max(0, Number(route.query.offset ?? 0) || 0))
+const query = useHrDocuments(computed(() => ({
+  q: search.value.trim() || undefined,
+  department_id: departmentId.value,
+  limit,
+  offset: offset.value,
+})))
+const departments = useHrDepartments()
+const page = computed(() => Math.floor(offset.value / limit) + 1)
+const pages = computed(() => Math.max(1, Math.ceil((query.data.value?.total ?? 0) / limit)))
+const selectedDepartment = computed(() => departments.data.value?.items.find(department => department.id === departmentId.value))
+const hasActiveFilters = computed(() => Boolean(search.value.trim() || departmentId.value))
+
+watch(() => [route.query.q, route.query.department_id, route.query.offset], ([q, department, nextOffset]) => {
+  search.value = String(q ?? '')
+  departmentId.value = department ? Number(department) : undefined
+  offset.value = Math.max(0, Number(nextOffset ?? 0) || 0)
+})
+watch(search, (value) => {
+  if (value !== String(route.query.q ?? '')) updateFilters()
+})
+
+function updateFilters() {
+  offset.value = 0
+  void router.replace({
+    query: {
+      ...(search.value.trim() ? { q: search.value.trim() } : {}),
+      ...(departmentId.value ? { department_id: departmentId.value } : {}),
+    },
+  })
+}
+function onDepartmentChange(value: unknown) {
+  departmentId.value = value && value !== 'all' ? Number(value) : undefined
+  updateFilters()
+}
+function clearFilters() {
+  search.value = ''
+  departmentId.value = undefined
+  updateFilters()
+}
+function setPage(next: number) {
+  if (!hydrated.value || query.isFetching.value || next < 1 || next > pages.value) return
+  offset.value = (next - 1) * limit
+  void router.replace({ query: { ...route.query, ...(offset.value ? { offset: offset.value } : {}) } })
+}
 </script>
-<template><SharedPageContainer width="list"><SharedPageHeader :title="t('hr.docs.title')" :back-to="'/hr'"><NuxtLink v-if="can('hr.documents.manage')" :to="{ path: '/hr/documents/new', query: { ...returnToQuery(route.fullPath), department_id: departmentId } }"><Button :disabled="!hydrated">{{ t('hr.docs.new') }}</Button></NuxtLink></SharedPageHeader><div class="nasq-toolbar nasq-panel flex flex-wrap items-center"><Input v-model="search" :disabled="!hydrated" :placeholder="t('hr.docs.search')" class="min-w-56 flex-1" @change="updateFilters" /><select v-if="can('hr.departments.read')" :aria-label="t('hr.directory.allDepartments')" :value="departmentId ?? ''" class="h-9 min-w-48 rounded-md border border-input bg-background px-3 text-sm" :disabled="!hydrated" @change="updateDepartment"><option value="">{{ t('hr.directory.allDepartments') }}</option><option v-for="department in departments.data.value?.items ?? []" :key="department.id" :value="department.id">{{ department.name }}</option></select></div><SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!query.data.value?.items.length" @retry="query.refetch"><div class="nasq-panel overflow-hidden"><NuxtLink v-for="document in query.data.value?.items" :key="document.id" :to="{ path: `/hr/departments/${document.department.id}/documents/${document.id}`, query: returnToQuery(route.fullPath) }" class="flex items-center gap-3 border-b border-border/80 p-3 last:border-0 transition-colors hover:bg-muted/70"><span class="font-medium">{{ document.name }}</span><span class="ms-2 text-sm text-muted-foreground">{{ document.department.name }}</span></NuxtLink></div></SharedPageState><div v-if="pages > 1" class="flex items-center justify-between text-sm text-muted-foreground"><Button variant="ghost" :disabled="!hydrated || page === 1 || query.isFetching.value" @click="setPage(page - 1)">{{ t('access.previousPage') }}</Button><span>{{ t('access.pageOf', { page, pages }) }}</span><Button variant="ghost" :disabled="!hydrated || page >= pages || query.isFetching.value" @click="setPage(page + 1)">{{ t('access.nextPage') }}</Button></div></SharedPageContainer></template>
+
+<template>
+  <SharedPageContainer width="list">
+    <SharedPageHeader :title="t('hr.docs.title')" :back-to="'/hr'" />
+    <div class="nasq-toolbar" data-testid="documents-toolbar">
+      <FilterBar class="w-full">
+        <template #search>
+          <div class="relative min-w-52 flex-1">
+            <Search class="pointer-events-none absolute start-2 top-1/2 size-[18px] -translate-y-1/2 text-muted-foreground" />
+            <Input
+              v-model="search"
+              :disabled="!hydrated"
+              :placeholder="t('hr.docs.search')"
+              :aria-label="t('hr.docs.search')"
+              class="ps-8"
+              @change="updateFilters"
+            />
+          </div>
+        </template>
+        <template #default>
+          <Select
+            v-if="can('hr.departments.read')"
+            :model-value="departmentId ? String(departmentId) : 'all'"
+            @update:model-value="onDepartmentChange"
+          >
+            <SelectTrigger class="w-48" :disabled="!hydrated" :aria-label="t('hr.docs.allDepartments')">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{{ t('hr.docs.allDepartments') }}</SelectItem>
+              <SelectItem v-for="department in departments.data.value?.items ?? []" :key="department.id" :value="String(department.id)">
+                {{ department.name }}
+              </SelectItem>
+            </SelectContent>
+          </Select>
+          <NuxtLink
+            v-if="can('hr.documents.manage')"
+            :to="{ path: '/hr/documents/new', query: { ...returnToQuery(route.fullPath), department_id: departmentId } }"
+          >
+            <Button :disabled="!hydrated" class="gap-2">
+              <Plus class="size-[18px]" />{{ t('hr.docs.new') }}
+            </Button>
+          </NuxtLink>
+        </template>
+        <template #active>
+          <div v-if="hasActiveFilters" class="flex flex-wrap items-center gap-2">
+            <Badge v-if="search.trim()" variant="secondary">{{ t('hr.directory.searchValue', { value: search }) }}</Badge>
+            <Badge v-if="selectedDepartment" variant="secondary">{{ selectedDepartment.name }}</Badge>
+            <Button variant="ghost" size="sm" class="gap-1" :disabled="!hydrated" @click="clearFilters">
+              <X class="size-3.5" />{{ t('hr.directory.clear') }}
+            </Button>
+          </div>
+        </template>
+      </FilterBar>
+    </div>
+    <SharedPageState
+      :loading="query.isLoading.value"
+      :error="query.error.value"
+      :empty="!query.data.value?.items.length"
+      :empty-text="t('hr.docs.empty')"
+      @retry="query.refetch"
+    >
+      <div class="nasq-panel overflow-hidden">
+        <NuxtLink
+          v-for="document in query.data.value?.items"
+          :key="document.id"
+          :to="{ path: `/hr/departments/${document.department.id}/documents/${document.id}`, query: returnToQuery(route.fullPath) }"
+          class="flex items-center gap-3 border-b border-border/80 p-3 last:border-0 transition-colors hover:bg-muted/70"
+        >
+          <span class="font-medium">{{ document.name }}</span>
+          <span class="ms-2 text-sm text-muted-foreground">{{ document.department.name }}</span>
+        </NuxtLink>
+      </div>
+    </SharedPageState>
+    <div v-if="pages > 1" class="flex items-center justify-between text-sm text-muted-foreground">
+      <Button variant="ghost" :disabled="!hydrated || page === 1 || query.isFetching.value" @click="setPage(page - 1)">
+        {{ t('access.previousPage') }}
+      </Button>
+      <span>{{ t('access.pageOf', { page, pages }) }}</span>
+      <Button variant="ghost" :disabled="!hydrated || page >= pages || query.isFetching.value" @click="setPage(page + 1)">
+        {{ t('access.nextPage') }}
+      </Button>
+    </div>
+  </SharedPageContainer>
+</template>

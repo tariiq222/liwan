@@ -163,7 +163,7 @@ useEventListener(document, 'keydown', onKeydown)
   <div class="space-y-4">
     <div class="task-context-row" data-testid="task-detail-context">
       <div class="flex min-w-0 flex-1 items-center gap-2">
-        <NuxtLink :to="props.backTo ?? { path: '/tasks', query: route.query }" class="inline-flex min-h-8 shrink-0 items-center gap-2 rounded-lg px-2 text-sm text-muted-foreground hover:bg-muted" :aria-label="props.backLabel ?? t('tasks.detail.back')" :aria-disabled="!hydrated || editingTitle || titleSaving" :tabindex="!hydrated || editingTitle || titleSaving ? -1 : undefined" @click="(!hydrated || editingTitle || titleSaving) && $event.preventDefault()">
+        <NuxtLink :to="props.backTo ?? { path: '/tasks', query: route.query }" class="inline-flex min-h-8 shrink-0 items-center gap-1 rounded-lg px-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" :aria-label="props.backLabel ?? t('tasks.detail.back')" :aria-disabled="!hydrated || editingTitle || titleSaving" :tabindex="!hydrated || editingTitle || titleSaving ? -1 : undefined" @click="(!hydrated || editingTitle || titleSaving) && $event.preventDefault()">
           <component :is="isRtl ? ArrowRight : ArrowLeft" class="size-[18px]" />
           <span>{{ props.backLabel ?? t('tasks.detail.back') }}</span>
         </NuxtLink>
@@ -221,7 +221,7 @@ useEventListener(document, 'keydown', onKeydown)
       </div>
     </div>
 
-    <div v-if="task && archiveConfirmOpen" data-testid="task-archive-confirm" class="nasq-panel space-y-2 border-destructive/40 bg-destructive/5 p-4 text-sm">
+    <div v-if="task && archiveConfirmOpen" data-testid="task-archive-confirm" class="nasq-status-callout-danger space-y-2 p-4 text-sm">
       <p class="font-medium">{{ t('tasks.drawer.archive') }}</p>
       <p class="text-muted-foreground">{{ t('tasks.drawer.archiveConfirm') }}</p>
       <div class="flex flex-wrap gap-2">
