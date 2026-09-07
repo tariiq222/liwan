@@ -8,6 +8,7 @@ import { useUpdateTask, useTasks } from '@/composables/useTasks'
 import { usePersonalStages } from '@/composables/usePersonalStages'
 import TaskCard from './TaskCard.vue'
 import EmptyState from '@/components/shared/EmptyState.vue'
+import { isBoardCapped } from '@/lib/boardCap'
 
 const props = withDefaults(defineProps<{ params: TaskListParams; stageSource?: StageSource; embedded?: boolean }>(), {
   stageSource: () => ({ kind: 'personal' }),
@@ -23,8 +24,9 @@ const { t } = useI18n()
 const CAP = 200
 
 const paramsRef = computed(() => props.params)
-const { data, hasNextPage, fetchNextPage, isFetchingNextPage, isLoading } = useTasks(paramsRef)
-const { data: stagesData } = usePersonalStages()
+const { data, hasNextPage, fetchNextPage, isFetchingNextPage, isLoading, error, refetch } = useTasks(paramsRef)
+const kind = computed(() => props.stageSource.kind)
+const { data: stagesData, error: personalStagesError, isLoading: personalStagesLoading, refetch: refetchPersonalStages } = usePersonalStages()
 const { mutate: updateTask } = useUpdateTask()
 
 const allItems = computed<Task[]>(() => data.value?.pages.flatMap((page) => page.items) ?? [])
@@ -35,10 +37,11 @@ watchEffect(() => {
   }
 })
 
-const isCapped = computed(() => allItems.value.length >= CAP && hasNextPage.value === true)
+const isCapped = computed(() => isBoardCapped(allItems.value.length, CAP, hasNextPage.value))
 const items = computed(() => allItems.value.slice(0, CAP))
 
-const kind = computed(() => props.stageSource.kind)
+const stageError = computed(() => kind.value === 'personal' ? personalStagesError.value : null)
+const stageLoading = computed(() => kind.value === 'personal' && personalStagesLoading.value)
 const sortedStages = computed<BoardStage[]>(() => {
   const src = props.stageSource.kind === 'project' ? props.stageSource.stages : (stagesData.value ?? [])
   return [...src].sort((a, b) => a.sequence - b.sequence || a.id - b.id)
@@ -111,13 +114,16 @@ function isCollapsed(stage: BoardStage): boolean {
 <template>
   <div :class="embedded ? 'space-y-2 p-[18px]' : 'space-y-2'">
     <p v-if="isCapped" class="text-xs text-muted-foreground">{{ t('tasks.kanban.capped') }}</p>
+    <SharedPageState v-if="error" :error="error" @retry="refetch" />
+    <SharedPageState v-else-if="stageError" :error="stageError" @retry="refetchPersonalStages" />
+    <SharedPageState v-else-if="stageLoading" loading />
     <!--
       A fixed board height with per-column vertical scroll (rather than
       letting the whole page grow with the tallest column) keeps every
       column's header and drop target reachable regardless of how many
       cards a stage holds — the board only scrolls horizontally, per spec.
     -->
-    <div class="flex min-h-[420px] items-start gap-3 overflow-x-auto pb-2" :class="embedded ? 'h-[calc(100vh-340px)]' : 'h-[calc(100vh-260px)]'">
+    <div v-else class="flex min-h-[420px] items-start gap-3 overflow-x-auto pb-2" :class="embedded ? 'h-[calc(100vh-340px)]' : 'h-[calc(100vh-260px)]'">
       <!-- Leading "unstaged" column: tasks with no stage yet. Always shown on
            the personal board; on a project board only when it actually holds
            cards, since a project task always has a stage and the column
@@ -161,6 +167,8 @@ function isCollapsed(stage: BoardStage): boolean {
           type="button"
           data-testid="board-column-folded"
           :data-stage-id="stage.id"
+          :aria-expanded="false"
+          :aria-label="t('tasks.kanban.expand', { name: stage.name })"
           class="flex h-full w-12 shrink-0 flex-col items-center gap-2 rounded-lg border bg-muted/30 p-2 text-muted-foreground hover:bg-muted"
           @click="toggleFold(stage.id)"
         >
@@ -175,14 +183,18 @@ function isCollapsed(stage: BoardStage): boolean {
           class="flex h-full w-72 shrink-0 flex-col gap-2 rounded-lg border bg-muted/30 p-2"
         >
           <div class="flex items-center justify-between px-1">
-            <h3
+            <button
+              v-if="stage.fold"
+              type="button"
               data-testid="board-column-title"
-              class="cursor-pointer text-sm font-medium"
-              :class="{ 'hover:underline': stage.fold }"
-              @click="stage.fold && toggleFold(stage.id)"
+              class="text-start text-sm font-medium hover:underline"
+              :aria-expanded="!isCollapsed(stage)"
+              :aria-label="t('tasks.kanban.collapse', { name: stage.name })"
+              @click="toggleFold(stage.id)"
             >
               {{ stage.name }}
-            </h3>
+            </button>
+            <h3 v-else data-testid="board-column-title" class="text-sm font-medium">{{ stage.name }}</h3>
             <span class="text-xs text-muted-foreground">{{ columns[String(stage.id)]?.length ?? 0 }}</span>
           </div>
           <VueDraggable

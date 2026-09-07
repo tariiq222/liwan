@@ -10,6 +10,19 @@ export interface ArchivedTaskParams {
   mine?: boolean
 }
 
+export function archivedTaskQuery(params: ArchivedTaskParams, offset: number) {
+  return {
+    project_id: params.project_id,
+    // The API requires an explicit scope. An unscoped archive is the current
+    // user's archive; a project-scoped request keeps the project's permitted
+    // archive unless the caller explicitly asks for mine.
+    filter: params.project_id === undefined || params.mine ? 'mine' : undefined,
+    q: params.q || undefined,
+    limit: PAGE,
+    offset,
+  }
+}
+
 export const archivedTaskKeys = {
   list: (params: ArchivedTaskParams) => ['tasks', 'archived', params] as const,
 }
@@ -19,13 +32,7 @@ export function useArchivedTasks(params: Ref<ArchivedTaskParams>) {
   return useInfiniteQuery({
     queryKey: computed(() => archivedTaskKeys.list(params.value)),
     queryFn: ({ pageParam }) => $api('/api/v1/tasks/archived', {
-      query: {
-        project_id: params.value.project_id,
-        filter: params.value.mine ? 'mine' : undefined,
-        q: params.value.q || undefined,
-        limit: PAGE,
-        offset: pageParam,
-      },
+      query: archivedTaskQuery(params.value, pageParam),
       schema: TaskListSchema,
     }),
     initialPageParam: 0,
@@ -50,4 +57,3 @@ export function useRestoreTask() {
     },
   })
 }
-

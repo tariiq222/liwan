@@ -61,15 +61,19 @@ onBeforeUnmount(() => {
 })
 
 function toggleBold() {
+  if (props.disabled) return
   editor.value?.chain().focus().toggleBold().run()
 }
 function toggleItalic() {
+  if (props.disabled) return
   editor.value?.chain().focus().toggleItalic().run()
 }
 function toggleBulletList() {
+  if (props.disabled) return
   editor.value?.chain().focus().toggleBulletList().run()
 }
 function toggleOrderedList() {
+  if (props.disabled) return
   editor.value?.chain().focus().toggleOrderedList().run()
 }
 function toggleLink() {
@@ -100,22 +104,22 @@ function applyLink() {
     -->
     <div class="rounded-lg border border-border/80 bg-card" @keydown.esc.capture="emit('escape')">
       <div class="flex items-center gap-1 border-b p-1">
-        <Button variant="ghost" size="icon" class="size-[32px] rounded-lg border border-border" :class="{ 'bg-accent': editor?.isActive('bold') }" type="button" :disabled="disabled" :aria-label="t('tasks.detail.bold')" @click="toggleBold">
+        <Button variant="ghost" size="icon" class="size-[32px] rounded-lg border border-border" :class="{ 'bg-accent': editor?.isActive('bold') }" type="button" :disabled="disabled" :aria-pressed="!!editor?.isActive('bold')" :aria-label="t('tasks.detail.bold')" @click="toggleBold">
           <Bold class="size-[18px]" />
         </Button>
-        <Button variant="ghost" size="icon" class="size-[32px] rounded-lg border border-border" :class="{ 'bg-accent': editor?.isActive('italic') }" type="button" :disabled="disabled" :aria-label="t('tasks.detail.italic')" @click="toggleItalic">
+        <Button variant="ghost" size="icon" class="size-[32px] rounded-lg border border-border" :class="{ 'bg-accent': editor?.isActive('italic') }" type="button" :disabled="disabled" :aria-pressed="!!editor?.isActive('italic')" :aria-label="t('tasks.detail.italic')" @click="toggleItalic">
           <Italic class="size-[18px]" />
         </Button>
-        <Button variant="ghost" size="icon" class="size-[32px] rounded-lg border border-border" :class="{ 'bg-accent': editor?.isActive('bulletList') }" type="button" :disabled="disabled" :aria-label="t('tasks.detail.bulletList')" @click="toggleBulletList">
+        <Button variant="ghost" size="icon" class="size-[32px] rounded-lg border border-border" :class="{ 'bg-accent': editor?.isActive('bulletList') }" type="button" :disabled="disabled" :aria-pressed="!!editor?.isActive('bulletList')" :aria-label="t('tasks.detail.bulletList')" @click="toggleBulletList">
           <List class="size-[18px]" />
         </Button>
         <Button
-          variant="ghost" size="icon" class="size-[32px] rounded-lg border border-border" :class="{ 'bg-accent': editor?.isActive('orderedList') }" type="button" :aria-label="t('tasks.detail.orderedList')"
+          variant="ghost" size="icon" class="size-[32px] rounded-lg border border-border" :class="{ 'bg-accent': editor?.isActive('orderedList') }" type="button" :disabled="disabled" :aria-pressed="!!editor?.isActive('orderedList')" :aria-label="t('tasks.detail.orderedList')"
           @click="toggleOrderedList"
         >
           <ListOrdered class="size-[18px]" />
         </Button>
-        <Button variant="ghost" size="icon" class="size-[32px] rounded-lg border border-border" :class="{ 'bg-accent': editor?.isActive('link') }" type="button" :disabled="disabled" :aria-label="t('tasks.detail.linkPrompt')" @click="toggleLink">
+        <Button variant="ghost" size="icon" class="size-[32px] rounded-lg border border-border" :class="{ 'bg-accent': editor?.isActive('link') }" type="button" :disabled="disabled" :aria-pressed="!!editor?.isActive('link')" :aria-label="t('tasks.detail.linkPrompt')" @click="toggleLink">
           <LinkIcon class="size-[18px]" />
         </Button>
       </div>

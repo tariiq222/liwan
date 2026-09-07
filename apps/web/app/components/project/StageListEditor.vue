@@ -75,6 +75,7 @@ function onHandleKeydown(event: KeyboardEvent, stage: StageRow) {
 // --- inline rename (double-click, or Enter/Space while the name is focused) --
 const editingId = ref<StageRow['id'] | null>(null)
 const editDraft = ref('')
+const pendingDeleteId = ref<StageRow['id'] | null>(null)
 // The Input sits inside v-for, so a named string ref would be marked
 // ref_for by Vue and renameInputEl.value would come back as an array
 // ([componentInstance]) instead of the element, leaving focus()/select()
@@ -114,6 +115,21 @@ function submitAdd() {
   emit('add', name)
   newName.value = ''
 }
+
+function requestDelete(stageId: StageRow['id']) {
+  if (disabled.value) return
+  pendingDeleteId.value = stageId
+}
+
+function cancelDelete() {
+  if (!props.busy) pendingDeleteId.value = null
+}
+
+function confirmDelete(stageId: StageRow['id']) {
+  if (pendingDeleteId.value !== stageId || disabled.value) return
+  pendingDeleteId.value = null
+  emit('delete', stageId)
+}
 </script>
 
 <template>
@@ -124,7 +140,7 @@ function submitAdd() {
     </p>
 
     <VueDraggable v-model="localStages" :disabled="disabled" handle=".stage-drag-handle" :animation="150" class="space-y-1" @end="onDragEnd">
-      <div v-for="stage in localStages" :key="stage.id" data-testid="stage-row" class="flex items-center gap-2 rounded-md border p-2">
+      <div v-for="stage in localStages" :key="stage.id" data-testid="stage-row" class="flex flex-wrap items-center gap-2 rounded-md border p-2">
         <button
           type="button"
           class="stage-drag-handle shrink-0 rounded p-1 text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -168,18 +184,26 @@ function submitAdd() {
           {{ t('projects.stages.fold') }}
         </Toggle>
 
-        <Button
-          v-if="(stage.task_count ?? 0) === 0"
-          variant="ghost"
-          size="icon"
-          type="button"
-          data-testid="stage-delete"
-          :aria-label="t('projects.stages.delete')"
-          :disabled="disabled"
-          @click="emit('delete', stage.id)"
-        >
-          <Trash2 class="size-4" />
-        </Button>
+        <template v-if="(stage.task_count ?? 0) === 0">
+          <Button
+            variant="ghost"
+            size="icon"
+            type="button"
+            data-testid="stage-delete"
+            :aria-label="t('projects.stages.delete')"
+            :disabled="disabled"
+            @click="requestDelete(stage.id)"
+          >
+            <Trash2 class="size-4" />
+          </Button>
+          <div v-if="pendingDeleteId === stage.id" class="basis-full space-y-2 rounded-md border border-destructive/40 bg-destructive/5 p-2 text-sm" data-testid="stage-delete-confirm">
+            <p>{{ t('projects.stages.deleteConfirm') }}</p>
+            <div class="flex flex-wrap gap-2">
+              <Button type="button" variant="outline" size="sm" :disabled="props.busy" @click="cancelDelete">{{ t('app.cancel') }}</Button>
+              <Button type="button" variant="destructive" size="sm" :disabled="props.busy" @click="confirmDelete(stage.id)">{{ t('projects.stages.delete') }}</Button>
+            </div>
+          </div>
+        </template>
         <Tooltip v-else>
           <TooltipTrigger as-child>
             <span>

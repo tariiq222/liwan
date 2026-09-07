@@ -1,5 +1,6 @@
 import type { MaybeRefOrGetter } from 'vue'
 import { computed, toValue } from 'vue'
+import type { LocationQueryRaw } from 'vue-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import {
   HrDocumentListSchema,
@@ -17,6 +18,18 @@ import {
 export type { HrDocument, HrDocumentList }
 
 export type HrDocumentListParams = DocumentListQueryParams
+
+export function hrDocumentListRouteQuery(
+  routeQuery: LocationQueryRaw,
+  params: { q?: string; department_id?: number; offset: number },
+): LocationQueryRaw {
+  return {
+    ...routeQuery,
+    q: params.q?.trim() || undefined,
+    department_id: params.department_id ?? undefined,
+    offset: params.offset > 0 ? params.offset : undefined,
+  }
+}
 
 // TanStack serializes mutations sharing this scope. A single scope keeps
 // update and attachment responses ordered when the same document is edited.

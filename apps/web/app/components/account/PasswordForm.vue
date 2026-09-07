@@ -70,9 +70,9 @@ onBeforeUnmount(() => {
       <Input
         id="pw-current" v-model="current" data-testid="pw-current" type="password"
         autocomplete="current-password" dir="ltr" class="text-start"
-        :disabled="disabled" :aria-invalid="!!currentError"
+        :disabled="disabled" :aria-invalid="!!currentError" :aria-describedby="currentError ? 'pw-current-error' : undefined"
       />
-      <p v-if="currentError" class="text-sm text-destructive">{{ currentError }}</p>
+      <p v-if="currentError" id="pw-current-error" role="alert" class="text-sm text-destructive">{{ currentError }}</p>
     </div>
 
     <div class="grid gap-2">
@@ -80,9 +80,9 @@ onBeforeUnmount(() => {
       <Input
         id="pw-new" v-model="next" data-testid="pw-new" type="password"
         autocomplete="new-password" dir="ltr" class="text-start"
-        :disabled="disabled" :aria-invalid="!!newError"
+        :disabled="disabled" :aria-invalid="!!newError" :aria-describedby="newError ? 'pw-new-error' : undefined"
       />
-      <p v-if="newError" class="text-sm text-destructive">{{ newError }}</p>
+      <p v-if="newError" id="pw-new-error" role="alert" class="text-sm text-destructive">{{ newError }}</p>
     </div>
 
     <div class="grid gap-2">
@@ -90,11 +90,11 @@ onBeforeUnmount(() => {
       <Input
         id="pw-confirm" v-model="confirm" data-testid="pw-confirm" type="password"
         autocomplete="new-password" dir="ltr" class="text-start"
-        :disabled="disabled" :aria-invalid="!!formError"
+        :disabled="disabled" :aria-invalid="!!formError" :aria-describedby="formError ? 'pw-form-error' : undefined"
       />
     </div>
 
-    <p v-if="formError" role="alert" class="text-sm text-destructive">{{ formError }}</p>
+    <p v-if="formError" id="pw-form-error" role="alert" class="text-sm text-destructive">{{ formError }}</p>
     <p v-if="success" role="status" class="text-sm text-emerald-700 dark:text-emerald-300">{{ t('account.success') }}</p>
     <Button type="submit" data-testid="pw-submit" class="w-full sm:w-auto" :disabled="disabled">
       {{ t('account.submit') }}

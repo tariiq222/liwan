@@ -13,7 +13,7 @@ const projectId = computed(() => {
   const n = Number(route.params.id)
   return Number.isInteger(n) && n > 0 ? n : null
 })
-const { data: project, isLoading, error } = useProject(projectId)
+const { data: project, isLoading, error, refetch } = useProject(projectId)
 const notFound = computed(() => projectId.value === null || (error.value instanceof ApiError && [403, 404].includes(error.value.status)))
 const returnTo = computed(() => projectId.value ? safeReturnTo(route.query.returnTo, '/projects/' + projectId.value + '?tab=tasks', ['/projects']) : '/projects')
 function created(id: number) {
@@ -34,9 +34,7 @@ function created(id: number) {
     <template v-else-if="notFound">
       <p class="text-muted-foreground">{{ t('tasks.notFound') }}</p>
     </template>
-    <template v-else-if="error || !project">
-      <p role="alert" class="text-destructive">{{ t('tasks.loadError') }}</p>
-    </template>
+    <SharedPageState v-else-if="error || !project" :error="error" :empty="!error && !project" @retry="refetch" />
     <template v-else>
       <Card class="nasq-form"><CardContent><TaskCreateForm :project-id="projectId" @created="created" @cancel="router.push(returnTo)" /></CardContent></Card>
     </template>

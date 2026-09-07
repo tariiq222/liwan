@@ -11,6 +11,7 @@ export const PROJECT_REF_PAGE = 200
 
 export type ProjectListFilters = {
   q?: string
+  sort?: 'default' | 'name' | 'progress'
   status?: 'unset' | ProjectStatus
   limit?: number
   offset?: number
@@ -74,7 +75,7 @@ export function patchProjectListRoute(
     sort: patch.sort ?? current.sort,
     view: patch.view ?? current.view,
   }
-  if (patch.offset === undefined && (patch.q !== undefined || patch.status !== undefined || patch.archived !== undefined)) {
+  if (patch.offset === undefined && (patch.q !== undefined || patch.status !== undefined || patch.archived !== undefined || patch.sort !== undefined)) {
     next.offset = 0
   }
   return {
@@ -116,6 +117,7 @@ export function projectListQuery(archived: boolean, filters: ProjectListFilters 
     archived: archived ? 1 : undefined,
     q: filters.q?.trim() || undefined,
     status: filters.status,
+    ...(filters.sort && filters.sort !== 'default' ? { sort: filters.sort } : {}),
     limit,
     offset,
   }

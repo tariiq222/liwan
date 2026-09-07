@@ -20,7 +20,7 @@ function dateLabel(value: string | null) {
       <CardContent class="nasq-metadata p-0">
         <div class="flex items-center justify-between gap-3 px-[18px] py-3">
           <span class="flex items-center gap-2 text-sm text-muted-foreground"><UserRound class="size-4" />{{ t('projects.settings.manager') }}</span>
-          <span class="text-sm font-medium">{{ project.manager?.name ?? t('projects.settings.noManager') }}</span>
+          <span class="min-w-0 max-w-[60%] break-words text-end text-sm font-medium">{{ project.manager?.name ?? t('projects.settings.noManager') }}</span>
         </div>
         <div class="flex items-center justify-between gap-3 px-[18px] py-3">
           <span class="flex items-center gap-2 text-sm text-muted-foreground"><CalendarDays class="size-4" />{{ t('projects.settings.dateStart') }}</span>
@@ -40,8 +40,8 @@ function dateLabel(value: string | null) {
         </div>
         <div class="flex items-start justify-between gap-3 px-[18px] py-3">
           <span class="flex items-center gap-2 text-sm text-muted-foreground"><Tags class="size-4" />{{ t('projects.settings.tags') }}</span>
-          <div class="flex max-w-[60%] flex-wrap justify-end gap-1">
-            <Badge v-for="tag in project.tags" :key="tag.id" variant="secondary">{{ tag.name }}</Badge>
+          <div class="flex min-w-0 max-w-[60%] flex-wrap justify-end gap-1">
+            <Badge v-for="tag in project.tags" :key="tag.id" variant="secondary" class="min-w-0 max-w-full"><span class="min-w-0 max-w-full truncate" :title="tag.name">{{ tag.name }}</span></Badge>
             <span v-if="project.tags.length === 0" class="text-sm text-muted-foreground">—</span>
           </div>
         </div>

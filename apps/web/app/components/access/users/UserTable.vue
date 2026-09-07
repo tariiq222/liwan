@@ -4,8 +4,9 @@ import AccessStateBadge from '@/components/access/AccessStateBadge.vue'
 
 defineProps<{ users: AdminUserSummary[] }>()
 defineEmits<{ open: [id: number] }>()
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const hydrated = useHydrated()
+const roleLabel = (role: { name: { ar: string; en: string | null } }) => role.name[locale.value === 'ar' ? 'ar' : 'en'] ?? role.name.ar
 </script>
 
 <template>
@@ -26,7 +27,7 @@ const hydrated = useHydrated()
           <td class="font-medium">{{ user.name }}</td>
           <td  dir="ltr">{{ user.login }}</td>
           <td>{{ user.employee?.name ?? t('access.users.noEmployee') }}</td>
-          <td>{{ user.assignments.map((assignment) => assignment.role.name.ar).join('، ') || t('access.users.noRoles') }}</td>
+          <td>{{ user.assignments.map((assignment) => roleLabel(assignment.role)).join('، ') || t('access.users.noRoles') }}</td>
           <td><AccessStateBadge :active="user.active" :protected="user.protected" /></td>
           <td class="text-end">
             <Button variant="ghost" size="sm" :disabled="!hydrated" @click="$emit('open', user.id)">{{ t('access.view') }}</Button>

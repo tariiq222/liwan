@@ -2,6 +2,7 @@
 import RoleTable from '@/components/access/roles/RoleTable.vue'
 import SettingsLayout from '@/components/settings/SettingsLayout.vue'
 import { useAdminRoles, type AdminRoleListParams } from '@/composables/useAdminRoles'
+import { ADMIN_PAGE_SIZE, adminListQuery, adminQueryWithOffset, parseAdminOffset } from '@/composables/adminSettingsPaths'
 
 const route = useRoute()
 const router = useRouter()
@@ -9,24 +10,24 @@ const { t } = useI18n()
 const { can } = useAccess()
 const hydrated = useHydrated()
 const forbidden = computed(() => !can('access.roles.read'))
-const filters = reactive<AdminRoleListParams>({ q: String(route.query.q ?? ''), type: route.query.type === 'custom' ? 'custom' : route.query.type === 'built_in' ? 'built_in' : undefined, status: route.query.status === 'disabled' ? 'disabled' : route.query.status === 'active' ? 'active' : undefined, limit: 25, offset: route.query.offset ? Number(route.query.offset) : 0 })
+const filters = reactive<AdminRoleListParams>({ q: String(route.query.q ?? ''), type: route.query.type === 'custom' ? 'custom' : route.query.type === 'built_in' ? 'built_in' : undefined, status: route.query.status === 'disabled' ? 'disabled' : route.query.status === 'active' ? 'active' : undefined, limit: ADMIN_PAGE_SIZE, offset: parseAdminOffset(route.query.offset) })
 const query = useAdminRoles(filters, computed(() => !forbidden.value))
 const page = computed(() => Math.floor((filters.offset ?? 0) / (filters.limit ?? 25)) + 1)
 const pages = computed(() => Math.max(1, Math.ceil((query.data.value?.total ?? 0) / (filters.limit ?? 25))))
 function updateFilters() { filters.offset = 0; void router.replace({ query: { ...(filters.q ? { q: filters.q } : {}), ...(filters.type ? { type: filters.type } : {}), ...(filters.status ? { status: filters.status } : {}) } }) }
-function syncPage() { void router.replace({ query: { ...route.query, ...(filters.offset ? { offset: filters.offset } : {}) } }) }
+function syncPage() { void router.replace({ query: adminQueryWithOffset(route.query, filters.offset ?? 0) }) }
 function previousPage() { if (hydrated.value) { filters.offset = Math.max(0, (filters.offset ?? 0) - (filters.limit ?? 25)); syncPage() } }
 function nextPage() { if (hydrated.value && page.value < pages.value) { filters.offset = (filters.offset ?? 0) + (filters.limit ?? 25); syncPage() } }
-watch(() => [route.query.q, route.query.type, route.query.status, route.query.offset], ([q, type, status, offset]) => { filters.q = String(q ?? ''); filters.type = type === 'custom' ? 'custom' : type === 'built_in' ? 'built_in' : undefined; filters.status = status === 'disabled' ? 'disabled' : status === 'active' ? 'active' : undefined; filters.offset = offset ? Number(offset) : 0 })
-function listQuery() { return Object.fromEntries(['q', 'type', 'status', 'offset'].flatMap((key) => route.query[key] ? [[key, String(route.query[key])]] : [])) }
-function openRole(id: number) { void navigateTo({ path: `/settings/roles/${id}`, query: listQuery() }) }
-function cloneRole(id: number) { void navigateTo({ path: '/settings/roles/new', query: { ...listQuery(), clone: String(id) } }) }
+watch(() => [route.query.q, route.query.type, route.query.status, route.query.offset], ([q, type, status, offset]) => { filters.q = String(q ?? ''); filters.type = type === 'custom' ? 'custom' : type === 'built_in' ? 'built_in' : undefined; filters.status = status === 'disabled' ? 'disabled' : status === 'active' ? 'active' : undefined; filters.offset = parseAdminOffset(offset) })
+const listQuery = computed(() => adminListQuery(route.query, ['q', 'type', 'status', 'offset']))
+function openRole(id: number) { void navigateTo({ path: `/settings/roles/${id}`, query: listQuery.value }) }
+function cloneRole(id: number) { void navigateTo({ path: '/settings/roles/new', query: { ...listQuery.value, clone: String(id) } }) }
 </script>
 
 <template>
   <SettingsLayout><div class="nasq-page-stack">
     <SharedPageHeader :title="t('access.roles.title')" :description="t('access.roles.description')">
-      <Button v-if="can('access.roles.manage')" :disabled="!hydrated" @click="navigateTo('/settings/roles/new')">{{ t('access.roles.create') }}</Button>
+      <Button v-if="can('access.roles.manage')" :disabled="!hydrated" @click="navigateTo({ path: '/settings/roles/new', query: listQuery })">{{ t('access.roles.create') }}</Button>
     </SharedPageHeader>
     <SharedPageState v-if="forbidden" :empty="true" :empty-text="t('access.forbidden')" />
     <template v-else>

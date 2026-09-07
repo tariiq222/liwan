@@ -19,6 +19,13 @@ const Passthrough = defineComponent({
   },
 })
 
+const PageState = defineComponent({
+  props: { loading: Boolean, error: { type: Object, default: undefined } },
+  setup(props, { slots }) {
+    return () => props.error ? h('div', ['errors.generic', 'app.retry']) : h('div', slots.default?.())
+  },
+})
+
 function loadForm(setup: () => Record<string, unknown>) {
   const parsed = parse(source, { filename })
   if (!parsed.descriptor.template) throw new Error('no template')
@@ -40,6 +47,7 @@ async function renderForm(setup: () => Record<string, unknown>) {
   for (const name of ['Skeleton', 'Label', 'RadioGroup', 'RadioGroupItem', 'StageListEditor', 'Input']) {
     app.component(name, Passthrough)
   }
+  app.component('SharedPageState', PageState)
   return renderToString(app)
 }
 
@@ -53,6 +61,7 @@ describe('ProjectSettingsForm production template', () => {
     const html = await renderForm(() => ({
       t: (key: string) => key,
       isLoading: false,
+      error: undefined,
       hydrated: true,
       isPending: false,
       settings: {
@@ -83,5 +92,31 @@ describe('ProjectSettingsForm production template', () => {
     expect(html).toContain('settings.projects.createRequirements.manager')
     expect(html).toContain('settings.projects.approval.hint')
     expect(html).toContain('settings.projects.reminders.digest')
+  })
+
+  it('renders an actionable error state when the initial settings query fails', async () => {
+    const html = await renderForm(() => ({
+      t: (key: string) => key,
+      isLoading: false,
+      error: new Error('settings unavailable'),
+      hydrated: true,
+      isPending: false,
+      settings: undefined,
+      rows: [],
+      CREATOR_OPTIONS: [],
+      onCreatorsChange: () => {},
+      onBool: () => {},
+      onApprovalDefault: () => {},
+      onDaysBefore: () => {},
+      onAddStage: () => {},
+      onRenameStage: () => {},
+      onFoldStage: () => {},
+      onReorderStages: () => {},
+      onDeleteStage: () => {},
+      refetch: () => {},
+    }))
+    expect(html).toContain('errors.generic')
+    expect(html).toContain('app.retry')
+    expect(html).not.toContain('settings.projects.defaultStages.label')
   })
 })

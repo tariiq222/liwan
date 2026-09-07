@@ -206,11 +206,11 @@ const approvalLocked = computed(() => approvalBusy.value)
 
     <section class="grid gap-4 sm:grid-cols-2">
       <div class="space-y-2">
-        <Label>{{ t('projects.settings.manager') }}</Label>
+        <Label id="project-settings-manager-label" for="project-settings-manager">{{ t('projects.settings.manager') }}</Label>
         <Popover v-model:open="managerOpen">
           <PopoverTrigger as-child>
-            <Button variant="outline" class="w-full justify-start" type="button" :disabled="!hydrated">
-              {{ project.manager?.name ?? t('projects.settings.noManager') }}
+            <Button id="project-settings-manager" variant="outline" class="w-full min-w-0 justify-start" type="button" :disabled="!hydrated" aria-labelledby="project-settings-manager-label project-settings-manager-value">
+              <span id="project-settings-manager-value" class="min-w-0 truncate" :title="project.manager?.name ?? t('projects.settings.noManager')">{{ project.manager?.name ?? t('projects.settings.noManager') }}</span>
             </Button>
           </PopoverTrigger>
           <PopoverContent class="w-64 p-0" align="start">
@@ -237,9 +237,9 @@ const approvalLocked = computed(() => approvalBusy.value)
       </div>
 
       <div class="space-y-2">
-        <Label>{{ t('projects.settings.visibility') }}</Label>
+        <Label id="project-settings-visibility-label" for="project-settings-visibility">{{ t('projects.settings.visibility') }}</Label>
         <Select :model-value="project.privacy_visibility" :disabled="!hydrated" @update:model-value="onVisibilityChange">
-          <SelectTrigger class="w-full">
+          <SelectTrigger id="project-settings-visibility" class="w-full" aria-labelledby="project-settings-visibility-label">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -252,12 +252,13 @@ const approvalLocked = computed(() => approvalBusy.value)
 
     <!-- Lone end-date edits PATCH `{ date }` only; clear still nulls the pair. -->
     <section class="space-y-2">
-      <Label>{{ t('projects.settings.dateStart') }} / {{ t('projects.settings.dateEnd') }}</Label>
+      <Label id="project-settings-dates-label">{{ t('projects.settings.dateStart') }} / {{ t('projects.settings.dateEnd') }}</Label>
       <div class="grid gap-2 sm:grid-cols-2">
         <Popover>
           <PopoverTrigger as-child>
-            <Button variant="outline" class="justify-start" type="button" :disabled="!hydrated" :aria-label="t('projects.settings.dateStart')">
-              {{ startLabel }}
+            <Button variant="outline" class="justify-start" type="button" :disabled="!hydrated" aria-labelledby="project-settings-date-start-label project-settings-date-start-value">
+              <span id="project-settings-date-start-label" class="sr-only">{{ t('projects.settings.dateStart') }}</span>
+              <span id="project-settings-date-start-value">{{ startLabel }}</span>
             </Button>
           </PopoverTrigger>
           <PopoverContent class="w-auto p-0" align="start">
@@ -270,8 +271,9 @@ const approvalLocked = computed(() => approvalBusy.value)
 
         <Popover>
           <PopoverTrigger as-child>
-            <Button variant="outline" class="justify-start" type="button" :disabled="!hydrated" :aria-label="t('projects.settings.dateEnd')">
-              {{ endLabel }}
+            <Button variant="outline" class="justify-start" type="button" :disabled="!hydrated" aria-labelledby="project-settings-date-end-label project-settings-date-end-value">
+              <span id="project-settings-date-end-label" class="sr-only">{{ t('projects.settings.dateEnd') }}</span>
+              <span id="project-settings-date-end-value">{{ endLabel }}</span>
             </Button>
           </PopoverTrigger>
           <PopoverContent class="w-auto p-0" align="start">
@@ -299,10 +301,10 @@ const approvalLocked = computed(() => approvalBusy.value)
     </section>
 
     <section class="space-y-2">
-      <Label>{{ t('projects.settings.approval') }}</Label>
+      <Label id="project-settings-approval-label" for="project-settings-approval">{{ t('projects.settings.approval') }}</Label>
       <p class="text-sm text-muted-foreground">{{ t('projects.settings.approvalHint') }}</p>
       <Select :model-value="displayedMode" :disabled="!hydrated || approvalLocked" @update:model-value="onApprovalChange">
-        <SelectTrigger class="w-full" data-testid="project-approval-mode">
+        <SelectTrigger id="project-settings-approval" class="w-full" data-testid="project-approval-mode" aria-labelledby="project-settings-approval-label">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -318,8 +320,8 @@ const approvalLocked = computed(() => approvalBusy.value)
       </div>
       <Popover v-if="displayedMode === 'specific_user'" v-model:open="approverOpen">
         <PopoverTrigger as-child>
-          <Button variant="outline" class="w-full justify-start" type="button" data-testid="project-approver" :disabled="!hydrated || approvalLocked">
-            {{ displayedApproverName }}
+          <Button variant="outline" class="w-full min-w-0 justify-start" type="button" data-testid="project-approver" :disabled="!hydrated || approvalLocked" aria-labelledby="project-settings-approval-label project-settings-approver-value">
+            <span id="project-settings-approver-value" class="min-w-0 truncate" :title="displayedApproverName">{{ displayedApproverName }}</span>
           </Button>
         </PopoverTrigger>
         <PopoverContent class="w-64 p-0" align="start">
@@ -342,8 +344,8 @@ const approvalLocked = computed(() => approvalBusy.value)
     </section>
 
     <section class="space-y-2">
-      <Label>{{ t('projects.settings.tags') }}</Label>
-      <TagPicker :model-value="project.tags" :can-create="project.can_manage" @update:model-value="onTagsChange" />
+      <Label id="project-settings-tags-label" for="project-settings-tags">{{ t('projects.settings.tags') }}</Label>
+      <div id="project-settings-tags" aria-labelledby="project-settings-tags-label"><TagPicker :model-value="project.tags" :can-create="project.can_manage" labelledby="project-settings-tags-label" @update:model-value="onTagsChange" /></div>
     </section>
 
     <Separator />

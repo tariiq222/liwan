@@ -126,3 +126,15 @@ describe('design view state with paginated project filters', () => {
     expect(serializeProjectListRoute(table)).not.toHaveProperty('sort')
   })
 })
+
+
+describe('global project ordering', () => {
+  it('sends the selected order with every page request', () => {
+    expect(projectListQuery(false, { sort: 'progress', limit: 50, offset: 50 })).toMatchObject({ sort: 'progress', limit: 50, offset: 50 })
+    expect(projectListQuery(false, { sort: 'name' })).toMatchObject({ sort: 'name' })
+  })
+  it('returns to the first page when the order changes, preserving filters', () => {
+    const next = patchProjectListRoute(parseProjectListRoute({ q: 'نسق', status: 'on_track', offset: '50' }), { sort: 'progress' })
+    expect(next).toMatchObject({ q: 'نسق', status: 'on_track', sort: 'progress', offset: 0 })
+  })
+})

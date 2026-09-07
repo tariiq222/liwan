@@ -19,11 +19,11 @@ const companyId = computed(() => me.value?.company.id ?? null)
 const canEdit = computed(() => hydrated.value && companyId.value !== null && props.user.allowed_actions.includes('assign_roles') && !props.user.protected)
 const permissionLabels = computed(() => new Map<string, string>((props.permissions ?? []).map((permission) => [permission.key, permission.label[locale.value === 'ar' ? 'ar' : 'en'] ?? permission.label.ar])))
 const capabilityLabel = (key: string) => permissionLabels.value.get(key) ?? t('access.roles.unknownPermission')
-const roleLabel = (role: RoleSummary) => role.name[locale.value === 'ar' ? 'ar' : 'en'] ?? role.name.ar
+const roleLabel = (role: { name: { ar: string; en: string | null } }) => role.name[locale.value === 'ar' ? 'ar' : 'en'] ?? role.name.ar
 const currentCapabilities = computed(() => props.user.capabilities.map((capability) => ({
   key: capability.key,
   label: capabilityLabel(capability.key),
-  sources: capability.sources.map((source) => source.role.name[locale.value === 'ar' ? 'ar' : 'en'] ?? source.role.name.ar).join('، '),
+  sources: capability.sources.map((source) => roleLabel(source.role)).join('، '),
 })))
 const originalRoleIds = computed(() => props.user.assignments.map((assignment) => assignment.role.id).filter((id): id is number => id !== null))
 const previewRoleIds = computed(() => [...new Set([...originalRoleIds.value, ...selectedRoleIds.value])])
@@ -119,7 +119,7 @@ async function save() {
       <p v-if="dirty" class="text-xs text-muted-foreground">{{ t('access.users.assignmentDiff', { retained: retainedRoleCount, added: addedRoleCount, removed: removedRoleCount }) }}</p>
       <div v-if="previewLoading" class="text-xs text-muted-foreground">{{ t('access.users.loadingCapabilities') }}</div>
       <div v-else-if="previewError" role="alert" class="flex items-center gap-2 text-xs text-destructive"><span>{{ t('access.users.capabilityPreviewError') }}</span><Button type="button" variant="ghost" size="sm" @click="retryPreview">{{ t('access.retry') }}</Button></div>
-      <div v-else-if="dirty" class="space-y-1 rounded-lg border border-border/80 bg-muted/30 p-3 text-xs"><p class="font-medium">{{ t('access.users.capabilityChanges') }}</p><p v-if="capabilityChanges.added.length">{{ t('access.roles.added') }}: {{ capabilityChanges.added.map((item) => capabilityLabel(item.key)).join('، ') }}</p><p v-if="capabilityChanges.removed.length">{{ t('access.roles.removed') }}: {{ capabilityChanges.removed.map((item) => capabilityLabel(item.key)).join('، ') }}</p><p v-if="capabilityChanges.retained.length">{{ t('access.roles.retained') }}: {{ capabilityChanges.retained.map((item) => `${capabilityLabel(item.key)} (${item.sources.map((source) => source.role.name.ar).join('، ')})`).join('؛ ') }}</p></div>
+      <div v-else-if="dirty" class="space-y-1 rounded-lg border border-border/80 bg-muted/30 p-3 text-xs"><p class="font-medium">{{ t('access.users.capabilityChanges') }}</p><p v-if="capabilityChanges.added.length">{{ t('access.roles.added') }}: {{ capabilityChanges.added.map((item) => capabilityLabel(item.key)).join('، ') }}</p><p v-if="capabilityChanges.removed.length">{{ t('access.roles.removed') }}: {{ capabilityChanges.removed.map((item) => capabilityLabel(item.key)).join('، ') }}</p><p v-if="capabilityChanges.retained.length">{{ t('access.roles.retained') }}: {{ capabilityChanges.retained.map((item) => `${capabilityLabel(item.key)} (${item.sources.map((source) => roleLabel(source.role)).join('، ')})`).join('؛ ') }}</p></div>
       <p v-if="addingAccessAdminRole" role="alert" class="text-sm text-amber-700 dark:text-amber-300">{{ t('access.users.accessAdminWarning') }}</p>
       <p v-if="errorKey" role="alert" class="text-sm text-destructive">{{ errorKey.startsWith('access.') || errorKey === 'errors.generic' ? t(errorKey) : errorKey }}</p>
       <div class="nasq-form-footer"><Button v-if="canEdit" type="submit" :disabled="!dirty || update.isPending.value || !previewReady">{{ t('access.save') }}</Button></div>

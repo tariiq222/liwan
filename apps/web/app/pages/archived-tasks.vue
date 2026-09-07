@@ -20,7 +20,7 @@ watch(q, value => {
 watch(() => route.query.q, value => { q.value = typeof value === 'string' ? value : '' })
 const mine = computed(() => route.query.filter === 'mine')
 const params = computed(() => ({ project_id: projectId.value, mine: mine.value, q: q.value.trim() || undefined }))
-const { data, isLoading, hasNextPage, fetchNextPage, isFetchingNextPage } = useArchivedTasks(params)
+const { data, isLoading, hasNextPage, fetchNextPage, isFetchingNextPage, error, refetch } = useArchivedTasks(params)
 const items = computed(() => (data.value?.pages ?? []).flatMap((page) => page.items))
 const total = computed(() => data.value?.pages[0]?.total ?? 0)
 const { mutate: restore, isPending } = useRestoreTask()
@@ -52,6 +52,7 @@ function back() {
     <div v-if="isLoading" class="space-y-2">
       <Skeleton v-for="n in 3" :key="n" class="h-12 w-full" />
     </div>
+    <SharedPageState v-else-if="error" :error="error" @retry="refetch" />
     <div v-else-if="!items.length" class="rounded-lg border bg-card p-8 text-center text-muted-foreground">
       {{ t('taskLifecycle.noArchivedTasks') }}
     </div>

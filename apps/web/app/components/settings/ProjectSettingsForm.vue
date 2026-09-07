@@ -9,7 +9,7 @@ import { useProjectSettings, useUpdateProjectSettings } from '@/composables/useP
 const { t } = useI18n()
 const hydrated = useHydrated()
 
-const { data: settings, isLoading } = useProjectSettings()
+const { data: settings, isLoading, error, refetch } = useProjectSettings()
 const { mutate: updateSettings, isPending } = useUpdateProjectSettings()
 
 function onApiError(e: unknown) {
@@ -108,6 +108,8 @@ function onDeleteStage(id: number | string) {
 <template>
   <div class="nasq-form nasq-panel nasq-panel-body">
     <Skeleton v-if="isLoading" class="h-64 w-full" />
+
+    <SharedPageState v-else-if="error" :error="error" @retry="refetch" />
 
     <template v-else-if="settings">
       <section class="nasq-form-section space-y-4">

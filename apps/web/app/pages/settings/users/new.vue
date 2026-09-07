@@ -3,6 +3,7 @@ import { ApiError } from '@/composables/useApi'
 import { useAdminUser, useGrantAdminAccount, useReactivateAdminUser, useUpdateAdminUserAccess, useAdminUserCandidates } from '@/composables/useAdminUsers'
 import { useAdminPermissionCatalog, useAdminRoleDetails, useAdminRoles } from '@/composables/useAdminRoles'
 import SettingsLayout from '@/components/settings/SettingsLayout.vue'
+import { adminListQuery, adminPathWithQuery } from '@/composables/adminSettingsPaths'
 
 const { t, locale } = useI18n()
 const { can } = useAccess()
@@ -11,10 +12,7 @@ const { me } = useMe()
 const forbidden = computed(() => !can('access.users.grant'))
 const route = useRoute()
 const backTo = computed(() => {
-  const query = new URLSearchParams()
-  for (const key of ['q', 'status', 'role_id', 'department_id', 'offset']) if (route.query[key]) query.set(key, String(route.query[key]))
-  const suffix = query.toString()
-  return `/settings/users${suffix ? `?${suffix}` : ''}`
+  return adminPathWithQuery('/settings/users', adminListQuery(route.query, ['q', 'status', 'role_id', 'department_id', 'offset']))
 })
 const requestedEmployeeId = Number(route.query.employee_id)
 const hasRequestedEmployee = Number.isInteger(requestedEmployeeId) && requestedEmployeeId > 0
@@ -85,7 +83,7 @@ async function submit() {
     password.value = ''
     passwordConfirmation.value = ''
     saved.value = true
-    await navigateTo(`/settings/users/${user.id}`)
+    await navigateTo(adminPathWithQuery(`/settings/users/${user.id}`, adminListQuery(route.query, ['q', 'status', 'role_id', 'department_id', 'offset'])))
   } catch (error) {
     password.value = ''
     passwordConfirmation.value = ''

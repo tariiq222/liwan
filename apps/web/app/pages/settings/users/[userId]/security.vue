@@ -2,12 +2,13 @@
 import UserSecurityForm from '@/components/access/users/UserSecurityForm.vue'
 import { nextAdminUserSecuritySuccess } from '@/composables/useAdminUsers'
 import SettingsLayout from '@/components/settings/SettingsLayout.vue'
+import { adminListQuery, adminPathWithQuery } from '@/composables/adminSettingsPaths'
 
 const route = useRoute()
 const { t } = useI18n()
 const { can } = useAccess()
 const id = computed(() => Number(route.params.userId))
-const backTo = computed(() => `/settings/users/${id.value}`)
+const backTo = computed(() => adminPathWithQuery(`/settings/users/${id.value}`, adminListQuery(route.query, ['q', 'status', 'role_id', 'department_id', 'offset'])))
 const forbidden = computed(() => !can('access.users.read'))
 const user = useAdminUser(id, computed(() => !forbidden.value))
 const successKey = ref('')

@@ -3,6 +3,7 @@ import type { Capability, PermissionDefinition } from '@nasq/contracts'
 import { ApiError } from '@/composables/useApi'
 import { useAdminPermissionCatalog, useAdminRole, useCreateAdminRole } from '@/composables/useAdminRoles'
 import SettingsLayout from '@/components/settings/SettingsLayout.vue'
+import { adminListQuery, adminPathWithQuery } from '@/composables/adminSettingsPaths'
 
 const { t, locale } = useI18n()
 const route = useRoute()
@@ -13,10 +14,7 @@ const create = useCreateAdminRole()
 const catalog = useAdminPermissionCatalog(computed(() => !forbidden.value))
 const cloneId = computed(() => route.query.clone ? Number(route.query.clone) : null)
 const backTo = computed(() => {
-  const query = new URLSearchParams()
-  for (const key of ['q', 'type', 'status', 'offset']) if (route.query[key]) query.set(key, String(route.query[key]))
-  const suffix = query.toString()
-  return `/settings/roles${suffix ? `?${suffix}` : ''}`
+  return adminPathWithQuery('/settings/roles', adminListQuery(route.query, ['q', 'type', 'status', 'offset']))
 })
 const clone = useAdminRole(cloneId, computed(() => can('access.roles.manage') && cloneId.value !== null))
 const nameAr = ref('')
@@ -82,7 +80,7 @@ async function submit() {
   try {
     const role = await create.mutateAsync({ name: { ar: nameAr.value, en: nameEn.value || null }, description: description.value, permissions: selected.value })
     saved.value = true
-    await navigateTo(`/settings/roles/${role.id}`)
+    await navigateTo(adminPathWithQuery(`/settings/roles/${role.id}`, adminListQuery(route.query, ['q', 'type', 'status', 'offset'])))
   } catch (error) {
     errorKey.value = showError(error)
   }

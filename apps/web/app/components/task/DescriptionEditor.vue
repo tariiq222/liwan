@@ -16,7 +16,10 @@ import { createDebouncedFlush } from '@/lib/debouncedFlush'
 // against B — see flush() below and the parent's :key="task.id", which is
 // belt-and-braces with this fix, not a replacement for it.
 const props = defineProps<{ modelValue: string; taskId: number; readonly?: boolean }>()
-const emit = defineEmits<{ 'update:modelValue': [{ html: string; taskId: number }] }>()
+const emit = defineEmits<{
+  'update:modelValue': [{ html: string; taskId: number }]
+  draft: [{ html: string; taskId: number }]
+}>()
 
 const { t } = useI18n()
 const hydrated = useHydrated()
@@ -39,7 +42,13 @@ const editor = useEditor({
     // Capture the task this edit belongs to at schedule time, not read it
     // later from (possibly-by-then-stale) props — so flush() always emits
     // against the right task regardless of when it actually runs.
-    if (!props.readonly) buffer.schedule({ html: ed.getHTML(), taskId: props.taskId })
+    if (!props.readonly) {
+      const draft = { html: ed.getHTML(), taskId: props.taskId }
+      // Explicit-submit forms need the current draft for their dirty guard;
+      // the update event remains debounced for autosaving consumers.
+      emit('draft', draft)
+      buffer.schedule(draft)
+    }
   },
 })
 
@@ -69,22 +78,33 @@ onBeforeUnmount(() => {
   editor.value?.destroy()
 })
 
+function flush() {
+  buffer.flush()
+}
+
+defineExpose({ flush })
+
 function toggleBold() {
+  if (props.readonly) return
   editor.value?.chain().focus().toggleBold().run()
 }
 function toggleItalic() {
+  if (props.readonly) return
   editor.value?.chain().focus().toggleItalic().run()
 }
 function toggleBulletList() {
+  if (props.readonly) return
   editor.value?.chain().focus().toggleBulletList().run()
 }
 function toggleOrderedList() {
+  if (props.readonly) return
   editor.value?.chain().focus().toggleOrderedList().run()
 }
 watch(() => props.readonly, value => editor.value?.setEditable(!value))
 const linkEditorOpen = ref(false)
 const linkDraft = ref('')
 function toggleLink() {
+  if (props.readonly) return
   const previous = editor.value?.getAttributes('link').href as string | undefined
   linkDraft.value = previous ?? ''
   linkEditorOpen.value = true
@@ -93,6 +113,7 @@ function cancelLink() {
   linkEditorOpen.value = false
 }
 function applyLink() {
+  if (props.readonly) return
   const url = linkDraft.value.trim()
   if (!url) editor.value?.chain().focus().unsetLink().run()
   else editor.value?.chain().focus().extendMarkRange('link').setLink({ href: url }).run()
@@ -125,8 +146,8 @@ function applyLink() {
       </div>
       <div v-if="linkEditorOpen" data-testid="link-editor" class="flex flex-wrap items-center gap-2 border-b p-2">
         <Label for="description-link-url" class="sr-only">{{ t('tasks.detail.linkPrompt') }}</Label>
-        <Input id="description-link-url" v-model="linkDraft" :placeholder="t('tasks.detail.linkPrompt')" class="min-w-48 flex-1" dir="ltr" @keydown.enter.prevent="applyLink" @keydown.escape="cancelLink" />
-        <Button type="button" size="sm" :disabled="!hydrated" @click="applyLink">{{ t('tasks.detail.applyLink') }}</Button>
+        <Input id="description-link-url" v-model="linkDraft" :placeholder="t('tasks.detail.linkPrompt')" class="min-w-48 flex-1" dir="ltr" :disabled="!hydrated || readonly" @keydown.enter.prevent="applyLink" @keydown.escape="cancelLink" />
+        <Button type="button" size="sm" :disabled="!hydrated || readonly" @click="applyLink">{{ t('tasks.detail.applyLink') }}</Button>
         <Button type="button" size="sm" variant="ghost" @click="cancelLink">{{ t('tasks.detail.cancelLink') }}</Button>
       </div>
       <EditorContent :editor="editor" />

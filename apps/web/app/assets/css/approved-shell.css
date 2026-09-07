@@ -255,7 +255,8 @@
 }
 
 /* Page anatomy from the final approved OpenDesign render. */
-.nasq-page-stack { display: grid; min-width: 0; gap: 24px; }
+.nasq-page-stack { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; gap: 24px; }
+.nasq-page-stack > * { min-width: 0; }
 .nasq-panel { min-width: 0; border: 1px solid var(--border); border-radius: 8px; background: var(--card); }
 .nasq-panel-header { display: flex; min-height: 60px; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 18px; border-block-end: 1px solid var(--border); }
 .nasq-panel-body { padding: 18px; }
@@ -287,4 +288,23 @@
 @media (max-width: 600px) {
   .nasq-form-grid { grid-template-columns: minmax(0, 1fr); }
   .nasq-panel-header { flex-wrap: wrap; }
+}
+
+/* Keep compact desktop geometry while giving touch actions a usable hit area. */
+@media (pointer: coarse) {
+  /* Outrank the later, fixed desktop icon geometry in main.css. */
+  [data-nasq-shell] [data-slot="button"][data-size="icon"],
+  [data-nasq-shell] :is(
+    [data-slot="button"],
+    [data-slot="sidebar-trigger"],
+    [data-slot="header-icon-action"],
+    [data-testid="notification-bell"],
+    [data-sidebar="menu-button"],
+    [data-slot="select-trigger"],
+    .header-account,
+    .nasq-search-trigger
+  ) {
+    min-height: 44px;
+    min-width: 44px;
+  }
 }

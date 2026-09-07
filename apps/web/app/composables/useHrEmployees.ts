@@ -41,6 +41,40 @@ export function hrEmployeeListQuery(params: HrEmployeeListParams = {}) {
   }
 }
 
+export function hrManagerOptions({
+  employees,
+  searchResults,
+  selected,
+  currentManager,
+  search,
+  excludeId,
+}: {
+  employees: Array<Pick<HrEmployee, 'id' | 'name'>>
+  searchResults: Array<Pick<HrEmployee, 'id' | 'name'>>
+  selected?: Pick<HrEmployee, 'id' | 'name'> | null
+  currentManager?: Pick<HrEmployee, 'id' | 'name'> | null
+  search?: string
+  excludeId?: number
+}) {
+  const options = new Map<number, Pick<HrEmployee, 'id' | 'name'>>()
+  const source = search?.trim() ? searchResults : employees
+  for (const employee of source) options.set(employee.id, employee)
+  if (currentManager) options.set(currentManager.id, currentManager)
+  if (selected) options.set(selected.id, selected)
+  if (excludeId !== undefined) options.delete(excludeId)
+  return [...options.values()].sort((a, b) => a.name.localeCompare(b.name) || a.id - b.id)
+}
+
+export function retryHrManagerQueries(
+  managerId: number | null,
+  listRefetch: () => unknown,
+  selectedRefetch: () => unknown,
+) {
+  void listRefetch()
+  if (managerId === null || !Number.isSafeInteger(managerId) || managerId <= 0) return
+  void selectedRefetch()
+}
+
 export function useHrEmployees(params: MaybeRefOrGetter<HrEmployeeListParams> = {}) {
   const { $api } = useApi()
   return useQuery({

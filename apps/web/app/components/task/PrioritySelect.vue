@@ -6,7 +6,7 @@ import { useUpdateTask } from '@/composables/useTasks'
 // Ruling: priority has four values, so this is a compact Select (not the
 // brief's star toggle). Owns its own optimistic mutation — useUpdateTask
 // already rolls back on error, so there is nothing else to wire up here.
-const props = defineProps<{ task: Task }>()
+const props = defineProps<{ task: Task; labelledby?: string }>()
 
 const { t } = useI18n()
 const { mutate, isPending } = useUpdateTask()
@@ -27,7 +27,7 @@ function onChange(value: unknown) {
 <template>
   <span v-if="!task.can_write" class="text-sm">{{ t(PRIORITY_LABEL_KEY[task.priority]) }}</span>
   <Select v-else :model-value="task.priority" @update:model-value="onChange">
-    <SelectTrigger size="sm" class="w-full" :disabled="isPending || !hydrated">
+    <SelectTrigger size="sm" class="w-full" :disabled="isPending || !hydrated" :aria-labelledby="props.labelledby">
       <SelectValue />
     </SelectTrigger>
     <SelectContent>

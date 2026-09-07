@@ -274,3 +274,32 @@ class TestProjects(NasqPmoCase):
         self.assertIsInstance(rest, list)
         self.assertEqual(len(rest), 1)
         self.assertEqual(rest[0]['id'], tracked.id)
+
+    def test_audit_sort_before_pagination(self):
+        projects = self.env['project.project'].create([
+            {'name': f'Audit Sort {name}', 'privacy_visibility': 'employees',
+             'company_id': self.env.company.id}
+            for name in ['A Open', 'B Half', 'C Done', 'D Private']
+        ])
+        projects[3].privacy_visibility = 'followers'
+        for project, states in zip(projects, [
+            ['01_in_progress'], ['01_in_progress', '1_done'], ['1_done'], ['1_done'],
+        ]):
+            self.env['project.task'].create([
+                {'name': 'Sort task', 'project_id': project.id, 'state': state}
+                for state in states
+            ])
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        path = '/api/v1/projects?q=Audit%20Sort&sort=progress&limit=1'
+        first = self.api('GET', path)
+        self.assertEqual(first.status_code, 200, first.text)
+        self.assertEqual(first.json()['total'], 3)
+        pages = [first.json()['items']]
+        pages.extend(self.api('GET', path + f'&offset={n}').json()['items'] for n in [1, 2])
+        self.assertEqual([page[0]['id'] for page in pages], [projects[2].id, projects[1].id, projects[0].id])
+        self.assertEqual([page[0]['progress'] for page in pages], [100, 50, 0])
+        by_name = self.api('GET', '/api/v1/projects?q=Audit%20Sort&sort=name&limit=1&offset=1')
+        self.assertEqual(by_name.json()['items'][0]['id'], projects[1].id)
+        invalid = self.api('GET', '/api/v1/projects?sort=unsafe')
+        self.assertEqual(invalid.status_code, 422)
+        self.assertEqual(invalid.json()['field'], 'sort')
