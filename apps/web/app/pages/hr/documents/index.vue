@@ -4,6 +4,8 @@ import FilterBar from '@/components/shared/FilterBar.vue'
 import { useHrDocuments } from '@/composables/useHrDocuments'
 import { useHrDepartments } from '@/composables/useHrDepartments'
 import { returnToQuery } from '@/utils/safeReturnTo'
+import { refDebounced } from '@vueuse/core'
+import { hasPendingHrSearch, hrCommittedListParams } from '@/composables/useHrSearch'
 
 const route = useRoute()
 const router = useRouter()
@@ -11,17 +13,20 @@ const { t } = useI18n()
 const hydrated = useHydrated()
 const { can } = useAccess()
 const search = ref(String(route.query.q ?? ''))
+const debouncedSearch = refDebounced(search, 250)
+const hasPendingSearch = computed(() => hasPendingHrSearch(search.value, route.query.q))
+const committedListParams = computed(() => hrCommittedListParams(route.query))
 const departmentId = ref(route.query.department_id ? Number(route.query.department_id) : undefined)
 const limit = 25
 const offset = ref(Math.max(0, Number(route.query.offset ?? 0) || 0))
 const query = useHrDocuments(computed(() => ({
-  q: search.value.trim() || undefined,
+  q: committedListParams.value.q,
   department_id: departmentId.value,
   limit,
-  offset: offset.value,
+  offset: committedListParams.value.offset,
 })))
 const departments = useHrDepartments()
-const page = computed(() => Math.floor(offset.value / limit) + 1)
+const page = computed(() => Math.floor(committedListParams.value.offset / limit) + 1)
 const pages = computed(() => Math.max(1, Math.ceil((query.data.value?.total ?? 0) / limit)))
 const selectedDepartment = computed(() => departments.data.value?.items.find(department => department.id === departmentId.value))
 const hasActiveFilters = computed(() => Boolean(search.value.trim() || departmentId.value))
@@ -31,7 +36,7 @@ watch(() => [route.query.q, route.query.department_id, route.query.offset], ([q,
   departmentId.value = department ? Number(department) : undefined
   offset.value = Math.max(0, Number(nextOffset ?? 0) || 0)
 })
-watch(search, (value) => {
+watch(debouncedSearch, (value) => {
   if (value !== String(route.query.q ?? '')) updateFilters()
 })
 
@@ -39,8 +44,10 @@ function updateFilters() {
   offset.value = 0
   void router.replace({
     query: {
-      ...(search.value.trim() ? { q: search.value.trim() } : {}),
-      ...(departmentId.value ? { department_id: departmentId.value } : {}),
+      ...route.query,
+      q: search.value.trim() || undefined,
+      department_id: departmentId.value ?? undefined,
+      offset: undefined,
     },
   })
 }
@@ -54,7 +61,7 @@ function clearFilters() {
   updateFilters()
 }
 function setPage(next: number) {
-  if (!hydrated.value || query.isFetching.value || next < 1 || next > pages.value) return
+  if (!hydrated.value || query.isFetching.value || hasPendingSearch.value || next < 1 || next > pages.value) return
   offset.value = (next - 1) * limit
   void router.replace({ query: { ...route.query, ...(offset.value ? { offset: offset.value } : {}) } })
 }

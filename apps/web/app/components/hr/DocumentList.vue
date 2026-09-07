@@ -4,6 +4,8 @@ import FilterBar from '@/components/shared/FilterBar.vue'
 import type { HrDocument } from '@/composables/useHrDocuments'
 import { useHrDocuments } from '@/composables/useHrDocuments'
 import { returnToQuery } from '@/utils/safeReturnTo'
+import { refDebounced } from '@vueuse/core'
+import { hasPendingHrSearch, hrCommittedListParams } from '@/composables/useHrSearch'
 
 const props = defineProps<{ departmentId: number; canWrite: boolean }>()
 const { t } = useI18n()
@@ -13,25 +15,28 @@ const canWriteAllowed = computed(() => props.canWrite && can('hr.documents.manag
 const route = useRoute()
 const router = useRouter()
 const search = ref(String(route.query.q ?? ''))
+const debouncedSearch = refDebounced(search, 250)
+const hasPendingSearch = computed(() => hasPendingHrSearch(search.value, route.query.q))
+const committedListParams = computed(() => hrCommittedListParams(route.query))
 const limit = 25
 const offset = ref(Math.max(0, Number(route.query.offset ?? 0) || 0))
-const params = computed(() => ({ q: search.value.trim() || undefined, department_id: props.departmentId, limit, offset: offset.value }))
+const params = computed(() => ({ q: committedListParams.value.q, department_id: props.departmentId, limit, offset: committedListParams.value.offset }))
 const query = useHrDocuments(params)
 const items = computed<HrDocument[]>(() => query.data.value?.items ?? [])
-const page = computed(() => Math.floor(offset.value / limit) + 1)
+const page = computed(() => Math.floor(committedListParams.value.offset / limit) + 1)
 const pages = computed(() => Math.max(1, Math.ceil((query.data.value?.total ?? 0) / limit)))
 
 watch(() => [route.query.q, route.query.offset], ([q, nextOffset]) => {
   search.value = String(q ?? '')
   offset.value = Math.max(0, Number(nextOffset ?? 0) || 0)
 })
-watch(search, (value) => { if (value !== String(route.query.q ?? '')) updateSearch() })
+watch(debouncedSearch, (value) => { if (value !== String(route.query.q ?? '')) updateSearch() })
 function updateSearch() {
   offset.value = 0
   void router.replace({ query: { ...route.query, ...(search.value.trim() ? { q: search.value.trim() } : { q: undefined }), offset: undefined } })
 }
 function setPage(next: number) {
-  if (!hydrated.value || query.isFetching.value || next < 1 || next > pages.value) return
+  if (!hydrated.value || query.isFetching.value || hasPendingSearch.value || next < 1 || next > pages.value) return
   offset.value = (next - 1) * limit
   void router.replace({ query: { ...route.query, ...(offset.value ? { offset: offset.value } : { offset: undefined }) } })
 }
@@ -57,7 +62,7 @@ function detailsTo(document: HrDocument) {
         </template>
       </FilterBar>
     </div>
-    <div class="nasq-panel overflow-hidden">
+    <div class="nasq-panel overflow-x-auto">
       <Table>
         <TableHeader><TableRow><TableHead class="text-start">{{ t('hr.docs.columns.name') }}</TableHead><TableHead class="text-start">{{ t('hr.docs.columns.updated') }}</TableHead></TableRow></TableHeader>
         <TableBody>
