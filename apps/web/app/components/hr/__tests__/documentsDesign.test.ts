@@ -24,7 +24,7 @@ describe('HR documents list design', () => {
     expect(listSource).toContain('useHydrated')
     expect(listSource).toContain('setPage')
     expect(listSource).toMatch(/\/hr\/departments\/\$\{document\.department\.id\}\/documents\/\$\{document\.id\}/)
-    expect(listSource).not.toMatch(/<Table[\s>]/)
+    expect(listSource).toContain('<Table>')
     const toolbar = listSource.indexOf('nasq-toolbar')
     const create = listSource.indexOf("t('hr.docs.new')")
     const list = listSource.indexOf('query.data.value?.items')

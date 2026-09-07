@@ -39,9 +39,9 @@ test('HR and projects index pages survive direct navigation and reload', async (
 
   await page.goto('/hr')
   await expect(page).toHaveURL(/\/hr$/)
-  await expect(page.getByRole('heading', { name: 'الأشخاص' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'الموظفون' })).toBeVisible()
   await page.reload()
-  await expect(page.getByRole('heading', { name: 'الأشخاص' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'الموظفون' })).toBeVisible()
 
   await page.goto('/projects')
   await expect(page).toHaveURL(/\/projects$/)

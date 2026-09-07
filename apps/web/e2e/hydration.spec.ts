@@ -76,16 +76,16 @@ test('tasks: "New task" button is disabled pre-hydration, then an immediate clic
   await expect(page.locator('[data-slot="dialog-content"], [data-slot="sheet-content"]').first()).toHaveCount(0)
 })
 
-test('hr: directory tabs are disabled pre-hydration, then an immediate click switches with no retry', async ({ page }) => {
+test('hr: directory create is disabled pre-hydration, then an immediate click works with no retry', async ({ page }) => {
   await login(page)
   const hydrate = await beforeHydration(page, '/hr')
-  const departmentsTab = page.getByRole('tab', { name: 'الأقسام' })
-  await expect(departmentsTab).toBeVisible()
-  await expect(departmentsTab).toBeDisabled()
+  const createButton = page.getByRole('button', { name: 'موظف جديد' })
+  await expect(createButton).toBeVisible()
+  await expect(createButton).toBeDisabled()
   hydrate()
-  await expect(departmentsTab).toBeEnabled()
-  await departmentsTab.click()
-  await expect(departmentsTab).toHaveAttribute('aria-selected', 'true')
+  await expect(createButton).toBeEnabled()
+  await createButton.click()
+  await expect(page).toHaveURL(/\/hr\/employees\/new\?returnTo=/)
 })
 
 test('task detail: JS controls are disabled pre-hydration, then an immediate click works with no retry', async ({ page }) => {

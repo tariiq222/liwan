@@ -279,7 +279,7 @@
 .nasq-form-section > :is(h2, h3) { font-size: 0.875rem; font-weight: 600; line-height: 1.4; }
 .nasq-form-footer { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding-block-start: 20px; border-block-start: 1px solid var(--border); }
 .nasq-tabs { display: flex; min-width: 0; align-items: center; gap: 4px; overflow-x: auto; border-block-end: 1px solid var(--border); }
-.nasq-tabs > :is(a, button) { display: inline-flex; min-height: 45px; flex: none; align-items: center; gap: 7px; border: 0; border-block-end: 2px solid transparent; border-radius: 0; background: transparent; box-shadow: none; padding-inline: 12px; color: var(--muted-foreground); font-size: 0.929rem; }
+.nasq-tabs > :is(a, button) { display: inline-flex; min-height: 45px; flex: none; align-items: center; gap: 7px; border: 0; border-block-end: 2px solid transparent; border-radius: 0; background: transparent; box-shadow: none; padding-inline: 12px; color: var(--muted-foreground); font-size: 0.929rem; white-space: nowrap; }
 .nasq-tabs > [aria-selected="true"], .nasq-tabs > [aria-current="page"], .nasq-tabs > [data-state="active"] { border-block-end-color: var(--foreground); color: var(--foreground); }
 .nasq-metadata > div { display: flex; align-items: start; justify-content: space-between; gap: 16px; padding-block: 12px; border-block-end: 1px solid var(--border); font-size: 0.929rem; }
 .nasq-metadata > div:last-child { border-block-end: 0; }

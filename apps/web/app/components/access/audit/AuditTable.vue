@@ -24,26 +24,30 @@ function open(id: number) { if (hydrated.value) emit('open', id) }
 </script>
 
 <template>
-  <div class="nasq-panel overflow-x-auto">
-    <table class="nasq-settings-table">
-      <thead class="border-b border-border/80 bg-muted/50">
-        <tr>
-          <th class="text-start font-medium">{{ t('access.audit.columns.time') }}</th>
-          <th class="text-start font-medium">{{ t('access.audit.columns.actor') }}</th>
-          <th class="text-start font-medium">{{ t('access.audit.columns.action') }}</th>
-          <th class="text-start font-medium">{{ t('access.audit.columns.target') }}</th>
-          <th class="text-start font-medium">{{ t('access.audit.columns.result') }}</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="event in events" :key="event.id" class="cursor-pointer border-b border-border/70 transition-colors last:border-0 hover:bg-muted/50" @click="open(event.id)">
-          <td  dir="ltr"><button type="button" class="rounded text-start hover:underline" :disabled="!hydrated" :aria-label="`${t('access.audit.detailTitle')}: ${d(new Date(event.occurred_at), 'short')}`" @click.stop="open(event.id)">{{ d(new Date(event.occurred_at), 'short') }}</button></td>
-          <td>{{ event.actor?.name ?? t('access.audit.system') }}</td>
-          <td>{{ actionLabel(event.action) }}</td>
-          <td>{{ event.target.name }}</td>
-          <td class="nasq-status-text-success">{{ t('access.audit.succeeded') }}</td>
-        </tr>
-      </tbody>
-    </table>
+  <div class="nasq-panel overflow-hidden">
+    <div class="overflow-x-auto">
+      <Table class="min-w-[680px]">
+        <TableHeader>
+          <TableRow>
+            <TableHead class="text-start">{{ t('access.audit.columns.time') }}</TableHead>
+            <TableHead class="text-start">{{ t('access.audit.columns.actor') }}</TableHead>
+            <TableHead class="text-start">{{ t('access.audit.columns.action') }}</TableHead>
+            <TableHead class="text-start">{{ t('access.audit.columns.target') }}</TableHead>
+            <TableHead class="text-start">{{ t('access.audit.columns.result') }}</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          <TableRow v-for="event in events" :key="event.id" class="cursor-pointer" @click="open(event.id)">
+            <TableCell dir="ltr">
+              <button type="button" class="rounded text-start hover:underline" :disabled="!hydrated" :aria-label="`${t('access.audit.detailTitle')}: ${d(new Date(event.occurred_at), 'short')}`" @click.stop="open(event.id)">{{ d(new Date(event.occurred_at), 'short') }}</button>
+            </TableCell>
+            <TableCell>{{ event.actor?.name ?? t('access.audit.system') }}</TableCell>
+            <TableCell>{{ actionLabel(event.action) }}</TableCell>
+            <TableCell>{{ event.target.name }}</TableCell>
+            <TableCell class="nasq-status-text-success">{{ t('access.audit.succeeded') }}</TableCell>
+          </TableRow>
+        </TableBody>
+      </Table>
+    </div>
   </div>
 </template>

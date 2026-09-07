@@ -70,7 +70,7 @@ function clearFilters() {
     <template #default>
       <DropdownMenu>
         <DropdownMenuTrigger as-child :disabled="!hydrated">
-          <Button variant="outline" size="sm" :disabled="!hydrated">{{ t('tasks.filters.allStates') }}</Button>
+          <Button variant="outline" :disabled="!hydrated">{{ t('tasks.filters.allStates') }}</Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start">
           <DropdownMenuCheckboxItem
@@ -90,7 +90,7 @@ function clearFilters() {
           :model-value="modelValue.project_id ? String(modelValue.project_id) : 'all'"
           @update:model-value="(v) => patch({ project_id: v === 'all' ? undefined : Number(v) })"
         >
-          <SelectTrigger size="sm" class="w-40" :disabled="!hydrated">
+          <SelectTrigger class="w-40" :disabled="!hydrated">
             <SelectValue :placeholder="t('tasks.filters.allProjects')" />
           </SelectTrigger>
           <SelectContent>
@@ -100,9 +100,10 @@ function clearFilters() {
         </Select>
       </template>
 
-      <Button v-if="!hideCreate && can('pmo.tasks.create')" size="sm" class="gap-1.5" :disabled="!hydrated" @click="emit('create')">
+      <Button v-if="!hideCreate && can('pmo.tasks.create')" class="gap-2" :disabled="!hydrated" @click="emit('create')">
         <Plus class="size-[18px]" />{{ t('tasks.new') }}
       </Button>
+      <slot name="trailing" />
     </template>
 
     <template #active>
@@ -117,11 +118,11 @@ function clearFilters() {
     </template>
 
     <template #view>
-      <div v-if="view" role="group" class="inline-flex h-[40px] items-center rounded-lg border bg-background p-0.5" :aria-label="t('projects.filters.view')">
-        <Button data-testid="project-tasks-view-table" type="button" variant="ghost" size="icon" class="size-[32px] rounded-md" :class="view === 'table' ? 'bg-muted shadow-sm' : ''" :disabled="!hydrated" :aria-label="t('projects.filters.tableView')" :aria-pressed="view === 'table'" @click="emit('update:view', 'table')">
+      <div v-if="view" role="group" class="inline-flex h-[40px] items-center rounded-lg border bg-muted/40 p-0.5" :aria-label="t('projects.filters.view')">
+        <Button data-testid="project-tasks-view-table" type="button" variant="ghost" size="icon" class="size-[32px] rounded-md" :class="view === 'table' ? 'bg-background shadow-sm' : ''" :disabled="!hydrated" :aria-label="t('projects.filters.tableView')" :aria-pressed="view === 'table'" @click="emit('update:view', 'table')">
           <List class="size-[18px]" />
         </Button>
-        <Button data-testid="project-tasks-view-board" type="button" variant="ghost" size="icon" class="size-[32px] rounded-md" :class="view === 'board' ? 'bg-muted shadow-sm' : ''" :disabled="!hydrated" :aria-label="t('projects.filters.boardView')" :aria-pressed="view === 'board'" @click="emit('update:view', 'board')">
+        <Button data-testid="project-tasks-view-board" type="button" variant="ghost" size="icon" class="size-[32px] rounded-md" :class="view === 'board' ? 'bg-background shadow-sm' : ''" :disabled="!hydrated" :aria-label="t('projects.filters.boardView')" :aria-pressed="view === 'board'" @click="emit('update:view', 'board')">
           <LayoutGrid class="size-[18px]" />
         </Button>
       </div>

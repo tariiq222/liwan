@@ -130,7 +130,7 @@ function onRowClick(task: Task, event: MouseEvent) {
 
 <template>
   <div :class="embedded ? 'space-y-0' : 'space-y-2'">
-    <div :class="embedded ? 'border-0' : 'rounded-md border'">
+    <div :class="embedded ? '' : 'nasq-panel overflow-hidden'">
       <div class="hidden overflow-x-auto md:block">
         <Table class="table-fixed min-w-[760px]">
         <!--

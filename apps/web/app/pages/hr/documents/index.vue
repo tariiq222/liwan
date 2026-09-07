@@ -122,15 +122,25 @@ function setPage(next: number) {
       @retry="query.refetch"
     >
       <div class="nasq-panel overflow-hidden">
-        <NuxtLink
-          v-for="document in query.data.value?.items"
-          :key="document.id"
-          :to="{ path: `/hr/departments/${document.department.id}/documents/${document.id}`, query: returnToQuery(route.fullPath) }"
-          class="flex items-center gap-3 border-b border-border/80 p-3 last:border-0 transition-colors hover:bg-muted/70"
-        >
-          <span class="font-medium">{{ document.name }}</span>
-          <span class="ms-2 text-sm text-muted-foreground">{{ document.department.name }}</span>
-        </NuxtLink>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead class="text-start">{{ t('hr.docs.columns.name') }}</TableHead>
+              <TableHead class="text-start">{{ t('hr.docs.columns.department') }}</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            <TableRow
+              v-for="document in query.data.value?.items"
+              :key="document.id"
+              class="cursor-pointer"
+              @click="navigateTo({ path: `/hr/departments/${document.department.id}/documents/${document.id}`, query: returnToQuery(route.fullPath) })"
+            >
+              <TableCell class="font-medium">{{ document.name }}</TableCell>
+              <TableCell class="text-muted-foreground">{{ document.department.name }}</TableCell>
+            </TableRow>
+          </TableBody>
+        </Table>
       </div>
     </SharedPageState>
     <div v-if="pages > 1" class="flex items-center justify-between text-sm text-muted-foreground">

@@ -10,7 +10,7 @@
       "error": "Unable to load the data."
     },
     "directory": {
-      "title": "People",
+      "title": "Employees",
       "empty": "No employees yet",
       "search": "Search by name…",
       "allDepartments": "All departments",

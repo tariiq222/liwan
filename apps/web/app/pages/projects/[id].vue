@@ -117,38 +117,41 @@ const dateRange = computed(() => {
               </div>
               <ProjectProgress :progress="project.progress" :task-count="project.task_count" :closed-task-count="project.closed_task_count" />
             </div>
-            <div class="flex flex-wrap gap-3 text-sm">
+            <nav class="nasq-tabs" :aria-label="t('projects.title')">
+              <button
+                v-for="item in TABS"
+                :key="item"
+                type="button"
+                :disabled="!hydrated"
+                :data-state="tab === item ? 'active' : undefined"
+                :aria-current="tab === item ? 'page' : undefined"
+                @click="onTabChange(item)"
+              >
+                {{ t(`projects.tabs.${item}`) }}
+              </button>
               <NuxtLink
                 :to="{ path: `/projects/${project.id}/charter`, query: returnToQuery(route.fullPath) }"
-                class="text-muted-foreground underline underline-offset-4"
                 data-testid="project-charter-link"
               >
                 {{ t('projects.charter.open') }}
               </NuxtLink>
-              <NuxtLink
-                v-for="section in ['schedule', 'stakeholders', 'raci', 'register']"
-                v-if="project.active"
-                :key="section"
-                :to="{ path: `/projects/${project.id}/${section}`, query: returnToQuery(route.fullPath) }"
-                class="text-muted-foreground underline underline-offset-4"
-                :data-testid="`project-${section}-link`"
-              >
-                {{ t(`projects.planningLinks.${section}`) }}
-              </NuxtLink>
+              <template v-if="project.active">
+                <NuxtLink
+                  v-for="section in ['schedule', 'stakeholders', 'raci', 'register']"
+                  :key="section"
+                  :to="{ path: `/projects/${project.id}/${section}`, query: returnToQuery(route.fullPath) }"
+                  :data-testid="`project-${section}-link`"
+                >
+                  {{ t(`projects.planningLinks.${section}`) }}
+                </NuxtLink>
+              </template>
               <NuxtLink
                 :to="{ path: `/projects/${project.id}/finance`, query: returnToQuery(route.fullPath) }"
-                class="text-muted-foreground underline underline-offset-4"
                 data-testid="project-finance-link"
               >
                 {{ t('projects.finance.title') }}
               </NuxtLink>
-            </div>
-            <TabsList class="nasq-tabs h-auto w-full justify-start rounded-none bg-transparent p-0">
-              <TabsTrigger value="overview" :disabled="!hydrated">{{ t('projects.tabs.overview') }}</TabsTrigger>
-              <TabsTrigger value="tasks" :disabled="!hydrated">{{ t('projects.tabs.tasks') }}</TabsTrigger>
-              <TabsTrigger value="milestones" :disabled="!hydrated">{{ t('projects.tabs.milestones') }}</TabsTrigger>
-              <TabsTrigger value="updates" :disabled="!hydrated">{{ t('projects.tabs.updates') }}</TabsTrigger>
-            </TabsList>
+            </nav>
           </CardContent>
         </Card>
 

@@ -12,7 +12,7 @@ const ROUTES = [
   { id: 'project-detail', path: '/projects/1', width: 'detail', h1: 'مشروع ألفا' },
   { id: 'project-settings', path: '/projects/1/settings', width: 'form', h1: 'إعدادات المشروع' },
   { id: 'project-charter', path: '/projects/1/charter', width: 'form', h1: 'ميثاق المشروع' },
-  { id: 'hr', path: '/hr', width: 'list', h1: 'الأشخاص' },
+  { id: 'hr', path: '/hr', width: 'list', h1: 'الموظفون' },
   { id: 'employee-new', path: '/hr/employees/new', width: 'form', h1: 'موظف جديد' },
   { id: 'account', path: '/account', width: 'form', h1: 'الحساب' },
   { id: 'settings-users', path: '/settings/users', width: null, h1: 'المستخدمون' },

@@ -9,30 +9,32 @@ const hydrated = useHydrated()
 </script>
 
 <template>
-  <div class="nasq-panel overflow-x-auto">
-    <table class="nasq-settings-table">
-      <thead class="border-b border-border/80 bg-muted/50 text-start">
-        <tr>
-          <th class="text-start font-medium">{{ t('access.users.columns.name') }}</th>
-          <th class="text-start font-medium">{{ t('access.users.columns.login') }}</th>
-          <th class="text-start font-medium">{{ t('access.users.columns.employee') }}</th>
-          <th class="text-start font-medium">{{ t('access.users.columns.roles') }}</th>
-          <th class="text-start font-medium">{{ t('access.users.columns.status') }}</th>
-          <th class="text-end font-medium">{{ t('access.users.columns.actions') }}</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="user in users" :key="user.id" class="border-b border-border/70 transition-colors last:border-0 hover:bg-muted/50">
-          <td class="font-medium">{{ user.name }}</td>
-          <td  dir="ltr">{{ user.login }}</td>
-          <td>{{ user.employee?.name ?? t('access.users.noEmployee') }}</td>
-          <td>{{ user.assignments.map((assignment) => assignment.role.name.ar).join('، ') || t('access.users.noRoles') }}</td>
-          <td><AccessStateBadge :active="user.active" :protected="user.protected" /></td>
-          <td class="text-end">
-            <Button variant="ghost" size="sm" :disabled="!hydrated" @click="$emit('open', user.id)">{{ t('access.view') }}</Button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+  <div class="nasq-panel overflow-hidden">
+    <div class="overflow-x-auto">
+      <Table class="min-w-[680px]">
+        <TableHeader>
+          <TableRow>
+            <TableHead class="text-start">{{ t('access.users.columns.name') }}</TableHead>
+            <TableHead class="text-start">{{ t('access.users.columns.login') }}</TableHead>
+            <TableHead class="text-start">{{ t('access.users.columns.employee') }}</TableHead>
+            <TableHead class="text-start">{{ t('access.users.columns.roles') }}</TableHead>
+            <TableHead class="text-start">{{ t('access.users.columns.status') }}</TableHead>
+            <TableHead class="text-end">{{ t('access.users.columns.actions') }}</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          <TableRow v-for="user in users" :key="user.id">
+            <TableCell class="font-medium">{{ user.name }}</TableCell>
+            <TableCell dir="ltr">{{ user.login }}</TableCell>
+            <TableCell>{{ user.employee?.name ?? t('access.users.noEmployee') }}</TableCell>
+            <TableCell>{{ user.assignments.map((assignment) => assignment.role.name.ar).join('، ') || t('access.users.noRoles') }}</TableCell>
+            <TableCell><AccessStateBadge :active="user.active" :protected="user.protected" /></TableCell>
+            <TableCell class="text-end">
+              <Button variant="ghost" size="sm" :disabled="!hydrated" @click="$emit('open', user.id)">{{ t('access.view') }}</Button>
+            </TableCell>
+          </TableRow>
+        </TableBody>
+      </Table>
+    </div>
   </div>
 </template>

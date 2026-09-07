@@ -7,6 +7,7 @@ import { ApiError } from '@/composables/useApi'
 import { formatCalendarDate, toCalendarDate } from '@/composables/calendarDate'
 import { STATUS_CHIP_CLASS, STATUS_TEXT_CLASS } from '@/utils/statusTone'
 import { useDeleteMilestone, useMilestones, useUpdateMilestone } from '@/composables/useMilestones'
+import EmptyState from '@/components/shared/EmptyState.vue'
 import { returnToQuery } from '@/utils/safeReturnTo'
 
 const props = defineProps<{ projectId: number; canManage: boolean }>()
@@ -71,52 +72,65 @@ async function confirmDelete() {
 
 <template>
   <div class="space-y-3">
-    <Card class="nasq-panel">
-      <CardHeader class="flex flex-row items-center justify-between gap-3">
-        <div>
-          <CardTitle class="text-base">{{ t('projects.tabs.milestones') }}</CardTitle>
-          <CardDescription>{{ t('projects.milestones.emptyHint') }}</CardDescription>
-        </div>
-        <Button v-if="canManage" data-testid="milestone-new" size="sm" :disabled="!hydrated" @click="openCreate">{{ t('projects.milestones.new') }}</Button>
-      </CardHeader>
-      <CardContent class="p-0">
-        <div v-if="isLoading" class="space-y-3 p-[18px]">
-          <Skeleton v-for="n in 3" :key="n" class="h-14 w-full" />
-        </div>
-        <div v-else-if="items.length === 0" class="p-8 text-center">
-          <p class="font-medium">{{ t('projects.milestones.empty') }}</p>
-          <p class="mt-1 text-sm text-muted-foreground">{{ t('projects.milestones.emptyHint') }}</p>
-          <Button v-if="canManage" size="sm" class="mt-3" :disabled="!hydrated" @click="openCreate">{{ t('projects.milestones.new') }}</Button>
-        </div>
-        <div v-else class="divide-y">
-          <div v-for="m in items" :key="m.id" data-testid="milestone-row" class="flex flex-col gap-3 px-[18px] py-4 sm:flex-row sm:items-center sm:justify-between">
-            <div class="min-w-0">
-              <div class="flex flex-wrap items-center gap-2">
-                <p class="font-medium">{{ m.name }}</p>
-                <Badge variant="outline" :class="STATUS_CHIP_CLASS[m.is_reached ? 'success' : 'neutral']">{{ t(m.is_reached ? 'projects.milestones.reached' : 'projects.milestones.notReached') }}</Badge>
-              </div>
-              <div class="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                <span :class="STATUS_TEXT_CLASS[deadlineTone(m)]">{{ deadlineText(m) }}</span>
-                <span>{{ t('projects.milestones.tasksOf', { done: m.done_task_count, total: m.task_count }) }}</span>
-              </div>
-            </div>
-            <div v-if="canManage" class="flex shrink-0 flex-wrap items-center gap-1">
-              <Button variant="ghost" size="sm" class="gap-1.5" :disabled="!hydrated" @click="toggleReached(m)">
-                <RotateCcw v-if="m.is_reached" class="size-4" /><CheckCircle2 v-else class="size-4" />{{ t(m.is_reached ? 'projects.milestones.reopen' : 'projects.milestones.markReached') }}
-              </Button>
-              <Button variant="ghost" size="sm" class="gap-1.5" :disabled="!hydrated" @click="openEdit(m)"><Pencil class="size-4" />{{ t('projects.milestones.edit') }}</Button>
-              <Tooltip v-if="m.task_count > 0">
-                <TooltipTrigger as-child><span><Button variant="ghost" size="icon" class="size-8" disabled><Trash2 class="size-4" /></Button></span></TooltipTrigger>
-                <TooltipContent>{{ t('projects.milestones.hasTasks', { count: m.task_count }) }}</TooltipContent>
-              </Tooltip>
-              <Button v-else variant="ghost" size="icon" class="size-8 text-destructive" :disabled="!hydrated" :aria-label="t('projects.milestones.delete')" @click="deleteTarget = m"><Trash2 class="size-4" /></Button>
-            </div>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+    <div class="nasq-toolbar">
+      <p class="min-w-0 flex-1 text-sm text-muted-foreground">{{ t('projects.milestones.emptyHint') }}</p>
+      <Button v-if="canManage" data-testid="milestone-new" :disabled="!hydrated" @click="openCreate">{{ t('projects.milestones.new') }}</Button>
+    </div>
+    <div class="nasq-panel overflow-hidden">
+      <div class="overflow-x-auto">
+        <Table class="min-w-[720px] table-fixed">
+          <TableHeader>
+            <TableRow>
+              <TableHead class="text-start">{{ t('projects.tabs.milestones') }}</TableHead>
+              <TableHead class="text-start">{{ t('projects.columns.dateEnd') }}</TableHead>
+              <TableHead class="text-start">{{ t('projects.columns.progress') }}</TableHead>
+              <TableHead v-if="canManage" />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            <template v-if="isLoading || !hydrated">
+              <TableRow v-for="n in 3" :key="n">
+                <TableCell v-for="col in (canManage ? 4 : 3)" :key="col"><Skeleton class="h-5 w-full" /></TableCell>
+              </TableRow>
+            </template>
+            <TableEmpty v-else-if="items.length === 0" :colspan="canManage ? 4 : 3">
+              <EmptyState :title="t('projects.milestones.empty')" :description="t('projects.milestones.emptyHint')">
+                <template v-if="canManage" #action>
+                  <Button :disabled="!hydrated" @click="openCreate">{{ t('projects.milestones.new') }}</Button>
+                </template>
+              </EmptyState>
+            </TableEmpty>
+            <template v-else>
+              <TableRow v-for="m in items" :key="m.id" data-testid="milestone-row">
+                <TableCell>
+                  <div class="flex min-w-0 flex-wrap items-center gap-2">
+                    <span class="font-medium">{{ m.name }}</span>
+                    <Badge variant="outline" :class="STATUS_CHIP_CLASS[m.is_reached ? 'success' : 'neutral']">{{ t(m.is_reached ? 'projects.milestones.reached' : 'projects.milestones.notReached') }}</Badge>
+                  </div>
+                </TableCell>
+                <TableCell :class="STATUS_TEXT_CLASS[deadlineTone(m)]">{{ deadlineText(m) }}</TableCell>
+                <TableCell class="text-muted-foreground">{{ t('projects.milestones.tasksOf', { done: m.done_task_count, total: m.task_count }) }}</TableCell>
+                <TableCell v-if="canManage" class="text-end">
+                  <div class="flex flex-wrap items-center justify-end gap-1">
+                    <Button variant="ghost" size="sm" class="gap-1.5" :disabled="!hydrated" @click="toggleReached(m)">
+                      <RotateCcw v-if="m.is_reached" class="size-4" /><CheckCircle2 v-else class="size-4" />{{ t(m.is_reached ? 'projects.milestones.reopen' : 'projects.milestones.markReached') }}
+                    </Button>
+                    <Button variant="ghost" size="sm" class="gap-1.5" :disabled="!hydrated" @click="openEdit(m)"><Pencil class="size-4" />{{ t('projects.milestones.edit') }}</Button>
+                    <Tooltip v-if="m.task_count > 0">
+                      <TooltipTrigger as-child><span><Button variant="ghost" size="icon" class="size-8" disabled><Trash2 class="size-4" /></Button></span></TooltipTrigger>
+                      <TooltipContent>{{ t('projects.milestones.hasTasks', { count: m.task_count }) }}</TooltipContent>
+                    </Tooltip>
+                    <Button v-else variant="ghost" size="icon" class="size-8 text-destructive" :disabled="!hydrated" :aria-label="t('projects.milestones.delete')" @click="deleteTarget = m"><Trash2 class="size-4" /></Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            </template>
+          </TableBody>
+        </Table>
+      </div>
+    </div>
 
-    <div v-if="deleteTarget" data-testid="milestone-delete-confirm" class="space-y-2 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm">
+    <div v-if="deleteTarget" data-testid="milestone-delete-confirm" class="nasq-status-callout-danger space-y-2 p-3 text-sm">
       <p class="font-medium">{{ t('projects.milestones.delete') }}</p>
       <p class="text-muted-foreground">{{ deleteTarget.name }}</p>
       <div class="flex flex-wrap gap-2">
