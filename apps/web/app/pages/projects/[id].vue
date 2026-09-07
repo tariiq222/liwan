@@ -125,6 +125,16 @@ const dateRange = computed(() => {
               >
                 {{ t('projects.charter.open') }}
               </NuxtLink>
+              <NuxtLink
+                v-for="section in ['schedule', 'stakeholders', 'raci', 'register']"
+                v-if="project.active"
+                :key="section"
+                :to="{ path: `/projects/${project.id}/${section}`, query: returnToQuery(route.fullPath) }"
+                class="text-muted-foreground underline underline-offset-4"
+                :data-testid="`project-${section}-link`"
+              >
+                {{ t(`projects.planningLinks.${section}`) }}
+              </NuxtLink>
             </div>
             <TabsList class="nasq-tabs h-auto w-full justify-start rounded-none bg-transparent p-0">
               <TabsTrigger value="overview" :disabled="!hydrated">{{ t('projects.tabs.overview') }}</TabsTrigger>

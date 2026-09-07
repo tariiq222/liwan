@@ -1,0 +1,10 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_nasq_project_stakeholder_employee,nasq.project.stakeholder.employee,model_nasq_project_stakeholder,nasq_core.group_employee,1,1,1,1
+access_nasq_project_stakeholder_reader,nasq.project.stakeholder.reader,model_nasq_project_stakeholder,nasq_core.group_cap_pmo_projects_read,1,1,1,1
+access_nasq_project_stakeholder_manager,nasq.project.stakeholder.manager,model_nasq_project_stakeholder,nasq_core.group_cap_pmo_projects_manage,1,1,1,1
+access_nasq_project_raci_employee,nasq.project.raci.employee,model_nasq_project_raci,nasq_core.group_employee,1,1,1,1
+access_nasq_project_raci_reader,nasq.project.raci.reader,model_nasq_project_raci,nasq_core.group_cap_pmo_projects_read,1,1,1,1
+access_nasq_project_raci_manager,nasq.project.raci.manager,model_nasq_project_raci,nasq_core.group_cap_pmo_projects_manage,1,1,1,1
+access_nasq_project_register_employee,nasq.project.register.employee,model_nasq_project_register,nasq_core.group_employee,1,1,1,1
+access_nasq_project_register_reader,nasq.project.register.reader,model_nasq_project_register,nasq_core.group_cap_pmo_projects_read,1,1,1,1
+access_nasq_project_register_manager,nasq.project.register.manager,model_nasq_project_register,nasq_core.group_cap_pmo_projects_manage,1,1,1,1
