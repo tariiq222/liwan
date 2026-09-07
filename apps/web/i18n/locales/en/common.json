@@ -141,7 +141,8 @@
       "confirmed": "Confirmed",
       "done": "Completed",
       "cancelled": "Cancelled"
-    }
+    },
+    "convertError": "Could not convert the recommendation to a task. Please try again."
   },
   "search": {
     "description": "Search pages, projects and tasks…",

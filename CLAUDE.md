@@ -25,6 +25,9 @@ direction.
 - `odoo-addons/nasq_hr` owns the HR directory, departments, documents, HR
   serializers/controllers, and `/api/v1/hr/*` (employee ids are
   `hr.employee` ids).
+- `odoo-addons/cyan_meeting_minutes` provides the preserved LGPL meeting engine.
+  Nasq meeting routes, serializers, task conversion and recipient notifications
+  extend it through `nasq_pmo`; `nasq_core` owns meeting capability grants.
 - `packages/contracts/src/common`, `src/access`, `src/pmo`, and `src/hr` hold the Zod wire
   contracts; each namespace has a barrel re-exported from `src/index.ts`.
 - `apps/web` holds Nuxt pages, components, composables, and per-pillar locale
@@ -176,7 +179,9 @@ worktrees only after their content is preserved and no process is using them.
   project creation, checked manager mutations, serializer display lookups,
   integer counts, and notification delivery/recipient-owned reads. Notification
   elevated reads must first restrict recipient and readable current-company
-  tasks; they never bypass task visibility. Do not add an undocumented bypass.
+  tasks or meetings; resource lookup stays in the caller's ordinary ACL and
+  record-rule environment. Meeting-only access must not reveal task/digest
+  notifications. Do not add an undocumented bypass.
 - Task attachment uploads accept PDF, PNG, JPEG, text, DOCX and XLSX up to
   10 MiB decoded, with exact binary task linkage and ordinary attachment ACLs.
   Dependency edits require project management, same active project, positive

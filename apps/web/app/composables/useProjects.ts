@@ -144,10 +144,11 @@ export async function fetchAllProjectRefs(
 
 // Minimal {id, name} refs for pickers (create-task dialog, مهامي project filter, ⌘K).
 // Walks server pages so callers keep receiving a single array.
-export function useProjects() {
+export function useProjects(enabled: MaybeRefOrGetter<boolean> = true) {
   const { $api } = useApi()
   return useQuery({
     queryKey: projectKeys.minimal,
+    enabled: computed(() => toValue(enabled)),
     queryFn: ({ signal }) => fetchAllProjectRefs(
       (offset) => $api('/api/v1/projects', { query: { minimal: 1, limit: PROJECT_REF_PAGE, offset }, schema: ProjectRefListSchema }),
       PROJECT_REF_PAGE,

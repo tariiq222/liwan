@@ -260,7 +260,11 @@ class TestAccessAdminRoles(NasqApiCase):
         response = self.api('GET', '/api/v1/admin/permissions')
         self.assertEqual(response.status_code, 200, response.text)
         body = response.json()
-        self.assertEqual((len(body['items']), body['total']), (25, 25))
+        self.assertEqual((len(body['items']), body['total']), (28, 28))
+        self.assertEqual(
+            {item['key'] for item in body['items'] if item['key'].startswith('meetings.')},
+            {'meetings.read', 'meetings.create', 'meetings.manage'},
+        )
         permission = next(item for item in body['items'] if item['key'] == 'access.users.assign_roles')
         self.assertFalse(permission['custom_role_allowed'])
         self.assertEqual(permission['scopes'], [{'kind': 'company', 'assignable': True}])

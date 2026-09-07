@@ -7,4 +7,3 @@ The approved module rail and contextual sidebar replace old navigation design in
 
 Before creating a page, identify its shared recipe, owning module, route and reused components. Preserve real data, capabilities, i18n, hydration, direct links and filters.
 Changes to global tokens, shell, shared navigation/components and shared locales require a single assigned owner. Follow the root worktree and verification rules.
-
