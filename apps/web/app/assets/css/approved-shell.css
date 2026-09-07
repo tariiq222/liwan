@@ -1,265 +1,3 @@
-[data-nasq-shell] {
-  min-height: 100svh;
-}
-
-[data-nasq-shell] .nasq-app-header {
-  position: sticky;
-  inset-block-start: 0;
-  z-index: 30;
-  display: grid;
-  min-height: 72px;
-  grid-template-columns: minmax(0, 1fr) minmax(220px, 360px) minmax(0, 1fr);
-  align-items: center;
-  gap: 20px;
-  padding-inline: 24px;
-  border-block-end: 1px solid var(--border);
-  background: color-mix(in oklab, var(--card) 96%, transparent);
-  backdrop-filter: blur(10px);
-}
-
-[data-nasq-shell] .nasq-header-start,
-[data-nasq-shell] .nasq-header-end {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-}
-
-[data-nasq-shell] .nasq-header-start {
-  gap: 12px;
-}
-
-[data-nasq-shell] .nasq-header-end {
-  justify-self: end;
-  gap: 8px;
-}
-
-[data-nasq-shell] .nasq-header-context {
-  display: grid;
-  min-width: 0;
-  gap: 1px;
-}
-
-[data-nasq-shell] .nasq-header-title,
-[data-nasq-shell] .nasq-header-description {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-[data-nasq-shell] .nasq-header-title {
-  color: var(--foreground);
-  font-size: 1rem;
-  font-weight: 600;
-  line-height: 1.35;
-}
-
-[data-nasq-shell] .nasq-header-description {
-  max-width: 38ch;
-  color: var(--muted-foreground);
-  font-size: 0.75rem;
-}
-
-[data-nasq-shell] .nasq-search-trigger {
-  width: 100%;
-  min-width: 0;
-  height: 40px;
-  justify-content: space-between;
-  border-color: var(--border);
-  border-radius: 8px;
-  background: var(--muted);
-  color: var(--muted-foreground);
-  box-shadow: none;
-}
-
-[data-nasq-shell] .nasq-shell-content {
-  width: 100%;
-  min-width: 0;
-  flex: 1;
-  max-width: 1440px;
-  margin-inline: auto;
-  padding: 30px clamp(18px, 3vw, 48px) 56px;
-  background: var(--background);
-}
-
-[data-nasq-shell] [data-slot="sidebar-header"] {
-  min-height: 72px;
-  justify-content: center;
-  border-block-end: 1px solid var(--sidebar-border);
-  padding: 16px;
-}
-
-[data-nasq-shell] [data-slot="sidebar-content"] {
-  padding: 12px 4px 20px;
-}
-
-[data-nasq-shell] [data-sidebar="group"] {
-  padding-block: 8px;
-}
-
-[data-nasq-shell] [data-sidebar="menu-button"] {
-  min-height: 40px;
-  border: 1px solid transparent;
-  border-radius: 8px;
-}
-
-[data-nasq-shell] [data-sidebar="menu-button"][data-active="true"] {
-  border-color: var(--sidebar-border);
-  box-shadow: 0 1px 2px color-mix(in oklab, var(--foreground) 5%, transparent);
-  color: var(--brand-link);
-}
-
-[data-nasq-shell] [data-slot="tabs-trigger"][data-state="active"] {
-  color: var(--brand-link);
-}
-
-[data-nasq-shell] :where(
-  [data-slot="sidebar-trigger"],
-  [data-slot="header-icon-action"],
-  [data-testid="notification-bell"]
-) {
-  width: 32px;
-  height: 32px;
-  min-width: 32px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--background);
-  box-shadow: none;
-}
-
-[data-nasq-shell] :where(
-  [data-slot="sidebar-trigger"],
-  [data-slot="header-icon-action"],
-  [data-testid="notification-bell"],
-  [data-sidebar="menu-button"],
-  [data-slot="header-account"],
-  [data-slot="dropdown-menu-content"],
-  [data-slot="page-header"]
-) .lucide {
-  width: 18px;
-  height: 18px;
-  stroke-width: 2;
-}
-
-.approved-account-menu .lucide {
-  width: 18px;
-  height: 18px;
-  stroke-width: 2;
-}
-
-[data-nasq-shell] .header-account {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  gap: 9px;
-  padding: 4px 7px;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  color: var(--foreground);
-  text-align: start;
-  transition: background-color 150ms, border-color 150ms;
-}
-
-[data-nasq-shell] .header-account:hover,
-[data-nasq-shell] .header-account[data-state="open"] {
-  border-color: var(--border);
-  background: var(--muted);
-}
-
-[data-nasq-shell] .header-account:focus-visible {
-  outline: 1px solid var(--focus-color);
-  outline-offset: 2px;
-}
-
-[data-nasq-shell] .account-copy {
-  display: grid;
-  min-width: 0;
-  max-width: 170px;
-  line-height: 1.3;
-}
-
-[data-nasq-shell] .account-name,
-[data-nasq-shell] .account-role {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-[data-nasq-shell] .account-name {
-  font-size: 0.8125rem;
-  font-weight: 600;
-}
-
-[data-nasq-shell] .account-role {
-  color: var(--muted-foreground);
-  font-size: 0.6875rem;
-}
-
-[data-slot="page-container"] {
-  container-type: inline-size;
-}
-
-[data-slot="page-header"] {
-  min-height: 40px;
-  gap: 12px;
-}
-
-[data-slot="page-header"][data-empty="true"] {
-  display: none;
-}
-
-@media (max-width: 1100px) and (min-width: 769px) {
-  [data-nasq-shell] .nasq-app-header {
-    grid-template-columns: minmax(0, 1fr) minmax(180px, 260px) minmax(0, 1fr);
-    gap: 12px;
-    padding-inline: 16px;
-  }
-
-  [data-nasq-shell] .account-copy {
-    max-width: 82px;
-  }
-
-  [data-nasq-shell] .account-role {
-    display: none;
-  }
-}
-
-@media (max-width: 768px) {
-  [data-nasq-shell] .nasq-app-header {
-    min-height: 112px;
-    grid-template-areas:
-      "start end"
-      "search search";
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 8px 12px;
-    padding: 10px 14px;
-  }
-
-  [data-nasq-shell] .nasq-header-start { grid-area: start; }
-  [data-nasq-shell] .nasq-search-trigger { grid-area: search; max-width: 480px; justify-self: center; height: 36px; }
-  [data-nasq-shell] .nasq-header-end { grid-area: end; gap: 4px; }
-  [data-nasq-shell] .nasq-header-description,
-  [data-nasq-shell] .account-role { display: none; }
-  [data-nasq-shell] .account-copy { max-width: 88px; }
-  [data-nasq-shell] .header-account { gap: 6px; padding: 3px; }
-  [data-nasq-shell] .nasq-shell-content { padding: 22px 16px 40px; }
-}
-
-@media (max-width: 480px) {
-  [data-nasq-shell] .account-copy { display: none; }
-  [data-nasq-shell] .nasq-header-title { font-size: 0.9375rem; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  [data-nasq-shell] *,
-  [data-nasq-shell] *::before,
-  [data-nasq-shell] *::after {
-    scroll-behavior: auto !important;
-    transition-duration: 0.01ms !important;
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-  }
-}
-
 /* Page anatomy from the final approved OpenDesign render. */
 /* Full-height workspaces can override the default grid with Tailwind flex. */
 @layer components {
@@ -314,12 +52,10 @@ html[dir="rtl"] .nasq-gantt-name { box-shadow: 8px 0 16px -12px color-mix(in srg
 
 /* Keep compact desktop geometry while preserving touch target sizes. */
 @media (pointer: coarse) {
-  [data-nasq-shell] [data-slot="button"][data-size="icon"],
   [data-nasq-shell] :is(
-    [data-slot="button"], [data-slot="sidebar-trigger"],
-    [data-slot="header-icon-action"], [data-testid="notification-bell"],
-    [data-sidebar="menu-button"], [data-slot="select-trigger"],
-    .header-account, .nasq-search-trigger
+    [data-slot="button"], [data-testid="notification-bell"],
+    [data-slot="select-trigger"], .header-account, .nasq-search-trigger,
+    .nasq-module-rail-toggle, .nasq-context-link
   ) {
     min-height: 44px;
     min-width: 44px;
@@ -342,4 +78,163 @@ html[dir="rtl"] .nasq-gantt-name { box-shadow: 8px 0 16px -12px color-mix(in srg
 @media (max-width: 600px) {
   .nasq-form-grid { grid-template-columns: minmax(0, 1fr); }
   .nasq-panel-header { flex-wrap: wrap; }
+}
+
+/* Approved application frame: one branded header and module rail, with a
+   quiet context surface that remains visible on every route. */
+.nasq-shell {
+  --shell-header-height: 68px;
+  --module-rail-width: 64px;
+  --context-sidebar-width: 244px;
+  min-height: 100svh;
+  background: var(--context-surface);
+}
+.nasq-shell:has(.nasq-module-rail[data-expanded="true"]) { --module-rail-width: 172px; }
+.nasq-shell-header {
+  position: fixed;
+  inset-block-start: 0;
+  inset-inline: 0;
+  z-index: 60;
+  display: grid;
+  height: var(--shell-header-height);
+  grid-template-columns: minmax(172px, 1fr) minmax(220px, 480px) minmax(172px, 1fr);
+  align-items: center;
+  gap: 24px;
+  padding-inline: 16px;
+  background: var(--shell-background);
+  color: var(--shell-foreground);
+}
+.nasq-shell-brand {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  justify-self: start;
+  gap: 10px;
+  color: inherit;
+  font-size: 1.05rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+.nasq-shell-brand-logo,
+.nasq-shell-brand-mark { width: 38px; height: 38px; flex: none; border-radius: 11px; object-fit: contain; }
+.nasq-shell-brand-mark { display: grid; place-items: center; background: color-mix(in srgb, var(--shell-foreground) 15%, var(--shell-background)); color: var(--shell-foreground); font-size: 1.45rem; }
+.nasq-shell-brand-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nasq-shell-header-actions { display: flex; min-width: 0; align-items: center; justify-self: end; gap: 8px; }
+.nasq-shell-header .nasq-search-trigger { width: 100%; min-width: 0; height: 40px; justify-content: space-between; border: 0; border-radius: 10px; background: color-mix(in srgb, var(--shell-foreground) 97%, var(--shell-background)); color: var(--muted-foreground); box-shadow: none; }
+.nasq-shell-header .nasq-search-trigger:hover { background: var(--card); }
+.nasq-shell-header .header-account { display: flex; min-width: 0; align-items: center; gap: 9px; border: 1px solid transparent; border-radius: 9px; padding: 4px 7px; color: inherit; text-align: start; }
+.nasq-shell-header .header-account:hover,
+.nasq-shell-header .header-account[data-state="open"] { background: color-mix(in srgb, var(--shell-foreground) 13%, var(--shell-background)); }
+.nasq-shell-header .account-copy { display: grid; min-width: 0; max-width: 170px; line-height: 1.3; }
+.nasq-shell-header .account-name,
+.nasq-shell-header .account-role { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nasq-shell-header .account-name { font-size: .82rem; font-weight: 600; }
+.nasq-shell-header .account-role { color: color-mix(in srgb, var(--shell-foreground) 74%, var(--shell-background)); font-size: .69rem; }
+.nasq-shell-header [data-slot="avatar"],
+.nasq-shell-header [data-slot="avatar-fallback"] { background: color-mix(in srgb, var(--shell-foreground) 16%, var(--shell-background)); color: var(--shell-foreground); }
+.nasq-shell-header [data-testid="notification-bell"] { width: 34px; height: 34px; min-width: 34px; border-color: color-mix(in srgb, var(--shell-foreground) 24%, transparent); background: transparent; }
+.nasq-shell-header [data-slot="header-account"],
+.nasq-shell-header [data-testid="notification-bell"] { color: var(--shell-foreground); }
+.nasq-module-rail {
+  position: fixed;
+  inset-block-start: var(--shell-header-height);
+  inset-block-end: 0;
+  inset-inline-start: 0;
+  z-index: 50;
+  width: var(--module-rail-width);
+  overflow: hidden;
+  background: var(--shell-background);
+  color: var(--shell-foreground);
+  transition: width 180ms ease;
+}
+.nasq-module-rail-inner { display: flex; height: 100%; min-width: 0; flex-direction: column; padding: 18px 10px 14px; }
+.nasq-module-rail-toggle,
+.nasq-module-rail-link { display: flex; min-height: 40px; align-items: center; border-radius: 10px; color: inherit; transition: background-color 150ms, color 150ms; }
+.nasq-module-rail-toggle { width: 100%; justify-content: center; gap: 10px; margin-block-end: 18px; padding-inline: 8px; font-size: .75rem; }
+.nasq-module-rail-toggle span { display: none; white-space: nowrap; }
+.nasq-module-rail-toggle:hover,
+.nasq-module-rail-link:hover { background: color-mix(in srgb, var(--shell-foreground) 13%, var(--shell-background)); }
+.nasq-module-rail-toggle:focus-visible,
+.nasq-module-rail-link:focus-visible { outline: 2px solid var(--shell-foreground); outline-offset: 2px; }
+.nasq-module-rail-links { display: flex; min-height: 0; flex: 1; flex-direction: column; gap: 8px; overflow-y: auto; scrollbar-width: thin; }
+.nasq-module-rail-link { position: relative; justify-content: center; gap: 11px; padding: 8px; font-size: .82rem; text-decoration: none; }
+.nasq-module-rail-link span { position: fixed; inset-inline-start: calc(var(--module-rail-width) + 8px); z-index: 90; pointer-events: none; opacity: 0; border-radius: 7px; background: var(--foreground); color: var(--background); padding: 6px 10px; white-space: nowrap; }
+.nasq-module-rail-link:hover span,
+.nasq-module-rail-link:focus-visible span { opacity: 1; }
+.nasq-module-rail-link[data-active="true"] { background: var(--shell-foreground); color: var(--shell-background); font-weight: 600; }
+.nasq-module-rail-link[data-active="true"]::before { position: absolute; inset-block: 10px; inset-inline-start: -10px; width: 3px; border-radius: 3px; background: var(--shell-foreground); content: ''; }
+.nasq-module-rail[data-expanded="true"] .nasq-module-rail-inner { padding-inline: 10px; }
+.nasq-module-rail[data-expanded="true"] .nasq-module-rail-toggle { justify-content: flex-start; padding-inline: 10px; }
+.nasq-module-rail[data-expanded="true"] .nasq-module-rail-toggle span { display: inline; }
+.nasq-module-rail[data-expanded="true"] .nasq-module-rail-link { justify-content: flex-start; padding-inline: 12px; }
+.nasq-module-rail[data-expanded="true"] .nasq-module-rail-link span { position: static; padding: 0; opacity: 1; pointer-events: auto; background: none; color: inherit; white-space: normal; }
+.nasq-context-sidebar {
+  position: fixed;
+  inset-block-start: var(--shell-header-height);
+  inset-block-end: 0;
+  inset-inline-start: var(--module-rail-width);
+  z-index: 40;
+  width: var(--context-sidebar-width);
+  overflow-y: auto;
+  background: var(--context-surface);
+  color: var(--foreground);
+  transition: inset-inline-start 180ms ease;
+}
+.nasq-context-sidebar-inner { display: flex; min-height: 100%; flex-direction: column; padding-block: 16px 18px; }
+.nasq-context-back { display: inline-flex; align-items: center; gap: 8px; margin: 0 18px 12px; color: var(--muted-foreground); font-size: .78rem; text-decoration: none; }
+.nasq-context-back:hover { color: var(--foreground); }
+.nasq-context-heading { display: grid; grid-template-columns: 36px minmax(0, 1fr); align-items: center; gap: 10px; padding: 14px 18px 20px; }
+.nasq-context-emblem { display: grid; width: 36px; height: 36px; place-items: center; border: 1px solid var(--border); border-radius: 10px; background: var(--brand-soft); color: var(--brand-link); }
+.nasq-context-heading-copy { min-width: 0; }
+.nasq-context-heading h2 { margin: 0; overflow-wrap: anywhere; font-size: 1rem; font-weight: 600; line-height: 1.55; }
+.nasq-context-heading p { margin: 2px 0 0; overflow: hidden; color: var(--muted-foreground); font-size: .72rem; text-overflow: ellipsis; white-space: nowrap; }
+.nasq-context-links { display: grid; gap: 4px; padding-inline: 10px; }
+.nasq-context-link { display: flex; min-height: 42px; align-items: center; gap: 10px; border-radius: 9px; padding: 9px 11px; color: var(--muted-foreground); font-size: .82rem; text-align: start; text-decoration: none; }
+.nasq-context-link:hover { background: color-mix(in srgb, var(--foreground) 6%, var(--context-surface)); color: var(--foreground); }
+.nasq-context-link:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+.nasq-context-link[data-active="true"] { background: var(--brand-soft); color: var(--brand-link); font-weight: 600; }
+.nasq-context-active-mark { width: 14px; height: 14px; margin-inline-start: auto; }
+.nasq-context-footer { margin-block-start: auto; border-block-start: 1px solid color-mix(in srgb, var(--border) 65%, transparent); padding: 12px 10px 0; }
+.nasq-shell-workspace { min-height: 100svh; margin-inline-start: calc(var(--module-rail-width) + var(--context-sidebar-width)); padding-block-start: var(--shell-header-height); background: var(--context-surface); transition: margin-inline-start 180ms ease; }
+.nasq-shell-breadcrumb { display: flex; min-height: 44px; align-items: center; gap: 8px; overflow-x: auto; padding-inline: clamp(18px, 3vw, 36px); background: var(--context-surface); color: var(--muted-foreground); font-size: .75rem; white-space: nowrap; }
+.nasq-shell-breadcrumb-link:hover { color: var(--foreground); }
+.nasq-shell-breadcrumb-current { color: var(--foreground); font-weight: 500; }
+.nasq-shell-breadcrumb-separator { width: 14px; height: 14px; color: var(--border); }
+.nasq-shell-main { min-height: calc(100svh - var(--shell-header-height) - 44px); min-width: 0; border-start-start-radius: 24px; background: var(--background); box-shadow: 0 0 14px var(--content-shadow); padding: 30px clamp(18px, 3vw, 48px) 56px; }
+.nasq-page-title { margin: 0; color: var(--foreground); font-size: clamp(1.45rem, 2vw, 1.8rem); font-weight: 600; line-height: 1.45; letter-spacing: -.02em; }
+.nasq-shell-page-title { position: absolute; }
+@media (max-width: 1100px) and (min-width: 761px) {
+  .nasq-shell-header { grid-template-columns: minmax(120px, 1fr) minmax(180px, 320px) minmax(120px, 1fr); gap: 12px; }
+  .nasq-shell-brand-name { display: none; }
+  .nasq-context-sidebar { width: 220px; }
+  .nasq-shell-workspace { margin-inline-start: calc(var(--module-rail-width) + 220px); }
+}
+@media (max-width: 760px) {
+  .nasq-shell { --shell-header-height: 108px; --module-rail-width: 54px; }
+  .nasq-shell-header { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: 'brand actions' 'search search'; height: 108px; gap: 8px 12px; padding: 8px 12px; }
+  .nasq-shell-brand { grid-area: brand; }
+  .nasq-shell-brand-logo, .nasq-shell-brand-mark { width: 32px; height: 32px; }
+  .nasq-shell-brand-name { font-size: .9rem; }
+  .nasq-shell-header .nasq-search-trigger { grid-area: search; height: 36px; }
+  .nasq-shell-header-actions { grid-area: actions; }
+  .nasq-module-rail { inset-block-start: 108px; }
+  .nasq-module-rail[data-expanded="true"] { width: 54px; }
+  .nasq-module-rail[data-expanded="true"] .nasq-module-rail-toggle span,
+  .nasq-module-rail[data-expanded="true"] .nasq-module-rail-link span { display: none; }
+  .nasq-module-rail[data-expanded="true"] .nasq-module-rail-link,
+  .nasq-module-rail[data-expanded="true"] .nasq-module-rail-toggle { justify-content: center; padding-inline: 8px; }
+  .nasq-context-sidebar { position: relative; inset: auto; width: calc(100% - var(--module-rail-width)); margin-inline-start: var(--module-rail-width); margin-block-start: 108px; overflow: visible; }
+  .nasq-context-sidebar-inner { min-height: auto; padding-block: 10px 8px; }
+  .nasq-context-back { margin-block: 4px 4px; }
+  .nasq-context-heading { padding: 8px 14px 10px; }
+  .nasq-context-links { display: flex; overflow-x: auto; padding-inline: 10px; scrollbar-width: thin; }
+  .nasq-context-link { flex: 0 0 auto; min-height: 38px; white-space: nowrap; }
+  .nasq-context-footer { margin-block-start: 4px; border-block-start: 0; padding-block-start: 0; }
+  .nasq-shell-workspace { min-height: auto; margin-inline-start: var(--module-rail-width); padding-block-start: 0; }
+  .nasq-shell-breadcrumb { min-height: 40px; padding-inline: 14px; }
+  .nasq-shell-main { min-height: calc(100svh - 180px); border-start-start-radius: 18px; padding: 22px 16px 40px; }
+}
+@media (max-width: 480px) {
+  .nasq-shell-brand-name { display: none; }
+  .nasq-shell-header-actions .account-copy { display: none; }
 }

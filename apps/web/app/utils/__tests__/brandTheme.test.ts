@@ -95,6 +95,10 @@ describe('createBrandTheme', () => {
       '--sidebar-primary',
       '--sidebar-primary-foreground',
       '--sidebar-ring',
+      '--shell-active',
+      '--shell-background',
+      '--shell-foreground',
+      '--shell-hover',
     ])
   })
 })

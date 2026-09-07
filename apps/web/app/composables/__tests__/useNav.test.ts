@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { useNav } from '../useNav'
+import { activeShellModule, projectContextId, useNav } from '../useNav'
 
 const employee = { role: 'employee', capabilities: ['pmo.tasks.read', 'pmo.projects.read', 'meetings.read', 'hr.employees.read', 'hr.departments.read', 'hr.documents.read'] }
 const admin = { role: 'admin', capabilities: [...employee.capabilities, 'access.users.read', 'access.roles.read', 'access.audit.read', 'settings.branding.manage'] }
@@ -40,5 +40,25 @@ describe('capability-based navigation', () => {
     expect(new Set(nav.map(item => item.to)).size).toBe(nav.length)
     expect(new Set(nav.map(item => item.shortcut)).size).toBe(nav.length)
     for (const item of nav) expect(item.shortcut).toMatch(/^[a-z0-9]$/)
+  })
+})
+
+describe('shell route classification', () => {
+  it('keeps the primary module active for direct and nested routes', () => {
+    expect(activeShellModule('/projects/12/tasks/44')).toBe('projects')
+    expect(activeShellModule('/archived-tasks')).toBe('tasks')
+    expect(activeShellModule('/meetings/calendar')).toBe('meetings')
+    expect(activeShellModule('/settings/users/18/access')).toBe('settings')
+  })
+
+  it('maps every project area to one contextual section', () => {
+    expect(projectContextId('/projects/12', {})).toBe('summary')
+    expect(projectContextId('/projects/12', { tab: 'tasks' })).toBe('planning')
+    expect(projectContextId('/projects/12/schedule', {})).toBe('planning')
+    expect(projectContextId('/projects/12/raci', {})).toBe('stakeholders')
+    expect(projectContextId('/projects/12/register/3/edit', {})).toBe('risks')
+    expect(projectContextId('/projects/12/finance', {})).toBe('finance')
+    expect(projectContextId('/projects/12/charter', {})).toBe('charter')
+    expect(projectContextId('/projects/12/settings', {})).toBe('settings')
   })
 })

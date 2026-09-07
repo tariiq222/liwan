@@ -1,24 +1,26 @@
 import type { Component } from 'vue'
-import { CheckSquare, FolderKanban, Users, Settings, Wrench, Network, Files, ShieldCheck, UserCog, History, SlidersHorizontal, MessageCircle, ChartNoAxesCombined, CalendarDays, List } from '@lucide/vue'
-import { hasCapability, type AccessIdentity } from '../utils/accessPolicy'
+import type { RouteLocationRaw } from 'vue-router'
+import { CheckSquare, FolderKanban, Users, Settings, Wrench, Network, Files, ShieldCheck, UserCog, History, SlidersHorizontal, MessageCircle, ChartNoAxesCombined, CalendarDays, List, ClipboardList, CircleAlert, WalletCards, FileText, LayoutDashboard } from '@lucide/vue'
+import { hasCapability, INTERNAL_NASQ_ACCESS, type AccessIdentity } from '../utils/accessPolicy'
 
 export type NavGroup = 'chat' | 'projects' | 'meetings' | 'hr' | 'settings'
-export interface NavItem { to: string; labelKey: string; icon: Component; shortcut: string; group?: NavGroup; capability: string }
+export type ShellModule = NavGroup | 'tasks' | 'reports' | 'vendor'
+export interface NavItem { to: string; labelKey: string; icon: Component; shortcut: string; group?: NavGroup; module?: ShellModule; capability: string }
 const items: NavItem[] = [
-  { to: '/chat', labelKey: 'nav.chat', icon: MessageCircle, shortcut: 'c', group: 'chat', capability: 'nasq.internal' },
-  { to: '/projects', labelKey: 'nav.projects', icon: FolderKanban, shortcut: '2', group: 'projects', capability: 'pmo.projects.read' },
-  { to: '/tasks', labelKey: 'nav.tasks', icon: CheckSquare, shortcut: '1', group: 'projects', capability: 'pmo.tasks.read' },
-  { to: '/reports', labelKey: 'nav.reports', icon: ChartNoAxesCombined, shortcut: 'r', group: 'projects', capability: 'pmo.projects.read' },
-  { to: '/meetings', labelKey: 'nav.meetings', icon: List, shortcut: 'm', group: 'meetings', capability: 'meetings.read' },
-  { to: '/meetings/calendar', labelKey: 'nav.meetingCalendar', icon: CalendarDays, shortcut: 'k', group: 'meetings', capability: 'meetings.read' },
-  { to: '/hr', labelKey: 'nav.employees', icon: Users, shortcut: '3', group: 'hr', capability: 'hr.employees.read' },
-  { to: '/hr/departments', labelKey: 'nav.departments', icon: Network, shortcut: '5', group: 'hr', capability: 'hr.departments.read' },
-  { to: '/hr/documents', labelKey: 'nav.documents', icon: Files, shortcut: '6', group: 'hr', capability: 'hr.documents.read' },
-  { to: '/settings/appearance', labelKey: 'settings.appearance.title', icon: SlidersHorizontal, shortcut: 'b', group: 'settings', capability: 'nasq.internal' },
-  { to: '/settings/projects', labelKey: 'settings.projects.title', icon: Settings, shortcut: '4', group: 'settings', capability: 'pmo.settings.manage' },
-  { to: '/settings/users', labelKey: 'nav.users', icon: UserCog, shortcut: '7', group: 'settings', capability: 'access.users.read' },
-  { to: '/settings/roles', labelKey: 'nav.roles', icon: ShieldCheck, shortcut: '8', group: 'settings', capability: 'access.roles.read' },
-  { to: '/settings/access-log', labelKey: 'nav.accessLog', icon: History, shortcut: '9', group: 'settings', capability: 'access.audit.read' },
+  { to: '/chat', labelKey: 'nav.chat', icon: MessageCircle, shortcut: 'c', group: 'chat', module: 'chat', capability: 'nasq.internal' },
+  { to: '/projects', labelKey: 'nav.projects', icon: FolderKanban, shortcut: '2', group: 'projects', module: 'projects', capability: 'pmo.projects.read' },
+  { to: '/tasks', labelKey: 'nav.tasks', icon: CheckSquare, shortcut: '1', group: 'projects', module: 'tasks', capability: 'pmo.tasks.read' },
+  { to: '/reports', labelKey: 'nav.reports', icon: ChartNoAxesCombined, shortcut: 'r', group: 'projects', module: 'reports', capability: 'pmo.projects.read' },
+  { to: '/meetings', labelKey: 'nav.meetings', icon: List, shortcut: 'm', group: 'meetings', module: 'meetings', capability: 'meetings.read' },
+  { to: '/meetings/calendar', labelKey: 'nav.meetingCalendar', icon: CalendarDays, shortcut: 'k', group: 'meetings', module: 'meetings', capability: 'meetings.read' },
+  { to: '/hr', labelKey: 'nav.employees', icon: Users, shortcut: '3', group: 'hr', module: 'hr', capability: 'hr.employees.read' },
+  { to: '/hr/departments', labelKey: 'nav.departments', icon: Network, shortcut: '5', group: 'hr', module: 'hr', capability: 'hr.departments.read' },
+  { to: '/hr/documents', labelKey: 'nav.documents', icon: Files, shortcut: '6', group: 'hr', module: 'hr', capability: 'hr.documents.read' },
+  { to: '/settings/appearance', labelKey: 'settings.appearance.title', icon: SlidersHorizontal, shortcut: 'b', group: 'settings', module: 'settings', capability: 'nasq.internal' },
+  { to: '/settings/projects', labelKey: 'settings.projects.title', icon: Settings, shortcut: '4', group: 'settings', module: 'settings', capability: 'pmo.settings.manage' },
+  { to: '/settings/users', labelKey: 'nav.users', icon: UserCog, shortcut: '7', group: 'settings', module: 'settings', capability: 'access.users.read' },
+  { to: '/settings/roles', labelKey: 'nav.roles', icon: ShieldCheck, shortcut: '8', group: 'settings', module: 'settings', capability: 'access.roles.read' },
+  { to: '/settings/access-log', labelKey: 'nav.accessLog', icon: History, shortcut: '9', group: 'settings', module: 'settings', capability: 'access.audit.read' },
 ]
 export function useNav(identity: AccessIdentity): NavItem[] {
   const visible = items.filter(item => (
@@ -26,6 +28,127 @@ export function useNav(identity: AccessIdentity): NavItem[] {
       ? Array.isArray(identity?.capabilities)
       : hasCapability(identity, item.capability)
   ))
-  if (identity?.role === 'vendor' && identity.capabilities?.length) visible.push({ to: '/odoo', labelKey: 'nav.console', icon: Wrench, shortcut: 's', capability: 'vendor' })
+  if (identity?.role === 'vendor' && identity.capabilities?.length) visible.push({ to: '/odoo', labelKey: 'nav.console', icon: Wrench, shortcut: 's', module: 'vendor', capability: 'vendor' })
   return visible
+}
+
+export interface ShellModuleDefinition {
+  id: ShellModule
+  labelKey: string
+  icon: Component
+  to: string
+}
+
+export const shellModules: ShellModuleDefinition[] = [
+  { id: 'projects', labelKey: 'nav.projects', icon: FolderKanban, to: '/projects' },
+  { id: 'tasks', labelKey: 'nav.tasks', icon: CheckSquare, to: '/tasks' },
+  { id: 'reports', labelKey: 'nav.reports', icon: ChartNoAxesCombined, to: '/reports' },
+  { id: 'chat', labelKey: 'nav.chat', icon: MessageCircle, to: '/chat' },
+  { id: 'meetings', labelKey: 'nav.meetings', icon: List, to: '/meetings' },
+  { id: 'hr', labelKey: 'nav.humanResources', icon: Users, to: '/hr' },
+  { id: 'settings', labelKey: 'nav.settings', icon: Settings, to: '/settings/appearance' },
+  { id: 'vendor', labelKey: 'nav.console', icon: Wrench, to: '/odoo' },
+]
+
+export function activeShellModule(path: string): ShellModule | null {
+  if (path === '/chat' || path.startsWith('/chat/')) return 'chat'
+  if (path === '/meetings' || path.startsWith('/meetings/')) return 'meetings'
+  if (path === '/hr' || path.startsWith('/hr/')) return 'hr'
+  if (path === '/settings' || path.startsWith('/settings/')) return 'settings'
+  if (path === '/reports' || path.startsWith('/reports/')) return 'reports'
+  if (path === '/tasks' || path.startsWith('/tasks/') || path === '/archived-tasks') return 'tasks'
+  if (path === '/projects' || path.startsWith('/projects/') || path === '/project-templates' || path.startsWith('/project-templates/')) return 'projects'
+  if (path === '/account' || path.startsWith('/account/')) return 'settings'
+  if (path === '/search' || path.startsWith('/search/')) return 'projects'
+  if (path === '/notifications' || path.startsWith('/notifications/')) return 'tasks'
+  if (path === '/odoo' || path.startsWith('/odoo/')) return 'vendor'
+  return null
+}
+
+export interface ShellContextLink {
+  id: string
+  labelKey: string
+  icon: Component
+  to: RouteLocationRaw
+  capability: string
+  active?: boolean
+}
+type ShellQuery = Record<string, string | string[] | null | undefined>
+
+export const PROJECT_CONTEXT_IDS = ['summary', 'planning', 'stakeholders', 'risks', 'finance', 'charter', 'settings'] as const
+export type ProjectContextId = typeof PROJECT_CONTEXT_IDS[number]
+
+export function projectContextId(path: string, query: Record<string, unknown> = {}): ProjectContextId | null {
+  const match = path.match(/^\/projects\/([^/]+)/)
+  if (!match) return null
+  const rest = path.replace(match[0], '').replace(/^\//, '')
+  if (rest === 'settings') return 'settings'
+  if (rest === 'charter') return 'charter'
+  if (rest === 'finance' || rest.startsWith('finance/')) return 'finance'
+  if (rest === 'stakeholders' || rest.startsWith('stakeholders/') || rest === 'raci') return 'stakeholders'
+  if (rest === 'register' || rest.startsWith('register/')) return 'risks'
+  if (rest === 'schedule' || rest.startsWith('schedule/') || rest === 'tasks' || rest.startsWith('tasks/')) return 'planning'
+  if (query.tab === 'tasks' || query.tab === 'list' || query.tab === 'board' || query.tab === 'milestones') return 'planning'
+  return 'summary'
+}
+
+export function contextLinksForModule(module: ShellModule, identity: AccessIdentity): ShellContextLink[] {
+  const links: ShellContextLink[] = {
+    projects: [
+      { id: 'projects', labelKey: 'nav.projects', icon: FolderKanban, to: '/projects', capability: 'pmo.projects.read' },
+      { id: 'templates', labelKey: 'nav.projectTemplates', icon: Files, to: '/project-templates', capability: 'pmo.projects.read' },
+    ],
+    tasks: [
+      { id: 'tasks', labelKey: 'nav.tasks', icon: CheckSquare, to: '/tasks', capability: 'pmo.tasks.read' },
+      { id: 'archived-tasks', labelKey: 'nav.archivedTasks', icon: ClipboardList, to: '/archived-tasks', capability: 'pmo.tasks.read' },
+    ],
+    reports: [
+      { id: 'reports', labelKey: 'nav.reports', icon: ChartNoAxesCombined, to: '/reports', capability: 'pmo.projects.read' },
+    ],
+    chat: [
+      { id: 'chat', labelKey: 'nav.chat', icon: MessageCircle, to: '/chat', capability: INTERNAL_NASQ_ACCESS },
+    ],
+    meetings: [
+      { id: 'meetings', labelKey: 'nav.meetings', icon: List, to: '/meetings', capability: 'meetings.read' },
+      { id: 'meeting-calendar', labelKey: 'nav.meetingCalendar', icon: CalendarDays, to: '/meetings/calendar', capability: 'meetings.read' },
+    ],
+    hr: [
+      { id: 'employees', labelKey: 'nav.employees', icon: Users, to: '/hr', capability: 'hr.employees.read' },
+      { id: 'departments', labelKey: 'nav.departments', icon: Network, to: '/hr/departments', capability: 'hr.departments.read' },
+      { id: 'documents', labelKey: 'nav.documents', icon: Files, to: '/hr/documents', capability: 'hr.documents.read' },
+    ],
+    settings: [
+      { id: 'account', labelKey: 'nav.account', icon: UserCog, to: '/account', capability: INTERNAL_NASQ_ACCESS },
+      { id: 'appearance', labelKey: 'settings.appearance.title', icon: SlidersHorizontal, to: '/settings/appearance', capability: INTERNAL_NASQ_ACCESS },
+      { id: 'project-settings', labelKey: 'settings.projects.title', icon: Settings, to: '/settings/projects', capability: 'pmo.settings.manage' },
+      { id: 'users', labelKey: 'nav.users', icon: UserCog, to: '/settings/users', capability: 'access.users.read' },
+      { id: 'roles', labelKey: 'nav.roles', icon: ShieldCheck, to: '/settings/roles', capability: 'access.roles.read' },
+      { id: 'access-log', labelKey: 'nav.accessLog', icon: History, to: '/settings/access-log', capability: 'access.audit.read' },
+    ],
+    vendor: [
+      { id: 'console', labelKey: 'nav.console', icon: Wrench, to: '/odoo', capability: 'vendor' },
+    ],
+  }[module]
+  return links.filter(link => hasCapability(identity, link.capability))
+}
+
+export function projectContextLinks(
+  projectId: number,
+  identity: AccessIdentity,
+  activeProject: boolean,
+  canManage: boolean,
+  taskQuery: ShellQuery = {},
+): ShellContextLink[] {
+  const base = `/projects/${projectId}`
+  const links: ShellContextLink[] = [
+    { id: 'summary', labelKey: 'nav.projectSummary', icon: LayoutDashboard, to: base, capability: 'pmo.projects.read' },
+    { id: 'planning', labelKey: 'nav.projectPlanning', icon: ClipboardList, to: { path: base, query: { ...taskQuery, tab: 'tasks' } }, capability: 'pmo.tasks.read' },
+    { id: 'stakeholders', labelKey: 'nav.projectStakeholders', icon: Users, to: `${base}/stakeholders`, capability: 'pmo.projects.read' },
+    { id: 'risks', labelKey: 'nav.projectRisks', icon: CircleAlert, to: `${base}/register`, capability: 'pmo.projects.read' },
+    { id: 'finance', labelKey: 'nav.projectFinance', icon: WalletCards, to: `${base}/finance`, capability: 'pmo.projects.read' },
+    { id: 'charter', labelKey: 'nav.projectCharter', icon: FileText, to: `${base}/charter`, capability: 'pmo.projects.read' },
+    { id: 'settings', labelKey: 'nav.projectSettings', icon: Settings, to: `${base}/settings`, capability: 'pmo.projects.manage' },
+  ]
+  return links.filter(link => activeProject || !['planning', 'stakeholders', 'risks', 'charter'].includes(link.id))
+    .filter(link => link.id === 'settings' ? canManage : hasCapability(identity, link.capability))
 }
