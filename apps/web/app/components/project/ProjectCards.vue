@@ -18,6 +18,12 @@ function open(project: Project, event: MouseEvent) {
   if (!hydrated.value || (event.target as HTMLElement).closest('a, button, [role="menu"]')) return
   emit('open', project.id)
 }
+function openWithKeyboard(project: Project, event: KeyboardEvent) {
+  if (event.target !== event.currentTarget || (event.key !== 'Enter' && event.key !== ' ')) return
+  event.preventDefault()
+  if (!hydrated.value) return
+  emit('open', project.id)
+}
 </script>
 
 <template>
@@ -35,13 +41,16 @@ function open(project: Project, event: MouseEvent) {
       <article
       v-for="project in items"
       :key="project.id"
-      class="nasq-panel cursor-pointer p-4 transition-colors hover:bg-muted/30"
+      class="nasq-panel cursor-pointer p-4 transition-colors hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       data-testid="project-card"
+      tabindex="0"
+      :aria-labelledby="`project-card-${project.id}`"
       @click="open(project, $event)"
+      @keydown="openWithKeyboard(project, $event)"
       >
         <div class="flex items-start justify-between gap-3">
         <div class="min-w-0">
-          <h2 class="truncate text-sm font-semibold"><NuxtLink :to="{ path: `/projects/${project.id}`, query: returnToQuery(route.fullPath) }" class="hover:underline">{{ project.name }}</NuxtLink></h2>
+          <h2 :id="`project-card-${project.id}`" class="truncate text-sm font-semibold"><NuxtLink :to="{ path: `/projects/${project.id}`, query: returnToQuery(route.fullPath) }" class="hover:underline">{{ project.name }}</NuxtLink></h2>
           <p class="mt-1 text-[11px] text-muted-foreground">{{ t('projects.projectId', { id: project.id }) }}</p>
         </div>
         <ProjectStatusBadge :status="project.status" />
@@ -52,7 +61,7 @@ function open(project: Project, event: MouseEvent) {
         </div>
         <ProjectProgress class="mt-3" :progress="project.progress" :task-count="project.task_count" :closed-task-count="project.closed_task_count" compact />
         <div class="mt-4 flex items-center justify-between gap-3 border-t pt-3 text-xs text-muted-foreground">
-          <span class="truncate">{{ project.manager?.name ?? '—' }}</span>
+          <span class="min-w-0 truncate"><span class="sr-only">{{ t('projects.columns.manager') }}: </span>{{ project.manager?.name ?? '—' }}</span>
           <span dir="ltr">{{ project.date_end ? formatCalendarDate(project.date_end, locale) : '—' }}</span>
         </div>
       </article>

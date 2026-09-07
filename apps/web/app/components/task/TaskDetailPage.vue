@@ -20,7 +20,6 @@ const backTo = computed(() => props.closeTo ?? { path: '/tasks', query: route.qu
 const taskIdRef = computed(() => props.taskId)
 const { data: task } = useTask(taskIdRef)
 const title = computed(() => task.value?.name ?? t('tasks.detail.pageLabel'))
-usePageHeader(title)
 
 function close() {
   if (!hydrated.value) return
@@ -30,6 +29,7 @@ function close() {
 
 <template>
   <SharedPageContainer data-testid="task-detail-page" width="detail">
+    <SharedPageHeader :title="title" />
     <TaskDetailPanel
       :task-id="props.taskId"
       :base-path="props.basePath"

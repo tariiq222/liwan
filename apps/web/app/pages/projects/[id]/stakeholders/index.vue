@@ -4,6 +4,7 @@ import FilterBar from '@/components/shared/FilterBar.vue'
 import { useProjectStakeholders, useDeleteProjectStakeholder } from '@/composables/useProjectGovernance'
 import { governanceFilters } from '@/components/project/governance/state'
 import { ApiError } from '@/composables/useApi'
+import { safeReturnTo } from '@/utils/safeReturnTo'
 
 const route = useRoute()
 const router = useRouter()
@@ -17,6 +18,7 @@ const remove = useDeleteProjectStakeholder()
 const confirmDeleteId = ref<number | null>(null)
 const error = ref<string | null>(null)
 const returnTo = computed(() => route.fullPath)
+const projectReturnTo = computed(() => safeReturnTo(route.query.returnTo, `/projects/${id.value}`, ['/projects']))
 function setFilter(key: string, value: string) {
   router.replace({ query: { ...route.query, [key]: value || undefined, offset: undefined } })
 }
@@ -44,6 +46,11 @@ async function deleteItem(item: { id: number }) {
 
 <template>
   <SharedPageContainer width="list">
+    <SharedPageHeader
+      :title="t('projects.governance.stakeholders')"
+      :back-to="projectReturnTo"
+      :back-label="t('projects.backToProject')"
+    />
     <div class="nasq-toolbar" data-testid="stakeholders-toolbar">
       <FilterBar class="w-full">
         <template #search>

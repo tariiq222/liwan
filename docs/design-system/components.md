@@ -7,8 +7,9 @@ Authority: [DESIGN.md](../../DESIGN.md). This catalog records current reusable c
 | Responsibility | Current source | Usage |
 | --- | --- | --- |
 | App shell | `apps/web/app/layouts/default.vue` | One outer layout |
-| Primary navigation | `apps/web/app/components/AppSidebar.vue`, `composables/useNav.ts` | Migrate centrally to module rail + contextual menu |
-| Project navigation | `components/project/ProjectWorkspaceNav.vue` | Current tab bar is a migration target; do not extend it |
+| Global search | `components/GlobalSearch.vue` | Shared centered dialog; compact search header, capability-filtered quick navigation, grouped query results and internal scrolling. Shared dialog layers sit above the app header. |
+| Primary navigation | `apps/web/app/components/AppSidebar.vue`, `composables/useNav.ts` | Module/context ownership migrates through `components/shell/**` and `useShellNavigation.ts`; validation recorded in the migration ledger |
+| Project navigation | Shell contextual navigation | Six project sections; old ProjectWorkspaceNav removed, local view controls remain |
 | Settings navigation | `components/settings/SettingsLayout.vue` | Preserve actual routes and permissions; avoid duplicated context menus |
 | Page container | `components/shared/PageContainer.vue` | Nuxt name `SharedPageContainer`; width list/detail/form; use once at owning level |
 | Page header | `components/shared/PageHeader.vue` | `SharedPageHeader`; title, description, backTo/backLabel, actions slots; coordinates with usePageHeader |

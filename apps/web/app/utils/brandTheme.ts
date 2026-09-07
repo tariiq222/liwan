@@ -85,5 +85,9 @@ export function createBrandTheme(input: string, mode: AppearanceMode = 'light'):
     '--sidebar-primary': primary,
     '--sidebar-primary-foreground': foreground,
     '--sidebar-ring': ring,
+    '--shell-background': primary,
+    '--shell-foreground': foreground,
+    '--shell-hover': hover,
+    '--shell-active': active,
   }
 }

@@ -1,12 +1,9 @@
 <script setup lang="ts">
-import SettingsTabs from './SettingsTabs.vue'
-
 defineProps<{ sections?: { id: string; label: string }[] }>()
 </script>
 
 <template>
   <div class="nasq-settings-layout" data-testid="settings-layout">
-    <SettingsTabs :sections="sections ?? []" />
     <div class="nasq-settings-content">
       <slot />
     </div>
@@ -14,15 +11,14 @@ defineProps<{ sections?: { id: string; label: string }[] }>()
 </template>
 
 <style>
+/* Settings route navigation belongs to the shell. */
+.nasq-settings-layout { display: block; min-width: 0; }
 /* Settings share one responsive anatomy; widths follow the content column. */
 .nasq-settings-content { min-width: 0; width: 100%; container: settings / inline-size; }
 .nasq-settings-content .nasq-page-stack { margin: 0; width: 100%; max-width: none; }
 .nasq-settings-content .nasq-form { max-width: none; margin-inline: 0; }
 .nasq-settings-content .nasq-settings-form-page { max-width: 940px; }
 .nasq-settings-content .nasq-page-width-form { max-width: 940px; }
-.nasq-settings-layout:not(:has(.nasq-settings-nav)) { grid-template-columns: minmax(0, 1fr); }
-.nasq-settings-layout .nasq-settings-nav { position: sticky; inset-block-start: 84px; }
-.nasq-settings-layout .nasq-settings-nav a[aria-current="location"] { border-color: var(--border); background: var(--muted); color: var(--foreground); font-weight: 600; }
 .nasq-settings-content .nasq-form-section,
 .nasq-settings-content .nasq-settings-anchor { scroll-margin-block-start: 88px; }
 .nasq-settings-content .nasq-form-section,
@@ -61,9 +57,5 @@ defineProps<{ sections?: { id: string; label: string }[] }>()
 @container settings (max-width: 480px) {
   .nasq-settings-content .nasq-form-grid { grid-template-columns: minmax(0, 1fr); }
   .nasq-settings-content .nasq-panel-body { padding: 16px; }
-}
-@media (max-width: 820px) {
-  .nasq-settings-layout .nasq-settings-nav { position: static; inset-block-start: auto; flex-wrap: nowrap; overflow-x: auto; }
-  .nasq-settings-layout .nasq-settings-nav a { flex: none; white-space: nowrap; }
 }
 </style>

@@ -45,6 +45,10 @@
   --sidebar-accent-foreground: oklch(0.21 0.006 285.885);
   --sidebar-border: oklch(0.92 0.004 286.32);
   --sidebar-ring: #18181b;
+  --shell-background: var(--primary);
+  --shell-foreground: var(--primary-foreground);
+  --context-surface: #f5f6f8;
+  --content-shadow: rgba(18, 34, 58, .045);
   --brand-soft: color-mix(in srgb, var(--primary) 8%, var(--card));
   --brand-border: color-mix(in srgb, var(--primary) 24%, var(--border));
   --status-success: oklch(0.45 0.12 155);
@@ -86,6 +90,8 @@
   --sidebar-accent: #e4d9c6;
   --sidebar-accent-foreground: #3f3428;
   --sidebar-border: #e4d9c6;
+  --context-surface: #efe8d9;
+  --content-shadow: rgba(63, 52, 40, .06);
 }
 
 .dark {
@@ -118,6 +124,8 @@
   --status-warning-foreground: oklch(0.86 0.1 80);
   --status-danger-foreground: #fb7185;
   --unread-count-foreground: var(--background);
+  --context-surface: #18181b;
+  --content-shadow: rgba(0, 0, 0, .25);
 }
 
 @theme inline {

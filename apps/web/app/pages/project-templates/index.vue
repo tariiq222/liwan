@@ -7,7 +7,6 @@ const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
 const hydrated = useHydrated()
-usePageHeader(() => t('projects.templates.title'), () => t('projects.templates.description'))
 const search = ref(typeof route.query.q === 'string' ? route.query.q : '')
 const q = refDebounced(search, 250)
 const pageSize = 50

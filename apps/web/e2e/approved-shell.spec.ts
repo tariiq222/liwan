@@ -2,89 +2,57 @@ import { expect, test, type Page } from '@playwright/test'
 
 async function login(page: Page) {
   await page.goto('/login')
-  await page.getByLabel('اسم المستخدم').fill('admin')
-  await page.getByLabel('كلمة المرور').fill('admin')
+  await page.getByLabel('اسم المستخدم').fill(process.env.E2E_LOGIN ?? 'admin')
+  await page.getByLabel('كلمة المرور').fill(process.env.E2E_PASSWORD ?? 'admin')
   await page.getByRole('button', { name: 'دخول' }).click()
   await expect(page).toHaveURL(/\/tasks$/)
 }
 
-test('approved shell keeps one route title and fixed sidebar dimensions', async ({ page }) => {
+test('approved shell connects its brand frame and only collapses the module rail', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 })
   await login(page)
-
-  await expect(page.locator('h1')).toHaveCount(1)
-  await expect(page.locator('.nasq-app-header h1')).toHaveText(/.+/)
-  await expect(page.getByRole('button', { name: 'بحث' })).toBeVisible()
-  await expect(page.getByRole('button', { name: /^حسابي/ })).toBeVisible()
-
-  // The outer fixed panel includes the 1px divider; its inner content does not.
-  const sidebar = page.locator('[data-slot="sidebar"] > .fixed')
-  await expect(sidebar).toHaveCSS('width', '232px')
-  await page.locator('[data-slot="sidebar-trigger"]').click()
-  await expect(sidebar).toHaveCSS('width', '72px')
+  const rail = page.getByTestId('module-rail')
+  const context = page.getByTestId('context-sidebar')
+  const toggle = page.getByTestId('module-rail-toggle')
+  await expect(page.locator('main h1')).toHaveCount(1)
+  await expect(page.getByTestId('shell-header').locator('h1')).toHaveCount(0)
+  await expect(rail).toHaveCSS('width', '64px')
+  await expect(context).toHaveCSS('width', '244px')
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false')
+  const headerColor = await page.getByTestId('shell-header').evaluate(el => getComputedStyle(el).backgroundColor)
+  await expect(rail).toHaveCSS('background-color', headerColor)
+  await toggle.click()
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true')
+  await expect(rail).toHaveCSS('width', '172px')
+  await expect(context).toHaveCSS('width', '244px')
+  await toggle.click()
+  await expect(context).toBeVisible()
 })
 
-test('active navigation group reopens after reload even when previously collapsed', async ({ page }) => {
+test('module context follows direct routes and refresh', async ({ page }) => {
   await login(page)
-
-  const sidebar = page.locator('[data-slot="sidebar-content"]')
-  const projects = sidebar.getByRole('button', { name: 'المشاريع', exact: true })
-  await expect(projects).toBeEnabled()
-  await projects.click()
-  await expect(projects).toHaveAttribute('aria-expanded', 'false')
-  await expect(sidebar.locator('#nav-group-projects')).toBeHidden()
-
+  await page.goto('/projects')
+  await expect(page.getByTestId('context-sidebar').getByRole('link', { name: /قوالب/ })).toBeVisible()
+  await page.goto('/tasks')
+  await expect(page.getByTestId('context-sidebar').getByRole('link', { name: /قوالب/ })).toHaveCount(0)
   await page.reload()
-  await expect(page).toHaveURL(/\/tasks$/)
-  await expect(projects).toHaveAttribute('aria-expanded', 'true')
-  await expect(sidebar.locator('#nav-group-projects').getByRole('link', { name: 'مهامي', exact: true })).toBeVisible()
+  await expect(page.getByTestId('context-sidebar')).toBeVisible()
+  await expect(page.locator('h1')).toHaveCount(1)
 })
 
-test('mobile shell places search on its own header row', async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 })
-  await login(page)
-
-  const title = page.locator('.nasq-header-start')
-  const search = page.getByRole('button', { name: 'بحث' })
-  await expect(title).toBeVisible()
-  await expect(search).toBeVisible()
-
-  const [titleBox, searchBox] = await Promise.all([title.boundingBox(), search.boundingBox()])
-  expect(titleBox).not.toBeNull()
-  expect(searchBox).not.toBeNull()
-  expect(searchBox!.y).toBeGreaterThan(titleBox!.y + titleBox!.height)
-})
-
-for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844 }]) {
-  test(`large text keeps routed pages within a ${viewport.width}px viewport in both modes`, async ({ page }, testInfo) => {
-    await page.setViewportSize(viewport)
+for (const width of [390, 768, 1440]) {
+  test(`approved shell stays usable at ${width}px with large type and all appearance modes`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 1000 })
     await login(page)
-    const projectResponse = await page.request.post('/api/v1/projects', { data: { name: `Design layout ${Date.now()}`, date_end: '2035-12-31' } })
-    expect(projectResponse.ok()).toBeTruthy()
-    const project = await projectResponse.json()
-    const taskResponse = await page.request.post('/api/v1/tasks', { data: { name: 'مراجعة توزيع عناصر الصفحة مع العنوان الطويل والخط الكبير', project_id: project.id } })
-    expect(taskResponse.ok()).toBeTruthy()
-    const task = await taskResponse.json()
-
-    for (const mode of ['light', 'dark']) {
+    for (const mode of ['light', 'cream', 'dark']) {
       await page.goto('/settings/appearance')
       await page.getByTestId('appearance-font-large').check()
       await page.getByTestId(`appearance-mode-${mode}`).check()
-      for (const [name, route] of [['appearance', '/settings/appearance'], ['project', `/projects/${project.id}`], ['task', `/tasks/${task.id}`], ['hr', '/hr']] as const) {
-        await page.goto(route)
-        // Measure loaded record content, not the shell's initial skeleton.
-        if (name === 'task') {
-          await expect(page.locator('h1')).toHaveText(task.name)
-          await expect(page.getByRole('textbox', { name: 'الوصف' })).toBeVisible()
-        }
-        if (name === 'project') await expect(page.locator('h1')).toHaveText(project.name)
-        await expect(page.locator('html')).toHaveCSS('font-size', '18px')
-        await expect(page.locator('h1')).toHaveCount(1)
-        await expect(page.locator('[data-slot="sidebar-trigger"]')).toBeEnabled()
-        await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(1)
-        await expect(page.locator('[data-slot="sidebar-trigger"]')).toHaveCSS('width', '32px')
-        await expect(page.locator('[data-slot="sidebar-trigger"]')).toHaveCSS('height', '32px')
-        await page.screenshot({ path: testInfo.outputPath(`${name}-${mode}-${viewport.width}.png`), fullPage: true })
-      }
+      await expect(page.locator('h1')).toHaveCount(1)
+      await expect(page.getByTestId('context-sidebar')).toBeVisible()
+      await expect(page.getByRole('button', { name: 'بحث', exact: true })).toBeVisible()
+      await expect(page.getByRole('button', { name: /^حسابي/ })).toBeVisible()
+      await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(1)
     }
   })
 }

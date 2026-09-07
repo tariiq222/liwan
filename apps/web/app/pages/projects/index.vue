@@ -21,8 +21,6 @@ const router = useRouter()
 const route = useRoute()
 const { t } = useI18n()
 const hydrated = useHydrated()
-usePageHeader(() => t('projects.title'), () => t('projects.description'))
-
 // Capability probe: full envelope (not minimal) so can_list_archived is set,
 // but limit=1 avoids a second 200-row fetch beside the table query.
 const activeList = useProjectList(ref(false), { limit: 1 })
@@ -162,6 +160,18 @@ function openProject(id: number) {
 
 <template>
   <SharedPageContainer width="list">
+    <SharedPageHeader :title="t('projects.title')" :description="t('projects.description')">
+      <template #actions>
+        <Button v-if="canCreate" data-testid="project-new" :disabled="!hydrated" class="gap-2" @click="openCreate">
+          <Plus class="size-[18px]" />{{ t('projects.new') }}
+        </Button>
+        <Button as-child variant="outline">
+          <NuxtLink :to="{ path: '/project-templates', query: returnToQuery(route.fullPath) }" data-testid="project-templates-link">
+            {{ t('projects.planningLinks.templates') }}
+          </NuxtLink>
+        </Button>
+      </template>
+    </SharedPageHeader>
     <section data-testid="projects-summary" class="space-y-2">
       <div class="flex items-center justify-end">
         <Button
@@ -255,14 +265,6 @@ function openProject(id: number) {
             <LayoutGrid class="size-[18px]" />
           </Button>
         </div>
-        <Button v-if="canCreate" data-testid="project-new" :disabled="!hydrated" class="gap-2" @click="openCreate">
-          <Plus class="size-[18px]" />{{ t('projects.new') }}
-        </Button>
-        <Button as-child variant="outline">
-          <NuxtLink :to="{ path: '/project-templates', query: returnToQuery(route.fullPath) }" data-testid="project-templates-link">
-            {{ t('projects.planningLinks.templates') }}
-          </NuxtLink>
-        </Button>
       </template>
 
       <template #active>

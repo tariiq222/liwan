@@ -31,25 +31,26 @@ async function retryDefaults() {
 </script>
 
 <template>
-  <div class="grid gap-4">
-    <p class="text-sm text-muted-foreground">{{ t('projects.create.defaultsHint') }}</p>
-    <p v-if="defaultsLoading && !defaults" data-testid="project-create-loading" class="text-sm text-muted-foreground">{{ t('projects.create.loading') }}</p>
-    <div v-else-if="forbidden && !defaults" role="alert" class="grid gap-2" data-testid="project-create-forbidden">
-      <p class="text-sm text-destructive">{{ t('projects.createForbidden') }}</p>
+  <SharedFormSection :title="t('projects.charter.title')" :description="t('projects.create.defaultsHint')">
+    <div class="grid gap-4">
+      <p v-if="defaultsLoading && !defaults" data-testid="project-create-loading" class="text-sm text-muted-foreground">{{ t('projects.create.loading') }}</p>
+      <div v-else-if="forbidden && !defaults" role="alert" class="grid gap-2" data-testid="project-create-forbidden">
+        <p class="text-sm text-destructive">{{ t('projects.createForbidden') }}</p>
+      </div>
+      <div v-else-if="defaultsFailed && !defaults" role="alert" class="grid gap-2" data-testid="project-create-defaults-error">
+        <p class="text-sm text-destructive">{{ t('projects.create.defaultsError') }}</p>
+        <Button type="button" variant="outline" size="sm" :disabled="!hydrated || defaultsFetching" data-testid="project-create-retry" @click="retryDefaults">
+          {{ t('projects.create.retry') }}
+        </Button>
+      </div>
+      <ProjectCharterForm
+        mode="create"
+        :create-defaults="defaults"
+        :default-manager-name="defaultManagerName"
+        :disabled="!defaults || forbidden"
+        @created="emit('created', $event)"
+        @cancel="emit('cancel')"
+      />
     </div>
-    <div v-else-if="defaultsFailed && !defaults" role="alert" class="grid gap-2" data-testid="project-create-defaults-error">
-      <p class="text-sm text-destructive">{{ t('projects.create.defaultsError') }}</p>
-      <Button type="button" variant="outline" size="sm" :disabled="!hydrated || defaultsFetching" data-testid="project-create-retry" @click="retryDefaults">
-        {{ t('projects.create.retry') }}
-      </Button>
-    </div>
-    <ProjectCharterForm
-      mode="create"
-      :create-defaults="defaults"
-      :default-manager-name="defaultManagerName"
-      :disabled="!defaults || forbidden"
-      @created="emit('created', $event)"
-      @cancel="emit('cancel')"
-    />
-  </div>
+  </SharedFormSection>
 </template>

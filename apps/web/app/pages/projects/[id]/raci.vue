@@ -3,8 +3,10 @@ import { governanceMatrixFilters } from '@/components/project/governance/state'
 import { useGovernanceTaskPage, useProjectRaci, useProjectStakeholders, useCreateProjectRaci, useUpdateProjectRaci, useDeleteProjectRaci } from '@/composables/useProjectGovernance'
 import type { ProjectRaci, ProjectRaciRole } from '@nasq/contracts'
 import { ApiError } from '@/composables/useApi'
+import { safeReturnTo } from '@/utils/safeReturnTo'
 const route = useRoute(); const router = useRouter(); const { t } = useI18n(); const hydrated = useHydrated()
 const id = computed(() => Number(route.params.id)); const viewport = computed(() => governanceMatrixFilters(route.query))
+const returnTo = computed(() => safeReturnTo(route.query.returnTo, `/projects/${id.value}`, ['/projects']))
 function replaceFilter(key: string, value: string | undefined, pageKey: string) { router.replace({ query: { ...route.query, [key]: value, [pageKey]: undefined } }) }
 const taskSearch = computed({ get: () => viewport.value.taskQ, set: value => replaceFilter('task_q', value || undefined, 'task_page') })
 const stakeholderSearch = computed({ get: () => viewport.value.stakeholderQ, set: value => replaceFilter('stakeholder_q', value || undefined, 'stakeholder_page') })
@@ -43,6 +45,12 @@ async function deleteRow() {
 </script>
 <template>
   <SharedPageContainer width="list">
+    <SharedPageHeader
+      :title="t('projects.governance.raci.title')"
+      :description="t('projects.governance.raci.legend')"
+      :back-to="returnTo"
+      :back-label="t('projects.backToProject')"
+    />
     <p class="text-sm text-muted-foreground">{{ t('projects.governance.raci.legend') }}</p>
     <div class="grid gap-3 sm:grid-cols-2">
       <div class="space-y-2"><Label for="raci-task-search">{{ t('projects.governance.raci.task') }}</Label><Input id="raci-task-search" v-model="taskSearch" :disabled="!hydrated || pending" :placeholder="t('app.search')" /><label class="flex gap-2 text-sm"><input v-model="closed" type="checkbox" :disabled="!hydrated || pending" />{{ t('projects.governance.closedTasks') }}</label></div>

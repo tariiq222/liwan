@@ -5,9 +5,10 @@ import type { ProjectDetail } from '@nasq/contracts'
 import { ApiError } from '@/composables/useApi'
 import { useArchiveProject, useUnarchiveProject } from '@/composables/useProjects'
 
-const props = withDefaults(defineProps<{ project: ProjectDetail; backTo?: string; showCreate?: boolean; showEdit?: boolean }>(), {
+const props = withDefaults(defineProps<{ project: ProjectDetail; backTo?: string; showCreate?: boolean; showEdit?: boolean; createLabel?: string; title?: string; canCreate?: boolean }>(), {
   showCreate: true,
   showEdit: false,
+  createLabel: undefined,
 })
 const emit = defineEmits<{ create: []; edit: []; settings: []; archived: []; unarchived: [] }>()
 const { t } = useI18n()
@@ -41,23 +42,22 @@ async function doUnarchive() {
 
 <template>
   <SharedPageHeader
-    :title="project.name"
+    :title="props.title ?? project.name"
     :back-to="props.backTo ?? '/projects'"
     :back-label="t('projects.backToProjects')"
   >
     <template #actions>
       <Button
-        v-if="showCreate && can('pmo.tasks.create')"
+        v-if="showCreate && project.active && (props.canCreate ?? can('pmo.tasks.create'))"
         variant="default"
-        size="icon"
-        class="size-[32px] rounded-lg"
+        class="gap-2"
         data-testid="project-header-create"
         :disabled="!hydrated"
-        :aria-label="t('tasks.new')"
-        :title="t('tasks.new')"
+        :aria-label="props.createLabel || t('tasks.new')"
+        :title="props.createLabel || t('tasks.new')"
         @click="emit('create')"
       >
-        <Plus class="size-[18px]" />
+        <Plus class="size-[18px]" />{{ props.createLabel || t('tasks.new') }}
       </Button>
       <Button
         v-if="showEdit && project.can_manage"

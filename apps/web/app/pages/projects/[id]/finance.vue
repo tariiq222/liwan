@@ -141,6 +141,12 @@ function financeChildKey(target: { path: string; params: Record<string, string |
 
 <template>
   <SharedPageContainer v-if="isListRoute" width="list" data-testid="project-finance-page">
+    <SharedPageHeader
+      :title="t('projects.finance.title')"
+      :description="t('projects.finance.description')"
+      :back-to="returnTo"
+      :back-label="t('projects.backToProject')"
+    />
     <template v-if="projectId === null">
       <p class="text-muted-foreground">{{ t('projects.invalidId') }}</p>
     </template>
