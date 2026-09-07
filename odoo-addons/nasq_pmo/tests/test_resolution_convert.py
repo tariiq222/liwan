@@ -65,6 +65,13 @@ class TestResolutionConvert(TransactionCase):
         cls.project = cls.env['project.project'].create({
             'name': 'Convert project', 'company_id': cls.company.id,
         })
+        create_role = cls.env['nasq.access.role'].create({
+            'name_ar': 'إنشاء الاجتماعات', 'company_id': cls.company.id,
+            'permission_ids': [(6, 0, cls.env['nasq.access.permission'].search([
+                ('key', 'in', ['meetings.read', 'meetings.create', 'pmo.projects.read', 'pmo.tasks.read', 'pmo.tasks.create']),
+            ]).ids)],
+        })
+        Assignment.create({'user_id': cls.organizer.id, 'role_id': create_role.id, 'company_id': cls.company.id})
         cls.Meeting = cls.env['cyan.meeting.minute']
         cls.Resolution = cls.env['cyan.meeting.resolution']
 
@@ -203,3 +210,37 @@ class TestResolutionConvert(TransactionCase):
         meeting = self.Meeting.browse(action['res_id'])
         self.assertEqual(meeting.calendar_event_id, event)
         self.assertEqual(Event.search_count([]), before)
+
+
+    def test_membership_stays_removed_after_rename_and_reschedule(self):
+        meeting = self._create_meeting()
+        meeting.write({'attendee_ids': [(6, 0, [])]})
+        meeting.write({'name': 'Renamed', 'start_datetime': '2026-09-09 10:00:00', 'end_datetime': '2026-09-09 11:00:00'})
+        self.assertNotIn(self.attendee, meeting.attendee_ids)
+        self.assertNotIn(self.attendee.partner_id, meeting.calendar_event_id.partner_ids)
+        self.assertNotIn(self.attendee.partner_id, meeting.message_partner_ids)
+        self.assertEqual(meeting.secretary_id, self.secretary)
+        with self.assertRaises(AccessError):
+            meeting.with_user(self.attendee).read(['name'])
+
+    def test_simultaneous_membership_metadata_and_add_preserve_secretary(self):
+        meeting = self._create_meeting()
+        meeting.write({'name': 'Removed together', 'attendee_ids': [(6, 0, [])]})
+        self.assertFalse(meeting.attendee_ids)
+        meeting.write({'name': 'Added together', 'attendee_ids': [(4, self.attendee.id)]})
+        self.assertEqual(meeting.attendee_ids, self.attendee)
+        self.assertEqual(meeting.secretary_id, self.secretary)
+        self.assertEqual(meeting.calendar_event_id.partner_ids, meeting._cyan_participant_users().mapped('partner_id'))
+
+    def test_calendar_origin_membership_keeps_secretary_and_no_stale_attendee(self):
+        meeting = self._create_meeting()
+        meeting.calendar_event_id.write({'name': 'From calendar', 'partner_ids': [(6, 0, (self.organizer | self.secretary).mapped('partner_id').ids)]})
+        self.assertFalse(meeting.attendee_ids)
+        self.assertEqual(meeting.secretary_id, self.secretary)
+        self.assertEqual(meeting.name, 'From calendar')
+
+    def test_forged_sync_context_does_not_skip_calendar_membership_sync(self):
+        meeting = self._create_meeting()
+        meeting.with_context(nasq_calendar_import=True, nasq_calendar_outbound=True).write({'attendee_ids': [(6, 0, [])], 'name': 'Forged flags'})
+        self.assertNotIn(self.attendee.partner_id, meeting.calendar_event_id.partner_ids)
+        self.assertFalse(meeting.attendee_ids)

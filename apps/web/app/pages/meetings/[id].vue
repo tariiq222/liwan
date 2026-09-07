@@ -19,7 +19,10 @@ const id = computed(() => Number(route.params.id))
 const isDetail = computed(() => route.path === `/meetings/${id.value}`)
 const query = useMeeting(computed(() => isDetail.value ? id.value : null))
 const attachments = useMeetingAttachments(computed(() => isDetail.value ? id.value : null))
-const { data: projects } = useProjects()
+const { can } = useAccess()
+const canConvert = computed(() => isDetail.value && !!query.data.value?.can_edit && can('pmo.projects.read') && can('pmo.tasks.create'))
+const { data: projects } = useProjects(canConvert)
+const conversionError = ref('')
 const { mutateAsync: upload, isPending: uploading } = useUploadMeetingAttachment()
 const { mutateAsync: remove, isPending: deleting } = useDeleteMeetingAttachment()
 const { mutateAsync: convert, isPending: converting } = useConvertResolution()
@@ -66,9 +69,14 @@ async function confirmDelete(attachmentId: number) {
 
 async function convertResolution(resolutionId: number) {
   const projectId = projectByResolution.value[resolutionId]
-  if (!projectId || !id.value) return
-  const task = await convert({ meetingId: id.value, resolutionId, projectId })
-  await navigateTo(`/tasks/${task.id}`)
+  if (!hydrated.value || !canConvert.value || !projectId || !id.value) return
+  conversionError.value = ''
+  try {
+    const task = await convert({ meetingId: id.value, resolutionId, projectId })
+    await navigateTo(`/tasks/${task.id}`)
+  } catch (error) {
+    conversionError.value = error instanceof ApiError ? error.message : t('meetingsUi.convertError')
+  }
 }
 </script>
 
@@ -129,11 +137,12 @@ async function convertResolution(resolutionId: number) {
               <Button size="sm">{{ t('meetingsUi.newResolution') }}</Button>
             </NuxtLink>
           </div>
+          <p v-if="conversionError" role="alert" class="text-sm text-destructive">{{ conversionError }}</p>
           <div v-for="item in query.data.value.resolutions" :key="item.id" class="grid gap-2 border-b border-border py-3 last:border-0">
             <p class="font-medium">{{ item.name }}</p>
             <p class="text-sm text-muted-foreground">{{ item.responsible?.name }} · {{ item.deadline }} · {{ t(`meetingsUi.priorityLabel.${item.priority}`) }} · {{ t(`meetingsUi.resolutionState.${item.state}`) }}</p>
             <NuxtLink v-if="item.task_id" :to="`/tasks/${item.task_id}`" class="text-sm text-brand-link">{{ t('meetingsUi.openTask') }}</NuxtLink>
-            <div v-else-if="query.data.value.can_edit" class="flex flex-wrap items-center gap-2">
+            <div v-else-if="canConvert" class="flex flex-wrap items-center gap-2">
               <select class="border-input h-9 rounded-lg border bg-transparent px-2 text-sm" :disabled="!hydrated || converting" @change="projectByResolution[item.id] = Number(($event.target as HTMLSelectElement).value)">
                 <option value="">{{ t('meetingsUi.project') }}</option>
                 <option v-for="project in projects ?? []" :key="project.id" :value="project.id">{{ project.name }}</option>

@@ -10,16 +10,16 @@ class TestMeetingsApi(NasqPmoCase):
 
     def test_employee_lists_participant_meetings_only(self):
         user_group = self.env.ref('nasq_core.group_cap_meetings_read')
-        self.employee.groups_id |= user_group
-        self.manager.groups_id |= user_group
+        self.employee.group_ids |= user_group
+        self.manager.group_ids |= user_group
         meeting = self.env['cyan.meeting.minute'].create({
-            'name': 'Ops Review',
+            'state': 'draft', 'name': 'Ops Review',
             'organizer_id': self.employee.id,
             'meeting_date': fields.Date.today(),
             'attendee_ids': [(6, 0, [self.employee.id])],
         })
         hidden = self.env['cyan.meeting.minute'].create({
-            'name': 'Secret Board',
+            'state': 'draft', 'name': 'Secret Board',
             'organizer_id': self.manager.id,
             'meeting_date': fields.Date.today(),
         })
@@ -43,30 +43,31 @@ class TestMeetingsApi(NasqPmoCase):
             groups='nasq_core.group_cap_meetings_manage',
             company_id=self.env.company.id, company_ids=self.env.company.ids,
         )
-        self.employee.groups_id |= self.env.ref('nasq_core.group_cap_meetings_read')
-        self.manager.groups_id |= self.env.ref('nasq_core.group_cap_meetings_read')
+        self.env['nasq.access.assignment'].create({'user_id': office.id, 'role_id': self.env.ref('nasq_core.role_system_admin').id, 'company_id': self.env.company.id})
+        self.employee.group_ids |= self.env.ref('nasq_core.group_cap_meetings_read')
+        self.manager.group_ids |= self.env.ref('nasq_core.group_cap_meetings_read')
         meeting = self.env['cyan.meeting.minute'].create({
-            'name': 'Office meeting', 'organizer_id': self.manager.id,
+            'state': 'draft', 'name': 'Office meeting', 'organizer_id': self.manager.id,
         })
         self.assertIn(meeting, meeting.with_user(office).search([('id', '=', meeting.id)]))
         self.assertFalse(meeting.with_user(self.employee).search([('id', '=', meeting.id)]))
         self.assertIn(meeting, meeting.with_user(self.manager).search([('id', '=', meeting.id)]))
 
     def test_meeting_notifications_visibility_read_states_and_recipient_ownership(self):
-        self.employee.groups_id |= self.env.ref('nasq_core.group_cap_meetings_read')
-        self.manager.groups_id |= self.env.ref('nasq_core.group_cap_meetings_read')
+        self.employee.group_ids |= self.env.ref('nasq_core.group_cap_meetings_read')
+        self.manager.group_ids |= self.env.ref('nasq_core.group_cap_meetings_read')
         Meeting = self.env['cyan.meeting.minute']
-        visible = Meeting.create({'name': 'Invite visible', 'organizer_id': self.manager.id,
+        visible = Meeting.create({'state': 'draft', 'name': 'Invite visible', 'organizer_id': self.manager.id,
                                   'attendee_ids': [(6, 0, self.employee.ids)]})
-        second = Meeting.create({'name': 'Invite second', 'organizer_id': self.manager.id,
+        second = Meeting.create({'state': 'draft', 'name': 'Invite second', 'organizer_id': self.manager.id,
                                  'attendee_ids': [(6, 0, self.employee.ids)]})
-        hidden = Meeting.create({'name': 'Hidden', 'organizer_id': self.manager.id})
+        hidden = Meeting.create({'state': 'draft', 'name': 'Hidden', 'organizer_id': self.manager.id})
         hidden._nasq_notify_partners(self.employee.partner_id, 'meeting_invite', 'Hidden')
         company_b = self.env['res.company'].create({'name': 'Meeting company B'})
         self.employee.company_ids |= company_b
         self.manager.company_ids |= company_b
         foreign = Meeting.with_company(company_b).create({
-            'name': 'Foreign', 'organizer_id': self.manager.id,
+            'state': 'draft', 'name': 'Foreign', 'organizer_id': self.manager.id,
             'attendee_ids': [(6, 0, self.employee.ids)],
         })
         rows = self.env['mail.notification'].sudo().search([
@@ -107,7 +108,7 @@ class TestMeetingsApi(NasqPmoCase):
             'user_id': self.employee.id, 'role_id': role.id, 'company_id': self.env.company.id,
         })
         meeting = self.env['cyan.meeting.minute'].create({
-            'name': 'Meetings only', 'organizer_id': self.employee.id,
+            'state': 'draft', 'name': 'Meetings only', 'organizer_id': self.employee.id,
         })
         self.authenticate('api_emp', 'api_emp_pass_123')
         response = self.api('GET', f'/api/v1/meetings/{meeting.id}')
@@ -118,4 +119,28 @@ class TestMeetingsApi(NasqPmoCase):
         row = body['items'][0]
         self.assertEqual(row['meeting_id'], meeting.id)
         self.assertEqual(self.api('POST', f"/api/v1/notifications/{row['id']}/read", {}).json(), {'updated': 1})
+        self.assertEqual(self.api('POST', '/api/v1/notifications/read-all', {}).json(), {'updated': 0})
+
+    def test_foreign_manager_grant_cannot_expose_b_meeting_or_notification(self):
+        company_a = self.env.company
+        company_b = self.env['res.company'].create({'name': 'HTTP meetings B'})
+        self.employee.company_ids |= company_b
+        self.manager.company_ids |= company_b
+        for company, keys in [(company_a, ['meetings.read', 'meetings.manage']), (company_b, ['meetings.read'])]:
+            role = self.env['nasq.access.role'].create({'name_ar': 'نطاق الاجتماعات', 'company_id': company.id,
+                'permission_ids': [(6, 0, self.env['nasq.access.permission'].search([('key', 'in', keys)]).ids)]})
+            self.env['nasq.access.assignment'].create({'user_id': self.employee.id, 'role_id': role.id, 'company_id': company.id})
+        self.employee.sudo().write({'company_id': company_b.id})
+        meeting = self.env['cyan.meeting.minute'].with_company(company_b).create({
+            'name': 'Confidential B', 'organizer_id': self.manager.id, 'state': 'draft'})
+        meeting._nasq_notify_partners(self.employee.partner_id, 'meeting_invite', 'Private notice')
+        row = self.env['mail.notification'].sudo().search([
+            ('res_partner_id', '=', self.employee.partner_id.id), ('mail_message_id.nasq_meeting_id', '=', meeting.id)], limit=1)
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        self.assertEqual(self.api('GET', '/api/v1/meetings').json(), {'items': [], 'total': 0})
+        for endpoint in [f'/api/v1/meetings/{meeting.id}', f'/api/v1/meetings/{meeting.id}/attachments']:
+            self.assertEqual(self.api('GET', endpoint).status_code, 404)
+        self.assertEqual(self.api('PATCH', f'/api/v1/meetings/{meeting.id}', {'name': 'Illicit'}).status_code, 404)
+        self.assertEqual(self.api('GET', '/api/v1/notifications').json(), {'items': [], 'total': 0, 'unread_count': 0})
+        self.assertEqual(self.api('POST', f'/api/v1/notifications/{row.id}/read', {}).status_code, 404)
         self.assertEqual(self.api('POST', '/api/v1/notifications/read-all', {}).json(), {'updated': 0})

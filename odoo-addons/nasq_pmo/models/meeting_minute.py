@@ -1,7 +1,13 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+from contextvars import ContextVar
+
 from odoo import api, fields, models
 from odoo.exceptions import AccessError, UserError
 from odoo.tools.mail import plaintext2html
+
+
+_CALENDAR_IMPORT = ContextVar('nasq_calendar_import', default=False)
+_CALENDAR_OUTBOUND = ContextVar('nasq_calendar_outbound', default=frozenset())
 
 
 class CyanMeetingMinute(models.Model):
@@ -45,6 +51,7 @@ class CyanMeetingMinute(models.Model):
         self.ensure_one()
         if not (self.start_datetime and self.end_datetime):
             return
+        linked = bool(self.calendar_event_id)
         try:
             with self.env.cr.savepoint():
                 if not self.calendar_event_id:
@@ -56,19 +63,30 @@ class CyanMeetingMinute(models.Model):
                         'start': self.start_datetime,
                         'stop': self.end_datetime,
                         'location': self.location,
+                        'user_id': self.organizer_id.id,
                         'videocall_location': self.meeting_url or False,
                     }
-                    changes = {key: value for key, value in values.items() if event[key] != value}
+                    changes = {key: value for key, value in values.items()
+                               if (event[key].id if key == 'user_id' else event[key]) != value}
+                    partner_ids = self._cyan_participant_users().mapped('partner_id').ids
+                    if set(event.partner_ids.ids) != set(partner_ids):
+                        changes['partner_ids'] = [(6, 0, partner_ids)]
                     if changes:
-                        event.write(changes)
+                        token = _CALENDAR_OUTBOUND.set(_CALENDAR_OUTBOUND.get() | {self.id})
+                        try:
+                            event.write(changes)
+                        finally:
+                            _CALENDAR_OUTBOUND.reset(token)
         except (AccessError, UserError):
+            if linked:
+                raise
             return
 
     @api.model_create_multi
     def create(self, vals_list):
         records = super().create(vals_list)
         for meeting in records:
-            if not self.env.context.get('nasq_calendar_import'):
+            if not _CALENDAR_IMPORT.get():
                 meeting._nasq_sync_calendar()
             partners = meeting._cyan_participant_users().mapped('partner_id') - meeting.env.user.partner_id
             meeting._nasq_notify_partners(partners, 'meeting_invite', meeting.name, key=f'meeting-invite:{meeting.id}')
@@ -77,7 +95,7 @@ class CyanMeetingMinute(models.Model):
     def write(self, vals):
         previous = {meeting.id: meeting._cyan_participant_users() for meeting in self}
         result = super().write(vals)
-        if {'start_datetime', 'end_datetime', 'meeting_url', 'location', 'name'} & set(vals):
+        if {'start_datetime', 'end_datetime', 'meeting_url', 'location', 'name', 'attendee_ids', 'secretary_id', 'organizer_id'} & set(vals):
             for meeting in self:
                 meeting._nasq_sync_calendar()
         if {'attendee_ids', 'secretary_id'} & set(vals):
@@ -90,11 +108,29 @@ class CyanMeetingMinute(models.Model):
         return result
 
 
+    @api.private
+    def _cyan_write_calendar_schedule(self, values):
+        self.ensure_one()
+        # Only the server-local outbound call may suppress the Cyan round-trip.
+        if self.id in _CALENDAR_OUTBOUND.get():
+            return True
+        values = dict(values)
+        if 'attendee_ids' in values and self.secretary_id:
+            attendee_ids = values['attendee_ids'][0][2]
+            if self.secretary_id.id in attendee_ids:
+                values['attendee_ids'] = [(6, 0, [uid for uid in attendee_ids if uid != self.secretary_id.id])]
+            elif self.secretary_id.id != values.get('organizer_id'):
+                values['secretary_id'] = False
+        return super()._cyan_write_calendar_schedule(values)
+
+
 class CalendarEvent(models.Model):
     _inherit = 'calendar.event'
 
     def action_open_meeting_minutes(self):
-        # Cyan links the existing event after create. Suppress only Nasq's
-        # optional auto-scheduling to avoid creating an orphan second event.
-        # This flag carries no authorization and bypasses no Cyan ACL checks.
-        return super(CalendarEvent, self.with_context(nasq_calendar_import=True)).action_open_meeting_minutes()
+        # The server-local marker is inaccessible to forged RPC context flags.
+        token = _CALENDAR_IMPORT.set(True)
+        try:
+            return super().action_open_meeting_minutes()
+        finally:
+            _CALENDAR_IMPORT.reset(token)
