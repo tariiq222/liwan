@@ -15,7 +15,7 @@ const source = readFileSync(filename, 'utf8')
 const Passthrough = defineComponent({
   inheritAttrs: false,
   setup(_, { slots, attrs }) {
-    return () => h('div', attrs, slots.default?.())
+    return () => h('div', attrs, [slots.back?.(), slots.actions?.(), slots.default?.()])
   },
 })
 
@@ -38,6 +38,8 @@ function loadPage(setup: () => Record<string, unknown>) {
 async function renderPage(setup: () => Record<string, unknown>) {
   const app = createSSRApp({ render: () => h(loadPage(setup)) })
   app.component('Button', Passthrough)
+  app.component('SharedPageContainer', Passthrough)
+  app.component('SharedPageHeader', Passthrough)
   app.component('ArrowLeft', defineComponent({ setup: () => () => null }))
   app.component('ArrowRight', defineComponent({ setup: () => () => null }))
   return renderToString(app)

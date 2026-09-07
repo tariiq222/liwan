@@ -57,30 +57,30 @@ async function retryNextPage() {
 </script>
 
 <template>
-  <main data-testid="notification-digest" class="nasq-page-stack nasq-page-width-form flex min-h-[calc(100vh-7rem)] flex-col">
-    <nav class="flex items-center justify-between gap-3">
-      <Button
-        variant="ghost"
-        size="sm"
-        class="gap-2 px-2 text-muted-foreground"
-        type="button"
-        data-testid="digest-back"
-        :disabled="!hydrated"
-        :aria-label="t('notifications.back')"
-        @click="goBack"
-      >
-        <component :is="isRtl ? ArrowRight : ArrowLeft" class="size-[18px]" />
-        {{ t('notifications.back') }}
-      </Button>
-      <Button type="button" variant="outline" size="sm" :disabled="!hydrated || isLoading || isFetching" @click="retryDigest">
-        {{ t('notifications.retry') }}
-      </Button>
-    </nav>
+  <SharedPageContainer data-testid="notification-digest" width="form" class="flex min-h-[calc(100vh-7rem)] flex-col">
+    <SharedPageHeader :title="t('tasks.digest.title')" :description="t('tasks.digest.count', { n: overdueCount })">
+      <template #back>
+        <Button
+          variant="ghost"
+          size="sm"
+          class="gap-2 px-2 text-muted-foreground"
+          type="button"
+          data-testid="digest-back"
+          :disabled="!hydrated"
+          :aria-label="t('notifications.back')"
+          @click="goBack"
+        >
+          <component :is="isRtl ? ArrowRight : ArrowLeft" class="size-[18px]" />
+          {{ t('notifications.back') }}
+        </Button>
+      </template>
+      <template #actions>
+        <Button type="button" variant="outline" size="sm" :disabled="!hydrated || isLoading || isFetching" @click="retryDigest">
+          {{ t('notifications.retry') }}
+        </Button>
+      </template>
+    </SharedPageHeader>
     <section class="nasq-panel flex min-h-0 flex-1 flex-col overflow-hidden">
-      <header class="border-b px-5 py-4">
-        <h1 class="text-2xl font-semibold">{{ t('tasks.digest.title') }}</h1>
-        <p class="text-sm text-muted-foreground">{{ t('tasks.digest.count', { n: overdueCount }) }}</p>
-      </header>
       <div class="flex-1 overflow-y-auto p-4">
         <div v-if="idInvalid" class="grid gap-3 py-8 text-center" role="alert" data-testid="digest-invalid">
           <p class="text-sm text-destructive">{{ t('tasks.digest.invalid') }}</p>
@@ -120,5 +120,5 @@ async function retryNextPage() {
         </Button>
       </div>
     </section>
-  </main>
+  </SharedPageContainer>
 </template>
