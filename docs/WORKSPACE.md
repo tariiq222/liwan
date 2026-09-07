@@ -275,3 +275,7 @@ The original `stash@{0}` from phase 2 remains untouched and is also present in
 the preserved Git bundle. `main` contains UI integration commit `958dea1` and
 workspace/plan reconciliation commit `a1d9405`. No remote was configured and no
 push or deployment was performed.
+
+## Approved UI integration — 2026-09-07
+
+Local main now includes the approved shell, project workspace and compact global search (`cc89d69`, combined as `054766d`). Existing branding/login changes were preserved. Combined typecheck, 120 contract tests, 522 web tests and build passed in the isolated integration checkout. See [the UI verification ledger](approved-ui-migration-2026-09-07.md) for browser coverage and remaining cases. Temporary UI worktrees remain preserved; port3980 uses the scratch database, while canonical runtime verification is separate.

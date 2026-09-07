@@ -1,41 +1,41 @@
 # Approved UI migration verification ledger
 
-Status: implementation integrated in `codex/ui-integration`; local route/layout checks complete, remaining acceptance cases are listed below. Canonical main has not received the UI migration.
+Status: committed UI migration and search polish merged into local `main` at `054766d` on 2026-09-07. Remaining acceptance cases are listed below; Git integration does not close those cases.
 
 ## Route inventory
 
 | Page source | Section | Verification |
 | --- | --- | --- |
-| `apps/web/app/pages/projects/[id]/charter.vue` | Project files | Pending combined runtime |
-| `apps/web/app/pages/projects/[id]/finance/[entryId]/edit.vue` | Finance | Pending combined runtime |
-| `apps/web/app/pages/projects/[id]/finance/[entryId].vue` | Finance | Pending combined runtime |
-| `apps/web/app/pages/projects/[id]/finance/new.vue` | Finance | Pending combined runtime |
-| `apps/web/app/pages/projects/[id]/finance.vue` | Finance | Pending combined runtime |
-| `apps/web/app/pages/projects/[id]/milestones/[milestoneId]/edit.vue` | Tasks and plan | Pending combined runtime |
-| `apps/web/app/pages/projects/[id]/milestones/new.vue` | Tasks and plan | Pending combined runtime |
-| `apps/web/app/pages/projects/[id]/raci.vue` | Stakeholders and responsibilities | Pending combined runtime |
-| `apps/web/app/pages/projects/[id]/register/[registerId]/edit.vue` | Risks and issues | Pending combined runtime |
-| `apps/web/app/pages/projects/[id]/register/[registerId].vue` | Risks and issues | Pending combined runtime |
-| `apps/web/app/pages/projects/[id]/register/index.vue` | Risks and issues | Pending combined runtime |
-| `apps/web/app/pages/projects/[id]/register/new.vue` | Risks and issues | Pending combined runtime |
-| `apps/web/app/pages/projects/[id]/schedule/tasks/[taskId].vue` | Tasks and plan | Pending combined runtime |
-| `apps/web/app/pages/projects/[id]/schedule.vue` | Tasks and plan | Pending combined runtime |
-| `apps/web/app/pages/projects/[id]/settings.vue` | Project settings | Pending combined runtime |
-| `apps/web/app/pages/projects/[id]/stakeholders/[stakeholderId]/edit.vue` | Stakeholders and responsibilities | Pending combined runtime |
-| `apps/web/app/pages/projects/[id]/stakeholders/[stakeholderId].vue` | Stakeholders and responsibilities | Pending combined runtime |
-| `apps/web/app/pages/projects/[id]/stakeholders/index.vue` | Stakeholders and responsibilities | Pending combined runtime |
-| `apps/web/app/pages/projects/[id]/stakeholders/new.vue` | Stakeholders and responsibilities | Pending combined runtime |
-| `apps/web/app/pages/projects/[id]/tasks/[taskId].vue` | Tasks and plan | Pending combined runtime |
-| `apps/web/app/pages/projects/[id]/tasks/new.vue` | Tasks and plan | Pending combined runtime |
-| `apps/web/app/pages/projects/[id]/updates/new.vue` | Summary and updates | Pending combined runtime |
-| `apps/web/app/pages/projects/[id].vue` | Projects and templates | Pending combined runtime |
-| `apps/web/app/pages/projects/index.vue` | Projects and templates | Pending combined runtime |
-| `apps/web/app/pages/projects/new.vue` | Projects and templates | Pending combined runtime |
-| `apps/web/app/pages/project-templates/[id]/apply.vue` | Projects and templates | Pending combined runtime |
-| `apps/web/app/pages/project-templates/[id]/edit.vue` | Projects and templates | Pending combined runtime |
-| `apps/web/app/pages/project-templates/[id].vue` | Projects and templates | Pending combined runtime |
-| `apps/web/app/pages/project-templates/index.vue` | Projects and templates | Pending combined runtime |
-| `apps/web/app/pages/project-templates/new.vue` | Projects and templates | Pending combined runtime |
+| `apps/web/app/pages/projects/[id]/charter.vue` | Project files | See coverage below |
+| `apps/web/app/pages/projects/[id]/finance/[entryId]/edit.vue` | Finance | See coverage below |
+| `apps/web/app/pages/projects/[id]/finance/[entryId].vue` | Finance | See coverage below |
+| `apps/web/app/pages/projects/[id]/finance/new.vue` | Finance | See coverage below |
+| `apps/web/app/pages/projects/[id]/finance.vue` | Finance | See coverage below |
+| `apps/web/app/pages/projects/[id]/milestones/[milestoneId]/edit.vue` | Tasks and plan | See coverage below |
+| `apps/web/app/pages/projects/[id]/milestones/new.vue` | Tasks and plan | See coverage below |
+| `apps/web/app/pages/projects/[id]/raci.vue` | Stakeholders and responsibilities | See coverage below |
+| `apps/web/app/pages/projects/[id]/register/[registerId]/edit.vue` | Risks and issues | See coverage below |
+| `apps/web/app/pages/projects/[id]/register/[registerId].vue` | Risks and issues | See coverage below |
+| `apps/web/app/pages/projects/[id]/register/index.vue` | Risks and issues | See coverage below |
+| `apps/web/app/pages/projects/[id]/register/new.vue` | Risks and issues | See coverage below |
+| `apps/web/app/pages/projects/[id]/schedule/tasks/[taskId].vue` | Tasks and plan | See coverage below |
+| `apps/web/app/pages/projects/[id]/schedule.vue` | Tasks and plan | See coverage below |
+| `apps/web/app/pages/projects/[id]/settings.vue` | Project settings | See coverage below |
+| `apps/web/app/pages/projects/[id]/stakeholders/[stakeholderId]/edit.vue` | Stakeholders and responsibilities | See coverage below |
+| `apps/web/app/pages/projects/[id]/stakeholders/[stakeholderId].vue` | Stakeholders and responsibilities | See coverage below |
+| `apps/web/app/pages/projects/[id]/stakeholders/index.vue` | Stakeholders and responsibilities | See coverage below |
+| `apps/web/app/pages/projects/[id]/stakeholders/new.vue` | Stakeholders and responsibilities | See coverage below |
+| `apps/web/app/pages/projects/[id]/tasks/[taskId].vue` | Tasks and plan | See coverage below |
+| `apps/web/app/pages/projects/[id]/tasks/new.vue` | Tasks and plan | See coverage below |
+| `apps/web/app/pages/projects/[id]/updates/new.vue` | Summary and updates | See coverage below |
+| `apps/web/app/pages/projects/[id].vue` | Projects and templates | See coverage below |
+| `apps/web/app/pages/projects/index.vue` | Projects and templates | See coverage below |
+| `apps/web/app/pages/projects/new.vue` | Projects and templates | See coverage below |
+| `apps/web/app/pages/project-templates/[id]/apply.vue` | Projects and templates | See coverage below |
+| `apps/web/app/pages/project-templates/[id]/edit.vue` | Projects and templates | See coverage below |
+| `apps/web/app/pages/project-templates/[id].vue` | Projects and templates | See coverage below |
+| `apps/web/app/pages/project-templates/index.vue` | Projects and templates | See coverage below |
+| `apps/web/app/pages/project-templates/new.vue` | Projects and templates | See coverage below |
 
 Legacy query views `tab=overview/tasks/list/board/milestones/updates` remain valid. Each must preserve task filters and list returnTo.
 
@@ -61,11 +61,17 @@ Legacy query views `tab=overview/tasks/list/board/milestones/updates` remain val
 - Task search survived navigation through Finance and back to Tasks. Header search opened its approved dialog.
 - Fixed initial sidebar hydration mismatch that could associate a section label with another section's link on direct navigation.
 - Project creation through the scratch API was blocked by an inherited analytic-account access rule; project fixture was seeded through the ORM. UI project creation is not accepted by these checks. No tests or fixtures used `odoo19`.
-- Remaining: English/LTR matrix, template detail/edit/apply, complete form-save flows, fresh screenshot capture (browser capture returned an error), and canonical runtime integration.
+- Remaining: English/LTR matrix, template detail/edit/apply, complete form-save flows, fresh screenshot capture (browser capture returned an error), and canonical runtime verification.
 
 ## Global search polish — 2026-09-07
 
 - Compact global dialog with a single search bar, two-column quick navigation on desktop, one column on phones, and grouped results only after typing. Empty result groups are hidden. Existing permission guards, pagination, returnTo and keyboard opening remain.
 - Dialog overlay/content now use layers 100/101 above shell header 60; shared overlay is lighter. Header search uses the shared brand foreground/background.
 - Browser checks: 1440, 768 and 390 widths; light and dark with large font; 640px desktop dialog, 362px at 390 viewport, 620px capped mobile height with internal scrolling and no document overflow. Confirmed initial input focus, Escape/close focus return, real project result navigation and no-results state.
-- Fresh `npm -w apps/web run lint` passed; focused business-overlays and shell-structure tests passed (4 tests). Local integration preview remains port3980; these changes are not merged into main.
+- Fresh `npm -w apps/web run lint` passed; focused business-overlays and shell-structure tests passed (4 tests). Local integration preview remains port3980; these changes are now merged into local main.
+
+## Merge verification
+
+- UI commit: `cc89d69`. Preserved branding/login commit: `e7aaf7a`. Combined commit: `054766d`.
+- On the combined code: Nuxt prepare, web typecheck, 120 contract tests, 522 web tests and production build passed. Logs: `/tmp/nasq-merge-{prepare,types,tests,build}.log`. Main was fast-forwarded to that tested commit.
+- No database tests used `odoo19`; no remote push or production deployment was performed.
