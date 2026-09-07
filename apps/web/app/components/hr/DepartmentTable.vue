@@ -6,6 +6,7 @@ const props = defineProps<{
   departments: HrDepartment[]
   selectedId?: number | null
   canManage?: boolean
+  canDelete?: boolean
 }>()
 const emit = defineEmits<{ select: [id: number]; edit: [department: HrDepartment]; delete: [department: HrDepartment] }>()
 const hydrated = useHydrated()
@@ -29,7 +30,7 @@ const canManage = computed(() => !!props.canManage && can('hr.departments.manage
       <NuxtLink v-if="canManage" :to="{ path: `/hr/departments/${department.id}/edit`, query: returnToQuery(route.fullPath) }" @click.stop="!hydrated && $event.preventDefault()">
         <Button variant="ghost" size="sm" :disabled="!hydrated">{{ $t('hr.depts.edit') }}</Button>
       </NuxtLink>
-      <Button v-if="canManage" variant="ghost" size="sm" class="text-destructive" :disabled="!hydrated" @click="emit('delete', department)">
+      <Button v-if="canManage && props.canDelete !== false" variant="ghost" size="sm" class="text-destructive" :disabled="!hydrated" @click="emit('delete', department)">
         {{ $t('hr.depts.delete') }}
       </Button>
     </div>

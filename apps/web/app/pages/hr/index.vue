@@ -31,7 +31,7 @@ function editEmployee(id: number) { void navigateTo({ path: `/hr/employees/${id}
       </TabsList>
       <TabsContent value="employees"><DirectoryTable v-model:department-id="selectedDepartmentId" @open="openEmployee" @manage="editEmployee" @archive="openEmployee" /></TabsContent>
       <TabsContent v-if="can('hr.departments.read')" value="departments" class="space-y-4">
-        <DepartmentTable :departments="departments" :selected-id="selectedDepartmentId" :can-manage="can('hr.departments.manage')" @select="selectedDepartmentId = $event" />
+        <DepartmentTable :departments="departments" :selected-id="selectedDepartmentId" :can-manage="can('hr.departments.manage')" :can-delete="false" @select="selectedDepartmentId = $event" />
         <NuxtLink v-if="selectedDepartmentId && can('hr.documents.read')" :to="{ path: `/hr/departments/${selectedDepartmentId}`, query: returnToQuery(route.fullPath) }" class="text-sm underline">{{ t('hr.depts.selectHelp') }}</NuxtLink>
       </TabsContent>
     </Tabs>

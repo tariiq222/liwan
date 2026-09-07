@@ -7,7 +7,9 @@ import { Search, X } from '@lucide/vue'
 import { useHrDepartments } from '@/composables/useHrDepartments'
 import { useHrEmployees, type HrEmployee } from '@/composables/useHrEmployees'
 import { returnToQuery } from '@/utils/safeReturnTo'
+import { hasPendingHrSearch, hrCommittedListParams } from '@/composables/useHrSearch'
 import AccessBadge from './AccessBadge.vue'
+import { refDebounced } from '@vueuse/core'
 
 const departmentId = defineModel<number | null>('departmentId', { default: null })
 const emit = defineEmits<{ open: [id: number]; manage: [id: number]; archive: [id: number] }>()
@@ -21,6 +23,9 @@ const router = useRouter()
 // useHydrated()). Gate both on hydration, same as TaskToolbar.vue.
 const hydrated = useHydrated()
 const search = ref(String(route.query.q ?? ''))
+const debouncedSearch = refDebounced(search, 250)
+const hasPendingSearch = computed(() => hasPendingHrSearch(search.value, route.query.q))
+const committedListParams = computed(() => hrCommittedListParams(route.query))
 const archived = ref(route.query.archived === '1')
 const offset = ref(Math.max(0, Number(route.query.offset ?? 0) || 0))
 const { can } = useAccess()
@@ -28,11 +33,11 @@ const canManage = computed(() => can('hr.employees.manage'))
 const canArchive = computed(() => can('hr.employees.archive'))
 
 const params = computed(() => ({
-  q: search.value.trim() || undefined,
+  q: committedListParams.value.q,
   department_id: departmentId.value ?? undefined,
   archived: archived.value || undefined,
   limit: 25,
-  offset: offset.value,
+  offset: committedListParams.value.offset,
 }))
 
 const { data, isLoading, error, refetch } = useHrEmployees(params)
@@ -43,7 +48,7 @@ const items = computed<HrEmployee[]>(() => data.value?.items ?? [])
 const departments = computed(() => deptData.value?.items ?? [])
 const selectedDepartment = computed(() => departments.value.find(item => item.id === departmentId.value) ?? null)
 const hasActiveFilters = computed(() => Boolean(search.value.trim()) || departmentId.value !== null)
-const page = computed(() => Math.floor(offset.value / 25) + 1)
+const page = computed(() => Math.floor(committedListParams.value.offset / 25) + 1)
 const pages = computed(() => Math.max(1, Math.ceil((data.value?.total ?? 0) / 25)))
 
 watch(() => [route.query.q, route.query.department_id, route.query.archived, route.query.offset], ([q, department, archivedQuery, nextOffset]) => {
@@ -53,14 +58,14 @@ watch(() => [route.query.q, route.query.department_id, route.query.archived, rou
   archived.value = archivedQuery === '1'
   offset.value = Math.max(0, Number(nextOffset ?? 0) || 0)
 }, { immediate: true })
-watch(search, (value) => { if (value !== String(route.query.q ?? '')) updateQuery() })
+watch(debouncedSearch, (value) => { if (value !== String(route.query.q ?? '')) updateQuery() })
 
 function updateQuery() {
   offset.value = 0
   void router.replace({ query: { ...route.query, ...(search.value.trim() ? { q: search.value.trim() } : { q: undefined }), ...(departmentId.value ? { department_id: departmentId.value } : { department_id: undefined }), ...(archived.value ? { archived: '1' } : { archived: undefined }), offset: undefined } })
 }
 function setPage(next: number) {
-  if (!hydrated.value || isLoading.value || next < 1 || next > pages.value) return
+  if (!hydrated.value || isLoading.value || hasPendingSearch.value || next < 1 || next > pages.value) return
   offset.value = (next - 1) * 25
   void router.replace({ query: { ...route.query, ...(offset.value ? { offset: offset.value } : { offset: undefined }) } })
 }
@@ -153,7 +158,7 @@ function clearFilters() {
       <template #search>
       <div class="relative min-w-48 flex-1">
         <Search class="pointer-events-none absolute start-2 top-1/2 size-[18px] -translate-y-1/2 text-muted-foreground" />
-        <Input v-model="search" :disabled="!hydrated" :placeholder="t('hr.directory.search')" class="ps-8" @change="updateQuery" />
+        <Input v-model="search" :disabled="!hydrated" :placeholder="t('hr.directory.search')" class="ps-8" />
       </div>
       </template>
       <template #default>
@@ -218,6 +223,6 @@ function clearFilters() {
       </Table>
     </div>
     </SharedPageState>
-    <div v-if="pages > 1" class="flex items-center justify-between text-sm text-muted-foreground"><Button variant="ghost" :disabled="!hydrated || page === 1 || isLoading" @click="setPage(page - 1)">{{ t('access.previousPage') }}</Button><span>{{ t('access.pageOf', { page, pages }) }}</span><Button variant="ghost" :disabled="!hydrated || page >= pages || isLoading" @click="setPage(page + 1)">{{ t('access.nextPage') }}</Button></div>
+    <div v-if="pages > 1" class="flex items-center justify-between text-sm text-muted-foreground"><Button variant="ghost" :disabled="!hydrated || hasPendingSearch || page === 1 || isLoading" @click="setPage(page - 1)">{{ t('access.previousPage') }}</Button><span>{{ t('access.pageOf', { page, pages }) }}</span><Button variant="ghost" :disabled="!hydrated || hasPendingSearch || page >= pages || isLoading" @click="setPage(page + 1)">{{ t('access.nextPage') }}</Button></div>
   </div>
 </template>

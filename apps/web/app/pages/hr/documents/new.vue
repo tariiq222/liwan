@@ -16,8 +16,8 @@ function saved(id: number) { void navigateTo({ path: `/hr/departments/${departme
   <div class="nasq-page-stack mx-auto w-full max-w-5xl">
     <SharedPageHeader :title="t('hr.docs.new')" :back-to="returnTo" />
     <SharedPageState :loading="departments.isLoading.value" :error="departments.error.value" :empty="!departments.data.value?.items.length" @retry="departments.refetch">
-      <div class="nasq-panel nasq-panel-body grid max-w-2xl gap-2"><Label for="new-document-department">{{ t('hr.docs.department') }}</Label>
-        <select id="new-document-department" :value="departmentId || ''" :disabled="!hydrated" class="h-9 rounded-md border border-input bg-background px-3 text-sm" @change="selectDepartment">
+      <div class="nasq-panel nasq-panel-body grid min-w-0 max-w-2xl gap-2"><Label for="new-document-department">{{ t('hr.docs.department') }}</Label>
+        <select id="new-document-department" :value="departmentId || ''" :disabled="!hydrated" class="h-9 w-full min-w-0 max-w-full rounded-md border border-input bg-background px-3 text-sm" @change="selectDepartment">
           <option value="">{{ t('hr.docs.chooseDepartment') }}</option><option v-for="department in departments.data.value?.items" :key="department.id" :value="department.id">{{ department.name }}</option>
         </select>
       </div>
