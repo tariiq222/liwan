@@ -77,7 +77,7 @@ async function submitTotp() {
   <main class="min-h-svh grid place-items-center bg-muted/40 p-4">
     <Card class="w-full max-w-sm">
       <CardHeader class="items-center text-center">
-        <img v-if="branding" :src="branding.logo_url" :alt="branding.name" class="h-12 w-auto mb-2" />
+        <img v-if="branding" :src="branding.logo_url" :alt="branding.name" class="h-28 w-auto max-w-full justify-self-center object-contain mb-3" />
         <span v-else class="mb-2 grid size-12 place-items-center rounded-xl bg-primary text-lg font-bold text-primary-foreground">ن</span>
         <CardTitle class="text-xl">{{ productName }}</CardTitle>
         <CardDescription>{{ $t('auth.signInToContinue') }}</CardDescription>
