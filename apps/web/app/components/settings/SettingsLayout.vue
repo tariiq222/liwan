@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import SettingsTabs from './SettingsTabs.vue'
+
+defineProps<{ sections?: { id: string; label: string }[] }>()
 </script>
 
 <template>
   <div class="nasq-settings-layout" data-testid="settings-layout">
-    <SettingsTabs />
+    <SettingsTabs :sections="sections ?? []" />
     <div class="nasq-settings-content">
       <slot />
     </div>
@@ -18,6 +20,18 @@ import SettingsTabs from './SettingsTabs.vue'
 .nasq-settings-content .nasq-form { max-width: none; margin-inline: 0; }
 .nasq-settings-content .nasq-settings-form-page { max-width: 940px; }
 .nasq-settings-content .nasq-page-width-form { max-width: 940px; }
+.nasq-settings-layout:not(:has(.nasq-settings-nav)) { grid-template-columns: minmax(0, 1fr); }
+.nasq-settings-layout .nasq-settings-nav { position: sticky; inset-block-start: 84px; }
+.nasq-settings-layout .nasq-settings-nav a[aria-current="location"] { border-color: var(--border); background: var(--muted); color: var(--foreground); font-weight: 600; }
+.nasq-settings-content .nasq-form-section,
+.nasq-settings-content .nasq-settings-anchor { scroll-margin-block-start: 88px; }
+.nasq-settings-content .nasq-form-section,
+.nasq-settings-content .nasq-form-section:last-of-type { border-block-end: 1px solid var(--border); }
+.nasq-settings-content .nasq-panel-body > :last-child,
+.nasq-settings-content .nasq-panel-body > :last-child .nasq-form-section:last-child { border-block-end: 0; }
+.nasq-settings-content .nasq-panel .nasq-panel { border: 0; border-radius: 0; background: transparent; }
+.nasq-settings-content .nasq-panel .nasq-settings-filters { border: 0; border-radius: 0; background: transparent; border-block-end: 1px solid var(--border); }
+.nasq-settings-content .nasq-panel .nasq-settings-pagination { padding: 12px 16px; }
 .nasq-settings-filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr)); align-items: end; gap: 12px; padding: 16px; border: 1px solid var(--border); border-radius: 8px; background: var(--card); }
 .nasq-settings-field { display: grid; min-width: 0; gap: 8px; font-size: .929rem; }
 .nasq-settings-field > span { color: var(--muted-foreground); font-size: .857rem; }
@@ -49,7 +63,7 @@ import SettingsTabs from './SettingsTabs.vue'
   .nasq-settings-content .nasq-panel-body { padding: 16px; }
 }
 @media (max-width: 820px) {
-  .nasq-settings-nav { flex-wrap: nowrap; overflow-x: auto; }
-  .nasq-settings-nav a { flex: none; white-space: nowrap; }
+  .nasq-settings-layout .nasq-settings-nav { position: static; inset-block-start: auto; flex-wrap: nowrap; overflow-x: auto; }
+  .nasq-settings-layout .nasq-settings-nav a { flex: none; white-space: nowrap; }
 }
 </style>

@@ -2,8 +2,10 @@
   "settings": {
     "title": "Settings",
     "forbidden": "This page is for administrators only",
-    "tabs": {
-      "label": "Settings sections"
+    "toc": {
+      "label": "On this page",
+      "filters": "Filters",
+      "list": "Results"
     },
     "branding": {
       "title": "Branding",

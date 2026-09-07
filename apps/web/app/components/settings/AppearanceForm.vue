@@ -11,8 +11,7 @@ const previewSizes = { small: '14px', medium: '16px', large: '18px' }
 </script>
 
 <template>
-  <div class="nasq-panel p-[18px]" data-testid="appearance-form">
-    <fieldset class="nasq-form-section space-y-4" :disabled="!hydrated">
+  <fieldset id="appearance-mode" class="nasq-form-section nasq-settings-anchor space-y-4" :disabled="!hydrated">
       <legend class="sr-only">{{ t('settings.appearance.mode') }}</legend>
       <div>
         <h2 class="font-semibold">{{ t('settings.appearance.mode') }}</h2>
@@ -34,7 +33,7 @@ const previewSizes = { small: '14px', medium: '16px', large: '18px' }
       </div>
     </fieldset>
 
-    <fieldset class="nasq-form-section space-y-4" :disabled="!hydrated">
+    <fieldset id="appearance-font" class="nasq-form-section nasq-settings-anchor space-y-4" :disabled="!hydrated">
       <legend class="sr-only">{{ t('settings.appearance.fontSize') }}</legend>
       <div>
         <h2 class="font-semibold">{{ t('settings.appearance.fontSize') }}</h2>
@@ -54,7 +53,6 @@ const previewSizes = { small: '14px', medium: '16px', large: '18px' }
           </span>
         </label>
       </div>
+      <p class="pt-4 text-sm text-muted-foreground">{{ t('settings.appearance.savedHint') }}</p>
     </fieldset>
-    <p class="pt-4 text-sm text-muted-foreground">{{ t('settings.appearance.savedHint') }}</p>
-  </div>
 </template>

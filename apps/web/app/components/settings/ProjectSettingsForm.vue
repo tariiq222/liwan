@@ -106,11 +106,11 @@ function onDeleteStage(id: number | string) {
 </script>
 
 <template>
-  <div class="nasq-form nasq-panel nasq-panel-body">
+  <div class="nasq-form">
     <Skeleton v-if="isLoading" class="h-64 w-full" />
 
     <template v-else-if="settings">
-      <section class="nasq-form-section space-y-4">
+      <section id="project-creators" class="nasq-form-section nasq-settings-anchor space-y-4">
         <Label>{{ t('settings.projects.creators.label') }}</Label>
         <RadioGroup :model-value="settings.project_creators" :disabled="!hydrated || isPending" @update:model-value="onCreatorsChange">
           <div v-for="option in CREATOR_OPTIONS" :key="option.value" class="flex items-center gap-2">
@@ -120,7 +120,7 @@ function onDeleteStage(id: number | string) {
         </RadioGroup>
       </section>
 
-      <section class="nasq-form-section space-y-4">
+      <section id="project-stages" class="nasq-form-section nasq-settings-anchor space-y-4">
         <Label>{{ t('settings.projects.defaultStages.label') }}</Label>
         <p class="text-sm text-muted-foreground">{{ t('settings.projects.defaultStages.hint') }}</p>
         <StageListEditor
@@ -134,7 +134,7 @@ function onDeleteStage(id: number | string) {
         />
       </section>
 
-      <section class="space-y-3">
+      <section id="project-requirements" class="nasq-form-section nasq-settings-anchor space-y-3">
         <Label>{{ t('settings.projects.createRequirements.label') }}</Label>
         <p class="text-sm text-muted-foreground">{{ t('settings.projects.createRequirements.hint') }}</p>
         <label class="flex items-center gap-2">
@@ -157,7 +157,7 @@ function onDeleteStage(id: number | string) {
         </label>
       </section>
 
-      <section class="space-y-3">
+      <section id="project-approval" class="nasq-form-section nasq-settings-anchor space-y-3">
         <Label>{{ t('settings.projects.approval.label') }}</Label>
         <p class="text-sm text-muted-foreground">{{ t('settings.projects.approval.hint') }}</p>
         <RadioGroup :model-value="settings.default_completion_approval" :disabled="!hydrated || isPending" @update:model-value="onApprovalDefault">
@@ -172,7 +172,7 @@ function onDeleteStage(id: number | string) {
         </RadioGroup>
       </section>
 
-      <section class="space-y-3">
+      <section id="project-reminders" class="nasq-form-section nasq-settings-anchor space-y-3">
         <Label>{{ t('settings.projects.reminders.label') }}</Label>
         <label class="flex items-center gap-2">
           <input
