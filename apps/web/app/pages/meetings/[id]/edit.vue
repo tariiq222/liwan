@@ -22,6 +22,11 @@ const agenda = ref('')
 const minutes = ref('')
 const attendeeIds = ref<number[]>([])
 const loaded = ref(false)
+const baseline = ref('')
+function snapshot() {
+  return JSON.stringify([name.value, meetingDate.value, start.value, end.value, location.value,
+    meetingUrl.value, agenda.value, minutes.value, [...attendeeIds.value].sort((a, b) => a - b)])
+}
 
 watch(query.data, (meeting) => {
   if (!meeting || loaded.value) return
@@ -31,13 +36,14 @@ watch(query.data, (meeting) => {
   end.value = meeting.end_datetime?.slice(0, 16) || ''
   location.value = meeting.location
   meetingUrl.value = meeting.meeting_url
-  agenda.value = meeting.agenda.replace(/<[^>]+>/g, '')
-  minutes.value = meeting.minutes.replace(/<[^>]+>/g, '')
+  agenda.value = meeting.agenda
+  minutes.value = meeting.minutes
   attendeeIds.value = meeting.attendees.map(person => person.id)
+  baseline.value = snapshot()
   loaded.value = true
 }, { immediate: true })
 
-const dirty = computed(() => loaded.value)
+const dirty = computed(() => loaded.value && snapshot() !== baseline.value)
 
 function toggleAttendee(userId: number) {
   attendeeIds.value = attendeeIds.value.includes(userId)
@@ -61,6 +67,8 @@ async function save() {
       attendee_ids: attendeeIds.value,
     },
   })
+  baseline.value = snapshot()
+  await nextTick()
   await navigateTo(returnTo.value)
 }
 </script>

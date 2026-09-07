@@ -34,7 +34,7 @@ class MeetingAttachmentController(http.Controller):
     def upload_meeting_attachment(self, meeting_id, **payload):
         request.env['nasq.access.service']._nasq_require_capability('meetings.read')
         meeting = get_record('cyan.meeting.minute', meeting_id)
-        if not (meeting.can_edit or meeting.can_manage):
+        if not meeting.can_edit:
             raise AccessError(request.env._("You are not allowed to change this meeting."))
         payload.pop('meeting_id', None)
         values = parse_task_attachment_upload(payload)
@@ -58,7 +58,7 @@ class MeetingAttachmentController(http.Controller):
     def delete_meeting_attachment(self, meeting_id, attachment_id):
         request.env['nasq.access.service']._nasq_require_capability('meetings.read')
         meeting = get_record('cyan.meeting.minute', meeting_id)
-        if not (meeting.can_edit or meeting.can_manage):
+        if not meeting.can_edit:
             raise AccessError(request.env._("You are not allowed to change this meeting."))
         attachment = self._attachments(meeting).filtered(lambda item: item.id == attachment_id)
         if not attachment:

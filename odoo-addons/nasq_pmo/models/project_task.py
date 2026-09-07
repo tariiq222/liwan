@@ -51,6 +51,9 @@ class ProjectTask(models.Model):
     nasq_planned_start = fields.Date(copy=False, index=True)
     meeting_id = fields.Integer(copy=False, index=True)
     resolution_id = fields.Integer(copy=False, index=True)
+    _nasq_resolution_task_unique = models.UniqueIndex(
+        '(resolution_id) WHERE resolution_id IS NOT NULL AND resolution_id > 0',
+    )
 
     @api.model
     def _nasq_template_population_domain(self):

@@ -39,6 +39,8 @@ def readable_active_task_ids(env, candidate_ids=None):
     domain requires ``company_id`` of the current company on both the
     task and its project.
     """
+    if not env['nasq.access.service']._nasq_has_capability(env.user, 'pmo.tasks.read') or not env['project.task'].has_access('read'):
+        return []
     if candidate_ids is None:
         candidate_ids = recipient_candidate_task_ids(env)
     if not candidate_ids:
@@ -60,18 +62,44 @@ def readable_active_task_ids(env, candidate_ids=None):
     ]).ids
 
 
+def readable_active_meeting_ids(env):
+    """Recipient-owned candidate ids, checked under the caller's meeting ACLs.
+
+    Elevated notification reads do not grant access to the linked meeting.
+    Explicit company scope also protects superusers with several companies.
+    """
+    Meeting = env['cyan.meeting.minute']
+    if not env['nasq.access.service']._nasq_has_capability(env.user, 'meetings.read') or not Meeting.has_access('read'):
+        return []
+    rows = env['mail.notification'].sudo().search([
+        ('res_partner_id', '=', env.user.partner_id.id),
+        ('mail_message_id.nasq_notification', '=', True),
+        ('mail_message_id.model', '=', 'cyan.meeting.minute'),
+        ('notification_type', '=', 'inbox'),
+    ])
+    candidate_ids = rows.mapped('mail_message_id.nasq_meeting_id')
+    if not candidate_ids:
+        return []
+    return Meeting.search([
+        ('id', 'in', candidate_ids),
+        ('company_id', '=', env.company.id),
+        ('active', '=', True),
+    ]).ids
+
+
 class NotificationController(http.Controller):
 
     def _readable_active_task_ids(self):
         return readable_active_task_ids(request.env)
 
-    def _domain(self, unread=None, task_ids=None):
+    def _domain(self, unread=None, task_ids=None, meeting_ids=None):
         task_ids = task_ids if task_ids is not None else self._readable_active_task_ids()
+        meeting_ids = meeting_ids if meeting_ids is not None else readable_active_meeting_ids(request.env)
         domain = [
             ('res_partner_id', '=', request.env.user.partner_id.id),
             ('mail_message_id.nasq_notification', '=', True),
             ('notification_type', '=', 'inbox'),
-            '|',
+            '|', '|',
             '&', '&',
             ('mail_message_id.nasq_notification_kind', '=', 'overdue_digest'),
             ('mail_message_id.model', '=', 'res.company'),
@@ -79,6 +107,10 @@ class NotificationController(http.Controller):
             '&',
             ('mail_message_id.model', '=', 'project.task'),
             ('mail_message_id.nasq_task_id', 'in', task_ids),
+            '&', '&',
+            ('mail_message_id.model', '=', 'cyan.meeting.minute'),
+            ('mail_message_id.res_id', 'in', meeting_ids),
+            ('mail_message_id.nasq_meeting_id', 'in', meeting_ids),
         ]
         if unread is not None:
             domain.append(('is_read', '=', not unread))
@@ -86,6 +118,8 @@ class NotificationController(http.Controller):
 
     def _digest_live_tasks(self, row):
         Task = request.env['project.task']
+        if not request.env['nasq.access.service']._nasq_has_capability(request.env.user, 'pmo.tasks.read') or not Task.has_access('read'):
+            return Task.browse()
         snapshot = Task._nasq_digest_snapshot_ids(row.mail_message_id)
         return Task._nasq_live_digest_tasks(snapshot)
 
@@ -182,8 +216,9 @@ class NotificationController(http.Controller):
             else:
                 raise ApiError(422, 'invalid', "unread must be a boolean", field='unread')
         task_ids = self._readable_active_task_ids()
-        base_domain = self._domain(task_ids=task_ids)
-        domain = self._domain(unread, task_ids=task_ids)
+        meeting_ids = readable_active_meeting_ids(request.env)
+        base_domain = self._domain(task_ids=task_ids, meeting_ids=meeting_ids)
+        domain = self._domain(unread, task_ids=task_ids, meeting_ids=meeting_ids)
         rows = self._visible_rows(domain, limit=limit, offset=offset)
         return {
             'items': [dump_notification(row, live) for row, live in rows],
