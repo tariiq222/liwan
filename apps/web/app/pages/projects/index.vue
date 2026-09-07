@@ -35,6 +35,7 @@ let writeQuery: Promise<void> = Promise.resolve()
 function committedState(): ProjectListRouteState {
   return {
     q: filters.q,
+    mine: filters.mine,
     status: filters.status,
     offset: filters.offset,
     archived: canListArchived.value && filters.archived,
@@ -70,6 +71,7 @@ const statusFilter = computed(() => filters.status)
 const listOffset = computed(() => filters.offset)
 const listFilters = computed(() => ({
   q: filters.q.trim() || undefined,
+  mine: filters.mine,
   status: filters.status === 'all' ? undefined : filters.status,
   sort: filters.sort,
   limit: PROJECT_PAGE,
@@ -101,7 +103,7 @@ watch(debouncedSearch, (value) => {
   applyPatch({ q: value })
 })
 watch(
-  [() => filters.q, () => filters.status, () => filters.offset, () => canListArchived.value && filters.archived, () => filters.sort, () => filters.view],
+  [() => filters.q, () => filters.mine, () => filters.status, () => filters.offset, () => canListArchived.value && filters.archived, () => filters.sort, () => filters.view],
   () => {
     scheduleQueryWrite()
   },
@@ -160,7 +162,7 @@ function openProject(id: number) {
 
 <template>
   <SharedPageContainer width="list">
-    <SharedPageHeader :title="t('projects.title')" :description="t('projects.description')">
+    <SharedPageHeader :title="t(filters.mine ? 'nav.myProjects' : 'nav.allProjects')" :description="t(filters.mine ? 'projects.myDescription' : 'projects.description')">
       <template #actions>
         <Button v-if="canCreate" data-testid="project-new" :disabled="!hydrated" class="gap-2" @click="openCreate">
           <Plus class="size-[18px]" />{{ t('projects.new') }}

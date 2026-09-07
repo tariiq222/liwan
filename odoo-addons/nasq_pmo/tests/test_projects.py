@@ -73,6 +73,36 @@ class TestProjects(NasqPmoCase):
         self.assertEqual(res.status_code, 400)
         self.assertEqual(res.json()['code'], 'unsupported_filter')
 
+    def test_list_mine_filters_before_pagination_and_preserves_visibility(self):
+        Project = self.env['project.project']
+        mine = Project.create([
+            {'name': f'Mine {index}', 'user_id': self.employee.id, 'privacy_visibility': 'employees'}
+            for index in ('A', 'B', 'C')
+        ])
+        other = Project.create({'name': 'Mine Other Manager', 'user_id': self.manager.id, 'privacy_visibility': 'employees'})
+        hidden = Project.create({'name': 'Mine Hidden', 'user_id': self.manager.id, 'privacy_visibility': 'followers'})
+
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        res = self.api('GET', '/api/v1/projects?mine=1&sort=name&limit=1&offset=1')
+        self.assertEqual(res.status_code, 200, res.text)
+        body = res.json()
+        self.assertEqual(body['total'], len(mine))
+        self.assertEqual([item['id'] for item in body['items']], [mine[1].id])
+        self.assertNotIn(other.id, [item['id'] for item in body['items']])
+        self.assertNotIn(hidden.id, [item['id'] for item in body['items']])
+
+        unscoped = self.api('GET', '/api/v1/projects?mine=false&limit=200').json()
+        absent = self.api('GET', '/api/v1/projects?limit=200').json()
+        self.assertEqual(unscoped['total'], absent['total'])
+        self.assertIn(other.id, [item['id'] for item in unscoped['items']])
+        self.assertNotIn(hidden.id, [item['id'] for item in unscoped['items']])
+
+    def test_list_mine_rejects_unsupported_values(self):
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        for value in ('yes', '2', ''):
+            res = self.api('GET', f'/api/v1/projects?mine={value}')
+            self.assertEqual((res.status_code, res.json()['code'], res.json()['field']), (422, 'invalid', 'mine'))
+
     def test_detail_stages_and_can_manage(self):
         self.authenticate('api_emp', 'api_emp_pass_123')
         body = self.api('GET', f'/api/v1/projects/{self.project.id}').json()

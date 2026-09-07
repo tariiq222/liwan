@@ -48,6 +48,14 @@ describe('projectListQuery', () => {
     expect(page0[0]).toBe('projects')
     expect(page0[1]).toBe('list')
   })
+
+  it('separates the mine scope in the server query key', () => {
+    const mine = projectListQuery(false, { mine: true, limit: 50, offset: 0 })
+    const all = projectListQuery(false, { mine: false, limit: 50, offset: 0 })
+    expect(mine).toMatchObject({ mine: 1 })
+    expect(all).not.toHaveProperty('mine')
+    expect([...projectKeys.list, mine]).not.toEqual([...projectKeys.list, all])
+  })
 })
 
 describe('patchProjectListRoute', () => {
@@ -124,6 +132,37 @@ describe('design view state with paginated project filters', () => {
     expect(sameProjectListRoute(serializeProjectListRoute(cards), serializeProjectListRoute(table))).toBe(false)
     expect(serializeProjectListRoute(table)).not.toHaveProperty('view')
     expect(serializeProjectListRoute(table)).not.toHaveProperty('sort')
+  })
+})
+
+describe('mine project route state', () => {
+  it('round-trips true, false, and absent mine values', () => {
+    expect(parseProjectListRoute({ mine: '1' }).mine).toBe(true)
+    expect(parseProjectListRoute({ mine: 'true' }).mine).toBe(true)
+    expect(parseProjectListRoute({ mine: '0' }).mine).toBe(false)
+    expect(parseProjectListRoute({ mine: 'false' }).mine).toBe(false)
+    expect(parseProjectListRoute({}).mine).toBe(false)
+    expect(serializeProjectListRoute(parseProjectListRoute({ mine: '1' }))).toMatchObject({ mine: '1' })
+    expect(serializeProjectListRoute(parseProjectListRoute({}))).not.toHaveProperty('mine')
+  })
+
+  it('keeps mine through filter, sort, view, archive, page, and clear patches', () => {
+    const initial = parseProjectListRoute({ mine: '1', q: 'portal', offset: '50', view: 'cards' })
+    const searched = patchProjectListRoute(initial, { q: 'نسق' })
+    const sorted = patchProjectListRoute(searched, { sort: 'progress' })
+    const archived = patchProjectListRoute(sorted, { archived: true })
+    const paged = patchProjectListRoute(archived, { offset: 50 })
+    const cleared = patchProjectListRoute(paged, { q: '', status: 'all', sort: 'default' })
+    expect(cleared.mine).toBe(true)
+    expect(cleared.view).toBe('cards')
+    expect(cleared.archived).toBe(true)
+    expect(cleared.offset).toBe(0)
+  })
+
+  it('drops mine when the route is /projects without the query key', () => {
+    expect(parseProjectListRoute({ mine: '1' }).mine).toBe(true)
+    expect(parseProjectListRoute({}).mine).toBe(false)
+    expect(serializeProjectListRoute(parseProjectListRoute({}))).not.toHaveProperty('mine')
   })
 })
 
