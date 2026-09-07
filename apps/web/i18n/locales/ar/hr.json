@@ -92,7 +92,14 @@
       "children": "الأقسام الفرعية",
       "save": "حفظ",
       "managerLoadError": "تعذر تحميل قائمة الموظفين",
-      "listView": "القائمة"
+      "listView": "القائمة",
+      "orgChart": "الرسم التنظيمي",
+      "orgChartControls": "تحكم الرسم التنظيمي",
+      "zoomIn": "تكبير",
+      "zoomOut": "تصغير",
+      "zoomFit": "ملاءمة الرسم",
+      "fullscreen": "عرض الصفحة بالكامل",
+      "fullscreenExit": "العودة للعرض العادي"
     },
     "tabs": {
       "employees": "الموظفون",

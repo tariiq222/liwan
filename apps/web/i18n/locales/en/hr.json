@@ -92,7 +92,14 @@
       "children": "Child departments",
       "save": "Save",
       "managerLoadError": "Unable to load employees",
-      "listView": "List"
+      "listView": "List",
+      "orgChart": "Org chart",
+      "orgChartControls": "Org chart controls",
+      "zoomIn": "Zoom in",
+      "zoomOut": "Zoom out",
+      "zoomFit": "Fit chart",
+      "fullscreen": "Full page",
+      "fullscreenExit": "Back to normal view"
     },
     "tabs": {
       "employees": "Employees",
