@@ -16,7 +16,7 @@ class NasqPmoCase(NasqApiCase):
         super().setUpClass()
         cls.manager = new_test_user(cls.env, login='api_mgr', password='api_mgr_pass_123',
                                     name='Mona', groups='nasq_core.group_employee,project.group_project_manager')
-        cls.project = cls.env['project.project'].create({'name': 'Erada Portal'})
+        cls.project = cls.env['project.project'].create({'name': 'Erada Portal', 'company_id': False})
         now = fields.Datetime.now()
         cls.task_overdue = cls.env['project.task'].create({
             'name': 'Overdue task', 'project_id': cls.project.id,

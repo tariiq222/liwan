@@ -209,6 +209,8 @@ class ProjectProject(models.Model):
             merged['nasq_completion_approver_id'] = ctx['default_nasq_completion_approver_id']
         if 'user_id' not in merged:
             merged['user_id'] = self.env.uid
+        if 'company_id' not in merged:
+            merged['company_id'] = self.env.company.id
         return merged
 
     def _nasq_check_create_requirements(self, vals):
