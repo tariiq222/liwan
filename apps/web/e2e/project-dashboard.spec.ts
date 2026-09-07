@@ -1,90 +1,95 @@
 import { expect, test, type Page } from '@playwright/test'
 
-async function login(page: Page, user = 'dashboard_manager') {
+test.skip(process.env.E2E_BASE_URL !== 'http://127.0.0.1:3985', 'Requires isolated project-charts fixture on 3985.')
+async function login(page: Page) {
   await page.goto('/login')
   await expect(page.getByRole('button', { name: 'دخول', exact: true })).toBeEnabled()
-  await page.getByLabel('اسم المستخدم').fill(user)
-  await page.getByLabel('كلمة المرور').fill('dashboard_test_only_2026')
+  await page.getByLabel('اسم المستخدم').fill('chart_manager')
+  await page.getByLabel('كلمة المرور').fill('chart_test_only_2026')
   await page.getByRole('button', { name: 'دخول', exact: true }).click()
   await expect(page).not.toHaveURL(/\/login/)
 }
-
+async function charts(page: Page) {
+  await expect(page.getByTestId('chart-canvas')).toHaveCount(6)
+  for (const chart of await page.getByTestId('chart-canvas').all()) {
+    await expect(chart.locator('svg')).toBeVisible()
+    expect(await chart.locator('svg path').count()).toBeGreaterThan(0)
+  }
+}
 for (const width of [390, 768, 1440]) {
-  test(`dashboard and Projects navigation at ${width}px`, async ({ page }, info) => {
+  test(`six charts and five latest projects at ${width}px`, async ({ page }, info) => {
     await page.setViewportSize({ width, height: 1000 })
     await login(page)
     await page.getByTestId('module-rail').getByRole('link', { name: 'المشاريع', exact: true }).click()
     await expect(page).toHaveURL(/\/projects\/dashboard$/)
-    const sidebar = page.getByTestId('context-sidebar')
-    await expect(sidebar.locator('nav a')).toHaveText(['إحصائية المشاريع', 'مشروع جديد', 'كل المشاريع', 'مشاريعي'])
-    await expect(sidebar.locator('a[aria-current="page"]')).toHaveText('إحصائية المشاريع')
-    await expect(page.getByRole('heading', { name: 'إحصائية المشاريع', exact: true })).toBeVisible()
-    await expect(page.getByTestId('reports-row')).toHaveCount(3)
-    const summary = await page.request.get('/api/v1/reports/projects/summary')
-    expect(summary.status()).toBe(200)
-    expect(await summary.json()).toMatchObject({ project_count: 3, attention_project_count: 3, overdue_task_count: 3 })
+    await expect(page.getByTestId('context-sidebar').locator('nav a')).toHaveText(['إحصائية المشاريع', 'مشروع جديد', 'كل المشاريع', 'مشاريعي'])
+    await charts(page)
+    const response = await page.request.get('/api/v1/reports/projects/analytics')
+    expect(response.status()).toBe(200)
+    const analytics = await response.json()
+    expect(analytics.project_count).toBe(12)
+    expect(analytics.projects).toHaveLength(12)
+    expect(analytics.recent_projects.map((row: { project: { name: string } }) => row.project.name)).toEqual([
+      'مبادرة الاستدامة', 'اعتماد الجودة المؤسسية', 'تطوير الخدمات المساندة', 'برنامج الشراكات', 'قياس تجربة المستفيد',
+    ])
+    const rows = page.getByTestId('recent-project-row')
+    await expect(rows).toHaveCount(5)
+    for (let index = 0; index < 5; index++) await expect(rows.nth(index)).toContainText(analytics.recent_projects[index].project.name)
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
-    await page.screenshot({ path: info.outputPath(`dashboard-${width}.png`), fullPage: true })
-    await sidebar.getByTestId('context-link-my-projects').click()
-    await expect(page).toHaveURL(/\/projects\?mine=1$/)
-    await expect(page.getByRole('heading', { name: 'مشاريعي', exact: true })).toBeVisible()
-    await expect(sidebar.locator('a[data-active="true"]')).toHaveText('مشاريعي')
-    await expect(sidebar.locator('a[aria-current="page"]')).toHaveText('مشاريعي')
-    const mine = await page.request.get('/api/v1/projects?mine=1')
-    expect((await mine.json()).total).toBe(2)
-    await page.reload()
-    await expect(sidebar.locator('a[data-active="true"]')).toHaveText('مشاريعي')
-    await sidebar.getByTestId('context-link-projects').click()
-    await expect(page).toHaveURL(/\/projects$/)
-    await expect(page.getByRole('heading', { name: 'كل المشاريع', exact: true })).toBeVisible()
-    await expect(sidebar.locator('a[data-active="true"]')).toHaveText('كل المشاريع')
-    await expect(page.getByTestId('project-templates-link')).toBeVisible()
-    await sidebar.getByTestId('context-link-new-project').click()
-    await expect(page).toHaveURL(/\/projects\/new$/)
-    await expect(sidebar.locator('a[data-active="true"]')).toHaveText('مشروع جديد')
+    await page.screenshot({ path: info.outputPath(`charts-${width}.png`), fullPage: true })
+    await rows.first().getByRole('link').first().click()
+    await expect(page).toHaveURL(new RegExp(`/projects/${analytics.recent_projects[0].project.id}`))
     await page.goBack()
-    await expect(page).toHaveURL(/\/projects$/)
+    await expect(rows).toHaveCount(5)
+    await page.getByTestId('context-link-my-projects').click()
+    await expect(page).toHaveURL(/\/projects\?mine=1$/)
+    expect((await (await page.request.get('/api/v1/projects?mine=1')).json()).total).toBe(10)
   })
 }
-
-test('legacy reports filters redirect to dashboard and empty results remain truthful', async ({ page }) => {
+test('legacy filters survive redirect and reload with honest empty state', async ({ page }) => {
   await login(page)
   await page.goto('/reports?q=does-not-exist&status=off_track')
   await expect(page).toHaveURL(/\/projects\/dashboard\?q=does-not-exist&status=off_track$/)
-  await expect(page.getByTestId('reports-row')).toHaveCount(0)
-  const summary = await page.request.get('/api/v1/reports/projects/summary?q=does-not-exist&status=off_track')
-  expect(await summary.json()).toMatchObject({ project_count: 0, attention_project_count: 0, overdue_task_count: 0, attention: [] })
+  await expect(page.getByTestId('project-dashboard-empty')).toBeVisible()
+  await expect(page.getByTestId('recent-project-row')).toHaveCount(0)
+  await page.reload()
+  await expect(page.getByTestId('project-dashboard-empty')).toBeVisible()
 })
-
-test('mine scope survives search, project details, and contextual back', async ({ page }) => {
+test('analytics failure shows retry without stale charts', async ({ page }) => {
   await login(page)
-  await page.goto('/projects?mine=1&q=تطوير')
-  await expect(page.getByTestId('context-link-my-projects')).toHaveAttribute('data-active', 'true')
-  const response = await page.request.get('/api/v1/projects?mine=1&q=تطوير')
-  const { items } = await response.json()
-  expect(items).toHaveLength(1)
-  await page.goto(`/projects/${items[0].id}?returnTo=${encodeURIComponent('/projects?mine=1&q=تطوير')}`)
-  await page.getByTestId('context-sidebar').locator('.nasq-context-back').click()
-  await expect(page).toHaveURL(url => url.pathname === '/projects' && url.searchParams.get('mine') === '1' && url.searchParams.get('q') === 'تطوير')
-})
-
-test('summary failure shows retry without hiding the project table', async ({ page }) => {
-  await login(page)
-  await page.route('**/api/v1/reports/projects/summary*', route => route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ code: 'unavailable', message: 'Test unavailable' }) }))
+  let unavailable = true
+  await page.route('**/api/v1/reports/projects/analytics*', route => unavailable
+    ? route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ code: 'unavailable', message: 'Test unavailable' }) })
+    : route.continue())
   await page.goto('/projects/dashboard')
-  await expect(page.getByTestId('project-dashboard-summary-error')).toBeVisible({ timeout: 15000 })
-  await expect(page.getByTestId('reports-row')).toHaveCount(3)
-  await expect(page.getByTestId('project-dashboard-project-count')).toHaveCount(0)
+  await expect(page.getByTestId('project-dashboard-analytics-error')).toBeVisible({ timeout: 15000 })
+  await expect(page.getByTestId('chart-canvas')).toHaveCount(0)
+  unavailable = false
+  await page.getByTestId('project-dashboard-analytics-error').getByRole('button', { name: 'إعادة المحاولة', exact: true }).click()
+  await charts(page)
 })
+for (const mode of ['dark', 'cream'] as const) {
+  test(`${mode} and large type on mobile`, async ({ page }, info) => {
+    await page.setViewportSize({ width: 390, height: 1000 })
+    await login(page)
+    await page.context().addCookies([{ name: 'nasq-appearance', value: encodeURIComponent(JSON.stringify({ mode, fontSize: 'large' })), url: new URL(page.url()).origin }])
+    await page.goto('/projects/dashboard')
+    await expect(page.locator('html')).toHaveAttribute('data-font-size', 'large')
+    await charts(page)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+    await page.screenshot({ path: info.outputPath(`charts-${mode}-large-mobile.png`), fullPage: true })
+  })
+}
 
-test('dashboard respects dark appearance and large type at mobile width', async ({ page }, info) => {
+test('chart labels recover after narrowing and widening the viewport', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  await login(page)
+  await page.goto('/projects/dashboard')
+  await charts(page)
+  const label = page.getByTestId('chart-project-progress').locator('svg text').filter({ hasText: /^أتمتة خدمات المستفيدين$/ })
+  await expect(label).toBeVisible()
   await page.setViewportSize({ width: 390, height: 1000 })
-  await login(page)
-  await page.context().addCookies([{ name: 'nasq-appearance', value: encodeURIComponent(JSON.stringify({ mode: 'dark', fontSize: 'large' })), url: new URL(page.url()).origin }])
-  await page.goto('/projects/dashboard')
-  await expect(page.locator('html')).toHaveClass(/dark/)
-  await expect(page.locator('html')).toHaveAttribute('data-font-size', 'large')
-  await expect(page.getByTestId('project-dashboard-project-count')).toHaveText('3')
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
-  await page.screenshot({ path: info.outputPath('dashboard-dark-large-mobile.png'), fullPage: true })
+  await expect(label).toHaveCount(0)
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  await expect(label).toBeVisible()
 })

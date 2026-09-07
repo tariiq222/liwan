@@ -10,6 +10,7 @@ from odoo.addons.nasq_api.controllers.common import (
 from odoo.addons.nasq_pmo.models.project_project import STATUS_VALUES
 from odoo.addons.nasq_pmo.serializers.project_reports import (
     build_dashboard_summary,
+    build_project_dashboard_analytics,
     build_report_totals,
     dump_report_row,
     today_utc,
@@ -83,3 +84,14 @@ class ProjectReportsController(http.Controller):
             request.env.user, 'pmo.tasks.read',
         )
         return build_dashboard_summary(projects, today_utc(), can_read_tasks)
+
+    @http.route('/api/v1/reports/projects/analytics', type='json2', auth='user', methods=['GET'], readonly=True)
+    @api_handler
+    def project_dashboard_analytics(self, **_):
+        request.env['nasq.access.service']._nasq_require_capability('pmo.projects.read')
+        domain = self._project_report_domain(request.httprequest.args, SUMMARY_QUERY)
+        projects = request.env['project.project'].search(domain, order='name, id')
+        can_read_tasks = request.env['nasq.access.service']._nasq_has_capability(
+            request.env.user, 'pmo.tasks.read',
+        )
+        return build_project_dashboard_analytics(projects, today_utc(), can_read_tasks)

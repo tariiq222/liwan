@@ -1,5 +1,9 @@
 # Nasq workspace index
 
+## Project dashboard chart correction — 2026-09-07
+
+The chart dashboard correction follows the all-branches integration. See [the delivery report](project-charts-2026-09-07.md) for source, verification, runtime and recovery.
+
 ## Latest consolidation — 2026-09-07
 
 The user authorized all current Nasq branch/worktree integration, cleanup and local restart. See [the current consolidation report](all-branches-consolidation-2026-09-07.md) for reconciliation, recovery and final runtime evidence. Earlier worktree counts and pending states below describe their original checkpoints.

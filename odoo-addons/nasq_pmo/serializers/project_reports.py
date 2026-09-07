@@ -3,6 +3,7 @@ from decimal import ROUND_HALF_UP, Decimal
 
 from odoo import fields
 
+from odoo.addons.nasq_api.serializers.common import iso
 from odoo.addons.nasq_pmo.serializers.project import STATUS_TO_API
 from odoo.addons.nasq_pmo.serializers.project_charter import dump_currency
 from odoo.addons.nasq_pmo.serializers.project_finance import (
@@ -60,10 +61,13 @@ def task_counts_by_project(projects, today):
     for project, value in overdue_counts:
         if project:
             counts.setdefault(project.id, [0, 0, 0])[2] = value
-    return {project_id: tuple(values) for project_id, values in counts.items()}
+    return {
+        project_id: tuple(counts.get(project_id, (0, 0, 0)))
+        for project_id in project_ids
+    }
 
 
-def dump_report_row(project, today, can_read_tasks, task_values=None):
+def dump_report_row(project, today, can_read_tasks, task_values=None, finance_summary=None):
     if can_read_tasks:
         if task_values is None:
             task_count, closed_task_count, overdue_task_count = _task_counts(project, today)
@@ -78,7 +82,7 @@ def dump_report_row(project, today, can_read_tasks, task_values=None):
             'id': project.id, 'name': project.name,
             'status': STATUS_TO_API.get(project.last_update_status),
         },
-        'finance': build_finance_summary(project),
+        'finance': finance_summary if finance_summary is not None else build_finance_summary(project),
         'task_count': task_count,
         'closed_task_count': closed_task_count,
         'overdue_task_count': overdue_task_count,
@@ -86,27 +90,49 @@ def dump_report_row(project, today, can_read_tasks, task_values=None):
     }
 
 
-def build_dashboard_summary(projects, today, can_read_tasks):
+def finance_summaries_by_project(projects):
+    """Build one finance summary per project from a single readable search."""
+    Finance = projects.env['nasq.project.finance.entry']
+    entry_ids_by_project = {project.id: [] for project in projects}
+    if projects:
+        for entry in Finance.search([('project_id', 'in', projects.ids)]):
+            entry_ids_by_project[entry.project_id.id].append(entry.id)
+    return {
+        project.id: build_finance_summary(project, Finance.browse(entry_ids_by_project[project.id]))
+        for project in projects
+    }
+
+
+def build_dashboard_summary(projects, today, can_read_tasks, task_counts=None, finance_summaries=None):
     """Build the unpaginated project dashboard summary from visible projects."""
-    task_counts = task_counts_by_project(projects, today) if can_read_tasks else {}
+    if can_read_tasks:
+        task_counts = task_counts_by_project(projects, today) if task_counts is None else task_counts
+    else:
+        task_counts = {}
     status_counts = {}
     attention = []
     overdue_total = 0
     for project in projects:
         status = STATUS_TO_API.get(project.last_update_status)
         status_counts[status] = status_counts.get(status, 0) + 1
-        task_values = task_counts.get(project.id)
+        task_values = task_counts.get(project.id, (0, 0, 0)) if can_read_tasks else None
         overdue = task_values[2] if task_values else 0
         if can_read_tasks:
             overdue_total += overdue
-        finance = build_finance_summary(project)
+        finance = (
+            finance_summaries[project.id]
+            if finance_summaries is not None else build_finance_summary(project)
+        )
         if status in _ATTENTION_STATUSES or finance['over_budget'] or overdue > 0:
             attention.append((overdue, project.name, project.id, project, task_values))
 
     attention.sort(key=lambda item: (-item[0], item[1], item[2]))
     attention_rows = []
     for _, _, _, project, task_values in attention[:10]:
-        attention_rows.append(dump_report_row(project, today, can_read_tasks, task_values))
+        attention_rows.append(dump_report_row(
+            project, today, can_read_tasks, task_values,
+            finance_summaries[project.id] if finance_summaries is not None else None,
+        ))
     return {
         'project_count': len(projects),
         'attention_project_count': len(attention),
@@ -115,12 +141,55 @@ def build_dashboard_summary(projects, today, can_read_tasks):
             {'status': status, 'count': status_counts[status]}
             for status in _STATUS_ORDER if status in status_counts
         ],
-        'totals': build_report_totals(projects),
+        'totals': build_report_totals(projects, finance_summaries),
         'attention': attention_rows,
     }
 
 
-def build_report_totals(projects):
+def build_project_dashboard_analytics(projects, today, can_read_tasks):
+    """Build the full project dashboard payload from one filtered recordset.
+
+    The project recordset is already constrained by the controller's normal
+    company, active, visibility and capability checks. Task counts are grouped
+    once and explicitly default to zero for projects with no readable tasks.
+    """
+    task_counts = task_counts_by_project(projects, today) if can_read_tasks else {}
+    finance_summaries = finance_summaries_by_project(projects)
+    rows = [
+        dump_report_row(
+            project, today, can_read_tasks,
+            task_counts.get(project.id, (0, 0, 0)) if can_read_tasks else None,
+            finance_summaries[project.id],
+        )
+        for project in projects
+    ]
+    recent_projects = sorted(
+        projects,
+        key=lambda project: (
+            fields.Datetime.to_datetime(project.write_date)
+            if project.write_date else fields.Datetime.to_datetime('1970-01-01 00:00:00'),
+            project.id,
+        ),
+        reverse=True,
+    )[:5]
+    recent_rows = [
+        {
+            **dump_report_row(
+                project, today, can_read_tasks,
+                task_counts.get(project.id, (0, 0, 0)) if can_read_tasks else None,
+                finance_summaries[project.id],
+            ),
+            'updated_at': iso(project.write_date),
+        }
+        for project in recent_projects
+    ]
+    summary = build_dashboard_summary(
+        projects, today, can_read_tasks, task_counts, finance_summaries,
+    )
+    return {**summary, 'projects': rows, 'recent_projects': recent_rows}
+
+
+def build_report_totals(projects, finance_summaries=None):
     """Per-currency totals across every filtered, visible project.
 
     Accumulated as exact `Decimal`, not float, and only rounded to the
@@ -142,7 +211,10 @@ def build_report_totals(projects):
             }
             order.append(key)
         bucket = buckets[key]
-        summary = build_finance_summary(project)
+        summary = (
+            finance_summaries[project.id]
+            if finance_summaries is not None else build_finance_summary(project)
+        )
         bucket['project_count'] += 1
         bucket['actual'] += to_decimal(summary['actual'])
         if summary['planned'] is not None:

@@ -19,6 +19,8 @@ Authority: [DESIGN.md](../../DESIGN.md). This catalog records current reusable c
 | Unsaved form exit | `components/shared/UnsavedChanges.vue` | Existing approved shared confirmation only |
 | Buttons/fields/tables/menus | `components/ui/**` | Existing shadcn-vue/Reka primitives with local RTL/hydration patches |
 | Specialized PMO views | `components/project/**`, `components/task/**` | Reuse task/schedule/RACI data; do not clone shared chrome |
+| Shared chart renderer | `components/shared/ChartCanvas.client.vue` | `option`, `accessibleLabel`, optional `height`; SVG ECharts with resize, current appearance/font and semantic colors. Load only the required chart types. |
+| Project chart dashboard | `components/project/dashboard/**` | Quiet metric strip, chart panels and latest-five projects; replaces the old number-only dashboard summary and long report table on `/projects/dashboard`. |
 
 Paths starting `components/` and `composables/` are relative to `apps/web/app/`.
 Inspect actual props before use. This catalog does not rename or regenerate any component.

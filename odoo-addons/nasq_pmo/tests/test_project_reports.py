@@ -1,4 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+from odoo import fields
 from odoo.tests import new_test_user, tagged
 
 from .common import NasqPmoCase
@@ -10,6 +11,7 @@ TOTALS_KEYS = {
 }
 URL = '/api/v1/reports/projects'
 SUMMARY_URL = '/api/v1/reports/projects/summary'
+ANALYTICS_URL = '/api/v1/reports/projects/analytics'
 
 
 @tagged('post_install', '-at_install', 'nasq')
@@ -281,3 +283,150 @@ class TestProjectReports(NasqPmoCase):
         self.assertEqual(self.api('GET', f'{SUMMARY_URL}?offset=1').status_code, 400)
         self.assertEqual(self.api('GET', f'{SUMMARY_URL}?bogus=1').status_code, 400)
         self.assertEqual(self.api('GET', f'{SUMMARY_URL}?status=nope').status_code, 422)
+
+    def test_dashboard_analytics_returns_full_scope_and_tied_latest_five(self):
+        Project = self.env['project.project']
+        projects = [Project.create({
+            'company_id': self.env.company.id,
+            'name': f'Analytics scope {index:03d}',
+        }) for index in range(205)]
+        tied_date = fields.Datetime.to_string(fields.Datetime.now())
+        self.env.cr.execute(
+            'UPDATE project_project SET write_date = %s WHERE id IN %s',
+            [tied_date, tuple(project.id for project in projects)],
+        )
+        for project in projects:
+            project.invalidate_recordset(['write_date'])
+
+        self.authenticate('api_mgr', 'api_mgr_pass_123')
+        body = self.api('GET', f'{ANALYTICS_URL}?q=Analytics%20scope').json()
+        self.assertEqual(set(body), {
+            'project_count', 'attention_project_count', 'overdue_task_count',
+            'status_counts', 'totals', 'attention', 'projects', 'recent_projects',
+        })
+        self.assertEqual(body['project_count'], 205)
+        self.assertEqual(len(body['projects']), 205)
+        self.assertEqual(
+            [row['project']['id'] for row in body['projects']],
+            [project.id for project in projects],
+        )
+        expected_recent = sorted((project.id for project in projects), reverse=True)[:5]
+        self.assertEqual(
+            [row['project']['id'] for row in body['recent_projects']], expected_recent,
+        )
+        self.assertTrue(all(
+            row['updated_at'] == tied_date.replace(' ', 'T') + 'Z'
+            for row in body['recent_projects']
+        ))
+        self.assertEqual(
+            (body['projects'][0]['task_count'], body['projects'][0]['closed_task_count'],
+             body['projects'][0]['overdue_task_count'], body['projects'][0]['progress']),
+            (0, 0, 0, 0),
+        )
+
+    def test_dashboard_analytics_excludes_hidden_projects_from_both_arrays(self):
+        archived = self.env['project.project'].create({
+            'company_id': self.env.company.id, 'name': 'Archived analytics project',
+        })
+        archived.with_user(self.manager)._nasq_archive()
+        private = self.env['project.project'].create({
+            'company_id': self.env.company.id, 'name': 'Private analytics project',
+            'privacy_visibility': 'followers',
+        })
+        company_b = self.env['res.company'].create({'name': 'Analytics company B'})
+        foreign = self.env['project.project'].create({
+            'name': 'Foreign analytics project', 'company_id': company_b.id,
+        })
+        companyless = self.env['project.project'].create({'name': 'Companyless analytics project'})
+
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        body = self.api('GET', ANALYTICS_URL).json()
+        project_ids = {row['project']['id'] for row in body['projects']}
+        recent_ids = {row['project']['id'] for row in body['recent_projects']}
+        for hidden in (archived, private, foreign, companyless):
+            self.assertNotIn(hidden.id, project_ids)
+            self.assertNotIn(hidden.id, recent_ids)
+
+    def test_dashboard_analytics_task_values_are_null_without_task_read(self):
+        role = self.env['nasq.access.role'].create({
+            'name_ar': 'قارئ المشاريع للتحليلات',
+            'company_id': self.env.company.id,
+            'permission_ids': [(6, 0, self.env['nasq.access.permission'].search([
+                ('key', '=', 'pmo.projects.read'),
+            ]).ids)],
+        })
+        reader = new_test_user(
+            self.env, login='analytics_reader', password='analytics_reader_pass_123',
+            groups='base.group_user',
+        )
+        self.env['nasq.access.assignment'].create({
+            'user_id': reader.id, 'role_id': role.id, 'company_id': self.env.company.id,
+        })
+        self.authenticate('analytics_reader', 'analytics_reader_pass_123')
+        body = self.api('GET', ANALYTICS_URL).json()
+        row = next(item for item in body['projects'] if item['project']['id'] == self.project.id)
+        self.assertEqual(
+            (row['task_count'], row['closed_task_count'], row['overdue_task_count'], row['progress']),
+            (None, None, None, None),
+        )
+        recent = next(item for item in body['recent_projects'] if item['project']['id'] == self.project.id)
+        self.assertEqual(
+            (recent['task_count'], recent['closed_task_count'], recent['overdue_task_count'], recent['progress']),
+            (None, None, None, None),
+        )
+
+    def test_dashboard_analytics_matches_summary_for_finance_and_grouped_task_counts(self):
+        project = self.env['project.project'].create({
+            'company_id': self.env.company.id, 'name': 'Analytics finance project',
+        })
+        self._entry(project, kind='budget', title='Budget one', amount=100)
+        self._entry(project, kind='budget', title='Budget two', amount=50)
+        self._entry(project, kind='expense', title='Expense one', amount=20, expense_date='2030-01-01')
+        self._entry(project, kind='expense', title='Expense two', amount=30, expense_date='2030-01-01')
+        Task = self.env['project.task']
+        Task.create({
+            'name': 'Analytics overdue', 'project_id': project.id,
+            'user_ids': [(4, self.employee.id)], 'date_deadline': '2020-01-01',
+        })
+        Task.create({
+            'name': 'Analytics done', 'project_id': project.id,
+            'user_ids': [(4, self.employee.id)], 'state': '1_done',
+        })
+        Task.create({
+            'name': 'Analytics open', 'project_id': project.id,
+            'user_ids': [(4, self.employee.id)], 'date_deadline': '2999-01-01',
+        })
+        no_budget = self.env['project.project'].create({
+            'company_id': self.env.company.id, 'name': 'Analytics zero budget project',
+        })
+
+        self.authenticate('api_mgr', 'api_mgr_pass_123')
+        query = '?q=Analytics%20finance%20project'
+        analytics = self.api('GET', f'{ANALYTICS_URL}{query}').json()
+        summary = self.api('GET', f'{SUMMARY_URL}{query}').json()
+        row = analytics['projects'][0]
+        self.assertEqual(row, summary['attention'][0])
+        self.assertEqual(
+            (row['finance']['planned'], row['finance']['actual'], row['finance']['remaining']),
+            (150, 50, 100),
+        )
+        self.assertEqual(
+            (row['task_count'], row['closed_task_count'], row['overdue_task_count'], row['progress']),
+            (3, 1, 1, 33),
+        )
+        all_projects = self.api('GET', ANALYTICS_URL).json()['projects']
+        zero_row = next(item for item in all_projects if item['project']['id'] == no_budget.id)
+        self.assertEqual(
+            (zero_row['finance']['planned'], zero_row['finance']['actual'], zero_row['finance']['remaining']),
+            (None, 0, None),
+        )
+        self.assertEqual(
+            (zero_row['task_count'], zero_row['closed_task_count'], zero_row['overdue_task_count'], zero_row['progress']),
+            (0, 0, 0, 0),
+        )
+
+    def test_dashboard_analytics_rejects_pagination_and_invalid_status(self):
+        self.authenticate('api_mgr', 'api_mgr_pass_123')
+        self.assertEqual(self.api('GET', f'{ANALYTICS_URL}?limit=10').status_code, 400)
+        self.assertEqual(self.api('GET', f'{ANALYTICS_URL}?offset=1').status_code, 400)
+        self.assertEqual(self.api('GET', f'{ANALYTICS_URL}?status=nope').status_code, 422)
