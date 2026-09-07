@@ -4,8 +4,11 @@ import { safeReturnTo } from './safeReturnTo'
 export type AccessIdentity = { role?: string; capabilities?: readonly string[] } | null | undefined
 /** Authenticated Nasq /api/v1/me identities carry a capabilities array. Portal/legacy role-only objects do not. */
 export const INTERNAL_NASQ_ACCESS = 'nasq.internal'
+/** UI predicate for the shared inbox; this is not a server capability grant. */
+export const NOTIFICATION_ACCESS = 'nasq.notifications'
 export function hasCapability(identity: AccessIdentity, capability: string): boolean {
   if (capability === INTERNAL_NASQ_ACCESS) return Array.isArray(identity?.capabilities)
+  if (capability === NOTIFICATION_ACCESS) return ['pmo.tasks.read', 'meetings.read'].some(key => identity?.capabilities?.includes(key))
   return identity?.capabilities?.includes(capability) ?? false
 }
 
@@ -39,7 +42,8 @@ export function isNavPathActive(path: string, target: string): boolean {
 export function requiredCapabilityForPath(path: string): string | null {
   if (path === '/chat' || path.startsWith('/chat/')) return INTERNAL_NASQ_ACCESS
   if (/^\/project-templates\/(new|[^/]+\/edit)$/.test(path)) return 'pmo.settings.manage'
-  if (path === '/notifications' || path === '/archived-tasks') return 'pmo.tasks.read'
+  if (path === '/notifications') return NOTIFICATION_ACCESS
+  if (path === '/archived-tasks') return 'pmo.tasks.read'
   if (path === '/meetings/new') return 'meetings.create'
   if (/^\/meetings\/[^/]+\/(edit|resolutions\/new)$/.test(path)) return 'meetings.read'
   if (path === '/hr/documents/new') return 'hr.documents.manage'

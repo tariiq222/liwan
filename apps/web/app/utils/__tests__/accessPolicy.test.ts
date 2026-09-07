@@ -18,6 +18,16 @@ describe('access policy navigation', () => {
     expect(firstAllowedPath({ capabilities: ['access.users.read'] })).toBe('/settings/users')
     expect(firstAllowedPath({ capabilities: [] })).toBe('/account')
   })
+  it('opens the shared inbox for task or meeting readers without granting the other domain', () => {
+    const meetingReader = { capabilities: ['meetings.read'] }
+    const taskReader = { capabilities: ['pmo.tasks.read'] }
+    expect(postLoginPath(meetingReader, '/notifications')).toBe('/notifications')
+    expect(postLoginPath(taskReader, '/notifications')).toBe('/notifications')
+    expect(postLoginPath({ capabilities: [] }, '/notifications')).toBe('/account')
+    expect(postLoginPath({ role: 'admin' }, '/notifications')).toBe('/account')
+    expect(postLoginPath(meetingReader, '/archived-tasks')).toBe('/meetings')
+    expect(postLoginPath(taskReader, '/meetings')).toBe('/tasks')
+  })
   it('honors only local, accessible post-login destinations', () => {
     const admin = { capabilities: ['access.users.read'] }
     expect(postLoginPath(admin, undefined)).toBe('/settings/users')

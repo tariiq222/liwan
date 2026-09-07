@@ -2,7 +2,7 @@
 import NotificationCenter from '@/components/notifications/NotificationCenter.vue'
 import AppAccountMenu from '@/components/AppAccountMenu.vue'
 import GlobalSearch from '@/components/GlobalSearch.vue'
-import { isNavPathActive } from '@/utils/accessPolicy'
+import { isNavPathActive, NOTIFICATION_ACCESS } from '@/utils/accessPolicy'
 
 const route = useRoute()
 const { can } = useAccess()
@@ -59,7 +59,7 @@ const dir = computed(() => localeProperties.value.dir ?? 'ltr')
         <GlobalSearch />
 
         <div class="nasq-header-end">
-          <NotificationCenter v-if="can('pmo.tasks.read')" />
+          <NotificationCenter v-if="can(NOTIFICATION_ACCESS)" />
           <AppAccountMenu />
         </div>
       </header>
