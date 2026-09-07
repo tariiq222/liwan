@@ -1,5 +1,7 @@
 # PSC integration 2026-09-06
 
+> UI authority update — 2026-09-07: [DESIGN.md](../DESIGN.md) supersedes this document's customer-UI appearance, component and navigation prescriptions wherever they conflict. Preserve historical implementation/verification evidence and still-valid API, permission, business and delivery contracts. This document is not a second theme source.
+
 Worktree: `/Users/tariq/code/nasq-psc-integration-current`
 Branch: `codex/psc-integration-current`
 HEAD (pin): `07fed619644392e50bded94163532785feef8922`

@@ -1,5 +1,7 @@
 # nasq HR design
 
+> UI authority update — 2026-09-07: [DESIGN.md](../../../DESIGN.md) supersedes this document's customer-UI appearance, component and navigation prescriptions wherever they conflict. Preserve historical implementation/verification evidence and still-valid API, permission, business and delivery contracts. This document is not a second theme source.
+
 **Date:** 2026-09-04  
 **Status:** HR-1 shipped in `v0.5.0-phase-hr`; HR-2 and HR-3 remain pending.  
 **Parent:** `docs/superpowers/specs/2026-09-03-nasq-platform-design.md`

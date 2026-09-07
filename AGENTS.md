@@ -1,5 +1,9 @@
 # Nasq agent entry point
 
+## Current UI authority — 2026-09-07
+
+For all Nasq customer-UI work, read [DESIGN.md](DESIGN.md) first, then the component catalog and frontend/theme role linked there. The approved module rail and contextual sidebar supersede older visual/navigation instructions. This is project-local policy; existing business, security and delivery rules still apply. The reference is approved; runtime migration remains a separate implementation phase.
+
 Read `CLAUDE.md` for the product architecture and engineering rules, then
 `docs/WORKSPACE.md` for the workspace and recovery map. Read
 `docs/parallel-work.md` before parallel work or changing shared files.

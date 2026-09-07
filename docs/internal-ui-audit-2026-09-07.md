@@ -1,5 +1,7 @@
 # Internal UI audit — 2026-09-07
 
+> UI authority update — 2026-09-07: [DESIGN.md](../DESIGN.md) supersedes this document's customer-UI appearance, component and navigation prescriptions wherever they conflict. Preserve historical implementation/verification evidence and still-valid API, permission, business and delivery contracts. This document is not a second theme source.
+
 Worktree: `/Users/tariq/code/nasq-internal-ui-audit`
 
 Branch: `codex/internal-ui-audit` at `81c8ebe` plus UI source fixes (audit-time snapshot)

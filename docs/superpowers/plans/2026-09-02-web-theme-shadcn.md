@@ -1,5 +1,7 @@
 # web_theme_shadcn Implementation Plan
 
+> Scope: Odoo vendor-console theme only. This is not the Nasq Nuxt customer-UI theme. Customer UI follows [DESIGN.md](../../../DESIGN.md); vendor-console implementation and licensing remain separate.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Build `web_theme_shadcn`, an Odoo 19.0 backend theme that replaces the purple navbar with a shadcn-style icon app rail + collapsible app panel + white top bar, and restyles the web client with shadcn's zinc palette, IBM Plex Sans Arabic font and soft borders.

@@ -1,5 +1,7 @@
 # nasq Phase 3b — People Access, Branding, and Account Implementation Plan
 
+> UI authority update — 2026-09-07: [DESIGN.md](../../../DESIGN.md) supersedes this document's customer-UI appearance, component and navigation prescriptions wherever they conflict. Preserve historical implementation/verification evidence and still-valid API, permission, business and delivery contracts. This document is not a second theme source.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Extend the delivered `/hr` directory with employee/access administration, add company branding settings and self-service password change, while preserving the shipped HR document system and PMO people picker.

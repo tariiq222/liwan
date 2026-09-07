@@ -1,5 +1,7 @@
 # Nasq design system — independent review disposition
 
+> UI authority update — 2026-09-07: [DESIGN.md](../DESIGN.md) supersedes this document's customer-UI appearance, component and navigation prescriptions wherever they conflict. Preserve historical implementation/verification evidence and still-valid API, permission, business and delivery contracts. This document is not a second theme source.
+
 Date: 2026-09-05  
 Baseline: `b17058a`  
 Reviewed state: uncommitted `codex/design-system` working tree.

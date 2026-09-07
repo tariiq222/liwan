@@ -1,5 +1,7 @@
 # Settings page pattern
 
+> UI authority update — 2026-09-07: [DESIGN.md](../../DESIGN.md) supersedes this document's customer-UI appearance, component and navigation prescriptions wherever they conflict. Preserve historical implementation/verification evidence and still-valid API, permission, business and delivery contracts. This document is not a second theme source.
+
 SettingsLayout owns the internal navigation and a content container that sizes
 filters and choice grids by available space, including alongside the app sidebar.
 Lists use the full content column; form pages use `nasq-settings-form-page` (900px).

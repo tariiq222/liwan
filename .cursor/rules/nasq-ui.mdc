@@ -1,0 +1,12 @@
+---
+description: Nasq project UI constitution and shared frontend components
+globs: "apps/web/**"
+alwaysApply: true
+---
+
+Read `AGENTS.md` and `CLAUDE.md` at the repository root.
+For frontend changes, follow `DESIGN.md`, `apps/web/AGENTS.md`,
+`docs/design-system/components.md` and `docs/agents/frontend-theme.md`.
+The approved contextual module navigation and shared components are mandatory.
+Historical UI plans and generic skill examples do not override this project policy.
+

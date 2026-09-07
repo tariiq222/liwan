@@ -1,5 +1,7 @@
 # Nasq branch unification implementation plan
 
+> UI authority update — 2026-09-07: [DESIGN.md](../../../DESIGN.md) supersedes this document's customer-UI appearance, component and navigation prescriptions wherever they conflict. Preserve historical implementation/verification evidence and still-valid API, permission, business and delivery contracts. This document is not a second theme source.
+
 > For agentic workers: execute task by task with isolated ownership and focused review. Root orchestrator alone owns Git, shared registrations, databases, runtime and final verification.
 
 Goal: unify approved work in main with one canonical checkout and preserve all original work.

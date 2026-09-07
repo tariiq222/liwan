@@ -1,5 +1,7 @@
 # Unified Nasq Design System Implementation Plan
 
+> UI authority update — 2026-09-07: [DESIGN.md](../../../DESIGN.md) supersedes this document's customer-UI appearance, component and navigation prescriptions wherever they conflict. Preserve historical implementation/verification evidence and still-valid API, permission, business and delivery contracts. This document is not a second theme source.
+
 > Execute task-by-task with one integration owner; the user approved execution. No additional process approval is needed.
 
 **Goal:** Apply the approved reusable components and editable company colour.
