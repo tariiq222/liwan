@@ -33,7 +33,8 @@ class TestMeetingsApi(NasqPmoCase):
         self.assertEqual(detail['name'], 'Ops Review')
         self.assertEqual(detail['organizer']['id'], self.employee.id)
         hidden_res = self.api('GET', f'/api/v1/meetings/{hidden.id}')
-        self.assertEqual(hidden_res.status_code, 404)
+        self.assertEqual(hidden_res.status_code, 403)
+        self.assertEqual(hidden_res.json()['code'], 'forbidden')
 
 
     def test_manage_group_reads_company_meetings_and_outsider_cannot(self):
@@ -127,7 +128,7 @@ class TestMeetingsApi(NasqPmoCase):
         self.employee.company_ids |= company_b
         self.manager.company_ids |= company_b
         for company, keys in [(company_a, ['meetings.read', 'meetings.manage']), (company_b, ['meetings.read'])]:
-            role = self.env['nasq.access.role'].create({'name_ar': 'نطاق الاجتماعات', 'company_id': company.id,
+            role = self.env['nasq.access.role'].with_company(company).create({'name_ar': 'نطاق الاجتماعات', 'company_id': company.id,
                 'permission_ids': [(6, 0, self.env['nasq.access.permission'].search([('key', 'in', keys)]).ids)]})
             self.env['nasq.access.assignment'].create({'user_id': self.employee.id, 'role_id': role.id, 'company_id': company.id})
         self.employee.sudo().write({'company_id': company_b.id})
@@ -139,8 +140,10 @@ class TestMeetingsApi(NasqPmoCase):
         self.authenticate('api_emp', 'api_emp_pass_123')
         self.assertEqual(self.api('GET', '/api/v1/meetings').json(), {'items': [], 'total': 0})
         for endpoint in [f'/api/v1/meetings/{meeting.id}', f'/api/v1/meetings/{meeting.id}/attachments']:
-            self.assertEqual(self.api('GET', endpoint).status_code, 404)
-        self.assertEqual(self.api('PATCH', f'/api/v1/meetings/{meeting.id}', {'name': 'Illicit'}).status_code, 404)
+            response = self.api('GET', endpoint)
+            self.assertEqual(response.status_code, 403)
+            self.assertEqual(response.json()['code'], 'forbidden')
+        self.assertEqual(self.api('PATCH', f'/api/v1/meetings/{meeting.id}', {'name': 'Illicit'}).status_code, 403)
         self.assertEqual(self.api('GET', '/api/v1/notifications').json(), {'items': [], 'total': 0, 'unread_count': 0})
         self.assertEqual(self.api('POST', f'/api/v1/notifications/{row.id}/read', {}).status_code, 404)
         self.assertEqual(self.api('POST', '/api/v1/notifications/read-all', {}).json(), {'updated': 0})
