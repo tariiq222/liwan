@@ -47,25 +47,5 @@ function dateLabel(value: string | null) {
         </div>
       </CardContent>
     </Card>
-
-    <Card class="nasq-panel">
-      <CardHeader>
-        <CardTitle class="text-base">{{ t('projects.overview.workSummary') }}</CardTitle>
-      </CardHeader>
-      <CardContent class="nasq-metadata p-0">
-        <div class="flex items-center justify-between gap-3 px-[18px] py-3">
-          <span class="text-sm text-muted-foreground">{{ t('projects.overview.tasks') }}</span>
-          <span class="text-sm font-medium tabular-nums">{{ t('projects.overview.completedOf', { closed: project.closed_task_count, total: project.task_count }) }}</span>
-        </div>
-        <div class="flex items-center justify-between gap-3 px-[18px] py-3">
-          <span class="text-sm text-muted-foreground">{{ t('projects.overview.milestones') }}</span>
-          <span class="text-sm font-medium tabular-nums">{{ project.milestone_count }}</span>
-        </div>
-        <div class="flex items-center justify-between gap-3 px-[18px] py-3">
-          <span class="text-sm text-muted-foreground">{{ t('projects.overview.workflowStages') }}</span>
-          <span class="text-sm font-medium tabular-nums">{{ project.stages.length }}</span>
-        </div>
-      </CardContent>
-    </Card>
   </aside>
 </template>

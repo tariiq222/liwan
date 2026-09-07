@@ -80,7 +80,7 @@ const table = useVueTable({
   <div class="min-w-0 space-y-2">
     <div class="nasq-panel overflow-hidden">
       <div class="overflow-x-auto">
-      <Table class="table-fixed min-w-[820px]">
+      <Table class="table-fixed min-w-[820px]" :aria-label="t('projects.title')">
         <colgroup>
           <col class="w-[28%]" />
           <col class="w-[14%]" />
@@ -120,7 +120,7 @@ const table = useVueTable({
             <TableRow
               v-for="row in table.getRowModel().rows"
               :key="row.original.id"
-              class="cursor-pointer"
+              class="cursor-pointer transition-colors hover:bg-muted/40"
               data-testid="project-row"
               @click="hydrated && emit('open', row.original.id)"
             >

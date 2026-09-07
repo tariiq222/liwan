@@ -4,6 +4,7 @@ import MilestoneTable from '@/components/project/MilestoneTable.vue'
 import ProjectHeader from '@/components/project/ProjectHeader.vue'
 import ProjectMetadataRail from '@/components/project/ProjectMetadataRail.vue'
 import ProjectOverview from '@/components/project/ProjectOverview.vue'
+import ProjectOverviewTasks from '@/components/project/ProjectOverviewTasks.vue'
 import ProjectProgress from '@/components/project/ProjectProgress.vue'
 import ProjectStatusBadge from '@/components/project/ProjectStatusBadge.vue'
 import ProjectStatusSelect from '@/components/project/ProjectStatusSelect.vue'
@@ -24,10 +25,7 @@ const { t, locale } = useI18n()
 const hydrated = useHydrated()
 const normalizedPath = computed(() => route.path.replace(/\/+$/, '') || '/')
 const isBaseRoute = computed(() => normalizedPath.value === `/projects/${route.params.id}`)
-const workspaceLeaf = computed(() => normalizedPath.value.replace(`/projects/${route.params.id}`, '').replace(/^\//, '').split('/')[0] ?? '')
-const showWorkspace = computed(() => isBaseRoute.value || ['charter', 'schedule', 'stakeholders', 'raci', 'register', 'finance'].includes(workspaceLeaf.value))
 const workspaceSection = computed(() => {
-  if (!isBaseRoute.value) return workspaceLeaf.value
   if (route.query.tab === 'list' || route.query.tab === 'board') return 'tasks'
   if (isProjectTab(route.query.tab)) return route.query.tab
   return 'overview'
@@ -51,16 +49,6 @@ const tab = computed<ProjectTab>(() => {
 })
 const taskView = computed<'table' | 'board'>(() => route.query.view === 'board' || route.query.tab === 'board' ? 'board' : 'table')
 
-function onTabChange(value: unknown) {
-  const next = isProjectTab(value) ? value : 'overview'
-  router.replace({
-    query: {
-      ...route.query,
-      tab: next === 'overview' ? undefined : next,
-      view: next === 'tasks' && taskView.value === 'board' ? 'board' : undefined,
-    },
-  })
-}
 function onTaskViewChange(next: 'table' | 'board') {
   router.replace({ query: { ...route.query, tab: 'tasks', view: next === 'board' ? 'board' : undefined } })
 }
@@ -91,10 +79,12 @@ function onWorkspaceCreate() {
   const id = projectId.value
   if (!id) return
   const section = workspaceSection.value
-  if (section === 'stakeholders') router.push(`/projects/${id}/stakeholders/new`)
-  else if (section === 'register') router.push(`/projects/${id}/register/new`)
-  else if (section === 'finance') router.push(`/projects/${id}/finance/new`)
-  else openTaskCreate()
+  const query = returnToQuery(route.fullPath)
+  if (section === 'milestones') router.push({ path: `/projects/${id}/milestones/new`, query })
+  else if (section === 'stakeholders') router.push({ path: `/projects/${id}/stakeholders/new`, query })
+  else if (section === 'register') router.push({ path: `/projects/${id}/register/new`, query })
+  else if (section === 'finance') router.push({ path: `/projects/${id}/finance/new`, query: { ...query, kind: 'expense' } })
+  else if (section === 'tasks') openTaskCreate()
 }
 function openSettings() {
   router.push({ path: `/projects/${projectId.value}/settings`, query: returnToQuery(route.fullPath) })
@@ -112,10 +102,18 @@ const dateRange = computed(() => {
   const format = (value: string | null) => value ? formatCalendarDate(value, locale.value) : '—'
   return `${format(project.value.date_start)} — ${format(project.value.date_end)}`
 })
+const workspaceCreateLabel = computed(() => {
+  if (workspaceSection.value === 'milestones') return t('projects.milestones.new')
+  if (workspaceSection.value === 'stakeholders') return t('projects.governance.stakeholder.createTitle')
+  if (workspaceSection.value === 'register') return t('projects.governance.registerForm.create')
+  if (workspaceSection.value === 'finance') return t('projects.finance.newExpense')
+  return t('tasks.new')
+})
+const showWorkspaceCreate = computed(() => ['tasks', 'milestones', 'stakeholders', 'register', 'finance'].includes(workspaceSection.value))
 </script>
 
 <template>
-  <SharedPageContainer v-if="showWorkspace" width="detail">
+  <SharedPageContainer v-if="isBaseRoute" width="detail">
     <div v-if="notFound" class="flex flex-col items-start gap-3">
       <p class="text-muted-foreground">{{ t('projects.notFound') }}</p>
       <button type="button" class="text-sm underline" @click="router.push(projectReturnTo)">{{ t('projects.backToProjects') }}</button>
@@ -128,8 +126,9 @@ const dateRange = computed(() => {
         v-if="project"
         :project="project"
         :back-to="projectReturnTo"
-        :show-create="workspaceSection !== 'charter'"
+        :show-create="showWorkspaceCreate"
         :show-edit="workspaceSection === 'charter'"
+        :create-label="workspaceCreateLabel"
         @create="onWorkspaceCreate"
         @edit="openCharterEdit"
         @settings="openSettings"
@@ -138,7 +137,7 @@ const dateRange = computed(() => {
       />
       <Skeleton v-else-if="isLoading" class="h-9 w-1/2" />
 
-      <Tabs :model-value="tab" class="space-y-4" @update:model-value="onTabChange">
+      <div class="space-y-4">
         <Card v-if="project" data-testid="project-context" class="nasq-panel overflow-hidden">
           <CardContent class="space-y-4 pb-0 pt-[18px]">
             <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -150,43 +149,37 @@ const dateRange = computed(() => {
               </div>
               <ProjectProgress :progress="project.progress" :task-count="project.task_count" :closed-task-count="project.closed_task_count" />
             </div>
-            <ProjectWorkspaceNav :project-id="project.id" :active="project.active" />
           </CardContent>
         </Card>
 
-        <TabsContent value="overview">
-          <div v-if="isBaseRoute && project && tab === 'overview'" class="nasq-detail-grid">
+        <div v-if="isBaseRoute && project && tab === 'overview'" class="nasq-detail-grid">
+          <div class="grid min-w-0 gap-4">
             <ProjectOverview :project="project" />
-            <ProjectMetadataRail :project="project" />
+            <ProjectOverviewTasks :project-id="project.id" :return-to="route.fullPath" />
           </div>
-        </TabsContent>
+          <ProjectMetadataRail :project="project" />
+        </div>
 
-        <TabsContent value="tasks">
-          <section v-if="isBaseRoute && project && tab === 'tasks'" class="nasq-panel overflow-hidden">
-            <div class="nasq-panel-header flex items-center justify-between gap-3">
-              <h2 class="text-base font-semibold">{{ t('projects.tabs.tasks') }}</h2>
-              <NuxtLink :to="{ path: '/archived-tasks', query: { project_id: project.id, ...returnToQuery(route.fullPath) } }" class="text-sm text-muted-foreground underline underline-offset-4">{{ t('taskLifecycle.archivedTasks') }}</NuxtLink>
-            </div>
-            <TaskToolbar :model-value="params" :view="taskView" embedded hide-project-filter hide-create @update:model-value="onParams" @update:view="onTaskViewChange" @create="openTaskCreate" />
-            <TaskTable v-if="taskView === 'table'" :params="params" variant="project" embedded @open="openTask" @create="openTaskCreate" />
-            <TaskBoard v-else :params="params" :stage-source="stageSource" embedded @open="openTask" />
-          </section>
-        </TabsContent>
-
-        <TabsContent value="milestones">
-          <div v-if="isBaseRoute && project && tab === 'milestones'" class="nasq-detail-grid">
-            <MilestoneTable :project-id="project.id" :can-manage="project.can_manage" />
-            <ProjectMetadataRail :project="project" />
+        <section v-if="isBaseRoute && project && tab === 'tasks'" class="nasq-panel overflow-hidden">
+          <div class="nasq-panel-header flex items-center justify-between gap-3">
+            <h2 class="text-base font-semibold">{{ t('projects.tabs.tasks') }}</h2>
+            <NuxtLink :to="{ path: '/archived-tasks', query: { project_id: project.id, ...returnToQuery(route.fullPath) } }" class="text-sm text-muted-foreground underline underline-offset-4">{{ t('taskLifecycle.archivedTasks') }}</NuxtLink>
           </div>
-        </TabsContent>
+          <TaskToolbar :model-value="params" :view="taskView" embedded hide-project-filter hide-create @update:model-value="onParams" @update:view="onTaskViewChange" @create="openTaskCreate" />
+          <TaskTable v-if="taskView === 'table'" :params="params" variant="project" embedded @open="openTask" @create="openTaskCreate" />
+          <TaskBoard v-else :params="params" :stage-source="stageSource" embedded @open="openTask" />
+        </section>
 
-        <TabsContent value="updates">
-          <div v-if="isBaseRoute && project && tab === 'updates'" class="nasq-detail-grid">
-            <ProjectUpdateList :project-id="project.id" :can-manage="project.can_manage" />
-            <ProjectMetadataRail :project="project" />
-          </div>
-        </TabsContent>
-      </Tabs>
+        <div v-if="isBaseRoute && project && tab === 'milestones'" class="nasq-detail-grid">
+          <MilestoneTable :project-id="project.id" :can-manage="project.can_manage" />
+          <ProjectMetadataRail :project="project" />
+        </div>
+
+        <div v-if="isBaseRoute && project && tab === 'updates'" class="nasq-detail-grid">
+          <ProjectUpdateList :project-id="project.id" :can-manage="project.can_manage" />
+          <ProjectMetadataRail :project="project" />
+        </div>
+      </div>
     </template>
   </SharedPageContainer>
   <NuxtPage />

@@ -5,9 +5,10 @@ import type { ProjectDetail } from '@nasq/contracts'
 import { ApiError } from '@/composables/useApi'
 import { useArchiveProject, useUnarchiveProject } from '@/composables/useProjects'
 
-const props = withDefaults(defineProps<{ project: ProjectDetail; backTo?: string; showCreate?: boolean; showEdit?: boolean }>(), {
+const props = withDefaults(defineProps<{ project: ProjectDetail; backTo?: string; showCreate?: boolean; showEdit?: boolean; createLabel?: string }>(), {
   showCreate: true,
   showEdit: false,
+  createLabel: undefined,
 })
 const emit = defineEmits<{ create: []; edit: []; settings: []; archived: []; unarchived: [] }>()
 const { t } = useI18n()
@@ -53,8 +54,8 @@ async function doUnarchive() {
         class="size-[32px] rounded-lg"
         data-testid="project-header-create"
         :disabled="!hydrated"
-        :aria-label="t('tasks.new')"
-        :title="t('tasks.new')"
+        :aria-label="props.createLabel || t('tasks.new')"
+        :title="props.createLabel || t('tasks.new')"
         @click="emit('create')"
       >
         <Plus class="size-[18px]" />

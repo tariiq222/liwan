@@ -18,9 +18,12 @@ function taskQuery() {
 </script>
 
 <template>
-  <Card data-testid="project-active-tasks" class="overflow-hidden">
-    <CardHeader class="pb-3">
+  <Card data-testid="project-active-tasks" class="nasq-panel overflow-hidden">
+    <CardHeader class="flex flex-row items-center justify-between gap-3 pb-3">
       <CardTitle class="text-base">{{ t('projects.overview.activeTasks') }}</CardTitle>
+      <NuxtLink :to="{ path: `/projects/${props.projectId}`, query: { tab: 'tasks' } }" class="text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground">
+        {{ t('projects.tabs.tasks') }}
+      </NuxtLink>
     </CardHeader>
     <CardContent>
       <div v-if="isLoading" class="space-y-3" data-testid="project-active-tasks-loading">
