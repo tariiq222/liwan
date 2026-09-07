@@ -3,6 +3,7 @@ from odoo import fields
 from odoo.exceptions import AccessError, UserError
 from odoo.tests import TransactionCase, new_test_user, tagged
 
+from odoo.addons.nasq_pmo.serializers.meeting import dump_meeting
 from odoo.addons.nasq_pmo.serializers.task import dump_task, dump_task_detail
 
 
@@ -170,7 +171,6 @@ class TestResolutionConvert(TransactionCase):
         with self.assertRaises(AccessError):
             resolution.with_user(self.organizer).action_convert_to_task(project_b.id)
 
-
     def test_repeat_conversion_does_not_create_second_task(self):
         resolution = self._create_resolution(self._create_meeting())
         task = resolution.with_user(self.organizer).action_convert_to_task(self.project.id)
@@ -179,15 +179,12 @@ class TestResolutionConvert(TransactionCase):
         self.assertEqual(self.env['project.task'].search([('resolution_id', '=', resolution.id)]), task)
 
     def test_locked_meeting_does_not_offer_edit_or_allow_conversion(self):
-        from odoo.addons.nasq_pmo.serializers.meeting import dump_meeting
-
         meeting = self._create_meeting()
         resolution = self._create_resolution(meeting)
         meeting.sudo().write({'state': 'done'})
         self.assertFalse(dump_meeting(meeting.with_user(self.manager_cap), detail=True)['can_edit'])
         with self.assertRaises(UserError):
             resolution.with_user(self.manager_cap).action_convert_to_task(self.project.id)
-
 
     def test_edit_meeting_schedule_updates_existing_calendar_event(self):
         meeting = self._create_meeting()
@@ -201,7 +198,6 @@ class TestResolutionConvert(TransactionCase):
         self.assertEqual(event.stop, meeting.end_datetime)
         self.assertEqual(event.location, 'New room')
 
-
     def test_calendar_import_does_not_create_an_extra_event(self):
         Event = self.env['calendar.event'].with_user(self.organizer)
         event = Event.create({'name': 'Import calendar', 'start': '2026-09-08 10:00:00',
@@ -211,7 +207,6 @@ class TestResolutionConvert(TransactionCase):
         meeting = self.Meeting.browse(action['res_id'])
         self.assertEqual(meeting.calendar_event_id, event)
         self.assertEqual(Event.search_count([]), before)
-
 
     def test_membership_stays_removed_after_rename_and_reschedule(self):
         meeting = self._create_meeting()
@@ -245,3 +240,32 @@ class TestResolutionConvert(TransactionCase):
         meeting.with_context(nasq_calendar_import=True, nasq_calendar_outbound=True).write({'attendee_ids': [(6, 0, [])], 'name': 'Forged flags'})
         self.assertNotIn(self.attendee.partner_id, meeting.calendar_event_id.partner_ids)
         self.assertFalse(meeting.attendee_ids)
+
+    def test_linked_membership_sync_survives_missing_schedule(self):
+        for missing in ('start_datetime', 'end_datetime'):
+            with self.subTest(missing=missing):
+                meeting = self._create_meeting()
+                event = meeting.calendar_event_id
+                schedule = (event.start, event.stop)
+                meeting.write({missing: False})
+                meeting.write({'attendee_ids': [(6, 0, [])], 'name': 'Incomplete schedule'})
+                self.assertFalse(meeting[missing])
+                self.assertNotIn(self.attendee, meeting.attendee_ids)
+                self.assertNotIn(self.attendee.partner_id, event.partner_ids)
+                self.assertNotIn(self.attendee.partner_id, meeting.message_partner_ids)
+                self.assertEqual((event.start, event.stop), schedule)
+                self.assertEqual(event.name, 'Incomplete schedule')
+                self.assertEqual(meeting.secretary_id, self.secretary)
+                with self.assertRaises(AccessError):
+                    meeting.with_user(self.attendee).read(['name'])
+
+    def test_clear_schedule_and_remove_membership_in_one_write(self):
+        meeting = self._create_meeting()
+        event = meeting.calendar_event_id
+        schedule = (event.start, event.stop)
+        meeting.write({'start_datetime': False, 'end_datetime': False,
+                       'attendee_ids': [(6, 0, [])], 'secretary_id': False})
+        self.assertEqual(event.partner_ids, self.organizer.partner_id)
+        self.assertFalse(meeting.attendee_ids)
+        self.assertFalse(meeting.secretary_id)
+        self.assertEqual((event.start, event.stop), schedule)
