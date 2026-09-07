@@ -23,11 +23,9 @@ const { data: entries, error, refetch, isLoading } = useTimeline(idRef)
     </header>
     <div class="nasq-panel-body">
       <SharedPageState v-if="error" :error="error" @retry="refetch" />
-      <div v-else-if="isLoading" role="status" class="py-4 text-sm text-muted-foreground">{{ t('tasks.activity.loading') }}</div>
-      <template v-else>
-        <Timeline :entries="entries ?? []" />
-        <CommentComposer v-if="task.can_write" :task-id="task.id" />
-      </template>
+      <div v-if="isLoading" role="status" class="py-4 text-sm text-muted-foreground">{{ t('tasks.activity.loading') }}</div>
+      <Timeline v-else :entries="entries ?? []" />
+      <CommentComposer v-if="task.can_write" :key="task.id" :task-id="task.id" />
     </div>
   </section>
 </template>

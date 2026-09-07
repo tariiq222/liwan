@@ -232,11 +232,11 @@ useEventListener(document, 'keydown', onKeydown)
 
     <SharedPageState v-if="error" :error="error" @retry="refetch" />
 
-    <div v-else-if="!task" class="nasq-panel flex min-h-56 items-center justify-center p-4">
+    <div v-if="!task" class="nasq-panel flex min-h-56 items-center justify-center p-4">
       <Skeleton class="h-40 w-full" />
     </div>
 
-    <template v-else>
+    <template v-if="task">
       <div data-testid="task-detail-grid" class="task-detail-shell">
         <section data-testid="task-details-card" class="nasq-panel task-detail-card">
           <div class="nasq-panel-body">
