@@ -36,3 +36,7 @@ Screenshots: [desktop](evidence/project-dashboard-2026-09-07/dashboard-1440.png)
 Worker sources remain preserved in `/Users/tariq/code/nasq-dashboard-data`, `/Users/tariq/code/nasq-dashboard-view`, and `/Users/tariq/code/nasq-my-projects`. Logs, briefs, and independent review: `/tmp/nasq-dashboard-briefs/`. No worktree cleanup, Git commit, or merge is included in this delivery.
 
 Final verification after dark contrast adjustment: `unit-verified.log` (122 contracts + 542 web), `build-contrast.log` (successful build), `browser-contrast.log` (7 passed). The independent reviewer accepted the scoped semantic-token adjustment.
+
+## Subsequent authorized integration
+
+This delivery is now included in main by the all-branch consolidation at product `30901b0`. Its temporary preview and worktree are retired into recovery. The canonical local runtime has been restarted; see [the consolidation report](all-branches-consolidation-2026-09-07.md) for fresh combined tests, recovery and runtime boundaries. Earlier isolated-only statements above describe the original delivery checkpoint.
