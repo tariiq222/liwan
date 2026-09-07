@@ -2,56 +2,62 @@
 import { PROJECT_STATUSES } from '@nasq/contracts'
 import { refDebounced } from '@vueuse/core'
 import FilterBar from '@/components/shared/FilterBar.vue'
-import ProjectDashboardSummary from '@/components/project/finance/ProjectDashboardSummary.vue'
-import ReportTable from '@/components/project/finance/ReportTable.vue'
-import { useProjectReports, useProjectReportsSummary } from '@/composables/useProjectReports'
-import {
-  REPORT_PAGE,
-  parseReportListRoute,
-  parseReportStatus,
-  patchReportListRoute,
-  nextOffsetAfterListResult,
-  sameReportListRoute,
-  serializeReportListRoute,
-  type ReportListRouteState,
-} from '@/utils/projectFinance'
+import ProjectDashboardCharts from '@/components/project/dashboard/ProjectDashboardCharts.vue'
+import ProjectDashboardMetrics from '@/components/project/dashboard/ProjectDashboardMetrics.vue'
+import ProjectDashboardRecentProjects from '@/components/project/dashboard/ProjectDashboardRecentProjects.vue'
+import { useProjectDashboardAnalytics } from '@/composables/useProjectDashboardAnalytics'
+import { parseReportStatus, type ProjectReportStatusFilter } from '@/utils/projectFinance'
+
+type DashboardRouteState = { q: string; status: ProjectReportStatusFilter }
 
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
 const hydrated = useHydrated()
-const filters = reactive<ReportListRouteState>(parseReportListRoute(route.query as Record<string, unknown>))
+
+function queryText(value: unknown): string {
+  return typeof value === 'string' ? value : ''
+}
+
+function parseRoute(query: Record<string, unknown>): DashboardRouteState {
+  return { q: queryText(query.q), status: parseReportStatus(query.status) }
+}
+
+function serializeRoute(state: DashboardRouteState) {
+  return { q: state.q.trim() || undefined, status: state.status === 'all' ? undefined : state.status }
+}
+
+function sameRoute(left: ReturnType<typeof serializeRoute>, right: ReturnType<typeof serializeRoute>) {
+  return left.q === right.q && left.status === right.status
+}
+
+const filters = reactive<DashboardRouteState>(parseRoute(route.query as Record<string, unknown>))
 const search = ref(filters.q)
 const debouncedSearch = refDebounced(search, 250)
 let applyingRoute = false
 let writeQuery: Promise<void> = Promise.resolve()
 
-const reportFilters = computed(() => ({
-  q: filters.q.trim() || undefined,
-  status: filters.status,
-  limit: REPORT_PAGE,
-  offset: filters.offset,
-}))
-const summaryFilters = computed(() => ({
+const analyticsFilters = computed(() => ({
   q: filters.q.trim() || undefined,
   status: filters.status,
 }))
-const reports = useProjectReports(reportFilters)
-const summary = useProjectReportsSummary(summaryFilters)
-const items = computed(() => reports.data.value?.items ?? [])
-const total = computed(() => reports.data.value?.total ?? 0)
-const page = computed(() => Math.floor(filters.offset / REPORT_PAGE) + 1)
-const pages = computed(() => Math.max(1, Math.ceil(total.value / REPORT_PAGE)))
+const analytics = useProjectDashboardAnalytics(analyticsFilters)
+const rows = computed(() => analytics.data.value?.projects ?? [])
+const recentRows = computed(() => analytics.data.value?.recent_projects ?? [])
 const filtered = computed(() => Boolean(filters.q.trim()) || filters.status !== 'all')
 
-function applyPatch(patch: Partial<ReportListRouteState>) {
-  Object.assign(filters, patchReportListRoute(filters, patch))
+function applyPatch(patch: Partial<DashboardRouteState>) {
+  Object.assign(filters, {
+    q: patch.q ?? filters.q,
+    status: parseReportStatus(patch.status ?? filters.status),
+  })
 }
 
 function scheduleQueryWrite() {
   writeQuery = writeQuery.then(async () => {
-    const query = serializeReportListRoute(filters)
-    if (sameReportListRoute(query, serializeReportListRoute(parseReportListRoute(route.query as Record<string, unknown>)))) return
+    const query = serializeRoute(filters)
+    const current = serializeRoute(parseRoute(route.query as Record<string, unknown>))
+    if (sameRoute(query, current)) return
     applyingRoute = true
     try {
       await router.replace({ query })
@@ -65,11 +71,11 @@ watch(debouncedSearch, value => {
   if (value.trim() === filters.q.trim()) return
   applyPatch({ q: value })
 })
-watch([() => filters.q, () => filters.status, () => filters.offset], scheduleQueryWrite)
+watch([() => filters.q, () => filters.status], scheduleQueryWrite)
 watch(() => route.query, query => {
   if (applyingRoute) return
-  const parsed = parseReportListRoute(query as Record<string, unknown>)
-  if (sameReportListRoute(serializeReportListRoute(filters), serializeReportListRoute(parsed))) return
+  const parsed = parseRoute(query as Record<string, unknown>)
+  if (sameRoute(serializeRoute(filters), serializeRoute(parsed))) return
   applyingRoute = true
   search.value = parsed.q
   Object.assign(filters, parsed)
@@ -84,28 +90,6 @@ function clearFilters() {
   search.value = ''
   applyPatch({ q: '', status: 'all' })
 }
-
-function setPage(next: number) {
-  if (!hydrated.value || reports.isFetching.value || next < 1 || next > pages.value) return
-  applyPatch({ offset: (next - 1) * REPORT_PAGE })
-}
-
-watch(() => ({
-  fetching: reports.isFetching.value,
-  offset: filters.offset,
-  queryOffset: reportFilters.value.offset,
-  total: reports.data.value?.total,
-}), ({ fetching, offset, queryOffset, total }) => {
-  const next = nextOffsetAfterListResult({
-    isFetching: fetching,
-    requestedOffset: offset,
-    responseOffset: queryOffset,
-    total,
-    pageSize: REPORT_PAGE,
-  })
-  if (next === null) return
-  applyPatch({ offset: next })
-})
 </script>
 
 <template>
@@ -131,26 +115,26 @@ watch(() => ({
       </FilterBar>
     </div>
 
-    <ProjectDashboardSummary
-      :summary="summary.data.value"
-      :is-loading="summary.isLoading.value"
-      :error="summary.error.value"
-      @retry="summary.refetch"
-    />
+    <div v-if="!hydrated || (analytics.isLoading.value && !analytics.data.value)" role="status" class="space-y-5" :aria-label="t('app.loading')">
+      <div class="grid grid-cols-2 gap-px overflow-hidden rounded-lg border bg-border sm:grid-cols-4"><Skeleton v-for="n in 4" :key="n" class="h-24 rounded-none bg-card" /></div>
+      <div class="grid gap-5 xl:grid-cols-2"><Skeleton v-for="n in 6" :key="n" class="h-[350px] rounded-lg bg-card" /></div>
+    </div>
 
-    <section aria-labelledby="project-dashboard-table-title" class="space-y-3">
-      <div>
-        <h2 id="project-dashboard-table-title" class="text-base font-semibold">{{ t('projects.dashboard.tableTitle') }}</h2>
-        <p class="mt-1 text-sm text-muted-foreground">{{ t('projects.dashboard.tableDescription') }}</p>
-      </div>
-      <SharedPageState :loading="reports.isLoading.value && !reports.data.value" :error="reports.error.value" @retry="reports.refetch">
-        <ReportTable :items="items" :is-loading="reports.isLoading.value" :filtered="filtered" />
-        <div v-if="pages > 1" class="flex items-center justify-between text-sm text-muted-foreground">
-          <Button variant="ghost" :disabled="!hydrated || page === 1 || reports.isFetching.value" @click="setPage(page - 1)">{{ t('projects.previousPage') }}</Button>
-          <span>{{ t('projects.pageOf', { page, pages }) }}</span>
-          <Button variant="ghost" :disabled="!hydrated || page >= pages || reports.isFetching.value" @click="setPage(page + 1)">{{ t('projects.nextPage') }}</Button>
-        </div>
-      </SharedPageState>
-    </section>
+    <div v-else-if="analytics.error.value" data-testid="project-dashboard-analytics-error" role="alert" class="nasq-panel space-y-3 p-6">
+      <p class="font-medium">{{ t('projects.dashboard.analyticsError') }}</p>
+      <Button variant="outline" :disabled="!hydrated" @click="analytics.refetch">{{ t('projects.dashboard.retryAnalytics') }}</Button>
+    </div>
+
+    <div v-else-if="rows.length === 0" data-testid="project-dashboard-empty" role="status" class="nasq-panel p-10 text-center text-sm text-muted-foreground">
+      <p class="font-medium text-foreground">{{ t(filtered ? 'projects.filteredEmpty' : 'projects.dashboard.empty') }}</p>
+      <p class="mt-1">{{ t(filtered ? 'projects.filteredEmptyHint' : 'projects.emptyHint') }}</p>
+      <Button v-if="filtered" variant="outline" class="mt-4" :disabled="!hydrated" @click="clearFilters">{{ t('projects.filters.clear') }}</Button>
+    </div>
+
+    <template v-else>
+      <ProjectDashboardMetrics :rows="rows" />
+      <ProjectDashboardCharts :rows="rows" />
+      <ProjectDashboardRecentProjects :rows="recentRows" />
+    </template>
   </SharedPageContainer>
 </template>
