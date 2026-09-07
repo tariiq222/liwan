@@ -13,6 +13,8 @@ from odoo.addons.nasq_pmo.serializers.project_finance import (
 from odoo.addons.project.models.project_task import CLOSED_STATES
 
 _CLOSED_STATES = list(CLOSED_STATES)
+_ATTENTION_STATUSES = {'at_risk', 'off_track', 'on_hold'}
+_STATUS_ORDER = ('on_track', 'at_risk', 'off_track', 'on_hold', 'done', None)
 
 
 def today_utc():
@@ -32,9 +34,41 @@ def _task_counts(project, today):
     return task_count, closed_task_count, overdue_task_count
 
 
-def dump_report_row(project, today, can_read_tasks):
+def task_counts_by_project(projects, today):
+    """Aggregate readable task counts with the caller's task ACLs and rules."""
+    if not projects:
+        return {}
+    project_ids = projects.ids
+    Task = projects.env['project.task']
+    all_counts = Task._read_group(
+        [('project_id', 'in', project_ids)], ['project_id', 'state'], ['__count'],
+    )
+    overdue_counts = Task._read_group(
+        [
+            ('project_id', 'in', project_ids), ('state', 'not in', _CLOSED_STATES),
+            ('date_deadline', '!=', False), ('date_deadline', '<', today),
+        ],
+        ['project_id'], ['__count'],
+    )
+    counts = {}
+    for project, state, value in all_counts:
+        if project:
+            values = counts.setdefault(project.id, [0, 0, 0])
+            values[0] += value
+            if state in _CLOSED_STATES:
+                values[1] += value
+    for project, value in overdue_counts:
+        if project:
+            counts.setdefault(project.id, [0, 0, 0])[2] = value
+    return {project_id: tuple(values) for project_id, values in counts.items()}
+
+
+def dump_report_row(project, today, can_read_tasks, task_values=None):
     if can_read_tasks:
-        task_count, closed_task_count, overdue_task_count = _task_counts(project, today)
+        if task_values is None:
+            task_count, closed_task_count, overdue_task_count = _task_counts(project, today)
+        else:
+            task_count, closed_task_count, overdue_task_count = task_values
         progress = round((closed_task_count / task_count) * 100) if task_count else 0
     else:
         task_count = closed_task_count = overdue_task_count = None
@@ -49,6 +83,40 @@ def dump_report_row(project, today, can_read_tasks):
         'closed_task_count': closed_task_count,
         'overdue_task_count': overdue_task_count,
         'progress': progress,
+    }
+
+
+def build_dashboard_summary(projects, today, can_read_tasks):
+    """Build the unpaginated project dashboard summary from visible projects."""
+    task_counts = task_counts_by_project(projects, today) if can_read_tasks else {}
+    status_counts = {}
+    attention = []
+    overdue_total = 0
+    for project in projects:
+        status = STATUS_TO_API.get(project.last_update_status)
+        status_counts[status] = status_counts.get(status, 0) + 1
+        task_values = task_counts.get(project.id)
+        overdue = task_values[2] if task_values else 0
+        if can_read_tasks:
+            overdue_total += overdue
+        finance = build_finance_summary(project)
+        if status in _ATTENTION_STATUSES or finance['over_budget'] or overdue > 0:
+            attention.append((overdue, project.name, project.id, project, task_values))
+
+    attention.sort(key=lambda item: (-item[0], item[1], item[2]))
+    attention_rows = []
+    for _, _, _, project, task_values in attention[:10]:
+        attention_rows.append(dump_report_row(project, today, can_read_tasks, task_values))
+    return {
+        'project_count': len(projects),
+        'attention_project_count': len(attention),
+        'overdue_task_count': overdue_total if can_read_tasks else None,
+        'status_counts': [
+            {'status': status, 'count': status_counts[status]}
+            for status in _STATUS_ORDER if status in status_counts
+        ],
+        'totals': build_report_totals(projects),
+        'attention': attention_rows,
     }
 
 

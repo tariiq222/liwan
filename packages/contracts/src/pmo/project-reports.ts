@@ -13,6 +13,17 @@ export const ProjectReportTotalsSchema = z.object({
   planned: z.number().finite().nonnegative(), actual: z.number().finite().nonnegative(), remaining: z.number().finite(), over_budget_count: count,
 }).strict()
 export const ProjectReportListSchema = z.object({ items: z.array(ProjectReportRowSchema), total: count, totals: z.array(ProjectReportTotalsSchema) }).strict()
+export const ProjectDashboardStatusCountSchema = z.object({ status: ProjectStatusSchema.nullable(), count }).strict()
+export const ProjectDashboardSummarySchema = z.object({
+  project_count: count,
+  attention_project_count: count,
+  overdue_task_count: count.nullable(),
+  status_counts: z.array(ProjectDashboardStatusCountSchema),
+  totals: z.array(ProjectReportTotalsSchema),
+  attention: z.array(ProjectReportRowSchema),
+}).strict()
 export type ProjectReportRow = z.infer<typeof ProjectReportRowSchema>
 export type ProjectReportTotals = z.infer<typeof ProjectReportTotalsSchema>
 export type ProjectReportList = z.infer<typeof ProjectReportListSchema>
+export type ProjectDashboardStatusCount = z.infer<typeof ProjectDashboardStatusCountSchema>
+export type ProjectDashboardSummary = z.infer<typeof ProjectDashboardSummarySchema>

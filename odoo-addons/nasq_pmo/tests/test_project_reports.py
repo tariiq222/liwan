@@ -9,6 +9,7 @@ TOTALS_KEYS = {
     'currency', 'project_count', 'budgeted_project_count', 'planned', 'actual', 'remaining', 'over_budget_count',
 }
 URL = '/api/v1/reports/projects'
+SUMMARY_URL = '/api/v1/reports/projects/summary'
 
 
 @tagged('post_install', '-at_install', 'nasq')
@@ -170,3 +171,113 @@ class TestProjectReports(NasqPmoCase):
         })
         self.authenticate('report_system_admin', 'report_system_admin_pass_123')
         self.assertEqual(self.api('GET', URL).status_code, 403)
+
+    def test_dashboard_summary_shape_and_all_project_scope(self):
+        self.project.with_user(self.manager)._nasq_set_status('on_track')
+        for i in range(205):
+            self.env['project.project'].create({
+                'company_id': self.env.company.id,
+                'name': f'Dashboard scope {i:03d}',
+            })
+        self.authenticate('api_mgr', 'api_mgr_pass_123')
+        body = self.api('GET', SUMMARY_URL).json()
+        self.assertEqual(set(body), {
+            'project_count', 'attention_project_count', 'overdue_task_count',
+            'status_counts', 'totals', 'attention',
+        })
+        self.assertGreaterEqual(body['project_count'], 206)
+        self.assertEqual(body['project_count'], sum(item['count'] for item in body['status_counts']))
+        self.assertEqual(body['overdue_task_count'], 1)
+        self.assertLessEqual(len(body['attention']), 10)
+
+    def test_dashboard_summary_reuses_q_and_status_filters(self):
+        self.project.with_user(self.manager)._nasq_set_status('on_track')
+        other = self.env['project.project'].create({
+            'company_id': self.env.company.id, 'name': 'Dashboard other',
+        })
+        other.with_user(self.manager)._nasq_set_status('off_track')
+        self.authenticate('api_mgr', 'api_mgr_pass_123')
+        body = self.api('GET', f'{SUMMARY_URL}?q=other&status=off_track').json()
+        self.assertEqual(body['project_count'], 1)
+        self.assertEqual(body['status_counts'], [{'status': 'off_track', 'count': 1}])
+        self.assertEqual([item['project']['id'] for item in body['attention']], [other.id])
+        self.assertEqual(self.api('GET', f'{SUMMARY_URL}?status=unset').json()['project_count'], 0)
+
+    def test_dashboard_summary_task_totals_are_null_without_task_read(self):
+        role = self.env['nasq.access.role'].create({
+            'name_ar': 'قارئ المشاريع للوحة',
+            'company_id': self.env.company.id,
+            'permission_ids': [(6, 0, self.env['nasq.access.permission'].search([
+                ('key', '=', 'pmo.projects.read'),
+            ]).ids)],
+        })
+        reader = new_test_user(
+            self.env, login='dashboard_reader', password='dashboard_reader_pass_123',
+            groups='base.group_user',
+        )
+        self.env['nasq.access.assignment'].create({
+            'user_id': reader.id, 'role_id': role.id, 'company_id': self.env.company.id,
+        })
+        self.authenticate('dashboard_reader', 'dashboard_reader_pass_123')
+        body = self.api('GET', SUMMARY_URL).json()
+        self.assertIsNone(body['overdue_task_count'])
+        self.assertTrue(all(item['overdue_task_count'] is None for item in body['attention']))
+
+    def test_dashboard_summary_isolates_archived_private_foreign_projects(self):
+        archived = self.env['project.project'].create({
+            'company_id': self.env.company.id, 'name': 'Archived dashboard project',
+        })
+        archived.with_user(self.manager)._nasq_archive()
+        private = self.env['project.project'].create({
+            'company_id': self.env.company.id, 'name': 'Private dashboard project',
+            'privacy_visibility': 'followers',
+        })
+        company_b = self.env['res.company'].create({'name': 'Dashboard company B'})
+        foreign = self.env['project.project'].create({
+            'company_id': company_b.id, 'name': 'Foreign dashboard project',
+        })
+        companyless = self.env['project.project'].create({'name': 'Companyless dashboard project'})
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        body = self.api('GET', SUMMARY_URL).json()
+        ids = {item['project']['id'] for item in body['attention']}
+        visible_ids = {
+            item['project']['id'] for item in self.api('GET', URL).json()['items']
+        }
+        self.assertNotIn(archived.id, visible_ids | ids)
+        self.assertNotIn(private.id, visible_ids | ids)
+        self.assertNotIn(foreign.id, visible_ids | ids)
+        self.assertNotIn(companyless.id, visible_ids | ids)
+
+    def test_dashboard_summary_deduplicates_attention_and_orders_by_overdue(self):
+        Project = self.env['project.project']
+        high = Project.create({'company_id': self.env.company.id, 'name': 'A high overdue'})
+        low = Project.create({'company_id': self.env.company.id, 'name': 'B low overdue'})
+        status_only = Project.create({'company_id': self.env.company.id, 'name': 'C status only'})
+        high.with_user(self.manager)._nasq_set_status('at_risk')
+        status_only.with_user(self.manager)._nasq_set_status('off_track')
+        Task = self.env['project.task']
+        for i in range(3):
+            Task.create({
+                'name': f'High overdue {i}', 'project_id': high.id,
+                'date_deadline': '2020-01-01', 'user_ids': [(4, self.employee.id)],
+            })
+        Task.create({
+            'name': 'Low overdue', 'project_id': low.id,
+            'date_deadline': '2020-01-01', 'user_ids': [(4, self.employee.id)],
+        })
+        self.authenticate('api_mgr', 'api_mgr_pass_123')
+        body = self.api('GET', SUMMARY_URL).json()
+        attention = body['attention']
+        ids = [item['project']['id'] for item in attention]
+        self.assertEqual(len(ids), len(set(ids)))
+        self.assertEqual(ids[:2], [high.id, low.id])
+        high_rows = [item for item in attention if item['project']['id'] == high.id]
+        self.assertEqual(len(high_rows), 1)
+        self.assertEqual(body['attention_project_count'], 4)
+
+    def test_dashboard_summary_rejects_pagination_and_invalid_status(self):
+        self.authenticate('api_mgr', 'api_mgr_pass_123')
+        self.assertEqual(self.api('GET', f'{SUMMARY_URL}?limit=10').status_code, 400)
+        self.assertEqual(self.api('GET', f'{SUMMARY_URL}?offset=1').status_code, 400)
+        self.assertEqual(self.api('GET', f'{SUMMARY_URL}?bogus=1').status_code, 400)
+        self.assertEqual(self.api('GET', f'{SUMMARY_URL}?status=nope').status_code, 422)
