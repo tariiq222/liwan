@@ -5,3 +5,4 @@ from . import (
     test_access_security,
     test_groups,
 )
+from . import test_meeting_access
