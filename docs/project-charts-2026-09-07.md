@@ -26,3 +26,11 @@ The page uses the approved prototype's content spacing, quiet metrics strip, pan
 ## Runtime and recovery
 
 Recovery: `/Users/tariq/code/nasq-recovery-charts-20260907-222000`, including source snapshots, all-ref Git bundle, full retired worktree directories and validation logs. Main is the integration target; runtime closure is recorded below. No remote push or production deployment is part of this local correction.
+
+## Local closure
+
+The accepted source is integrated into canonical main at `809a0fe` (product `4c699e2`; implementation sources `6f207fb` and `264d1fb` are ancestors). Integration merges leave the verified product tree unchanged. All three temporary worktrees and branches were retired with the recovery archive above; only main remains.
+
+Canonical services were restarted from `/Users/tariq/code/nasq`: Odoo PID 72746 on 8069 using `odoo19`, and Nuxt PID 73534 on 3000 with explicit canonical Odoo URL/database. Fresh local smoke: login HTTP 200, branding HTTP 200, protected analytics without login HTTP 403 (route present, guard intact). Dependencies were installed from the committed lockfile and Nuxt generated types prepared. Temporary Odoo9985, Nuxt3985 and prototype4398 services were stopped.
+
+Read-only before/after canonical counts match: 153 projects, 701 tasks, 5 users, 2 employees and 62 attachments. Upstream Odoo remains clean at `34eed49d88f0f4357e1f54fe82cb0ad280939572`. No test fixtures, module upgrade or business data edits were applied to `odoo19`. Authenticated chart/browser evidence uses the isolated scratch account; canonical runtime proof is limited to process/source identity and the HTTP checks above. This is local delivery, not a production deployment.
