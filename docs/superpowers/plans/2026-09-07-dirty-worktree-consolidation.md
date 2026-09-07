@@ -34,31 +34,31 @@ Project parallel-work instructions supersede SDD's generic serial-worker default
 
 ### Task 1: Reconcile web repair snapshots
 
-- [ ] Compare `codex/impeccable-fixes^..codex/impeccable-fixes`, PMO and settings snapshots to candidate. Inventory owned files with a disposition, especially initial conflicts.
-- [ ] Preserve newer chrome/tabs and restore useful dirty guards, description flush, retry states, explicit personal archive scope, selectors, inline deletion and responsive fixes.
-- [ ] Reconcile the remaining settings/account/password/table conflicts and report shared CSS/project-locale needs.
-- [ ] Add/run focused behavioral regression checks where integration changes behavior. Report files, dispositions and evidence.
+- [x] Compare `codex/impeccable-fixes^..codex/impeccable-fixes`, PMO and settings snapshots to candidate. Inventory owned files with a disposition, especially initial conflicts.
+- [x] Preserve newer chrome/tabs and restore useful dirty guards, description flush, retry states, explicit personal archive scope, selectors, inline deletion and responsive fixes.
+- [x] Reconcile the remaining settings/account/password/table conflicts and report shared CSS/project-locale needs.
+- [x] Add/run focused behavioral regression checks where integration changes behavior. Report files, dispositions and evidence.
 
 ### Task 2: Reconcile HR snapshots
 
-- [ ] Compare impeccable HR/fixes and HR department tree source commits with candidate, including distinct DirectoryTable versions.
-- [ ] Retain responsive tables, request scoping/invalidation, employee/document form repairs and the working department chart/tree UI in current route/chrome architecture.
-- [ ] Reconcile every HR conflict listed in merges.jsonl; chart files existing without a page entry are incomplete.
-- [ ] Run focused HR regression checks only; record source-to-final decisions.
+- [x] Compare impeccable HR/fixes and HR department tree source commits with candidate, including distinct DirectoryTable versions.
+- [x] Retain responsive tables, request scoping/invalidation, employee/document form repairs and the working department chart/tree UI in current route/chrome architecture.
+- [x] Reconcile every HR conflict listed in merges.jsonl; chart files existing without a page entry are incomplete.
+- [x] Run focused HR regression checks only; record source-to-final decisions.
 
 ### Task 3: Complete meetings integration
 
-- [ ] Review full Cyan and meetings source changes end-to-end, including newest org-admin role additions and calendar/edit/resolution routes.
-- [ ] Reproduce and fix meeting notifications being excluded by recipient list/read domain; preserve current-company, record visibility and recipient ownership. Test cross-company/hidden/readability/read states.
-- [ ] Reconcile Cyan standalone security tests versus Nasq-dependent added tests in the source conflict. Nasq-specific behavior belongs to dependent addon tests.
-- [ ] Check meeting creation/edit/workflow/attachments/resolution conversion and access grants. Correct concrete integration failures, preserve attachment ACL and capability guards; report shared file needs.
-- [ ] Worker performs source checks/focused tests only; coordinator runs isolated Odoo tests and all final gates.
+- [x] Review full Cyan and meetings source changes end-to-end, including newest org-admin role additions and calendar/edit/resolution routes.
+- [x] Reproduce and fix meeting notifications being excluded by recipient list/read domain; preserve current-company, record visibility and recipient ownership. Test cross-company/hidden/readability/read states.
+- [x] Reconcile Cyan standalone security tests versus Nasq-dependent added tests in the source conflict. Nasq-specific behavior belongs to dependent addon tests.
+- [x] Check meeting creation/edit/workflow/attachments/resolution conversion and access grants. Correct concrete integration failures, preserve attachment ACL and capability guards; report shared file needs.
+- [x] Worker performs source checks/focused tests only; coordinator runs isolated Odoo tests and all final gates.
 
 ### Task 4: Coordinator reconciliation and acceptance
 
 - [x] Checkpoint all sixteen dirty worktrees and create candidate with source merge history.
-- [ ] Review historical phase1/phase2 differences per file; preserve useful missing behavior, document duplicated/superseded choices.
-- [ ] Repair Gantt integration regressions: visible dates, long names, today cue, boundary milestones and undated metadata; scope global active style.
-- [ ] Integrate worker diffs; independent review of spec and quality, fix important findings.
-- [ ] Run contracts/web tests, typecheck/lint, build, isolated Odoo addon tests and relevant runtime checks; record limitations honestly.
-- [ ] Commit evidence and promote candidate to main. Verify every source ancestor and source worktree cleanliness; preserve any late edits through additional checkpoints.
+- [x] Review historical phase1/phase2 differences per file; preserve useful missing behavior, document duplicated/superseded choices.
+- [x] Repair Gantt integration regressions: visible dates, long names, today cue, boundary milestones and undated metadata; scope global active style.
+- [x] Integrate worker diffs; independent review of spec and quality, fix important findings.
+- [x] Run contracts/web tests, typecheck/lint, build, isolated Odoo addon tests and relevant runtime checks; record limitations honestly.
+- [x] Commit evidence and promote candidate to main. Verify every source ancestor and source worktree cleanliness; preserve any late edits through additional checkpoints.

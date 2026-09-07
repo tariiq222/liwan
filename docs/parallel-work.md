@@ -10,9 +10,9 @@ owns shared files, Git integration, runtime state, and final verification.
 
 ## Current delivery status
 
-The 2026-09-05 unification combines the former task worktrees into the canonical
-checkout. See `docs/WORKSPACE.md` and `docs/unification-2026-09-05.md` for the
-actual branch, verification and recovery state. Historical Phase 3b, access,
+The sixteen-worktree integration extends the earlier unifications. See
+`docs/WORKSPACE.md` and `docs/worktree-consolidation-2026-09-07.md` for the
+current integration, verification and preserved source snapshots. Historical Phase 3b, access,
 design and collaboration reports preserve prior evidence only.
 
 Account administration belongs to the access capability domain; HR archival

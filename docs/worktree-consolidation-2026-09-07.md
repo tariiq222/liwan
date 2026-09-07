@@ -1,6 +1,6 @@
 # Coordinated worktree consolidation — 2026-09-07
 
-Status: candidate reconciliation and validation in progress. Main promotion is recorded below only after acceptance.
+Status: accepted and promoted into local `main`; source snapshots and recovery branches retained.
 
 ## Scope and preservation
 
@@ -26,8 +26,68 @@ External recovery and detailed logs: `/Users/tariq/.codex/visualizations/2026/09
 
 ## Verification
 
-Pending final package integration, independent review and the coordinator's gates. Focused coordinator checks already reproduced the meeting-only inbox access regression before its fix and passed afterward (9 access-policy tests); 3 schedule date tests passed. These counts are not the full acceptance result.
+Fresh coordinator gates on the reconciled candidate:
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Contracts + web units | 120 + 510 passed | external `full-web-test.log` |
+| Type checking + Ruff | PASS | external `lint.log` |
+| Nuxt production build | PASS | external `final-build.log` |
+| Nasq fresh isolated install | 460 passed | external `verified-odoo.log` |
+| Nasq final isolated update after calendar fix | 462 passed, zero failures/errors | external `final-odoo.log` |
+| Standalone Cyan policy | 55 passed | external `cyan.log` |
+| Brand palette checks | 28 passed after neutral-surface contrast correction | external `brand-test.log` |
+| Concurrent resolution conversion | One HTTP 200, one 422; exactly one task and partial unique index verified | external `concurrent-result.json`, `concurrent-db.json` |
+| Source preservation | All 16 checkpoint ancestors; original 16 worktrees clean | checkpoint manifest and promotion audit |
+
+The combined Nasq selectors are `/nasq_core,/nasq_api,/nasq_pmo,/nasq_hr`.
+Standalone Cyan is tested separately because installing Nasq intentionally makes
+actual current-company capabilities authoritative over Cyan's global support
+groups. The final run used only `nasq_consolidation_20260907_verified`; standalone
+Cyan used `nasq_cyan_standalone_20260907_final`. Neither is `odoo19`.
+
+Regression evidence includes four normal calendar membership failures before
+repair, then two missing-datetime cases with three failing assertions before
+the final fix. New multi-company tests prove an A-company manager grant cannot
+expose unrelated B-company meetings, resolutions, attachments or notifications.
+
+Independent source reviews: [web](consolidation/2026-09-07/review-web-report.md),
+[HR](consolidation/2026-09-07/review-hr-report.md),
+[meetings](consolidation/2026-09-07/review-meetings-report.md), and
+[final integration](consolidation/2026-09-07/final-integration-review-report.md).
+All Important findings were reworked and accepted. Detailed package reports
+sit beside these reviews. Earlier failure/pending statements in their histories
+are superseded by their addenda and the fresh coordinator gates here.
+
+Runtime checks use Odoo9976/Nuxt3976 with the named scratch database and fixture
+users only. Verified project list/detail/schedule navigation, visible calendar
+dates and undated tasks at 1440/768/390 widths with horizontal scrolling contained
+inside the timeline, light/dark navigation contrast, HR chart/zoom/fit/full-page
+controls, and selected employee manager outside the first 200 results. This is
+bounded integration QA, not an all-route/device audit. A meeting-only user
+opened an invitation from the notification bell, saw the meeting, and had no
+Projects navigation or linked-task action. The temporary 3976/9976 verification
+servers were stopped afterward; scratch databases and evidence remain.
+
+Known boundaries: the approved replacement shell and all-Projects redesign are
+still the next phase; no claim that legacy CSS was removed. Meetings calendar
+currently loads the first 200 results, and native Cyan owns its state workflow.
+Existing database upgrades need their own validation (including pre-existing
+conversion duplicates). Existing Nuxt auto-import and development i18n/websocket
+warnings are not treated as deployment evidence. Development hard refresh also
+logged a department-page hydration mismatch. Independent comparison found the
+query, shared PageState, Vue Query plugin and branch conditions unchanged from
+`a2c1534`; no introduced HR hydration regression was identified. A baseline
+runtime reproduction was not performed, so the timing cause remains an inference.
+A one-time Vite dependency optimization error cleared after reload. These are
+recorded limitations, not a claim of a warning-free browser run.
 
 ## Promotion
 
-Pending. Do not treat the candidate or source checkpoint commits alone as accepted main integration.
+Accepted product commit: `f117bac`, followed by the documentation closure commit.
+Canonical `/Users/tariq/code/nasq` advances from its `df282334` checkpoint with
+`git merge --ff-only codex/consolidation-20260907`. All16 checkpoint histories
+are included; final main/source cleanliness and exact commit are captured in
+external `promotion.json`. Original source worktrees and all branches remain.
+The original Phase2 stash is unchanged. No remote, push, deployment, `odoo19`
+upgrade or existing service restart is part of this delivery.

@@ -11,7 +11,20 @@ source, configuration, and Git state read-only for Nasq work. Authorized tests
 or development may use an explicitly isolated database, but never operate on
 an arbitrary database.
 
-## 2026-09-07 internal UI integration (current)
+## 2026-09-07 sixteen-worktree integration (current)
+
+The user authorized all sixteen dirty worktrees, including meetings and Cyan,
+for coordinated local integration, now promoted to `main` (product `f117bac`).
+Source checkpoints, reconciliation decisions,
+independent reviews and fresh verification are recorded in
+[the sixteen-worktree report](worktree-consolidation-2026-09-07.md).
+This supersedes earlier exclusions of meetings and old uncommitted-work notes.
+The source worktrees, branches and original Phase 2 stash are retained. This
+integration is code-only: existing services and `odoo19` are not upgraded.
+The approved replacement layout and complete Projects redesign remain the next
+implementation phase under `DESIGN.md`.
+
+## 2026-09-07 internal UI integration (historical)
 
 Internal page dimensions, spacing and semantic status colors are integrated into
 local `main` at `327064d`, preserving the project phases already on `41964ca`.
@@ -57,8 +70,7 @@ See [the current consolidation report](consolidation-2026-09-07.md) for the
 scope, passing gates and final recovery state. Older dated states below are
 historical; their branch counts and pending-work statements are not current.
 
-At that consolidation, the user excluded chat and meetings. The later chat
-authorization above supersedes the chat exclusion. Meetings remains excluded.
+At that consolidation, the user excluded chat and meetings. Later chat and sixteen-worktree authorizations supersede both exclusions.
 Recovery for the other work is
 `/Users/tariq/code/nasq-recovery-merge-20260907-004623`; its `RESTORE.md`,
 bundle, source snapshots and full retired directories are the recovery map.
