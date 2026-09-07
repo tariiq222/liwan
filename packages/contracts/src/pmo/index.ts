@@ -11,3 +11,6 @@ export * from './settings'
 export * from './tag'
 export * from './attachment'
 export * from './notification'
+
+export * from './project-finance'
+export * from './project-reports'
