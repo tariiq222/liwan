@@ -301,7 +301,7 @@ html[dir="rtl"] .nasq-gantt-name { box-shadow: 8px 0 16px -12px color-mix(in srg
 .nasq-gantt-today { position: absolute; inset-block: 0; border-inline-start: 1px dashed var(--foreground); opacity: 0.6; pointer-events: none; }
 .nasq-gantt-today-key { height: 12px; border-inline-start: 1px dashed var(--foreground); }
 .nasq-gantt-bar { position: absolute; top: 50%; height: 18px; min-width: 8px; border-radius: 999px; transform: translateY(-50%); }
-.nasq-gantt-bar-info { background: var(--primary); }
+.nasq-gantt-bar-info { background: var(--brand-link); }
 .nasq-gantt-bar-success { background: var(--status-success); }
 .nasq-gantt-bar-warning { background: var(--status-warning); }
 .nasq-gantt-bar-danger { background: var(--status-danger); }
