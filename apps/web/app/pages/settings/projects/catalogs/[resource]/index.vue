@@ -1,5 +1,7 @@
 <script setup lang="ts">
+import { Search } from '@lucide/vue'
 import { toast } from 'vue-sonner'
+import FilterBar from '@/components/shared/FilterBar.vue'
 import { ApiError } from '@/composables/useApi'
 import {
   CHARTER_CATALOG_PAGE_SIZE,
@@ -110,33 +112,47 @@ async function confirmAction() {
     <p v-if="!resource" class="text-muted-foreground">{{ t('settings.projects.catalogs.notFound') }}</p>
     <p v-else-if="forbidden" class="text-muted-foreground">{{ t('settings.forbidden') }}</p>
     <template v-else>
-      <div class="flex flex-wrap gap-2">
-        <Input :model-value="q" :placeholder="t('app.search')" class="max-w-sm" :disabled="!hydrated" @change="onSearch" />
-        <Button variant="outline" :disabled="!hydrated" :aria-pressed="showInactive" @click="toggleInactive">
-          {{ t('settings.projects.catalogs.showInactive') }}
-        </Button>
+      <div class="nasq-toolbar" data-testid="catalog-toolbar">
+        <FilterBar class="w-full">
+          <template #search>
+            <div class="relative min-w-52 flex-1">
+              <Search class="pointer-events-none absolute start-2 top-1/2 size-[18px] -translate-y-1/2 text-muted-foreground" />
+              <Input :model-value="q" :placeholder="t('app.search')" :aria-label="t('app.search')" class="ps-8" :disabled="!hydrated" @change="onSearch" />
+            </div>
+          </template>
+          <Button variant="outline" :disabled="!hydrated" :aria-pressed="showInactive" @click="toggleInactive">
+            {{ t('settings.projects.catalogs.showInactive') }}
+          </Button>
+        </FilterBar>
       </div>
-      <p v-if="query.isLoading.value" role="status" class="text-muted-foreground">{{ t('app.loading') }}</p>
-      <p v-else-if="query.error.value" role="alert" class="text-destructive">{{ t('settings.projects.catalogs.loadError') }}</p>
-      <p v-else-if="!query.data.value?.items.length" class="text-muted-foreground">{{ t('settings.projects.catalogs.empty') }}</p>
-      <ul v-else class="divide-y rounded-md border">
-        <li v-for="item in query.data.value.items" :key="item.id" class="flex flex-wrap items-center justify-between gap-3 p-3">
-          <div>
-            <p class="font-medium">{{ item.name }}</p>
-            <p class="text-sm text-muted-foreground">{{ t('settings.projects.catalogs.sequenceValue', { sequence: item.sequence }) }} · {{ item.active ? t('settings.projects.catalogs.active') : t('settings.projects.catalogs.inactive') }}</p>
-          </div>
-          <div class="flex flex-wrap gap-2">
-            <Button type="button" variant="outline" size="sm" :disabled="!hydrated" @click="openEdit(item.id)">{{ t('settings.projects.catalogs.edit') }}</Button>
-            <Button v-if="item.active" type="button" variant="outline" size="sm" :disabled="!hydrated || patching" @click="requestAction(item, 'disable')">{{ t('settings.projects.catalogs.disable') }}</Button>
-            <Button v-else type="button" variant="outline" size="sm" :disabled="!hydrated || patching" @click="requestAction(item, 'enable')">{{ t('settings.projects.catalogs.enable') }}</Button>
-            <Button type="button" variant="destructive" size="sm" :disabled="!hydrated || deleting" @click="requestAction(item, 'delete')">{{ t('settings.projects.catalogs.delete') }}</Button>
-          </div>
-        </li>
-      </ul>
+      <SharedPageState
+        :loading="query.isLoading.value"
+        :error="query.error.value"
+        :empty="!query.data.value?.items.length"
+        :empty-text="t('settings.projects.catalogs.empty')"
+        @retry="query.refetch"
+      >
+        <div class="nasq-panel overflow-hidden">
+          <ul>
+            <li v-for="item in query.data.value?.items ?? []" :key="item.id" class="flex flex-wrap items-center justify-between gap-3 border-b border-border/80 p-3 last:border-0">
+              <div>
+                <p class="font-medium">{{ item.name }}</p>
+                <p class="text-sm text-muted-foreground">{{ t('settings.projects.catalogs.sequenceValue', { sequence: item.sequence }) }} · {{ item.active ? t('settings.projects.catalogs.active') : t('settings.projects.catalogs.inactive') }}</p>
+              </div>
+              <div class="flex flex-wrap gap-2">
+                <Button type="button" variant="outline" size="sm" :disabled="!hydrated" @click="openEdit(item.id)">{{ t('settings.projects.catalogs.edit') }}</Button>
+                <Button v-if="item.active" type="button" variant="outline" size="sm" :disabled="!hydrated || patching" @click="requestAction(item, 'disable')">{{ t('settings.projects.catalogs.disable') }}</Button>
+                <Button v-else type="button" variant="outline" size="sm" :disabled="!hydrated || patching" @click="requestAction(item, 'enable')">{{ t('settings.projects.catalogs.enable') }}</Button>
+                <Button type="button" variant="destructive" size="sm" :disabled="!hydrated || deleting" @click="requestAction(item, 'delete')">{{ t('settings.projects.catalogs.delete') }}</Button>
+              </div>
+            </li>
+          </ul>
+        </div>
+      </SharedPageState>
       <div v-if="pages > 1" class="flex items-center justify-between text-sm text-muted-foreground">
-        <Button variant="ghost" :disabled="!hydrated || page === 1" @click="router.replace({ query: listQuery({ offset: page === 2 ? undefined : String((page - 2) * CHARTER_CATALOG_PAGE_SIZE) }) })">{{ t('settings.projects.catalogs.previousPage') }}</Button>
+        <Button variant="ghost" :disabled="!hydrated || page === 1 || query.isFetching.value" @click="router.replace({ query: listQuery({ offset: page === 2 ? undefined : String((page - 2) * CHARTER_CATALOG_PAGE_SIZE) }) })">{{ t('settings.projects.catalogs.previousPage') }}</Button>
         <span>{{ t('settings.projects.catalogs.pageOf', { page, pages }) }}</span>
-        <Button variant="ghost" :disabled="!hydrated || page >= pages" @click="router.replace({ query: listQuery({ offset: String(page * CHARTER_CATALOG_PAGE_SIZE) }) })">{{ t('settings.projects.catalogs.nextPage') }}</Button>
+        <Button variant="ghost" :disabled="!hydrated || page >= pages || query.isFetching.value" @click="router.replace({ query: listQuery({ offset: String(page * CHARTER_CATALOG_PAGE_SIZE) }) })">{{ t('settings.projects.catalogs.nextPage') }}</Button>
       </div>
       <div v-if="pendingItem && pendingAction" class="nasq-status-callout-danger space-y-2 p-3 text-sm">
         <p>{{ t(`settings.projects.catalogs.confirm.${pendingAction}`, { name: pendingItem.name }) }}</p>
