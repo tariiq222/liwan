@@ -281,6 +281,19 @@
 .nasq-tabs { display: flex; min-width: 0; align-items: center; gap: 4px; overflow-x: auto; border-block-end: 1px solid var(--border); }
 .nasq-tabs > :is(a, button) { display: inline-flex; min-height: 45px; flex: none; align-items: center; gap: 7px; border: 0; border-block-end: 2px solid transparent; border-radius: 0; background: transparent; box-shadow: none; padding-inline: 12px; color: var(--muted-foreground); font-size: 0.929rem; white-space: nowrap; }
 .nasq-tabs > [aria-selected="true"], .nasq-tabs > [aria-current="page"], .nasq-tabs > [data-state="active"] { border-block-end-color: var(--foreground); color: var(--foreground); }
+.nasq-gantt { overflow-x: auto; }
+.nasq-gantt-grid { display: grid; min-width: 720px; }
+.nasq-gantt-name { position: sticky; inset-inline-start: 0; z-index: 2; background: var(--card); box-shadow: -8px 0 16px -12px color-mix(in srgb, var(--foreground) 18%, transparent); }
+html[dir="rtl"] .nasq-gantt-name { box-shadow: 8px 0 16px -12px color-mix(in srgb, var(--foreground) 18%, transparent); }
+.nasq-gantt-track { position: relative; direction: ltr; min-height: 44px; background-image: repeating-linear-gradient(90deg, transparent 0, transparent calc(var(--gantt-col, 100px) - 1px), var(--border) calc(var(--gantt-col, 100px) - 1px), var(--border) var(--gantt-col, 100px)); }
+.nasq-gantt-bar { position: absolute; top: 50%; height: 22px; min-width: 8px; border-radius: 999px; transform: translateY(-50%); }
+.nasq-gantt-bar-info { background: var(--primary); }
+.nasq-gantt-bar-success { background: var(--status-success); }
+.nasq-gantt-bar-warning { background: var(--status-warning); }
+.nasq-gantt-bar-danger { background: var(--status-danger); }
+.nasq-gantt-bar-muted { background: color-mix(in srgb, var(--muted-foreground) 45%, var(--card)); }
+.nasq-gantt-today { position: absolute; inset-block: 0; width: 2px; background: var(--destructive); pointer-events: none; }
+.nasq-gantt-mark { position: absolute; top: 50%; width: 10px; height: 10px; border-radius: 2px; transform: translate(-50%, -50%) rotate(45deg); }
 .nasq-metadata > div { display: flex; align-items: start; justify-content: space-between; gap: 16px; padding-block: 12px; border-block-end: 1px solid var(--border); font-size: 0.929rem; }
 .nasq-metadata > div:last-child { border-block-end: 0; }
 .nasq-metadata dt { color: var(--muted-foreground); }
