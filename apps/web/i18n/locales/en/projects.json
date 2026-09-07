@@ -332,7 +332,8 @@
       "empty": "There are no visible tasks in this project",
       "invalidDates": "Enter two valid dates, with the start on or before the end.",
       "saved": "Schedule saved",
-      "saveError": "Could not save the schedule"
+      "saveError": "Could not save the schedule",
+      "today": "Today"
     },
     "templates": {
       "title": "Project templates",

@@ -27,16 +27,18 @@ const axis = computed(() => buildScheduleAxis(props.schedule.tasks, props.schedu
   end: props.projectEnd,
 }))
 const datedMilestones = computed(() => props.schedule.milestones.filter(item => item.deadline))
+const today = computed(() => hydrated.value ? new Date().toISOString().slice(0, 10) : '')
+const showToday = computed(() => !!today.value && today.value >= axis.value.start && today.value < axis.value.end)
 const legendStates = computed(() => [...new Set(props.schedule.tasks.map(task => task.state))])
 const gridStyle = computed(() => ({
   gridTemplateColumns: `minmax(148px, 180px) ${axis.value.width}px`,
   '--gantt-cols': String(axis.value.dates.length),
 }))
-const columnLabel = (index: number) => t(props.scale === 'month' ? 'projects.schedule.monthLabel' : 'projects.schedule.weekLabel', { n: index + 1 })
 const stateLabel = (state: string) => t(`tasks.state.${state}`)
 const returnQuery = computed(() => new URLSearchParams(returnToQuery(route.fullPath)).toString())
 const taskLink = (taskId: number) => props.schedule.can_manage ? `/projects/${props.schedule.project_id}/schedule/tasks/${taskId}?${returnQuery.value}` : `/tasks/${taskId}?${returnQuery.value}`
 const datePosition = (value: string) => scheduleDatePosition(value, axis.value)
+const markerPosition = (value: string) => ({ insetInlineStart: `clamp(8px, ${datePosition(value).insetInlineStart}, calc(100% - 8px))` })
 const barClass = (state: string) => BAR_TONE[(STATE_TONE as Record<string, StateTone>)[state] ?? 'neutral']
 </script>
 
@@ -55,10 +57,10 @@ const barClass = (state: string) => BAR_TONE[(STATE_TONE as Record<string, State
           <div class="nasq-gantt-name nasq-gantt-corner">{{ t('projects.schedule.task') }}</div>
           <div class="nasq-gantt-head" role="row">
             <span
-              v-for="(date, index) in axis.dates"
+              v-for="date in axis.dates"
               :key="date"
-              :title="formatScheduleDate(date, locale)"
-            >{{ columnLabel(index) }}</span>
+              :title="date"
+            >{{ formatScheduleDate(date, locale) }}</span>
           </div>
 
           <template v-if="datedMilestones.length">
@@ -68,7 +70,7 @@ const barClass = (state: string) => BAR_TONE[(STATE_TONE as Record<string, State
                 v-for="milestone in datedMilestones"
                 :key="milestone.id"
                 class="nasq-gantt-mark nasq-status-dot-warning"
-                :style="datePosition(milestone.deadline!)"
+                :style="markerPosition(milestone.deadline!)"
                 :title="`${milestone.name} · ${milestone.deadline}`"
                 :data-milestone-id="milestone.id"
               />
@@ -78,8 +80,14 @@ const barClass = (state: string) => BAR_TONE[(STATE_TONE as Record<string, State
           <div v-if="!schedule.tasks.length" class="nasq-gantt-empty">{{ t('projects.schedule.empty') }}</div>
 
           <template v-for="task in schedule.tasks" :key="task.id">
-            <NuxtLink class="nasq-gantt-name nasq-gantt-task" :to="taskLink(task.id)">{{ task.name }}</NuxtLink>
+            <NuxtLink class="nasq-gantt-name nasq-gantt-task" :to="taskLink(task.id)" :title="task.name">
+              <span class="min-w-0 w-full">
+                <span class="block truncate">{{ task.name }}</span>
+                <span class="block text-xs font-normal text-muted-foreground">{{ stateLabel(task.state) }}</span>
+              </span>
+            </NuxtLink>
             <div class="nasq-gantt-track">
+              <span v-if="showToday" class="nasq-gantt-today" :style="datePosition(today)" aria-hidden="true" />
               <div
                 v-if="task.start && task.end"
                 class="nasq-gantt-bar"
@@ -91,18 +99,27 @@ const barClass = (state: string) => BAR_TONE[(STATE_TONE as Record<string, State
               <span
                 v-else-if="task.end"
                 class="nasq-gantt-mark nasq-status-dot-warning"
-                :style="datePosition(task.end)"
+                :style="markerPosition(task.end)"
                 :title="t('projects.schedule.endOnly', { date: task.end })"
               />
+              <span class="nasq-gantt-dates">
+                <template v-if="task.start && task.end">{{ formatScheduleDate(task.start, locale) }} – {{ formatScheduleDate(task.end, locale) }}</template>
+                <template v-else-if="task.end">{{ t('projects.schedule.endOnly', { date: formatScheduleDate(task.end, locale) }) }}</template>
+                <template v-else>{{ t('projects.schedule.undated') }}</template>
+              </span>
             </div>
           </template>
         </div>
       </div>
       <ul v-if="legendStates.length" class="nasq-gantt-legend">
+        <li v-if="showToday"><span class="nasq-gantt-today-key" aria-hidden="true" />{{ t('projects.schedule.today') }} · {{ formatScheduleDate(today, locale) }}</li>
         <li v-for="state in legendStates" :key="state">
           <span class="nasq-gantt-swatch" :class="barClass(state)" aria-hidden="true" />
           {{ stateLabel(state) }}
         </li>
+      </ul>
+      <ul v-if="datedMilestones.length" class="nasq-gantt-legend" :aria-label="t('projects.schedule.milestones')">
+        <li v-for="milestone in datedMilestones" :key="milestone.id">{{ milestone.name }} · {{ formatScheduleDate(milestone.deadline!, locale) }}</li>
       </ul>
     </CardContent>
   </Card>

@@ -112,10 +112,6 @@
   color: var(--primary);
 }
 
-[data-nasq-shell] [aria-pressed="true"] {
-  color: var(--primary);
-}
-
 [data-nasq-shell] :where(
   [data-slot="sidebar-trigger"],
   [data-slot="header-icon-action"],
@@ -270,6 +266,7 @@
   .nasq-page-stack { display: grid; }
 }
 .nasq-page-stack { grid-template-columns: minmax(0, 1fr); min-width: 0; gap: 24px; }
+.nasq-page-stack > * { min-width: 0; }
 .nasq-page-width-list,
 .nasq-page-width-detail { width: 100%; max-width: 1440px; margin-inline: auto; }
 .nasq-page-width-form { width: 100%; max-width: 940px; margin-inline: auto; }
@@ -295,11 +292,14 @@
 .nasq-gantt-name { position: sticky; inset-inline-start: 0; z-index: 2; display: flex; min-height: 48px; align-items: center; padding: 8px 12px; background: var(--card); border-block-end: 1px solid var(--border); box-shadow: -8px 0 16px -12px color-mix(in srgb, var(--foreground) 18%, transparent); font-size: 0.8125rem; color: var(--muted-foreground); }
 html[dir="rtl"] .nasq-gantt-name { box-shadow: 8px 0 16px -12px color-mix(in srgb, var(--foreground) 18%, transparent); }
 .nasq-gantt-corner { min-height: 40px; font-size: 0.75rem; font-weight: 500; border-block-end: 0; }
-.nasq-gantt-task { color: var(--foreground); font-weight: 500; }
+.nasq-gantt-task { min-width: 0; color: var(--foreground); font-weight: 500; }
 .nasq-gantt-task:hover { background: var(--muted); }
 .nasq-gantt-head { display: grid; grid-template-columns: repeat(var(--gantt-cols, 6), minmax(0, 1fr)); min-height: 40px; direction: ltr; background: var(--primary); color: var(--primary-foreground); }
 .nasq-gantt-head > span { display: flex; align-items: center; justify-content: center; padding: 8px 4px; font-size: 0.75rem; font-weight: 500; box-shadow: inset -1px 0 0 color-mix(in srgb, white 22%, transparent); }
-.nasq-gantt-track { position: relative; direction: ltr; min-height: 48px; border-block-end: 1px solid var(--border); background-image: linear-gradient(to right, var(--border) 1px, transparent 1px); background-size: calc(100% / var(--gantt-cols, 6)) 100%; background-repeat: repeat-x; }
+.nasq-gantt-track { position: relative; direction: ltr; min-height: 64px; border-block-end: 1px solid var(--border); background-image: linear-gradient(to right, var(--border) 1px, transparent 1px); background-size: calc(100% / var(--gantt-cols, 6)) 100%; background-repeat: repeat-x; }
+.nasq-gantt-dates { position: absolute; inset-inline-start: 10px; inset-block-end: 3px; font-size: 0.6875rem; color: var(--muted-foreground); }
+.nasq-gantt-today { position: absolute; inset-block: 0; border-inline-start: 1px dashed var(--foreground); opacity: 0.6; pointer-events: none; }
+.nasq-gantt-today-key { height: 12px; border-inline-start: 1px dashed var(--foreground); }
 .nasq-gantt-bar { position: absolute; top: 50%; height: 18px; min-width: 8px; border-radius: 999px; transform: translateY(-50%); }
 .nasq-gantt-bar-info { background: var(--primary); }
 .nasq-gantt-bar-success { background: var(--status-success); }
@@ -311,6 +311,20 @@ html[dir="rtl"] .nasq-gantt-name { box-shadow: 8px 0 16px -12px color-mix(in srg
 .nasq-gantt-legend { display: flex; flex-wrap: wrap; gap: 10px 18px; margin: 0; padding: 14px 16px; border-block-start: 1px solid var(--border); list-style: none; font-size: 0.75rem; color: var(--muted-foreground); }
 .nasq-gantt-legend li { display: inline-flex; align-items: center; gap: 8px; }
 .nasq-gantt-swatch { width: 8px; height: 8px; flex: none; border-radius: 999px; }
+
+/* Keep compact desktop geometry while preserving touch target sizes. */
+@media (pointer: coarse) {
+  [data-nasq-shell] [data-slot="button"][data-size="icon"],
+  [data-nasq-shell] :is(
+    [data-slot="button"], [data-slot="sidebar-trigger"],
+    [data-slot="header-icon-action"], [data-testid="notification-bell"],
+    [data-sidebar="menu-button"], [data-slot="select-trigger"],
+    .header-account, .nasq-search-trigger
+  ) {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
 .nasq-metadata > div { display: flex; align-items: start; justify-content: space-between; gap: 16px; padding-block: 12px; border-block-end: 1px solid var(--border); font-size: 0.929rem; }
 .nasq-metadata > div:last-child { border-block-end: 0; }
 .nasq-metadata dt { color: var(--muted-foreground); }

@@ -2,6 +2,11 @@
 
 <!-- impeccable:product-schema 1 -->
 
+UI authority: [DESIGN.md](../../DESIGN.md) and its approved reference supersede
+earlier visual guidance. This product brief describes product scope, not a
+separate theme. See [the migration plan](../../docs/design-system/migration.md)
+for the distinction between approved design and implemented runtime.
+
 ## Platform
 
 web
@@ -50,8 +55,8 @@ web
 
 ## Brand Commitments
 
-الاسم المستخدم هو نَسَق (Nasq). لا توجد هنا قرارات إضافية عن لوحة ألوان أو
-طباعة أو عالم بصري؛ لا يُنشأ `DESIGN.md` ضمن init.
+الاسم المستخدم هو نَسَق (Nasq). مرجع الألوان والطباعة والمكونات والتنقل هو
+[دستور واجهات نسق](../../DESIGN.md). لا يعرّف هذا الملف ثيمًا مستقلًا.
 
 ## Evidence on Hand
 
