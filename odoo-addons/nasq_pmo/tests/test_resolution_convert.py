@@ -139,7 +139,8 @@ class TestResolutionConvert(TransactionCase):
         other = self._create_resolution(meeting, name='Keep private')
         resolution = self._create_resolution(meeting)
         task = resolution.with_user(self.organizer).action_convert_to_task(self.project.id)
-        task.write({'user_ids': [(6, 0, [self.outsider.id])]})
+        # Fixture setup: the converting organizer has create, not general task-write.
+        task.sudo().write({'user_ids': [(6, 0, [self.outsider.id])]})
         service = self.env['nasq.access.service']
         self.assertFalse(service._nasq_has_capability(self.outsider, 'meetings.read'))
         env = task.with_user(self.outsider)

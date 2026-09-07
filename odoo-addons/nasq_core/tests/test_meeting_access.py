@@ -17,7 +17,7 @@ class TestNasqMeetingCompanyAccess(TransactionCase):
         Permission = cls.env['nasq.access.permission']
         for company, keys in [(cls.company_a, ['meetings.read', 'meetings.create', 'meetings.manage']),
                               (cls.company_b, ['meetings.read'])]:
-            role = cls.env['nasq.access.role'].create({'name_ar': 'اختبار الشركة', 'company_id': company.id,
+            role = cls.env['nasq.access.role'].with_company(company).create({'name_ar': 'اختبار الشركة', 'company_id': company.id,
                 'permission_ids': [(6, 0, Permission.search([('key', 'in', keys)]).ids)]})
             cls.env['nasq.access.assignment'].create({'user_id': cls.user.id, 'role_id': role.id, 'company_id': company.id})
         cls.meeting = cls.env['cyan.meeting.minute'].with_company(cls.company_b).create({
