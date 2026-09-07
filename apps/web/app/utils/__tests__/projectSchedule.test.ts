@@ -23,7 +23,15 @@ describe('project schedule date math', () => {
     expect(Number.parseFloat(String(scheduleDatePosition(axis.end, axis).insetInlineStart))).toBe(100)
     expect(scheduleBarStyle({ start: null, end: null }, axis)).toEqual({ display: 'none' })
     const long = buildScheduleAxis([{ ...task, start: '2030-01-01', end: '2050-01-01' }], [], 'week')
-    expect(long.dates.length).toBeLessThan(400)
-    expect(long.dates.at(-1)).toBe(long.end)
+    expect(long.dates.length).toBeLessThanOrEqual(48)
+    expect(long.dates.length).toBe(long.totalDays / long.unitDays)
+    expect(daysBetween(long.start, long.end)).toBe(long.totalDays)
+  })
+
+  it('spans the project dates when tasks are undated', () => {
+    const axis = buildScheduleAxis([], [], 'week', { start: '2030-01-01', end: '2030-02-12' })
+    expect(axis.start).toBe('2030-01-01')
+    expect(axis.dates.length).toBeGreaterThanOrEqual(6)
+    expect(daysBetween(axis.start, axis.end)).toBeGreaterThanOrEqual(42)
   })
 })

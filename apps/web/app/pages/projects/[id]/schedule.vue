@@ -10,7 +10,7 @@ const router = useRouter()
 const { t } = useI18n()
 const projectId = computed(() => { const value = Number(route.params.id); return Number.isInteger(value) && value > 0 ? value : null })
 const isBaseRoute = computed(() => route.path.replace(/\/+$/, '') === `/projects/${route.params.id}/schedule`)
-const { error: projectError } = useProject(projectId)
+const { data: project, error: projectError } = useProject(projectId)
 const { data: schedule, isLoading, error, refetch } = useProjectSchedule(projectId)
 const scale = computed<ScheduleScale>({
   get: () => route.query.scale === 'month' ? 'month' : 'week',
@@ -27,7 +27,7 @@ const notFound = computed(() => projectId.value === null || (projectError.value 
       <p class="text-destructive">{{ t('projects.loadError') }}</p>
       <Button class="mt-3" type="button" variant="outline" @click="refetch()">{{ t('app.retry') }}</Button>
     </div>
-    <ScheduleGantt v-else :schedule="schedule" :scale="scale" @update:scale="scale = $event" />
+    <ScheduleGantt v-else :schedule="schedule" :scale="scale" :project-start="project?.date_start" :project-end="project?.date_end" @update:scale="scale = $event" />
   </SharedPageContainer>
   <NuxtPage />
 </template>

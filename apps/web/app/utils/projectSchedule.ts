@@ -48,29 +48,29 @@ export function scheduleDatePosition(value: string, axis: Pick<ScheduleAxis, 'st
   return { insetInlineStart: `${(offset / total) * 100}%` }
 }
 
-function datesInRange(start: string, end: string, step: number): string[] {
-  const span = Math.max(daysBetween(start, end), 0)
-  const boundedStep = Math.max(step, Math.ceil(span / 364 / step) * step)
-  const dates: string[] = []
-  for (let offset = 0; offset <= span; offset += boundedStep) dates.push(addCalendarDays(start, offset))
-  if (dates.at(-1) !== end) dates.push(end)
-  return dates
-}
-
-export function buildScheduleAxis(tasks: ScheduleTask[], milestones: ScheduleMilestone[], scale: ScheduleScale = 'week'): ScheduleAxis {
+export function buildScheduleAxis(
+  tasks: ScheduleTask[],
+  milestones: ScheduleMilestone[],
+  scale: ScheduleScale = 'week',
+  project?: { start?: string | null; end?: string | null },
+): ScheduleAxis {
   const dated = [
     ...tasks.flatMap(task => [task.start, task.end].filter((value): value is string => !!value)),
     ...milestones.flatMap(milestone => milestone.deadline ? [milestone.deadline] : []),
-  ].sort()
-  const rawStart = dated[0] ?? new Date().toISOString().slice(0, 10)
-  const rawEnd = dated.at(-1) ?? addCalendarDays(rawStart, scale === 'month' ? 90 : 28)
-  const unitDays = scale === 'month' ? 30 : 7
-  const start = addCalendarDays(rawStart, -unitDays)
-  const end = addCalendarDays(rawEnd, unitDays)
-  const totalDays = Math.max(daysBetween(start, end), 1)
+    project?.start,
+    project?.end,
+  ].filter((value): value is string => !!value).sort()
+  const base = scale === 'month' ? 30 : 7
+  const start = dated[0] ?? new Date().toISOString().slice(0, 10)
+  const rawEnd = dated.at(-1) ?? addCalendarDays(start, scale === 'month' ? 90 : 42)
+  const covered = Math.max(daysBetween(start, rawEnd) + 1, base)
+  const unitDays = covered / base > 48 ? Math.ceil(covered / 48 / base) * base : base
+  const columns = Math.max(Math.ceil(covered / unitDays), 1)
+  const totalDays = columns * unitDays
+  const end = addCalendarDays(start, totalDays)
   const columnWidth = scale === 'month' ? 120 : 100
-  const width = Math.min(6000, Math.max(720, (totalDays / unitDays) * columnWidth))
-  return { start, end, dates: datesInRange(start, end, unitDays), unitDays, columnWidth, totalDays, width }
+  const dates = Array.from({ length: columns }, (_, index) => addCalendarDays(start, index * unitDays))
+  return { start, end, dates, unitDays, columnWidth, totalDays, width: Math.min(6000, Math.max(720, columns * columnWidth)) }
 }
 
 export function scheduleBarStyle(task: Pick<ScheduleTask, 'start' | 'end'>, axis: ScheduleAxis) {
