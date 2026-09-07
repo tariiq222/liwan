@@ -21,12 +21,12 @@ const ROUTES = [
   { id: 'notifications', path: '/notifications', width: 'form', h1: 'الإشعارات' },
   { id: 'chat', path: '/chat', width: 'list', h1: 'المحادثة' },
   { id: 'search', path: '/search', width: 'form', h1: 'بحث' },
-  { id: 'reports', path: '/reports', width: 'list', h1: 'التقارير' },
+  { id: 'reports', path: '/reports', width: 'list', h1: 'المشاريع' },
 ] as const
 
 test.describe.configure({ timeout: 90_000 })
 test.skip(
-  process.env.E2E_BASE_URL !== 'http://127.0.0.1:4387' || !process.env.INTERNAL_UI_AUDIT_SHOTS,
+  process.env.E2E_BASE_URL !== 'http://127.0.0.1:4597' || !process.env.INTERNAL_UI_AUDIT_SHOTS,
   'Run with internal-ui-audit-with-server.py; these cases require the isolated mock API.',
 )
 

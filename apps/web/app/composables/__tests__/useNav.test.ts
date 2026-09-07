@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { activeShellModule, projectContextId, projectContextLinks, visibleShellModules, useNav } from '../useNav'
+import { activeShellModule, contextLinksForModule, projectContextId, projectContextLinks, visibleShellModules, useNav } from '../useNav'
 
 const employee = { role: 'employee', capabilities: ['pmo.tasks.read', 'pmo.projects.read', 'meetings.read', 'hr.employees.read', 'hr.departments.read', 'hr.documents.read'] }
 const admin = { role: 'admin', capabilities: [...employee.capabilities, 'access.users.read', 'access.roles.read', 'access.audit.read', 'settings.branding.manage'] }
@@ -11,11 +11,11 @@ describe('capability-based navigation', () => {
   })
   it('groups the employee product pages without administrative links', () => {
     const nav = useNav(employee)
-    expect(nav.map(item => item.to)).toEqual(['/chat', '/projects', '/tasks', '/reports', '/meetings', '/meetings/calendar', '/hr', '/hr/departments', '/hr/documents', '/settings/appearance'])
+    expect(nav.map(item => item.to)).toEqual(['/chat', '/projects', '/tasks', '/meetings', '/meetings/calendar', '/hr', '/hr/departments', '/hr/documents', '/settings/appearance'])
     expect(nav.filter(item => item.group === 'hr')).toHaveLength(3)
     expect(nav.filter(item => item.group === 'chat')).toHaveLength(1)
     expect(nav.filter(item => item.group === 'settings').map(item => item.to)).toEqual(['/settings/appearance'])
-    expect(nav.filter(item => item.group === 'projects').map(item => item.to)).toEqual(['/projects', '/tasks', '/reports'])
+    expect(nav.filter(item => item.group === 'projects').map(item => item.to)).toEqual(['/projects', '/tasks'])
   })
   it('an access administrator does not inherit project settings', () => {
     const nav = useNav(admin)
@@ -45,6 +45,7 @@ describe('capability-based navigation', () => {
 
 describe('shell route classification', () => {
   it('keeps the primary module active for direct and nested routes', () => {
+    expect(activeShellModule('/reports')).toBe('projects')
     expect(activeShellModule('/projects/12/tasks/44')).toBe('projects')
     expect(activeShellModule('/archived-tasks')).toBe('tasks')
     expect(activeShellModule('/meetings/calendar')).toBe('meetings')
@@ -65,7 +66,17 @@ describe('shell route classification', () => {
 
 
 describe('module rail and project context continuity', () => {
+  it('opens Projects directly and places template setup in Settings', () => {
+    expect(contextLinksForModule('projects', employee)).toEqual([])
+    expect(contextLinksForModule('settings', employee).find(item => item.id === 'templates')?.to).toBe('/project-templates')
+    expect(activeShellModule('/project-templates')).toBe('settings')
+    expect(activeShellModule('/project-templates/12/edit')).toBe('settings')
+    expect(contextLinksForModule('settings', { capabilities: ['hr.employees.read'] }).some(item => item.id === 'templates')).toBe(false)
+  })
   it('selects permitted module destinations without legacy group leakage', () => {
+    const projectReader = visibleShellModules({ capabilities: ['pmo.projects.read'] })
+    expect(projectReader.filter(item => item.id === 'projects')).toHaveLength(1)
+    expect(projectReader.map(item => item.id)).not.toContain('reports')
     const taskOnly = visibleShellModules({ capabilities: ['pmo.tasks.read'] })
     expect(taskOnly.map(item => item.id)).not.toContain('projects')
     expect(taskOnly.find(item => item.id === 'tasks')?.to).toBe('/tasks')

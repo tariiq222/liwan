@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { PROJECT_STATUSES } from '@nasq/contracts'
-import { CircleAlert, CircleCheck, Eye, EyeOff, FolderKanban, LayoutGrid, List, Plus, Search, X } from '@lucide/vue'
+import { ChartNoAxesCombined, CircleAlert, CircleCheck, Eye, EyeOff, FolderKanban, LayoutGrid, List, Plus, Search, X } from '@lucide/vue'
 import { refDebounced } from '@vueuse/core'
 import FilterBar from '@/components/shared/FilterBar.vue'
 import ProjectTable from '@/components/project/ProjectTable.vue'
 import ProjectCards from '@/components/project/ProjectCards.vue'
+import ProjectReportsView from '@/components/project/ProjectReportsView.vue'
 import {
   PROJECT_PAGE,
   parseProjectListRoute,
@@ -29,6 +30,8 @@ const canListArchived = computed(() => activeList.data.value?.can_list_archived 
 const filters = reactive<ProjectListRouteState>(parseProjectListRoute(route.query as Record<string, unknown>))
 const search = ref(filters.q)
 const debouncedSearch = refDebounced(search, 250)
+const sort = computed(() => filters.sort ?? 'default')
+const view = computed(() => filters.view ?? 'table')
 let applyingRoute = false
 let writeQuery: Promise<void> = Promise.resolve()
 
@@ -37,7 +40,7 @@ function committedState(): ProjectListRouteState {
     q: filters.q,
     status: filters.status,
     offset: filters.offset,
-    archived: canListArchived.value && filters.archived,
+    archived: view.value === 'reports' ? false : canListArchived.value && filters.archived,
     sort: filters.sort,
     view: filters.view,
   }
@@ -47,10 +50,12 @@ function applyPatch(patch: Partial<ProjectListRouteState>) {
   Object.assign(filters, patchProjectListRoute(filters, patch))
 }
 
-function scheduleQueryWrite() {
+function scheduleQueryWrite(): Promise<void> {
   writeQuery = writeQuery.then(async () => {
     const query = serializeProjectListRoute(committedState())
-    if (sameProjectListRoute(query, serializeProjectListRoute(parseProjectListRoute(route.query as Record<string, unknown>)))) return
+    const routeQuery = route.query as Record<string, unknown>
+    const reportsArchiveNeedsCleanup = view.value === 'reports' && routeQuery.archived !== undefined
+    if (!reportsArchiveNeedsCleanup && sameProjectListRoute(query, serializeProjectListRoute(parseProjectListRoute(routeQuery)))) return
     applyingRoute = true
     try {
       await router.replace({ query })
@@ -58,6 +63,7 @@ function scheduleQueryWrite() {
       applyingRoute = false
     }
   }).catch(() => undefined)
+  return writeQuery
 }
 
 // Never resolve to true unless the server says this user may list archived
@@ -75,9 +81,43 @@ const listFilters = computed(() => ({
   limit: PROJECT_PAGE,
   offset: filters.offset,
 }))
-const projectList = useProjectList(archived, listFilters)
+const projectList = useProjectList(archived, listFilters, computed(() => view.value !== 'reports'))
 const items = computed(() => projectList.data.value?.items ?? [])
-const canCreate = computed(() => projectList.data.value?.can_create ?? false)
+type CapabilityOutcome = { at: number; allowed: boolean }
+const latestCapability = ref<CapabilityOutcome>({ at: 0, allowed: false })
+
+function recordCapabilityOutcome(at: number, allowed: boolean) {
+  const current = latestCapability.value
+  if (at > current.at || (at === current.at && current.allowed && !allowed)) {
+    latestCapability.value = { at, allowed }
+  }
+}
+
+function watchCapability(query: ReturnType<typeof useProjectList>) {
+  watch(
+    [() => query.dataUpdatedAt.value, () => query.data.value?.can_create],
+    ([at, allowed]) => {
+      if (typeof at === 'number' && at > 0 && typeof allowed === 'boolean') recordCapabilityOutcome(at, allowed)
+    },
+    { immediate: true },
+  )
+  watch(
+    [() => query.errorUpdatedAt.value, () => query.error.value],
+    ([at, error]) => {
+      if (error && typeof at === 'number' && at > 0) recordCapabilityOutcome(at, false)
+    },
+    { immediate: true },
+  )
+}
+
+watchCapability(activeList)
+watchCapability(projectList)
+
+// Keep the latest server outcome across query-key changes. Cached page data
+// can be older than a denial or error observed on another page; only a newer
+// response may grant the action again. Refetches retain the current outcome so
+// an authorized button does not flicker while a request is in flight.
+const canCreate = computed(() => latestCapability.value.allowed)
 const total = computed(() => projectList.data.value?.total ?? 0)
 const page = computed(() => Math.floor(listOffset.value / PROJECT_PAGE) + 1)
 const pages = computed(() => Math.max(1, Math.ceil(total.value / PROJECT_PAGE)))
@@ -124,12 +164,20 @@ function clearFilters() {
   search.value = ''
   applyPatch({ q: '', status: 'all', sort: 'default' })
 }
-const sort = computed(() => filters.sort ?? 'default')
-const view = computed(() => filters.view ?? 'table')
 function onSortChange(value: unknown) {
   applyPatch({ sort: value === 'name' || value === 'progress' ? value : 'default' })
 }
-function onViewChange(value: 'table' | 'cards') { applyPatch({ view: value }) }
+async function flushPendingSearch() {
+  if (search.value.trim() !== filters.q.trim()) applyPatch({ q: search.value })
+  await scheduleQueryWrite()
+}
+async function onViewChange(value: 'table' | 'cards' | 'reports') {
+  applyPatch({
+    view: value,
+    ...(search.value.trim() !== filters.q.trim() ? { q: search.value } : {}),
+  })
+  await scheduleQueryWrite()
+}
 // Ordering belongs to the server, before pagination.
 const displayedItems = items
 const isLoading = computed(() => projectList.isLoading.value)
@@ -137,6 +185,7 @@ const isLoading = computed(() => projectList.isLoading.value)
 onMounted(() => {
   const saved = window.localStorage.getItem(summaryStorageKey)
   if (saved === 'hidden' || saved === 'visible') summaryVisible.value = saved === 'visible'
+  void scheduleQueryWrite()
 })
 watch(summaryVisible, (visible) => {
   if (import.meta.client) window.localStorage.setItem(summaryStorageKey, visible ? 'visible' : 'hidden')
@@ -150,8 +199,13 @@ function setPage(next: number) {
   applyPatch({ offset: (next - 1) * PROJECT_PAGE })
 }
 
-function openCreate() {
-  router.push({ path: '/projects/new', query: returnToQuery(route.fullPath) })
+async function openCreate() {
+  await flushPendingSearch()
+  const returnPath = router.resolve({
+    path: '/projects',
+    query: serializeProjectListRoute(committedState()),
+  }).fullPath
+  router.push({ path: '/projects/new', query: returnToQuery(returnPath) })
 }
 function openProject(id: number) {
   router.push({ path: `/projects/${id}`, query: returnToQuery(route.fullPath) })
@@ -165,14 +219,13 @@ function openProject(id: number) {
         <Button v-if="canCreate" data-testid="project-new" :disabled="!hydrated" class="gap-2" @click="openCreate">
           <Plus class="size-[18px]" />{{ t('projects.new') }}
         </Button>
-        <Button as-child variant="outline">
-          <NuxtLink :to="{ path: '/project-templates', query: returnToQuery(route.fullPath) }" data-testid="project-templates-link">
-            {{ t('projects.planningLinks.templates') }}
-          </NuxtLink>
-        </Button>
       </template>
     </SharedPageHeader>
-    <section data-testid="projects-summary" class="space-y-2">
+    <div v-if="activeList.error.value" role="alert" class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+      <span>{{ t('projects.loadError') }}</span>
+      <Button variant="outline" size="sm" @click="activeList.refetch()">{{ t('app.retry') }}</Button>
+    </div>
+    <section v-if="view !== 'reports'" data-testid="projects-summary" class="space-y-2">
       <div class="flex items-center justify-end">
         <Button
           variant="ghost"
@@ -231,7 +284,7 @@ function openProject(id: number) {
       </template>
 
       <template #default>
-        <Tabs v-if="canListArchived" :model-value="archived ? 'archived' : 'active'" @update:model-value="onFilterChange">
+        <Tabs v-if="canListArchived && view !== 'reports'" :model-value="archived ? 'archived' : 'active'" @update:model-value="onFilterChange">
           <TabsList>
             <TabsTrigger value="active" :disabled="!hydrated">{{ t('projects.filters.active') }}</TabsTrigger>
             <TabsTrigger value="archived" :disabled="!hydrated">{{ t('projects.filters.archived') }}</TabsTrigger>
@@ -247,7 +300,7 @@ function openProject(id: number) {
             <SelectItem v-for="status in PROJECT_STATUSES" :key="status" :value="status">{{ t(`projects.status.${status}`) }}</SelectItem>
           </SelectContent>
         </Select>
-        <Select :model-value="sort" @update:model-value="onSortChange">
+        <Select v-if="view !== 'reports'" :model-value="sort" @update:model-value="onSortChange">
           <SelectTrigger data-testid="projects-sort" class="w-40" :disabled="!hydrated">
             <SelectValue />
           </SelectTrigger>
@@ -257,12 +310,15 @@ function openProject(id: number) {
             <SelectItem value="progress">{{ t('projects.filters.sortProgress') }}</SelectItem>
           </SelectContent>
         </Select>
-        <div role="group" class="inline-flex h-[40px] items-center rounded-lg border bg-muted/40 p-0.5" :aria-label="t('projects.filters.view')">
-          <Button data-testid="projects-view-table" type="button" variant="ghost" size="icon" class="size-[32px] rounded-md" :class="view === 'table' ? 'bg-background shadow-sm' : ''" :disabled="!hydrated" :aria-label="t('projects.filters.tableView')" :aria-pressed="view === 'table'" @click="onViewChange('table')">
-            <List class="size-[18px]" />
+        <div role="group" class="inline-flex h-[40px] items-center gap-0.5 rounded-lg border bg-muted/40 p-0.5" :aria-label="t('projects.filters.view')">
+          <Button data-testid="projects-view-table" type="button" variant="ghost" size="sm" class="gap-1.5 rounded-md px-2" :class="view === 'table' ? 'bg-background shadow-sm' : ''" :disabled="!hydrated" :aria-label="t('projects.filters.tableView')" :aria-pressed="view === 'table'" @click="onViewChange('table')">
+            <List class="size-[16px]" /><span>{{ t('projects.filters.tableLabel') }}</span>
           </Button>
-          <Button data-testid="projects-view-cards" type="button" variant="ghost" size="icon" class="size-[32px] rounded-md" :class="view === 'cards' ? 'bg-background shadow-sm' : ''" :disabled="!hydrated" :aria-label="t('projects.filters.cardView')" :aria-pressed="view === 'cards'" @click="onViewChange('cards')">
-            <LayoutGrid class="size-[18px]" />
+          <Button data-testid="projects-view-cards" type="button" variant="ghost" size="sm" class="gap-1.5 rounded-md px-2" :class="view === 'cards' ? 'bg-background shadow-sm' : ''" :disabled="!hydrated" :aria-label="t('projects.filters.cardView')" :aria-pressed="view === 'cards'" @click="onViewChange('cards')">
+            <LayoutGrid class="size-[16px]" /><span>{{ t('projects.filters.cardsLabel') }}</span>
+          </Button>
+          <Button data-testid="projects-view-reports" type="button" variant="ghost" size="sm" class="gap-1.5 rounded-md px-2" :class="view === 'reports' ? 'bg-background shadow-sm' : ''" :disabled="!hydrated" :aria-label="t('projects.filters.reportsView')" :aria-pressed="view === 'reports'" @click="onViewChange('reports')">
+            <ChartNoAxesCombined class="size-[16px]" /><span>{{ t('projects.filters.reportsLabel') }}</span>
           </Button>
         </div>
       </template>
@@ -271,7 +327,7 @@ function openProject(id: number) {
         <div v-if="rawSearch || statusFilter !== 'all' || sort !== 'default'" class="flex flex-wrap items-center gap-2">
           <Badge v-if="rawSearch" variant="secondary">{{ t('projects.filters.searchValue', { value: rawSearch }) }}</Badge>
           <Badge v-if="statusFilter !== 'all'" variant="secondary">{{ t(statusFilter === 'unset' ? 'projects.filters.unset' : `projects.status.${statusFilter}`) }}</Badge>
-          <Badge v-if="sort !== 'default'" variant="secondary">{{ t(sort === 'name' ? 'projects.filters.sortName' : 'projects.filters.sortProgress') }}</Badge>
+          <Badge v-if="view !== 'reports' && sort !== 'default'" variant="secondary">{{ t(sort === 'name' ? 'projects.filters.sortName' : 'projects.filters.sortProgress') }}</Badge>
           <Button variant="ghost" size="sm" class="gap-1" :disabled="!hydrated" @click="clearFilters">
             <X class="size-3.5" />{{ t('projects.filters.clear') }}
           </Button>
@@ -280,7 +336,7 @@ function openProject(id: number) {
       </FilterBar>
     </div>
 
-    <SharedPageState v-if="projectList.error.value" :error="projectList.error.value" @retry="projectList.refetch" />
+    <SharedPageState v-if="view !== 'reports' && projectList.error.value" :error="projectList.error.value" @retry="projectList.refetch" />
     <template v-else>
     <ProjectTable
       v-if="view === 'table'"
@@ -292,7 +348,7 @@ function openProject(id: number) {
       @open="openProject"
     />
     <ProjectCards
-      v-else
+      v-else-if="view === 'cards'"
       :items="displayedItems"
       :is-loading="isLoading"
       :filtered="Boolean(rawSearch.trim()) || statusFilter !== 'all'"
@@ -300,7 +356,14 @@ function openProject(id: number) {
       :capped="false"
       @open="openProject"
     />
-      <div v-if="pages > 1" class="flex items-center justify-between text-sm text-muted-foreground">
+    <ProjectReportsView
+      v-else
+      :q="filters.q"
+      :status="filters.status"
+      :offset="filters.offset"
+      @update:offset="applyPatch({ offset: $event })"
+    />
+      <div v-if="view !== 'reports' && pages > 1" class="flex items-center justify-between text-sm text-muted-foreground">
         <Button variant="ghost" :disabled="!hydrated || page === 1 || projectList.isFetching.value" @click="setPage(page - 1)">
           {{ t('projects.previousPage') }}
         </Button>

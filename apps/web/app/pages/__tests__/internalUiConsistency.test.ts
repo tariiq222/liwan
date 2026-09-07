@@ -46,6 +46,7 @@ describe('internal UI width and status vocabulary', () => {
       'login.vue',
       'settings/branding.vue',
       'hr/employees/[employeeId]/access.vue',
+      'reports.vue',
     ])
     const missing = pageFiles.filter((file) => {
       const rel = relative(pagesRoot, file)

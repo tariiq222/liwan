@@ -91,6 +91,10 @@
       "view": "Project view",
       "tableView": "Table view",
       "cardView": "Card view",
+      "reportsView": "Reports view",
+      "tableLabel": "Table",
+      "cardsLabel": "Cards",
+      "reportsLabel": "Reports",
       "boardView": "Board view",
       "clear": "Clear filters"
     },

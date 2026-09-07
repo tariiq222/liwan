@@ -89,6 +89,7 @@ html[dir="rtl"] .nasq-gantt-name { box-shadow: 8px 0 16px -12px color-mix(in srg
   min-height: 100svh;
   background: var(--shell-background);
 }
+.nasq-shell[data-context-sidebar="hidden"] { --context-sidebar-width: 0px; }
 @media (min-width: 761px) {
   .nasq-shell:has(.nasq-module-rail[data-expanded="true"]) { --module-rail-width: 172px; }
 }
@@ -208,10 +209,11 @@ html[dir="rtl"] .nasq-gantt-name { box-shadow: 8px 0 16px -12px color-mix(in srg
 .nasq-page-title { margin: 0; color: var(--foreground); font-size: clamp(1.45rem, 2vw, 1.8rem); font-weight: 600; line-height: 1.45; letter-spacing: -.02em; }
 .nasq-shell-page-title { position: absolute; }
 @media (max-width: 1100px) and (min-width: 761px) {
+  .nasq-shell { --context-sidebar-width: 220px; }
   .nasq-shell-header { grid-template-columns: minmax(120px, 1fr) minmax(180px, 320px) minmax(120px, 1fr); gap: 12px; }
   .nasq-shell-brand-name { display: none; }
   .nasq-context-sidebar { width: 220px; }
-  .nasq-shell-workspace { margin-inline-start: calc(var(--module-rail-width) + 220px); }
+  .nasq-shell-workspace { margin-inline-start: calc(var(--module-rail-width) + var(--context-sidebar-width)); }
 }
 @media (max-width: 760px) {
   .nasq-shell { --shell-header-height: 108px; --module-rail-width: 54px; }
@@ -236,6 +238,7 @@ html[dir="rtl"] .nasq-gantt-name { box-shadow: 8px 0 16px -12px color-mix(in srg
   .nasq-context-link { flex: 0 0 auto; min-height: 38px; white-space: nowrap; }
   .nasq-context-footer { margin-block-start: 4px; border-block-start: 0; padding-block-start: 0; }
   .nasq-shell-workspace { min-height: auto; margin-inline-start: var(--module-rail-width); padding-block-start: 0; }
+  .nasq-shell[data-context-sidebar="hidden"] .nasq-shell-workspace { padding-block-start: var(--shell-header-height); }
   .nasq-shell-breadcrumb { min-height: 40px; padding-inline: 14px; }
   .nasq-shell-main { min-height: calc(100svh - 180px); border-start-start-radius: 18px; padding: 22px 16px 40px; }
 }

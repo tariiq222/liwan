@@ -125,6 +125,44 @@ describe('design view state with paginated project filters', () => {
     expect(serializeProjectListRoute(table)).not.toHaveProperty('view')
     expect(serializeProjectListRoute(table)).not.toHaveProperty('sort')
   })
+
+  it('parses and serializes reports as the canonical project view', () => {
+    const reports = parseProjectListRoute({
+      view: 'reports',
+      q: '  portal  ',
+      status: 'on_track',
+      offset: '50',
+      archived: '1',
+    })
+
+    expect(reports).toMatchObject({
+      view: 'reports',
+      q: '  portal  ',
+      status: 'on_track',
+      offset: 50,
+      archived: false,
+    })
+    expect(serializeProjectListRoute(reports)).toMatchObject({
+      view: 'reports',
+      q: 'portal',
+      status: 'on_track',
+      offset: 50,
+    })
+  })
+
+  it('resets pagination when entering or leaving reports and clears archived there', () => {
+    const archivedTable = parseProjectListRoute({ archived: '1', offset: '50' })
+    const reports = patchProjectListRoute(archivedTable, { view: 'reports' })
+    expect(reports).toMatchObject({ view: 'reports', offset: 0, archived: false })
+
+    const reportsPage = parseProjectListRoute({ view: 'reports', offset: '50' })
+    const cards = patchProjectListRoute(reportsPage, { view: 'cards' })
+    expect(cards).toMatchObject({ view: 'cards', offset: 0, archived: false })
+
+    const table = patchProjectListRoute(parseProjectListRoute({ view: 'cards', offset: '50' }), { view: 'table' })
+    expect(table).toMatchObject({ view: 'table', offset: 50 })
+    expect(serializeProjectListRoute(table)).not.toHaveProperty('view')
+  })
 })
 
 
