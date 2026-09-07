@@ -69,7 +69,7 @@ function retry() {
 </script>
 
 <template>
-  <section class="nasq-page-stack mx-auto w-full max-w-4xl">
+  <SharedPageContainer width="form">
     <SharedPageHeader :title="t('projects.finance.editTitle')" :back-to="returnTo" :back-label="t('projects.finance.backToLedger')" />
     <template v-if="projectId === null || entryId === null">
       <p class="text-muted-foreground">{{ t('projects.invalidId') }}</p>
@@ -102,5 +102,5 @@ function retry() {
         </Card>
       </template>
     </template>
-  </section>
+  </SharedPageContainer>
 </template>

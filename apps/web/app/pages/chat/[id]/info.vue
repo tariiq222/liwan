@@ -15,7 +15,7 @@ const { data: attachments } = useChatAttachments(conversationId, fileOffset)
 </script>
 
 <template>
-  <div class="nasq-page-stack mx-auto w-full max-w-3xl">
+  <SharedPageContainer width="form">
     <SharedPageHeader
       :title="conversation?.name || t('chat.info')"
       :description="t('chat.info')"
@@ -45,5 +45,5 @@ const { data: attachments } = useChatAttachments(conversationId, fileOffset)
         </div>
       </div>
     </section>
-  </div>
+  </SharedPageContainer>
 </template>

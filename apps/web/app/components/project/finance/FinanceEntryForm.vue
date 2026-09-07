@@ -296,7 +296,7 @@ async function saveOnLatest() {
       <p v-if="fieldErrors.notes" role="alert" class="text-sm text-destructive">{{ fieldErrors.notes }}</p>
     </div>
 
-    <div v-if="stale" data-testid="finance-stale" class="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm sm:col-span-2 dark:border-amber-900 dark:bg-amber-950/40">
+    <div v-if="stale" data-testid="finance-stale" class="nasq-status-callout-warning p-4 text-sm sm:col-span-2">
       <p class="font-medium">{{ t('projects.finance.staleTitle') }}</p>
       <p class="mt-1 text-muted-foreground">{{ t('projects.finance.staleText') }}</p>
       <p v-if="latestEntry" class="mt-2 text-muted-foreground" data-testid="finance-stale-latest">

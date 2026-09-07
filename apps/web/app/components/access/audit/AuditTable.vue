@@ -41,7 +41,7 @@ function open(id: number) { if (hydrated.value) emit('open', id) }
           <td>{{ event.actor?.name ?? t('access.audit.system') }}</td>
           <td>{{ actionLabel(event.action) }}</td>
           <td>{{ event.target.name }}</td>
-          <td class="text-emerald-700 dark:text-emerald-300">{{ t('access.audit.succeeded') }}</td>
+          <td class="nasq-status-text-success">{{ t('access.audit.succeeded') }}</td>
         </tr>
       </tbody>
     </table>

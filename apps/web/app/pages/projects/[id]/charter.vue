@@ -23,7 +23,7 @@ function onSaved() {
 </script>
 
 <template>
-  <section class="nasq-page-stack mx-auto w-full max-w-4xl">
+  <SharedPageContainer width="form">
     <SharedPageHeader
       :title="t('projects.charter.title')"
       :description="project?.name"
@@ -55,5 +55,5 @@ function onSaved() {
         </CardContent>
       </Card>
     </template>
-  </section>
+  </SharedPageContainer>
 </template>

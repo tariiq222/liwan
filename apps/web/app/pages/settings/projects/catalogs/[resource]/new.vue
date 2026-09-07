@@ -25,9 +25,8 @@ function onSaved() {
 </script>
 
 <template>
-  <section class="mx-auto w-full max-w-2xl space-y-6">
-    <nav><NuxtLink :to="returnTo" class="text-sm text-muted-foreground hover:underline">{{ t('settings.projects.catalogs.back') }}</NuxtLink></nav>
-    <h1 class="text-2xl font-semibold">{{ title }}</h1>
+  <SharedPageContainer width="form">
+    <SharedPageHeader :title="title" :back-to="returnTo" :back-label="t('settings.projects.catalogs.back')" />
     <p v-if="!resource" class="text-muted-foreground">{{ t('settings.projects.catalogs.notFound') }}</p>
     <p v-else-if="forbidden" class="text-muted-foreground">{{ t('settings.forbidden') }}</p>
     <Card v-else>
@@ -35,5 +34,5 @@ function onSaved() {
         <ProjectCharterReferenceForm :resource="resource" @saved="onSaved" @cancel="router.push(returnTo)" />
       </CardContent>
     </Card>
-  </section>
+  </SharedPageContainer>
 </template>

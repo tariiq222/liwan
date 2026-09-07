@@ -5,7 +5,7 @@ import { getLocalTimeZone, today } from '@internationalized/date'
 import { toast } from 'vue-sonner'
 import { ApiError } from '@/composables/useApi'
 import { formatCalendarDate, toCalendarDate } from '@/composables/calendarDate'
-import { TONE_CLASS } from '@/composables/taskState'
+import { STATUS_CHIP_CLASS, STATUS_TEXT_CLASS } from '@/utils/statusTone'
 import { useDeleteMilestone, useMilestones, useUpdateMilestone } from '@/composables/useMilestones'
 import { returnToQuery } from '@/utils/safeReturnTo'
 
@@ -93,10 +93,10 @@ async function confirmDelete() {
             <div class="min-w-0">
               <div class="flex flex-wrap items-center gap-2">
                 <p class="font-medium">{{ m.name }}</p>
-                <Badge variant="outline" :class="TONE_CLASS[m.is_reached ? 'success' : 'neutral']">{{ t(m.is_reached ? 'projects.milestones.reached' : 'projects.milestones.notReached') }}</Badge>
+                <Badge variant="outline" :class="STATUS_CHIP_CLASS[m.is_reached ? 'success' : 'neutral']">{{ t(m.is_reached ? 'projects.milestones.reached' : 'projects.milestones.notReached') }}</Badge>
               </div>
               <div class="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                <span :class="TONE_CLASS[deadlineTone(m)]">{{ deadlineText(m) }}</span>
+                <span :class="STATUS_TEXT_CLASS[deadlineTone(m)]">{{ deadlineText(m) }}</span>
                 <span>{{ t('projects.milestones.tasksOf', { done: m.done_task_count, total: m.task_count }) }}</span>
               </div>
             </div>

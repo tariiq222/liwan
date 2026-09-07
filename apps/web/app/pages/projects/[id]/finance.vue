@@ -139,7 +139,7 @@ function financeChildKey(target: { path: string; params: Record<string, string |
 </script>
 
 <template>
-  <div v-if="isListRoute" class="nasq-page-stack mx-auto w-full max-w-7xl" data-testid="project-finance-page">
+  <SharedPageContainer v-if="isListRoute" width="list" data-testid="project-finance-page">
     <SharedPageHeader
       :title="t('projects.finance.title')"
       :description="t('projects.finance.description')"
@@ -199,7 +199,7 @@ function financeChildKey(target: { path: string; params: Record<string, string |
         </div>
       </template>
     </SharedPageState>
-  </div>
+  </SharedPageContainer>
   <KeepAlive>
     <NuxtPage :page-key="financeChildKey" />
   </KeepAlive>

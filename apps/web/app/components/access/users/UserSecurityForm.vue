@@ -100,15 +100,15 @@ onBeforeUnmount(clearSecrets)
         </div>
         <p v-if="passwordConfirmation && password !== passwordConfirmation" class="text-xs text-destructive">{{ t('access.users.passwordMismatch') }}</p>
         <Button v-if="canReset" :disabled="anyPending || !password.length || password !== passwordConfirmation" @click="resetPassword">{{ pendingAction === 'reset' ? t('access.users.confirmAction') : t('access.users.resetPassword') }}</Button>
-        <div v-if="pendingAction === 'reset'" role="alert" class="flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-700 dark:text-amber-300"><span>{{ t('access.users.confirmResetPassword', { name: props.user.name }) }}</span><Button type="button" variant="ghost" size="sm" @click="pendingAction = null">{{ t('app.cancel') }}</Button></div>
+        <div v-if="pendingAction === 'reset'" role="alert" class="nasq-status-callout-warning flex items-center gap-2 p-3 text-xs"><span>{{ t('access.users.confirmResetPassword', { name: props.user.name }) }}</span><Button type="button" variant="ghost" size="sm" @click="pendingAction = null">{{ t('app.cancel') }}</Button></div>
       </div>
       <div v-if="canDisable || canReactivate" class="nasq-form-footer">
         <Button variant="outline" :disabled="anyPending || (canReactivate && (!password.length || password !== passwordConfirmation))" @click="changeState">
           {{ pendingAction === (props.user.active ? 'disable' : 'reactivate') ? t('access.users.confirmAction') : (props.user.active ? t('access.users.disable') : t('access.users.reactivate')) }}
         </Button>
         <span class="text-sm text-muted-foreground">{{ props.user.active ? t('access.users.disableHint') : t('access.users.reactivateHint') }}</span>
-        <div v-if="pendingAction === 'disable'" role="alert" class="basis-full flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-700 dark:text-amber-300"><span>{{ t('access.users.confirmDisable', { name: props.user.name }) }}</span><Button type="button" variant="ghost" size="sm" @click="pendingAction = null">{{ t('app.cancel') }}</Button></div>
-        <div v-if="pendingAction === 'reactivate'" role="alert" class="basis-full flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-700 dark:text-amber-300"><span>{{ t('access.users.confirmReactivate', { name: props.user.name }) }}</span><Button type="button" variant="ghost" size="sm" @click="pendingAction = null">{{ t('app.cancel') }}</Button></div>
+        <div v-if="pendingAction === 'disable'" role="alert" class="nasq-status-callout-warning basis-full flex items-center gap-2 p-3 text-xs"><span>{{ t('access.users.confirmDisable', { name: props.user.name }) }}</span><Button type="button" variant="ghost" size="sm" @click="pendingAction = null">{{ t('app.cancel') }}</Button></div>
+        <div v-if="pendingAction === 'reactivate'" role="alert" class="nasq-status-callout-warning basis-full flex items-center gap-2 p-3 text-xs"><span>{{ t('access.users.confirmReactivate', { name: props.user.name }) }}</span><Button type="button" variant="ghost" size="sm" @click="pendingAction = null">{{ t('app.cancel') }}</Button></div>
       </div>
       <p v-if="!canReset && !canDisable && !canReactivate" class="text-sm text-muted-foreground">{{ t('access.readOnly') }}</p>
     </template>

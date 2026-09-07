@@ -95,7 +95,7 @@ onBeforeUnmount(() => {
     </div>
 
     <p v-if="formError" role="alert" class="text-sm text-destructive">{{ formError }}</p>
-    <p v-if="success" role="status" class="text-sm text-emerald-700 dark:text-emerald-300">{{ t('account.success') }}</p>
+    <p v-if="success" role="status" class="text-sm nasq-status-text-success">{{ t('account.success') }}</p>
     <Button type="submit" data-testid="pw-submit" class="w-full sm:w-auto" :disabled="disabled">
       {{ t('account.submit') }}
     </Button>

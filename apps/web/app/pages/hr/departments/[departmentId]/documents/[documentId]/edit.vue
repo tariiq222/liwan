@@ -53,10 +53,10 @@ async function uploadFile(event: Event) {
 }
 </script>
 <template>
-  <div class="nasq-page-stack mx-auto w-full max-w-5xl">
+  <SharedPageContainer width="form">
     <SharedPageHeader :title="t('hr.docs.title')" :back-to="returnTo" />
     <SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!query.data.value" @retry="query.refetch">
-      <form v-if="query.data.value" class="nasq-form nasq-panel nasq-panel-body grid max-w-3xl gap-5" @submit.prevent="save">
+      <form v-if="query.data.value" class="nasq-form nasq-panel nasq-panel-body grid gap-5" @submit.prevent="save">
         <SharedUnsavedChanges :dirty="dirty" />
         <div class="grid gap-2"><Label for="hr-doc-title">{{ t('hr.docs.columns.name') }}</Label><Input id="hr-doc-title" v-model="name" :disabled="!hydrated || updating" /></div>
         <div class="grid gap-2"><Label>{{ t('hr.docs.body') }}</Label><DocumentEditor v-model="body" :document-id="documentId" :debounce="false" :disabled="updating" /></div>
@@ -68,5 +68,5 @@ async function uploadFile(event: Event) {
         <div class="flex gap-2"><NuxtLink :to="returnTo"><Button type="button" variant="outline" :disabled="updating">{{ t('app.cancel') }}</Button></NuxtLink><Button type="submit" :disabled="!hydrated || updating || uploading || !name.trim()">{{ t('app.save') }}</Button></div>
       </form>
     </SharedPageState>
-  </div>
+  </SharedPageContainer>
 </template>

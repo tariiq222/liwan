@@ -18,7 +18,7 @@ function editEmployee(id: number) { void navigateTo({ path: `/hr/employees/${id}
 </script>
 
 <template>
-  <div class="nasq-page-stack mx-auto w-full max-w-[1440px]">
+  <SharedPageContainer width="list">
     <SharedPageHeader :title="t('hr.directory.title')" :description="t('hr.directory.description')">
       <NuxtLink v-if="can('hr.employees.manage')" :to="{ path: '/hr/employees/new', query: returnToQuery(route.fullPath) }"><Button :disabled="!hydrated">
         {{ t('hr.directory.newEmployee') }}
@@ -35,5 +35,5 @@ function editEmployee(id: number) { void navigateTo({ path: `/hr/employees/${id}
         <NuxtLink v-if="selectedDepartmentId && can('hr.documents.read')" :to="{ path: `/hr/departments/${selectedDepartmentId}`, query: returnToQuery(route.fullPath) }" class="text-sm underline">{{ t('hr.depts.selectHelp') }}</NuxtLink>
       </TabsContent>
     </Tabs>
-  </div>
+  </SharedPageContainer>
 </template>

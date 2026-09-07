@@ -75,7 +75,7 @@ async function confirmRemoval() {
 </script>
 
 <template>
-  <div v-if="isDetailRoute" class="nasq-page-stack mx-auto w-full max-w-4xl" data-testid="finance-entry-detail">
+  <SharedPageContainer v-if="isDetailRoute" width="detail" data-testid="finance-entry-detail">
     <SharedPageHeader :title="entry?.title || t('projects.finance.detailTitle')" :back-to="returnTo" :back-label="t('projects.finance.backToLedger')">
       <div v-if="entry && canManage && projectId && entryId" class="flex flex-wrap gap-2">
         <NuxtLink :to="{ path: `/projects/${projectId}/finance/${entryId}/edit`, query: returnToQuery(route.fullPath) }" @click="!hydrated && $event.preventDefault()">
@@ -122,7 +122,7 @@ async function confirmRemoval() {
         </Card>
       </template>
     </SharedPageState>
-  </div>
+  </SharedPageContainer>
   <KeepAlive v-else>
     <NuxtPage :page-key="editPageKey" />
   </KeepAlive>

@@ -37,7 +37,7 @@ function back() {
 </script>
 
 <template>
-  <div class="nasq-page-stack">
+  <SharedPageContainer width="list">
     <SharedPageHeader :title="t('taskLifecycle.archivedTasks')" :description="t('taskLifecycle.archivedTasksHint')">
       <template #back>
         <Button variant="ghost" size="sm" type="button" :disabled="!hydrated" @click="back">{{ t('taskLifecycle.back') }}</Button>
@@ -71,5 +71,5 @@ function back() {
         </Button>
       </div>
     </div>
-  </div>
+  </SharedPageContainer>
 </template>

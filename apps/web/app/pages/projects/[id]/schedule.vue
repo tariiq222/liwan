@@ -22,12 +22,12 @@ const returnTo = computed(() => projectId.value ? safeReturnTo(route.query.retur
 </script>
 
 <template>
-  <section v-if="isBaseRoute" class="nasq-page-stack mx-auto w-full max-w-7xl">
+  <SharedPageContainer v-if="isBaseRoute" width="list">
     <SharedPageHeader :title="t('projects.schedule.title')" :description="project?.name" :back-to="returnTo" :back-label="t('projects.backToProject')" />
     <p v-if="projectId === null || notFound" class="text-muted-foreground">{{ t('projects.notFound') }}</p>
     <p v-else-if="isLoading && !schedule" role="status" class="text-muted-foreground">{{ t('projects.loading') }}</p>
     <p v-else-if="error || !schedule" role="alert" class="text-destructive">{{ t('projects.loadError') }}</p>
     <ScheduleGantt v-else :schedule="schedule" :scale="scale" @update:scale="scale = $event" />
-  </section>
+  </SharedPageContainer>
   <NuxtPage />
 </template>

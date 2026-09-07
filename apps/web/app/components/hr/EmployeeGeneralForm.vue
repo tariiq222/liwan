@@ -44,23 +44,20 @@ async function submit() {
 <template>
   <SharedUnsavedChanges :dirty="dirty" />
   <form class="nasq-form" @submit.prevent="submit">
-    <section class="nasq-form-section">
-      <h2 class="text-sm font-semibold">{{ t('hr.employee.general') }}</h2>
-      <p class="mt-1 text-xs text-muted-foreground">{{ t('hr.employee.generalHint') }}</p>
+    <SharedFormSection :title="t('hr.employee.general')" :description="t('hr.employee.generalHint')">
       <div class="nasq-form-grid mt-4">
         <div class="grid gap-2"><Label for="hr-employee-name">{{ t('hr.employee.name') }}</Label><Input id="hr-employee-name" v-model="name" :disabled="!canManage || !hydrated || isPending" required /></div>
         <div class="grid gap-2"><Label for="hr-employee-job">{{ t('hr.employee.jobTitle') }}</Label><Input id="hr-employee-job" v-model="jobTitle" :disabled="!canManage || !hydrated || isPending" /></div>
         <div class="grid gap-2"><Label for="hr-employee-email">{{ t('hr.employee.workEmail') }}</Label><Input id="hr-employee-email" v-model="email" type="email" :disabled="!canManage || !hydrated || isPending" /><p v-if="props.employee?.access && emailChanged" class="text-xs text-muted-foreground">{{ t('hr.employee.fixedLogin') }}</p></div>
         <div class="grid gap-2"><Label for="hr-employee-phone">{{ t('hr.employee.workPhone') }}</Label><Input id="hr-employee-phone" v-model="phone" :disabled="!canManage || !hydrated || isPending" /></div>
       </div>
-    </section>
-    <section class="nasq-form-section">
-      <h2 class="text-sm font-semibold">{{ t('hr.employee.assignment') }}</h2>
+    </SharedFormSection>
+    <SharedFormSection :title="t('hr.employee.assignment')">
       <div class="nasq-form-grid mt-4">
         <div class="grid gap-2"><Label>{{ t('hr.employee.department') }}</Label><Select :model-value="departmentId ? String(departmentId) : 'none'" :disabled="!canManage || !hydrated || isPending" @update:model-value="departmentId = idOrNull($event)"><SelectTrigger class="w-full"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="none">{{ t('hr.depts.none') }}</SelectItem><SelectItem v-for="department in departments" :key="department.id" :value="String(department.id)">{{ department.name }}</SelectItem></SelectContent></Select></div>
         <div class="grid gap-2"><Label>{{ t('hr.employee.manager') }}</Label><Select :model-value="managerId ? String(managerId) : 'none'" :disabled="!canManage || !hydrated || isPending" @update:model-value="managerId = idOrNull($event)"><SelectTrigger class="w-full"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="none">{{ t('hr.depts.none') }}</SelectItem><SelectItem v-for="candidate in employees.filter((item) => item.id !== props.employee?.id)" :key="candidate.id" :value="String(candidate.id)">{{ candidate.name }}</SelectItem></SelectContent></Select></div>
       </div>
-    </section>
+    </SharedFormSection>
     <div class="nasq-form-footer"><span class="me-auto text-xs text-muted-foreground">{{ t('hr.employee.formHint') }}</span><Button type="submit" :disabled="!canManage || !hydrated || isPending || !name.trim()">{{ t('app.save') }}</Button><slot name="actions" /></div>
   </form>
 </template>

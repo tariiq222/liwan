@@ -16,7 +16,8 @@ import SettingsTabs from './SettingsTabs.vue'
 .nasq-settings-content { min-width: 0; width: 100%; container: settings / inline-size; }
 .nasq-settings-content .nasq-page-stack { margin: 0; width: 100%; max-width: none; }
 .nasq-settings-content .nasq-form { max-width: none; margin-inline: 0; }
-.nasq-settings-content .nasq-settings-form-page { max-width: 900px; }
+.nasq-settings-content .nasq-settings-form-page { max-width: 940px; }
+.nasq-settings-content .nasq-page-width-form { max-width: 940px; }
 .nasq-settings-filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr)); align-items: end; gap: 12px; padding: 16px; border: 1px solid var(--border); border-radius: 8px; background: var(--card); }
 .nasq-settings-field { display: grid; min-width: 0; gap: 8px; font-size: .929rem; }
 .nasq-settings-field > span { color: var(--muted-foreground); font-size: .857rem; }

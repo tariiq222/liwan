@@ -195,6 +195,7 @@
 
 [data-slot="page-header"] {
   min-height: 40px;
+  gap: 12px;
 }
 
 [data-slot="page-header"][data-empty="true"] {
@@ -255,7 +256,10 @@
 }
 
 /* Page anatomy from the final approved OpenDesign render. */
-.nasq-page-stack { display: grid; min-width: 0; gap: 24px; }
+.nasq-page-stack { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; gap: 24px; }
+.nasq-page-width-list,
+.nasq-page-width-detail { width: 100%; max-width: 1440px; margin-inline: auto; }
+.nasq-page-width-form { width: 100%; max-width: 940px; margin-inline: auto; }
 .nasq-panel { min-width: 0; border: 1px solid var(--border); border-radius: 8px; background: var(--card); }
 .nasq-panel-header { display: flex; min-height: 60px; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 18px; border-block-end: 1px solid var(--border); }
 .nasq-panel-body { padding: 18px; }
@@ -266,6 +270,9 @@
 .nasq-form-section { padding-block: 20px; border-block-end: 1px solid var(--border); }
 .nasq-form-section:first-child { padding-block-start: 0; }
 .nasq-form-section:last-of-type { border-block-end: 0; }
+.nasq-form-section-title { font-size: 0.875rem; font-weight: 600; line-height: 1.4; }
+.nasq-form-section-hint { margin-block-start: 4px; font-size: 0.75rem; color: var(--muted-foreground); }
+.nasq-form-section > :is(h2, h3) { font-size: 0.875rem; font-weight: 600; line-height: 1.4; }
 .nasq-form-footer { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding-block-start: 20px; border-block-start: 1px solid var(--border); }
 .nasq-tabs { display: flex; min-width: 0; align-items: center; gap: 4px; overflow-x: auto; border-block-end: 1px solid var(--border); }
 .nasq-tabs > :is(a, button) { display: inline-flex; min-height: 45px; flex: none; align-items: center; gap: 7px; border: 0; border-block-end: 2px solid transparent; border-radius: 0; background: transparent; box-shadow: none; padding-inline: 12px; color: var(--muted-foreground); font-size: 0.929rem; }

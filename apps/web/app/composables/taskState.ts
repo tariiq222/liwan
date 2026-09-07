@@ -62,15 +62,6 @@ export function deadlineLabel(days: number | null, t: (key: string, params?: Rec
   return t('tasks.deadline.overdueDays', { n: Math.abs(days) })
 }
 
-// Badge classes per tone, shared by task-state and project-status badges.
-export const TONE_CLASS: Record<StateTone, string> = {
-  neutral: 'border-transparent bg-muted text-muted-foreground',
-  info: 'border-transparent bg-brand-soft text-brand-link',
-  warning: 'border-transparent bg-muted text-muted-foreground',
-  success: 'border-transparent bg-brand-soft text-brand-link',
-  destructive: 'border-transparent bg-destructive/10 text-destructive',
-}
-
 /** Approval can be assigned without general task editing. */
 export function permittedNextStates(current: TaskState, canWrite: boolean, canApprove: boolean): TaskState[] {
   return nextStates(current, canApprove).filter(state => canWrite || (canApprove && MANAGER_STATES.includes(state)))

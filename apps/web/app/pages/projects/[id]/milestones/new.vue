@@ -21,7 +21,7 @@ function saved(id?: number) {
 </script>
 
 <template>
-  <section class="nasq-page-stack">
+  <SharedPageContainer width="form">
     <SharedPageHeader :title="t('projects.milestones.new')" :description="project?.name" :back-to="returnTo" :back-label="t('projects.backToProject')" />
     <template v-if="projectId === null">
       <p class="text-muted-foreground">{{ t('projects.invalidId') }}</p>
@@ -41,5 +41,5 @@ function saved(id?: number) {
     <template v-else>
       <Card class="nasq-form"><CardContent><MilestoneForm :project-id="projectId" @saved="saved" @cancel="router.push(returnTo)" /></CardContent></Card>
     </template>
-  </section>
+  </SharedPageContainer>
 </template>

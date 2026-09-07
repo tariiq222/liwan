@@ -38,7 +38,7 @@ async function logout() {
           <ClientOnly>
             <span
               class="absolute -bottom-0.5 -end-0.5 block size-2.5 rounded-full ring-2 ring-background"
-              :class="connected ? 'bg-emerald-500' : 'bg-muted-foreground/50'"
+              :class="connected ? 'nasq-status-dot-success' : 'bg-muted-foreground/50'"
               :title="connected ? t('bus.connected') : t('bus.disconnected')"
               :aria-label="connected ? t('bus.connected') : t('bus.disconnected')"
               role="status"

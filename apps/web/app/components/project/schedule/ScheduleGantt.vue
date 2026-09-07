@@ -39,7 +39,7 @@ const datePosition = (value: string) => scheduleDatePosition(value, axis.value)
           <div class="p-2 text-xs text-muted-foreground">{{ t('projects.schedule.milestones') }}</div>
           <div class="relative" :style="{ width: `${axis.width}px`, height: `${datedMilestones.length * 36 + 8}px` }">
             <span v-for="(milestone, index) in datedMilestones" :key="milestone.id" class="absolute top-2 size-2" :style="{ ...datePosition(milestone.deadline!), marginInlineStart: '-4px', top: `${8 + index * 36}px` }" :title="`${milestone.name} · ${milestone.deadline}`">
-              <span aria-hidden="true" class="block size-2 rotate-45 bg-amber-500" :data-milestone-id="milestone.id" />
+              <span aria-hidden="true" class="block size-2 rotate-45 nasq-status-dot-warning" :data-milestone-id="milestone.id" />
               <span class="absolute start-0 top-full mt-2 max-w-64 truncate text-xs text-muted-foreground">{{ milestone.name }}</span>
             </span>
           </div>

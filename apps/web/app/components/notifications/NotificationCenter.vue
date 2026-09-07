@@ -36,7 +36,7 @@ async function openNotification(item: Notification) {
     <PopoverTrigger as-child>
       <Button data-testid="notification-bell" :aria-label="hydrated && data?.unread_count ? `${t('notifications.title')}، ${data.unread_count} ${t('notifications.unread')}` : t('notifications.title')" variant="outline" size="icon" :disabled="!hydrated" class="relative text-muted-foreground">
         <Bell />
-        <span v-if="hydrated && data?.unread_count" data-testid="notification-count" dir="ltr" class="pointer-events-none absolute -end-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-red-600 px-[4px] text-[11px] leading-none font-bold text-white tabular-nums ring-2 ring-background">{{ data.unread_count > 99 ? '99+' : data.unread_count }}</span>
+        <span v-if="hydrated && data?.unread_count" data-testid="notification-count" dir="ltr" class="nasq-unread-count pointer-events-none absolute -end-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-[4px] text-[11px] leading-none font-bold tabular-nums ring-2 ring-background">{{ data.unread_count > 99 ? '99+' : data.unread_count }}</span>
       </Button>
     </PopoverTrigger>
     <PopoverContent data-testid="notification-preview" :dir="localeProperties.dir === 'rtl' ? 'rtl' : 'ltr'" :aria-label="t('notifications.title')" align="end" :side-offset="12" class="flex max-h-[min(600px,80dvh)] w-[380px] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-lg p-0">

@@ -95,8 +95,8 @@ async function save() {
     <div v-if="dirty" class="space-y-1 rounded-lg border border-border/80 bg-muted/30 p-3 text-xs"><p class="font-medium">{{ t('access.roles.permissionChanges') }}</p><p v-if="addedPermissions.length">{{ t('access.roles.added') }}: {{ addedPermissions.map((key) => permissionLabel(key)).join('، ') }}</p><p v-if="removedPermissions.length">{{ t('access.roles.removed') }}: {{ removedPermissions.map((key) => permissionLabel(key)).join('، ') }}</p><p v-if="retainedPermissions.length">{{ t('access.roles.retained') }}: {{ retainedPermissions.map((key) => permissionLabel(key)).join('، ') }}</p></div>
     <p v-if="props.role.protected" class="text-sm text-muted-foreground">{{ t('access.protectedRole') }}</p>
     <p v-else-if="!canEdit" class="text-sm text-muted-foreground">{{ t('access.readOnly') }}</p>
-    <p v-if="!props.role.active" class="text-sm text-amber-700 dark:text-amber-300">{{ t('access.roles.disabledExistingAssignments') }}</p>
-    <p v-if="dirty && props.role.user_count" class="text-sm text-amber-700 dark:text-amber-300">{{ t('access.roles.affectedUsers', { count: props.role.user_count }) }}</p>
+    <p v-if="!props.role.active" class="text-sm nasq-status-text-warning">{{ t('access.roles.disabledExistingAssignments') }}</p>
+    <p v-if="dirty && props.role.user_count" class="text-sm nasq-status-text-warning">{{ t('access.roles.affectedUsers', { count: props.role.user_count }) }}</p>
     <p v-if="errorMessage" role="alert" class="text-sm text-destructive">{{ errorMessage }}</p>
     <div class="nasq-form-footer"><Button v-if="canEdit" type="submit" :disabled="!dirty || update.isPending.value">{{ t('access.save') }}</Button></div>
   </form>

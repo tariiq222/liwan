@@ -103,6 +103,26 @@ describe('shared composition rendered contracts', () => {
     expect(activeRowMarker).toBeGreaterThan(viewMarker)
   })
 
+  it('keeps PageContainer width vocabulary in CSS classes, not ad-hoc max-width utilities', () => {
+    const source = readFileSync(resolve(webRoot, 'app/components/shared/PageContainer.vue'), 'utf8')
+    expect(source).toContain("'list' | 'detail' | 'form'")
+    expect(source).toContain('nasq-page-width-')
+    expect(source).not.toMatch(/max-w-\[/)
+    expect(source).not.toMatch(/max-w-(2xl|3xl|4xl|5xl|7xl)/)
+  })
+
+  it('renders FormSection title and description with the shared section class', async () => {
+    const html = await renderShared(
+      'FormSection',
+      { title: 'General', description: 'Identity fields' },
+      { default: () => h('input', { 'aria-label': 'Name' }) },
+    )
+    expect(html).toContain('nasq-form-section')
+    expect(html).toContain('General')
+    expect(html).toContain('Identity fields')
+    expect(html).toContain('aria-label="Name"')
+  })
+
   it('renders EmptyState as status with title, description, icon, and action', async () => {
     const html = await renderShared(
       'EmptyState',

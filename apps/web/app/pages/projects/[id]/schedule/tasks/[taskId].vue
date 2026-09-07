@@ -15,12 +15,12 @@ const returnTo = computed(() => projectId.value ? safeReturnTo(route.query.retur
 </script>
 
 <template>
-  <section class="nasq-page-stack mx-auto w-full max-w-2xl">
+  <SharedPageContainer width="form">
     <SharedPageHeader :title="t('projects.schedule.editTitle')" :back-to="returnTo" :back-label="t('projects.schedule.backToSchedule')" />
     <p v-if="notFound" class="text-muted-foreground">{{ t('projects.notFound') }}</p>
     <p v-else-if="isLoading && !schedule" role="status" class="text-muted-foreground">{{ t('projects.loading') }}</p>
     <p v-else-if="error || !schedule || !task || !projectId" role="alert" class="text-destructive">{{ t('projects.loadError') }}</p>
     <p v-else-if="!schedule.can_manage" class="text-muted-foreground">{{ t('projects.forbidden') }}</p>
     <Card v-else class="nasq-form"><CardContent><ScheduleTaskForm :project-id="projectId" :task="task" :return-to="returnTo" /></CardContent></Card>
-  </section>
+  </SharedPageContainer>
 </template>

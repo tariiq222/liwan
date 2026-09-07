@@ -27,7 +27,7 @@ const canApply = computed(() => list.data.value?.can_apply ?? false)
 </script>
 
 <template>
-  <section class="nasq-page-stack">
+  <SharedPageContainer width="list">
     <SharedPageHeader :title="t('projects.templates.title')" :description="t('projects.templates.description')">
       <template #actions><Button v-if="canManage" :disabled="!hydrated" @click="router.push(detailPath())"><Plus class="me-2 size-4" />{{ t('projects.templates.actions.new') }}</Button></template>
     </SharedPageHeader>
@@ -45,5 +45,5 @@ const canApply = computed(() => list.data.value?.can_apply ?? false)
       <p role="status" class="text-sm text-muted-foreground">{{ t('projects.templates.pagination.count', { from: items.length ? offset + 1 : 0, to: offset + items.length, total }) }}</p>
       <div class="flex gap-2"><Button variant="outline" :disabled="!hydrated || list.isFetching.value || offset === 0" @click="goPage(Math.max(0, offset - pageSize))">{{ t('projects.templates.pagination.previous') }}</Button><Button variant="outline" :disabled="!hydrated || list.isFetching.value || offset + pageSize >= total" @click="goPage(offset + pageSize)">{{ t('projects.templates.pagination.next') }}</Button></div>
     </nav>
-  </section>
+  </SharedPageContainer>
 </template>

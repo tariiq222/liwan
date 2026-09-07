@@ -20,7 +20,7 @@ const isBaseRoute = computed(() => normalizedPath.value === '/settings/projects'
       <template v-else>
         <ProjectSettingsForm />
         <section class="nasq-panel space-y-3 p-5">
-          <h2 class="text-lg font-medium">{{ t('settings.projects.catalogs.title') }}</h2>
+          <h2 class="nasq-form-section-title">{{ t('settings.projects.catalogs.title') }}</h2>
           <p class="text-sm text-muted-foreground">{{ t('settings.projects.catalogs.hint') }}</p>
           <div class="flex flex-wrap gap-3 text-sm">
             <NuxtLink

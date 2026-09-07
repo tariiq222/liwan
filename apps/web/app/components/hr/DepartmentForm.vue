@@ -68,8 +68,7 @@ async function submit() {
 <template>
   <SharedUnsavedChanges :dirty="dirty" />
   <form class="nasq-form" @submit.prevent="submit">
-    <section class="nasq-form-section">
-      <h2 class="text-sm font-semibold">{{ t('hr.depts.formDescription') }}</h2>
+    <SharedFormSection :title="t('hr.depts.formDescription')">
       <div class="nasq-form-grid mt-4">
         <div class="grid gap-2">
           <Label for="hr-dept-name">{{ t('hr.depts.name') }}</Label>
@@ -100,7 +99,7 @@ async function submit() {
           </Select>
         </div>
       </div>
-    </section>
+    </SharedFormSection>
     <div class="nasq-form-footer"><NuxtLink :to="props.backTo ?? (props.department ? `/hr/departments/${props.department.id}` : '/hr/departments')"><Button type="button" variant="outline">{{ t('app.cancel') }}</Button></NuxtLink><Button type="submit" :disabled="!canManage || !hydrated || pending || !name.trim()">{{ t('app.save') }}</Button></div>
   </form>
 </template>

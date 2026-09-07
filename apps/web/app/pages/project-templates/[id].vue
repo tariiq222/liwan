@@ -17,7 +17,7 @@ function deleteTemplate() { if (!id.value) return; remove.mutate(id.value, { onS
 </script>
 
 <template>
-  <section v-if="isBaseRoute" class="nasq-page-stack">
+  <SharedPageContainer v-if="isBaseRoute" width="detail">
     <SharedPageHeader :title="template?.name ?? t('projects.templates.title')" :description="template?.description" :back-to="returnTo" />
     <p v-if="isPending && !template" role="status" class="text-muted-foreground">{{ t('projects.loading') }}</p><p v-else-if="error || !template" role="alert" class="text-destructive">{{ t('projects.templates.notFound') }}</p>
     <template v-else>
@@ -26,6 +26,6 @@ function deleteTemplate() { if (!id.value) return; remove.mutate(id.value, { onS
       <div class="grid gap-4 md:grid-cols-3"><Card><CardContent class="p-4"><p class="text-sm text-muted-foreground">{{ t('projects.templates.stages.title') }}</p><p class="mt-1 text-2xl font-semibold">{{ template.definition.stages.length }}</p></CardContent></Card><Card><CardContent class="p-4"><p class="text-sm text-muted-foreground">{{ t('projects.templates.tasks.title') }}</p><p class="mt-1 text-2xl font-semibold">{{ template.definition.tasks.length }}</p></CardContent></Card><Card><CardContent class="p-4"><p class="text-sm text-muted-foreground">{{ t('projects.templates.milestones.title') }}</p><p class="mt-1 text-2xl font-semibold">{{ template.definition.milestones.length }}</p></CardContent></Card></div>
       <div class="grid gap-4 md:grid-cols-2"><Card><CardContent class="space-y-2 p-4"><h2 class="font-medium">{{ t('projects.templates.stages.title') }}</h2><p v-for="stage in template.definition.stages" :key="stage.key" class="text-sm">{{ stage.name }}</p></CardContent></Card><Card><CardContent class="space-y-2 p-4"><h2 class="font-medium">{{ t('projects.templates.tasks.title') }}</h2><p v-for="task in template.definition.tasks" :key="task.key" class="flex justify-between gap-2 text-sm"><span>{{ task.name }}</span><span class="text-muted-foreground">{{ task.duration_days }} {{ t('projects.templates.days') }}</span></p></CardContent></Card></div>
     </template>
-  </section>
+  </SharedPageContainer>
   <NuxtPage />
 </template>

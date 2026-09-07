@@ -11,5 +11,5 @@ const { data: employees } = useHrEmployees({})
 function created(employee: { id: number }) { void navigateTo({ path: `/hr/employees/${employee.id}`, query: returnToQuery(returnTo.value) }) }
 </script>
 <template>
-  <div class="nasq-page-stack mx-auto w-full max-w-[940px]"><SharedPageHeader :title="t('hr.employee.createTitle')" :back-to="returnTo" /><section class="nasq-panel nasq-panel-body"><EmployeeGeneralForm :departments="departments?.items ?? []" :employees="employees?.items ?? []" @saved="created"><template #actions><NuxtLink :to="returnTo"><Button type="button" variant="outline">{{ t('app.cancel') }}</Button></NuxtLink></template></EmployeeGeneralForm></section></div>
+  <SharedPageContainer width="form"><SharedPageHeader :title="t('hr.employee.createTitle')" :back-to="returnTo" /><section class="nasq-panel nasq-panel-body"><EmployeeGeneralForm :departments="departments?.items ?? []" :employees="employees?.items ?? []" @saved="created"><template #actions><NuxtLink :to="returnTo"><Button type="button" variant="outline">{{ t('app.cancel') }}</Button></NuxtLink></template></EmployeeGeneralForm></section></SharedPageContainer>
 </template>

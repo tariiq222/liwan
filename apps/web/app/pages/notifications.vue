@@ -80,7 +80,7 @@ async function retryNextPage() {
 </script>
 
 <template>
-  <main data-testid="notification-center" class="nasq-page-stack mx-auto flex min-h-[calc(100vh-7rem)] w-full max-w-4xl flex-col">
+  <SharedPageContainer data-testid="notification-center" width="form" class="flex min-h-[calc(100vh-7rem)] flex-col">
     <SharedPageHeader :title="t('notifications.title')" :description="hydrated ? `${unreadCount} ${t('notifications.unread')}` : undefined">
       <template #back>
         <Button variant="ghost" size="sm" class="gap-2 px-2 text-muted-foreground" type="button" @click="router.back()">
@@ -153,5 +153,5 @@ async function retryNextPage() {
         </Button>
       </div>
     </section>
-  </main>
+  </SharedPageContainer>
 </template>

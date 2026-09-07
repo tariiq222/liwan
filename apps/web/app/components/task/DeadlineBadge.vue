@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { deadlineLabel } from '@/composables/taskState'
+import { STATUS_CHIP_CLASS } from '@/utils/statusTone'
 
 type DeadlineTone = 'neutral' | 'warning' | 'destructive'
 
@@ -11,9 +12,9 @@ const props = defineProps<{
 const { t } = useI18n()
 
 const TONE_CLASS: Record<DeadlineTone, string> = {
-  neutral: 'border-transparent bg-muted text-muted-foreground',
-  warning: 'border-transparent bg-muted text-muted-foreground',
-  destructive: 'border-transparent bg-destructive/10 text-destructive',
+  neutral: STATUS_CHIP_CLASS.neutral,
+  warning: STATUS_CHIP_CLASS.warning,
+  destructive: STATUS_CHIP_CLASS.destructive,
 }
 
 // A closed task is never "urgent" regardless of how the deadline compares to

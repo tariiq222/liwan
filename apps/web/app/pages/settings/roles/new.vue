@@ -93,7 +93,7 @@ async function submit() {
   <SettingsLayout><div class="nasq-page-stack nasq-settings-form-page">
     <SharedPageHeader :title="t('access.roles.createTitle')" :back-to="backTo" />
     <SharedPageState v-if="forbidden" :empty="true" :empty-text="t('access.forbidden')" />
-    <form v-else class="nasq-form nasq-panel nasq-panel-body max-w-3xl space-y-5" @submit.prevent="submit">
+    <form v-else class="nasq-form nasq-panel nasq-panel-body space-y-5" @submit.prevent="submit">
       <SharedUnsavedChanges :dirty="dirty" />
       <div class="nasq-form-grid"><div class="space-y-2"><Label for="name-ar">{{ t('access.roles.nameArabic') }}</Label><Input id="name-ar" v-model="nameAr" /></div><div class="space-y-2"><Label for="name-en">{{ t('access.roles.nameEnglish') }}</Label><Input id="name-en" v-model="nameEn" dir="ltr" /></div></div>
       <div class="space-y-2"><Label for="description">{{ t('access.roles.descriptionLabel') }}</Label><Textarea id="description" v-model="description" /></div>

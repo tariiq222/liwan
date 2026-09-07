@@ -57,7 +57,7 @@ async function retryNextPage() {
 </script>
 
 <template>
-  <main data-testid="notification-digest" class="mx-auto flex min-h-[calc(100vh-7rem)] w-full max-w-3xl flex-col gap-4">
+  <main data-testid="notification-digest" class="nasq-page-stack nasq-page-width-form flex min-h-[calc(100vh-7rem)] flex-col">
     <nav class="flex items-center justify-between gap-3">
       <Button
         variant="ghost"
@@ -69,14 +69,14 @@ async function retryNextPage() {
         :aria-label="t('notifications.back')"
         @click="goBack"
       >
-        <component :is="isRtl ? ArrowRight : ArrowLeft" class="size-4" />
+        <component :is="isRtl ? ArrowRight : ArrowLeft" class="size-[18px]" />
         {{ t('notifications.back') }}
       </Button>
       <Button type="button" variant="outline" size="sm" :disabled="!hydrated || isLoading || isFetching" @click="retryDigest">
         {{ t('notifications.retry') }}
       </Button>
     </nav>
-    <section class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border bg-card shadow-sm">
+    <section class="nasq-panel flex min-h-0 flex-1 flex-col overflow-hidden">
       <header class="border-b px-5 py-4">
         <h1 class="text-2xl font-semibold">{{ t('tasks.digest.title') }}</h1>
         <p class="text-sm text-muted-foreground">{{ t('tasks.digest.count', { n: overdueCount }) }}</p>

@@ -42,7 +42,7 @@ async function deleteRow() {
 }
 </script>
 <template>
-  <div class="nasq-page-stack mx-auto w-full max-w-7xl">
+  <SharedPageContainer width="list">
     <SharedPageHeader :title="t('projects.governance.raci.title')" :back-to="`/projects/${id}`" />
     <p class="text-sm text-muted-foreground">{{ t('projects.governance.raci.legend') }}</p>
     <div class="grid gap-3 sm:grid-cols-2">
@@ -66,5 +66,5 @@ async function deleteRow() {
       <nav class="flex items-center gap-2" :aria-label="t('projects.governance.raci.task')"><Button variant="outline" :disabled="!hydrated || loading || pending || !taskPage" @click="taskPage--">{{ t('projects.governance.previous') }}</Button><span>{{ t('projects.governance.total', { total: tasks.data.value?.total ?? 0 }) }}</span><Button variant="outline" :disabled="!hydrated || loading || pending || (taskPage + 1) * 50 >= (tasks.data.value?.total ?? 0)" @click="nextTasks">{{ t('projects.governance.next') }}</Button></nav>
       <nav class="flex items-center gap-2" :aria-label="t('projects.governance.raci.stakeholder')"><Button variant="outline" :disabled="!hydrated || loading || pending || !stakeholderPage" @click="stakeholderPage--">{{ t('projects.governance.previous') }}</Button><span>{{ t('projects.governance.total', { total: stakeholders.data.value?.total ?? 0 }) }}</span><Button variant="outline" :disabled="!hydrated || loading || pending || (stakeholderPage + 1) * 10 >= (stakeholders.data.value?.total ?? 0)" @click="stakeholderPage++">{{ t('projects.governance.next') }}</Button></nav>
     </div>
-  </div>
+  </SharedPageContainer>
 </template>

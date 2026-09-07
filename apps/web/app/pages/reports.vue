@@ -111,7 +111,7 @@ watch(
 </script>
 
 <template>
-  <div class="nasq-page-stack mx-auto w-full max-w-7xl" data-testid="reports-page">
+  <SharedPageContainer width="list" data-testid="reports-page">
     <SharedPageHeader :title="t('projects.reports.title')" :description="t('projects.reports.description')" />
     <div class="nasq-toolbar">
       <FilterBar class="w-full">
@@ -140,5 +140,5 @@ watch(
         <Button variant="ghost" :disabled="!hydrated || page >= pages || reports.isFetching.value" @click="setPage(page + 1)">{{ t('projects.nextPage') }}</Button>
       </div>
     </SharedPageState>
-  </div>
+  </SharedPageContainer>
 </template>
