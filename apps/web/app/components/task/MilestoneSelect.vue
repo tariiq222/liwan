@@ -7,7 +7,7 @@ import { useUpdateTask } from '@/composables/useTasks'
 // already rolls back on error, so there is nothing else to wire up here.
 // Rendered only when `task.project` exists (guarded by the caller), but the
 // project id is still read defensively via optional chaining.
-const props = defineProps<{ task: TaskDetail }>()
+const props = defineProps<{ task: TaskDetail; labelledby?: string }>()
 
 const { t } = useI18n()
 const hydrated = useHydrated()
@@ -32,7 +32,7 @@ function onChange(value: unknown) {
 
 <template>
   <Select :model-value="task.milestone ? String(task.milestone.id) : NONE" :disabled="isPending || !hydrated" @update:model-value="onChange">
-    <SelectTrigger size="sm" class="w-full" data-testid="milestone-select" :disabled="isPending || !hydrated">
+    <SelectTrigger size="sm" class="w-full" data-testid="milestone-select" :disabled="isPending || !hydrated" :aria-labelledby="props.labelledby">
       <SelectValue />
     </SelectTrigger>
     <SelectContent>

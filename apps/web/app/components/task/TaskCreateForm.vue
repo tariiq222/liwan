@@ -2,6 +2,7 @@
 import { ApiError } from '@/composables/useApi'
 import { useProjects } from '@/composables/useProjects'
 import { useCreateTask } from '@/composables/useTasks'
+import { isDirtySnapshot } from '@/lib/formDirty'
 
 const props = defineProps<{ projectId?: number }>()
 const emit = defineEmits<{ created: [id: number]; cancel: [] }>()
@@ -13,12 +14,21 @@ const { mutateAsync, isPending } = useCreateTask()
 const name = ref('')
 const selectedProjectId = ref<number | undefined>(props.projectId)
 const error = ref<string | null>(null)
+const submitted = ref(false)
+const baseline = ref(JSON.stringify(['', props.projectId]))
+
+function state() {
+  return JSON.stringify([name.value, selectedProjectId.value])
+}
+
+const dirty = computed(() => isDirtySnapshot(baseline.value, state(), submitted.value))
 
 watch(
   () => [props.projectId, projects.value] as const,
   () => {
     if (props.projectId) selectedProjectId.value = props.projectId
     else if (!selectedProjectId.value) selectedProjectId.value = projects.value?.[0]?.id
+    if (!name.value && !submitted.value) baseline.value = state()
   },
   { immediate: true },
 )
@@ -28,9 +38,10 @@ const lockedProjectName = computed(() => projects.value?.find((p) => p.id === pr
 async function submit() {
   error.value = null
   const trimmed = name.value.trim()
-  if (!trimmed || !selectedProjectId.value) return
+  if (!hydrated.value || isPending.value || !trimmed || !selectedProjectId.value) return
   try {
     const created = await mutateAsync({ name: trimmed, project_id: selectedProjectId.value })
+    submitted.value = true
     emit('created', created.id)
   } catch (e) {
     error.value = e instanceof ApiError ? e.message : t('errors.generic')
@@ -39,6 +50,7 @@ async function submit() {
 </script>
 
 <template>
+  <SharedUnsavedChanges :dirty="dirty" />
   <form data-testid="task-create-form" class="nasq-form-grid" @submit.prevent="submit">
     <div class="grid gap-2">
       <Label for="new-task-name">{{ t('tasks.newTitle') }}</Label>

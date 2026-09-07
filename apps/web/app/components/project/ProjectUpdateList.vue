@@ -12,7 +12,7 @@ const { t, locale } = useI18n()
 const hydrated = useHydrated()
 
 const projectIdRef = computed(() => props.projectId)
-const { data, isLoading } = useProjectUpdates(projectIdRef)
+const { data, isLoading, error, refetch } = useProjectUpdates(projectIdRef)
 const items = computed<ProjectUpdate[]>(() => [...(data.value ?? [])].sort((a, b) => b.date.localeCompare(a.date)))
 const router = useRouter()
 const route = useRoute()
@@ -41,6 +41,7 @@ function openCreate() {
       <div v-if="isLoading" class="space-y-3 p-[18px]">
         <Skeleton v-for="n in 3" :key="n" class="h-24 w-full" />
       </div>
+      <SharedPageState v-else-if="error" :error="error" @retry="refetch" />
       <div v-else-if="items.length === 0" class="p-8 text-center">
         <p class="font-medium">{{ t('projects.updates.empty') }}</p>
         <p class="mt-1 text-sm text-muted-foreground">{{ t('projects.updates.emptyHint') }}</p>

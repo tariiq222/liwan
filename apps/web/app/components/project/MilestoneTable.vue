@@ -15,7 +15,7 @@ const { t, locale } = useI18n()
 const hydrated = useHydrated()
 
 const projectIdRef = computed(() => props.projectId)
-const { data, isLoading } = useMilestones(projectIdRef)
+const { data, isLoading, error, refetch } = useMilestones(projectIdRef)
 const items = computed<Milestone[]>(() => data.value ?? [])
 
 const router = useRouter()
@@ -83,6 +83,7 @@ async function confirmDelete() {
         <div v-if="isLoading" class="space-y-3 p-[18px]">
           <Skeleton v-for="n in 3" :key="n" class="h-14 w-full" />
         </div>
+        <SharedPageState v-else-if="error" :error="error" @retry="refetch" />
         <div v-else-if="items.length === 0" class="p-8 text-center">
           <p class="font-medium">{{ t('projects.milestones.empty') }}</p>
           <p class="mt-1 text-sm text-muted-foreground">{{ t('projects.milestones.emptyHint') }}</p>

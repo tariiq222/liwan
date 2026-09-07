@@ -12,7 +12,7 @@ type TagRef = Task['tags'][number]
 // AssigneePicker: the emitted payload gives both the bare ids (for the PATCH
 // body) and the resolved objects (for useUpdateTask's optimistic cache
 // update).
-const props = defineProps<{ modelValue: TagRef[]; canCreate: boolean }>()
+const props = defineProps<{ modelValue: TagRef[]; canCreate: boolean; labelledby?: string }>()
 const emit = defineEmits<{ 'update:modelValue': [{ ids: number[]; resolved: TagRef[] }] }>()
 
 const { t } = useI18n()
@@ -26,6 +26,7 @@ const { data: tags } = useTags(debouncedQ)
 const { mutate: createTag, isPending: creating } = useCreateTag()
 
 const selectedIds = computed(() => new Set(props.modelValue.map((tg) => tg.id)))
+const selectedNames = computed(() => props.modelValue.map(tg => tg.name).join('، ') || '—')
 
 function isSelected(id: number) {
   return selectedIds.value.has(id)
@@ -70,8 +71,8 @@ function onCreate() {
 <template>
   <div class="space-y-2" data-testid="tag-picker">
     <div class="flex flex-wrap gap-1">
-      <Badge v-for="tag in modelValue" :key="tag.id" variant="outline" class="gap-1 pe-1">
-        {{ tag.name }}
+      <Badge v-for="tag in modelValue" :key="tag.id" variant="outline" class="min-w-0 max-w-full gap-1 pe-1">
+        <span class="min-w-0 max-w-full truncate" :title="tag.name">{{ tag.name }}</span>
         <button
           type="button"
           class="rounded-full hover:bg-muted-foreground/20"
@@ -87,7 +88,10 @@ function onCreate() {
 
     <Popover v-model:open="open">
       <PopoverTrigger as-child>
-        <Button variant="outline" size="sm" type="button" :disabled="!hydrated">{{ t('tasks.drawer.addTag') }}</Button>
+        <Button variant="outline" size="sm" type="button" :disabled="!hydrated" :aria-labelledby="props.labelledby ? `${props.labelledby} task-tags-value` : 'task-tags-value'">
+          <span id="task-tags-value" class="sr-only">{{ selectedNames }}</span>
+          <span aria-hidden="true">{{ t('tasks.drawer.addTag') }}</span>
+        </Button>
       </PopoverTrigger>
       <PopoverContent class="w-64 p-0" align="start">
         <div class="border-b p-2">

@@ -11,7 +11,7 @@ const { t } = useI18n()
 const hydrated = useHydrated()
 const uploadError = ref('')
 const pendingDeleteId = ref<number | null>(null)
-const { data, isLoading } = useTaskAttachments(() => props.taskId)
+const { data, isLoading, error, refetch } = useTaskAttachments(() => props.taskId)
 const { mutateAsync: upload, isPending: uploading } = useUploadTaskAttachment()
 const { mutateAsync: remove, isPending: deleting } = useDeleteTaskAttachment()
 
@@ -81,6 +81,7 @@ async function confirmDelete(id: number) {
     </div>
 
     <p v-if="isLoading" class="task-empty-inline">{{ t('attachments.loading') }}</p>
+    <SharedPageState v-else-if="error" :error="error" @retry="refetch" />
     <p v-else-if="!data?.items.length" class="task-empty-inline">{{ t('attachments.empty') }}</p>
     <ul v-else class="task-list">
       <li v-for="attachment in data.items" :key="attachment.id" class="task-attachment-row">

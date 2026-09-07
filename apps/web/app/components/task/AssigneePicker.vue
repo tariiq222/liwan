@@ -10,7 +10,7 @@ type PersonRef = Task['assignees'][number]
 // render chips without an extra lookup; the emitted payload gives both the
 // bare ids (for the PATCH body) and the resolved objects (for useUpdateTask's
 // optimistic cache update).
-const props = defineProps<{ modelValue: PersonRef[] }>()
+const props = defineProps<{ modelValue: PersonRef[]; labelledby?: string }>()
 const emit = defineEmits<{ 'update:modelValue': [{ ids: number[]; resolved: PersonRef[] }] }>()
 
 const { t } = useI18n()
@@ -22,6 +22,7 @@ const debouncedQ = refDebounced(q, 250)
 const { data: people } = usePeople(debouncedQ)
 
 const selectedIds = computed(() => new Set(props.modelValue.map((p) => p.id)))
+const selectedNames = computed(() => props.modelValue.map(p => p.name).join('، ') || t('tasks.drawer.unassigned'))
 
 function isSelected(id: number) {
   return selectedIds.value.has(id)
@@ -43,8 +44,8 @@ function remove(id: number) {
 <template>
   <div class="space-y-2">
     <div class="flex flex-wrap gap-1">
-      <Badge v-for="p in modelValue" :key="p.id" variant="secondary" class="gap-1 pe-1">
-        {{ p.name }}
+      <Badge v-for="p in modelValue" :key="p.id" variant="secondary" class="min-w-0 max-w-full gap-1 pe-1">
+        <span class="min-w-0 max-w-full truncate" :title="p.name">{{ p.name }}</span>
         <button
           type="button"
           class="rounded-full hover:bg-muted-foreground/20"
@@ -59,7 +60,10 @@ function remove(id: number) {
 
     <Popover v-model:open="open">
       <PopoverTrigger as-child>
-        <Button variant="outline" size="sm" type="button">{{ t('tasks.drawer.assignees') }}</Button>
+        <Button variant="outline" size="sm" type="button" :aria-labelledby="props.labelledby ? `${props.labelledby} task-assignees-value` : 'task-assignees-value'">
+          <span id="task-assignees-value" class="sr-only">{{ selectedNames }}</span>
+          <span aria-hidden="true">{{ t('tasks.drawer.assignees') }}</span>
+        </Button>
       </PopoverTrigger>
       <PopoverContent class="w-64 p-0" align="start">
         <div class="border-b p-2">
