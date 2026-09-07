@@ -7,7 +7,23 @@ source, configuration, and Git state read-only for Nasq work. Authorized tests
 or development may use an explicitly isolated database, but never operate on
 an arbitrary database.
 
-## 2026-09-07 chat integration (current)
+## 2026-09-07 project phases integration (current)
+
+Project phases one and two are merged into local `main` at `e6f7929`.
+Sources `9b579c9` (governance, schedules, templates) and `04c5729` (budgets,
+costs, reports) are both ancestors. See
+[the integration report](projects-phases-integration-2026-09-07.md) for conflict
+resolution, independent review and fresh gates: 119 contracts, 402 web units,
+436 Odoo tests, 21 phase browser cases plus one combined workflow. Node tests
+and Ruff passed again on main after promotion.
+
+The existing `.agent/learnings.jsonl` change remains uncommitted and preserved.
+Source and integration worktrees/branches remain; no cleanup, push or deployment
+was requested. This round's isolated Odoo9979/Nuxt3979 servers are stopped;
+`nasq_phases_merge_20260907` is retained. No upgrade/restart of `odoo19`.
+Older phase delivery statuses below and in their reports are historical.
+
+## 2026-09-07 chat integration
 
 Chat is integrated locally at product commit `651e179`. Its original and
 temporary integration worktree directories and branch refs have been removed. See
