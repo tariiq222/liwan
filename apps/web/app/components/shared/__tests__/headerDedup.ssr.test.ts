@@ -2,8 +2,24 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { compileScript, parse } from '@vue/compiler-sfc'
 import { renderToString } from '@vue/server-renderer'
-import { computed, createSSRApp, defineComponent, h, ref } from 'vue'
-import * as Vue from 'vue'
+import {
+  computed,
+  createCommentVNode,
+  createElementBlock,
+  createElementVNode,
+  createSSRApp,
+  createTextVNode,
+  createVNode,
+  defineComponent,
+  h,
+  openBlock,
+  ref,
+  renderSlot,
+  resolveComponent,
+  toDisplayString,
+  unref,
+  withCtx,
+} from 'vue'
 import ts from 'typescript'
 import { describe, expect, it } from 'vitest'
 import { projectIdFromPath, projectSectionRoot } from '../../../composables/useShellNavigation'
@@ -27,25 +43,25 @@ function loadPageHeader() {
     compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.None },
   }).outputText
   const runtimeBindings = {
-    _defineComponent: Vue.defineComponent,
-    _unref: Vue.unref,
-    _renderSlot: Vue.renderSlot,
-    _createVNode: Vue.createVNode,
-    _createTextVNode: Vue.createTextVNode,
-    _toDisplayString: Vue.toDisplayString,
-    _resolveComponent: Vue.resolveComponent,
-    _withCtx: Vue.withCtx,
-    _openBlock: Vue.openBlock,
-    _createElementBlock: Vue.createElementBlock,
-    _createCommentVNode: Vue.createCommentVNode,
-    _createElementVNode: Vue.createElementVNode,
+    _defineComponent: defineComponent,
+    _unref: unref,
+    _renderSlot: renderSlot,
+    _createVNode: createVNode,
+    _createTextVNode: createTextVNode,
+    _toDisplayString: toDisplayString,
+    _resolveComponent: resolveComponent,
+    _withCtx: withCtx,
+    _openBlock: openBlock,
+    _createElementBlock: createElementBlock,
+    _createCommentVNode: createCommentVNode,
+    _createElementVNode: createElementVNode,
   }
   const names = [
-    ...Object.keys(Vue), ...Object.keys(runtimeBindings), 'ArrowRight', 'useRoute', 'useRouter',
+    ...Object.keys(runtimeBindings), 'ArrowRight', 'computed', 'useRoute', 'useRouter',
     'useShellBreadcrumbTarget', 'projectIdFromPath', 'projectSectionRoot', 'usePageHeader',
   ]
   const values = [
-    ...Object.values(Vue), ...Object.values(runtimeBindings), ArrowRightStub,
+    ...Object.values(runtimeBindings), ArrowRightStub, computed,
     () => currentRoute,
     () => ({ resolve: (to: string | { path: string }) => ({ fullPath: typeof to === 'string' ? to : to.path }) }),
     () => ref(currentBreadcrumb), projectIdFromPath, projectSectionRoot, () => undefined,
