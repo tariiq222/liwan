@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { PROJECT_STATUSES } from '@nasq/contracts'
-import { CircleAlert, CircleCheck, CircleDot, FolderKanban, LayoutGrid, List, Plus, Search, X } from '@lucide/vue'
+import { LayoutGrid, List, Plus, Search, X } from '@lucide/vue'
 import { refDebounced } from '@vueuse/core'
 import FilterBar from '@/components/shared/FilterBar.vue'
 import ProjectTable from '@/components/project/ProjectTable.vue'
@@ -118,24 +118,6 @@ const canCreate = computed(() => latestCapability.value.allowed)
 const total = computed(() => projectList.data.value?.total ?? 0)
 const page = computed(() => Math.floor(listOffset.value / PROJECT_PAGE) + 1)
 const pages = computed(() => Math.max(1, Math.ceil(total.value / PROJECT_PAGE)))
-const summary = computed(() => ({
-  total: total.value,
-  displayed: items.value.length,
-  onTrack: items.value.filter(project => project.status === 'on_track').length,
-  attention: items.value.filter(project => project.status === 'at_risk' || project.status === 'off_track' || project.status === 'on_hold').length,
-  completed: items.value.filter(project => project.status === 'done').length,
-  tasks: items.value.reduce((total, project) => total + project.task_count, 0),
-  onTrackTasks: items.value
-    .filter(project => project.status === 'on_track')
-    .reduce((total, project) => total + project.task_count, 0),
-  attentionOpen: items.value
-    .filter(project => project.status === 'at_risk' || project.status === 'off_track' || project.status === 'on_hold')
-    .reduce((total, project) => total + Math.max(0, project.task_count - project.closed_task_count), 0),
-  completedTasks: items.value
-    .filter(project => project.status === 'done')
-    .reduce((total, project) => total + project.closed_task_count, 0),
-}))
-
 watch(debouncedSearch, (value) => {
   if (value.trim() === filters.q.trim()) return
   applyPatch({ q: value })
@@ -204,6 +186,11 @@ function openProject(id: number) {
   <SharedPageContainer width="list">
     <SharedPageHeader :title="t(filters.mine ? 'nav.myProjects' : 'nav.allProjects')" :description="t(filters.mine ? 'projects.myDescription' : 'projects.description')">
       <template #actions>
+        <Button as-child variant="outline">
+          <NuxtLink :to="{ path: '/projects/dashboard', query: returnToQuery(route.fullPath) }" data-testid="projects-dashboard-link">
+            {{ t('nav.projectDashboard') }}
+          </NuxtLink>
+        </Button>
         <Button v-if="canCreate" data-testid="project-new" :disabled="!hydrated" class="gap-2" @click="openCreate">
           <Plus class="size-[18px]" />{{ t('projects.new') }}
         </Button>
@@ -218,51 +205,6 @@ function openProject(id: number) {
       <span>{{ t('projects.loadError') }}</span>
       <Button variant="outline" size="sm" @click="activeList.refetch()">{{ t('app.retry') }}</Button>
     </div>
-    <section data-testid="projects-summary">
-      <div data-testid="projects-summary-cards" class="nasq-metrics">
-        <article class="nasq-metric flex items-center gap-3">
-          <span class="grid size-[32px] shrink-0 place-items-center rounded-lg border bg-muted text-muted-foreground"><FolderKanban class="size-[18px]" /></span>
-          <div class="min-w-0">
-            <p class="nasq-metric-title">{{ t('projects.summary.total') }}</p>
-            <div class="flex flex-wrap items-baseline gap-2">
-              <p data-testid="projects-summary-total" class="nasq-metric-value">{{ summary.total }}</p>
-              <p class="nasq-metric-foot">{{ t('projects.summary.onPage', { count: summary.displayed }) }}</p>
-            </div>
-          </div>
-        </article>
-        <article class="nasq-metric flex items-center gap-3">
-          <span class="grid size-[32px] shrink-0 place-items-center rounded-lg border bg-muted text-muted-foreground"><CircleDot class="size-[18px]" /></span>
-          <div class="min-w-0">
-            <p class="nasq-metric-title">{{ t('projects.summary.onTrack') }}</p>
-            <div class="flex flex-wrap items-baseline gap-2">
-              <p data-testid="projects-summary-on-track" class="nasq-metric-value">{{ summary.onTrack }}</p>
-              <p class="nasq-metric-foot">{{ t('projects.summary.tasks', { count: summary.onTrackTasks }) }}</p>
-            </div>
-          </div>
-        </article>
-        <article class="nasq-metric flex items-center gap-3">
-          <span class="nasq-status-icon-warning grid size-[32px] shrink-0 place-items-center rounded-lg"><CircleAlert class="size-[18px]" /></span>
-          <div class="min-w-0">
-            <p class="nasq-metric-title">{{ t('projects.summary.attention') }}</p>
-            <div class="flex flex-wrap items-baseline gap-2">
-              <p data-testid="projects-summary-attention" class="nasq-metric-value">{{ summary.attention }}</p>
-              <p class="nasq-metric-foot">{{ t('projects.summary.remaining', { count: summary.attentionOpen }) }}</p>
-            </div>
-          </div>
-        </article>
-        <article class="nasq-metric flex items-center gap-3">
-          <span class="nasq-status-icon-success grid size-[32px] shrink-0 place-items-center rounded-lg"><CircleCheck class="size-[18px]" /></span>
-          <div class="min-w-0">
-            <p class="nasq-metric-title">{{ t('projects.summary.completed') }}</p>
-            <div class="flex flex-wrap items-baseline gap-2">
-              <p data-testid="projects-summary-completed" class="nasq-metric-value">{{ summary.completed }}</p>
-              <p class="nasq-metric-foot">{{ t('projects.summary.completedTasks', { count: summary.completedTasks }) }}</p>
-            </div>
-          </div>
-        </article>
-      </div>
-    </section>
-
     <div class="nasq-toolbar" data-testid="projects-toolbar">
       <FilterBar class="w-full">
       <template #search>
@@ -326,6 +268,9 @@ function openProject(id: number) {
 
     <SharedPageState v-if="projectList.error.value" :error="projectList.error.value" @retry="projectList.refetch" />
     <template v-else>
+    <p v-if="projectList.data.value" data-testid="projects-result-count" class="text-sm text-muted-foreground">
+      {{ t('projects.refresh.workspace.resultCount', { count: total }) }}
+    </p>
     <ProjectTable
       v-if="view === 'table'"
       :items="displayedItems"

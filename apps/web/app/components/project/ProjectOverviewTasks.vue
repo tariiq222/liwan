@@ -37,7 +37,7 @@ function deadlineLabel(value: string | null) {
         <Button type="button" variant="outline" size="sm" @click="refetch()">{{ t('app.retry') }}</Button>
       </div>
       <template v-else>
-        <p v-if="!attention.length" class="text-sm text-muted-foreground">{{ t('projects.overview.needsAttentionEmpty') }}</p>
+        <p v-if="!attention.length" class="text-sm text-muted-foreground">{{ t('projects.refresh.workspace.needsAttentionPreviewEmpty') }}</p>
         <div v-else class="divide-y">
           <NuxtLink
             v-for="task in attention"

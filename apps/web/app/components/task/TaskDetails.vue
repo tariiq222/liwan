@@ -265,10 +265,8 @@ const completedSubtasks = computed(() => props.task.subtasks.filter(subtask => s
 
 .task-meta-item {
   min-width: 0;
-  padding: 11px 12px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--muted);
+  padding-block: 8px;
+  padding-inline: 2px;
 }
 
 .task-meta-label,

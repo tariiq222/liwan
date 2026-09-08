@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import type { FinanceSummary } from '@nasq/contracts'
 import { budgetStatus, formatNullableAmount, formatUtilization } from '@/utils/projectFinance'
+import { returnToQuery } from '@/utils/safeReturnTo'
 
-const props = defineProps<{ summary: FinanceSummary }>()
+const props = defineProps<{ projectId: number; summary: FinanceSummary }>()
 const { t } = useI18n()
+const route = useRoute()
 const unknown = computed(() => t('projects.finance.unknown'))
 const currency = computed(() => props.summary.currency)
 const plannedStatus = computed(() => budgetStatus(props.summary))
@@ -11,11 +13,6 @@ const plannedStatus = computed(() => budgetStatus(props.summary))
 
 <template>
   <section data-testid="project-finance-summary" class="nasq-metrics">
-    <article data-testid="project-finance-charter" class="nasq-metric">
-      <p class="nasq-metric-title">{{ t('projects.finance.charterEstimate') }}</p>
-      <p class="nasq-metric-value tabular-nums" dir="ltr">{{ formatNullableAmount(summary.charter_estimate, currency, unknown) }}</p>
-      <p class="nasq-metric-foot">{{ t('projects.finance.charterHint') }}</p>
-    </article>
     <article class="nasq-metric">
       <p class="nasq-metric-title">{{ t('projects.finance.planned') }}</p>
       <p class="nasq-metric-value tabular-nums" dir="ltr">{{ formatNullableAmount(summary.planned, currency, unknown) }}</p>
@@ -38,6 +35,14 @@ const plannedStatus = computed(() => budgetStatus(props.summary))
         <Badge v-if="plannedStatus === 'unknown'" variant="outline" class="ms-2 align-middle">{{ t('projects.finance.budgetUnknown') }}</Badge>
         <Badge v-else-if="plannedStatus === 'over'" variant="destructive" class="ms-2 align-middle">{{ t('projects.finance.overBudget') }}</Badge>
       </p>
+    </article>
+    <article data-testid="project-finance-charter" class="nasq-metric">
+      <p class="nasq-metric-title">{{ t('projects.finance.charterEstimate') }}</p>
+      <p class="nasq-metric-value tabular-nums" dir="ltr">{{ formatNullableAmount(summary.charter_estimate, currency, unknown) }}</p>
+      <p class="nasq-metric-foot">{{ t('projects.finance.charterHint') }}</p>
+      <NuxtLink :to="{ path: `/projects/${props.projectId}/charter`, query: returnToQuery(route.fullPath) }" class="mt-2 inline-block text-xs text-muted-foreground underline underline-offset-4">
+        {{ t('projects.refresh.finance.viewCharter') }}
+      </NuxtLink>
     </article>
   </section>
 </template>
