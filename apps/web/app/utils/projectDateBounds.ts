@@ -44,4 +44,3 @@ export function validateTaskDates(input: TaskDateInput): string | null {
   if (deadline && milestoneStart && deadline < milestoneStart) return 'task.deadlineOutsideMilestone'
   return null
 }
-

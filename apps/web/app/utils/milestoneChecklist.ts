@@ -9,4 +9,3 @@ export function releaseMilestoneChecklistUpdate(pending: ReadonlySet<number>, mi
   next.delete(milestoneId)
   return next
 }
-

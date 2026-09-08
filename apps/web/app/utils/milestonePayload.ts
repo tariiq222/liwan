@@ -14,4 +14,3 @@ export function buildMilestonePatch(input: {
   if (input.isNew || input.deadline !== (input.originalDeadline ?? null)) patch.deadline = input.deadline
   return patch
 }
-

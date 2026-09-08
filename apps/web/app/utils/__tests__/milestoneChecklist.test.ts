@@ -9,4 +9,3 @@ describe('milestone checklist mutation guard', () => {
     expect(releaseMilestoneChecklistUpdate(first!, 7)).toEqual(new Set())
   })
 })
-
