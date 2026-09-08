@@ -1,12 +1,16 @@
 <script setup lang="ts">
 import { ArrowRight, ChevronLeft } from '@lucide/vue'
+import { useMediaQuery } from '@vueuse/core'
+import ConversationList from '@/components/chat/ConversationList.vue'
 import { useShellNavigation } from '@/composables/useShellNavigation'
 import { activeShellModule, shellModules } from '@/composables/useNav'
+import { parseChatListRoute, serializeChatListRoute, type ChatListRoute } from '@/utils/chatState'
 import { projectListReturnTo } from '@/utils/projectNavigation'
 
 const { t, localeProperties } = useI18n()
 const { me } = useMe()
 const route = useRoute()
+const router = useRouter()
 const { module, projectId, project, contextLinks } = useShellNavigation(() => me.value)
 const activeModule = computed(() => activeShellModule(route.path))
 const moduleDefinition = computed(() => shellModules.find(item => item.id === activeModule.value) ?? module.value)
@@ -14,9 +18,19 @@ const contextTitle = computed(() => projectId.value && project.data.value ? proj
 const contextDescription = computed(() => projectId.value ? (project.data.value?.description_html?.replace(/<[^>]+>/g, '').trim() || '') : '')
 const projectsReturnTo = computed(() => projectListReturnTo(route.query))
 const isProject = computed(() => !!projectId.value && activeModule.value === 'projects')
+const isChat = computed(() => activeModule.value === 'chat')
+const isDesktop = useMediaQuery('(min-width: 761px)', { ssrWidth: 1024 })
+const routeState = computed(() => parseChatListRoute(route.query))
+const selectedConversationId = computed(() => {
+  const match = route.path.match(/^\/chat\/(\d+)(?:\/|$)/)
+  const id = Number(match?.[1])
+  return Number.isSafeInteger(id) && id > 0 ? id : undefined
+})
 const primaryLinks = computed(() => contextLinks.value.filter(item => !isProject.value || item.id !== 'settings'))
 const moduleLinks = computed(() => {
-  const links = primaryLinks.value
+  const links = isChat.value && isDesktop.value
+    ? primaryLinks.value.filter(item => item.id === 'new-chat')
+    : primaryLinks.value
   if (activeModule.value === 'projects') return links
   return [...links.filter(item => item.pinned), ...links.filter(item => !item.pinned)]
 })
@@ -29,6 +43,10 @@ const showContextNav = computed(() => {
 function href(link: { to: import('vue-router').RouteLocationRaw }) {
   return link.to
 }
+
+function updateRoute(next: ChatListRoute) {
+  void router.replace({ path: route.path, query: serializeChatListRoute(next) })
+}
 </script>
 
 <template>
@@ -36,6 +54,7 @@ function href(link: { to: import('vue-router').RouteLocationRaw }) {
     data-testid="context-sidebar"
     class="nasq-context-sidebar"
     :data-project="isProject"
+    :data-chat="isChat"
     :data-direction="localeProperties.dir"
     :aria-label="t('nav.context')"
   >
@@ -69,6 +88,14 @@ function href(link: { to: import('vue-router').RouteLocationRaw }) {
           <ChevronLeft v-if="link.active" aria-hidden="true" class="nasq-context-active-mark ltr:rotate-180" />
         </NuxtLink>
       </nav>
+
+      <ConversationList
+        v-if="isChat && isDesktop"
+        class="min-h-0 flex-1"
+        :route-state="routeState"
+        :selected-id="selectedConversationId"
+        @update:route-state="updateRoute"
+      />
 
       <div v-if="isProject" class="nasq-context-footer">
         <NuxtLink
