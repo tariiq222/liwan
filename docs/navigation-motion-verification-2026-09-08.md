@@ -1,6 +1,6 @@
 # Navigation, motion and notification preview verification
 
-Implemented uncommitted on `codex/navigation-motion` at `/Users/tariq/code/nasq-navigation-motion`, based on local main `51e4362`. No commit, merge, push or deployment. Canonical main is clean after preserving an accidentally misplaced initial test draft outside the repository at `/tmp/nasq-navigation-motion/notificationPresentation.initial-misplaced.test.ts`.
+Implementation was originally prepared on `codex/navigation-motion` at `/Users/tariq/code/nasq-navigation-motion`, based on local main `51e4362`. The user subsequently authorized commit and local integration. Source commit: `f7699ac`. An accidentally misplaced initial test draft was preserved outside the repository at `/tmp/nasq-navigation-motion/notificationPresentation.initial-misplaced.test.ts`; canonical main was clean before integration.
 
 ## Changes
 
@@ -22,3 +22,9 @@ Notification preview keeps latest five, More, permission/read/navigation behavio
 Preview: `http://127.0.0.1:3498`, mock upstream `4498`, fake database name `nasq_ui_mock_only`. Mock login admin/admin. No Odoo database used by these checks. This is UI verification with fixture data, not real backend acceptance or production evidence. English rendering and all module business workflows were not comprehensively exercised. Existing duplicated Nuxt auto-import warnings remain unrelated to this change.
 
 Logs, smoke script and screenshots: `/tmp/nasq-navigation-motion/`. Notification source worktree is retained at `/Users/tariq/code/nasq-notification-preview`; its reviewed patch is included in this combined worktree.
+
+## Local integration — 2026-09-08
+
+The integration candidate was prepared in `/Users/tariq/code/nasq-navigation-integration` from recorded main baseline `51e43621ace44e560ff70b178e80cf4ec62f4f75`, fast-forwarded to source `f7699ac6e817bf1b2bc449c5ddcc907d694de741`. There were no conflicts or deleted files. Existing regression assertions, project navigation, capabilities, contracts and backend code were preserved. Only this requested UI package is included; the meetings-series worktree remains separate. Integration logs are under `/tmp/nasq-navigation-integration/`. Branches, worktrees and recovery material are retained. No push or deployment is authorized by this local integration.
+
+Fresh integration checks: `npm test` passed 128 contract and 614 web tests; `npm -w apps/web run lint` exited 0; `npm run build` exited 0; `git diff --check` exited 0. The application/package/backend trees are byte-identical to reviewed source `f7699ac`; the integration adds only this verification update. Promotion is constrained to a fast-forward after confirming main still matches the recorded baseline and has no dirty paths.
