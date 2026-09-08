@@ -25,9 +25,10 @@ const sections = computed(() => {
 
 <template>
   <SettingsLayout v-if="isBaseRoute" :sections width="form">
-    <SharedPageHeader :title="t('settings.projects.title')" :description="t('settings.projects.scopeHint')" />
+    <SharedPageHeader :title="t('settings.projects.title')" />
     <p v-if="forbidden" class="text-muted-foreground">{{ t('settings.forbidden') }}</p>
     <div v-else class="nasq-panel nasq-panel-body">
+      <p class="mb-5 text-sm leading-6 text-muted-foreground">{{ t('settings.projects.scopeHint') }}</p>
       <ProjectSettingsForm />
       <section id="catalogs" class="nasq-form-section nasq-settings-anchor space-y-3">
         <h2 class="nasq-form-section-title">{{ t('settings.projects.catalogs.title') }}</h2>

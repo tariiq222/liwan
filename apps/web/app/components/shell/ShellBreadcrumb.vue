@@ -6,15 +6,15 @@ const { t, localeProperties } = useI18n()
 const { me } = useMe()
 const route = useRoute()
 const router = useRouter()
-const { breadcrumbs, projectId } = useShellNavigation(() => me.value)
+const { breadcrumbs } = useShellNavigation(() => me.value)
 const { title: pageTitle } = useShellPageHeader()
 const breadcrumbTarget = useShellBreadcrumbTarget()
 
 watchEffect(() => {
-  const first = breadcrumbs.value[0]
+  const ancestor = breadcrumbs.value.find(crumb => crumb.to)
   breadcrumbTarget.value = {
-    routeKey: route.fullPath,
-    href: projectId.value && first?.to ? router.resolve(first.to).fullPath : null,
+    routeKey: breadcrumbs.value.length ? route.fullPath : '',
+    href: ancestor?.to ? router.resolve(ancestor.to).fullPath : null,
   }
 })
 </script>
@@ -26,7 +26,7 @@ watchEffect(() => {
       <NuxtLink v-if="crumb.to && !crumb.current" :to="crumb.to" class="nasq-shell-breadcrumb-link">{{ crumb.raw ? crumb.labelKey : t(crumb.labelKey) }}</NuxtLink>
       <span v-else class="nasq-shell-breadcrumb-current" aria-current="page">{{ crumb.raw ? crumb.labelKey : t(crumb.labelKey) }}</span>
     </template>
-    <template v-if="projectId && pageTitle">
+    <template v-if="pageTitle">
       <ChevronLeft aria-hidden="true" class="nasq-shell-breadcrumb-separator ltr:rotate-180" />
       <span class="nasq-shell-breadcrumb-current" aria-current="page">{{ pageTitle }}</span>
     </template>

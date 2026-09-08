@@ -1,9 +1,19 @@
 import { describe, it, expect } from 'vitest'
 import { activeShellModule, contextLinksForModule, projectContextId, projectContextLinks, visibleShellModules, useNav } from '../useNav'
-import { projectBreadcrumbsForRoute, projectSectionRoot } from '../useShellNavigation'
+import { isContextPathActive } from '../useShellNavigation'
+import { projectBreadcrumbsForRoute, projectSectionRoot, shellBreadcrumbsForRoute, shellSectionRoot } from '../useShellNavigation'
 
 const employee = { role: 'employee', capabilities: ['pmo.tasks.read', 'pmo.projects.read', 'meetings.read', 'hr.employees.read', 'hr.departments.read', 'hr.documents.read'] }
 const admin = { role: 'admin', capabilities: [...employee.capabilities, 'access.users.read', 'access.roles.read', 'access.audit.read', 'settings.branding.manage'] }
+const full = { role: 'admin', capabilities: ['nasq.internal', 'pmo.projects.read', 'pmo.projects.create', 'pmo.tasks.read', 'meetings.read', 'meetings.create', 'hr.employees.read', 'hr.departments.read', 'hr.documents.read', 'pmo.settings.manage', 'access.users.read', 'access.roles.read', 'access.audit.read'] }
+
+function shellLinks(module: Parameters<typeof contextLinksForModule>[0], path: string, query: Record<string, unknown> = {}, identity = full) {
+  return contextLinksForModule(module, identity).map(link => ({ ...link, active: isContextPathActive(path, link.to, query) }))
+}
+
+function shellModule(module: Parameters<typeof contextLinksForModule>[0]) {
+  return visibleShellModules(full).find(item => item.id === module)
+}
 
 describe('capability-based navigation', () => {
   it('has no links before authenticated capabilities arrive', () => {
@@ -45,6 +55,63 @@ describe('capability-based navigation', () => {
 })
 
 describe('shell route classification', () => {
+  it('classifies every visible non-pinned context root and excludes creation links', () => {
+    const full = {
+      role: 'admin',
+      capabilities: [
+        'nasq.internal', 'pmo.projects.read', 'pmo.projects.create', 'pmo.tasks.read',
+        'meetings.read', 'meetings.create', 'hr.employees.read', 'hr.departments.read',
+        'hr.documents.read', 'pmo.settings.manage', 'access.users.read',
+        'access.roles.read', 'access.audit.read', 'settings.branding.manage',
+      ],
+    }
+    const links = (['projects', 'tasks', 'meetings', 'chat', 'hr', 'settings'] as const).flatMap(module => contextLinksForModule(module, full))
+    const pathOf = (to: unknown) => typeof to === 'string' ? to.split(/[?#]/, 1)[0] : (to as { path?: string }).path
+    for (const link of links.filter(item => !item.pinned)) expect(shellSectionRoot(pathOf(link.to)!)).not.toBeNull()
+    for (const link of links.filter(item => item.pinned)) expect(shellSectionRoot(pathOf(link.to)!)).toBeNull()
+  })
+
+  it('normalizes root classification across trailing slashes and query strings', () => {
+    expect(shellSectionRoot('/projects/dashboard/')).toBe('/projects/dashboard')
+    expect(shellSectionRoot('/projects?mine=1')).toBe('/projects')
+    expect(shellSectionRoot('/settings/access-log/?offset=20')).toBe('/settings/access-log')
+    expect(shellSectionRoot('/projects/new')).toBeNull()
+  })
+
+  it('returns one useful section ancestor for deep routes and keeps validated filters', () => {
+    expect(shellBreadcrumbsForRoute('/tasks/44', { returnTo: '/tasks?q=late' }, shellModule('tasks'), shellLinks('tasks', '/tasks/44', { returnTo: '/tasks?q=late' }))).toEqual([
+      { id: 'tasks', labelKey: 'nav.tasks', to: '/tasks?q=late' },
+    ])
+    expect(shellBreadcrumbsForRoute('/projects/new', { returnTo: '/projects?mine=1&q=late' }, shellModule('projects'), shellLinks('projects', '/projects/new', { returnTo: '/projects?mine=1&q=late' }))).toEqual([
+      { id: 'my-projects', labelKey: 'nav.myProjects', to: '/projects?mine=1&q=late' },
+    ])
+    expect(shellBreadcrumbsForRoute('/meetings/44', { returnTo: '/meetings/calendar?day=2026-09-08' }, shellModule('meetings'), shellLinks('meetings', '/meetings/44', { returnTo: '/meetings/calendar?day=2026-09-08' }))).toEqual([
+      { id: 'meeting-calendar', labelKey: 'nav.meetingCalendar', to: '/meetings/calendar?day=2026-09-08' },
+    ])
+    expect(shellBreadcrumbsForRoute('/chat/7', { q: 'team', filter: 'unread', offset: '50' }, shellModule('chat'), shellLinks('chat', '/chat/7', { q: 'team', filter: 'unread', offset: '50' }))).toEqual([
+      { id: 'chat', labelKey: 'nav.chat', to: { path: '/chat', query: { q: 'team', filter: 'unread', offset: '50' } } },
+    ])
+    expect(shellBreadcrumbsForRoute('/chat/new', { q: 'Header', filter: 'groups', offset: '50' }, shellModule('chat'), shellLinks('chat', '/chat/new', { q: 'Header', filter: 'groups', offset: '50' }))).toEqual([
+      { id: 'chat', labelKey: 'nav.chat', to: { path: '/chat', query: { q: 'Header', filter: 'groups', offset: '50' } } },
+    ])
+    expect(shellBreadcrumbsForRoute('/settings/users/18', { q: 'ali', status: 'active', role_id: '3', offset: '25' }, shellModule('settings'), shellLinks('settings', '/settings/users/18', { q: 'ali', status: 'active', role_id: '3', offset: '25' }))).toEqual([
+      { id: 'users', labelKey: 'nav.users', to: '/settings/users?q=ali&status=active&role_id=3&offset=25' },
+    ])
+  })
+
+  it('keeps template parents, excludes pinned creation links, and respects access', () => {
+    expect(shellBreadcrumbsForRoute('/project-templates/7', { returnTo: '/project-templates?kind=delivery' }, shellModule('projects'), shellLinks('projects', '/project-templates/7', { returnTo: '/project-templates?kind=delivery' }))).toEqual([
+      { id: 'project-templates', labelKey: 'projects.templates.title', to: '/project-templates?kind=delivery' },
+    ])
+    expect(shellBreadcrumbsForRoute('/chat/new', {}, shellModule('chat'), shellLinks('chat', '/chat/new'))).toEqual([
+      { id: 'chat', labelKey: 'nav.chat', to: '/chat' },
+    ])
+    expect(shellBreadcrumbsForRoute('/meetings/calendar', {}, shellModule('meetings'), shellLinks('meetings', '/meetings/calendar'))).toEqual([])
+    expect(shellBreadcrumbsForRoute('/search', { returnTo: '/tasks' }, shellModule('projects'), shellLinks('projects', '/search', { returnTo: '/tasks' }))).toEqual([])
+    const departmentsOnly = { role: 'employee', capabilities: ['hr.departments.read'] }
+    expect(shellBreadcrumbsForRoute('/hr/employees/new', {}, visibleShellModules(departmentsOnly).find(item => item.id === 'hr'), shellLinks('hr', '/hr/employees/new', {}, departmentsOnly))).toEqual([])
+  })
+
   it('keeps the primary module active for direct and nested routes', () => {
     expect(activeShellModule('/projects/12/tasks/44')).toBe('projects')
     expect(activeShellModule('/archived-tasks')).toBe('tasks')

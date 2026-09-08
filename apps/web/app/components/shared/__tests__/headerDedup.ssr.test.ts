@@ -22,7 +22,7 @@ import {
 } from 'vue'
 import ts from 'typescript'
 import { describe, expect, it } from 'vitest'
-import { projectIdFromPath, projectSectionRoot } from '../../../composables/useShellNavigation'
+import { projectIdFromPath, projectSectionRoot, shellRootBackTargets, shellSectionRoot } from '../../../composables/useShellNavigation'
 
 const pageHeaderFile = resolve(import.meta.dirname, '../PageHeader.vue')
 
@@ -58,13 +58,23 @@ function loadPageHeader() {
   }
   const names = [
     ...Object.keys(runtimeBindings), 'ArrowRight', 'computed', 'useRoute', 'useRouter',
-    'useShellBreadcrumbTarget', 'projectIdFromPath', 'projectSectionRoot', 'usePageHeader',
+    'useI18n', 'useShellBreadcrumbTarget', 'projectIdFromPath', 'projectSectionRoot', 'shellSectionRoot', 'shellRootBackTargets', 'usePageHeader',
   ]
   const values = [
     ...Object.values(runtimeBindings), ArrowRightStub, computed,
     () => currentRoute,
-    () => ({ resolve: (to: string | { path: string }) => ({ fullPath: typeof to === 'string' ? to : to.path }) }),
-    () => ref(currentBreadcrumb), projectIdFromPath, projectSectionRoot, () => undefined,
+    () => ({ resolve: (to: string | { path: string }) => {
+      const fullPath = typeof to === 'string' ? to : to.path
+      const parsed = new URL(fullPath, 'http://nasq.local')
+      return {
+        fullPath,
+        path: parsed.pathname,
+        hash: parsed.hash,
+        query: Object.fromEntries(parsed.searchParams.entries()),
+      }
+    } }),
+    () => ({ t: (key: string) => ({ 'nav.employees': 'الموظفون', 'nav.tasks': 'المهام' }[key] ?? key) }),
+    () => ref(currentBreadcrumb), projectIdFromPath, projectSectionRoot, shellSectionRoot, shellRootBackTargets, () => undefined,
   ]
   return new Function(...names, javascript)(...values)
 }
@@ -72,8 +82,8 @@ function loadPageHeader() {
 let currentRoute = { path: '/projects/1', fullPath: '/projects/1', query: {} as Record<string, unknown> }
 let currentBreadcrumb = { routeKey: '', href: null as string | null }
 
-async function renderHeader(props: Record<string, unknown>) {
-  const app = createSSRApp({ render: () => h(loadPageHeader(), props) })
+async function renderHeader(props: Record<string, unknown>, slots: Record<string, () => unknown> = {}) {
+  const app = createSSRApp({ render: () => h(loadPageHeader(), props, slots) })
   app.component('NuxtLink', NuxtLinkStub)
   return renderToString(app)
 }
@@ -103,11 +113,48 @@ describe('rendered project header deduplication', () => {
 
   it('keeps ordinary non-project header context intact', async () => {
     currentRoute = { path: '/hr/employees/new', fullPath: '/hr/employees/new', query: {} }
-    currentBreadcrumb = { routeKey: '/hr/employees/new', href: null }
-    const html = await renderHeader({ title: 'موظف جديد', eyebrow: 'الموظفون', description: 'أضف موظفًا', backTo: '/hr', backLabel: 'رجوع' })
+    currentBreadcrumb = { routeKey: '/hr/employees/new', href: '/hr' }
+    const html = await renderHeader({ title: 'موظف جديد', eyebrow: 'إرشادات الموظف', description: 'أضف موظفًا', backTo: '/hr', backLabel: 'رجوع' })
 
-    expect(html).toContain('الموظفون')
+    expect(html).toContain('إرشادات الموظف')
     expect(html).toContain('أضف موظفًا')
-    expect(html).toContain('href="/hr"')
+    expect(html).not.toContain('href="/hr"')
+  })
+
+  it('suppresses a generic shell root back but keeps a distinct hash return', async () => {
+    currentRoute = { path: '/meetings/calendar', fullPath: '/meetings/calendar', query: {} }
+    currentBreadcrumb = { routeKey: '/meetings/calendar', href: null }
+    const duplicate = await renderHeader({ title: 'التقويم', description: 'وصف عام', backTo: '/meetings', backLabel: 'العودة' })
+    const anchored = await renderHeader({ title: 'التقويم', description: 'وصف عام', backTo: '/meetings#calendar', backLabel: 'العودة' })
+
+    expect(duplicate).not.toContain('href="/meetings"')
+    expect(anchored).toContain('href="/meetings#calendar"')
+    expect(duplicate).not.toContain('وصف عام')
+  })
+
+  it('keeps a filtered root return and custom root slot visible', async () => {
+    currentRoute = { path: '/projects', fullPath: '/projects?mine=1', query: { mine: '1' } }
+    currentBreadcrumb = { routeKey: '/projects?mine=1', href: null }
+    const filteredBack = await renderHeader({ title: 'مشاريعي', description: 'وصف عام', backTo: '/projects?mine=1&q=late', backLabel: 'العودة' })
+    const html = await renderHeader({ title: 'مشاريعي', description: 'وصف عام' }, {
+      back: () => h('a', { href: '/projects?mine=1&q=late' }, 'عودة مخصصة'),
+    })
+
+    expect(filteredBack).toContain('href="/projects?mine=1&amp;q=late"')
+    expect(html).toContain('href="/projects?mine=1&amp;q=late"')
+    expect(html).not.toContain('وصف عام')
+  })
+
+  it('keeps one H1 and supplied actions across representative roots', async () => {
+    for (const path of ['/projects/dashboard', '/tasks', '/meetings', '/hr', '/account', '/settings/appearance']) {
+      currentRoute = { path, fullPath: path, query: {} }
+      currentBreadcrumb = { routeKey: path, href: null }
+      const html = await renderHeader({ title: 'عنوان الصفحة', description: 'وصف عام', backTo: path }, {
+        actions: () => h('button', { type: 'button' }, 'إجراء'),
+      })
+      expect((html.match(/nasq-page-title/g) ?? []).length).toBe(1)
+      expect(html).toContain('إجراء')
+      expect(html).not.toContain('وصف عام')
+    }
   })
 })

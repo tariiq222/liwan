@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ArrowRight } from '@lucide/vue'
 import type { RouteLocationRaw } from 'vue-router'
-import { projectIdFromPath, projectSectionRoot, useShellBreadcrumbTarget } from '@/composables/useShellNavigation'
+import { projectIdFromPath, projectSectionRoot, shellRootBackTargets, shellSectionRoot, useShellBreadcrumbTarget } from '@/composables/useShellNavigation'
 
 const props = defineProps<{
   title: string
@@ -13,17 +13,40 @@ const props = defineProps<{
 
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n()
 const breadcrumbTarget = useShellBreadcrumbTarget()
 const isProjectRoute = computed(() => projectIdFromPath(route.path) !== null)
 const isProjectSectionRoot = computed(() => projectSectionRoot(route.path, route.query) !== null)
+const isShellSectionRoot = computed(() => shellSectionRoot(route.path) !== null)
 const sameAsVisibleBreadcrumb = computed(() => {
   if (!props.backTo || isProjectSectionRoot.value) return false
   const target = breadcrumbTarget.value
   return target.routeKey === route.fullPath && target.href === router.resolve(props.backTo).fullPath
 })
-const hideProjectChrome = computed(() => isProjectSectionRoot.value)
-const hideBack = computed(() => hideProjectChrome.value || sameAsVisibleBreadcrumb.value)
-const headerDescription = computed(() => hideProjectChrome.value ? undefined : props.description)
+const hideRootBack = computed(() => {
+  if (!props.backTo || !isShellSectionRoot.value) return false
+  const resolved = router.resolve(props.backTo)
+  return !Object.keys(resolved.query ?? {}).length && !resolved.hash && shellRootBackTargets(route.path).includes(resolved.path.replace(/\/+$/, '') || '/')
+})
+const redundantContextLabels = computed(() => [
+  'nav.projects', 'nav.projectDashboard', 'nav.allProjects', 'nav.myProjects',
+  'nav.tasks', 'nav.archivedTasks', 'nav.chat', 'nav.newConversation',
+  'nav.meetings', 'nav.newMeeting', 'nav.meetingCalendar', 'nav.employees',
+  'nav.departments', 'nav.documents', 'nav.humanResources', 'nav.settings',
+  'nav.account', 'settings.appearance.title', 'settings.projects.title',
+  'nav.users', 'nav.roles', 'nav.accessLog', 'nav.projectSummary',
+  'nav.projectPlanning', 'nav.projectStakeholders', 'nav.projectRisks',
+  'nav.projectFinance', 'nav.projectCharter', 'nav.projectSettings',
+  'projects.refresh.settings.catalogEyebrow',
+].map(key => t(key)))
+const hideEyebrow = computed(() => Boolean(props.eyebrow && (
+  isProjectRoute.value
+  || isShellSectionRoot.value
+  || props.eyebrow === props.title
+  || redundantContextLabels.value.includes(props.eyebrow)
+)))
+const hideBack = computed(() => isProjectSectionRoot.value || hideRootBack.value || sameAsVisibleBreadcrumb.value)
+const headerDescription = computed(() => (isProjectSectionRoot.value || isShellSectionRoot.value) ? undefined : props.description)
 
 usePageHeader(() => props.title, () => headerDescription.value)
 </script>
@@ -43,7 +66,7 @@ usePageHeader(() => props.title, () => headerDescription.value)
             </NuxtLink>
           </slot>
         </div>
-        <p v-if="props.eyebrow && !isProjectRoute" class="nasq-page-eyebrow">{{ props.eyebrow }}</p>
+        <p v-if="props.eyebrow && !hideEyebrow" class="nasq-page-eyebrow">{{ props.eyebrow }}</p>
         <h1 class="nasq-page-title"><slot name="title">{{ props.title }}</slot></h1>
         <p v-if="headerDescription" class="mt-1 max-w-3xl text-start text-sm leading-6 text-muted-foreground">{{ headerDescription }}</p>
       </div>
