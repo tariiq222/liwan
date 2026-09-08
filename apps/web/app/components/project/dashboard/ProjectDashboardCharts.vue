@@ -1,23 +1,21 @@
 <script setup lang="ts">
 import type { ProjectReportRow } from '@nasq/contracts'
-import ChartCanvas from '@/components/shared/ChartCanvas.client.vue'
+import DashboardChart from '@/components/shared/DashboardChart.client.vue'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import DashboardChartPanel from './DashboardChartPanel.vue'
 import {
-  projectBudgetHealthData,
-  projectBudgetHealthOption,
   projectDashboardCurrencies,
   projectDashboardHasTaskData,
+  projectBudgetHealthChart,
   projectFinanceComparisonData,
-  projectFinanceComparisonOption,
+  projectFinanceComparisonChart,
   projectProgressBandData,
-  projectProgressBandsOption,
-  projectProgressByProjectOption,
-  projectStatusDoughnutData,
-  projectStatusDoughnutOption,
-  projectTaskCompositionData,
-  projectTaskCompositionOption,
+  projectProgressBandsChart,
+  projectProgressByProjectChart,
+  projectStatusDoughnutChart,
+  projectTaskCompositionChart,
   type ChartLabels,
-} from '@/utils/projectChartOptions'
+} from '@/utils/projectChartData'
 
 const props = defineProps<{ rows: readonly ProjectReportRow[] }>()
 const { t } = useI18n()
@@ -57,19 +55,19 @@ watch(currencies, values => {
   if (!values.some(currency => currency.id === selectedCurrencyId.value)) selectedCurrencyId.value = values[0]?.id ?? null
 }, { immediate: true })
 
-const statusHasData = computed(() => projectStatusDoughnutData(props.rows, labels.value).length > 0)
-const taskHasData = computed(() => projectDashboardHasTaskData(props.rows) && projectTaskCompositionData(props.rows, labels.value).length > 0)
+const statusHasData = computed(() => props.rows.length > 0)
+const taskHasData = computed(() => projectDashboardHasTaskData(props.rows))
 const taskEmptyText = computed(() => projectDashboardHasTaskData(props.rows) ? t('projects.dashboard.charts.noTaskItems') : t('projects.dashboard.charts.noTaskData'))
 const progressBandsHasData = computed(() => projectProgressBandData(props.rows, labels.value).available)
-const budgetHasData = computed(() => projectBudgetHealthData(props.rows, labels.value).length > 0)
+const budgetHasData = computed(() => props.rows.length > 0)
 const financeHasData = computed(() => selectedCurrency.value != null && projectFinanceComparisonData(props.rows, selectedCurrency.value.id).length > 0)
 
-const statusOption = computed(() => projectStatusDoughnutOption(props.rows, labels.value))
-const taskOption = computed(() => projectTaskCompositionOption(props.rows, labels.value))
-const progressBandsOption = computed(() => projectProgressBandsOption(props.rows, labels.value))
-const budgetOption = computed(() => projectBudgetHealthOption(props.rows, labels.value))
-const projectProgressOption = computed(() => projectProgressByProjectOption(props.rows, labels.value))
-const financeOption = computed(() => selectedCurrency.value ? projectFinanceComparisonOption(props.rows, selectedCurrency.value.id, labels.value) : {})
+const statusChart = computed(() => projectStatusDoughnutChart(props.rows, labels.value, t('projects.dashboard.charts.statusTitle')))
+const taskChart = computed(() => projectTaskCompositionChart(props.rows, labels.value, t('projects.dashboard.charts.taskTitle')))
+const progressBandsChart = computed(() => projectProgressBandsChart(props.rows, labels.value))
+const budgetChart = computed(() => projectBudgetHealthChart(props.rows, labels.value, t('projects.dashboard.charts.budgetHealthTitle')))
+const projectProgressChart = computed(() => projectProgressByProjectChart(props.rows, labels.value))
+const financeChart = computed(() => selectedCurrency.value ? projectFinanceComparisonChart(props.rows, selectedCurrency.value.id, labels.value) : null)
 </script>
 
 <template>
@@ -80,7 +78,8 @@ const financeOption = computed(() => selectedCurrency.value ? projectFinanceComp
       title-id="chart-status-title"
       :title="t('projects.dashboard.charts.statusTitle')"
       :description="t('projects.dashboard.charts.statusDescription')"
-      :option="statusOption"
+      :chart="statusChart"
+      variant="pie"
       :has-data="statusHasData"
       :empty-text="t('projects.dashboard.charts.noStatusData')"
       :accessible-label="t('projects.dashboard.charts.statusTitle')"
@@ -90,7 +89,8 @@ const financeOption = computed(() => selectedCurrency.value ? projectFinanceComp
       title-id="chart-tasks-title"
       :title="t('projects.dashboard.charts.taskTitle')"
       :description="t('projects.dashboard.charts.taskDescription')"
-      :option="taskOption"
+      :chart="taskChart"
+      variant="donut-text"
       :has-data="taskHasData"
       :empty-text="taskEmptyText"
       :accessible-label="t('projects.dashboard.charts.taskTitle')"
@@ -100,7 +100,7 @@ const financeOption = computed(() => selectedCurrency.value ? projectFinanceComp
       title-id="chart-progress-bands-title"
       :title="t('projects.dashboard.charts.progressBandsTitle')"
       :description="t('projects.dashboard.charts.progressBandsDescription')"
-      :option="progressBandsOption"
+      :chart="progressBandsChart"
       :has-data="progressBandsHasData"
       :empty-text="t('projects.dashboard.charts.noProgressData')"
       :accessible-label="t('projects.dashboard.charts.progressBandsTitle')"
@@ -111,7 +111,8 @@ const financeOption = computed(() => selectedCurrency.value ? projectFinanceComp
       title-id="chart-budget-health-title"
       :title="t('projects.dashboard.charts.budgetHealthTitle')"
       :description="t('projects.dashboard.charts.budgetHealthDescription')"
-      :option="budgetOption"
+      :chart="budgetChart"
+      variant="donut"
       :has-data="budgetHasData"
       :empty-text="t('projects.dashboard.charts.noBudgetData')"
       :accessible-label="t('projects.dashboard.charts.budgetHealthTitle')"
@@ -122,17 +123,17 @@ const financeOption = computed(() => selectedCurrency.value ? projectFinanceComp
       title-id="chart-project-progress-title"
       :title="t('projects.dashboard.charts.projectProgressTitle')"
       :description="t('projects.dashboard.charts.projectProgressDescription')"
-      :option="projectProgressOption"
+      :chart="projectProgressChart"
       :has-data="rows.length > 0"
       :empty-text="t('projects.dashboard.charts.noProgressData')"
       :accessible-label="t('projects.dashboard.charts.projectProgressTitle')"
       height="360px"
     />
-    <section data-testid="chart-project-finance" aria-labelledby="chart-project-finance-title" class="nasq-panel flex min-w-0 flex-col overflow-hidden">
-      <header class="nasq-panel-header flex-wrap items-start">
+    <Card data-testid="chart-project-finance" class="min-w-0 overflow-hidden" aria-labelledby="chart-project-finance-title">
+      <CardHeader class="flex flex-wrap items-start border-b-0">
         <div class="min-w-0">
-          <h2 id="chart-project-finance-title" class="text-base font-semibold leading-6">{{ t('projects.dashboard.charts.financeTitle') }}</h2>
-          <p class="mt-1 text-sm leading-6 text-muted-foreground">{{ t('projects.dashboard.charts.financeDescription') }}</p>
+          <CardTitle id="chart-project-finance-title" class="text-base leading-6">{{ t('projects.dashboard.charts.financeTitle') }}</CardTitle>
+          <CardDescription class="mt-1 leading-6">{{ t('projects.dashboard.charts.financeDescription') }}</CardDescription>
         </div>
         <Select v-if="currencies.length" :model-value="selectedCurrency ? String(selectedCurrency.id) : undefined" @update:model-value="value => { selectedCurrencyId = Number(value) }">
           <SelectTrigger data-testid="chart-currency-filter" :aria-label="t('projects.dashboard.charts.currency')" class="w-full sm:w-44" :disabled="!hydrated">
@@ -142,14 +143,14 @@ const financeOption = computed(() => selectedCurrency.value ? projectFinanceComp
             <SelectItem v-for="currency in currencies" :key="currency.id" :value="String(currency.id)">{{ currency.name }} ({{ currency.symbol }})</SelectItem>
           </SelectContent>
         </Select>
-      </header>
-      <div class="nasq-panel-body min-w-0">
+      </CardHeader>
+      <CardContent class="min-w-0">
         <div v-if="financeHasData" class="min-w-0">
-          <ChartCanvas :option="financeOption" :accessible-label="t('projects.dashboard.charts.financeTitle')" height="360px" />
+          <DashboardChart v-if="financeChart" :chart="financeChart" :accessible-label="t('projects.dashboard.charts.financeTitle')" height="360px" />
         </div>
         <p v-else class="flex min-h-[220px] items-center justify-center text-center text-sm text-muted-foreground">{{ t('projects.dashboard.charts.noFinanceData') }}</p>
-      </div>
-    </section>
+      </CardContent>
+    </Card>
     </div>
   </div>
 </template>

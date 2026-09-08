@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { ProjectReportRow } from '@nasq/contracts'
-import { projectDashboardMetrics } from '@/utils/projectChartOptions'
+import { projectDashboardMetrics } from '@/utils/projectChartData'
 
 const props = defineProps<{ rows: readonly ProjectReportRow[] }>()
 const { t } = useI18n()

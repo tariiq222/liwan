@@ -22,7 +22,8 @@ Authority: [DESIGN.md](../../DESIGN.md). This catalog records current reusable c
 | Project archival | `components/project/ProjectArchiveAction.vue` | Record-managed inline archive/restore inside project settings; project headers own contextual primary actions. |
 | Buttons/fields/tables/menus | `components/ui/**` | Existing shadcn-vue/Reka primitives with local RTL/hydration patches |
 | Specialized PMO views | `components/project/**`, `components/task/**` | Reuse task/schedule/RACI data; do not clone shared chrome |
-| Shared chart renderer | `components/shared/ChartCanvas.client.vue` | `option`, `accessibleLabel`, optional `height`; SVG ECharts with resize, current appearance/font and semantic colors. Load only the required chart types. |
+| Shared chart renderer | `components/shared/DashboardChart.client.vue` | Typed `chart`, `accessibleLabel`, optional `height`; Unovis SVG rendering using the shared shadcn-vue chart primitives. Latest approved 2026-09-08 design follows default shadcn/ui pie, legend and donut-with-text examples, adapted to Vue/Unovis with plain chart surfaces and no decorative effects. Uses six chart tokens derived by brandTheme from the institution primary color configured in Settings, entrance/data transitions and subtle hover with live reduced-motion support. Preserves appearance/font, labeled categories, unknown values and internal scrolling for all project rows; global brand/status colors stay independent. |
+| Chart primitives | `components/ui/chart/**` | Adapted official shadcn-vue chart registry: shared container, legend and tooltip presentation for Unovis; use Nasq tokens and escaped Vue content. |
 | Project chart dashboard | `components/project/dashboard/**` | Quiet metric strip, chart panels and latest-five projects; replaces the old number-only dashboard summary and long report table on `/projects/dashboard`. |
 
 Paths starting `components/` and `composables/` are relative to `apps/web/app/`.
