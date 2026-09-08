@@ -166,6 +166,36 @@
       "expand": "Expand {name}",
       "collapse": "Collapse {name}",
       "noStages": "This project has no stages yet. Stages are managed in Settings later."
+    },
+    "schedule": {
+      "plannedStart": "Planned start",
+      "startOutsideMilestone": "The task start must be within the selected milestone dates.",
+      "deadlineOutsideMilestone": "The task deadline must be within the selected milestone dates.",
+      "startAfterDeadline": "The task start must be on or before its deadline."
+    },
+    "projectUnavailable": "The project is loading or unavailable.",
+    "milestonesLoading": "Milestones are loading.",
+    "milestonesLoadError": "Milestones could not be loaded. Try again before creating the task.",
+    "milestoneRequired": "Select the milestone for this task.",
+    "scheduleRequired": "Set both the start and deadline for this task.",
+    "descriptionField": {
+      "empty": "No task description added.",
+      "edit": "Edit",
+      "add": "Add description",
+      "save": "Save",
+      "cancel": "Cancel",
+      "saveError": "Could not save the description. Try again.",
+      "placeholder": "Describe the task…"
+    },
+    "deliverables": {
+      "title": "Task outputs",
+      "hint": "Optional checklist of the required outputs.",
+      "add": "Add output",
+      "name": "Output name",
+      "remove": "Remove output",
+      "empty": "No outputs added.",
+      "checklistOf": "{done} of {total}",
+      "toggle": "Complete output: {name}"
     }
   }
 }

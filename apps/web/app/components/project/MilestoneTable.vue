@@ -8,6 +8,7 @@ import { formatCalendarDate, toCalendarDate } from '@/composables/calendarDate'
 import { STATUS_CHIP_CLASS, STATUS_TEXT_CLASS } from '@/utils/statusTone'
 import { useDeleteMilestone, useMilestones, useUpdateMilestone } from '@/composables/useMilestones'
 import { returnToQuery } from '@/utils/safeReturnTo'
+import { claimMilestoneChecklistUpdate, releaseMilestoneChecklistUpdate } from '@/utils/milestoneChecklist'
 
 const props = defineProps<{ projectId: number; canManage: boolean }>()
 
@@ -19,6 +20,7 @@ const { data, isLoading, error, refetch } = useMilestones(projectIdRef)
 const items = computed<Milestone[]>(() => data.value ?? [])
 const router = useRouter()
 const route = useRoute()
+const deliverablePending = ref(new Set<number>())
 
 function openEdit(m: Milestone) {
   router.push({ path: `/projects/${props.projectId}/milestones/${m.id}/edit`, query: returnToQuery(route.fullPath) })
@@ -39,6 +41,13 @@ function deadlineTone(m: Milestone): 'destructive' | 'neutral' {
 function deadlineText(m: Milestone): string {
   return m.deadline ? formatCalendarDate(m.deadline, locale.value) : '—'
 }
+function startText(m: Milestone): string {
+  return m.start_date ? formatCalendarDate(m.start_date, locale.value) : '—'
+}
+function taskProgress(m: Milestone): number {
+  if (!m.task_count) return 0
+  return Math.round((m.done_task_count / m.task_count) * 100)
+}
 
 // --- mark reached / reopen --------------------------------------------------
 const { mutateAsync: updateMutate } = useUpdateMilestone()
@@ -47,6 +56,28 @@ async function toggleReached(m: Milestone) {
     await updateMutate({ projectId: props.projectId, id: m.id, patch: { is_reached: !m.is_reached } })
   } catch (e) {
     toast.error(e instanceof ApiError ? e.message : t('errors.generic'))
+  }
+}
+
+function isDeliverablePending(milestoneId: number) {
+  return deliverablePending.value.has(milestoneId)
+}
+
+async function toggleDeliverable(m: Milestone, index: number, event: Event) {
+  const claimed = claimMilestoneChecklistUpdate(deliverablePending.value, m.id)
+  if (!claimed) return
+  const checkbox = event.currentTarget instanceof HTMLInputElement ? event.currentTarget : null
+  deliverablePending.value = claimed
+  const current = m.deliverables ?? []
+  const deliverables = current.map((item, itemIndex) => itemIndex === index ? { ...item, done: !item.done } : { ...item })
+  try {
+    // Checklist completion is independent from is_reached and task progress.
+    await updateMutate({ projectId: props.projectId, id: m.id, patch: { deliverables } })
+  } catch (e) {
+    if (checkbox) checkbox.checked = !checkbox.checked
+    toast.error(e instanceof ApiError ? e.message : t('errors.generic'))
+  } finally {
+    deliverablePending.value = releaseMilestoneChecklistUpdate(deliverablePending.value, m.id)
   }
 }
 
@@ -91,8 +122,17 @@ async function confirmDelete() {
                 <Badge variant="outline" :class="STATUS_CHIP_CLASS[m.is_reached ? 'success' : 'neutral']">{{ t(m.is_reached ? 'projects.milestones.reached' : 'projects.milestones.notReached') }}</Badge>
               </div>
               <div class="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                <span :class="STATUS_TEXT_CLASS[deadlineTone(m)]">{{ deadlineText(m) }}</span>
+                <span>{{ t('projects.milestones.startDate') }}: {{ startText(m) }}</span>
+                <span :class="STATUS_TEXT_CLASS[deadlineTone(m)]">{{ t('projects.milestones.deadline') }}: {{ deadlineText(m) }}</span>
                 <span>{{ t('projects.milestones.tasksOf', { done: m.done_task_count, total: m.task_count }) }}</span>
+                <span>{{ t('projects.milestones.taskProgress', { percent: taskProgress(m) }) }}</span>
+                <span v-if="m.deliverables?.length">{{ t('projects.milestones.checklistOf', { done: m.deliverables.filter(item => item.done).length, total: m.deliverables.length }) }}</span>
+              </div>
+              <div v-if="m.deliverables?.length" class="mt-3 space-y-1.5">
+                <label v-for="(item, index) in m.deliverables" :key="`${m.id}-${index}`" class="flex items-center gap-2 text-sm">
+                  <input type="checkbox" :checked="item.done" :disabled="!hydrated || !canManage || isDeliverablePending(m.id)" class="size-4 rounded border-border accent-primary" @change="toggleDeliverable(m, index, $event)" />
+                  <span :class="item.done ? 'text-muted-foreground line-through' : ''">{{ item.name }}</span>
+                </label>
               </div>
             </div>
             <div v-if="canManage" class="flex shrink-0 flex-wrap items-center gap-1">

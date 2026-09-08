@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { toast } from 'vue-sonner'
 import ProjectCreateForm from '@/components/project/ProjectCreateForm.vue'
-import { returnToQuery, safeReturnTo } from '@/utils/safeReturnTo'
+import { safeReturnTo } from '@/utils/safeReturnTo'
 import { useProjectList } from '@/composables/useProjects'
+import { createdProjectLocation } from '@/utils/projectCharter'
 
 const route = useRoute()
 const router = useRouter()
@@ -14,7 +15,7 @@ const canCreate = computed(() => projects.value?.can_create ?? false)
 
 function onCreated(id: number) {
   toast.success(t('projects.created'))
-  router.push({ path: '/projects/' + id, query: returnToQuery(returnTo.value) })
+  router.push(createdProjectLocation(id, returnTo.value))
 }
 </script>
 

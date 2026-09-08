@@ -1,6 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import http
-from odoo.exceptions import AccessError, UserError
+from odoo.exceptions import AccessError, UserError, ValidationError
 from odoo.fields import Domain
 from odoo.http import request
 
@@ -11,8 +11,11 @@ from odoo.addons.nasq_api.controllers.common import (
     parse_nonneg_int,
     parse_positive_int,
 )
+from odoo.addons.nasq_pmo.models.project_task import _validate_task_deliverables
+from odoo.addons.nasq_pmo.serializers.dates import parse_date
 from odoo.addons.nasq_pmo.serializers.task import (
     API_TO_STATE,
+    _parse_deadline,
     dump_task,
     dump_task_detail,
     parse_task_vals,
@@ -20,6 +23,22 @@ from odoo.addons.nasq_pmo.serializers.task import (
 
 SORTABLE = {'date_deadline', 'priority', 'name', 'create_date', 'write_date'}
 MAX_LIMIT = 200
+_MISSING = object()
+
+
+def _parse_deliverables(value):
+    if not isinstance(value, list):
+        raise ApiError(422, 'invalid', "deliverables must be a list", field='deliverables')
+    try:
+        return _validate_task_deliverables(value, request.env)
+    except ValidationError as error:
+        raise ApiError(422, 'invalid', str(error), field='deliverables') from error
+
+
+def _parse_description(value):
+    if not isinstance(value, str):
+        raise ApiError(422, 'invalid', "description must be a string", field='description')
+    return value
 
 
 class TaskController(http.Controller):
@@ -102,7 +121,11 @@ class TaskController(http.Controller):
 
     @http.route('/api/v1/tasks', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
-    def create_task(self, name=None, project_id=None, parent_id=None, **_):
+    def create_task(
+        self, name=None, project_id=None, parent_id=None, milestone_id=None,
+        planned_start=None, date_deadline=None, description=_MISSING,
+        deliverables=_MISSING, **_,
+    ):
         if not isinstance(name, str) or not name.strip():
             raise ApiError(422, 'invalid', "name must not be empty", field='name')
         if project_id is None:
@@ -111,10 +134,34 @@ class TaskController(http.Controller):
         project = get_record('project.project', project_id)
         request.env['nasq.access.service']._nasq_require_capability('pmo.tasks.create', record=project)
         vals = {'name': name.strip(), 'project_id': project.id, 'user_ids': [(4, request.env.uid)]}
+        if description is not _MISSING:
+            vals['description'] = _parse_description(description)
+        if deliverables is not _MISSING:
+            vals['nasq_deliverables'] = _parse_deliverables(deliverables)
         if parent_id is not None:
             parent_id = parse_positive_int(parent_id, 'parent_id')
             vals['parent_id'] = get_record('project.task', parent_id).id
+        if milestone_id is not None:
+            milestone_id = parse_positive_int(milestone_id, 'milestone_id')
+            milestone = request.env['project.milestone'].sudo().browse(milestone_id).exists()
+            if not milestone or milestone.project_id.id != project.id:
+                raise ApiError(422, 'invalid', "milestone_id must belong to the project's milestones", field='milestone_id')
+            vals['milestone_id'] = milestone.id
+
+        schedule_start = parse_date(planned_start, 'planned_start') if planned_start is not None else False
+        schedule_end = _parse_deadline(date_deadline, 'date_deadline') if date_deadline is not None else False
+        if planned_start is not None:
+            if not schedule_start:
+                raise ApiError(422, 'invalid', "planned_start must be a YYYY-MM-DD date", field='planned_start')
+            if not schedule_end:
+                raise ApiError(422, 'invalid', "planned_start requires date_deadline", field='date_deadline')
+            if not project._nasq_can_manage():
+                raise AccessError(request.env._("Only the project manager can change task scheduling."))
+        elif date_deadline is not None:
+            vals['date_deadline'] = schedule_end
         task = request.env['project.task'].create(vals)
+        if planned_start is not None:
+            task._nasq_set_schedule(schedule_start, schedule_end.date())
         return request.make_json_response(dump_task_detail(task), status=201)
 
     @http.route('/api/v1/tasks/<int:task_id>', type='json2', auth='user', methods=['PATCH'], readonly=False)

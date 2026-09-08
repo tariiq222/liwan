@@ -166,6 +166,36 @@
       "expand": "توسيع {name}",
       "collapse": "طي {name}",
       "noStages": "لا مراحل لهذا المشروع بعد. تُدار المراحل من الإعدادات لاحقًا."
+    },
+    "schedule": {
+      "plannedStart": "تاريخ بداية المهمة",
+      "startOutsideMilestone": "يجب أن تبدأ المهمة ضمن مدة المعلم المحدد.",
+      "deadlineOutsideMilestone": "يجب أن تنتهي المهمة ضمن مدة المعلم المحدد.",
+      "startAfterDeadline": "يجب أن تبدأ المهمة قبل نهايتها أو في اليوم نفسه."
+    },
+    "projectUnavailable": "جارٍ تحميل المشروع أو تعذر الوصول إليه.",
+    "milestonesLoading": "جارٍ تحميل المعالم.",
+    "milestonesLoadError": "تعذر تحميل المعالم. أعد المحاولة قبل إنشاء المهمة.",
+    "milestoneRequired": "اختر المعلم الذي تتبع له المهمة.",
+    "scheduleRequired": "حدد تاريخ بداية المهمة ونهايتها.",
+    "descriptionField": {
+      "empty": "لم يُضف وصف للمهمة.",
+      "edit": "تعديل",
+      "add": "إضافة وصف",
+      "save": "حفظ",
+      "cancel": "إلغاء",
+      "saveError": "تعذر حفظ الوصف. حاول مرة أخرى.",
+      "placeholder": "اكتب وصف المهمة…"
+    },
+    "deliverables": {
+      "title": "مخرجات المهمة",
+      "hint": "اختياري — قائمة تحقق بالمخرجات المطلوبة.",
+      "add": "إضافة مخرج",
+      "name": "اسم المخرج",
+      "remove": "إزالة المخرج",
+      "empty": "لم تُضف مخرجات.",
+      "checklistOf": "{done} من {total}",
+      "toggle": "إنجاز المخرج: {name}"
     }
   }
 }

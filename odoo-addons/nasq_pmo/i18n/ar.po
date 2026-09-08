@@ -1,0 +1,106 @@
+# Translation of Odoo Server.
+# This file contains the translation of the following modules:
+# 	* nasq_pmo
+msgid ""
+msgstr ""
+"Project-Id-Version: Odoo Server 19.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-09-08 00:00+0000\n"
+"PO-Revision-Date: 2026-09-08 00:00+0000\n"
+"Last-Translator: Nasq\n"
+"Language-Team: Arabic\n"
+"Language: ar\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=6; plural=n==0 ? 0 : n==1 ? 1 : n==2 ? 2 : n%100>=3 && n%100<=10 ? 3 : n%100>=11 && n%100<=99 ? 4 : 5;\n"
+
+#. module: nasq_pmo
+#. odoo-python
+#: code:addons/nasq_pmo/models/project_milestone.py:0
+msgid "Milestone deliverables must be a list."
+msgstr "يجب أن تكون مخرجات المعلم قائمة."
+
+#. module: nasq_pmo
+#. odoo-python
+#: code:addons/nasq_pmo/models/project_milestone.py:0
+msgid "Milestone deliverables must contain exactly name and done."
+msgstr "يجب أن تحتوي مخرجات المعلم على الاسم وحالة الإنجاز فقط."
+
+#. module: nasq_pmo
+#. odoo-python
+#: code:addons/nasq_pmo/models/project_milestone.py:0
+msgid "Milestone deliverable names must not be empty."
+msgstr "يجب ألا تكون أسماء مخرجات المعلم فارغة."
+
+#. module: nasq_pmo
+#. odoo-python
+#: code:addons/nasq_pmo/models/project_milestone.py:0
+msgid "Milestone deliverable done must be a boolean."
+msgstr "حدد حالة إنجاز مخرج المعلم بصحيح أو خطأ."
+
+#. module: nasq_pmo
+#. odoo-python
+#: code:addons/nasq_pmo/models/project_milestone.py:0
+msgid "Milestone start date must be on or before its deadline."
+msgstr "يجب أن يكون تاريخ بدء المعلم في أو قبل موعده النهائي."
+
+#. module: nasq_pmo
+#. odoo-python
+#: code:addons/nasq_pmo/models/project_milestone.py:0
+msgid "Milestone start date must be on or after the project start date."
+msgstr "يجب أن يكون تاريخ بدء المعلم في أو بعد تاريخ بدء المشروع."
+
+#. module: nasq_pmo
+#. odoo-python
+#: code:addons/nasq_pmo/models/project_milestone.py:0
+msgid "Milestone deadline must be on or after the project start date."
+msgstr "يجب أن يكون الموعد النهائي للمعلم في أو بعد تاريخ بدء المشروع."
+
+#. module: nasq_pmo
+#. odoo-python
+#: code:addons/nasq_pmo/models/project_milestone.py:0
+msgid "Milestone start date must be on or before the project end date."
+msgstr "يجب أن يكون تاريخ بدء المعلم في أو قبل تاريخ انتهاء المشروع."
+
+#. module: nasq_pmo
+#. odoo-python
+#: code:addons/nasq_pmo/models/project_milestone.py:0
+msgid "Milestone deadline must be on or before the project end date."
+msgstr "يجب أن يكون الموعد النهائي للمعلم في أو قبل تاريخ انتهاء المشروع."
+
+#. module: nasq_pmo
+#. odoo-python
+#: code:addons/nasq_pmo/models/project_milestone.py:0
+msgid "Milestone and task must belong to the same project."
+msgstr "يجب أن ينتمي المعلم والمهمة إلى المشروع نفسه."
+
+#. module: nasq_pmo
+#. odoo-python
+#: code:addons/nasq_pmo/models/project_milestone.py:0
+msgid "Task planned start must be on or after the milestone start date."
+msgstr "يجب أن يكون تاريخ بدء المهمة في أو بعد تاريخ بدء المعلم."
+
+#. module: nasq_pmo
+#. odoo-python
+#: code:addons/nasq_pmo/models/project_milestone.py:0
+msgid "Task deadline must be on or after the milestone start date."
+msgstr "يجب أن يكون الموعد النهائي للمهمة في أو بعد تاريخ بدء المعلم."
+
+#. module: nasq_pmo
+#. odoo-python
+#: code:addons/nasq_pmo/models/project_milestone.py:0
+msgid "Task planned start must be on or before the milestone deadline."
+msgstr "يجب أن يكون تاريخ بدء المهمة في أو قبل الموعد النهائي للمعلم."
+
+#. module: nasq_pmo
+#. odoo-python
+#: code:addons/nasq_pmo/models/project_milestone.py:0
+msgid "Task deadline must be on or before the milestone deadline."
+msgstr "يجب أن يكون الموعد النهائي للمهمة في أو قبل الموعد النهائي للمعلم."
+
+#. module: nasq_pmo
+#. odoo-python
+#: code:addons/nasq_pmo/models/project_task.py:0
+msgid "Milestone must belong to the task's project."
+msgstr "يجب أن ينتمي المعلم إلى مشروع المهمة."

@@ -146,6 +146,14 @@ const workspaceCanCreate = computed(() => {
 
       <div v-if="isBaseRoute && project && planningView === 'milestones'">
         <MilestoneTable :project-id="project.id" :can-manage="project.can_manage" />
+        <div class="mt-4 flex justify-end">
+          <NuxtLink
+            class="inline-flex min-h-9 items-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+            :to="planningLink('list')"
+          >
+            {{ t('projects.milestones.continueToTasks') }}
+          </NuxtLink>
+        </div>
       </div>
     </template>
   </SharedPageContainer>

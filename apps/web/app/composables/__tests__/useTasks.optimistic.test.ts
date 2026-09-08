@@ -22,7 +22,7 @@ const baseTask: Task = {
 const baseDetail: TaskDetail = {
   allowed_actions: ['read', 'write', 'archive'],
   ...baseTask,
-  description_html: '<p>old</p>',
+  planned_start: null, deliverables: [], description_html: '<p>old</p>',
   allocated_hours: 4,
   age_days: 1,
   cycle_days: null,

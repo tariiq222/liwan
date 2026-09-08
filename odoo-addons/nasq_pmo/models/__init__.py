@@ -7,6 +7,7 @@ from . import (
     project_charter_reference,
     project_finance,
     project_governance,
+    project_milestone,
     project_project,
     project_task,
     project_template,

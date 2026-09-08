@@ -655,6 +655,13 @@ class ProjectProject(models.Model):
                 if record.company_id != project.company_id:
                     raise ValidationError(self.env._("Catalog references must belong to the project company."))
 
+    @api.constrains('date_start', 'date')
+    def _check_nasq_milestone_bounds(self):
+        milestones = self.env['project.milestone'].sudo().search([
+            ('project_id', 'in', self.ids),
+        ])
+        milestones._nasq_validate_schedule_bounds()
+
     @api.constrains('nasq_priority')
     def _check_nasq_priority(self):
         for project in self:
@@ -789,12 +796,15 @@ class ProjectProject(models.Model):
         domain = [('project_id', '=', self.id), ('milestone_id', '=', milestone.id)]
         return Task.search_count(domain), Task.search_count(domain + [('state', 'in', ('1_done', '1_canceled'))])
 
-    def _nasq_create_milestone(self, name, deadline=None):
+    def _nasq_create_milestone(self, name, deadline=None, start_date=None, deliverables=None):
         self._nasq_check_manage()
         if not self.allow_milestones:
             self._nasq_write_as_manager({'allow_milestones': True})
         return self.env['project.milestone'].create({
-            'project_id': self.id, 'name': name, 'deadline': fields.Date.to_date(deadline) if deadline else False,
+            'project_id': self.id, 'name': name,
+            'deadline': fields.Date.to_date(deadline) if deadline else False,
+            'nasq_start_date': fields.Date.to_date(start_date) if start_date else False,
+            'nasq_deliverables': deliverables or [],
         })
 
     def _nasq_update_milestone(self, milestone, vals):
@@ -807,6 +817,10 @@ class ProjectProject(models.Model):
             clean['name'] = vals['name']
         if 'deadline' in vals:
             clean['deadline'] = fields.Date.to_date(vals['deadline']) if vals['deadline'] else False
+        if 'start_date' in vals:
+            clean['nasq_start_date'] = fields.Date.to_date(vals['start_date']) if vals['start_date'] else False
+        if 'deliverables' in vals:
+            clean['nasq_deliverables'] = vals['deliverables']
         if 'is_reached' in vals:
             clean['is_reached'] = bool(vals['is_reached'])
         milestone.write(clean)

@@ -1,6 +1,6 @@
 import type { Ref } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
-import { MilestoneSchema, type MilestonePatch } from '@nasq/contracts'
+import { MilestoneSchema, type Milestone, type MilestonePatch } from '@nasq/contracts'
 import { projectKeys } from './useProjects'
 
 const MilestoneListSchema = MilestoneSchema.array()
@@ -18,11 +18,19 @@ export function useCreateMilestone() {
   const qc = useQueryClient()
   const { $api } = useApi()
   return useMutation({
-    mutationFn: ({ projectId, name, deadline }: { projectId: number; name: string; deadline?: string | null }) =>
-      $api(`/api/v1/projects/${projectId}/milestones`, { method: 'POST', body: { name, deadline }, schema: MilestoneSchema }),
-    onSuccess: (_milestone, { projectId }) => {
-      qc.invalidateQueries({ queryKey: projectKeys.milestones(projectId) })
-      qc.invalidateQueries({ queryKey: projectKeys.detail(projectId) })
+    mutationFn: ({ projectId, name, deadline, start_date, deliverables }: {
+      projectId: number
+      name: string
+      deadline?: string | null
+      start_date?: string | null
+      deliverables?: Array<{ name: string; done: boolean }>
+    }) =>
+      $api(`/api/v1/projects/${projectId}/milestones`, { method: 'POST', body: { name, deadline, start_date, deliverables }, schema: MilestoneSchema }),
+    onSuccess: async (_milestone, { projectId }) => {
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: projectKeys.milestones(projectId) }),
+        qc.invalidateQueries({ queryKey: projectKeys.detail(projectId) }),
+      ])
     },
   })
 }
@@ -33,9 +41,14 @@ export function useUpdateMilestone() {
   return useMutation({
     mutationFn: ({ projectId, id, patch }: { projectId: number; id: number; patch: MilestonePatch }) =>
       $api(`/api/v1/projects/${projectId}/milestones/${id}`, { method: 'PATCH', body: patch, schema: MilestoneSchema }),
-    onSuccess: (_milestone, { projectId }) => {
-      qc.invalidateQueries({ queryKey: projectKeys.milestones(projectId) })
-      qc.invalidateQueries({ queryKey: projectKeys.detail(projectId) })
+    onSuccess: async (milestone, { projectId }) => {
+      qc.setQueryData<Milestone[]>(projectKeys.milestones(projectId), current =>
+        current?.map(item => item.id === milestone.id ? milestone : item),
+      )
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: projectKeys.milestones(projectId) }),
+        qc.invalidateQueries({ queryKey: projectKeys.detail(projectId) }),
+      ])
     },
   })
 }

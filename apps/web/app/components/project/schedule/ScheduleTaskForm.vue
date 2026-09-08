@@ -1,10 +1,18 @@
 <script setup lang="ts">
 import { toast } from 'vue-sonner'
-import { ScheduleTaskPatchSchema, type ScheduleTask } from '@nasq/contracts'
+import { ScheduleTaskPatchSchema, type Milestone, type ScheduleTask } from '@nasq/contracts'
 import { useUpdateProjectScheduleTask } from '@/composables/useProjectSchedule'
 import { ApiError } from '@/composables/useApi'
+import { validateTaskDates } from '@/utils/projectDateBounds'
 
-const props = defineProps<{ projectId: number; task: ScheduleTask; returnTo: string }>()
+const props = defineProps<{
+  projectId: number
+  task: ScheduleTask
+  returnTo: string
+  milestone?: Pick<Milestone, 'start_date' | 'deadline'> | null
+  projectStart?: string | null
+  projectEnd?: string | null
+}>()
 const router = useRouter()
 const { t } = useI18n()
 const hydrated = useHydrated()
@@ -20,6 +28,16 @@ async function save() {
   const parsed = ScheduleTaskPatchSchema.safeParse({ start: start.value || null, end: end.value || null })
   if (!parsed.success) {
     errorMessage.value = t('projects.schedule.invalidDates')
+    return
+  }
+  const boundsError = validateTaskDates({
+    milestoneStart: props.milestone?.start_date ?? props.projectStart,
+    milestoneDeadline: props.milestone?.deadline ?? props.projectEnd,
+    plannedStart: start.value || null,
+    dateDeadline: end.value || null,
+  })
+  if (boundsError) {
+    errorMessage.value = t(`projects.schedule.${boundsError.split('.').pop()}`)
     return
   }
   try {
@@ -42,8 +60,8 @@ async function save() {
       <p class="text-sm text-muted-foreground">{{ t('projects.schedule.editDescription') }}</p>
     </div>
     <div class="grid gap-4 sm:grid-cols-2">
-      <div class="space-y-2"><Label for="planned-start">{{ t('projects.schedule.start') }}</Label><Input id="planned-start" v-model="start" type="date" :disabled="!hydrated || !task || update.isPending.value" /></div>
-      <div class="space-y-2"><Label for="planned-end">{{ t('projects.schedule.end') }}</Label><Input id="planned-end" v-model="end" type="date" :disabled="!hydrated || !task || update.isPending.value" /></div>
+      <div class="space-y-2"><Label for="planned-start">{{ t('projects.schedule.start') }}</Label><Input id="planned-start" v-model="start" type="date" :min="props.milestone?.start_date ?? props.projectStart ?? undefined" :max="props.milestone?.deadline ?? props.projectEnd ?? undefined" :disabled="!hydrated || !task || update.isPending.value" /></div>
+      <div class="space-y-2"><Label for="planned-end">{{ t('projects.schedule.end') }}</Label><Input id="planned-end" v-model="end" type="date" :min="props.milestone?.start_date ?? props.projectStart ?? undefined" :max="props.milestone?.deadline ?? props.projectEnd ?? undefined" :disabled="!hydrated || !task || update.isPending.value" /></div>
     </div>
     <p v-if="errorMessage" role="alert" class="text-sm text-destructive">{{ errorMessage }}</p>
     <div class="flex flex-wrap justify-end gap-2">

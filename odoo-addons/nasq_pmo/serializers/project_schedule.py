@@ -35,5 +35,6 @@ def dump_schedule_milestone(milestone):
     return {
         'id': milestone.id,
         'name': milestone.name,
+        'start_date': _date(milestone.nasq_start_date),
         'deadline': _date(milestone.deadline),
     }

@@ -58,6 +58,22 @@ export type DeliverableDraft = {
   persisted: boolean
 }
 
+export type CharterMilestoneDeliverable = {
+  name: string
+  done: boolean
+}
+
+export type CharterMilestone = {
+  id: number
+  name: string
+  deliverables?: readonly CharterMilestoneDeliverable[]
+}
+
+export type CharterMilestoneOutput = CharterMilestoneDeliverable & {
+  milestoneId: number
+  milestoneName: string
+}
+
 export type CharterDraft = {
   name: string
   description: string
@@ -207,6 +223,17 @@ export function stripBlankObjectives(rows: ObjectiveDraft[]): ObjectiveDraft[] {
 
 export function stripBlankDeliverables(rows: DeliverableDraft[]): DeliverableDraft[] {
   return rows.filter((row) => !isBlankDeliverable(row))
+}
+
+export function aggregateMilestoneOutputs(milestones: readonly CharterMilestone[]): CharterMilestoneOutput[] {
+  return milestones.flatMap((milestone) => (milestone.deliverables ?? [])
+    .filter((output) => output.name.trim())
+    .map((output) => ({
+      milestoneId: milestone.id,
+      milestoneName: milestone.name,
+      name: output.name,
+      done: output.done,
+    })))
 }
 
 export type AmountParse =
@@ -407,6 +434,13 @@ export function charterWriteFromDraft(draft: CharterDraft, mode: 'create' | 'pat
 
 export function hasCharterWriteContent(write: ProjectCharterWrite): boolean {
   return Object.keys(write).length > 0
+}
+
+export function createdProjectLocation(id: number, returnTo: string): {
+  path: string
+  query: { returnTo: string; tab: 'milestones' }
+} {
+  return { path: `/projects/${id}`, query: { returnTo, tab: 'milestones' } }
 }
 
 export function createBodyFromDraft(
