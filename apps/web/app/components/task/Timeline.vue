@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { TimelineEntry } from '@nasq/contracts'
 import { sanitizeHtml } from '@/utils/sanitize'
+import { formatTimelineChange } from '@/utils/taskTimeline'
 
 const props = defineProps<{ entries: TimelineEntry[] }>()
 
@@ -28,11 +29,7 @@ function initials(name: string): string {
 }
 
 function changeMessage(change: { field: string; label: string; old: unknown; new: unknown }): string {
-  const hasNew = change.new !== null && change.new !== undefined && change.new !== ''
-  const hasOld = change.old !== null && change.old !== undefined && change.old !== ''
-  if (!hasNew) return t('tasks.activity.cleared', { field: change.label })
-  if (!hasOld) return t('tasks.activity.set', { field: change.label, new: change.new })
-  return t('tasks.activity.changed', { field: change.label, old: change.old, new: change.new })
+  return formatTimelineChange(change, locale.value, t)
 }
 </script>
 

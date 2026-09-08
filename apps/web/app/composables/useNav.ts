@@ -1,4 +1,5 @@
 import type { Component } from 'vue'
+import { projectListReturnTo } from '../utils/projectNavigation'
 import type { LocationQueryRaw, RouteLocationRaw } from 'vue-router'
 import { CheckSquare, FolderKanban, Users, Settings, Wrench, Network, Files, ShieldCheck, UserCog, History, SlidersHorizontal, MessageCircle, ChartNoAxesCombined, CalendarDays, List, ClipboardList, CircleAlert, WalletCards, FileText, LayoutDashboard, Plus, UserRound } from '@lucide/vue'
 import { hasCapability, INTERNAL_NASQ_ACCESS, type AccessIdentity } from '../utils/accessPolicy'
@@ -168,11 +169,13 @@ export function projectContextLinks(
     remembered = Object.fromEntries(taskKeys.filter(key => typeof taskQuery[key] === 'string').map(key => [key, taskQuery[key]]))
     if (taskQuery.tab === 'board') remembered.view = 'board'
   }
-  const contextQuery: ShellQuery = { taskContext: JSON.stringify(remembered) }
-  if (typeof taskQuery.returnTo === 'string') contextQuery.returnTo = taskQuery.returnTo
+  const listReturnTo = projectListReturnTo(taskQuery)
+  const rootQuery = { taskContext: JSON.stringify(remembered), projectListReturnTo: listReturnTo, returnTo: listReturnTo }
+  const projectReturnTo = `${base}?${new URLSearchParams(rootQuery)}`
+  const contextQuery: ShellQuery = { ...rootQuery, returnTo: projectReturnTo }
   const links: ShellContextLink[] = [
-    { id: 'summary', labelKey: 'nav.projectSummary', icon: LayoutDashboard, to: { path: base, query: contextQuery }, capability: 'pmo.projects.read' },
-    { id: 'planning', labelKey: 'nav.projectPlanning', icon: ClipboardList, to: { path: base, query: { ...contextQuery, ...remembered, tab: 'tasks' } }, capability: 'pmo.tasks.read' },
+    { id: 'summary', labelKey: 'nav.projectSummary', icon: LayoutDashboard, to: { path: base, query: rootQuery }, capability: 'pmo.projects.read' },
+    { id: 'planning', labelKey: 'nav.projectPlanning', icon: ClipboardList, to: { path: base, query: { ...rootQuery, ...remembered, tab: 'tasks' } }, capability: 'pmo.tasks.read' },
     { id: 'stakeholders', labelKey: 'nav.projectStakeholders', icon: Users, to: { path: `${base}/stakeholders`, query: contextQuery }, capability: 'pmo.projects.read' },
     { id: 'risks', labelKey: 'nav.projectRisks', icon: CircleAlert, to: { path: `${base}/register`, query: contextQuery }, capability: 'pmo.projects.read' },
     { id: 'finance', labelKey: 'nav.projectFinance', icon: WalletCards, to: { path: `${base}/finance`, query: contextQuery }, capability: 'pmo.projects.read' },

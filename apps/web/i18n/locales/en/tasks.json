@@ -150,7 +150,13 @@
       "write": "Write a comment…",
       "post": "Post",
       "loading": "Loading activity…",
-      "empty": "No activity yet"
+      "empty": "No activity yet",
+      "unset": "Not set",
+      "unknownField": "Unknown field",
+      "invalidValue": "Invalid value",
+      "booleanTrue": "Yes",
+      "booleanFalse": "No",
+      "activeField": "Active"
     },
     "kanban": {
       "moveTo": "Move to…",

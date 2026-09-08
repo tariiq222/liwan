@@ -20,7 +20,7 @@ const returnTo = computed(() => projectId.value ? safeReturnTo(route.query.retur
   <SharedPageContainer width="form">
     <SharedPageHeader
       :title="t('projects.settings.title')"
-      :description="t('projects.settings.pageDescription')"
+      :description="t('projects.refresh.settings.individualDescription')"
       :eyebrow="project?.name"
       :back-to="returnTo"
       :back-label="t('projects.backToProject')"
@@ -37,7 +37,7 @@ const returnTo = computed(() => projectId.value ? safeReturnTo(route.query.retur
       @retry="refetch"
     >
       <p v-if="!canManage" class="text-muted-foreground">{{ t('projects.forbidden') }}</p>
-      <Card v-else class="nasq-form"><CardContent><ProjectSettingsForm :project="project" /></CardContent></Card>
+      <Card v-else-if="project" class="nasq-form"><CardContent><ProjectSettingsForm :project="project" /></CardContent></Card>
     </SharedPageState>
   </SharedPageContainer>
 </template>

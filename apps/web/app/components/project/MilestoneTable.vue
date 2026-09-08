@@ -17,13 +17,9 @@ const hydrated = useHydrated()
 const projectIdRef = computed(() => props.projectId)
 const { data, isLoading, error, refetch } = useMilestones(projectIdRef)
 const items = computed<Milestone[]>(() => data.value ?? [])
-
 const router = useRouter()
 const route = useRoute()
 
-function openCreate() {
-  router.push({ path: `/projects/${props.projectId}/milestones/new`, query: returnToQuery(route.fullPath) })
-}
 function openEdit(m: Milestone) {
   router.push({ path: `/projects/${props.projectId}/milestones/${m.id}/edit`, query: returnToQuery(route.fullPath) })
 }
@@ -77,7 +73,6 @@ async function confirmDelete() {
           <CardTitle class="text-base">{{ t('projects.tabs.milestones') }}</CardTitle>
           <CardDescription>{{ t('projects.milestones.emptyHint') }}</CardDescription>
         </div>
-        <Button v-if="canManage" data-testid="milestone-new" size="sm" :disabled="!hydrated" @click="openCreate">{{ t('projects.milestones.new') }}</Button>
       </CardHeader>
       <CardContent class="p-0">
         <div v-if="isLoading || !hydrated" class="space-y-3 p-[18px]">
@@ -87,7 +82,6 @@ async function confirmDelete() {
         <div v-else-if="items.length === 0" class="p-8 text-center">
           <p class="font-medium">{{ t('projects.milestones.empty') }}</p>
           <p class="mt-1 text-sm text-muted-foreground">{{ t('projects.milestones.emptyHint') }}</p>
-          <Button v-if="canManage" size="sm" class="mt-3" :disabled="!hydrated" @click="openCreate">{{ t('projects.milestones.new') }}</Button>
         </div>
         <div v-else class="divide-y">
           <div v-for="m in items" :key="m.id" data-testid="milestone-row" class="flex flex-col gap-3 px-[18px] py-4 sm:flex-row sm:items-center sm:justify-between">
@@ -106,10 +100,12 @@ async function confirmDelete() {
                 <RotateCcw v-if="m.is_reached" class="size-4" /><CheckCircle2 v-else class="size-4" />{{ t(m.is_reached ? 'projects.milestones.reopen' : 'projects.milestones.markReached') }}
               </Button>
               <Button variant="ghost" size="sm" class="gap-1.5" :disabled="!hydrated" @click="openEdit(m)"><Pencil class="size-4" />{{ t('projects.milestones.edit') }}</Button>
-              <Tooltip v-if="m.task_count > 0">
-                <TooltipTrigger as-child><span><Button variant="ghost" size="icon" class="size-8" disabled><Trash2 class="size-4" /></Button></span></TooltipTrigger>
-                <TooltipContent>{{ t('projects.milestones.hasTasks', { count: m.task_count }) }}</TooltipContent>
-              </Tooltip>
+              <TooltipProvider v-if="m.task_count > 0" :delay-duration="0">
+                <Tooltip>
+                  <TooltipTrigger as-child><span><Button variant="ghost" size="icon" class="size-8" disabled><Trash2 class="size-4" /></Button></span></TooltipTrigger>
+                  <TooltipContent>{{ t('projects.milestones.hasTasks', { count: m.task_count }) }}</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
               <Button v-else variant="ghost" size="icon" class="size-8 text-destructive" :disabled="!hydrated" :aria-label="t('projects.milestones.delete')" @click="deleteTarget = m"><Trash2 class="size-4" /></Button>
             </div>
           </div>

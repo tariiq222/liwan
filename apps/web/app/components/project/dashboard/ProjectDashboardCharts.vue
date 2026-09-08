@@ -135,7 +135,7 @@ const financeOption = computed(() => selectedCurrency.value ? projectFinanceComp
           <p class="mt-1 text-sm leading-6 text-muted-foreground">{{ t('projects.dashboard.charts.financeDescription') }}</p>
         </div>
         <Select v-if="currencies.length" :model-value="selectedCurrency ? String(selectedCurrency.id) : undefined" @update:model-value="value => { selectedCurrencyId = Number(value) }">
-          <SelectTrigger data-testid="chart-currency-filter" class="w-full sm:w-44" :disabled="!hydrated">
+          <SelectTrigger data-testid="chart-currency-filter" :aria-label="t('projects.dashboard.charts.currency')" class="w-full sm:w-44" :disabled="!hydrated">
             <SelectValue :placeholder="t('projects.dashboard.charts.currency')" />
           </SelectTrigger>
           <SelectContent>

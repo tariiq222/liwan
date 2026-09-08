@@ -16,7 +16,9 @@ Authority: [DESIGN.md](../../DESIGN.md). This catalog records current reusable c
 | Form section | `components/shared/FormSection.vue` | `SharedFormSection`; title/description + content |
 | Filters | `components/shared/FilterBar.vue` | `SharedFilterBar`; search/default (controls)/view/active slots; preserve query state |
 | Loading/error/empty | `components/shared/PageState.vue`, `EmptyState.vue` | `SharedPageState` / `SharedEmptyState`; retry and meaningful empty action |
-| Unsaved form exit | `components/shared/UnsavedChanges.vue` | Existing approved shared confirmation only |
+| Unsaved form exit | `components/shared/UnsavedChanges.vue` | Approved shared confirmation; `dirty` guards leaving, optional `guardRouteUpdates` also guards same-route form mode/record changes (charter). |
+| Project document | `components/project/ProjectCharterDisplay.vue` | Semantic read view of the existing charter draft; ProjectCharterForm owns create/edit and persisted read data. |
+| Project archival | `components/project/ProjectArchiveAction.vue` | Record-managed inline archive/restore inside project settings; project headers own contextual primary actions. |
 | Buttons/fields/tables/menus | `components/ui/**` | Existing shadcn-vue/Reka primitives with local RTL/hydration patches |
 | Specialized PMO views | `components/project/**`, `components/task/**` | Reuse task/schedule/RACI data; do not clone shared chrome |
 | Shared chart renderer | `components/shared/ChartCanvas.client.vue` | `option`, `accessibleLabel`, optional `height`; SVG ECharts with resize, current appearance/font and semantic colors. Load only the required chart types. |

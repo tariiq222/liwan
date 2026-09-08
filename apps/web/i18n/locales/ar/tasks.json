@@ -150,7 +150,13 @@
       "write": "اكتب تعليقًا…",
       "post": "نشر",
       "loading": "جارٍ تحميل النشاط…",
-      "empty": "لا نشاط بعد"
+      "empty": "لا نشاط بعد",
+      "unset": "غير محدد",
+      "unknownField": "حقل غير معروف",
+      "invalidValue": "قيمة غير صالحة",
+      "booleanTrue": "نعم",
+      "booleanFalse": "لا",
+      "activeField": "نشطة"
     },
     "kanban": {
       "moveTo": "نقل إلى…",

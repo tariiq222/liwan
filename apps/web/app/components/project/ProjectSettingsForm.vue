@@ -4,11 +4,13 @@ import { toast } from 'vue-sonner'
 import { ApiError } from '@/composables/useApi'
 import { useAddStage, useDeleteStage, useReorderStages, useUpdateStage } from '@/composables/useProjectStages'
 import FollowerList from './FollowerList.vue'
+import ProjectArchiveAction from './ProjectArchiveAction.vue'
 import ProjectGeneralForm from './ProjectGeneralForm.vue'
 import StageListEditor from './StageListEditor.vue'
 
 const props = defineProps<{ project: ProjectDetail }>()
 const { t } = useI18n()
+const route = useRoute()
 
 const { mutate: addStage, isPending: adding } = useAddStage()
 const { mutate: updateStage, isPending: updating } = useUpdateStage()
@@ -31,14 +33,23 @@ function onDeleteStage(id: number | string) {
 
 <template>
   <div data-testid="project-settings-page">
-    <SharedFormSection :title="t('projects.settings.tabs.general')">
+    <div class="mb-5 space-y-2">
+      <p class="text-sm text-muted-foreground">{{ t('projects.refresh.settings.individualScope') }}</p>
+      <NuxtLink :to="{ path: `/projects/${project.id}/charter`, query: { ...route.query, returnTo: route.fullPath } }" class="text-sm underline underline-offset-4">
+        {{ t('projects.refresh.settings.openCharter') }}
+      </NuxtLink>
+    </div>
+    <SharedFormSection :title="t('projects.refresh.settings.operation.title')" :description="t('projects.refresh.settings.operation.description')">
       <ProjectGeneralForm :project="project" />
     </SharedFormSection>
-    <SharedFormSection class="space-y-3" :title="t('projects.settings.tabs.stages')">
+    <SharedFormSection class="space-y-3" :title="t('projects.settings.tabs.stages')" :description="t('projects.refresh.settings.stagesDescription')">
       <StageListEditor :stages="sortedStages" :busy="stagesBusy" @add="onAddStage" @rename="onRenameStage" @fold="onFoldStage" @reorder="onReorderStages" @delete="onDeleteStage" />
     </SharedFormSection>
-    <SharedFormSection class="space-y-3 pb-0" :title="t('projects.settings.tabs.followers')">
+    <SharedFormSection class="space-y-3 pb-0" :title="t('projects.settings.tabs.followers')" :description="t('projects.refresh.settings.followersDescription')">
       <FollowerList :project="project" />
+    </SharedFormSection>
+    <SharedFormSection class="space-y-3" :title="t('projects.refresh.settings.archive.title')" :description="t('projects.refresh.settings.archive.description')">
+      <ProjectArchiveAction :project="project" />
     </SharedFormSection>
   </div>
 </template>

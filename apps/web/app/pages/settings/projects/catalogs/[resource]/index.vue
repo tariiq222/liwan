@@ -107,7 +107,7 @@ async function confirmAction() {
 
 <template>
   <SettingsLayout>
-    <SharedPageHeader :title="title" :back-to="returnTo" :back-label="t('settings.projects.catalogs.back')">
+    <SharedPageHeader :eyebrow="t('projects.refresh.settings.catalogEyebrow')" :title="title" :description="t('projects.refresh.settings.catalogDescription')" :back-to="returnTo" :back-label="t('settings.projects.catalogs.back')">
       <Button v-if="resource && !forbidden" :disabled="!hydrated" @click="openNew">{{ t('settings.projects.catalogs.add') }}</Button>
     </SharedPageHeader>
     <p v-if="!resource" class="text-muted-foreground">{{ t('settings.projects.catalogs.notFound') }}</p>

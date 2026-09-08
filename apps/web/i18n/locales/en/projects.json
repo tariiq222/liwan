@@ -215,10 +215,10 @@
       "posted": "Update posted"
     },
     "charter": {
-      "title": "Project charter",
+      "title": "Project file",
       "pageDescription": "The source of record for purpose, scope, and deliverables.",
-      "open": "Project charter",
-      "saved": "Charter saved",
+      "open": "Project file",
+      "saved": "Project file saved",
       "none": "Not set",
       "codePending": "Generated on save",
       "addObjective": "Add objective",
@@ -320,6 +320,13 @@
         "nonfinite": "Amount must be a finite number.",
         "unknown_amount": "An unknown budget cannot include an amount.",
         "estimate_required": "An estimate needs a non-negative amount; zero is valid."
+      },
+      "sections": {
+        "essentials": "Essentials",
+        "context": "Project context",
+        "catalog": "Classification and ownership",
+        "outcomes": "Purpose and outcomes",
+        "planning": "Planning and budget"
       }
     },
     "planningLinks": {
@@ -390,7 +397,9 @@
         "startDate": "Start date",
         "milestoneName": "Milestone name",
         "offset": "Offset",
-        "taskName": "Task name"
+        "taskName": "Task name",
+        "offsetHint": "Relative offsets are calculated from the project start date when the template is used.",
+        "offsetDays": "days"
       },
       "stages": {
         "title": "Stages",
@@ -430,7 +439,9 @@
         "count": "{from}–{to} of {total} templates",
         "previous": "Previous",
         "next": "Next"
-      }
+      },
+      "emptyMilestones": "No milestones have been added to this template yet.",
+      "emptyTasks": "No tasks have been added to this template yet."
     },
     "governance": {
       "stakeholders": "Stakeholders",
@@ -713,6 +724,75 @@
       "allProjects": "All projects",
       "analyticsError": "Could not load project statistics. Try again.",
       "retryAnalytics": "Retry"
+    },
+    "refresh": {
+      "workspace": {
+        "needsAttentionPreviewEmpty": "No overdue tasks appear in the first loaded tasks shown in this preview.",
+        "resultCount": "{count} projects match the current filters",
+        "viewAllUpdates": "View update history",
+        "updatesTitle": "Project update history",
+        "updatesDescription": "The latest 50 project updates, newest first.",
+        "raciLegendTitle": "RACI responsibility guide",
+        "raciLegendDescription": "The matrix shows each stakeholder’s role for each task. Each task can have one accountable stakeholder.",
+        "raciResponsible": "Responsible",
+        "raciResponsibleHint": "Does the work.",
+        "raciAccountable": "Accountable",
+        "raciAccountableHint": "Owns the decision and outcome.",
+        "raciConsulted": "Consulted",
+        "raciConsultedHint": "Provides input before work or a decision.",
+        "raciInformed": "Informed",
+        "raciInformedHint": "Receives updates.",
+        "raciEmptyTitle": "The matrix needs more data",
+        "raciEmptyBoth": "The matrix needs at least one task and one stakeholder. Add them, then return here.",
+        "raciEmptyTasks": "No tasks match the current filters. Change the search or add a task to the project.",
+        "raciEmptyStakeholders": "No stakeholders match the current filters. Change the search or add a stakeholder.",
+        "raciOpenTasks": "View project tasks",
+        "raciAddStakeholder": "Add stakeholder",
+        "registerTitle": "Risks and issues",
+        "registerSummary": "Item details",
+        "registerDescription": "Description",
+        "registerPlan": "Response plan and links",
+        "registerDetailsTitle": "Item description and classification",
+        "registerDetailsDescription": "Choose the item type and priority, then record what the team needs to know.",
+        "registerOwnershipTitle": "Owner and follow-up",
+        "registerOwnershipDescription": "Link the item to a task, owner, due date, and clear status.",
+        "registerRiskTitle": "Risk assessment",
+        "registerRiskDescription": "Use a 1 to 5 scale: 1 is low and 5 is high. The score is calculated from probability and impact.",
+        "registerPlanTitle": "Response plan",
+        "registerPlanDescription": "Describe the action proposed to reduce the risk or resolve the issue.",
+        "stakeholderIdentity": "Stakeholder identity",
+        "stakeholderIdentityDescription": "Define the stakeholder, organization, and role they have in the project.",
+        "stakeholderConnection": "Connection and contact",
+        "stakeholderConnectionDescription": "Link an internal user when needed and add contact details and notes.",
+        "stakeholderContact": "Contact and notes"
+      },
+      "settings": {
+        "individualDescription": "Operational settings for this project only. Its name, description, manager, and dates belong to the project file.",
+        "individualScope": "These options apply to this project only. They do not change company wide project creation policies or shared settings.",
+        "openCharter": "Open project file",
+        "operation": {
+          "title": "Operation, visibility, and approval",
+          "description": "These options save automatically and apply to this project."
+        },
+        "visibilityHint": "Controls which employees can view this project and its tasks.",
+        "stagesDescription": "Stage order and folding changes apply to this project. A stage that contains tasks cannot be deleted.",
+        "followersDescription": "Controls this project's followers. They become the viewer list when follower only visibility is selected.",
+        "archive": {
+          "title": "Archive project",
+          "description": "Archiving removes the project from active lists. You can restore it here or from the archived projects view."
+        },
+        "catalogEyebrow": "Shared reference data",
+        "catalogDescription": "These lists classify projects and their files. Renaming an item appears in the projects linked to it."
+      },
+      "finance": {
+        "viewCharter": "View project file",
+        "formDetailsTitle": "Entry details",
+        "formDetailsDescription": "Choose the entry type and a title that explains its purpose.",
+        "formAmountTitle": "Amount and allocation",
+        "formAmountDescription": "Enter the amount and link an expense to a budget item when needed.",
+        "formReferenceTitle": "Reference and notes",
+        "formReferenceDescription": "Add a reference or notes to help review this entry."
+      }
     }
   }
 }

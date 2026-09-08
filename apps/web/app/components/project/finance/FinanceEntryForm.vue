@@ -217,84 +217,59 @@ async function saveOnLatest() {
 </script>
 
 <template>
-  <form data-testid="finance-form" class="nasq-form-grid" @submit.prevent="submit()">
+  <form data-testid="finance-form" class="space-y-8" @submit.prevent="submit()">
     <SharedUnsavedChanges :dirty="dirty" />
-
-    <div class="grid gap-2">
-      <Label for="finance-kind">{{ t('projects.finance.fields.kind') }}</Label>
-      <Select :model-value="draft.kind" :disabled="!hydrated || pending || isEdit" @update:model-value="onKindChange">
-        <SelectTrigger id="finance-kind" class="w-full">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="budget">{{ t('projects.finance.kind.budget') }}</SelectItem>
-          <SelectItem value="expense">{{ t('projects.finance.kind.expense') }}</SelectItem>
-        </SelectContent>
-      </Select>
-    </div>
-
-    <div class="grid gap-2">
-      <Label for="finance-title">{{ t('projects.finance.fields.title') }}</Label>
-      <Input id="finance-title" v-model="draft.title" required :disabled="!hydrated || pending" :aria-invalid="!!fieldErrors.title" />
-      <p v-if="fieldErrors.title" role="alert" class="text-sm text-destructive">{{ fieldErrors.title }}</p>
-    </div>
-
-    <div class="grid gap-2">
-      <Label for="finance-amount">{{ t('projects.finance.fields.amount') }}</Label>
-      <Input
-        id="finance-amount"
-        v-model="draft.amountInput"
-        data-testid="finance-amount"
-        inputmode="decimal"
-        dir="ltr"
-        required
-        :disabled="!hydrated || pending"
-        :aria-invalid="!!fieldErrors.amount"
-        :aria-describedby="'finance-currency-help'"
-      />
-      <p id="finance-currency-help" class="text-xs text-muted-foreground">
-        {{ t('projects.finance.currencyReadOnly', { name: currency.name, symbol: currency.symbol, places: decimalPlaces }) }}
-      </p>
-      <p v-if="fieldErrors.amount" role="alert" class="text-sm text-destructive">{{ fieldErrors.amount }}</p>
-    </div>
-
-    <template v-if="draft.kind === 'expense'">
-      <div class="grid gap-2">
-        <Label>{{ t('projects.finance.fields.expense_date') }}</Label>
-        <Popover>
-          <PopoverTrigger as-child>
-            <Button variant="outline" type="button" class="w-full justify-start" :disabled="!hydrated || pending" :aria-invalid="!!fieldErrors.expense_date">
-              {{ dateLabel }}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent class="w-auto p-0" align="start">
-            <Calendar :model-value="deadline" @update:model-value="onCalendarChange" />
-          </PopoverContent>
-        </Popover>
-        <p v-if="fieldErrors.expense_date" role="alert" class="text-sm text-destructive">{{ fieldErrors.expense_date }}</p>
+    <SharedFormSection :title="t('projects.refresh.finance.formDetailsTitle')" :description="t('projects.refresh.finance.formDetailsDescription')">
+      <div class="nasq-form-grid">
+        <div class="grid gap-2">
+          <Label for="finance-kind">{{ t('projects.finance.fields.kind') }}</Label>
+          <Select :model-value="draft.kind" :disabled="!hydrated || pending || isEdit" @update:model-value="onKindChange">
+            <SelectTrigger id="finance-kind" class="w-full"><SelectValue /></SelectTrigger>
+            <SelectContent><SelectItem value="budget">{{ t('projects.finance.kind.budget') }}</SelectItem><SelectItem value="expense">{{ t('projects.finance.kind.expense') }}</SelectItem></SelectContent>
+          </Select>
+        </div>
+        <div class="grid gap-2">
+          <Label for="finance-title">{{ t('projects.finance.fields.title') }}</Label>
+          <Input id="finance-title" v-model="draft.title" required :disabled="!hydrated || pending" :aria-invalid="!!fieldErrors.title" />
+          <p v-if="fieldErrors.title" role="alert" class="text-sm text-destructive">{{ fieldErrors.title }}</p>
+        </div>
       </div>
+    </SharedFormSection>
 
-      <FinanceBudgetPicker
-        :project-id="projectId"
-        :model-value="draft.budgetEntryId"
-        :disabled="!hydrated || pending"
-        :selected-label="selectedBudgetTitle"
-        @update:model-value="draft.budgetEntryId = $event"
-      />
-      <p v-if="fieldErrors.budget_entry_id" role="alert" class="text-sm text-destructive">{{ fieldErrors.budget_entry_id }}</p>
-    </template>
+    <SharedFormSection :title="t('projects.refresh.finance.formAmountTitle')" :description="t('projects.refresh.finance.formAmountDescription')">
+      <div class="nasq-form-grid">
+        <div class="grid gap-2">
+          <Label for="finance-amount">{{ t('projects.finance.fields.amount') }}</Label>
+          <Input id="finance-amount" v-model="draft.amountInput" data-testid="finance-amount" inputmode="decimal" dir="ltr" required :disabled="!hydrated || pending" :aria-invalid="!!fieldErrors.amount" :aria-describedby="'finance-currency-help'" />
+          <p id="finance-currency-help" class="text-xs text-muted-foreground">{{ t('projects.finance.currencyReadOnly', { name: currency.name, symbol: currency.symbol, places: decimalPlaces }) }}</p>
+          <p v-if="fieldErrors.amount" role="alert" class="text-sm text-destructive">{{ fieldErrors.amount }}</p>
+        </div>
+        <template v-if="draft.kind === 'expense'">
+          <div class="grid gap-2">
+            <Label>{{ t('projects.finance.fields.expense_date') }}</Label>
+            <Popover><PopoverTrigger as-child><Button variant="outline" type="button" class="w-full justify-start" :disabled="!hydrated || pending" :aria-invalid="!!fieldErrors.expense_date">{{ dateLabel }}</Button></PopoverTrigger><PopoverContent class="w-auto p-0" align="start"><Calendar :model-value="deadline" @update:model-value="onCalendarChange" /></PopoverContent></Popover>
+            <p v-if="fieldErrors.expense_date" role="alert" class="text-sm text-destructive">{{ fieldErrors.expense_date }}</p>
+          </div>
+          <FinanceBudgetPicker :project-id="projectId" :model-value="draft.budgetEntryId" :disabled="!hydrated || pending" :selected-label="selectedBudgetTitle" @update:model-value="draft.budgetEntryId = $event" />
+          <p v-if="fieldErrors.budget_entry_id" role="alert" class="text-sm text-destructive">{{ fieldErrors.budget_entry_id }}</p>
+        </template>
+      </div>
+    </SharedFormSection>
 
-    <div class="grid gap-2">
-      <Label for="finance-reference">{{ t('projects.finance.fields.reference') }}</Label>
-      <Input id="finance-reference" v-model="draft.reference" :disabled="!hydrated || pending" :aria-invalid="!!fieldErrors.reference" />
-      <p v-if="fieldErrors.reference" role="alert" class="text-sm text-destructive">{{ fieldErrors.reference }}</p>
-    </div>
-
-    <div class="grid gap-2 sm:col-span-2">
-      <Label for="finance-notes">{{ t('projects.finance.fields.notes') }}</Label>
-      <Textarea id="finance-notes" v-model="draft.notes" :disabled="!hydrated || pending" :aria-invalid="!!fieldErrors.notes" />
-      <p v-if="fieldErrors.notes" role="alert" class="text-sm text-destructive">{{ fieldErrors.notes }}</p>
-    </div>
+    <SharedFormSection :title="t('projects.refresh.finance.formReferenceTitle')" :description="t('projects.refresh.finance.formReferenceDescription')">
+      <div class="nasq-form-grid">
+        <div class="grid gap-2">
+          <Label for="finance-reference">{{ t('projects.finance.fields.reference') }}</Label>
+          <Input id="finance-reference" v-model="draft.reference" :disabled="!hydrated || pending" :aria-invalid="!!fieldErrors.reference" />
+          <p v-if="fieldErrors.reference" role="alert" class="text-sm text-destructive">{{ fieldErrors.reference }}</p>
+        </div>
+        <div class="grid gap-2 sm:col-span-2">
+          <Label for="finance-notes">{{ t('projects.finance.fields.notes') }}</Label>
+          <Textarea id="finance-notes" v-model="draft.notes" :disabled="!hydrated || pending" :aria-invalid="!!fieldErrors.notes" />
+          <p v-if="fieldErrors.notes" role="alert" class="text-sm text-destructive">{{ fieldErrors.notes }}</p>
+        </div>
+      </div>
+    </SharedFormSection>
 
     <div v-if="stale" data-testid="finance-stale" class="nasq-status-callout-warning p-4 text-sm sm:col-span-2">
       <p class="font-medium">{{ t('projects.finance.staleTitle') }}</p>
@@ -310,10 +285,10 @@ async function saveOnLatest() {
       </div>
     </div>
 
-    <p v-if="!canWrite" role="alert" class="text-sm text-destructive sm:col-span-2">{{ t('projects.finance.writeRevoked') }}</p>
-    <p v-if="error" role="alert" class="text-sm text-destructive sm:col-span-2">{{ error }}</p>
+    <p v-if="!canWrite" role="alert" class="text-sm text-destructive">{{ t('projects.finance.writeRevoked') }}</p>
+    <p v-if="error" role="alert" class="text-sm text-destructive">{{ error }}</p>
 
-    <div class="nasq-form-footer sm:col-span-2">
+    <div class="nasq-form-footer">
       <Button type="button" variant="outline" :disabled="pending" @click="emit('cancel')">{{ t('app.cancel') }}</Button>
       <Button type="submit" :disabled="ordinarySaveDisabled">{{ isEdit ? t('app.save') : t('app.create') }}</Button>
     </div>

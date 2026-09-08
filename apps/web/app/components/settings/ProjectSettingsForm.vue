@@ -112,70 +112,48 @@ function onDeleteStage(id: number | string) {
     <SharedPageState v-else-if="error" :error="error" @retry="refetch" />
 
     <template v-else-if="settings">
-      <section id="project-creators" class="nasq-form-section nasq-settings-anchor space-y-4">
-        <Label>{{ t('settings.projects.creators.label') }}</Label>
-        <RadioGroup :model-value="settings.project_creators" :disabled="!hydrated || isPending" @update:model-value="onCreatorsChange">
-          <div v-for="option in CREATOR_OPTIONS" :key="option.value" class="flex items-center gap-2">
-            <RadioGroupItem :id="`project-creators-${option.value}`" :value="option.value" />
-            <Label :for="`project-creators-${option.value}`" class="font-normal">{{ t(option.labelKey) }}</Label>
-          </div>
-        </RadioGroup>
-      </section>
+      <SharedFormSection id="project-creation" :title="t('settings.projects.creation.title')" :description="t('settings.projects.creation.hint')" class="nasq-settings-anchor space-y-4">
+        <div id="project-creators" class="space-y-2">
+          <Label>{{ t('settings.projects.creators.label') }}</Label>
+          <p class="text-sm text-muted-foreground">{{ t('settings.projects.creators.hint') }}</p>
+          <RadioGroup :model-value="settings.project_creators" :disabled="!hydrated || isPending" @update:model-value="onCreatorsChange">
+            <div v-for="option in CREATOR_OPTIONS" :key="option.value" class="flex items-center gap-2">
+              <RadioGroupItem :id="`project-creators-${option.value}`" :value="option.value" />
+              <Label :for="`project-creators-${option.value}`" class="font-normal">{{ t(option.labelKey) }}</Label>
+            </div>
+          </RadioGroup>
+        </div>
+        <div id="project-requirements" class="space-y-3">
+          <Label>{{ t('settings.projects.createRequirements.label') }}</Label>
+          <p class="text-sm text-muted-foreground">{{ t('settings.projects.createRequirements.hint') }}</p>
+          <label class="flex items-center gap-2">
+            <input type="checkbox" :checked="settings.require_manager_on_create" :disabled="!hydrated || isPending" @change="onBool('require_manager_on_create', ($event.target as HTMLInputElement).checked)">
+            <span>{{ t('settings.projects.createRequirements.manager') }}</span>
+          </label>
+          <label class="flex items-center gap-2">
+            <input type="checkbox" :checked="settings.require_end_date_on_create" :disabled="!hydrated || isPending" @change="onBool('require_end_date_on_create', ($event.target as HTMLInputElement).checked)">
+            <span>{{ t('settings.projects.createRequirements.endDate') }}</span>
+          </label>
+        </div>
+      </SharedFormSection>
 
-      <section id="project-stages" class="nasq-form-section nasq-settings-anchor space-y-4">
-        <Label>{{ t('settings.projects.defaultStages.label') }}</Label>
-        <p class="text-sm text-muted-foreground">{{ t('settings.projects.defaultStages.hint') }}</p>
-        <StageListEditor
-          :stages="rows"
-          :busy="isPending"
-          @add="onAddStage"
-          @rename="onRenameStage"
-          @fold="onFoldStage"
-          @reorder="onReorderStages"
-          @delete="onDeleteStage"
-        />
-      </section>
+      <SharedFormSection id="project-defaults" :title="t('settings.projects.defaults.title')" :description="t('settings.projects.defaults.hint')" class="nasq-settings-anchor space-y-4">
+        <div id="project-stages" class="space-y-4">
+          <Label>{{ t('settings.projects.defaultStages.label') }}</Label>
+          <p class="text-sm text-muted-foreground">{{ t('settings.projects.defaultStages.hint') }}</p>
+          <StageListEditor :stages="rows" :busy="isPending" @add="onAddStage" @rename="onRenameStage" @fold="onFoldStage" @reorder="onReorderStages" @delete="onDeleteStage" />
+        </div>
+        <div id="project-approval" class="space-y-3">
+          <Label>{{ t('settings.projects.approval.label') }}</Label>
+          <p class="text-sm text-muted-foreground">{{ t('settings.projects.approval.hint') }}</p>
+          <RadioGroup :model-value="settings.default_completion_approval" :disabled="!hydrated || isPending" @update:model-value="onApprovalDefault">
+            <div class="flex items-center gap-2"><RadioGroupItem id="approval-none" value="none" /><Label for="approval-none" class="font-normal">{{ t('settings.projects.approval.none') }}</Label></div>
+            <div class="flex items-center gap-2"><RadioGroupItem id="approval-manager" value="project_manager" /><Label for="approval-manager" class="font-normal">{{ t('settings.projects.approval.projectManager') }}</Label></div>
+          </RadioGroup>
+        </div>
+      </SharedFormSection>
 
-      <section id="project-requirements" class="nasq-form-section nasq-settings-anchor space-y-3">
-        <Label>{{ t('settings.projects.createRequirements.label') }}</Label>
-        <p class="text-sm text-muted-foreground">{{ t('settings.projects.createRequirements.hint') }}</p>
-        <label class="flex items-center gap-2">
-          <input
-            type="checkbox"
-            :checked="settings.require_manager_on_create"
-            :disabled="!hydrated || isPending"
-            @change="onBool('require_manager_on_create', ($event.target as HTMLInputElement).checked)"
-          >
-          <span>{{ t('settings.projects.createRequirements.manager') }}</span>
-        </label>
-        <label class="flex items-center gap-2">
-          <input
-            type="checkbox"
-            :checked="settings.require_end_date_on_create"
-            :disabled="!hydrated || isPending"
-            @change="onBool('require_end_date_on_create', ($event.target as HTMLInputElement).checked)"
-          >
-          <span>{{ t('settings.projects.createRequirements.endDate') }}</span>
-        </label>
-      </section>
-
-      <section id="project-approval" class="nasq-form-section nasq-settings-anchor space-y-3">
-        <Label>{{ t('settings.projects.approval.label') }}</Label>
-        <p class="text-sm text-muted-foreground">{{ t('settings.projects.approval.hint') }}</p>
-        <RadioGroup :model-value="settings.default_completion_approval" :disabled="!hydrated || isPending" @update:model-value="onApprovalDefault">
-          <div class="flex items-center gap-2">
-            <RadioGroupItem id="approval-none" value="none" />
-            <Label for="approval-none" class="font-normal">{{ t('settings.projects.approval.none') }}</Label>
-          </div>
-          <div class="flex items-center gap-2">
-            <RadioGroupItem id="approval-manager" value="project_manager" />
-            <Label for="approval-manager" class="font-normal">{{ t('settings.projects.approval.projectManager') }}</Label>
-          </div>
-        </RadioGroup>
-      </section>
-
-      <section id="project-reminders" class="nasq-form-section nasq-settings-anchor space-y-3">
-        <Label>{{ t('settings.projects.reminders.label') }}</Label>
+      <SharedFormSection id="project-reminders" :title="t('settings.projects.reminders.label')" :description="t('settings.projects.reminders.hint')" class="nasq-settings-anchor space-y-3">
         <label class="flex items-center gap-2">
           <input
             type="checkbox"
@@ -206,7 +184,7 @@ function onDeleteStage(id: number | string) {
           >
           <span>{{ t('settings.projects.reminders.digest') }}</span>
         </label>
-      </section>
+      </SharedFormSection>
     </template>
   </div>
 </template>

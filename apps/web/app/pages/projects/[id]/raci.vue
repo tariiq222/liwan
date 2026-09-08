@@ -11,6 +11,7 @@ const viewQuery = computed(() => {
   const query: Record<string, string> = {}
   if (typeof route.query.returnTo === 'string') query.returnTo = route.query.returnTo
   if (typeof route.query.taskContext === 'string') query.taskContext = route.query.taskContext
+  if (typeof route.query.projectListReturnTo === 'string') query.projectListReturnTo = route.query.projectListReturnTo
   return query
 })
 function replaceFilter(key: string, value: string | undefined, pageKey: string) { router.replace({ query: { ...route.query, [key]: value, [pageKey]: undefined } }) }
@@ -61,6 +62,16 @@ async function deleteRow() {
       <NuxtLink :to="{ path: `/projects/${id}/stakeholders`, query: viewQuery }">{{ t('projects.governance.viewList') }}</NuxtLink>
       <NuxtLink :to="{ path: `/projects/${id}/raci`, query: viewQuery }" aria-current="page">{{ t('projects.governance.viewMatrix') }}</NuxtLink>
     </nav>
+    <section class="nasq-panel nasq-panel-body space-y-2" :aria-label="t('projects.refresh.workspace.raciLegendTitle')">
+      <h2 class="text-base font-semibold">{{ t('projects.refresh.workspace.raciLegendTitle') }}</h2>
+      <p class="text-sm text-muted-foreground">{{ t('projects.refresh.workspace.raciLegendDescription') }}</p>
+      <dl class="grid gap-2 text-sm sm:grid-cols-2 lg:grid-cols-4">
+        <div><dt class="font-semibold">R — {{ t('projects.refresh.workspace.raciResponsible') }}</dt><dd class="text-muted-foreground">{{ t('projects.refresh.workspace.raciResponsibleHint') }}</dd></div>
+        <div><dt class="font-semibold">A — {{ t('projects.refresh.workspace.raciAccountable') }}</dt><dd class="text-muted-foreground">{{ t('projects.refresh.workspace.raciAccountableHint') }}</dd></div>
+        <div><dt class="font-semibold">C — {{ t('projects.refresh.workspace.raciConsulted') }}</dt><dd class="text-muted-foreground">{{ t('projects.refresh.workspace.raciConsultedHint') }}</dd></div>
+        <div><dt class="font-semibold">I — {{ t('projects.refresh.workspace.raciInformed') }}</dt><dd class="text-muted-foreground">{{ t('projects.refresh.workspace.raciInformedHint') }}</dd></div>
+      </dl>
+    </section>
     <div class="grid gap-3 sm:grid-cols-2">
       <div class="space-y-2"><Label for="raci-task-search">{{ t('projects.governance.raci.task') }}</Label><Input id="raci-task-search" v-model="taskSearch" :disabled="!hydrated || pending" :placeholder="t('app.search')" /><label class="flex gap-2 text-sm"><input v-model="closed" type="checkbox" :disabled="!hydrated || pending" />{{ t('projects.governance.closedTasks') }}</label></div>
       <div class="space-y-2"><Label for="raci-stakeholder-search">{{ t('projects.governance.raci.stakeholder') }}</Label><Input id="raci-stakeholder-search" v-model="stakeholderSearch" :disabled="!hydrated || pending" :placeholder="t('app.search')" /></div>
@@ -70,10 +81,20 @@ async function deleteRow() {
       <p>{{ t('projects.governance.confirmDelete') }} {{ confirmRow.task.name }} — {{ confirmRow.stakeholder.name }} ({{ confirmRow.role }})</p>
       <div class="flex gap-2"><Button variant="destructive" :disabled="!hydrated || pending" @click="deleteRow">{{ t('projects.governance.confirmDeleteAction') }}</Button><Button variant="outline" :disabled="!hydrated || pending" @click="confirmRow = null">{{ t('app.cancel') }}</Button></div>
     </section>
-    <SharedPageState :loading="tasks.isLoading.value || stakeholders.isLoading.value || rows.isLoading.value" :error="tasks.error.value || stakeholders.error.value || rows.error.value" :empty="!loading && (!visibleTasks.length || !visibleStakeholders.length)" @retry="() => { tasks.refetch(); stakeholders.refetch(); rows.refetch() }" />
-    <section v-if="visibleTasks.length && visibleStakeholders.length" class="nasq-panel overflow-x-auto">
-      <table class="w-full text-start text-sm"><caption class="p-3 text-start">{{ t('projects.governance.raci.matrixHelp') }}</caption><thead><tr class="border-b"><th scope="col" class="min-w-48 p-3 text-start">{{ t('projects.governance.raci.task') }}</th><th v-for="item in visibleStakeholders" :key="item.id" scope="col" class="min-w-32 p-3 text-start"><NuxtLink class="underline" :to="{ path: `/projects/${id}/stakeholders/${item.id}`, query: { returnTo: route.fullPath } }">{{ item.name }}</NuxtLink></th></tr></thead>
-        <tbody><tr v-for="task in visibleTasks" :key="task.id" class="border-b"><th scope="row" class="p-3 text-start font-medium"><NuxtLink class="underline" :to="{ path: `/projects/${id}/tasks/${task.id}`, query: { returnTo: route.fullPath } }">{{ task.name }}</NuxtLink></th><td v-for="item in visibleStakeholders" :key="item.id" class="p-3">
+    <SharedPageState :loading="tasks.isLoading.value || stakeholders.isLoading.value || rows.isLoading.value" :error="tasks.error.value || stakeholders.error.value || rows.error.value" :empty="false" @retry="() => { tasks.refetch(); stakeholders.refetch(); rows.refetch() }" />
+    <section v-if="!tasks.isLoading.value && !stakeholders.isLoading.value && !rows.isLoading.value && !tasks.error.value && !stakeholders.error.value && !rows.error.value && (!visibleTasks.length || !visibleStakeholders.length)" class="nasq-panel nasq-panel-body space-y-3" data-testid="raci-empty">
+      <h2 class="text-base font-semibold">{{ t('projects.refresh.workspace.raciEmptyTitle') }}</h2>
+      <p v-if="!visibleTasks.length && !visibleStakeholders.length" class="text-sm text-muted-foreground">{{ t('projects.refresh.workspace.raciEmptyBoth') }}</p>
+      <p v-else-if="!visibleTasks.length" class="text-sm text-muted-foreground">{{ t('projects.refresh.workspace.raciEmptyTasks') }}</p>
+      <p v-else class="text-sm text-muted-foreground">{{ t('projects.refresh.workspace.raciEmptyStakeholders') }}</p>
+      <div class="flex flex-wrap gap-2">
+        <NuxtLink v-if="!visibleTasks.length" :to="{ path: `/projects/${id}`, query: { ...route.query, tab: 'tasks' } }"><Button variant="outline">{{ t('projects.refresh.workspace.raciOpenTasks') }}</Button></NuxtLink>
+        <NuxtLink v-if="!visibleStakeholders.length && rows.data.value?.can_manage" :to="{ path: `/projects/${id}/stakeholders/new`, query: { returnTo: route.fullPath } }"><Button variant="outline">{{ t('projects.refresh.workspace.raciAddStakeholder') }}</Button></NuxtLink>
+      </div>
+    </section>
+    <section v-if="visibleTasks.length && visibleStakeholders.length" class="nasq-panel max-w-full overflow-x-auto overscroll-x-contain">
+      <table class="w-full min-w-max text-start text-sm"><caption class="p-3 text-start">{{ t('projects.governance.raci.matrixHelp') }}</caption><thead><tr class="border-b"><th scope="col" class="sticky start-0 z-10 min-w-48 bg-background p-3 text-start">{{ t('projects.governance.raci.task') }}</th><th v-for="item in visibleStakeholders" :key="item.id" scope="col" class="min-w-32 p-3 text-start"><NuxtLink class="underline" :to="{ path: `/projects/${id}/stakeholders/${item.id}`, query: { returnTo: route.fullPath } }">{{ item.name }}</NuxtLink></th></tr></thead>
+        <tbody><tr v-for="task in visibleTasks" :key="task.id" class="border-b"><th scope="row" class="sticky start-0 z-10 bg-background p-3 text-start font-medium"><NuxtLink class="underline" :to="{ path: `/projects/${id}/tasks/${task.id}`, query: { returnTo: route.fullPath } }">{{ task.name }}</NuxtLink></th><td v-for="item in visibleStakeholders" :key="item.id" class="p-3">
           <select v-if="rows.data.value?.can_manage" :value="assignment(task.id, item.id)?.role ?? ''" :aria-label="`${task.name} — ${item.name} — ${t('projects.governance.raci.role')}`" class="border-input h-[40px] min-w-24 rounded-lg border bg-transparent px-3 text-sm shadow-none outline-none focus-visible:border-ring focus-visible:ring-ring focus-visible:ring-3 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50" :disabled="!hydrated || pending || loading || !!confirmRow" @change="changeRole(task.id, item.id, $event)"><option value="">—</option><option v-for="role in ['R', 'A', 'C', 'I']" :key="role" :value="role">{{ role }}</option></select><span v-else>{{ assignment(task.id, item.id)?.role ?? '—' }}</span>
         </td></tr></tbody>
       </table>

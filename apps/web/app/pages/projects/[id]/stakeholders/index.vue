@@ -23,6 +23,7 @@ const viewQuery = computed(() => {
   const query: Record<string, string> = {}
   if (typeof route.query.returnTo === 'string') query.returnTo = route.query.returnTo
   if (typeof route.query.taskContext === 'string') query.taskContext = route.query.taskContext
+  if (typeof route.query.projectListReturnTo === 'string') query.projectListReturnTo = route.query.projectListReturnTo
   return query
 })
 function setFilter(key: string, value: string) {

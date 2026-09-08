@@ -2,7 +2,6 @@
 import type { LocationQueryRaw } from 'vue-router'
 import MilestoneTable from '@/components/project/MilestoneTable.vue'
 import ProjectHeader from '@/components/project/ProjectHeader.vue'
-import ProjectMetadataRail from '@/components/project/ProjectMetadataRail.vue'
 import ProjectOverview from '@/components/project/ProjectOverview.vue'
 import TaskBoard from '@/components/task/TaskBoard.vue'
 import TaskTable from '@/components/task/TaskTable.vue'
@@ -150,9 +149,8 @@ const workspaceCanCreate = computed(() => {
         <TaskBoard v-else :params="params" :stage-source="stageSource" embedded @open="openTask" />
       </section>
 
-      <div v-if="isBaseRoute && project && planningView === 'milestones'" class="nasq-detail-grid">
+      <div v-if="isBaseRoute && project && planningView === 'milestones'">
         <MilestoneTable :project-id="project.id" :can-manage="project.can_manage" />
-        <ProjectMetadataRail :project="project" />
       </div>
     </template>
   </SharedPageContainer>

@@ -6,7 +6,7 @@ import { useProjectUpdates } from '@/composables/useProjectUpdates'
 import ProjectStatusBadge from './ProjectStatusBadge.vue'
 import { returnToQuery } from '@/utils/safeReturnTo'
 
-const props = defineProps<{ projectId: number; canManage: boolean }>()
+const props = withDefaults(defineProps<{ projectId: number; canManage: boolean; showCreate?: boolean }>(), { showCreate: true })
 
 const { t, locale } = useI18n()
 const hydrated = useHydrated()
@@ -35,7 +35,7 @@ function openCreate() {
         <CardTitle class="text-base">{{ t('projects.tabs.updates') }}</CardTitle>
         <CardDescription>{{ t('projects.updates.emptyHint') }}</CardDescription>
       </div>
-      <Button v-if="canManage" data-testid="project-update-new" size="sm" :disabled="!hydrated" @click="openCreate">{{ t('projects.updates.new') }}</Button>
+      <Button v-if="showCreate && canManage" data-testid="project-update-new" size="sm" :disabled="!hydrated" @click="openCreate">{{ t('projects.updates.new') }}</Button>
     </CardHeader>
     <CardContent class="p-0">
       <div v-if="isLoading" class="space-y-3 p-[18px]">
@@ -45,7 +45,7 @@ function openCreate() {
       <div v-else-if="items.length === 0" class="p-8 text-center">
         <p class="font-medium">{{ t('projects.updates.empty') }}</p>
         <p class="mt-1 text-sm text-muted-foreground">{{ t('projects.updates.emptyHint') }}</p>
-        <Button v-if="canManage" size="sm" class="mt-3" :disabled="!hydrated" @click="openCreate">{{ t('projects.updates.new') }}</Button>
+        <Button v-if="showCreate && canManage" size="sm" class="mt-3" :disabled="!hydrated" @click="openCreate">{{ t('projects.updates.new') }}</Button>
       </div>
       <div v-else class="px-[18px] py-1">
         <article v-for="(u, index) in items" :key="u.id" data-testid="project-update" class="relative flex gap-4 py-4">

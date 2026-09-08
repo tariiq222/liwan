@@ -77,12 +77,14 @@ async function confirmRemoval() {
 <template>
   <SharedPageContainer v-if="isDetailRoute" width="detail" data-testid="finance-entry-detail">
     <SharedPageHeader :title="entry?.title || t('projects.finance.detailTitle')" :back-to="returnTo" :back-label="t('projects.finance.backToLedger')">
-      <div v-if="entry && canManage && projectId && entryId" class="flex flex-wrap gap-2">
+      <template #actions>
+        <div v-if="entry && canManage && projectId && entryId" class="flex flex-wrap gap-2">
         <NuxtLink :to="{ path: `/projects/${projectId}/finance/${entryId}/edit`, query: returnToQuery(route.fullPath) }" @click="!hydrated && $event.preventDefault()">
           <Button :disabled="!hydrated">{{ t('app.edit') }}</Button>
         </NuxtLink>
         <Button variant="outline" :disabled="!hydrated || deleting" @click="confirmDelete = !confirmDelete">{{ t('projects.finance.delete') }}</Button>
-      </div>
+        </div>
+      </template>
     </SharedPageHeader>
 
     <template v-if="projectId === null || entryId === null">
@@ -104,22 +106,19 @@ async function confirmRemoval() {
             <Button variant="outline" :disabled="deleting" @click="confirmDelete = false">{{ t('app.cancel') }}</Button>
           </div>
         </div>
-        <Card class="nasq-panel">
-          <CardContent class="space-y-3 pt-6 text-sm">
-            <p><span class="text-muted-foreground">{{ t('projects.finance.fields.kind') }}: </span>{{ t(`projects.finance.kind.${entry.kind}`) }}</p>
-            <p><span class="text-muted-foreground">{{ t('projects.finance.fields.amount') }}: </span><span dir="ltr" class="tabular-nums">{{ formatMoney(entry.amount, currency) }}</span></p>
-            <p v-if="entry.kind === 'expense'"><span class="text-muted-foreground">{{ t('projects.finance.fields.expense_date') }}: </span>{{ entry.expense_date ? formatCalendarDate(entry.expense_date, locale) : '—' }}</p>
-            <p><span class="text-muted-foreground">{{ t('projects.finance.fields.reference') }}: </span>{{ entry.reference || '—' }}</p>
-            <p class="whitespace-pre-wrap"><span class="text-muted-foreground">{{ t('projects.finance.fields.notes') }}: </span>{{ entry.notes || '—' }}</p>
-            <p v-if="entry.kind === 'expense'">
-              <span class="text-muted-foreground">{{ t('projects.finance.fields.budget_entry_id') }}: </span>
-              <NuxtLink v-if="entry.budget_entry_id" :to="{ path: `/projects/${projectId}/finance/${entry.budget_entry_id}`, query: returnToQuery(route.fullPath) }" class="underline underline-offset-4">
-                {{ t('projects.finance.linkedBudget', { id: entry.budget_entry_id }) }}
-              </NuxtLink>
-              <span v-else>{{ t('projects.finance.budgetNone') }}</span>
-            </p>
-          </CardContent>
-        </Card>
+        <section class="nasq-panel nasq-panel-body space-y-5">
+          <div>
+            <p class="text-sm text-muted-foreground">{{ t('projects.finance.fields.amount') }}</p>
+            <p dir="ltr" class="mt-1 text-2xl font-semibold tabular-nums">{{ formatMoney(entry.amount, currency) }}</p>
+          </div>
+          <dl class="grid gap-x-6 gap-y-4 text-sm sm:grid-cols-2">
+            <div><dt class="text-muted-foreground">{{ t('projects.finance.fields.kind') }}</dt><dd class="mt-1 font-medium">{{ t(`projects.finance.kind.${entry.kind}`) }}</dd></div>
+            <div v-if="entry.kind === 'expense'"><dt class="text-muted-foreground">{{ t('projects.finance.fields.expense_date') }}</dt><dd class="mt-1">{{ entry.expense_date ? formatCalendarDate(entry.expense_date, locale) : '—' }}</dd></div>
+            <div><dt class="text-muted-foreground">{{ t('projects.finance.fields.reference') }}</dt><dd class="mt-1">{{ entry.reference || '—' }}</dd></div>
+            <div v-if="entry.kind === 'expense'"><dt class="text-muted-foreground">{{ t('projects.finance.fields.budget_entry_id') }}</dt><dd class="mt-1"><NuxtLink v-if="entry.budget_entry_id" :to="{ path: `/projects/${projectId}/finance/${entry.budget_entry_id}`, query: returnToQuery(route.fullPath) }" class="underline underline-offset-4">{{ t('projects.finance.linkedBudget', { id: entry.budget_entry_id }) }}</NuxtLink><span v-else>{{ t('projects.finance.budgetNone') }}</span></dd></div>
+            <div class="sm:col-span-2"><dt class="text-muted-foreground">{{ t('projects.finance.fields.notes') }}</dt><dd class="mt-1 whitespace-pre-wrap">{{ entry.notes || '—' }}</dd></div>
+          </dl>
+        </section>
       </template>
     </SharedPageState>
   </SharedPageContainer>

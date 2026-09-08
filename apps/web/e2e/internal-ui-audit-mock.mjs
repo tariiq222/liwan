@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import http from 'node:http'
+import { projectsPreviewData } from './projects-ui-preview-data.mjs'
 import crypto from 'node:crypto'
 import { URL } from 'node:url'
 
@@ -221,6 +222,10 @@ async function handle(req, res) {
 
   if (!hasSession(req)) return fail(res, 403, 'forbidden', 'not logged in')
 
+  if (process.env.PROJECTS_UI_PREVIEW === '1' && method === 'GET') {
+    const preview = projectsPreviewData(path, url, { PROJECTS, TASKS, projectDetail, reportRow, CURRENCY })
+    if (preview !== undefined) return json(res, 200, preview)
+  }
   if (method === 'GET' && path === '/api/v1/me') return json(res, 200, ME)
   if (method === 'GET' && path === '/api/v1/admin/branding') return json(res, 200, BRANDING)
   if (method === 'GET' && path === '/api/v1/notifications') return json(res, 200, NOTIFICATIONS)

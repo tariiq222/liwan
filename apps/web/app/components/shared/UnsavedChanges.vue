@@ -1,18 +1,23 @@
 <script setup lang="ts">
-import { onBeforeRouteLeave } from 'vue-router'
+import { onBeforeRouteLeave, onBeforeRouteUpdate } from 'vue-router'
 import { AlertDialogRoot, AlertDialogPortal, AlertDialogOverlay, AlertDialogContent, AlertDialogTitle, AlertDialogDescription, AlertDialogCancel } from 'reka-ui'
 
-const props = defineProps<{ dirty: boolean }>()
+const props = withDefaults(defineProps<{ dirty: boolean; guardRouteUpdates?: boolean }>(), {
+  guardRouteUpdates: false,
+})
 const pendingPath = ref<string | null>(null)
 const leaving = ref(false)
 let returnFocus: HTMLElement | null = null
 
-onBeforeRouteLeave(to => {
+function guard(to: { fullPath: string }) {
   if (!props.dirty || leaving.value) return true
   if (import.meta.client) returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null
   pendingPath.value = to.fullPath
   return false
-})
+}
+
+onBeforeRouteLeave(guard)
+onBeforeRouteUpdate(to => props.guardRouteUpdates ? guard(to) : true)
 
 watch(() => props.dirty, dirty => {
   if (!dirty) pendingPath.value = null

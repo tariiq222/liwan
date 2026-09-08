@@ -67,7 +67,12 @@ function scheduleQueryWrite() {
     if (sameFinanceListRoute(query, serializeFinanceListRoute(parseFinanceListRoute(route.query as Record<string, unknown>)))) return
     applyingRoute = true
     try {
-      await router.replace({ query: { ...query, ...(typeof route.query.returnTo === 'string' ? { returnTo: route.query.returnTo } : {}) } })
+      const context = Object.fromEntries(
+        ['returnTo', 'taskContext', 'projectListReturnTo']
+          .filter(key => typeof route.query[key] === 'string')
+          .map(key => [key, route.query[key] as string]),
+      )
+      await router.replace({ query: { ...query, ...context } })
     }
     finally {
       applyingRoute = false
@@ -174,7 +179,7 @@ function financeChildKey(target: { path: string; params: Record<string, string |
     >
       <p v-if="notFound && !list.isLoading.value" class="text-muted-foreground">{{ t('projects.notFound') }}</p>
       <template v-else>
-        <FinanceSummaryCards v-if="summary" :summary="summary" />
+        <FinanceSummaryCards v-if="summary && projectId" :project-id="projectId" :summary="summary" />
         <div class="nasq-toolbar">
           <FilterBar class="w-full">
             <template #search>

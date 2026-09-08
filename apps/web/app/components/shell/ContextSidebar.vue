@@ -2,7 +2,7 @@
 import { ArrowRight, ChevronLeft } from '@lucide/vue'
 import { useShellNavigation } from '@/composables/useShellNavigation'
 import { activeShellModule, shellModules } from '@/composables/useNav'
-import { safeReturnTo } from '@/utils/safeReturnTo'
+import { projectListReturnTo } from '@/utils/projectNavigation'
 
 const { t, localeProperties } = useI18n()
 const { me } = useMe()
@@ -12,11 +12,12 @@ const activeModule = computed(() => activeShellModule(route.path))
 const moduleDefinition = computed(() => shellModules.find(item => item.id === activeModule.value) ?? module.value)
 const contextTitle = computed(() => projectId.value && project.data.value ? project.data.value.name : moduleDefinition.value ? t(moduleDefinition.value.labelKey) : t('app.productName'))
 const contextDescription = computed(() => projectId.value ? (project.data.value?.description_html?.replace(/<[^>]+>/g, '').trim() || '') : '')
-const projectsReturnTo = computed(() => safeReturnTo(route.query.returnTo, '/projects', ['/projects']))
+const projectsReturnTo = computed(() => projectListReturnTo(route.query))
 const isProject = computed(() => !!projectId.value && activeModule.value === 'projects')
 const primaryLinks = computed(() => contextLinks.value.filter(item => !isProject.value || item.id !== 'settings'))
 const moduleLinks = computed(() => {
   const links = primaryLinks.value
+  if (activeModule.value === 'projects') return links
   return [...links.filter(item => item.pinned), ...links.filter(item => !item.pinned)]
 })
 const showContextNav = computed(() => {

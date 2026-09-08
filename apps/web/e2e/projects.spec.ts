@@ -104,18 +104,14 @@ test('overlapping search and status updates keep both filters in the URL', async
   expect(projectListParams(page).get('status')).toBe('on_track')
 })
 
-test('project summary follows filtered records', async ({ page }) => {
+test('project list result count follows filtered records', async ({ page }) => {
   await login(page)
   const name = `E2E summary ${Date.now()}`
   const id = await createProjectWithStages(page, name)
   await page.request.post(`/api/v1/projects/${id}/status`, { data: { status: 'at_risk' } })
 
   await page.goto(`/projects?q=${encodeURIComponent(name)}`)
-  await expect(page.getByTestId('projects-summary-cards')).toBeVisible()
-  await expect(page.getByTestId('projects-summary-cards')).toHaveCount(1)
-  await expect(page.getByText('الإجمالي')).toBeVisible()
-  await expect(page.getByTestId('projects-summary-total')).toHaveText('1')
-  await expect(page.getByTestId('projects-summary-attention')).toHaveText('1')
+  await expect(page.getByTestId('projects-result-count')).toContainText('1')
 })
 
 test('project list shows every task of the project (not only mine), the detail page returns to the project', async ({ page }) => {
@@ -177,7 +173,7 @@ test('project task routes preserve the explicit board tab and filters', async ({
   await expect(page).toHaveURL(returnPath)
 })
 
-test('project header icon actions stay 32px at small and large font sizes', async ({ page, context }) => {
+test('project primary action and contextual settings remain accessible across font sizes', async ({ page, context }) => {
   await login(page)
   const id = await createProjectWithStages(page, `E2E header actions ${Date.now()}`)
   await page.goto(`/projects/${id}`)
@@ -191,12 +187,12 @@ test('project header icon actions stay 32px at small and large font sizes', asyn
       path: '/',
     }])
     await page.reload()
-    for (const testId of ['project-header-create', 'project-header-settings', 'project-header-archive']) {
+    for (const testId of ['project-header-create', 'context-link-settings']) {
       const action = page.getByTestId(testId)
       await expect(action).toBeVisible()
       const box = await action.boundingBox()
-      expect(box?.width).toBe(32)
-      expect(box?.height).toBe(32)
+      expect(box?.width).toBeGreaterThanOrEqual(32)
+      expect(box?.height).toBeGreaterThanOrEqual(32)
     }
   }
 })
@@ -289,9 +285,7 @@ test('project list next/previous pages keep q, status, and offset in the URL', a
   await page.getByRole('option', { name: 'على المسار' }).click()
   await expect(page).toHaveURL((url) => url.searchParams.get('q') === 'Bulk' && url.searchParams.get('status') === 'on_track')
   await expect(page.getByText('صفحة 1 من 5')).toBeVisible()
-  await expect(page.getByText('الإجمالي')).toBeVisible()
-  await expect(page.getByTestId('projects-summary-total')).toHaveText('201')
-  await expect(page.getByTestId('projects-summary-attention')).toHaveText('5')
+  await expect(page.getByTestId('projects-result-count')).toContainText('201')
   await page.getByRole('button', { name: 'التالي' }).click()
   await expect(page).toHaveURL((url) => (
     url.searchParams.get('q') === 'Bulk'
@@ -299,8 +293,7 @@ test('project list next/previous pages keep q, status, and offset in the URL', a
     && url.searchParams.get('offset') === '50'
   ))
   await expect(page.getByText('صفحة 2 من 5')).toBeVisible()
-  await expect(page.getByTestId('projects-summary-total')).toHaveText('201')
-  await expect(page.getByTestId('projects-summary-attention')).toHaveText('5')
+  await expect(page.getByTestId('projects-result-count')).toContainText('201')
   await page.getByRole('button', { name: 'السابق' }).click()
   await expect(page).toHaveURL((url) => (
     url.searchParams.get('q') === 'Bulk'
@@ -308,7 +301,7 @@ test('project list next/previous pages keep q, status, and offset in the URL', a
     && !url.searchParams.has('offset')
   ))
   await expect(page.getByText('صفحة 1 من 5')).toBeVisible()
-  await expect(page.getByTestId('projects-summary-total')).toHaveText('201')
+  await expect(page.getByTestId('projects-result-count')).toContainText('201')
   expect(projectListParams(page).get('q')).toBe('Bulk')
   expect(projectListParams(page).get('status')).toBe('on_track')
 })

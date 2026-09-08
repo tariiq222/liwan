@@ -45,11 +45,12 @@
       "managedIdentity": "The institution name and logo are managed by the system administrator in Odoo. You can customize the primary colour here."
     },
     "projects": {
-      "title": "Projects",
+      "title": "Projects module settings",
       "creators": {
         "label": "Who can create projects",
         "managers": "Project managers and administrators",
-        "employees": "All employees"
+        "employees": "All employees",
+        "hint": "Controls who may start new projects in this company."
       },
       "defaultStages": {
         "label": "Default stages for new projects",
@@ -72,11 +73,12 @@
         "label": "Deadline reminders",
         "enabled": "Send inbox reminders before the deadline",
         "daysBefore": "Days before the deadline",
-        "digest": "Daily overdue digest for the project manager"
+        "digest": "Daily overdue digest for the project manager",
+        "hint": "Reminders apply to eligible current tasks according to their dates and status; they do not create tasks or dates."
       },
       "catalogs": {
-        "title": "Charter catalogs",
-        "hint": "Project types and owning units are independent PMO lists.",
+        "title": "Shared reference lists",
+        "hint": "Project types and owning units used in project files.",
         "types": "Project types",
         "owningUnits": "Owning units",
         "back": "Back to project settings",
@@ -115,6 +117,15 @@
           "sequence": "Sequence must be a whole number.",
           "inUse": "A value that is still in use cannot be deleted."
         }
+      },
+      "scopeHint": "Policies, defaults, and shared reference data for this company. Existing projects change only where a section says they do.",
+      "creation": {
+        "title": "Project creation policy",
+        "hint": "Controls who can start a project and what must be entered at creation. These rules do not update existing projects."
+      },
+      "defaults": {
+        "title": "Defaults for new projects",
+        "hint": "Stages and task completion approval are copied into a project when it is created. Changing them does not update existing projects."
       }
     },
     "appearance": {

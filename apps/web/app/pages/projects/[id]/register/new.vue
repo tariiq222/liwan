@@ -13,7 +13,7 @@ const access = useProject(projectId)
 
 <template>
   <SharedPageContainer width="form">
-    <SharedPageHeader :title="t('projects.governance.registerForm.create')" :back-to="returnTo" :back-label="t('projects.governance.register.title')" />
+    <SharedPageHeader :title="t('projects.governance.registerForm.create')" :back-to="returnTo" :back-label="t('projects.refresh.workspace.registerTitle')" />
     <SharedPageState
       :loading="access.isLoading.value"
       :error="access.error.value"

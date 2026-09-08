@@ -125,7 +125,7 @@ test('creating a project from the table lands on its page with the default stage
   }
 })
 
-test('project settings: rename and visibility, followers, and the full stage lifecycle', async ({ page }) => {
+test('project settings: visibility, followers, and the full stage lifecycle', async ({ page }) => {
   await login(page)
   await ensureEmployeeUser(page)
   const name = `E2E settings ${Date.now()}`
@@ -135,19 +135,12 @@ test('project settings: rename and visibility, followers, and the full stage lif
   await createTask(page, `${name} task`, id)
 
   await page.goto(`/projects/${id}`)
-  await page.getByTestId('project-header-settings').click()
-  await expect(page).toHaveURL(new RegExp(`/projects/${id}/settings\\?returnTo=`))
+  await page.getByTestId('context-link-settings').click()
+  await expect(page).toHaveURL(new RegExp(`/projects/${id}/settings\\?`))
   let settings = page.getByTestId('project-settings-page')
   await expect(settings).toBeVisible()
 
-  // --- general: rename + visibility ---------------------------------------
-  const renamed = `${name} renamed`
-  const nameInput = settings.getByLabel('الاسم')
-  await nameInput.fill(renamed)
-  const nameSaved = page.waitForResponse((r) => r.url().includes(`/api/v1/projects/${id}`) && r.request().method() === 'PATCH')
-  await nameInput.blur()
-  await nameSaved
-
+  // --- operation: visibility (identity editing belongs to the charter) ---
   const visibilitySaved = page.waitForResponse((r) => r.url().includes(`/api/v1/projects/${id}`) && r.request().method() === 'PATCH')
   await settings.getByText('كل الموظفين', { exact: true }).click()
   await page.getByRole('option', { name: 'المتابعون فقط' }).click()

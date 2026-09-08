@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { use } from 'echarts/core'
+import { registerLocale, use } from 'echarts/core'
+import arabicLocale from 'echarts/lib/i18n/langAR.js'
 import { BarChart, PieChart } from 'echarts/charts'
 import { AriaComponent, DataZoomComponent, GridComponent, LegendComponent, TooltipComponent } from 'echarts/components'
 import { SVGRenderer } from 'echarts/renderers'
 import VChart from 'vue-echarts'
+
+registerLocale('AR', arabicLocale)
 
 use([SVGRenderer, BarChart, PieChart, AriaComponent, DataZoomComponent, GridComponent, LegendComponent, TooltipComponent])
 
@@ -19,6 +22,8 @@ const props = withDefaults(defineProps<{
 })
 
 const { mode, fontSize } = useAppearance()
+const { locale } = useI18n()
+const initOptions = computed(() => ({ renderer: 'svg' as const, locale: locale.value.startsWith('ar') ? 'AR' : 'EN' }))
 const tokens = ref<Record<string, string>>({})
 let themeObserver: MutationObserver | null = null
 
@@ -73,7 +78,7 @@ watch([mode, fontSize], () => { void nextTick(readTokens) }, { flush: 'post' })
     <VChart
       class="size-full"
       :option="themedOption"
-      :init-options="{ renderer: 'svg' }"
+      :init-options="initOptions"
       autoresize
     />
   </div>

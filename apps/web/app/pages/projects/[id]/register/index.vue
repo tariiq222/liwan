@@ -62,7 +62,7 @@ async function deleteItem(item: { id: number }) {
 <template>
   <SharedPageContainer width="list">
     <SharedPageHeader
-      :title="t('projects.governance.register.title')"
+      :title="t('projects.refresh.workspace.registerTitle')"
       :description="t('projects.governance.register.pageDescription')"
       :back-to="projectReturnTo"
       :back-label="t('projects.backToProject')"

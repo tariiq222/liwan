@@ -74,8 +74,14 @@ function isOverdue(value: string | null) {
       <div class="grid gap-4">
         <ProjectOverviewTasks :project-id="project.id" :return-to="route.fullPath" />
         <section class="nasq-panel overflow-hidden">
-          <div class="nasq-panel-header">
+          <div class="nasq-panel-header flex items-center justify-between gap-3">
             <h2>{{ t('projects.overview.latestUpdate') }}</h2>
+            <NuxtLink
+              :to="{ path: `/projects/${project.id}/updates`, query: { returnTo: route.fullPath } }"
+              class="text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground"
+            >
+              {{ t('projects.refresh.workspace.viewAllUpdates') }}
+            </NuxtLink>
           </div>
           <div class="nasq-panel-body">
             <Skeleton v-if="updates.isLoading.value" class="h-10 w-full" />

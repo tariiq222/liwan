@@ -116,3 +116,28 @@ describe('projects dashboard navigation', () => {
     expect(contextLinksForModule('projects', undefined)).toEqual([])
   })
 })
+
+// A section's "back to project" must never accidentally target the projects list.
+describe('project section return destinations', () => {
+  it('returns from settings to the project while retaining the filtered list origin', () => {
+    const links = projectContextLinks(12, employee, true, true, { returnTo: '/projects?mine=1&q=site', tab: 'tasks', q: 'late', view: 'board' })
+    const settings = links.find(item => item.id === 'settings')!.to as { query: Record<string, string> }
+    const target = new URL(settings.query.returnTo!, 'http://nasq.local')
+    expect(target.pathname).toBe('/projects/12')
+    expect(target.searchParams.get('returnTo')).toBe('/projects?mine=1&q=site')
+    const summary = projectContextLinks(12, employee, true, true, settings.query).find(item => item.id === 'summary')!.to as { query: Record<string, string> }
+    expect(summary.query.returnTo).toBe('/projects?mine=1&q=site')
+    const planning = projectContextLinks(12, employee, true, true, settings.query).find(item => item.id === 'planning')!.to as { query: Record<string, string> }
+    expect(planning.query).toMatchObject({ tab: 'tasks', q: 'late', view: 'board', returnTo: '/projects?mine=1&q=site' })
+  })
+  it('does not nest section return paths or carry unsafe origins on repeated switches', () => {
+    let query: Record<string, string> = { returnTo: '//evil.test/projects' }
+    for (let step = 0; step < 10; step++) {
+      query = (projectContextLinks(12, employee, true, true, query).find(item => item.id === 'finance')!.to as { query: Record<string, string> }).query
+      expect(new URL(query.returnTo!, 'http://nasq.local').pathname).toBe('/projects/12')
+      expect(query.returnTo!.length).toBeLessThan(220)
+    }
+    const summary = projectContextLinks(12, employee, true, true, query).find(item => item.id === 'summary')!.to as { query: Record<string, string> }
+    expect(summary.query.returnTo).toBe('/projects')
+  })
+})

@@ -89,16 +89,15 @@ async function renderGeneral(value: ProjectDetail) {
 }
 
 describe('ProjectGeneralForm production template', () => {
-  it('sends a lone end date without inventing a start', () => {
-    const endFn = source.slice(source.indexOf('function onEndChange'), source.indexOf('function clearDates'))
-    expect(endFn).toContain('patch({ date })')
-    expect(endFn).not.toContain('date_start')
-  })
-
-  it('keeps a lone end date visible after the server response and does not invent a start', async () => {
+  it('keeps charter identity and date fields out of operational settings', async () => {
+    expect(source).not.toContain('project-settings-name')
+    expect(source).not.toContain('project-settings-manager')
+    expect(source).not.toContain('project-settings-date-start')
+    expect(source).not.toContain('DescriptionEditor')
+    expect(source).toContain('allow_task_dependencies')
+    expect(source).toContain('TagPicker')
     const html = await renderGeneral(project)
-    expect(html).toContain('2031-06-30')
-    expect(html).toContain('projects.settings.noDate')
+    expect(html).not.toContain('2031-06-30')
   })
 
   it('keeps specific_user pending until a person is chosen and exposes cancel', async () => {
