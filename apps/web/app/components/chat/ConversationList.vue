@@ -35,7 +35,7 @@ function conversationTo(id: number) {
 </script>
 
 <template>
-  <section class="flex h-full min-h-0 flex-col border-e" data-testid="chat-list">
+  <section class="flex h-full min-h-0 flex-col" data-testid="chat-list">
     <form class="flex flex-col gap-2 p-3" @submit.prevent="applySearch">
       <Input v-model="q" :placeholder="t('chat.search')" :disabled="!hydrated" />
       <div class="flex flex-wrap gap-2">

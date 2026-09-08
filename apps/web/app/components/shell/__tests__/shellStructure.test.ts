@@ -6,6 +6,8 @@ const root = resolve(import.meta.dirname, '../../..')
 const layout = readFileSync(resolve(root, 'layouts/default.vue'), 'utf8')
 const shellCss = readFileSync(resolve(root, 'assets/css/approved-shell.css'), 'utf8')
 const accountMenu = readFileSync(resolve(root, 'components/AppAccountMenu.vue'), 'utf8')
+const contextSidebar = readFileSync(resolve(root, 'components/shell/ContextSidebar.vue'), 'utf8')
+const chatWorkspace = readFileSync(resolve(root, 'components/chat/ChatWorkspace.vue'), 'utf8')
 
 describe('approved shell structure', () => {
   it('uses one explicit shell frame without SidebarProvider', () => {
@@ -21,6 +23,14 @@ describe('approved shell structure', () => {
     expect(shellCss).toContain('.nasq-context-links { display: flex; overflow-x: auto;')
     expect(shellCss).toContain('.nasq-context-create')
     expect(shellCss).not.toContain('.nasq-context-sidebar[aria-collapsed]')
+  })
+
+  it('owns the desktop chat list in the context sidebar', () => {
+    expect(contextSidebar).toContain("import ConversationList from '@/components/chat/ConversationList.vue'")
+    expect(contextSidebar).toContain('v-if="isChat && isDesktop"')
+    expect(contextSidebar).toContain(':data-chat="isChat"')
+    expect(chatWorkspace).toContain("useMediaQuery('(min-width: 761px)'")
+    expect(chatWorkspace).not.toContain('lg:grid-cols-[20rem_minmax(0,1fr)]')
   })
 
   it('uses the branded shell token for both header and rail', () => {

@@ -206,7 +206,9 @@ html[dir="rtl"] body { padding-right: 0 !important; }
   color: var(--foreground);
   transition: inset-inline-start 180ms ease;
 }
+.nasq-context-sidebar[data-chat="true"] { width: 320px; overflow: hidden; }
 .nasq-context-sidebar-inner { display: flex; min-height: 100%; flex-direction: column; padding-block: 16px 18px; }
+.nasq-context-sidebar[data-chat="true"] .nasq-context-sidebar-inner { height: 100%; min-height: 0; overflow: hidden; }
 .nasq-context-back { display: inline-flex; align-items: center; gap: 8px; margin: 0 18px 12px; color: var(--muted-foreground); font-size: .78rem; text-decoration: none; }
 .nasq-context-back:hover { color: var(--foreground); }
 .nasq-context-heading { display: grid; grid-template-columns: 36px minmax(0, 1fr); align-items: center; gap: 10px; padding: 14px 18px 20px; }
@@ -225,6 +227,7 @@ html[dir="rtl"] body { padding-right: 0 !important; }
 .nasq-context-active-mark { width: 14px; height: 14px; margin-inline-start: auto; }
 .nasq-context-footer { margin-block-start: auto; border-block-start: 1px solid color-mix(in srgb, var(--border) 65%, transparent); padding: 12px 10px 0; }
 .nasq-shell-workspace { min-height: 100svh; margin-inline-start: calc(var(--module-rail-width) + var(--context-sidebar-width)); padding-block-start: var(--shell-header-height); background: var(--context-surface); transition: margin-inline-start 180ms ease; }
+.nasq-shell:has(.nasq-context-sidebar[data-chat="true"]) .nasq-shell-workspace { margin-inline-start: calc(var(--module-rail-width) + 320px); }
 .nasq-shell-breadcrumb { display: flex; min-height: 44px; align-items: center; gap: 8px; overflow-x: auto; padding-inline: clamp(18px, 3vw, 36px); background: var(--context-surface); color: var(--muted-foreground); font-size: .75rem; white-space: nowrap; }
 .nasq-shell-breadcrumb-link:hover { color: var(--foreground); }
 .nasq-shell-breadcrumb-current { color: var(--foreground); font-weight: 500; }
@@ -243,7 +246,9 @@ html[dir="rtl"] body { padding-right: 0 !important; }
   .nasq-shell-header { grid-template-columns: minmax(120px, 1fr) minmax(180px, 320px) minmax(120px, 1fr); gap: 12px; }
   .nasq-shell-brand-name { display: none; }
   .nasq-context-sidebar { width: 220px; }
+  .nasq-context-sidebar[data-chat="true"] { width: 320px; }
   .nasq-shell-workspace { margin-inline-start: calc(var(--module-rail-width) + 220px); }
+  .nasq-shell:has(.nasq-context-sidebar[data-chat="true"]) .nasq-shell-workspace { margin-inline-start: calc(var(--module-rail-width) + 320px); }
 }
 @media (max-width: 760px) {
   .nasq-shell { --shell-header-height: 108px; --module-rail-width: 54px; }
@@ -261,13 +266,16 @@ html[dir="rtl"] body { padding-right: 0 !important; }
   .nasq-module-rail[data-expanded="true"] .nasq-module-rail-link,
   .nasq-module-rail[data-expanded="true"] .nasq-module-rail-toggle { justify-content: center; padding-inline: 8px; }
   .nasq-context-sidebar { position: relative; inset: auto; width: calc(100% - var(--module-rail-width)); margin-inline-start: var(--module-rail-width); margin-block-start: 108px; overflow: visible; }
+  .nasq-context-sidebar[data-chat="true"] { width: calc(100% - var(--module-rail-width)); overflow: visible; }
   .nasq-context-sidebar-inner { min-height: auto; padding-block: 10px 8px; }
+  .nasq-context-sidebar[data-chat="true"] .nasq-context-sidebar-inner { height: auto; min-height: auto; overflow: visible; }
   .nasq-context-back { margin-block: 4px 4px; }
   .nasq-context-heading { padding: 8px 14px 10px; }
   .nasq-context-links { display: flex; overflow-x: auto; padding-inline: 10px; scrollbar-width: thin; }
   .nasq-context-link { flex: 0 0 auto; min-height: 38px; white-space: nowrap; }
   .nasq-context-footer { margin-block-start: 4px; border-block-start: 0; padding-block-start: 0; }
   .nasq-shell-workspace { min-height: auto; margin-inline-start: var(--module-rail-width); padding-block-start: 0; }
+  .nasq-shell:has(.nasq-context-sidebar[data-chat="true"]) .nasq-shell-workspace { margin-inline-start: var(--module-rail-width); }
   .nasq-shell-breadcrumb { min-height: 40px; padding-inline: 14px; }
   .nasq-shell-main { min-height: calc(100svh - 140px); border-start-start-radius: 18px; padding: 22px 16px 40px; }
   .nasq-shell-breadcrumb + .nasq-shell-main { min-height: calc(100svh - 180px); }
