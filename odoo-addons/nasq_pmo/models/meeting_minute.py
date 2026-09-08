@@ -2,7 +2,7 @@
 from contextvars import ContextVar
 
 from odoo import api, fields, models
-from odoo.exceptions import AccessError, UserError
+from odoo.exceptions import AccessError, UserError, ValidationError
 from odoo.tools.mail import plaintext2html
 
 _CALENDAR_IMPORT = ContextVar('nasq_calendar_import', default=False)
@@ -13,6 +13,38 @@ class CyanMeetingMinute(models.Model):
     _inherit = 'cyan.meeting.minute'
 
     meeting_url = fields.Char()
+    series_id = fields.Many2one(
+        'nasq.meeting.series', index=True, ondelete='restrict', check_company=True,
+    )
+    project_id = fields.Many2one('project.project', check_company=True, index=True)
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        for vals in vals_list:
+            series = self.env['nasq.meeting.series'].browse(vals['series_id']) if vals.get('series_id') else self.env['nasq.meeting.series']
+            if series:
+                series.check_access('read')
+                if series.project_id:
+                    vals.setdefault('project_id', series.project_id.id)
+                vals.setdefault('organizer_id', series.organizer_id.id)
+                if series.secretary_id:
+                    vals.setdefault('secretary_id', series.secretary_id.id)
+                if series.location:
+                    vals.setdefault('location', series.location)
+                if series.meeting_url:
+                    vals.setdefault('meeting_url', series.meeting_url)
+                if 'attendee_ids' not in vals:
+                    attendees = series.attendee_ids
+                    if series.secretary_id:
+                        attendees -= series.secretary_id
+                    vals['attendee_ids'] = [(6, 0, attendees.ids)]
+        records = super().create(vals_list)
+        for meeting in records:
+            if not _CALENDAR_IMPORT.get():
+                meeting._nasq_sync_calendar()
+            partners = meeting._cyan_participant_users().mapped('partner_id') - meeting.env.user.partner_id
+            meeting._nasq_notify_partners(partners, 'meeting_invite', meeting.name, key=f'meeting-invite:{meeting.id}')
+        return records
 
     def _nasq_notify_partners(self, partners, kind, body, key=None):
         self.ensure_one()
@@ -84,16 +116,6 @@ class CyanMeetingMinute(models.Model):
                 raise
             return
 
-    @api.model_create_multi
-    def create(self, vals_list):
-        records = super().create(vals_list)
-        for meeting in records:
-            if not _CALENDAR_IMPORT.get():
-                meeting._nasq_sync_calendar()
-            partners = meeting._cyan_participant_users().mapped('partner_id') - meeting.env.user.partner_id
-            meeting._nasq_notify_partners(partners, 'meeting_invite', meeting.name, key=f'meeting-invite:{meeting.id}')
-        return records
-
     def write(self, vals):
         previous = {meeting.id: meeting._cyan_participant_users() for meeting in self}
         result = super().write(vals)
@@ -123,6 +145,64 @@ class CyanMeetingMinute(models.Model):
             elif self.secretary_id.id != values.get('organizer_id'):
                 values['secretary_id'] = False
         return super()._cyan_write_calendar_schedule(values)
+
+    @api.constrains('start_datetime', 'end_datetime', 'organizer_id', 'state')
+    def _nasq_check_organizer_overlap(self):
+        for meeting in self:
+            if meeting.state == 'cancelled' or not meeting.start_datetime or not meeting.end_datetime:
+                continue
+            clash = self.search_count([
+                ('id', '!=', meeting.id),
+                ('company_id', '=', meeting.company_id.id),
+                ('organizer_id', '=', meeting.organizer_id.id),
+                ('state', '!=', 'cancelled'),
+                ('start_datetime', '<', meeting.end_datetime),
+                ('end_datetime', '>', meeting.start_datetime),
+            ], limit=1)
+            if clash:
+                raise ValidationError(self.env._("This time overlaps another meeting for the organizer."))
+
+    def _nasq_scope_meetings(self, scope):
+        self.ensure_one()
+        if scope != 'this_and_following' or not self.series_id:
+            return self
+        return self.series_id.meeting_ids.filtered(
+            lambda meeting: meeting.meeting_date and self.meeting_date and meeting.meeting_date >= self.meeting_date,
+        )
+
+    def action_apply_schedule_scope(self, vals, scope='this'):
+        self.ensure_one()
+        allowed = {'name', 'location', 'start_datetime', 'end_datetime', 'meeting_url', 'meeting_date'}
+        payload = {key: vals[key] for key in allowed if key in vals}
+        targets = self._nasq_scope_meetings(scope)
+        locked = targets.filtered(lambda meeting: meeting.state in meeting._LOCKED_STATES)
+        if scope == 'this' and locked:
+            raise UserError(self.env._("Reopen the meeting before changing its schedule."))
+        editable = targets - locked
+        if scope == 'this_and_following' and self.start_datetime and payload.get('start_datetime'):
+            new_start = fields.Datetime.to_datetime(payload['start_datetime'])
+            delta = new_start - self.start_datetime
+            new_end = fields.Datetime.to_datetime(payload['end_datetime']) if payload.get('end_datetime') else None
+            duration = (new_end - new_start) if new_end else None
+            for meeting in editable:
+                updates = dict(payload)
+                if meeting.start_datetime:
+                    updates['start_datetime'] = meeting.start_datetime + delta
+                    if duration is not None:
+                        updates['end_datetime'] = updates['start_datetime'] + duration
+                    elif meeting.end_datetime:
+                        updates['end_datetime'] = meeting.end_datetime + delta
+                    updates['meeting_date'] = fields.Date.to_date(updates['start_datetime'])
+                meeting.write(updates)
+            return editable
+        editable.write(payload)
+        return editable
+
+    def action_cancel_scope(self, scope='this'):
+        self.ensure_one()
+        targets = self._nasq_scope_meetings(scope).filtered(lambda meeting: meeting.state not in ('done', 'cancelled'))
+        targets.action_cancel()
+        return targets
 
 
 class CalendarEvent(models.Model):

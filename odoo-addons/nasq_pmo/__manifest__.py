@@ -20,6 +20,8 @@
         'security/ir.model.access-templates.csv',
         'security/project_template_rules.xml',
         'security/nasq_pmo_rules.xml',
+        'security/ir.model.access-meetings.csv',
+        'security/meeting_series_rules.xml',
         'security/project_charter_rules.xml',
         'data/nasq_pmo_data.xml',
         'data/nasq_project_sequence.xml',

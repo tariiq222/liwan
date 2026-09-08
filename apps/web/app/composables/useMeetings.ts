@@ -16,17 +16,37 @@ import {
   type MeetingResolutionCreate,
 } from '@nasq/contracts'
 
-export function useMeetings(params: MaybeRefOrGetter<{ q?: string; limit?: number; offset?: number }>) {
+export function useMeetings(params: MaybeRefOrGetter<{
+  q?: string
+  limit?: number
+  offset?: number
+  date_from?: string
+  date_to?: string
+  state?: string
+  organizer_id?: number
+  project_id?: number
+  series_id?: number
+  mine?: boolean
+}>) {
   const { $api } = useApi()
   return useQuery({
     queryKey: computed(() => ['meetings', toValue(params)]),
     queryFn: () => {
       const p = toValue(params)
+      const ranged = Boolean(p.date_from && p.date_to)
+      const cap = ranged ? 2000 : 200
       return $api('/api/v1/meetings', {
         query: {
           q: p.q || undefined,
-          limit: Math.min(Math.max(p.limit ?? 200, 1), 200),
+          limit: Math.min(Math.max(p.limit ?? cap, 1), cap),
           offset: Math.max(p.offset ?? 0, 0),
+          date_from: p.date_from,
+          date_to: p.date_to,
+          state: p.state,
+          organizer_id: p.organizer_id,
+          project_id: p.project_id,
+          series_id: p.series_id,
+          mine: p.mine ? 1 : undefined,
         },
         schema: MeetingListSchema,
       })

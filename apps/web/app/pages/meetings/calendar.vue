@@ -4,13 +4,35 @@ import { useMeetings } from '@/composables/useMeetings'
 import { returnToQuery } from '@/utils/safeReturnTo'
 
 const route = useRoute()
+const router = useRouter()
 const { t, locale } = useI18n()
 const hydrated = useHydrated()
 const { can } = useAccess()
-const cursor = ref(new Date())
+const queryYear = Number(route.query.year)
+const queryMonth = Number(route.query.month)
+const cursor = ref(new Date(
+  Number.isInteger(queryYear) ? queryYear : new Date().getFullYear(),
+  Number.isInteger(queryMonth) && queryMonth >= 1 && queryMonth <= 12 ? queryMonth - 1 : new Date().getMonth(),
+  1,
+))
 const year = computed(() => cursor.value.getFullYear())
 const month = computed(() => cursor.value.getMonth())
-const query = useMeetings({ limit: 200, offset: 0 })
+const dateFrom = computed(() => `${year.value}-${String(month.value + 1).padStart(2, '0')}-01`)
+const dateTo = computed(() => {
+  const last = new Date(year.value, month.value + 1, 0).getDate()
+  return `${year.value}-${String(month.value + 1).padStart(2, '0')}-${String(last).padStart(2, '0')}`
+})
+const query = useMeetings(computed(() => ({
+  date_from: dateFrom.value,
+  date_to: dateTo.value,
+  limit: 2000,
+  offset: 0,
+})))
+watch([year, month], ([nextYear, nextMonth]) => {
+  const monthNumber = nextMonth + 1
+  if (Number(route.query.year) === nextYear && Number(route.query.month) === monthNumber) return
+  void router.replace({ query: { ...route.query, year: String(nextYear), month: String(monthNumber) } })
+}, { immediate: true })
 const weekStart = computed(() => (locale.value === 'ar' ? 6 : 1))
 
 const monthLabel = computed(() => new Intl.DateTimeFormat(locale.value, {

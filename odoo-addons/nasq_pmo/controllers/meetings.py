@@ -12,6 +12,20 @@ from odoo.addons.nasq_api.controllers.common import (
 from odoo.addons.nasq_pmo.serializers.meeting import dump_meeting, dump_resolution
 
 MAX_MEETINGS = 200
+MAX_MONTH = 2000
+STATES = {'draft', 'confirmed', 'done', 'cancelled'}
+
+
+def _parse_day(value, field):
+    if not isinstance(value, str) or len(value) != 10:
+        raise ApiError(422, 'invalid', '%s must be YYYY-MM-DD' % field, field=field)
+    return value
+
+
+def _parse_dt(value, field):
+    if not isinstance(value, str) or not value.strip():
+        raise ApiError(422, 'invalid', '%s must be a datetime' % field, field=field)
+    return value.strip().replace('T', ' ').replace('Z', '')
 
 
 class MeetingController(http.Controller):
@@ -21,14 +35,33 @@ class MeetingController(http.Controller):
     def list_meetings(self, **_):
         request.env['nasq.access.service']._nasq_require_capability('meetings.read')
         args = request.httprequest.args
-        limit = min(parse_nonneg_int(args.get('limit', MAX_MEETINGS), 'limit') or MAX_MEETINGS, MAX_MEETINGS)
+        date_from = (args.get('date_from') or '').strip()
+        date_to = (args.get('date_to') or '').strip()
+        cap = MAX_MONTH if date_from and date_to else MAX_MEETINGS
+        default_limit = cap
+        limit = min(parse_nonneg_int(args.get('limit', default_limit), 'limit') or default_limit, cap)
         offset = parse_nonneg_int(args.get('offset', 0), 'offset')
         domain = []
         q = (args.get('q') or '').strip()
         if q:
-            domain.append('|')
-            domain.append(('name', 'ilike', q))
-            domain.append(('reference', 'ilike', q))
+            domain += ['|', ('name', 'ilike', q), ('reference', 'ilike', q)]
+        if args.get('state'):
+            if args.get('state') not in STATES:
+                raise ApiError(422, 'invalid', 'invalid state', field='state')
+            domain.append(('state', '=', args.get('state')))
+        if date_from:
+            domain.append(('meeting_date', '>=', _parse_day(date_from, 'date_from')))
+        if date_to:
+            domain.append(('meeting_date', '<=', _parse_day(date_to, 'date_to')))
+        if args.get('organizer_id'):
+            domain.append(('organizer_id', '=', parse_positive_int(args.get('organizer_id'), 'organizer_id')))
+        if args.get('project_id'):
+            domain.append(('project_id', '=', parse_positive_int(args.get('project_id'), 'project_id')))
+        if args.get('series_id'):
+            domain.append(('series_id', '=', parse_positive_int(args.get('series_id'), 'series_id')))
+        if args.get('mine') in {'1', 'true'}:
+            uid = request.env.uid
+            domain += ['|', '|', ('organizer_id', '=', uid), ('secretary_id', '=', uid), ('attendee_ids', 'in', [uid])]
         Meeting = request.env['cyan.meeting.minute']
         records = Meeting.search(domain, order='meeting_date desc, id desc', limit=limit, offset=offset)
         return {
@@ -45,7 +78,7 @@ class MeetingController(http.Controller):
 
     @http.route('/api/v1/meetings', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
-    def create_meeting(self, name=None, meeting_date=None, location=None, start_datetime=None, end_datetime=None, meeting_url=None, attendee_ids=None, secretary_id=None, **_):
+    def create_meeting(self, name=None, meeting_date=None, location=None, start_datetime=None, end_datetime=None, meeting_url=None, attendee_ids=None, secretary_id=None, agenda=None, series_id=None, project_id=None, **_):
         request.env['nasq.access.service']._nasq_require_capability('meetings.create')
         if not isinstance(name, str) or not name.strip():
             raise ApiError(422, 'invalid', "name must not be empty", field='name')
@@ -58,15 +91,21 @@ class MeetingController(http.Controller):
         if isinstance(location, str) and location.strip():
             vals['location'] = location.strip()
         if isinstance(start_datetime, str) and start_datetime.strip():
-            vals['start_datetime'] = start_datetime.strip().replace('T', ' ').replace('Z', '')
+            vals['start_datetime'] = _parse_dt(start_datetime, 'start_datetime')
         if isinstance(end_datetime, str) and end_datetime.strip():
-            vals['end_datetime'] = end_datetime.strip().replace('T', ' ').replace('Z', '')
+            vals['end_datetime'] = _parse_dt(end_datetime, 'end_datetime')
         if isinstance(meeting_url, str) and meeting_url.strip():
             vals['meeting_url'] = meeting_url.strip()
         if secretary_id:
             vals['secretary_id'] = parse_positive_int(secretary_id, 'secretary_id')
         if isinstance(attendee_ids, list):
             vals['attendee_ids'] = [(6, 0, [parse_positive_int(item, 'attendee_ids') for item in attendee_ids])]
+        if isinstance(agenda, str):
+            vals['agenda'] = agenda
+        if series_id:
+            vals['series_id'] = parse_positive_int(series_id, 'series_id')
+        if project_id:
+            vals['project_id'] = parse_positive_int(project_id, 'project_id')
         meeting = request.env['cyan.meeting.minute'].create(vals)
         return request.make_json_response(dump_meeting(meeting, detail=True), status=201)
 
@@ -99,9 +138,29 @@ class MeetingController(http.Controller):
             if value is not None and not isinstance(value, str):
                 raise ApiError(422, 'invalid', 'meeting_url must be a string', field='meeting_url')
             vals['meeting_url'] = (value or '').strip()
+        if payload.get('series_id'):
+            vals['series_id'] = parse_positive_int(payload['series_id'], 'series_id')
+        if 'project_id' in payload:
+            vals['project_id'] = parse_positive_int(payload['project_id'], 'project_id') if payload['project_id'] else False
         if not vals:
             raise ApiError(422, 'invalid', 'no fields to update')
-        meeting.write(vals)
+        scope = payload.get('scope') or 'this'
+        if scope not in {'this', 'this_and_following'}:
+            raise ApiError(422, 'invalid', 'invalid scope', field='scope')
+        if scope == 'this_and_following':
+            meeting.action_apply_schedule_scope(vals, scope)
+        else:
+            meeting.write(vals)
+        return dump_meeting(meeting, detail=True)
+
+    @http.route('/api/v1/meetings/<int:meeting_id>/cancel', type='json2', auth='user', methods=['POST'], readonly=False)
+    @api_handler
+    def cancel_meeting(self, meeting_id, scope='this', **_):
+        request.env['nasq.access.service']._nasq_require_capability('meetings.read')
+        meeting = get_record('cyan.meeting.minute', meeting_id)
+        if scope not in {'this', 'this_and_following'}:
+            raise ApiError(422, 'invalid', 'invalid scope', field='scope')
+        meeting.action_cancel_scope(scope)
         return dump_meeting(meeting, detail=True)
 
     @http.route('/api/v1/meetings/<int:meeting_id>/resolutions', type='json2', auth='user', methods=['POST'], readonly=False)

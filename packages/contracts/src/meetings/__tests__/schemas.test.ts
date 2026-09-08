@@ -6,8 +6,13 @@ const ITEM = {
   name: 'مراجعة تشغيلية',
   reference: 'MM/0001',
   meeting_date: '2026-09-07',
+  start_datetime: null,
+  end_datetime: null,
   state: 'draft' as const,
   organizer: { id: 2, name: 'Admin' },
+  open_resolution_count: 0,
+  series_id: null,
+  project_id: null,
 }
 
 describe('meeting contracts', () => {
@@ -18,13 +23,14 @@ describe('meeting contracts', () => {
       agenda: '<p>أ</p>',
       minutes: '',
       location: 'قاعة 1',
-      start_datetime: null,
-      end_datetime: null,
       meeting_url: '',
       can_edit: true,
+      can_manage: false,
       secretary: null,
       attendees: [{ id: 3, name: 'Sara' }],
       resolutions: [],
+      series: null,
+      project: null,
     }).attendees).toHaveLength(1)
   })
 })

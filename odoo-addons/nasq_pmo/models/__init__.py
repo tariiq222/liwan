@@ -2,6 +2,7 @@
 from . import (
     mail_notification_nasq,
     meeting_minute,
+    meeting_series,
     meeting_resolution,
     nasq_settings,
     project_charter_reference,

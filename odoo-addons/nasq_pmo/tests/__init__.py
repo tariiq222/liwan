@@ -6,6 +6,7 @@ from . import (
     test_completion_approval,
     test_deadline_digest,
     test_meetings,
+    test_meeting_series,
     test_milestones,
     test_notifications,
     test_personal_stages,
