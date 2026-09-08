@@ -204,16 +204,18 @@ function confirmDelete(stageId: StageRow['id']) {
             </div>
           </div>
         </template>
-        <Tooltip v-else>
-          <TooltipTrigger as-child>
-            <span>
-              <Button variant="ghost" size="icon" type="button" data-testid="stage-delete" :aria-label="t('projects.stages.delete')" disabled>
-                <Trash2 class="size-4" />
-              </Button>
-            </span>
-          </TooltipTrigger>
-          <TooltipContent>{{ t('projects.stages.notEmpty', { count: stage.task_count }) }}</TooltipContent>
-        </Tooltip>
+        <TooltipProvider v-else :delay-duration="0">
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <span>
+                <Button variant="ghost" size="icon" type="button" data-testid="stage-delete" :aria-label="t('projects.stages.delete')" disabled>
+                  <Trash2 class="size-4" />
+                </Button>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>{{ t('projects.stages.notEmpty', { count: stage.task_count }) }}</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </div>
     </VueDraggable>
 

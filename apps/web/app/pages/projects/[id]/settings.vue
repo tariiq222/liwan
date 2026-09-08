@@ -20,7 +20,7 @@ const returnTo = computed(() => projectId.value ? safeReturnTo(route.query.retur
   <SharedPageContainer width="form">
     <SharedPageHeader
       :title="t('projects.settings.title')"
-      :description="t('projects.settings.pageDescription')"
+      :description="t('projects.refresh.settings.individualDescription')"
       :eyebrow="project?.name"
       :back-to="returnTo"
       :back-label="t('projects.backToProject')"

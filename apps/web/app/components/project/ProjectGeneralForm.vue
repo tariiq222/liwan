@@ -1,12 +1,9 @@
 <script setup lang="ts">
-import type { CalendarDate } from '@internationalized/date'
 import type { ProjectDetail, ProjectPatch, Visibility } from '@nasq/contracts'
 import { refDebounced } from '@vueuse/core'
 import { Check } from '@lucide/vue'
 import { toast } from 'vue-sonner'
-import DescriptionEditor from '@/components/task/DescriptionEditor.vue'
 import TagPicker from '@/components/task/TagPicker.vue'
-import { formatCalendarDate, fromCalendarDate, toCalendarDate } from '@/composables/calendarDate'
 import { ApiError } from '@/composables/useApi'
 import { usePeople } from '@/composables/usePeople'
 import { useUpdateProject } from '@/composables/useProjects'
@@ -15,7 +12,7 @@ import { useUpdateProject } from '@/composables/useProjects'
 // button, each control commits its own patch on blur/Enter/selection.
 const props = defineProps<{ project: ProjectDetail }>()
 
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const hydrated = useHydrated()
 const { mutate: updateProject } = useUpdateProject()
 
@@ -26,76 +23,11 @@ function patch(body: ProjectPatch) {
   )
 }
 
-// --- name ------------------------------------------------------------------
-const nameDraft = ref(props.project.name)
-watch(
-  () => props.project.name,
-  (name) => {
-    nameDraft.value = name
-  },
-)
-function commitName() {
-  const name = nameDraft.value.trim()
-  if (!name || name === props.project.name) {
-    nameDraft.value = props.project.name
-    return
-  }
-  patch({ name })
-}
-
-// --- description -------------------------------------------------------------
-// DescriptionEditor is the task drawer's Tiptap editor, reused as-is: it
-// keys its debounced-flush buffer on `taskId`, which here is the project id
-// (there's no separate project-scoped variant of the field).
-function onDescriptionChange({ html, taskId }: { html: string; taskId: number }) {
-  // The editor's debounced flush is keyed by that id: a stale flush from a
-  // previously-mounted editor instance (a different task/project id) must
-  // not overwrite this project's description.
-  if (taskId !== props.project.id) return
-  patch({ description: html })
-}
-
-// --- manager -----------------------------------------------------------------
-const managerOpen = ref(false)
-const managerQ = ref('')
-const debouncedManagerQ = refDebounced(managerQ, 250)
-const { data: people } = usePeople(debouncedManagerQ)
-
-function selectManager(userId: number | null) {
-  managerOpen.value = false
-  managerQ.value = ''
-  if (userId === (props.project.manager?.id ?? null)) return
-  patch({ user_id: userId })
-}
-
 // --- visibility ----------------------------------------------------------------
 function onVisibilityChange(v: unknown) {
   const visibility = v as Visibility
   if (!visibility || visibility === props.project.privacy_visibility) return
   patch({ privacy_visibility: visibility })
-}
-
-// --- dates -----------------------------------------------------------------------
-// A lone end-date PATCH sends only `{ date }`. Clearing still sends both
-// nulls together so an explicit clear cannot leave a half-range.
-const startValue = computed(() => toCalendarDate(props.project.date_start))
-const endValue = computed(() => toCalendarDate(props.project.date_end))
-const startLabel = computed(() => formatCalendarDate(props.project.date_start, locale.value) || t('projects.settings.noDate'))
-const endLabel = computed(() => formatCalendarDate(props.project.date_end, locale.value) || t('projects.settings.noDate'))
-const hasAnyDate = computed(() => !!props.project.date_start || !!props.project.date_end)
-
-function onStartChange(v: unknown) {
-  const date = fromCalendarDate(v as CalendarDate | undefined)
-  if (!date) return
-  patch({ date_start: date })
-}
-function onEndChange(v: unknown) {
-  const date = fromCalendarDate(v as CalendarDate | undefined)
-  if (!date) return
-  patch({ date })
-}
-function clearDates() {
-  patch({ date_start: null, date: null })
 }
 
 // --- tags --------------------------------------------------------------------
@@ -194,50 +126,8 @@ const approvalLocked = computed(() => approvalBusy.value)
 <template>
   <div class="space-y-5">
     <section class="space-y-2">
-      <Label for="project-settings-name">{{ t('projects.settings.name') }}</Label>
-      <Input
-        id="project-settings-name"
-        v-model="nameDraft"
-        :disabled="!hydrated"
-        @keydown.enter="($event.target as HTMLInputElement).blur()"
-        @blur="commitName"
-      />
-    </section>
-
-    <section class="grid gap-4 sm:grid-cols-2">
-      <div class="space-y-2">
-        <Label id="project-settings-manager-label" for="project-settings-manager">{{ t('projects.settings.manager') }}</Label>
-        <Popover v-model:open="managerOpen">
-          <PopoverTrigger as-child>
-            <Button id="project-settings-manager" variant="outline" class="w-full min-w-0 justify-start" type="button" :disabled="!hydrated" aria-labelledby="project-settings-manager-label project-settings-manager-value">
-              <span id="project-settings-manager-value" class="min-w-0 truncate" :title="project.manager?.name ?? t('projects.settings.noManager')">{{ project.manager?.name ?? t('projects.settings.noManager') }}</span>
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent class="w-64 p-0" align="start">
-            <div class="border-b p-2">
-              <Input v-model="managerQ" :placeholder="t('app.search')" class="h-8" />
-            </div>
-            <Command>
-              <CommandList>
-                <CommandEmpty>{{ t('app.noResults') }}</CommandEmpty>
-                <CommandGroup>
-                  <CommandItem value="none" @select="selectManager(null)">
-                    <span class="flex-1">{{ t('projects.settings.noManager') }}</span>
-                    <Check v-if="!project.manager" class="size-4" />
-                  </CommandItem>
-                  <CommandItem v-for="p in people ?? []" :key="p.id" :value="String(p.id)" @select="selectManager(p.id)">
-                    <span class="flex-1">{{ p.name }}</span>
-                    <Check v-if="project.manager?.id === p.id" class="size-4" />
-                  </CommandItem>
-                </CommandGroup>
-              </CommandList>
-            </Command>
-          </PopoverContent>
-        </Popover>
-      </div>
-
-      <div class="space-y-2">
         <Label id="project-settings-visibility-label" for="project-settings-visibility">{{ t('projects.settings.visibility') }}</Label>
+        <p class="text-sm text-muted-foreground">{{ t('projects.refresh.settings.visibilityHint') }}</p>
         <Select :model-value="project.privacy_visibility" :disabled="!hydrated" @update:model-value="onVisibilityChange">
           <SelectTrigger id="project-settings-visibility" class="w-full" aria-labelledby="project-settings-visibility-label">
             <SelectValue />
@@ -247,43 +137,6 @@ const approvalLocked = computed(() => approvalBusy.value)
             <SelectItem value="followers">{{ t('projects.settings.visibilityFollowers') }}</SelectItem>
           </SelectContent>
         </Select>
-      </div>
-    </section>
-
-    <!-- Lone end-date edits PATCH `{ date }` only; clear still nulls the pair. -->
-    <section class="space-y-2">
-      <Label id="project-settings-dates-label">{{ t('projects.settings.dateStart') }} / {{ t('projects.settings.dateEnd') }}</Label>
-      <div class="grid gap-2 sm:grid-cols-2">
-        <Popover>
-          <PopoverTrigger as-child>
-            <Button variant="outline" class="justify-start" type="button" :disabled="!hydrated" aria-labelledby="project-settings-date-start-label project-settings-date-start-value">
-              <span id="project-settings-date-start-label" class="sr-only">{{ t('projects.settings.dateStart') }}</span>
-              <span id="project-settings-date-start-value">{{ startLabel }}</span>
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent class="w-auto p-0" align="start">
-            <Calendar :model-value="startValue" @update:model-value="onStartChange" />
-            <div v-if="hasAnyDate" class="border-t p-2">
-              <Button variant="ghost" size="sm" type="button" class="w-full" @click="clearDates">{{ t('projects.settings.noDate') }}</Button>
-            </div>
-          </PopoverContent>
-        </Popover>
-
-        <Popover>
-          <PopoverTrigger as-child>
-            <Button variant="outline" class="justify-start" type="button" :disabled="!hydrated" aria-labelledby="project-settings-date-end-label project-settings-date-end-value">
-              <span id="project-settings-date-end-label" class="sr-only">{{ t('projects.settings.dateEnd') }}</span>
-              <span id="project-settings-date-end-value">{{ endLabel }}</span>
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent class="w-auto p-0" align="start">
-            <Calendar :model-value="endValue" @update:model-value="onEndChange" />
-            <div v-if="hasAnyDate" class="border-t p-2">
-              <Button variant="ghost" size="sm" type="button" class="w-full" @click="clearDates">{{ t('projects.settings.noDate') }}</Button>
-            </div>
-          </PopoverContent>
-        </Popover>
-      </div>
     </section>
 
     <section class="flex items-center justify-between gap-3">
@@ -350,9 +203,5 @@ const approvalLocked = computed(() => approvalBusy.value)
 
     <Separator />
 
-    <section class="space-y-2">
-      <Label>{{ t('projects.settings.description') }}</Label>
-      <DescriptionEditor :model-value="project.description_html" :task-id="project.id" @update:model-value="onDescriptionChange" />
-    </section>
   </div>
 </template>

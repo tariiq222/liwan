@@ -15,10 +15,8 @@ const isBaseRoute = computed(() => normalizedPath.value === '/settings/projects'
 const sections = computed(() => {
   if (!isBaseRoute.value || forbidden.value || !projectSettings.value) return []
   return [
-    { id: 'project-creators', label: t('settings.projects.creators.label') },
-    { id: 'project-stages', label: t('settings.projects.defaultStages.label') },
-    { id: 'project-requirements', label: t('settings.projects.createRequirements.label') },
-    { id: 'project-approval', label: t('settings.projects.approval.label') },
+    { id: 'project-creation', label: t('settings.projects.creation.title') },
+    { id: 'project-defaults', label: t('settings.projects.defaults.title') },
     { id: 'project-reminders', label: t('settings.projects.reminders.label') },
     { id: 'catalogs', label: t('settings.projects.catalogs.title') },
   ]
@@ -27,7 +25,7 @@ const sections = computed(() => {
 
 <template>
   <SettingsLayout v-if="isBaseRoute" :sections width="form">
-    <SharedPageHeader :title="t('settings.projects.title')" />
+    <SharedPageHeader :title="t('settings.projects.title')" :description="t('settings.projects.scopeHint')" />
     <p v-if="forbidden" class="text-muted-foreground">{{ t('settings.forbidden') }}</p>
     <div v-else class="nasq-panel nasq-panel-body">
       <ProjectSettingsForm />
