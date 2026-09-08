@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { ProjectReportRow } from '@nasq/contracts'
 import {
   projectBudgetHealthData,
+  projectDashboardCurrencies,
   projectFinanceComparisonChart,
   projectFinanceComparisonData,
   projectProgressBandsChart,
@@ -61,6 +62,7 @@ describe('project dashboard chart data', () => {
 
   it('orders unique currencies and never includes another currency in the comparison', () => {
     const rows = [row(1, { finance: { ...row(1).finance, currency: USD } }), row(2), row(3, { finance: { ...row(3).finance, currency: USD } })]
+    expect(projectDashboardCurrencies(rows).map(currency => currency.id)).toEqual([1, 2])
     expect(projectFinanceComparisonData(rows, USD.id).map(item => item.projectId)).toEqual([1, 3])
   })
 

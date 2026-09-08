@@ -145,7 +145,7 @@ function barTooltip(raw: unknown) {
   const payload: Record<string, unknown> = {}
   bars.value.series.forEach(series => {
     const value = datum.values?.[series.key]
-    payload[series.key] = value == null ? datum.displayValues?.[series.key] ?? datum.stateLabel ?? datum.unavailable ?? '—' : value
+    payload[series.key] = datum.displayValues?.[series.key] ?? (value == null ? datum.stateLabel ?? datum.unavailable ?? '—' : value)
   })
   return tooltipContent(datum.name ?? '', payload)
 }
