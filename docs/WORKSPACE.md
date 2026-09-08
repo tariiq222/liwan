@@ -1,3 +1,7 @@
+# Latest meetings tabs and filters integration — 2026-09-09
+
+Persistent tabs, the 2px active navigation underline, and richer meeting/series filters are integrated into local main. Four temporary worktrees and branches were retired after verified recovery backups; only canonical main remains. See [integration and recovery](meeting-tabs-filters-integration-2026-09-09.md). Canonical runtime was not restarted during this integration. Earlier entries below are historical checkpoints.
+
 # Latest meetings UX integration — 2026-09-09
 
 Meetings repairs and the preserved pending UI changes are integrated into local `main`; only the canonical worktree and main branch remain after verified archive-backed cleanup. See [integration and recovery](meetings-ux-integration-2026-09-09.md). This is source integration; `odoo19` and canonical running services were not upgraded or restarted.
