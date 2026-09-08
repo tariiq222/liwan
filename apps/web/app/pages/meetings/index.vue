@@ -125,21 +125,40 @@ function setPage(next: number) {
       @retry="query.refetch"
     >
       <div class="nasq-panel overflow-hidden">
-        <NuxtLink
-          v-for="meeting in query.data.value?.items"
-          :key="meeting.id"
-          :to="{ path: `/meetings/${meeting.id}`, query: returnToQuery(route.fullPath) }"
-          class="flex flex-wrap items-center gap-3 border-b border-border/80 p-3 last:border-0 transition-colors hover:bg-muted/70"
-        >
-          <span class="font-medium">{{ meeting.name }}</span>
-          <span class="text-sm text-muted-foreground">{{ meeting.reference }}</span>
-          <span class="ms-auto text-sm text-muted-foreground">
-            {{ meeting.meeting_date ? formatCalendarDate(meeting.meeting_date, locale) : '—' }}
-            · {{ meeting.organizer?.name || '—' }}
-            · {{ t(`meetingsUi.state.${meeting.state}`) }}
-            · {{ t('meetingsUi.openCount', { count: meeting.open_resolution_count }) }}
-          </span>
-        </NuxtLink>
+        <Table class="min-w-[720px]" :aria-label="t('nav.meetings')">
+          <TableHeader>
+            <TableRow>
+              <TableHead scope="col">{{ t('meetingsUi.title') }}</TableHead>
+              <TableHead scope="col">{{ t('meetingsUi.date') }}</TableHead>
+              <TableHead scope="col">{{ t('meetingsUi.organizer') }}</TableHead>
+              <TableHead scope="col">{{ t('meetingsUi.stateLabel') }}</TableHead>
+              <TableHead scope="col">{{ t('meetingsUi.resolutions') }}</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            <TableRow v-for="meeting in query.data.value?.items" :key="meeting.id">
+              <TableCell class="min-w-56 whitespace-normal">
+                <NuxtLink
+                  :to="{ path: `/meetings/${meeting.id}`, query: returnToQuery(route.fullPath) }"
+                  class="block rounded-sm font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  {{ meeting.name }}
+                </NuxtLink>
+                <span class="mt-1 block text-xs text-muted-foreground">{{ meeting.reference }}</span>
+              </TableCell>
+              <TableCell class="text-muted-foreground">
+                {{ meeting.meeting_date ? formatCalendarDate(meeting.meeting_date, locale) : '—' }}
+              </TableCell>
+              <TableCell class="whitespace-normal">{{ meeting.organizer?.name || '—' }}</TableCell>
+              <TableCell>
+                <Badge variant="secondary">{{ t(`meetingsUi.state.${meeting.state}`) }}</Badge>
+              </TableCell>
+              <TableCell class="text-muted-foreground">
+                {{ t('meetingsUi.openCount', { count: meeting.open_resolution_count }) }}
+              </TableCell>
+            </TableRow>
+          </TableBody>
+        </Table>
       </div>
     </SharedPageState>
     <nav v-if="pages > 1" class="flex items-center justify-between text-sm text-muted-foreground">
