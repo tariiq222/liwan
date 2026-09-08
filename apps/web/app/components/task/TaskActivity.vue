@@ -17,7 +17,7 @@ const { data: entries, error, refetch, isLoading } = useTimeline(idRef)
   <section data-testid="task-activity-card" class="nasq-panel task-activity-card">
     <header class="nasq-panel-header">
       <div>
-        <h2 class="text-sm font-semibold">{{ t('tasks.detail.activityTitle') }}</h2>
+        <h2>{{ t('tasks.detail.activityTitle') }}</h2>
         <p class="mt-1 text-xs text-muted-foreground">{{ t('tasks.detail.activityDescription') }}</p>
       </div>
     </header>

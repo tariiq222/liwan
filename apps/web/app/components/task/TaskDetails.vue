@@ -167,114 +167,123 @@ const completedSubtasks = computed(() => props.task.subtasks.filter(subtask => s
 </script>
 
 <template>
-  <div>
-    <section class="task-meta-grid" role="group" :aria-label="t('tasks.detail.primaryMetadata')">
-      <div class="task-meta-item">
-        <span id="task-assignees-label" class="task-meta-label">{{ t('tasks.drawer.assignees') }}</span>
-        <p v-if="!task.can_write" class="task-meta-value">{{ task.assignees.map(person => person.name).join('، ') || t('tasks.drawer.unassigned') }}</p>
-        <AssigneePicker v-else :model-value="task.assignees" labelledby="task-assignees-label" @update:model-value="onAssigneesChange" />
-      </div>
+  <div class="grid min-w-0 gap-4">
+    <section class="nasq-panel" role="group" :aria-label="t('tasks.detail.primaryMetadata')">
+      <header class="nasq-panel-header">
+        <h2>{{ t('tasks.detail.primaryMetadata') }}</h2>
+      </header>
+      <div class="nasq-panel-body task-meta-grid">
+        <div class="task-meta-item">
+          <span id="task-assignees-label" class="task-meta-label">{{ t('tasks.drawer.assignees') }}</span>
+          <p v-if="!task.can_write" class="task-meta-value">{{ task.assignees.map(person => person.name).join('، ') || t('tasks.drawer.unassigned') }}</p>
+          <AssigneePicker v-else :model-value="task.assignees" labelledby="task-assignees-label" @update:model-value="onAssigneesChange" />
+        </div>
 
-      <div class="task-meta-item">
-        <span id="task-priority-label" class="task-meta-label">{{ t('tasks.drawer.priority') }}</span>
-        <PrioritySelect :task="task" labelledby="task-priority-label" />
-      </div>
+        <div class="task-meta-item">
+          <span id="task-priority-label" class="task-meta-label">{{ t('tasks.drawer.priority') }}</span>
+          <PrioritySelect :task="task" labelledby="task-priority-label" />
+        </div>
 
-      <div class="task-meta-item">
-        <span id="task-deadline-label" class="task-meta-label">{{ t('tasks.drawer.deadline') }}</span>
-        <p v-if="!task.can_write" class="task-meta-value">{{ deadlineButtonLabel }}</p>
-        <Popover v-else>
-          <PopoverTrigger as-child>
-            <Button variant="outline" size="sm" class="w-full justify-start" type="button" aria-labelledby="task-deadline-label task-deadline-value">
-              <span id="task-deadline-value">{{ deadlineButtonLabel }}</span>
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent class="w-auto p-0" align="start">
-            <Calendar :model-value="calendarValue" :min-value="milestoneStartCalendar" :max-value="milestoneDeadlineCalendar" @update:model-value="onCalendarChange" />
-            <div class="flex items-center gap-2 border-t p-2">
-              <Label for="deadline-time" class="sr-only">{{ t('tasks.drawer.deadline') }}</Label>
-              <Input id="deadline-time" v-model="timeDraft" type="time" class="h-8" @change="onTimeChange" />
-              <Button v-if="task.date_deadline" variant="ghost" size="sm" type="button" @click="clearDeadline">
-                {{ t('tasks.deadline.none') }}
+        <div class="task-meta-item">
+          <span id="task-deadline-label" class="task-meta-label">{{ t('tasks.drawer.deadline') }}</span>
+          <p v-if="!task.can_write" class="task-meta-value">{{ deadlineButtonLabel }}</p>
+          <Popover v-else>
+            <PopoverTrigger as-child>
+              <Button variant="outline" size="sm" class="w-full justify-start" type="button" aria-labelledby="task-deadline-label task-deadline-value">
+                <span id="task-deadline-value">{{ deadlineButtonLabel }}</span>
               </Button>
-            </div>
-          </PopoverContent>
-        </Popover>
-        <p v-if="deadlineError" role="alert" class="mt-1 text-xs text-destructive">{{ deadlineError }}</p>
-      </div>
+            </PopoverTrigger>
+            <PopoverContent class="w-auto p-0" align="start">
+              <Calendar :model-value="calendarValue" :min-value="milestoneStartCalendar" :max-value="milestoneDeadlineCalendar" @update:model-value="onCalendarChange" />
+              <div class="flex items-center gap-2 border-t p-2">
+                <Label for="deadline-time" class="sr-only">{{ t('tasks.drawer.deadline') }}</Label>
+                <Input id="deadline-time" v-model="timeDraft" type="time" class="h-8" @change="onTimeChange" />
+                <Button v-if="task.date_deadline" variant="ghost" size="sm" type="button" @click="clearDeadline">
+                  {{ t('tasks.deadline.none') }}
+                </Button>
+              </div>
+            </PopoverContent>
+          </Popover>
+          <p v-if="deadlineError" role="alert" class="mt-1 text-xs text-destructive">{{ deadlineError }}</p>
+        </div>
 
-      <div class="task-meta-item">
-        <span id="task-milestone-label" class="task-meta-label">{{ t('tasks.drawer.milestone') }}</span>
-        <MilestoneSelect v-if="task.project && task.can_write" :task="task" labelledby="task-milestone-label" />
-        <p v-else class="task-meta-value">{{ task.milestone?.name || t('tasks.drawer.noMilestone') }}</p>
+        <div class="task-meta-item">
+          <span id="task-milestone-label" class="task-meta-label">{{ t('tasks.drawer.milestone') }}</span>
+          <MilestoneSelect v-if="task.project && task.can_write" :task="task" labelledby="task-milestone-label" />
+          <p v-else class="task-meta-value">{{ task.milestone?.name || t('tasks.drawer.noMilestone') }}</p>
+        </div>
       </div>
     </section>
 
-    <section class="task-section">
-      <div class="task-section-head">
+    <section class="nasq-panel">
+      <header class="nasq-panel-header">
         <h2>{{ t('tasks.drawer.description') }}</h2>
+      </header>
+      <div class="nasq-panel-body">
+        <TaskDescription :key="task.id" :task="task" />
       </div>
-      <TaskDescription :key="task.id" :task="task" />
     </section>
 
-    <TaskDeliverables :key="`outputs-${task.id}`" :task="task" class="task-section" />
+    <TaskDeliverables :key="`outputs-${task.id}`" :task="task" />
 
-    <section class="task-section">
-      <div class="task-section-head">
-        <h2>
-          {{ t('tasks.drawer.subtasks') }}
-          <span class="text-xs font-normal text-muted-foreground">{{ t('tasks.detail.subtaskProgress', { done: completedSubtasks, total: task.subtasks.length }) }}</span>
-        </h2>
+    <section class="nasq-panel">
+      <header class="nasq-panel-header">
+        <h2>{{ t('tasks.drawer.subtasks') }}</h2>
+        <span class="text-xs font-normal text-muted-foreground">{{ t('tasks.detail.subtaskProgress', { done: completedSubtasks, total: task.subtasks.length }) }}</span>
+      </header>
+      <div class="nasq-panel-body">
+        <SubtaskList :task="task" :base-path="props.basePath" />
       </div>
-      <SubtaskList :task="task" :base-path="props.basePath" />
     </section>
 
     <DependencyPicker :task="task" />
 
     <TaskAttachments :key="task.id" :task-id="task.id" :can-write="task.can_write" />
 
-    <details class="task-section">
-      <summary class="task-details-summary">{{ t('tasks.drawer.additionalDetails') }}</summary>
-      <div class="task-additional-grid">
-        <section class="task-additional-item">
-          <span id="task-stage-label">{{ t('tasks.drawer.stage') }}</span>
-          <strong v-if="!task.can_write">{{ task.personal_stage?.name || t('tasks.drawer.unassigned') }}</strong>
-          <Select v-else :model-value="task.personal_stage ? String(task.personal_stage.id) : NONE" @update:model-value="onStageChange">
-            <SelectTrigger size="sm" class="w-full" aria-labelledby="task-stage-label"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem :value="NONE">{{ t('tasks.drawer.unassigned') }}</SelectItem>
-              <SelectItem v-for="s in stages ?? []" :key="s.id" :value="String(s.id)">{{ s.name }}</SelectItem>
-            </SelectContent>
-          </Select>
-        </section>
+    <details class="nasq-panel">
+      <summary class="task-details-summary nasq-panel-header">{{ t('tasks.drawer.additionalDetails') }}</summary>
+      <div class="nasq-panel-body">
+        <div class="task-additional-grid">
+          <section class="task-additional-item">
+            <span id="task-stage-label">{{ t('tasks.drawer.stage') }}</span>
+            <strong v-if="!task.can_write">{{ task.personal_stage?.name || t('tasks.drawer.unassigned') }}</strong>
+            <Select v-else :model-value="task.personal_stage ? String(task.personal_stage.id) : NONE" @update:model-value="onStageChange">
+              <SelectTrigger size="sm" class="w-full" aria-labelledby="task-stage-label"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem :value="NONE">{{ t('tasks.drawer.unassigned') }}</SelectItem>
+                <SelectItem v-for="s in stages ?? []" :key="s.id" :value="String(s.id)">{{ s.name }}</SelectItem>
+              </SelectContent>
+            </Select>
+          </section>
 
-        <section class="task-additional-item">
-          <span id="task-tags-label">{{ t('tasks.drawer.tags') }}</span>
-          <strong v-if="!task.can_write">{{ task.tags.map(tag => tag.name).join('، ') || '—' }}</strong>
-          <TagPicker v-else :model-value="task.tags" :can-create="task.can_approve" labelledby="task-tags-label" @update:model-value="onTagsChange" />
-        </section>
+          <section class="task-additional-item">
+            <span id="task-tags-label">{{ t('tasks.drawer.tags') }}</span>
+            <strong v-if="!task.can_write">{{ task.tags.map(tag => tag.name).join('، ') || '—' }}</strong>
+            <TagPicker v-else :model-value="task.tags" :can-create="task.can_approve" labelledby="task-tags-label" @update:model-value="onTagsChange" />
+          </section>
 
-        <section v-if="task.can_write && task.can_approve" class="task-additional-item">
-          <Label for="allocated-hours" class="text-muted-foreground">{{ t('tasks.drawer.allocatedHours') }}</Label>
-          <Input id="allocated-hours" v-model="hoursDraft" type="number" min="0" step="0.5" class="mt-2" @change="onHoursChange" />
-        </section>
+          <section v-if="task.can_write && task.can_approve" class="task-additional-item">
+            <Label for="allocated-hours" class="text-muted-foreground">{{ t('tasks.drawer.allocatedHours') }}</Label>
+            <Input id="allocated-hours" v-model="hoursDraft" type="number" min="0" step="0.5" class="mt-2" @change="onHoursChange" />
+          </section>
 
-        <section class="task-additional-item">
-          <span>{{ t('tasks.drawer.created') }}</span>
-          <strong>{{ createdLabel }}</strong>
-        </section>
-        <section class="task-additional-item">
-          <span>{{ t('tasks.drawer.updated') }}</span>
-          <strong>{{ updatedLabel }}</strong>
-        </section>
-        <section class="task-additional-item">
-          <span>{{ t('tasks.drawer.age') }}</span>
-          <strong>{{ t('tasks.drawer.days', { n: task.age_days }) }}</strong>
-        </section>
-        <section v-if="task.cycle_days !== null" class="task-additional-item">
-          <span>{{ t('tasks.drawer.cycle') }}</span>
-          <strong>{{ t('tasks.drawer.days', { n: task.cycle_days }) }}</strong>
-        </section>
+          <section class="task-additional-item">
+            <span>{{ t('tasks.drawer.created') }}</span>
+            <strong>{{ createdLabel }}</strong>
+          </section>
+          <section class="task-additional-item">
+            <span>{{ t('tasks.drawer.updated') }}</span>
+            <strong>{{ updatedLabel }}</strong>
+          </section>
+          <section class="task-additional-item">
+            <span>{{ t('tasks.drawer.age') }}</span>
+            <strong>{{ t('tasks.drawer.days', { n: task.age_days }) }}</strong>
+          </section>
+          <section v-if="task.cycle_days !== null" class="task-additional-item">
+            <span>{{ t('tasks.drawer.cycle') }}</span>
+            <strong>{{ t('tasks.drawer.days', { n: task.cycle_days }) }}</strong>
+          </section>
+        </div>
       </div>
     </details>
   </div>
@@ -284,21 +293,19 @@ const completedSubtasks = computed(() => props.task.subtasks.filter(subtask => s
 .task-meta-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
+  gap: 8px 16px;
 }
 
 .task-meta-item {
   min-width: 0;
-  padding-block: 8px;
-  padding-inline: 2px;
 }
 
 .task-meta-label,
 .task-additional-item > span {
   display: block;
-  margin-bottom: 5px;
+  margin-bottom: 6px;
   color: var(--muted-foreground);
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
 }
 
 .task-meta-value,
@@ -306,40 +313,23 @@ const completedSubtasks = computed(() => props.task.subtasks.filter(subtask => s
   display: block;
   overflow-wrap: anywhere;
   color: var(--foreground);
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-
-.task-section {
-  margin-top: 18px;
-  padding-top: 16px;
-  border-top: 1px solid var(--border);
-}
-
-.task-section-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  margin-bottom: 10px;
-}
-
-.task-section-head h2 {
-  font-size: 0.9375rem;
+  font-size: 0.875rem;
   font-weight: 600;
 }
 
 .task-details-summary {
   cursor: pointer;
-  font-size: 0.8125rem;
-  font-weight: 600;
+  list-style-position: inside;
+}
+
+.task-details-summary::marker {
+  color: var(--muted-foreground);
 }
 
 .task-additional-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px 12px;
-  margin-top: 14px;
 }
 
 .task-additional-item {

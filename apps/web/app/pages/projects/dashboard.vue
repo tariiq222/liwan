@@ -124,15 +124,19 @@ function clearFilters() {
       <div class="grid gap-5 xl:grid-cols-2"><Skeleton v-for="n in 6" :key="n" class="h-[350px] rounded-lg bg-card" /></div>
     </div>
 
-    <div v-else-if="analytics.error.value" data-testid="project-dashboard-analytics-error" role="alert" class="nasq-panel space-y-3 p-6">
-      <p class="font-medium">{{ t('projects.dashboard.analyticsError') }}</p>
-      <Button variant="outline" :disabled="!hydrated" @click="analytics.refetch">{{ t('projects.dashboard.retryAnalytics') }}</Button>
+    <div v-else-if="analytics.error.value" data-testid="project-dashboard-analytics-error" role="alert" class="nasq-panel overflow-hidden">
+      <div class="nasq-panel-header"><h2>{{ t('projects.dashboard.analyticsError') }}</h2></div>
+      <div class="nasq-panel-body space-y-3">
+        <Button variant="outline" :disabled="!hydrated" @click="analytics.refetch">{{ t('projects.dashboard.retryAnalytics') }}</Button>
+      </div>
     </div>
 
-    <div v-else-if="rows.length === 0" data-testid="project-dashboard-empty" role="status" class="nasq-panel p-10 text-center text-sm text-muted-foreground">
-      <p class="font-medium text-foreground">{{ t(filtered ? 'projects.filteredEmpty' : 'projects.dashboard.empty') }}</p>
-      <p class="mt-1">{{ t(filtered ? 'projects.filteredEmptyHint' : 'projects.emptyHint') }}</p>
-      <Button v-if="filtered" variant="outline" class="mt-4" :disabled="!hydrated" @click="clearFilters">{{ t('projects.filters.clear') }}</Button>
+    <div v-else-if="rows.length === 0" data-testid="project-dashboard-empty" role="status" class="nasq-panel overflow-hidden text-sm text-muted-foreground">
+      <div class="nasq-panel-header"><h2>{{ t(filtered ? 'projects.filteredEmpty' : 'projects.dashboard.empty') }}</h2></div>
+      <div class="nasq-panel-body text-center">
+        <p>{{ t(filtered ? 'projects.filteredEmptyHint' : 'projects.emptyHint') }}</p>
+        <Button v-if="filtered" variant="outline" class="mt-4" :disabled="!hydrated" @click="clearFilters">{{ t('projects.filters.clear') }}</Button>
+      </div>
     </div>
 
     <template v-else>

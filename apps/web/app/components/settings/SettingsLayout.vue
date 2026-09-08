@@ -49,7 +49,7 @@ withDefaults(defineProps<{
 .nasq-settings-option > span { min-width: 0; overflow-wrap: anywhere; }
 .nasq-settings-cards { display: grid; grid-template-columns: minmax(0, 1fr); align-items: start; gap: 16px; }
 .nasq-settings-branding { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; }
-.nasq-settings-section-heading { margin-block-end: 16px; font-size: 1rem; font-weight: 600; }
+.nasq-settings-section-heading { margin-block-end: 16px; padding: 12px 16px; border: 1px solid var(--border); border-radius: 8px; background: color-mix(in srgb, var(--muted) 70%, var(--card)); font-size: 1rem; font-weight: 600; }
 @container settings (min-width: 640px) {
   .nasq-settings-filters { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .nasq-settings-options, .nasq-settings-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }

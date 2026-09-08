@@ -134,14 +134,16 @@ const workspaceCanCreate = computed(() => {
 
       <ProjectOverview v-if="project && isSummary" :project="project" />
 
-      <section v-if="isBaseRoute && project && (planningView === 'list' || planningView === 'board')" class="nasq-panel overflow-hidden">
+      <section v-if="isBaseRoute && project && (planningView === 'list' || planningView === 'board')" class="nasq-panel overflow-hidden" aria-labelledby="project-tasks-title">
         <div class="nasq-panel-header flex items-center justify-between gap-3">
-          <h2>{{ t('projects.tabs.tasks') }}</h2>
+          <h2 id="project-tasks-title">{{ t('projects.tabs.tasks') }}</h2>
           <NuxtLink :to="{ path: '/archived-tasks', query: { project_id: project.id, ...returnToQuery(route.fullPath) } }" class="text-sm text-muted-foreground underline underline-offset-4">{{ t('taskLifecycle.archivedTasks') }}</NuxtLink>
         </div>
-        <TaskToolbar :model-value="params" embedded hide-project-filter @update:model-value="onParams" />
-        <TaskTable v-if="taskView === 'table'" :params="params" variant="project" embedded @open="openTask" @create="openTaskCreate" />
-        <TaskBoard v-else :params="params" :stage-source="stageSource" embedded @open="openTask" />
+        <div class="min-w-0">
+          <TaskToolbar :model-value="params" embedded hide-project-filter @update:model-value="onParams" />
+          <TaskTable v-if="taskView === 'table'" :params="params" variant="project" embedded @open="openTask" @create="openTaskCreate" />
+          <TaskBoard v-else :params="params" :stage-source="stageSource" embedded @open="openTask" />
+        </div>
       </section>
 
       <div v-if="isBaseRoute && project && planningView === 'milestones'">

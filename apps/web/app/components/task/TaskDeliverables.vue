@@ -41,11 +41,12 @@ async function toggle(index: number, event: Event) {
 </script>
 
 <template>
-  <section v-if="deliverables.length" class="grid gap-3" data-testid="task-deliverables" aria-labelledby="task-deliverables-title">
-    <div class="flex flex-wrap items-center justify-between gap-3">
-      <h2 id="task-deliverables-title" class="text-base font-semibold">{{ t('tasks.deliverables.title') }}</h2>
+  <section v-if="deliverables.length" class="nasq-panel" data-testid="task-deliverables" aria-labelledby="task-deliverables-title">
+    <header class="nasq-panel-header">
+      <h2 id="task-deliverables-title">{{ t('tasks.deliverables.title') }}</h2>
       <span class="text-xs text-muted-foreground">{{ t('tasks.deliverables.checklistOf', { done: deliverables.filter(item => item.done).length, total: deliverables.length }) }}</span>
-    </div>
+    </header>
+    <div class="nasq-panel-body grid gap-3">
     <div class="space-y-2">
       <label v-for="(item, index) in deliverables" :key="`${task.id}-${index}`" class="flex items-center gap-2 text-sm" :class="{ 'cursor-pointer': task.can_write && hydrated && !busy }">
         <input :checked="item.done" type="checkbox" :aria-label="t('tasks.deliverables.toggle', { name: item.name })" :disabled="!hydrated || !task.can_write || busy" class="size-4 rounded border-border accent-primary" @change="toggle(index, $event)" />
@@ -53,5 +54,6 @@ async function toggle(index: number, event: Event) {
       </label>
     </div>
     <p v-if="error" role="alert" class="text-sm text-destructive">{{ error }}</p>
+    </div>
   </section>
 </template>

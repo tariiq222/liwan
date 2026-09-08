@@ -129,8 +129,10 @@ async function deleteItem(item: { id: number }) {
       :empty="!list.isLoading.value && !list.data.value?.items.length"
       @retry="list.refetch"
     />
-    <section v-if="list.data?.value?.items.length" class="nasq-panel overflow-hidden">
-      <Table>
+    <section v-if="list.data?.value?.items.length" class="nasq-panel overflow-hidden" aria-labelledby="register-list-title">
+      <div class="nasq-panel-header"><h2 id="register-list-title">{{ t('projects.refresh.workspace.registerTitle') }}</h2></div>
+      <div class="nasq-panel-body p-0 overflow-x-auto">
+        <Table>
         <TableHeader>
           <TableRow>
             <TableHead class="text-start">{{ t('projects.governance.register.itemTitle') }}</TableHead>
@@ -176,7 +178,8 @@ async function deleteItem(item: { id: number }) {
             </TableCell>
           </TableRow>
         </TableBody>
-      </Table>
+        </Table>
+      </div>
     </section>
     <nav v-if="list.data.value" class="flex items-center gap-3" :aria-label="t('projects.governance.pagination')">
       <Button variant="outline" :disabled="!hydrated || list.isFetching.value || !parsed.offset" @click="page(-1)">

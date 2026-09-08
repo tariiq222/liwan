@@ -47,19 +47,29 @@ async function save() {
     <SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!query.isLoading.value && !query.error.value && !query.data.value" @retry="query.refetch">
     <form v-if="query.data.value" class="nasq-form nasq-panel nasq-panel-body grid gap-4" @submit.prevent="save">
       <SharedUnsavedChanges :dirty="dirty" />
-      <Label for="res-name">{{ t('meetingsUi.resolutionTitle') }}</Label>
-      <Input id="res-name" v-model="name" :disabled="!hydrated || isPending" required />
-      <Label for="res-user">{{ t('meetingsUi.responsible') }}</Label>
-      <select id="res-user" v-model="responsibleId" class="border-input h-9 rounded-lg border bg-transparent px-2 text-sm" :disabled="!hydrated || isPending" required>
-        <option value="">{{ t('meetingsUi.responsible') }}</option>
-        <option v-for="person in knownPeople" :key="person.id" :value="person.id">{{ person.name }}</option>
-      </select>
-      <Label for="res-deadline">{{ t('meetingsUi.deadline') }}</Label>
-      <Input id="res-deadline" v-model="deadline" type="date" :disabled="!hydrated || isPending" required />
-      <Label for="res-priority">{{ t('meetingsUi.priority') }}</Label>
-      <select id="res-priority" v-model="priority" class="border-input h-9 rounded-lg border bg-transparent px-2 text-sm" :disabled="!hydrated || isPending">
-        <option v-for="code in ['0', '1', '2', '3']" :key="code" :value="code">{{ t(`meetingsUi.priorityLabel.${code}`) }}</option>
-      </select>
+      <SharedFormSection :title="t('meetingsUi.resolutions')" class="grid gap-4">
+        <div class="grid gap-2">
+          <Label for="res-name">{{ t('meetingsUi.resolutionTitle') }}</Label>
+          <Input id="res-name" v-model="name" :disabled="!hydrated || isPending" required />
+        </div>
+        <div class="grid gap-2">
+          <Label for="res-user">{{ t('meetingsUi.responsible') }}</Label>
+          <select id="res-user" v-model="responsibleId" class="border-input h-9 w-full min-w-0 rounded-lg border bg-transparent px-2 text-sm" :disabled="!hydrated || isPending" required>
+            <option value="">{{ t('meetingsUi.responsible') }}</option>
+            <option v-for="person in knownPeople" :key="person.id" :value="person.id">{{ person.name }}</option>
+          </select>
+        </div>
+        <div class="grid gap-2">
+          <Label for="res-deadline">{{ t('meetingsUi.deadline') }}</Label>
+          <Input id="res-deadline" v-model="deadline" type="date" :disabled="!hydrated || isPending" required />
+        </div>
+        <div class="grid gap-2">
+          <Label for="res-priority">{{ t('meetingsUi.priority') }}</Label>
+          <select id="res-priority" v-model="priority" class="border-input h-9 w-full min-w-0 rounded-lg border bg-transparent px-2 text-sm" :disabled="!hydrated || isPending">
+            <option v-for="code in ['0', '1', '2', '3']" :key="code" :value="code">{{ t(`meetingsUi.priorityLabel.${code}`) }}</option>
+          </select>
+        </div>
+      </SharedFormSection>
       <p v-if="error" role="alert" class="text-sm text-destructive">{{ error.message }}</p>
       <div class="flex justify-end gap-2">
         <NuxtLink :to="returnTo"><Button type="button" variant="outline">{{ t('app.cancel') }}</Button></NuxtLink>

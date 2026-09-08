@@ -55,7 +55,7 @@ const sections = computed(() => forbidden.value ? [] : [
 
 <template>
   <SettingsLayout :sections>
-    <SharedPageHeader :title="t('access.users.title')" :description="t('access.users.description')">
+    <SharedPageHeader :title="t('access.users.title')">
       <Button v-if="can('access.users.grant')" :disabled="!hydrated" @click="navigateTo({ path: '/settings/users/new', query: listQuery })">{{ t('access.users.grantAccount') }}</Button>
     </SharedPageHeader>
     <SharedPageState v-if="forbidden" :empty="true" :empty-text="t('access.forbidden')" />

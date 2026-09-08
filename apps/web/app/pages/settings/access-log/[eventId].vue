@@ -29,6 +29,7 @@ const sections = computed(() => event.data.value ? [
       <template v-if="event.data.value">
         <div class="nasq-panel nasq-panel-body">
           <section id="event" class="nasq-form-section nasq-settings-anchor">
+            <h2 class="nasq-settings-section-heading">{{ t('access.audit.detailTitle') }}</h2>
             <dl class="nasq-metadata">
               <div><dt>{{ t('access.audit.columns.time') }}</dt><dd dir="ltr">{{ event.data.value.occurred_at }}</dd></div>
               <div><dt>{{ t('access.audit.columns.actor') }}</dt><dd>{{ event.data.value.actor?.name ?? t('access.audit.system') }}</dd></div>

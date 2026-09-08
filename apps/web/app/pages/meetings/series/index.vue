@@ -61,10 +61,10 @@ function setPage(next: number) {
           v-for="series in query.data.value?.items"
           :key="series.id"
           :to="{ path: `/meetings/series/${series.id}`, query: returnToQuery(route.fullPath) }"
-          class="flex items-center gap-3 border-b border-border/80 p-3 last:border-0 hover:bg-muted/70"
+          class="flex min-w-0 flex-wrap items-center gap-3 border-b border-border/80 p-3 last:border-0 hover:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          <span class="font-medium">{{ series.name }}</span>
-          <span class="ms-auto text-sm text-muted-foreground">
+          <span class="min-w-0 flex-1 font-medium break-words">{{ series.name }}</span>
+          <span class="ms-auto text-end text-sm text-muted-foreground">
             {{ t(`meetingsUi.recurrence.${series.recurrence}`) }}
             · {{ t('meetingsUi.openCount', { count: series.open_resolution_count }) }}
           </span>

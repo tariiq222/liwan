@@ -57,34 +57,41 @@ async function deleteRow() {
       <NuxtLink :to="{ path: `/projects/${id}/stakeholders`, query: viewQuery }">{{ t('projects.governance.viewList') }}</NuxtLink>
       <NuxtLink :to="{ path: `/projects/${id}/raci`, query: viewQuery }" aria-current="page">{{ t('projects.governance.viewMatrix') }}</NuxtLink>
     </nav>
-    <section class="nasq-panel nasq-panel-body space-y-2" :aria-label="t('projects.refresh.workspace.raciLegendTitle')">
-      <h2 class="text-base font-semibold">{{ t('projects.refresh.workspace.raciLegendTitle') }}</h2>
-      <p class="text-sm text-muted-foreground">{{ t('projects.refresh.workspace.raciLegendDescription') }}</p>
-      <dl class="grid gap-2 text-sm sm:grid-cols-2 lg:grid-cols-4">
+    <section class="nasq-panel overflow-hidden" aria-labelledby="raci-legend-title">
+      <div class="nasq-panel-header"><h2 id="raci-legend-title">{{ t('projects.refresh.workspace.raciLegendTitle') }}</h2></div>
+      <div class="nasq-panel-body space-y-2">
+        <p class="text-sm text-muted-foreground">{{ t('projects.refresh.workspace.raciLegendDescription') }}</p>
+        <dl class="grid gap-2 text-sm sm:grid-cols-2 lg:grid-cols-4">
         <div><dt class="font-semibold">R — {{ t('projects.refresh.workspace.raciResponsible') }}</dt><dd class="text-muted-foreground">{{ t('projects.refresh.workspace.raciResponsibleHint') }}</dd></div>
         <div><dt class="font-semibold">A — {{ t('projects.refresh.workspace.raciAccountable') }}</dt><dd class="text-muted-foreground">{{ t('projects.refresh.workspace.raciAccountableHint') }}</dd></div>
         <div><dt class="font-semibold">C — {{ t('projects.refresh.workspace.raciConsulted') }}</dt><dd class="text-muted-foreground">{{ t('projects.refresh.workspace.raciConsultedHint') }}</dd></div>
         <div><dt class="font-semibold">I — {{ t('projects.refresh.workspace.raciInformed') }}</dt><dd class="text-muted-foreground">{{ t('projects.refresh.workspace.raciInformedHint') }}</dd></div>
-      </dl>
+        </dl>
+      </div>
     </section>
     <div class="grid gap-3 sm:grid-cols-2">
       <div class="space-y-2"><Label for="raci-task-search">{{ t('projects.governance.raci.task') }}</Label><Input id="raci-task-search" v-model="taskSearch" :disabled="!hydrated || pending" :placeholder="t('app.search')" /><label class="flex gap-2 text-sm"><input v-model="closed" type="checkbox" :disabled="!hydrated || pending" />{{ t('projects.governance.closedTasks') }}</label></div>
       <div class="space-y-2"><Label for="raci-stakeholder-search">{{ t('projects.governance.raci.stakeholder') }}</Label><Input id="raci-stakeholder-search" v-model="stakeholderSearch" :disabled="!hydrated || pending" :placeholder="t('app.search')" /></div>
     </div>
     <p v-if="error" role="alert" class="text-sm text-destructive">{{ error }}</p>
-    <section v-if="confirmRow" class="nasq-panel nasq-panel-body space-y-3" role="group" :aria-label="t('projects.governance.confirmDelete')">
-      <p>{{ t('projects.governance.confirmDelete') }} {{ confirmRow.task.name }} — {{ confirmRow.stakeholder.name }} ({{ confirmRow.role }})</p>
-      <div class="flex gap-2"><Button variant="destructive" :disabled="!hydrated || pending" @click="deleteRow">{{ t('projects.governance.confirmDeleteAction') }}</Button><Button variant="outline" :disabled="!hydrated || pending" @click="confirmRow = null">{{ t('app.cancel') }}</Button></div>
+    <section v-if="confirmRow" class="nasq-panel overflow-hidden" role="group" :aria-label="t('projects.governance.confirmDelete')">
+      <div class="nasq-panel-header"><h2>{{ t('projects.governance.confirmDelete') }}</h2></div>
+      <div class="nasq-panel-body space-y-3">
+        <p>{{ confirmRow.task.name }} — {{ confirmRow.stakeholder.name }} ({{ confirmRow.role }})</p>
+        <div class="flex flex-wrap gap-2"><Button variant="destructive" :disabled="!hydrated || pending" @click="deleteRow">{{ t('projects.governance.confirmDeleteAction') }}</Button><Button variant="outline" :disabled="!hydrated || pending" @click="confirmRow = null">{{ t('app.cancel') }}</Button></div>
+      </div>
     </section>
     <SharedPageState :loading="tasks.isLoading.value || stakeholders.isLoading.value || rows.isLoading.value" :error="tasks.error.value || stakeholders.error.value || rows.error.value" :empty="false" @retry="() => { tasks.refetch(); stakeholders.refetch(); rows.refetch() }" />
-    <section v-if="!tasks.isLoading.value && !stakeholders.isLoading.value && !rows.isLoading.value && !tasks.error.value && !stakeholders.error.value && !rows.error.value && (!visibleTasks.length || !visibleStakeholders.length)" class="nasq-panel nasq-panel-body space-y-3" data-testid="raci-empty">
-      <h2 class="text-base font-semibold">{{ t('projects.refresh.workspace.raciEmptyTitle') }}</h2>
-      <p v-if="!visibleTasks.length && !visibleStakeholders.length" class="text-sm text-muted-foreground">{{ t('projects.refresh.workspace.raciEmptyBoth') }}</p>
-      <p v-else-if="!visibleTasks.length" class="text-sm text-muted-foreground">{{ t('projects.refresh.workspace.raciEmptyTasks') }}</p>
-      <p v-else class="text-sm text-muted-foreground">{{ t('projects.refresh.workspace.raciEmptyStakeholders') }}</p>
-      <div class="flex flex-wrap gap-2">
+    <section v-if="!tasks.isLoading.value && !stakeholders.isLoading.value && !rows.isLoading.value && !tasks.error.value && !stakeholders.error.value && !rows.error.value && (!visibleTasks.length || !visibleStakeholders.length)" class="nasq-panel overflow-hidden" data-testid="raci-empty">
+      <div class="nasq-panel-header"><h2>{{ t('projects.refresh.workspace.raciEmptyTitle') }}</h2></div>
+      <div class="nasq-panel-body space-y-3">
+        <p v-if="!visibleTasks.length && !visibleStakeholders.length" class="text-sm text-muted-foreground">{{ t('projects.refresh.workspace.raciEmptyBoth') }}</p>
+        <p v-else-if="!visibleTasks.length" class="text-sm text-muted-foreground">{{ t('projects.refresh.workspace.raciEmptyTasks') }}</p>
+        <p v-else class="text-sm text-muted-foreground">{{ t('projects.refresh.workspace.raciEmptyStakeholders') }}</p>
+        <div class="flex flex-wrap gap-2">
         <NuxtLink v-if="!visibleTasks.length" :to="{ path: `/projects/${id}`, query: { ...route.query, tab: 'tasks' } }"><Button variant="outline">{{ t('projects.refresh.workspace.raciOpenTasks') }}</Button></NuxtLink>
         <NuxtLink v-if="!visibleStakeholders.length && rows.data.value?.can_manage" :to="{ path: `/projects/${id}/stakeholders/new`, query: { returnTo: route.fullPath } }"><Button variant="outline">{{ t('projects.refresh.workspace.raciAddStakeholder') }}</Button></NuxtLink>
+        </div>
       </div>
     </section>
     <section v-if="visibleTasks.length && visibleStakeholders.length" class="nasq-panel max-w-full overflow-x-auto overscroll-x-contain">

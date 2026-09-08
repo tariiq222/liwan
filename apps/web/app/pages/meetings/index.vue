@@ -125,7 +125,8 @@ function setPage(next: number) {
       @retry="query.refetch"
     >
       <div class="nasq-panel overflow-hidden">
-        <Table class="min-w-[720px]" :aria-label="t('nav.meetings')">
+        <div class="overflow-x-auto">
+          <Table class="min-w-[720px]" :aria-label="t('nav.meetings')">
           <TableHeader>
             <TableRow>
               <TableHead scope="col">{{ t('meetingsUi.title') }}</TableHead>
@@ -158,7 +159,8 @@ function setPage(next: number) {
               </TableCell>
             </TableRow>
           </TableBody>
-        </Table>
+          </Table>
+        </div>
       </div>
     </SharedPageState>
     <nav v-if="pages > 1" class="flex items-center justify-between text-sm text-muted-foreground">

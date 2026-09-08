@@ -10,13 +10,19 @@ const route = useRoute(); const { t } = useI18n(); const { can } = useAccess(); 
       <NuxtLink v-if="department && can('hr.departments.manage')" :to="{ path: `/hr/departments/${id}/edit`, query: returnToQuery(route.fullPath) }"><Button>{{ t('hr.depts.edit') }}</Button></NuxtLink>
     </SharedPageHeader>
     <SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!department" @retry="query.refetch">
-      <div v-if="department" class="nasq-detail-grid">
-        <DocumentList v-if="can('hr.documents.read')" :department-id="id" :can-write="can('hr.documents.manage')" />
-        <aside class="nasq-panel nasq-panel-body">
+      <div v-if="department" class="nasq-detail-grid items-start">
+        <section v-if="can('hr.documents.read')" class="nasq-panel">
+          <div class="nasq-panel-header"><h2 class="text-base font-semibold">{{ t('hr.depts.detail') }}</h2></div>
+          <div class="nasq-panel-body"><DocumentList :department-id="id" :can-write="can('hr.documents.manage')" /></div>
+        </section>
+        <aside class="nasq-panel">
+          <div class="nasq-panel-header"><h2 class="text-base font-semibold">{{ t('hr.card.overview') }}</h2></div>
+          <div class="nasq-panel-body">
           <dl class="nasq-metadata">
             <div><dt>{{ t('hr.depts.employeeReason', { count: department.employee_count }) }}</dt><dd>{{ department.employee_count }}</dd></div>
             <div><dt>{{ t('hr.depts.manager') }}</dt><dd>{{ department.manager?.name || t('hr.depts.noManager') }}</dd></div>
           </dl>
+          </div>
         </aside>
       </div>
     </SharedPageState>

@@ -241,7 +241,7 @@ useEventListener(document, 'keydown', onKeydown)
       <div data-testid="task-detail-grid" class="task-detail-shell">
         <section data-testid="task-details-card" class="nasq-panel task-detail-card">
           <div class="nasq-panel-body">
-            <div class="task-detail-status-line">
+            <div class="task-detail-status-line task-status-surface">
               <StateMenu :task="task" :can-approve="task.can_approve" />
               <span class="text-xs text-muted-foreground">
                 {{ t('tasks.detail.workflowStage') }}: {{ task.stage?.name ?? t('tasks.detail.stageUnset') }}
@@ -293,7 +293,14 @@ useEventListener(document, 'keydown', onKeydown)
   align-items: center;
   flex-wrap: wrap;
   gap: 8px;
-  margin-bottom: 16px;
+  margin-bottom: 14px;
+}
+
+.task-status-surface {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--muted) 45%, var(--card));
+  padding: 8px;
 }
 
 @media (max-width: 1000px) {

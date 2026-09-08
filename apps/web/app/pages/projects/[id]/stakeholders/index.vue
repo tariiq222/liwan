@@ -92,8 +92,10 @@ async function deleteItem(item: { id: number }) {
       :empty="!list.isLoading.value && !list.data.value?.items.length"
       @retry="list.refetch"
     />
-    <section v-if="list.data?.value?.items.length" class="nasq-panel overflow-hidden">
-      <div class="overflow-x-auto">
+    <section v-if="list.data?.value?.items.length" class="nasq-panel overflow-hidden" aria-labelledby="stakeholders-list-title">
+      <div class="nasq-panel-header"><h2 id="stakeholders-list-title">{{ t('projects.governance.stakeholders') }}</h2></div>
+      <div class="nasq-panel-body p-0">
+        <div class="overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
@@ -137,6 +139,7 @@ async function deleteItem(item: { id: number }) {
             </TableRow>
           </TableBody>
         </Table>
+        </div>
       </div>
     </section>
     <nav

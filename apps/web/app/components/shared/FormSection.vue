@@ -7,8 +7,10 @@ defineProps<{
 
 <template>
   <section class="nasq-form-section">
-    <h2 v-if="title" class="nasq-form-section-title">{{ title }}</h2>
-    <p v-if="description" class="nasq-form-section-hint">{{ description }}</p>
+    <header v-if="title || description" class="nasq-form-section-heading">
+      <h2 v-if="title" class="nasq-form-section-title">{{ title }}</h2>
+      <p v-if="description" class="nasq-form-section-hint">{{ description }}</p>
+    </header>
     <slot />
   </section>
 </template>

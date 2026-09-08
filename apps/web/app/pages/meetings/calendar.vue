@@ -106,20 +106,24 @@ function shift(delta: number) {
     </div>
     <SharedPageState :loading="query.isLoading.value" :error="query.error.value" @retry="query.refetch">
       <div class="nasq-panel overflow-hidden">
-        <div class="grid grid-cols-7 border-b border-border text-center text-xs text-muted-foreground">
-          <div v-for="label in weekdayLabels" :key="label" class="p-2">{{ label }}</div>
-        </div>
-        <div class="grid grid-cols-7">
-          <div v-for="cell in cells" :key="cell.key" class="min-h-28 border-e border-b border-border p-1 last:border-e-0" :class="cell.today ? 'bg-brand-soft' : ''">
-            <p v-if="cell.day" class="px-1 text-xs text-muted-foreground">{{ cell.day }}</p>
-            <NuxtLink
-              v-for="meeting in (cell.day ? byDate.get(cell.key) ?? [] : [])"
-              :key="meeting.id"
-              :to="{ path: `/meetings/${meeting.id}`, query: returnToQuery(route.fullPath) }"
-              class="mt-1 block truncate rounded-md px-1 py-0.5 text-xs hover:bg-muted"
-            >
-              {{ meeting.name }}
-            </NuxtLink>
+        <div class="overflow-x-auto">
+          <div class="min-w-[560px]">
+            <div class="grid grid-cols-7 border-b border-border text-center text-xs text-muted-foreground">
+              <div v-for="label in weekdayLabels" :key="label" class="p-2">{{ label }}</div>
+            </div>
+            <div class="grid grid-cols-7">
+              <div v-for="cell in cells" :key="cell.key" class="min-h-28 border-e border-b border-border p-1 last:border-e-0" :class="cell.today ? 'bg-brand-soft' : ''">
+                <p v-if="cell.day" class="px-1 text-xs text-muted-foreground">{{ cell.day }}</p>
+                <NuxtLink
+                  v-for="meeting in (cell.day ? byDate.get(cell.key) ?? [] : [])"
+                  :key="meeting.id"
+                  :to="{ path: `/meetings/${meeting.id}`, query: returnToQuery(route.fullPath) }"
+                  class="mt-1 block truncate rounded-md px-1 py-0.5 text-xs hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  {{ meeting.name }}
+                </NuxtLink>
+              </div>
+            </div>
           </div>
         </div>
       </div>

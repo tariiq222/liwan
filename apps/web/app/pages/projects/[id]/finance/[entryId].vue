@@ -106,18 +106,23 @@ async function confirmRemoval() {
             <Button variant="outline" :disabled="deleting" @click="confirmDelete = false">{{ t('app.cancel') }}</Button>
           </div>
         </div>
-        <section class="nasq-panel nasq-panel-body space-y-5">
-          <div>
+        <section class="nasq-panel overflow-hidden" aria-labelledby="finance-entry-summary-title">
+          <div class="nasq-panel-header">
+            <h2 id="finance-entry-summary-title">{{ t('projects.finance.detailTitle') }}</h2>
+          </div>
+          <div class="nasq-panel-body space-y-5">
+            <div>
             <p class="text-sm text-muted-foreground">{{ t('projects.finance.fields.amount') }}</p>
             <p dir="ltr" class="mt-1 text-2xl font-semibold tabular-nums">{{ formatMoney(entry.amount, currency) }}</p>
-          </div>
-          <dl class="grid gap-x-6 gap-y-4 text-sm sm:grid-cols-2">
+            </div>
+            <dl class="grid gap-x-6 gap-y-4 text-sm sm:grid-cols-2">
             <div><dt class="text-muted-foreground">{{ t('projects.finance.fields.kind') }}</dt><dd class="mt-1 font-medium">{{ t(`projects.finance.kind.${entry.kind}`) }}</dd></div>
             <div v-if="entry.kind === 'expense'"><dt class="text-muted-foreground">{{ t('projects.finance.fields.expense_date') }}</dt><dd class="mt-1">{{ entry.expense_date ? formatCalendarDate(entry.expense_date, locale) : '—' }}</dd></div>
             <div><dt class="text-muted-foreground">{{ t('projects.finance.fields.reference') }}</dt><dd class="mt-1">{{ entry.reference || '—' }}</dd></div>
             <div v-if="entry.kind === 'expense'"><dt class="text-muted-foreground">{{ t('projects.finance.fields.budget_entry_id') }}</dt><dd class="mt-1"><NuxtLink v-if="entry.budget_entry_id" :to="{ path: `/projects/${projectId}/finance/${entry.budget_entry_id}`, query: returnToQuery(route.fullPath) }" class="underline underline-offset-4">{{ t('projects.finance.linkedBudget', { id: entry.budget_entry_id }) }}</NuxtLink><span v-else>{{ t('projects.finance.budgetNone') }}</span></dd></div>
             <div class="sm:col-span-2"><dt class="text-muted-foreground">{{ t('projects.finance.fields.notes') }}</dt><dd class="mt-1 whitespace-pre-wrap">{{ entry.notes || '—' }}</dd></div>
-          </dl>
+            </dl>
+          </div>
         </section>
       </template>
     </SharedPageState>

@@ -54,32 +54,34 @@ async function submit() {
     <SharedPageHeader :title="t('chat.newTitle')" :description="t('chat.newDescription')" :back-to="{ path: '/chat', query: listQuery }" />
     <form class="nasq-form nasq-panel nasq-panel-body flex flex-col gap-4" @submit.prevent="submit">
       <SharedUnsavedChanges :dirty="dirty" />
-      <Label for="chat-recipient-search">{{ t('chat.recipientSearch') }}</Label>
-      <Input id="chat-recipient-search" v-model="q" :placeholder="t('chat.recipientSearch')" :disabled="!hydrated" />
-      <ul class="max-h-64 overflow-y-auto rounded-lg border">
-        <li v-for="person in recipients" :key="person.id">
-          <button
-            type="button"
-            class="flex w-full items-center gap-3 px-3 py-2 text-start hover:bg-muted"
-            :aria-pressed="selected.some(item => item.id === person.id)"
-            :disabled="!hydrated"
-            @click="toggle(person)"
-          >
-            <span class="grid size-9 shrink-0 place-items-center rounded-full bg-muted text-xs font-semibold">{{ initialsFor(person.name) }}</span>
-            <span class="min-w-0 flex-1 truncate">{{ person.name }}</span>
-            <Check v-if="selected.some(item => item.id === person.id)" class="size-4 text-primary" aria-hidden="true" />
-          </button>
-        </li>
-      </ul>
-      <nav v-if="(data?.total ?? 0) > CHAT_PAGE_SIZE" class="flex items-center justify-between text-sm text-muted-foreground">
-        <Button type="button" size="sm" variant="ghost" :disabled="!hydrated || recipientOffset === 0" @click="recipientOffset = nextListOffset(recipientOffset, data?.total ?? 0, -CHAT_PAGE_SIZE)">{{ t('chat.previousPage') }}</Button>
-        <Button type="button" size="sm" variant="ghost" :disabled="!hydrated || recipientOffset + CHAT_PAGE_SIZE >= (data?.total ?? 0)" @click="recipientOffset = nextListOffset(recipientOffset, data?.total ?? 0, CHAT_PAGE_SIZE)">{{ t('chat.nextPage') }}</Button>
-      </nav>
-      <p class="text-sm text-muted-foreground">{{ selected.map(item => item.name).join(', ') }}</p>
-      <div v-if="selected.length > 1" class="grid gap-2">
+      <SharedFormSection :title="t('chat.recipients')" class="grid gap-4">
+        <Label for="chat-recipient-search">{{ t('chat.recipientSearch') }}</Label>
+        <Input id="chat-recipient-search" v-model="q" :placeholder="t('chat.recipientSearch')" :disabled="!hydrated" />
+        <ul class="max-h-64 overflow-y-auto rounded-lg border">
+          <li v-for="person in recipients" :key="person.id">
+            <button
+              type="button"
+              class="flex w-full items-center gap-3 px-3 py-2 text-start hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              :aria-pressed="selected.some(item => item.id === person.id)"
+              :disabled="!hydrated"
+              @click="toggle(person)"
+            >
+              <span class="grid size-9 shrink-0 place-items-center rounded-full bg-muted text-xs font-semibold">{{ initialsFor(person.name) }}</span>
+              <span class="min-w-0 flex-1 truncate">{{ person.name }}</span>
+              <Check v-if="selected.some(item => item.id === person.id)" class="size-4 text-primary" aria-hidden="true" />
+            </button>
+          </li>
+        </ul>
+        <nav v-if="(data?.total ?? 0) > CHAT_PAGE_SIZE" class="flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground">
+          <Button type="button" size="sm" variant="ghost" :disabled="!hydrated || recipientOffset === 0" @click="recipientOffset = nextListOffset(recipientOffset, data?.total ?? 0, -CHAT_PAGE_SIZE)">{{ t('chat.previousPage') }}</Button>
+          <Button type="button" size="sm" variant="ghost" :disabled="!hydrated || recipientOffset + CHAT_PAGE_SIZE >= (data?.total ?? 0)" @click="recipientOffset = nextListOffset(recipientOffset, data?.total ?? 0, CHAT_PAGE_SIZE)">{{ t('chat.nextPage') }}</Button>
+        </nav>
+        <p class="text-sm text-muted-foreground"><span class="font-medium text-foreground">{{ t('chat.selected') }}:</span> {{ selected.map(item => item.name).join(', ') || '—' }}</p>
+      </SharedFormSection>
+      <SharedFormSection v-if="selected.length > 1" :title="t('chat.groupName')" class="grid gap-2">
         <Label for="chat-group-name">{{ t('chat.groupName') }}</Label>
         <Input id="chat-group-name" v-model="groupName" :placeholder="t('chat.groupNamePlaceholder')" :disabled="!hydrated" />
-      </div>
+      </SharedFormSection>
       <div class="flex justify-end gap-2">
         <NuxtLink :to="{ path: '/chat', query: listQuery }"><Button type="button" variant="outline">{{ t('app.cancel') }}</Button></NuxtLink>
         <Button type="submit" :disabled="!hydrated || isPending || selected.length < 1">{{ t('chat.create') }}</Button>

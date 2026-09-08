@@ -22,7 +22,9 @@ const { data: employee, isLoading } = useHrEmployee(id)
       </div>
     </template>
     <template v-else-if="employee">
-      <section class="nasq-panel nasq-panel-body">
+      <section class="nasq-panel">
+        <div class="nasq-panel-header"><h2 class="text-base font-semibold">{{ t('hr.card.overview') }}</h2></div>
+        <div class="nasq-panel-body">
         <div class="mb-4 flex items-center gap-3">
           <img
             :src="`/web/image/hr.employee/${employee.id}/avatar_128`"
@@ -38,14 +40,18 @@ const { data: employee, isLoading } = useHrEmployee(id)
           <div><dt>{{ t('hr.card.phone') }}</dt><dd dir="ltr">{{ employee.work_phone || '—' }}</dd></div>
           <div><dt>{{ t('hr.card.manager') }}</dt><dd>{{ employee.manager?.name || '—' }}</dd></div>
         </dl>
+        </div>
       </section>
       <aside v-if="canSeeAccess" class="grid content-start gap-4">
-        <section class="nasq-panel nasq-panel-body grid gap-3">
+        <section class="nasq-panel">
+          <div class="nasq-panel-header"><h2 class="text-base font-semibold">{{ t('hr.card.account') }}</h2></div>
+          <div class="nasq-panel-body grid gap-3">
           <div class="flex items-center justify-between gap-3 text-sm">
             <span class="text-muted-foreground">{{ t('hr.card.account') }}</span>
             <AccessBadge :access="employee.access" />
           </div>
           <p class="text-xs leading-5 text-muted-foreground">{{ $t('hr.employee.accessManagedInSettings') }}</p>
+          </div>
         </section>
       </aside>
     </template>

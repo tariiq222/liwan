@@ -73,7 +73,7 @@ function setPage(next: number) {
 
 <template>
   <SharedPageContainer width="list">
-    <SharedPageHeader :title="t('hr.docs.title')" :description="t('hr.docs.description')" :back-to="'/hr'">
+    <SharedPageHeader :title="t('hr.docs.title')" :back-to="'/hr'">
       <template #actions>
         <NuxtLink
           v-if="can('hr.documents.manage')"
@@ -136,7 +136,8 @@ function setPage(next: number) {
       @retry="query.refetch"
     >
       <div class="nasq-panel overflow-hidden">
-        <Table>
+        <div class="overflow-x-auto">
+          <Table>
           <TableHeader>
             <TableRow>
               <TableHead class="text-start">{{ t('hr.docs.columns.name') }}</TableHead>
@@ -154,7 +155,8 @@ function setPage(next: number) {
               <TableCell class="text-muted-foreground">{{ document.department.name }}</TableCell>
             </TableRow>
           </TableBody>
-        </Table>
+          </Table>
+        </div>
       </div>
     </SharedPageState>
     <div v-if="pages > 1" class="flex items-center justify-between text-sm text-muted-foreground">

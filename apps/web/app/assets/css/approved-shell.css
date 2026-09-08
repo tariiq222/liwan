@@ -9,8 +9,9 @@
 .nasq-page-width-detail { width: 100%; max-width: 1440px; margin-inline: auto; }
 .nasq-page-width-form { width: 100%; max-width: 940px; margin-inline: auto; }
 .nasq-panel { min-width: 0; border: 1px solid var(--border); border-radius: 10px; background: var(--card); }
-.nasq-panel-header { display: flex; min-height: 54px; align-items: center; justify-content: space-between; gap: 14px; padding: 17px 20px; border-block-end: 1px solid color-mix(in srgb, var(--border) 70%, var(--card)); }
-.nasq-panel-header :is(h2, h3) { margin: 0; font-size: 0.8125rem; font-weight: 600; line-height: 1.4; }
+.nasq-panel-header { display: flex; min-width: 0; min-height: 54px; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 20px; border-block-end: 1px solid var(--border); border-start-start-radius: inherit; border-start-end-radius: inherit; background: color-mix(in srgb, var(--muted) 70%, var(--card)); }
+.nasq-panel-header > * { min-width: 0; max-width: 100%; }
+.nasq-panel-header :is(h2, h3) { margin: 0; color: var(--foreground); font-size: 1rem; font-weight: 600; line-height: 1.5; overflow-wrap: anywhere; }
 .nasq-panel-body { padding: 18px 20px; }
 .nasq-toolbar { display: flex; min-width: 0; flex-wrap: wrap; align-items: center; gap: 8px; }
 .nasq-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); overflow: hidden; border: 1px solid var(--border); border-radius: 10px; background: var(--card); }
@@ -29,6 +30,8 @@
 .nasq-form-section-title { font-size: 0.875rem; font-weight: 600; line-height: 1.4; }
 .nasq-form-section-hint { margin-block-start: 4px; font-size: 0.75rem; color: var(--muted-foreground); }
 .nasq-form-section > :is(h2, h3) { font-size: 0.875rem; font-weight: 600; line-height: 1.4; }
+.nasq-form-section-heading { margin-block-end: 16px; padding: 12px 16px; border: 1px solid var(--border); border-radius: 8px; background: color-mix(in srgb, var(--muted) 70%, var(--card)); }
+.nasq-form-section-heading .nasq-form-section-title { font-size: 1rem; color: var(--foreground); line-height: 1.5; }
 .nasq-form-footer { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding-block-start: 20px; border-block-start: 1px solid var(--border); }
 .nasq-tabs { display: flex; min-width: 0; align-items: center; gap: 4px; overflow-x: auto; border-block-end: 1px solid var(--border); }
 .nasq-tabs > :is(a, button) { display: inline-flex; min-height: 45px; flex: none; align-items: center; gap: 7px; border: 0; border-block-end: 2px solid transparent; border-radius: 0; background: transparent; box-shadow: none; padding-inline: 12px; color: var(--muted-foreground); font-size: 0.929rem; white-space: nowrap; }

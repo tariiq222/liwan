@@ -58,30 +58,52 @@ async function save() {
     <SharedPageHeader :title="t('meetingsUi.newSeries')" :back-to="returnTo" />
     <form class="nasq-form nasq-panel nasq-panel-body grid gap-4" @submit.prevent="save">
       <SharedUnsavedChanges :dirty="dirty" />
-      <Label for="series-name">{{ t('meetingsUi.title') }}</Label>
-      <Input id="series-name" v-model="name" :disabled="!hydrated || isPending" required />
-      <Label for="series-recurrence">{{ t('meetingsUi.recurrenceLabel') }}</Label>
-      <select id="series-recurrence" v-model="recurrence" class="border-input h-9 rounded-lg border bg-transparent px-2 text-sm" :disabled="!hydrated || isPending">
-        <option v-for="code in ['none', 'weekly', 'biweekly', 'monthly']" :key="code" :value="code">{{ t(`meetingsUi.recurrence.${code}`) }}</option>
-      </select>
-      <template v-if="recurrence !== 'none'">
-        <Label for="series-start">{{ t('meetingsUi.start') }}</Label>
-        <Input id="series-start" v-model="start" type="datetime-local" :disabled="!hydrated || isPending" required />
-        <Label for="series-end">{{ t('meetingsUi.end') }}</Label>
-        <Input id="series-end" v-model="end" type="datetime-local" :disabled="!hydrated || isPending" required />
-        <Label for="series-end-mode">{{ t('meetingsUi.untilMode') }}</Label>
-        <select id="series-end-mode" v-model="untilMode" class="border-input h-9 rounded-lg border bg-transparent px-2 text-sm" :disabled="!hydrated || isPending">
-          <option value="count">{{ t('meetingsUi.untilCount') }}</option>
-          <option value="date">{{ t('meetingsUi.untilDate') }}</option>
-        </select>
-        <Input v-if="untilMode === 'count'" id="series-count" v-model="untilCount" type="number" min="1" max="60" :disabled="!hydrated || isPending" />
-        <Input v-else id="series-until-date" v-model="untilDate" type="date" :disabled="!hydrated || isPending" />
-      </template>
-      <Label for="series-location">{{ t('meetingsUi.location') }}</Label>
-      <Input id="series-location" v-model="location" :disabled="!hydrated || isPending" />
-      <Label for="series-url">{{ t('meetingsUi.url') }}</Label>
-      <Input id="series-url" v-model="meetingUrl" dir="ltr" :disabled="!hydrated || isPending" />
-      <MeetingPeopleFields v-model:attendee-ids="attendeeIds" v-model:secretary-id="secretaryId" :disabled="!hydrated || isPending" />
+      <SharedFormSection :title="t('meetingsUi.sectionSchedule')" class="grid gap-4">
+        <div class="grid gap-2">
+          <Label for="series-name">{{ t('meetingsUi.title') }}</Label>
+          <Input id="series-name" v-model="name" :disabled="!hydrated || isPending" required />
+        </div>
+        <div class="grid gap-2">
+          <Label for="series-recurrence">{{ t('meetingsUi.recurrenceLabel') }}</Label>
+          <select id="series-recurrence" v-model="recurrence" class="border-input h-9 w-full min-w-0 rounded-lg border bg-transparent px-2 text-sm" :disabled="!hydrated || isPending">
+          <option v-for="code in ['none', 'weekly', 'biweekly', 'monthly']" :key="code" :value="code">{{ t(`meetingsUi.recurrence.${code}`) }}</option>
+          </select>
+        </div>
+        <template v-if="recurrence !== 'none'">
+          <div class="grid gap-2">
+            <Label for="series-start">{{ t('meetingsUi.start') }}</Label>
+            <Input id="series-start" v-model="start" type="datetime-local" :disabled="!hydrated || isPending" required />
+          </div>
+          <div class="grid gap-2">
+            <Label for="series-end">{{ t('meetingsUi.end') }}</Label>
+            <Input id="series-end" v-model="end" type="datetime-local" :disabled="!hydrated || isPending" required />
+          </div>
+          <div class="grid gap-2">
+            <Label for="series-end-mode">{{ t('meetingsUi.untilMode') }}</Label>
+            <select id="series-end-mode" v-model="untilMode" class="border-input h-9 w-full min-w-0 rounded-lg border bg-transparent px-2 text-sm" :disabled="!hydrated || isPending">
+              <option value="count">{{ t('meetingsUi.untilCount') }}</option>
+              <option value="date">{{ t('meetingsUi.untilDate') }}</option>
+            </select>
+          </div>
+          <div class="grid gap-2">
+            <Label v-if="untilMode === 'count'" for="series-count">{{ t('meetingsUi.untilCount') }}</Label>
+            <Label v-else for="series-until-date">{{ t('meetingsUi.untilDate') }}</Label>
+            <Input v-if="untilMode === 'count'" id="series-count" v-model="untilCount" type="number" min="1" max="60" :disabled="!hydrated || isPending" />
+            <Input v-else id="series-until-date" v-model="untilDate" type="date" :disabled="!hydrated || isPending" />
+          </div>
+        </template>
+        <div class="grid gap-2">
+          <Label for="series-location">{{ t('meetingsUi.location') }}</Label>
+          <Input id="series-location" v-model="location" :disabled="!hydrated || isPending" />
+        </div>
+        <div class="grid gap-2">
+          <Label for="series-url">{{ t('meetingsUi.url') }}</Label>
+          <Input id="series-url" v-model="meetingUrl" dir="ltr" :disabled="!hydrated || isPending" />
+        </div>
+      </SharedFormSection>
+      <SharedFormSection :title="t('meetingsUi.sectionPeople')">
+        <MeetingPeopleFields v-model:attendee-ids="attendeeIds" v-model:secretary-id="secretaryId" :disabled="!hydrated || isPending" />
+      </SharedFormSection>
       <p v-if="error" role="alert" class="text-sm text-destructive">{{ error.message }}</p>
       <div class="flex justify-end gap-2">
         <NuxtLink :to="returnTo"><Button type="button" variant="outline">{{ t('app.cancel') }}</Button></NuxtLink>

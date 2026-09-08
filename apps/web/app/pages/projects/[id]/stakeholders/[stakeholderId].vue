@@ -32,10 +32,11 @@ const hydrated = useHydrated()
       @retry="item.refetch"
     />
     <section v-if="item.data?.value" class="grid gap-4">
-      <section class="nasq-panel nasq-panel-body space-y-4">
-        <h2 class="text-base font-semibold">{{ t('projects.refresh.workspace.stakeholderIdentity') }}</h2>
-        <dl class="grid gap-4 sm:grid-cols-2">
-        <div>
+      <section class="nasq-panel overflow-hidden" aria-labelledby="stakeholder-identity-title">
+        <div class="nasq-panel-header"><h2 id="stakeholder-identity-title">{{ t('projects.refresh.workspace.stakeholderIdentity') }}</h2></div>
+        <div class="nasq-panel-body">
+          <dl class="grid gap-4 sm:grid-cols-2">
+          <div>
           <dt class="text-sm text-muted-foreground">{{ t('projects.governance.stakeholder.internalUser') }}</dt>
           <dd>{{ item.data.value.user?.name || t('projects.governance.stakeholder.noInternalUser') }}</dd>
         </div>
@@ -46,21 +47,24 @@ const hydrated = useHydrated()
         <div>
           <dt class="text-sm text-muted-foreground">{{ t('projects.governance.stakeholder.role') }}</dt>
           <dd>{{ item.data.value.role || '—' }}</dd>
+          </div>
+          </dl>
         </div>
-        </dl>
       </section>
-      <section class="nasq-panel nasq-panel-body space-y-4">
-        <h2 class="text-base font-semibold">{{ t('projects.refresh.workspace.stakeholderContact') }}</h2>
-        <dl>
-          <div>
+      <section class="nasq-panel overflow-hidden" aria-labelledby="stakeholder-contact-title">
+        <div class="nasq-panel-header"><h2 id="stakeholder-contact-title">{{ t('projects.refresh.workspace.stakeholderContact') }}</h2></div>
+        <div class="nasq-panel-body">
+          <dl>
+            <div>
             <dt class="text-sm text-muted-foreground">{{ t('projects.governance.stakeholder.contact') }}</dt>
             <dd dir="ltr" class="text-start">{{ item.data.value.contact || '—' }}</dd>
-          </div>
-          <div class="mt-4">
+            </div>
+            <div class="mt-4">
             <dt class="text-sm text-muted-foreground">{{ t('projects.governance.stakeholder.notes') }}</dt>
             <dd class="whitespace-pre-wrap">{{ item.data.value.notes || '—' }}</dd>
-          </div>
-        </dl>
+            </div>
+          </dl>
+        </div>
       </section>
     </section>
   </SharedPageContainer>

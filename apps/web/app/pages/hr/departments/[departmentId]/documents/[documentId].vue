@@ -13,7 +13,9 @@ const isEdit = computed(() => route.path.endsWith('/edit'))
     </SharedPageHeader>
     <SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!query.data.value" @retry="query.refetch">
       <section v-if="query.data.value" class="nasq-panel nasq-panel-body">
-        <DocumentReader :document="query.data.value" hide-title />
+        <SharedFormSection :title="t('hr.docs.body')">
+          <DocumentReader :document="query.data.value" hide-title />
+        </SharedFormSection>
       </section>
     </SharedPageState>
   </SharedPageContainer>

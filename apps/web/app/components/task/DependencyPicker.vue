@@ -35,79 +35,62 @@ function remove(id: number) {
 </script>
 
 <template>
-  <section class="task-section" data-testid="dependency-picker">
-    <div class="task-section-head">
-      <h2>{{ t('taskLifecycle.dependencies') }}</h2>
+  <section class="nasq-panel" data-testid="dependency-picker">
+    <header class="nasq-panel-header">
+      <h2>{{ t('taskLifecycle.dependencies') }} <span class="text-xs font-normal text-muted-foreground">{{ dependencies.length }}</span></h2>
+      <Popover v-if="task.can_manage_dependencies" v-model:open="open">
+        <PopoverTrigger as-child>
+          <Button variant="outline" size="sm" type="button" :disabled="!hydrated || isPending || !dependencyState?.enabled">{{ t('taskLifecycle.addDependency') }}</Button>
+        </PopoverTrigger>
+        <PopoverContent class="w-72 p-0" align="start">
+          <div class="border-b p-2">
+            <Input v-model="q" :placeholder="t('app.search')" class="h-8" />
+          </div>
+          <Command>
+            <CommandList>
+              <CommandEmpty>{{ t('taskLifecycle.noCandidates') }}</CommandEmpty>
+              <CommandGroup>
+                <CommandItem v-for="candidate in available" :key="candidate.id" :value="String(candidate.id)" :disabled="isPending" @select="toggle(candidate.id)">
+                  <span class="flex-1 truncate">{{ candidate.name }}</span>
+                  <Check v-if="selected.has(candidate.id)" class="size-4" />
+                </CommandItem>
+                <Button v-if="hasNextPage" variant="ghost" size="sm" class="m-2 w-[calc(100%-1rem)]" :disabled="isFetchingNextPage" @click="fetchNextPage()">
+                  {{ t('taskLifecycle.loadMore') }}
+                </Button>
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+    </header>
+
+    <div class="nasq-panel-body">
+      <ul v-if="dependencies.length" class="task-list">
+        <li v-for="dep in dependencies" :key="dep.id" class="task-dependency-row">
+          <StateBadge :state="dep.state" />
+          <span class="min-w-0 flex-1 truncate text-sm font-medium">{{ dep.name }}</span>
+          <Button
+            v-if="task.can_manage_dependencies"
+            variant="ghost"
+            size="icon"
+            type="button"
+            :aria-label="t('taskLifecycle.removeDependency')"
+            :disabled="!hydrated || isPending"
+            @click="remove(dep.id)"
+          >
+            <X class="size-[18px]" />
+          </Button>
+        </li>
+      </ul>
+      <p v-else class="task-empty-inline">{{ t('tasks.detail.noDependencies') }}</p>
     </div>
-
-    <ul v-if="dependencies.length" class="task-list">
-      <li v-for="dep in dependencies" :key="dep.id" class="task-dependency-row">
-        <StateBadge :state="dep.state" />
-        <span class="min-w-0 flex-1 truncate text-sm font-medium">{{ dep.name }}</span>
-        <Button
-          v-if="task.can_manage_dependencies"
-          variant="ghost"
-          size="icon"
-          type="button"
-          :aria-label="t('taskLifecycle.removeDependency')"
-          :disabled="!hydrated || isPending"
-          @click="remove(dep.id)"
-        >
-          <X class="size-[18px]" />
-        </Button>
-      </li>
-    </ul>
-    <p v-else class="task-empty-inline">{{ t('tasks.detail.noDependencies') }}</p>
-
-    <Popover v-if="task.can_manage_dependencies" v-model:open="open">
-      <PopoverTrigger as-child>
-        <Button variant="outline" size="sm" type="button" class="mt-3" :disabled="!hydrated || isPending || !dependencyState?.enabled">{{ t('taskLifecycle.addDependency') }}</Button>
-      </PopoverTrigger>
-      <PopoverContent class="w-72 p-0" align="start">
-        <div class="border-b p-2">
-          <Input v-model="q" :placeholder="t('app.search')" class="h-8" />
-        </div>
-        <Command>
-          <CommandList>
-            <CommandEmpty>{{ t('taskLifecycle.noCandidates') }}</CommandEmpty>
-            <CommandGroup>
-              <CommandItem v-for="candidate in available" :key="candidate.id" :value="String(candidate.id)" :disabled="isPending" @select="toggle(candidate.id)">
-                <span class="flex-1 truncate">{{ candidate.name }}</span>
-                <Check v-if="selected.has(candidate.id)" class="size-4" />
-              </CommandItem>
-              <Button v-if="hasNextPage" variant="ghost" size="sm" class="m-2 w-[calc(100%-1rem)]" :disabled="isFetchingNextPage" @click="fetchNextPage()">
-                {{ t('taskLifecycle.loadMore') }}
-              </Button>
-            </CommandGroup>
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
   </section>
 </template>
 
 <style scoped>
-.task-section {
-  margin-top: 18px;
-  padding-top: 16px;
-  border-top: 1px solid var(--border);
-}
-
-.task-section-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.task-section-head h2 {
-  font-size: 0.9375rem;
-  font-weight: 600;
-}
-
 .task-list {
   display: grid;
-  margin-top: 10px;
+  gap: 4px;
 }
 
 .task-dependency-row {
@@ -115,12 +98,19 @@ function remove(id: number) {
   min-width: 0;
   align-items: center;
   gap: 9px;
-  padding: 10px 0;
-  border-bottom: 1px solid var(--border);
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 3px;
+  transition: background-color 120ms ease, border-color 120ms ease;
 }
 
-.task-dependency-row:last-child {
-  border-bottom: 0;
+.task-dependency-row:hover {
+  border-color: var(--border);
+  background: var(--muted);
+}
+
+.task-dependency-row:focus-within {
+  border-color: var(--ring);
 }
 
 .task-empty-inline {

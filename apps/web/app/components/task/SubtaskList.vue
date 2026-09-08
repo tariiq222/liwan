@@ -60,6 +60,7 @@ function openSubtask(id: number) {
 <style scoped>
 .task-list {
   display: grid;
+  gap: 4px;
 }
 
 .task-subtask-row {
@@ -67,12 +68,19 @@ function openSubtask(id: number) {
   min-width: 0;
   align-items: center;
   gap: 9px;
-  padding: 10px 0;
-  border-bottom: 1px solid var(--border);
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 3px;
+  transition: background-color 120ms ease, border-color 120ms ease;
 }
 
-.task-subtask-row:last-child {
-  border-bottom: 0;
+.task-subtask-row:hover {
+  border-color: var(--border);
+  background: var(--muted);
+}
+
+.task-subtask-row:focus-within {
+  border-color: var(--ring);
 }
 
 .task-inline-form {

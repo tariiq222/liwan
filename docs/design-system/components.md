@@ -17,7 +17,7 @@ Authority: [DESIGN.md](../../DESIGN.md). This catalog records current reusable c
 | Notification preview formatting | `utils/notificationPresentation.ts`, `components/notifications/NotificationCenter.vue` | Shared formatting for the latest-five notification popover; the full notification workflow remains the `/notifications` internal page. |
 | Page container | `components/shared/PageContainer.vue` | Nuxt name `SharedPageContainer`; width list/detail/form; use once at owning level |
 | Page header | `components/shared/PageHeader.vue` | `SharedPageHeader`; title, description, backTo/backLabel, actions slots; coordinates with usePageHeader |
-| Form section | `components/shared/FormSection.vue` | `SharedFormSection`; title/description + content |
+| Form section | `components/shared/FormSection.vue` | `SharedFormSection`; semantic muted heading strip (`nasq-form-section-heading`) for title/description + content. Callers own field grouping and spacing. |
 | Filters | `components/shared/FilterBar.vue` | `SharedFilterBar`; search/default (controls)/view/active slots; preserve query state |
 | Loading/error/empty | `components/shared/PageState.vue`, `EmptyState.vue` | `SharedPageState` / `SharedEmptyState`; retry and meaningful empty action |
 | Unsaved form exit | `components/shared/UnsavedChanges.vue` | Approved shared confirmation; `dirty` guards leaving, optional `guardRouteUpdates` also guards same-route form mode/record changes (charter). |
@@ -31,6 +31,8 @@ Authority: [DESIGN.md](../../DESIGN.md). This catalog records current reusable c
 
 Paths starting `components/` and `composables/` are relative to `apps/web/app/`.
 Inspect actual props before use. This catalog does not rename or regenerate any component.
+
+Panel sections use `nasq-panel-header` for a wrapping muted header, then `nasq-panel-body` for content. `CardHeader` shares the same quiet header treatment. Repeated task/meeting items keep metadata and actions together; calendars and tables scroll inside their data region.
 
 ## Style ownership
 

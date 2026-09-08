@@ -77,21 +77,29 @@ async function save() {
       </div>
       <form v-else-if="resolution" class="nasq-form nasq-panel nasq-panel-body grid gap-4" @submit.prevent="save">
         <SharedUnsavedChanges :dirty="dirty" />
-        <template v-if="canEditDecision">
-          <Label for="resolution-name">{{ t('meetingsUi.resolutionTitle') }}</Label>
-          <Input id="resolution-name" v-model="name" :disabled="!hydrated || isPending" required />
-          <Label for="resolution-user">{{ t('meetingsUi.responsible') }}</Label>
-          <select id="resolution-user" v-model="responsibleId" class="border-input h-9 rounded-lg border bg-transparent px-2 text-sm" :disabled="!hydrated || isPending" required>
-            <option value="">{{ t('meetingsUi.responsible') }}</option>
-            <option v-for="person in knownPeople" :key="person.id" :value="person.id">{{ person.name }}</option>
-          </select>
-          <Label for="resolution-deadline">{{ t('meetingsUi.deadline') }}</Label>
-          <Input id="resolution-deadline" v-model="deadline" type="date" :disabled="!hydrated || isPending" required />
-          <Label for="resolution-priority">{{ t('meetingsUi.priority') }}</Label>
-          <select id="resolution-priority" v-model="priority" class="border-input h-9 rounded-lg border bg-transparent px-2 text-sm" :disabled="!hydrated || isPending">
-            <option v-for="code in ['0', '1', '2', '3']" :key="code" :value="code">{{ t(`meetingsUi.priorityLabel.${code}`) }}</option>
-          </select>
-        </template>
+        <SharedFormSection v-if="canEditDecision" :title="t('meetingsUi.resolutions')" class="grid gap-4">
+          <div class="grid gap-2">
+            <Label for="resolution-name">{{ t('meetingsUi.resolutionTitle') }}</Label>
+            <Input id="resolution-name" v-model="name" :disabled="!hydrated || isPending" required />
+          </div>
+          <div class="grid gap-2">
+            <Label for="resolution-user">{{ t('meetingsUi.responsible') }}</Label>
+            <select id="resolution-user" v-model="responsibleId" class="border-input h-9 w-full min-w-0 rounded-lg border bg-transparent px-2 text-sm" :disabled="!hydrated || isPending" required>
+              <option value="">{{ t('meetingsUi.responsible') }}</option>
+              <option v-for="person in knownPeople" :key="person.id" :value="person.id">{{ person.name }}</option>
+            </select>
+          </div>
+          <div class="grid gap-2">
+            <Label for="resolution-deadline">{{ t('meetingsUi.deadline') }}</Label>
+            <Input id="resolution-deadline" v-model="deadline" type="date" :disabled="!hydrated || isPending" required />
+          </div>
+          <div class="grid gap-2">
+            <Label for="resolution-priority">{{ t('meetingsUi.priority') }}</Label>
+            <select id="resolution-priority" v-model="priority" class="border-input h-9 w-full min-w-0 rounded-lg border bg-transparent px-2 text-sm" :disabled="!hydrated || isPending">
+              <option v-for="code in ['0', '1', '2', '3']" :key="code" :value="code">{{ t(`meetingsUi.priorityLabel.${code}`) }}</option>
+            </select>
+          </div>
+        </SharedFormSection>
         <SharedFormSection v-if="canUpdateExecution" :title="t('meetingsUi.result')">
           <ClientOnly>
             <DescriptionEditor :model-value="result" :task-id="0" :readonly="isPending" @draft="result = $event.html" />

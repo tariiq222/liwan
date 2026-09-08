@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Paperclip, Trash2 } from '@lucide/vue'
+import { Trash2 } from '@lucide/vue'
 import { toast } from 'vue-sonner'
 import { ApiError } from '@/composables/useApi'
 import { useDeleteTaskAttachment, useTaskAttachments, useUploadTaskAttachment } from '@/composables/useTaskAttachments'
@@ -74,97 +74,82 @@ async function confirmDelete(id: number) {
 </script>
 
 <template>
-  <section data-testid="task-attachments" class="task-section">
-    <div class="task-section-head">
-      <Paperclip class="size-[18px] text-muted-foreground" />
+  <section data-testid="task-attachments" class="nasq-panel">
+    <header class="nasq-panel-header">
       <h2>{{ t('attachments.title') }}</h2>
-    </div>
+      <span v-if="data" class="text-xs text-muted-foreground">{{ data.items.length }}</span>
+    </header>
 
-    <p v-if="isLoading" class="task-empty-inline">{{ t('attachments.loading') }}</p>
-    <SharedPageState v-else-if="error" :error="error" @retry="refetch" />
-    <p v-else-if="!data?.items.length" class="task-empty-inline">{{ t('attachments.empty') }}</p>
-    <ul v-else class="task-list">
-      <li v-for="attachment in data.items" :key="attachment.id" class="task-attachment-row">
-        <div class="flex items-center gap-2">
-          <a :href="attachment.url" target="_blank" rel="noopener" class="min-w-0 flex-1 truncate text-brand-link underline">
-            {{ attachment.name }}
-          </a>
-          <Button
-            v-if="props.canWrite && pendingDeleteId !== attachment.id"
-            type="button"
-            variant="ghost"
-            size="icon"
-            class="size-[32px] shrink-0 rounded-lg"
-            :aria-label="t('attachments.delete')"
-            :disabled="!hydrated || deleting || pendingDeleteId !== null"
-            @click="requestDelete(attachment.id)"
-          >
-            <Trash2 class="size-[18px]" />
-          </Button>
-        </div>
-        <div
-          v-if="pendingDeleteId === attachment.id"
-          role="group"
-          :aria-label="t('attachments.deleteConfirm')"
-          class="flex flex-wrap items-center justify-between gap-2 border-t pt-2"
-        >
-          <span class="text-sm text-muted-foreground">{{ t('attachments.deleteConfirm') }}</span>
+    <div class="nasq-panel-body">
+      <p v-if="isLoading" class="task-empty-inline">{{ t('attachments.loading') }}</p>
+      <SharedPageState v-else-if="error" :error="error" @retry="refetch" />
+      <p v-else-if="!data?.items.length" class="task-empty-inline">{{ t('attachments.empty') }}</p>
+      <ul v-else class="task-list">
+        <li v-for="attachment in data.items" :key="attachment.id" class="task-attachment-row">
           <div class="flex items-center gap-2">
-            <Button type="button" variant="outline" size="sm" :disabled="!hydrated || deleting" @click="cancelDelete">
-              {{ t('attachments.cancel') }}
-            </Button>
-            <Button type="button" variant="destructive" size="sm" :disabled="!hydrated || deleting" @click="confirmDelete(attachment.id)">
-              {{ t('attachments.confirm') }}
+            <a :href="attachment.url" target="_blank" rel="noopener" class="min-w-0 flex-1 truncate text-brand-link underline">
+              {{ attachment.name }}
+            </a>
+            <Button
+              v-if="props.canWrite && pendingDeleteId !== attachment.id"
+              type="button"
+              variant="ghost"
+              size="icon"
+              class="size-[32px] shrink-0 rounded-lg"
+              :aria-label="t('attachments.delete')"
+              :disabled="!hydrated || deleting || pendingDeleteId !== null"
+              @click="requestDelete(attachment.id)"
+            >
+              <Trash2 class="size-[18px]" />
             </Button>
           </div>
-        </div>
-      </li>
-    </ul>
+          <div
+            v-if="pendingDeleteId === attachment.id"
+            role="group"
+            :aria-label="t('attachments.deleteConfirm')"
+            class="flex flex-wrap items-center justify-between gap-2 border-t pt-2"
+          >
+            <span class="text-sm text-muted-foreground">{{ t('attachments.deleteConfirm') }}</span>
+            <div class="flex items-center gap-2">
+              <Button type="button" variant="outline" size="sm" :disabled="!hydrated || deleting" @click="cancelDelete">
+                {{ t('attachments.cancel') }}
+              </Button>
+              <Button type="button" variant="destructive" size="sm" :disabled="!hydrated || deleting" @click="confirmDelete(attachment.id)">
+                {{ t('attachments.confirm') }}
+              </Button>
+            </div>
+          </div>
+        </li>
+      </ul>
 
-    <div v-if="props.canWrite" class="mt-3 grid gap-2">
-      <Label for="task-attachment-upload">{{ t('attachments.upload') }}</Label>
-      <input
-        id="task-attachment-upload"
-        type="file"
-        accept=".txt,.pdf,.png,.jpg,.jpeg,.docx,.xlsx,text/plain,application/pdf,image/png,image/jpeg,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        class="border-input h-9 w-full min-w-0 rounded-lg border bg-transparent px-3 py-1 text-sm shadow-xs file:me-2 file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium"
-        :disabled="!hydrated || uploading"
-        @change="onFileChange"
-      >
-      <p class="text-xs text-muted-foreground">{{ t('attachments.help') }}</p>
-      <p v-if="uploadError" role="alert" class="text-sm text-destructive">{{ uploadError }}</p>
+      <div v-if="props.canWrite" class="mt-3 grid gap-2">
+        <Label for="task-attachment-upload">{{ t('attachments.upload') }}</Label>
+        <input
+          id="task-attachment-upload"
+          type="file"
+          accept=".txt,.pdf,.png,.jpg,.jpeg,.docx,.xlsx,text/plain,application/pdf,image/png,image/jpeg,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+          class="border-input h-9 w-full min-w-0 rounded-lg border bg-transparent px-3 py-1 text-sm shadow-xs file:me-2 file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium"
+          :disabled="!hydrated || uploading"
+          @change="onFileChange"
+        >
+        <p class="text-xs text-muted-foreground">{{ t('attachments.help') }}</p>
+        <p v-if="uploadError" role="alert" class="text-sm text-destructive">{{ uploadError }}</p>
+      </div>
     </div>
   </section>
 </template>
 
 <style scoped>
-.task-section {
-  margin-top: 18px;
-  padding-top: 16px;
-  border-top: 1px solid var(--border);
-}
-
-.task-section-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.task-section-head h2 {
-  font-size: 0.9375rem;
-  font-weight: 600;
-}
-
 .task-list {
   display: grid;
-  margin-top: 10px;
+  gap: 2px;
 }
 
 .task-attachment-row {
   display: grid;
   min-width: 0;
   gap: 8px;
-  padding: 10px 0;
+  padding: 8px 0;
   border-bottom: 1px solid var(--border);
   font-size: 0.875rem;
 }

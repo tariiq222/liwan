@@ -39,18 +39,18 @@ const sections = computed(() => query.data.value ? [
     <SharedPageState v-else :loading="query.isLoading.value" :error="query.error.value" :empty="!query.isLoading.value && !query.error.value && !query.data.value" :empty-text="t('access.notFound')" @retry="query.refetch">
       <div v-if="query.data.value" class="nasq-panel nasq-panel-body">
         <section id="account" class="nasq-form-section nasq-settings-anchor space-y-2 text-sm">
-          <h2 class="font-semibold">{{ t('access.users.account') }}</h2>
+          <h2 class="nasq-settings-section-heading">{{ t('access.users.account') }}</h2>
           <p>{{ t('access.users.login') }}: <span dir="ltr">{{ query.data.value.login }}</span></p>
           <p>{{ t('access.users.employee') }}: {{ query.data.value.employee?.name ?? t('access.users.noEmployee') }}</p>
           <AccessStateBadge :active="query.data.value.active" :protected="query.data.value.protected" />
         </section>
         <section id="roles" class="nasq-form-section nasq-settings-anchor space-y-2 text-sm">
-          <h2 class="font-semibold">{{ t('access.users.rolesAndScopes') }}</h2>
+          <h2 class="nasq-settings-section-heading">{{ t('access.users.rolesAndScopes') }}</h2>
           <ul class="space-y-2"><li v-for="assignment in query.data.value.assignments" :key="assignment.id"><span class="font-medium">{{ assignment.role.name[locale === 'ar' ? 'ar' : 'en'] ?? assignment.role.name.ar }}</span><span class="block text-xs text-muted-foreground">{{ assignment.scope.name }}</span></li></ul>
           <p v-if="!query.data.value.assignments.length" class="text-muted-foreground">{{ t('access.users.noRoles') }}</p>
         </section>
         <section id="capabilities" class="nasq-form-section nasq-settings-anchor space-y-2 text-sm">
-          <h2 class="font-semibold">{{ t('access.users.capabilities') }}</h2>
+          <h2 class="nasq-settings-section-heading">{{ t('access.users.capabilities') }}</h2>
           <ul class="space-y-2"><li v-for="capability in query.data.value.capabilities" :key="capability.key">{{ permissionLabel(capability.key) }}<span v-if="capability.sources.length" class="block text-xs text-muted-foreground">{{ capability.sources.map(sourceLabel).join('، ') }}</span></li></ul>
         </section>
       </div>

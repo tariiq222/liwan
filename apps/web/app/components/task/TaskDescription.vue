@@ -103,20 +103,22 @@ watch(() => props.task.can_write, (canWrite) => {
   <SharedUnsavedChanges :dirty="dirty" :guard-route-updates="true" />
 
   <div data-testid="task-description" class="grid gap-3">
-    <div v-if="!editing" class="flex items-start justify-between gap-3">
-      <div v-if="hasDescription" class="task-description-content max-w-none text-sm" v-html="renderedHtml" />
-      <p v-else data-testid="task-description-empty" class="text-sm text-muted-foreground">{{ t('tasks.descriptionField.empty') }}</p>
-      <Button
-        v-if="task.can_write"
-        data-testid="task-description-edit"
-        variant="outline"
-        size="sm"
-        type="button"
-        :disabled="!hydrated || isPending"
-        @click="startEdit"
-      >
-        {{ hasDescription ? t('tasks.descriptionField.edit') : t('tasks.descriptionField.add') }}
-      </Button>
+    <div v-if="!editing" class="task-description-read">
+      <div class="flex items-start justify-between gap-3">
+        <div v-if="hasDescription" class="task-description-content max-w-none text-sm" v-html="renderedHtml" />
+        <p v-else data-testid="task-description-empty" class="text-sm text-muted-foreground">{{ t('tasks.descriptionField.empty') }}</p>
+        <Button
+          v-if="task.can_write"
+          data-testid="task-description-edit"
+          variant="outline"
+          size="sm"
+          type="button"
+          :disabled="!hydrated || isPending"
+          @click="startEdit"
+        >
+          {{ hasDescription ? t('tasks.descriptionField.edit') : t('tasks.descriptionField.add') }}
+        </Button>
+      </div>
     </div>
 
     <form v-else class="grid gap-3" data-testid="task-description-editor" @submit.prevent="save">
@@ -139,6 +141,13 @@ watch(() => props.task.can_write, (canWrite) => {
 .task-description-content {
   min-width: 0;
   overflow-wrap: anywhere;
+  line-height: 1.7;
+}
+
+.task-description-read {
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--muted) 45%, var(--card));
+  padding: 12px 14px;
 }
 
 :deep(.task-description-content p) {
