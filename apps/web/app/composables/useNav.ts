@@ -1,7 +1,7 @@
 import type { Component } from 'vue'
 import { projectListReturnTo } from '../utils/projectNavigation'
 import type { LocationQueryRaw, RouteLocationRaw } from 'vue-router'
-import { CheckSquare, FolderKanban, Users, Settings, Wrench, Network, Files, ShieldCheck, UserCog, History, SlidersHorizontal, MessageCircle, ChartNoAxesCombined, CalendarDays, List, ClipboardList, CircleAlert, WalletCards, FileText, LayoutDashboard, Plus, UserRound } from '@lucide/vue'
+import { CheckSquare, FolderKanban, Users, Settings, Wrench, Network, Files, ShieldCheck, UserCog, History, SlidersHorizontal, MessageCircle, ChartNoAxesCombined, CalendarDays, ClipboardList, CircleAlert, WalletCards, FileText, LayoutDashboard, Plus, UserRound } from '@lucide/vue'
 import { hasCapability, INTERNAL_NASQ_ACCESS, type AccessIdentity } from '../utils/accessPolicy'
 
 export type NavGroup = 'chat' | 'projects' | 'meetings' | 'hr' | 'settings'
@@ -11,7 +11,7 @@ const items: NavItem[] = [
   { to: '/chat', labelKey: 'nav.chat', icon: MessageCircle, shortcut: 'c', group: 'chat', module: 'chat', capability: 'nasq.internal' },
   { to: '/projects/dashboard', labelKey: 'nav.projects', icon: FolderKanban, shortcut: '2', group: 'projects', module: 'projects', capability: 'pmo.projects.read' },
   { to: '/tasks', labelKey: 'nav.tasks', icon: CheckSquare, shortcut: '1', group: 'projects', module: 'tasks', capability: 'pmo.tasks.read' },
-  { to: '/meetings', labelKey: 'nav.meetings', icon: List, shortcut: 'm', group: 'meetings', module: 'meetings', capability: 'meetings.read' },
+  { to: '/meetings', labelKey: 'nav.meetings', icon: CalendarDays, shortcut: 'm', group: 'meetings', module: 'meetings', capability: 'meetings.read' },
   { to: '/meetings/calendar', labelKey: 'nav.meetingCalendar', icon: CalendarDays, shortcut: 'k', group: 'meetings', module: 'meetings', capability: 'meetings.read' },
   { to: '/hr', labelKey: 'nav.employees', icon: Users, shortcut: '3', group: 'hr', module: 'hr', capability: 'hr.employees.read' },
   { to: '/hr/departments', labelKey: 'nav.departments', icon: Network, shortcut: '5', group: 'hr', module: 'hr', capability: 'hr.departments.read' },
@@ -40,10 +40,10 @@ export interface ShellModuleDefinition {
 }
 
 export const shellModules: ShellModuleDefinition[] = [
+  { id: 'chat', labelKey: 'nav.chat', icon: MessageCircle, to: '/chat' },
+  { id: 'meetings', labelKey: 'nav.meetings', icon: CalendarDays, to: '/meetings' },
   { id: 'projects', labelKey: 'nav.projects', icon: FolderKanban, to: '/projects/dashboard' },
   { id: 'tasks', labelKey: 'nav.tasks', icon: CheckSquare, to: '/tasks' },
-  { id: 'chat', labelKey: 'nav.chat', icon: MessageCircle, to: '/chat' },
-  { id: 'meetings', labelKey: 'nav.meetings', icon: List, to: '/meetings' },
   { id: 'hr', labelKey: 'nav.humanResources', icon: Users, to: '/hr' },
   { id: 'settings', labelKey: 'nav.settings', icon: Settings, to: '/settings/appearance' },
   { id: 'vendor', labelKey: 'nav.console', icon: Wrench, to: '/odoo' },
@@ -124,7 +124,7 @@ export function contextLinksForModule(module: ShellModule, identity: AccessIdent
     ],
     meetings: [
       { id: 'new-meeting', labelKey: 'nav.newMeeting', icon: Plus, to: '/meetings/new', capability: 'meetings.create', pinned: true },
-      { id: 'meetings', labelKey: 'nav.meetings', icon: List, to: '/meetings', capability: 'meetings.read' },
+      { id: 'meetings', labelKey: 'nav.meetings', icon: CalendarDays, to: '/meetings', capability: 'meetings.read' },
       { id: 'meeting-calendar', labelKey: 'nav.meetingCalendar', icon: CalendarDays, to: '/meetings/calendar', capability: 'meetings.read' },
     ],
     hr: [
@@ -145,6 +145,27 @@ export function contextLinksForModule(module: ShellModule, identity: AccessIdent
     ],
   }[module]
   return links.filter(link => hasCapability(identity, link.capability))
+}
+
+export interface ShellContextGroup {
+  id: 'default' | 'personal' | 'administration'
+  labelKey?: string
+  links: ShellContextLink[]
+}
+
+/** Groups settings links while leaving other module context navigation flat. */
+export function contextGroupsForModule(module: ShellModule, identity: AccessIdentity): ShellContextGroup[] {
+  const links = contextLinksForModule(module, identity)
+  if (module !== 'settings') return links.length ? [{ id: 'default', links }] : []
+
+  return [
+    { id: 'personal' as const, labelKey: 'nav.settingsPersonal', ids: ['account', 'appearance'] },
+    { id: 'administration' as const, labelKey: 'nav.settingsAdministration', ids: ['project-settings', 'users', 'roles', 'access-log'] },
+  ].map(group => ({
+    id: group.id,
+    labelKey: group.labelKey,
+    links: links.filter(link => group.ids.includes(link.id)),
+  })).filter(group => group.links.length)
 }
 
 export function projectContextLinks(

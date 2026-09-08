@@ -3,7 +3,7 @@ import { ArrowRight, ChevronLeft } from '@lucide/vue'
 import { useMediaQuery } from '@vueuse/core'
 import ConversationList from '@/components/chat/ConversationList.vue'
 import { useShellNavigation } from '@/composables/useShellNavigation'
-import { activeShellModule, shellModules } from '@/composables/useNav'
+import { activeShellModule, contextGroupsForModule, shellModules } from '@/composables/useNav'
 import { parseChatListRoute, serializeChatListRoute, type ChatListRoute } from '@/utils/chatState'
 import { projectListReturnTo } from '@/utils/projectNavigation'
 
@@ -34,10 +34,23 @@ const moduleLinks = computed(() => {
   if (activeModule.value === 'projects') return links
   return [...links.filter(item => item.pinned), ...links.filter(item => !item.pinned)]
 })
+const contextGroups = computed(() => {
+  if (activeModule.value === 'settings') {
+    return contextGroupsForModule('settings', me.value)
+      .map(group => ({ ...group, links: group.links.map(link => moduleLinks.value.find(item => item.id === link.id)).filter((link): link is NonNullable<typeof link> => Boolean(link)) }))
+      .filter(group => group.links.length)
+  }
+  return moduleLinks.value.length ? [{ id: 'default' as const, links: moduleLinks.value }] : []
+})
 const showContextNav = computed(() => {
-  const links = moduleLinks.value
+  const links = contextGroups.value.flatMap(group => group.links)
   if (links.length === 1 && links[0]!.labelKey === moduleDefinition.value?.labelKey) return false
   return links.length > 0
+})
+const contextMotionKey = computed(() => {
+  const moduleKey = activeModule.value ?? 'none'
+  if (projectId.value && activeModule.value === 'projects') return `project:${projectId.value}`
+  return `module:${moduleKey}`
 })
 
 function href(link: { to: import('vue-router').RouteLocationRaw }) {
@@ -58,7 +71,8 @@ function updateRoute(next: ChatListRoute) {
     :data-direction="localeProperties.dir"
     :aria-label="t('nav.context')"
   >
-    <div class="nasq-context-sidebar-inner">
+    <Transition name="nasq-context" mode="out-in">
+      <div :key="contextMotionKey" class="nasq-context-sidebar-inner">
       <NuxtLink v-if="isProject" :to="projectsReturnTo" class="nasq-context-back" :aria-label="t('nav.backToProjects')">
         <ArrowRight aria-hidden="true" class="ltr:rotate-180" />
         <span>{{ t('nav.backToProjects') }}</span>
@@ -73,20 +87,25 @@ function updateRoute(next: ChatListRoute) {
         </div>
       </div>
 
-      <nav v-if="showContextNav" class="nasq-context-links" :aria-label="contextTitle">
-        <NuxtLink
-          v-for="link in moduleLinks"
-          :key="link.id"
-          :to="href(link)"
-          :class="['nasq-context-link', link.pinned && 'nasq-context-create']"
-          :data-active="link.active"
-          :aria-current="link.active ? 'page' : undefined"
-          :data-testid="link.id === 'appearance' ? 'sidebar-settings' : link.id === 'project-settings' ? 'settings-projects-tab' : `context-link-${link.id}`"
-        >
-          <component :is="link.icon" aria-hidden="true" />
-          <span>{{ t(link.labelKey) }}</span>
-          <ChevronLeft v-if="link.active" aria-hidden="true" class="nasq-context-active-mark ltr:rotate-180" />
-        </NuxtLink>
+      <nav v-if="showContextNav" class="nasq-context-links" :data-grouped="activeModule === 'settings'" :aria-label="contextTitle">
+        <div v-for="group in contextGroups" :key="group.id" class="nasq-context-group">
+          <h3 v-if="group.labelKey" class="nasq-context-group-heading">{{ t(group.labelKey) }}</h3>
+          <div class="nasq-context-group-links">
+            <NuxtLink
+              v-for="link in group.links"
+              :key="link.id"
+              :to="href(link)"
+              :class="['nasq-context-link', link.pinned && 'nasq-context-create']"
+              :data-active="link.active"
+              :aria-current="link.active ? 'page' : undefined"
+              :data-testid="link.id === 'appearance' ? 'sidebar-settings' : link.id === 'project-settings' ? 'settings-projects-tab' : `context-link-${link.id}`"
+            >
+              <component :is="link.icon" aria-hidden="true" />
+              <span>{{ t(link.labelKey) }}</span>
+              <ChevronLeft v-if="link.active" aria-hidden="true" class="nasq-context-active-mark ltr:rotate-180" />
+            </NuxtLink>
+          </div>
+        </div>
       </nav>
 
       <ConversationList
@@ -111,6 +130,7 @@ function updateRoute(next: ChatListRoute) {
           <span>{{ t(link.labelKey) }}</span>
         </NuxtLink>
       </div>
-    </div>
+      </div>
+    </Transition>
   </aside>
 </template>

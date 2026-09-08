@@ -49,6 +49,8 @@
     "account": "حسابي",
     "logout": "تسجيل الخروج",
     "settings": "الإعدادات",
+    "settingsPersonal": "شخصي",
+    "settingsAdministration": "إدارة النظام",
     "employees": "الموظفون",
     "departments": "الأقسام",
     "documents": "المستندات",

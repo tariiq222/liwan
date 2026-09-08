@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { activeShellModule, contextLinksForModule, projectContextId, projectContextLinks, visibleShellModules, useNav } from '../useNav'
+import { activeShellModule, contextGroupsForModule, contextLinksForModule, projectContextId, projectContextLinks, visibleShellModules, useNav } from '../useNav'
 import { projectSectionRoot, shellSectionRoot } from '../useShellNavigation'
 
 const employee = { role: 'employee', capabilities: ['pmo.tasks.read', 'pmo.projects.read', 'meetings.read', 'hr.employees.read', 'hr.departments.read', 'hr.documents.read'] }
@@ -119,6 +119,20 @@ describe('shell route classification', () => {
 
 
 describe('module rail and project context continuity', () => {
+  it('orders rail modules with settings utilities anchored after primary modules', () => {
+    expect(visibleShellModules(full).map(item => item.id)).toEqual(['chat', 'meetings', 'projects', 'tasks', 'hr', 'settings'])
+    expect(visibleShellModules({ ...full, role: 'vendor' }).map(item => item.id)).toEqual(['chat', 'meetings', 'projects', 'tasks', 'hr', 'settings', 'vendor'])
+  })
+
+  it('groups only settings context links and hides groups with no permitted links', () => {
+    expect(contextGroupsForModule('settings', employee).map(group => ({ id: group.id, links: group.links.map(link => link.id) }))).toEqual([{ id: 'personal', links: ['account', 'appearance'] }])
+    expect(contextGroupsForModule('settings', full).map(group => ({ id: group.id, links: group.links.map(link => link.id) }))).toEqual([
+      { id: 'personal', links: ['account', 'appearance'] },
+      { id: 'administration', links: ['project-settings', 'users', 'roles', 'access-log'] },
+    ])
+    expect(contextGroupsForModule('projects', full)).toHaveLength(1)
+  })
+
   it('selects permitted module destinations without legacy group leakage', () => {
     const taskOnly = visibleShellModules({ capabilities: ['pmo.tasks.read'] })
     expect(taskOnly.map(item => item.id)).not.toContain('projects')

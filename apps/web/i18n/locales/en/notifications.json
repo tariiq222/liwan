@@ -8,6 +8,11 @@
     "assignment": "You were assigned to the task “{task}”",
     "comment": "New comment on the task",
     "deadline": "Task deadline is near: “{task}”",
+    "preview": {
+      "assignment": "You were assigned a task",
+      "comment": "New comment on a task",
+      "deadline": "A task deadline is near"
+    },
     "openTask": "Open task",
     "close": "Close notifications",
     "back": "Back",

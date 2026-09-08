@@ -53,11 +53,11 @@ function conversationTo(id: number) {
       <li v-for="item in items" :key="item.id">
         <NuxtLink
           :to="conversationTo(item.id)"
-          class="flex items-center gap-3 px-3 py-2.5 text-start hover:bg-muted"
-          :class="{ 'bg-muted': props.selectedId === item.id }"
+          class="nasq-chat-conversation-link"
+          :data-selected="props.selectedId === item.id"
           :aria-current="props.selectedId === item.id ? 'page' : undefined"
         >
-          <span class="grid size-10 shrink-0 place-items-center rounded-full bg-muted text-xs font-semibold">{{ initialsFor(item.name) }}</span>
+          <span class="nasq-chat-avatar grid size-10 shrink-0 place-items-center rounded-full bg-muted text-xs font-semibold">{{ initialsFor(item.name) }}</span>
           <span class="min-w-0 flex-1">
             <span class="flex items-center justify-between gap-2">
               <span class="truncate font-medium">{{ item.name }}</span>

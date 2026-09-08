@@ -4,16 +4,27 @@ import { toast } from 'vue-sonner'
 import { ApiError } from '@/composables/useApi'
 import { useNotifications, useMarkNotificationRead, isDigestNotification, isMeetingNotification, type Notification } from '@/composables/useNotifications'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { formatNotificationTimestamp, notificationPreviewCaptionKey } from '@/utils/notificationPresentation'
 
-const { t, localeProperties } = useI18n()
+const { t, locale, localeProperties } = useI18n()
 const hydrated = useHydrated()
 const open = ref(false)
 const route = useRoute()
+const { me } = useMe()
 const { data, isLoading, error, refetch, isFetching } = useNotifications()
 const { mutateAsync: markRead, isPending } = useMarkNotificationRead()
 // The API orders newest first (id desc), including read and unread records.
 const items = computed(() => data.value?.items.slice(0, 5) ?? [])
+const notificationTimeZone = computed(() => me.value?.tz || 'UTC')
+const notificationTimestamps = computed(() => new Map(
+  items.value.map(item => [item.id, formatNotificationTimestamp(item.created_at, locale.value, notificationTimeZone.value)] as const),
+))
 watch(() => route.fullPath, () => { open.value = false })
+
+function notificationTimestamp(item: Notification) {
+  return notificationTimestamps.value.get(item.id) ?? null
+}
+
 function notificationHref(item: Notification) {
   if (isDigestNotification(item)) return `/notification-digests/${item.digest_id}`
   if (isMeetingNotification(item)) return `/meetings/${item.meeting_id}`
@@ -53,12 +64,12 @@ async function openNotification(item: Notification) {
         <p v-else-if="isLoading" role="status" class="p-6 text-center text-sm text-muted-foreground">{{ t('notifications.loading') }}</p>
         <p v-else-if="!items.length" class="p-6 text-center text-sm text-muted-foreground">{{ t('notifications.empty') }}</p>
         <div v-else class="space-y-1">
-          <button v-for="item in items" :key="item.id" data-notification-preview-item :data-testid="`notification-preview-${item.id}`" type="button" class="grid w-full gap-1 rounded-lg p-3 text-start transition-colors hover:bg-muted focus-visible:bg-muted" :class="!item.is_read ? 'bg-brand-soft' : ''" :disabled="isPending" @click="openNotification(item)">
-            <span class="text-xs text-muted-foreground">{{ isDigestNotification(item) ? t('tasks.digest.kind') : isMeetingNotification(item) ? t(`meetingsUi.notify.${item.kind}`) : item.kind === 'comment' ? t('notifications.comment') : t(`notifications.${item.kind}`, { task: item.task_name }) }}</span>
+          <button v-for="item in items" :key="item.id" data-notification-preview-item :data-testid="`notification-preview-${item.id}`" type="button" class="grid min-w-0 w-full gap-1 rounded-lg p-3 text-start transition-colors motion-reduce:transition-none hover:bg-muted focus-visible:bg-muted" :class="!item.is_read ? 'bg-brand-soft/50' : ''" :disabled="isPending" @click="openNotification(item)">
+            <span class="min-w-0 break-words text-xs text-muted-foreground">{{ t(notificationPreviewCaptionKey(item.kind)) }}</span>
             <span v-if="!item.is_read" class="sr-only">{{ t('notifications.unread') }}</span>
-            <span class="line-clamp-2 text-sm font-medium">{{ isDigestNotification(item) ? t('tasks.digest.count', item.overdue_count) : isMeetingNotification(item) ? item.meeting_name : item.task_name }}</span>
-            <span v-if="item.kind === 'comment' || isDigestNotification(item)" class="line-clamp-2 text-xs text-muted-foreground">{{ item.body }}</span>
-            <span class="text-xs text-muted-foreground" dir="ltr">{{ item.created_at }}</span>
+            <span class="min-w-0 break-words line-clamp-2 text-start text-sm font-medium"><bdi dir="auto">{{ isDigestNotification(item) ? t('tasks.digest.count', item.overdue_count) : isMeetingNotification(item) ? item.meeting_name : item.task_name }}</bdi></span>
+            <span v-if="item.kind === 'comment' || isDigestNotification(item)" class="min-w-0 break-words line-clamp-2 text-start text-xs text-muted-foreground"><bdi dir="auto">{{ item.body }}</bdi></span>
+            <time v-if="notificationTimestamp(item)" :datetime="notificationTimestamp(item)?.datetime" class="text-xs text-muted-foreground">{{ notificationTimestamp(item)?.label }}</time>
           </button>
         </div>
       </div>

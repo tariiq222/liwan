@@ -49,6 +49,8 @@
     "account": "Account",
     "logout": "Log out",
     "settings": "Settings",
+    "settingsPersonal": "Personal",
+    "settingsAdministration": "Administration",
     "employees": "Employees",
     "departments": "Departments",
     "documents": "Documents",

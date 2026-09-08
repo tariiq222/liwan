@@ -9,6 +9,8 @@ const route = useRoute()
 const { expanded, hydrated, toggle } = useModuleRail()
 const availableModules = computed(() => visibleShellModules(me.value))
 const activeModule = computed(() => activeShellModule(route.path))
+const primaryModules = computed(() => availableModules.value.filter(module => module.id !== 'settings' && module.id !== 'vendor'))
+const utilityModules = computed(() => availableModules.value.filter(module => module.id === 'settings' || module.id === 'vendor'))
 </script>
 
 <template>
@@ -36,7 +38,22 @@ const activeModule = computed(() => activeShellModule(route.path))
 
       <nav class="nasq-module-rail-links" :aria-label="t('nav.modules')">
         <NuxtLink
-          v-for="module in availableModules"
+          v-for="module in primaryModules"
+          :key="module.id"
+          :to="module.to"
+          class="nasq-module-rail-link"
+          :data-active="activeModule === module.id"
+          :aria-current="activeModule === module.id ? 'page' : undefined"
+          :aria-label="t(module.labelKey)"
+          :title="t(module.labelKey)"
+        >
+          <component :is="module.icon" aria-hidden="true" />
+          <span>{{ t(module.labelKey) }}</span>
+        </NuxtLink>
+      </nav>
+      <nav v-if="utilityModules.length" class="nasq-module-rail-utility" :aria-label="t('nav.settings')">
+        <NuxtLink
+          v-for="module in utilityModules"
           :key="module.id"
           :to="module.to"
           class="nasq-module-rail-link"
