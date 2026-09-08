@@ -2,7 +2,7 @@
 from datetime import datetime
 
 from odoo import fields
-from odoo.exceptions import ValidationError
+from odoo.exceptions import UserError, ValidationError
 from odoo.tests import tagged
 
 from .common import NasqPmoCase
@@ -119,3 +119,32 @@ class TestMeetingSeries(NasqPmoCase):
                 'end_datetime': datetime(2026, 9, 8, 10, 30),
                 'meeting_date': '2026-09-08',
             })
+
+    def test_converted_resolution_execution_is_frozen(self):
+        meeting = self.env['cyan.meeting.minute'].create({
+            'state': 'draft', 'name': 'Convert freeze', 'organizer_id': self.employee.id,
+            'attendee_ids': [(6, 0, self.employee.ids)], 'meeting_date': fields.Date.today(),
+        })
+        resolution = self.env['cyan.meeting.resolution'].create({
+            'meeting_id': meeting.id, 'name': 'Follow', 'responsible_id': self.employee.id,
+            'deadline': fields.Date.today(),
+        })
+        resolution.action_convert_to_task(self.project.id)
+        with self.assertRaises(UserError):
+            resolution.with_user(self.employee).action_start()
+
+    def test_previous_series_resolutions_are_listed_not_copied(self):
+        series = self.env['nasq.meeting.series'].create({
+            'name': 'Carry', 'recurrence': 'none', 'organizer_id': self.employee.id,
+        })
+        first = series.action_add_occurrence(datetime(2026, 9, 1, 9, 0), datetime(2026, 9, 1, 10, 0), 'Old')
+        self.env['cyan.meeting.resolution'].create({
+            'meeting_id': first.id, 'name': 'Open item', 'responsible_id': self.employee.id,
+            'deadline': fields.Date.today(),
+        })
+        second = series.action_add_occurrence(datetime(2026, 9, 8, 9, 0), datetime(2026, 9, 8, 10, 0), 'New')
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        body = self.api('GET', f'/api/v1/meetings/{second.id}').json()
+        names = [row['name'] for row in body['previous_resolutions']]
+        self.assertEqual(names, ['Open item'])
+        self.assertFalse(second.resolution_ids)

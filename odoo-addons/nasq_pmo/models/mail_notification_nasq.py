@@ -15,6 +15,10 @@ class NasqMailMessage(models.Model):
             ('meeting_invite', 'Meeting invite'),
             ('meeting_resolution', 'Meeting resolution'),
             ('meeting_converted', 'Meeting converted'),
+            ('meeting_changed', 'Meeting changed'),
+            ('meeting_cancelled', 'Meeting cancelled'),
+            ('meeting_reminder', 'Meeting reminder'),
+            ('meeting_resolution_overdue', 'Meeting resolution overdue'),
         ],
         string='nasq Notification Kind', copy=False, index=True,
     )

@@ -1,5 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from contextvars import ContextVar
+from datetime import timedelta
 
 from odoo import api, fields, models
 from odoo.exceptions import AccessError, UserError, ValidationError
@@ -129,7 +130,45 @@ class CyanMeetingMinute(models.Model):
                     added.mapped('partner_id'), 'meeting_invite', meeting.name,
                     key=f'meeting-invite:{meeting.id}',
                 )
+        if {'start_datetime', 'end_datetime', 'location'} & set(vals):
+            for meeting in self:
+                partners = meeting._cyan_participant_users().mapped('partner_id') - meeting.env.user.partner_id
+                meeting._nasq_notify_partners(partners, 'meeting_changed', meeting.name)
+        if vals.get('state') == 'cancelled':
+            for meeting in self:
+                partners = meeting._cyan_participant_users().mapped('partner_id') - meeting.env.user.partner_id
+                meeting._nasq_notify_partners(
+                    partners, 'meeting_cancelled', meeting.name,
+                    key=f'meeting-cancel:{meeting.id}',
+                )
         return result
+
+    @api.model
+    def _nasq_run_meeting_reminders(self):
+        now = fields.Datetime.now()
+        soon = now + timedelta(hours=24)
+        for meeting in self.search([
+            ('state', 'in', ('draft', 'confirmed')),
+            ('start_datetime', '>=', now),
+            ('start_datetime', '<=', soon),
+        ]):
+            meeting._nasq_notify_partners(
+                meeting._cyan_participant_users().mapped('partner_id'),
+                'meeting_reminder', meeting.name,
+                key=f'meeting-reminder:{meeting.id}',
+            )
+        today = fields.Date.context_today(self)
+        for resolution in self.env['cyan.meeting.resolution'].search([
+            ('state', 'not in', ('done', 'cancelled')),
+            ('deadline', '<', today),
+        ]):
+            if resolution.responsible_id:
+                resolution.meeting_id._nasq_notify_partners(
+                    resolution.responsible_id.partner_id,
+                    'meeting_resolution_overdue',
+                    resolution.name,
+                    key=f'meeting-res-overdue:{resolution.id}',
+                )
 
     @api.private
     def _cyan_write_calendar_schedule(self, values):

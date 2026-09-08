@@ -63,6 +63,7 @@
     "chat": "Chat",
     "meetings": "Meetings",
     "meetingCalendar": "Calendar",
+    "meetingSeries": "Meeting series",
     "projectDashboard": "Project dashboard",
     "newProject": "New project",
     "newMeeting": "New meeting",
@@ -148,7 +149,11 @@
     "notify": {
       "meeting_invite": "Meeting invitation",
       "meeting_resolution": "Recommendation assigned to you",
-      "meeting_converted": "Converted to a task"
+      "meeting_converted": "Converted to a task",
+      "meeting_changed": "Meeting time or place changed",
+      "meeting_cancelled": "Meeting cancelled",
+      "meeting_reminder": "Upcoming meeting reminder",
+      "meeting_resolution_overdue": "Overdue recommendation"
     },
     "priorityLabel": {
       "0": "Normal",
@@ -168,7 +173,41 @@
       "done": "Completed",
       "cancelled": "Cancelled"
     },
-    "convertError": "Could not convert the recommendation to a task. Please try again."
+    "convertError": "Could not convert the recommendation to a task. Please try again.",
+    "searchPeople": "Search attendees",
+    "selected": "Selected",
+    "sectionSchedule": "Schedule",
+    "sectionPeople": "Attendees",
+    "scope": "Edit scope",
+    "scopeThis": "This meeting",
+    "scopeFollowing": "This and following",
+    "pdf": "Download minutes",
+    "confirm": "Confirm",
+    "complete": "Complete",
+    "cancelMeeting": "Cancel",
+    "reopen": "Reopen",
+    "series": "Series",
+    "startWork": "Start work",
+    "followedAsTask": "Follow this on the linked task.",
+    "previousResolutions": "Previous meeting recommendations",
+    "openCount": "{count} open recommendations",
+    "overdueCount": "{count} overdue",
+    "allStates": "All states",
+    "stateLabel": "State",
+    "mine": "My meetings",
+    "newSeries": "New series",
+    "emptySeries": "No series visible to you.",
+    "addOccurrence": "Add meeting",
+    "nextMeeting": "Next meeting",
+    "previousMeeting": "Previous meeting",
+    "recurrenceLabel": "Recurrence",
+    "untilCount": "Number of meetings",
+    "recurrence": {
+      "none": "On demand",
+      "weekly": "Weekly",
+      "biweekly": "Every two weeks",
+      "monthly": "Monthly"
+    }
   },
   "search": {
     "description": "Search pages, projects and tasks…",

@@ -50,6 +50,9 @@ function isOverdue(value: string | null) {
       <ProjectStatusBadge v-else :status="project.status" />
       <span class="text-muted-foreground">{{ dateRange }}</span>
       <p class="font-mono text-xs text-muted-foreground" dir="ltr">{{ t('projects.projectId', { id: project.id }) }}</p>
+      <NuxtLink :to="{ path: '/meetings', query: { project_id: String(project.id), returnTo: route.fullPath } }" class="text-brand-link underline underline-offset-4">
+        {{ t('nav.meetings') }}
+      </NuxtLink>
     </div>
 
     <section class="nasq-metrics" data-cols="3">

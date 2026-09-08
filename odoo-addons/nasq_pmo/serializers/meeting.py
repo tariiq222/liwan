@@ -31,6 +31,9 @@ def dump_resolution(resolution, task_id=None):
         'state': resolution.state,
         'responsible': dump_person(resolution.responsible_id),
         'task_id': task_id,
+        'result': resolution.result or '',
+        'can_update_execution': bool(resolution.can_update_execution),
+        'can_edit_decision': bool(resolution.can_edit_decision),
     }
 
 
@@ -75,8 +78,23 @@ def dump_meeting(meeting, *, detail=False):
             ],
             'series': dump_person(meeting.series_id) if meeting.series_id else None,
             'project': dump_project_ref(meeting),
+            'previous_resolutions': dump_previous_resolutions(meeting),
         })
     return payload
+
+
+def dump_previous_resolutions(meeting):
+    if not meeting.series_id:
+        return []
+    rows = []
+    others = meeting.series_id.meeting_ids.filtered(lambda item: item.id != meeting.id)
+    for other in others.sorted('meeting_date'):
+        for resolution in other.resolution_ids:
+            row = dump_resolution(resolution)
+            row['meeting_id'] = other.id
+            row['meeting_name'] = other.name
+            rows.append(row)
+    return rows
 
 
 def dump_series(series, *, detail=False):

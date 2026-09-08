@@ -10,6 +10,12 @@ CONVERT_MARKER = 'nasq_pmo.resolution_convert_depth'
 class CyanMeetingResolution(models.Model):
     _inherit = 'cyan.meeting.resolution'
 
+    def write(self, vals):
+        if not self.env.su and {'state', 'result'} & set(vals):
+            if self.env['project.task'].sudo().search_count([('resolution_id', 'in', self.ids)]):
+                raise UserError(self.env._("Follow this recommendation on its task."))
+        return super().write(vals)
+
     def action_convert_to_task(self, project_id):
         """Mint a PMO task from this recommendation. Origin ids are opaque integers."""
         self.ensure_one()

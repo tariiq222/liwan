@@ -9,11 +9,15 @@ import {
   MeetingPatchSchema,
   MeetingResolutionCreateSchema,
   MeetingResolutionSchema,
+  MeetingSeriesCreateSchema,
+  MeetingSeriesDetailSchema,
+  MeetingSeriesListSchema,
   TaskAttachmentListSchema,
   TaskAttachmentSchema,
   type MeetingCreate,
   type MeetingPatch,
   type MeetingResolutionCreate,
+  type MeetingSeriesCreate,
 } from '@nasq/contracts'
 
 export function useMeetings(params: MaybeRefOrGetter<{
@@ -147,5 +151,75 @@ export function useDeleteMeetingAttachment() {
     mutationFn: ({ meetingId, attachmentId }: { meetingId: number; attachmentId: number }) =>
       $api(`/api/v1/meetings/${meetingId}/attachments/${attachmentId}`, { method: 'DELETE' }),
     onSuccess: (_row, { meetingId }) => qc.invalidateQueries({ queryKey: ['meetings', 'attachments', meetingId] }),
+  })
+}
+
+export function useMeetingAction() {
+  const qc = useQueryClient()
+  const { $api } = useApi()
+  return useMutation({
+    mutationFn: ({ id, action, body }: { id: number; action: 'confirm' | 'complete' | 'reopen' | 'cancel'; body?: Record<string, unknown> }) =>
+      $api(`/api/v1/meetings/${id}/${action}`, { method: 'POST', body, schema: MeetingDetailSchema }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['meetings'] }),
+  })
+}
+
+export function usePatchResolution() {
+  const qc = useQueryClient()
+  const { $api } = useApi()
+  return useMutation({
+    mutationFn: ({ meetingId, resolutionId, body }: { meetingId: number; resolutionId: number; body: Record<string, unknown> }) =>
+      $api(`/api/v1/meetings/${meetingId}/resolutions/${resolutionId}`, {
+        method: 'PATCH',
+        body,
+        schema: MeetingResolutionSchema,
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['meetings'] }),
+  })
+}
+
+export function useResolutionAction() {
+  const qc = useQueryClient()
+  const { $api } = useApi()
+  return useMutation({
+    mutationFn: ({ meetingId, resolutionId, action }: { meetingId: number; resolutionId: number; action: 'start' | 'complete' | 'cancel' | 'reopen' }) =>
+      $api(`/api/v1/meetings/${meetingId}/resolutions/${resolutionId}/${action}`, {
+        method: 'POST',
+        schema: MeetingResolutionSchema,
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['meetings'] }),
+  })
+}
+
+export function useMeetingSeriesList(params: MaybeRefOrGetter<{ q?: string; project_id?: number }>) {
+  const { $api } = useApi()
+  return useQuery({
+    queryKey: computed(() => ['meeting-series', toValue(params)]),
+    queryFn: () => $api('/api/v1/meeting-series', {
+      query: toValue(params),
+      schema: MeetingSeriesListSchema,
+    }),
+  })
+}
+
+export function useMeetingSeries(id: MaybeRefOrGetter<number | null>) {
+  const { $api } = useApi()
+  return useQuery({
+    queryKey: computed(() => ['meeting-series', toValue(id)]),
+    enabled: computed(() => Number.isInteger(toValue(id))),
+    queryFn: () => $api(`/api/v1/meeting-series/${toValue(id)}`, { schema: MeetingSeriesDetailSchema }),
+  })
+}
+
+export function useCreateMeetingSeries() {
+  const qc = useQueryClient()
+  const { $api } = useApi()
+  return useMutation({
+    mutationFn: (body: MeetingSeriesCreate) => $api('/api/v1/meeting-series', {
+      method: 'POST',
+      body: MeetingSeriesCreateSchema.parse(body),
+      schema: MeetingSeriesDetailSchema,
+    }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['meeting-series'] }),
   })
 }

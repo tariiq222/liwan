@@ -203,3 +203,89 @@ class MeetingController(http.Controller):
             raise ApiError(404, 'not_found', 'resolution not found')
         task = resolution.action_convert_to_task(parse_positive_int(project_id, 'project_id'))
         return {'id': task.id, 'name': task.name}
+
+    def _resolution(self, meeting_id, resolution_id):
+        meeting = get_record('cyan.meeting.minute', meeting_id)
+        resolution = get_record('cyan.meeting.resolution', resolution_id)
+        if resolution.meeting_id != meeting:
+            raise ApiError(404, 'not_found', 'resolution not found')
+        return meeting, resolution
+
+    @http.route('/api/v1/meetings/<int:meeting_id>/confirm', type='json2', auth='user', methods=['POST'], readonly=False)
+    @api_handler
+    def confirm_meeting(self, meeting_id, **_):
+        request.env['nasq.access.service']._nasq_require_capability('meetings.read')
+        meeting = get_record('cyan.meeting.minute', meeting_id)
+        meeting.action_confirm()
+        return dump_meeting(meeting, detail=True)
+
+    @http.route('/api/v1/meetings/<int:meeting_id>/complete', type='json2', auth='user', methods=['POST'], readonly=False)
+    @api_handler
+    def complete_meeting(self, meeting_id, **_):
+        request.env['nasq.access.service']._nasq_require_capability('meetings.read')
+        meeting = get_record('cyan.meeting.minute', meeting_id)
+        meeting.action_done()
+        return dump_meeting(meeting, detail=True)
+
+    @http.route('/api/v1/meetings/<int:meeting_id>/reopen', type='json2', auth='user', methods=['POST'], readonly=False)
+    @api_handler
+    def reopen_meeting(self, meeting_id, **_):
+        request.env['nasq.access.service']._nasq_require_capability('meetings.read')
+        meeting = get_record('cyan.meeting.minute', meeting_id)
+        meeting.action_reset_draft()
+        return dump_meeting(meeting, detail=True)
+
+    @http.route(
+        '/api/v1/meetings/<int:meeting_id>/resolutions/<int:resolution_id>',
+        type='json2', auth='user', methods=['PATCH'], readonly=False,
+    )
+    @api_handler
+    def patch_resolution(self, meeting_id, resolution_id, **payload):
+        request.env['nasq.access.service']._nasq_require_capability('meetings.read')
+        _meeting, resolution = self._resolution(meeting_id, resolution_id)
+        vals = {}
+        if 'name' in payload:
+            if not isinstance(payload['name'], str) or not payload['name'].strip():
+                raise ApiError(422, 'invalid', 'name must not be empty', field='name')
+            vals['name'] = payload['name'].strip()
+        if 'deadline' in payload and isinstance(payload['deadline'], str) and payload['deadline'].strip():
+            vals['deadline'] = payload['deadline'].strip()
+        if payload.get('responsible_id'):
+            vals['responsible_id'] = parse_positive_int(payload['responsible_id'], 'responsible_id')
+        if isinstance(payload.get('priority'), str) and payload['priority'] in {'0', '1', '2', '3'}:
+            vals['priority'] = payload['priority']
+        if 'result' in payload:
+            if payload['result'] is not None and not isinstance(payload['result'], str):
+                raise ApiError(422, 'invalid', 'result must be a string', field='result')
+            vals['result'] = payload['result'] or ''
+        if not vals:
+            raise ApiError(422, 'invalid', 'no fields to update')
+        resolution.write(vals)
+        return dump_resolution(resolution)
+
+    @http.route(
+        '/api/v1/meetings/<int:meeting_id>/resolutions/<int:resolution_id>/<string:action>',
+        type='json2', auth='user', methods=['POST'], readonly=False,
+    )
+    @api_handler
+    def resolution_action(self, meeting_id, resolution_id, action, **_):
+        request.env['nasq.access.service']._nasq_require_capability('meetings.read')
+        _meeting, resolution = self._resolution(meeting_id, resolution_id)
+        methods = {'start': 'action_start', 'complete': 'action_done', 'cancel': 'action_cancel', 'reopen': 'action_reopen'}
+        if action not in methods:
+            raise ApiError(404, 'not_found', 'unknown action')
+        getattr(resolution, methods[action])()
+        return dump_resolution(resolution)
+
+    @http.route('/api/v1/meetings/<int:meeting_id>/minutes.pdf', type='http', auth='user', methods=['GET'], csrf=False)
+    def minutes_pdf(self, meeting_id, **_):
+        request.env['nasq.access.service']._nasq_require_capability('meetings.read')
+        meeting = get_record('cyan.meeting.minute', meeting_id)
+        pdf, _type = request.env['ir.actions.report']._render_qweb_pdf(
+            'cyan_meeting_minutes.action_report_meeting_minutes', meeting.ids,
+        )
+        filename = '%s.pdf' % (meeting.reference or 'minutes')
+        return request.make_response(pdf, headers=[
+            ('Content-Type', 'application/pdf'),
+            ('Content-Disposition', 'attachment; filename="%s"' % filename),
+        ])

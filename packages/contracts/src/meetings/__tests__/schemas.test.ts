@@ -31,6 +31,7 @@ describe('meeting contracts', () => {
       resolutions: [],
       series: null,
       project: null,
+      previous_resolutions: [],
     }).attendees).toHaveLength(1)
   })
 })

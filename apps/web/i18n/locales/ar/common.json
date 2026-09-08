@@ -63,6 +63,7 @@
     "chat": "المحادثة",
     "meetings": "الاجتماعات",
     "meetingCalendar": "التقويم",
+    "meetingSeries": "سلاسل الاجتماعات",
     "projectDashboard": "إحصائية المشاريع",
     "newProject": "مشروع جديد",
     "newMeeting": "اجتماع جديد",
@@ -145,11 +146,6 @@
     "convert": "تحويل لمهمة",
     "project": "المشروع",
     "openTask": "فتح المهمة",
-    "notify": {
-      "meeting_invite": "دعوة لاجتماع",
-      "meeting_resolution": "توصية باسمك",
-      "meeting_converted": "حُوّلت لمهمة"
-    },
     "priorityLabel": {
       "0": "عادية",
       "1": "مهمة",
@@ -168,7 +164,50 @@
       "done": "مكتمل",
       "cancelled": "ملغى"
     },
-    "convertError": "تعذّر تحويل التوصية إلى مهمة. حاول مرة أخرى."
+    "convertError": "تعذّر تحويل التوصية إلى مهمة. حاول مرة أخرى.",
+    "searchPeople": "بحث عن حضور",
+    "selected": "المختارون",
+    "sectionSchedule": "الموعد",
+    "sectionPeople": "الحضور",
+    "scope": "نطاق التعديل",
+    "scopeThis": "هذا الاجتماع",
+    "scopeFollowing": "هذا وما بعده",
+    "pdf": "تنزيل المحضر",
+    "confirm": "تأكيد",
+    "complete": "إنهاء",
+    "cancelMeeting": "إلغاء",
+    "reopen": "إعادة فتح",
+    "series": "السلسلة",
+    "startWork": "بدء التنفيذ",
+    "followedAsTask": "المتابعة على المهمة المرتبطة.",
+    "previousResolutions": "توصيات اللقاءات السابقة",
+    "openCount": "{count} توصيات مفتوحة",
+    "overdueCount": "{count} متأخرة",
+    "allStates": "كل الحالات",
+    "stateLabel": "الحالة",
+    "mine": "اجتماعاتي",
+    "newSeries": "سلسلة جديدة",
+    "emptySeries": "لا سلاسل ظاهرة لك.",
+    "addOccurrence": "إضافة لقاء",
+    "nextMeeting": "اللقاء القادم",
+    "previousMeeting": "اللقاء السابق",
+    "recurrenceLabel": "التكرار",
+    "untilCount": "عدد اللقاءات",
+    "recurrence": {
+      "none": "حسب الحاجة",
+      "weekly": "أسبوعي",
+      "biweekly": "كل أسبوعين",
+      "monthly": "شهري"
+    },
+    "notify": {
+      "meeting_invite": "دعوة لاجتماع",
+      "meeting_resolution": "توصية باسمك",
+      "meeting_converted": "حُوّلت لمهمة",
+      "meeting_changed": "تغيّر موعد أو مكان الاجتماع",
+      "meeting_cancelled": "أُلغي الاجتماع",
+      "meeting_reminder": "تذكير باجتماع قادم",
+      "meeting_resolution_overdue": "توصية متأخرة"
+    }
   },
   "search": {
     "description": "ابحث في الصفحات والمشاريع والمهام…",

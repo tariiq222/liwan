@@ -89,7 +89,7 @@ export function isDigestNotification(item: Notification): item is Extract<Notifi
 }
 
 export function isMeetingNotification(item: Notification): item is Extract<Notification, { meeting_id: number }> {
-  return item.kind === 'meeting_invite' || item.kind === 'meeting_resolution' || item.kind === 'meeting_converted'
+  return item.kind.startsWith('meeting_')
 }
 
 export type { Notification }

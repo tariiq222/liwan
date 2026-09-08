@@ -27,6 +27,7 @@
         'data/nasq_project_sequence.xml',
         'data/project_charter_reference_data.xml',
         'data/nasq_notification_cron.xml',
+        'data/meeting_reminder_cron.xml',
     ],
     'installable': True,
     'application': False,

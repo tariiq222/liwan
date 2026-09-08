@@ -6,7 +6,9 @@ import {
   useConvertResolution,
   useDeleteMeetingAttachment,
   useMeeting,
+  useMeetingAction,
   useMeetingAttachments,
+  useResolutionAction,
   useUploadMeetingAttachment,
 } from '@/composables/useMeetings'
 import { useProjects } from '@/composables/useProjects'
@@ -26,6 +28,8 @@ const conversionError = ref('')
 const { mutateAsync: upload, isPending: uploading } = useUploadMeetingAttachment()
 const { mutateAsync: remove, isPending: deleting } = useDeleteMeetingAttachment()
 const { mutateAsync: convert, isPending: converting } = useConvertResolution()
+const { mutateAsync: runMeeting, isPending: transitioning } = useMeetingAction()
+const { mutateAsync: runResolution } = useResolutionAction()
 const backTo = computed(() => safeReturnTo(route.query.returnTo, '/meetings', ['/meetings']))
 const projectByResolution = ref<Record<number, number>>({})
 const pendingDeleteId = ref<number | null>(null)
@@ -78,15 +82,40 @@ async function convertResolution(resolutionId: number) {
     conversionError.value = error instanceof ApiError ? error.message : t('meetingsUi.convertError')
   }
 }
+
+async function meetingAction(action: 'confirm' | 'complete' | 'reopen' | 'cancel') {
+  if (!id.value) return
+  try {
+    await runMeeting({ id: id.value, action })
+  } catch (error) {
+    toast.error(error instanceof ApiError ? error.message : t('errors.generic'))
+  }
+}
+
+async function resolutionAction(resolutionId: number, action: 'start' | 'complete' | 'cancel' | 'reopen') {
+  if (!id.value) return
+  try {
+    await runResolution({ meetingId: id.value, resolutionId, action })
+  } catch (error) {
+    toast.error(error instanceof ApiError ? error.message : t('errors.generic'))
+  }
+}
 </script>
 
 <template>
   <SharedPageContainer v-if="isDetail" width="detail">
     <SharedPageHeader :title="query.data.value?.name || t('nav.meetings')" :back-to="backTo">
       <template #actions>
+        <a :href="`/api/v1/meetings/${id}/minutes.pdf`" class="inline-flex">
+          <Button type="button" variant="outline">{{ t('meetingsUi.pdf') }}</Button>
+        </a>
         <NuxtLink v-if="query.data.value?.can_edit" :to="{ path: `/meetings/${id}/edit`, query: returnToQuery(route.fullPath) }">
           <Button>{{ t('app.edit') }}</Button>
         </NuxtLink>
+        <Button v-if="query.data.value?.can_edit && query.data.value.state === 'draft'" :disabled="transitioning" @click="meetingAction('confirm')">{{ t('meetingsUi.confirm') }}</Button>
+        <Button v-if="query.data.value?.can_manage && query.data.value.state === 'confirmed'" :disabled="transitioning" @click="meetingAction('complete')">{{ t('meetingsUi.complete') }}</Button>
+        <Button v-if="query.data.value?.can_manage && query.data.value.state !== 'cancelled'" variant="outline" :disabled="transitioning" @click="meetingAction('cancel')">{{ t('meetingsUi.cancelMeeting') }}</Button>
+        <Button v-if="query.data.value?.can_manage && (query.data.value.state === 'done' || query.data.value.state === 'cancelled')" variant="outline" :disabled="transitioning" @click="meetingAction('reopen')">{{ t('meetingsUi.reopen') }}</Button>
       </template>
     </SharedPageHeader>
     <SharedPageState :loading="query.isLoading.value" :error="query.error.value" @retry="query.refetch">
@@ -99,6 +128,7 @@ async function convertResolution(resolutionId: number) {
             <div><dt>{{ t('meetingsUi.end') }}</dt><dd>{{ localTime(query.data.value.end_datetime) }}</dd></div>
             <div><dt>{{ t('meetingsUi.organizer') }}</dt><dd>{{ query.data.value.organizer?.name }}</dd></div>
             <div><dt>{{ t('meetingsUi.secretary') }}</dt><dd>{{ query.data.value.secretary?.name || '—' }}</dd></div>
+            <div v-if="query.data.value.series"><dt>{{ t('meetingsUi.series') }}</dt><dd><NuxtLink :to="`/meetings/series/${query.data.value.series.id}`" class="text-brand-link">{{ query.data.value.series.name }}</NuxtLink></dd></div>
             <div><dt>{{ t('meetingsUi.location') }}</dt><dd>{{ query.data.value.location || '—' }}</dd></div>
             <div v-if="query.data.value.meeting_url">
               <dt>{{ t('meetingsUi.url') }}</dt>
@@ -143,6 +173,13 @@ async function convertResolution(resolutionId: number) {
           <div v-for="item in query.data.value.resolutions" :key="item.id" class="grid gap-2 border-b border-border py-3 last:border-0">
             <p class="font-medium">{{ item.name }}</p>
             <p class="text-sm text-muted-foreground">{{ item.responsible?.name }} · {{ item.deadline }} · {{ t(`meetingsUi.priorityLabel.${item.priority}`) }} · {{ t(`meetingsUi.resolutionState.${item.state}`) }}</p>
+            <p v-if="item.result" class="prose prose-sm max-w-none" v-html="item.result" />
+            <div v-if="item.can_update_execution && !item.task_id" class="flex flex-wrap gap-2">
+              <Button v-if="item.state === 'open'" size="sm" variant="outline" @click="resolutionAction(item.id, 'start')">{{ t('meetingsUi.startWork') }}</Button>
+              <Button v-if="item.state === 'open' || item.state === 'in_progress'" size="sm" @click="resolutionAction(item.id, 'complete')">{{ t('meetingsUi.complete') }}</Button>
+              <Button v-if="item.state !== 'cancelled' && item.state !== 'done'" size="sm" variant="outline" @click="resolutionAction(item.id, 'cancel')">{{ t('meetingsUi.cancelMeeting') }}</Button>
+            </div>
+            <p v-if="item.task_id" class="text-xs text-muted-foreground">{{ t('meetingsUi.followedAsTask') }}</p>
             <NuxtLink v-if="item.task_id" :to="`/tasks/${item.task_id}`" class="text-sm text-brand-link">{{ t('meetingsUi.openTask') }}</NuxtLink>
             <div v-else-if="canConvert" class="flex flex-wrap items-center gap-2">
               <select class="border-input h-9 rounded-lg border bg-transparent px-2 text-sm" :disabled="!hydrated || converting" @change="projectByResolution[item.id] = Number(($event.target as HTMLSelectElement).value)">
@@ -151,6 +188,14 @@ async function convertResolution(resolutionId: number) {
               </select>
               <Button size="sm" :disabled="!hydrated || converting || !projectByResolution[item.id]" @click="convertResolution(item.id)">{{ t('meetingsUi.convert') }}</Button>
             </div>
+          </div>
+        </section>
+        <section v-if="query.data.value.previous_resolutions.length" class="nasq-panel nasq-panel-body grid gap-3">
+          <h2 class="text-sm font-semibold">{{ t('meetingsUi.previousResolutions') }}</h2>
+          <div v-for="item in query.data.value.previous_resolutions" :key="item.id" class="border-b border-border py-2 last:border-0">
+            <NuxtLink :to="{ path: `/meetings/${item.meeting_id}`, query: returnToQuery(route.fullPath) }" class="font-medium text-brand-link">{{ item.meeting_name }}</NuxtLink>
+            <p class="text-sm">{{ item.name }} · {{ t(`meetingsUi.resolutionState.${item.state}`) }} · {{ item.deadline }}</p>
+            <div v-if="item.result" class="prose prose-sm max-w-none" v-html="item.result" />
           </div>
         </section>
       </div>

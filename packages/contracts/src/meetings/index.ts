@@ -32,6 +32,14 @@ export const MeetingResolutionSchema = z.object({
   state: z.enum(['open', 'in_progress', 'done', 'cancelled']),
   responsible: MeetingPersonSchema.nullable(),
   task_id: z.number().int().nullable(),
+  result: z.string(),
+  can_update_execution: z.boolean(),
+  can_edit_decision: z.boolean(),
+}).strict()
+
+export const MeetingPreviousResolutionSchema = MeetingResolutionSchema.extend({
+  meeting_id: z.number().int(),
+  meeting_name: z.string(),
 }).strict()
 
 export const MeetingDetailSchema = MeetingListItemSchema.extend({
@@ -46,6 +54,7 @@ export const MeetingDetailSchema = MeetingListItemSchema.extend({
   resolutions: z.array(MeetingResolutionSchema),
   series: MeetingPersonSchema.nullable(),
   project: MeetingPersonSchema.nullable(),
+  previous_resolutions: z.array(MeetingPreviousResolutionSchema),
 }).strict()
 
 export const MeetingCreateSchema = z.object({
