@@ -374,6 +374,55 @@ class TestMeetingsApi(NasqPmoCase):
         self.assertEqual(hidden_res.status_code, 403)
         self.assertEqual(hidden_res.json()['code'], 'forbidden')
 
+    def test_meeting_search_by_location_preserves_ordinary_visibility(self):
+        user_group = self.env.ref('nasq_core.group_cap_meetings_read')
+        self.employee.group_ids |= user_group
+        self.manager.group_ids |= user_group
+        visible = self.env['cyan.meeting.minute'].create({
+            'state': 'draft', 'name': 'Operations review', 'organizer_id': self.employee.id,
+            'location': 'Secure Room', 'meeting_date': '2026-09-10',
+        })
+        hidden = self.env['cyan.meeting.minute'].create({
+            'state': 'draft', 'name': 'Board review', 'organizer_id': self.manager.id,
+            'location': 'Secure Room', 'meeting_date': '2026-09-10',
+        })
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        body = self.api('GET', '/api/v1/meetings?q=Secure%20Room').json()
+        self.assertEqual(body['total'], 1)
+        self.assertEqual([row['id'] for row in body['items']], [visible.id])
+        self.assertNotIn(hidden.id, [row['id'] for row in body['items']])
+
+    def test_meeting_project_and_date_filters_are_combined_with_correct_total(self):
+        self.employee.group_ids |= self.env.ref('nasq_core.group_cap_meetings_read')
+        target = self.env['cyan.meeting.minute'].create({
+            'state': 'draft', 'name': 'Target project meeting', 'organizer_id': self.employee.id,
+            'project_id': self.project.id, 'meeting_date': '2026-09-10',
+        })
+        self.env['cyan.meeting.minute'].create({
+            'state': 'draft', 'name': 'Same project later', 'organizer_id': self.employee.id,
+            'project_id': self.project.id, 'meeting_date': '2026-09-11',
+        })
+        self.env['cyan.meeting.minute'].create({
+            'state': 'draft', 'name': 'Same date other project', 'organizer_id': self.employee.id,
+            'meeting_date': '2026-09-10',
+        })
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        response = self.api(
+            'GET',
+            f'/api/v1/meetings?project_id={self.project.id}&date_from=2026-09-10&date_to=2026-09-10',
+        )
+        self.assertEqual(response.status_code, 200, response.text)
+        body = response.json()
+        self.assertEqual(body['total'], 1)
+        self.assertEqual([row['id'] for row in body['items']], [target.id])
+
+    def test_meeting_date_range_rejects_reversed_bounds(self):
+        self.employee.group_ids |= self.env.ref('nasq_core.group_cap_meetings_read')
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        response = self.api('GET', '/api/v1/meetings?date_from=2026-09-11&date_to=2026-09-10')
+        self.assertEqual(response.status_code, 422, response.text)
+        self.assertEqual(response.json()['field'], 'date_to')
+
     def test_manage_group_reads_company_meetings_and_outsider_cannot(self):
         # Nasq-dependent coverage recovered from the Cyan source conflict.
         office = new_test_user(

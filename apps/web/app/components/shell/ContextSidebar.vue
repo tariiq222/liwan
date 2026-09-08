@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ArrowRight, ChevronLeft } from '@lucide/vue'
+import { ArrowRight } from '@lucide/vue'
 import { useMediaQuery } from '@vueuse/core'
 import ConversationList from '@/components/chat/ConversationList.vue'
 import SidebarCreateAction from '@/components/shell/SidebarCreateAction.vue'
@@ -164,7 +164,6 @@ function updateRoute(next: ChatListRoute) {
             >
               <component :is="link.icon" aria-hidden="true" />
               <span>{{ t(link.labelKey) }}</span>
-              <ChevronLeft v-if="link.active" aria-hidden="true" class="nasq-context-active-mark ltr:rotate-180" />
             </NuxtLink>
           </div>
         </div>

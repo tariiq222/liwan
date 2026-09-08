@@ -2,46 +2,75 @@
 import { Plus, Search, X } from '@lucide/vue'
 import { refDebounced } from '@vueuse/core'
 import FilterBar from '@/components/shared/FilterBar.vue'
+import MeetingProjectFilter from '@/components/meetings/MeetingProjectFilter.vue'
 import { formatCalendarDate } from '@/composables/calendarDate'
+import { usePeople } from '@/composables/usePeople'
 import { useMeetings } from '@/composables/useMeetings'
 import { returnToQuery } from '@/utils/safeReturnTo'
 import { meetingCreateRoute } from '@/utils/meetingRoutes'
 import { formatLocalDateTime } from '@/utils/meetingDateTime'
+import { clearMeetingListFilters, meetingDateRange, parseMeetingListFilters, patchMeetingListQuery, type MeetingFilterKey, type MeetingFilterPatch } from '@/utils/meetingListFilters'
 
 const route = useRoute()
 const router = useRouter()
 const { t, locale } = useI18n()
 const hydrated = useHydrated()
 const { can } = useAccess()
-const search = ref(String(route.query.q ?? ''))
-const state = ref(String(route.query.state ?? ''))
-const mine = ref(route.query.mine === '1')
+const routeFilters = computed(() => parseMeetingListFilters(route.query))
+const search = ref(routeFilters.value.q)
+const state = ref(routeFilters.value.state)
+const mine = ref(routeFilters.value.mine)
+const organizerSearch = ref('')
+const dateFrom = ref(routeFilters.value.dateFrom)
+const dateTo = ref(routeFilters.value.dateTo)
 const debouncedSearch = refDebounced(search, 250)
+const debouncedOrganizerSearch = refDebounced(organizerSearch, 250)
+const organizerQuery = usePeople(debouncedOrganizerSearch)
 const limit = 25
-const offset = ref(Math.max(0, Number(route.query.offset ?? 0) || 0))
+const offset = ref(parseOffset(route.query.offset))
+const validStates = ['draft', 'confirmed', 'done', 'cancelled']
+const dateValidation = computed(() => meetingDateRange(dateFrom.value, dateTo.value))
 const query = useMeetings(computed(() => ({
   q: debouncedSearch.value.trim() || undefined,
-  state: state.value || undefined,
-  mine: mine.value || undefined,
-  project_id: route.query.project_id ? Number(route.query.project_id) : undefined,
-  series_id: route.query.series_id ? Number(route.query.series_id) : undefined,
+  state: validStates.includes(routeFilters.value.state) ? routeFilters.value.state : undefined,
+  mine: routeFilters.value.mine || undefined,
+  project_id: routeFilters.value.projectId,
+  organizer_id: routeFilters.value.organizerId,
+  date_from: !dateValidation.value.invalid && !dateValidation.value.reversed && dateValidation.value.fromValid ? routeFilters.value.dateFrom || undefined : undefined,
+  date_to: !dateValidation.value.invalid && !dateValidation.value.reversed && dateValidation.value.toValid ? routeFilters.value.dateTo || undefined : undefined,
+  series_id: routeFilters.value.seriesId,
   limit,
   offset: offset.value,
 })))
 const page = computed(() => Math.floor(offset.value / limit) + 1)
 const pages = computed(() => Math.max(1, Math.ceil((query.data.value?.total ?? 0) / limit)))
-const hasActiveFilters = computed(() => Boolean(search.value.trim() || state.value || mine.value || route.query.project_id || route.query.series_id))
-const projectId = computed(() => {
-  const value = Number(route.query.project_id)
-  return Number.isInteger(value) && value > 0 ? value : undefined
-})
-const seriesId = computed(() => {
-  const value = Number(route.query.series_id)
-  return Number.isInteger(value) && value > 0 ? value : undefined
-})
+const projectId = computed(() => routeFilters.value.projectId)
+const seriesId = computed(() => routeFilters.value.seriesId)
 const createMeetingTo = computed(() => meetingCreateRoute(route.fullPath, projectId.value, seriesId.value))
-const projectFilter = computed(() => route.query.project_id ? String(route.query.project_id) : '')
-const seriesFilter = computed(() => route.query.series_id ? String(route.query.series_id) : '')
+const projectName = ref('')
+const rememberedOrganizers = ref<Record<number, string>>({})
+watch(() => organizerQuery.data.value, people => {
+  if (!people?.length) return
+  const next = { ...rememberedOrganizers.value }
+  for (const person of people) next[person.user_id] = person.name
+  rememberedOrganizers.value = next
+}, { immediate: true })
+const organizerOptions = computed(() => {
+  const people = (organizerQuery.data.value ?? []).map(person => ({ id: person.user_id, name: person.name }))
+  const selected = routeFilters.value.organizerId
+  if (selected && !people.some(person => person.id === selected)) people.unshift({ id: selected, name: rememberedOrganizers.value[selected] ?? t('meetingsFilters.selectedOrganizer') })
+  return people
+})
+const selectedOrganizerLabel = computed(() => organizerOptions.value.find(person => person.id === routeFilters.value.organizerId)?.name ?? t('meetingsFilters.selectedOrganizer'))
+const selectedState = computed(() => validStates.includes(routeFilters.value.state) ? routeFilters.value.state : '')
+const hasActiveFilters = computed(() => Boolean(search.value.trim() || selectedState.value || routeFilters.value.mine || projectId.value || routeFilters.value.organizerId || routeFilters.value.dateFrom || routeFilters.value.dateTo || seriesId.value))
+const invalidDateRange = computed(() => dateValidation.value.invalid || dateValidation.value.reversed)
+
+function parseOffset(value: unknown) {
+  const raw = Array.isArray(value) ? value[0] : value
+  const parsed = typeof raw === 'string' || typeof raw === 'number' ? Number(raw) : 0
+  return Number.isInteger(parsed) && parsed >= 0 ? parsed : 0
+}
 
 function localTime(value: string | null) {
   if (!value) return ''
@@ -50,41 +79,77 @@ function localTime(value: string | null) {
   return new Intl.DateTimeFormat(locale.value, { timeStyle: 'short', calendar: 'gregory' }).format(parsed)
 }
 
-watch(() => [route.query.q, route.query.offset, route.query.state, route.query.mine], ([q, nextOffset, nextState, nextMine]) => {
-  search.value = String(q ?? '')
-  state.value = String(nextState ?? '')
-  mine.value = nextMine === '1'
-  offset.value = Math.max(0, Number(nextOffset ?? 0) || 0)
+watch(() => route.query.q, value => {
+  const next = typeof value === 'string' ? value : ''
+  if (next !== search.value) search.value = next
+})
+watch(() => route.query.state, value => {
+  const next = typeof value === 'string' ? value : ''
+  if (next !== state.value) state.value = next
+})
+watch(() => route.query.mine, value => {
+  const next = value === '1' || value === 'true'
+  if (next !== mine.value) mine.value = next
+})
+watch(() => route.query.date_from, value => {
+  const next = typeof value === 'string' ? value : ''
+  if (next !== dateFrom.value) dateFrom.value = next
+})
+watch(() => route.query.date_to, value => {
+  const next = typeof value === 'string' ? value : ''
+  if (next !== dateTo.value) dateTo.value = next
+})
+watch(() => route.query.offset, value => {
+  const next = parseOffset(value)
+  if (next !== offset.value) offset.value = next
+})
+watch([dateFrom, dateTo], ([from, to]) => {
+  if (from === routeFilters.value.dateFrom && to === routeFilters.value.dateTo) return
+  void router.replace({ query: patchMeetingListQuery(route.query, {
+    date_from: from || undefined,
+    date_to: to || undefined,
+  }) })
 })
 watch(debouncedSearch, (value) => {
   const next = value.trim()
-  const current = typeof route.query.q === 'string' ? route.query.q : ''
+  const current = routeFilters.value.q
   if (next === current) return
-  offset.value = 0
-  void router.replace({ query: { ...route.query, q: next || undefined, offset: undefined } })
+  void router.replace({ query: patchMeetingListQuery(route.query, { q: next || undefined }) })
 })
 function applyFilters() {
-  offset.value = 0
-  void router.replace({
-    query: {
-      ...route.query,
-      state: state.value || undefined,
-      mine: mine.value ? '1' : undefined,
-      offset: undefined,
-    },
-  })
+  void router.replace({ query: patchMeetingListQuery(route.query, {
+    state: state.value || undefined,
+    mine: mine.value,
+    organizer_id: routeFilters.value.organizerId,
+    date_from: dateFrom.value || undefined,
+    date_to: dateTo.value || undefined,
+  }) })
 }
 
 function clearFilters() {
   search.value = ''
   state.value = ''
   mine.value = false
-  void router.replace({ query: {} })
+  organizerSearch.value = ''
+  dateFrom.value = ''
+  dateTo.value = ''
+  void router.replace({ query: clearMeetingListFilters(route.query) })
+}
+function clearFilter(key: MeetingFilterKey) {
+  const patch = (key === 'mine' ? { mine: false } : { [key]: undefined }) as MeetingFilterPatch
+  void router.replace({ query: patchMeetingListQuery(route.query, patch) })
+}
+function setProject(value: number | undefined) {
+  void router.replace({ query: patchMeetingListQuery(route.query, { project_id: value }) })
+}
+function setOrganizer(value: unknown) {
+  const selected = String(value)
+  void router.replace({ query: patchMeetingListQuery(route.query, { organizer_id: selected ? Number(selected) : undefined }) })
 }
 function setPage(next: number) {
   if (!hydrated.value || query.isFetching.value || next < 1 || next > pages.value) return
   offset.value = (next - 1) * limit
-  void router.replace({ query: { ...route.query, offset: offset.value || undefined } })
+  void router.replace({ query: patchMeetingListQuery(route.query, { offset: offset.value || undefined }) })
 }
 </script>
 
@@ -107,8 +172,8 @@ function setPage(next: number) {
             <Input
               v-model="search"
               :disabled="!hydrated"
-              :placeholder="t('meetingsUi.search')"
-              :aria-label="t('meetingsUi.search')"
+              :placeholder="t('meetingsFilters.searchMeetings')"
+              :aria-label="t('meetingsFilters.searchMeetings')"
               class="ps-8"
             />
           </div>
@@ -117,25 +182,57 @@ function setPage(next: number) {
           <option value="">{{ t('meetingsUi.allStates') }}</option>
           <option v-for="code in ['draft', 'confirmed', 'done', 'cancelled']" :key="code" :value="code">{{ t(`meetingsUi.state.${code}`) }}</option>
         </select>
+        <MeetingProjectFilter :model-value="projectId" @update:model-value="setProject" @resolved-name="projectName = $event" />
         <label class="flex items-center gap-2 text-sm">
           <input v-model="mine" type="checkbox" :disabled="!hydrated" @change="applyFilters">
           {{ t('meetingsUi.mine') }}
         </label>
         <template #active>
           <div v-if="hasActiveFilters" class="flex flex-wrap items-center gap-2">
-            <Badge v-if="search.trim()" variant="secondary">{{ t('meetingsUi.searchValue', { value: search }) }}</Badge>
+            <Badge v-if="search.trim()" variant="secondary" class="gap-1">{{ t('meetingsUi.searchValue', { value: search }) }}<button type="button" :aria-label="t('meetingsFilters.removeFilter')" @click="clearFilter('q')">×</button></Badge>
+            <Badge v-if="selectedState" variant="secondary" class="gap-1">{{ t(`meetingsUi.state.${selectedState}`) }}<button type="button" :aria-label="t('meetingsFilters.removeFilter')" @click="clearFilter('state')">×</button></Badge>
+            <Badge v-if="routeFilters.mine" variant="secondary" class="gap-1">{{ t('meetingsUi.mine') }}<button type="button" :aria-label="t('meetingsFilters.removeFilter')" @click="clearFilter('mine')">×</button></Badge>
+            <Badge v-if="projectId" variant="secondary" class="gap-1">{{ projectName || t('meetingsFilters.selectedProject') }}<button type="button" :aria-label="t('meetingsFilters.removeFilter')" @click="clearFilter('project_id')">×</button></Badge>
+            <Badge v-if="routeFilters.organizerId" variant="secondary" class="gap-1">{{ selectedOrganizerLabel }}<button type="button" :aria-label="t('meetingsFilters.removeFilter')" @click="clearFilter('organizer_id')">×</button></Badge>
+            <Badge v-if="routeFilters.dateFrom" variant="secondary" class="gap-1">{{ t('meetingsFilters.fromDate', { value: routeFilters.dateFrom }) }}<button type="button" :aria-label="t('meetingsFilters.removeFilter')" @click="clearFilter('date_from')">×</button></Badge>
+            <Badge v-if="routeFilters.dateTo" variant="secondary" class="gap-1">{{ t('meetingsFilters.toDate', { value: routeFilters.dateTo }) }}<button type="button" :aria-label="t('meetingsFilters.removeFilter')" @click="clearFilter('date_to')">×</button></Badge>
+            <Badge v-if="seriesId" variant="secondary" class="gap-1">{{ t('meetingsFilters.inheritedSeries') }}<button type="button" :aria-label="t('meetingsFilters.removeFilter')" @click="clearFilter('series_id')">×</button></Badge>
             <Button variant="ghost" size="sm" class="gap-1" :disabled="!hydrated" @click="clearFilters">
               <X class="size-3.5" />{{ t('meetingsUi.clear') }}
             </Button>
           </div>
         </template>
       </FilterBar>
-      <div v-if="projectFilter || seriesFilter" class="flex flex-wrap items-center gap-2 text-sm text-muted-foreground" aria-live="polite">
-        <Badge v-if="projectFilter" variant="outline">{{ t('meetingsUx.projectFilter', { id: projectFilter }) }}</Badge>
-        <Badge v-if="seriesFilter" variant="outline">{{ t('meetingsUx.seriesFilter', { id: seriesFilter }) }}</Badge>
-      </div>
+      <details class="rounded-lg border border-border/80 p-3">
+        <summary class="cursor-pointer text-sm font-medium">{{ t('meetingsFilters.moreFilters') }}</summary>
+        <div class="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div class="grid gap-1">
+            <Label for="meeting-organizer-search">{{ t('meetingsFilters.organizer') }}</Label>
+            <Input id="meeting-organizer-search" v-model="organizerSearch" :disabled="!hydrated" :placeholder="t('meetingsFilters.organizerSearch')" :aria-label="t('meetingsFilters.organizerSearch')" />
+            <select id="meeting-organizer" class="border-input h-9 rounded-lg border bg-transparent px-2 text-sm" :value="routeFilters.organizerId ? String(routeFilters.organizerId) : 'all'" :disabled="!hydrated || organizerQuery.isLoading.value" :aria-label="t('meetingsFilters.organizer')" @change="setOrganizer(($event.target as HTMLSelectElement).value === 'all' ? '' : ($event.target as HTMLSelectElement).value)">
+              <option value="all">{{ t('meetingsFilters.allOrganizers') }}</option>
+              <option v-for="person in organizerOptions" :key="person.id" :value="String(person.id)">{{ person.name }}</option>
+            </select>
+            <p v-if="organizerQuery.isLoading.value" class="text-xs text-muted-foreground" role="status">{{ t('meetingsFilters.organizersLoading') }}</p>
+            <div v-else-if="organizerQuery.error.value" class="flex items-center gap-2 text-xs text-destructive" role="alert"><span>{{ t('meetingsFilters.organizersError') }}</span><Button type="button" variant="outline" size="sm" :disabled="!hydrated" @click="organizerQuery.refetch()">{{ t('meetingsFilters.retry') }}</Button></div>
+            <p v-else-if="!organizerOptions.length" class="text-xs text-muted-foreground">{{ t('meetingsFilters.noOrganizers') }}</p>
+          </div>
+          <div class="grid gap-1">
+            <Label for="meeting-date-from">{{ t('meetingsFilters.fromDateLabel') }}</Label>
+            <Input id="meeting-date-from" v-model="dateFrom" type="date" :disabled="!hydrated" />
+          </div>
+          <div class="grid gap-1">
+            <Label for="meeting-date-to">{{ t('meetingsFilters.toDateLabel') }}</Label>
+            <Input id="meeting-date-to" v-model="dateTo" type="date" :disabled="!hydrated" />
+          </div>
+        </div>
+      </details>
+    </div>
+    <div v-if="invalidDateRange" class="rounded-lg border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive" role="alert">
+      {{ dateValidation.reversed ? t('meetingsFilters.reversedDates') : t('meetingsFilters.invalidDate') }}
     </div>
     <SharedPageState
+      v-else
       :loading="query.isLoading.value"
       :error="query.error.value"
       :empty="!query.isLoading.value && !(query.data.value?.items.length)"
@@ -201,7 +298,7 @@ function setPage(next: number) {
         </div>
       </div>
     </SharedPageState>
-    <nav v-if="pages > 1" class="flex items-center justify-between text-sm text-muted-foreground">
+    <nav v-if="!invalidDateRange && pages > 1" class="flex items-center justify-between text-sm text-muted-foreground">
       <Button variant="ghost" :disabled="!hydrated || page === 1 || query.isFetching.value" @click="setPage(page - 1)">
         {{ t('projects.previousPage') }}
       </Button>

@@ -82,7 +82,7 @@ class MeetingSeriesController(http.Controller):
         domain = []
         q = (args.get('q') or '').strip()
         if q:
-            domain.append(('name', 'ilike', q))
+            domain += ['|', ('name', 'ilike', q), ('location', 'ilike', q)]
         if args.get('project_id'):
             domain.append(('project_id', '=', parse_positive_int(args.get('project_id'), 'project_id')))
         Series = request.env['nasq.meeting.series']

@@ -330,5 +330,33 @@
     "currentPreviousFollowUp": "Current follow-up from earlier meetings",
     "currentFollowUpOrigin": "From current record: {name}",
     "snapshotOrigin": "Captured from: {name}"
+  },
+  "meetingsFilters": {
+    "searchMeetings": "Search title, reference, or location",
+    "searchSeries": "Search series name or location",
+    "project": "Project",
+    "projectSearch": "Search projects",
+    "allProjects": "All projects",
+    "selectedProject": "Selected project",
+    "projectsLoading": "Loading projects…",
+    "projectsError": "Projects could not be loaded.",
+    "noProjects": "No matching projects.",
+    "organizer": "Organizer",
+    "organizerSearch": "Search organizers",
+    "allOrganizers": "All organizers",
+    "selectedOrganizer": "Selected organizer",
+    "organizersLoading": "Loading organizers…",
+    "organizersError": "Organizers could not be loaded.",
+    "noOrganizers": "No matching organizers.",
+    "moreFilters": "More filters",
+    "fromDateLabel": "From date",
+    "toDateLabel": "To date",
+    "fromDate": "From {value}",
+    "toDate": "To {value}",
+    "inheritedSeries": "Inherited series filter",
+    "invalidDate": "Enter a valid date.",
+    "reversedDates": "The start date must not be after the end date.",
+    "removeFilter": "Remove filter",
+    "retry": "Retry"
   }
 }

@@ -7,6 +7,7 @@ import { refDebounced } from '@vueuse/core'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { formatLocalDateTime } from '../../utils/meetingDateTime'
 import { meetingCreateRoute } from '../../utils/meetingRoutes'
+import { clearMeetingListFilters, parseMeetingListFilters, patchMeetingListQuery } from '../../utils/meetingListFilters'
 import { resolutionActions } from '../../utils/meetingWorkspace'
 
 function page(file: string, pmo = false, routeOverride: Record<string, unknown> = {}) {
@@ -15,18 +16,20 @@ function page(file: string, pmo = false, routeOverride: Record<string, unknown> 
     ...routeOverride, query: { q: 'review', offset: '25', ...(routeOverride.query as Record<string, unknown> | undefined) } }
   const replace = vi.fn(async ({ query }) => { route.query = query })
   const projects = vi.fn(() => ({ data: ref([{ id: 3, name: 'Valid project' }]) }))
+  const people = vi.fn(() => ({ data: ref([{ id: 3, user_id: 3, name: 'Valid organizer' }]), isLoading: ref(false), error: ref(null), refetch: vi.fn() }))
   const seriesList = vi.fn(() => ({ data: ref({ total: 120, items: [] }), isLoading: ref(false), error: ref(null), refetch: vi.fn() }))
   const mutateAsync = vi.fn(async () => { throw new Error('backend unavailable') })
   const meetingData = ref({ id: 7, can_edit: true, can_manage: true, state: 'draft', series_id: null,
     resolutions: [{ id: 9, can_update_execution: true, can_edit_decision: false, task_id: null, state: 'open', allowed_actions: ['start', 'complete', 'cancel'] }] })
   const meetingMutation = vi.fn(async () => undefined)
   const resolutionMutation = vi.fn(async () => undefined)
-  const scope = { ref, computed, watch, useRoute: () => route, useRouter: () => ({ replace }),
+  const scope = { ref, computed, watch, useRoute: () => route, useRouter: () => ({ replace, push: vi.fn() }),
     refDebounced,
-    useI18n: () => ({ t: (key: string) => key }), useHydrated: () => ref(true),
+    useI18n: () => ({ t: (key: string) => key, locale: ref('ar') }), useHydrated: () => ref(true),
     useAccess: () => ({ can: () => pmo }), useProjects: projects,
     useMeetings: () => ({ data: ref({ total: 60 }), isFetching: ref(false) }),
-    useMeetingSeriesList: seriesList, meetingCreateRoute, formatLocalDateTime,
+    useMeetingSeriesList: seriesList, usePeople: people, meetingCreateRoute, formatLocalDateTime,
+    clearMeetingListFilters, parseMeetingListFilters, patchMeetingListQuery,
     useMeeting: () => ({ data: meetingData }), useMeetingAttachments: () => ({}),
     useUploadMeetingAttachment: () => ({}), useDeleteMeetingAttachment: () => ({}),
     useConvertResolution: () => ({ mutateAsync }),

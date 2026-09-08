@@ -330,5 +330,33 @@
     "currentPreviousFollowUp": "المتابعة الحالية من اللقاءات السابقة",
     "currentFollowUpOrigin": "من السجل الحالي: {name}",
     "snapshotOrigin": "محفوظ من: {name}"
+  },
+  "meetingsFilters": {
+    "searchMeetings": "ابحث في العنوان أو المرجع أو المكان",
+    "searchSeries": "ابحث في اسم السلسلة أو المكان",
+    "project": "المشروع",
+    "projectSearch": "ابحث في المشاريع",
+    "allProjects": "كل المشاريع",
+    "selectedProject": "مشروع محدد",
+    "projectsLoading": "جارٍ تحميل المشاريع…",
+    "projectsError": "تعذّر تحميل المشاريع.",
+    "noProjects": "لا توجد مشاريع مطابقة.",
+    "organizer": "المنظّم",
+    "organizerSearch": "ابحث عن المنظّم",
+    "allOrganizers": "كل المنظّمين",
+    "selectedOrganizer": "منظّم محدد",
+    "organizersLoading": "جارٍ تحميل المنظّمين…",
+    "organizersError": "تعذّر تحميل المنظّمين.",
+    "noOrganizers": "لا يوجد منظّمون مطابقون.",
+    "moreFilters": "فلاتر إضافية",
+    "fromDateLabel": "من تاريخ",
+    "toDateLabel": "إلى تاريخ",
+    "fromDate": "من {value}",
+    "toDate": "إلى {value}",
+    "inheritedSeries": "سلسلة محددة",
+    "invalidDate": "أدخل تاريخًا صحيحًا.",
+    "reversedDates": "يجب أن يكون تاريخ النهاية في يوم البداية أو بعده.",
+    "removeFilter": "إزالة الفلتر",
+    "retry": "إعادة المحاولة"
   }
 }

@@ -226,14 +226,14 @@ html[dir="rtl"] body { padding-right: 0 !important; }
 .nasq-context-group-links { display: grid; gap: 4px; }
 .nasq-context-group-heading { margin: 12px 8px 2px; color: var(--muted-foreground); font-size: .68rem; font-weight: 600; letter-spacing: .02em; }
 .nasq-context-group + .nasq-context-group .nasq-context-group-heading { margin-block-start: 18px; padding-block-start: 12px; border-block-start: 1px solid color-mix(in srgb, var(--border) 65%, transparent); }
-.nasq-context-link { display: flex; min-height: 42px; align-items: center; gap: 10px; border-radius: 9px; padding: 9px 11px; color: var(--muted-foreground); font-size: .82rem; text-align: start; text-decoration: none; }
+.nasq-context-link { display: flex; min-height: 42px; align-items: center; gap: 10px; border-block-end: 2px solid transparent; border-radius: 9px; padding: 9px 11px; color: var(--muted-foreground); font-size: .82rem; text-align: start; text-decoration: none; }
 .nasq-context-link:hover { background: color-mix(in srgb, var(--foreground) 6%, var(--context-surface)); color: var(--foreground); }
 .nasq-context-link:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
-.nasq-context-link[data-active="true"] { background: var(--brand-soft); color: var(--brand-link); font-weight: 600; }
+.nasq-context-link[data-active="true"] { border-radius: 0; background: transparent; border-block-end-color: var(--brand-link); color: var(--brand-link); font-weight: 600; }
+.nasq-context-link[data-active="true"]:hover { background: transparent; color: var(--brand-link); }
 .nasq-context-create { border: 0; border-block-end: 2px solid color-mix(in srgb, var(--brand-link) 28%, var(--border)); border-radius: 0; background: transparent; color: var(--brand-link); font-weight: 600; }
 .nasq-context-create:hover { border-block-end-color: var(--brand-link); background: transparent; color: var(--brand-link); }
 .nasq-context-create[data-active="true"] { border-block-end-color: var(--brand-link); background: transparent; color: var(--brand-link); }
-.nasq-context-active-mark { width: 14px; height: 14px; margin-inline-start: auto; }
 .nasq-chat-conversation-link { display: flex; min-height: 42px; align-items: center; gap: 12px; margin-inline: 8px; border-radius: 9px; padding: 8px 10px; color: var(--foreground); text-align: start; text-decoration: none; }
 .nasq-chat-conversation-link:hover { background: color-mix(in srgb, var(--foreground) 6%, var(--context-surface)); }
 .nasq-chat-conversation-link:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }

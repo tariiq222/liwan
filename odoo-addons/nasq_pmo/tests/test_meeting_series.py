@@ -313,6 +313,26 @@ class TestMeetingSeries(NasqPmoCase):
         self.assertIn(visible.id, ids)
         self.assertNotIn(hidden.id, ids)
 
+    def test_series_search_by_location_and_project(self):
+        target = self.env['nasq.meeting.series'].create({
+            'name': 'Operations cadence', 'recurrence': 'none', 'organizer_id': self.employee.id,
+            'project_id': self.project.id, 'location': 'War Room',
+        })
+        self.env['nasq.meeting.series'].create({
+            'name': 'Company cadence', 'recurrence': 'none', 'organizer_id': self.employee.id,
+            'location': 'War Room',
+        })
+        self.env['nasq.meeting.series'].create({
+            'name': 'Project cadence', 'recurrence': 'none', 'organizer_id': self.employee.id,
+            'project_id': self.project.id, 'location': 'Training Room',
+        })
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        response = self.api('GET', f'/api/v1/meeting-series?q=War%20Room&project_id={self.project.id}')
+        self.assertEqual(response.status_code, 200, response.text)
+        body = response.json()
+        self.assertEqual(body['total'], 1)
+        self.assertEqual([row['id'] for row in body['items']], [target.id])
+
     def test_month_window_returns_more_than_200(self):
         Meeting = self.env['cyan.meeting.minute']
         Meeting.create([{

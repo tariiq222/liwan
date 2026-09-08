@@ -16,9 +16,11 @@ import { returnToQuery, safeReturnTo } from '@/utils/safeReturnTo'
 import { formatLocalDateTime } from '@/utils/meetingDateTime'
 import { STATUS_CHIP_CLASS } from '@/utils/statusTone'
 import { filterMeetingResolutions, resolutionActions } from '@/utils/meetingWorkspace'
+import { isMeetingTab, meetingTabFromRoute, meetingTabQuery, type MeetingTab } from '@/utils/meetingTabs'
 
 const route = useRoute()
-const { t } = useI18n()
+const router = useRouter()
+const { t, locale } = useI18n()
 const hydrated = useHydrated()
 const id = computed(() => Number(route.params.id))
 const isDetail = computed(() => route.path === `/meetings/${id.value}`)
@@ -44,10 +46,16 @@ const resolutionErrors = ref<Record<number, string>>({})
 const recommendationSearch = ref('')
 const recommendationState = ref('')
 const projectSearch = ref<Record<number, string>>({})
+const activeTab = computed<MeetingTab>(() => meetingTabFromRoute(route.query.tab, hydrated.value ? route.hash : undefined))
 const filteredResolutions = computed(() => filterMeetingResolutions(query.data.value?.resolutions ?? [], {
   q: recommendationSearch.value,
   state: recommendationState.value,
 }))
+
+async function onTabChange(value: unknown) {
+  if (!hydrated.value || !isMeetingTab(value) || value === activeTab.value) return
+  await router.push({ query: meetingTabQuery(route.query, value), hash: '' })
+}
 const historicalSnapshot = computed(() => query.data.value?.state === 'done' ? query.data.value?.minutes_snapshot ?? null : null)
 const doneWithoutSnapshot = computed(() => query.data.value?.state === 'done' && !historicalSnapshot.value)
 
@@ -270,16 +278,18 @@ async function confirmResolutionAction() {
             <Button type="button" variant="destructive" :disabled="!hydrated || transitioning" @click="confirmMeetingAction">{{ t('meetingsUi.confirm') }}</Button>
           </div>
         </section>
-        <nav class="flex min-w-0 flex-wrap gap-2 text-sm" :aria-label="t('meetingsUx.sections')">
-          <a href="#meeting-summary" class="text-brand-link underline">{{ t('meetingsUi.summary') }}</a>
-          <a v-if="!historicalSnapshot" href="#meeting-agenda" class="text-brand-link underline">{{ t('meetingsUi.agenda') }}</a>
-          <a v-if="!historicalSnapshot" href="#meeting-minutes" class="text-brand-link underline">{{ t('meetingsUi.minutes') }}</a>
-          <a href="#meeting-resolutions" class="text-brand-link underline">{{ t('meetingsUi.resolutions') }} ({{ query.data.value.resolutions.length }})</a>
-          <a href="#meeting-attachments" class="text-brand-link underline">{{ t('meetingsUi.attachmentsTitle') }} ({{ attachments.data.value?.items.length ?? 0 }})</a>
-          <a v-if="query.data.value.state === 'done'" href="#meeting-snapshot" class="text-brand-link underline">{{ t('meetingsUx.historicalMinutesTitle') }}</a>
-          <a v-if="query.data.value.previous_resolutions.length" href="#meeting-follow-up" class="text-brand-link underline">{{ t('meetingsUx.currentPreviousFollowUp') }}</a>
-        </nav>
-        <section id="meeting-summary" class="nasq-panel meeting-summary">
+        <Tabs :model-value="activeTab" :dir="locale === 'ar' ? 'rtl' : 'ltr'" orientation="horizontal" class="meeting-tabs" @update:model-value="onTabChange">
+          <div class="meeting-tabs-viewport">
+            <TabsList class="meeting-tabs-list" :aria-label="t('meetingsUx.sections')">
+              <TabsTrigger value="summary" class="data-[state=active]:text-brand-link" :disabled="!hydrated">{{ t('meetingsUi.summary') }}</TabsTrigger>
+              <TabsTrigger value="agenda" class="data-[state=active]:text-brand-link" :disabled="!hydrated">{{ t('meetingsUi.agenda') }}</TabsTrigger>
+              <TabsTrigger value="minutes" class="data-[state=active]:text-brand-link" :disabled="!hydrated">{{ t('meetingsUi.minutes') }}</TabsTrigger>
+              <TabsTrigger value="resolutions" class="data-[state=active]:text-brand-link" :disabled="!hydrated">{{ t('meetingsUi.resolutions') }} ({{ query.data.value.resolutions.length }})</TabsTrigger>
+              <TabsTrigger value="attachments" class="data-[state=active]:text-brand-link" :disabled="!hydrated">{{ t('meetingsUi.attachmentsTitle') }} ({{ attachments.data.value?.items.length ?? 0 }})</TabsTrigger>
+            </TabsList>
+          </div>
+          <TabsContent value="summary" class="meeting-tab-panel">
+          <section id="meeting-summary" class="nasq-panel meeting-summary">
           <div class="nasq-panel-header"><h2>{{ t('meetingsUi.summary') }}</h2></div>
           <div class="nasq-panel-body">
             <div class="meeting-summary-grid">
@@ -309,26 +319,43 @@ async function confirmResolutionAction() {
               </section>
             </div>
           </div>
-        </section>
-        <section v-if="query.data.value.state === 'done'" id="meeting-snapshot" class="nasq-panel meeting-section">
-          <div class="nasq-panel-header">
-            <h2>{{ t('meetingsUx.historicalMinutesTitle') }}</h2>
-            <span v-if="historicalSnapshot" class="text-xs text-muted-foreground">{{ t('meetingsUx.capturedAt', { captured_at: historicalSnapshot.captured_at }) }}</span>
-          </div>
-          <div class="nasq-panel-body grid gap-4">
-            <template v-if="historicalSnapshot">
-              <div>
-                <h3 class="meeting-subheading">{{ t('meetingsUi.agenda') }}</h3>
-                <div v-if="hasRichText(historicalSnapshot.agenda)" class="meeting-rich-text" v-html="historicalSnapshot.agenda" />
-                <p v-else class="meeting-empty">{{ t('meetingsUi.emptyAgenda') }}</p>
+          </section>
+          </TabsContent>
+        <TabsContent value="agenda" class="meeting-tab-panel">
+          <section id="meeting-agenda" class="nasq-panel meeting-rich-panel">
+            <div class="nasq-panel-header">
+              <h2>{{ t('meetingsUi.agenda') }}</h2>
+              <span v-if="historicalSnapshot" class="text-xs text-muted-foreground">{{ t('meetingsUx.historicalMinutesTitle') }}</span>
+            </div>
+            <div class="nasq-panel-body">
+              <p v-if="doneWithoutSnapshot" class="mb-3 text-xs text-muted-foreground">{{ t('meetingsUx.historyUnavailable') }} {{ t('meetingsUx.currentContentAfterMissingHistory') }}</p>
+              <div v-if="hasRichText(historicalSnapshot ? historicalSnapshot.agenda : query.data.value.agenda)" class="meeting-rich-text" v-html="historicalSnapshot ? historicalSnapshot.agenda : query.data.value.agenda" />
+              <p v-else class="meeting-empty">{{ t('meetingsUi.emptyAgenda') }}</p>
+            </div>
+          </section>
+        </TabsContent>
+        <TabsContent value="minutes" class="meeting-tab-panel">
+          <section id="meeting-minutes" class="nasq-panel meeting-rich-panel">
+            <div class="nasq-panel-header">
+              <h2>{{ t('meetingsUi.minutes') }}</h2>
+              <div class="flex min-w-0 flex-wrap items-center gap-2">
+                <span v-if="historicalSnapshot" class="text-xs text-muted-foreground">{{ t('meetingsUx.historicalMinutesTitle') }} · {{ t('meetingsUx.capturedAt', { captured_at: historicalSnapshot.captured_at }) }}</span>
+                <Button v-if="!historicalSnapshot && query.data.value.can_edit && pendingResolutionIds.size === 0" as-child size="sm"><NuxtLink :to="{ path: `/meetings/${id}/minutes`, query: returnToQuery(route.fullPath) }">{{ t('meetingsUx.editMinutes') }}</NuxtLink></Button>
               </div>
-              <div>
-                <h3 class="meeting-subheading">{{ t('meetingsUi.minutes') }}</h3>
-                <div v-if="hasRichText(historicalSnapshot.minutes)" class="meeting-rich-text" v-html="historicalSnapshot.minutes" />
-                <p v-else class="meeting-empty">{{ t('meetingsUi.emptyMinutes') }}</p>
-              </div>
+            </div>
+            <div class="nasq-panel-body">
+              <p v-if="doneWithoutSnapshot" class="mb-3 text-xs text-muted-foreground">{{ t('meetingsUx.historyUnavailable') }} {{ t('meetingsUx.currentContentAfterMissingHistory') }}</p>
+              <div v-if="hasRichText(historicalSnapshot ? historicalSnapshot.minutes : query.data.value.minutes)" class="meeting-rich-text" v-html="historicalSnapshot ? historicalSnapshot.minutes : query.data.value.minutes" />
+              <p v-else class="meeting-empty">{{ t('meetingsUi.emptyMinutes') }}</p>
+            </div>
+          </section>
+          <section v-if="historicalSnapshot" id="meeting-snapshot" class="nasq-panel meeting-section">
+            <div class="nasq-panel-header">
+              <h2>{{ t('meetingsUx.historicalDecisionStates') }}</h2>
+              <span class="text-xs text-muted-foreground">{{ t('meetingsUx.historicalMinutesTitle') }}</span>
+            </div>
+            <div class="nasq-panel-body grid gap-4">
               <div v-if="historicalSnapshot.resolutions.length" class="grid gap-2">
-                <h3 class="meeting-subheading">{{ t('meetingsUx.historicalDecisionStates') }}</h3>
                 <div v-for="item in historicalSnapshot.resolutions" :key="item.id" class="flex min-w-0 flex-wrap items-center gap-2 text-sm">
                   <span class="font-medium">{{ item.name }}</span>
                   <span v-if="item.meeting_name" class="text-xs text-muted-foreground">{{ t('meetingsUx.snapshotOrigin', { name: item.meeting_name }) }}</span>
@@ -336,31 +363,11 @@ async function confirmResolutionAction() {
                   <span v-if="item.result && hasRichText(item.result)" class="meeting-rich-text" v-html="item.result" />
                 </div>
               </div>
-            </template>
-            <p v-else class="text-sm text-muted-foreground">{{ t('meetingsUx.historyUnavailable') }}</p>
-          </div>
-        </section>
-        <div v-if="!historicalSnapshot" class="meeting-content-grid">
-          <section id="meeting-agenda" class="nasq-panel meeting-rich-panel">
-            <div class="nasq-panel-header"><h2>{{ t('meetingsUi.agenda') }}</h2></div>
-            <div class="nasq-panel-body">
-              <p v-if="doneWithoutSnapshot" class="mb-3 text-xs text-muted-foreground">{{ t('meetingsUx.currentContentAfterMissingHistory') }}</p>
-              <div v-if="hasRichText(query.data.value.agenda)" class="meeting-rich-text" v-html="query.data.value.agenda" />
-              <p v-else class="meeting-empty">{{ t('meetingsUi.emptyAgenda') }}</p>
+              <p v-else class="text-sm text-muted-foreground">{{ t('meetingsUi.emptyResolutions') }}</p>
             </div>
           </section>
-          <section id="meeting-minutes" class="nasq-panel meeting-rich-panel">
-            <div class="nasq-panel-header">
-              <h2>{{ t('meetingsUi.minutes') }}</h2>
-              <Button v-if="query.data.value.can_edit && pendingResolutionIds.size === 0" as-child size="sm"><NuxtLink :to="{ path: `/meetings/${id}/minutes`, query: returnToQuery(route.fullPath) }">{{ t('meetingsUx.editMinutes') }}</NuxtLink></Button>
-            </div>
-            <div class="nasq-panel-body">
-              <p v-if="doneWithoutSnapshot" class="mb-3 text-xs text-muted-foreground">{{ t('meetingsUx.currentContentAfterMissingHistory') }}</p>
-              <div v-if="hasRichText(query.data.value.minutes)" class="meeting-rich-text" v-html="query.data.value.minutes" />
-              <p v-else class="meeting-empty">{{ t('meetingsUi.emptyMinutes') }}</p>
-            </div>
-          </section>
-        </div>
+        </TabsContent>
+        <TabsContent value="resolutions" class="meeting-tab-panel">
         <section id="meeting-resolutions" class="nasq-panel meeting-section">
           <div class="nasq-panel-header">
             <div class="flex min-w-0 flex-wrap items-center gap-2"><h2>{{ t('meetingsUi.resolutions') }}</h2><Badge variant="secondary">{{ query.data.value.resolutions.length }}</Badge><span class="text-xs text-muted-foreground">{{ t('meetingsUx.currentFollowUp') }}</span></div>
@@ -437,6 +444,24 @@ async function confirmResolutionAction() {
             </ul>
           </div>
         </section>
+        <section v-if="query.data.value.previous_resolutions.length" id="meeting-follow-up" class="nasq-panel">
+          <div class="nasq-panel-header"><h2>{{ t('meetingsUi.previousResolutions') }}</h2><span class="text-xs text-muted-foreground">{{ t('meetingsUx.currentPreviousFollowUp') }}</span></div>
+          <div class="nasq-panel-body grid gap-3">
+          <div v-for="item in query.data.value.previous_resolutions" :key="item.id" class="meeting-previous-row">
+            <NuxtLink :to="{ path: `/meetings/${item.meeting_id}`, query: returnToQuery(route.fullPath) }" class="font-medium text-brand-link">{{ item.meeting_name }}</NuxtLink>
+            <div class="flex min-w-0 flex-wrap items-center gap-2 text-sm">
+              <span>{{ item.name }}</span>
+              <span class="text-xs text-muted-foreground">{{ t('meetingsUx.currentFollowUpOrigin', { name: item.meeting_name }) }}</span>
+              <Badge variant="outline" :class="resolutionStateTone(item.state)">{{ t(`meetingsUi.resolutionState.${item.state}`) }}</Badge>
+              <span>{{ displayValue(item.deadline) }}</span>
+            </div>
+            <div v-if="hasRichText(item.result)" class="meeting-rich-text" v-html="item.result" />
+            <Button v-if="item.task_id" as-child variant="link" size="sm" class="h-auto w-fit p-0"><NuxtLink :to="`/tasks/${item.task_id}`">{{ t('meetingsUi.openTask') }}</NuxtLink></Button>
+          </div>
+          </div>
+        </section>
+        </TabsContent>
+        <TabsContent value="attachments" class="meeting-tab-panel">
         <section id="meeting-attachments" class="nasq-panel meeting-section">
           <div class="nasq-panel-header">
             <h2>{{ t('meetingsUi.attachmentsTitle') }}</h2>
@@ -470,22 +495,8 @@ async function confirmResolutionAction() {
           </div>
           </div>
         </section>
-        <section v-if="query.data.value.previous_resolutions.length" id="meeting-follow-up" class="nasq-panel">
-          <div class="nasq-panel-header"><h2>{{ t('meetingsUi.previousResolutions') }}</h2><span class="text-xs text-muted-foreground">{{ t('meetingsUx.currentPreviousFollowUp') }}</span></div>
-          <div class="nasq-panel-body grid gap-3">
-          <div v-for="item in query.data.value.previous_resolutions" :key="item.id" class="meeting-previous-row">
-            <NuxtLink :to="{ path: `/meetings/${item.meeting_id}`, query: returnToQuery(route.fullPath) }" class="font-medium text-brand-link">{{ item.meeting_name }}</NuxtLink>
-            <div class="flex min-w-0 flex-wrap items-center gap-2 text-sm">
-              <span>{{ item.name }}</span>
-              <span class="text-xs text-muted-foreground">{{ t('meetingsUx.currentFollowUpOrigin', { name: item.meeting_name }) }}</span>
-              <Badge variant="outline" :class="resolutionStateTone(item.state)">{{ t(`meetingsUi.resolutionState.${item.state}`) }}</Badge>
-              <span>{{ displayValue(item.deadline) }}</span>
-            </div>
-            <div v-if="hasRichText(item.result)" class="meeting-rich-text" v-html="item.result" />
-            <Button v-if="item.task_id" as-child variant="link" size="sm" class="h-auto w-fit p-0"><NuxtLink :to="`/tasks/${item.task_id}`">{{ t('meetingsUi.openTask') }}</NuxtLink></Button>
-          </div>
-          </div>
-        </section>
+        </TabsContent>
+        </Tabs>
       </div>
     </SharedPageState>
   </SharedPageContainer>
@@ -515,6 +526,11 @@ async function confirmResolutionAction() {
   gap: 16px;
   container: meeting-detail / inline-size;
 }
+
+.meeting-tabs { min-width: 0; }
+.meeting-tabs-viewport { min-width: 0; max-width: 100%; overflow-x: auto; }
+.meeting-tabs-list { min-width: max-content; }
+.meeting-tab-panel { display: grid; min-width: 0; gap: 16px; }
 
 .meeting-summary,
 .meeting-section,
@@ -587,12 +603,6 @@ async function confirmResolutionAction() {
   flex-wrap: wrap;
   gap: 8px;
   margin-block-start: 10px;
-}
-
-.meeting-content-grid {
-  display: grid;
-  min-width: 0;
-  gap: 16px;
 }
 
 .meeting-rich-text {
@@ -714,10 +724,6 @@ async function confirmResolutionAction() {
 
 @container meeting-summary (min-width: 720px) {
   .meeting-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
-
-@container meeting-detail (min-width: 900px) {
-  .meeting-content-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 520px) {

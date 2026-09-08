@@ -121,15 +121,24 @@ class MeetingController(http.Controller):
         domain = []
         q = (args.get('q') or '').strip()
         if q:
-            domain += ['|', ('name', 'ilike', q), ('reference', 'ilike', q)]
+            domain += [
+                '|', '|',
+                ('name', 'ilike', q),
+                ('reference', 'ilike', q),
+                ('location', 'ilike', q),
+            ]
         if args.get('state'):
             if args.get('state') not in STATES:
                 raise ApiError(422, 'invalid', 'invalid state', field='state')
             domain.append(('state', '=', args.get('state')))
-        if date_from:
-            domain.append(('meeting_date', '>=', _parse_day(date_from, 'date_from')))
-        if date_to:
-            domain.append(('meeting_date', '<=', _parse_day(date_to, 'date_to')))
+        parsed_date_from = _parse_day(date_from, 'date_from') if date_from else None
+        parsed_date_to = _parse_day(date_to, 'date_to') if date_to else None
+        if parsed_date_from and parsed_date_to and parsed_date_from > parsed_date_to:
+            raise ApiError(422, 'invalid', 'date_to must be on or after date_from', field='date_to')
+        if parsed_date_from:
+            domain.append(('meeting_date', '>=', parsed_date_from))
+        if parsed_date_to:
+            domain.append(('meeting_date', '<=', parsed_date_to))
         if args.get('organizer_id'):
             domain.append(('organizer_id', '=', parse_positive_int(args.get('organizer_id'), 'organizer_id')))
         if args.get('project_id'):
