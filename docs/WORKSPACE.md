@@ -1,3 +1,7 @@
+# Latest meetings UX integration — 2026-09-09
+
+Meetings repairs and the preserved pending UI changes are integrated into local `main`; only the canonical worktree and main branch remain after verified archive-backed cleanup. See [integration and recovery](meetings-ux-integration-2026-09-09.md). This is source integration; `odoo19` and canonical running services were not upgraded or restarted.
+
 # Current all-pending integration — 2026-09-08
 
 Current workspace: main only after [final consolidation](final-workspace-consolidation-2026-09-08.md); remaining sidebar work is integrated and retired worktrees are archived outside the repository.
