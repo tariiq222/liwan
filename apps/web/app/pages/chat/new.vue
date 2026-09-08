@@ -1,7 +1,8 @@
 <script setup lang="ts">
+import { Check } from '@lucide/vue'
 import { toast } from 'vue-sonner'
 import { ApiError } from '@/composables/useApi'
-import { CHAT_PAGE_SIZE, nextListOffset, parseChatListRoute, serializeChatListRoute } from '@/utils/chatState'
+import { CHAT_PAGE_SIZE, initialsFor, nextListOffset, parseChatListRoute, serializeChatListRoute } from '@/utils/chatState'
 
 const { t } = useI18n()
 const hydrated = useHydrated()
@@ -57,9 +58,16 @@ async function submit() {
       <Input id="chat-recipient-search" v-model="q" :placeholder="t('chat.recipientSearch')" :disabled="!hydrated" />
       <ul class="max-h-64 overflow-y-auto rounded-lg border">
         <li v-for="person in recipients" :key="person.id">
-          <button type="button" class="flex w-full items-center justify-between px-3 py-2 text-start hover:bg-muted" :disabled="!hydrated" @click="toggle(person)">
-            <span>{{ person.name }}</span>
-            <span v-if="selected.some(item => item.id === person.id)" class="text-xs text-primary">{{ t('chat.selected') }}</span>
+          <button
+            type="button"
+            class="flex w-full items-center gap-3 px-3 py-2 text-start hover:bg-muted"
+            :aria-pressed="selected.some(item => item.id === person.id)"
+            :disabled="!hydrated"
+            @click="toggle(person)"
+          >
+            <span class="grid size-9 shrink-0 place-items-center rounded-full bg-muted text-xs font-semibold">{{ initialsFor(person.name) }}</span>
+            <span class="min-w-0 flex-1 truncate">{{ person.name }}</span>
+            <Check v-if="selected.some(item => item.id === person.id)" class="size-4 text-primary" aria-hidden="true" />
           </button>
         </li>
       </ul>
