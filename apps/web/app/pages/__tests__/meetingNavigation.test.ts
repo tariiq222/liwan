@@ -3,6 +3,7 @@ import { resolve } from 'node:path'
 import { parse } from '@vue/compiler-sfc'
 import ts from 'typescript'
 import { computed, ref, watch } from 'vue'
+import { refDebounced } from '@vueuse/core'
 import { describe, expect, it, vi } from 'vitest'
 
 function page(file: string, pmo = false) {
@@ -12,6 +13,7 @@ function page(file: string, pmo = false) {
   const projects = vi.fn(() => ({ data: ref([]) }))
   const mutateAsync = vi.fn(async () => { throw new Error('backend unavailable') })
   const scope = { ref, computed, watch, useRoute: () => route, useRouter: () => ({ replace }),
+    refDebounced,
     useI18n: () => ({ t: (key: string) => key }), useHydrated: () => ref(true),
     useAccess: () => ({ can: () => pmo }), useProjects: projects,
     useMeetings: () => ({ data: ref({ total: 60 }), isFetching: ref(false) }),

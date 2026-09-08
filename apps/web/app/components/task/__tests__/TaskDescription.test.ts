@@ -84,7 +84,7 @@ describe('TaskDescription production behavior', () => {
     const { state, task } = loadSetup(mutation)
 
     expect(state.renderedHtml.value).toBe('<p>Saved</p>')
-    task.description_html = '<p>Safe</p><script>alert(1)</script>'
+    task.description_html = '<p>Safe</p><script>window.__xss=1</script>'
     await Vue.nextTick()
     expect(state.renderedHtml.value).toBe('<p>Safe</p>')
     state.startEdit()
