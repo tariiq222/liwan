@@ -16,14 +16,16 @@ class PeopleController(http.Controller):
         # raw request (see the same note in controllers/tasks.py::list_tasks).
         args = request.httprequest.args
         q = args.get('q')
-        limit = min(parse_nonneg_int(args.get('limit', 20), 'limit'), MAX_LIMIT)
-        domain = [('user_id', '!=', False), ('user_id.active', '=', True)]
+        limit = max(1, min(parse_nonneg_int(args.get('limit', 20), 'limit'), MAX_LIMIT))
+        # This picker is a PMO user-id lookup. Query res.users directly so
+        # ordinary meetings-only users do not traverse the HR employee
+        # access policy just to choose a participant.
+        domain = [
+            ('active', '=', True),
+            ('share', '=', False),
+            ('company_ids', 'in', [request.env.company.id]),
+        ]
         if q:
             domain.append(('name', 'ilike', q))
-        # hr.employee.public is the model regular (non-HR) users have read access to
-        # (addons/hr/security/ir.model.access.csv: access_hr_employee_public_user grants
-        # base.group_user); querying it directly avoids relying on hr.employee's own
-        # _search()/search_fetch() overrides that transparently fall back to it when the
-        # caller lacks read access to hr.employee itself (addons/hr/models/hr_employee.py).
-        employees = request.env['hr.employee.public'].search(domain, order='name', limit=limit)
-        return [{'id': e.user_id.id, 'name': e.user_id.name, 'user_id': e.user_id.id} for e in employees]
+        users = request.env['res.users'].search(domain, order='name, id', limit=limit)
+        return [{'id': user.id, 'name': user.name, 'user_id': user.id} for user in users]

@@ -14,13 +14,18 @@ const debouncedSearch = refDebounced(search, 250)
 const limit = 25
 const offset = ref(Math.max(0, Number(route.query.offset ?? 0) || 0))
 const params = computed(() => ({
-  q: search.value.trim() || undefined,
+  q: debouncedSearch.value.trim() || undefined,
   limit,
   offset: offset.value,
 }))
 const query = useMeetingSeriesList(params)
 const page = computed(() => Math.floor(offset.value / limit) + 1)
 const pages = computed(() => Math.max(1, Math.ceil((query.data.value?.total ?? 0) / limit)))
+const totalLabel = computed(() => query.isLoading.value
+  ? t('meetingsUx.countLoading')
+  : query.error.value
+    ? t('meetingsUx.countUnavailable')
+    : t('meetingsUi.totalSeries', { count: query.data.value?.total ?? 0 }))
 
 watch(() => [route.query.q, route.query.offset], ([q, nextOffset]) => {
   search.value = String(q ?? '')
@@ -53,7 +58,7 @@ function setPage(next: number) {
     </SharedPageHeader>
     <div class="nasq-toolbar">
       <Input v-model="search" :disabled="!hydrated" :placeholder="t('meetingsUi.searchSeries')" :aria-label="t('meetingsUi.searchSeries')" />
-      <span class="text-sm text-muted-foreground">{{ t('meetingsUi.totalSeries', { count: query.data.value?.total ?? 0 }) }}</span>
+      <span class="text-sm text-muted-foreground" role="status">{{ totalLabel }}</span>
     </div>
     <SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!query.data.value?.items.length" :empty-text="t('meetingsUi.emptySeries')" @retry="query.refetch">
       <div class="nasq-panel overflow-hidden">

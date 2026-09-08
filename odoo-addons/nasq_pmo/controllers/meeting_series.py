@@ -11,6 +11,7 @@ from odoo.addons.nasq_api.controllers.common import (
     parse_nonneg_int,
     parse_positive_int,
 )
+from odoo.addons.nasq_pmo.controllers.meetings import _parse_url
 from odoo.addons.nasq_pmo.serializers.meeting import dump_meeting, dump_series
 
 MAX_SERIES = 200
@@ -37,6 +38,36 @@ def _parse_series_date(value, field):
         return date.fromisoformat(value.strip()).isoformat()
     except ValueError:
         raise ApiError(422, 'invalid', '%s must be a valid ISO date' % field, field=field) from None
+
+
+def _validate_internal_user(user_id, field):
+    parsed = parse_positive_int(user_id, field)
+    user = request.env['res.users'].search([
+        ('id', '=', parsed),
+        ('active', '=', True),
+        ('share', '=', False),
+        ('company_ids', 'in', [request.env.company.id]),
+    ], limit=1)
+    if not user:
+        raise ApiError(422, 'invalid', '%s must be an active internal user in the current company' % field, field=field)
+    return parsed
+
+
+def _validate_internal_users(user_ids, field):
+    if not isinstance(user_ids, list):
+        raise ApiError(422, 'invalid', '%s must be a list' % field, field=field)
+    parsed = [parse_positive_int(item, field) for item in user_ids]
+    if not parsed:
+        return []
+    users = request.env['res.users'].search([
+        ('id', 'in', parsed),
+        ('active', '=', True),
+        ('share', '=', False),
+        ('company_ids', 'in', [request.env.company.id]),
+    ])
+    if set(users.ids) != set(parsed):
+        raise ApiError(422, 'invalid', '%s must contain only active internal users in the current company' % field, field=field)
+    return parsed
 
 
 class MeetingSeriesController(http.Controller):
@@ -66,6 +97,42 @@ class MeetingSeriesController(http.Controller):
     def get_series(self, series_id, **_):
         request.env['nasq.access.service']._nasq_require_capability('meetings.read')
         return dump_series(get_record('nasq.meeting.series', series_id), detail=True)
+
+    @http.route('/api/v1/meeting-series/<int:series_id>', type='json2', auth='user', methods=['PATCH'], readonly=False)
+    @api_handler
+    def patch_series(self, series_id, **payload):
+        request.env['nasq.access.service']._nasq_require_capability('meetings.read')
+        series = get_record('nasq.meeting.series', series_id)
+        if not series._nasq_is_editor():
+            raise ApiError(403, 'forbidden', 'Only the organizer, secretary or a meetings manager may edit this series.')
+
+        allowed = {'name', 'location', 'meeting_url', 'secretary_id', 'attendee_ids'}
+        unknown = set(payload) - allowed
+        if unknown:
+            field = sorted(unknown)[0]
+            raise ApiError(422, 'invalid', 'The series setting %s cannot be edited here.' % field, field=field)
+        if not payload:
+            raise ApiError(422, 'invalid', 'no fields to update')
+
+        vals = {}
+        if 'name' in payload:
+            if not isinstance(payload['name'], str) or not payload['name'].strip():
+                raise ApiError(422, 'invalid', 'name must not be empty', field='name')
+            vals['name'] = payload['name'].strip()
+        if 'location' in payload:
+            if payload['location'] is not None and not isinstance(payload['location'], str):
+                raise ApiError(422, 'invalid', 'location must be a string', field='location')
+            vals['location'] = payload['location'].strip() if payload['location'] else False
+        if 'meeting_url' in payload:
+            vals['meeting_url'] = _parse_url(payload['meeting_url'])
+        if 'secretary_id' in payload:
+            secretary_id = payload['secretary_id']
+            vals['secretary_id'] = False if secretary_id is None else _validate_internal_user(secretary_id, 'secretary_id')
+        if 'attendee_ids' in payload:
+            vals['attendee_ids'] = [(6, 0, _validate_internal_users(payload['attendee_ids'], 'attendee_ids'))]
+
+        series.write(vals)
+        return dump_series(series, detail=True)
 
     @http.route('/api/v1/meeting-series', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler

@@ -4,8 +4,8 @@ import { parse } from '@vue/compiler-sfc'
 import ts from 'typescript'
 import { computed, nextTick, ref, watch } from 'vue'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
-import { fromUtcDateTimeInput, toUtcDateTime } from '../../utils/meetingDateTime'
-import { normalizeRecurrenceEnd } from '../../utils/meetingForm'
+import { buildMeetingSchedulePayload, fromUtcDateTimeInput, localDateFromUtc, localTimeFromUtc, toUtcDateTime } from '../../utils/meetingDateTime'
+import { buildRecurrencePreview, getMeetingFormErrors, normalizeRecurrenceEnd } from '../../utils/meetingForm'
 
 function form(file: string, routeQuery: Record<string, string> = {}, seriesInitiallyLoaded = true) {
   const source = readFileSync(resolve('app/pages/meetings', file), 'utf8')
@@ -28,12 +28,13 @@ function form(file: string, routeQuery: Record<string, string> = {}, seriesIniti
     useCreateMeeting: () => ({ mutateAsync, isPending: ref(false) }),
     useCreateMeetingSeries: () => ({ mutateAsync, isPending: ref(false) }),
     useCreateResolution: () => ({ mutateAsync, isPending: ref(false) }),
-    fromUtcDateTimeInput, toUtcDateTime, normalizeRecurrenceEnd,
+    buildMeetingSchedulePayload, buildRecurrencePreview, fromUtcDateTimeInput, getMeetingFormErrors,
+    localDateFromUtc, localTimeFromUtc, toUtcDateTime, normalizeRecurrenceEnd,
     safeReturnTo: (_: unknown, fallback: string) => fallback, returnToQuery: () => ({}), navigateTo }
   const js = ts.transpileModule(script, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None } }).outputText
   const exposed = file === 'series/new.vue'
     ? '{ dirty, name, save, recurrence, untilCount, untilDate, start, end, attendeeIds, meetingUrl }'
-    : `{ dirty, name, save, ${file.includes('resolutions') ? 'responsibleId, deadline, priority' : 'end, start, attendeeIds, secretaryId, location, meetingUrl'} }`
+    : `{ dirty, name, save, ${file.includes('resolutions') ? 'responsibleId, deadline, priority' : 'meetingDate, end, start, attendeeIds, secretaryId, location, meetingUrl'} }`
   return { ...new Function(...Object.keys(scope), `${js}; return ${exposed}`)(...Object.values(scope)), mutateAsync, navigateTo, series, seriesData, seriesLoading }
 }
 
@@ -57,6 +58,7 @@ describe('meeting form unsaved changes', () => {
   })
   it('new meeting tracks the end time and clears dirty after successful creation', async () => {
     const page = form('new.vue')
+    page.meetingDate.value = '2026-09-07'
     page.end.value = '2026-09-07T16:30'
     expect(page.dirty.value).toBe(true)
     page.name.value = 'Created'
@@ -65,28 +67,45 @@ describe('meeting form unsaved changes', () => {
   })
   it('preserves project context when creating from a project-filtered list', async () => {
     const page = form('new.vue', { project_id: '42' })
+    page.meetingDate.value = '2026-09-07'
     page.name.value = 'Project review'
     await page.save()
     expect(page.mutateAsync.mock.calls[0][0].project_id).toBe(42)
   })
   it('serializes standalone datetime-local values as UTC instants', async () => {
     const page = form('new.vue')
+    page.meetingDate.value = '2026-09-08'
     page.name.value = 'Created'
     page.start.value = '2026-09-08T09:00'
     page.end.value = '2026-09-08T10:00'
     await page.save()
-    expect(page.mutateAsync.mock.calls[0][0].start_datetime).toMatch(/Z$/)
-    expect(page.mutateAsync.mock.calls[0][0].end_datetime).toMatch(/Z$/)
-    expect(page.mutateAsync.mock.calls[0][0].start_datetime).not.toBe('2026-09-08T09:00')
+    const body = page.mutateAsync.mock.calls[0][0]
+    expect(body.start_datetime).toBe('2026-09-08T09:00:00+03:00')
+    expect(body.end_datetime).toBe('2026-09-08T10:00:00+03:00')
+    expect(new Date(body.start_datetime).toISOString()).toBe('2026-09-08T06:00:00.000Z')
+    expect(new Date(body.end_datetime).toISOString()).toBe('2026-09-08T07:00:00.000Z')
+    expect(body.start_datetime.slice(0, 10)).toBe('2026-09-08')
+    expect(body.start_datetime).toMatch(/[+-]03:00$/)
+  })
+  it('does not save a named meeting with an explicitly empty date', async () => {
+    const page = form('new.vue')
+    page.name.value = 'Missing date'
+    page.meetingDate.value = ''
+    await page.save()
+    expect(page.mutateAsync).not.toHaveBeenCalled()
   })
   it('serializes edited datetime-local values as UTC instants', async () => {
     const page = form('[id]/edit.vue')
     await nextTick()
-    page.start.value = '2026-09-08T09:00'
-    page.end.value = '2026-09-08T10:00'
+    page.meetingDate.value = '2026-09-08'
+    page.start.value = '09:00'
+    page.end.value = '10:00'
     await page.save()
-    expect(page.mutateAsync.mock.calls[0][0].body.start_datetime).toBe('2026-09-08T06:00:00.000Z')
-    expect(page.mutateAsync.mock.calls[0][0].body.end_datetime).toBe('2026-09-08T07:00:00.000Z')
+    const body = page.mutateAsync.mock.calls[0][0].body
+    expect(body.start_datetime).toBe('2026-09-08T09:00:00+03:00')
+    expect(body.end_datetime).toBe('2026-09-08T10:00:00+03:00')
+    expect(new Date(body.start_datetime).toISOString()).toBe('2026-09-08T06:00:00.000Z')
+    expect(new Date(body.end_datetime).toISOString()).toBe('2026-09-08T07:00:00.000Z')
   })
   it('loads series defaults without overwriting an explicit attendee edit', async () => {
     const page = form('new.vue', { series_id: '12' })
@@ -99,6 +118,7 @@ describe('meeting form unsaved changes', () => {
   })
   it('keeps an explicit empty attendee selection after series defaults load', async () => {
     const page = form('new.vue', { series_id: '12' })
+    page.meetingDate.value = '2026-09-08'
     await nextTick()
     page.name.value = 'Project review'
     page.attendeeIds.value = []

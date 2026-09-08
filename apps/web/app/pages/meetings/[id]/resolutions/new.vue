@@ -28,6 +28,12 @@ function snapshot() {
 }
 const baseline = ref(snapshot())
 const dirty = computed(() => snapshot() !== baseline.value)
+const validationMessage = computed(() => {
+  if (!name.value.trim()) return t('meetingsUx.validation.resolutionName')
+  if (!responsibleId.value) return t('meetingsUx.validation.responsible')
+  if (!deadline.value) return t('meetingsUx.validation.deadline')
+  return ''
+})
 
 async function save() {
   if (!hydrated.value || !name.value.trim() || !responsibleId.value || !deadline.value) return
@@ -66,14 +72,15 @@ async function save() {
         <div class="grid gap-2">
           <Label for="res-priority">{{ t('meetingsUi.priority') }}</Label>
           <select id="res-priority" v-model="priority" class="border-input h-9 w-full min-w-0 rounded-lg border bg-transparent px-2 text-sm" :disabled="!hydrated || isPending">
-            <option v-for="code in ['0', '1', '2', '3']" :key="code" :value="code">{{ t(`meetingsUi.priorityLabel.${code}`) }}</option>
+            <option v-for="code in ['0', '1', '2', '3']" :key="code" :value="code">{{ t(`meetingsUx.priorityLabel.${code}`) }}</option>
           </select>
         </div>
       </SharedFormSection>
+      <p v-if="validationMessage" class="text-sm text-muted-foreground" aria-live="polite">{{ validationMessage }}</p>
       <p v-if="error" role="alert" class="text-sm text-destructive">{{ error.message }}</p>
       <div class="flex justify-end gap-2">
         <NuxtLink :to="returnTo"><Button type="button" variant="outline">{{ t('app.cancel') }}</Button></NuxtLink>
-        <Button type="submit" :disabled="!hydrated || isPending || !name.trim()">{{ t('app.create') }}</Button>
+        <Button type="submit" :disabled="!hydrated || isPending || Boolean(validationMessage)">{{ t('app.create') }}</Button>
       </div>
     </form>
     </SharedPageState>

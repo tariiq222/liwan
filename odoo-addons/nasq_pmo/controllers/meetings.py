@@ -1,7 +1,8 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
+from urllib.parse import urlsplit
 
-from odoo import http
+from odoo import fields, http
 from odoo.http import request
 
 from odoo.addons.nasq_api.controllers.common import (
@@ -21,19 +22,87 @@ STATES = {'draft', 'confirmed', 'done', 'cancelled'}
 def _parse_day(value, field):
     if not isinstance(value, str) or len(value) != 10:
         raise ApiError(422, 'invalid', '%s must be YYYY-MM-DD' % field, field=field)
-    return value
+    try:
+        parsed = date.fromisoformat(value)
+    except ValueError:
+        raise ApiError(422, 'invalid', '%s must be YYYY-MM-DD' % field, field=field) from None
+    if parsed.isoformat() != value:
+        raise ApiError(422, 'invalid', '%s must be YYYY-MM-DD' % field, field=field)
+    return parsed.isoformat()
+
+
+def _parse_dt_parts(value, field):
+    if not isinstance(value, str) or not value.strip():
+        raise ApiError(422, 'invalid', '%s must be a datetime' % field, field=field)
+    raw = value.strip()
+    try:
+        parsed = datetime.fromisoformat(raw.replace('Z', '+00:00'))
+    except ValueError:
+        raise ApiError(422, 'invalid', '%s must be a valid ISO datetime' % field, field=field) from None
+    input_day = parsed.date().isoformat() if parsed.tzinfo else None
+    if parsed.tzinfo:
+        parsed = parsed.astimezone(timezone.utc).replace(tzinfo=None)
+    storage = parsed.strftime('%Y-%m-%d %H:%M:%S')
+    return storage, input_day or _user_calendar_day(storage)
 
 
 def _parse_dt(value, field):
+    return _parse_dt_parts(value, field)[0]
+
+
+def _parse_url(value, field='meeting_url'):
+    if value in (None, ''):
+        return False
+    if not isinstance(value, str):
+        raise ApiError(422, 'invalid', '%s must be a string' % field, field=field)
+    value = value.strip()
+    parsed = urlsplit(value)
+    if not value or parsed.scheme not in {'http', 'https'} or not parsed.netloc or any(char.isspace() for char in value):
+        raise ApiError(422, 'invalid', '%s must be a valid HTTP(S) URL' % field, field=field)
+    return value
+
+
+def _user_calendar_day(value):
+    parsed = fields.Datetime.to_datetime(value)
+    localized = fields.Datetime.context_timestamp(request.env.user, parsed)
+    return localized.date().isoformat()
+
+
+def _validate_schedule_range(start, end):
+    parsed_start = fields.Datetime.to_datetime(start) if start else None
+    parsed_end = fields.Datetime.to_datetime(end) if end else None
+    if parsed_start and parsed_end and parsed_end <= parsed_start:
+        raise ApiError(422, 'invalid', 'end_datetime must be after start_datetime', field='end_datetime')
+
+
+def _parse_deadline(value):
+    return _parse_day(value, 'deadline')
+
+
+def _resolve_meeting_date(meeting_date, start, *, provided, start_day=None):
+    if provided:
+        if meeting_date is None:
+            raise ApiError(422, 'invalid', 'meeting_date must be YYYY-MM-DD', field='meeting_date')
+        resolved = _parse_day(meeting_date, 'meeting_date')
+    elif start:
+        resolved = start_day or _user_calendar_day(start)
+    else:
+        return None
+    if start and resolved != (start_day or _user_calendar_day(start)):
+        raise ApiError(422, 'invalid', 'meeting_date must match start_datetime in the user timezone', field='meeting_date')
+    return resolved
+
+
+def _parse_schedule_value(payload, field, *, allow_null):
+    if field not in payload:
+        return None, False
+    value = payload[field]
+    if value is None and allow_null:
+        return False, True
     if not isinstance(value, str) or not value.strip():
         raise ApiError(422, 'invalid', '%s must be a datetime' % field, field=field)
-    try:
-        parsed = datetime.fromisoformat(value.strip().replace('Z', '+00:00'))
-    except ValueError:
-        raise ApiError(422, 'invalid', '%s must be a valid ISO datetime' % field, field=field) from None
-    if parsed.tzinfo:
-        parsed = parsed.astimezone(timezone.utc).replace(tzinfo=None)
-    return parsed.strftime('%Y-%m-%d %H:%M:%S')
+    parsed, calendar_day = _parse_dt_parts(value, field)
+    return (parsed, calendar_day), True
 
 
 class MeetingController(http.Controller):
@@ -97,20 +166,29 @@ class MeetingController(http.Controller):
             'name': name.strip(),
             'organizer_id': request.env.uid,
         }
-        if isinstance(meeting_date, str) and meeting_date.strip():
-            vals['meeting_date'] = meeting_date.strip()
+        start_data, has_start = _parse_schedule_value(body, 'start_datetime', allow_null=True)
+        end_data, has_end = _parse_schedule_value(body, 'end_datetime', allow_null=True)
+        if has_start and start_data is not False:
+            start, start_day = start_data
+        else:
+            start, start_day = (False if has_start else None), None
+        end = end_data[0] if has_end and end_data is not False else (False if has_end else None)
+        if has_start:
+            vals['start_datetime'] = start
+        if has_end:
+            vals['end_datetime'] = end
+        _validate_schedule_range(start, end)
+        resolved_day = _resolve_meeting_date(
+            meeting_date, start or None, provided='meeting_date' in body, start_day=start_day,
+        )
+        if resolved_day:
+            vals['meeting_date'] = resolved_day
         if 'location' in body:
             if location is not None and not isinstance(location, str):
                 raise ApiError(422, 'invalid', 'location must be a string', field='location')
             vals['location'] = location.strip() if location else False
-        if isinstance(start_datetime, str) and start_datetime.strip():
-            vals['start_datetime'] = _parse_dt(start_datetime, 'start_datetime')
-        if isinstance(end_datetime, str) and end_datetime.strip():
-            vals['end_datetime'] = _parse_dt(end_datetime, 'end_datetime')
         if 'meeting_url' in body:
-            if meeting_url is not None and not isinstance(meeting_url, str):
-                raise ApiError(422, 'invalid', 'meeting_url must be a string', field='meeting_url')
-            vals['meeting_url'] = meeting_url.strip() if meeting_url else False
+            vals['meeting_url'] = _parse_url(meeting_url)
         if 'secretary_id' in body:
             vals['secretary_id'] = (
                 False if secretary_id is None
@@ -140,22 +218,41 @@ class MeetingController(http.Controller):
                 if value is not None and not isinstance(value, str):
                     raise ApiError(422, 'invalid', '%s must be a string' % field, field=field)
                 vals[field] = (value or '').strip() if field == 'name' else (value or '')
-        if 'meeting_date' in payload and isinstance(payload['meeting_date'], str) and payload['meeting_date'].strip():
-            vals['meeting_date'] = payload['meeting_date'].strip()
+        if 'meeting_date' in payload:
+            vals['meeting_date'] = _parse_day(payload['meeting_date'], 'meeting_date')
         if 'secretary_id' in payload:
             vals['secretary_id'] = parse_positive_int(payload['secretary_id'], 'secretary_id') if payload['secretary_id'] else False
         if 'attendee_ids' in payload:
             if not isinstance(payload['attendee_ids'], list):
                 raise ApiError(422, 'invalid', 'attendee_ids must be a list', field='attendee_ids')
             vals['attendee_ids'] = [(6, 0, [parse_positive_int(item, 'attendee_ids') for item in payload['attendee_ids']])]
+        schedule_days = {}
         for field in ('start_datetime', 'end_datetime'):
-            if field in payload and isinstance(payload[field], str) and payload[field].strip():
-                vals[field] = _parse_dt(payload[field], field)
+            value, present = _parse_schedule_value(payload, field, allow_null=True)
+            if present:
+                if value is False:
+                    vals[field] = False
+                else:
+                    vals[field], schedule_days[field] = value
+        current_start = vals.get('start_datetime', meeting.start_datetime)
+        current_end = vals.get('end_datetime', meeting.end_datetime)
+        _validate_schedule_range(current_start, current_end)
+        start_was_cleared = vals.get('start_datetime') is False
+        if vals.get('start_datetime'):
+            day = _resolve_meeting_date(
+                vals.get('meeting_date') if 'meeting_date' in payload else None,
+                vals['start_datetime'],
+                provided='meeting_date' in payload,
+                start_day=schedule_days.get('start_datetime'),
+            )
+            vals['meeting_date'] = day
+        elif 'meeting_date' in payload and meeting.start_datetime and not start_was_cleared:
+            _resolve_meeting_date(
+                vals['meeting_date'], meeting.start_datetime,
+                provided=True,
+            )
         if 'meeting_url' in payload:
-            value = payload['meeting_url']
-            if value is not None and not isinstance(value, str):
-                raise ApiError(422, 'invalid', 'meeting_url must be a string', field='meeting_url')
-            vals['meeting_url'] = (value or '').strip()
+            vals['meeting_url'] = _parse_url(payload['meeting_url'])
         if payload.get('series_id'):
             vals['series_id'] = parse_positive_int(payload['series_id'], 'series_id')
         if 'project_id' in payload:
@@ -194,9 +291,11 @@ class MeetingController(http.Controller):
             'meeting_id': meeting.id,
             'name': name.strip(),
             'responsible_id': parse_positive_int(responsible_id, 'responsible_id'),
-            'deadline': deadline.strip(),
+            'deadline': _parse_deadline(deadline),
         }
-        if isinstance(priority, str) and priority in {'0', '1', '2', '3'}:
+        if priority is not None:
+            if not isinstance(priority, str) or priority not in {'0', '1', '2', '3'}:
+                raise ApiError(422, 'invalid', 'priority must be one of 0, 1, 2, or 3', field='priority')
             vals['priority'] = priority
         resolution = request.env['cyan.meeting.resolution'].create(vals)
         if resolution.responsible_id:
@@ -266,11 +365,13 @@ class MeetingController(http.Controller):
             if not isinstance(payload['name'], str) or not payload['name'].strip():
                 raise ApiError(422, 'invalid', 'name must not be empty', field='name')
             vals['name'] = payload['name'].strip()
-        if 'deadline' in payload and isinstance(payload['deadline'], str) and payload['deadline'].strip():
-            vals['deadline'] = payload['deadline'].strip()
+        if 'deadline' in payload:
+            vals['deadline'] = _parse_deadline(payload['deadline'])
         if payload.get('responsible_id'):
             vals['responsible_id'] = parse_positive_int(payload['responsible_id'], 'responsible_id')
-        if isinstance(payload.get('priority'), str) and payload['priority'] in {'0', '1', '2', '3'}:
+        if 'priority' in payload:
+            if not isinstance(payload['priority'], str) or payload['priority'] not in {'0', '1', '2', '3'}:
+                raise ApiError(422, 'invalid', 'priority must be one of 0, 1, 2, or 3', field='priority')
             vals['priority'] = payload['priority']
         if 'result' in payload:
             if payload['result'] is not None and not isinstance(payload['result'], str):

@@ -1,5 +1,10 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { fromUtcDateTimeInput, toUtcDateTime } from '../meetingDateTime'
+import {
+  buildMeetingSchedulePayload,
+  fromUtcDateTimeInput,
+  toUtcDateTime,
+  validateMeetingSchedule,
+} from '../meetingDateTime'
 
 describe('meeting datetime wire conversion', () => {
   const originalTimezone = process.env.TZ
@@ -25,5 +30,48 @@ describe('meeting datetime wire conversion', () => {
   it('keeps empty values optional', () => {
     expect(toUtcDateTime('')).toBeUndefined()
     expect(fromUtcDateTimeInput(null)).toBe('')
+  })
+
+  it('builds one calendar day with optional wall-clock times', () => {
+    expect(buildMeetingSchedulePayload({ date: '2026-09-08', start: '09:30', end: '10:30' })).toEqual({
+      meeting_date: '2026-09-08',
+      start_datetime: '2026-09-08T09:30:00+03:00',
+      end_datetime: '2026-09-08T10:30:00+03:00',
+    })
+    expect(buildMeetingSchedulePayload({ date: '2026-09-08', start: '', end: '' })).toEqual({
+      meeting_date: '2026-09-08',
+      start_datetime: undefined,
+      end_datetime: undefined,
+    })
+  })
+
+  it('preserves a legacy multi-day end when editing', () => {
+    expect(buildMeetingSchedulePayload({
+      date: '2026-09-08',
+      start: '23:30',
+      end: '01:30',
+      endDate: '2026-09-09',
+    })).toEqual({
+      meeting_date: '2026-09-08',
+      start_datetime: '2026-09-08T23:30:00+03:00',
+      end_datetime: '2026-09-09T01:30:00+03:00',
+    })
+  })
+
+  it('uses explicit nulls when an edit clears either clock', () => {
+    expect(buildMeetingSchedulePayload({
+      date: '2026-09-08', start: '', end: '', mode: 'patch',
+    })).toEqual({ meeting_date: '2026-09-08', start_datetime: null, end_datetime: null })
+  })
+
+  it('requires a date and reports time order as field errors', () => {
+    expect(validateMeetingSchedule({ date: '', start: '10:00', end: '09:00' })).toEqual({
+      date: 'required',
+      end: 'before_start',
+    })
+    expect(validateMeetingSchedule({ date: '2026-09-08', start: '10:00', end: '' })).toEqual({})
+    expect(validateMeetingSchedule({ date: '2026-09-08', start: '10:00', end: '10:00', endDate: '2026-09-08' })).toEqual({ end: 'before_start' })
+    expect(validateMeetingSchedule({ date: '2026-09-08', start: '10:00', end: '09:00', endDate: '2026-09-09' })).toEqual({})
+    expect(validateMeetingSchedule({ date: '2026-09-08', start: '10:00', end: '09:00', endDate: '2026-09-07' })).toEqual({ endDate: 'before_date' })
   })
 })

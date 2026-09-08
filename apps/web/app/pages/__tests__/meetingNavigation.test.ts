@@ -7,17 +7,18 @@ import { refDebounced } from '@vueuse/core'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { formatLocalDateTime } from '../../utils/meetingDateTime'
 import { meetingCreateRoute } from '../../utils/meetingRoutes'
+import { resolutionActions } from '../../utils/meetingWorkspace'
 
 function page(file: string, pmo = false, routeOverride: Record<string, unknown> = {}) {
   const source = parse(readFileSync(resolve('app/pages/meetings', file), 'utf8')).descriptor.scriptSetup!.content
   const route = { path: '/meetings/7', fullPath: '/meetings/7', params: { id: '7' },
     ...routeOverride, query: { q: 'review', offset: '25', ...(routeOverride.query as Record<string, unknown> | undefined) } }
   const replace = vi.fn(async ({ query }) => { route.query = query })
-  const projects = vi.fn(() => ({ data: ref([]) }))
+  const projects = vi.fn(() => ({ data: ref([{ id: 3, name: 'Valid project' }]) }))
   const seriesList = vi.fn(() => ({ data: ref({ total: 120, items: [] }), isLoading: ref(false), error: ref(null), refetch: vi.fn() }))
   const mutateAsync = vi.fn(async () => { throw new Error('backend unavailable') })
   const meetingData = ref({ id: 7, can_edit: true, can_manage: true, state: 'draft', series_id: null,
-    resolutions: [{ id: 9, can_update_execution: true, can_edit_decision: false, task_id: null, state: 'done' }] })
+    resolutions: [{ id: 9, can_update_execution: true, can_edit_decision: false, task_id: null, state: 'open', allowed_actions: ['start', 'complete', 'cancel'] }] })
   const meetingMutation = vi.fn(async () => undefined)
   const resolutionMutation = vi.fn(async () => undefined)
   const scope = { ref, computed, watch, useRoute: () => route, useRouter: () => ({ replace }),
@@ -30,7 +31,7 @@ function page(file: string, pmo = false, routeOverride: Record<string, unknown> 
     useUploadMeetingAttachment: () => ({}), useDeleteMeetingAttachment: () => ({}),
     useConvertResolution: () => ({ mutateAsync }),
     useMeetingAction: () => ({ mutateAsync: meetingMutation, isPending: ref(false) }),
-    useResolutionAction: () => ({ mutateAsync: resolutionMutation }),
+    useResolutionAction: () => ({ mutateAsync: resolutionMutation }), resolutionActions,
     safeReturnTo: (_: unknown, fallback: string) => fallback, ApiError: class ApiError extends Error {},
     navigateTo: vi.fn(), toast: { error: vi.fn() } }
   const ast = ts.createSourceFile('page.ts', source, ts.ScriptTarget.Latest, true)
@@ -97,12 +98,13 @@ describe('meeting route and conversion behavior', () => {
     expect(detail.resolutionMutation).toHaveBeenCalledWith({ meetingId: 7, resolutionId: 9, action: 'cancel' })
   })
 
-  it('allows reopening a resolution only when its decision permission is present', async () => {
+  it('allows reopening a resolution only when its server action permission is present', async () => {
     const detail = page('[id].vue', true)
     await detail.requestResolutionAction(9, 'reopen')
     expect(detail.resolutionMutation).not.toHaveBeenCalled()
 
     detail.meeting.value.resolutions[0].can_edit_decision = true
+    detail.meeting.value.resolutions[0].allowed_actions = ['reopen']
     await detail.requestResolutionAction(9, 'reopen')
     expect(detail.resolutionMutation).toHaveBeenCalledWith({ meetingId: 7, resolutionId: 9, action: 'reopen' })
   })
@@ -125,6 +127,7 @@ describe('meeting route and conversion behavior', () => {
     const list = page('series/index.vue')
     expect(list.pages.value).toBe(5)
     list.search.value = 'weekly'
+    await new Promise(resolve => setTimeout(resolve, 300))
     list.offset.value = 50
     await nextTick()
     expect(list.params.value).toEqual({ q: 'weekly', limit: 25, offset: 50 })

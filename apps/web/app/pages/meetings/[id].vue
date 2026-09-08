@@ -15,6 +15,7 @@ import { useProjects } from '@/composables/useProjects'
 import { returnToQuery, safeReturnTo } from '@/utils/safeReturnTo'
 import { formatLocalDateTime } from '@/utils/meetingDateTime'
 import { STATUS_CHIP_CLASS } from '@/utils/statusTone'
+import { filterMeetingResolutions, resolutionActions } from '@/utils/meetingWorkspace'
 
 const route = useRoute()
 const { t } = useI18n()
@@ -25,7 +26,8 @@ const query = useMeeting(computed(() => isDetail.value ? id.value : null))
 const attachments = useMeetingAttachments(computed(() => isDetail.value ? id.value : null))
 const { can } = useAccess()
 const canConvert = computed(() => isDetail.value && !!query.data.value?.can_edit && can('pmo.projects.read') && can('pmo.tasks.create'))
-const { data: projects } = useProjects(canConvert)
+const projectQuery = useProjects(canConvert)
+const { data: projects } = projectQuery
 const conversionError = ref('')
 const { mutateAsync: upload, isPending: uploading } = useUploadMeetingAttachment()
 const { mutateAsync: remove, isPending: deleting } = useDeleteMeetingAttachment()
@@ -37,9 +39,45 @@ const projectByResolution = ref<Record<number, number>>({})
 const pendingDeleteId = ref<number | null>(null)
 const pendingMeetingAction = ref<{ action: 'confirm' | 'complete' | 'reopen' | 'cancel'; scope?: 'this' | 'this_and_following' } | null>(null)
 const pendingResolutionAction = ref<{ resolutionId: number; action: 'start' | 'complete' | 'cancel' | 'reopen' } | null>(null)
+const pendingResolutionIds = ref(new Set<number>())
+const resolutionErrors = ref<Record<number, string>>({})
+const recommendationSearch = ref('')
+const recommendationState = ref('')
+const projectSearch = ref<Record<number, string>>({})
+const filteredResolutions = computed(() => filterMeetingResolutions(query.data.value?.resolutions ?? [], {
+  q: recommendationSearch.value,
+  state: recommendationState.value,
+}))
+const historicalSnapshot = computed(() => query.data.value?.state === 'done' ? query.data.value?.minutes_snapshot ?? null : null)
+const doneWithoutSnapshot = computed(() => query.data.value?.state === 'done' && !historicalSnapshot.value)
+
+type ResolutionExecutionState = 'open' | 'in_progress' | 'done' | 'cancelled'
+
+function resolutionProjection(resolution: unknown): ResolutionExecutionState {
+  const value = resolution as { execution_state?: ResolutionExecutionState | null; state: ResolutionExecutionState }
+  return value.execution_state || value.state
+}
+
+function taskLinked(resolution: unknown) {
+  const value = resolution as { task_id?: number | null; task_linked?: boolean }
+  return Boolean(value.task_id || value.task_linked)
+}
+
+function actionsFor(resolution: unknown) {
+  return resolutionActions(resolution as Parameters<typeof resolutionActions>[0])
+}
+
+function projectsFor(resolutionId: number) {
+  const q = projectSearch.value[resolutionId]?.trim().toLocaleLowerCase() ?? ''
+  const all = projects.value ?? []
+  const filtered = all.filter(project => !q || project.name.toLocaleLowerCase().includes(q))
+  const selectedId = projectByResolution.value[resolutionId]
+  const selected = selectedId ? all.find(project => project.id === selectedId) : undefined
+  return selected && !filtered.some(project => project.id === selected.id) ? [selected, ...filtered] : filtered
+}
 
 function resolutionCanReopen(resolution: { can_edit_decision: boolean; task_id: number | null; state: 'open' | 'in_progress' | 'done' | 'cancelled' }) {
-  return resolution.can_edit_decision && !resolution.task_id && (resolution.state === 'done' || resolution.state === 'cancelled')
+  return actionsFor(resolution).includes('reopen') && !taskLinked(resolution)
 }
 
 function localTime(value: string | null) {
@@ -107,13 +145,22 @@ async function confirmDelete(attachmentId: number) {
 
 async function convertResolution(resolutionId: number) {
   const projectId = projectByResolution.value[resolutionId]
-  if (!hydrated.value || !canConvert.value || !projectId || !id.value) return
+  if (!hydrated.value || !canConvert.value || !projectId || !id.value || pendingResolutionIds.value.has(resolutionId)) return
+  if (!(projects.value ?? []).some(project => project.id === projectId)) {
+    projectByResolution.value = { ...projectByResolution.value, [resolutionId]: 0 }
+    return
+  }
   conversionError.value = ''
+  pendingResolutionIds.value = new Set([...pendingResolutionIds.value, resolutionId])
   try {
     const task = await convert({ meetingId: id.value, resolutionId, projectId })
     await navigateTo(`/tasks/${task.id}`)
   } catch (error) {
     conversionError.value = error instanceof ApiError ? error.message : t('meetingsUi.convertError')
+  } finally {
+    const next = new Set(pendingResolutionIds.value)
+    next.delete(resolutionId)
+    pendingResolutionIds.value = next
   }
 }
 
@@ -144,22 +191,31 @@ async function confirmMeetingAction() {
 
 function requestResolutionAction(resolutionId: number, action: 'start' | 'complete' | 'cancel' | 'reopen') {
   const resolution = query.data.value?.resolutions.find(item => item.id === resolutionId)
-  if (!hydrated.value || !resolution || resolution.task_id) return
-  if (action === 'reopen' ? !resolutionCanReopen(resolution) : !resolution.can_update_execution) return
+  if (!hydrated.value || !resolution || taskLinked(resolution) || pendingResolutionIds.value.has(resolutionId) || pendingResolutionAction.value?.resolutionId === resolutionId || !actionsFor(resolution).includes(action)) return
   if (action === 'cancel') pendingResolutionAction.value = { resolutionId, action }
   else void executeResolutionAction({ resolutionId, action })
 }
 
 async function executeResolutionAction(pending: { resolutionId: number; action: 'start' | 'complete' | 'cancel' | 'reopen' }) {
-  if (!hydrated.value || !id.value) return
+  if (!hydrated.value || !id.value || pendingResolutionIds.value.has(pending.resolutionId)) return
+  pendingResolutionIds.value = new Set([...pendingResolutionIds.value, pending.resolutionId])
   try {
     await runResolution({ meetingId: id.value, resolutionId: pending.resolutionId, action: pending.action })
+    resolutionErrors.value = { ...resolutionErrors.value, [pending.resolutionId]: '' }
   } catch (error) {
-    toast.error(error instanceof ApiError ? error.message : t('errors.generic'))
+    resolutionErrors.value = { ...resolutionErrors.value, [pending.resolutionId]: error instanceof ApiError ? error.message : t('errors.generic') }
   } finally {
+    const next = new Set(pendingResolutionIds.value)
+    next.delete(pending.resolutionId)
+    pendingResolutionIds.value = next
     if (pendingResolutionAction.value?.resolutionId === pending.resolutionId) pendingResolutionAction.value = null
   }
 }
+
+const pendingResolutionName = computed(() => {
+  const id = pendingResolutionAction.value?.resolutionId
+  return id ? query.data.value?.resolutions.find(item => item.id === id)?.name || '' : ''
+})
 
 async function confirmResolutionAction() {
   const pending = pendingResolutionAction.value
@@ -184,7 +240,7 @@ async function confirmResolutionAction() {
         <Button as-child type="button" variant="outline">
           <a :href="`/api/v1/meetings/${id}/minutes.pdf`">{{ t('meetingsUi.pdf') }}</a>
         </Button>
-        <Button v-if="query.data.value?.can_edit" as-child type="button" variant="outline">
+        <Button v-if="query.data.value?.can_edit && pendingResolutionIds.size === 0" as-child type="button" variant="outline">
           <NuxtLink :to="{ path: `/meetings/${id}/edit`, query: returnToQuery(route.fullPath) }">{{ t('app.edit') }}</NuxtLink>
         </Button>
         <Button v-if="query.data.value?.can_edit && query.data.value.state === 'draft'" :disabled="!hydrated || transitioning" @click="requestMeetingAction('confirm')">
@@ -204,7 +260,7 @@ async function confirmResolutionAction() {
     <SharedPageState :loading="query.isLoading.value" :error="query.error.value" @retry="query.refetch">
       <div v-if="query.data.value" class="meeting-detail-stack">
         <section v-if="pendingMeetingAction" class="nasq-panel nasq-panel-body grid gap-3 border-destructive" role="alert">
-          <p>{{ t('meetingsUi.confirmAction') }}</p>
+          <p>{{ t('meetingsUx.confirmMeetingAction', { name: query.data.value.name, scope: pendingMeetingAction.scope === 'this_and_following' ? t('meetingsUi.scopeFollowing') : t('meetingsUi.scopeThis') }) }}</p>
           <select v-if="pendingMeetingAction.action === 'cancel' && query.data.value.series_id" v-model="pendingMeetingAction.scope" class="border-input h-9 rounded-lg border bg-transparent px-2 text-sm" :disabled="transitioning">
             <option value="this">{{ t('meetingsUi.scopeThis') }}</option>
             <option value="this_and_following">{{ t('meetingsUi.scopeFollowing') }}</option>
@@ -214,7 +270,16 @@ async function confirmResolutionAction() {
             <Button type="button" variant="destructive" :disabled="!hydrated || transitioning" @click="confirmMeetingAction">{{ t('meetingsUi.confirm') }}</Button>
           </div>
         </section>
-        <section class="nasq-panel meeting-summary">
+        <nav class="flex min-w-0 flex-wrap gap-2 text-sm" :aria-label="t('meetingsUx.sections')">
+          <a href="#meeting-summary" class="text-brand-link underline">{{ t('meetingsUi.summary') }}</a>
+          <a v-if="!historicalSnapshot" href="#meeting-agenda" class="text-brand-link underline">{{ t('meetingsUi.agenda') }}</a>
+          <a v-if="!historicalSnapshot" href="#meeting-minutes" class="text-brand-link underline">{{ t('meetingsUi.minutes') }}</a>
+          <a href="#meeting-resolutions" class="text-brand-link underline">{{ t('meetingsUi.resolutions') }} ({{ query.data.value.resolutions.length }})</a>
+          <a href="#meeting-attachments" class="text-brand-link underline">{{ t('meetingsUi.attachmentsTitle') }} ({{ attachments.data.value?.items.length ?? 0 }})</a>
+          <a v-if="query.data.value.state === 'done'" href="#meeting-snapshot" class="text-brand-link underline">{{ t('meetingsUx.historicalMinutesTitle') }}</a>
+          <a v-if="query.data.value.previous_resolutions.length" href="#meeting-follow-up" class="text-brand-link underline">{{ t('meetingsUx.currentPreviousFollowUp') }}</a>
+        </nav>
+        <section id="meeting-summary" class="nasq-panel meeting-summary">
           <div class="nasq-panel-header"><h2>{{ t('meetingsUi.summary') }}</h2></div>
           <div class="nasq-panel-body">
             <div class="meeting-summary-grid">
@@ -245,39 +310,83 @@ async function confirmResolutionAction() {
             </div>
           </div>
         </section>
-        <div class="meeting-content-grid">
-          <section class="nasq-panel meeting-rich-panel">
+        <section v-if="query.data.value.state === 'done'" id="meeting-snapshot" class="nasq-panel meeting-section">
+          <div class="nasq-panel-header">
+            <h2>{{ t('meetingsUx.historicalMinutesTitle') }}</h2>
+            <span v-if="historicalSnapshot" class="text-xs text-muted-foreground">{{ t('meetingsUx.capturedAt', { captured_at: historicalSnapshot.captured_at }) }}</span>
+          </div>
+          <div class="nasq-panel-body grid gap-4">
+            <template v-if="historicalSnapshot">
+              <div>
+                <h3 class="meeting-subheading">{{ t('meetingsUi.agenda') }}</h3>
+                <div v-if="hasRichText(historicalSnapshot.agenda)" class="meeting-rich-text" v-html="historicalSnapshot.agenda" />
+                <p v-else class="meeting-empty">{{ t('meetingsUi.emptyAgenda') }}</p>
+              </div>
+              <div>
+                <h3 class="meeting-subheading">{{ t('meetingsUi.minutes') }}</h3>
+                <div v-if="hasRichText(historicalSnapshot.minutes)" class="meeting-rich-text" v-html="historicalSnapshot.minutes" />
+                <p v-else class="meeting-empty">{{ t('meetingsUi.emptyMinutes') }}</p>
+              </div>
+              <div v-if="historicalSnapshot.resolutions.length" class="grid gap-2">
+                <h3 class="meeting-subheading">{{ t('meetingsUx.historicalDecisionStates') }}</h3>
+                <div v-for="item in historicalSnapshot.resolutions" :key="item.id" class="flex min-w-0 flex-wrap items-center gap-2 text-sm">
+                  <span class="font-medium">{{ item.name }}</span>
+                  <span v-if="item.meeting_name" class="text-xs text-muted-foreground">{{ t('meetingsUx.snapshotOrigin', { name: item.meeting_name }) }}</span>
+                  <Badge variant="outline">{{ t(`meetingsUi.resolutionState.${item.state}`) }}</Badge>
+                  <span v-if="item.result && hasRichText(item.result)" class="meeting-rich-text" v-html="item.result" />
+                </div>
+              </div>
+            </template>
+            <p v-else class="text-sm text-muted-foreground">{{ t('meetingsUx.historyUnavailable') }}</p>
+          </div>
+        </section>
+        <div v-if="!historicalSnapshot" class="meeting-content-grid">
+          <section id="meeting-agenda" class="nasq-panel meeting-rich-panel">
             <div class="nasq-panel-header"><h2>{{ t('meetingsUi.agenda') }}</h2></div>
             <div class="nasq-panel-body">
+              <p v-if="doneWithoutSnapshot" class="mb-3 text-xs text-muted-foreground">{{ t('meetingsUx.currentContentAfterMissingHistory') }}</p>
               <div v-if="hasRichText(query.data.value.agenda)" class="meeting-rich-text" v-html="query.data.value.agenda" />
               <p v-else class="meeting-empty">{{ t('meetingsUi.emptyAgenda') }}</p>
             </div>
           </section>
-          <section class="nasq-panel meeting-rich-panel">
-            <div class="nasq-panel-header"><h2>{{ t('meetingsUi.minutes') }}</h2></div>
+          <section id="meeting-minutes" class="nasq-panel meeting-rich-panel">
+            <div class="nasq-panel-header">
+              <h2>{{ t('meetingsUi.minutes') }}</h2>
+              <Button v-if="query.data.value.can_edit && pendingResolutionIds.size === 0" as-child size="sm"><NuxtLink :to="{ path: `/meetings/${id}/minutes`, query: returnToQuery(route.fullPath) }">{{ t('meetingsUx.editMinutes') }}</NuxtLink></Button>
+            </div>
             <div class="nasq-panel-body">
+              <p v-if="doneWithoutSnapshot" class="mb-3 text-xs text-muted-foreground">{{ t('meetingsUx.currentContentAfterMissingHistory') }}</p>
               <div v-if="hasRichText(query.data.value.minutes)" class="meeting-rich-text" v-html="query.data.value.minutes" />
               <p v-else class="meeting-empty">{{ t('meetingsUi.emptyMinutes') }}</p>
             </div>
           </section>
         </div>
-        <section class="nasq-panel meeting-section">
+        <section id="meeting-resolutions" class="nasq-panel meeting-section">
           <div class="nasq-panel-header">
-            <h2>{{ t('meetingsUi.resolutions') }}</h2>
+            <div class="flex min-w-0 flex-wrap items-center gap-2"><h2>{{ t('meetingsUi.resolutions') }}</h2><Badge variant="secondary">{{ query.data.value.resolutions.length }}</Badge><span class="text-xs text-muted-foreground">{{ t('meetingsUx.currentFollowUp') }}</span></div>
             <Button v-if="query.data.value.can_edit" as-child size="sm">
               <NuxtLink :to="{ path: `/meetings/${id}/resolutions/new`, query: returnToQuery(route.fullPath) }">{{ t('meetingsUi.newResolution') }}</NuxtLink>
             </Button>
           </div>
           <div class="nasq-panel-body">
+            <div v-if="query.data.value.resolutions.length" class="mb-4 flex min-w-0 flex-wrap gap-2">
+              <Input v-model="recommendationSearch" class="min-w-48 flex-1" :placeholder="t('meetingsUx.searchRecommendations')" :aria-label="t('meetingsUx.searchRecommendations')" />
+              <select v-model="recommendationState" class="border-input h-9 rounded-lg border bg-transparent px-2 text-sm" :aria-label="t('meetingsUi.stateLabel')">
+                <option value="">{{ t('meetingsUi.allStates') }}</option>
+                <option v-for="state in ['open', 'in_progress', 'done', 'cancelled']" :key="state" :value="state">{{ t(`meetingsUi.resolutionState.${state}`) }}</option>
+              </select>
+            </div>
             <p v-if="conversionError" role="alert" class="text-sm text-destructive">{{ conversionError }}</p>
             <p v-if="!query.data.value.resolutions.length" class="meeting-empty">{{ t('meetingsUi.emptyResolutions') }}</p>
+            <p v-else-if="!filteredResolutions.length" class="meeting-empty">{{ t('meetingsUx.noMatchingRecommendations') }}</p>
             <ul v-else class="meeting-resolution-list">
-            <li v-for="item in query.data.value.resolutions" :key="item.id" class="meeting-resolution-card">
+            <li v-for="item in filteredResolutions" :key="item.id" class="meeting-resolution-card">
               <div class="meeting-resolution-head">
                 <h3 class="meeting-resolution-title">{{ item.name }}</h3>
                 <div class="meeting-resolution-badges">
-                  <Badge variant="outline" :class="resolutionStateTone(item.state)">{{ t(`meetingsUi.resolutionState.${item.state}`) }}</Badge>
-                  <Badge variant="secondary">{{ t(`meetingsUi.priorityLabel.${item.priority}`) }}</Badge>
+                  <Badge variant="outline" :class="resolutionStateTone(resolutionProjection(item))">{{ t(`meetingsUi.resolutionState.${resolutionProjection(item)}`) }}</Badge>
+                  <Badge v-if="resolutionProjection(item) !== item.state" variant="outline">{{ t('meetingsUx.decisionState', { state: t(`meetingsUi.resolutionState.${item.state}`) }) }}</Badge>
+                  <Badge variant="secondary">{{ t(`meetingsUx.priorityLabel.${item.priority}`) }}</Badge>
                 </div>
               </div>
               <dl class="meeting-resolution-meta">
@@ -286,36 +395,41 @@ async function confirmResolutionAction() {
               </dl>
               <div v-if="hasRichText(item.result)" class="meeting-rich-text meeting-resolution-result" v-html="item.result" />
               <div class="meeting-resolution-actions">
-                <template v-if="item.can_update_execution && !item.task_id">
-                <Button v-if="item.state === 'open'" size="sm" variant="outline" :disabled="!hydrated" @click="requestResolutionAction(item.id, 'start')">{{ t('meetingsUi.startWork') }}</Button>
-                <Button v-if="item.state === 'open' || item.state === 'in_progress'" size="sm" :disabled="!hydrated" @click="requestResolutionAction(item.id, 'complete')">{{ t('meetingsUi.complete') }}</Button>
-                <Button v-if="item.state !== 'cancelled' && item.state !== 'done'" size="sm" variant="outline" :disabled="!hydrated" @click="requestResolutionAction(item.id, 'cancel')">{{ t('meetingsUi.cancelMeeting') }}</Button>
+                <template v-if="!taskLinked(item)">
+                <Button v-if="actionsFor(item).includes('start')" size="sm" variant="outline" :disabled="!hydrated || pendingResolutionAction?.resolutionId === item.id || pendingResolutionIds.has(item.id)" @click="requestResolutionAction(item.id, 'start')">{{ t('meetingsUi.startWork') }}</Button>
+                <Button v-if="actionsFor(item).includes('complete')" size="sm" :disabled="!hydrated || pendingResolutionAction?.resolutionId === item.id || pendingResolutionIds.has(item.id)" @click="requestResolutionAction(item.id, 'complete')">{{ t('meetingsUi.complete') }}</Button>
+                <Button v-if="actionsFor(item).includes('cancel')" size="sm" variant="outline" :disabled="!hydrated || pendingResolutionAction?.resolutionId === item.id || pendingResolutionIds.has(item.id)" @click="requestResolutionAction(item.id, 'cancel')">{{ t('meetingsUi.cancelMeeting') }}</Button>
                 </template>
                 <Button v-if="item.task_id" as-child variant="link" size="sm" class="h-auto p-0"><NuxtLink :to="`/tasks/${item.task_id}`">{{ t('meetingsUi.openTask') }}</NuxtLink></Button>
-                <Button v-if="!item.task_id && (item.can_edit_decision || item.can_update_execution)" as-child variant="outline" size="sm">
+                <span v-else-if="taskLinked(item)" class="text-xs text-muted-foreground">{{ t('meetingsUx.taskLinkedUnavailable') }}</span>
+                <Button v-if="!taskLinked(item) && (item.can_edit_decision || item.can_update_execution) && !pendingResolutionIds.has(item.id)" as-child variant="outline" size="sm">
                   <NuxtLink :to="{ path: `/meetings/${id}/resolutions/${item.id}/edit`, query: returnToQuery(route.fullPath) }">{{ t('meetingsUi.editResolution') }}</NuxtLink>
                 </Button>
-                <Button v-if="resolutionCanReopen(item)" size="sm" variant="outline" :disabled="!hydrated" @click="requestResolutionAction(item.id, 'reopen')">{{ t('meetingsUi.reopen') }}</Button>
+                <Button v-if="resolutionCanReopen(item)" size="sm" variant="outline" :disabled="!hydrated || pendingResolutionIds.has(item.id)" @click="requestResolutionAction(item.id, 'reopen')">{{ t('meetingsUi.reopen') }}</Button>
               </div>
+              <p v-if="resolutionErrors[item.id]" role="alert" class="text-sm text-destructive">{{ resolutionErrors[item.id] }}</p>
               <div v-if="pendingResolutionAction?.resolutionId === item.id" class="meeting-inline-confirm" role="alert">
-                <span class="text-sm">{{ t('meetingsUi.confirmAction') }}</span>
+                  <span class="text-sm">{{ t('meetingsUx.confirmResolutionAction', { name: pendingResolutionName }) }}</span>
                 <div class="flex flex-wrap gap-2">
-                  <Button type="button" variant="outline" size="sm" @click="pendingResolutionAction = null">{{ t('app.cancel') }}</Button>
-                  <Button type="button" variant="destructive" size="sm" :disabled="!hydrated" @click="confirmResolutionAction">{{ t('meetingsUi.confirm') }}</Button>
+                  <Button type="button" variant="outline" size="sm" :disabled="pendingResolutionAction ? pendingResolutionIds.has(pendingResolutionAction.resolutionId) : false" @click="pendingResolutionAction = null">{{ t('app.cancel') }}</Button>
+                  <Button type="button" variant="destructive" size="sm" :disabled="!hydrated || (pendingResolutionAction ? pendingResolutionIds.has(pendingResolutionAction.resolutionId) : false)" @click="confirmResolutionAction">{{ t('meetingsUi.confirm') }}</Button>
                 </div>
               </div>
               <p v-if="item.task_id" class="text-xs text-muted-foreground">{{ t('meetingsUi.followedAsTask') }}</p>
-              <details v-if="!item.task_id && !resolutionCanReopen(item) && canConvert && item.can_edit_decision" class="meeting-conversion">
+              <details v-if="!taskLinked(item) && !resolutionCanReopen(item) && canConvert && item.can_edit_decision" class="meeting-conversion">
                 <summary>{{ t('meetingsUi.conversionTitle') }}</summary>
                 <div class="meeting-conversion-body">
                   <label :for="`meeting-project-${item.id}`" class="text-sm font-medium">{{ t('meetingsUi.chooseProject') }}</label>
                   <div class="flex min-w-0 flex-wrap items-center gap-2">
-                    <select :id="`meeting-project-${item.id}`" class="meeting-project-select border-input h-9 w-full min-w-0 max-w-full rounded-lg border bg-background px-2 text-sm" :disabled="!hydrated || converting" @change="projectByResolution[item.id] = Number(($event.target as HTMLSelectElement).value)">
+                    <Input v-model="projectSearch[item.id]" class="meeting-project-select" :placeholder="t('meetingsUx.searchProjects')" :aria-label="t('meetingsUx.searchProjects')" :disabled="!hydrated || converting || pendingResolutionIds.has(item.id)" />
+                    <select :id="`meeting-project-${item.id}`" :value="projectByResolution[item.id] || ''" class="meeting-project-select border-input h-9 w-full min-w-0 max-w-full rounded-lg border bg-background px-2 text-sm" :disabled="!hydrated || converting || pendingResolutionIds.has(item.id)" @change="projectByResolution[item.id] = Number(($event.target as HTMLSelectElement).value)">
                       <option value="">{{ t('meetingsUi.project') }}</option>
-                      <option v-for="project in projects ?? []" :key="project.id" :value="project.id">{{ project.name }}</option>
+                      <option v-for="project in projectsFor(item.id)" :key="project.id" :value="project.id">{{ project.name }}</option>
                     </select>
-                    <Button size="sm" :disabled="!hydrated || converting || !projectByResolution[item.id]" @click="convertResolution(item.id)">{{ t('meetingsUi.convert') }}</Button>
+                    <Button size="sm" :disabled="!hydrated || converting || pendingResolutionIds.has(item.id) || !projectByResolution[item.id]" @click="convertResolution(item.id)">{{ t('meetingsUi.convert') }}</Button>
                   </div>
+                  <p v-if="projectQuery.isLoading.value" class="text-xs text-muted-foreground">{{ t('meetingsUx.projectsLoading') }}</p>
+                  <p v-else-if="projectQuery.error.value" class="text-xs text-destructive">{{ t('meetingsUx.projectsError') }}</p>
                   <p class="text-xs text-muted-foreground">{{ t('meetingsUi.conversionHelp') }}</p>
                 </div>
               </details>
@@ -323,7 +437,7 @@ async function confirmResolutionAction() {
             </ul>
           </div>
         </section>
-        <section class="nasq-panel meeting-section">
+        <section id="meeting-attachments" class="nasq-panel meeting-section">
           <div class="nasq-panel-header">
             <h2>{{ t('meetingsUi.attachmentsTitle') }}</h2>
           </div>
@@ -356,13 +470,14 @@ async function confirmResolutionAction() {
           </div>
           </div>
         </section>
-        <section v-if="query.data.value.previous_resolutions.length" class="nasq-panel">
-          <div class="nasq-panel-header"><h2>{{ t('meetingsUi.previousResolutions') }}</h2></div>
+        <section v-if="query.data.value.previous_resolutions.length" id="meeting-follow-up" class="nasq-panel">
+          <div class="nasq-panel-header"><h2>{{ t('meetingsUi.previousResolutions') }}</h2><span class="text-xs text-muted-foreground">{{ t('meetingsUx.currentPreviousFollowUp') }}</span></div>
           <div class="nasq-panel-body grid gap-3">
           <div v-for="item in query.data.value.previous_resolutions" :key="item.id" class="meeting-previous-row">
             <NuxtLink :to="{ path: `/meetings/${item.meeting_id}`, query: returnToQuery(route.fullPath) }" class="font-medium text-brand-link">{{ item.meeting_name }}</NuxtLink>
             <div class="flex min-w-0 flex-wrap items-center gap-2 text-sm">
               <span>{{ item.name }}</span>
+              <span class="text-xs text-muted-foreground">{{ t('meetingsUx.currentFollowUpOrigin', { name: item.meeting_name }) }}</span>
               <Badge variant="outline" :class="resolutionStateTone(item.state)">{{ t(`meetingsUi.resolutionState.${item.state}`) }}</Badge>
               <span>{{ displayValue(item.deadline) }}</span>
             </div>

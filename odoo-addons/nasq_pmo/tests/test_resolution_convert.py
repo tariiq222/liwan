@@ -102,6 +102,10 @@ class TestResolutionConvert(TransactionCase):
         vals.update(extra)
         return self.Resolution.with_user(self.organizer).create(vals)
 
+    def _resolution_row(self, resolution, user):
+        detail = dump_meeting(resolution.meeting_id.with_user(user), detail=True)
+        return next(row for row in detail['resolutions'] if row['id'] == resolution.id)
+
     def test_editor_converts_name_deadline_assignee_without_minutes(self):
         meeting = self._create_meeting()
         other = self._create_resolution(meeting, name='Other rec')
@@ -186,6 +190,59 @@ class TestResolutionConvert(TransactionCase):
         self.assertFalse(dump_meeting(meeting.with_user(self.manager_cap), detail=True)['can_edit'])
         with self.assertRaises(UserError):
             resolution.with_user(self.manager_cap).action_convert_to_task(self.project.id)
+
+    def test_allowed_actions_follow_actual_resolution_permissions(self):
+        meeting = self._create_meeting()
+        resolution = self._create_resolution(meeting)
+        organizer_row = self._resolution_row(resolution, self.organizer)
+        assignee_row = self._resolution_row(resolution, self.attendee)
+        self.assertEqual(organizer_row['allowed_actions'], ['start', 'complete', 'cancel', 'edit_result'])
+        self.assertEqual(assignee_row['allowed_actions'], ['start', 'complete', 'edit_result'])
+        self.assertTrue(assignee_row['can_update_execution'])
+        self.assertFalse(assignee_row['can_edit_decision'])
+
+    def test_done_resolution_has_no_notes_action_and_manager_can_reopen_done_meeting(self):
+        meeting = self._create_meeting()
+        resolution = self._create_resolution(meeting)
+        resolution.with_user(self.manager_cap).action_done()
+        meeting.sudo().write({'state': 'done'})
+        done_row = self._resolution_row(resolution, self.manager_cap)
+        self.assertEqual(done_row['execution_state'], 'done')
+        self.assertNotIn('edit_result', done_row['allowed_actions'])
+        self.assertEqual(done_row['allowed_actions'], ['reopen'])
+        resolution.with_user(self.manager_cap).action_reopen()
+        self.assertEqual(resolution.state, 'open')
+
+    def test_done_meeting_does_not_advertise_decision_edit_for_open_resolution(self):
+        meeting = self._create_meeting()
+        resolution = self._create_resolution(meeting)
+        meeting.sudo().write({'state': 'done'})
+        row = self._resolution_row(resolution, self.manager_cap)
+        self.assertFalse(row['can_edit_decision'])
+
+    def test_readable_done_task_projects_execution_and_meeting_count(self):
+        meeting = self._create_meeting()
+        resolution = self._create_resolution(meeting)
+        task = resolution.with_user(self.organizer).action_convert_to_task(self.project.id)
+        task.sudo().write({'state': '1_done'})
+        row = self._resolution_row(resolution, self.organizer)
+        self.assertEqual(row['state'], 'open')
+        self.assertEqual(row['execution_state'], 'done')
+        self.assertTrue(row['task_linked'])
+        self.assertEqual(row['task_id'], task.id)
+        self.assertEqual(row['allowed_actions'], [])
+        self.assertEqual(dump_meeting(meeting.with_user(self.organizer))['open_resolution_count'], 0)
+
+    def test_archived_task_is_linked_but_frozen_without_state_disclosure(self):
+        meeting = self._create_meeting()
+        resolution = self._create_resolution(meeting)
+        task = resolution.with_user(self.organizer).action_convert_to_task(self.project.id)
+        task.sudo().write({'state': '1_done', 'active': False})
+        row = self._resolution_row(resolution, self.organizer)
+        self.assertTrue(row['task_linked'])
+        self.assertIsNone(row['task_id'])
+        self.assertEqual(row['execution_state'], 'open')
+        self.assertEqual(row['allowed_actions'], [])
 
     def test_edit_meeting_schedule_updates_existing_calendar_event(self):
         meeting = self._create_meeting()

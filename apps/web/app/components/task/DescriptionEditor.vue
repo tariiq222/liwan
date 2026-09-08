@@ -15,7 +15,7 @@ import { createDebouncedFlush } from '@/lib/debouncedFlush'
 // a pending debounced edit from A must not survive to fire 800ms later
 // against B — see flush() below and the parent's :key="task.id", which is
 // belt-and-braces with this fix, not a replacement for it.
-const props = defineProps<{ modelValue: string; taskId: number; readonly?: boolean }>()
+const props = defineProps<{ modelValue: string; taskId: number; readonly?: boolean; ariaLabel?: string }>()
 const emit = defineEmits<{
   'update:modelValue': [{ html: string; taskId: number }]
   draft: [{ html: string; taskId: number }]
@@ -33,7 +33,7 @@ const editor = useEditor({
   editorProps: {
     attributes: {
       role: 'textbox',
-      'aria-label': t('tasks.drawer.description'),
+      'aria-label': props.ariaLabel || t('tasks.drawer.description'),
       'aria-multiline': 'true',
       class: 'tiptap min-h-[80px] px-3 py-2 text-sm outline-none',
     },

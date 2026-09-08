@@ -23,8 +23,13 @@ const knownPeople = computed(() => {
   ).values()]
 })
 const canEditDecision = computed(() => !!resolution.value?.can_edit_decision)
-const canUpdateExecution = computed(() => !!resolution.value?.can_update_execution)
-const canSave = computed(() => hydrated.value && (canEditDecision.value || canUpdateExecution.value))
+const canEditResult = computed(() => {
+  const item = resolution.value
+  if (!item) return false
+  if (Array.isArray(item.allowed_actions)) return item.allowed_actions.includes('edit_result')
+  return Boolean(item.can_update_execution) && !item.task_linked && !['done', 'cancelled'].includes(String(item.execution_state ?? item.state))
+})
+const canSave = computed(() => hydrated.value && (canEditDecision.value || canEditResult.value))
 const name = ref('')
 const responsibleId = ref<number | ''>('')
 const deadline = ref('')
@@ -49,6 +54,13 @@ watch(resolution, (item) => {
 }, { immediate: true })
 
 const dirty = computed(() => loaded.value && snapshot() !== baseline.value)
+const validationMessage = computed(() => {
+  if (!canEditDecision.value) return ''
+  if (!name.value.trim()) return t('meetingsUx.validation.resolutionName')
+  if (!responsibleId.value) return t('meetingsUx.validation.responsible')
+  if (!deadline.value) return t('meetingsUx.validation.deadline')
+  return ''
+})
 
 async function save() {
   if (!canSave.value || !dirty.value || (canEditDecision.value && (!name.value.trim() || !responsibleId.value || !deadline.value))) return
@@ -59,7 +71,7 @@ async function save() {
     if (deadline.value) body.deadline = deadline.value
     body.priority = priority.value
   }
-  if (canUpdateExecution.value) body.result = result.value
+  if (canEditResult.value) body.result = result.value
   if (!Object.keys(body).length) return
   await mutateAsync({ meetingId: meetingId.value, resolutionId: resolutionId.value, body })
   baseline.value = snapshot()
@@ -72,7 +84,7 @@ async function save() {
   <SharedPageContainer width="form">
     <SharedPageHeader :title="t('meetingsUi.editResolution')" :back-to="returnTo" />
     <SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!query.isLoading.value && !query.error.value && !resolution" @retry="query.refetch">
-      <div v-if="resolution && !canEditDecision && !canUpdateExecution" class="nasq-panel nasq-panel-body text-sm text-muted-foreground">
+      <div v-if="resolution && !canEditDecision && !canEditResult" class="nasq-panel nasq-panel-body text-sm text-muted-foreground">
         {{ t('meetingsUi.resolutionReadOnly') }}
       </div>
       <form v-else-if="resolution" class="nasq-form nasq-panel nasq-panel-body grid gap-4" @submit.prevent="save">
@@ -96,19 +108,20 @@ async function save() {
           <div class="grid gap-2">
             <Label for="resolution-priority">{{ t('meetingsUi.priority') }}</Label>
             <select id="resolution-priority" v-model="priority" class="border-input h-9 w-full min-w-0 rounded-lg border bg-transparent px-2 text-sm" :disabled="!hydrated || isPending">
-              <option v-for="code in ['0', '1', '2', '3']" :key="code" :value="code">{{ t(`meetingsUi.priorityLabel.${code}`) }}</option>
+              <option v-for="code in ['0', '1', '2', '3']" :key="code" :value="code">{{ t(`meetingsUx.priorityLabel.${code}`) }}</option>
             </select>
           </div>
         </SharedFormSection>
-        <SharedFormSection v-if="canUpdateExecution" :title="t('meetingsUi.result')">
+        <SharedFormSection v-if="canEditResult" :title="t('meetingsUi.result')">
           <ClientOnly>
-            <DescriptionEditor :model-value="result" :task-id="0" :readonly="isPending" @draft="result = $event.html" />
+            <DescriptionEditor :model-value="result" :task-id="0" :readonly="isPending" :aria-label="t('meetingsUx.completionNotes')" @draft="result = $event.html" />
           </ClientOnly>
         </SharedFormSection>
+        <p v-if="validationMessage" class="text-sm text-muted-foreground" aria-live="polite">{{ validationMessage }}</p>
         <p v-if="error" role="alert" class="text-sm text-destructive">{{ error.message }}</p>
         <div class="flex justify-end gap-2">
           <NuxtLink :to="returnTo"><Button type="button" variant="outline">{{ t('app.cancel') }}</Button></NuxtLink>
-          <Button type="submit" :disabled="!canSave || isPending || !dirty || (canEditDecision && (!name.trim() || !responsibleId || !deadline))">{{ t('app.save') }}</Button>
+          <Button type="submit" :disabled="!canSave || isPending || !dirty || Boolean(validationMessage)">{{ t('app.save') }}</Button>
         </div>
       </form>
     </SharedPageState>

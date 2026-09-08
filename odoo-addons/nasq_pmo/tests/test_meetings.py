@@ -10,6 +10,110 @@ from .common import NasqPmoCase
 @tagged('post_install', '-at_install', 'nasq')
 class TestMeetingsApi(NasqPmoCase):
 
+    def _grant_meeting_create(self):
+        self.employee.group_ids |= (
+            self.env.ref('nasq_core.group_cap_meetings_read')
+            | self.env.ref('nasq_core.group_cap_meetings_create')
+        )
+        role = self.env['nasq.access.role'].create({
+            'name_ar': 'إنشاء الاجتماعات للاختبار', 'key': 'meeting_http_create_tests',
+            'type': 'custom', 'permission_ids': [(6, 0, self.env['nasq.access.permission'].search([
+                ('key', 'in', ['meetings.read', 'meetings.create']),
+            ]).ids)],
+        })
+        self.env['nasq.access.assignment'].create({
+            'user_id': self.employee.id, 'company_id': self.env.company.id, 'role_id': role.id,
+        })
+
+    def test_patch_explicitly_clears_start_and_end(self):
+        self._grant_meeting_create()
+        meeting = self.env['cyan.meeting.minute'].create({
+            'name': 'Clear schedule', 'state': 'draft', 'organizer_id': self.employee.id,
+            'meeting_date': '2026-09-08',
+            'start_datetime': '2026-09-08 09:00:00',
+            'end_datetime': '2026-09-08 10:00:00',
+        })
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        response = self.api('PATCH', f'/api/v1/meetings/{meeting.id}', {
+            'start_datetime': None, 'end_datetime': None,
+        })
+        self.assertEqual(response.status_code, 200, response.text)
+        body = response.json()
+        self.assertIsNone(body['start_datetime'])
+        self.assertIsNone(body['end_datetime'])
+        meeting.invalidate_recordset()
+        self.assertFalse(meeting.start_datetime)
+        self.assertFalse(meeting.end_datetime)
+
+    def test_patch_title_only_normalizes_existing_odoo_datetimes(self):
+        self._grant_meeting_create()
+        meeting = self.env['cyan.meeting.minute'].create({
+            'name': 'Existing schedule', 'state': 'draft', 'organizer_id': self.employee.id,
+            'meeting_date': '2026-09-08',
+            'start_datetime': '2026-09-08 09:00:00',
+            'end_datetime': '2026-09-08 10:00:00',
+        })
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        response = self.api('PATCH', f'/api/v1/meetings/{meeting.id}', {'name': 'Renamed schedule'})
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()['name'], 'Renamed schedule')
+        self.assertEqual(response.json()['start_datetime'], '2026-09-08T09:00:00Z')
+
+    def test_patch_clear_clocks_allows_an_explicit_new_calendar_day(self):
+        self._grant_meeting_create()
+        meeting = self.env['cyan.meeting.minute'].create({
+            'name': 'Move date', 'state': 'draft', 'organizer_id': self.employee.id,
+            'meeting_date': '2026-09-08',
+            'start_datetime': '2026-09-08 09:00:00',
+            'end_datetime': '2026-09-08 10:00:00',
+        })
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        response = self.api('PATCH', f'/api/v1/meetings/{meeting.id}', {
+            'meeting_date': '2026-09-10', 'start_datetime': None, 'end_datetime': None,
+        })
+        self.assertEqual(response.status_code, 200, response.text)
+        body = response.json()
+        self.assertEqual(body['meeting_date'], '2026-09-10')
+        self.assertIsNone(body['start_datetime'])
+        self.assertIsNone(body['end_datetime'])
+
+    def test_create_derives_user_calendar_day_and_rejects_conflicting_day(self):
+        self._grant_meeting_create()
+        self.employee.tz = 'Asia/Riyadh'
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        created = self.api('POST', '/api/v1/meetings', {
+            'name': 'Timezone day',
+            'start_datetime': '2026-09-08T23:30:00+03:00',
+            'end_datetime': '2026-09-09T00:30:00+03:00',
+        })
+        self.assertEqual(created.status_code, 201, created.text)
+        self.assertEqual(created.json()['meeting_date'], '2026-09-08')
+        conflicting = self.api('POST', '/api/v1/meetings', {
+            'name': 'Conflicting day', 'meeting_date': '2026-09-09',
+            'start_datetime': '2026-09-08T23:30:00+03:00',
+            'end_datetime': '2026-09-09T00:30:00+03:00',
+        })
+        self.assertEqual(conflicting.status_code, 422, conflicting.text)
+        self.assertEqual(conflicting.json()['field'], 'meeting_date')
+
+    def test_create_rejects_invalid_range_and_patch_rejects_invalid_url(self):
+        self._grant_meeting_create()
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        invalid_range = self.api('POST', '/api/v1/meetings', {
+            'name': 'Bad range', 'start_datetime': '2026-09-08T10:00:00Z',
+            'end_datetime': '2026-09-08T10:00:00Z',
+        })
+        self.assertEqual(invalid_range.status_code, 422, invalid_range.text)
+        self.assertEqual(invalid_range.json()['field'], 'end_datetime')
+        meeting = self.env['cyan.meeting.minute'].with_user(self.employee).create({
+            'name': 'URL validation', 'meeting_date': '2026-09-08',
+        })
+        invalid_url = self.api('PATCH', f'/api/v1/meetings/{meeting.id}', {
+            'meeting_url': 'not a url',
+        })
+        self.assertEqual(invalid_url.status_code, 422, invalid_url.text)
+        self.assertEqual(invalid_url.json()['field'], 'meeting_url')
+
     def test_patch_cannot_attach_meeting_to_unmanaged_series(self):
         role = self.env['nasq.access.role'].create({
             'name_ar': 'تعديل اجتماعاتي', 'key': 'meeting_patch_create_only',
@@ -113,6 +217,16 @@ class TestMeetingsApi(NasqPmoCase):
         })
         self.assertEqual(patched.status_code, 200, patched.text)
         self.assertEqual(patched.json()['start_datetime'], '2026-09-08T11:00:00Z')
+        cleared = self.api('PATCH', f'/api/v1/meetings/{first.id}', {
+            'start_datetime': None, 'end_datetime': None, 'scope': 'this_and_following',
+        })
+        self.assertEqual(cleared.status_code, 200, cleared.text)
+        first.invalidate_recordset()
+        second.invalidate_recordset()
+        self.assertFalse(first.start_datetime)
+        self.assertFalse(first.end_datetime)
+        self.assertFalse(second.start_datetime)
+        self.assertFalse(second.end_datetime)
         cancelled = self.api('POST', f'/api/v1/meetings/{first.id}/cancel', {
             'scope': 'this_and_following',
         })
@@ -121,6 +235,116 @@ class TestMeetingsApi(NasqPmoCase):
         second.invalidate_recordset()
         self.assertEqual((first.state, second.state), ('cancelled', 'cancelled'))
         self.assertEqual(self.api('POST', f'/api/v1/meetings/{first.id}/cancel', {}).status_code, 200)
+
+    def test_http_scope_preserves_shift_when_end_is_cleared(self):
+        role = self.env['nasq.access.role'].create({
+            'name_ar': 'تعديل الموعد مع المسح', 'key': 'meeting_scope_mixed_clear',
+            'type': 'custom', 'permission_ids': [(6, 0, self.env['nasq.access.permission'].search([
+                ('key', 'in', ['meetings.read', 'meetings.manage']),
+            ]).ids)],
+        })
+        self.env['nasq.access.assignment'].create({
+            'user_id': self.manager.id, 'company_id': self.env.company.id, 'role_id': role.id,
+        })
+        series = self.env['nasq.meeting.series'].create({
+            'name': 'Mixed schedule', 'recurrence': 'none', 'organizer_id': self.manager.id,
+        })
+        first = series.action_add_occurrence(
+            fields.Datetime.to_datetime('2026-09-08 09:00:00'),
+            fields.Datetime.to_datetime('2026-09-08 10:00:00'), 'First',
+        )
+        second = series.action_add_occurrence(
+            fields.Datetime.to_datetime('2026-09-15 09:00:00'),
+            fields.Datetime.to_datetime('2026-09-15 10:00:00'), 'Second',
+        )
+        self.authenticate('api_mgr', 'api_mgr_pass_123')
+        response = self.api('PATCH', f'/api/v1/meetings/{first.id}', {
+            'start_datetime': '2026-09-08T11:00:00.000Z',
+            'end_datetime': None, 'scope': 'this_and_following',
+        })
+        self.assertEqual(response.status_code, 200, response.text)
+        first.invalidate_recordset()
+        second.invalidate_recordset()
+        self.assertEqual((first.start_datetime, second.start_datetime), (
+            fields.Datetime.to_datetime('2026-09-08 11:00:00'),
+            fields.Datetime.to_datetime('2026-09-15 11:00:00'),
+        ))
+        self.assertFalse(first.end_datetime)
+        self.assertFalse(second.end_datetime)
+
+    def test_http_scope_anchors_clocks_to_each_following_date_only_occurrence(self):
+        role = self.env['nasq.access.role'].create({
+            'name_ar': 'إضافة الوقت للاجتماعات المؤرخة', 'key': 'meeting_scope_date_only_clocks',
+            'type': 'custom', 'permission_ids': [(6, 0, self.env['nasq.access.permission'].search([
+                ('key', 'in', ['meetings.read', 'meetings.manage']),
+            ]).ids)],
+        })
+        self.env['nasq.access.assignment'].create({
+            'user_id': self.manager.id, 'company_id': self.env.company.id, 'role_id': role.id,
+        })
+        series = self.env['nasq.meeting.series'].create({
+            'name': 'Date-only schedule', 'recurrence': 'none', 'organizer_id': self.manager.id,
+        })
+        first = self.env['cyan.meeting.minute'].create({
+            'name': 'First date-only', 'state': 'draft', 'series_id': series.id, 'organizer_id': self.manager.id,
+            'meeting_date': '2026-09-08',
+        })
+        second = self.env['cyan.meeting.minute'].create({
+            'name': 'Second date-only', 'state': 'draft', 'series_id': series.id, 'organizer_id': self.manager.id,
+            'meeting_date': '2026-09-15',
+        })
+        self.authenticate('api_mgr', 'api_mgr_pass_123')
+        response = self.api('PATCH', f'/api/v1/meetings/{first.id}', {
+            'start_datetime': '2026-09-08T09:00:00.000Z',
+            'end_datetime': '2026-09-08T10:00:00.000Z', 'scope': 'this_and_following',
+        })
+        self.assertEqual(response.status_code, 200, response.text)
+        first.invalidate_recordset()
+        second.invalidate_recordset()
+        self.assertEqual((first.start_datetime, first.end_datetime), (
+            fields.Datetime.to_datetime('2026-09-08 09:00:00'),
+            fields.Datetime.to_datetime('2026-09-08 10:00:00'),
+        ))
+        self.assertEqual((second.start_datetime, second.end_datetime), (
+            fields.Datetime.to_datetime('2026-09-15 09:00:00'),
+            fields.Datetime.to_datetime('2026-09-15 10:00:00'),
+        ))
+
+    def test_http_scope_keeps_timed_following_occurrence_when_source_is_date_only(self):
+        role = self.env['nasq.access.role'].create({
+            'name_ar': 'تحديث اجتماع مؤرخ مختلط', 'key': 'meeting_scope_mixed_date_only',
+            'type': 'custom', 'permission_ids': [(6, 0, self.env['nasq.access.permission'].search([
+                ('key', 'in', ['meetings.read', 'meetings.manage']),
+            ]).ids)],
+        })
+        self.env['nasq.access.assignment'].create({
+            'user_id': self.manager.id, 'company_id': self.env.company.id, 'role_id': role.id,
+        })
+        series = self.env['nasq.meeting.series'].create({
+            'name': 'Mixed date-only schedule', 'recurrence': 'none', 'organizer_id': self.manager.id,
+        })
+        first = self.env['cyan.meeting.minute'].create({
+            'name': 'First date-only', 'state': 'draft', 'series_id': series.id, 'organizer_id': self.manager.id,
+            'meeting_date': '2026-09-08',
+        })
+        second = self.env['cyan.meeting.minute'].create({
+            'name': 'Second timed', 'state': 'draft', 'series_id': series.id, 'organizer_id': self.manager.id,
+            'meeting_date': '2026-09-15',
+            'start_datetime': '2026-09-15 14:00:00', 'end_datetime': '2026-09-15 15:00:00',
+        })
+        self.authenticate('api_mgr', 'api_mgr_pass_123')
+        response = self.api('PATCH', f'/api/v1/meetings/{first.id}', {
+            'meeting_date': '2026-09-10',
+            'start_datetime': '2026-09-10T09:00:00.000Z',
+            'end_datetime': '2026-09-10T10:00:00.000Z', 'scope': 'this_and_following',
+        })
+        self.assertEqual(response.status_code, 200, response.text)
+        second.invalidate_recordset()
+        self.assertEqual((second.meeting_date, second.start_datetime, second.end_datetime), (
+            fields.Date.to_date('2026-09-17'),
+            fields.Datetime.to_datetime('2026-09-17 14:00:00'),
+            fields.Datetime.to_datetime('2026-09-17 15:00:00'),
+        ))
 
     def test_employee_lists_participant_meetings_only(self):
         user_group = self.env.ref('nasq_core.group_cap_meetings_read')

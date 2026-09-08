@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <template id="report_meeting_minutes_document_history"
+              inherit_id="cyan_meeting_minutes.report_meeting_minutes_document">
+        <xpath expr="//div[contains(concat(' ', normalize-space(@class), ' '), ' page ')]" position="replace">
+            <div class="page" t-att-dir="'rtl' if doc.env.user.lang and doc.env.user.lang.startswith('ar') else 'ltr'">
+                <t t-set="is_ar" t-value="doc.env.user.lang and doc.env.user.lang.startswith('ar')"/>
+                <t t-set="state_labels" t-value="{'open': 'مفتوح', 'in_progress': 'قيد التنفيذ', 'done': 'مكتمل', 'cancelled': 'ملغى'} if is_ar else {'open': 'Open', 'in_progress': 'In progress', 'done': 'Done', 'cancelled': 'Cancelled'}"/>
+                <t t-set="history" t-value="doc.minutes_snapshot if doc.state == 'done' else None"/>
+                <t t-if="history">
+                    <h2 t-if="doc.env.user.lang and doc.env.user.lang.startswith('ar')">محضر الاجتماع</h2>
+                    <h2 t-else="">Internal Meeting Minutes</h2>
+                    <p class="text-muted">
+                        <span t-if="doc.env.user.lang and doc.env.user.lang.startswith('ar')">لقطة تاريخية محفوظة عند إكمال المحضر</span>
+                        <span t-else="">Historical snapshot captured when the minutes were completed</span>
+                    </p>
+                    <table class="table table-sm table-borderless">
+                        <tr>
+                            <th t-if="doc.env.user.lang and doc.env.user.lang.startswith('ar')">المرجع</th>
+                            <th t-else="">Reference</th>
+                            <td><span t-esc="doc.reference"/></td>
+                            <th t-if="doc.env.user.lang and doc.env.user.lang.startswith('ar')">تاريخ الاجتماع</th>
+                            <th t-else="">Meeting Date</th>
+                            <td><span t-esc="history.get('meeting_date') or ''"/></td>
+                        </tr>
+                        <tr>
+                            <th t-if="doc.env.user.lang and doc.env.user.lang.startswith('ar')">العنوان</th>
+                            <th t-else="">Title</th>
+                            <td colspan="3"><span t-esc="history.get('name') or ''"/></td>
+                        </tr>
+                        <tr>
+                            <th t-if="doc.env.user.lang and doc.env.user.lang.startswith('ar')">المكان</th>
+                            <th t-else="">Location</th>
+                            <td><span t-esc="history.get('location') or ''"/></td>
+                            <th t-if="doc.env.user.lang and doc.env.user.lang.startswith('ar')">المنظم</th>
+                            <th t-else="">Organizer</th>
+                            <td><span t-esc="history.get('organizer', {}).get('name') if history.get('organizer') else ''"/></td>
+                        </tr>
+                        <tr>
+                            <th t-if="doc.env.user.lang and doc.env.user.lang.startswith('ar')">المشاركون</th>
+                            <th t-else="">Attendees</th>
+                            <td colspan="3"><span t-esc="', '.join(item.get('name', '') for item in history.get('attendees', []))"/></td>
+                        </tr>
+                        <tr>
+                            <th t-if="doc.env.user.lang and doc.env.user.lang.startswith('ar')">أمين السر</th>
+                            <th t-else="">Secretary</th>
+                            <td><span t-esc="history.get('secretary', {}).get('name') if history.get('secretary') else ''"/></td>
+                            <th t-if="doc.env.user.lang and doc.env.user.lang.startswith('ar')">وقت الحفظ</th>
+                            <th t-else="">Captured At</th>
+                            <td><span t-esc="doc._nasq_format_snapshot_datetime(history.get('captured_at'))"/></td>
+                        </tr>
+                        <tr>
+                            <th t-if="doc.env.user.lang and doc.env.user.lang.startswith('ar')">وقت البدء</th>
+                            <th t-else="">Start</th>
+                            <td><span t-esc="doc._nasq_format_snapshot_datetime(history.get('start_datetime'))"/></td>
+                            <th t-if="doc.env.user.lang and doc.env.user.lang.startswith('ar')">وقت الانتهاء</th>
+                            <th t-else="">End</th>
+                            <td><span t-esc="doc._nasq_format_snapshot_datetime(history.get('end_datetime'))"/></td>
+                        </tr>
+                    </table>
+                    <h3 t-if="doc.env.user.lang and doc.env.user.lang.startswith('ar')">جدول الأعمال</h3>
+                    <h3 t-else="">Agenda</h3>
+                    <div t-raw="history.get('agenda') or ''"/>
+                    <h3 t-if="doc.env.user.lang and doc.env.user.lang.startswith('ar')">المحضر</h3>
+                    <h3 t-else="">Meeting Minutes</h3>
+                    <div t-raw="history.get('minutes') or ''"/>
+                    <h3 t-if="doc.env.user.lang and doc.env.user.lang.startswith('ar')">القرارات</h3>
+                    <h3 t-else="">Resolutions</h3>
+                    <table class="table table-sm table-bordered">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th t-if="doc.env.user.lang and doc.env.user.lang.startswith('ar')">القرار</th>
+                                <th t-else="">Resolution</th>
+                                <th t-if="doc.env.user.lang and doc.env.user.lang.startswith('ar')">المسؤول</th>
+                                <th t-else="">Responsible</th>
+                                <th t-if="doc.env.user.lang and doc.env.user.lang.startswith('ar')">الموعد</th>
+                                <th t-else="">Deadline</th>
+                                <th t-if="doc.env.user.lang and doc.env.user.lang.startswith('ar')">الحالة</th>
+                                <th t-else="">Status</th>
+                                <th t-if="doc.env.user.lang and doc.env.user.lang.startswith('ar')">النتيجة</th>
+                                <th t-else="">Result</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr t-foreach="history.get('resolutions', [])" t-as="resolution">
+                                <td><span t-esc="resolution_index + 1"/></td>
+                                <td><span t-esc="resolution.get('name') or ''"/></td>
+                                <td><span t-esc="resolution.get('responsible', {}).get('name') if resolution.get('responsible') else ''"/></td>
+                                <td><span t-esc="resolution.get('deadline') or ''"/></td>
+                                <td><span t-esc="state_labels.get(resolution.get('state'), resolution.get('state') or '')"/></td>
+                                <td><div t-raw="resolution.get('result') or ''"/></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </t>
+                <t t-else="">
+                    <h2 t-if="is_ar">محضر الاجتماع</h2>
+                    <h2 t-else="">Internal Meeting Minutes</h2>
+                    <p class="text-muted" t-if="doc.state == 'done'">
+                        <span t-if="is_ar">السجل التاريخي غير متاح لهذا المحضر القديم</span>
+                        <span t-else="">Historical snapshot unavailable for this legacy completed meeting</span>
+                    </p>
+                    <p class="text-muted" t-else="">
+                        <span t-if="is_ar">مسودة أو محتوى حي قابل للتغيير</span>
+                        <span t-else="">Draft / live content</span>
+                    </p>
+                    <table class="table table-sm table-borderless">
+                        <tr><th t-if="is_ar">المرجع</th><th t-else="">Reference</th><td><span t-field="doc.reference"/></td><th t-if="is_ar">تاريخ الاجتماع</th><th t-else="">Meeting Date</th><td><span t-field="doc.meeting_date"/></td></tr>
+                        <tr><th t-if="is_ar">العنوان</th><th t-else="">Title</th><td colspan="3"><span t-field="doc.name"/></td></tr>
+                        <tr><th t-if="is_ar">المكان</th><th t-else="">Location</th><td><span t-field="doc.location"/></td><th t-if="is_ar">المنظم</th><th t-else="">Organizer</th><td><span t-field="doc.organizer_id.name"/></td></tr>
+                        <tr><th t-if="is_ar">المشاركون</th><th t-else="">Attendees</th><td colspan="3"><span t-esc="', '.join(doc.attendee_ids.mapped('name'))"/></td></tr>
+                    </table>
+                    <h3 t-if="is_ar">جدول الأعمال</h3><h3 t-else="">Agenda</h3>
+                    <div t-field="doc.agenda"/>
+                    <h3 t-if="is_ar">المحضر</h3><h3 t-else="">Meeting Minutes</h3>
+                    <div t-field="doc.minutes"/>
+                    <h3 t-if="is_ar">القرارات</h3><h3 t-else="">Resolutions</h3>
+                    <table class="table table-sm table-bordered">
+                        <thead><tr><th>#</th><th t-if="is_ar">القرار</th><th t-else="">Resolution</th><th t-if="is_ar">المسؤول</th><th t-else="">Responsible</th><th t-if="is_ar">الموعد</th><th t-else="">Deadline</th><th t-if="is_ar">الحالة</th><th t-else="">Status</th></tr></thead>
+                        <tbody>
+                            <tr t-foreach="doc.resolution_ids" t-as="resolution">
+                                <td><span t-esc="resolution_index + 1"/></td>
+                                <td><span t-field="resolution.name"/></td>
+                                <td><span t-field="resolution.responsible_id.name"/></td>
+                                <td><span t-field="resolution.deadline"/></td>
+                                <td><span t-esc="state_labels.get(resolution.state, resolution.state)"/></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </t>
+            </div>
+        </xpath>
+    </template>
+</odoo>

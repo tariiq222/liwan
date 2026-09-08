@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { MeetingCreateSchema, MeetingDetailSchema, MeetingListSchema, MeetingSeriesCreateSchema, MeetingSeriesDetailSchema, MeetingSeriesListSchema } from '..'
+import { MeetingCreateSchema, MeetingDetailSchema, MeetingListSchema, MeetingPatchSchema, MeetingResolutionSchema, MeetingSeriesCreateSchema, MeetingSeriesDetailSchema, MeetingSeriesListSchema } from '..'
 import { NotificationSchema } from '../../pmo/notification'
 
 const ITEM = {
@@ -26,6 +26,31 @@ describe('meeting contracts', () => {
       location: '', meeting_url: '',
     })
   })
+
+  it('accepts explicit nulls for clearing meeting schedule fields', () => {
+    expect(MeetingPatchSchema.parse({ start_datetime: null, end_datetime: null })).toEqual({
+      start_datetime: null,
+      end_datetime: null,
+    })
+  })
+
+  it('accepts additive resolution execution fields from the server', () => {
+    expect(MeetingResolutionSchema.parse({
+      id: 4,
+      name: 'Follow up',
+      deadline: '2026-09-12',
+      priority: '0',
+      state: 'open',
+      responsible: null,
+      task_id: null,
+      result: '',
+      can_update_execution: true,
+      can_edit_decision: true,
+      execution_state: 'open',
+      task_linked: false,
+      allowed_actions: ['start', 'complete', 'cancel', 'edit_result'],
+    }).execution_state).toBe('open')
+  })
   it('parses list and detail envelopes', () => {
     expect(MeetingListSchema.parse({ items: [ITEM], total: 1 }).total).toBe(1)
     expect(MeetingDetailSchema.parse({
@@ -42,7 +67,29 @@ describe('meeting contracts', () => {
       series: null,
       project: null,
       previous_resolutions: [],
+      minutes_snapshot: null,
     }).attendees).toHaveLength(1)
+  })
+
+  it('keeps minutes_snapshot additive for legacy detail payloads', () => {
+    const legacy = {
+      id: 1,
+      name: 'Legacy',
+      reference: 'MM/0002',
+      meeting_date: null,
+      start_datetime: null,
+      end_datetime: null,
+      state: 'done' as const,
+      organizer: null,
+      open_resolution_count: 0,
+      series_id: null,
+      project_id: null,
+      agenda: '', minutes: '', location: '', meeting_url: '',
+      can_edit: false, can_manage: false, secretary: null,
+      attendees: [], resolutions: [], series: null, project: null,
+      previous_resolutions: [],
+    }
+    expect(MeetingDetailSchema.parse(legacy).minutes_snapshot).toBeUndefined()
   })
 })
 
@@ -100,7 +147,7 @@ describe('meeting series boundaries', () => {
     expect(MeetingSeriesListSchema.parse({ items: [row], total: 51 }).total).toBe(51)
     expect(MeetingSeriesDetailSchema.parse({
       ...row, location: 'Room', meeting_url: '', secretary: null,
-      attendees: [{ id: 3, name: 'Member' }], meetings: [{ ...ITEM, series_id: 1 }],
+      attendees: [{ id: 3, name: 'Member' }], meetings: [{ ...ITEM, series_id: 1 }], can_edit: true,
     }).meetings[0]?.series_id).toBe(1)
   })
 

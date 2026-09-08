@@ -1,6 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from datetime import date, datetime
 
+from odoo import fields
 from odoo.exceptions import AccessError
 
 from odoo.addons.nasq_api.serializers.common import iso
@@ -24,10 +25,82 @@ def dump_project_ref(record):
     return {'id': project.id, 'name': project.name}
 
 
+TASK_EXECUTION_STATES = {
+    '1_done': 'done',
+    '1_canceled': 'cancelled',
+}
+
+
+def _task_execution_state(task):
+    return TASK_EXECUTION_STATES.get(task.state, 'in_progress')
+
+
+def dump_minutes_snapshot(meeting):
+    """Expose only a completed meeting's frozen, server-built payload."""
+    if meeting.state != 'done' or not isinstance(meeting.minutes_snapshot, dict):
+        return None
+    snapshot = meeting.minutes_snapshot
+    return {
+        'captured_at': snapshot.get('captured_at'),
+        'name': snapshot.get('name', ''),
+        'meeting_date': snapshot.get('meeting_date'),
+        'start_datetime': snapshot.get('start_datetime'),
+        'end_datetime': snapshot.get('end_datetime'),
+        'location': snapshot.get('location', ''),
+        'organizer': snapshot.get('organizer'),
+        'secretary': snapshot.get('secretary'),
+        'attendees': snapshot.get('attendees') or [],
+        'agenda': snapshot.get('agenda', ''),
+        'minutes': snapshot.get('minutes', ''),
+        'resolutions': [
+            {
+                'id': row.get('id'),
+                'name': row.get('name', ''),
+                'deadline': row.get('deadline'),
+                'priority': row.get('priority', '0'),
+                'state': row.get('state', 'open'),
+                'responsible': row.get('responsible'),
+                'result': row.get('result', ''),
+                'meeting_name': row.get('meeting_name', snapshot.get('name', '')),
+            }
+            for row in snapshot.get('resolutions', [])
+            if isinstance(row, dict)
+        ],
+    }
+
+
+def _resolution_allowed_actions(resolution, *, linked, task_readable):
+    if linked:
+        return []
+    meeting = resolution.meeting_id
+    if meeting.state == 'cancelled':
+        return []
+    manager = resolution._cyan_is_manager()
+    editor = resolution._cyan_is_meeting_editor(meeting)
+    assignee = resolution.env.user == resolution.responsible_id
+    if resolution.state in ('done', 'cancelled'):
+        return ['reopen'] if manager else []
+    if not editor and not assignee:
+        return []
+    actions = []
+    if resolution.state == 'open':
+        actions.append('start')
+    actions.append('complete')
+    if editor:
+        actions.append('cancel')
+    actions.append('edit_result')
+    return actions
+
+
 def dump_resolution(resolution, task_id=None):
     has_task = bool(task_id or resolution.env['project.task'].with_context(active_test=False).sudo().search_count(
         [('resolution_id', '=', resolution.id)], limit=1,
     ))
+    task = resolution.env['project.task'].browse(task_id).exists() if task_id else resolution.env['project.task']
+    execution_state = _task_execution_state(task) if task else resolution.state
+    allowed_actions = _resolution_allowed_actions(
+        resolution, linked=has_task, task_readable=bool(task),
+    )
     return {
         'id': resolution.id,
         'name': resolution.name,
@@ -37,8 +110,11 @@ def dump_resolution(resolution, task_id=None):
         'responsible': dump_person(resolution.responsible_id),
         'task_id': task_id,
         'result': resolution.result or '',
-        'can_update_execution': bool(resolution.can_update_execution) and not has_task,
+        'can_update_execution': bool(set(allowed_actions) & {'start', 'complete', 'cancel'}),
         'can_edit_decision': bool(resolution.can_edit_decision) and not has_task,
+        'execution_state': execution_state,
+        'task_linked': has_task,
+        'allowed_actions': allowed_actions,
     }
 
 
@@ -60,8 +136,26 @@ def _readable_task_ids_by_resolution(meeting, resolutions):
         ('company_id', '=', meeting.env.company.id),
         ('project_id.company_id', '=', meeting.env.company.id),
         ('project_id.active', '=', True),
+        ('active', '=', True),
     ])
     return {task.resolution_id: task.id for task in tasks if task.resolution_id}
+
+
+def _projected_resolution_counts(meeting, resolutions=None):
+    resolutions = resolutions if resolutions is not None else meeting.resolution_ids
+    task_by_resolution = _readable_task_ids_by_resolution(meeting, resolutions)
+    now = fields.Date.context_today(meeting)
+    open_count = overdue_count = 0
+    for resolution in resolutions:
+        task_id = task_by_resolution.get(resolution.id)
+        task = meeting.env['project.task'].browse(task_id).exists() if task_id else meeting.env['project.task']
+        state = _task_execution_state(task) if task else resolution.state
+        if state in ('done', 'cancelled'):
+            continue
+        open_count += 1
+        if resolution.deadline and resolution.deadline < now:
+            overdue_count += 1
+    return open_count, overdue_count
 
 
 def dump_meeting(meeting, *, detail=False):
@@ -74,7 +168,7 @@ def dump_meeting(meeting, *, detail=False):
         'end_datetime': iso(meeting.end_datetime),
         'state': meeting.state,
         'organizer': dump_person(meeting.organizer_id),
-        'open_resolution_count': meeting.open_resolution_count,
+        'open_resolution_count': _projected_resolution_counts(meeting)[0],
         'series_id': meeting.series_id.id or None,
         'project_id': meeting.project_id.id or None,
     }
@@ -96,6 +190,7 @@ def dump_meeting(meeting, *, detail=False):
             'series': dump_person(meeting.series_id) if meeting.series_id else None,
             'project': dump_project_ref(meeting),
             'previous_resolutions': dump_previous_resolutions(meeting),
+            'minutes_snapshot': dump_minutes_snapshot(meeting),
         })
     return payload
 
@@ -128,8 +223,8 @@ def dump_series(series, *, detail=False):
         'until_count': series.until_count or None,
         'organizer': dump_person(series.organizer_id),
         'project': dump_project_ref(series),
-        'open_resolution_count': sum(meetings.mapped('open_resolution_count')),
-        'overdue_resolution_count': sum(meetings.mapped('overdue_resolution_count')),
+        'open_resolution_count': sum(_projected_resolution_counts(meeting)[0] for meeting in meetings),
+        'overdue_resolution_count': sum(_projected_resolution_counts(meeting)[1] for meeting in meetings),
     }
     if detail:
         payload.update({
@@ -138,5 +233,6 @@ def dump_series(series, *, detail=False):
             'secretary': dump_person(series.secretary_id),
             'attendees': [dump_person(user) for user in series.attendee_ids],
             'meetings': [dump_meeting(meeting) for meeting in meetings.sorted(key=_meeting_order_key)],
+            'can_edit': bool(series._nasq_is_editor()),
         })
     return payload

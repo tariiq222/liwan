@@ -8,4 +8,11 @@ describe('meeting create routes', () => {
       query: { project_id: '42', returnTo: '/meetings?project_id=42' },
     })
   })
+
+  it('preserves series context when creating from a filtered list', () => {
+    expect(meetingCreateRoute('/meetings?series_id=7', undefined, 7)).toEqual({
+      path: '/meetings/new',
+      query: { series_id: '7', returnTo: '/meetings?series_id=7' },
+    })
+  })
 })

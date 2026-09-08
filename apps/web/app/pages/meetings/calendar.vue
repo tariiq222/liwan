@@ -2,6 +2,9 @@
 import { ChevronLeft, ChevronRight, Plus } from '@lucide/vue'
 import { useMeetings } from '@/composables/useMeetings'
 import { returnToQuery } from '@/utils/safeReturnTo'
+import { formatCalendarDate } from '@/composables/calendarDate'
+import { formatLocalDateTime } from '@/utils/meetingDateTime'
+import { calendarCoverage } from '@/utils/meetingWorkspace'
 
 const route = useRoute()
 const router = useRouter()
@@ -28,6 +31,7 @@ const query = useMeetings(computed(() => ({
   limit: 2000,
   offset: 0,
 })))
+const coverage = computed(() => calendarCoverage(query.data.value?.total, 2000))
 watch([year, month], ([nextYear, nextMonth]) => {
   const monthNumber = nextMonth + 1
   if (Number(route.query.year) === nextYear && Number(route.query.month) === monthNumber) return
@@ -50,15 +54,32 @@ const weekdayLabels = computed(() => {
 })
 
 const byDate = computed(() => {
-  const map = new Map<string, { id: number; name: string }[]>()
+  const map = new Map<string, { id: number; name: string; start_datetime: string | null; state: string }[]>()
   for (const meeting of query.data.value?.items ?? []) {
     if (!meeting.meeting_date) continue
     const list = map.get(meeting.meeting_date) ?? []
-    list.push({ id: meeting.id, name: meeting.name })
+    list.push({ id: meeting.id, name: meeting.name, start_datetime: meeting.start_datetime, state: meeting.state })
     map.set(meeting.meeting_date, list)
   }
   return map
 })
+
+const agenda = computed(() => [...(query.data.value?.items ?? [])].sort((a, b) => {
+  const aTime = a.start_datetime ? Date.parse(a.start_datetime) : Date.parse(`${a.meeting_date ?? '9999-12-31'}T00:00:00`)
+  const bTime = b.start_datetime ? Date.parse(b.start_datetime) : Date.parse(`${b.meeting_date ?? '9999-12-31'}T00:00:00`)
+  return aTime - bTime || a.id - b.id
+}))
+
+function localTime(value: string | null) {
+  if (!value) return ''
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return formatLocalDateTime(value)
+  return new Intl.DateTimeFormat(locale.value, { timeStyle: 'short', calendar: 'gregory' }).format(parsed)
+}
+
+function localDate(value: string | null) {
+  return value ? formatCalendarDate(value, locale.value) : '—'
+}
 
 const cells = computed(() => {
   const first = new Date(year.value, month.value, 1)
@@ -77,6 +98,11 @@ const cells = computed(() => {
 
 function shift(delta: number) {
   cursor.value = new Date(year.value, month.value + delta, 1)
+}
+
+function goToday() {
+  const today = new Date()
+  cursor.value = new Date(today.getFullYear(), today.getMonth(), 1)
 }
 </script>
 
@@ -98,15 +124,41 @@ function shift(delta: number) {
           <ChevronLeft v-else class="size-[18px]" />
         </Button>
         <span class="min-w-40 text-center text-sm font-medium">{{ monthLabel }}</span>
+        <Button type="button" variant="outline" size="sm" :disabled="!hydrated" @click="goToday">{{ t('meetingsUx.today') }}</Button>
         <Button type="button" variant="ghost" size="icon" class="size-[32px] rounded-lg" :disabled="!hydrated" :aria-label="t('projects.nextPage')" @click="shift(1)">
           <ChevronLeft v-if="locale === 'ar'" class="size-[18px]" />
           <ChevronRight v-else class="size-[18px]" />
         </Button>
       </div>
     </div>
+    <p v-if="coverage.status === 'truncated'" class="text-sm nasq-status-text-warning" role="status">
+      {{ t('meetingsUx.calendarTruncated', { count: coverage.total }) }}
+    </p>
+    <p v-else-if="coverage.status === 'unknown' && !query.isLoading.value" class="text-sm text-muted-foreground" role="status">
+      {{ t('meetingsUx.calendarCoverageUnknown') }}
+    </p>
     <SharedPageState :loading="query.isLoading.value" :error="query.error.value" @retry="query.refetch">
       <div class="nasq-panel overflow-hidden">
-        <div class="overflow-x-auto">
+        <div class="md:hidden">
+          <div v-if="!agenda.length" class="p-4 text-sm text-muted-foreground">{{ t('meetingsUi.empty') }}</div>
+          <NuxtLink
+            v-for="meeting in agenda"
+            :key="meeting.id"
+            :to="{ path: `/meetings/${meeting.id}`, query: returnToQuery(route.fullPath) }"
+            class="grid min-w-0 gap-1 border-b border-border p-3 last:border-0 hover:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <div class="flex min-w-0 items-start justify-between gap-2">
+              <span class="min-w-0 break-words font-medium">{{ meeting.name }}</span>
+              <Badge variant="secondary" class="shrink-0">{{ t(`meetingsUi.state.${meeting.state}`) }}</Badge>
+            </div>
+            <div class="flex flex-wrap gap-x-3 gap-y-1 text-sm text-muted-foreground">
+              <span>{{ localDate(meeting.meeting_date) }}</span>
+              <span v-if="meeting.start_datetime">{{ localTime(meeting.start_datetime) }}</span>
+              <span v-else>{{ t('meetingsUx.timeUnavailable') }}</span>
+            </div>
+          </NuxtLink>
+        </div>
+        <div class="hidden overflow-x-auto md:block">
           <div class="min-w-[560px]">
             <div class="grid grid-cols-7 border-b border-border text-center text-xs text-muted-foreground">
               <div v-for="label in weekdayLabels" :key="label" class="p-2">{{ label }}</div>
@@ -120,7 +172,12 @@ function shift(delta: number) {
                   :to="{ path: `/meetings/${meeting.id}`, query: returnToQuery(route.fullPath) }"
                   class="mt-1 block truncate rounded-md px-1 py-0.5 text-xs hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
-                  {{ meeting.name }}
+                  <span class="block truncate">{{ meeting.name }}</span>
+                  <span class="block truncate text-[11px] text-muted-foreground">
+                    <span v-if="meeting.start_datetime">{{ localTime(meeting.start_datetime) }}</span>
+                    <span v-else>{{ t('meetingsUx.timeUnavailable') }}</span>
+                    · {{ t(`meetingsUi.state.${meeting.state}`) }}
+                  </span>
                 </NuxtLink>
               </div>
             </div>

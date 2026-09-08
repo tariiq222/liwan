@@ -46,7 +46,7 @@ function page(flags: { can_edit_decision: boolean; can_update_execution: boolean
   const js = ts.transpileModule(script, {
     compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None },
   }).outputText
-  const exposed = '{ canEditDecision, canUpdateExecution, canSave, knownPeople, name, responsibleId, deadline, priority, result, save }'
+  const exposed = '{ canEditDecision, canEditResult, canSave, knownPeople, name, responsibleId, deadline, priority, result, save }'
   return {
     ...new Function(...Object.keys(scope), `${js}; return ${exposed}`)(...Object.values(scope)),
     meeting,
@@ -60,7 +60,7 @@ describe('meeting resolution edit workflow', () => {
     const edit = page({ can_edit_decision: true, can_update_execution: true })
 
     expect(edit.canEditDecision.value).toBe(true)
-    expect(edit.canUpdateExecution.value).toBe(true)
+    expect(edit.canEditResult.value).toBe(true)
     edit.name.value = 'Confirm the new venue'
     edit.responsibleId.value = 4
     edit.deadline.value = '2026-09-12'
@@ -86,7 +86,7 @@ describe('meeting resolution edit workflow', () => {
     const edit = page({ can_edit_decision: false, can_update_execution: true })
 
     expect(edit.canEditDecision.value).toBe(false)
-    expect(edit.canUpdateExecution.value).toBe(true)
+    expect(edit.canEditResult.value).toBe(true)
     edit.result.value = '<p>Venue confirmed.</p>'
     await edit.save()
 

@@ -28,6 +28,7 @@
         'data/project_charter_reference_data.xml',
         'data/nasq_notification_cron.xml',
         'data/meeting_reminder_cron.xml',
+        'report/meeting_report_history_templates.xml',
     ],
     'installable': True,
     'application': False,

@@ -35,11 +35,40 @@ export const MeetingResolutionSchema = z.object({
   result: z.string(),
   can_update_execution: z.boolean(),
   can_edit_decision: z.boolean(),
+  execution_state: z.enum(['open', 'in_progress', 'done', 'cancelled']).optional(),
+  task_linked: z.boolean().optional(),
+  allowed_actions: z.array(z.enum(['start', 'complete', 'cancel', 'reopen', 'edit_result'])).optional(),
 }).strict()
 
 export const MeetingPreviousResolutionSchema = MeetingResolutionSchema.extend({
   meeting_id: z.number().int(),
   meeting_name: z.string(),
+}).strict()
+
+export const MeetingSnapshotResolutionSchema = z.object({
+  id: z.number().int(),
+  name: z.string(),
+  deadline: z.string().nullable(),
+  priority: z.enum(['0', '1', '2', '3']),
+  state: z.enum(['open', 'in_progress', 'done', 'cancelled']),
+  responsible: MeetingPersonSchema.nullable(),
+  result: z.string(),
+  meeting_name: z.string().optional(),
+}).strict()
+
+export const MeetingMinutesSnapshotSchema = z.object({
+  captured_at: z.string(),
+  name: z.string(),
+  meeting_date: z.string().nullable(),
+  start_datetime: z.string().nullable(),
+  end_datetime: z.string().nullable(),
+  location: z.string(),
+  organizer: MeetingPersonSchema.nullable(),
+  secretary: MeetingPersonSchema.nullable(),
+  attendees: z.array(MeetingPersonSchema),
+  agenda: z.string(),
+  minutes: z.string(),
+  resolutions: z.array(MeetingSnapshotResolutionSchema),
 }).strict()
 
 export const MeetingDetailSchema = MeetingListItemSchema.extend({
@@ -55,6 +84,7 @@ export const MeetingDetailSchema = MeetingListItemSchema.extend({
   series: MeetingPersonSchema.nullable(),
   project: MeetingPersonSchema.nullable(),
   previous_resolutions: z.array(MeetingPreviousResolutionSchema),
+  minutes_snapshot: MeetingMinutesSnapshotSchema.nullable().optional(),
 }).strict()
 
 export const MeetingCreateSchema = z.object({
@@ -74,6 +104,8 @@ export const MeetingCreateSchema = z.object({
 export const MeetingPatchSchema = MeetingCreateSchema.partial().extend({
   agenda: z.string().optional(),
   minutes: z.string().optional(),
+  start_datetime: z.string().nullable().optional(),
+  end_datetime: z.string().nullable().optional(),
   secretary_id: z.number().int().nullable().optional(),
   project_id: z.number().int().nullable().optional(),
   scope: z.enum(['this', 'this_and_following']).optional(),
@@ -109,6 +141,7 @@ export const MeetingSeriesDetailSchema = MeetingSeriesListItemSchema.extend({
   secretary: MeetingPersonSchema.nullable(),
   attendees: z.array(MeetingPersonSchema),
   meetings: z.array(MeetingListItemSchema),
+  can_edit: z.boolean().optional(),
 }).strict()
 
 export const MeetingSeriesCreateSchema = z.object({
@@ -145,6 +178,7 @@ export const MeetingSeriesCreateSchema = z.object({
 export type MeetingListItem = z.infer<typeof MeetingListItemSchema>
 export type MeetingList = z.infer<typeof MeetingListSchema>
 export type MeetingDetail = z.infer<typeof MeetingDetailSchema>
+export type MeetingMinutesSnapshot = z.infer<typeof MeetingMinutesSnapshotSchema>
 export type MeetingCreate = z.infer<typeof MeetingCreateSchema>
 export type MeetingPatch = z.infer<typeof MeetingPatchSchema>
 export type MeetingResolutionCreate = z.infer<typeof MeetingResolutionCreateSchema>

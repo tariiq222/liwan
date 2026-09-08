@@ -6,6 +6,7 @@ import { formatCalendarDate } from '@/composables/calendarDate'
 import { useMeetings } from '@/composables/useMeetings'
 import { returnToQuery } from '@/utils/safeReturnTo'
 import { meetingCreateRoute } from '@/utils/meetingRoutes'
+import { formatLocalDateTime } from '@/utils/meetingDateTime'
 
 const route = useRoute()
 const router = useRouter()
@@ -34,7 +35,20 @@ const projectId = computed(() => {
   const value = Number(route.query.project_id)
   return Number.isInteger(value) && value > 0 ? value : undefined
 })
-const createMeetingTo = computed(() => meetingCreateRoute(route.fullPath, projectId.value))
+const seriesId = computed(() => {
+  const value = Number(route.query.series_id)
+  return Number.isInteger(value) && value > 0 ? value : undefined
+})
+const createMeetingTo = computed(() => meetingCreateRoute(route.fullPath, projectId.value, seriesId.value))
+const projectFilter = computed(() => route.query.project_id ? String(route.query.project_id) : '')
+const seriesFilter = computed(() => route.query.series_id ? String(route.query.series_id) : '')
+
+function localTime(value: string | null) {
+  if (!value) return ''
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return formatLocalDateTime(value)
+  return new Intl.DateTimeFormat(locale.value, { timeStyle: 'short', calendar: 'gregory' }).format(parsed)
+}
 
 watch(() => [route.query.q, route.query.offset, route.query.state, route.query.mine], ([q, nextOffset, nextState, nextMine]) => {
   search.value = String(q ?? '')
@@ -116,6 +130,10 @@ function setPage(next: number) {
           </div>
         </template>
       </FilterBar>
+      <div v-if="projectFilter || seriesFilter" class="flex flex-wrap items-center gap-2 text-sm text-muted-foreground" aria-live="polite">
+        <Badge v-if="projectFilter" variant="outline">{{ t('meetingsUx.projectFilter', { id: projectFilter }) }}</Badge>
+        <Badge v-if="seriesFilter" variant="outline">{{ t('meetingsUx.seriesFilter', { id: seriesFilter }) }}</Badge>
+      </div>
     </div>
     <SharedPageState
       :loading="query.isLoading.value"
@@ -125,6 +143,25 @@ function setPage(next: number) {
       @retry="query.refetch"
     >
       <div class="nasq-panel overflow-hidden">
+        <div class="grid divide-y divide-border md:hidden">
+          <NuxtLink
+            v-for="meeting in query.data.value?.items"
+            :key="meeting.id"
+            :to="{ path: `/meetings/${meeting.id}`, query: returnToQuery(route.fullPath) }"
+            class="grid min-w-0 gap-2 p-3 hover:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <div class="flex min-w-0 items-start justify-between gap-2">
+              <span class="min-w-0 break-words font-medium text-primary">{{ meeting.name }}</span>
+              <Badge variant="secondary" class="shrink-0">{{ t(`meetingsUi.state.${meeting.state}`) }}</Badge>
+            </div>
+            <div class="flex min-w-0 flex-wrap gap-x-3 gap-y-1 text-sm text-muted-foreground">
+              <span>{{ meeting.meeting_date ? formatCalendarDate(meeting.meeting_date, locale) : '—' }}</span>
+              <span v-if="meeting.start_datetime">{{ localTime(meeting.start_datetime) }}</span>
+              <span v-else>{{ t('meetingsUx.timeUnavailable') }}</span>
+            </div>
+          </NuxtLink>
+        </div>
+        <div class="hidden overflow-x-auto md:block">
         <div class="overflow-x-auto">
           <Table class="min-w-[720px]" :aria-label="t('nav.meetings')">
           <TableHeader>
@@ -160,6 +197,7 @@ function setPage(next: number) {
             </TableRow>
           </TableBody>
           </Table>
+        </div>
         </div>
       </div>
     </SharedPageState>
