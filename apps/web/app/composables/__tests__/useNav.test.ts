@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { activeShellModule, contextLinksForModule, projectContextId, projectContextLinks, visibleShellModules, useNav } from '../useNav'
 import { isContextPathActive } from '../useShellNavigation'
-import { projectBreadcrumbsForRoute, projectSectionRoot, shellBreadcrumbsForRoute, shellSectionRoot } from '../useShellNavigation'
+import { projectBreadcrumbsForRoute, projectSectionRoot, shellBreadcrumbsForDisplay, shellBreadcrumbsForRoute, shellSectionRoot } from '../useShellNavigation'
 
 const employee = { role: 'employee', capabilities: ['pmo.tasks.read', 'pmo.projects.read', 'meetings.read', 'hr.employees.read', 'hr.departments.read', 'hr.documents.read'] }
 const admin = { role: 'admin', capabilities: [...employee.capabilities, 'access.users.read', 'access.roles.read', 'access.audit.read', 'settings.branding.manage'] }
@@ -55,6 +55,32 @@ describe('capability-based navigation', () => {
 })
 
 describe('shell route classification', () => {
+  it('hides only ancestors whose resolved destination is already a context link', () => {
+    const resolve = (to: { path?: string; query?: Record<string, unknown> } | string) => {
+      if (typeof to === 'string') return { fullPath: to }
+      const query = new URLSearchParams(to.query as Record<string, string> | undefined).toString()
+      return { fullPath: `${to.path}${query ? `?${query}` : ''}` }
+    }
+    const contextLinks = [{ to: '/meetings' }, { to: '/meetings/calendar' }]
+
+    expect(shellBreadcrumbsForDisplay([
+      { id: 'meetings', labelKey: 'nav.meetings', to: '/meetings' },
+    ], contextLinks, resolve)).toEqual([])
+    expect(shellBreadcrumbsForDisplay([
+      { id: 'calendar', labelKey: 'nav.meetingCalendar', to: '/meetings/calendar?date=2026-09-08' },
+    ], contextLinks, resolve)).toEqual([
+      { id: 'calendar', labelKey: 'nav.meetingCalendar', to: '/meetings/calendar?date=2026-09-08' },
+    ])
+    expect(shellBreadcrumbsForDisplay([
+      { id: 'meetings', labelKey: 'nav.meetings', to: '/meetings' },
+    ], [], resolve)).toEqual([
+      { id: 'meetings', labelKey: 'nav.meetings', to: '/meetings' },
+    ])
+    expect(shellBreadcrumbsForDisplay([
+      { id: 'current', labelKey: 'meetingsUi.new', current: true },
+    ], contextLinks, resolve)).toEqual([])
+  })
+
   it('classifies every visible non-pinned context root and excludes creation links', () => {
     const full = {
       role: 'admin',

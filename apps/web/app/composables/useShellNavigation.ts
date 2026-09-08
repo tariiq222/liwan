@@ -30,6 +30,20 @@ export interface ShellBreadcrumbTarget {
   href: string | null
 }
 
+/**
+ * Removes ancestor breadcrumbs whose resolved destination is already owned by
+ * the visible contextual navigation. Resolution is deliberately delegated to
+ * the router so query strings and hashes keep their meaning.
+ */
+export function shellBreadcrumbsForDisplay(
+  breadcrumbs: readonly ShellBreadcrumb[],
+  contextLinks: readonly Pick<ShellContextLink, 'to'>[],
+  resolve: (to: RouteLocationRaw) => { fullPath: string },
+): ShellBreadcrumb[] {
+  const contextDestinations = new Set(contextLinks.map(link => resolve(link.to).fullPath))
+  return breadcrumbs.filter(crumb => !crumb.current && (!crumb.to || !contextDestinations.has(resolve(crumb.to).fullPath)))
+}
+
 export function useShellBreadcrumbTarget() {
   return useState<ShellBreadcrumbTarget>('nasq-shell-breadcrumb-target', () => ({ routeKey: '', href: null }))
 }
