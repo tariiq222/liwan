@@ -3,7 +3,7 @@ import { LogOut, Palette, UserRound } from '@lucide/vue'
 import { useQueryClient } from '@tanstack/vue-query'
 
 const queryClient = useQueryClient()
-const { t } = useI18n()
+const { t, localeProperties } = useI18n()
 const { me } = useMe()
 const { connected } = useBus()
 const hydrated = useHydrated()
@@ -22,7 +22,7 @@ async function logout() {
 </script>
 
 <template>
-  <DropdownMenu>
+  <DropdownMenu :modal="false">
     <DropdownMenuTrigger as-child :disabled="!hydrated">
       <button
         type="button"
@@ -51,12 +51,20 @@ async function logout() {
         </span>
       </button>
     </DropdownMenuTrigger>
-    <DropdownMenuContent align="end" class="approved-account-menu w-60">
-      <DropdownMenuItem as-child>
-        <NuxtLink to="/account"><UserRound aria-hidden="true" />{{ t('nav.account') }}</NuxtLink>
+    <DropdownMenuContent
+      align="end"
+      :side-offset="4"
+      :avoid-collisions="false"
+      sticky="always"
+      update-position-strategy="always"
+      :dir="localeProperties.dir === 'rtl' ? 'rtl' : 'ltr'"
+      class="approved-account-menu z-[80] w-[var(--reka-dropdown-menu-trigger-width)] min-w-52 p-1 data-[state=open]:zoom-in-100 data-[state=closed]:zoom-out-100"
+    >
+      <DropdownMenuItem @select="navigateTo('/account')">
+        <UserRound aria-hidden="true" />{{ t('nav.account') }}
       </DropdownMenuItem>
-      <DropdownMenuItem as-child>
-        <NuxtLink to="/settings/appearance"><Palette aria-hidden="true" />{{ t('settings.appearance.title') }}</NuxtLink>
+      <DropdownMenuItem @select="navigateTo('/settings/appearance')">
+        <Palette aria-hidden="true" />{{ t('settings.appearance.title') }}
       </DropdownMenuItem>
       <DropdownMenuSeparator />
       <DropdownMenuItem variant="destructive" @select="logout">

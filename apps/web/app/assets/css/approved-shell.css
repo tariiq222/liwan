@@ -107,6 +107,7 @@ html[dir="rtl"] .nasq-gantt-name { box-shadow: 8px 0 16px -12px color-mix(in srg
   min-height: 100svh;
   background: var(--shell-background);
 }
+html[dir="rtl"] body { padding-right: 0 !important; }
 @media (min-width: 761px) {
   .nasq-shell:has(.nasq-module-rail[data-expanded="true"]) { --module-rail-width: 172px; }
 }
@@ -156,6 +157,9 @@ html[dir="rtl"] .nasq-gantt-name { box-shadow: 8px 0 16px -12px color-mix(in srg
 .nasq-shell-header [data-testid="notification-bell"] { width: 34px; height: 34px; min-width: 34px; border-color: color-mix(in srgb, var(--shell-foreground) 24%, transparent); background: transparent; }
 .nasq-shell-header [data-slot="header-account"],
 .nasq-shell-header [data-testid="notification-bell"] { color: var(--shell-foreground); }
+.approved-account-menu { z-index: 80; }
+.approved-account-menu [data-slot="dropdown-menu-item"] { width: 100%; overflow: hidden; white-space: nowrap; }
+.approved-account-menu .lucide { width: 18px; height: 18px; flex: none; }
 .nasq-module-rail {
   position: fixed;
   inset-block-start: var(--shell-header-height);
