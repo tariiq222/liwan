@@ -20,6 +20,8 @@ function page(file: string, pmo = false) {
     useMeeting: () => ({ data: ref({ can_edit: true }) }), useMeetingAttachments: () => ({}),
     useUploadMeetingAttachment: () => ({}), useDeleteMeetingAttachment: () => ({}),
     useConvertResolution: () => ({ mutateAsync }),
+    useMeetingAction: () => ({ mutateAsync: vi.fn(), isPending: ref(false) }),
+    useResolutionAction: () => ({ mutateAsync: vi.fn() }),
     safeReturnTo: (_: unknown, fallback: string) => fallback, ApiError: class ApiError extends Error {},
     navigateTo: vi.fn(), toast: { error: vi.fn() } }
   const ast = ts.createSourceFile('page.ts', source, ts.ScriptTarget.Latest, true)
