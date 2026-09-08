@@ -1,5 +1,15 @@
 # Nasq workspace index
 
+## Latest branch integration — 2026-09-08
+
+The user authorized merging all current branches into `main`. The Projects forms,
+settings and workspace branch commits are reconciled in `codex/projects-refresh`,
+including the reviewed final corrections and the pre-existing main account-menu
+changes. `codex/ui-page-unify` was already an ancestor. See
+[the integration record](all-branches-integration-2026-09-08.md) for preservation,
+fresh verification and the local merge boundary. Earlier unmerged/sole-worktree
+statements below are historical checkpoints.
+
 ## Project dashboard chart correction — 2026-09-07
 
 The chart dashboard correction follows the all-branches integration. See [the delivery report](project-charts-2026-09-07.md) for source, verification, runtime and recovery.
