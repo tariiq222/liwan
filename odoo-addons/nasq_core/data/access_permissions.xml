@@ -203,24 +203,24 @@
     <record id="permission_meetings_read" model="nasq.access.permission">
         <field name="key">meetings.read</field><field name="domain">meetings</field>
         <field name="resource">meetings</field><field name="action">read</field>
-        <field name="name_ar">قراءة الاجتماعات</field><field name="name_en">Read meetings</field>
-        <field name="description_ar">قراءة الاجتماعات</field><field name="description_en">Read meetings</field>
+        <field name="name_ar">قراءة الاجتماعات والسلاسل</field><field name="name_en">Read meetings and series</field>
+        <field name="description_ar">قراءة الاجتماعات والسلاسل المتاحة ضمن الشركة الحالية وحسب نطاق المشاركة</field><field name="description_en">Read meetings and series available in the current company and the participant scope</field>
         <field name="group_xmlid">nasq_core.group_cap_meetings_read</field>
         <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/><field name="project_contextual" eval="False"/>
     </record>
     <record id="permission_meetings_create" model="nasq.access.permission">
         <field name="key">meetings.create</field><field name="domain">meetings</field>
         <field name="resource">meetings</field><field name="action">create</field>
-        <field name="name_ar">إنشاء الاجتماعات</field><field name="name_en">Create meetings</field>
-        <field name="description_ar">إنشاء الاجتماعات</field><field name="description_en">Create meetings</field>
+        <field name="name_ar">إنشاء الاجتماعات والسلاسل</field><field name="name_en">Create meetings and series</field>
+        <field name="description_ar">إنشاء الاجتماعات والسلاسل الجديدة ضمن الشركة الحالية مع احترام نطاق المشاركة</field><field name="description_en">Create new meetings and series in the current company while respecting participant scope</field>
         <field name="group_xmlid">nasq_core.group_cap_meetings_create</field>
         <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/><field name="project_contextual" eval="False"/>
     </record>
     <record id="permission_meetings_manage" model="nasq.access.permission">
         <field name="key">meetings.manage</field><field name="domain">meetings</field>
         <field name="resource">meetings</field><field name="action">manage</field>
-        <field name="name_ar">إدارة ومتابعة الاجتماعات</field><field name="name_en">Manage and follow meetings</field>
-        <field name="description_ar">إدارة ومتابعة الاجتماعات</field><field name="description_en">Manage and follow meetings</field>
+        <field name="name_ar">إدارة ومتابعة الاجتماعات والسلاسل</field><field name="name_en">Manage and follow meetings and series</field>
+        <field name="description_ar">إدارة الاجتماعات والسلاسل ومتابعة سجلاتها ضمن الشركة الحالية وفق نطاق الإدارة</field><field name="description_en">Manage meetings and series and follow their records in the current company within the manager scope</field>
         <field name="group_xmlid">nasq_core.group_cap_meetings_manage</field>
         <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/><field name="project_contextual" eval="False"/>
     </record>

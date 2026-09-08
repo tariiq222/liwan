@@ -1,11 +1,6 @@
-export type NotificationPreviewKind =
-  | 'assignment'
-  | 'comment'
-  | 'deadline'
-  | 'overdue_digest'
-  | 'meeting_invite'
-  | 'meeting_resolution'
-  | 'meeting_converted'
+import type { NotificationKind } from '@nasq/contracts'
+
+export type NotificationPreviewKind = NotificationKind
 
 const notificationDatePattern = /^(\d{4})-(\d{2})-(\d{2})(?:$|[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d{1,9})?)?(?:Z|[+-]\d{2}:?\d{2})?)$/i
 

@@ -105,9 +105,10 @@ class TestResolutionConvert(TransactionCase):
     def test_editor_converts_name_deadline_assignee_without_minutes(self):
         meeting = self._create_meeting()
         other = self._create_resolution(meeting, name='Other rec')
-        resolution = self._create_resolution(meeting)
+        resolution = self._create_resolution(meeting, priority='1')
         task = resolution.with_user(self.organizer).action_convert_to_task(self.project.id)
         self.assertEqual(task.name, 'Follow up vendor')
+        self.assertEqual(task.priority, resolution.priority)
         self.assertEqual(fields.Date.to_date(task.date_deadline), resolution.deadline)
         self.assertEqual(task.user_ids, self.attendee)
         self.assertEqual(task.meeting_id, meeting.id)

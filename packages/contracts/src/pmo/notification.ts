@@ -5,6 +5,7 @@ export const TaskNotificationKindSchema = z.enum(['assignment', 'comment', 'dead
 export const NotificationKindSchema = z.enum([
   'assignment', 'comment', 'deadline', 'overdue_digest',
   'meeting_invite', 'meeting_resolution', 'meeting_converted',
+  'meeting_changed', 'meeting_cancelled', 'meeting_reminder', 'meeting_resolution_overdue',
 ])
 
 const TaskNotificationBase = {
@@ -33,7 +34,10 @@ export const DeadlineNotificationSchema = z.object({
 
 export const MeetingNotificationSchema = z.object({
   id: z.number().int().positive(),
-  kind: z.enum(['meeting_invite', 'meeting_resolution', 'meeting_converted']),
+  kind: z.enum([
+    'meeting_invite', 'meeting_resolution', 'meeting_converted',
+    'meeting_changed', 'meeting_cancelled', 'meeting_reminder', 'meeting_resolution_overdue',
+  ]),
   meeting_id: z.number().int().positive(),
   meeting_name: z.string(),
   body: z.string(),

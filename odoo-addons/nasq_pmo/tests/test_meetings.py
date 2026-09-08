@@ -1,4 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+from unittest.mock import patch
+
 from odoo import fields
 from odoo.tests import new_test_user, tagged
 
@@ -7,6 +9,118 @@ from .common import NasqPmoCase
 
 @tagged('post_install', '-at_install', 'nasq')
 class TestMeetingsApi(NasqPmoCase):
+
+    def test_patch_cannot_attach_meeting_to_unmanaged_series(self):
+        role = self.env['nasq.access.role'].create({
+            'name_ar': 'تعديل اجتماعاتي', 'key': 'meeting_patch_create_only',
+            'type': 'custom', 'permission_ids': [(6, 0, self.env['nasq.access.permission'].search([
+                ('key', 'in', ['meetings.read', 'meetings.create']),
+            ]).ids)],
+        })
+        self.env['nasq.access.assignment'].create({
+            'user_id': self.employee.id, 'company_id': self.env.company.id, 'role_id': role.id,
+        })
+        series = self.env['nasq.meeting.series'].create({
+            'name': 'Patch target', 'recurrence': 'none', 'organizer_id': self.manager.id,
+            'attendee_ids': [(6, 0, self.employee.ids)],
+        })
+        meeting = self.env['cyan.meeting.minute'].with_user(self.employee).create({
+            'name': 'Own standalone', 'organizer_id': self.employee.id,
+            'meeting_date': fields.Date.today(),
+        })
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        response = self.api('PATCH', f'/api/v1/meetings/{meeting.id}', {'series_id': series.id})
+        self.assertEqual(response.status_code, 403, response.text)
+        self.assertEqual(response.json()['code'], 'forbidden')
+
+    def test_create_from_series_honors_explicit_null_and_empty_defaults(self):
+        self.employee.group_ids |= (
+            self.env.ref('nasq_core.group_cap_meetings_read')
+            | self.env.ref('nasq_core.group_cap_meetings_create')
+        )
+        role = self.env['nasq.access.role'].create({
+            'name_ar': 'إنشاء اجتماع افتراضي', 'key': 'meeting_create_defaults',
+            'type': 'custom', 'permission_ids': [(6, 0, self.env['nasq.access.permission'].search([
+                ('key', 'in', ['meetings.read', 'meetings.create']),
+            ]).ids)],
+        })
+        self.env['nasq.access.assignment'].create({
+            'user_id': self.employee.id, 'company_id': self.env.company.id, 'role_id': role.id,
+        })
+        series = self.env['nasq.meeting.series'].create({
+            'name': 'Defaults', 'recurrence': 'none', 'organizer_id': self.employee.id,
+            'secretary_id': self.manager.id, 'location': 'Inherited room',
+            'meeting_url': 'https://example.test/inherited',
+        })
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        response = self.api('POST', '/api/v1/meetings', {
+            'name': 'Clear inherited values', 'series_id': series.id,
+            'secretary_id': None, 'location': '', 'meeting_url': '',
+        })
+        self.assertEqual(response.status_code, 201, response.text)
+        body = response.json()
+        self.assertIsNone(body['secretary'])
+        self.assertEqual(body['location'], '')
+        self.assertEqual(body['meeting_url'], '')
+
+    def test_minutes_pdf_requires_access_and_returns_pdf_response(self):
+        self.employee.group_ids |= self.env.ref('nasq_core.group_cap_meetings_read')
+        meeting = self.env['cyan.meeting.minute'].create({
+            'state': 'draft', 'name': 'PDF minutes', 'organizer_id': self.employee.id,
+            'meeting_date': fields.Date.today(),
+        })
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        report_model = self.env['ir.actions.report']
+        with patch.object(type(report_model), '_render_qweb_pdf', return_value=(b'%PDF-test', 'pdf')):
+            response = self.url_open(f'/api/v1/meetings/{meeting.id}/minutes.pdf', method='GET')
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.headers['Content-Type'], 'application/pdf')
+        self.assertIn('attachment;', response.headers['Content-Disposition'])
+        self.assertEqual(response.content, b'%PDF-test')
+        hidden = self.env['cyan.meeting.minute'].create({
+            'state': 'draft', 'name': 'Hidden PDF', 'organizer_id': self.manager.id,
+            'meeting_date': fields.Date.today(),
+        })
+        denied = self.url_open(f'/api/v1/meetings/{hidden.id}/minutes.pdf', method='GET')
+        self.assertEqual(denied.status_code, 403)
+        self.assertNotEqual(denied.headers.get('Content-Type'), 'application/pdf')
+
+    def test_http_patch_and_cancel_scopes_apply_and_follow_lifecycle(self):
+        role = self.env['nasq.access.role'].create({
+            'name_ar': 'إدارة دورة الاجتماع', 'key': 'meeting_scope_lifecycle',
+            'type': 'custom', 'permission_ids': [(6, 0, self.env['nasq.access.permission'].search([
+                ('key', 'in', ['meetings.read', 'meetings.manage']),
+            ]).ids)],
+        })
+        self.env['nasq.access.assignment'].create({
+            'user_id': self.manager.id, 'company_id': self.env.company.id, 'role_id': role.id,
+        })
+        series = self.env['nasq.meeting.series'].create({
+            'name': 'HTTP lifecycle', 'recurrence': 'none', 'organizer_id': self.manager.id,
+        })
+        first = series.action_add_occurrence(
+            fields.Datetime.to_datetime('2026-09-08 09:00:00'),
+            fields.Datetime.to_datetime('2026-09-08 10:00:00'), 'First',
+        )
+        second = series.action_add_occurrence(
+            fields.Datetime.to_datetime('2026-09-15 09:00:00'),
+            fields.Datetime.to_datetime('2026-09-15 10:00:00'), 'Second',
+        )
+        self.authenticate('api_mgr', 'api_mgr_pass_123')
+        patched = self.api('PATCH', f'/api/v1/meetings/{first.id}', {
+            'start_datetime': '2026-09-08T11:00:00.000Z',
+            'end_datetime': '2026-09-08T12:00:00.000Z', 'scope': 'this_and_following',
+        })
+        self.assertEqual(patched.status_code, 200, patched.text)
+        self.assertEqual(patched.json()['start_datetime'], '2026-09-08T11:00:00Z')
+        cancelled = self.api('POST', f'/api/v1/meetings/{first.id}/cancel', {
+            'scope': 'this_and_following',
+        })
+        self.assertEqual(cancelled.status_code, 200, cancelled.text)
+        first.invalidate_recordset()
+        second.invalidate_recordset()
+        self.assertEqual((first.state, second.state), ('cancelled', 'cancelled'))
+        self.assertEqual(self.api('POST', f'/api/v1/meetings/{first.id}/cancel', {}).status_code, 200)
 
     def test_employee_lists_participant_meetings_only(self):
         user_group = self.env.ref('nasq_core.group_cap_meetings_read')

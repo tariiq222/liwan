@@ -34,9 +34,9 @@ class TestNasqAccessModels(TransactionCase):
         self.assertEqual(set(permissions.mapped('key')), CAPABILITIES)
         self.assertEqual(len(permissions), 28)
         by_name = {permission.key: permission.name_ar for permission in permissions}
-        self.assertEqual(by_name['meetings.read'], 'قراءة الاجتماعات')
-        self.assertEqual(by_name['meetings.create'], 'إنشاء الاجتماعات')
-        self.assertEqual(by_name['meetings.manage'], 'إدارة ومتابعة الاجتماعات')
+        self.assertEqual(by_name['meetings.read'], 'قراءة الاجتماعات والسلاسل')
+        self.assertEqual(by_name['meetings.create'], 'إنشاء الاجتماعات والسلاسل')
+        self.assertEqual(by_name['meetings.manage'], 'إدارة ومتابعة الاجتماعات والسلاسل')
 
         roles = self.env['nasq.access.role'].search([('type', '=', 'built_in')])
         by_key = {role.key: set(role.permission_ids.mapped('key')) for role in roles}

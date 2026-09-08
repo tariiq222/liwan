@@ -1,5 +1,8 @@
 # Current all-pending integration — 2026-09-08
 
+Latest meetings integration: see [the 2026-09-08 integration record](meetings-integration-2026-09-08.md) for preserved main behavior, combined checks, and cleanup recovery.
+
+
 See [the combined integration record](verification/2026-09-08-all-pending-integration.md) for the latest local source, fresh checks and recovery. It supersedes older pending charter/task/chart and temporary-worktree states below. Actual promotion and cleanup are recorded in the linked external recovery final-state.json.
 
 # Nasq workspace index

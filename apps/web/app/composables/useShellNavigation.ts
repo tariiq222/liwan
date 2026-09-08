@@ -40,6 +40,7 @@ const shellSectionRoots = new Set([
   '/archived-tasks',
   '/meetings',
   '/meetings/calendar',
+  '/meetings/series',
   '/chat',
   '/hr',
   '/hr/departments',

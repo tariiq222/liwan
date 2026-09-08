@@ -1,0 +1,108 @@
+<script setup lang="ts">
+import DescriptionEditor from '@/components/task/DescriptionEditor.vue'
+import { useMeeting, usePatchResolution } from '@/composables/useMeetings'
+import { safeReturnTo } from '@/utils/safeReturnTo'
+
+const route = useRoute()
+const { t } = useI18n()
+const hydrated = useHydrated()
+const meetingId = computed(() => Number(route.params.id))
+const resolutionId = computed(() => Number(route.params.resolutionId))
+const query = useMeeting(meetingId)
+const { mutateAsync, isPending, error } = usePatchResolution()
+const returnTo = computed(() => safeReturnTo(route.query.returnTo, `/meetings/${meetingId.value}`, ['/meetings']))
+const resolution = computed(() => query.data.value?.resolutions.find(item => item.id === resolutionId.value) ?? null)
+const knownPeople = computed(() => {
+  const meeting = query.data.value
+  if (!meeting) return []
+  const people = [meeting.organizer, meeting.secretary, ...meeting.attendees, resolution.value?.responsible]
+  return [...new Map(
+    people
+      .filter((person): person is { id: number; name: string } => Boolean(person))
+      .map(person => [person.id, person] as const),
+  ).values()]
+})
+const canEditDecision = computed(() => !!resolution.value?.can_edit_decision)
+const canUpdateExecution = computed(() => !!resolution.value?.can_update_execution)
+const canSave = computed(() => hydrated.value && (canEditDecision.value || canUpdateExecution.value))
+const name = ref('')
+const responsibleId = ref<number | ''>('')
+const deadline = ref('')
+const priority = ref<'0' | '1' | '2' | '3'>('0')
+const result = ref('')
+const loaded = ref(false)
+const baseline = ref('')
+
+function snapshot() {
+  return JSON.stringify([name.value, responsibleId.value, deadline.value, priority.value, result.value])
+}
+
+watch(resolution, (item) => {
+  if (!item || loaded.value) return
+  name.value = item.name
+  responsibleId.value = item.responsible?.id ?? ''
+  deadline.value = item.deadline ?? ''
+  priority.value = item.priority
+  result.value = item.result
+  baseline.value = snapshot()
+  loaded.value = true
+}, { immediate: true })
+
+const dirty = computed(() => loaded.value && snapshot() !== baseline.value)
+
+async function save() {
+  if (!canSave.value || !dirty.value || (canEditDecision.value && (!name.value.trim() || !responsibleId.value || !deadline.value))) return
+  const body: Record<string, unknown> = {}
+  if (canEditDecision.value) {
+    body.name = name.value.trim()
+    if (responsibleId.value) body.responsible_id = Number(responsibleId.value)
+    if (deadline.value) body.deadline = deadline.value
+    body.priority = priority.value
+  }
+  if (canUpdateExecution.value) body.result = result.value
+  if (!Object.keys(body).length) return
+  await mutateAsync({ meetingId: meetingId.value, resolutionId: resolutionId.value, body })
+  baseline.value = snapshot()
+  await nextTick()
+  await navigateTo(returnTo.value)
+}
+</script>
+
+<template>
+  <SharedPageContainer width="form">
+    <SharedPageHeader :title="t('meetingsUi.editResolution')" :back-to="returnTo" />
+    <SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!query.isLoading.value && !query.error.value && !resolution" @retry="query.refetch">
+      <div v-if="resolution && !canEditDecision && !canUpdateExecution" class="nasq-panel nasq-panel-body text-sm text-muted-foreground">
+        {{ t('meetingsUi.resolutionReadOnly') }}
+      </div>
+      <form v-else-if="resolution" class="nasq-form nasq-panel nasq-panel-body grid gap-4" @submit.prevent="save">
+        <SharedUnsavedChanges :dirty="dirty" />
+        <template v-if="canEditDecision">
+          <Label for="resolution-name">{{ t('meetingsUi.resolutionTitle') }}</Label>
+          <Input id="resolution-name" v-model="name" :disabled="!hydrated || isPending" required />
+          <Label for="resolution-user">{{ t('meetingsUi.responsible') }}</Label>
+          <select id="resolution-user" v-model="responsibleId" class="border-input h-9 rounded-lg border bg-transparent px-2 text-sm" :disabled="!hydrated || isPending" required>
+            <option value="">{{ t('meetingsUi.responsible') }}</option>
+            <option v-for="person in knownPeople" :key="person.id" :value="person.id">{{ person.name }}</option>
+          </select>
+          <Label for="resolution-deadline">{{ t('meetingsUi.deadline') }}</Label>
+          <Input id="resolution-deadline" v-model="deadline" type="date" :disabled="!hydrated || isPending" required />
+          <Label for="resolution-priority">{{ t('meetingsUi.priority') }}</Label>
+          <select id="resolution-priority" v-model="priority" class="border-input h-9 rounded-lg border bg-transparent px-2 text-sm" :disabled="!hydrated || isPending">
+            <option v-for="code in ['0', '1', '2', '3']" :key="code" :value="code">{{ t(`meetingsUi.priorityLabel.${code}`) }}</option>
+          </select>
+        </template>
+        <SharedFormSection v-if="canUpdateExecution" :title="t('meetingsUi.result')">
+          <ClientOnly>
+            <DescriptionEditor :model-value="result" :task-id="0" :readonly="isPending" @draft="result = $event.html" />
+          </ClientOnly>
+        </SharedFormSection>
+        <p v-if="error" role="alert" class="text-sm text-destructive">{{ error.message }}</p>
+        <div class="flex justify-end gap-2">
+          <NuxtLink :to="returnTo"><Button type="button" variant="outline">{{ t('app.cancel') }}</Button></NuxtLink>
+          <Button type="submit" :disabled="!canSave || isPending || !dirty || (canEditDecision && (!name.trim() || !responsibleId || !deadline))">{{ t('app.save') }}</Button>
+        </div>
+      </form>
+    </SharedPageState>
+  </SharedPageContainer>
+</template>

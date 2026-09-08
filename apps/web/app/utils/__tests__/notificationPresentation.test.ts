@@ -40,4 +40,10 @@ describe('notification presentation', () => {
     expect(notificationPreviewCaptionKey('meeting_invite')).toBe('meetingsUi.notify.meeting_invite')
     expect(notificationPreviewCaptionKey('overdue_digest')).toBe('tasks.digest.kind')
   })
+  it('preserves preview captions for the new meeting lifecycle notifications', () => {
+    for (const kind of ['meeting_changed', 'meeting_cancelled', 'meeting_reminder', 'meeting_resolution_overdue'] as const) {
+      expect(notificationPreviewCaptionKey(kind)).toBe(`meetingsUi.notify.${kind}`)
+    }
+  })
+
 })

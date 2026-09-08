@@ -29,7 +29,7 @@ const buffer = createDebouncedFlush<{ html: string; taskId: number }>(800, (valu
 const editor = useEditor({
   content: props.modelValue,
   editable: !props.readonly,
-  extensions: [StarterKit, Link.configure({ openOnClick: false })],
+  extensions: [StarterKit.configure({ link: false }), Link.configure({ openOnClick: false })],
   editorProps: {
     attributes: {
       role: 'textbox',

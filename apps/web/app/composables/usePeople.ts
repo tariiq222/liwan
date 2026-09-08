@@ -11,6 +11,6 @@ export function usePeople(q: Ref<string>) {
     // Always enabled: an empty query still returns a usable "everyone" list
     // for pickers, so there's no minimum-length gate here.
     enabled: true,
-    queryFn: () => $api('/api/v1/people', { query: { q: q.value || undefined }, schema: PersonListSchema }),
+    queryFn: () => $api('/api/v1/people', { query: { q: q.value || undefined, limit: 50 }, schema: PersonListSchema }),
   })
 }
