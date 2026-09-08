@@ -111,7 +111,7 @@ export function useShellNavigation(identity: MaybeRefOrGetter<AccessIdentity>) {
         .map(link => ({ ...link, active: projectContextId(route.path, route.query) === link.id }))
     }
     if (!currentModule) return []
-    return contextLinksForModule(currentModule, identityValue.value)
+    return contextLinksForModule(currentModule, identityValue.value, route.path)
       .map(link => ({ ...link, active: isContextPathActive(route.path, link.to, route.query) }))
   })
   const module = computed(() => visibleShellModules(identityValue.value).find(item => item.id === activeModule.value) ?? null)
@@ -120,10 +120,10 @@ export function useShellNavigation(identity: MaybeRefOrGetter<AccessIdentity>) {
 
 export function isContextPathActive(path: string, to: ShellContextLink['to'], query: Record<string, unknown> = {}): boolean {
   const target = typeof to === 'string' ? to : to.path
-  if (target === '/hr') return path === '/hr' || path.startsWith('/hr/employees/')
-  if (target === '/hr/documents') return path === target || path.startsWith(`${target}/`) || /^\/hr\/departments\/[^/]+\/documents(?:\/|$)/.test(path)
-  if (target === '/hr/departments') return path === target || (path.startsWith(`${target}/`) && !/\/documents(?:\/|$)/.test(path))
-  if (target === '/meetings') return path === target || (path.startsWith(`${target}/`) && !path.startsWith('/meetings/calendar'))
+  if (target === '/hr') return path === '/hr' || (path.startsWith('/hr/employees/') && path !== '/hr/employees/new')
+  if (target === '/hr/documents') return (path === target || (path.startsWith(`${target}/`) && path !== '/hr/documents/new') || /^\/hr\/departments\/[^/]+\/documents(?:\/|$)/.test(path))
+  if (target === '/hr/departments') return path === target || (path.startsWith(`${target}/`) && path !== '/hr/departments/new' && !/\/documents(?:\/|$)/.test(path))
+  if (target === '/meetings') return path === target || (path.startsWith(`${target}/`) && path !== '/meetings/new' && !path.startsWith('/meetings/calendar'))
   if (target === '/chat') return path === target || (path.startsWith(`${target}/`) && !path.startsWith('/chat/new'))
   if (target === '/meetings/calendar') return path === target
   if (target === '/projects') {
@@ -131,7 +131,7 @@ export function isContextPathActive(path: string, to: ShellContextLink['to'], qu
     const targetMine = typeof to === 'object' && 'query' in to && (to.query?.mine === '1' || to.query?.mine === 'true')
     return path === target && mine === Boolean(targetMine)
   }
-  if (target === '/tasks') return path === target || path.startsWith('/tasks/')
+  if (target === '/tasks') return path === target || (path.startsWith('/tasks/') && path !== '/tasks/new')
   if (target === '/settings/appearance') return path === target || path.startsWith(`${target}/`)
   return path === target || path.startsWith(`${target}/`)
 }

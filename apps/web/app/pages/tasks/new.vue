@@ -7,7 +7,7 @@ const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
 const hydrated = useHydrated()
-const returnTo = computed(() => safeReturnTo(route.query.returnTo, '/tasks', ['/tasks', '/projects']))
+const returnTo = computed(() => safeReturnTo(route.query.returnTo, '/tasks', ['/tasks', '/archived-tasks', '/projects']))
 function created(id: number) {
   toast.success(t('tasks.created'))
   router.push({ path: '/tasks/' + id, query: returnToQuery(returnTo.value) })
