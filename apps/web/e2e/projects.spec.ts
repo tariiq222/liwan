@@ -113,8 +113,8 @@ test('project summary follows filtered records', async ({ page }) => {
   await page.goto(`/projects?q=${encodeURIComponent(name)}`)
   await expect(page.getByTestId('projects-summary-cards')).toBeVisible()
   await expect(page.getByTestId('projects-summary-cards')).toHaveCount(1)
-  await expect(page.getByText('المعروضة في هذه الصفحة')).toBeVisible()
-  await expect(page.getByTestId('projects-summary-displayed')).toHaveText('1')
+  await expect(page.getByText('الإجمالي')).toBeVisible()
+  await expect(page.getByTestId('projects-summary-total')).toHaveText('1')
   await expect(page.getByTestId('projects-summary-attention')).toHaveText('1')
 })
 
@@ -289,8 +289,8 @@ test('project list next/previous pages keep q, status, and offset in the URL', a
   await page.getByRole('option', { name: 'على المسار' }).click()
   await expect(page).toHaveURL((url) => url.searchParams.get('q') === 'Bulk' && url.searchParams.get('status') === 'on_track')
   await expect(page.getByText('صفحة 1 من 5')).toBeVisible()
-  await expect(page.getByText('المعروضة في هذه الصفحة')).toBeVisible()
-  await expect(page.getByTestId('projects-summary-displayed')).toHaveText('50')
+  await expect(page.getByText('الإجمالي')).toBeVisible()
+  await expect(page.getByTestId('projects-summary-total')).toHaveText('201')
   await expect(page.getByTestId('projects-summary-attention')).toHaveText('5')
   await page.getByRole('button', { name: 'التالي' }).click()
   await expect(page).toHaveURL((url) => (
@@ -299,7 +299,7 @@ test('project list next/previous pages keep q, status, and offset in the URL', a
     && url.searchParams.get('offset') === '50'
   ))
   await expect(page.getByText('صفحة 2 من 5')).toBeVisible()
-  await expect(page.getByTestId('projects-summary-displayed')).toHaveText('50')
+  await expect(page.getByTestId('projects-summary-total')).toHaveText('201')
   await expect(page.getByTestId('projects-summary-attention')).toHaveText('5')
   await page.getByRole('button', { name: 'السابق' }).click()
   await expect(page).toHaveURL((url) => (
@@ -308,7 +308,7 @@ test('project list next/previous pages keep q, status, and offset in the URL', a
     && !url.searchParams.has('offset')
   ))
   await expect(page.getByText('صفحة 1 من 5')).toBeVisible()
-  await expect(page.getByTestId('projects-summary-displayed')).toHaveText('50')
+  await expect(page.getByTestId('projects-summary-total')).toHaveText('201')
   expect(projectListParams(page).get('q')).toBe('Bulk')
   expect(projectListParams(page).get('status')).toBe('on_track')
 })

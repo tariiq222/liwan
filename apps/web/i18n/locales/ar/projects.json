@@ -36,6 +36,9 @@
     "projectId": "المشروع #{id}",
     "summary": {
       "displayed": "المعروضة في هذه الصفحة",
+      "total": "الإجمالي",
+      "onPage": "{count} في هذه الصفحة",
+      "onTrack": "على المسار",
       "attention": "تحتاج متابعة",
       "completed": "المشاريع المكتملة",
       "tasks": "{count} مهمة",

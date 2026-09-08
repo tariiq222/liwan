@@ -36,6 +36,9 @@
     "projectId": "Project #{id}",
     "summary": {
       "displayed": "Shown on this page",
+      "total": "Total",
+      "onPage": "{count} on this page",
+      "onTrack": "On track",
       "attention": "Needs attention",
       "completed": "Completed projects",
       "tasks": "{count} tasks",
