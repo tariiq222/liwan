@@ -115,6 +115,18 @@ describe('shell route classification', () => {
     expect(contextLinksForModule('meetings', employee).some(link => link.id === 'new-meeting')).toBe(false)
     expect(contextLinksForModule('chat', internal)[0]).toMatchObject({ id: 'new-chat', pinned: true, capability: 'nasq.internal' })
   })
+
+  it('pins task creation only for task creators and selects one HR action for each context', () => {
+    const taskCreator = { capabilities: ['pmo.tasks.read', 'pmo.tasks.create'] }
+    expect(contextLinksForModule('tasks', taskCreator).map(link => link.id)).toEqual(['new-task', 'tasks', 'archived-tasks'])
+    expect(contextLinksForModule('tasks', employee).some(link => link.id === 'new-task')).toBe(false)
+
+    const hrManager = { capabilities: ['hr.employees.read', 'hr.employees.manage', 'hr.departments.read', 'hr.departments.manage', 'hr.documents.read', 'hr.documents.manage'] }
+    expect(contextLinksForModule('hr', hrManager, '/hr').filter(link => link.pinned).map(link => link.id)).toEqual(['new-employee'])
+    expect(contextLinksForModule('hr', hrManager, '/hr/departments').filter(link => link.pinned).map(link => link.id)).toEqual(['new-department'])
+    expect(contextLinksForModule('hr', hrManager, '/hr/documents').filter(link => link.pinned).map(link => link.id)).toEqual(['new-document'])
+    expect(contextLinksForModule('hr', hrManager, '/hr/departments/7/documents').filter(link => link.pinned).map(link => link.id)).toEqual(['new-document'])
+  })
 })
 
 
@@ -168,7 +180,7 @@ describe('projects dashboard navigation', () => {
   })
   it('orders dashboard, creation, all projects and mine with real capability gates', () => {
     const creator = { capabilities: ['pmo.projects.read', 'pmo.projects.create'] }
-    expect(contextLinksForModule('projects', creator).map(link => link.id)).toEqual(['project-dashboard', 'new-project', 'projects', 'my-projects'])
+    expect(contextLinksForModule('projects', creator).map(link => link.id)).toEqual(['new-project', 'project-dashboard', 'projects', 'my-projects'])
     expect(contextLinksForModule('projects', employee).map(link => link.id)).toEqual(['project-dashboard', 'projects', 'my-projects'])
     expect(contextLinksForModule('projects', undefined)).toEqual([])
   })

@@ -12,9 +12,21 @@ describe('project list context selection', () => {
   it('does not mark all-projects active on create or dashboard', () => {
     expect(isContextPathActive('/projects/new', '/projects')).toBe(false)
     expect(isContextPathActive('/chat/new', '/chat')).toBe(false)
+    expect(isContextPathActive('/tasks/new', '/tasks')).toBe(false)
+    expect(isContextPathActive('/meetings/new', '/meetings')).toBe(false)
+    expect(isContextPathActive('/hr/employees/new', '/hr')).toBe(false)
+    expect(isContextPathActive('/hr/departments/new', '/hr/departments')).toBe(false)
+    expect(isContextPathActive('/hr/documents/new', '/hr/documents')).toBe(false)
     expect(isContextPathActive('/projects/dashboard', '/projects')).toBe(false)
     expect(projectIdFromPath('/projects/dashboard')).toBeNull()
     expect(projectIdFromPath('/projects/new')).toBeNull()
     expect(projectIdFromPath('/projects/42')).toBe(42)
   })
+  it('keeps the meetings list inactive on series routes', () => {
+    expect(isContextPathActive('/meetings/series', '/meetings')).toBe(false)
+    expect(isContextPathActive('/meetings/series/51', '/meetings')).toBe(false)
+    expect(isContextPathActive('/meetings/series/51', '/meetings/series')).toBe(true)
+    expect(isContextPathActive('/meetings/561', '/meetings')).toBe(true)
+  })
+
 })

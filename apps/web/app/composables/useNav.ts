@@ -104,15 +104,26 @@ export function projectContextId(path: string, query: Record<string, unknown> = 
   return 'summary'
 }
 
-export function contextLinksForModule(module: ShellModule, identity: AccessIdentity): ShellContextLink[] {
+function hrCreateLinkForPath(path?: string): ShellContextLink {
+  if (path?.startsWith('/hr/documents') || /^\/hr\/departments\/[^/]+\/documents(?:\/|$)/.test(path ?? '')) {
+    return { id: 'new-document', labelKey: 'hr.docs.new', icon: Plus, to: '/hr/documents/new', capability: 'hr.documents.manage', pinned: true }
+  }
+  if (path?.startsWith('/hr/departments')) {
+    return { id: 'new-department', labelKey: 'hr.depts.new', icon: Plus, to: '/hr/departments/new', capability: 'hr.departments.manage', pinned: true }
+  }
+  return { id: 'new-employee', labelKey: 'hr.directory.newEmployee', icon: Plus, to: '/hr/employees/new', capability: 'hr.employees.manage', pinned: true }
+}
+
+export function contextLinksForModule(module: ShellModule, identity: AccessIdentity, path?: string): ShellContextLink[] {
   const links: ShellContextLink[] = {
     projects: [
-      { id: 'project-dashboard', labelKey: 'nav.projectDashboard', icon: ChartNoAxesCombined, to: '/projects/dashboard', capability: 'pmo.projects.read' },
       { id: 'new-project', labelKey: 'nav.newProject', icon: Plus, to: '/projects/new', capability: 'pmo.projects.create', pinned: true },
+      { id: 'project-dashboard', labelKey: 'nav.projectDashboard', icon: ChartNoAxesCombined, to: '/projects/dashboard', capability: 'pmo.projects.read' },
       { id: 'projects', labelKey: 'nav.allProjects', icon: FolderKanban, to: '/projects', capability: 'pmo.projects.read' },
       { id: 'my-projects', labelKey: 'nav.myProjects', icon: UserRound, to: { path: '/projects', query: { mine: '1' } }, capability: 'pmo.projects.read' },
     ],
     tasks: [
+      { id: 'new-task', labelKey: 'tasks.new', icon: Plus, to: '/tasks/new', capability: 'pmo.tasks.create', pinned: true },
       { id: 'tasks', labelKey: 'nav.tasks', icon: CheckSquare, to: '/tasks', capability: 'pmo.tasks.read' },
       { id: 'archived-tasks', labelKey: 'nav.archivedTasks', icon: ClipboardList, to: '/archived-tasks', capability: 'pmo.tasks.read' },
     ],
@@ -130,6 +141,7 @@ export function contextLinksForModule(module: ShellModule, identity: AccessIdent
       { id: 'meeting-series', labelKey: 'nav.meetingSeries', icon: Repeat, to: '/meetings/series', capability: 'meetings.read' },
     ],
     hr: [
+      hrCreateLinkForPath(path),
       { id: 'employees', labelKey: 'nav.employees', icon: Users, to: '/hr', capability: 'hr.employees.read' },
       { id: 'departments', labelKey: 'nav.departments', icon: Network, to: '/hr/departments', capability: 'hr.departments.read' },
       { id: 'documents', labelKey: 'nav.documents', icon: Files, to: '/hr/documents', capability: 'hr.documents.read' },
@@ -156,8 +168,8 @@ export interface ShellContextGroup {
 }
 
 /** Groups settings links while leaving other module context navigation flat. */
-export function contextGroupsForModule(module: ShellModule, identity: AccessIdentity): ShellContextGroup[] {
-  const links = contextLinksForModule(module, identity)
+export function contextGroupsForModule(module: ShellModule, identity: AccessIdentity, path?: string): ShellContextGroup[] {
+  const links = contextLinksForModule(module, identity, path)
   if (module !== 'settings') return links.length ? [{ id: 'default', links }] : []
 
   return [

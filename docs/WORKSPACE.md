@@ -1,5 +1,8 @@
 # Current all-pending integration — 2026-09-08
 
+Current workspace: main only after [final consolidation](final-workspace-consolidation-2026-09-08.md); remaining sidebar work is integrated and retired worktrees are archived outside the repository.
+
+
 Latest meetings integration: see [the 2026-09-08 integration record](meetings-integration-2026-09-08.md) for preserved main behavior, combined checks, and cleanup recovery.
 
 

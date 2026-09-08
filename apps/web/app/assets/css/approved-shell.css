@@ -218,6 +218,7 @@ html[dir="rtl"] body { padding-right: 0 !important; }
 .nasq-context-heading h2 { margin: 0; overflow-wrap: anywhere; font-size: 1rem; font-weight: 600; line-height: 1.55; }
 .nasq-context-heading p { margin: 2px 0 0; overflow: hidden; color: var(--muted-foreground); font-size: .72rem; text-overflow: ellipsis; white-space: nowrap; }
 .nasq-context-links { display: grid; gap: 4px; padding-inline: 10px; }
+.nasq-context-create-actions { display: grid; gap: 4px; margin-block-end: 8px; padding-inline: 10px; }
 .nasq-context-group { display: grid; gap: 4px; }
 .nasq-context-group-links { display: grid; gap: 4px; }
 .nasq-context-group-heading { margin: 12px 8px 2px; color: var(--muted-foreground); font-size: .68rem; font-weight: 600; letter-spacing: .02em; }
@@ -226,9 +227,9 @@ html[dir="rtl"] body { padding-right: 0 !important; }
 .nasq-context-link:hover { background: color-mix(in srgb, var(--foreground) 6%, var(--context-surface)); color: var(--foreground); }
 .nasq-context-link:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
 .nasq-context-link[data-active="true"] { background: var(--brand-soft); color: var(--brand-link); font-weight: 600; }
-.nasq-context-create { background: var(--primary); color: var(--primary-foreground); font-weight: 600; }
-.nasq-context-create:hover { background: var(--primary-hover); color: var(--primary-hover-foreground); }
-.nasq-context-create[data-active="true"] { background: var(--primary); color: var(--primary-foreground); }
+.nasq-context-create { border: 0; border-block-end: 2px solid color-mix(in srgb, var(--brand-link) 28%, var(--border)); border-radius: 0; background: transparent; color: var(--brand-link); font-weight: 600; }
+.nasq-context-create:hover { border-block-end-color: var(--brand-link); background: transparent; color: var(--brand-link); }
+.nasq-context-create[data-active="true"] { border-block-end-color: var(--brand-link); background: transparent; color: var(--brand-link); }
 .nasq-context-active-mark { width: 14px; height: 14px; margin-inline-start: auto; }
 .nasq-chat-conversation-link { display: flex; min-height: 42px; align-items: center; gap: 12px; margin-inline: 8px; border-radius: 9px; padding: 8px 10px; color: var(--foreground); text-align: start; text-decoration: none; }
 .nasq-chat-conversation-link:hover { background: color-mix(in srgb, var(--foreground) 6%, var(--context-surface)); }
@@ -284,6 +285,7 @@ html[dir="rtl"] body { padding-right: 0 !important; }
   .nasq-context-back { margin-block: 4px 4px; }
   .nasq-context-heading { padding: 8px 14px 10px; }
   .nasq-context-links { display: flex; overflow-x: auto; padding-inline: 10px; scrollbar-width: thin; }
+  .nasq-context-create-actions { display: flex; overflow-x: auto; margin-block-end: 6px; padding-inline: 10px; scrollbar-width: thin; }
   .nasq-context-group,
   .nasq-context-group-links { display: contents; }
   .nasq-context-links[data-grouped="true"] { display: flex; overflow-x: auto; }
