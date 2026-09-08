@@ -13,7 +13,6 @@ import {
   defineComponent,
   h,
   openBlock,
-  ref,
   renderSlot,
   resolveComponent,
   toDisplayString,
@@ -58,7 +57,7 @@ function loadPageHeader() {
   }
   const names = [
     ...Object.keys(runtimeBindings), 'ArrowRight', 'computed', 'useRoute', 'useRouter',
-    'useI18n', 'useShellBreadcrumbTarget', 'projectIdFromPath', 'projectSectionRoot', 'shellSectionRoot', 'shellRootBackTargets', 'usePageHeader',
+    'useI18n', 'projectIdFromPath', 'projectSectionRoot', 'shellSectionRoot', 'shellRootBackTargets', 'usePageHeader',
   ]
   const values = [
     ...Object.values(runtimeBindings), ArrowRightStub, computed,
@@ -74,24 +73,21 @@ function loadPageHeader() {
       }
     } }),
     () => ({ t: (key: string) => ({ 'nav.employees': 'الموظفون', 'nav.tasks': 'المهام' }[key] ?? key) }),
-    () => ref(currentBreadcrumb), projectIdFromPath, projectSectionRoot, shellSectionRoot, shellRootBackTargets, () => undefined,
+    projectIdFromPath, projectSectionRoot, shellSectionRoot, shellRootBackTargets, () => undefined,
   ]
   return new Function(...names, javascript)(...values)
 }
 
 let currentRoute = { path: '/projects/1', fullPath: '/projects/1', query: {} as Record<string, unknown> }
-let currentBreadcrumb = { routeKey: '', href: null as string | null }
-
 async function renderHeader(props: Record<string, unknown>, slots: Record<string, () => unknown> = {}) {
   const app = createSSRApp({ render: () => h(loadPageHeader(), props, slots) })
   app.component('NuxtLink', NuxtLinkStub)
   return renderToString(app)
 }
 
-describe('rendered project header deduplication', () => {
+describe('rendered page header navigation policies', () => {
   it('removes project identity, back, and generic description from a project root', async () => {
     currentRoute = { path: '/projects/1', fullPath: '/projects/1', query: {} }
-    currentBreadcrumb = { routeKey: '/projects/1', href: null }
     const html = await renderHeader({ title: 'الملخص', eyebrow: 'مشروع ألفا', description: 'وصف عام', backTo: '/projects', backLabel: 'العودة' })
 
     expect(html).toContain('الملخص')
@@ -100,30 +96,27 @@ describe('rendered project header deduplication', () => {
     expect(html).not.toContain('href="/projects"')
   })
 
-  it('suppresses only a deep back link that matches the visible project breadcrumb', async () => {
+  it('keeps deep back links, including one that previously matched a breadcrumb', async () => {
     currentRoute = { path: '/projects/1/tasks/101', fullPath: '/projects/1/tasks/101?tab=tasks&returnTo=%2Fprojects%2F1%3Ftab%3Dtasks', query: { tab: 'tasks' } }
-    currentBreadcrumb = { routeKey: currentRoute.fullPath, href: '/projects/1?tab=tasks' }
     const duplicate = await renderHeader({ title: 'مهمة جارية', eyebrow: 'مشروع ألفا', backTo: '/projects/1?tab=tasks', backLabel: 'العودة' })
     const distinct = await renderHeader({ title: 'مهمة جارية', eyebrow: 'مشروع ألفا', backTo: '/projects/1/tasks?tab=tasks', backLabel: 'العودة' })
 
-    expect(duplicate).not.toContain('href="/projects/1?tab=tasks"')
+    expect(duplicate).toContain('href="/projects/1?tab=tasks"')
     expect(distinct).toContain('href="/projects/1/tasks?tab=tasks"')
     expect(duplicate).not.toContain('مشروع ألفا')
   })
 
   it('keeps ordinary non-project header context intact', async () => {
     currentRoute = { path: '/hr/employees/new', fullPath: '/hr/employees/new', query: {} }
-    currentBreadcrumb = { routeKey: '/hr/employees/new', href: '/hr' }
     const html = await renderHeader({ title: 'موظف جديد', eyebrow: 'إرشادات الموظف', description: 'أضف موظفًا', backTo: '/hr', backLabel: 'رجوع' })
 
     expect(html).toContain('إرشادات الموظف')
     expect(html).toContain('أضف موظفًا')
-    expect(html).not.toContain('href="/hr"')
+    expect(html).toContain('href="/hr"')
   })
 
   it('suppresses a generic shell root back but keeps a distinct hash return', async () => {
     currentRoute = { path: '/meetings/calendar', fullPath: '/meetings/calendar', query: {} }
-    currentBreadcrumb = { routeKey: '/meetings/calendar', href: null }
     const duplicate = await renderHeader({ title: 'التقويم', description: 'وصف عام', backTo: '/meetings', backLabel: 'العودة' })
     const anchored = await renderHeader({ title: 'التقويم', description: 'وصف عام', backTo: '/meetings#calendar', backLabel: 'العودة' })
 
@@ -134,7 +127,6 @@ describe('rendered project header deduplication', () => {
 
   it('keeps a filtered root return and custom root slot visible', async () => {
     currentRoute = { path: '/projects', fullPath: '/projects?mine=1', query: { mine: '1' } }
-    currentBreadcrumb = { routeKey: '/projects?mine=1', href: null }
     const filteredBack = await renderHeader({ title: 'مشاريعي', description: 'وصف عام', backTo: '/projects?mine=1&q=late', backLabel: 'العودة' })
     const html = await renderHeader({ title: 'مشاريعي', description: 'وصف عام' }, {
       back: () => h('a', { href: '/projects?mine=1&q=late' }, 'عودة مخصصة'),
@@ -148,7 +140,6 @@ describe('rendered project header deduplication', () => {
   it('keeps one H1 and supplied actions across representative roots', async () => {
     for (const path of ['/projects/dashboard', '/tasks', '/meetings', '/hr', '/account', '/settings/appearance']) {
       currentRoute = { path, fullPath: path, query: {} }
-      currentBreadcrumb = { routeKey: path, href: null }
       const html = await renderHeader({ title: 'عنوان الصفحة', description: 'وصف عام', backTo: path }, {
         actions: () => h('button', { type: 'button' }, 'إجراء'),
       })

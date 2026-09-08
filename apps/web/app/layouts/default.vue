@@ -8,7 +8,6 @@ const dir = computed(() => localeProperties.value.dir ?? 'ltr')
     <ShellHeader />
     <AppSidebar />
     <div class="nasq-shell-workspace">
-      <ShellBreadcrumb />
       <main data-testid="shell-main" class="nasq-shell-main">
         <slot />
       </main>

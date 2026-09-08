@@ -13,6 +13,7 @@ describe('approved shell structure', () => {
   it('uses one explicit shell frame without SidebarProvider', () => {
     expect(layout).toContain('data-nasq-shell')
     expect(layout).toContain('ShellHeader')
+    expect(layout).not.toContain('ShellBreadcrumb')
     expect(layout).not.toContain('SidebarProvider')
     expect(shellCss).toContain('--module-rail-width: 64px')
     expect(shellCss).toContain('--context-sidebar-width: 244px')
