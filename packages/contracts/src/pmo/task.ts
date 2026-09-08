@@ -1,8 +1,10 @@
 import { z } from 'zod'
 import { TaskStateSchema } from './state'
+import { CalendarDateSchema } from './schedule'
 
 export const RefSchema = z.object({ id: z.number().int().positive(), name: z.string() }).strict()
 export const TagSchema = z.object({ id: z.number().int().positive(), name: z.string(), color: z.number().int() }).strict()
+const TaskDeliverableSchema = z.object({ name: z.string().trim().min(1), done: z.boolean() }).strict()
 
 export const TaskSchema = z.object({
   id: z.number().int().positive(), name: z.string(), project: RefSchema.nullable(), state: TaskStateSchema,
@@ -22,6 +24,7 @@ export const TaskDetailSchema = TaskSchema.extend({
   depends_on: z.array(z.object({ id: z.number().int().positive(), name: z.string(), state: TaskStateSchema }).strict()),
   attachments: z.array(z.object({ id: z.number().int().positive(), name: z.string(), mimetype: z.string(), url: z.string() }).strict()),
   can_manage_dependencies: z.boolean().default(false), milestone: RefSchema.nullable(), created_at: z.string(), updated_at: z.string(),
+  planned_start: CalendarDateSchema.nullable().default(null), deliverables: z.array(TaskDeliverableSchema).default([]),
   allowed_actions: z.array(z.enum([
     'read', 'write', 'archive', 'approve', 'request_completion', 'accept_completion', 'return_completion', 'withdraw_completion',
   ])).optional().default([]),
@@ -43,10 +46,19 @@ export const TaskPatchSchema = z.object({
   name: z.string().min(1).optional(), description: z.string().optional(), date_deadline: z.string().nullable().optional(),
   priority: z.enum(['0', '1', '2', '3']).optional(), user_ids: z.array(z.number().int()).optional(), tag_ids: z.array(z.number().int()).optional(),
   personal_stage_type_id: z.number().int().nullable().optional(), allocated_hours: z.number().optional(), stage_id: z.number().int().optional(),
-  milestone_id: z.number().int().nullable().optional(),
+  milestone_id: z.number().int().nullable().optional(), deliverables: z.array(TaskDeliverableSchema).optional(),
 }).strict()
 
-export const TaskCreateSchema = z.object({ name: z.string().min(1), project_id: z.number().int(), parent_id: z.number().int().optional() }).strict()
+export const TaskCreateSchema = z.object({
+  name: z.string().min(1), project_id: z.number().int(), parent_id: z.number().int().optional(),
+  milestone_id: z.number().int().positive().optional(), planned_start: CalendarDateSchema.optional(),
+  date_deadline: z.string().nullable().optional(), description: z.string().optional(),
+  deliverables: z.array(TaskDeliverableSchema).optional(),
+}).strict().superRefine((value, ctx) => {
+  if (value.planned_start && !value.date_deadline) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['date_deadline'], message: 'date_deadline is required with planned_start' })
+  }
+})
 
 export type Task = z.infer<typeof TaskSchema>
 export type TaskDetail = z.infer<typeof TaskDetailSchema>

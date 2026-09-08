@@ -2,6 +2,7 @@
 import { toast } from 'vue-sonner'
 import { ApiError } from '@/composables/useApi'
 import { useProject } from '@/composables/useProjects'
+import { useMilestones } from '@/composables/useMilestones'
 import ProjectCharterForm from '@/components/project/ProjectCharterForm.vue'
 
 const route = useRoute()
@@ -13,6 +14,12 @@ const projectId = computed(() => {
   return Number.isInteger(n) && n > 0 ? n : null
 })
 const { data: project, isLoading, error, refetch } = useProject(projectId)
+const {
+  data: milestones,
+  isLoading: milestonesLoading,
+  error: milestonesError,
+  refetch: refetchMilestones,
+} = useMilestones(projectId)
 const notFound = computed(() => projectId.value === null || (error.value instanceof ApiError && [403, 404].includes(error.value.status)))
 const readonly = computed(() => route.query.edit !== '1' || !(project.value?.can_manage ?? false))
 
@@ -45,17 +52,42 @@ function onCancel() {
       :empty-text="notFound ? t('projects.notFound') : t('projects.empty')"
       @retry="refetch"
     >
-      <Card class="nasq-form">
-        <CardContent class="pt-6">
-          <ProjectCharterForm
-            mode="edit"
-            :project="project"
-            :readonly="readonly"
-            @saved="onSaved"
-            @cancel="onCancel"
-          />
-        </CardContent>
-      </Card>
+      <div class="project-charter-print-scope">
+        <Card class="nasq-form">
+          <CardContent class="pt-6">
+            <ProjectCharterForm
+              mode="edit"
+              :project="project"
+              :readonly="readonly"
+              :milestones="milestones ?? []"
+              :milestones-loading="milestonesLoading"
+              :milestones-error="milestonesError"
+              @saved="onSaved"
+              @cancel="onCancel"
+              @retry-milestones="refetchMilestones"
+            />
+          </CardContent>
+        </Card>
+      </div>
     </SharedPageState>
   </SharedPageContainer>
 </template>
+
+<style scoped>
+@media print {
+  :global(body *) {
+    visibility: hidden;
+  }
+
+  :global(.project-charter-print-scope),
+  :global(.project-charter-print-scope *) {
+    visibility: visible;
+  }
+
+  :global(.project-charter-print-scope) {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+  }
+}
+</style>

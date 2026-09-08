@@ -5,6 +5,7 @@ import {
   canOverwriteWithLatest,
   charterWriteFromDraft,
   createBodyFromDraft,
+  createdProjectLocation,
   draftFromProject,
   emptyCharterDraft,
   hasCharterWriteContent,
@@ -17,6 +18,7 @@ import {
   stripBlankDeliverables,
   stripBlankObjectives,
   validateCharterDraft,
+  aggregateMilestoneOutputs,
 } from '../projectCharter'
 
 const EMPTY_CHARTER = {
@@ -207,6 +209,32 @@ describe('patchBodyFromDraft dates', () => {
   })
 })
 
+describe('patchBodyFromDraft hidden charter values', () => {
+  it('preserves historical values when editing only the project name', () => {
+    const original = project({
+      charter: {
+        ...EMPTY_CHARTER,
+        sponsor: { id: 8, name: 'Noura' },
+        benefits: 'Faster intake',
+        high_level_requirements: 'SSO access',
+        deliverables: [{ name: 'Legacy report', description: 'Old output', acceptance: 'Signed off' }],
+      },
+    })
+    const draft = draftFromProject(original)
+    draft.name = 'Renamed portal'
+
+    const patch = patchBodyFromDraft(draft, 'v4', nativeDateSnapshot(original))
+
+    expect(patch.name).toBe('Renamed portal')
+    expect(patch.charter).toMatchObject({
+      sponsor_id: 8,
+      benefits: 'Faster intake',
+      high_level_requirements: 'SSO access',
+      deliverables: [{ name: 'Legacy report', description: 'Old output', acceptance: 'Signed off' }],
+    })
+  })
+})
+
 describe('validateCharterDraft', () => {
   it('rejects unknown budgets with an amount and estimate without a number', () => {
     const draft = emptyCharterDraft()
@@ -257,5 +285,24 @@ describe('stale write review helpers', () => {
 describe('charterWriteFromDraft', () => {
   it('does not treat an empty create write as content', () => {
     expect(hasCharterWriteContent(charterWriteFromDraft(emptyCharterDraft(), 'create'))).toBe(false)
+  })
+})
+
+describe('charter document helpers', () => {
+  it('routes a created project to milestones while carrying the originating list URL', () => {
+    expect(createdProjectLocation(42, '/projects?status=active')).toEqual({
+      path: '/projects/42',
+      query: { returnTo: '/projects?status=active', tab: 'milestones' },
+    })
+  })
+
+  it('flattens milestone checklist outputs while keeping their milestone identity', () => {
+    expect(aggregateMilestoneOutputs([
+      { id: 4, name: 'Discovery', deliverables: [{ name: 'Brief', done: true }, { name: '  ', done: false }] },
+      { id: 5, name: 'Launch', deliverables: [{ name: 'Runbook', done: false }] },
+    ])).toEqual([
+      { milestoneId: 4, milestoneName: 'Discovery', name: 'Brief', done: true },
+      { milestoneId: 5, milestoneName: 'Launch', name: 'Runbook', done: false },
+    ])
   })
 })

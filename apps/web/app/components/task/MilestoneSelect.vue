@@ -2,6 +2,7 @@
 import type { TaskDetail } from '@nasq/contracts'
 import { useMilestones } from '@/composables/useMilestones'
 import { useUpdateTask } from '@/composables/useTasks'
+import { validateTaskDates } from '@/utils/projectDateBounds'
 
 // Owns its own optimistic mutation, same as PrioritySelect — useUpdateTask
 // already rolls back on error, so there is nothing else to wire up here.
@@ -12,6 +13,7 @@ const props = defineProps<{ task: TaskDetail; labelledby?: string }>()
 const { t } = useI18n()
 const hydrated = useHydrated()
 const { mutate, isPending } = useUpdateTask()
+const validationError = ref<string | null>(null)
 
 const projectId = computed(() => props.task.project?.id ?? null)
 const { data: milestones } = useMilestones(projectId)
@@ -19,6 +21,7 @@ const { data: milestones } = useMilestones(projectId)
 const NONE = 'none'
 
 function onChange(value: unknown) {
+  validationError.value = null
   if (value === NONE) {
     mutate({ id: props.task.id, patch: { milestone_id: null }, resolved: { milestone: null } })
     return
@@ -26,6 +29,16 @@ function onChange(value: unknown) {
   const id = Number(value)
   const milestone = (milestones.value ?? []).find((m) => m.id === id)
   if (!milestone) return
+  const boundsError = validateTaskDates({
+    milestoneStart: milestone.start_date,
+    milestoneDeadline: milestone.deadline,
+    plannedStart: props.task.planned_start,
+    dateDeadline: props.task.date_deadline,
+  })
+  if (boundsError) {
+    validationError.value = t(`tasks.schedule.${boundsError.split('.').pop()}`)
+    return
+  }
   mutate({ id: props.task.id, patch: { milestone_id: id }, resolved: { milestone: { id: milestone.id, name: milestone.name } } })
 }
 </script>
@@ -40,4 +53,5 @@ function onChange(value: unknown) {
       <SelectItem v-for="m in milestones ?? []" :key="m.id" :value="String(m.id)">{{ m.name }}</SelectItem>
     </SelectContent>
   </Select>
+  <p v-if="validationError" role="alert" class="mt-1 text-xs text-destructive">{{ validationError }}</p>
 </template>

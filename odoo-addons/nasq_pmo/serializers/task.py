@@ -2,10 +2,12 @@
 import re
 
 from odoo import fields
+from odoo.exceptions import ValidationError
 from odoo.http import request
 
 from odoo.addons.nasq_api.controllers.common import ApiError
 from odoo.addons.nasq_api.serializers.common import iso
+from odoo.addons.nasq_pmo.models.project_task import _validate_task_deliverables
 
 STATE_TO_API = {
     '01_in_progress': 'in_progress',
@@ -18,7 +20,7 @@ STATE_TO_API = {
 API_TO_STATE = {v: k for k, v in STATE_TO_API.items()}
 
 EMPLOYEE_FIELDS = {'name', 'description', 'date_deadline', 'priority', 'user_ids', 'tag_ids',
-                   'personal_stage_type_id', 'stage_id', 'milestone_id'}
+                   'personal_stage_type_id', 'stage_id', 'milestone_id', 'deliverables'}
 MANAGER_FIELDS = EMPLOYEE_FIELDS | {'allocated_hours'}
 
 
@@ -112,6 +114,7 @@ def dump_task_detail(task, today=None):
     ])
     data.update({
         'description_html': task.description or '',
+        'deliverables': task.nasq_deliverables or [],
         'allocated_hours': task.allocated_hours,
         'age_days': (today - task.create_date.date()).days,
         'cycle_days': cycle,
@@ -133,6 +136,7 @@ def dump_task_detail(task, today=None):
         'can_manage_dependencies': bool(task._nasq_can_manage_dependencies()),
         'created_at': iso(task.create_date),
         'updated_at': iso(task.write_date),
+        'planned_start': fields.Date.to_string(task.nasq_planned_start) if task.nasq_planned_start else None,
         'milestone': _milestone_ref(task.milestone_id) if task.milestone_id else None,
         'completion_pending': bool(task.nasq_completion_pending),
         'completion_revision': task.nasq_completion_revision or 0,
@@ -274,6 +278,17 @@ def parse_task_vals(payload, can_manage, task):
             if not isinstance(value, str) or not value.strip():
                 raise ApiError(422, 'invalid', "name must not be empty", field=key)
             vals[key] = value.strip()
+        elif key == 'description':
+            if not isinstance(value, str):
+                raise ApiError(422, 'invalid', "description must be a string", field=key)
+            vals[key] = value
+        elif key == 'deliverables':
+            if not isinstance(value, list):
+                raise ApiError(422, 'invalid', "deliverables must be a list", field=key)
+            try:
+                vals['nasq_deliverables'] = _validate_task_deliverables(value, request.env)
+            except ValidationError as error:
+                raise ApiError(422, 'invalid', str(error), field=key) from error
         else:
             vals[key] = value
     return vals

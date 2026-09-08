@@ -201,7 +201,23 @@
       "tasksOf": "{done} من {total}",
       "notFound": "المعلم غير موجود أو لا تملك صلاحية عرضه",
       "deleteError": "تعذر حذف المعلم",
-      "deleted": "تم حذف المعلم"
+      "deleted": "تم حذف المعلم",
+      "startDate": "تاريخ البداية",
+      "scheduleRequired": "حدد تواريخ المشروع وبداية المعلم ونهايته قبل إضافته.",
+      "startAfterDeadline": "يجب أن تكون بداية المعلم قبل نهايته أو في اليوم نفسه.",
+      "startOutsideProject": "يجب أن تكون بداية المعلم ضمن مدة المشروع.",
+      "deadlineOutsideProject": "يجب أن تكون نهاية المعلم ضمن مدة المشروع.",
+      "deliverables": "المخرجات",
+      "deliverablesHint": "ضع علامة على المخرج عند تسليمه. تقدم المشروع يُحسب من المهام.",
+      "addDeliverable": "إضافة مخرج",
+      "removeDeliverable": "حذف المخرج",
+      "deliverableName": "اسم المخرج",
+      "deliverableDone": "تم تسليم المخرج",
+      "noDeliverables": "لا مخرجات بعد",
+      "checklistOf": "المخرجات: {done} من {total}",
+      "taskProgress": "إنجاز المهام: {percent}%",
+      "continueToTasks": "الانتقال إلى المهام",
+      "openProjectFile": "تحديد تواريخ المشروع في الميثاق"
     },
     "updates": {
       "add": "إضافة تحديث",
@@ -326,8 +342,18 @@
         "context": "سياق المشروع",
         "catalog": "التصنيف والملكية",
         "outcomes": "الهدف والمخرجات",
-        "planning": "التخطيط والميزانية"
-      }
+        "planning": "التخطيط والميزانية",
+        "purpose": "الغرض",
+        "scope": "النطاق"
+      },
+      "print": "طباعة",
+      "milestoneOutputs": "مخرجات المعالم",
+      "milestonesLoading": "جارٍ تحميل مخرجات المعالم...",
+      "milestonesError": "تعذر تحميل مخرجات المعالم.",
+      "retryMilestones": "إعادة المحاولة",
+      "printUnavailable": "تتوفر الطباعة بعد تحميل مخرجات المعالم.",
+      "legacyDetails": "تفاصيل الميثاق السابقة",
+      "legacyDeliverables": "مخرجات الميثاق السابقة"
     },
     "planningLinks": {
       "schedule": "الجدول الزمني",

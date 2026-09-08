@@ -2,7 +2,7 @@
 import MilestoneForm from '@/components/project/MilestoneForm.vue'
 import { ApiError } from '@/composables/useApi'
 import { useProject } from '@/composables/useProjects'
-import { safeReturnTo, returnToQuery } from '@/utils/safeReturnTo'
+import { safeReturnTo } from '@/utils/safeReturnTo'
 
 const route = useRoute()
 const router = useRouter()
@@ -14,10 +14,7 @@ const projectId = computed(() => {
 const { data: project, isLoading, error, refetch } = useProject(projectId)
 const notFound = computed(() => projectId.value === null || (error.value instanceof ApiError && [403, 404].includes(error.value.status)))
 const returnTo = computed(() => projectId.value ? safeReturnTo(route.query.returnTo, '/projects/' + projectId.value + '?tab=milestones', ['/projects']) : '/projects')
-function saved(id?: number) {
-  if (id) router.push({ path: '/projects/' + projectId.value + '/milestones/' + id + '/edit', query: returnToQuery('/projects/' + projectId.value + '?tab=milestones') })
-  else router.push(returnTo.value)
-}
+function saved() { router.push(returnTo.value) }
 </script>
 
 <template>
@@ -35,7 +32,7 @@ function saved(id?: number) {
       @retry="refetch"
     >
       <p v-if="!project?.can_manage" class="text-muted-foreground">{{ t('projects.forbidden') }}</p>
-      <Card v-else class="nasq-form"><CardContent><MilestoneForm :project-id="projectId" @saved="saved" @cancel="router.push(returnTo)" /></CardContent></Card>
+      <Card v-else class="nasq-form"><CardContent><MilestoneForm :project-id="projectId" :project-start="project?.date_start" :project-end="project?.date_end" @saved="saved" @cancel="router.push(returnTo)" /></CardContent></Card>
     </SharedPageState>
   </SharedPageContainer>
 </template>

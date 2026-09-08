@@ -3,7 +3,7 @@ import type { ProjectCreateDefaults, ProjectDetail } from '@nasq/contracts'
 import { ApiError } from '@/composables/useApi'
 import { isStaleProjectWrite, useCreateProject, useProject, useUpdateProject } from '@/composables/useProjects'
 import { useCharterDefaults } from '@/composables/useProjectCharterCatalogs'
-import type { CharterDraft, CharterFieldKey, NativeDateSnapshot } from '@/utils/projectCharter'
+import type { CharterDraft, CharterFieldKey, CharterMilestone, NativeDateSnapshot } from '@/utils/projectCharter'
 import {
   canOverwriteWithLatest,
   createBodyFromDraft,
@@ -24,9 +24,12 @@ const props = defineProps<{
   createDefaults?: ProjectCreateDefaults
   defaultManagerName?: string | null
   disabled?: boolean
+  milestones?: readonly CharterMilestone[]
+  milestonesLoading?: boolean
+  milestonesError?: unknown
 }>()
 
-const emit = defineEmits<{ created: [id: number]; saved: []; cancel: [] }>()
+const emit = defineEmits<{ created: [id: number]; saved: []; cancel: []; retryMilestones: [] }>()
 const { t } = useI18n()
 const hydrated = useHydrated()
 const { mutateAsync: createProject, isPending: creating } = useCreateProject()
@@ -203,11 +206,18 @@ function discardToServer() {
 <template>
   <div :data-testid="mode === 'create' ? 'project-create-form' : 'project-charter-form'" class="grid gap-6">
     <SharedUnsavedChanges v-if="!readonly || dirty" :dirty="dirty" :guard-route-updates="mode === 'edit'" />
-    <ProjectCharterDisplay v-if="readonly" :draft="persistedDraft" />
+    <ProjectCharterDisplay
+      v-if="readonly"
+      :draft="persistedDraft"
+      :milestones="milestones"
+      :milestones-loading="milestonesLoading"
+      :milestones-error="milestonesError"
+      @retry-milestones="emit('retryMilestones')"
+    />
     <form v-else class="grid gap-6" @submit.prevent="submit()">
       <ProjectCharterFields
         v-model="draft"
-        :compact-create="mode === 'create'"
+        :compact="!readonly"
         :disabled="pending"
         :field-errors="fieldErrors"
         :require-manager="mode === 'create' && !!createDefaults?.require_manager_on_create"

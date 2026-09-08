@@ -201,7 +201,23 @@
       "tasksOf": "{done} of {total}",
       "notFound": "This milestone does not exist or you cannot view it",
       "deleteError": "Could not delete the milestone",
-      "deleted": "Milestone deleted"
+      "deleted": "Milestone deleted",
+      "startDate": "Start date",
+      "scheduleRequired": "Set project dates and both milestone dates before creating a milestone.",
+      "startAfterDeadline": "The milestone start must be on or before its deadline.",
+      "startOutsideProject": "The milestone start must be within the project dates.",
+      "deadlineOutsideProject": "The milestone deadline must be within the project dates.",
+      "deliverables": "Deliverables",
+      "deliverablesHint": "Check off outputs as they are delivered. Project progress is based on tasks.",
+      "addDeliverable": "Add deliverable",
+      "removeDeliverable": "Remove deliverable",
+      "deliverableName": "Deliverable name",
+      "deliverableDone": "Deliverable complete",
+      "noDeliverables": "No deliverables yet",
+      "checklistOf": "Checklist: {done} of {total}",
+      "taskProgress": "Task progress: {percent}%",
+      "continueToTasks": "Continue to tasks",
+      "openProjectFile": "Set project dates in the charter"
     },
     "updates": {
       "add": "Add update",
@@ -326,8 +342,18 @@
         "context": "Project context",
         "catalog": "Classification and ownership",
         "outcomes": "Purpose and outcomes",
-        "planning": "Planning and budget"
-      }
+        "planning": "Planning and budget",
+        "purpose": "Purpose",
+        "scope": "Scope"
+      },
+      "print": "Print",
+      "milestoneOutputs": "Milestone outputs",
+      "milestonesLoading": "Loading milestone outputs...",
+      "milestonesError": "Milestone outputs could not be loaded.",
+      "retryMilestones": "Retry",
+      "printUnavailable": "Printing is available after milestone outputs load.",
+      "legacyDetails": "Legacy charter details",
+      "legacyDeliverables": "Legacy charter deliverables"
     },
     "planningLinks": {
       "schedule": "Timeline / Gantt",

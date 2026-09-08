@@ -1,12 +1,17 @@
 <script setup lang="ts">
 import type { TaskDetail } from '@nasq/contracts'
 import { CalendarDate } from '@internationalized/date'
+import { toCalendarDate } from '@/composables/calendarDate'
 import { usePersonalStages } from '@/composables/usePersonalStages'
 import { useUpdateTask } from '@/composables/useTasks'
+import { useMilestones } from '@/composables/useMilestones'
+import { useProject } from '@/composables/useProjects'
+import { validateTaskDates } from '@/utils/projectDateBounds'
 import AssigneePicker from './AssigneePicker.vue'
 import DependencyPicker from './DependencyPicker.vue'
 import TaskAttachments from './TaskAttachments.vue'
-import DescriptionEditor from './DescriptionEditor.vue'
+import TaskDescription from './TaskDescription.vue'
+import TaskDeliverables from './TaskDeliverables.vue'
 import MilestoneSelect from './MilestoneSelect.vue'
 import PrioritySelect from './PrioritySelect.vue'
 import SubtaskList from './SubtaskList.vue'
@@ -19,6 +24,18 @@ const props = withDefaults(defineProps<{ task: TaskDetail; basePath?: string }>(
 const { t, locale } = useI18n()
 const { mutate: updateTask } = useUpdateTask()
 const { data: stages } = usePersonalStages()
+const projectId = computed(() => props.task.project?.id ?? null)
+const { data: milestones } = useMilestones(projectId)
+const { data: project } = useProject(projectId)
+const deadlineError = ref<string | null>(null)
+const selectedMilestone = computed(() => {
+  const milestoneId = props.task.milestone?.id
+  return milestones.value?.find(item => item.id === milestoneId)
+})
+const milestoneStart = computed(() => selectedMilestone.value?.start_date ?? project.value?.date_start ?? null)
+const milestoneDeadline = computed(() => selectedMilestone.value?.deadline ?? project.value?.date_end ?? null)
+const milestoneStartCalendar = computed(() => toCalendarDate(milestoneStart.value))
+const milestoneDeadlineCalendar = computed(() => toCalendarDate(milestoneDeadline.value))
 
 function patch(body: Parameters<typeof updateTask>[0]['patch'], resolved?: Parameters<typeof updateTask>[0]['resolved']) {
   if (props.task.can_write) updateTask({ id: props.task.id, patch: body, resolved })
@@ -88,6 +105,18 @@ function setDeadline(date: CalendarDate | undefined, time: string) {
     Number.isFinite(minutes) ? minutes : 0,
     0, 0,
   )
+  const dateDeadline = `${local.toISOString().slice(0, 19)}Z`
+  const boundsError = validateTaskDates({
+    milestoneStart: milestoneStart.value,
+    milestoneDeadline: milestoneDeadline.value,
+    plannedStart: props.task.planned_start,
+    dateDeadline,
+  })
+  if (boundsError) {
+    deadlineError.value = t(`tasks.schedule.${boundsError.split('.').pop()}`)
+    return
+  }
+  deadlineError.value = null
   // Second precision: toISOString() emits milliseconds, and the API's
   // contract shape (serializers/common.py::iso) has none.
   patch({ date_deadline: `${local.toISOString().slice(0, 19)}Z` })
@@ -100,6 +129,7 @@ function onTimeChange() {
   setDeadline(calendarValue.value, timeDraft.value)
 }
 function clearDeadline() {
+  deadlineError.value = null
   patch({ date_deadline: null })
 }
 
@@ -128,15 +158,6 @@ function onHoursChange() {
   const n = Number(hoursDraft.value)
   if (!Number.isFinite(n) || n === props.task.allocated_hours) return
   patch({ allocated_hours: n })
-}
-
-// --- description ---------------------------------------------------------
-// Addressed to the task id the editor captured *at typing time*, not the
-// live `props.task.id` — with a prev/next navigation this closure can still
-// be running (a flush fired during unmount) after `task` has already moved
-// on to another id, so a live read would misdirect the PATCH.
-function onDescriptionChange({ html, taskId }: { html: string; taskId: number }) {
-  if (props.task.can_write) updateTask({ id: taskId, patch: { description: html } })
 }
 
 // --- metrics ---------------------------------------------------------------
@@ -169,7 +190,7 @@ const completedSubtasks = computed(() => props.task.subtasks.filter(subtask => s
             </Button>
           </PopoverTrigger>
           <PopoverContent class="w-auto p-0" align="start">
-            <Calendar :model-value="calendarValue" @update:model-value="onCalendarChange" />
+            <Calendar :model-value="calendarValue" :min-value="milestoneStartCalendar" :max-value="milestoneDeadlineCalendar" @update:model-value="onCalendarChange" />
             <div class="flex items-center gap-2 border-t p-2">
               <Label for="deadline-time" class="sr-only">{{ t('tasks.drawer.deadline') }}</Label>
               <Input id="deadline-time" v-model="timeDraft" type="time" class="h-8" @change="onTimeChange" />
@@ -179,6 +200,7 @@ const completedSubtasks = computed(() => props.task.subtasks.filter(subtask => s
             </div>
           </PopoverContent>
         </Popover>
+        <p v-if="deadlineError" role="alert" class="mt-1 text-xs text-destructive">{{ deadlineError }}</p>
       </div>
 
       <div class="task-meta-item">
@@ -192,8 +214,10 @@ const completedSubtasks = computed(() => props.task.subtasks.filter(subtask => s
       <div class="task-section-head">
         <h2>{{ t('tasks.drawer.description') }}</h2>
       </div>
-      <DescriptionEditor :readonly="!task.can_write" :model-value="task.description_html" :task-id="task.id" @update:model-value="onDescriptionChange" />
+      <TaskDescription :key="task.id" :task="task" />
     </section>
+
+    <TaskDeliverables :key="`outputs-${task.id}`" :task="task" class="task-section" />
 
     <section class="task-section">
       <div class="task-section-head">

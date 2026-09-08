@@ -3,7 +3,7 @@ import {
   TaskCreateSchema, TimelineEntrySchema, PersonalStageSchema,
   ProjectSchema, ProjectDetailSchema, ProjectStatusBodySchema, PROJECT_STATUSES,
   ProjectListSchema, VisibilitySchema, ProjectPatchSchema, ProjectCreateSchema,
-  MilestoneSchema, ProjectUpdateSchema, ProjectSettingsSchema, StageOrderBodySchema,
+  MilestoneSchema, MilestoneBodySchema, MilestonePatchSchema, ProjectUpdateSchema, ProjectSettingsSchema, StageOrderBodySchema,
 } from '../index'
 
 // The literal below matches TASK_KEYS in odoo-addons/nasq_pmo/tests/test_tasks.py exactly —
@@ -216,10 +216,45 @@ describe('Milestone / ProjectUpdate / Settings', () => {
     expect(() => ProjectSettingsSchema.parse({ project_creators: 'anyone', default_stages: [] })).toThrow()
     expect(StageOrderBodySchema.parse({ ids: [2, 1] }).ids).toEqual([2, 1])
   })
+
+  it('accepts dated milestones with strict checklist deliverables', () => {
+    const milestone = MilestoneSchema.parse({
+      id: 1, name: 'M', start_date: '2026-10-05', deadline: '2026-10-20',
+      deliverables: [{ name: 'Requirements', done: false }], is_reached: false,
+      reached_date: null, task_count: 0, done_task_count: 0,
+    })
+    expect(milestone.start_date).toBe('2026-10-05')
+    expect(milestone.deliverables[0]).toEqual({ name: 'Requirements', done: false })
+    expect(() => MilestoneSchema.parse({
+      id: 1, name: 'M', start_date: null, deadline: null,
+      deliverables: [{ name: 'Requirements', done: false, score: 1 }], is_reached: false,
+      reached_date: null, task_count: 0, done_task_count: 0,
+    })).toThrow()
+    expect(MilestoneBodySchema.parse({
+      name: 'M', start_date: '2026-10-05', deadline: '2026-10-20',
+      deliverables: [{ name: 'Requirements', done: true }],
+    }).deliverables?.[0]?.done).toBe(true)
+    expect(MilestonePatchSchema.parse({ start_date: null, deliverables: [] })).toEqual({ start_date: null, deliverables: [] })
+  })
 })
 
 describe('Task milestone', () => {
   it('detail carries milestone and patch accepts milestone_id null', () => {
     expect(TaskPatchSchema.parse({ milestone_id: null })).toEqual({ milestone_id: null })
+  })
+
+  it('accepts planned_start on task create and detail', () => {
+    expect(TaskCreateSchema.parse({
+      name: 'Scheduled task', project_id: 3, planned_start: '2026-10-05',
+      date_deadline: '2026-10-20T00:00:00Z',
+    }).planned_start).toBe('2026-10-05')
+    expect(() => TaskCreateSchema.parse({ name: 'Scheduled task', project_id: 3, planned_start: '2026-02-30' })).toThrow()
+    expect(TaskDetailSchema.parse({
+      ...TASK_JSON, planned_start: '2026-10-05', description_html: '', allocated_hours: 0,
+      age_days: 0, cycle_days: null, subtasks: [], depends_on: [], attachments: [],
+      can_approve: false, created_at: '2026-08-01T09:00:00Z', updated_at: '2026-08-01T09:00:00Z',
+      milestone: null, completion_pending: false, completion_revision: 0, completion_return_note: null,
+      completion_policy: 'none', completion_approver: null, completion_blocked_reason: null,
+    }).planned_start).toBe('2026-10-05')
   })
 })

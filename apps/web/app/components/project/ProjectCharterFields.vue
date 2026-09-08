@@ -16,7 +16,7 @@ import ProjectFieldHelp from '@/components/project/ProjectFieldHelp.vue'
 const draft = defineModel<CharterDraft>({ required: true })
 const props = defineProps<{
   readonly?: boolean
-  compactCreate?: boolean
+  compact?: boolean
   disabled?: boolean
   fieldErrors?: Partial<Record<CharterFieldKey, string>>
   requireManager?: boolean
@@ -29,10 +29,10 @@ const route = useRoute()
 const hydrated = useHydrated()
 const canManageSettings = computed(() => can('pmo.settings.manage'))
 const controlsDisabled = computed(() => props.disabled || !hydrated.value)
-const compactCreate = computed(() => !!props.compactCreate && !props.readonly)
+const compact = computed(() => !!props.compact && !props.readonly)
 
 function sectionOpen(fields: CharterFieldKey[]): boolean {
-  return !compactCreate.value || fields.some(field => !!props.fieldErrors?.[field])
+  return !compact.value || fields.some(field => !!props.fieldErrors?.[field])
 }
 
 const managerOpen = ref(false)
@@ -199,10 +199,10 @@ const readonlyDescription = computed(() => (
       </div>
     </div>
 
-    <details class="rounded-lg border p-4" :open="sectionOpen(['code', 'type', 'owning_unit', 'sponsor'])">
+    <details v-if="!compact" class="rounded-lg border p-4" :open="sectionOpen(['code', 'type', 'owning_unit', 'sponsor'])">
       <summary class="cursor-pointer font-semibold">{{ t('projects.charter.sections.context') }}</summary>
       <div class="mt-4 grid gap-6">
-        <div v-if="!compactCreate" class="grid gap-2" data-testid="charter-field-code">
+        <div v-if="!compact" class="grid gap-2" data-testid="charter-field-code">
           <div class="flex items-center gap-1"><Label for="charter-code">{{ t('projects.charter.fields.code') }}</Label><ProjectFieldHelp :label="helpLabel(t('projects.charter.fields.code'))" :text="t('projects.charter.help.code')" /></div>
           <Input id="charter-code" :model-value="draft.code ?? t('projects.charter.codePending')" readonly disabled dir="ltr" />
         </div>
@@ -336,10 +336,10 @@ const readonlyDescription = computed(() => (
       </div>
     </details>
 
-    <details class="rounded-lg border p-4" :open="sectionOpen(['authority', 'rationale', 'objectives', 'benefits', 'scope', 'exclusions', 'high_level_requirements', 'deliverables', 'acceptance', 'success'])">
+    <details class="rounded-lg border p-4" :open="compact || sectionOpen(['authority', 'rationale', 'objectives', 'benefits', 'scope', 'exclusions', 'high_level_requirements', 'deliverables', 'acceptance', 'success'])">
       <summary class="cursor-pointer font-semibold">{{ t('projects.charter.sections.outcomes') }}</summary>
       <div class="mt-4 grid gap-6">
-    <div class="grid gap-2" data-testid="charter-field-authority">
+    <div v-if="!compact" class="grid gap-2" data-testid="charter-field-authority">
       <div class="flex items-center gap-1">
         <Label for="charter-authority">{{ t('projects.charter.fields.authority') }}</Label>
         <ProjectFieldHelp :label="helpLabel(t('projects.charter.fields.authority'))" :text="t('projects.charter.help.authority')" />
@@ -355,9 +355,9 @@ const readonlyDescription = computed(() => (
       <Textarea id="charter-rationale" v-model="draft.rationale" :readonly="readonly" :disabled="controlsDisabled" rows="3" />
     </div>
 
-    <ProjectCharterRows v-model="draft" :readonly="readonly" :disabled="controlsDisabled" />
+    <ProjectCharterRows v-model="draft" :readonly="readonly" :disabled="controlsDisabled" :compact="compact" />
 
-    <div class="grid gap-2" data-testid="charter-field-benefits">
+    <div v-if="!compact" class="grid gap-2" data-testid="charter-field-benefits">
       <div class="flex items-center gap-1">
         <Label for="charter-benefits">{{ t('projects.charter.fields.benefits') }}</Label>
         <ProjectFieldHelp :label="helpLabel(t('projects.charter.fields.benefits'))" :text="t('projects.charter.help.benefits')" />
@@ -381,7 +381,7 @@ const readonlyDescription = computed(() => (
       <Textarea id="charter-exclusions" v-model="draft.exclusions" :readonly="readonly" :disabled="controlsDisabled" rows="3" />
     </div>
 
-    <div class="grid gap-2" data-testid="charter-field-high_level_requirements">
+    <div v-if="!compact" class="grid gap-2" data-testid="charter-field-high_level_requirements">
       <div class="flex items-center gap-1">
         <Label for="charter-requirements">{{ t('projects.charter.fields.high_level_requirements') }}</Label>
         <ProjectFieldHelp :label="helpLabel(t('projects.charter.fields.high_level_requirements'))" :text="t('projects.charter.help.high_level_requirements')" />
@@ -389,7 +389,7 @@ const readonlyDescription = computed(() => (
       <Textarea id="charter-requirements" v-model="draft.highLevelRequirements" :readonly="readonly" :disabled="controlsDisabled" rows="3" />
     </div>
 
-    <div class="grid gap-2" data-testid="charter-field-success">
+    <div v-if="!compact" class="grid gap-2" data-testid="charter-field-success">
       <div class="flex items-center gap-1">
         <Label for="charter-success">{{ t('projects.charter.fields.success') }}</Label>
         <ProjectFieldHelp :label="helpLabel(t('projects.charter.fields.success'))" :text="t('projects.charter.help.success')" />
@@ -399,7 +399,7 @@ const readonlyDescription = computed(() => (
       </div>
     </details>
 
-    <details class="rounded-lg border p-4" :open="sectionOpen(['budget_state', 'amount', 'currency', 'priority', 'assumptions', 'constraints', 'closure'])">
+    <details class="rounded-lg border p-4" :open="compact || sectionOpen(['budget_state', 'amount', 'currency', 'priority', 'assumptions', 'constraints', 'closure'])">
       <summary class="cursor-pointer font-semibold">{{ t('projects.charter.sections.planning') }}</summary>
       <div class="mt-4 grid gap-6">
     <div class="grid gap-4 md:grid-cols-3">
@@ -443,7 +443,7 @@ const readonlyDescription = computed(() => (
       </div>
     </div>
 
-    <div class="grid gap-2" data-testid="charter-field-priority">
+    <div v-if="!compact" class="grid gap-2" data-testid="charter-field-priority">
       <div class="flex items-center gap-1">
         <Label id="charter-priority-label" for="charter-priority">{{ t('projects.charter.fields.priority') }}</Label>
         <ProjectFieldHelp :label="helpLabel(t('projects.charter.fields.priority'))" :text="t('projects.charter.help.priority')" />
@@ -462,7 +462,7 @@ const readonlyDescription = computed(() => (
       </Select>
     </div>
 
-    <div class="grid gap-2" data-testid="charter-field-assumptions">
+    <div v-if="!compact" class="grid gap-2" data-testid="charter-field-assumptions">
       <div class="flex items-center gap-1">
         <Label for="charter-assumptions">{{ t('projects.charter.fields.assumptions') }}</Label>
         <ProjectFieldHelp :label="helpLabel(t('projects.charter.fields.assumptions'))" :text="t('projects.charter.help.assumptions')" />
@@ -470,7 +470,7 @@ const readonlyDescription = computed(() => (
       <Textarea id="charter-assumptions" v-model="draft.assumptions" :readonly="readonly" :disabled="controlsDisabled" rows="3" />
     </div>
 
-    <div class="grid gap-2" data-testid="charter-field-constraints">
+    <div v-if="!compact" class="grid gap-2" data-testid="charter-field-constraints">
       <div class="flex items-center gap-1">
         <Label for="charter-constraints">{{ t('projects.charter.fields.constraints') }}</Label>
         <ProjectFieldHelp :label="helpLabel(t('projects.charter.fields.constraints'))" :text="t('projects.charter.help.constraints')" />
@@ -478,7 +478,7 @@ const readonlyDescription = computed(() => (
       <Textarea id="charter-constraints" v-model="draft.constraints" :readonly="readonly" :disabled="controlsDisabled" rows="3" />
     </div>
 
-    <div class="grid gap-2" data-testid="charter-field-closure">
+    <div v-if="!compact" class="grid gap-2" data-testid="charter-field-closure">
       <div class="flex items-center gap-1">
         <Label for="charter-closure">{{ t('projects.charter.fields.closure') }}</Label>
         <ProjectFieldHelp :label="helpLabel(t('projects.charter.fields.closure'))" :text="t('projects.charter.help.closure')" />

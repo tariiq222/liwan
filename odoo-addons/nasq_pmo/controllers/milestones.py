@@ -1,9 +1,10 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import http
-from odoo.exceptions import UserError
+from odoo.exceptions import UserError, ValidationError
 from odoo.http import request
 
 from odoo.addons.nasq_api.controllers.common import ApiError, api_handler, get_record
+from odoo.addons.nasq_pmo.models.project_milestone import _validate_deliverables
 from odoo.addons.nasq_pmo.serializers.dates import parse_date
 from odoo.addons.nasq_pmo.serializers.milestone import dump_milestone
 
@@ -29,6 +30,15 @@ def _sorted(milestones):
     return milestones.sorted(lambda m: (m.deadline is False, m.deadline or '', m.id))
 
 
+def _parse_deliverables(value):
+    if not isinstance(value, list):
+        raise ApiError(422, 'invalid', "deliverables must be a list", field='deliverables')
+    try:
+        return _validate_deliverables(value, request.env)
+    except ValidationError as error:
+        raise ApiError(422, 'invalid', str(error), field='deliverables') from error
+
+
 class MilestoneController(http.Controller):
 
     @http.route('/api/v1/projects/<int:project_id>/milestones', type='json2', auth='user', methods=['GET'], readonly=True)
@@ -39,12 +49,16 @@ class MilestoneController(http.Controller):
 
     @http.route('/api/v1/projects/<int:project_id>/milestones', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
-    def create_milestone(self, project_id, name=None, deadline=None, **_):
+    def create_milestone(self, project_id, name=None, deadline=None, start_date=None, deliverables=None, **_):
         project = get_record('project.project', project_id)
         if not isinstance(name, str) or not name.strip():
             raise ApiError(422, 'invalid', "name must not be empty", field='name')
         day = parse_date(deadline, 'deadline')
-        m = project._nasq_create_milestone(name.strip(), deadline=day or None)
+        start = parse_date(start_date, 'start_date')
+        outputs = [] if deliverables is None else _parse_deliverables(deliverables)
+        m = project._nasq_create_milestone(
+            name.strip(), deadline=day or None, start_date=start or None, deliverables=outputs,
+        )
         return request.make_json_response(dump_milestone(project, m), status=201)
 
     @http.route('/api/v1/projects/<int:project_id>/milestones/<int:mid>', type='json2', auth='user', methods=['PATCH'], readonly=False)
@@ -60,8 +74,10 @@ class MilestoneController(http.Controller):
                 if not isinstance(value, str) or not value.strip():
                     raise ApiError(422, 'invalid', "name must not be empty", field=key)
                 vals[key] = value.strip()
-            elif key == 'deadline':
+            elif key == 'deadline' or key == 'start_date':
                 vals[key] = parse_date(value, key)
+            elif key == 'deliverables':
+                vals[key] = _parse_deliverables(value)
             elif key == 'is_reached':
                 if not isinstance(value, bool):
                     raise ApiError(422, 'invalid', "is_reached must be a boolean", field=key)

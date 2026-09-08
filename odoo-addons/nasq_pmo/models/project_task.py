@@ -32,12 +32,32 @@ COMPLETION_PRISTINE = {
 }
 TASK_WRITABLE_FIELDS = {
     'active', 'allocated_hours', 'date_deadline', 'date_end', 'date_last_stage_update',
-    'description', 'milestone_id', 'name', 'personal_stage_type_id', 'priority',
+    'description', 'milestone_id', 'name', 'nasq_deliverables', 'personal_stage_type_id', 'priority',
     'stage_id', 'state', 'tag_ids', 'user_ids',
 }
 TASK_CREATE_FIELDS = TASK_WRITABLE_FIELDS | {'parent_id', 'project_id'}
 ORIGIN_FIELDS = frozenset({'meeting_id', 'resolution_id'})
 CONVERT_MARKER = 'nasq_pmo.resolution_convert_depth'
+
+
+def _validate_task_deliverables(value, env=None):
+    """Validate and normalize the task's optional output checklist."""
+    translate = env._ if env else lambda message: message
+    if value is None or value is False:
+        return []
+    if not isinstance(value, list):
+        raise ValidationError(translate("Task deliverables must be a list."))
+    normalized = []
+    for row in value:
+        if not isinstance(row, dict) or set(row) != {'name', 'done'}:
+            raise ValidationError(translate("Task deliverables must contain exactly name and done."))
+        name = row['name']
+        if not isinstance(name, str) or not name.strip():
+            raise ValidationError(translate("Task deliverable names must not be empty."))
+        if not isinstance(row['done'], bool):
+            raise ValidationError(translate("Task deliverable done must be a boolean."))
+        normalized.append({'name': name.strip(), 'done': row['done']})
+    return normalized
 
 
 class ProjectTask(models.Model):
@@ -49,6 +69,7 @@ class ProjectTask(models.Model):
     nasq_completion_requested_at = fields.Datetime(copy=False)
     nasq_completion_return_note = fields.Text(copy=False)
     nasq_planned_start = fields.Date(copy=False, index=True)
+    nasq_deliverables = fields.Json(default=lambda self: [], copy=True)
     meeting_id = fields.Integer(copy=False, index=True)
     resolution_id = fields.Integer(copy=False, index=True)
     _nasq_resolution_task_unique = models.UniqueIndex(
@@ -596,6 +617,27 @@ class ProjectTask(models.Model):
             raise AccessError(self.env._("Completion metadata cannot be set on create."))
         tasks._nasq_notify('created')
         return tasks
+
+    @api.constrains('milestone_id', 'project_id', 'nasq_planned_start', 'date_deadline')
+    def _check_nasq_milestone_bounds(self):
+        # A task assignee may be allowed to edit a task in a followers-only
+        # project while the milestone itself is hidden by project rules. This
+        # internal scalar validation must not turn that legitimate write into
+        # an access error or expose the milestone's private content.
+        for task in self.sudo():
+            milestone = task.milestone_id
+            if not milestone:
+                continue
+            if milestone.project_id != task.project_id:
+                raise ValidationError(self.env._("Milestone must belong to the task's project."))
+            milestone._nasq_validate_task_bounds(task)
+        return True
+
+    @api.constrains('nasq_deliverables')
+    def _check_nasq_deliverables(self):
+        for task in self:
+            _validate_task_deliverables(task.nasq_deliverables, self.env)
+        return True
 
     def write(self, vals):
         dependency_write = (

@@ -5,9 +5,13 @@ import { parse, compileScript } from '@vue/compiler-sfc'
 import ts from 'typescript'
 import * as Vue from 'vue'
 import { computed, nextTick, ref, shallowRef, watch } from 'vue'
+import { CalendarDate } from '@internationalized/date'
 import { createDebouncedFlush } from '../debouncedFlush'
 import { describe, expect, it, vi } from 'vitest'
 import { isDirtySnapshot } from '../formDirty'
+import { validateMilestoneDates, validateTaskDates } from '../../utils/projectDateBounds'
+import { buildTaskCreatePayload, validateTaskCreatePolicy } from '../../utils/taskCreatePolicy'
+import { buildMilestonePatch } from '../../utils/milestonePayload'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../../../../..')
 const source = (path: string) => readFileSync(resolve(root, path), 'utf8')
@@ -29,7 +33,7 @@ function loadSetup(path: string, props: Record<string, unknown>, deps: SetupDeps
   }).outputText
   const names = [
     'Vue', '_defineComponent', 'ref', 'computed', 'shallowRef', 'watch', 'nextTick',
-    'useI18n', 'useHydrated', 'ApiError', 'isDirtySnapshot', 'useProjects', 'useCreateTask',
+    'useI18n', 'useHydrated', 'ApiError', 'isDirtySnapshot', 'useProjects', 'useProject', 'useMilestones', 'validateMilestoneDates', 'validateTaskDates', 'buildTaskCreatePayload', 'validateTaskCreatePolicy', 'buildMilestonePatch', 'useCreateTask',
     'formatCalendarDate', 'fromCalendarDate', 'toCalendarDate', 'useCreateMilestone',
     'useUpdateMilestone', 'useCreateProjectUpdate', 'PROJECT_STATUSES', 'PROJECT_STATUS_LABEL_KEY',
     'toast', 'DescriptionEditor', 'moveId', 'stageMoveIndex',
@@ -47,6 +51,13 @@ function loadSetup(path: string, props: Record<string, unknown>, deps: SetupDeps
     ApiError: TestApiError,
     isDirtySnapshot,
     useProjects: () => ({ data: ref([]) }),
+    useProject: () => ({ data: ref(null), isLoading: ref(false), error: ref(null) }),
+    useMilestones: () => ({ data: ref([]), isLoading: ref(false), error: ref(null) }),
+    validateMilestoneDates,
+    validateTaskDates,
+    buildTaskCreatePayload,
+    validateTaskCreatePolicy,
+    buildMilestonePatch,
     useCreateTask: () => ({ mutateAsync: vi.fn(), isPending: ref(false) }),
     formatCalendarDate: () => '',
     fromCalendarDate: () => null,
@@ -176,12 +187,14 @@ describe('PMO repair form contracts', () => {
         pending.value = false
       }
     })
-    const { state, events } = loadSetup('apps/web/app/components/project/MilestoneForm.vue', { projectId: 7 }, {
+    const { state, events } = loadSetup('apps/web/app/components/project/MilestoneForm.vue', { projectId: 7, projectStart: '2030-01-01', projectEnd: '2030-12-31' }, {
       useCreateMilestone: () => ({ mutateAsync, isPending: pending }),
       useUpdateMilestone: () => ({ mutateAsync: vi.fn(), isPending: ref(false) }),
     })
 
     state.name.value = 'Release'
+    state.startDate.value = new CalendarDate(2030, 2, 1)
+    state.deadline.value = new CalendarDate(2030, 2, 28)
     expect(state.dirty.value).toBe(true)
     const failed = state.submit()
     expect(pending.value).toBe(true)

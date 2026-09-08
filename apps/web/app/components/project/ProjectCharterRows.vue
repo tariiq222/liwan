@@ -7,6 +7,7 @@ const draft = defineModel<CharterDraft>({ required: true })
 const props = defineProps<{
   readonly?: boolean
   disabled?: boolean
+  compact?: boolean
 }>()
 
 const { t } = useI18n()
@@ -130,7 +131,7 @@ function addDeliverable() {
       </Button>
     </section>
 
-    <section class="space-y-3" data-testid="charter-field-deliverables">
+    <section v-if="!compact" class="space-y-3" data-testid="charter-field-deliverables">
       <div class="flex items-center gap-1">
         <h2 class="text-sm font-medium">{{ t('projects.charter.fields.deliverables') }}</h2>
         <ProjectFieldHelp

@@ -1,5 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from odoo.tests import tagged
+from datetime import date
+
+from odoo.tests import new_test_user, tagged
 
 from .common import NasqPmoCase
 
@@ -79,10 +81,12 @@ class TestTaskRead(NasqPmoCase):
         self.assertEqual(body['subtasks'], [])
         self.assertEqual(body['depends_on'], [])
         self.assertEqual(body['attachments'], [])
+        self.assertEqual(body['deliverables'], [])
         self.assertIn('description_html', body)
         self.assertEqual(set(body), TASK_KEYS | {'description_html', 'allocated_hours', 'age_days',
                                                    'cycle_days', 'subtasks', 'depends_on', 'attachments',
                                                    'can_manage_dependencies', 'created_at', 'updated_at', 'milestone', 'allowed_actions',
+                                                   'planned_start', 'deliverables',
                                                    'completion_pending', 'completion_revision', 'completion_return_note',
                                                    'completion_policy', 'completion_approver', 'completion_blocked_reason'})
 
@@ -105,6 +109,25 @@ class TestTaskRead(NasqPmoCase):
 @tagged('post_install', '-at_install', 'nasq')
 class TestTaskWrite(NasqPmoCase):
 
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.read_only = new_test_user(
+            cls.env, login='api_task_content_read_only', password='api_task_content_read_only_pass',
+            name='Task content read only', groups='base.group_user',
+        )
+        read_only_role = cls.env['nasq.access.role'].create({
+            'name_ar': 'قارئ محتوى المهام',
+            'company_id': cls.env.company.id,
+            'permission_ids': [(6, 0, cls.env['nasq.access.permission'].search([
+                ('key', 'in', ['pmo.projects.read', 'pmo.tasks.read']),
+            ]).ids)],
+        })
+        cls.env['nasq.access.assignment'].create({
+            'user_id': cls.read_only.id, 'role_id': read_only_role.id,
+            'company_id': cls.env.company.id,
+        })
+
     def test_create(self):
         self.authenticate('api_emp', 'api_emp_pass_123')
         res = self.api('POST', '/api/v1/tasks', {'name': 'New one', 'project_id': self.project.id})
@@ -113,6 +136,115 @@ class TestTaskWrite(NasqPmoCase):
         self.assertEqual(body['name'], 'New one')
         self.assertEqual(body['assignees'], [{'id': self.employee.id, 'name': 'Sara'}])
         self.assertEqual(body['state'], 'in_progress')
+
+    def test_create_and_patch_content_preserve_task_metrics(self):
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        payload = {
+            'name': 'Content task', 'project_id': self.project.id,
+            'description': '<p>Plain task context</p><script>alert(1)</script>',
+            'deliverables': [
+                {'name': '  First output  ', 'done': False},
+                {'name': 'Second output', 'done': True},
+            ],
+        }
+        res = self.api('POST', '/api/v1/tasks', payload)
+        self.assertEqual(res.status_code, 201, res.text)
+        body = res.json()
+        task = self.env['project.task'].browse(body['id'])
+        self.assertEqual(body['deliverables'], [
+            {'name': 'First output', 'done': False},
+            {'name': 'Second output', 'done': True},
+        ])
+        self.assertIn('Plain task context', body['description_html'])
+        self.assertNotIn('<script', body['description_html'].lower())
+        self.assertEqual((body['state'], body['is_closed']), ('in_progress', False))
+        self.assertEqual(task.nasq_deliverables, body['deliverables'])
+
+        res = self.api('PATCH', f"/api/v1/tasks/{task.id}", {
+            'description': '<p>Updated context</p>',
+            'deliverables': [{'name': 'Final output', 'done': True}],
+        })
+        self.assertEqual(res.status_code, 200, res.text)
+        body = res.json()
+        self.assertEqual(body['deliverables'], [{'name': 'Final output', 'done': True}])
+        self.assertIn('Updated context', body['description_html'])
+        self.assertEqual((body['state'], body['is_closed']), ('in_progress', False))
+
+    def test_content_validation_and_forbidden_fields_do_not_mutate(self):
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        before = self.env['project.task'].search_count([('project_id', '=', self.project.id)])
+        for value in (
+            None,
+            {'name': 'not a list'},
+            [{'name': ' ', 'done': False}],
+            [{'name': 'Output', 'done': 1}],
+            [{'name': 'Output', 'done': False, 'score': 1}],
+        ):
+            with self.subTest(value=value):
+                res = self.api('POST', '/api/v1/tasks', {
+                    'name': 'Invalid content', 'project_id': self.project.id,
+                    'deliverables': value,
+                })
+                self.assertEqual(res.status_code, 422, res.text)
+                self.assertEqual(res.json()['field'], 'deliverables')
+        for value in (None, [], {}, True):
+            with self.subTest(description=value):
+                res = self.api('POST', '/api/v1/tasks', {
+                    'name': 'Invalid description', 'project_id': self.project.id,
+                    'description': value,
+                })
+                self.assertEqual(res.status_code, 422, res.text)
+                self.assertEqual(res.json()['field'], 'description')
+        self.assertEqual(
+            self.env['project.task'].search_count([('project_id', '=', self.project.id)]), before,
+        )
+
+        original = self.task_overdue.nasq_deliverables
+        res = self.api('PATCH', f'/api/v1/tasks/{self.task_overdue.id}', {
+            'deliverables': [{'name': 'Output', 'done': False, 'score': 1}],
+        })
+        self.assertEqual(res.status_code, 422, res.text)
+        self.assertEqual(res.json()['field'], 'deliverables')
+        res = self.api('PATCH', f'/api/v1/tasks/{self.task_overdue.id}', {
+            'nasq_deliverables': [{'name': 'Internal field', 'done': False}],
+        })
+        self.assertEqual(res.status_code, 422, res.text)
+        self.assertEqual(res.json()['code'], 'unknown_field')
+        self.assertEqual(self.task_overdue.nasq_deliverables, original)
+
+        original_other = self.task_other.nasq_deliverables
+        self.authenticate(self.read_only.login, 'api_task_content_read_only_pass')
+        detail = self.api('GET', f'/api/v1/tasks/{self.task_other.id}')
+        self.assertEqual(detail.status_code, 200, detail.text)
+        self.assertFalse(detail.json()['can_write'])
+        res = self.api('PATCH', f'/api/v1/tasks/{self.task_other.id}', {
+            'deliverables': [{'name': 'Unauthorized output', 'done': False}],
+        })
+        self.assertEqual(res.status_code, 403, res.text)
+        self.assertEqual(res.json()['code'], 'forbidden')
+        self.assertEqual(self.task_other.nasq_deliverables, original_other)
+
+    def test_create_with_milestone_and_schedule_keeps_schedule_manager_only(self):
+        project = self.env['project.project'].create({
+            'name': 'Scheduled task project', 'company_id': self.env.company.id,
+            'user_id': self.manager.id, 'date_start': date(2026, 10, 1), 'date': date(2026, 10, 31),
+        })
+        milestone = self.env['project.milestone'].create({
+            'name': 'Scheduled milestone', 'project_id': project.id,
+            'nasq_start_date': date(2026, 10, 5), 'deadline': date(2026, 10, 20),
+        })
+        payload = {
+            'name': 'Scheduled task', 'project_id': project.id, 'milestone_id': milestone.id,
+            'planned_start': '2026-10-05', 'date_deadline': '2026-10-20T00:00:00Z',
+        }
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        res = self.api('POST', '/api/v1/tasks', payload)
+        self.assertEqual(res.status_code, 403, res.text)
+        self.authenticate('api_mgr', 'api_mgr_pass_123')
+        res = self.api('POST', '/api/v1/tasks', payload)
+        self.assertEqual(res.status_code, 201, res.text)
+        self.assertEqual(res.json()['planned_start'], '2026-10-05')
+        self.assertEqual(res.json()['milestone']['id'], milestone.id)
 
     def test_create_subtask(self):
         self.authenticate('api_emp', 'api_emp_pass_123')
