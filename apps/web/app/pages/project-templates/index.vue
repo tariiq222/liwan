@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { refDebounced } from '@vueuse/core'
 import { Plus, Search } from '@lucide/vue'
+import FilterBar from '@/components/shared/FilterBar.vue'
 import { useProjectTemplateList } from '@/composables/useProjectTemplates'
 
 const route = useRoute()
@@ -30,7 +31,16 @@ const canApply = computed(() => list.data.value?.can_apply ?? false)
     <SharedPageHeader :title="t('projects.templates.title')" :description="t('projects.templates.description')">
       <template #actions><Button v-if="canManage" :disabled="!hydrated" @click="router.push(detailPath())"><Plus class="me-2 size-[18px]" />{{ t('projects.templates.actions.new') }}</Button></template>
     </SharedPageHeader>
-    <div class="nasq-toolbar"><div class="relative min-w-52 flex-1"><Search class="pointer-events-none absolute start-2 top-1/2 size-[18px] -translate-y-1/2 text-muted-foreground" /><Input v-model="search" name="template-search" :aria-label="t('projects.templates.filters.search')" class="ps-8" :disabled="!hydrated" :placeholder="t('projects.templates.filters.search')" /></div></div>
+    <div class="nasq-toolbar">
+      <FilterBar class="w-full">
+        <template #search>
+          <div class="relative min-w-52 flex-1">
+            <Search class="pointer-events-none absolute start-2 top-1/2 size-[18px] -translate-y-1/2 text-muted-foreground" />
+            <Input v-model="search" name="template-search" :aria-label="t('projects.templates.filters.search')" class="ps-8" :disabled="!hydrated" :placeholder="t('projects.templates.filters.search')" />
+          </div>
+        </template>
+      </FilterBar>
+    </div>
     <SharedPageState :loading="list.isLoading.value" :error="list.error.value" :empty="!list.isLoading.value && !list.error.value && !items.length" :empty-text="t('projects.templates.empty')" @retry="list.refetch">
       <div class="grid gap-3 md:grid-cols-2">
         <NuxtLink v-for="item in items" :key="item.id" :to="detailPath(item.id)" class="nasq-panel p-4 text-start transition-colors hover:bg-muted/30">

@@ -8,14 +8,20 @@ const { me } = useMe()
 <template>
   <SharedPageContainer width="form">
     <SharedPageHeader :title="t('account.title')" :description="t('account.description')" />
-    <Card v-if="me" class="nasq-panel"><CardHeader class="nasq-panel-header"><CardTitle>{{ me.name }}</CardTitle></CardHeader><CardContent class="nasq-panel-body"><dl class="nasq-metadata"><div><dt>{{ t('auth.username') }}</dt><dd dir="ltr">{{ me.login }}</dd></div><div><dt>{{ t('account.company') }}</dt><dd>{{ me.company.name }}</dd></div></dl></CardContent></Card>
-    <Card class="nasq-panel">
-      <CardHeader>
-        <CardTitle>{{ t('account.passwordTitle') }}</CardTitle>
-      </CardHeader>
-      <CardContent class="nasq-panel-body">
+    <section v-if="me" class="nasq-panel">
+      <div class="nasq-panel-header"><h2>{{ me.name }}</h2></div>
+      <div class="nasq-panel-body">
+        <dl class="nasq-metadata">
+          <div><dt>{{ t('auth.username') }}</dt><dd dir="ltr">{{ me.login }}</dd></div>
+          <div><dt>{{ t('account.company') }}</dt><dd>{{ me.company.name }}</dd></div>
+        </dl>
+      </div>
+    </section>
+    <section class="nasq-panel">
+      <div class="nasq-panel-header"><h2>{{ t('account.passwordTitle') }}</h2></div>
+      <div class="nasq-panel-body">
         <PasswordForm />
-      </CardContent>
-    </Card>
+      </div>
+    </section>
   </SharedPageContainer>
 </template>

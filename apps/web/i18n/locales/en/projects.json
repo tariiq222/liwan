@@ -50,8 +50,6 @@
       "progress": "Progress",
       "openTasks": "Open tasks",
       "milestones": "Milestones",
-      "activeTasks": "Active tasks",
-      "activeTasksEmpty": "No active tasks",
       "activeTasksCap": "Showing the first 5 tasks from the loaded list",
       "followers": "Followers",
       "workSummary": "Work summary",
@@ -64,7 +62,20 @@
       "noUpcomingMilestone": "No upcoming milestone",
       "latestUpdate": "Latest update",
       "noUpdates": "No updates yet",
-      "noDates": "No project dates"
+      "noDates": "No project dates",
+      "needsAttention": "Needs your attention",
+      "needsAttentionEmpty": "Nothing needs attention right now",
+      "viewTasks": "View tasks",
+      "deliveryMilestones": "Delivery milestones",
+      "viewMilestones": "View milestones"
+    },
+    "summaryPage": {
+      "title": "Project summary",
+      "description": "The full picture of the project, and what needs follow-up today."
+    },
+    "planning": {
+      "description": "One execution, with views that match how you work.",
+      "views": "Work plan view"
     },
     "new": "New project",
     "newName": "Project name",
@@ -112,6 +123,7 @@
     "unarchived": "Project unarchived",
     "settings": {
       "title": "Project settings",
+      "pageDescription": "Operating options, visibility, and approval.",
       "tabs": {
         "general": "General",
         "stages": "Stages",
@@ -161,6 +173,7 @@
       "tasks": "Tasks",
       "list": "List",
       "board": "Board",
+      "gantt": "Gantt",
       "milestones": "Milestones",
       "updates": "Updates"
     },
@@ -188,6 +201,7 @@
       "deleted": "Milestone deleted"
     },
     "updates": {
+      "add": "Add update",
       "new": "New update",
       "title": "Title",
       "body": "Body",
@@ -199,6 +213,7 @@
     },
     "charter": {
       "title": "Project charter",
+      "pageDescription": "The source of record for purpose, scope, and deliverables.",
       "open": "Project charter",
       "saved": "Charter saved",
       "none": "Not set",
@@ -416,7 +431,9 @@
     },
     "governance": {
       "stakeholders": "Stakeholders",
+      "stakeholdersDescription": "People involved in the project and their roles.",
       "newStakeholder": "New stakeholder",
+      "views": "Parties and responsibilities view",
       "viewList": "List",
       "viewMatrix": "Matrix",
       "stakeholder": {
@@ -440,6 +457,7 @@
       "confirmDeleteAction": "Confirm deletion",
       "raci": {
         "title": "RACI matrix",
+        "description": "Who executes, who is accountable, and who is consulted or informed.",
         "add": "Add assignment",
         "task": "Task",
         "stakeholder": "Stakeholder",
@@ -455,6 +473,7 @@
       },
       "register": {
         "title": "Risk and issue register",
+        "pageDescription": "Track what may disrupt the project and the response plan.",
         "kind": "Kind",
         "risk": "Risk",
         "issue": "Issue",

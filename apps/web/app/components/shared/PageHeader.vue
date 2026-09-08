@@ -5,6 +5,7 @@ import type { RouteLocationRaw } from 'vue-router'
 const props = defineProps<{
   title: string
   description?: string
+  eyebrow?: string
   backTo?: RouteLocationRaw
   backLabel?: string
 }>()
@@ -27,6 +28,7 @@ usePageHeader(() => props.title, () => props.description)
             </NuxtLink>
           </slot>
         </div>
+        <p v-if="props.eyebrow" class="nasq-page-eyebrow">{{ props.eyebrow }}</p>
         <h1 class="nasq-page-title"><slot name="title">{{ props.title }}</slot></h1>
         <p v-if="props.description" class="mt-1 max-w-3xl text-start text-sm leading-6 text-muted-foreground">{{ props.description }}</p>
       </div>

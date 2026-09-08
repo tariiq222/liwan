@@ -53,11 +53,11 @@ async function deleteRow() {
   <SharedPageContainer width="list">
     <SharedPageHeader
       :title="t('projects.governance.raci.title')"
-      :description="t('projects.governance.raci.legend')"
+      :description="t('projects.governance.raci.description')"
       :back-to="returnTo"
       :back-label="t('projects.backToProject')"
     />
-    <nav class="nasq-tabs" :aria-label="t('nav.projectStakeholders')">
+    <nav class="nasq-view-switch" :aria-label="t('projects.governance.views')">
       <NuxtLink :to="{ path: `/projects/${id}/stakeholders`, query: viewQuery }">{{ t('projects.governance.viewList') }}</NuxtLink>
       <NuxtLink :to="{ path: `/projects/${id}/raci`, query: viewQuery }" aria-current="page">{{ t('projects.governance.viewMatrix') }}</NuxtLink>
     </nav>
@@ -77,6 +77,7 @@ async function deleteRow() {
           <select v-if="rows.data.value?.can_manage" :value="assignment(task.id, item.id)?.role ?? ''" :aria-label="`${task.name} — ${item.name} — ${t('projects.governance.raci.role')}`" class="border-input h-[40px] min-w-24 rounded-lg border bg-transparent px-3 text-sm shadow-none outline-none focus-visible:border-ring focus-visible:ring-ring focus-visible:ring-3 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50" :disabled="!hydrated || pending || loading || !!confirmRow" @change="changeRole(task.id, item.id, $event)"><option value="">—</option><option v-for="role in ['R', 'A', 'C', 'I']" :key="role" :value="role">{{ role }}</option></select><span v-else>{{ assignment(task.id, item.id)?.role ?? '—' }}</span>
         </td></tr></tbody>
       </table>
+      <p class="p-3 text-sm text-muted-foreground">{{ t('projects.governance.raci.legend') }}</p>
     </section>
     <div class="grid gap-3 sm:grid-cols-2">
       <nav class="flex items-center gap-2" :aria-label="t('projects.governance.raci.task')"><Button variant="outline" :disabled="!hydrated || loading || pending || !taskPage" @click="taskPage--">{{ t('projects.governance.previous') }}</Button><span>{{ t('projects.governance.total', { total: tasks.data.value?.total ?? 0 }) }}</span><Button variant="outline" :disabled="!hydrated || loading || pending || (taskPage + 1) * 50 >= (tasks.data.value?.total ?? 0)" @click="nextTasks">{{ t('projects.governance.next') }}</Button></nav>

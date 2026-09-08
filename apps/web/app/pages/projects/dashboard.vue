@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { PROJECT_STATUSES } from '@nasq/contracts'
+import { Search } from '@lucide/vue'
 import { refDebounced } from '@vueuse/core'
 import FilterBar from '@/components/shared/FilterBar.vue'
 import ProjectDashboardCharts from '@/components/project/dashboard/ProjectDashboardCharts.vue'
@@ -99,7 +100,10 @@ function clearFilters() {
     <div class="nasq-toolbar">
       <FilterBar class="w-full">
         <template #search>
-          <Input v-model="search" :disabled="!hydrated" :placeholder="t('projects.reports.search')" :aria-label="t('projects.reports.search')" class="min-w-52" />
+          <div class="relative min-w-52 flex-1">
+            <Search class="pointer-events-none absolute start-2 top-1/2 size-[18px] -translate-y-1/2 text-muted-foreground" />
+            <Input v-model="search" :disabled="!hydrated" :placeholder="t('projects.reports.search')" :aria-label="t('projects.reports.search')" class="ps-8" />
+          </div>
         </template>
         <Select :model-value="filters.status" @update:model-value="onStatusChange">
           <SelectTrigger data-testid="project-dashboard-status-filter" class="w-40" :disabled="!hydrated">

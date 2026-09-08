@@ -38,7 +38,7 @@ async function confirmDelete() {
 </script>
 <template>
   <SharedPageContainer width="list">
-    <SharedPageHeader :title="t('hr.depts.title')" back-to="/hr">
+    <SharedPageHeader :title="t('hr.depts.title')" :description="t('hr.depts.pageDescription')" back-to="/hr">
       <NuxtLink v-if="can('hr.departments.manage')" :to="{ path: '/hr/departments/new', query: returnToQuery(route.fullPath) }"><Button>{{ t('hr.depts.new') }}</Button></NuxtLink>
     </SharedPageHeader>
     <div class="nasq-toolbar">

@@ -22,22 +22,20 @@ function saved(id?: number) {
 
 <template>
   <SharedPageContainer width="form">
-    <SharedPageHeader :title="t('projects.milestones.new')" :description="project?.name" :back-to="returnTo" :back-label="t('projects.backToProject')" />
+    <SharedPageHeader :title="t('projects.milestones.new')" :eyebrow="project?.name" :back-to="returnTo" :back-label="t('projects.backToProject')" />
     <template v-if="projectId === null">
       <p class="text-muted-foreground">{{ t('projects.invalidId') }}</p>
     </template>
-    <template v-else-if="isLoading && !project">
-      <p role="status" class="text-muted-foreground">{{ t('projects.loading') }}</p>
-    </template>
-    <template v-else-if="notFound">
-      <p class="text-muted-foreground">{{ t('projects.notFound') }}</p>
-    </template>
-    <SharedPageState v-else-if="error || !project" :error="error" :empty="!error && !project" @retry="refetch" />
-    <template v-else-if="!project.can_manage">
-      <p class="text-muted-foreground">{{ t('projects.forbidden') }}</p>
-    </template>
-    <template v-else>
-      <Card class="nasq-form"><CardContent><MilestoneForm :project-id="projectId" @saved="saved" @cancel="router.push(returnTo)" /></CardContent></Card>
-    </template>
+    <SharedPageState
+      v-else
+      :loading="isLoading && !project"
+      :error="notFound ? null : error"
+      :empty="notFound || (!isLoading && !error && !project)"
+      :empty-text="notFound ? t('projects.notFound') : t('projects.empty')"
+      @retry="refetch"
+    >
+      <p v-if="!project?.can_manage" class="text-muted-foreground">{{ t('projects.forbidden') }}</p>
+      <Card v-else class="nasq-form"><CardContent><MilestoneForm :project-id="projectId" @saved="saved" @cancel="router.push(returnTo)" /></CardContent></Card>
+    </SharedPageState>
   </SharedPageContainer>
 </template>

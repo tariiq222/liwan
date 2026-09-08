@@ -17,7 +17,9 @@ function created(id: number) {
 <template>
   <SharedPageContainer width="form">
     <SharedPageHeader :title="t('tasks.new')" :back-to="returnTo" :back-label="t('tasks.detail.back')" />
-    <Card class="nasq-form"><CardContent><TaskCreateForm @created="created" @cancel="router.push(returnTo)" /></CardContent></Card>
+    <section class="nasq-form nasq-panel nasq-panel-body">
+      <TaskCreateForm @created="created" @cancel="router.push(returnTo)" />
+    </section>
     <p v-if="!hydrated" class="sr-only">{{ t('tasks.loading') }}</p>
   </SharedPageContainer>
 </template>

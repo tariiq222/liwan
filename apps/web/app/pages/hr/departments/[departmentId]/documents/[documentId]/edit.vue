@@ -58,14 +58,18 @@ async function uploadFile(event: Event) {
     <SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!query.data.value" @retry="query.refetch">
       <form v-if="query.data.value" class="nasq-form nasq-panel nasq-panel-body grid gap-5" @submit.prevent="save">
         <SharedUnsavedChanges :dirty="dirty" />
-        <div class="grid gap-2"><Label for="hr-doc-title">{{ t('hr.docs.columns.name') }}</Label><Input id="hr-doc-title" v-model="name" :disabled="!hydrated || updating" /></div>
-        <div class="grid gap-2"><Label>{{ t('hr.docs.body') }}</Label><DocumentEditor v-model="body" :document-id="documentId" :debounce="false" :disabled="updating" /></div>
-        <div class="grid gap-2">
-          <h2 class="text-sm font-medium">{{ t('hr.docs.attachments') }}</h2>
-          <ul class="grid gap-1 text-sm"><li v-for="attachment in query.data.value.attachment_ids" :key="attachment.id"><a :href="`/web/content/${attachment.id}`" class="underline" target="_blank" rel="noreferrer">{{ attachment.name }}</a></li></ul>
-          <Label for="hr-doc-upload">{{ t('hr.docs.upload') }}</Label><input id="hr-doc-upload" type="file" class="block w-full min-w-0 max-w-full text-sm" :disabled="!hydrated || uploading || updating" @change="uploadFile">
-        </div>
-        <div class="flex gap-2"><NuxtLink :to="returnTo"><Button type="button" variant="outline" :disabled="updating">{{ t('app.cancel') }}</Button></NuxtLink><Button type="submit" :disabled="!hydrated || updating || uploading || !name.trim()">{{ t('app.save') }}</Button></div>
+        <SharedFormSection :title="t('hr.docs.edit')">
+          <div class="nasq-form-grid mt-4">
+            <div class="grid gap-2"><Label for="hr-doc-title">{{ t('hr.docs.columns.name') }}</Label><Input id="hr-doc-title" v-model="name" :disabled="!hydrated || updating" /></div>
+            <div class="grid gap-2 sm:col-span-2"><Label>{{ t('hr.docs.body') }}</Label><DocumentEditor v-model="body" :document-id="documentId" :debounce="false" :disabled="updating" /></div>
+          </div>
+        </SharedFormSection>
+        <SharedFormSection :title="t('hr.docs.attachments')">
+          <ul class="mt-4 grid gap-1 text-sm"><li v-for="attachment in query.data.value.attachment_ids" :key="attachment.id"><a :href="`/web/content/${attachment.id}`" class="underline" target="_blank" rel="noreferrer">{{ attachment.name }}</a></li></ul>
+          <Label for="hr-doc-upload" class="mt-3">{{ t('hr.docs.upload') }}</Label>
+          <input id="hr-doc-upload" type="file" class="block w-full min-w-0 max-w-full text-sm" :disabled="!hydrated || uploading || updating" @change="uploadFile">
+        </SharedFormSection>
+        <div class="nasq-form-footer"><NuxtLink :to="returnTo"><Button type="button" variant="outline" :disabled="updating">{{ t('app.cancel') }}</Button></NuxtLink><Button type="submit" :disabled="!hydrated || updating || uploading || !name.trim()">{{ t('app.save') }}</Button></div>
       </form>
     </SharedPageState>
   </SharedPageContainer>

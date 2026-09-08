@@ -83,9 +83,11 @@ async function convertResolution(resolutionId: number) {
 <template>
   <SharedPageContainer v-if="isDetail" width="detail">
     <SharedPageHeader :title="query.data.value?.name || t('nav.meetings')" :back-to="backTo">
-      <NuxtLink v-if="query.data.value?.can_edit" :to="{ path: `/meetings/${id}/edit`, query: returnToQuery(route.fullPath) }">
-        <Button>{{ t('app.edit') }}</Button>
-      </NuxtLink>
+      <template #actions>
+        <NuxtLink v-if="query.data.value?.can_edit" :to="{ path: `/meetings/${id}/edit`, query: returnToQuery(route.fullPath) }">
+          <Button>{{ t('app.edit') }}</Button>
+        </NuxtLink>
+      </template>
     </SharedPageHeader>
     <SharedPageState :loading="query.isLoading.value" :error="query.error.value" @retry="query.refetch">
       <div v-if="query.data.value" class="grid gap-4">

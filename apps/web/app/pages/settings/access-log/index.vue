@@ -37,7 +37,7 @@ const sections = computed(() => forbidden.value ? [] : [
 </script>
 
 <template>
-  <SettingsLayout :sections><div class="nasq-page-stack">
+  <SettingsLayout :sections>
     <SharedPageHeader :title="t('access.audit.title')" :description="t('access.audit.description')" />
     <SharedPageState v-if="forbidden" :empty="true" :empty-text="t('access.forbidden')" />
     <div v-else class="nasq-panel">
@@ -47,5 +47,5 @@ const sections = computed(() => forbidden.value ? [] : [
       <div v-if="pages > 1" class="nasq-settings-pagination"><Button variant="ghost" :disabled="!hydrated || page === 1 || query.isFetching.value" @click="previousPage">{{ t('access.previousPage') }}</Button><span>{{ t('access.pageOf', { page, pages }) }}</span><Button variant="ghost" :disabled="!hydrated || page >= pages || query.isFetching.value" @click="nextPage">{{ t('access.nextPage') }}</Button></div>
       </div>
     </div>
-  </div></SettingsLayout>
+  </SettingsLayout>
 </template>

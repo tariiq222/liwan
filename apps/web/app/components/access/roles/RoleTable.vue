@@ -12,7 +12,7 @@ const roleLabel = (role: { name: { ar: string; en: string | null } }) => role.na
 <template>
   <div class="nasq-panel overflow-hidden">
     <div class="overflow-x-auto">
-      <Table class="min-w-[680px]">
+      <Table class="nasq-settings-table">
         <TableHeader>
           <TableRow>
             <TableHead class="text-start">{{ t('access.roles.columns.name') }}</TableHead>

@@ -26,35 +26,32 @@ const sections = computed(() => {
 </script>
 
 <template>
-  <SettingsLayout :sections>
-    <div v-if="isBaseRoute" class="nasq-page-stack nasq-settings-form-page">
-      <SharedPageHeader :title="t('settings.projects.title')" />
-
-      <p v-if="forbidden" class="text-muted-foreground">{{ t('settings.forbidden') }}</p>
-      <div v-else class="nasq-panel nasq-panel-body">
-        <ProjectSettingsForm />
-        <section id="catalogs" class="nasq-form-section nasq-settings-anchor space-y-3">
-          <h2 class="nasq-form-section-title">{{ t('settings.projects.catalogs.title') }}</h2>
-          <p class="text-sm text-muted-foreground">{{ t('settings.projects.catalogs.hint') }}</p>
-          <div class="flex flex-wrap gap-3 text-sm">
-            <NuxtLink
-              :to="{ path: '/settings/projects/catalogs/types', query: returnToQuery(route.fullPath) }"
-              class="underline underline-offset-4"
-              data-testid="catalog-types-link"
-            >
-              {{ t('settings.projects.catalogs.types') }}
-            </NuxtLink>
-            <NuxtLink
-              :to="{ path: '/settings/projects/catalogs/owning-units', query: returnToQuery(route.fullPath) }"
-              class="underline underline-offset-4"
-              data-testid="catalog-units-link"
-            >
-              {{ t('settings.projects.catalogs.owningUnits') }}
-            </NuxtLink>
-          </div>
-        </section>
-      </div>
+  <SettingsLayout v-if="isBaseRoute" :sections width="form">
+    <SharedPageHeader :title="t('settings.projects.title')" />
+    <p v-if="forbidden" class="text-muted-foreground">{{ t('settings.forbidden') }}</p>
+    <div v-else class="nasq-panel nasq-panel-body">
+      <ProjectSettingsForm />
+      <section id="catalogs" class="nasq-form-section nasq-settings-anchor space-y-3">
+        <h2 class="nasq-form-section-title">{{ t('settings.projects.catalogs.title') }}</h2>
+        <p class="text-sm text-muted-foreground">{{ t('settings.projects.catalogs.hint') }}</p>
+        <div class="flex flex-wrap gap-3 text-sm">
+          <NuxtLink
+            :to="{ path: '/settings/projects/catalogs/types', query: returnToQuery(route.fullPath) }"
+            class="underline underline-offset-4"
+            data-testid="catalog-types-link"
+          >
+            {{ t('settings.projects.catalogs.types') }}
+          </NuxtLink>
+          <NuxtLink
+            :to="{ path: '/settings/projects/catalogs/owning-units', query: returnToQuery(route.fullPath) }"
+            class="underline underline-offset-4"
+            data-testid="catalog-units-link"
+          >
+            {{ t('settings.projects.catalogs.owningUnits') }}
+          </NuxtLink>
+        </div>
+      </section>
     </div>
-    <NuxtPage v-else />
   </SettingsLayout>
+  <NuxtPage v-else />
 </template>

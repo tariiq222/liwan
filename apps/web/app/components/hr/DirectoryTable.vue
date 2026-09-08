@@ -46,6 +46,7 @@ const params = computed(() => {
 const { data, isLoading, error, refetch } = useHrEmployees(params)
 const { data: deptData } = useHrDepartments()
 const NuxtLink = resolveComponent('NuxtLink')
+const Button = resolveComponent('Button')
 
 const items = computed<HrEmployee[]>(() => data.value?.items ?? [])
 const departments = computed(() => deptData.value?.items ?? [])
@@ -120,15 +121,15 @@ const columns = computed(() => [
     id: 'manage',
     header: () => canManage.value || canArchive.value ? t('hr.directory.columns.actions') : '',
     cell: (info) => canManage.value || canArchive.value
-      ? h('div', { class: 'flex gap-1' }, [
-          canManage.value ? h('button', {
-            type: 'button', class: 'rounded-md border px-2 py-1 text-xs hover:bg-accent', disabled: !hydrated.value,
+        ? h('div', { class: 'flex gap-1' }, [
+          canManage.value ? h(Button, {
+            type: 'button', variant: 'ghost', size: 'sm', disabled: !hydrated.value,
             'data-testid': 'hr-employee-manage', onClick: (event: Event) => { event.stopPropagation(); emit('manage', info.row.original.id) },
-          }, t('hr.directory.manage')) : null,
-          canArchive.value ? h('button', {
-            type: 'button', class: 'rounded-md border px-2 py-1 text-xs hover:bg-accent', disabled: !hydrated.value,
+          }, () => t('hr.directory.manage')) : null,
+          canArchive.value ? h(Button, {
+            type: 'button', variant: 'ghost', size: 'sm', disabled: !hydrated.value,
             'data-testid': 'hr-employee-archive-row', onClick: (event: Event) => { event.stopPropagation(); emit('archive', info.row.original.id) },
-          }, info.row.original.active ? t('hr.employee.archive') : t('hr.employee.unarchive')) : null,
+          }, () => info.row.original.active ? t('hr.employee.archive') : t('hr.employee.unarchive')) : null,
         ])
       : null,
   }),
@@ -214,7 +215,7 @@ function clearFilters() {
             <TableRow
               v-for="row in table.getRowModel().rows"
               :key="row.id"
-              class="cursor-pointer transition-colors hover:bg-muted/50"
+              class="cursor-pointer transition-colors hover:bg-muted/30"
               @click="onRowClick(row.original.id, $event)"
             >
               <TableCell v-for="cell in row.getVisibleCells()" :key="cell.id" class="text-start">

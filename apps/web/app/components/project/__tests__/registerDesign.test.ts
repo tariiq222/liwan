@@ -40,8 +40,9 @@ describe('register list design alignment', () => {
     const projectSource = readFileSync(
       resolve(dirname(fileURLToPath(import.meta.url)), '../../../pages/projects/[id].vue'), 'utf8',
     )
-    expect(projectSource).not.toContain('ProjectWorkspaceNav')
-    expect(projectSource).toContain('<SharedPageContainer v-if="isBaseRoute"')
-    expect(projectSource).toContain(':back-to="projectReturnTo"')
+                expect(projectSource).not.toContain('ProjectWorkspaceNav')
+                expect(projectSource).toContain('<SharedPageContainer v-if="isBaseRoute"')
+                expect(projectSource).toContain('projectReturnTo')
+                expect(projectSource).toContain(':back-to="projectReturnTo"')
   })
 })

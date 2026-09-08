@@ -28,22 +28,24 @@ function saved(id: number) {
       :empty="!departments.data.value?.items.length"
       @retry="departments.refetch"
     >
-      <div class="nasq-panel nasq-panel-body grid gap-2">
-        <Label for="new-document-department">{{ t('hr.docs.department') }}</Label>
-        <Select :model-value="departmentId ? String(departmentId) : undefined" @update:model-value="selectDepartment">
-          <SelectTrigger id="new-document-department" class="w-full" :disabled="!hydrated">
-            <SelectValue :placeholder="t('hr.docs.chooseDepartment')" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem v-for="department in departments.data.value?.items" :key="department.id" :value="String(department.id)">
-              {{ department.name }}
-            </SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+      <section class="nasq-panel nasq-panel-body">
+        <SharedFormSection :title="t('hr.docs.department')">
+          <div class="mt-4 grid gap-2">
+            <Label for="new-document-department">{{ t('hr.docs.department') }}</Label>
+            <Select :model-value="departmentId ? String(departmentId) : undefined" @update:model-value="selectDepartment">
+              <SelectTrigger id="new-document-department" class="w-full" :disabled="!hydrated">
+                <SelectValue :placeholder="t('hr.docs.chooseDepartment')" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem v-for="department in departments.data.value?.items" :key="department.id" :value="String(department.id)">
+                  {{ department.name }}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </SharedFormSection>
+        <DocumentCreateForm v-if="selectedDepartment" :department-id="departmentId" :back-to="returnTo" @saved="saved" />
+      </section>
     </SharedPageState>
-    <section v-if="selectedDepartment" class="nasq-panel nasq-panel-body">
-      <DocumentCreateForm :department-id="departmentId" :back-to="returnTo" @saved="saved" />
-    </section>
   </SharedPageContainer>
 </template>

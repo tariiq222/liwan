@@ -70,7 +70,7 @@ async function submit() {
 </script>
 
 <template>
-  <form class="grid gap-4" data-testid="charter-reference-form" @submit.prevent="submit">
+  <form class="nasq-form grid gap-4" data-testid="charter-reference-form" @submit.prevent="submit">
     <SharedUnsavedChanges :dirty="dirty" />
     <div class="grid gap-2">
       <Label for="catalog-name">{{ t('settings.projects.catalogs.name') }}</Label>

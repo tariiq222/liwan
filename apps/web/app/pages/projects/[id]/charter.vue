@@ -31,7 +31,8 @@ function onCancel() {
   <SharedPageContainer width="form">
     <SharedPageHeader
       :title="t('projects.charter.title')"
-      :description="project?.name"
+      :description="t('projects.charter.pageDescription')"
+      :eyebrow="project?.name"
       :back-to="returnTo"
       :back-label="t('projects.backToProject')"
     >
@@ -52,15 +53,13 @@ function onCancel() {
     >
       <Card class="nasq-form">
         <CardContent class="pt-6">
-          <SharedFormSection :title="t('projects.charter.title')">
-            <ProjectCharterForm
-              mode="edit"
-              :project="project"
-              :readonly="readonly"
-              @saved="onSaved"
-              @cancel="onCancel"
-            />
-          </SharedFormSection>
+          <ProjectCharterForm
+            mode="edit"
+            :project="project"
+            :readonly="readonly"
+            @saved="onSaved"
+            @cancel="onCancel"
+          />
         </CardContent>
       </Card>
     </SharedPageState>

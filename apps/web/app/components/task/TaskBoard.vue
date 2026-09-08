@@ -112,7 +112,7 @@ function isCollapsed(stage: BoardStage): boolean {
 </script>
 
 <template>
-  <div :class="embedded ? 'space-y-2 p-[18px]' : 'space-y-2'">
+  <div :class="embedded ? 'space-y-2 p-[18px]' : 'nasq-panel space-y-2 overflow-hidden p-[18px]'">
     <p v-if="isCapped" class="text-xs text-muted-foreground">{{ t('tasks.kanban.capped') }}</p>
     <SharedPageState v-if="error" :error="error" @retry="refetch" />
     <SharedPageState v-else-if="stageError" :error="stageError" @retry="refetchPersonalStages" />

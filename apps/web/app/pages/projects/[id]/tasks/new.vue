@@ -24,20 +24,20 @@ function created(id: number) {
 
 <template>
   <SharedPageContainer width="form">
-    <SharedPageHeader :title="t('tasks.new')" :description="project?.name" :back-to="returnTo" :back-label="t('projects.backToProject')" />
+    <SharedPageHeader :title="t('tasks.new')" :eyebrow="project?.name" :back-to="returnTo" :back-label="t('projects.backToProject')" />
     <template v-if="projectId === null">
       <p class="text-muted-foreground">{{ t('tasks.invalidId') }}</p>
     </template>
-    <template v-else-if="isLoading && !project">
-      <p role="status" class="text-muted-foreground">{{ t('tasks.loading') }}</p>
-    </template>
-    <template v-else-if="notFound">
-      <p class="text-muted-foreground">{{ t('tasks.notFound') }}</p>
-    </template>
-    <SharedPageState v-else-if="error || !project" :error="error" :empty="!error && !project" @retry="refetch" />
-    <template v-else>
+    <SharedPageState
+      v-else
+      :loading="isLoading && !project"
+      :error="notFound ? null : error"
+      :empty="notFound || (!isLoading && !error && !project)"
+      :empty-text="t('tasks.notFound')"
+      @retry="refetch"
+    >
       <Card class="nasq-form"><CardContent><TaskCreateForm :project-id="projectId" @created="created" @cancel="router.push(returnTo)" /></CardContent></Card>
-    </template>
+    </SharedPageState>
     <p v-if="!hydrated" class="sr-only">{{ t('tasks.loading') }}</p>
   </SharedPageContainer>
 </template>

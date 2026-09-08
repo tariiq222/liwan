@@ -5,7 +5,18 @@ import type { ProjectDetail } from '@nasq/contracts'
 import { ApiError } from '@/composables/useApi'
 import { useArchiveProject, useUnarchiveProject } from '@/composables/useProjects'
 
-const props = withDefaults(defineProps<{ project: ProjectDetail; backTo?: string; showCreate?: boolean; showEdit?: boolean; createLabel?: string; title?: string; canCreate?: boolean }>(), {
+const props = withDefaults(defineProps<{
+  project: ProjectDetail
+  backTo?: string
+  backLabel?: string
+  showCreate?: boolean
+  showEdit?: boolean
+  createLabel?: string
+  title?: string
+  description?: string
+  eyebrow?: string
+  canCreate?: boolean
+}>(), {
   showCreate: true,
   showEdit: false,
   createLabel: undefined,
@@ -43,8 +54,10 @@ async function doUnarchive() {
 <template>
   <SharedPageHeader
     :title="props.title ?? project.name"
+    :description="props.description"
+    :eyebrow="props.eyebrow"
     :back-to="props.backTo"
-    :back-label="t('projects.backToProjects')"
+    :back-label="props.backLabel || t('projects.backToProjects')"
   >
     <template #actions>
       <Button

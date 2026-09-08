@@ -65,16 +65,16 @@ function conversationTo(id: number) {
             </span>
             <span class="flex items-center justify-between gap-2">
               <span class="truncate text-sm text-muted-foreground">{{ item.last_message_preview || t(`chat.${item.type}`) }}</span>
-              <span v-if="item.unread_count" class="rounded-full bg-primary px-1.5 text-[11px] text-primary-foreground">{{ item.unread_count }}</span>
+              <span v-if="item.unread_count" class="nasq-unread-count rounded-full px-1.5 text-[11px]">{{ item.unread_count }}</span>
             </span>
           </span>
         </NuxtLink>
       </li>
     </ul>
-    <div v-if="total > CHAT_PAGE_SIZE" class="flex items-center justify-between gap-2 border-t p-2 text-xs">
+    <nav v-if="total > CHAT_PAGE_SIZE" class="flex items-center justify-between gap-2 border-t p-2 text-xs text-muted-foreground">
       <Button type="button" size="sm" variant="ghost" :disabled="!hydrated || props.routeState.offset === 0" @click="page(-CHAT_PAGE_SIZE)">{{ t('chat.previousPage') }}</Button>
       <span>{{ t('chat.pageOf', { page: Math.floor(props.routeState.offset / CHAT_PAGE_SIZE) + 1, pages: Math.max(1, Math.ceil(total / CHAT_PAGE_SIZE)) }) }}</span>
       <Button type="button" size="sm" variant="ghost" :disabled="!hydrated || props.routeState.offset + CHAT_PAGE_SIZE >= total" @click="page(CHAT_PAGE_SIZE)">{{ t('chat.nextPage') }}</Button>
-    </div>
+    </nav>
   </section>
 </template>

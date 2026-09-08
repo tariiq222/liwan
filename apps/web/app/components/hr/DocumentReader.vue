@@ -15,8 +15,8 @@ function formatSize(n: number) {
 
 <template>
   <div class="grid gap-4">
-    <div>
-      <h2 v-if="!hideTitle" class="text-lg font-semibold">{{ props.document.name }}</h2>
+    <div v-if="!hideTitle">
+      <h2 class="text-lg font-semibold">{{ props.document.name }}</h2>
       <p class="text-sm text-muted-foreground">{{ props.document.department.name }}</p>
     </div>
     <div class="text-sm" v-html="sanitizeHtml(props.document.body)" />

@@ -1,14 +1,17 @@
 <script setup lang="ts">
+import type { LocationQueryRaw } from 'vue-router'
+import ProjectHeader from '@/components/project/ProjectHeader.vue'
 import { ApiError } from '@/composables/useApi'
 import { useProject } from '@/composables/useProjects'
 import { useProjectSchedule } from '@/composables/useProjectSchedule'
 import ScheduleGantt from '@/components/project/schedule/ScheduleGantt.vue'
 import type { ScheduleScale } from '@/utils/projectSchedule'
-import { safeReturnTo } from '@/utils/safeReturnTo'
+import { returnToQuery, safeReturnTo } from '@/utils/safeReturnTo'
 
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
+const { can } = useAccess()
 const projectId = computed(() => { const value = Number(route.params.id); return Number.isInteger(value) && value > 0 ? value : null })
 const isBaseRoute = computed(() => route.path.replace(/\/+$/, '') === `/projects/${route.params.id}/schedule`)
 const { data: project, error: projectError, refetch: refetchProject } = useProject(projectId)
@@ -20,20 +23,59 @@ const scale = computed<ScheduleScale>({
 const notFound = computed(() => projectId.value === null || (projectError.value instanceof ApiError && [403, 404].includes(projectError.value.status)))
 const returnTo = computed(() => projectId.value ? safeReturnTo(route.query.returnTo, `/projects/${projectId.value}`, ['/projects']) : '/projects')
 function retry() { void Promise.all([refetchProject(), refetch()]) }
+
+function planningLink(view: 'list' | 'board' | 'gantt' | 'milestones') {
+  const query: LocationQueryRaw = { ...route.query }
+  delete query.view
+  if (view === 'gantt') {
+    delete query.tab
+    return { path: `/projects/${projectId.value}/schedule`, query }
+  }
+  query.tab = view === 'list' ? 'tasks' : view
+  return { path: `/projects/${projectId.value}`, query }
+}
+
+function openTaskCreate() {
+  if (!projectId.value) return
+  router.push({ path: `/projects/${projectId.value}/tasks/new`, query: { ...route.query, ...returnToQuery(route.fullPath), tab: 'tasks' } })
+}
+function openSettings() {
+  if (!projectId.value) return
+  router.push({ path: `/projects/${projectId.value}/settings`, query: returnToQuery(route.fullPath) })
+}
+function onArchived() {
+  router.push('/projects')
+}
 </script>
 
 <template>
   <SharedPageContainer v-if="isBaseRoute" width="list">
-    <SharedPageHeader
+    <ProjectHeader
+      v-if="project"
+      :project="project"
       :title="t('nav.projectPlanning')"
-      :description="t('projects.schedule.timeline')"
+      :description="t('projects.planning.description')"
+      :eyebrow="project.name"
+      :back-to="returnTo"
+      :back-label="t('projects.backToProject')"
+      :can-create="can('pmo.tasks.create')"
+      :create-label="t('tasks.new')"
+      @create="openTaskCreate"
+      @settings="openSettings"
+      @archived="onArchived"
+    />
+    <SharedPageHeader
+      v-else
+      :title="t('nav.projectPlanning')"
+      :description="t('projects.planning.description')"
       :back-to="returnTo"
       :back-label="t('projects.backToProject')"
     />
-    <nav class="nasq-tabs" :aria-label="t('projects.tabs.tasks')">
-      <NuxtLink :to="{ path: `/projects/${projectId}`, query: { ...route.query, tab: 'tasks' } }">{{ t('projects.tabs.tasks') }}</NuxtLink>
-      <NuxtLink :to="{ path: route.path, query: route.query }" aria-current="page">{{ t('projects.planningLinks.schedule') }}</NuxtLink>
-      <NuxtLink :to="{ path: `/projects/${projectId}`, query: { ...route.query, tab: 'milestones' } }">{{ t('projects.tabs.milestones') }}</NuxtLink>
+    <nav class="nasq-view-switch" :aria-label="t('projects.planning.views')">
+      <NuxtLink :to="planningLink('list')">{{ t('projects.tabs.list') }}</NuxtLink>
+      <NuxtLink :to="planningLink('board')">{{ t('projects.tabs.board') }}</NuxtLink>
+      <NuxtLink :to="planningLink('gantt')" aria-current="page">{{ t('projects.tabs.gantt') }}</NuxtLink>
+      <NuxtLink :to="planningLink('milestones')">{{ t('projects.tabs.milestones') }}</NuxtLink>
     </nav>
     <SharedPageState
       :loading="isLoading && !schedule"

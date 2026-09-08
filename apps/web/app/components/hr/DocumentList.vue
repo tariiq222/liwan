@@ -68,7 +68,7 @@ function detailsTo(document: HrDocument) {
         <TableBody>
           <template v-if="query.isLoading.value"><TableRow v-for="n in 3" :key="n"><TableCell><Skeleton class="h-5 w-full" /></TableCell><TableCell><Skeleton class="h-5 w-24" /></TableCell></TableRow></template>
           <TableEmpty v-else-if="items.length === 0" :colspan="2"><p class="text-muted-foreground">{{ t('hr.docs.empty') }}</p></TableEmpty>
-          <template v-else><TableRow v-for="document in items" :key="document.id" class="cursor-pointer transition-colors hover:bg-muted/50" @click="navigateTo(detailsTo(document))"><TableCell class="text-start">{{ document.name }}</TableCell><TableCell class="text-start text-muted-foreground">{{ new Date(document.write_date).toLocaleDateString() }}</TableCell></TableRow></template>
+          <template v-else><TableRow v-for="document in items" :key="document.id" class="cursor-pointer transition-colors hover:bg-muted/30" @click="navigateTo(detailsTo(document))"><TableCell class="text-start">{{ document.name }}</TableCell><TableCell class="text-start text-muted-foreground">{{ new Date(document.write_date).toLocaleDateString() }}</TableCell></TableRow></template>
         </TableBody>
       </Table>
     </div>

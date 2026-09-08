@@ -76,7 +76,7 @@ async function save() {
 <template>
   <SharedPageContainer width="form">
     <SharedPageHeader :title="t('meetingsUi.edit')" :back-to="returnTo" />
-    <SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!query.data.value" @retry="query.refetch" />
+    <SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!query.isLoading.value && !query.error.value && !query.data.value" @retry="query.refetch">
     <form v-if="query.data.value" class="nasq-form nasq-panel nasq-panel-body grid gap-4" @submit.prevent="save">
       <SharedUnsavedChanges :dirty="dirty" />
       <Label for="edit-name">{{ t('meetingsUi.title') }}</Label>
@@ -108,5 +108,6 @@ async function save() {
         <Button type="submit" :disabled="!hydrated || isPending">{{ t('app.save') }}</Button>
       </div>
     </form>
+    </SharedPageState>
   </SharedPageContainer>
 </template>

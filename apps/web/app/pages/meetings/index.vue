@@ -101,7 +101,7 @@ function setPage(next: number) {
         </NuxtLink>
       </div>
     </SharedPageState>
-    <div v-if="pages > 1" class="flex items-center justify-between text-sm text-muted-foreground">
+    <nav v-if="pages > 1" class="flex items-center justify-between text-sm text-muted-foreground">
       <Button variant="ghost" :disabled="!hydrated || page === 1 || query.isFetching.value" @click="setPage(page - 1)">
         {{ t('projects.previousPage') }}
       </Button>
@@ -109,6 +109,6 @@ function setPage(next: number) {
       <Button variant="ghost" :disabled="!hydrated || page >= pages || query.isFetching.value" @click="setPage(page + 1)">
         {{ t('projects.nextPage') }}
       </Button>
-    </div>
+    </nav>
   </SharedPageContainer>
 </template>

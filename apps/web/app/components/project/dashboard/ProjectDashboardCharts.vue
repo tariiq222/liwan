@@ -170,8 +170,4 @@ const financeOption = computed(() => selectedCurrency.value ? projectFinanceComp
   }
 }
 
-.dashboard-chart-grid > [data-testid="chart-progress-bands"],
-.dashboard-chart-grid > [data-testid="chart-budget-health"] {
-  opacity: 0.88;
-}
 </style>

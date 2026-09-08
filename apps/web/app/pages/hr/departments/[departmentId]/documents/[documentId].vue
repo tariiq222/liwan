@@ -6,4 +6,16 @@ const route = useRoute(); const { t } = useI18n(); const { can } = useAccess(); 
 const returnTo = computed(() => safeReturnTo(route.query.returnTo, `/hr/departments/${id.value}`, ['/hr']))
 const isEdit = computed(() => route.path.endsWith('/edit'))
 </script>
-<template><SharedPageContainer width="form"><SharedPageHeader v-if="!isEdit" :title="query.data.value?.name || t('hr.docs.title')" :back-to="returnTo"><NuxtLink v-if="query.data.value && can('hr.documents.manage')" :to="{ path: `/hr/departments/${id}/documents/${documentId}/edit`, query: returnToQuery(route.fullPath) }"><Button>{{ t('app.edit') }}</Button></NuxtLink></SharedPageHeader><SharedPageState v-if="!isEdit" :loading="query.isLoading.value" :error="query.error.value" :empty="!query.data.value" @retry="query.refetch"><section v-if="query.data.value" class="nasq-panel nasq-panel-body"><DocumentReader :document="query.data.value" hide-title /></section></SharedPageState><NuxtPage /></SharedPageContainer></template>
+<template>
+  <SharedPageContainer v-if="!isEdit" width="detail">
+    <SharedPageHeader :title="query.data.value?.name || t('hr.docs.title')" :description="query.data.value?.department.name" :back-to="returnTo">
+      <NuxtLink v-if="query.data.value && can('hr.documents.manage')" :to="{ path: `/hr/departments/${id}/documents/${documentId}/edit`, query: returnToQuery(route.fullPath) }"><Button>{{ t('app.edit') }}</Button></NuxtLink>
+    </SharedPageHeader>
+    <SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!query.data.value" @retry="query.refetch">
+      <section v-if="query.data.value" class="nasq-panel nasq-panel-body">
+        <DocumentReader :document="query.data.value" hide-title />
+      </section>
+    </SharedPageState>
+  </SharedPageContainer>
+  <NuxtPage v-else />
+</template>

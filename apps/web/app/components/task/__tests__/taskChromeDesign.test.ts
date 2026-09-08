@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest'
 
 const root = dirname(fileURLToPath(import.meta.url))
 const panel = readFileSync(resolve(root, '../TaskDetailPanel.vue'), 'utf8')
+const detailPage = readFileSync(resolve(root, '../TaskDetailPage.vue'), 'utf8')
 const archived = readFileSync(resolve(root, '../../../pages/archived-tasks.vue'), 'utf8')
 const pageHeader = readFileSync(resolve(root, '../../shared/PageHeader.vue'), 'utf8')
 
@@ -13,6 +14,9 @@ describe('task chrome design', () => {
     expect(panel).toContain('data-testid="task-detail-context"')
     expect(panel).not.toContain('SharedPageHeader')
     expect(panel).not.toContain('usePageHeader')
+    expect(detailPage).toContain('width="detail"')
+    expect(detailPage).toContain('SharedPageHeader')
+    expect(detailPage).not.toContain('<h1')
     expect(panel).toContain('focus-visible:ring-2 focus-visible:ring-ring')
     expect(pageHeader).toContain('focus-visible:ring-2 focus-visible:ring-ring')
   })

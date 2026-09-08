@@ -88,7 +88,7 @@ async function submit() {
 </script>
 
 <template>
-  <SettingsLayout><div class="nasq-page-stack nasq-settings-form-page">
+  <SettingsLayout width="form">
     <SharedPageHeader :title="t('access.roles.createTitle')" :back-to="backTo" />
     <SharedPageState v-if="forbidden" :empty="true" :empty-text="t('access.forbidden')" />
     <form v-else class="nasq-form nasq-panel nasq-panel-body space-y-5" @submit.prevent="submit">
@@ -99,5 +99,5 @@ async function submit() {
       <p v-if="errorKey" role="alert" class="text-sm text-destructive">{{ errorKey }}</p>
       <div class="nasq-form-footer"><Button type="submit" :disabled="!hydrated || create.isPending.value || !nameAr.trim()">{{ t('access.roles.create') }}</Button></div>
     </form>
-  </div></SettingsLayout>
+  </SettingsLayout>
 </template>

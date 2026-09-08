@@ -47,9 +47,11 @@ function openCreate() {
   <SharedPageContainer v-if="isBaseRoute" width="list">
     <SharedPageHeader :title="t('tasks.title')" :description="t('tasks.description')">
       <template #actions>
-        <Button v-if="can('pmo.tasks.create')" class="gap-2" :disabled="!hydrated" @click="openCreate">
-          <Plus class="size-[18px]" />{{ t('tasks.new') }}
-        </Button>
+        <NuxtLink v-if="can('pmo.tasks.create')" :to="{ path: '/tasks/new', query: returnToQuery(route.fullPath) }">
+          <Button class="gap-2" :disabled="!hydrated">
+            <Plus class="size-[18px]" />{{ t('tasks.new') }}
+          </Button>
+        </NuxtLink>
         <Button as-child variant="outline">
           <NuxtLink :to="{ path: '/archived-tasks', query: returnToQuery(route.fullPath) }">
             {{ t('taskLifecycle.archivedTasks') }}

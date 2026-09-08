@@ -226,7 +226,11 @@ html[dir="rtl"] .nasq-gantt-name { box-shadow: 8px 0 16px -12px color-mix(in srg
 .nasq-shell-breadcrumb-current { color: var(--foreground); font-weight: 500; }
 .nasq-shell-breadcrumb-separator { width: 14px; height: 14px; color: var(--border); }
 .nasq-shell-main { min-height: calc(100svh - var(--shell-header-height) - 44px); min-width: 0; border-start-start-radius: 24px; background: var(--background); box-shadow: 0 0 14px var(--content-shadow); padding: 30px clamp(18px, 3vw, 48px) 56px; }
+.nasq-page-eyebrow { margin: 0 0 6px; color: var(--muted-foreground); font-size: 0.6875rem; line-height: 1.4; }
 .nasq-page-title { margin: 0 0 7px; color: var(--foreground); font-size: clamp(1.45rem, 2vw, 1.625rem); font-weight: 600; line-height: 1.45; letter-spacing: -.03em; }
+.nasq-view-switch { display: flex; min-width: 0; flex-wrap: wrap; align-items: center; gap: 3px; padding: 4px; border-radius: 8px; background: var(--muted); }
+.nasq-view-switch > :is(a, button) { display: inline-flex; min-height: 32px; flex: none; align-items: center; gap: 6px; border: 0; border-radius: 5px; background: transparent; box-shadow: none; padding: 6px 10px; color: var(--muted-foreground); font-size: 0.8125rem; white-space: nowrap; }
+.nasq-view-switch > [aria-current="page"], .nasq-view-switch > [aria-selected="true"] { background: var(--card); color: var(--foreground); box-shadow: 0 1px 3px color-mix(in srgb, var(--foreground) 10%, transparent); }
 [data-slot="table-head"] { background: color-mix(in srgb, var(--background) 80%, var(--card)); font-weight: 400; }
 [data-slot="table-row"]:last-child { border-block-end: 0; }
 .nasq-shell-page-title { position: absolute; }

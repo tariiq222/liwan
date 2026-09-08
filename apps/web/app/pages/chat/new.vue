@@ -15,6 +15,11 @@ const { data } = useChatRecipients(q, recipientOffset)
 const { mutateAsync: create, isPending } = useCreateConversation()
 const recipients = computed(() => data.value?.items ?? [])
 watch(q, () => { recipientOffset.value = 0 })
+function snapshot() {
+  return JSON.stringify([selected.value.map(item => item.id), groupName.value])
+}
+const baseline = ref(snapshot())
+const dirty = computed(() => snapshot() !== baseline.value)
 
 function toggle(person: { id: number; name: string }) {
   if (selected.value.some(item => item.id === person.id)) {
@@ -34,6 +39,8 @@ async function submit() {
       user_ids: selected.value.map(item => item.id),
       name: selected.value.length > 1 ? groupName.value.trim() || undefined : undefined,
     })
+    baseline.value = snapshot()
+    await nextTick()
     await navigateTo({ path: `/chat/${conversation.id}`, query: listQuery.value })
   } catch (error) {
     toast.error(error instanceof ApiError ? error.message : t('errors.generic'))
@@ -44,8 +51,10 @@ async function submit() {
 <template>
   <SharedPageContainer width="form">
     <SharedPageHeader :title="t('chat.newTitle')" :description="t('chat.newDescription')" :back-to="{ path: '/chat', query: listQuery }" />
-    <form class="nasq-panel nasq-panel-body flex flex-col gap-4" @submit.prevent="submit">
-      <Input v-model="q" :placeholder="t('chat.recipientSearch')" :disabled="!hydrated" />
+    <form class="nasq-form nasq-panel nasq-panel-body flex flex-col gap-4" @submit.prevent="submit">
+      <SharedUnsavedChanges :dirty="dirty" />
+      <Label for="chat-recipient-search">{{ t('chat.recipientSearch') }}</Label>
+      <Input id="chat-recipient-search" v-model="q" :placeholder="t('chat.recipientSearch')" :disabled="!hydrated" />
       <ul class="max-h-64 overflow-y-auto rounded-lg border">
         <li v-for="person in recipients" :key="person.id">
           <button type="button" class="flex w-full items-center justify-between px-3 py-2 text-start hover:bg-muted" :disabled="!hydrated" @click="toggle(person)">
@@ -54,16 +63,19 @@ async function submit() {
           </button>
         </li>
       </ul>
-      <div v-if="(data?.total ?? 0) > CHAT_PAGE_SIZE" class="flex justify-between">
+      <nav v-if="(data?.total ?? 0) > CHAT_PAGE_SIZE" class="flex items-center justify-between text-sm text-muted-foreground">
         <Button type="button" size="sm" variant="ghost" :disabled="!hydrated || recipientOffset === 0" @click="recipientOffset = nextListOffset(recipientOffset, data?.total ?? 0, -CHAT_PAGE_SIZE)">{{ t('chat.previousPage') }}</Button>
         <Button type="button" size="sm" variant="ghost" :disabled="!hydrated || recipientOffset + CHAT_PAGE_SIZE >= (data?.total ?? 0)" @click="recipientOffset = nextListOffset(recipientOffset, data?.total ?? 0, CHAT_PAGE_SIZE)">{{ t('chat.nextPage') }}</Button>
-      </div>
+      </nav>
       <p class="text-sm text-muted-foreground">{{ selected.map(item => item.name).join(', ') }}</p>
       <div v-if="selected.length > 1" class="grid gap-2">
-        <label class="text-sm" for="chat-group-name">{{ t('chat.groupName') }}</label>
+        <Label for="chat-group-name">{{ t('chat.groupName') }}</Label>
         <Input id="chat-group-name" v-model="groupName" :placeholder="t('chat.groupNamePlaceholder')" :disabled="!hydrated" />
       </div>
-      <Button type="submit" :disabled="!hydrated || isPending || selected.length < 1">{{ t('chat.create') }}</Button>
+      <div class="flex justify-end gap-2">
+        <NuxtLink :to="{ path: '/chat', query: listQuery }"><Button type="button" variant="outline">{{ t('app.cancel') }}</Button></NuxtLink>
+        <Button type="submit" :disabled="!hydrated || isPending || selected.length < 1">{{ t('chat.create') }}</Button>
+      </div>
     </form>
   </SharedPageContainer>
 </template>

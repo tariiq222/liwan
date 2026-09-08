@@ -17,11 +17,24 @@ async function toggleArchive() {
 }
 </script>
 <template>
-  <SharedPageContainer v-if="isDetail" width="detail"><SharedPageHeader :title="query.data.value?.name || t('hr.employee.title')" :back-to="returnTo">
-    <div class="flex flex-wrap gap-2">
-      <NuxtLink v-if="query.data.value && can('hr.employees.manage')" :to="{ path: `/hr/employees/${id}/edit`, query: returnToQuery(route.fullPath) }" @click="!hydrated && $event.preventDefault()"><Button :disabled="!hydrated">{{ t('app.edit') }}</Button></NuxtLink>
-      <NuxtLink v-if="query.data.value?.user_id && can('access.users.read')" :to="{ path: `/settings/users/${query.data.value.user_id}`, query: returnToQuery(route.fullPath) }" @click="!hydrated && $event.preventDefault()"><Button variant="outline" :disabled="!hydrated">{{ t('hr.employee.manageAccount') }}</Button></NuxtLink>
-      <Button v-if="query.data.value && can('hr.employees.archive')" variant="outline" :disabled="!hydrated || archivePending" @click="confirmArchive = !confirmArchive">{{ query.data.value.active ? t('hr.employee.archive') : t('hr.employee.unarchive') }}</Button>
-    </div>
-  </SharedPageHeader><SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!query.data.value" @retry="query.refetch" /><div v-if="query.data.value && confirmArchive" class="nasq-status-callout-danger p-4 text-sm"><p>{{ t('hr.employee.archiveConfirm') }}</p><div class="mt-3 flex gap-2"><Button :disabled="!hydrated || archivePending" @click="toggleArchive">{{ query.data.value.active ? t('hr.employee.archive') : t('hr.employee.unarchive') }}</Button><Button variant="outline" :disabled="archivePending" @click="confirmArchive = false">{{ t('app.cancel') }}</Button></div></div><EmployeeCard v-if="query.data.value" :employee-id="id" /></SharedPageContainer><NuxtPage v-else />
+  <SharedPageContainer v-if="isDetail" width="detail">
+    <SharedPageHeader :title="query.data.value?.name || t('hr.employee.title')" :description="query.data.value?.job_title" :back-to="returnTo">
+      <div class="flex flex-wrap gap-2">
+        <NuxtLink v-if="query.data.value && can('hr.employees.manage')" :to="{ path: `/hr/employees/${id}/edit`, query: returnToQuery(route.fullPath) }" @click="!hydrated && $event.preventDefault()"><Button :disabled="!hydrated">{{ t('app.edit') }}</Button></NuxtLink>
+        <NuxtLink v-if="query.data.value?.user_id && can('access.users.read')" :to="{ path: `/settings/users/${query.data.value.user_id}`, query: returnToQuery(route.fullPath) }" @click="!hydrated && $event.preventDefault()"><Button variant="outline" :disabled="!hydrated">{{ t('hr.employee.manageAccount') }}</Button></NuxtLink>
+        <Button v-if="query.data.value && can('hr.employees.archive')" variant="outline" :disabled="!hydrated || archivePending" @click="confirmArchive = !confirmArchive">{{ query.data.value.active ? t('hr.employee.archive') : t('hr.employee.unarchive') }}</Button>
+      </div>
+    </SharedPageHeader>
+    <SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!query.data.value" @retry="query.refetch">
+      <div v-if="confirmArchive" class="nasq-status-callout-danger p-4 text-sm">
+        <p>{{ t('hr.employee.archiveConfirm') }}</p>
+        <div class="mt-3 flex gap-2">
+          <Button :disabled="!hydrated || archivePending" @click="toggleArchive">{{ query.data.value?.active ? t('hr.employee.archive') : t('hr.employee.unarchive') }}</Button>
+          <Button variant="outline" :disabled="archivePending" @click="confirmArchive = false">{{ t('app.cancel') }}</Button>
+        </div>
+      </div>
+      <EmployeeCard :employee-id="id" />
+    </SharedPageState>
+  </SharedPageContainer>
+  <NuxtPage v-else />
 </template>

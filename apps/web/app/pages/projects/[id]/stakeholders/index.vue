@@ -54,6 +54,7 @@ async function deleteItem(item: { id: number }) {
   <SharedPageContainer width="list">
     <SharedPageHeader
       :title="t('projects.governance.stakeholders')"
+      :description="t('projects.governance.stakeholdersDescription')"
       :back-to="projectReturnTo"
       :back-label="t('projects.backToProject')"
     >
@@ -68,7 +69,7 @@ async function deleteItem(item: { id: number }) {
         </NuxtLink>
       </template>
     </SharedPageHeader>
-    <nav class="nasq-tabs" :aria-label="t('nav.projectStakeholders')">
+    <nav class="nasq-view-switch" :aria-label="t('projects.governance.views')">
       <NuxtLink :to="{ path: `/projects/${id}/stakeholders`, query: viewQuery }" aria-current="page">{{ t('projects.governance.viewList') }}</NuxtLink>
       <NuxtLink :to="{ path: `/projects/${id}/raci`, query: viewQuery }">{{ t('projects.governance.viewMatrix') }}</NuxtLink>
     </nav>

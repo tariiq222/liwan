@@ -1,12 +1,15 @@
 <script setup lang="ts">
-defineProps<{ sections?: { id: string; label: string }[] }>()
+withDefaults(defineProps<{
+  sections?: { id: string; label: string }[]
+  width?: 'list' | 'detail' | 'form'
+}>(), { width: 'list' })
 </script>
 
 <template>
   <div class="nasq-settings-layout" data-testid="settings-layout">
-    <div class="nasq-settings-content">
+    <SharedPageContainer :width="width" class="nasq-settings-content">
       <slot />
-    </div>
+    </SharedPageContainer>
   </div>
 </template>
 
@@ -15,9 +18,7 @@ defineProps<{ sections?: { id: string; label: string }[] }>()
 .nasq-settings-layout { display: block; min-width: 0; }
 /* Settings share one responsive anatomy; widths follow the content column. */
 .nasq-settings-content { min-width: 0; width: 100%; container: settings / inline-size; }
-.nasq-settings-content .nasq-page-stack { margin: 0; width: 100%; max-width: none; }
 .nasq-settings-content .nasq-form { max-width: none; margin-inline: 0; }
-.nasq-settings-content .nasq-settings-form-page { max-width: 940px; }
 .nasq-settings-content .nasq-page-width-form { max-width: 940px; }
 .nasq-settings-content .nasq-form-section,
 .nasq-settings-content .nasq-settings-anchor { scroll-margin-block-start: 88px; }

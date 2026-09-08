@@ -93,7 +93,7 @@ async function submit() {
 </script>
 
 <template>
-  <SettingsLayout><div class="nasq-page-stack nasq-settings-form-page">
+  <SettingsLayout width="form">
     <SharedPageHeader :title="t('access.users.grantTitle')" :back-to="backTo" />
     <SharedPageState v-if="forbidden" :empty="true" :empty-text="t('access.forbidden')" />
     <form v-else class="nasq-form nasq-panel nasq-panel-body space-y-5" @submit.prevent="submit">
@@ -106,5 +106,5 @@ async function submit() {
       <p v-if="errorKey" role="alert" class="text-sm text-destructive">{{ errorKey }}</p>
       <div class="nasq-form-footer"><Button type="submit" :disabled="!hydrated || grant.isPending.value || reactivate.isPending.value || updateAccess.isPending.value || employees.isLoading.value || roles.isLoading.value || existingUser.isLoading.value || !employeeId || selectedRoleIds.length === 0 || !selectedCandidate || (selectedCandidate.user_id !== null && selectedCandidate.access_active !== false) || password.length < 8 || password !== passwordConfirmation">{{ isReactivation ? t('access.users.reactivateAccount') : t('access.users.grantAccount') }}</Button></div>
     </form>
-  </div></SettingsLayout>
+  </SettingsLayout>
 </template>

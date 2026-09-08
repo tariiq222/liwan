@@ -1,9 +1,12 @@
 <script setup lang="ts">
-import { ChevronLeft, ChevronRight } from '@lucide/vue'
+import { ChevronLeft, ChevronRight, Plus } from '@lucide/vue'
 import { useMeetings } from '@/composables/useMeetings'
+import { returnToQuery } from '@/utils/safeReturnTo'
 
+const route = useRoute()
 const { t, locale } = useI18n()
 const hydrated = useHydrated()
+const { can } = useAccess()
 const cursor = ref(new Date())
 const year = computed(() => cursor.value.getFullYear())
 const month = computed(() => cursor.value.getMonth())
@@ -58,18 +61,27 @@ function shift(delta: number) {
 <template>
   <SharedPageContainer width="list">
     <SharedPageHeader :title="t('nav.meetingCalendar')" :back-to="'/meetings'">
-      <div class="flex items-center gap-2">
-        <Button type="button" variant="outline" size="icon" class="size-[32px] rounded-lg" :disabled="!hydrated" :aria-label="t('app.back')" @click="shift(-1)">
+      <template #actions>
+        <NuxtLink v-if="can('meetings.create')" :to="{ path: '/meetings/new', query: returnToQuery(route.fullPath) }">
+          <Button :disabled="!hydrated" class="gap-2">
+            <Plus class="size-[18px]" />{{ t('meetingsUi.new') }}
+          </Button>
+        </NuxtLink>
+      </template>
+    </SharedPageHeader>
+    <div class="nasq-toolbar">
+      <div class="flex items-center gap-2" :aria-label="monthLabel">
+        <Button type="button" variant="ghost" size="icon" class="size-[32px] rounded-lg" :disabled="!hydrated" :aria-label="t('projects.previousPage')" @click="shift(-1)">
           <ChevronRight v-if="locale === 'ar'" class="size-[18px]" />
           <ChevronLeft v-else class="size-[18px]" />
         </Button>
         <span class="min-w-40 text-center text-sm font-medium">{{ monthLabel }}</span>
-        <Button type="button" variant="outline" size="icon" class="size-[32px] rounded-lg" :disabled="!hydrated" :aria-label="t('app.loadMore')" @click="shift(1)">
+        <Button type="button" variant="ghost" size="icon" class="size-[32px] rounded-lg" :disabled="!hydrated" :aria-label="t('projects.nextPage')" @click="shift(1)">
           <ChevronLeft v-if="locale === 'ar'" class="size-[18px]" />
           <ChevronRight v-else class="size-[18px]" />
         </Button>
       </div>
-    </SharedPageHeader>
+    </div>
     <SharedPageState :loading="query.isLoading.value" :error="query.error.value" @retry="query.refetch">
       <div class="nasq-panel overflow-hidden">
         <div class="grid grid-cols-7 border-b border-border text-center text-xs text-muted-foreground">
@@ -81,7 +93,7 @@ function shift(delta: number) {
             <NuxtLink
               v-for="meeting in (cell.day ? byDate.get(cell.key) ?? [] : [])"
               :key="meeting.id"
-              :to="`/meetings/${meeting.id}`"
+              :to="{ path: `/meetings/${meeting.id}`, query: returnToQuery(route.fullPath) }"
               class="mt-1 block truncate rounded-md px-1 py-0.5 text-xs hover:bg-muted"
             >
               {{ meeting.name }}

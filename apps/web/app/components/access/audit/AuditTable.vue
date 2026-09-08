@@ -26,7 +26,7 @@ function open(id: number) { if (hydrated.value) emit('open', id) }
 <template>
   <div class="nasq-panel overflow-hidden">
     <div class="overflow-x-auto">
-      <Table class="min-w-[680px]">
+      <Table class="nasq-settings-table">
         <TableHeader>
           <TableRow>
             <TableHead class="text-start">{{ t('access.audit.columns.time') }}</TableHead>

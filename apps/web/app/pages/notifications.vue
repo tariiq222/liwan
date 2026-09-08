@@ -104,7 +104,6 @@ async function retryNextPage() {
     </SharedPageHeader>
 
     <section class="nasq-panel flex min-h-0 flex-1 flex-col overflow-hidden">
-
       <div class="flex-1 overflow-y-auto">
         <div v-if="hasQueryError && !items.length" class="grid gap-3 py-8 text-center" role="alert">
           <p class="text-sm text-destructive">{{ queryErrorMessage }}</p>

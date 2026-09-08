@@ -2,6 +2,7 @@
 import { Search } from '@lucide/vue'
 import { toast } from 'vue-sonner'
 import FilterBar from '@/components/shared/FilterBar.vue'
+import SettingsLayout from '@/components/settings/SettingsLayout.vue'
 import { ApiError } from '@/composables/useApi'
 import {
   CHARTER_CATALOG_PAGE_SIZE,
@@ -105,7 +106,7 @@ async function confirmAction() {
 </script>
 
 <template>
-  <SharedPageContainer width="list">
+  <SettingsLayout>
     <SharedPageHeader :title="title" :back-to="returnTo" :back-label="t('settings.projects.catalogs.back')">
       <Button v-if="resource && !forbidden" :disabled="!hydrated" @click="openNew">{{ t('settings.projects.catalogs.add') }}</Button>
     </SharedPageHeader>
@@ -163,5 +164,5 @@ async function confirmAction() {
         </div>
       </div>
     </template>
-  </SharedPageContainer>
+  </SettingsLayout>
 </template>

@@ -56,6 +56,7 @@ async function renderList(setup: () => Record<string, unknown>) {
   app.component('SharedPageContainer', Passthrough)
   app.component('SharedPageHeader', Passthrough)
   app.component('SharedPageState', SharedPageState)
+  app.component('FilterBar', Passthrough)
   app.component('Button', Passthrough)
   app.component('Input', Passthrough)
   app.component('NuxtLink', Passthrough)

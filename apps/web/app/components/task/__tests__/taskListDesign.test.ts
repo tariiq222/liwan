@@ -6,6 +6,7 @@ const appRoot = resolve(import.meta.dirname, '../../..')
 const page = readFileSync(resolve(appRoot, 'pages/tasks.vue'), 'utf8')
 const toolbar = readFileSync(resolve(appRoot, 'components/task/TaskToolbar.vue'), 'utf8')
 const table = readFileSync(resolve(appRoot, 'components/task/TaskTable.vue'), 'utf8')
+const board = readFileSync(resolve(appRoot, 'components/task/TaskBoard.vue'), 'utf8')
 
 describe('tasks list design', () => {
   it('puts create and archive in the page header, filters in the toolbar', () => {
@@ -27,5 +28,11 @@ describe('tasks list design', () => {
   it('wraps the standalone table in nasq-panel', () => {
     expect(table).toContain("embedded ? '' : 'nasq-panel overflow-hidden'")
     expect(table).not.toContain('rounded-md border')
+  })
+
+  it('wraps the standalone board in nasq-panel and keeps the embedded inner section', () => {
+    expect(board).toContain("embedded ? 'space-y-2 p-[18px]' : 'nasq-panel space-y-2 overflow-hidden p-[18px]'")
+    expect(page).not.toMatch(/stat-card|metrics-strip|nasq-metric/)
+    expect(toolbar).not.toContain("t('tasks.table')")
   })
 })

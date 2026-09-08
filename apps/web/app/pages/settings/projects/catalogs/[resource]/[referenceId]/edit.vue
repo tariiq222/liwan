@@ -2,6 +2,7 @@
 import { toast } from 'vue-sonner'
 import { ApiError } from '@/composables/useApi'
 import ProjectCharterReferenceForm from '@/components/settings/ProjectCharterReferenceForm.vue'
+import SettingsLayout from '@/components/settings/SettingsLayout.vue'
 import { isCharterCatalogResource, useCharterCatalogItem } from '@/composables/useProjectCharterCatalogs'
 import { safeReturnTo } from '@/utils/safeReturnTo'
 
@@ -33,7 +34,7 @@ function onSaved() {
 </script>
 
 <template>
-  <SharedPageContainer width="form">
+  <SettingsLayout width="form">
     <SharedPageHeader :title="t('settings.projects.catalogs.editTitle')" :back-to="returnTo" :back-label="t('settings.projects.catalogs.back')" />
     <p v-if="forbidden" class="text-muted-foreground">{{ t('settings.forbidden') }}</p>
     <SharedPageState
@@ -48,5 +49,5 @@ function onSaved() {
         <ProjectCharterReferenceForm :resource="resource" :reference="query.data.value" @saved="onSaved" @cancel="router.push(returnTo)" />
       </section>
     </SharedPageState>
-  </SharedPageContainer>
+  </SettingsLayout>
 </template>

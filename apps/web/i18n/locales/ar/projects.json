@@ -50,8 +50,6 @@
       "progress": "نسبة الإنجاز",
       "openTasks": "المهام المفتوحة",
       "milestones": "المعالم",
-      "activeTasks": "المهام النشطة",
-      "activeTasksEmpty": "لا توجد مهام نشطة",
       "activeTasksCap": "تُعرض أول 5 مهام من القائمة المحمّلة",
       "followers": "المتابعون",
       "workSummary": "ملخص العمل",
@@ -64,7 +62,20 @@
       "noUpcomingMilestone": "لا يوجد معلم قادم",
       "latestUpdate": "آخر تحديث",
       "noUpdates": "لا توجد تحديثات بعد",
-      "noDates": "لا توجد تواريخ للمشروع"
+      "noDates": "لا توجد تواريخ للمشروع",
+      "needsAttention": "يحتاج انتباهك",
+      "needsAttentionEmpty": "لا يوجد ما يحتاج متابعة الآن",
+      "viewTasks": "عرض المهام",
+      "deliveryMilestones": "محطات التسليم",
+      "viewMilestones": "عرض المعالم"
+    },
+    "summaryPage": {
+      "title": "ملخص المشروع",
+      "description": "الصورة الكاملة للمشروع، وما يحتاج إلى متابعة اليوم."
+    },
+    "planning": {
+      "description": "تنفيذ واحد، وطرق عرض تناسب طريقة عملك.",
+      "views": "طريقة عرض خطة العمل"
     },
     "new": "مشروع جديد",
     "newName": "اسم المشروع",
@@ -112,6 +123,7 @@
     "unarchived": "تم إلغاء أرشفة المشروع",
     "settings": {
       "title": "إعدادات المشروع",
+      "pageDescription": "خيارات التشغيل والرؤية والاعتماد.",
       "tabs": {
         "general": "عام",
         "stages": "المراحل",
@@ -161,6 +173,7 @@
       "tasks": "المهام",
       "list": "قائمة",
       "board": "لوحة",
+      "gantt": "جدول زمني",
       "milestones": "المعالم",
       "updates": "التحديثات"
     },
@@ -188,6 +201,7 @@
       "deleted": "تم حذف المعلم"
     },
     "updates": {
+      "add": "إضافة تحديث",
       "new": "تحديث جديد",
       "title": "العنوان",
       "body": "النص",
@@ -199,6 +213,7 @@
     },
     "charter": {
       "title": "ميثاق المشروع",
+      "pageDescription": "المرجع الأساسي للهدف والنطاق والمخرجات.",
       "open": "ميثاق المشروع",
       "saved": "تم حفظ الميثاق",
       "none": "غير محدد",
@@ -416,7 +431,9 @@
     },
     "governance": {
       "stakeholders": "أصحاب المصلحة",
+      "stakeholdersDescription": "الأطراف المشاركة في المشروع وأدوارها.",
       "newStakeholder": "صاحب مصلحة جديد",
+      "views": "عرض الأطراف والمسؤوليات",
       "viewList": "قائمة",
       "viewMatrix": "مصفوفة",
       "stakeholder": {
@@ -440,6 +457,7 @@
       "confirmDeleteAction": "تأكيد الحذف",
       "raci": {
         "title": "مصفوفة المسؤوليات",
+        "description": "من ينفّذ، ومن يُساءل، ومن يُستشار أو يُطّلع؟",
         "add": "إضافة تعيين",
         "task": "المهمة",
         "stakeholder": "صاحب المصلحة",
@@ -455,6 +473,7 @@
       },
       "register": {
         "title": "سجل المخاطر والقضايا",
+        "pageDescription": "متابعة ما قد يعطّل المشروع وربطه بخطة المعالجة.",
         "kind": "النوع",
         "risk": "خطر",
         "issue": "قضية",

@@ -18,22 +18,26 @@ const returnTo = computed(() => projectId.value ? safeReturnTo(route.query.retur
 
 <template>
   <SharedPageContainer width="form">
-    <SharedPageHeader :title="t('projects.settings.title')" :back-to="returnTo" :back-label="t('projects.backToProject')" />
+    <SharedPageHeader
+      :title="t('projects.settings.title')"
+      :description="t('projects.settings.pageDescription')"
+      :eyebrow="project?.name"
+      :back-to="returnTo"
+      :back-label="t('projects.backToProject')"
+    />
     <template v-if="projectId === null">
       <p class="text-muted-foreground">{{ t('projects.invalidId') }}</p>
     </template>
-    <template v-else-if="isLoading && !project">
-      <p role="status" class="text-muted-foreground">{{ t('projects.loading') }}</p>
-    </template>
-    <template v-else-if="notFound">
-      <p class="text-muted-foreground">{{ t('projects.notFound') }}</p>
-    </template>
-    <SharedPageState v-else-if="error || !project" :error="error" :empty="!error && !project" @retry="refetch" />
-    <template v-else-if="!canManage">
-      <p class="text-muted-foreground">{{ t('projects.forbidden') }}</p>
-    </template>
-    <template v-else>
-      <Card class="nasq-form"><CardContent><ProjectSettingsForm :project="project" /></CardContent></Card>
-    </template>
+    <SharedPageState
+      v-else
+      :loading="isLoading && !project"
+      :error="notFound ? null : error"
+      :empty="notFound || (!isLoading && !error && !project)"
+      :empty-text="t('projects.notFound')"
+      @retry="refetch"
+    >
+      <p v-if="!canManage" class="text-muted-foreground">{{ t('projects.forbidden') }}</p>
+      <Card v-else class="nasq-form"><CardContent><ProjectSettingsForm :project="project" /></CardContent></Card>
+    </SharedPageState>
   </SharedPageContainer>
 </template>

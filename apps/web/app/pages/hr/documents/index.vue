@@ -73,7 +73,7 @@ function setPage(next: number) {
 
 <template>
   <SharedPageContainer width="list">
-    <SharedPageHeader :title="t('hr.docs.title')" :back-to="'/hr'">
+    <SharedPageHeader :title="t('hr.docs.title')" :description="t('hr.docs.description')" :back-to="'/hr'">
       <template #actions>
         <NuxtLink
           v-if="can('hr.documents.manage')"
@@ -147,7 +147,7 @@ function setPage(next: number) {
             <TableRow
               v-for="document in query.data.value?.items"
               :key="document.id"
-              class="cursor-pointer"
+              class="cursor-pointer transition-colors hover:bg-muted/30"
               @click="navigateTo({ path: `/hr/departments/${document.department.id}/documents/${document.id}`, query: returnToQuery(route.fullPath) })"
             >
               <TableCell class="font-medium">{{ document.name }}</TableCell>

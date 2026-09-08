@@ -40,21 +40,20 @@ async function confirmDelete() {
 
 <template>
   <SharedPageContainer width="form">
-    <SharedPageHeader :title="t('projects.milestones.edit')" :description="project?.name" :back-to="returnTo" :back-label="t('projects.backToProject')" />
+    <SharedPageHeader :title="t('projects.milestones.edit')" :eyebrow="project?.name" :back-to="returnTo" :back-label="t('projects.backToProject')" />
     <template v-if="projectId === null || milestoneId === null">
       <p class="text-muted-foreground">{{ t('projects.invalidId') }}</p>
     </template>
-    <template v-else-if="(projectLoading || milestonesLoading) && !milestone">
-      <p role="status" class="text-muted-foreground">{{ t('projects.loading') }}</p>
-    </template>
-    <SharedPageState v-else-if="projectError || milestonesError" :error="projectError || milestonesError" @retry="retry" />
-    <template v-else-if="notFound || !milestone">
-      <p class="text-muted-foreground">{{ t('projects.milestones.notFound') }}</p>
-    </template>
-    <template v-else-if="!project?.can_manage">
-      <p class="text-muted-foreground">{{ t('projects.forbidden') }}</p>
-    </template>
-    <template v-else>
+    <SharedPageState
+      v-else
+      :loading="(projectLoading || milestonesLoading) && !milestone"
+      :error="notFound ? null : projectError || milestonesError"
+      :empty="notFound || (!projectLoading && !milestonesLoading && !milestone)"
+      :empty-text="t('projects.milestones.notFound')"
+      @retry="retry"
+    >
+      <p v-if="!project?.can_manage" class="text-muted-foreground">{{ t('projects.forbidden') }}</p>
+      <template v-else-if="milestone && projectId">
       <Card class="nasq-form"><CardContent class="space-y-5">
         <MilestoneForm :project-id="projectId" :milestone="milestone" @saved="router.push(returnTo)" @cancel="router.push(returnTo)" />
         <div v-if="milestone.task_count > 0" class="rounded-md border border-muted p-3 text-sm text-muted-foreground">{{ t('projects.milestones.hasTasks', { count: milestone.task_count }) }}</div>
@@ -65,6 +64,7 @@ async function confirmDelete() {
         </div>
         <Button v-else-if="milestone.task_count === 0" data-testid="milestone-delete" variant="destructive" :disabled="!hydrated" @click="deleteOpen = true">{{ t('projects.milestones.delete') }}</Button>
       </CardContent></Card>
-    </template>
+      </template>
+    </SharedPageState>
   </SharedPageContainer>
 </template>

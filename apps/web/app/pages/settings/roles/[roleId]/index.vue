@@ -58,7 +58,7 @@ const sections = computed(() => role.data.value ? [
 </script>
 
 <template>
-  <SettingsLayout :sections><div class="nasq-page-stack">
+  <SettingsLayout :sections>
     <SharedPageHeader :title="role.data.value?.name[locale === 'ar' ? 'ar' : 'en'] ?? role.data.value?.name.ar ?? t('access.roles.title')" :back-to="returnTo">
       <Button v-if="role.data.value?.allowed_actions.includes('edit')" variant="outline" :disabled="!role.data.value" @click="navigateTo(editTo)">{{ t('access.roles.editTitle') }}</Button>
       <Button v-if="role.data.value?.allowed_actions.includes('clone')" variant="outline" :disabled="!role.data.value" @click="navigateTo(cloneTo)">{{ t('access.roles.clone') }}</Button>
@@ -76,5 +76,5 @@ const sections = computed(() => role.data.value ? [
         <section v-if="can('access.users.read')" id="assigned-users" class="nasq-form-section nasq-settings-anchor min-w-0 space-y-3"><h2 class="font-semibold">{{ t('access.roles.assignedUsers') }}</h2><SharedPageState :loading="assignedUsers.isLoading.value" :error="assignedUsers.error.value" :empty="!assignedUsers.isLoading.value && !assignedUsers.error.value && assignedUsers.data.value?.items.length === 0" :empty-text="t('access.roles.noAssignedUsers')" @retry="assignedUsers.refetch"><UserTable :users="assignedUsers.data.value?.items ?? []" @open="openUser" /><template v-if="assignedUsers.data.value && assignedUsers.data.value.total > assignedUsers.data.value.items.length"><p class="text-sm text-muted-foreground">{{ t('access.roles.assignedUsersCount', { count: assignedUsers.data.value.total }) }}</p><NuxtLink class="text-sm font-medium text-primary hover:underline" :to="{ path: '/settings/users', query: { role_id: id } }">{{ t('access.roles.viewAllAssignedUsers') }}</NuxtLink></template></SharedPageState></section>
       </div>
     </SharedPageState>
-  </div></SettingsLayout>
+  </SettingsLayout>
 </template>
