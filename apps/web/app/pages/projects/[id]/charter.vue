@@ -28,7 +28,7 @@ function onCancel() {
 </script>
 
 <template>
-  <SharedPageContainer width="form">
+  <SharedPageContainer :width="readonly ? 'detail' : 'form'">
     <SharedPageHeader
       :title="t('projects.charter.title')"
       :description="t('projects.charter.pageDescription')"

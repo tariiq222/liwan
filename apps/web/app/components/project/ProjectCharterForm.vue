@@ -15,6 +15,7 @@ import {
   validateCharterDraft,
 } from '@/utils/projectCharter'
 import ProjectCharterFields from '@/components/project/ProjectCharterFields.vue'
+import ProjectCharterDisplay from '@/components/project/ProjectCharterDisplay.vue'
 
 const props = defineProps<{
   mode: 'create' | 'edit'
@@ -56,9 +57,11 @@ function snapshotDraft(value: CharterDraft): CharterDraft {
 }
 
 const pending = computed(() => !!props.disabled || creating.value || updating.value || projectQuery.isFetching.value)
+const readonly = computed(() => !!props.readonly)
 const canSubmit = computed(() => hydrated.value && !pending.value && !props.readonly && !!draft.value.name.trim())
 const canOverwrite = computed(() => canOverwriteWithLatest(writeToken.value, serverVersion.value))
 const dirty = computed(() => !submitted.value && isCharterDraftDirty(draft.value, baseline.value))
+const persistedDraft = computed(() => props.project ? draftFromProject(props.project) : draft.value)
 
 watch(
   [() => props.createDefaults, () => props.defaultManagerName],
@@ -97,6 +100,11 @@ watch(
   },
   { immediate: true },
 )
+
+watch(readonly, (value) => {
+  if (!value || props.mode !== 'edit' || !props.project) return
+  applyLoadedProject(props.project)
+})
 
 function applyLoadedProject(project: ProjectDetail) {
   const next = draftFromProject(project)
@@ -193,16 +201,18 @@ function discardToServer() {
 </script>
 
 <template>
-  <form :data-testid="mode === 'create' ? 'project-create-form' : 'project-charter-form'" class="grid gap-6" @submit.prevent="submit()">
-    <SharedUnsavedChanges :dirty="dirty" />
-    <ProjectCharterFields
-      v-model="draft"
-      :readonly="readonly"
-      :disabled="pending"
-      :field-errors="fieldErrors"
-      :require-manager="mode === 'create' && !!createDefaults?.require_manager_on_create"
-      :require-end-date="mode === 'create' && !!createDefaults?.require_end_date_on_create"
-    />
+  <div :data-testid="mode === 'create' ? 'project-create-form' : 'project-charter-form'" class="grid gap-6">
+    <SharedUnsavedChanges v-if="!readonly || dirty" :dirty="dirty" :guard-route-updates="mode === 'edit'" />
+    <ProjectCharterDisplay v-if="readonly" :draft="persistedDraft" />
+    <form v-else class="grid gap-6" @submit.prevent="submit()">
+      <ProjectCharterFields
+        v-model="draft"
+        :compact-create="mode === 'create'"
+        :disabled="pending"
+        :field-errors="fieldErrors"
+        :require-manager="mode === 'create' && !!createDefaults?.require_manager_on_create"
+        :require-end-date="mode === 'create' && !!createDefaults?.require_end_date_on_create"
+      />
     <div v-if="stale" role="alert" data-testid="charter-stale-write" class="nasq-status-callout-warning space-y-3 p-3 text-sm">
       <p>{{ t('projects.charter.staleWrite') }}</p>
       <p>{{ t('projects.charter.staleWriteHint') }}</p>
@@ -228,11 +238,12 @@ function discardToServer() {
       </div>
     </div>
     <p v-else-if="error" role="alert" class="text-sm text-destructive">{{ error }}</p>
-    <div v-if="!readonly" class="flex flex-wrap justify-end gap-2">
+    <div class="flex flex-wrap justify-end gap-2">
       <Button type="button" variant="outline" :disabled="pending" @click="emit('cancel')">{{ t('app.cancel') }}</Button>
       <Button type="submit" data-testid="project-create-submit" :disabled="!canSubmit">
         {{ mode === 'create' ? t('app.create') : t('app.save') }}
       </Button>
     </div>
-  </form>
+    </form>
+  </div>
 </template>
