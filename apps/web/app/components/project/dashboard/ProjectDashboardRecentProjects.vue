@@ -2,7 +2,7 @@
 import ProjectStatusBadge from '@/components/project/ProjectStatusBadge.vue'
 import { formatNullablePercent } from '@/utils/projectFinance'
 import { returnToQuery } from '@/utils/safeReturnTo'
-import type { DashboardProject } from '@/utils/projectChartOptions'
+import type { DashboardProject } from '@/utils/projectChartData'
 
 const props = defineProps<{ rows: readonly DashboardProject[] }>()
 const { t, locale } = useI18n()

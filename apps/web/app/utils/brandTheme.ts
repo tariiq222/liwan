@@ -63,6 +63,26 @@ function contrastTone(hex: string, minimumContrast: number, mode: AppearanceMode
   return mode === 'dark' ? '#ffffff' : '#000000'
 }
 
+function chartBase(hex: string, mode: AppearanceMode): string {
+  const surfaces = mode === 'dark' ? ['#09090b', '#18181b', '#27272a'] : mode === 'cream' ? ['#fbf7ef', '#f6f1e7', '#efe8d9'] : ['#ffffff', '#fafafa', '#f4f4f5']
+  return surfaces.every(surface => contrast(hex, surface) >= 3) ? hex : contrastTone(hex, 3, mode)
+}
+
+function chartFamily(hex: string, mode: AppearanceMode): string[] {
+  const base = chartBase(hex, mode)
+  if (relativeLuminance(base) < 0.12) {
+    return [0.6, 0, 0.15, 0.3, 0.45, 0.75].map(amount => mix(base, '#ffffff', amount))
+  }
+  return [
+    mix(base, '#ffffff', 0.55),
+    base,
+    mix(base, '#000000', 0.15),
+    mix(base, '#000000', 0.3),
+    mix(base, '#000000', 0.45),
+    mix(base, '#ffffff', 0.25),
+  ]
+}
+
 export function createBrandTheme(input: string, mode: AppearanceMode = 'light'): Record<string, string> {
   const primary = normalizeHex(input)
   const foreground = foregroundFor(primary)
@@ -72,6 +92,7 @@ export function createBrandTheme(input: string, mode: AppearanceMode = 'light'):
   const active = mix(primary, nearBlack ? '#ffffff' : '#000000', nearBlack ? 0.16 : 0.2)
   const link = contrastTone(primary, 4.5, mode)
   const ring = contrastTone(primary, 3, mode)
+  const charts = chartFamily(primary, mode)
 
   return {
     '--primary': primary,
@@ -82,6 +103,12 @@ export function createBrandTheme(input: string, mode: AppearanceMode = 'light'):
     '--primary-active-foreground': foregroundFor(active),
     '--brand-link': link,
     '--ring': ring,
+    '--chart-1': charts[0]!,
+    '--chart-2': charts[1]!,
+    '--chart-3': charts[2]!,
+    '--chart-4': charts[3]!,
+    '--chart-5': charts[4]!,
+    '--chart-6': charts[5]!,
     '--sidebar-primary': primary,
     '--sidebar-primary-foreground': foreground,
     '--sidebar-ring': ring,

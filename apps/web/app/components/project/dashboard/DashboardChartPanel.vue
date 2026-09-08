@@ -1,13 +1,15 @@
 <script setup lang="ts">
-import type { ChartOption } from '@/utils/projectChartOptions'
-import ChartCanvas from '@/components/shared/ChartCanvas.client.vue'
+import type { DashboardChart as DashboardChartModel } from '@/utils/projectChartData'
+import DashboardChart from '@/components/shared/DashboardChart.client.vue'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
 withDefaults(defineProps<{
   testId: string
   titleId: string
   title: string
   description: string
-  option: ChartOption
+  chart: DashboardChartModel
+  variant?: 'pie' | 'donut' | 'donut-text'
   hasData: boolean
   loading?: boolean
   emptyText: string
@@ -20,21 +22,21 @@ withDefaults(defineProps<{
 </script>
 
 <template>
-  <section :data-testid="testId" class="nasq-panel flex min-w-0 flex-col overflow-hidden" :aria-labelledby="titleId">
-    <header class="nasq-panel-header items-start">
+  <Card :data-testid="testId" class="min-w-0 overflow-hidden" :aria-labelledby="titleId">
+    <CardHeader class="items-center border-b-0 pb-0 text-center">
       <div class="min-w-0">
-        <h2 :id="titleId">{{ title }}</h2>
-        <p class="mt-1 text-sm leading-6 text-muted-foreground">{{ description }}</p>
+        <CardTitle :id="titleId">{{ title }}</CardTitle>
+        <CardDescription class="mt-1 leading-6">{{ description }}</CardDescription>
       </div>
-    </header>
-    <div class="nasq-panel-body min-w-0 flex-1">
+    </CardHeader>
+    <CardContent class="min-w-0 flex-1">
       <div v-if="loading" role="status" class="flex items-center justify-center" :style="{ height }" :aria-label="$t('app.loading')">
         <Skeleton class="h-44 w-full" />
       </div>
       <div v-else-if="hasData" class="min-w-0">
-        <ChartCanvas :option="option" :accessible-label="accessibleLabel" :height="height" />
+        <DashboardChart :chart="chart" :variant="variant" :accessible-label="accessibleLabel" :height="height" />
       </div>
       <p v-else class="flex min-h-[220px] items-center justify-center text-center text-sm text-muted-foreground">{{ emptyText }}</p>
-    </div>
-  </section>
+    </CardContent>
+  </Card>
 </template>

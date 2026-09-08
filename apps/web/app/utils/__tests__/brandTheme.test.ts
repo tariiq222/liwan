@@ -82,9 +82,38 @@ describe('createBrandTheme', () => {
     }
   })
 
+  it('derives chart tones from the configured primary color', () => {
+    const first = createBrandTheme('#0055ff')
+    const second = createBrandTheme('#d14a00')
+    const firstCharts = Array.from({ length: 6 }, (_, index) => first[`--chart-${index + 1}`]!)
+    const secondCharts = Array.from({ length: 6 }, (_, index) => second[`--chart-${index + 1}`]!)
+
+    expect(firstCharts).not.toEqual(secondCharts)
+    expect(firstCharts.every(value => /^#[0-9a-f]{6}$/.test(value))).toBe(true)
+    expect(secondCharts.every(value => /^#[0-9a-f]{6}$/.test(value))).toBe(true)
+    expect(new Set(firstCharts).size).toBe(6)
+    expect(new Set(secondCharts).size).toBe(6)
+    expect(first['--primary']).toBe('#0055ff')
+    expect(first['--chart-2']).toBe('#0055ff')
+  })
+
+  it.each(['#000000', '#ffffff'])('keeps six chart tones distinct for extreme primary %s', (primary) => {
+    const theme = createBrandTheme(primary)
+    const charts = Array.from({ length: 6 }, (_, index) => theme[`--chart-${index + 1}`]!)
+
+    expect(new Set(charts).size).toBe(6)
+    expect(charts.every(value => /^#[0-9a-f]{6}$/.test(value))).toBe(true)
+  })
+
   it('returns only the documented CSS custom properties', () => {
     expect(Object.keys(createBrandTheme('#0055ff')).sort()).toEqual([
       '--brand-link',
+      '--chart-1',
+      '--chart-2',
+      '--chart-3',
+      '--chart-4',
+      '--chart-5',
+      '--chart-6',
       '--primary',
       '--primary-active',
       '--primary-active-foreground',

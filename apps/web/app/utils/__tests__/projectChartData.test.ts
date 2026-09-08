@@ -2,14 +2,16 @@ import { describe, expect, it } from 'vitest'
 import type { ProjectReportRow } from '@nasq/contracts'
 import {
   projectBudgetHealthData,
-  projectDashboardCurrencies,
+  projectFinanceComparisonChart,
   projectFinanceComparisonData,
-  projectFinanceComparisonOption,
+  projectProgressBandsChart,
   projectProgressBandData,
+  projectProgressByProjectChart,
   projectProgressByProjectData,
-  projectProgressByProjectOption,
+  projectStatusDoughnutData,
+  projectTaskCompositionData,
   projectTaskComposition,
-} from '../projectChartOptions'
+} from '../projectChartData'
 
 const SAR = { id: 1, name: 'Saudi Riyal', symbol: 'ر.س', decimal_places: 2 }
 const USD = { id: 2, name: 'US Dollar', symbol: '$', decimal_places: 2 }
@@ -35,26 +37,37 @@ describe('project dashboard chart data', () => {
     expect(projectTaskComposition([row(1, { task_count: null, closed_task_count: null, overdue_task_count: null, progress: null })]).available).toBe(false)
     const bands = projectProgressBandData([row(1, { task_count: 0, closed_task_count: 0, overdue_task_count: 0, progress: 0 }), row(2, { task_count: null, closed_task_count: null, overdue_task_count: null, progress: null })], labels)
     expect(bands.available).toBe(true)
-    expect(bands.data).toEqual(expect.arrayContaining([{ name: 'No tasks', value: 1, itemStyle: expect.any(Object), emphasis: expect.any(Object) }]))
-    expect(bands.data).toEqual(expect.arrayContaining([{ name: 'Unknown', value: 1, itemStyle: expect.any(Object), emphasis: expect.any(Object) }]))
+    expect(bands.data).toEqual(expect.arrayContaining([{ name: 'No tasks', value: 1 }]))
+    expect(bands.data).toEqual(expect.arrayContaining([{ name: 'Unknown', value: 1 }]))
   })
 
   it('makes task composition disjoint by subtracting overdue from open tasks', () => {
     expect(projectTaskComposition([row(1)])).toEqual({ closed: 2, openOnTime: 1, overdue: 1, available: true })
   })
 
+  it('keeps zero-valued donut categories so legends explain the complete distribution', () => {
+    const one = row(1)
+    const statuses = projectStatusDoughnutData([one], labels)
+    const tasks = projectTaskCompositionData([one], labels)
+    const budget = projectBudgetHealthData([one], labels)
+
+    expect(statuses).toHaveLength(6)
+    expect(statuses.find(item => item.name === 'Done')?.value).toBe(0)
+    expect(tasks).toHaveLength(3)
+    expect(tasks.find(item => item.name === 'Overdue')?.value).toBe(1)
+    expect(budget).toHaveLength(3)
+    expect(budget.find(item => item.name === 'Over')?.value).toBe(0)
+  })
+
   it('orders unique currencies and never includes another currency in the comparison', () => {
     const rows = [row(1, { finance: { ...row(1).finance, currency: USD } }), row(2), row(3, { finance: { ...row(3).finance, currency: USD } })]
-    expect(projectDashboardCurrencies(rows).map(currency => currency.id)).toEqual([1, 2])
     expect(projectFinanceComparisonData(rows, USD.id).map(item => item.projectId)).toEqual([1, 3])
   })
 
   it('keeps null plans as unknown and still counts their actual spend', () => {
     const budget = projectBudgetHealthData([row(1, { finance: { ...row(1).finance, planned: null } }), row(2)], labels)
-    expect(budget).toEqual(expect.arrayContaining([
-      expect.objectContaining({ name: 'Unknown', value: 1 }),
-      expect.objectContaining({ name: 'Within', value: 1 }),
-    ]))
+    expect(budget.find(item => item.name === 'Unknown')?.value).toBe(1)
+    expect(budget.find(item => item.name === 'Within')?.value).toBe(1)
   })
 
   it('labels zero-task progress separately from measured zero percent and unavailable progress', () => {
@@ -66,13 +79,13 @@ describe('project dashboard chart data', () => {
     expect(data.map(item => [item.value, item.progressState])).toEqual([[0, 'no_tasks'], [0, 'tracked'], [0, 'unknown']])
   })
 
-  it('uses all projects and enables internal zoom when the project set is large', () => {
+  it('keeps all project rows in compact chart models so scrolling can reveal every project', () => {
     const rows = Array.from({ length: 205 }, (_, index) => row(index + 1))
-    const progress = projectProgressByProjectOption(rows, labels)
-    const finance = projectFinanceComparisonOption(rows, SAR.id, labels)
-    expect((progress.yAxis as { data: string[] }).data).toHaveLength(205)
-    expect(progress.dataZoom).toHaveLength(2)
-    expect(finance.xAxis).toMatchObject({ data: expect.arrayContaining(['Project 205']) })
-    expect(finance.dataZoom).toHaveLength(2)
+    const progress = projectProgressByProjectChart(rows, labels)
+    const finance = projectFinanceComparisonChart(rows, SAR.id, labels)
+    expect(progress.data).toHaveLength(205)
+    expect(finance.data).toHaveLength(205)
+    expect(finance.data.at(-1)).toMatchObject({ name: 'Project 205' })
+    expect(projectProgressBandsChart(rows, labels).kind).toBe('bar')
   })
 })
