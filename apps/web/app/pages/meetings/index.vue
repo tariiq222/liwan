@@ -5,6 +5,7 @@ import FilterBar from '@/components/shared/FilterBar.vue'
 import { formatCalendarDate } from '@/composables/calendarDate'
 import { useMeetings } from '@/composables/useMeetings'
 import { returnToQuery } from '@/utils/safeReturnTo'
+import { meetingCreateRoute } from '@/utils/meetingRoutes'
 
 const route = useRoute()
 const router = useRouter()
@@ -29,6 +30,11 @@ const query = useMeetings(computed(() => ({
 const page = computed(() => Math.floor(offset.value / limit) + 1)
 const pages = computed(() => Math.max(1, Math.ceil((query.data.value?.total ?? 0) / limit)))
 const hasActiveFilters = computed(() => Boolean(search.value.trim() || state.value || mine.value || route.query.project_id || route.query.series_id))
+const projectId = computed(() => {
+  const value = Number(route.query.project_id)
+  return Number.isInteger(value) && value > 0 ? value : undefined
+})
+const createMeetingTo = computed(() => meetingCreateRoute(route.fullPath, projectId.value))
 
 watch(() => [route.query.q, route.query.offset, route.query.state, route.query.mine], ([q, nextOffset, nextState, nextMine]) => {
   search.value = String(q ?? '')
@@ -72,7 +78,7 @@ function setPage(next: number) {
   <SharedPageContainer width="list">
     <SharedPageHeader :title="t('nav.meetings')">
       <template #actions>
-        <NuxtLink v-if="can('meetings.create')" :to="{ path: '/meetings/new', query: returnToQuery(route.fullPath) }">
+        <NuxtLink v-if="can('meetings.create')" :to="createMeetingTo">
           <Button :disabled="!hydrated" class="gap-2">
             <Plus class="size-[18px]" />{{ t('meetingsUi.new') }}
           </Button>

@@ -64,7 +64,7 @@ export const MeetingCreateSchema = z.object({
   start_datetime: z.string().optional(),
   end_datetime: z.string().optional(),
   meeting_url: z.string().optional(),
-  secretary_id: z.number().int().optional(),
+  secretary_id: z.number().int().nullable().optional(),
   attendee_ids: z.array(z.number().int()).optional(),
   agenda: z.string().optional(),
   series_id: z.number().int().optional(),
@@ -117,13 +117,30 @@ export const MeetingSeriesCreateSchema = z.object({
   secretary_id: z.number().int().optional(),
   attendee_ids: z.array(z.number().int()).optional(),
   recurrence: z.enum(['none', 'weekly', 'biweekly', 'monthly']).optional(),
-  until_date: z.string().optional(),
-  until_count: z.number().int().optional(),
+  until_date: z.iso.date().optional(),
+  until_count: z.number().int().min(1).max(60).optional(),
   location: z.string().optional(),
   meeting_url: z.string().optional(),
-  start_datetime: z.string().optional(),
-  end_datetime: z.string().optional(),
-}).strict()
+  start_datetime: z.iso.datetime({ offset: true }).optional(),
+  end_datetime: z.iso.datetime({ offset: true }).optional(),
+}).strict().superRefine((value, ctx) => {
+  if (!value.recurrence || value.recurrence === 'none') return
+  if (Boolean(value.until_date) === (value.until_count !== undefined)) {
+    ctx.addIssue({ code: 'custom', path: ['until_count'], message: 'Choose an end date or an occurrence count.' })
+  }
+  for (const field of ['start_datetime', 'end_datetime'] as const) {
+    if (!value[field]) ctx.addIssue({ code: 'custom', path: [field], message: 'A recurring series requires a start and end.' })
+  }
+  if (value.start_datetime && value.end_datetime && Date.parse(value.end_datetime) <= Date.parse(value.start_datetime)) {
+    ctx.addIssue({ code: 'custom', path: ['end_datetime'], message: 'The end must be after the start.' })
+  }
+  if (value.until_date && value.start_datetime && Number.isFinite(Date.parse(value.start_datetime))) {
+    const firstDate = new Date(value.start_datetime).toISOString().slice(0, 10)
+    if (value.until_date < firstDate) {
+      ctx.addIssue({ code: 'custom', path: ['until_date'], message: 'The end date cannot precede the first meeting.' })
+    }
+  }
+})
 
 export type MeetingListItem = z.infer<typeof MeetingListItemSchema>
 export type MeetingList = z.infer<typeof MeetingListSchema>

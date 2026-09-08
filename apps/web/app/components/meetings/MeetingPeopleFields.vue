@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { usePeople } from '@/composables/usePeople'
+import { mergeMeetingPeople } from '@/utils/meetingPeople'
 
 const attendeeIds = defineModel<number[]>('attendeeIds', { required: true })
 const secretaryId = defineModel<number | null>('secretaryId')
@@ -11,12 +12,26 @@ const props = defineProps<{
 const { t } = useI18n()
 const peopleQ = ref('')
 const people = usePeople(peopleQ)
-const known = computed(() => new Map((props.known ?? []).map(person => [person.id, person.name])))
+const remembered = ref<Record<number, string>>({})
 const options = computed(() => {
-  const rows = new Map(known.value)
-  for (const person of people.data.value ?? []) rows.set(person.user_id, person.name)
-  return [...rows.entries()].map(([id, name]) => ({ id, name }))
+  return mergeMeetingPeople({
+    selectedIds: attendeeIds.value,
+    secretaryId: secretaryId.value ?? null,
+    known: [
+      ...(props.known ?? []),
+      ...Object.entries(remembered.value).map(([id, name]) => ({ id: Number(id), name })),
+    ],
+    results: (people.data.value ?? []).map(person => ({ id: person.user_id, name: person.name })),
+  })
 })
+watch([attendeeIds, secretaryId, () => props.known, () => people.data.value], () => {
+  const next = { ...remembered.value }
+  for (const person of options.value) {
+    if (![...attendeeIds.value, ...(secretaryId.value ? [secretaryId.value] : [])].includes(person.id)) continue
+    if (!/^\d+$/.test(person.name)) next[person.id] = person.name
+  }
+  remembered.value = next
+}, { deep: true, immediate: true })
 
 function toggle(id: number) {
   attendeeIds.value = attendeeIds.value.includes(id)
@@ -31,7 +46,7 @@ function toggle(id: number) {
     <Input v-model="peopleQ" :placeholder="t('meetingsUi.searchPeople')" :disabled="disabled" :aria-label="t('meetingsUi.searchPeople')" />
     <p v-if="attendeeIds.length" class="text-sm text-muted-foreground">
       {{ t('meetingsUi.selected') }}:
-      {{ attendeeIds.map(id => known.get(id) || options.find(person => person.id === id)?.name || id).join('، ') }}
+      {{ attendeeIds.map(id => options.find(person => person.id === id)?.name || id).join('، ') }}
     </p>
     <label v-for="person in options" :key="person.id" class="flex items-center gap-2 text-sm">
       <input type="checkbox" :checked="attendeeIds.includes(person.id)" :disabled="disabled" @change="toggle(person.id)">

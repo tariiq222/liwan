@@ -1,5 +1,5 @@
 import type { MaybeRefOrGetter } from 'vue'
-import { computed, toValue } from 'vue'
+import { computed, onServerPrefetch, toValue } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { z } from 'zod'
 import {
@@ -20,6 +20,24 @@ import {
   type MeetingSeriesCreate,
 } from '@nasq/contracts'
 
+function invalidateMeetingCaches(qc: ReturnType<typeof useQueryClient>) {
+  return Promise.all([
+    qc.invalidateQueries({ queryKey: ['meetings'] }),
+    qc.invalidateQueries({ queryKey: ['meeting-series'] }),
+  ])
+}
+
+function prefetchMeetingQuery(query: { suspense: () => Promise<unknown> }, enabled: MaybeRefOrGetter<boolean> = true) {
+  onServerPrefetch(async () => {
+    if (!toValue(enabled)) return
+    try {
+      await query.suspense()
+    } catch {
+      // Vue Query keeps the failure on the query for SharedPageState to render.
+    }
+  })
+}
+
 export function useMeetings(params: MaybeRefOrGetter<{
   q?: string
   limit?: number
@@ -33,7 +51,7 @@ export function useMeetings(params: MaybeRefOrGetter<{
   mine?: boolean
 }>) {
   const { $api } = useApi()
-  return useQuery({
+  const query = useQuery({
     queryKey: computed(() => ['meetings', toValue(params)]),
     queryFn: () => {
       const p = toValue(params)
@@ -56,15 +74,20 @@ export function useMeetings(params: MaybeRefOrGetter<{
       })
     },
   })
+  prefetchMeetingQuery(query)
+  return query
 }
 
 export function useMeeting(id: MaybeRefOrGetter<number | null>) {
   const { $api } = useApi()
-  return useQuery({
+  const enabled = computed(() => Number.isInteger(toValue(id)))
+  const query = useQuery({
     queryKey: computed(() => ['meetings', toValue(id)]),
-    enabled: computed(() => Number.isInteger(toValue(id))),
+    enabled,
     queryFn: () => $api(`/api/v1/meetings/${toValue(id)}`, { schema: MeetingDetailSchema }),
   })
+  prefetchMeetingQuery(query, enabled)
+  return query
 }
 
 export function useCreateMeeting() {
@@ -76,7 +99,7 @@ export function useCreateMeeting() {
       body: MeetingCreateSchema.parse(body),
       schema: MeetingDetailSchema,
     }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['meetings'] }),
+    onSuccess: () => invalidateMeetingCaches(qc),
   })
 }
 
@@ -89,7 +112,7 @@ export function usePatchMeeting() {
       body: MeetingPatchSchema.parse(body),
       schema: MeetingDetailSchema,
     }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['meetings'] }),
+    onSuccess: () => invalidateMeetingCaches(qc),
   })
 }
 
@@ -103,7 +126,7 @@ export function useCreateResolution() {
         body: MeetingResolutionCreateSchema.parse(body),
         schema: MeetingResolutionSchema,
       }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['meetings'] }),
+    onSuccess: () => invalidateMeetingCaches(qc),
   })
 }
 
@@ -117,17 +140,20 @@ export function useConvertResolution() {
         body: { project_id: projectId },
         schema: z.object({ id: z.number(), name: z.string() }).strict(),
       }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['meetings'] }),
+    onSuccess: () => invalidateMeetingCaches(qc),
   })
 }
 
 export function useMeetingAttachments(id: MaybeRefOrGetter<number | null>) {
   const { $api } = useApi()
-  return useQuery({
+  const enabled = computed(() => Number.isInteger(toValue(id)))
+  const query = useQuery({
     queryKey: computed(() => ['meetings', 'attachments', toValue(id)]),
-    enabled: computed(() => Number.isInteger(toValue(id))),
+    enabled,
     queryFn: () => $api(`/api/v1/meetings/${toValue(id)}/attachments`, { schema: TaskAttachmentListSchema }),
   })
+  prefetchMeetingQuery(query, enabled)
+  return query
 }
 
 export function useUploadMeetingAttachment() {
@@ -140,7 +166,10 @@ export function useUploadMeetingAttachment() {
         body: { name, mimetype, data },
         schema: TaskAttachmentSchema,
       }),
-    onSuccess: (_row, { meetingId }) => qc.invalidateQueries({ queryKey: ['meetings', 'attachments', meetingId] }),
+    onSuccess: (_row, { meetingId }) => Promise.all([
+      invalidateMeetingCaches(qc),
+      qc.invalidateQueries({ queryKey: ['meetings', 'attachments', meetingId] }),
+    ]),
   })
 }
 
@@ -150,7 +179,10 @@ export function useDeleteMeetingAttachment() {
   return useMutation({
     mutationFn: ({ meetingId, attachmentId }: { meetingId: number; attachmentId: number }) =>
       $api(`/api/v1/meetings/${meetingId}/attachments/${attachmentId}`, { method: 'DELETE' }),
-    onSuccess: (_row, { meetingId }) => qc.invalidateQueries({ queryKey: ['meetings', 'attachments', meetingId] }),
+    onSuccess: (_row, { meetingId }) => Promise.all([
+      invalidateMeetingCaches(qc),
+      qc.invalidateQueries({ queryKey: ['meetings', 'attachments', meetingId] }),
+    ]),
   })
 }
 
@@ -160,7 +192,7 @@ export function useMeetingAction() {
   return useMutation({
     mutationFn: ({ id, action, body }: { id: number; action: 'confirm' | 'complete' | 'reopen' | 'cancel'; body?: Record<string, unknown> }) =>
       $api(`/api/v1/meetings/${id}/${action}`, { method: 'POST', body, schema: MeetingDetailSchema }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['meetings'] }),
+    onSuccess: () => invalidateMeetingCaches(qc),
   })
 }
 
@@ -174,7 +206,7 @@ export function usePatchResolution() {
         body,
         schema: MeetingResolutionSchema,
       }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['meetings'] }),
+    onSuccess: () => invalidateMeetingCaches(qc),
   })
 }
 
@@ -187,28 +219,33 @@ export function useResolutionAction() {
         method: 'POST',
         schema: MeetingResolutionSchema,
       }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['meetings'] }),
+    onSuccess: () => invalidateMeetingCaches(qc),
   })
 }
 
-export function useMeetingSeriesList(params: MaybeRefOrGetter<{ q?: string; project_id?: number }>) {
+export function useMeetingSeriesList(params: MaybeRefOrGetter<{ q?: string; project_id?: number; limit?: number; offset?: number }>) {
   const { $api } = useApi()
-  return useQuery({
+  const query = useQuery({
     queryKey: computed(() => ['meeting-series', toValue(params)]),
     queryFn: () => $api('/api/v1/meeting-series', {
       query: toValue(params),
       schema: MeetingSeriesListSchema,
     }),
   })
+  prefetchMeetingQuery(query)
+  return query
 }
 
 export function useMeetingSeries(id: MaybeRefOrGetter<number | null>) {
   const { $api } = useApi()
-  return useQuery({
+  const enabled = computed(() => Number.isInteger(toValue(id)))
+  const query = useQuery({
     queryKey: computed(() => ['meeting-series', toValue(id)]),
-    enabled: computed(() => Number.isInteger(toValue(id))),
+    enabled,
     queryFn: () => $api(`/api/v1/meeting-series/${toValue(id)}`, { schema: MeetingSeriesDetailSchema }),
   })
+  prefetchMeetingQuery(query, enabled)
+  return query
 }
 
 export function useCreateMeetingSeries() {
@@ -220,6 +257,6 @@ export function useCreateMeetingSeries() {
       body: MeetingSeriesCreateSchema.parse(body),
       schema: MeetingSeriesDetailSchema,
     }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['meeting-series'] }),
+    onSuccess: () => invalidateMeetingCaches(qc),
   })
 }

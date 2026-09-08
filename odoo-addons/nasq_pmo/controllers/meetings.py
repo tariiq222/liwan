@@ -1,4 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+from datetime import datetime, timezone
+
 from odoo import http
 from odoo.http import request
 
@@ -25,7 +27,13 @@ def _parse_day(value, field):
 def _parse_dt(value, field):
     if not isinstance(value, str) or not value.strip():
         raise ApiError(422, 'invalid', '%s must be a datetime' % field, field=field)
-    return value.strip().replace('T', ' ').replace('Z', '')
+    try:
+        parsed = datetime.fromisoformat(value.strip().replace('Z', '+00:00'))
+    except ValueError:
+        raise ApiError(422, 'invalid', '%s must be a valid ISO datetime' % field, field=field) from None
+    if parsed.tzinfo:
+        parsed = parsed.astimezone(timezone.utc).replace(tzinfo=None)
+    return parsed.strftime('%Y-%m-%d %H:%M:%S')
 
 
 class MeetingController(http.Controller):
@@ -80,6 +88,9 @@ class MeetingController(http.Controller):
     @api_handler
     def create_meeting(self, name=None, meeting_date=None, location=None, start_datetime=None, end_datetime=None, meeting_url=None, attendee_ids=None, secretary_id=None, agenda=None, series_id=None, project_id=None, **_):
         request.env['nasq.access.service']._nasq_require_capability('meetings.create')
+        body = request.get_json_data() if request.httprequest.content_length else {}
+        if not isinstance(body, dict):
+            body = {}
         if not isinstance(name, str) or not name.strip():
             raise ApiError(422, 'invalid', "name must not be empty", field='name')
         vals = {
@@ -88,16 +99,23 @@ class MeetingController(http.Controller):
         }
         if isinstance(meeting_date, str) and meeting_date.strip():
             vals['meeting_date'] = meeting_date.strip()
-        if isinstance(location, str) and location.strip():
-            vals['location'] = location.strip()
+        if 'location' in body:
+            if location is not None and not isinstance(location, str):
+                raise ApiError(422, 'invalid', 'location must be a string', field='location')
+            vals['location'] = location.strip() if location else False
         if isinstance(start_datetime, str) and start_datetime.strip():
             vals['start_datetime'] = _parse_dt(start_datetime, 'start_datetime')
         if isinstance(end_datetime, str) and end_datetime.strip():
             vals['end_datetime'] = _parse_dt(end_datetime, 'end_datetime')
-        if isinstance(meeting_url, str) and meeting_url.strip():
-            vals['meeting_url'] = meeting_url.strip()
-        if secretary_id:
-            vals['secretary_id'] = parse_positive_int(secretary_id, 'secretary_id')
+        if 'meeting_url' in body:
+            if meeting_url is not None and not isinstance(meeting_url, str):
+                raise ApiError(422, 'invalid', 'meeting_url must be a string', field='meeting_url')
+            vals['meeting_url'] = meeting_url.strip() if meeting_url else False
+        if 'secretary_id' in body:
+            vals['secretary_id'] = (
+                False if secretary_id is None
+                else parse_positive_int(secretary_id, 'secretary_id')
+            )
         if isinstance(attendee_ids, list):
             vals['attendee_ids'] = [(6, 0, [parse_positive_int(item, 'attendee_ids') for item in attendee_ids])]
         if isinstance(agenda, str):
@@ -132,7 +150,7 @@ class MeetingController(http.Controller):
             vals['attendee_ids'] = [(6, 0, [parse_positive_int(item, 'attendee_ids') for item in payload['attendee_ids']])]
         for field in ('start_datetime', 'end_datetime'):
             if field in payload and isinstance(payload[field], str) and payload[field].strip():
-                vals[field] = payload[field].strip().replace('T', ' ').replace('Z', '')
+                vals[field] = _parse_dt(payload[field], field)
         if 'meeting_url' in payload:
             value = payload['meeting_url']
             if value is not None and not isinstance(value, str):

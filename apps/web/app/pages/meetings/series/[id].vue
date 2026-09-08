@@ -6,19 +6,28 @@ import { returnToQuery, safeReturnTo } from '@/utils/safeReturnTo'
 const route = useRoute()
 const { t, locale } = useI18n()
 const { can } = useAccess()
+const { me } = useMe()
 const id = computed(() => Number(route.params.id))
 const query = useMeetingSeries(id)
 const backTo = computed(() => safeReturnTo(route.query.returnTo, '/meetings/series', ['/meetings']))
 const today = computed(() => new Date().toISOString().slice(0, 10))
 const upcoming = computed(() => (query.data.value?.meetings ?? []).filter(item => (item.meeting_date || '') >= today.value).sort((a, b) => (a.meeting_date || '').localeCompare(b.meeting_date || ''))[0])
 const previous = computed(() => (query.data.value?.meetings ?? []).filter(item => (item.meeting_date || '') < today.value).sort((a, b) => (b.meeting_date || '').localeCompare(a.meeting_date || ''))[0])
+const canAddOccurrence = computed(() => {
+  const series = query.data.value
+  const userId = me.value?.id
+  return can('meetings.create') && (
+    can('meetings.manage') ||
+    (userId !== undefined && (series?.organizer?.id === userId || series?.secretary?.id === userId))
+  )
+})
 </script>
 
 <template>
   <SharedPageContainer width="detail">
     <SharedPageHeader :title="query.data.value?.name || t('nav.meetingSeries')" :back-to="backTo">
       <template #actions>
-        <NuxtLink v-if="can('meetings.create')" :to="{ path: '/meetings/new', query: { ...returnToQuery(route.fullPath), series_id: String(id) } }">
+        <NuxtLink v-if="canAddOccurrence" :to="{ path: '/meetings/new', query: { ...returnToQuery(route.fullPath), series_id: String(id) } }">
           <Button>{{ t('meetingsUi.addOccurrence') }}</Button>
         </NuxtLink>
       </template>

@@ -11,8 +11,10 @@ class CyanMeetingResolution(models.Model):
     _inherit = 'cyan.meeting.resolution'
 
     def write(self, vals):
-        if not self.env.su and {'state', 'result'} & set(vals):
-            if self.env['project.task'].sudo().search_count([('resolution_id', 'in', self.ids)]):
+        if not self.env.su and (self._DECISION_FIELDS | {'state', 'result'}) & set(vals):
+            if self.env['project.task'].with_context(active_test=False).sudo().search_count(
+                [('resolution_id', 'in', self.ids)], limit=1,
+            ):
                 raise UserError(self.env._("Follow this recommendation on its task."))
         return super().write(vals)
 
@@ -48,6 +50,7 @@ class CyanMeetingResolution(models.Model):
                 try:
                     task = self.env['project.task'].create({
                         'name': self.name,
+                        'priority': self.priority,
                         'date_deadline': fields.Datetime.to_datetime(self.deadline) if self.deadline else False,
                         'user_ids': [(6, 0, [self.responsible_id.id])] if self.responsible_id else [],
                         'project_id': project.id,

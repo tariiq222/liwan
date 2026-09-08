@@ -1,4 +1,8 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+from itertools import islice
+
+from dateutil.rrule import MONTHLY, WEEKLY, rrule
+
 from odoo import api, fields, models
 from odoo.exceptions import AccessError, UserError, ValidationError
 
@@ -99,6 +103,8 @@ class NasqMeetingSeries(models.Model):
 
     def action_add_occurrence(self, start=None, stop=None, name=None):
         self.ensure_one()
+        if self.company_id != self.env.company:
+            raise AccessError(self.env._("The meeting series is outside the current company."))
         if not self._nasq_is_editor():
             raise AccessError(self.env._("Only the organizer, secretary or a meetings manager may add meetings."))
         vals = self._nasq_meeting_defaults()
@@ -112,13 +118,37 @@ class NasqMeetingSeries(models.Model):
 
     def action_generate_occurrences(self, start, stop):
         self.ensure_one()
+        if self.company_id != self.env.company:
+            raise AccessError(self.env._("The meeting series is outside the current company."))
+        if not self._nasq_is_editor():
+            raise AccessError(self.env._(
+                "Only the organizer, secretary or a meetings manager may generate meetings.",
+            ))
         if self.recurrence == 'none':
             raise UserError(self.env._("On-demand series do not generate recurrences."))
         if self.meeting_ids:
             raise UserError(self.env._("This series already has meetings."))
         if not start or not stop:
             raise UserError(self.env._("Set start and end before generating the series."))
-        weekday = weekday_to_field(fields.Datetime.to_datetime(start).weekday())
+        start_dt = fields.Datetime.to_datetime(start)
+        stop_dt = fields.Datetime.to_datetime(stop)
+        if not start_dt or not stop_dt or stop_dt <= start_dt:
+            raise ValidationError(self.env._("The meeting end time must be after its start time."))
+        if self.until_date:
+            until_dt = fields.Datetime.to_datetime(self.until_date)
+            if until_dt.date() < start_dt.date():
+                raise ValidationError(self.env._("The recurrence end date must be on or after the first meeting."))
+            frequency = MONTHLY if self.recurrence == 'monthly' else WEEKLY
+            recurrence = rrule(
+                frequency, dtstart=start_dt,
+                until=until_dt.replace(hour=23, minute=59, second=59),
+                interval=2 if self.recurrence == 'biweekly' else 1,
+            )
+            if len(list(islice(recurrence, MAX_OCCURRENCES + 1))) > MAX_OCCURRENCES:
+                raise ValidationError(self.env._(
+                    "A recurrence may contain at most %s meetings.", MAX_OCCURRENCES,
+                ))
+        weekday = weekday_to_field(start_dt.weekday())
         event_vals = {
             'name': self.name,
             'start': start,
@@ -140,7 +170,7 @@ class NasqMeetingSeries(models.Model):
             event_vals.update(end_type='count', count=self.until_count)
         if self.recurrence == 'monthly':
             event_vals['month_by'] = 'date'
-            event_vals['day'] = fields.Datetime.to_datetime(start).day
+            event_vals['day'] = start_dt.day
         token = _CALENDAR_IMPORT.set(True)
         try:
             event = self.env['calendar.event'].create(event_vals)
@@ -177,11 +207,16 @@ class ResUsers(models.Model):
         domain = [('company_id', '=', company_id)]
         if service._nasq_has_capability(self, 'meetings.manage', company=company):
             return domain
-        visible = self.env['cyan.meeting.minute'].search([]).mapped('series_id').ids
+        occurrence_visibility = [
+            ('company_id', '=', company_id), '|', '|',
+            ('organizer_id', '=', self.id),
+            ('secretary_id', '=', self.id),
+            ('attendee_ids', 'in', self.ids),
+        ]
         return domain + [
             '|', '|', '|',
             ('organizer_id', '=', self.id),
             ('secretary_id', '=', self.id),
             ('attendee_ids', 'in', self.ids),
-            ('id', 'in', visible or [0]),
+            ('meeting_ids', 'any', occurrence_visibility),
         ]

@@ -3,6 +3,7 @@ import DescriptionEditor from '@/components/task/DescriptionEditor.vue'
 import MeetingPeopleFields from '@/components/meetings/MeetingPeopleFields.vue'
 import { useMeeting, usePatchMeeting } from '@/composables/useMeetings'
 import { safeReturnTo } from '@/utils/safeReturnTo'
+import { fromUtcDateTimeInput, toUtcDateTime } from '@/utils/meetingDateTime'
 
 const route = useRoute()
 const { t } = useI18n()
@@ -33,8 +34,8 @@ watch(query.data, (meeting) => {
   if (!meeting || loaded.value) return
   name.value = meeting.name
   meetingDate.value = meeting.meeting_date || ''
-  start.value = meeting.start_datetime?.slice(0, 16) || ''
-  end.value = meeting.end_datetime?.slice(0, 16) || ''
+  start.value = fromUtcDateTimeInput(meeting.start_datetime)
+  end.value = fromUtcDateTimeInput(meeting.end_datetime)
   location.value = meeting.location
   meetingUrl.value = meeting.meeting_url
   agenda.value = meeting.agenda
@@ -59,8 +60,8 @@ async function save() {
     body: {
       name: name.value.trim(),
       meeting_date: meetingDate.value || undefined,
-      start_datetime: start.value || undefined,
-      end_datetime: end.value || undefined,
+      start_datetime: toUtcDateTime(start.value),
+      end_datetime: toUtcDateTime(end.value),
       location: location.value,
       meeting_url: meetingUrl.value,
       agenda: agenda.value,

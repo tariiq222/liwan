@@ -9,6 +9,16 @@ const id = computed(() => Number(route.params.id))
 const query = useMeeting(id)
 const { mutateAsync, isPending, error } = useCreateResolution()
 const returnTo = computed(() => safeReturnTo(route.query.returnTo, `/meetings/${id.value}`, ['/meetings']))
+const knownPeople = computed(() => {
+  const meeting = query.data.value
+  if (!meeting) return []
+  const people = [meeting.organizer, meeting.secretary, ...meeting.attendees]
+  return [...new Map(
+    people
+      .filter((person): person is { id: number; name: string } => Boolean(person))
+      .map(person => [person.id, person] as const),
+  ).values()]
+})
 const name = ref('')
 const responsibleId = ref<number | ''>('')
 const deadline = ref('')
@@ -37,12 +47,12 @@ async function save() {
     <SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!query.isLoading.value && !query.error.value && !query.data.value" @retry="query.refetch">
     <form v-if="query.data.value" class="nasq-form nasq-panel nasq-panel-body grid gap-4" @submit.prevent="save">
       <SharedUnsavedChanges :dirty="dirty" />
-      <Label for="res-name">{{ t('meetingsUi.title') }}</Label>
+      <Label for="res-name">{{ t('meetingsUi.resolutionTitle') }}</Label>
       <Input id="res-name" v-model="name" :disabled="!hydrated || isPending" required />
       <Label for="res-user">{{ t('meetingsUi.responsible') }}</Label>
       <select id="res-user" v-model="responsibleId" class="border-input h-9 rounded-lg border bg-transparent px-2 text-sm" :disabled="!hydrated || isPending" required>
         <option value="">{{ t('meetingsUi.responsible') }}</option>
-        <option v-for="person in [query.data.value.organizer, query.data.value.secretary, ...query.data.value.attendees].filter(Boolean)" :key="person!.id" :value="person!.id">{{ person!.name }}</option>
+        <option v-for="person in knownPeople" :key="person.id" :value="person.id">{{ person.name }}</option>
       </select>
       <Label for="res-deadline">{{ t('meetingsUi.deadline') }}</Label>
       <Input id="res-deadline" v-model="deadline" type="date" :disabled="!hydrated || isPending" required />

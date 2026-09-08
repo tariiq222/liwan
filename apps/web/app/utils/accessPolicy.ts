@@ -45,7 +45,7 @@ export function requiredCapabilityForPath(path: string): string | null {
   if (/^\/project-templates\/(new|[^/]+\/edit)$/.test(path)) return 'pmo.settings.manage'
   if (path === '/notifications') return NOTIFICATION_ACCESS
   if (path === '/archived-tasks') return 'pmo.tasks.read'
-  if (path === '/meetings/new') return 'meetings.create'
+  if (path === '/meetings/new' || path === '/meetings/series/new') return 'meetings.create'
   if (/^\/meetings\/[^/]+\/(edit|resolutions\/new)$/.test(path)) return 'meetings.read'
   if (path === '/hr/documents/new') return 'hr.documents.manage'
   if (path === '/tasks/new' || /^\/projects\/[^/]+\/tasks\/new$/.test(path)) return 'pmo.tasks.create'

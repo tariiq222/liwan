@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { MeetingDetailSchema, MeetingListSchema } from '..'
+import { MeetingCreateSchema, MeetingDetailSchema, MeetingListSchema, MeetingSeriesCreateSchema, MeetingSeriesDetailSchema, MeetingSeriesListSchema } from '..'
+import { NotificationSchema } from '../../pmo/notification'
 
 const ITEM = {
   id: 1,
@@ -16,6 +17,15 @@ const ITEM = {
 }
 
 describe('meeting contracts', () => {
+  it('preserves explicit cleared series defaults when creating an occurrence', () => {
+    expect(MeetingCreateSchema.parse({
+      name: 'Occurrence', series_id: 1, attendee_ids: [], secretary_id: null,
+      location: '', meeting_url: '',
+    })).toEqual({
+      name: 'Occurrence', series_id: 1, attendee_ids: [], secretary_id: null,
+      location: '', meeting_url: '',
+    })
+  })
   it('parses list and detail envelopes', () => {
     expect(MeetingListSchema.parse({ items: [ITEM], total: 1 }).total).toBe(1)
     expect(MeetingDetailSchema.parse({
@@ -33,5 +43,71 @@ describe('meeting contracts', () => {
       project: null,
       previous_resolutions: [],
     }).attendees).toHaveLength(1)
+  })
+})
+
+describe('meeting series boundaries', () => {
+  const recurring = {
+    name: 'Weekly review', recurrence: 'weekly', until_count: 3,
+    start_datetime: '2026-09-08T06:00:00Z', end_datetime: '2026-09-08T07:00:00Z',
+  }
+
+  it('allows on-demand creation without a schedule', () => {
+    expect(MeetingSeriesCreateSchema.parse({ name: 'Committee' })).toEqual({ name: 'Committee' })
+  })
+
+  it.each(['weekly', 'biweekly', 'monthly'])('accepts %s with a bounded schedule', (recurrence) => {
+    expect(MeetingSeriesCreateSchema.safeParse({ ...recurring, recurrence }).success).toBe(true)
+  })
+
+  it.each([0, -1, 61, 1.5])('rejects invalid occurrence count %s', (until_count) => {
+    expect(MeetingSeriesCreateSchema.safeParse({ ...recurring, until_count }).success).toBe(false)
+  })
+
+  it('requires exactly one recurrence termination', () => {
+    const { until_count: _, ...withoutCount } = recurring
+    expect(MeetingSeriesCreateSchema.safeParse(withoutCount).success).toBe(false)
+    expect(MeetingSeriesCreateSchema.safeParse({ ...recurring, until_date: '2026-10-01' }).success).toBe(false)
+    expect(MeetingSeriesCreateSchema.safeParse({ ...withoutCount, until_date: '2026-10-01' }).success).toBe(true)
+  })
+
+  it.each(['start_datetime', 'end_datetime'])('requires %s for recurring series', (field) => {
+    const body: Record<string, unknown> = { ...recurring }
+    delete body[field]
+    expect(MeetingSeriesCreateSchema.safeParse(body).success).toBe(false)
+  })
+
+  it('rejects malformed dates and unzoned times', () => {
+    expect(MeetingSeriesCreateSchema.safeParse({ ...recurring, start_datetime: 'not-a-date' }).success).toBe(false)
+    expect(MeetingSeriesCreateSchema.safeParse({ ...recurring, start_datetime: '2026-09-08T09:00' }).success).toBe(false)
+    const { until_count: _, ...withoutCount } = recurring
+    expect(MeetingSeriesCreateSchema.safeParse({ ...withoutCount, until_date: '2026-02-30' }).success).toBe(false)
+  })
+
+  it('rejects a nonpositive duration and an end date before the first occurrence', () => {
+    expect(MeetingSeriesCreateSchema.safeParse({ ...recurring, end_datetime: recurring.start_datetime }).success).toBe(false)
+    expect(MeetingSeriesCreateSchema.safeParse({ ...recurring, end_datetime: '2026-09-08T05:00:00Z' }).success).toBe(false)
+    const { until_count: _, ...withoutCount } = recurring
+    expect(MeetingSeriesCreateSchema.safeParse({ ...withoutCount, until_date: '2026-09-07' }).success).toBe(false)
+  })
+
+  it('parses nonempty series list and detail responses', () => {
+    const row = {
+      id: 1, name: 'Committee', recurrence: 'weekly', until_count: 3, until_date: null,
+      organizer: { id: 2, name: 'Organizer' }, project: null,
+      open_resolution_count: 2, overdue_resolution_count: 1,
+    }
+    expect(MeetingSeriesListSchema.parse({ items: [row], total: 51 }).total).toBe(51)
+    expect(MeetingSeriesDetailSchema.parse({
+      ...row, location: 'Room', meeting_url: '', secretary: null,
+      attendees: [{ id: 3, name: 'Member' }], meetings: [{ ...ITEM, series_id: 1 }],
+    }).meetings[0]?.series_id).toBe(1)
+  })
+
+  it.each(['meeting_changed', 'meeting_cancelled', 'meeting_reminder', 'meeting_resolution_overdue'])('accepts %s as a meeting notification', (kind) => {
+    expect(NotificationSchema.parse({
+      id: 1, kind, meeting_id: 1, meeting_name: 'Review', body: 'Notice',
+      created_at: '2026-09-08T06:00:00Z', is_read: false,
+    }).kind).toBe(kind)
   })
 })

@@ -1,4 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+from datetime import date, datetime
+
 from odoo.exceptions import AccessError
 
 from odoo.addons.nasq_api.serializers.common import iso
@@ -23,6 +25,9 @@ def dump_project_ref(record):
 
 
 def dump_resolution(resolution, task_id=None):
+    has_task = bool(task_id or resolution.env['project.task'].with_context(active_test=False).sudo().search_count(
+        [('resolution_id', '=', resolution.id)], limit=1,
+    ))
     return {
         'id': resolution.id,
         'name': resolution.name,
@@ -32,9 +37,31 @@ def dump_resolution(resolution, task_id=None):
         'responsible': dump_person(resolution.responsible_id),
         'task_id': task_id,
         'result': resolution.result or '',
-        'can_update_execution': bool(resolution.can_update_execution),
-        'can_edit_decision': bool(resolution.can_edit_decision),
+        'can_update_execution': bool(resolution.can_update_execution) and not has_task,
+        'can_edit_decision': bool(resolution.can_edit_decision) and not has_task,
     }
+
+
+def _meeting_order_key(meeting):
+    day = meeting.meeting_date or date.min
+    start = meeting.start_datetime or datetime.min
+    return day, start, meeting.id
+
+
+def _readable_task_ids_by_resolution(meeting, resolutions):
+    Task = meeting.env['project.task']
+    can_read_tasks = meeting.env['nasq.access.service']._nasq_has_capability(
+        meeting.env.user, 'pmo.tasks.read',
+    ) and Task.has_access('read')
+    if not can_read_tasks or not resolutions:
+        return {}
+    tasks = Task.search([
+        ('resolution_id', 'in', resolutions.ids),
+        ('company_id', '=', meeting.env.company.id),
+        ('project_id.company_id', '=', meeting.env.company.id),
+        ('project_id.active', '=', True),
+    ])
+    return {task.resolution_id: task.id for task in tasks if task.resolution_id}
 
 
 def dump_meeting(meeting, *, detail=False):
@@ -52,17 +79,7 @@ def dump_meeting(meeting, *, detail=False):
         'project_id': meeting.project_id.id or None,
     }
     if detail:
-        Task = meeting.env['project.task']
-        can_read_tasks = meeting.env['nasq.access.service']._nasq_has_capability(
-            meeting.env.user, 'pmo.tasks.read',
-        ) and Task.has_access('read')
-        tasks = Task.search([
-            ('resolution_id', 'in', meeting.resolution_ids.ids),
-            ('company_id', '=', meeting.env.company.id),
-            ('project_id.company_id', '=', meeting.env.company.id),
-            ('project_id.active', '=', True),
-        ]) if can_read_tasks else Task.browse()
-        task_by_resolution = {task.resolution_id: task.id for task in tasks}
+        task_by_resolution = _readable_task_ids_by_resolution(meeting, meeting.resolution_ids)
         payload.update({
             'agenda': meeting.agenda or '',
             'minutes': meeting.minutes or '',
@@ -87,10 +104,14 @@ def dump_previous_resolutions(meeting):
     if not meeting.series_id:
         return []
     rows = []
-    others = meeting.series_id.meeting_ids.filtered(lambda item: item.id != meeting.id)
-    for other in others.sorted('meeting_date'):
+    current_key = _meeting_order_key(meeting)
+    others = meeting.series_id.meeting_ids.filtered(
+        lambda item: item.id != meeting.id and _meeting_order_key(item) < current_key,
+    )
+    task_by_resolution = _readable_task_ids_by_resolution(meeting, others.mapped('resolution_ids'))
+    for other in others.sorted(key=_meeting_order_key):
         for resolution in other.resolution_ids:
-            row = dump_resolution(resolution)
+            row = dump_resolution(resolution, task_by_resolution.get(resolution.id))
             row['meeting_id'] = other.id
             row['meeting_name'] = other.name
             rows.append(row)
@@ -116,6 +137,6 @@ def dump_series(series, *, detail=False):
             'meeting_url': series.meeting_url or '',
             'secretary': dump_person(series.secretary_id),
             'attendees': [dump_person(user) for user in series.attendee_ids],
-            'meetings': [dump_meeting(meeting) for meeting in meetings.sorted('meeting_date')],
+            'meetings': [dump_meeting(meeting) for meeting in meetings.sorted(key=_meeting_order_key)],
         })
     return payload

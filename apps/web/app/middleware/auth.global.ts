@@ -17,5 +17,5 @@ export default defineNuxtRouteMiddleware(async (to) => {
   }
   if (!me.value) return navigateTo({ path: '/login', query: to.fullPath === '/' ? {} : { next: to.fullPath } })
   const capability = requiredCapabilityForPath(to.path)
-  if (capability && !hasCapability(me.value, capability)) throw createError({ statusCode: 403, statusMessage: $i18n.t('settings.forbidden') })
+  if (capability && !hasCapability(me.value, capability)) throw createError({ statusCode: 403, statusMessage: $i18n.t('errors.forbidden') })
 })
