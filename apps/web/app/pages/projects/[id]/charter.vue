@@ -3,7 +3,6 @@ import { toast } from 'vue-sonner'
 import { ApiError } from '@/composables/useApi'
 import { useProject } from '@/composables/useProjects'
 import ProjectCharterForm from '@/components/project/ProjectCharterForm.vue'
-import { safeReturnTo } from '@/utils/safeReturnTo'
 
 const route = useRoute()
 const router = useRouter()
@@ -16,7 +15,6 @@ const projectId = computed(() => {
 const { data: project, isLoading, error, refetch } = useProject(projectId)
 const notFound = computed(() => projectId.value === null || (error.value instanceof ApiError && [403, 404].includes(error.value.status)))
 const readonly = computed(() => route.query.edit !== '1' || !(project.value?.can_manage ?? false))
-const returnTo = computed(() => projectId.value ? safeReturnTo(route.query.returnTo, `/projects/${projectId.value}`, ['/projects']) : '/projects')
 
 function onSaved() {
   toast.success(t('projects.charter.saved'))
@@ -31,10 +29,6 @@ function onCancel() {
   <SharedPageContainer :width="readonly ? 'detail' : 'form'">
     <SharedPageHeader
       :title="t('projects.charter.title')"
-      :description="t('projects.charter.pageDescription')"
-      :eyebrow="project?.name"
-      :back-to="returnTo"
-      :back-label="t('projects.backToProject')"
     >
       <template #actions>
         <Button v-if="project?.can_manage && readonly" :disabled="!hydrated" @click="router.push({ path: route.path, query: { ...route.query, edit: '1' } })">{{ t('app.edit') }}</Button>

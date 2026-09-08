@@ -26,6 +26,7 @@ You are not alone in the repository. Preserve other edits; do not revert or over
 - Inventory existing implementation, permissions, navigation and data states before editing.
 - State the shared page recipe and components to reuse.
 - Use the approved sidebar/module structure. Only the primary module rail collapses; context navigation stays visible and reflows above content on phones. Place its icon and section title in one row.
+- Enforce DESIGN.md's project-context deduplication rule: sidebar owns project identity and filtered project-list return; main section roots have only their H1 and actions, with no breadcrumb row, project eyebrow, duplicate back link or generic description. Deeper pages keep short, filter-preserving section navigation. Preserve meaningful settings scope text in the content. Reject regressions during review and cover route classification and rendered navigation with focused tests.
 - Match the complete page composition, hierarchy, spacing, cards, tables, filters and actions to the reference; component reuse alone is not visual acceptance.
 - Keep the global search/account header visually continuous with the module rail through one shared background token sourced from the saved institution primary colour, with contrasting text/icons. Module overflow must remain navigable.
 - Keep routes, queries, filters, hydration, localization and business capabilities.

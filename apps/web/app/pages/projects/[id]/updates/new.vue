@@ -18,7 +18,7 @@ const returnTo = computed(() => projectId.value ? safeReturnTo(route.query.retur
 
 <template>
   <SharedPageContainer width="form">
-    <SharedPageHeader :title="t('projects.updates.new')" :eyebrow="project?.name" :back-to="returnTo" :back-label="t('projects.backToProject')" />
+    <SharedPageHeader :title="t('projects.updates.new')" :back-to="returnTo" :back-label="t('projects.backToProject')" />
     <template v-if="projectId === null">
       <p class="text-muted-foreground">{{ t('projects.invalidId') }}</p>
     </template>

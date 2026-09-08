@@ -229,7 +229,8 @@ html[dir="rtl"] body { padding-right: 0 !important; }
 .nasq-shell-breadcrumb-link:hover { color: var(--foreground); }
 .nasq-shell-breadcrumb-current { color: var(--foreground); font-weight: 500; }
 .nasq-shell-breadcrumb-separator { width: 14px; height: 14px; color: var(--border); }
-.nasq-shell-main { min-height: calc(100svh - var(--shell-header-height) - 44px); min-width: 0; border-start-start-radius: 24px; background: var(--background); box-shadow: 0 0 14px var(--content-shadow); padding: 30px clamp(18px, 3vw, 48px) 56px; }
+.nasq-shell-main { min-height: calc(100svh - var(--shell-header-height)); min-width: 0; border-start-start-radius: 24px; background: var(--background); box-shadow: 0 0 14px var(--content-shadow); padding: 30px clamp(18px, 3vw, 48px) 56px; }
+.nasq-shell-breadcrumb + .nasq-shell-main { min-height: calc(100svh - var(--shell-header-height) - 44px); }
 .nasq-page-eyebrow { margin: 0 0 6px; color: var(--muted-foreground); font-size: 0.6875rem; line-height: 1.4; }
 .nasq-page-title { margin: 0 0 7px; color: var(--foreground); font-size: clamp(1.45rem, 2vw, 1.625rem); font-weight: 600; line-height: 1.45; letter-spacing: -.03em; }
 .nasq-view-switch { display: flex; min-width: 0; flex-wrap: wrap; align-items: center; gap: 3px; padding: 4px; border-radius: 8px; background: var(--muted); }
@@ -268,7 +269,8 @@ html[dir="rtl"] body { padding-right: 0 !important; }
   .nasq-context-footer { margin-block-start: 4px; border-block-start: 0; padding-block-start: 0; }
   .nasq-shell-workspace { min-height: auto; margin-inline-start: var(--module-rail-width); padding-block-start: 0; }
   .nasq-shell-breadcrumb { min-height: 40px; padding-inline: 14px; }
-  .nasq-shell-main { min-height: calc(100svh - 180px); border-start-start-radius: 18px; padding: 22px 16px 40px; }
+  .nasq-shell-main { min-height: calc(100svh - 140px); border-start-start-radius: 18px; padding: 22px 16px 40px; }
+  .nasq-shell-breadcrumb + .nasq-shell-main { min-height: calc(100svh - 180px); }
 }
 @media (max-width: 480px) {
   .nasq-shell-brand-name { display: none; }

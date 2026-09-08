@@ -43,6 +43,6 @@ describe('register list design alignment', () => {
                 expect(projectSource).not.toContain('ProjectWorkspaceNav')
                 expect(projectSource).toContain('<SharedPageContainer v-if="isBaseRoute"')
                 expect(projectSource).toContain('projectReturnTo')
-                expect(projectSource).toContain(':back-to="projectReturnTo"')
+                expect(projectSource).not.toContain(':back-to="projectReturnTo"')
   })
 })

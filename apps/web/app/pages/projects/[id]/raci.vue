@@ -3,10 +3,8 @@ import { governanceMatrixFilters } from '@/components/project/governance/state'
 import { useGovernanceTaskPage, useProjectRaci, useProjectStakeholders, useCreateProjectRaci, useUpdateProjectRaci, useDeleteProjectRaci } from '@/composables/useProjectGovernance'
 import type { ProjectRaci, ProjectRaciRole } from '@nasq/contracts'
 import { ApiError } from '@/composables/useApi'
-import { safeReturnTo } from '@/utils/safeReturnTo'
 const route = useRoute(); const router = useRouter(); const { t } = useI18n(); const hydrated = useHydrated()
 const id = computed(() => Number(route.params.id)); const viewport = computed(() => governanceMatrixFilters(route.query))
-const returnTo = computed(() => safeReturnTo(route.query.returnTo, `/projects/${id.value}`, ['/projects']))
 const viewQuery = computed(() => {
   const query: Record<string, string> = {}
   if (typeof route.query.returnTo === 'string') query.returnTo = route.query.returnTo
@@ -54,9 +52,6 @@ async function deleteRow() {
   <SharedPageContainer width="list">
     <SharedPageHeader
       :title="t('projects.governance.raci.title')"
-      :description="t('projects.governance.raci.description')"
-      :back-to="returnTo"
-      :back-label="t('projects.backToProject')"
     />
     <nav class="nasq-view-switch" :aria-label="t('projects.governance.views')">
       <NuxtLink :to="{ path: `/projects/${id}/stakeholders`, query: viewQuery }">{{ t('projects.governance.viewList') }}</NuxtLink>

@@ -22,7 +22,7 @@ function saved(id?: number) {
 
 <template>
   <SharedPageContainer width="form">
-    <SharedPageHeader :title="t('projects.milestones.new')" :eyebrow="project?.name" :back-to="returnTo" :back-label="t('projects.backToProject')" />
+    <SharedPageHeader :title="t('projects.milestones.new')" :back-to="returnTo" :back-label="t('projects.backToProject')" />
     <template v-if="projectId === null">
       <p class="text-muted-foreground">{{ t('projects.invalidId') }}</p>
     </template>

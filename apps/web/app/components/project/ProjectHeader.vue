@@ -4,14 +4,10 @@ import type { ProjectDetail } from '@nasq/contracts'
 
 const props = withDefaults(defineProps<{
   project: ProjectDetail
-  backTo?: string
-  backLabel?: string
   showCreate?: boolean
   showEdit?: boolean
   createLabel?: string
   title?: string
-  description?: string
-  eyebrow?: string
   canCreate?: boolean
 }>(), {
   showCreate: true,
@@ -27,10 +23,6 @@ const hydrated = useHydrated()
 <template>
   <SharedPageHeader
     :title="props.title ?? project.name"
-    :description="props.description"
-    :eyebrow="props.eyebrow"
-    :back-to="props.backTo"
-    :back-label="props.backLabel || t('projects.backToProjects')"
   >
     <template #actions>
       <Button

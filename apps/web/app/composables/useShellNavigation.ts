@@ -7,10 +7,12 @@ import {
   projectContextId,
   projectContextLinks,
   visibleShellModules,
+  type ProjectContextId,
   type ShellContextLink,
   type ShellModule,
 } from './useNav'
 import type { AccessIdentity } from '@/utils/accessPolicy'
+import { safeReturnTo } from '../utils/safeReturnTo'
 
 export interface ShellBreadcrumb {
   id: string
@@ -18,6 +20,15 @@ export interface ShellBreadcrumb {
   to?: RouteLocationRaw
   current?: boolean
   raw?: boolean
+}
+
+export interface ShellBreadcrumbTarget {
+  routeKey: string
+  href: string | null
+}
+
+export function useShellBreadcrumbTarget() {
+  return useState<ShellBreadcrumbTarget>('nasq-shell-breadcrumb-target', () => ({ routeKey: '', href: null }))
 }
 
 function positiveId(value: unknown): number | null {
@@ -29,6 +40,49 @@ function positiveId(value: unknown): number | null {
 export function projectIdFromPath(path: string): number | null {
   const match = path.match(/^\/projects\/([^/]+)/)
   return match ? positiveId(match[1]) : null
+}
+
+const projectRootSections: Record<string, ProjectContextId> = {
+  schedule: 'planning',
+  stakeholders: 'stakeholders',
+  raci: 'stakeholders',
+  register: 'risks',
+  finance: 'finance',
+  charter: 'charter',
+  settings: 'settings',
+}
+
+/** Returns the project context owned by an exact, top-level section route. */
+export function projectSectionRoot(path: string, query: Record<string, unknown> = {}): ProjectContextId | null {
+  const normalized = path.replace(/\/+$/, '') || '/'
+  const match = normalized.match(/^\/projects\/([^/]+)(?:\/(.*))?$/)
+  if (!match || !positiveId(match[1])) return null
+  const section = match[2]
+  if (!section) {
+    return ['tasks', 'list', 'board', 'milestones'].includes(String(query.tab)) || ['table', 'board'].includes(String(query.view))
+      ? 'planning'
+      : 'summary'
+  }
+  return Object.hasOwn(projectRootSections, section) ? projectRootSections[section]! : null
+}
+
+export function projectBreadcrumbsForRoute(
+  path: string,
+  query: Record<string, unknown>,
+  active: ShellContextLink | undefined,
+): ShellBreadcrumb[] {
+  if (!projectIdFromPath(path) || projectSectionRoot(path, query)) return []
+  if (!active) return []
+  const projectId = projectIdFromPath(path)!
+  const returnTo = safeReturnTo(query.returnTo, '', ['/projects'])
+  if (returnTo) {
+    const target = new URL(returnTo, 'http://nasq.local')
+    const targetQuery = Object.fromEntries(target.searchParams.entries())
+    if (projectIdFromPath(target.pathname) === projectId && projectSectionRoot(target.pathname, targetQuery) === active.id) {
+      return [{ id: active.id, labelKey: active.labelKey, to: returnTo }]
+    }
+  }
+  return [{ id: active.id, labelKey: active.labelKey, to: active.to }]
 }
 
 export function useModuleRail() {
@@ -63,11 +117,9 @@ export function useShellNavigation(identity: MaybeRefOrGetter<AccessIdentity>) {
   const breadcrumbs = computed<ShellBreadcrumb[]>(() => {
     const currentModule = module.value
     if (!currentModule) return []
-    const result: ShellBreadcrumb[] = [{ id: currentModule.id, labelKey: currentModule.labelKey, to: currentModule.to }]
-    if (projectId.value && project.data.value) {
-      result.push({ id: 'project', labelKey: project.data.value.name, raw: true, to: `/projects/${projectId.value}` })
-    }
     const active = contextLinks.value.find(item => item.active)
+    if (projectId.value) return projectBreadcrumbsForRoute(route.path, route.query, active)
+    const result: ShellBreadcrumb[] = [{ id: currentModule.id, labelKey: currentModule.labelKey, to: currentModule.to }]
     if (active) result.push({ id: active.id, labelKey: active.labelKey, current: true })
     return result
   })

@@ -4,7 +4,6 @@ import { useProjectRegister, useDeleteProjectRegister } from '@/composables/useP
 import { governanceFilters } from '@/components/project/governance/state'
 import { ApiError } from '@/composables/useApi'
 import FilterBar from '@/components/shared/FilterBar.vue'
-import { safeReturnTo } from '@/utils/safeReturnTo'
 
 const route = useRoute()
 const router = useRouter()
@@ -18,7 +17,6 @@ const remove = useDeleteProjectRegister()
 const confirmDeleteId = ref<number | null>(null)
 const error = ref<string | null>(null)
 const returnTo = computed(() => route.fullPath)
-const projectReturnTo = computed(() => safeReturnTo(route.query.returnTo, `/projects/${id.value}`, ['/projects']))
 function setFilter(key: string, value: string) {
   router.replace({ query: { ...route.query, [key]: value || undefined, offset: undefined } })
 }
@@ -63,9 +61,6 @@ async function deleteItem(item: { id: number }) {
   <SharedPageContainer width="list">
     <SharedPageHeader
       :title="t('projects.refresh.workspace.registerTitle')"
-      :description="t('projects.governance.register.pageDescription')"
-      :back-to="projectReturnTo"
-      :back-label="t('projects.backToProject')"
     >
       <template #actions>
         <NuxtLink

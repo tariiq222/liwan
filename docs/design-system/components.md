@@ -10,6 +10,7 @@ Authority: [DESIGN.md](../../DESIGN.md). This catalog records current reusable c
 | Global search | `components/GlobalSearch.vue` | Shared centered dialog; compact search header, capability-filtered quick navigation, grouped query results and internal scrolling. Shared dialog layers sit above the app header. |
 | Primary navigation | `apps/web/app/components/AppSidebar.vue`, `composables/useNav.ts` | Module/context ownership migrates through `components/shell/**` and `useShellNavigation.ts`; validation recorded in the migration ledger |
 | Project navigation | Shell contextual navigation | Six project sections; old ProjectWorkspaceNav removed, local view controls remain |
+| Project section header policy | `composables/useShellNavigation.ts`, `components/shared/PageHeader.vue`, `components/shell/ShellBreadcrumb.vue` | Main project sections omit breadcrumbs and repeated identity/back/description. Context sidebar owns project name and filtered list return. Deeper routes retain useful short section navigation. Follow the 2026-09-08 rule in DESIGN.md and its regression checks. |
 | Settings navigation | `components/settings/SettingsLayout.vue` | Preserve actual routes and permissions; avoid duplicated context menus |
 | Page container | `components/shared/PageContainer.vue` | Nuxt name `SharedPageContainer`; width list/detail/form; use once at owning level |
 | Page header | `components/shared/PageHeader.vue` | `SharedPageHeader`; title, description, backTo/backLabel, actions slots; coordinates with usePageHeader |

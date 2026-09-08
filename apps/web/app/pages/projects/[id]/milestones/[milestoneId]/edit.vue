@@ -40,7 +40,7 @@ async function confirmDelete() {
 
 <template>
   <SharedPageContainer width="form">
-    <SharedPageHeader :title="t('projects.milestones.edit')" :eyebrow="project?.name" :back-to="returnTo" :back-label="t('projects.backToProject')" />
+    <SharedPageHeader :title="t('projects.milestones.edit')" :back-to="returnTo" :back-label="t('projects.backToProject')" />
     <template v-if="projectId === null || milestoneId === null">
       <p class="text-muted-foreground">{{ t('projects.invalidId') }}</p>
     </template>

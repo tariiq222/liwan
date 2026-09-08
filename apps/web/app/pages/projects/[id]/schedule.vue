@@ -6,7 +6,7 @@ import { useProject } from '@/composables/useProjects'
 import { useProjectSchedule } from '@/composables/useProjectSchedule'
 import ScheduleGantt from '@/components/project/schedule/ScheduleGantt.vue'
 import type { ScheduleScale } from '@/utils/projectSchedule'
-import { returnToQuery, safeReturnTo } from '@/utils/safeReturnTo'
+import { returnToQuery } from '@/utils/safeReturnTo'
 
 const route = useRoute()
 const router = useRouter()
@@ -21,7 +21,6 @@ const scale = computed<ScheduleScale>({
   set: value => { void router.replace({ query: { ...route.query, scale: value } }) },
 })
 const notFound = computed(() => projectId.value === null || (projectError.value instanceof ApiError && [403, 404].includes(projectError.value.status)))
-const returnTo = computed(() => projectId.value ? safeReturnTo(route.query.returnTo, `/projects/${projectId.value}`, ['/projects']) : '/projects')
 function retry() { void Promise.all([refetchProject(), refetch()]) }
 
 function planningLink(view: 'list' | 'board' | 'gantt' | 'milestones') {
@@ -54,10 +53,6 @@ function onArchived() {
       v-if="project"
       :project="project"
       :title="t('nav.projectPlanning')"
-      :description="t('projects.planning.description')"
-      :eyebrow="project.name"
-      :back-to="returnTo"
-      :back-label="t('projects.backToProject')"
       :can-create="can('pmo.tasks.create')"
       :create-label="t('tasks.new')"
       @create="openTaskCreate"
@@ -67,9 +62,6 @@ function onArchived() {
     <SharedPageHeader
       v-else
       :title="t('nav.projectPlanning')"
-      :description="t('projects.planning.description')"
-      :back-to="returnTo"
-      :back-label="t('projects.backToProject')"
     />
     <nav class="nasq-view-switch" :aria-label="t('projects.planning.views')">
       <NuxtLink :to="planningLink('list')">{{ t('projects.tabs.list') }}</NuxtLink>

@@ -45,7 +45,7 @@ function loadShared(name: string): Component {
       backLabel: String,
     },
     setup(props) {
-      return { props }
+      return { props, hideBack: false, headerDescription: props.description }
     },
     render,
   })

@@ -4,7 +4,6 @@ import FilterBar from '@/components/shared/FilterBar.vue'
 import { useProjectStakeholders, useDeleteProjectStakeholder } from '@/composables/useProjectGovernance'
 import { governanceFilters } from '@/components/project/governance/state'
 import { ApiError } from '@/composables/useApi'
-import { safeReturnTo } from '@/utils/safeReturnTo'
 
 const route = useRoute()
 const router = useRouter()
@@ -18,7 +17,6 @@ const remove = useDeleteProjectStakeholder()
 const confirmDeleteId = ref<number | null>(null)
 const error = ref<string | null>(null)
 const returnTo = computed(() => route.fullPath)
-const projectReturnTo = computed(() => safeReturnTo(route.query.returnTo, `/projects/${id.value}`, ['/projects']))
 const viewQuery = computed(() => {
   const query: Record<string, string> = {}
   if (typeof route.query.returnTo === 'string') query.returnTo = route.query.returnTo
@@ -55,9 +53,6 @@ async function deleteItem(item: { id: number }) {
   <SharedPageContainer width="list">
     <SharedPageHeader
       :title="t('projects.governance.stakeholders')"
-      :description="t('projects.governance.stakeholdersDescription')"
-      :back-to="projectReturnTo"
-      :back-label="t('projects.backToProject')"
     >
       <template #actions>
         <NuxtLink

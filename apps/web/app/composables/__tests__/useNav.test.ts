@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { activeShellModule, contextLinksForModule, projectContextId, projectContextLinks, visibleShellModules, useNav } from '../useNav'
+import { projectBreadcrumbsForRoute, projectSectionRoot } from '../useShellNavigation'
 
 const employee = { role: 'employee', capabilities: ['pmo.tasks.read', 'pmo.projects.read', 'meetings.read', 'hr.employees.read', 'hr.departments.read', 'hr.documents.read'] }
 const admin = { role: 'admin', capabilities: [...employee.capabilities, 'access.users.read', 'access.roles.read', 'access.audit.read', 'settings.branding.manage'] }
@@ -64,6 +65,40 @@ describe('shell route classification', () => {
     expect(projectContextId('/projects/12/finance', {})).toBe('finance')
     expect(projectContextId('/projects/12/charter', {})).toBe('charter')
     expect(projectContextId('/projects/12/settings', {})).toBe('settings')
+  })
+
+  it('classifies only normalized project section roots', () => {
+    expect(projectSectionRoot('/projects/12')).toBe('summary')
+    expect(projectSectionRoot('/projects/12/', {})).toBe('summary')
+    expect(projectSectionRoot('/projects/12', { tab: 'tasks' })).toBe('planning')
+    expect(projectSectionRoot('/projects/12', { view: 'board' })).toBe('planning')
+    expect(projectSectionRoot('/projects/12/schedule')).toBe('planning')
+    expect(projectSectionRoot('/projects/12/stakeholders/')).toBe('stakeholders')
+    expect(projectSectionRoot('/projects/12/raci')).toBe('stakeholders')
+    expect(projectSectionRoot('/projects/12/register')).toBe('risks')
+    expect(projectSectionRoot('/projects/12/finance')).toBe('finance')
+    expect(projectSectionRoot('/projects/12/charter')).toBe('charter')
+    expect(projectSectionRoot('/projects/12/settings')).toBe('settings')
+    expect(projectSectionRoot('/projects/12/schedule/tasks/44')).toBeNull()
+    expect(projectSectionRoot('/projects/12/unknown')).toBeNull()
+    expect(projectSectionRoot('/projects/0')).toBeNull()
+    expect(projectSectionRoot('/projects/not-a-project')).toBeNull()
+  })
+
+  it('removes root breadcrumbs and keeps one filter-preserving section link on deep routes', () => {
+    const planning = projectContextLinks(12, employee, true, false, { tab: 'tasks', q: 'late', view: 'board' }).find(item => item.id === 'planning')
+    expect(planning).toBeDefined()
+    expect(projectBreadcrumbsForRoute('/projects/12', { tab: 'tasks' }, planning)).toEqual([])
+    expect(projectBreadcrumbsForRoute('/projects/12/schedule', {}, planning)).toEqual([])
+    expect(projectBreadcrumbsForRoute('/projects/12/tasks/44', { tab: 'tasks' }, planning)).toEqual([
+      { id: 'planning', labelKey: 'nav.projectPlanning', to: planning!.to },
+    ])
+    expect(projectBreadcrumbsForRoute('/projects/12/tasks/44', { returnTo: '/projects/12?tab=tasks&q=late' }, planning)).toEqual([
+      { id: 'planning', labelKey: 'nav.projectPlanning', to: '/projects/12?tab=tasks&q=late' },
+    ])
+    expect(projectBreadcrumbsForRoute('/projects/12/tasks/44', { returnTo: '/projects/12/tasks/43?tab=tasks' }, planning)).toEqual([
+      { id: 'planning', labelKey: 'nav.projectPlanning', to: planning!.to },
+    ])
   })
 
   it('gates and pins meeting and chat creation links', () => {

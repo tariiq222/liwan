@@ -36,7 +36,6 @@ function planningViewOf(tab: unknown, view: unknown): PlanningView | null {
 const planningView = computed(() => planningViewOf(route.query.tab, route.query.view))
 const isSummary = computed(() => planningView.value === null)
 const headerTitle = computed(() => isSummary.value ? t('projects.summaryPage.title') : t('nav.projectPlanning'))
-const headerDescription = computed(() => isSummary.value ? t('projects.summaryPage.description') : t('projects.planning.description'))
 const taskView = computed<'table' | 'board'>(() => planningView.value === 'board' ? 'board' : 'table')
 
 const params = computed<TaskListParams>(() => projectTaskParams(projectId.value!, route.query))
@@ -116,10 +115,6 @@ const workspaceCanCreate = computed(() => {
         v-if="project"
         :project="project"
         :title="headerTitle"
-        :description="headerDescription"
-        :eyebrow="project.name"
-        :back-to="projectReturnTo"
-        :back-label="t('projects.backToProjects')"
         :can-create="workspaceCanCreate"
         :create-label="workspaceCreateLabel"
         @create="onWorkspaceCreate"

@@ -8,7 +8,6 @@ import FinanceSummaryCards from '@/components/project/finance/FinanceSummaryCard
 import FilterBar from '@/components/shared/FilterBar.vue'
 import {
   FINANCE_PAGE,
-  FINANCE_RETURN_PREFIXES,
   parseFinanceKind,
   parseFinanceListRoute,
   parsePositiveId,
@@ -18,7 +17,7 @@ import {
   serializeFinanceListRoute,
   type FinanceListRouteState,
 } from '@/utils/projectFinance'
-import { returnToQuery, safeReturnTo } from '@/utils/safeReturnTo'
+import { returnToQuery } from '@/utils/safeReturnTo'
 
 const route = useRoute()
 const router = useRouter()
@@ -53,8 +52,6 @@ const page = computed(() => Math.floor(filters.offset / FINANCE_PAGE) + 1)
 const pages = computed(() => Math.max(1, Math.ceil(total.value / FINANCE_PAGE)))
 const filtered = computed(() => Boolean(filters.q.trim()) || filters.kind !== 'all')
 const notFound = computed(() => projectId.value === null || (list.error.value instanceof ApiError && [403, 404].includes(list.error.value.status)))
-const projectFallback = computed(() => projectId.value ? `/projects/${projectId.value}` : '/projects')
-const returnTo = computed(() => safeReturnTo(route.query.returnTo, projectFallback.value, FINANCE_RETURN_PREFIXES))
 
 function applyPatch(patch: Partial<FinanceListRouteState>) {
   Object.assign(filters, patchFinanceListRoute(filters, patch))
@@ -148,9 +145,6 @@ function financeChildKey(target: { path: string; params: Record<string, string |
   <SharedPageContainer v-if="isListRoute" width="list" data-testid="project-finance-page">
     <SharedPageHeader
       :title="t('projects.finance.title')"
-      :description="t('projects.finance.description')"
-      :back-to="returnTo"
-      :back-label="t('projects.backToProject')"
     >
       <template #actions>
         <template v-if="canManage && projectId">

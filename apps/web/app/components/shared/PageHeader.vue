@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ArrowRight } from '@lucide/vue'
 import type { RouteLocationRaw } from 'vue-router'
+import { projectIdFromPath, projectSectionRoot, useShellBreadcrumbTarget } from '@/composables/useShellNavigation'
 
 const props = defineProps<{
   title: string
@@ -10,7 +11,21 @@ const props = defineProps<{
   backLabel?: string
 }>()
 
-usePageHeader(() => props.title, () => props.description)
+const route = useRoute()
+const router = useRouter()
+const breadcrumbTarget = useShellBreadcrumbTarget()
+const isProjectRoute = computed(() => projectIdFromPath(route.path) !== null)
+const isProjectSectionRoot = computed(() => projectSectionRoot(route.path, route.query) !== null)
+const sameAsVisibleBreadcrumb = computed(() => {
+  if (!props.backTo || isProjectSectionRoot.value) return false
+  const target = breadcrumbTarget.value
+  return target.routeKey === route.fullPath && target.href === router.resolve(props.backTo).fullPath
+})
+const hideProjectChrome = computed(() => isProjectSectionRoot.value)
+const hideBack = computed(() => hideProjectChrome.value || sameAsVisibleBreadcrumb.value)
+const headerDescription = computed(() => hideProjectChrome.value ? undefined : props.description)
+
+usePageHeader(() => props.title, () => headerDescription.value)
 </script>
 
 <template>
@@ -21,16 +36,16 @@ usePageHeader(() => props.title, () => props.description)
   >
     <div class="flex min-w-0 flex-1 flex-wrap items-start justify-between gap-3">
       <div class="min-w-0">
-        <div v-if="props.backTo || $slots.back" class="mb-1 flex items-center gap-2 text-sm">
+        <div v-if="!hideBack && (props.backTo || $slots.back)" class="mb-1 flex items-center gap-2 text-sm">
           <slot name="back">
             <NuxtLink :to="props.backTo!" class="inline-flex min-h-8 items-center gap-1 rounded-lg px-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
               <ArrowRight aria-hidden="true" class="size-[18px] ltr:rotate-180" />{{ props.backLabel || $t('app.back') }}
             </NuxtLink>
           </slot>
         </div>
-        <p v-if="props.eyebrow" class="nasq-page-eyebrow">{{ props.eyebrow }}</p>
+        <p v-if="props.eyebrow && !isProjectRoute" class="nasq-page-eyebrow">{{ props.eyebrow }}</p>
         <h1 class="nasq-page-title"><slot name="title">{{ props.title }}</slot></h1>
-        <p v-if="props.description" class="mt-1 max-w-3xl text-start text-sm leading-6 text-muted-foreground">{{ props.description }}</p>
+        <p v-if="headerDescription" class="mt-1 max-w-3xl text-start text-sm leading-6 text-muted-foreground">{{ headerDescription }}</p>
       </div>
       <div v-if="$slots.actions || $slots.default" class="ms-auto flex min-w-0 max-w-full flex-wrap items-center gap-2">
         <slot name="actions"><slot /></slot>
