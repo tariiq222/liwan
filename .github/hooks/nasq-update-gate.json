@@ -1,0 +1,11 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "type": "command",
+        "command": "python3 /Users/tariq/code/nasq/tools/update_gate/adapter.py copilot || exit 2",
+        "timeout": 10
+      }
+    ]
+  }
+}
