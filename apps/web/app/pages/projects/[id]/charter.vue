@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { inject } from 'vue'
 import { toast } from 'vue-sonner'
 import { ApiError } from '@/composables/useApi'
 import { useProject } from '@/composables/useProjects'
@@ -10,7 +9,6 @@ const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
 const hydrated = useHydrated()
-const isProjectOverlay = inject<boolean>(Symbol.for('nasq.project.overlay'), false)
 const projectId = computed(() => {
   const n = Number(route.params.id)
   return Number.isInteger(n) && n > 0 ? n : null
@@ -35,7 +33,7 @@ function onCancel() {
 </script>
 
 <template>
-  <SharedPageContainer :width="readonly ? 'detail' : 'form'">
+  <SharedPageContainer :width="readonly ? 'list' : 'form'">
     <SharedPageHeader
       :title="t(readonly ? 'projects.charter.title' : 'projects.clarity.editCharter')"
     >
@@ -55,8 +53,7 @@ function onCancel() {
       @retry="refetch"
     >
       <div class="project-charter-print-scope">
-        <Card class="nasq-form">
-          <CardContent class="pt-6">
+        <div :class="readonly ? undefined : 'nasq-panel nasq-panel-body'">
             <ProjectCharterForm
               mode="edit"
               :project="project"
@@ -68,8 +65,7 @@ function onCancel() {
               @cancel="onCancel"
               @retry-milestones="refetchMilestones"
             />
-          </CardContent>
-        </Card>
+        </div>
       </div>
     </SharedPageState>
   </SharedPageContainer>

@@ -288,7 +288,7 @@ async function saveOnLatest() {
     <p v-if="!canWrite" role="alert" class="text-sm text-destructive">{{ t('projects.finance.writeRevoked') }}</p>
     <p v-if="error" role="alert" class="text-sm text-destructive">{{ error }}</p>
 
-    <div class="nasq-form-footer">
+    <div class="nasq-form-footer justify-end">
       <Button type="button" variant="outline" :disabled="pending" @click="emit('cancel')">{{ t('app.cancel') }}</Button>
       <Button type="submit" :disabled="ordinarySaveDisabled">{{ isEdit ? t('app.save') : t('app.create') }}</Button>
     </div>

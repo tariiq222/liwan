@@ -68,7 +68,7 @@ async function submit() {
       <DescriptionEditor ref="descriptionEditor" :model-value="description" :task-id="projectId" :readonly="isPending" @update:model-value="onDescriptionChange" @draft="onDescriptionDraft" />
     </div>
     <p v-if="error" role="alert" class="text-sm text-destructive sm:col-span-2">{{ error }}</p>
-    <div class="nasq-form-footer sm:col-span-2">
+    <div class="nasq-form-footer justify-end sm:col-span-2">
       <Button type="button" variant="outline" :disabled="isPending" @click="emit('cancel')">{{ t('app.cancel') }}</Button>
       <Button type="submit" :disabled="!hydrated || isPending || !status || !title.trim()">{{ t('app.create') }}</Button>
     </div>

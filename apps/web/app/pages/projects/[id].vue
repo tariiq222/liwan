@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { LocationQueryRaw } from 'vue-router'
 import { inject } from 'vue'
-import { Plus } from '@lucide/vue'
 import MilestoneTable from '@/components/project/MilestoneTable.vue'
 import ProjectHeader from '@/components/project/ProjectHeader.vue'
 import ProjectOverview from '@/components/project/ProjectOverview.vue'
@@ -114,7 +113,7 @@ const workspaceCanCreate = computed(() => {
 </script>
 
 <template>
-  <SharedPageContainer v-if="isBaseRoute" width="detail" class="nasq-project-workspace">
+  <SharedPageContainer v-if="isBaseRoute" width="list">
     <div v-if="notFound" class="flex flex-col items-start gap-3">
       <p class="text-muted-foreground">{{ t('projects.notFound') }}</p>
       <button type="button" class="text-sm underline" @click="router.push(projectReturnTo)">{{ t('projects.backToProjects') }}</button>
@@ -128,7 +127,7 @@ const workspaceCanCreate = computed(() => {
         :project="project"
         :title="t(isSummary ? 'nav.projectSummary' : planningView === 'milestones' ? 'projects.tabs.milestones' : 'nav.projectTasks')"
         :can-create="workspaceCanCreate"
-        :show-create="isSummary || planningView === 'milestones'"
+        :show-create="true"
         :create-label="workspaceCreateLabel"
         @create="onWorkspaceCreate"
         @edit="openCharterEdit"
@@ -141,19 +140,14 @@ const workspaceCanCreate = computed(() => {
 
       <ProjectOverview v-if="project && isSummary" :project="project" />
 
-      <section v-if="isBaseRoute && project && (planningView === 'list' || planningView === 'board')" class="min-w-0 space-y-3" :aria-label="t('projects.tabs.tasks')">
-        <TaskToolbar :model-value="params" embedded hide-project-filter @update:model-value="onParams">
+      <section v-if="isBaseRoute && project && (planningView === 'list' || planningView === 'board')" class="min-w-0 space-y-4" :aria-label="t('projects.tabs.tasks')">
+        <TaskToolbar :model-value="params" embedded collapsible hide-project-filter @update:model-value="onParams">
           <template #view>
             <nav class="nasq-view-switch" :aria-label="t('projects.planning.views')">
               <NuxtLink :to="planningLink('list')" :aria-current="planningView === 'list' ? 'page' : undefined">{{ t('projects.tabs.list') }}</NuxtLink>
               <NuxtLink :to="planningLink('board')" :aria-current="planningView === 'board' ? 'page' : undefined">{{ t('projects.tabs.board') }}</NuxtLink>
               <NuxtLink v-if="project.active" :to="planningLink('gantt')">{{ t('projects.tabs.timeline') }}</NuxtLink>
             </nav>
-          </template>
-          <template #actions>
-            <Button v-if="project.active && workspaceCanCreate" :disabled="!hydrated" class="gap-2" data-testid="project-header-create" @click="openTaskCreate">
-              <Plus class="size-4" aria-hidden="true" />{{ t('tasks.new') }}
-            </Button>
           </template>
         </TaskToolbar>
         <div class="nasq-panel overflow-hidden">
@@ -166,7 +160,7 @@ const workspaceCanCreate = computed(() => {
       </section>
 
       <div v-if="isBaseRoute && project && planningView === 'milestones'">
-        <MilestoneTable :project-id="project.id" :can-manage="project.can_manage" />
+        <MilestoneTable :project-id="project.id" :can-manage="project.can_manage" embedded />
         <div class="mt-4 flex justify-end">
           <NuxtLink
             class="inline-flex min-h-9 items-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"

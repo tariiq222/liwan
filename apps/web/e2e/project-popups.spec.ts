@@ -91,9 +91,14 @@ test('desktop project workspace has one identity and one toolbar after a direct 
   await expect(page.getByTestId('context-link-current-project-settings')).toBeVisible()
   await expect(page.locator('[data-slot="skeleton"] h1')).toHaveCount(0)
   expect(hydrationErrors).toEqual([])
+  const filters = page.getByRole('button', { name: /^البحث والفلاتر/ })
+  await expect(filters).toHaveAttribute('aria-expanded', 'false')
+  await filters.click()
   const search = (await page.getByRole('textbox', { name: 'بحث في العناوين…' }).boundingBox())!
   const create = (await page.getByRole('button', { name: 'مهمة جديدة', exact: true }).boundingBox())!
-  expect(Math.abs(search.y - create.y)).toBeLessThanOrEqual(5)
+  const header = (await page.locator('main [data-slot="page-header"]').boundingBox())!
+  expect(create.y).toBeGreaterThanOrEqual(header.y)
+  expect(create.y + create.height).toBeLessThanOrEqual(header.y + header.height + 1)
   const title = (await page.getByRole('heading', { level: 1 }).boundingBox())!
   await expect(page.getByTestId('project-workspace-tabs')).toHaveCount(0)
   expect(search.y).toBeGreaterThan(title.y + title.height)
@@ -151,6 +156,7 @@ test('desktop sidebar keeps project navigation and collapses independently of th
   await expect(page.getByRole('dialog')).toHaveCount(0)
   await page.getByTestId('context-link-tasks').click()
   await expect(page.getByRole('heading', { name: 'المهام', level: 1 })).toBeVisible()
+  await page.getByRole('button', { name: /^البحث والفلاتر/ }).click()
   await expect(page.getByRole('textbox', { name: 'بحث في العناوين…' })).toHaveValue('مهمة')
   await expect(sidebar).toHaveAttribute('data-expanded', 'false')
   await page.screenshot({ path: testInfo.outputPath('project-sidebar-collapsed.png'), fullPage: true })
@@ -163,6 +169,7 @@ test('task opens over project and browser back returns to the filtered workspace
   await page.goto('/projects/1?tab=tasks&q=مهمة')
   const task = page.getByRole('button', { name: 'مهمة جارية', exact: true })
   await expect(task).toBeVisible()
+  await page.getByRole('button', { name: /^البحث والفلاتر/ }).click()
   const originalWorkspace = await page.getByRole('textbox', { name: 'بحث في العناوين…' }).elementHandle()
   await task.click()
   await expect(page.getByRole('dialog')).toBeVisible()

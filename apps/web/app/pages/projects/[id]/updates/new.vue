@@ -31,7 +31,7 @@ const returnTo = computed(() => projectId.value ? safeReturnTo(route.query.retur
       @retry="refetch"
     >
       <p v-if="!project?.can_manage" class="text-muted-foreground">{{ t('projects.forbidden') }}</p>
-      <Card v-else class="nasq-form"><CardContent><ProjectUpdateForm :project-id="projectId" @saved="router.push(returnTo)" @cancel="router.push(returnTo)" /></CardContent></Card>
+      <section v-else class="nasq-panel overflow-hidden"><div class="nasq-panel-body"><ProjectUpdateForm :project-id="projectId" @saved="router.push(returnTo)" @cancel="router.push(returnTo)" /></div></section>
     </SharedPageState>
   </SharedPageContainer>
 </template>

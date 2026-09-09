@@ -69,8 +69,8 @@ function saved() {
           <p>{{ t('projects.finance.refreshError') }}</p>
           <Button variant="outline" class="mt-3" type="button" @click="access.refetch()">{{ t('app.retry') }}</Button>
         </div>
-        <Card class="nasq-form">
-          <CardContent class="pt-6">
+        <section class="nasq-panel overflow-hidden">
+          <div class="nasq-panel-body">
             <FinanceEntryForm
               :project-id="projectId"
               :currency="currency!"
@@ -79,8 +79,8 @@ function saved() {
               @saved="saved"
               @cancel="router.push(returnTo)"
             />
-          </CardContent>
-        </Card>
+          </div>
+        </section>
       </template>
     </template>
   </SharedPageContainer>

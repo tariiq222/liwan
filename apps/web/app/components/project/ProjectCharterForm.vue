@@ -249,7 +249,7 @@ function discardToServer() {
       </div>
     </div>
     <p v-else-if="error" role="alert" class="text-sm text-destructive">{{ error }}</p>
-    <div class="flex flex-wrap justify-end gap-2">
+    <div class="nasq-form-footer justify-end">
       <Button type="button" variant="outline" :disabled="pending" @click="emit('cancel')">{{ t('app.cancel') }}</Button>
       <Button type="submit" data-testid="project-create-submit" :disabled="!canSubmit">
         {{ mode === 'create' ? t('app.create') : t('app.save') }}

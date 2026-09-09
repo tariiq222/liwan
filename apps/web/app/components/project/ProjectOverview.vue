@@ -44,8 +44,8 @@ function isOverdue(value: string | null) {
 </script>
 
 <template>
-  <div data-testid="project-overview" class="grid gap-6">
-    <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+  <div data-testid="project-overview" class="grid gap-4">
+    <div class="nasq-project-toolbar text-sm">
       <ProjectStatusSelect v-if="project.can_manage" :project="project" />
       <ProjectStatusBadge v-else :status="project.status" />
       <span class="text-muted-foreground">{{ dateRange }}</span>

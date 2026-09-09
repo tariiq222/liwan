@@ -12,6 +12,7 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{ retryMilestones: [] }>()
 const { t, locale } = useI18n()
+const hydrated = useHydrated()
 
 const milestoneOutputs = computed(() => aggregateMilestoneOutputs(props.milestones ?? []))
 const legacyDeliverables = computed(() => props.draft.deliverables.filter(row => row.name.trim() || row.description.trim() || row.acceptance.trim()))
@@ -30,7 +31,7 @@ const hasLegacyDetails = computed(() => Boolean(
   || props.draft.closure.trim()
   || legacyDeliverables.value.length,
 ))
-const milestonesReady = computed(() => !props.milestonesLoading && !props.milestonesError)
+const milestonesReady = computed(() => hydrated.value && !props.milestonesLoading && !props.milestonesError)
 
 function printCharter() {
   if (milestonesReady.value && typeof window !== 'undefined') window.print()
@@ -46,19 +47,7 @@ function budgetAmount(): string {
 </script>
 
 <template>
-  <article data-testid="project-charter-display" class="grid gap-8" aria-labelledby="project-charter-document-title">
-    <div class="flex flex-wrap items-center justify-between gap-3 print:hidden">
-      <h2 id="project-charter-document-title" class="text-base font-semibold">{{ t('projects.charter.sections.essentials') }}</h2>
-      <Button
-        type="button"
-        variant="outline"
-        data-testid="project-charter-print"
-        :disabled="!milestonesReady"
-        :title="!milestonesReady ? t('projects.charter.printUnavailable') : undefined"
-        @click="printCharter"
-      >{{ t('projects.charter.print') }}</Button>
-    </div>
-
+  <article data-testid="project-charter-display" class="grid gap-4" aria-labelledby="project-charter-essentials-title">
     <div v-if="milestonesLoading" role="status" data-testid="charter-milestones-loading" class="text-sm text-muted-foreground">
       {{ t('projects.charter.milestonesLoading') }}
     </div>
@@ -67,8 +56,20 @@ function budgetAmount(): string {
       <Button type="button" variant="outline" size="sm" @click="emit('retryMilestones')">{{ t('projects.charter.retryMilestones') }}</Button>
     </div>
 
-    <section class="grid gap-4" aria-labelledby="project-charter-essentials-title">
+    <section class="nasq-panel overflow-hidden" aria-labelledby="project-charter-essentials-title">
+      <div class="nasq-panel-header">
       <h2 id="project-charter-essentials-title" class="text-base font-semibold">{{ t('projects.charter.sections.essentials') }}</h2>
+      <Button
+        type="button"
+        variant="outline"
+        class="print:hidden"
+        data-testid="project-charter-print"
+        :disabled="!milestonesReady"
+        :title="!milestonesReady ? t('projects.charter.printUnavailable') : undefined"
+        @click="printCharter"
+      >{{ t('projects.charter.print') }}</Button>
+      </div>
+      <div class="nasq-panel-body">
       <dl class="grid gap-x-6 gap-y-4 sm:grid-cols-2">
         <div data-testid="charter-display-name"><dt class="text-sm text-muted-foreground">{{ t('projects.charter.fields.name') }}</dt><dd class="mt-1 text-lg font-semibold">{{ draft.name }}</dd></div>
         <div v-if="draft.code" data-testid="charter-display-code"><dt class="text-sm text-muted-foreground">{{ t('projects.charter.fields.code') }}</dt><dd class="mt-1 font-mono text-sm" dir="ltr">{{ draft.code }}</dd></div>
@@ -77,15 +78,23 @@ function budgetAmount(): string {
         <div v-if="draft.dateStart"><dt class="text-sm text-muted-foreground">{{ t('projects.charter.fields.date_start') }}</dt><dd class="mt-1 text-sm">{{ date(draft.dateStart) }}</dd></div>
         <div v-if="draft.dateEnd"><dt class="text-sm text-muted-foreground">{{ t('projects.charter.fields.date_end') }}</dt><dd class="mt-1 text-sm">{{ date(draft.dateEnd) }}</dd></div>
       </dl>
+      </div>
     </section>
 
-    <section v-if="draft.rationale.trim()" class="grid gap-4" aria-labelledby="project-charter-purpose-title">
+    <section v-if="draft.rationale.trim()" class="nasq-panel overflow-hidden" aria-labelledby="project-charter-purpose-title">
+      <div class="nasq-panel-header">
       <h2 id="project-charter-purpose-title" class="text-base font-semibold">{{ t('projects.charter.sections.purpose') }}</h2>
+      </div>
+      <div class="nasq-panel-body">
       <p class="whitespace-pre-wrap text-sm">{{ draft.rationale }}</p>
+      </div>
     </section>
 
-    <section v-if="visibleObjectives.length" class="grid gap-4" aria-labelledby="project-charter-objectives-title">
+    <section v-if="visibleObjectives.length" class="nasq-panel overflow-hidden" aria-labelledby="project-charter-objectives-title">
+      <div class="nasq-panel-header">
       <h2 id="project-charter-objectives-title" class="text-base font-semibold">{{ t('projects.charter.fields.objectives') }}</h2>
+      </div>
+      <div class="nasq-panel-body">
       <ul class="grid gap-3 sm:grid-cols-2">
         <li v-for="row in visibleObjectives" :key="row.key" class="rounded-md bg-muted/30 p-3">
           <dl class="grid gap-2 text-sm">
@@ -95,18 +104,26 @@ function budgetAmount(): string {
           </dl>
         </li>
       </ul>
+      </div>
     </section>
 
-    <section v-if="draft.scope.trim() || draft.exclusions.trim()" class="grid gap-4" aria-labelledby="project-charter-scope-title">
+    <section v-if="draft.scope.trim() || draft.exclusions.trim()" class="nasq-panel overflow-hidden" aria-labelledby="project-charter-scope-title">
+      <div class="nasq-panel-header">
       <h2 id="project-charter-scope-title" class="text-base font-semibold">{{ t('projects.charter.sections.scope') }}</h2>
+      </div>
+      <div class="nasq-panel-body">
       <dl class="grid gap-4 sm:grid-cols-2">
         <div v-if="draft.scope.trim()"><dt class="text-sm text-muted-foreground">{{ t('projects.charter.fields.scope') }}</dt><dd class="mt-1 whitespace-pre-wrap text-sm">{{ draft.scope }}</dd></div>
         <div v-if="draft.exclusions.trim()"><dt class="text-sm text-muted-foreground">{{ t('projects.charter.fields.exclusions') }}</dt><dd class="mt-1 whitespace-pre-wrap text-sm">{{ draft.exclusions }}</dd></div>
       </dl>
+      </div>
     </section>
 
-    <section v-if="milestoneOutputs.length" class="grid gap-3" data-testid="charter-milestone-outputs" aria-labelledby="charter-milestone-outputs-title">
+    <section v-if="milestoneOutputs.length" class="nasq-panel overflow-hidden" data-testid="charter-milestone-outputs" aria-labelledby="charter-milestone-outputs-title">
+      <div class="nasq-panel-header">
       <h2 id="charter-milestone-outputs-title" class="text-base font-semibold">{{ t('projects.charter.milestoneOutputs') }}</h2>
+      </div>
+      <div class="nasq-panel-body">
       <ul class="grid gap-2 rounded-md bg-muted/30 p-3">
         <li v-for="(output, index) in milestoneOutputs" :key="`${output.milestoneId}-${index}`" class="flex flex-wrap items-center gap-2 text-sm">
           <label class="flex min-w-0 items-center gap-2">
@@ -116,14 +133,19 @@ function budgetAmount(): string {
           <span class="text-muted-foreground">{{ output.milestoneName }}</span>
         </li>
       </ul>
+      </div>
     </section>
 
-    <section class="grid gap-4" aria-labelledby="project-charter-budget-title">
+    <section class="nasq-panel overflow-hidden" aria-labelledby="project-charter-budget-title">
+      <div class="nasq-panel-header">
       <h2 id="project-charter-budget-title" class="text-base font-semibold">{{ t('projects.charter.sections.planning') }}</h2>
+      </div>
+      <div class="nasq-panel-body">
       <dl class="grid gap-4 sm:grid-cols-2">
         <div><dt class="text-sm text-muted-foreground">{{ t('projects.charter.fields.budget_state') }}</dt><dd class="mt-1 text-sm">{{ t(`projects.charter.budget.${draft.budgetState}`) }}</dd></div>
         <div v-if="budgetAmount()"><dt class="text-sm text-muted-foreground">{{ t('projects.charter.fields.amount') }}</dt><dd class="mt-1 text-sm">{{ budgetAmount() }}<span v-if="draft.currencyLabel"> {{ draft.currencyLabel }}</span></dd></div>
       </dl>
+      </div>
     </section>
 
     <details v-if="hasLegacyDetails" class="rounded-lg border p-4">

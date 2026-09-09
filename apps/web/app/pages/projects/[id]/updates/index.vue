@@ -24,7 +24,7 @@ function openCreate() {
 </script>
 
 <template>
-  <SharedPageContainer v-if="route.path.replace(/\/+$/, '') === `/projects/${projectId}/updates`" width="detail">
+  <SharedPageContainer v-if="route.path.replace(/\/+$/, '') === `/projects/${projectId}/updates`" width="list">
     <SharedPageHeader
       v-if="!isProjectOverlay"
       :title="t('projects.refresh.workspace.updatesTitle')"

@@ -148,7 +148,7 @@ async function submit() {
       <p>{{ error }}</p>
       <NuxtLink v-if="projectScheduleMissing" class="mt-1 inline-block underline underline-offset-4" :to="{ path: `/projects/${props.projectId}/charter`, query: { edit: '1' } }">{{ t('projects.milestones.openProjectFile') }}</NuxtLink>
     </div>
-    <div class="nasq-form-footer sm:col-span-2">
+    <div class="nasq-form-footer justify-end sm:col-span-2">
       <Button type="button" variant="outline" :disabled="isPending" @click="emit('cancel')">{{ t('app.cancel') }}</Button>
       <Button type="submit" :disabled="!hydrated || isPending || !name.trim()">{{ isEdit ? t('app.save') : t('app.create') }}</Button>
     </div>

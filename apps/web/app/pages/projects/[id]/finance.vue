@@ -172,6 +172,32 @@ function financeChildKey(target: { path: string; params: Record<string, string |
         </template>
       </template>
     </SharedPageHeader>
+    <FilterBar
+      v-if="projectId !== null"
+      class="w-full"
+      :active-count="activeFilterCount"
+      :disabled="!hydrated"
+      @clear="clearFilters"
+    >
+      <template #search>
+        <Input v-model="search" :disabled="!hydrated" :placeholder="t('projects.finance.search')" :aria-label="t('projects.finance.search')" data-testid="finance-search" class="min-w-52" />
+      </template>
+      <template #view>
+        <Tabs :model-value="filters.kind" data-testid="finance-kind-filter" @update:model-value="onKindChange">
+          <TabsList>
+            <TabsTrigger value="all" :disabled="!hydrated">{{ t('projects.finance.kind.all') }}</TabsTrigger>
+            <TabsTrigger value="budget" :disabled="!hydrated">{{ t('projects.finance.kind.budget') }}</TabsTrigger>
+            <TabsTrigger value="expense" :disabled="!hydrated">{{ t('projects.finance.kind.expense') }}</TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </template>
+      <template #active>
+        <div v-if="filtered" class="flex flex-wrap items-center gap-2">
+          <Badge v-if="filters.q.trim()" variant="secondary">{{ t('projects.filters.searchValue', { value: filters.q }) }}</Badge>
+          <Badge v-if="filters.kind !== 'all'" variant="secondary">{{ t(`projects.finance.kind.${filters.kind}`) }}</Badge>
+        </div>
+      </template>
+    </FilterBar>
     <template v-if="projectId === null">
       <p class="text-muted-foreground">{{ t('projects.invalidId') }}</p>
     </template>
@@ -185,28 +211,6 @@ function financeChildKey(target: { path: string; params: Record<string, string |
       <p v-if="notFound && !list.isLoading.value" class="text-muted-foreground">{{ t('projects.notFound') }}</p>
       <template v-else>
         <FinanceSummaryCards v-if="summary && projectId" :project-id="projectId" :summary="summary" />
-        <div class="w-full min-w-0">
-          <FilterBar inline class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
-            <template #search>
-              <Input v-model="search" :disabled="!hydrated" :placeholder="t('projects.finance.search')" :aria-label="t('projects.finance.search')" data-testid="finance-search" class="min-w-52" />
-            </template>
-            <template #view>
-              <Tabs :model-value="filters.kind" data-testid="finance-kind-filter" @update:model-value="onKindChange">
-                <TabsList>
-                  <TabsTrigger value="all" :disabled="!hydrated">{{ t('projects.finance.kind.all') }}</TabsTrigger>
-                  <TabsTrigger value="budget" :disabled="!hydrated">{{ t('projects.finance.kind.budget') }}</TabsTrigger>
-                  <TabsTrigger value="expense" :disabled="!hydrated">{{ t('projects.finance.kind.expense') }}</TabsTrigger>
-                </TabsList>
-              </Tabs>
-            </template>
-            <template #active>
-              <div v-if="filtered" class="flex flex-wrap items-center gap-2">
-                <Badge v-if="filters.q.trim()" variant="secondary">{{ t('projects.filters.searchValue', { value: filters.q }) }}</Badge>
-                <Badge v-if="filters.kind !== 'all'" variant="secondary">{{ t(`projects.finance.kind.${filters.kind}`) }}</Badge>
-              </div>
-            </template>
-          </FilterBar>
-        </div>
         <FinanceEntryTable
           v-if="summary"
           :project-id="projectId"

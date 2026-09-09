@@ -10,7 +10,7 @@ import { useDeleteMilestone, useMilestones, useUpdateMilestone } from '@/composa
 import { returnToQuery } from '@/utils/safeReturnTo'
 import { claimMilestoneChecklistUpdate, releaseMilestoneChecklistUpdate } from '@/utils/milestoneChecklist'
 
-const props = defineProps<{ projectId: number; canManage: boolean }>()
+const props = defineProps<{ projectId: number; canManage: boolean; embedded?: boolean }>()
 
 const { t, locale } = useI18n()
 const hydrated = useHydrated()
@@ -99,7 +99,7 @@ async function confirmDelete() {
 <template>
   <div class="space-y-3">
     <Card class="nasq-panel">
-      <CardHeader class="flex flex-row items-center justify-between gap-3">
+      <CardHeader v-if="!embedded" class="flex flex-row items-center justify-between gap-3">
         <div>
           <CardTitle class="text-base">{{ t('projects.tabs.milestones') }}</CardTitle>
           <CardDescription>{{ t('projects.milestones.emptyHint') }}</CardDescription>

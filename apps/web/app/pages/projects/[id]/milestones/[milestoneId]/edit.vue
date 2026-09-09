@@ -54,7 +54,7 @@ async function confirmDelete() {
     >
       <p v-if="!project?.can_manage" class="text-muted-foreground">{{ t('projects.forbidden') }}</p>
       <template v-else-if="milestone && projectId">
-      <Card class="nasq-form"><CardContent class="space-y-5">
+      <section class="nasq-panel overflow-hidden"><div class="nasq-panel-body space-y-5">
         <MilestoneForm :project-id="projectId" :project-start="project?.date_start" :project-end="project?.date_end" :milestone="milestone" @saved="router.push(returnTo)" @cancel="router.push(returnTo)" />
         <div v-if="milestone.task_count > 0" class="rounded-md border border-muted p-3 text-sm text-muted-foreground">{{ t('projects.milestones.hasTasks', { count: milestone.task_count }) }}</div>
         <div v-if="deleteOpen" data-testid="milestone-delete-confirm" class="nasq-status-callout-danger space-y-2 p-3 text-sm">
@@ -63,7 +63,7 @@ async function confirmDelete() {
           <p v-if="mutationError" role="alert" class="text-destructive">{{ mutationError }}</p>
         </div>
         <Button v-else-if="milestone.task_count === 0" data-testid="milestone-delete" variant="destructive" :disabled="!hydrated" @click="deleteOpen = true">{{ t('projects.milestones.delete') }}</Button>
-      </CardContent></Card>
+      </div></section>
       </template>
     </SharedPageState>
   </SharedPageContainer>

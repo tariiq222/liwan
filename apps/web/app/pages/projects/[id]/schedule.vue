@@ -67,11 +67,17 @@ function onArchived() {
       v-else-if="!isProjectOverlay"
       :title="t('projects.schedule.title')"
     />
-    <nav v-if="!isProjectOverlay" class="nasq-view-switch" :aria-label="t('projects.planning.views')">
-      <NuxtLink :to="planningLink('list')">{{ t('projects.tabs.list') }}</NuxtLink>
-      <NuxtLink :to="planningLink('board')">{{ t('projects.tabs.board') }}</NuxtLink>
-      <NuxtLink :to="planningLink('gantt')" aria-current="page">{{ t('projects.tabs.timeline') }}</NuxtLink>
-    </nav>
+    <div class="nasq-project-toolbar">
+      <nav v-if="!isProjectOverlay" class="nasq-view-switch" :aria-label="t('projects.planning.views')">
+        <NuxtLink :to="planningLink('list')">{{ t('projects.tabs.list') }}</NuxtLink>
+        <NuxtLink :to="planningLink('board')">{{ t('projects.tabs.board') }}</NuxtLink>
+        <NuxtLink :to="planningLink('gantt')" aria-current="page">{{ t('projects.tabs.timeline') }}</NuxtLink>
+      </nav>
+      <div class="flex rounded-lg border p-0.5" role="group" :aria-label="t('projects.schedule.scale')">
+        <Button type="button" size="sm" class="h-8 rounded-md" :variant="scale === 'week' ? 'default' : 'ghost'" :disabled="!hydrated" :aria-pressed="scale === 'week'" @click="scale = 'week'">{{ t('projects.schedule.week') }}</Button>
+        <Button type="button" size="sm" class="h-8 rounded-md" :variant="scale === 'month' ? 'default' : 'ghost'" :disabled="!hydrated" :aria-pressed="scale === 'month'" @click="scale = 'month'">{{ t('projects.schedule.month') }}</Button>
+      </div>
+    </div>
     <SharedPageState
       :loading="isLoading && !schedule"
       :error="projectError || error"
@@ -79,7 +85,7 @@ function onArchived() {
       :empty-text="projectId === null || notFound ? t('projects.notFound') : t('projects.schedule.empty')"
       @retry="retry"
     >
-      <ScheduleGantt v-if="schedule" :schedule="schedule" :scale="scale" :project-start="project?.date_start" :project-end="project?.date_end" @update:scale="scale = $event" />
+      <ScheduleGantt v-if="schedule" embedded :schedule="schedule" :scale="scale" :project-start="project?.date_start" :project-end="project?.date_end" @update:scale="scale = $event" />
     </SharedPageState>
   </SharedPageContainer>
   <NuxtPage />
