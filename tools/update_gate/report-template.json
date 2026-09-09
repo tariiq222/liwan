@@ -1,0 +1,27 @@
+{
+  "id": "FILL-ME",
+  "classification": "unknown",
+  "components": [
+    {
+      "name": "FILL-ME",
+      "from": "FILL-ME",
+      "to": "FILL-ME",
+      "sources": [],
+      "security": "FILL-ME",
+      "non_security": "FILL-ME"
+    }
+  ],
+  "impact": {
+    "odoo_core": "FILL-ME",
+    "meetings": "FILL-ME",
+    "pmo": "FILL-ME",
+    "hr": "FILL-ME",
+    "access": "FILL-ME",
+    "chat": "FILL-ME",
+    "frontend": "FILL-ME",
+    "customizations": "FILL-ME"
+  },
+  "verification_plan": [],
+  "rollback_plan": "FILL-ME",
+  "actions": []
+}
