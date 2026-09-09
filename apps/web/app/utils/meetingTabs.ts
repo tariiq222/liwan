@@ -1,6 +1,6 @@
 import type { LocationQueryRaw } from 'vue-router'
 
-export const MEETING_TAB_VALUES = ['summary', 'agenda', 'minutes', 'resolutions', 'attachments'] as const
+export const MEETING_TAB_VALUES = ['summary', 'agenda', 'minutes', 'resolutions', 'attachments', 'history', 'versions'] as const
 
 export type MeetingTab = typeof MEETING_TAB_VALUES[number]
 
@@ -11,6 +11,8 @@ const LEGACY_MEETING_HASHES: Record<string, MeetingTab> = {
   '#meeting-resolutions': 'resolutions',
   '#meeting-attachments': 'attachments',
   '#meeting-snapshot': 'minutes',
+  '#meeting-history': 'history',
+  '#meeting-versions': 'versions',
 }
 
 export function isMeetingTab(value: unknown): value is MeetingTab {

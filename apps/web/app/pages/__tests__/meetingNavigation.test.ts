@@ -31,6 +31,8 @@ function page(file: string, pmo = false, routeOverride: Record<string, unknown> 
     useMeetingSeriesList: seriesList, usePeople: people, meetingCreateRoute, formatLocalDateTime,
     clearMeetingListFilters, parseMeetingListFilters, patchMeetingListQuery,
     useMeeting: () => ({ data: meetingData }), useMeetingAttachments: () => ({}),
+    useMeetingEvents: () => ({ data: ref({ items: [], total: 0 }), isLoading: ref(false), error: ref(null), refetch: vi.fn() }),
+    useMeetingVersions: () => ({ data: ref({ items: [], total: 0 }), isLoading: ref(false), error: ref(null), refetch: vi.fn() }),
     useUploadMeetingAttachment: () => ({}), useDeleteMeetingAttachment: () => ({}),
     useConvertResolution: () => ({ mutateAsync }),
     useMeetingAction: () => ({ mutateAsync: meetingMutation, isPending: ref(false) }),

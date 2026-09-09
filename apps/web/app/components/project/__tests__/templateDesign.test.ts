@@ -96,7 +96,7 @@ describe('project template page design', () => {
     expect(listSource).toContain('SharedPageState')
     expect(listSource).toContain('@retry="list.refetch"')
     expect(listSource).toContain("t('projects.templates.empty')")
-    expect(listSource).toContain('nasq-toolbar')
+    expect(listSource).toContain(':active-count="activeFilterCount"')
     expect(listSource).toContain('name="template-search"')
     expect(listSource).toContain('refDebounced')
     expect(listSource).toContain('useHydrated')

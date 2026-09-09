@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { PROJECT_STATUSES } from '@nasq/contracts'
-import { LayoutGrid, List, Plus, Search, X } from '@lucide/vue'
+import { LayoutGrid, List, Plus, Search } from '@lucide/vue'
 import { refDebounced } from '@vueuse/core'
 import FilterBar from '@/components/shared/FilterBar.vue'
 import ProjectTable from '@/components/project/ProjectTable.vue'
@@ -148,6 +148,7 @@ function clearFilters() {
 }
 const sort = computed(() => filters.sort ?? 'default')
 const view = computed(() => filters.view ?? 'table')
+const activeFilterCount = computed(() => Number(Boolean(rawSearch.value.trim())) + Number(statusFilter.value !== 'all') + Number(sort.value !== 'default'))
 function onSortChange(value: unknown) {
   applyPatch({ sort: value === 'name' || value === 'progress' ? value : 'default' })
 }
@@ -205,8 +206,8 @@ function openProject(id: number) {
       <span>{{ t('projects.loadError') }}</span>
       <Button variant="outline" size="sm" @click="activeList.refetch()">{{ t('app.retry') }}</Button>
     </div>
-    <div class="nasq-toolbar" data-testid="projects-toolbar">
-      <FilterBar class="w-full">
+    <div class="w-full min-w-0" data-testid="projects-toolbar">
+      <FilterBar class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
       <template #search>
         <div class="relative min-w-52 flex-1">
           <Search class="pointer-events-none absolute start-2 top-1/2 size-[18px] -translate-y-1/2 text-muted-foreground" />
@@ -258,9 +259,6 @@ function openProject(id: number) {
           <Badge v-if="rawSearch" variant="secondary">{{ t('projects.filters.searchValue', { value: rawSearch }) }}</Badge>
           <Badge v-if="statusFilter !== 'all'" variant="secondary">{{ t(statusFilter === 'unset' ? 'projects.filters.unset' : `projects.status.${statusFilter}`) }}</Badge>
           <Badge v-if="sort !== 'default'" variant="secondary">{{ t(sort === 'name' ? 'projects.filters.sortName' : 'projects.filters.sortProgress') }}</Badge>
-          <Button variant="ghost" size="sm" class="gap-1" :disabled="!hydrated" @click="clearFilters">
-            <X class="size-3.5" />{{ t('projects.filters.clear') }}
-          </Button>
         </div>
       </template>
       </FilterBar>

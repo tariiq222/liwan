@@ -15,6 +15,8 @@ def dump_project_ref(record):
     project = record.project_id
     if not project:
         return None
+    if project.company_id != record.env.company:
+        return None
     service = record.env['nasq.access.service']
     if not service._nasq_has_capability(record.env.user, 'pmo.projects.read'):
         return None
@@ -23,6 +25,46 @@ def dump_project_ref(record):
     except AccessError:
         return None
     return {'id': project.id, 'name': project.name}
+
+
+def dump_project_id(record, project_id):
+    if not project_id:
+        return None
+    project = record.env['project.project'].browse(project_id).exists()
+    if not project or project.company_id != record.env.company:
+        return None
+    service = record.env['nasq.access.service']
+    if not service._nasq_has_capability(record.env.user, 'pmo.projects.read'):
+        return None
+    try:
+        project.check_access('read')
+    except AccessError:
+        return None
+    return {'id': project.id, 'name': project.name}
+
+
+def dump_minutes_form(meeting, form):
+    if not isinstance(form, dict):
+        return None
+    topics = []
+    for topic in form.get('topics', []):
+        if not isinstance(topic, dict):
+            continue
+        topics.append({
+            'key': topic.get('key', ''),
+            'title': topic.get('title', ''),
+            'discussion': topic.get('discussion', ''),
+            'project_id': topic.get('project_id') if not topic.get('project_id') or dump_project_id(meeting, topic.get('project_id')) else None,
+            'resolution_ids': list(topic.get('resolution_ids') or []),
+        })
+    return {
+        'opening': form.get('opening', ''),
+        'closing': form.get('closing', ''),
+        'chairperson': form.get('chairperson', ''),
+        'approver_name': form.get('approver_name', ''),
+        'approver_title': form.get('approver_title', ''),
+        'topics': topics,
+    }
 
 
 TASK_EXECUTION_STATES = {
@@ -35,12 +77,20 @@ def _task_execution_state(task):
     return TASK_EXECUTION_STATES.get(task.state, 'in_progress')
 
 
-def dump_minutes_snapshot(meeting):
-    """Expose only a completed meeting's frozen, server-built payload."""
-    if meeting.state != 'done' or not isinstance(meeting.minutes_snapshot, dict):
+def dump_snapshot_payload(meeting, snapshot):
+    """Project a server-built snapshot through current visibility rules."""
+    if not isinstance(snapshot, dict):
         return None
-    snapshot = meeting.minutes_snapshot
-    return {
+    snapshot_rows = [row for row in snapshot.get('resolutions', []) if isinstance(row, dict)]
+    task_by_resolution = {}
+    resolution_ids = [row.get('id') for row in snapshot_rows if row.get('id')]
+    if resolution_ids:
+        resolutions = meeting.env['cyan.meeting.resolution'].browse(resolution_ids).exists()
+        readable_ids = _readable_task_ids_by_resolution(meeting, resolutions)
+        if readable_ids:
+            tasks = meeting.env['project.task'].browse(set(readable_ids.values())).exists()
+            task_by_resolution = {task.resolution_id: task for task in tasks if task.resolution_id}
+    result = {
         'captured_at': snapshot.get('captured_at'),
         'name': snapshot.get('name', ''),
         'meeting_date': snapshot.get('meeting_date'),
@@ -58,14 +108,58 @@ def dump_minutes_snapshot(meeting):
                 'name': row.get('name', ''),
                 'deadline': row.get('deadline'),
                 'priority': row.get('priority', '0'),
-                'state': row.get('state', 'open'),
+                'state': (
+                    row.get('projected_state', row.get('state', 'open'))
+                    if row.get('id') in task_by_resolution
+                    and task_by_resolution[row.get('id')].id == (row.get('task_provenance') or {}).get('task_id')
+                    else row.get('state', 'open')
+                ),
                 'responsible': row.get('responsible'),
                 'result': row.get('result', ''),
                 'meeting_name': row.get('meeting_name', snapshot.get('name', '')),
+                'execution_period': row.get('execution_period') or '',
+                'project': row.get('project') or dump_project_id(meeting, row.get('project_id')),
             }
             for row in snapshot.get('resolutions', [])
             if isinstance(row, dict)
         ],
+    }
+    form = dump_minutes_form(meeting, snapshot.get('minutes_form'))
+    if form is not None:
+        result['minutes_form'] = form
+    return result
+
+
+def dump_minutes_snapshot(meeting):
+    """Expose only a completed meeting's frozen, server-built payload."""
+    if meeting.state != 'done' or not isinstance(meeting.minutes_snapshot, dict):
+        return None
+    return dump_snapshot_payload(meeting, meeting.minutes_snapshot)
+
+
+def dump_event(event, meeting=None):
+    meeting = meeting or event.meeting_id
+    return {
+        'id': event.id,
+        'meeting_id': meeting.id,
+        'meeting_name': meeting.name,
+        'occurred_at': iso(event.occurred_at),
+        'actor': dump_person(event.actor_id),
+        'kind': event.kind,
+        'summary': event.summary,
+    }
+
+
+def dump_version(version):
+    meeting = version.meeting_id
+    meeting.check_access('read')
+    snapshot = version.sudo().snapshot
+    return {
+        'id': version.id,
+        'number': version.number,
+        'captured_at': iso(version.captured_at),
+        'actor': dump_person(version.actor_id),
+        'snapshot': dump_snapshot_payload(meeting, snapshot),
     }
 
 
@@ -115,6 +209,8 @@ def dump_resolution(resolution, task_id=None):
         'execution_state': execution_state,
         'task_linked': has_task,
         'allowed_actions': allowed_actions,
+        'execution_period': resolution.execution_period or '',
+        'project': dump_project_ref(resolution) if resolution.project_id else None,
     }
 
 
@@ -192,6 +288,9 @@ def dump_meeting(meeting, *, detail=False):
             'previous_resolutions': dump_previous_resolutions(meeting),
             'minutes_snapshot': dump_minutes_snapshot(meeting),
         })
+        form = dump_minutes_form(meeting, meeting.sudo().minutes_form_data)
+        if form is not None:
+            payload['minutes_form'] = form
     return payload
 
 

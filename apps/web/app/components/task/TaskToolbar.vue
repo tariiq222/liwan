@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { TaskState } from '@nasq/contracts'
-import { LayoutGrid, List, Search, X } from '@lucide/vue'
+import { LayoutGrid, List, Search } from '@lucide/vue'
 import { refDebounced } from '@vueuse/core'
 import type { TaskListParams } from '@/composables/useTasks'
 import { STATE_LABEL_KEY } from '@/composables/taskState'
@@ -28,6 +28,7 @@ const stateFilterLabel = computed(() => {
   return t('tasks.filters.allStates')
 })
 const selectedProject = computed(() => (projects.value ?? []).find((project) => project.id === props.modelValue.project_id) ?? null)
+const activeFilterCount = computed(() => Number(Boolean(props.modelValue.q)) + selectedStates.value.length + Number(!props.hideProjectFilter && Boolean(props.modelValue.project_id)))
 function toggleState(s: TaskState, checked: boolean) {
   const next = new Set(selectedStates.value)
   if (checked) next.add(s)
@@ -57,8 +58,8 @@ function clearFilters() {
 </script>
 
 <template>
-  <div :class="embedded ? 'nasq-toolbar rounded-none border-x-0 border-t-0 bg-muted/30' : 'nasq-toolbar'">
-  <FilterBar class="w-full">
+  <div class="w-full min-w-0">
+  <FilterBar class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
     <template #search>
       <div class="relative min-w-48 flex-1">
         <Search class="pointer-events-none absolute start-2 top-1/2 size-[18px] -translate-y-1/2 text-muted-foreground" />
@@ -106,9 +107,6 @@ function clearFilters() {
         <Badge v-if="modelValue.q" variant="secondary">{{ t('tasks.filters.searchValue', { value: modelValue.q }) }}</Badge>
         <Badge v-for="state in selectedStates" :key="state" variant="secondary">{{ t(STATE_LABEL_KEY[state]) }}</Badge>
         <Badge v-if="!hideProjectFilter && selectedProject" variant="secondary">{{ selectedProject.name }}</Badge>
-        <Button variant="ghost" size="sm" class="gap-1" :disabled="!hydrated" @click="clearFilters">
-          <X class="size-3.5" />{{ t('tasks.filters.clear') }}
-        </Button>
       </div>
     </template>
 

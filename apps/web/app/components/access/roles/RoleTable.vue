@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { RoleSummary } from '@nasq/contracts'
 import AccessStateBadge from '@/components/access/AccessStateBadge.vue'
+import RecordNumber from '@/components/shared/RecordNumber.vue'
 
 defineProps<{ roles: RoleSummary[]; canManage?: boolean }>()
 defineEmits<{ open: [id: number]; clone: [id: number] }>()
@@ -15,6 +16,7 @@ const roleLabel = (role: { name: { ar: string; en: string | null } }) => role.na
       <Table class="nasq-settings-table">
         <TableHeader>
           <TableRow>
+            <TableHead class="w-28 text-start">{{ t('app.recordNumber') }}</TableHead>
             <TableHead class="text-start">{{ t('access.roles.columns.name') }}</TableHead>
             <TableHead class="text-start">{{ t('access.roles.columns.description') }}</TableHead>
             <TableHead class="text-start">{{ t('access.roles.columns.type') }}</TableHead>
@@ -25,6 +27,7 @@ const roleLabel = (role: { name: { ar: string; en: string | null } }) => role.na
         </TableHeader>
         <TableBody>
           <TableRow v-for="role in roles" :key="role.id">
+            <TableCell class="w-28"><RecordNumber :value="role.id" /></TableCell>
             <TableCell class="font-medium">{{ roleLabel(role) }}</TableCell>
             <TableCell class="max-w-xs whitespace-normal">{{ role.description }}</TableCell>
             <TableCell>{{ role.type === 'built_in' ? t('access.roles.builtIn') : t('access.roles.custom') }}</TableCell>

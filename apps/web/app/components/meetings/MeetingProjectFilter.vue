@@ -5,6 +5,7 @@ const props = defineProps<{
   modelValue?: number
   disabled?: boolean
   id?: string
+  hideLabel?: boolean
 }>()
 const emit = defineEmits<{
   'update:modelValue': [value: number | undefined]
@@ -37,7 +38,7 @@ function selectProject(value: unknown) {
 
 <template>
   <div v-if="canReadProjects" class="grid min-w-44 gap-1">
-    <Label v-if="id" :for="id" class="sr-only">{{ t('meetingsFilters.project') }}</Label>
+    <Label v-if="id && !hideLabel" :for="id" class="sr-only">{{ t('meetingsFilters.project') }}</Label>
     <Input v-model="projectSearch" :disabled="!hydrated || disabled" :placeholder="t('meetingsFilters.projectSearch')" :aria-label="t('meetingsFilters.projectSearch')" class="h-9" />
     <Select :model-value="modelValue ? String(modelValue) : 'all'" :disabled="!hydrated || disabled || projectQuery.isLoading.value" @update:model-value="selectProject">
       <SelectTrigger :id="id" class="h-9 w-full" :aria-label="t('meetingsFilters.project')"><SelectValue :placeholder="t('meetingsFilters.allProjects')" /></SelectTrigger>

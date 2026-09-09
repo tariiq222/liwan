@@ -21,6 +21,7 @@ function page(flags: { can_edit_decision: boolean; can_update_execution: boolean
   const meeting = ref({
     id: 7,
     name: 'Weekly review',
+    can_edit: true,
     organizer: { id: 3, name: 'Tariq' },
     secretary: { id: 4, name: 'Sara' },
     attendees: [{ id: 11, name: 'Amina' }],
@@ -75,6 +76,8 @@ describe('meeting resolution edit workflow', () => {
         name: 'Confirm the new venue',
         responsible_id: 4,
         deadline: '2026-09-12',
+        execution_period: '',
+        project_id: null,
         priority: '3',
         result: '<p>Venue confirmed.</p>',
       },

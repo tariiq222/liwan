@@ -10,7 +10,7 @@ const listSource = readFileSync(
 
 describe('register list design alignment', () => {
   it('uses the /projects toolbar, FilterBar, NativeSelect, and Table primitives', () => {
-    expect(listSource).toContain('class="nasq-toolbar"')
+    expect(listSource).toContain(':active-count="activeFilterCount"')
     expect(listSource).toContain("import FilterBar from '@/components/shared/FilterBar.vue'")
     expect(listSource).toContain('<NativeSelect')
     expect(listSource.match(/class="h-\[40px\] w-40"/g)?.length).toBe(3)

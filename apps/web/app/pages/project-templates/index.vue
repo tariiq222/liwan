@@ -24,6 +24,10 @@ function goPage(next: number) { router.push({ query: { ...route.query, offset: n
 const items = computed(() => list.data.value?.items ?? [])
 const canManage = computed(() => list.data.value?.can_manage ?? false)
 const canApply = computed(() => list.data.value?.can_apply ?? false)
+const activeFilterCount = computed(() => Number(Boolean(search.value.trim())))
+function clearFilters() {
+  search.value = ''
+}
 </script>
 
 <template>
@@ -31,12 +35,17 @@ const canApply = computed(() => list.data.value?.can_apply ?? false)
     <SharedPageHeader :title="t('projects.templates.title')" :description="t('projects.templates.description')">
       <template #actions><Button v-if="canManage" :disabled="!hydrated" @click="router.push(detailPath())"><Plus class="me-2 size-[18px]" />{{ t('projects.templates.actions.new') }}</Button></template>
     </SharedPageHeader>
-    <div class="nasq-toolbar">
-      <FilterBar class="w-full">
+    <div class="w-full min-w-0">
+      <FilterBar class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
         <template #search>
           <div class="relative min-w-52 flex-1">
             <Search class="pointer-events-none absolute start-2 top-1/2 size-[18px] -translate-y-1/2 text-muted-foreground" />
             <Input v-model="search" name="template-search" :aria-label="t('projects.templates.filters.search')" class="ps-8" :disabled="!hydrated" :placeholder="t('projects.templates.filters.search')" />
+          </div>
+        </template>
+        <template #active>
+          <div v-if="search.trim()" class="flex flex-wrap items-center gap-2">
+            <Badge variant="secondary">{{ t('projects.templates.filters.search') }}: {{ search }}</Badge>
           </div>
         </template>
       </FilterBar>

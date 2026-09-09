@@ -4,6 +4,7 @@ import FilterBar from '@/components/shared/FilterBar.vue'
 import { useProjectStakeholders, useDeleteProjectStakeholder } from '@/composables/useProjectGovernance'
 import { governanceFilters } from '@/components/project/governance/state'
 import { ApiError } from '@/composables/useApi'
+import RecordNumber from '@/components/shared/RecordNumber.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -31,6 +32,10 @@ const q = computed({
   get: () => typeof route.query.q === 'string' ? route.query.q : '',
   set: value => setFilter('q', value),
 })
+const activeFilterCount = computed(() => Number(Boolean(q.value.trim())))
+function clearFilters() {
+  router.replace({ query: { ...route.query, q: undefined, offset: undefined } })
+}
 function page(delta: number) {
   router.push({ query: { ...route.query, offset: String(Math.max(0, (parsed.value.offset ?? 0) + delta * 50)) } })
 }
@@ -69,8 +74,8 @@ async function deleteItem(item: { id: number }) {
       <NuxtLink :to="{ path: `/projects/${id}/stakeholders`, query: viewQuery }" aria-current="page">{{ t('projects.governance.viewList') }}</NuxtLink>
       <NuxtLink :to="{ path: `/projects/${id}/raci`, query: viewQuery }">{{ t('projects.governance.viewMatrix') }}</NuxtLink>
     </nav>
-    <div class="nasq-toolbar" data-testid="stakeholders-toolbar">
-      <FilterBar class="w-full">
+    <div class="w-full min-w-0" data-testid="stakeholders-toolbar">
+      <FilterBar class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
         <template #search>
           <div class="relative min-w-52">
             <Search class="pointer-events-none absolute start-2 top-1/2 size-[18px] -translate-y-1/2 text-muted-foreground" />
@@ -81,6 +86,11 @@ async function deleteItem(item: { id: number }) {
               :placeholder="t('app.search')"
               class="h-[40px] ps-8"
             />
+          </div>
+        </template>
+        <template #active>
+          <div v-if="q.trim()" class="flex flex-wrap items-center gap-2">
+            <Badge variant="secondary">{{ t('app.search') }}: {{ q }}</Badge>
           </div>
         </template>
       </FilterBar>
@@ -99,6 +109,7 @@ async function deleteItem(item: { id: number }) {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead class="w-28 text-start">{{ t('app.recordNumber') }}</TableHead>
               <TableHead class="text-start">{{ t('projects.governance.stakeholder.name') }}</TableHead>
               <TableHead class="text-start">{{ t('projects.governance.stakeholder.organization') }}</TableHead>
               <TableHead class="text-start">{{ t('projects.governance.stakeholder.role') }}</TableHead>
@@ -107,6 +118,7 @@ async function deleteItem(item: { id: number }) {
           </TableHeader>
           <TableBody>
             <TableRow v-for="item in list.data.value.items" :key="item.id">
+              <TableCell><RecordNumber :value="item.id" /></TableCell>
               <TableCell>
                 <NuxtLink
                   class="font-medium hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -117,24 +129,26 @@ async function deleteItem(item: { id: number }) {
               </TableCell>
               <TableCell>{{ item.organization || '—' }}</TableCell>
               <TableCell>{{ item.role || '—' }}</TableCell>
-              <TableCell v-if="list.data.value.can_manage" class="text-end">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  :disabled="!hydrated || remove.isPending.value"
-                  @click="deleteItem(item)"
-                >
-                  {{ confirmDeleteId === item.id ? t('projects.governance.confirmDeleteAction') : t('projects.governance.delete') }}
-                </Button>
-                <Button
-                  v-if="confirmDeleteId === item.id"
-                  variant="outline"
-                  size="sm"
-                  :disabled="!hydrated || remove.isPending.value"
-                  @click="confirmDeleteId = null"
-                >
-                  {{ t('app.cancel') }}
-                </Button>
+              <TableCell class="text-end">
+                <template v-if="list.data.value.can_manage">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    :disabled="!hydrated || remove.isPending.value"
+                    @click="deleteItem(item)"
+                  >
+                    {{ confirmDeleteId === item.id ? t('projects.governance.confirmDeleteAction') : t('projects.governance.delete') }}
+                  </Button>
+                  <Button
+                    v-if="confirmDeleteId === item.id"
+                    variant="outline"
+                    size="sm"
+                    :disabled="!hydrated || remove.isPending.value"
+                    @click="confirmDeleteId = null"
+                  >
+                    {{ t('app.cancel') }}
+                  </Button>
+                </template>
               </TableCell>
             </TableRow>
           </TableBody>

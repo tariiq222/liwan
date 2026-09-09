@@ -2,7 +2,7 @@
 import { Plus } from '@lucide/vue'
 import { refDebounced } from '@vueuse/core'
 import MeetingProjectFilter from '@/components/meetings/MeetingProjectFilter.vue'
-import FilterBar from '@/components/shared/FilterBar.vue'
+import FilterCard from '@/components/shared/FilterCard.vue'
 import { useMeetingSeriesList } from '@/composables/useMeetings'
 import { returnToQuery } from '@/utils/safeReturnTo'
 import { clearMeetingListFilters, parseMeetingListFilters, patchMeetingListQuery } from '@/utils/meetingListFilters'
@@ -34,7 +34,8 @@ const totalLabel = computed(() => query.isLoading.value
     ? t('meetingsUx.countUnavailable')
     : t('meetingsUi.totalSeries', { count: query.data.value?.total ?? 0 }))
 
-const hasActiveFilters = computed(() => Boolean(search.value.trim() || projectId.value))
+const activeFilterCount = computed(() => [search.value.trim(), projectId.value].filter(Boolean).length)
+const hasActiveFilters = computed(() => activeFilterCount.value > 0)
 
 function parseOffset(value: unknown) {
   const raw = Array.isArray(value) ? value[0] : value
@@ -81,20 +82,31 @@ function setPage(next: number) {
         </NuxtLink>
     </template>
     </SharedPageHeader>
-    <div class="nasq-toolbar">
-      <FilterBar class="w-full">
-        <template #search>
-          <Input v-model="search" :disabled="!hydrated" :placeholder="t('meetingsFilters.searchSeries')" :aria-label="t('meetingsFilters.searchSeries')" />
-        </template>
-        <MeetingProjectFilter :model-value="projectId" @update:model-value="setProject" @resolved-name="projectName = $event" />
-        <template #active>
-          <div v-if="hasActiveFilters" class="flex flex-wrap items-center gap-2">
+    <div class="w-full min-w-0">
+      <FilterCard
+        :title="t('filterCard.title')"
+        :active-count="activeFilterCount"
+        :clear-label="t('meetingsUi.clear')"
+        :disabled="!hydrated"
+        @clear="clearFilters"
+      >
+        <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          <div class="grid min-w-0 gap-1 md:col-span-2">
+            <Label for="meeting-series-search">{{ t('meetingsFilters.searchSeries') }}</Label>
+            <Input id="meeting-series-search" v-model="search" :disabled="!hydrated" :placeholder="t('meetingsFilters.searchSeries')" :aria-label="t('meetingsFilters.searchSeries')" />
+          </div>
+          <div v-if="can('pmo.projects.read')" class="grid min-w-0 gap-1">
+            <Label for="meeting-series-project">{{ t('meetingsFilters.project') }}</Label>
+            <MeetingProjectFilter id="meeting-series-project" hide-label :model-value="projectId" @update:model-value="setProject" @resolved-name="projectName = $event" />
+          </div>
+        </div>
+        <template v-if="hasActiveFilters" #active>
+          <div class="flex flex-wrap items-center gap-2">
             <Badge v-if="search.trim()" variant="secondary">{{ t('meetingsUi.searchValue', { value: search }) }}</Badge>
             <Badge v-if="projectId" variant="secondary" class="gap-1">{{ projectName || t('meetingsFilters.selectedProject') }}<button type="button" :aria-label="t('meetingsFilters.removeFilter')" @click="setProject(undefined)">×</button></Badge>
-            <Button variant="ghost" size="sm" class="gap-1" :disabled="!hydrated" @click="clearFilters">{{ t('meetingsUi.clear') }}</Button>
           </div>
         </template>
-      </FilterBar>
+      </FilterCard>
       <span class="text-sm text-muted-foreground" role="status">{{ totalLabel }}</span>
     </div>
     <SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!query.data.value?.items.length" :empty-text="t('meetingsUi.emptySeries')" @retry="query.refetch">
@@ -103,12 +115,17 @@ function setPage(next: number) {
           v-for="series in query.data.value?.items"
           :key="series.id"
           :to="{ path: `/meetings/series/${series.id}`, query: returnToQuery(route.fullPath) }"
-          class="flex min-w-0 flex-wrap items-center gap-3 border-b border-border/80 p-3 last:border-0 hover:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          class="flex min-w-0 flex-wrap items-start gap-x-4 gap-y-2 border-b border-border/80 p-4 last:border-0 hover:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <span class="min-w-0 flex-1 font-medium break-words">{{ series.name }}</span>
-          <span class="ms-auto text-end text-sm text-muted-foreground">
-            {{ t(`meetingsUi.recurrence.${series.recurrence}`) }}
-            · {{ t('meetingsUi.openCount', { count: series.open_resolution_count }) }}
+          <span class="ms-auto text-end text-sm text-muted-foreground">{{ t(`meetingsUi.recurrence.${series.recurrence}`) }}</span>
+          <span class="basis-full text-xs text-muted-foreground">
+            <span v-if="series.organizer">{{ t('meetingsUi.organizer') }}: {{ series.organizer.name }}</span>
+            <span v-if="series.organizer && series.project"> · </span>
+            <span v-if="series.project">{{ t('meetingsUi.project') }}: {{ series.project.name }}</span>
+            <span v-if="(series.organizer || series.project) && (series.open_resolution_count || series.overdue_resolution_count)"> · </span>
+            <span>{{ t('meetingsUi.openCount', { count: series.open_resolution_count }) }}</span>
+            <span> · {{ t('meetingsUi.overdueCount', { count: series.overdue_resolution_count }) }}</span>
           </span>
         </NuxtLink>
       </div>

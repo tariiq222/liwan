@@ -4,6 +4,7 @@ import { parse } from '@vue/compiler-sfc'
 import ts from 'typescript'
 import { computed, nextTick, ref, watch } from 'vue'
 import { describe, expect, it, vi } from 'vitest'
+import { createMeetingMinutesForm, validateMeetingMinutesForm } from '../../components/meetings/meetingMinutesForm'
 
 const page = (relativePath: string) => resolve('app/pages/meetings', relativePath)
 const source = (relativePath: string) => readFileSync(page(relativePath), 'utf8')
@@ -40,6 +41,8 @@ function evaluatedDetailPage() {
     useHydrated: () => ref(true),
     useAccess: () => ({ can: () => true }),
     useMeeting: () => ({ data: meeting, isLoading: ref(false), error: ref(null), refetch: vi.fn() }),
+    useMeetingEvents: () => ({ data: ref({ items: [], total: 0 }), isLoading: ref(false), error: ref(null), refetch: vi.fn() }),
+    useMeetingVersions: () => ({ data: ref({ items: [], total: 0 }), isLoading: ref(false), error: ref(null), refetch: vi.fn() }),
     useMeetingAttachments: () => ({ data: ref({ items: [] }), isLoading: ref(false), isFetching: ref(false), error: ref(null), refetch: vi.fn() }),
     useResolutionAction: () => ({ mutateAsync: runResolution }),
     useMeetingAction: () => ({ mutateAsync: vi.fn(), isPending: ref(false) }),
@@ -97,7 +100,7 @@ function deferredMutation(result: unknown = {}, shouldReject = false) {
   return { isPending, mutateAsync, release }
 }
 
-function evaluatedMinutesPage(mutation = deferredMutation(), state = 'confirmed', canEdit = true, canManage = false) {
+function evaluatedMinutesPage(mutation = deferredMutation(), state = 'confirmed', canEdit = true, canManage = false): Record<string, any> {
   const route = { params: { id: '7' }, query: { returnTo: '/meetings?q=review' }, fullPath: '/meetings/7/minutes?returnTo=%2Fmeetings%3Fq%3Dreview' }
   const meeting = ref({ id: 7, name: 'Operations review', state, can_edit: canEdit, can_manage: canManage, agenda: '<p>Agenda</p>', minutes: '<p>Minutes</p>' })
   const navigateTo = vi.fn(async () => {})
@@ -111,14 +114,16 @@ function evaluatedMinutesPage(mutation = deferredMutation(), state = 'confirmed'
     useHydrated: () => ref(true),
     useMeeting: () => ({ data: meeting, isLoading: ref(false), error: ref(null), refetch: vi.fn() }),
     usePatchMeeting: () => mutation,
+    createMeetingMinutesForm,
+    validateMeetingMinutesForm,
     safeReturnTo: (value: unknown, fallback: string) => typeof value === 'string' ? value : fallback,
     navigateTo,
   }
-  const pageState = editorScript('[id]/minutes.vue', scope, '{ save, agenda, minutes, dirty, lifecycleLocked, canEdit }')
-  return { ...pageState, meeting, navigateTo, ...mutation }
+  const pageState = editorScript('[id]/minutes.vue', scope, '{ save, agenda, minutes, minutesForm, dirty, lifecycleLocked, canEdit }')
+  return { ...pageState, meeting, route, navigateTo, ...mutation }
 }
 
-function evaluatedSeriesSettingsPage(mutation = deferredMutation()) {
+function evaluatedSeriesSettingsPage(mutation = deferredMutation()): Record<string, any> {
   const route = { params: { id: '12' }, query: { returnTo: '/meetings/series?q=weekly' }, fullPath: '/meetings/series/12/edit' }
   const series = ref({ id: 12, name: 'Weekly operations', can_edit: true, location: 'Room 1', meeting_url: 'https://meet.example.test/old', secretary: null, attendees: [], organizer: { id: 3, name: 'Tariq' }, recurrence: 'weekly', until_count: 4, until_date: null })
   const navigateTo = vi.fn(async () => {})
@@ -141,7 +146,7 @@ function evaluatedSeriesSettingsPage(mutation = deferredMutation()) {
   return { ...pageState, series, navigateTo, ...mutation }
 }
 
-function evaluatedGeneralEditPage(canEdit = true) {
+function evaluatedGeneralEditPage(canEdit = true): Record<string, any> {
   const route = { params: { id: '7' }, query: { returnTo: '/meetings?q=review' }, fullPath: '/meetings/7/edit' }
   const meeting = ref({
     id: 7,
@@ -189,7 +194,10 @@ describe('meeting editor routes and guards', () => {
     const route = page('[id]/minutes.vue')
     expect(existsSync(route)).toBe(true)
     const content = source('[id]/minutes.vue')
-    expect(content).toContain("body: { agenda: agenda.value, minutes: minutes.value, scope: 'this' }")
+    expect(content).toContain('agenda: agenda.value')
+    expect(content).toContain('minutes: minutes.value')
+    expect(content).toContain('minutes_form: minutesForm.value')
+    expect(content).toContain("scope: 'this'")
     expect(content).toContain('SharedUnsavedChanges')
     expect(content).toContain('returnTo')
     expect(content).toContain('aria-label')
@@ -255,8 +263,41 @@ describe('meeting editor routes and guards', () => {
     await nextTick()
     editor.release()
     await save
-    expect(editor.mutateAsync).toHaveBeenCalledWith({ id: 7, body: { agenda: '<p>Agenda</p>', minutes: '<p>Final minutes</p>', scope: 'this' } })
+    expect(editor.mutateAsync).toHaveBeenCalledWith({ id: 7, body: { agenda: '<p>Agenda</p>', minutes: '<p>Final minutes</p>', minutes_form: expect.any(Object), scope: 'this' } })
     expect(editor.navigateTo).toHaveBeenCalledWith('/meetings?q=review')
+  })
+
+  it('saves the complete minutes draft before opening a new recommendation', async () => {
+    const mutation = deferredMutation({})
+    const editor = evaluatedMinutesPage(mutation)
+    editor.agenda.value = '<p>Updated agenda</p>'
+    editor.minutes.value = '<p>Updated minutes</p>'
+    editor.minutesForm.value = createMeetingMinutesForm({
+      opening: 'Opening',
+      closing: 'Closing',
+      chairperson: 'Chair',
+      approver_name: 'Approver',
+      approver_title: 'Director',
+      topics: [{ key: 'topic-1', title: 'Topic', discussion: 'Discussion', project_id: 3, resolution_ids: [9] }],
+    })
+    const save = editor.save(true)
+    await nextTick()
+    editor.release()
+    await save
+
+    expect(editor.mutateAsync).toHaveBeenCalledWith({
+      id: 7,
+      body: {
+        agenda: '<p>Updated agenda</p>',
+        minutes: '<p>Updated minutes</p>',
+        minutes_form: editor.minutesForm.value,
+        scope: 'this',
+      },
+    })
+    expect(editor.navigateTo).toHaveBeenCalledWith({
+      path: '/meetings/7/resolutions/new',
+      query: { returnTo: editor.route.fullPath },
+    })
   })
 
   it('explains the reopen requirement to an authorized manager while denying a non-editor', () => {
