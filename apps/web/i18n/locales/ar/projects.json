@@ -91,7 +91,8 @@
       "chooseEndDate": "اختر تاريخ الانتهاء",
       "loading": "جارٍ تحميل متطلبات الإنشاء…",
       "defaultsError": "تعذر تحميل متطلبات الإنشاء",
-      "retry": "إعادة المحاولة"
+      "retry": "إعادة المحاولة",
+      "fromTemplate": "ابدأ من قالب مشروع"
     },
     "filters": {
       "active": "النشطة",
@@ -178,7 +179,8 @@
       "board": "لوحة",
       "gantt": "جدول زمني",
       "milestones": "المعالم",
-      "updates": "التحديثات"
+      "updates": "التحديثات",
+      "timeline": "الخط الزمني"
     },
     "milestones": {
       "actions": "إجراءات المعلم",
@@ -819,6 +821,12 @@
         "formReferenceTitle": "المرجع والملاحظات",
         "formReferenceDescription": "أضف مرجعًا أو ملاحظات تساعد على مراجعة القيد."
       }
-    }
+    },
+    "workspace": {
+      "tabsLabel": "أقسام المشروع",
+      "close": "إغلاق",
+      "openFullPage": "فتح بصفحة كاملة"
+    },
+    "listTabsLabel": "قائمة المشاريع"
   }
 }

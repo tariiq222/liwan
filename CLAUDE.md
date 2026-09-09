@@ -1,5 +1,9 @@
 # CLAUDE.md — nasq
 
+## Project workflows — user-approved tabs and popups, 2026-09-09
+
+The user explicitly superseded the previous prohibition on business dialogs and authorized implementing the new interaction model in Projects first. Project workspaces use direct tabs; project record/create/edit/settings workflows may use one route-backed Side Sheet attached to the main module rail (not the contextual sidebar), below the header and filling available height. Use a content-appropriate width, no dimming backdrop, enter from the right and exit to the left, and respect reduced-motion preferences. Keep direct links, refresh/browser-back, permissions, draft protection, filters and scroll context. Nested records replace dialog content rather than stacking business dialogs. Standalone pages remain an explicit option. All other modules keep their current behavior pending a separate rollout. This section overrides older no-modal/no-popup clauses for this scope. See `docs/superpowers/specs/2026-09-09-project-tabs-popups-design.md`.
+
 ## Current UI authority — 2026-09-07
 
 For all Nasq customer-UI work, read [DESIGN.md](DESIGN.md) first, then the component catalog and frontend/theme role linked there. The approved module rail and contextual sidebar supersede older visual/navigation instructions. This is project-local policy; existing business, security and delivery rules still apply. The reference is approved; runtime migration remains a separate implementation phase.

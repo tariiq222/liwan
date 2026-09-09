@@ -8,6 +8,7 @@ import { validateTaskDates } from '@/utils/projectDateBounds'
 import { buildTaskCreatePayload, plainTextToTaskHtml, validateTaskCreatePolicy, type TaskDeliverable } from '@/utils/taskCreatePolicy'
 
 const props = defineProps<{
+  mode?: 'default' | 'project'
   projectId?: number
   milestoneId?: number | null
   projectStart?: string | null
@@ -54,6 +55,7 @@ const policyError = computed(() => validateTaskCreatePolicy({
   plannedStart: plannedStart.value || null,
   dateDeadline: dateDeadline.value ? `${dateDeadline.value}T23:59:00Z` : null,
 }))
+const projectQuick = computed(() => props.mode === 'project')
 
 function state() {
   return JSON.stringify([name.value, description.value, deliverables.value, selectedProjectId.value, selectedMilestoneId.value, plannedStart.value, dateDeadline.value])
@@ -181,26 +183,35 @@ async function submit() {
         </SelectContent>
       </Select>
     </div>
-    <div class="grid gap-2 sm:col-span-2">
-      <Label for="new-task-description">{{ t('tasks.drawer.description') }}</Label>
-      <textarea id="new-task-description" v-model="description" class="min-h-28 w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring" :placeholder="t('tasks.descriptionField.placeholder')" :disabled="!hydrated || isPending" />
-    </div>
-    <div class="grid gap-2 sm:col-span-2">
-      <div class="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <Label>{{ t('tasks.deliverables.title') }}</Label>
-          <p class="text-xs text-muted-foreground">{{ t('tasks.deliverables.hint') }}</p>
+    <component
+      :is="projectQuick ? 'details' : 'div'"
+      :data-testid="projectQuick ? 'task-create-optional' : undefined"
+      :class="projectQuick ? 'sm:col-span-2 rounded-lg border p-4' : 'contents'"
+    >
+      <summary v-if="projectQuick" class="cursor-pointer font-semibold">{{ t('tasks.quick.optional') }}</summary>
+      <div :class="projectQuick ? 'mt-4 grid gap-6' : 'contents'">
+        <div class="grid gap-2 sm:col-span-2">
+          <Label for="new-task-description">{{ t('tasks.drawer.description') }}</Label>
+          <textarea id="new-task-description" v-model="description" class="min-h-28 w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring" :placeholder="t('tasks.descriptionField.placeholder')" :disabled="!hydrated || isPending" />
         </div>
-        <Button type="button" variant="outline" size="sm" :disabled="!hydrated || isPending" @click="addDeliverable">{{ t('tasks.deliverables.add') }}</Button>
-      </div>
-      <div v-if="deliverables.length" class="space-y-2">
-        <div v-for="(item, index) in deliverables" :key="index" class="flex items-center gap-2">
-          <Input v-model="item.name" :aria-label="t('tasks.deliverables.name')" :disabled="!hydrated || isPending" />
-          <Button type="button" variant="ghost" size="sm" :disabled="!hydrated || isPending" :aria-label="t('tasks.deliverables.remove')" @click="removeDeliverable(index)">×</Button>
+        <div class="grid gap-2 sm:col-span-2">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <Label>{{ t('tasks.deliverables.title') }}</Label>
+              <p class="text-xs text-muted-foreground">{{ t('tasks.deliverables.hint') }}</p>
+            </div>
+            <Button type="button" variant="outline" size="sm" :disabled="!hydrated || isPending" @click="addDeliverable">{{ t('tasks.deliverables.add') }}</Button>
+          </div>
+          <div v-if="deliverables.length" class="space-y-2">
+            <div v-for="(item, index) in deliverables" :key="index" class="flex items-center gap-2">
+              <Input v-model="item.name" :aria-label="t('tasks.deliverables.name')" :disabled="!hydrated || isPending" />
+              <Button type="button" variant="ghost" size="sm" :disabled="!hydrated || isPending" :aria-label="t('tasks.deliverables.remove')" @click="removeDeliverable(index)">×</Button>
+            </div>
+          </div>
+          <p v-else class="text-sm text-muted-foreground">{{ t('tasks.deliverables.empty') }}</p>
         </div>
       </div>
-      <p v-else class="text-sm text-muted-foreground">{{ t('tasks.deliverables.empty') }}</p>
-    </div>
+    </component>
     <p v-if="error" role="alert" class="sm:col-span-2 text-sm text-destructive">{{ error }}</p>
     <div class="nasq-form-footer justify-end sm:col-span-2">
       <Button type="button" variant="outline" :disabled="isPending" @click="emit('cancel')">{{ t('app.cancel') }}</Button>

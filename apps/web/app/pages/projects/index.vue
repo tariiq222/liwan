@@ -181,6 +181,13 @@ async function openCreate() {
 function openProject(id: number) {
   router.push({ path: `/projects/${id}`, query: returnToQuery(route.fullPath) })
 }
+
+function projectListTabTo(mine: boolean) {
+  return {
+    path: '/projects',
+    query: { ...route.query, mine: mine ? '1' : undefined, offset: undefined },
+  }
+}
 </script>
 
 <template>
@@ -202,6 +209,22 @@ function openProject(id: number) {
         </Button>
       </template>
     </SharedPageHeader>
+    <nav class="nasq-tabs" :aria-label="t('projects.listTabsLabel')" data-testid="projects-list-tabs">
+      <NuxtLink
+        :to="projectListTabTo(false)"
+        :aria-current="!filters.mine ? 'page' : undefined"
+        data-testid="projects-all-tab"
+      >
+        {{ t('nav.allProjects') }}
+      </NuxtLink>
+      <NuxtLink
+        :to="projectListTabTo(true)"
+        :aria-current="filters.mine ? 'page' : undefined"
+        data-testid="projects-my-tab"
+      >
+        {{ t('nav.myProjects') }}
+      </NuxtLink>
+    </nav>
     <div v-if="activeList.error.value && !projectList.error.value" role="alert" class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
       <span>{{ t('projects.loadError') }}</span>
       <Button variant="outline" size="sm" @click="activeList.refetch()">{{ t('app.retry') }}</Button>

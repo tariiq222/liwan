@@ -198,6 +198,17 @@ describe('compact charter editor', () => {
     expect(editHtml).not.toContain('data-testid="charter-field-deliverables"')
     expect(editHtml).toContain('data-testid="charter-field-rationale"')
   })
+
+  it('keeps optional project-create charter sections collapsed while allowing full edit to retain every field', () => {
+    const fields = readFileSync(fieldsFilename, 'utf8')
+    const form = readFileSync(resolve(here, '../ProjectCharterForm.vue'), 'utf8')
+    expect(form).toContain(':compact="mode === \'create\'"')
+    expect(form).toContain(':project-create="mode === \'create\'"')
+    expect(fields).toContain(':open="!projectCreate || sectionOpen([')
+    expect(fields).toContain('data-testid="charter-field-rationale"')
+    expect(fields).toContain('data-testid="charter-field-scope"')
+    expect(fields).toContain('data-testid="charter-field-budget_state"')
+  })
 })
 
 describe('project charter document', () => {

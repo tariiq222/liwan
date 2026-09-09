@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { buildTaskCreatePayload, plainTextToTaskHtml, validateTaskCreatePolicy } from '../taskCreatePolicy'
+
+const taskFormSource = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '../../components/task/TaskCreateForm.vue'), 'utf8')
+const projectTaskPageSource = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '../../pages/projects/[id]/tasks/new.vue'), 'utf8')
 
 describe('guided task creation policy', () => {
   const base = {
@@ -52,5 +58,18 @@ describe('guided task creation policy', () => {
       name: 'Content task', project_id: 7, description: 'Safe body',
       deliverables: [{ name: 'Runbook', done: false }],
     })
+  })
+
+  it('keeps project quick creation explicit and leaves unsupported assignment fields out of the create contract', () => {
+    expect(taskFormSource).toContain("mode?: 'default' | 'project'")
+    expect(taskFormSource).toContain("const projectQuick = computed(() => props.mode === 'project')")
+    expect(buildTaskCreatePayload({ name: 'Quick task', projectId: 7 })).not.toHaveProperty('user_ids')
+    expect(buildTaskCreatePayload({ name: 'Quick task', projectId: 7 })).not.toHaveProperty('priority')
+  })
+
+  it('returns a project quick-created task to the preserved project task list', () => {
+    expect(projectTaskPageSource).toContain('mode="project"')
+    expect(projectTaskPageSource).toContain('router.push(returnTo)')
+    expect(projectTaskPageSource).not.toContain("'/projects/' + projectId.value + '/tasks/' + id")
   })
 })

@@ -196,6 +196,9 @@
       "empty": "No outputs added.",
       "checklistOf": "{done} of {total}",
       "toggle": "Complete output: {name}"
+    },
+    "quick": {
+      "optional": "Optional details"
     }
   }
 }

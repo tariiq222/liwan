@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { activeShellModule, contextGroupsForModule, contextLinksForModule, projectContextId, projectContextLinks, visibleShellModules, useNav } from '../useNav'
+import { activeShellModule, contextGroupsForModule, contextLinksForModule, projectContextId, projectContextLinks, projectWorkspaceLinks, visibleShellModules, useNav } from '../useNav'
 import { projectSectionRoot, shellSectionRoot } from '../useShellNavigation'
 
 const employee = { role: 'employee', capabilities: ['pmo.tasks.read', 'pmo.projects.read', 'meetings.read', 'hr.employees.read', 'hr.departments.read', 'hr.documents.read'] }
@@ -82,7 +82,8 @@ describe('shell route classification', () => {
   })
 
   it('maps every project area to one contextual section', () => {
-    expect(projectContextId('/projects/12', {})).toBe('summary')
+    expect(projectContextId('/projects/12', {})).toBe('planning')
+    expect(projectContextId('/projects/12', { tab: 'summary', view: 'board' })).toBe('summary')
     expect(projectContextId('/projects/12', { tab: 'tasks' })).toBe('planning')
     expect(projectContextId('/projects/12/schedule', {})).toBe('planning')
     expect(projectContextId('/projects/12/raci', {})).toBe('stakeholders')
@@ -93,9 +94,10 @@ describe('shell route classification', () => {
   })
 
   it('classifies only normalized project section roots', () => {
-    expect(projectSectionRoot('/projects/12')).toBe('summary')
-    expect(projectSectionRoot('/projects/12/', {})).toBe('summary')
+    expect(projectSectionRoot('/projects/12')).toBe('planning')
+    expect(projectSectionRoot('/projects/12/', {})).toBe('planning')
     expect(projectSectionRoot('/projects/12', { tab: 'tasks' })).toBe('planning')
+    expect(projectSectionRoot('/projects/12', { tab: 'summary', view: 'board' })).toBe('summary')
     expect(projectSectionRoot('/projects/12', { view: 'board' })).toBe('planning')
     expect(projectSectionRoot('/projects/12/schedule')).toBe('planning')
     expect(projectSectionRoot('/projects/12/stakeholders/')).toBe('stakeholders')
@@ -213,5 +215,40 @@ describe('project section return destinations', () => {
     }
     const summary = projectContextLinks(12, employee, true, true, query).find(item => item.id === 'summary')!.to as { query: Record<string, string> }
     expect(summary.query.returnTo).toBe('/projects')
+  })
+})
+
+describe('project workspace tabs', () => {
+  it('exposes direct tabs in workspace order and preserves task context', () => {
+    const links = projectWorkspaceLinks(12, full, true, true, {
+      returnTo: '/projects?mine=1&q=site', tab: 'board', q: 'late', view: 'board', closed: '1',
+    }, true)
+    expect(links.map(link => link.id)).toEqual(['tasks', 'summary', 'milestones', 'stakeholders', 'risks', 'finance', 'charter', 'settings'])
+    const tasks = links.find(link => link.id === 'tasks')!.to as { query: Record<string, string> }
+    expect(tasks.query).toMatchObject({ tab: 'tasks', q: 'late', view: 'board', closed: '1' })
+    const summary = links.find(link => link.id === 'summary')!.to as { query: Record<string, string> }
+    expect(summary.query).toMatchObject({ tab: 'summary', returnTo: '/projects?mine=1&q=site' })
+    const milestones = links.find(link => link.id === 'milestones')!.to as { query: Record<string, string> }
+    expect(milestones.query.tab).toBe('milestones')
+    expect(milestones.query.view).toBeUndefined()
+  })
+
+  it('preserves implicit root task filters when switching from summary to tasks', () => {
+    const links = projectWorkspaceLinks(12, full, true, true, {
+      returnTo: '/projects?mine=1', q: 'late', state: 'in_progress', closed: '1',
+    }, true)
+    const tasks = links.find(link => link.id === 'tasks')!.to as { query: Record<string, string> }
+    expect(tasks.query).toMatchObject({ tab: 'tasks', q: 'late', state: 'in_progress', closed: '1' })
+  })
+
+  it('does not treat section filters as implicit task context', () => {
+    const links = projectWorkspaceLinks(12, full, true, true, { q: 'budget' })
+    const tasks = links.find(link => link.id === 'tasks')!.to as { query: Record<string, string> }
+    expect(tasks.query.q).toBeUndefined()
+  })
+
+  it('keeps archived projects from exposing active-only workspace tabs', () => {
+    const links = projectWorkspaceLinks(12, full, false, true)
+    expect(links.map(link => link.id)).toEqual(['summary', 'finance', 'settings'])
   })
 })

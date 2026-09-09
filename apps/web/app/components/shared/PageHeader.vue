@@ -1,7 +1,9 @@
 <script setup lang="ts">
+import { inject } from 'vue'
 import { ArrowRight } from '@lucide/vue'
 import type { RouteLocationRaw } from 'vue-router'
 import { projectIdFromPath, projectSectionRoot, shellRootBackTargets, shellSectionRoot } from '@/composables/useShellNavigation'
+import { PROJECT_OVERLAY_INJECTION_KEY } from '@/utils/projectOverlayRoute'
 
 const props = defineProps<{
   title: string
@@ -14,6 +16,7 @@ const props = defineProps<{
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
+const inProjectOverlay = inject<boolean>(PROJECT_OVERLAY_INJECTION_KEY, false)
 const isProjectRoute = computed(() => projectIdFromPath(route.path) !== null)
 const isProjectSectionRoot = computed(() => projectSectionRoot(route.path, route.query) !== null)
 const isShellSectionRoot = computed(() => shellSectionRoot(route.path) !== null)
@@ -39,7 +42,7 @@ const hideEyebrow = computed(() => Boolean(props.eyebrow && (
   || props.eyebrow === props.title
   || redundantContextLabels.value.includes(props.eyebrow)
 )))
-const hideBack = computed(() => isProjectSectionRoot.value || hideRootBack.value)
+const hideBack = computed(() => inProjectOverlay || isProjectSectionRoot.value || hideRootBack.value)
 const headerDescription = computed(() => (isProjectSectionRoot.value || isShellSectionRoot.value) ? undefined : props.description)
 
 usePageHeader(() => props.title, () => headerDescription.value)

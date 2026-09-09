@@ -1,16 +1,21 @@
 <script setup lang="ts">
+import { inject } from 'vue'
 import { Plus, Search } from '@lucide/vue'
 import FilterBar from '@/components/shared/FilterBar.vue'
 import { useProjectStakeholders, useDeleteProjectStakeholder } from '@/composables/useProjectGovernance'
 import { governanceFilters } from '@/components/project/governance/state'
 import { ApiError } from '@/composables/useApi'
 import RecordNumber from '@/components/shared/RecordNumber.vue'
+import { useProject } from '@/composables/useProjects'
+import ProjectWorkspaceTabs from '@/components/project/workspace/ProjectWorkspaceTabs.vue'
 
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
 const hydrated = useHydrated()
+const isProjectOverlay = inject<boolean>(Symbol.for('nasq.project.overlay'), false)
 const id = computed(() => Number(route.params.id))
+const { data: project } = useProject(computed(() => Number.isInteger(id.value) && id.value > 0 ? id.value : null))
 const parsed = computed(() => governanceFilters(route.query))
 const filters = computed(() => ({ q: parsed.value.q, limit: 50, offset: parsed.value.offset }))
 const list = useProjectStakeholders(id, filters)
@@ -57,7 +62,8 @@ async function deleteItem(item: { id: number }) {
 <template>
   <SharedPageContainer width="list">
     <SharedPageHeader
-      :title="t('projects.governance.stakeholders')"
+      v-if="!isProjectOverlay"
+      :title="project?.name ?? t('projects.governance.stakeholders')"
     >
       <template #actions>
         <NuxtLink
@@ -70,6 +76,7 @@ async function deleteItem(item: { id: number }) {
         </NuxtLink>
       </template>
     </SharedPageHeader>
+    <ProjectWorkspaceTabs v-if="project && !isProjectOverlay" :project-id="project.id" :active="project.active" :can-manage="project.can_manage" />
     <nav class="nasq-view-switch" :aria-label="t('projects.governance.views')">
       <NuxtLink :to="{ path: `/projects/${id}/stakeholders`, query: viewQuery }" aria-current="page">{{ t('projects.governance.viewList') }}</NuxtLink>
       <NuxtLink :to="{ path: `/projects/${id}/raci`, query: viewQuery }">{{ t('projects.governance.viewMatrix') }}</NuxtLink>

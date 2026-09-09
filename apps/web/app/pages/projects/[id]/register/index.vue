@@ -1,16 +1,21 @@
 <script setup lang="ts">
+import { inject } from 'vue'
 import { Plus, Search } from '@lucide/vue'
 import { useProjectRegister, useDeleteProjectRegister } from '@/composables/useProjectGovernance'
 import { governanceFilters } from '@/components/project/governance/state'
 import { ApiError } from '@/composables/useApi'
 import FilterBar from '@/components/shared/FilterBar.vue'
 import RecordNumber from '@/components/shared/RecordNumber.vue'
+import { useProject } from '@/composables/useProjects'
+import ProjectWorkspaceTabs from '@/components/project/workspace/ProjectWorkspaceTabs.vue'
 
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
 const hydrated = useHydrated()
+const isProjectOverlay = inject<boolean>(Symbol.for('nasq.project.overlay'), false)
 const id = computed(() => Number(route.params.id))
+const { data: project } = useProject(computed(() => Number.isInteger(id.value) && id.value > 0 ? id.value : null))
 const parsed = computed(() => governanceFilters(route.query))
 const filters = computed(() => (parsed.value))
 const list = useProjectRegister(id, filters)
@@ -65,7 +70,8 @@ async function deleteItem(item: { id: number }) {
 <template>
   <SharedPageContainer width="list">
     <SharedPageHeader
-      :title="t('projects.refresh.workspace.registerTitle')"
+      v-if="!isProjectOverlay"
+      :title="project?.name ?? t('projects.refresh.workspace.registerTitle')"
     >
       <template #actions>
         <NuxtLink
@@ -78,6 +84,7 @@ async function deleteItem(item: { id: number }) {
         </NuxtLink>
       </template>
     </SharedPageHeader>
+    <ProjectWorkspaceTabs v-if="project && !isProjectOverlay" :project-id="project.id" :active="project.active" :can-manage="project.can_manage" />
     <div class="w-full min-w-0">
       <FilterBar class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
         <template #search>

@@ -1,10 +1,13 @@
 <script setup lang="ts">
+import { inject } from 'vue'
 import { Plus } from '@lucide/vue'
 import { refDebounced } from '@vueuse/core'
 import { ApiError } from '@/composables/useApi'
 import { useProjectFinanceList } from '@/composables/useProjectFinance'
+import { useProject } from '@/composables/useProjects'
 import FinanceEntryTable from '@/components/project/finance/FinanceEntryTable.vue'
 import FinanceSummaryCards from '@/components/project/finance/FinanceSummaryCards.vue'
+import ProjectWorkspaceTabs from '@/components/project/workspace/ProjectWorkspaceTabs.vue'
 import FilterBar from '@/components/shared/FilterBar.vue'
 import {
   FINANCE_PAGE,
@@ -23,8 +26,10 @@ const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
 const hydrated = useHydrated()
+const isProjectOverlay = inject<boolean>(Symbol.for('nasq.project.overlay'), false)
 const normalizedPath = computed(() => route.path.replace(/\/+$/, '') || '/')
 const projectId = computed(() => parsePositiveId(route.params.id))
+const { data: project } = useProject(projectId)
 const isListRoute = computed(() => {
   const id = projectId.value
   if (id == null) return !normalizedPath.value.includes('/finance/')
@@ -150,7 +155,8 @@ function financeChildKey(target: { path: string; params: Record<string, string |
 <template>
   <SharedPageContainer v-if="isListRoute" width="list" data-testid="project-finance-page">
     <SharedPageHeader
-      :title="t('projects.finance.title')"
+      v-if="!isProjectOverlay"
+      :title="project?.name ?? t('projects.finance.title')"
     >
       <template #actions>
         <template v-if="canManage && projectId">
@@ -167,6 +173,7 @@ function financeChildKey(target: { path: string; params: Record<string, string |
         </template>
       </template>
     </SharedPageHeader>
+    <ProjectWorkspaceTabs v-if="project && !isProjectOverlay" :project-id="project.id" :active="project.active" :can-manage="project.can_manage" />
     <template v-if="projectId === null">
       <p class="text-muted-foreground">{{ t('projects.invalidId') }}</p>
     </template>

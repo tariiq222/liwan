@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import type { LocationQueryRaw } from 'vue-router'
+import { inject } from 'vue'
 import MilestoneTable from '@/components/project/MilestoneTable.vue'
 import ProjectHeader from '@/components/project/ProjectHeader.vue'
 import ProjectOverview from '@/components/project/ProjectOverview.vue'
+import ProjectWorkspaceTabs from '@/components/project/workspace/ProjectWorkspaceTabs.vue'
 import TaskBoard from '@/components/task/TaskBoard.vue'
 import TaskTable from '@/components/task/TaskTable.vue'
 import TaskToolbar from '@/components/task/TaskToolbar.vue'
@@ -16,6 +18,7 @@ const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
 const { can } = useAccess()
+const isProjectOverlay = inject<boolean>(Symbol.for('nasq.project.overlay'), false)
 const normalizedPath = computed(() => route.path.replace(/\/+$/, '') || '/')
 const isBaseRoute = computed(() => normalizedPath.value === `/projects/${route.params.id}`)
 
@@ -28,14 +31,19 @@ const notFound = computed(() => projectId.value === null || (error.value instanc
 
 type PlanningView = 'list' | 'board' | 'milestones'
 function planningViewOf(tab: unknown, view: unknown): PlanningView | null {
+  if (tab === 'summary') return null
   if (tab === 'milestones') return 'milestones'
   if (tab === 'board' || view === 'board') return 'board'
   if (tab === 'tasks' || tab === 'list') return 'list'
+  if (tab == null && view == null) return 'list'
   return null
 }
-const planningView = computed(() => planningViewOf(route.query.tab, route.query.view))
+const planningView = computed(() => {
+  const hasExplicitTab = route.query.tab != null || route.query.view != null
+  if (!hasExplicitTab && (project.value?.active === false || !can('pmo.tasks.read'))) return null
+  return planningViewOf(route.query.tab, route.query.view)
+})
 const isSummary = computed(() => planningView.value === null)
-const headerTitle = computed(() => isSummary.value ? t('projects.summaryPage.title') : t('nav.projectPlanning'))
 const taskView = computed<'table' | 'board'>(() => planningView.value === 'board' ? 'board' : 'table')
 
 const params = computed<TaskListParams>(() => projectTaskParams(projectId.value!, route.query))
@@ -112,9 +120,8 @@ const workspaceCanCreate = computed(() => {
 
     <template v-else>
       <ProjectHeader
-        v-if="project"
+        v-if="project && !isProjectOverlay"
         :project="project"
-        :title="headerTitle"
         :can-create="workspaceCanCreate"
         :create-label="workspaceCreateLabel"
         @create="onWorkspaceCreate"
@@ -123,13 +130,19 @@ const workspaceCanCreate = computed(() => {
         @archived="onArchived"
         @unarchived="onUnarchived"
       />
-      <Skeleton v-else-if="isLoading" class="h-9 w-1/2" />
+      <Skeleton v-else-if="isLoading && !isProjectOverlay" class="h-9 w-1/2" />
 
-      <nav v-if="project && planningView" class="nasq-view-switch" :aria-label="t('projects.planning.views')">
+      <ProjectWorkspaceTabs
+        v-if="project && !isProjectOverlay"
+        :project-id="project.id"
+        :active="project.active"
+        :can-manage="project.can_manage"
+      />
+
+      <nav v-if="project && (planningView === 'list' || planningView === 'board')" class="nasq-view-switch" :aria-label="t('projects.planning.views')">
         <NuxtLink :to="planningLink('list')" :aria-current="planningView === 'list' ? 'page' : undefined">{{ t('projects.tabs.list') }}</NuxtLink>
         <NuxtLink :to="planningLink('board')" :aria-current="planningView === 'board' ? 'page' : undefined">{{ t('projects.tabs.board') }}</NuxtLink>
-        <NuxtLink v-if="project.active" :to="planningLink('gantt')">{{ t('projects.tabs.gantt') }}</NuxtLink>
-        <NuxtLink :to="planningLink('milestones')" :aria-current="planningView === 'milestones' ? 'page' : undefined">{{ t('projects.tabs.milestones') }}</NuxtLink>
+        <NuxtLink v-if="project.active" :to="planningLink('gantt')">{{ t('projects.tabs.timeline') }}</NuxtLink>
       </nav>
 
       <ProjectOverview v-if="project && isSummary" :project="project" />

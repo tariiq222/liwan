@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import type { LocationQueryRaw } from 'vue-router'
+import { inject } from 'vue'
 import ProjectHeader from '@/components/project/ProjectHeader.vue'
+import ProjectWorkspaceTabs from '@/components/project/workspace/ProjectWorkspaceTabs.vue'
 import { ApiError } from '@/composables/useApi'
 import { useProject } from '@/composables/useProjects'
 import { useProjectSchedule } from '@/composables/useProjectSchedule'
@@ -12,6 +14,7 @@ const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
 const { can } = useAccess()
+const isProjectOverlay = inject<boolean>(Symbol.for('nasq.project.overlay'), false)
 const projectId = computed(() => { const value = Number(route.params.id); return Number.isInteger(value) && value > 0 ? value : null })
 const isBaseRoute = computed(() => route.path.replace(/\/+$/, '') === `/projects/${route.params.id}/schedule`)
 const { data: project, error: projectError, refetch: refetchProject } = useProject(projectId)
@@ -50,9 +53,8 @@ function onArchived() {
 <template>
   <SharedPageContainer v-if="isBaseRoute" width="list">
     <ProjectHeader
-      v-if="project"
+      v-if="project && !isProjectOverlay"
       :project="project"
-      :title="t('nav.projectPlanning')"
       :can-create="can('pmo.tasks.create')"
       :create-label="t('tasks.new')"
       @create="openTaskCreate"
@@ -60,14 +62,14 @@ function onArchived() {
       @archived="onArchived"
     />
     <SharedPageHeader
-      v-else
-      :title="t('nav.projectPlanning')"
+      v-else-if="!isProjectOverlay"
+      :title="t('projects.schedule.title')"
     />
-    <nav class="nasq-view-switch" :aria-label="t('projects.planning.views')">
+    <ProjectWorkspaceTabs v-if="project && !isProjectOverlay" :project-id="project.id" :active="project.active" :can-manage="project.can_manage" />
+    <nav v-if="!isProjectOverlay" class="nasq-view-switch" :aria-label="t('projects.planning.views')">
       <NuxtLink :to="planningLink('list')">{{ t('projects.tabs.list') }}</NuxtLink>
       <NuxtLink :to="planningLink('board')">{{ t('projects.tabs.board') }}</NuxtLink>
-      <NuxtLink :to="planningLink('gantt')" aria-current="page">{{ t('projects.tabs.gantt') }}</NuxtLink>
-      <NuxtLink :to="planningLink('milestones')">{{ t('projects.tabs.milestones') }}</NuxtLink>
+      <NuxtLink :to="planningLink('gantt')" aria-current="page">{{ t('projects.tabs.timeline') }}</NuxtLink>
     </nav>
     <SharedPageState
       :loading="isLoading && !schedule"

@@ -12,6 +12,7 @@ import {
   createVNode,
   defineComponent,
   h,
+  inject,
   openBlock,
   renderSlot,
   resolveComponent,
@@ -56,11 +57,11 @@ function loadPageHeader() {
     _createElementVNode: createElementVNode,
   }
   const names = [
-    ...Object.keys(runtimeBindings), 'ArrowRight', 'computed', 'useRoute', 'useRouter',
+    ...Object.keys(runtimeBindings), 'inject', 'PROJECT_OVERLAY_INJECTION_KEY', 'ArrowRight', 'computed', 'useRoute', 'useRouter',
     'useI18n', 'projectIdFromPath', 'projectSectionRoot', 'shellSectionRoot', 'shellRootBackTargets', 'usePageHeader',
   ]
   const values = [
-    ...Object.values(runtimeBindings), ArrowRightStub, computed,
+    ...Object.values(runtimeBindings), inject, Symbol.for('nasq.project.overlay'), ArrowRightStub, computed,
     () => currentRoute,
     () => ({ resolve: (to: string | { path: string }) => {
       const fullPath = typeof to === 'string' ? to : to.path
@@ -79,13 +80,20 @@ function loadPageHeader() {
 }
 
 let currentRoute = { path: '/projects/1', fullPath: '/projects/1', query: {} as Record<string, unknown> }
-async function renderHeader(props: Record<string, unknown>, slots: Record<string, () => unknown> = {}) {
+async function renderHeader(props: Record<string, unknown>, slots: Record<string, () => unknown> = {}, inProjectSheet = false) {
   const app = createSSRApp({ render: () => h(loadPageHeader(), props, slots) })
+  app.provide(Symbol.for('nasq.project.overlay'), inProjectSheet)
   app.component('NuxtLink', NuxtLinkStub)
   return renderToString(app)
 }
 
 describe('rendered page header navigation policies', () => {
+  it('removes duplicate back navigation inside a project sheet while retaining it standalone', async () => {
+    currentRoute = { path: '/projects/1/tasks/new', fullPath: '/projects/1/tasks/new', query: {} }
+    const props = { title: 'مهمة جديدة', backTo: '/projects/1', backLabel: 'العودة إلى المشروع' }
+    expect(await renderHeader(props, {}, true)).not.toContain('العودة إلى المشروع')
+    expect(await renderHeader(props)).toContain('العودة إلى المشروع')
+  })
   it('removes project identity, back, and generic description from a project root', async () => {
     currentRoute = { path: '/projects/1', fullPath: '/projects/1', query: {} }
     const html = await renderHeader({ title: 'الملخص', eyebrow: 'مشروع ألفا', description: 'وصف عام', backTo: '/projects', backLabel: 'العودة' })

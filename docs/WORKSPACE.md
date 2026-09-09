@@ -1,3 +1,7 @@
+# Projects Side Sheet integration — 2026-09-09
+
+The user approved Projects tabs and route-backed Side Sheets, local integration and task-scoped cleanup. See [integration and recovery](project-sheets-integration-2026-09-09.md) for baselines, preserved main behavior, checks and the external final-state record. Older main-only workspace statements below are historical; consult `git worktree list` for current unrelated tasks.
+
 # Latest meetings tabs and filters integration — 2026-09-09
 
 Persistent tabs, the 2px active navigation underline, and richer meeting/series filters are integrated into local main. Four temporary worktrees and branches were retired after verified recovery backups; only canonical main remains. See [integration and recovery](meeting-tabs-filters-integration-2026-09-09.md). Canonical runtime was not restarted during this integration. Earlier entries below are historical checkpoints.

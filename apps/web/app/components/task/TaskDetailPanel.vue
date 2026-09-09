@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { inject } from 'vue'
 import { Archive, ArrowLeft, ArrowRight, Check, ChevronLeft, ChevronRight, Pencil, X } from '@lucide/vue'
 import type { RouteLocationRaw } from 'vue-router'
 import { toast } from 'vue-sonner'
@@ -6,6 +7,7 @@ import { ApiError } from '@/composables/useApi'
 import { useTaskFilters } from '@/composables/useTaskFilters'
 import type { TaskListParams } from '@/composables/useTasks'
 import { useArchiveTask, useTask, useTaskSiblings, useUpdateTask } from '@/composables/useTasks'
+import { PROJECT_OVERLAY_INJECTION_KEY } from '@/utils/projectOverlayRoute'
 import DeadlineBadge from './DeadlineBadge.vue'
 import StateMenu from './StateMenu.vue'
 import TaskActivity from './TaskActivity.vue'
@@ -28,6 +30,7 @@ const emit = defineEmits<{ close: [] }>()
 const route = useRoute()
 const router = useRouter()
 const { t, localeProperties } = useI18n()
+const inProjectOverlay = inject<boolean>(PROJECT_OVERLAY_INJECTION_KEY, false)
 // The chevrons point at list *order*, not at a fixed screen side: in RTL
 // "previous" is the right-hand arrow, in LTR the left-hand one. They were
 // hardcoded to the RTL pairing, so an `en` user saw them swapped.
@@ -164,7 +167,7 @@ useEventListener(document, 'keydown', onKeydown)
   <div class="space-y-4">
     <div class="task-context-row" data-testid="task-detail-context">
       <div class="flex min-w-0 flex-1 items-center gap-2">
-        <NuxtLink :to="backTo" class="inline-flex min-h-8 shrink-0 items-center gap-1 rounded-lg px-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" :aria-label="props.backLabel ?? t('tasks.detail.back')" :aria-disabled="!hydrated || editingTitle || titleSaving" :tabindex="!hydrated || editingTitle || titleSaving ? -1 : undefined" @click="(!hydrated || editingTitle || titleSaving) && $event.preventDefault()">
+        <NuxtLink v-if="!inProjectOverlay" :to="backTo" class="inline-flex min-h-8 shrink-0 items-center gap-1 rounded-lg px-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" :aria-label="props.backLabel ?? t('tasks.detail.back')" :aria-disabled="!hydrated || editingTitle || titleSaving" :tabindex="!hydrated || editingTitle || titleSaving ? -1 : undefined" @click="(!hydrated || editingTitle || titleSaving) && $event.preventDefault()">
           <component :is="isRtl ? ArrowRight : ArrowLeft" class="size-[18px]" />
           <span>{{ props.backLabel ?? t('tasks.detail.back') }}</span>
         </NuxtLink>
