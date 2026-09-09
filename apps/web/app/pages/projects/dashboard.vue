@@ -99,7 +99,7 @@ function clearFilters() {
     <SharedPageHeader :title="t('projects.dashboard.title')" :description="t('projects.dashboard.description')" />
 
     <div class="w-full min-w-0">
-      <FilterBar class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
+      <FilterBar inline class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
         <template #search>
           <div class="relative min-w-52 flex-1">
             <Search class="pointer-events-none absolute start-2 top-1/2 size-[18px] -translate-y-1/2 text-muted-foreground" />

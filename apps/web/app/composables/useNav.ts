@@ -126,6 +126,7 @@ export function contextLinksForModule(module: ShellModule, identity: AccessIdent
       { id: 'project-dashboard', labelKey: 'nav.projectDashboard', icon: ChartNoAxesCombined, to: '/projects/dashboard', capability: 'pmo.projects.read' },
       { id: 'projects', labelKey: 'nav.allProjects', icon: FolderKanban, to: '/projects', capability: 'pmo.projects.read' },
       { id: 'my-projects', labelKey: 'nav.myProjects', icon: UserRound, to: { path: '/projects', query: { mine: '1' } }, capability: 'pmo.projects.read' },
+      { id: 'project-system-settings', labelKey: 'settings.projects.title', icon: Settings, to: '/settings/projects', capability: 'pmo.settings.manage' },
     ],
     tasks: [
       { id: 'new-task', labelKey: 'tasks.new', icon: Plus, to: '/tasks/new', capability: 'pmo.tasks.create', pinned: true },
@@ -257,7 +258,6 @@ export function projectWorkspaceLinks(
   const risksQuery = queryOf(byId.get('risks'))
   const financeQuery = queryOf(byId.get('finance'))
   const charterQuery = queryOf(byId.get('charter'))
-  const settingsQuery = queryOf(byId.get('settings'))
   const links: Array<ShellContextLink & { id: ProjectWorkspaceTabId }> = [
     { id: 'tasks', labelKey: 'nav.projectTasks', icon: ClipboardList, to: { path: `/projects/${projectId}`, query: tasksQuery }, capability: 'pmo.tasks.read' },
     { id: 'summary', labelKey: 'nav.projectSummary', icon: LayoutDashboard, to: { path: `/projects/${projectId}`, query: summaryQuery }, capability: 'pmo.projects.read' },
@@ -266,8 +266,25 @@ export function projectWorkspaceLinks(
     { id: 'risks', labelKey: 'nav.projectRisks', icon: CircleAlert, to: { path: `/projects/${projectId}/register`, query: risksQuery }, capability: 'pmo.projects.read' },
     { id: 'finance', labelKey: 'nav.projectFinance', icon: WalletCards, to: { path: `/projects/${projectId}/finance`, query: financeQuery }, capability: 'pmo.projects.read' },
     { id: 'charter', labelKey: 'nav.projectCharter', icon: FileText, to: { path: `/projects/${projectId}/charter`, query: charterQuery }, capability: 'pmo.projects.read' },
-    { id: 'settings', labelKey: 'nav.projectSettings', icon: Settings, to: { path: `/projects/${projectId}/settings`, query: settingsQuery }, capability: 'pmo.projects.manage' },
   ]
   return links.filter(link => activeProject || !['tasks', 'milestones', 'stakeholders', 'risks', 'charter'].includes(link.id))
-    .filter(link => link.id === 'settings' ? canManage : hasCapability(identity, link.capability))
+    .filter(link => hasCapability(identity, link.capability))
+}
+
+/** A project owns its section menu; module navigation lives on project lists. */
+export function projectSidebarLinks(
+  projectId: number,
+  identity: AccessIdentity,
+  activeProject: boolean,
+  canManage: boolean,
+  taskQuery: ShellQuery = {},
+  isProjectRoot = false,
+): ShellContextLink[] {
+  const settings = projectContextLinks(projectId, identity, activeProject, canManage, taskQuery, isProjectRoot)
+    .find(link => link.id === 'settings')
+  const sections = projectWorkspaceLinks(projectId, identity, activeProject, canManage, taskQuery, isProjectRoot)
+  return [
+    ...sections,
+    ...(settings ? [{ ...settings, id: 'current-project-settings' }] : []),
+  ]
 }

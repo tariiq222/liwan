@@ -10,6 +10,9 @@ function triggerPageMotion() {
   pageMotionActive.value = false
   if (pageMotionTimer) clearTimeout(pageMotionTimer)
   if (pageMotionFrame !== undefined) cancelAnimationFrame(pageMotionFrame)
+  // Project navigation replaces the section in a stable workspace. Replaying
+  // the whole content entrance looks like a reload and also moves its sheet.
+  if (/^\/(projects|project-templates)(\/|$)/.test(route.path) || /^\/settings\/projects(\/|$)/.test(route.path)) return
   pageMotionFrame = requestAnimationFrame(() => {
     pageMotionActive.value = true
     pageMotionTimer = setTimeout(() => { pageMotionActive.value = false }, 180)

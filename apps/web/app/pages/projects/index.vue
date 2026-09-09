@@ -178,8 +178,10 @@ async function openCreate() {
   }).fullPath
   router.push({ path: '/projects/new', query: returnToQuery(returnPath) })
 }
-function openProject(id: number) {
-  router.push({ path: `/projects/${id}`, query: returnToQuery(route.fullPath) })
+const { entryTo } = useProjectWorkspaceMemory()
+async function openProject(id: number) {
+  await flushPendingSearch()
+  router.push(entryTo(id, route.fullPath, items.value.find(project => project.id === id)?.active ?? true))
 }
 
 function projectListTabTo(mine: boolean) {
@@ -194,11 +196,6 @@ function projectListTabTo(mine: boolean) {
   <SharedPageContainer width="list">
     <SharedPageHeader :title="t(filters.mine ? 'nav.myProjects' : 'nav.allProjects')" :description="t(filters.mine ? 'projects.myDescription' : 'projects.description')">
       <template #actions>
-        <Button as-child variant="outline">
-          <NuxtLink :to="{ path: '/projects/dashboard', query: returnToQuery(route.fullPath) }" data-testid="projects-dashboard-link">
-            {{ t('nav.projectDashboard') }}
-          </NuxtLink>
-        </Button>
         <Button v-if="canCreate" data-testid="project-new" :disabled="!hydrated" class="gap-2" @click="openCreate">
           <Plus class="size-[18px]" />{{ t('projects.new') }}
         </Button>
@@ -209,28 +206,12 @@ function projectListTabTo(mine: boolean) {
         </Button>
       </template>
     </SharedPageHeader>
-    <nav class="nasq-tabs" :aria-label="t('projects.listTabsLabel')" data-testid="projects-list-tabs">
-      <NuxtLink
-        :to="projectListTabTo(false)"
-        :aria-current="!filters.mine ? 'page' : undefined"
-        data-testid="projects-all-tab"
-      >
-        {{ t('nav.allProjects') }}
-      </NuxtLink>
-      <NuxtLink
-        :to="projectListTabTo(true)"
-        :aria-current="filters.mine ? 'page' : undefined"
-        data-testid="projects-my-tab"
-      >
-        {{ t('nav.myProjects') }}
-      </NuxtLink>
-    </nav>
     <div v-if="activeList.error.value && !projectList.error.value" role="alert" class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
       <span>{{ t('projects.loadError') }}</span>
       <Button variant="outline" size="sm" @click="activeList.refetch()">{{ t('app.retry') }}</Button>
     </div>
     <div class="w-full min-w-0" data-testid="projects-toolbar">
-      <FilterBar class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
+      <FilterBar inline class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
       <template #search>
         <div class="relative min-w-52 flex-1">
           <Search class="pointer-events-none absolute start-2 top-1/2 size-[18px] -translate-y-1/2 text-muted-foreground" />

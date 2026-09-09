@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import type { LocationQueryRaw } from 'vue-router'
 import { inject } from 'vue'
+import { Plus } from '@lucide/vue'
 import MilestoneTable from '@/components/project/MilestoneTable.vue'
 import ProjectHeader from '@/components/project/ProjectHeader.vue'
 import ProjectOverview from '@/components/project/ProjectOverview.vue'
-import ProjectWorkspaceTabs from '@/components/project/workspace/ProjectWorkspaceTabs.vue'
 import TaskBoard from '@/components/task/TaskBoard.vue'
 import TaskTable from '@/components/task/TaskTable.vue'
 import TaskToolbar from '@/components/task/TaskToolbar.vue'
@@ -18,6 +18,7 @@ const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
 const { can } = useAccess()
+const hydrated = useHydrated()
 const isProjectOverlay = inject<boolean>(Symbol.for('nasq.project.overlay'), false)
 const normalizedPath = computed(() => route.path.replace(/\/+$/, '') || '/')
 const isBaseRoute = computed(() => normalizedPath.value === `/projects/${route.params.id}`)
@@ -26,7 +27,10 @@ const projectId = computed(() => {
   const n = Number(route.params.id)
   return Number.isInteger(n) && n > 0 ? n : null
 })
-const { data: project, isLoading, error, refetch } = useProject(projectId)
+const { data: projectData, isLoading, error, refetch } = useProject(projectId)
+// Queries may finish after server rendering but before payload dehydration.
+// Keep the first client tree identical to SSR, then reveal the cached project.
+const project = computed(() => hydrated.value ? projectData.value : undefined)
 const notFound = computed(() => projectId.value === null || (error.value instanceof ApiError && (error.value.status === 404 || error.value.status === 403)))
 
 type PlanningView = 'list' | 'board' | 'milestones'
@@ -110,7 +114,7 @@ const workspaceCanCreate = computed(() => {
 </script>
 
 <template>
-  <SharedPageContainer v-if="isBaseRoute" width="detail">
+  <SharedPageContainer v-if="isBaseRoute" width="detail" class="nasq-project-workspace">
     <div v-if="notFound" class="flex flex-col items-start gap-3">
       <p class="text-muted-foreground">{{ t('projects.notFound') }}</p>
       <button type="button" class="text-sm underline" @click="router.push(projectReturnTo)">{{ t('projects.backToProjects') }}</button>
@@ -122,7 +126,9 @@ const workspaceCanCreate = computed(() => {
       <ProjectHeader
         v-if="project && !isProjectOverlay"
         :project="project"
+        :title="t(isSummary ? 'nav.projectSummary' : planningView === 'milestones' ? 'projects.tabs.milestones' : 'nav.projectTasks')"
         :can-create="workspaceCanCreate"
+        :show-create="isSummary || planningView === 'milestones'"
         :create-label="workspaceCreateLabel"
         @create="onWorkspaceCreate"
         @edit="openCharterEdit"
@@ -130,32 +136,32 @@ const workspaceCanCreate = computed(() => {
         @archived="onArchived"
         @unarchived="onUnarchived"
       />
-      <Skeleton v-else-if="isLoading && !isProjectOverlay" class="h-9 w-1/2" />
+      <Skeleton v-else-if="(isLoading || !hydrated) && !isProjectOverlay" class="h-9 w-1/2" />
 
-      <ProjectWorkspaceTabs
-        v-if="project && !isProjectOverlay"
-        :project-id="project.id"
-        :active="project.active"
-        :can-manage="project.can_manage"
-      />
-
-      <nav v-if="project && (planningView === 'list' || planningView === 'board')" class="nasq-view-switch" :aria-label="t('projects.planning.views')">
-        <NuxtLink :to="planningLink('list')" :aria-current="planningView === 'list' ? 'page' : undefined">{{ t('projects.tabs.list') }}</NuxtLink>
-        <NuxtLink :to="planningLink('board')" :aria-current="planningView === 'board' ? 'page' : undefined">{{ t('projects.tabs.board') }}</NuxtLink>
-        <NuxtLink v-if="project.active" :to="planningLink('gantt')">{{ t('projects.tabs.timeline') }}</NuxtLink>
-      </nav>
 
       <ProjectOverview v-if="project && isSummary" :project="project" />
 
-      <section v-if="isBaseRoute && project && (planningView === 'list' || planningView === 'board')" class="nasq-panel overflow-hidden" aria-labelledby="project-tasks-title">
-        <div class="nasq-panel-header flex items-center justify-between gap-3">
-          <h2 id="project-tasks-title">{{ t('projects.tabs.tasks') }}</h2>
-          <NuxtLink :to="{ path: '/archived-tasks', query: { project_id: project.id, ...returnToQuery(route.fullPath) } }" class="text-sm text-muted-foreground underline underline-offset-4">{{ t('taskLifecycle.archivedTasks') }}</NuxtLink>
-        </div>
-        <div class="min-w-0">
-          <TaskToolbar :model-value="params" embedded hide-project-filter @update:model-value="onParams" />
+      <section v-if="isBaseRoute && project && (planningView === 'list' || planningView === 'board')" class="min-w-0 space-y-3" :aria-label="t('projects.tabs.tasks')">
+        <TaskToolbar :model-value="params" embedded hide-project-filter @update:model-value="onParams">
+          <template #view>
+            <nav class="nasq-view-switch" :aria-label="t('projects.planning.views')">
+              <NuxtLink :to="planningLink('list')" :aria-current="planningView === 'list' ? 'page' : undefined">{{ t('projects.tabs.list') }}</NuxtLink>
+              <NuxtLink :to="planningLink('board')" :aria-current="planningView === 'board' ? 'page' : undefined">{{ t('projects.tabs.board') }}</NuxtLink>
+              <NuxtLink v-if="project.active" :to="planningLink('gantt')">{{ t('projects.tabs.timeline') }}</NuxtLink>
+            </nav>
+          </template>
+          <template #actions>
+            <Button v-if="project.active && workspaceCanCreate" :disabled="!hydrated" class="gap-2" data-testid="project-header-create" @click="openTaskCreate">
+              <Plus class="size-4" aria-hidden="true" />{{ t('tasks.new') }}
+            </Button>
+          </template>
+        </TaskToolbar>
+        <div class="nasq-panel overflow-hidden">
           <TaskTable v-if="taskView === 'table'" :params="params" variant="project" embedded @open="openTask" @create="openTaskCreate" />
           <TaskBoard v-else :params="params" :stage-source="stageSource" embedded @open="openTask" />
+        </div>
+        <div class="flex justify-end">
+          <NuxtLink :to="{ path: '/archived-tasks', query: { project_id: project.id, ...returnToQuery(route.fullPath) } }" class="text-sm text-muted-foreground hover:underline">{{ t('taskLifecycle.archivedTasks') }}</NuxtLink>
         </div>
       </section>
 

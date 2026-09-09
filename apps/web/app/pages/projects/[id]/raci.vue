@@ -7,7 +7,6 @@ import { ApiError } from '@/composables/useApi'
 import FilterBar from '@/components/shared/FilterBar.vue'
 import RecordNumber from '@/components/shared/RecordNumber.vue'
 import { useProject } from '@/composables/useProjects'
-import ProjectWorkspaceTabs from '@/components/project/workspace/ProjectWorkspaceTabs.vue'
 const route = useRoute(); const router = useRouter(); const { t } = useI18n(); const hydrated = useHydrated()
 const isProjectOverlay = inject<boolean>(Symbol.for('nasq.project.overlay'), false)
 const id = computed(() => Number(route.params.id)); const viewport = computed(() => governanceMatrixFilters(route.query))
@@ -63,9 +62,8 @@ async function deleteRow() {
   <SharedPageContainer width="list">
     <SharedPageHeader
       v-if="!isProjectOverlay"
-      :title="project?.name ?? t('projects.governance.raci.title')"
+      :title="t('projects.governance.raci.title')"
     />
-    <ProjectWorkspaceTabs v-if="project && !isProjectOverlay" :project-id="project.id" :active="project.active" :can-manage="project.can_manage" />
     <nav class="nasq-view-switch" :aria-label="t('projects.governance.views')">
       <NuxtLink :to="{ path: `/projects/${id}/stakeholders`, query: viewQuery }">{{ t('projects.governance.viewList') }}</NuxtLink>
       <NuxtLink :to="{ path: `/projects/${id}/raci`, query: viewQuery }" aria-current="page">{{ t('projects.governance.viewMatrix') }}</NuxtLink>
@@ -82,7 +80,7 @@ async function deleteRow() {
         </dl>
       </div>
     </section>
-    <FilterBar class="w-full" :active-count="activeFilterCount" :disabled="!hydrated || pending" @clear="clearFilters">
+    <FilterBar inline class="w-full" :active-count="activeFilterCount" :disabled="!hydrated || pending" @clear="clearFilters">
       <template #search>
         <div class="grid min-w-0 gap-3 sm:grid-cols-2">
           <div class="space-y-2">

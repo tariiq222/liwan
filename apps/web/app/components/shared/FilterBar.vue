@@ -1,5 +1,16 @@
 <template>
+  <div v-if="props.inline" class="min-w-0 space-y-2" data-slot="inline-filter-bar">
+    <div class="flex min-w-0 flex-wrap items-center gap-2">
+      <div v-if="$slots.search" class="min-w-48 flex-1"><slot name="search" /></div>
+      <slot />
+      <slot name="view" />
+      <slot name="actions" />
+      <Button v-if="props.activeCount > 0" type="button" variant="ghost" size="sm" :disabled="props.disabled || !hydrated" @click="$emit('clear')">{{ props.clearLabel || t('filterCard.clear') }}</Button>
+    </div>
+    <div v-if="props.activeCount > 0 && $slots.active" class="flex flex-wrap items-center gap-2"><slot name="active" /></div>
+  </div>
   <FilterCard
+    v-else
     :title="props.title"
     :active-count="props.activeCount"
     :clear-label="props.clearLabel"
@@ -32,7 +43,11 @@
 <script setup lang="ts">
 import FilterCard from '@/components/shared/FilterCard.vue'
 
+const { t } = useI18n()
+const hydrated = useHydrated()
+
 const props = withDefaults(defineProps<{
+  inline?: boolean
   title?: string
   activeCount?: number
   clearLabel?: string

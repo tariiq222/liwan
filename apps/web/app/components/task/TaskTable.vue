@@ -109,7 +109,7 @@ const columns = computed(() =>
 
 const colgroupClasses = computed(() =>
   props.variant === 'project'
-    ? ['w-[10%]', 'w-[34%]', 'w-[12%]', 'w-[12%]', 'w-[12%]', 'w-[8%]', 'w-[12%]']
+    ? ['w-[6%]', 'w-[30%]', 'w-[12%]', 'w-[12%]', 'w-[12%]', 'w-[14%]', 'w-[14%]']
     : ['w-[10%]', 'w-[44%]', 'w-[10%]', 'w-[10%]', 'w-[10%]', 'w-[10%]', 'w-[6%]'],
 )
 
@@ -138,7 +138,7 @@ function onRowClick(task: Task, event: MouseEvent) {
   <div :class="embedded ? 'space-y-0' : 'space-y-2'">
     <div :class="embedded ? '' : 'nasq-panel overflow-hidden'">
       <div class="hidden overflow-x-auto md:block">
-        <Table class="table-fixed min-w-[760px]">
+        <Table class="table-fixed" :class="variant === 'project' ? 'min-w-[960px]' : 'min-w-[760px]'">
         <!-- Keep the number and title columns stable while preserving the row's click-to-open behavior. -->
         <colgroup>
           <col v-for="(cls, i) in colgroupClasses" :key="i" :class="cls" />

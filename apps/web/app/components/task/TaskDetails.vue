@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { TaskDetail } from '@nasq/contracts'
 import { CalendarDate } from '@internationalized/date'
+import { ChevronDown } from '@lucide/vue'
 import { toCalendarDate } from '@/composables/calendarDate'
 import { usePersonalStages } from '@/composables/usePersonalStages'
 import { useUpdateTask } from '@/composables/useTasks'
@@ -25,6 +26,7 @@ const { t, locale } = useI18n()
 const { mutate: updateTask } = useUpdateTask()
 const { data: stages } = usePersonalStages()
 const projectId = computed(() => props.task.project?.id ?? null)
+const isProjectTask = computed(() => props.basePath.startsWith('/projects/'))
 const { data: milestones } = useMilestones(projectId)
 const { data: project } = useProject(projectId)
 const deadlineError = ref<string | null>(null)
@@ -224,24 +226,34 @@ const completedSubtasks = computed(() => props.task.subtasks.filter(subtask => s
       </div>
     </section>
 
-    <TaskDeliverables :key="`outputs-${task.id}`" :task="task" />
+    <slot name="activity" />
 
-    <section class="nasq-panel">
-      <header class="nasq-panel-header">
-        <h2>{{ t('tasks.drawer.subtasks') }}</h2>
-        <span class="text-xs font-normal text-muted-foreground">{{ t('tasks.detail.subtaskProgress', { done: completedSubtasks, total: task.subtasks.length }) }}</span>
-      </header>
-      <div class="nasq-panel-body">
-        <SubtaskList :task="task" :base-path="props.basePath" />
+    <component
+      :is="isProjectTask ? 'details' : 'div'"
+      :class="isProjectTask ? 'nasq-panel task-optional-details' : 'contents'"
+    >
+      <summary v-if="isProjectTask" class="task-details-summary nasq-panel-header"><span>{{ t('tasks.detail.workResources') }}</span><ChevronDown class="task-disclosure-icon size-4 shrink-0" aria-hidden="true" /></summary>
+      <div :class="isProjectTask ? 'nasq-panel-body task-optional-content grid gap-4' : 'contents'">
+        <TaskDeliverables :key="`outputs-${task.id}`" :task="task" />
+
+        <section class="nasq-panel">
+          <header class="nasq-panel-header">
+            <h2>{{ t('tasks.drawer.subtasks') }}</h2>
+            <span class="text-xs font-normal text-muted-foreground">{{ t('tasks.detail.subtaskProgress', { done: completedSubtasks, total: task.subtasks.length }) }}</span>
+          </header>
+          <div class="nasq-panel-body">
+            <SubtaskList :task="task" :base-path="props.basePath" />
+          </div>
+        </section>
+
+        <DependencyPicker :task="task" />
+
+        <TaskAttachments :key="task.id" :task-id="task.id" :can-write="task.can_write" />
       </div>
-    </section>
-
-    <DependencyPicker :task="task" />
-
-    <TaskAttachments :key="task.id" :task-id="task.id" :can-write="task.can_write" />
+    </component>
 
     <details class="nasq-panel">
-      <summary class="task-details-summary nasq-panel-header">{{ t('tasks.drawer.additionalDetails') }}</summary>
+      <summary class="task-details-summary nasq-panel-header"><span>{{ t('tasks.drawer.additionalDetails') }}</span><ChevronDown v-if="isProjectTask" class="task-disclosure-icon size-4 shrink-0" aria-hidden="true" /></summary>
       <div class="nasq-panel-body">
         <div class="task-additional-grid">
           <section class="task-additional-item">
@@ -324,6 +336,10 @@ const completedSubtasks = computed(() => props.task.subtasks.filter(subtask => s
 
 .task-details-summary::marker {
   color: var(--muted-foreground);
+}
+
+details[open] > summary .task-disclosure-icon {
+  transform: rotate(180deg);
 }
 
 .task-additional-grid {

@@ -14,7 +14,7 @@ const props = defineProps<{ project: ProjectDetail }>()
 
 const { t } = useI18n()
 const hydrated = useHydrated()
-const { mutate: updateProject } = useUpdateProject()
+const { mutate: updateProject, isPending: saving, isSuccess: saved, isError: saveFailed } = useUpdateProject()
 
 function patch(body: ProjectPatch) {
   updateProject(
@@ -125,6 +125,7 @@ const approvalLocked = computed(() => approvalBusy.value)
 
 <template>
   <div class="space-y-5">
+    <p role="status" class="text-sm text-muted-foreground" data-testid="project-autosave-status">{{ t(saving ? 'projects.clarity.saving' : pendingMode && !approvalError ? 'projects.clarity.chooseApprover' : saveFailed ? 'projects.clarity.saveFailed' : saved ? 'projects.clarity.saved' : 'projects.clarity.autosaveHint') }}</p>
     <section class="space-y-2">
         <Label id="project-settings-visibility-label" for="project-settings-visibility">{{ t('projects.settings.visibility') }}</Label>
         <p class="text-sm text-muted-foreground">{{ t('projects.refresh.settings.visibilityHint') }}</p>
@@ -179,7 +180,7 @@ const approvalLocked = computed(() => approvalBusy.value)
         </PopoverTrigger>
         <PopoverContent class="w-64 p-0" align="start">
           <div class="border-b p-2">
-            <Input v-model="approverQ" :placeholder="t('app.search')" class="h-8" />
+            <Input v-model="approverQ" :aria-label="t('projects.settings.approvalUser')" :placeholder="t('app.search')" class="h-8" />
           </div>
           <Command>
             <CommandList>

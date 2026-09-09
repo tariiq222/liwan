@@ -27,7 +27,7 @@ function onChange(value: unknown) {
 <template>
   <span v-if="!task.can_write" class="text-sm">{{ t(PRIORITY_LABEL_KEY[task.priority]) }}</span>
   <Select v-else :model-value="task.priority" @update:model-value="onChange">
-    <SelectTrigger size="sm" class="w-full" :disabled="isPending || !hydrated" :aria-labelledby="props.labelledby">
+    <SelectTrigger size="sm" class="w-full" :aria-label="t('tasks.columns.priority')" :disabled="isPending || !hydrated" :aria-labelledby="props.labelledby">
       <SelectValue />
     </SelectTrigger>
     <SelectContent>

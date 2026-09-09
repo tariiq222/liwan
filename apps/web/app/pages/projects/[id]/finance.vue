@@ -7,7 +7,6 @@ import { useProjectFinanceList } from '@/composables/useProjectFinance'
 import { useProject } from '@/composables/useProjects'
 import FinanceEntryTable from '@/components/project/finance/FinanceEntryTable.vue'
 import FinanceSummaryCards from '@/components/project/finance/FinanceSummaryCards.vue'
-import ProjectWorkspaceTabs from '@/components/project/workspace/ProjectWorkspaceTabs.vue'
 import FilterBar from '@/components/shared/FilterBar.vue'
 import {
   FINANCE_PAGE,
@@ -156,7 +155,7 @@ function financeChildKey(target: { path: string; params: Record<string, string |
   <SharedPageContainer v-if="isListRoute" width="list" data-testid="project-finance-page">
     <SharedPageHeader
       v-if="!isProjectOverlay"
-      :title="project?.name ?? t('projects.finance.title')"
+      :title="t('projects.finance.title')"
     >
       <template #actions>
         <template v-if="canManage && projectId">
@@ -173,7 +172,6 @@ function financeChildKey(target: { path: string; params: Record<string, string |
         </template>
       </template>
     </SharedPageHeader>
-    <ProjectWorkspaceTabs v-if="project && !isProjectOverlay" :project-id="project.id" :active="project.active" :can-manage="project.can_manage" />
     <template v-if="projectId === null">
       <p class="text-muted-foreground">{{ t('projects.invalidId') }}</p>
     </template>
@@ -188,7 +186,7 @@ function financeChildKey(target: { path: string; params: Record<string, string |
       <template v-else>
         <FinanceSummaryCards v-if="summary && projectId" :project-id="projectId" :summary="summary" />
         <div class="w-full min-w-0">
-          <FilterBar class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
+          <FilterBar inline class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
             <template #search>
               <Input v-model="search" :disabled="!hydrated" :placeholder="t('projects.finance.search')" :aria-label="t('projects.finance.search')" data-testid="finance-search" class="min-w-52" />
             </template>

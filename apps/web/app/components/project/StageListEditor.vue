@@ -72,7 +72,7 @@ function onHandleKeydown(event: KeyboardEvent, stage: StageRow) {
   moveStage(stage.id, target)
 }
 
-// --- inline rename (double-click, or Enter/Space while the name is focused) --
+// --- inline rename ------------------------------------------------------------
 const editingId = ref<StageRow['id'] | null>(null)
 const editDraft = ref('')
 const pendingDeleteId = ref<StageRow['id'] | null>(null)
@@ -153,26 +153,32 @@ function confirmDelete(stageId: StageRow['id']) {
           <GripVertical class="size-4" />
         </button>
 
-        <Input
-          v-if="editingId === stage.id"
-          :ref="(el) => { if (stage.id === editingId) renameInputEl = (el as any)?.$el ?? el ?? null }"
-          v-model="editDraft"
-          class="h-8 flex-1"
+        <label v-if="editingId === stage.id" :for="`stage-rename-${stage.id}`" class="grid min-w-0 flex-1 gap-1 text-xs">
+          <span>{{ t('projects.stages.rename') }}</span>
+          <Input
+            :id="`stage-rename-${stage.id}`"
+            :ref="(el) => { if (stage.id === editingId) renameInputEl = (el as any)?.$el ?? el ?? null }"
+            v-model="editDraft"
+            class="h-8"
+            :disabled="disabled"
+            @keydown.enter="($event.target as HTMLInputElement).blur()"
+            @keydown.escape.stop.prevent="cancelRename"
+            @blur="commitRename(stage)"
+          />
+        </label>
+        <span v-else class="min-w-0 flex-1 truncate px-1 text-start text-sm">{{ stage.name }}</span>
+
+        <Button
+          v-if="editingId !== stage.id"
+          type="button"
+          variant="outline"
+          size="sm"
           :disabled="disabled"
-          @keydown.enter="($event.target as HTMLInputElement).blur()"
-          @keydown.escape.stop.prevent="cancelRename"
-          @blur="commitRename(stage)"
-        />
-        <span
-          v-else
-          role="button"
-          :tabindex="hydrated ? 0 : -1"
-          class="flex-1 truncate rounded px-1 text-start text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
           :aria-label="t('projects.stages.rename')"
-          @dblclick="startRename(stage)"
-          @keydown.enter.prevent="startRename(stage)"
-          @keydown.space.prevent="startRename(stage)"
-        >{{ stage.name }}</span>
+          @click="startRename(stage)"
+        >
+          {{ t('projects.stages.rename') }}
+        </Button>
 
         <Toggle
           size="sm"
@@ -219,14 +225,17 @@ function confirmDelete(stageId: StageRow['id']) {
       </div>
     </VueDraggable>
 
-    <div class="flex items-center gap-2">
-      <Input
-        v-model="newName"
-        data-testid="stage-add-input"
-        :placeholder="t('projects.stages.addPlaceholder')"
-        :disabled="disabled"
-        @keydown.enter="submitAdd"
-      />
+    <div class="grid gap-1 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+      <label for="stage-add-name" class="grid gap-1 text-sm">
+        <span>{{ t('projects.stages.addPlaceholder') }}</span>
+        <Input
+          id="stage-add-name"
+          v-model="newName"
+          data-testid="stage-add-input"
+          :disabled="disabled"
+          @keydown.enter="submitAdd"
+        />
+      </label>
       <Button type="button" :disabled="disabled || !newName.trim()" @click="submitAdd">{{ t('projects.stages.add') }}</Button>
     </div>
   </div>

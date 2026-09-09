@@ -19,6 +19,8 @@ withDefaults(defineProps<{
     :data-active="active"
     :aria-current="active ? 'page' : undefined"
     :data-testid="testId"
+    :aria-label="label"
+    :title="label"
   >
     <Plus aria-hidden="true" />
     <span>{{ label }}</span>

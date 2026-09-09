@@ -77,18 +77,30 @@ watch(() => props.resetKey, () => { baseline.value = serialized(); validationErr
 
     <section class="space-y-3 rounded-lg border p-4" aria-labelledby="template-stages-title">
       <div class="flex items-center justify-between gap-3"><div><h2 id="template-stages-title" class="font-medium">{{ t('projects.templates.stages.title') }}</h2><p class="text-xs text-muted-foreground">{{ t('projects.templates.stages.hint') }}</p></div><Button type="button" variant="outline" :disabled="disabled" @click="addStage">{{ t('projects.templates.actions.addStage') }}</Button></div>
-      <div v-for="(stage, index) in draft.definition.stages" :key="stage.key" class="grid gap-2 sm:grid-cols-[10rem_1fr_auto]">
-        <span class="text-xs text-muted-foreground">{{ stage.name || t('projects.templates.fields.stage') }}</span>
-        <Input :disabled="disabled" v-model="stage.name" :name="`stage-name-${index}`" :aria-label="t('projects.templates.fields.name')" required />
+      <div v-for="(stage, index) in draft.definition.stages" :key="stage.key" class="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+        <label :for="`stage-name-${index}`" class="grid gap-1 text-xs">
+          <span>{{ t('projects.templates.fields.name') }}</span>
+          <Input :id="`stage-name-${index}`" :disabled="disabled" v-model="stage.name" :name="`stage-name-${index}`" required />
+        </label>
         <Button type="button" variant="ghost" :disabled="draft.definition.stages.length === 1 || disabled" @click="removeStage(index)">{{ t('projects.templates.actions.remove') }}</Button>
-        <label class="flex items-center gap-2 text-xs sm:col-start-2"><input :disabled="disabled" v-model="stage.fold" :name="`stage-fold-${index}`" type="checkbox" /> {{ t('projects.templates.fields.fold') }}</label>
+        <label :for="`stage-fold-${index}`" class="flex items-center gap-2 text-xs sm:col-start-1"><input :id="`stage-fold-${index}`" :disabled="disabled" v-model="stage.fold" :name="`stage-fold-${index}`" type="checkbox" /> {{ t('projects.templates.fields.fold') }}</label>
       </div>
     </section>
 
     <section class="space-y-3 rounded-lg border p-4" aria-labelledby="template-milestones-title">
-      <div class="flex items-center justify-between gap-3"><div><h2 id="template-milestones-title" class="font-medium">{{ t('projects.templates.milestones.title') }}</h2><p class="text-xs text-muted-foreground">{{ t('projects.templates.milestones.hint') }}</p></div><Button type="button" variant="outline" :disabled="disabled" @click="addMilestone">{{ t('projects.templates.actions.addMilestone') }}</Button></div>
+      <div class="flex items-center justify-between gap-3"><h2 id="template-milestones-title" class="font-medium">{{ t('projects.templates.milestones.title') }}</h2><Button type="button" variant="outline" :disabled="disabled" @click="addMilestone">{{ t('projects.templates.actions.addMilestone') }}</Button></div>
       <p v-if="!draft.definition.milestones.length" class="text-sm text-muted-foreground">{{ t('projects.templates.emptyMilestones') }}</p>
-      <div v-for="(milestone, index) in draft.definition.milestones" :key="milestone.key" class="grid gap-2 sm:grid-cols-[1fr_8rem_auto]"><Input :disabled="disabled" v-model="milestone.name" :name="`milestone-name-${index}`" :aria-label="t('projects.templates.fields.milestoneName')" required /><Input :disabled="disabled" v-model.number="milestone.offset_days" :name="`milestone-offset-${index}`" :aria-label="t('projects.templates.fields.offset')" type="number" min="-3650" max="3650" required /><Button type="button" variant="ghost" :disabled="disabled" @click="removeMilestone(index)">{{ t('projects.templates.actions.remove') }}</Button></div>
+      <div v-for="(milestone, index) in draft.definition.milestones" :key="milestone.key" class="grid gap-2 sm:grid-cols-[minmax(0,1fr)_8rem_auto]">
+        <label :for="`milestone-name-${index}`" class="grid gap-1 text-xs">
+          <span>{{ t('projects.templates.fields.milestoneName') }}</span>
+          <Input :id="`milestone-name-${index}`" :disabled="disabled" v-model="milestone.name" :name="`milestone-name-${index}`" required />
+        </label>
+        <label :for="`milestone-offset-${index}`" class="grid gap-1 text-xs">
+          <span>{{ t('projects.templates.fields.offset') }}</span>
+          <Input :id="`milestone-offset-${index}`" :disabled="disabled" v-model.number="milestone.offset_days" :name="`milestone-offset-${index}`" type="number" min="-3650" max="3650" required />
+        </label>
+        <Button type="button" variant="ghost" :disabled="disabled" @click="removeMilestone(index)">{{ t('projects.templates.actions.remove') }}</Button>
+      </div>
       <p class="text-xs text-muted-foreground">{{ t('projects.templates.fields.offsetHint') }}</p>
     </section>
 
@@ -96,10 +108,21 @@ watch(() => props.resetKey, () => { baseline.value = serialized(); validationErr
       <div class="flex items-center justify-between gap-3"><div><h2 id="template-tasks-title" class="font-medium">{{ t('projects.templates.tasks.title') }}</h2><p class="text-xs text-muted-foreground">{{ t('projects.templates.tasks.hint') }}</p></div><Button type="button" variant="outline" :disabled="disabled" @click="addTask">{{ t('projects.templates.actions.addTask') }}</Button></div>
       <p v-if="!draft.definition.tasks.length" class="text-sm text-muted-foreground">{{ t('projects.templates.emptyTasks') }}</p>
       <div v-for="(task, index) in draft.definition.tasks" :key="task.key" class="space-y-2 rounded-md border p-3">
-        <div class="grid gap-2 sm:grid-cols-[1fr_auto]"><Input :disabled="disabled" v-model="task.name" :name="`task-name-${index}`" :aria-label="t('projects.templates.fields.taskName')" required /><Button type="button" variant="ghost" :disabled="disabled" @click="removeTask(index)">{{ t('projects.templates.actions.remove') }}</Button></div>
+        <div class="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]"><label :for="`task-name-${index}`" class="grid gap-1 text-xs"><span>{{ t('projects.templates.fields.taskName') }}</span><Input :id="`task-name-${index}`" :disabled="disabled" v-model="task.name" :name="`task-name-${index}`" required /></label><Button type="button" variant="ghost" :disabled="disabled" @click="removeTask(index)">{{ t('projects.templates.actions.remove') }}</Button></div>
         <div class="grid gap-2 sm:grid-cols-4"><label class="grid gap-1 text-xs"><span>{{ t('projects.templates.fields.stage') }}</span><select :disabled="disabled" v-model="task.stage_key" :name="`task-stage-${index}`" :aria-label="t('projects.templates.fields.stage')" class="h-9 rounded-md border bg-background px-2"><option v-for="stage in stageOptions" :key="stage.key" :value="stage.key">{{ stage.name || t('projects.templates.fields.stage') }}</option></select></label><label class="grid gap-1 text-xs"><span>{{ t('projects.templates.fields.startOffset') }}</span><Input :disabled="disabled" v-model.number="task.start_offset" :name="`task-start-${index}`" :aria-label="t('projects.templates.fields.startOffset')" type="number" min="-3650" max="3650" required /></label><label class="grid gap-1 text-xs"><span>{{ t('projects.templates.fields.duration') }}</span><Input :disabled="disabled" v-model.number="task.duration_days" :name="`task-duration-${index}`" :aria-label="t('projects.templates.fields.duration')" type="number" min="1" max="3650" required /></label><label class="grid gap-1 text-xs"><span>{{ t('projects.templates.fields.milestone') }}</span><select :disabled="disabled" v-model="task.milestone_key" :name="`task-milestone-${index}`" :aria-label="t('projects.templates.fields.milestone')" class="h-9 rounded-md border bg-background px-2"><option :value="null">{{ t('projects.templates.none') }}</option><option v-for="milestone in milestoneOptions" :key="milestone.key" :value="milestone.key">{{ milestone.name || t('projects.templates.fields.milestone') }}</option></select></label></div>
         <p class="text-xs text-muted-foreground">{{ t('projects.templates.fields.offsetHint') }}</p>
-        <label class="grid gap-1 text-xs"><span>{{ t('projects.templates.fields.dependencies') }}</span><select :disabled="disabled" v-model="task.dependency_keys" :name="`task-dependencies-${index}`" :aria-label="t('projects.templates.fields.dependencies')" multiple class="min-h-20 rounded-md border bg-background p-2"><option v-for="candidate in taskOptions.filter(item => item.key !== task.key)" :key="candidate.key" :value="candidate.key">{{ candidate.name || t('projects.templates.fields.taskName') }}</option></select></label>
+        <fieldset :disabled="disabled" class="grid gap-2 text-xs">
+          <legend>{{ t('projects.templates.fields.dependencies') }}</legend>
+          <div class="grid gap-2 rounded-md border bg-background p-2 sm:grid-cols-2">
+            <template v-if="taskOptions.some(item => item.key !== task.key)">
+              <label v-for="candidate in taskOptions.filter(item => item.key !== task.key)" :key="candidate.key" :for="`task-dependency-${index}-${candidate.key}`" class="flex items-start gap-2 rounded px-1 py-1">
+                <input :id="`task-dependency-${index}-${candidate.key}`" v-model="task.dependency_keys" :name="`task-dependency-${index}-${candidate.key}`" type="checkbox" :value="candidate.key" />
+                <span>{{ candidate.name || t('projects.templates.fields.taskName') }}</span>
+              </label>
+            </template>
+            <p v-else class="text-muted-foreground">{{ t('projects.templates.none') }}</p>
+          </div>
+        </fieldset>
       </div>
     </section>
     <p v-if="validationError" role="alert" class="text-sm text-destructive">{{ validationError }}</p>

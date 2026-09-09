@@ -5,7 +5,6 @@ import { ApiError } from '@/composables/useApi'
 import { useProject } from '@/composables/useProjects'
 import { useMilestones } from '@/composables/useMilestones'
 import ProjectCharterForm from '@/components/project/ProjectCharterForm.vue'
-import ProjectWorkspaceTabs from '@/components/project/workspace/ProjectWorkspaceTabs.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -38,14 +37,12 @@ function onCancel() {
 <template>
   <SharedPageContainer :width="readonly ? 'detail' : 'form'">
     <SharedPageHeader
-      v-if="!isProjectOverlay"
-      :title="project?.name ?? t('projects.charter.title')"
+      :title="t(readonly ? 'projects.charter.title' : 'projects.clarity.editCharter')"
     >
       <template #actions>
         <Button v-if="project?.can_manage && readonly" :disabled="!hydrated" @click="router.push({ path: route.path, query: { ...route.query, edit: '1' } })">{{ t('app.edit') }}</Button>
       </template>
     </SharedPageHeader>
-    <ProjectWorkspaceTabs v-if="project && !isProjectOverlay" :project-id="project.id" :active="project.active" :can-manage="project.can_manage" />
     <template v-if="projectId === null">
       <p class="text-muted-foreground">{{ t('projects.invalidId') }}</p>
     </template>

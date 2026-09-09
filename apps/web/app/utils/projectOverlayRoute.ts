@@ -13,7 +13,6 @@ const PROJECT_WORKFLOW_PATTERNS = [
   new RegExp(`^/projects/${PROJECT_ID}/register/(?:new|${PROJECT_ID}(?:/edit)?)$`),
   new RegExp(`^/projects/${PROJECT_ID}/finance/(?:new|${PROJECT_ID}(?:/edit)?)$`),
   new RegExp(`^/projects/${PROJECT_ID}/updates/new$`),
-  new RegExp(`^/projects/${PROJECT_ID}/settings$`),
   new RegExp(`^/projects/${PROJECT_ID}/schedule/tasks/${PROJECT_ID}$`),
   /^\/project-templates\/(?:new|[1-9]\d*(?:\/(?:edit|apply))?)$/,
 ]

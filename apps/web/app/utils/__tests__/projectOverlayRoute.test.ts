@@ -11,7 +11,7 @@ describe('project overlay route contract', () => {
     expect(isProjectOverlayRoute({ path: '/projects/42/tasks/new', query: {} })).toBe(true)
     expect(isProjectOverlayRoute({ path: '/projects/42/tasks/7', query: {} })).toBe(true)
     expect(isProjectOverlayRoute({ path: '/projects/42/finance/9/edit', query: {} })).toBe(true)
-    expect(isProjectOverlayRoute({ path: '/projects/42/settings', query: {} })).toBe(true)
+    expect(isProjectOverlayRoute({ path: '/projects/42/settings', query: {} })).toBe(false)
     expect(isProjectOverlayRoute({ path: '/projects/42/finance', query: {} })).toBe(false)
     expect(isProjectOverlayRoute({ path: '/projects/42', query: { tab: 'tasks' } })).toBe(false)
     expect(isProjectOverlayRoute({ path: '/projects/42/charter', query: { edit: '1' } })).toBe(true)

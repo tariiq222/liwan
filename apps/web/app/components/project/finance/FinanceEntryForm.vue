@@ -246,8 +246,8 @@ async function saveOnLatest() {
         </div>
         <template v-if="draft.kind === 'expense'">
           <div class="grid gap-2">
-            <Label>{{ t('projects.finance.fields.expense_date') }}</Label>
-            <Popover><PopoverTrigger as-child><Button variant="outline" type="button" class="w-full justify-start" :disabled="!hydrated || pending" :aria-invalid="!!fieldErrors.expense_date">{{ dateLabel }}</Button></PopoverTrigger><PopoverContent class="w-auto p-0" align="start"><Calendar :model-value="deadline" @update:model-value="onCalendarChange" /></PopoverContent></Popover>
+            <Label id="finance-expense-date-label">{{ t('projects.finance.fields.expense_date') }}</Label>
+            <Popover><PopoverTrigger as-child><Button variant="outline" type="button" class="w-full justify-start" :disabled="!hydrated || pending" :aria-invalid="!!fieldErrors.expense_date" aria-labelledby="finance-expense-date-label finance-expense-date-value"><span id="finance-expense-date-value">{{ dateLabel }}</span></Button></PopoverTrigger><PopoverContent class="w-auto p-0" align="start"><Calendar :model-value="deadline" @update:model-value="onCalendarChange" /></PopoverContent></Popover>
             <p v-if="fieldErrors.expense_date" role="alert" class="text-sm text-destructive">{{ fieldErrors.expense_date }}</p>
           </div>
           <FinanceBudgetPicker :project-id="projectId" :model-value="draft.budgetEntryId" :disabled="!hydrated || pending" :selected-label="selectedBudgetTitle" @update:model-value="draft.budgetEntryId = $event" />
