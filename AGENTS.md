@@ -108,9 +108,14 @@ The user approved a centered confirmation popup for leaving a form with unsaved
 changes. SharedUnsavedChanges owns this confirmation across forms. Detail, create,
 edit and settings workflows themselves remain internal pages.
 
-## Implementation agent routing — 2026-09-07
+## Implementation agent routing — 2026-09-07 (scoped 2026-09-09)
 
-All implementation agents must use GPT-5.6 Luna with high reasoning effort
-(`luna-high`). This is the user's standing project preference. The coordinator
-owns planning, integration and review. Do not substitute another implementation
-model without a new user instruction. Read-only review agents may use Astra.
+This rule applies to Codex only. When the coordinator runs inside Codex, all
+implementation agents must use GPT-5.6 Luna with high reasoning effort
+(`luna-high`); read-only review agents may use Astra. Do not substitute another
+implementation model there without a new user instruction.
+
+In OpenCode (including the Flex-* agents and `flex_delegate`) this rule does
+not apply: models are chosen per task from the connected providers by cost and
+adequacy, subject to any restriction the user gives in that session. The
+coordinator owns planning, integration and review in both tools.
