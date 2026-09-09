@@ -250,13 +250,6 @@ html[dir="rtl"] body { padding-right: 0 !important; }
 .nasq-project-breadcrumb a:hover, .nasq-project-breadcrumb button:hover { color: var(--foreground); text-decoration: underline; }
 .nasq-project-breadcrumb [aria-current="page"] { color: var(--foreground); }
 /* Project screens use readable UI text at the smallest supported font setting. */
-[data-project-area="true"], .nasq-context-sidebar[data-project-module="true"] {
-  --muted-foreground: color-mix(in srgb, var(--foreground) 78%, var(--background));
-}
-[data-project-area="true"] :is(input, select, textarea, button, label, td),
-.nasq-context-sidebar[data-project-module="true"] .nasq-context-link { font-size: 1rem; }
-[data-project-area="true"] th { font-size: .929rem; }
-[data-project-area="true"] .text-xs { font-size: .929rem; line-height: 1.5; }
 .nasq-context-sidebar[data-project-module="true"] .nasq-project-breadcrumb { font-size: .786rem; line-height: 1.5; overflow: hidden; overflow-wrap: normal; }
 .nasq-project-breadcrumb ol { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .nasq-project-breadcrumb li { display: inline; }

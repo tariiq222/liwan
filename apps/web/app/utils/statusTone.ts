@@ -10,7 +10,7 @@ export const STATUS_CHIP_CLASS: Record<StateTone, string> = {
 
 export const STATUS_TEXT_CLASS: Record<StateTone, string> = {
   neutral: 'text-muted-foreground',
-  info: 'text-brand-link',
+  info: 'nasq-status-text-info',
   warning: 'nasq-status-text-warning',
   success: 'nasq-status-text-success',
   destructive: 'nasq-status-text-danger',

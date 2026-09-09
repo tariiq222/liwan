@@ -1,6 +1,7 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "./approved-shell.css";
+@import "./project-theme.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -231,6 +232,7 @@
 }
 
 /* Semantic status surfaces: theme tokens, not ad-hoc Tailwind palettes. */
+.nasq-status-text-info { color: var(--status-info-foreground); }
 .nasq-status-text-success { color: var(--status-success-foreground); }
 .nasq-status-text-warning { color: var(--status-warning-foreground); }
 .nasq-status-text-danger { color: var(--status-danger-foreground); }
