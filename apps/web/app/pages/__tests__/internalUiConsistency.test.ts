@@ -37,7 +37,16 @@ describe('internal UI width and status vocabulary', () => {
     expect(css).toContain('.nasq-status-chip-warning')
     expect(css).toContain('.nasq-unread-count')
     expect(css).toContain('--unread-count-foreground')
+    expect(css).toContain('--status-info')
+    expect(css).toContain('--status-danger')
     expect(css).toContain('--status-danger-foreground')
+  })
+
+  it('exits the project side sheet opposite the entry travel', () => {
+    const css = readFileSync(resolve(webRoot, 'app/components/project/workspace/ProjectRouteModal.vue'), 'utf8')
+    expect(css).toContain('project-overlay-enter-from')
+    expect(css).toContain('translateX(var(--project-overlay-travel, 100vw))')
+    expect(css).toContain('translateX(calc(-1 * var(--project-overlay-travel, 100vw)))')
   })
 
   it('uses SharedPageContainer or settings/digest shells on internal pages', () => {

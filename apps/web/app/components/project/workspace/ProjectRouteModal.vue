@@ -121,7 +121,7 @@ function closeOnEscape(event: Event) {
 .project-sheet-backdrop-leave-to { opacity: 0; }
 
 :global(.project-overlay-leave-to) {
-  transform: translateX(var(--project-overlay-travel, 100vw));
+  transform: translateX(calc(-1 * var(--project-overlay-travel, 100vw)));
 }
 
 :global(.project-overlay-enter-from) {

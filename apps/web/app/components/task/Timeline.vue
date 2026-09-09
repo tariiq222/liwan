@@ -38,7 +38,7 @@ function changeMessage(change: { field: string; label: string; old: unknown; new
     <li v-for="entry in entries" :key="entry.id" class="task-activity-item">
       <div class="task-activity-marker" aria-hidden="true">
         <Avatar class="size-7">
-          <AvatarFallback class="text-[10px]">{{ entry.author ? initials(entry.author.name) : '?' }}</AvatarFallback>
+          <AvatarFallback class="text-xs">{{ entry.author ? initials(entry.author.name) : '?' }}</AvatarFallback>
         </Avatar>
       </div>
       <div class="min-w-0">

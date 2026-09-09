@@ -18,6 +18,16 @@ describe('register list design alignment', () => {
     expect(listSource).toContain('<TableHeader>')
     expect(listSource).toContain('<TableBody>')
     expect(listSource).not.toContain('nasq-input')
+    const formSource = readFileSync(
+      resolve(dirname(fileURLToPath(import.meta.url)), '../governance/RegisterForm.vue'),
+      'utf8',
+    )
+    const stakeholderForm = readFileSync(
+      resolve(dirname(fileURLToPath(import.meta.url)), '../governance/StakeholderForm.vue'),
+      'utf8',
+    )
+    expect(formSource).not.toContain('nasq-input')
+    expect(stakeholderForm).not.toContain('nasq-input')
     expect(listSource).not.toMatch(/class="flex flex-wrap items-center gap-3"/)
     expect(listSource).not.toMatch(/<(Dialog|Sheet|Drawer)\b/)
   })

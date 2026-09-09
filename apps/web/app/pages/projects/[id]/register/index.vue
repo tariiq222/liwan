@@ -2,7 +2,8 @@
 import { inject } from 'vue'
 import { Plus, Search } from '@lucide/vue'
 import { useProjectRegister, useDeleteProjectRegister } from '@/composables/useProjectGovernance'
-import { governanceFilters } from '@/components/project/governance/state'
+import { governanceFilters, REGISTER_PRIORITY_TONE, REGISTER_STATUS_TONE, registerScoreTone } from '@/components/project/governance/state'
+import { STATUS_CHIP_CLASS } from '@/utils/statusTone'
 import { ApiError } from '@/composables/useApi'
 import FilterBar from '@/components/shared/FilterBar.vue'
 import RecordNumber from '@/components/shared/RecordNumber.vue'
@@ -172,9 +173,9 @@ async function deleteItem(item: { id: number }) {
               </NuxtLink>
             </TableCell>
             <TableCell>{{ t(`projects.governance.register.${item.kind}`) }}</TableCell>
-            <TableCell>{{ t(`projects.governance.register.${item.priority}`) }}</TableCell>
-            <TableCell>{{ t(`projects.governance.register.${item.status}`) }}</TableCell>
-            <TableCell>{{ item.score ?? '—' }}</TableCell>
+            <TableCell><Badge variant="outline" :class="STATUS_CHIP_CLASS[REGISTER_PRIORITY_TONE[item.priority]]">{{ t(`projects.governance.register.${item.priority}`) }}</Badge></TableCell>
+            <TableCell><Badge variant="outline" :class="STATUS_CHIP_CLASS[REGISTER_STATUS_TONE[item.status]]">{{ t(`projects.governance.register.${item.status}`) }}</Badge></TableCell>
+            <TableCell><Badge variant="outline" :class="STATUS_CHIP_CLASS[registerScoreTone(item.score)]">{{ item.score ?? '—' }}</Badge></TableCell>
             <TableCell class="text-end">
               <template v-if="list.data.value.can_manage">
                 <Button

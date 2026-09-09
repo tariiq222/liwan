@@ -179,9 +179,13 @@ async function openCreate() {
   router.push({ path: '/projects/new', query: returnToQuery(returnPath) })
 }
 const { entryTo } = useProjectWorkspaceMemory()
+function projectTo(project: { id: number; active: boolean }) {
+  return entryTo(project.id, route.fullPath, project.active)
+}
 async function openProject(id: number) {
   await flushPendingSearch()
-  router.push(entryTo(id, route.fullPath, items.value.find(project => project.id === id)?.active ?? true))
+  const project = items.value.find(item => item.id === id)
+  router.push(entryTo(id, route.fullPath, project?.active ?? true))
 }
 
 function projectListTabTo(mine: boolean) {
@@ -280,6 +284,7 @@ function projectListTabTo(mine: boolean) {
       :filtered="Boolean(rawSearch.trim()) || statusFilter !== 'all'"
       :is-loading="isLoading"
       :archived="archived"
+      :to-for="projectTo"
       @open="openProject"
     />
     <ProjectCards
@@ -289,6 +294,7 @@ function projectListTabTo(mine: boolean) {
       :filtered="Boolean(rawSearch.trim()) || statusFilter !== 'all'"
       :archived="archived"
       :capped="false"
+      :to-for="projectTo"
       @open="openProject"
     />
       <div v-if="pages > 1" class="flex items-center justify-between text-sm text-muted-foreground">

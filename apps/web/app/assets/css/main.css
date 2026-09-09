@@ -66,10 +66,14 @@
   --status-warning-foreground: #8d5c13;
   --status-warning-soft: color-mix(in srgb, var(--status-warning) 14%, var(--card));
   --status-warning-border: color-mix(in srgb, var(--status-warning) 32%, var(--border));
+  --status-info: var(--brand-link);
   --status-info-foreground: var(--brand-link);
   --status-info-soft: var(--brand-soft);
   --status-info-border: var(--brand-border);
+  --status-danger: var(--destructive);
   --status-danger-foreground: #bd4751;
+  --status-danger-soft: color-mix(in srgb, var(--status-danger) 12%, var(--card));
+  --status-danger-border: color-mix(in srgb, var(--status-danger) 40%, var(--border));
   --unread-count-foreground: #ffffff;
 }
 
@@ -129,7 +133,11 @@
   --status-success-foreground: oklch(0.82 0.1 155);
   --status-warning: oklch(0.8 0.12 80);
   --status-warning-foreground: oklch(0.86 0.1 80);
+  --status-info: var(--brand-link);
+  --status-danger: var(--destructive);
   --status-danger-foreground: #fb7185;
+  --status-danger-soft: color-mix(in srgb, var(--status-danger) 12%, var(--card));
+  --status-danger-border: color-mix(in srgb, var(--status-danger) 40%, var(--border));
   --unread-count-foreground: var(--background);
   --context-surface: #18181b;
   --content-shadow: rgba(0, 0, 0, .25);
@@ -258,7 +266,7 @@
 }
 .nasq-status-chip-danger {
   border-color: transparent;
-  background: color-mix(in srgb, var(--destructive) 12%, var(--card));
+  background: var(--status-danger-soft);
   color: var(--status-danger-foreground);
 }
 .nasq-status-callout-warning {

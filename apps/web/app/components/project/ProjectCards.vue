@@ -4,15 +4,21 @@ import ProjectMenu from './ProjectMenu.vue'
 import ProjectProgress from './ProjectProgress.vue'
 import ProjectStatusBadge from './ProjectStatusBadge.vue'
 import EmptyState from '@/components/shared/EmptyState.vue'
+import type { RouteLocationRaw } from 'vue-router'
 import { formatCalendarDate } from '@/composables/calendarDate'
-import { returnToQuery } from '@/utils/safeReturnTo'
 
 type ProjectListItem = Project & { manager?: { id: number; name: string } | null; date_end?: string | null }
-const props = defineProps<{ items: ProjectListItem[]; isLoading: boolean; archived: boolean; filtered: boolean; capped?: boolean }>()
+const props = defineProps<{
+  items: ProjectListItem[]
+  isLoading: boolean
+  archived: boolean
+  filtered: boolean
+  capped?: boolean
+  toFor: (project: ProjectListItem) => RouteLocationRaw
+}>()
 const emit = defineEmits<{ open: [id: number] }>()
 const { t, locale } = useI18n()
 const hydrated = useHydrated()
-const route = useRoute()
 
 function open(project: Project, event: MouseEvent) {
   if (!hydrated.value || (event.target as HTMLElement).closest('a, button, [role="menu"]')) return
@@ -50,7 +56,7 @@ function openWithKeyboard(project: Project, event: KeyboardEvent) {
       >
         <div class="flex items-start justify-between gap-3">
         <div class="min-w-0">
-          <h2 :id="`project-card-${project.id}`" class="truncate text-sm font-semibold"><NuxtLink :to="{ path: `/projects/${project.id}`, query: returnToQuery(route.fullPath) }" class="hover:underline">{{ project.name }}</NuxtLink></h2>
+          <h2 :id="`project-card-${project.id}`" class="truncate text-sm font-semibold"><NuxtLink :to="toFor(project)" class="hover:underline">{{ project.name }}</NuxtLink></h2>
           <p class="mt-1 text-xs text-muted-foreground">{{ t('projects.projectId', { id: project.id }) }}</p>
         </div>
         <ProjectStatusBadge :status="project.status" />

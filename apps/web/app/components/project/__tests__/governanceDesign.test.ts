@@ -159,6 +159,7 @@ describe('RACI role select authoritative value', () => {
             visibleTasks: [{ id: 1, name: 'Design' }],
             visibleStakeholders: [{ id: 2, name: 'Sponsor' }],
             assignment,
+            roleClass: () => undefined,
             changeRole,
             taskPage: 0,
             stakeholderPage: 0,

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { inject } from 'vue'
-import { governanceMatrixFilters } from '@/components/project/governance/state'
+import { governanceMatrixFilters, RACI_ROLE_TONE } from '@/components/project/governance/state'
+import { STATUS_CHIP_CLASS } from '@/utils/statusTone'
 import { useGovernanceTaskPage, useProjectRaci, useProjectStakeholders, useCreateProjectRaci, useUpdateProjectRaci, useDeleteProjectRaci } from '@/composables/useProjectGovernance'
 import type { ProjectRaci, ProjectRaciRole } from '@nasq/contracts'
 import { ApiError } from '@/composables/useApi'
@@ -36,6 +37,10 @@ const activeFilterCount = computed(() => Number(Boolean(taskSearch.value.trim())
 const error = ref<string | null>(null); const confirmRow = ref<ProjectRaci | null>(null)
 const assignments = computed(() => new Map(rows.data.value?.items.map(row => [`${row.task.id}:${row.stakeholder.id}`, row])))
 function assignment(taskId: number, stakeholderId: number) { return assignments.value.get(`${taskId}:${stakeholderId}`) }
+function roleClass(taskId: number, stakeholderId: number) {
+  const role = assignment(taskId, stakeholderId)?.role
+  return role ? STATUS_CHIP_CLASS[RACI_ROLE_TONE[role]] : undefined
+}
 function nextTasks() { taskPage.value++ }
 function clearFilters() {
   router.replace({ query: { ...route.query, task_q: undefined, stakeholder_q: undefined, closed: undefined, task_page: undefined, stakeholder_page: undefined } })
@@ -130,7 +135,7 @@ async function deleteRow() {
     <section v-if="visibleTasks.length && visibleStakeholders.length" class="nasq-panel max-w-full overflow-x-auto overscroll-x-contain">
       <table class="w-full min-w-max text-start text-sm"><caption class="p-3 text-start">{{ t('projects.governance.raci.matrixHelp') }}</caption><thead><tr class="border-b"><th scope="col" class="sticky start-0 z-10 h-auto w-28 min-w-28 max-w-28 bg-background p-3 text-start">{{ t('app.recordNumber') }}</th><th scope="col" class="sticky start-28 z-10 min-w-48 bg-background p-3 text-start">{{ t('projects.governance.raci.task') }}</th><th v-for="item in visibleStakeholders" :key="item.id" scope="col" class="min-w-32 p-3 text-start"><NuxtLink class="underline" :to="{ path: `/projects/${id}/stakeholders/${item.id}`, query: { returnTo: route.fullPath } }">{{ item.name }}</NuxtLink></th></tr></thead>
         <tbody><tr v-for="task in visibleTasks" :key="task.id" class="border-b"><td class="sticky start-0 z-10 h-auto w-28 min-w-28 max-w-28 bg-background p-3"><RecordNumber :value="task.id" /></td><th scope="row" class="sticky start-28 z-10 bg-background p-3 text-start font-medium"><NuxtLink class="underline" :to="{ path: `/projects/${id}/tasks/${task.id}`, query: { returnTo: route.fullPath } }">{{ task.name }}</NuxtLink></th><td v-for="item in visibleStakeholders" :key="item.id" class="p-3">
-          <select v-if="rows.data.value?.can_manage" :value="assignment(task.id, item.id)?.role ?? ''" :aria-label="`${task.name} — ${item.name} — ${t('projects.governance.raci.role')}`" class="border-input h-[40px] min-w-24 rounded-lg border bg-transparent px-3 text-sm shadow-none outline-none focus-visible:border-ring focus-visible:ring-ring focus-visible:ring-3 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50" :disabled="!hydrated || pending || loading || !!confirmRow" @change="changeRole(task.id, item.id, $event)"><option value="">—</option><option v-for="role in ['R', 'A', 'C', 'I']" :key="role" :value="role">{{ role }}</option></select><span v-else>{{ assignment(task.id, item.id)?.role ?? '—' }}</span>
+          <select v-if="rows.data.value?.can_manage" :value="assignment(task.id, item.id)?.role ?? ''" :aria-label="`${task.name} — ${item.name} — ${t('projects.governance.raci.role')}`" class="border-input h-[40px] min-w-24 rounded-lg border bg-transparent px-3 text-sm shadow-none outline-none focus-visible:border-ring focus-visible:ring-ring focus-visible:ring-3 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50" :class="roleClass(task.id, item.id)" :disabled="!hydrated || pending || loading || !!confirmRow" @change="changeRole(task.id, item.id, $event)"><option value="">—</option><option v-for="role in ['R', 'A', 'C', 'I']" :key="role" :value="role">{{ role }}</option></select><span v-else class="inline-flex min-h-8 min-w-8 items-center justify-center rounded-md px-2" :class="roleClass(task.id, item.id)">{{ assignment(task.id, item.id)?.role ?? '—' }}</span>
         </td></tr></tbody>
       </table>
       <p class="p-3 text-sm text-muted-foreground">{{ t('projects.governance.raci.legend') }}</p>

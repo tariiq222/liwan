@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Project, ProjectDetail } from '@nasq/contracts'
 import { MoreHorizontal } from '@lucide/vue'
+import { AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogOverlay, AlertDialogPortal, AlertDialogRoot, AlertDialogTitle } from 'reka-ui'
 import { toast } from 'vue-sonner'
 import { ApiError } from '@/composables/useApi'
 import { useArchiveProject, useUnarchiveProject } from '@/composables/useProjects'
@@ -64,12 +65,22 @@ async function doUnarchive() {
     </DropdownMenuContent>
   </DropdownMenu>
 
-  <div v-if="project.active && confirmOpen" data-testid="project-archive-confirm" class="mt-2 space-y-2 rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm">
-    <p class="font-medium">{{ t('projects.archiveConfirmTitle') }}</p>
-    <p class="text-muted-foreground">{{ t('projects.archiveConfirmText') }}</p>
-    <div class="flex flex-wrap gap-2">
-      <Button variant="outline" size="sm" :disabled="archiving" @click.stop="confirmOpen = false">{{ t('app.cancel') }}</Button>
-      <Button variant="destructive" size="sm" :disabled="archiving" @click.stop="doArchive">{{ t('projects.menu.archive') }}</Button>
-    </div>
-  </div>
+  <AlertDialogRoot :open="project.active && confirmOpen" @update:open="open => { if (!open) confirmOpen = false }">
+    <AlertDialogPortal>
+      <AlertDialogOverlay class="fixed inset-0 z-50 bg-black/30" />
+      <AlertDialogContent
+        data-testid="project-archive-confirm"
+        class="fixed start-1/2 top-1/2 z-50 w-[calc(100%-2rem)] max-w-[420px] -translate-y-1/2 rounded-lg border bg-card p-6 text-start text-card-foreground shadow-lg ltr:-translate-x-1/2 rtl:translate-x-1/2"
+      >
+        <AlertDialogTitle class="text-base font-semibold">{{ t('projects.archiveConfirmTitle') }}</AlertDialogTitle>
+        <AlertDialogDescription class="mt-2 text-sm leading-6 text-muted-foreground">{{ t('projects.archiveConfirmText') }}</AlertDialogDescription>
+        <div class="mt-6 flex flex-wrap justify-end gap-2">
+          <AlertDialogCancel as-child>
+            <Button type="button" variant="outline" :disabled="archiving">{{ t('app.cancel') }}</Button>
+          </AlertDialogCancel>
+          <Button type="button" variant="destructive" :disabled="archiving" @click="doArchive">{{ t('projects.menu.archive') }}</Button>
+        </div>
+      </AlertDialogContent>
+    </AlertDialogPortal>
+  </AlertDialogRoot>
 </template>

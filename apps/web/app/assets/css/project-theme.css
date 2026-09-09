@@ -49,9 +49,16 @@ html[data-project-theme="true"] :is([data-project-area="true"], [data-project-ov
   font-size: var(--project-type-body);
   line-height: 1.65;
 }
-html[data-project-theme="true"] :is([data-project-area="true"], [data-project-overlay], [data-testid="notification-preview"]) :is(.text-xs, .nasq-form-section-hint, .nasq-metric-title, .nasq-metric-foot, .nasq-gantt-legend, .nasq-gantt-dates) {
+html[data-project-theme="true"] :is([data-project-area="true"], [data-project-overlay], [data-testid="notification-preview"]) :is(.text-xs, .nasq-form-section-hint, .nasq-metric-title, .nasq-metric-foot, .nasq-gantt-legend, .nasq-gantt-dates, .nasq-gantt-name, .nasq-gantt-corner, .nasq-gantt-empty) {
   font-size: var(--project-type-caption);
   line-height: 1.6;
+}
+html[data-project-theme="true"] [data-project-area="true"] .nasq-gantt-head > span {
+  font-size: var(--project-type-caption);
+}
+html[data-project-theme="true"] [data-project-area="true"] .nasq-view-switch > a {
+  font-size: var(--project-type-control);
+  line-height: 1.5;
 }
 html[data-project-theme="true"] :is([data-project-area="true"], [data-project-overlay], [data-testid="notification-preview"]) :is(button, input, select, textarea, label, [role="combobox"], th) {
   font-size: var(--project-type-control);

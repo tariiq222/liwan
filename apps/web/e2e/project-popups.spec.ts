@@ -235,7 +235,7 @@ test('standalone option remains available', async ({ page }) => {
   await expect(page.getByRole('dialog')).toHaveCount(0)
 })
 
-test('RTL side sheet enters from the right and remains mounted until it exits right', async ({ page }) => {
+test('RTL side sheet enters from the right and remains mounted until it exits left', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'no-preference' })
   await page.goto('/projects/1?tab=tasks')
   await page.evaluate(() => {
@@ -269,13 +269,12 @@ test('RTL side sheet enters from the right and remains mounted until it exits ri
   const entryEvents = await page.evaluate(() => (window as any).__projectSheetMotion)
   expect(entryEvents.some((event: any) => event.type === 'transitionrun' && event.state === 'open' && event.translateX > 0)).toBe(true)
   await page.evaluate(() => { (window as any).__projectSheetMotion.length = 0 })
-  const railBoundary = (await page.getByTestId('module-rail').boundingBox())!.x
   await page.getByTestId('project-overlay-close').click()
   await expect(page.getByRole('dialog')).toHaveCount(0)
   const events = await page.evaluate(() => (window as any).__projectSheetMotion)
   // Vue may remove the leaving node on its timeout just before the browser's
   // last transitionend frame. Sample actual visible travel while still mounted.
-  expect(events.some((event: any) => event.type === 'sample' && event.translateX > 0 && event.x > railBoundary - 100), JSON.stringify(events)).toBe(true)
+  expect(events.some((event: any) => event.type === 'sample' && event.translateX < 0), JSON.stringify(events)).toBe(true)
 })
 
 test('project sheets remove redundant back navigation and retain the shell corner', async ({ page }) => {

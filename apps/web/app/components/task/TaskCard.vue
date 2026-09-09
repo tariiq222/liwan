@@ -104,7 +104,7 @@ function onCardKeydown(event: KeyboardEvent) {
         </div>
         <div class="flex">
           <Avatar v-for="a in task.assignees" :key="a.id" class="-ms-2 size-6 border-2 border-background first:ms-0">
-            <AvatarFallback class="text-[10px]">{{ initials(a.name) }}</AvatarFallback>
+            <AvatarFallback class="text-xs">{{ initials(a.name) }}</AvatarFallback>
           </Avatar>
         </div>
       </div>

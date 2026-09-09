@@ -7,17 +7,23 @@ import ProjectProgress from './ProjectProgress.vue'
 import ProjectStatusBadge from './ProjectStatusBadge.vue'
 import EmptyState from '@/components/shared/EmptyState.vue'
 import RecordNumber from '@/components/shared/RecordNumber.vue'
+import type { RouteLocationRaw } from 'vue-router'
 import { formatCalendarDate } from '@/composables/calendarDate'
-import { returnToQuery } from '@/utils/safeReturnTo'
 
 type ProjectListItem = Project & { manager?: { id: number; name: string } | null; date_end?: string | null }
-const props = defineProps<{ items: ProjectListItem[]; isLoading: boolean; archived: boolean; capped: boolean; filtered: boolean }>()
+const props = defineProps<{
+  items: ProjectListItem[]
+  isLoading: boolean
+  archived: boolean
+  capped: boolean
+  filtered: boolean
+  toFor: (project: ProjectListItem) => RouteLocationRaw
+}>()
 const emit = defineEmits<{ open: [id: number] }>()
 
 const { t, locale } = useI18n()
 const hydrated = useHydrated()
 const NuxtLink = resolveComponent('NuxtLink')
-const route = useRoute()
 
 const columnHelper = createColumnHelper<ProjectListItem>()
 const columns = [
@@ -31,9 +37,14 @@ const columns = [
     header: () => t('projects.columns.name'),
     cell: (info) => h('div', { class: 'min-w-0' }, [
       h(NuxtLink, {
-        to: { path: `/projects/${info.row.original.id}`, query: returnToQuery(route.fullPath) },
+        to: props.toFor(info.row.original),
         class: 'block truncate font-medium hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-        onClick: (event: MouseEvent) => event.stopPropagation(),
+        onClick: (event: MouseEvent) => {
+          event.stopPropagation()
+          if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return
+          event.preventDefault()
+          emit('open', info.row.original.id)
+        },
       }, () => info.row.original.name),
     ]),
   }),

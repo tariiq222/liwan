@@ -282,7 +282,7 @@ test('archiving and unarchiving a project moves it between the active and archiv
   await expect(activeRow).toBeVisible({ timeout: 10_000 })
   await activeRow.getByTestId('project-menu').click()
   await page.getByRole('menuitem', { name: 'أرشفة المشروع' }).click()
-  const projectConfirm = activeRow.getByTestId('project-archive-confirm')
+  const projectConfirm = page.getByTestId('project-archive-confirm')
   await expect(projectConfirm).toBeVisible()
   const archived = page.waitForResponse((r) => r.url().includes(`/api/v1/projects/${id}/archive`) && r.request().method() === 'POST')
   await projectConfirm.getByRole('button', { name: 'أرشفة المشروع' }).click()
