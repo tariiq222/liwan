@@ -49,6 +49,14 @@ function closeOnEscape(event: Event) {
         class="pointer-events-none fixed z-[50] overflow-hidden"
         :style="props.frameStyle"
       >
+        <Transition name="project-sheet-backdrop" appear>
+          <div
+            v-if="props.open"
+            data-testid="project-sheet-backdrop"
+            aria-hidden="true"
+            class="project-sheet-backdrop pointer-events-none absolute inset-0"
+          />
+        </Transition>
         <Transition
           appear
           enter-active-class="project-overlay-transition transition-transform duration-200 ease-out motion-reduce:duration-0"
@@ -101,6 +109,17 @@ function closeOnEscape(event: Event) {
 </template>
 
 <style scoped>
+.project-sheet-backdrop {
+  background: rgb(0 0 0 / 20%);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+
+.project-sheet-backdrop-enter-active,
+.project-sheet-backdrop-leave-active { transition: opacity 180ms ease; }
+.project-sheet-backdrop-enter-from,
+.project-sheet-backdrop-leave-to { opacity: 0; }
+
 :global(.project-overlay-leave-to) {
   transform: translateX(var(--project-overlay-travel, 100vw));
 }
@@ -110,6 +129,9 @@ function closeOnEscape(event: Event) {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .project-sheet-backdrop-enter-active,
+  .project-sheet-backdrop-leave-active { transition: none; }
+
   :global(.project-overlay-leave-to),
   :global(.project-overlay-transition) {
     transition-duration: 0s !important;
