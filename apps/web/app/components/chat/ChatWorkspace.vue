@@ -27,6 +27,10 @@ const pendingBody = ref('')
 const replyTo = ref<ChatMessage | null>(null)
 const messageQuery = ref('')
 const showMessageSearch = ref(false)
+function toggleMessageSearch() {
+  showMessageSearch.value = !showMessageSearch.value
+  if (!showMessageSearch.value) messageQuery.value = ''
+}
 const showList = computed(() => !isDesktop.value && !props.conversationId)
 const showConversation = computed(() => isDesktop.value || Boolean(props.conversationId))
 const listQuery = computed(() => serializeChatListRoute(routeState.value))
@@ -95,7 +99,7 @@ function updateRoute(next: ChatListRoute) {
               :aria-label="t('chat.searchMessages')"
               :title="t('chat.searchMessages')"
               :disabled="!hydrated"
-              @click="showMessageSearch = !showMessageSearch"
+              @click="toggleMessageSearch"
             >
               <Search class="size-5" aria-hidden="true" />
             </button>

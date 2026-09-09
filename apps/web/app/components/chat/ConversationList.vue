@@ -114,7 +114,7 @@ function conversationTo(id: number) {
           </span>
           <span class="min-w-0 flex-1">
             <span class="flex items-center justify-between gap-2">
-              <span class="truncate font-medium">{{ item.name }}</span>
+              <span class="truncate font-medium">{{ item.name }}{{ item.muted ? ` · ${t('chat.muted')}` : '' }}</span>
               <time v-if="item.last_message_at" class="nasq-chat-list-time" :class="{ 'text-primary': item.unread_count }">{{ timeFmt.format(new Date(item.last_message_at)) }}</time>
             </span>
             <span class="flex items-center justify-between gap-2">

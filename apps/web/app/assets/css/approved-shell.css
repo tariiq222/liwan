@@ -300,7 +300,10 @@ html[dir="rtl"] body { padding-right: 0 !important; }
 .nasq-chat-avatar-sm { width: 24px; height: 24px; font-size: .6rem; }
 .nasq-chat-avatar-badge { position: absolute; inset-inline-end: 0; inset-block-end: 0; display: grid; width: 16px; height: 16px; place-items: center; border-radius: 999px; background: var(--brand-link); color: var(--brand-soft); }
 .nasq-chat-list-time { flex: none; color: var(--muted-foreground); font-size: 11px; }
-.nasq-chat-msg-actions { opacity: 0; }
+.nasq-chat-msg-actions { opacity: 1; }
+@media (hover: hover) and (pointer: fine) {
+  .nasq-chat-msg-actions { opacity: 0; }
+}
 .nasq-chat-row:hover .nasq-chat-msg-actions, .nasq-chat-row:focus-within .nasq-chat-msg-actions { opacity: 1; }
 .nasq-context-enter-active, .nasq-context-leave-active { transition: opacity 140ms ease; }
 .nasq-context-enter-from, .nasq-context-leave-to { opacity: 0; }
