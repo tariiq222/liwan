@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest'
-import { collectTaskIds, nextBackoffDelay, parseBusFrame } from '../useBus'
+import { describe, expect, it, vi } from 'vitest'
+import { applyChatTyping, chatTypingEvent, collectChatIds, collectTaskIds, nextBackoffDelay, parseBusFrame } from '../useBus'
+import { CHAT_TYPING_MS } from '../../utils/chatState'
 
 describe('parseBusFrame', () => {
   it('parses a frame with one notification and returns its id as lastId', () => {
@@ -78,6 +79,27 @@ describe('collectTaskIds', () => {
 
   it('returns an empty array for an empty frame', () => {
     expect(collectTaskIds([])).toEqual([])
+  })
+})
+
+describe('collectChatIds', () => {
+  it('collects nasq/chat conversation ids', () => {
+    expect(collectChatIds([
+      { id: 1, message: { type: 'nasq/chat', payload: { id: 42, event: 'message' } } },
+      { id: 2, message: { type: 'nasq/task', payload: { id: 7 } } },
+      { id: 3, message: { type: 'nasq/chat', payload: { id: 42 } } },
+    ])).toEqual([42])
+  })
+})
+
+describe('applyChatTyping', () => {
+  it('keeps the writer name and expires typing after the idle window', () => {
+    vi.useFakeTimers()
+    applyChatTyping({ conversationId: 8, userId: 3, userName: 'Peer', isTyping: true })
+    expect(chatTypingEvent.value).toMatchObject({ userName: 'Peer', isTyping: true })
+    vi.advanceTimersByTime(CHAT_TYPING_MS)
+    expect(chatTypingEvent.value?.isTyping).toBe(false)
+    vi.useRealTimers()
   })
 })
 

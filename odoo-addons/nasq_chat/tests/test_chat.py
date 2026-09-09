@@ -33,6 +33,10 @@ class TestChat(NasqApiCase):
             cls.env, login='api_third', password='api_third_pass_123',
             name='Third', groups='nasq_core.group_employee',
         )
+        cls.fourth = new_test_user(
+            cls.env, login='api_fourth', password='api_fourth_pass_123',
+            name='Fourth', groups='nasq_core.group_employee',
+        )
 
     def _create_direct(self):
         return self.api('POST', '/api/v1/chat/conversations', {
@@ -47,6 +51,9 @@ class TestChat(NasqApiCase):
         self.assertEqual(set(conversation), set(CONVERSATION_KEYS))
         self.assertEqual(conversation['type'], 'direct')
         self.assertEqual(conversation['name'], 'Peer')
+        self.assertIsNone(conversation['notifications'])
+        self.assertFalse(conversation['muted'])
+        self.assertFalse(conversation['can_manage'])
 
         sent = self.api('POST', f"/api/v1/chat/conversations/{conversation['id']}/messages", {
             'body': 'hello <peer>\nsecond line',
@@ -182,13 +189,16 @@ class TestChat(NasqApiCase):
         }).json()
         self.api('POST', f"/api/v1/chat/conversations/{first['id']}/messages", {'body': 'ping'})
         self.authenticate('api_peer', 'api_peer_pass_123')
-        unread = self.api('GET', '/api/v1/chat/conversations?filter=unread&limit=1&offset=0')
+        # Stock public channels (e.g. "general") auto-subscribe every internal user and
+        # count as unread too; only the direct chats matter for this paging check.
+        unread = self.api('GET', '/api/v1/chat/conversations?filter=unread&limit=50&offset=0')
         self.assertEqual(unread.status_code, 200)
-        body = unread.json()
-        self.assertEqual(body['total'], 1)
-        self.assertEqual(len(body['items']), 1)
-        self.assertEqual(body['items'][0]['id'], first['id'])
-        self.assertNotEqual(body['items'][0]['id'], second['id'])
+        direct = [item for item in unread.json()['items'] if item['type'] == 'direct']
+        self.assertEqual([item['id'] for item in direct], [first['id']])
+        self.assertNotIn(second['id'], [item['id'] for item in unread.json()['items']])
+        paged = self.api('GET', '/api/v1/chat/conversations?filter=unread&limit=1&offset=0').json()
+        self.assertEqual(len(paged['items']), 1)
+        self.assertEqual(paged['total'], len(unread.json()['items']))
 
     def test_messages_page_by_stable_ids(self):
         self.authenticate('api_emp', 'api_emp_pass_123')
@@ -241,3 +251,78 @@ class TestChat(NasqApiCase):
         collected = first_ids + second_ids + third_ids
         self.assertEqual(collected, expected_ids)
         self.assertEqual(len(collected), len(set(collected)))
+
+    def test_discuss_message_features_and_conversation_preferences(self):
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        conversation = self.api('POST', '/api/v1/chat/conversations', {
+            'user_ids': [self.peer.id, self.third.id],
+            'name': 'Product chat',
+        }).json()
+        path = f"/api/v1/chat/conversations/{conversation['id']}"
+        first = self.api('POST', f'{path}/messages', {'body': 'root'}).json()
+        reply = self.api('POST', f'{path}/messages', {
+            'body': 'reply',
+            'parent_id': first['id'],
+            'mention_user_ids': [self.peer.id],
+        })
+        self.assertEqual(reply.status_code, 201)
+        self.assertEqual(reply.json()['parent']['id'], first['id'])
+        self.assertFalse(reply.json()['edited'])
+
+        reacted = self.api('POST', f"{path}/messages/{reply.json()['id']}/reactions", {
+            'content': '👍', 'action': 'add',
+        })
+        self.assertEqual(reacted.status_code, 200)
+        self.assertEqual(reacted.json()['reactions'], [{'content': '👍', 'count': 1, 'me': True}])
+        starred = self.api('POST', f"{path}/messages/{reply.json()['id']}/star", {})
+        self.assertTrue(starred.json()['starred'])
+        pinned = self.api('POST', f"{path}/messages/{reply.json()['id']}/pin", {'pinned': True})
+        self.assertTrue(pinned.json()['pinned'])
+        edited = self.api('PATCH', f"{path}/messages/{reply.json()['id']}", {'body': 'edited'})
+        self.assertEqual(edited.status_code, 200)
+        self.assertTrue(edited.json()['edited'])
+
+        searched = self.api('GET', f'{path}/messages?q=edited&starred=1')
+        self.assertEqual(searched.status_code, 200)
+        self.assertEqual([item['id'] for item in searched.json()['items']], [reply.json()['id']])
+        updated = self.api('PATCH', path, {
+            'name': 'Renamed', 'muted': True, 'notifications': 'mentions',
+        })
+        self.assertEqual(updated.status_code, 200)
+        self.assertEqual(updated.json()['name'], 'Renamed')
+        self.assertTrue(updated.json()['muted'])
+        self.assertEqual(updated.json()['notifications'], 'mentions')
+        self.authenticate('api_peer', 'api_peer_pass_123')
+        forbidden = self.api('PATCH', f"{path}/messages/{reply.json()['id']}", {'body': 'nope'})
+        self.assertEqual(forbidden.status_code, 403)
+        self.authenticate('api_emp', 'api_emp_pass_123')
+
+    def test_channel_creation_and_member_management(self):
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        created = self.api('POST', '/api/v1/chat/conversations', {
+            'type': 'channel', 'name': 'Announcements',
+        })
+        self.assertEqual(created.status_code, 201)
+        conversation = created.json()
+        self.assertEqual(conversation['type'], 'channel')
+        channels = self.api('GET', '/api/v1/chat/conversations?filter=channels')
+        self.assertIn(conversation['id'], [item['id'] for item in channels.json()['items']])
+        added = self.api('POST', f"/api/v1/chat/conversations/{conversation['id']}/members", {
+            'user_ids': [self.fourth.id],
+        })
+        self.assertEqual(added.status_code, 200)
+        kicked = self.api('DELETE', f"/api/v1/chat/conversations/{conversation['id']}/members/{self.fourth.id}")
+        self.assertEqual(kicked.status_code, 403)
+        self.authenticate('api_fourth', 'api_fourth_pass_123')
+        left = self.api('POST', f"/api/v1/chat/conversations/{conversation['id']}/leave")
+        self.assertEqual(left.status_code, 200)
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        self.assertNotIn(self.fourth.id, {
+            item['id'] for item in self.api(
+                'GET', f"/api/v1/chat/conversations/{conversation['id']}/members",
+            ).json()['items']
+        })
+        typing = self.api('POST', f"/api/v1/chat/conversations/{conversation['id']}/typing", {
+            'is_typing': True,
+        })
+        self.assertEqual(typing.status_code, 200)

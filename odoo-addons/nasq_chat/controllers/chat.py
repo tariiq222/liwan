@@ -1,14 +1,19 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+from datetime import datetime
+
 from odoo import http
 from odoo.http import request
+from odoo.tools.mail import plaintext2html
 
 from odoo.addons.nasq_api.controllers.common import (
     ApiError,
     api_handler,
     parse_nonneg_int,
+    parse_positive_int,
 )
 from odoo.addons.nasq_chat.models.chat_service import MAX_LIMIT
 from odoo.addons.nasq_chat.serializers.chat import (
+    REACTION_CONTENTS,
     dump_attachment,
     dump_conversation,
     dump_member,
@@ -17,9 +22,24 @@ from odoo.addons.nasq_chat.serializers.chat import (
     parse_chat_attachment,
 )
 
-CREATE_FIELDS = frozenset({'user_ids', 'name'})
-SEND_FIELDS = frozenset({'body', 'attachment'})
+MUTE_UNTIL = datetime(9999, 12, 31, 23, 59, 59)
+
+CREATE_FIELDS = frozenset({'user_ids', 'name', 'type'})
+PATCH_FIELDS = frozenset({'name', 'muted', 'notifications'})
+MEMBER_FIELDS = frozenset({'user_ids'})
+SEND_FIELDS = frozenset({'body', 'attachment', 'parent_id', 'mention_user_ids'})
+MESSAGE_PATCH_FIELDS = frozenset({'body'})
+REACTION_FIELDS = frozenset({'content', 'action'})
+PIN_FIELDS = frozenset({'pinned'})
+TYPING_FIELDS = frozenset({'is_typing'})
 READ_FIELDS = frozenset({'message_id'})
+
+
+def _reject_extra(payload, allowed):
+    extra = set(payload) - allowed
+    if extra:
+        field = sorted(extra)[0]
+        raise ApiError(422, 'invalid', f"field {field!r} is not writable", field=field)
 
 
 class ChatController(http.Controller):
@@ -64,14 +84,13 @@ class ChatController(http.Controller):
     @http.route('/api/v1/chat/conversations', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
     def create_conversation(self, **payload):
-        extra = set(payload) - CREATE_FIELDS
-        if extra:
-            field = sorted(extra)[0]
-            raise ApiError(422, 'invalid', f"field {field!r} is not writable", field=field)
+        _reject_extra(payload, CREATE_FIELDS)
         channel = self._service()._nasq_create_channel(
             payload.get('user_ids'),
             name=payload.get('name'),
+            channel_type=payload.get('type'),
         )
+        self._service()._nasq_notify_channel(channel, 'conversation_created')
         return request.make_json_response(dump_conversation(channel), status=201)
 
     @http.route(
@@ -81,6 +100,36 @@ class ChatController(http.Controller):
     @api_handler
     def get_conversation(self, conversation_id, **_):
         channel = self._service()._nasq_member_channel(conversation_id)
+        return dump_conversation(channel)
+
+    @http.route(
+        '/api/v1/chat/conversations/<int:conversation_id>',
+        type='json2', auth='user', methods=['PATCH'], readonly=False,
+    )
+    @api_handler
+    def patch_conversation(self, conversation_id, **payload):
+        _reject_extra(payload, PATCH_FIELDS)
+        service = self._service()
+        channel = service._nasq_member_channel(conversation_id)
+        member = service._nasq_self_member(channel)
+        if 'name' in payload:
+            if channel.channel_type == 'chat' or not channel.has_access('write'):
+                raise ApiError(403, 'forbidden', 'you cannot rename this conversation')
+            name = payload['name']
+            if not isinstance(name, str) or not name.strip():
+                raise ApiError(422, 'invalid', 'name must not be empty', field='name')
+            channel.channel_rename(name.strip())
+        if 'muted' in payload:
+            if not isinstance(payload['muted'], bool):
+                raise ApiError(422, 'invalid', 'muted must be a boolean', field='muted')
+            member.mute_until_dt = MUTE_UNTIL if payload['muted'] else False
+            member._notify_mute()
+        if 'notifications' in payload:
+            notifications = payload['notifications']
+            if notifications not in (None, 'all', 'mentions', 'no_notif'):
+                raise ApiError(422, 'invalid', 'notifications is invalid', field='notifications')
+            member.custom_notifications = notifications
+        service._nasq_notify_channel(channel, 'conversation_updated')
         return dump_conversation(channel)
 
     @http.route(
@@ -97,6 +146,8 @@ class ChatController(http.Controller):
             before=args.get('before'),
             after=args.get('after'),
             limit=limit,
+            q=args.get('q') or None,
+            starred=args.get('starred') == '1',
         )
         return {
             'items': [dump_message(message) for message in messages],
@@ -109,21 +160,100 @@ class ChatController(http.Controller):
     )
     @api_handler
     def send_message(self, conversation_id, **payload):
-        extra = set(payload) - SEND_FIELDS
-        if extra:
-            field = sorted(extra)[0]
-            raise ApiError(422, 'invalid', f"field {field!r} is not writable", field=field)
+        _reject_extra(payload, SEND_FIELDS)
         attachment_payload = payload.get('attachment')
         if attachment_payload is not None and not isinstance(attachment_payload, dict):
             raise ApiError(422, 'invalid', 'attachment must be an object', field='attachment')
         parsed = parse_chat_attachment(attachment_payload) if attachment_payload else None
+        parent_id = payload.get('parent_id')
+        if parent_id is not None:
+            parent_id = parse_positive_int(parent_id, 'parent_id')
         channel = self._service()._nasq_member_channel(conversation_id)
         message = self._service()._nasq_post_message(
             channel,
             body=payload.get('body'),
             attachment=parsed,
+            parent_id=parent_id,
+            mention_user_ids=payload.get('mention_user_ids'),
         )
+        self._service()._nasq_notify_channel(channel, 'message_created')
         return request.make_json_response(dump_message(message), status=201)
+
+    @http.route(
+        '/api/v1/chat/conversations/<int:conversation_id>/messages/<int:message_id>',
+        type='json2', auth='user', methods=['PATCH'], readonly=False,
+    )
+    @api_handler
+    def patch_message(self, conversation_id, message_id, **payload):
+        _reject_extra(payload, MESSAGE_PATCH_FIELDS)
+        if 'body' not in payload or not isinstance(payload['body'], str):
+            raise ApiError(422, 'invalid', 'body must be a string', field='body')
+        service = self._service()
+        channel = service._nasq_member_channel(conversation_id)
+        message = service._nasq_channel_message(channel, message_id)
+        if message.author_id != request.env.user.partner_id:
+            raise ApiError(403, 'forbidden', 'only the message author can edit it')
+        body = payload['body']
+        channel._message_update_content(
+            message, body=plaintext2html(body) if body.strip() else '',
+        )
+        service._nasq_notify_channel(channel, 'message_updated')
+        return dump_message(message)
+
+    @http.route(
+        '/api/v1/chat/conversations/<int:conversation_id>/messages/<int:message_id>/reactions',
+        type='json2', auth='user', methods=['POST'], readonly=False,
+    )
+    @api_handler
+    def react_to_message(self, conversation_id, message_id, **payload):
+        _reject_extra(payload, REACTION_FIELDS)
+        content = payload.get('content')
+        action = payload.get('action')
+        if content not in REACTION_CONTENTS:
+            raise ApiError(422, 'invalid', 'content is not an allowed reaction', field='content')
+        if action not in ('add', 'remove'):
+            raise ApiError(422, 'invalid', 'action must be add or remove', field='action')
+        service = self._service()
+        channel = service._nasq_member_channel(conversation_id)
+        message = service._nasq_channel_message(channel, message_id)
+        # sudo: mail.message.reaction has no user ACL; stock /mail/message/reaction does the same
+        # after the caller proved channel membership (see _nasq_member_channel above).
+        message.sudo()._message_reaction(
+            content, action, request.env.user.partner_id, request.env['mail.guest'],
+        )
+        service._nasq_notify_channel(channel, 'reaction_updated')
+        return dump_message(message)
+
+    @http.route(
+        '/api/v1/chat/conversations/<int:conversation_id>/messages/<int:message_id>/pin',
+        type='json2', auth='user', methods=['POST'], readonly=False,
+    )
+    @api_handler
+    def pin_message(self, conversation_id, message_id, **payload):
+        _reject_extra(payload, PIN_FIELDS)
+        if not isinstance(payload.get('pinned'), bool):
+            raise ApiError(422, 'invalid', 'pinned must be a boolean', field='pinned')
+        service = self._service()
+        channel = service._nasq_member_channel(conversation_id)
+        message = service._nasq_channel_message(channel, message_id)
+        channel.set_message_pin(message.id, payload['pinned'])
+        message.invalidate_recordset(['pinned_at'])
+        service._nasq_notify_channel(channel, 'pin_updated')
+        return dump_message(message)
+
+    @http.route(
+        '/api/v1/chat/conversations/<int:conversation_id>/messages/<int:message_id>/star',
+        type='json2', auth='user', methods=['POST'], readonly=False,
+    )
+    @api_handler
+    def star_message(self, conversation_id, message_id, **payload):
+        _reject_extra(payload, frozenset())
+        service = self._service()
+        channel = service._nasq_member_channel(conversation_id)
+        message = service._nasq_channel_message(channel, message_id)
+        message.toggle_message_starred()
+        service._nasq_notify_channel(channel, 'star_updated')
+        return dump_message(message)
 
     @http.route(
         '/api/v1/chat/conversations/<int:conversation_id>/read',
@@ -131,12 +261,10 @@ class ChatController(http.Controller):
     )
     @api_handler
     def mark_read(self, conversation_id, **payload):
-        extra = set(payload) - READ_FIELDS
-        if extra:
-            field = sorted(extra)[0]
-            raise ApiError(422, 'invalid', f"field {field!r} is not writable", field=field)
+        _reject_extra(payload, READ_FIELDS)
         channel = self._service()._nasq_member_channel(conversation_id)
         channel = self._service()._nasq_mark_read(channel, payload.get('message_id'))
+        self._service()._nasq_notify_channel(channel, 'read_updated')
         return dump_conversation(channel)
 
     @http.route(
@@ -153,6 +281,85 @@ class ChatController(http.Controller):
             'items': [dump_member(user) for user in users[offset:offset + limit]],
             'total': len(users),
         }
+
+    @http.route(
+        '/api/v1/chat/conversations/<int:conversation_id>/members',
+        type='json2', auth='user', methods=['POST'], readonly=False,
+    )
+    @api_handler
+    def add_members(self, conversation_id, **payload):
+        _reject_extra(payload, MEMBER_FIELDS)
+        service = self._service()
+        channel = service._nasq_member_channel(conversation_id)
+        if channel.channel_type == 'chat' or not channel.has_access('write'):
+            raise ApiError(403, 'forbidden', 'you cannot add members')
+        partners = service._nasq_resolve_user_partners(payload.get('user_ids'), include_self=True)
+        before = channel.channel_member_ids.partner_id.ids
+        channel._add_members(partners=partners)
+        service._nasq_notify_channel(channel, 'members_updated', before)
+        return dump_conversation(channel)
+
+    @http.route(
+        '/api/v1/chat/conversations/<int:conversation_id>/members/<int:user_id>',
+        type='json2', auth='user', methods=['DELETE'], readonly=False,
+    )
+    @api_handler
+    def remove_member(self, conversation_id, user_id, **payload):
+        _reject_extra(payload, frozenset())
+        service = self._service()
+        channel = service._nasq_member_channel(conversation_id)
+        if channel.channel_type == 'chat':
+            raise ApiError(403, 'forbidden', 'direct chats cannot remove members')
+        if user_id != request.env.uid:
+            raise ApiError(403, 'forbidden', 'only the member can leave')
+        partner = service._nasq_resolve_user_partners([user_id], include_self=True)
+        member = channel.channel_member_ids.filtered(lambda item: item.partner_id.id == partner.id)
+        if not member:
+            raise ApiError(404, 'not_found', 'member does not exist')
+        if channel.channel_type == 'group' and channel.member_count <= 2:
+            raise ApiError(422, 'invalid', 'a group must keep at least two members')
+        before = channel.channel_member_ids.partner_id.ids
+        channel._action_unfollow(partner=member.partner_id)
+        service._nasq_notify_channel(channel, 'members_updated', before)
+        return {'left': True}
+
+    @http.route(
+        '/api/v1/chat/conversations/<int:conversation_id>/leave',
+        type='json2', auth='user', methods=['POST'], readonly=False,
+    )
+    @api_handler
+    def leave_conversation(self, conversation_id, **payload):
+        _reject_extra(payload, frozenset())
+        service = self._service()
+        channel = service._nasq_member_channel(conversation_id)
+        if channel.channel_type == 'chat':
+            raise ApiError(403, 'forbidden', 'direct chats cannot be left')
+        if channel.channel_type == 'group' and channel.member_count <= 2:
+            raise ApiError(422, 'invalid', 'a group must keep at least two members')
+        before = channel.channel_member_ids.partner_id.ids
+        channel._action_unfollow(partner=request.env.user.partner_id)
+        service._nasq_notify_channel(channel, 'conversation_left', before)
+        return {'left': True}
+
+    @http.route(
+        '/api/v1/chat/conversations/<int:conversation_id>/typing',
+        type='json2', auth='user', methods=['POST'], readonly=False,
+    )
+    @api_handler
+    def notify_typing(self, conversation_id, **payload):
+        _reject_extra(payload, TYPING_FIELDS)
+        if not isinstance(payload.get('is_typing'), bool):
+            raise ApiError(422, 'invalid', 'is_typing must be a boolean', field='is_typing')
+        service = self._service()
+        channel = service._nasq_member_channel(conversation_id)
+        is_typing = payload['is_typing']
+        service._nasq_self_member(channel)._notify_typing(is_typing)
+        service._nasq_notify_channel(channel, 'typing', extra={
+            'user_id': request.env.uid,
+            'user_name': request.env.user.name or '',
+            'is_typing': is_typing,
+        })
+        return {'ok': True}
 
     @http.route(
         '/api/v1/chat/conversations/<int:conversation_id>/attachments',

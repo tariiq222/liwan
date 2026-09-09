@@ -8,7 +8,12 @@ import {
   ChatMessageSchema,
   ChatRecipientListSchema,
   type ChatConversationCreate,
+  type ChatConversationPatch,
+  type ChatMemberChange,
+  type ChatMessagePin,
+  type ChatMessageReactionWrite,
   type ChatMessageSend,
+  type ChatMessageUpdate,
 } from '@nasq/contracts'
 import { ApiError } from './useApi'
 import {
@@ -91,15 +96,19 @@ export function useChatConversation(id: MaybeRefOrGetter<number | undefined>) {
   })
 }
 
-export function useChatMessages(id: MaybeRefOrGetter<number | undefined>, cursor: MaybeRefOrGetter<{ before?: number; after?: number } | undefined> = {}) {
+export function useChatMessages(
+  id: MaybeRefOrGetter<number | undefined>,
+  cursor: MaybeRefOrGetter<{ before?: number; after?: number } | undefined> = {},
+  q: MaybeRefOrGetter<string> = '',
+) {
   const { $api } = useApi()
   const qc = useQueryClient()
   const userId = currentUserId()
   return useQuery({
     ...chatQueryBase(),
-    queryKey: computed(() => chatKeys.messages(userId.value, toValue(id) || 0, toValue(cursor))),
+    queryKey: computed(() => chatKeys.messages(userId.value, toValue(id) || 0, { ...toValue(cursor), q: toValue(q) || undefined } as { before?: number; after?: number })),
     queryFn: () => $api(`/api/v1/chat/conversations/${toValue(id)}/messages`, {
-      query: { limit: CHAT_PAGE_SIZE, ...toValue(cursor) },
+      query: { limit: CHAT_PAGE_SIZE, q: toValue(q) || undefined, ...toValue(cursor) },
       schema: ChatMessageListSchema,
     }),
     enabled: computed(() => import.meta.client && Boolean(userId.value) && Boolean(toValue(id))),
@@ -209,5 +218,119 @@ export function useMarkChatRead(id: MaybeRefOrGetter<number>) {
       schema: ChatConversationSchema,
     }),
     onSuccess: () => qc.invalidateQueries({ queryKey: chatKeys.root(userId.value) }),
+  })
+}
+
+export function usePatchConversation(id: MaybeRefOrGetter<number>) {
+  const { $api } = useApi()
+  const qc = useQueryClient()
+  const userId = currentUserId()
+  return useMutation({
+    retry: false,
+    mutationFn: (body: ChatConversationPatch) => $api(`/api/v1/chat/conversations/${toValue(id)}`, {
+      method: 'PATCH', body, schema: ChatConversationSchema,
+    }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: chatKeys.root(userId.value) }),
+  })
+}
+
+export function useAddChatMembers(id: MaybeRefOrGetter<number>) {
+  const { $api } = useApi()
+  const qc = useQueryClient()
+  const userId = currentUserId()
+  return useMutation({
+    retry: false,
+    mutationFn: (body: ChatMemberChange) => $api(`/api/v1/chat/conversations/${toValue(id)}/members`, {
+      method: 'POST', body, schema: ChatConversationSchema,
+    }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: chatKeys.root(userId.value) }),
+  })
+}
+
+export function useRemoveChatMember(id: MaybeRefOrGetter<number>) {
+  const { $api } = useApi()
+  const qc = useQueryClient()
+  const userId = currentUserId()
+  return useMutation({
+    retry: false,
+    mutationFn: (memberId: number) => $api(`/api/v1/chat/conversations/${toValue(id)}/members/${memberId}`, { method: 'DELETE' }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: chatKeys.root(userId.value) }),
+  })
+}
+
+export function useLeaveConversation(id: MaybeRefOrGetter<number>) {
+  const { $api } = useApi()
+  const qc = useQueryClient()
+  const userId = currentUserId()
+  return useMutation({
+    retry: false,
+    mutationFn: () => $api(`/api/v1/chat/conversations/${toValue(id)}/leave`, { method: 'POST' }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: chatKeys.root(userId.value) }),
+  })
+}
+
+export function usePatchChatMessage(conversationId: MaybeRefOrGetter<number>) {
+  const { $api } = useApi()
+  const qc = useQueryClient()
+  const userId = currentUserId()
+  return useMutation({
+    retry: false,
+    mutationFn: ({ messageId, body }: ChatMessageUpdate & { messageId: number }) => $api(
+      `/api/v1/chat/conversations/${toValue(conversationId)}/messages/${messageId}`,
+      { method: 'PATCH', body: { body }, schema: ChatMessageSchema },
+    ),
+    onSuccess: () => qc.invalidateQueries({ queryKey: chatKeys.root(userId.value) }),
+  })
+}
+
+export function useReactChatMessage(conversationId: MaybeRefOrGetter<number>) {
+  const { $api } = useApi()
+  const qc = useQueryClient()
+  const userId = currentUserId()
+  return useMutation({
+    retry: false,
+    mutationFn: ({ messageId, ...body }: ChatMessageReactionWrite & { messageId: number }) => $api(
+      `/api/v1/chat/conversations/${toValue(conversationId)}/messages/${messageId}/reactions`,
+      { method: 'POST', body, schema: ChatMessageSchema },
+    ),
+    onSuccess: () => qc.invalidateQueries({ queryKey: chatKeys.root(userId.value) }),
+  })
+}
+
+export function usePinChatMessage(conversationId: MaybeRefOrGetter<number>) {
+  const { $api } = useApi()
+  const qc = useQueryClient()
+  const userId = currentUserId()
+  return useMutation({
+    retry: false,
+    mutationFn: ({ messageId, pinned }: ChatMessagePin & { messageId: number }) => $api(
+      `/api/v1/chat/conversations/${toValue(conversationId)}/messages/${messageId}/pin`,
+      { method: 'POST', body: { pinned }, schema: ChatMessageSchema },
+    ),
+    onSuccess: () => qc.invalidateQueries({ queryKey: chatKeys.root(userId.value) }),
+  })
+}
+
+export function useStarChatMessage(conversationId: MaybeRefOrGetter<number>) {
+  const { $api } = useApi()
+  const qc = useQueryClient()
+  const userId = currentUserId()
+  return useMutation({
+    retry: false,
+    mutationFn: (messageId: number) => $api(
+      `/api/v1/chat/conversations/${toValue(conversationId)}/messages/${messageId}/star`,
+      { method: 'POST', schema: ChatMessageSchema },
+    ),
+    onSuccess: () => qc.invalidateQueries({ queryKey: chatKeys.root(userId.value) }),
+  })
+}
+
+export function useChatTyping(conversationId: MaybeRefOrGetter<number>) {
+  const { $api } = useApi()
+  return useMutation({
+    retry: false,
+    mutationFn: (is_typing: boolean) => $api(`/api/v1/chat/conversations/${toValue(conversationId)}/typing`, {
+      method: 'POST', body: { is_typing },
+    }),
   })
 }

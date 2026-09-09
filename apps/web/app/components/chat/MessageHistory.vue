@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { ChatMessageListSchema, type ChatMessage } from '@nasq/contracts'
 import ChatAttachment from '@/components/chat/ChatAttachment.vue'
+import { toast } from 'vue-sonner'
 import { ApiError } from '@/composables/useApi'
 import {
   CHAT_PAGE_SIZE,
   CHAT_POLL_MS,
+  CHAT_REACTIONS,
   initialsFor,
   isFatalChatStatus,
   mergeMessages,
@@ -13,14 +15,30 @@ import {
   visibleReadMessageId,
 } from '@/utils/chatState'
 
-const props = defineProps<{ conversationId: number; pendingBody?: string; denied?: boolean }>()
-const emit = defineEmits<{ denied: [] }>()
+const props = defineProps<{
+  conversationId: number
+  pendingBody?: string
+  denied?: boolean
+  peerSeenMessageId?: number | null
+  direct?: boolean
+  q?: string
+}>()
+const emit = defineEmits<{ denied: []; reply: [ChatMessage] }>()
 const { t, locale } = useI18n()
 const { me } = useMe()
 const hydrated = useHydrated()
 const { $api } = useApi()
-const { data, isFetching, isError, error } = useChatMessages(() => props.conversationId)
+const { connected } = useBus()
+const { data, isFetching, isError, error } = useChatMessages(() => props.conversationId, {}, () => props.q || '')
 const { mutateAsync: markRead } = useMarkChatRead(() => props.conversationId)
+const { mutateAsync: patchMessage } = usePatchChatMessage(() => props.conversationId)
+const { mutateAsync: reactMessage } = useReactChatMessage(() => props.conversationId)
+const { mutateAsync: pinMessage } = usePinChatMessage(() => props.conversationId)
+const { mutateAsync: starMessage } = useStarChatMessage(() => props.conversationId)
+const editingId = ref<number | null>(null)
+const editDraft = ref('')
+const confirmingDelete = ref<number | null>(null)
+const busyId = ref<number | null>(null)
 const items = ref<ChatMessage[]>([])
 const scroller = ref<HTMLElement | null>(null)
 const stickToEnd = ref(true)
@@ -46,11 +64,13 @@ const rows = computed(() => {
   return out
 })
 
-watch(() => props.conversationId, () => {
+watch(() => [props.conversationId, props.q], () => {
   items.value = []
   stickToEnd.value = true
   jumpCount.value = 0
   sealed.value = false
+  editingId.value = null
+  confirmingDelete.value = null
 })
 
 watch(() => data.value?.items, async (incoming) => {
@@ -102,7 +122,7 @@ async function loadOlder() {
   const previousHeight = scroller.value?.scrollHeight ?? 0
   try {
     const page = await $api(`/api/v1/chat/conversations/${props.conversationId}/messages`, {
-      query: { limit: CHAT_PAGE_SIZE, before: oldest.id },
+      query: { limit: CHAT_PAGE_SIZE, before: oldest.id, q: props.q || undefined },
       schema: ChatMessageListSchema,
     })
     items.value = mergeMessages(items.value, page.items, 'older')
@@ -124,7 +144,7 @@ async function pollNewer() {
     const beforeCount = items.value.length
     for (;;) {
       const page = await $api(`/api/v1/chat/conversations/${props.conversationId}/messages`, {
-        query: { limit: CHAT_PAGE_SIZE, after },
+          query: { limit: CHAT_PAGE_SIZE, after, q: props.q || undefined },
         schema: ChatMessageListSchema,
       })
       items.value = mergeMessages(items.value, page.items, 'newer')
@@ -181,7 +201,43 @@ function jumpToLatest() {
 
 function startPoll() {
   stopPoll()
+  if (connected.value) return
   pollTimer = setInterval(() => { void pollNewer() }, CHAT_POLL_MS)
+}
+
+watch(connected, () => {
+  if (connected.value) stopPoll()
+  else startPoll()
+})
+
+async function applyMessage(next: ChatMessage) {
+  items.value = items.value.map(item => item.id === next.id ? next : item)
+}
+
+async function runMessageAction(item: ChatMessage, work: () => Promise<ChatMessage>) {
+  if (busyId.value) return false
+  busyId.value = item.id
+  try {
+    await applyMessage(await work())
+    return true
+  } catch (value) {
+    if (value instanceof ApiError && isFatalChatStatus(value.status)) seal()
+    else toast.error(value instanceof ApiError ? value.message : t('chat.actionFailed'))
+    return false
+  } finally {
+    busyId.value = null
+  }
+}
+
+async function saveEdit(item: ChatMessage) {
+  if (await runMessageAction(item, () => patchMessage({ messageId: item.id, body: editDraft.value }))) {
+    editingId.value = null
+  }
+}
+
+async function deleteMessage(item: ChatMessage) {
+  await runMessageAction(item, () => patchMessage({ messageId: item.id, body: '' }))
+  confirmingDelete.value = null
 }
 
 function stopPoll() {
@@ -235,11 +291,57 @@ watch(() => props.denied, (value) => { if (value) seal() })
               class="max-w-full rounded-2xl px-3 py-2 text-start text-sm whitespace-pre-wrap break-words"
               :class="row.item.author.id === me?.id ? 'bg-primary text-primary-foreground' : 'bg-muted'"
             >
-              {{ row.item.body }}
+              <p v-if="row.item.parent" class="mb-1 border-s-2 ps-2 text-[11px] opacity-80">{{ row.item.parent.author.name }}: {{ row.item.parent.body }}</p>
+              <template v-if="editingId === row.item.id">
+                <textarea v-model="editDraft" rows="2" class="w-full rounded-md bg-background px-2 py-1 text-foreground" />
+                <div class="mt-1 flex gap-1">
+                  <Button type="button" size="sm" :disabled="busyId === row.item.id" @click="saveEdit(row.item)">{{ t('chat.save') }}</Button>
+                  <Button type="button" size="sm" variant="ghost" @click="editingId = null">{{ t('app.cancel') }}</Button>
+                </div>
+              </template>
+              <template v-else>
+                {{ row.item.body }}
+                <span v-if="row.item.edited" class="ms-1 text-[10px] opacity-70">{{ t('chat.edited') }}</span>
+                <span v-if="row.item.pinned" class="ms-1 text-[10px] opacity-70">{{ t('chat.pinned') }}</span>
+              </template>
               <div v-if="row.item.attachments.length" class="mt-2 flex flex-col gap-1">
                 <ChatAttachment v-for="attachment in row.item.attachments" :key="attachment.id" :attachment="attachment" />
               </div>
-              <p v-if="row.item.author.id === me?.id" class="mt-1 text-[10px] opacity-80">{{ t('chat.sent') }}</p>
+              <div v-if="row.item.reactions.length" class="mt-1 flex flex-wrap gap-1">
+                <button
+                  v-for="reaction in row.item.reactions"
+                  :key="reaction.content"
+                  type="button"
+                  class="rounded-full bg-background/40 px-1.5 text-[11px]"
+                  :disabled="busyId === row.item.id"
+                  @click="runMessageAction(row.item, () => reactMessage({ messageId: row.item.id, content: reaction.content, action: reaction.me ? 'remove' : 'add' }))"
+                >{{ reaction.content }} {{ reaction.count }}</button>
+              </div>
+              <p v-if="row.item.author.id === me?.id" class="mt-1 text-[10px] opacity-80">
+                {{ direct && peerSeenMessageId && row.item.id <= peerSeenMessageId ? t('chat.seen') : t('chat.sent') }}
+              </p>
+            </div>
+            <div class="flex flex-wrap gap-1 text-[11px] text-muted-foreground">
+              <button type="button" :disabled="busyId === row.item.id" @click="emit('reply', row.item)">{{ t('chat.reply') }}</button>
+              <button
+                v-for="emoji in CHAT_REACTIONS"
+                :key="emoji"
+                type="button"
+                :disabled="busyId === row.item.id"
+                @click="runMessageAction(row.item, () => reactMessage({ messageId: row.item.id, content: emoji, action: 'add' }))"
+              >{{ emoji }}</button>
+              <button type="button" :disabled="busyId === row.item.id" @click="runMessageAction(row.item, () => starMessage(row.item.id))">{{ t('chat.star') }}</button>
+              <button type="button" :disabled="busyId === row.item.id" @click="runMessageAction(row.item, () => pinMessage({ messageId: row.item.id, pinned: !row.item.pinned }))">
+                {{ row.item.pinned ? t('chat.unpin') : t('chat.pin') }}
+              </button>
+              <template v-if="row.item.author.id === me?.id">
+                <button type="button" :disabled="busyId === row.item.id" @click="editingId = row.item.id; editDraft = row.item.body">{{ t('chat.edit') }}</button>
+                <button v-if="confirmingDelete !== row.item.id" type="button" :disabled="busyId === row.item.id" @click="confirmingDelete = row.item.id">{{ t('chat.delete') }}</button>
+                <template v-else>
+                  <button type="button" :disabled="busyId === row.item.id" @click="deleteMessage(row.item)">{{ t('chat.confirmDelete') }}</button>
+                  <button type="button" @click="confirmingDelete = null">{{ t('app.cancel') }}</button>
+                </template>
+              </template>
             </div>
           </li>
         </template>

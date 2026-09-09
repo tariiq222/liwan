@@ -1,5 +1,6 @@
 import { ref, type Ref } from 'vue'
 import { useQueryClient } from '@tanstack/vue-query'
+import { CHAT_TYPING_MS } from '../utils/chatState'
 import { taskKeys } from './useTasks'
 
 export interface BusNotification {
@@ -34,14 +35,22 @@ export function parseBusFrame(raw: string): { notifications: BusNotification[]; 
 // in first-seen order. A frame with several notifications for the same task
 // (e.g. two quick writes) must only trigger one invalidation per query, not
 // one per occurrence.
-export function collectTaskIds(notifications: BusNotification[]): number[] {
+function collectIds(notifications: BusNotification[], type: string): number[] {
   const seen = new Set<number>()
   for (const notification of notifications) {
-    if (notification.message?.type !== 'nasq/task') continue
+    if (notification.message?.type !== type) continue
     const id = notification.message.payload?.id
     if (typeof id === 'number') seen.add(id)
   }
   return [...seen]
+}
+
+export function collectTaskIds(notifications: BusNotification[]): number[] {
+  return collectIds(notifications, 'nasq/task')
+}
+
+export function collectChatIds(notifications: BusNotification[]): number[] {
+  return collectIds(notifications, 'nasq/chat')
 }
 
 // Pure: exponential backoff, 1s doubling up to a 30s ceiling, with +/-20%
@@ -77,6 +86,29 @@ let manuallyClosed = true
 // of scheduling a duplicate reconnect.
 let generation = 0
 const connected = ref(false)
+export type ChatTypingEvent = { conversationId: number; userId: number; userName: string; isTyping: boolean }
+export const chatTypingEvent = ref<ChatTypingEvent | null>(null)
+let typingTimer: ReturnType<typeof setTimeout> | null = null
+
+export function applyChatTyping(event: ChatTypingEvent): void {
+  if (typingTimer) {
+    clearTimeout(typingTimer)
+    typingTimer = null
+  }
+  if (!event.isTyping) {
+    if (chatTypingEvent.value?.conversationId === event.conversationId && chatTypingEvent.value.userId === event.userId) {
+      chatTypingEvent.value = event
+    }
+    return
+  }
+  chatTypingEvent.value = event
+  typingTimer = setTimeout(() => {
+    if (chatTypingEvent.value?.conversationId === event.conversationId && chatTypingEvent.value.userId === event.userId) {
+      chatTypingEvent.value = { ...chatTypingEvent.value, isTyping: false }
+    }
+    typingTimer = null
+  }, CHAT_TYPING_MS)
+}
 
 // Called once, client-only, from bus.client.ts's plugin setup() (that file's
 // .client.ts suffix guarantees it never runs during SSR). Captures the query
@@ -152,22 +184,35 @@ async function resolveWorkerVersion(crossOrigin: boolean): Promise<string> {
 function invalidateForFrame(notifications: BusNotification[]) {
   if (!queryClient) return
   const ids = collectTaskIds(notifications)
-  if (ids.length === 0) return
-  for (const id of ids) {
-    queryClient.invalidateQueries({ queryKey: taskKeys.detail(id) })
-    queryClient.invalidateQueries({ queryKey: taskKeys.timeline(id) })
+  if (ids.length) {
+    for (const id of ids) {
+      queryClient.invalidateQueries({ queryKey: taskKeys.detail(id) })
+      queryClient.invalidateQueries({ queryKey: taskKeys.timeline(id) })
+    }
+    queryClient.invalidateQueries({ queryKey: ['tasks', 'list'] })
+    queryClient.invalidateQueries({ queryKey: ['projects'] })
+    queryClient.invalidateQueries({ queryKey: ['project'] })
   }
-  queryClient.invalidateQueries({ queryKey: ['tasks', 'list'] })
-  // Task changes move project progress/counts; the project list and any open
-  // project header must catch up too.
-  queryClient.invalidateQueries({ queryKey: ['projects'] })
-  queryClient.invalidateQueries({ queryKey: ['project'] })
+  if (collectChatIds(notifications).length) {
+    queryClient.invalidateQueries({ queryKey: ['chat'] })
+  }
 }
 
 function handleMessage(event: MessageEvent) {
   if (typeof event.data !== 'string') return
   const { notifications, lastId: newLast } = parseBusFrame(event.data)
   if (newLast !== undefined) lastId = newLast
+  for (const notification of notifications) {
+    const payload = notification.message?.payload
+    if (notification.message?.type !== 'nasq/chat' || payload?.event !== 'typing') continue
+    if (typeof payload.id !== 'number' || typeof payload.user_id !== 'number') continue
+    applyChatTyping({
+      conversationId: payload.id,
+      userId: payload.user_id,
+      userName: typeof payload.user_name === 'string' ? payload.user_name : '',
+      isTyping: Boolean(payload.is_typing),
+    })
+  }
   invalidateForFrame(notifications)
 }
 

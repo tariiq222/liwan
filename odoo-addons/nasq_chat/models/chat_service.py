@@ -6,8 +6,8 @@ from odoo.tools.mail import plaintext2html
 
 from odoo.addons.nasq_api.controllers.common import ApiError, parse_positive_int
 
-CHAT_TYPES = ('chat', 'group')
-LIST_FILTERS = frozenset({'all', 'unread', 'groups'})
+CHAT_TYPES = ('chat', 'group', 'channel')
+LIST_FILTERS = frozenset({'all', 'unread', 'groups', 'channels', 'starred'})
 MAX_LIMIT = 50
 
 
@@ -69,21 +69,24 @@ class NasqChatService(models.AbstractModel):
 
     @api.model
     def _nasq_resolve_recipient_partners(self, user_ids):
+        return self._nasq_resolve_user_partners(user_ids, include_self=False)
+
+    @api.model
+    def _nasq_resolve_user_partners(self, user_ids, include_self=True, allow_empty=False):
         self._nasq_require_chat_access()
-        if not isinstance(user_ids, list) or not user_ids:
+        if not isinstance(user_ids, list) or (not user_ids and not allow_empty):
             raise ApiError(422, 'invalid', 'user_ids must be a non-empty list', field='user_ids')
         parsed = []
         seen = set()
         for raw in user_ids:
             user_id = parse_positive_int(raw, 'user_ids')
-            if user_id == self.env.uid:
+            if not include_self and user_id == self.env.uid:
                 raise ApiError(422, 'invalid', 'cannot chat with yourself', field='user_ids')
             if user_id not in seen:
                 seen.add(user_id)
                 parsed.append(user_id)
-        users = self._nasq_internal_users(self.env['res.users'].search(
-            [('id', 'in', parsed)] + self._nasq_eligible_user_domain(),
-        ))
+        domain = [('id', 'in', parsed)] + self._nasq_eligible_user_domain(include_self=include_self)
+        users = self._nasq_internal_users(self.env['res.users'].search(domain))
         if set(users.ids) != set(parsed):
             raise ApiError(
                 422, 'invalid',
@@ -141,10 +144,12 @@ class NasqChatService(models.AbstractModel):
     def _nasq_list_channels(self, q=None, list_filter='all'):
         self._nasq_require_chat_access()
         if list_filter not in LIST_FILTERS:
-            raise ApiError(422, 'invalid', "filter must be all, unread, or groups", field='filter')
+            raise ApiError(422, 'invalid', "filter must be all, unread, groups, channels, or starred", field='filter')
         domain = Domain('is_member', '=', True)
         if list_filter == 'groups':
             domain &= Domain('channel_type', '=', 'group')
+        elif list_filter == 'channels':
+            domain &= Domain('channel_type', '=', 'channel')
         else:
             domain &= Domain('channel_type', 'in', list(CHAT_TYPES))
         if q:
@@ -155,15 +160,34 @@ class NasqChatService(models.AbstractModel):
             channels = channels.filtered(
                 lambda channel: channel.self_member_id and channel.self_member_id.message_unread_counter > 0,
             )
+        elif list_filter == 'starred':
+            starred_ids = self.env['mail.message'].search([
+                ('model', '=', 'discuss.channel'),
+                ('message_type', '=', 'comment'),
+                ('starred_partner_ids', 'in', self.env.user.partner_id.id),
+            ]).mapped('res_id')
+            channels = channels.filtered(lambda channel: channel.id in starred_ids)
         return channels
 
     @api.model
-    def _nasq_create_channel(self, user_ids, name=None):
+    def _nasq_create_channel(self, user_ids=None, name=None, channel_type=None):
+        self._nasq_require_chat_access()
+        if channel_type not in (None, 'direct', 'group', 'channel'):
+            raise ApiError(422, 'invalid', 'type must be direct, group, or channel', field='type')
+        if channel_type == 'channel':
+            if not isinstance(name, str) or not name.strip():
+                raise ApiError(422, 'invalid', 'name must not be empty', field='name')
+            group = self.env.ref('nasq_core.group_employee')
+            return self.env['discuss.channel']._create_channel(name.strip(), group.id)
         partners = self._nasq_resolve_recipient_partners(user_ids)
         if name is not None and not isinstance(name, str):
             raise ApiError(422, 'invalid', 'name must be a string', field='name')
         title = (name or '').strip()
         Channel = self.env['discuss.channel']
+        if channel_type == 'direct' and len(partners) != 1:
+            raise ApiError(422, 'invalid', 'a direct chat needs one other user', field='user_ids')
+        if channel_type == 'group' and len(partners) < 2:
+            raise ApiError(422, 'invalid', 'a group needs at least two other users', field='user_ids')
         if len(partners) == 1:
             if title:
                 raise ApiError(422, 'invalid', 'direct chats do not take a name', field='name')
@@ -175,35 +199,93 @@ class NasqChatService(models.AbstractModel):
         return Channel._create_group(member_ids, name=title)
 
     @api.model
-    def _nasq_channel_messages(self, channel, before=None, after=None, limit=50):
-        domain = self._nasq_comment_domain([channel.id])
+    def _nasq_channel_messages(self, channel, before=None, after=None, limit=50, q=None, starred=False):
+        base_domain = self._nasq_comment_domain([channel.id])
+        domain = list(base_domain)
+        if q:
+            domain.append(('body', 'ilike', q))
+        if starred:
+            domain.append(('starred_partner_ids', 'in', self.env.user.partner_id.id))
         if before is not None and after is not None:
             raise ApiError(422, 'invalid', 'pass before or after, not both')
         if before is not None:
             domain.append(('id', '<', parse_positive_int(before, 'before')))
         if after is not None:
             domain.append(('id', '>', parse_positive_int(after, 'after')))
-        total = self.env['mail.message'].search_count(self._nasq_comment_domain([channel.id]))
+        filtered_domain = list(base_domain)
+        if q:
+            filtered_domain.append(('body', 'ilike', q))
+        if starred:
+            filtered_domain.append(('starred_partner_ids', 'in', self.env.user.partner_id.id))
+        total = self.env['mail.message'].search_count(filtered_domain)
         order = 'id asc' if after is not None else 'id desc'
         messages = self.env['mail.message'].search(domain, order=order, limit=limit)
         return messages.sorted(key=lambda message: message.id), total
 
     @api.model
-    def _nasq_post_message(self, channel, body=None, attachment=None):
-        text = body if isinstance(body, str) else ''
-        if not text.strip() and not attachment:
-            raise ApiError(422, 'invalid', 'body must not be empty', field='body')
+    def _nasq_post_message(self, channel, body=None, attachment=None, parent_id=None, mention_user_ids=None):
         if body is not None and not isinstance(body, str):
             raise ApiError(422, 'invalid', 'body must be a string', field='body')
+        text = body or ''
+        if not text.strip() and not attachment:
+            raise ApiError(422, 'invalid', 'body must not be empty', field='body')
         attachments = None
         if attachment:
             attachments = [(attachment['name'], attachment['raw'])]
+        if parent_id is not None:
+            parent = self.env['mail.message'].search([
+                ('id', '=', parent_id),
+                ('model', '=', channel._name),
+                ('res_id', '=', channel.id),
+                ('message_type', '=', 'comment'),
+            ], limit=1)
+            if not parent:
+                raise MissingError(self.env._('Message %(id)s does not exist', id=parent_id))
+        else:
+            parent = self.env['mail.message']
+        mention_partners = self.env['res.partner']
+        if mention_user_ids is not None:
+            mention_partners = self._nasq_resolve_user_partners(
+                mention_user_ids, include_self=True, allow_empty=True,
+            )
+            member_partners = channel.channel_member_ids.partner_id
+            if mention_partners - member_partners:
+                raise ApiError(422, 'invalid', 'mentions must be conversation members', field='mention_user_ids')
+        values = {
+            'body': plaintext2html(text),
+            'message_type': 'comment',
+            'subtype_xmlid': 'mail.mt_comment',
+            'attachments': attachments,
+        }
+        if parent:
+            values['parent_id'] = parent.id
+        if mention_partners:
+            values['partner_ids'] = mention_partners.ids
         return channel.message_post(
-            body=plaintext2html(text),
-            message_type='comment',
-            subtype_xmlid='mail.mt_comment',
-            attachments=attachments,
+            **values,
         )
+
+    @api.model
+    def _nasq_channel_message(self, channel, message_id):
+        message = self.env['mail.message'].search([
+            ('id', '=', parse_positive_int(message_id, 'message_id')),
+            ('model', '=', channel._name),
+            ('res_id', '=', channel.id),
+            ('message_type', '=', 'comment'),
+        ], limit=1)
+        if not message:
+            raise MissingError(self.env._('Message %(id)s does not exist', id=message_id))
+        return message
+
+    @api.model
+    def _nasq_notify_channel(self, channel, event, partner_ids=None, extra=None):
+        partners = self.env['res.partner'].browse(
+            partner_ids if partner_ids is not None else channel.channel_member_ids.partner_id.ids,
+        )
+        payload = {'id': channel.id, 'event': event, **(extra or {})}
+        bus = self.env['bus.bus']
+        for partner in partners:
+            bus._sendone(partner, 'nasq/chat', payload)
 
     @api.model
     def _nasq_mark_read(self, channel, message_id):

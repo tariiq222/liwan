@@ -1,12 +1,14 @@
 import type { ChatMessage } from '@nasq/contracts'
 
 export const CHAT_POLL_MS = 5_000
+export const CHAT_TYPING_MS = 6_000
 export const CHAT_PAGE_SIZE = 50
-export type ChatFilter = 'all' | 'unread' | 'groups'
+export type ChatFilter = 'all' | 'unread' | 'groups' | 'channels' | 'starred'
+export const CHAT_REACTIONS = ['👍', '❤️', '😂', '🎉', '😮', '😢'] as const
 export type ChatListRoute = { q: string; filter: ChatFilter; offset: number }
 export type ChatSendState = 'pending' | 'sent'
 
-const FILTERS: ChatFilter[] = ['all', 'unread', 'groups']
+const FILTERS: ChatFilter[] = ['all', 'unread', 'groups', 'channels', 'starred']
 
 export function parseChatListRoute(query: Record<string, unknown>): ChatListRoute {
   const rawFilter = typeof query.filter === 'string' ? query.filter : 'all'
@@ -37,12 +39,14 @@ export function chatListQuery(route: ChatListRoute) {
 export function mergeMessages(current: ChatMessage[], incoming: ChatMessage[], mode: 'replace' | 'older' | 'newer'): ChatMessage[] {
   if (mode === 'replace') return incoming.slice()
   const seen = new Set(current.map(item => item.id))
+  const updates = new Map(incoming.map(item => [item.id, item]))
+  const refreshed = current.map(item => updates.get(item.id) ?? item)
   if (mode === 'older') {
     const prepended = incoming.filter(item => !seen.has(item.id))
-    return [...prepended, ...current]
+    return [...prepended, ...refreshed]
   }
   const appended = incoming.filter(item => !seen.has(item.id))
-  return [...current, ...appended]
+  return [...refreshed, ...appended]
 }
 
 export function preserveFailedDraft(sent: string, failed: boolean, next = ''): string {

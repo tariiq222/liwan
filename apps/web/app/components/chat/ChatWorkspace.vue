@@ -7,7 +7,9 @@ import MessageHistory from '@/components/chat/MessageHistory.vue'
 import MessageComposer from '@/components/chat/MessageComposer.vue'
 import { ApiError } from '@/composables/useApi'
 import { applyChatAccessFailure, chatKeys } from '@/composables/useChat'
+import { chatTypingEvent } from '@/composables/useBus'
 import { initialsFor, isFatalChatStatus, parseChatListRoute, serializeChatListRoute, type ChatListRoute } from '@/utils/chatState'
+import type { ChatMessage } from '@nasq/contracts'
 
 const props = defineProps<{ conversationId?: number }>()
 const { t } = useI18n()
@@ -21,14 +23,25 @@ const routeState = computed(() => parseChatListRoute(route.query))
 const { data, error } = useChatConversation(() => props.conversationId)
 const denied = ref(false)
 const pendingBody = ref('')
+const replyTo = ref<ChatMessage | null>(null)
+const messageQuery = ref('')
 const showList = computed(() => !isDesktop.value && !props.conversationId)
 const showConversation = computed(() => isDesktop.value || Boolean(props.conversationId))
 const listQuery = computed(() => serializeChatListRoute(routeState.value))
 const composerOpen = computed(() => Boolean(props.conversationId) && !denied.value)
 
+const typingLabel = computed(() => {
+  const event = chatTypingEvent.value
+  if (!props.conversationId || !event?.isTyping) return ''
+  if (event.conversationId !== props.conversationId || event.userId === me.value?.id) return ''
+  return t('chat.typing', { name: event.userName || data.value?.name || '' })
+})
+
 watch(() => props.conversationId, () => {
   denied.value = false
   pendingBody.value = ''
+  replyTo.value = null
+  messageQuery.value = ''
   qc.cancelQueries({ queryKey: chatKeys.root(me.value?.id) })
 })
 
@@ -63,16 +76,33 @@ function updateRoute(next: ChatListRoute) {
             <span class="grid size-10 shrink-0 place-items-center rounded-full bg-muted text-xs font-semibold">{{ initialsFor(data?.name || '') }}</span>
             <div class="min-w-0">
               <h1 class="truncate text-base font-semibold">{{ data?.name || t('chat.title') }}</h1>
-              <p v-if="data?.type" class="text-xs text-muted-foreground">{{ t(`chat.${data.type}`) }}</p>
+              <p class="text-xs text-muted-foreground">{{ typingLabel || (data?.type ? t(`chat.${data.type}`) : '') }}</p>
             </div>
           </div>
-          <NuxtLink :to="{ path: `/chat/${props.conversationId}/info`, query: listQuery }">
-            <Button variant="outline" size="sm" :disabled="!hydrated">{{ t('chat.info') }}</Button>
-          </NuxtLink>
+          <div class="flex items-center gap-2">
+            <Input v-model="messageQuery" class="h-8 w-36" :placeholder="t('chat.searchMessages')" :disabled="!hydrated" />
+            <NuxtLink :to="{ path: `/chat/${props.conversationId}/info`, query: listQuery }">
+              <Button variant="outline" size="sm" :disabled="!hydrated">{{ t('chat.info') }}</Button>
+            </NuxtLink>
+          </div>
         </header>
         <template v-if="props.conversationId && !denied">
-          <MessageHistory :conversation-id="props.conversationId" :pending-body="pendingBody" @denied="onDenied" />
-          <MessageComposer v-if="composerOpen" :conversation-id="props.conversationId" @update:pending="pendingBody = $event" />
+          <MessageHistory
+            :conversation-id="props.conversationId"
+            :pending-body="pendingBody"
+            :peer-seen-message-id="data?.peer_seen_message_id"
+            :direct="data?.type === 'direct'"
+            :q="messageQuery"
+            @denied="onDenied"
+            @reply="replyTo = $event"
+          />
+          <MessageComposer
+            v-if="composerOpen"
+            :conversation-id="props.conversationId"
+            :reply-to="replyTo"
+            @update:pending="pendingBody = $event"
+            @clear-reply="replyTo = null"
+          />
         </template>
         <EmptyState v-else-if="denied" :title="t('chat.unavailable')" />
         <EmptyState v-else :title="t('chat.select')" />

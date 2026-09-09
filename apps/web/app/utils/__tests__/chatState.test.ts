@@ -27,12 +27,19 @@ function msg(id: number): ChatMessage {
     body: `m${id}`,
     created_at: '2026-09-07T10:00:00Z',
     attachments: [],
+    parent: null,
+    edited: false,
+    pinned: false,
+    starred: false,
+    reactions: [],
   }
 }
 
 describe('chat list route', () => {
   it('parses q and filter and drops defaults when serializing', () => {
     expect(parseChatListRoute({ q: 'ops', filter: 'unread' })).toEqual({ q: 'ops', filter: 'unread', offset: 0 })
+    expect(parseChatListRoute({ filter: 'channels' }).filter).toBe('channels')
+    expect(parseChatListRoute({ filter: 'starred' }).filter).toBe('starred')
     expect(parseChatListRoute({ filter: 'nope' }).filter).toBe('all')
     expect(serializeChatListRoute({ q: '  ', filter: 'all', offset: 0 })).toEqual({ q: undefined, filter: undefined, offset: undefined })
     expect(chatListQuery({ q: ' ops ', filter: 'groups', offset: 50 })).toEqual({
@@ -42,6 +49,14 @@ describe('chat list route', () => {
 })
 
 describe('mergeMessages', () => {
+  it('refreshes edited content and reactions without duplicating existing messages', () => {
+    const original = msg(2)
+    const updated = { ...original, body: 'edited', edited: true, reactions: [{ content: '👍', count: 1, me: false }] }
+    const merged = mergeMessages([msg(1), original], [updated, msg(3)], 'newer')
+    expect(merged.map(item => item.id)).toEqual([1, 2, 3])
+    expect(merged[1]).toEqual(updated)
+    expect(original.body).toBe('m2')
+  })
   it('prepends older messages without dropping current ones or jumping ids', () => {
     const current = [msg(3), msg(4)]
     const merged = mergeMessages(current, [msg(1), msg(2), msg(3)], 'older')

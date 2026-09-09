@@ -4,14 +4,41 @@ import { toast } from 'vue-sonner'
 import { ApiError } from '@/composables/useApi'
 import { preserveFailedDraft, shouldSendOnEnter } from '@/utils/chatState'
 
-const props = defineProps<{ conversationId: number }>()
-const emit = defineEmits<{ 'update:pending': [string] }>()
+import type { ChatMessage } from '@nasq/contracts'
+
+const props = defineProps<{ conversationId: number; replyTo?: ChatMessage | null }>()
+const emit = defineEmits<{ 'update:pending': [string]; 'clear-reply': [] }>()
 const { t } = useI18n()
 const hydrated = useHydrated()
 const draft = ref('')
 const file = ref<File | null>(null)
 const sending = ref(false)
+const mentionIds = ref<number[]>([])
 const { mutateAsync: send } = useSendChatMessage(() => props.conversationId)
+const { mutate: notifyTyping } = useChatTyping(() => props.conversationId)
+const { data: members } = useChatMembers(() => props.conversationId)
+let typingTimer: ReturnType<typeof setTimeout> | undefined
+
+const mentionQuery = computed(() => {
+  const match = draft.value.match(/(?:^|\s)@(\S*)$/)
+  return match?.[1]?.toLowerCase() ?? ''
+})
+const mentionChoices = computed(() => {
+  if (!draft.value.match(/(?:^|\s)@$/) && !mentionQuery.value) return []
+  const q = mentionQuery.value
+  return (members.value?.items ?? []).filter(item => !q || item.name.toLowerCase().includes(q)).slice(0, 6)
+})
+
+function pickMention(person: { id: number; name: string }) {
+  draft.value = draft.value.replace(/@\S*$/, `@${person.name} `)
+  if (!mentionIds.value.includes(person.id)) mentionIds.value = [...mentionIds.value, person.id]
+}
+
+function onDraft() {
+  clearTimeout(typingTimer)
+  notifyTyping(true)
+  typingTimer = setTimeout(() => notifyTyping(false), 3000)
+}
 
 async function fileToPayload(selected: File) {
   const buffer = await selected.arrayBuffer()
@@ -35,10 +62,15 @@ async function submit() {
     await send({
       body: body.trim() ? body : undefined,
       attachment: selected ? await fileToPayload(selected) : undefined,
+      parent_id: props.replyTo?.id,
+      mention_user_ids: mentionIds.value.length ? mentionIds.value : undefined,
     })
     draft.value = preserveFailedDraft(body, false)
     file.value = null
+    mentionIds.value = []
+    notifyTyping(false)
     emit('update:pending', '')
+    emit('clear-reply')
   } catch (error) {
     draft.value = preserveFailedDraft(body, true)
     emit('update:pending', '')
@@ -60,10 +92,24 @@ function onFile(event: Event) {
   file.value = input.files?.[0] ?? null
   input.value = ''
 }
+
+onUnmounted(() => {
+  clearTimeout(typingTimer)
+  notifyTyping(false)
+})
 </script>
 
 <template>
   <form class="flex flex-col gap-2 border-t p-3" @submit.prevent="submit">
+    <p v-if="props.replyTo" class="flex items-center justify-between text-xs text-muted-foreground">
+      <span>{{ t('chat.replyingTo', { name: props.replyTo.author.name }) }}</span>
+      <button type="button" @click="emit('clear-reply')">{{ t('app.cancel') }}</button>
+    </p>
+    <ul v-if="mentionChoices.length" class="rounded-md border bg-background text-sm">
+      <li v-for="person in mentionChoices" :key="person.id">
+        <button type="button" class="w-full px-3 py-1 text-start hover:bg-muted" @click="pickMention(person)">{{ person.name }}</button>
+      </li>
+    </ul>
     <p v-if="file" class="truncate text-xs text-muted-foreground">{{ file.name }}</p>
     <div class="flex items-end gap-2">
       <label class="inline-flex size-10 items-center justify-center rounded-lg border">
@@ -78,6 +124,7 @@ function onFile(event: Event) {
         :placeholder="t('chat.composerPlaceholder')"
         :disabled="!hydrated || sending"
         @keydown="onKeydown"
+        @input="onDraft"
       />
       <Button type="submit" :disabled="!hydrated || sending || (!draft.trim() && !file)">{{ t('chat.send') }}</Button>
     </div>

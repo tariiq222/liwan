@@ -35,6 +35,8 @@ function clearFilters() {
 function filterLabel(filter: ChatListRoute['filter']) {
   if (filter === 'unread') return t('chat.filterUnread')
   if (filter === 'groups') return t('chat.filterGroups')
+  if (filter === 'channels') return t('chat.filterChannels')
+  if (filter === 'starred') return t('chat.filterStarred')
   return t('chat.filterAll')
 }
 function page(delta: number) {
@@ -63,6 +65,8 @@ function conversationTo(id: number) {
         <Button type="button" size="sm" :variant="props.routeState.filter === 'all' ? 'default' : 'outline'" :disabled="!hydrated" @click="setFilter('all')">{{ t('chat.filterAll') }}</Button>
         <Button type="button" size="sm" :variant="props.routeState.filter === 'unread' ? 'default' : 'outline'" :disabled="!hydrated" @click="setFilter('unread')">{{ t('chat.filterUnread') }}</Button>
         <Button type="button" size="sm" :variant="props.routeState.filter === 'groups' ? 'default' : 'outline'" :disabled="!hydrated" @click="setFilter('groups')">{{ t('chat.filterGroups') }}</Button>
+        <Button type="button" size="sm" :variant="props.routeState.filter === 'channels' ? 'default' : 'outline'" :disabled="!hydrated" @click="setFilter('channels')">{{ t('chat.filterChannels') }}</Button>
+        <Button type="button" size="sm" :variant="props.routeState.filter === 'starred' ? 'default' : 'outline'" :disabled="!hydrated" @click="setFilter('starred')">{{ t('chat.filterStarred') }}</Button>
       </template>
       <template #active>
         <Badge v-if="props.routeState.q.trim()" variant="secondary">{{ props.routeState.q }}</Badge>
@@ -83,10 +87,18 @@ function conversationTo(id: number) {
           :data-selected="props.selectedId === item.id"
           :aria-current="props.selectedId === item.id ? 'page' : undefined"
         >
-          <span class="nasq-chat-avatar grid size-10 shrink-0 place-items-center rounded-full bg-muted text-xs font-semibold">{{ initialsFor(item.name) }}</span>
+          <span class="relative shrink-0">
+            <span class="nasq-chat-avatar grid size-10 place-items-center rounded-full bg-muted text-xs font-semibold">{{ initialsFor(item.name) }}</span>
+            <span
+              v-if="item.type === 'direct' && item.im_status"
+              class="absolute end-0 bottom-0 size-2.5 rounded-full border border-background"
+              :class="item.im_status === 'online' ? 'nasq-status-dot-success' : 'bg-muted-foreground'"
+              :title="item.im_status === 'online' ? t('chat.online') : t('chat.offline')"
+            />
+          </span>
           <span class="min-w-0 flex-1">
             <span class="flex items-center justify-between gap-2">
-              <span class="truncate font-medium">{{ item.name }}</span>
+              <span class="truncate font-medium">{{ item.name }}{{ item.muted ? ` · ${t('chat.muted')}` : '' }}</span>
               <time v-if="item.last_message_at" class="shrink-0 text-[11px] text-muted-foreground">{{ timeFmt.format(new Date(item.last_message_at)) }}</time>
             </span>
             <span class="flex items-center justify-between gap-2">

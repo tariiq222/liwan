@@ -31,15 +31,19 @@ function toggle(person: { id: number; name: string }) {
 }
 
 async function submit() {
-  if (selected.value.length < 1) {
+  if (selected.value.length < 1 && !groupName.value.trim()) {
     toast.error(t('chat.needRecipient'))
     return
   }
   try {
-    const conversation = await create({
-      user_ids: selected.value.map(item => item.id),
-      name: selected.value.length > 1 ? groupName.value.trim() || undefined : undefined,
-    })
+    const conversation = await create(
+      selected.value.length
+        ? {
+            user_ids: selected.value.map(item => item.id),
+            name: selected.value.length > 1 ? groupName.value.trim() || undefined : undefined,
+          }
+        : { type: 'channel', name: groupName.value.trim() },
+    )
     baseline.value = snapshot()
     await nextTick()
     await navigateTo({ path: `/chat/${conversation.id}`, query: listQuery.value })
@@ -78,13 +82,13 @@ async function submit() {
         </nav>
         <p class="text-sm text-muted-foreground"><span class="font-medium text-foreground">{{ t('chat.selected') }}:</span> {{ selected.map(item => item.name).join(', ') || '—' }}</p>
       </SharedFormSection>
-      <SharedFormSection v-if="selected.length > 1" :title="t('chat.groupName')" class="grid gap-2">
-        <Label for="chat-group-name">{{ t('chat.groupName') }}</Label>
+      <SharedFormSection v-if="selected.length !== 1" :title="t('chat.groupName')" class="grid gap-2">
+        <Label for="chat-group-name">{{ selected.length ? t('chat.groupName') : t('chat.channel') }}</Label>
         <Input id="chat-group-name" v-model="groupName" :placeholder="t('chat.groupNamePlaceholder')" :disabled="!hydrated" />
       </SharedFormSection>
       <div class="flex justify-end gap-2">
         <NuxtLink :to="{ path: '/chat', query: listQuery }"><Button type="button" variant="outline">{{ t('app.cancel') }}</Button></NuxtLink>
-        <Button type="submit" :disabled="!hydrated || isPending || selected.length < 1">{{ t('chat.create') }}</Button>
+        <Button type="submit" :disabled="!hydrated || isPending || (selected.length < 1 && !groupName.trim())">{{ t('chat.create') }}</Button>
       </div>
     </form>
   </SharedPageContainer>
