@@ -1,3 +1,7 @@
+# UI consolidation and cleanup — 2026-09-09
+
+Projects presentation and chat workspace changes are integrated locally on main (product/test commit `063a721`). Only the canonical main worktree and branch remain. All four temporary worktrees are fully archived in `/Users/tariq/code/nasq-recovery-ui-20260909-224801/retired/`; their branch refs were removed after ancestry/content checks. See [the current inventory, commits, verification and recovery record](ui-consolidation-2026-09-09.md). Original dev port 3000 remains; synthetic previews 4097/4497 and 4197/4597 are stopped. Earlier project-preview and pending-work states below are historical. No upstream, database, dependency or deployment changes.
+
 # Approved security source integration — 2026-09-09
 
 See [the approved source integration](security-source-integration-2026-09-09.md) for exact versions, current verification and external final-state/recovery. This supersedes the pending-security status below after verified promotion; canonical runtime was not upgraded.
