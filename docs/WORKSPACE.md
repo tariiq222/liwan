@@ -1,3 +1,7 @@
+# Pending work integration — 2026-09-09
+
+See [the current integration record](pending-work-integration-2026-09-09.md) for source baselines, review fixes, tests, retained security branch and external recovery/final-state evidence. Actual Git state is authoritative.
+
 # Projects Side Sheet integration — 2026-09-09
 
 The user approved Projects tabs and route-backed Side Sheets, local integration and task-scoped cleanup. See [integration and recovery](project-sheets-integration-2026-09-09.md) for baselines, preserved main behavior, checks and the external final-state record. Older main-only workspace statements below are historical; consult `git worktree list` for current unrelated tasks.

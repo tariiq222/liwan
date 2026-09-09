@@ -56,6 +56,7 @@ for (const [path, current] of [
     const breadcrumb = page.getByTestId('project-sidebar-breadcrumb')
     await expect(breadcrumb).toBeVisible()
     await expect(breadcrumb.locator('[aria-current="page"]')).toHaveText(current)
+    if (path === '/projects/1/raci') await expect(page.getByTestId('context-link-stakeholders')).toHaveAttribute('aria-current', 'page')
     await expect(page.getByTestId('context-project-menu-back')).toHaveCount(0)
     await expect(page.getByTestId('project-workspace-tabs')).toHaveCount(0)
   })
@@ -145,10 +146,11 @@ test('desktop sidebar keeps project navigation and collapses independently of th
   await expect(sidebar).toHaveAttribute('data-expanded', 'false')
   await page.getByTestId('module-rail-toggle').click()
   await page.getByTestId('context-link-current-project-settings').click()
-  await expect(page.getByRole('dialog')).toBeVisible()
   await expect(page).toHaveURL(/\/projects\/1\/settings/)
-  await page.getByTestId('project-overlay-close').click()
+  await expect(page.getByRole('heading', { name: 'إعدادات المشروع', level: 1 })).toBeVisible()
   await expect(page.getByRole('dialog')).toHaveCount(0)
+  await page.getByTestId('context-link-tasks').click()
+  await expect(page.getByRole('heading', { name: 'المهام', level: 1 })).toBeVisible()
   await expect(page.getByRole('textbox', { name: 'بحث في العناوين…' })).toHaveValue('مهمة')
   await expect(sidebar).toHaveAttribute('data-expanded', 'false')
   await page.screenshot({ path: testInfo.outputPath('project-sidebar-collapsed.png'), fullPage: true })
@@ -181,7 +183,7 @@ for (const path of [
   '/projects/1/stakeholders/new', '/projects/1/stakeholders/1', '/projects/1/stakeholders/1/edit',
   '/projects/1/register/new', '/projects/1/register/1', '/projects/1/register/1/edit',
   '/projects/1/finance/new', '/projects/1/finance/2', '/projects/1/finance/2/edit',
-  '/projects/1/updates/new', '/projects/1/settings', '/projects/1/schedule/tasks/101',
+  '/projects/1/updates/new', '/projects/1/schedule/tasks/101',
   '/projects/1/charter?edit=1',
   '/project-templates/1', '/project-templates/new', '/project-templates/1/edit', '/project-templates/1/apply',
 ]) {
@@ -194,6 +196,16 @@ for (const path of [
     await expect(page.getByRole('dialog')).toHaveCount(1)
   })
 }
+
+test('direct settings route remains a standalone page after refresh', async ({ page }) => {
+  await page.goto('/projects/1/settings')
+  await expect(page.getByRole('heading', { name: 'إعدادات المشروع', level: 1 })).toBeVisible()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await page.reload()
+  await expect(page.getByRole('heading', { name: 'إعدادات المشروع', level: 1 })).toBeVisible()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await expect(page.getByTestId('context-link-current-project-settings')).toHaveAttribute('aria-current', 'page')
+})
 
 test('non-project task details remain a full page', async ({ page }) => {
   await page.goto('/tasks/101')

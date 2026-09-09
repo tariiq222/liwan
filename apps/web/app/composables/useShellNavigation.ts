@@ -126,7 +126,9 @@ export function useShellNavigation(identity: MaybeRefOrGetter<AccessIdentity>) {
               : link.id === 'tasks' ? /^\/projects\/\d+\/(tasks|schedule)(\/|$)/.test(route.path)
                 : link.id === 'milestones' ? /^\/projects\/\d+\/milestones(\/|$)/.test(route.path)
                   : /^\/projects\/\d+\/updates(\/|$)/.test(route.path))
-          : isContextPathActive(route.path, link.to, route.query) }))
+          : link.id === 'stakeholders'
+            ? projectContextId(route.path, route.query) === 'stakeholders'
+            : isContextPathActive(route.path, link.to, route.query) }))
     }
     if (!currentModule) return []
     return contextLinksForModule(currentModule, identityValue.value, route.path)
