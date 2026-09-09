@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "BeforeTool": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /Users/tariq/code/nasq/tools/update_gate/adapter.py gemini || exit 2",
+            "timeout": 10000
+          }
+        ]
+      }
+    ]
+  }
+}
