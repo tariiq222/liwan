@@ -1,7 +1,7 @@
 import type { Component } from 'vue'
 import { projectListReturnTo } from '../utils/projectNavigation'
 import type { LocationQueryRaw, RouteLocationRaw } from 'vue-router'
-import { CheckSquare, FolderKanban, Users, Settings, Wrench, Network, Files, ShieldCheck, UserCog, History, SlidersHorizontal, MessageCircle, ChartNoAxesCombined, CalendarDays, ClipboardList, CircleAlert, WalletCards, FileText, LayoutDashboard, Plus, UserRound, Repeat } from '@lucide/vue'
+import { CheckSquare, FolderKanban, Users, Settings, Wrench, Network, Files, ShieldCheck, UserCog, History, SlidersHorizontal, Palette, MessageCircle, ChartNoAxesCombined, CalendarDays, ClipboardList, CircleAlert, WalletCards, FileText, LayoutDashboard, Plus, UserRound, Repeat } from '@lucide/vue'
 import { hasCapability, INTERNAL_NASQ_ACCESS, type AccessIdentity } from '../utils/accessPolicy'
 
 export type NavGroup = 'chat' | 'projects' | 'meetings' | 'hr' | 'settings'
@@ -18,6 +18,7 @@ const items: NavItem[] = [
   { to: '/hr/departments', labelKey: 'nav.departments', icon: Network, shortcut: '5', group: 'hr', module: 'hr', capability: 'hr.departments.read' },
   { to: '/hr/documents', labelKey: 'nav.documents', icon: Files, shortcut: '6', group: 'hr', module: 'hr', capability: 'hr.documents.read' },
   { to: '/settings/appearance', labelKey: 'settings.appearance.title', icon: SlidersHorizontal, shortcut: 'b', group: 'settings', module: 'settings', capability: 'nasq.internal' },
+  { to: '/settings/branding', labelKey: 'settings.branding.title', icon: Palette, shortcut: 'g', group: 'settings', module: 'settings', capability: 'settings.branding.manage' },
   { to: '/settings/projects', labelKey: 'settings.projects.title', icon: Settings, shortcut: '4', group: 'settings', module: 'settings', capability: 'pmo.settings.manage' },
   { to: '/settings/users', labelKey: 'nav.users', icon: UserCog, shortcut: '7', group: 'settings', module: 'settings', capability: 'access.users.read' },
   { to: '/settings/roles', labelKey: 'nav.roles', icon: ShieldCheck, shortcut: '8', group: 'settings', module: 'settings', capability: 'access.roles.read' },
@@ -149,6 +150,7 @@ export function contextLinksForModule(module: ShellModule, identity: AccessIdent
     settings: [
       { id: 'account', labelKey: 'nav.account', icon: UserCog, to: '/account', capability: INTERNAL_NASQ_ACCESS },
       { id: 'appearance', labelKey: 'settings.appearance.title', icon: SlidersHorizontal, to: '/settings/appearance', capability: INTERNAL_NASQ_ACCESS },
+      { id: 'branding', labelKey: 'settings.branding.title', icon: Palette, to: '/settings/branding', capability: 'settings.branding.manage' },
       { id: 'project-settings', labelKey: 'settings.projects.title', icon: Settings, to: '/settings/projects', capability: 'pmo.settings.manage' },
       { id: 'users', labelKey: 'nav.users', icon: UserCog, to: '/settings/users', capability: 'access.users.read' },
       { id: 'roles', labelKey: 'nav.roles', icon: ShieldCheck, to: '/settings/roles', capability: 'access.roles.read' },
@@ -174,7 +176,7 @@ export function contextGroupsForModule(module: ShellModule, identity: AccessIden
 
   return [
     { id: 'personal' as const, labelKey: 'nav.settingsPersonal', ids: ['account', 'appearance'] },
-    { id: 'administration' as const, labelKey: 'nav.settingsAdministration', ids: ['project-settings', 'users', 'roles', 'access-log'] },
+    { id: 'administration' as const, labelKey: 'nav.settingsAdministration', ids: ['branding', 'project-settings', 'users', 'roles', 'access-log'] },
   ].map(group => ({
     id: group.id,
     labelKey: group.labelKey,

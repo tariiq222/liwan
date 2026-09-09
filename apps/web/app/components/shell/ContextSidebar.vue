@@ -160,7 +160,7 @@ function updateRoute(next: ChatListRoute) {
               class="nasq-context-link"
               :data-active="link.active"
               :aria-current="link.active ? 'page' : undefined"
-              :data-testid="link.id === 'appearance' ? 'sidebar-settings' : link.id === 'project-settings' ? 'settings-projects-tab' : `context-link-${link.id}`"
+              :data-testid="link.id === 'appearance' ? 'sidebar-settings' : link.id === 'project-settings' ? 'settings-projects-tab' : link.id === 'branding' ? 'settings-branding-tab' : `context-link-${link.id}`"
             >
               <component :is="link.icon" aria-hidden="true" />
               <span>{{ t(link.labelKey) }}</span>

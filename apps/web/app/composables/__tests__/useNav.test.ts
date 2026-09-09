@@ -25,6 +25,7 @@ describe('capability-based navigation', () => {
     expect(paths).toContain('/settings/users')
     expect(paths).toContain('/settings/roles')
     expect(paths).toContain('/settings/appearance')
+    expect(paths).toContain('/settings/branding')
     expect(paths).not.toContain('/settings/projects')
     expect(paths).not.toContain('/odoo')
     expect(nav.find(item => item.to === '/settings/users')?.group).toBe('settings')
@@ -141,6 +142,10 @@ describe('module rail and project context continuity', () => {
     expect(contextGroupsForModule('settings', full).map(group => ({ id: group.id, links: group.links.map(link => link.id) }))).toEqual([
       { id: 'personal', links: ['account', 'appearance'] },
       { id: 'administration', links: ['project-settings', 'users', 'roles', 'access-log'] },
+    ])
+    expect(contextGroupsForModule('settings', admin).map(group => ({ id: group.id, links: group.links.map(link => link.id) }))).toEqual([
+      { id: 'personal', links: ['account', 'appearance'] },
+      { id: 'administration', links: ['branding', 'users', 'roles', 'access-log'] },
     ])
     expect(contextGroupsForModule('projects', full)).toHaveLength(1)
   })

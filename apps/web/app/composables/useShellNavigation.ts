@@ -47,6 +47,7 @@ const shellSectionRoots = new Set([
   '/hr/documents',
   '/account',
   '/settings/appearance',
+  '/settings/branding',
   '/settings/projects',
   '/settings/users',
   '/settings/roles',
@@ -69,7 +70,7 @@ export function shellRootBackTargets(path: string): readonly string[] {
   if (normalized === '/tasks' || normalized === '/archived-tasks') return ['/tasks', '/archived-tasks']
   if (normalized === '/meetings' || normalized === '/meetings/calendar') return ['/meetings', '/meetings/calendar']
   if (normalized === '/hr' || normalized === '/hr/departments' || normalized === '/hr/documents') return ['/hr', '/hr/departments', '/hr/documents']
-  if (normalized === '/account' || normalized.startsWith('/settings/')) return ['/account', '/settings/appearance', '/settings/projects', '/settings/users', '/settings/roles', '/settings/access-log']
+  if (normalized === '/account' || normalized.startsWith('/settings/')) return ['/account', '/settings/appearance', '/settings/branding', '/settings/projects', '/settings/users', '/settings/roles', '/settings/access-log']
   return []
 }
 

@@ -246,9 +246,7 @@ test('section dividers use last-child not last-of-type', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
   await openApp(page, '/settings/appearance')
   const width = (selector: string) => page.locator(selector).evaluate((el) => getComputedStyle(el).borderBlockEndWidth)
-  await expect.poll(() => width('#appearance-font')).toBe('1px')
-  await expect.poll(() => width('#branding')).toBe('0px')
-  await page.evaluate(() => document.getElementById('branding')?.remove())
+  await expect.poll(() => width('#appearance-mode')).toBe('1px')
   await expect.poll(() => width('#appearance-font')).toBe('0px')
   await openApp(page, '/settings/projects')
   await page.locator('#project-reminders').waitFor({ state: 'visible', timeout: 15_000 })
@@ -258,7 +256,7 @@ test('section dividers use last-child not last-of-type', async ({ page }) => {
 
 test('unsaved branding draft is guarded when leaving to project settings', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 1440, height: 900 })
-  await openApp(page, '/settings/appearance')
+  await openApp(page, '/settings/branding')
   const color = page.getByTestId('branding-color')
   await expect(color).toBeVisible({ timeout: 15_000 })
   await color.fill('#abcdef')
@@ -267,7 +265,7 @@ test('unsaved branding draft is guarded when leaving to project settings', async
   await expect(dialog).toBeVisible()
   await page.getByRole('button', { name: 'البقاء في الصفحة' }).click()
   await expect(dialog).toHaveCount(0)
-  await expect(page).toHaveURL(/\/settings\/appearance/)
+  await expect(page).toHaveURL(/\/settings\/branding/)
   await expect(color).toHaveValue('#abcdef')
   await page.getByTestId('settings-projects-tab').click()
   await page.getByRole('button', { name: 'المغادرة بدون حفظ' }).click()

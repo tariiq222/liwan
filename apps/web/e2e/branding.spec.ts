@@ -153,7 +153,7 @@ test('branding load errors are visible and retry is hydrated', async ({ page }) 
     })
   })
   await page.goto('/settings/branding')
-  await expect(page).toHaveURL(/\/settings\/appearance#branding$/)
+  await expect(page).toHaveURL(/\/settings\/branding$/)
   await page.waitForFunction(() => (document.getElementById('__nuxt') as { __vue_app__?: unknown } | null)?.__vue_app__)
   await page.evaluate(async () => {
     const app = (document.getElementById('__nuxt') as { __vue_app__?: { _context?: { provides?: Record<PropertyKey, unknown> } } } | null)?.__vue_app__
