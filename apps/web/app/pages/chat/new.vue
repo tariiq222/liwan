@@ -8,6 +8,7 @@ const { t } = useI18n()
 const hydrated = useHydrated()
 const route = useRoute()
 const listQuery = computed(() => serializeChatListRoute(parseChatListRoute(route.query)))
+const wantGroup = computed(() => route.query.kind === 'group')
 const q = ref('')
 const recipientOffset = ref(0)
 const selected = ref<{ id: number; name: string }[]>([])
@@ -31,6 +32,10 @@ function toggle(person: { id: number; name: string }) {
 }
 
 async function submit() {
+  if (wantGroup.value && selected.value.length < 2) {
+    toast.error(t('chat.needRecipient'))
+    return
+  }
   if (selected.value.length < 1 && !groupName.value.trim()) {
     toast.error(t('chat.needRecipient'))
     return
@@ -55,7 +60,7 @@ async function submit() {
 
 <template>
   <SharedPageContainer width="form">
-    <SharedPageHeader :title="t('chat.newTitle')" :description="t('chat.newDescription')" :back-to="{ path: '/chat', query: listQuery }" />
+    <SharedPageHeader :title="t(wantGroup ? 'chat.newGroupTitle' : 'chat.newTitle')" :description="t(wantGroup ? 'chat.newGroupDescription' : 'chat.newDescription')" :back-to="{ path: '/chat', query: listQuery }" />
     <form class="nasq-form nasq-panel nasq-panel-body flex flex-col gap-4" @submit.prevent="submit">
       <SharedUnsavedChanges :dirty="dirty" />
       <SharedFormSection :title="t('chat.recipients')" class="grid gap-4">
@@ -82,13 +87,13 @@ async function submit() {
         </nav>
         <p class="text-sm text-muted-foreground"><span class="font-medium text-foreground">{{ t('chat.selected') }}:</span> {{ selected.map(item => item.name).join(', ') || '—' }}</p>
       </SharedFormSection>
-      <SharedFormSection v-if="selected.length !== 1" :title="t('chat.groupName')" class="grid gap-2">
+      <SharedFormSection v-if="wantGroup || selected.length !== 1" :title="t('chat.groupName')" class="grid gap-2">
         <Label for="chat-group-name">{{ selected.length ? t('chat.groupName') : t('chat.channel') }}</Label>
         <Input id="chat-group-name" v-model="groupName" :placeholder="t('chat.groupNamePlaceholder')" :disabled="!hydrated" />
       </SharedFormSection>
       <div class="flex justify-end gap-2">
         <NuxtLink :to="{ path: '/chat', query: listQuery }"><Button type="button" variant="outline">{{ t('app.cancel') }}</Button></NuxtLink>
-        <Button type="submit" :disabled="!hydrated || isPending || (selected.length < 1 && !groupName.trim())">{{ t('chat.create') }}</Button>
+        <Button type="submit" :disabled="!hydrated || isPending || (wantGroup ? selected.length < 2 : selected.length < 1 && !groupName.trim())">{{ t('chat.create') }}</Button>
       </div>
     </form>
   </SharedPageContainer>

@@ -1,8 +1,8 @@
 <script setup lang="ts">
+import { MessageSquarePlus, Search, UsersRound } from '@lucide/vue'
 import EmptyState from '@/components/shared/EmptyState.vue'
-import FilterBar from '@/components/shared/FilterBar.vue'
 import { ApiError } from '@/composables/useApi'
-import { CHAT_PAGE_SIZE, initialsFor, isFatalChatStatus, nextListOffset, serializeChatListRoute, type ChatListRoute } from '@/utils/chatState'
+import { CHAT_PAGE_SIZE, initialsFor, isFatalChatStatus, nextListOffset, serializeChatListRoute, type ChatFilter, type ChatListRoute } from '@/utils/chatState'
 
 const props = defineProps<{
   routeState: ChatListRoute
@@ -15,8 +15,9 @@ const { data, isError, isFetching, refetch, error } = useChatConversations(() =>
 const items = computed(() => data.value?.items ?? [])
 const total = computed(() => data.value?.total ?? 0)
 const q = ref(props.routeState.q)
-const activeFilterCount = computed(() => Number(Boolean(props.routeState.q.trim())) + Number(props.routeState.filter !== 'all'))
 const timeFmt = computed(() => new Intl.DateTimeFormat(locale.value, { hour: '2-digit', minute: '2-digit', calendar: 'gregory' }))
+const listQuery = computed(() => serializeChatListRoute(props.routeState))
+const filters: ChatFilter[] = ['all', 'unread', 'groups', 'channels', 'starred']
 watch(() => props.routeState.q, value => { q.value = value })
 watch(error, (value) => {
   if (value instanceof ApiError && isFatalChatStatus(value.status)) emit('denied')
@@ -28,11 +29,7 @@ function setFilter(filter: ChatListRoute['filter']) {
 function applySearch() {
   emit('update:routeState', { ...props.routeState, q: q.value, offset: 0 })
 }
-function clearFilters() {
-  q.value = ''
-  emit('update:routeState', { ...props.routeState, q: '', filter: 'all', offset: 0 })
-}
-function filterLabel(filter: ChatListRoute['filter']) {
+function filterLabel(filter: ChatFilter) {
   if (filter === 'unread') return t('chat.filterUnread')
   if (filter === 'groups') return t('chat.filterGroups')
   if (filter === 'channels') return t('chat.filterChannels')
@@ -43,36 +40,52 @@ function page(delta: number) {
   emit('update:routeState', { ...props.routeState, offset: nextListOffset(props.routeState.offset, total.value, delta) })
 }
 function conversationTo(id: number) {
-  return { path: `/chat/${id}`, query: serializeChatListRoute(props.routeState) }
+  return { path: `/chat/${id}`, query: listQuery.value }
 }
 </script>
 
 <template>
-  <section class="flex h-full min-h-0 flex-col" data-testid="chat-list">
-    <div class="min-w-0 shrink-0 p-3">
-    <FilterBar
-      class="w-full"
-      :active-count="activeFilterCount"
-      :disabled="!hydrated"
-      @clear="clearFilters"
-    >
-      <template #search>
-        <form class="flex min-w-0 flex-col gap-2" @submit.prevent="applySearch">
-          <Input v-model="q" :placeholder="t('chat.search')" :disabled="!hydrated" />
-        </form>
-      </template>
-      <template #view>
-        <Button type="button" size="sm" :variant="props.routeState.filter === 'all' ? 'default' : 'outline'" :disabled="!hydrated" @click="setFilter('all')">{{ t('chat.filterAll') }}</Button>
-        <Button type="button" size="sm" :variant="props.routeState.filter === 'unread' ? 'default' : 'outline'" :disabled="!hydrated" @click="setFilter('unread')">{{ t('chat.filterUnread') }}</Button>
-        <Button type="button" size="sm" :variant="props.routeState.filter === 'groups' ? 'default' : 'outline'" :disabled="!hydrated" @click="setFilter('groups')">{{ t('chat.filterGroups') }}</Button>
-        <Button type="button" size="sm" :variant="props.routeState.filter === 'channels' ? 'default' : 'outline'" :disabled="!hydrated" @click="setFilter('channels')">{{ t('chat.filterChannels') }}</Button>
-        <Button type="button" size="sm" :variant="props.routeState.filter === 'starred' ? 'default' : 'outline'" :disabled="!hydrated" @click="setFilter('starred')">{{ t('chat.filterStarred') }}</Button>
-      </template>
-      <template #active>
-        <Badge v-if="props.routeState.q.trim()" variant="secondary">{{ props.routeState.q }}</Badge>
-        <Badge v-if="props.routeState.filter !== 'all'" variant="secondary">{{ filterLabel(props.routeState.filter) }}</Badge>
-      </template>
-    </FilterBar>
+  <section class="nasq-chat-list flex h-full min-h-0 flex-col" data-testid="chat-list">
+    <header class="nasq-chat-list-toolbar">
+      <form class="nasq-chat-list-search" @submit.prevent="applySearch">
+        <Search class="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+        <Input
+          id="chat-list-search"
+          v-model="q"
+          class="h-9 border-0 bg-transparent shadow-none focus-visible:ring-0"
+          :placeholder="t('chat.search')"
+          :disabled="!hydrated"
+        />
+      </form>
+      <div class="flex shrink-0 items-center gap-1">
+        <NuxtLink
+          class="nasq-chat-icon-btn"
+          :to="{ path: '/chat/new', query: listQuery }"
+          :aria-label="t('chat.new')"
+          :title="t('chat.new')"
+        >
+          <MessageSquarePlus class="size-5" aria-hidden="true" />
+        </NuxtLink>
+        <NuxtLink
+          class="nasq-chat-icon-btn"
+          :to="{ path: '/chat/new', query: { ...listQuery, kind: 'group' } }"
+          :aria-label="t('chat.newGroup')"
+          :title="t('chat.newGroup')"
+        >
+          <UsersRound class="size-5" aria-hidden="true" />
+        </NuxtLink>
+      </div>
+    </header>
+    <div class="nasq-chat-list-filters" role="toolbar" :aria-label="t('chat.filters')">
+      <button
+        v-for="filter in filters"
+        :key="filter"
+        type="button"
+        class="nasq-chat-filter"
+        :data-active="props.routeState.filter === filter"
+        :disabled="!hydrated"
+        @click="setFilter(filter)"
+      >{{ filterLabel(filter) }}</button>
     </div>
     <div v-if="isError" class="grid gap-2 p-4 text-center" role="alert">
       <p class="text-sm text-destructive">{{ t('chat.unavailable') }}</p>
@@ -88,22 +101,25 @@ function conversationTo(id: number) {
           :aria-current="props.selectedId === item.id ? 'page' : undefined"
         >
           <span class="relative shrink-0">
-            <span class="nasq-chat-avatar grid size-10 place-items-center rounded-full bg-muted text-xs font-semibold">{{ initialsFor(item.name) }}</span>
+            <span class="nasq-chat-avatar">{{ initialsFor(item.name) }}</span>
             <span
               v-if="item.type === 'direct' && item.im_status"
-              class="absolute end-0 bottom-0 size-2.5 rounded-full border border-background"
+              class="absolute end-0 bottom-0 size-3 rounded-full border-2 border-background"
               :class="item.im_status === 'online' ? 'nasq-status-dot-success' : 'bg-muted-foreground'"
               :title="item.im_status === 'online' ? t('chat.online') : t('chat.offline')"
             />
+            <span v-else-if="item.type !== 'direct'" class="nasq-chat-avatar-badge" :title="t(`chat.${item.type}`)">
+              <UsersRound class="size-3" aria-hidden="true" />
+            </span>
           </span>
           <span class="min-w-0 flex-1">
             <span class="flex items-center justify-between gap-2">
-              <span class="truncate font-medium">{{ item.name }}{{ item.muted ? ` · ${t('chat.muted')}` : '' }}</span>
-              <time v-if="item.last_message_at" class="shrink-0 text-[11px] text-muted-foreground">{{ timeFmt.format(new Date(item.last_message_at)) }}</time>
+              <span class="truncate font-medium">{{ item.name }}</span>
+              <time v-if="item.last_message_at" class="nasq-chat-list-time" :class="{ 'text-primary': item.unread_count }">{{ timeFmt.format(new Date(item.last_message_at)) }}</time>
             </span>
             <span class="flex items-center justify-between gap-2">
               <span class="truncate text-sm text-muted-foreground">{{ item.last_message_preview || t(`chat.${item.type}`) }}</span>
-              <span v-if="item.unread_count" class="nasq-unread-count rounded-full px-1.5 text-[11px]">{{ item.unread_count }}</span>
+              <span v-if="item.unread_count" class="nasq-unread-count rounded-full px-1.5 text-[11px] font-semibold">{{ item.unread_count }}</span>
             </span>
           </span>
         </NuxtLink>

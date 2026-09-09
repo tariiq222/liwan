@@ -65,7 +65,10 @@ const contextGroups = computed(() => {
   }
   return moduleLinks.value.length ? [{ id: 'default' as const, links: moduleLinks.value }] : []
 })
-const createLinks = computed(() => contextGroups.value.flatMap(group => group.links).filter(link => link.pinned && !(link.id === 'new-project' && ['/projects', '/projects/new'].includes(route.path))))
+const createLinks = computed(() => {
+  if (isChat.value && isDesktop.value) return []
+  return contextGroups.value.flatMap(group => group.links).filter(link => link.pinned && !(link.id === 'new-project' && ['/projects', '/projects/new'].includes(route.path)))
+})
 const navigationGroups = computed(() => contextGroups.value
   .map(group => ({ ...group, links: group.links.filter(link => !link.pinned) }))
   .filter(group => group.links.length))

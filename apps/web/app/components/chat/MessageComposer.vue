@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Paperclip } from '@lucide/vue'
+import { Paperclip, Send } from '@lucide/vue'
 import { toast } from 'vue-sonner'
 import { ApiError } from '@/composables/useApi'
 import { preserveFailedDraft, shouldSendOnEnter } from '@/utils/chatState'
@@ -100,8 +100,8 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <form class="flex flex-col gap-2 border-t p-3" @submit.prevent="submit">
-    <p v-if="props.replyTo" class="flex items-center justify-between text-xs text-muted-foreground">
+  <form class="nasq-chat-composer" @submit.prevent="submit">
+    <p v-if="props.replyTo" class="flex items-center justify-between px-1 text-xs text-muted-foreground">
       <span>{{ t('chat.replyingTo', { name: props.replyTo.author.name }) }}</span>
       <button type="button" @click="emit('clear-reply')">{{ t('app.cancel') }}</button>
     </p>
@@ -110,23 +110,32 @@ onUnmounted(() => {
         <button type="button" class="w-full px-3 py-1 text-start hover:bg-muted" @click="pickMention(person)">{{ person.name }}</button>
       </li>
     </ul>
-    <p v-if="file" class="truncate text-xs text-muted-foreground">{{ file.name }}</p>
+    <p v-if="file" class="truncate px-1 text-xs text-muted-foreground">{{ file.name }}</p>
     <div class="flex items-end gap-2">
-      <label class="inline-flex size-10 items-center justify-center rounded-lg border">
-        <Paperclip class="size-4" />
+      <label class="nasq-chat-icon-btn cursor-pointer">
+        <Paperclip class="size-5" aria-hidden="true" />
         <span class="sr-only">{{ t('chat.attach') }}</span>
         <input type="file" class="sr-only" :disabled="!hydrated || sending" @change="onFile">
       </label>
       <textarea
         v-model="draft"
-        rows="2"
-        class="min-h-10 flex-1 resize-none rounded-lg border bg-background px-3 py-2 text-start"
+        rows="1"
+        class="nasq-chat-composer-input"
         :placeholder="t('chat.composerPlaceholder')"
         :disabled="!hydrated || sending"
         @keydown="onKeydown"
         @input="onDraft"
       />
-      <Button type="submit" :disabled="!hydrated || sending || (!draft.trim() && !file)">{{ t('chat.send') }}</Button>
+      <Button
+        type="submit"
+        size="icon"
+        class="nasq-chat-send"
+        :disabled="!hydrated || sending || (!draft.trim() && !file)"
+        :aria-label="t('chat.send')"
+        :title="t('chat.send')"
+      >
+        <Send class="size-4 rtl:rotate-180" aria-hidden="true" />
+      </Button>
     </div>
   </form>
 </template>

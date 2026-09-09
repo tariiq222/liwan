@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ArrowLeft, Info, Search } from '@lucide/vue'
 import { useMediaQuery } from '@vueuse/core'
 import { useQueryClient } from '@tanstack/vue-query'
 import EmptyState from '@/components/shared/EmptyState.vue'
@@ -25,6 +26,7 @@ const denied = ref(false)
 const pendingBody = ref('')
 const replyTo = ref<ChatMessage | null>(null)
 const messageQuery = ref('')
+const showMessageSearch = ref(false)
 const showList = computed(() => !isDesktop.value && !props.conversationId)
 const showConversation = computed(() => isDesktop.value || Boolean(props.conversationId))
 const listQuery = computed(() => serializeChatListRoute(routeState.value))
@@ -42,6 +44,7 @@ watch(() => props.conversationId, () => {
   pendingBody.value = ''
   replyTo.value = null
   messageQuery.value = ''
+  showMessageSearch.value = false
   qc.cancelQueries({ queryKey: chatKeys.root(me.value?.id) })
 })
 
@@ -65,26 +68,53 @@ function updateRoute(next: ChatListRoute) {
 </script>
 
 <template>
-  <SharedPageContainer width="list" class="flex min-h-[calc(100vh-7rem)] flex-col">
-    <SharedPageHeader v-if="!props.conversationId" :title="t('chat.title')" :description="t('chat.description')" />
-    <div class="nasq-panel flex min-h-0 flex-1 flex-col overflow-hidden">
+  <SharedPageContainer width="list" class="nasq-chat-workspace flex min-h-0 flex-col">
+    <div class="nasq-chat-pane flex min-h-0 flex-1 flex-col overflow-hidden">
       <ConversationList v-if="showList" :route-state="routeState" :selected-id="props.conversationId" @update:route-state="updateRoute" @denied="onDenied" />
-      <section v-if="showConversation" class="flex min-h-0 flex-col" data-testid="chat-thread">
-        <header v-if="props.conversationId && !denied" class="flex items-center justify-between gap-3 border-b px-4 py-3">
-          <div class="flex min-w-0 items-center gap-3 text-start">
-            <NuxtLink v-if="!isDesktop" :to="{ path: '/chat', query: listQuery }" class="text-sm text-muted-foreground">{{ t('app.back') }}</NuxtLink>
-            <span class="grid size-10 shrink-0 place-items-center rounded-full bg-muted text-xs font-semibold">{{ initialsFor(data?.name || '') }}</span>
-            <div class="min-w-0">
-              <h1 class="truncate text-base font-semibold">{{ data?.name || t('chat.title') }}</h1>
-              <p class="text-xs text-muted-foreground">{{ typingLabel || (data?.type ? t(`chat.${data.type}`) : '') }}</p>
-            </div>
+      <section v-if="showConversation" class="nasq-chat-thread flex min-h-0 flex-1 flex-col" data-testid="chat-thread">
+        <header v-if="props.conversationId && !denied" class="nasq-chat-thread-header">
+          <NuxtLink
+            v-if="!isDesktop"
+            :to="{ path: '/chat', query: listQuery }"
+            class="nasq-chat-icon-btn"
+            :aria-label="t('app.back')"
+            :title="t('app.back')"
+          >
+            <ArrowLeft class="size-5 rtl:rotate-180" aria-hidden="true" />
+          </NuxtLink>
+          <span class="nasq-chat-avatar shrink-0">{{ initialsFor(data?.name || '') }}</span>
+          <div class="min-w-0 flex-1 text-start">
+            <h1 class="truncate text-base font-semibold">{{ data?.name || t('chat.title') }}</h1>
+            <p class="truncate text-xs text-muted-foreground">{{ typingLabel || (data?.type ? t(`chat.${data.type}`) : '') }}</p>
           </div>
-          <div class="flex items-center gap-2">
-            <Input v-model="messageQuery" class="h-8 w-36" :placeholder="t('chat.searchMessages')" :disabled="!hydrated" />
-            <NuxtLink :to="{ path: `/chat/${props.conversationId}/info`, query: listQuery }">
-              <Button variant="outline" size="sm" :disabled="!hydrated">{{ t('chat.info') }}</Button>
+          <div class="flex shrink-0 items-center gap-1">
+            <button
+              type="button"
+              class="nasq-chat-icon-btn"
+              :aria-pressed="showMessageSearch"
+              :aria-label="t('chat.searchMessages')"
+              :title="t('chat.searchMessages')"
+              :disabled="!hydrated"
+              @click="showMessageSearch = !showMessageSearch"
+            >
+              <Search class="size-5" aria-hidden="true" />
+            </button>
+            <NuxtLink
+              class="nasq-chat-icon-btn"
+              :to="{ path: `/chat/${props.conversationId}/info`, query: listQuery }"
+              :aria-label="t('chat.info')"
+              :title="t('chat.info')"
+            >
+              <Info class="size-5" aria-hidden="true" />
             </NuxtLink>
           </div>
+          <Input
+            v-if="showMessageSearch"
+            v-model="messageQuery"
+            class="nasq-chat-thread-search"
+            :placeholder="t('chat.searchMessages')"
+            :disabled="!hydrated"
+          />
         </header>
         <template v-if="props.conversationId && !denied">
           <MessageHistory
