@@ -75,31 +75,31 @@ async function deleteItem(item: { id: number }) {
         </NuxtLink>
       </template>
     </SharedPageHeader>
-    <nav class="nasq-view-switch" :aria-label="t('projects.governance.views')">
-      <NuxtLink :to="{ path: `/projects/${id}/stakeholders`, query: viewQuery }" aria-current="page">{{ t('projects.governance.viewList') }}</NuxtLink>
-      <NuxtLink :to="{ path: `/projects/${id}/raci`, query: viewQuery }">{{ t('projects.governance.viewMatrix') }}</NuxtLink>
-    </nav>
-    <div class="w-full min-w-0" data-testid="stakeholders-toolbar">
-      <FilterBar inline class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
-        <template #search>
-          <div class="relative min-w-52">
-            <Search class="pointer-events-none absolute start-2 top-1/2 size-[18px] -translate-y-1/2 text-muted-foreground" />
-            <Input
-              v-model="q"
-              :aria-label="t('projects.clarity.stakeholderSearch')"
-              :disabled="!hydrated"
-              :placeholder="t('projects.clarity.stakeholderSearch')"
-              class="h-[40px] ps-8"
-            />
-          </div>
-        </template>
-        <template #active>
-          <div v-if="q.trim()" class="flex flex-wrap items-center gap-2">
-            <Badge variant="secondary">{{ t('projects.clarity.stakeholderSearch') }}: {{ q }}</Badge>
-          </div>
-        </template>
-      </FilterBar>
-    </div>
+    <FilterBar class="w-full" data-testid="stakeholders-toolbar" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
+      <template #view>
+        <nav class="nasq-view-switch" :aria-label="t('projects.governance.views')">
+          <NuxtLink :to="{ path: `/projects/${id}/stakeholders`, query: viewQuery }" aria-current="page">{{ t('projects.governance.viewList') }}</NuxtLink>
+          <NuxtLink :to="{ path: `/projects/${id}/raci`, query: viewQuery }">{{ t('projects.governance.viewMatrix') }}</NuxtLink>
+        </nav>
+      </template>
+      <template #search>
+        <div class="relative min-w-52">
+          <Search class="pointer-events-none absolute start-2 top-1/2 size-[18px] -translate-y-1/2 text-muted-foreground" />
+          <Input
+            v-model="q"
+            :aria-label="t('projects.clarity.stakeholderSearch')"
+            :disabled="!hydrated"
+            :placeholder="t('projects.clarity.stakeholderSearch')"
+            class="h-[40px] ps-8"
+          />
+        </div>
+      </template>
+      <template #active>
+        <div v-if="q.trim()" class="flex flex-wrap items-center gap-2">
+          <Badge variant="secondary">{{ t('projects.clarity.stakeholderSearch') }}: {{ q }}</Badge>
+        </div>
+      </template>
+    </FilterBar>
     <p v-if="error" role="alert" class="text-sm text-destructive">{{ error }}</p>
     <SharedPageState
       :loading="list.isLoading.value"

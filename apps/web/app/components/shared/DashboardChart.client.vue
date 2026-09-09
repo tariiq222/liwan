@@ -219,7 +219,7 @@ watch([mode, fontSize], () => { void nextTick(readTokens) }, { flush: 'post' })
       :style="{
         '--vis-donut-central-label-font-size': fontSize === 'large' ? '32px' : '30px',
         '--vis-donut-central-label-font-weight': '700',
-        '--vis-donut-central-sub-label-font-size': '12px',
+        '--vis-donut-central-sub-label-font-size': 'var(--project-type-caption, 12px)',
       }"
     >
       <div class="chart-donut-body">
@@ -254,7 +254,7 @@ watch([mode, fontSize], () => { void nextTick(readTokens) }, { flush: 'post' })
       v-else-if="bars"
       class="chart-bar-container h-full"
       :config="chartConfig"
-      :style="{ '--vis-axis-tick-label-font-size': fontSize === 'large' ? '16px' : '12px' }"
+      :style="{ '--vis-axis-tick-label-font-size': `var(--project-type-caption, ${fontSize === 'large' ? '16px' : '12px'})` }"
     >
       <div class="chart-bar-stack min-h-0 min-w-0" :class="bars.orientation === 'horizontal' ? 'overflow-y-auto' : 'overflow-x-auto'">
         <div class="chart-bar-plot" :style="{ height: `${barPlotHeight}px`, width: barChartWidth, '--chart-motion-duration': `${chartDuration}ms` }">

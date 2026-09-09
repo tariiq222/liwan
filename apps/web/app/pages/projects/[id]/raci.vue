@@ -64,23 +64,13 @@ async function deleteRow() {
       v-if="!isProjectOverlay"
       :title="t('projects.governance.raci.title')"
     />
-    <nav class="nasq-view-switch" :aria-label="t('projects.governance.views')">
-      <NuxtLink :to="{ path: `/projects/${id}/stakeholders`, query: viewQuery }">{{ t('projects.governance.viewList') }}</NuxtLink>
-      <NuxtLink :to="{ path: `/projects/${id}/raci`, query: viewQuery }" aria-current="page">{{ t('projects.governance.viewMatrix') }}</NuxtLink>
-    </nav>
-    <section class="nasq-panel overflow-hidden" aria-labelledby="raci-legend-title">
-      <div class="nasq-panel-header"><h2 id="raci-legend-title">{{ t('projects.refresh.workspace.raciLegendTitle') }}</h2></div>
-      <div class="nasq-panel-body space-y-2">
-        <p class="text-sm text-muted-foreground">{{ t('projects.refresh.workspace.raciLegendDescription') }}</p>
-        <dl class="grid gap-2 text-sm sm:grid-cols-2 lg:grid-cols-4">
-        <div><dt class="font-semibold">R — {{ t('projects.refresh.workspace.raciResponsible') }}</dt><dd class="text-muted-foreground">{{ t('projects.refresh.workspace.raciResponsibleHint') }}</dd></div>
-        <div><dt class="font-semibold">A — {{ t('projects.refresh.workspace.raciAccountable') }}</dt><dd class="text-muted-foreground">{{ t('projects.refresh.workspace.raciAccountableHint') }}</dd></div>
-        <div><dt class="font-semibold">C — {{ t('projects.refresh.workspace.raciConsulted') }}</dt><dd class="text-muted-foreground">{{ t('projects.refresh.workspace.raciConsultedHint') }}</dd></div>
-        <div><dt class="font-semibold">I — {{ t('projects.refresh.workspace.raciInformed') }}</dt><dd class="text-muted-foreground">{{ t('projects.refresh.workspace.raciInformedHint') }}</dd></div>
-        </dl>
-      </div>
-    </section>
-    <FilterBar inline class="w-full" :active-count="activeFilterCount" :disabled="!hydrated || pending" @clear="clearFilters">
+    <FilterBar class="w-full" :active-count="activeFilterCount" :disabled="!hydrated || pending" @clear="clearFilters">
+      <template #view>
+        <nav class="nasq-view-switch" :aria-label="t('projects.governance.views')">
+          <NuxtLink :to="{ path: `/projects/${id}/stakeholders`, query: viewQuery }">{{ t('projects.governance.viewList') }}</NuxtLink>
+          <NuxtLink :to="{ path: `/projects/${id}/raci`, query: viewQuery }" aria-current="page">{{ t('projects.governance.viewMatrix') }}</NuxtLink>
+        </nav>
+      </template>
       <template #search>
         <div class="grid min-w-0 gap-3 sm:grid-cols-2">
           <div class="space-y-2">
@@ -104,6 +94,18 @@ async function deleteRow() {
         </div>
       </template>
     </FilterBar>
+    <section class="nasq-panel overflow-hidden" aria-labelledby="raci-legend-title">
+      <div class="nasq-panel-header"><h2 id="raci-legend-title">{{ t('projects.refresh.workspace.raciLegendTitle') }}</h2></div>
+      <div class="nasq-panel-body space-y-2">
+        <p class="text-sm text-muted-foreground">{{ t('projects.refresh.workspace.raciLegendDescription') }}</p>
+        <dl class="grid gap-2 text-sm sm:grid-cols-2 lg:grid-cols-4">
+        <div><dt class="font-semibold">R — {{ t('projects.refresh.workspace.raciResponsible') }}</dt><dd class="text-muted-foreground">{{ t('projects.refresh.workspace.raciResponsibleHint') }}</dd></div>
+        <div><dt class="font-semibold">A — {{ t('projects.refresh.workspace.raciAccountable') }}</dt><dd class="text-muted-foreground">{{ t('projects.refresh.workspace.raciAccountableHint') }}</dd></div>
+        <div><dt class="font-semibold">C — {{ t('projects.refresh.workspace.raciConsulted') }}</dt><dd class="text-muted-foreground">{{ t('projects.refresh.workspace.raciConsultedHint') }}</dd></div>
+        <div><dt class="font-semibold">I — {{ t('projects.refresh.workspace.raciInformed') }}</dt><dd class="text-muted-foreground">{{ t('projects.refresh.workspace.raciInformedHint') }}</dd></div>
+        </dl>
+      </div>
+    </section>
     <p v-if="error" role="alert" class="text-sm text-destructive">{{ error }}</p>
     <section v-if="confirmRow" class="nasq-panel overflow-hidden" role="group" :aria-label="t('projects.governance.confirmDelete')">
       <div class="nasq-panel-header"><h2>{{ t('projects.governance.confirmDelete') }}</h2></div>

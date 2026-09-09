@@ -40,7 +40,7 @@ function created(_id: number) {
       :empty-text="t('tasks.notFound')"
       @retry="refetch"
     >
-      <Card class="nasq-form"><CardContent><TaskCreateForm mode="project" :project-id="projectId" :milestone-id="milestoneId" :project-start="project?.date_start" :project-end="project?.date_end" :can-manage="project?.can_manage" @created="created" @cancel="router.push(returnTo)" /></CardContent></Card>
+      <section class="nasq-panel overflow-hidden"><div class="nasq-panel-body"><TaskCreateForm mode="project" :project-id="projectId" :milestone-id="milestoneId" :project-start="project?.date_start" :project-end="project?.date_end" :can-manage="project?.can_manage" @created="created" @cancel="router.push(returnTo)" /></div></section>
     </SharedPageState>
     <p v-if="!hydrated" class="sr-only">{{ t('tasks.loading') }}</p>
   </SharedPageContainer>

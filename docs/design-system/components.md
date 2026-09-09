@@ -18,7 +18,7 @@ Authority: [DESIGN.md](../../DESIGN.md). This catalog records current reusable c
 | Notification preview formatting | `utils/notificationPresentation.ts`, `components/notifications/NotificationCenter.vue` | Shared formatting for the latest-five notification popover; the full notification workflow remains the `/notifications` internal page. |
 | Page container | `components/shared/PageContainer.vue` | Nuxt name `SharedPageContainer`; width list/detail/form; use once at owning level |
 | Page header | `components/shared/PageHeader.vue` | `SharedPageHeader`; title, description, backTo/backLabel, actions slots; coordinates with usePageHeader |
-| Form section | `components/shared/FormSection.vue` | `SharedFormSection`; semantic muted heading strip (`nasq-form-section-heading`) for title/description + content. Callers own field grouping and spacing. |
+| Form section | `components/shared/FormSection.vue` | `SharedFormSection`; semantic muted heading strip (`nasq-form-section-heading`) for title/description + content. Optional `panel` uses the common `nasq-panel-header` / `nasq-panel-body` surface for project settings sections without an outer form card. Callers own field grouping and spacing. |
 | Filters | `components/shared/FilterCard.vue`, `components/shared/FilterBar.vue` | Collapsible card on list pages; FilterBar supports an inline presentation for project task tools using the same slots and filter state. FilterCard owns header, active count, clear action and visible active summary; FilterBar adapts search/default/view/actions/active slots. Fields and actual filter state remain owned by each module. Collapse preserves mounted fields and query state; view/actions remain visible. |
 | Loading/error/empty | `components/shared/PageState.vue`, `EmptyState.vue` | `SharedPageState` / `SharedEmptyState`; retry and meaningful empty action |
 | Unsaved form exit | `components/shared/UnsavedChanges.vue` | Approved shared confirmation; `dirty` guards leaving, optional `guardRouteUpdates` also guards same-route form mode/record changes (charter). |
@@ -34,6 +34,8 @@ Authority: [DESIGN.md](../../DESIGN.md). This catalog records current reusable c
 Paths starting `components/` and `composables/` are relative to `apps/web/app/`.
 Inspect actual props before use. This catalog does not rename or regenerate any component.
 
+Project section roots share `PageContainer width="list"`; child forms use `form`, child details use `detail`. The `data-project-record` marker scopes the 16px stack gap and header alignment to project records. Section creation belongs in header actions; FilterBar uses its default collapsed card and owns view controls. TaskToolbar accepts `collapsible` for project pages while retaining other consumers' embedded behavior. ScheduleGantt and MilestoneTable accept `embedded` to suppress repeated card headers when the owning page provides the title/tools. `nasq-project-toolbar` styles existing tools where there are no search filters.
+
 Panel sections use `nasq-panel-header` for a wrapping muted header, then `nasq-panel-body` for content. `CardHeader` shares the same quiet header treatment. Repeated task/meeting items keep metadata and actions together; calendars and tables scroll inside their data region.
 
 ## Style ownership
@@ -42,6 +44,7 @@ Panel sections use `nasq-panel-header` for a wrapping muted header, then `nasq-p
 | --- | --- |
 | `apps/web/app/assets/css/main.css` | Fonts, semantic tokens, modes, shared page/form surfaces; imports shell styles |
 | `apps/web/app/assets/css/approved-shell.css` | Existing shell and shared presentation rules; consolidate overlaps during layout migration |
+| `apps/web/app/assets/css/project-theme.css` | Project-scoped semantic status colors, gentle institution-derived section surfaces, typography scale and portal/notification/toast presentation. The layout owns the reactive HTML route marker so portals inherit the tokens and other modules retain their presentation. |
 | `apps/web/app/utils/brandTheme.ts` | Validated primary-colour derivation and readable foregrounds |
 | `apps/web/app/composables/useAppearance.ts` | Existing personal appearance preferences |
 

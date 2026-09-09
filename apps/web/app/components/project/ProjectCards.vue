@@ -51,7 +51,7 @@ function openWithKeyboard(project: Project, event: KeyboardEvent) {
         <div class="flex items-start justify-between gap-3">
         <div class="min-w-0">
           <h2 :id="`project-card-${project.id}`" class="truncate text-sm font-semibold"><NuxtLink :to="{ path: `/projects/${project.id}`, query: returnToQuery(route.fullPath) }" class="hover:underline">{{ project.name }}</NuxtLink></h2>
-          <p class="mt-1 text-[11px] text-muted-foreground">{{ t('projects.projectId', { id: project.id }) }}</p>
+          <p class="mt-1 text-xs text-muted-foreground">{{ t('projects.projectId', { id: project.id }) }}</p>
         </div>
         <ProjectStatusBadge :status="project.status" />
         </div>

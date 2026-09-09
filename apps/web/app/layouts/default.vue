@@ -2,6 +2,9 @@
 const { localeProperties } = useI18n()
 const dir = computed(() => localeProperties.value.dir ?? 'ltr')
 const route = useRoute()
+const projectTheme = computed(() => /^\/(projects|project-templates)(\/|$)/.test(route.path) || /^\/settings\/projects(\/|$)/.test(route.path))
+// Portaled project sheets, notifications and menus inherit the same tokens.
+useHead(() => ({ htmlAttrs: { 'data-project-theme': projectTheme.value ? 'true' : undefined } }))
 const pageMotionActive = ref(false)
 let pageMotionTimer: ReturnType<typeof setTimeout> | undefined
 let pageMotionFrame: number | undefined
@@ -36,6 +39,6 @@ onBeforeUnmount(() => {
         <slot />
       </main>
     </div>
-    <Toaster :dir="dir" />
+    <Toaster :dir="dir" :rich-colors="projectTheme" />
   </div>
 </template>

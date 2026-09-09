@@ -41,6 +41,6 @@ async function submit() { error.value = null; if (!title.value.trim()) return; c
     </SharedFormSection>
 
     <p v-if="error" role="alert" class="text-sm text-destructive">{{ error }}</p>
-    <div class="nasq-form-footer"><Button type="button" variant="outline" :disabled="!hydrated || pending" @click="emit('cancel')">{{ t('app.cancel') }}</Button><Button type="submit" :disabled="!hydrated || pending || !title.trim()">{{ t('app.save') }}</Button></div>
+    <div class="nasq-form-footer justify-end"><Button type="button" variant="outline" :disabled="!hydrated || pending" @click="emit('cancel')">{{ t('app.cancel') }}</Button><Button type="submit" :disabled="!hydrated || pending || !title.trim()">{{ t('app.save') }}</Button></div>
   </form>
 </template>

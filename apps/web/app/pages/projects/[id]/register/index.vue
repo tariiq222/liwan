@@ -83,63 +83,61 @@ async function deleteItem(item: { id: number }) {
         </NuxtLink>
       </template>
     </SharedPageHeader>
-    <div class="w-full min-w-0">
-      <FilterBar inline class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
-        <template #search>
-          <div class="relative min-w-52 flex-1">
-            <Search class="pointer-events-none absolute start-2 top-1/2 size-[18px] -translate-y-1/2 text-muted-foreground" />
-            <Input
-              v-model="q"
-              :aria-label="t('projects.clarity.registerSearch')"
-              :disabled="!hydrated"
-              class="ps-8"
-              :placeholder="t('projects.clarity.registerSearch')"
-            />
-          </div>
-        </template>
-        <NativeSelect
-          v-model="kind"
-          class="h-[40px] w-40"
-          :aria-label="t('projects.governance.register.kind')"
-          :disabled="!hydrated"
-        >
-          <NativeSelectOption value="">{{ t('projects.clarity.allKinds') }}</NativeSelectOption>
-          <NativeSelectOption value="risk">{{ t('projects.governance.register.risk') }}</NativeSelectOption>
-          <NativeSelectOption value="issue">{{ t('projects.governance.register.issue') }}</NativeSelectOption>
-        </NativeSelect>
-        <NativeSelect
-          v-model="status"
-          class="h-[40px] w-40"
-          :aria-label="t('projects.governance.register.status')"
-          :disabled="!hydrated"
-        >
-          <NativeSelectOption value="">{{ t('projects.clarity.allStatuses') }}</NativeSelectOption>
-          <NativeSelectOption value="open">{{ t('projects.governance.register.open') }}</NativeSelectOption>
-          <NativeSelectOption value="in_progress">{{ t('projects.governance.register.inProgress') }}</NativeSelectOption>
-          <NativeSelectOption value="resolved">{{ t('projects.governance.register.resolved') }}</NativeSelectOption>
-          <NativeSelectOption value="closed">{{ t('projects.governance.register.closed') }}</NativeSelectOption>
-        </NativeSelect>
-        <NativeSelect
-          v-model="priority"
-          class="h-[40px] w-40"
-          :aria-label="t('projects.governance.register.priority')"
-          :disabled="!hydrated"
-        >
-          <NativeSelectOption value="">{{ t('projects.clarity.allPriorities') }}</NativeSelectOption>
-          <NativeSelectOption v-for="value in ['low', 'normal', 'high', 'critical']" :key="value" :value="value">
-            {{ t(`projects.governance.register.${value}`) }}
-          </NativeSelectOption>
-        </NativeSelect>
-        <template #active>
-          <div v-if="activeFilterCount" class="flex flex-wrap items-center gap-2">
-            <Badge v-if="q.trim()" variant="secondary">{{ t('projects.clarity.registerSearch') }}: {{ q }}</Badge>
-            <Badge v-if="kind" variant="secondary">{{ t(`projects.governance.register.${kind}`) }}</Badge>
-            <Badge v-if="status" variant="secondary">{{ t(`projects.governance.register.${status}`) }}</Badge>
-            <Badge v-if="priority" variant="secondary">{{ t(`projects.governance.register.${priority}`) }}</Badge>
-          </div>
-        </template>
-      </FilterBar>
-    </div>
+    <FilterBar class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
+      <template #search>
+        <div class="relative min-w-52 flex-1">
+          <Search class="pointer-events-none absolute start-2 top-1/2 size-[18px] -translate-y-1/2 text-muted-foreground" />
+          <Input
+            v-model="q"
+            :aria-label="t('projects.clarity.registerSearch')"
+            :disabled="!hydrated"
+            class="ps-8"
+            :placeholder="t('projects.clarity.registerSearch')"
+          />
+        </div>
+      </template>
+      <NativeSelect
+        v-model="kind"
+        class="h-[40px] w-40"
+        :aria-label="t('projects.governance.register.kind')"
+        :disabled="!hydrated"
+      >
+        <NativeSelectOption value="">{{ t('projects.clarity.allKinds') }}</NativeSelectOption>
+        <NativeSelectOption value="risk">{{ t('projects.governance.register.risk') }}</NativeSelectOption>
+        <NativeSelectOption value="issue">{{ t('projects.governance.register.issue') }}</NativeSelectOption>
+      </NativeSelect>
+      <NativeSelect
+        v-model="status"
+        class="h-[40px] w-40"
+        :aria-label="t('projects.governance.register.status')"
+        :disabled="!hydrated"
+      >
+        <NativeSelectOption value="">{{ t('projects.clarity.allStatuses') }}</NativeSelectOption>
+        <NativeSelectOption value="open">{{ t('projects.governance.register.open') }}</NativeSelectOption>
+        <NativeSelectOption value="in_progress">{{ t('projects.governance.register.inProgress') }}</NativeSelectOption>
+        <NativeSelectOption value="resolved">{{ t('projects.governance.register.resolved') }}</NativeSelectOption>
+        <NativeSelectOption value="closed">{{ t('projects.governance.register.closed') }}</NativeSelectOption>
+      </NativeSelect>
+      <NativeSelect
+        v-model="priority"
+        class="h-[40px] w-40"
+        :aria-label="t('projects.governance.register.priority')"
+        :disabled="!hydrated"
+      >
+        <NativeSelectOption value="">{{ t('projects.clarity.allPriorities') }}</NativeSelectOption>
+        <NativeSelectOption v-for="value in ['low', 'normal', 'high', 'critical']" :key="value" :value="value">
+          {{ t(`projects.governance.register.${value}`) }}
+        </NativeSelectOption>
+      </NativeSelect>
+      <template #active>
+        <div v-if="activeFilterCount" class="flex flex-wrap items-center gap-2">
+          <Badge v-if="q.trim()" variant="secondary">{{ t('projects.clarity.registerSearch') }}: {{ q }}</Badge>
+          <Badge v-if="kind" variant="secondary">{{ t(`projects.governance.register.${kind}`) }}</Badge>
+          <Badge v-if="status" variant="secondary">{{ t(`projects.governance.register.${status}`) }}</Badge>
+          <Badge v-if="priority" variant="secondary">{{ t(`projects.governance.register.${priority}`) }}</Badge>
+        </div>
+      </template>
+    </FilterBar>
     <p v-if="error" role="alert" class="text-sm text-destructive">{{ error }}</p>
     <SharedPageState
       :loading="list.isLoading.value"

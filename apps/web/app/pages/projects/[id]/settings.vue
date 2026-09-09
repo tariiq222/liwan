@@ -15,7 +15,7 @@ const canManage = computed(() => project.value?.can_manage ?? false)
 </script>
 
 <template>
-  <SharedPageContainer width="form">
+  <SharedPageContainer width="list">
     <SharedPageHeader
       :title="t('projects.settings.title')"
     />
@@ -32,7 +32,7 @@ const canManage = computed(() => project.value?.can_manage ?? false)
     >
       <p v-if="!canManage" class="text-muted-foreground">{{ t('projects.forbidden') }}</p>
       <template v-else-if="project">
-        <Card class="nasq-form"><CardContent><ProjectSettingsForm :project="project" /></CardContent></Card>
+        <ProjectSettingsForm :project="project" />
       </template>
     </SharedPageState>
   </SharedPageContainer>

@@ -12,12 +12,15 @@ const BAR_TONE: Record<StateTone, string> = {
   neutral: 'nasq-gantt-bar-muted',
 }
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   schedule: ProjectSchedule
   scale: ScheduleScale
   projectStart?: string | null
   projectEnd?: string | null
-}>()
+  embedded?: boolean
+}>(), {
+  embedded: false,
+})
 const emit = defineEmits<{ 'update:scale': [ScheduleScale] }>()
 const { t, locale } = useI18n()
 const route = useRoute()
@@ -47,7 +50,7 @@ const barClass = (state: string) => BAR_TONE[(STATE_TONE as Record<string, State
 
 <template>
   <Card class="nasq-panel overflow-hidden">
-    <CardHeader class="flex flex-row flex-wrap items-center justify-between gap-3">
+    <CardHeader v-if="!embedded" class="flex flex-row flex-wrap items-center justify-between gap-3">
       <CardTitle>{{ t('projects.schedule.timeline') }}</CardTitle>
       <div class="flex rounded-lg border p-0.5" role="group" :aria-label="t('projects.schedule.scale')">
         <Button type="button" size="sm" class="h-8 rounded-md" :variant="scale === 'week' ? 'default' : 'ghost'" :disabled="!hydrated" :aria-pressed="scale === 'week'" @click="emit('update:scale', 'week')">{{ t('projects.schedule.week') }}</Button>

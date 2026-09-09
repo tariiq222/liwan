@@ -1,0 +1,97 @@
+/* Projects only. The route marker also covers portals outside the page tree.
+   Sizes scale with the user's existing small / medium / large preference. */
+html[data-project-theme="true"] {
+  --project-type-caption: .928571rem;
+  --project-type-control: 1rem;
+  --project-type-body: 1.071429rem;
+  --project-type-section: 1.285714rem;
+  --project-type-title: 1.714286rem;
+  --muted-foreground: #626b76;
+  --brand-soft: color-mix(in srgb, var(--primary) 7%, var(--card));
+  --project-section-surface: color-mix(in srgb, var(--primary) 3%, var(--muted));
+  --status-success: #347447;
+  --status-success-foreground: #28603a;
+  --status-warning: #a56b16;
+  --status-warning-foreground: #80500d;
+  --status-info: #306db5;
+  --status-info-foreground: #265b9b;
+  --status-danger: #b63b4a;
+  --status-danger-foreground: #a62e3e;
+  --destructive: var(--status-danger);
+  --status-success-soft: color-mix(in srgb, var(--status-success) 10%, var(--card));
+  --status-success-border: color-mix(in srgb, var(--status-success) 28%, var(--border));
+  --status-warning-soft: color-mix(in srgb, var(--status-warning) 11%, var(--card));
+  --status-warning-border: color-mix(in srgb, var(--status-warning) 28%, var(--border));
+  --status-info-soft: color-mix(in srgb, var(--status-info) 10%, var(--card));
+  --status-info-border: color-mix(in srgb, var(--status-info) 28%, var(--border));
+  --status-danger-soft: color-mix(in srgb, var(--status-danger) 10%, var(--card));
+  --status-danger-border: color-mix(in srgb, var(--status-danger) 28%, var(--border));
+}
+html.cream[data-project-theme="true"] { --muted-foreground: #6f6252; }
+html.dark[data-project-theme="true"] {
+  --muted-foreground: #adb5bf;
+  --project-section-surface: color-mix(in srgb, var(--primary) 5%, var(--muted));
+  --status-success: #83c796;
+  --status-success-foreground: #a0dab0;
+  --status-warning: #e0b261;
+  --status-warning-foreground: #edc786;
+  --status-info: #80b4ef;
+  --status-info-foreground: #a1c8f5;
+  --status-danger: #ee8c98;
+  --status-danger-foreground: #f6abb5;
+}
+
+html[data-project-theme="true"] :is([data-project-area="true"], [data-project-overlay], [data-testid="notification-preview"]) {
+  font-size: var(--project-type-body);
+  line-height: 1.65;
+}
+html[data-project-theme="true"] :is([data-project-area="true"], [data-project-overlay], [data-testid="notification-preview"]) :is(.text-sm, .text-base, td) {
+  font-size: var(--project-type-body);
+  line-height: 1.65;
+}
+html[data-project-theme="true"] :is([data-project-area="true"], [data-project-overlay], [data-testid="notification-preview"]) :is(.text-xs, .nasq-form-section-hint, .nasq-metric-title, .nasq-metric-foot, .nasq-gantt-legend, .nasq-gantt-dates) {
+  font-size: var(--project-type-caption);
+  line-height: 1.6;
+}
+html[data-project-theme="true"] :is([data-project-area="true"], [data-project-overlay], [data-testid="notification-preview"]) :is(button, input, select, textarea, label, [role="combobox"], th) {
+  font-size: var(--project-type-control);
+  line-height: 1.5;
+}
+html[data-project-theme="true"] [data-project-area="true"] th { font-weight: 500; }
+html[data-project-theme="true"] :is([data-project-area="true"], [data-project-overlay]) :is(h1, h2, h3, [data-slot="card-title"]) {
+  letter-spacing: normal;
+  line-height: 1.5;
+  font-weight: 600;
+}
+html[data-project-theme="true"] [data-project-area="true"] :is(h2, h3, [data-slot="card-title"]) { font-size: var(--project-type-section); }
+html[data-project-theme="true"] [data-project-area="true"] .nasq-page-title { font-size: var(--project-type-title); }
+html[data-project-theme="true"] [data-project-area="true"] .nasq-metric-value { letter-spacing: normal; font-variant-numeric: tabular-nums; }
+html[data-project-theme="true"] [data-project-area="true"] :is(.nasq-panel-header, [data-slot="card-header"], .nasq-form-section-heading) { background: var(--project-section-surface); }
+html[data-project-theme="true"] [data-project-area="true"] [data-slot="table-header"] { background: var(--project-section-surface); }
+html[data-project-theme="true"] .nasq-context-sidebar[data-project-module="true"] :is(.nasq-context-link, .nasq-context-toggle) { font-size: var(--project-type-control); line-height: 1.5; }
+html[data-project-theme="true"] .nasq-context-sidebar[data-project-module="true"] :is(.nasq-context-group-heading, .nasq-project-breadcrumb) { font-size: var(--project-type-caption); letter-spacing: normal; line-height: 1.6; }
+
+html[data-project-theme="true"] [data-testid="notification-preview"] h2 { font-size: var(--project-type-section); line-height: 1.5; }
+html[data-project-theme="true"] [data-testid="notification-preview"] > div:first-child { background: var(--project-section-surface); }
+html[data-project-theme="true"] [data-notification-preview-item] { gap: .4rem; }
+html[data-project-theme="true"] :is([data-slot="select-content"], [data-slot="dropdown-menu-content"], [data-slot="tooltip-content"], [data-slot="alert-dialog-content"]) :is([role="option"], [role="menuitem"], [role="menuitemcheckbox"], [role="menuitemradio"], .text-sm) { font-size: var(--project-type-control); line-height: 1.5; }
+html[data-project-theme="true"] :is([data-slot="select-content"], [data-slot="dropdown-menu-content"], [data-slot="tooltip-content"], [data-slot="alert-dialog-content"]) { font-size: var(--project-type-control); line-height: 1.5; }
+html[data-project-theme="true"] [data-sonner-toaster] {
+  --success-bg: var(--status-success-soft);
+  --success-text: var(--status-success-foreground);
+  --success-border: var(--status-success-border);
+  --info-bg: var(--status-info-soft);
+  --info-text: var(--status-info-foreground);
+  --info-border: var(--status-info-border);
+  --warning-bg: var(--status-warning-soft);
+  --warning-text: var(--status-warning-foreground);
+  --warning-border: var(--status-warning-border);
+  --error-bg: var(--status-danger-soft);
+  --error-text: var(--status-danger-foreground);
+  --error-border: var(--status-danger-border);
+}
+html[data-project-theme="true"] [data-sonner-toast] { font-family: var(--font-sans); font-size: var(--project-type-control); line-height: 1.6; }
+html[data-project-theme="true"] [data-sonner-toast] [data-description] { color: inherit; font-size: var(--project-type-caption); line-height: 1.6; }
+@media (max-width: 767px) {
+  html[data-project-theme="true"] [data-project-area="true"] :is(input, select, textarea) { font-size: max(16px, var(--project-type-control)); }
+}

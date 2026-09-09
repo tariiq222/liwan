@@ -7,7 +7,7 @@ import { STATE_LABEL_KEY } from '@/composables/taskState'
 import { useProjects } from '@/composables/useProjects'
 import FilterBar from '@/components/shared/FilterBar.vue'
 
-const props = defineProps<{ modelValue: TaskListParams; hideProjectFilter?: boolean; view?: 'table' | 'board'; embedded?: boolean }>()
+const props = defineProps<{ modelValue: TaskListParams; hideProjectFilter?: boolean; view?: 'table' | 'board'; embedded?: boolean; collapsible?: boolean }>()
 const emit = defineEmits<{ 'update:modelValue': [TaskListParams]; 'update:view': ['table' | 'board'] }>()
 const { t } = useI18n()
 const hydrated = useHydrated()
@@ -59,7 +59,7 @@ function clearFilters() {
 
 <template>
   <div class="w-full min-w-0">
-  <FilterBar class="w-full" :inline="embedded" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
+  <FilterBar class="w-full" :inline="embedded && !collapsible" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
     <template #search>
       <div class="relative min-w-48 flex-1">
         <Search class="pointer-events-none absolute start-2 top-1/2 size-[18px] -translate-y-1/2 text-muted-foreground" />

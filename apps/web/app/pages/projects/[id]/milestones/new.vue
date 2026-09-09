@@ -32,7 +32,7 @@ function saved() { router.push(returnTo.value) }
       @retry="refetch"
     >
       <p v-if="!project?.can_manage" class="text-muted-foreground">{{ t('projects.forbidden') }}</p>
-      <Card v-else class="nasq-form"><CardContent><MilestoneForm :project-id="projectId" :project-start="project?.date_start" :project-end="project?.date_end" @saved="saved" @cancel="router.push(returnTo)" /></CardContent></Card>
+      <section v-else class="nasq-panel overflow-hidden"><div class="nasq-panel-body"><MilestoneForm :project-id="projectId" :project-start="project?.date_start" :project-end="project?.date_end" @saved="saved" @cancel="router.push(returnTo)" /></div></section>
     </SharedPageState>
   </SharedPageContainer>
 </template>
