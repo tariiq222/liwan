@@ -1,3 +1,7 @@
+# Approved security source integration — 2026-09-09
+
+See [the approved source integration](security-source-integration-2026-09-09.md) for exact versions, current verification and external final-state/recovery. This supersedes the pending-security status below after verified promotion; canonical runtime was not upgraded.
+
 # Pending work integration — 2026-09-09
 
 See [the current integration record](pending-work-integration-2026-09-09.md) for source baselines, review fixes, tests, retained security branch and external recovery/final-state evidence. Actual Git state is authoritative.

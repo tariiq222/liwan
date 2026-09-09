@@ -31,4 +31,4 @@ NASQ_ODOO_ROOT=/absolute/odoo-source /absolute/new-env/bin/python \
 
 Never run tests on `odoo19`. The frozen environment excludes the legacy PyPDF2 distribution so Odoo selects its native modern-pypdf adapter.
 
-For the currently applied internal operation, exact paths, source pins, checks, remaining map/PDF-printing limitations and stable rollback backup are in `docs/security-updates-2026-09-09.md`. Current services run from the security worktree; main and original upstream checkout are untouched. No automatic boot service or recurring updater is installed by this change.
+For the currently applied internal operation, exact paths, source pins, checks, remaining map/PDF-printing limitations and stable rollback backup are in `docs/security-updates-2026-09-09.md`. That report records the historical runtime operation; its old worktree paths are not a current runtime inventory. See `docs/security-source-integration-2026-09-09.md` for the later source integration and scope. No automatic boot service or recurring updater is installed by this change.
