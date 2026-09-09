@@ -71,7 +71,8 @@
     "newMeeting": "اجتماع جديد",
     "newConversation": "محادثة جديدة",
     "allProjects": "كل المشاريع",
-    "myProjects": "مشاريعي"
+    "myProjects": "مشاريعي",
+    "projectTasks": "المهام"
   },
   "auth": {
     "username": "اسم المستخدم",

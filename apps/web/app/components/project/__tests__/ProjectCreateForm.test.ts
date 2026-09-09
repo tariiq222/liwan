@@ -20,6 +20,15 @@ const Passthrough = defineComponent({
   },
 })
 
+const NuxtLinkStub = defineComponent({
+  props: { to: { type: [String, Object], required: true } },
+  setup(props, { slots }) {
+    return () => h('a', {
+      href: typeof props.to === 'string' ? props.to : String((props.to as { path?: string }).path ?? ''),
+    }, slots.default?.())
+  },
+})
+
 const CharterFormStub = defineComponent({
   props: {
     createDefaults: { type: Object as PropType<ProjectCreateDefaults>, required: false },
@@ -60,6 +69,7 @@ async function renderForm(setup: () => Record<string, unknown>) {
   const app = createSSRApp({ render: () => h(loadForm(setup)) })
   app.component('Button', Passthrough)
   app.component('ProjectCharterForm', CharterFormStub)
+  app.component('NuxtLink', NuxtLinkStub)
   return renderToString(app)
 }
 
@@ -79,6 +89,8 @@ describe('ProjectCreateForm production template', () => {
   it('blocks the merged form while defaults are unavailable and shows loading', async () => {
     const html = await renderForm(() => ({
       t,
+      route: { fullPath: '/projects/new' },
+      returnToQuery: () => ({}),
       defaultsLoading: true,
       defaults: undefined,
       forbidden: false,
@@ -97,6 +109,8 @@ describe('ProjectCreateForm production template', () => {
   it('shows forbidden instead of rendering a writable charter form', async () => {
     const html = await renderForm(() => ({
       t,
+      route: { fullPath: '/projects/new' },
+      returnToQuery: () => ({}),
       defaultsLoading: false,
       defaults: undefined,
       forbidden: true,
@@ -117,6 +131,8 @@ describe('ProjectCreateForm production template', () => {
   it('passes required manager and end-date policy into the rendered merged form', async () => {
     const html = await renderForm(() => ({
       t,
+      route: { fullPath: '/projects/new' },
+      returnToQuery: () => ({}),
       defaultsLoading: false,
       defaults: DEFAULTS,
       forbidden: false,
@@ -131,5 +147,24 @@ describe('ProjectCreateForm production template', () => {
     expect(html).toContain('data-testid="project-create-submit"')
     expect(html).toContain('data-testid="project-create-manager" aria-required="true"')
     expect(html).toContain('data-testid="project-create-end-date" aria-required="true"')
+  })
+
+  it('offers the existing project-template flow beside the short create form', async () => {
+    const html = await renderForm(() => ({
+      t,
+      route: { fullPath: '/projects/new' },
+      returnToQuery: () => ({}),
+      defaultsLoading: false,
+      defaults: DEFAULTS,
+      forbidden: false,
+      defaultsFailed: false,
+      defaultsFetching: false,
+      hydrated: true,
+      defaultManagerName: 'Mona',
+      retryDefaults: () => {},
+      emit: () => {},
+    }))
+    expect(html).toContain('href="/project-templates"')
+    expect(html).toContain('projects.create.fromTemplate')
   })
 })

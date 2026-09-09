@@ -91,7 +91,8 @@
       "chooseEndDate": "Choose an end date",
       "loading": "Loading create requirements…",
       "defaultsError": "Could not load create requirements",
-      "retry": "Retry"
+      "retry": "Retry",
+      "fromTemplate": "Start from a project template"
     },
     "filters": {
       "active": "Active",
@@ -178,7 +179,8 @@
       "board": "Board",
       "gantt": "Gantt",
       "milestones": "Milestones",
-      "updates": "Updates"
+      "updates": "Updates",
+      "timeline": "Timeline"
     },
     "milestones": {
       "actions": "Milestone actions",
@@ -819,6 +821,12 @@
         "formReferenceTitle": "Reference and notes",
         "formReferenceDescription": "Add a reference or notes to help review this entry."
       }
-    }
+    },
+    "workspace": {
+      "tabsLabel": "Project sections",
+      "close": "Close",
+      "openFullPage": "Open full page"
+    },
+    "listTabsLabel": "Project list"
   }
 }

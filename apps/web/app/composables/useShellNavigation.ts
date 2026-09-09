@@ -81,9 +81,7 @@ export function projectSectionRoot(path: string, query: Record<string, unknown> 
   if (!match || !positiveId(match[1])) return null
   const section = match[2]
   if (!section) {
-    return ['tasks', 'list', 'board', 'milestones'].includes(String(query.tab)) || ['table', 'board'].includes(String(query.view))
-      ? 'planning'
-      : 'summary'
+    return query.tab === 'summary' ? 'summary' : 'planning'
   }
   return Object.hasOwn(projectRootSections, section) ? projectRootSections[section]! : null
 }
@@ -109,7 +107,8 @@ export function useShellNavigation(identity: MaybeRefOrGetter<AccessIdentity>) {
   const contextLinks = computed<ShellContextLink[]>(() => {
     const currentModule = activeModule.value
     if (projectId.value && currentModule === 'projects') {
-      return projectContextLinks(projectId.value, identityValue.value, project.data.value?.active === true, project.data.value?.can_manage === true, route.query)
+      const isProjectRoot = /^\/projects\/\d+\/?$/.test(route.path)
+      return projectContextLinks(projectId.value, identityValue.value, project.data.value?.active === true, project.data.value?.can_manage === true, route.query, isProjectRoot)
         .map(link => ({ ...link, active: projectContextId(route.path, route.query) === link.id }))
     }
     if (!currentModule) return []

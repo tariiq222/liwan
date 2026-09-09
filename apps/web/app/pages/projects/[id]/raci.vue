@@ -1,10 +1,15 @@
 <script setup lang="ts">
+import { inject } from 'vue'
 import { governanceMatrixFilters } from '@/components/project/governance/state'
 import { useGovernanceTaskPage, useProjectRaci, useProjectStakeholders, useCreateProjectRaci, useUpdateProjectRaci, useDeleteProjectRaci } from '@/composables/useProjectGovernance'
 import type { ProjectRaci, ProjectRaciRole } from '@nasq/contracts'
 import { ApiError } from '@/composables/useApi'
+import { useProject } from '@/composables/useProjects'
+import ProjectWorkspaceTabs from '@/components/project/workspace/ProjectWorkspaceTabs.vue'
 const route = useRoute(); const router = useRouter(); const { t } = useI18n(); const hydrated = useHydrated()
+const isProjectOverlay = inject<boolean>(Symbol.for('nasq.project.overlay'), false)
 const id = computed(() => Number(route.params.id)); const viewport = computed(() => governanceMatrixFilters(route.query))
+const { data: project } = useProject(computed(() => Number.isInteger(id.value) && id.value > 0 ? id.value : null))
 const viewQuery = computed(() => {
   const query: Record<string, string> = {}
   if (typeof route.query.returnTo === 'string') query.returnTo = route.query.returnTo
@@ -51,8 +56,10 @@ async function deleteRow() {
 <template>
   <SharedPageContainer width="list">
     <SharedPageHeader
-      :title="t('projects.governance.raci.title')"
+      v-if="!isProjectOverlay"
+      :title="project?.name ?? t('projects.governance.raci.title')"
     />
+    <ProjectWorkspaceTabs v-if="project && !isProjectOverlay" :project-id="project.id" :active="project.active" :can-manage="project.can_manage" />
     <nav class="nasq-view-switch" :aria-label="t('projects.governance.views')">
       <NuxtLink :to="{ path: `/projects/${id}/stakeholders`, query: viewQuery }">{{ t('projects.governance.viewList') }}</NuxtLink>
       <NuxtLink :to="{ path: `/projects/${id}/raci`, query: viewQuery }" aria-current="page">{{ t('projects.governance.viewMatrix') }}</NuxtLink>

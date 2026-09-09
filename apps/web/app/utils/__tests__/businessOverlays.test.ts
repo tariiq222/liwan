@@ -22,15 +22,18 @@ function sourceFiles(directory: string): string[] {
 }
 
 describe('business overlay architecture', () => {
-  it('keeps business screens routed except the user-approved header search', () => {
+  it('limits business dialogs to the approved header search and project route host', () => {
     const violations = [...scanRoots.flatMap((root) => sourceFiles(join(appRoot, root))), ...activeUiComposites].flatMap((path) => {
       const source = readFileSync(path, 'utf8')
-      // User explicitly approved centered header search on 2026-09-06.
-      // This exact-file exception does not permit other business overlays or native prompts.
-      const allowsSearchDialog = relative(appRoot, path) === 'components/GlobalSearch.vue'
+      // Exact-file exceptions: header search (2026-09-06) and the Projects pilot
+      // (2026-09-09). Other modules and native prompts remain disallowed.
+      const allowsDialog = [
+        'components/GlobalSearch.vue',
+        'components/project/workspace/ProjectRouteModal.vue',
+      ].includes(relative(appRoot, path))
       const reasons = [
-        !allowsSearchDialog && forbiddenTag.test(source) && 'forbidden overlay tag',
-        !allowsSearchDialog && forbiddenUiImport.test(source) && 'forbidden overlay primitive import',
+        !allowsDialog && forbiddenTag.test(source) && 'forbidden overlay tag',
+        !allowsDialog && forbiddenUiImport.test(source) && 'forbidden overlay primitive import',
         nativePopup.test(source) && 'native alert/confirm/prompt call',
       ].filter(Boolean)
       return reasons.map((reason) => `${relative(appRoot, path)}: ${reason}`)

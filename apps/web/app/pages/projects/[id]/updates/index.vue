@@ -1,13 +1,16 @@
 <script setup lang="ts">
+import { inject } from 'vue'
 import { ApiError } from '@/composables/useApi'
 import { useProject } from '@/composables/useProjects'
 import ProjectUpdateList from '@/components/project/ProjectUpdateList.vue'
 import { returnToQuery } from '@/utils/safeReturnTo'
+import ProjectWorkspaceTabs from '@/components/project/workspace/ProjectWorkspaceTabs.vue'
 
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
 const hydrated = useHydrated()
+const isProjectOverlay = inject<boolean>(Symbol.for('nasq.project.overlay'), false)
 const projectId = computed(() => {
   const value = Number(route.params.id)
   return Number.isInteger(value) && value > 0 ? value : null
@@ -24,7 +27,8 @@ function openCreate() {
 <template>
   <SharedPageContainer v-if="route.path.replace(/\/+$/, '') === `/projects/${projectId}/updates`" width="detail">
     <SharedPageHeader
-      :title="t('projects.refresh.workspace.updatesTitle')"
+      v-if="!isProjectOverlay"
+      :title="project?.name ?? t('projects.refresh.workspace.updatesTitle')"
     >
       <template #actions>
         <Button v-if="project?.can_manage" data-testid="project-updates-create" :disabled="!hydrated" @click="openCreate">
@@ -32,6 +36,7 @@ function openCreate() {
         </Button>
       </template>
     </SharedPageHeader>
+    <ProjectWorkspaceTabs v-if="project && !isProjectOverlay" :project-id="project.id" :active="project.active" :can-manage="project.can_manage" />
     <SharedPageState
       :loading="isLoading && !project"
       :error="notFound ? null : error"

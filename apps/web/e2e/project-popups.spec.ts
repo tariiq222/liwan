@@ -1,0 +1,272 @@
+import { expect, test, type Page } from '@playwright/test'
+
+// Opt-in local UI fixture only: no production/default port or real database.
+test.skip(process.env.E2E_PROJECT_POPUPS !== '1', 'Requires isolated PROJECTS_UI_PREVIEW mock server')
+test.describe.configure({ timeout: 45_000 })
+
+async function login(page: Page) {
+  await page.goto('/login')
+  await expect(page.getByRole('button', { name: 'دخول', exact: true })).toBeEnabled()
+  await page.getByLabel('اسم المستخدم').fill('admin')
+  await page.getByLabel('كلمة المرور', { exact: true }).fill('admin')
+  await page.getByRole('button', { name: 'دخول', exact: true }).click()
+  await expect(page).not.toHaveURL(/\/login/)
+}
+
+test.beforeEach(async ({ page }) => { await login(page) })
+
+test('task opens over project and browser back returns to the filtered workspace', async ({ page }) => {
+  await page.goto('/projects/1?tab=tasks&q=مهمة')
+  const task = page.getByRole('button', { name: 'مهمة جارية', exact: true })
+  await expect(task).toBeVisible()
+  const originalWorkspace = await page.getByTestId('project-workspace-tabs').elementHandle()
+  await task.click()
+  await expect(page.getByRole('dialog')).toBeVisible()
+  await expect(page.getByRole('dialog')).toContainText('مهمة جارية')
+  await expect(page).toHaveURL(/\/projects\/1\/tasks\/101/)
+  await page.goBack()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await expect(page.getByPlaceholder('بحث في العناوين…')).toHaveValue('مهمة')
+  await expect(task).toBeVisible()
+  expect(await originalWorkspace!.evaluate(element => element.isConnected)).toBe(true)
+  await expect(task).toBeFocused()
+})
+
+for (const path of [
+  '/projects/new', '/projects/1/tasks/new', '/projects/1/tasks/101',
+  '/projects/1/milestones/new', '/projects/1/milestones/1/edit',
+  '/projects/1/stakeholders/new', '/projects/1/stakeholders/1', '/projects/1/stakeholders/1/edit',
+  '/projects/1/register/new', '/projects/1/register/1', '/projects/1/register/1/edit',
+  '/projects/1/finance/new', '/projects/1/finance/2', '/projects/1/finance/2/edit',
+  '/projects/1/updates/new', '/projects/1/settings', '/projects/1/schedule/tasks/101',
+  '/projects/1/charter?edit=1',
+  '/project-templates/1', '/project-templates/new', '/project-templates/1/edit', '/project-templates/1/apply',
+]) {
+  test(`direct route opens exactly one business dialog: ${path}`, async ({ page }) => {
+    await page.goto(path)
+    await expect(page.getByRole('dialog')).toHaveCount(1)
+    await expect(page.getByRole('dialog')).toBeVisible()
+    await expect(page.getByRole('dialog')).not.toContainText('500')
+    await page.reload()
+    await expect(page.getByRole('dialog')).toHaveCount(1)
+  })
+}
+
+test('non-project task details remain a full page', async ({ page }) => {
+  await page.goto('/tasks/101')
+  await expect(page.getByTestId('task-detail-page')).toBeVisible()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+})
+
+test('default project tasks retain search across Summary and Tasks tabs', async ({ page }) => {
+  await page.goto('/projects/1?q=مهمة&view=board')
+  await page.getByTestId('project-tab-summary').click()
+  await expect(page.getByTestId('project-tab-summary')).toHaveAttribute('aria-current', 'page')
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await page.getByTestId('project-tab-tasks').click()
+  await expect(page.getByPlaceholder('بحث في العناوين…')).toHaveValue('مهمة')
+})
+
+test('standalone option remains available', async ({ page }) => {
+  await page.goto('/projects/1/tasks/101?fullPage=1')
+  await expect(page.getByTestId('task-detail-page')).toBeVisible()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+})
+
+test('RTL side sheet enters from the right and remains mounted until it exits right', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'no-preference' })
+  await page.goto('/projects/1?tab=tasks')
+  await page.evaluate(() => {
+    const events: Array<{ type: string; state: string | null; x: number; right: number; translateX: number }> = []
+    ;(window as any).__projectSheetMotion = events
+    for (const type of ['transitionrun', 'transitionend']) {
+      document.addEventListener(type, (event) => {
+        const target = event.target
+        if (!(event instanceof TransitionEvent) || event.propertyName !== 'transform'
+          || !(target instanceof HTMLElement) || target.getAttribute('role') !== 'dialog') return
+        const rect = target.getBoundingClientRect()
+        events.push({ type, state: target.getAttribute('data-state'), x: rect.x,
+          right: rect.right, translateX: new DOMMatrix(getComputedStyle(target).transform).m41 })
+        if (type === 'transitionrun') {
+          const sample = () => {
+            if (!target.isConnected) return
+            const bounds = target.getBoundingClientRect()
+            events.push({ type: 'sample', state: target.getAttribute('data-state'),
+              x: bounds.x, right: bounds.right, translateX: new DOMMatrix(getComputedStyle(target).transform).m41 })
+            requestAnimationFrame(sample)
+          }
+          requestAnimationFrame(sample)
+        }
+      }, true)
+    }
+  })
+  await page.getByRole('button', { name: 'مهمة جديدة', exact: true }).click()
+  await expect.poll(() => page.evaluate(() => (window as any).__projectSheetMotion.some(
+    (event: any) => event.type === 'transitionend' && event.state === 'open',
+  ))).toBe(true)
+  const entryEvents = await page.evaluate(() => (window as any).__projectSheetMotion)
+  expect(entryEvents.some((event: any) => event.type === 'transitionrun' && event.state === 'open' && event.translateX > 0)).toBe(true)
+  await page.evaluate(() => { (window as any).__projectSheetMotion.length = 0 })
+  const railBoundary = (await page.getByTestId('module-rail').boundingBox())!.x
+  await page.getByTestId('project-overlay-close').click()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  const events = await page.evaluate(() => (window as any).__projectSheetMotion)
+  // Vue may remove the leaving node on its timeout just before the browser's
+  // last transitionend frame. Sample actual visible travel while still mounted.
+  expect(events.some((event: any) => event.type === 'sample' && event.translateX > 0 && event.x > railBoundary - 100), JSON.stringify(events)).toBe(true)
+})
+
+test('project sheets remove redundant back navigation and retain the shell corner', async ({ page }) => {
+  await page.goto('/projects/1/tasks/new')
+  const sheet = page.getByRole('dialog')
+  await expect(sheet).toBeVisible()
+  await expect(sheet.getByRole('link', { name: 'العودة إلى المشروع', exact: true })).toHaveCount(0)
+  const corner = await sheet.evaluate(element => getComputedStyle(element).borderStartStartRadius)
+  expect(parseFloat(corner)).toBeGreaterThan(0)
+  await page.getByTestId('project-overlay-full-page').click()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await expect(page.getByRole('link', { name: 'العودة إلى المشروع', exact: true })).toBeVisible()
+})
+
+test('side sheet respects reduced motion and follows the expanded module rail', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await page.goto('/projects/1/tasks/new')
+  const sheet = page.getByRole('dialog')
+  await expect(sheet).toBeVisible()
+  await page.getByTestId('module-rail-toggle').click()
+  await expect.poll(async () => {
+    const bounds = (await sheet.boundingBox())!
+    const rail = (await page.getByTestId('module-rail').boundingBox())!
+    return Math.abs(bounds.x + bounds.width - rail.x)
+  }).toBeLessThanOrEqual(1)
+  await page.getByTestId('project-overlay-close').click()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'مهمة جديدة', exact: true })).toBeEnabled()
+})
+
+test('risk details and editing share one window over the same register', async ({ page }) => {
+  await page.goto('/projects/1/register')
+  await page.getByRole('link', { name: 'تأخر اعتماد المتطلبات', exact: true }).click()
+  await expect(page.getByRole('dialog')).toHaveCount(1)
+  await page.getByTestId('register-detail-edit').click()
+  await expect(page).toHaveURL(/\/register\/1\/edit/)
+  await expect(page.getByRole('dialog')).toHaveCount(1)
+  await page.getByTestId('project-overlay-close').click()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await expect(page).toHaveURL(/\/projects\/1\/register$/)
+})
+
+test('quick task creation keeps its draft on error and returns to the same list on success', async ({ page }) => {
+  let attempts = 0
+  const requests: unknown[] = []
+  const existing = await page.request.get('/api/v1/tasks/101')
+  const detail = await existing.json()
+  await page.route('**/api/v1/tasks', async (route) => {
+    if (route.request().method() !== 'POST') return route.continue()
+    requests.push(route.request().postDataJSON())
+    attempts += 1
+    if (attempts === 1) {
+      return route.fulfill({ status: 422, json: { code: 'validation_error', message: 'تعذر الحفظ التجريبي، حاول مرة أخرى' } })
+    }
+    return route.fulfill({ status: 201, json: { ...detail, id: 105, name: 'مهمة جديدة للتجربة' } })
+  })
+  await page.goto('/projects/1?tab=tasks&q=مهمة')
+  await page.getByRole('button', { name: 'مهمة جديدة', exact: true }).click()
+  const dialog = page.getByRole('dialog')
+  await expect(dialog.getByTestId('task-create-optional')).not.toHaveAttribute('open', '')
+  await dialog.getByLabel('عنوان المهمة', { exact: true }).fill('مهمة جديدة للتجربة')
+  await dialog.getByRole('button', { name: 'إنشاء', exact: true }).click()
+  await expect(dialog.getByRole('alert')).toContainText('تعذر الحفظ التجريبي')
+  await expect(dialog.getByLabel('عنوان المهمة', { exact: true })).toHaveValue('مهمة جديدة للتجربة')
+  await dialog.getByRole('button', { name: 'إنشاء', exact: true }).click()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await expect(page.getByPlaceholder('بحث في العناوين…')).toHaveValue('مهمة')
+  expect(requests).toEqual([
+    { name: 'مهمة جديدة للتجربة', project_id: 1 },
+    { name: 'مهمة جديدة للتجربة', project_id: 1 },
+  ])
+})
+
+test('opening the full page guards a dirty popup draft', async ({ page }) => {
+  await page.goto('/projects/1/tasks/new')
+  await page.getByRole('dialog').getByLabel('عنوان المهمة', { exact: true }).fill('مسودة قبل التوسيع')
+  await page.getByTestId('project-overlay-full-page').click()
+  await expect(page.getByRole('alertdialog')).toBeVisible()
+  await page.getByRole('alertdialog').getByRole('button', { name: 'البقاء في الصفحة' }).click()
+  await expect(page.getByRole('dialog').getByLabel('عنوان المهمة', { exact: true })).toHaveValue('مسودة قبل التوسيع')
+  await page.getByTestId('project-overlay-full-page').click()
+  await page.getByRole('alertdialog').getByRole('button', { name: 'المغادرة بدون حفظ' }).click()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await expect(page).toHaveURL(/fullPage=1/)
+  await expect(page.getByLabel('عنوان المهمة', { exact: true })).toHaveValue('')
+})
+
+test('returning from full page to popup protects the full-page draft', async ({ page }) => {
+  await page.goto('/projects/1/tasks/new')
+  await page.getByTestId('project-overlay-full-page').click()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await page.getByLabel('عنوان المهمة', { exact: true }).fill('مسودة العرض الكامل')
+  await page.goBack()
+  await expect(page.getByRole('alertdialog')).toBeVisible()
+  await page.getByRole('alertdialog').getByRole('button', { name: 'البقاء في الصفحة' }).click()
+  await expect(page.getByLabel('عنوان المهمة', { exact: true })).toHaveValue('مسودة العرض الكامل')
+  await expect(page).toHaveURL(/fullPage=1/)
+})
+
+test('shell navigation remains available and protects a dirty project draft', async ({ page }) => {
+  await page.goto('/projects/1/tasks/new')
+  await page.getByRole('dialog').getByLabel('عنوان المهمة', { exact: true }).fill('مسودة قبل تغيير الموديول')
+  const moduleNavigation = page.getByRole('navigation', { name: 'الموديولات', exact: true })
+  await moduleNavigation.getByRole('link', { name: 'مهامي', exact: true }).click()
+  const confirmation = page.getByRole('alertdialog')
+  await expect(confirmation).toBeVisible()
+  await confirmation.getByRole('button', { name: 'البقاء في الصفحة' }).click()
+  await expect(page.getByRole('dialog').getByLabel('عنوان المهمة', { exact: true })).toHaveValue('مسودة قبل تغيير الموديول')
+  await moduleNavigation.getByRole('link', { name: 'مهامي', exact: true }).click()
+  await confirmation.getByRole('button', { name: 'المغادرة بدون حفظ' }).click()
+  await expect(page).toHaveURL(/\/tasks$/)
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+})
+
+test('dirty project task survives Escape and browser back until explicitly discarded', async ({ page }) => {
+  await page.goto('/projects/1?tab=tasks')
+  await page.getByRole('button', { name: 'مهمة جديدة', exact: true }).click()
+  const dialog = page.getByRole('dialog')
+  await expect(dialog).toBeVisible()
+  await dialog.getByLabel('عنوان المهمة', { exact: true }).fill('مسودة لا تفقد')
+  await page.keyboard.press('Escape')
+  const confirmation = page.getByRole('alertdialog')
+  await expect(confirmation).toBeVisible()
+  await confirmation.getByRole('button', { name: 'البقاء في الصفحة' }).click()
+  await expect(dialog.getByLabel('عنوان المهمة', { exact: true })).toHaveValue('مسودة لا تفقد')
+  await page.goBack()
+  await expect(confirmation).toBeVisible()
+  await confirmation.getByRole('button', { name: 'المغادرة بدون حفظ' }).click()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await expect(page).toHaveURL(/\/projects\/1\?tab=tasks$/)
+})
+
+for (const width of [390, 700, 768, 1440]) {
+  test(`project side sheet aligns with the main module rail and fills available height at ${width}`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 844 })
+    await page.goto('/projects/1/tasks/new')
+    const dialog = page.getByRole('dialog')
+    await expect(dialog).toBeVisible()
+    await expect.poll(async () => {
+      const box = (await dialog.boundingBox())!
+      const rail = (await page.getByTestId('module-rail').boundingBox())!
+      const header = (await page.getByTestId('shell-header').boundingBox())!
+      const top = Math.max(0, header.y + header.height)
+      return box.x >= -1 && Math.abs(box.y - top) <= 1
+        && Math.abs(box.x + box.width - rail.x) <= 1
+        && Math.abs(box.y + box.height - 844) <= 1
+    }).toBe(true)
+    await expect(page.getByRole('banner', { name: 'رأس التطبيق' })).toBeVisible()
+    await expect(page.getByRole('navigation', { name: 'الموديولات', exact: true })).toBeVisible()
+    const save = dialog.getByRole('button', { name: 'إنشاء', exact: true })
+    await save.scrollIntoViewIfNeeded()
+    await expect(save).toBeVisible()
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+  })
+}

@@ -196,6 +196,9 @@
       "empty": "لم تُضف مخرجات.",
       "checklistOf": "{done} من {total}",
       "toggle": "إنجاز المخرج: {name}"
+    },
+    "quick": {
+      "optional": "تفاصيل اختيارية"
     }
   }
 }

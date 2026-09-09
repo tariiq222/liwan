@@ -3,7 +3,7 @@ import { toast } from 'vue-sonner'
 import TaskCreateForm from '@/components/task/TaskCreateForm.vue'
 import { ApiError } from '@/composables/useApi'
 import { useProject } from '@/composables/useProjects'
-import { returnToQuery, safeReturnTo } from '@/utils/safeReturnTo'
+import { safeReturnTo } from '@/utils/safeReturnTo'
 
 const route = useRoute()
 const router = useRouter()
@@ -20,9 +20,9 @@ const milestoneId = computed(() => {
 const { data: project, isLoading, error, refetch } = useProject(projectId)
 const notFound = computed(() => projectId.value === null || (error.value instanceof ApiError && [403, 404].includes(error.value.status)))
 const returnTo = computed(() => projectId.value ? safeReturnTo(route.query.returnTo, '/projects/' + projectId.value + '?tab=tasks', ['/projects']) : '/projects')
-function created(id: number) {
+function created(_id: number) {
   toast.success(t('tasks.created'))
-  router.push({ path: '/projects/' + projectId.value + '/tasks/' + id, query: returnToQuery(returnTo.value) })
+  router.push(returnTo.value)
 }
 </script>
 
@@ -40,7 +40,7 @@ function created(id: number) {
       :empty-text="t('tasks.notFound')"
       @retry="refetch"
     >
-      <Card class="nasq-form"><CardContent><TaskCreateForm :project-id="projectId" :milestone-id="milestoneId" :project-start="project?.date_start" :project-end="project?.date_end" :can-manage="project?.can_manage" @created="created" @cancel="router.push(returnTo)" /></CardContent></Card>
+      <Card class="nasq-form"><CardContent><TaskCreateForm mode="project" :project-id="projectId" :milestone-id="milestoneId" :project-start="project?.date_start" :project-end="project?.date_end" :can-manage="project?.can_manage" @created="created" @cancel="router.push(returnTo)" /></CardContent></Card>
     </SharedPageState>
     <p v-if="!hydrated" class="sr-only">{{ t('tasks.loading') }}</p>
   </SharedPageContainer>

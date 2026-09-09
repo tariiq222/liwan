@@ -217,7 +217,8 @@ function discardToServer() {
     <form v-else class="grid gap-6" @submit.prevent="submit()">
       <ProjectCharterFields
         v-model="draft"
-        :compact="!readonly"
+        :compact="mode === 'create'"
+        :project-create="mode === 'create'"
         :disabled="pending"
         :field-errors="fieldErrors"
         :require-manager="mode === 'create' && !!createDefaults?.require_manager_on_create"

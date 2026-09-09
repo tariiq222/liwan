@@ -8,6 +8,11 @@ import { createRenderer, defineComponent, h, ref, type App, type Component } fro
 import { createMemoryHistory, createRouter, RouterView, useRoute } from 'vue-router'
 import * as VueRouter from 'vue-router'
 import { afterEach, describe, expect, it } from 'vitest'
+import {
+  isProjectOverlayRoute,
+  PROJECT_OVERLAY_INJECTION_KEY,
+  wantsProjectOverlayFullPage,
+} from '../../../utils/projectOverlayRoute'
 
 interface HostNode {
   children: HostNode[]
@@ -81,7 +86,7 @@ function loadUnsavedChanges(): Component {
   const sourcePath = resolve(dirname(fileURLToPath(import.meta.url)), '../UnsavedChanges.vue')
   const descriptor = parse(readFileSync(sourcePath, 'utf8'), { filename: sourcePath }).descriptor
   const compiled = compileScript(descriptor, { id: 'unsaved-changes-test', inlineTemplate: true }).content
-    .replace(/import .*?\n/g, '')
+    .replace(/^import\s[\s\S]*?from\s*['"][^'"]+['"];?\s*$/gm, '')
     .replace(/import\.meta\.client/g, 'false')
     .replace('export default', 'return')
   const runnable = ts.transpileModule(compiled, {
@@ -89,15 +94,15 @@ function loadUnsavedChanges(): Component {
   }).outputText
   const factory = new Function(
     '_defineComponent', '_unref', '_createVNode', '_createTextVNode', '_toDisplayString', '_withCtx', '_resolveComponent',
-    '_createElementVNode', '_withModifiers', '_openBlock', '_createBlock', 'onBeforeRouteLeave',
+    '_createElementVNode', '_withModifiers', '_openBlock', '_createBlock', '_normalizeClass', 'onBeforeRouteLeave',
     'onBeforeRouteUpdate', 'AlertDialogRoot', 'AlertDialogPortal', 'AlertDialogOverlay', 'AlertDialogContent',
-    'AlertDialogTitle', 'AlertDialogDescription', 'AlertDialogCancel', 'ref', 'watch', 'navigateTo', runnable,
+    'AlertDialogTitle', 'AlertDialogDescription', 'AlertDialogCancel', 'ref', 'watch', 'computed', 'inject', 'isProjectOverlayRoute', 'PROJECT_OVERLAY_INJECTION_KEY', 'wantsProjectOverlayFullPage', 'navigateTo', runnable,
   )
   return factory(
     Vue.defineComponent, Vue.unref, Vue.createVNode, Vue.createTextVNode, Vue.toDisplayString, Vue.withCtx, Vue.resolveComponent,
-    Vue.createElementVNode, Vue.withModifiers, Vue.openBlock, Vue.createBlock, VueRouter.onBeforeRouteLeave,
+    Vue.createElementVNode, Vue.withModifiers, Vue.openBlock, Vue.createBlock, Vue.normalizeClass, VueRouter.onBeforeRouteLeave,
     VueRouter.onBeforeRouteUpdate, passthrough, passthrough, passthrough, passthrough, passthrough,
-    passthrough, passthrough, Vue.ref, Vue.watch, (...args: Parameters<typeof router.push>) => router.push(...args),
+    passthrough, passthrough, Vue.ref, Vue.watch, Vue.computed, Vue.inject, isProjectOverlayRoute, PROJECT_OVERLAY_INJECTION_KEY, wantsProjectOverlayFullPage, (...args: Parameters<typeof router.push>) => router.push(...args),
   ) as Component
 }
 
@@ -147,6 +152,48 @@ describe('SharedUnsavedChanges route update guard', () => {
 
     expect(router.currentRoute.value.query.edit).toBeUndefined()
     expect(findNode(host, node => node.props['data-testid'] === 'mode')?.text).toBe('readonly')
+  })
+
+  it('protects a dirty project workflow when switching standalone and modal presentation', async () => {
+    const dirty = ref(true)
+    const UnsavedChanges = loadUnsavedChanges()
+    const WorkflowRoute = defineComponent({
+      setup() {
+        const route = useRoute()
+        return () => h('div', [
+          h(UnsavedChanges, { dirty: dirty.value }),
+          h('span', { 'data-testid': 'presentation' }, route.query.fullPage ? 'full-page' : 'modal'),
+        ])
+      },
+    })
+
+    router = createRouter({
+      history: createMemoryHistory(),
+      routes: [{ path: '/projects/:id/tasks/:taskId', component: WorkflowRoute }],
+    })
+    await router.push({ path: '/projects/3/tasks/7', query: { fullPage: '1' } })
+    await router.isReady()
+
+    const app = renderer.createApp(defineComponent({ render: () => h(RouterView) }))
+    app.component('Button', button)
+    app.config.globalProperties.$t = (key: string) => key
+    app.use(router)
+    const host = createHostNode()
+    app.mount(host)
+    mountedApps.push(app)
+
+    const stayResult = await router.push({ path: '/projects/3/tasks/7', query: {} })
+    expect(stayResult).toBeTruthy()
+    expect(router.currentRoute.value.query.fullPage).toBe('1')
+    expect(findNode(host, node => node.props['data-testid'] === 'unsaved-changes-dialog')).toBeTruthy()
+
+    const buttons = findNodes(host, node => node.type === 'button')
+    const discard = buttons.at(-1)?.props.onClick as (() => Promise<void>) | undefined
+    expect(discard).toBeTypeOf('function')
+    await discard?.()
+
+    expect(router.currentRoute.value.query.fullPage).toBeUndefined()
+    expect(findNode(host, node => node.props['data-testid'] === 'presentation')?.text).toBe('modal')
   })
 })
 

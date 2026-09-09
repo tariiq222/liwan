@@ -71,7 +71,8 @@
     "newMeeting": "New meeting",
     "newConversation": "New conversation",
     "allProjects": "All projects",
-    "myProjects": "My projects"
+    "myProjects": "My projects",
+    "projectTasks": "Tasks"
   },
   "auth": {
     "username": "Username",

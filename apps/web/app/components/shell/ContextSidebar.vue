@@ -28,7 +28,10 @@ const selectedConversationId = computed(() => {
   const id = Number(match?.[1])
   return Number.isSafeInteger(id) && id > 0 ? id : undefined
 })
-const primaryLinks = computed(() => contextLinks.value.filter(item => !isProject.value || item.id !== 'settings'))
+// Project sections are owned by ProjectWorkspaceTabs inside the page. Keep
+// this sidebar focused on the project identity and return link so the same
+// workspace navigation is not rendered twice.
+const primaryLinks = computed(() => isProject.value ? [] : contextLinks.value)
 const moduleLinks = computed(() => {
   const links = isChat.value && isDesktop.value
     ? primaryLinks.value.filter(item => item.id === 'new-chat')
@@ -177,20 +180,6 @@ function updateRoute(next: ChatListRoute) {
         @update:route-state="updateRoute"
       />
 
-      <div v-if="isProject" class="nasq-context-footer">
-        <NuxtLink
-          v-for="link in contextLinks.filter(item => item.id === 'settings')"
-          :key="link.id"
-          :to="href(link)"
-          class="nasq-context-link"
-          :data-active="link.active"
-          :aria-current="link.active ? 'page' : undefined"
-          data-testid="context-link-settings"
-        >
-          <component :is="link.icon" aria-hidden="true" />
-          <span>{{ t(link.labelKey) }}</span>
-        </NuxtLink>
-      </div>
       </div>
     </Transition>
   </aside>

@@ -21,6 +21,7 @@ const props = defineProps<{
   fieldErrors?: Partial<Record<CharterFieldKey, string>>
   requireManager?: boolean
   requireEndDate?: boolean
+  projectCreate?: boolean
 }>()
 
 const { t, locale } = useI18n()
@@ -30,6 +31,7 @@ const hydrated = useHydrated()
 const canManageSettings = computed(() => can('pmo.settings.manage'))
 const controlsDisabled = computed(() => props.disabled || !hydrated.value)
 const compact = computed(() => !!props.compact && !props.readonly)
+const projectCreate = computed(() => props.projectCreate === true)
 
 function sectionOpen(fields: CharterFieldKey[]): boolean {
   return !compact.value || fields.some(field => !!props.fieldErrors?.[field])
@@ -336,7 +338,7 @@ const readonlyDescription = computed(() => (
       </div>
     </details>
 
-    <details class="rounded-lg border p-4" :open="compact || sectionOpen(['authority', 'rationale', 'objectives', 'benefits', 'scope', 'exclusions', 'high_level_requirements', 'deliverables', 'acceptance', 'success'])">
+    <details data-testid="project-create-charter-outcomes" class="rounded-lg border p-4" :open="!projectCreate || sectionOpen(['authority', 'rationale', 'objectives', 'benefits', 'scope', 'exclusions', 'high_level_requirements', 'deliverables', 'acceptance', 'success'])">
       <summary class="cursor-pointer font-semibold">{{ t('projects.charter.sections.outcomes') }}</summary>
       <div class="mt-4 grid gap-6">
     <div v-if="!compact" class="grid gap-2" data-testid="charter-field-authority">
@@ -399,7 +401,7 @@ const readonlyDescription = computed(() => (
       </div>
     </details>
 
-    <details class="rounded-lg border p-4" :open="compact || sectionOpen(['budget_state', 'amount', 'currency', 'priority', 'assumptions', 'constraints', 'closure'])">
+    <details data-testid="project-create-charter-planning" class="rounded-lg border p-4" :open="!projectCreate || sectionOpen(['budget_state', 'amount', 'currency', 'priority', 'assumptions', 'constraints', 'closure'])">
       <summary class="cursor-pointer font-semibold">{{ t('projects.charter.sections.planning') }}</summary>
       <div class="mt-4 grid gap-6">
     <div class="grid gap-4 md:grid-cols-3">

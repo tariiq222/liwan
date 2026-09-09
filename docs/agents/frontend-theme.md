@@ -41,3 +41,6 @@ You are not alone in the repository. Preserve other edits; do not revert or over
 
 Findings first with severity, file/line, user-visible failure and proposed fix. Then report reused components, routes covered, actual commands/results, screenshots if UI changed, legacy definitions removed and remaining gaps.
 Markdown-only policy work must not claim the runtime theme was migrated or CI enforcement exists.
+
+## Projects popup pilot — 2026-09-09
+The user approved project-only route-backed Side Sheets aligned with the main module rail, full-height below the header and without a dimming backdrop and direct workspace tabs. This overrides older all-routed-full-page guidance for Projects only. Keep permissions, URL/refresh/back, focus, draft guards, filters and scroll context. Other modules remain unchanged. See the project-tabs-popups spec.

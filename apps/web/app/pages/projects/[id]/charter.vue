@@ -1,14 +1,17 @@
 <script setup lang="ts">
+import { inject } from 'vue'
 import { toast } from 'vue-sonner'
 import { ApiError } from '@/composables/useApi'
 import { useProject } from '@/composables/useProjects'
 import { useMilestones } from '@/composables/useMilestones'
 import ProjectCharterForm from '@/components/project/ProjectCharterForm.vue'
+import ProjectWorkspaceTabs from '@/components/project/workspace/ProjectWorkspaceTabs.vue'
 
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
 const hydrated = useHydrated()
+const isProjectOverlay = inject<boolean>(Symbol.for('nasq.project.overlay'), false)
 const projectId = computed(() => {
   const n = Number(route.params.id)
   return Number.isInteger(n) && n > 0 ? n : null
@@ -35,12 +38,14 @@ function onCancel() {
 <template>
   <SharedPageContainer :width="readonly ? 'detail' : 'form'">
     <SharedPageHeader
-      :title="t('projects.charter.title')"
+      v-if="!isProjectOverlay"
+      :title="project?.name ?? t('projects.charter.title')"
     >
       <template #actions>
         <Button v-if="project?.can_manage && readonly" :disabled="!hydrated" @click="router.push({ path: route.path, query: { ...route.query, edit: '1' } })">{{ t('app.edit') }}</Button>
       </template>
     </SharedPageHeader>
+    <ProjectWorkspaceTabs v-if="project && !isProjectOverlay" :project-id="project.id" :active="project.active" :can-manage="project.can_manage" />
     <template v-if="projectId === null">
       <p class="text-muted-foreground">{{ t('projects.invalidId') }}</p>
     </template>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ConfigProvider } from 'reka-ui'
+import ProjectRouteHost from '@/components/project/workspace/ProjectRouteHost.vue'
 
 const { locale } = useI18n()
 const { mode, fontSize } = useAppearance()
@@ -20,7 +21,7 @@ useHead(() => ({
 <template>
   <ConfigProvider :dir="locale === 'ar' ? 'rtl' : 'ltr'">
     <NuxtLayout>
-      <NuxtPage />
+      <ProjectRouteHost />
     </NuxtLayout>
   </ConfigProvider>
 </template>

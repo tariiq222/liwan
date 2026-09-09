@@ -2,9 +2,11 @@
 import { ApiError } from '@/composables/useApi'
 import { useProjectCreateDefaults } from '@/composables/useProjectSettings'
 import ProjectCharterForm from '@/components/project/ProjectCharterForm.vue'
+import { returnToQuery } from '@/utils/safeReturnTo'
 
 const emit = defineEmits<{ created: [id: number]; cancel: [] }>()
 const { t } = useI18n()
+const route = useRoute()
 const hydrated = useHydrated()
 const { me } = useMe()
 const {
@@ -33,6 +35,13 @@ async function retryDefaults() {
 <template>
   <SharedFormSection :title="t('projects.charter.title')" :description="t('projects.create.defaultsHint')">
     <div class="grid gap-4">
+      <NuxtLink
+        :to="{ path: '/project-templates', query: returnToQuery(route.fullPath) }"
+        data-testid="project-create-from-template"
+        class="w-fit text-sm font-medium text-primary underline-offset-4 hover:underline"
+      >
+        {{ t('projects.create.fromTemplate') }}
+      </NuxtLink>
       <p v-if="defaultsLoading && !defaults" data-testid="project-create-loading" class="text-sm text-muted-foreground">{{ t('projects.create.loading') }}</p>
       <div v-else-if="forbidden && !defaults" role="alert" class="grid gap-2" data-testid="project-create-forbidden">
         <p class="text-sm text-destructive">{{ t('projects.createForbidden') }}</p>

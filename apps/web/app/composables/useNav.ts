@@ -90,19 +90,23 @@ type ShellQuery = LocationQueryRaw
 export const PROJECT_CONTEXT_IDS = ['summary', 'planning', 'stakeholders', 'risks', 'finance', 'charter', 'settings'] as const
 export type ProjectContextId = typeof PROJECT_CONTEXT_IDS[number]
 
+export const PROJECT_WORKSPACE_TAB_IDS = ['tasks', 'summary', 'milestones', 'stakeholders', 'risks', 'finance', 'charter', 'settings'] as const
+export type ProjectWorkspaceTabId = typeof PROJECT_WORKSPACE_TAB_IDS[number]
+
 export function projectContextId(path: string, query: Record<string, unknown> = {}): ProjectContextId | null {
   const match = path.match(/^\/projects\/([^/]+)/)
   if (!match) return null
   const rest = path.replace(match[0], '').replace(/^\//, '')
   if (rest === 'settings') return 'settings'
   if (rest === 'charter') return 'charter'
+  if (rest === 'updates' || rest.startsWith('updates/')) return 'summary'
   if (rest === 'finance' || rest.startsWith('finance/')) return 'finance'
   if (rest === 'stakeholders' || rest.startsWith('stakeholders/') || rest === 'raci') return 'stakeholders'
   if (rest === 'register' || rest.startsWith('register/')) return 'risks'
   if (rest === 'milestones' || rest.startsWith('milestones/')) return 'planning'
   if (rest === 'schedule' || rest.startsWith('schedule/') || rest === 'tasks' || rest.startsWith('tasks/')) return 'planning'
   if (query.tab === 'tasks' || query.tab === 'list' || query.tab === 'board' || query.tab === 'milestones') return 'planning'
-  return 'summary'
+  return query.tab === 'summary' ? 'summary' : 'planning'
 }
 
 function hrCreateLinkForPath(path?: string): ShellContextLink {
@@ -190,6 +194,7 @@ export function projectContextLinks(
   activeProject: boolean,
   canManage: boolean,
   taskQuery: ShellQuery = {},
+  isProjectRoot = false,
 ): ShellContextLink[] {
   const base = `/projects/${projectId}`
   const taskKeys = ['q', 'state', 'closed', 'view'] as const
@@ -202,7 +207,7 @@ export function projectContextLinks(
       }
     } catch { /* Ignore invalid URL state. */ }
   }
-  if (['tasks', 'list', 'board', 'milestones'].includes(String(taskQuery.tab))) {
+  if (['tasks', 'list', 'board', 'milestones'].includes(String(taskQuery.tab)) || (isProjectRoot && taskQuery.tab == null)) {
     remembered = Object.fromEntries(taskKeys.filter(key => typeof taskQuery[key] === 'string').map(key => [key, taskQuery[key]]))
     if (taskQuery.tab === 'board') remembered.view = 'board'
   }
@@ -211,7 +216,7 @@ export function projectContextLinks(
   const projectReturnTo = `${base}?${new URLSearchParams(rootQuery)}`
   const contextQuery: ShellQuery = { ...rootQuery, returnTo: projectReturnTo }
   const links: ShellContextLink[] = [
-    { id: 'summary', labelKey: 'nav.projectSummary', icon: LayoutDashboard, to: { path: base, query: rootQuery }, capability: 'pmo.projects.read' },
+    { id: 'summary', labelKey: 'nav.projectSummary', icon: LayoutDashboard, to: { path: base, query: { ...rootQuery, tab: 'summary' } }, capability: 'pmo.projects.read' },
     { id: 'planning', labelKey: 'nav.projectPlanning', icon: ClipboardList, to: { path: base, query: { ...rootQuery, ...remembered, tab: 'tasks' } }, capability: 'pmo.tasks.read' },
     { id: 'stakeholders', labelKey: 'nav.projectStakeholders', icon: Users, to: { path: `${base}/stakeholders`, query: contextQuery }, capability: 'pmo.projects.read' },
     { id: 'risks', labelKey: 'nav.projectRisks', icon: CircleAlert, to: { path: `${base}/register`, query: contextQuery }, capability: 'pmo.projects.read' },
@@ -220,5 +225,49 @@ export function projectContextLinks(
     { id: 'settings', labelKey: 'nav.projectSettings', icon: Settings, to: { path: `${base}/settings`, query: contextQuery }, capability: 'pmo.projects.manage' },
   ]
   return links.filter(link => activeProject || !['planning', 'stakeholders', 'risks', 'charter'].includes(link.id))
+    .filter(link => link.id === 'settings' ? canManage : hasCapability(identity, link.capability))
+}
+
+/**
+ * The project workspace owns its section tabs. The contextual sidebar uses
+ * projectContextLinks for identity/return context, while this mapping keeps
+ * direct section routes and task view state together in one reusable source.
+ */
+export function projectWorkspaceLinks(
+  projectId: number,
+  identity: AccessIdentity,
+  activeProject: boolean,
+  canManage: boolean,
+  taskQuery: ShellQuery = {},
+  isProjectRoot = false,
+): ShellContextLink[] {
+  const context = projectContextLinks(projectId, identity, activeProject, canManage, taskQuery, isProjectRoot)
+  const byId = new Map(context.map(link => [link.id, link]))
+  const planning = byId.get('planning')
+  const summary = byId.get('summary')
+  const queryOf = (link: ShellContextLink | undefined): ShellQuery => {
+    if (!link || typeof link.to === 'string' || Array.isArray(link.to)) return {}
+    return 'query' in link.to && link.to.query ? link.to.query as ShellQuery : {}
+  }
+  const { view: _taskView, ...planningQuery } = queryOf(planning)
+  const milestonesQuery = { ...planningQuery, tab: 'milestones' }
+  const tasksQuery = { ...queryOf(planning), tab: 'tasks' }
+  const summaryQuery = { ...queryOf(summary), tab: 'summary' }
+  const stakeholdersQuery = queryOf(byId.get('stakeholders'))
+  const risksQuery = queryOf(byId.get('risks'))
+  const financeQuery = queryOf(byId.get('finance'))
+  const charterQuery = queryOf(byId.get('charter'))
+  const settingsQuery = queryOf(byId.get('settings'))
+  const links: Array<ShellContextLink & { id: ProjectWorkspaceTabId }> = [
+    { id: 'tasks', labelKey: 'nav.projectTasks', icon: ClipboardList, to: { path: `/projects/${projectId}`, query: tasksQuery }, capability: 'pmo.tasks.read' },
+    { id: 'summary', labelKey: 'nav.projectSummary', icon: LayoutDashboard, to: { path: `/projects/${projectId}`, query: summaryQuery }, capability: 'pmo.projects.read' },
+    { id: 'milestones', labelKey: 'projects.tabs.milestones', icon: ClipboardList, to: { path: `/projects/${projectId}`, query: milestonesQuery }, capability: 'pmo.tasks.read' },
+    { id: 'stakeholders', labelKey: 'nav.projectStakeholders', icon: Users, to: { path: `/projects/${projectId}/stakeholders`, query: stakeholdersQuery }, capability: 'pmo.projects.read' },
+    { id: 'risks', labelKey: 'nav.projectRisks', icon: CircleAlert, to: { path: `/projects/${projectId}/register`, query: risksQuery }, capability: 'pmo.projects.read' },
+    { id: 'finance', labelKey: 'nav.projectFinance', icon: WalletCards, to: { path: `/projects/${projectId}/finance`, query: financeQuery }, capability: 'pmo.projects.read' },
+    { id: 'charter', labelKey: 'nav.projectCharter', icon: FileText, to: { path: `/projects/${projectId}/charter`, query: charterQuery }, capability: 'pmo.projects.read' },
+    { id: 'settings', labelKey: 'nav.projectSettings', icon: Settings, to: { path: `/projects/${projectId}/settings`, query: settingsQuery }, capability: 'pmo.projects.manage' },
+  ]
+  return links.filter(link => activeProject || !['tasks', 'milestones', 'stakeholders', 'risks', 'charter'].includes(link.id))
     .filter(link => link.id === 'settings' ? canManage : hasCapability(identity, link.capability))
 }
