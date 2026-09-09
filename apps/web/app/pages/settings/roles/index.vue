@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import RoleTable from '@/components/access/roles/RoleTable.vue'
 import SettingsLayout from '@/components/settings/SettingsLayout.vue'
+import FilterBar from '@/components/shared/FilterBar.vue'
 import { useAdminRoles, type AdminRoleListParams } from '@/composables/useAdminRoles'
 import { ADMIN_PAGE_SIZE, adminListQuery, adminQueryWithOffset, parseAdminOffset } from '@/composables/adminSettingsPaths'
 
@@ -14,7 +15,9 @@ const filters = reactive<AdminRoleListParams>({ q: String(route.query.q ?? ''), 
 const query = useAdminRoles(filters, computed(() => !forbidden.value))
 const page = computed(() => Math.floor((filters.offset ?? 0) / (filters.limit ?? 25)) + 1)
 const pages = computed(() => Math.max(1, Math.ceil((query.data.value?.total ?? 0) / (filters.limit ?? 25))))
+const activeFilterCount = computed(() => Number(Boolean(filters.q?.trim())) + Number(Boolean(filters.type)) + Number(Boolean(filters.status)))
 function updateFilters() { filters.offset = 0; void router.replace({ query: { ...(filters.q ? { q: filters.q } : {}), ...(filters.type ? { type: filters.type } : {}), ...(filters.status ? { status: filters.status } : {}) } }) }
+function clearFilters() { filters.q = ''; filters.type = undefined; filters.status = undefined; updateFilters() }
 function syncPage() { void router.replace({ query: adminQueryWithOffset(route.query, filters.offset ?? 0) }) }
 function previousPage() { if (hydrated.value) { filters.offset = Math.max(0, (filters.offset ?? 0) - (filters.limit ?? 25)); syncPage() } }
 function nextPage() { if (hydrated.value && page.value < pages.value) { filters.offset = (filters.offset ?? 0) + (filters.limit ?? 25); syncPage() } }
@@ -34,12 +37,24 @@ const sections = computed(() => forbidden.value ? [] : [
       <Button v-if="can('access.roles.manage')" :disabled="!hydrated" @click="navigateTo({ path: '/settings/roles/new', query: listQuery })">{{ t('access.roles.create') }}</Button>
     </SharedPageHeader>
     <SharedPageState v-if="forbidden" :empty="true" :empty-text="t('access.forbidden')" />
-    <div v-else class="nasq-panel">
-      <div id="filters" class="nasq-settings-filters nasq-settings-anchor">
-        <label class="nasq-settings-field nasq-settings-search"><span>{{ t('access.roles.filters.search') }}</span><Input class="w-full" v-model="filters.q" :placeholder="t('access.roles.filters.search')" :disabled="!hydrated" @change="updateFilters" /></label>
-        <label class="nasq-settings-field"><span>{{ t('access.roles.columns.type') }}</span><select v-model="filters.type" :disabled="!hydrated" class="h-[40px] rounded-lg border border-input bg-background px-3 text-sm" @change="updateFilters"><option :value="undefined">{{ t('access.roles.filters.allTypes') }}</option><option value="built_in">{{ t('access.roles.builtIn') }}</option><option value="custom">{{ t('access.roles.custom') }}</option></select></label>
-        <label class="nasq-settings-field"><span>{{ t('access.roles.columns.status') }}</span><select v-model="filters.status" :disabled="!hydrated" class="h-[40px] rounded-lg border border-input bg-background px-3 text-sm" @change="updateFilters"><option :value="undefined">{{ t('access.roles.filters.allStatuses') }}</option><option value="active">{{ t('access.active') }}</option><option value="disabled">{{ t('access.disabled') }}</option></select></label>
-        <div class="nasq-settings-filter-actions"><Button variant="outline" :disabled="!hydrated" @click="filters.q = ''; filters.type = undefined; filters.status = undefined; updateFilters()">{{ t('access.clearFilters') }}</Button></div>
+    <div v-else class="space-y-3">
+      <div id="filters" class="nasq-settings-anchor w-full min-w-0">
+        <FilterBar class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
+          <template #search>
+            <label class="min-w-52 flex-1"><span class="sr-only">{{ t('access.roles.filters.search') }}</span><Input class="w-full" v-model="filters.q" :placeholder="t('access.roles.filters.search')" :disabled="!hydrated" @change="updateFilters" /></label>
+          </template>
+          <template #default>
+            <label><span>{{ t('access.roles.columns.type') }}</span><select v-model="filters.type" :disabled="!hydrated" :aria-label="t('access.roles.columns.type')" class="h-[40px] rounded-lg border border-input bg-background px-3 text-sm" @change="updateFilters"><option :value="undefined">{{ t('access.roles.filters.allTypes') }}</option><option value="built_in">{{ t('access.roles.builtIn') }}</option><option value="custom">{{ t('access.roles.custom') }}</option></select></label>
+            <label><span>{{ t('access.roles.columns.status') }}</span><select v-model="filters.status" :disabled="!hydrated" :aria-label="t('access.roles.columns.status')" class="h-[40px] rounded-lg border border-input bg-background px-3 text-sm" @change="updateFilters"><option :value="undefined">{{ t('access.roles.filters.allStatuses') }}</option><option value="active">{{ t('access.active') }}</option><option value="disabled">{{ t('access.disabled') }}</option></select></label>
+          </template>
+          <template #active>
+            <div v-if="activeFilterCount" class="flex flex-wrap items-center gap-2">
+              <Badge v-if="filters.q?.trim()" variant="secondary">{{ filters.q }}</Badge>
+              <Badge v-if="filters.type" variant="secondary">{{ filters.type === 'custom' ? t('access.roles.custom') : t('access.roles.builtIn') }}</Badge>
+              <Badge v-if="filters.status" variant="secondary">{{ filters.status === 'active' ? t('access.active') : t('access.disabled') }}</Badge>
+            </div>
+          </template>
+        </FilterBar>
       </div>
       <div id="results" class="nasq-settings-anchor">
       <SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!query.isLoading.value && !query.error.value && query.data.value?.items.length === 0" :empty-text="t('access.roles.empty')" @retry="query.refetch">

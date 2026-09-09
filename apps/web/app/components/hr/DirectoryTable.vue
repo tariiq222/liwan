@@ -3,7 +3,7 @@ import { FlexRender, createColumnHelper, getCoreRowModel, useVueTable } from '@t
 import { h, resolveComponent } from 'vue'
 import FilterBar from '@/components/shared/FilterBar.vue'
 import EmptyState from '@/components/shared/EmptyState.vue'
-import { Search, X } from '@lucide/vue'
+import { Search } from '@lucide/vue'
 import { useHrDepartments } from '@/composables/useHrDepartments'
 import { useHrEmployees, type HrEmployee } from '@/composables/useHrEmployees'
 import { returnToQuery } from '@/utils/safeReturnTo'
@@ -51,7 +51,8 @@ const Button = resolveComponent('Button')
 const items = computed<HrEmployee[]>(() => data.value?.items ?? [])
 const departments = computed(() => deptData.value?.items ?? [])
 const selectedDepartment = computed(() => departments.value.find(item => item.id === departmentId.value) ?? null)
-const hasActiveFilters = computed(() => Boolean(search.value.trim()) || departmentId.value !== null)
+const activeFilterCount = computed(() => Number(Boolean(search.value.trim())) + Number(departmentId.value !== null))
+const hasActiveFilters = computed(() => activeFilterCount.value > 0)
 const page = computed(() => Math.floor(committedListParams.value.offset / 25) + 1)
 const pages = computed(() => Math.max(1, Math.ceil((data.value?.total ?? 0) / 25)))
 
@@ -158,7 +159,7 @@ function clearFilters() {
 
 <template>
   <div class="grid gap-3">
-    <div class="nasq-toolbar"><FilterBar class="w-full">
+    <div class="w-full min-w-0"><FilterBar class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
       <template #search>
       <div class="relative min-w-48 flex-1">
         <Search class="pointer-events-none absolute start-2 top-1/2 size-[18px] -translate-y-1/2 text-muted-foreground" />
@@ -183,7 +184,6 @@ function clearFilters() {
         <div v-if="hasActiveFilters" class="flex flex-wrap items-center gap-2">
           <Badge v-if="search.trim()" variant="secondary">{{ t('hr.directory.searchValue', { value: search }) }}</Badge>
           <Badge v-if="selectedDepartment" variant="secondary">{{ selectedDepartment.name }}</Badge>
-          <Button variant="ghost" size="sm" :disabled="!hydrated" @click="clearFilters"><X class="size-3.5" />{{ t('hr.directory.clear') }}</Button>
         </div>
       </template>
     </FilterBar></div>
