@@ -4,7 +4,6 @@ import { ApiError } from '@/composables/useApi'
 import { useProject } from '@/composables/useProjects'
 import ProjectUpdateList from '@/components/project/ProjectUpdateList.vue'
 import { returnToQuery } from '@/utils/safeReturnTo'
-import ProjectWorkspaceTabs from '@/components/project/workspace/ProjectWorkspaceTabs.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -28,7 +27,7 @@ function openCreate() {
   <SharedPageContainer v-if="route.path.replace(/\/+$/, '') === `/projects/${projectId}/updates`" width="detail">
     <SharedPageHeader
       v-if="!isProjectOverlay"
-      :title="project?.name ?? t('projects.refresh.workspace.updatesTitle')"
+      :title="t('projects.refresh.workspace.updatesTitle')"
     >
       <template #actions>
         <Button v-if="project?.can_manage" data-testid="project-updates-create" :disabled="!hydrated" @click="openCreate">
@@ -36,7 +35,6 @@ function openCreate() {
         </Button>
       </template>
     </SharedPageHeader>
-    <ProjectWorkspaceTabs v-if="project && !isProjectOverlay" :project-id="project.id" :active="project.active" :can-manage="project.can_manage" />
     <SharedPageState
       :loading="isLoading && !project"
       :error="notFound ? null : error"

@@ -31,6 +31,7 @@ const route = useRoute()
 const router = useRouter()
 const { t, localeProperties } = useI18n()
 const inProjectOverlay = inject<boolean>(PROJECT_OVERLAY_INJECTION_KEY, false)
+const isProjectTask = computed(() => props.basePath.startsWith('/projects/'))
 // The chevrons point at list *order*, not at a fixed screen side: in RTL
 // "previous" is the right-hand arrow, in LTR the left-hand one. They were
 // hardcoded to the RTL pairing, so an `en` user saw them swapped.
@@ -241,7 +242,7 @@ useEventListener(document, 'keydown', onKeydown)
     </div>
 
     <template v-if="task">
-      <div data-testid="task-detail-grid" class="task-detail-shell">
+      <div data-testid="task-detail-grid" class="task-detail-shell" :class="{ 'task-detail-shell-project': isProjectTask }">
         <section data-testid="task-details-card" class="nasq-panel task-detail-card">
           <div class="nasq-panel-body">
             <div class="task-detail-status-line task-status-surface">
@@ -252,10 +253,14 @@ useEventListener(document, 'keydown', onKeydown)
               <DeadlineBadge :deadline="task.date_deadline" :days-remaining="task.days_remaining" :is-closed="task.is_closed" />
             </div>
             <TaskCompletionApproval :task="task" />
-            <TaskDetails :key="task.id" :task="task" :base-path="props.basePath" />
+            <TaskDetails :key="task.id" :task="task" :base-path="props.basePath">
+              <template #activity>
+                <TaskActivity v-if="isProjectTask" :task="task" />
+              </template>
+            </TaskDetails>
           </div>
         </section>
-        <aside class="task-detail-activity">
+        <aside v-if="!isProjectTask" class="task-detail-activity">
           <TaskActivity :task="task" />
         </aside>
       </div>
@@ -284,6 +289,10 @@ useEventListener(document, 'keydown', onKeydown)
   grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
   align-items: start;
   gap: 16px;
+}
+
+.task-detail-shell-project {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .task-detail-card,

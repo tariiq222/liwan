@@ -23,7 +23,7 @@ const returnTo = computed(() => projectId.value ? safeReturnTo(route.query.retur
 
 <template>
   <SharedPageContainer width="form">
-    <SharedPageHeader :title="t('projects.schedule.editTitle')" :description="t('projects.schedule.editDescription')" :back-to="returnTo" :back-label="t('projects.schedule.backToSchedule')" />
+    <SharedPageHeader :title="t('projects.schedule.editTitle')" :back-to="returnTo" :back-label="t('projects.schedule.backToSchedule')" />
     <SharedPageState
       :loading="scheduleLoading"
       :error="notFound ? null : error"

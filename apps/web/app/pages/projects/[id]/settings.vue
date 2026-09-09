@@ -32,7 +32,6 @@ const canManage = computed(() => project.value?.can_manage ?? false)
     >
       <p v-if="!canManage" class="text-muted-foreground">{{ t('projects.forbidden') }}</p>
       <template v-else-if="project">
-        <p class="mb-4 text-sm text-muted-foreground">{{ t('projects.refresh.settings.individualDescription') }}</p>
         <Card class="nasq-form"><CardContent><ProjectSettingsForm :project="project" /></CardContent></Card>
       </template>
     </SharedPageState>

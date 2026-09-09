@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { ArrowRight } from '@lucide/vue'
+import { PanelLeftClose, PanelLeftOpen } from '@lucide/vue'
 import { useMediaQuery } from '@vueuse/core'
 import ConversationList from '@/components/chat/ConversationList.vue'
 import SidebarCreateAction from '@/components/shell/SidebarCreateAction.vue'
-import { useShellNavigation } from '@/composables/useShellNavigation'
+import { useContextSidebar, useShellNavigation } from '@/composables/useShellNavigation'
 import { activeShellModule, contextGroupsForModule, shellModules } from '@/composables/useNav'
+import { projectBreadcrumbs } from '@/utils/projectBreadcrumbs'
 import { parseChatListRoute, serializeChatListRoute, type ChatListRoute } from '@/utils/chatState'
-import { projectListReturnTo } from '@/utils/projectNavigation'
 import { returnToQuery, safeReturnTo } from '@/utils/safeReturnTo'
 
 const { t, localeProperties } = useI18n()
@@ -14,12 +14,16 @@ const { me } = useMe()
 const route = useRoute()
 const router = useRouter()
 const { module, projectId, project, contextLinks } = useShellNavigation(() => me.value)
+const { expanded, hydrated, toggle } = useContextSidebar()
+const navigationId = `context-navigation-${useId()}`
 const activeModule = computed(() => activeShellModule(route.path))
 const moduleDefinition = computed(() => shellModules.find(item => item.id === activeModule.value) ?? module.value)
-const contextTitle = computed(() => projectId.value && project.data.value ? project.data.value.name : moduleDefinition.value ? t(moduleDefinition.value.labelKey) : t('app.productName'))
-const contextDescription = computed(() => projectId.value ? (project.data.value?.description_html?.replace(/<[^>]+>/g, '').trim() || '') : '')
-const projectsReturnTo = computed(() => projectListReturnTo(route.query))
+const contextTitle = computed(() => isProject.value ? project.data.value?.name ?? t('nav.currentProject') : moduleDefinition.value ? t(moduleDefinition.value.labelKey) : t('app.productName'))
 const isProject = computed(() => !!projectId.value && activeModule.value === 'projects')
+const { remember } = useProjectWorkspaceMemory()
+watch([() => route.fullPath, () => project.data.value, () => me.value, hydrated], () => {
+  if (isProject.value && project.data.value?.id === projectId.value && !project.error.value) remember(route.path, route.query)
+}, { immediate: true })
 const isChat = computed(() => activeModule.value === 'chat')
 const isDesktop = useMediaQuery('(min-width: 761px)', { ssrWidth: 1024 })
 const routeState = computed(() => parseChatListRoute(route.query))
@@ -28,18 +32,32 @@ const selectedConversationId = computed(() => {
   const id = Number(match?.[1])
   return Number.isSafeInteger(id) && id > 0 ? id : undefined
 })
-// Project sections are owned by ProjectWorkspaceTabs inside the page. Keep
-// this sidebar focused on the project identity and return link so the same
-// workspace navigation is not rendered twice.
-const primaryLinks = computed(() => isProject.value ? [] : contextLinks.value)
+// Group module navigation, current project sections, and system settings.
+const primaryLinks = computed(() => contextLinks.value)
+const breadcrumbs = computed(() => projectBreadcrumbs(route.path, route.query, contextLinks.value, project.data.value?.name))
 const moduleLinks = computed(() => {
-  const links = isChat.value && isDesktop.value
+  const links = isChat.value && isDesktop.value && expanded.value
     ? primaryLinks.value.filter(item => item.id === 'new-chat')
     : primaryLinks.value
   if (activeModule.value === 'projects') return links
   return [...links.filter(item => item.pinned), ...links.filter(item => !item.pinned)]
 })
 const contextGroups = computed(() => {
+  if (isProject.value) {
+    return [
+      { id: 'project-work', labelKey: 'nav.projectWork', links: moduleLinks.value.filter(link => ['tasks', 'milestones'].includes(link.id)) },
+      { id: 'project-followup', labelKey: 'nav.projectFollowup', links: moduleLinks.value.filter(link => !['tasks', 'milestones', 'current-project-settings'].includes(link.id)) },
+      { id: 'project-settings', links: moduleLinks.value.filter(link => link.id === 'current-project-settings') },
+    ].filter(group => group.links.length)
+  }
+  if (activeModule.value === 'projects') {
+    const overviewIds = ['new-project', 'project-dashboard', 'projects', 'my-projects']
+    return [
+      { id: 'projects-overview', labelKey: 'nav.projectsOverview', links: moduleLinks.value.filter(link => overviewIds.includes(link.id)) },
+      { id: 'current-project', labelKey: 'nav.currentProject', links: moduleLinks.value.filter(link => !overviewIds.includes(link.id) && link.id !== 'project-system-settings') },
+      { id: 'project-system', labelKey: 'nav.projectSystem', links: moduleLinks.value.filter(link => link.id === 'project-system-settings') },
+    ].filter(group => group.links.length)
+  }
   if (activeModule.value === 'settings') {
     return contextGroupsForModule('settings', me.value, route.path)
       .map(group => ({ ...group, links: group.links.map(link => moduleLinks.value.find(item => item.id === link.id)).filter((link): link is NonNullable<typeof link> => Boolean(link)) }))
@@ -47,7 +65,7 @@ const contextGroups = computed(() => {
   }
   return moduleLinks.value.length ? [{ id: 'default' as const, links: moduleLinks.value }] : []
 })
-const createLinks = computed(() => contextGroups.value.flatMap(group => group.links).filter(link => link.pinned))
+const createLinks = computed(() => contextGroups.value.flatMap(group => group.links).filter(link => link.pinned && !(link.id === 'new-project' && ['/projects', '/projects/new'].includes(route.path))))
 const navigationGroups = computed(() => contextGroups.value
   .map(group => ({ ...group, links: group.links.filter(link => !link.pinned) }))
   .filter(group => group.links.length))
@@ -58,7 +76,6 @@ const showContextNav = computed(() => {
 })
 const contextMotionKey = computed(() => {
   const moduleKey = activeModule.value ?? 'none'
-  if (projectId.value && activeModule.value === 'projects') return `project:${projectId.value}`
   return `module:${moduleKey}`
 })
 
@@ -121,23 +138,46 @@ function updateRoute(next: ChatListRoute) {
     data-testid="context-sidebar"
     class="nasq-context-sidebar"
     :data-project="isProject"
+    :data-project-module="activeModule === 'projects' || route.path.startsWith('/settings/projects')"
     :data-chat="isChat"
+    :data-expanded="expanded"
     :data-direction="localeProperties.dir"
     :aria-label="t('nav.context')"
   >
+    <button
+      type="button"
+      class="nasq-context-toggle"
+      data-testid="context-sidebar-toggle"
+      :disabled="!hydrated"
+      :aria-expanded="expanded"
+      :aria-controls="navigationId"
+      :aria-label="t(expanded ? 'nav.collapseContext' : 'nav.expandContext')"
+      :title="t(expanded ? 'nav.collapseContext' : 'nav.expandContext')"
+      @click="toggle"
+    >
+      <PanelLeftClose v-if="expanded" aria-hidden="true" />
+      <PanelLeftOpen v-else aria-hidden="true" />
+      <span>{{ t(expanded ? 'nav.collapseContext' : 'nav.expandContext') }}</span>
+    </button>
     <Transition name="nasq-context" mode="out-in">
-      <div :key="contextMotionKey" class="nasq-context-sidebar-inner">
-      <NuxtLink v-if="isProject" :to="projectsReturnTo" class="nasq-context-back" :aria-label="t('nav.backToProjects')">
-        <ArrowRight aria-hidden="true" class="ltr:rotate-180" />
-        <span>{{ t('nav.backToProjects') }}</span>
-      </NuxtLink>
+      <div :id="navigationId" :key="contextMotionKey" class="nasq-context-sidebar-inner">
       <div class="nasq-context-heading">
         <span class="nasq-context-emblem" aria-hidden="true">
           <component :is="moduleDefinition?.icon ?? shellModules[0]!.icon" />
         </span>
         <div class="nasq-context-heading-copy">
           <h2>{{ contextTitle }}</h2>
-          <p v-if="contextDescription">{{ contextDescription }}</p>
+      <nav v-if="breadcrumbs.length && expanded" class="nasq-project-breadcrumb" :aria-label="t('nav.breadcrumb')" data-testid="project-sidebar-breadcrumb">
+        <ol class="flex flex-wrap items-center gap-x-1 gap-y-1">
+          <template v-for="(crumb, index) in breadcrumbs" :key="crumb.key">
+            <li v-if="index" aria-hidden="true">/</li>
+            <li>
+              <NuxtLink v-if="crumb.to" :to="crumb.to" :aria-current="index === breadcrumbs.length - 1 ? 'page' : undefined" aria-current-value="false">{{ crumb.label ?? t(crumb.labelKey!) }}</NuxtLink>
+              <span v-else :aria-current="index === breadcrumbs.length - 1 ? 'page' : undefined">{{ crumb.label ?? t(crumb.labelKey!) }}</span>
+            </li>
+          </template>
+        </ol>
+      </nav>
         </div>
       </div>
 
@@ -152,8 +192,8 @@ function updateRoute(next: ChatListRoute) {
         />
       </div>
 
-      <nav v-if="showContextNav" class="nasq-context-links" :data-grouped="activeModule === 'settings'" :aria-label="contextTitle">
-        <div v-for="group in navigationGroups" :key="group.id" class="nasq-context-group">
+      <nav v-if="showContextNav" class="nasq-context-links" :data-grouped="activeModule === 'settings' || activeModule === 'projects'" :aria-label="contextTitle">
+        <div v-for="group in navigationGroups" :key="group.id" class="nasq-context-group" :class="{ 'mt-4 border-t border-border pt-3': group.id === 'project-settings' }">
           <h3 v-if="group.labelKey" class="nasq-context-group-heading">{{ t(group.labelKey) }}</h3>
           <div class="nasq-context-group-links">
             <NuxtLink
@@ -163,6 +203,8 @@ function updateRoute(next: ChatListRoute) {
               class="nasq-context-link"
               :data-active="link.active"
               :aria-current="link.active ? 'page' : undefined"
+              :aria-label="t(link.labelKey)"
+              :title="t(link.labelKey)"
               :data-testid="link.id === 'appearance' ? 'sidebar-settings' : link.id === 'project-settings' ? 'settings-projects-tab' : link.id === 'branding' ? 'settings-branding-tab' : `context-link-${link.id}`"
             >
               <component :is="link.icon" aria-hidden="true" />
@@ -174,6 +216,7 @@ function updateRoute(next: ChatListRoute) {
 
       <ConversationList
         v-if="isChat && isDesktop"
+        v-show="expanded"
         class="min-h-0 flex-1"
         :route-state="routeState"
         :selected-id="selectedConversationId"

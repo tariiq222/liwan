@@ -73,6 +73,7 @@
       "workflowStage": "Workflow stage",
       "stageUnset": "Not set",
       "primaryMetadata": "Primary task details",
+      "workResources": "Deliverables, attachments and related tasks",
       "subtaskProgress": "{done} of {total}",
       "noSubtasks": "No subtasks yet.",
       "noDependencies": "No dependencies are linked to this task.",

@@ -4,7 +4,7 @@ import {
   activeShellModule,
   contextLinksForModule,
   projectContextId,
-  projectContextLinks,
+  projectSidebarLinks,
   visibleShellModules,
   type ProjectContextId,
   type ShellContextLink,
@@ -95,6 +95,15 @@ export function useModuleRail() {
   return { expanded, hydrated, toggle }
 }
 
+export function useContextSidebar() {
+  const expanded = useState('nasq-context-sidebar-expanded', () => true)
+  const hydrated = useHydrated()
+  function toggle() {
+    if (hydrated.value) expanded.value = !expanded.value
+  }
+  return { expanded, hydrated, toggle }
+}
+
 export function useShellNavigation(identity: MaybeRefOrGetter<AccessIdentity>) {
   const route = useRoute()
   const identityValue = computed(() => toValue(identity))
@@ -108,11 +117,22 @@ export function useShellNavigation(identity: MaybeRefOrGetter<AccessIdentity>) {
     const currentModule = activeModule.value
     if (projectId.value && currentModule === 'projects') {
       const isProjectRoot = /^\/projects\/\d+\/?$/.test(route.path)
-      return projectContextLinks(projectId.value, identityValue.value, project.data.value?.active === true, project.data.value?.can_manage === true, route.query, isProjectRoot)
-        .map(link => ({ ...link, active: projectContextId(route.path, route.query) === link.id }))
+      return projectSidebarLinks(projectId.value, identityValue.value, project.data.value?.active === true, project.data.value?.can_manage === true, route.query, isProjectRoot)
+        .map(link => ({ ...link, active: link.id === 'current-project-settings'
+          ? projectContextId(route.path, route.query) === 'settings'
+          : ['tasks', 'summary', 'milestones'].includes(link.id)
+            ? (isProjectRoot
+              ? (route.query.tab === 'summary' ? 'summary' : route.query.tab === 'milestones' ? 'milestones' : 'tasks') === link.id
+              : link.id === 'tasks' ? /^\/projects\/\d+\/(tasks|schedule)(\/|$)/.test(route.path)
+                : link.id === 'milestones' ? /^\/projects\/\d+\/milestones(\/|$)/.test(route.path)
+                  : /^\/projects\/\d+\/updates(\/|$)/.test(route.path))
+          : isContextPathActive(route.path, link.to, route.query) }))
     }
     if (!currentModule) return []
     return contextLinksForModule(currentModule, identityValue.value, route.path)
+      .map(link => route.path === '/projects' && ['projects', 'my-projects'].includes(link.id)
+        ? { ...link, to: { path: '/projects', query: { ...route.query, mine: link.id === 'my-projects' ? '1' : undefined, offset: undefined } } }
+        : link)
       .map(link => ({ ...link, active: isContextPathActive(route.path, link.to, route.query) }))
   })
   const module = computed(() => visibleShellModules(identityValue.value).find(item => item.id === activeModule.value) ?? null)

@@ -3,6 +3,24 @@ import { h } from 'vue'
 import { renderFilter } from './helpers/filterComponents'
 
 describe('shared collapsible filter card', () => {
+  it('keeps inline project tools visible once without a collapsed card', async () => {
+    const html = await renderFilter('FilterBar', { inline: true, activeCount: 1 }, {
+      search: () => h('input', { 'aria-label': 'Task search' }),
+      default: () => h('button', 'Task states'),
+      view: () => h('button', 'Timeline'),
+      actions: () => h('button', 'New task'),
+      active: () => h('span', 'Selected state'),
+    })
+    expect(html).not.toContain('aria-expanded')
+    expect(html).not.toContain('<section')
+    for (const text of ['Task search', 'Task states', 'Timeline', 'New task', 'Selected state', 'Clear filters']) {
+      expect(html.split(text)).toHaveLength(2)
+    }
+  })
+  it('disables the inline clear action until hydration', async () => {
+    const html = await renderFilter('FilterBar', { inline: true, activeCount: 1 }, {}, false)
+    expect(html).toMatch(/<button\b[^>]*disabled/)
+  })
   it('renders a collapsed accessible region with localized default labels and a separate clear action', async () => {
     const html = await renderFilter('FilterCard', { activeCount: 2 }, { default: () => h('input', { value: 'Project A' }) })
     expect(html).toContain('Search and filters')

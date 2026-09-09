@@ -21,6 +21,7 @@ const hydrated = useHydrated()
 </script>
 
 <template>
+  <div class="min-w-0">
   <SharedPageHeader
     :title="props.title ?? project.name"
   >
@@ -52,4 +53,5 @@ const hydrated = useHydrated()
       </Button>
     </template>
   </SharedPageHeader>
+  </div>
 </template>

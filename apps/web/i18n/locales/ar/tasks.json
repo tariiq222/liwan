@@ -73,6 +73,7 @@
       "workflowStage": "مرحلة سير العمل",
       "stageUnset": "غير محددة",
       "primaryMetadata": "بيانات المهمة الأساسية",
+      "workResources": "المخرجات والمرفقات والمهام المرتبطة",
       "subtaskProgress": "{done} من {total}",
       "noSubtasks": "لا توجد مهام فرعية بعد.",
       "noDependencies": "لا توجد اعتماديات مرتبطة بهذه المهمة.",

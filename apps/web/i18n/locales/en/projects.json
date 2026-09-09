@@ -159,7 +159,7 @@
       "rename": "Rename",
       "reorder": "Reorder stage {name}",
       "reorderHelp": "Drag the handle, or focus it and use Arrow Up, Arrow Down, Home, and End.",
-      "fold": "Folded",
+      "fold": "Collapse in board",
       "delete": "Delete",
       "deleteConfirm": "Delete this stage?",
       "notEmpty": "This stage holds {count} tasks",
@@ -415,18 +415,18 @@
         "name": "Name",
         "description": "Description",
         "key": "Key",
-        "fold": "Fold stage",
+        "fold": "Collapse stage in the task board",
         "stage": "Stage",
-        "startOffset": "Start offset",
+        "startOffset": "Task starts after (days)",
         "duration": "Duration in days",
         "milestone": "Milestone",
         "dependencies": "Predecessor tasks",
         "projectName": "New project name",
         "startDate": "Start date",
         "milestoneName": "Milestone name",
-        "offset": "Offset",
+        "offset": "Milestone due after (days)",
         "taskName": "Task name",
-        "offsetHint": "Relative offsets are calculated from the project start date when the template is used.",
+        "offsetHint": "Days are counted from project start: 0 means the start day, 7 means one week later. Negative values mean before the start.",
         "offsetDays": "days"
       },
       "stages": {
@@ -475,7 +475,7 @@
       "stakeholders": "Stakeholders",
       "stakeholdersDescription": "People involved in the project and their roles.",
       "newStakeholder": "New stakeholder",
-      "views": "Parties and responsibilities view",
+      "views": "Stakeholder view",
       "viewList": "List",
       "viewMatrix": "Matrix",
       "stakeholder": {
@@ -827,6 +827,24 @@
       "close": "Close",
       "openFullPage": "Open full page"
     },
-    "listTabsLabel": "Project list"
+    "listTabsLabel": "Project list",
+    "clarity": {
+      "addRegister": "Add risk or issue",
+      "registerSearch": "Search risks or issues",
+      "stakeholderSearch": "Search by name or organization",
+      "allKinds": "All types",
+      "allStatuses": "All statuses",
+      "allPriorities": "All priorities",
+      "riskScore": "Risk score",
+      "registerEmpty": "No risks or issues yet. Use “Add risk or issue” to record the first one.",
+      "stakeholdersEmpty": "No stakeholders yet. Add a person or organization involved in the project.",
+      "filteredEmpty": "No matching results. Change your search or clear the filters.",
+      "autosaveHint": "Changes are saved automatically.",
+      "chooseApprover": "Choose a user to finish saving.",
+      "saving": "Saving…",
+      "saved": "Changes saved",
+      "saveFailed": "Could not save. Change the field to try again.",
+      "editCharter": "Edit project charter"
+    }
   }
 }

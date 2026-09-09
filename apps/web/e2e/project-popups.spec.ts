@@ -15,14 +15,157 @@ async function login(page: Page) {
 
 test.beforeEach(async ({ page }) => { await login(page) })
 
+test('project settings opens as an ordinary page and keeps sidebar navigation', async ({ page }) => {
+  await page.goto('/projects/1?tab=tasks&q=تصميم')
+  await page.getByTestId('context-link-current-project-settings').click()
+  await expect(page).toHaveURL(/\/projects\/1\/settings/)
+  await expect(page.getByRole('heading', { name: 'إعدادات المشروع', level: 1 })).toBeVisible()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await expect(page.getByTestId('context-sidebar')).not.toHaveAttribute('inert')
+  await page.reload()
+  await expect(page.getByRole('heading', { name: 'إعدادات المشروع', level: 1 })).toBeVisible()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await page.getByTestId('context-link-tasks').click()
+  await expect(page.getByRole('heading', { name: 'المهام', level: 1 })).toBeVisible()
+  expect(new URL(page.url()).searchParams.get('q')).toBe('تصميم')
+})
+
+for (const [path, current] of [
+  ['/projects', 'المشاريع'],
+  ['/projects?mine=1', 'مشاريعي'],
+  ['/projects/dashboard', 'إحصائيات كل المشاريع'],
+  ['/projects/new', 'مشروع جديد'],
+  ['/projects/1?tab=summary', 'الملخص'],
+  ['/projects/1?tab=milestones', 'المعالم'],
+  ['/projects/1/schedule', 'الجدول الزمني'],
+  ['/projects/1/raci', 'مصفوفة المسؤوليات'],
+  ['/projects/1/updates', 'التحديثات'],
+  ['/projects/1/tasks/new', 'إنشاء'],
+  ['/projects/1/milestones/1/edit', 'تعديل'],
+  ['/projects/1/stakeholders/1/edit', 'تعديل'],
+  ['/projects/1/register/1/edit', 'تعديل'],
+  ['/projects/1/finance/1/edit', 'تعديل'],
+  ['/projects/1/settings', 'إعدادات المشروع'],
+  ['/projects/1/charter?edit=1', 'تعديل'],
+  ['/settings/projects', 'إعدادات نظام المشاريع'],
+  ['/settings/projects/catalogs/types', 'أنواع المشاريع'],
+] as const) {
+  test(`project hierarchy breadcrumb on ${path}`, async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await page.goto(path)
+    const breadcrumb = page.getByTestId('project-sidebar-breadcrumb')
+    await expect(breadcrumb).toBeVisible()
+    await expect(breadcrumb.locator('[aria-current="page"]')).toHaveText(current)
+    await expect(page.getByTestId('context-project-menu-back')).toHaveCount(0)
+    await expect(page.getByTestId('project-workspace-tabs')).toHaveCount(0)
+  })
+}
+
+test('project priority controls fit their cells on a 1024px desktop', async ({ page }) => {
+  await page.setViewportSize({ width: 1024, height: 900 })
+  await page.goto('/projects/1?tab=tasks')
+  const priority = page.getByRole('combobox', { name: 'الأولوية', exact: true }).first()
+  await expect(priority).toBeEnabled()
+  const geometry = await priority.evaluate(element => {
+    const control = element.getBoundingClientRect()
+    const cell = element.closest('td')!.getBoundingClientRect()
+    return { contained: control.x >= cell.x && control.right <= cell.right, width: control.width }
+  })
+  expect(geometry.contained).toBe(true)
+  expect(geometry.width).toBeGreaterThanOrEqual(96)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+})
+
+test('desktop project workspace has one identity and one toolbar after a direct reload', async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  const hydrationErrors: string[] = []
+  page.on('console', message => {
+    if (/hydration.*mismatch/i.test(message.text())) hydrationErrors.push(message.text())
+  })
+  await page.goto('/projects/1?returnTo=%2Fprojects%3Fmine%3D1%26q%3Dalpha')
+  await page.reload()
+  await expect(page.getByRole('heading', { name: 'المهام', exact: true, level: 1 })).toBeVisible()
+  await expect(page.getByTestId('context-sidebar')).toBeVisible()
+  await expect(page.getByTestId('project-tab-settings')).toHaveCount(0)
+  await expect(page.getByTestId('context-link-current-project-settings')).toBeVisible()
+  await expect(page.locator('[data-slot="skeleton"] h1')).toHaveCount(0)
+  expect(hydrationErrors).toEqual([])
+  const search = (await page.getByRole('textbox', { name: 'بحث في العناوين…' }).boundingBox())!
+  const create = (await page.getByRole('button', { name: 'مهمة جديدة', exact: true }).boundingBox())!
+  expect(Math.abs(search.y - create.y)).toBeLessThanOrEqual(5)
+  const title = (await page.getByRole('heading', { level: 1 }).boundingBox())!
+  await expect(page.getByTestId('project-workspace-tabs')).toHaveCount(0)
+  expect(search.y).toBeGreaterThan(title.y + title.height)
+  await page.screenshot({ path: testInfo.outputPath('desktop-project-layout.png'), fullPage: true })
+  await expect(page.getByRole('link', { name: 'العودة إلى المشاريع', exact: true })).toHaveCount(0)
+  await expect(page.getByTestId('context-link-tasks')).toHaveAttribute('aria-current', 'page')
+  const breadcrumb = page.getByTestId('project-sidebar-breadcrumb')
+  await expect(breadcrumb).toContainText('المشاريع')
+  await expect(breadcrumb).toContainText('مشروع ألفا')
+  await expect(breadcrumb.locator('[aria-current="page"]')).toHaveText('المهام')
+  await expect(page.getByTestId('context-link-summary')).not.toHaveAttribute('aria-current', 'page')
+  await expect(page.getByTestId('context-sidebar').getByRole('heading', { name: 'العمل اليومي' })).toBeVisible()
+  await expect(page.getByTestId('context-sidebar').getByRole('heading', { name: 'متابعة المشروع' })).toBeVisible()
+  await expect(page.getByTestId('context-link-project-system-settings')).toHaveCount(0)
+  await page.getByTestId('context-link-stakeholders').click()
+  await expect(page.getByTestId('context-sidebar')).toBeVisible()
+  await expect(page.getByRole('link', { name: 'العودة إلى المشاريع', exact: true })).toHaveCount(0)
+  await expect(page.getByTestId('context-link-stakeholders')).toHaveAttribute('aria-current', 'page')
+  await expect(breadcrumb.locator('[aria-current="page"]')).toHaveText('أصحاب المصلحة')
+  await expect(page.getByTestId('context-project-menu-back')).toHaveCount(0)
+  await breadcrumb.getByRole('link', { name: 'مشروع ألفا', exact: true }).click()
+  await expect(page).toHaveURL(/tab=summary/)
+  await breadcrumb.getByRole('link', { name: 'المشاريع', exact: true }).click()
+  await expect(page).toHaveURL(/\/projects\?mine=1&q=alpha/)
+  await expect(page.getByTestId('context-link-project-system-settings')).toHaveText('إعدادات نظام المشاريع')
+  await expect(page.getByTestId('context-sidebar')).toBeVisible()
+})
+
+test('desktop sidebar keeps project navigation and collapses independently of the module rail', async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.goto('/projects/1?tab=tasks&q=مهمة')
+  const sidebar = page.getByTestId('context-sidebar')
+  const toggle = page.getByTestId('context-sidebar-toggle')
+  const rail = page.getByTestId('module-rail')
+  await expect(toggle).toBeEnabled()
+  await expect(sidebar.getByRole('heading', { name: 'مشروع ألفا', exact: true })).toBeVisible()
+  for (const id of ['tasks', 'milestones', 'current-project-settings']) {
+    await expect(page.getByTestId(`context-link-${id}`)).toBeVisible()
+  }
+  for (const id of ['new-project', 'project-dashboard', 'projects', 'my-projects', 'project-system-settings']) {
+    await expect(page.getByTestId(`context-link-${id}`)).toHaveCount(0)
+  }
+  await expect(page.getByTestId('project-tab-settings')).toHaveCount(0)
+  await toggle.click()
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false')
+  await expect(rail).toHaveAttribute('data-expanded', 'false')
+  await expect.poll(async () => (await sidebar.boundingBox())!.width).toBe(64)
+  await page.getByTestId('module-rail-toggle').click()
+  await expect(rail).toHaveAttribute('data-expanded', 'true')
+  await expect(sidebar).toHaveAttribute('data-expanded', 'false')
+  await page.getByTestId('module-rail-toggle').click()
+  await page.getByTestId('context-link-current-project-settings').click()
+  await expect(page.getByRole('dialog')).toBeVisible()
+  await expect(page).toHaveURL(/\/projects\/1\/settings/)
+  await page.getByTestId('project-overlay-close').click()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await expect(page.getByRole('textbox', { name: 'بحث في العناوين…' })).toHaveValue('مهمة')
+  await expect(sidebar).toHaveAttribute('data-expanded', 'false')
+  await page.screenshot({ path: testInfo.outputPath('project-sidebar-collapsed.png'), fullPage: true })
+  await toggle.click()
+  await expect(sidebar).toHaveAttribute('data-expanded', 'true')
+  await expect.poll(async () => (await sidebar.boundingBox())!.width).toBe(244)
+})
+
 test('task opens over project and browser back returns to the filtered workspace', async ({ page }) => {
   await page.goto('/projects/1?tab=tasks&q=مهمة')
   const task = page.getByRole('button', { name: 'مهمة جارية', exact: true })
   await expect(task).toBeVisible()
-  const originalWorkspace = await page.getByTestId('project-workspace-tabs').elementHandle()
+  const originalWorkspace = await page.getByRole('textbox', { name: 'بحث في العناوين…' }).elementHandle()
   await task.click()
   await expect(page.getByRole('dialog')).toBeVisible()
   await expect(page.getByRole('dialog')).toContainText('مهمة جارية')
+  await expect(page.getByTestId('project-sidebar-breadcrumb').locator('[aria-current="page"]')).toHaveText('التفاصيل')
   await expect(page).toHaveURL(/\/projects\/1\/tasks\/101/)
   await page.goBack()
   await expect(page.getByRole('dialog')).toHaveCount(0)
@@ -60,10 +203,10 @@ test('non-project task details remain a full page', async ({ page }) => {
 
 test('default project tasks retain search across Summary and Tasks tabs', async ({ page }) => {
   await page.goto('/projects/1?q=مهمة&view=board')
-  await page.getByTestId('project-tab-summary').click()
-  await expect(page.getByTestId('project-tab-summary')).toHaveAttribute('aria-current', 'page')
+  await page.getByTestId('context-link-summary').click()
+  await expect(page.getByTestId('context-link-summary')).toHaveAttribute('aria-current', 'page')
   await expect(page.getByRole('dialog')).toHaveCount(0)
-  await page.getByTestId('project-tab-tasks').click()
+  await page.getByTestId('context-link-tasks').click()
   await expect(page.getByPlaceholder('بحث في العناوين…')).toHaveValue('مهمة')
 })
 

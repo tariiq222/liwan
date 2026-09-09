@@ -59,11 +59,11 @@ function clearFilters() {
 
 <template>
   <div class="w-full min-w-0">
-  <FilterBar class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
+  <FilterBar class="w-full" :inline="embedded" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
     <template #search>
       <div class="relative min-w-48 flex-1">
         <Search class="pointer-events-none absolute start-2 top-1/2 size-[18px] -translate-y-1/2 text-muted-foreground" />
-        <Input v-model="search" :disabled="!hydrated" :placeholder="t('tasks.filters.search')" class="ps-8" />
+        <Input v-model="search" :disabled="!hydrated" :aria-label="t('tasks.filters.search')" :placeholder="t('tasks.filters.search')" class="ps-8" />
       </div>
     </template>
 
@@ -110,7 +110,10 @@ function clearFilters() {
       </div>
     </template>
 
+    <template #actions><slot name="actions" /></template>
+
     <template #view>
+      <slot name="view" />
       <div v-if="view" role="group" class="inline-flex h-[40px] items-center rounded-lg border bg-muted/40 p-0.5" :aria-label="t('projects.filters.view')">
         <Button data-testid="project-tasks-view-table" type="button" variant="ghost" size="icon" class="size-[32px] rounded-md" :class="view === 'table' ? 'bg-background shadow-sm' : ''" :disabled="!hydrated" :aria-label="t('projects.filters.tableView')" :aria-pressed="view === 'table'" @click="emit('update:view', 'table')">
           <List class="size-[18px]" />

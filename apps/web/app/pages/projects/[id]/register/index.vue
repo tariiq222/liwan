@@ -7,7 +7,6 @@ import { ApiError } from '@/composables/useApi'
 import FilterBar from '@/components/shared/FilterBar.vue'
 import RecordNumber from '@/components/shared/RecordNumber.vue'
 import { useProject } from '@/composables/useProjects'
-import ProjectWorkspaceTabs from '@/components/project/workspace/ProjectWorkspaceTabs.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -71,7 +70,7 @@ async function deleteItem(item: { id: number }) {
   <SharedPageContainer width="list">
     <SharedPageHeader
       v-if="!isProjectOverlay"
-      :title="project?.name ?? t('projects.refresh.workspace.registerTitle')"
+      :title="t('projects.refresh.workspace.registerTitle')"
     >
       <template #actions>
         <NuxtLink
@@ -79,23 +78,22 @@ async function deleteItem(item: { id: number }) {
           :to="{ path: `/projects/${id}/register/new`, query: { returnTo } }"
         >
           <Button class="gap-2" data-testid="register-create">
-            <Plus class="size-[18px]" />{{ t('app.create') }}
+            <Plus class="size-[18px]" />{{ t('projects.clarity.addRegister') }}
           </Button>
         </NuxtLink>
       </template>
     </SharedPageHeader>
-    <ProjectWorkspaceTabs v-if="project && !isProjectOverlay" :project-id="project.id" :active="project.active" :can-manage="project.can_manage" />
     <div class="w-full min-w-0">
-      <FilterBar class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
+      <FilterBar inline class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
         <template #search>
           <div class="relative min-w-52 flex-1">
             <Search class="pointer-events-none absolute start-2 top-1/2 size-[18px] -translate-y-1/2 text-muted-foreground" />
             <Input
               v-model="q"
-              :aria-label="t('app.search')"
+              :aria-label="t('projects.clarity.registerSearch')"
               :disabled="!hydrated"
               class="ps-8"
-              :placeholder="t('app.search')"
+              :placeholder="t('projects.clarity.registerSearch')"
             />
           </div>
         </template>
@@ -105,7 +103,7 @@ async function deleteItem(item: { id: number }) {
           :aria-label="t('projects.governance.register.kind')"
           :disabled="!hydrated"
         >
-          <NativeSelectOption value="">{{ t('projects.governance.all') }}</NativeSelectOption>
+          <NativeSelectOption value="">{{ t('projects.clarity.allKinds') }}</NativeSelectOption>
           <NativeSelectOption value="risk">{{ t('projects.governance.register.risk') }}</NativeSelectOption>
           <NativeSelectOption value="issue">{{ t('projects.governance.register.issue') }}</NativeSelectOption>
         </NativeSelect>
@@ -115,7 +113,7 @@ async function deleteItem(item: { id: number }) {
           :aria-label="t('projects.governance.register.status')"
           :disabled="!hydrated"
         >
-          <NativeSelectOption value="">{{ t('projects.governance.all') }}</NativeSelectOption>
+          <NativeSelectOption value="">{{ t('projects.clarity.allStatuses') }}</NativeSelectOption>
           <NativeSelectOption value="open">{{ t('projects.governance.register.open') }}</NativeSelectOption>
           <NativeSelectOption value="in_progress">{{ t('projects.governance.register.inProgress') }}</NativeSelectOption>
           <NativeSelectOption value="resolved">{{ t('projects.governance.register.resolved') }}</NativeSelectOption>
@@ -127,14 +125,14 @@ async function deleteItem(item: { id: number }) {
           :aria-label="t('projects.governance.register.priority')"
           :disabled="!hydrated"
         >
-          <NativeSelectOption value="">{{ t('projects.governance.all') }}</NativeSelectOption>
+          <NativeSelectOption value="">{{ t('projects.clarity.allPriorities') }}</NativeSelectOption>
           <NativeSelectOption v-for="value in ['low', 'normal', 'high', 'critical']" :key="value" :value="value">
             {{ t(`projects.governance.register.${value}`) }}
           </NativeSelectOption>
         </NativeSelect>
         <template #active>
           <div v-if="activeFilterCount" class="flex flex-wrap items-center gap-2">
-            <Badge v-if="q.trim()" variant="secondary">{{ t('app.search') }}: {{ q }}</Badge>
+            <Badge v-if="q.trim()" variant="secondary">{{ t('projects.clarity.registerSearch') }}: {{ q }}</Badge>
             <Badge v-if="kind" variant="secondary">{{ t(`projects.governance.register.${kind}`) }}</Badge>
             <Badge v-if="status" variant="secondary">{{ t(`projects.governance.register.${status}`) }}</Badge>
             <Badge v-if="priority" variant="secondary">{{ t(`projects.governance.register.${priority}`) }}</Badge>
@@ -147,11 +145,11 @@ async function deleteItem(item: { id: number }) {
       :loading="list.isLoading.value"
       :error="list.error.value"
       :empty="!list.isLoading.value && !list.data.value?.items.length"
+      :empty-text="t(activeFilterCount ? 'projects.clarity.filteredEmpty' : 'projects.clarity.registerEmpty')"
       @retry="list.refetch"
     />
-    <section v-if="list.data?.value?.items.length" class="nasq-panel overflow-hidden" aria-labelledby="register-list-title">
-      <div class="nasq-panel-header"><h2 id="register-list-title">{{ t('projects.refresh.workspace.registerTitle') }}</h2></div>
-      <div class="nasq-panel-body p-0 overflow-x-auto">
+    <section v-if="list.data?.value?.items.length" class="nasq-panel overflow-hidden" :aria-label="t('projects.refresh.workspace.registerTitle')">
+      <div class="overflow-x-auto">
         <Table>
         <TableHeader>
           <TableRow>
@@ -160,7 +158,7 @@ async function deleteItem(item: { id: number }) {
             <TableHead class="text-start">{{ t('projects.governance.register.kind') }}</TableHead>
             <TableHead class="text-start">{{ t('projects.governance.register.priority') }}</TableHead>
             <TableHead class="text-start">{{ t('projects.governance.register.status') }}</TableHead>
-            <TableHead class="text-start">{{ t('projects.governance.register.score') }}</TableHead>
+            <TableHead class="text-start">{{ t('projects.clarity.riskScore') }}</TableHead>
             <TableHead class="text-end" />
           </TableRow>
         </TableHeader>
@@ -205,7 +203,7 @@ async function deleteItem(item: { id: number }) {
         </Table>
       </div>
     </section>
-    <nav v-if="list.data.value" class="flex items-center gap-3" :aria-label="t('projects.governance.pagination')">
+    <nav v-if="list.data.value && (list.data.value.total > 50 || parsed.offset)" class="flex items-center gap-3" :aria-label="t('projects.governance.pagination')">
       <Button variant="outline" :disabled="!hydrated || list.isFetching.value || !parsed.offset" @click="page(-1)">
         {{ t('projects.governance.previous') }}
       </Button>

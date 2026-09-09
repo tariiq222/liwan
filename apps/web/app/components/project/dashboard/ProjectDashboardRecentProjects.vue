@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import ProjectStatusBadge from '@/components/project/ProjectStatusBadge.vue'
 import { formatNullablePercent } from '@/utils/projectFinance'
-import { returnToQuery } from '@/utils/safeReturnTo'
 import type { DashboardProject } from '@/utils/projectChartData'
 import RecordNumber from '@/components/shared/RecordNumber.vue'
 
 const props = defineProps<{ rows: readonly DashboardProject[] }>()
 const { t, locale } = useI18n()
 const route = useRoute()
+const { entryTo } = useProjectWorkspaceMemory()
 const rows = computed(() => props.rows.slice(0, 5))
 const dateFormatter = computed(() => new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium', timeStyle: 'short' }))
 const projectListQuery = computed(() => ({
@@ -49,7 +49,7 @@ function updatedAt(value: string | null | undefined) {
           <TableRow v-for="row in rows" :key="row.project.id" data-testid="recent-project-row">
             <TableCell><RecordNumber :value="row.project.id" /></TableCell>
             <TableCell>
-              <NuxtLink :to="{ path: `/projects/${row.project.id}`, query: returnToQuery(route.fullPath) }" class="font-medium hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{{ row.project.name }}</NuxtLink>
+              <NuxtLink :to="entryTo(row.project.id, route.fullPath)" class="font-medium hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{{ row.project.name }}</NuxtLink>
             </TableCell>
             <TableCell><ProjectStatusBadge :status="row.project.status" /></TableCell>
             <TableCell><span dir="ltr" class="tabular-nums">{{ formatNullablePercent(row.progress, t('projects.dashboard.unavailable')) }}</span></TableCell>

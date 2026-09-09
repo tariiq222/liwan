@@ -170,7 +170,7 @@ const readonlyDescription = computed(() => (
           </Button>
         </PopoverTrigger>
         <PopoverContent class="w-64 p-0" align="start">
-          <div class="border-b p-2"><Input v-model="managerQ" :placeholder="t('app.search')" class="h-8" /></div>
+          <div class="border-b p-2"><Input v-model="managerQ" :aria-label="t('projects.settings.manager')" :placeholder="t('app.search')" class="h-8" /></div>
           <Command><CommandList><CommandEmpty>{{ t('app.noResults') }}</CommandEmpty><CommandGroup>
             <CommandItem v-if="!requireManager" value="none" @select="selectManager(null, null)"><span class="flex-1">{{ t('projects.settings.noManager') }}</span><Check v-if="!draft.userId" class="size-4" /></CommandItem>
             <CommandItem v-for="person in managers ?? []" :key="person.id" :value="String(person.id)" @select="selectManager(person.id, person.name)"><span class="flex-1">{{ person.name }}</span><Check v-if="draft.userId === person.id" class="size-4" /></CommandItem>

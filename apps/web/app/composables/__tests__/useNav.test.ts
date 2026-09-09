@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { activeShellModule, contextGroupsForModule, contextLinksForModule, projectContextId, projectContextLinks, projectWorkspaceLinks, visibleShellModules, useNav } from '../useNav'
+import { activeShellModule, contextGroupsForModule, contextLinksForModule, projectContextId, projectContextLinks, projectSidebarLinks, projectWorkspaceLinks, visibleShellModules, useNav } from '../useNav'
 import { projectSectionRoot, shellSectionRoot } from '../useShellNavigation'
 
 const employee = { role: 'employee', capabilities: ['pmo.tasks.read', 'pmo.projects.read', 'meetings.read', 'hr.employees.read', 'hr.departments.read', 'hr.documents.read'] }
@@ -223,7 +223,7 @@ describe('project workspace tabs', () => {
     const links = projectWorkspaceLinks(12, full, true, true, {
       returnTo: '/projects?mine=1&q=site', tab: 'board', q: 'late', view: 'board', closed: '1',
     }, true)
-    expect(links.map(link => link.id)).toEqual(['tasks', 'summary', 'milestones', 'stakeholders', 'risks', 'finance', 'charter', 'settings'])
+    expect(links.map(link => link.id)).toEqual(['tasks', 'summary', 'milestones', 'stakeholders', 'risks', 'finance', 'charter'])
     const tasks = links.find(link => link.id === 'tasks')!.to as { query: Record<string, string> }
     expect(tasks.query).toMatchObject({ tab: 'tasks', q: 'late', view: 'board', closed: '1' })
     const summary = links.find(link => link.id === 'summary')!.to as { query: Record<string, string> }
@@ -249,6 +249,20 @@ describe('project workspace tabs', () => {
 
   it('keeps archived projects from exposing active-only workspace tabs', () => {
     const links = projectWorkspaceLinks(12, full, false, true)
-    expect(links.map(link => link.id)).toEqual(['summary', 'finance', 'settings'])
+    expect(links.map(link => link.id)).toEqual(['summary', 'finance'])
+  })
+
+  it('separates the project menu from module navigation and grants settings only to record managers', () => {
+    const ordinary = projectSidebarLinks(12, full, true, false)
+    expect(ordinary.map(link => link.id)).toEqual([
+      ...projectWorkspaceLinks(12, full, true, false).map(link => link.id),
+    ])
+    const managed = projectSidebarLinks(12, full, true, true, { q: 'late', returnTo: '/projects?mine=1' }, true)
+    expect(managed.map(link => link.id)).toContain('current-project-settings')
+    const settings = managed.find(link => link.id === 'current-project-settings')!.to as { path: string; query: Record<string, string> }
+    expect(settings.path).toBe('/projects/12/settings')
+    expect(settings.query.projectListReturnTo).toBe('/projects?mine=1')
+    expect(JSON.parse(settings.query.taskContext!)).toMatchObject({ q: 'late' })
+    expect(projectSidebarLinks(12, full, false, true).map(link => link.id)).toContain('current-project-settings')
   })
 })
