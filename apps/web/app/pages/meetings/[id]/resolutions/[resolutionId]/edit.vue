@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import DescriptionEditor from '@/components/task/DescriptionEditor.vue'
+import MeetingProjectFilter from '@/components/meetings/MeetingProjectFilter.vue'
 import { useMeeting, usePatchResolution } from '@/composables/useMeetings'
 import { safeReturnTo } from '@/utils/safeReturnTo'
 
@@ -33,13 +34,15 @@ const canSave = computed(() => hydrated.value && (canEditDecision.value || canEd
 const name = ref('')
 const responsibleId = ref<number | ''>('')
 const deadline = ref('')
+const executionPeriod = ref('')
+const projectId = ref<number | undefined>(undefined)
 const priority = ref<'0' | '1' | '2' | '3'>('0')
 const result = ref('')
 const loaded = ref(false)
 const baseline = ref('')
 
 function snapshot() {
-  return JSON.stringify([name.value, responsibleId.value, deadline.value, priority.value, result.value])
+  return JSON.stringify([name.value, responsibleId.value, deadline.value, executionPeriod.value, projectId.value, priority.value, result.value])
 }
 
 watch(resolution, (item) => {
@@ -47,6 +50,8 @@ watch(resolution, (item) => {
   name.value = item.name
   responsibleId.value = item.responsible?.id ?? ''
   deadline.value = item.deadline ?? ''
+  executionPeriod.value = item.execution_period ?? ''
+  projectId.value = item.project?.id
   priority.value = item.priority
   result.value = item.result
   baseline.value = snapshot()
@@ -58,17 +63,19 @@ const validationMessage = computed(() => {
   if (!canEditDecision.value) return ''
   if (!name.value.trim()) return t('meetingsUx.validation.resolutionName')
   if (!responsibleId.value) return t('meetingsUx.validation.responsible')
-  if (!deadline.value) return t('meetingsUx.validation.deadline')
+  if (!deadline.value && !executionPeriod.value.trim()) return t('meetingMinutesForm.validation.deadlineOrPeriod')
   return ''
 })
 
 async function save() {
-  if (!canSave.value || !dirty.value || (canEditDecision.value && (!name.value.trim() || !responsibleId.value || !deadline.value))) return
+  if (!canSave.value || !dirty.value || (canEditDecision.value && (!name.value.trim() || !responsibleId.value || (!deadline.value && !executionPeriod.value.trim())))) return
   const body: Record<string, unknown> = {}
   if (canEditDecision.value) {
     body.name = name.value.trim()
     if (responsibleId.value) body.responsible_id = Number(responsibleId.value)
-    if (deadline.value) body.deadline = deadline.value
+    body.deadline = deadline.value || null
+    body.execution_period = executionPeriod.value.trim()
+    body.project_id = projectId.value ?? null
     body.priority = priority.value
   }
   if (canEditResult.value) body.result = result.value
@@ -103,7 +110,16 @@ async function save() {
           </div>
           <div class="grid gap-2">
             <Label for="resolution-deadline">{{ t('meetingsUi.deadline') }}</Label>
-            <Input id="resolution-deadline" v-model="deadline" type="date" :disabled="!hydrated || isPending" required />
+            <Input id="resolution-deadline" v-model="deadline" type="date" :disabled="!hydrated || isPending" />
+            <p class="text-xs text-muted-foreground">{{ t('meetingMinutesForm.deadlineOrPeriodHint') }}</p>
+          </div>
+          <div class="grid gap-2">
+            <Label for="resolution-period">{{ t('meetingMinutesForm.executionPeriod') }}</Label>
+            <Input id="resolution-period" v-model="executionPeriod" maxlength="500" :disabled="!hydrated || isPending" :placeholder="t('meetingMinutesForm.executionPeriodPlaceholder')" />
+          </div>
+          <div class="grid gap-2 sm:col-span-2">
+            <Label for="resolution-project">{{ t('meetingMinutesForm.project') }}</Label>
+            <MeetingProjectFilter id="resolution-project" hide-label :model-value="projectId" :disabled="!hydrated || isPending" @update:model-value="projectId = $event" />
           </div>
           <div class="grid gap-2">
             <Label for="resolution-priority">{{ t('meetingsUi.priority') }}</Label>

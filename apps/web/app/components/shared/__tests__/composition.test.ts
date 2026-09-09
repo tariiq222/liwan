@@ -7,6 +7,7 @@ import ts from 'typescript'
 import * as Vue from 'vue'
 import { createSSRApp, defineComponent, h, type Component, type RenderFunction, type VNode } from 'vue'
 import { describe, expect, it } from 'vitest'
+import { renderFilter } from './helpers/filterComponents'
 
 const webRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../../../')
 
@@ -56,6 +57,7 @@ async function renderShared(
   props: Record<string, unknown> = {},
   slots: Record<string, () => VNode | VNode[]> = {},
 ): Promise<string> {
+  if (name === 'FilterBar') return renderFilter(name, props, slots)
   const app = createSSRApp({ render: () => h(loadShared(name), props, slots) })
   app.component('NuxtLink', NuxtLinkStub)
   return renderToString(app)
@@ -81,8 +83,8 @@ describe('shared composition rendered contracts', () => {
     expect(html.indexOf('Title slot')).toBeLessThan(html.indexOf('Create'))
   })
 
-  it('renders search and controls in the first row, with active filters below and view last in the first row', async () => {
-    const html = await renderShared('FilterBar', {}, {
+  it('renders view actions above collapsible search and controls, with active filters below', async () => {
+    const html = await renderShared('FilterBar', { activeCount: 1 }, {
       search: () => h('input', { 'aria-label': 'Search' }),
       default: () => h('button', { type: 'button' }, 'All states'),
       active: () => h('span', { 'data-filter': 'active' }, 'State: Done'),
@@ -99,8 +101,9 @@ describe('shared composition rendered contracts', () => {
     const activeRowMarker = html.indexOf('data-slot="active-row"')
     expect(searchMarker).toBeGreaterThanOrEqual(0)
     expect(controlsMarker).toBeGreaterThan(searchMarker)
-    expect(viewMarker).toBeGreaterThan(controlsMarker)
-    expect(activeRowMarker).toBeGreaterThan(viewMarker)
+    expect(viewMarker).toBeGreaterThanOrEqual(0)
+    expect(viewMarker).toBeLessThan(searchMarker)
+    expect(activeRowMarker).toBeGreaterThan(controlsMarker)
   })
 
   it('keeps PageContainer width vocabulary in CSS classes, not ad-hoc max-width utilities', () => {

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Plus, Search } from '@lucide/vue'
 import FilterBar from '@/components/shared/FilterBar.vue'
+import RecordNumber from '@/components/shared/RecordNumber.vue'
 import type { HrDocument } from '@/composables/useHrDocuments'
 import { useHrDocuments } from '@/composables/useHrDocuments'
 import { returnToQuery } from '@/utils/safeReturnTo'
@@ -25,6 +26,8 @@ const query = useHrDocuments(params)
 const items = computed<HrDocument[]>(() => query.data.value?.items ?? [])
 const page = computed(() => Math.floor(committedListParams.value.offset / limit) + 1)
 const pages = computed(() => Math.max(1, Math.ceil((query.data.value?.total ?? 0) / limit)))
+const activeFilterCount = computed(() => Number(Boolean(search.value.trim())))
+const hasActiveFilters = computed(() => activeFilterCount.value > 0)
 
 watch(() => [route.query.q, route.query.offset], ([q, nextOffset]) => {
   search.value = String(q ?? '')
@@ -34,6 +37,10 @@ watch(debouncedSearch, (value) => { if (value !== String(route.query.q ?? '')) u
 function updateSearch() {
   offset.value = 0
   void router.replace({ query: { ...route.query, ...(search.value.trim() ? { q: search.value.trim() } : { q: undefined }), offset: undefined } })
+}
+function clearSearch() {
+  search.value = ''
+  updateSearch()
 }
 function setPage(next: number) {
   if (!hydrated.value || query.isFetching.value || hasPendingSearch.value || next < 1 || next > pages.value) return
@@ -47,8 +54,8 @@ function detailsTo(document: HrDocument) {
 
 <template>
   <section class="space-y-3">
-    <div class="nasq-toolbar">
-      <FilterBar class="w-full">
+    <div class="w-full min-w-0">
+      <FilterBar class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearSearch">
         <template #search>
           <div class="relative min-w-52 flex-1">
             <Search class="pointer-events-none absolute start-2 top-1/2 size-[18px] -translate-y-1/2 text-muted-foreground" />
@@ -60,15 +67,20 @@ function detailsTo(document: HrDocument) {
             <Button :disabled="!hydrated" class="gap-2"><Plus class="size-[18px]" />{{ t('hr.docs.new') }}</Button>
           </NuxtLink>
         </template>
+        <template #active>
+          <div v-if="hasActiveFilters" class="flex flex-wrap items-center gap-2">
+            <Badge variant="secondary">{{ t('hr.directory.searchValue', { value: search }) }}</Badge>
+          </div>
+        </template>
       </FilterBar>
     </div>
     <div class="nasq-panel overflow-x-auto">
-      <Table>
-        <TableHeader><TableRow><TableHead class="text-start">{{ t('hr.docs.columns.name') }}</TableHead><TableHead class="text-start">{{ t('hr.docs.columns.updated') }}</TableHead></TableRow></TableHeader>
+      <Table class="min-w-[520px]">
+        <TableHeader><TableRow><TableHead class="w-28 text-start">{{ t('app.recordNumber') }}</TableHead><TableHead class="text-start">{{ t('hr.docs.columns.name') }}</TableHead><TableHead class="text-start">{{ t('hr.docs.columns.updated') }}</TableHead></TableRow></TableHeader>
         <TableBody>
-          <template v-if="query.isLoading.value"><TableRow v-for="n in 3" :key="n"><TableCell><Skeleton class="h-5 w-full" /></TableCell><TableCell><Skeleton class="h-5 w-24" /></TableCell></TableRow></template>
-          <TableEmpty v-else-if="items.length === 0" :colspan="2"><p class="text-muted-foreground">{{ t('hr.docs.empty') }}</p></TableEmpty>
-          <template v-else><TableRow v-for="document in items" :key="document.id" class="cursor-pointer transition-colors hover:bg-muted/30" @click="navigateTo(detailsTo(document))"><TableCell class="text-start">{{ document.name }}</TableCell><TableCell class="text-start text-muted-foreground">{{ new Date(document.write_date).toLocaleDateString() }}</TableCell></TableRow></template>
+          <template v-if="query.isLoading.value"><TableRow v-for="n in 3" :key="n"><TableCell><Skeleton class="h-5 w-20" /></TableCell><TableCell><Skeleton class="h-5 w-full" /></TableCell><TableCell><Skeleton class="h-5 w-24" /></TableCell></TableRow></template>
+          <TableEmpty v-else-if="items.length === 0" :colspan="3"><p class="text-muted-foreground">{{ t('hr.docs.empty') }}</p></TableEmpty>
+          <template v-else><TableRow v-for="document in items" :key="document.id" class="cursor-pointer transition-colors hover:bg-muted/30" @click="navigateTo(detailsTo(document))"><TableCell class="w-28"><RecordNumber :value="document.id" /></TableCell><TableCell class="text-start">{{ document.name }}</TableCell><TableCell class="text-start text-muted-foreground">{{ new Date(document.write_date).toLocaleDateString() }}</TableCell></TableRow></template>
         </TableBody>
       </Table>
     </div>

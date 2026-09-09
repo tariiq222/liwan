@@ -51,6 +51,7 @@ const summary = computed(() => list.data.value?.summary)
 const page = computed(() => Math.floor(filters.offset / FINANCE_PAGE) + 1)
 const pages = computed(() => Math.max(1, Math.ceil(total.value / FINANCE_PAGE)))
 const filtered = computed(() => Boolean(filters.q.trim()) || filters.kind !== 'all')
+const activeFilterCount = computed(() => Number(Boolean(filters.q.trim())) + Number(filters.kind !== 'all'))
 const notFound = computed(() => projectId.value === null || (list.error.value instanceof ApiError && [403, 404].includes(list.error.value.status)))
 
 function applyPatch(patch: Partial<FinanceListRouteState>) {
@@ -118,6 +119,11 @@ function onKindChange(value: unknown) {
   applyPatch({ kind: parseFinanceKind(value) })
 }
 
+function clearFilters() {
+  search.value = ''
+  applyPatch({ q: '', kind: 'all' })
+}
+
 function setPage(next: number) {
   if (!hydrated.value || list.isFetching.value || next < 1 || next > pages.value) return
   applyPatch({ offset: (next - 1) * FINANCE_PAGE })
@@ -174,8 +180,8 @@ function financeChildKey(target: { path: string; params: Record<string, string |
       <p v-if="notFound && !list.isLoading.value" class="text-muted-foreground">{{ t('projects.notFound') }}</p>
       <template v-else>
         <FinanceSummaryCards v-if="summary && projectId" :project-id="projectId" :summary="summary" />
-        <div class="nasq-toolbar">
-          <FilterBar class="w-full">
+        <div class="w-full min-w-0">
+          <FilterBar class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
             <template #search>
               <Input v-model="search" :disabled="!hydrated" :placeholder="t('projects.finance.search')" :aria-label="t('projects.finance.search')" data-testid="finance-search" class="min-w-52" />
             </template>
@@ -187,6 +193,12 @@ function financeChildKey(target: { path: string; params: Record<string, string |
                   <TabsTrigger value="expense" :disabled="!hydrated">{{ t('projects.finance.kind.expense') }}</TabsTrigger>
                 </TabsList>
               </Tabs>
+            </template>
+            <template #active>
+              <div v-if="filtered" class="flex flex-wrap items-center gap-2">
+                <Badge v-if="filters.q.trim()" variant="secondary">{{ t('projects.filters.searchValue', { value: filters.q }) }}</Badge>
+                <Badge v-if="filters.kind !== 'all'" variant="secondary">{{ t(`projects.finance.kind.${filters.kind}`) }}</Badge>
+              </div>
             </template>
           </FilterBar>
         </div>

@@ -32,24 +32,127 @@ function meetingTime(meeting: MeetingWorkspaceMeeting) {
     if (Number.isFinite(timestamp)) return timestamp
   }
   if (meeting.meeting_date) {
-    const timestamp = Date.parse(`${meeting.meeting_date}T00:00:00`)
+    const timestamp = Date.parse(`${meeting.meeting_date}T00:00:00Z`)
     if (Number.isFinite(timestamp)) return timestamp
   }
-  return Number.POSITIVE_INFINITY
+  return null
+}
+
+export function meetingTimestamp(meeting: MeetingWorkspaceMeeting) {
+  return meetingTime(meeting)
+}
+
+export type MeetingTimelinePhase = 'upcoming' | 'completed' | 'overdue' | 'cancelled' | 'unknown'
+
+export function meetingTimelinePhase(meeting: MeetingWorkspaceMeeting, now = new Date()): MeetingTimelinePhase {
+  const timestamp = meetingTime(meeting)
+  if (String(meeting.state) === 'cancelled') return 'cancelled'
+  if (timestamp === null) return 'unknown'
+  if (String(meeting.state) === 'done') return 'completed'
+  return timestamp >= now.getTime() ? 'upcoming' : 'overdue'
 }
 
 export function selectNextMeeting<T extends MeetingWorkspaceMeeting>(meetings: T[], now = new Date()) {
   const nowTime = now.getTime()
   return meetings
-    .filter(meeting => !terminalMeetingStates.has(String(meeting.state)) && meetingTime(meeting) >= nowTime)
-    .sort((a, b) => meetingTime(a) - meetingTime(b) || a.id - b.id)[0]
+    .map(meeting => ({ meeting, timestamp: meetingTime(meeting) }))
+    .filter(({ meeting, timestamp }) => !terminalMeetingStates.has(String(meeting.state)) && timestamp !== null && timestamp >= nowTime)
+    .sort((a, b) => a.timestamp! - b.timestamp! || a.meeting.id - b.meeting.id)
+    .map(({ meeting }) => meeting)[0]
 }
 
 export function selectPreviousMeeting<T extends MeetingWorkspaceMeeting>(meetings: T[], now = new Date()) {
   const nowTime = now.getTime()
   return meetings
-    .filter(meeting => !terminalMeetingStates.has(String(meeting.state)) && meetingTime(meeting) < nowTime)
-    .sort((a, b) => meetingTime(b) - meetingTime(a) || b.id - a.id)[0]
+    .map(meeting => ({ meeting, timestamp: meetingTime(meeting) }))
+    .filter(({ meeting, timestamp }) => meeting.state === 'done' && timestamp !== null && timestamp < nowTime)
+    .sort((a, b) => b.timestamp! - a.timestamp! || b.meeting.id - a.meeting.id)
+    .map(({ meeting }) => meeting)[0]
+}
+
+export type MeetingTimelineGroup<T extends MeetingWorkspaceMeeting> = {
+  key: string
+  label: string
+  meetings: T[]
+  past: boolean
+}
+
+export function groupMeetingsByMonth<T extends MeetingWorkspaceMeeting>(meetings: T[], locale = 'en', now = new Date(), unknownLabel = '—', preserveOrder = false): MeetingTimelineGroup<T>[] {
+  const monthFormatter = new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric', calendar: 'gregory' })
+  type TimelineBucket = { baseKey: string; timestamp: number | null; meetings: T[] }
+  const buckets = new Map<string, TimelineBucket>()
+  const orderedBuckets: TimelineBucket[] = []
+  for (const meeting of meetings) {
+    const timestamp = meetingTime(meeting)
+    const date = timestamp === null ? null : new Date(timestamp)
+    const baseKey = date ? `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}` : 'unknown'
+    const timestampForBucket = date ? Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1) : null
+    const bucket = preserveOrder
+      ? orderedBuckets.at(-1)?.baseKey === baseKey
+        ? orderedBuckets[orderedBuckets.length - 1]!
+        : (() => {
+            const next = { baseKey, timestamp: timestampForBucket, meetings: [] as T[] }
+            orderedBuckets.push(next)
+            return next
+          })()
+      : buckets.get(baseKey) ?? { baseKey, timestamp: timestampForBucket, meetings: [] }
+    bucket.meetings.push(meeting)
+    if (!preserveOrder) buckets.set(baseKey, bucket)
+  }
+  const entries = preserveOrder
+    ? orderedBuckets.map((bucket, index) => [`${bucket.baseKey}-${index}`, bucket] as const)
+    : [...buckets.entries()]
+  return entries
+    .sort(([, left], [, right]) => {
+      if (preserveOrder) return 0
+      if (left.timestamp === null) return 1
+      if (right.timestamp === null) return -1
+      const currentMonth = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)
+      if (left.timestamp === currentMonth && right.timestamp !== currentMonth) return -1
+      if (right.timestamp === currentMonth && left.timestamp !== currentMonth) return 1
+      const leftPast = left.timestamp < currentMonth
+      const rightPast = right.timestamp < Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)
+      if (leftPast !== rightPast) return leftPast ? -1 : 1
+      return leftPast ? right.timestamp - left.timestamp : left.timestamp - right.timestamp
+    })
+    .map(([key, bucket]) => {
+      const isPast = bucket.timestamp !== null && bucket.timestamp < Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)
+      if (!preserveOrder) bucket.meetings.sort((left, right) => {
+        const leftTime = meetingTime(left)
+        const rightTime = meetingTime(right)
+        if (leftTime === null) return 1
+        if (rightTime === null) return -1
+        return (isPast ? rightTime - leftTime : leftTime - rightTime) || left.id - right.id
+      })
+      return {
+        key,
+        label: bucket.timestamp === null ? unknownLabel : monthFormatter.format(new Date(bucket.timestamp)),
+        meetings: bucket.meetings,
+        past: isPast,
+      }
+    })
+}
+
+export function prioritizeTimelinePage<T extends MeetingWorkspaceMeeting>(meetings: T[], now = new Date(), limit = 25): T[] {
+  if (limit <= 0) return []
+  const byId = new Map(meetings.map(meeting => [meeting.id, meeting]))
+  const selected: T[] = []
+  for (const candidate of [selectPreviousMeeting(meetings, now), selectNextMeeting(meetings, now)]) {
+    if (candidate && byId.has(candidate.id) && !selected.some(meeting => meeting.id === candidate.id)) selected.push(candidate)
+  }
+  const remainder = meetings
+    .filter(meeting => !selected.some(selectedMeeting => selectedMeeting.id === meeting.id))
+    .sort((left, right) => {
+      const leftTime = meetingTime(left)
+      const rightTime = meetingTime(right)
+      if (leftTime === null) return 1
+      if (rightTime === null) return -1
+      const leftPast = leftTime < now.getTime()
+      const rightPast = rightTime < now.getTime()
+      if (leftPast !== rightPast) return leftPast ? -1 : 1
+      return leftPast ? rightTime - leftTime : leftTime - rightTime
+    })
+  return [...selected, ...remainder].slice(0, limit)
 }
 
 export function filterMeetingResolutions<T extends MeetingWorkspaceResolution>(

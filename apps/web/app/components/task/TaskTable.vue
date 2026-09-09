@@ -8,6 +8,7 @@ import DeadlineBadge from './DeadlineBadge.vue'
 import PrioritySelect from './PrioritySelect.vue'
 import StateMenu from './StateMenu.vue'
 import EmptyState from '@/components/shared/EmptyState.vue'
+import RecordNumber from '@/components/shared/RecordNumber.vue'
 
 const props = withDefaults(defineProps<{ params: TaskListParams; variant?: 'mine' | 'project'; embedded?: boolean }>(), { variant: 'mine', embedded: false })
 const emit = defineEmits<{
@@ -44,6 +45,11 @@ const emptyTitleKey = computed(() => {
 const showCreateAction = computed(() => can('pmo.tasks.create') && !hasActiveFilters.value && !props.params.closed)
 
 const columnHelper = createColumnHelper<Task>()
+const recordNumberColumn = columnHelper.display({
+  id: 'record_number',
+  header: () => t('app.recordNumber'),
+  cell: (info) => h(RecordNumber, { value: info.row.original.id }),
+})
 const titleColumn = columnHelper.accessor('name', {
   id: 'title',
   header: () => t('tasks.columns.title'),
@@ -97,14 +103,14 @@ const assigneesColumn = columnHelper.display({
 
 const columns = computed(() =>
   props.variant === 'project'
-    ? [titleColumn, assigneesColumn, projectStageColumn, deadlineColumn, priorityColumn, stateColumn]
-    : [titleColumn, projectColumn, stateColumn, deadlineColumn, priorityColumn, personalStageColumn],
+    ? [recordNumberColumn, titleColumn, assigneesColumn, projectStageColumn, deadlineColumn, priorityColumn, stateColumn]
+    : [recordNumberColumn, titleColumn, projectColumn, stateColumn, deadlineColumn, priorityColumn, personalStageColumn],
 )
 
 const colgroupClasses = computed(() =>
   props.variant === 'project'
-    ? ['w-[42%]', 'w-[14%]', 'w-[12%]', 'w-[12%]', 'w-[8%]', 'w-[12%]']
-    : ['w-[52%]', 'w-[12%]', 'w-[10%]', 'w-[10%]', 'w-[10%]', 'w-[6%]'],
+    ? ['w-[10%]', 'w-[34%]', 'w-[12%]', 'w-[12%]', 'w-[12%]', 'w-[8%]', 'w-[12%]']
+    : ['w-[10%]', 'w-[44%]', 'w-[10%]', 'w-[10%]', 'w-[10%]', 'w-[10%]', 'w-[6%]'],
 )
 
 const table = useVueTable({
@@ -133,14 +139,7 @@ function onRowClick(task: Task, event: MouseEvent) {
     <div :class="embedded ? '' : 'nasq-panel overflow-hidden'">
       <div class="hidden overflow-x-auto md:block">
         <Table class="table-fixed min-w-[760px]">
-        <!--
-          `table-fixed` + an explicit colgroup keeps the title column at
-          >=50% of the row's width. That's not just cosmetic: the title is
-          the row's click-to-open target, and a click on the row lands at
-          its bounding-box's horizontal center — with the title column
-          always covering that midpoint, "click the row" reliably opens it
-          instead of landing on the narrower state/priority controls.
-        -->
+        <!-- Keep the number and title columns stable while preserving the row's click-to-open behavior. -->
         <colgroup>
           <col v-for="(cls, i) in colgroupClasses" :key="i" :class="cls" />
         </colgroup>

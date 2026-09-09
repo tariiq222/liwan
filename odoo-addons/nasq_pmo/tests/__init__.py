@@ -10,6 +10,7 @@ from . import (
     test_meeting_permissions,
     test_meeting_series,
     test_meeting_series_settings,
+    test_meeting_workspace,
     test_meetings,
     test_milestones,
     test_notifications,

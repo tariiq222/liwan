@@ -4,6 +4,7 @@ import EmptyState from '@/components/shared/EmptyState.vue'
 import ProjectStatusBadge from '@/components/project/ProjectStatusBadge.vue'
 import { budgetStatus, formatNullableAmount, formatNullableCount, formatNullablePercent } from '@/utils/projectFinance'
 import { returnToQuery } from '@/utils/safeReturnTo'
+import RecordNumber from '@/components/shared/RecordNumber.vue'
 
 defineProps<{
   items: ProjectReportRow[]
@@ -20,9 +21,10 @@ const unavailable = computed(() => t('projects.reports.unavailable'))
 <template>
   <div class="nasq-panel overflow-hidden">
     <div class="overflow-x-auto">
-      <Table class="min-w-[960px] table-fixed">
+      <Table class="min-w-[1040px] table-fixed">
         <TableHeader>
           <TableRow>
+            <TableHead class="w-28 text-start">{{ t('app.recordNumber') }}</TableHead>
             <TableHead class="text-start">{{ t('projects.reports.columns.project') }}</TableHead>
             <TableHead class="text-start">{{ t('projects.reports.columns.status') }}</TableHead>
             <TableHead class="text-start">{{ t('projects.reports.columns.estimate') }}</TableHead>
@@ -37,16 +39,17 @@ const unavailable = computed(() => t('projects.reports.unavailable'))
         <TableBody>
           <template v-if="isLoading || !hydrated">
             <TableRow v-for="n in 5" :key="n">
-              <TableCell v-for="col in 9" :key="col"><Skeleton class="h-5 w-full" /></TableCell>
+              <TableCell v-for="col in 10" :key="col"><Skeleton class="h-5 w-full" /></TableCell>
             </TableRow>
           </template>
-          <TableEmpty v-else-if="items.length === 0" :colspan="9">
+          <TableEmpty v-else-if="items.length === 0" :colspan="10">
             <EmptyState
               :title="t(filtered ? 'projects.reports.filteredEmpty' : 'projects.reports.empty')"
               :description="t(filtered ? 'projects.reports.filteredEmptyHint' : 'projects.reports.emptyHint')"
             />
           </TableEmpty>
           <TableRow v-else v-for="row in items" :key="row.project.id" data-testid="reports-row">
+            <TableCell><RecordNumber :value="row.project.id" /></TableCell>
             <TableCell>
               <NuxtLink
                 :to="{ path: `/projects/${row.project.id}/finance`, query: returnToQuery(route.fullPath) }"

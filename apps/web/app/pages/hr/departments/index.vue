@@ -21,6 +21,7 @@ const canvasView = computed(() => route.query.view === 'canvas')
 const departments = computed(() => query.data.value?.items ?? [])
 const roots = computed(() => buildDepartmentTree(departments.value))
 const filtered = computed(() => departments.value.filter(d => `${d.name} ${d.manager?.name ?? ''}`.toLocaleLowerCase().includes(search.value.trim().toLocaleLowerCase())))
+const activeFilterCount = computed(() => Number(Boolean(search.value.trim())))
 const deleting = ref<HrDepartment | null>(null)
 const deleteError = ref<ApiError | null>(null)
 const { mutateAsync: deleteDepartment, isPending: deletingPending } = useDeleteHrDepartment()
@@ -29,6 +30,7 @@ function editDepartment(id: number) { void navigateTo({ path: `/hr/departments/$
 function createChild(id: number) { void navigateTo({ path: '/hr/departments/new', query: { ...returnToQuery(route.fullPath), parent_id: id } }) }
 function setView(tree: boolean) { void router.replace({ query: { ...route.query, view: tree ? 'tree' : undefined } }) }
 function setCanvasView() { void router.replace({ query: { ...route.query, view: 'canvas' } }) }
+function clearFilters() { search.value = '' }
 function askDelete(department: HrDepartment) { deleting.value = department; deleteError.value = null }
 async function confirmDelete() {
   if (!deleting.value || !hydrated.value || deletingPending.value || !can('hr.departments.manage')) return
@@ -41,8 +43,8 @@ async function confirmDelete() {
     <SharedPageHeader :title="t('hr.depts.title')" back-to="/hr">
       <NuxtLink v-if="can('hr.departments.manage')" :to="{ path: '/hr/departments/new', query: returnToQuery(route.fullPath) }"><Button>{{ t('hr.depts.new') }}</Button></NuxtLink>
     </SharedPageHeader>
-    <div class="nasq-toolbar">
-      <FilterBar class="w-full">
+    <div class="w-full min-w-0">
+      <FilterBar class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
         <template #search>
           <div class="relative min-w-52 flex-1">
             <Search class="pointer-events-none absolute start-2 top-1/2 size-[18px] -translate-y-1/2 text-muted-foreground" />
@@ -60,6 +62,11 @@ async function confirmDelete() {
             <Button type="button" variant="ghost" size="icon" class="size-[32px] rounded-md" :class="canvasView ? 'bg-background shadow-sm' : ''" :disabled="!hydrated" :aria-label="t('hr.depts.orgChart')" :aria-pressed="canvasView" data-testid="hr-departments-view-canvas" @click="setCanvasView">
               <Scan class="size-[18px]" />
             </Button>
+          </div>
+        </template>
+        <template #active>
+          <div v-if="search.trim()" class="flex flex-wrap items-center gap-2">
+            <Badge variant="secondary">{{ t('hr.directory.searchValue', { value: search }) }}</Badge>
           </div>
         </template>
       </FilterBar>

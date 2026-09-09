@@ -7,7 +7,11 @@ from odoo.exceptions import AccessError
 from odoo.tools import format_datetime
 
 from odoo.addons.nasq_api.serializers.common import iso
-from odoo.addons.nasq_pmo.serializers.meeting import _readable_task_ids_by_resolution
+from odoo.addons.nasq_pmo.serializers.meeting import (
+    _readable_task_ids_by_resolution,
+    dump_minutes_form,
+    dump_project_id,
+)
 
 _SNAPSHOT_WRITE = ContextVar('nasq_meeting_snapshot_write', default=False)
 _SNAPSHOT_FIELDS = frozenset({'minutes_snapshot', 'minutes_snapshot_data', 'minutes_snapshot_at'})
@@ -33,6 +37,18 @@ class NasqMeetingHistory(models.Model):
     minutes_snapshot = fields.Json(
         compute='_compute_minutes_snapshot', compute_sudo=False, readonly=True,
     )
+    minutes_form = fields.Json(
+        compute='_compute_minutes_form', compute_sudo=False, readonly=True,
+    )
+
+    @api.depends('minutes_form_data')
+    @api.depends_context('uid', 'company')
+    def _compute_minutes_form(self):
+        for meeting in self:
+            meeting.check_access('read')
+            meeting.minutes_form = dump_minutes_form(
+                meeting, meeting.sudo().minutes_form_data,
+            )
 
     def _nasq_format_snapshot_datetime(self, value):
         """Render a stored UTC instant in the current report user's locale."""
@@ -79,6 +95,7 @@ class NasqMeetingHistory(models.Model):
                     'attendees', 'agenda', 'minutes',
                 )
             }
+            projected['minutes_form'] = dump_minutes_form(meeting, data.get('minutes_form'))
             projected['resolutions'] = []
             for row in rows:
                 if not isinstance(row, dict):
@@ -87,9 +104,10 @@ class NasqMeetingHistory(models.Model):
                     key: row.get(key)
                     for key in (
                         'id', 'name', 'deadline', 'priority', 'responsible',
-                        'result', 'meeting_name',
+                        'result', 'meeting_name', 'execution_period',
                     )
                 }
+                safe_row['project'] = dump_project_id(meeting, row.get('project_id'))
                 provenance = row.get('task_provenance') or {}
                 task = task_by_resolution.get(row.get('id'))
                 same_task = task and task.id == provenance.get('task_id')
@@ -218,6 +236,8 @@ class NasqMeetingHistory(models.Model):
                 'responsible': _snapshot_person(resolution.responsible_id),
                 'result': resolution.result or '',
                 'meeting_name': origin.name,
+                'execution_period': resolution.execution_period or '',
+                'project_id': resolution.project_id.id if resolution.project_id else None,
                 'task_provenance': provenance,
             })
         return {
@@ -233,4 +253,5 @@ class NasqMeetingHistory(models.Model):
             'agenda': self.agenda or '',
             'minutes': self.minutes or '',
             'resolutions': resolutions,
+            'minutes_form': self.sudo().minutes_form_data if isinstance(self.sudo().minutes_form_data, dict) else None,
         }

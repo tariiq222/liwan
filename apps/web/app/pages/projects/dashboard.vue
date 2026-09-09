@@ -46,6 +46,7 @@ const analytics = useProjectDashboardAnalytics(analyticsFilters)
 const rows = computed(() => analytics.data.value?.projects ?? [])
 const recentRows = computed(() => analytics.data.value?.recent_projects ?? [])
 const filtered = computed(() => Boolean(filters.q.trim()) || filters.status !== 'all')
+const activeFilterCount = computed(() => Number(Boolean(filters.q.trim())) + Number(filters.status !== 'all'))
 
 function applyPatch(patch: Partial<DashboardRouteState>) {
   Object.assign(filters, {
@@ -97,8 +98,8 @@ function clearFilters() {
   <SharedPageContainer width="list" data-testid="project-dashboard-page">
     <SharedPageHeader :title="t('projects.dashboard.title')" :description="t('projects.dashboard.description')" />
 
-    <div class="nasq-toolbar">
-      <FilterBar class="w-full">
+    <div class="w-full min-w-0">
+      <FilterBar class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
         <template #search>
           <div class="relative min-w-52 flex-1">
             <Search class="pointer-events-none absolute start-2 top-1/2 size-[18px] -translate-y-1/2 text-muted-foreground" />
@@ -115,7 +116,12 @@ function clearFilters() {
             <SelectItem v-for="status in PROJECT_STATUSES" :key="status" :value="status">{{ t(`projects.status.${status}`) }}</SelectItem>
           </SelectContent>
         </Select>
-        <Button v-if="filtered" variant="ghost" size="sm" :disabled="!hydrated" @click="clearFilters">{{ t('projects.filters.clear') }}</Button>
+        <template #active>
+          <div v-if="filtered" class="flex flex-wrap items-center gap-2">
+            <Badge v-if="filters.q.trim()" variant="secondary">{{ t('projects.filters.searchValue', { value: filters.q }) }}</Badge>
+            <Badge v-if="filters.status !== 'all'" variant="secondary">{{ t(filters.status === 'unset' ? 'projects.filters.unset' : `projects.status.${filters.status}`) }}</Badge>
+          </div>
+        </template>
       </FilterBar>
     </div>
 

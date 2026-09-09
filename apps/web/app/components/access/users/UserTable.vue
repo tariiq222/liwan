@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { AdminUserSummary } from '@nasq/contracts'
 import AccessStateBadge from '@/components/access/AccessStateBadge.vue'
+import RecordNumber from '@/components/shared/RecordNumber.vue'
 
 defineProps<{ users: AdminUserSummary[] }>()
 defineEmits<{ open: [id: number] }>()
@@ -15,6 +16,7 @@ const roleLabel = (role: { name: { ar: string; en: string | null } }) => role.na
       <Table class="nasq-settings-table">
         <TableHeader>
           <TableRow>
+            <TableHead class="w-28 text-start">{{ t('app.recordNumber') }}</TableHead>
             <TableHead class="text-start">{{ t('access.users.columns.name') }}</TableHead>
             <TableHead class="text-start">{{ t('access.users.columns.login') }}</TableHead>
             <TableHead class="text-start">{{ t('access.users.columns.employee') }}</TableHead>
@@ -25,6 +27,7 @@ const roleLabel = (role: { name: { ar: string; en: string | null } }) => role.na
         </TableHeader>
         <TableBody>
           <TableRow v-for="user in users" :key="user.id">
+            <TableCell class="w-28"><RecordNumber :value="user.id" /></TableCell>
             <TableCell class="font-medium">{{ user.name }}</TableCell>
             <TableCell dir="ltr">{{ user.login }}</TableCell>
             <TableCell>{{ user.employee?.name ?? t('access.users.noEmployee') }}</TableCell>

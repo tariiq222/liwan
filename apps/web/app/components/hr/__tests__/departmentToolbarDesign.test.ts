@@ -11,7 +11,7 @@ const source = readFileSync(
 describe('department list toolbar design', () => {
   it('unifies the list toolbar with FilterBar and a 40px/32px list-tree toggle', () => {
     expect(source).toContain("import FilterBar from '@/components/shared/FilterBar.vue'")
-    expect(source).toContain('class="nasq-toolbar"')
+    expect(source).toContain(':active-count="activeFilterCount"')
     expect(source).not.toMatch(/nasq-toolbar nasq-panel/)
     expect(source).toContain('role="group"')
     expect(source).toContain('h-[40px]')

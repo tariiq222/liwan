@@ -51,6 +51,7 @@ const title = computed(() => resource.value === 'owning-units'
 
 const page = computed(() => Math.floor(offset.value / CHARTER_CATALOG_PAGE_SIZE) + 1)
 const pages = computed(() => Math.max(1, Math.ceil((query.data.value?.total ?? 0) / CHARTER_CATALOG_PAGE_SIZE)))
+const activeFilterCount = computed(() => Number(Boolean(q.value)) + Number(showInactive.value))
 
 function listQuery(next: Record<string, string | undefined> = {}) {
   const current = {
@@ -69,6 +70,10 @@ function onSearch(event: Event) {
 
 function toggleInactive() {
   void router.replace({ query: listQuery({ active: showInactive.value ? undefined : 'all', offset: undefined }) })
+}
+
+function clearFilters() {
+  void router.replace({ query: listQuery({ q: undefined, active: undefined, offset: undefined }) })
 }
 
 function openNew() {
@@ -113,8 +118,8 @@ async function confirmAction() {
     <p v-if="!resource" class="text-muted-foreground">{{ t('settings.projects.catalogs.notFound') }}</p>
     <p v-else-if="forbidden" class="text-muted-foreground">{{ t('settings.forbidden') }}</p>
     <template v-else>
-      <div class="nasq-toolbar" data-testid="catalog-toolbar">
-        <FilterBar class="w-full">
+      <div class="w-full min-w-0" data-testid="catalog-toolbar">
+        <FilterBar class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
           <template #search>
             <div class="relative min-w-52 flex-1">
               <Search class="pointer-events-none absolute start-2 top-1/2 size-[18px] -translate-y-1/2 text-muted-foreground" />
@@ -124,6 +129,12 @@ async function confirmAction() {
           <Button variant="outline" :disabled="!hydrated" :aria-pressed="showInactive" @click="toggleInactive">
             {{ t('settings.projects.catalogs.showInactive') }}
           </Button>
+          <template #active>
+            <div v-if="activeFilterCount" class="flex flex-wrap items-center gap-2">
+              <Badge v-if="q" variant="secondary">{{ q }}</Badge>
+              <Badge v-if="showInactive" variant="secondary">{{ t('settings.projects.catalogs.showInactive') }}</Badge>
+            </div>
+          </template>
         </FilterBar>
       </div>
       <SharedPageState

@@ -36,10 +36,10 @@ const changeRoleJs = ts.transpileModule(changeRoleSource, {
 
 describe('governance list/matrix design', () => {
   it('matches projects toolbar and table primitives on the stakeholder list', () => {
-    expect(projects).toContain('class="nasq-toolbar"')
+    expect(projects).toContain(':active-count="activeFilterCount"')
     expect(projects).toContain('FilterBar')
     expect(inputSource).toContain('h-[40px]')
-    expect(stakeholders).toContain('class="nasq-toolbar"')
+    expect(stakeholders).toContain(':active-count="activeFilterCount"')
     expect(stakeholders).toContain('FilterBar')
     expect(stakeholders).toContain('<Search')
     expect(stakeholders).toContain('h-[40px]')
@@ -73,8 +73,10 @@ describe('governance list/matrix design', () => {
     expect(raci).toContain('confirmRow.value = row')
     expect(raci).not.toContain('nasq-input')
     expect(raci).not.toContain('NativeSelect')
-    expect(raci).not.toContain('FilterBar')
-    expect(raci).not.toContain('class="nasq-toolbar"')
+    expect(raci).toContain('<FilterBar')
+    expect(raci).toContain('@clear="clearFilters"')
+    expect(raci).toContain(':active-count="activeFilterCount"')
+    expect(raci).not.toContain('nasq-toolbar')
     expect(raci).not.toContain('<Table>')
   })
 })

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { AccessAuditSummary } from '@nasq/contracts'
+import RecordNumber from '@/components/shared/RecordNumber.vue'
 
 defineProps<{ events: AccessAuditSummary[] }>()
 const emit = defineEmits<{ open: [id: number] }>()
@@ -29,6 +30,7 @@ function open(id: number) { if (hydrated.value) emit('open', id) }
       <Table class="nasq-settings-table">
         <TableHeader>
           <TableRow>
+            <TableHead class="w-28 text-start">{{ t('app.recordNumber') }}</TableHead>
             <TableHead class="text-start">{{ t('access.audit.columns.time') }}</TableHead>
             <TableHead class="text-start">{{ t('access.audit.columns.actor') }}</TableHead>
             <TableHead class="text-start">{{ t('access.audit.columns.action') }}</TableHead>
@@ -38,6 +40,7 @@ function open(id: number) { if (hydrated.value) emit('open', id) }
         </TableHeader>
         <TableBody>
           <TableRow v-for="event in events" :key="event.id" class="cursor-pointer" @click="open(event.id)">
+            <TableCell class="w-28"><RecordNumber :value="event.id" /></TableCell>
             <TableCell dir="ltr">
               <button type="button" class="rounded text-start hover:underline" :disabled="!hydrated" :aria-label="`${t('access.audit.detailTitle')}: ${d(new Date(event.occurred_at), 'short')}`" @click.stop="open(event.id)">{{ d(new Date(event.occurred_at), 'short') }}</button>
             </TableCell>

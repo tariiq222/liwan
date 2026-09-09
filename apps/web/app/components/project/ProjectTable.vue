@@ -6,6 +6,7 @@ import ProjectMenu from './ProjectMenu.vue'
 import ProjectProgress from './ProjectProgress.vue'
 import ProjectStatusBadge from './ProjectStatusBadge.vue'
 import EmptyState from '@/components/shared/EmptyState.vue'
+import RecordNumber from '@/components/shared/RecordNumber.vue'
 import { formatCalendarDate } from '@/composables/calendarDate'
 import { returnToQuery } from '@/utils/safeReturnTo'
 
@@ -20,6 +21,11 @@ const route = useRoute()
 
 const columnHelper = createColumnHelper<ProjectListItem>()
 const columns = [
+  columnHelper.display({
+    id: 'record_number',
+    header: () => t('app.recordNumber'),
+    cell: (info) => h(RecordNumber, { value: info.row.original.id }),
+  }),
   columnHelper.accessor('name', {
     id: 'name',
     header: () => t('projects.columns.name'),
@@ -29,7 +35,6 @@ const columns = [
         class: 'block truncate font-medium hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
         onClick: (event: MouseEvent) => event.stopPropagation(),
       }, () => info.row.original.name),
-      h('span', { class: 'mt-0.5 block font-mono text-[11px] text-muted-foreground', dir: 'ltr' }, t('projects.projectId', { id: info.row.original.id })),
     ]),
   }),
   columnHelper.display({
@@ -80,14 +85,15 @@ const table = useVueTable({
   <div class="min-w-0 space-y-2">
     <div class="nasq-panel overflow-hidden">
       <div class="overflow-x-auto">
-      <Table class="table-fixed min-w-[820px]" :aria-label="t('projects.title')">
+      <Table class="table-fixed min-w-[860px]" :aria-label="t('projects.title')">
         <colgroup>
-          <col class="w-[28%]" />
-          <col class="w-[14%]" />
-          <col class="w-[16%]" />
-          <col class="w-[14%]" />
-          <col class="w-[20%]" />
-          <col class="w-[8%]" />
+          <col class="w-[10%]" />
+          <col class="w-[30%]" />
+          <col class="w-[12%]" />
+          <col class="w-[12%]" />
+          <col class="w-[12%]" />
+          <col class="w-[18%]" />
+          <col class="w-[6%]" />
         </colgroup>
         <TableHeader>
           <TableRow v-for="headerGroup in table.getHeaderGroups()" :key="headerGroup.id">

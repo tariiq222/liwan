@@ -11,7 +11,7 @@ const pages = [list, create, edit]
 
 describe('charter catalog list design', () => {
   it('uses the shared projects toolbar, search, and control layout', () => {
-    expect(list).toContain('class="nasq-toolbar"')
+    expect(list).toContain(':active-count="activeFilterCount"')
     expect(list).toContain('data-testid="catalog-toolbar"')
     expect(list).toContain('FilterBar')
     expect(list).toContain('#search')

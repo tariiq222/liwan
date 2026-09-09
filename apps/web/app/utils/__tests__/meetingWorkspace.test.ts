@@ -2,8 +2,11 @@ import { describe, expect, it } from 'vitest'
 import {
   calendarCoverage,
   filterMeetingResolutions,
+  groupMeetingsByMonth,
+  prioritizeTimelinePage,
   resolutionActions,
   selectNextMeeting,
+  selectPreviousMeeting,
 } from '../meetingWorkspace'
 
 describe('meeting workspace projections', () => {
@@ -17,6 +20,65 @@ describe('meeting workspace projections', () => {
     ]
 
     expect(selectNextMeeting(meetings, now)?.id).toBe(3)
+  })
+
+  it('chooses the most recent completed meeting and ignores past drafts', () => {
+    const now = new Date('2026-09-09T10:00:00.000Z')
+    const meetings = [
+      { id: 1, meeting_date: '2026-09-08', start_datetime: '2026-09-08T12:00:00.000Z', state: 'draft' },
+      { id: 2, meeting_date: '2026-09-08', start_datetime: '2026-09-08T13:00:00.000Z', state: 'done' },
+      { id: 3, meeting_date: '2026-09-07', start_datetime: '2026-09-07T13:00:00.000Z', state: 'done' },
+    ]
+
+    expect(selectPreviousMeeting(meetings, now)?.id).toBe(2)
+  })
+
+  it('ignores missing or invalid dates instead of inventing an ordering', () => {
+    const now = new Date('2026-09-09T10:00:00.000Z')
+    const meetings = [
+      { id: 1, meeting_date: null, start_datetime: null, state: 'confirmed' },
+      { id: 2, meeting_date: 'not-a-date', start_datetime: null, state: 'done' },
+    ]
+
+    expect(selectNextMeeting(meetings, now)).toBeUndefined()
+    expect(selectPreviousMeeting(meetings, now)).toBeUndefined()
+    expect(groupMeetingsByMonth(meetings, 'en', now, 'Unknown date')[0]?.key).toBe('unknown')
+  })
+
+  it('keeps the latest completed and next meetings in the first progressive timeline page', () => {
+    const now = new Date('2026-09-09T10:00:00.000Z')
+    const meetings = [
+      { id: 1, meeting_date: '2026-08-01', start_datetime: '2026-08-01T10:00:00.000Z', state: 'done' },
+      { id: 2, meeting_date: '2026-09-08', start_datetime: '2026-09-08T10:00:00.000Z', state: 'done' },
+      { id: 3, meeting_date: '2026-09-10', start_datetime: '2026-09-10T10:00:00.000Z', state: 'confirmed' },
+      { id: 4, meeting_date: '2026-12-01', start_datetime: '2026-12-01T10:00:00.000Z', state: 'confirmed' },
+    ]
+
+    expect(prioritizeTimelinePage(meetings, now, 2).map(meeting => meeting.id)).toEqual([2, 3])
+  })
+
+  it('preserves a caller-selected ordering while grouping timeline rows', () => {
+    const now = new Date('2026-09-09T10:00:00.000Z')
+    const meetings = [
+      { id: 1, name: 'Alpha', meeting_date: '2026-09-10', start_datetime: '2026-09-10T10:00:00.000Z', state: 'confirmed' },
+      { id: 2, name: 'Beta', meeting_date: '2026-10-08', start_datetime: '2026-10-08T10:00:00.000Z', state: 'confirmed' },
+      { id: 3, name: 'Charlie', meeting_date: '2026-09-08', start_datetime: '2026-09-08T10:00:00.000Z', state: 'done' },
+    ]
+
+    expect(groupMeetingsByMonth(meetings, 'en', now, 'Unknown date', true).flatMap(group => group.meetings).map(meeting => meeting.id)).toEqual([1, 2, 3])
+    expect(groupMeetingsByMonth(meetings, 'en', now, 'Unknown date', true).map(group => group.key)).toEqual(['2026-09-0', '2026-10-1', '2026-09-2'])
+  })
+
+  it('orders timeline month groups from the latest past into upcoming months', () => {
+    const now = new Date('2026-09-09T10:00:00.000Z')
+    const meetings = [
+      { id: 1, meeting_date: '2026-12-01', start_datetime: '2026-12-01T10:00:00.000Z', state: 'confirmed' },
+      { id: 2, meeting_date: '2026-08-01', start_datetime: '2026-08-01T10:00:00.000Z', state: 'done' },
+      { id: 3, meeting_date: '2026-10-01', start_datetime: '2026-10-01T10:00:00.000Z', state: 'confirmed' },
+      { id: 4, meeting_date: '2026-09-01', start_datetime: '2026-09-01T10:00:00.000Z', state: 'done' },
+    ]
+
+    expect(groupMeetingsByMonth(meetings, 'en', now).map(group => group.key)).toEqual(['2026-09', '2026-08', '2026-10', '2026-12'])
   })
 
   it('filters recommendations by status and searchable text', () => {

@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { Plus, Search, X } from '@lucide/vue'
+import { Plus, Search } from '@lucide/vue'
 import FilterBar from '@/components/shared/FilterBar.vue'
+import RecordNumber from '@/components/shared/RecordNumber.vue'
 import { useHrDocuments } from '@/composables/useHrDocuments'
 import { useHrDepartments } from '@/composables/useHrDepartments'
 import { returnToQuery } from '@/utils/safeReturnTo'
@@ -34,6 +35,7 @@ const page = computed(() => Math.floor(committedListParams.value.offset / limit)
 const pages = computed(() => Math.max(1, Math.ceil((query.data.value?.total ?? 0) / limit)))
 const selectedDepartment = computed(() => departments.data.value?.items.find(department => department.id === departmentId.value))
 const hasActiveFilters = computed(() => Boolean(search.value.trim() || departmentId.value))
+const activeFilterCount = computed(() => Number(Boolean(search.value.trim())) + Number(Boolean(departmentId.value)))
 
 watch(() => [route.query.q, route.query.department_id, route.query.offset], ([q, department, nextOffset]) => {
   search.value = String(q ?? '')
@@ -85,8 +87,8 @@ function setPage(next: number) {
         </NuxtLink>
       </template>
     </SharedPageHeader>
-    <div class="nasq-toolbar" data-testid="documents-toolbar">
-      <FilterBar class="w-full">
+    <div class="w-full min-w-0" data-testid="documents-toolbar">
+      <FilterBar class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
         <template #search>
           <div class="relative min-w-52">
             <Search class="pointer-events-none absolute start-2 top-1/2 size-[18px] -translate-y-1/2 text-muted-foreground" />
@@ -121,9 +123,6 @@ function setPage(next: number) {
           <div v-if="hasActiveFilters" class="flex flex-wrap items-center gap-2">
             <Badge v-if="search.trim()" variant="secondary">{{ t('hr.directory.searchValue', { value: search }) }}</Badge>
             <Badge v-if="selectedDepartment" variant="secondary">{{ selectedDepartment.name }}</Badge>
-            <Button variant="ghost" size="sm" class="gap-1" :disabled="!hydrated" @click="clearFilters">
-              <X class="size-3.5" />{{ t('hr.directory.clear') }}
-            </Button>
           </div>
         </template>
       </FilterBar>
@@ -137,9 +136,10 @@ function setPage(next: number) {
     >
       <div class="nasq-panel overflow-hidden">
         <div class="overflow-x-auto">
-          <Table>
+          <Table class="min-w-[520px]">
           <TableHeader>
             <TableRow>
+              <TableHead class="w-28 text-start">{{ t('app.recordNumber') }}</TableHead>
               <TableHead class="text-start">{{ t('hr.docs.columns.name') }}</TableHead>
               <TableHead class="text-start">{{ t('hr.docs.columns.department') }}</TableHead>
             </TableRow>
@@ -151,6 +151,7 @@ function setPage(next: number) {
               class="cursor-pointer transition-colors hover:bg-muted/30"
               @click="navigateTo({ path: `/hr/departments/${document.department.id}/documents/${document.id}`, query: returnToQuery(route.fullPath) })"
             >
+              <TableCell class="w-28"><RecordNumber :value="document.id" /></TableCell>
               <TableCell class="font-medium">{{ document.name }}</TableCell>
               <TableCell class="text-muted-foreground">{{ document.department.name }}</TableCell>
             </TableRow>

@@ -231,9 +231,9 @@ html[dir="rtl"] body { padding-right: 0 !important; }
 .nasq-context-link:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
 .nasq-context-link[data-active="true"] { border-radius: 0; background: transparent; border-block-end-color: var(--brand-link); color: var(--brand-link); font-weight: 600; }
 .nasq-context-link[data-active="true"]:hover { background: transparent; color: var(--brand-link); }
-.nasq-context-create { border: 0; border-block-end: 2px solid color-mix(in srgb, var(--brand-link) 28%, var(--border)); border-radius: 0; background: transparent; color: var(--brand-link); font-weight: 600; }
-.nasq-context-create:hover { border-block-end-color: var(--brand-link); background: transparent; color: var(--brand-link); }
-.nasq-context-create[data-active="true"] { border-block-end-color: var(--brand-link); background: transparent; color: var(--brand-link); }
+.nasq-context-create { border: 0; border-radius: 0; background: transparent; color: var(--brand-link); font-weight: 600; }
+.nasq-context-create:hover { background: transparent; color: var(--brand-link); }
+.nasq-context-create[data-active="true"] { border: 0; background: transparent; color: var(--brand-link); }
 .nasq-chat-conversation-link { display: flex; min-height: 42px; align-items: center; gap: 12px; margin-inline: 8px; border-radius: 9px; padding: 8px 10px; color: var(--foreground); text-align: start; text-decoration: none; }
 .nasq-chat-conversation-link:hover { background: color-mix(in srgb, var(--foreground) 6%, var(--context-surface)); }
 .nasq-chat-conversation-link:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }

@@ -20,4 +20,4 @@ from . import (
 # Load the history extension after the Cyan meeting model and PMO mixins so
 # its completion override remains the final layer in the model MRO.
 # isort: split
-from . import meeting_history
+from . import meeting_history, meeting_workspace

@@ -164,8 +164,10 @@ class MeetingController(http.Controller):
 
     @http.route('/api/v1/meetings', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
-    def create_meeting(self, name=None, meeting_date=None, location=None, start_datetime=None, end_datetime=None, meeting_url=None, attendee_ids=None, secretary_id=None, agenda=None, series_id=None, project_id=None, **_):
+    def create_meeting(self, name=None, meeting_date=None, location=None, start_datetime=None, end_datetime=None, meeting_url=None, attendee_ids=None, secretary_id=None, agenda=None, series_id=None, project_id=None, minutes_form=None, **extra):
         request.env['nasq.access.service']._nasq_require_capability('meetings.create')
+        if extra:
+            raise ApiError(422, 'invalid', 'unsupported meeting fields: %s' % ', '.join(sorted(extra)))
         body = request.get_json_data() if request.httprequest.content_length else {}
         if not isinstance(body, dict):
             body = {}
@@ -211,7 +213,10 @@ class MeetingController(http.Controller):
             vals['series_id'] = parse_positive_int(series_id, 'series_id')
         if project_id:
             vals['project_id'] = parse_positive_int(project_id, 'project_id')
-        meeting = request.env['cyan.meeting.minute'].create(vals)
+        with request.env.cr.savepoint():
+            meeting = request.env['cyan.meeting.minute'].create(vals)
+            if minutes_form is not None:
+                meeting._nasq_set_minutes_form(minutes_form)
         return request.make_json_response(dump_meeting(meeting, detail=True), status=201)
 
     @http.route('/api/v1/meetings/<int:meeting_id>', type='json2', auth='user', methods=['PATCH'], readonly=False)
@@ -220,6 +225,14 @@ class MeetingController(http.Controller):
         request.env['nasq.access.service']._nasq_require_capability('meetings.read')
         meeting = get_record('cyan.meeting.minute', meeting_id)
         payload.pop('meeting_id', None)
+        allowed = {
+            'name', 'location', 'agenda', 'minutes', 'meeting_date', 'secretary_id',
+            'attendee_ids', 'start_datetime', 'end_datetime', 'meeting_url',
+            'series_id', 'project_id', 'scope', 'minutes_form',
+        }
+        unsupported = set(payload) - allowed
+        if unsupported:
+            raise ApiError(422, 'invalid', 'unsupported meeting fields: %s' % ', '.join(sorted(unsupported)))
         vals = {}
         for field in ('name', 'location', 'agenda', 'minutes'):
             if field in payload:
@@ -266,15 +279,21 @@ class MeetingController(http.Controller):
             vals['series_id'] = parse_positive_int(payload['series_id'], 'series_id')
         if 'project_id' in payload:
             vals['project_id'] = parse_positive_int(payload['project_id'], 'project_id') if payload['project_id'] else False
-        if not vals:
+        has_minutes_form = 'minutes_form' in payload
+        if has_minutes_form:
+            meeting._nasq_validate_minutes_form(payload['minutes_form'])
+        if not vals and not has_minutes_form:
             raise ApiError(422, 'invalid', 'no fields to update')
         scope = payload.get('scope') or 'this'
         if scope not in {'this', 'this_and_following'}:
             raise ApiError(422, 'invalid', 'invalid scope', field='scope')
-        if scope == 'this_and_following':
-            meeting.action_apply_schedule_scope(vals, scope)
-        else:
-            meeting.write(vals)
+        with request.env.cr.savepoint():
+            if scope == 'this_and_following' and vals:
+                meeting.action_apply_schedule_scope(vals, scope)
+            elif vals:
+                meeting.write(vals)
+            if has_minutes_form:
+                meeting._nasq_set_minutes_form(payload['minutes_form'])
         return dump_meeting(meeting, detail=True)
 
     @http.route('/api/v1/meetings/<int:meeting_id>/cancel', type='json2', auth='user', methods=['POST'], readonly=False)
@@ -289,19 +308,33 @@ class MeetingController(http.Controller):
 
     @http.route('/api/v1/meetings/<int:meeting_id>/resolutions', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
-    def create_resolution(self, meeting_id, name=None, responsible_id=None, deadline=None, priority=None, **_):
+    def create_resolution(self, meeting_id, name=None, responsible_id=None, deadline=None, priority=None, execution_period=None, project_id=None, **extra):
         request.env['nasq.access.service']._nasq_require_capability('meetings.read')
+        if extra:
+            raise ApiError(422, 'invalid', 'unsupported resolution fields: %s' % ', '.join(sorted(extra)))
         meeting = get_record('cyan.meeting.minute', meeting_id)
         if not isinstance(name, str) or not name.strip():
             raise ApiError(422, 'invalid', 'name must not be empty', field='name')
-        if not isinstance(deadline, str) or not deadline.strip():
-            raise ApiError(422, 'invalid', 'deadline is required', field='deadline')
+        if deadline is not None and (not isinstance(deadline, str) or not deadline.strip()):
+            raise ApiError(422, 'invalid', 'deadline must be YYYY-MM-DD or null', field='deadline')
+        if execution_period is not None and (not isinstance(execution_period, str) or len(execution_period) > 500):
+            raise ApiError(422, 'invalid', 'execution_period must be a string of at most 500 characters', field='execution_period')
+        if not (deadline and deadline.strip()) and not (execution_period or '').strip():
+            raise ApiError(422, 'invalid', 'deadline or execution_period is required', field='deadline')
         vals = {
             'meeting_id': meeting.id,
             'name': name.strip(),
             'responsible_id': parse_positive_int(responsible_id, 'responsible_id'),
-            'deadline': _parse_deadline(deadline),
+            'deadline': _parse_deadline(deadline) if deadline else False,
         }
+        if execution_period is not None:
+            vals['execution_period'] = execution_period.strip()
+        if project_id is not None:
+            project = get_record('project.project', parse_positive_int(project_id, 'project_id'))
+            if project.company_id != request.env.company:
+                raise ApiError(422, 'invalid', 'project_id must belong to the current company', field='project_id')
+            project.check_access('read')
+            vals['project_id'] = project.id
         if priority is not None:
             if not isinstance(priority, str) or priority not in {'0', '1', '2', '3'}:
                 raise ApiError(422, 'invalid', 'priority must be one of 0, 1, 2, or 3', field='priority')
@@ -369,13 +402,18 @@ class MeetingController(http.Controller):
     def patch_resolution(self, meeting_id, resolution_id, **payload):
         request.env['nasq.access.service']._nasq_require_capability('meetings.read')
         _meeting, resolution = self._resolution(meeting_id, resolution_id)
+        payload.pop('meeting_id', None)
+        allowed = {'name', 'deadline', 'responsible_id', 'priority', 'result', 'execution_period', 'project_id'}
+        unsupported = set(payload) - allowed
+        if unsupported:
+            raise ApiError(422, 'invalid', 'unsupported resolution fields: %s' % ', '.join(sorted(unsupported)))
         vals = {}
         if 'name' in payload:
             if not isinstance(payload['name'], str) or not payload['name'].strip():
                 raise ApiError(422, 'invalid', 'name must not be empty', field='name')
             vals['name'] = payload['name'].strip()
         if 'deadline' in payload:
-            vals['deadline'] = _parse_deadline(payload['deadline'])
+            vals['deadline'] = _parse_deadline(payload['deadline']) if payload['deadline'] else False
         if payload.get('responsible_id'):
             vals['responsible_id'] = parse_positive_int(payload['responsible_id'], 'responsible_id')
         if 'priority' in payload:
@@ -386,6 +424,24 @@ class MeetingController(http.Controller):
             if payload['result'] is not None and not isinstance(payload['result'], str):
                 raise ApiError(422, 'invalid', 'result must be a string', field='result')
             vals['result'] = payload['result'] or ''
+        if 'execution_period' in payload:
+            if payload['execution_period'] is not None and (not isinstance(payload['execution_period'], str) or len(payload['execution_period']) > 500):
+                raise ApiError(422, 'invalid', 'execution_period must be a string of at most 500 characters', field='execution_period')
+            vals['execution_period'] = (payload['execution_period'] or '').strip()
+        if 'project_id' in payload:
+            if payload['project_id']:
+                project = get_record('project.project', parse_positive_int(payload['project_id'], 'project_id'))
+                if project.company_id != request.env.company:
+                    raise ApiError(422, 'invalid', 'project_id must belong to the current company', field='project_id')
+                project.check_access('read')
+                vals['project_id'] = project.id
+            else:
+                vals['project_id'] = False
+        if 'deadline' in payload or 'execution_period' in payload:
+            proposed_deadline = vals.get('deadline', resolution.deadline)
+            proposed_period = vals.get('execution_period', resolution.execution_period)
+            if not proposed_deadline and not (proposed_period or '').strip():
+                raise ApiError(422, 'invalid', 'deadline or execution_period is required', field='deadline')
         if not vals:
             raise ApiError(422, 'invalid', 'no fields to update')
         resolution.write(vals)

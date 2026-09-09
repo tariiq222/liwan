@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import EmptyState from '@/components/shared/EmptyState.vue'
+import FilterBar from '@/components/shared/FilterBar.vue'
 import { ApiError } from '@/composables/useApi'
 import { CHAT_PAGE_SIZE, initialsFor, isFatalChatStatus, nextListOffset, serializeChatListRoute, type ChatListRoute } from '@/utils/chatState'
 
@@ -14,6 +15,7 @@ const { data, isError, isFetching, refetch, error } = useChatConversations(() =>
 const items = computed(() => data.value?.items ?? [])
 const total = computed(() => data.value?.total ?? 0)
 const q = ref(props.routeState.q)
+const activeFilterCount = computed(() => Number(Boolean(props.routeState.q.trim())) + Number(props.routeState.filter !== 'all'))
 const timeFmt = computed(() => new Intl.DateTimeFormat(locale.value, { hour: '2-digit', minute: '2-digit', calendar: 'gregory' }))
 watch(() => props.routeState.q, value => { q.value = value })
 watch(error, (value) => {
@@ -26,6 +28,15 @@ function setFilter(filter: ChatListRoute['filter']) {
 function applySearch() {
   emit('update:routeState', { ...props.routeState, q: q.value, offset: 0 })
 }
+function clearFilters() {
+  q.value = ''
+  emit('update:routeState', { ...props.routeState, q: '', filter: 'all', offset: 0 })
+}
+function filterLabel(filter: ChatListRoute['filter']) {
+  if (filter === 'unread') return t('chat.filterUnread')
+  if (filter === 'groups') return t('chat.filterGroups')
+  return t('chat.filterAll')
+}
 function page(delta: number) {
   emit('update:routeState', { ...props.routeState, offset: nextListOffset(props.routeState.offset, total.value, delta) })
 }
@@ -36,14 +47,29 @@ function conversationTo(id: number) {
 
 <template>
   <section class="flex h-full min-h-0 flex-col" data-testid="chat-list">
-    <form class="flex flex-col gap-2 p-3" @submit.prevent="applySearch">
-      <Input v-model="q" :placeholder="t('chat.search')" :disabled="!hydrated" />
-      <div class="flex flex-wrap gap-2">
+    <div class="min-w-0 shrink-0 p-3">
+    <FilterBar
+      class="w-full"
+      :active-count="activeFilterCount"
+      :disabled="!hydrated"
+      @clear="clearFilters"
+    >
+      <template #search>
+        <form class="flex min-w-0 flex-col gap-2" @submit.prevent="applySearch">
+          <Input v-model="q" :placeholder="t('chat.search')" :disabled="!hydrated" />
+        </form>
+      </template>
+      <template #view>
         <Button type="button" size="sm" :variant="props.routeState.filter === 'all' ? 'default' : 'outline'" :disabled="!hydrated" @click="setFilter('all')">{{ t('chat.filterAll') }}</Button>
         <Button type="button" size="sm" :variant="props.routeState.filter === 'unread' ? 'default' : 'outline'" :disabled="!hydrated" @click="setFilter('unread')">{{ t('chat.filterUnread') }}</Button>
         <Button type="button" size="sm" :variant="props.routeState.filter === 'groups' ? 'default' : 'outline'" :disabled="!hydrated" @click="setFilter('groups')">{{ t('chat.filterGroups') }}</Button>
-      </div>
-    </form>
+      </template>
+      <template #active>
+        <Badge v-if="props.routeState.q.trim()" variant="secondary">{{ props.routeState.q }}</Badge>
+        <Badge v-if="props.routeState.filter !== 'all'" variant="secondary">{{ filterLabel(props.routeState.filter) }}</Badge>
+      </template>
+    </FilterBar>
+    </div>
     <div v-if="isError" class="grid gap-2 p-4 text-center" role="alert">
       <p class="text-sm text-destructive">{{ t('chat.unavailable') }}</p>
       <Button type="button" variant="outline" size="sm" class="mx-auto" :disabled="!hydrated || isFetching" @click="refetch()">{{ t('app.retry') }}</Button>

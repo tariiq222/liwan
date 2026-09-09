@@ -3,6 +3,7 @@ import ProjectStatusBadge from '@/components/project/ProjectStatusBadge.vue'
 import { formatNullablePercent } from '@/utils/projectFinance'
 import { returnToQuery } from '@/utils/safeReturnTo'
 import type { DashboardProject } from '@/utils/projectChartData'
+import RecordNumber from '@/components/shared/RecordNumber.vue'
 
 const props = defineProps<{ rows: readonly DashboardProject[] }>()
 const { t, locale } = useI18n()
@@ -31,9 +32,10 @@ function updatedAt(value: string | null | undefined) {
       <NuxtLink :to="{ path: '/projects', query: projectListQuery }" class="shrink-0 text-sm font-medium text-brand-link underline-offset-4 hover:underline">{{ t('projects.dashboard.allProjects') }}</NuxtLink>
     </header>
     <div class="overflow-x-auto">
-      <Table class="min-w-[620px]">
+      <Table class="min-w-[680px]">
         <TableHeader>
           <TableRow>
+            <TableHead class="w-28 text-start">{{ t('app.recordNumber') }}</TableHead>
             <TableHead class="text-start">{{ t('projects.dashboard.recentProject') }}</TableHead>
             <TableHead class="text-start">{{ t('projects.dashboard.recentStatus') }}</TableHead>
             <TableHead class="text-start">{{ t('projects.dashboard.recentProgress') }}</TableHead>
@@ -42,9 +44,10 @@ function updatedAt(value: string | null | undefined) {
         </TableHeader>
         <TableBody>
           <TableRow v-if="rows.length === 0">
-            <TableCell colspan="4" class="py-8 text-center text-sm text-muted-foreground">{{ t('projects.dashboard.noRecentProjects') }}</TableCell>
+            <TableCell colspan="5" class="py-8 text-center text-sm text-muted-foreground">{{ t('projects.dashboard.noRecentProjects') }}</TableCell>
           </TableRow>
           <TableRow v-for="row in rows" :key="row.project.id" data-testid="recent-project-row">
+            <TableCell><RecordNumber :value="row.project.id" /></TableCell>
             <TableCell>
               <NuxtLink :to="{ path: `/projects/${row.project.id}`, query: returnToQuery(route.fullPath) }" class="font-medium hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{{ row.project.name }}</NuxtLink>
             </TableCell>

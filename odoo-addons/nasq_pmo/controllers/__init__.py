@@ -2,6 +2,7 @@
 from . import (
     meeting_attachments,
     meeting_series,
+    meeting_workspace,
     meetings,
     milestones,
     notifications,

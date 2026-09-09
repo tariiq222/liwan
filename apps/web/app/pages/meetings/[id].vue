@@ -1,4 +1,9 @@
 <script setup lang="ts">
+import FilterBar from '@/components/shared/FilterBar.vue'
+import MeetingEventList from '@/components/meetings/MeetingEventList.vue'
+import MeetingMinutesDocument from '@/components/meetings/MeetingMinutesDocument.vue'
+import MeetingVersionList from '@/components/meetings/MeetingVersionList.vue'
+import { formatMeetingDate, type MeetingMinutesFormValue, type MeetingMinutesRecommendation } from '@/components/meetings/meetingMinutesForm'
 import { Trash2 } from '@lucide/vue'
 import { toast } from 'vue-sonner'
 import { ApiError } from '@/composables/useApi'
@@ -11,6 +16,7 @@ import {
   useResolutionAction,
   useUploadMeetingAttachment,
 } from '@/composables/useMeetings'
+import { useMeetingEvents, useMeetingVersions } from '@/composables/useMeetingWorkspace'
 import { useProjects } from '@/composables/useProjects'
 import { returnToQuery, safeReturnTo } from '@/utils/safeReturnTo'
 import { formatLocalDateTime } from '@/utils/meetingDateTime'
@@ -47,17 +53,66 @@ const recommendationSearch = ref('')
 const recommendationState = ref('')
 const projectSearch = ref<Record<number, string>>({})
 const activeTab = computed<MeetingTab>(() => meetingTabFromRoute(route.query.tab, hydrated.value ? route.hash : undefined))
+const historicalSnapshot = computed(() => query.data.value?.state === 'done' ? query.data.value?.minutes_snapshot ?? null : null)
+const doneWithoutSnapshot = computed(() => query.data.value?.state === 'done' && !historicalSnapshot.value)
 const filteredResolutions = computed(() => filterMeetingResolutions(query.data.value?.resolutions ?? [], {
   q: recommendationSearch.value,
   state: recommendationState.value,
 }))
+const eventPage = ref(1)
+const versionPage = ref(1)
+const selectedVersionId = ref<number | null>(null)
+const workspacePageSize = 25
+const eventQuery = useMeetingEvents(
+  computed(() => activeTab.value === 'history' && isDetail.value ? id.value : null),
+  computed(() => ({ limit: workspacePageSize, offset: (eventPage.value - 1) * workspacePageSize })),
+)
+const versionQuery = useMeetingVersions(
+  computed(() => activeTab.value === 'versions' && isDetail.value ? id.value : null),
+  computed(() => ({ limit: workspacePageSize, offset: (versionPage.value - 1) * workspacePageSize })),
+)
+type VersionSnapshot = {
+  name?: string
+  meeting_date?: string | null
+  start_datetime?: string | null
+  end_datetime?: string | null
+  location?: string
+  organizer?: { id: number; name: string } | null
+  secretary?: { id: number; name: string } | null
+  attendees?: Array<{ id: number; name: string }>
+  agenda?: string
+  minutes?: string
+  minutes_form?: MeetingMinutesFormValue | null
+  resolutions?: MeetingMinutesRecommendation[]
+}
+type VersionRow = { id: number; number: number; captured_at: string; actor: { id: number; name: string } | null; snapshot: VersionSnapshot }
+const eventRows = computed(() => (eventQuery.data.value as unknown as { items: Array<{ id: number; meeting_id: number; meeting_name: string; occurred_at: string; actor: { id: number; name: string } | null; kind: string; summary: string }>; total: number } | undefined)?.items ?? [])
+const eventTotal = computed(() => (eventQuery.data.value as unknown as { total?: number } | undefined)?.total ?? 0)
+const versionRows = computed(() => (versionQuery.data.value as unknown as { items: VersionRow[]; total: number } | undefined)?.items ?? [])
+const versionTotal = computed(() => (versionQuery.data.value as unknown as { total?: number } | undefined)?.total ?? 0)
+const selectedVersion = computed(() => versionRows.value.find(version => version.id === selectedVersionId.value) ?? null)
+const currentMinutesForm = computed(() => (query.data.value as typeof query.data.value & { minutes_form?: MeetingMinutesFormValue | null } | undefined)?.minutes_form ?? null)
+const historicalMinutesForm = computed(() => (historicalSnapshot.value as typeof historicalSnapshot.value & { minutes_form?: MeetingMinutesFormValue | null } | null)?.minutes_form ?? null)
+const historicalRecommendations = computed(() => (historicalSnapshot.value as typeof historicalSnapshot.value & { resolutions?: MeetingMinutesRecommendation[] } | null)?.resolutions ?? [])
 
 async function onTabChange(value: unknown) {
   if (!hydrated.value || !isMeetingTab(value) || value === activeTab.value) return
   await router.push({ query: meetingTabQuery(route.query, value), hash: '' })
 }
-const historicalSnapshot = computed(() => query.data.value?.state === 'done' ? query.data.value?.minutes_snapshot ?? null : null)
-const doneWithoutSnapshot = computed(() => query.data.value?.state === 'done' && !historicalSnapshot.value)
+function selectVersion(version: VersionRow) {
+  selectedVersionId.value = version.id
+}
+function goToEventPage(page: number) {
+  eventPage.value = page
+}
+function goToVersionPage(page: number) {
+  versionPage.value = page
+  selectedVersionId.value = null
+}
+watch(versionRows, rows => {
+  const first = rows[0]
+  if (first && !rows.some(row => row.id === selectedVersionId.value)) selectedVersionId.value = first.id
+}, { immediate: true })
 
 type ResolutionExecutionState = 'open' | 'in_progress' | 'done' | 'cancelled'
 
@@ -246,7 +301,7 @@ async function confirmResolutionAction() {
       </template>
       <template #actions>
         <Button as-child type="button" variant="outline">
-          <a :href="`/api/v1/meetings/${id}/minutes.pdf`">{{ t('meetingsUi.pdf') }}</a>
+          <NuxtLink :to="{ path: `/meetings/${id}/print`, query: { ...returnToQuery(route.fullPath) } }">{{ t('meetingMinutesForm.printPreview') }}</NuxtLink>
         </Button>
         <Button v-if="query.data.value?.can_edit && pendingResolutionIds.size === 0" as-child type="button" variant="outline">
           <NuxtLink :to="{ path: `/meetings/${id}/edit`, query: returnToQuery(route.fullPath) }">{{ t('app.edit') }}</NuxtLink>
@@ -286,6 +341,8 @@ async function confirmResolutionAction() {
               <TabsTrigger value="minutes" class="data-[state=active]:text-brand-link" :disabled="!hydrated">{{ t('meetingsUi.minutes') }}</TabsTrigger>
               <TabsTrigger value="resolutions" class="data-[state=active]:text-brand-link" :disabled="!hydrated">{{ t('meetingsUi.resolutions') }} ({{ query.data.value.resolutions.length }})</TabsTrigger>
               <TabsTrigger value="attachments" class="data-[state=active]:text-brand-link" :disabled="!hydrated">{{ t('meetingsUi.attachmentsTitle') }} ({{ attachments.data.value?.items.length ?? 0 }})</TabsTrigger>
+              <TabsTrigger value="history" class="data-[state=active]:text-brand-link" :disabled="!hydrated">{{ t('meetingMinutesForm.history') }}</TabsTrigger>
+              <TabsTrigger value="versions" class="data-[state=active]:text-brand-link" :disabled="!hydrated">{{ t('meetingMinutesForm.versions') }}</TabsTrigger>
             </TabsList>
           </div>
           <TabsContent value="summary" class="meeting-tab-panel">
@@ -296,7 +353,7 @@ async function confirmResolutionAction() {
               <section class="meeting-summary-group">
                 <h3 class="meeting-subheading">{{ t('meetingsUi.sectionSchedule') }}</h3>
                 <dl class="meeting-meta-grid">
-                  <div class="meeting-meta-item"><dt>{{ t('meetingsUi.date') }}</dt><dd>{{ displayValue(query.data.value.meeting_date) }}</dd></div>
+                  <div class="meeting-meta-item"><dt>{{ t('meetingsUi.date') }}</dt><dd>{{ formatMeetingDate(query.data.value.meeting_date, locale) }}</dd></div>
                   <div class="meeting-meta-item"><dt>{{ t('meetingsUi.start') }}</dt><dd>{{ hydrated ? displayValue(localTime(query.data.value.start_datetime)) : '—' }}</dd></div>
                   <div class="meeting-meta-item"><dt>{{ t('meetingsUi.end') }}</dt><dd>{{ hydrated ? displayValue(localTime(query.data.value.end_datetime)) : '—' }}</dd></div>
                   <div class="meeting-meta-item"><dt>{{ t('meetingsUi.location') }}</dt><dd>{{ displayValue(query.data.value.location) }}</dd></div>
@@ -335,17 +392,26 @@ async function confirmResolutionAction() {
           </section>
         </TabsContent>
         <TabsContent value="minutes" class="meeting-tab-panel">
-          <section id="meeting-minutes" class="nasq-panel meeting-rich-panel">
+          <div class="flex flex-wrap items-center justify-end gap-2"><Button v-if="!historicalSnapshot && query.data.value.can_edit && pendingResolutionIds.size === 0" as-child size="sm"><NuxtLink :to="{ path: `/meetings/${id}/minutes`, query: returnToQuery(route.fullPath) }">{{ t('meetingsUx.editMinutes') }}</NuxtLink></Button></div>
+          <MeetingMinutesDocument
+            v-if="historicalSnapshot || currentMinutesForm"
+            :meeting="query.data.value"
+            :snapshot="historicalSnapshot"
+            :form="historicalSnapshot ? historicalMinutesForm : currentMinutesForm"
+            :recommendations="historicalSnapshot ? historicalRecommendations : query.data.value.resolutions"
+            :legacy-agenda="historicalSnapshot ? historicalSnapshot.agenda : query.data.value.agenda"
+            :legacy-minutes="historicalSnapshot ? historicalSnapshot.minutes : query.data.value.minutes"
+            :legacy-recommendations="historicalSnapshot ? historicalRecommendations : query.data.value.resolutions"
+            :title="t('meetingMinutesForm.documentTitle')"
+          />
+          <section v-if="!historicalSnapshot && !currentMinutesForm" id="meeting-minutes" class="nasq-panel meeting-rich-panel">
             <div class="nasq-panel-header">
               <h2>{{ t('meetingsUi.minutes') }}</h2>
-              <div class="flex min-w-0 flex-wrap items-center gap-2">
-                <span v-if="historicalSnapshot" class="text-xs text-muted-foreground">{{ t('meetingsUx.historicalMinutesTitle') }} · {{ t('meetingsUx.capturedAt', { captured_at: historicalSnapshot.captured_at }) }}</span>
-                <Button v-if="!historicalSnapshot && query.data.value.can_edit && pendingResolutionIds.size === 0" as-child size="sm"><NuxtLink :to="{ path: `/meetings/${id}/minutes`, query: returnToQuery(route.fullPath) }">{{ t('meetingsUx.editMinutes') }}</NuxtLink></Button>
-              </div>
+
             </div>
             <div class="nasq-panel-body">
               <p v-if="doneWithoutSnapshot" class="mb-3 text-xs text-muted-foreground">{{ t('meetingsUx.historyUnavailable') }} {{ t('meetingsUx.currentContentAfterMissingHistory') }}</p>
-              <div v-if="hasRichText(historicalSnapshot ? historicalSnapshot.minutes : query.data.value.minutes)" class="meeting-rich-text" v-html="historicalSnapshot ? historicalSnapshot.minutes : query.data.value.minutes" />
+              <div v-if="hasRichText(query.data.value.minutes)" class="meeting-rich-text" v-html="query.data.value.minutes" />
               <p v-else class="meeting-empty">{{ t('meetingsUi.emptyMinutes') }}</p>
             </div>
           </section>
@@ -367,22 +433,67 @@ async function confirmResolutionAction() {
             </div>
           </section>
         </TabsContent>
+        <TabsContent value="history" class="meeting-tab-panel">
+          <MeetingEventList
+            :events="eventRows"
+            :loading="eventQuery.isLoading.value"
+            :error="eventQuery.error.value"
+            :total="eventTotal"
+            :page="eventPage"
+            :page-size="workspacePageSize"
+            @retry="eventQuery.refetch"
+            @page="goToEventPage"
+          />
+        </TabsContent>
+        <TabsContent value="versions" class="meeting-tab-panel">
+          <MeetingVersionList
+            :versions="versionRows"
+            :loading="versionQuery.isLoading.value"
+            :error="versionQuery.error.value"
+            :total="versionTotal"
+            :page="versionPage"
+            :page-size="workspacePageSize"
+            :selected-id="selectedVersionId"
+            @retry="versionQuery.refetch"
+            @page="goToVersionPage"
+            @select="selectVersion"
+          />
+          <div v-if="selectedVersion" class="flex justify-end">
+            <Button as-child variant="outline" size="sm"><NuxtLink :to="{ path: `/meetings/${id}/print`, query: { ...returnToQuery(route.fullPath), version_id: selectedVersion.id } }">{{ t('meetingMinutesForm.printPreview') }}</NuxtLink></Button>
+          </div>
+          <MeetingMinutesDocument
+            v-if="selectedVersion"
+            :meeting="query.data.value"
+            :snapshot="selectedVersion.snapshot"
+            :form="selectedVersion.snapshot.minutes_form"
+            :recommendations="selectedVersion.snapshot.resolutions || []"
+            :legacy-agenda="selectedVersion.snapshot.agenda"
+            :legacy-minutes="selectedVersion.snapshot.minutes"
+            :legacy-recommendations="selectedVersion.snapshot.resolutions || []"
+            :title="t('meetingMinutesForm.versionDocumentTitle', { number: selectedVersion.number })"
+          />
+        </TabsContent>
         <TabsContent value="resolutions" class="meeting-tab-panel">
         <section id="meeting-resolutions" class="nasq-panel meeting-section">
           <div class="nasq-panel-header">
             <div class="flex min-w-0 flex-wrap items-center gap-2"><h2>{{ t('meetingsUi.resolutions') }}</h2><Badge variant="secondary">{{ query.data.value.resolutions.length }}</Badge><span class="text-xs text-muted-foreground">{{ t('meetingsUx.currentFollowUp') }}</span></div>
-            <Button v-if="query.data.value.can_edit" as-child size="sm">
+            <Button v-if="query.data.value.can_edit && !['done', 'cancelled'].includes(query.data.value.state)" as-child size="sm">
               <NuxtLink :to="{ path: `/meetings/${id}/resolutions/new`, query: returnToQuery(route.fullPath) }">{{ t('meetingsUi.newResolution') }}</NuxtLink>
             </Button>
           </div>
           <div class="nasq-panel-body">
-            <div v-if="query.data.value.resolutions.length" class="mb-4 flex min-w-0 flex-wrap gap-2">
-              <Input v-model="recommendationSearch" class="min-w-48 flex-1" :placeholder="t('meetingsUx.searchRecommendations')" :aria-label="t('meetingsUx.searchRecommendations')" />
-              <select v-model="recommendationState" class="border-input h-9 rounded-lg border bg-transparent px-2 text-sm" :aria-label="t('meetingsUi.stateLabel')">
+            <FilterBar v-if="query.data.value.resolutions.length" class="mb-4" :active-count="Number(Boolean(recommendationSearch.trim())) + Number(Boolean(recommendationState))" :disabled="!hydrated" @clear="recommendationSearch = ''; recommendationState = ''">
+              <template #search><Input :disabled="!hydrated" v-model="recommendationSearch" class="w-full" :placeholder="t('meetingsUx.searchRecommendations')" :aria-label="t('meetingsUx.searchRecommendations')" /></template>
+              <select :disabled="!hydrated" v-model="recommendationState" class="border-input h-9 rounded-lg border bg-transparent px-2 text-sm" :aria-label="t('meetingsUi.stateLabel')">
                 <option value="">{{ t('meetingsUi.allStates') }}</option>
                 <option v-for="state in ['open', 'in_progress', 'done', 'cancelled']" :key="state" :value="state">{{ t(`meetingsUi.resolutionState.${state}`) }}</option>
               </select>
-            </div>
+
+            <template #active>
+              <Badge v-if="recommendationSearch.trim()" variant="secondary">{{ recommendationSearch }}</Badge>
+              <Badge v-if="recommendationState" variant="secondary">{{ t(`meetingsUi.resolutionState.${recommendationState}`) }}</Badge>
+            </template>
+          </FilterBar>
             <p v-if="conversionError" role="alert" class="text-sm text-destructive">{{ conversionError }}</p>
             <p v-if="!query.data.value.resolutions.length" class="meeting-empty">{{ t('meetingsUi.emptyResolutions') }}</p>
             <p v-else-if="!filteredResolutions.length" class="meeting-empty">{{ t('meetingsUx.noMatchingRecommendations') }}</p>
@@ -398,7 +509,9 @@ async function confirmResolutionAction() {
               </div>
               <dl class="meeting-resolution-meta">
                 <div><dt>{{ t('meetingsUi.responsible') }}</dt><dd>{{ displayValue(item.responsible?.name) }}</dd></div>
-                <div><dt>{{ t('meetingsUi.deadline') }}</dt><dd>{{ displayValue(item.deadline) }}</dd></div>
+                <div><dt>{{ t('meetingsUi.deadline') }}</dt><dd>{{ formatMeetingDate(item.deadline, locale) }}</dd></div>
+                <div v-if="item.execution_period"><dt>{{ t('meetingMinutesForm.executionPeriod') }}</dt><dd>{{ item.execution_period }}</dd></div>
+                <div v-if="item.project"><dt>{{ t('meetingMinutesForm.project') }}</dt><dd>{{ item.project.name }}</dd></div>
               </dl>
               <div v-if="hasRichText(item.result)" class="meeting-rich-text meeting-resolution-result" v-html="item.result" />
               <div class="meeting-resolution-actions">
@@ -453,7 +566,7 @@ async function confirmResolutionAction() {
               <span>{{ item.name }}</span>
               <span class="text-xs text-muted-foreground">{{ t('meetingsUx.currentFollowUpOrigin', { name: item.meeting_name }) }}</span>
               <Badge variant="outline" :class="resolutionStateTone(item.state)">{{ t(`meetingsUi.resolutionState.${item.state}`) }}</Badge>
-              <span>{{ displayValue(item.deadline) }}</span>
+              <span>{{ formatMeetingDate(item.deadline, locale) }}</span>
             </div>
             <div v-if="hasRichText(item.result)" class="meeting-rich-text" v-html="item.result" />
             <Button v-if="item.task_id" as-child variant="link" size="sm" class="h-auto w-fit p-0"><NuxtLink :to="`/tasks/${item.task_id}`">{{ t('meetingsUi.openTask') }}</NuxtLink></Button>

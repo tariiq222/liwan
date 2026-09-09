@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import MeetingProjectFilter from '@/components/meetings/MeetingProjectFilter.vue'
 import { useCreateResolution, useMeeting } from '@/composables/useMeetings'
 import { safeReturnTo } from '@/utils/safeReturnTo'
 
@@ -9,6 +10,7 @@ const id = computed(() => Number(route.params.id))
 const query = useMeeting(id)
 const { mutateAsync, isPending, error } = useCreateResolution()
 const returnTo = computed(() => safeReturnTo(route.query.returnTo, `/meetings/${id.value}`, ['/meetings']))
+const canCreate = computed(() => query.data.value?.can_edit === true && !['done', 'cancelled'].includes(query.data.value.state))
 const knownPeople = computed(() => {
   const meeting = query.data.value
   if (!meeting) return []
@@ -22,24 +24,33 @@ const knownPeople = computed(() => {
 const name = ref('')
 const responsibleId = ref<number | ''>('')
 const deadline = ref('')
+const executionPeriod = ref('')
+const projectId = ref<number | undefined>(undefined)
 const priority = ref<'0' | '1' | '2' | '3'>('0')
 function snapshot() {
-  return JSON.stringify([name.value, responsibleId.value, deadline.value, priority.value])
+  return JSON.stringify([name.value, responsibleId.value, deadline.value, executionPeriod.value, projectId.value, priority.value])
 }
 const baseline = ref(snapshot())
 const dirty = computed(() => snapshot() !== baseline.value)
 const validationMessage = computed(() => {
   if (!name.value.trim()) return t('meetingsUx.validation.resolutionName')
   if (!responsibleId.value) return t('meetingsUx.validation.responsible')
-  if (!deadline.value) return t('meetingsUx.validation.deadline')
+  if (!deadline.value && !executionPeriod.value.trim()) return t('meetingMinutesForm.validation.deadlineOrPeriod')
   return ''
 })
 
 async function save() {
-  if (!hydrated.value || !name.value.trim() || !responsibleId.value || !deadline.value) return
+  if (!hydrated.value || !canCreate.value || !name.value.trim() || !responsibleId.value || (!deadline.value && !executionPeriod.value.trim())) return
   await mutateAsync({
     meetingId: id.value,
-    body: { name: name.value.trim(), responsible_id: Number(responsibleId.value), deadline: deadline.value, priority: priority.value },
+    body: {
+      name: name.value.trim(),
+      responsible_id: Number(responsibleId.value),
+      deadline: deadline.value || undefined,
+      execution_period: executionPeriod.value.trim() || undefined,
+      project_id: projectId.value ?? null,
+      priority: priority.value,
+    },
   })
   baseline.value = snapshot()
   await nextTick()
@@ -51,7 +62,8 @@ async function save() {
   <SharedPageContainer width="form">
     <SharedPageHeader :title="t('meetingsUi.newResolution')" :back-to="returnTo" />
     <SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!query.isLoading.value && !query.error.value && !query.data.value" @retry="query.refetch">
-    <form v-if="query.data.value" class="nasq-form nasq-panel nasq-panel-body grid gap-4" @submit.prevent="save">
+    <div v-if="query.data.value && !canCreate" class="nasq-panel nasq-panel-body text-sm text-muted-foreground">{{ t('meetingMinutesForm.readOnlyMeeting') }}</div>
+    <form v-else-if="query.data.value" class="nasq-form nasq-panel nasq-panel-body grid gap-4" @submit.prevent="save">
       <SharedUnsavedChanges :dirty="dirty" />
       <SharedFormSection :title="t('meetingsUi.resolutions')" class="grid gap-4">
         <div class="grid gap-2">
@@ -67,7 +79,16 @@ async function save() {
         </div>
         <div class="grid gap-2">
           <Label for="res-deadline">{{ t('meetingsUi.deadline') }}</Label>
-          <Input id="res-deadline" v-model="deadline" type="date" :disabled="!hydrated || isPending" required />
+          <Input id="res-deadline" v-model="deadline" type="date" :disabled="!hydrated || isPending" />
+          <p class="text-xs text-muted-foreground">{{ t('meetingMinutesForm.deadlineOrPeriodHint') }}</p>
+        </div>
+        <div class="grid gap-2">
+          <Label for="res-period">{{ t('meetingMinutesForm.executionPeriod') }}</Label>
+          <Input id="res-period" v-model="executionPeriod" maxlength="500" :disabled="!hydrated || isPending" :placeholder="t('meetingMinutesForm.executionPeriodPlaceholder')" />
+        </div>
+        <div class="grid gap-2 sm:col-span-2">
+          <Label for="res-project">{{ t('meetingMinutesForm.project') }}</Label>
+          <MeetingProjectFilter id="res-project" hide-label :model-value="projectId" :disabled="!hydrated || isPending" @update:model-value="projectId = $event" />
         </div>
         <div class="grid gap-2">
           <Label for="res-priority">{{ t('meetingsUi.priority') }}</Label>
@@ -80,7 +101,7 @@ async function save() {
       <p v-if="error" role="alert" class="text-sm text-destructive">{{ error.message }}</p>
       <div class="flex justify-end gap-2">
         <NuxtLink :to="returnTo"><Button type="button" variant="outline">{{ t('app.cancel') }}</Button></NuxtLink>
-        <Button type="submit" :disabled="!hydrated || isPending || Boolean(validationMessage)">{{ t('app.create') }}</Button>
+        <Button type="submit" :disabled="!hydrated || !canCreate || isPending || Boolean(validationMessage)">{{ t('app.create') }}</Button>
       </div>
     </form>
     </SharedPageState>

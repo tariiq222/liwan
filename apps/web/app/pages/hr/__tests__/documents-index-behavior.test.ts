@@ -31,6 +31,7 @@ function loadPage() {
     if (name === 'vue') return Vue
     if (name === '@lucide/vue') return { Plus: {}, Search: {}, X: {} }
     if (name === '@/components/shared/FilterBar.vue') return {}
+    if (name === '@/components/shared/RecordNumber.vue') return {}
     if (name === '@vueuse/core') return { refDebounced: (value: Vue.Ref<string>) => value }
     if (name === '@/composables/useHrDocuments') return {
       useHrDocuments: (params: Vue.ComputedRef<Record<string, unknown>>) => {

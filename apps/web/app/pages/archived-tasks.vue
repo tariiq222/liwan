@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { toast } from 'vue-sonner'
 import type { Task } from '@nasq/contracts'
+import { Search } from '@lucide/vue'
 import { safeReturnTo } from '@/utils/safeReturnTo'
 import { ApiError } from '@/composables/useApi'
 import { useArchivedTasks, useRestoreTask } from '@/composables/useArchivedTasks'
+import FilterBar from '@/components/shared/FilterBar.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -25,6 +27,11 @@ const items = computed(() => (data.value?.pages ?? []).flatMap((page) => page.it
 const total = computed(() => data.value?.pages[0]?.total ?? 0)
 const { mutate: restore, isPending } = useRestoreTask()
 const backTo = computed(() => safeReturnTo(route.query.returnTo, projectId.value ? `/projects/${projectId.value}` : '/tasks', ['/tasks', '/projects']))
+const activeFilterCount = computed(() => Number(Boolean(q.value.trim())))
+
+function clearFilters() {
+  q.value = ''
+}
 
 function restoreTask(task: Task) {
   restore({ id: task.id }, {
@@ -43,9 +50,23 @@ function restoreTask(task: Task) {
       :back-label="t('taskLifecycle.back')"
     />
 
-    <div class="nasq-toolbar" data-testid="archived-tasks-toolbar">
-      <Input v-model="q" :disabled="!hydrated" :placeholder="t('taskLifecycle.searchArchived')" class="min-w-56 max-w-sm" />
-      <Badge v-if="data" variant="secondary">{{ total }}</Badge>
+    <div class="w-full min-w-0" data-testid="archived-tasks-toolbar">
+      <FilterBar class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
+        <template #search>
+          <div class="relative min-w-56 max-w-sm">
+            <Search class="pointer-events-none absolute start-2 top-1/2 size-[18px] -translate-y-1/2 text-muted-foreground" />
+            <Input v-model="q" :disabled="!hydrated" :placeholder="t('taskLifecycle.searchArchived')" :aria-label="t('taskLifecycle.searchArchived')" class="ps-8" />
+          </div>
+        </template>
+        <template #actions>
+          <Badge v-if="data" variant="secondary">{{ total }}</Badge>
+        </template>
+        <template #active>
+          <div v-if="q.trim()" class="flex flex-wrap items-center gap-2">
+            <Badge variant="secondary">{{ t('taskLifecycle.searchArchived') }}: {{ q }}</Badge>
+          </div>
+        </template>
+      </FilterBar>
     </div>
 
     <SharedPageState
