@@ -100,6 +100,6 @@ async function submit() {
         </div>
       </div>
     </SharedFormSection>
-    <div class="nasq-form-footer"><NuxtLink :to="props.backTo ?? (props.department ? `/hr/departments/${props.department.id}` : '/hr/departments')"><Button type="button" variant="outline">{{ t('app.cancel') }}</Button></NuxtLink><Button type="submit" :disabled="!canManage || !hydrated || pending || !name.trim()">{{ t('app.save') }}</Button></div>
+    <div class="nasq-form-footer"><Button as-child type="button" variant="outline"><NuxtLink :to="props.backTo ?? (props.department ? `/hr/departments/${props.department.id}` : '/hr/departments')">{{ t('app.cancel') }}</NuxtLink></Button><Button type="submit" :disabled="!canManage || !hydrated || pending || !name.trim()">{{ t('app.save') }}</Button></div>
   </form>
 </template>

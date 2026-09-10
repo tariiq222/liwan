@@ -2,7 +2,7 @@
 import { Plus } from '@lucide/vue'
 import { refDebounced } from '@vueuse/core'
 import MeetingProjectFilter from '@/components/meetings/MeetingProjectFilter.vue'
-import FilterCard from '@/components/shared/FilterCard.vue'
+import FilterBar from '@/components/shared/FilterBar.vue'
 import { useMeetingSeriesList } from '@/composables/useMeetings'
 import { returnToQuery } from '@/utils/safeReturnTo'
 import { clearMeetingListFilters, parseMeetingListFilters, patchMeetingListQuery } from '@/utils/meetingListFilters'
@@ -83,14 +83,14 @@ function setPage(next: number) {
     </template>
     </SharedPageHeader>
     <div class="w-full min-w-0">
-      <FilterCard
+      <FilterBar
         :title="t('filterCard.title')"
         :active-count="activeFilterCount"
         :clear-label="t('meetingsUi.clear')"
         :disabled="!hydrated"
         @clear="clearFilters"
       >
-        <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        <div class="w-full min-w-0 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           <div class="grid min-w-0 gap-1 md:col-span-2">
             <Label for="meeting-series-search">{{ t('meetingsFilters.searchSeries') }}</Label>
             <Input id="meeting-series-search" v-model="search" :disabled="!hydrated" :placeholder="t('meetingsFilters.searchSeries')" :aria-label="t('meetingsFilters.searchSeries')" />
@@ -106,7 +106,7 @@ function setPage(next: number) {
             <Badge v-if="projectId" variant="secondary" class="gap-1">{{ projectName || t('meetingsFilters.selectedProject') }}<button type="button" :aria-label="t('meetingsFilters.removeFilter')" @click="setProject(undefined)">×</button></Badge>
           </div>
         </template>
-      </FilterCard>
+      </FilterBar>
       <span class="text-sm text-muted-foreground" role="status">{{ totalLabel }}</span>
     </div>
     <SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!query.data.value?.items.length" :empty-text="t('meetingsUi.emptySeries')" @retry="query.refetch">

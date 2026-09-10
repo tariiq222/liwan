@@ -6,6 +6,7 @@ import { safeReturnTo } from '@/utils/safeReturnTo'
 
 const route = useRoute()
 const { t } = useI18n()
+const { can } = useAccess()
 const hydrated = useHydrated()
 const departmentId = computed(() => Number(route.params.departmentId))
 const documentId = computed(() => Number(route.params.documentId))
@@ -17,6 +18,7 @@ const savedState = ref('')
 let initializedId: number | null = null
 const { mutateAsync: update, isPending: updating } = useUpdateDocument()
 const { mutateAsync: upload, isPending: uploading } = useUploadDocumentAttachment()
+const canManage = computed(() => can('hr.documents.manage'))
 const dirty = computed(() => initializedId !== null && savedState.value !== JSON.stringify([name.value, body.value]))
 watch(query.data, (document) => {
   if (!document || initializedId === document.id) return
@@ -55,7 +57,8 @@ async function uploadFile(event: Event) {
 <template>
   <SharedPageContainer width="form">
     <SharedPageHeader :title="t('hr.docs.edit')" :back-to="returnTo" />
-    <SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!query.data.value" @retry="query.refetch">
+    <SharedPageState v-if="!canManage" :empty="true" :empty-text="t('errors.forbidden')" />
+    <SharedPageState v-else :loading="query.isLoading.value" :error="query.error.value" :empty="!query.data.value" @retry="query.refetch">
       <form v-if="query.data.value" class="nasq-form nasq-panel nasq-panel-body grid gap-5" @submit.prevent="save">
         <SharedUnsavedChanges :dirty="dirty" />
         <SharedFormSection :title="t('hr.docs.edit')">
@@ -69,7 +72,7 @@ async function uploadFile(event: Event) {
           <Label for="hr-doc-upload" class="mt-3">{{ t('hr.docs.upload') }}</Label>
           <input id="hr-doc-upload" type="file" class="block w-full min-w-0 max-w-full text-sm" :disabled="!hydrated || uploading || updating" @change="uploadFile">
         </SharedFormSection>
-        <div class="nasq-form-footer"><NuxtLink :to="returnTo"><Button type="button" variant="outline" :disabled="updating">{{ t('app.cancel') }}</Button></NuxtLink><Button type="submit" :disabled="!hydrated || updating || uploading || !name.trim()">{{ t('app.save') }}</Button></div>
+        <div class="nasq-form-footer"><Button as-child type="button" variant="outline" :disabled="updating"><NuxtLink :to="returnTo">{{ t('app.cancel') }}</NuxtLink></Button><Button type="submit" :disabled="!hydrated || updating || uploading || !name.trim()">{{ t('app.save') }}</Button></div>
       </form>
     </SharedPageState>
   </SharedPageContainer>

@@ -214,8 +214,11 @@ test('direct settings route remains a standalone page after refresh', async ({ p
   await expect(page.getByTestId('context-link-current-project-settings')).toHaveAttribute('aria-current', 'page')
 })
 
-test('non-project task details remain a full page', async ({ page }) => {
+test('non-project task details use the approved shared sheet with a full-page option', async ({ page }) => {
   await page.goto('/tasks/101')
+  await expect(page.getByTestId('task-detail-page')).toBeVisible()
+  await expect(page.getByRole('dialog')).toHaveCount(1)
+  await page.goto('/tasks/101?fullPage=1')
   await expect(page.getByTestId('task-detail-page')).toBeVisible()
   await expect(page.getByRole('dialog')).toHaveCount(0)
 })

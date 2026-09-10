@@ -20,8 +20,8 @@ async function toggleArchive() {
   <SharedPageContainer v-if="isDetail" width="detail">
     <SharedPageHeader :title="query.data.value?.name || t('hr.employee.title')" :description="query.data.value?.job_title" :back-to="returnTo">
       <div class="flex flex-wrap gap-2">
-        <NuxtLink v-if="query.data.value && can('hr.employees.manage')" :to="{ path: `/hr/employees/${id}/edit`, query: returnToQuery(route.fullPath) }" @click="!hydrated && $event.preventDefault()"><Button :disabled="!hydrated">{{ t('app.edit') }}</Button></NuxtLink>
-        <NuxtLink v-if="query.data.value?.user_id && can('access.users.read')" :to="{ path: `/settings/users/${query.data.value.user_id}`, query: returnToQuery(route.fullPath) }" @click="!hydrated && $event.preventDefault()"><Button variant="outline" :disabled="!hydrated">{{ t('hr.employee.manageAccount') }}</Button></NuxtLink>
+        <Button v-if="query.data.value && can('hr.employees.manage')" as-child :disabled="!hydrated"><NuxtLink :to="{ path: `/hr/employees/${id}/edit`, query: returnToQuery(route.fullPath) }" @click="!hydrated && $event.preventDefault()">{{ t('app.edit') }}</NuxtLink></Button>
+        <Button v-if="query.data.value?.user_id && can('access.users.read')" as-child variant="outline" :disabled="!hydrated"><NuxtLink :to="{ path: `/settings/users/${query.data.value.user_id}`, query: returnToQuery(route.fullPath) }" @click="!hydrated && $event.preventDefault()">{{ t('hr.employee.manageAccount') }}</NuxtLink></Button>
         <Button v-if="query.data.value && can('hr.employees.archive')" variant="outline" :disabled="!hydrated || archivePending" @click="confirmArchive = !confirmArchive">{{ query.data.value.active ? t('hr.employee.archive') : t('hr.employee.unarchive') }}</Button>
       </div>
     </SharedPageHeader>

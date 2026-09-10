@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Plus, Search } from '@lucide/vue'
 import { refDebounced } from '@vueuse/core'
-import FilterCard from '@/components/shared/FilterCard.vue'
+import FilterBar from '@/components/shared/FilterBar.vue'
 import RecordNumber from '@/components/shared/RecordNumber.vue'
 import MeetingProjectFilter from '@/components/meetings/MeetingProjectFilter.vue'
 import { formatCalendarDate } from '@/composables/calendarDate'
@@ -180,14 +180,14 @@ function setPage(next: number) {
       </template>
     </SharedPageHeader>
     <div class="w-full min-w-0">
-      <FilterCard
+      <FilterBar
         :title="t('filterCard.title')"
         :active-count="activeFilterCount"
         :clear-label="t('meetingsUi.clear')"
         :disabled="!hydrated"
         @clear="clearFilters"
       >
-        <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <div class="w-full min-w-0 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <div class="grid min-w-0 content-start gap-1 md:col-span-2 xl:col-span-2">
             <Label for="meeting-search">{{ t('meetingsFilters.searchMeetings') }}</Label>
             <div class="relative">
@@ -242,7 +242,7 @@ function setPage(next: number) {
             <Badge v-if="seriesId" variant="secondary" class="gap-1">{{ t('meetingsFilters.inheritedSeries') }}<button type="button" :aria-label="t('meetingsFilters.removeFilter')" @click="clearFilter('series_id')">×</button></Badge>
           </div>
         </template>
-      </FilterCard>
+      </FilterBar>
     </div>
     <div v-if="invalidDateRange" class="rounded-lg border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive" role="alert">
       {{ dateValidation.reversed ? t('meetingsFilters.reversedDates') : t('meetingsFilters.invalidDate') }}
@@ -276,7 +276,7 @@ function setPage(next: number) {
           </NuxtLink>
         </div>
         <div class="hidden overflow-x-auto md:block">
-        <div class="overflow-x-auto">
+        <div>
           <Table class="min-w-[800px]" :aria-label="t('nav.meetings')">
           <TableHeader>
             <TableRow>

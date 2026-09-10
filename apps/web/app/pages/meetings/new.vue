@@ -122,48 +122,64 @@ async function save() {
 <template>
   <SharedPageContainer width="form">
     <SharedPageHeader :title="t('meetingsUi.new')" :back-to="returnTo" />
-    <form class="nasq-form nasq-panel nasq-panel-body grid gap-4" @submit.prevent="save">
+    <form class="nasq-form nasq-panel nasq-panel-body grid gap-5" @submit.prevent="save">
       <SharedUnsavedChanges :dirty="dirty" />
       <p v-if="context.series || context.project" class="rounded-lg border border-border bg-muted/30 px-3 py-2 text-sm">
         <span v-if="context.series">{{ t('meetingsUx.context.series', { name: context.series }) }}</span>
         <span v-if="context.series && context.project"> · </span>
         <span v-if="context.project">{{ t('meetingsUx.context.project', { name: context.project }) }}</span>
       </p>
-      <SharedFormSection :title="t('meetingsUi.sectionSchedule')">
-        <Label for="meeting-name">{{ t('meetingsUi.title') }}</Label>
-        <Input id="meeting-name" v-model="name" :disabled="!hydrated || isPending" :aria-invalid="!!formErrors.name" aria-describedby="meeting-name-error" required />
-        <p v-if="formErrors.name" id="meeting-name-error" role="alert" class="text-sm text-destructive">{{ t(`meetingsUx.errors.${formErrors.name}`) }}</p>
-        <Label for="meeting-date">{{ t('meetingsUi.date') }}</Label>
-        <Input id="meeting-date" v-model="meetingDate" type="date" :disabled="!hydrated || isPending" :aria-invalid="!!formErrors.date" aria-describedby="meeting-date-error" required />
-        <p v-if="formErrors.date" id="meeting-date-error" role="alert" class="text-sm text-destructive">{{ t(`meetingsUx.errors.${formErrors.date}`) }}</p>
-        <Label for="meeting-start">{{ t('meetingsUi.start') }}</Label>
-        <Input id="meeting-start" v-model="start" type="time" :disabled="!hydrated || isPending" :aria-invalid="!!formErrors.start" aria-describedby="meeting-start-error" />
-        <p v-if="formErrors.start" id="meeting-start-error" role="alert" class="text-sm text-destructive">{{ t(`meetingsUx.errors.${formErrors.start}`) }}</p>
-        <Label for="meeting-end">{{ t('meetingsUi.end') }}</Label>
-        <Input id="meeting-end" v-model="end" type="time" :disabled="!hydrated || isPending" :aria-invalid="!!formErrors.end" aria-describedby="meeting-end-error" />
-        <p v-if="formErrors.end" id="meeting-end-error" role="alert" class="text-sm text-destructive">{{ t(`meetingsUx.errors.${formErrors.end}`) }}</p>
-        <template v-if="end">
-          <Label for="meeting-end-date">{{ t('meetingsUx.endDate') }}</Label>
-          <Input id="meeting-end-date" v-model="endDate" type="date" :min="meetingDate" :disabled="!hydrated || isPending" :aria-invalid="!!formErrors.endDate" aria-describedby="meeting-end-date-error" />
-          <p v-if="formErrors.endDate" id="meeting-end-date-error" role="alert" class="text-sm text-destructive">{{ t(`meetingsUx.errors.${formErrors.endDate}`) }}</p>
-        </template>
-        <Label for="meeting-location">{{ t('meetingsUi.location') }}</Label>
-        <Input id="meeting-location" v-model="location" :disabled="!hydrated || isPending" />
-        <Label for="meeting-url">{{ t('meetingsUi.url') }}</Label>
-        <Input id="meeting-url" v-model="meetingUrl" dir="ltr" :disabled="!hydrated || isPending" :aria-invalid="!!formErrors.meetingUrl" aria-describedby="meeting-url-error" />
-        <p v-if="formErrors.meetingUrl" id="meeting-url-error" role="alert" class="text-sm text-destructive">{{ t(`meetingsUx.errors.${formErrors.meetingUrl}`) }}</p>
+      <SharedFormSection :title="t('meetingsUi.sectionSchedule')" class="grid gap-4">
+        <div class="nasq-form-grid">
+          <div class="grid gap-2 sm:col-span-2">
+            <Label for="meeting-name">{{ t('meetingsUi.title') }}</Label>
+            <Input id="meeting-name" v-model="name" :disabled="!hydrated || isPending" :aria-invalid="!!formErrors.name" aria-describedby="meeting-name-error" required />
+            <p v-if="formErrors.name" id="meeting-name-error" role="alert" class="text-sm text-destructive">{{ t(`meetingsUx.errors.${formErrors.name}`) }}</p>
+          </div>
+          <div class="grid gap-2">
+            <Label for="meeting-date">{{ t('meetingsUi.date') }}</Label>
+            <Input id="meeting-date" v-model="meetingDate" type="date" :disabled="!hydrated || isPending" :aria-invalid="!!formErrors.date" aria-describedby="meeting-date-error" required />
+            <p v-if="formErrors.date" id="meeting-date-error" role="alert" class="text-sm text-destructive">{{ t(`meetingsUx.errors.${formErrors.date}`) }}</p>
+          </div>
+          <div class="grid gap-2">
+            <Label for="meeting-start">{{ t('meetingsUi.start') }}</Label>
+            <Input id="meeting-start" v-model="start" type="time" :disabled="!hydrated || isPending" :aria-invalid="!!formErrors.start" aria-describedby="meeting-start-error" />
+            <p v-if="formErrors.start" id="meeting-start-error" role="alert" class="text-sm text-destructive">{{ t(`meetingsUx.errors.${formErrors.start}`) }}</p>
+          </div>
+          <div class="grid gap-2">
+            <Label for="meeting-end">{{ t('meetingsUi.end') }}</Label>
+            <Input id="meeting-end" v-model="end" type="time" :disabled="!hydrated || isPending" :aria-invalid="!!formErrors.end" aria-describedby="meeting-end-error" />
+            <p v-if="formErrors.end" id="meeting-end-error" role="alert" class="text-sm text-destructive">{{ t(`meetingsUx.errors.${formErrors.end}`) }}</p>
+          </div>
+          <template v-if="end">
+            <div class="grid gap-2">
+              <Label for="meeting-end-date">{{ t('meetingsUx.endDate') }}</Label>
+              <Input id="meeting-end-date" v-model="endDate" type="date" :min="meetingDate" :disabled="!hydrated || isPending" :aria-invalid="!!formErrors.endDate" aria-describedby="meeting-end-date-error" />
+              <p v-if="formErrors.endDate" id="meeting-end-date-error" role="alert" class="text-sm text-destructive">{{ t(`meetingsUx.errors.${formErrors.endDate}`) }}</p>
+            </div>
+          </template>
+          <div class="grid gap-2">
+            <Label for="meeting-location">{{ t('meetingsUi.location') }}</Label>
+            <Input id="meeting-location" v-model="location" :disabled="!hydrated || isPending" />
+          </div>
+          <div class="grid gap-2 sm:col-span-2">
+            <Label for="meeting-url">{{ t('meetingsUi.url') }}</Label>
+            <Input id="meeting-url" v-model="meetingUrl" dir="ltr" :disabled="!hydrated || isPending" :aria-invalid="!!formErrors.meetingUrl" aria-describedby="meeting-url-error" />
+            <p v-if="formErrors.meetingUrl" id="meeting-url-error" role="alert" class="text-sm text-destructive">{{ t(`meetingsUx.errors.${formErrors.meetingUrl}`) }}</p>
+          </div>
+        </div>
       </SharedFormSection>
-      <SharedFormSection :title="t('meetingsUi.sectionPeople')">
+      <SharedFormSection :title="t('meetingsUi.sectionPeople')" class="grid gap-4">
         <MeetingPeopleFields v-model:attendee-ids="attendeeIds" v-model:secretary-id="secretaryId" :known="seriesPeople" :disabled="!hydrated || isPending || seriesDefaultsLoading" />
       </SharedFormSection>
-      <SharedFormSection :title="t('meetingsUi.agenda')">
+      <SharedFormSection :title="t('meetingsUi.agenda')" class="grid gap-4">
         <ClientOnly>
           <DescriptionEditor :model-value="agenda" :task-id="0" :aria-label="t('meetingsUx.agendaLabel')" :readonly="isPending" @draft="agenda = $event.html" />
         </ClientOnly>
       </SharedFormSection>
       <p v-if="seriesDefaultsError" role="alert" class="text-sm text-destructive">{{ t('meetingsUi.seriesDefaultsError') }}</p>
       <p v-else-if="error" role="alert" class="text-sm text-destructive">{{ t('meetingsUx.errors.save') }}</p>
-      <div class="flex justify-end gap-2">
+      <div class="nasq-form-footer justify-end">
         <NuxtLink :to="returnTo"><Button type="button" variant="outline">{{ t('app.cancel') }}</Button></NuxtLink>
         <Button type="submit" :disabled="!hydrated || isPending || seriesDefaultsLoading || !!seriesDefaultsError || Object.keys(formErrors).length > 0">{{ t('app.create') }}</Button>
       </div>

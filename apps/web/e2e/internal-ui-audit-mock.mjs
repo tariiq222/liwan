@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import http from 'node:http'
 import { projectsPreviewData } from './projects-ui-preview-data.mjs'
+import { moduleUiCapabilities, moduleUiPreviewData } from './module-ui-preview-data.mjs'
 import crypto from 'node:crypto'
 import { URL } from 'node:url'
 
@@ -221,6 +222,12 @@ async function handle(req, res) {
   if (!path.startsWith('/api/v1/')) return fail(res, 404, 'not_found', `unknown path ${method} ${path}`)
 
   if (!hasSession(req)) return fail(res, 403, 'forbidden', 'not logged in')
+
+  if (process.env.MODULE_UI_PREVIEW === '1' && method === 'GET') {
+    if (path === '/api/v1/me') return json(res, 200, { ...ME, capabilities: moduleUiCapabilities })
+    const preview = moduleUiPreviewData(path, url)
+    if (preview !== undefined) return json(res, 200, preview)
+  }
 
   if (process.env.PROJECTS_UI_PREVIEW === '1' && method === 'GET') {
     const preview = projectsPreviewData(path, url, { PROJECTS, TASKS, projectDetail, reportRow, CURRENCY })

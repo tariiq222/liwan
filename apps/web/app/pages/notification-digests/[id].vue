@@ -57,7 +57,7 @@ async function retryNextPage() {
 </script>
 
 <template>
-  <SharedPageContainer data-testid="notification-digest" width="form" class="flex min-h-[calc(100vh-7rem)] flex-col">
+  <SharedPageContainer data-testid="notification-digest" width="detail" class="flex min-h-[calc(100vh-7rem)] flex-col">
     <SharedPageHeader :title="t('tasks.digest.title')" :description="t('tasks.digest.count', { n: overdueCount })">
       <template #back>
         <Button

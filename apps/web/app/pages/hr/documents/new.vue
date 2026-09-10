@@ -5,8 +5,10 @@ import { safeReturnTo, returnToQuery } from '@/utils/safeReturnTo'
 
 const route = useRoute()
 const { t } = useI18n()
+const { can } = useAccess()
 const hydrated = useHydrated()
 const departments = useHrDepartments()
+const canManage = computed(() => can('hr.documents.manage'))
 const departmentId = ref(typeof route.query.department_id === 'string' ? Number(route.query.department_id) : 0)
 const selectedDepartment = computed(() => departments.data.value?.items.find(d => d.id === departmentId.value))
 const returnTo = computed(() => safeReturnTo(route.query.returnTo, '/hr/documents', ['/hr']))
@@ -22,7 +24,9 @@ function saved(id: number) {
 <template>
   <SharedPageContainer width="form">
     <SharedPageHeader :title="t('hr.docs.new')" :back-to="returnTo" />
+    <SharedPageState v-if="!canManage" :empty="true" :empty-text="t('errors.forbidden')" />
     <SharedPageState
+      v-else
       :loading="departments.isLoading.value"
       :error="departments.error.value"
       :empty="!departments.data.value?.items.length"

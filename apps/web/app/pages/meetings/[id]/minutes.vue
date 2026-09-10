@@ -74,7 +74,7 @@ function createRecommendation() {
   <SharedPageContainer width="form">
     <SharedPageHeader :title="t('meetingsUx.minutesEditorTitle')" :back-to="returnTo" />
     <SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!query.isLoading.value && !query.error.value && !query.data.value" @retry="query.refetch">
-      <form v-if="query.data.value" class="nasq-form nasq-panel nasq-panel-body grid gap-4" @submit.prevent="save(false)">
+      <form v-if="query.data.value" class="nasq-form nasq-panel nasq-panel-body grid gap-5" @submit.prevent="save(false)">
         <SharedUnsavedChanges :dirty="dirty" />
         <p class="rounded-lg border border-border bg-muted/30 px-3 py-2 text-sm">
           {{ t('meetingsUx.minutesEditorContext', { name: query.data.value.name }) }}
@@ -102,19 +102,19 @@ function createRecommendation() {
           :pending="isPending"
           @save-and-create-resolution="createRecommendation"
         />
-        <SharedFormSection :title="t('meetingsUi.agenda')">
+        <SharedFormSection :title="t('meetingsUi.agenda')" class="grid gap-4">
           <ClientOnly>
             <DescriptionEditor :model-value="agenda" :task-id="id" :aria-label="t('meetingsUx.agendaLabel')" :readonly="!canEdit || lifecycleLocked || isPending" @draft="agenda = $event.html" />
           </ClientOnly>
         </SharedFormSection>
-        <SharedFormSection :title="t('meetingsUi.minutes')">
+        <SharedFormSection :title="t('meetingsUi.minutes')" class="grid gap-4">
           <ClientOnly>
             <DescriptionEditor :model-value="minutes" :task-id="-id" :aria-label="t('meetingsUx.minutesLabel')" :readonly="!canEdit || lifecycleLocked || isPending" @draft="minutes = $event.html" />
           </ClientOnly>
         </SharedFormSection>
         <p v-if="structuredValidationErrors.length" role="alert" class="text-sm text-destructive">{{ t('meetingMinutesForm.validation.invalid') }}</p>
         <p v-if="error" role="alert" class="text-sm text-destructive">{{ t('meetingsUx.errors.save') }}</p>
-        <div class="flex justify-end gap-2">
+        <div class="nasq-form-footer justify-end">
           <NuxtLink :to="returnTo"><Button type="button" variant="outline">{{ t('app.cancel') }}</Button></NuxtLink>
           <Button type="submit" :disabled="!hydrated || isPending || !canSave">{{ t('app.save') }}</Button>
         </div>

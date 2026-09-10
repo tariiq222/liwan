@@ -37,6 +37,6 @@ async function submit() {
         <div class="grid gap-2 sm:col-span-2"><Label>{{ t('hr.docs.body') }}</Label><DocumentEditor :model-value="body" :document-id="0" :debounce="false" :disabled="isPending" @update:model-value="body = $event" /></div>
       </div>
     </SharedFormSection>
-    <div class="nasq-form-footer"><NuxtLink :to="props.backTo"><Button type="button" variant="outline">{{ t('app.cancel') }}</Button></NuxtLink><Button type="submit" :disabled="!hydrated || isPending || !name.trim()">{{ t('app.create') }}</Button></div>
+    <div class="nasq-form-footer"><Button as-child type="button" variant="outline"><NuxtLink :to="props.backTo">{{ t('app.cancel') }}</NuxtLink></Button><Button type="submit" :disabled="!hydrated || isPending || !name.trim()">{{ t('app.create') }}</Button></div>
   </form>
 </template>

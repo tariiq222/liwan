@@ -63,9 +63,9 @@ function detailsTo(document: HrDocument) {
           </div>
         </template>
         <template #actions>
-          <NuxtLink v-if="canWriteAllowed" :to="{ path: `/hr/departments/${props.departmentId}/documents/new`, query: returnToQuery(route.fullPath) }">
-            <Button :disabled="!hydrated" class="gap-2"><Plus class="size-[18px]" />{{ t('hr.docs.new') }}</Button>
-          </NuxtLink>
+          <Button v-if="canWriteAllowed" as-child :disabled="!hydrated" class="gap-2">
+            <NuxtLink :to="{ path: `/hr/departments/${props.departmentId}/documents/new`, query: returnToQuery(route.fullPath) }" @click="!hydrated && $event.preventDefault()"><Plus class="size-[18px]" />{{ t('hr.docs.new') }}</NuxtLink>
+          </Button>
         </template>
         <template #active>
           <div v-if="hasActiveFilters" class="flex flex-wrap items-center gap-2">

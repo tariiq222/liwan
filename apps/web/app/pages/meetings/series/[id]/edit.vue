@@ -85,10 +85,10 @@ async function save() {
   <SharedPageContainer width="form">
     <SharedPageHeader :title="t('meetingsUx.seriesSettingsTitle')" :back-to="returnTo" />
     <SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!query.isLoading.value && !query.error.value && !query.data.value" @retry="query.refetch">
-      <form v-if="query.data.value" class="nasq-form nasq-panel nasq-panel-body grid gap-4" @submit.prevent="save">
+      <form v-if="query.data.value" class="nasq-form nasq-panel nasq-panel-body grid gap-5" @submit.prevent="save">
         <SharedUnsavedChanges :dirty="dirty" />
         <p v-if="!canEdit" role="alert" class="text-sm text-destructive">{{ t('meetingsUx.seriesSettingsForbidden') }}</p>
-        <SharedFormSection :title="t('meetingsUx.seriesDefaultsTitle')">
+        <SharedFormSection :title="t('meetingsUx.seriesDefaultsTitle')" class="grid gap-4">
           <div class="grid gap-2">
             <Label for="series-settings-name">{{ t('meetingsUx.seriesName') }}</Label>
             <Input id="series-settings-name" v-model="name" :disabled="!hydrated || isPending || !canEdit" :aria-invalid="!!formErrors.name" aria-describedby="series-settings-name-error" required />
@@ -104,10 +104,10 @@ async function save() {
             <p v-if="formErrors.meetingUrl" id="series-settings-url-error" role="alert" class="text-sm text-destructive">{{ t(`meetingsUx.errors.${formErrors.meetingUrl}`) }}</p>
           </div>
         </SharedFormSection>
-        <SharedFormSection :title="t('meetingsUi.sectionPeople')">
+        <SharedFormSection :title="t('meetingsUi.sectionPeople')" class="grid gap-4">
           <MeetingPeopleFields v-model:attendee-ids="attendeeIds" v-model:secretary-id="secretaryId" :known="known" :disabled="!hydrated || isPending || !canEdit" />
         </SharedFormSection>
-        <SharedFormSection :title="t('meetingsUx.scheduleSummaryTitle')" aria-readonly="true">
+        <SharedFormSection :title="t('meetingsUx.scheduleSummaryTitle')" aria-readonly="true" class="grid gap-4">
           <dl class="grid gap-2 text-sm">
             <div><dt class="font-medium">{{ t('meetingsUi.recurrenceLabel') }}</dt><dd>{{ t(`meetingsUi.recurrence.${query.data.value.recurrence}`) }}</dd></div>
             <div><dt class="font-medium">{{ t('meetingsUi.untilMode') }}</dt><dd>{{ termination }}</dd></div>
@@ -115,7 +115,7 @@ async function save() {
           <p class="text-sm text-muted-foreground">{{ t('meetingsUx.seriesSettingsScope') }}</p>
         </SharedFormSection>
         <p v-if="error" role="alert" class="text-sm text-destructive">{{ t('meetingsUx.seriesSettingsSaveError') }}</p>
-        <div class="flex justify-end gap-2">
+        <div class="nasq-form-footer justify-end">
           <NuxtLink :to="returnTo"><Button type="button" variant="outline">{{ t('app.cancel') }}</Button></NuxtLink>
           <Button type="submit" :disabled="!hydrated || isPending || !canEdit || !dirty || Object.values(formErrors).some(Boolean)">{{ t('app.save') }}</Button>
         </div>

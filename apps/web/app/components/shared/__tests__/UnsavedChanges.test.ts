@@ -9,10 +9,10 @@ import { createMemoryHistory, createRouter, RouterView, useRoute } from 'vue-rou
 import * as VueRouter from 'vue-router'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
-  isProjectOverlayRoute,
   PROJECT_OVERLAY_INJECTION_KEY,
   wantsProjectOverlayFullPage,
 } from '../../../utils/projectOverlayRoute'
+import { isWorkspaceOverlayRoute } from '../../../utils/workspacePresentation'
 
 interface HostNode {
   children: HostNode[]
@@ -96,13 +96,13 @@ function loadUnsavedChanges(): Component {
     '_defineComponent', '_unref', '_createVNode', '_createTextVNode', '_toDisplayString', '_withCtx', '_resolveComponent',
     '_createElementVNode', '_withModifiers', '_openBlock', '_createBlock', '_normalizeClass', 'onBeforeRouteLeave',
     'onBeforeRouteUpdate', 'AlertDialogRoot', 'AlertDialogPortal', 'AlertDialogOverlay', 'AlertDialogContent',
-    'AlertDialogTitle', 'AlertDialogDescription', 'AlertDialogCancel', 'ref', 'watch', 'computed', 'inject', 'isProjectOverlayRoute', 'PROJECT_OVERLAY_INJECTION_KEY', 'wantsProjectOverlayFullPage', 'navigateTo', runnable,
+    'AlertDialogTitle', 'AlertDialogDescription', 'AlertDialogCancel', 'ref', 'watch', 'computed', 'inject', 'isWorkspaceOverlayRoute', 'PROJECT_OVERLAY_INJECTION_KEY', 'wantsProjectOverlayFullPage', 'navigateTo', runnable,
   )
   return factory(
     Vue.defineComponent, Vue.unref, Vue.createVNode, Vue.createTextVNode, Vue.toDisplayString, Vue.withCtx, Vue.resolveComponent,
     Vue.createElementVNode, Vue.withModifiers, Vue.openBlock, Vue.createBlock, Vue.normalizeClass, VueRouter.onBeforeRouteLeave,
     VueRouter.onBeforeRouteUpdate, passthrough, passthrough, passthrough, passthrough, passthrough,
-    passthrough, passthrough, Vue.ref, Vue.watch, Vue.computed, Vue.inject, isProjectOverlayRoute, PROJECT_OVERLAY_INJECTION_KEY, wantsProjectOverlayFullPage, (...args: Parameters<typeof router.push>) => router.push(...args),
+    passthrough, passthrough, Vue.ref, Vue.watch, Vue.computed, Vue.inject, isWorkspaceOverlayRoute, PROJECT_OVERLAY_INJECTION_KEY, wantsProjectOverlayFullPage, (...args: Parameters<typeof router.push>) => router.push(...args),
   ) as Component
 }
 

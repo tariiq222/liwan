@@ -37,11 +37,11 @@ function loadDigestPage(setup: () => Record<string, unknown>) {
 }
 
 describe('notification pages shared header contract', () => {
-  it('keeps the notification feed on form width with history back, not list chrome', () => {
+  it('uses shared list width for notifications while retaining history back', () => {
     expect(notificationsSource).toContain('SharedPageContainer')
     expect(notificationsSource).toContain('SharedPageHeader')
-    expect(notificationsSource).toContain('width="form"')
-    expect(notificationsSource).not.toContain('width="list"')
+    expect(notificationsSource).toContain('width="list"')
+    expect(notificationsSource).not.toContain('width="form"')
     expect(notificationsSource).toContain('router.back()')
     expect(notificationsSource).toContain('nasq-panel')
     expect(notificationsSource).not.toContain('SharedPageState')
@@ -52,7 +52,7 @@ describe('notification pages shared header contract', () => {
     expect(digestSource).toContain('SharedPageContainer')
     expect(digestSource).toContain('SharedPageHeader')
     expect(digestSource).toContain(":title=\"t('tasks.digest.title')\"")
-    expect(digestSource).toContain('width="form"')
+    expect(digestSource).toContain('width="detail"')
     expect(digestSource).not.toContain('width="list"')
     expect(digestSource).toContain('safeReturnTo')
     expect(digestSource).toContain('goBack')

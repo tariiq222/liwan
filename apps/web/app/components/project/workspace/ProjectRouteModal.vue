@@ -8,6 +8,7 @@ import {
   DialogTitle,
 } from 'reka-ui'
 import { PROJECT_OVERLAY_INJECTION_KEY } from '@/utils/projectOverlayRoute'
+import { workspaceOverlayTitleKey } from '@/utils/workspacePresentation'
 
 const props = defineProps<{
   route: RouteLocationNormalizedLoaded
@@ -26,6 +27,7 @@ const pageKey = computed(() => `project-overlay:${props.route.path}`)
 const fullPageTo = computed(() => ({
   path: props.route.path,
   query: { ...props.route.query, fullPage: '1' },
+  hash: props.route.hash,
 }))
 
 function keepOpen(event: Event) {
@@ -76,8 +78,8 @@ function closeOnEscape(event: Event) {
             @interact-outside="keepOpen"
             @pointer-down-outside="keepOpen"
           >
-          <DialogTitle class="sr-only">{{ t('projects.title') }}</DialogTitle>
-          <DialogDescription class="sr-only">{{ t('projects.title') }}</DialogDescription>
+          <DialogTitle class="sr-only">{{ t(workspaceOverlayTitleKey(props.route.path)) }}</DialogTitle>
+          <DialogDescription class="sr-only">{{ t(workspaceOverlayTitleKey(props.route.path)) }}</DialogDescription>
             <div class="flex min-h-12 shrink-0 items-center justify-between gap-3 border-b border-border px-4 md:px-6">
               <NuxtLink
                 :to="fullPageTo"
@@ -111,8 +113,8 @@ function closeOnEscape(event: Event) {
 <style scoped>
 .project-sheet-backdrop {
   background: rgb(0 0 0 / 20%);
-  backdrop-filter: blur(2px);
   -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
 }
 
 .project-sheet-backdrop-enter-active,

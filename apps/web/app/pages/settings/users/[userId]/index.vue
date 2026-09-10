@@ -26,7 +26,7 @@ const sections = computed(() => query.data.value ? [
 </script>
 
 <template>
-  <SettingsLayout :sections>
+  <SettingsLayout :sections width="detail">
     <SharedPageHeader :title="query.data.value?.name ?? t('access.users.title')" :description="query.data.value?.login" :back-to="returnTo" />
     <nav class="nasq-tabs" :aria-label="t('access.users.accountNavigation')">
       <NuxtLink :to="route.path" aria-current="page">{{ t('access.users.account') }}</NuxtLink>

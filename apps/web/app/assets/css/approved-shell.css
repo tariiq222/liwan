@@ -6,10 +6,10 @@
 .nasq-page-stack { grid-template-columns: minmax(0, 1fr); min-width: 0; gap: 24px; }
 .nasq-page-stack > * { min-width: 0; }
 /* Shared composition for project sections and their routed record workflows. */
-.nasq-page-stack[data-project-record="true"] { gap: 16px; align-content: start; }
-[data-project-record="true"] [data-slot="page-header"] { min-height: 40px; }
+.nasq-page-stack[data-workspace-area="true"] { gap: 16px; align-content: start; }
+[data-workspace-area="true"] [data-slot="page-header"] { min-height: 40px; }
 .nasq-project-toolbar { display: flex; min-width: 0; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 20px; border: 1px solid var(--border); border-radius: 10px; background: var(--card); }
-[data-project-record="true"] .nasq-form-footer { justify-content: flex-end; }
+[data-workspace-area="true"] .nasq-form-footer { justify-content: flex-end; }
 .nasq-project-identity { display: flex; min-width: 0; flex-wrap: wrap; align-items: center; gap: 12px; margin-block-end: 16px; }
 .nasq-project-identity-name { margin: 0; font-size: .95rem; font-weight: 600; overflow-wrap: anywhere; }
 .nasq-project-back { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; color: var(--muted-foreground); font-size: .8125rem; text-decoration: none; }

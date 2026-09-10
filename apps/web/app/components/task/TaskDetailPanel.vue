@@ -31,7 +31,10 @@ const route = useRoute()
 const router = useRouter()
 const { t, localeProperties } = useI18n()
 const inProjectOverlay = inject<boolean>(PROJECT_OVERLAY_INJECTION_KEY, false)
-const isProjectTask = computed(() => props.basePath.startsWith('/projects/'))
+// Global task details use the same single-column composition as project task
+// details. The base path still controls sibling navigation and is forwarded
+// unchanged; this flag only selects the presentation branches below.
+const isProjectTask = computed(() => props.basePath === '/tasks' || props.basePath.startsWith('/projects/'))
 // The chevrons point at list *order*, not at a fixed screen side: in RTL
 // "previous" is the right-hand arrow, in LTR the left-hand one. They were
 // hardcoded to the RTL pairing, so an `en` user saw them swapped.

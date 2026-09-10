@@ -94,7 +94,7 @@ async function save() {
       <div v-if="resolution && !canEditDecision && !canEditResult" class="nasq-panel nasq-panel-body text-sm text-muted-foreground">
         {{ t('meetingsUi.resolutionReadOnly') }}
       </div>
-      <form v-else-if="resolution" class="nasq-form nasq-panel nasq-panel-body grid gap-4" @submit.prevent="save">
+      <form v-else-if="resolution" class="nasq-form nasq-panel nasq-panel-body grid gap-5" @submit.prevent="save">
         <SharedUnsavedChanges :dirty="dirty" />
         <SharedFormSection v-if="canEditDecision" :title="t('meetingsUi.resolutions')" class="grid gap-4">
           <div class="grid gap-2">
@@ -128,14 +128,14 @@ async function save() {
             </select>
           </div>
         </SharedFormSection>
-        <SharedFormSection v-if="canEditResult" :title="t('meetingsUi.result')">
+        <SharedFormSection v-if="canEditResult" :title="t('meetingsUi.result')" class="grid gap-4">
           <ClientOnly>
             <DescriptionEditor :model-value="result" :task-id="0" :readonly="isPending" :aria-label="t('meetingsUx.completionNotes')" @draft="result = $event.html" />
           </ClientOnly>
         </SharedFormSection>
         <p v-if="validationMessage" class="text-sm text-muted-foreground" aria-live="polite">{{ validationMessage }}</p>
         <p v-if="error" role="alert" class="text-sm text-destructive">{{ error.message }}</p>
-        <div class="flex justify-end gap-2">
+        <div class="nasq-form-footer justify-end">
           <NuxtLink :to="returnTo"><Button type="button" variant="outline">{{ t('app.cancel') }}</Button></NuxtLink>
           <Button type="submit" :disabled="!canSave || isPending || !dirty || Boolean(validationMessage)">{{ t('app.save') }}</Button>
         </div>

@@ -63,7 +63,7 @@ async function save() {
     <SharedPageHeader :title="t('meetingsUi.newResolution')" :back-to="returnTo" />
     <SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!query.isLoading.value && !query.error.value && !query.data.value" @retry="query.refetch">
     <div v-if="query.data.value && !canCreate" class="nasq-panel nasq-panel-body text-sm text-muted-foreground">{{ t('meetingMinutesForm.readOnlyMeeting') }}</div>
-    <form v-else-if="query.data.value" class="nasq-form nasq-panel nasq-panel-body grid gap-4" @submit.prevent="save">
+    <form v-else-if="query.data.value" class="nasq-form nasq-panel nasq-panel-body grid gap-5" @submit.prevent="save">
       <SharedUnsavedChanges :dirty="dirty" />
       <SharedFormSection :title="t('meetingsUi.resolutions')" class="grid gap-4">
         <div class="grid gap-2">
@@ -99,7 +99,7 @@ async function save() {
       </SharedFormSection>
       <p v-if="validationMessage" class="text-sm text-muted-foreground" aria-live="polite">{{ validationMessage }}</p>
       <p v-if="error" role="alert" class="text-sm text-destructive">{{ error.message }}</p>
-      <div class="flex justify-end gap-2">
+      <div class="nasq-form-footer justify-end">
         <NuxtLink :to="returnTo"><Button type="button" variant="outline">{{ t('app.cancel') }}</Button></NuxtLink>
         <Button type="submit" :disabled="!hydrated || !canCreate || isPending || Boolean(validationMessage)">{{ t('app.create') }}</Button>
       </div>

@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import type { RouteLocationNormalizedLoaded } from 'vue-router'
+import { loadRouteLocation } from 'vue-router'
 import ProjectRouteModal from '@/components/project/workspace/ProjectRouteModal.vue'
 import {
-  deriveProjectOverlayBackground,
-  isProjectOverlayRoute,
   wantsProjectOverlayFullPage,
 } from '@/utils/projectOverlayRoute'
+import { deriveWorkspaceOverlayBackground, isWorkspaceOverlayRoute, isWorkspaceOverlayBackground } from '@/utils/workspacePresentation'
 
 const router = useRouter()
 // Nuxt's useRoute intentionally updates after page navigation settles. The
@@ -13,7 +13,7 @@ const router = useRouter()
 // project workspace opens its route-backed dialog immediately.
 const route = router.currentRoute
 
-const modalOpen = computed(() => isProjectOverlayRoute({
+const modalOpen = computed(() => isWorkspaceOverlayRoute({
   path: route.value.path,
   query: route.value.query as Record<string, unknown>,
 }) && !wantsProjectOverlayFullPage(route.value.query as Record<string, unknown>))
@@ -45,7 +45,7 @@ function routeFor(fullPath: string): RouteLocationNormalizedLoaded {
 }
 
 function backgroundForCurrentRoute(): string {
-  return deriveProjectOverlayBackground(route.value.path, route.value.query as Record<string, unknown>)
+  return deriveWorkspaceOverlayBackground(route.value.path, route.value.query as Record<string, unknown>)
 }
 
 const backgroundRoute = computed(() => {
@@ -56,6 +56,25 @@ const modalRoute = computed(() => route.value as RouteLocationNormalizedLoaded)
 // Use the same key before and after opening so the original project page
 // remains mounted while the workflow route is presented above it.
 const backgroundPageKey = computed(() => `project-page:${backgroundRoute.value.path}`)
+const loadedBackgroundRoute = shallowRef<RouteLocationNormalizedLoaded | null>(null)
+let backgroundLoad: Promise<void> = Promise.resolve()
+let backgroundGeneration = 0
+watch(backgroundRoute, target => {
+  const generation = ++backgroundGeneration
+  if (!modalOpen.value) {
+    loadedBackgroundRoute.value = target
+    return
+  }
+  // router.resolve() does not load lazy page components. Resolve them before
+  // passing a direct-link fallback to NuxtPage (otherwise it renders a Promise).
+  backgroundLoad = loadRouteLocation(target).then(loaded => {
+    if (generation === backgroundGeneration) loadedBackgroundRoute.value = loaded
+  }).catch(() => {
+    if (generation === backgroundGeneration) loadedBackgroundRoute.value = null
+  })
+}, { immediate: true })
+// Match the server's loaded background on the initial client render as well.
+await backgroundLoad
 
 function restoreFocus() {
   const focusTarget = previouslyFocused
@@ -123,8 +142,17 @@ watch(
       backgroundFullPath.value = null
       return
     }
-    if (backgroundFullPath.value) return
-    backgroundFullPath.value = previous && !isProjectOverlayRoute({
+    if (backgroundFullPath.value) {
+      // Nested workflows replace the current sheet. Crossing modules must
+      // also replace its retained section, rather than exposing stale context.
+      const candidate = deriveWorkspaceOverlayBackground(route.value.path, {
+        ...route.value.query, returnTo: backgroundFullPath.value,
+      })
+      if (candidate === backgroundFullPath.value) return
+      backgroundFullPath.value = backgroundForCurrentRoute()
+      return
+    }
+    backgroundFullPath.value = previous && (route.value.path.startsWith('/projects') || route.value.path.startsWith('/project-templates') || isWorkspaceOverlayBackground(route.value.path, previous)) && !isWorkspaceOverlayRoute({
       path: router.resolve(previous).path,
       query: router.resolve(previous).query as Record<string, unknown>,
     })
@@ -204,6 +232,7 @@ async function close() {
   <div
     ref="hostElement"
     data-project-route-host
+    data-workspace-route-host
     :data-project-modal-open="modalOpen ? 'true' : 'false'"
   >
     <div
@@ -211,7 +240,7 @@ async function close() {
       :aria-hidden="overlayVisible ? 'true' : undefined"
       :inert="overlayVisible"
     >
-      <NuxtPage :route="backgroundRoute" :page-key="backgroundPageKey" />
+      <NuxtPage v-if="loadedBackgroundRoute" :route="loadedBackgroundRoute" :page-key="backgroundPageKey" />
     </div>
     <ProjectRouteModal
       v-if="modalMounted && frame.width > 0 && frame.height > 0"

@@ -5,7 +5,7 @@ import ConversationList from '@/components/chat/ConversationList.vue'
 import SidebarCreateAction from '@/components/shell/SidebarCreateAction.vue'
 import { useContextSidebar, useShellNavigation } from '@/composables/useShellNavigation'
 import { activeShellModule, contextGroupsForModule, shellModules } from '@/composables/useNav'
-import { projectBreadcrumbs } from '@/utils/projectBreadcrumbs'
+import { workspaceBreadcrumbs } from '@/utils/workspaceBreadcrumbs'
 import { parseChatListRoute, serializeChatListRoute, type ChatListRoute } from '@/utils/chatState'
 import { returnToQuery, safeReturnTo } from '@/utils/safeReturnTo'
 
@@ -34,7 +34,7 @@ const selectedConversationId = computed(() => {
 })
 // Group module navigation, current project sections, and system settings.
 const primaryLinks = computed(() => contextLinks.value)
-const breadcrumbs = computed(() => projectBreadcrumbs(route.path, route.query, contextLinks.value, project.data.value?.name))
+const breadcrumbs = computed(() => workspaceBreadcrumbs(route.path, route.query, contextLinks.value, project.data.value?.name))
 const moduleLinks = computed(() => {
   const links = isChat.value && isDesktop.value && expanded.value
     ? primaryLinks.value.filter(item => item.id === 'new-chat')

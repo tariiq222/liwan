@@ -23,6 +23,7 @@ You are not alone in the repository. Preserve other edits; do not revert or over
 
 ## Workflow
 
+- The 2026-09-10 section of DESIGN.md takes precedence over historical rules below: reuse the Projects composition and single route-backed sheet across non-chat modules, with the approved dimming/blur and contextual ancestor links. Keep breadcrumbs out of the main content; preserve page-owned navigation and draft guards.
 - Inventory existing implementation, permissions, navigation and data states before editing.
 - State the shared page recipe and components to reuse.
 - Use the approved sidebar/module structure. Only the primary module rail collapses; context navigation stays visible and reflows above content on phones. Place its icon and section title in one row.

@@ -2,7 +2,8 @@
 import { inject } from 'vue'
 import { onBeforeRouteLeave, onBeforeRouteUpdate } from 'vue-router'
 import { AlertDialogRoot, AlertDialogPortal, AlertDialogOverlay, AlertDialogContent, AlertDialogTitle, AlertDialogDescription, AlertDialogCancel } from 'reka-ui'
-import { isProjectOverlayRoute, PROJECT_OVERLAY_INJECTION_KEY, wantsProjectOverlayFullPage } from '@/utils/projectOverlayRoute'
+import { PROJECT_OVERLAY_INJECTION_KEY, wantsProjectOverlayFullPage } from '@/utils/projectOverlayRoute'
+import { isWorkspaceOverlayRoute } from '@/utils/workspacePresentation'
 
 const props = withDefaults(defineProps<{ dirty: boolean; guardRouteUpdates?: boolean }>(), {
   guardRouteUpdates: false,
@@ -21,8 +22,8 @@ function guard(to: { fullPath: string }) {
 }
 
 function isProjectPresentationTransition(to: { path: string; query: Record<string, unknown> }, from: { path: string; query: Record<string, unknown> }) {
-  const fromIsWorkflow = isProjectOverlayRoute(from)
-  const toIsWorkflow = isProjectOverlayRoute(to)
+  const fromIsWorkflow = isWorkspaceOverlayRoute(from)
+  const toIsWorkflow = isWorkspaceOverlayRoute(to)
   if (!fromIsWorkflow || !toIsWorkflow) return false
   return wantsProjectOverlayFullPage(from.query) !== wantsProjectOverlayFullPage(to.query)
 }

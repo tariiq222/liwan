@@ -22,7 +22,7 @@ const sections = computed(() => event.data.value ? [
 </script>
 
 <template>
-  <SettingsLayout :sections>
+  <SettingsLayout :sections width="detail">
     <SharedPageHeader :title="t('access.audit.detailTitle')" :back-to="returnTo" />
     <SharedPageState v-if="forbidden" :empty="true" :empty-text="t('access.forbidden')" />
     <SharedPageState v-else :loading="event.isLoading.value" :error="event.error.value" :empty="!event.data.value" :empty-text="t('access.notFound')" @retry="event.refetch">

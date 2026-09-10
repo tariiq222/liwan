@@ -60,7 +60,7 @@ function openCreate() {
       </template>
     </SharedPageHeader>
 
-    <TaskToolbar v-model="params" :view="tab" @update:view="onViewChange" />
+    <TaskToolbar v-model="params" :view="tab" collapsible @update:view="onViewChange" />
     <!-- Query data may resolve after SSR markup is emitted but before
          client hydration starts. Mount the dynamic result surface only
          after this page has hydrated so the toolbar controls above keep

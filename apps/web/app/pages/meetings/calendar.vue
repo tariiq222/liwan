@@ -117,7 +117,7 @@ function goToday() {
         </NuxtLink>
       </template>
     </SharedPageHeader>
-    <div class="nasq-toolbar">
+    <div class="nasq-project-toolbar">
       <div class="flex items-center gap-2" :aria-label="monthLabel">
         <Button type="button" variant="ghost" size="icon" class="size-[32px] rounded-lg" :disabled="!hydrated" :aria-label="t('projects.previousPage')" @click="shift(-1)">
           <ChevronRight v-if="locale === 'ar'" class="size-[18px]" />

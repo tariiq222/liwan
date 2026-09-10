@@ -41,7 +41,7 @@ async function confirmDelete() {
 <template>
   <SharedPageContainer width="list">
     <SharedPageHeader :title="t('hr.depts.title')" back-to="/hr">
-      <NuxtLink v-if="can('hr.departments.manage')" :to="{ path: '/hr/departments/new', query: returnToQuery(route.fullPath) }"><Button>{{ t('hr.depts.new') }}</Button></NuxtLink>
+      <Button v-if="can('hr.departments.manage')" as-child :disabled="!hydrated"><NuxtLink :to="{ path: '/hr/departments/new', query: returnToQuery(route.fullPath) }" @click="!hydrated && $event.preventDefault()">{{ t('hr.depts.new') }}</NuxtLink></Button>
     </SharedPageHeader>
     <div class="w-full min-w-0">
       <FilterBar class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">

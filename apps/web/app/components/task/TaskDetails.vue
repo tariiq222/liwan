@@ -26,7 +26,10 @@ const { t, locale } = useI18n()
 const { mutate: updateTask } = useUpdateTask()
 const { data: stages } = usePersonalStages()
 const projectId = computed(() => props.task.project?.id ?? null)
-const isProjectTask = computed(() => props.basePath.startsWith('/projects/'))
+// Keep the approved project detail composition for the global task route too.
+// This flag is presentation-only; task mutations and project-derived data
+// continue to use the original task/project props and composables.
+const isProjectTask = computed(() => props.basePath === '/tasks' || props.basePath.startsWith('/projects/'))
 const { data: milestones } = useMilestones(projectId)
 const { data: project } = useProject(projectId)
 const deadlineError = ref<string | null>(null)

@@ -77,14 +77,11 @@ function setPage(next: number) {
   <SharedPageContainer width="list">
     <SharedPageHeader :title="t('hr.docs.title')" :back-to="'/hr'">
       <template #actions>
-        <NuxtLink
-          v-if="can('hr.documents.manage')"
-          :to="{ path: '/hr/documents/new', query: { ...returnToQuery(route.fullPath), department_id: departmentId } }"
-        >
-          <Button :disabled="!hydrated" class="gap-2">
+        <Button v-if="can('hr.documents.manage')" as-child :disabled="!hydrated" class="gap-2">
+          <NuxtLink :to="{ path: '/hr/documents/new', query: { ...returnToQuery(route.fullPath), department_id: departmentId } }" @click="!hydrated && $event.preventDefault()">
             <Plus class="size-[18px]" />{{ t('hr.docs.new') }}
-          </Button>
-        </NuxtLink>
+          </NuxtLink>
+        </Button>
       </template>
     </SharedPageHeader>
     <div class="w-full min-w-0" data-testid="documents-toolbar">

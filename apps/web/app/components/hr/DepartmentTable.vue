@@ -46,9 +46,9 @@ const canManage = computed(() => !!props.canManage && can('hr.departments.manage
           <TableCell class="text-start text-muted-foreground">{{ department.manager?.name || $t('hr.depts.noManager') }}</TableCell>
           <TableCell v-if="canManage" class="text-start" @click.stop>
             <div class="flex flex-wrap gap-1">
-              <NuxtLink :to="{ path: `/hr/departments/${department.id}/edit`, query: returnToQuery(route.fullPath) }" @click="!hydrated && $event.preventDefault()">
-                <Button variant="ghost" size="sm" :disabled="!hydrated">{{ $t('hr.depts.edit') }}</Button>
-              </NuxtLink>
+              <Button as-child variant="ghost" size="sm" :disabled="!hydrated">
+                <NuxtLink :to="{ path: `/hr/departments/${department.id}/edit`, query: returnToQuery(route.fullPath) }" @click="!hydrated && $event.preventDefault()">{{ $t('hr.depts.edit') }}</NuxtLink>
+              </Button>
               <Button v-if="props.canDelete !== false" variant="ghost" size="sm" class="text-destructive" :disabled="!hydrated" @click="emit('delete', department)">
                 {{ $t('hr.depts.delete') }}
               </Button>

@@ -15,9 +15,9 @@ function editEmployee(id: number) { void navigateTo({ path: `/hr/employees/${id}
 <template>
   <SharedPageContainer width="list">
     <SharedPageHeader :title="t('hr.directory.title')">
-      <NuxtLink v-if="can('hr.employees.manage')" :to="{ path: '/hr/employees/new', query: returnToQuery(route.fullPath) }"><Button :disabled="!hydrated">
+      <Button v-if="can('hr.employees.manage')" as-child :disabled="!hydrated"><NuxtLink :to="{ path: '/hr/employees/new', query: returnToQuery(route.fullPath) }" @click="!hydrated && $event.preventDefault()">
         {{ t('hr.directory.newEmployee') }}
-      </Button></NuxtLink>
+      </NuxtLink></Button>
     </SharedPageHeader>
     <DirectoryTable v-model:department-id="selectedDepartmentId" @open="openEmployee" @manage="editEmployee" @archive="openEmployee" />
   </SharedPageContainer>
