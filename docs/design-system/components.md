@@ -2,7 +2,58 @@
 
 Authority: [DESIGN.md](../../DESIGN.md). This catalog records current reusable code and pending migration; names in the approved HTML reference are not Vue APIs.
 
-## Existing owners
+## Nuxt UI adoption — 2026-09-10
+
+Read [the pinned reference and acceptance recipe](nuxt-ui-reference.md).
+All new components and modules belong to the shared Nasq theme based on Nuxt UI.
+The executable reference is in `apps/web/design-preview` using Nuxt UI 4.11.1.
+The customer application under `apps/web/app` has not been migrated. Do not
+build a lookalike with another library. Use Nuxt UI directly where sufficient,
+and reuse Nasq page recipes rather than wrapping every
+primitive. Register each new composite/specialized component here by exact
+backticked repository path, responsibility, page recipe and reused primitives.
+Colors, fonts, sizes, spacing, radius and states come from the shared theme.
+Arabic/RTL, English/LTR, all appearance/font modes and accessibility are required.
+
+`components/ui` and vue-sonner are transitional for existing callers only;
+do not expand them to new consumers. Reka, TanStack, Unovis and Tiptap are
+not blanket-banned dependencies. Run `python3 -B tools/ui_policy.py` and
+review actual screenshots. The checker also runs at the start of `npm test`;
+it is not an update hook, CI or a visual-compliance guarantee.
+
+## Executable reference owners
+
+The following are isolated page recipes, not additional primitive libraries.
+Every component uses the same `apps/web/design-preview/app/assets/theme.css`
+tokens and `app.config.ts` variants. All records and saves are synthetic and
+reset on reload. These pages never call Odoo. Port recipes only as part of an
+explicit customer-page migration; do not import fixture data into production.
+
+| Exact path | Responsibility / reused primitives |
+| --- | --- |
+| `apps/web/design-preview/app/components/PreviewShell.vue` | Shared module rail, contextual navigation and preview preferences; UButton, UTooltip, USelect, UInput, UFormField |
+| `apps/web/design-preview/app/components/PreviewMobileNavigation.vue` | Mobile hamburger and modal navigation via USlideover/UButton; shares module/view icon maps, closes after successful routing or desktop resize, preserves draft guards; desktop navigation stays unchanged |
+| `apps/web/design-preview/app/components/PreviewPage.vue` | One page heading, actions and list/detail/form width; semantic layout only |
+| `apps/web/design-preview/app/components/PreviewList.vue` | Reused by all four module examples; desktop UTable and mobile record cards share URL-filtered data, UBadge and PreviewProgress; no embedded filter card |
+| `apps/web/design-preview/app/components/PreviewFilters.vue` | Header icon trigger and bounded filter popover; UPopover/UInput/USelect, active count/summary, red icon-only clear; query remains in the URL |
+| `apps/web/design-preview/app/components/PreviewDateField.vue` | Shared ISO date selection for record forms and gallery; UPopover/UCalendar/UButton, localized label, explicit clear and disabled state |
+| `apps/web/design-preview/app/components/PreviewProgress.vue` | Shared determinate completion bar; UProgress with bounded value and visible-fill gradient from exact secondary to primary, mirrored in RTL |
+| `apps/web/design-preview/app/components/PreviewRecordDetail.vue` | Detail recipe used standalone and in sheets; UCard, UBadge, PreviewProgress |
+| `apps/web/design-preview/app/components/PreviewRecordForm.vue` | One create/edit recipe for sheets and full pages; UForm/UFormField, UInput/UTextarea/USelect/UInputNumber/UCheckbox, PreviewDateField, UAlert/UButton |
+| `apps/web/design-preview/app/components/PreviewUnsavedChanges.vue` | Shared cancel-then-navigate guard, browser unload protection and focus restoration; UModal and UButton; preserves existing guard semantics |
+| `apps/web/design-preview/app/components/PreviewSettings.vue` | Settings sections and local draft/save; UCard, UForm/UFormField/UInput, USwitch and shared unsaved guard |
+| `apps/web/design-preview/app/components/PreviewComponents.vue` | Interactive component/state gallery; approved buttons, badges, fields and alerts only |
+| `apps/web/design-preview/app/components/PreviewState.vue` | Common loading/error/empty recipe; USkeleton, UAlert, UButton and live announcements |
+| `apps/web/design-preview/app/components/PreviewChart.client.vue` | Dashboard donut via existing Unovis; shared brand chart tokens and readable counts, no new chart library |
+
+`apps/web/design-preview/app/app.vue` owns UApp and the initial hydration gate
+using the existing `useHydrated`; its native fieldset prevents lost first clicks.
+`usePreview` stores separately named preview cookies and in-memory fixtures.
+Brand derivation and appearance normalization reuse existing pure Nasq utilities.
+`@iconify-json/lucide@1.2.129` provides locally bundled icons; no remote icon/font
+provider is used. Fonts/color-mode modules are disabled, not another source of state.
+
+## Existing owners (runtime inventory, not a second design authority)
 
 | Responsibility | Current source | Usage |
 | --- | --- | --- |
@@ -45,7 +96,7 @@ Panel sections use `nasq-panel-header` for a wrapping muted header, then `nasq-p
 | `apps/web/app/assets/css/main.css` | Fonts, semantic tokens, modes, shared page/form surfaces; imports shell styles |
 | `apps/web/app/assets/css/approved-shell.css` | Existing shell and shared presentation rules; consolidate overlaps during layout migration |
 | `apps/web/app/assets/css/project-theme.css` | Project-scoped semantic status colors, gentle institution-derived section surfaces, typography scale and portal/notification/toast presentation. The layout owns the reactive HTML route marker so portals inherit the tokens and other modules retain their presentation. |
-| `apps/web/app/utils/brandTheme.ts` | Validated primary-colour derivation and readable foregrounds |
+| `apps/web/app/utils/brandTheme.ts` | Validated primary and secondary colour derivation and readable foregrounds |
 | `apps/web/app/composables/useAppearance.ts` | Existing personal appearance preferences |
 
 Use semantic utilities such as `bg-background`, `text-foreground`, `border-border` and existing `nasq-*` surface recipes where appropriate. An existing class is not permission to preserve obsolete layout behavior.

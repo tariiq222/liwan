@@ -1,0 +1,77 @@
+{
+  "id": "nasq-nuxt-ui-lock-review-20260910",
+  "classification": "unknown",
+  "components": [
+    {
+      "name": "@nuxt/ui",
+      "from": "غير موجود في manifest/lock عند fce4561330200947e4db88b508285fecf9bb05a5",
+      "to": "4.11.1 ثابت في manifest وقفل مرشح فقط؛ integrity المنشور sha512-6/xTMQNO4bcVesaaiIorH65cZ3eu0xenH+gC2L/b9pfmeVc0aMGXDKpW2JxoVUlrlcHo/beoUTI0B164HcwweQ==",
+      "sources": [
+        "https://registry.npmjs.org/@nuxt%2fui/4.11.1",
+        "https://github.com/nuxt/ui/blob/v4.11.1/src/module.ts",
+        "https://github.com/nuxt/ui/compare/v4.11.0...v4.11.1",
+        "https://github.com/nuxt/ui/security/advisories/GHSA-gj2h-2fpw-fhv9",
+        "https://github.com/nuxt/ui/security/advisories/GHSA-wpmj-r844-vvfg"
+      ],
+      "security": "ليس تحديثًا أمنيًا فقط. فُحص تنبيه GET قبل hydration للنطاق <=4.7.1؛ المصدر المرشح يحدد POST للنموذج الخارجي، مع بقاء التحقق مطلوبًا. وتنبيه XSS لقالب المحادثات يذكر 3.3.2 ولا يقدم إصدار إصلاح واضحًا؛ لن نستورد القالب. لم يكتمل تدقيق الشجرة الانتقالية ولا ندعي أمانها",
+      "non_security": "تغيير مكونات وموديول ثيم. المصدر يسجل icon/fonts/color-mode وTailwind plugin وroot colors وproviders. المقارنة الحالية: 65 اعتمادًا مباشرًا، 37 اسمًا لها إصدارات موجودة في قفل نسق، 28 اسمًا جديدًا. لا إعداد الموديول أو تشغيله في هذا الإجراء"
+    },
+    {
+      "name": "@iconify-json/lucide",
+      "from": "غير موجود؛ @lucide/vue 1.41.0 الحالي لا يتغير بالنية ولا يستبدل تلقائيًا",
+      "to": "1.2.129 ثابت في manifest وقفل مرشح؛ integrity المنشور sha512-pa0ufllJOXTDIH2BxE/BtWQEf/x46/lINDWcmncICV1/52veZ7KSBzQaVh9xDpmjDs8QN4j2Ex/LWlSSveL3yw==",
+      "sources": ["https://registry.npmjs.org/@iconify-json%2flucide/1.2.129"],
+      "security": "بيانات أيقونات محلية مستقبلًا لاستخدام Nuxt UI بدل طلبات API للأيقونات؛ هذا لا يثبت عدم وجود طلبات خارجية قبل فحص الشبكة. ترخيص الحزمة المعلن ISC. لا تشغيل scripts",
+      "non_security": "تبعية معلنة جديدة @iconify/types بنطاق * غير موجودة في القفل الحالي؛ نسختها النهائية مجهولة إلى أن يحل القفل. لا تثبيت أو تغيير أيقونات الواجهة الآن"
+    },
+    {
+      "name": "شجرة الاعتماديات الانتقالية المرشحة",
+      "from": "package-lock.json SHA-256 c7263bae4c131692122e561a9cc988e51ff5dc352571e41d43d0f0520438cdf6؛ apps/web/package.json SHA-256 f5c3bbcbc611d4ec4a22b3c7fcf6d217131d1d02b2c415885e395687a8fde0f2",
+      "to": "غير محلولة بعد؛ المطلوب تفويض توليد قفل للمراجعة فقط وليس اعتماد إصدارات انتقالية مجهولة للتثبيت. الحزم الجذرية المستهدفة محددة أعلاه، ثم يتوقف المسار لمراجعة الشجرة الفعلية بتقرير منفصل",
+      "sources": [
+        "https://registry.npmjs.org/@nuxt%2fui/4.11.1",
+        "https://registry.npmjs.org/@iconify-json%2flucide/1.2.129",
+        "https://docs.npmjs.com/cli/v11/commands/npm-install"
+      ],
+      "security": "unknown: لا يمكن إثبات التوافق أو أمان جميع الانتقاليات من نطاقات المورد. lock-only وignore-scripts يمنعان تثبيت شجرة تشغيل وتشغيل lifecycle scripts في هذا الإجراء، ولا يغنيان عن مراجعة الإصدارات والـintegrity والترخيص والتنبيهات لاحقًا",
+      "non_security": "الأسماء الجديدة في المستوى الأول: @iconify/vue ^5.0.1، @nuxt/fonts ^0.14.0، @nuxt/icon ^2.5.1، @nuxtjs/color-mode ^4.0.1، @tailwindcss/postcss ^4.3.3؛ تسع حزم Tiptap ^3.31.3: extension-collaboration/extension-drag-handle/extension-drag-handle-vue-3/extension-image/extension-mention/extension-node-range/extension-placeholder/markdown/suggestion؛ @vueuse/integrations ^14.4.0، colortranslator ^5.0.0؛ ست حزم embla-carousel ^8.6.0: auto-height/auto-scroll/autoplay/class-names/fade/vue، وwheel-gestures ^8.1.0؛ motion-v ^2.4.2، tailwind-variants ^3.2.2، unplugin-auto-import ^21.1.0، unplugin-vue-components ^32.1.0، vaul-vue 0.4.1؛ ثم @iconify/types * من حزمة الأيقونات. هذه نطاقات المورد وليست إصدارات محلولة أو حصرًا للشجرة كاملة"
+    },
+    {
+      "name": "المنصة الحالية المراد الحفاظ عليها",
+      "from": "Nuxt 4.5.2، Vue 3.5.42، Tailwind 4.3.3، Reka 2.10.4، TypeScript 5.9.3، Node المحلي 26.7.0، npm 11.19.0",
+      "to": "لا ترقية مقصودة للمنصة أو تغيير أدواتها. نراجع القفل المرشح لأي تغير فعلي غير مقصود، ولا نثبته قبل تقرير جديد",
+      "sources": ["https://github.com/nuxt/ui/blob/v4.11.1/package.json", "https://github.com/nuxt/ui/blob/v4.11.1/src/module.ts"],
+      "security": "لا تغيير Odoo أو Python أو container أو قاعدة بيانات أو صلاحيات. تحقق engine المعلن لا يثبت نجاح البناء أو خلو الشجرة من الثغرات",
+      "non_security": "الموديول يطلب Nuxt >=4.1.0 وNode ^20.19.0 أو >=22.12.0. الإصدارات الحالية تلائم الشروط المعلنة. نعزل مرحلة المصدر عن main الذي لم يتغير"
+    }
+  ],
+  "impact": {
+    "odoo_core": "لا أثر تنفيذي: لا مصدر Odoo أو addons أو Python أو أوامر -i/-u أو قواعد بيانات. الإجراء npm lock-only داخل worktree فقط",
+    "meetings": "لا تغيير محرك Cyan أو المحاضر والسلاسل والمهام والمرفقات والطباعة. لاحقًا يلزم اختبار Tiptap والنماذج لأن اعتماديات المحرر تتداخل؛ لا تشغيلها الآن",
+    "pmo": "لا تغيير بيانات المشاريع والمهام أو حسابات الرسوم والمالية أو route-backed sheets. بعد القفل تفحص أي تغيرات في Reka/TanStack/Unovis قبل تقرير التثبيت",
+    "hr": "لا بيانات موظفين أو وثائق أو API أو صلاحيات تتغير. لا اختبار على odoo19؛ النماذج والملفات تبقى كما هي",
+    "access": "لا تغيير المصادقة أو session cookies أو CSRF أو الشركة والصلاحيات. لا نسخ CORS أو auth من القالب ولا تخفيف peer conflicts. بوابة الموافقة لا تتغير",
+    "chat": "لا تغيير المحادثات أو websocket أو تنقية النصوص. لا استيراد AI Chat template أو تشغيل مكونات جديدة؛ تنبيه XSS التاريخي يستلزم تحققًا مستقلًا عند ترحيل المحادثات",
+    "frontend": "يسمح الإجراء بتعديل apps/web/package.json وpackage-lock.json كمرشح فقط داخل /Users/tariq/code/nasq-nuxt-ui-reference. لا تعديل Nuxt config/app.vue/CSS ولا إنشاء node_modules أو تشغيل build/dev/prepare. قد يكتب npm cache/logs. العدد النهائي للانتقاليات والتغيرات غير معروف مسبقًا ويجب عرضه قبل التثبيت الفعلي",
+    "customizations": "الخط المحلي ولون المؤسسة والمظهر الكريمي/الفاتح/الداكن وحجم الخط واللغة وRTL والمسودات تبقى كما هي. خطة المعاينة اللاحقة تمنع ازدواج Tailwind والمظهر والإشعارات؛ لا إزالة shadcn-vue أو ترقيعاته ولا تغيير runtime أو نشر بموجب هذه الموافقة"
+  },
+  "verification_plan": [
+    "قبل الإجراء: تأكد من branch codex/nuxt-ui-reference وbaseline fce4561330200947e4db88b508285fecf9bb05a5 ومن git diff --exit-code -- package.json apps/web/package.json package-lock.json؛ اختلاف المصدر يستلزم تقريرًا جديدًا",
+    "قبل الإجراء: تحقق أن worktree لا يحتوي node_modules ومن عدم تشغيل خدمة عليه، وأن parent cache /var/folders/17/rgg6yjtn60d3jf_3xszmvtw00000gn/T/opencode موجود. لا مشاركة node_modules أو .nuxt مع main. لا تعديل npmrc أو config المستخدم",
+    "بعد الإجراء: تحقق أن الحزمتين المباشرتين مثبتتا الإصدارات في manifest وأن integrity في القفل يطابق metadata المسجل، واحصر جميع paths added/changed/removed في lockfile وقارن versions/resolved/integrity وpeer/optional/scripts/licenses. سجل كل تغيير في منصة موجودة، لا تفترض عدم التغيير من --prefer-dedupe",
+    "تحقق من git diff --check ومن أن main وملفات تشغيل الواجهة وOdoo وقاعدة البيانات لم تتغير وأن node_modules غير موجود في worktree. احتفظ بالمرشح ولا تشغل npm ci أو nuxt prepare أو build أو dev بعده",
+    "افحص التنبيهات الأمنية والمصادر الرسمية لكل dependency جديد/متغير قبل إعداد تقرير التثبيت النهائي؛ لا npm audit fix ولا force ولا legacy-peer-deps ولا تغيير الأمر عند الفشل. فشل peer أو engine أو نتيجة غير متوقعة يوقف المسار",
+    "اعتماد اسم @iconify-json/lucide في فحص سياسة الثيم يأتي ضمن مراجعة التثبيت اللاحقة؛ قد يبلغ الفحص الآن الاسم الجديد ولا يعدّل لإخفائه أثناء مراجعة القفل",
+    "عرض التقرير النهائي بالإصدارات الفعلية وبصمة القفل والإجراءات الدقيقة للتثبيت والمعاينة المعزولة وموافقة طارق الجديدة. هذه الموافقة لا تتضمن التثبيت أو بدء المعاينة"
+  ],
+  "rollback_plan": "ملفات الحزم الحالية محفوظة في commit fce4561330200947e4db88b508285fecf9bb05a5 وبصماتها مذكورة، والوثائق والفحص السابقان محفوظان في worktree. لا يرجع أي ملف كامل على حساب عمل متزامن. بعد رفض المرشح يمكن عكس فرق الحزم فقط بموافقة الرجوع اللازمة، دون reset أو حذف worktree أو branches. لا rollback لقاعدة بيانات أو خدمة لأن الإجراء لا يشغلهما. تبقى cache/logs إن أنشئت حتى إذن تنظيف منفصل",
+  "actions": [
+    {
+      "cwd": "/Users/tariq/code/nasq-nuxt-ui-reference",
+      "tool_name": "Bash",
+      "tool_input": {
+        "command": "npm install --workspace apps/web @nuxt/ui@4.11.1 @iconify-json/lucide@1.2.129 --save-exact --package-lock-only --ignore-scripts --strict-peer-deps --prefer-dedupe --no-audit --no-fund --registry=https://registry.npmjs.org --cache=/var/folders/17/rgg6yjtn60d3jf_3xszmvtw00000gn/T/opencode/nasq-nuxt-ui-npm-cache"
+      }
+    }
+  ]
+}

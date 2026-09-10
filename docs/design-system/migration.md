@@ -1,6 +1,12 @@
 # UI migration and legacy retirement
 
-Authority: [DESIGN.md](../../DESIGN.md). Status: documentation foundation prepared; runtime layout/PMO migration pending.
+Authority: [DESIGN.md](../../DESIGN.md). Current target: Nuxt UI Dashboard.
+Use [the pinned reference and current migration sequence](nuxt-ui-reference.md).
+The executable reference is isolated in apps/web/design-preview; customer-app
+migration is still separate. The current UPDATE_POLICY supersedes historical
+hook/approval instructions. Every new component belongs to the Nasq theme and catalog.
+The phases below describe the older 2026-09-07 rollout only, not an alternative
+implementation plan for new pages.
 
 ## Phase A — constitution
 

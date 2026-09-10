@@ -1,0 +1,94 @@
+{
+  "id": "nasq-nuxt-ui-preview-install-20260910",
+  "classification": "core",
+  "components": [
+    {
+      "name": "تثبيت القفل الذي تم توليده بالموافقة السابقة، داخل worktree فقط",
+      "from": "node_modules غير موجود في worktree. المصدر baseline fce4561330200947e4db88b508285fecf9bb05a5 مع إضافات الوثائق والفحص المحفوظة. main لم يتغير",
+      "to": "npm ci للقفل SHA-256 0f0da85f61f231934fa383b2c7cfcfc7ebb3f788117e3194752ed75d3b74e26d وmanifest الويب SHA-256 879270764e63aa53089d0de561f7f5e28ebc58ae422666f6453b0043698159e1. لا إعادة resolution أو تغيير ملفات الحزم. 92 مسار حزمة جديد مقارنة بالأساس، صفر حذف وصفر تغيير version/resolved/integrity لحزمة موجودة",
+      "sources": [
+        "https://registry.npmjs.org/@nuxt%2fui/4.11.1",
+        "https://registry.npmjs.org/@iconify-json%2flucide/1.2.129",
+        "https://docs.npmjs.com/cli/v11/commands/npm-ci"
+      ],
+      "security": "npm audit المرشح: low=1 وmoderate/high/critical=0؛ baseline main: صفر تنبيهات. وافقت metadata في registry لكل 92 مسار جديد resolved/integrity في القفل. هذا لا يثبت خلو المصدر من الثغرات أو التحقق من بايتات الحزم قبل تنزيلها. install scripts ممنوعة. التوصية خاصة بمعاينة macOS محلية ولا تشمل نشرًا أو Windows",
+      "non_security": "إضافتان مباشرتان: @nuxt/ui 4.11.1 و@iconify-json/lucide 1.2.129. metadata القديمة المتغيرة فقط: @standard-schema/spec لم يعد dev-only، وTiptap bubble-menu وfloating-menu لم يعودا optional. Nuxt 4.5.2 وVue 3.5.42 وTailwind 4.3.3 وTypeScript 5.9.3 وReka 2.10.4 وبقية إصدارات القفل القديمة لم تتغير. Node المحلي 26.7.0 وnpm 11.19.0 لا يحدثان"
+    },
+    {
+      "name": "مكونات Nuxt UI والأيقونات والبناء والحركة — الإضافات المحددة",
+      "from": "غير موجودة في هذه المسارات بالـbaseline؛ لا استبدال ملفات مورد قائمة",
+      "to": "@nuxt/ui@4.11.1; @iconify-json/lucide@1.2.129; @nuxt/icon@2.5.1; @nuxt/fonts@0.14.0; @nuxtjs/color-mode@4.0.1; @iconify/collections@1.0.735; @iconify/types@2.0.0; @iconify/utils@3.1.7; @iconify/vue@5.0.1; @alloc/quick-lru@5.3.0; @antfu/install-pkg@2.0.1; @tailwindcss/postcss@4.3.3; package-manager-detector@1.8.0; import-meta-resolve@4.2.0; unplugin-auto-import@21.1.0; unplugin-vue-components@32.1.0; tailwind-variants@3.3.1; @vueuse/integrations@14.4.0; colortranslator@5.0.0; motion-v@2.4.2; framer-motion@13.2.0; motion-dom@13.2.0; motion-utils@13.0.0; hey-listen@1.0.8; wheel-gestures@2.3.0. نسختا magic-string@1.3.1 داخل @nuxt/ui/node_modules وunplugin-auto-import/node_modules",
+      "sources": [
+        "https://github.com/nuxt/ui/blob/v4.11.1/src/module.ts",
+        "https://github.com/nuxt/ui/blob/v4.11.1/src/runtime/components/App.vue",
+        "https://github.com/nuxt/ui/blob/v4.11.1/src/runtime/plugins/colors.ts",
+        "https://github.com/nuxt/ui/compare/v4.11.0...v4.11.1",
+        "https://registry.npmjs.org/@nuxt%2fui/4.11.1",
+        "https://registry.npmjs.org/tailwind-variants/3.3.1",
+        "https://registry.npmjs.org/motion-v/2.4.2"
+      ],
+      "security": "الأيقونات تستهدف التضمين المحلي ويجب إثبات عدم طلب API خارجي في المعاينة. لا استخدام install-pkg أو أدوات auto-install لإضافة أي حزمة عند التشغيل؛ إذا طلبت مكتبة تثبيتًا إضافيًا يتوقف العمل. لا إضافة providers للمصادقة أو CORS أو بيانات الديمو إلى التطبيق الحالي",
+      "non_security": "المعاينة مستقلة في apps/web/design-preview ولا ترث Nuxt config الحالي. ui.fonts=false وui.colorMode=false؛ الخط المحلي والمظهر الكريمي وتفضيلات نسق محفوظة. Tailwind يسجله Nuxt UI مرة واحدة في المعاينة. UApp واحد وToaster واحد. وجود حزم الحركة لا يصرح بحركات زائدة أو بتغيير المكتبة إلى React. كل مكون جديد يوثق ضمن ثيم نسق"
+    },
+    {
+      "name": "Tiptap والتعاون وEmbla وVaul — إضافات غير مطلوبة كلها في أول معاينة",
+      "from": "لا تغيير لحزم Tiptap 3.31.3 القائمة أو المحرر المستخدم؛ تضاف المسارات التالية بحكم dependency graph",
+      "to": "@tiptap/extension-collaboration, @tiptap/extension-drag-handle, @tiptap/extension-drag-handle-vue-3, @tiptap/extension-image, @tiptap/extension-mention, @tiptap/extension-node-range, @tiptap/extension-placeholder, @tiptap/markdown, @tiptap/suggestion كلها 3.31.3؛ @tiptap/y-tiptap 3.0.9؛ marked 17.0.6؛ yjs 13.6.32؛ y-protocols 1.0.7؛ lib0 0.2.117؛ isomorphic.js 0.2.5. embla-carousel وembla-carousel-auto-height و-auto-scroll و-autoplay و-class-names و-fade و-reactive-utils و-vue كلها 8.6.0؛ embla-carousel-wheel-gestures 8.1.0. vaul-vue 0.4.1؛ تحته @types/web-bluetooth 0.0.20 و@vueuse/core وmetadata وshared كلها 10.11.1، ونسختا vue-demi 0.14.10 داخل core/shared",
+      "sources": [
+        "https://registry.npmjs.org/@tiptap%2fextension-collaboration/3.31.3",
+        "https://registry.npmjs.org/embla-carousel/8.6.0",
+        "https://registry.npmjs.org/vaul-vue/0.4.1",
+        "https://github.com/Elliot-Alexander/vaul-vue/blob/1b1f6dfdba6a775410508884097443d35c9a8690/LICENSE",
+        "https://github.com/nuxt/ui/security/advisories/GHSA-gj2h-2fpw-fhv9",
+        "https://github.com/nuxt/ui/security/advisories/GHSA-wpmj-r844-vvfg"
+      ],
+      "security": "لا يستورد قالب المحادثات، ولا تضعف تنقية HTML، ولا تختبر بيانات دخول حقيقية. Form الخارجي في 4.11.1 يحدد POST لكن نختبر SSR وhydration ونبقي الحماية من إرسال الحقول قبل الجاهزية. حقل license لـvaul-vue غائب في metadata؛ تحقق من MIT في commit النشر المذكور. vue-demi يعلن postinstall ولن يشغل تلقائيًا؛ الحاجة إليه توقف المسار لمراجعة منفصلة",
+      "non_security": "لا اعتماد UDrawer أو المحرر التعاوني أو carousel في أول معاينة لمجرد وجود الحزم. المعاينة تعرض قوائم وتفاصيل ونماذج وإعدادات وإحصائيات وسلوك سجلات جانبية، مع ثيم واحد وتقليل الحركة. لا تغيير محررات الاجتماعات والوثائق الحالية"
+    },
+    {
+      "name": "أدوات الخطوط وesbuild المتداخل — قبول مخاطرة محلية محدودة فقط",
+      "from": "غير موجودة سابقًا في هذه المسارات؛ esbuild المستخدم حاليًا في منصة نسق لم يغير إصداره. baseline audit لا يحتوي التنبيه الجديد",
+      "to": "@capsizecss/unpack 4.0.1؛ fontaine 0.8.0 وتحته unplugin 2.3.11؛ fontkitten 1.0.3؛ fontless 0.2.1؛ tiny-inflate 1.0.3؛ unifont 0.7.5. تحت fontless/node_modules: esbuild 0.27.7 وحزم @esbuild/ الاختيارية 0.27.7 للمنصات aix-ppc64, android-arm, android-arm64, android-x64, darwin-arm64, darwin-x64, freebsd-arm64, freebsd-x64, linux-arm, linux-arm64, linux-ia32, linux-loong64, linux-mips64el, linux-ppc64, linux-riscv64, linux-s390x, linux-x64, netbsd-arm64, netbsd-x64, openbsd-arm64, openbsd-x64, openharmony-arm64, sunos-x64, win32-arm64, win32-ia32, win32-x64",
+      "sources": [
+        "https://registry.npmjs.org/fontless/0.2.1",
+        "https://registry.npmjs.org/@nuxt%2ffonts/0.14.0",
+        "https://github.com/advisories/GHSA-g7r4-m6w7-qqqr",
+        "https://github.com/evanw/esbuild/releases/tag/v0.28.1",
+        "https://github.com/nuxt/ui/blob/v4.11.1/src/module.ts"
+      ],
+      "security": "تنبيه منخفض جديد GHSA-g7r4-m6w7-qqqr على esbuild 0.27.7، النطاق >=0.27.3 <0.28.1. ينطبق على esbuild development server مع servedir على Windows فقط. الموافقة المطلوبة تقبل إبقاء هذا التنبيه مؤقتًا لمعاينة macOS على 127.0.0.1 مع تعطيل موديول fonts وعدم تشغيل esbuild server التابع لـfontless؛ لا Windows ولا نشر ولا دمج. لا ندعي زوال التنبيه بسبب التعطيل. الإصلاح العام قبل اعتماد النشر يحتاج تقريرًا وموافقة منفصلين",
+      "non_security": "Nuxt UI يطلب هذه الحزم حتى مع عدم تسجيل موديول fonts. سيمنع --ignore-scripts postinstall الخاص بـesbuild، ولا يسمح بإعادة build أو override أو تشغيل script دون تقرير جديد. لا تغيير الخط المحلي أو تحميل خطوط من مزود خارجي. إن رفض طارق هذا التحفظ فلا ينفذ التثبيت"
+    }
+  ],
+  "impact": {
+    "odoo_core": "لا تغيير Odoo أو addons أو Python أو قاعدة بيانات أو -i/-u. المعاينة Nuxt منفصلة لا تربط أي API أو websocket أو خدمة Odoo. لا تشغيل tests على odoo19",
+    "meetings": "لا تعديل صفحات الاجتماعات أو محرك Cyan أو المحاضر والسلاسل والمرفقات والطباعة. نسخ Tiptap القائمة لم تتغير؛ الإضافات تبقى غير مستخدمة حتى ترحيل معتمد لاحقًا",
+    "pmo": "لا تغيير المشاريع/المهام والبيانات والحسابات واللوحات والمسارات. المعاينة بيانات محلية اصطناعية معزولة وموسومة، ولا تضاف إلى routes تطبيق العميل الحالي",
+    "hr": "لا موظفون أو وثائق أو ملفات أو serializers أو صلاحيات تتغير. النماذج المعروضة عينات تصميم لا تكتب على HR",
+    "access": "لا تغيير auth أو cookies أو CSRF أو capabilities أو company boundaries في التطبيق الحالي. المعاينة على loopback دون بيانات حقيقية؛ لا تسجيل دخول بديل ولا نسخ cors:true من القالب. لا مساس ببوابة الموافقة",
+    "chat": "لا تعديل واجهة المحادثات أو bus أو النصوص وتنقيتها. لا اعتماد قالب AI chat أو تشغيل تعاون. مكونات المعاينة الجديدة ضمن نفس الثيم لا تعني ترحيل المحادثات الحالية",
+    "frontend": "تثبيت شجرة القفل المحددة في node_modules مستقل داخل worktree فقط. إنشاء مصدر معاينة منفصل في apps/web/design-preview مع nuxt.config.ts وapp.config.ts وapp/ ومكونات/أنماط مشتركة للمعاينة. لا تعديل apps/web/nuxt.config.ts أو app.vue أو CSS الإنتاجي أو إدخال المعاينة في القوائم الحالية. يسمح ببناء/فحص/تشغيل هذه المعاينة على macOS و127.0.0.1:4317 فقط؛ أولًا تحقق من عدم انشغال المنفذ. لا source regeneration من vendor أو تشغيل CLI تثبيت مكونات",
+    "customizations": "تحافظ المعاينة على العربية وRTL والخط المحلي ولون المؤسسة المختار للعرض والمظاهر الثلاثة وأحجام الخط وتقليل الحركة. تؤخذ وصفات نسق من المرجع مع شريط الموديولات والقائمة السياقية، ولا تنسخ بيانات العميل. يوسّع نطاق فحص السياسة ليشمل مصدر المعاينة، ويسجل اسم @iconify-json/lucide تحديدًا كبيانات أيقونات موافق عليها؛ لا تغيير baseline أو السماح بمكتبات UI أخرى. لا commit أو merge أو push أو deploy ولا خدمات أصلية"
+  },
+  "verification_plan": [
+    "قبل التثبيت: تحقق من branch codex/nuxt-ui-reference ومن مطابقة SHA-256 للقفل والـmanifest المذكورين، ومن عدم وجود node_modules في worktree ومن عدم تغير الملفات القائمة. إذا اختلفت البصمات توقف لتقرير جديد. تحقق أن worktree وparent cache موجودان ولا توجد خدمات عليه",
+    "نفذ إجراء npm ci المسجل فقط. إن فشل فلا تغيّر الأمر أو تضف force أو legacy-peer-deps أو rebuild. لا تشغل install scripts. بعده تحقق أن hashes للـlock والmanifest لم تتغير ونسخ npm ls المباشرة توافق القفل",
+    "راجع aliases والـproviders وTailwind والـfonts من المصدر المثبت قبل بناء المعاينة. إنشاء ملفات المعاينة محليًا ضمن النطاق المذكور عمل مصدر؛ سجل المكونات الجديدة في الفهرس، واستخدم Nuxt UI مباشرة والوصفات المشتركة، لا مكتبة ثانية أو صور ورسوم غير مرخصة",
+    "بعد تجهيز المصدر، يسمح بالتحقق عبر node node_modules/nuxt/bin/nuxt.mjs prepare apps/web/design-preview ثم node node_modules/nuxt/bin/nuxt.mjs build apps/web/design-preview، وبفحص النوع من vue-tsc المثبت فقط دون npx يجلب حزمًا. هذه أوامر تحقق للمعاينة الجديدة ولا تتصل بـOdoo",
+    "تشغيل المعاينة بعد التحقق من المنفذ: node node_modules/nuxt/bin/nuxt.mjs dev apps/web/design-preview --host 127.0.0.1 --port 4317. تخص المعاينة .nuxt و.output ومخرجات الاختبار الخاصة بها، لا مشاركة مع main. لا تعرضها على 0.0.0.0 أو نفق خارجي",
+    "فحص بالمتصفح واختبارات المثبت Playwright لحالات قائمة/تفاصيل/نموذج/إعدادات/إحصائيات، الحفظ والإلغاء التجريبي، الأخطاء والفراغ والتحميل، RTL/LTR، المظاهر وأحجام الخط، keyboard/focus وreduced motion والجوال والكمبيوتر. راقب hydration/console/network، وتأكد من غياب طلبات Odoo وAPI خارجي للأيقونات والخطوط ومن عدم إرسال حقول النموذج عبر GET قبل hydration",
+    "شغّل فحص ui_policy واختباراته بعد توسيع النطاق وتسجيل الأيقونات المحدد فقط، ولا تخفِ مخالفات جديدة أو تغيّر خط الأساس. شغّل الفحوص المحلية الملائمة دون خدمات حقيقية. الفحص البصري لا يستبدله grep أو مجرد تشغيل البناء",
+    "أعد audit دون fix وسجل التنبيه المنخفض المعروف منفصلًا عن أي نتيجة جديدة؛ ظهور تنبيه آخر أو حاجة تغيير dependency/version/script يوقف التنفيذ ويتطلب تقريرًا جديدًا. لا تستخدم نجاح المعاينة لإقرار نشر أو قبول مخاطرة Windows",
+    "التسليم: رابط loopback للمعاينة إن بقيت تعمل، ملفات المصدر ومكونات الفهرس، نتائج الفحوص واللقطات والقيود وبصمات القفل. لا ادعاء نقل كل صفحات نسق أو integration/production؛ تلك مرحلة بعد اعتماد الشكل ومعالجة الاعتمادية للنطاق العام"
+  ],
+  "rollback_plan": "المصدر قبل التثبيت محفوظ في baseline fce4561330200947e4db88b508285fecf9bb05a5 وفرق القفل والوثائق محفوظ في worktree. npm ci يثبت فقط في مجلد مستقل غير موجود سابقًا. إن فشل البناء احتفظ بالأدلة ولا تمس main أو أي قاعدة بيانات. أوقف فقط عملية المعاينة التي بدأتها عند الحاجة، ولا تحذف node_modules أو ملفات/worktrees/branches أو تعكس قفلًا دون تفويض الرجوع/التنظيف اللازم. لا بيانات تحتاج rollback. القفل الذي يحمل التنبيه لا يدمج أو ينشر بموجب هذه الموافقة",
+  "actions": [
+    {
+      "cwd": "/Users/tariq/code/nasq-nuxt-ui-reference",
+      "tool_name": "Bash",
+      "tool_input": {
+        "command": "npm ci --ignore-scripts --strict-peer-deps --no-audit --no-fund --registry=https://registry.npmjs.org --cache=/var/folders/17/rgg6yjtn60d3jf_3xszmvtw00000gn/T/opencode/nasq-nuxt-ui-npm-cache"
+      }
+    }
+  ]
+}

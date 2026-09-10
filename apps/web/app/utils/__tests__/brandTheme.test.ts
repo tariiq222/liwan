@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createBrandTheme, DEFAULT_PRIMARY } from '../brandTheme'
+import { createBrandTheme, DEFAULT_PRIMARY, DEFAULT_SECONDARY, brandPairContrast } from '../brandTheme'
 
 function channel(value: number) {
   const normalized = value / 255
@@ -106,7 +106,7 @@ describe('createBrandTheme', () => {
   })
 
   it('returns only the documented CSS custom properties', () => {
-    expect(Object.keys(createBrandTheme('#0055ff')).sort()).toEqual([
+    expect(Object.keys(createBrandTheme('#0055ff', 'light', DEFAULT_SECONDARY)).sort()).toEqual([
       '--brand-link',
       '--chart-1',
       '--chart-2',
@@ -121,6 +121,12 @@ describe('createBrandTheme', () => {
       '--primary-hover',
       '--primary-hover-foreground',
       '--ring',
+      '--secondary',
+      '--secondary-active',
+      '--secondary-active-foreground',
+      '--secondary-foreground',
+      '--secondary-hover',
+      '--secondary-hover-foreground',
       '--shell-active',
       '--shell-background',
       '--shell-foreground',
@@ -129,5 +135,26 @@ describe('createBrandTheme', () => {
       '--sidebar-primary-foreground',
       '--sidebar-ring',
     ])
+  })
+
+  it('uses the default secondary until a valid second colour is provided', () => {
+    expect(createBrandTheme('#0055ff')['--secondary']).toBeUndefined()
+    expect(createBrandTheme('#0055ff', 'light', 'not-a-colour')['--secondary']).toBe(DEFAULT_SECONDARY)
+    const theme = createBrandTheme('#0055ff', 'light', '#d14a00')
+    expect(theme['--primary']).toBe('#0055ff')
+    expect(theme['--secondary']).toBe('#d14a00')
+    expect(theme['--secondary']).not.toBe(theme['--primary'])
+    expect(new Set([theme['--secondary'], theme['--secondary-hover'], theme['--secondary-active']]).size).toBe(3)
+    expect(contrast(theme['--secondary']!, theme['--secondary-foreground']!)).toBeGreaterThanOrEqual(4.5)
+  })
+
+  it('reports low-contrast pairs without changing either chosen colour', () => {
+    expect(brandPairContrast('#100060', '#b2ff32')).toBeGreaterThan(4.5)
+    expect(brandPairContrast('#ffff00', '#ffffff')).toBeLessThan(4.5)
+    for (const mode of ['light', 'cream', 'dark'] as const) {
+      const theme = createBrandTheme('#ffff00', mode, '#ffffff')
+      expect(theme['--primary']).toBe('#ffff00')
+      expect(theme['--secondary']).toBe('#ffffff')
+    }
   })
 })

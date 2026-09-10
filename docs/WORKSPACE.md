@@ -1,3 +1,13 @@
+# Nuxt UI reference foundation — 2026-09-10 (task worktree only)
+
+The user selected Nuxt UI Dashboard as the shared theme for all future pages
+and components. See [the pinned reference, policy checks and verification](design-system/nuxt-ui-reference.md).
+This reference and its isolated local preview are prepared in `codex/nuxt-ui-reference`; they are not
+integrated into main or deployed. Nuxt UI is installed in the task worktree and
+the isolated reference runs on 127.0.0.1:4317. Customer-page migration remains
+separate. Tariq's removal of the update hook is preserved; the current
+UPDATE_POLICY supersedes the historical approval reports.
+
 # Non-chat module UI integration — 2026-09-10
 
 See [module UI integration and recovery](module-ui-integration-2026-09-10.md) for the current task scope, main/incoming baselines, verification and external final-state record. This supersedes the rollout's unmerged-preview checkpoint. Other active worktrees are preserved; actual Git state is authoritative.

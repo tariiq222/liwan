@@ -9,16 +9,6 @@
             "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/scripts/guard-bash.sh"
           }
         ]
-      },
-      {
-        "matcher": ".*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 /Users/tariq/code/nasq/tools/update_gate/adapter.py claude || exit 2",
-            "timeout": 10
-          }
-        ]
       }
     ]
   }

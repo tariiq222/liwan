@@ -1,17 +1,23 @@
-<!-- NASQ UPDATE GATE BEGIN -->
-## Mandatory update approval
-
-Read `/Users/tariq/code/nasq/docs/UPDATE_POLICY.md` before any dependency, Odoo, addon,
-vendor, runtime or database-module update. This applies to all agents and tools.
-First inspect exact changes and security-vs-core/customization impacts, present
-an Arabic report, then wait for Tariq's explicit approval of that exact proposal.
-Security-only updates also require approval. Never bypass a denial, disable hooks,
-forge an approval record or answer a human confirmation prompt. Earlier general
-permission to update is superseded. New tools/delegates must inherit this rule.
-Hook mechanics and actual coverage: `/Users/tariq/code/nasq/tools/update_gate/README.md`.
-<!-- NASQ UPDATE GATE END -->
-
 # Nasq agent entry point
+
+## Current frontend authority — Nuxt UI, 2026-09-10
+
+Nuxt UI Dashboard is the approved customer-UI foundation for all modules.
+Read DESIGN.md and docs/design-system/components.md before UI work. Every new
+component must belong to the shared Nasq theme and be registered in the catalog
+with its exact path, responsibility and reused primitives. No page-local
+alternative controls or extra UI library without Tariq's approval.
+Existing shadcn-vue/vue-sonner consumers are transitional only; do not extend
+them to new pages. Preserve routes, drafts, capabilities, Arabic/RTL, the
+module rail, contextual navigation and appearance preferences.
+The executable isolated reference is in `apps/web/design-preview`; the customer
+application has not been migrated. Follow the current `docs/UPDATE_POLICY.md`:
+the update hook was removed by Tariq, local install/build/preview/tests need no
+update approval, and GitHub source updates require review and approval in chat.
+Do not ship unresolved U components or a second-library lookalike.
+Use applicable policy checks, behavior tests and visual review; documentation
+alone is not automated enforcement. This supersedes older component/visual
+choices; the latest DESIGN.md decisions govern workflow behavior.
 
 ## Project workflows — user-approved tabs and popups, 2026-09-09
 

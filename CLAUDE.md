@@ -1,17 +1,19 @@
-<!-- NASQ UPDATE GATE BEGIN -->
-## Mandatory update approval
-
-Read `/Users/tariq/code/nasq/docs/UPDATE_POLICY.md` before any dependency, Odoo, addon,
-vendor, runtime or database-module update. This applies to all agents and tools.
-First inspect exact changes and security-vs-core/customization impacts, present
-an Arabic report, then wait for Tariq's explicit approval of that exact proposal.
-Security-only updates also require approval. Never bypass a denial, disable hooks,
-forge an approval record or answer a human confirmation prompt. Earlier general
-permission to update is superseded. New tools/delegates must inherit this rule.
-Hook mechanics and actual coverage: `/Users/tariq/code/nasq/tools/update_gate/README.md`.
-<!-- NASQ UPDATE GATE END -->
-
 # CLAUDE.md — nasq
+
+## Frontend foundation — Nuxt UI, 2026-09-10
+
+The user selected Nuxt UI Dashboard as the single customer-UI foundation.
+Follow DESIGN.md and the component catalog: all new components belong to
+the shared Nasq theme, reuse its tokens and are catalogued by exact path,
+responsibility and reused primitives. No page-local alternative controls or
+additional UI library without approval. Existing shadcn-vue/vue-sonner are
+transition-only; do not expand them to new consumers. The executable Nuxt UI
+reference lives in `apps/web/design-preview`, separate from the customer app.
+The current UPDATE_POLICY governs: no update hook or approval record for local
+install/build/preview/tests; review GitHub source updates with Tariq in chat.
+Do not ship unresolved imports. Preserve capabilities, routes, drafts,
+Arabic/RTL, appearance and the latest DESIGN.md workflow decisions. This
+supersedes older visual/component instructions, not business/security rules.
 
 ## Project workflows — user-approved tabs and popups, 2026-09-09
 

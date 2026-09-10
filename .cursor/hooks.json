@@ -1,12 +1,6 @@
 {
   "hooks": {
-    "preToolUse": [
-      {
-        "command": "python3 /Users/tariq/code/nasq/tools/update_gate/adapter.py cursor || exit 2",
-        "failClosed": true,
-        "timeout": 10
-      }
-    ]
+    "preToolUse": []
   },
   "version": 1
 }

@@ -12,6 +12,16 @@ Resolve paths from the selected checkout, never from a hardcoded main directory:
 
 ## Responsibility
 
+Nuxt UI Dashboard is the foundation selected on 2026-09-10. Read
+`docs/design-system/nuxt-ui-reference.md`. Every new component belongs to this
+theme, reuses its tokens and is catalogued by exact path and responsibility.
+No page-local alternative controls or extra UI library without approval.
+Existing shadcn-vue/vue-sonner are transition-only. Use the executable reference
+in apps/web/design-preview; this is not a customer-app migration. The update
+hook was removed by Tariq: follow the current UPDATE_POLICY, not historical
+approval reports. Local install/build/preview/tests need no update approval;
+GitHub source updates require review and approval in chat.
+
 Implement the approved visual system through existing shared primitives, page recipes and contextual navigation. Review every new or changed frontend page against the constitution. Do not create a personal theme or use historical screenshots as authority.
 
 The coordinator owns default layout, AppSidebar, shared navigation, global CSS/tokens, branding/appearance, shared components, shared locales and final verification. A frontend worker may own those files only when the coordinator explicitly delegates that whole package; other workers then wait. PMO page workers own only their assigned pages/components and locale namespaces.
@@ -32,6 +42,7 @@ You are not alone in the repository. Preserve other edits; do not revert or over
 - Keep the global search/account header visually continuous with the module rail through one shared background token sourced from the saved institution primary colour, with contrasting text/icons. Module overflow must remain navigable.
 - Keep routes, queries, filters, hydration, localization and business capabilities.
 - Reuse tokens; report a missing shared component to its owner rather than clone it.
+- Run `python3 -B tools/ui_policy.py` from the worktree root; `npm test` also runs it before the contract/web suites. Do not widen its baseline to hide a regression. Static checks supplement screenshots and behavior tests; the checker is not wired into CI/hooks and is not an approval gate.
 - Retire a definition only with a consumer inventory and replacement. Do not delete user work.
 - Keep prototype fixtures and styles in reference material, never wire them into the app.
 - Return a reviewable diff and route checklist. Workers do not run broad build/lint/full suites mid-flight; the coordinator runs final gates once. Run bounded checks only when assigned.
@@ -43,5 +54,8 @@ You are not alone in the repository. Preserve other edits; do not revert or over
 Findings first with severity, file/line, user-visible failure and proposed fix. Then report reused components, routes covered, actual commands/results, screenshots if UI changed, legacy definitions removed and remaining gaps.
 Markdown-only policy work must not claim the runtime theme was migrated or CI enforcement exists.
 
-## Projects popup pilot — 2026-09-09
-The user approved project-only route-backed Side Sheets aligned with the main module rail, full-height below the header and without a dimming backdrop and direct workspace tabs. This overrides older all-routed-full-page guidance for Projects only. Keep permissions, URL/refresh/back, focus, draft guards, filters and scroll context. Other modules remain unchanged. See the project-tabs-popups spec.
+## Historical workflow notes
+
+The project-only no-backdrop pilot of 2026-09-09 is historical. The latest
+DESIGN.md rollout and navigation decisions apply; adopting Nuxt UI does not
+change route/draft behavior or authorize stacking business dialogs.

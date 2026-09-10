@@ -1,0 +1,27 @@
+{
+  "navigation": "Navigation", "openMenu": "Open menu",
+  "chooseDate": "Choose a date", "clearDate": "Clear date",
+  "colorContrastHint": "These colors have low contrast. Choose a more distinct pair for readable text; your colors will not be changed automatically.",
+  "brand": "Nasq", "reference": "Interface reference", "demo": "Isolated preview", "demoNote": "Sample data only. Changes stay in this preview and reset on reload.",
+  "projects": "Projects", "tasks": "Tasks", "meetings": "Meetings", "hr": "Human resources", "workspace": "Workspace", "recipes": "Page recipes",
+  "dashboard": "Overview", "list": "All records", "detail": "Record details", "form": "Create record", "settings": "Settings", "components": "Components & states",
+  "preferences": "Preview options", "language": "Language", "appearance": "Appearance", "fontSize": "Text size", "primary": "Primary color", "secondary": "Secondary color", "light": "Light", "cream": "Cream", "dark": "Dark", "small": "Small", "medium": "Medium", "large": "Large",
+  "skip": "Skip to content", "collapse": "Collapse contextual navigation", "expand": "Expand contextual navigation", "state": "Preview state", "normal": "Data", "loading": "Loading", "error": "Error", "empty": "Empty", "readonly": "Read only", "readonlyHint": "This example shows the interface without editing permissions.",
+  "new": "Add record", "edit": "Edit", "save": "Save", "cancel": "Cancel", "close": "Close", "back": "Back to list", "fullPage": "Open full page", "details": "View details",
+  "filters": "Search & filters", "search": "Search by name", "searchHint": "Search records…", "status": "Status", "all": "All statuses", "active": "In progress", "done": "Completed", "waiting": "Not started", "clear": "Clear filters", "results": "matching records", "activeFilters": "active filters",
+  "number": "Number", "title": "Record name", "owner": "Owner", "due": "Target date", "progress": "Progress", "description": "Description", "basic": "Basic information", "basicHint": "Help the team understand the work and who owns it.", "followup": "Follow-up", "followupHint": "The status and target date for this record.",
+  "required": "This field is required", "saved": "Saved", "savedHint": "Your changes were saved in this preview only.", "saveError": "Could not save the sample record", "saveErrorHint": "Your draft is still here. Turn off the simulated error and try again.", "simulateError": "Simulate a save error", "retry": "Try again",
+  "unsavedTitle": "You have unsaved changes", "unsavedHint": "Stay to finish editing, or leave without saving?", "stay": "Stay on this page", "discard": "Discard changes and leave",
+  "emptyTitle": "No matching records", "emptyHint": "Try changing your search or filters, or add a new record.", "errorTitle": "Could not load data", "errorHint": "This is an example error state. Retry without losing your page context.",
+  "total": "Total records", "completed": "Completed records", "average": "Average progress", "distribution": "Status distribution", "recent": "Recent records", "viewAll": "View all", "overviewHint": "A summary of the current sample data, not your organization's records.", "chartAlt": "Donut chart showing the status of sample records",
+  "settingsTitle": "Workspace settings", "settingsHint": "A settings layout example. It does not change real Nasq settings.", "workspaceName": "Workspace name", "notifications": "Update notifications", "notificationsHint": "Notify team members when records change.", "settingsSaved": "Sample settings saved",
+  "actions": "Buttons & actions", "fields": "Fields & selection", "feedback": "Feedback & states", "primaryAction": "Primary action", "secondaryAction": "Secondary action", "disabledAction": "Unavailable action", "exampleText": "Sample value", "option": "Sample option", "checked": "Enable option", "successTitle": "Action completed", "successHint": "The same meaning and color across all modules.", "warningTitle": "This step needs review", "componentHint": "Nuxt UI components, with colors, sizes and states owned by the shared Nasq theme.", "interaction": "Sample action completed", "noRecord": "Sample record not found", "invalidRoute": "This page is not part of the preview",
+  "people": { "sara": "Sara Ahmed", "omar": "Omar Khalid", "noura": "Noura Ali" },
+  "samples": {
+    "projects1": "Improve the beneficiary experience", "projects2": "Unify digital services", "projects3": "Launch the knowledge platform", "projects4": "Measure service quality", "projects5": "Improve working procedures", "projects6": "Prepare the improvement plan",
+    "tasks1": "Review requirements", "tasks2": "Approve the service model", "tasks3": "Prepare the user guide", "tasks4": "Test the user experience", "tasks5": "Document feedback", "tasks6": "Update the delivery plan",
+    "meetings1": "Weekly plan review", "meetings2": "Service launch review", "meetings3": "Quality team meeting", "meetings4": "Risk review", "meetings5": "Stakeholder meeting", "meetings6": "Next phase planning",
+    "hr1": "Sara Ahmed", "hr2": "Omar Khalid", "hr3": "Noura Ali", "hr4": "Khalid Mohammed", "hr5": "Reem Abdullah", "hr6": "Ahmed Hassan",
+    "description": "A sample record to review information, fields and actions. It neither connects to nor changes customer data."
+  }
+}
