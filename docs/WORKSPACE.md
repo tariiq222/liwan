@@ -1,3 +1,7 @@
+# Non-chat module UI integration — 2026-09-10
+
+See [module UI integration and recovery](module-ui-integration-2026-09-10.md) for the current task scope, main/incoming baselines, verification and external final-state record. This supersedes the rollout's unmerged-preview checkpoint. Other active worktrees are preserved; actual Git state is authoritative.
+
 # UI consolidation and cleanup — 2026-09-09
 
 Projects presentation and chat workspace changes are integrated locally on main (product/test commit `063a721`). Only the canonical main worktree and branch remain. All four temporary worktrees are fully archived in `/Users/tariq/code/nasq-recovery-ui-20260909-224801/retired/`; their branch refs were removed after ancestry/content checks. See [the current inventory, commits, verification and recovery record](ui-consolidation-2026-09-09.md). Original dev port 3000 remains; synthetic previews 4097/4497 and 4197/4597 are stopped. Earlier project-preview and pending-work states below are historical. No upstream, database, dependency or deployment changes.
