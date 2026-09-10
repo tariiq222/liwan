@@ -1,3 +1,7 @@
+# جرد وتنظيف الوورك تري والريكوفري — 2026-09-10
+
+راجع [التحليل التفصيلي وفهرس الريكوفري](worktree-recovery-audit-2026-09-10.md). دُمجت معاينة Nuxt UI وإزالة الهوك محليًا عند `0d67389`. النسخ غير النشطة المدمجة حُفظت خارج المشروع وأزيلت تسجيلاتها؛ نسخة Claude المستخدمة ما زالت محفوظة. حالات «main فقط» القديمة أدناه تاريخية. الحالة الفعلية عند الإغلاق في ملف final-state المرتبط بالتقرير.
+
 # Nuxt UI reference foundation — 2026-09-10 (task worktree only)
 
 The user selected Nuxt UI Dashboard as the shared theme for all future pages
