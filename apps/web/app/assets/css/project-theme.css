@@ -1,11 +1,11 @@
 /* Projects only. The route marker also covers portals outside the page tree.
    Sizes scale with the user's existing small / medium / large preference. */
 html[data-project-theme="true"] {
-  --project-type-caption: .928571rem;
-  --project-type-control: 1rem;
-  --project-type-body: 1.071429rem;
-  --project-type-section: 1.285714rem;
-  --project-type-title: 1.714286rem;
+  --project-type-caption: .857143rem;
+  --project-type-control: .928571rem;
+  --project-type-body: 1rem;
+  --project-type-section: 1.142857rem;
+  --project-type-title: 1.428571rem;
   --muted-foreground: #626b76;
   --brand-soft: color-mix(in srgb, var(--primary) 7%, var(--card));
   --project-section-surface: color-mix(in srgb, var(--primary) 3%, var(--muted));

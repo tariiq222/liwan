@@ -5,6 +5,7 @@ test.skip(process.env.E2E_PROJECT_POPUPS !== '1', 'Requires isolated synthetic p
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/login')
+  await expect(page.getByRole('button', { name: 'دخول', exact: true })).toBeEnabled()
   await page.getByLabel('اسم المستخدم').fill('admin')
   await page.getByLabel('كلمة المرور', { exact: true }).fill('admin')
   await page.getByRole('button', { name: 'دخول', exact: true }).click()
@@ -60,7 +61,7 @@ for (const mode of ['light', 'cream', 'dark']) {
     expect(measurements.length).toBeGreaterThan(15)
     for (const item of measurements) {
       expect(item.ratio, JSON.stringify(item)).toBeGreaterThanOrEqual(4.5)
-      expect(item.fontSize, item.text).toBeGreaterThanOrEqual(12.99)
+      expect(item.fontSize, item.text).toBeGreaterThanOrEqual(11.99)
     }
     await info.attach('rendered-contrast', { body: JSON.stringify(measurements, null, 2), contentType: 'application/json' })
     await writeFile(info.outputPath('contrast.json'), JSON.stringify(measurements, null, 2))
@@ -70,12 +71,15 @@ for (const mode of ['light', 'cream', 'dark']) {
 
 test('project typography scales with preference and releases its scope on client navigation', async ({ page }) => {
   await page.setViewportSize({ width: 1024, height: 1000 })
-  await appearance(page, 'light', 'large')
-  const title = page.locator('main h1')
-  expect(await title.evaluate(e => parseFloat(getComputedStyle(e).fontSize))).toBeGreaterThan(30)
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  for (const [size, root] of [['small', 14], ['medium', 16], ['large', 18]] as const) {
+    await appearance(page, 'light', size)
+    const title = page.locator('main h1')
+    expect(await title.evaluate(e => parseFloat(getComputedStyle(e).fontSize))).toBeCloseTo(root * 20 / 14, 1)
+    expect(await page.locator('main td').first().evaluate(e => parseFloat(getComputedStyle(e).fontSize))).toBeCloseTo(root, 1)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  }
   await page.getByTestId('notification-bell').click()
-  expect(await page.locator('[data-notification-preview-item] time').first().evaluate(e => parseFloat(getComputedStyle(e).fontSize))).toBeGreaterThan(16)
+  expect(await page.locator('[data-notification-preview-item] time').first().evaluate(e => parseFloat(getComputedStyle(e).fontSize))).toBeCloseTo(18 * 12 / 14, 1)
   await page.getByRole('link', { name: 'المزيد', exact: true }).click()
   await expect(page).toHaveURL(/\/notifications$/)
   await expect(page.locator('html')).not.toHaveAttribute('data-project-theme')

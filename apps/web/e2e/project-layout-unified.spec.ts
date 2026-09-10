@@ -11,6 +11,7 @@ async function ready(page: Page) {
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/login')
+  await expect(page.getByRole('button', { name: 'دخول', exact: true })).toBeEnabled()
   await page.getByLabel('اسم المستخدم').fill('admin')
   await page.getByLabel('كلمة المرور', { exact: true }).fill('admin')
   await page.getByRole('button', { name: 'دخول', exact: true }).click()
