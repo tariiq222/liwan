@@ -100,7 +100,7 @@ function changeMessage(change: { field: string; label: string; old: unknown; new
 
 .task-activity-meta {
   color: var(--ui-text-muted);
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
 }
 
 .task-activity-body {

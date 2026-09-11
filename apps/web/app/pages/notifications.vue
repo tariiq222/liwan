@@ -31,6 +31,8 @@ const {
 const { mutateAsync: markRead } = useMarkNotificationRead()
 const { mutateAsync: markAllRead, isPending: markingAll } = useMarkAllNotificationsRead()
 const isRtl = computed(() => localeProperties.value.dir === 'rtl')
+// Root page: history back appears only when the browser has a real previous entry.
+const canGoBack = computed(() => hydrated.value && import.meta.client && Boolean(window.history.state?.back))
 const items = computed(() => (data.value?.pages ?? []).flatMap((page) => page.items))
 const unreadCount = computed(() => data.value?.pages[0]?.unread_count ?? 0)
 const notificationTimeZone = computed(() => me.value?.tz || 'UTC')
@@ -97,7 +99,7 @@ async function retryNextPage() {
 <template>
   <SharedPageContainer data-testid="notification-center" width="list" class="flex min-h-[calc(100vh-7rem)] flex-col">
     <SharedPageHeader :title="t('notifications.title')" :description="hydrated ? `${unreadCount} ${t('notifications.unread')}` : undefined">
-      <template #back>
+      <template v-if="canGoBack" #back>
         <UButton color="neutral" variant="ghost" size="sm" class="gap-2 px-2" type="button" :label="t('notifications.back')" @click="router.back()">
           <component :is="isRtl ? ArrowRight : ArrowLeft" class="size-[18px]" />
           {{ t('notifications.back') }}

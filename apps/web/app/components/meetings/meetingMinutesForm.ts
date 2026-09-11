@@ -100,7 +100,7 @@ export function normalizeMeetingMinutesText(value: string, maxLength = 50000) {
   return value.replace(/\r\n?/g, '\n').slice(0, maxLength)
 }
 
-import { formatNasqDate, formatNasqDateTime, formatNasqTime } from '@/composables/calendarDate'
+import { formatNasqDate, formatNasqDateTime, formatNasqTime } from '../../composables/calendarDate'
 
 export function formatMeetingDate(value: string | null | undefined, locale: string) {
   if (!value) return '—'

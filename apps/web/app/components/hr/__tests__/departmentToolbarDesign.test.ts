@@ -9,12 +9,13 @@ const source = readFileSync(
 )
 
 describe('department list toolbar design', () => {
-  it('unifies the list toolbar with FilterBar and a 40px/32px list-tree toggle', () => {
+  it('unifies the list toolbar with FilterBar and the shared segmented view switch', () => {
     expect(source).toContain("import FilterBar from '@/components/shared/FilterBar.vue'")
     expect(source).toContain(':active-count="activeFilterCount"')
     expect(source).not.toMatch(/nasq-toolbar nasq-panel/)
     expect(source).toContain('role="group"')
-    expect(source).toContain('h-[40px]')
+    expect(source).toContain('nasq-ui-segment')
+    expect(source).not.toContain('h-[40px]')
     expect(source).toContain('square')
     expect(source).toContain('data-testid="hr-departments-view-list"')
     expect(source).toContain("t('hr.depts.search')")

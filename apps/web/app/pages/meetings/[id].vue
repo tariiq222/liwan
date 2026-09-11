@@ -717,7 +717,7 @@ async function confirmResolutionAction() {
 
 .meeting-subheading,
 .meeting-section-title {
-  font-size: 0.9375rem;
+  font-size: 1rem;
   font-weight: 600;
   line-height: 1.4;
 }
@@ -733,7 +733,7 @@ async function confirmResolutionAction() {
 .meeting-rich-text {
   min-width: 0;
   overflow-wrap: anywhere;
-  font-size: 0.9375rem;
+  font-size: 0.875rem;
   line-height: 1.8;
 }
 
@@ -807,9 +807,9 @@ async function confirmResolutionAction() {
 }
 
 .meeting-resolution-head { min-width: 0; }
-.meeting-resolution-title { min-width: 0; overflow-wrap: anywhere; font-size: 0.9375rem; font-weight: 600; }
+.meeting-resolution-title { min-width: 0; overflow-wrap: anywhere; font-size: 1rem; font-weight: 600; }
 .meeting-resolution-badges { display: flex; min-width: 0; flex-wrap: wrap; gap: 6px; margin-block-start: 6px; }
-.meeting-resolution-meta { display: grid; min-width: 0; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 0 12px; padding: 7px 10px; border-radius: 6px; background: var(--muted); }
+.meeting-resolution-meta { display: grid; min-width: 0; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 0 12px; padding: 7px 10px; border-radius: 8px; background: var(--muted); }
 .meeting-resolution-meta > div { padding-block: 2px; border-block-end: 0; }
 .meeting-resolution-result { padding-block-start: 2px; }
 .meeting-resolution-actions { display: flex; min-width: 0; flex-wrap: wrap; align-items: center; gap: 8px; }

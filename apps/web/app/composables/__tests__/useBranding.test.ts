@@ -47,7 +47,7 @@ describe('institution favicon', () => {
   })
 
   it('applies derived brand secondary without clobbering the neutral token', () => {
-    let head: () => { htmlAttrs?: { style?: string }, link?: { rel: string, href: string }[] }
+    let head!: () => { htmlAttrs?: { style?: string }, link?: { rel: string, href: string }[] }
     const data = ref<null | { name: string, logo_url: string, primary_color: string, font: string }>({
       name: 'Institution', logo_url: '/brand/logo.png', primary_color: '#001A33', font: 'IBM_Plex_Sans_Arabic',
     })

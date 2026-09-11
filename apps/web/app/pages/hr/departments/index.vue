@@ -46,7 +46,7 @@ async function confirmDelete() {
           <UInput v-model="search" class="min-w-52 flex-1" :disabled="!hydrated" :aria-label="t('hr.depts.search')" :placeholder="t('hr.depts.search')" icon="i-lucide-search" />
         </template>
         <template #view>
-          <div role="group" class="inline-flex h-[40px] items-center rounded-lg border border-default bg-elevated/40 p-0.5" :aria-label="t('hr.depts.title')">
+          <div role="group" class="nasq-ui-segment" :aria-label="t('hr.depts.title')">
             <UButton type="button" :color="!treeView && !canvasView ? 'primary' : 'secondary'" :variant="!treeView && !canvasView ? 'soft' : 'ghost'" square :disabled="!hydrated" :aria-label="t('hr.depts.listView')" :aria-pressed="!treeView && !canvasView" icon="i-lucide-list" data-testid="hr-departments-view-list" @click="setView(false)" />
             <UButton type="button" :color="treeView ? 'primary' : 'secondary'" :variant="treeView ? 'soft' : 'ghost'" square :disabled="!hydrated" :aria-label="t('hr.depts.hierarchy')" :aria-pressed="treeView" icon="i-lucide-network" data-testid="hr-departments-view-tree" @click="setView(true)" />
             <UButton type="button" :color="canvasView ? 'primary' : 'secondary'" :variant="canvasView ? 'soft' : 'ghost'" square :disabled="!hydrated" :aria-label="t('hr.depts.orgChart')" :aria-pressed="canvasView" icon="i-lucide-scan" data-testid="hr-departments-view-canvas" @click="setCanvasView" />
