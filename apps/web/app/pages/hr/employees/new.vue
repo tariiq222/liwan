@@ -29,7 +29,7 @@ function created(employee: { id: number }) { void navigateTo({ path: `/hr/employ
       <UCard>
         <EmployeeGeneralForm :departments="departments.data.value?.items ?? []" :employees="employees.data.value?.items ?? []" @saved="created">
           <template #actions>
-            <UButton type="button" color="secondary" variant="solid" :disabled="!hydrated" :to="returnTo" :label="t('app.cancel')" @click="!hydrated && $event.preventDefault()" />
+            <UButton type="button" color="neutral" variant="outline" :disabled="!hydrated" :to="returnTo" :label="t('app.cancel')" @click="!hydrated && $event.preventDefault()" />
           </template>
         </EmployeeGeneralForm>
       </UCard>

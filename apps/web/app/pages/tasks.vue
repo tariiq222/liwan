@@ -49,7 +49,7 @@ function openCreate() {
         <UButton v-if="can('pmo.tasks.create')" icon="i-lucide-plus" :disabled="!hydrated" :to="{ path: '/tasks/new', query: returnToQuery(route.fullPath) }">
           {{ t('tasks.new') }}
         </UButton>
-        <UButton color="secondary" variant="solid" :to="{ path: '/archived-tasks', query: returnToQuery(route.fullPath) }">
+        <UButton color="neutral" variant="outline" :to="{ path: '/archived-tasks', query: returnToQuery(route.fullPath) }">
           {{ t('taskLifecycle.archivedTasks') }}
         </UButton>
       </template>

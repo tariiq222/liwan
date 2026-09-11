@@ -9,7 +9,7 @@ function clear() { return navigateTo({ query: { ...route.query, q: undefined, st
 </script>
 <template>
   <UPopover v-model:open="open">
-    <UButton type="button" color="secondary" icon="i-lucide-sliders-horizontal" :aria-label="t('filters')" :title="t('filters')" />
+    <UButton type="button" color="neutral" variant="outline" icon="i-lucide-sliders-horizontal" :aria-label="t('filters')" :title="t('filters')" />
     <template #content>
       <div class="preview-filter-content">
         <UFormField :label="t('search')"><UInput v-model="query" :placeholder="t('searchHint')" icon="i-lucide-search" class="w-full" /></UFormField>

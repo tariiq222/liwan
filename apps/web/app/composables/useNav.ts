@@ -137,7 +137,7 @@ function projectWorkspaceTabOf(path: string, query: Record<string, unknown>): Pr
   if (query.tab === 'milestones') return 'milestones'
   if (query.tab === 'tasks' || query.tab === 'list' || query.tab === 'board') return 'tasks'
   if (query.tab === 'summary') return 'summary'
-  if (query.view === 'board') return 'tasks'
+  if (query.view === 'board' || query.view === 'tasks' || query.view === 'list') return 'tasks'
   return 'summary'
 }
 

@@ -90,7 +90,7 @@ async function uploadFile(event: Event) {
           </div>
         </UCard>
         <footer class="flex justify-end gap-2">
-          <UButton type="button" color="secondary" variant="solid" :disabled="updating" :to="returnTo" :label="t('app.cancel')" />
+          <UButton type="button" color="neutral" variant="outline" :disabled="updating" :to="returnTo" :label="t('app.cancel')" />
           <UButton type="submit" color="primary" :disabled="!hydrated || updating || uploading || !name.trim()" :label="t('app.save')" />
         </footer>
       </UForm>

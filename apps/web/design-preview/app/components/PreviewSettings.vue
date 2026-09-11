@@ -24,7 +24,7 @@ function save() {
       <template #header><h2 class="preview-section-title">{{ t('notifications') }}</h2></template>
       <USwitch v-model="form.notifications" :label="t('notifications')" :description="t('notificationsHint')" />
     </UCard>
-    <footer class="preview-form-footer"><UButton type="button" :label="t('cancel')" color="secondary" @click="Object.assign(form, settings)" /><UButton type="submit" :label="t('save')" :disabled="!canEdit || !ready" /></footer>
+    <footer class="preview-form-footer"><UButton type="button" :label="t('cancel')" color="neutral" variant="outline" @click="Object.assign(form, settings)" /><UButton type="submit" :label="t('save')" :disabled="!canEdit || !ready" /></footer>
   </UForm>
   <PreviewUnsavedChanges :dirty="dirty" />
 </template>

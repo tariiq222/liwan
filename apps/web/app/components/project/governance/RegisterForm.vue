@@ -156,7 +156,7 @@ async function submit() {
               :aria-label="t('projects.governance.register.task')"
               :disabled="!hydrated || pending || tasks.isLoading.value"
             />
-            <UButton v-if="tasks.hasNextPage.value" type="button" color="secondary" :disabled="!hydrated || pending || tasks.isFetchingNextPage.value" @click="tasks.fetchNextPage()" variant="solid">{{ t('projects.governance.loadMore') }}</UButton>
+            <UButton v-if="tasks.hasNextPage.value" type="button" color="neutral" :disabled="!hydrated || pending || tasks.isFetchingNextPage.value" @click="tasks.fetchNextPage()" variant="outline">{{ t('projects.governance.loadMore') }}</UButton>
             <p v-if="tasks.isLoading.value" role="status" class="text-xs text-muted">{{ t('projects.loading') }}</p>
             <p v-else-if="tasks.error.value" role="alert" class="text-xs text-error">{{ t('projects.loadError') }}</p>
             <p v-else-if="!taskOptions.length" class="text-xs text-muted">{{ t('projects.governance.register.noTasks') }}</p>
@@ -200,7 +200,7 @@ async function submit() {
 
     <UAlert v-if="error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="error" />
     <div class="flex flex-wrap gap-2 justify-end">
-      <UButton type="button" color="secondary" :disabled="!hydrated || pending" @click="emit('cancel')" variant="solid">{{ t('app.cancel') }}</UButton>
+      <UButton type="button" color="neutral" :disabled="!hydrated || pending" @click="emit('cancel')" variant="outline">{{ t('app.cancel') }}</UButton>
       <UButton type="submit" :disabled="!hydrated || pending || !title.trim()">{{ t('app.save') }}</UButton>
     </div>
   </form>

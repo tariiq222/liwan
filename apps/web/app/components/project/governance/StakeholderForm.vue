@@ -107,7 +107,7 @@ async function submit() {
     </SharedFormSection>
     <UAlert v-if="error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="error" />
     <div class="flex flex-wrap gap-2 justify-end">
-      <UButton type="button" color="secondary" :disabled="!hydrated || pending" @click="emit('cancel')" variant="solid">{{ t('app.cancel') }}</UButton>
+      <UButton type="button" color="neutral" :disabled="!hydrated || pending" @click="emit('cancel')" variant="outline">{{ t('app.cancel') }}</UButton>
       <UButton type="submit" :disabled="!hydrated || pending || !name.trim()">{{ pending ? t('projects.governance.saving') : t('app.save') }}</UButton>
     </div>
   </form>

@@ -174,8 +174,8 @@ function focusSearch() {
             </UButton>
             <UButton
               v-if="tasksQuery.hasNextPage.value"
-              color="secondary"
-              variant="solid"
+              color="neutral"
+              variant="outline"
               class="nasq-search-load-more"
               :disabled="tasksQuery.isFetchingNextPage.value"
               :label="t('app.loadMore')"

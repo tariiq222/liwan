@@ -66,7 +66,7 @@ async function confirmDelete() {
     </SharedPageState>
     <UAlert v-if="deleting" role="alert" color="error" variant="subtle" :title="t('hr.depts.deleteConfirm', { name: deleting.name })" :description="deleteError?.message">
       <template #actions>
-        <UButton color="secondary" variant="solid" :disabled="deletingPending" :label="t('app.cancel')" @click="deleting = null" />
+        <UButton color="neutral" variant="outline" :disabled="deletingPending" :label="t('app.cancel')" @click="deleting = null" />
         <UButton color="error" :disabled="!hydrated || deletingPending" :label="t('hr.depts.delete')" @click="confirmDelete" />
       </template>
     </UAlert>

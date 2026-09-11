@@ -42,6 +42,7 @@ const notFound = computed(() => projectId.value === null || (error.value instanc
 const showWorkspaceFrame = computed(() => !isProjectOverlay
   && projectId.value !== null
   && !notFound.value
+  && !(error.value && !project.value)
   && !isProjectOverlayRoute({ path: route.path, query: route.query })
   && projectSectionRoot(route.path, route.query) !== null)
 const isSettingsSection = computed(() => projectContextId(route.path, route.query) === 'settings')
@@ -56,20 +57,14 @@ const settingsTo = computed<RouteLocationRaw>(() => {
 })
 
 type PlanningView = 'list' | 'board' | 'milestones'
-function planningViewOf(tab: unknown, view: unknown): PlanningView | null {
-  if (tab === 'summary') return null
+const workspaceTab = computed(() => projectContextId(route.path, route.query, true))
+const planningView = computed<PlanningView | null>(() => {
+  const tab = workspaceTab.value
   if (tab === 'milestones') return 'milestones'
-  if (tab === 'board' || view === 'board') return 'board'
-  if (tab === 'tasks' || tab === 'list') return 'list'
-  if (tab == null && view == null) return 'list'
+  if (tab === 'tasks') return route.query.tab === 'board' || route.query.view === 'board' ? 'board' : 'list'
   return null
-}
-const planningView = computed(() => {
-  const hasExplicitTab = route.query.tab != null || route.query.view != null
-  if (!hasExplicitTab && (project.value?.active === false || !can('pmo.tasks.read'))) return null
-  return planningViewOf(route.query.tab, route.query.view)
 })
-const isSummary = computed(() => planningView.value === null)
+const isSummary = computed(() => workspaceTab.value === 'summary')
 const taskView = computed<'table' | 'board'>(() => planningView.value === 'board' ? 'board' : 'table')
 
 const params = computed<TaskListParams>(() => projectTaskParams(projectId.value!, route.query))
@@ -164,7 +159,7 @@ const workspaceCanCreate = computed(() => {
   <SharedPageContainer v-if="isBaseRoute" width="list">
     <div v-if="notFound" class="flex flex-col items-start gap-3">
       <p class="text-muted">{{ t('projects.notFound') }}</p>
-      <UButton type="button" color="secondary" variant="solid" size="sm" @click="router.push(projectReturnTo)">{{ t('projects.backToProjects') }}</UButton>
+      <UButton type="button" color="neutral" variant="outline" size="sm" @click="router.push(projectReturnTo)">{{ t('projects.backToProjects') }}</UButton>
     </div>
 
     <SharedPageState v-else-if="error" :error="error" @retry="refetch" />

@@ -63,7 +63,7 @@ async function save() {
     <UCheckbox v-model="simulateError" :label="t('simulateError')" />
     <UAlert v-if="saveError" role="alert" color="error" variant="subtle" :title="t('saveError')" :description="t('saveErrorHint')" icon="i-lucide-circle-alert" />
     <footer class="preview-form-footer">
-      <UButton type="button" color="secondary" :label="t('cancel')" :disabled="saving" @click="emit('cancel')" />
+      <UButton type="button" color="neutral" variant="outline" :label="t('cancel')" :disabled="saving" @click="emit('cancel')" />
       <UButton type="submit" :label="t('save')" :loading="saving" :disabled="!ready || !canEdit" />
     </footer>
   </UForm>

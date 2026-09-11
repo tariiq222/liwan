@@ -169,7 +169,7 @@ const approvalLocked = computed(() => approvalBusy.value)
       <p v-if="displayedMode === 'specific_user'" class="text-sm text-muted">{{ t('projects.settings.approverEligibility') }}</p>
       <p v-if="approvalError" role="alert" class="text-sm text-error">{{ approvalError }}</p>
       <div v-if="pendingMode === 'specific_user'" class="flex flex-wrap gap-2">
-        <UButton type="button" color="secondary" size="sm" data-testid="project-approval-cancel" :disabled="approvalLocked" :label="t('app.cancel')" @click="cancelPendingApproval" variant="solid" />
+        <UButton type="button" color="neutral" size="sm" data-testid="project-approval-cancel" :disabled="approvalLocked" :label="t('app.cancel')" @click="cancelPendingApproval" variant="outline" />
       </div>
       <USelectMenu
         v-if="displayedMode === 'specific_user'"

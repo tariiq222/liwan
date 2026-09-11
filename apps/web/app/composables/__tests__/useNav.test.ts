@@ -111,6 +111,7 @@ describe('shell route classification', () => {
     expect(projectSectionRoot('/projects/12', { tab: 'tasks' })).toBe('planning')
     expect(projectSectionRoot('/projects/12', { tab: 'summary', view: 'board' })).toBe('summary')
     expect(projectSectionRoot('/projects/12', { view: 'board' })).toBe('planning')
+    expect(projectSectionRoot('/projects/12', { view: 'tasks' })).toBe('planning')
     expect(projectSectionRoot('/projects/12/schedule')).toBe('planning')
     expect(projectSectionRoot('/projects/12/stakeholders/')).toBe('stakeholders')
     expect(projectSectionRoot('/projects/12/raci')).toBe('stakeholders')
@@ -315,8 +316,10 @@ describe('precise project context ids', () => {
     expect(projectContextId('/projects/12/updates', {})).toBe('summary')
     expect(projectContextId('/projects/12/updates/new', {}, true)).toBe('updates')
     expect(projectContextId('/projects/12/schedule/tasks/3', {}, true)).toBe('schedule')
+    expect(projectContextId('/projects/12', {}, true)).toBe('summary')
     expect(projectContextId('/projects/12', { tab: 'milestones' }, true)).toBe('milestones')
     expect(projectContextId('/projects/12', { tab: 'board' }, true)).toBe('tasks')
+    expect(projectContextId('/projects/12', { view: 'tasks' }, true)).toBe('tasks')
     expect(projectContextId('/projects/12', { tab: 'summary' }, true)).toBe('summary')
     expect(projectContextId('/projects/12/settings', {}, true)).toBe('settings')
     expect(projectContextId('/tasks/12', {}, true)).toBeNull()
@@ -349,7 +352,9 @@ describe('project workspace tab model', () => {
       const model = projectWorkspaceGroups(12, full, true, true, q, /^\/projects\/\d+\/?$/.test(path), path)
       return [model.activeGroup, model.activeTab]
     }
+    expect(at('/projects/12')).toEqual(['overview', 'summary'])
     expect(at('/projects/12', { tab: 'summary' })).toEqual(['overview', 'summary'])
+    expect(at('/projects/12', { view: 'tasks' })).toEqual(['execution', 'tasks'])
     expect(at('/projects/12', { tab: 'milestones' })).toEqual(['execution', 'milestones'])
     expect(at('/projects/12/schedule')).toEqual(['execution', 'schedule'])
     expect(at('/projects/12/raci')).toEqual(['governance', 'raci'])

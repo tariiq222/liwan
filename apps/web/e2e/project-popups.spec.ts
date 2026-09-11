@@ -57,7 +57,7 @@ for (const [path, current] of [
     await expect(breadcrumb).toBeVisible()
     await expect(breadcrumb.locator('[aria-current="page"]')).toHaveText(current)
     if (path === '/projects/1/raci') {
-      await expect(page.getByTestId('project-tab-governance')).toHaveAttribute('aria-current', 'page')
+      await expect(page.getByTestId('project-tab-governance')).toHaveAttribute('data-active', 'true')
       await expect(page.getByTestId('project-subtab-raci')).toHaveAttribute('aria-current', 'page')
     }
     await expect(page.getByTestId('context-project-menu-back')).toHaveCount(0)
@@ -88,7 +88,7 @@ test('desktop project workspace has one identity and one toolbar after a direct 
   page.on('console', message => {
     if (/hydration.*mismatch/i.test(message.text())) hydrationErrors.push(message.text())
   })
-  await page.goto('/projects/1?returnTo=%2Fprojects%3Fmine%3D1%26q%3Dalpha')
+  await page.goto('/projects/1?tab=tasks&returnTo=%2Fprojects%3Fmine%3D1%26q%3Dalpha')
   await page.reload()
   await expect(page.getByRole('heading', { name: 'المهام', exact: true, level: 1 })).toBeVisible()
   await expect(page.getByTestId('context-sidebar')).toBeVisible()
@@ -110,7 +110,7 @@ test('desktop project workspace has one identity and one toolbar after a direct 
   expect(search.y).toBeGreaterThan(title.y + title.height)
   await page.screenshot({ path: testInfo.outputPath('desktop-project-layout.png'), fullPage: true })
   await expect(page.getByRole('link', { name: 'العودة إلى المشاريع', exact: true })).toHaveCount(0)
-  await expect(page.getByTestId('project-tab-execution')).toHaveAttribute('aria-current', 'page')
+  await expect(page.getByTestId('project-tab-execution')).toHaveAttribute('data-active', 'true')
   await expect(page.getByTestId('project-subtab-tasks')).toHaveAttribute('aria-current', 'page')
   await expect(page.getByTestId('context-link-projects')).toHaveAttribute('aria-current', 'page')
   const breadcrumb = page.getByTestId('project-sidebar-breadcrumb')

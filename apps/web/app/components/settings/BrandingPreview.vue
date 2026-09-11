@@ -29,7 +29,7 @@ const previewStyle = computed(() => Object.fromEntries(
       </div>
       <div class="flex flex-wrap gap-2 rounded-lg border p-4">
         <UButton type="button" data-testid="branding-preview-action" :style="{ background: theme['--primary'], color: theme['--primary-foreground'] }">{{ t('settings.branding.preview.action') }}</UButton>
-        <UButton type="button" color="secondary" :style="{ background: theme['--secondary'], color: theme['--primary'] }">{{ t('settings.branding.secondaryColor') }}</UButton>
+        <UButton type="button" color="secondary" :style="{ background: theme['--nasq-brand-secondary'], color: theme['--nasq-brand-secondary-foreground'] }">{{ t('settings.branding.secondaryColor') }}</UButton>
       </div>
     </div>
   </UCard>

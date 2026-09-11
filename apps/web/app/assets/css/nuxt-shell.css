@@ -21,8 +21,8 @@
 .nasq-context-link[data-active="true"],
 .nasq-context-link[data-active="true"]:hover,
 .nasq-context-link[aria-current="page"]:hover {
-  background: var(--nasq-brand-secondary);
-  color: var(--primary);
+  background: var(--brand-soft);
+  color: var(--brand-link);
   font-weight: 600;
 }
 

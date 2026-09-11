@@ -122,12 +122,12 @@ function addDeliverable() {
         >
           <p>{{ t('projects.charter.removeRowConfirm') }}</p>
           <div class="flex flex-wrap gap-2">
-            <UButton type="button" color="secondary" size="sm" :label="t('app.cancel')" @click="pendingRemove = null" variant="solid" />
+            <UButton type="button" color="neutral" size="sm" :label="t('app.cancel')" @click="pendingRemove = null" variant="outline" />
             <UButton type="button" color="error" size="sm" :label="t('projects.charter.removeRow')" @click="removeRow('objective', row.key)" />
           </div>
         </div>
       </div>
-      <UButton v-if="!readonly" type="button" color="secondary" size="sm" :disabled="disabled" :label="t('projects.charter.addObjective')" @click="addObjective" variant="solid" />
+      <UButton v-if="!readonly" type="button" color="neutral" size="sm" :disabled="disabled" :label="t('projects.charter.addObjective')" @click="addObjective" variant="outline" />
     </section>
 
     <section v-if="!compact" class="space-y-3" data-testid="charter-field-deliverables">
@@ -203,12 +203,12 @@ function addDeliverable() {
         >
           <p>{{ t('projects.charter.removeRowConfirm') }}</p>
           <div class="flex flex-wrap gap-2">
-            <UButton type="button" color="secondary" size="sm" :label="t('app.cancel')" @click="pendingRemove = null" variant="solid" />
+            <UButton type="button" color="neutral" size="sm" :label="t('app.cancel')" @click="pendingRemove = null" variant="outline" />
             <UButton type="button" color="error" size="sm" :label="t('projects.charter.removeRow')" @click="removeRow('deliverable', row.key)" />
           </div>
         </div>
       </div>
-      <UButton v-if="!readonly" type="button" color="secondary" size="sm" :disabled="disabled" :label="t('projects.charter.addDeliverable')" @click="addDeliverable" variant="solid" />
+      <UButton v-if="!readonly" type="button" color="neutral" size="sm" :disabled="disabled" :label="t('projects.charter.addDeliverable')" @click="addDeliverable" variant="outline" />
     </section>
   </div>
 </template>

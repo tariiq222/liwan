@@ -59,7 +59,7 @@ function budgetAmount(): string {
       :title="t('projects.charter.milestonesError')"
     >
       <template #actions>
-        <UButton type="button" color="secondary" variant="solid" size="sm" :label="t('projects.charter.retryMilestones')" @click="emit('retryMilestones')" />
+        <UButton type="button" color="neutral" variant="outline" size="sm" :label="t('projects.charter.retryMilestones')" @click="emit('retryMilestones')" />
       </template>
     </UAlert>
 
@@ -69,8 +69,8 @@ function budgetAmount(): string {
           <h2 id="project-charter-essentials-title" class="text-lg font-semibold text-highlighted">{{ t('projects.charter.sections.essentials') }}</h2>
           <UButton
             type="button"
-            color="secondary"
-            variant="solid"
+            color="neutral"
+            variant="outline"
             class="print:hidden"
             data-testid="project-charter-print"
             :disabled="!milestonesReady"

@@ -175,13 +175,13 @@ function confirmDelete(stageId: StageRow['id']) {
         <UButton
           v-if="editingId !== stage.id"
           type="button"
-          color="secondary"
+          color="neutral"
           size="sm"
           :disabled="disabled"
           :aria-label="t('projects.stages.rename')"
           :label="t('projects.stages.rename')"
           @click="startRename(stage)"
-        variant="solid" />
+        variant="outline" />
 
         <div class="flex items-center gap-2 text-sm">
           <span class="text-muted">{{ t('projects.stages.fold') }}</span>
@@ -208,7 +208,7 @@ function confirmDelete(stageId: StageRow['id']) {
           <div v-if="pendingDeleteId === stage.id" class="basis-full space-y-2 rounded-md border border-error/40 bg-error/5 p-2 text-sm" data-testid="stage-delete-confirm">
             <p>{{ t('projects.stages.deleteConfirm') }}</p>
             <div class="flex flex-wrap gap-2">
-              <UButton type="button" color="secondary" size="sm" :disabled="props.busy" :label="t('app.cancel')" @click="cancelDelete" variant="solid" />
+              <UButton type="button" color="neutral" size="sm" :disabled="props.busy" :label="t('app.cancel')" @click="cancelDelete" variant="outline" />
               <UButton type="button" color="error" size="sm" :disabled="props.busy" :label="t('projects.stages.delete')" @click="confirmDelete(stage.id)" />
             </div>
           </div>

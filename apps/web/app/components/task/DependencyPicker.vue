@@ -52,7 +52,7 @@ function remove(id: number) {
       >
         <template #default><span class="truncate">{{ t('taskLifecycle.addDependency') }}</span></template>
         <template #content-bottom>
-          <UButton v-if="hasNextPage" color="secondary" variant="solid" block :disabled="isFetchingNextPage" :label="t('taskLifecycle.loadMore')" @click="fetchNextPage()" />
+          <UButton v-if="hasNextPage" color="neutral" variant="outline" block :disabled="isFetchingNextPage" :label="t('taskLifecycle.loadMore')" @click="fetchNextPage()" />
         </template>
       </USelectMenu>
     </header>

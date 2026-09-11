@@ -58,7 +58,7 @@ usePageHeader(() => props.title, () => headerDescription.value)
       <div class="min-w-0">
         <div v-if="!hideBack && (props.backTo || $slots.back)" class="mb-1 flex items-center gap-2 text-sm">
           <slot name="back">
-            <UButton :to="props.backTo!" color="secondary" class="focus-visible:ring-2 focus-visible:ring-ring">
+            <UButton :to="props.backTo!" color="neutral" variant="outline" class="focus-visible:ring-2 focus-visible:ring-ring">
               <ArrowRight aria-hidden="true" class="size-[18px] ltr:rotate-180" />{{ props.backLabel || $t('app.back') }}
             </UButton>
           </slot>

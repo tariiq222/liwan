@@ -96,7 +96,7 @@ async function submit() {
         </UFormField>
       </SharedFormSection>
       <div class="flex justify-end gap-2">
-        <UButton type="button" color="secondary" :to="{ path: '/chat', query: listQuery }" :label="t('app.cancel')" />
+        <UButton type="button" color="neutral" variant="outline" :to="{ path: '/chat', query: listQuery }" :label="t('app.cancel')" />
         <UButton type="submit" :disabled="!hydrated || isPending || (wantGroup ? selected.length < 2 : selected.length < 1 && !groupName.trim())" :label="t('chat.create')" />
       </div>
     </form>

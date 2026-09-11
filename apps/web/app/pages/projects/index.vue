@@ -247,7 +247,7 @@ function projectListTabTo(mine: boolean) {
       </FilterBar>
     </div>
         <UButton v-if="canCreate" data-testid="project-new" icon="i-lucide-plus" :disabled="!hydrated" :label="t('projects.new')" @click="openCreate" />
-        <UButton color="secondary" variant="solid" :to="{ path: '/project-templates', query: returnToQuery(route.fullPath) }" data-testid="project-templates-link" :label="t('projects.planningLinks.templates')" />
+        <UButton color="neutral" variant="outline" :to="{ path: '/project-templates', query: returnToQuery(route.fullPath) }" data-testid="project-templates-link" :label="t('projects.planningLinks.templates')" />
       </template>
     </SharedPageHeader>
     <UAlert

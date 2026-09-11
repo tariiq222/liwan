@@ -86,7 +86,7 @@ function restoreTask(task: Task) {
               <p class="truncate font-medium text-highlighted">{{ task.name }}</p>
               <p class="truncate text-sm text-muted">{{ task.project?.name ?? '—' }}</p>
             </div>
-            <UButton size="sm" color="secondary" variant="solid" type="button" :disabled="!hydrated || isPending" @click="restoreTask(task)">{{ t('taskLifecycle.restore') }}</UButton>
+            <UButton size="sm" color="neutral" variant="outline" type="button" :disabled="!hydrated || isPending" @click="restoreTask(task)">{{ t('taskLifecycle.restore') }}</UButton>
           </li>
         </ul>
         <div v-if="hasNextPage" class="border-t border-default p-3 text-center">

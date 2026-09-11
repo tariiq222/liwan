@@ -21,7 +21,7 @@ class TestBrandingEndpoint(HttpCase):
         self.assertEqual(res.headers.get('Content-Type'), 'application/json; charset=utf-8')
         self.assertEqual(res.headers.get('Cache-Control'), 'public, max-age=300')
         body = res.json()
-        self.assertEqual(set(body), {'name', 'logo_url', 'primary_color', 'secondary_color', 'font'})
+        self.assertEqual(set(body) - {'secondary_color'}, {'name', 'logo_url', 'primary_color', 'font'})
         self.assertEqual(body['name'], 'Erada')
         self.assertEqual(body['primary_color'], '#0055ff')
         self.assertEqual(body['font'], 'IBM_Plex_Sans_Arabic')

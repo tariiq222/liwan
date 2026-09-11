@@ -90,7 +90,7 @@ async function submit() {
           <UInput id="hr-employee-manager-search" v-model="managerSearch" class="w-full" :disabled="!canManage || !hydrated || isPending" :aria-label="t('hr.depts.managerSearch')" :placeholder="t('hr.depts.managerSearch')" icon="i-lucide-search" />
           <div v-if="managerQuery.error.value || selectedManagerError" class="mt-2 text-sm text-error">
             <p>{{ t('hr.depts.managerLoadError') }}</p>
-            <UButton type="button" color="secondary" variant="solid" :disabled="!canManage || !hydrated || isPending" :label="t('hr.depts.retry')" @click="retryManagerQueries" />
+            <UButton type="button" color="neutral" variant="outline" :disabled="!canManage || !hydrated || isPending" :label="t('hr.depts.retry')" @click="retryManagerQueries" />
           </div>
           <p v-else-if="managerQuery.isFetching.value" class="mt-2 text-xs text-muted">{{ t('hr.depts.managerLoading') }}</p>
           <USelect id="hr-employee-manager" class="mt-2 min-w-0 w-full" :model-value="managerId ? String(managerId) : 'none'" :items="managerSelectOptions" :disabled="!canManage || !hydrated || isPending" @update:model-value="managerId = idOrNull($event)" />

@@ -28,7 +28,7 @@ function deleteTemplate() { if (!id.value) return; remove.mutate(id.value, { onS
         <UAlert v-if="confirmDelete" color="error" variant="soft" :title="t('projects.templates.deleteConfirm')">
           <template #actions>
             <UButton :disabled="!hydrated || remove.isPending.value" color="error" @click="deleteTemplate">{{ t('projects.templates.actions.confirmDelete') }}</UButton>
-            <UButton color="secondary" variant="solid" :disabled="!hydrated || remove.isPending.value" @click="confirmDelete = false">{{ t('app.cancel') }}</UButton>
+            <UButton color="neutral" variant="outline" :disabled="!hydrated || remove.isPending.value" @click="confirmDelete = false">{{ t('app.cancel') }}</UButton>
           </template>
         </UAlert>
         <p v-if="remove.error.value" role="alert" class="text-error">{{ t('projects.templates.saveError') }}</p>

@@ -33,7 +33,7 @@ async function discard() {
   <UModal :open="pending !== null" :title="t('unsavedTitle')" :description="t('unsavedHint')" :dismissible="!leaving" :content="{ onCloseAutoFocus: restoreFocus }" @update:open="value => { if (!value && !leaving) pending = null }">
     <template #footer>
       <div class="flex flex-wrap gap-2 justify-end w-full">
-        <UButton color="secondary" :label="t('stay')" :disabled="leaving" @click="pending = null" />
+        <UButton color="neutral" variant="outline" :label="t('stay')" :disabled="leaving" @click="pending = null" />
         <UButton :label="t('discard')" :loading="leaving" @click="discard" />
       </div>
     </template>

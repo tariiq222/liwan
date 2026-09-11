@@ -218,7 +218,7 @@ async function submit() {
     </component>
     <p v-if="error" role="alert" class="sm:col-span-2 text-sm text-error">{{ error }}</p>
     <div class="flex flex-wrap gap-2 justify-end sm:col-span-2">
-      <UButton color="secondary" variant="solid" type="button" :disabled="isPending" @click="emit('cancel')">{{ t('app.cancel') }}</UButton>
+      <UButton color="neutral" variant="outline" type="button" :disabled="isPending" @click="emit('cancel')">{{ t('app.cancel') }}</UButton>
       <UButton type="submit" :disabled="!hydrated || isPending || !name.trim() || !selectedProjectId">{{ t('app.create') }}</UButton>
     </div>
   </form>

@@ -184,7 +184,7 @@ async function deleteItem(item: { id: number }) {
                 >
                   {{ confirmDeleteId === row.original.id ? t('projects.governance.confirmDeleteAction') : t('projects.governance.delete') }}
                 </UButton>
-                <UButton color="secondary" variant="solid"
+                <UButton color="neutral" variant="outline"
                   v-if="confirmDeleteId === row.original.id"
                   size="sm"
                   :disabled="!hydrated || remove.isPending.value"
@@ -236,7 +236,7 @@ async function deleteItem(item: { id: number }) {
                 >
                   {{ confirmDeleteId === item.id ? t('projects.governance.confirmDeleteAction') : t('projects.governance.delete') }}
                 </UButton>
-                <UButton color="secondary" variant="solid"
+                <UButton color="neutral" variant="outline"
                   v-if="confirmDeleteId === item.id"
                   size="sm"
                   :disabled="!hydrated || remove.isPending.value"
@@ -251,11 +251,11 @@ async function deleteItem(item: { id: number }) {
       </ul>
     </section>
     <nav v-if="list.data.value && (list.data.value.total > 50 || parsed.offset)" class="flex items-center gap-3" :aria-label="t('projects.governance.pagination')">
-      <UButton color="secondary" variant="solid" :disabled="!hydrated || list.isFetching.value || !parsed.offset" @click="page(-1)">
+      <UButton color="neutral" variant="outline" :disabled="!hydrated || list.isFetching.value || !parsed.offset" @click="page(-1)">
         {{ t('projects.governance.previous') }}
       </UButton>
       <span>{{ t('projects.governance.total', { total: list.data.value.total }) }}</span>
-      <UButton color="secondary" variant="solid"
+      <UButton color="neutral" variant="outline"
         :disabled="!hydrated || list.isFetching.value || (parsed.offset ?? 0) + 50 >= list.data.value.total"
         @click="page(1)"
       >

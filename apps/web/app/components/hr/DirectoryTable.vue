@@ -140,7 +140,7 @@ function clearFilters() {
     <UAlert v-if="pendingEmployee" role="alert" color="error" variant="subtle" :title="t('hr.employee.archiveConfirm')">
       <template #actions>
         <UButton color="error" :disabled="!hydrated || archivePending" :label="pendingEmployee.active ? t('hr.employee.archive') : t('hr.employee.unarchive')" @click="confirmPendingArchive" />
-        <UButton color="secondary" variant="solid" :disabled="archivePending" :label="t('app.cancel')" @click="pendingArchiveId = null" />
+        <UButton color="neutral" variant="outline" :disabled="archivePending" :label="t('app.cancel')" @click="pendingArchiveId = null" />
       </template>
     </UAlert>
 

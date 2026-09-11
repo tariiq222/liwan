@@ -51,8 +51,8 @@ const dialogContent = computed<NonNullable<SlideoverProps['content']> & { style:
         @update:open="open => { if (!open && props.open) emit('close') }" @after:leave="emit('afterLeave')">
         <template #content>
           <div class="flex min-h-12 shrink-0 items-center justify-between gap-3 border-b border-default px-4 md:px-6">
-            <UButton :to="fullPageTo" color="secondary" data-testid="project-overlay-full-page" variant="solid">{{ t('projects.workspace.openFullPage') }}</UButton>
-            <UButton type="button" color="secondary" square icon="i-lucide-x" data-testid="project-overlay-close" :aria-label="t('projects.workspace.close')" @click="emit('close')" variant="solid" />
+            <UButton :to="fullPageTo" color="neutral" data-testid="project-overlay-full-page" variant="outline">{{ t('projects.workspace.openFullPage') }}</UButton>
+            <UButton type="button" color="neutral" square icon="i-lucide-x" data-testid="project-overlay-close" :aria-label="t('projects.workspace.close')" @click="emit('close')" variant="outline" />
           </div>
           <div class="min-h-0 flex-1 overflow-y-auto">
             <div class="flex min-h-full flex-col gap-5 px-4 py-4 md:gap-6 md:px-6 md:py-6">

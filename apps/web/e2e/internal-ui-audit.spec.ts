@@ -9,7 +9,7 @@ const SHOTS = process.env.INTERNAL_UI_AUDIT_SHOTS
 const ROUTES = [
   { id: 'tasks', path: '/tasks', width: 'list', h1: 'مهامي' },
   { id: 'projects', path: '/projects', width: 'list', h1: 'المشاريع' },
-  { id: 'project-detail', path: '/projects/1', width: 'detail', h1: 'مشروع ألفا' },
+  { id: 'project-detail', path: '/projects/1', width: 'detail', h1: 'الملخص' },
   { id: 'project-settings', path: '/projects/1/settings', width: 'form', h1: 'إعدادات المشروع' },
   { id: 'project-charter', path: '/projects/1/charter', width: 'form', h1: 'مشروع ألفا' },
   { id: 'hr', path: '/hr', width: 'list', h1: 'الموظفون' },

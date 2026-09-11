@@ -82,7 +82,7 @@ async function submit() {
           <UInput v-model="managerSearch" class="w-full" :disabled="!canManage || !hydrated || pending" :aria-label="t('hr.depts.managerSearch')" :placeholder="t('hr.depts.managerSearch')" icon="i-lucide-search" />
           <div v-if="employeeQuery.error.value || selectedManagerQuery.error.value" class="mt-2 text-sm text-error">
             <p>{{ t('hr.depts.managerLoadError') }}</p>
-            <UButton type="button" color="secondary" variant="solid" :label="t('hr.depts.retry')" @click="employeeQuery.refetch(); selectedManagerQuery.refetch()" />
+            <UButton type="button" color="neutral" variant="outline" :label="t('hr.depts.retry')" @click="employeeQuery.refetch(); selectedManagerQuery.refetch()" />
           </div>
           <p v-else-if="employeeQuery.isFetching.value" class="mt-2 text-xs text-muted">{{ t('hr.depts.managerLoading') }}</p>
           <p v-else-if="(employeeQuery.data.value?.total ?? 0) > managerOptions.length" class="mt-2 text-xs text-muted">{{ t('hr.depts.managerLimitNotice') }}</p>
@@ -91,7 +91,7 @@ async function submit() {
       </div>
     </SharedFormSection>
     <footer class="flex justify-end gap-2">
-      <UButton type="button" color="secondary" variant="solid" :to="props.backTo ?? (props.department ? `/hr/departments/${props.department.id}` : '/hr/departments')" :label="t('app.cancel')" />
+      <UButton type="button" color="neutral" variant="outline" :to="props.backTo ?? (props.department ? `/hr/departments/${props.department.id}` : '/hr/departments')" :label="t('app.cancel')" />
       <UButton type="submit" color="primary" :disabled="!canManage || !hydrated || pending || !name.trim()" :label="t('app.save')" />
     </footer>
   </UForm>

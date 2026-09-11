@@ -45,6 +45,9 @@
   --color-brand2-800: color-mix(in srgb, var(--secondary) 80%, black);
   --color-brand2-900: color-mix(in srgb, var(--secondary) 65%, black);
   --color-brand2-950: color-mix(in srgb, var(--secondary) 50%, black);
+  --primary-fill: var(--primary);
+  --primary-fill-foreground: var(--primary-foreground);
+  --brand-soft: color-mix(in srgb, var(--primary) 8%, var(--ui-bg));
   --preview-header: 4.5rem;
   --preview-rail: 4.5rem;
   --preview-sidebar: 17.428571rem;
@@ -84,7 +87,7 @@ a, button, input, textarea, select { -webkit-tap-highlight-color: transparent; }
 .preview-context-heading { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
 .preview-context-nav { display: flex; flex-direction: column; gap: .5rem; }
 .preview-context-link { position: relative; justify-content: start; min-height: 2.8rem; color: var(--ui-text-muted); border-radius: .5rem; }
-.preview-context-link[aria-current] { color: var(--primary); background: var(--secondary); font-weight: 600; }
+.preview-context-link[aria-current] { color: var(--brand-link); background: var(--brand-soft); font-weight: 600; }
 .preview-context-link[aria-current]::after,
 .preview-rail-button[aria-current]::after {
   content: '';
@@ -97,9 +100,9 @@ a, button, input, textarea, select { -webkit-tap-highlight-color: transparent; }
   pointer-events: none;
 }
 .preview-rail-button[aria-current]::after {
-  background: var(--secondary);
+  background: var(--primary);
 }
-.preview-calendar [data-slot='cellTrigger'][data-selected] { background: var(--secondary); color: var(--primary); }
+.preview-calendar [data-slot='cellTrigger'][data-selected] { background: var(--secondary); color: var(--secondary-foreground); }
 .preview-calendar [data-slot='cellTrigger']:focus-visible { outline: 2px solid currentColor; outline-offset: -2px; }
 .preview-progress [data-slot='indicator'] { background: linear-gradient(to right, var(--secondary), var(--primary)); }
 .preview-progress:dir(rtl) [data-slot='indicator'] { background-image: linear-gradient(to left, var(--secondary), var(--primary)); }
@@ -132,10 +135,10 @@ a, button, input, textarea, select { -webkit-tap-highlight-color: transparent; }
 .preview-sheet[data-state='open'] { animation: preview-sheet-in 200ms ease-out; }
 .preview-sheet[data-state='closed'] { animation: preview-sheet-out 180ms ease-in; }
 .preview-chart { height: 16rem; max-width: 100%; }
-.preview-primary-solid { background: var(--primary); color: var(--primary-foreground); }
-.preview-primary-solid:hover { background: var(--primary); color: var(--primary-foreground); text-decoration: underline; }
-.preview-secondary-solid { background: var(--secondary); color: var(--primary); }
-.preview-secondary-solid:hover { background: var(--secondary); color: var(--primary); text-decoration: underline; }
+.preview-primary-solid { background: var(--primary-fill); color: var(--primary-fill-foreground); }
+.preview-primary-solid:hover { background: var(--primary-fill); color: var(--primary-fill-foreground); text-decoration: underline; }
+.preview-secondary-solid { background: var(--secondary); color: var(--secondary-foreground); }
+.preview-secondary-solid:hover { background: var(--secondary); color: var(--secondary-foreground); text-decoration: underline; }
 @media (max-width: 767px) {
   :root { --preview-rail: 0rem; --preview-sidebar: 0rem; }
   .preview-shell.is-collapsed { --preview-sidebar: 0rem; }

@@ -86,7 +86,7 @@ function retry() {
       <template v-else>
         <UAlert v-if="refreshError" color="error" variant="soft" :title="t('projects.finance.refreshError')">
           <template #actions>
-            <UButton color="secondary" variant="solid" type="button" @click="retry">{{ t('app.retry') }}</UButton>
+            <UButton color="neutral" variant="outline" type="button" @click="retry">{{ t('app.retry') }}</UButton>
           </template>
         </UAlert>
         <section class="rounded-xl border border-default bg-default overflow-hidden">

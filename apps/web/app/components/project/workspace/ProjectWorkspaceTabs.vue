@@ -38,7 +38,7 @@ const activeGroup = computed(() => model.value.groups.find(group => group.id ===
         variant="ghost"
         class="nasq-ui-tab"
         :to="group.to"
-        :aria-current="model.activeGroup === group.id ? 'page' : undefined"
+        :aria-current="model.activeGroup === group.id && !group.links.length ? 'page' : undefined"
         :data-active="model.activeGroup === group.id"
         :data-testid="`project-tab-${group.id}`"
       >

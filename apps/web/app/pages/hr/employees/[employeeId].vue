@@ -29,7 +29,7 @@ async function toggleArchive() {
       <UAlert v-if="confirmArchive" role="alert" color="error" variant="subtle" :title="t('hr.employee.archiveConfirm')">
         <template #actions>
           <UButton color="error" :disabled="!hydrated || archivePending" :label="query.data.value?.active ? t('hr.employee.archive') : t('hr.employee.unarchive')" @click="toggleArchive" />
-          <UButton color="secondary" variant="solid" :disabled="archivePending" :label="t('app.cancel')" @click="confirmArchive = false" />
+          <UButton color="neutral" variant="outline" :disabled="archivePending" :label="t('app.cancel')" @click="confirmArchive = false" />
         </template>
       </UAlert>
       <EmployeeCard :employee-id="id" />

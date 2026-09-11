@@ -37,10 +37,12 @@ def _logo_version(company):
 
 def dump_branding(company):
     """Public branding of ``company`` for the login page and app chrome."""
-    return {
+    payload = {
         'name': company.name,
         'logo_url': f'/web/binary/company_logo?company={company.id}&v={_logo_version(company)}',
         'primary_color': company.primary_color or DEFAULT_PRIMARY_COLOR,
-        'secondary_color': company.secondary_color or '#2563eb',
         'font': company.font,
     }
+    if company.secondary_color:
+        payload['secondary_color'] = company.secondary_color
+    return payload

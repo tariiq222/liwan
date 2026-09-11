@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
-import { brandPairContrast, DEFAULT_SECONDARY } from '@/utils/brandTheme'
+import { brandPairContrast, derivedSecondary } from '@/utils/brandTheme'
 import { ApiError } from '@/composables/useApi'
 import { buildBrandingPatch, normalizeHex } from '@/composables/colorHex'
 import { useBrandingAdmin, useUpdateBranding } from '@/composables/useBrandingAdmin'
@@ -22,14 +22,14 @@ const update = useUpdateBranding()
 
 const color = ref(DEFAULT_COLOR)
 const savedColor = ref(DEFAULT_COLOR)
-const secondary = ref(DEFAULT_SECONDARY)
-const savedSecondary = ref(DEFAULT_SECONDARY)
+const secondary = ref(derivedSecondary(DEFAULT_COLOR))
+const savedSecondary = ref(derivedSecondary(DEFAULT_COLOR))
 const dirty = ref(false)
 const validationError = ref('')
 
 function loadSaved(value: { primary_color: string; secondary_color?: string }) {
   savedColor.value = normalizeHex(value.primary_color) ?? DEFAULT_COLOR
-  savedSecondary.value = normalizeHex(value.secondary_color ?? DEFAULT_SECONDARY) ?? DEFAULT_SECONDARY
+  savedSecondary.value = normalizeHex(value.secondary_color ?? '') ?? derivedSecondary(savedColor.value)
   color.value = savedColor.value
   secondary.value = savedSecondary.value
   dirty.value = false
@@ -57,7 +57,7 @@ function resetDefault() {
   validationError.value = ''
   dirty.value = true
   color.value = DEFAULT_COLOR
-  secondary.value = DEFAULT_SECONDARY
+  secondary.value = derivedSecondary(DEFAULT_COLOR)
 }
 
 async function retryLoad() {
@@ -92,7 +92,7 @@ onBeforeUnmount(() => update.reset())
   </div>
   <UAlert v-else-if="error" data-testid="branding-load-error" color="error" variant="subtle" :title="t('settings.branding.errors.load')">
     <template #actions>
-      <UButton type="button" color="secondary" data-testid="branding-retry" :disabled="!hydrated" @click="retryLoad">{{ t('settings.branding.retry') }}</UButton>
+      <UButton type="button" color="neutral" variant="outline" data-testid="branding-retry" :disabled="!hydrated" @click="retryLoad">{{ t('settings.branding.retry') }}</UButton>
     </template>
   </UAlert>
   <div v-else-if="branding" class="nasq-settings-branding">
@@ -118,7 +118,7 @@ onBeforeUnmount(() => update.reset())
             v-for="preset in PRESETS"
             :key="preset.key"
             type="button"
-            color="secondary"
+            color="neutral" variant="outline"
             data-testid="branding-preset"
             :aria-label="t(preset.labelKey)"
             :disabled="!hydrated || isBusy"
@@ -146,10 +146,10 @@ onBeforeUnmount(() => update.reset())
         <UButton type="submit" data-testid="branding-submit" :aria-invalid="!colorValid" :disabled="!hydrated || isBusy || !colorValid">
           {{ update.isPending.value ? t('settings.branding.saving') : t('settings.branding.save') }}
         </UButton>
-        <UButton type="button" color="secondary" data-testid="branding-cancel" :disabled="!hydrated || isBusy" @click="cancel">
+        <UButton type="button" color="neutral" variant="outline" data-testid="branding-cancel" :disabled="!hydrated || isBusy" @click="cancel">
           {{ t('settings.branding.cancel') }}
         </UButton>
-        <UButton type="button" color="secondary" data-testid="branding-default" :disabled="!hydrated || isBusy" @click="resetDefault">
+        <UButton type="button" color="neutral" variant="outline" data-testid="branding-default" :disabled="!hydrated || isBusy" @click="resetDefault">
           {{ t('settings.branding.resetDefault') }}
         </UButton>
       </div>

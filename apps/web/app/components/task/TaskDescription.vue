@@ -110,7 +110,7 @@ watch(() => props.task.can_write, (canWrite) => {
         <UButton
           v-if="task.can_write"
           data-testid="task-description-edit"
-          color="secondary" variant="solid"
+          color="neutral" variant="outline"
           size="sm"
           type="button"
           :disabled="!hydrated || isPending"
@@ -130,7 +130,7 @@ watch(() => props.task.can_write, (canWrite) => {
       />
       <p v-if="error" role="alert" data-testid="task-description-error" class="text-sm text-error">{{ error }}</p>
       <div class="flex flex-wrap justify-end gap-2">
-        <UButton type="button" color="secondary" variant="solid" :disabled="!hydrated || isPending" @click="cancelEdit">{{ t('tasks.descriptionField.cancel') }}</UButton>
+        <UButton type="button" color="neutral" variant="outline" :disabled="!hydrated || isPending" @click="cancelEdit">{{ t('tasks.descriptionField.cancel') }}</UButton>
         <UButton type="submit" :disabled="!hydrated || isPending">{{ t('tasks.descriptionField.save') }}</UButton>
       </div>
     </form>

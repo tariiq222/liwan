@@ -99,7 +99,7 @@ async function confirmRemoval() {
         <UAlert v-if="confirmDelete" data-testid="finance-delete-confirm" color="error" variant="soft" :title="entry.kind === 'budget' ? t('projects.finance.deleteBudgetConfirm') : t('projects.finance.deleteExpenseConfirm')" :description="deleteError ?? undefined">
           <template #actions>
             <UButton color="error" :disabled="!hydrated || deleting" @click="confirmRemoval">{{ t('projects.finance.delete') }}</UButton>
-            <UButton color="secondary" variant="solid" :disabled="deleting" @click="confirmDelete = false">{{ t('app.cancel') }}</UButton>
+            <UButton color="neutral" variant="outline" :disabled="deleting" @click="confirmDelete = false">{{ t('app.cancel') }}</UButton>
           </template>
         </UAlert>
         <section class="rounded-xl border border-default bg-default overflow-hidden" aria-labelledby="finance-entry-summary-title">

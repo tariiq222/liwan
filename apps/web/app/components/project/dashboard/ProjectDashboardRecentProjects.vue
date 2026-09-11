@@ -46,7 +46,7 @@ function updatedAt(value: string | null | undefined) {
           <h2 id="project-dashboard-recent-title" class="text-lg font-semibold text-highlighted">{{ t('projects.dashboard.recentTitle') }}</h2>
           <p class="mt-1 text-sm text-muted">{{ t('projects.dashboard.recentDescription') }}</p>
         </div>
-        <UButton color="secondary" variant="solid" :to="{ path: '/projects', query: projectListQuery }" :label="t('projects.dashboard.allProjects')" class="shrink-0" />
+        <UButton color="neutral" variant="outline" :to="{ path: '/projects', query: projectListQuery }" :label="t('projects.dashboard.allProjects')" class="shrink-0" />
       </div>
     </template>
     <UTable

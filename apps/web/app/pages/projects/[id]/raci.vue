@@ -118,7 +118,7 @@ async function deleteRow() {
       <div class="border-b border-default px-5 py-4"><h2 class="text-lg font-semibold text-highlighted">{{ t('projects.governance.confirmDelete') }}</h2></div>
       <div class="p-5 space-y-3">
         <p>{{ confirmRow.task.name }} — {{ confirmRow.stakeholder.name }} ({{ confirmRow.role }})</p>
-        <div class="flex flex-wrap gap-2"><UButton color="error" :disabled="!hydrated || pending" @click="deleteRow">{{ t('projects.governance.confirmDeleteAction') }}</UButton><UButton color="secondary" variant="solid" :disabled="!hydrated || pending" @click="confirmRow = null">{{ t('app.cancel') }}</UButton></div>
+        <div class="flex flex-wrap gap-2"><UButton color="error" :disabled="!hydrated || pending" @click="deleteRow">{{ t('projects.governance.confirmDeleteAction') }}</UButton><UButton color="neutral" variant="outline" :disabled="!hydrated || pending" @click="confirmRow = null">{{ t('app.cancel') }}</UButton></div>
       </div>
     </section>
     <SharedPageState :loading="tasks.isLoading.value || stakeholders.isLoading.value || rows.isLoading.value" :error="tasks.error.value || stakeholders.error.value || rows.error.value" :empty="false" @retry="() => { tasks.refetch(); stakeholders.refetch(); rows.refetch() }" />
@@ -143,8 +143,8 @@ async function deleteRow() {
       <p class="p-3 text-sm text-muted">{{ t('projects.governance.raci.legend') }}</p>
     </section>
     <div class="grid gap-3 sm:grid-cols-2">
-      <nav class="flex items-center gap-2" :aria-label="t('projects.governance.raci.task')"><UButton color="secondary" variant="solid" :disabled="!hydrated || loading || pending || !taskPage" @click="taskPage--">{{ t('projects.governance.previous') }}</UButton><span>{{ t('projects.governance.total', { total: tasks.data.value?.total ?? 0 }) }}</span><UButton color="secondary" variant="solid" :disabled="!hydrated || loading || pending || (taskPage + 1) * 50 >= (tasks.data.value?.total ?? 0)" @click="nextTasks">{{ t('projects.governance.next') }}</UButton></nav>
-      <nav class="flex items-center gap-2" :aria-label="t('projects.governance.raci.stakeholder')"><UButton color="secondary" variant="solid" :disabled="!hydrated || loading || pending || !stakeholderPage" @click="stakeholderPage--">{{ t('projects.governance.previous') }}</UButton><span>{{ t('projects.governance.total', { total: stakeholders.data.value?.total ?? 0 }) }}</span><UButton color="secondary" variant="solid" :disabled="!hydrated || loading || pending || (stakeholderPage + 1) * 10 >= (stakeholders.data.value?.total ?? 0)" @click="stakeholderPage++">{{ t('projects.governance.next') }}</UButton></nav>
+      <nav class="flex items-center gap-2" :aria-label="t('projects.governance.raci.task')"><UButton color="neutral" variant="outline" :disabled="!hydrated || loading || pending || !taskPage" @click="taskPage--">{{ t('projects.governance.previous') }}</UButton><span>{{ t('projects.governance.total', { total: tasks.data.value?.total ?? 0 }) }}</span><UButton color="neutral" variant="outline" :disabled="!hydrated || loading || pending || (taskPage + 1) * 50 >= (tasks.data.value?.total ?? 0)" @click="nextTasks">{{ t('projects.governance.next') }}</UButton></nav>
+      <nav class="flex items-center gap-2" :aria-label="t('projects.governance.raci.stakeholder')"><UButton color="neutral" variant="outline" :disabled="!hydrated || loading || pending || !stakeholderPage" @click="stakeholderPage--">{{ t('projects.governance.previous') }}</UButton><span>{{ t('projects.governance.total', { total: stakeholders.data.value?.total ?? 0 }) }}</span><UButton color="neutral" variant="outline" :disabled="!hydrated || loading || pending || (stakeholderPage + 1) * 10 >= (stakeholders.data.value?.total ?? 0)" @click="stakeholderPage++">{{ t('projects.governance.next') }}</UButton></nav>
     </div>
   </SharedPageContainer>
 </template>

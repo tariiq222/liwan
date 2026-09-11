@@ -55,6 +55,8 @@ test('project sections are in-page group tabs while the sidebar keeps the projec
   expect(links.map(s => s.trim())).toEqual(['مشروع جديد', 'نظرة عامة', 'كل المشاريع', 'مهامي', 'قوالب المشاريع'])
   const tabs = await page.getByTestId('project-workspace-tabs').getByRole('link').allTextContents()
   expect(tabs.map(s => s.trim())).toEqual(['الملخص', 'التنفيذ', 'الحوكمة', 'المالية', 'التحديثات'])
+  await expect(page.getByTestId('project-workspace-subtabs')).toHaveCount(0)
+  await page.getByTestId('project-tab-execution').click()
   const subtabs = await page.getByTestId('project-workspace-subtabs').getByRole('link').allTextContents()
   expect(subtabs.map(s => s.trim())).toEqual(['المهام', 'الجدول الزمني', 'المعالم'])
   await page.getByTestId('project-tab-governance').click()

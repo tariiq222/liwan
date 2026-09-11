@@ -2,6 +2,8 @@ export default defineAppConfig({
   ui: {
     colors: { primary: 'brand', secondary: 'brand2', neutral: 'zinc' },
     button: {
+      // Ranks: primary solid = one main action; neutral outline = cancel/back/print/close/pager;
+      // ghost = tertiary; error = destroy. Do not use secondary solid for chrome.
       slots: { base: 'min-h-9 rounded-lg font-medium' },
       variants: { square: { true: 'nasq-ui-icon-button' } },
       compoundVariants: [

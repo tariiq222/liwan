@@ -11,7 +11,7 @@ test.beforeEach(async ({ page }) => {
 
 for (const [path, title] of [
   ['/projects', 'كل المشاريع'], ['/projects?mine=1', 'مشاريعي'],
-  ['/projects/1', 'المهام'], ['/projects/1?tab=summary', 'الملخص'],
+  ['/projects/1', 'الملخص'], ['/projects/1?tab=summary', 'الملخص'],
   ['/projects/1?tab=milestones', 'المعالم'], ['/projects/1/register', 'المخاطر والمشكلات'],
   ['/projects/1/stakeholders', 'أصحاب المصلحة'], ['/projects/1/raci', 'مصفوفة المسؤوليات'],
 ] as const) {

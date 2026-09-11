@@ -23,8 +23,8 @@ const accountTo = computed(() => {
       <p class="text-sm text-muted">{{ $t('hr.employee.accessManagedInSettings') }}</p>
       <UButton
         v-if="employee.user_id && can('access.users.read')"
-        color="secondary"
-        variant="solid"
+        color="neutral"
+        variant="outline"
         :to="accountTo"
         :label="$t('hr.employee.manageAccount')"
       />

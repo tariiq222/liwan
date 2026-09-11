@@ -11,7 +11,7 @@ BRANDING_COMPANY_FIELDS = {'primary_color', 'secondary_color'}
 class ResCompany(models.Model):
     _inherit = 'res.company'
 
-    secondary_color = fields.Char(default='#2563eb')
+    secondary_color = fields.Char()
 
     nasq_access_policy_version = fields.Integer(default=1, required=True)
 

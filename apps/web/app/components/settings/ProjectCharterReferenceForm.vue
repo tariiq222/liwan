@@ -82,7 +82,7 @@ async function submit() {
     </div>
     <p v-if="error" role="alert" class="text-sm text-error">{{ error }}</p>
     <div class="flex flex-wrap justify-end gap-2">
-      <UButton type="button" color="secondary" :disabled="pending" :label="t('app.cancel')" @click="emit('cancel')" />
+      <UButton type="button" color="neutral" variant="outline" :disabled="pending" :label="t('app.cancel')" @click="emit('cancel')" />
       <UButton type="submit" :disabled="!hydrated || pending || !name.trim()" :label="reference ? t('app.save') : t('app.create')" />
     </div>
   </form>

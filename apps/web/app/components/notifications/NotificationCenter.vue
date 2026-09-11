@@ -76,7 +76,7 @@ async function openNotification(item: Notification) {
         <div class="min-h-0 overflow-y-auto p-2">
           <div v-if="error" role="alert" class="space-y-2 p-4 text-center">
             <p class="text-sm text-error">{{ t('notifications.loadError') }}</p>
-            <UButton color="secondary" variant="solid" size="sm" :disabled="isFetching" :label="t('notifications.retry')" @click="refetch()" />
+            <UButton color="neutral" variant="outline" size="sm" :disabled="isFetching" :label="t('notifications.retry')" @click="refetch()" />
           </div>
           <p v-else-if="isLoading" role="status" class="p-6 text-center text-sm text-muted">{{ t('notifications.loading') }}</p>
           <p v-else-if="!items.length" class="p-6 text-center text-sm text-muted">{{ t('notifications.empty') }}</p>
@@ -104,7 +104,7 @@ async function openNotification(item: Notification) {
             </UButton>
           </div>
         </div>
-        <UButton to="/notifications" color="secondary" variant="solid" block class="rounded-none" :label="t('notifications.more')" @click="open = false" />
+        <UButton to="/notifications" color="neutral" variant="outline" block class="rounded-none" :label="t('notifications.more')" @click="open = false" />
       </div>
     </template>
   </UPopover>

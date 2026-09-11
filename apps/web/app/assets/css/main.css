@@ -29,6 +29,10 @@
   --primary-hover-foreground: #ffffff;
   --primary-active: #3d3d3f;
   --primary-active-foreground: #ffffff;
+  --primary-fill: var(--primary);
+  --primary-fill-foreground: var(--primary-foreground);
+  --nasq-brand-secondary: color-mix(in srgb, var(--primary) 12%, white);
+  --nasq-brand-secondary-foreground: #000000;
   --brand-link: #18181b;
   --chart-1: #18181b;
   --chart-2: #313136;
@@ -129,6 +133,7 @@
   --sidebar-accent: var(--ui-bg-accented);
   --sidebar-accent-foreground: var(--ui-text-highlighted);
   --sidebar-border: var(--ui-border);
+  --nasq-brand-secondary: color-mix(in srgb, var(--primary) 12%, #18181b);
   --brand-soft: color-mix(in srgb, var(--brand-link) 12%, var(--card));
   --brand-border: color-mix(in srgb, var(--brand-link) 30%, var(--border));
   --status-success: var(--ui-success);

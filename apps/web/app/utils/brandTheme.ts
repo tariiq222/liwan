@@ -1,7 +1,6 @@
 import type { AppearanceMode } from './appearance'
 
 export const DEFAULT_PRIMARY = '#18181b'
-export const DEFAULT_SECONDARY = '#2563eb'
 
 const HEX_COLOR = /^#[0-9a-fA-F]{6}$/
 
@@ -93,16 +92,29 @@ function interaction(hex: string) {
   return { hex, foreground, hover, hoverForeground: foregroundFor(hover), active, activeForeground: foregroundFor(active) }
 }
 
+export function derivedSecondary(primary: string, mode: AppearanceMode = 'light'): string {
+  const surface = mode === 'dark' ? '#18181b' : mode === 'cream' ? '#f6f1e7' : '#ffffff'
+  return mix(normalizeHex(primary), surface, 0.88)
+}
+
 export function brandPairContrast(primary: string, secondary: string): number {
-  return contrast(normalizeHex(primary), normalizeHex(secondary, DEFAULT_SECONDARY))
+  const resolvedPrimary = normalizeHex(primary)
+  return contrast(resolvedPrimary, normalizeHex(secondary, derivedSecondary(resolvedPrimary)))
 }
 
 export function createBrandTheme(input: string, mode: AppearanceMode = 'light', secondaryInput?: string): Record<string, string> {
   const primary = interaction(normalizeHex(input))
-  const secondary = interaction(normalizeHex(secondaryInput ?? DEFAULT_SECONDARY, DEFAULT_SECONDARY))
+  const secondaryHex = typeof secondaryInput === 'string' && HEX_COLOR.test(secondaryInput.trim())
+    ? secondaryInput.trim().toLowerCase()
+    : derivedSecondary(primary.hex, mode)
+  const secondary = interaction(secondaryHex)
+  const fill = chartBase(primary.hex, mode)
   const link = contrastTone(primary.hex, 4.5, mode)
   const ring = contrastTone(primary.hex, 3, mode)
   const charts = chartFamily(primary.hex, mode)
+  const shell = mode === 'dark' && relativeLuminance(primary.hex) < 0.05
+    ? interaction(mix(primary.hex, '#ffffff', 0.18))
+    : primary
 
   return {
     '--primary': primary.hex,
@@ -111,7 +123,11 @@ export function createBrandTheme(input: string, mode: AppearanceMode = 'light', 
     '--primary-hover-foreground': primary.hoverForeground,
     '--primary-active': primary.active,
     '--primary-active-foreground': primary.activeForeground,
-    // Opt-in: legacy customer callers already own their neutral --secondary.
+    '--primary-fill': fill,
+    '--primary-fill-foreground': foregroundFor(fill),
+    '--nasq-brand-secondary': secondary.hex,
+    '--nasq-brand-secondary-foreground': secondary.foreground,
+    // Preview only: customer html keeps the neutral --secondary token.
     ...(secondaryInput === undefined ? {} : {
       '--secondary': secondary.hex,
       '--secondary-foreground': secondary.foreground,
@@ -131,9 +147,9 @@ export function createBrandTheme(input: string, mode: AppearanceMode = 'light', 
     '--sidebar-primary': primary.hex,
     '--sidebar-primary-foreground': primary.foreground,
     '--sidebar-ring': ring,
-    '--shell-background': primary.hex,
-    '--shell-foreground': primary.foreground,
-    '--shell-hover': primary.hover,
-    '--shell-active': primary.active,
+    '--shell-background': shell.hex,
+    '--shell-foreground': shell.foreground,
+    '--shell-hover': shell.hover,
+    '--shell-active': shell.active,
   }
 }

@@ -34,7 +34,7 @@ describe('shared collapsible filter card', () => {
     expect(html).not.toMatch(/<button\b[^>]*>(?:(?!<\/button>)[\s\S])*<button\b/)
   })
   it('allows an explicit expanded presentation', async () => {
-    const html = await renderFilter('FilterCard', { defaultOpen: true })
+    const html = await renderFilter('FilterCard', { defaultOpen: true }, { default: () => h('select') })
     expect(html).toContain('aria-expanded="true"')
   })
   it('keeps active summary/actions visible outside the filter popover', async () => {
@@ -51,9 +51,26 @@ describe('shared collapsible filter card', () => {
   })
   it('disables interaction before hydration and when explicitly disabled', async () => {
     for (const [props, hydrated] of [[{ activeCount: 1 }, false], [{ activeCount: 1, disabled: true }, true]] as const) {
-      const html = await renderFilter('FilterCard', props, {}, hydrated)
+      const html = await renderFilter('FilterCard', props, { default: () => h('select') }, hydrated)
       expect(html.match(/<button\b[^>]*disabled/g)).toHaveLength(2)
     }
+  })
+  it('keeps FilterBar search visible while extra fields stay behind the trigger', async () => {
+    const html = await renderFilter('FilterBar', { activeCount: 0 }, {
+      search: () => h('input', { 'aria-label': 'Visible search' }),
+      default: () => h('select', [h('option', 'All states')]),
+    })
+    expect(html).toContain('aria-expanded="false"')
+    expect(html).toContain('aria-label="Visible search"')
+    expect(html).toContain('data-slot="search"')
+    expect(html).toContain('All states')
+  })
+  it('hides the filter trigger when FilterBar has only search', async () => {
+    const html = await renderFilter('FilterBar', {}, {
+      search: () => h('input', { 'aria-label': 'Only search' }),
+    })
+    expect(html).toContain('Only search')
+    expect(html).not.toContain('aria-expanded')
   })
   it('adapts existing FilterBar slots into a single shared card', async () => {
     const html = await renderFilter('FilterBar', { activeCount: 1 }, {

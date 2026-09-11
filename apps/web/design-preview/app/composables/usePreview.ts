@@ -1,5 +1,5 @@
 import { normalizeAppearance } from '#nasq-utils/appearance'
-import { DEFAULT_PRIMARY, DEFAULT_SECONDARY } from '#nasq-utils/brandTheme'
+import { DEFAULT_PRIMARY, derivedSecondary } from '#nasq-utils/brandTheme'
 
 export type PreviewModule = 'projects' | 'tasks' | 'meetings' | 'hr'
 export type PreviewStatus = 'active' | 'done' | 'waiting'
@@ -26,7 +26,7 @@ export function usePreview() {
   const appearanceCookie = useCookie('nasq-design-appearance', { default: () => normalizeAppearance(null), sameSite: 'lax' })
   const appearance = computed(() => normalizeAppearance(appearanceCookie.value))
   const brand = useCookie('nasq-design-brand', { default: () => DEFAULT_PRIMARY, sameSite: 'lax' })
-  const secondary = useCookie('nasq-design-secondary', { default: () => DEFAULT_SECONDARY, sameSite: 'lax' })
+  const secondary = useCookie('nasq-design-secondary', { default: () => derivedSecondary(DEFAULT_PRIMARY), sameSite: 'lax' })
   const module = computed<PreviewModule>(() => previewModules.includes(route.query.module as PreviewModule) ? route.query.module as PreviewModule : 'projects')
   const state = computed(() => ['loading', 'error', 'empty', 'readonly'].includes(String(route.query.state)) ? String(route.query.state) : 'normal')
   const canEdit = computed(() => state.value !== 'readonly')

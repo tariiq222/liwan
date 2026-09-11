@@ -112,7 +112,7 @@ function applyLink() {
       <div v-if="linkEditing" class="flex gap-2 border-b p-2">
         <UInput v-model="linkUrl" class="flex-1" :disabled="disabled" :aria-label="t('hr.docs.linkPrompt')" :placeholder="t('hr.docs.linkPrompt')" />
         <UButton type="button" color="primary" size="sm" :disabled="disabled" :label="t('app.save')" @click="applyLink" />
-        <UButton type="button" color="secondary" variant="solid" size="sm" :label="t('app.cancel')" @click="linkEditing = false" />
+        <UButton type="button" color="neutral" variant="outline" size="sm" :label="t('app.cancel')" @click="linkEditing = false" />
       </div>
       <EditorContent :editor="editor" />
     </div>

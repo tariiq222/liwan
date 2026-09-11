@@ -105,7 +105,7 @@ async function submit() {
     <div class="grid gap-2 sm:col-span-2">
       <div class="flex items-center justify-between gap-3">
         <div><span class="flex items-center gap-2 text-sm font-medium leading-none">{{ t('projects.milestones.deliverables') }}</span><p class="text-xs text-muted">{{ t('projects.milestones.deliverablesHint') }}</p></div>
-        <UButton type="button" color="secondary" size="sm" :disabled="!hydrated || isPending" :label="t('projects.milestones.addDeliverable')" @click="addDeliverable" variant="solid" />
+        <UButton type="button" color="neutral" size="sm" :disabled="!hydrated || isPending" :label="t('projects.milestones.addDeliverable')" @click="addDeliverable" variant="outline" />
       </div>
       <div v-if="deliverables.length" class="space-y-2">
         <div v-for="(item, index) in deliverables" :key="index" class="flex items-center gap-2">
@@ -121,7 +121,7 @@ async function submit() {
       <NuxtLink v-if="projectScheduleMissing" class="mt-1 inline-block underline underline-offset-4" :to="{ path: `/projects/${props.projectId}/charter`, query: { edit: '1' } }">{{ t('projects.milestones.openProjectFile') }}</NuxtLink>
     </div>
     <div class="flex flex-wrap gap-2 justify-end sm:col-span-2">
-      <UButton type="button" color="secondary" :disabled="isPending" :label="t('app.cancel')" @click="emit('cancel')" variant="solid" />
+      <UButton type="button" color="neutral" :disabled="isPending" :label="t('app.cancel')" @click="emit('cancel')" variant="outline" />
       <UButton type="submit" :disabled="!hydrated || isPending || !name.trim()" :label="isEdit ? t('app.save') : t('app.create')" />
     </div>
   </form>

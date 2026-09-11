@@ -45,4 +45,21 @@ describe('institution favicon', () => {
     const { head } = setup('/brand/logo.png?v=2')
     expect(head().link).toContainEqual(expect.objectContaining({ rel: 'icon', href: '/brand/logo.png?v=2' }))
   })
+
+  it('applies derived brand secondary without clobbering the neutral token', () => {
+    let head: () => { htmlAttrs?: { style?: string }, link?: { rel: string, href: string }[] }
+    const data = ref<null | { name: string, logo_url: string, primary_color: string, font: string }>({
+      name: 'Institution', logo_url: '/brand/logo.png', primary_color: '#001A33', font: 'IBM_Plex_Sans_Arabic',
+    })
+    vi.stubGlobal('computed', computed)
+    vi.stubGlobal('useAppearance', () => ({ mode: ref('light') }))
+    vi.stubGlobal('useFetch', () => ({ data, refresh: async () => {} }))
+    vi.stubGlobal('useHead', (input: typeof head) => { head = input })
+    useBranding()
+    const style = head().htmlAttrs?.style ?? ''
+    expect(style).toContain('--nasq-brand-secondary:')
+    expect(style).toContain('--primary-fill:')
+    expect(style).not.toMatch(/(?:^|;)--secondary:/)
+    expect(style).not.toContain('#2563eb')
+  })
 })

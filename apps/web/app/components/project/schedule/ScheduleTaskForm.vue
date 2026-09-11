@@ -91,7 +91,7 @@ async function save() {
     </div>
     <UAlert v-if="errorMessage" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="errorMessage" />
     <div class="flex flex-wrap justify-end gap-2">
-      <UButton type="button" color="secondary" :disabled="!hydrated || update.isPending.value" @click="router.push(returnTo)" variant="solid">{{ t('app.cancel') }}</UButton>
+      <UButton type="button" color="neutral" :disabled="!hydrated || update.isPending.value" @click="router.push(returnTo)" variant="outline">{{ t('app.cancel') }}</UButton>
       <UButton type="submit" :disabled="!hydrated || update.isPending.value">{{ t('app.save') }}</UButton>
     </div>
   </form>

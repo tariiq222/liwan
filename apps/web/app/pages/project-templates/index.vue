@@ -56,7 +56,7 @@ function clearFilters() {
     </SharedPageState>
     <nav v-if="!list.isLoading.value && !list.error.value && (total > pageSize || offset > 0)" class="flex flex-wrap items-center justify-between gap-3" :aria-label="t('projects.templates.pagination.label')">
       <p role="status" class="text-sm text-muted">{{ t('projects.templates.pagination.count', { from: items.length ? offset + 1 : 0, to: offset + items.length, total }) }}</p>
-      <div class="flex gap-2"><UButton color="secondary" variant="solid" :disabled="!hydrated || list.isFetching.value || offset === 0" @click="goPage(Math.max(0, offset - pageSize))">{{ t('projects.templates.pagination.previous') }}</UButton><UButton color="secondary" variant="solid" :disabled="!hydrated || list.isFetching.value || offset + pageSize >= total" @click="goPage(offset + pageSize)">{{ t('projects.templates.pagination.next') }}</UButton></div>
+      <div class="flex gap-2"><UButton color="neutral" variant="outline" :disabled="!hydrated || list.isFetching.value || offset === 0" @click="goPage(Math.max(0, offset - pageSize))">{{ t('projects.templates.pagination.previous') }}</UButton><UButton color="neutral" variant="outline" :disabled="!hydrated || list.isFetching.value || offset + pageSize >= total" @click="goPage(offset + pageSize)">{{ t('projects.templates.pagination.next') }}</UButton></div>
     </nav>
   </SharedPageContainer>
 </template>

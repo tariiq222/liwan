@@ -15,7 +15,7 @@ withDefaults(defineProps<{
 <template>
   <UButton
     :to="to"
-    color="secondary"
+    color="primary"
     variant="solid"
     class="nasq-context-link nasq-context-create"
     :data-active="active"

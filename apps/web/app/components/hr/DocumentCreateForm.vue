@@ -42,7 +42,7 @@ async function submit() {
       </div>
     </SharedFormSection>
     <footer class="flex justify-end gap-2">
-      <UButton type="button" color="secondary" variant="solid" :to="props.backTo" :label="t('app.cancel')" />
+      <UButton type="button" color="neutral" variant="outline" :to="props.backTo" :label="t('app.cancel')" />
       <UButton type="submit" color="primary" :disabled="!hydrated || isPending || !name.trim()" :label="t('app.create')" />
     </footer>
   </UForm>

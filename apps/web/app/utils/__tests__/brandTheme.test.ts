@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createBrandTheme, DEFAULT_PRIMARY, DEFAULT_SECONDARY, brandPairContrast } from '../brandTheme'
+import { createBrandTheme, DEFAULT_PRIMARY, derivedSecondary, brandPairContrast } from '../brandTheme'
 
 function channel(value: number) {
   const normalized = value / 255
@@ -82,6 +82,27 @@ describe('createBrandTheme', () => {
     }
   })
 
+  it.each(['#000000', '#18181b', '#ffffff', '#ffff00', '#0055ff'])('keeps primary fill readable on %s surfaces', (primary) => {
+    for (const [mode, surfaces] of [
+      ['light', ['#ffffff', '#fafafa', '#f4f4f5']],
+      ['cream', ['#fbf7ef', '#f6f1e7', '#efe8d9']],
+      ['dark', ['#09090b', '#18181b', '#27272a']],
+    ] as const) {
+      const theme = createBrandTheme(primary, mode)
+      expect(contrast(theme['--primary-fill']!, theme['--primary-fill-foreground']!)).toBeGreaterThanOrEqual(4.5)
+      for (const surface of surfaces) {
+        expect(contrast(theme['--primary-fill']!, surface), `${primary} ${mode} ${surface}`).toBeGreaterThanOrEqual(3)
+      }
+    }
+  })
+
+  it('lifts a near-black shell in dark mode without changing the stored primary', () => {
+    const theme = createBrandTheme(DEFAULT_PRIMARY, 'dark')
+    expect(theme['--primary']).toBe(DEFAULT_PRIMARY)
+    expect(theme['--shell-background']).not.toBe(DEFAULT_PRIMARY)
+    expect(contrast(theme['--shell-background']!, theme['--shell-foreground']!)).toBeGreaterThanOrEqual(4.5)
+  })
+
   it('derives chart tones from the configured primary color', () => {
     const first = createBrandTheme('#0055ff')
     const second = createBrandTheme('#d14a00')
@@ -106,7 +127,7 @@ describe('createBrandTheme', () => {
   })
 
   it('returns only the documented CSS custom properties', () => {
-    expect(Object.keys(createBrandTheme('#0055ff', 'light', DEFAULT_SECONDARY)).sort()).toEqual([
+    expect(Object.keys(createBrandTheme('#0055ff', 'light', '#d14a00')).sort()).toEqual([
       '--brand-link',
       '--chart-1',
       '--chart-2',
@@ -114,9 +135,13 @@ describe('createBrandTheme', () => {
       '--chart-4',
       '--chart-5',
       '--chart-6',
+      '--nasq-brand-secondary',
+      '--nasq-brand-secondary-foreground',
       '--primary',
       '--primary-active',
       '--primary-active-foreground',
+      '--primary-fill',
+      '--primary-fill-foreground',
       '--primary-foreground',
       '--primary-hover',
       '--primary-hover-foreground',
@@ -137,15 +162,25 @@ describe('createBrandTheme', () => {
     ])
   })
 
-  it('uses the default secondary until a valid second colour is provided', () => {
+  it('derives a secondary from the primary instead of a hardcoded blue', () => {
+    const derived = derivedSecondary('#0055ff')
     expect(createBrandTheme('#0055ff')['--secondary']).toBeUndefined()
-    expect(createBrandTheme('#0055ff', 'light', 'not-a-colour')['--secondary']).toBe(DEFAULT_SECONDARY)
+    expect(createBrandTheme('#0055ff')['--nasq-brand-secondary']).toBe(derived)
+    expect(createBrandTheme('#0055ff')['--nasq-brand-secondary']).not.toBe('#2563eb')
+    expect(createBrandTheme('#0055ff', 'light', 'not-a-colour')['--nasq-brand-secondary']).toBe(derived)
+    expect(createBrandTheme('#0055ff', 'light', 'not-a-colour')['--secondary']).toBe(derived)
     const theme = createBrandTheme('#0055ff', 'light', '#d14a00')
     expect(theme['--primary']).toBe('#0055ff')
     expect(theme['--secondary']).toBe('#d14a00')
+    expect(theme['--nasq-brand-secondary']).toBe('#d14a00')
     expect(theme['--secondary']).not.toBe(theme['--primary'])
     expect(new Set([theme['--secondary'], theme['--secondary-hover'], theme['--secondary-active']]).size).toBe(3)
-    expect(contrast(theme['--secondary']!, theme['--secondary-foreground']!)).toBeGreaterThanOrEqual(4.5)
+    expect(contrast(theme['--nasq-brand-secondary']!, theme['--nasq-brand-secondary-foreground']!)).toBeGreaterThanOrEqual(4.5)
+  })
+
+  it.each(['#2563eb', '#d14a00', '#e3e3e4', '#ffffff'])('gives secondary text at least 4.5:1 on %s', (secondary) => {
+    const theme = createBrandTheme(DEFAULT_PRIMARY, 'light', secondary)
+    expect(contrast(theme['--nasq-brand-secondary']!, theme['--nasq-brand-secondary-foreground']!)).toBeGreaterThanOrEqual(4.5)
   })
 
   it('reports low-contrast pairs without changing either chosen colour', () => {
@@ -155,6 +190,7 @@ describe('createBrandTheme', () => {
       const theme = createBrandTheme('#ffff00', mode, '#ffffff')
       expect(theme['--primary']).toBe('#ffff00')
       expect(theme['--secondary']).toBe('#ffffff')
+      expect(theme['--nasq-brand-secondary']).toBe('#ffffff')
     }
   })
 })

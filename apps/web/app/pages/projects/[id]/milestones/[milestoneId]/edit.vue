@@ -59,7 +59,7 @@ async function confirmDelete() {
         <div v-if="milestone.task_count > 0" class="rounded-md border border-default p-3 text-sm text-muted">{{ t('projects.milestones.hasTasks', { count: milestone.task_count }) }}</div>
         <div v-if="deleteOpen" data-testid="milestone-delete-confirm" class="rounded-lg border border-error/30 bg-error/5 space-y-2 p-3 text-sm">
           <p class="font-medium">{{ t('projects.milestones.delete') }}</p><p class="text-muted">{{ milestone.name }}</p>
-          <div class="flex flex-wrap gap-2"><UButton color="secondary" variant="solid" :disabled="deleting" @click="deleteOpen = false">{{ t('app.cancel') }}</UButton><UButton color="error" :disabled="deleting" @click="confirmDelete">{{ t('projects.milestones.delete') }}</UButton></div>
+          <div class="flex flex-wrap gap-2"><UButton color="neutral" variant="outline" :disabled="deleting" @click="deleteOpen = false">{{ t('app.cancel') }}</UButton><UButton color="error" :disabled="deleting" @click="confirmDelete">{{ t('projects.milestones.delete') }}</UButton></div>
           <p v-if="mutationError" role="alert" class="text-error">{{ mutationError }}</p>
         </div>
         <UButton v-else-if="milestone.task_count === 0" data-testid="milestone-delete" color="error" :disabled="!hydrated" @click="deleteOpen = true">{{ t('projects.milestones.delete') }}</UButton>

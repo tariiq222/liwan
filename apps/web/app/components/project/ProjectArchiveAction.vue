@@ -40,7 +40,7 @@ async function restore() {
       <p class="font-medium">{{ t('projects.archiveConfirmTitle') }}</p>
       <p class="text-muted">{{ t('projects.archiveConfirmText') }}</p>
       <div class="flex flex-wrap gap-2">
-        <UButton type="button" color="secondary" size="sm" :disabled="pending" :label="t('app.cancel')" @click="confirming = false" variant="solid" />
+        <UButton type="button" color="neutral" size="sm" :disabled="pending" :label="t('app.cancel')" @click="confirming = false" variant="outline" />
         <UButton type="button" color="error" size="sm" :disabled="!hydrated || pending" :label="t('projects.menu.archive')" @click="archive" />
       </div>
     </div>

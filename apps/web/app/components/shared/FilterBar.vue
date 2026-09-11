@@ -18,6 +18,9 @@
     :default-open="props.defaultOpen"
     @clear="$emit('clear')"
   >
+    <template v-if="$slots.search" #search>
+      <slot name="search" />
+    </template>
     <template v-if="$slots.view || $slots.actions" #actions>
       <div v-if="$slots.view" data-slot="view" class="ms-auto flex flex-wrap items-center gap-2">
         <slot name="view" />
@@ -26,14 +29,11 @@
         <slot name="actions" />
       </div>
     </template>
-    <div data-slot="filter-row" class="grid min-w-0 gap-3">
-      <div v-if="$slots.search" data-slot="search" class="min-w-0">
-        <slot name="search" />
-      </div>
-      <div v-if="$slots.default" data-slot="controls" class="flex min-w-0 flex-wrap items-center gap-2">
+    <template v-if="$slots.default" #default>
+      <div data-slot="controls" class="flex min-w-0 flex-wrap items-center gap-2">
         <slot />
       </div>
-    </div>
+    </template>
     <template v-if="$slots.active" #active>
       <slot name="active" />
     </template>

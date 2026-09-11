@@ -38,14 +38,14 @@
 .nasq-page-stack[data-nasq-reference-detail] { gap: 1.75rem; }
 .nasq-ui-icon-button { width: 2.25rem; height: 2.25rem; min-width: 2.25rem; min-height: 2.25rem; padding: 0; flex-shrink: 0; justify-content: center; }
 .nasq-ui-field:focus-visible { outline: 2px solid var(--tw-ring-color, var(--ring)); outline-offset: -2px; box-shadow: none; }
-.nasq-ui-primary-solid, .nasq-ui-primary-solid:hover { background: var(--primary); color: var(--primary-foreground); }
+.nasq-ui-primary-solid, .nasq-ui-primary-solid:hover { background: var(--primary-fill); color: var(--primary-fill-foreground); }
 .nasq-ui-primary-text { color: var(--brand-link); --tw-ring-color: color-mix(in srgb, var(--brand-link) 55%, var(--ui-bg)); }
 .nasq-ui-primary-text:hover, .nasq-ui-primary-text:active { color: var(--brand-link); }
-.nasq-ui-secondary-solid, .nasq-ui-secondary-solid:hover { background: var(--nasq-brand-secondary); color: var(--primary); }
+.nasq-ui-secondary-solid, .nasq-ui-secondary-solid:hover { background: var(--nasq-brand-secondary); color: var(--nasq-brand-secondary-foreground); }
 .nasq-ui-secondary-text { color: var(--brand-link); --tw-ring-color: color-mix(in srgb, var(--brand-link) 55%, var(--ui-bg)); }
-.nasq-ui-secondary-text:hover { color: var(--primary); background: var(--nasq-brand-secondary); }
+.nasq-ui-secondary-text:hover { color: var(--nasq-brand-secondary-foreground); background: var(--nasq-brand-secondary); }
 .nasq-ui-primary-solid:hover, .nasq-ui-secondary-solid:hover { text-decoration: underline; }
-.nasq-ui-calendar [data-slot='cellTrigger'][data-selected] { background: var(--nasq-brand-secondary); color: var(--primary); }
+.nasq-ui-calendar [data-slot='cellTrigger'][data-selected] { background: var(--nasq-brand-secondary); color: var(--nasq-brand-secondary-foreground); }
 .nasq-ui-calendar [data-slot='cellTrigger']:focus-visible { outline: 2px solid currentColor; outline-offset: -2px; }
 .nasq-ui-filter-content { width: min(24rem, calc(100vw - 2rem)); display: grid; gap: 1rem; padding: 1rem; }
 .nasq-ui-date-trigger { width: 100%; min-height: 2.5rem; justify-content: start; font-weight: 400; }
@@ -58,12 +58,12 @@
 /* Metric tile: icon square, quiet label, prominent value. */
 .nasq-ui-metric-icon { display: grid; width: 2.5rem; height: 2.5rem; flex: none; place-items: center; border-radius: 0.625rem; background: var(--brand-soft); color: var(--brand-link); }
 /* Horizontal workspace tabs: the horizontal counterpart of the sidebar's active bar. */
-.nasq-ui-tab-strip { display: flex; flex-wrap: wrap; align-items: stretch; gap: 0.25rem; border-block-end: 1px solid var(--ui-border); }
+.nasq-ui-tab-strip { display: flex; flex-wrap: nowrap; align-items: stretch; gap: 0.25rem; overflow-x: auto; border-block-end: 1px solid var(--ui-border); }
 .nasq-ui-tab { position: relative; margin-block-end: -1px; min-height: 2.5rem; border-radius: 0.5rem 0.5rem 0 0; padding-block: 0.5rem; color: var(--ui-text-muted); font-weight: 500; }
 .nasq-ui-tab:hover { color: var(--ui-text-highlighted); background: color-mix(in srgb, var(--ui-bg-elevated) 60%, var(--ui-bg)); }
 .nasq-ui-tab[aria-current='page'], .nasq-ui-tab[aria-current='page']:hover { color: var(--brand-link); background: transparent; font-weight: 600; }
 .nasq-ui-tab[aria-current='page']::after { content: ''; position: absolute; inset-inline: 0.5rem; inset-block-end: 0; height: 3px; border-radius: 3px 3px 0 0; background: var(--primary); }
-.nasq-ui-subtab-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.375rem; }
+.nasq-ui-subtab-row { display: flex; flex-wrap: nowrap; align-items: center; gap: 0.375rem; overflow-x: auto; }
 /* Segmented view switch shared by list pages. */
 .nasq-ui-segment { display: inline-flex; min-height: 2.25rem; align-items: center; gap: 0.125rem; border: 1px solid var(--ui-border); border-radius: 0.5rem; padding: 0.125rem; background: color-mix(in srgb, var(--ui-bg-elevated) 40%, var(--ui-bg)); }
 @media (forced-colors: active) {

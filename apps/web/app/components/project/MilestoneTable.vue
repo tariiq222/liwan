@@ -158,7 +158,7 @@ async function confirmDelete() {
 
     <UAlert v-if="deleteTarget" color="error" variant="soft" data-testid="milestone-delete-confirm" :title="t('projects.milestones.delete')" :description="deleteTarget.name">
       <template #actions>
-        <UButton color="secondary" variant="solid" type="button" :disabled="deleting" :label="t('app.cancel')" @click="deleteTarget = null" />
+        <UButton color="neutral" variant="outline" type="button" :disabled="deleting" :label="t('app.cancel')" @click="deleteTarget = null" />
         <UButton color="error" type="button" :disabled="deleting" :label="t('projects.milestones.delete')" @click="confirmDelete" />
       </template>
     </UAlert>

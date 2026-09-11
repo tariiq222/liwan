@@ -305,8 +305,8 @@ async function saveOnLatest() {
         <p v-if="latestFetchFailed" role="alert" class="mt-2">{{ t('projects.finance.staleFetchFailed') }}</p>
       </template>
       <template #actions>
-        <UButton v-if="latestFetchFailed" data-testid="finance-retry-latest" type="button" color="secondary" :disabled="fetchingLatest || pending" @click="retryLatest" variant="solid">{{ t('app.retry') }}</UButton>
-        <UButton type="button" color="secondary" :disabled="pending || !latestEntry || latestFetchFailed" @click="reloadFromServer" variant="solid">{{ t('projects.finance.reload') }}</UButton>
+        <UButton v-if="latestFetchFailed" data-testid="finance-retry-latest" type="button" color="neutral" :disabled="fetchingLatest || pending" @click="retryLatest" variant="outline">{{ t('app.retry') }}</UButton>
+        <UButton type="button" color="neutral" :disabled="pending || !latestEntry || latestFetchFailed" @click="reloadFromServer" variant="outline">{{ t('projects.finance.reload') }}</UButton>
         <UButton type="button" :disabled="overwriteDisabled" @click="saveOnLatest">{{ t('projects.finance.saveOnLatest') }}</UButton>
       </template>
     </UAlert>
@@ -315,7 +315,7 @@ async function saveOnLatest() {
     <UAlert v-if="error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="error" />
 
     <div class="flex flex-wrap gap-2 justify-end">
-      <UButton type="button" color="secondary" :disabled="pending" @click="emit('cancel')" variant="solid">{{ t('app.cancel') }}</UButton>
+      <UButton type="button" color="neutral" :disabled="pending" @click="emit('cancel')" variant="outline">{{ t('app.cancel') }}</UButton>
       <UButton type="submit" :disabled="ordinarySaveDisabled">{{ isEdit ? t('app.save') : t('app.create') }}</UButton>
     </div>
   </form>

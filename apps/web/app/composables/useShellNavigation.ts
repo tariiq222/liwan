@@ -4,6 +4,7 @@ import {
   activeShellModule,
   contextLinksForModule,
   contextModuleFor,
+  projectContextId,
   projectSidebarLinks,
   visibleShellModules,
   type ProjectContextId,
@@ -82,12 +83,7 @@ export function projectSectionRoot(path: string, query: Record<string, unknown> 
   const match = normalized.match(/^\/projects\/([^/]+)(?:\/(.*))?$/)
   if (!match || !positiveId(match[1])) return null
   const section = match[2]
-  if (!section) {
-    if (query.tab === 'summary') return 'summary'
-    if (query.tab === 'tasks' || query.tab === 'list' || query.tab === 'board') return 'planning'
-    if (!query.tab) return query.view === 'board' ? 'planning' : 'summary'
-    return 'planning'
-  }
+  if (!section) return projectContextId(normalized, query)
   return Object.hasOwn(projectRootSections, section) ? projectRootSections[section]! : null
 }
 

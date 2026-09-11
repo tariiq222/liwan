@@ -30,7 +30,7 @@ function outside(event: Event) { event.preventDefault() }
     <template #actions>
       <PreviewFilters v-if="view === 'list'" />
       <UButton v-if="view === 'list' || view === 'dashboard'" icon="i-lucide-plus" :label="t('new')" :disabled="!canEdit" @click="view === 'list' ? openPanel(undefined, true) : navigateTo(link('form'))" />
-      <template v-if="view === 'detail'"><UButton :to="link('list')" color="secondary" :label="t('back')" /><UButton v-if="pageRecord" :to="link('form', { id: pageRecord.id })" :disabled="!canEdit" icon="i-lucide-square-pen" :label="t('edit')" /></template>
+      <template v-if="view === 'detail'"><UButton :to="link('list')" color="neutral" variant="outline" :label="t('back')" /><UButton v-if="pageRecord" :to="link('form', { id: pageRecord.id })" :disabled="!canEdit" icon="i-lucide-square-pen" :label="t('edit')" /></template>
     </template>
     <UAlert v-if="state === 'readonly'" color="neutral" variant="subtle" icon="i-lucide-lock-keyhole" :title="t('readonly')" :description="t('readonlyHint')" />
     <PreviewState v-if="['loading', 'error', 'empty'].includes(state)" :state="state" @retry="retry" @clear="clear" />
@@ -47,7 +47,7 @@ function outside(event: Event) { event.preventDefault() }
           <ul class="space-y-3"><li v-for="item in chart" :key="item.key" class="flex justify-between gap-2"><span class="text-sm">{{ item.label }}</span><bdi class="font-medium">{{ item.value }}</bdi></li></ul>
         </UCard>
         <UCard :ui="{ body: 'p-0 sm:p-0' }">
-          <template #header><div class="flex justify-between items-center"><h2 class="preview-section-title">{{ t('recent') }}</h2><UButton :to="link('list')" color="secondary" :label="t('viewAll')" /></div></template>
+          <template #header><div class="flex justify-between items-center"><h2 class="preview-section-title">{{ t('recent') }}</h2><UButton :to="link('list')" color="neutral" variant="outline" :label="t('viewAll')" /></div></template>
           <UTable :data="items.slice(-5).reverse()" :columns="recentColumns">
             <template #id-cell="{ row }"><bdi class="text-muted">{{ row.original.id }}</bdi></template>
             <template #title-cell="{ row }"><UButton color="neutral" variant="link" class="p-0 whitespace-normal text-start" @click="openPanel(row.original.id)">{{ titleOf(row.original) }}</UButton></template>
@@ -65,7 +65,7 @@ function outside(event: Event) { event.preventDefault() }
 
   <ClientOnly><Teleport to="body"><div v-if="sheetOpen" class="preview-sheet-overlay fixed z-50 pointer-events-none" aria-hidden="true" /></Teleport></ClientOnly>
   <USlideover :open="sheetOpen" :modal="false" :overlay="false" :ui="{ content: 'preview-sheet' }" :side="locale === 'ar' ? 'right' : 'left'" :title="sheetEdit ? t(isNew ? 'new' : 'edit') : sheetRecord ? titleOf(sheetRecord) : t('detail')" :description="t('demo')" :content="{ onInteractOutside: outside, onPointerDownOutside: outside, onCloseAutoFocus: restoreFocus }" @update:open="open => { if (!open) closePanel() }">
-    <template #actions><UButton :to="link(sheetEdit ? 'form' : 'detail', { id: sheetRecord?.id })" color="secondary" :label="t('fullPage')" /></template>
+    <template #actions><UButton :to="link(sheetEdit ? 'form' : 'detail', { id: sheetRecord?.id })" color="neutral" variant="outline" :label="t('fullPage')" /></template>
     <template #body>
       <PreviewRecordForm v-if="sheetEdit && (isNew || sheetRecord)" :key="`${module}:${route.query.record}:edit`" :record="sheetRecord" @cancel="closePanel" @saved="closePanel" />
       <template v-else-if="sheetRecord"><PreviewRecordDetail :record="sheetRecord" /><UButton class="mt-6" :label="t('edit')" :disabled="!canEdit" icon="i-lucide-square-pen" @click="openPanel(sheetRecord.id, true)" /></template>

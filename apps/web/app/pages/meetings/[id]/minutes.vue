@@ -118,7 +118,7 @@ function createRecommendation() {
         <UAlert v-if="structuredValidationErrors.length" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('meetingMinutesForm.validation.invalid')" />
         <UAlert v-if="error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('meetingsUx.errors.save')" />
         <div class="nasq-form-footer justify-end">
-          <UButton type="button" color="secondary" :to="returnTo" :label="t('app.cancel')" />
+          <UButton type="button" color="neutral" variant="outline" :to="returnTo" :label="t('app.cancel')" />
           <UButton type="submit" :disabled="!hydrated || isPending || !canSave" :label="t('app.save')" />
         </div>
       </form>

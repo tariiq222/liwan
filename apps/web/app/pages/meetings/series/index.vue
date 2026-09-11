@@ -87,16 +87,12 @@ function setPage(next: number) {
         :disabled="!hydrated"
         @clear="clearFilters"
       >
-        <div class="w-full min-w-0 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          <div class="grid min-w-0 gap-1 md:col-span-2">
-            <UFormField :label="t('meetingsFilters.searchSeries')" name="search">
-              <UInput id="meeting-series-search" v-model="search" class="w-full" :disabled="!hydrated" :placeholder="t('meetingsFilters.searchSeries')" :aria-label="t('meetingsFilters.searchSeries')" />
-            </UFormField>
-          </div>
-          <div v-if="can('pmo.projects.read')" class="grid min-w-0 gap-1">
-            <MeetingProjectFilter id="meeting-series-project" :label="t('meetingsFilters.project')" :model-value="projectId" @update:model-value="setProject" @resolved-name="projectName = $event" />
-          </div>
-        </div>
+        <template #search>
+          <UInput id="meeting-series-search" v-model="search" icon="i-lucide-search" class="w-full" :disabled="!hydrated" :placeholder="t('meetingsFilters.searchSeries')" :aria-label="t('meetingsFilters.searchSeries')" />
+        </template>
+        <template v-if="can('pmo.projects.read')" #default>
+          <MeetingProjectFilter id="meeting-series-project" :label="t('meetingsFilters.project')" :model-value="projectId" @update:model-value="setProject" @resolved-name="projectName = $event" />
+        </template>
         <template v-if="hasActiveFilters" #active>
           <div class="flex flex-wrap items-center gap-2">
             <UBadge v-if="search.trim()" color="neutral" variant="subtle">{{ t('meetingsUi.searchValue', { value: search }) }}</UBadge>

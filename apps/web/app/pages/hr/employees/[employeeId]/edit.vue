@@ -26,7 +26,7 @@ function saved() { void navigateTo({ path: `/hr/employees/${id.value}`, query: r
       <UCard v-if="query.data.value">
         <EmployeeGeneralForm :employee="query.data.value" :departments="departments.data.value?.items ?? []" :employees="employees.data.value?.items ?? []" @saved="saved">
           <template #actions>
-            <UButton type="button" color="secondary" variant="solid" :disabled="!hydrated" :to="returnTo" :label="t('app.cancel')" @click="!hydrated && $event.preventDefault()" />
+            <UButton type="button" color="neutral" variant="outline" :disabled="!hydrated" :to="returnTo" :label="t('app.cancel')" @click="!hydrated && $event.preventDefault()" />
           </template>
         </EmployeeGeneralForm>
       </UCard>

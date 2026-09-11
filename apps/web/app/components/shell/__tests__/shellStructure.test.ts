@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 const root = resolve(import.meta.dirname, '../../..')
@@ -96,7 +96,7 @@ describe('Nuxt UI shell migration', () => {
     expect(nuxtShellCss).toContain('.nasq-mobile-menu-trigger { display: none; }')
     expect(nuxtShellCss).toMatch(/\[data-nasq-shell\] \.nasq-mobile-menu-trigger \{[^}]*display: inline-flex;/)
     expect(nuxtShellCss).toContain('min-height: 44px')
-    expect(nuxtShellCss).toContain('var(--nasq-brand-secondary)')
+    expect(nuxtShellCss).toContain('var(--brand-soft)')
     expect(nuxtShellCss).toContain('inset-inline-start: 0')
     expect(nuxtShellCss.includes('var(--secondary)')).toBe(false)
     expect(mobileNavigation).toContain('<USlideover')
@@ -109,5 +109,35 @@ describe('Nuxt UI shell migration', () => {
     expect(mobileNavigation).toContain('nav.navigation')
     expect(mobileNavigation).not.toContain('usePreview')
     expect(mobileNavigation).not.toContain('previewModules')
+  })
+})
+
+function vueFiles(dir: string): string[] {
+  const out: string[] = []
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (entry.name === '__tests__' || entry.name === 'node_modules') continue
+    const path = resolve(dir, entry.name)
+    if (entry.isDirectory()) out.push(...vueFiles(path))
+    else if (entry.name.endsWith('.vue')) out.push(path)
+  }
+  return out
+}
+
+describe('button ranks', () => {
+  it('does not use filled secondary for chrome actions', () => {
+    const skip = new Set([resolve(root, 'components/settings/BrandingPreview.vue')])
+    const tag = /<UButton\b[^>]*>/gs
+    const filled: string[] = []
+    for (const file of vueFiles(root)) {
+      if (skip.has(file)) continue
+      const source = readFileSync(file, 'utf8')
+      for (const match of source.matchAll(tag)) {
+        const open = match[0]
+        if (!/color=["']secondary["']/.test(open)) continue
+        if (/variant=["'](?:outline|ghost|soft|subtle|link)["']/.test(open)) continue
+        filled.push(`${file.slice(root.length + 1)}: ${open.replace(/\s+/g, ' ').slice(0, 120)}`)
+      }
+    }
+    expect(filled).toEqual([])
   })
 })

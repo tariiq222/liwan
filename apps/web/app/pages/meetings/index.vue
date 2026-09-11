@@ -202,11 +202,10 @@ function setPage(next: number) {
         :disabled="!hydrated"
         @clear="clearFilters"
       >
+        <template #search>
+          <UInput id="meeting-search" v-model="search" icon="i-lucide-search" class="w-full" :disabled="!hydrated" :placeholder="t('meetingsFilters.searchMeetings')" :aria-label="t('meetingsFilters.searchMeetings')" />
+        </template>
         <div class="w-full min-w-0 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          <div class="grid min-w-0 content-start gap-1 md:col-span-2 xl:col-span-2">
-            <label for="meeting-search" class="text-sm font-medium text-highlighted">{{ t('meetingsFilters.searchMeetings') }}</label>
-            <UInput id="meeting-search" v-model="search" icon="i-lucide-search" class="w-full" :disabled="!hydrated" :placeholder="t('meetingsFilters.searchMeetings')" :aria-label="t('meetingsFilters.searchMeetings')" />
-          </div>
           <div class="grid min-w-0 content-start gap-1">
             <label for="meeting-state" class="text-sm font-medium text-highlighted">{{ t('meetingsUi.stateLabel') }}</label>
             <USelect

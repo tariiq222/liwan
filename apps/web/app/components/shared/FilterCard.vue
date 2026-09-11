@@ -1,8 +1,11 @@
 <template>
   <div data-slot="filter-root" class="min-w-0 space-y-2">
     <div class="flex flex-wrap items-center gap-2">
-      <UPopover v-model:open="expanded">
-        <UButton type="button" color="secondary" square icon="i-lucide-list-filter" :aria-label="resolvedTitle" :title="resolvedTitle" :aria-expanded="expanded" :aria-controls="contentId" :disabled="isDisabled" />
+      <div v-if="$slots.search" data-slot="search" class="min-w-48 flex-1">
+        <slot name="search" />
+      </div>
+      <UPopover v-if="$slots.default" v-model:open="expanded">
+        <UButton type="button" color="neutral" variant="outline" square icon="i-lucide-list-filter" :aria-label="resolvedTitle" :title="resolvedTitle" :aria-expanded="expanded" :aria-controls="contentId" :disabled="isDisabled" />
         <template #content>
           <div :id="contentId" class="nasq-ui-filter-content" data-slot="filter-fields" :aria-busy="isDisabled"><slot /></div>
         </template>

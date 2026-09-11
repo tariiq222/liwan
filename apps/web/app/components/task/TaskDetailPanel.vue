@@ -233,7 +233,7 @@ useEventListener(document, 'keydown', onKeydown)
       <p class="font-medium">{{ t('tasks.drawer.archive') }}</p>
       <p class="text-muted">{{ t('tasks.drawer.archiveConfirm') }}</p>
       <div class="flex flex-wrap gap-2">
-        <UButton color="secondary" variant="solid" type="button" :disabled="archiving" @click="archiveConfirmOpen = false">{{ t('app.cancel') }}</UButton>
+        <UButton color="neutral" variant="outline" type="button" :disabled="archiving" @click="archiveConfirmOpen = false">{{ t('app.cancel') }}</UButton>
         <UButton color="error" type="button" :disabled="archiving" @click="doArchive">{{ t('tasks.drawer.archive') }}</UButton>
       </div>
     </div>

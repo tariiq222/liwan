@@ -116,7 +116,7 @@ function isCollapsed(stage: BoardStage): boolean {
     <p v-if="isCapped" class="text-xs text-muted">{{ t('tasks.kanban.capped') }}</p>
     <SharedPageState v-if="error" :error="error" @retry="refetch" />
     <SharedPageState v-else-if="stageError" :error="stageError" @retry="refetchPersonalStages" />
-    <SharedPageState v-else-if="stageLoading" loading />
+    <SharedPageState v-else-if="isLoading || stageLoading" loading />
     <!--
       A fixed board height with per-column vertical scroll (rather than
       letting the whole page grow with the tallest column) keeps every

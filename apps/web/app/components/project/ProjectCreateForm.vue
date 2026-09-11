@@ -48,7 +48,7 @@ async function retryDefaults() {
       </div>
       <div v-else-if="defaultsFailed && !defaults" role="alert" class="grid gap-2" data-testid="project-create-defaults-error">
         <p class="text-sm text-error">{{ t('projects.create.defaultsError') }}</p>
-        <UButton type="button" color="secondary" size="sm" :disabled="!hydrated || defaultsFetching" data-testid="project-create-retry" :label="t('projects.create.retry')" @click="retryDefaults" variant="solid" />
+        <UButton type="button" color="neutral" size="sm" :disabled="!hydrated || defaultsFetching" data-testid="project-create-retry" :label="t('projects.create.retry')" @click="retryDefaults" variant="outline" />
       </div>
       <ProjectCharterForm
         mode="create"

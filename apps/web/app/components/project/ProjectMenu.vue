@@ -71,7 +71,7 @@ async function doUnarchive() {
   >
     <template #actions>
       <div class="flex flex-wrap justify-end gap-2 w-full">
-        <UButton type="button" color="secondary" :disabled="archiving" @click="confirmOpen = false" variant="solid">{{ t('app.cancel') }}</UButton>
+        <UButton type="button" color="neutral" :disabled="archiving" @click="confirmOpen = false" variant="outline">{{ t('app.cancel') }}</UButton>
         <UButton type="button" color="error" :loading="archiving" @click="doArchive">{{ t('projects.menu.archive') }}</UButton>
       </div>
     </template>

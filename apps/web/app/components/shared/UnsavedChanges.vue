@@ -74,7 +74,7 @@ const dialogContent = computed<NonNullable<ModalProps['content']> & { 'data-test
     @update:open="open => { if (!open && !leaving) pendingPath = null }">
     <template #footer>
       <div class="flex w-full flex-wrap justify-end gap-2">
-        <UButton type="button" color="secondary" :disabled="leaving" @click="pendingPath = null">{{ $t('app.stay') }}</UButton>
+        <UButton type="button" color="neutral" variant="outline" :disabled="leaving" @click="pendingPath = null">{{ $t('app.stay') }}</UButton>
         <UButton type="button" :disabled="leaving" @click="discard">{{ $t('app.discardAndLeave') }}</UButton>
       </div>
     </template>

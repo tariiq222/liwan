@@ -45,8 +45,8 @@ const plannedStatus = computed(() => budgetStatus(props.summary))
         <p class="text-xs text-muted">{{ t('projects.finance.charterHint') }}</p>
       </div>
       <UButton
-        color="secondary"
-        variant="solid"
+        color="neutral"
+        variant="outline"
         :to="{ path: `/projects/${props.projectId}/charter`, query: returnToQuery(route.fullPath) }"
         :label="t('projects.refresh.finance.viewCharter')"
       />

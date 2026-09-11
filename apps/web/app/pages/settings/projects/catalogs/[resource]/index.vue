@@ -158,15 +158,15 @@ async function confirmAction() {
         </div>
       </SharedPageState>
       <div v-if="pages > 1" class="flex items-center justify-between text-sm text-muted">
-        <UButton color="secondary" variant="solid" :disabled="!hydrated || page === 1 || query.isFetching.value" @click="router.replace({ query: listQuery({ offset: page === 2 ? undefined : String((page - 2) * CHARTER_CATALOG_PAGE_SIZE) }) })">{{ t('settings.projects.catalogs.previousPage') }}</UButton>
+        <UButton color="neutral" variant="outline" :disabled="!hydrated || page === 1 || query.isFetching.value" @click="router.replace({ query: listQuery({ offset: page === 2 ? undefined : String((page - 2) * CHARTER_CATALOG_PAGE_SIZE) }) })">{{ t('settings.projects.catalogs.previousPage') }}</UButton>
         <span>{{ t('settings.projects.catalogs.pageOf', { page, pages }) }}</span>
-        <UButton color="secondary" variant="solid" :disabled="!hydrated || page >= pages || query.isFetching.value" @click="router.replace({ query: listQuery({ offset: String(page * CHARTER_CATALOG_PAGE_SIZE) }) })">{{ t('settings.projects.catalogs.nextPage') }}</UButton>
+        <UButton color="neutral" variant="outline" :disabled="!hydrated || page >= pages || query.isFetching.value" @click="router.replace({ query: listQuery({ offset: String(page * CHARTER_CATALOG_PAGE_SIZE) }) })">{{ t('settings.projects.catalogs.nextPage') }}</UButton>
       </div>
       <div v-if="pendingItem && pendingAction" class="rounded-lg border border-error/30 bg-error/5 space-y-2 p-3 text-sm">
         <p>{{ t(`settings.projects.catalogs.confirm.${pendingAction}`, { name: pendingItem.name }) }}</p>
         <p v-if="actionError" role="alert" class="text-error">{{ actionError }}</p>
         <div class="flex flex-wrap gap-2">
-          <UButton color="secondary" variant="solid" type="button" :disabled="patching || deleting" @click="pendingItem = null; pendingAction = null">{{ t('app.cancel') }}</UButton>
+          <UButton color="neutral" variant="outline" type="button" :disabled="patching || deleting" @click="pendingItem = null; pendingAction = null">{{ t('app.cancel') }}</UButton>
           <UButton type="button" color="error" :disabled="!hydrated || patching || deleting" @click="confirmAction">{{ t(`settings.projects.catalogs.${pendingAction}`) }}</UButton>
         </div>
       </div>
