@@ -37,9 +37,7 @@ function changeMessage(change: { field: string; label: string; old: unknown; new
   <ol v-if="entries.length" class="task-activity-list">
     <li v-for="entry in entries" :key="entry.id" class="task-activity-item">
       <div class="task-activity-marker" aria-hidden="true">
-        <Avatar class="size-7">
-          <AvatarFallback class="text-xs">{{ entry.author ? initials(entry.author.name) : '?' }}</AvatarFallback>
-        </Avatar>
+        <UAvatar :text="entry.author ? initials(entry.author.name) : '?'" class="size-7 text-xs" />
       </div>
       <div class="min-w-0">
         <div class="flex flex-wrap items-baseline gap-x-2 gap-y-1">
@@ -57,7 +55,7 @@ function changeMessage(change: { field: string; label: string; old: unknown; new
       </div>
     </li>
   </ol>
-  <p v-else class="py-2 text-xs text-muted-foreground">{{ t('tasks.activity.empty') }}</p>
+  <p v-else class="py-2 text-xs text-muted">{{ t('tasks.activity.empty') }}</p>
 </template>
 
 <style scoped>
@@ -78,7 +76,7 @@ function changeMessage(change: { field: string; label: string; old: unknown; new
   inset-block: 28px 0;
   inset-inline-start: 13px;
   width: 1px;
-  background: var(--border);
+  background: var(--ui-border);
   content: '';
 }
 
@@ -88,10 +86,10 @@ function changeMessage(change: { field: string; label: string; old: unknown; new
   width: 28px;
   height: 28px;
   place-items: center;
-  border: 1px solid var(--border);
+  border: 1px solid var(--ui-border);
   border-radius: 999px;
-  background: var(--muted);
-  color: var(--muted-foreground);
+  background: var(--ui-bg-muted);
+  color: var(--ui-text-muted);
 }
 
 .task-activity-title {
@@ -101,13 +99,13 @@ function changeMessage(change: { field: string; label: string; old: unknown; new
 }
 
 .task-activity-meta {
-  color: var(--muted-foreground);
+  color: var(--ui-text-muted);
   font-size: 0.6875rem;
 }
 
 .task-activity-body {
   margin-top: 5px;
-  color: var(--muted-foreground);
+  color: var(--ui-text-muted);
   font-size: 0.75rem;
   line-height: 1.75;
   white-space: pre-wrap;

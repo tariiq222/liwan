@@ -6,22 +6,18 @@ const { me } = useMe()
 </script>
 
 <template>
-  <SharedPageContainer width="form">
+  <SharedPageContainer width="form" class="space-y-6">
     <SharedPageHeader :title="t('account.title')" :description="t('account.description')" />
-    <section v-if="me" class="nasq-panel">
-      <div class="nasq-panel-header"><h2 class="text-base font-semibold">{{ me.name }}</h2></div>
-      <div class="nasq-panel-body">
-        <dl class="nasq-metadata">
-          <div><dt>{{ t('auth.username') }}</dt><dd dir="ltr">{{ me.login }}</dd></div>
-          <div><dt>{{ t('account.company') }}</dt><dd>{{ me.company.name }}</dd></div>
-        </dl>
-      </div>
-    </section>
-    <section class="nasq-panel">
-      <div class="nasq-panel-header"><h2 class="text-base font-semibold">{{ t('account.passwordTitle') }}</h2></div>
-      <div class="nasq-panel-body">
-        <PasswordForm />
-      </div>
-    </section>
+    <UCard v-if="me">
+      <template #header><h2 class="text-lg font-semibold text-highlighted">{{ me.name }}</h2></template>
+      <dl class="grid gap-6 sm:grid-cols-2">
+        <div><dt class="text-sm text-muted">{{ t('auth.username') }}</dt><dd class="mt-2 font-medium" dir="ltr">{{ me.login }}</dd></div>
+        <div><dt class="text-sm text-muted">{{ t('account.company') }}</dt><dd class="mt-2 font-medium">{{ me.company.name }}</dd></div>
+      </dl>
+    </UCard>
+    <UCard>
+      <template #header><h2 class="text-lg font-semibold text-highlighted">{{ t('account.passwordTitle') }}</h2></template>
+      <PasswordForm />
+    </UCard>
   </SharedPageContainer>
 </template>

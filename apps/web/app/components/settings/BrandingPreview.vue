@@ -5,62 +5,32 @@ import { createBrandTheme } from '@/utils/brandTheme'
 const props = defineProps<{
   name: string
   color: string
+  secondaryColor?: string
   logoUrl: string
 }>()
 
 const { t } = useI18n()
-const theme = computed(() => createBrandTheme(props.color))
+const theme = computed(() => createBrandTheme(props.color, 'light', props.secondaryColor))
 const previewStyle = computed(() => Object.fromEntries(
   Object.entries(theme.value).map(([key, value]) => [`--preview-${key.slice(2)}`, value]),
 ))
 </script>
 
 <template>
-  <Card
-    data-testid="branding-preview"
-    :data-preview-primary="theme['--primary']"
-    :style="previewStyle"
-  >
-    <CardHeader>
-      <CardTitle>{{ t('settings.branding.preview.title') }}</CardTitle>
-      <CardDescription>{{ t('settings.branding.preview.hint') }}</CardDescription>
-    </CardHeader>
-    <CardContent class="space-y-4">
+  <UCard data-testid="branding-preview" :data-preview-primary="theme['--primary']" :style="previewStyle">
+    <template #header>
+      <h2 class="font-semibold">{{ t('settings.branding.preview.title') }}</h2>
+      <p class="text-sm text-muted">{{ t('settings.branding.preview.hint') }}</p>
+    </template>
+    <div class="space-y-4">
       <div class="flex items-center gap-3 rounded-lg border p-4">
         <img v-if="logoUrl" :src="logoUrl" :alt="name" class="size-12 rounded-md object-contain">
-        <div v-else class="flex size-12 items-center justify-center rounded-md bg-[var(--preview-primary)] text-lg font-semibold text-[var(--preview-primary-foreground)]">
-          {{ name.slice(0, 1) }}
-        </div>
         <span class="font-semibold">{{ name }}</span>
       </div>
-      <div class="rounded-lg border p-4">
-        <Button
-          type="button"
-          data-testid="branding-preview-action"
-          variant="ghost"
-          class="branding-preview-action"
-        >
-          {{ t('settings.branding.preview.action') }}
-        </Button>
+      <div class="flex flex-wrap gap-2 rounded-lg border p-4">
+        <UButton type="button" data-testid="branding-preview-action" :style="{ background: theme['--primary'], color: theme['--primary-foreground'] }">{{ t('settings.branding.preview.action') }}</UButton>
+        <UButton type="button" color="secondary" :style="{ background: theme['--secondary'], color: theme['--primary'] }">{{ t('settings.branding.secondaryColor') }}</UButton>
       </div>
-    </CardContent>
-  </Card>
+    </div>
+  </UCard>
 </template>
-
-<style scoped>
-.branding-preview-action {
-  border: 1px solid var(--border);
-  background-color: var(--preview-primary);
-  color: var(--preview-primary-foreground);
-}
-
-.branding-preview-action:hover {
-  background-color: var(--preview-primary-hover);
-  color: var(--preview-primary-hover-foreground);
-}
-
-.branding-preview-action:active {
-  background-color: var(--preview-primary-active);
-  color: var(--preview-primary-active-foreground);
-}
-</style>

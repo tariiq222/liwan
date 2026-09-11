@@ -5,11 +5,13 @@ from odoo.exceptions import AccessError
 from .res_partner import PARTNER_BRANDING_MARKER
 
 BRANDING_COMPANY_MARKER = 'nasq_core.branding_company_ids'
-BRANDING_COMPANY_FIELDS = {'primary_color'}
+BRANDING_COMPANY_FIELDS = {'primary_color', 'secondary_color'}
 
 
 class ResCompany(models.Model):
     _inherit = 'res.company'
+
+    secondary_color = fields.Char(default='#2563eb')
 
     nasq_access_policy_version = fields.Integer(default=1, required=True)
 

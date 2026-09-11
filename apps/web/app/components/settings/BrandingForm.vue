@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
-import { toast } from 'vue-sonner'
+import { brandPairContrast, DEFAULT_SECONDARY } from '@/utils/brandTheme'
 import { ApiError } from '@/composables/useApi'
 import { buildBrandingPatch, normalizeHex } from '@/composables/colorHex'
 import { useBrandingAdmin, useUpdateBranding } from '@/composables/useBrandingAdmin'
@@ -15,18 +15,23 @@ const PRESETS = [
 ] as const
 
 const { t } = useI18n()
+const toast = useToast()
 const hydrated = useHydrated()
 const { data: branding, isLoading, error, refetch } = useBrandingAdmin()
 const update = useUpdateBranding()
 
 const color = ref(DEFAULT_COLOR)
 const savedColor = ref(DEFAULT_COLOR)
+const secondary = ref(DEFAULT_SECONDARY)
+const savedSecondary = ref(DEFAULT_SECONDARY)
 const dirty = ref(false)
 const validationError = ref('')
 
-function loadSaved(value: { primary_color: string }) {
+function loadSaved(value: { primary_color: string; secondary_color?: string }) {
   savedColor.value = normalizeHex(value.primary_color) ?? DEFAULT_COLOR
+  savedSecondary.value = normalizeHex(value.secondary_color ?? DEFAULT_SECONDARY) ?? DEFAULT_SECONDARY
   color.value = savedColor.value
+  secondary.value = savedSecondary.value
   dirty.value = false
 }
 
@@ -38,11 +43,13 @@ const previewName = computed(() => branding.value?.name ?? '')
 const previewColor = computed(() => normalizeHex(color.value) ?? savedColor.value)
 const previewLogo = computed(() => branding.value?.logo_url ?? '')
 const isBusy = computed(() => update.isPending.value)
-const colorValid = computed(() => normalizeHex(color.value) !== null)
+const colorValid = computed(() => normalizeHex(color.value) !== null && normalizeHex(secondary.value) !== null)
+const lowContrast = computed(() => colorValid.value && brandPairContrast(color.value, secondary.value) < 4.5)
 
 function cancel() {
   validationError.value = ''
   color.value = savedColor.value
+  secondary.value = savedSecondary.value
   dirty.value = false
 }
 
@@ -50,6 +57,7 @@ function resetDefault() {
   validationError.value = ''
   dirty.value = true
   color.value = DEFAULT_COLOR
+  secondary.value = DEFAULT_SECONDARY
 }
 
 async function retryLoad() {
@@ -58,7 +66,7 @@ async function retryLoad() {
 
 async function save() {
   validationError.value = ''
-  const patch = buildBrandingPatch({ primaryColor: color.value })
+  const patch = buildBrandingPatch({ primaryColor: color.value, secondaryColor: secondary.value })
   if (!patch) {
     validationError.value = t('settings.branding.errors.invalidColor')
     return
@@ -66,10 +74,10 @@ async function save() {
   try {
     const saved = await update.mutateAsync(patch)
     loadSaved(saved)
-    toast.success(t('settings.branding.saved'))
+    toast.add({ title: t('settings.branding.saved'), color: 'success' })
   } catch (error) {
     // Keep the colour draft after a transient save failure.
-    toast.error(error instanceof ApiError ? error.message : t('errors.generic'))
+    toast.add({ title: error instanceof ApiError ? error.message : t('errors.generic'), color: 'error' })
   } finally {
     update.reset()
   }
@@ -80,41 +88,37 @@ onBeforeUnmount(() => update.reset())
 
 <template>
   <div v-if="!hydrated || isLoading" role="status" aria-live="polite" aria-busy="true" :aria-label="t('settings.branding.loading')">
-    <Skeleton class="h-80 w-full" />
+    <USkeleton class="h-80 w-full" />
   </div>
-  <div v-else-if="error" data-testid="branding-load-error" class="space-y-3 rounded-lg border border-destructive/50 p-6">
-    <p role="alert" class="text-sm text-destructive">{{ t('settings.branding.errors.load') }}</p>
-    <Button type="button" data-testid="branding-retry" :disabled="!hydrated" @click="retryLoad">
-      {{ t('settings.branding.retry') }}
-    </Button>
-  </div>
+  <UAlert v-else-if="error" data-testid="branding-load-error" color="error" variant="subtle" :title="t('settings.branding.errors.load')">
+    <template #actions>
+      <UButton type="button" color="secondary" data-testid="branding-retry" :disabled="!hydrated" @click="retryLoad">{{ t('settings.branding.retry') }}</UButton>
+    </template>
+  </UAlert>
   <div v-else-if="branding" class="nasq-settings-branding">
     <form class="nasq-form space-y-5" data-testid="branding-form" @submit.prevent="save">
       <SharedUnsavedChanges :dirty="dirty" />
-      <p data-testid="branding-managed-identity" class="text-sm text-muted-foreground">
+      <p data-testid="branding-managed-identity" class="text-sm text-muted">
         {{ t('settings.branding.managedIdentity') }}
       </p>
       <div class="space-y-2">
-        <Label for="branding-color">{{ t('settings.branding.color') }}</Label>
+        <label for="branding-color">{{ t('settings.branding.color') }}</label>
         <div class="flex items-center gap-2">
-          <Input id="branding-color" v-model="color" data-testid="branding-color" dir="ltr" class="min-w-0 flex-1 font-mono" :aria-invalid="!colorValid" :disabled="!hydrated || isBusy" @update:model-value="dirty = true" />
-          <input
-            v-model="color"
-            data-testid="branding-color-picker"
-            type="color"
-            :aria-label="t('settings.branding.colorPicker')"
-            class="h-[40px] w-[40px] shrink-0 rounded-lg border bg-background p-1"
-            :disabled="!hydrated || isBusy"
-            @input="dirty = true"
-          >
+          <UInput id="branding-color" v-model="color" data-testid="branding-color" dir="ltr" class="min-w-0 flex-1 font-mono" :aria-invalid="!colorValid" :disabled="!hydrated || isBusy" @update:model-value="dirty = true" />
+          <UPopover>
+            <UButton type="button" color="neutral" variant="outline" square data-testid="branding-color-picker" :aria-label="t('settings.branding.colorPicker')" :disabled="!hydrated || isBusy">
+              <span class="size-5 rounded border" :style="{ backgroundColor: previewColor }" />
+            </UButton>
+            <template #content><UColorPicker v-model="color" class="p-3" :disabled="isBusy" @update:model-value="dirty = true" /></template>
+          </UPopover>
         </div>
-        <p v-if="color && !colorValid" role="alert" class="text-sm text-destructive">{{ t('settings.branding.errors.invalidColor') }}</p>
+        <p v-if="color && !colorValid" role="alert" class="text-sm text-error">{{ t('settings.branding.errors.invalidColor') }}</p>
         <div class="flex flex-wrap gap-2" :aria-label="t('settings.branding.presets.label')">
-          <Button
+          <UButton
             v-for="preset in PRESETS"
             :key="preset.key"
             type="button"
-            variant="outline"
+            color="secondary"
             data-testid="branding-preset"
             :aria-label="t(preset.labelKey)"
             :disabled="!hydrated || isBusy"
@@ -122,23 +126,35 @@ onBeforeUnmount(() => update.reset())
           >
             <span class="size-4 rounded-full border" :style="{ backgroundColor: preset.color }" aria-hidden="true" />
             {{ t(preset.labelKey) }}
-          </Button>
+          </UButton>
         </div>
       </div>
-      <p v-if="validationError" role="alert" class="text-sm text-destructive">{{ validationError }}</p>
+      <UFormField :label="t('settings.branding.secondaryColor')" name="secondary_color">
+        <div class="flex items-center gap-2">
+          <UInput v-model="secondary" data-testid="branding-secondary-color" dir="ltr" class="flex-1" :disabled="!hydrated || isBusy" @update:model-value="dirty = true" />
+          <UPopover>
+            <UButton type="button" color="neutral" variant="outline" square :aria-label="t('settings.branding.secondaryColor')" :disabled="!hydrated || isBusy">
+              <span class="size-5 rounded border" :style="{ backgroundColor: normalizeHex(secondary) ?? savedSecondary }" />
+            </UButton>
+            <template #content><UColorPicker v-model="secondary" class="p-3" :disabled="isBusy" @update:model-value="dirty = true" /></template>
+          </UPopover>
+        </div>
+      </UFormField>
+      <UAlert v-if="lowContrast" color="warning" :title="t('settings.branding.lowContrast')" />
+      <p v-if="validationError" role="alert" class="text-sm text-error">{{ validationError }}</p>
       <div class="nasq-form-footer">
-        <Button type="submit" data-testid="branding-submit" :aria-invalid="!colorValid" :disabled="!hydrated || isBusy || !colorValid">
+        <UButton type="submit" data-testid="branding-submit" :aria-invalid="!colorValid" :disabled="!hydrated || isBusy || !colorValid">
           {{ update.isPending.value ? t('settings.branding.saving') : t('settings.branding.save') }}
-        </Button>
-        <Button type="button" variant="outline" data-testid="branding-cancel" :disabled="!hydrated || isBusy" @click="cancel">
+        </UButton>
+        <UButton type="button" color="secondary" data-testid="branding-cancel" :disabled="!hydrated || isBusy" @click="cancel">
           {{ t('settings.branding.cancel') }}
-        </Button>
-        <Button type="button" variant="ghost" data-testid="branding-default" :disabled="!hydrated || isBusy" @click="resetDefault">
+        </UButton>
+        <UButton type="button" color="secondary" data-testid="branding-default" :disabled="!hydrated || isBusy" @click="resetDefault">
           {{ t('settings.branding.resetDefault') }}
-        </Button>
+        </UButton>
       </div>
     </form>
 
-    <BrandingPreview :name="previewName" :color="previewColor" :logo-url="previewLogo" />
+    <BrandingPreview :name="previewName" :color="previewColor" :secondary-color="normalizeHex(secondary) ?? savedSecondary" :logo-url="previewLogo" />
   </div>
 </template>

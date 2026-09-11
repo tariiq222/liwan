@@ -68,6 +68,12 @@ class UiPolicyTest(unittest.TestCase):
     def test_comments_and_native_controls_are_not_legacy_tags(self):
         self.assertEqual(self.errors({PAGE: '<!-- <Button/> --><template><button/><Button/></template>'}), [])
 
+    def test_vue_attributes_are_not_imports_but_scripts_and_styles_are_checked(self):
+        source = '<script setup>const rows = computed<Button[]>(() => [])</script><template><div id="date-from" class="w-full" /></template>'
+        self.assertEqual(self.errors({PAGE: source}), [])
+        for extra in ('<script setup>import X from "unreviewed-library"</script>', '<style>@import "unreviewed-library";</style>'):
+            self.assertTrue(self.errors({PAGE: source + extra}))
+
     def test_new_dependency_and_unknown_import_need_review(self):
         for name in ('vuetify', 'unreviewed-library'):
             with self.subTest(name=name):

@@ -8,5 +8,5 @@ const label = computed(() => t(hrAccessLabelKey({ access: props.access })))
 </script>
 
 <template>
-  <Badge variant="outline" data-testid="hr-access-badge">{{ label }}</Badge>
+  <UBadge color="neutral" variant="outline" data-testid="hr-access-badge">{{ label }}</UBadge>
 </template>

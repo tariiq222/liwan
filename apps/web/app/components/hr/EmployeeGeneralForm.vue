@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { toast } from 'vue-sonner'
 import type { HrDepartment } from '@/composables/useHrDepartments'
 import { retryHrManagerQueries, useCreateHrEmployee, useHrEmployee, useHrEmployees, useUpdateHrEmployee, hrManagerOptions, type HrEmployee } from '@/composables/useHrEmployees'
 import { refDebounced } from '@vueuse/core'
@@ -9,6 +8,7 @@ const emit = defineEmits<{ saved: [employee: HrEmployee] }>()
 const { t } = useI18n()
 const hydrated = useHydrated()
 const { can } = useAccess()
+const toast = useToast()
 const canManage = computed(() => can('hr.employees.manage'))
 const name = ref(''); const email = ref(''); const originalEmail = ref(''); const phone = ref(''); const jobTitle = ref(''); const departmentId = ref<number | null>(null); const managerId = ref<number | null>(null)
 const managerSearch = ref('')
@@ -23,6 +23,8 @@ const managerOptions = computed(() => hrManagerOptions({
   search: debouncedManagerSearch.value,
   excludeId: props.employee?.id,
 }))
+const departmentOptions = computed(() => [{ value: 'none', label: t('hr.depts.none') }, ...props.departments.map(department => ({ value: String(department.id), label: department.name }))])
+const managerSelectOptions = computed(() => [{ value: 'none', label: t('hr.depts.none') }, ...managerOptions.value.map(candidate => ({ value: String(candidate.id), label: candidate.name }))])
 const selectedManagerError = computed(() => managerId.value !== null && !!selectedManagerQuery.error.value)
 const savedState = ref('')
 const { mutateAsync: create, isPending: creating } = useCreateHrEmployee()
@@ -54,28 +56,51 @@ async function submit() {
       : await create({ name: name.value.trim(), work_email: email.value.trim(), work_phone: phone.value, job_title: jobTitle.value, department_id: departmentId.value, parent_id: managerId.value })
     savedState.value = state()
     emit('saved', employee)
-    toast.success(t('hr.employee.saved'))
-  } catch (error) { toast.error(error instanceof Error ? error.message : t('errors.generic')) }
+    toast.add({ title: t('hr.employee.saved'), color: 'success' })
+  } catch (error) { toast.add({ title: error instanceof Error ? error.message : t('errors.generic'), color: 'error' }) }
 }
 </script>
 
 <template>
   <SharedUnsavedChanges :dirty="dirty" />
-  <form class="nasq-form" @submit.prevent="submit">
+  <UForm :state="{ name, email, phone, jobTitle, departmentId, managerId }" class="space-y-5" method="post" @submit="submit">
     <SharedFormSection :title="t('hr.employee.general')" :description="t('hr.employee.generalHint')">
-      <div class="nasq-form-grid mt-4">
-        <div class="grid gap-2"><Label for="hr-employee-name">{{ t('hr.employee.name') }}</Label><Input id="hr-employee-name" v-model="name" :disabled="!canManage || !hydrated || isPending" required /></div>
-        <div class="grid gap-2"><Label for="hr-employee-job">{{ t('hr.employee.jobTitle') }}</Label><Input id="hr-employee-job" v-model="jobTitle" :disabled="!canManage || !hydrated || isPending" /></div>
-        <div class="grid gap-2"><Label for="hr-employee-email">{{ t('hr.employee.workEmail') }}</Label><Input id="hr-employee-email" v-model="email" type="email" :disabled="!canManage || !hydrated || isPending" /><p v-if="props.employee?.access && emailChanged" class="text-xs text-muted-foreground">{{ t('hr.employee.fixedLogin') }}</p></div>
-        <div class="grid gap-2"><Label for="hr-employee-phone">{{ t('hr.employee.workPhone') }}</Label><Input id="hr-employee-phone" v-model="phone" :disabled="!canManage || !hydrated || isPending" /></div>
+      <div class="grid gap-4 sm:grid-cols-2 mt-4">
+        <UFormField :label="t('hr.employee.name')" name="hr-employee-name" required>
+          <UInput id="hr-employee-name" v-model="name" class="w-full" :disabled="!canManage || !hydrated || isPending" required />
+        </UFormField>
+        <UFormField :label="t('hr.employee.jobTitle')" name="hr-employee-job">
+          <UInput id="hr-employee-job" v-model="jobTitle" class="w-full" :disabled="!canManage || !hydrated || isPending" />
+        </UFormField>
+        <UFormField :label="t('hr.employee.workEmail')" name="hr-employee-email">
+          <UInput id="hr-employee-email" v-model="email" type="email" class="w-full" :disabled="!canManage || !hydrated || isPending" />
+          <p v-if="props.employee?.access && emailChanged" class="mt-1 text-xs text-muted">{{ t('hr.employee.fixedLogin') }}</p>
+        </UFormField>
+        <UFormField :label="t('hr.employee.workPhone')" name="hr-employee-phone">
+          <UInput id="hr-employee-phone" v-model="phone" class="w-full" :disabled="!canManage || !hydrated || isPending" />
+        </UFormField>
       </div>
     </SharedFormSection>
     <SharedFormSection :title="t('hr.employee.assignment')">
-      <div class="nasq-form-grid mt-4">
-        <div class="grid gap-2"><Label>{{ t('hr.employee.department') }}</Label><Select :model-value="departmentId ? String(departmentId) : 'none'" :disabled="!canManage || !hydrated || isPending" @update:model-value="departmentId = idOrNull($event)"><SelectTrigger class="w-full"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="none">{{ t('hr.depts.none') }}</SelectItem><SelectItem v-for="department in departments" :key="department.id" :value="String(department.id)">{{ department.name }}</SelectItem></SelectContent></Select></div>
-        <div class="grid min-w-0 gap-2"><Label for="hr-employee-manager-search">{{ t('hr.employee.manager') }}</Label><Input id="hr-employee-manager-search" v-model="managerSearch" :disabled="!canManage || !hydrated || isPending" :aria-label="t('hr.depts.managerSearch')" :placeholder="t('hr.depts.managerSearch')" /><div v-if="managerQuery.error.value || selectedManagerError" class="text-sm text-destructive"><p>{{ t('hr.depts.managerLoadError') }}</p><Button type="button" variant="outline" :disabled="!canManage || !hydrated || isPending" @click="retryManagerQueries">{{ t('hr.depts.retry') }}</Button></div><p v-else-if="managerQuery.isFetching.value" class="text-xs text-muted-foreground">{{ t('hr.depts.managerLoading') }}</p><Label class="sr-only" for="hr-employee-manager">{{ t('hr.employee.manager') }}</Label><Select class="min-w-0" :model-value="managerId ? String(managerId) : 'none'" :disabled="!canManage || !hydrated || isPending" @update:model-value="managerId = idOrNull($event)"><SelectTrigger id="hr-employee-manager" class="w-full min-w-0 max-w-full"><SelectValue class="min-w-0 max-w-full truncate" /></SelectTrigger><SelectContent><SelectItem value="none">{{ t('hr.depts.none') }}</SelectItem><SelectItem v-for="candidate in managerOptions" :key="candidate.id" :value="String(candidate.id)">{{ candidate.name }}</SelectItem></SelectContent></Select></div>
+      <div class="grid gap-4 sm:grid-cols-2 mt-4">
+        <UFormField :label="t('hr.employee.department')" name="hr-employee-department">
+          <USelect :model-value="departmentId ? String(departmentId) : 'none'" :items="departmentOptions" class="w-full" :disabled="!canManage || !hydrated || isPending" @update:model-value="departmentId = idOrNull($event)" />
+        </UFormField>
+        <UFormField :label="t('hr.employee.manager')" name="hr-employee-manager-search" class="min-w-0">
+          <UInput id="hr-employee-manager-search" v-model="managerSearch" class="w-full" :disabled="!canManage || !hydrated || isPending" :aria-label="t('hr.depts.managerSearch')" :placeholder="t('hr.depts.managerSearch')" icon="i-lucide-search" />
+          <div v-if="managerQuery.error.value || selectedManagerError" class="mt-2 text-sm text-error">
+            <p>{{ t('hr.depts.managerLoadError') }}</p>
+            <UButton type="button" color="secondary" variant="solid" :disabled="!canManage || !hydrated || isPending" :label="t('hr.depts.retry')" @click="retryManagerQueries" />
+          </div>
+          <p v-else-if="managerQuery.isFetching.value" class="mt-2 text-xs text-muted">{{ t('hr.depts.managerLoading') }}</p>
+          <USelect id="hr-employee-manager" class="mt-2 min-w-0 w-full" :model-value="managerId ? String(managerId) : 'none'" :items="managerSelectOptions" :disabled="!canManage || !hydrated || isPending" @update:model-value="managerId = idOrNull($event)" />
+        </UFormField>
       </div>
     </SharedFormSection>
-    <div class="nasq-form-footer"><span class="me-auto text-xs text-muted-foreground">{{ t('hr.employee.formHint') }}</span><Button type="submit" :disabled="!canManage || !hydrated || isPending || !name.trim()">{{ t('app.save') }}</Button><slot name="actions" /></div>
-  </form>
+    <footer class="flex flex-wrap items-center justify-end gap-2">
+      <span class="me-auto text-xs text-muted">{{ t('hr.employee.formHint') }}</span>
+      <slot name="actions" />
+      <UButton type="submit" color="primary" :disabled="!canManage || !hydrated || isPending || !name.trim()" :label="t('app.save')" />
+    </footer>
+  </UForm>
 </template>

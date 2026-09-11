@@ -17,9 +17,7 @@ const hydrated = useHydrated()
   <SharedPageContainer v-if="route.path.replace(/\/+$/, '') === `/projects/${projectId}/register/${registerId}`" width="detail">
     <SharedPageHeader :title="item.data?.value?.title ?? t('projects.refresh.workspace.registerTitle')" :back-to="returnTo" :back-label="t('projects.refresh.workspace.registerTitle')">
       <template #actions>
-        <NuxtLink v-if="item.data?.value && access.data.value?.can_manage && hydrated" :to="{ path: `/projects/${projectId}/register/${registerId}/edit`, query: { returnTo } }">
-          <Button data-testid="register-detail-edit">{{ t('app.edit') }}</Button>
-        </NuxtLink>
+        <UButton v-if="item.data?.value && access.data.value?.can_manage && hydrated" data-testid="register-detail-edit" :to="{ path: `/projects/${projectId}/register/${registerId}/edit`, query: { returnTo } }">{{ t('app.edit') }}</UButton>
       </template>
     </SharedPageHeader>
     <SharedPageState
@@ -29,9 +27,9 @@ const hydrated = useHydrated()
       @retry="item.refetch"
     />
     <section v-if="item.data?.value" class="grid gap-4">
-      <section class="nasq-panel overflow-hidden" aria-labelledby="register-summary-title">
-        <div class="nasq-panel-header"><h2 id="register-summary-title">{{ t('projects.refresh.workspace.registerSummary') }}</h2></div>
-        <div class="nasq-panel-body space-y-4">
+      <section class="rounded-xl border border-default bg-default overflow-hidden" aria-labelledby="register-summary-title">
+        <div class="border-b border-default px-5 py-4"><h2 id="register-summary-title" class="text-lg font-semibold text-highlighted">{{ t('projects.refresh.workspace.registerSummary') }}</h2></div>
+        <div class="p-5 space-y-4">
           <div class="flex flex-wrap gap-2 text-sm">
         <span>{{ t(`projects.governance.register.${item.data.value.kind}`) }}</span>
         <span>{{ t(`projects.governance.register.${item.data.value.priority}`) }}</span>
@@ -40,22 +38,22 @@ const hydrated = useHydrated()
           </div>
           <dl class="grid gap-4 sm:grid-cols-2">
         <div v-for="field in (['owner', 'dueDate', 'probability', 'impact'] as const)" :key="field">
-          <dt class="text-sm text-muted-foreground">{{ t(`projects.governance.register.${field}`) }}</dt>
+          <dt class="text-sm text-muted">{{ t(`projects.governance.register.${field}`) }}</dt>
           <dd>{{ field === 'owner' ? item.data.value.owner?.name || '—' : field === 'dueDate' ? item.data.value.due_date || '—' : item.data.value[field] ?? '—' }}</dd>
         </div>
           </dl>
         </div>
       </section>
-      <section class="nasq-panel overflow-hidden" aria-labelledby="register-description-title">
-        <div class="nasq-panel-header"><h2 id="register-description-title">{{ t('projects.refresh.workspace.registerDescription') }}</h2></div>
-        <div class="nasq-panel-body"><p class="whitespace-pre-wrap">{{ item.data.value.description || '—' }}</p></div>
+      <section class="rounded-xl border border-default bg-default overflow-hidden" aria-labelledby="register-description-title">
+        <div class="border-b border-default px-5 py-4"><h2 id="register-description-title" class="text-lg font-semibold text-highlighted">{{ t('projects.refresh.workspace.registerDescription') }}</h2></div>
+        <div class="p-5"><p class="whitespace-pre-wrap">{{ item.data.value.description || '—' }}</p></div>
       </section>
-      <section class="nasq-panel overflow-hidden" aria-labelledby="register-plan-title">
-        <div class="nasq-panel-header"><h2 id="register-plan-title">{{ t('projects.refresh.workspace.registerPlan') }}</h2></div>
-        <div class="nasq-panel-body space-y-2">
+      <section class="rounded-xl border border-default bg-default overflow-hidden" aria-labelledby="register-plan-title">
+        <div class="border-b border-default px-5 py-4"><h2 id="register-plan-title" class="text-lg font-semibold text-highlighted">{{ t('projects.refresh.workspace.registerPlan') }}</h2></div>
+        <div class="p-5 space-y-2">
           <p class="whitespace-pre-wrap">{{ item.data.value.response || '—' }}</p>
           <p v-if="item.data.value.task">
-          <span class="text-muted-foreground">{{ t('projects.governance.register.task') }}:</span>
+          <span class="text-muted">{{ t('projects.governance.register.task') }}:</span>
           <NuxtLink class="underline" :to="{ path: `/projects/${projectId}/tasks/${item.data.value.task.id}`, query: { returnTo: route.fullPath } }">{{ item.data.value.task.name }}</NuxtLink>
           </p>
         </div>

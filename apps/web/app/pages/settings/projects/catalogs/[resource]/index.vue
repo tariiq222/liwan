@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import { Search } from '@lucide/vue'
-import { toast } from 'vue-sonner'
 import FilterBar from '@/components/shared/FilterBar.vue'
 import SettingsLayout from '@/components/settings/SettingsLayout.vue'
 import { ApiError } from '@/composables/useApi'
@@ -18,6 +16,7 @@ const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
 const { can } = useAccess()
+const toast = useToast()
 const hydrated = useHydrated()
 const forbidden = computed(() => !can('pmo.settings.manage'))
 const resource = computed(() => (isCharterCatalogResource(route.params.resource) ? route.params.resource : null))
@@ -98,7 +97,7 @@ async function confirmAction() {
   try {
     if (pendingAction.value === 'delete') await deleteReference(pendingItem.value.id)
     else await patchReference({ id: pendingItem.value.id, patch: { active: pendingAction.value === 'enable' } })
-    toast.success(t(`settings.projects.catalogs.${pendingAction.value}d`))
+    toast.add({ title: t(`settings.projects.catalogs.${pendingAction.value}d`), color: 'success', icon: 'i-lucide-circle-check' })
     pendingItem.value = null
     pendingAction.value = null
   }
@@ -113,26 +112,23 @@ async function confirmAction() {
 <template>
   <SettingsLayout>
     <SharedPageHeader :eyebrow="t('projects.refresh.settings.catalogEyebrow')" :title="title" :description="t('projects.refresh.settings.catalogDescription')" :back-to="returnTo" :back-label="t('settings.projects.catalogs.back')">
-      <Button v-if="resource && !forbidden" :disabled="!hydrated" @click="openNew">{{ t('settings.projects.catalogs.add') }}</Button>
+      <UButton v-if="resource && !forbidden" :disabled="!hydrated" @click="openNew">{{ t('settings.projects.catalogs.add') }}</UButton>
     </SharedPageHeader>
-    <p v-if="!resource" class="text-muted-foreground">{{ t('settings.projects.catalogs.notFound') }}</p>
-    <p v-else-if="forbidden" class="text-muted-foreground">{{ t('settings.forbidden') }}</p>
+    <p v-if="!resource" class="text-muted">{{ t('settings.projects.catalogs.notFound') }}</p>
+    <p v-else-if="forbidden" class="text-muted">{{ t('settings.forbidden') }}</p>
     <template v-else>
       <div class="w-full min-w-0" data-testid="catalog-toolbar">
         <FilterBar class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
           <template #search>
-            <div class="relative min-w-52 flex-1">
-              <Search class="pointer-events-none absolute start-2 top-1/2 size-[18px] -translate-y-1/2 text-muted-foreground" />
-              <Input :model-value="q" :placeholder="t('app.search')" :aria-label="t('app.search')" class="ps-8" :disabled="!hydrated" @change="onSearch" />
-            </div>
+            <UInput :model-value="q" :placeholder="t('app.search')" :aria-label="t('app.search')" icon="i-lucide-search" class="min-w-52 flex-1" :disabled="!hydrated" @change="onSearch" />
           </template>
-          <Button variant="outline" :disabled="!hydrated" :aria-pressed="showInactive" @click="toggleInactive">
+          <UButton variant="outline" :disabled="!hydrated" :aria-pressed="showInactive" @click="toggleInactive">
             {{ t('settings.projects.catalogs.showInactive') }}
-          </Button>
+          </UButton>
           <template #active>
             <div v-if="activeFilterCount" class="flex flex-wrap items-center gap-2">
-              <Badge v-if="q" variant="secondary">{{ q }}</Badge>
-              <Badge v-if="showInactive" variant="secondary">{{ t('settings.projects.catalogs.showInactive') }}</Badge>
+              <UBadge v-if="q" color="secondary" variant="subtle">{{ q }}</UBadge>
+              <UBadge v-if="showInactive" color="secondary" variant="subtle">{{ t('settings.projects.catalogs.showInactive') }}</UBadge>
             </div>
           </template>
         </FilterBar>
@@ -144,34 +140,34 @@ async function confirmAction() {
         :empty-text="t('settings.projects.catalogs.empty')"
         @retry="query.refetch"
       >
-        <div class="nasq-panel overflow-hidden">
+        <div class="rounded-xl border border-default bg-default overflow-hidden">
           <ul>
-            <li v-for="item in query.data.value?.items ?? []" :key="item.id" class="flex flex-wrap items-center justify-between gap-3 border-b border-border/80 p-3 last:border-0">
+            <li v-for="item in query.data.value?.items ?? []" :key="item.id" class="flex flex-wrap items-center justify-between gap-3 border-b border-default/80 p-3 last:border-0">
               <div>
                 <p class="font-medium">{{ item.name }}</p>
-                <p class="text-sm text-muted-foreground">{{ t('settings.projects.catalogs.sequenceValue', { sequence: item.sequence }) }} · {{ item.active ? t('settings.projects.catalogs.active') : t('settings.projects.catalogs.inactive') }}</p>
+                <p class="text-sm text-muted">{{ t('settings.projects.catalogs.sequenceValue', { sequence: item.sequence }) }} · {{ item.active ? t('settings.projects.catalogs.active') : t('settings.projects.catalogs.inactive') }}</p>
               </div>
               <div class="flex flex-wrap gap-2">
-                <Button type="button" variant="outline" size="sm" :disabled="!hydrated" @click="openEdit(item.id)">{{ t('settings.projects.catalogs.edit') }}</Button>
-                <Button v-if="item.active" type="button" variant="outline" size="sm" :disabled="!hydrated || patching" @click="requestAction(item, 'disable')">{{ t('settings.projects.catalogs.disable') }}</Button>
-                <Button v-else type="button" variant="outline" size="sm" :disabled="!hydrated || patching" @click="requestAction(item, 'enable')">{{ t('settings.projects.catalogs.enable') }}</Button>
-                <Button type="button" variant="destructive" size="sm" :disabled="!hydrated || deleting" @click="requestAction(item, 'delete')">{{ t('settings.projects.catalogs.delete') }}</Button>
+                <UButton type="button" variant="outline" size="sm" :disabled="!hydrated" @click="openEdit(item.id)">{{ t('settings.projects.catalogs.edit') }}</UButton>
+                <UButton v-if="item.active" type="button" variant="outline" size="sm" :disabled="!hydrated || patching" @click="requestAction(item, 'disable')">{{ t('settings.projects.catalogs.disable') }}</UButton>
+                <UButton v-else type="button" variant="outline" size="sm" :disabled="!hydrated || patching" @click="requestAction(item, 'enable')">{{ t('settings.projects.catalogs.enable') }}</UButton>
+                <UButton type="button" color="error" size="sm" :disabled="!hydrated || deleting" @click="requestAction(item, 'delete')">{{ t('settings.projects.catalogs.delete') }}</UButton>
               </div>
             </li>
           </ul>
         </div>
       </SharedPageState>
-      <div v-if="pages > 1" class="flex items-center justify-between text-sm text-muted-foreground">
-        <Button variant="ghost" :disabled="!hydrated || page === 1 || query.isFetching.value" @click="router.replace({ query: listQuery({ offset: page === 2 ? undefined : String((page - 2) * CHARTER_CATALOG_PAGE_SIZE) }) })">{{ t('settings.projects.catalogs.previousPage') }}</Button>
+      <div v-if="pages > 1" class="flex items-center justify-between text-sm text-muted">
+        <UButton color="secondary" variant="solid" :disabled="!hydrated || page === 1 || query.isFetching.value" @click="router.replace({ query: listQuery({ offset: page === 2 ? undefined : String((page - 2) * CHARTER_CATALOG_PAGE_SIZE) }) })">{{ t('settings.projects.catalogs.previousPage') }}</UButton>
         <span>{{ t('settings.projects.catalogs.pageOf', { page, pages }) }}</span>
-        <Button variant="ghost" :disabled="!hydrated || page >= pages || query.isFetching.value" @click="router.replace({ query: listQuery({ offset: String(page * CHARTER_CATALOG_PAGE_SIZE) }) })">{{ t('settings.projects.catalogs.nextPage') }}</Button>
+        <UButton color="secondary" variant="solid" :disabled="!hydrated || page >= pages || query.isFetching.value" @click="router.replace({ query: listQuery({ offset: String(page * CHARTER_CATALOG_PAGE_SIZE) }) })">{{ t('settings.projects.catalogs.nextPage') }}</UButton>
       </div>
-      <div v-if="pendingItem && pendingAction" class="nasq-status-callout-danger space-y-2 p-3 text-sm">
+      <div v-if="pendingItem && pendingAction" class="rounded-lg border border-error/30 bg-error/5 space-y-2 p-3 text-sm">
         <p>{{ t(`settings.projects.catalogs.confirm.${pendingAction}`, { name: pendingItem.name }) }}</p>
-        <p v-if="actionError" role="alert" class="text-destructive">{{ actionError }}</p>
+        <p v-if="actionError" role="alert" class="text-error">{{ actionError }}</p>
         <div class="flex flex-wrap gap-2">
-          <Button type="button" variant="outline" :disabled="patching || deleting" @click="pendingItem = null; pendingAction = null">{{ t('app.cancel') }}</Button>
-          <Button type="button" variant="destructive" :disabled="!hydrated || patching || deleting" @click="confirmAction">{{ t(`settings.projects.catalogs.${pendingAction}`) }}</Button>
+          <UButton color="secondary" variant="solid" type="button" :disabled="patching || deleting" @click="pendingItem = null; pendingAction = null">{{ t('app.cancel') }}</UButton>
+          <UButton type="button" color="error" :disabled="!hydrated || patching || deleting" @click="confirmAction">{{ t(`settings.projects.catalogs.${pendingAction}`) }}</UButton>
         </div>
       </div>
     </template>

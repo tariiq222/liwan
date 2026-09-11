@@ -40,11 +40,23 @@ const selectedCapabilities = computed(() => [...new Set((roleDetails.data.value 
 const isReactivation = computed(() => stoppedUserId.value !== null)
 const candidatePage = computed(() => Math.floor(candidateParams.offset / candidateParams.limit) + 1)
 const candidatePages = computed(() => Math.max(1, Math.ceil((employees.data.value?.total ?? 0) / candidateParams.limit)))
+const employeeOptions = computed(() => (employees.data.value?.items ?? []).map((employee) => ({
+  value: String(employee.id),
+  label: `${employee.name}${employee.work_email ? ` — ${employee.work_email}` : ''}${employee.user_id && employee.access_active === false ? ` — ${t('access.users.stoppedAccount')}` : ''}`,
+  disabled: employee.user_id !== null && employee.access_active !== false,
+})))
+function onEmployeeChange(value: unknown) { employeeId.value = value ? Number(value) : undefined }
 watch(() => candidateParams.q, () => { candidateParams.offset = 0 })
 watch(existingUser.data, (user) => {
   if (selectedRoleIds.value.length) return
   selectedRoleIds.value = user?.assignments.map((assignment) => assignment.role.id).filter((id): id is number => id !== null) ?? []
 })
+function toggleRole(roleId: number, checked: boolean) {
+  const next = new Set(selectedRoleIds.value)
+  if (checked) next.add(roleId)
+  else next.delete(roleId)
+  selectedRoleIds.value = [...next]
+}
 
 function showError(error: unknown) {
   if (!(error instanceof ApiError)) return t('errors.generic')
@@ -96,23 +108,70 @@ async function submit() {
   <SettingsLayout width="form">
     <SharedPageHeader :title="t('access.users.grantTitle')" :back-to="backTo" />
     <SharedPageState v-if="forbidden" :empty="true" :empty-text="t('access.forbidden')" />
-    <form v-else class="nasq-form nasq-panel nasq-panel-body space-y-5" @submit.prevent="submit">
+    <UForm v-else :state="{ employeeId, selectedRoleIds, password, passwordConfirmation }" class="space-y-6" method="post" @submit="submit">
       <SharedUnsavedChanges :dirty="dirty" />
       <SharedFormSection :title="t('access.users.employee')" class="space-y-4">
-        <div class="space-y-2"><Label for="employee-search">{{ t('access.users.employee') }}</Label><Input id="employee-search" v-model="candidateParams.q" :placeholder="t('access.users.filters.search')" :disabled="!hydrated || hasRequestedEmployee" /><select :aria-label="t('access.users.chooseEmployee')" id="employee" v-model="employeeId" class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm" :disabled="!hydrated || employees.isLoading.value"><option :value="undefined">{{ t('access.users.chooseEmployee') }}</option><option v-for="employee in employees.data.value?.items ?? []" :key="employee.id" :value="employee.id" :disabled="employee.user_id !== null && employee.access_active !== false">{{ employee.name }}{{ employee.work_email ? ` — ${employee.work_email}` : '' }}{{ employee.user_id && employee.access_active === false ? ` — ${t('access.users.stoppedAccount')}` : '' }}</option></select><p v-if="employees.isLoading.value" class="text-xs text-muted-foreground">{{ t('access.users.loadingCandidates') }}</p><p v-else-if="employees.error.value" role="alert" class="text-xs text-destructive">{{ t('errors.generic') }}</p><p v-if="selectedCandidate?.user_id && selectedCandidate.access_active !== false" role="alert" class="text-xs text-destructive">{{ t('access.users.alreadyHasAccount') }}</p><div v-if="candidatePages > 1" class="flex items-center justify-between text-xs text-muted-foreground"><Button type="button" variant="ghost" size="sm" :disabled="!hydrated || candidateParams.offset === 0 || employees.isFetching.value" @click="previousCandidates">{{ t('access.users.previousCandidates') }}</Button><span>{{ t('access.users.candidatePage', { page: candidatePage, pages: candidatePages }) }}</span><Button type="button" variant="ghost" size="sm" :disabled="!hydrated || candidatePage >= candidatePages || employees.isFetching.value" @click="nextCandidates">{{ t('access.users.nextCandidates') }}</Button></div></div>
+        <UFormField :label="t('access.users.employee')" name="employee-search">
+          <UInput id="employee-search" v-model="candidateParams.q" class="w-full" :placeholder="t('access.users.filters.search')" :disabled="!hydrated || hasRequestedEmployee" icon="i-lucide-search" />
+        </UFormField>
+        <USelect
+          id="employee"
+          :model-value="employeeId ? String(employeeId) : undefined"
+          :items="employeeOptions"
+          class="w-full"
+          :aria-label="t('access.users.chooseEmployee')"
+          :placeholder="t('access.users.chooseEmployee')"
+          :disabled="!hydrated || employees.isLoading.value"
+          @update:model-value="onEmployeeChange"
+        />
+        <p v-if="employees.isLoading.value" class="text-xs text-muted">{{ t('access.users.loadingCandidates') }}</p>
+        <p v-else-if="employees.error.value" role="alert" class="text-xs text-error">{{ t('errors.generic') }}</p>
+        <p v-if="selectedCandidate?.user_id && selectedCandidate.access_active !== false" role="alert" class="text-xs text-error">{{ t('access.users.alreadyHasAccount') }}</p>
+        <div v-if="candidatePages > 1" class="flex items-center justify-between text-xs text-muted">
+          <UButton type="button" color="secondary" variant="ghost" size="sm" :disabled="!hydrated || candidateParams.offset === 0 || employees.isFetching.value" :label="t('access.users.previousCandidates')" @click="previousCandidates" />
+          <span>{{ t('access.users.candidatePage', { page: candidatePage, pages: candidatePages }) }}</span>
+          <UButton type="button" color="secondary" variant="ghost" size="sm" :disabled="!hydrated || candidatePage >= candidatePages || employees.isFetching.value" :label="t('access.users.nextCandidates')" @click="nextCandidates" />
+        </div>
       </SharedFormSection>
       <SharedFormSection :title="t('access.users.role')" class="space-y-4">
-        <fieldset class="space-y-2" :disabled="!hydrated || roles.isLoading.value"><legend class="sr-only">{{ t('access.users.role') }}</legend><div class="nasq-settings-options"><label v-for="role in availableRoles" :key="role.id" class="nasq-settings-option"><input v-model="selectedRoleIds" type="checkbox" :value="role.id"><span>{{ role.name[locale === 'ar' ? 'ar' : 'en'] ?? role.name.ar }}</span><span class="text-xs text-muted-foreground">{{ t('access.roles.companyScope') }}</span></label></div><p v-if="roles.isLoading.value" class="text-xs text-muted-foreground">{{ t('access.users.loadingRoles') }}</p><p v-else-if="roles.error.value" role="alert" class="text-xs text-destructive">{{ t('errors.generic') }}</p></fieldset>
+        <fieldset class="space-y-3" :disabled="!hydrated || roles.isLoading.value">
+          <legend class="sr-only">{{ t('access.users.role') }}</legend>
+          <UCheckbox
+            v-for="role in availableRoles"
+            :key="role.id"
+            :model-value="selectedRoleIds.includes(role.id)"
+            @update:model-value="(value) => toggleRole(role.id, Boolean(value))"
+          >
+            <template #label>{{ role.name[locale === 'ar' ? 'ar' : 'en'] ?? role.name.ar }}</template>
+            <template #description><span class="text-xs text-muted">{{ t('access.roles.companyScope') }}</span></template>
+          </UCheckbox>
+          <p v-if="roles.isLoading.value" class="text-xs text-muted">{{ t('access.users.loadingRoles') }}</p>
+          <p v-else-if="roles.error.value" role="alert" class="text-xs text-error">{{ t('errors.generic') }}</p>
+        </fieldset>
       </SharedFormSection>
-      <p v-if="existingUser.isLoading.value" class="text-xs text-muted-foreground">{{ t('access.users.loadingAccount') }}</p><p v-else-if="existingUser.error.value" role="alert" class="text-xs text-destructive">{{ t('errors.generic') }}</p>
+      <p v-if="existingUser.isLoading.value" class="text-xs text-muted">{{ t('access.users.loadingAccount') }}</p>
+      <p v-else-if="existingUser.error.value" role="alert" class="text-xs text-error">{{ t('errors.generic') }}</p>
       <SharedFormSection :title="t('access.users.password')" class="space-y-4">
-        <div class="space-y-2"><Label for="password">{{ t('access.users.password') }}</Label><Input id="password" v-model="password" type="password" autocomplete="new-password" dir="ltr" :disabled="!hydrated" /><Label for="password-confirmation">{{ t('access.users.passwordConfirmation') }}</Label><Input id="password-confirmation" v-model="passwordConfirmation" type="password" autocomplete="new-password" dir="ltr" :disabled="!hydrated" /><p v-if="passwordConfirmation && password !== passwordConfirmation" class="text-xs text-destructive">{{ t('access.users.passwordMismatch') }}</p></div>
+        <UFormField :label="t('access.users.password')" name="password">
+          <UInput id="password" v-model="password" type="password" autocomplete="new-password" dir="ltr" class="w-full" :disabled="!hydrated" />
+        </UFormField>
+        <UFormField :label="t('access.users.passwordConfirmation')" name="password-confirmation">
+          <UInput id="password-confirmation" v-model="passwordConfirmation" type="password" autocomplete="new-password" dir="ltr" class="w-full" :disabled="!hydrated" />
+        </UFormField>
+        <p v-if="passwordConfirmation && password !== passwordConfirmation" class="text-xs text-error">{{ t('access.users.passwordMismatch') }}</p>
       </SharedFormSection>
       <SharedFormSection v-if="selectedCapabilities.length" :title="t('access.users.resultingCapabilities')" class="space-y-2">
-        <p class="text-xs text-muted-foreground">{{ selectedCapabilities.join('، ') }}</p>
+        <p class="text-xs text-muted">{{ selectedCapabilities.join('، ') }}</p>
       </SharedFormSection>
-      <p v-if="errorKey" role="alert" class="text-sm text-destructive">{{ errorKey }}</p>
-      <div class="nasq-form-footer"><Button type="submit" :disabled="!hydrated || grant.isPending.value || reactivate.isPending.value || updateAccess.isPending.value || employees.isLoading.value || roles.isLoading.value || existingUser.isLoading.value || !employeeId || selectedRoleIds.length === 0 || !selectedCandidate || (selectedCandidate.user_id !== null && selectedCandidate.access_active !== false) || password.length < 8 || password !== passwordConfirmation">{{ isReactivation ? t('access.users.reactivateAccount') : t('access.users.grantAccount') }}</Button></div>
-    </form>
+      <UAlert v-if="errorKey" role="alert" color="error" variant="subtle" :title="errorKey" />
+      <footer class="flex justify-end">
+        <UButton
+          type="submit"
+          color="primary"
+          :label="isReactivation ? t('access.users.reactivateAccount') : t('access.users.grantAccount')"
+          :disabled="!hydrated || grant.isPending.value || reactivate.isPending.value || updateAccess.isPending.value || employees.isLoading.value || roles.isLoading.value || existingUser.isLoading.value || !employeeId || selectedRoleIds.length === 0 || !selectedCandidate || (selectedCandidate.user_id !== null && selectedCandidate.access_active !== false) || password.length < 8 || password !== passwordConfirmation"
+        />
+      </footer>
+    </UForm>
   </SettingsLayout>
 </template>

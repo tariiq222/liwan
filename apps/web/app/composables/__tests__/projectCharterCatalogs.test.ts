@@ -1,5 +1,10 @@
 import { effectScope } from 'vue'
 import { describe, expect, it, vi } from 'vitest'
+const lifecycle = vi.hoisted(() => ({ onMounted: vi.fn() }))
+vi.mock('vue', async (importOriginal) => ({
+  ...await importOriginal<typeof import('vue')>(),
+  onMounted: lifecycle.onMounted,
+}))
 import {
   CHARTER_CATALOG_PAGE_SIZE,
   catalogCollectionPath,
@@ -43,6 +48,7 @@ describe('mergeCatalogItems', () => {
 
 describe('useCharterCatalogSearch', () => {
   it('ignores a deferred response from an older query', async () => {
+    lifecycle.onMounted.mockClear()
     vi.useFakeTimers()
     const requests: Array<{ promise: Promise<unknown>; resolve: (value: unknown) => void }> = []
     const fetch = vi.fn(() => {
@@ -55,6 +61,9 @@ describe('useCharterCatalogSearch', () => {
     const scope = effectScope()
     try {
       const search = scope.run(() => useCharterCatalogSearch('types'))!
+      expect(fetch).not.toHaveBeenCalled()
+      expect(search.pending.value).toBe(false)
+      lifecycle.onMounted.mock.calls[0]![0]()
       await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(1))
 
       search.q.value = 'new'

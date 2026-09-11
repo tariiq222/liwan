@@ -80,7 +80,7 @@ watch(
       draft.value.managerName = managerName
     }
   },
-  { immediate: true },
+  { immediate: true, flush: 'sync' },
 )
 
 watch(
@@ -90,7 +90,7 @@ watch(
     if (!currency) return
     draft.value.currencyLabel = currency.symbol ? `${currency.name} (${currency.symbol})` : currency.name
   },
-  { immediate: true },
+  { immediate: true, flush: 'sync' },
 )
 
 watch(
@@ -101,7 +101,7 @@ watch(
     applyLoadedProject(props.project)
     loadedProjectId.value = id
   },
-  { immediate: true },
+  { immediate: true, flush: 'sync' },
 )
 
 watch(readonly, (value) => {
@@ -224,36 +224,31 @@ function discardToServer() {
         :require-manager="mode === 'create' && !!createDefaults?.require_manager_on_create"
         :require-end-date="mode === 'create' && !!createDefaults?.require_end_date_on_create"
       />
-    <div v-if="stale" role="alert" data-testid="charter-stale-write" class="nasq-status-callout-warning space-y-3 p-3 text-sm">
+    <div v-if="stale" role="alert" data-testid="charter-stale-write" class="rounded-lg border border-warning/30 bg-warning/5 space-y-3 p-3 text-sm">
       <p>{{ t('projects.charter.staleWrite') }}</p>
       <p>{{ t('projects.charter.staleWriteHint') }}</p>
       <div class="flex flex-wrap gap-2">
-        <Button
+        <UButton
           type="button"
           data-testid="charter-overwrite-latest"
           :disabled="!hydrated || pending || !canOverwrite"
+          :label="t('projects.charter.overwriteLatest')"
           @click="overwriteOnLatest"
-        >
-          {{ t('projects.charter.overwriteLatest') }}
-        </Button>
-        <Button type="button" variant="outline" data-testid="charter-discard-reload" :disabled="pending" @click="requestDiscard">
-          {{ t('projects.charter.discardReload') }}
-        </Button>
+        />
+        <UButton type="button" color="secondary" data-testid="charter-discard-reload" :disabled="pending" :label="t('projects.charter.discardReload')" @click="requestDiscard" variant="solid" />
       </div>
-      <div v-if="confirmDiscard" class="space-y-2 rounded-md border border-destructive/40 bg-destructive/5 p-3" data-testid="charter-discard-confirm">
+      <div v-if="confirmDiscard" class="space-y-2 rounded-md border border-error/40 bg-error/5 p-3" data-testid="charter-discard-confirm">
         <p>{{ t('projects.charter.discardReloadConfirm') }}</p>
         <div class="flex flex-wrap gap-2">
-          <Button type="button" variant="outline" @click="confirmDiscard = false">{{ t('app.cancel') }}</Button>
-          <Button type="button" variant="destructive" :disabled="!hydrated || pending" @click="discardToServer">{{ t('projects.charter.discardReload') }}</Button>
+          <UButton type="button" color="secondary" :label="t('app.cancel')" @click="confirmDiscard = false" variant="solid" />
+          <UButton type="button" color="error" :disabled="!hydrated || pending" :label="t('projects.charter.discardReload')" @click="discardToServer" />
         </div>
       </div>
     </div>
-    <p v-else-if="error" role="alert" class="text-sm text-destructive">{{ error }}</p>
-    <div class="nasq-form-footer justify-end">
-      <Button type="button" variant="outline" :disabled="pending" @click="emit('cancel')">{{ t('app.cancel') }}</Button>
-      <Button type="submit" data-testid="project-create-submit" :disabled="!canSubmit">
-        {{ mode === 'create' ? t('app.create') : t('app.save') }}
-      </Button>
+    <p v-else-if="error" role="alert" class="text-sm text-error">{{ error }}</p>
+    <div class="flex flex-wrap gap-2 justify-end">
+      <UButton type="button" color="secondary" :disabled="pending" :label="t('app.cancel')" @click="emit('cancel')" variant="solid" />
+      <UButton type="submit" data-testid="project-create-submit" :disabled="!canSubmit" :label="mode === 'create' ? t('app.create') : t('app.save')" />
     </div>
     </form>
   </div>

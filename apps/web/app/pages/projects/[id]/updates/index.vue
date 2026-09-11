@@ -30,9 +30,9 @@ function openCreate() {
       :title="t('projects.refresh.workspace.updatesTitle')"
     >
       <template #actions>
-        <Button v-if="project?.can_manage" data-testid="project-updates-create" :disabled="!hydrated" @click="openCreate">
+        <UButton v-if="project?.can_manage" data-testid="project-updates-create" :disabled="!hydrated" @click="openCreate">
           {{ t('projects.updates.new') }}
-        </Button>
+        </UButton>
       </template>
     </SharedPageHeader>
     <SharedPageState

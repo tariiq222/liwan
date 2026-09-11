@@ -411,6 +411,7 @@
         "search": "بحث في القوالب"
       },
       "none": "بدون معلم",
+      "noPredecessors": "لا توجد مهام سابقة",
       "fields": {
         "name": "الاسم",
         "description": "الوصف",

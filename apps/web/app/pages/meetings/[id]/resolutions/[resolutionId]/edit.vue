@@ -3,6 +3,7 @@ import DescriptionEditor from '@/components/task/DescriptionEditor.vue'
 import MeetingProjectFilter from '@/components/meetings/MeetingProjectFilter.vue'
 import { useMeeting, usePatchResolution } from '@/composables/useMeetings'
 import { safeReturnTo } from '@/utils/safeReturnTo'
+import { useSsrQuerySeed } from '@/lib/vueQuerySsr'
 
 const route = useRoute()
 const { t } = useI18n()
@@ -34,6 +35,7 @@ const canSave = computed(() => hydrated.value && (canEditDecision.value || canEd
 const name = ref('')
 const responsibleId = ref<number | ''>('')
 const deadline = ref('')
+const deadlineField = computed({ get: () => deadline.value || null, set: value => { deadline.value = value || '' } })
 const executionPeriod = ref('')
 const projectId = ref<number | undefined>(undefined)
 const priority = ref<'0' | '1' | '2' | '3'>('0')
@@ -45,7 +47,7 @@ function snapshot() {
   return JSON.stringify([name.value, responsibleId.value, deadline.value, executionPeriod.value, projectId.value, priority.value, result.value])
 }
 
-watch(resolution, (item) => {
+function seedResolution(item: typeof resolution.value) {
   if (!item || loaded.value) return
   name.value = item.name
   responsibleId.value = item.responsible?.id ?? ''
@@ -56,7 +58,9 @@ watch(resolution, (item) => {
   result.value = item.result
   baseline.value = snapshot()
   loaded.value = true
-}, { immediate: true })
+}
+watch(resolution, seedResolution, { immediate: true })
+useSsrQuerySeed({ data: resolution }, seedResolution)
 
 const dirty = computed(() => loaded.value && snapshot() !== baseline.value)
 const validationMessage = computed(() => {
@@ -91,53 +95,56 @@ async function save() {
   <SharedPageContainer width="form">
     <SharedPageHeader :title="t('meetingsUi.editResolution')" :back-to="returnTo" />
     <SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!query.isLoading.value && !query.error.value && !resolution" @retry="query.refetch">
-      <div v-if="resolution && !canEditDecision && !canEditResult" class="nasq-panel nasq-panel-body text-sm text-muted-foreground">
-        {{ t('meetingsUi.resolutionReadOnly') }}
-      </div>
-      <form v-else-if="resolution" class="nasq-form nasq-panel nasq-panel-body grid gap-5" @submit.prevent="save">
+      <UAlert v-if="resolution && !canEditDecision && !canEditResult" color="neutral" variant="subtle" :title="t('meetingsUi.resolutionReadOnly')" />
+      <form v-else-if="resolution" class="space-y-8" @submit.prevent="save">
         <SharedUnsavedChanges :dirty="dirty" />
-        <SharedFormSection v-if="canEditDecision" :title="t('meetingsUi.resolutions')" class="grid gap-4">
-          <div class="grid gap-2">
-            <Label for="resolution-name">{{ t('meetingsUi.resolutionTitle') }}</Label>
-            <Input id="resolution-name" v-model="name" :disabled="!hydrated || isPending" required />
-          </div>
-          <div class="grid gap-2">
-            <Label for="resolution-user">{{ t('meetingsUi.responsible') }}</Label>
-            <select id="resolution-user" v-model="responsibleId" class="border-input h-9 w-full min-w-0 rounded-lg border bg-transparent px-2 text-sm" :disabled="!hydrated || isPending" required>
-              <option value="">{{ t('meetingsUi.responsible') }}</option>
-              <option v-for="person in knownPeople" :key="person.id" :value="person.id">{{ person.name }}</option>
-            </select>
-          </div>
-          <div class="grid gap-2">
-            <Label for="resolution-deadline">{{ t('meetingsUi.deadline') }}</Label>
-            <Input id="resolution-deadline" v-model="deadline" type="date" :disabled="!hydrated || isPending" />
-            <p class="text-xs text-muted-foreground">{{ t('meetingMinutesForm.deadlineOrPeriodHint') }}</p>
-          </div>
-          <div class="grid gap-2">
-            <Label for="resolution-period">{{ t('meetingMinutesForm.executionPeriod') }}</Label>
-            <Input id="resolution-period" v-model="executionPeriod" maxlength="500" :disabled="!hydrated || isPending" :placeholder="t('meetingMinutesForm.executionPeriodPlaceholder')" />
-          </div>
-          <div class="grid gap-2 sm:col-span-2">
-            <Label for="resolution-project">{{ t('meetingMinutesForm.project') }}</Label>
-            <MeetingProjectFilter id="resolution-project" hide-label :model-value="projectId" :disabled="!hydrated || isPending" @update:model-value="projectId = $event" />
-          </div>
-          <div class="grid gap-2">
-            <Label for="resolution-priority">{{ t('meetingsUi.priority') }}</Label>
-            <select id="resolution-priority" v-model="priority" class="border-input h-9 w-full min-w-0 rounded-lg border bg-transparent px-2 text-sm" :disabled="!hydrated || isPending">
-              <option v-for="code in ['0', '1', '2', '3']" :key="code" :value="code">{{ t(`meetingsUx.priorityLabel.${code}`) }}</option>
-            </select>
+        <SharedFormSection v-if="canEditDecision" :title="t('meetingsUi.resolutions')">
+          <div class="nasq-form-grid">
+            <UFormField :label="t('meetingsUi.resolutionTitle')" name="name" required>
+              <UInput id="resolution-name" v-model="name" class="w-full" :disabled="!hydrated || isPending" required />
+            </UFormField>
+            <UFormField :label="t('meetingsUi.responsible')" name="responsible" required>
+              <USelectMenu
+                id="resolution-user"
+                :model-value="responsibleId || undefined"
+                @update:model-value="responsibleId = $event ?? ''"
+                class="w-full"
+                value-key="value"
+                :disabled="!hydrated || isPending"
+                :items="knownPeople.map(person => ({ label: person.name, value: person.id }))"
+                :placeholder="t('meetingsUi.responsible')"
+              />
+            </UFormField>
+            <UFormField :label="t('meetingsUi.deadline')" name="deadline" :help="t('meetingMinutesForm.deadlineOrPeriodHint')">
+              <SharedDateField id="resolution-deadline" v-model="deadlineField" class="w-full" :disabled="!hydrated || isPending" />
+            </UFormField>
+            <UFormField :label="t('meetingMinutesForm.executionPeriod')" name="executionPeriod">
+              <UInput id="resolution-period" v-model="executionPeriod" maxlength="500" class="w-full" :disabled="!hydrated || isPending" :placeholder="t('meetingMinutesForm.executionPeriodPlaceholder')" />
+            </UFormField>
+            <UFormField class="sm:col-span-2" :label="t('meetingMinutesForm.project')" name="project">
+              <MeetingProjectFilter id="resolution-project" hide-label :model-value="projectId" :disabled="!hydrated || isPending" @update:model-value="projectId = $event" />
+            </UFormField>
+            <UFormField :label="t('meetingsUi.priority')" name="priority">
+              <USelect
+                id="resolution-priority"
+                v-model="priority"
+                class="w-full"
+                :disabled="!hydrated || isPending"
+                :items="['0', '1', '2', '3'].map(code => ({ label: t(`meetingsUx.priorityLabel.${code}`), value: code }))"
+              />
+            </UFormField>
           </div>
         </SharedFormSection>
-        <SharedFormSection v-if="canEditResult" :title="t('meetingsUi.result')" class="grid gap-4">
+        <SharedFormSection v-if="canEditResult" :title="t('meetingsUi.result')">
           <ClientOnly>
             <DescriptionEditor :model-value="result" :task-id="0" :readonly="isPending" :aria-label="t('meetingsUx.completionNotes')" @draft="result = $event.html" />
           </ClientOnly>
         </SharedFormSection>
         <p v-if="validationMessage" class="text-sm text-muted-foreground" aria-live="polite">{{ validationMessage }}</p>
-        <p v-if="error" role="alert" class="text-sm text-destructive">{{ error.message }}</p>
+        <UAlert v-if="error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="error.message" />
         <div class="nasq-form-footer justify-end">
-          <NuxtLink :to="returnTo"><Button type="button" variant="outline">{{ t('app.cancel') }}</Button></NuxtLink>
-          <Button type="submit" :disabled="!canSave || isPending || !dirty || Boolean(validationMessage)">{{ t('app.save') }}</Button>
+          <UButton type="button" color="secondary" :to="returnTo" :label="t('app.cancel')" />
+          <UButton type="submit" :disabled="!canSave || isPending || !dirty || Boolean(validationMessage)" :label="t('app.save')" />
         </div>
       </form>
     </SharedPageState>

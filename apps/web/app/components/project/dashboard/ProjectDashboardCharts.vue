@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { ProjectReportRow } from '@nasq/contracts'
 import DashboardChart from '@/components/shared/DashboardChart.client.vue'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import DashboardChartPanel from './DashboardChartPanel.vue'
 import {
   projectDashboardCurrencies,
@@ -129,28 +128,31 @@ const financeChart = computed(() => selectedCurrency.value ? projectFinanceCompa
       :accessible-label="t('projects.dashboard.charts.projectProgressTitle')"
       height="360px"
     />
-    <Card data-testid="chart-project-finance" class="min-w-0 overflow-hidden" aria-labelledby="chart-project-finance-title">
-      <CardHeader class="flex flex-wrap items-start border-b-0">
-        <div class="min-w-0">
-          <CardTitle id="chart-project-finance-title" class="text-base leading-6">{{ t('projects.dashboard.charts.financeTitle') }}</CardTitle>
-          <CardDescription class="mt-1 leading-6">{{ t('projects.dashboard.charts.financeDescription') }}</CardDescription>
+    <UCard data-testid="chart-project-finance" class="min-w-0 overflow-hidden" aria-labelledby="chart-project-finance-title">
+      <template #header>
+        <div class="flex w-full flex-wrap items-start justify-between gap-3">
+          <div class="min-w-0">
+            <h2 id="chart-project-finance-title" class="text-lg font-semibold leading-6 text-highlighted">{{ t('projects.dashboard.charts.financeTitle') }}</h2>
+            <p class="mt-1 text-sm leading-6 text-muted">{{ t('projects.dashboard.charts.financeDescription') }}</p>
+          </div>
+          <USelect
+            v-if="currencies.length"
+            data-testid="chart-currency-filter"
+            :model-value="selectedCurrency ? String(selectedCurrency.id) : undefined"
+            :items="currencies.map(currency => ({ value: String(currency.id), label: `${currency.name} (${currency.symbol})` }))"
+            :aria-label="t('projects.dashboard.charts.currency')"
+            :placeholder="t('projects.dashboard.charts.currency')"
+            class="w-full sm:w-44"
+            :disabled="!hydrated"
+            @update:model-value="value => { selectedCurrencyId = Number(value) }"
+          />
         </div>
-        <Select v-if="currencies.length" :model-value="selectedCurrency ? String(selectedCurrency.id) : undefined" @update:model-value="value => { selectedCurrencyId = Number(value) }">
-          <SelectTrigger data-testid="chart-currency-filter" :aria-label="t('projects.dashboard.charts.currency')" class="w-full sm:w-44" :disabled="!hydrated">
-            <SelectValue :placeholder="t('projects.dashboard.charts.currency')" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem v-for="currency in currencies" :key="currency.id" :value="String(currency.id)">{{ currency.name }} ({{ currency.symbol }})</SelectItem>
-          </SelectContent>
-        </Select>
-      </CardHeader>
-      <CardContent class="min-w-0">
-        <div v-if="financeHasData" class="min-w-0">
-          <DashboardChart v-if="financeChart" :chart="financeChart" :accessible-label="t('projects.dashboard.charts.financeTitle')" height="360px" />
-        </div>
-        <p v-else class="flex min-h-[220px] items-center justify-center text-center text-sm text-muted-foreground">{{ t('projects.dashboard.charts.noFinanceData') }}</p>
-      </CardContent>
-    </Card>
+      </template>
+      <div v-if="financeHasData" class="min-w-0">
+        <DashboardChart v-if="financeChart" :chart="financeChart" :accessible-label="t('projects.dashboard.charts.financeTitle')" height="360px" />
+      </div>
+      <p v-else class="flex min-h-[220px] items-center justify-center text-center text-sm text-muted">{{ t('projects.dashboard.charts.noFinanceData') }}</p>
+    </UCard>
     </div>
   </div>
 </template>

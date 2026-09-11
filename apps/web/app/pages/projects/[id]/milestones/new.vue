@@ -21,7 +21,7 @@ function saved() { router.push(returnTo.value) }
   <SharedPageContainer width="form">
     <SharedPageHeader :title="t('projects.milestones.new')" :back-to="returnTo" :back-label="t('projects.backToProject')" />
     <template v-if="projectId === null">
-      <p class="text-muted-foreground">{{ t('projects.invalidId') }}</p>
+      <p class="text-muted">{{ t('projects.invalidId') }}</p>
     </template>
     <SharedPageState
       v-else
@@ -31,8 +31,8 @@ function saved() { router.push(returnTo.value) }
       :empty-text="notFound ? t('projects.notFound') : t('projects.empty')"
       @retry="refetch"
     >
-      <p v-if="!project?.can_manage" class="text-muted-foreground">{{ t('projects.forbidden') }}</p>
-      <section v-else class="nasq-panel overflow-hidden"><div class="nasq-panel-body"><MilestoneForm :project-id="projectId" :project-start="project?.date_start" :project-end="project?.date_end" @saved="saved" @cancel="router.push(returnTo)" /></div></section>
+      <p v-if="!project?.can_manage" class="text-muted">{{ t('projects.forbidden') }}</p>
+      <section v-else class="rounded-xl border border-default bg-default overflow-hidden"><div class="p-5"><MilestoneForm :project-id="projectId" :project-start="project?.date_start" :project-end="project?.date_end" @saved="saved" @cancel="router.push(returnTo)" /></div></section>
     </SharedPageState>
   </SharedPageContainer>
 </template>

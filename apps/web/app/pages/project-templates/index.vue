@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { refDebounced } from '@vueuse/core'
-import { Plus, Search } from '@lucide/vue'
 import FilterBar from '@/components/shared/FilterBar.vue'
 import { useProjectTemplateList } from '@/composables/useProjectTemplates'
 
@@ -33,34 +32,31 @@ function clearFilters() {
 <template>
   <SharedPageContainer width="list">
     <SharedPageHeader :title="t('projects.templates.title')" :description="t('projects.templates.description')">
-      <template #actions><Button v-if="canManage" :disabled="!hydrated" @click="router.push(detailPath())"><Plus class="me-2 size-[18px]" />{{ t('projects.templates.actions.new') }}</Button></template>
+      <template #actions><UButton v-if="canManage" icon="i-lucide-plus" :disabled="!hydrated" @click="router.push(detailPath())">{{ t('projects.templates.actions.new') }}</UButton></template>
     </SharedPageHeader>
     <div class="w-full min-w-0">
       <FilterBar class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
         <template #search>
-          <div class="relative min-w-52 flex-1">
-            <Search class="pointer-events-none absolute start-2 top-1/2 size-[18px] -translate-y-1/2 text-muted-foreground" />
-            <Input v-model="search" name="template-search" :aria-label="t('projects.templates.filters.search')" class="ps-8" :disabled="!hydrated" :placeholder="t('projects.templates.filters.search')" />
-          </div>
+          <UInput v-model="search" name="template-search" :aria-label="t('projects.templates.filters.search')" icon="i-lucide-search" :disabled="!hydrated" :placeholder="t('projects.templates.filters.search')" class="min-w-52 flex-1" />
         </template>
         <template #active>
           <div v-if="search.trim()" class="flex flex-wrap items-center gap-2">
-            <Badge variant="secondary">{{ t('projects.templates.filters.search') }}: {{ search }}</Badge>
+            <UBadge color="secondary" variant="subtle">{{ t('projects.templates.filters.search') }}: {{ search }}</UBadge>
           </div>
         </template>
       </FilterBar>
     </div>
     <SharedPageState :loading="list.isLoading.value" :error="list.error.value" :empty="!list.isLoading.value && !list.error.value && !items.length" :empty-text="t('projects.templates.empty')" @retry="list.refetch">
       <div class="grid gap-3 md:grid-cols-2">
-        <NuxtLink v-for="item in items" :key="item.id" :to="detailPath(item.id)" class="nasq-panel p-4 text-start transition-colors hover:bg-muted/30">
-          <div class="flex items-start justify-between gap-3"><div><h2 class="font-medium">{{ item.name }}</h2><p class="mt-1 text-sm text-muted-foreground">{{ item.description }}</p></div><span v-if="item.can_apply && canApply" class="text-xs text-muted-foreground">{{ t('projects.templates.canApply') }}</span></div>
-          <p class="mt-3 text-xs text-muted-foreground">{{ t('projects.templates.summary', { stages: item.definition.stages.length, tasks: item.definition.tasks.length, milestones: item.definition.milestones.length }) }}</p>
+        <NuxtLink v-for="item in items" :key="item.id" :to="detailPath(item.id)" class="rounded-xl border border-default bg-default p-4 text-start transition-colors hover:bg-elevated/30">
+          <div class="flex items-start justify-between gap-3"><div><h2 class="font-medium">{{ item.name }}</h2><p class="mt-1 text-sm text-muted">{{ item.description }}</p></div><span v-if="item.can_apply && canApply" class="text-xs text-muted">{{ t('projects.templates.canApply') }}</span></div>
+          <p class="mt-3 text-xs text-muted">{{ t('projects.templates.summary', { stages: item.definition.stages.length, tasks: item.definition.tasks.length, milestones: item.definition.milestones.length }) }}</p>
         </NuxtLink>
       </div>
     </SharedPageState>
     <nav v-if="!list.isLoading.value && !list.error.value && (total > pageSize || offset > 0)" class="flex flex-wrap items-center justify-between gap-3" :aria-label="t('projects.templates.pagination.label')">
-      <p role="status" class="text-sm text-muted-foreground">{{ t('projects.templates.pagination.count', { from: items.length ? offset + 1 : 0, to: offset + items.length, total }) }}</p>
-      <div class="flex gap-2"><Button variant="outline" :disabled="!hydrated || list.isFetching.value || offset === 0" @click="goPage(Math.max(0, offset - pageSize))">{{ t('projects.templates.pagination.previous') }}</Button><Button variant="outline" :disabled="!hydrated || list.isFetching.value || offset + pageSize >= total" @click="goPage(offset + pageSize)">{{ t('projects.templates.pagination.next') }}</Button></div>
+      <p role="status" class="text-sm text-muted">{{ t('projects.templates.pagination.count', { from: items.length ? offset + 1 : 0, to: offset + items.length, total }) }}</p>
+      <div class="flex gap-2"><UButton color="secondary" variant="solid" :disabled="!hydrated || list.isFetching.value || offset === 0" @click="goPage(Math.max(0, offset - pageSize))">{{ t('projects.templates.pagination.previous') }}</UButton><UButton color="secondary" variant="solid" :disabled="!hydrated || list.isFetching.value || offset + pageSize >= total" @click="goPage(offset + pageSize)">{{ t('projects.templates.pagination.next') }}</UButton></div>
     </nav>
   </SharedPageContainer>
 </template>

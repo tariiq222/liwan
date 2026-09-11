@@ -41,6 +41,7 @@ onBeforeUnmount(() => {
         <slot />
       </main>
     </div>
-    <Toaster :dir="dir" :rich-colors="workspaceTheme" />
   </div>
 </template>
+
+<style src="../assets/css/nuxt-shell.css"></style>

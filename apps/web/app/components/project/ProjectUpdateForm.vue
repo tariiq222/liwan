@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { ProjectStatus } from '@nasq/contracts'
 import { PROJECT_STATUSES } from '@nasq/contracts'
-import { toast } from 'vue-sonner'
 import DescriptionEditor from '@/components/task/DescriptionEditor.vue'
 import { PROJECT_STATUS_LABEL_KEY } from '@/composables/projectStatus'
 import { ApiError } from '@/composables/useApi'
@@ -12,6 +11,7 @@ const props = defineProps<{ projectId: number }>()
 const emit = defineEmits<{ saved: []; cancel: [] }>()
 const { t } = useI18n()
 const hydrated = useHydrated()
+const toast = useToast()
 const { mutateAsync, isPending } = useCreateProjectUpdate()
 const descriptionEditor = ref<{ flush: () => void } | null>(null)
 const status = ref<ProjectStatus | undefined>()
@@ -41,7 +41,7 @@ async function submit() {
   try {
     await mutateAsync({ projectId: props.projectId, body: { status: status.value, name, description: description.value } })
     submitted.value = true
-    toast.success(t('projects.updates.posted'))
+    toast.add({ title: t('projects.updates.posted'), color: 'success' })
     emit('saved')
   } catch (e) {
     error.value = e instanceof ApiError ? e.message : t('errors.generic')
@@ -51,26 +51,31 @@ async function submit() {
 
 <template>
   <SharedUnsavedChanges :dirty="dirty" />
-  <form data-testid="project-update-form" class="nasq-form-grid" @submit.prevent="submit">
+  <form data-testid="project-update-form" class="grid gap-5" @submit.prevent="submit">
     <div class="grid gap-2">
-      <Label for="project-update-status">{{ t('projects.updates.status') }}</Label>
-      <Select :model-value="status" :disabled="!hydrated || isPending" @update:model-value="(v) => (status = v as ProjectStatus)">
-        <SelectTrigger id="project-update-status" class="w-full"><SelectValue :placeholder="t('projects.updates.status')" /></SelectTrigger>
-        <SelectContent><SelectItem v-for="s in PROJECT_STATUSES" :key="s" :value="s">{{ t(PROJECT_STATUS_LABEL_KEY[s]) }}</SelectItem></SelectContent>
-      </Select>
+      <label for="project-update-status" class="flex items-center gap-2 text-sm font-medium leading-none">{{ t('projects.updates.status') }}</label>
+      <USelect
+        id="project-update-status"
+        :model-value="status"
+        :items="PROJECT_STATUSES.map(s => ({ value: s, label: t(PROJECT_STATUS_LABEL_KEY[s]) }))"
+        :placeholder="t('projects.updates.status')"
+        :disabled="!hydrated || isPending"
+        class="w-full"
+        @update:model-value="(v) => (status = v as ProjectStatus)"
+      />
     </div>
     <div class="grid gap-2">
-      <Label for="project-update-title">{{ t('projects.updates.title') }}</Label>
-      <Input id="project-update-title" v-model="title" required :disabled="!hydrated || isPending" />
+      <label for="project-update-title" class="flex items-center gap-2 text-sm font-medium leading-none">{{ t('projects.updates.title') }}</label>
+      <UInput id="project-update-title" v-model="title" class="w-full" required :disabled="!hydrated || isPending" />
     </div>
     <div class="grid gap-2 sm:col-span-2">
-      <Label>{{ t('projects.updates.body') }}</Label>
+      <span class="flex items-center gap-2 text-sm font-medium leading-none">{{ t('projects.updates.body') }}</span>
       <DescriptionEditor ref="descriptionEditor" :model-value="description" :task-id="projectId" :readonly="isPending" @update:model-value="onDescriptionChange" @draft="onDescriptionDraft" />
     </div>
-    <p v-if="error" role="alert" class="text-sm text-destructive sm:col-span-2">{{ error }}</p>
-    <div class="nasq-form-footer justify-end sm:col-span-2">
-      <Button type="button" variant="outline" :disabled="isPending" @click="emit('cancel')">{{ t('app.cancel') }}</Button>
-      <Button type="submit" :disabled="!hydrated || isPending || !status || !title.trim()">{{ t('app.create') }}</Button>
+    <p v-if="error" role="alert" class="text-sm text-error sm:col-span-2">{{ error }}</p>
+    <div class="flex flex-wrap gap-2 justify-end sm:col-span-2">
+      <UButton type="button" color="secondary" :disabled="isPending" :label="t('app.cancel')" @click="emit('cancel')" variant="solid" />
+      <UButton type="submit" :disabled="!hydrated || isPending || !status || !title.trim()" :label="t('app.create')" />
     </div>
   </form>
 </template>

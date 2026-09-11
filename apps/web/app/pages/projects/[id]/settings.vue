@@ -20,7 +20,7 @@ const canManage = computed(() => project.value?.can_manage ?? false)
       :title="t('projects.settings.title')"
     />
     <template v-if="projectId === null">
-      <p class="text-muted-foreground">{{ t('projects.invalidId') }}</p>
+      <p class="text-muted">{{ t('projects.invalidId') }}</p>
     </template>
     <SharedPageState
       v-else
@@ -30,7 +30,7 @@ const canManage = computed(() => project.value?.can_manage ?? false)
       :empty-text="t('projects.notFound')"
       @retry="refetch"
     >
-      <p v-if="!canManage" class="text-muted-foreground">{{ t('projects.forbidden') }}</p>
+      <p v-if="!canManage" class="text-muted">{{ t('projects.forbidden') }}</p>
       <template v-else-if="project">
         <ProjectSettingsForm :project="project" />
       </template>

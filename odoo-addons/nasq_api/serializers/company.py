@@ -9,19 +9,21 @@ DEFAULT_PRIMARY_COLOR = '#18181b'
 
 def parse_branding_vals(payload):
     if not isinstance(payload, dict) or not payload:
-        raise ApiError(422, 'invalid', 'branding patch must include primary_color')
+        raise ApiError(422, 'invalid', 'branding patch must include a color')
     # Reject the entire request, including a mixed colour/identity patch.
     # Institution identity is managed through the Odoo console.
     for key in ('name', 'logo'):
         if key in payload:
             raise ApiError(403, 'forbidden', 'institution identity is managed in Odoo', field=key)
     for key in payload:
-        if key != 'primary_color':
+        if key not in {'primary_color', 'secondary_color'}:
             raise ApiError(422, 'invalid', f"field {key!r} is not writable", field=key)
-    value = payload['primary_color']
-    if not isinstance(value, str) or not re.fullmatch(r'#[0-9a-fA-F]{6}', value):
-        raise ApiError(422, 'invalid', 'primary_color must be a six-digit hex color', field='primary_color')
-    return {'primary_color': value}
+    values = {}
+    for key, value in payload.items():
+        if not isinstance(value, str) or not re.fullmatch(r'#[0-9a-fA-F]{6}', value):
+            raise ApiError(422, 'invalid', f'{key} must be a six-digit hex color', field=key)
+        values[key] = value
+    return values
 
 
 def _logo_version(company):
@@ -39,5 +41,6 @@ def dump_branding(company):
         'name': company.name,
         'logo_url': f'/web/binary/company_logo?company={company.id}&v={_logo_version(company)}',
         'primary_color': company.primary_color or DEFAULT_PRIMARY_COLOR,
+        'secondary_color': company.secondary_color or '#2563eb',
         'font': company.font,
     }

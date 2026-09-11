@@ -1,15 +1,16 @@
 <script setup lang="ts">
-import { Plus, Search } from '@lucide/vue'
+import type { TableColumn } from '@nuxt/ui'
 import FilterBar from '@/components/shared/FilterBar.vue'
 import RecordNumber from '@/components/shared/RecordNumber.vue'
+import { formatCalendarDate } from '@/composables/calendarDate'
 import type { HrDocument } from '@/composables/useHrDocuments'
 import { useHrDocuments } from '@/composables/useHrDocuments'
 import { returnToQuery } from '@/utils/safeReturnTo'
 import { refDebounced } from '@vueuse/core'
 import { hasPendingHrSearch, hrCommittedListParams } from '@/composables/useHrSearch'
 
-const props = defineProps<{ departmentId: number; canWrite: boolean }>()
-const { t } = useI18n()
+const props = withDefaults(defineProps<{ departmentId: number; canWrite: boolean; embedded?: boolean }>(), { embedded: false })
+const { t, locale } = useI18n()
 const { can } = useAccess()
 const hydrated = useHydrated()
 const canWriteAllowed = computed(() => props.canWrite && can('hr.documents.manage'))
@@ -28,6 +29,15 @@ const page = computed(() => Math.floor(committedListParams.value.offset / limit)
 const pages = computed(() => Math.max(1, Math.ceil((query.data.value?.total ?? 0) / limit)))
 const activeFilterCount = computed(() => Number(Boolean(search.value.trim())))
 const hasActiveFilters = computed(() => activeFilterCount.value > 0)
+function formatDocumentDate(value: string) {
+  return formatCalendarDate(value, locale.value) || '—'
+}
+
+const columns = computed<TableColumn<HrDocument>[]>(() => [
+  { accessorKey: 'id', header: t('app.recordNumber') },
+  { accessorKey: 'name', header: t('hr.docs.columns.name') },
+  { accessorKey: 'write_date', header: t('hr.docs.columns.updated') },
+])
 
 watch(() => [route.query.q, route.query.offset], ([q, nextOffset]) => {
   search.value = String(q ?? '')
@@ -57,33 +67,50 @@ function detailsTo(document: HrDocument) {
     <div class="w-full min-w-0">
       <FilterBar class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearSearch">
         <template #search>
-          <div class="relative min-w-52 flex-1">
-            <Search class="pointer-events-none absolute start-2 top-1/2 size-[18px] -translate-y-1/2 text-muted-foreground" />
-            <Input v-model="search" :disabled="!hydrated" :placeholder="t('hr.docs.search')" class="ps-8" @change="updateSearch" />
-          </div>
+          <UInput v-model="search" class="min-w-52 flex-1" :disabled="!hydrated" :placeholder="t('hr.docs.search')" icon="i-lucide-search" @change="updateSearch" />
         </template>
         <template #actions>
-          <Button v-if="canWriteAllowed" as-child :disabled="!hydrated" class="gap-2">
-            <NuxtLink :to="{ path: `/hr/departments/${props.departmentId}/documents/new`, query: returnToQuery(route.fullPath) }" @click="!hydrated && $event.preventDefault()"><Plus class="size-[18px]" />{{ t('hr.docs.new') }}</NuxtLink>
-          </Button>
+          <UButton v-if="canWriteAllowed" color="primary" :disabled="!hydrated" icon="i-lucide-plus" :label="t('hr.docs.new')" :to="{ path: `/hr/departments/${props.departmentId}/documents/new`, query: returnToQuery(route.fullPath) }" @click="!hydrated && $event.preventDefault()" />
         </template>
         <template #active>
           <div v-if="hasActiveFilters" class="flex flex-wrap items-center gap-2">
-            <Badge variant="secondary">{{ t('hr.directory.searchValue', { value: search }) }}</Badge>
+            <UBadge color="neutral" variant="subtle">{{ t('hr.directory.searchValue', { value: search }) }}</UBadge>
           </div>
         </template>
       </FilterBar>
     </div>
-    <div class="nasq-panel overflow-x-auto">
-      <Table class="min-w-[520px]">
-        <TableHeader><TableRow><TableHead class="w-28 text-start">{{ t('app.recordNumber') }}</TableHead><TableHead class="text-start">{{ t('hr.docs.columns.name') }}</TableHead><TableHead class="text-start">{{ t('hr.docs.columns.updated') }}</TableHead></TableRow></TableHeader>
-        <TableBody>
-          <template v-if="query.isLoading.value"><TableRow v-for="n in 3" :key="n"><TableCell><Skeleton class="h-5 w-20" /></TableCell><TableCell><Skeleton class="h-5 w-full" /></TableCell><TableCell><Skeleton class="h-5 w-24" /></TableCell></TableRow></template>
-          <TableEmpty v-else-if="items.length === 0" :colspan="3"><p class="text-muted-foreground">{{ t('hr.docs.empty') }}</p></TableEmpty>
-          <template v-else><TableRow v-for="document in items" :key="document.id" class="cursor-pointer transition-colors hover:bg-muted/30" @click="navigateTo(detailsTo(document))"><TableCell class="w-28"><RecordNumber :value="document.id" /></TableCell><TableCell class="text-start">{{ document.name }}</TableCell><TableCell class="text-start text-muted-foreground">{{ new Date(document.write_date).toLocaleDateString() }}</TableCell></TableRow></template>
-        </TableBody>
-      </Table>
+    <div class="min-w-0 space-y-2">
+      <UCard class="hidden overflow-hidden md:block" :class="props.embedded ? 'ring-0 border-0 shadow-none rounded-none' : ''" :ui="{ body: 'p-0' }">
+        <div v-if="query.isLoading.value" class="divide-y divide-default" role="status" :aria-label="t('app.loading')">
+          <div v-for="n in 3" :key="n" class="flex items-center gap-4 px-4 py-3">
+            <USkeleton class="h-5 w-20" /><USkeleton class="h-5 flex-1" /><USkeleton class="h-5 w-24" />
+          </div>
+        </div>
+        <div v-else-if="items.length === 0" class="p-6"><SharedEmptyState :title="t('hr.docs.empty')" /></div>
+        <div v-else class="overflow-x-auto">
+          <UTable :data="items" :columns="columns" :caption="t('hr.docs.title')" :ui="{ caption: 'sr-only' }" @select="(_event, row) => navigateTo(detailsTo(row.original))">
+            <template #id-cell="{ row }"><RecordNumber :value="row.original.id" /></template>
+            <template #name-cell="{ row }">{{ row.original.name }}</template>
+            <template #write_date-cell="{ row }"><span class="text-muted">{{ formatDocumentDate(row.original.write_date) }}</span></template>
+          </UTable>
+        </div>
+      </UCard>
+      <div v-if="query.isLoading.value" class="md:hidden space-y-2">
+        <USkeleton v-for="n in 3" :key="n" class="h-16 w-full rounded-lg" />
+      </div>
+      <div v-else-if="items.length === 0" class="md:hidden"><SharedEmptyState :title="t('hr.docs.empty')" /></div>
+      <ul v-else class="md:hidden space-y-2" :aria-label="t('hr.docs.title')">
+        <li v-for="document in items" :key="document.id" class="cursor-pointer rounded-lg border border-default bg-default p-4 shadow-sm" tabindex="0" role="button" @click="navigateTo(detailsTo(document))" @keydown.enter.self="navigateTo(detailsTo(document))" @keydown.space.self.prevent="navigateTo(detailsTo(document))">
+          <bdi class="block text-xs text-muted">#{{ document.id }}</bdi>
+          <p class="font-medium">{{ document.name }}</p>
+          <p class="mt-1 text-xs text-muted">{{ formatDocumentDate(document.write_date) }}</p>
+        </li>
+      </ul>
     </div>
-    <div v-if="pages > 1" class="flex items-center justify-between text-sm text-muted-foreground"><Button variant="ghost" :disabled="!hydrated || page === 1 || query.isFetching.value" @click="setPage(page - 1)">{{ t('access.previousPage') }}</Button><span>{{ t('access.pageOf', { page, pages }) }}</span><Button variant="ghost" :disabled="!hydrated || page >= pages || query.isFetching.value" @click="setPage(page + 1)">{{ t('access.nextPage') }}</Button></div>
+    <div v-if="pages > 1" class="flex items-center justify-between text-sm text-muted">
+      <UButton color="secondary" variant="ghost" :disabled="!hydrated || page === 1 || query.isFetching.value" :label="t('access.previousPage')" @click="setPage(page - 1)" />
+      <span>{{ t('access.pageOf', { page, pages }) }}</span>
+      <UButton color="secondary" variant="ghost" :disabled="!hydrated || page >= pages || query.isFetching.value" :label="t('access.nextPage')" @click="setPage(page + 1)" />
+    </div>
   </section>
 </template>

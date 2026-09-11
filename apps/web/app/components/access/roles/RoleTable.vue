@@ -1,47 +1,65 @@
 <script setup lang="ts">
+import type { TableColumn } from '@nuxt/ui'
 import type { RoleSummary } from '@nasq/contracts'
 import AccessStateBadge from '@/components/access/AccessStateBadge.vue'
 import RecordNumber from '@/components/shared/RecordNumber.vue'
 
-defineProps<{ roles: RoleSummary[]; canManage?: boolean }>()
-defineEmits<{ open: [id: number]; clone: [id: number] }>()
+const props = defineProps<{ roles: RoleSummary[]; canManage?: boolean }>()
+const emit = defineEmits<{ open: [id: number]; clone: [id: number] }>()
 const { t, locale } = useI18n()
 const hydrated = useHydrated()
 const roleLabel = (role: { name: { ar: string; en: string | null } }) => role.name[locale.value === 'ar' ? 'ar' : 'en'] ?? role.name.ar
+
+const columns = computed<TableColumn<RoleSummary>[]>(() => [
+  { accessorKey: 'id', header: t('app.recordNumber') },
+  { accessorKey: 'name', header: t('access.roles.columns.name') },
+  { accessorKey: 'description', header: t('access.roles.columns.description') },
+  { accessorKey: 'type', header: t('access.roles.columns.type') },
+  { accessorKey: 'user_count', header: t('access.roles.columns.users') },
+  { accessorKey: 'active', header: t('access.roles.columns.status') },
+  { accessorKey: 'actions', header: t('access.roles.columns.actions') },
+])
 </script>
 
 <template>
-  <div class="nasq-panel overflow-hidden">
-    <div class="overflow-x-auto">
-      <Table class="nasq-settings-table">
-        <TableHeader>
-          <TableRow>
-            <TableHead class="w-28 text-start">{{ t('app.recordNumber') }}</TableHead>
-            <TableHead class="text-start">{{ t('access.roles.columns.name') }}</TableHead>
-            <TableHead class="text-start">{{ t('access.roles.columns.description') }}</TableHead>
-            <TableHead class="text-start">{{ t('access.roles.columns.type') }}</TableHead>
-            <TableHead class="text-start">{{ t('access.roles.columns.users') }}</TableHead>
-            <TableHead class="text-start">{{ t('access.roles.columns.status') }}</TableHead>
-            <TableHead class="text-end">{{ t('access.roles.columns.actions') }}</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          <TableRow v-for="role in roles" :key="role.id">
-            <TableCell class="w-28"><RecordNumber :value="role.id" /></TableCell>
-            <TableCell class="font-medium">{{ roleLabel(role) }}</TableCell>
-            <TableCell class="max-w-xs whitespace-normal">{{ role.description }}</TableCell>
-            <TableCell>{{ role.type === 'built_in' ? t('access.roles.builtIn') : t('access.roles.custom') }}</TableCell>
-            <TableCell>{{ role.user_count }}</TableCell>
-            <TableCell><AccessStateBadge :active="role.active" :protected="role.protected" /></TableCell>
-            <TableCell class="text-end">
-              <div class="flex justify-end gap-1">
-                <Button variant="ghost" size="sm" :disabled="!hydrated" @click="$emit('open', role.id)">{{ t('access.view') }}</Button>
-                <Button v-if="canManage" variant="ghost" size="sm" :disabled="!hydrated" @click="$emit('clone', role.id)">{{ t('access.roles.clone') }}</Button>
-              </div>
-            </TableCell>
-          </TableRow>
-        </TableBody>
-      </Table>
-    </div>
+  <div class="min-w-0 space-y-2">
+    <UCard class="hidden overflow-hidden md:block" :ui="{ body: 'p-0' }">
+      <div class="overflow-x-auto">
+        <UTable :data="roles" :columns="columns" :caption="t('access.roles.title')" :ui="{ caption: 'sr-only' }">
+          <template #id-cell="{ row }"><RecordNumber :value="row.original.id" /></template>
+          <template #name-cell="{ row }"><span class="font-medium">{{ roleLabel(row.original) }}</span></template>
+          <template #description-cell="{ row }"><span class="max-w-xs whitespace-normal">{{ row.original.description }}</span></template>
+          <template #type-cell="{ row }">{{ row.original.type === 'built_in' ? t('access.roles.builtIn') : t('access.roles.custom') }}</template>
+          <template #user_count-cell="{ row }">{{ row.original.user_count }}</template>
+          <template #active-cell="{ row }"><AccessStateBadge :active="row.original.active" :protected="row.original.protected" /></template>
+          <template #actions-cell="{ row }">
+            <div class="flex justify-end gap-1">
+              <UButton color="secondary" variant="ghost" size="sm" :disabled="!hydrated" :label="t('access.view')" @click="emit('open', row.original.id)" />
+              <UButton v-if="canManage" color="secondary" variant="ghost" size="sm" :disabled="!hydrated" :label="t('access.roles.clone')" @click="emit('clone', row.original.id)" />
+            </div>
+          </template>
+        </UTable>
+      </div>
+    </UCard>
+    <ul class="md:hidden space-y-2" :aria-label="t('access.roles.title')">
+      <li v-for="role in roles" :key="role.id" class="rounded-lg border border-default bg-default p-4 shadow-sm">
+        <div class="flex items-start justify-between gap-3">
+          <div class="min-w-0">
+            <bdi class="block text-xs text-muted">#{{ role.id }}</bdi>
+            <p class="font-medium">{{ roleLabel(role) }}</p>
+          </div>
+          <AccessStateBadge :active="role.active" :protected="role.protected" />
+        </div>
+        <p class="mt-2 text-xs text-muted">{{ role.description }}</p>
+        <dl class="mt-3 grid grid-cols-2 gap-2 text-xs text-muted">
+          <div><dt>{{ t('access.roles.columns.type') }}</dt><dd>{{ role.type === 'built_in' ? t('access.roles.builtIn') : t('access.roles.custom') }}</dd></div>
+          <div><dt>{{ t('access.roles.columns.users') }}</dt><dd>{{ role.user_count }}</dd></div>
+        </dl>
+        <div class="mt-3 flex justify-end gap-2">
+          <UButton color="secondary" variant="ghost" size="sm" :disabled="!hydrated" :label="t('access.view')" @click="emit('open', role.id)" />
+          <UButton v-if="canManage" color="secondary" variant="ghost" size="sm" :disabled="!hydrated" :label="t('access.roles.clone')" @click="emit('clone', role.id)" />
+        </div>
+      </li>
+    </ul>
   </div>
 </template>

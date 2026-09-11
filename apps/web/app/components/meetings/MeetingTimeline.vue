@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { TableColumn } from '@nuxt/ui'
 import type { MeetingListItem } from '@nasq/contracts'
 import RecordNumber from '@/components/shared/RecordNumber.vue'
 import { formatCalendarDate } from '@/composables/calendarDate'
@@ -18,6 +19,14 @@ const route = useRoute()
 const { t, locale } = useI18n()
 const now = computed(() => props.now ?? new Date())
 const groups = computed(() => groupMeetingsByMonth(props.meetings, locale.value, now.value, t('meetingTimeline.unknownDate'), props.preserveOrder))
+const tableColumns = computed<TableColumn<MeetingListItem>[]>(() => [
+  { accessorKey: 'reference', header: t('app.recordNumber') },
+  { accessorKey: 'name', header: t('meetingTimeline.session') },
+  { accessorKey: 'meeting_date', header: t('meetingsUi.date') },
+  { accessorKey: 'state', header: t('meetingsUi.stateLabel') },
+  { accessorKey: 'open_resolution_count', header: t('meetingsUi.resolutions') },
+  { id: 'actions', header: t('app.actions') },
+])
 
 function phase(meeting: MeetingListItem) {
   return meetingTimelinePhase(meeting, now.value)
@@ -52,31 +61,23 @@ function meetingTo(meeting: MeetingListItem, tab?: string) {
   <div v-if="!meetings.length" class="p-6 text-center text-sm text-muted-foreground">
     {{ t('meetingTimeline.empty') }}
   </div>
-  <div v-else-if="view === 'table'" class="overflow-x-auto">
-    <table class="w-full min-w-[760px] text-sm">
-      <thead>
-        <tr class="border-b text-start">
-          <th scope="col" class="w-28 p-3 text-start">{{ t('app.recordNumber') }}</th>
-          <th scope="col" class="p-3 text-start">{{ t('meetingTimeline.session') }}</th>
-          <th scope="col" class="p-3 text-start">{{ t('meetingsUi.date') }}</th>
-          <th scope="col" class="p-3 text-start">{{ t('meetingsUi.stateLabel') }}</th>
-          <th scope="col" class="p-3 text-start">{{ t('meetingsUi.resolutions') }}</th>
-          <th scope="col" class="p-3 text-start" />
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="meeting in meetings" :key="meeting.id" class="border-b last:border-0" :class="meeting.id === nextMeetingId ? 'bg-brand-soft/50' : ''">
-          <td class="p-3"><RecordNumber :value="meeting.reference || meeting.id" /></td>
-          <th scope="row" class="p-3 text-start font-medium">
-            <NuxtLink :to="meetingTo(meeting)" class="text-brand-link underline-offset-4 hover:underline">{{ meeting.name }}</NuxtLink>
-          </th>
-          <td class="p-3 text-muted-foreground">{{ meetingDate(meeting) }}</td>
-          <td class="p-3"><Badge variant="outline">{{ t(`meetingsUi.state.${meeting.state}`) }}</Badge><span class="ms-2 text-xs text-muted-foreground">{{ t(`meetingTimeline.phase.${phase(meeting)}`) }}</span></td>
-          <td class="p-3 tabular-nums">{{ meeting.open_resolution_count }}</td>
-          <td class="p-3 text-end"><NuxtLink :to="meetingTo(meeting, 'minutes')" class="text-brand-link underline-offset-4 hover:underline">{{ t('meetingTimeline.openMinutes') }}</NuxtLink></td>
-        </tr>
-      </tbody>
-    </table>
+  <div v-else-if="view === 'table'" class="min-w-0 overflow-x-auto">
+    <div class="grid gap-2 md:hidden">
+      <article v-for="meeting in meetings" :key="meeting.id" class="grid gap-2 rounded-lg border border-default p-3" :class="meeting.id === nextMeetingId ? 'bg-brand-soft/50' : ''">
+        <div class="flex flex-wrap items-start justify-between gap-2"><NuxtLink :to="meetingTo(meeting)" class="font-medium text-brand-link underline-offset-4 hover:underline">{{ meeting.name }}</NuxtLink><UBadge color="neutral" variant="outline">{{ t(`meetingsUi.state.${meeting.state}`) }}</UBadge></div>
+        <div class="flex flex-wrap gap-x-3 gap-y-1 text-sm text-muted"><RecordNumber :value="meeting.reference || meeting.id" /><span>{{ meetingDate(meeting) }}</span><span>{{ t('meetingsUi.openCount', { count: meeting.open_resolution_count }) }}</span></div>
+        <NuxtLink :to="meetingTo(meeting, 'minutes')" class="text-sm text-brand-link underline-offset-4 hover:underline">{{ t('meetingTimeline.openMinutes') }}</NuxtLink>
+      </article>
+    </div>
+    <div class="hidden md:block">
+    <UTable :data="meetings" :columns="tableColumns" :ui="{ base: 'min-w-[760px]' }">
+      <template #reference-cell="{ row }"><RecordNumber :value="row.original.reference || row.original.id" /></template>
+      <template #name-cell="{ row }"><NuxtLink :to="meetingTo(row.original)" class="font-medium text-brand-link underline-offset-4 hover:underline">{{ row.original.name }}</NuxtLink></template>
+      <template #meeting_date-cell="{ row }"><span class="text-muted">{{ meetingDate(row.original) }}</span></template>
+      <template #state-cell="{ row }"><UBadge color="neutral" variant="outline">{{ t(`meetingsUi.state.${row.original.state}`) }}</UBadge><span class="ms-2 text-xs text-muted">{{ t(`meetingTimeline.phase.${phase(row.original)}`) }}</span></template>
+      <template #actions-cell="{ row }"><NuxtLink :to="meetingTo(row.original, 'minutes')" class="text-brand-link underline-offset-4 hover:underline">{{ t('meetingTimeline.openMinutes') }}</NuxtLink></template>
+    </UTable>
+    </div>
   </div>
   <div v-else class="space-y-6">
     <section v-for="group in groups" :key="group.key" :aria-labelledby="`meeting-month-${group.key}`">
@@ -87,8 +88,8 @@ function meetingTo(meeting: MeetingListItem, tab?: string) {
           <div class="flex min-w-0 flex-wrap items-start gap-2">
             <RecordNumber :value="meeting.reference || meeting.id" class="shrink-0" />
             <NuxtLink :to="meetingTo(meeting)" class="min-w-0 flex-1 font-medium text-brand-link underline-offset-4 hover:underline">{{ meeting.name }}</NuxtLink>
-            <Badge v-if="meeting.id === nextMeetingId" variant="secondary">{{ t('meetingTimeline.next') }}</Badge>
-            <Badge variant="outline">{{ t(`meetingsUi.state.${meeting.state}`) }}</Badge>
+            <UBadge v-if="meeting.id === nextMeetingId" color="primary" variant="subtle">{{ t('meetingTimeline.next') }}</UBadge>
+            <UBadge color="neutral" variant="outline">{{ t(`meetingsUi.state.${meeting.state}`) }}</UBadge>
           </div>
           <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
             <time :datetime="meeting.start_datetime || meeting.meeting_date || undefined" dir="ltr">{{ meetingDate(meeting) }}</time>

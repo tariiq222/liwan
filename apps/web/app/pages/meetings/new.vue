@@ -6,6 +6,7 @@ import { useMeetingSeries } from '@/composables/useMeetings'
 import { buildMeetingSchedulePayload } from '@/utils/meetingDateTime'
 import { getMeetingFormErrors } from '@/utils/meetingForm'
 import { returnToQuery, safeReturnTo } from '@/utils/safeReturnTo'
+import { useSsrQuerySeed } from '@/lib/vueQuerySsr'
 
 const route = useRoute()
 const { t } = useI18n()
@@ -16,6 +17,8 @@ const meetingDate = ref('')
 const start = ref('')
 const end = ref('')
 const endDate = ref('')
+const meetingDateField = computed({ get: () => meetingDate.value || null, set: value => { meetingDate.value = value || '' } })
+const endDateField = computed({ get: () => endDate.value || null, set: value => { endDate.value = value || '' } })
 const location = ref('')
 const meetingUrl = ref('')
 const agenda = ref('')
@@ -65,7 +68,7 @@ watch(meetingUrl, () => {
   if (applyingSeriesDefaults.value) return
   meetingUrlTouched.value = true
 }, { flush: 'sync' })
-watch(seriesQuery.data, (series) => {
+function applySeriesDefaults(series: typeof seriesQuery.data.value) {
   if (!series || seriesDefaultsApplied.value) return
   const wasDirty = snapshot() !== baseline.value
   applyingSeriesDefaults.value = true
@@ -76,7 +79,9 @@ watch(seriesQuery.data, (series) => {
   applyingSeriesDefaults.value = false
   seriesDefaultsApplied.value = true
   if (!wasDirty) baseline.value = snapshot()
-}, { immediate: true })
+}
+watch(seriesQuery.data, applySeriesDefaults, { immediate: true })
+useSsrQuerySeed(seriesQuery, applySeriesDefaults)
 const dirty = computed(() => snapshot() !== baseline.value)
 const context = computed(() => ({
   series: seriesId.value ? String(route.query.series_name || seriesId.value) : '',
@@ -122,66 +127,51 @@ async function save() {
 <template>
   <SharedPageContainer width="form">
     <SharedPageHeader :title="t('meetingsUi.new')" :back-to="returnTo" />
-    <form class="nasq-form nasq-panel nasq-panel-body grid gap-5" @submit.prevent="save">
+    <form class="space-y-8" @submit.prevent="save">
       <SharedUnsavedChanges :dirty="dirty" />
       <p v-if="context.series || context.project" class="rounded-lg border border-border bg-muted/30 px-3 py-2 text-sm">
         <span v-if="context.series">{{ t('meetingsUx.context.series', { name: context.series }) }}</span>
         <span v-if="context.series && context.project"> · </span>
         <span v-if="context.project">{{ t('meetingsUx.context.project', { name: context.project }) }}</span>
       </p>
-      <SharedFormSection :title="t('meetingsUi.sectionSchedule')" class="grid gap-4">
+      <SharedFormSection :title="t('meetingsUi.sectionSchedule')">
         <div class="nasq-form-grid">
-          <div class="grid gap-2 sm:col-span-2">
-            <Label for="meeting-name">{{ t('meetingsUi.title') }}</Label>
-            <Input id="meeting-name" v-model="name" :disabled="!hydrated || isPending" :aria-invalid="!!formErrors.name" aria-describedby="meeting-name-error" required />
-            <p v-if="formErrors.name" id="meeting-name-error" role="alert" class="text-sm text-destructive">{{ t(`meetingsUx.errors.${formErrors.name}`) }}</p>
-          </div>
-          <div class="grid gap-2">
-            <Label for="meeting-date">{{ t('meetingsUi.date') }}</Label>
-            <Input id="meeting-date" v-model="meetingDate" type="date" :disabled="!hydrated || isPending" :aria-invalid="!!formErrors.date" aria-describedby="meeting-date-error" required />
-            <p v-if="formErrors.date" id="meeting-date-error" role="alert" class="text-sm text-destructive">{{ t(`meetingsUx.errors.${formErrors.date}`) }}</p>
-          </div>
-          <div class="grid gap-2">
-            <Label for="meeting-start">{{ t('meetingsUi.start') }}</Label>
-            <Input id="meeting-start" v-model="start" type="time" :disabled="!hydrated || isPending" :aria-invalid="!!formErrors.start" aria-describedby="meeting-start-error" />
-            <p v-if="formErrors.start" id="meeting-start-error" role="alert" class="text-sm text-destructive">{{ t(`meetingsUx.errors.${formErrors.start}`) }}</p>
-          </div>
-          <div class="grid gap-2">
-            <Label for="meeting-end">{{ t('meetingsUi.end') }}</Label>
-            <Input id="meeting-end" v-model="end" type="time" :disabled="!hydrated || isPending" :aria-invalid="!!formErrors.end" aria-describedby="meeting-end-error" />
-            <p v-if="formErrors.end" id="meeting-end-error" role="alert" class="text-sm text-destructive">{{ t(`meetingsUx.errors.${formErrors.end}`) }}</p>
-          </div>
-          <template v-if="end">
-            <div class="grid gap-2">
-              <Label for="meeting-end-date">{{ t('meetingsUx.endDate') }}</Label>
-              <Input id="meeting-end-date" v-model="endDate" type="date" :min="meetingDate" :disabled="!hydrated || isPending" :aria-invalid="!!formErrors.endDate" aria-describedby="meeting-end-date-error" />
-              <p v-if="formErrors.endDate" id="meeting-end-date-error" role="alert" class="text-sm text-destructive">{{ t(`meetingsUx.errors.${formErrors.endDate}`) }}</p>
-            </div>
-          </template>
-          <div class="grid gap-2">
-            <Label for="meeting-location">{{ t('meetingsUi.location') }}</Label>
-            <Input id="meeting-location" v-model="location" :disabled="!hydrated || isPending" />
-          </div>
-          <div class="grid gap-2 sm:col-span-2">
-            <Label for="meeting-url">{{ t('meetingsUi.url') }}</Label>
-            <Input id="meeting-url" v-model="meetingUrl" dir="ltr" :disabled="!hydrated || isPending" :aria-invalid="!!formErrors.meetingUrl" aria-describedby="meeting-url-error" />
-            <p v-if="formErrors.meetingUrl" id="meeting-url-error" role="alert" class="text-sm text-destructive">{{ t(`meetingsUx.errors.${formErrors.meetingUrl}`) }}</p>
-          </div>
+          <UFormField class="sm:col-span-2" :label="t('meetingsUi.title')" name="name" required :error="formErrors.name ? t(`meetingsUx.errors.${formErrors.name}`) : undefined">
+            <UInput id="meeting-name" v-model="name" class="w-full" :disabled="!hydrated || isPending" :aria-invalid="!!formErrors.name" required />
+          </UFormField>
+          <UFormField :label="t('meetingsUi.date')" name="date" required :error="formErrors.date ? t(`meetingsUx.errors.${formErrors.date}`) : undefined">
+            <SharedDateField id="meeting-date" v-model="meetingDateField" class="w-full" :disabled="!hydrated || isPending" :aria-invalid="!!formErrors.date" aria-required="true" />
+          </UFormField>
+          <UFormField :label="t('meetingsUi.start')" name="start" :error="formErrors.start ? t(`meetingsUx.errors.${formErrors.start}`) : undefined">
+            <UInput id="meeting-start" v-model="start" type="time" class="w-full" :disabled="!hydrated || isPending" :aria-invalid="!!formErrors.start" />
+          </UFormField>
+          <UFormField :label="t('meetingsUi.end')" name="end" :error="formErrors.end ? t(`meetingsUx.errors.${formErrors.end}`) : undefined">
+            <UInput id="meeting-end" v-model="end" type="time" class="w-full" :disabled="!hydrated || isPending" :aria-invalid="!!formErrors.end" />
+          </UFormField>
+          <UFormField v-if="end" :label="t('meetingsUx.endDate')" name="endDate" :error="formErrors.endDate ? t(`meetingsUx.errors.${formErrors.endDate}`) : undefined">
+            <SharedDateField id="meeting-end-date" v-model="endDateField" :min-value="meetingDate || null" class="w-full" :disabled="!hydrated || isPending" :aria-invalid="!!formErrors.endDate" />
+          </UFormField>
+          <UFormField :label="t('meetingsUi.location')" name="location">
+            <UInput id="meeting-location" v-model="location" class="w-full" :disabled="!hydrated || isPending" />
+          </UFormField>
+          <UFormField class="sm:col-span-2" :label="t('meetingsUi.url')" name="meetingUrl" :error="formErrors.meetingUrl ? t(`meetingsUx.errors.${formErrors.meetingUrl}`) : undefined">
+            <UInput id="meeting-url" v-model="meetingUrl" dir="ltr" class="w-full" :disabled="!hydrated || isPending" :aria-invalid="!!formErrors.meetingUrl" />
+          </UFormField>
         </div>
       </SharedFormSection>
-      <SharedFormSection :title="t('meetingsUi.sectionPeople')" class="grid gap-4">
+      <SharedFormSection :title="t('meetingsUi.sectionPeople')">
         <MeetingPeopleFields v-model:attendee-ids="attendeeIds" v-model:secretary-id="secretaryId" :known="seriesPeople" :disabled="!hydrated || isPending || seriesDefaultsLoading" />
       </SharedFormSection>
-      <SharedFormSection :title="t('meetingsUi.agenda')" class="grid gap-4">
+      <SharedFormSection :title="t('meetingsUi.agenda')">
         <ClientOnly>
           <DescriptionEditor :model-value="agenda" :task-id="0" :aria-label="t('meetingsUx.agendaLabel')" :readonly="isPending" @draft="agenda = $event.html" />
         </ClientOnly>
       </SharedFormSection>
-      <p v-if="seriesDefaultsError" role="alert" class="text-sm text-destructive">{{ t('meetingsUi.seriesDefaultsError') }}</p>
-      <p v-else-if="error" role="alert" class="text-sm text-destructive">{{ t('meetingsUx.errors.save') }}</p>
+      <UAlert v-if="seriesDefaultsError" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('meetingsUi.seriesDefaultsError')" />
+      <UAlert v-else-if="error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('meetingsUx.errors.save')" />
       <div class="nasq-form-footer justify-end">
-        <NuxtLink :to="returnTo"><Button type="button" variant="outline">{{ t('app.cancel') }}</Button></NuxtLink>
-        <Button type="submit" :disabled="!hydrated || isPending || seriesDefaultsLoading || !!seriesDefaultsError || Object.keys(formErrors).length > 0">{{ t('app.create') }}</Button>
+        <UButton type="button" color="secondary" :to="returnTo" :label="t('app.cancel')" />
+        <UButton type="submit" :disabled="!hydrated || isPending || seriesDefaultsLoading || !!seriesDefaultsError || Object.keys(formErrors).length > 0" :label="t('app.create')" />
       </div>
     </form>
   </SharedPageContainer>

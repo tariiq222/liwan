@@ -10,7 +10,7 @@ describe('HR documents list design', () => {
   it('uses the shared toolbar and FilterBar instead of a native h-9 filter select', () => {
     expect(listSource).toContain('FilterBar')
     expect(listSource).toContain(':active-count="activeFilterCount"')
-    expect(listSource).toContain('SelectTrigger')
+    expect(listSource).toContain('<USelect')
     expect(listSource).not.toMatch(/<select[\s\S]*h-9/)
     expect(listSource).not.toMatch(/nasq-toolbar[^\n"']*nasq-panel|nasq-panel[^\n"']*nasq-toolbar/)
   })
@@ -24,9 +24,9 @@ describe('HR documents list design', () => {
     expect(listSource).toContain('useHydrated')
     expect(listSource).toContain('setPage')
     expect(listSource).toMatch(/\/hr\/departments\/\$\{document\.department\.id\}\/documents\/\$\{document\.id\}/)
-    expect(listSource).toContain('<Table class="min-w-[520px]">')
+    expect(listSource).toContain('<UTable')
     expect(listSource).toContain("t('app.recordNumber')")
-    expect(listSource).toContain('<RecordNumber :value="document.id" />')
+    expect(listSource).toContain('<RecordNumber :value="row.original.id" />')
     const create = listSource.indexOf("t('hr.docs.new')")
     const toolbar = listSource.indexOf('<FilterBar')
     const list = listSource.indexOf('query.data.value?.items')
@@ -38,7 +38,7 @@ describe('HR documents list design', () => {
 
 describe('HR documents create design', () => {
   it('uses the shared Select control and keeps create data flow', () => {
-    expect(newSource).toContain('SelectTrigger')
+    expect(newSource).toContain('<USelect')
     expect(newSource).toContain('DocumentCreateForm')
     expect(newSource).toContain('SharedPageState')
     expect(newSource).toContain('useHydrated')

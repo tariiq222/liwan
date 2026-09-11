@@ -46,12 +46,13 @@ function loadForm() {
       const approvalLocked = false
       const approvalError = null
       const displayedApproverName = computed(() => project.value.completion_approver?.name ?? 'projects.settings.noApprover')
+      const approverItems = computed(() => (project.value.completion_approver ? [project.value.completion_approver] : []))
       const endLabel = computed(() => project.value.date_end ?? 'projects.settings.noDate')
       const startLabel = computed(() => project.value.date_start ?? 'projects.settings.noDate')
       const hasAnyDate = computed(() => !!project.value.date_start || !!project.value.date_end)
       return {
         project, t, hydrated, nameDraft, displayedMode, pendingMode, approvalLocked, approvalError,
-        displayedApproverName, endLabel, startLabel, hasAnyDate,
+        displayedApproverName, approverItems, endLabel, startLabel, hasAnyDate,
         managerOpen: false, managerQ: '', people: [], approverOpen: false, approverQ: '',
         approverPeople: [], startValue: null, endValue: null,
         commitName: () => {}, onDescriptionChange: () => {}, selectManager: () => {},
@@ -82,7 +83,7 @@ const project: ProjectDetail = {
 
 async function renderGeneral(value: ProjectDetail) {
   const app = createSSRApp({ render: () => h(loadForm(), { project: value }) })
-  for (const name of ['Button', 'Label', 'Input', 'Popover', 'PopoverTrigger', 'PopoverContent', 'Command', 'CommandList', 'CommandEmpty', 'CommandGroup', 'CommandItem', 'Select', 'SelectTrigger', 'SelectValue', 'SelectContent', 'SelectItem', 'Calendar', 'Check', 'Separator', 'TagPicker', 'DescriptionEditor']) {
+  for (const name of ['UButton', 'USelect', 'USelectMenu', 'USwitch', 'USeparator', 'TagPicker', 'DescriptionEditor']) {
     app.component(name, Passthrough)
   }
   return renderToString(app)

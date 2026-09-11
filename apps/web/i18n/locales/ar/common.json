@@ -1,5 +1,6 @@
 {
   "app": {
+    "actions": "الإجراءات",
     "edit": "تعديل",
     "productName": "نَسَق",
     "search": "بحث",
@@ -15,7 +16,11 @@
     "unsavedChanges": "إذا غادرت الآن، لن تُحفظ التغييرات.",
     "stay": "البقاء في الصفحة",
     "discardAndLeave": "المغادرة بدون حفظ",
-    "recordNumber": "الرقم"
+    "recordNumber": "الرقم",
+    "selectDate": "اختر التاريخ",
+    "clearDate": "مسح التاريخ",
+    "chooseFile": "اختر ملفًا",
+    "noFileChosen": "لم يتم اختيار ملف"
   },
   "nav": {
     "today": "اليوم",
@@ -84,7 +89,9 @@
     "newConversation": "محادثة جديدة",
     "allProjects": "كل المشاريع",
     "myProjects": "مشاريعي",
-    "projectTasks": "المهام"
+    "projectTasks": "المهام",
+    "openMenu": "فتح القائمة",
+    "navigation": "القائمة"
   },
   "auth": {
     "username": "اسم المستخدم",

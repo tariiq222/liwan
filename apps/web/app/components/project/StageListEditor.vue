@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { GripVertical, Trash2 } from '@lucide/vue'
 import { VueDraggable } from 'vue-draggable-plus'
 import { moveId, stageMoveIndex, type StageMoveTarget } from '@/composables/stageOrder'
 
@@ -37,6 +36,7 @@ watch(
   (v) => {
     localStages.value = [...v]
   },
+  { flush: 'sync' },
 )
 
 function onDragEnd() {
@@ -134,32 +134,36 @@ function confirmDelete(stageId: StageRow['id']) {
 
 <template>
   <div class="space-y-3">
-    <p v-if="stages.length === 0" class="text-sm text-muted-foreground">{{ t('projects.stages.empty') }}</p>
-    <p v-else id="stage-reorder-help" class="text-xs text-muted-foreground">
+    <p v-if="stages.length === 0" class="text-sm text-muted">{{ t('projects.stages.empty') }}</p>
+    <p v-else id="stage-reorder-help" class="text-xs text-muted">
       {{ t('projects.stages.reorderHelp') }}
     </p>
 
     <VueDraggable v-model="localStages" :disabled="disabled" handle=".stage-drag-handle" :animation="150" class="space-y-1" @end="onDragEnd">
       <div v-for="stage in localStages" :key="stage.id" data-testid="stage-row" class="flex flex-wrap items-center gap-2 rounded-md border p-2">
-        <button
+        <UButton
           type="button"
-          class="stage-drag-handle shrink-0 rounded p-1 text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          color="neutral"
+          variant="ghost"
+          square
+          class="stage-drag-handle shrink-0 rounded p-1 text-muted outline-none focus-visible:ring-2 focus-visible:ring-primary"
           :class="disabled ? 'cursor-not-allowed' : 'cursor-grab'"
           :disabled="disabled"
           :aria-label="t('projects.stages.reorder', { name: stage.name })"
           aria-describedby="stage-reorder-help"
           @keydown="onHandleKeydown($event, stage)"
         >
-          <GripVertical class="size-4" />
-        </button>
+          <UIcon name="i-lucide-grip-vertical" class="size-4" />
+        </UButton>
 
         <label v-if="editingId === stage.id" :for="`stage-rename-${stage.id}`" class="grid min-w-0 flex-1 gap-1 text-xs">
           <span>{{ t('projects.stages.rename') }}</span>
-          <Input
+          <UInput
             :id="`stage-rename-${stage.id}`"
-            :ref="(el) => { if (stage.id === editingId) renameInputEl = (el as any)?.$el ?? el ?? null }"
+            :ref="(el) => { if (stage.id === editingId) renameInputEl = (el as any)?.inputRef ?? (el as any)?.$el ?? el ?? null }"
             v-model="editDraft"
-            class="h-8"
+            class="w-full"
+            size="sm"
             :disabled="disabled"
             @keydown.enter="($event.target as HTMLInputElement).blur()"
             @keydown.escape.stop.prevent="cancelRename"
@@ -168,75 +172,68 @@ function confirmDelete(stageId: StageRow['id']) {
         </label>
         <span v-else class="min-w-0 flex-1 truncate px-1 text-start text-sm">{{ stage.name }}</span>
 
-        <Button
+        <UButton
           v-if="editingId !== stage.id"
           type="button"
-          variant="outline"
+          color="secondary"
           size="sm"
           :disabled="disabled"
           :aria-label="t('projects.stages.rename')"
+          :label="t('projects.stages.rename')"
           @click="startRename(stage)"
-        >
-          {{ t('projects.stages.rename') }}
-        </Button>
+        variant="solid" />
 
-        <Toggle
-          size="sm"
-          :model-value="stage.fold"
-          :disabled="disabled"
-          :aria-label="t('projects.stages.fold')"
-          @update:model-value="(v) => onFoldChange(stage, !!v)"
-        >
-          {{ t('projects.stages.fold') }}
-        </Toggle>
+        <div class="flex items-center gap-2 text-sm">
+          <span class="text-muted">{{ t('projects.stages.fold') }}</span>
+          <USwitch
+            :model-value="stage.fold"
+            :disabled="disabled"
+            :aria-label="t('projects.stages.fold')"
+            @update:model-value="(v) => onFoldChange(stage, !!v)"
+          />
+        </div>
 
         <template v-if="(stage.task_count ?? 0) === 0">
-          <Button
+          <UButton
+            color="neutral"
             variant="ghost"
-            size="icon"
+            square
             type="button"
             data-testid="stage-delete"
+            icon="i-lucide-trash-2"
             :aria-label="t('projects.stages.delete')"
             :disabled="disabled"
             @click="requestDelete(stage.id)"
-          >
-            <Trash2 class="size-4" />
-          </Button>
-          <div v-if="pendingDeleteId === stage.id" class="basis-full space-y-2 rounded-md border border-destructive/40 bg-destructive/5 p-2 text-sm" data-testid="stage-delete-confirm">
+          />
+          <div v-if="pendingDeleteId === stage.id" class="basis-full space-y-2 rounded-md border border-error/40 bg-error/5 p-2 text-sm" data-testid="stage-delete-confirm">
             <p>{{ t('projects.stages.deleteConfirm') }}</p>
             <div class="flex flex-wrap gap-2">
-              <Button type="button" variant="outline" size="sm" :disabled="props.busy" @click="cancelDelete">{{ t('app.cancel') }}</Button>
-              <Button type="button" variant="destructive" size="sm" :disabled="props.busy" @click="confirmDelete(stage.id)">{{ t('projects.stages.delete') }}</Button>
+              <UButton type="button" color="secondary" size="sm" :disabled="props.busy" :label="t('app.cancel')" @click="cancelDelete" variant="solid" />
+              <UButton type="button" color="error" size="sm" :disabled="props.busy" :label="t('projects.stages.delete')" @click="confirmDelete(stage.id)" />
             </div>
           </div>
         </template>
-        <TooltipProvider v-else :delay-duration="0">
-          <Tooltip>
-            <TooltipTrigger as-child>
-              <span>
-                <Button variant="ghost" size="icon" type="button" data-testid="stage-delete" :aria-label="t('projects.stages.delete')" disabled>
-                  <Trash2 class="size-4" />
-                </Button>
-              </span>
-            </TooltipTrigger>
-            <TooltipContent>{{ t('projects.stages.notEmpty', { count: stage.task_count }) }}</TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        <UTooltip v-else :text="t('projects.stages.notEmpty', { count: stage.task_count })" :delay-duration="0">
+          <span>
+            <UButton color="neutral" variant="ghost" square type="button" data-testid="stage-delete" icon="i-lucide-trash-2" :aria-label="t('projects.stages.delete')" disabled />
+          </span>
+        </UTooltip>
       </div>
     </VueDraggable>
 
     <div class="grid gap-1 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
       <label for="stage-add-name" class="grid gap-1 text-sm">
         <span>{{ t('projects.stages.addPlaceholder') }}</span>
-        <Input
+        <UInput
           id="stage-add-name"
           v-model="newName"
+          class="w-full"
           data-testid="stage-add-input"
           :disabled="disabled"
           @keydown.enter="submitAdd"
         />
       </label>
-      <Button type="button" :disabled="disabled || !newName.trim()" @click="submitAdd">{{ t('projects.stages.add') }}</Button>
+      <UButton type="button" :disabled="disabled || !newName.trim()" :label="t('projects.stages.add')" @click="submitAdd" />
     </div>
   </div>
 </template>

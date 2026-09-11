@@ -1,0 +1,101 @@
+/* Runtime recipes ported from the approved reference. Legacy neutral tokens
+   remain available until their consumers migrate. */
+@theme {
+  --text-xs: 0.857143rem;
+  --text-sm: 0.928571rem;
+  --text-base: 1rem;
+  --text-lg: 1.142857rem;
+  --text-xl: 1.428571rem;
+}
+:root {
+  --ui-primary: var(--brand-link);
+  --ui-secondary: var(--nasq-brand-secondary);
+  --ui-warning: #a16207;
+  --ui-success: #166534;
+  --ui-error: #b91c1c;
+  --ui-info: #1d4ed8;
+  --ui-radius: .4rem;
+  --nasq-ui-z-sheet: 60;
+  --nasq-ui-z-menu: 130;
+}
+:root.dark { --ui-warning: #fbbf24; --ui-success: #4ade80; --ui-info: #60a5fa; --ui-error: #f87171; }
+/* Neutral recipes match design-preview; legacy consumers retain their tokens. */
+:root.cream {
+  --ui-bg: #fbf7ef;
+  --ui-bg-muted: #f6f1e7;
+  --ui-bg-elevated: #efe8d9;
+  --ui-bg-accented: #e4d9c6;
+  --ui-text: #3f3428;
+  --ui-text-highlighted: #30271f;
+  --ui-text-muted: #746753;
+  --ui-text-toned: #63533f;
+  --ui-border: #d8cbb7;
+  --ui-border-muted: #e4d9c6;
+  --ui-border-accented: #c2b293;
+}
+/* A migrated record surface uses the reference width and spacing. */
+[data-nasq-reference-detail] { width: 100%; max-width: 68rem; margin-inline: auto; }
+.nasq-page-stack[data-nasq-reference-detail] { gap: 1.75rem; }
+.nasq-ui-icon-button { width: 2.25rem; height: 2.25rem; min-width: 2.25rem; min-height: 2.25rem; padding: 0; flex-shrink: 0; justify-content: center; }
+.nasq-ui-field:focus-visible { outline: 2px solid var(--tw-ring-color, var(--ring)); outline-offset: -2px; box-shadow: none; }
+.nasq-ui-primary-solid, .nasq-ui-primary-solid:hover { background: var(--primary); color: var(--primary-foreground); }
+.nasq-ui-primary-text { color: var(--brand-link); --tw-ring-color: color-mix(in srgb, var(--brand-link) 55%, var(--ui-bg)); }
+.nasq-ui-primary-text:hover, .nasq-ui-primary-text:active { color: var(--brand-link); }
+.nasq-ui-secondary-solid, .nasq-ui-secondary-solid:hover { background: var(--nasq-brand-secondary); color: var(--primary); }
+.nasq-ui-secondary-text { color: var(--brand-link); --tw-ring-color: color-mix(in srgb, var(--brand-link) 55%, var(--ui-bg)); }
+.nasq-ui-secondary-text:hover { color: var(--primary); background: var(--nasq-brand-secondary); }
+.nasq-ui-primary-solid:hover, .nasq-ui-secondary-solid:hover { text-decoration: underline; }
+.nasq-ui-calendar [data-slot='cellTrigger'][data-selected] { background: var(--nasq-brand-secondary); color: var(--primary); }
+.nasq-ui-calendar [data-slot='cellTrigger']:focus-visible { outline: 2px solid currentColor; outline-offset: -2px; }
+.nasq-ui-filter-content { width: min(24rem, calc(100vw - 2rem)); display: grid; gap: 1rem; padding: 1rem; }
+.nasq-ui-date-trigger { width: 100%; min-height: 2.5rem; justify-content: start; font-weight: 400; }
+.nasq-ui-mobile-records { display: none; }
+.nasq-ui-progress [data-slot='indicator'] { background: linear-gradient(to right, var(--nasq-brand-secondary), var(--primary)); }
+.nasq-ui-progress:dir(rtl) [data-slot='indicator'] { background-image: linear-gradient(to left, var(--nasq-brand-secondary), var(--primary)); }
+.nasq-ui-progress [data-slot='indicator'][data-state='complete'] { background: var(--primary); }
+.nasq-ui-progress [data-slot='indicator']:not([data-state='indeterminate']) { width: var(--nasq-ui-progress); transform: none !important; transition-property: width; }
+@media (max-width: 767px) {
+  .nasq-ui-icon-button { width: 44px; height: 44px; min-width: 44px; min-height: 44px; }
+  .nasq-ui-desktop-records { display: none; }
+  .nasq-ui-mobile-records { display: grid; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nasq-ui-progress [data-slot='indicator'] { transition: none; }
+}
+
+:root {
+  --color-brand-50: color-mix(in srgb, var(--primary) 5%, white);
+  --color-brand-100: color-mix(in srgb, var(--primary) 10%, white);
+  --color-brand-200: color-mix(in srgb, var(--primary) 20%, white);
+  --color-brand-300: color-mix(in srgb, var(--primary) 35%, white);
+  --color-brand-400: var(--brand-link);
+  --color-brand-500: var(--brand-link);
+  --color-brand-600: var(--primary-hover);
+  --color-brand-700: var(--primary-active);
+  --color-brand-800: color-mix(in srgb, var(--primary) 80%, black);
+  --color-brand-900: color-mix(in srgb, var(--primary) 65%, black);
+  --color-brand-950: color-mix(in srgb, var(--primary) 50%, black);
+  --color-brand2-50: color-mix(in srgb, var(--nasq-brand-secondary) 5%, white);
+  --color-brand2-100: color-mix(in srgb, var(--nasq-brand-secondary) 10%, white);
+  --color-brand2-200: color-mix(in srgb, var(--nasq-brand-secondary) 20%, white);
+  --color-brand2-300: color-mix(in srgb, var(--nasq-brand-secondary) 35%, white);
+  --color-brand2-400: var(--nasq-brand-secondary);
+  --color-brand2-500: var(--nasq-brand-secondary);
+  --color-brand2-600: var(--nasq-brand-secondary);
+  --color-brand2-700: var(--nasq-brand-secondary);
+  --color-brand2-800: color-mix(in srgb, var(--nasq-brand-secondary) 80%, black);
+  --color-brand2-900: color-mix(in srgb, var(--nasq-brand-secondary) 65%, black);
+  --color-brand2-950: color-mix(in srgb, var(--nasq-brand-secondary) 50%, black);
+}
+
+.project-sheet-backdrop { background: rgb(0 0 0 / 20%); backdrop-filter: blur(2px); }
+.project-sheet-backdrop-enter-active, .project-sheet-backdrop-leave-active { transition: opacity 180ms ease; }
+.project-sheet-backdrop-enter-from, .project-sheet-backdrop-leave-to { opacity: 0; }
+@keyframes nasq-sheet-in { from { transform: translateX(var(--project-overlay-travel, 100vw)); } to { transform: translateX(0); } }
+@keyframes nasq-sheet-out { from { transform: translateX(0); } to { transform: translateX(calc(-1 * var(--project-overlay-travel, 100vw))); } }
+.nasq-ui-route-sheet[data-state='open'] { animation: nasq-sheet-in 200ms ease-out; }
+.nasq-ui-route-sheet[data-state='closed'] { animation: nasq-sheet-out 180ms ease-in; }
+@media (prefers-reduced-motion: reduce) {
+  .nasq-ui-route-sheet[data-state] { animation-duration: 0s; }
+  .project-sheet-backdrop-enter-active, .project-sheet-backdrop-leave-active { transition: none; }
+}

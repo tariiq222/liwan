@@ -55,11 +55,11 @@ function hasInformativeSummary(event: MeetingEvent) {
 </script>
 
 <template>
-  <section class="nasq-panel grid gap-3" data-testid="meeting-event-list">
-    <div class="nasq-panel-header"><h2>{{ t('meetingMinutesForm.history') }}</h2></div>
-    <div class="nasq-panel-body grid gap-3">
-      <div v-if="loading" class="grid gap-2" aria-busy="true"><Skeleton v-for="row in 4" :key="row" class="h-12 w-full" /></div>
-      <div v-else-if="error" class="flex flex-wrap items-center justify-between gap-2 text-sm text-destructive" role="alert"><span>{{ errorText }}</span><Button type="button" variant="outline" size="sm" :disabled="!hydrated" @click="emit('retry')">{{ t('meetingMinutesForm.retry') }}</Button></div>
+  <UCard data-testid="meeting-event-list">
+    <template #header><h2 class="text-lg font-semibold text-highlighted">{{ t('meetingMinutesForm.history') }}</h2></template>
+    <div class="grid gap-3">
+      <div v-if="loading" class="grid gap-2" aria-busy="true"><USkeleton v-for="row in 4" :key="row" class="h-12 w-full" /></div>
+      <div v-else-if="error" class="flex flex-wrap items-center justify-between gap-2 text-sm text-destructive" role="alert"><span>{{ errorText }}</span><UButton type="button" color="secondary" variant="outline" size="sm" :disabled="!hydrated" :label="t('meetingMinutesForm.retry')" @click="emit('retry')" /></div>
       <div v-else-if="!events.length" class="text-sm text-muted-foreground">{{ t('meetingMinutesForm.noHistory') }}</div>
       <ol v-else class="grid gap-2">
         <li v-for="event in events" :key="event.id" class="grid min-w-0 gap-1 rounded-lg border border-border p-3">
@@ -70,10 +70,10 @@ function hasInformativeSummary(event: MeetingEvent) {
         </li>
       </ol>
       <nav v-if="pages > 1" class="flex items-center justify-between text-sm text-muted-foreground" :aria-label="t('meetingMinutesForm.pagination')">
-        <Button type="button" variant="ghost" :disabled="!hydrated || loading || page <= 1" @click="emit('page', page - 1)">{{ t('meetingMinutesForm.previous') }}</Button>
+        <UButton type="button" color="neutral" variant="ghost" :disabled="!hydrated || loading || page <= 1" :label="t('meetingMinutesForm.previous')" @click="emit('page', page - 1)" />
         <span>{{ t('meetingMinutesForm.pageOf', { page, pages }) }}</span>
-        <Button type="button" variant="ghost" :disabled="!hydrated || loading || page >= pages" @click="emit('page', page + 1)">{{ t('meetingMinutesForm.next') }}</Button>
+        <UButton type="button" color="neutral" variant="ghost" :disabled="!hydrated || loading || page >= pages" :label="t('meetingMinutesForm.next')" @click="emit('page', page + 1)" />
       </nav>
     </div>
-  </section>
+  </UCard>
 </template>

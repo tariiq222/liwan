@@ -12,7 +12,7 @@ const sections = computed(() => [
 <template>
   <SettingsLayout :sections width="form">
     <SharedPageHeader :title="t('settings.appearance.title')" />
-    <div class="nasq-panel nasq-panel-body" data-testid="appearance-form">
+    <div class="space-y-6" data-testid="appearance-form">
       <AppearanceForm />
     </div>
   </SettingsLayout>

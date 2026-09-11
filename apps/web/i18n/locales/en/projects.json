@@ -411,6 +411,7 @@
         "search": "Search templates"
       },
       "none": "No milestone",
+      "noPredecessors": "No predecessor tasks",
       "fields": {
         "name": "Name",
         "description": "Description",

@@ -1,11 +1,9 @@
 <script setup lang="ts">
-import { List, Network, Scan, Search } from '@lucide/vue'
 import DepartmentOrgChart from '@/components/hr/DepartmentOrgChart.vue'
 import DepartmentTable from '@/components/hr/DepartmentTable.vue'
 import DepartmentTree from '@/components/hr/DepartmentTree.vue'
 import FilterBar from '@/components/shared/FilterBar.vue'
 import { buildDepartmentTree } from '@/lib/departmentTree'
-import { toast } from 'vue-sonner'
 import { ApiError } from '@/composables/useApi'
 import { useDeleteHrDepartment, useHrDepartments, type HrDepartment } from '@/composables/useHrDepartments'
 import { returnToQuery } from '@/utils/safeReturnTo'
@@ -15,6 +13,7 @@ const { t } = useI18n()
 const { can } = useAccess()
 const query = useHrDepartments()
 const hydrated = useHydrated()
+const toast = useToast()
 const search = computed({ get: () => typeof route.query.q === 'string' ? route.query.q : '', set: q => { void router.replace({ query: { ...route.query, q: q || undefined } }) } })
 const treeView = computed(() => route.query.view === 'tree')
 const canvasView = computed(() => route.query.view === 'canvas')
@@ -34,39 +33,30 @@ function clearFilters() { search.value = '' }
 function askDelete(department: HrDepartment) { deleting.value = department; deleteError.value = null }
 async function confirmDelete() {
   if (!deleting.value || !hydrated.value || deletingPending.value || !can('hr.departments.manage')) return
-  try { await deleteDepartment(deleting.value.id); deleting.value = null; toast.success(t('hr.depts.deleted')) }
+  try { await deleteDepartment(deleting.value.id); deleting.value = null; toast.add({ title: t('hr.depts.deleted'), color: 'success' }) }
   catch (error) { deleteError.value = error instanceof ApiError ? error : new ApiError(500, 'http_error', t('errors.generic')) }
 }
 </script>
 <template>
   <SharedPageContainer width="list">
     <SharedPageHeader :title="t('hr.depts.title')" back-to="/hr">
-      <Button v-if="can('hr.departments.manage')" as-child :disabled="!hydrated"><NuxtLink :to="{ path: '/hr/departments/new', query: returnToQuery(route.fullPath) }" @click="!hydrated && $event.preventDefault()">{{ t('hr.depts.new') }}</NuxtLink></Button>
+      <UButton v-if="can('hr.departments.manage')" color="primary" :disabled="!hydrated" :to="{ path: '/hr/departments/new', query: returnToQuery(route.fullPath) }" :label="t('hr.depts.new')" @click="!hydrated && $event.preventDefault()" />
     </SharedPageHeader>
     <div class="w-full min-w-0">
       <FilterBar class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
         <template #search>
-          <div class="relative min-w-52 flex-1">
-            <Search class="pointer-events-none absolute start-2 top-1/2 size-[18px] -translate-y-1/2 text-muted-foreground" />
-            <Input v-model="search" :disabled="!hydrated" :aria-label="t('hr.depts.search')" :placeholder="t('hr.depts.search')" class="ps-8" />
-          </div>
+          <UInput v-model="search" class="min-w-52 flex-1" :disabled="!hydrated" :aria-label="t('hr.depts.search')" :placeholder="t('hr.depts.search')" icon="i-lucide-search" />
         </template>
         <template #view>
-          <div role="group" class="inline-flex h-[40px] items-center rounded-lg border bg-muted/40 p-0.5" :aria-label="t('hr.depts.title')">
-            <Button type="button" variant="ghost" size="icon" class="size-[32px] rounded-md" :class="!treeView && !canvasView ? 'bg-background shadow-sm' : ''" :disabled="!hydrated" :aria-label="t('hr.depts.listView')" :aria-pressed="!treeView && !canvasView" data-testid="hr-departments-view-list" @click="setView(false)">
-              <List class="size-[18px]" />
-            </Button>
-            <Button type="button" variant="ghost" size="icon" class="size-[32px] rounded-md" :class="treeView ? 'bg-background shadow-sm' : ''" :disabled="!hydrated" :aria-label="t('hr.depts.hierarchy')" :aria-pressed="treeView" data-testid="hr-departments-view-tree" @click="setView(true)">
-              <Network class="size-[18px]" />
-            </Button>
-            <Button type="button" variant="ghost" size="icon" class="size-[32px] rounded-md" :class="canvasView ? 'bg-background shadow-sm' : ''" :disabled="!hydrated" :aria-label="t('hr.depts.orgChart')" :aria-pressed="canvasView" data-testid="hr-departments-view-canvas" @click="setCanvasView">
-              <Scan class="size-[18px]" />
-            </Button>
+          <div role="group" class="inline-flex h-[40px] items-center rounded-lg border border-default bg-elevated/40 p-0.5" :aria-label="t('hr.depts.title')">
+            <UButton type="button" :color="!treeView && !canvasView ? 'primary' : 'secondary'" :variant="!treeView && !canvasView ? 'soft' : 'ghost'" square :disabled="!hydrated" :aria-label="t('hr.depts.listView')" :aria-pressed="!treeView && !canvasView" icon="i-lucide-list" data-testid="hr-departments-view-list" @click="setView(false)" />
+            <UButton type="button" :color="treeView ? 'primary' : 'secondary'" :variant="treeView ? 'soft' : 'ghost'" square :disabled="!hydrated" :aria-label="t('hr.depts.hierarchy')" :aria-pressed="treeView" icon="i-lucide-network" data-testid="hr-departments-view-tree" @click="setView(true)" />
+            <UButton type="button" :color="canvasView ? 'primary' : 'secondary'" :variant="canvasView ? 'soft' : 'ghost'" square :disabled="!hydrated" :aria-label="t('hr.depts.orgChart')" :aria-pressed="canvasView" icon="i-lucide-scan" data-testid="hr-departments-view-canvas" @click="setCanvasView" />
           </div>
         </template>
         <template #active>
           <div v-if="search.trim()" class="flex flex-wrap items-center gap-2">
-            <Badge variant="secondary">{{ t('hr.directory.searchValue', { value: search }) }}</Badge>
+            <UBadge color="neutral" variant="subtle">{{ t('hr.directory.searchValue', { value: search }) }}</UBadge>
           </div>
         </template>
       </FilterBar>
@@ -76,9 +66,11 @@ async function confirmDelete() {
       <DepartmentTree v-else-if="treeView" :roots="roots" :query="search" :hydrated="hydrated" :can-manage="can('hr.departments.manage')" :can-read-employees="can('hr.employees.read')" :can-read-documents="can('hr.documents.read')" @select="openDepartment" @edit="editDepartment" @create-child="createChild" />
       <DepartmentTable v-else :departments="filtered" :can-manage="can('hr.departments.manage')" @select="openDepartment" @delete="askDelete" />
     </SharedPageState>
-    <div v-if="deleting" class="nasq-status-callout-danger p-4">
-      <p class="text-sm">{{ t('hr.depts.deleteConfirm', { name: deleting.name }) }}</p><p v-if="deleteError" class="mt-2 text-sm text-destructive">{{ deleteError.message }}</p>
-      <div class="mt-3 flex gap-2"><Button variant="outline" :disabled="deletingPending" @click="deleting = null">{{ t('app.cancel') }}</Button><Button variant="destructive" :disabled="!hydrated || deletingPending" @click="confirmDelete">{{ t('hr.depts.delete') }}</Button></div>
-    </div>
+    <UAlert v-if="deleting" role="alert" color="error" variant="subtle" :title="t('hr.depts.deleteConfirm', { name: deleting.name })" :description="deleteError?.message">
+      <template #actions>
+        <UButton color="secondary" variant="solid" :disabled="deletingPending" :label="t('app.cancel')" @click="deleting = null" />
+        <UButton color="error" :disabled="!hydrated || deletingPending" :label="t('hr.depts.delete')" @click="confirmDelete" />
+      </template>
+    </UAlert>
   </SharedPageContainer>
 </template>

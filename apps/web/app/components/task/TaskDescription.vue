@@ -106,18 +106,18 @@ watch(() => props.task.can_write, (canWrite) => {
     <div v-if="!editing" class="task-description-read">
       <div class="flex items-start justify-between gap-3">
         <div v-if="hasDescription" class="task-description-content max-w-none text-sm" v-html="renderedHtml" />
-        <p v-else data-testid="task-description-empty" class="text-sm text-muted-foreground">{{ t('tasks.descriptionField.empty') }}</p>
-        <Button
+        <p v-else data-testid="task-description-empty" class="text-sm text-muted">{{ t('tasks.descriptionField.empty') }}</p>
+        <UButton
           v-if="task.can_write"
           data-testid="task-description-edit"
-          variant="outline"
+          color="secondary" variant="solid"
           size="sm"
           type="button"
           :disabled="!hydrated || isPending"
           @click="startEdit"
         >
           {{ hasDescription ? t('tasks.descriptionField.edit') : t('tasks.descriptionField.add') }}
-        </Button>
+        </UButton>
       </div>
     </div>
 
@@ -128,10 +128,10 @@ watch(() => props.task.can_write, (canWrite) => {
         :readonly="isPending || !task.can_write"
         @draft="onDescriptionDraft"
       />
-      <p v-if="error" role="alert" data-testid="task-description-error" class="text-sm text-destructive">{{ error }}</p>
+      <p v-if="error" role="alert" data-testid="task-description-error" class="text-sm text-error">{{ error }}</p>
       <div class="flex flex-wrap justify-end gap-2">
-        <Button type="button" variant="outline" :disabled="!hydrated || isPending" @click="cancelEdit">{{ t('tasks.descriptionField.cancel') }}</Button>
-        <Button type="submit" :disabled="!hydrated || isPending">{{ t('tasks.descriptionField.save') }}</Button>
+        <UButton type="button" color="secondary" variant="solid" :disabled="!hydrated || isPending" @click="cancelEdit">{{ t('tasks.descriptionField.cancel') }}</UButton>
+        <UButton type="submit" :disabled="!hydrated || isPending">{{ t('tasks.descriptionField.save') }}</UButton>
       </div>
     </form>
   </div>
@@ -144,11 +144,6 @@ watch(() => props.task.can_write, (canWrite) => {
   line-height: 1.7;
 }
 
-.task-description-read {
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--muted) 45%, var(--card));
-  padding: 12px 14px;
-}
 
 :deep(.task-description-content p) {
   margin: 0 0 0.5em;
@@ -173,16 +168,16 @@ watch(() => props.task.can_write, (canWrite) => {
 }
 
 :deep(.task-description-content blockquote) {
-  border-inline-start: 3px solid var(--border);
+  border-inline-start: 3px solid var(--ui-border);
   margin-block: 0.5em;
   padding-inline-start: 0.75em;
-  color: var(--muted-foreground);
+  color: var(--ui-text-muted);
 }
 
 :deep(.task-description-content pre) {
   overflow-x: auto;
   border-radius: 0.375rem;
-  background: var(--muted);
+  background: var(--ui-bg-muted);
   padding: 0.625rem;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.875em;
@@ -190,7 +185,7 @@ watch(() => props.task.can_write, (canWrite) => {
 
 :deep(.task-description-content code) {
   border-radius: 0.25rem;
-  background: var(--muted);
+  background: var(--ui-bg-muted);
   padding-inline: 0.25em;
 }
 

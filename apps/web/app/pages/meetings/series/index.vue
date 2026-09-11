@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { Plus } from '@lucide/vue'
 import { refDebounced } from '@vueuse/core'
 import MeetingProjectFilter from '@/components/meetings/MeetingProjectFilter.vue'
 import FilterBar from '@/components/shared/FilterBar.vue'
@@ -76,9 +75,7 @@ function setPage(next: number) {
     <SharedPageHeader :title="t('nav.meetingSeries')">
       <template #actions>
         <NuxtLink v-if="can('meetings.create')" :to="{ path: '/meetings/series/new', query: returnToQuery(route.fullPath) }">
-          <Button :disabled="!hydrated" class="gap-2">
-            <Plus class="size-[18px]" />{{ t('meetingsUi.newSeries') }}
-          </Button>
+          <UButton :disabled="!hydrated" icon="i-lucide-plus" :label="t('meetingsUi.newSeries')" />
         </NuxtLink>
     </template>
     </SharedPageHeader>
@@ -92,25 +89,25 @@ function setPage(next: number) {
       >
         <div class="w-full min-w-0 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           <div class="grid min-w-0 gap-1 md:col-span-2">
-            <Label for="meeting-series-search">{{ t('meetingsFilters.searchSeries') }}</Label>
-            <Input id="meeting-series-search" v-model="search" :disabled="!hydrated" :placeholder="t('meetingsFilters.searchSeries')" :aria-label="t('meetingsFilters.searchSeries')" />
+            <UFormField :label="t('meetingsFilters.searchSeries')" name="search">
+              <UInput id="meeting-series-search" v-model="search" class="w-full" :disabled="!hydrated" :placeholder="t('meetingsFilters.searchSeries')" :aria-label="t('meetingsFilters.searchSeries')" />
+            </UFormField>
           </div>
           <div v-if="can('pmo.projects.read')" class="grid min-w-0 gap-1">
-            <Label for="meeting-series-project">{{ t('meetingsFilters.project') }}</Label>
-            <MeetingProjectFilter id="meeting-series-project" hide-label :model-value="projectId" @update:model-value="setProject" @resolved-name="projectName = $event" />
+            <MeetingProjectFilter id="meeting-series-project" :label="t('meetingsFilters.project')" :model-value="projectId" @update:model-value="setProject" @resolved-name="projectName = $event" />
           </div>
         </div>
         <template v-if="hasActiveFilters" #active>
           <div class="flex flex-wrap items-center gap-2">
-            <Badge v-if="search.trim()" variant="secondary">{{ t('meetingsUi.searchValue', { value: search }) }}</Badge>
-            <Badge v-if="projectId" variant="secondary" class="gap-1">{{ projectName || t('meetingsFilters.selectedProject') }}<button type="button" :aria-label="t('meetingsFilters.removeFilter')" @click="setProject(undefined)">×</button></Badge>
+            <UBadge v-if="search.trim()" color="neutral" variant="subtle">{{ t('meetingsUi.searchValue', { value: search }) }}</UBadge>
+            <UBadge v-if="projectId" color="neutral" variant="subtle" class="gap-1">{{ projectName || t('meetingsFilters.selectedProject') }}<UButton type="button" color="neutral" variant="ghost" size="xs" square :aria-label="t('meetingsFilters.removeFilter')" label="×" @click="setProject(undefined)" /></UBadge>
           </div>
         </template>
       </FilterBar>
       <span class="text-sm text-muted-foreground" role="status">{{ totalLabel }}</span>
     </div>
     <SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!query.data.value?.items.length" :empty-text="t('meetingsUi.emptySeries')" @retry="query.refetch">
-      <div class="nasq-panel overflow-hidden">
+      <div class="overflow-hidden rounded-xl border border-default bg-default">
         <NuxtLink
           v-for="series in query.data.value?.items"
           :key="series.id"
@@ -123,7 +120,7 @@ function setPage(next: number) {
             <span v-if="series.organizer">{{ t('meetingsUi.organizer') }}: {{ series.organizer.name }}</span>
             <span v-if="series.organizer && series.project"> · </span>
             <span v-if="series.project">{{ t('meetingsUi.project') }}: {{ series.project.name }}</span>
-            <span v-if="(series.organizer || series.project) && (series.open_resolution_count || series.overdue_resolution_count)"> · </span>
+            <span v-if="series.organizer || series.project"> · </span>
             <span>{{ t('meetingsUi.openCount', { count: series.open_resolution_count }) }}</span>
             <span> · {{ t('meetingsUi.overdueCount', { count: series.overdue_resolution_count }) }}</span>
           </span>
@@ -131,13 +128,9 @@ function setPage(next: number) {
       </div>
     </SharedPageState>
     <nav v-if="pages > 1" class="flex items-center justify-between text-sm text-muted-foreground">
-      <Button variant="ghost" :disabled="!hydrated || page === 1 || query.isFetching.value" @click="setPage(page - 1)">
-        {{ t('projects.previousPage') }}
-      </Button>
+      <UButton color="neutral" variant="ghost" :disabled="!hydrated || page === 1 || query.isFetching.value" :label="t('projects.previousPage')" @click="setPage(page - 1)" />
       <span>{{ t('meetingsUi.pageOf', { page, pages }) }}</span>
-      <Button variant="ghost" :disabled="!hydrated || page >= pages || query.isFetching.value" @click="setPage(page + 1)">
-        {{ t('projects.nextPage') }}
-      </Button>
+      <UButton color="neutral" variant="ghost" :disabled="!hydrated || page >= pages || query.isFetching.value" :label="t('projects.nextPage')" @click="setPage(page + 1)" />
     </nav>
   </SharedPageContainer>
 </template>

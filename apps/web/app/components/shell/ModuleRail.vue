@@ -22,49 +22,67 @@ const utilityModules = computed(() => availableModules.value.filter(module => mo
     :aria-label="t('nav.modules')"
   >
     <div class="nasq-module-rail-inner">
-      <button
-        type="button"
-        class="nasq-module-rail-toggle"
-        :disabled="!hydrated"
-        :aria-label="t(expanded ? 'nav.collapseModules' : 'nav.expandModules')"
-        :aria-expanded="expanded"
-        data-testid="module-rail-toggle"
-        @click="toggle"
-      >
-        <PanelLeftClose v-if="expanded" aria-hidden="true" />
-        <PanelLeftOpen v-else aria-hidden="true" />
-        <span>{{ t(expanded ? 'nav.collapseModules' : 'nav.expandModules') }}</span>
-      </button>
+      <UTooltip :text="t(expanded ? 'nav.collapseModules' : 'nav.expandModules')">
+        <UButton
+          type="button"
+          color="neutral"
+          variant="ghost"
+          class="nasq-module-rail-toggle"
+          :disabled="!hydrated"
+          :aria-label="t(expanded ? 'nav.collapseModules' : 'nav.expandModules')"
+          :aria-expanded="expanded"
+          data-testid="module-rail-toggle"
+          @click="toggle"
+        >
+          <template #leading>
+            <PanelLeftClose v-if="expanded" aria-hidden="true" />
+            <PanelLeftOpen v-else aria-hidden="true" />
+          </template>
+          <span>{{ t(expanded ? 'nav.collapseModules' : 'nav.expandModules') }}</span>
+        </UButton>
+      </UTooltip>
 
       <nav class="nasq-module-rail-links" :aria-label="t('nav.modules')">
-        <NuxtLink
-          v-for="module in primaryModules"
-          :key="module.id"
-          :to="module.to"
-          class="nasq-module-rail-link"
-          :data-active="activeModule === module.id"
-          :aria-current="activeModule === module.id ? 'page' : undefined"
-          :aria-label="t(module.labelKey)"
-          :title="t(module.labelKey)"
-        >
-          <component :is="module.icon" aria-hidden="true" />
-          <span>{{ t(module.labelKey) }}</span>
-        </NuxtLink>
+        <UTooltip v-for="module in primaryModules" :key="module.id" :text="t(module.labelKey)">
+          <UButton
+            :to="module.to"
+            :external="module.id === 'vendor'"
+            color="neutral"
+            variant="ghost"
+            class="nasq-module-rail-link"
+            :data-active="activeModule === module.id"
+            :active="activeModule === module.id"
+            :aria-current="activeModule === module.id ? 'page' : undefined"
+            :aria-label="t(module.labelKey)"
+            :title="t(module.labelKey)"
+          >
+            <template #leading>
+              <component :is="module.icon" aria-hidden="true" />
+            </template>
+            <span>{{ t(module.labelKey) }}</span>
+          </UButton>
+        </UTooltip>
       </nav>
       <nav v-if="utilityModules.length" class="nasq-module-rail-utility" :aria-label="t('nav.settings')">
-        <NuxtLink
-          v-for="module in utilityModules"
-          :key="module.id"
-          :to="module.to"
-          class="nasq-module-rail-link"
-          :data-active="activeModule === module.id"
-          :aria-current="activeModule === module.id ? 'page' : undefined"
-          :aria-label="t(module.labelKey)"
-          :title="t(module.labelKey)"
-        >
-          <component :is="module.icon" aria-hidden="true" />
-          <span>{{ t(module.labelKey) }}</span>
-        </NuxtLink>
+        <UTooltip v-for="module in utilityModules" :key="module.id" :text="t(module.labelKey)">
+          <UButton
+            :to="module.to"
+            :external="module.id === 'vendor'"
+            color="neutral"
+            variant="ghost"
+            class="nasq-module-rail-link"
+            :data-active="activeModule === module.id"
+            :active="activeModule === module.id"
+            :aria-current="activeModule === module.id ? 'page' : undefined"
+            :aria-label="t(module.labelKey)"
+            :title="t(module.labelKey)"
+          >
+            <template #leading>
+              <component :is="module.icon" aria-hidden="true" />
+            </template>
+            <span>{{ t(module.labelKey) }}</span>
+          </UButton>
+        </UTooltip>
       </nav>
     </div>
   </aside>

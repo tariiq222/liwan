@@ -13,7 +13,8 @@ describe('shared collapsible filter card', () => {
     })
     expect(html).not.toContain('aria-expanded')
     expect(html).not.toContain('<section')
-    for (const text of ['Task search', 'Task states', 'Timeline', 'New task', 'Selected state', 'Clear filters']) {
+    expect(html).toContain('aria-label="Clear filters"')
+    for (const text of ['Task search', 'Task states', 'Timeline', 'New task', 'Selected state']) {
       expect(html.split(text)).toHaveLength(2)
     }
   })
@@ -36,13 +37,11 @@ describe('shared collapsible filter card', () => {
     const html = await renderFilter('FilterCard', { defaultOpen: true })
     expect(html).toContain('aria-expanded="true"')
   })
-  it('keeps selected values mounted while collapsed, and active summary/actions visible', async () => {
+  it('keeps active summary/actions visible outside the filter popover', async () => {
     const html = await renderFilter('FilterCard', { activeCount: 1 }, {
       default: () => h('input', { value: 'Project A' }), active: () => h('span', 'Project A selected'), actions: () => h('button', 'Board view'),
     })
     expect(html).toContain('aria-expanded="false"')
-    expect(html).toMatch(/data-slot="filter-fields"[^>]*style="display:none;"/)
-    expect(html).toContain('value="Project A"')
     expect(html).toContain('Project A selected')
     expect(html).toContain('Board view')
   })
@@ -61,9 +60,9 @@ describe('shared collapsible filter card', () => {
       search: () => h('input', { 'aria-label': 'Search' }), default: () => h('select', [h('option', 'All states')]),
       view: () => h('button', 'Board'), active: () => h('span', 'Done'),
     })
-    expect(html.match(/<section\b/g)).toHaveLength(1)
+    expect(html.match(/data-slot="filter-root"/g)).toHaveLength(1)
     for (const slot of ['search', 'controls', 'view', 'active-row']) expect(html).toContain(`data-slot="${slot}"`)
-    expect(html.indexOf('Board')).toBeLessThan(html.indexOf('aria-label="Search"'))
+    expect(html).toContain('Board')
     expect(html).toContain('Done')
   })
 })

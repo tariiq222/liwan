@@ -24,8 +24,12 @@ export function loadFilterComponent(name: string, hydrated = true): Vue.Componen
 }
 export async function renderFilter(name: string, props: Record<string, unknown> = {}, slots: Record<string, () => Vue.VNode | Vue.VNode[]> = {}, hydrated = true) {
   const app = Vue.createSSRApp({ render: () => Vue.h(loadFilterComponent(name, hydrated), props, slots) })
-  for (const [name, tag] of Object.entries({ Card: 'section', CardHeader: 'header', CardContent: 'div', Button: 'button', Badge: 'span' })) {
+  for (const [name, tag] of Object.entries({ UButton: 'button', UBadge: 'span' })) {
     app.component(name, Vue.defineComponent({ setup(_, { attrs, slots }) { return () => Vue.h(tag, attrs, slots.default?.()) } }))
   }
+  app.component('UPopover', Vue.defineComponent({
+    inheritAttrs: false,
+    setup(_, { slots }) { return () => Vue.h('div', [slots.default?.(), slots.content?.()]) },
+  }))
   return renderToString(app)
 }

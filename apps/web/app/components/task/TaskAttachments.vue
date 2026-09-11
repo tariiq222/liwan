@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { Trash2 } from '@lucide/vue'
-import { toast } from 'vue-sonner'
 import { ApiError } from '@/composables/useApi'
 import { useDeleteTaskAttachment, useTaskAttachments, useUploadTaskAttachment } from '@/composables/useTaskAttachments'
 
@@ -9,8 +8,10 @@ const emit = defineEmits<{ changed: [] }>()
 
 const { t } = useI18n()
 const hydrated = useHydrated()
+const toast = useToast()
 const uploadError = ref('')
 const pendingDeleteId = ref<number | null>(null)
+const fileField = ref<{ reset: () => void } | null>(null)
 const { data, isLoading, error, refetch } = useTaskAttachments(() => props.taskId)
 const { mutateAsync: upload, isPending: uploading } = useUploadTaskAttachment()
 const { mutateAsync: remove, isPending: deleting } = useDeleteTaskAttachment()
@@ -42,11 +43,12 @@ async function onFileChange(event: Event) {
     emit('changed')
   } catch (error) {
     uploadError.value = error instanceof ApiError || error instanceof Error ? error.message : t('errors.generic')
-    toast.error(uploadError.value)
+    toast.add({ title: uploadError.value, color: 'error' })
   } finally {
     // Clearing the input allows choosing the same file again after an error or
     // after replacing a deleted attachment.
     input.value = ''
+    fileField.value?.reset()
   }
 }
 
@@ -66,7 +68,7 @@ async function confirmDelete(id: number) {
     await remove({ taskId: props.taskId, attachmentId: id })
     emit('changed')
   } catch (error) {
-    toast.error(error instanceof ApiError ? error.message : t('errors.generic'))
+    toast.add({ title: error instanceof ApiError ? error.message : t('errors.generic'), color: 'error' })
   } finally {
     pendingDeleteId.value = null
   }
@@ -74,13 +76,13 @@ async function confirmDelete(id: number) {
 </script>
 
 <template>
-  <section data-testid="task-attachments" class="nasq-panel">
-    <header class="nasq-panel-header">
-      <h2>{{ t('attachments.title') }}</h2>
-      <span v-if="data" class="text-xs text-muted-foreground">{{ data.items.length }}</span>
+  <section data-testid="task-attachments" class="space-y-3">
+    <header class="flex flex-wrap items-center justify-between gap-3">
+      <h2 class="text-lg font-semibold text-highlighted">{{ t('attachments.title') }}</h2>
+      <span v-if="data" class="text-xs text-muted">{{ data.items.length }}</span>
     </header>
 
-    <div class="nasq-panel-body">
+    <div class="space-y-3">
       <p v-if="isLoading" class="task-empty-inline">{{ t('attachments.loading') }}</p>
       <SharedPageState v-else-if="error" :error="error" @retry="refetch" />
       <p v-else-if="!data?.items.length" class="task-empty-inline">{{ t('attachments.empty') }}</p>
@@ -90,18 +92,18 @@ async function confirmDelete(id: number) {
             <a :href="attachment.url" target="_blank" rel="noopener" class="min-w-0 flex-1 truncate text-brand-link underline">
               {{ attachment.name }}
             </a>
-            <Button
+            <UButton
               v-if="props.canWrite && pendingDeleteId !== attachment.id"
               type="button"
               variant="ghost"
-              size="icon"
-              class="size-[32px] shrink-0 rounded-lg"
+              size="sm"
+              color="error" square
               :aria-label="t('attachments.delete')"
               :disabled="!hydrated || deleting || pendingDeleteId !== null"
               @click="requestDelete(attachment.id)"
             >
               <Trash2 class="size-[18px]" />
-            </Button>
+            </UButton>
           </div>
           <div
             v-if="pendingDeleteId === attachment.id"
@@ -109,31 +111,31 @@ async function confirmDelete(id: number) {
             :aria-label="t('attachments.deleteConfirm')"
             class="flex flex-wrap items-center justify-between gap-2 border-t pt-2"
           >
-            <span class="text-sm text-muted-foreground">{{ t('attachments.deleteConfirm') }}</span>
+            <span class="text-sm text-muted">{{ t('attachments.deleteConfirm') }}</span>
             <div class="flex items-center gap-2">
-              <Button type="button" variant="outline" size="sm" :disabled="!hydrated || deleting" @click="cancelDelete">
+              <UButton type="button" variant="outline" size="sm" :disabled="!hydrated || deleting" @click="cancelDelete">
                 {{ t('attachments.cancel') }}
-              </Button>
-              <Button type="button" variant="destructive" size="sm" :disabled="!hydrated || deleting" @click="confirmDelete(attachment.id)">
+              </UButton>
+              <UButton type="button" color="error" size="sm" :disabled="!hydrated || deleting" @click="confirmDelete(attachment.id)">
                 {{ t('attachments.confirm') }}
-              </Button>
+              </UButton>
             </div>
           </div>
         </li>
       </ul>
 
       <div v-if="props.canWrite" class="mt-3 grid gap-2">
-        <Label for="task-attachment-upload">{{ t('attachments.upload') }}</Label>
-        <input
+        <label for="task-attachment-upload">{{ t('attachments.upload') }}</label>
+        <SharedFileField
+          ref="fileField"
           id="task-attachment-upload"
-          type="file"
           accept=".txt,.pdf,.png,.jpg,.jpeg,.docx,.xlsx,text/plain,application/pdf,image/png,image/jpeg,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-          class="border-input h-9 w-full min-w-0 rounded-lg border bg-transparent px-3 py-1 text-sm shadow-xs file:me-2 file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium"
+          class="w-full min-w-0"
           :disabled="!hydrated || uploading"
           @change="onFileChange"
-        >
-        <p class="text-xs text-muted-foreground">{{ t('attachments.help') }}</p>
-        <p v-if="uploadError" role="alert" class="text-sm text-destructive">{{ uploadError }}</p>
+        />
+        <p class="text-xs text-muted">{{ t('attachments.help') }}</p>
+        <p v-if="uploadError" role="alert" class="text-sm text-error">{{ uploadError }}</p>
       </div>
     </div>
   </section>
@@ -150,7 +152,7 @@ async function confirmDelete(id: number) {
   min-width: 0;
   gap: 8px;
   padding: 8px 0;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--ui-border);
   font-size: 0.875rem;
 }
 
@@ -160,7 +162,7 @@ async function confirmDelete(id: number) {
 
 .task-empty-inline {
   padding: 10px 0;
-  color: var(--muted-foreground);
+  color: var(--ui-text-muted);
   font-size: 0.75rem;
 }
 </style>

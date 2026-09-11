@@ -10,6 +10,7 @@ const hydrated = useHydrated()
 const departments = useHrDepartments()
 const canManage = computed(() => can('hr.documents.manage'))
 const departmentId = ref(typeof route.query.department_id === 'string' ? Number(route.query.department_id) : 0)
+const departmentOptions = computed(() => (departments.data.value?.items ?? []).map(department => ({ value: String(department.id), label: department.name })))
 const selectedDepartment = computed(() => departments.data.value?.items.find(d => d.id === departmentId.value))
 const returnTo = computed(() => safeReturnTo(route.query.returnTo, '/hr/documents', ['/hr']))
 
@@ -32,24 +33,22 @@ function saved(id: number) {
       :empty="!departments.data.value?.items.length"
       @retry="departments.refetch"
     >
-      <section class="nasq-panel nasq-panel-body">
+      <UCard class="space-y-6">
         <SharedFormSection :title="t('hr.docs.department')">
-          <div class="mt-4 grid gap-2">
-            <Label for="new-document-department">{{ t('hr.docs.department') }}</Label>
-            <Select :model-value="departmentId ? String(departmentId) : undefined" @update:model-value="selectDepartment">
-              <SelectTrigger id="new-document-department" class="w-full" :disabled="!hydrated">
-                <SelectValue :placeholder="t('hr.docs.chooseDepartment')" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem v-for="department in departments.data.value?.items" :key="department.id" :value="String(department.id)">
-                  {{ department.name }}
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          <UFormField class="mt-4" :label="t('hr.docs.department')" name="new-document-department">
+            <USelect
+              id="new-document-department"
+              :model-value="departmentId ? String(departmentId) : undefined"
+              :items="departmentOptions"
+              class="w-full"
+              :disabled="!hydrated"
+              :placeholder="t('hr.docs.chooseDepartment')"
+              @update:model-value="selectDepartment"
+            />
+          </UFormField>
         </SharedFormSection>
         <DocumentCreateForm v-if="selectedDepartment" :department-id="departmentId" :back-to="returnTo" @saved="saved" />
-      </section>
+      </UCard>
     </SharedPageState>
   </SharedPageContainer>
 </template>

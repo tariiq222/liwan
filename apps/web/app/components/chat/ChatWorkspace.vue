@@ -19,7 +19,7 @@ const route = useRoute()
 const router = useRouter()
 const hydrated = useHydrated()
 const qc = useQueryClient()
-const isDesktop = useMediaQuery('(min-width: 761px)', { ssrWidth: 1024 })
+const isDesktop = useMediaQuery('(min-width: 768px)', { ssrWidth: 1024 })
 const routeState = computed(() => parseChatListRoute(route.query))
 const { data, error } = useChatConversation(() => props.conversationId)
 const denied = ref(false)
@@ -77,45 +77,45 @@ function updateRoute(next: ChatListRoute) {
       <ConversationList v-if="showList" :route-state="routeState" :selected-id="props.conversationId" @update:route-state="updateRoute" @denied="onDenied" />
       <section v-if="showConversation" class="nasq-chat-thread flex min-h-0 flex-1 flex-col" data-testid="chat-thread">
         <header v-if="props.conversationId && !denied" class="nasq-chat-thread-header">
-          <NuxtLink
+          <UButton color="neutral" variant="ghost" square
             v-if="!isDesktop"
             :to="{ path: '/chat', query: listQuery }"
-            class="nasq-chat-icon-btn"
             :aria-label="t('app.back')"
             :title="t('app.back')"
           >
             <ArrowLeft class="size-5 rtl:rotate-180" aria-hidden="true" />
-          </NuxtLink>
+          </UButton>
           <span class="nasq-chat-avatar shrink-0">{{ initialsFor(data?.name || '') }}</span>
           <div class="min-w-0 flex-1 text-start">
             <h1 class="truncate text-base font-semibold">{{ data?.name || t('chat.title') }}</h1>
             <p class="truncate text-xs text-muted-foreground">{{ typingLabel || (data?.type ? t(`chat.${data.type}`) : '') }}</p>
           </div>
           <div class="flex shrink-0 items-center gap-1">
-            <button
+            <UButton
               type="button"
-              class="nasq-chat-icon-btn"
-              :aria-pressed="showMessageSearch"
+              color="neutral"
+              variant="ghost"
+              square
+                :aria-pressed="showMessageSearch"
               :aria-label="t('chat.searchMessages')"
               :title="t('chat.searchMessages')"
               :disabled="!hydrated"
               @click="toggleMessageSearch"
-            >
-              <Search class="size-5" aria-hidden="true" />
-            </button>
-            <NuxtLink
-              class="nasq-chat-icon-btn"
-              :to="{ path: `/chat/${props.conversationId}/info`, query: listQuery }"
+              icon="i-lucide-search"
+            />
+            <UButton color="neutral" variant="ghost" square
+                :to="{ path: `/chat/${props.conversationId}/info`, query: listQuery }"
               :aria-label="t('chat.info')"
               :title="t('chat.info')"
             >
               <Info class="size-5" aria-hidden="true" />
-            </NuxtLink>
+            </UButton>
           </div>
-          <Input
+          <UInput
             v-if="showMessageSearch"
             v-model="messageQuery"
             class="nasq-chat-thread-search"
+            icon="i-lucide-search"
             :placeholder="t('chat.searchMessages')"
             :disabled="!hydrated"
           />

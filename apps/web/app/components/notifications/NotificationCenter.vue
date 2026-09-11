@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import { Bell } from '@lucide/vue'
-import { toast } from 'vue-sonner'
 import { ApiError } from '@/composables/useApi'
 import { useNotifications, useMarkNotificationRead, isDigestNotification, isMeetingNotification, type Notification } from '@/composables/useNotifications'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { formatNotificationTimestamp, notificationPreviewCaptionKey } from '@/utils/notificationPresentation'
 
 const { t, locale, localeProperties } = useI18n()
+const toast = useToast()
 const hydrated = useHydrated()
 const open = ref(false)
 const route = useRoute()
@@ -38,42 +37,75 @@ async function openNotification(item: Notification) {
     open.value = false
     await navigateTo(notificationHref(item))
   } catch (error) {
-    toast.error(error instanceof ApiError ? error.message : t('errors.generic'))
+    toast.add({ title: error instanceof ApiError ? error.message : t('errors.generic'), color: 'error' })
   }
 }
 </script>
 
 <template>
-  <Popover v-model:open="open">
-    <PopoverTrigger as-child>
-      <Button data-testid="notification-bell" :aria-label="hydrated && data?.unread_count ? `${t('notifications.title')}، ${data.unread_count} ${t('notifications.unread')}` : t('notifications.title')" variant="outline" size="icon" :disabled="!hydrated" class="relative text-muted-foreground">
-        <Bell />
-        <span v-if="hydrated && data?.unread_count" data-testid="notification-count" dir="ltr" class="nasq-unread-count pointer-events-none absolute -end-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-[4px] text-[11px] leading-none font-bold tabular-nums ring-2 ring-background">{{ data.unread_count > 99 ? '99+' : data.unread_count }}</span>
-      </Button>
-    </PopoverTrigger>
-    <PopoverContent data-testid="notification-preview" :dir="localeProperties.dir === 'rtl' ? 'rtl' : 'ltr'" :aria-label="t('notifications.title')" align="end" :side-offset="12" class="flex max-h-[min(600px,80dvh)] w-[380px] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-lg p-0">
-      <div class="flex items-center justify-between border-b p-4">
-        <h2 class="font-semibold">{{ t('notifications.title') }}</h2>
-        <span class="text-xs text-muted-foreground">{{ t('notifications.latestFive') }}</span>
-      </div>
-      <div class="min-h-0 overflow-y-auto p-2">
-        <div v-if="error" role="alert" class="space-y-2 p-4 text-center">
-          <p class="text-sm text-destructive">{{ t('notifications.loadError') }}</p>
-          <Button variant="outline" size="sm" :disabled="isFetching" @click="refetch()">{{ t('notifications.retry') }}</Button>
+  <UPopover
+    v-model:open="open"
+    :content="{ align: 'end', sideOffset: 12 }"
+    :ui="{ content: 'nasq-notification-preview flex max-h-[min(600px,80dvh)] w-[380px] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-lg p-0' }"
+  >
+    <UButton
+      data-testid="notification-bell"
+      :aria-label="hydrated && data?.unread_count ? `${t('notifications.title')}، ${data.unread_count} ${t('notifications.unread')}` : t('notifications.title')"
+      color="neutral"
+      variant="outline"
+      square
+      :disabled="!hydrated"
+      class="relative text-muted"
+    >
+      <template #leading>
+        <Bell aria-hidden="true" />
+      </template>
+      <span
+        v-if="hydrated && data?.unread_count"
+        data-testid="notification-count"
+        dir="ltr"
+        class="nasq-unread-count pointer-events-none absolute -end-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-[4px] text-[11px] leading-none font-bold tabular-nums ring-2 ring-background"
+      >{{ data.unread_count > 99 ? '99+' : data.unread_count }}</span>
+    </UButton>
+    <template #content>
+      <div data-testid="notification-preview" :dir="localeProperties.dir === 'rtl' ? 'rtl' : 'ltr'" :aria-label="t('notifications.title')" class="flex max-h-[min(600px,80dvh)] flex-col overflow-hidden">
+        <div class="flex items-center justify-between border-b p-4">
+          <h2 class="font-semibold">{{ t('notifications.title') }}</h2>
+          <span class="text-xs text-muted">{{ t('notifications.latestFive') }}</span>
         </div>
-        <p v-else-if="isLoading" role="status" class="p-6 text-center text-sm text-muted-foreground">{{ t('notifications.loading') }}</p>
-        <p v-else-if="!items.length" class="p-6 text-center text-sm text-muted-foreground">{{ t('notifications.empty') }}</p>
-        <div v-else class="space-y-1">
-          <button v-for="item in items" :key="item.id" data-notification-preview-item :data-testid="`notification-preview-${item.id}`" type="button" class="grid min-w-0 w-full gap-1 rounded-lg p-3 text-start transition-colors motion-reduce:transition-none hover:bg-muted focus-visible:bg-muted" :class="!item.is_read ? 'bg-brand-soft/50' : ''" :disabled="isPending" @click="openNotification(item)">
-            <span class="min-w-0 break-words text-xs text-muted-foreground">{{ t(notificationPreviewCaptionKey(item.kind)) }}</span>
-            <span v-if="!item.is_read" class="sr-only">{{ t('notifications.unread') }}</span>
-            <span class="min-w-0 break-words line-clamp-2 text-start text-sm font-medium"><bdi dir="auto">{{ isDigestNotification(item) ? t('tasks.digest.count', item.overdue_count) : isMeetingNotification(item) ? item.meeting_name : item.task_name }}</bdi></span>
-            <span v-if="item.kind === 'comment' || isDigestNotification(item)" class="min-w-0 break-words line-clamp-2 text-start text-xs text-muted-foreground"><bdi dir="auto">{{ item.body }}</bdi></span>
-            <time v-if="notificationTimestamp(item)" :datetime="notificationTimestamp(item)?.datetime" class="text-xs text-muted-foreground">{{ notificationTimestamp(item)?.label }}</time>
-          </button>
+        <div class="min-h-0 overflow-y-auto p-2">
+          <div v-if="error" role="alert" class="space-y-2 p-4 text-center">
+            <p class="text-sm text-error">{{ t('notifications.loadError') }}</p>
+            <UButton color="secondary" variant="solid" size="sm" :disabled="isFetching" :label="t('notifications.retry')" @click="refetch()" />
+          </div>
+          <p v-else-if="isLoading" role="status" class="p-6 text-center text-sm text-muted">{{ t('notifications.loading') }}</p>
+          <p v-else-if="!items.length" class="p-6 text-center text-sm text-muted">{{ t('notifications.empty') }}</p>
+          <div v-else class="space-y-1">
+            <UButton
+              v-for="item in items"
+              :key="item.id"
+              data-notification-preview-item
+              :data-testid="`notification-preview-${item.id}`"
+              type="button"
+              color="neutral"
+              variant="ghost"
+              class="h-auto min-w-0 w-full justify-start rounded-lg p-3"
+              :class="!item.is_read ? 'bg-brand-soft/50' : ''"
+              :disabled="isPending"
+              @click="openNotification(item)"
+            >
+              <span class="grid min-w-0 w-full gap-1 text-start">
+                <span class="min-w-0 break-words text-xs text-muted">{{ t(notificationPreviewCaptionKey(item.kind)) }}</span>
+                <span v-if="!item.is_read" class="sr-only">{{ t('notifications.unread') }}</span>
+                <span class="min-w-0 break-words line-clamp-2 text-start text-sm font-medium"><bdi dir="auto">{{ isDigestNotification(item) ? t('tasks.digest.count', item.overdue_count) : isMeetingNotification(item) ? item.meeting_name : item.task_name }}</bdi></span>
+                <span v-if="item.kind === 'comment' || isDigestNotification(item)" class="min-w-0 break-words line-clamp-2 text-start text-xs text-muted"><bdi dir="auto">{{ item.body }}</bdi></span>
+                <time v-if="notificationTimestamp(item)" :datetime="notificationTimestamp(item)?.datetime" class="text-xs text-muted">{{ notificationTimestamp(item)?.label }}</time>
+              </span>
+            </UButton>
+          </div>
         </div>
+        <UButton to="/notifications" color="secondary" variant="solid" block class="rounded-none" :label="t('notifications.more')" @click="open = false" />
       </div>
-      <NuxtLink to="/notifications" class="border-t p-3 text-center text-sm font-medium text-brand-link hover:bg-muted focus-visible:bg-muted" @click="open = false">{{ t('notifications.more') }}</NuxtLink>
-    </PopoverContent>
-  </Popover>
+    </template>
+  </UPopover>
 </template>

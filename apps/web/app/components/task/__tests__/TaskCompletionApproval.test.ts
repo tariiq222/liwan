@@ -81,8 +81,7 @@ const base: TaskDetail = {
 
 async function renderApproval(task: TaskDetail) {
   const app = createSSRApp({ render: () => h(loadApproval(), { task }) })
-  app.component('Button', Passthrough)
-  app.component('Label', Passthrough)
+  app.component('UButton', Passthrough)
   return renderToString(app)
 }
 

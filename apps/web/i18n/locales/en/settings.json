@@ -13,7 +13,7 @@
       "color": "Primary color",
       "logo": "Logo",
       "logoHint": "PNG or JPEG, up to 1 MiB",
-      "save": "Save colour",
+      "save": "Save colors",
       "saving": "Saving…",
       "saved": "Organisation colour saved",
       "preview": {
@@ -34,7 +34,7 @@
       "loading": "Loading branding settings",
       "retry": "Try again",
       "cancel": "Cancel changes",
-      "resetDefault": "Reset to default colour",
+      "resetDefault": "Reset default colors",
       "presets": {
         "label": "Colour presets",
         "default": "nasq default",
@@ -42,7 +42,9 @@
         "teal": "Teal",
         "amber": "Amber"
       },
-      "managedIdentity": "The institution name and logo are managed by the system administrator in Odoo. You can customize the primary colour here."
+      "managedIdentity": "The institution name and logo are managed by the system administrator in Odoo. You can customize the primary and secondary colors here.",
+      "secondaryColor": "Secondary color",
+      "lowContrast": "The two colors have low contrast. Choose a clearer pair for readability."
     },
     "projects": {
       "title": "Project system settings",

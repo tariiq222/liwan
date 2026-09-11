@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import type { Task } from '@nasq/contracts'
 import { refDebounced } from '@vueuse/core'
-import { Check, X } from '@lucide/vue'
-import { toast } from 'vue-sonner'
+import { X } from '@lucide/vue'
 import { ApiError } from '@/composables/useApi'
 import { useCreateTag, useTags } from '@/composables/useTags'
 
@@ -17,7 +16,7 @@ const emit = defineEmits<{ 'update:modelValue': [{ ids: number[]; resolved: TagR
 
 const { t } = useI18n()
 const hydrated = useHydrated()
-const open = ref(false)
+const toast = useToast()
 const q = ref('')
 // Debounced: useTags keys its query on the search term, so passing the raw
 // input ref fired one request per keystroke.
@@ -26,18 +25,9 @@ const { data: tags } = useTags(debouncedQ)
 const { mutate: createTag, isPending: creating } = useCreateTag()
 
 const selectedIds = computed(() => new Set(props.modelValue.map((tg) => tg.id)))
-const selectedNames = computed(() => props.modelValue.map(tg => tg.name).join('، ') || '—')
-
-function isSelected(id: number) {
-  return selectedIds.value.has(id)
-}
 
 function commit(next: TagRef[]) {
   emit('update:modelValue', { ids: next.map((tg) => tg.id), resolved: next })
-}
-
-function toggle(tag: TagRef) {
-  commit(isSelected(tag.id) ? props.modelValue.filter((tg) => tg.id !== tag.id) : [...props.modelValue, tag])
 }
 
 function remove(id: number) {
@@ -50,18 +40,27 @@ const trimmedQ = computed(() => q.value.trim())
 const hasExactMatch = computed(() => (tags.value ?? []).some((tg) => tg.name.toLowerCase() === trimmedQ.value.toLowerCase()))
 const showCreate = computed(() => props.canCreate && trimmedQ.value.length > 0 && !hasExactMatch.value)
 
-function onCreate() {
+const tagItems = computed(() => (tags.value ?? []).map((tg) => ({ label: tg.name, value: tg.id })))
+
+function onSelectMenuChange(ids: number[]) {
+  const byId = new Map<number, TagRef>()
+  for (const tg of props.modelValue) byId.set(tg.id, tg)
+  for (const tg of tags.value ?? []) byId.set(tg.id, tg)
+  commit(ids.map((id) => byId.get(id)).filter((tg): tg is TagRef => !!tg))
+}
+
+function onCreateItem() {
   const name = trimmedQ.value
-  if (!name) return
+  if (!showCreate.value || !name || creating.value) return
   createTag(
     { name },
     {
       onSuccess: (tag) => {
-        toggle(tag)
+        commit([...props.modelValue, tag])
         q.value = ''
       },
       onError: (e) => {
-        toast.error(e instanceof ApiError ? e.message : t('errors.generic'))
+        toast.add({ title: e instanceof ApiError ? e.message : t('errors.generic'), color: 'error' })
       },
     },
   )
@@ -71,47 +70,46 @@ function onCreate() {
 <template>
   <div class="space-y-2" data-testid="tag-picker">
     <div class="flex flex-wrap gap-1">
-      <Badge v-for="tag in modelValue" :key="tag.id" variant="outline" class="min-w-0 max-w-full gap-1 pe-1">
+      <UBadge v-for="tag in modelValue" :key="tag.id" variant="outline" class="min-w-0 max-w-full gap-1 pe-1">
         <span class="min-w-0 max-w-full truncate" :title="tag.name">{{ tag.name }}</span>
-        <button
+        <UButton
           type="button"
-          class="rounded-full hover:bg-muted-foreground/20"
+          color="neutral"
+          variant="ghost"
+          square
+          size="xs"
+          class="rounded-full hover:bg-elevated/50"
           :aria-label="t('projects.followers.remove')"
           :disabled="!hydrated"
           @click="remove(tag.id)"
         >
           <X class="size-3" />
-        </button>
-      </Badge>
-      <span v-if="modelValue.length === 0" class="text-sm text-muted-foreground">—</span>
+        </UButton>
+      </UBadge>
+      <span v-if="modelValue.length === 0" class="text-sm text-muted">—</span>
     </div>
 
-    <Popover v-model:open="open">
-      <PopoverTrigger as-child>
-        <Button variant="outline" size="sm" type="button" :disabled="!hydrated" :aria-labelledby="props.labelledby ? `${props.labelledby} task-tags-value` : 'task-tags-value'">
-          <span id="task-tags-value" class="sr-only">{{ selectedNames }}</span>
-          <span aria-hidden="true">{{ t('tasks.drawer.addTag') }}</span>
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent class="w-64 p-0" align="start">
-        <div class="border-b p-2">
-          <Input v-model="q" :placeholder="t('app.search')" class="h-8" />
-        </div>
-        <Command>
-          <CommandList>
-            <CommandEmpty v-if="!showCreate">{{ t('app.noResults') }}</CommandEmpty>
-            <CommandGroup>
-              <CommandItem v-for="tag in tags ?? []" :key="tag.id" :value="String(tag.id)" @select="toggle(tag)">
-                <span class="flex-1">{{ tag.name }}</span>
-                <Check v-if="isSelected(tag.id)" class="size-4" />
-              </CommandItem>
-              <CommandItem v-if="showCreate" :value="`__create__${trimmedQ}`" :disabled="creating" @select="onCreate">
-                {{ t('tasks.drawer.createTag', { name: trimmedQ }) }}
-              </CommandItem>
-            </CommandGroup>
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
+    <USelectMenu
+      v-model:search-term="q"
+      :model-value="[...selectedIds]"
+      :items="tagItems"
+      :ignore-filter="true"
+      :create-item="showCreate ? { position: 'bottom', when: 'always' } : false"
+      multiple
+      value-key="value"
+      variant="outline"
+      size="sm"
+      :disabled="!hydrated"
+      :placeholder="t('tasks.drawer.addTag')"
+      :search-input="{ placeholder: t('app.search') }"
+      :aria-labelledby="props.labelledby"
+      @update:model-value="onSelectMenuChange"
+      @create="onCreateItem"
+    >
+        <template #default><span class="truncate">{{ modelValue.length ? modelValue.map(tag => tag.name).join('، ') : t('tasks.drawer.addTag') }}</span></template>
+      <template v-if="showCreate" #create-item-label>
+        {{ t('tasks.drawer.createTag', { name: trimmedQ }) }}
+      </template>
+    </USelectMenu>
   </div>
 </template>

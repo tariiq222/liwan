@@ -17,14 +17,14 @@ describe('task chrome design', () => {
     expect(detailPage).toContain('width="detail"')
     expect(detailPage).toContain('SharedPageHeader')
     expect(detailPage).not.toContain('<h1')
-    expect(panel).toContain('focus-visible:ring-2 focus-visible:ring-ring')
+    expect(panel).toContain('focus-visible:ring-2 focus-visible:ring-primary')
     expect(pageHeader).toContain('focus-visible:ring-2 focus-visible:ring-ring')
   })
 
-  it('uses the shared danger callout for inline archive confirmation', () => {
+  it('uses the shared danger treatment for inline archive confirmation', () => {
     expect(panel).toContain('data-testid="task-archive-confirm"')
-    expect(panel).toContain('nasq-status-callout-danger')
-    expect(panel).not.toMatch(/task-archive-confirm[^>]*bg-destructive\/5/)
+    expect(panel).toContain('border border-error/30 bg-error/5')
+    expect(panel).not.toMatch(/task-archive-confirm[^>]*nasq-status-callout-danger/)
   })
 
   it('gives archived tasks shared header, toolbar, and state treatment without project-list chrome', () => {

@@ -10,7 +10,13 @@ const hydrated = useHydrated()
 const generatedId = useId()
 const tooltipId = computed(() => props.helpId || generatedId)
 const describedBy = computed(() => (open.value ? tooltipId.value : undefined))
-const triggerRef = ref<HTMLButtonElement | null>(null)
+const triggerRef = ref<{ $el?: Element } | HTMLButtonElement | null>(null)
+
+function triggerElement(): HTMLElement | null {
+  const value = triggerRef.value
+  if (value instanceof HTMLElement) return value
+  return value?.$el instanceof HTMLElement ? value.$el : null
+}
 
 function isTouchPointer(event: PointerEvent): boolean {
   return event.pointerType === 'touch'
@@ -18,7 +24,7 @@ function isTouchPointer(event: PointerEvent): boolean {
 
 function isHelpSurface(target: EventTarget | null): boolean {
   if (!(target instanceof Node)) return false
-  if (triggerRef.value?.contains(target)) return true
+  if (triggerElement()?.contains(target)) return true
   const content = document.getElementById(tooltipId.value)
   return !!content?.contains(target)
 }
@@ -51,7 +57,7 @@ function onPointerEnter(event: PointerEvent) {
 
 function onPointerLeave(event: PointerEvent) {
   if (isTouchPointer(event)) return
-  if (triggerRef.value?.contains(document.activeElement)) return
+  if (triggerElement()?.contains(document.activeElement)) return
   closeHelp()
 }
 
@@ -105,32 +111,31 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <TooltipProvider :delay-duration="0">
-    <Tooltip :open="open" disable-hoverable-content>
-      <TooltipTrigger as-child>
-        <button
-          ref="triggerRef"
-          type="button"
-          class="inline-flex size-6 shrink-0 items-center justify-center rounded-sm text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          data-testid="field-help"
-          :disabled="!hydrated"
-          :aria-label="label"
-          :aria-describedby="describedBy"
-          :aria-expanded="open"
-          @focus="onFocus"
-          @blur="onBlur"
-          @pointerenter="onPointerEnter"
-          @pointerleave="onPointerLeave"
-          @pointerdown="onPointerDown"
-          @click="onClick"
-          @keydown="onKeydown"
-        >
-          <span aria-hidden="true">ⓘ</span>
-        </button>
-      </TooltipTrigger>
-      <TooltipContent :id="tooltipId" role="tooltip" class="max-w-xs text-start" side="top" align="start">
-        <p>{{ text }}</p>
-      </TooltipContent>
-    </Tooltip>
-  </TooltipProvider>
+  <UTooltip :open="open" :delay-duration="0" disable-hoverable-content :content="{ side: 'top', align: 'start' }">
+    <UButton
+      ref="triggerRef"
+      type="button"
+      color="neutral"
+      variant="ghost"
+      square
+      class="inline-flex size-6 shrink-0 items-center justify-center rounded-sm text-muted hover:text-highlighted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+      data-testid="field-help"
+      :disabled="!hydrated"
+      :aria-label="label"
+      :aria-describedby="describedBy"
+      :aria-expanded="open"
+      @focus="onFocus"
+      @blur="onBlur"
+      @pointerenter="onPointerEnter"
+      @pointerleave="onPointerLeave"
+      @pointerdown="onPointerDown"
+      @click="onClick"
+      @keydown="onKeydown"
+    >
+      <span aria-hidden="true">ⓘ</span>
+    </UButton>
+    <template #content>
+      <p :id="tooltipId" role="tooltip" class="max-w-xs text-start">{{ text }}</p>
+    </template>
+  </UTooltip>
 </template>

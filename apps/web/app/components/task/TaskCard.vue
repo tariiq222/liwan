@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Task } from '@nasq/contracts'
-import { Flag, MoreHorizontal } from '@lucide/vue'
+import { Flag } from '@lucide/vue'
 import type { BoardStage } from '@/composables/boardStages'
 import { PRIORITY_LABEL_KEY } from '@/composables/taskState'
 import DeadlineBadge from './DeadlineBadge.vue'
@@ -31,12 +31,18 @@ function initials(name: string): string {
 // state colors) of reserving color for things that need attention.
 const PRIORITY_TONE: Record<string, string> = {
   '2': 'text-brand-link',
-  '3': 'text-destructive',
+  '3': 'text-error',
 }
+
+const moveItems = computed(() => props.stages.map((stage) => ({
+  label: stage.name,
+  disabled: props.currentStageId === stage.id,
+  onSelect: () => emit('move', stage),
+})))
 
 function onCardClick(event: MouseEvent) {
   const target = event.target as HTMLElement
-  if (target.closest('button, [role="menu"], [data-slot="dropdown-menu-trigger"], [data-slot="dropdown-menu-content"]')) return
+  if (target.closest('button, [role="menu"], [data-state]')) return
   emit('open', props.task.id)
 }
 
@@ -50,64 +56,49 @@ function onCardKeydown(event: KeyboardEvent) {
 </script>
 
 <template>
-  <Card
+  <UCard
     :data-testid="`board-card-${task.id}`"
     :data-task-id="task.id"
     :data-readonly="!task.can_write"
     role="button"
     tabindex="0"
-    class="cursor-pointer gap-2 py-3 shadow-sm transition-shadow hover:shadow-md"
+    :ui="{ body: 'space-y-2 px-3 py-3' }"
+    class="shrink-0 cursor-pointer gap-2 shadow-sm transition-shadow hover:shadow-md"
     @click="onCardClick"
     @keydown="onCardKeydown"
   >
-    <CardContent class="space-y-2 px-3">
-      <div class="flex items-start justify-between gap-2">
-        <p class="line-clamp-2 text-sm font-medium">{{ task.name }}</p>
-        <DropdownMenu v-if="task.can_write">
-          <DropdownMenuTrigger as-child>
-            <button
-              type="button"
-              class="inline-flex size-[32px] shrink-0 items-center justify-center rounded-lg border border-border text-muted-foreground hover:bg-muted hover:text-foreground"
-              :aria-label="t('tasks.detail.menu')"
-              @click.stop
-            >
-              <MoreHorizontal class="size-[18px]" />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>{{ t('tasks.kanban.moveTo') }}</DropdownMenuLabel>
-            <DropdownMenuItem
-              v-for="stage in stages"
-              :key="stage.id"
-              :disabled="currentStageId === stage.id"
-              @select="emit('move', stage)"
-            >
-              {{ stage.name }}
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
+    <div class="flex items-start justify-between gap-2">
+      <p class="line-clamp-2 text-sm font-medium">{{ task.name }}</p>
+      <UDropdownMenu v-if="task.can_write" :items="moveItems" :content="{ align: 'end' }">
+        <UButton
+          type="button"
+          square
+          color="neutral"
+          variant="outline"
+          icon="i-lucide-more-horizontal"
+          :aria-label="t('tasks.detail.menu')"
+          @click.stop
+        />
+      </UDropdownMenu>
+    </div>
 
-      <p v-if="showProject && task.project" class="truncate text-xs text-muted-foreground">{{ task.project.name }}</p>
+    <p v-if="showProject && task.project" class="truncate text-xs text-muted">{{ task.project.name }}</p>
 
-      <div class="flex items-center justify-between gap-2 pt-1">
-        <div class="flex items-center gap-2">
-          <DeadlineBadge :deadline="task.date_deadline" :days-remaining="task.days_remaining" :is-closed="task.is_closed" />
-          <Flag
-            v-if="PRIORITY_TONE[task.priority]"
-            class="size-3.5"
-            :class="PRIORITY_TONE[task.priority]"
-            :aria-label="t(PRIORITY_LABEL_KEY[task.priority as '0' | '1' | '2' | '3'])"
-          >
-            <title>{{ t(PRIORITY_LABEL_KEY[task.priority as '0' | '1' | '2' | '3']) }}</title>
-          </Flag>
-        </div>
-        <div class="flex">
-          <Avatar v-for="a in task.assignees" :key="a.id" class="-ms-2 size-6 border-2 border-background first:ms-0">
-            <AvatarFallback class="text-xs">{{ initials(a.name) }}</AvatarFallback>
-          </Avatar>
-        </div>
+    <div class="flex items-center justify-between gap-2 pt-1">
+      <div class="flex items-center gap-2">
+        <DeadlineBadge :deadline="task.date_deadline" :days-remaining="task.days_remaining" :is-closed="task.is_closed" />
+        <Flag
+          v-if="PRIORITY_TONE[task.priority]"
+          class="size-3.5"
+          :class="PRIORITY_TONE[task.priority]"
+          :aria-label="t(PRIORITY_LABEL_KEY[task.priority as '0' | '1' | '2' | '3'])"
+        >
+          <title>{{ t(PRIORITY_LABEL_KEY[task.priority as '0' | '1' | '2' | '3']) }}</title>
+        </Flag>
       </div>
-    </CardContent>
-  </Card>
+      <div class="flex">
+        <UAvatar v-for="a in task.assignees" :key="a.id" :text="initials(a.name)" class="-ms-2 size-6 border-2 border-default text-xs first:ms-0" />
+      </div>
+    </div>
+  </UCard>
 </template>

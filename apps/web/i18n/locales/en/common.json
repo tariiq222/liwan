@@ -1,5 +1,6 @@
 {
   "app": {
+    "actions": "Actions",
     "edit": "Edit",
     "productName": "Nasq",
     "search": "Search",
@@ -15,7 +16,11 @@
     "unsavedChanges": "If you leave now, your changes will not be saved.",
     "stay": "Stay on this page",
     "discardAndLeave": "Leave without saving",
-    "recordNumber": "No."
+    "recordNumber": "No.",
+    "selectDate": "Choose date",
+    "clearDate": "Clear date",
+    "chooseFile": "Choose file",
+    "noFileChosen": "No file chosen"
   },
   "nav": {
     "today": "Today",
@@ -84,7 +89,9 @@
     "newConversation": "New conversation",
     "allProjects": "All projects",
     "myProjects": "My projects",
-    "projectTasks": "Tasks"
+    "projectTasks": "Tasks",
+    "openMenu": "Open menu",
+    "navigation": "Navigation"
   },
   "auth": {
     "username": "Username",

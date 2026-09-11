@@ -27,8 +27,8 @@ const deliverables = ref<TaskDeliverable[]>([])
 const projectSelectionTouched = ref(false)
 const selectedProjectId = ref<number | undefined>(props.projectId)
 const selectedMilestoneId = ref<number | undefined>(props.milestoneId ?? undefined)
-const plannedStart = ref('')
-const dateDeadline = ref('')
+const plannedStart = ref<string | null>(null)
+const dateDeadline = ref<string | null>(null)
 const error = ref<string | null>(null)
 const submitted = ref(false)
 const baseline = ref(JSON.stringify(['', '', [], props.projectId, props.milestoneId ?? undefined, '', '']))
@@ -73,16 +73,17 @@ const hasDraftValues = computed(() => Boolean(
 
 const dirty = computed(() => isDirtySnapshot(baseline.value, state(), submitted.value))
 
-watch(
-  () => [props.projectId, projects.value] as const,
-  () => {
+function seedProjectSelection() {
     if (props.projectId) selectedProjectId.value = props.projectId
     else if (!selectedProjectId.value) selectedProjectId.value = projects.value?.[0]?.id
     // A project refetch can retrigger this watcher while a user is still
     // drafting content. Keep that draft dirty until it is submitted.
     if (!hasDraftValues.value && !submitted.value) baseline.value = state()
-  },
-  { immediate: true },
+}
+watch(
+  () => [props.projectId, projects.value] as const,
+  seedProjectSelection,
+  { immediate: true, flush: 'sync' },
 )
 
 watch([() => props.milestoneId, milestoneOptions, selectedProjectId], () => {
@@ -148,40 +149,43 @@ async function submit() {
 
 <template>
   <SharedUnsavedChanges :dirty="dirty" />
-  <form data-testid="task-create-form" class="nasq-form-grid" @submit.prevent="submit">
+  <form data-testid="task-create-form" class="grid gap-5" @submit.prevent="submit">
     <div class="grid gap-2">
-      <Label for="new-task-name">{{ t('tasks.newTitle') }}</Label>
-      <Input id="new-task-name" v-model="name" required :disabled="!hydrated || isPending" />
+      <label for="new-task-name">{{ t('tasks.newTitle') }}</label>
+      <UInput id="new-task-name" v-model="name" required :disabled="!hydrated || isPending" />
     </div>
     <div v-if="selectedProjectId && canManageDates" class="grid gap-2">
-      <Label for="new-task-milestone">{{ t('tasks.drawer.milestone') }}</Label>
-      <Select :model-value="selectedMilestoneId ? String(selectedMilestoneId) : 'none'" :disabled="!hydrated || isPending" @update:model-value="(v) => (selectedMilestoneId = v && v !== 'none' ? Number(v) : undefined)">
-        <SelectTrigger id="new-task-milestone" class="w-full"><SelectValue :placeholder="t('tasks.drawer.noMilestone')" /></SelectTrigger>
-        <SelectContent>
-          <SelectItem value="none">{{ t('tasks.drawer.noMilestone') }}</SelectItem>
-          <SelectItem v-for="milestone in milestoneOptions" :key="milestone.id" :value="String(milestone.id)">{{ milestone.name }}</SelectItem>
-        </SelectContent>
-      </Select>
+      <label for="new-task-milestone">{{ t('tasks.drawer.milestone') }}</label>
+      <USelect
+        id="new-task-milestone"
+        class="w-full"
+        :items="[{ label: t('tasks.drawer.noMilestone'), value: 'none' }, ...milestoneOptions.map((milestone) => ({ label: milestone.name, value: String(milestone.id) }))]"
+        :model-value="selectedMilestoneId ? String(selectedMilestoneId) : 'none'"
+        :disabled="!hydrated || isPending"
+        @update:model-value="(v) => (selectedMilestoneId = v && v !== 'none' ? Number(v) : undefined)"
+      />
     </div>
     <div v-if="canManageDates" class="grid gap-2">
-      <Label for="new-task-planned-start">{{ t('tasks.schedule.plannedStart') }}</Label>
-      <Input id="new-task-planned-start" v-model="plannedStart" type="date" :disabled="!hydrated || isPending" :min="selectedMilestone?.start_date ?? projectStart ?? undefined" :max="selectedMilestone?.deadline ?? projectEnd ?? undefined" />
+      <label for="new-task-planned-start">{{ t('tasks.schedule.plannedStart') }}</label>
+      <SharedDateField id="new-task-planned-start" :aria-label="t('tasks.schedule.plannedStart')" v-model="plannedStart" :disabled="!hydrated || isPending" :min-value="selectedMilestone?.start_date ?? projectStart ?? undefined" :max-value="selectedMilestone?.deadline ?? projectEnd ?? undefined" />
     </div>
     <div v-if="canManageDates" class="grid gap-2">
-      <Label for="new-task-deadline">{{ t('tasks.drawer.deadline') }}</Label>
-      <Input id="new-task-deadline" v-model="dateDeadline" type="date" :disabled="!hydrated || isPending" :min="selectedMilestone?.start_date ?? projectStart ?? undefined" :max="selectedMilestone?.deadline ?? projectEnd ?? undefined" />
+      <label for="new-task-deadline">{{ t('tasks.drawer.deadline') }}</label>
+      <SharedDateField id="new-task-deadline" :aria-label="t('tasks.drawer.deadline')" v-model="dateDeadline" :disabled="!hydrated || isPending" :min-value="selectedMilestone?.start_date ?? projectStart ?? undefined" :max-value="selectedMilestone?.deadline ?? projectEnd ?? undefined" />
     </div>
     <div class="grid gap-2">
-      <Label for="new-task-project">{{ t('tasks.project') }}</Label>
+      <label for="new-task-project">{{ t('tasks.project') }}</label>
       <p v-if="props.projectId" id="new-task-project" class="text-sm">{{ lockedProjectName }}</p>
-      <Select v-else :model-value="selectedProjectId ? String(selectedProjectId) : undefined" :disabled="!hydrated || isPending" @update:model-value="selectProject">
-        <SelectTrigger id="new-task-project" class="w-full">
-          <SelectValue :placeholder="t('tasks.project')" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem v-for="p in projects ?? []" :key="p.id" :value="String(p.id)">{{ p.name }}</SelectItem>
-        </SelectContent>
-      </Select>
+      <USelect
+        v-else
+        id="new-task-project"
+        class="w-full"
+        :items="(projects ?? []).map((p) => ({ label: p.name, value: String(p.id) }))"
+        :model-value="selectedProjectId ? String(selectedProjectId) : undefined"
+        :placeholder="t('tasks.project')"
+        :disabled="!hydrated || isPending"
+        @update:model-value="selectProject"
+      />
     </div>
     <component
       :is="projectQuick ? 'details' : 'div'"
@@ -191,31 +195,31 @@ async function submit() {
       <summary v-if="projectQuick" class="cursor-pointer font-semibold">{{ t('tasks.quick.optional') }}</summary>
       <div :class="projectQuick ? 'mt-4 grid gap-6' : 'contents'">
         <div class="grid gap-2 sm:col-span-2">
-          <Label for="new-task-description">{{ t('tasks.drawer.description') }}</Label>
-          <textarea id="new-task-description" v-model="description" class="min-h-28 w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring" :placeholder="t('tasks.descriptionField.placeholder')" :disabled="!hydrated || isPending" />
+          <label for="new-task-description">{{ t('tasks.drawer.description') }}</label>
+          <UTextarea id="new-task-description" v-model="description" class="min-h-28 w-full rounded-md border border-default bg-default px-3 py-2 text-sm outline-none placeholder:text-muted focus-visible:ring-2 focus-visible:ring-primary" :placeholder="t('tasks.descriptionField.placeholder')" :disabled="!hydrated || isPending" />
         </div>
         <div class="grid gap-2 sm:col-span-2">
           <div class="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <Label>{{ t('tasks.deliverables.title') }}</Label>
-              <p class="text-xs text-muted-foreground">{{ t('tasks.deliverables.hint') }}</p>
+              <label>{{ t('tasks.deliverables.title') }}</label>
+              <p class="text-xs text-muted">{{ t('tasks.deliverables.hint') }}</p>
             </div>
-            <Button type="button" variant="outline" size="sm" :disabled="!hydrated || isPending" @click="addDeliverable">{{ t('tasks.deliverables.add') }}</Button>
+            <UButton type="button" variant="outline" size="sm" :disabled="!hydrated || isPending" @click="addDeliverable">{{ t('tasks.deliverables.add') }}</UButton>
           </div>
           <div v-if="deliverables.length" class="space-y-2">
             <div v-for="(item, index) in deliverables" :key="index" class="flex items-center gap-2">
-              <Input v-model="item.name" :aria-label="t('tasks.deliverables.name')" :disabled="!hydrated || isPending" />
-              <Button type="button" variant="ghost" size="sm" :disabled="!hydrated || isPending" :aria-label="t('tasks.deliverables.remove')" @click="removeDeliverable(index)">×</Button>
+              <UInput v-model="item.name" class="flex-1" :aria-label="t('tasks.deliverables.name')" :disabled="!hydrated || isPending" />
+              <UButton type="button" variant="ghost" size="sm" :disabled="!hydrated || isPending" :aria-label="t('tasks.deliverables.remove')" @click="removeDeliverable(index)">×</UButton>
             </div>
           </div>
-          <p v-else class="text-sm text-muted-foreground">{{ t('tasks.deliverables.empty') }}</p>
+          <p v-else class="text-sm text-muted">{{ t('tasks.deliverables.empty') }}</p>
         </div>
       </div>
     </component>
-    <p v-if="error" role="alert" class="sm:col-span-2 text-sm text-destructive">{{ error }}</p>
-    <div class="nasq-form-footer justify-end sm:col-span-2">
-      <Button type="button" variant="outline" :disabled="isPending" @click="emit('cancel')">{{ t('app.cancel') }}</Button>
-      <Button type="submit" :disabled="!hydrated || isPending || !name.trim() || !selectedProjectId">{{ t('app.create') }}</Button>
+    <p v-if="error" role="alert" class="sm:col-span-2 text-sm text-error">{{ error }}</p>
+    <div class="flex flex-wrap gap-2 justify-end sm:col-span-2">
+      <UButton color="secondary" variant="solid" type="button" :disabled="isPending" @click="emit('cancel')">{{ t('app.cancel') }}</UButton>
+      <UButton type="submit" :disabled="!hydrated || isPending || !name.trim() || !selectedProjectId">{{ t('app.create') }}</UButton>
     </div>
   </form>
 </template>

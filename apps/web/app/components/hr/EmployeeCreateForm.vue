@@ -1,29 +1,30 @@
 <script setup lang="ts">
-import { toast } from "vue-sonner";
-import type { HrDepartment } from "@/composables/useHrDepartments";
+import type { HrDepartment } from '@/composables/useHrDepartments'
 import {
   useCreateHrEmployee,
   type HrEmployee,
-} from "@/composables/useHrEmployees";
-defineProps<{ departments: HrDepartment[]; employees: HrEmployee[] }>();
-const emit = defineEmits<{ created: [employee: HrEmployee] }>();
-const { t } = useI18n();
-const hydrated = useHydrated();
-const name = ref("");
-const email = ref("");
-const phone = ref("");
-const jobTitle = ref("");
-const departmentId = ref<number | null>(null);
-const managerId = ref<number | null>(null);
-const { mutateAsync: create, isPending } = useCreateHrEmployee();
+} from '@/composables/useHrEmployees'
+
+defineProps<{ departments: HrDepartment[]; employees: HrEmployee[] }>()
+const emit = defineEmits<{ created: [employee: HrEmployee] }>()
+const { t } = useI18n()
+const hydrated = useHydrated()
+const toast = useToast()
+const name = ref('')
+const email = ref('')
+const phone = ref('')
+const jobTitle = ref('')
+const departmentId = ref<number | null>(null)
+const managerId = ref<number | null>(null)
+const { mutateAsync: create, isPending } = useCreateHrEmployee()
 function idOrNull(value: unknown) {
-  return !value || value === "none" ? null : Number(value);
+  return !value || value === 'none' ? null : Number(value)
 }
 async function submit() {
-  if (!hydrated.value || !name.value.trim()) return;
+  if (!hydrated.value || !name.value.trim()) return
   try {
     emit(
-      "created",
+      'created',
       await create({
         name: name.value.trim(),
         work_email: email.value.trim(),
@@ -32,86 +33,44 @@ async function submit() {
         department_id: departmentId.value,
         parent_id: managerId.value,
       }),
-    );
+    )
   } catch (error) {
-    toast.error(error instanceof Error ? error.message : t("errors.generic"));
+    toast.add({ title: error instanceof Error ? error.message : t('errors.generic'), color: 'error' })
   }
 }
 </script>
 <template>
-  <form class="grid gap-3" @submit.prevent="submit">
-    <div class="grid gap-2">
-      <Label for="hr-create-name">{{ t("hr.employee.name") }}</Label
-      ><Input
-        id="hr-create-name"
-        v-model="name"
-        :disabled="!hydrated || isPending"
-        required
-      />
-    </div>
-    <div class="grid gap-2">
-      <Label for="hr-create-email">{{ t("hr.employee.workEmail") }}</Label
-      ><Input
-        id="hr-create-email"
-        v-model="email"
-        type="email"
-        :disabled="!hydrated || isPending"
-      />
-    </div>
-    <div class="grid gap-2">
-      <Label for="hr-create-phone">{{ t("hr.employee.workPhone") }}</Label
-      ><Input
-        id="hr-create-phone"
-        v-model="phone"
-        :disabled="!hydrated || isPending"
-      />
-    </div>
-    <div class="grid gap-2">
-      <Label for="hr-create-job">{{ t("hr.employee.jobTitle") }}</Label
-      ><Input
-        id="hr-create-job"
-        v-model="jobTitle"
-        :disabled="!hydrated || isPending"
-      />
-    </div>
-    <div class="grid gap-2">
-      <Label>{{ t("hr.employee.department") }}</Label
-      ><Select
+  <UForm :state="{ name, email, phone, jobTitle, departmentId, managerId }" class="grid gap-4" method="post" @submit="submit">
+    <UFormField :label="t('hr.employee.name')" name="hr-create-name" required>
+      <UInput id="hr-create-name" v-model="name" class="w-full" :disabled="!hydrated || isPending" required />
+    </UFormField>
+    <UFormField :label="t('hr.employee.workEmail')" name="hr-create-email">
+      <UInput id="hr-create-email" v-model="email" type="email" class="w-full" :disabled="!hydrated || isPending" />
+    </UFormField>
+    <UFormField :label="t('hr.employee.workPhone')" name="hr-create-phone">
+      <UInput id="hr-create-phone" v-model="phone" class="w-full" :disabled="!hydrated || isPending" />
+    </UFormField>
+    <UFormField :label="t('hr.employee.jobTitle')" name="hr-create-job">
+      <UInput id="hr-create-job" v-model="jobTitle" class="w-full" :disabled="!hydrated || isPending" />
+    </UFormField>
+    <UFormField :label="t('hr.employee.department')" name="hr-create-department">
+      <USelect
         :model-value="departmentId ? String(departmentId) : 'none'"
+        :items="[{ value: 'none', label: t('hr.depts.none') }, ...departments.map(department => ({ value: String(department.id), label: department.name }))]"
+        class="w-full"
         :disabled="!hydrated || isPending"
         @update:model-value="departmentId = idOrNull($event)"
-        ><SelectTrigger><SelectValue /></SelectTrigger
-        ><SelectContent
-          ><SelectItem value="none">{{ t("hr.depts.none") }}</SelectItem
-          ><SelectItem
-            v-for="department in departments"
-            :key="department.id"
-            :value="String(department.id)"
-            >{{ department.name }}</SelectItem
-          ></SelectContent
-        ></Select
-      >
-    </div>
-    <div class="grid gap-2">
-      <Label>{{ t("hr.employee.manager") }}</Label
-      ><Select
+      />
+    </UFormField>
+    <UFormField :label="t('hr.employee.manager')" name="hr-create-manager">
+      <USelect
         :model-value="managerId ? String(managerId) : 'none'"
+        :items="[{ value: 'none', label: t('hr.depts.none') }, ...employees.map(employee => ({ value: String(employee.id), label: employee.name }))]"
+        class="w-full"
         :disabled="!hydrated || isPending"
         @update:model-value="managerId = idOrNull($event)"
-        ><SelectTrigger><SelectValue /></SelectTrigger
-        ><SelectContent
-          ><SelectItem value="none">{{ t("hr.depts.none") }}</SelectItem
-          ><SelectItem
-            v-for="employee in employees"
-            :key="employee.id"
-            :value="String(employee.id)"
-            >{{ employee.name }}</SelectItem
-          ></SelectContent
-        ></Select
-      >
-    </div>
-    <Button type="submit" :disabled="!hydrated || isPending || !name.trim()">{{
-      t("app.save")
-    }}</Button>
-  </form>
+      />
+    </UFormField>
+    <UButton type="submit" color="primary" :disabled="!hydrated || isPending || !name.trim()" :label="t('app.save')" />
+  </UForm>
 </template>

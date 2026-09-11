@@ -72,6 +72,10 @@ function loadTaskDeliverables() {
 
 async function renderTask(task: { id: number; can_write: boolean; deliverables?: Array<{ name: string; done: boolean }> }, hydrated = true) {
   const app = createSSRApp({ render: () => h(loadTaskDeliverables(), { task, hydrated }) })
+  app.component('UCheckbox', defineComponent({
+    props: ['modelValue', 'disabled'],
+    setup(props) { return () => h('input', { type: 'checkbox', checked: props.modelValue, disabled: props.disabled }) },
+  }))
   return renderToString(app)
 }
 
@@ -101,7 +105,7 @@ describe('TaskDeliverables', () => {
     expect(preHydration).toContain('disabled')
   })
 
-  it('restores the native checkbox on a rejected toggle and blocks a second request while pending', async () => {
+  it('preserves the controlled checkbox value on a rejected toggle and blocks a second request while pending', async () => {
     let rejectMutation!: (cause: Error) => void
     const mutation = new Promise((_, reject) => { rejectMutation = reject })
     const mutateAsync = vi.fn(() => mutation)
@@ -114,16 +118,15 @@ describe('TaskDeliverables', () => {
       },
     })
     const state = component.setup(props, { emit: () => {}, expose: () => {} })
-    const firstInput = { checked: true }
-    const firstToggle = (state.toggle as (index: number, event: Event) => Promise<void>)(0, { currentTarget: firstInput } as unknown as Event)
-    expect(firstInput.checked).toBe(false)
-    const secondInput = { checked: true }
-    void (state.toggle as (index: number, event: Event) => Promise<void>)(1, { currentTarget: secondInput } as unknown as Event)
+    const firstToggle = (state.toggle as (index: number) => Promise<void>)(0)
+    expect(props.task.deliverables[0]?.done).toBe(false)
+    void (state.toggle as (index: number) => Promise<void>)(1)
     expect(mutateAsync).toHaveBeenCalledTimes(1)
 
     rejectMutation(new Error('save failed'))
     await firstToggle
-    expect(firstInput.checked).toBe(false)
+    expect(props.task.deliverables[0]?.done).toBe(false)
+    expect((state.error as Vue.Ref<string | null>).value).toBe('errors.generic')
     expect((state.busy as Vue.ComputedRef<boolean>).value).toBe(false)
   })
 })

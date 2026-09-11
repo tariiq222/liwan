@@ -55,7 +55,7 @@ function printPage() {
       <div class="meeting-print-header">
         <SharedPageHeader :title="t('meetingMinutesForm.printTitle')" :back-to="backTo">
           <template #actions>
-            <Button type="button" :disabled="!hydrated || !printReady || meetingQuery.isLoading.value || versionQuery.isLoading.value" @click="printPage">{{ t('meetingMinutesForm.print') }}</Button>
+            <UButton type="button" :disabled="!hydrated || !printReady || meetingQuery.isLoading.value || versionQuery.isLoading.value" :label="t('meetingMinutesForm.print')" @click="printPage" />
           </template>
         </SharedPageHeader>
       </div>
@@ -104,9 +104,9 @@ function printPage() {
   .meeting-print-page .meeting-print-header { display: none !important; }
   .meeting-print-page [data-slot="page-header"] { display: none; }
   .meeting-print-page .meeting-print-sheet { gap: 10mm; }
-  .meeting-print-page .nasq-panel { border: 0; box-shadow: none; }
-  .meeting-print-page .nasq-panel-header { padding-inline: 0; }
-  .meeting-print-page .nasq-panel-body { padding-inline: 0; }
+  .meeting-print-page [data-testid="meeting-minutes-document"] { border: 0; box-shadow: none; }
+  .meeting-print-page [data-testid="meeting-minutes-document"] [data-slot="header"] { padding-inline: 0; }
+  .meeting-print-page [data-testid="meeting-minutes-document"] [data-slot="body"] { padding-inline: 0; }
   .meeting-print-page .overflow-x-auto { overflow: visible !important; }
   .meeting-print-page .meeting-minutes-topic-table { min-width: 0 !important; width: 100%; table-layout: fixed; }
   .meeting-print-page .meeting-minutes-topic-table th { white-space: normal; }

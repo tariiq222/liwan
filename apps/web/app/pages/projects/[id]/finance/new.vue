@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { toast } from 'vue-sonner'
 import { ApiError } from '@/composables/useApi'
 import { useProjectFinanceList } from '@/composables/useProjectFinance'
 import FinanceEntryForm from '@/components/project/finance/FinanceEntryForm.vue'
@@ -17,6 +16,7 @@ defineOptions({ name: 'ProjectFinanceEntryNew' })
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
+const toast = useToast()
 const projectId = computed(() => parsePositiveId(route.params.id))
 const access = useProjectFinanceList(projectId, { limit: 1, offset: 0 })
 const currency = computed(() => access.data.value?.summary.currency)
@@ -44,7 +44,7 @@ const defaultKind = computed(() => {
 })
 
 function saved() {
-  toast.success(t('projects.finance.created'))
+  toast.add({ title: t('projects.finance.created'), color: 'success', icon: 'i-lucide-circle-check' })
   void router.push(returnTo.value)
 }
 </script>
@@ -53,7 +53,7 @@ function saved() {
   <SharedPageContainer width="form">
     <SharedPageHeader :title="t('projects.finance.createTitle')" :back-to="returnTo" :back-label="t('projects.finance.backToLedger')" />
     <template v-if="projectId === null">
-      <p class="text-muted-foreground">{{ t('projects.invalidId') }}</p>
+      <p class="text-muted">{{ t('projects.invalidId') }}</p>
     </template>
     <template v-else>
       <SharedPageState
@@ -65,12 +65,13 @@ function saved() {
         @retry="access.refetch"
       />
       <template v-else>
-        <div v-if="refreshError" role="alert" class="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm">
-          <p>{{ t('projects.finance.refreshError') }}</p>
-          <Button variant="outline" class="mt-3" type="button" @click="access.refetch()">{{ t('app.retry') }}</Button>
-        </div>
-        <section class="nasq-panel overflow-hidden">
-          <div class="nasq-panel-body">
+        <UAlert v-if="refreshError" color="error" variant="soft" :title="t('projects.finance.refreshError')">
+          <template #actions>
+            <UButton color="secondary" variant="solid" type="button" @click="access.refetch()">{{ t('app.retry') }}</UButton>
+          </template>
+        </UAlert>
+        <section class="rounded-xl border border-default bg-default overflow-hidden">
+          <div class="p-5">
             <FinanceEntryForm
               :project-id="projectId"
               :currency="currency!"

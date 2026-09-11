@@ -11,7 +11,8 @@ Existing shadcn-vue/vue-sonner consumers are transitional only; do not extend
 them to new pages. Preserve routes, drafts, capabilities, Arabic/RTL, the
 module rail, contextual navigation and appearance preferences.
 The executable isolated reference is in `apps/web/design-preview`; the customer
-application has not been migrated. Follow the current `docs/UPDATE_POLICY.md`:
+application now uses that foundation. See docs/verification/2026-09-11-worktree-integration.md
+for the local integration scope and evidence. Follow the current `docs/UPDATE_POLICY.md`:
 the update hook was removed by Tariq, local install/build/preview/tests need no
 update approval, and GitHub source updates require review and approval in chat.
 Do not ship unresolved U components or a second-library lookalike.

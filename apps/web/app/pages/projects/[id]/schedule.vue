@@ -67,15 +67,15 @@ function onArchived() {
       v-else-if="!isProjectOverlay"
       :title="t('projects.schedule.title')"
     />
-    <div class="nasq-project-toolbar">
-      <nav v-if="!isProjectOverlay" class="nasq-view-switch" :aria-label="t('projects.planning.views')">
-        <NuxtLink :to="planningLink('list')">{{ t('projects.tabs.list') }}</NuxtLink>
-        <NuxtLink :to="planningLink('board')">{{ t('projects.tabs.board') }}</NuxtLink>
-        <NuxtLink :to="planningLink('gantt')" aria-current="page">{{ t('projects.tabs.timeline') }}</NuxtLink>
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <nav v-if="!isProjectOverlay" class="flex flex-wrap items-center gap-1" :aria-label="t('projects.planning.views')">
+        <UButton color="neutral" variant="ghost" :to="planningLink('list')">{{ t('projects.tabs.list') }}</UButton>
+        <UButton color="neutral" variant="ghost" :to="planningLink('board')">{{ t('projects.tabs.board') }}</UButton>
+        <UButton color="neutral" variant="soft" :to="planningLink('gantt')" aria-current="page">{{ t('projects.tabs.timeline') }}</UButton>
       </nav>
       <div class="flex rounded-lg border p-0.5" role="group" :aria-label="t('projects.schedule.scale')">
-        <Button type="button" size="sm" class="h-8 rounded-md" :variant="scale === 'week' ? 'default' : 'ghost'" :disabled="!hydrated" :aria-pressed="scale === 'week'" @click="scale = 'week'">{{ t('projects.schedule.week') }}</Button>
-        <Button type="button" size="sm" class="h-8 rounded-md" :variant="scale === 'month' ? 'default' : 'ghost'" :disabled="!hydrated" :aria-pressed="scale === 'month'" @click="scale = 'month'">{{ t('projects.schedule.month') }}</Button>
+        <UButton type="button" size="sm" class="rounded-md" :variant="scale === 'week' ? 'solid' : 'ghost'" :disabled="!hydrated" :aria-pressed="scale === 'week'" @click="scale = 'week'">{{ t('projects.schedule.week') }}</UButton>
+        <UButton type="button" size="sm" class="rounded-md" :variant="scale === 'month' ? 'solid' : 'ghost'" :disabled="!hydrated" :aria-pressed="scale === 'month'" @click="scale = 'month'">{{ t('projects.schedule.month') }}</UButton>
       </div>
     </div>
     <SharedPageState

@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { toast } from 'vue-sonner'
 import MilestoneForm from '@/components/project/MilestoneForm.vue'
 import { ApiError } from '@/composables/useApi'
 import { useDeleteMilestone, useMilestones } from '@/composables/useMilestones'
@@ -9,6 +8,7 @@ import { safeReturnTo } from '@/utils/safeReturnTo'
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
+const toast = useToast()
 const hydrated = useHydrated()
 const projectId = computed(() => { const n = Number(route.params.id); return Number.isInteger(n) && n > 0 ? n : null })
 const milestoneId = computed(() => { const n = Number(route.params.milestoneId); return Number.isInteger(n) && n > 0 ? n : null })
@@ -30,7 +30,7 @@ async function confirmDelete() {
   mutationError.value = null
   try {
     await deleteMilestone({ projectId: projectId.value, id: milestone.value.id })
-    toast.success(t('projects.milestones.deleted'))
+    toast.add({ title: t('projects.milestones.deleted'), color: 'success', icon: 'i-lucide-circle-check' })
     router.push(returnTo.value)
   } catch (e) {
     mutationError.value = e instanceof ApiError ? e.message : t('projects.milestones.deleteError')
@@ -42,7 +42,7 @@ async function confirmDelete() {
   <SharedPageContainer width="form">
     <SharedPageHeader :title="t('projects.milestones.edit')" :back-to="returnTo" :back-label="t('projects.backToProject')" />
     <template v-if="projectId === null || milestoneId === null">
-      <p class="text-muted-foreground">{{ t('projects.invalidId') }}</p>
+      <p class="text-muted">{{ t('projects.invalidId') }}</p>
     </template>
     <SharedPageState
       v-else
@@ -52,17 +52,17 @@ async function confirmDelete() {
       :empty-text="t('projects.milestones.notFound')"
       @retry="retry"
     >
-      <p v-if="!project?.can_manage" class="text-muted-foreground">{{ t('projects.forbidden') }}</p>
+      <p v-if="!project?.can_manage" class="text-muted">{{ t('projects.forbidden') }}</p>
       <template v-else-if="milestone && projectId">
-      <section class="nasq-panel overflow-hidden"><div class="nasq-panel-body space-y-5">
+      <section class="rounded-xl border border-default bg-default overflow-hidden"><div class="p-5 space-y-5">
         <MilestoneForm :project-id="projectId" :project-start="project?.date_start" :project-end="project?.date_end" :milestone="milestone" @saved="router.push(returnTo)" @cancel="router.push(returnTo)" />
-        <div v-if="milestone.task_count > 0" class="rounded-md border border-muted p-3 text-sm text-muted-foreground">{{ t('projects.milestones.hasTasks', { count: milestone.task_count }) }}</div>
-        <div v-if="deleteOpen" data-testid="milestone-delete-confirm" class="nasq-status-callout-danger space-y-2 p-3 text-sm">
-          <p class="font-medium">{{ t('projects.milestones.delete') }}</p><p class="text-muted-foreground">{{ milestone.name }}</p>
-          <div class="flex flex-wrap gap-2"><Button variant="outline" :disabled="deleting" @click="deleteOpen = false">{{ t('app.cancel') }}</Button><Button variant="destructive" :disabled="deleting" @click="confirmDelete">{{ t('projects.milestones.delete') }}</Button></div>
-          <p v-if="mutationError" role="alert" class="text-destructive">{{ mutationError }}</p>
+        <div v-if="milestone.task_count > 0" class="rounded-md border border-default p-3 text-sm text-muted">{{ t('projects.milestones.hasTasks', { count: milestone.task_count }) }}</div>
+        <div v-if="deleteOpen" data-testid="milestone-delete-confirm" class="rounded-lg border border-error/30 bg-error/5 space-y-2 p-3 text-sm">
+          <p class="font-medium">{{ t('projects.milestones.delete') }}</p><p class="text-muted">{{ milestone.name }}</p>
+          <div class="flex flex-wrap gap-2"><UButton color="secondary" variant="solid" :disabled="deleting" @click="deleteOpen = false">{{ t('app.cancel') }}</UButton><UButton color="error" :disabled="deleting" @click="confirmDelete">{{ t('projects.milestones.delete') }}</UButton></div>
+          <p v-if="mutationError" role="alert" class="text-error">{{ mutationError }}</p>
         </div>
-        <Button v-else-if="milestone.task_count === 0" data-testid="milestone-delete" variant="destructive" :disabled="!hydrated" @click="deleteOpen = true">{{ t('projects.milestones.delete') }}</Button>
+        <UButton v-else-if="milestone.task_count === 0" data-testid="milestone-delete" color="error" :disabled="!hydrated" @click="deleteOpen = true">{{ t('projects.milestones.delete') }}</UButton>
       </div></section>
       </template>
     </SharedPageState>

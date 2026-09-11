@@ -75,39 +75,38 @@ async function submitTotp() {
 
 <template>
   <main class="min-h-svh grid place-items-center bg-muted/40 p-4">
-    <Card class="w-full max-w-sm">
-      <CardHeader class="items-center text-center">
-        <img v-if="branding" :src="branding.logo_url" :alt="branding.name" class="h-28 w-auto max-w-full justify-self-center object-contain mb-3" />
-        <span v-else class="mb-2 grid size-12 place-items-center rounded-xl bg-primary text-lg font-bold text-primary-foreground">ن</span>
-        <CardTitle class="text-xl">{{ productName }}</CardTitle>
-        <CardDescription>{{ $t('auth.signInToContinue') }}</CardDescription>
-      </CardHeader>
-      <CardContent>
+    <UCard class="w-full max-w-sm">
+      <template #header>
+        <div class="flex flex-col items-center text-center">
+          <img v-if="branding" :src="branding.logo_url" :alt="branding.name" class="mb-3 h-28 w-auto max-w-full object-contain" />
+          <span v-else class="mb-2 grid size-12 place-items-center rounded-xl bg-[var(--primary)] text-lg font-bold text-[var(--primary-foreground)]">ن</span>
+          <h1 class="text-xl font-semibold text-highlighted">{{ productName }}</h1>
+          <p class="text-sm text-muted">{{ $t('auth.signInToContinue') }}</p>
+        </div>
+      </template>
+      <div>
         <form v-if="!mfaPending" class="grid gap-4" @submit.prevent="submit">
-          <div class="grid gap-2">
-            <Label for="login">{{ $t('auth.username') }}</Label>
-            <Input id="login" v-model="login" autocomplete="username" required dir="ltr" class="text-start" />
-          </div>
-          <div class="grid gap-2">
-            <Label for="password">{{ $t('auth.password') }}</Label>
-            <Input id="password" v-model="password" type="password" autocomplete="current-password" required dir="ltr" />
-          </div>
-          <p v-if="errorMessage" role="alert" class="text-sm text-destructive">{{ errorMessage }}</p>
-          <Button type="submit" class="w-full" :disabled="pending || !hydrated">{{ $t('auth.signIn') }}</Button>
+          <UFormField :label="$t('auth.username')" name="login" required>
+            <UInput id="login" v-model="login" autocomplete="username" required dir="ltr" class="w-full text-start" />
+          </UFormField>
+          <UFormField :label="$t('auth.password')" name="password" required>
+            <UInput id="password" v-model="password" type="password" autocomplete="current-password" required dir="ltr" class="w-full" />
+          </UFormField>
+          <UAlert v-if="errorMessage" role="alert" color="error" variant="subtle" :title="errorMessage" />
+          <UButton type="submit" class="w-full justify-center" :disabled="pending || !hydrated" :label="$t('auth.signIn')" />
         </form>
         <form v-else class="grid gap-4" @submit.prevent="submitTotp">
-          <div class="grid gap-2">
-            <Label for="totp-code">{{ $t('auth.totpTitle') }}</Label>
-            <Input
+          <UFormField :label="$t('auth.totpTitle')" name="totp" required>
+            <UInput
               id="totp-code" v-model="totpCode" inputmode="numeric" autocomplete="one-time-code"
-              required dir="ltr" class="text-start"
+              required dir="ltr" class="w-full text-start"
             />
-            <p class="text-sm text-muted-foreground">{{ $t('auth.totpHint') }}</p>
-          </div>
-          <p v-if="errorMessage" role="alert" class="text-sm text-destructive">{{ errorMessage }}</p>
-          <Button type="submit" class="w-full" :disabled="pending">{{ $t('auth.continue') }}</Button>
+            <template #hint><span>{{ $t('auth.totpHint') }}</span></template>
+          </UFormField>
+          <UAlert v-if="errorMessage" role="alert" color="error" variant="subtle" :title="errorMessage" />
+          <UButton type="submit" class="w-full justify-center" :disabled="pending" :label="$t('auth.continue')" />
         </form>
-      </CardContent>
-    </Card>
+      </div>
+    </UCard>
   </main>
 </template>

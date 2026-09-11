@@ -4,7 +4,6 @@ import { useQuery, useInfiniteQuery } from '@tanstack/vue-query'
 import { refDebounced, useEventListener } from '@vueuse/core'
 import { returnToQuery } from '@/utils/safeReturnTo'
 import { ProjectRefSchema, TaskListSchema } from '@nasq/contracts'
-import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogTrigger, DialogClose } from '@/components/ui/dialog'
 
 const { t, localeProperties } = useI18n()
 const { me } = useMe()
@@ -46,82 +45,149 @@ useEventListener('keydown', (event: KeyboardEvent) => {
     open.value = !open.value
   }
 })
-function focusSearch(event: Event) {
-  event.preventDefault()
+function focusSearch() {
   document.getElementById('global-search-input')?.focus()
 }
 </script>
 
 <template>
-  <Dialog v-model:open="open">
-    <DialogTrigger as-child>
-      <Button :aria-label="t('app.search')" variant="outline" size="sm" class="nasq-search-trigger" :disabled="!hydrated">
-        <span class="flex min-w-0 items-center gap-2"><Search aria-hidden="true" /><span class="truncate">{{ t('app.search') }}</span></span>
-        <kbd dir="ltr" class="pointer-events-none rounded border border-border bg-background px-1.5 font-mono text-[10px]">⌘K</kbd>
-      </Button>
-    </DialogTrigger>
-    <DialogContent :dir="localeProperties.dir" :show-close-button="false" class="nasq-search-dialog" @open-auto-focus="focusSearch">
-      <DialogTitle class="sr-only">{{ t('app.search') }}</DialogTitle>
-      <DialogDescription class="sr-only">{{ t('search.description') }}</DialogDescription>
-
-      <div class="nasq-search-bar">
-        <Search class="nasq-search-bar-icon" aria-hidden="true" />
-        <Input id="global-search-input" v-model="query" :aria-label="t('app.search')" :placeholder="t('search.description')" class="nasq-search-input" autocomplete="off" />
-        <DialogClose as-child>
-          <Button variant="ghost" size="icon" class="nasq-search-close" :aria-label="t('search.close')"><X aria-hidden="true" /></Button>
-        </DialogClose>
-      </div>
-
-      <div class="nasq-search-results" aria-live="polite">
-        <section v-if="nav.length" class="nasq-search-section">
-          <h2 class="nasq-search-section-title">
-            <span>{{ t('nav.goTo') }}</span>
-            <span class="nasq-search-group-count" aria-hidden="true">{{ nav.length }}</span>
-          </h2>
-          <div :class="['nasq-search-nav-list', { 'nasq-search-nav-list--grid': !trimmed }]">
-            <template v-for="item in nav" :key="item.to">
-              <a v-if="item.to === '/odoo'" :href="item.to" target="_blank" rel="noopener" class="nasq-search-result" :title="navLabel(item)" @click="open = false">
-                <span class="nasq-search-result-icon"><component :is="item.icon" aria-hidden="true" /></span>
-                <span class="nasq-search-result-label">{{ navLabel(item) }}</span>
-              </a>
-              <NuxtLink v-else :to="item.to" class="nasq-search-result" :title="navLabel(item)" @click="open = false">
-                <span class="nasq-search-result-icon"><component :is="item.icon" aria-hidden="true" /></span>
-                <span class="nasq-search-result-label">{{ navLabel(item) }}</span>
-              </NuxtLink>
+  <UModal
+    v-model:open="open"
+    :title="t('app.search')"
+    :description="t('search.description')"
+    :ui="{ content: 'nasq-search-dialog', overlay: 'nasq-search-overlay' }"
+    @after:enter="focusSearch"
+  >
+    <UButton :aria-label="t('app.search')" color="neutral" variant="outline" class="nasq-search-trigger" :disabled="!hydrated">
+      <span class="flex min-w-0 items-center gap-2">
+        <Search aria-hidden="true" />
+        <span class="truncate">{{ t('app.search') }}</span>
+      </span>
+      <UKbd dir="ltr">⌘K</UKbd>
+    </UButton>
+    <template #content="{ close }">
+      <div :dir="localeProperties.dir" class="flex max-h-[min(620px,calc(100dvh-2rem))] w-full flex-col overflow-hidden">
+        <div class="nasq-search-bar">
+          <Search class="nasq-search-bar-icon" aria-hidden="true" />
+          <UInput
+            id="global-search-input"
+            v-model="query"
+            :aria-label="t('app.search')"
+            :placeholder="t('search.description')"
+            class="nasq-search-input"
+            autocomplete="off"
+            variant="none"
+          />
+          <UButton color="neutral" variant="ghost" square class="nasq-search-close" :aria-label="t('search.close')" @click="close">
+            <template #leading>
+              <X aria-hidden="true" />
             </template>
-          </div>
-        </section>
+          </UButton>
+        </div>
 
-        <section v-if="trimmed && can('pmo.projects.read') && (projects.length || projectsQuery.isLoading.value || projectsQuery.error.value)" class="nasq-search-section">
-          <h2 class="nasq-search-section-title">
-            <span>{{ t('nav.projects') }}</span>
-            <span class="nasq-search-group-count" aria-hidden="true">{{ projects.length }}</span>
-          </h2>
-          <p v-if="(projectsQuery.data.value?.length ?? 0) >= 200" class="nasq-search-note" role="status">{{ t('projects.capped') }}</p>
-          <SharedPageState :loading="projectsQuery.isLoading.value" :error="projectsQuery.error.value" @retry="projectsQuery.refetch()" />
-          <NuxtLink v-for="project in projects" :key="project.id" :to="{ path: `/projects/${project.id}`, query: returnToQuery(route.fullPath) }" class="nasq-search-result" :title="project.name" @click="open = false">
-            <span class="nasq-search-result-icon"><Folder aria-hidden="true" /></span>
-            <span class="nasq-search-result-label">{{ project.name }}</span>
-          </NuxtLink>
-        </section>
+        <div class="nasq-search-results" aria-live="polite">
+          <section v-if="nav.length" class="nasq-search-section">
+            <h2 class="nasq-search-section-title">
+              <span>{{ t('nav.goTo') }}</span>
+              <UBadge color="neutral" variant="subtle" size="sm" aria-hidden="true">{{ nav.length }}</UBadge>
+            </h2>
+            <div :class="['nasq-search-nav-list', { 'nasq-search-nav-list--grid': !trimmed }]">
+              <template v-for="item in nav" :key="item.to">
+                <UButton
+                  v-if="item.to === '/odoo'"
+                  :href="item.to"
+                  target="_blank"
+                  rel="noopener"
+                  color="neutral"
+                  variant="ghost"
+                  class="nasq-search-result"
+                  :title="navLabel(item)"
+                  :label="navLabel(item)"
+                  @click="open = false"
+                >
+                  <template #leading>
+                    <span class="nasq-search-result-icon"><component :is="item.icon" aria-hidden="true" /></span>
+                  </template>
+                </UButton>
+                <UButton
+                  v-else
+                  :to="item.to"
+                  color="neutral"
+                  variant="ghost"
+                  class="nasq-search-result"
+                  :title="navLabel(item)"
+                  :label="navLabel(item)"
+                  @click="open = false"
+                >
+                  <template #leading>
+                    <span class="nasq-search-result-icon"><component :is="item.icon" aria-hidden="true" /></span>
+                  </template>
+                </UButton>
+              </template>
+            </div>
+          </section>
 
-        <section v-if="trimmed && can('pmo.tasks.read') && (tasks.length || waiting || tasksQuery.error.value)" class="nasq-search-section">
-          <h2 class="nasq-search-section-title">
-            <span>{{ t('nav.tasks') }}</span>
-            <span class="nasq-search-group-count" aria-hidden="true">{{ tasks.length }}</span>
-          </h2>
-          <SharedPageState :loading="waiting" :error="tasksQuery.error.value" @retry="tasksQuery.refetch()" />
-          <NuxtLink v-for="task in tasks" :key="task.id" :to="{ path: `/tasks/${task.id}`, query: returnToQuery(route.fullPath) }" class="nasq-search-result" :title="task.name" @click="open = false">
-            <span class="nasq-search-result-icon"><CheckSquare aria-hidden="true" /></span>
-            <span class="nasq-search-result-label">{{ task.name }}</span>
-          </NuxtLink>
-          <Button v-if="tasksQuery.hasNextPage.value" variant="outline" class="nasq-search-load-more" :disabled="tasksQuery.isFetchingNextPage.value" @click="tasksQuery.fetchNextPage()">{{ t('app.loadMore') }}</Button>
-        </section>
+          <section v-if="trimmed && can('pmo.projects.read') && (projects.length || projectsQuery.isLoading.value || projectsQuery.error.value)" class="nasq-search-section">
+            <h2 class="nasq-search-section-title">
+              <span>{{ t('nav.projects') }}</span>
+              <UBadge color="neutral" variant="subtle" size="sm" aria-hidden="true">{{ projects.length }}</UBadge>
+            </h2>
+            <p v-if="(projectsQuery.data.value?.length ?? 0) >= 200" class="nasq-search-note" role="status">{{ t('projects.capped') }}</p>
+            <SharedPageState :loading="projectsQuery.isLoading.value" :error="projectsQuery.error.value" @retry="projectsQuery.refetch()" />
+            <UButton
+              v-for="project in projects"
+              :key="project.id"
+              :to="{ path: `/projects/${project.id}`, query: returnToQuery(route.fullPath) }"
+              color="neutral"
+              variant="ghost"
+              class="nasq-search-result"
+              :title="project.name"
+              :label="project.name"
+              @click="open = false"
+            >
+              <template #leading>
+                <span class="nasq-search-result-icon"><Folder aria-hidden="true" /></span>
+              </template>
+            </UButton>
+          </section>
 
-        <p v-if="!nav.length && !projects.length && !tasks.length && (!trimmed || (!waiting && !projectsQuery.isLoading.value && !projectsQuery.error.value && !tasksQuery.error.value))" class="nasq-search-empty">{{ t('app.noResults') }}</p>
+          <section v-if="trimmed && can('pmo.tasks.read') && (tasks.length || waiting || tasksQuery.error.value)" class="nasq-search-section">
+            <h2 class="nasq-search-section-title">
+              <span>{{ t('nav.tasks') }}</span>
+              <UBadge color="neutral" variant="subtle" size="sm" aria-hidden="true">{{ tasks.length }}</UBadge>
+            </h2>
+            <SharedPageState :loading="waiting" :error="tasksQuery.error.value" @retry="tasksQuery.refetch()" />
+            <UButton
+              v-for="task in tasks"
+              :key="task.id"
+              :to="{ path: `/tasks/${task.id}`, query: returnToQuery(route.fullPath) }"
+              color="neutral"
+              variant="ghost"
+              class="nasq-search-result"
+              :title="task.name"
+              :label="task.name"
+              @click="open = false"
+            >
+              <template #leading>
+                <span class="nasq-search-result-icon"><CheckSquare aria-hidden="true" /></span>
+              </template>
+            </UButton>
+            <UButton
+              v-if="tasksQuery.hasNextPage.value"
+              color="secondary"
+              variant="solid"
+              class="nasq-search-load-more"
+              :disabled="tasksQuery.isFetchingNextPage.value"
+              :label="t('app.loadMore')"
+              @click="tasksQuery.fetchNextPage()"
+            />
+          </section>
+
+          <p v-if="!nav.length && !projects.length && !tasks.length && (!trimmed || (!waiting && !projectsQuery.isLoading.value && !projectsQuery.error.value && !tasksQuery.error.value))" class="nasq-search-empty">{{ t('app.noResults') }}</p>
+        </div>
       </div>
-    </DialogContent>
-  </Dialog>
+    </template>
+  </UModal>
 </template>
 
 <style scoped>
@@ -133,7 +199,7 @@ function focusSearch(event: Event) {
   flex-direction: column;
   gap: 0;
   overflow: hidden;
-  border-radius: 20px;
+  border-radius: calc(var(--ui-radius) * 3);
   padding: 0;
 }
 
@@ -143,7 +209,7 @@ function focusSearch(event: Event) {
   flex-shrink: 0;
   align-items: center;
   gap: 0.625rem;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--ui-border);
   padding: 0.625rem 0.75rem;
 }
 
@@ -151,34 +217,17 @@ function focusSearch(event: Event) {
   width: 1.125rem;
   height: 1.125rem;
   flex: 0 0 auto;
-  color: var(--muted-foreground);
+  color: var(--ui-text-muted);
 }
 
 .nasq-search-input {
-  height: 44px;
   min-width: 0;
   flex: 1;
-  border-color: transparent;
-  border-radius: 12px;
-  padding-inline: 0.25rem;
-  font-size: 1rem;
-  box-shadow: none;
-}
-
-.nasq-search-input:focus-visible {
-  border-color: transparent;
-  outline: none;
-  box-shadow: none;
-}
-
-.nasq-search-bar:focus-within {
-  border-bottom-color: var(--ring);
-  box-shadow: inset 0 -1px var(--ring);
 }
 
 .nasq-search-close {
   flex: 0 0 auto;
-  color: var(--muted-foreground);
+  color: var(--ui-text-muted);
 }
 
 .nasq-search-results {
@@ -199,22 +248,12 @@ function focusSearch(event: Event) {
   gap: 0.375rem;
   margin: 0 0 0.375rem;
   padding-inline: 0.5rem;
-  color: var(--muted-foreground);
-  font-size: 0.75rem;
+  color: var(--ui-text-muted);
+  font-size: var(--text-xs);
   font-weight: 600;
   line-height: 1.25rem;
 }
 
-.nasq-search-group-count {
-  min-width: 1.25rem;
-  border-radius: 999px;
-  background: var(--muted);
-  padding: 0 0.375rem;
-  text-align: center;
-  font-size: 0.6875rem;
-  font-variant-numeric: tabular-nums;
-  line-height: 1.25rem;
-}
 
 .nasq-search-nav-list {
   display: grid;
@@ -226,43 +265,19 @@ function focusSearch(event: Event) {
 }
 
 .nasq-search-result {
-  display: flex;
   min-width: 0;
   min-height: 44px;
-  align-items: center;
-  gap: 0.625rem;
-  border: 1px solid transparent;
-  border-radius: 12px;
-  padding: 0.375rem 0.5rem;
-  color: var(--foreground);
-  font-size: 1rem;
-  line-height: 1.25rem;
-  text-decoration: none;
-  transition: background-color 120ms ease, border-color 120ms ease;
-}
-
-.nasq-search-result:hover,
-.nasq-search-result:focus-visible {
-  border-color: var(--border);
-  background: color-mix(in srgb, var(--muted) 62%, transparent);
-  outline: none;
-}
-
-.nasq-search-result:focus-visible {
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--ring) 42%, transparent);
+  justify-content: start;
 }
 
 .nasq-search-result-icon {
   display: inline-flex;
-  width: 28px;
-  height: 28px;
+  width: 1.25rem;
+  height: 1.25rem;
   flex: 0 0 auto;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--muted) 58%, transparent);
-  color: var(--muted-foreground);
+  color: var(--ui-text-muted);
 }
 
 .nasq-search-result-icon :deep(svg) {
@@ -270,16 +285,11 @@ function focusSearch(event: Event) {
   height: 1rem;
 }
 
-.nasq-search-result-label {
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-
 .nasq-search-note {
   margin: 0 0 0.375rem;
   padding-inline: 0.5rem;
-  color: var(--muted-foreground);
-  font-size: 0.75rem;
+  color: var(--ui-text-muted);
+  font-size: var(--text-xs);
   line-height: 1.125rem;
 }
 
@@ -290,7 +300,7 @@ function focusSearch(event: Event) {
 
 .nasq-search-empty {
   padding: 2.5rem 1rem;
-  color: var(--muted-foreground);
+  color: var(--ui-text-muted);
   text-align: center;
   font-size: 1rem;
 }

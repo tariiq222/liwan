@@ -27,21 +27,21 @@ const sections = computed(() => event.data.value ? [
     <SharedPageState v-if="forbidden" :empty="true" :empty-text="t('access.forbidden')" />
     <SharedPageState v-else :loading="event.isLoading.value" :error="event.error.value" :empty="!event.data.value" :empty-text="t('access.notFound')" @retry="event.refetch">
       <template v-if="event.data.value">
-        <div class="nasq-panel nasq-panel-body">
-          <section id="event" class="nasq-form-section nasq-settings-anchor">
-            <h2 class="nasq-settings-section-heading">{{ t('access.audit.detailTitle') }}</h2>
-            <dl class="nasq-metadata">
-              <div><dt>{{ t('access.audit.columns.time') }}</dt><dd dir="ltr">{{ event.data.value.occurred_at }}</dd></div>
-              <div><dt>{{ t('access.audit.columns.actor') }}</dt><dd>{{ event.data.value.actor?.name ?? t('access.audit.system') }}</dd></div>
-              <div><dt>{{ t('access.audit.columns.action') }}</dt><dd>{{ t(actionLabels[event.data.value.action]) }}</dd></div>
-              <div><dt>{{ t('access.audit.columns.target') }}</dt><dd>{{ event.data.value.target.name }}</dd></div>
-              <div v-if="event.data.value.reason"><dt>{{ t('access.audit.reason') }}</dt><dd>{{ event.data.value.reason }}</dd></div>
+        <div class="space-y-6">
+          <UCard id="event" class="nasq-settings-anchor">
+            <template #header><h2 class="text-lg font-semibold text-highlighted">{{ t('access.audit.detailTitle') }}</h2></template>
+            <dl class="grid gap-4 sm:grid-cols-2">
+              <div><dt class="text-sm text-muted">{{ t('access.audit.columns.time') }}</dt><dd class="mt-1 font-medium" dir="ltr">{{ event.data.value.occurred_at }}</dd></div>
+              <div><dt class="text-sm text-muted">{{ t('access.audit.columns.actor') }}</dt><dd class="mt-1 font-medium">{{ event.data.value.actor?.name ?? t('access.audit.system') }}</dd></div>
+              <div><dt class="text-sm text-muted">{{ t('access.audit.columns.action') }}</dt><dd class="mt-1 font-medium">{{ t(actionLabels[event.data.value.action]) }}</dd></div>
+              <div><dt class="text-sm text-muted">{{ t('access.audit.columns.target') }}</dt><dd class="mt-1 font-medium">{{ event.data.value.target.name }}</dd></div>
+              <div v-if="event.data.value.reason"><dt class="text-sm text-muted">{{ t('access.audit.reason') }}</dt><dd class="mt-1 font-medium">{{ event.data.value.reason }}</dd></div>
             </dl>
-          </section>
-          <section v-for="side in (['before', 'after'] as const)" :key="side" :id="side" class="nasq-form-section nasq-settings-anchor">
-            <h2 class="nasq-settings-section-heading">{{ t(`access.audit.${side}`) }}</h2>
-            <pre class="overflow-x-auto rounded-lg bg-muted p-3 text-xs leading-6" dir="ltr">{{ JSON.stringify(event.data.value[side], null, 2) }}</pre>
-          </section>
+          </UCard>
+          <UCard v-for="side in (['before', 'after'] as const)" :id="side" :key="side" class="nasq-settings-anchor">
+            <template #header><h2 class="text-lg font-semibold text-highlighted">{{ t(`access.audit.${side}`) }}</h2></template>
+            <pre class="overflow-x-auto rounded-lg bg-elevated p-3 text-xs leading-6" dir="ltr">{{ JSON.stringify(event.data.value[side], null, 2) }}</pre>
+          </UCard>
         </div>
       </template>
     </SharedPageState>

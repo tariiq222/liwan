@@ -10,9 +10,7 @@ const source = readFileSync(
 
 describe('ProjectFieldHelp', () => {
   it('owns open state for hover, focus, Enter toggle, Escape, and touch without Reka click close', () => {
-    expect(source).toContain('TooltipProvider')
-    expect(source).toContain('TooltipTrigger')
-    expect(source).toContain('TooltipContent')
+    expect(source).toContain('UTooltip')
     expect(source).toContain('role="tooltip"')
     expect(source).toContain('aria-describedby')
     expect(source).toContain('aria-expanded')

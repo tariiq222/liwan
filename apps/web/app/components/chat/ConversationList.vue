@@ -48,48 +48,52 @@ function conversationTo(id: number) {
   <section class="nasq-chat-list flex h-full min-h-0 flex-col" data-testid="chat-list">
     <header class="nasq-chat-list-toolbar">
       <form class="nasq-chat-list-search" @submit.prevent="applySearch">
-        <Search class="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-        <Input
+        <UInput
           id="chat-list-search"
           v-model="q"
-          class="h-9 border-0 bg-transparent shadow-none focus-visible:ring-0"
+          class="w-full"
+          icon="i-lucide-search"
           :placeholder="t('chat.search')"
           :disabled="!hydrated"
         />
       </form>
       <div class="flex shrink-0 items-center gap-1">
-        <NuxtLink
-          class="nasq-chat-icon-btn"
+        <UButton
+          color="neutral" variant="ghost" square
           :to="{ path: '/chat/new', query: listQuery }"
           :aria-label="t('chat.new')"
           :title="t('chat.new')"
         >
           <MessageSquarePlus class="size-5" aria-hidden="true" />
-        </NuxtLink>
-        <NuxtLink
-          class="nasq-chat-icon-btn"
+        </UButton>
+        <UButton
+          color="neutral" variant="ghost" square
           :to="{ path: '/chat/new', query: { ...listQuery, kind: 'group' } }"
           :aria-label="t('chat.newGroup')"
           :title="t('chat.newGroup')"
         >
           <UsersRound class="size-5" aria-hidden="true" />
-        </NuxtLink>
+        </UButton>
       </div>
     </header>
     <div class="nasq-chat-list-filters" role="toolbar" :aria-label="t('chat.filters')">
-      <button
+      <UButton
         v-for="filter in filters"
         :key="filter"
         type="button"
-        class="nasq-chat-filter"
+        color="neutral"
+        :variant="props.routeState.filter === filter ? 'soft' : 'ghost'"
+        class="shrink-0"
+        :aria-pressed="props.routeState.filter === filter"
         :data-active="props.routeState.filter === filter"
         :disabled="!hydrated"
         @click="setFilter(filter)"
-      >{{ filterLabel(filter) }}</button>
+        :label="filterLabel(filter)"
+      />
     </div>
     <div v-if="isError" class="grid gap-2 p-4 text-center" role="alert">
       <p class="text-sm text-destructive">{{ t('chat.unavailable') }}</p>
-      <Button type="button" variant="outline" size="sm" class="mx-auto" :disabled="!hydrated || isFetching" @click="refetch()">{{ t('app.retry') }}</Button>
+      <UButton type="button" color="secondary" variant="outline" size="sm" class="mx-auto" :disabled="!hydrated || isFetching" :label="t('app.retry')" @click="refetch()" />
     </div>
     <EmptyState v-else-if="!items.length" :title="props.routeState.q || props.routeState.filter !== 'all' ? t('chat.emptyFiltered') : t('chat.empty')" />
     <ul v-else class="min-h-0 flex-1 overflow-y-auto">
@@ -115,20 +119,20 @@ function conversationTo(id: number) {
           <span class="min-w-0 flex-1">
             <span class="flex items-center justify-between gap-2">
               <span class="truncate font-medium">{{ item.name }}{{ item.muted ? ` · ${t('chat.muted')}` : '' }}</span>
-              <time v-if="item.last_message_at" class="nasq-chat-list-time" :class="{ 'text-primary': item.unread_count }">{{ timeFmt.format(new Date(item.last_message_at)) }}</time>
+              <time v-if="item.last_message_at" class="nasq-chat-list-time" :class="{ 'text-brand-link': item.unread_count }">{{ timeFmt.format(new Date(item.last_message_at)) }}</time>
             </span>
             <span class="flex items-center justify-between gap-2">
               <span class="truncate text-sm text-muted-foreground">{{ item.last_message_preview || t(`chat.${item.type}`) }}</span>
-              <span v-if="item.unread_count" class="nasq-unread-count rounded-full px-1.5 text-[11px] font-semibold">{{ item.unread_count }}</span>
+              <UBadge v-if="item.unread_count" size="xs" variant="solid">{{ item.unread_count }}</UBadge>
             </span>
           </span>
         </NuxtLink>
       </li>
     </ul>
     <nav v-if="total > CHAT_PAGE_SIZE" class="flex items-center justify-between gap-2 border-t p-2 text-xs text-muted-foreground">
-      <Button type="button" size="sm" variant="ghost" :disabled="!hydrated || props.routeState.offset === 0" @click="page(-CHAT_PAGE_SIZE)">{{ t('chat.previousPage') }}</Button>
+      <UButton type="button" size="sm" color="neutral" variant="ghost" :disabled="!hydrated || props.routeState.offset === 0" :label="t('chat.previousPage')" @click="page(-CHAT_PAGE_SIZE)" />
       <span>{{ t('chat.pageOf', { page: Math.floor(props.routeState.offset / CHAT_PAGE_SIZE) + 1, pages: Math.max(1, Math.ceil(total / CHAT_PAGE_SIZE)) }) }}</span>
-      <Button type="button" size="sm" variant="ghost" :disabled="!hydrated || props.routeState.offset + CHAT_PAGE_SIZE >= total" @click="page(CHAT_PAGE_SIZE)">{{ t('chat.nextPage') }}</Button>
+      <UButton type="button" size="sm" color="neutral" variant="ghost" :disabled="!hydrated || props.routeState.offset + CHAT_PAGE_SIZE >= total" :label="t('chat.nextPage')" @click="page(CHAT_PAGE_SIZE)" />
     </nav>
   </section>
 </template>

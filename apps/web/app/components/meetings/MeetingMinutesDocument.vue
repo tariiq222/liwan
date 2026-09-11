@@ -67,9 +67,9 @@ const unassignedRecommendations = computed(() => props.recommendations.filter(it
 </script>
 
 <template>
-  <section class="nasq-panel grid gap-4" data-testid="meeting-minutes-document">
-    <div class="nasq-panel-header"><h2>{{ title || t('meetingMinutesForm.documentTitle') }}</h2></div>
-    <div class="nasq-panel-body grid gap-5">
+  <UCard data-testid="meeting-minutes-document">
+    <template #header><h2 class="text-lg font-semibold text-highlighted">{{ title || t('meetingMinutesForm.documentTitle') }}</h2></template>
+    <div class="grid gap-5">
       <dl class="grid min-w-0 gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
         <div><dt class="text-xs text-muted-foreground">{{ t('meetingMinutesForm.name') }}</dt><dd class="break-words">{{ displayMeeting.name || '—' }}</dd></div>
         <div><dt class="text-xs text-muted-foreground">{{ t('meetingMinutesForm.reference') }}</dt><dd dir="ltr">{{ displayMeeting.reference || '—' }}</dd></div>
@@ -129,7 +129,7 @@ const unassignedRecommendations = computed(() => props.recommendations.filter(it
         </section>
       </template>
     </div>
-  </section>
+  </UCard>
 </template>
 
 <style scoped>

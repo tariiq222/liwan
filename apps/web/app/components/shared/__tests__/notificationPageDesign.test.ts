@@ -43,7 +43,7 @@ describe('notification pages shared header contract', () => {
     expect(notificationsSource).toContain('width="list"')
     expect(notificationsSource).not.toContain('width="form"')
     expect(notificationsSource).toContain('router.back()')
-    expect(notificationsSource).toContain('nasq-panel')
+    expect(notificationsSource).toContain('<UCard')
     expect(notificationsSource).not.toContain('SharedPageState')
     expect(notificationsSource).not.toMatch(/<h1[^>]*text-2xl/)
   })
@@ -62,7 +62,7 @@ describe('notification pages shared header contract', () => {
     expect(digestSource).not.toContain('router.back()')
     expect(digestSource).not.toMatch(/<h1[\s\S]*text-2xl/)
     expect(digestSource).not.toContain('SharedPageState')
-    expect(digestSource).toContain('nasq-panel')
+    expect(digestSource).toContain('<UCard')
     expect(digestSource).toContain('data-testid="digest-load-more"')
   })
 
@@ -91,7 +91,8 @@ describe('notification pages shared header contract', () => {
         openTask: () => {},
       }))),
     })
-    app.component('Button', Passthrough)
+    app.component('UButton', Passthrough)
+    app.component('UCard', Passthrough)
     app.component('SharedPageContainer', Passthrough)
     app.component('SharedPageHeader', Passthrough)
     const html = await renderToString(app)

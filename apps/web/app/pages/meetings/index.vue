@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { Plus, Search } from '@lucide/vue'
+import type { TableColumn } from '@nuxt/ui'
+import type { MeetingListItem } from '@nasq/contracts'
 import { refDebounced } from '@vueuse/core'
 import FilterBar from '@/components/shared/FilterBar.vue'
 import RecordNumber from '@/components/shared/RecordNumber.vue'
@@ -24,12 +25,19 @@ const mine = ref(routeFilters.value.mine)
 const organizerSearch = ref('')
 const dateFrom = ref(routeFilters.value.dateFrom)
 const dateTo = ref(routeFilters.value.dateTo)
+const dateFromField = computed({ get: () => dateFrom.value || null, set: value => { dateFrom.value = value || '' } })
+const dateToField = computed({ get: () => dateTo.value || null, set: value => { dateTo.value = value || '' } })
 const debouncedSearch = refDebounced(search, 250)
 const debouncedOrganizerSearch = refDebounced(organizerSearch, 250)
 const organizerQuery = usePeople(debouncedOrganizerSearch)
 const limit = 25
 const offset = ref(parseOffset(route.query.offset))
 const validStates = ['draft', 'confirmed', 'done', 'cancelled']
+const ALL_STATES = '__all__'
+const stateSelect = computed({
+  get: () => state.value || ALL_STATES,
+  set: value => { state.value = value === ALL_STATES ? '' : String(value) },
+})
 const dateValidation = computed(() => meetingDateRange(dateFrom.value, dateTo.value))
 const query = useMeetings(computed(() => ({
   q: debouncedSearch.value.trim() || undefined,
@@ -94,6 +102,19 @@ function meetingRecordNumber(meeting: { reference: string; id: number }) {
   return meeting.reference.trim() || meeting.id
 }
 
+const columns = computed<TableColumn<MeetingListItem>[]>(() => [
+  { accessorKey: 'id', header: t('app.recordNumber') },
+  { accessorKey: 'name', header: t('meetingsUi.title') },
+  { accessorKey: 'meeting_date', header: t('meetingsUi.date') },
+  { accessorKey: 'organizer', header: t('meetingsUi.organizer') },
+  { accessorKey: 'state', header: t('meetingsUi.stateLabel') },
+  { accessorKey: 'open_resolution_count', header: t('meetingsUi.resolutions') },
+])
+
+function meetingTo(meeting: MeetingListItem) {
+  return { path: `/meetings/${meeting.id}`, query: returnToQuery(route.fullPath) }
+}
+
 watch(() => route.query.q, value => {
   const next = typeof value === 'string' ? value : ''
   if (next !== search.value) search.value = next
@@ -131,6 +152,10 @@ watch(debouncedSearch, (value) => {
   if (next === current) return
   void router.replace({ query: patchMeetingListQuery(route.query, { q: next || undefined }) })
 })
+function toggleMine(value: boolean) {
+  mine.value = value
+  applyFilters()
+}
 function applyFilters() {
   void router.replace({ query: patchMeetingListQuery(route.query, {
     state: state.value || undefined,
@@ -172,11 +197,7 @@ function setPage(next: number) {
   <SharedPageContainer width="list">
     <SharedPageHeader :title="t('nav.meetings')">
       <template #actions>
-        <NuxtLink v-if="can('meetings.create')" :to="createMeetingTo">
-          <Button :disabled="!hydrated" class="gap-2">
-            <Plus class="size-[18px]" />{{ t('meetingsUi.new') }}
-          </Button>
-        </NuxtLink>
+        <UButton v-if="can('meetings.create')" icon="i-lucide-plus" :disabled="!hydrated" :to="createMeetingTo" :label="t('meetingsUi.new')" />
       </template>
     </SharedPageHeader>
     <div class="w-full min-w-0">
@@ -189,57 +210,64 @@ function setPage(next: number) {
       >
         <div class="w-full min-w-0 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <div class="grid min-w-0 content-start gap-1 md:col-span-2 xl:col-span-2">
-            <Label for="meeting-search">{{ t('meetingsFilters.searchMeetings') }}</Label>
-            <div class="relative">
-              <Search class="pointer-events-none absolute start-2 top-1/2 size-[18px] -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
-              <Input id="meeting-search" v-model="search" :disabled="!hydrated" :placeholder="t('meetingsFilters.searchMeetings')" :aria-label="t('meetingsFilters.searchMeetings')" class="ps-8" />
-            </div>
+            <label for="meeting-search" class="text-sm font-medium text-highlighted">{{ t('meetingsFilters.searchMeetings') }}</label>
+            <UInput id="meeting-search" v-model="search" icon="i-lucide-search" class="w-full" :disabled="!hydrated" :placeholder="t('meetingsFilters.searchMeetings')" :aria-label="t('meetingsFilters.searchMeetings')" />
           </div>
           <div class="grid min-w-0 content-start gap-1">
-            <Label for="meeting-state">{{ t('meetingsUi.stateLabel') }}</Label>
-            <select id="meeting-state" v-model="state" class="border-input h-9 w-full rounded-lg border bg-transparent px-2 text-sm" :disabled="!hydrated" @change="applyFilters">
-              <option value="">{{ t('meetingsUi.allStates') }}</option>
-              <option v-for="code in ['draft', 'confirmed', 'done', 'cancelled']" :key="code" :value="code">{{ t(`meetingsUi.state.${code}`) }}</option>
-            </select>
+            <label for="meeting-state" class="text-sm font-medium text-highlighted">{{ t('meetingsUi.stateLabel') }}</label>
+            <USelect
+              id="meeting-state"
+              v-model="stateSelect"
+              class="w-full"
+              :disabled="!hydrated"
+              :items="[{ label: t('meetingsUi.allStates'), value: ALL_STATES }, ...['draft', 'confirmed', 'done', 'cancelled'].map(code => ({ label: t(`meetingsUi.state.${code}`), value: code }))]"
+              @update:model-value="applyFilters"
+            />
           </div>
           <label class="flex min-h-9 items-center gap-2 self-end pb-1 text-sm">
-            <input v-model="mine" type="checkbox" :disabled="!hydrated" @change="applyFilters">
+            <UCheckbox :model-value="mine" :disabled="!hydrated" @update:model-value="toggleMine(Boolean($event))" />
             {{ t('meetingsUi.mine') }}
           </label>
           <div v-if="can('pmo.projects.read')" class="grid min-w-0 content-start gap-1">
-            <Label for="meeting-project">{{ t('meetingsFilters.project') }}</Label>
+            <label for="meeting-project" class="text-sm font-medium text-highlighted">{{ t('meetingsFilters.project') }}</label>
             <MeetingProjectFilter id="meeting-project" hide-label :model-value="projectId" @update:model-value="setProject" @resolved-name="projectName = $event" />
           </div>
           <div class="grid min-w-0 content-start gap-1">
-            <Label for="meeting-organizer-search">{{ t('meetingsFilters.organizer') }}</Label>
-            <Input id="meeting-organizer-search" v-model="organizerSearch" :disabled="!hydrated" :placeholder="t('meetingsFilters.organizerSearch')" :aria-label="t('meetingsFilters.organizerSearch')" />
-            <select id="meeting-organizer" class="border-input h-9 w-full rounded-lg border bg-transparent px-2 text-sm" :value="routeFilters.organizerId ? String(routeFilters.organizerId) : 'all'" :disabled="!hydrated || organizerQuery.isLoading.value" :aria-label="t('meetingsFilters.organizer')" @change="setOrganizer(($event.target as HTMLSelectElement).value === 'all' ? '' : ($event.target as HTMLSelectElement).value)">
-              <option value="all">{{ t('meetingsFilters.allOrganizers') }}</option>
-              <option v-for="person in organizerOptions" :key="person.id" :value="String(person.id)">{{ person.name }}</option>
-            </select>
+            <label for="meeting-organizer-search" class="text-sm font-medium text-highlighted">{{ t('meetingsFilters.organizer') }}</label>
+            <UInput id="meeting-organizer-search" v-model="organizerSearch" class="w-full" :disabled="!hydrated" :placeholder="t('meetingsFilters.organizerSearch')" :aria-label="t('meetingsFilters.organizerSearch')" />
+            <USelectMenu
+              id="meeting-organizer"
+              class="w-full"
+              value-key="value"
+              :model-value="routeFilters.organizerId ? String(routeFilters.organizerId) : 'all'"
+              :items="[{ label: t('meetingsFilters.allOrganizers'), value: 'all' }, ...organizerOptions.map(person => ({ label: person.name, value: String(person.id) }))]"
+              :disabled="!hydrated || organizerQuery.isLoading.value"
+              :aria-label="t('meetingsFilters.organizer')"
+              @update:model-value="setOrganizer($event === 'all' ? '' : $event)"
+            />
             <p v-if="organizerQuery.isLoading.value" class="text-xs text-muted-foreground" role="status">{{ t('meetingsFilters.organizersLoading') }}</p>
-            <div v-else-if="organizerQuery.error.value" class="flex items-center gap-2 text-xs text-destructive" role="alert"><span>{{ t('meetingsFilters.organizersError') }}</span><Button type="button" variant="outline" size="sm" :disabled="!hydrated" @click="organizerQuery.refetch()">{{ t('meetingsFilters.retry') }}</Button></div>
+            <div v-else-if="organizerQuery.error.value" class="flex items-center gap-2 text-xs text-destructive" role="alert"><span>{{ t('meetingsFilters.organizersError') }}</span><UButton type="button" color="secondary" variant="outline" size="sm" :disabled="!hydrated" :label="t('meetingsFilters.retry')" @click="organizerQuery.refetch()" /></div>
             <p v-else-if="!organizerOptions.length" class="text-xs text-muted-foreground">{{ t('meetingsFilters.noOrganizers') }}</p>
           </div>
           <div class="grid min-w-0 content-start gap-1">
-            <Label for="meeting-date-from">{{ t('meetingsFilters.fromDateLabel') }}</Label>
-            <Input id="meeting-date-from" v-model="dateFrom" type="date" :disabled="!hydrated" />
+            <label for="meeting-date-from" class="text-sm font-medium text-highlighted">{{ t('meetingsFilters.fromDateLabel') }}</label>
+            <SharedDateField id="meeting-date-from" v-model="dateFromField" class="w-full" :disabled="!hydrated" />
           </div>
           <div class="grid min-w-0 content-start gap-1">
-            <Label for="meeting-date-to">{{ t('meetingsFilters.toDateLabel') }}</Label>
-            <Input id="meeting-date-to" v-model="dateTo" type="date" :disabled="!hydrated" />
+            <label for="meeting-date-to" class="text-sm font-medium text-highlighted">{{ t('meetingsFilters.toDateLabel') }}</label>
+            <SharedDateField id="meeting-date-to" v-model="dateToField" class="w-full" :disabled="!hydrated" />
           </div>
         </div>
         <template v-if="hasActiveFilters" #active>
           <div class="flex flex-wrap items-center gap-2">
-            <Badge v-if="search.trim()" variant="secondary" class="gap-1">{{ t('meetingsUi.searchValue', { value: search }) }}<button type="button" :aria-label="t('meetingsFilters.removeFilter')" @click="clearFilter('q')">×</button></Badge>
-            <Badge v-if="selectedState" variant="secondary" class="gap-1">{{ t(`meetingsUi.state.${selectedState}`) }}<button type="button" :aria-label="t('meetingsFilters.removeFilter')" @click="clearFilter('state')">×</button></Badge>
-            <Badge v-if="routeFilters.mine" variant="secondary" class="gap-1">{{ t('meetingsUi.mine') }}<button type="button" :aria-label="t('meetingsFilters.removeFilter')" @click="clearFilter('mine')">×</button></Badge>
-            <Badge v-if="projectId" variant="secondary" class="gap-1">{{ projectName || t('meetingsFilters.selectedProject') }}<button type="button" :aria-label="t('meetingsFilters.removeFilter')" @click="clearFilter('project_id')">×</button></Badge>
-            <Badge v-if="routeFilters.organizerId" variant="secondary" class="gap-1">{{ selectedOrganizerLabel }}<button type="button" :aria-label="t('meetingsFilters.removeFilter')" @click="clearFilter('organizer_id')">×</button></Badge>
-            <Badge v-if="routeFilters.dateFrom" variant="secondary" class="gap-1">{{ t('meetingsFilters.fromDate', { value: routeFilters.dateFrom }) }}<button type="button" :aria-label="t('meetingsFilters.removeFilter')" @click="clearFilter('date_from')">×</button></Badge>
-            <Badge v-if="routeFilters.dateTo" variant="secondary" class="gap-1">{{ t('meetingsFilters.toDate', { value: routeFilters.dateTo }) }}<button type="button" :aria-label="t('meetingsFilters.removeFilter')" @click="clearFilter('date_to')">×</button></Badge>
-            <Badge v-if="seriesId" variant="secondary" class="gap-1">{{ t('meetingsFilters.inheritedSeries') }}<button type="button" :aria-label="t('meetingsFilters.removeFilter')" @click="clearFilter('series_id')">×</button></Badge>
+            <UBadge v-if="search.trim()" color="neutral" variant="subtle" class="gap-1">{{ t('meetingsUi.searchValue', { value: search }) }}<UButton type="button" color="neutral" variant="ghost" size="xs" square :aria-label="t('meetingsFilters.removeFilter')" label="×" @click="clearFilter('q')" /></UBadge>
+            <UBadge v-if="selectedState" color="neutral" variant="subtle" class="gap-1">{{ t(`meetingsUi.state.${selectedState}`) }}<UButton type="button" color="neutral" variant="ghost" size="xs" square :aria-label="t('meetingsFilters.removeFilter')" label="×" @click="clearFilter('state')" /></UBadge>
+            <UBadge v-if="routeFilters.mine" color="neutral" variant="subtle" class="gap-1">{{ t('meetingsUi.mine') }}<UButton type="button" color="neutral" variant="ghost" size="xs" square :aria-label="t('meetingsFilters.removeFilter')" label="×" @click="clearFilter('mine')" /></UBadge>
+            <UBadge v-if="projectId" color="neutral" variant="subtle" class="gap-1">{{ projectName || t('meetingsFilters.selectedProject') }}<UButton type="button" color="neutral" variant="ghost" size="xs" square :aria-label="t('meetingsFilters.removeFilter')" label="×" @click="clearFilter('project_id')" /></UBadge>
+            <UBadge v-if="routeFilters.organizerId" color="neutral" variant="subtle" class="gap-1">{{ selectedOrganizerLabel }}<UButton type="button" color="neutral" variant="ghost" size="xs" square :aria-label="t('meetingsFilters.removeFilter')" label="×" @click="clearFilter('organizer_id')" /></UBadge>
+            <UBadge v-if="routeFilters.dateFrom" color="neutral" variant="subtle" class="gap-1">{{ t('meetingsFilters.fromDate', { value: routeFilters.dateFrom }) }}<UButton type="button" color="neutral" variant="ghost" size="xs" square :aria-label="t('meetingsFilters.removeFilter')" label="×" @click="clearFilter('date_from')" /></UBadge>
+            <UBadge v-if="routeFilters.dateTo" color="neutral" variant="subtle" class="gap-1">{{ t('meetingsFilters.toDate', { value: routeFilters.dateTo }) }}<UButton type="button" color="neutral" variant="ghost" size="xs" square :aria-label="t('meetingsFilters.removeFilter')" label="×" @click="clearFilter('date_to')" /></UBadge>
+            <UBadge v-if="seriesId" color="neutral" variant="subtle" class="gap-1">{{ t('meetingsFilters.inheritedSeries') }}<UButton type="button" color="neutral" variant="ghost" size="xs" square :aria-label="t('meetingsFilters.removeFilter')" label="×" @click="clearFilter('series_id')" /></UBadge>
           </div>
         </template>
       </FilterBar>
@@ -255,17 +283,17 @@ function setPage(next: number) {
       :empty-text="t('meetingsUi.empty')"
       @retry="query.refetch"
     >
-      <div class="nasq-panel overflow-hidden">
+      <div class="min-w-0 space-y-2">
         <div class="grid divide-y divide-border md:hidden">
           <NuxtLink
             v-for="meeting in query.data.value?.items"
             :key="meeting.id"
-            :to="{ path: `/meetings/${meeting.id}`, query: returnToQuery(route.fullPath) }"
+            :to="meetingTo(meeting)"
             class="grid min-w-0 gap-2 p-3 hover:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <div class="flex min-w-0 items-start justify-between gap-2">
-              <span class="min-w-0 break-words font-medium text-primary">{{ meeting.name }}</span>
-              <Badge variant="secondary" class="shrink-0">{{ t(`meetingsUi.state.${meeting.state}`) }}</Badge>
+              <span class="min-w-0 break-words font-medium text-brand-link">{{ meeting.name }}</span>
+              <UBadge color="neutral" variant="subtle" class="shrink-0">{{ t(`meetingsUi.state.${meeting.state}`) }}</UBadge>
             </div>
             <div class="flex min-w-0 flex-wrap gap-x-3 gap-y-1 text-sm text-muted-foreground">
               <RecordNumber :value="meetingRecordNumber(meeting)" />
@@ -276,54 +304,26 @@ function setPage(next: number) {
           </NuxtLink>
         </div>
         <div class="hidden overflow-x-auto md:block">
-        <div>
-          <Table class="min-w-[800px]" :aria-label="t('nav.meetings')">
-          <TableHeader>
-            <TableRow>
-              <TableHead scope="col" class="w-28">{{ t('app.recordNumber') }}</TableHead>
-              <TableHead scope="col">{{ t('meetingsUi.title') }}</TableHead>
-              <TableHead scope="col">{{ t('meetingsUi.date') }}</TableHead>
-              <TableHead scope="col">{{ t('meetingsUi.organizer') }}</TableHead>
-              <TableHead scope="col">{{ t('meetingsUi.stateLabel') }}</TableHead>
-              <TableHead scope="col">{{ t('meetingsUi.resolutions') }}</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow v-for="meeting in query.data.value?.items" :key="meeting.id">
-              <TableCell class="w-28"><RecordNumber :value="meetingRecordNumber(meeting)" /></TableCell>
-              <TableCell class="min-w-56 whitespace-normal">
-                <NuxtLink
-                  :to="{ path: `/meetings/${meeting.id}`, query: returnToQuery(route.fullPath) }"
-                  class="block rounded-sm font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  {{ meeting.name }}
-                </NuxtLink>
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ meeting.meeting_date ? formatCalendarDate(meeting.meeting_date, locale) : '—' }}
-              </TableCell>
-              <TableCell class="whitespace-normal">{{ meeting.organizer?.name || '—' }}</TableCell>
-              <TableCell>
-                <Badge variant="secondary">{{ t(`meetingsUi.state.${meeting.state}`) }}</Badge>
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ t('meetingsUi.openCount', { count: meeting.open_resolution_count }) }}
-              </TableCell>
-            </TableRow>
-          </TableBody>
-          </Table>
-        </div>
+          <UTable :data="query.data.value?.items ?? []" :columns="columns" :caption="t('nav.meetings')" :ui="{ caption: 'sr-only' }">
+            <template #id-cell="{ row }"><RecordNumber :value="meetingRecordNumber(row.original)" /></template>
+            <template #name-cell="{ row }">
+              <NuxtLink
+                :to="meetingTo(row.original)"
+                class="block rounded-sm font-medium text-brand-link hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >{{ row.original.name }}</NuxtLink>
+            </template>
+            <template #meeting_date-cell="{ row }">{{ row.original.meeting_date ? formatCalendarDate(row.original.meeting_date, locale) : '—' }}</template>
+            <template #organizer-cell="{ row }">{{ row.original.organizer?.name || '—' }}</template>
+            <template #state-cell="{ row }"><UBadge color="neutral" variant="subtle">{{ t(`meetingsUi.state.${row.original.state}`) }}</UBadge></template>
+            <template #open_resolution_count-cell="{ row }">{{ t('meetingsUi.openCount', { count: row.original.open_resolution_count }) }}</template>
+          </UTable>
         </div>
       </div>
     </SharedPageState>
     <nav v-if="!invalidDateRange && pages > 1" class="flex items-center justify-between text-sm text-muted-foreground">
-      <Button variant="ghost" :disabled="!hydrated || page === 1 || query.isFetching.value" @click="setPage(page - 1)">
-        {{ t('projects.previousPage') }}
-      </Button>
+      <UButton color="neutral" variant="ghost" :disabled="!hydrated || page === 1 || query.isFetching.value" :label="t('projects.previousPage')" @click="setPage(page - 1)" />
       <span>{{ t('meetingsUi.pageOf', { page, pages }) }}</span>
-      <Button variant="ghost" :disabled="!hydrated || page >= pages || query.isFetching.value" @click="setPage(page + 1)">
-        {{ t('projects.nextPage') }}
-      </Button>
+      <UButton color="neutral" variant="ghost" :disabled="!hydrated || page >= pages || query.isFetching.value" :label="t('projects.nextPage')" @click="setPage(page + 1)" />
     </nav>
   </SharedPageContainer>
 </template>

@@ -4,6 +4,7 @@ import { useMeetingSeries } from '@/composables/useMeetings'
 import { usePatchMeetingSeriesSettings } from '@/composables/useMeetingSeriesSettings'
 import { formatCalendarDate } from '@/composables/calendarDate'
 import { returnToQuery, safeReturnTo } from '@/utils/safeReturnTo'
+import { useSsrQuerySeed } from '@/lib/vueQuerySsr'
 
 const route = useRoute()
 const { t, locale } = useI18n()
@@ -24,7 +25,7 @@ function snapshot() {
   return JSON.stringify([name.value, location.value, meetingUrl.value, [...attendeeIds.value].sort((a, b) => a - b), secretaryId.value])
 }
 
-watch(query.data, series => {
+function seedSeries(series: typeof query.data.value) {
   if (!series || loaded.value) return
   name.value = series.name
   location.value = series.location
@@ -33,7 +34,9 @@ watch(query.data, series => {
   secretaryId.value = series.secretary?.id ?? null
   baseline.value = snapshot()
   loaded.value = true
-}, { immediate: true })
+}
+watch(query.data, seedSeries, { immediate: true })
+useSsrQuerySeed(query, seedSeries)
 
 const dirty = computed(() => loaded.value && snapshot() !== baseline.value)
 const canEdit = computed(() => query.data.value?.can_edit === true)
@@ -85,39 +88,34 @@ async function save() {
   <SharedPageContainer width="form">
     <SharedPageHeader :title="t('meetingsUx.seriesSettingsTitle')" :back-to="returnTo" />
     <SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!query.isLoading.value && !query.error.value && !query.data.value" @retry="query.refetch">
-      <form v-if="query.data.value" class="nasq-form nasq-panel nasq-panel-body grid gap-5" @submit.prevent="save">
+      <form v-if="query.data.value" class="space-y-8" @submit.prevent="save">
         <SharedUnsavedChanges :dirty="dirty" />
-        <p v-if="!canEdit" role="alert" class="text-sm text-destructive">{{ t('meetingsUx.seriesSettingsForbidden') }}</p>
-        <SharedFormSection :title="t('meetingsUx.seriesDefaultsTitle')" class="grid gap-4">
-          <div class="grid gap-2">
-            <Label for="series-settings-name">{{ t('meetingsUx.seriesName') }}</Label>
-            <Input id="series-settings-name" v-model="name" :disabled="!hydrated || isPending || !canEdit" :aria-invalid="!!formErrors.name" aria-describedby="series-settings-name-error" required />
-            <p v-if="formErrors.name" id="series-settings-name-error" role="alert" class="text-sm text-destructive">{{ t(`meetingsUx.errors.${formErrors.name}`) }}</p>
-          </div>
-          <div class="grid gap-2">
-            <Label for="series-settings-location">{{ t('meetingsUi.location') }}</Label>
-            <Input id="series-settings-location" v-model="location" :disabled="!hydrated || isPending || !canEdit" />
-          </div>
-          <div class="grid gap-2">
-            <Label for="series-settings-url">{{ t('meetingsUi.url') }}</Label>
-            <Input id="series-settings-url" v-model="meetingUrl" dir="ltr" :disabled="!hydrated || isPending || !canEdit" :aria-invalid="!!formErrors.meetingUrl" aria-describedby="series-settings-url-error" />
-            <p v-if="formErrors.meetingUrl" id="series-settings-url-error" role="alert" class="text-sm text-destructive">{{ t(`meetingsUx.errors.${formErrors.meetingUrl}`) }}</p>
-          </div>
+        <UAlert v-if="!canEdit" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('meetingsUx.seriesSettingsForbidden')" />
+        <SharedFormSection :title="t('meetingsUx.seriesDefaultsTitle')" class="space-y-4">
+          <UFormField :label="t('meetingsUx.seriesName')" name="name" required :error="formErrors.name ? t(`meetingsUx.errors.${formErrors.name}`) : undefined">
+            <UInput id="series-settings-name" v-model="name" class="w-full" :disabled="!hydrated || isPending || !canEdit" :aria-invalid="!!formErrors.name" required />
+          </UFormField>
+          <UFormField :label="t('meetingsUi.location')" name="location">
+            <UInput id="series-settings-location" v-model="location" class="w-full" :disabled="!hydrated || isPending || !canEdit" />
+          </UFormField>
+          <UFormField :label="t('meetingsUi.url')" name="meetingUrl" :error="formErrors.meetingUrl ? t(`meetingsUx.errors.${formErrors.meetingUrl}`) : undefined">
+            <UInput id="series-settings-url" v-model="meetingUrl" dir="ltr" class="w-full" :disabled="!hydrated || isPending || !canEdit" :aria-invalid="!!formErrors.meetingUrl" />
+          </UFormField>
         </SharedFormSection>
-        <SharedFormSection :title="t('meetingsUi.sectionPeople')" class="grid gap-4">
+        <SharedFormSection :title="t('meetingsUi.sectionPeople')">
           <MeetingPeopleFields v-model:attendee-ids="attendeeIds" v-model:secretary-id="secretaryId" :known="known" :disabled="!hydrated || isPending || !canEdit" />
         </SharedFormSection>
-        <SharedFormSection :title="t('meetingsUx.scheduleSummaryTitle')" aria-readonly="true" class="grid gap-4">
+        <SharedFormSection :title="t('meetingsUx.scheduleSummaryTitle')" aria-readonly="true" class="space-y-4">
           <dl class="grid gap-2 text-sm">
             <div><dt class="font-medium">{{ t('meetingsUi.recurrenceLabel') }}</dt><dd>{{ t(`meetingsUi.recurrence.${query.data.value.recurrence}`) }}</dd></div>
             <div><dt class="font-medium">{{ t('meetingsUi.untilMode') }}</dt><dd>{{ termination }}</dd></div>
           </dl>
           <p class="text-sm text-muted-foreground">{{ t('meetingsUx.seriesSettingsScope') }}</p>
         </SharedFormSection>
-        <p v-if="error" role="alert" class="text-sm text-destructive">{{ t('meetingsUx.seriesSettingsSaveError') }}</p>
+        <UAlert v-if="error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('meetingsUx.seriesSettingsSaveError')" />
         <div class="nasq-form-footer justify-end">
-          <NuxtLink :to="returnTo"><Button type="button" variant="outline">{{ t('app.cancel') }}</Button></NuxtLink>
-          <Button type="submit" :disabled="!hydrated || isPending || !canEdit || !dirty || Object.values(formErrors).some(Boolean)">{{ t('app.save') }}</Button>
+          <UButton type="button" color="secondary" :to="returnTo" :label="t('app.cancel')" />
+          <UButton type="submit" :disabled="!hydrated || isPending || !canEdit || !dirty || Object.values(formErrors).some(Boolean)" :label="t('app.save')" />
         </div>
       </form>
     </SharedPageState>

@@ -36,7 +36,7 @@ function loadSetup(path: string, props: Record<string, unknown>, deps: SetupDeps
     'useI18n', 'useHydrated', 'ApiError', 'isDirtySnapshot', 'useProjects', 'useProject', 'useMilestones', 'validateMilestoneDates', 'validateTaskDates', 'buildTaskCreatePayload', 'validateTaskCreatePolicy', 'buildMilestonePatch', 'useCreateTask',
     'formatCalendarDate', 'fromCalendarDate', 'toCalendarDate', 'useCreateMilestone',
     'useUpdateMilestone', 'useCreateProjectUpdate', 'PROJECT_STATUSES', 'PROJECT_STATUS_LABEL_KEY',
-    'toast', 'DescriptionEditor', 'moveId', 'stageMoveIndex',
+    'toast', 'useToast', 'DescriptionEditor', 'moveId', 'stageMoveIndex',
   ]
   const defaults: SetupDeps = {
     Vue,
@@ -68,6 +68,7 @@ function loadSetup(path: string, props: Record<string, unknown>, deps: SetupDeps
     PROJECT_STATUSES: ['in_progress'],
     PROJECT_STATUS_LABEL_KEY: { in_progress: 'tasks.state.inProgress' },
     toast: { success: vi.fn() },
+    useToast: () => ({ add: vi.fn() }),
     DescriptionEditor: {},
     moveId: (items: unknown[]) => items,
     stageMoveIndex: (_length: number, from: number) => from,
@@ -119,8 +120,10 @@ describe('PMO repair form contracts', () => {
     expect(charter).toContain('charter-owning-unit-label charter-owning-unit-value')
     expect(charter).toContain('charter-sponsor-label charter-sponsor-value')
     expect(charter).toContain('charter-manager-label charter-manager-value')
-    expect(charter).toContain('charter-date-start-label charter-date-start-value')
-    expect(charter).toContain('charter-date-end-label charter-date-end-value')
+    expect(charter).toContain(':aria-label="t(\'projects.charter.fields.date_start\')"')
+    expect(charter).toContain(':aria-label="t(\'projects.charter.fields.date_end\')"')
+    const dateField = source('apps/web/app/components/shared/DateField.vue')
+    expect(dateField).toContain('`${props.ariaLabel}: ${text.value}`')
     expect(details).toContain('aria-labelledby="task-deadline-label task-deadline-value"')
   })
 
@@ -269,8 +272,8 @@ describe('PMO repair form contracts', () => {
     expect(state.pendingDeleteId.value).toBe(null)
     const template = source('apps/web/app/components/project/StageListEditor.vue')
     expect(template).toContain('<template v-if="(stage.task_count ?? 0) === 0">')
-    expect(template).toContain('<TooltipProvider v-else')
-    expect(template).toContain('<Tooltip>')
+    expect(template).toContain('<UTooltip v-else')
+    expect(template).toContain(':text="t(\'projects.stages.notEmpty\', { count: stage.task_count })"')
     expect(stages[1]?.task_count).toBeGreaterThan(0)
   })
 })

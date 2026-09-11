@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ChatMessageListSchema, type ChatMessage } from '@nasq/contracts'
 import ChatAttachment from '@/components/chat/ChatAttachment.vue'
-import { toast } from 'vue-sonner'
 import { ApiError } from '@/composables/useApi'
 import {
   CHAT_PAGE_SIZE,
@@ -27,6 +26,7 @@ const emit = defineEmits<{ denied: []; reply: [ChatMessage] }>()
 const { t, locale } = useI18n()
 const { me } = useMe()
 const hydrated = useHydrated()
+const toast = useToast()
 const { $api } = useApi()
 const { connected } = useBus()
 const { data, isFetching, isError, error } = useChatMessages(() => props.conversationId, {}, () => props.q || '')
@@ -222,7 +222,7 @@ async function runMessageAction(item: ChatMessage, work: () => Promise<ChatMessa
     return true
   } catch (value) {
     if (value instanceof ApiError && isFatalChatStatus(value.status)) seal()
-    else toast.error(value instanceof ApiError ? value.message : t('chat.actionFailed'))
+    else toast.add({ title: value instanceof ApiError ? value.message : t('chat.actionFailed'), color: 'error' })
     return false
   } finally {
     busyId.value = null
@@ -267,9 +267,7 @@ watch(() => props.denied, (value) => { if (value) seal() })
 <template>
   <div class="flex min-h-0 flex-1 flex-col">
     <div class="flex justify-center p-2">
-      <Button type="button" variant="ghost" size="sm" :disabled="!hydrated || isFetching || loadingOlder || !items.length || sealed" @click="loadOlder">
-        {{ t('chat.loadOlder') }}
-      </Button>
+      <UButton type="button" color="neutral" variant="ghost" size="sm" :disabled="!hydrated || isFetching || loadingOlder || !items.length || sealed" :label="t('chat.loadOlder')" @click="loadOlder" />
     </div>
     <div v-if="(isError || sealed) && !items.length" class="p-4 text-sm text-destructive" role="alert">{{ t('chat.unavailable') }}</div>
     <div ref="scroller" class="nasq-chat-scroller min-h-0 flex-1 overflow-y-auto px-4 py-2" data-testid="chat-scroller" @scroll="onScroll">
@@ -292,10 +290,10 @@ watch(() => props.denied, (value) => { if (value) seal() })
             >
               <p v-if="row.item.parent" class="mb-1 border-s-2 ps-2 text-[11px] opacity-80">{{ row.item.parent.author.name }}: {{ row.item.parent.body }}</p>
               <template v-if="editingId === row.item.id">
-                <textarea v-model="editDraft" rows="2" class="w-full rounded-md bg-background px-2 py-1 text-foreground" />
+                <UTextarea v-model="editDraft" :rows="2" class="w-full" />
                 <div class="mt-1 flex gap-1">
-                  <Button type="button" size="sm" :disabled="busyId === row.item.id" @click="saveEdit(row.item)">{{ t('chat.save') }}</Button>
-                  <Button type="button" size="sm" variant="ghost" @click="editingId = null">{{ t('app.cancel') }}</Button>
+                  <UButton type="button" size="sm" :disabled="busyId === row.item.id" :label="t('chat.save')" @click="saveEdit(row.item)" />
+                  <UButton type="button" size="sm" color="neutral" variant="ghost" :label="t('app.cancel')" @click="editingId = null" />
                 </div>
               </template>
               <template v-else>
@@ -307,14 +305,18 @@ watch(() => props.denied, (value) => { if (value) seal() })
                 <ChatAttachment v-for="attachment in row.item.attachments" :key="attachment.id" :attachment="attachment" />
               </div>
               <div v-if="row.item.reactions.length" class="mt-1 flex flex-wrap gap-1">
-                <button
+                <UButton
                   v-for="reaction in row.item.reactions"
                   :key="reaction.content"
                   type="button"
-                  class="rounded-full bg-background/40 px-1.5 text-[11px]"
+                  color="neutral"
+                  :variant="reaction.me ? 'soft' : 'ghost'"
+                  size="xs"
+                  :aria-pressed="reaction.me"
                   :disabled="busyId === row.item.id"
                   @click="runMessageAction(row.item, () => reactMessage({ messageId: row.item.id, content: reaction.content, action: reaction.me ? 'remove' : 'add' }))"
-                >{{ reaction.content }} {{ reaction.count }}</button>
+                  :label="`${reaction.content} ${reaction.count}`"
+                />
               </div>
               <p class="nasq-chat-bubble-meta">
                 <time>{{ timeFmt.format(new Date(row.item.created_at)) }}</time>
@@ -322,39 +324,37 @@ watch(() => props.denied, (value) => { if (value) seal() })
               </p>
             </div>
             <div class="nasq-chat-msg-actions flex flex-wrap gap-1 text-[11px] text-muted-foreground">
-              <button type="button" :disabled="busyId === row.item.id" @click="emit('reply', row.item)">{{ t('chat.reply') }}</button>
-              <button
+              <UButton type="button" color="neutral" variant="ghost" size="xs" :disabled="busyId === row.item.id" :label="t('chat.reply')" @click="emit('reply', row.item)" />
+              <UButton
                 v-for="emoji in CHAT_REACTIONS"
                 :key="emoji"
                 type="button"
+                color="neutral" variant="ghost"
                 :disabled="busyId === row.item.id"
                 @click="runMessageAction(row.item, () => reactMessage({ messageId: row.item.id, content: emoji, action: 'add' }))"
-              >{{ emoji }}</button>
-              <button type="button" :disabled="busyId === row.item.id" @click="runMessageAction(row.item, () => starMessage(row.item.id))">{{ t('chat.star') }}</button>
-              <button type="button" :disabled="busyId === row.item.id" @click="runMessageAction(row.item, () => pinMessage({ messageId: row.item.id, pinned: !row.item.pinned }))">
-                {{ row.item.pinned ? t('chat.unpin') : t('chat.pin') }}
-              </button>
+                :label="emoji"
+              />
+              <UButton type="button" color="neutral" variant="ghost" size="xs" :disabled="busyId === row.item.id" :label="t('chat.star')" @click="runMessageAction(row.item, () => starMessage(row.item.id))" />
+              <UButton type="button" color="neutral" variant="ghost" size="xs" :disabled="busyId === row.item.id" :label="row.item.pinned ? t('chat.unpin') : t('chat.pin')" @click="runMessageAction(row.item, () => pinMessage({ messageId: row.item.id, pinned: !row.item.pinned }))" />
               <template v-if="row.item.author.id === me?.id">
-                <button type="button" :disabled="busyId === row.item.id" @click="editingId = row.item.id; editDraft = row.item.body">{{ t('chat.edit') }}</button>
-                <button v-if="confirmingDelete !== row.item.id" type="button" :disabled="busyId === row.item.id" @click="confirmingDelete = row.item.id">{{ t('chat.delete') }}</button>
+                <UButton type="button" color="neutral" variant="ghost" size="xs" :disabled="busyId === row.item.id" :label="t('chat.edit')" @click="editingId = row.item.id; editDraft = row.item.body" />
+                <UButton v-if="confirmingDelete !== row.item.id" type="button" color="error" variant="ghost" size="xs" :disabled="busyId === row.item.id" :label="t('chat.delete')" @click="confirmingDelete = row.item.id" />
                 <template v-else>
-                  <button type="button" :disabled="busyId === row.item.id" @click="deleteMessage(row.item)">{{ t('chat.confirmDelete') }}</button>
-                  <button type="button" @click="confirmingDelete = null">{{ t('app.cancel') }}</button>
+                  <UButton type="button" color="error" variant="ghost" size="xs" :disabled="busyId === row.item.id" :label="t('chat.confirmDelete')" @click="deleteMessage(row.item)" />
+                  <UButton type="button" color="neutral" variant="ghost" size="xs" :label="t('app.cancel')" @click="confirmingDelete = null" />
                 </template>
               </template>
             </div>
           </li>
         </template>
         <li v-if="pendingBody" class="ms-auto flex max-w-[min(100%,24rem)] flex-col items-end gap-1" data-testid="chat-pending">
-          <div class="rounded-2xl bg-primary/70 px-3 py-2 text-sm text-primary-foreground">{{ pendingBody }}</div>
+          <div class="rounded-2xl bg-[color-mix(in_srgb,var(--primary)_70%,transparent)] px-3 py-2 text-sm text-[var(--primary-foreground)]">{{ pendingBody }}</div>
           <p class="text-[10px] text-muted-foreground">{{ t('chat.pending') }}</p>
         </li>
       </ol>
     </div>
     <div v-if="jumpCount" class="flex justify-center p-2">
-      <Button type="button" size="sm" :disabled="!hydrated" data-testid="chat-jump-latest" @click="jumpToLatest">
-        {{ t('chat.jumpLatest', { count: jumpCount }) }}
-      </Button>
+      <UButton type="button" size="sm" :disabled="!hydrated" data-testid="chat-jump-latest" :label="t('chat.jumpLatest', { count: jumpCount })" @click="jumpToLatest" />
     </div>
   </div>
 </template>

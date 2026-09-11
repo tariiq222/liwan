@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { toast } from 'vue-sonner'
 import { ApiError } from '@/composables/useApi'
 import { useCreateDocument } from '@/composables/useHrDocuments'
 import DocumentEditor from './DocumentEditor.vue'
@@ -8,6 +7,7 @@ const props = defineProps<{ departmentId: number; backTo: string }>()
 const emit = defineEmits<{ saved: [id: number] }>()
 const { t } = useI18n()
 const hydrated = useHydrated()
+const toast = useToast()
 const name = ref('')
 const body = ref('')
 const saved = ref(false)
@@ -23,20 +23,27 @@ async function submit() {
     await nextTick()
     emit('saved', document.id)
   } catch (error) {
-    toast.error(error instanceof ApiError ? error.message : t('errors.generic'))
+    toast.add({ title: error instanceof ApiError ? error.message : t('errors.generic'), color: 'error' })
   }
 }
 </script>
 
 <template>
   <SharedUnsavedChanges :dirty="dirty" />
-  <form class="nasq-form" @submit.prevent="submit">
+  <UForm :state="{ name, body }" class="space-y-5" method="post" @submit="submit">
     <SharedFormSection :title="t('hr.docs.newTitle')">
-      <div class="nasq-form-grid mt-4">
-        <div class="grid gap-2"><Label for="hr-doc-new-name">{{ t('hr.docs.newTitle') }}</Label><Input id="hr-doc-new-name" v-model="name" :disabled="!hydrated || isPending" required /></div>
-        <div class="grid gap-2 sm:col-span-2"><Label>{{ t('hr.docs.body') }}</Label><DocumentEditor :model-value="body" :document-id="0" :debounce="false" :disabled="isPending" @update:model-value="body = $event" /></div>
+      <div class="grid gap-4 mt-4">
+        <UFormField :label="t('hr.docs.newTitle')" name="hr-doc-new-name" required>
+          <UInput id="hr-doc-new-name" v-model="name" class="w-full" :disabled="!hydrated || isPending" required />
+        </UFormField>
+        <UFormField :label="t('hr.docs.body')" name="hr-doc-new-body">
+          <DocumentEditor :model-value="body" :document-id="0" :debounce="false" :disabled="isPending" @update:model-value="body = $event" />
+        </UFormField>
       </div>
     </SharedFormSection>
-    <div class="nasq-form-footer"><Button as-child type="button" variant="outline"><NuxtLink :to="props.backTo">{{ t('app.cancel') }}</NuxtLink></Button><Button type="submit" :disabled="!hydrated || isPending || !name.trim()">{{ t('app.create') }}</Button></div>
-  </form>
+    <footer class="flex justify-end gap-2">
+      <UButton type="button" color="secondary" variant="solid" :to="props.backTo" :label="t('app.cancel')" />
+      <UButton type="submit" color="primary" :disabled="!hydrated || isPending || !name.trim()" :label="t('app.create')" />
+    </footer>
+  </UForm>
 </template>

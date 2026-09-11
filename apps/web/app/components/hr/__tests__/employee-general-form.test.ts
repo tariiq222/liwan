@@ -26,7 +26,6 @@ function loadComponent() {
   })
   const require = (name: string) => {
     if (name === 'vue') return Vue
-    if (name === 'vue-sonner') return { toast: { success: () => {}, error: () => {} } }
     if (name === '@vueuse/core') return { refDebounced: (value: Vue.Ref<string>) => value }
     if (name === '@/composables/useHrEmployees') return {
       useCreateHrEmployee: createMutation,
@@ -38,13 +37,14 @@ function loadComponent() {
     }
     throw new Error(`Unexpected import: ${name}`)
   }
-  new Function('require', 'module', 'exports', 'useI18n', 'useHydrated', 'useAccess', 'ref', 'computed', 'watch', code)(
+  new Function('require', 'module', 'exports', 'useI18n', 'useHydrated', 'useAccess', 'useToast', 'ref', 'computed', 'watch', code)(
     require,
     module,
     module.exports,
     () => ({ t: (key: string) => key }),
     () => Vue.ref(true),
     () => ({ can: () => true }),
+    () => ({ add: () => {} }),
     Vue.ref,
     Vue.computed,
     Vue.watch,

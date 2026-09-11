@@ -26,13 +26,13 @@ function created(employee: { id: number }) { void navigateTo({ path: `/hr/employ
       :error="initialDataReady ? undefined : dependencyError"
       @retry="retryDependencies"
     >
-      <section class="nasq-panel nasq-panel-body">
+      <UCard>
         <EmployeeGeneralForm :departments="departments.data.value?.items ?? []" :employees="employees.data.value?.items ?? []" @saved="created">
           <template #actions>
-            <Button as-child type="button" variant="outline" :disabled="!hydrated"><NuxtLink :to="returnTo" @click="!hydrated && $event.preventDefault()">{{ t('app.cancel') }}</NuxtLink></Button>
+            <UButton type="button" color="secondary" variant="solid" :disabled="!hydrated" :to="returnTo" :label="t('app.cancel')" @click="!hydrated && $event.preventDefault()" />
           </template>
         </EmployeeGeneralForm>
-      </section>
+      </UCard>
     </SharedPageState>
     <SharedPageState v-if="canManage && initialDataReady && dependencyError" :error="dependencyError" @retry="retryDependencies" />
   </SharedPageContainer>

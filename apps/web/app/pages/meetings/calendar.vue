@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ChevronLeft, ChevronRight, Plus } from '@lucide/vue'
+import { ChevronLeft, ChevronRight } from '@lucide/vue'
 import { useMeetings } from '@/composables/useMeetings'
 import { returnToQuery } from '@/utils/safeReturnTo'
 import { formatCalendarDate } from '@/composables/calendarDate'
@@ -110,25 +110,21 @@ function goToday() {
   <SharedPageContainer width="list">
     <SharedPageHeader :title="t('nav.meetingCalendar')" :back-to="'/meetings'">
       <template #actions>
-        <NuxtLink v-if="can('meetings.create')" :to="{ path: '/meetings/new', query: returnToQuery(route.fullPath) }">
-          <Button :disabled="!hydrated" class="gap-2">
-            <Plus class="size-[18px]" />{{ t('meetingsUi.new') }}
-          </Button>
-        </NuxtLink>
+        <UButton v-if="can('meetings.create')" icon="i-lucide-plus" :disabled="!hydrated" :to="{ path: '/meetings/new', query: returnToQuery(route.fullPath) }" :label="t('meetingsUi.new')" />
       </template>
     </SharedPageHeader>
-    <div class="nasq-project-toolbar">
+    <div class="flex items-center justify-between gap-3 rounded-xl border border-default bg-default p-3">
       <div class="flex items-center gap-2" :aria-label="monthLabel">
-        <Button type="button" variant="ghost" size="icon" class="size-[32px] rounded-lg" :disabled="!hydrated" :aria-label="t('projects.previousPage')" @click="shift(-1)">
+        <UButton type="button" color="neutral" variant="ghost" square :disabled="!hydrated" :aria-label="t('projects.previousPage')" @click="shift(-1)">
           <ChevronRight v-if="locale === 'ar'" class="size-[18px]" />
           <ChevronLeft v-else class="size-[18px]" />
-        </Button>
+        </UButton>
         <span class="min-w-40 text-center text-sm font-medium">{{ monthLabel }}</span>
-        <Button type="button" variant="outline" size="sm" :disabled="!hydrated" @click="goToday">{{ t('meetingsUx.today') }}</Button>
-        <Button type="button" variant="ghost" size="icon" class="size-[32px] rounded-lg" :disabled="!hydrated" :aria-label="t('projects.nextPage')" @click="shift(1)">
+        <UButton type="button" color="secondary" variant="outline" size="sm" :disabled="!hydrated" :label="t('meetingsUx.today')" @click="goToday" />
+        <UButton type="button" color="neutral" variant="ghost" square :disabled="!hydrated" :aria-label="t('projects.nextPage')" @click="shift(1)">
           <ChevronLeft v-if="locale === 'ar'" class="size-[18px]" />
           <ChevronRight v-else class="size-[18px]" />
-        </Button>
+        </UButton>
       </div>
     </div>
     <p v-if="coverage.status === 'truncated'" class="text-sm nasq-status-text-warning" role="status">
@@ -138,8 +134,8 @@ function goToday() {
       {{ t('meetingsUx.calendarCoverageUnknown') }}
     </p>
     <SharedPageState :loading="query.isLoading.value" :error="query.error.value" @retry="query.refetch">
-      <div class="nasq-panel overflow-hidden">
-        <div class="md:hidden">
+      <UCard class="meeting-calendar overflow-hidden">
+        <div class="calendar-agenda">
           <div v-if="!agenda.length" class="p-4 text-sm text-muted-foreground">{{ t('meetingsUi.empty') }}</div>
           <NuxtLink
             v-for="meeting in agenda"
@@ -149,7 +145,7 @@ function goToday() {
           >
             <div class="flex min-w-0 items-start justify-between gap-2">
               <span class="min-w-0 break-words font-medium">{{ meeting.name }}</span>
-              <Badge variant="secondary" class="shrink-0">{{ t(`meetingsUi.state.${meeting.state}`) }}</Badge>
+              <UBadge color="neutral" variant="subtle" class="shrink-0">{{ t(`meetingsUi.state.${meeting.state}`) }}</UBadge>
             </div>
             <div class="flex flex-wrap gap-x-3 gap-y-1 text-sm text-muted-foreground">
               <span>{{ localDate(meeting.meeting_date) }}</span>
@@ -158,7 +154,7 @@ function goToday() {
             </div>
           </NuxtLink>
         </div>
-        <div class="hidden overflow-x-auto md:block">
+        <div class="calendar-grid overflow-x-auto">
           <div class="min-w-[560px]">
             <div class="grid grid-cols-7 border-b border-border text-center text-xs text-muted-foreground">
               <div v-for="label in weekdayLabels" :key="label" class="p-2">{{ label }}</div>
@@ -183,7 +179,16 @@ function goToday() {
             </div>
           </div>
         </div>
-      </div>
+      </UCard>
     </SharedPageState>
   </SharedPageContainer>
 </template>
+
+<style scoped>
+.meeting-calendar { container-type: inline-size; }
+.calendar-grid { display: none; }
+@container (min-width: 600px) {
+  .calendar-agenda { display: none; }
+  .calendar-grid { display: block; }
+}
+</style>

@@ -21,8 +21,8 @@ const access = useProject(projectId)
       @retry="access.refetch"
     />
     <p v-if="access.data.value && !access.data.value.can_manage" role="status">{{ t('projects.governance.readOnly') }}</p>
-    <section v-if="access.data.value?.can_manage" class="nasq-panel overflow-hidden">
-      <div class="nasq-panel-body">
+    <section v-if="access.data.value?.can_manage" class="rounded-xl border border-default bg-default overflow-hidden">
+      <div class="p-5">
         <RegisterForm :project-id="projectId" @saved="() => router.push(returnTo)" @cancel="router.push(returnTo)" />
       </div>
     </section>

@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { Plus, Search } from '@lucide/vue'
+import type { TableColumn } from '@nuxt/ui'
 import FilterBar from '@/components/shared/FilterBar.vue'
 import RecordNumber from '@/components/shared/RecordNumber.vue'
-import { useHrDocuments } from '@/composables/useHrDocuments'
+import { useHrDocuments, type HrDocument } from '@/composables/useHrDocuments'
 import { useHrDepartments } from '@/composables/useHrDepartments'
 import { returnToQuery } from '@/utils/safeReturnTo'
 import { refDebounced } from '@vueuse/core'
@@ -31,11 +31,18 @@ const params = computed(() => {
 })
 const query = useHrDocuments(params)
 const departments = useHrDepartments()
+const departmentOptions = computed(() => [{ value: 'all', label: t('hr.docs.allDepartments') }, ...(departments.data.value?.items ?? []).map(department => ({ value: String(department.id), label: department.name }))])
 const page = computed(() => Math.floor(committedListParams.value.offset / limit) + 1)
 const pages = computed(() => Math.max(1, Math.ceil((query.data.value?.total ?? 0) / limit)))
 const selectedDepartment = computed(() => departments.data.value?.items.find(department => department.id === departmentId.value))
 const hasActiveFilters = computed(() => Boolean(search.value.trim() || departmentId.value))
 const activeFilterCount = computed(() => Number(Boolean(search.value.trim())) + Number(Boolean(departmentId.value)))
+
+const columns = computed<TableColumn<HrDocument>[]>(() => [
+  { accessorKey: 'id', header: t('app.recordNumber') },
+  { accessorKey: 'name', header: t('hr.docs.columns.name') },
+  { accessorKey: 'department', header: t('hr.docs.columns.department') },
+])
 
 watch(() => [route.query.q, route.query.department_id, route.query.offset], ([q, department, nextOffset]) => {
   search.value = String(q ?? '')
@@ -71,55 +78,46 @@ function setPage(next: number) {
   offset.value = (next - 1) * limit
   void router.replace({ query: { ...route.query, offset: offset.value > 0 ? offset.value : undefined } })
 }
+function documentTo(document: HrDocument) {
+  return { path: `/hr/departments/${document.department.id}/documents/${document.id}`, query: returnToQuery(route.fullPath) }
+}
 </script>
 
 <template>
   <SharedPageContainer width="list">
     <SharedPageHeader :title="t('hr.docs.title')" :back-to="'/hr'">
       <template #actions>
-        <Button v-if="can('hr.documents.manage')" as-child :disabled="!hydrated" class="gap-2">
-          <NuxtLink :to="{ path: '/hr/documents/new', query: { ...returnToQuery(route.fullPath), department_id: departmentId } }" @click="!hydrated && $event.preventDefault()">
-            <Plus class="size-[18px]" />{{ t('hr.docs.new') }}
-          </NuxtLink>
-        </Button>
+        <UButton v-if="can('hr.documents.manage')" color="primary" :disabled="!hydrated" icon="i-lucide-plus" :label="t('hr.docs.new')" :to="{ path: '/hr/documents/new', query: { ...returnToQuery(route.fullPath), department_id: departmentId } }" @click="!hydrated && $event.preventDefault()" />
       </template>
     </SharedPageHeader>
     <div class="w-full min-w-0" data-testid="documents-toolbar">
       <FilterBar class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
         <template #search>
-          <div class="relative min-w-52">
-            <Search class="pointer-events-none absolute start-2 top-1/2 size-[18px] -translate-y-1/2 text-muted-foreground" />
-            <Input
-              v-model="search"
-              :disabled="!hydrated"
-              :placeholder="t('hr.docs.search')"
-              :aria-label="t('hr.docs.search')"
-              class="ps-8"
-              @change="updateFilters"
-            />
-          </div>
+          <UInput
+            v-model="search"
+            :disabled="!hydrated"
+            :placeholder="t('hr.docs.search')"
+            :aria-label="t('hr.docs.search')"
+            icon="i-lucide-search"
+            class="min-w-52"
+            @change="updateFilters"
+          />
         </template>
         <template #default>
-          <Select
+          <USelect
             v-if="can('hr.departments.read')"
             :model-value="departmentId ? String(departmentId) : 'all'"
+            :items="departmentOptions"
+            class="w-48"
+            :disabled="!hydrated"
+            :aria-label="t('hr.docs.allDepartments')"
             @update:model-value="onDepartmentChange"
-          >
-            <SelectTrigger class="w-48" :disabled="!hydrated" :aria-label="t('hr.docs.allDepartments')">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{{ t('hr.docs.allDepartments') }}</SelectItem>
-              <SelectItem v-for="department in departments.data.value?.items ?? []" :key="department.id" :value="String(department.id)">
-                {{ department.name }}
-              </SelectItem>
-            </SelectContent>
-          </Select>
+          />
         </template>
         <template #active>
           <div v-if="hasActiveFilters" class="flex flex-wrap items-center gap-2">
-            <Badge v-if="search.trim()" variant="secondary">{{ t('hr.directory.searchValue', { value: search }) }}</Badge>
-            <Badge v-if="selectedDepartment" variant="secondary">{{ selectedDepartment.name }}</Badge>
+            <UBadge v-if="search.trim()" color="neutral" variant="subtle">{{ t('hr.directory.searchValue', { value: search }) }}</UBadge>
+            <UBadge v-if="selectedDepartment" color="neutral" variant="subtle">{{ selectedDepartment.name }}</UBadge>
           </div>
         </template>
       </FilterBar>
@@ -131,40 +129,29 @@ function setPage(next: number) {
       :empty-text="t('hr.docs.empty')"
       @retry="query.refetch"
     >
-      <div class="nasq-panel overflow-hidden">
-        <div class="overflow-x-auto">
-          <Table class="min-w-[520px]">
-          <TableHeader>
-            <TableRow>
-              <TableHead class="w-28 text-start">{{ t('app.recordNumber') }}</TableHead>
-              <TableHead class="text-start">{{ t('hr.docs.columns.name') }}</TableHead>
-              <TableHead class="text-start">{{ t('hr.docs.columns.department') }}</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow
-              v-for="document in query.data.value?.items"
-              :key="document.id"
-              class="cursor-pointer transition-colors hover:bg-muted/30"
-              @click="navigateTo({ path: `/hr/departments/${document.department.id}/documents/${document.id}`, query: returnToQuery(route.fullPath) })"
-            >
-              <TableCell class="w-28"><RecordNumber :value="document.id" /></TableCell>
-              <TableCell class="font-medium">{{ document.name }}</TableCell>
-              <TableCell class="text-muted-foreground">{{ document.department.name }}</TableCell>
-            </TableRow>
-          </TableBody>
-          </Table>
-        </div>
+      <div class="min-w-0 space-y-2">
+        <UCard class="hidden overflow-hidden md:block">
+          <div class="overflow-x-auto">
+            <UTable :data="query.data.value?.items ?? []" :columns="columns" :caption="t('hr.docs.title')" :ui="{ caption: 'sr-only' }" @select="(_event, row) => navigateTo(documentTo(row.original))">
+              <template #id-cell="{ row }"><RecordNumber :value="row.original.id" /></template>
+              <template #name-cell="{ row }"><span class="font-medium">{{ row.original.name }}</span></template>
+              <template #department-cell="{ row }"><span class="text-muted">{{ row.original.department.name }}</span></template>
+            </UTable>
+          </div>
+        </UCard>
+        <ul class="md:hidden space-y-2" :aria-label="t('hr.docs.title')">
+          <li v-for="document in query.data.value?.items ?? []" :key="document.id" class="cursor-pointer rounded-lg border border-default bg-default p-4 shadow-sm" tabindex="0" role="button" @click="navigateTo(documentTo(document))">
+            <bdi class="block text-xs text-muted">#{{ document.id }}</bdi>
+            <p class="font-medium">{{ document.name }}</p>
+            <p class="mt-1 text-xs text-muted">{{ document.department.name }}</p>
+          </li>
+        </ul>
       </div>
     </SharedPageState>
-    <div v-if="pages > 1" class="flex items-center justify-between text-sm text-muted-foreground">
-      <Button variant="ghost" :disabled="!hydrated || page === 1 || query.isFetching.value" @click="setPage(page - 1)">
-        {{ t('access.previousPage') }}
-      </Button>
+    <div v-if="pages > 1" class="flex items-center justify-between text-sm text-muted">
+      <UButton color="secondary" variant="ghost" :disabled="!hydrated || page === 1 || query.isFetching.value" :label="t('access.previousPage')" @click="setPage(page - 1)" />
       <span>{{ t('access.pageOf', { page, pages }) }}</span>
-      <Button variant="ghost" :disabled="!hydrated || page >= pages || query.isFetching.value" @click="setPage(page + 1)">
-        {{ t('access.nextPage') }}
-      </Button>
+      <UButton color="secondary" variant="ghost" :disabled="!hydrated || page >= pages || query.isFetching.value" :label="t('access.nextPage')" @click="setPage(page + 1)" />
     </div>
   </SharedPageContainer>
 </template>

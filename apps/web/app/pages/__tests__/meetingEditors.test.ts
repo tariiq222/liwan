@@ -1,3 +1,4 @@
+import { meetingTabFromRoute, meetingTabQuery, isMeetingTab } from '../../utils/meetingTabs'
 import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { parse } from '@vue/compiler-sfc'
@@ -31,6 +32,9 @@ function evaluatedDetailPage() {
   const pendingRequest = new Promise<void>(resolveRequest => { release = resolveRequest })
   const runResolution = vi.fn(() => pendingRequest)
   const scope = {
+    meetingTabFromRoute, meetingTabQuery, isMeetingTab,
+    onMounted: () => {}, onBeforeUnmount: () => {}, // DOM scrolling is covered by the browser suite.
+
     ref,
     computed,
     watch,
@@ -39,6 +43,7 @@ function evaluatedDetailPage() {
     useRouter: () => ({ push: vi.fn() }),
     useI18n: () => ({ t: (key: string) => key, locale: ref('ar') }),
     useHydrated: () => ref(true),
+    useSsrQuerySeed: () => {}, // Client workflow harness; actual SSR is tested separately.
     useAccess: () => ({ can: () => true }),
     useMeeting: () => ({ data: meeting, isLoading: ref(false), error: ref(null), refetch: vi.fn() }),
     useMeetingEvents: () => ({ data: ref({ items: [], total: 0 }), isLoading: ref(false), error: ref(null), refetch: vi.fn() }),
@@ -57,11 +62,11 @@ function evaluatedDetailPage() {
     resolutionActions: () => ['start', 'complete', 'cancel', 'reopen'],
     ApiError: class ApiError extends Error {},
     navigateTo: vi.fn(),
-    toast: { error: vi.fn() },
+    useToast: () => ({ add: vi.fn() }),
   }
   const scriptSource = parse(source('[id].vue')).descriptor.scriptSetup!.content
   const scriptFile = ts.createSourceFile('meeting-detail.ts', scriptSource, ts.ScriptTarget.Latest, true)
-  const script = scriptFile.statements.filter(statement => !ts.isImportDeclaration(statement)).map(statement => statement.getText(scriptFile)).join('\n')
+  const script = scriptFile.statements.filter(statement => !ts.isImportDeclaration(statement)).map(statement => statement.getText(scriptFile)).join('\n').replaceAll('import.meta.client', 'false')
   const js = ts.transpileModule(script, {
     compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None },
   }).outputText
@@ -112,6 +117,7 @@ function evaluatedMinutesPage(mutation = deferredMutation(), state = 'confirmed'
     useRoute: () => route,
     useI18n: () => ({ t: (key: string) => key }),
     useHydrated: () => ref(true),
+    useSsrQuerySeed: () => {}, // Client workflow harness; actual SSR is tested separately.
     useMeeting: () => ({ data: meeting, isLoading: ref(false), error: ref(null), refetch: vi.fn() }),
     usePatchMeeting: () => mutation,
     createMeetingMinutesForm,
@@ -135,6 +141,7 @@ function evaluatedSeriesSettingsPage(mutation = deferredMutation()): Record<stri
     useRoute: () => route,
     useI18n: () => ({ t: (key: string) => key }),
     useHydrated: () => ref(true),
+    useSsrQuerySeed: () => {}, // Client workflow harness; actual SSR is tested separately.
     useMeetingSeries: () => ({ data: series, isLoading: ref(false), error: ref(null), refetch: vi.fn() }),
     usePatchMeetingSeriesSettings: () => mutation,
     formatCalendarDate: (value: string) => value,
@@ -173,6 +180,7 @@ function evaluatedGeneralEditPage(canEdit = true): Record<string, any> {
     useRoute: () => route,
     useI18n: () => ({ t: (key: string) => key }),
     useHydrated: () => ref(true),
+    useSsrQuerySeed: () => {}, // Client workflow harness; actual SSR is tested separately.
     useMeeting: () => ({ data: meeting, isLoading: ref(false), error: ref(null), refetch: vi.fn() }),
     usePatchMeeting: () => ({ mutateAsync, isPending: ref(false), error: ref(null) }),
     safeReturnTo: (value: unknown, fallback: string) => typeof value === 'string' ? value : fallback,
@@ -363,7 +371,7 @@ describe('meeting editor routes and guards', () => {
     expect(content).toContain('v-model:attendee-ids')
     expect(content).toContain('aria-readonly')
     expect(content).toContain('SharedUnsavedChanges')
-    expect(source('series/[id].vue')).toContain('edit-settings')
+    expect(source('series/[id].vue')).toContain('/meetings/series/${id}/edit')
     expect(source('series/[id].vue')).toContain('NuxtPage')
   })
 })

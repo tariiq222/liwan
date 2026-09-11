@@ -73,19 +73,17 @@ async function submit() {
   <form class="nasq-form grid gap-4" data-testid="charter-reference-form" @submit.prevent="submit">
     <SharedUnsavedChanges :dirty="dirty" />
     <div class="grid gap-2">
-      <Label for="catalog-name">{{ t('settings.projects.catalogs.name') }}</Label>
-      <Input id="catalog-name" v-model="name" required :disabled="!hydrated || pending" />
+      <label for="catalog-name" class="flex items-center gap-2 text-sm font-medium leading-none">{{ t('settings.projects.catalogs.name') }}</label>
+      <UInput id="catalog-name" v-model="name" class="w-full" required :disabled="!hydrated || pending" />
     </div>
     <div class="grid gap-2">
-      <Label for="catalog-sequence">{{ t('settings.projects.catalogs.sequence') }}</Label>
-      <Input id="catalog-sequence" v-model="sequence" inputmode="numeric" dir="ltr" :disabled="!hydrated || pending" />
+      <label for="catalog-sequence" class="flex items-center gap-2 text-sm font-medium leading-none">{{ t('settings.projects.catalogs.sequence') }}</label>
+      <UInput id="catalog-sequence" v-model="sequence" class="w-full" inputmode="numeric" dir="ltr" :disabled="!hydrated || pending" />
     </div>
-    <p v-if="error" role="alert" class="text-sm text-destructive">{{ error }}</p>
+    <p v-if="error" role="alert" class="text-sm text-error">{{ error }}</p>
     <div class="flex flex-wrap justify-end gap-2">
-      <Button type="button" variant="outline" :disabled="pending" @click="emit('cancel')">{{ t('app.cancel') }}</Button>
-      <Button type="submit" :disabled="!hydrated || pending || !name.trim()">
-        {{ reference ? t('app.save') : t('app.create') }}
-      </Button>
+      <UButton type="button" color="secondary" :disabled="pending" :label="t('app.cancel')" @click="emit('cancel')" />
+      <UButton type="submit" :disabled="!hydrated || pending || !name.trim()" :label="reference ? t('app.save') : t('app.create')" />
     </div>
   </form>
 </template>

@@ -33,10 +33,10 @@ describe('charter catalog list design', () => {
   })
 
   it('renders catalog rows with existing panel primitives', () => {
-    expect(list).toContain('nasq-panel overflow-hidden')
+    expect(list).toContain('<div class="rounded-xl border border-default bg-default overflow-hidden">')
     expect(list).toContain('v-for="item in query.data.value?.items ?? []"')
-    expect(create).toContain('nasq-panel nasq-panel-body')
-    expect(edit).toContain('nasq-panel nasq-panel-body')
+    expect(create).toContain('rounded-xl border border-default bg-default p-5')
+    expect(edit).toContain('rounded-xl border border-default bg-default p-5')
     expect(create).not.toContain('<Card')
     expect(edit).not.toContain('<Card')
   })
@@ -45,7 +45,7 @@ describe('charter catalog list design', () => {
     expect(list).toContain("can('pmo.settings.manage')")
     expect(list).toContain(':disabled="!hydrated"')
     expect(list).toContain('pendingAction')
-    expect(list).toContain('nasq-status-callout-danger')
+    expect(list).toContain('settings.forbidden')
     expect(list).toContain('listQuery')
     expect(list).toContain('returnToQuery(route.fullPath)')
     expect(list).toContain('CHARTER_CATALOG_PAGE_SIZE')

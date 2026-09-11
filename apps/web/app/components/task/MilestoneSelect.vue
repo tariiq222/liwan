@@ -20,6 +20,11 @@ const { data: milestones } = useMilestones(projectId)
 
 const NONE = 'none'
 
+const items = computed(() => [
+  { label: t('tasks.drawer.noMilestone'), value: NONE },
+  ...(milestones.value ?? []).map((m) => ({ label: m.name, value: String(m.id) })),
+])
+
 function onChange(value: unknown) {
   validationError.value = null
   if (value === NONE) {
@@ -44,14 +49,15 @@ function onChange(value: unknown) {
 </script>
 
 <template>
-  <Select :model-value="task.milestone ? String(task.milestone.id) : NONE" :disabled="isPending || !hydrated" @update:model-value="onChange">
-    <SelectTrigger size="sm" class="w-full" data-testid="milestone-select" :disabled="isPending || !hydrated" :aria-labelledby="props.labelledby">
-      <SelectValue />
-    </SelectTrigger>
-    <SelectContent>
-      <SelectItem :value="NONE">{{ t('tasks.drawer.noMilestone') }}</SelectItem>
-      <SelectItem v-for="m in milestones ?? []" :key="m.id" :value="String(m.id)">{{ m.name }}</SelectItem>
-    </SelectContent>
-  </Select>
-  <p v-if="validationError" role="alert" class="mt-1 text-xs text-destructive">{{ validationError }}</p>
+  <USelect
+    size="sm"
+    class="w-full"
+    data-testid="milestone-select"
+    :items="items"
+    :model-value="task.milestone ? String(task.milestone.id) : NONE"
+    :disabled="isPending || !hydrated"
+    :aria-labelledby="props.labelledby"
+    @update:model-value="onChange"
+  />
+  <p v-if="validationError" role="alert" class="mt-1 text-xs text-error">{{ validationError }}</p>
 </template>

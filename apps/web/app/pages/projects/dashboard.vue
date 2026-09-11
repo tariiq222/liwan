@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { PROJECT_STATUSES } from '@nasq/contracts'
-import { Search } from '@lucide/vue'
 import { refDebounced } from '@vueuse/core'
 import FilterBar from '@/components/shared/FilterBar.vue'
 import ProjectDashboardCharts from '@/components/project/dashboard/ProjectDashboardCharts.vue'
@@ -101,47 +100,46 @@ function clearFilters() {
     <div class="w-full min-w-0">
       <FilterBar inline class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
         <template #search>
-          <div class="relative min-w-52 flex-1">
-            <Search class="pointer-events-none absolute start-2 top-1/2 size-[18px] -translate-y-1/2 text-muted-foreground" />
-            <Input v-model="search" :disabled="!hydrated" :placeholder="t('projects.reports.search')" :aria-label="t('projects.reports.search')" class="ps-8" />
-          </div>
+          <UInput v-model="search" :disabled="!hydrated" :placeholder="t('projects.reports.search')" :aria-label="t('projects.reports.search')" icon="i-lucide-search" class="min-w-52 flex-1" />
         </template>
-        <Select :model-value="filters.status" @update:model-value="onStatusChange">
-          <SelectTrigger data-testid="project-dashboard-status-filter" class="w-40" :disabled="!hydrated">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{{ t('projects.filters.allStatuses') }}</SelectItem>
-            <SelectItem value="unset">{{ t('projects.status.unset') }}</SelectItem>
-            <SelectItem v-for="status in PROJECT_STATUSES" :key="status" :value="status">{{ t(`projects.status.${status}`) }}</SelectItem>
-          </SelectContent>
-        </Select>
+        <USelect
+          :model-value="filters.status"
+          data-testid="project-dashboard-status-filter"
+          class="w-40"
+          :disabled="!hydrated"
+          :items="[
+            { value: 'all', label: t('projects.filters.allStatuses') },
+            { value: 'unset', label: t('projects.status.unset') },
+            ...PROJECT_STATUSES.map(status => ({ value: status, label: t(`projects.status.${status}`) })),
+          ]"
+          @update:model-value="onStatusChange"
+        />
         <template #active>
           <div v-if="filtered" class="flex flex-wrap items-center gap-2">
-            <Badge v-if="filters.q.trim()" variant="secondary">{{ t('projects.filters.searchValue', { value: filters.q }) }}</Badge>
-            <Badge v-if="filters.status !== 'all'" variant="secondary">{{ t(filters.status === 'unset' ? 'projects.filters.unset' : `projects.status.${filters.status}`) }}</Badge>
+            <UBadge v-if="filters.q.trim()" color="secondary" variant="subtle">{{ t('projects.filters.searchValue', { value: filters.q }) }}</UBadge>
+            <UBadge v-if="filters.status !== 'all'" color="secondary" variant="subtle">{{ t(filters.status === 'unset' ? 'projects.filters.unset' : `projects.status.${filters.status}`) }}</UBadge>
           </div>
         </template>
       </FilterBar>
     </div>
 
     <div v-if="!hydrated || (analytics.isLoading.value && !analytics.data.value)" role="status" class="space-y-5" :aria-label="t('app.loading')">
-      <div class="nasq-metrics"><Skeleton v-for="n in 4" :key="n" class="nasq-metric h-24 rounded-none" /></div>
-      <div class="grid gap-5 xl:grid-cols-2"><Skeleton v-for="n in 6" :key="n" class="h-[350px] rounded-lg bg-card" /></div>
+      <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"><USkeleton v-for="n in 4" :key="n" class=" h-24 rounded-none" /></div>
+      <div class="grid gap-5 xl:grid-cols-2"><USkeleton v-for="n in 6" :key="n" class="h-[350px] rounded-lg bg-default" /></div>
     </div>
 
-    <div v-else-if="analytics.error.value" data-testid="project-dashboard-analytics-error" role="alert" class="nasq-panel overflow-hidden">
-      <div class="nasq-panel-header"><h2>{{ t('projects.dashboard.analyticsError') }}</h2></div>
-      <div class="nasq-panel-body space-y-3">
-        <Button variant="outline" :disabled="!hydrated" @click="analytics.refetch">{{ t('projects.dashboard.retryAnalytics') }}</Button>
+    <div v-else-if="analytics.error.value" data-testid="project-dashboard-analytics-error" role="alert" class="rounded-xl border border-default bg-default overflow-hidden">
+      <div class="border-b border-default px-5 py-4"><h2 class="text-lg font-semibold text-highlighted">{{ t('projects.dashboard.analyticsError') }}</h2></div>
+      <div class="p-5 space-y-3">
+        <UButton variant="outline" :disabled="!hydrated" @click="analytics.refetch()">{{ t('projects.dashboard.retryAnalytics') }}</UButton>
       </div>
     </div>
 
-    <div v-else-if="rows.length === 0" data-testid="project-dashboard-empty" role="status" class="nasq-panel overflow-hidden text-sm text-muted-foreground">
-      <div class="nasq-panel-header"><h2>{{ t(filtered ? 'projects.filteredEmpty' : 'projects.dashboard.empty') }}</h2></div>
-      <div class="nasq-panel-body text-center">
+    <div v-else-if="rows.length === 0" data-testid="project-dashboard-empty" role="status" class="rounded-xl border border-default bg-default overflow-hidden text-sm text-muted">
+      <div class="border-b border-default px-5 py-4"><h2 class="text-lg font-semibold text-highlighted">{{ t(filtered ? 'projects.filteredEmpty' : 'projects.dashboard.empty') }}</h2></div>
+      <div class="p-5 text-center">
         <p>{{ t(filtered ? 'projects.filteredEmptyHint' : 'projects.emptyHint') }}</p>
-        <Button v-if="filtered" variant="outline" class="mt-4" :disabled="!hydrated" @click="clearFilters">{{ t('projects.filters.clear') }}</Button>
+        <UButton v-if="filtered" variant="outline" class="mt-4" :disabled="!hydrated" @click="clearFilters">{{ t('projects.filters.clear') }}</UButton>
       </div>
     </div>
 

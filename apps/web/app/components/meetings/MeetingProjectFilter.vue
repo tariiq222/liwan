@@ -6,6 +6,7 @@ const props = defineProps<{
   disabled?: boolean
   id?: string
   hideLabel?: boolean
+  label?: string
 }>()
 const emit = defineEmits<{
   'update:modelValue': [value: number | undefined]
@@ -27,6 +28,7 @@ const options = computed(() => {
   if (!props.modelValue || available.some(project => project.id === props.modelValue)) return available
   return selectedProject.value ? [selectedProject.value, ...available] : [{ id: props.modelValue, name: selectedLabel.value }, ...available]
 })
+const items = computed(() => [{ label: t('meetingsFilters.allProjects'), value: 'all' }, ...options.value.map(project => ({ label: project.name, value: String(project.id) }))])
 
 watch(selectedLabel, value => emit('resolved-name', value), { immediate: true })
 
@@ -38,19 +40,25 @@ function selectProject(value: unknown) {
 
 <template>
   <div v-if="canReadProjects" class="grid min-w-44 gap-1">
-    <Label v-if="id && !hideLabel" :for="id" class="sr-only">{{ t('meetingsFilters.project') }}</Label>
-    <Input v-model="projectSearch" :disabled="!hydrated || disabled" :placeholder="t('meetingsFilters.projectSearch')" :aria-label="t('meetingsFilters.projectSearch')" class="h-9" />
-    <Select :model-value="modelValue ? String(modelValue) : 'all'" :disabled="!hydrated || disabled || projectQuery.isLoading.value" @update:model-value="selectProject">
-      <SelectTrigger :id="id" class="h-9 w-full" :aria-label="t('meetingsFilters.project')"><SelectValue :placeholder="t('meetingsFilters.allProjects')" /></SelectTrigger>
-      <SelectContent>
-        <SelectItem value="all">{{ t('meetingsFilters.allProjects') }}</SelectItem>
-        <SelectItem v-for="project in options" :key="project.id" :value="String(project.id)">{{ project.name }}</SelectItem>
-      </SelectContent>
-    </Select>
+    <label v-if="id && !hideLabel" :for="id" class="text-sm font-medium text-highlighted">{{ label || t('meetingsFilters.project') }}</label>
+    <USelectMenu
+      :id="id"
+      v-model:search-term="projectSearch"
+      :model-value="modelValue ? String(modelValue) : 'all'"
+      :items="items"
+      :ignore-filter="true"
+      value-key="value"
+      class="w-full"
+      :disabled="!hydrated || disabled || projectQuery.isLoading.value"
+      :placeholder="t('meetingsFilters.allProjects')"
+      :search-input="{ placeholder: t('meetingsFilters.projectSearch') }"
+      :aria-label="t('meetingsFilters.project')"
+      @update:model-value="selectProject"
+    />
     <p v-if="projectQuery.isLoading.value" class="text-xs text-muted-foreground" role="status">{{ t('meetingsFilters.projectsLoading') }}</p>
     <div v-else-if="projectQuery.error.value" class="flex items-center gap-2 text-xs text-destructive" role="alert">
       <span>{{ t('meetingsFilters.projectsError') }}</span>
-      <Button type="button" variant="outline" size="sm" :disabled="!hydrated || disabled" @click="projectQuery.refetch()">{{ t('meetingsFilters.retry') }}</Button>
+      <UButton type="button" color="secondary" variant="outline" size="sm" :disabled="!hydrated || disabled" :label="t('meetingsFilters.retry')" @click="projectQuery.refetch()" />
     </div>
     <p v-else-if="!options.length" class="text-xs text-muted-foreground">{{ t('meetingsFilters.noProjects') }}</p>
   </div>

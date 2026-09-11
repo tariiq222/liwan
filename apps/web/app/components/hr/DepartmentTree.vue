@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ChevronDown, FileText, Network, Pencil, Plus, Users } from '@lucide/vue'
+import { Network } from '@lucide/vue'
 import { filterDepartmentTree, flattenDepartmentTree, type DepartmentTreeNode } from '@/lib/departmentTree'
 
 const props = defineProps<{
@@ -57,99 +57,101 @@ function toggle(node: DepartmentTreeNode) {
 </script>
 
 <template>
-  <div v-if="displayedNodes.length" class="nasq-panel min-w-0" data-testid="hr-department-tree">
+  <UCard v-if="displayedNodes.length" class="min-w-0" data-testid="hr-department-tree">
     <div
       v-for="node in displayedNodes"
       :key="node.department.id"
-      class="dept-tree-row relative flex min-w-0 flex-wrap items-center gap-2 border-b border-border py-2.5 pe-3 last:border-b-0 hover:bg-muted/60"
-      :class="{ 'bg-muted/70': selectedId === node.department.id }"
+      class="dept-tree-row relative flex min-w-0 flex-wrap items-center gap-2 border-b border-default py-2.5 pe-3 last:border-b-0 hover:bg-elevated"
+      :class="{ 'bg-elevated': selectedId === node.department.id }"
       :style="{ '--dept-depth': String(node.depth) }"
       :data-depth="node.depth"
       :data-testid="`hr-department-tree-row-${node.department.id}`"
     >
       <span v-if="node.depth" class="dept-tree-guide" aria-hidden="true" />
       <span class="relative flex size-8 shrink-0 items-center justify-center">
-        <Button
+        <UButton
           v-if="node.children.length"
           type="button"
+          color="secondary"
           variant="ghost"
-          size="icon-sm"
-          class="size-8 rounded-md"
+          square
           :disabled="!hydrated || isSearching"
           :aria-label="isExpanded(node) ? $t('hr.depts.collapse') : $t('hr.depts.expand')"
           :aria-expanded="isExpanded(node)"
           @click="toggle(node)"
         >
           <span class="dept-tree-chevron inline-flex" :class="{ 'dept-tree-chevron-collapsed': !isExpanded(node) }">
-            <ChevronDown class="size-[18px]" />
+            <UIcon name="i-lucide-chevron-down" class="size-[18px]" />
           </span>
-        </Button>
+        </UButton>
         <span v-else class="size-8" aria-hidden="true" />
       </span>
-      <Network class="size-[18px] shrink-0 text-muted-foreground" aria-hidden="true" />
-      <button
+      <Network class="size-[18px] shrink-0 text-muted" aria-hidden="true" />
+      <UButton
         type="button"
-        class="min-w-0 flex-1 rounded-md px-1 py-0.5 text-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        color="neutral"
+        variant="ghost"
+        class="min-w-0 flex-1 rounded-md p-1 py-0.5 text-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
         :disabled="!hydrated"
         @click="emit('select', node.department.id)"
       >
         <span class="block text-pretty break-words font-medium">{{ node.department.name }}</span>
-        <span class="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+        <span class="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted">
           <span>{{ node.department.manager?.name || $t('hr.depts.noManager') }}</span>
           <span>{{ $t('hr.depts.employeeReason', { count: node.department.employee_count }) }}</span>
           <span v-if="node.children.length">{{ $t('hr.depts.childReason', { count: node.children.length }) }}</span>
         </span>
-      </button>
+      </UButton>
       <div
         v-if="canManage || canReadEmployees || canReadDocuments"
-        class="ms-auto flex min-w-0 shrink-0 items-center gap-0.5 rounded-md border border-border bg-muted/40 p-0.5 max-sm:basis-full max-sm:justify-end"
+        class="ms-auto flex min-w-0 shrink-0 items-center gap-0.5 rounded-md border border-default bg-elevated p-0.5 max-sm:basis-full max-sm:justify-end"
         role="group"
         :aria-label="node.department.name"
       >
-        <Button
+        <UButton
           v-if="canManage"
           type="button"
+          color="secondary"
           variant="ghost"
-          size="icon-sm"
-          class="size-8 rounded-md"
+          square
           :disabled="!hydrated"
           :aria-label="$t('hr.depts.edit')"
+          icon="i-lucide-pencil"
           @click="emit('edit', node.department.id)"
-        >
-          <Pencil class="size-[18px]" />
-        </Button>
-        <Button
+        />
+        <UButton
           v-if="canManage"
           type="button"
+          color="secondary"
           variant="ghost"
-          size="icon-sm"
-          class="size-8 rounded-md"
+          square
           :disabled="!hydrated"
           :aria-label="$t('hr.depts.newChild')"
+          icon="i-lucide-plus"
           @click="emit('createChild', node.department.id)"
-        >
-          <Plus class="size-[18px]" />
-        </Button>
-        <NuxtLink
+        />
+        <UButton
           v-if="canReadEmployees"
+          color="secondary"
+          variant="ghost"
+          square
           :to="`/hr?department_id=${node.department.id}`"
-          class="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           :aria-label="$t('hr.depts.viewEmployees')"
-        >
-          <Users class="size-[18px]" />
-        </NuxtLink>
-        <NuxtLink
+          icon="i-lucide-users"
+        />
+        <UButton
           v-if="canReadDocuments"
+          color="secondary"
+          variant="ghost"
+          square
           :to="`/hr/documents?department_id=${node.department.id}`"
-          class="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           :aria-label="$t('hr.depts.viewDocuments')"
-        >
-          <FileText class="size-[18px]" />
-        </NuxtLink>
+          icon="i-lucide-file-text"
+        />
       </div>
     </div>
-  </div>
-  <p v-else class="nasq-panel nasq-panel-body py-10 text-center text-sm text-muted-foreground">{{ $t('hr.depts.empty') }}</p>
+  </UCard>
+  <p v-else class="rounded-lg border border-default bg-default py-10 text-center text-sm text-muted shadow-sm">{{ $t('hr.depts.empty') }}</p>
 </template>
 
 <style scoped>
@@ -166,7 +168,7 @@ function toggle(node: DepartmentTreeNode) {
   inset-block-start: 0;
   height: 50%;
   width: 1px;
-  background: var(--border);
+  background: var(--ui-border);
   pointer-events: none;
 }
 .dept-tree-guide::after {
@@ -176,7 +178,7 @@ function toggle(node: DepartmentTreeNode) {
   inset-block-end: 0;
   width: calc(var(--dept-indent) - 0.3rem);
   height: 1px;
-  background: var(--border);
+  background: var(--ui-border);
 }
 .dept-tree-chevron { transition: transform 150ms ease-out; }
 .dept-tree-chevron-collapsed { transform: rotate(-90deg); }

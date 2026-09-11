@@ -14,18 +14,16 @@ const { data: entries, error, refetch, isLoading } = useTimeline(idRef)
 </script>
 
 <template>
-  <section data-testid="task-activity-card" class="nasq-panel task-activity-card">
-    <header class="nasq-panel-header">
-      <div>
-        <h2>{{ t('tasks.detail.activityTitle') }}</h2>
-        <p class="mt-1 text-xs text-muted-foreground">{{ t('tasks.detail.activityDescription') }}</p>
-      </div>
-    </header>
-    <div class="nasq-panel-body">
+  <UCard data-testid="task-activity-card">
+    <template #header>
+      <h2 class="text-lg font-semibold text-highlighted">{{ t('tasks.detail.activityTitle') }}</h2>
+      <p class="mt-1 text-xs text-muted">{{ t('tasks.detail.activityDescription') }}</p>
+    </template>
+    <div class="space-y-4">
       <SharedPageState v-if="error" :error="error" @retry="refetch" />
-      <div v-if="isLoading" role="status" class="py-4 text-sm text-muted-foreground">{{ t('tasks.activity.loading') }}</div>
+      <div v-if="isLoading" role="status" class="py-4 text-sm text-muted">{{ t('tasks.activity.loading') }}</div>
       <Timeline v-else :entries="entries ?? []" />
       <CommentComposer v-if="task.can_write" :key="task.id" :task-id="task.id" />
     </div>
-  </section>
+  </UCard>
 </template>

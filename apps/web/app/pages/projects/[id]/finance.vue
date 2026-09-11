@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { inject } from 'vue'
-import { Plus } from '@lucide/vue'
 import { refDebounced } from '@vueuse/core'
 import { ApiError } from '@/composables/useApi'
 import { useProjectFinanceList } from '@/composables/useProjectFinance'
@@ -142,6 +141,12 @@ function newQuery(kind: 'budget' | 'expense') {
   return { kind, ...returnToQuery(route.fullPath) }
 }
 
+const kindTabs = computed(() => [
+  { value: 'all', label: t('projects.finance.kind.all'), disabled: !hydrated.value },
+  { value: 'budget', label: t('projects.finance.kind.budget'), disabled: !hydrated.value },
+  { value: 'expense', label: t('projects.finance.kind.expense'), disabled: !hydrated.value },
+])
+
 function financeChildKey(target: { path: string; params: Record<string, string | string[]> }) {
   const project = Array.isArray(target.params.id) ? target.params.id[0] : target.params.id
   const entry = Array.isArray(target.params.entryId) ? target.params.entryId[0] : target.params.entryId
@@ -159,16 +164,12 @@ function financeChildKey(target: { path: string; params: Record<string, string |
     >
       <template #actions>
         <template v-if="canManage && projectId">
-          <NuxtLink :to="{ path: `/projects/${projectId}/finance/new`, query: newQuery('budget') }" @click="!hydrated && $event.preventDefault()">
-            <Button :disabled="!hydrated" class="gap-2">
-              <Plus class="size-[18px]" />{{ t('projects.finance.newBudget') }}
-            </Button>
-          </NuxtLink>
-          <NuxtLink :to="{ path: `/projects/${projectId}/finance/new`, query: newQuery('expense') }" @click="!hydrated && $event.preventDefault()">
-            <Button variant="outline" :disabled="!hydrated" class="gap-2">
-              <Plus class="size-[18px]" />{{ t('projects.finance.newExpense') }}
-            </Button>
-          </NuxtLink>
+          <UButton icon="i-lucide-plus" :disabled="!hydrated" :to="{ path: `/projects/${projectId}/finance/new`, query: newQuery('budget') }">
+            {{ t('projects.finance.newBudget') }}
+          </UButton>
+          <UButton variant="outline" icon="i-lucide-plus" :disabled="!hydrated" :to="{ path: `/projects/${projectId}/finance/new`, query: newQuery('expense') }">
+            {{ t('projects.finance.newExpense') }}
+          </UButton>
         </template>
       </template>
     </SharedPageHeader>
@@ -180,26 +181,20 @@ function financeChildKey(target: { path: string; params: Record<string, string |
       @clear="clearFilters"
     >
       <template #search>
-        <Input v-model="search" :disabled="!hydrated" :placeholder="t('projects.finance.search')" :aria-label="t('projects.finance.search')" data-testid="finance-search" class="min-w-52" />
+        <UInput v-model="search" :disabled="!hydrated" :placeholder="t('projects.finance.search')" :aria-label="t('projects.finance.search')" data-testid="finance-search" class="min-w-52" />
       </template>
       <template #view>
-        <Tabs :model-value="filters.kind" data-testid="finance-kind-filter" @update:model-value="onKindChange">
-          <TabsList>
-            <TabsTrigger value="all" :disabled="!hydrated">{{ t('projects.finance.kind.all') }}</TabsTrigger>
-            <TabsTrigger value="budget" :disabled="!hydrated">{{ t('projects.finance.kind.budget') }}</TabsTrigger>
-            <TabsTrigger value="expense" :disabled="!hydrated">{{ t('projects.finance.kind.expense') }}</TabsTrigger>
-          </TabsList>
-        </Tabs>
+        <UTabs :model-value="filters.kind" data-testid="finance-kind-filter" :items="kindTabs" :content="false" @update:model-value="onKindChange" />
       </template>
       <template #active>
         <div v-if="filtered" class="flex flex-wrap items-center gap-2">
-          <Badge v-if="filters.q.trim()" variant="secondary">{{ t('projects.filters.searchValue', { value: filters.q }) }}</Badge>
-          <Badge v-if="filters.kind !== 'all'" variant="secondary">{{ t(`projects.finance.kind.${filters.kind}`) }}</Badge>
+          <UBadge v-if="filters.q.trim()" color="secondary" variant="subtle">{{ t('projects.filters.searchValue', { value: filters.q }) }}</UBadge>
+          <UBadge v-if="filters.kind !== 'all'" color="secondary" variant="subtle">{{ t(`projects.finance.kind.${filters.kind}`) }}</UBadge>
         </div>
       </template>
     </FilterBar>
     <template v-if="projectId === null">
-      <p class="text-muted-foreground">{{ t('projects.invalidId') }}</p>
+      <p class="text-muted">{{ t('projects.invalidId') }}</p>
     </template>
     <SharedPageState
       v-else
@@ -208,7 +203,7 @@ function financeChildKey(target: { path: string; params: Record<string, string |
       :empty="false"
       @retry="list.refetch"
     >
-      <p v-if="notFound && !list.isLoading.value" class="text-muted-foreground">{{ t('projects.notFound') }}</p>
+      <p v-if="notFound && !list.isLoading.value" class="text-muted">{{ t('projects.notFound') }}</p>
       <template v-else>
         <FinanceSummaryCards v-if="summary && projectId" :project-id="projectId" :summary="summary" />
         <FinanceEntryTable
@@ -220,10 +215,10 @@ function financeChildKey(target: { path: string; params: Record<string, string |
           :filtered="filtered"
           @open="openEntry"
         />
-        <div v-if="pages > 1" class="flex items-center justify-between text-sm text-muted-foreground">
-          <Button variant="ghost" :disabled="!hydrated || page === 1 || list.isFetching.value" @click="setPage(page - 1)">{{ t('projects.previousPage') }}</Button>
+        <div v-if="pages > 1" class="flex items-center justify-between text-sm text-muted">
+          <UButton color="secondary" variant="solid" :disabled="!hydrated || page === 1 || list.isFetching.value" @click="setPage(page - 1)">{{ t('projects.previousPage') }}</UButton>
           <span>{{ t('projects.pageOf', { page, pages }) }}</span>
-          <Button variant="ghost" :disabled="!hydrated || page >= pages || list.isFetching.value" @click="setPage(page + 1)">{{ t('projects.nextPage') }}</Button>
+          <UButton color="secondary" variant="solid" :disabled="!hydrated || page >= pages || list.isFetching.value" @click="setPage(page + 1)">{{ t('projects.nextPage') }}</UButton>
         </div>
       </template>
     </SharedPageState>

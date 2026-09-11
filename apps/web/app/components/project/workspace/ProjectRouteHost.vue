@@ -26,6 +26,8 @@ let closePending = false
 const hostElement = ref<HTMLElement | null>(null)
 const frame = ref({ top: 0, left: 0, width: 0, height: 0, sheetWidth: 0, radius: '24px', travel: '100vw' })
 let frameObserver: ResizeObserver | null = null
+let directionObserver: MutationObserver | null = null
+let frameRequest: number | null = null
 let contextSidebarElement: HTMLElement | null = null
 let contextSidebarWasInert = false
 
@@ -109,12 +111,14 @@ function updateFrame() {
   const header = document.querySelector<HTMLElement>('[data-testid="shell-header"]')
   const rail = document.querySelector<HTMLElement>('[data-testid="module-rail"]')
   const headerRect = header?.getBoundingClientRect()
-  const railRect = rail?.getBoundingClientRect()
+  const measuredRail = rail?.getBoundingClientRect()
+  const railRect = measuredRail?.width ? measuredRail : undefined
   const mainStyles = getComputedStyle(main)
   const radius = mainStyles.getPropertyValue('border-start-start-radius').trim() || (window.innerWidth <= 760 ? '18px' : '24px')
   const top = Math.max(headerRect?.bottom ?? 0, 0)
   const bottom = window.innerHeight
-  const rtl = (rail?.dataset.direction ?? document.documentElement.dir) === 'rtl'
+  const renderedDirection = getComputedStyle(rail || main).direction
+  const rtl = renderedDirection === 'rtl'
   const railBoundary = rtl ? (railRect?.left ?? window.innerWidth) : (railRect?.right ?? 0)
   const left = rtl ? 0 : Math.min(window.innerWidth, railBoundary)
   const right = rtl ? Math.max(0, railBoundary) : window.innerWidth
@@ -128,11 +132,19 @@ function updateFrame() {
     left,
     width: availableWidth,
     height: Math.max(0, bottom - top),
-    sheetWidth: Math.min(targetSheetWidth, availableWidth),
+    sheetWidth: window.innerWidth < 768 ? availableWidth : Math.min(targetSheetWidth, availableWidth),
     radius,
-    travel: `${rtl ? availableWidth : -availableWidth}px`,
+    travel: `${availableWidth}px`,
   }
   syncContextSidebarInert(overlayVisible.value)
+}
+
+function scheduleFrameUpdate() {
+  if (!import.meta.client || frameRequest !== null) return
+  frameRequest = requestAnimationFrame(() => {
+    frameRequest = null
+    updateFrame()
+  })
 }
 
 watch(
@@ -169,7 +181,7 @@ watch(modalOpen, (open, wasOpen) => {
     cachedModalRoute.value = route.value as RouteLocationNormalizedLoaded
     modalMounted.value = true
     if (import.meta.client) previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null
-    nextTick(updateFrame)
+    nextTick(scheduleFrameUpdate)
   }
 }, { immediate: true })
 
@@ -179,21 +191,23 @@ watch(
     if (!modalOpen.value) return
     cachedModalRoute.value = route.value as RouteLocationNormalizedLoaded
     modalMounted.value = true
-    nextTick(updateFrame)
+    nextTick(scheduleFrameUpdate)
   },
 )
 
 onMounted(() => {
-  updateFrame()
+  scheduleFrameUpdate()
   const main = hostElement.value?.closest<HTMLElement>('[data-testid="shell-main"]')
-  frameObserver = typeof ResizeObserver !== 'undefined' && main ? new ResizeObserver(updateFrame) : null
+  frameObserver = typeof ResizeObserver !== 'undefined' && main ? new ResizeObserver(scheduleFrameUpdate) : null
   if (main) frameObserver?.observe(main)
   const header = document.querySelector<HTMLElement>('[data-testid="shell-header"]')
   const rail = document.querySelector<HTMLElement>('[data-testid="module-rail"]')
   if (header) frameObserver?.observe(header)
   if (rail) frameObserver?.observe(rail)
-  window.addEventListener('resize', updateFrame)
-  window.addEventListener('scroll', updateFrame, true)
+  directionObserver = typeof MutationObserver !== 'undefined' ? new MutationObserver(scheduleFrameUpdate) : null
+  directionObserver?.observe(document.documentElement, { attributes: true, attributeFilter: ['dir', 'data-direction'], subtree: true })
+  window.addEventListener('resize', scheduleFrameUpdate)
+  window.addEventListener('scroll', scheduleFrameUpdate, true)
 })
 
 watch(overlayVisible, syncContextSidebarInert, { immediate: true })
@@ -210,9 +224,15 @@ function finishClose() {
 onBeforeUnmount(() => {
   frameObserver?.disconnect()
   frameObserver = null
+  directionObserver?.disconnect()
+  directionObserver = null
+  if (frameRequest !== null) {
+    cancelAnimationFrame(frameRequest)
+    frameRequest = null
+  }
   if (import.meta.client) {
-    window.removeEventListener('resize', updateFrame)
-    window.removeEventListener('scroll', updateFrame, true)
+    window.removeEventListener('resize', scheduleFrameUpdate)
+    window.removeEventListener('scroll', scheduleFrameUpdate, true)
   }
   syncContextSidebarInert(false)
 })

@@ -1,41 +1,21 @@
 <template>
-  <Card class="w-full overflow-hidden">
-    <CardHeader class="flex flex-row flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-5">
-      <div class="flex min-w-0 flex-1 items-center gap-2">
-        <button
-          type="button"
-          class="flex min-h-9 w-full min-w-0 items-center gap-2 rounded-md text-start text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-          :aria-expanded="expanded"
-          :aria-controls="contentId"
-          :disabled="isDisabled"
-          @click="expanded = !expanded"
-        >
-          <span class="truncate">{{ resolvedTitle }}</span>
-          <Badge v-if="activeCount > 0" variant="secondary" class="shrink-0">{{ activeCount }}</Badge>
-          <ChevronDown class="size-4 shrink-0 text-muted-foreground transition-transform motion-reduce:transition-none" :class="{ 'rotate-180': expanded }" aria-hidden="true" />
-        </button>
-      </div>
-      <div class="ms-auto flex min-w-0 flex-wrap items-center gap-2">
-        <slot name="actions" />
-        <Button v-if="activeCount > 0" type="button" variant="ghost" size="sm" class="gap-1" :disabled="isDisabled" @click="$emit('clear')">
-          <X class="size-3.5" aria-hidden="true" />
-          {{ resolvedClearLabel }}
-        </Button>
-      </div>
-    </CardHeader>
-    <CardContent :class="expanded || (activeCount > 0 && $slots.active) ? 'space-y-4 px-4 py-4 sm:px-5' : 'p-0'" :aria-busy="isDisabled">
-      <div v-show="expanded" :id="contentId" data-slot="filter-fields">
-        <slot />
-      </div>
-      <div v-if="activeCount > 0 && $slots.active" data-slot="active-row" class="flex flex-wrap items-center gap-2 [&_[data-slot=badge]]:max-w-full [&_[data-slot=badge]]:whitespace-normal [&_[data-slot=badge]]:break-words">
-        <slot name="active" />
-      </div>
-    </CardContent>
-  </Card>
+  <div data-slot="filter-root" class="min-w-0 space-y-2">
+    <div class="flex flex-wrap items-center gap-2">
+      <UPopover v-model:open="expanded">
+        <UButton type="button" color="secondary" square icon="i-lucide-list-filter" :aria-label="resolvedTitle" :title="resolvedTitle" :aria-expanded="expanded" :aria-controls="contentId" :disabled="isDisabled" />
+        <template #content>
+          <div :id="contentId" class="nasq-ui-filter-content" data-slot="filter-fields" :aria-busy="isDisabled"><slot /></div>
+        </template>
+      </UPopover>
+      <UBadge v-if="activeCount > 0" color="secondary">{{ activeCount }}</UBadge>
+      <slot name="actions" />
+      <UButton v-if="activeCount > 0" type="button" color="error" variant="ghost" square icon="i-lucide-trash-2" :aria-label="resolvedClearLabel" :title="resolvedClearLabel" :disabled="isDisabled" @click="$emit('clear')" />
+    </div>
+    <div v-if="activeCount > 0 && $slots.active" data-slot="active-row" class="flex flex-wrap items-center gap-2 text-xs text-muted"><slot name="active" /></div>
+  </div>
 </template>
 
 <script setup lang="ts">
-import { ChevronDown, X } from '@lucide/vue'
 
 const props = withDefaults(defineProps<{
   title?: string

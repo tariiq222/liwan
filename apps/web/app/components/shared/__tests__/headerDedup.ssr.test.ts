@@ -84,6 +84,7 @@ async function renderHeader(props: Record<string, unknown>, slots: Record<string
   const app = createSSRApp({ render: () => h(loadPageHeader(), props, slots) })
   app.provide(Symbol.for('nasq.project.overlay'), inProjectSheet)
   app.component('NuxtLink', NuxtLinkStub)
+  app.component('UButton', NuxtLinkStub)
   return renderToString(app)
 }
 
@@ -151,7 +152,7 @@ describe('rendered page header navigation policies', () => {
       const html = await renderHeader({ title: 'عنوان الصفحة', description: 'وصف عام', backTo: path }, {
         actions: () => h('button', { type: 'button' }, 'إجراء'),
       })
-      expect((html.match(/nasq-page-title/g) ?? []).length).toBe(1)
+      expect((html.match(/<h1\b/g) ?? []).length).toBe(1)
       expect(html).toContain('إجراء')
       expect(html).not.toContain('وصف عام')
     }

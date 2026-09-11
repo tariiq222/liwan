@@ -4,43 +4,204 @@ import { ApiError } from '@/composables/useApi'
 import { usePeople } from '@/composables/usePeople'
 import { useTasks, type TaskListParams } from '@/composables/useTasks'
 import { useCreateProjectRegister, useUpdateProjectRegister } from '@/composables/useProjectGovernance'
-const props = defineProps<{ projectId: number; item?: ProjectRegister }>(); const emit = defineEmits<{ saved: [item: ProjectRegister]; cancel: [] }>()
-const { t } = useI18n(); const hydrated = useHydrated(); const kind = ref<ProjectRegisterKind>(props.item?.kind ?? 'risk'); const title = ref(props.item?.title ?? ''); const description = ref(props.item?.description ?? ''); const priority = ref<ProjectRegisterPriority>(props.item?.priority ?? 'normal'); const status = ref<ProjectRegisterStatus>(props.item?.status ?? 'open'); const dueDate = ref(props.item?.due_date ?? ''); const response = ref(props.item?.response ?? ''); const probability = ref(props.item?.probability ?? 3); const impact = ref(props.item?.impact ?? 3); const taskId = ref<number | null>(props.item?.task?.id ?? null); const ownerId = ref<number | null>(props.item?.owner?.id ?? null); const userQuery = ref(''); const taskQuery = ref(''); const taskClosed = ref(false); const people = usePeople(userQuery); const taskParams = computed<TaskListParams>(() => ({ closed: taskClosed.value, mine: false, project_id: props.projectId, q: taskQuery.value || undefined })); const tasks = useTasks(taskParams); const peopleOptions = computed(() => { const current = props.item?.owner; const options = people.data.value?.map(user => ({ id: user.id, name: user.name })) ?? []; if (current && !options.some(user => user.id === current.id)) options.unshift(current); return options }); const taskOptions = computed(() => { const current = props.item?.task; const options = tasks.data.value?.pages.flatMap(page => page.items).map(task => ({ id: task.id, name: task.name })) ?? []; if (current && !options.some(task => task.id === current.id)) options.unshift(current); return options }); const baseline = JSON.stringify([kind.value, title.value, description.value, priority.value, status.value, dueDate.value, response.value, probability.value, impact.value, taskId.value, ownerId.value]); const submitted = ref(false); const error = ref<string | null>(null); const dirty = computed(() => !submitted.value && JSON.stringify([kind.value, title.value, description.value, priority.value, status.value, dueDate.value, response.value, probability.value, impact.value, taskId.value, ownerId.value]) !== baseline); const create = useCreateProjectRegister(); const update = useUpdateProjectRegister(); const pending = computed(() => create.isPending.value || update.isPending.value)
-async function submit() { error.value = null; if (!title.value.trim()) return; const body: ProjectRegisterWrite = { kind: kind.value, title: title.value.trim(), description: description.value, priority: priority.value, status: status.value, due_date: dueDate.value || null, response: response.value, task_id: taskId.value, owner_id: ownerId.value, ...(kind.value === 'risk' ? { probability: Number(probability.value), impact: Number(impact.value) } : {}) }; try { const item = props.item ? await update.mutateAsync({ projectId: props.projectId, id: props.item.id, body }) : await create.mutateAsync({ projectId: props.projectId, body }); submitted.value = true; await nextTick(); emit('saved', item) } catch (e) { error.value = e instanceof ApiError ? e.message : t('errors.generic') } }
+
+const props = defineProps<{ projectId: number; item?: ProjectRegister }>()
+const emit = defineEmits<{ saved: [item: ProjectRegister]; cancel: [] }>()
+const { t } = useI18n()
+const hydrated = useHydrated()
+const kind = ref<ProjectRegisterKind>(props.item?.kind ?? 'risk')
+const title = ref(props.item?.title ?? '')
+const description = ref(props.item?.description ?? '')
+const priority = ref<ProjectRegisterPriority>(props.item?.priority ?? 'normal')
+const status = ref<ProjectRegisterStatus>(props.item?.status ?? 'open')
+const dueDate = ref(props.item?.due_date ?? '')
+const response = ref(props.item?.response ?? '')
+const probability = ref(props.item?.probability ?? 3)
+const impact = ref(props.item?.impact ?? 3)
+const taskId = ref<number | null>(props.item?.task?.id ?? null)
+const ownerId = ref<number | null>(props.item?.owner?.id ?? null)
+const userQuery = ref('')
+const taskQuery = ref('')
+const taskClosed = ref(false)
+const people = usePeople(userQuery)
+const taskParams = computed<TaskListParams>(() => ({ closed: taskClosed.value, mine: false, project_id: props.projectId, q: taskQuery.value || undefined }))
+const tasks = useTasks(taskParams)
+const peopleOptions = computed(() => {
+  const current = props.item?.owner
+  const options = people.data.value?.map(user => ({ id: user.id, name: user.name })) ?? []
+  if (current && !options.some(user => user.id === current.id)) options.unshift(current)
+  return options
+})
+const taskOptions = computed(() => {
+  const current = props.item?.task
+  const options = tasks.data.value?.pages.flatMap(page => page.items).map(task => ({ id: task.id, name: task.name })) ?? []
+  if (current && !options.some(task => task.id === current.id)) options.unshift(current)
+  return options
+})
+const kindItems = computed(() => [
+  { value: 'risk', label: t('projects.governance.register.risk') },
+  { value: 'issue', label: t('projects.governance.register.issue') },
+])
+const priorityItems = computed(() => [
+  { value: 'low', label: t('projects.governance.register.low') },
+  { value: 'normal', label: t('projects.governance.register.normal') },
+  { value: 'high', label: t('projects.governance.register.high') },
+  { value: 'critical', label: t('projects.governance.register.critical') },
+])
+const statusItems = computed(() => [
+  { value: 'open', label: t('projects.governance.register.open') },
+  { value: 'in_progress', label: t('projects.governance.register.inProgress') },
+  { value: 'resolved', label: t('projects.governance.register.resolved') },
+  { value: 'closed', label: t('projects.governance.register.closed') },
+])
+const taskItems = computed(() => [
+  { value: 'none', label: t('projects.governance.register.noTask') },
+  ...taskOptions.value.map(task => ({ value: String(task.id), label: task.name })),
+])
+const ownerItems = computed(() => [
+  { value: 'none', label: t('projects.governance.register.noOwner') },
+  ...peopleOptions.value.map(user => ({ value: String(user.id), label: user.name })),
+])
+const taskSelect = computed({
+  get: () => taskId.value == null ? 'none' : String(taskId.value),
+  set: (value: string) => { taskId.value = value === 'none' ? null : Number(value) },
+})
+const ownerSelect = computed({
+  get: () => ownerId.value == null ? 'none' : String(ownerId.value),
+  set: (value: string) => { ownerId.value = value === 'none' ? null : Number(value) },
+})
+const dueModel = computed({
+  get: () => dueDate.value || null,
+  set: (value: string | null) => { dueDate.value = value ?? '' },
+})
+const baseline = JSON.stringify([kind.value, title.value, description.value, priority.value, status.value, dueDate.value, response.value, probability.value, impact.value, taskId.value, ownerId.value])
+const submitted = ref(false)
+const error = ref<string | null>(null)
+const dirty = computed(() => !submitted.value && JSON.stringify([kind.value, title.value, description.value, priority.value, status.value, dueDate.value, response.value, probability.value, impact.value, taskId.value, ownerId.value]) !== baseline)
+const create = useCreateProjectRegister()
+const update = useUpdateProjectRegister()
+const pending = computed(() => create.isPending.value || update.isPending.value)
+
+async function submit() {
+  error.value = null
+  if (!title.value.trim()) return
+  const body: ProjectRegisterWrite = {
+    kind: kind.value,
+    title: title.value.trim(),
+    description: description.value,
+    priority: priority.value,
+    status: status.value,
+    due_date: dueDate.value || null,
+    response: response.value,
+    task_id: taskId.value,
+    owner_id: ownerId.value,
+    ...(kind.value === 'risk' ? { probability: Number(probability.value), impact: Number(impact.value) } : {}),
+  }
+  try {
+    const item = props.item
+      ? await update.mutateAsync({ projectId: props.projectId, id: props.item.id, body })
+      : await create.mutateAsync({ projectId: props.projectId, body })
+    submitted.value = true
+    await nextTick()
+    emit('saved', item)
+  }
+  catch (e) {
+    error.value = e instanceof ApiError ? e.message : t('errors.generic')
+  }
+}
 </script>
+
 <template>
   <form class="space-y-8" @submit.prevent="submit">
     <SharedUnsavedChanges :dirty="dirty" />
     <SharedFormSection :title="t('projects.refresh.workspace.registerDetailsTitle')" :description="t('projects.refresh.workspace.registerDetailsDescription')">
-      <div class="nasq-form-grid">
-        <div class="grid gap-2"><Label for="register-kind">{{ t('projects.governance.register.kind') }}</Label><select id="register-kind" v-model="kind" class="border-input h-[40px] w-full rounded-lg border bg-transparent px-3 text-sm shadow-none outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50" :disabled="!hydrated || pending || !!item"><option value="risk">{{ t('projects.governance.register.risk') }}</option><option value="issue">{{ t('projects.governance.register.issue') }}</option></select></div>
-        <div class="grid gap-2"><Label for="register-priority">{{ t('projects.governance.register.priority') }}</Label><select id="register-priority" v-model="priority" class="border-input h-[40px] w-full rounded-lg border bg-transparent px-3 text-sm shadow-none outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50" :disabled="!hydrated || pending"><option value="low">{{ t('projects.governance.register.low') }}</option><option value="normal">{{ t('projects.governance.register.normal') }}</option><option value="high">{{ t('projects.governance.register.high') }}</option><option value="critical">{{ t('projects.governance.register.critical') }}</option></select></div>
-        <div class="grid gap-2 sm:col-span-2"><Label for="register-title">{{ t('projects.governance.register.itemTitle') }}</Label><Input id="register-title" v-model="title" required :disabled="!hydrated || pending" /></div>
-        <div class="grid gap-2 sm:col-span-2"><Label for="register-description">{{ t('projects.governance.register.description') }}</Label><Textarea id="register-description" v-model="description" rows="4" :disabled="!hydrated || pending" /></div>
+      <div class="grid gap-5">
+        <UFormField :label="t('projects.governance.register.kind')">
+          <USelect id="register-kind" v-model="kind" :items="kindItems" class="w-full" :disabled="!hydrated || pending || !!item" />
+        </UFormField>
+        <UFormField :label="t('projects.governance.register.priority')">
+          <USelect id="register-priority" v-model="priority" :items="priorityItems" class="w-full" :disabled="!hydrated || pending" />
+        </UFormField>
+        <UFormField class="sm:col-span-2" :label="t('projects.governance.register.itemTitle')" required>
+          <UInput id="register-title" v-model="title" class="w-full" required :disabled="!hydrated || pending" />
+        </UFormField>
+        <UFormField class="sm:col-span-2" :label="t('projects.governance.register.description')">
+          <UTextarea id="register-description" v-model="description" class="w-full" :rows="4" :disabled="!hydrated || pending" />
+        </UFormField>
       </div>
     </SharedFormSection>
 
     <SharedFormSection :title="t('projects.refresh.workspace.registerOwnershipTitle')" :description="t('projects.refresh.workspace.registerOwnershipDescription')">
-      <div class="nasq-form-grid">
-        <div class="grid gap-2"><Label for="register-status">{{ t('projects.governance.register.status') }}</Label><select id="register-status" v-model="status" class="border-input h-[40px] w-full rounded-lg border bg-transparent px-3 text-sm shadow-none outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50" :disabled="!hydrated || pending"><option value="open">{{ t('projects.governance.register.open') }}</option><option value="in_progress">{{ t('projects.governance.register.inProgress') }}</option><option value="resolved">{{ t('projects.governance.register.resolved') }}</option><option value="closed">{{ t('projects.governance.register.closed') }}</option></select></div>
-        <div class="grid gap-2"><Label for="register-due-date">{{ t('projects.governance.register.dueDate') }}</Label><Input id="register-due-date" v-model="dueDate" type="date" dir="ltr" :disabled="!hydrated || pending" /></div>
-        <div class="grid gap-2"><Label for="register-task-search">{{ t('projects.governance.register.task') }}</Label><Input id="register-task-search" v-model="taskQuery" :placeholder="t('app.search')" :disabled="!hydrated || pending" /><label class="flex gap-2 text-sm"><input v-model="taskClosed" type="checkbox" :disabled="!hydrated || pending" />{{ t('projects.governance.closedTasks') }}</label><select id="register-task" v-model="taskId" :aria-label="t('projects.governance.register.task')" class="border-input h-[40px] w-full rounded-lg border bg-transparent px-3 text-sm shadow-none outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50" :disabled="!hydrated || pending || tasks.isLoading.value"><option :value="null">{{ t('projects.governance.register.noTask') }}</option><option v-for="task in taskOptions" :key="task.id" :value="task.id">{{ task.name }}</option></select><Button v-if="tasks.hasNextPage.value" type="button" variant="outline" :disabled="!hydrated || pending || tasks.isFetchingNextPage.value" @click="tasks.fetchNextPage()">{{ t('projects.governance.loadMore') }}</Button><p v-if="tasks.isLoading.value" role="status" class="text-xs text-muted-foreground">{{ t('projects.loading') }}</p><p v-else-if="tasks.error.value" role="alert" class="text-xs text-destructive">{{ t('projects.loadError') }}</p><p v-else-if="!taskOptions.length" class="text-xs text-muted-foreground">{{ t('projects.governance.register.noTasks') }}</p></div>
-        <div class="grid gap-2"><Label for="register-owner-search">{{ t('projects.governance.register.owner') }}</Label><Input id="register-owner-search" v-model="userQuery" :placeholder="t('app.search')" :disabled="!hydrated || pending" /><select id="register-owner" v-model="ownerId" :aria-label="t('projects.governance.register.owner')" class="border-input h-[40px] w-full rounded-lg border bg-transparent px-3 text-sm shadow-none outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50" :disabled="!hydrated || pending || people.isLoading.value"><option :value="null">{{ t('projects.governance.register.noOwner') }}</option><option v-for="user in peopleOptions" :key="user.id" :value="user.id">{{ user.name }}</option></select><p v-if="people.isLoading.value" role="status" class="text-xs text-muted-foreground">{{ t('projects.loading') }}</p><p v-else-if="people.error.value" role="alert" class="text-xs text-destructive">{{ t('projects.loadError') }}</p><p v-else-if="!peopleOptions.length" class="text-xs text-muted-foreground">{{ t('projects.governance.register.noOwners') }}</p></div>
+      <div class="grid gap-5">
+        <UFormField :label="t('projects.governance.register.status')">
+          <USelect id="register-status" v-model="status" :items="statusItems" class="w-full" :disabled="!hydrated || pending" />
+        </UFormField>
+        <UFormField :label="t('projects.governance.register.dueDate')">
+          <SharedDateField
+            id="register-due-date"
+            v-model="dueModel"
+            :disabled="!hydrated || pending"
+            :aria-label="t('projects.governance.register.dueDate')"
+          />
+        </UFormField>
+        <UFormField :label="t('projects.governance.register.task')">
+          <div class="grid gap-2">
+            <UInput id="register-task-search" v-model="taskQuery" class="w-full" :placeholder="t('app.search')" :disabled="!hydrated || pending" />
+            <UCheckbox id="register-task-closed" :model-value="taskClosed" :label="t('projects.governance.closedTasks')" :disabled="!hydrated || pending" @update:model-value="taskClosed = $event === true" />
+            <USelect
+              id="register-task"
+              v-model="taskSelect"
+              :items="taskItems"
+              class="w-full"
+              :aria-label="t('projects.governance.register.task')"
+              :disabled="!hydrated || pending || tasks.isLoading.value"
+            />
+            <UButton v-if="tasks.hasNextPage.value" type="button" color="secondary" :disabled="!hydrated || pending || tasks.isFetchingNextPage.value" @click="tasks.fetchNextPage()" variant="solid">{{ t('projects.governance.loadMore') }}</UButton>
+            <p v-if="tasks.isLoading.value" role="status" class="text-xs text-muted">{{ t('projects.loading') }}</p>
+            <p v-else-if="tasks.error.value" role="alert" class="text-xs text-error">{{ t('projects.loadError') }}</p>
+            <p v-else-if="!taskOptions.length" class="text-xs text-muted">{{ t('projects.governance.register.noTasks') }}</p>
+          </div>
+        </UFormField>
+        <UFormField :label="t('projects.governance.register.owner')">
+          <div class="grid gap-2">
+            <UInput id="register-owner-search" v-model="userQuery" class="w-full" :placeholder="t('app.search')" :disabled="!hydrated || pending" />
+            <USelect
+              id="register-owner"
+              v-model="ownerSelect"
+              :items="ownerItems"
+              class="w-full"
+              :aria-label="t('projects.governance.register.owner')"
+              :disabled="!hydrated || pending || people.isLoading.value"
+            />
+            <p v-if="people.isLoading.value" role="status" class="text-xs text-muted">{{ t('projects.loading') }}</p>
+            <p v-else-if="people.error.value" role="alert" class="text-xs text-error">{{ t('projects.loadError') }}</p>
+            <p v-else-if="!peopleOptions.length" class="text-xs text-muted">{{ t('projects.governance.register.noOwners') }}</p>
+          </div>
+        </UFormField>
       </div>
     </SharedFormSection>
 
     <SharedFormSection v-if="kind === 'risk'" :title="t('projects.refresh.workspace.registerRiskTitle')" :description="t('projects.refresh.workspace.registerRiskDescription')">
-      <div class="nasq-form-grid">
-        <div class="grid gap-2"><Label for="register-probability">{{ t('projects.governance.register.probability') }}</Label><Input id="register-probability" v-model.number="probability" type="number" min="1" max="5" :disabled="!hydrated || pending" /></div>
-        <div class="grid gap-2"><Label for="register-impact">{{ t('projects.governance.register.impact') }}</Label><Input id="register-impact" v-model.number="impact" type="number" min="1" max="5" :disabled="!hydrated || pending" /></div>
+      <div class="grid gap-5">
+        <UFormField :label="t('projects.governance.register.probability')">
+          <UInputNumber id="register-probability" v-model="probability" class="w-full" :min="1" :max="5" :disabled="!hydrated || pending" />
+        </UFormField>
+        <UFormField :label="t('projects.governance.register.impact')">
+          <UInputNumber id="register-impact" v-model="impact" class="w-full" :min="1" :max="5" :disabled="!hydrated || pending" />
+        </UFormField>
       </div>
     </SharedFormSection>
 
     <SharedFormSection :title="t('projects.refresh.workspace.registerPlanTitle')" :description="t('projects.refresh.workspace.registerPlanDescription')">
-      <div class="grid gap-2"><Label for="register-response">{{ t('projects.governance.register.response') }}</Label><Textarea id="register-response" v-model="response" rows="4" :disabled="!hydrated || pending" /></div>
+      <UFormField :label="t('projects.governance.register.response')">
+        <UTextarea id="register-response" v-model="response" class="w-full" :rows="4" :disabled="!hydrated || pending" />
+      </UFormField>
     </SharedFormSection>
 
-    <p v-if="error" role="alert" class="text-sm text-destructive">{{ error }}</p>
-    <div class="nasq-form-footer justify-end"><Button type="button" variant="outline" :disabled="!hydrated || pending" @click="emit('cancel')">{{ t('app.cancel') }}</Button><Button type="submit" :disabled="!hydrated || pending || !title.trim()">{{ t('app.save') }}</Button></div>
+    <UAlert v-if="error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="error" />
+    <div class="flex flex-wrap gap-2 justify-end">
+      <UButton type="button" color="secondary" :disabled="!hydrated || pending" @click="emit('cancel')" variant="solid">{{ t('app.cancel') }}</UButton>
+      <UButton type="submit" :disabled="!hydrated || pending || !title.trim()">{{ t('app.save') }}</UButton>
+    </div>
   </form>
 </template>

@@ -9,14 +9,15 @@ const listSource = readFileSync(
 )
 
 describe('register list design alignment', () => {
-  it('uses the /projects toolbar, FilterBar, NativeSelect, and Table primitives', () => {
+  it('uses the /projects toolbar, FilterBar, USelect, and UTable primitives', () => {
     expect(listSource).toContain(':active-count="activeFilterCount"')
     expect(listSource).toContain("import FilterBar from '@/components/shared/FilterBar.vue'")
-    expect(listSource).toContain('<NativeSelect')
-    expect(listSource.match(/class="h-\[40px\] w-40"/g)?.length).toBe(3)
-    expect(listSource).toContain('<Table>')
-    expect(listSource).toContain('<TableHeader>')
-    expect(listSource).toContain('<TableBody>')
+    expect(listSource.match(/<USelect\b/g)?.length).toBe(3)
+    expect(listSource).not.toContain("value: ''")
+    expect(listSource.match(/class="w-40"/g)?.length).toBe(3)
+    expect(listSource).toContain('<UTable :data="list.data.value.items" :columns="columns">')
+    expect(listSource).toContain('#id-cell="{ row }"')
+    expect(listSource).toContain('@click="deleteItem(row.original)"')
     expect(listSource).not.toContain('nasq-input')
     const formSource = readFileSync(
       resolve(dirname(fileURLToPath(import.meta.url)), '../governance/RegisterForm.vue'),
@@ -44,7 +45,7 @@ describe('register list design alignment', () => {
     expect(listSource).toContain('confirmDeleteId')
     expect(listSource).toContain('projects.governance.confirmDeleteAction')
     expect(listSource).toContain('query: { returnTo }')
-    expect(listSource).toContain('`/projects/${id}/register/${item.id}`')
+    expect(listSource).toContain('`/projects/${id}/register/${row.original.id}`')
     // Nested project pages own their section heading; the parent page only
     // renders the project workspace on the base route.
     const projectSource = readFileSync(

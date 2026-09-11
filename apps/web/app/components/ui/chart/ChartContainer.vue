@@ -38,7 +38,7 @@ provideChartContext({
     data-slot="chart"
     :data-chart="chartId"
     :class="cn(
-      `[&_.tick_text]:!fill-muted-foreground [&_.tick_line]:!stroke-border/50 flex min-h-0 flex-col justify-center text-xs [&_[data-vis-xy-container]]:w-full [&_[data-vis-single-container]]:w-full h-full w-full `,
+      `[&_.tick_text]:!fill-muted [&_.tick_line]:!stroke-border/50 flex min-h-0 flex-col justify-center text-xs [&_[data-vis-xy-container]]:w-full [&_[data-vis-single-container]]:w-full h-full w-full `,
       props.class,
     )"
     :style="{

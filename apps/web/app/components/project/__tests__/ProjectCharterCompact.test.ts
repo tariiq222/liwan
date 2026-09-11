@@ -63,22 +63,22 @@ async function renderFields(compact: boolean) {
       sectionOpen: () => true,
       managerOpen: false,
       managerQ: '',
-      managers: [],
+      managerItems: [],
       sponsorOpen: false,
       sponsorQ: '',
-      sponsors: [],
+      sponsorItems: [],
       typeOpen: false,
       unitOpen: false,
       typeQuery: '',
       typeItems: [],
+      typeMenuItems: [],
       typesPending: false,
       typesHasMore: false,
       unitQuery: '',
       unitItems: [],
+      unitMenuItems: [],
       unitsPending: false,
       unitsHasMore: false,
-      startValue: null,
-      endValue: null,
       startLabel: 'Not set',
       endLabel: 'Not set',
       descriptionLooksHtml: false,
@@ -86,12 +86,10 @@ async function renderFields(compact: boolean) {
       t: (key: string) => key,
       helpLabel: (key: string) => key,
       catalogSettingsPath: () => '#',
-      selectManager: () => {},
-      selectSponsor: () => {},
-      selectType: () => {},
-      selectUnit: () => {},
-      onStartChange: () => {},
-      onEndChange: () => {},
+      onManagerSelect: () => {},
+      onSponsorSelect: () => {},
+      onTypeSelect: () => {},
+      onUnitSelect: () => {},
       onBudgetState: () => {},
       loadMoreTypes: () => {},
       loadMoreUnits: () => {},
@@ -101,9 +99,7 @@ async function renderFields(compact: boolean) {
   })
   const app = createSSRApp({ render: () => h(component) })
   for (const name of [
-    'Label', 'Input', 'Textarea', 'ProjectFieldHelp', 'Popover', 'PopoverTrigger', 'PopoverContent', 'Button',
-    'Command', 'CommandList', 'CommandEmpty', 'CommandGroup', 'CommandItem', 'Calendar', 'Select', 'SelectTrigger',
-    'SelectValue', 'SelectContent', 'SelectItem', 'Check', 'NuxtLink',
+    'UInput', 'UTextarea', 'ProjectFieldHelp', 'UButton', 'USelectMenu', 'USelect', 'SharedDateField', 'NuxtLink',
   ]) app.component(name, Passthrough)
   app.component('ProjectCharterRows', defineComponent({
     props: { compact: Boolean },
@@ -134,7 +130,7 @@ async function renderRows(compact: boolean) {
     render,
   })
   const app = createSSRApp({ render: () => h(component) })
-  for (const name of ['Label', 'Input', 'Textarea', 'ProjectFieldHelp', 'Button']) app.component(name, Passthrough)
+  for (const name of ['UInput', 'UTextarea', 'ProjectFieldHelp', 'UButton']) app.component(name, Passthrough)
   return renderToString(app)
 }
 
@@ -173,7 +169,14 @@ async function renderDisplay(options: { legacy?: boolean; loading?: boolean; err
     render,
   })
   const app = createSSRApp({ render: () => h(component) })
-  app.component('Button', Passthrough)
+  app.component('UCard', defineComponent({
+    inheritAttrs: false,
+    setup(_, { slots, attrs }) {
+      return () => h('div', attrs, [slots.header?.(), slots.default?.()])
+    },
+  }))
+  app.component('UButton', Passthrough)
+  app.component('UCheckbox', Passthrough)
   return renderToString(app)
 }
 
@@ -217,7 +220,7 @@ describe('project charter document', () => {
     expect(html).toContain('Brief')
     expect(html).toContain('Discovery')
     expect(html).toContain('project-charter-print')
-    expect(html).toContain('type="checkbox"')
+    expect(html).toContain('aria-label="Brief"')
     expect(html).not.toMatch(/approval|signature/i)
   })
 

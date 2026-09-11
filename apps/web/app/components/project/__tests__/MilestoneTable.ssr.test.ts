@@ -28,6 +28,21 @@ const Stub = defineComponent({
   },
 })
 
+// Mirrors the real UTooltip slot API (default slot = trigger, `text` prop =
+// content) over genuine reka-ui primitives, so the disabled-delete tooltip's
+// closed-by-default state is exercised for real rather than stubbed away.
+const UTooltipStub = defineComponent({
+  inheritAttrs: false,
+  props: { text: { type: String, required: false }, delayDuration: { type: Number, required: false } },
+  setup(props, { slots }) {
+    return () => h(TooltipProvider, { delayDuration: props.delayDuration }, () =>
+      h(TooltipRoot, {}, () => [
+        h(TooltipTrigger, { asChild: true }, () => slots.default?.()),
+        h(TooltipContent, {}, () => props.text),
+      ]))
+  },
+})
+
 describe('MilestoneTable SSR', () => {
   it('renders an occupied milestone tooltip with its provider context', async () => {
     const milestone = {
@@ -52,8 +67,8 @@ describe('MilestoneTable SSR', () => {
       error: ref(null),
       refetch: () => {},
       locale: ref('en-US'),
-      STATUS_CHIP_CLASS: { success: '', neutral: '' },
-      STATUS_TEXT_CLASS: { destructive: '', neutral: '' },
+      TONE_BADGE_COLOR: { success: 'success', neutral: 'neutral' },
+      DEADLINE_TEXT_CLASS: { destructive: '', neutral: '' },
       t: (key: string, params?: Record<string, unknown>) => params ? `${key}:${String(params.count)}` : key,
       deadlineTone: () => 'neutral',
       deadlineText: () => '—',
@@ -67,15 +82,8 @@ describe('MilestoneTable SSR', () => {
       confirmDelete: () => {},
     }
     const app = createSSRApp(defineComponent({ setup: () => bindings, render }))
-    for (const name of [
-      'Card', 'CardHeader', 'CardTitle', 'CardDescription', 'CardContent',
-      'SharedPageState', 'Skeleton', 'Badge', 'Button', 'CheckCircle2',
-      'Pencil', 'RotateCcw', 'Trash2',
-    ]) app.component(name, Stub)
-    app.component('TooltipProvider', TooltipProvider)
-    app.component('Tooltip', TooltipRoot)
-    app.component('TooltipTrigger', TooltipTrigger)
-    app.component('TooltipContent', TooltipContent)
+    for (const name of ['UCard', 'SharedPageState', 'USkeleton', 'UBadge', 'UButton', 'USwitch']) app.component(name, Stub)
+    app.component('UTooltip', UTooltipStub)
 
     const html = await renderToString(app)
     expect(html).toContain('data-testid="milestone-row"')

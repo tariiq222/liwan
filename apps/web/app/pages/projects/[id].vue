@@ -115,8 +115,8 @@ const workspaceCanCreate = computed(() => {
 <template>
   <SharedPageContainer v-if="isBaseRoute" width="list">
     <div v-if="notFound" class="flex flex-col items-start gap-3">
-      <p class="text-muted-foreground">{{ t('projects.notFound') }}</p>
-      <button type="button" class="text-sm underline" @click="router.push(projectReturnTo)">{{ t('projects.backToProjects') }}</button>
+      <p class="text-muted">{{ t('projects.notFound') }}</p>
+      <UButton type="button" color="secondary" variant="solid" size="sm" @click="router.push(projectReturnTo)">{{ t('projects.backToProjects') }}</UButton>
     </div>
 
     <SharedPageState v-else-if="error" :error="error" @retry="refetch" />
@@ -135,7 +135,7 @@ const workspaceCanCreate = computed(() => {
         @archived="onArchived"
         @unarchived="onUnarchived"
       />
-      <Skeleton v-else-if="(isLoading || !hydrated) && !isProjectOverlay" class="h-9 w-1/2" />
+      <USkeleton v-else-if="(isLoading || !hydrated) && !isProjectOverlay" class="h-9 w-1/2" />
 
 
       <ProjectOverview v-if="project && isSummary" :project="project" />
@@ -143,31 +143,26 @@ const workspaceCanCreate = computed(() => {
       <section v-if="isBaseRoute && project && (planningView === 'list' || planningView === 'board')" class="min-w-0 space-y-4" :aria-label="t('projects.tabs.tasks')">
         <TaskToolbar :model-value="params" embedded collapsible hide-project-filter @update:model-value="onParams">
           <template #view>
-            <nav class="nasq-view-switch" :aria-label="t('projects.planning.views')">
-              <NuxtLink :to="planningLink('list')" :aria-current="planningView === 'list' ? 'page' : undefined">{{ t('projects.tabs.list') }}</NuxtLink>
-              <NuxtLink :to="planningLink('board')" :aria-current="planningView === 'board' ? 'page' : undefined">{{ t('projects.tabs.board') }}</NuxtLink>
-              <NuxtLink v-if="project.active" :to="planningLink('gantt')">{{ t('projects.tabs.timeline') }}</NuxtLink>
+            <nav class="flex flex-wrap items-center gap-1" :aria-label="t('projects.planning.views')">
+              <UButton color="neutral" size="sm" :variant="planningView === 'list' ? 'soft' : 'ghost'" :to="planningLink('list')" :aria-current="planningView === 'list' ? 'page' : undefined">{{ t('projects.tabs.list') }}</UButton>
+              <UButton color="neutral" size="sm" :variant="planningView === 'board' ? 'soft' : 'ghost'" :to="planningLink('board')" :aria-current="planningView === 'board' ? 'page' : undefined">{{ t('projects.tabs.board') }}</UButton>
+              <UButton color="neutral" size="sm" variant="ghost" v-if="project.active" :to="planningLink('gantt')">{{ t('projects.tabs.timeline') }}</UButton>
             </nav>
           </template>
         </TaskToolbar>
-        <div class="nasq-panel overflow-hidden">
+        <div class="rounded-xl border border-default bg-default overflow-hidden">
           <TaskTable v-if="taskView === 'table'" :params="params" variant="project" embedded @open="openTask" @create="openTaskCreate" />
           <TaskBoard v-else :params="params" :stage-source="stageSource" embedded @open="openTask" />
         </div>
         <div class="flex justify-end">
-          <NuxtLink :to="{ path: '/archived-tasks', query: { project_id: project.id, ...returnToQuery(route.fullPath) } }" class="text-sm text-muted-foreground hover:underline">{{ t('taskLifecycle.archivedTasks') }}</NuxtLink>
+          <NuxtLink :to="{ path: '/archived-tasks', query: { project_id: project.id, ...returnToQuery(route.fullPath) } }" class="text-sm text-muted hover:underline">{{ t('taskLifecycle.archivedTasks') }}</NuxtLink>
         </div>
       </section>
 
       <div v-if="isBaseRoute && project && planningView === 'milestones'">
         <MilestoneTable :project-id="project.id" :can-manage="project.can_manage" embedded />
         <div class="mt-4 flex justify-end">
-          <NuxtLink
-            class="inline-flex min-h-9 items-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-            :to="planningLink('list')"
-          >
-            {{ t('projects.milestones.continueToTasks') }}
-          </NuxtLink>
+          <UButton :to="planningLink('list')">{{ t('projects.milestones.continueToTasks') }}</UButton>
         </div>
       </div>
     </template>

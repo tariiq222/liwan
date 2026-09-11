@@ -42,18 +42,18 @@ function openSubtask(id: number) {
   <div>
     <ul v-if="task.subtasks.length" class="task-list">
       <li v-for="sub in task.subtasks" :key="sub.id" class="task-subtask-row">
-        <button type="button" class="flex min-w-0 flex-1 items-center gap-2 rounded-lg text-start" :disabled="!hydrated" @click="openSubtask(sub.id)">
+        <UButton type="button" color="neutral" variant="ghost" class="flex min-w-0 flex-1 items-center justify-start gap-2 rounded-lg text-start" :disabled="!hydrated" @click="openSubtask(sub.id)">
           <StateBadge :state="sub.state" />
           <span class="flex-1 truncate text-sm">{{ sub.name }}</span>
-        </button>
+        </UButton>
       </li>
     </ul>
     <p v-else class="task-empty-inline">{{ t('tasks.detail.noSubtasks') }}</p>
     <form v-if="can('pmo.tasks.create') && task.can_write" class="task-inline-form" @submit.prevent="addSubtask">
-      <Input v-model="title" :placeholder="t('tasks.drawer.addSubtask')" class="h-8" />
-      <Button type="submit" size="sm" variant="outline" :disabled="!hydrated || isPending || !title.trim()">{{ t('app.create') }}</Button>
+      <UInput v-model="title" :placeholder="t('tasks.drawer.addSubtask')" class="h-8" />
+      <UButton type="submit" size="sm" variant="outline" :disabled="!hydrated || isPending || !title.trim()">{{ t('app.create') }}</UButton>
     </form>
-    <p v-if="error" role="alert" class="text-sm text-destructive">{{ error }}</p>
+    <p v-if="error" role="alert" class="text-sm text-error">{{ error }}</p>
   </div>
 </template>
 
@@ -75,12 +75,12 @@ function openSubtask(id: number) {
 }
 
 .task-subtask-row:hover {
-  border-color: var(--border);
-  background: var(--muted);
+  border-color: var(--ui-border);
+  background: var(--ui-bg-muted);
 }
 
 .task-subtask-row:focus-within {
-  border-color: var(--ring);
+  border-color: var(--ui-primary);
 }
 
 .task-inline-form {
@@ -97,7 +97,7 @@ function openSubtask(id: number) {
 
 .task-empty-inline {
   padding: 10px 0;
-  color: var(--muted-foreground);
+  color: var(--ui-text-muted);
   font-size: 0.75rem;
 }
 

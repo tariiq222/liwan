@@ -55,6 +55,19 @@ function clearFilters() {
   search.value = ''
   patch({ q: undefined, state: undefined, project_id: props.hideProjectFilter ? props.modelValue.project_id : undefined })
 }
+
+const stateMenuItems = computed(() => ALL_STATES.map((s) => ({
+  label: t(STATE_LABEL_KEY[s]),
+  type: 'checkbox' as const,
+  checked: selectedStates.value.includes(s),
+  onUpdateChecked: (checked: boolean) => toggleState(s, checked),
+  onSelect: (e: Event) => e.preventDefault(),
+})))
+
+const projectItems = computed(() => [
+  { label: t('tasks.filters.allProjects'), value: 'all' },
+  ...(projects.value ?? []).map((p) => ({ label: p.name, value: String(p.id) })),
+])
 </script>
 
 <template>
@@ -62,51 +75,34 @@ function clearFilters() {
   <FilterBar class="w-full" :inline="embedded && !collapsible" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
     <template #search>
       <div class="relative min-w-48 flex-1">
-        <Search class="pointer-events-none absolute start-2 top-1/2 size-[18px] -translate-y-1/2 text-muted-foreground" />
-        <Input v-model="search" :disabled="!hydrated" :aria-label="t('tasks.filters.search')" :placeholder="t('tasks.filters.search')" class="ps-8" />
+        <Search class="pointer-events-none absolute start-2 top-1/2 size-[18px] -translate-y-1/2 text-muted" />
+        <UInput v-model="search" :disabled="!hydrated" :aria-label="t('tasks.filters.search')" :placeholder="t('tasks.filters.search')" class="w-full" :ui="{ base: 'ps-8' }" />
       </div>
     </template>
 
     <template #default>
-      <DropdownMenu>
-        <DropdownMenuTrigger as-child :disabled="!hydrated">
-          <Button variant="outline" :disabled="!hydrated">{{ stateFilterLabel }}</Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start">
-          <DropdownMenuCheckboxItem
-            v-for="s in ALL_STATES"
-            :key="s"
-            :model-value="selectedStates.includes(s)"
-            @select.prevent
-            @update:model-value="(checked) => toggleState(s, checked)"
-          >
-            {{ t(STATE_LABEL_KEY[s]) }}
-          </DropdownMenuCheckboxItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      <UDropdownMenu :items="stateMenuItems" :content="{ align: 'start' }">
+        <UButton variant="outline" :disabled="!hydrated">{{ stateFilterLabel }}</UButton>
+      </UDropdownMenu>
 
       <template v-if="!hideProjectFilter">
-        <Select
+        <USelect
+          class="w-40"
+          :disabled="!hydrated"
+          :items="projectItems"
           :model-value="modelValue.project_id ? String(modelValue.project_id) : 'all'"
+          :placeholder="t('tasks.filters.allProjects')"
           @update:model-value="(v) => patch({ project_id: v === 'all' ? undefined : Number(v) })"
-        >
-          <SelectTrigger class="w-40" :disabled="!hydrated">
-            <SelectValue :placeholder="t('tasks.filters.allProjects')" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{{ t('tasks.filters.allProjects') }}</SelectItem>
-            <SelectItem v-for="p in projects ?? []" :key="p.id" :value="String(p.id)">{{ p.name }}</SelectItem>
-          </SelectContent>
-        </Select>
+        />
       </template>
 
     </template>
 
     <template #active>
       <div v-if="modelValue.q || selectedStates.length || (!hideProjectFilter && selectedProject)" class="flex flex-wrap items-center gap-2">
-        <Badge v-if="modelValue.q" variant="secondary">{{ t('tasks.filters.searchValue', { value: modelValue.q }) }}</Badge>
-        <Badge v-for="state in selectedStates" :key="state" variant="secondary">{{ t(STATE_LABEL_KEY[state]) }}</Badge>
-        <Badge v-if="!hideProjectFilter && selectedProject" variant="secondary">{{ selectedProject.name }}</Badge>
+        <UBadge v-if="modelValue.q" variant="subtle">{{ t('tasks.filters.searchValue', { value: modelValue.q }) }}</UBadge>
+        <UBadge v-for="state in selectedStates" :key="state" variant="subtle">{{ t(STATE_LABEL_KEY[state]) }}</UBadge>
+        <UBadge v-if="!hideProjectFilter && selectedProject" variant="subtle">{{ selectedProject.name }}</UBadge>
       </div>
     </template>
 
@@ -114,23 +110,19 @@ function clearFilters() {
 
     <template #view>
       <slot name="view" />
-      <div v-if="view" role="group" class="inline-flex h-[40px] items-center rounded-lg border bg-muted/40 p-0.5" :aria-label="t('projects.filters.view')">
-        <Button data-testid="project-tasks-view-table" type="button" variant="ghost" size="icon" class="size-[32px] rounded-md" :class="view === 'table' ? 'bg-background shadow-sm' : ''" :disabled="!hydrated" :aria-label="t('projects.filters.tableView')" :aria-pressed="view === 'table'" @click="emit('update:view', 'table')">
+      <div v-if="view" role="group" class="inline-flex min-h-10 items-center rounded-lg border bg-elevated/40 p-0.5" :aria-label="t('projects.filters.view')">
+        <UButton data-testid="project-tasks-view-table" type="button" color="neutral" square size="sm" :variant="view === 'table' ? 'soft' : 'ghost'" :disabled="!hydrated" :aria-label="t('projects.filters.tableView')" :aria-pressed="view === 'table'" @click="emit('update:view', 'table')">
           <List class="size-[18px]" />
-        </Button>
-        <Button data-testid="project-tasks-view-board" type="button" variant="ghost" size="icon" class="size-[32px] rounded-md" :class="view === 'board' ? 'bg-background shadow-sm' : ''" :disabled="!hydrated" :aria-label="t('projects.filters.boardView')" :aria-pressed="view === 'board'" @click="emit('update:view', 'board')">
+        </UButton>
+        <UButton data-testid="project-tasks-view-board" type="button" color="neutral" square size="sm" :variant="view === 'board' ? 'soft' : 'ghost'" :disabled="!hydrated" :aria-label="t('projects.filters.boardView')" :aria-pressed="view === 'board'" @click="emit('update:view', 'board')">
           <LayoutGrid class="size-[18px]" />
-        </Button>
+        </UButton>
       </div>
-      <Tabs
+      <UTabs
+        :items="[{ label: t('tasks.filters.open'), value: 'open', disabled: !hydrated }, { label: t('tasks.filters.closed'), value: 'closed', disabled: !hydrated }]"
         :model-value="modelValue.closed ? 'closed' : 'open'"
         @update:model-value="(v) => patch({ closed: v === 'closed' })"
-      >
-        <TabsList>
-          <TabsTrigger value="open" :disabled="!hydrated">{{ t('tasks.filters.open') }}</TabsTrigger>
-          <TabsTrigger value="closed" :disabled="!hydrated">{{ t('tasks.filters.closed') }}</TabsTrigger>
-        </TabsList>
-      </Tabs>
+      />
     </template>
   </FilterBar>
   </div>

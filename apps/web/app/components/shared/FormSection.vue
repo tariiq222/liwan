@@ -7,14 +7,18 @@ defineProps<{
 </script>
 
 <template>
-  <section :class="panel ? 'nasq-panel overflow-hidden' : 'nasq-form-section'">
-    <header v-if="title || description" :class="panel ? 'nasq-panel-header' : 'nasq-form-section-heading'">
-      <div>
-      <h2 v-if="title" class="nasq-form-section-title">{{ title }}</h2>
-      <p v-if="description" class="nasq-form-section-hint">{{ description }}</p>
-      </div>
+  <UCard v-if="panel">
+    <template v-if="title || description" #header>
+      <h2 v-if="title" class="text-lg font-semibold text-highlighted">{{ title }}</h2>
+      <p v-if="description" class="mt-1 text-sm text-muted">{{ description }}</p>
+    </template>
+    <slot />
+  </UCard>
+  <section v-else class="space-y-5">
+    <header v-if="title || description">
+      <h2 v-if="title" class="text-lg font-semibold text-highlighted">{{ title }}</h2>
+      <p v-if="description" class="mt-1 text-sm text-muted">{{ description }}</p>
     </header>
-    <div v-if="panel" class="nasq-panel-body"><slot /></div>
-    <slot v-else />
+    <slot />
   </section>
 </template>

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useAdminUserCandidates } from '@/composables/useAdminUsers'
 import { returnToQuery, safeReturnTo } from '@/utils/safeReturnTo'
+import { wantsProjectOverlayFullPage } from '@/utils/projectOverlayRoute'
 
 const route = useRoute()
 const { t } = useI18n()
@@ -11,9 +12,10 @@ watch(candidates.data, (data) => {
   const employee = data?.items.find((item) => item.id === employeeId.value)
   if (!employee) return
   const settingsReturn = '/settings/users'
+  const presentation = wantsProjectOverlayFullPage(route.query) ? { fullPage: '1' } : {}
   const target = employee.user_id
-    ? { path: `/settings/users/${employee.user_id}`, query: returnToQuery(settingsReturn) }
-    : { path: '/settings/users/new', query: { employee_id: String(employee.id), ...returnToQuery(settingsReturn) } }
+    ? { path: `/settings/users/${employee.user_id}`, query: { ...returnToQuery(settingsReturn), ...presentation } }
+    : { path: '/settings/users/new', query: { employee_id: String(employee.id), ...returnToQuery(settingsReturn), ...presentation } }
   void navigateTo(target, { replace: true })
 }, { immediate: true })
 </script>

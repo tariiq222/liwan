@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { Paperclip, Send } from '@lucide/vue'
-import { toast } from 'vue-sonner'
 import { ApiError } from '@/composables/useApi'
 import { preserveFailedDraft, shouldSendOnEnter } from '@/utils/chatState'
 
@@ -10,8 +9,10 @@ const props = defineProps<{ conversationId: number; replyTo?: ChatMessage | null
 const emit = defineEmits<{ 'update:pending': [string]; 'clear-reply': [] }>()
 const { t } = useI18n()
 const hydrated = useHydrated()
+const toast = useToast()
 const draft = ref('')
 const file = ref<File | null>(null)
+const fileInput = ref<HTMLInputElement | null>(null)
 const sending = ref(false)
 const mentionIds = ref<number[]>([])
 const { mutateAsync: send } = useSendChatMessage(() => props.conversationId)
@@ -74,7 +75,7 @@ async function submit() {
   } catch (error) {
     draft.value = preserveFailedDraft(body, true)
     emit('update:pending', '')
-    toast.error(error instanceof ApiError ? error.message : t('chat.sendFailed'))
+    toast.add({ title: error instanceof ApiError ? error.message : t('chat.sendFailed'), color: 'error' })
   } finally {
     sending.value = false
   }
@@ -103,39 +104,37 @@ onUnmounted(() => {
   <form class="nasq-chat-composer" @submit.prevent="submit">
     <p v-if="props.replyTo" class="flex items-center justify-between px-1 text-xs text-muted-foreground">
       <span>{{ t('chat.replyingTo', { name: props.replyTo.author.name }) }}</span>
-      <button type="button" @click="emit('clear-reply')">{{ t('app.cancel') }}</button>
+      <UButton type="button" color="neutral" variant="ghost" size="xs" :label="t('app.cancel')" @click="emit('clear-reply')" />
     </p>
     <ul v-if="mentionChoices.length" class="rounded-md border bg-background text-sm">
       <li v-for="person in mentionChoices" :key="person.id">
-        <button type="button" class="w-full px-3 py-1 text-start hover:bg-muted" @click="pickMention(person)">{{ person.name }}</button>
+        <UButton type="button" color="neutral" variant="ghost" class="w-full justify-start px-3 py-1 text-start" :label="person.name" @click="pickMention(person)" />
       </li>
     </ul>
     <p v-if="file" class="truncate px-1 text-xs text-muted-foreground">{{ file.name }}</p>
     <div class="flex items-end gap-2">
-      <label class="nasq-chat-icon-btn cursor-pointer">
-        <Paperclip class="size-5" aria-hidden="true" />
-        <span class="sr-only">{{ t('chat.attach') }}</span>
-        <input type="file" class="sr-only" :disabled="!hydrated || sending" @change="onFile">
-      </label>
-      <textarea
+      <UButton type="button" color="neutral" variant="ghost" square icon="i-lucide-paperclip" :aria-label="t('chat.attach')" :disabled="!hydrated || sending" @click="fileInput?.click()" />
+      <input ref="fileInput" type="file" class="hidden" tabindex="-1" :disabled="!hydrated || sending" @change="onFile">
+      <UTextarea
         v-model="draft"
-        rows="1"
-        class="nasq-chat-composer-input"
+        :rows="1"
+        class="min-w-0 flex-1"
+        autoresize
+        :aria-label="t('chat.composerPlaceholder')"
         :placeholder="t('chat.composerPlaceholder')"
         :disabled="!hydrated || sending"
         @keydown="onKeydown"
         @input="onDraft"
       />
-      <Button
+      <UButton
         type="submit"
-        size="icon"
-        class="nasq-chat-send"
+        square
         :disabled="!hydrated || sending || (!draft.trim() && !file)"
         :aria-label="t('chat.send')"
         :title="t('chat.send')"
       >
         <Send class="size-4 rtl:rotate-180" aria-hidden="true" />
-      </Button>
+      </UButton>
     </div>
   </form>
 </template>

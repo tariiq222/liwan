@@ -31,6 +31,8 @@ function editor() {
     removeStage: (index: number) => void
     removeTask: (index: number) => void
     removeMilestone: (index: number) => void
+    milestoneItems: Vue.ComputedRef<Array<{ value: string; label: string }>>
+    selectMilestone: (task: ProjectTemplateCreate['definition']['tasks'][number], value: unknown) => void
   }
   const exports = { default: null as unknown as { setup: (props: unknown, context: unknown) => EditorState } }
   const hydrated = Vue.ref(false)
@@ -90,6 +92,21 @@ describe('ProjectTemplateEditor production setup', () => {
     expect(view.state.draft.definition.stages).toHaveLength(1)
     expect(ProjectTemplateCreateSchema.safeParse(view.state.draft).success).toBe(true)
     expect(view.props.template.definition.milestones).toHaveLength(1)
+    view.stop()
+  })
+
+  it('keeps a valid milestone named none distinct from the no-milestone choice', () => {
+    const view = editor()
+    view.hydrated.value = true
+    view.state.draft.definition.milestones[0]!.key = 'none'
+    const task = view.state.draft.definition.tasks[0]!
+    view.state.selectMilestone(task, 'none')
+    expect(task.milestone_key).toBe('none')
+    expect(ProjectTemplateCreateSchema.safeParse(view.state.draft).success).toBe(true)
+    const clear = view.state.milestoneItems.value.find(item => item.label === 'projects.templates.none')!
+    expect(clear.value).not.toBe('none')
+    view.state.selectMilestone(task, clear.value)
+    expect(task.milestone_key).toBeNull()
     view.stop()
   })
 

@@ -1,14 +1,24 @@
-import tailwindcss from '@tailwindcss/vite'
 
 const odoo = process.env.NUXT_ODOO_URL ?? 'http://localhost:8069'
 
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
+  hooks: {
+    ready(nuxt) {
+      // Vue includes serverPrefetch registration in its useId boundary tree.
+      // Removing these registrations only on the client breaks field/menu IDs.
+      const client = nuxt.options.optimization.treeShake.composables.client
+      client.vue = (client.vue ?? []).filter(name => name !== 'onServerPrefetch')
+    },
+  },
   devtools: { enabled: true },
-  modules: ['shadcn-nuxt', '@vueuse/nuxt', '@nuxtjs/i18n'],
+  modules: ['@nuxt/ui', '@vueuse/nuxt', '@nuxtjs/i18n'],
   css: ['~/assets/css/main.css'],
-  vite: { plugins: [tailwindcss()] },
-  shadcn: { prefix: '', componentDir: './app/components/ui' },
+  ui: { fonts: false, colorMode: false },
+  icon: { provider: 'none', fallbackToApi: false, clientBundle: { scan: true } },
+  // Retained historical primitives are never auto-discovered in customer UI.
+  // Specialist Unovis chart adapters remain explicit imports.
+  components: [{ path: '~/components', ignore: ['ui/**', '**/__tests__/**'] }],
   app: {
     head: {
       title: 'nasq',
@@ -60,5 +70,7 @@ export default defineNuxtConfig({
     '/web/**': { proxy: { to: `${odoo}/web/**`, fetchOptions: { redirect: 'manual' } } },
     '/odoo/**': { proxy: { to: `${odoo}/odoo/**`, fetchOptions: { redirect: 'manual' } } },
   },
+  // Opt-in diagnostic build: identify actual SSR/client differences during UI acceptance.
+  vite: { define: { __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: process.env.NASQ_HYDRATION_DEBUG === '1' } },
   typescript: { strict: true },
 })

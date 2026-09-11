@@ -8,6 +8,7 @@ const props = defineProps<{
   modelValue: number | null
   disabled?: boolean
   selectedLabel?: string | null
+  error?: string
 }>()
 const emit = defineEmits<{ 'update:modelValue': [value: number | null] }>()
 const { t } = useI18n()
@@ -27,6 +28,18 @@ const total = computed(() => list.data.value?.total ?? 0)
 const page = computed(() => Math.floor(offset.value / FINANCE_PAGE) + 1)
 const pages = computed(() => Math.max(1, Math.ceil(total.value / FINANCE_PAGE)))
 const selectedOnPage = computed(() => items.value.some(item => item.id === props.modelValue))
+const selectedValue = computed(() => props.modelValue ? String(props.modelValue) : 'none')
+const budgetItems = computed(() => {
+  const options = [{ value: 'none', label: t('projects.finance.budgetNone') }]
+  if (props.modelValue && !selectedOnPage.value) {
+    options.push({
+      value: String(props.modelValue),
+      label: props.selectedLabel || t('projects.finance.linkedBudget', { id: props.modelValue }),
+    })
+  }
+  for (const item of items.value) options.push({ value: String(item.id), label: item.title })
+  return options
+})
 
 watch(debouncedSearch, (value, previous) => {
   if (value.trim() === (previous ?? '').trim()) return
@@ -69,37 +82,40 @@ function setPage(next: number) {
 
 <template>
   <div class="grid gap-2" data-testid="finance-budget-picker">
-    <Label>{{ t('projects.finance.fields.budget_entry_id') }}</Label>
-    <Input
-      v-model="search"
-      :disabled="disabled || !hydrated"
-      :placeholder="t('projects.finance.searchBudgets')"
-      :aria-label="t('projects.finance.searchBudgets')"
-    />
-    <Select :model-value="modelValue ? String(modelValue) : 'none'" :disabled="disabled || !hydrated" @update:model-value="onSelect">
-      <SelectTrigger class="w-full">
-        <SelectValue />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value="none">{{ t('projects.finance.budgetNone') }}</SelectItem>
-        <SelectItem
-          v-if="modelValue && !selectedOnPage"
-          :value="String(modelValue)"
-        >
-          {{ selectedLabel || t('projects.finance.linkedBudget', { id: modelValue }) }}
-        </SelectItem>
-        <SelectItem v-for="item in items" :key="item.id" :value="String(item.id)">{{ item.title }}</SelectItem>
-      </SelectContent>
-    </Select>
-    <div v-if="pages > 1" class="flex items-center justify-between text-xs text-muted-foreground">
-      <Button type="button" variant="ghost" size="sm" :disabled="!hydrated || page === 1 || list.isFetching.value" @click="setPage(page - 1)">
-        {{ t('projects.previousPage') }}
-      </Button>
-      <span>{{ t('projects.pageOf', { page, pages }) }}</span>
-      <Button type="button" variant="ghost" size="sm" :disabled="!hydrated || page >= pages || list.isFetching.value" @click="setPage(page + 1)">
-        {{ t('projects.nextPage') }}
-      </Button>
+    <label for="finance-budget-entry" class="block font-medium text-default">{{ t('projects.finance.fields.budget_entry_id') }}</label>
+    <div class="space-y-2">
+      <label for="finance-budget-search" class="sr-only">{{ t('projects.finance.searchBudgets') }}</label>
+      <UInput
+        id="finance-budget-search"
+        v-model="search"
+        class="w-full"
+        :disabled="disabled || !hydrated"
+        :placeholder="t('projects.finance.searchBudgets')"
+        :aria-label="t('projects.finance.searchBudgets')"
+      />
     </div>
-    <p v-if="list.error.value" class="text-sm text-destructive">{{ t('projects.finance.budgetPickerError') }}</p>
+    <USelect
+      id="finance-budget-entry"
+      :model-value="selectedValue"
+      :items="budgetItems"
+      :disabled="disabled || !hydrated"
+      class="w-full"
+      :color="error ? 'error' : undefined"
+      :highlight="!!error"
+      :aria-invalid="!!error"
+      :aria-describedby="error ? 'finance-budget-entry-error' : undefined"
+      @update:model-value="onSelect"
+    />
+    <p v-if="error" id="finance-budget-entry-error" role="alert" class="text-sm text-error">{{ error }}</p>
+    <div v-if="pages > 1" class="flex items-center justify-between text-xs text-muted">
+      <UButton type="button" color="secondary" variant="ghost" size="sm" :disabled="!hydrated || page === 1 || list.isFetching.value" @click="setPage(page - 1)">
+        {{ t('projects.previousPage') }}
+      </UButton>
+      <span>{{ t('projects.pageOf', { page, pages }) }}</span>
+      <UButton type="button" color="secondary" variant="ghost" size="sm" :disabled="!hydrated || page >= pages || list.isFetching.value" @click="setPage(page + 1)">
+        {{ t('projects.nextPage') }}
+      </UButton>
+    </div>
+    <p v-if="list.error.value" class="text-sm text-error">{{ t('projects.finance.budgetPickerError') }}</p>
   </div>
 </template>

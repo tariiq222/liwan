@@ -19,14 +19,14 @@ const pageFiles = walk(pagesRoot, '.vue')
 const businessComponentFiles = walk(componentsRoot, '.vue').filter(path => !path.includes('/components/ui/'))
 
 describe('internal UI width and status vocabulary', () => {
-  it('keeps CSS page widths at list/detail 1440 and form 940', () => {
+  it('keeps page widths aligned with the approved Nuxt reference', () => {
     const css = readFileSync(resolve(webRoot, 'app/assets/css/approved-shell.css'), 'utf8')
     expect(css).toContain('.nasq-page-width-list')
     expect(css).toContain('.nasq-page-width-detail')
     expect(css).toContain('.nasq-page-width-form')
-    expect(css).toContain('max-width: 1440px')
-    expect(css).toContain('.nasq-page-width-form { width: 100%; max-width: 940px;')
-    expect(css).toContain('.nasq-form-section-title')
+    expect(css).toContain('.nasq-page-width-list { max-width: 100rem; }')
+    expect(css).toContain('.nasq-page-width-detail { max-width: 68rem; }')
+    expect(css).toContain('.nasq-page-width-form { max-width: 58rem; }')
   })
 
   it('defines theme-aware status tokens instead of a second palette', () => {
@@ -43,8 +43,8 @@ describe('internal UI width and status vocabulary', () => {
   })
 
   it('exits the project side sheet opposite the entry travel', () => {
-    const css = readFileSync(resolve(webRoot, 'app/components/project/workspace/ProjectRouteModal.vue'), 'utf8')
-    expect(css).toContain('project-overlay-enter-from')
+    const css = readFileSync(resolve(webRoot, 'app/assets/css/nuxt-theme.css'), 'utf8')
+    expect(css).toContain('@keyframes nasq-sheet-in')
     expect(css).toContain('translateX(var(--project-overlay-travel, 100vw))')
     expect(css).toContain('translateX(calc(-1 * var(--project-overlay-travel, 100vw)))')
   })

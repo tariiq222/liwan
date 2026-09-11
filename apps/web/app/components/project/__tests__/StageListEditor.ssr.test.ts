@@ -57,7 +57,16 @@ describe('StageListEditor SSR', () => {
       confirmDelete: () => {},
     }
     const app = createSSRApp(defineComponent({ setup: () => bindings, render }))
-    for (const name of ['Button', 'Input', 'Toggle', 'VueDraggable', 'GripVertical', 'Trash2']) app.component(name, Stub)
+    for (const name of ['UButton', 'UInput', 'USwitch', 'UIcon', 'VueDraggable']) app.component(name, Stub)
+    app.component('UTooltip', defineComponent({
+      props: ['text'],
+      setup(props, { slots }) {
+        return () => h(TooltipProvider, {}, { default: () => h(TooltipRoot, {}, { default: () => [
+          h(TooltipTrigger, { asChild: true }, { default: () => slots.default?.() }),
+          h(TooltipContent, {}, { default: () => props.text }),
+        ] }) })
+      },
+    }))
     app.component('TooltipProvider', TooltipProvider)
     app.component('Tooltip', TooltipRoot)
     app.component('TooltipTrigger', TooltipTrigger)

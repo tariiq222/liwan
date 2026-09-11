@@ -6,13 +6,51 @@ import { compileTemplate, parse } from '@vue/compiler-sfc'
 import { renderToString } from '@vue/server-renderer'
 import ts from 'typescript'
 import * as Vue from 'vue'
-import { createSSRApp, defineComponent, h, type RenderFunction } from 'vue'
+import { createSSRApp, defineComponent, h, inject, provide, type RenderFunction } from 'vue'
 import { MutationObserver, QueryClient } from '@tanstack/query-core'
 import { PASSWORD_MUTATION_GC_TIME } from '../useChangePassword'
 import { clearPasswordRefs, passwordErrorField, validatePasswordForm } from '../passwordForm'
 
 const passwordSource = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '../../components/account/PasswordForm.vue'), 'utf8')
-const Passthrough = defineComponent({ inheritAttrs: false, setup(_, { slots, attrs }) { return () => h('div', attrs, slots.default?.()) } })
+const UForm = defineComponent({ inheritAttrs: false, setup(_, { slots, attrs }) { return () => h('form', attrs, slots.default?.()) } })
+const formFieldContext = Symbol('password-form-field')
+const UFormField = defineComponent({
+  inheritAttrs: false,
+  props: { name: { type: String, default: '' }, error: { type: String, default: undefined } },
+  setup(props, { slots, attrs }) {
+    const ariaId = `test-${props.name}`
+    provide(formFieldContext, { ariaId, error: () => props.error })
+    return () => {
+      const error = props.error
+      const errorSlot = error ? slots.error?.({ error }) : undefined
+      return h('div', attrs, [
+        slots.default?.({ error }),
+        error ? h('div', { id: `${ariaId}-error` }, errorSlot ?? error) : undefined,
+      ])
+    }
+  },
+})
+const UInput = defineComponent({
+  inheritAttrs: false,
+  props: { modelValue: { type: String, default: '' } },
+  setup(_, { attrs }) {
+    const field = inject<{ ariaId: string; error: () => string | undefined } | null>(formFieldContext, null)
+    return () => h('input', {
+      ...attrs,
+      ...(field?.error() ? { 'aria-describedby': `${field.ariaId}-error`, 'aria-invalid': 'true' } : {}),
+    })
+  },
+})
+const UAlert = defineComponent({
+  inheritAttrs: false,
+  props: { title: { type: String, default: '' } },
+  setup(props, { attrs }) { return () => h('div', attrs, props.title) },
+})
+const UButton = defineComponent({
+  inheritAttrs: false,
+  props: { label: { type: String, default: '' } },
+  setup(props, { slots, attrs }) { return () => h('button', attrs, slots.default?.() ?? props.label) },
+})
 
 async function renderPasswordForm(overrides: Record<string, unknown>) {
   const template = parse(passwordSource).descriptor.template
@@ -23,7 +61,11 @@ async function renderPasswordForm(overrides: Record<string, unknown>) {
   const app = createSSRApp({ render: () => h(defineComponent({ setup: () => ({
     t: (key: string) => key, current: '', next: '', confirm: '', currentError: null, newError: null, formError: null, success: false, disabled: false, submit: () => {}, ...overrides,
   }), render })) })
-  for (const name of ['Label', 'Input', 'Button']) app.component(name, Passthrough)
+  app.component('UForm', UForm)
+  app.component('UFormField', UFormField)
+  app.component('UInput', UInput)
+  app.component('UAlert', UAlert)
+  app.component('UButton', UButton)
   return renderToString(app)
 }
 
@@ -105,11 +147,12 @@ describe('password form helpers', () => {
 
   it('associates and announces field-specific password errors', async () => {
     const html = await renderPasswordForm({ currentError: 'current required', newError: 'too short', formError: 'password mismatch' })
-    expect(html).toContain('aria-describedby="pw-current-error"')
-    expect(html).toContain('id="pw-current-error" role="alert"')
-    expect(html).toContain('aria-describedby="pw-new-error"')
-    expect(html).toContain('id="pw-new-error" role="alert"')
-    expect(html).toContain('aria-describedby="pw-form-error"')
-    expect(html).toContain('id="pw-form-error" role="alert"')
+    expect(html).toContain('aria-describedby="test-pw-current-error"')
+    expect(html).toContain('id="test-pw-current-error"')
+    expect(html).toContain('aria-describedby="test-pw-new-error"')
+    expect(html).toContain('id="test-pw-new-error"')
+    expect(html).toContain('aria-describedby="test-pw-confirm-error"')
+    expect(html).toContain('id="test-pw-confirm-error"')
+    expect(html.match(/role="alert"/g)).toHaveLength(3)
   })
 })

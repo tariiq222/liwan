@@ -56,6 +56,13 @@ watch(() => [route.query.q, route.query.status, route.query.role_id, route.query
 })
 const listQuery = computed(() => adminListQuery(route.query, ['q', 'status', 'role_id', 'department_id', 'offset']))
 function openUser(id: number) { void navigateTo({ path: `/settings/users/${id}`, query: listQuery.value }) }
+const allValue = '__all__'
+const statusOptions = computed(() => [{ value: allValue, label: t('access.users.filters.allStatuses') }, { value: 'active', label: t('access.active') }, { value: 'stopped', label: t('access.disabled') }])
+const roleOptions = computed(() => [{ value: allValue, label: t('access.users.filters.allRoles') }, ...(roles.data.value?.items ?? []).map(role => ({ value: String(role.id), label: role.name[locale.value === 'ar' ? 'ar' : 'en'] ?? role.name.ar }))])
+const departmentOptions = computed(() => [{ value: allValue, label: t('access.users.filters.allDepartments') }, ...(departments.data.value?.items ?? []).map(department => ({ value: String(department.id), label: department.name }))])
+function onStatusChange(value: unknown) { filters.status = value === 'stopped' ? 'stopped' : value === 'active' ? 'active' : undefined; updateFilters() }
+function onRoleChange(value: unknown) { filters.role_id = value && value !== allValue ? Number(value) : undefined; updateFilters() }
+function onDepartmentChange(value: unknown) { filters.department_id = value && value !== allValue ? Number(value) : undefined; updateFilters() }
 const sections = computed(() => forbidden.value ? [] : [
   { id: 'filters', label: t('settings.toc.filters') },
   { id: 'results', label: t('settings.toc.list') },
@@ -65,39 +72,39 @@ const sections = computed(() => forbidden.value ? [] : [
 <template>
   <SettingsLayout :sections>
     <SharedPageHeader :title="t('access.users.title')">
-      <Button v-if="can('access.users.grant')" :disabled="!hydrated" @click="navigateTo({ path: '/settings/users/new', query: listQuery })">{{ t('access.users.grantAccount') }}</Button>
+      <UButton v-if="can('access.users.grant')" color="primary" :disabled="!hydrated" :label="t('access.users.grantAccount')" @click="navigateTo({ path: '/settings/users/new', query: listQuery })" />
     </SharedPageHeader>
     <SharedPageState v-if="forbidden" :empty="true" :empty-text="t('access.forbidden')" />
     <div v-else class="space-y-3">
       <div id="filters" class="nasq-settings-anchor w-full min-w-0">
         <FilterBar class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
           <template #search>
-            <label class="grid min-w-0 gap-1"><span class="sr-only">{{ t('access.users.filters.search') }}</span><Input class="w-full" v-model="filters.q" :placeholder="t('access.users.filters.search')" :disabled="!hydrated" @change="updateFilters" /></label>
+            <UInput v-model="filters.q" class="w-full" :aria-label="t('access.users.filters.search')" :placeholder="t('access.users.filters.search')" :disabled="!hydrated" @change="updateFilters" />
           </template>
           <template #default>
-            <label class="grid min-w-0 gap-1"><span>{{ t('access.users.columns.status') }}</span><select v-model="filters.status" class="h-[40px] rounded-lg border border-input bg-background px-3 text-sm" :disabled="!hydrated" :aria-label="t('access.users.columns.status')" @change="updateFilters">
-              <option :value="undefined">{{ t('access.users.filters.allStatuses') }}</option>
-              <option value="active">{{ t('access.active') }}</option>
-              <option value="stopped">{{ t('access.disabled') }}</option>
-            </select></label>
-            <label class="grid min-w-0 gap-1"><span>{{ t('access.users.role') }}</span><select v-model="filters.role_id" class="h-[40px] rounded-lg border border-input bg-background px-3 text-sm" :disabled="!hydrated" :aria-label="t('access.users.role')" @change="updateFilters"><option :value="undefined">{{ t('access.users.filters.allRoles') }}</option><option v-for="role in roles.data.value?.items ?? []" :key="role.id" :value="role.id">{{ role.name[locale === 'ar' ? 'ar' : 'en'] ?? role.name.ar }}</option></select></label>
-            <label class="grid min-w-0 gap-1"><span>{{ t('nav.departments') }}</span><select v-model="filters.department_id" class="h-[40px] rounded-lg border border-input bg-background px-3 py-2 text-sm" :disabled="!hydrated || !can('hr.departments.read')" :aria-label="t('nav.departments')" @change="updateFilters"><option :value="undefined">{{ t('access.users.filters.allDepartments') }}</option><option v-for="department in departments.data.value?.items ?? []" :key="department.id" :value="department.id">{{ department.name }}</option></select></label>
+            <UFormField :label="t('access.users.columns.status')" class="min-w-0"><USelect :model-value="filters.status ?? allValue" :items="statusOptions" class="w-full" :disabled="!hydrated" :aria-label="t('access.users.columns.status')" @update:model-value="onStatusChange" /></UFormField>
+            <UFormField :label="t('access.users.role')" class="min-w-0"><USelect :model-value="filters.role_id ? String(filters.role_id) : allValue" :items="roleOptions" class="w-full" :disabled="!hydrated" :aria-label="t('access.users.role')" @update:model-value="onRoleChange" /></UFormField>
+            <UFormField :label="t('nav.departments')" class="min-w-0"><USelect :model-value="filters.department_id ? String(filters.department_id) : allValue" :items="departmentOptions" class="w-full" :disabled="!hydrated || !can('hr.departments.read')" :aria-label="t('nav.departments')" @update:model-value="onDepartmentChange" /></UFormField>
           </template>
           <template #active>
             <div v-if="activeFilterCount" class="flex flex-wrap items-center gap-2">
-              <Badge v-if="filters.q?.trim()" variant="secondary">{{ filters.q }}</Badge>
-              <Badge v-if="filters.status" variant="secondary">{{ filters.status === 'active' ? t('access.active') : t('access.disabled') }}</Badge>
-              <Badge v-if="filters.role_id" variant="secondary">{{ roles.data.value?.items.find(role => role.id === filters.role_id)?.name[locale === 'ar' ? 'ar' : 'en'] ?? t('access.users.role') }}</Badge>
-              <Badge v-if="filters.department_id" variant="secondary">{{ departments.data.value?.items.find(department => department.id === filters.department_id)?.name ?? t('nav.departments') }}</Badge>
+              <UBadge v-if="filters.q?.trim()" color="neutral" variant="subtle">{{ filters.q }}</UBadge>
+              <UBadge v-if="filters.status" color="neutral" variant="subtle">{{ filters.status === 'active' ? t('access.active') : t('access.disabled') }}</UBadge>
+              <UBadge v-if="filters.role_id" color="neutral" variant="subtle">{{ roles.data.value?.items.find(role => role.id === filters.role_id)?.name[locale === 'ar' ? 'ar' : 'en'] ?? t('access.users.role') }}</UBadge>
+              <UBadge v-if="filters.department_id" color="neutral" variant="subtle">{{ departments.data.value?.items.find(department => department.id === filters.department_id)?.name ?? t('nav.departments') }}</UBadge>
             </div>
           </template>
         </FilterBar>
       </div>
       <div id="results" class="nasq-settings-anchor">
-      <SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!query.isLoading.value && !query.error.value && query.data.value?.items.length === 0" :empty-text="t('access.users.empty')" @retry="query.refetch">
-        <UserTable :users="query.data.value?.items ?? []" @open="openUser" />
-      </SharedPageState>
-      <div v-if="pages > 1" class="nasq-settings-pagination"><Button variant="ghost" :disabled="!hydrated || page === 1 || query.isFetching.value" @click="previousPage">{{ t('access.previousPage') }}</Button><span>{{ t('access.pageOf', { page, pages }) }}</span><Button variant="ghost" :disabled="!hydrated || page >= pages || query.isFetching.value" @click="nextPage">{{ t('access.nextPage') }}</Button></div>
+        <SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!query.isLoading.value && !query.error.value && query.data.value?.items.length === 0" :empty-text="t('access.users.empty')" @retry="query.refetch">
+          <UserTable :users="query.data.value?.items ?? []" @open="openUser" />
+        </SharedPageState>
+        <div v-if="pages > 1" class="nasq-settings-pagination">
+          <UButton color="secondary" variant="ghost" :disabled="!hydrated || page === 1 || query.isFetching.value" :label="t('access.previousPage')" @click="previousPage" />
+          <span>{{ t('access.pageOf', { page, pages }) }}</span>
+          <UButton color="secondary" variant="ghost" :disabled="!hydrated || page >= pages || query.isFetching.value" :label="t('access.nextPage')" @click="nextPage" />
+        </div>
       </div>
     </div>
   </SettingsLayout>

@@ -13,7 +13,7 @@ const stakeholders = readFileSync(resolve(root, 'stakeholders/index.vue'), 'utf8
 const raciPath = resolve(root, 'raci.vue')
 const raci = readFileSync(raciPath, 'utf8')
 const projects = readFileSync(resolve(here, '../../../pages/projects/index.vue'), 'utf8')
-const inputSource = readFileSync(resolve(here, '../../ui/input/Input.vue'), 'utf8')
+const inputSource = readFileSync(resolve(here, '../../../app.config.ts'), 'utf8')
 const vueGlobal = resolve(webRoot, '../../node_modules/vue/dist/vue.global.js')
 
 const parsed = parse(raci, { filename: raciPath })
@@ -38,14 +38,14 @@ describe('governance list/matrix design', () => {
   it('matches projects toolbar and table primitives on the stakeholder list', () => {
     expect(projects).toContain(':active-count="activeFilterCount"')
     expect(projects).toContain('FilterBar')
-    expect(inputSource).toContain('h-[40px]')
+    expect(inputSource).toContain('input:')
     expect(stakeholders).toContain(':active-count="activeFilterCount"')
     expect(stakeholders).toContain('FilterBar')
-    expect(stakeholders).toContain('<Search')
-    expect(stakeholders).toContain('h-[40px]')
-    expect(stakeholders).toContain('<Table>')
-    expect(stakeholders).toContain('<TableHeader>')
-    expect(stakeholders).toContain('<TableBody>')
+    expect(stakeholders).toContain('i-lucide-search')
+    expect(stakeholders).toContain('<UInput')
+    expect(stakeholders).toContain('<UTable')
+    expect(stakeholders).toContain(':columns="columns"')
+    expect(stakeholders).toContain('#name-cell="{ row }"')
     expect(stakeholders).toContain('list.data.value?.can_manage && hydrated')
     expect(stakeholders).toContain('!hydrated || remove.isPending.value')
     expect(stakeholders).toContain('router.replace({ query: { ...route.query, [key]: value || undefined, offset: undefined } })')
@@ -57,10 +57,13 @@ describe('governance list/matrix design', () => {
   })
 
   it('styles RACI role controls without cloning list topology onto the matrix', () => {
-    expect(raci).toContain('<select')
-    expect(raci).toContain("select.value = row?.role ?? ''")
-    expect(raci).toContain('@change="changeRole(task.id, item.id, $event)"')
-    expect(raci).toContain('h-[40px]')
+    expect(raci).toContain('<USelect')
+    expect(raci).toContain(':model-value="assignment(task.id, item.id)?.role ?? \'none\'"')
+    expect(raci).toContain('@update:model-value="changeRole(task.id, item.id, $event)"')
+    expect(raci).toContain('class="min-w-24"')
+    expect(raci).toContain(':color="roleColor(task.id, item.id)"')
+    expect(raci).toContain('<UBadge v-else variant="subtle"')
+    expect(raci).not.toContain('roleClass')
     expect(raci).not.toContain('h-9')
     expect(raci).toContain('v-for="task in visibleTasks"')
     expect(raci).toContain('v-for="item in visibleStakeholders"')
@@ -136,9 +139,9 @@ describe('RACI role select authoritative value', () => {
       const create = { mutateAsync: async () => undefined }
       const id = Vue.ref(7)
       const changeRole = new Function(
-        'assignment', 'error', 'confirmRow', 'update', 'create', 'id', 't', 'ApiError',
+        'assignment', 'error', 'confirmRow', 'update', 'create', 'id', 't', 'ApiError', 'pending', 'loading',
         `${changeRoleJs}\nreturn changeRole;`,
-      )(assignment, error, confirmRow, update, create, id, t, ApiError)
+      )(assignment, error, confirmRow, update, create, id, t, ApiError, Vue.ref(false), Vue.ref(false))
       const app = Vue.createApp({
         setup() {
           return {
@@ -159,7 +162,7 @@ describe('RACI role select authoritative value', () => {
             visibleTasks: [{ id: 1, name: 'Design' }],
             visibleStakeholders: [{ id: 2, name: 'Sponsor' }],
             assignment,
-            roleClass: () => undefined,
+            roleColor: () => undefined,
             changeRole,
             taskPage: 0,
             stakeholderPage: 0,
@@ -174,7 +177,20 @@ describe('RACI role select authoritative value', () => {
       app.component('SharedPageState', Passthrough)
       app.component('Label', Passthrough)
       app.component('Input', Passthrough)
-      app.component('Button', Button)
+      app.component('UButton', Button)
+      // Controlled primitive stub: only emits the chosen value. The production
+      // changeRole handler and assignment state decide what remains displayed.
+      app.component('USelect', Vue.defineComponent({
+        inheritAttrs: false,
+        props: { modelValue: { type: String, required: true }, items: { type: Array as import('vue').PropType<{ value: string; label: string }[]>, required: true } },
+        emits: ['update:modelValue'],
+        setup(props, { attrs, emit }) {
+          return () => Vue.h('div', [
+            Vue.h('button', { ...attrs, 'data-raci-select': '' }, props.modelValue),
+            ...props.items.map(item => Vue.h('button', { 'data-option': item.value, onClick: () => emit('update:modelValue', item.value) }, item.label)),
+          ])
+        },
+      }))
       app.component('NuxtLink', {
         props: { to: { type: [String, Object], default: '#' } },
         setup(_props: unknown, ctx: { slots: { default?: () => unknown } }) {
@@ -186,45 +202,45 @@ describe('RACI role select authoritative value', () => {
   }
 
   function roleSelect() {
-    return page.locator('select[aria-label="Design — Sponsor — projects.governance.raci.role"]')
+    return page.locator('[data-raci-select][aria-label="Design — Sponsor — projects.governance.raci.role"]')
   }
 
   it('resets a cleared R assignment and restores it on cancel', async () => {
     await mountMatrix('R', 'cancel')
     const select = roleSelect()
-    expect(await select.inputValue()).toBe('R')
-    await select.selectOption('')
-    expect(await select.inputValue()).toBe('R')
+    expect(await select.textContent()).toBe('R')
+    await page.locator('[data-option="none"]').click()
+    expect(await select.textContent()).toBe('R')
     expect(await page.getByRole('group', { name: 'projects.governance.confirmDelete' }).count()).toBe(1)
     await page.locator('button', { hasText: 'app.cancel' }).click()
     expect(await page.getByRole('group', { name: 'projects.governance.confirmDelete' }).count()).toBe(0)
-    expect(await select.inputValue()).toBe('R')
+    expect(await select.textContent()).toBe('R')
   }, 20000)
 
   it('resets a cleared A assignment and restores it on cancel', async () => {
     await mountMatrix('A', 'cancel')
     const select = roleSelect()
-    expect(await select.inputValue()).toBe('A')
-    await select.selectOption('')
-    expect(await select.inputValue()).toBe('A')
+    expect(await select.textContent()).toBe('A')
+    await page.locator('[data-option="none"]').click()
+    expect(await select.textContent()).toBe('A')
     await page.locator('button', { hasText: 'app.cancel' }).click()
-    expect(await select.inputValue()).toBe('A')
+    expect(await select.textContent()).toBe('A')
   }, 20000)
 
   it('keeps the current role and shows an error when the mutation fails', async () => {
     await mountMatrix('R', 'fail')
     const select = roleSelect()
-    await select.selectOption('A')
-    expect(await select.inputValue()).toBe('R')
+    await page.locator('[data-option="A"]').click()
+    expect(await select.textContent()).toBe('R')
     await expect.poll(async () => page.locator('[role="alert"]').textContent()).toBe('errors.generic')
   }, 20000)
 
   it('keeps the current role while a mutation is pending, then shows the saved role', async () => {
     await mountMatrix('R', 'succeed')
     const select = roleSelect()
-    await select.selectOption('C')
-    expect(await select.inputValue()).toBe('R')
+    await page.locator('[data-option="C"]').click()
+    expect(await select.textContent()).toBe('R')
     await page.evaluate(() => (globalThis as { __releaseRaci?: () => void }).__releaseRaci?.())
-    await expect.poll(async () => select.inputValue()).toBe('C')
+    await expect.poll(async () => select.textContent()).toBe('C')
   }, 20000)
 })

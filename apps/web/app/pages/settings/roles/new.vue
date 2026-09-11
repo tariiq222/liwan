@@ -91,17 +91,44 @@ async function submit() {
   <SettingsLayout width="form">
     <SharedPageHeader :title="t('access.roles.createTitle')" :back-to="backTo" />
     <SharedPageState v-if="forbidden" :empty="true" :empty-text="t('access.forbidden')" />
-    <form v-else class="nasq-form nasq-panel nasq-panel-body space-y-5" @submit.prevent="submit">
+    <UForm v-else :state="{ nameAr, nameEn, description }" class="space-y-6" method="post" @submit="submit">
       <SharedUnsavedChanges :dirty="dirty" />
-      <SharedFormSection :title="t('access.roles.details')" class="space-y-4">
-        <div class="nasq-form-grid"><div class="space-y-2"><Label for="name-ar">{{ t('access.roles.nameArabic') }}</Label><Input id="name-ar" v-model="nameAr" :disabled="!hydrated || create.isPending.value" /></div><div class="space-y-2"><Label for="name-en">{{ t('access.roles.nameEnglish') }}</Label><Input id="name-en" v-model="nameEn" dir="ltr" :disabled="!hydrated || create.isPending.value" /></div></div>
-        <div class="space-y-2"><Label for="description">{{ t('access.roles.descriptionLabel') }}</Label><Textarea id="description" v-model="description" :disabled="!hydrated || create.isPending.value" /></div>
-      </SharedFormSection>
-      <SharedFormSection :title="t('access.roles.permissions')" class="space-y-4">
-        <fieldset class="space-y-2" :disabled="!hydrated || create.isPending.value"><legend class="sr-only">{{ t('access.roles.permissions') }}</legend><section v-for="[domain, domainPermissions] in groupedPermissions" :key="domain" class="nasq-form-section space-y-3"><h3 class="text-sm font-medium">{{ t(`access.roles.domains.${domain}`) }}</h3><div class="nasq-settings-options"><label v-for="permission in domainPermissions" :key="permission.key" class="nasq-settings-option"><input type="checkbox" :checked="selected.includes(permission.key)" @change="togglePermission(permission.key, !selected.includes(permission.key))"><span><span class="font-medium">{{ permissionLabel(permission.key) }}</span><span class="block text-sm text-muted-foreground">{{ permissionDescription(permission.key) }}</span><span class="block text-xs text-muted-foreground">{{ permission.dependencies.length ? `${t('access.roles.requires')}: ${permission.dependencies.map((key) => permissionLabel(key)).join('، ')}` : t('access.roles.noDependencies') }}</span><span class="block text-xs text-muted-foreground">{{ t('access.roles.companyScope') }}</span></span></label></div></section></fieldset>
-      </SharedFormSection>
-      <p v-if="errorKey" role="alert" class="text-sm text-destructive">{{ errorKey }}</p>
-      <div class="nasq-form-footer"><Button type="submit" :disabled="!hydrated || create.isPending.value || !nameAr.trim()">{{ t('access.roles.create') }}</Button></div>
-    </form>
+      <UCard>
+        <template #header><h2 class="text-lg font-semibold text-highlighted">{{ t('access.roles.details') }}</h2></template>
+        <div class="space-y-4">
+          <div class="grid gap-4 sm:grid-cols-2">
+            <UFormField :label="t('access.roles.nameArabic')" name="name-ar"><UInput id="name-ar" v-model="nameAr" class="w-full" :disabled="!hydrated || create.isPending.value" /></UFormField>
+            <UFormField :label="t('access.roles.nameEnglish')" name="name-en"><UInput id="name-en" v-model="nameEn" dir="ltr" class="w-full" :disabled="!hydrated || create.isPending.value" /></UFormField>
+          </div>
+          <UFormField :label="t('access.roles.descriptionLabel')" name="description"><UTextarea id="description" v-model="description" class="w-full" :disabled="!hydrated || create.isPending.value" /></UFormField>
+        </div>
+      </UCard>
+      <UCard>
+        <template #header><h2 class="text-lg font-semibold text-highlighted">{{ t('access.roles.permissions') }}</h2></template>
+        <fieldset class="space-y-4" :disabled="!hydrated || create.isPending.value">
+          <legend class="sr-only">{{ t('access.roles.permissions') }}</legend>
+          <section v-for="[domain, domainPermissions] in groupedPermissions" :key="domain" class="space-y-3">
+            <h3 class="text-sm font-medium">{{ t(`access.roles.domains.${domain}`) }}</h3>
+            <div class="space-y-3">
+              <UCheckbox
+                v-for="permission in domainPermissions"
+                :key="permission.key"
+                :model-value="selected.includes(permission.key)"
+                @update:model-value="(value) => togglePermission(permission.key, Boolean(value))"
+              >
+                <template #label><span class="font-medium">{{ permissionLabel(permission.key) }}</span></template>
+                <template #description>
+                  <span class="block text-sm text-muted">{{ permissionDescription(permission.key) }}</span>
+                  <span class="block text-xs text-muted">{{ permission.dependencies.length ? `${t('access.roles.requires')}: ${permission.dependencies.map((key) => permissionLabel(key)).join('، ')}` : t('access.roles.noDependencies') }}</span>
+                  <span class="block text-xs text-muted">{{ t('access.roles.companyScope') }}</span>
+                </template>
+              </UCheckbox>
+            </div>
+          </section>
+        </fieldset>
+      </UCard>
+      <UAlert v-if="errorKey" role="alert" color="error" variant="subtle" :title="errorKey" />
+      <footer class="flex justify-end"><UButton type="submit" color="primary" :disabled="!hydrated || create.isPending.value || !nameAr.trim()" :label="t('access.roles.create')" /></footer>
+    </UForm>
   </SettingsLayout>
 </template>

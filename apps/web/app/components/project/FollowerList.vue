@@ -1,8 +1,6 @@
 <script setup lang="ts">
 import type { ProjectDetail } from '@nasq/contracts'
 import { refDebounced } from '@vueuse/core'
-import { Check, X } from '@lucide/vue'
-import { toast } from 'vue-sonner'
 import { ApiError } from '@/composables/useApi'
 import { usePeople } from '@/composables/usePeople'
 import { useAddFollower, useFollowers, useRemoveFollower } from '@/composables/useProjectFollowers'
@@ -11,6 +9,7 @@ const props = defineProps<{ project: ProjectDetail }>()
 
 const { t } = useI18n()
 const hydrated = useHydrated()
+const toast = useToast()
 
 const projectId = computed(() => props.project.id)
 const { data: followers } = useFollowers(projectId)
@@ -18,9 +17,10 @@ const { mutate: addFollower, isPending: adding } = useAddFollower()
 const { mutate: removeFollower, isPending: removing } = useRemoveFollower()
 
 const followerIds = computed(() => new Set((followers.value ?? []).map((f) => f.id)))
+const NO_FOLLOWER_SELECTION = undefined
 
 function onError(e: unknown) {
-  toast.error(e instanceof ApiError ? e.message : t('errors.generic'))
+  toast.add({ title: e instanceof ApiError ? e.message : t('errors.generic'), color: 'error' })
 }
 
 const open = ref(false)
@@ -43,41 +43,30 @@ function removePerson(userId: number) {
 <template>
   <div class="space-y-3">
     <!-- With "Followers only" visibility, this list is the whole audience for the project — not just people getting notifications. -->
-    <p v-if="project.privacy_visibility === 'followers'" class="text-sm text-muted-foreground">{{ t('projects.followers.hint') }}</p>
+    <p v-if="project.privacy_visibility === 'followers'" class="text-sm text-muted">{{ t('projects.followers.hint') }}</p>
 
-    <p v-if="(followers ?? []).length === 0" class="text-sm text-muted-foreground">{{ t('projects.followers.empty') }}</p>
+    <p v-if="(followers ?? []).length === 0" class="text-sm text-muted">{{ t('projects.followers.empty') }}</p>
 
     <ul class="space-y-1">
       <li v-for="f in followers ?? []" :key="f.id" data-testid="follower-row" class="flex items-center justify-between rounded-md border p-2 text-sm">
         <span class="truncate">{{ f.name }}</span>
-        <Button variant="ghost" size="icon" type="button" :disabled="!hydrated || removing" :aria-label="t('projects.followers.remove')" @click="removePerson(f.id)">
-          <X class="size-4" />
-        </Button>
+        <UButton color="neutral" variant="ghost" square type="button" icon="i-lucide-x" :disabled="!hydrated || removing" :aria-label="t('projects.followers.remove')" @click="removePerson(f.id)" />
       </li>
     </ul>
 
-    <Popover v-model:open="open">
-      <PopoverTrigger as-child>
-        <Button variant="outline" size="sm" type="button" data-testid="follower-add" :disabled="!hydrated || adding">
-          {{ t('projects.followers.add') }}
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent class="w-64 p-0" align="start">
-        <div class="border-b p-2">
-          <Input v-model="q" :placeholder="t('app.search')" class="h-8" />
-        </div>
-        <Command>
-          <CommandList>
-            <CommandEmpty>{{ t('app.noResults') }}</CommandEmpty>
-            <CommandGroup>
-              <CommandItem v-for="p in people ?? []" :key="p.id" :value="String(p.id)" @select="addPerson(p.id)">
-                <span class="flex-1">{{ p.name }}</span>
-                <Check v-if="followerIds.has(p.id)" class="size-4" />
-              </CommandItem>
-            </CommandGroup>
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
+    <USelectMenu
+      v-model:open="open"
+      v-model:search-term="q"
+      :key="followerIds.size"
+      :model-value="NO_FOLLOWER_SELECTION"
+      :items="people ?? []"
+      value-key="id"
+      label-key="name"
+      class="w-64"
+      data-testid="follower-add"
+      :placeholder="t('projects.followers.add')"
+      :disabled="!hydrated || adding"
+      @update:model-value="value => value != null && value !== NO_FOLLOWER_SELECTION && addPerson(value as number)"
+    />
   </div>
 </template>

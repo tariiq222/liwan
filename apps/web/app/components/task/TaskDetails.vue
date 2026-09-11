@@ -172,12 +172,12 @@ const completedSubtasks = computed(() => props.task.subtasks.filter(subtask => s
 </script>
 
 <template>
-  <div class="grid min-w-0 gap-4">
-    <section class="nasq-panel" role="group" :aria-label="t('tasks.detail.primaryMetadata')">
-      <header class="nasq-panel-header">
-        <h2>{{ t('tasks.detail.primaryMetadata') }}</h2>
-      </header>
-      <div class="nasq-panel-body task-meta-grid">
+  <div class="grid min-w-0 gap-6">
+    <UCard role="group" :aria-label="t('tasks.detail.primaryMetadata')">
+      <template #header>
+        <h2 class="text-lg font-semibold text-highlighted">{{ t('tasks.detail.primaryMetadata') }}</h2>
+      </template>
+      <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
         <div class="task-meta-item">
           <span id="task-assignees-label" class="task-meta-label">{{ t('tasks.drawer.assignees') }}</span>
           <p v-if="!task.can_write" class="task-meta-value">{{ task.assignees.map(person => person.name).join('، ') || t('tasks.drawer.unassigned') }}</p>
@@ -192,24 +192,22 @@ const completedSubtasks = computed(() => props.task.subtasks.filter(subtask => s
         <div class="task-meta-item">
           <span id="task-deadline-label" class="task-meta-label">{{ t('tasks.drawer.deadline') }}</span>
           <p v-if="!task.can_write" class="task-meta-value">{{ deadlineButtonLabel }}</p>
-          <Popover v-else>
-            <PopoverTrigger as-child>
-              <Button variant="outline" size="sm" class="w-full justify-start" type="button" aria-labelledby="task-deadline-label task-deadline-value">
-                <span id="task-deadline-value">{{ deadlineButtonLabel }}</span>
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent class="w-auto p-0" align="start">
-              <Calendar :model-value="calendarValue" :min-value="milestoneStartCalendar" :max-value="milestoneDeadlineCalendar" @update:model-value="onCalendarChange" />
+          <UPopover v-else :content="{ align: 'start' }">
+            <UButton variant="outline" size="sm" class="w-full justify-start" type="button" aria-labelledby="task-deadline-label task-deadline-value">
+              <span id="task-deadline-value">{{ deadlineButtonLabel }}</span>
+            </UButton>
+            <template #content>
+              <UCalendar :model-value="calendarValue" :min-value="milestoneStartCalendar" :max-value="milestoneDeadlineCalendar" @update:model-value="onCalendarChange" />
               <div class="flex items-center gap-2 border-t p-2">
-                <Label for="deadline-time" class="sr-only">{{ t('tasks.drawer.deadline') }}</Label>
-                <Input id="deadline-time" v-model="timeDraft" type="time" class="h-8" @change="onTimeChange" />
-                <Button v-if="task.date_deadline" variant="ghost" size="sm" type="button" @click="clearDeadline">
+                <label for="deadline-time" class="sr-only">{{ t('tasks.drawer.deadline') }}</label>
+                <UInput id="deadline-time" v-model="timeDraft" type="time" class="h-8" @change="onTimeChange" />
+                <UButton v-if="task.date_deadline" variant="ghost" size="sm" type="button" @click="clearDeadline">
                   {{ t('tasks.deadline.none') }}
-                </Button>
+                </UButton>
               </div>
-            </PopoverContent>
-          </Popover>
-          <p v-if="deadlineError" role="alert" class="mt-1 text-xs text-destructive">{{ deadlineError }}</p>
+            </template>
+          </UPopover>
+          <p v-if="deadlineError" role="alert" class="mt-1 text-xs text-error">{{ deadlineError }}</p>
         </div>
 
         <div class="task-meta-item">
@@ -218,35 +216,29 @@ const completedSubtasks = computed(() => props.task.subtasks.filter(subtask => s
           <p v-else class="task-meta-value">{{ task.milestone?.name || t('tasks.drawer.noMilestone') }}</p>
         </div>
       </div>
-    </section>
+    </UCard>
 
-    <section class="nasq-panel">
-      <header class="nasq-panel-header">
-        <h2>{{ t('tasks.drawer.description') }}</h2>
-      </header>
-      <div class="nasq-panel-body">
-        <TaskDescription :key="task.id" :task="task" />
-      </div>
+    <section class="space-y-3">
+      <h2 class="text-lg font-semibold text-highlighted">{{ t('tasks.drawer.description') }}</h2>
+      <TaskDescription :key="task.id" :task="task" />
     </section>
 
     <slot name="activity" />
 
     <component
       :is="isProjectTask ? 'details' : 'div'"
-      :class="isProjectTask ? 'nasq-panel task-optional-details' : 'contents'"
+      :class="isProjectTask ? 'task-optional-details rounded-xl border border-default bg-default' : 'contents'"
     >
-      <summary v-if="isProjectTask" class="task-details-summary nasq-panel-header"><span>{{ t('tasks.detail.workResources') }}</span><ChevronDown class="task-disclosure-icon size-4 shrink-0" aria-hidden="true" /></summary>
-      <div :class="isProjectTask ? 'nasq-panel-body task-optional-content grid gap-4' : 'contents'">
+      <summary v-if="isProjectTask" class="task-details-summary flex items-center justify-between gap-3 px-5 py-4 text-lg font-semibold text-highlighted"><span>{{ t('tasks.detail.workResources') }}</span><ChevronDown class="task-disclosure-icon size-4 shrink-0" aria-hidden="true" /></summary>
+      <div :class="isProjectTask ? 'task-optional-content grid gap-6 border-t border-default p-5' : 'contents'">
         <TaskDeliverables :key="`outputs-${task.id}`" :task="task" />
 
-        <section class="nasq-panel">
-          <header class="nasq-panel-header">
-            <h2>{{ t('tasks.drawer.subtasks') }}</h2>
-            <span class="text-xs font-normal text-muted-foreground">{{ t('tasks.detail.subtaskProgress', { done: completedSubtasks, total: task.subtasks.length }) }}</span>
-          </header>
-          <div class="nasq-panel-body">
-            <SubtaskList :task="task" :base-path="props.basePath" />
+        <section class="space-y-3">
+          <div class="flex items-center justify-between gap-2">
+            <h2 class="text-lg font-semibold text-highlighted">{{ t('tasks.drawer.subtasks') }}</h2>
+            <span class="text-xs font-normal text-muted">{{ t('tasks.detail.subtaskProgress', { done: completedSubtasks, total: task.subtasks.length }) }}</span>
           </div>
+          <SubtaskList :task="task" :base-path="props.basePath" />
         </section>
 
         <DependencyPicker :task="task" />
@@ -255,20 +247,22 @@ const completedSubtasks = computed(() => props.task.subtasks.filter(subtask => s
       </div>
     </component>
 
-    <details class="nasq-panel">
-      <summary class="task-details-summary nasq-panel-header"><span>{{ t('tasks.drawer.additionalDetails') }}</span><ChevronDown v-if="isProjectTask" class="task-disclosure-icon size-4 shrink-0" aria-hidden="true" /></summary>
-      <div class="nasq-panel-body">
-        <div class="task-additional-grid">
+    <details class="rounded-xl border border-default bg-default">
+      <summary class="task-details-summary flex items-center justify-between gap-3 px-5 py-4 text-lg font-semibold text-highlighted"><span>{{ t('tasks.drawer.additionalDetails') }}</span><ChevronDown v-if="isProjectTask" class="task-disclosure-icon size-4 shrink-0" aria-hidden="true" /></summary>
+      <div class="border-t border-default p-5">
+        <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           <section class="task-additional-item">
             <span id="task-stage-label">{{ t('tasks.drawer.stage') }}</span>
             <strong v-if="!task.can_write">{{ task.personal_stage?.name || t('tasks.drawer.unassigned') }}</strong>
-            <Select v-else :model-value="task.personal_stage ? String(task.personal_stage.id) : NONE" @update:model-value="onStageChange">
-              <SelectTrigger size="sm" class="w-full" aria-labelledby="task-stage-label"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem :value="NONE">{{ t('tasks.drawer.unassigned') }}</SelectItem>
-                <SelectItem v-for="s in stages ?? []" :key="s.id" :value="String(s.id)">{{ s.name }}</SelectItem>
-              </SelectContent>
-            </Select>
+            <USelect
+              v-else
+              size="sm"
+              class="w-full"
+              aria-labelledby="task-stage-label"
+              :items="[{ label: t('tasks.drawer.unassigned'), value: NONE }, ...(stages ?? []).map((s) => ({ label: s.name, value: String(s.id) }))]"
+              :model-value="task.personal_stage ? String(task.personal_stage.id) : NONE"
+              @update:model-value="onStageChange"
+            />
           </section>
 
           <section class="task-additional-item">
@@ -278,8 +272,8 @@ const completedSubtasks = computed(() => props.task.subtasks.filter(subtask => s
           </section>
 
           <section v-if="task.can_write && task.can_approve" class="task-additional-item">
-            <Label for="allocated-hours" class="text-muted-foreground">{{ t('tasks.drawer.allocatedHours') }}</Label>
-            <Input id="allocated-hours" v-model="hoursDraft" type="number" min="0" step="0.5" class="mt-2" @change="onHoursChange" />
+            <label for="allocated-hours" class="text-muted">{{ t('tasks.drawer.allocatedHours') }}</label>
+            <UInput id="allocated-hours" v-model="hoursDraft" type="number" min="0" step="0.5" class="mt-2" @change="onHoursChange" />
           </section>
 
           <section class="task-additional-item">
@@ -305,13 +299,8 @@ const completedSubtasks = computed(() => props.task.subtasks.filter(subtask => s
 </template>
 
 <style scoped>
-.task-meta-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px 16px;
-}
-
-.task-meta-item {
+.task-meta-item,
+.task-additional-item {
   min-width: 0;
 }
 
@@ -319,16 +308,16 @@ const completedSubtasks = computed(() => props.task.subtasks.filter(subtask => s
 .task-additional-item > span {
   display: block;
   margin-bottom: 6px;
-  color: var(--muted-foreground);
-  font-size: 0.75rem;
+  color: var(--ui-text-muted);
+  font-size: var(--text-sm);
 }
 
 .task-meta-value,
 .task-additional-item > strong {
   display: block;
   overflow-wrap: anywhere;
-  color: var(--foreground);
-  font-size: 0.875rem;
+  color: var(--ui-text-highlighted);
+  font-size: var(--text-base);
   font-weight: 600;
 }
 
@@ -338,39 +327,10 @@ const completedSubtasks = computed(() => props.task.subtasks.filter(subtask => s
 }
 
 .task-details-summary::marker {
-  color: var(--muted-foreground);
+  color: var(--ui-text-muted);
 }
 
 details[open] > summary .task-disclosure-icon {
   transform: rotate(180deg);
-}
-
-.task-additional-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px 12px;
-}
-
-.task-additional-item {
-  min-width: 0;
-}
-
-@media (max-width: 1000px) {
-  .task-meta-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 600px) {
-  .task-additional-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 320px) {
-  .task-meta-grid,
-  .task-additional-grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
 }
 </style>

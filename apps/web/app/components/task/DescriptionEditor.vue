@@ -125,35 +125,35 @@ function applyLink() {
   <ClientOnly>
     <div class="rounded-md border">
       <div v-if="!readonly" class="flex items-center gap-1 border-b p-1">
-        <Button variant="ghost" size="icon" class="size-[32px] rounded-lg" :disabled="!hydrated" :aria-label="t('tasks.detail.bold')" :class="{ 'bg-accent': editor?.isActive('bold') }" type="button" @click="toggleBold">
+        <UButton color="neutral" square size="sm" :disabled="!hydrated" :aria-label="t('tasks.detail.bold')" :variant="editor?.isActive('bold') ? 'soft' : 'ghost'" :aria-pressed="!!editor?.isActive('bold')" type="button" @click="toggleBold">
           <Bold class="size-[18px]" />
-        </Button>
-        <Button variant="ghost" size="icon" class="size-[32px] rounded-lg" :disabled="!hydrated" :aria-label="t('tasks.detail.italic')" :class="{ 'bg-accent': editor?.isActive('italic') }" type="button" @click="toggleItalic">
+        </UButton>
+        <UButton color="neutral" square size="sm" :disabled="!hydrated" :aria-label="t('tasks.detail.italic')" :variant="editor?.isActive('italic') ? 'soft' : 'ghost'" :aria-pressed="!!editor?.isActive('italic')" type="button" @click="toggleItalic">
           <Italic class="size-[18px]" />
-        </Button>
-        <Button variant="ghost" size="icon" class="size-[32px] rounded-lg" :disabled="!hydrated" :aria-label="t('tasks.detail.bulletList')" :class="{ 'bg-accent': editor?.isActive('bulletList') }" type="button" @click="toggleBulletList">
+        </UButton>
+        <UButton color="neutral" square size="sm" :disabled="!hydrated" :aria-label="t('tasks.detail.bulletList')" :variant="editor?.isActive('bulletList') ? 'soft' : 'ghost'" :aria-pressed="!!editor?.isActive('bulletList')" type="button" @click="toggleBulletList">
           <List class="size-[18px]" />
-        </Button>
-        <Button
-          variant="ghost" size="icon" class="size-[32px] rounded-lg" :aria-label="t('tasks.detail.orderedList')" :class="{ 'bg-accent': editor?.isActive('orderedList') }" type="button"
+        </UButton>
+        <UButton
+          color="neutral" square size="sm" :aria-label="t('tasks.detail.orderedList')" :variant="editor?.isActive('orderedList') ? 'soft' : 'ghost'" :aria-pressed="!!editor?.isActive('orderedList')" type="button"
           :disabled="!hydrated" @click="toggleOrderedList"
         >
           <ListOrdered class="size-[18px]" />
-        </Button>
-        <Button variant="ghost" size="icon" class="size-[32px] rounded-lg" :disabled="!hydrated" :aria-label="t('tasks.detail.linkPrompt')" :class="{ 'bg-accent': editor?.isActive('link') }" type="button" @click="toggleLink">
+        </UButton>
+        <UButton color="neutral" square size="sm" :disabled="!hydrated" :aria-label="t('tasks.detail.linkPrompt')" :variant="editor?.isActive('link') ? 'soft' : 'ghost'" :aria-pressed="!!editor?.isActive('link')" type="button" @click="toggleLink">
           <LinkIcon class="size-[18px]" />
-        </Button>
+        </UButton>
       </div>
       <div v-if="linkEditorOpen" data-testid="link-editor" class="flex flex-wrap items-center gap-2 border-b p-2">
-        <Label for="description-link-url" class="sr-only">{{ t('tasks.detail.linkPrompt') }}</Label>
-        <Input id="description-link-url" v-model="linkDraft" :placeholder="t('tasks.detail.linkPrompt')" class="min-w-48 flex-1" dir="ltr" :disabled="!hydrated || readonly" @keydown.enter.prevent="applyLink" @keydown.escape="cancelLink" />
-        <Button type="button" size="sm" :disabled="!hydrated || readonly" @click="applyLink">{{ t('tasks.detail.applyLink') }}</Button>
-        <Button type="button" size="sm" variant="ghost" @click="cancelLink">{{ t('tasks.detail.cancelLink') }}</Button>
+        <label for="description-link-url" class="sr-only">{{ t('tasks.detail.linkPrompt') }}</label>
+        <UInput id="description-link-url" v-model="linkDraft" :placeholder="t('tasks.detail.linkPrompt')" class="min-w-48 flex-1" dir="ltr" :disabled="!hydrated || readonly" @keydown.enter.prevent="applyLink" @keydown.escape="cancelLink" />
+        <UButton type="button" size="sm" :disabled="!hydrated || readonly" @click="applyLink">{{ t('tasks.detail.applyLink') }}</UButton>
+        <UButton type="button" size="sm" variant="ghost" @click="cancelLink">{{ t('tasks.detail.cancelLink') }}</UButton>
       </div>
       <EditorContent :editor="editor" />
     </div>
     <template #fallback>
-      <Skeleton class="h-28 w-full" />
+      <USkeleton class="h-28 w-full" />
     </template>
   </ClientOnly>
 </template>

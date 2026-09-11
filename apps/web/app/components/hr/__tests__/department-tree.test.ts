@@ -13,10 +13,27 @@ const hrRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const treeSource = readFileSync(resolve(hrRoot, 'DepartmentTree.vue'), 'utf8')
 const pageSource = readFileSync(resolve(hrRoot, '../../pages/hr/departments/index.vue'), 'utf8')
 
-const ButtonStub = defineComponent({
+const UCardStub = defineComponent({
   inheritAttrs: false,
   setup(_, { slots, attrs }) {
-    return () => h('button', { type: 'button', ...attrs }, slots.default?.())
+    return () => h('div', attrs, slots.default?.())
+  },
+})
+
+const UButtonStub = defineComponent({
+  inheritAttrs: false,
+  props: {
+    to: { type: [String, Object], default: undefined },
+    type: { type: String, default: 'button' },
+    label: { type: String, default: undefined },
+    disabled: { type: Boolean, default: false },
+  },
+  setup(props, { slots, attrs }) {
+    return () => {
+      const content = slots.default?.() ?? (props.label ? [props.label] : undefined)
+      if (typeof props.to === 'string') return h('a', { href: props.to, ...attrs }, content)
+      return h('button', { type: props.type, disabled: props.disabled || undefined, ...attrs }, content)
+    }
   },
 })
 
@@ -30,6 +47,8 @@ const NuxtLinkStub = defineComponent({
 const IconStub = defineComponent({
   setup: () => () => h('span', { 'data-icon': 'true' }),
 })
+
+const UIconStub = IconStub
 
 function departmentNode(
   id: number,
@@ -114,7 +133,9 @@ async function renderTree(displayedNodes: DepartmentTreeNode[], options?: Parame
     const count = typeof params === 'number' ? params : params?.count
     return count === undefined ? key : `${key}:${count}`
   }) as typeof app.config.globalProperties.$t
-  app.component('Button', ButtonStub)
+  app.component('UCard', UCardStub)
+  app.component('UButton', UButtonStub)
+  app.component('UIcon', UIconStub)
   app.component('NuxtLink', NuxtLinkStub)
   app.component('ChevronDown', IconStub)
   app.component('FileText', IconStub)
@@ -127,7 +148,7 @@ async function renderTree(displayedNodes: DepartmentTreeNode[], options?: Parame
 
 describe('department tree layout and routed actions', () => {
   it('frames the tree, wraps long names, and groups actions on existing routes', async () => {
-    expect(treeSource).toContain('nasq-panel min-w-0')
+    expect(treeSource).toContain('<UCard v-if="displayedNodes.length" class="min-w-0"')
     expect(treeSource).toContain('dept-tree-guide')
     expect(treeSource).toContain('dept-tree-chevron-collapsed')
     expect(treeSource).toContain('rotate(90deg)')
@@ -147,7 +168,7 @@ describe('department tree layout and routed actions', () => {
 
     expect(pageSource).toContain('role="group"')
     expect(pageSource).toContain('aria-pressed')
-    expect(pageSource).toContain('bg-background shadow-sm')
+    expect(pageSource).toContain('<SharedPageContainer width="list">')
     expect(pageSource).toContain('hr-departments-view-list')
     expect(pageSource).toContain('hr-departments-view-tree')
     expect(pageSource).toContain("view: tree ? 'tree' : undefined")
@@ -164,7 +185,7 @@ describe('department tree layout and routed actions', () => {
     const html = await renderTree([root, deep], { selectedId: 1 })
 
     expect(html).toContain('data-testid="hr-department-tree"')
-    expect(html).toContain('nasq-panel')
+    expect(html).toContain('class="min-w-0"')
     expect(html).toContain('dept-tree-guide')
     expect(html).toContain(longName)
     expect(html).toContain('break-words')
@@ -178,7 +199,7 @@ describe('department tree layout and routed actions', () => {
     expect(html).toContain('aria-label="hr.depts.edit"')
     expect(html).toContain('aria-label="hr.depts.newChild"')
     expect(html).toContain(`aria-label="${longName}"`)
-    expect(html).toContain('bg-muted/70')
+    expect(html).toContain('bg-elevated')
     expect(html).toContain('max-sm:basis-full')
   })
 

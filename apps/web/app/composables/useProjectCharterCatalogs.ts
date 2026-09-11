@@ -1,5 +1,5 @@
 import type { MaybeRefOrGetter, Ref } from 'vue'
-import { computed, ref, toValue, watch } from 'vue'
+import { computed, onMounted, ref, toValue, watch } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { refDebounced } from '@vueuse/core'
 import {
@@ -136,6 +136,10 @@ export function useCharterCatalogSearch(
   enabled: MaybeRefOrGetter<boolean> = true,
 ) {
   const { $api } = useApi()
+  // This picker fetches outside the query cache. Start after mount so SSR
+  // and the first client tree share the same idle state and loading icon.
+  const ready = ref(false)
+  onMounted(() => { ready.value = true })
   const q = ref('')
   const debouncedQ = refDebounced(q, 250)
   const items = ref<ProjectCharterReference[]>([])
@@ -148,7 +152,7 @@ export function useCharterCatalogSearch(
     const resourceValue = toValue(resource)
     const enabledValue = toValue(enabled)
     const queryValue = debouncedQ.value
-    if (!enabledValue || !isCharterCatalogResource(resourceValue)) {
+    if (!ready.value || !enabledValue || !isCharterCatalogResource(resourceValue)) {
       pending.value = false
       return
     }
@@ -184,7 +188,7 @@ export function useCharterCatalogSearch(
   }
 
   watch(
-    [debouncedQ, () => toValue(resource), () => toValue(enabled)],
+    [ready, debouncedQ, () => toValue(resource), () => toValue(enabled)],
     () => {
       // Invalidate the previous request before clearing the visible result so
       // a late response cannot repopulate a newer query.

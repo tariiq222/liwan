@@ -7,7 +7,8 @@ Authority: [DESIGN.md](../../DESIGN.md). This catalog records current reusable c
 Read [the pinned reference and acceptance recipe](nuxt-ui-reference.md).
 All new components and modules belong to the shared Nasq theme based on Nuxt UI.
 The executable reference is in `apps/web/design-preview` using Nuxt UI 4.11.1.
-The customer application under `apps/web/app` has not been migrated. Do not
+The customer application migration is being completed in the isolated
+`codex/nuxt-migration` checkout; see the verification report for accepted coverage. Do not
 build a lookalike with another library. Use Nuxt UI directly where sufficient,
 and reuse Nasq page recipes rather than wrapping every
 primitive. Register each new composite/specialized component here by exact
@@ -15,8 +16,9 @@ backticked repository path, responsibility, page recipe and reused primitives.
 Colors, fonts, sizes, spacing, radius and states come from the shared theme.
 Arabic/RTL, English/LTR, all appearance/font modes and accessibility are required.
 
-`components/ui` and vue-sonner are transitional for existing callers only;
-do not expand them to new consumers. Reka, TanStack, Unovis and Tiptap are
+`components/ui` definitions are retained for recovery but excluded from runtime
+auto-discovery. Only the explicit Unovis chart adapters remain in use.
+Customer controls use Nuxt UI; vue-sonner is not an active notification renderer. Reka, TanStack, Unovis and Tiptap are
 not blanket-banned dependencies. Run `python3 -B tools/ui_policy.py` and
 review actual screenshots. The checker also runs at the start of `npm test`;
 it is not an update hook, CI or a visual-compliance guarantee.
@@ -62,32 +64,32 @@ provider is used. Fonts/color-mode modules are disabled, not another source of s
 | Primary navigation | `apps/web/app/components/shell/ModuleRail.vue`, `components/shell/ContextSidebar.vue`, `composables/useNav.ts`, `composables/useShellNavigation.ts` | Rail order is chat, meetings, projects, tasks, HR, with settings and vendor utilities anchored below. Context navigation preserves capability gates and project order; settings links group into personal and administration sections, hiding empty groups. |
 | Context create action | `components/shell/SidebarCreateAction.vue` | Shared transparent or subtle-outline `NuxtLink` for capability-filtered contextual creation routes; keeps the action region above context navigation and avoids nested buttons. |
 | Project navigation | `components/project/workspace/ProjectWorkspaceTabs.vue` | Direct project workspace tabs. The 2026-09-10 approved rollout applies the same page composition and record presentation to other modules except Chat, while preserving each module's navigation. |
-| Shared workflow host | `components/project/workspace/ProjectRouteHost.vue`, `ProjectRouteModal.vue`, `utils/workspacePresentation.ts` | One route-backed workflow over a retained background, full-height Side Sheet below the header and beside the main module rail. The approved background uses 20% dimming and 2px blur. Right-entry/left-exit motion respects reduced motion. Direct URLs load the real background; close, refresh, nested return filters, standalone display and draft guards remain supported. Chat and meeting print routes are excluded. |
+| Shared workflow host | `components/project/workspace/ProjectRouteHost.vue`, `ProjectRouteModal.vue`, `utils/workspacePresentation.ts` | One route-backed workflow over a retained background, full-height Side Sheet below the header and beside the main module rail. The approved background uses 20% dimming and 2px blur. Right-entry/left-exit motion respects reduced motion. Frame geometry follows rendered direction and coalesces locale/direction, resize and scroll measurements. Direct URLs load the real background; close, refresh, nested return filters, standalone display and draft guards remain supported. Chat and meeting print routes are excluded. |
 | System-wide header context policy | `layouts/default.vue`, `composables/useShellNavigation.ts`, `components/shared/PageHeader.vue` | The shared layout has no breadcrumb component, row, reserved spacing or conditional exception. Section roots retain title/actions without generic subtitles. Detail/create/edit pages own their required back navigation, including filters/hash and distinct workflow returns. No invisible breadcrumb state may hide those links. Preserve meaningful scope/data. This supersedes earlier breadcrumb rules under the final 2026-09-08 decision in DESIGN.md. |
 | Settings navigation | `components/settings/SettingsLayout.vue` | Preserve actual routes and permissions; avoid duplicated context menus |
 | Shell motion | `layouts/default.vue`, `components/shell/ContextSidebar.vue`, `assets/css/approved-shell.css` | Persistent shell frame; pathname changes animate page content, query-only navigation preserves mounted state, context motion is limited to module/project changes, and reduced-motion preferences disable shell animation. |
 | Notification preview formatting | `utils/notificationPresentation.ts`, `components/notifications/NotificationCenter.vue` | Shared formatting for the latest-five notification popover; the full notification workflow remains the `/notifications` internal page. |
 | Page container | `components/shared/PageContainer.vue` | Nuxt name `SharedPageContainer`; width list/detail/form; use once at owning level |
 | Page header | `components/shared/PageHeader.vue` | `SharedPageHeader`; title, description, backTo/backLabel, actions slots; coordinates with usePageHeader |
-| Form section | `components/shared/FormSection.vue` | `SharedFormSection`; semantic muted heading strip (`nasq-form-section-heading`) for title/description + content. Optional `panel` uses the common `nasq-panel-header` / `nasq-panel-body` surface for project settings sections without an outer form card. Callers own field grouping and spacing. |
-| Filters | `components/shared/FilterCard.vue`, `components/shared/FilterBar.vue` | Collapsible card on list pages; FilterBar supports an inline presentation for project task tools using the same slots and filter state. FilterCard owns header, active count, clear action and visible active summary; FilterBar adapts search/default/view/actions/active slots. Fields and actual filter state remain owned by each module. Collapse preserves mounted fields and query state; view/actions remain visible. |
+| Form section | `components/shared/FormSection.vue` | `SharedFormSection`; plain reference heading and content. Optional `panel` uses UCard with its header slot and shared text/spacing tokens. Callers own field grouping and spacing. |
+| Filters | `components/shared/FilterCard.vue`, `components/shared/FilterBar.vue` | UPopover filter control on list pages; FilterBar supports an inline presentation for project task tools using the same slots and filter state. FilterCard owns header, active count, clear action and visible active summary; FilterBar adapts search/default/view/actions/active slots. Fields and actual filter state remain owned by each module. Collapse preserves mounted fields and query state; view/actions remain visible. |
 | Loading/error/empty | `components/shared/PageState.vue`, `EmptyState.vue` | `SharedPageState` / `SharedEmptyState`; retry and meaningful empty action |
 | Unsaved form exit | `components/shared/UnsavedChanges.vue` | Approved shared confirmation; `dirty` guards leaving, optional `guardRouteUpdates` also guards same-route form mode/record changes (charter). |
 | Project document | `components/project/ProjectCharterDisplay.vue` | Semantic read view of the existing charter draft; ProjectCharterForm owns create/edit and persisted read data. |
 | Project archival | `components/project/ProjectArchiveAction.vue` | Record-managed inline archive/restore inside project settings; project headers own contextual primary actions. |
 | Record number | `components/shared/RecordNumber.vue` | First record-table column, common `app.recordNumber` label. `value` accepts the existing business reference or stable record id; isolated LTR display and an em dash for missing values. Never use row position as identity. |
-| Buttons/fields/tables/menus | `components/ui/**` | Existing shadcn-vue/Reka primitives with local RTL/hydration patches |
+| Buttons/fields/tables/menus | `apps/web/app/app.config.ts` | Real Nuxt UI buttons, fields, cards, tables, menus, calendars and alerts; one shared variant configuration |
 | Specialized PMO views | `components/project/**`, `components/task/**` | Reuse task/schedule/RACI data; do not clone shared chrome |
-| Shared chart renderer | `components/shared/DashboardChart.client.vue` | Typed `chart`, `accessibleLabel`, optional `height`; Unovis SVG rendering using the shared shadcn-vue chart primitives. Latest approved 2026-09-08 design follows default shadcn/ui pie, legend and donut-with-text examples, adapted to Vue/Unovis with plain chart surfaces and no decorative effects. Uses six chart tokens derived by brandTheme from the institution primary color configured in Settings, entrance/data transitions and subtle hover with live reduced-motion support. Preserves appearance/font, labeled categories, unknown values and internal scrolling for all project rows; global brand/status colors stay independent. |
+| Shared chart renderer | `components/shared/DashboardChart.client.vue` | Typed `chart`, `accessibleLabel`, optional `height`; Unovis SVG rendering using the four explicit Unovis chart adapters. Chart surfaces, legend and tooltip now inherit the approved Nuxt neutral/text/radius tokens while preserving the existing chart semantics and no decorative effects. Uses six chart tokens derived by brandTheme from the institution primary color configured in Settings, entrance/data transitions and subtle hover with live reduced-motion support. Preserves appearance/font, labeled categories, unknown values and internal scrolling for all project rows; global brand/status colors stay independent. |
 | Chart primitives | `components/ui/chart/**` | Adapted official shadcn-vue chart registry: shared container, legend and tooltip presentation for Unovis; use Nasq tokens and escaped Vue content. |
-| Project chart dashboard | `components/project/dashboard/**` | Quiet metric strip, chart panels and latest-five projects; replaces the old number-only dashboard summary and long report table on `/projects/dashboard`. |
+| Project chart dashboard | `components/project/dashboard/**` | Reference UCard metrics, chart panels and latest-five projects; replaces the old number-only dashboard summary and long report table on `/projects/dashboard`. |
 
 Paths starting `components/` and `composables/` are relative to `apps/web/app/`.
 Inspect actual props before use. This catalog does not rename or regenerate any component.
 
-Project section roots share `PageContainer width="list"`; child forms use `form`, child details use `detail`. The `data-project-record` marker scopes the 16px stack gap and header alignment to project records. Section creation belongs in header actions; FilterBar uses its default collapsed card and owns view controls. TaskToolbar accepts `collapsible` for project pages while retaining other consumers' embedded behavior. ScheduleGantt and MilestoneTable accept `embedded` to suppress repeated card headers when the owning page provides the title/tools. `nasq-project-toolbar` styles existing tools where there are no search filters.
+Project section roots share `PageContainer width="list"`; child forms use `form`, child details use `detail`. All modules share the reference 1.75rem page stack and list/detail/form widths of 100rem/68rem/58rem. Section creation belongs in header actions; FilterBar uses its default collapsed card and owns view controls. TaskToolbar accepts `collapsible` for project pages while retaining other consumers' embedded behavior. ScheduleGantt and MilestoneTable accept `embedded` to suppress repeated card headers when the owning page provides the title/tools. `nasq-project-toolbar` styles existing tools where there are no search filters.
 
-Panel sections use `nasq-panel-header` for a wrapping muted header, then `nasq-panel-body` for content. `CardHeader` shares the same quiet header treatment. Repeated task/meeting items keep metadata and actions together; calendars and tables scroll inside their data region.
+Functional card sections use UCard header/body slots; plain sections use semantic headings. Legacy panel/header/body and metric-strip recipes are retired. Repeated task/meeting items keep metadata and actions together; tables scroll inside their data region. The meeting calendar switches to its agenda when its own container is narrower than 600px, so every date remains accessible beside the contextual sidebar. Action columns use the localized `app.actions` header; empty string table headers are avoided because their fallback fragments differ during hydration.
 
 ## Style ownership
 
@@ -95,7 +97,7 @@ Panel sections use `nasq-panel-header` for a wrapping muted header, then `nasq-p
 | --- | --- |
 | `apps/web/app/assets/css/main.css` | Fonts, semantic tokens, modes, shared page/form surfaces; imports shell styles |
 | `apps/web/app/assets/css/approved-shell.css` | Existing shell and shared presentation rules; consolidate overlaps during layout migration |
-| `apps/web/app/assets/css/project-theme.css` | Project-scoped semantic status colors, gentle institution-derived section surfaces, typography scale and portal/notification/toast presentation. The layout owns the reactive HTML route marker so portals inherit the tokens and other modules retain their presentation. |
+| `apps/web/app/assets/css/project-theme.css` | Compatibility typography tokens and semantic state tokens only. Broad descendant typography and surface overrides are removed; Nuxt UI owns component presentation in every module. |
 | `apps/web/app/utils/brandTheme.ts` | Validated primary and secondary colour derivation and readable foregrounds |
 | `apps/web/app/composables/useAppearance.ts` | Existing personal appearance preferences |
 
@@ -109,3 +111,65 @@ Search imports, templates/Nuxt auto-import names, configuration and tests.
 Prefer extending an existing shared API. If new shared behavior is needed, give it one owner, document props/slots and reuse it in the target pages.
 A removed component needs a replacement and zero remaining consumers (including generated config and tests). Record the evidence in the migration report.
 The HTML guides are visual references, never import sources for the runtime.
+
+## Runtime Nuxt UI migration (in progress)
+
+- `apps/web/app/components/shared/DateField.vue`: shared ISO date selector; UPopover, UCalendar, UButton; keeps calendar dates timezone-independent, with optional ISO minValue/maxValue bounds.
+- `apps/web/app/app.config.ts` and `apps/web/app/assets/css/nuxt-theme.css`: runtime U component recipes and tokens, using existing useAppearance and company brand state.
+
+- `apps/web/app/components/shell/MobileNavigation.vue`: mobile hamburger and capability-filtered module/context navigation; USlideover, UButton, USeparator, SidebarCreateAction; closes after successful routing.
+
+### Reference detail composition (2026-09-10 correction)
+
+- `apps/web/app/components/project/ProjectOverview.vue`: actual `summary` tab; UCard metric and update/milestone sections, UProgress, ProjectStatusSelect and ProjectOverviewTasks. Named container queries adapt metric columns to available content width. Preserves server counts, capabilities, dates and return links.
+- `apps/web/app/components/project/ProjectOverviewTasks.vue`: bounded attention preview; UCard, UAlert, UBadge, USkeleton and existing task routes.
+- `apps/web/app/components/task/TaskDetailPanel.vue`: route-independent task actions and detail composition; UButton, StateMenu, TaskDetails and TaskActivity.
+- `apps/web/app/components/task/TaskDetails.vue`: task metadata UCard and optional details; shared selectors/date fields and TaskDescription. No nested legacy panel frame.
+- `apps/web/app/components/task/TaskDescription.vue`: plain description section with the existing rich-text editor and draft protection.
+- `apps/web/app/components/task/TaskActivity.vue`: UCard activity section with existing timeline and comment composer.
+- `apps/web/app/components/task/TaskDeliverables.vue`, `DependencyPicker.vue`, `TaskAttachments.vue`: optional resource sections use the same plain section headings; preserve existing checkbox, dependency and file actions.
+- `data-nasq-reference-detail`: shared migration boundary for these detail compositions; reference 68rem width and 1.75rem page gap. Broad workspace typography overrides are removed. Nuxt neutral colors inherit the reference Zinc defaults with explicit reference cream tokens; compatibility aliases resolve to these same values.
+
+
+## Complete module unification (2026-09-10, current worktree)
+
+`tools/ui_inventory.py --check` enumerates every customer Vue source and rejects
+legacy controls/imports/panel/navigation recipes; `npm test` includes this gate.
+`apps/web/nuxt.config.ts` excludes `components/ui/**` from auto-discovery. The four
+Unovis adapters are explicit specialist imports; 144 other primitive definitions
+are retained without runtime registration. This is source enforcement, not a
+claim of visual or behavior verification. See `docs/verification/2026-09-10-all-ui-unification.md`.
+
+| Exact path | Responsibility / primitives |
+| --- | --- |
+| `apps/web/app/components/shared/FormSection.vue` | Reference section composition, plain heading or UCard header/body; no legacy grey strip |
+| `apps/web/app/components/shared/PageHeader.vue` | Shared title/actions/back link with Nuxt text scale and UButton |
+| `apps/web/app/components/shared/PageState.vue` | Loading USkeleton, retryable UAlert/UButton, meaningful empty state |
+| `apps/web/app/components/settings/AppearanceForm.vue` | URadioGroup card recipes backed by the existing appearance cookie and setters |
+| `apps/web/app/components/settings/SettingsTabs.vue` | UButton section links preserving URL hash, active location and keyboard navigation |
+| `apps/web/app/components/settings/SettingsLayout.vue` | Settings geometry only; primitive surface, field and table styling belongs to Nuxt |
+| `apps/web/app/components/GlobalSearch.vue` | UModal, UInput, UButton and UBadge with capability-filtered real navigation/results |
+| `apps/web/app/components/ui/chart/ChartContainer.vue` | Explicit Unovis context/container using shared neutral/brand tokens |
+| `apps/web/app/components/ui/chart/ChartStyle.vue` | Escaped per-chart color variables; no independent palette |
+| `apps/web/app/components/ui/chart/ChartLegendContent.vue` | Unovis series legend using shared typography/tokens |
+| `apps/web/app/components/ui/chart/ChartTooltipContent.vue` | Escaped tooltip values with shared surface/radius/ring tokens |
+| `apps/web/app/app.vue` | UApp owns locale and the sole toast renderer |
+| `apps/web/app/assets/css/nuxt-theme.css` | Shared Nuxt recipes and appearance tokens |
+| `apps/web/app/assets/css/main.css` | Fonts and compatibility aliases into Nuxt neutral/status tokens; no competing control sizing/focus/radius recipes |
+| `apps/web/app/assets/css/project-theme.css` | Compatibility aliases for specialist chart/layout typography only |
+
+Every business component's exact path, owner and review classification is recorded
+in the full source manifest produced by the inventory; module-specific behavior
+remains owned by its existing component and composable.
+
+The chat list search, icon actions, filters, composer and reactions use UInput, UButton, UTextarea and UBadge. Chat-specific CSS owns conversation/thread/bubble geometry only; it must not override shared control appearance. Visible upload fields use SharedFileField; the chat composer retains its hidden native file input behind a UButton.
+
+| Exact shared component | Responsibility and reused primitives |
+| --- | --- |
+| `apps/web/app/components/shared/FileField.vue` | Localized file picker, UButton plus hidden native file input, useFormField associations; preserves original upload change Event |
+
+Nuxt primary text/focus colors use the contrast-adjusted `--brand-link`, as in the reference. Solid actions retain the configured institution colors and readable foregrounds. Shared secondary outline/ghost/link recipes use `--brand-link` on the current surface.
+
+Meeting detail tabs keep Nuxt UI keyboard/tabpanel behavior and use readable nonshrinking labels in a horizontal scroll list at narrow widths. Milestone rows stack metadata above actions until their own container has sufficient width.
+
+Semantic primary utilities resolve to `--ui-primary` / contrast-safe `--brand-link`; branded solid button recipes retain raw `--primary`. Non-solid primary and secondary action recipes use readable text and ring tones across appearance modes. Active meeting tabs scroll only their local tab list, including direct links and locale changes.

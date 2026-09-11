@@ -13,16 +13,21 @@ withDefaults(defineProps<{
 </script>
 
 <template>
-  <NuxtLink
+  <UButton
     :to="to"
+    color="secondary"
+    variant="solid"
     class="nasq-context-link nasq-context-create"
     :data-active="active"
+    :active="active"
     :aria-current="active ? 'page' : undefined"
     :data-testid="testId"
     :aria-label="label"
     :title="label"
+    :label="label"
   >
-    <Plus aria-hidden="true" />
-    <span>{{ label }}</span>
-  </NuxtLink>
+    <template #leading>
+      <Plus aria-hidden="true" />
+    </template>
+  </UButton>
 </template>

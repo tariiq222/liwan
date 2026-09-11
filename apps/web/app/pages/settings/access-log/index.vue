@@ -33,6 +33,15 @@ function syncPage() { void router.replace({ query: adminQueryWithOffset(route.qu
 function previousPage() { if (hydrated.value) { filters.offset = Math.max(0, (filters.offset ?? 0) - (filters.limit ?? ADMIN_PAGE_SIZE)); syncPage() } }
 function nextPage() { if (hydrated.value && page.value < pages.value) { filters.offset = (filters.offset ?? 0) + (filters.limit ?? ADMIN_PAGE_SIZE); syncPage() } }
 watch(() => [route.query.from, route.query.to, route.query.actor_id, route.query.target_type, route.query.target_id, route.query.action, route.query.offset], ([from, to, actorId, targetType, targetId, action, offset]) => { filters.from = String(from ?? '') || undefined; filters.to = String(to ?? '') || undefined; filters.actor_id = actorId ? Number(actorId) : undefined; filters.target_type = targetType === 'role' ? 'role' : targetType === 'user' ? 'user' : undefined; filters.target_id = targetId ? Number(targetId) : undefined; filters.action = actionOptions.includes(String(action) as AuditAction) ? String(action) : undefined; filters.offset = parseAdminOffset(offset) })
+const allValue = '__all__'
+const actorOptions = computed(() => [{ value: allValue, label: t('access.audit.filters.allActors') }, ...(actors.data.value?.items ?? []).map(actor => ({ value: String(actor.id), label: actor.name }))])
+const targetTypeOptions = computed(() => [{ value: allValue, label: t('access.audit.filters.allTargets') }, { value: 'user', label: t('access.users.title') }, { value: 'role', label: t('access.roles.title') }])
+const targetIdOptions = computed(() => [{ value: allValue, label: t('access.audit.filters.chooseTarget') }, ...targetOptions.value.map(target => ({ value: String(target.id), label: target.name }))])
+const actionSelectOptions = computed(() => [{ value: allValue, label: t('access.audit.filters.allActions') }, ...actionOptions.map(action => ({ value: action, label: t(actionLabels[action]) }))])
+function onActorChange(value: unknown) { filters.actor_id = value && value !== allValue ? Number(value) : undefined; updateFilters() }
+function onTargetTypeChange(value: unknown) { filters.target_type = value === 'role' ? 'role' : value === 'user' ? 'user' : undefined; filters.target_id = undefined; updateFilters() }
+function onTargetIdChange(value: unknown) { filters.target_id = value && value !== allValue ? Number(value) : undefined; updateFilters() }
+function onActionChange(value: unknown) { filters.action = value && value !== allValue ? String(value) : undefined; updateFilters() }
 const sections = computed(() => forbidden.value ? [] : [
   { id: 'filters', label: t('settings.toc.filters') },
   { id: 'results', label: t('settings.toc.list') },
@@ -44,32 +53,36 @@ const sections = computed(() => forbidden.value ? [] : [
     <SharedPageHeader :title="t('access.audit.title')" />
     <SharedPageState v-if="forbidden" :empty="true" :empty-text="t('access.forbidden')" />
     <div v-else class="space-y-3">
-      <p class="text-sm leading-6 text-muted-foreground">{{ t('access.audit.description') }}</p>
+      <p class="text-sm leading-6 text-muted">{{ t('access.audit.description') }}</p>
       <div id="filters" class="nasq-settings-anchor w-full min-w-0">
         <FilterBar class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
           <template #default>
-            <label class="grid min-w-0 gap-1"><span>{{ t('access.audit.filters.from') }}</span><Input v-model="filters.from" type="date" :disabled="!hydrated" :aria-label="t('access.audit.filters.from')" @change="updateFilters" /></label>
-            <label class="grid min-w-0 gap-1"><span>{{ t('access.audit.filters.to') }}</span><Input v-model="filters.to" type="date" :disabled="!hydrated" :aria-label="t('access.audit.filters.to')" @change="updateFilters" /></label>
-            <label class="grid min-w-0 gap-1"><span>{{ t('access.audit.columns.actor') }}</span><select v-model="filters.actor_id" :disabled="!hydrated || actors.isLoading.value" :aria-label="t('access.audit.columns.actor')" class="h-[40px] rounded-lg border border-input bg-background px-3 text-sm" @change="updateFilters"><option :value="undefined">{{ t('access.audit.filters.allActors') }}</option><option v-for="actor in actors.data.value?.items ?? []" :key="actor.id" :value="actor.id">{{ actor.name }}</option></select></label>
-            <label class="grid min-w-0 gap-1"><span>{{ t('access.roles.columns.type') }}</span><select v-model="filters.target_type" :disabled="!hydrated" :aria-label="t('access.roles.columns.type')" class="h-[40px] rounded-lg border border-input bg-background px-3 text-sm" @change="filters.target_id = undefined; updateFilters()"><option :value="undefined">{{ t('access.audit.filters.allTargets') }}</option><option value="user">{{ t('access.users.title') }}</option><option value="role">{{ t('access.roles.title') }}</option></select></label>
-            <label class="grid min-w-0 gap-1"><span>{{ t('access.audit.columns.target') }}</span><select v-model="filters.target_id" :disabled="!hydrated || !filters.target_type" :aria-label="t('access.audit.columns.target')" class="h-[40px] rounded-lg border border-input bg-background px-3 py-2 text-sm" @change="updateFilters"><option :value="undefined">{{ t('access.audit.filters.chooseTarget') }}</option><option v-for="target in targetOptions" :key="target.id" :value="target.id">{{ target.name }}</option></select></label>
-            <label class="grid min-w-0 gap-1"><span>{{ t('access.audit.columns.action') }}</span><select v-model="filters.action" :disabled="!hydrated" :aria-label="t('access.audit.columns.action')" class="h-[40px] rounded-lg border border-input bg-background px-3 py-2 text-sm" @change="updateFilters"><option :value="undefined">{{ t('access.audit.filters.allActions') }}</option><option v-for="action in actionOptions" :key="action" :value="action">{{ t(actionLabels[action]) }}</option></select></label>
+            <UFormField :label="t('access.audit.filters.from')" class="min-w-0"><UInput v-model="filters.from" type="date" class="w-full" :disabled="!hydrated" :aria-label="t('access.audit.filters.from')" @change="updateFilters" /></UFormField>
+            <UFormField :label="t('access.audit.filters.to')" class="min-w-0"><UInput v-model="filters.to" type="date" class="w-full" :disabled="!hydrated" :aria-label="t('access.audit.filters.to')" @change="updateFilters" /></UFormField>
+            <UFormField :label="t('access.audit.columns.actor')" class="min-w-0"><USelect :model-value="filters.actor_id ? String(filters.actor_id) : allValue" :items="actorOptions" class="w-full" :disabled="!hydrated || actors.isLoading.value" :aria-label="t('access.audit.columns.actor')" @update:model-value="onActorChange" /></UFormField>
+            <UFormField :label="t('access.roles.columns.type')" class="min-w-0"><USelect :model-value="filters.target_type ?? allValue" :items="targetTypeOptions" class="w-full" :disabled="!hydrated" :aria-label="t('access.roles.columns.type')" @update:model-value="onTargetTypeChange" /></UFormField>
+            <UFormField :label="t('access.audit.columns.target')" class="min-w-0"><USelect :model-value="filters.target_id ? String(filters.target_id) : allValue" :items="targetIdOptions" class="w-full" :disabled="!hydrated || !filters.target_type" :aria-label="t('access.audit.columns.target')" @update:model-value="onTargetIdChange" /></UFormField>
+            <UFormField :label="t('access.audit.columns.action')" class="min-w-0"><USelect :model-value="filters.action ?? allValue" :items="actionSelectOptions" class="w-full" :disabled="!hydrated" :aria-label="t('access.audit.columns.action')" @update:model-value="onActionChange" /></UFormField>
           </template>
           <template #active>
             <div v-if="activeFilterCount" class="flex flex-wrap items-center gap-2">
-              <Badge v-if="filters.from" variant="secondary">{{ filters.from }}</Badge>
-              <Badge v-if="filters.to" variant="secondary">{{ filters.to }}</Badge>
-              <Badge v-if="filters.actor_id" variant="secondary">{{ actors.data.value?.items.find(actor => actor.id === filters.actor_id)?.name ?? t('access.audit.columns.actor') }}</Badge>
-              <Badge v-if="filters.target_type" variant="secondary">{{ filters.target_type === 'role' ? t('access.roles.title') : t('access.users.title') }}</Badge>
-              <Badge v-if="filters.target_id" variant="secondary">{{ targetOptions.find(target => target.id === filters.target_id)?.name ?? t('access.audit.columns.target') }}</Badge>
-              <Badge v-if="filters.action" variant="secondary">{{ t(actionLabels[filters.action as keyof typeof actionLabels]) }}</Badge>
+              <UBadge v-if="filters.from" color="neutral" variant="subtle">{{ filters.from }}</UBadge>
+              <UBadge v-if="filters.to" color="neutral" variant="subtle">{{ filters.to }}</UBadge>
+              <UBadge v-if="filters.actor_id" color="neutral" variant="subtle">{{ actors.data.value?.items.find(actor => actor.id === filters.actor_id)?.name ?? t('access.audit.columns.actor') }}</UBadge>
+              <UBadge v-if="filters.target_type" color="neutral" variant="subtle">{{ filters.target_type === 'role' ? t('access.roles.title') : t('access.users.title') }}</UBadge>
+              <UBadge v-if="filters.target_id" color="neutral" variant="subtle">{{ targetOptions.find(target => target.id === filters.target_id)?.name ?? t('access.audit.columns.target') }}</UBadge>
+              <UBadge v-if="filters.action" color="neutral" variant="subtle">{{ t(actionLabels[filters.action as keyof typeof actionLabels]) }}</UBadge>
             </div>
           </template>
         </FilterBar>
       </div>
       <div id="results" class="nasq-settings-anchor">
-      <SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!query.isLoading.value && !query.error.value && query.data.value?.items.length === 0" :empty-text="t('access.audit.empty')" @retry="query.refetch"><AuditTable :events="query.data.value?.items ?? []" @open="(id) => navigateTo({ path: `/settings/access-log/${id}`, query: route.query })" /></SharedPageState>
-      <div v-if="pages > 1" class="nasq-settings-pagination"><Button variant="ghost" :disabled="!hydrated || page === 1 || query.isFetching.value" @click="previousPage">{{ t('access.previousPage') }}</Button><span>{{ t('access.pageOf', { page, pages }) }}</span><Button variant="ghost" :disabled="!hydrated || page >= pages || query.isFetching.value" @click="nextPage">{{ t('access.nextPage') }}</Button></div>
+        <SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!query.isLoading.value && !query.error.value && query.data.value?.items.length === 0" :empty-text="t('access.audit.empty')" @retry="query.refetch"><AuditTable :events="query.data.value?.items ?? []" @open="(id) => navigateTo({ path: `/settings/access-log/${id}`, query: route.query })" /></SharedPageState>
+        <div v-if="pages > 1" class="nasq-settings-pagination">
+          <UButton color="secondary" variant="ghost" :disabled="!hydrated || page === 1 || query.isFetching.value" :label="t('access.previousPage')" @click="previousPage" />
+          <span>{{ t('access.pageOf', { page, pages }) }}</span>
+          <UButton color="secondary" variant="ghost" :disabled="!hydrated || page >= pages || query.isFetching.value" :label="t('access.nextPage')" @click="nextPage" />
+        </div>
       </div>
     </div>
   </SettingsLayout>

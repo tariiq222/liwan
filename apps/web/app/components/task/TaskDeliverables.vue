@@ -13,16 +13,12 @@ const error = ref<string | null>(null)
 const deliverables = computed(() => props.task.deliverables)
 const busy = computed(() => saving.value || isPending.value)
 
-async function toggle(index: number, event: Event) {
+async function toggle(index: number) {
   if (!hydrated.value || !props.task.can_write || busy.value) return
   const current = deliverables.value[index]
   if (!current) return
 
-  // Native checkbox controls flip before change handlers run. Hold the
-  // rendered state at the cached value until the server response arrives.
-  const input = event.currentTarget as HTMLInputElement | null
-  if (input) input.checked = current.done
-
+  // Controlled UCheckbox keeps the cached state until the server responds.
   error.value = null
   saving.value = true
   const next = deliverables.value.map((item, itemIndex) => itemIndex === index
@@ -41,19 +37,19 @@ async function toggle(index: number, event: Event) {
 </script>
 
 <template>
-  <section v-if="deliverables.length" class="nasq-panel" data-testid="task-deliverables" aria-labelledby="task-deliverables-title">
-    <header class="nasq-panel-header">
-      <h2 id="task-deliverables-title">{{ t('tasks.deliverables.title') }}</h2>
-      <span class="text-xs text-muted-foreground">{{ t('tasks.deliverables.checklistOf', { done: deliverables.filter(item => item.done).length, total: deliverables.length }) }}</span>
+  <section v-if="deliverables.length" class="space-y-3" data-testid="task-deliverables" aria-labelledby="task-deliverables-title">
+    <header class="flex flex-wrap items-center justify-between gap-3">
+      <h2 class="text-lg font-semibold text-highlighted" id="task-deliverables-title">{{ t('tasks.deliverables.title') }}</h2>
+      <span class="text-xs text-muted">{{ t('tasks.deliverables.checklistOf', { done: deliverables.filter(item => item.done).length, total: deliverables.length }) }}</span>
     </header>
-    <div class="nasq-panel-body grid gap-3">
+    <div class="space-y-3 grid gap-3">
     <div class="space-y-2">
       <label v-for="(item, index) in deliverables" :key="`${task.id}-${index}`" class="flex items-center gap-2 text-sm" :class="{ 'cursor-pointer': task.can_write && hydrated && !busy }">
-        <input :checked="item.done" type="checkbox" :aria-label="t('tasks.deliverables.toggle', { name: item.name })" :disabled="!hydrated || !task.can_write || busy" class="size-4 rounded border-border accent-primary" @change="toggle(index, $event)" />
-        <span :class="{ 'text-muted-foreground line-through': item.done }">{{ item.name }}</span>
+        <UCheckbox :model-value="item.done" :aria-label="t('tasks.deliverables.toggle', { name: item.name })" :disabled="!hydrated || !task.can_write || busy" @update:model-value="toggle(index)" />
+        <span :class="{ 'text-muted line-through': item.done }">{{ item.name }}</span>
       </label>
     </div>
-    <p v-if="error" role="alert" class="text-sm text-destructive">{{ error }}</p>
+    <p v-if="error" role="alert" class="text-sm text-error">{{ error }}</p>
     </div>
   </section>
 </template>

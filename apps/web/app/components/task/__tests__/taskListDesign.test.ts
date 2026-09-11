@@ -19,19 +19,21 @@ describe('tasks list design', () => {
     expect(toolbar).not.toContain("t('tasks.new')")
     expect(toolbar).not.toMatch(/SelectTrigger size="sm"/)
     expect(toolbar).not.toMatch(/<Button variant="outline" size="sm"/)
-    expect(toolbar).toContain('bg-muted/40')
-    expect(toolbar).toContain("view === 'table' ? 'bg-background shadow-sm'")
+    expect(toolbar).toContain('bg-elevated/40')
+    expect(toolbar).toContain("view === 'table' ? 'soft' : 'ghost'")
+    expect(toolbar).toContain(":aria-pressed=\"view === 'table'\"")
     expect(toolbar).toContain('stateFilterLabel')
     expect(toolbar).toContain("tasks.filters.selectedStates")
   })
 
-  it('wraps the standalone table in nasq-panel', () => {
-    expect(table).toContain("embedded ? '' : 'nasq-panel overflow-hidden'")
-    expect(table).not.toContain('rounded-md border')
+  it('wraps the standalone table in the shared rounded border surface', () => {
+    expect(table).toContain("embedded ? '' : 'rounded-xl border border-default overflow-hidden'")
+    expect(table).not.toContain('nasq-panel')
   })
 
-  it('wraps the standalone board in nasq-panel and keeps the embedded inner section', () => {
-    expect(board).toContain("embedded ? 'space-y-2 p-[18px]' : 'nasq-panel space-y-2 overflow-hidden p-[18px]'")
+  it('wraps the standalone board in the shared rounded border surface and keeps the embedded inner section', () => {
+    expect(board).toContain("embedded ? 'space-y-2 p-[18px]' : 'rounded-xl border border-default space-y-2 overflow-hidden p-[18px]'")
+    expect(board).not.toContain('nasq-panel')
     expect(page).not.toMatch(/stat-card|metrics-strip|nasq-metric/)
     expect(toolbar).not.toContain("t('tasks.table')")
   })

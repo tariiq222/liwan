@@ -2,7 +2,6 @@
 import { inject } from 'vue'
 import { Archive, ArrowLeft, ArrowRight, Check, ChevronLeft, ChevronRight, Pencil, X } from '@lucide/vue'
 import type { RouteLocationRaw } from 'vue-router'
-import { toast } from 'vue-sonner'
 import { ApiError } from '@/composables/useApi'
 import { useTaskFilters } from '@/composables/useTaskFilters'
 import type { TaskListParams } from '@/composables/useTasks'
@@ -54,6 +53,7 @@ const filterParams = computed<TaskListParams>(() => props.siblingParams ?? local
 const siblings = useTaskSiblings(idRef, filterParams)
 const { mutate: updateTask, isPending: titleSaving } = useUpdateTask()
 const hydrated = useHydrated()
+const toast = useToast()
 
 // --- archive -------------------------------------------------------------
 // The server exposes the record-specific archive action.
@@ -65,10 +65,10 @@ async function doArchive() {
   try {
     await archiveMutate({ id: task.value.id })
     archiveConfirmOpen.value = false
-    toast.success(t('tasks.drawer.archived'))
+    toast.add({ title: t('tasks.drawer.archived'), color: 'success' })
     emit('close')
   } catch (e) {
-    toast.error(e instanceof ApiError ? e.message : t('errors.generic'))
+    toast.add({ title: e instanceof ApiError ? e.message : t('errors.generic'), color: 'error' })
   }
 }
 
@@ -125,7 +125,7 @@ function saveTitle() {
         void focusTitleEditControl()
       },
       onError: (error) => {
-        toast.error(error instanceof ApiError ? error.message : t('errors.generic'))
+        toast.add({ title: error instanceof ApiError ? error.message : t('errors.generic'), color: 'error' })
       },
     },
   )
@@ -156,7 +156,7 @@ function onKeydown(e: KeyboardEvent) {
   if (e.key === 'Escape') {
     // Let nested menus/popovers and the archive confirmation consume their
     // own Escape key before the page-level back action runs.
-    if (archiveConfirmOpen.value || document.querySelector('[data-state="open"][data-slot$="content"]')) return
+    if (archiveConfirmOpen.value || document.querySelector('[role="menu"][data-state="open"], [role="listbox"][data-state="open"], [data-reka-popper-content-wrapper] [data-state="open"], [role="dialog"][data-state="open"]:not(.nasq-ui-route-sheet)')) return
     emit('close')
     return
   }
@@ -168,16 +168,16 @@ useEventListener(document, 'keydown', onKeydown)
 </script>
 
 <template>
-  <div class="space-y-4">
+  <div data-nasq-reference-detail class="space-y-6">
     <div class="task-context-row" data-testid="task-detail-context">
       <div class="flex min-w-0 flex-1 items-center gap-2">
-        <NuxtLink v-if="!inProjectOverlay" :to="backTo" class="inline-flex min-h-8 shrink-0 items-center gap-1 rounded-lg px-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" :aria-label="props.backLabel ?? t('tasks.detail.back')" :aria-disabled="!hydrated || editingTitle || titleSaving" :tabindex="!hydrated || editingTitle || titleSaving ? -1 : undefined" @click="(!hydrated || editingTitle || titleSaving) && $event.preventDefault()">
+        <NuxtLink v-if="!inProjectOverlay" :to="backTo" class="inline-flex min-h-8 shrink-0 items-center gap-1 rounded-lg px-2 text-sm text-muted transition-colors hover:bg-elevated hover:text-highlighted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" :aria-label="props.backLabel ?? t('tasks.detail.back')" :aria-disabled="!hydrated || editingTitle || titleSaving" :tabindex="!hydrated || editingTitle || titleSaving ? -1 : undefined" @click="(!hydrated || editingTitle || titleSaving) && $event.preventDefault()">
           <component :is="isRtl ? ArrowRight : ArrowLeft" class="size-[18px]" />
           <span>{{ props.backLabel ?? t('tasks.detail.back') }}</span>
         </NuxtLink>
 
         <template v-if="task && editingTitle">
-          <Input
+          <UInput
             v-model="titleDraft"
             data-testid="task-title-input"
             :aria-label="t('tasks.newTitle')"
@@ -186,83 +186,81 @@ useEventListener(document, 'keydown', onKeydown)
             @keydown.enter.prevent="saveTitle"
             @keydown.escape.stop.prevent="cancelTitleEdit"
           />
-          <Button data-testid="task-title-save" variant="outline" size="icon" type="button" :aria-label="t('tasks.detail.saveTitle')" :disabled="titleSaving || !titleDraft.trim()" @click="saveTitle">
+          <UButton data-testid="task-title-save" variant="outline" size="sm" type="button" :aria-label="t('tasks.detail.saveTitle')" :disabled="titleSaving || !titleDraft.trim()" @click="saveTitle">
             <Check class="size-[18px]" />
-          </Button>
-          <Button data-testid="task-title-cancel" variant="ghost" size="icon" type="button" :aria-label="t('tasks.detail.cancelTitle')" :disabled="titleSaving" @click="cancelTitleEdit">
+          </UButton>
+          <UButton data-testid="task-title-cancel" variant="ghost" size="sm" type="button" :aria-label="t('tasks.detail.cancelTitle')" :disabled="titleSaving" @click="cancelTitleEdit">
             <X class="size-[18px]" />
-          </Button>
+          </UButton>
         </template>
         <template v-else-if="task?.project">
-          <span class="text-xs text-muted-foreground">{{ t('tasks.project') }}</span>
+          <span class="text-xs text-muted">{{ t('tasks.project') }}</span>
           <NuxtLink :to="`/projects/${task.project.id}`" class="min-w-0 truncate text-sm font-semibold hover:underline">
             {{ task.project.name }}
           </NuxtLink>
         </template>
-        <Skeleton v-else class="h-5 min-w-0 flex-1" />
+        <USkeleton v-else class="h-5 min-w-0 flex-1" />
       </div>
 
       <div class="task-context-actions" role="group" :aria-label="t('tasks.detail.menu')">
-        <Button v-if="task?.can_write && !editingTitle" data-testid="task-title-edit" variant="outline" size="icon" type="button" :aria-label="t('tasks.detail.editTitle')" :disabled="!hydrated || titleSaving" @click="startTitleEdit">
+        <UButton v-if="task?.can_write && !editingTitle" data-testid="task-title-edit" variant="outline" size="sm" type="button" :aria-label="t('tasks.detail.editTitle')" :disabled="!hydrated || titleSaving" @click="startTitleEdit">
           <Pencil class="size-[18px]" />
-        </Button>
-        <Button variant="outline" size="icon" type="button" :aria-label="t('tasks.detail.prev')" :disabled="!hydrated || editingTitle || titleSaving || !siblings.prevId" @click="goTo(siblings.prevId)">
+        </UButton>
+        <UButton variant="outline" size="sm" type="button" :aria-label="t('tasks.detail.prev')" :disabled="!hydrated || editingTitle || titleSaving || !siblings.prevId" @click="goTo(siblings.prevId)">
           <component :is="isRtl ? ChevronRight : ChevronLeft" class="size-[18px]" />
-        </Button>
-        <Button variant="outline" size="icon" type="button" :aria-label="t('tasks.detail.next')" :disabled="!hydrated || editingTitle || titleSaving || !siblings.nextId" @click="goTo(siblings.nextId)">
+        </UButton>
+        <UButton variant="outline" size="sm" type="button" :aria-label="t('tasks.detail.next')" :disabled="!hydrated || editingTitle || titleSaving || !siblings.nextId" @click="goTo(siblings.nextId)">
           <component :is="isRtl ? ChevronLeft : ChevronRight" class="size-[18px]" />
-        </Button>
-        <Button
+        </UButton>
+        <UButton
           v-if="task?.allowed_actions.includes('archive')"
           data-testid="task-archive"
           variant="outline"
-          size="icon"
+          size="sm"
           type="button"
-          class="text-muted-foreground"
+          class="text-muted"
           :disabled="!hydrated || editingTitle || titleSaving || archiving"
           :aria-label="t('tasks.drawer.archive')"
           :title="t('tasks.drawer.archive')"
           @click="archiveConfirmOpen = true"
         >
           <Archive class="size-[18px]" />
-        </Button>
+        </UButton>
       </div>
     </div>
 
-    <div v-if="task && archiveConfirmOpen" data-testid="task-archive-confirm" class="nasq-status-callout-danger space-y-2 p-4 text-sm">
+    <div v-if="task && archiveConfirmOpen" data-testid="task-archive-confirm" class="rounded-lg border border-error/30 bg-error/5 space-y-2 p-4 text-sm">
       <p class="font-medium">{{ t('tasks.drawer.archive') }}</p>
-      <p class="text-muted-foreground">{{ t('tasks.drawer.archiveConfirm') }}</p>
+      <p class="text-muted">{{ t('tasks.drawer.archiveConfirm') }}</p>
       <div class="flex flex-wrap gap-2">
-        <Button variant="outline" type="button" :disabled="archiving" @click="archiveConfirmOpen = false">{{ t('app.cancel') }}</Button>
-        <Button variant="destructive" type="button" :disabled="archiving" @click="doArchive">{{ t('tasks.drawer.archive') }}</Button>
+        <UButton color="secondary" variant="solid" type="button" :disabled="archiving" @click="archiveConfirmOpen = false">{{ t('app.cancel') }}</UButton>
+        <UButton color="error" type="button" :disabled="archiving" @click="doArchive">{{ t('tasks.drawer.archive') }}</UButton>
       </div>
     </div>
 
     <SharedPageState v-if="error" :error="error" @retry="refetch" />
 
-    <div v-if="!task" class="nasq-panel flex min-h-56 items-center justify-center p-4">
-      <Skeleton class="h-40 w-full" />
-    </div>
+    <UCard v-if="!task" :ui="{ body: 'flex min-h-56 items-center justify-center' }">
+      <USkeleton class="h-40 w-full" />
+    </UCard>
 
     <template v-if="task">
       <div data-testid="task-detail-grid" class="task-detail-shell" :class="{ 'task-detail-shell-project': isProjectTask }">
-        <section data-testid="task-details-card" class="nasq-panel task-detail-card">
-          <div class="nasq-panel-body">
-            <div class="task-detail-status-line task-status-surface">
-              <StateMenu :task="task" :can-approve="task.can_approve" />
-              <span class="text-xs text-muted-foreground">
-                {{ t('tasks.detail.workflowStage') }}: {{ task.stage?.name ?? t('tasks.detail.stageUnset') }}
-              </span>
-              <DeadlineBadge :deadline="task.date_deadline" :days-remaining="task.days_remaining" :is-closed="task.is_closed" />
-            </div>
-            <TaskCompletionApproval :task="task" />
-            <TaskDetails :key="task.id" :task="task" :base-path="props.basePath">
-              <template #activity>
-                <TaskActivity v-if="isProjectTask" :task="task" />
-              </template>
-            </TaskDetails>
+        <div data-testid="task-details-card" class="task-detail-card space-y-6">
+          <div class="task-detail-status-line">
+            <StateMenu :task="task" :can-approve="task.can_approve" />
+            <span class="text-xs text-muted">
+              {{ t('tasks.detail.workflowStage') }}: {{ task.stage?.name ?? t('tasks.detail.stageUnset') }}
+            </span>
+            <DeadlineBadge :deadline="task.date_deadline" :days-remaining="task.days_remaining" :is-closed="task.is_closed" />
           </div>
-        </section>
+          <TaskCompletionApproval :task="task" />
+          <TaskDetails :key="task.id" :task="task" :base-path="props.basePath">
+            <template #activity>
+              <TaskActivity v-if="isProjectTask" :task="task" />
+            </template>
+          </TaskDetails>
+        </div>
         <aside v-if="!isProjectTask" class="task-detail-activity">
           <TaskActivity :task="task" />
         </aside>
@@ -291,7 +289,7 @@ useEventListener(document, 'keydown', onKeydown)
   display: grid;
   grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
   align-items: start;
-  gap: 16px;
+  gap: 1.5rem;
 }
 
 .task-detail-shell-project {
@@ -311,12 +309,6 @@ useEventListener(document, 'keydown', onKeydown)
   margin-bottom: 14px;
 }
 
-.task-status-surface {
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--muted) 45%, var(--card));
-  padding: 8px;
-}
 
 @media (max-width: 1000px) {
   .task-detail-shell {

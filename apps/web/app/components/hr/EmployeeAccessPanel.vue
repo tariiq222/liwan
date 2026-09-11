@@ -14,18 +14,20 @@ const accountTo = computed(() => {
 </script>
 
 <template>
-  <section v-if="can('hr.employees.access_status.read')" class="grid gap-3 rounded-lg border border-border/80 bg-muted/20 p-4">
-    <div class="flex items-center justify-between">
-      <span class="text-sm text-muted-foreground">{{ $t('hr.employee.account') }}</span>
-      <AccessBadge :access="employee.access" />
+  <UCard v-if="can('hr.employees.access_status.read')">
+    <div class="space-y-3">
+      <div class="flex items-center justify-between">
+        <span class="text-sm text-muted">{{ $t('hr.employee.account') }}</span>
+        <AccessBadge :access="employee.access" />
+      </div>
+      <p class="text-sm text-muted">{{ $t('hr.employee.accessManagedInSettings') }}</p>
+      <UButton
+        v-if="employee.user_id && can('access.users.read')"
+        color="secondary"
+        variant="solid"
+        :to="accountTo"
+        :label="$t('hr.employee.manageAccount')"
+      />
     </div>
-    <p class="text-sm text-muted-foreground">{{ $t('hr.employee.accessManagedInSettings') }}</p>
-    <NuxtLink
-      v-if="employee.user_id && can('access.users.read')"
-      class="text-sm underline"
-      :to="accountTo"
-    >
-      {{ $t('hr.employee.manageAccount') }}
-    </NuxtLink>
-  </section>
+  </UCard>
 </template>

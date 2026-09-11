@@ -21,7 +21,7 @@ class TestBrandingEndpoint(HttpCase):
         self.assertEqual(res.headers.get('Content-Type'), 'application/json; charset=utf-8')
         self.assertEqual(res.headers.get('Cache-Control'), 'public, max-age=300')
         body = res.json()
-        self.assertEqual(set(body), {'name', 'logo_url', 'primary_color', 'font'})
+        self.assertEqual(set(body), {'name', 'logo_url', 'primary_color', 'secondary_color', 'font'})
         self.assertEqual(body['name'], 'Erada')
         self.assertEqual(body['primary_color'], '#0055ff')
         self.assertEqual(body['font'], 'IBM_Plex_Sans_Arabic')
@@ -74,6 +74,24 @@ class TestAdminBranding(HttpCase):
         self.assertEqual(response.status_code, 200, response.text)
         self.assertEqual(response.json()['name'], original.json()['name'])
         self.assertEqual(response.json()['primary_color'], '#0055ff')
+
+    def test_secondary_color_save_preserves_primary_and_identity(self):
+        self.authenticate('branding_admin', 'branding_admin_pass_123')
+        original = self.api('GET', '/api/v1/admin/branding').json()
+        response = self.api('PATCH', '/api/v1/admin/branding', {'secondary_color': '#aabbcc'})
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()['secondary_color'], '#aabbcc')
+        self.assertEqual(response.json()['primary_color'], original['primary_color'])
+        self.assertEqual(response.json()['name'], original['name'])
+        self.assertEqual(self.api('GET', '/api/v1/admin/branding').json()['secondary_color'], '#aabbcc')
+        for payload in [{'secondary_color': '#abc'}, {'secondary_color': None},
+                        {'secondary_color': '#ffffff', 'primary_color': 'invalid'}]:
+            before = self.api('GET', '/api/v1/admin/branding').json()
+            response = self.api('PATCH', '/api/v1/admin/branding', payload)
+            self.assertEqual(response.status_code, 422, response.text)
+            self.assertEqual(self.api('GET', '/api/v1/admin/branding').json(), before)
+        response = self.api('PATCH', '/api/v1/admin/branding', {'secondary_color': '#ffffff', 'name': 'Forbidden'})
+        self.assertEqual(response.status_code, 403, response.text)
 
     def test_identity_patches_are_forbidden_for_admin_and_vendor_atomically(self):
         for login, password in [

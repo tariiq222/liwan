@@ -1,7 +1,9 @@
 @import "tailwindcss";
+@import "@nuxt/ui";
 @import "tw-animate-css";
 @import "./approved-shell.css";
 @import "./project-theme.css";
+@import "./nuxt-theme.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -14,13 +16,13 @@
   --font-sans: "IBM Plex Sans Arabic", ui-sans-serif, system-ui, sans-serif;
   color-scheme: light;
   font-size: 14px;
-  --radius: 8px;
-  --background: #fafbfc;
-  --foreground: #20242b;
-  --card: #ffffff;
-  --card-foreground: #20242b;
-  --popover: #ffffff;
-  --popover-foreground: #20242b;
+  --radius: calc(var(--ui-radius) * 2);
+  --background: var(--ui-bg);
+  --foreground: var(--ui-text);
+  --card: var(--ui-bg);
+  --card-foreground: var(--ui-text);
+  --popover: var(--ui-bg-elevated);
+  --popover-foreground: var(--ui-text);
   --primary: #18181b;                       /* overridden at runtime by branding.primary_color */
   --primary-foreground: #ffffff;
   --primary-hover: #2a2a2d;
@@ -36,42 +38,42 @@
   --chart-6: #94949c;
   --secondary: #f4f6fa;
   --secondary-foreground: #20242b;
-  --muted: #f0f2f5;
-  --muted-foreground: #787e88;
-  --accent: #f4f6fa;
-  --accent-foreground: #20242b;
-  --destructive: #bd4751;
-  --border: #e7e9ed;
-  --input: #e7e9ed;
+  --muted: var(--ui-bg-muted);
+  --muted-foreground: var(--ui-text-muted);
+  --accent: var(--ui-bg-accented);
+  --accent-foreground: var(--ui-text-highlighted);
+  --destructive: var(--ui-error);
+  --border: var(--ui-border);
+  --input: var(--ui-border-accented);
   --ring: #18181b;
-  --sidebar: #f5f6f8;
-  --sidebar-foreground: #20242b;
+  --sidebar: var(--ui-bg-muted);
+  --sidebar-foreground: var(--ui-text);
   --sidebar-primary: var(--primary);
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #f0f2f5;
-  --sidebar-accent-foreground: #20242b;
-  --sidebar-border: #e7e9ed;
+  --sidebar-accent: var(--ui-bg-accented);
+  --sidebar-accent-foreground: var(--ui-text-highlighted);
+  --sidebar-border: var(--ui-border);
   --sidebar-ring: #18181b;
   --shell-background: var(--primary);
   --shell-foreground: var(--primary-foreground);
-  --context-surface: #f5f6f8;
+  --context-surface: var(--ui-bg-muted);
   --content-shadow: rgba(18, 34, 58, .045);
   --brand-soft: color-mix(in srgb, var(--primary) 8%, var(--card));
   --brand-border: color-mix(in srgb, var(--primary) 24%, var(--border));
-  --status-success: #248365;
-  --status-success-foreground: #1d6c53;
+  --status-success: var(--ui-success);
+  --status-success-foreground: var(--ui-success);
   --status-success-soft: color-mix(in srgb, var(--status-success) 12%, var(--card));
   --status-success-border: color-mix(in srgb, var(--status-success) 28%, var(--border));
-  --status-warning: #a86f18;
-  --status-warning-foreground: #8d5c13;
+  --status-warning: var(--ui-warning);
+  --status-warning-foreground: var(--ui-warning);
   --status-warning-soft: color-mix(in srgb, var(--status-warning) 14%, var(--card));
   --status-warning-border: color-mix(in srgb, var(--status-warning) 32%, var(--border));
-  --status-info: var(--brand-link);
-  --status-info-foreground: var(--brand-link);
+  --status-info: var(--ui-info);
+  --status-info-foreground: var(--ui-info);
   --status-info-soft: var(--brand-soft);
   --status-info-border: var(--brand-border);
-  --status-danger: var(--destructive);
-  --status-danger-foreground: #bd4751;
+  --status-danger: var(--ui-error);
+  --status-danger-foreground: var(--ui-error);
   --status-danger-soft: color-mix(in srgb, var(--status-danger) 12%, var(--card));
   --status-danger-border: color-mix(in srgb, var(--status-danger) 40%, var(--border));
   --unread-count-foreground: #ffffff;
@@ -82,80 +84,76 @@
 
 .cream {
   color-scheme: light;
-  --background: #f6f1e7;
-  --foreground: #3f3428;
-  --card: #fbf7ef;
-  --card-foreground: #3f3428;
-  --popover: #fbf7ef;
-  --popover-foreground: #3f3428;
+  --background: var(--ui-bg);
+  --foreground: var(--ui-text);
+  --card: var(--ui-bg);
+  --card-foreground: var(--ui-text);
+  --popover: var(--ui-bg-elevated);
+  --popover-foreground: var(--ui-text);
   --secondary: #efe8d9;
   --secondary-foreground: #3f3428;
-  --muted: #efe8d9;
-  --muted-foreground: #7a6e5f;
-  --accent: #efe8d9;
-  --accent-foreground: #3f3428;
-  --border: #e4d9c6;
-  --input: #e4d9c6;
-  --sidebar: #efe8d9;
-  --sidebar-foreground: #3f3428;
-  --sidebar-accent: #e4d9c6;
-  --sidebar-accent-foreground: #3f3428;
-  --sidebar-border: #e4d9c6;
-  --context-surface: #efe8d9;
+  --muted: var(--ui-bg-muted);
+  --muted-foreground: var(--ui-text-muted);
+  --accent: var(--ui-bg-accented);
+  --accent-foreground: var(--ui-text-highlighted);
+  --border: var(--ui-border);
+  --input: var(--ui-border-accented);
+  --sidebar: var(--ui-bg-muted);
+  --sidebar-foreground: var(--ui-text);
+  --sidebar-accent: var(--ui-bg-accented);
+  --sidebar-accent-foreground: var(--ui-text-highlighted);
+  --sidebar-border: var(--ui-border);
+  --context-surface: var(--ui-bg-muted);
   --content-shadow: rgba(63, 52, 40, .06);
 }
 
 .dark {
   color-scheme: dark;
-  --background: #09090b;
-  --foreground: #fafafa;
-  --card: #18181b;
-  --card-foreground: #fafafa;
-  --popover: #18181b;
-  --popover-foreground: #fafafa;
+  --background: var(--ui-bg);
+  --foreground: var(--ui-text);
+  --card: var(--ui-bg);
+  --card-foreground: var(--ui-text);
+  --popover: var(--ui-bg-elevated);
+  --popover-foreground: var(--ui-text);
   --secondary: #27272a;
   --secondary-foreground: #fafafa;
-  --muted: #27272a;
-  --muted-foreground: #a1a1aa;
-  --accent: #27272a;
-  --accent-foreground: #fafafa;
-  --destructive: #fb7185;
-  --border: #3f3f46;
-  --input: #3f3f46;
-  --sidebar: #18181b;
-  --sidebar-foreground: #fafafa;
-  --sidebar-accent: #27272a;
-  --sidebar-accent-foreground: #fafafa;
-  --sidebar-border: #3f3f46;
+  --muted: var(--ui-bg-muted);
+  --muted-foreground: var(--ui-text-muted);
+  --accent: var(--ui-bg-accented);
+  --accent-foreground: var(--ui-text-highlighted);
+  --destructive: var(--ui-error);
+  --border: var(--ui-border);
+  --input: var(--ui-border-accented);
+  --sidebar: var(--ui-bg-muted);
+  --sidebar-foreground: var(--ui-text);
+  --sidebar-accent: var(--ui-bg-accented);
+  --sidebar-accent-foreground: var(--ui-text-highlighted);
+  --sidebar-border: var(--ui-border);
   --brand-soft: color-mix(in srgb, var(--brand-link) 12%, var(--card));
   --brand-border: color-mix(in srgb, var(--brand-link) 30%, var(--border));
-  --status-success: oklch(0.76 0.12 155);
-  --status-success-foreground: oklch(0.82 0.1 155);
-  --status-warning: oklch(0.8 0.12 80);
-  --status-warning-foreground: oklch(0.86 0.1 80);
-  --status-info: var(--brand-link);
-  --status-danger: var(--destructive);
-  --status-danger-foreground: #fb7185;
+  --status-success: var(--ui-success);
+  --status-success-foreground: var(--ui-success);
+  --status-warning: var(--ui-warning);
+  --status-warning-foreground: var(--ui-warning);
+  --status-info: var(--ui-info);
+  --status-danger: var(--ui-error);
+  --status-danger-foreground: var(--ui-error);
   --status-danger-soft: color-mix(in srgb, var(--status-danger) 12%, var(--card));
   --status-danger-border: color-mix(in srgb, var(--status-danger) 40%, var(--border));
   --unread-count-foreground: var(--background);
-  --context-surface: #18181b;
+  --context-surface: var(--ui-bg-muted);
   --content-shadow: rgba(0, 0, 0, .25);
 }
 
 @theme inline {
   --font-sans: var(--font-sans);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
   --color-popover: var(--popover);
   --color-popover-foreground: var(--popover-foreground);
-  --color-primary: var(--primary);
+  --color-primary: var(--ui-primary);
   --color-primary-foreground: var(--primary-foreground);
   --color-primary-hover: var(--primary-hover);
   --color-primary-hover-foreground: var(--primary-hover-foreground);
@@ -200,43 +198,16 @@
   stroke-width: 2;
 }
 
-/* Action geometry is independent of the reader's text-size preference. */
-[data-slot="button"][data-size="icon"] {
-  width: 32px;
-  height: 32px;
-  min-width: 32px;
-  min-height: 32px;
-  padding: 0;
-  border-width: 1px;
-  border-style: solid;
-  border-radius: 8px;
-}
-[data-slot="button"][data-size="icon"] .lucide {
-  width: 18px;
-  height: 18px;
-  stroke-width: 2;
-}
-
-/* One quiet focus treatment for every keyboard control, without stacked rings. */
-:root {
-  --focus-color: color-mix(in srgb, var(--foreground) 55%, var(--background));
-}
-:focus-visible {
-  --tw-ring-shadow: 0 0 #0000;
-  --tw-ring-offset-shadow: 0 0 #0000;
-  outline: 1px solid var(--focus-color);
-  outline-offset: 2px;
-}
-:where(input:not([type="checkbox"]):not([type="radio"]), textarea, select, [role="combobox"], [contenteditable="true"]):focus-visible {
-  border-color: var(--focus-color);
-  outline: none;
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--focus-color) 15%, transparent);
-}
-:where(input, textarea, select, [role="combobox"])[aria-invalid="true"]:focus-visible {
-  border-color: var(--destructive);
+/* Nuxt UI owns control size and focus recipes. Semantic links and editors
+   retain a keyboard outline without overriding the library's field rings. */
+@layer base {
+  :where(a, button, [contenteditable="true"]):focus-visible {
+    outline: 2px solid var(--ui-primary);
+    outline-offset: 2px;
+  }
 }
 @media (forced-colors: active) {
-  :focus-visible { outline: 1px solid Highlight; outline-offset: 2px; }
+  :focus-visible { outline: 2px solid Highlight; outline-offset: 2px; }
 }
 
 /* Semantic status surfaces: theme tokens, not ad-hoc Tailwind palettes. */

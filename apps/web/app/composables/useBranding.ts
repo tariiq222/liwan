@@ -1,5 +1,5 @@
 import { BrandingSchema, type Branding } from '@nasq/contracts'
-import { createBrandTheme } from '@/utils/brandTheme'
+import { createBrandTheme, DEFAULT_SECONDARY } from '@/utils/brandTheme'
 
 export function useBranding() {
   const { mode } = useAppearance()
@@ -20,7 +20,10 @@ export function useBranding() {
     // Keep its version so a replacement logo also invalidates the tab icon.
     return `/web/image/res.company/${company}/logo/32x32${query}`
   })
-  const themeStyle = computed(() => Object.entries(createBrandTheme(branding.value?.primary_color ?? '', mode.value))
+  const themeStyle = computed(() => Object.entries({
+    ...createBrandTheme(branding.value?.primary_color ?? '', mode.value),
+    '--nasq-brand-secondary': branding.value?.secondary_color ?? DEFAULT_SECONDARY,
+  })
     .map(([key, value]) => `${key}:${value}`)
     .join(';'))
   useHead(() => ({

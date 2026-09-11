@@ -20,10 +20,16 @@ const Passthrough = defineComponent({
   },
 })
 
-const ItemStub = defineComponent({
+type MenuItem = { label: string; onSelect: () => void }
+
+const DropdownMenuStub = defineComponent({
   inheritAttrs: false,
-  setup(_, { slots, attrs }) {
-    return () => h('button', { type: 'button', ...attrs }, slots.default?.())
+  props: { items: { type: Array as () => MenuItem[], default: () => [] } },
+  setup(props, { slots, attrs }) {
+    return () => h('div', attrs, [
+      slots.default?.(),
+      ...props.items.map((item) => h('button', { type: 'button', onClick: item.onSelect }, item.label)),
+    ])
   },
 })
 
@@ -50,7 +56,8 @@ function loadStateMenu() {
       const isPending = false
       const t = (key: string) => key
       const onSelect = (state: string) => state
-      return { states, hydrated, isPending, t, onSelect, STATE_LABEL_KEY }
+      const items = computed(() => states.value.map((s) => ({ label: t(STATE_LABEL_KEY[s]), onSelect: () => onSelect(s) })))
+      return { states, hydrated, isPending, t, onSelect, STATE_LABEL_KEY, items }
     },
     render,
   })
@@ -64,10 +71,7 @@ async function renderMenu(task: Pick<Task, 'state' | 'allowed_transitions'>, can
     props: { state: String },
     setup(props) { return () => h('span', { 'data-state': props.state }, props.state) },
   }))
-  app.component('DropdownMenu', Passthrough)
-  app.component('DropdownMenuTrigger', Passthrough)
-  app.component('DropdownMenuContent', Passthrough)
-  app.component('DropdownMenuItem', ItemStub)
+  app.component('UDropdownMenu', DropdownMenuStub)
   app.component('Loader2', defineComponent({ setup: () => () => null }))
   return renderToString(app)
 }
@@ -76,7 +80,7 @@ describe('StateMenu production template uses server allowed_transitions', () => 
   it('does not locally recompute transitions from canApprove', () => {
     expect(source).toContain('allowed_transitions')
     expect(source).not.toContain('permittedNextStates')
-    expect(source).toContain('v-for="s in states"')
+    expect(source).toContain('states.value.map(')
     expect(source).not.toContain('canApprove &&')
   })
 

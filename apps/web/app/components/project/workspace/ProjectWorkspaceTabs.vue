@@ -41,11 +41,13 @@ const activeTab = computed(() => {
 <template>
   <nav
     v-if="links.length"
-    class="nasq-tabs"
+    class="flex flex-wrap items-center gap-1"
     data-testid="project-workspace-tabs"
     :aria-label="t('projects.workspace.tabsLabel')"
   >
-    <NuxtLink
+    <UButton
+      color="neutral" size="sm"
+      :variant="activeTab === link.id ? 'soft' : 'ghost'"
       v-for="link in links"
       :key="link.id"
       :to="link.to"
@@ -55,6 +57,6 @@ const activeTab = computed(() => {
     >
       <component :is="link.icon" aria-hidden="true" class="size-4" />
       <span>{{ t(link.labelKey) }}</span>
-    </NuxtLink>
+    </UButton>
   </nav>
 </template>

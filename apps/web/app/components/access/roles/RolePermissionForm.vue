@@ -81,29 +81,50 @@ async function save() {
 </script>
 
 <template>
-  <form class="nasq-form min-w-0 space-y-5" @submit.prevent="save">
+  <UForm :state="{ nameAr, nameEn, description }" class="min-w-0 space-y-5" method="post" @submit="save">
     <SharedUnsavedChanges :dirty="dirty" />
     <SharedFormSection :title="t('access.roles.details')" class="space-y-4">
-      <div class="nasq-form-grid">
-        <div class="space-y-2"><Label for="role-name-ar">{{ t('access.roles.nameArabic') }}</Label><Input id="role-name-ar" v-model="nameAr" :disabled="!canEdit" /></div>
-        <div class="space-y-2"><Label for="role-name-en">{{ t('access.roles.nameEnglish') }}</Label><Input id="role-name-en" v-model="nameEn" dir="ltr" :disabled="!canEdit" /></div>
+      <div class="grid gap-4 sm:grid-cols-2">
+        <UFormField :label="t('access.roles.nameArabic')" name="nameAr"><UInput v-model="nameAr" class="w-full" :disabled="!canEdit" /></UFormField>
+        <UFormField :label="t('access.roles.nameEnglish')" name="nameEn"><UInput v-model="nameEn" dir="ltr" class="w-full" :disabled="!canEdit" /></UFormField>
       </div>
-      <div class="space-y-2"><Label for="role-description">{{ t('access.roles.descriptionLabel') }}</Label><Textarea id="role-description" v-model="description" :disabled="!canEdit" /></div>
+      <UFormField :label="t('access.roles.descriptionLabel')" name="description"><UTextarea v-model="description" class="w-full" :disabled="!canEdit" /></UFormField>
     </SharedFormSection>
     <SharedFormSection :title="t('access.roles.permissions')" class="space-y-4">
       <fieldset class="min-w-0 space-y-2" :disabled="!canEdit">
         <legend class="sr-only">{{ t('access.roles.permissions') }}</legend>
-        <section v-for="[domain, domainPermissions] in groupedPermissions" :key="domain" class="nasq-form-section space-y-3"><h3 class="text-sm font-medium">{{ domainLabel(domain) }}</h3><div class="nasq-settings-options"><label v-for="permission in domainPermissions" :key="permission.key" class="nasq-settings-option"><input type="checkbox" :checked="selected.includes(permission.key)" :disabled="!permission.custom_role_allowed || !canEdit" @change="togglePermission(permission, !selected.includes(permission.key))"><span><span class="font-medium">{{ permissionLabel(permission.key) }}</span><span class="block text-xs text-muted-foreground">{{ permissionDescription(permission) }}</span><span v-if="permission.dependencies.length" class="block text-xs text-muted-foreground">{{ t('access.roles.requires') }}: <span>{{ permission.dependencies.map((key) => permissionLabel(key)).join('، ') }}</span></span></span></label></div></section>
+        <section v-for="[domain, domainPermissions] in groupedPermissions" :key="domain" class="space-y-3">
+          <h3 class="text-sm font-medium">{{ domainLabel(domain) }}</h3>
+          <div class="space-y-3">
+            <UCheckbox
+              v-for="permission in domainPermissions"
+              :key="permission.key"
+              :model-value="selected.includes(permission.key)"
+              :disabled="!permission.custom_role_allowed || !canEdit"
+              @update:model-value="(value) => togglePermission(permission, Boolean(value))"
+            >
+              <template #label>
+                <span class="font-medium">{{ permissionLabel(permission.key) }}</span>
+              </template>
+              <template #description>
+                <span class="block text-xs text-muted">{{ permissionDescription(permission) }}</span>
+                <span v-if="permission.dependencies.length" class="block text-xs text-muted">{{ t('access.roles.requires') }}: <span>{{ permission.dependencies.map((key) => permissionLabel(key)).join('، ') }}</span></span>
+              </template>
+            </UCheckbox>
+          </div>
+        </section>
       </fieldset>
     </SharedFormSection>
     <SharedFormSection v-if="dirty" :title="t('access.roles.permissionChanges')" class="space-y-2">
       <div class="text-xs"><p v-if="addedPermissions.length">{{ t('access.roles.added') }}: {{ addedPermissions.map((key) => permissionLabel(key)).join('، ') }}</p><p v-if="removedPermissions.length">{{ t('access.roles.removed') }}: {{ removedPermissions.map((key) => permissionLabel(key)).join('، ') }}</p><p v-if="retainedPermissions.length">{{ t('access.roles.retained') }}: {{ retainedPermissions.map((key) => permissionLabel(key)).join('، ') }}</p></div>
     </SharedFormSection>
-    <p v-if="props.role.protected" class="text-sm text-muted-foreground">{{ t('access.protectedRole') }}</p>
-    <p v-else-if="!canEdit" class="text-sm text-muted-foreground">{{ t('access.readOnly') }}</p>
-    <p v-if="!props.role.active" class="text-sm nasq-status-text-warning">{{ t('access.roles.disabledExistingAssignments') }}</p>
-    <p v-if="dirty && props.role.user_count" class="text-sm nasq-status-text-warning">{{ t('access.roles.affectedUsers', { count: props.role.user_count }) }}</p>
-    <p v-if="errorMessage" role="alert" class="text-sm text-destructive">{{ errorMessage }}</p>
-    <div class="nasq-form-footer"><Button v-if="canEdit" type="submit" :disabled="!dirty || update.isPending.value">{{ t('access.save') }}</Button></div>
-  </form>
+    <p v-if="props.role.protected" class="text-sm text-muted">{{ t('access.protectedRole') }}</p>
+    <p v-else-if="!canEdit" class="text-sm text-muted">{{ t('access.readOnly') }}</p>
+    <p v-if="!props.role.active" class="text-sm text-warning">{{ t('access.roles.disabledExistingAssignments') }}</p>
+    <p v-if="dirty && props.role.user_count" class="text-sm text-warning">{{ t('access.roles.affectedUsers', { count: props.role.user_count }) }}</p>
+    <UAlert v-if="errorMessage" role="alert" color="error" variant="subtle" :title="errorMessage" />
+    <footer class="flex justify-end gap-2">
+      <UButton v-if="canEdit" type="submit" color="primary" :label="t('access.save')" :disabled="!dirty || update.isPending.value" />
+    </footer>
+  </UForm>
 </template>

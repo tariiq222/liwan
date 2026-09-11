@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Task } from '@nasq/contracts'
-import { FlexRender, createColumnHelper, getCoreRowModel, useVueTable } from '@tanstack/vue-table'
+import { UButton } from '#components'
+import { createColumnHelper } from '@tanstack/vue-table'
 import { h } from 'vue'
 import type { TaskListParams } from '@/composables/useTasks'
 import { useTasks } from '@/composables/useTasks'
@@ -50,25 +51,33 @@ const recordNumberColumn = columnHelper.display({
   header: () => t('app.recordNumber'),
   cell: (info) => h(RecordNumber, { value: info.row.original.id }),
 })
-const titleColumn = columnHelper.accessor('name', {
+const titleColumn = columnHelper.display({
   id: 'title',
   header: () => t('tasks.columns.title'),
-  cell: (info) => h('button', {
+  cell: (info) => h(UButton, {
     type: 'button',
-    class: 'block max-w-full truncate rounded-sm text-start font-medium hover:underline',
+    color: 'neutral',
+    variant: 'link',
+    class: 'block max-w-full truncate p-0 text-start font-medium',
     disabled: !hydrated.value,
     onClick: (event: MouseEvent) => { event.stopPropagation(); if (hydrated.value) emit('open', info.row.original.id) },
-  }, info.row.original.name),
+  }, () => info.row.original.name),
 })
 const projectColumn = columnHelper.display({
   id: 'project',
   header: () => t('tasks.columns.project'),
   cell: (info) => info.row.original.project?.name ?? '—',
 })
+// Interactive cell controls (dropdown/select triggers) must not also open the
+// row; stopping propagation here is more robust than sniffing ancestor
+// selectors against a UI library's internal markup.
+function stopRowOpen(node: ReturnType<typeof h>) {
+  return h('span', { onClick: (e: MouseEvent) => e.stopPropagation() }, [node])
+}
 const stateColumn = columnHelper.display({
   id: 'state',
   header: () => t('tasks.columns.state'),
-  cell: (info) => h(StateMenu, { task: info.row.original }),
+  cell: (info) => stopRowOpen(h(StateMenu, { task: info.row.original })),
 })
 const deadlineColumn = columnHelper.display({
   id: 'deadline',
@@ -83,7 +92,7 @@ const deadlineColumn = columnHelper.display({
 const priorityColumn = columnHelper.display({
   id: 'priority',
   header: () => t('tasks.columns.priority'),
-  cell: (info) => h(PrioritySelect, { task: info.row.original }),
+  cell: (info) => stopRowOpen(h(PrioritySelect, { task: info.row.original })),
 })
 const personalStageColumn = columnHelper.display({
   id: 'stage',
@@ -98,7 +107,7 @@ const projectStageColumn = columnHelper.display({
 const assigneesColumn = columnHelper.display({
   id: 'assignees',
   header: () => t('tasks.columns.assignees'),
-  cell: (info) => h('span', { class: 'truncate text-xs text-muted-foreground' }, info.row.original.assignees.map((a) => a.name).join('، ')),
+  cell: (info) => h('span', { class: 'truncate text-xs text-muted' }, info.row.original.assignees.map((a) => a.name).join('، ')),
 })
 
 const columns = computed(() =>
@@ -107,21 +116,23 @@ const columns = computed(() =>
     : [recordNumberColumn, titleColumn, projectColumn, stateColumn, deadlineColumn, priorityColumn, personalStageColumn],
 )
 
-const colgroupClasses = computed(() =>
+const columnWidths = computed(() =>
   props.variant === 'project'
     ? ['w-[6%]', 'w-[30%]', 'w-[12%]', 'w-[12%]', 'w-[12%]', 'w-[14%]', 'w-[14%]']
     : ['w-[10%]', 'w-[44%]', 'w-[10%]', 'w-[10%]', 'w-[10%]', 'w-[10%]', 'w-[6%]'],
 )
 
-const table = useVueTable({
-  get data() {
-    return items.value
-  },
-  get columns() {
-    return columns.value
-  },
-  getCoreRowModel: getCoreRowModel(),
-})
+// Keep the number and title columns stable while preserving the row's
+// click-to-open behavior; widths are applied to both the header and cell.
+const tableColumns = computed(() => columns.value.map((col, i) => ({
+  ...col,
+  meta: { class: { th: `text-start ${columnWidths.value[i] ?? ''}`, td: `max-w-0 overflow-hidden text-ellipsis whitespace-nowrap ${columnWidths.value[i] ?? ''}` } },
+})))
+
+function onRowSelect(_event: Event, row: { original: Task }) {
+  if (!hydrated.value) return
+  emit('open', row.original.id)
+}
 
 // The state/priority cells are interactive controls of their own (dropdown
 // trigger, select trigger); a click that lands on one of them must not also
@@ -129,67 +140,39 @@ const table = useVueTable({
 function onRowClick(task: Task, event: MouseEvent) {
   if (!hydrated.value) return
   const target = event.target as HTMLElement
-  if (target.closest('button, [role="combobox"], [data-slot="select-trigger"]')) return
+  if (target.closest('button, [role="combobox"]')) return
   emit('open', task.id)
 }
 </script>
 
 <template>
   <div :class="embedded ? 'space-y-0' : 'space-y-2'">
-    <div :class="embedded ? '' : 'nasq-panel overflow-hidden'">
+    <div :class="embedded ? '' : 'rounded-xl border border-default overflow-hidden'">
       <div class="hidden overflow-x-auto md:block">
-        <Table class="table-fixed" :class="variant === 'project' ? 'min-w-[960px]' : 'min-w-[760px]'">
-        <!-- Keep the number and title columns stable while preserving the row's click-to-open behavior. -->
-        <colgroup>
-          <col v-for="(cls, i) in colgroupClasses" :key="i" :class="cls" />
-        </colgroup>
-        <TableHeader>
-          <TableRow v-for="headerGroup in table.getHeaderGroups()" :key="headerGroup.id">
-            <TableHead v-for="header in headerGroup.headers" :key="header.id" class="text-start">
-              <FlexRender v-if="!header.isPlaceholder" :render="header.column.columnDef.header" :props="header.getContext()" />
-            </TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          <template v-if="isLoading">
-            <TableRow v-for="n in 5" :key="n">
-              <TableCell v-for="col in columns" :key="col.id">
-                <Skeleton class="h-5 w-full" />
-              </TableCell>
-            </TableRow>
+        <SharedPageState v-if="error" :error="error" @retry="refetch" />
+        <EmptyState v-else-if="!isLoading && items.length === 0" :title="t(emptyTitleKey)">
+          <template v-if="showCreateAction" #action>
+            <UButton size="sm" :disabled="!hydrated" @click="emit('create')">{{ t('tasks.empty.action') }}</UButton>
           </template>
-          <TableEmpty v-else-if="error" :colspan="columns.length">
-            <SharedPageState :error="error" @retry="refetch" />
-          </TableEmpty>
-          <TableEmpty v-else-if="items.length === 0" :colspan="columns.length">
-            <EmptyState :title="t(emptyTitleKey)">
-              <template v-if="showCreateAction" #action>
-                <Button size="sm" :disabled="!hydrated" @click="emit('create')">{{ t('tasks.empty.action') }}</Button>
-              </template>
-            </EmptyState>
-          </TableEmpty>
-          <template v-else>
-            <TableRow
-              v-for="row in table.getRowModel().rows"
-              :key="row.id"
-              class="cursor-pointer"
-              @click="onRowClick(row.original, $event)"
-            >
-              <TableCell v-for="cell in row.getVisibleCells()" :key="cell.id" class="max-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
-                <FlexRender :render="cell.column.columnDef.cell" :props="cell.getContext()" />
-              </TableCell>
-            </TableRow>
-          </template>
-        </TableBody>
-        </Table>
+        </EmptyState>
+        <UTable
+          v-else
+          class="table-fixed"
+          :class="variant === 'project' ? 'min-w-[960px]' : 'min-w-[760px]'"
+          :data="items"
+          :columns="tableColumns"
+          :loading="isLoading"
+          :ui="{ tr: 'cursor-pointer' }"
+          @select="onRowSelect"
+        />
       </div>
 
-      <div class="divide-y md:hidden">
+      <div class="divide-y divide-default md:hidden">
         <template v-if="isLoading">
           <div v-for="n in 5" :key="`mobile-skeleton-${n}`" class="space-y-3 p-4">
-            <Skeleton class="h-5 w-4/5" />
-            <Skeleton class="h-4 w-2/5" />
-            <div class="flex gap-2"><Skeleton class="h-6 w-20" /><Skeleton class="h-6 w-20" /></div>
+            <USkeleton class="h-5 w-4/5" />
+            <USkeleton class="h-4 w-2/5" />
+            <div class="flex gap-2"><USkeleton class="h-6 w-20" /><USkeleton class="h-6 w-20" /></div>
           </div>
         </template>
         <div v-else-if="error" class="p-6 text-center">
@@ -198,9 +181,9 @@ function onRowClick(task: Task, event: MouseEvent) {
         <div v-else-if="items.length === 0" class="p-6 text-center">
           <EmptyState :title="t(emptyTitleKey)">
             <template v-if="showCreateAction" #action>
-              <Button size="sm" :disabled="!hydrated" @click="emit('create')">
+              <UButton size="sm" :disabled="!hydrated" @click="emit('create')">
                 {{ t('tasks.empty.action') }}
-              </Button>
+              </UButton>
             </template>
           </EmptyState>
         </div>
@@ -209,11 +192,11 @@ function onRowClick(task: Task, event: MouseEvent) {
             v-for="task in items"
             :key="`mobile-${task.id}`"
             class="space-y-3 p-4"
-            :class="hydrated ? 'cursor-pointer active:bg-muted/50' : ''"
+            :class="hydrated ? 'cursor-pointer active:bg-elevated/50' : ''"
             @click="onRowClick(task, $event)"
           >
             <div class="flex items-start justify-between gap-3">
-              <button type="button" class="min-w-0 flex-1 truncate rounded-sm text-start font-medium hover:underline" :disabled="!hydrated" @click.stop="emit('open', task.id)">{{ task.name }}</button>
+              <UButton type="button" color="neutral" variant="link" class="min-w-0 flex-1 justify-start truncate p-0 text-start font-medium" :disabled="!hydrated" @click.stop="emit('open', task.id)">{{ task.name }}</UButton>
               <DeadlineBadge
                 class="shrink-0"
                 :deadline="task.date_deadline"
@@ -221,16 +204,16 @@ function onRowClick(task: Task, event: MouseEvent) {
                 :is-closed="task.is_closed"
               />
             </div>
-            <p class="truncate text-sm text-muted-foreground">
+            <p class="truncate text-sm text-muted">
               {{ task.project?.name ?? (props.variant === 'project' ? task.stage?.name : '—') }}
             </p>
             <div class="flex flex-wrap items-center gap-2">
               <StateMenu :task="task" />
               <PrioritySelect :task="task" />
-              <span v-if="props.variant === 'project' && task.stage" class="text-xs text-muted-foreground">
+              <span v-if="props.variant === 'project' && task.stage" class="text-xs text-muted">
                 {{ task.stage.name }}
               </span>
-              <span v-else-if="task.personal_stage" class="text-xs text-muted-foreground">
+              <span v-else-if="task.personal_stage" class="text-xs text-muted">
                 {{ task.personal_stage.name }}
               </span>
             </div>
@@ -239,9 +222,9 @@ function onRowClick(task: Task, event: MouseEvent) {
       </div>
     </div>
     <div v-if="hasNextPage" class="flex justify-center">
-      <Button variant="outline" size="sm" :disabled="isFetchingNextPage || !hydrated" @click="fetchNextPage()">
+      <UButton color="secondary" variant="solid" size="sm" :disabled="isFetchingNextPage || !hydrated" @click="fetchNextPage()">
         {{ t('app.loadMore') }}
-      </Button>
+      </UButton>
     </div>
   </div>
 </template>

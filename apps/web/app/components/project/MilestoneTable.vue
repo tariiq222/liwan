@@ -1,11 +1,9 @@
 <script setup lang="ts">
 import type { Milestone } from '@nasq/contracts'
-import { CheckCircle2, Pencil, RotateCcw, Trash2 } from '@lucide/vue'
 import { getLocalTimeZone, today } from '@internationalized/date'
-import { toast } from 'vue-sonner'
 import { ApiError } from '@/composables/useApi'
 import { formatCalendarDate, toCalendarDate } from '@/composables/calendarDate'
-import { STATUS_CHIP_CLASS, STATUS_TEXT_CLASS } from '@/utils/statusTone'
+import { TONE_BADGE_COLOR } from '@/components/project/projectTone'
 import { useDeleteMilestone, useMilestones, useUpdateMilestone } from '@/composables/useMilestones'
 import { returnToQuery } from '@/utils/safeReturnTo'
 import { claimMilestoneChecklistUpdate, releaseMilestoneChecklistUpdate } from '@/utils/milestoneChecklist'
@@ -14,6 +12,7 @@ const props = defineProps<{ projectId: number; canManage: boolean; embedded?: bo
 
 const { t, locale } = useI18n()
 const hydrated = useHydrated()
+const toast = useToast()
 
 const projectIdRef = computed(() => props.projectId)
 const { data, isLoading, error, refetch } = useMilestones(projectIdRef)
@@ -38,6 +37,9 @@ function isPastDeadline(deadline: string | null): boolean {
 function deadlineTone(m: Milestone): 'destructive' | 'neutral' {
   return !m.is_reached && isPastDeadline(m.deadline) ? 'destructive' : 'neutral'
 }
+const DEADLINE_TEXT_CLASS: Record<'destructive' | 'neutral', string> = {
+  destructive: 'text-error', neutral: '',
+}
 function deadlineText(m: Milestone): string {
   return m.deadline ? formatCalendarDate(m.deadline, locale.value) : '—'
 }
@@ -55,7 +57,7 @@ async function toggleReached(m: Milestone) {
   try {
     await updateMutate({ projectId: props.projectId, id: m.id, patch: { is_reached: !m.is_reached } })
   } catch (e) {
-    toast.error(e instanceof ApiError ? e.message : t('errors.generic'))
+    toast.add({ title: e instanceof ApiError ? e.message : t('errors.generic'), color: 'error' })
   }
 }
 
@@ -63,19 +65,19 @@ function isDeliverablePending(milestoneId: number) {
   return deliverablePending.value.has(milestoneId)
 }
 
-async function toggleDeliverable(m: Milestone, index: number, event: Event) {
+async function toggleDeliverable(m: Milestone, index: number, next: boolean) {
   const claimed = claimMilestoneChecklistUpdate(deliverablePending.value, m.id)
   if (!claimed) return
-  const checkbox = event.currentTarget instanceof HTMLInputElement ? event.currentTarget : null
   deliverablePending.value = claimed
   const current = m.deliverables ?? []
-  const deliverables = current.map((item, itemIndex) => itemIndex === index ? { ...item, done: !item.done } : { ...item })
+  const deliverables = current.map((item, itemIndex) => itemIndex === index ? { ...item, done: next } : { ...item })
   try {
     // Checklist completion is independent from is_reached and task progress.
+    // USwitch's display always derives from `item.done`; a failed mutation
+    // leaves that value untouched, so no manual DOM revert is needed here.
     await updateMutate({ projectId: props.projectId, id: m.id, patch: { deliverables } })
   } catch (e) {
-    if (checkbox) checkbox.checked = !checkbox.checked
-    toast.error(e instanceof ApiError ? e.message : t('errors.generic'))
+    toast.add({ title: e instanceof ApiError ? e.message : t('errors.generic'), color: 'error' })
   } finally {
     deliverablePending.value = releaseMilestoneChecklistUpdate(deliverablePending.value, m.id)
   }
@@ -91,75 +93,93 @@ async function confirmDelete() {
     await deleteMutate({ projectId: props.projectId, id: deleteTarget.value.id })
     deleteTarget.value = null
   } catch (e) {
-    toast.error(e instanceof ApiError ? e.message : t('errors.generic'))
+    toast.add({ title: e instanceof ApiError ? e.message : t('errors.generic'), color: 'error' })
   }
 }
 </script>
 
 <template>
   <div class="space-y-3">
-    <Card class="nasq-panel">
-      <CardHeader v-if="!embedded" class="flex flex-row items-center justify-between gap-3">
+    <UCard :ui="{ body: 'p-0' }">
+      <template v-if="!embedded" #header>
         <div>
-          <CardTitle class="text-base">{{ t('projects.tabs.milestones') }}</CardTitle>
-          <CardDescription>{{ t('projects.milestones.emptyHint') }}</CardDescription>
+          <h2 class="text-lg font-semibold text-highlighted">{{ t('projects.tabs.milestones') }}</h2>
+          <p class="text-sm text-muted">{{ t('projects.milestones.emptyHint') }}</p>
         </div>
-      </CardHeader>
-      <CardContent class="p-0">
-        <div v-if="isLoading || !hydrated" class="space-y-3 p-[18px]">
-          <Skeleton v-for="n in 3" :key="n" class="h-14 w-full" />
-        </div>
-        <SharedPageState v-else-if="error" :error="error" @retry="refetch" />
-        <div v-else-if="items.length === 0" class="p-8 text-center">
-          <p class="font-medium">{{ t('projects.milestones.empty') }}</p>
-          <p class="mt-1 text-sm text-muted-foreground">{{ t('projects.milestones.emptyHint') }}</p>
-        </div>
-        <div v-else class="divide-y">
-          <div v-for="m in items" :key="m.id" data-testid="milestone-row" class="flex flex-col gap-3 px-[18px] py-4 sm:flex-row sm:items-center sm:justify-between">
-            <div class="min-w-0">
-              <div class="flex flex-wrap items-center gap-2">
-                <p class="font-medium">{{ m.name }}</p>
-                <Badge variant="outline" :class="STATUS_CHIP_CLASS[m.is_reached ? 'success' : 'neutral']">{{ t(m.is_reached ? 'projects.milestones.reached' : 'projects.milestones.notReached') }}</Badge>
-              </div>
-              <div class="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                <span>{{ t('projects.milestones.startDate') }}: {{ startText(m) }}</span>
-                <span :class="STATUS_TEXT_CLASS[deadlineTone(m)]">{{ t('projects.milestones.deadline') }}: {{ deadlineText(m) }}</span>
-                <span>{{ t('projects.milestones.tasksOf', { done: m.done_task_count, total: m.task_count }) }}</span>
-                <span>{{ t('projects.milestones.taskProgress', { percent: taskProgress(m) }) }}</span>
-                <span v-if="m.deliverables?.length">{{ t('projects.milestones.checklistOf', { done: m.deliverables.filter(item => item.done).length, total: m.deliverables.length }) }}</span>
-              </div>
-              <div v-if="m.deliverables?.length" class="mt-3 space-y-1.5">
-                <label v-for="(item, index) in m.deliverables" :key="`${m.id}-${index}`" class="flex items-center gap-2 text-sm">
-                  <input type="checkbox" :checked="item.done" :disabled="!hydrated || !canManage || isDeliverablePending(m.id)" class="size-4 rounded border-border accent-primary" @change="toggleDeliverable(m, index, $event)" />
-                  <span :class="item.done ? 'text-muted-foreground line-through' : ''">{{ item.name }}</span>
-                </label>
-              </div>
+      </template>
+      <div v-if="isLoading || !hydrated" class="space-y-3 p-[18px]">
+        <USkeleton v-for="n in 3" :key="n" class="h-14 w-full" />
+      </div>
+      <SharedPageState v-else-if="error" :error="error" @retry="refetch" />
+      <div v-else-if="items.length === 0" class="p-8 text-center">
+        <p class="font-medium text-highlighted">{{ t('projects.milestones.empty') }}</p>
+        <p class="mt-1 text-sm text-muted">{{ t('projects.milestones.emptyHint') }}</p>
+      </div>
+      <div v-else class="milestone-list divide-y divide-default">
+        <div v-for="m in items" :key="m.id" data-testid="milestone-row" class="milestone-row flex flex-col gap-3 px-[18px] py-4">
+          <div class="milestone-main min-w-0">
+            <div class="flex flex-wrap items-center gap-2">
+              <p class="font-medium">{{ m.name }}</p>
+              <UBadge variant="subtle" :color="TONE_BADGE_COLOR[m.is_reached ? 'success' : 'neutral']">{{ t(m.is_reached ? 'projects.milestones.reached' : 'projects.milestones.notReached') }}</UBadge>
             </div>
-            <div v-if="canManage" class="flex shrink-0 flex-wrap items-center gap-1">
-              <Button variant="ghost" size="sm" class="gap-1.5" :disabled="!hydrated" @click="toggleReached(m)">
-                <RotateCcw v-if="m.is_reached" class="size-4" /><CheckCircle2 v-else class="size-4" />{{ t(m.is_reached ? 'projects.milestones.reopen' : 'projects.milestones.markReached') }}
-              </Button>
-              <Button variant="ghost" size="sm" class="gap-1.5" :disabled="!hydrated" @click="openEdit(m)"><Pencil class="size-4" />{{ t('projects.milestones.edit') }}</Button>
-              <TooltipProvider v-if="m.task_count > 0" :delay-duration="0">
-                <Tooltip>
-                  <TooltipTrigger as-child><span><Button variant="ghost" size="icon" class="size-8" disabled><Trash2 class="size-4" /></Button></span></TooltipTrigger>
-                  <TooltipContent>{{ t('projects.milestones.hasTasks', { count: m.task_count }) }}</TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-              <Button v-else variant="ghost" size="icon" class="size-8 text-destructive" :disabled="!hydrated" :aria-label="t('projects.milestones.delete')" @click="deleteTarget = m"><Trash2 class="size-4" /></Button>
+            <div class="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted">
+              <span>{{ t('projects.milestones.startDate') }}: {{ startText(m) }}</span>
+              <span :class="DEADLINE_TEXT_CLASS[deadlineTone(m)]">{{ t('projects.milestones.deadline') }}: {{ deadlineText(m) }}</span>
+              <span>{{ t('projects.milestones.tasksOf', { done: m.done_task_count, total: m.task_count }) }}</span>
+              <span>{{ t('projects.milestones.taskProgress', { percent: taskProgress(m) }) }}</span>
+              <span v-if="m.deliverables?.length">{{ t('projects.milestones.checklistOf', { done: m.deliverables.filter(item => item.done).length, total: m.deliverables.length }) }}</span>
+            </div>
+            <div v-if="m.deliverables?.length" class="mt-3 space-y-1.5">
+              <label v-for="(item, index) in m.deliverables" :key="`${m.id}-${index}`" class="flex items-center gap-2 text-sm">
+                <USwitch :model-value="item.done" :disabled="!hydrated || !canManage || isDeliverablePending(m.id)" :aria-label="item.name" @update:model-value="value => toggleDeliverable(m, index, value)" />
+                <span :class="item.done ? 'text-muted line-through' : ''">{{ item.name }}</span>
+              </label>
             </div>
           </div>
+          <div v-if="canManage" class="milestone-actions flex w-full shrink-0 flex-wrap items-center gap-1">
+            <UButton
+              color="neutral"
+              variant="ghost"
+              size="sm"
+              :icon="m.is_reached ? 'i-lucide-rotate-ccw' : 'i-lucide-check-circle-2'"
+              :disabled="!hydrated"
+              :label="t(m.is_reached ? 'projects.milestones.reopen' : 'projects.milestones.markReached')"
+              @click="toggleReached(m)"
+            />
+            <UButton color="neutral" variant="ghost" size="sm" icon="i-lucide-pencil" :disabled="!hydrated" :label="t('projects.milestones.edit')" @click="openEdit(m)" />
+            <UTooltip v-if="m.task_count > 0" :text="t('projects.milestones.hasTasks', { count: m.task_count })" :delay-duration="0">
+              <span><UButton color="neutral" variant="ghost" square icon="i-lucide-trash-2" disabled /></span>
+            </UTooltip>
+            <UButton v-else color="error" variant="ghost" square icon="i-lucide-trash-2" :disabled="!hydrated" :aria-label="t('projects.milestones.delete')" @click="deleteTarget = m" />
+          </div>
         </div>
-      </CardContent>
-    </Card>
-
-    <div v-if="deleteTarget" data-testid="milestone-delete-confirm" class="nasq-status-callout-danger space-y-2 p-3 text-sm">
-      <p class="font-medium">{{ t('projects.milestones.delete') }}</p>
-      <p class="text-muted-foreground">{{ deleteTarget.name }}</p>
-      <div class="flex flex-wrap gap-2">
-        <Button variant="outline" type="button" :disabled="deleting" @click="deleteTarget = null">{{ t('app.cancel') }}</Button>
-        <Button variant="destructive" type="button" :disabled="deleting" @click="confirmDelete">{{ t('projects.milestones.delete') }}</Button>
       </div>
-    </div>
+    </UCard>
+
+    <UAlert v-if="deleteTarget" color="error" variant="soft" data-testid="milestone-delete-confirm" :title="t('projects.milestones.delete')" :description="deleteTarget.name">
+      <template #actions>
+        <UButton color="secondary" variant="solid" type="button" :disabled="deleting" :label="t('app.cancel')" @click="deleteTarget = null" />
+        <UButton color="error" type="button" :disabled="deleting" :label="t('projects.milestones.delete')" @click="confirmDelete" />
+      </template>
+    </UAlert>
   </div>
 </template>
+
+<style scoped>
+.milestone-list {
+  container-type: inline-size;
+}
+
+@container (min-width: 52rem) {
+  .milestone-row {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .milestone-actions {
+    width: auto;
+    justify-content: flex-end;
+  }
+}
+</style>

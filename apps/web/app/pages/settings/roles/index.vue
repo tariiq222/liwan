@@ -25,6 +25,11 @@ watch(() => [route.query.q, route.query.type, route.query.status, route.query.of
 const listQuery = computed(() => adminListQuery(route.query, ['q', 'type', 'status', 'offset']))
 function openRole(id: number) { void navigateTo({ path: `/settings/roles/${id}`, query: listQuery.value }) }
 function cloneRole(id: number) { void navigateTo({ path: '/settings/roles/new', query: { ...listQuery.value, clone: String(id) } }) }
+const allValue = '__all__'
+const typeOptions = computed(() => [{ value: allValue, label: t('access.roles.filters.allTypes') }, { value: 'built_in', label: t('access.roles.builtIn') }, { value: 'custom', label: t('access.roles.custom') }])
+const statusOptions = computed(() => [{ value: allValue, label: t('access.roles.filters.allStatuses') }, { value: 'active', label: t('access.active') }, { value: 'disabled', label: t('access.disabled') }])
+function onTypeChange(value: unknown) { filters.type = value === 'custom' ? 'custom' : value === 'built_in' ? 'built_in' : undefined; updateFilters() }
+function onStatusChange(value: unknown) { filters.status = value === 'disabled' ? 'disabled' : value === 'active' ? 'active' : undefined; updateFilters() }
 const sections = computed(() => forbidden.value ? [] : [
   { id: 'filters', label: t('settings.toc.filters') },
   { id: 'results', label: t('settings.toc.list') },
@@ -34,33 +39,37 @@ const sections = computed(() => forbidden.value ? [] : [
 <template>
   <SettingsLayout :sections>
     <SharedPageHeader :title="t('access.roles.title')">
-      <Button v-if="can('access.roles.manage')" :disabled="!hydrated" @click="navigateTo({ path: '/settings/roles/new', query: listQuery })">{{ t('access.roles.create') }}</Button>
+      <UButton v-if="can('access.roles.manage')" color="primary" :disabled="!hydrated" :label="t('access.roles.create')" @click="navigateTo({ path: '/settings/roles/new', query: listQuery })" />
     </SharedPageHeader>
     <SharedPageState v-if="forbidden" :empty="true" :empty-text="t('access.forbidden')" />
     <div v-else class="space-y-3">
       <div id="filters" class="nasq-settings-anchor w-full min-w-0">
         <FilterBar class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
           <template #search>
-            <label class="grid min-w-0 gap-1"><span class="sr-only">{{ t('access.roles.filters.search') }}</span><Input class="w-full" v-model="filters.q" :placeholder="t('access.roles.filters.search')" :disabled="!hydrated" @change="updateFilters" /></label>
+            <UInput v-model="filters.q" class="w-full" :aria-label="t('access.roles.filters.search')" :placeholder="t('access.roles.filters.search')" :disabled="!hydrated" @change="updateFilters" />
           </template>
           <template #default>
-            <label class="grid min-w-0 gap-1"><span>{{ t('access.roles.columns.type') }}</span><select v-model="filters.type" :disabled="!hydrated" :aria-label="t('access.roles.columns.type')" class="h-[40px] rounded-lg border border-input bg-background px-3 text-sm" @change="updateFilters"><option :value="undefined">{{ t('access.roles.filters.allTypes') }}</option><option value="built_in">{{ t('access.roles.builtIn') }}</option><option value="custom">{{ t('access.roles.custom') }}</option></select></label>
-            <label class="grid min-w-0 gap-1"><span>{{ t('access.roles.columns.status') }}</span><select v-model="filters.status" :disabled="!hydrated" :aria-label="t('access.roles.columns.status')" class="h-[40px] rounded-lg border border-input bg-background px-3 text-sm" @change="updateFilters"><option :value="undefined">{{ t('access.roles.filters.allStatuses') }}</option><option value="active">{{ t('access.active') }}</option><option value="disabled">{{ t('access.disabled') }}</option></select></label>
+            <UFormField :label="t('access.roles.columns.type')" class="min-w-0"><USelect :model-value="filters.type ?? allValue" :items="typeOptions" class="w-full" :disabled="!hydrated" :aria-label="t('access.roles.columns.type')" @update:model-value="onTypeChange" /></UFormField>
+            <UFormField :label="t('access.roles.columns.status')" class="min-w-0"><USelect :model-value="filters.status ?? allValue" :items="statusOptions" class="w-full" :disabled="!hydrated" :aria-label="t('access.roles.columns.status')" @update:model-value="onStatusChange" /></UFormField>
           </template>
           <template #active>
             <div v-if="activeFilterCount" class="flex flex-wrap items-center gap-2">
-              <Badge v-if="filters.q?.trim()" variant="secondary">{{ filters.q }}</Badge>
-              <Badge v-if="filters.type" variant="secondary">{{ filters.type === 'custom' ? t('access.roles.custom') : t('access.roles.builtIn') }}</Badge>
-              <Badge v-if="filters.status" variant="secondary">{{ filters.status === 'active' ? t('access.active') : t('access.disabled') }}</Badge>
+              <UBadge v-if="filters.q?.trim()" color="neutral" variant="subtle">{{ filters.q }}</UBadge>
+              <UBadge v-if="filters.type" color="neutral" variant="subtle">{{ filters.type === 'custom' ? t('access.roles.custom') : t('access.roles.builtIn') }}</UBadge>
+              <UBadge v-if="filters.status" color="neutral" variant="subtle">{{ filters.status === 'active' ? t('access.active') : t('access.disabled') }}</UBadge>
             </div>
           </template>
         </FilterBar>
       </div>
       <div id="results" class="nasq-settings-anchor">
-      <SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!query.isLoading.value && !query.error.value && query.data.value?.items.length === 0" :empty-text="t('access.roles.empty')" @retry="query.refetch">
-        <RoleTable :roles="query.data.value?.items ?? []" :can-manage="can('access.roles.manage')" @open="openRole" @clone="cloneRole" />
-      </SharedPageState>
-      <div v-if="pages > 1" class="nasq-settings-pagination"><Button variant="ghost" :disabled="!hydrated || page === 1 || query.isFetching.value" @click="previousPage">{{ t('access.previousPage') }}</Button><span>{{ t('access.pageOf', { page, pages }) }}</span><Button variant="ghost" :disabled="!hydrated || page >= pages || query.isFetching.value" @click="nextPage">{{ t('access.nextPage') }}</Button></div>
+        <SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!query.isLoading.value && !query.error.value && query.data.value?.items.length === 0" :empty-text="t('access.roles.empty')" @retry="query.refetch">
+          <RoleTable :roles="query.data.value?.items ?? []" :can-manage="can('access.roles.manage')" @open="openRole" @clone="cloneRole" />
+        </SharedPageState>
+        <div v-if="pages > 1" class="nasq-settings-pagination">
+          <UButton color="secondary" variant="ghost" :disabled="!hydrated || page === 1 || query.isFetching.value" :label="t('access.previousPage')" @click="previousPage" />
+          <span>{{ t('access.pageOf', { page, pages }) }}</span>
+          <UButton color="secondary" variant="ghost" :disabled="!hydrated || page >= pages || query.isFetching.value" :label="t('access.nextPage')" @click="nextPage" />
+        </div>
       </div>
     </div>
   </SettingsLayout>

@@ -5,6 +5,7 @@ import MeetingMinutesForm from '@/components/meetings/MeetingMinutesForm.vue'
 import { createMeetingMinutesForm, type MeetingMinutesFormValue, type MeetingMinutesSnapshotLike, validateMeetingMinutesForm } from '@/components/meetings/meetingMinutesForm'
 import { useMeeting, usePatchMeeting } from '@/composables/useMeetings'
 import { safeReturnTo } from '@/utils/safeReturnTo'
+import { useSsrQuerySeed } from '@/lib/vueQuerySsr'
 
 const route = useRoute()
 const { t } = useI18n()
@@ -24,7 +25,7 @@ function snapshot() {
   return JSON.stringify([agenda.value, minutes.value, minutesForm.value])
 }
 
-watch(query.data, meeting => {
+function seedMeeting(meeting: typeof query.data.value) {
   if (!meeting || loaded.value) return
   const current = meeting as typeof meeting & { minutes_form?: MeetingMinutesFormValue | null }
   const source = (meeting.state === 'done' ? (current as typeof current & { minutes_snapshot?: MeetingMinutesSnapshotLike | null }).minutes_snapshot : null) ?? current
@@ -34,7 +35,9 @@ watch(query.data, meeting => {
   minutesForm.value = createMeetingMinutesForm(source.minutes_form)
   baseline.value = snapshot()
   loaded.value = true
-}, { immediate: true })
+}
+watch(query.data, seedMeeting, { immediate: true })
+useSsrQuerySeed(query, seedMeeting)
 
 const dirty = computed(() => loaded.value && snapshot() !== baseline.value)
 const canEdit = computed(() => query.data.value?.can_edit === true)
@@ -74,13 +77,13 @@ function createRecommendation() {
   <SharedPageContainer width="form">
     <SharedPageHeader :title="t('meetingsUx.minutesEditorTitle')" :back-to="returnTo" />
     <SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!query.isLoading.value && !query.error.value && !query.data.value" @retry="query.refetch">
-      <form v-if="query.data.value" class="nasq-form nasq-panel nasq-panel-body grid gap-5" @submit.prevent="save(false)">
+      <form v-if="query.data.value" class="space-y-8" @submit.prevent="save(false)">
         <SharedUnsavedChanges :dirty="dirty" />
         <p class="rounded-lg border border-border bg-muted/30 px-3 py-2 text-sm">
           {{ t('meetingsUx.minutesEditorContext', { name: query.data.value.name }) }}
         </p>
         <p v-if="lifecycleLocked && query.data.value.can_manage" role="alert" class="text-sm text-muted-foreground">{{ t('meetingsUx.minutesEditorReopen') }} <NuxtLink :to="returnTo" class="text-brand-link underline">{{ t('meetingsUx.openMeetingForReopen') }}</NuxtLink></p>
-        <p v-else-if="!canEdit" role="alert" class="text-sm text-destructive">{{ t('meetingsUx.minutesEditorForbidden') }}</p>
+        <UAlert v-else-if="!canEdit" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('meetingsUx.minutesEditorForbidden')" />
         <MeetingMinutesDocument
           v-if="(readonlySnapshot || hasStructuredForm) && (lifecycleLocked || !canEdit)"
           :meeting="query.data.value"
@@ -102,21 +105,21 @@ function createRecommendation() {
           :pending="isPending"
           @save-and-create-resolution="createRecommendation"
         />
-        <SharedFormSection :title="t('meetingsUi.agenda')" class="grid gap-4">
+        <SharedFormSection :title="t('meetingsUi.agenda')">
           <ClientOnly>
             <DescriptionEditor :model-value="agenda" :task-id="id" :aria-label="t('meetingsUx.agendaLabel')" :readonly="!canEdit || lifecycleLocked || isPending" @draft="agenda = $event.html" />
           </ClientOnly>
         </SharedFormSection>
-        <SharedFormSection :title="t('meetingsUi.minutes')" class="grid gap-4">
+        <SharedFormSection :title="t('meetingsUi.minutes')">
           <ClientOnly>
             <DescriptionEditor :model-value="minutes" :task-id="-id" :aria-label="t('meetingsUx.minutesLabel')" :readonly="!canEdit || lifecycleLocked || isPending" @draft="minutes = $event.html" />
           </ClientOnly>
         </SharedFormSection>
-        <p v-if="structuredValidationErrors.length" role="alert" class="text-sm text-destructive">{{ t('meetingMinutesForm.validation.invalid') }}</p>
-        <p v-if="error" role="alert" class="text-sm text-destructive">{{ t('meetingsUx.errors.save') }}</p>
+        <UAlert v-if="structuredValidationErrors.length" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('meetingMinutesForm.validation.invalid')" />
+        <UAlert v-if="error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('meetingsUx.errors.save')" />
         <div class="nasq-form-footer justify-end">
-          <NuxtLink :to="returnTo"><Button type="button" variant="outline">{{ t('app.cancel') }}</Button></NuxtLink>
-          <Button type="submit" :disabled="!hydrated || isPending || !canSave">{{ t('app.save') }}</Button>
+          <UButton type="button" color="secondary" :to="returnTo" :label="t('app.cancel')" />
+          <UButton type="submit" :disabled="!hydrated || isPending || !canSave" :label="t('app.save')" />
         </div>
       </form>
     </SharedPageState>

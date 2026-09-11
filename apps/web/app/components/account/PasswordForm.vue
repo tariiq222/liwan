@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { PasswordChangeSchema } from '@nasq/contracts'
-import { toast } from 'vue-sonner'
 import { ApiError } from '@/composables/useApi'
 import { clearPasswordRefs, passwordErrorField, validatePasswordForm } from '@/composables/passwordForm'
 import { useChangePassword } from '@/composables/useChangePassword'
@@ -8,6 +7,7 @@ import { useChangePassword } from '@/composables/useChangePassword'
 const { t } = useI18n()
 const hydrated = useHydrated()
 const mutation = useChangePassword()
+const toast = useToast()
 
 const current = ref('')
 const next = ref('')
@@ -44,7 +44,7 @@ async function submit() {
     await mutation.mutateAsync(payload)
     await refreshNuxtData('me')
     success.value = true
-    toast.success(t('account.success'))
+    toast.add({ title: t('account.success'), color: 'success' })
   } catch (error) {
     const apiError = error instanceof ApiError ? error : null
     const field = apiError ? passwordErrorField(apiError.code) : null
@@ -64,40 +64,35 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <form class="grid max-w-xl gap-5" @submit.prevent="submit">
-    <div class="grid gap-2">
-      <Label for="pw-current">{{ t('account.currentPassword') }}</Label>
-      <Input
+  <UForm :state="{ current, next, confirm }" class="grid max-w-xl gap-5" method="post" @submit="submit">
+    <UFormField :label="t('account.currentPassword')" name="pw-current" :error="currentError ?? undefined">
+      <UInput
         id="pw-current" v-model="current" data-testid="pw-current" type="password"
-        autocomplete="current-password" dir="ltr" class="text-start"
-        :disabled="disabled" :aria-invalid="!!currentError" :aria-describedby="currentError ? 'pw-current-error' : undefined"
+        autocomplete="current-password" dir="ltr" class="w-full text-start"
+        :disabled="disabled"
       />
-      <p v-if="currentError" id="pw-current-error" role="alert" class="text-sm text-destructive">{{ currentError }}</p>
-    </div>
+      <template #error><span v-if="currentError" role="alert">{{ currentError }}</span></template>
+    </UFormField>
 
-    <div class="grid gap-2">
-      <Label for="pw-new">{{ t('account.newPassword') }}</Label>
-      <Input
+    <UFormField :label="t('account.newPassword')" name="pw-new" :error="newError ?? undefined">
+      <UInput
         id="pw-new" v-model="next" data-testid="pw-new" type="password"
-        autocomplete="new-password" dir="ltr" class="text-start"
-        :disabled="disabled" :aria-invalid="!!newError" :aria-describedby="newError ? 'pw-new-error' : undefined"
+        autocomplete="new-password" dir="ltr" class="w-full text-start"
+        :disabled="disabled"
       />
-      <p v-if="newError" id="pw-new-error" role="alert" class="text-sm text-destructive">{{ newError }}</p>
-    </div>
+      <template #error><span v-if="newError" role="alert">{{ newError }}</span></template>
+    </UFormField>
 
-    <div class="grid gap-2">
-      <Label for="pw-confirm">{{ t('account.confirmPassword') }}</Label>
-      <Input
+    <UFormField :label="t('account.confirmPassword')" name="pw-confirm" :error="formError ?? undefined">
+      <UInput
         id="pw-confirm" v-model="confirm" data-testid="pw-confirm" type="password"
-        autocomplete="new-password" dir="ltr" class="text-start"
-        :disabled="disabled" :aria-invalid="!!formError" :aria-describedby="formError ? 'pw-form-error' : undefined"
+        autocomplete="new-password" dir="ltr" class="w-full text-start"
+        :disabled="disabled"
       />
-    </div>
+      <template #error><span v-if="formError" role="alert">{{ formError }}</span></template>
+    </UFormField>
 
-    <p v-if="formError" id="pw-form-error" role="alert" class="text-sm text-destructive">{{ formError }}</p>
-    <p v-if="success" role="status" class="text-sm nasq-status-text-success">{{ t('account.success') }}</p>
-    <Button type="submit" data-testid="pw-submit" class="w-full sm:w-auto" :disabled="disabled">
-      {{ t('account.submit') }}
-    </Button>
-  </form>
+    <p v-if="success" role="status" class="text-sm text-success">{{ t('account.success') }}</p>
+    <UButton type="submit" data-testid="pw-submit" color="primary" class="w-full sm:w-auto" :label="t('account.submit')" :disabled="disabled" />
+  </UForm>
 </template>

@@ -92,18 +92,14 @@ function loadUnsavedChanges(): Component {
   const runnable = ts.transpileModule(compiled, {
     compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.None },
   }).outputText
-  const factory = new Function(
-    '_defineComponent', '_unref', '_createVNode', '_createTextVNode', '_toDisplayString', '_withCtx', '_resolveComponent',
-    '_createElementVNode', '_withModifiers', '_openBlock', '_createBlock', '_normalizeClass', 'onBeforeRouteLeave',
-    'onBeforeRouteUpdate', 'AlertDialogRoot', 'AlertDialogPortal', 'AlertDialogOverlay', 'AlertDialogContent',
-    'AlertDialogTitle', 'AlertDialogDescription', 'AlertDialogCancel', 'ref', 'watch', 'computed', 'inject', 'isWorkspaceOverlayRoute', 'PROJECT_OVERLAY_INJECTION_KEY', 'wantsProjectOverlayFullPage', 'navigateTo', runnable,
-  )
-  return factory(
-    Vue.defineComponent, Vue.unref, Vue.createVNode, Vue.createTextVNode, Vue.toDisplayString, Vue.withCtx, Vue.resolveComponent,
-    Vue.createElementVNode, Vue.withModifiers, Vue.openBlock, Vue.createBlock, Vue.normalizeClass, VueRouter.onBeforeRouteLeave,
-    VueRouter.onBeforeRouteUpdate, passthrough, passthrough, passthrough, passthrough, passthrough,
-    passthrough, passthrough, Vue.ref, Vue.watch, Vue.computed, Vue.inject, isWorkspaceOverlayRoute, PROJECT_OVERLAY_INJECTION_KEY, wantsProjectOverlayFullPage, (...args: Parameters<typeof router.push>) => router.push(...args),
-  ) as Component
+  const bindings: Record<string, unknown> = {
+    ...Object.fromEntries(Object.entries(Vue).map(([name, value]) => [`_${name}`, value])),
+    onBeforeRouteLeave: VueRouter.onBeforeRouteLeave, onBeforeRouteUpdate: VueRouter.onBeforeRouteUpdate,
+    onMounted: () => undefined, onBeforeUnmount: () => undefined, ref: Vue.ref, watch: Vue.watch, computed: Vue.computed, inject: Vue.inject,
+    isWorkspaceOverlayRoute, PROJECT_OVERLAY_INJECTION_KEY, wantsProjectOverlayFullPage,
+    navigateTo: (...args: Parameters<typeof router.push>) => router.push(...args),
+  }
+  return new Function(...Object.keys(bindings), runnable)(...Object.values(bindings)) as Component
 }
 
 afterEach(() => {
@@ -132,7 +128,11 @@ describe('SharedUnsavedChanges route update guard', () => {
     await router.isReady()
 
     const app = renderer.createApp(defineComponent({ render: () => h(RouterView) }))
-    app.component('Button', button)
+    app.component('UButton', button)
+    app.component('UModal', defineComponent({
+      props: { open: Boolean, content: Object },
+      setup(props, { slots }) { return () => props.open ? h('div', props.content, slots.footer?.()) : null },
+    }))
     app.config.globalProperties.$t = (key: string) => key
     app.use(router)
     const host = createHostNode()
@@ -175,7 +175,11 @@ describe('SharedUnsavedChanges route update guard', () => {
     await router.isReady()
 
     const app = renderer.createApp(defineComponent({ render: () => h(RouterView) }))
-    app.component('Button', button)
+    app.component('UButton', button)
+    app.component('UModal', defineComponent({
+      props: { open: Boolean, content: Object },
+      setup(props, { slots }) { return () => props.open ? h('div', props.content, slots.footer?.()) : null },
+    }))
     app.config.globalProperties.$t = (key: string) => key
     app.use(router)
     const host = createHostNode()

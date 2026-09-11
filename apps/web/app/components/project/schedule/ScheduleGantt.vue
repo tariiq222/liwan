@@ -49,15 +49,16 @@ const barClass = (state: string) => BAR_TONE[(STATE_TONE as Record<string, State
 </script>
 
 <template>
-  <Card class="nasq-panel overflow-hidden">
-    <CardHeader v-if="!embedded" class="flex flex-row flex-wrap items-center justify-between gap-3">
-      <CardTitle>{{ t('projects.schedule.timeline') }}</CardTitle>
-      <div class="flex rounded-lg border p-0.5" role="group" :aria-label="t('projects.schedule.scale')">
-        <Button type="button" size="sm" class="h-8 rounded-md" :variant="scale === 'week' ? 'default' : 'ghost'" :disabled="!hydrated" :aria-pressed="scale === 'week'" @click="emit('update:scale', 'week')">{{ t('projects.schedule.week') }}</Button>
-        <Button type="button" size="sm" class="h-8 rounded-md" :variant="scale === 'month' ? 'default' : 'ghost'" :disabled="!hydrated" :aria-pressed="scale === 'month'" @click="emit('update:scale', 'month')">{{ t('projects.schedule.month') }}</Button>
+  <UCard class="overflow-hidden" :ui="{ body: 'p-0' }">
+    <template v-if="!embedded" #header>
+      <div class="flex w-full flex-row flex-wrap items-center justify-between gap-3">
+        <h2 class="text-lg font-semibold text-highlighted">{{ t('projects.schedule.timeline') }}</h2>
+        <div class="flex rounded-lg border border-default p-0.5" role="group" :aria-label="t('projects.schedule.scale')">
+          <UButton type="button" size="sm" :color="scale === 'week' ? 'primary' : 'neutral'" :variant="scale === 'week' ? 'solid' : 'ghost'" :disabled="!hydrated" :aria-pressed="scale === 'week'" @click="emit('update:scale', 'week')">{{ t('projects.schedule.week') }}</UButton>
+          <UButton type="button" size="sm" :color="scale === 'month' ? 'primary' : 'neutral'" :variant="scale === 'month' ? 'solid' : 'ghost'" :disabled="!hydrated" :aria-pressed="scale === 'month'" @click="emit('update:scale', 'month')">{{ t('projects.schedule.month') }}</UButton>
+        </div>
       </div>
-    </CardHeader>
-    <CardContent class="p-0">
+    </template>
       <div class="nasq-gantt">
         <div class="nasq-gantt-grid" :style="gridStyle">
           <div class="nasq-gantt-name nasq-gantt-corner">{{ t('projects.schedule.task') }}</div>
@@ -91,7 +92,7 @@ const barClass = (state: string) => BAR_TONE[(STATE_TONE as Record<string, State
             <NuxtLink class="nasq-gantt-name nasq-gantt-task" :to="taskLink(task.id)" :title="task.name">
               <span class="min-w-0 w-full">
                 <span class="block truncate">{{ task.name }}</span>
-                <span class="block text-xs font-normal text-muted-foreground">{{ stateLabel(task.state) }}</span>
+                <span class="block text-xs font-normal text-muted">{{ stateLabel(task.state) }}</span>
               </span>
             </NuxtLink>
             <div class="nasq-gantt-track">
@@ -129,6 +130,5 @@ const barClass = (state: string) => BAR_TONE[(STATE_TONE as Record<string, State
       <ul v-if="datedMilestones.length" class="nasq-gantt-legend" :aria-label="t('projects.schedule.milestones')">
         <li v-for="milestone in datedMilestones" :key="milestone.id">{{ milestone.name }} · {{ formatScheduleDate(milestone.deadline!, locale) }}</li>
       </ul>
-    </CardContent>
-  </Card>
+  </UCard>
 </template>

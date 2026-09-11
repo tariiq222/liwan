@@ -60,6 +60,7 @@ async function renderShared(
   if (name === 'FilterBar') return renderFilter(name, props, slots)
   const app = createSSRApp({ render: () => h(loadShared(name), props, slots) })
   app.component('NuxtLink', NuxtLinkStub)
+  app.component('UButton', NuxtLinkStub)
   return renderToString(app)
 }
 
@@ -102,7 +103,7 @@ describe('shared composition rendered contracts', () => {
     expect(searchMarker).toBeGreaterThanOrEqual(0)
     expect(controlsMarker).toBeGreaterThan(searchMarker)
     expect(viewMarker).toBeGreaterThanOrEqual(0)
-    expect(viewMarker).toBeLessThan(searchMarker)
+    // Filters are in a popover; slot DOM order no longer describes visual order.
     expect(activeRowMarker).toBeGreaterThan(controlsMarker)
   })
 
@@ -114,13 +115,13 @@ describe('shared composition rendered contracts', () => {
     expect(source).not.toMatch(/max-w-(2xl|3xl|4xl|5xl|7xl)/)
   })
 
-  it('renders FormSection title and description with the shared section class', async () => {
+  it('renders FormSection title and description with reference section spacing', async () => {
     const html = await renderShared(
       'FormSection',
       { title: 'General', description: 'Identity fields' },
       { default: () => h('input', { 'aria-label': 'Name' }) },
     )
-    expect(html).toContain('nasq-form-section')
+    expect(html).toContain('<section class="space-y-5">')
     expect(html).toContain('General')
     expect(html).toContain('Identity fields')
     expect(html).toContain('aria-label="Name"')

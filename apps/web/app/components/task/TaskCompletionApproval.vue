@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { TaskDetail } from '@nasq/contracts'
 import { useQueryClient } from '@tanstack/vue-query'
-import { toast } from 'vue-sonner'
 import { ApiError } from '@/composables/useApi'
 import {
   taskKeys,
@@ -14,6 +13,7 @@ import {
 const props = defineProps<{ task: TaskDetail }>()
 const { t } = useI18n()
 const hydrated = useHydrated()
+const toast = useToast()
 const qc = useQueryClient()
 const note = ref('')
 const { mutateAsync: requestCompletion, isPending: requesting } = useRequestTaskCompletion()
@@ -47,7 +47,7 @@ const showHint = computed(() => (
 ))
 
 async function recover(error: unknown) {
-  toast.error(error instanceof ApiError ? error.message : t('errors.generic'))
+  toast.add({ title: error instanceof ApiError ? error.message : t('errors.generic'), color: 'error' })
   await qc.invalidateQueries({ queryKey: taskKeys.detail(props.task.id) })
 }
 
@@ -95,7 +95,7 @@ async function withdraw() {
     <h2 class="text-sm font-medium">{{ t('tasks.completion.title') }}</h2>
     <p
       v-if="blockedReason === 'no_reviewer'"
-      class="text-sm text-destructive"
+      class="text-sm text-error"
       data-testid="task-completion-blocked"
       role="alert"
     >
@@ -103,21 +103,21 @@ async function withdraw() {
     </p>
     <p
       v-else-if="blockedReason === 'reviewer_ineligible'"
-      class="text-sm text-destructive"
+      class="text-sm text-error"
       data-testid="task-completion-blocked"
       role="alert"
     >
       {{ t('tasks.completion.reviewerIneligible') }}
     </p>
-    <p v-if="task.completion_pending" class="text-sm text-muted-foreground" data-testid="task-completion-pending">
+    <p v-if="task.completion_pending" class="text-sm text-muted" data-testid="task-completion-pending">
       {{ t('tasks.completion.pending') }}
     </p>
-    <p v-if="blockedReason && canWithdraw" class="text-sm text-muted-foreground">
+    <p v-if="blockedReason && canWithdraw" class="text-sm text-muted">
       {{ t('tasks.completion.contactManager') }}
     </p>
-    <p v-else-if="task.completion_return_note" class="text-sm text-muted-foreground">{{ t('tasks.completion.returned', { note: task.completion_return_note }) }}</p>
-    <p v-else-if="showHint" class="text-sm text-muted-foreground">{{ t('tasks.completion.hint') }}</p>
-    <Button
+    <p v-else-if="task.completion_return_note" class="text-sm text-muted">{{ t('tasks.completion.returned', { note: task.completion_return_note }) }}</p>
+    <p v-else-if="showHint" class="text-sm text-muted">{{ t('tasks.completion.hint') }}</p>
+    <UButton
       v-if="canRequest"
       type="button"
       data-testid="task-completion-request"
@@ -125,8 +125,8 @@ async function withdraw() {
       @click="request"
     >
       {{ t('tasks.completion.request') }}
-    </Button>
-    <Button
+    </UButton>
+    <UButton
       v-if="canWithdraw"
       type="button"
       variant="outline"
@@ -135,8 +135,8 @@ async function withdraw() {
       @click="withdraw"
     >
       {{ t('tasks.completion.withdraw') }}
-    </Button>
-    <Button
+    </UButton>
+    <UButton
       v-if="canAccept"
       type="button"
       data-testid="task-completion-accept"
@@ -144,19 +144,19 @@ async function withdraw() {
       @click="accept"
     >
       {{ t('tasks.completion.accept') }}
-    </Button>
+    </UButton>
     <div v-if="canReturn" class="grid gap-2">
-      <Label for="completion-note">{{ t('tasks.completion.note') }}</Label>
-      <textarea
+      <label for="completion-note">{{ t('tasks.completion.note') }}</label>
+      <UTextarea
         id="completion-note"
         v-model="note"
         data-testid="task-completion-note"
-        class="min-h-20 rounded-md border bg-background p-2 text-sm"
+        class="min-h-20 rounded-md border bg-default p-2 text-sm"
         :disabled="!hydrated || busy"
       />
-      <Button type="button" variant="outline" data-testid="task-completion-return" :disabled="!hydrated || busy || !note.trim()" @click="returnTask">
+      <UButton type="button" variant="outline" data-testid="task-completion-return" :disabled="!hydrated || busy || !note.trim()" @click="returnTask">
         {{ t('tasks.completion.return') }}
-      </Button>
+      </UButton>
     </div>
   </section>
 </template>

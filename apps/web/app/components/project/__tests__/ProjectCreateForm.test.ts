@@ -67,7 +67,7 @@ function loadForm(setup: () => Record<string, unknown>) {
 
 async function renderForm(setup: () => Record<string, unknown>) {
   const app = createSSRApp({ render: () => h(loadForm(setup)) })
-  app.component('Button', Passthrough)
+  app.component('UButton', Passthrough)
   app.component('ProjectCharterForm', CharterFormStub)
   app.component('NuxtLink', NuxtLinkStub)
   return renderToString(app)

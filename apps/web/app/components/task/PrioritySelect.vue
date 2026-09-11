@@ -17,6 +17,8 @@ const hydrated = useHydrated()
 
 const PRIORITIES = ['0', '1', '2', '3'] as const
 
+const items = computed(() => PRIORITIES.map((p) => ({ label: t(PRIORITY_LABEL_KEY[p]), value: p })))
+
 function onChange(value: unknown) {
   const priority = String(value) as (typeof PRIORITIES)[number]
   if (priority === props.task.priority) return
@@ -26,12 +28,15 @@ function onChange(value: unknown) {
 
 <template>
   <span v-if="!task.can_write" class="text-sm">{{ t(PRIORITY_LABEL_KEY[task.priority]) }}</span>
-  <Select v-else :model-value="task.priority" @update:model-value="onChange">
-    <SelectTrigger size="sm" class="w-full" :aria-label="t('tasks.columns.priority')" :disabled="isPending || !hydrated" :aria-labelledby="props.labelledby">
-      <SelectValue />
-    </SelectTrigger>
-    <SelectContent>
-      <SelectItem v-for="p in PRIORITIES" :key="p" :value="p">{{ t(PRIORITY_LABEL_KEY[p]) }}</SelectItem>
-    </SelectContent>
-  </Select>
+  <USelect
+    v-else
+    size="sm"
+    class="w-full"
+    :items="items"
+    :model-value="task.priority"
+    :aria-label="t('tasks.columns.priority')"
+    :disabled="isPending || !hydrated"
+    :aria-labelledby="props.labelledby"
+    @update:model-value="onChange"
+  />
 </template>

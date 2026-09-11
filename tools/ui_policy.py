@@ -24,6 +24,8 @@ THEME_OWNERS = {
     APP + 'assets/css/main.css',
     APP + 'assets/css/approved-shell.css',
     APP + 'assets/css/project-theme.css',
+    APP + 'assets/css/nuxt-theme.css',
+    APP + 'assets/css/nuxt-shell.css',
     APP + 'utils/brandTheme.ts',
     APP + 'app.config.ts',
     PREVIEW + 'assets/theme.css',
@@ -73,7 +75,10 @@ def findings(path: str, source: str, names: set[str], allowed: set[str], has_ui:
     # expressions. Use compiler ASTs if dynamic aliases become a recurring gap.
     source = COMMENTS.sub('', source)
     result: Counter = Counter()
-    for match in IMPORTS.finditer(source):
+    # Template attribute values such as date-from must not be parsed as imports.
+    scriptless = re.sub(r'<script\b[^>]*>[\s\S]*?</script\s*>', '', source, flags=re.I) if path.endswith('.vue') else ''
+    import_source = re.sub(r'<template\b[^>]*>[\s\S]*</template\s*>', '', source, flags=re.I) if path.endswith('.vue') else source
+    for match in IMPORTS.finditer(import_source):
         specifier = match.group(2)
         resolved = posixpath.normpath(posixpath.join(posixpath.dirname(path), specifier))
         if ('components/ui/' in specifier or specifier.endswith('components/ui')
@@ -88,7 +93,7 @@ def findings(path: str, source: str, names: set[str], allowed: set[str], has_ui:
                 result['Nuxt UI is not declared in apps/web/package.json'] += 1
 
     # Nuxt auto-imported legacy components and explicit #components aliases.
-    tags = re.findall(r'<([A-Z][\w-]*|[a-z][\w]*-[\w-]+)\b', source)
+    tags = re.findall(r'<([A-Z][\w-]*|[a-z][\w]*-[\w-]+)\b', scriptless if path.endswith('.vue') else source)
     for group in re.findall(r'''(?:import|export)\s*\{([^}]+)\}\s*from\s*['"]#components['"]''', source):
         tags.extend(re.findall(r'\b\w+\b', group))
     tags.extend(re.findall(r'''resolveComponent\(\s*['"]([\w-]+)['"]''', source))

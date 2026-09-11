@@ -60,20 +60,29 @@ const sections = computed(() => role.data.value ? [
 <template>
   <SettingsLayout :sections width="detail">
     <SharedPageHeader :title="role.data.value?.name[locale === 'ar' ? 'ar' : 'en'] ?? role.data.value?.name.ar ?? t('access.roles.title')" :back-to="returnTo">
-      <Button v-if="role.data.value?.allowed_actions.includes('edit')" variant="outline" :disabled="!role.data.value" @click="navigateTo(editTo)">{{ t('access.roles.editTitle') }}</Button>
-      <Button v-if="role.data.value?.allowed_actions.includes('clone')" variant="outline" :disabled="!role.data.value" @click="navigateTo(cloneTo)">{{ t('access.roles.clone') }}</Button>
-      <Button v-if="role.data.value?.allowed_actions.includes('disable')" variant="outline" :disabled="!hydrated || actionBusy" @click="requestAction('disable')">{{ pendingAction === 'disable' ? t('access.roles.confirmAction') : t('access.roles.disable') }}</Button>
-      <Button v-if="role.data.value?.allowed_actions.includes('enable')" variant="outline" :disabled="!hydrated || actionBusy" @click="requestAction('enable')">{{ pendingAction === 'enable' ? t('access.roles.confirmAction') : t('access.roles.enable') }}</Button>
-      <Button v-if="role.data.value?.allowed_actions.includes('delete')" variant="destructive" :disabled="!hydrated || actionBusy" @click="requestAction('delete')">{{ pendingAction === 'delete' ? t('access.roles.confirmAction') : t('access.roles.delete') }}</Button>
+      <UButton v-if="role.data.value?.allowed_actions.includes('edit')" color="secondary" variant="outline" :disabled="!role.data.value" :label="t('access.roles.editTitle')" @click="navigateTo(editTo)" />
+      <UButton v-if="role.data.value?.allowed_actions.includes('clone')" color="secondary" variant="outline" :disabled="!role.data.value" :label="t('access.roles.clone')" @click="navigateTo(cloneTo)" />
+      <UButton v-if="role.data.value?.allowed_actions.includes('disable')" color="secondary" variant="outline" :disabled="!hydrated || actionBusy" :label="pendingAction === 'disable' ? t('access.roles.confirmAction') : t('access.roles.disable')" @click="requestAction('disable')" />
+      <UButton v-if="role.data.value?.allowed_actions.includes('enable')" color="secondary" variant="outline" :disabled="!hydrated || actionBusy" :label="pendingAction === 'enable' ? t('access.roles.confirmAction') : t('access.roles.enable')" @click="requestAction('enable')" />
+      <UButton v-if="role.data.value?.allowed_actions.includes('delete')" color="error" :disabled="!hydrated || actionBusy" :label="pendingAction === 'delete' ? t('access.roles.confirmAction') : t('access.roles.delete')" @click="requestAction('delete')" />
     </SharedPageHeader>
-    <nav class="nasq-tabs" :aria-label="t('access.roles.navigation')"><NuxtLink :to="route.path" aria-current="page">{{ t('access.roles.permissions') }}</NuxtLink><NuxtLink v-if="can('access.users.read')" to="#assigned-users">{{ t('access.roles.assignedUsers') }}</NuxtLink><NuxtLink v-if="can('access.audit.read')" :to="`/settings/access-log?target_type=role&target_id=${id}`">{{ t('access.roles.changes') }}</NuxtLink></nav>
+    <nav class="flex flex-wrap gap-2 border-b border-default pb-2" :aria-label="t('access.roles.navigation')"><UButton color="neutral" variant="soft" :to="route.path" aria-current="page">{{ t('access.roles.permissions') }}</UButton><UButton color="neutral" variant="ghost" v-if="can('access.users.read')" to="#assigned-users">{{ t('access.roles.assignedUsers') }}</UButton><UButton color="neutral" variant="ghost" v-if="can('access.audit.read')" :to="`/settings/access-log?target_type=role&target_id=${id}`">{{ t('access.roles.changes') }}</UButton></nav>
     <SharedPageState v-if="forbidden" :empty="true" :empty-text="t('access.forbidden')" />
-    <p v-else-if="versionConflict" role="alert" class="text-sm text-destructive">{{ t('access.roles.conflict') }}</p>
+    <UAlert v-else-if="versionConflict" role="alert" color="error" variant="subtle" :title="t('access.roles.conflict')" />
     <SharedPageState v-else :loading="role.isLoading.value" :error="role.error.value" :empty="!role.data.value" :empty-text="t('access.notFound')" @retry="role.refetch">
-      <div v-if="role.data.value" class="nasq-panel nasq-panel-body">
-        <section id="permissions" class="nasq-form-section nasq-settings-anchor"><RolePermissionForm :role="role.data.value" :permissions="catalog.data.value?.items ?? []" :readonly="true" /></section>
-        <p v-if="actionError" role="alert" class="text-sm text-destructive">{{ actionError }}</p>
-        <section v-if="can('access.users.read')" id="assigned-users" class="nasq-form-section nasq-settings-anchor min-w-0 space-y-3"><h2 class="nasq-settings-section-heading">{{ t('access.roles.assignedUsers') }}</h2><SharedPageState :loading="assignedUsers.isLoading.value" :error="assignedUsers.error.value" :empty="!assignedUsers.isLoading.value && !assignedUsers.error.value && assignedUsers.data.value?.items.length === 0" :empty-text="t('access.roles.noAssignedUsers')" @retry="assignedUsers.refetch"><UserTable :users="assignedUsers.data.value?.items ?? []" @open="openUser" /><template v-if="assignedUsers.data.value && assignedUsers.data.value.total > assignedUsers.data.value.items.length"><p class="text-sm text-muted-foreground">{{ t('access.roles.assignedUsersCount', { count: assignedUsers.data.value.total }) }}</p><NuxtLink class="text-sm font-medium text-primary hover:underline" :to="{ path: '/settings/users', query: { role_id: id } }">{{ t('access.roles.viewAllAssignedUsers') }}</NuxtLink></template></SharedPageState></section>
+      <div v-if="role.data.value" class="space-y-6">
+        <UCard id="permissions" class="nasq-settings-anchor"><RolePermissionForm :role="role.data.value" :permissions="catalog.data.value?.items ?? []" :readonly="true" /></UCard>
+        <UAlert v-if="actionError" role="alert" color="error" variant="subtle" :title="actionError" />
+        <UCard v-if="can('access.users.read')" id="assigned-users" class="nasq-settings-anchor min-w-0">
+          <template #header><h2 class="text-lg font-semibold text-highlighted">{{ t('access.roles.assignedUsers') }}</h2></template>
+          <SharedPageState :loading="assignedUsers.isLoading.value" :error="assignedUsers.error.value" :empty="!assignedUsers.isLoading.value && !assignedUsers.error.value && assignedUsers.data.value?.items.length === 0" :empty-text="t('access.roles.noAssignedUsers')" @retry="assignedUsers.refetch">
+            <UserTable :users="assignedUsers.data.value?.items ?? []" @open="openUser" />
+            <template v-if="assignedUsers.data.value && assignedUsers.data.value.total > assignedUsers.data.value.items.length">
+              <p class="mt-3 text-sm text-muted">{{ t('access.roles.assignedUsersCount', { count: assignedUsers.data.value.total }) }}</p>
+              <UButton color="secondary" variant="link" class="p-0" :to="{ path: '/settings/users', query: { role_id: id } }" :label="t('access.roles.viewAllAssignedUsers')" />
+            </template>
+          </SharedPageState>
+        </UCard>
       </div>
     </SharedPageState>
   </SettingsLayout>

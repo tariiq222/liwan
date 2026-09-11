@@ -23,13 +23,13 @@ function saved() { void navigateTo({ path: `/hr/employees/${id.value}`, query: r
       :empty="!query.data.value"
       @retry="retryDependencies"
     >
-      <section v-if="query.data.value" class="nasq-panel nasq-panel-body">
+      <UCard v-if="query.data.value">
         <EmployeeGeneralForm :employee="query.data.value" :departments="departments.data.value?.items ?? []" :employees="employees.data.value?.items ?? []" @saved="saved">
           <template #actions>
-            <Button as-child type="button" variant="outline"><NuxtLink :to="returnTo" @click="!hydrated && $event.preventDefault()">{{ t('app.cancel') }}</NuxtLink></Button>
+            <UButton type="button" color="secondary" variant="solid" :disabled="!hydrated" :to="returnTo" :label="t('app.cancel')" @click="!hydrated && $event.preventDefault()" />
           </template>
         </EmployeeGeneralForm>
-      </section>
+      </UCard>
     </SharedPageState>
     <SharedPageState v-if="canManage && initialDataReady && dependencyError" :error="dependencyError" @retry="retryDependencies" />
   </SharedPageContainer>

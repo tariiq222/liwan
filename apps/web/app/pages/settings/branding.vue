@@ -10,8 +10,8 @@ const forbidden = computed(() => !can('settings.branding.manage'))
 <template>
   <SettingsLayout width="form">
     <SharedPageHeader :title="t('settings.branding.title')" />
-    <p v-if="forbidden" class="text-muted-foreground">{{ t('settings.forbidden') }}</p>
-    <div v-else class="nasq-panel nasq-panel-body">
+    <p v-if="forbidden" class="text-muted">{{ t('settings.forbidden') }}</p>
+    <div v-else class="space-y-6">
       <BrandingForm />
     </div>
   </SettingsLayout>

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Task } from '@nasq/contracts'
 import { refDebounced } from '@vueuse/core'
-import { Check, X } from '@lucide/vue'
+import { X } from '@lucide/vue'
 import { usePeople } from '@/composables/usePeople'
 
 type PersonRef = Task['assignees'][number]
@@ -14,7 +14,6 @@ const props = defineProps<{ modelValue: PersonRef[]; labelledby?: string }>()
 const emit = defineEmits<{ 'update:modelValue': [{ ids: number[]; resolved: PersonRef[] }] }>()
 
 const { t } = useI18n()
-const open = ref(false)
 const q = ref('')
 // Debounced: usePeople keys its query on the search term, so passing the raw
 // input ref fired one request per keystroke.
@@ -22,65 +21,65 @@ const debouncedQ = refDebounced(q, 250)
 const { data: people } = usePeople(debouncedQ)
 
 const selectedIds = computed(() => new Set(props.modelValue.map((p) => p.id)))
-const selectedNames = computed(() => props.modelValue.map(p => p.name).join('، ') || t('tasks.drawer.unassigned'))
 
-function isSelected(id: number) {
-  return selectedIds.value.has(id)
-}
+const peopleItems = computed(() => (people.value ?? []).map((p) => ({ label: p.name, value: p.id })))
 
 function commit(next: PersonRef[]) {
   emit('update:modelValue', { ids: next.map((p) => p.id), resolved: next })
 }
 
-function toggle(person: PersonRef) {
-  commit(isSelected(person.id) ? props.modelValue.filter((p) => p.id !== person.id) : [...props.modelValue, person])
-}
-
 function remove(id: number) {
   commit(props.modelValue.filter((p) => p.id !== id))
+}
+
+// USelectMenu emits the full list of selected values on every change; this
+// picker's contract needs the resolved PersonRef objects, not just ids, so
+// unmatched ids fall back to the already-selected ref (still in modelValue)
+// or the currently loaded search results (freshly picked).
+function onSelectMenuChange(ids: number[]) {
+  const byId = new Map<number, PersonRef>()
+  for (const p of props.modelValue) byId.set(p.id, p)
+  for (const p of people.value ?? []) byId.set(p.id, p)
+  commit(ids.map((id) => byId.get(id)).filter((p): p is PersonRef => !!p))
 }
 </script>
 
 <template>
   <div class="space-y-2">
     <div class="flex flex-wrap gap-1">
-      <Badge v-for="p in modelValue" :key="p.id" variant="secondary" class="min-w-0 max-w-full gap-1 pe-1">
+      <UBadge v-for="p in modelValue" :key="p.id" variant="subtle" class="min-w-0 max-w-full gap-1 pe-1">
         <span class="min-w-0 max-w-full truncate" :title="p.name">{{ p.name }}</span>
-        <button
+        <UButton
           type="button"
-          class="rounded-full hover:bg-muted-foreground/20"
+          color="neutral"
+          variant="ghost"
+          square
+          size="xs"
+          class="rounded-full hover:bg-elevated/50"
           :aria-label="t('tasks.drawer.removeAssignee')"
           @click="remove(p.id)"
         >
           <X class="size-3" />
-        </button>
-      </Badge>
-      <span v-if="modelValue.length === 0" class="text-sm text-muted-foreground">{{ t('tasks.drawer.unassigned') }}</span>
+        </UButton>
+      </UBadge>
+      <span v-if="modelValue.length === 0" class="text-sm text-muted">{{ t('tasks.drawer.unassigned') }}</span>
     </div>
 
-    <Popover v-model:open="open">
-      <PopoverTrigger as-child>
-        <Button variant="outline" size="sm" type="button" :aria-labelledby="props.labelledby ? `${props.labelledby} task-assignees-value` : 'task-assignees-value'">
-          <span id="task-assignees-value" class="sr-only">{{ selectedNames }}</span>
-          <span aria-hidden="true">{{ t('tasks.drawer.assignees') }}</span>
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent class="w-64 p-0" align="start">
-        <div class="border-b p-2">
-          <Input v-model="q" :placeholder="t('app.search')" class="h-8" />
-        </div>
-        <Command>
-          <CommandList>
-            <CommandEmpty>{{ t('app.noResults') }}</CommandEmpty>
-            <CommandGroup>
-              <CommandItem v-for="p in people ?? []" :key="p.id" :value="String(p.id)" @select="toggle({ id: p.id, name: p.name })">
-                <span class="flex-1">{{ p.name }}</span>
-                <Check v-if="isSelected(p.id)" class="size-4" />
-              </CommandItem>
-            </CommandGroup>
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
+    <USelectMenu
+      v-model:search-term="q"
+      :model-value="[...selectedIds]"
+      :items="peopleItems"
+      :ignore-filter="true"
+      multiple
+      value-key="value"
+      variant="outline"
+      size="sm"
+      :placeholder="t('tasks.drawer.assignees')"
+      :search-input="{ placeholder: t('app.search') }"
+      :aria-labelledby="props.labelledby"
+      @update:model-value="onSelectMenuChange"
+    >
+        <template #default><span class="truncate">{{ modelValue.length ? modelValue.map(person => person.name).join('، ') : t('tasks.drawer.assignees') }}</span></template>
+    </USelectMenu>
   </div>
 </template>

@@ -9,12 +9,13 @@ const isEdit = computed(() => route.path.endsWith('/edit'))
 <template>
   <SharedPageContainer v-if="!isEdit" width="detail">
     <SharedPageHeader :title="query.data.value?.name || t('hr.docs.title')" :description="query.data.value?.department.name" :back-to="returnTo">
-      <Button v-if="query.data.value && can('hr.documents.manage')" as-child :disabled="!hydrated"><NuxtLink :to="{ path: `/hr/departments/${id}/documents/${documentId}/edit`, query: returnToQuery(route.fullPath) }" @click="!hydrated && $event.preventDefault()">{{ t('app.edit') }}</NuxtLink></Button>
+      <UButton v-if="query.data.value && can('hr.documents.manage')" color="primary" :disabled="!hydrated" :to="{ path: `/hr/departments/${id}/documents/${documentId}/edit`, query: returnToQuery(route.fullPath) }" :label="t('app.edit')" @click="!hydrated && $event.preventDefault()" />
     </SharedPageHeader>
     <SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!query.data.value" @retry="query.refetch">
-      <SharedFormSection v-if="query.data.value" panel :title="t('hr.docs.body')">
+      <UCard v-if="query.data.value">
+        <template #header><h2 class="text-lg font-semibold text-highlighted">{{ t('hr.docs.body') }}</h2></template>
         <DocumentReader :document="query.data.value" hide-title />
-      </SharedFormSection>
+      </UCard>
     </SharedPageState>
   </SharedPageContainer>
   <NuxtPage v-else />

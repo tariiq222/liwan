@@ -1,25 +1,24 @@
 <script setup lang="ts">
 import type { ProjectSettings } from '@nasq/contracts'
-import { toast } from 'vue-sonner'
 import StageListEditor from '@/components/project/StageListEditor.vue'
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { ApiError } from '@/composables/useApi'
 import { useProjectSettings, useUpdateProjectSettings } from '@/composables/useProjectSettings'
 
 const { t } = useI18n()
 const hydrated = useHydrated()
+const toast = useToast()
 
 const { data: settings, isLoading, error, refetch } = useProjectSettings()
 const { mutate: updateSettings, isPending } = useUpdateProjectSettings()
 
 function onApiError(e: unknown) {
-  toast.error(e instanceof ApiError ? e.message : t('errors.generic'))
+  toast.add({ title: e instanceof ApiError ? e.message : t('errors.generic'), color: 'error' })
   // Undo the optimistic row mutation: resync from the last-known-good cached
   // settings rather than leaving the rejected edit displayed.
   rows.value = withIds(settings.value?.default_stages ?? [])
 }
 function onSaved() {
-  toast.success(t('settings.projects.saved'))
+  toast.add({ title: t('settings.projects.saved'), color: 'success' })
 }
 
 // --- who can create projects -------------------------------------------------
@@ -48,8 +47,7 @@ function onApprovalDefault(v: unknown) {
   updateSettings({ default_completion_approval: value }, { onSuccess: onSaved, onError: onApiError })
 }
 
-function onDaysBefore(event: Event) {
-  const days = Number((event.target as HTMLInputElement).value)
+function onDaysBefore(days: number) {
   if (!Number.isInteger(days) || days === settings.value?.deadline_reminders_days_before) return
   updateSettings({ deadline_reminders_days_before: days }, { onSuccess: onSaved, onError: onApiError })
 }
@@ -72,7 +70,7 @@ watch(
   (stages) => {
     if (stages) rows.value = withIds(stages)
   },
-  { immediate: true },
+  { immediate: true, flush: 'sync' },
 )
 
 function persist(next: StageRow[]) {
@@ -107,31 +105,31 @@ function onDeleteStage(id: number | string) {
 
 <template>
   <div class="nasq-form">
-    <Skeleton v-if="isLoading" class="h-64 w-full" />
+    <USkeleton v-if="isLoading" class="h-64 w-full" />
 
     <SharedPageState v-else-if="error" :error="error" @retry="refetch" />
 
     <template v-else-if="settings">
       <SharedFormSection id="project-creation" :title="t('settings.projects.creation.title')" :description="t('settings.projects.creation.hint')" class="nasq-settings-anchor space-y-4">
         <div id="project-creators" class="space-y-2">
-          <Label>{{ t('settings.projects.creators.label') }}</Label>
-          <p class="text-sm text-muted-foreground">{{ t('settings.projects.creators.hint') }}</p>
-          <RadioGroup :model-value="settings.project_creators" :disabled="!hydrated || isPending" @update:model-value="onCreatorsChange">
-            <div v-for="option in CREATOR_OPTIONS" :key="option.value" class="flex items-center gap-2">
-              <RadioGroupItem :id="`project-creators-${option.value}`" :value="option.value" />
-              <Label :for="`project-creators-${option.value}`" class="font-normal">{{ t(option.labelKey) }}</Label>
-            </div>
-          </RadioGroup>
+          <span class="flex items-center gap-2 text-sm font-medium leading-none">{{ t('settings.projects.creators.label') }}</span>
+          <p class="text-sm text-muted">{{ t('settings.projects.creators.hint') }}</p>
+          <URadioGroup
+            :model-value="settings.project_creators"
+            :items="CREATOR_OPTIONS.map(option => ({ value: option.value, label: t(option.labelKey) }))"
+            :disabled="!hydrated || isPending"
+            @update:model-value="onCreatorsChange"
+          />
         </div>
         <div id="project-requirements" class="space-y-3">
-          <Label>{{ t('settings.projects.createRequirements.label') }}</Label>
-          <p class="text-sm text-muted-foreground">{{ t('settings.projects.createRequirements.hint') }}</p>
+          <span class="flex items-center gap-2 text-sm font-medium leading-none">{{ t('settings.projects.createRequirements.label') }}</span>
+          <p class="text-sm text-muted">{{ t('settings.projects.createRequirements.hint') }}</p>
           <label class="flex items-center gap-2">
-            <input type="checkbox" :checked="settings.require_manager_on_create" :disabled="!hydrated || isPending" @change="onBool('require_manager_on_create', ($event.target as HTMLInputElement).checked)">
+            <USwitch :model-value="settings.require_manager_on_create" :disabled="!hydrated || isPending" @update:model-value="v => onBool('require_manager_on_create', v)" />
             <span>{{ t('settings.projects.createRequirements.manager') }}</span>
           </label>
           <label class="flex items-center gap-2">
-            <input type="checkbox" :checked="settings.require_end_date_on_create" :disabled="!hydrated || isPending" @change="onBool('require_end_date_on_create', ($event.target as HTMLInputElement).checked)">
+            <USwitch :model-value="settings.require_end_date_on_create" :disabled="!hydrated || isPending" @update:model-value="v => onBool('require_end_date_on_create', v)" />
             <span>{{ t('settings.projects.createRequirements.endDate') }}</span>
           </label>
         </div>
@@ -139,49 +137,49 @@ function onDeleteStage(id: number | string) {
 
       <SharedFormSection id="project-defaults" :title="t('settings.projects.defaults.title')" :description="t('settings.projects.defaults.hint')" class="nasq-settings-anchor space-y-4">
         <div id="project-stages" class="space-y-4">
-          <Label>{{ t('settings.projects.defaultStages.label') }}</Label>
-          <p class="text-sm text-muted-foreground">{{ t('settings.projects.defaultStages.hint') }}</p>
+          <span class="flex items-center gap-2 text-sm font-medium leading-none">{{ t('settings.projects.defaultStages.label') }}</span>
+          <p class="text-sm text-muted">{{ t('settings.projects.defaultStages.hint') }}</p>
           <StageListEditor :stages="rows" :busy="isPending" @add="onAddStage" @rename="onRenameStage" @fold="onFoldStage" @reorder="onReorderStages" @delete="onDeleteStage" />
         </div>
         <div id="project-approval" class="space-y-3">
-          <Label>{{ t('settings.projects.approval.label') }}</Label>
-          <p class="text-sm text-muted-foreground">{{ t('settings.projects.approval.hint') }}</p>
-          <RadioGroup :model-value="settings.default_completion_approval" :disabled="!hydrated || isPending" @update:model-value="onApprovalDefault">
-            <div class="flex items-center gap-2"><RadioGroupItem id="approval-none" value="none" /><Label for="approval-none" class="font-normal">{{ t('settings.projects.approval.none') }}</Label></div>
-            <div class="flex items-center gap-2"><RadioGroupItem id="approval-manager" value="project_manager" /><Label for="approval-manager" class="font-normal">{{ t('settings.projects.approval.projectManager') }}</Label></div>
-          </RadioGroup>
+          <span class="flex items-center gap-2 text-sm font-medium leading-none">{{ t('settings.projects.approval.label') }}</span>
+          <p class="text-sm text-muted">{{ t('settings.projects.approval.hint') }}</p>
+          <URadioGroup
+            :model-value="settings.default_completion_approval"
+            :items="[{ value: 'none', label: t('settings.projects.approval.none') }, { value: 'project_manager', label: t('settings.projects.approval.projectManager') }]"
+            :disabled="!hydrated || isPending"
+            @update:model-value="onApprovalDefault"
+          />
         </div>
       </SharedFormSection>
 
       <SharedFormSection id="project-reminders" :title="t('settings.projects.reminders.label')" :description="t('settings.projects.reminders.hint')" class="nasq-settings-anchor space-y-3">
         <label class="flex items-center gap-2">
-          <input
-            type="checkbox"
-            :checked="settings.deadline_reminders_enabled"
+          <USwitch
+            :model-value="settings.deadline_reminders_enabled"
             :disabled="!hydrated || isPending"
-            @change="onBool('deadline_reminders_enabled', ($event.target as HTMLInputElement).checked)"
-          >
+            @update:model-value="v => onBool('deadline_reminders_enabled', v)"
+          />
           <span>{{ t('settings.projects.reminders.enabled') }}</span>
         </label>
         <div class="grid gap-2">
-          <Label for="reminder-days">{{ t('settings.projects.reminders.daysBefore') }}</Label>
-          <Input
+          <label for="reminder-days" class="flex items-center gap-2 text-sm font-medium leading-none">{{ t('settings.projects.reminders.daysBefore') }}</label>
+          <UInputNumber
             id="reminder-days"
-            type="number"
-            min="0"
-            max="30"
+            :min="0"
+            :max="30"
             :model-value="settings.deadline_reminders_days_before"
             :disabled="!hydrated || isPending"
-            @change="onDaysBefore"
+            class="w-full"
+            @update:model-value="onDaysBefore"
           />
         </div>
         <label class="flex items-center gap-2">
-          <input
-            type="checkbox"
-            :checked="settings.overdue_digest_enabled"
+          <USwitch
+            :model-value="settings.overdue_digest_enabled"
             :disabled="!hydrated || isPending"
-            @change="onBool('overdue_digest_enabled', ($event.target as HTMLInputElement).checked)"
-          >
+            @update:model-value="v => onBool('overdue_digest_enabled', v)"
+          />
           <span>{{ t('settings.projects.reminders.digest') }}</span>
         </label>
       </SharedFormSection>

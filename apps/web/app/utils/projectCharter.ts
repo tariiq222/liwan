@@ -108,17 +108,21 @@ export type CharterDraft = {
 
 let rowSeq = 0
 
+function charterRowKey(kind: 'objective' | 'deliverable', index: number): string {
+  return `charter-${kind}-${index}`
+}
+
 export function nextCharterRowKey(): string {
   rowSeq += 1
   return `charter-row-${rowSeq}`
 }
 
-export function emptyObjective(persisted = false): ObjectiveDraft {
-  return { key: nextCharterRowKey(), goal: '', metric: '', target: '', persisted }
+export function emptyObjective(persisted = false, key = nextCharterRowKey()): ObjectiveDraft {
+  return { key, goal: '', metric: '', target: '', persisted }
 }
 
-export function emptyDeliverable(persisted = false): DeliverableDraft {
-  return { key: nextCharterRowKey(), name: '', description: '', acceptance: '', persisted }
+export function emptyDeliverable(persisted = false, key = nextCharterRowKey()): DeliverableDraft {
+  return { key, name: '', description: '', acceptance: '', persisted }
 }
 
 export function emptyCharterDraft(currencyLabel: string | null = null): CharterDraft {
@@ -137,12 +141,12 @@ export function emptyCharterDraft(currencyLabel: string | null = null): CharterD
     sponsorName: null,
     authority: '',
     rationale: '',
-    objectives: [emptyObjective()],
+    objectives: [emptyObjective(false, charterRowKey('objective', 0))],
     benefits: '',
     scope: '',
     exclusions: '',
     highLevelRequirements: '',
-    deliverables: [emptyDeliverable()],
+    deliverables: [emptyDeliverable(false, charterRowKey('deliverable', 0))],
     success: '',
     budgetState: 'unknown',
     amountInput: '',
@@ -162,15 +166,15 @@ function formatCurrencyLabel(currency: ProjectDetail['charter']['currency']): st
 
 export function draftFromProject(project: ProjectDetail): CharterDraft {
   const charter = project.charter
-  const objectives = charter.objectives.map((row) => ({
-    key: nextCharterRowKey(),
+  const objectives = charter.objectives.map((row, index) => ({
+    key: charterRowKey('objective', index),
     goal: row.goal,
     metric: row.metric,
     target: row.target,
     persisted: true,
   }))
-  const deliverables = charter.deliverables.map((row) => ({
-    key: nextCharterRowKey(),
+  const deliverables = charter.deliverables.map((row, index) => ({
+    key: charterRowKey('deliverable', index),
     name: row.name,
     description: row.description,
     acceptance: row.acceptance,
@@ -191,12 +195,12 @@ export function draftFromProject(project: ProjectDetail): CharterDraft {
     sponsorName: charter.sponsor?.name ?? null,
     authority: charter.authority,
     rationale: charter.rationale,
-    objectives: objectives.length ? objectives : [emptyObjective()],
+    objectives: objectives.length ? objectives : [emptyObjective(false, charterRowKey('objective', 0))],
     benefits: charter.benefits,
     scope: charter.scope,
     exclusions: charter.exclusions,
     highLevelRequirements: charter.high_level_requirements,
-    deliverables: deliverables.length ? deliverables : [emptyDeliverable()],
+    deliverables: deliverables.length ? deliverables : [emptyDeliverable(false, charterRowKey('deliverable', 0))],
     success: charter.success,
     budgetState: charter.budget_state,
     amountInput: charter.budget_state === 'estimate' && charter.amount != null ? String(charter.amount) : '',

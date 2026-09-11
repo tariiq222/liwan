@@ -1,8 +1,6 @@
 <script setup lang="ts">
 import type { ProjectDetail, ProjectPatch, Visibility } from '@nasq/contracts'
 import { refDebounced } from '@vueuse/core'
-import { Check } from '@lucide/vue'
-import { toast } from 'vue-sonner'
 import TagPicker from '@/components/task/TagPicker.vue'
 import { ApiError } from '@/composables/useApi'
 import { usePeople } from '@/composables/usePeople'
@@ -14,12 +12,13 @@ const props = defineProps<{ project: ProjectDetail }>()
 
 const { t } = useI18n()
 const hydrated = useHydrated()
+const toast = useToast()
 const { mutate: updateProject, isPending: saving, isSuccess: saved, isError: saveFailed } = useUpdateProject()
 
 function patch(body: ProjectPatch) {
   updateProject(
     { id: props.project.id, patch: body },
-    { onError: (e) => toast.error(e instanceof ApiError ? e.message : t('errors.generic')) },
+    { onError: (e) => toast.add({ title: e instanceof ApiError ? e.message : t('errors.generic'), color: 'error' }) },
   )
 }
 
@@ -73,12 +72,12 @@ function saveApproval(mode: ProjectDetail['completion_approval'], approverId: nu
     {
       onError: (e) => {
         approvalError.value = e instanceof ApiError ? e.message : t('errors.generic')
-        toast.error(approvalError.value)
+        toast.add({ title: approvalError.value, color: 'error' })
       },
       onSuccess: () => {
         pendingMode.value = null
         pendingApproverId.value = null
-        toast.success(t('projects.settings.saved'))
+        toast.add({ title: t('projects.settings.saved'), color: 'success' })
       },
       onSettled: () => {
         approvalBusy.value = false
@@ -112,97 +111,90 @@ function cancelPendingApproval() {
   approvalError.value = null
 }
 
-const displayedApproverName = computed(() => {
-  if (pendingApproverId.value) {
-    return approverPeople.value?.find(person => person.id === pendingApproverId.value)?.name
-      ?? props.project.completion_approver?.name
-      ?? t('projects.settings.noApprover')
-  }
-  return props.project.completion_approver?.name ?? t('projects.settings.noApprover')
+// USelectMenu can only render a label for an item it has in `:items`; the
+// current approver may fall outside the active search results, so it is
+// always merged in to keep the selected label correct.
+const approverItems = computed(() => {
+  const current = props.project.completion_approver
+  const list = approverPeople.value ?? []
+  if (!current || list.some(person => person.id === current.id)) return list
+  return [current, ...list]
 })
 const approvalLocked = computed(() => approvalBusy.value)
 </script>
 
 <template>
   <div class="space-y-5">
-    <p role="status" class="text-sm text-muted-foreground" data-testid="project-autosave-status">{{ t(saving ? 'projects.clarity.saving' : pendingMode && !approvalError ? 'projects.clarity.chooseApprover' : saveFailed ? 'projects.clarity.saveFailed' : saved ? 'projects.clarity.saved' : 'projects.clarity.autosaveHint') }}</p>
+    <p role="status" class="text-sm text-muted" data-testid="project-autosave-status">{{ t(saving ? 'projects.clarity.saving' : pendingMode && !approvalError ? 'projects.clarity.chooseApprover' : saveFailed ? 'projects.clarity.saveFailed' : saved ? 'projects.clarity.saved' : 'projects.clarity.autosaveHint') }}</p>
     <section class="space-y-2">
-        <Label id="project-settings-visibility-label" for="project-settings-visibility">{{ t('projects.settings.visibility') }}</Label>
-        <p class="text-sm text-muted-foreground">{{ t('projects.refresh.settings.visibilityHint') }}</p>
-        <Select :model-value="project.privacy_visibility" :disabled="!hydrated" @update:model-value="onVisibilityChange">
-          <SelectTrigger id="project-settings-visibility" class="w-full" aria-labelledby="project-settings-visibility-label">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="employees">{{ t('projects.settings.visibilityEmployees') }}</SelectItem>
-            <SelectItem value="followers">{{ t('projects.settings.visibilityFollowers') }}</SelectItem>
-          </SelectContent>
-        </Select>
+        <label id="project-settings-visibility-label" for="project-settings-visibility" class="flex items-center gap-2 text-sm font-medium leading-none">{{ t('projects.settings.visibility') }}</label>
+        <p class="text-sm text-muted">{{ t('projects.refresh.settings.visibilityHint') }}</p>
+        <USelect
+          id="project-settings-visibility"
+          :model-value="project.privacy_visibility"
+          :items="[{ value: 'employees', label: t('projects.settings.visibilityEmployees') }, { value: 'followers', label: t('projects.settings.visibilityFollowers') }]"
+          :disabled="!hydrated"
+          class="w-full"
+          aria-labelledby="project-settings-visibility-label"
+          @update:model-value="onVisibilityChange"
+        />
     </section>
 
     <section class="flex items-center justify-between gap-3">
       <div>
-        <Label>{{ t('taskLifecycle.enableDependencies') }}</Label>
-        <p class="text-sm text-muted-foreground">{{ t('taskLifecycle.enableDependenciesHint') }}</p>
+        <label class="flex items-center gap-2 text-sm font-medium leading-none">{{ t('taskLifecycle.enableDependencies') }}</label>
+        <p class="text-sm text-muted">{{ t('taskLifecycle.enableDependenciesHint') }}</p>
       </div>
-      <input
-        type="checkbox"
-        :checked="project.allow_task_dependencies"
+      <USwitch
+        :model-value="project.allow_task_dependencies"
         :disabled="!hydrated || !project.can_manage"
         :aria-label="t('taskLifecycle.enableDependencies')"
-        @change="patch({ allow_task_dependencies: ($event.target as HTMLInputElement).checked })"
+        @update:model-value="value => patch({ allow_task_dependencies: value })"
       />
     </section>
 
     <section class="space-y-2">
-      <Label id="project-settings-approval-label" for="project-settings-approval">{{ t('projects.settings.approval') }}</Label>
-      <p class="text-sm text-muted-foreground">{{ t('projects.settings.approvalHint') }}</p>
-      <Select :model-value="displayedMode" :disabled="!hydrated || approvalLocked" @update:model-value="onApprovalChange">
-        <SelectTrigger id="project-settings-approval" class="w-full" data-testid="project-approval-mode" aria-labelledby="project-settings-approval-label">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="none">{{ t('projects.settings.approvalNone') }}</SelectItem>
-          <SelectItem value="project_manager">{{ t('projects.settings.approvalManager') }}</SelectItem>
-          <SelectItem value="specific_user">{{ t('projects.settings.approvalUser') }}</SelectItem>
-        </SelectContent>
-      </Select>
-      <p v-if="displayedMode === 'specific_user'" class="text-sm text-muted-foreground">{{ t('projects.settings.approverEligibility') }}</p>
-      <p v-if="approvalError" role="alert" class="text-sm text-destructive">{{ approvalError }}</p>
+      <label id="project-settings-approval-label" for="project-settings-approval" class="flex items-center gap-2 text-sm font-medium leading-none">{{ t('projects.settings.approval') }}</label>
+      <p class="text-sm text-muted">{{ t('projects.settings.approvalHint') }}</p>
+      <USelect
+        id="project-settings-approval"
+        :model-value="displayedMode"
+        :items="[{ value: 'none', label: t('projects.settings.approvalNone') }, { value: 'project_manager', label: t('projects.settings.approvalManager') }, { value: 'specific_user', label: t('projects.settings.approvalUser') }]"
+        :disabled="!hydrated || approvalLocked"
+        class="w-full"
+        data-testid="project-approval-mode"
+        aria-labelledby="project-settings-approval-label"
+        @update:model-value="onApprovalChange"
+      />
+      <p v-if="displayedMode === 'specific_user'" class="text-sm text-muted">{{ t('projects.settings.approverEligibility') }}</p>
+      <p v-if="approvalError" role="alert" class="text-sm text-error">{{ approvalError }}</p>
       <div v-if="pendingMode === 'specific_user'" class="flex flex-wrap gap-2">
-        <Button type="button" variant="outline" size="sm" data-testid="project-approval-cancel" :disabled="approvalLocked" @click="cancelPendingApproval">{{ t('app.cancel') }}</Button>
+        <UButton type="button" color="secondary" size="sm" data-testid="project-approval-cancel" :disabled="approvalLocked" :label="t('app.cancel')" @click="cancelPendingApproval" variant="solid" />
       </div>
-      <Popover v-if="displayedMode === 'specific_user'" v-model:open="approverOpen">
-        <PopoverTrigger as-child>
-          <Button variant="outline" class="w-full min-w-0 justify-start" type="button" data-testid="project-approver" :disabled="!hydrated || approvalLocked" aria-labelledby="project-settings-approval-label project-settings-approver-value">
-            <span id="project-settings-approver-value" class="min-w-0 truncate" :title="displayedApproverName">{{ displayedApproverName }}</span>
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent class="w-64 p-0" align="start">
-          <div class="border-b p-2">
-            <Input v-model="approverQ" :aria-label="t('projects.settings.approvalUser')" :placeholder="t('app.search')" class="h-8" />
-          </div>
-          <Command>
-            <CommandList>
-              <CommandEmpty>{{ t('app.noResults') }}</CommandEmpty>
-              <CommandGroup>
-                <CommandItem v-for="p in approverPeople ?? []" :key="p.id" :value="String(p.id)" @select="selectApprover(p.id)">
-                  <span class="flex-1">{{ p.name }}</span>
-                  <Check v-if="project.completion_approver?.id === p.id" class="size-4" />
-                </CommandItem>
-              </CommandGroup>
-            </CommandList>
-          </Command>
-        </PopoverContent>
-      </Popover>
+      <USelectMenu
+        v-if="displayedMode === 'specific_user'"
+        v-model:search-term="approverQ"
+        :model-value="pendingApproverId ?? project.completion_approver?.id ?? undefined"
+        :items="approverItems"
+        value-key="id"
+        label-key="name"
+        class="w-full min-w-0"
+        :placeholder="t('projects.settings.noApprover')"
+        :disabled="!hydrated || approvalLocked"
+        data-testid="project-approver"
+        aria-labelledby="project-settings-approval-label project-settings-approver-value"
+        @update:model-value="value => value != null && selectApprover(value as number)"
+      >
+        <template #default><span id="project-settings-approver-value" class="truncate">{{ approverItems.find(person => person.id === (pendingApproverId ?? project.completion_approver?.id))?.name || t('projects.settings.noApprover') }}</span></template>
+      </USelectMenu>
     </section>
 
     <section class="space-y-2">
-      <Label id="project-settings-tags-label" for="project-settings-tags">{{ t('projects.settings.tags') }}</Label>
+      <label id="project-settings-tags-label" for="project-settings-tags" class="flex items-center gap-2 text-sm font-medium leading-none">{{ t('projects.settings.tags') }}</label>
       <div id="project-settings-tags" aria-labelledby="project-settings-tags-label"><TagPicker :model-value="project.tags" :can-create="project.can_manage" labelledby="project-settings-tags-label" @update:model-value="onTagsChange" /></div>
     </section>
 
-    <Separator />
+    <USeparator />
 
   </div>
 </template>

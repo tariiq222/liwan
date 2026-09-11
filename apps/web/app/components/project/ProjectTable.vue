@@ -1,7 +1,7 @@
 <script setup lang="ts">
+import type { TableColumn } from '@nuxt/ui'
 import type { Project } from '@nasq/contracts'
-import { FlexRender, createColumnHelper, getCoreRowModel, useVueTable } from '@tanstack/vue-table'
-import { h, resolveComponent } from 'vue'
+import ProjectCards from './ProjectCards.vue'
 import ProjectMenu from './ProjectMenu.vue'
 import ProjectProgress from './ProjectProgress.vue'
 import ProjectStatusBadge from './ProjectStatusBadge.vue'
@@ -23,133 +23,87 @@ const emit = defineEmits<{ open: [id: number] }>()
 
 const { t, locale } = useI18n()
 const hydrated = useHydrated()
-const NuxtLink = resolveComponent('NuxtLink')
 
-const columnHelper = createColumnHelper<ProjectListItem>()
-const columns = [
-  columnHelper.display({
-    id: 'record_number',
-    header: () => t('app.recordNumber'),
-    cell: (info) => h(RecordNumber, { value: info.row.original.id }),
-  }),
-  columnHelper.accessor('name', {
-    id: 'name',
-    header: () => t('projects.columns.name'),
-    cell: (info) => h('div', { class: 'min-w-0' }, [
-      h(NuxtLink, {
-        to: props.toFor(info.row.original),
-        class: 'block truncate font-medium hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-        onClick: (event: MouseEvent) => {
-          event.stopPropagation()
-          if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return
-          event.preventDefault()
-          emit('open', info.row.original.id)
-        },
-      }, () => info.row.original.name),
-    ]),
-  }),
-  columnHelper.display({
-    id: 'manager',
-    header: () => t('projects.columns.manager'),
-    cell: (info) => info.row.original.manager?.name ?? '—',
-  }),
-  columnHelper.display({
-    id: 'status',
-    header: () => t('projects.columns.status'),
-    cell: (info) => h(ProjectStatusBadge, { status: info.row.original.status }),
-  }),
-  columnHelper.display({
-    id: 'date_end',
-    header: () => t('projects.columns.dateEnd'),
-    cell: (info) => info.row.original.date_end ? formatCalendarDate(info.row.original.date_end, locale.value) : '—',
-  }),
-  columnHelper.display({
-    id: 'progress',
-    header: () => t('projects.columns.progress'),
-    cell: (info) =>
-      h(ProjectProgress, {
-        progress: info.row.original.progress,
-        taskCount: info.row.original.task_count,
-        closedTaskCount: info.row.original.closed_task_count,
-        compact: true,
-      }),
-  }),
-  columnHelper.display({
-    id: 'menu',
-    header: () => '',
-    // Settings live on the project page, not the table row — only
-    // archive/unarchive is reachable from here.
-    cell: (info) => h(ProjectMenu, { project: info.row.original, hideSettings: true }),
-  }),
-]
+const columns = computed<TableColumn<ProjectListItem>[]>(() => [
+  { accessorKey: 'id', header: t('app.recordNumber') },
+  { accessorKey: 'name', header: t('projects.columns.name') },
+  { accessorKey: 'manager', header: t('projects.columns.manager') },
+  { accessorKey: 'status', header: t('projects.columns.status') },
+  { accessorKey: 'date_end', header: t('projects.columns.dateEnd') },
+  { accessorKey: 'progress', header: t('projects.columns.progress') },
+  { accessorKey: 'menu', header: t('app.actions') },
+])
 
-const table = useVueTable({
-  get data() {
-    return props.items
-  },
-  columns,
-  getCoreRowModel: getCoreRowModel(),
-})
+function openLink(project: ProjectListItem, event: MouseEvent) {
+  if (!hydrated.value) return
+  event.stopPropagation()
+  if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return
+  event.preventDefault()
+  emit('open', project.id)
+}
+
+function onSelectRow(_event: Event, row: { original: ProjectListItem }) {
+  if (!hydrated.value) return
+  emit('open', row.original.id)
+}
 </script>
 
 <template>
   <div class="min-w-0 space-y-2">
-    <div class="nasq-panel overflow-hidden">
-      <div class="overflow-x-auto">
-      <Table class="table-fixed min-w-[860px]" :aria-label="t('projects.title')">
-        <colgroup>
-          <col class="w-[10%]" />
-          <col class="w-[30%]" />
-          <col class="w-[12%]" />
-          <col class="w-[12%]" />
-          <col class="w-[12%]" />
-          <col class="w-[18%]" />
-          <col class="w-[6%]" />
-        </colgroup>
-        <TableHeader>
-          <TableRow v-for="headerGroup in table.getHeaderGroups()" :key="headerGroup.id">
-            <TableHead v-for="header in headerGroup.headers" :key="header.id" class="text-start">
-              <FlexRender v-if="!header.isPlaceholder" :render="header.column.columnDef.header" :props="header.getContext()" />
-            </TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          <!--
-            Vue Query can finish between the server render and client
-            hydration. Keep the initial table shape deterministic so rows
-            are mounted with their click handlers instead of being patched
-            over SSR skeletons during hydration.
-          -->
-          <template v-if="isLoading || !hydrated">
-            <TableRow v-for="n in 5" :key="n">
-              <TableCell v-for="col in columns" :key="col.id">
-                <Skeleton class="h-5 w-full" />
-              </TableCell>
-            </TableRow>
-          </template>
-          <TableEmpty v-else-if="items.length === 0" :colspan="columns.length">
-            <EmptyState
-              :title="t(filtered ? 'projects.filteredEmpty' : archived ? 'projects.archivedEmpty' : 'projects.empty')"
-              :description="t(filtered ? 'projects.filteredEmptyHint' : archived ? 'projects.archivedEmptyHint' : 'projects.emptyHint')"
-            />
-          </TableEmpty>
-          <template v-else>
-            <TableRow
-              v-for="row in table.getRowModel().rows"
-              :key="row.original.id"
-              class="cursor-pointer transition-colors hover:bg-muted/40"
-              data-testid="project-row"
-              @click="hydrated && emit('open', row.original.id)"
-            >
-              <TableCell v-for="cell in row.getVisibleCells()" :key="cell.id">
-                <FlexRender :render="cell.column.columnDef.cell" :props="cell.getContext()" />
-              </TableCell>
-            </TableRow>
-          </template>
-        </TableBody>
-      </Table>
+    <!-- Desktop: real UTable. Mobile: readable record cards via ProjectCards. -->
+    <div class="hidden md:block">
+      <div v-if="isLoading" class="rounded-xl border border-default divide-y divide-default overflow-hidden" role="status" :aria-label="t('app.loading')">
+        <div v-for="n in 5" :key="n" class="flex items-center gap-4 px-4 py-3">
+          <USkeleton class="h-5 w-10" />
+          <USkeleton class="h-5 flex-1" />
+          <USkeleton class="h-5 w-24" />
+          <USkeleton class="h-5 w-20" />
+          <USkeleton class="h-5 w-24" />
+          <USkeleton class="h-5 w-32" />
+          <USkeleton class="h-5 w-8" />
+        </div>
+      </div>
+      <div v-else-if="items.length === 0" class="rounded-xl border border-default p-6">
+        <EmptyState
+          :title="t(filtered ? 'projects.filteredEmpty' : archived ? 'projects.archivedEmpty' : 'projects.empty')"
+          :description="t(filtered ? 'projects.filteredEmptyHint' : archived ? 'projects.archivedEmptyHint' : 'projects.emptyHint')"
+        />
+      </div>
+      <div v-else class="rounded-xl border border-default overflow-hidden">
+        <div class="overflow-x-auto">
+          <UTable :data="items" :columns="columns" :caption="t('projects.title')" :ui="{ caption: 'sr-only' }" @select="onSelectRow">
+            <template #id-cell="{ row }"><RecordNumber :value="row.original.id" /></template>
+            <template #name-cell="{ row }">
+              <NuxtLink
+                :to="toFor(row.original)"
+                data-testid="project-row"
+                class="block min-w-0 truncate font-medium hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                @click="openLink(row.original, $event)"
+              >{{ row.original.name }}</NuxtLink>
+            </template>
+            <template #manager-cell="{ row }">{{ row.original.manager?.name ?? '—' }}</template>
+            <template #status-cell="{ row }"><ProjectStatusBadge :status="row.original.status" /></template>
+            <template #date_end-cell="{ row }">{{ row.original.date_end ? formatCalendarDate(row.original.date_end, locale) : '—' }}</template>
+            <template #progress-cell="{ row }">
+              <ProjectProgress :progress="row.original.progress" :task-count="row.original.task_count" :closed-task-count="row.original.closed_task_count" compact />
+            </template>
+            <template #menu-cell="{ row }">
+              <ProjectMenu :project="row.original" hide-settings @click.stop />
+            </template>
+          </UTable>
+        </div>
       </div>
     </div>
-    <p v-if="capped" class="text-xs text-muted-foreground">{{ t('projects.capped') }}</p>
+    <ProjectCards
+      class="md:hidden"
+      :items="items"
+      :is-loading="isLoading"
+      :archived="archived"
+      :filtered="filtered"
+      :capped="false"
+      :to-for="toFor"
+      @open="emit('open', $event)"
+    />
+    <p v-if="capped" class="text-xs text-muted">{{ t('projects.capped') }}</p>
   </div>
 </template>

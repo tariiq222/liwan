@@ -25,7 +25,7 @@ watch([() => route.fullPath, () => project.data.value, () => me.value, hydrated]
   if (isProject.value && project.data.value?.id === projectId.value && !project.error.value) remember(route.path, route.query)
 }, { immediate: true })
 const isChat = computed(() => activeModule.value === 'chat')
-const isDesktop = useMediaQuery('(min-width: 761px)', { ssrWidth: 1024 })
+const isDesktop = useMediaQuery('(min-width: 768px)', { ssrWidth: 1024 })
 const routeState = computed(() => parseChatListRoute(route.query))
 const selectedConversationId = computed(() => {
   const match = route.path.match(/^\/chat\/(\d+)(?:\/|$)/)
@@ -147,21 +147,27 @@ function updateRoute(next: ChatListRoute) {
     :data-direction="localeProperties.dir"
     :aria-label="t('nav.context')"
   >
-    <button
-      type="button"
-      class="nasq-context-toggle"
-      data-testid="context-sidebar-toggle"
-      :disabled="!hydrated"
-      :aria-expanded="expanded"
-      :aria-controls="navigationId"
-      :aria-label="t(expanded ? 'nav.collapseContext' : 'nav.expandContext')"
-      :title="t(expanded ? 'nav.collapseContext' : 'nav.expandContext')"
-      @click="toggle"
-    >
-      <PanelLeftClose v-if="expanded" aria-hidden="true" />
-      <PanelLeftOpen v-else aria-hidden="true" />
-      <span>{{ t(expanded ? 'nav.collapseContext' : 'nav.expandContext') }}</span>
-    </button>
+    <UTooltip :text="t(expanded ? 'nav.collapseContext' : 'nav.expandContext')">
+      <UButton
+        type="button"
+        color="neutral"
+        variant="ghost"
+        class="nasq-context-toggle"
+        data-testid="context-sidebar-toggle"
+        :disabled="!hydrated"
+        :aria-expanded="expanded"
+        :aria-controls="navigationId"
+        :aria-label="t(expanded ? 'nav.collapseContext' : 'nav.expandContext')"
+        :title="t(expanded ? 'nav.collapseContext' : 'nav.expandContext')"
+        @click="toggle"
+      >
+        <template #leading>
+          <PanelLeftClose v-if="expanded" aria-hidden="true" />
+          <PanelLeftOpen v-else aria-hidden="true" />
+        </template>
+        <span>{{ t(expanded ? 'nav.collapseContext' : 'nav.expandContext') }}</span>
+      </UButton>
+    </UTooltip>
     <Transition name="nasq-context" mode="out-in">
       <div :id="navigationId" :key="contextMotionKey" class="nasq-context-sidebar-inner">
       <div class="nasq-context-heading">
@@ -199,20 +205,25 @@ function updateRoute(next: ChatListRoute) {
         <div v-for="group in navigationGroups" :key="group.id" class="nasq-context-group" :class="{ 'mt-4 border-t border-border pt-3': group.id === 'project-settings' }">
           <h3 v-if="group.labelKey" class="nasq-context-group-heading">{{ t(group.labelKey) }}</h3>
           <div class="nasq-context-group-links">
-            <NuxtLink
-              v-for="link in group.links"
-              :key="link.id"
-              :to="href(link)"
-              class="nasq-context-link"
-              :data-active="link.active"
-              :aria-current="link.active ? 'page' : undefined"
-              :aria-label="t(link.labelKey)"
-              :title="t(link.labelKey)"
-              :data-testid="link.id === 'appearance' ? 'sidebar-settings' : link.id === 'project-settings' ? 'settings-projects-tab' : link.id === 'branding' ? 'settings-branding-tab' : `context-link-${link.id}`"
-            >
-              <component :is="link.icon" aria-hidden="true" />
-              <span>{{ t(link.labelKey) }}</span>
-            </NuxtLink>
+            <UTooltip v-for="link in group.links" :key="link.id" :text="t(link.labelKey)">
+              <UButton
+                :to="href(link)"
+                color="neutral"
+                variant="ghost"
+                class="nasq-context-link"
+                :data-active="link.active"
+                :active="!!link.active"
+                :aria-current="link.active ? 'page' : undefined"
+                :aria-label="t(link.labelKey)"
+                :title="t(link.labelKey)"
+                :data-testid="link.id === 'appearance' ? 'sidebar-settings' : link.id === 'project-settings' ? 'settings-projects-tab' : link.id === 'branding' ? 'settings-branding-tab' : `context-link-${link.id}`"
+              >
+                <template #leading>
+                  <component :is="link.icon" aria-hidden="true" />
+                </template>
+                <span>{{ t(link.labelKey) }}</span>
+              </UButton>
+            </UTooltip>
           </div>
         </div>
       </nav>

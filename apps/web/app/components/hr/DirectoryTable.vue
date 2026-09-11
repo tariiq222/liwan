@@ -1,10 +1,7 @@
 <script setup lang="ts">
-import { FlexRender, createColumnHelper, getCoreRowModel, useVueTable } from '@tanstack/vue-table'
-import { h, resolveComponent } from 'vue'
+import type { TableColumn } from '@nuxt/ui'
 import FilterBar from '@/components/shared/FilterBar.vue'
-import EmptyState from '@/components/shared/EmptyState.vue'
 import RecordNumber from '@/components/shared/RecordNumber.vue'
-import { Search } from '@lucide/vue'
 import { useHrDepartments } from '@/composables/useHrDepartments'
 import { useHrEmployees, type HrEmployee } from '@/composables/useHrEmployees'
 import { returnToQuery } from '@/utils/safeReturnTo'
@@ -18,8 +15,8 @@ const emit = defineEmits<{ open: [id: number]; manage: [id: number]; archive: [i
 const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
-// SSR renders the department Select trigger and search input as real,
-// focusable/clickable markup before Nuxt hydrates and attaches reka-ui's
+// SSR renders the department select trigger and search input as real,
+// focusable/clickable markup before Nuxt hydrates and attaches its
 // listeners; a click in that window is silently dropped (see
 // useHydrated()). Gate both on hydration, same as TaskToolbar.vue.
 const hydrated = useHydrated()
@@ -46,16 +43,16 @@ const params = computed(() => {
 
 const { data, isLoading, error, refetch } = useHrEmployees(params)
 const { data: deptData } = useHrDepartments()
-const NuxtLink = resolveComponent('NuxtLink')
-const Button = resolveComponent('Button')
 
 const items = computed<HrEmployee[]>(() => data.value?.items ?? [])
 const departments = computed(() => deptData.value?.items ?? [])
 const selectedDepartment = computed(() => departments.value.find(item => item.id === departmentId.value) ?? null)
+const departmentOptions = computed(() => [{ value: 'all', label: t('hr.directory.allDepartments') }, ...departments.value.map(dept => ({ value: String(dept.id), label: dept.name }))])
 const activeFilterCount = computed(() => Number(Boolean(search.value.trim())) + Number(departmentId.value !== null))
 const hasActiveFilters = computed(() => activeFilterCount.value > 0)
 const page = computed(() => Math.floor(committedListParams.value.offset / 25) + 1)
 const pages = computed(() => Math.max(1, Math.ceil((data.value?.total ?? 0) / 25)))
+const showActions = computed(() => canManage.value || canArchive.value)
 
 watch(() => [route.query.q, route.query.department_id, route.query.archived, route.query.offset], ([q, department, archivedQuery, nextOffset]) => {
   search.value = String(q ?? '')
@@ -80,77 +77,22 @@ function employeeTo(id: number) {
   return { path: `/hr/employees/${id}`, query: returnToQuery(route.fullPath) }
 }
 
-function onRowClick(id: number, event: MouseEvent) {
+function onRowClick(id: number, event: Event) {
   if (!hydrated.value) return
   const target = event.target as HTMLElement
   if (target.closest('a, button')) return
   emit('open', id)
 }
 
-const columnHelper = createColumnHelper<HrEmployee>()
-const columns = computed(() => [
-  columnHelper.display({
-    id: 'record_number',
-    header: () => t('app.recordNumber'),
-    cell: (info) => h(RecordNumber, { value: info.row.original.id }),
-  }),
-  columnHelper.accessor('name', {
-    id: 'name',
-    header: () => t('hr.directory.columns.name'),
-    cell: (info) => h(NuxtLink, {
-      to: employeeTo(info.row.original.id),
-      class: 'font-medium hover:underline',
-      'data-testid': 'hr-employee-name',
-      onClick: (event: Event) => event.stopPropagation(),
-    }, () => info.getValue()),
-  }),
-  columnHelper.display({
-    id: 'jobTitle',
-    header: () => t('hr.directory.columns.jobTitle'),
-    cell: (info) => info.row.original.job_title || '—',
-  }),
-  columnHelper.display({
-    id: 'department',
-    header: () => t('hr.directory.columns.department'),
-    cell: (info) => info.row.original.department?.name ?? '—',
-  }),
-  columnHelper.display({
-    id: 'manager',
-    header: () => t('hr.directory.columns.manager'),
-    cell: (info) => info.row.original.manager?.name ?? '—',
-  }),
-  columnHelper.display({
-    id: 'access',
-    header: () => t('hr.directory.columns.account'),
-    cell: (info) => h(AccessBadge, { access: info.row.original.access }),
-  }),
-  columnHelper.display({
-    id: 'manage',
-    header: () => canManage.value || canArchive.value ? t('hr.directory.columns.actions') : '',
-    cell: (info) => canManage.value || canArchive.value
-        ? h('div', { class: 'flex gap-1' }, [
-          canManage.value ? h(Button, {
-            type: 'button', variant: 'ghost', size: 'sm', disabled: !hydrated.value,
-            'data-testid': 'hr-employee-manage', onClick: (event: Event) => { event.stopPropagation(); emit('manage', info.row.original.id) },
-          }, () => t('hr.directory.manage')) : null,
-          canArchive.value ? h(Button, {
-            type: 'button', variant: 'ghost', size: 'sm', disabled: !hydrated.value,
-            'data-testid': 'hr-employee-archive-row', onClick: (event: Event) => { event.stopPropagation(); emit('archive', info.row.original.id) },
-          }, () => info.row.original.active ? t('hr.employee.archive') : t('hr.employee.unarchive')) : null,
-        ])
-      : null,
-  }),
+const columns = computed<TableColumn<HrEmployee>[]>(() => [
+  { accessorKey: 'id', header: t('app.recordNumber') },
+  { accessorKey: 'name', header: t('hr.directory.columns.name') },
+  { accessorKey: 'job_title', header: t('hr.directory.columns.jobTitle') },
+  { accessorKey: 'department', header: t('hr.directory.columns.department') },
+  { accessorKey: 'manager', header: t('hr.directory.columns.manager') },
+  { accessorKey: 'access', header: t('hr.directory.columns.account') },
+  ...(showActions.value ? [{ accessorKey: 'manage', header: t('hr.directory.columns.actions') } as TableColumn<HrEmployee>] : []),
 ])
-
-const table = useVueTable({
-  get data() {
-    return items.value
-  },
-  get columns() {
-    return columns.value
-  },
-  getCoreRowModel: getCoreRowModel(),
-})
 
 function onDepartmentChange(value: unknown) {
   departmentId.value = value === 'all' || !value ? null : Number(value)
@@ -165,74 +107,87 @@ function clearFilters() {
 
 <template>
   <div class="grid gap-3">
-    <div class="w-full min-w-0"><FilterBar class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
-      <template #search>
-      <div class="relative min-w-48 flex-1">
-        <Search class="pointer-events-none absolute start-2 top-1/2 size-[18px] -translate-y-1/2 text-muted-foreground" />
-        <Input v-model="search" :disabled="!hydrated" :placeholder="t('hr.directory.search')" class="ps-8" />
-      </div>
-      </template>
-      <template #default>
-      <Button v-if="canArchive" variant="outline" size="sm" :disabled="!hydrated" @click="archived = !archived; updateQuery()">
-        {{ archived ? t('hr.directory.showActive') : t('hr.directory.showArchived') }}
-      </Button>
-      <Select v-if="can('hr.departments.read')" :model-value="departmentId ? String(departmentId) : 'all'" @update:model-value="onDepartmentChange">
-        <SelectTrigger size="sm" class="w-48" :disabled="!hydrated">
-          <SelectValue :placeholder="t('hr.directory.allDepartments')" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">{{ t('hr.directory.allDepartments') }}</SelectItem>
-          <SelectItem v-for="dept in departments" :key="dept.id" :value="String(dept.id)">{{ dept.name }}</SelectItem>
-        </SelectContent>
-      </Select>
-      </template>
-      <template #active>
-        <div v-if="hasActiveFilters" class="flex flex-wrap items-center gap-2">
-          <Badge v-if="search.trim()" variant="secondary">{{ t('hr.directory.searchValue', { value: search }) }}</Badge>
-          <Badge v-if="selectedDepartment" variant="secondary">{{ selectedDepartment.name }}</Badge>
-        </div>
-      </template>
-    </FilterBar></div>
+    <div class="w-full min-w-0">
+      <FilterBar class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
+        <template #search>
+          <UInput v-model="search" :disabled="!hydrated" :placeholder="t('hr.directory.search')" icon="i-lucide-search" class="min-w-48 flex-1" />
+        </template>
+        <template #default>
+          <UButton v-if="canArchive" color="secondary" variant="outline" size="sm" :disabled="!hydrated" :label="archived ? t('hr.directory.showActive') : t('hr.directory.showArchived')" @click="archived = !archived; updateQuery()" />
+          <USelect v-if="can('hr.departments.read')" :model-value="departmentId ? String(departmentId) : 'all'" :items="departmentOptions" size="sm" class="w-48" :disabled="!hydrated" @update:model-value="onDepartmentChange" />
+        </template>
+        <template #active>
+          <div v-if="hasActiveFilters" class="flex flex-wrap items-center gap-2">
+            <UBadge v-if="search.trim()" color="neutral" variant="subtle">{{ t('hr.directory.searchValue', { value: search }) }}</UBadge>
+            <UBadge v-if="selectedDepartment" color="neutral" variant="subtle">{{ selectedDepartment.name }}</UBadge>
+          </div>
+        </template>
+      </FilterBar>
+    </div>
 
     <SharedPageState :error="error" @retry="refetch">
-    <div class="nasq-panel overflow-x-auto">
-      <Table class="min-w-[900px]">
-        <TableHeader>
-          <TableRow v-for="headerGroup in table.getHeaderGroups()" :key="headerGroup.id">
-            <TableHead v-for="header in headerGroup.headers" :key="header.id" :class="['text-start', { 'w-28': header.column.id === 'record_number' }]">
-              <FlexRender v-if="!header.isPlaceholder" :render="header.column.columnDef.header" :props="header.getContext()" />
-            </TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          <template v-if="isLoading">
-            <TableRow v-for="n in 5" :key="n">
-              <TableCell v-for="col in columns" :key="col.id">
-                <Skeleton class="h-5 w-full" />
-              </TableCell>
-            </TableRow>
-          </template>
-          <TableEmpty v-else-if="items.length === 0" :colspan="columns.length">
-            <EmptyState :title="t(hasActiveFilters ? 'hr.directory.filteredEmpty' : 'hr.directory.empty')" :description="hasActiveFilters ? t('hr.directory.filteredEmptyHint') : undefined">
-              <template v-if="hasActiveFilters" #action><Button size="sm" :disabled="!hydrated" @click="clearFilters">{{ t('hr.directory.clear') }}</Button></template>
-            </EmptyState>
-          </TableEmpty>
-          <template v-else>
-            <TableRow
-              v-for="row in table.getRowModel().rows"
-              :key="row.id"
-              class="cursor-pointer transition-colors hover:bg-muted/30"
-              @click="onRowClick(row.original.id, $event)"
-            >
-              <TableCell v-for="cell in row.getVisibleCells()" :key="cell.id" :class="['text-start', { 'w-28': cell.column.id === 'record_number' }]">
-                <FlexRender :render="cell.column.columnDef.cell" :props="cell.getContext()" />
-              </TableCell>
-            </TableRow>
-          </template>
-        </TableBody>
-      </Table>
-    </div>
+      <div class="min-w-0 space-y-2">
+        <UCard v-if="isLoading" class="hidden divide-y divide-default overflow-hidden md:block" role="status" :aria-label="t('app.loading')">
+          <div v-for="n in 5" :key="n" class="flex items-center gap-4 px-4 py-3">
+            <USkeleton class="h-5 w-10" />
+            <USkeleton class="h-5 flex-1" />
+            <USkeleton class="h-5 w-24" />
+            <USkeleton class="h-5 w-24" />
+          </div>
+        </UCard>
+        <UCard v-else-if="items.length === 0">
+          <SharedEmptyState :title="t(hasActiveFilters ? 'hr.directory.filteredEmpty' : 'hr.directory.empty')" :description="hasActiveFilters ? t('hr.directory.filteredEmptyHint') : undefined">
+            <template v-if="hasActiveFilters" #action><UButton color="primary" size="sm" :disabled="!hydrated" :label="t('hr.directory.clear')" @click="clearFilters" /></template>
+          </SharedEmptyState>
+        </UCard>
+        <template v-else>
+          <UCard class="hidden overflow-hidden md:block" :ui="{ body: 'p-0' }">
+            <div class="overflow-x-auto">
+              <UTable :data="items" :columns="columns" :caption="t('hr.directory.title')" :ui="{ caption: 'sr-only' }" @select="(event, row) => onRowClick(row.original.id, event)">
+                <template #id-cell="{ row }"><RecordNumber :value="row.original.id" /></template>
+                <template #name-cell="{ row }">
+                  <NuxtLink :to="employeeTo(row.original.id)" class="font-medium hover:underline" data-testid="hr-employee-name" @click.stop>{{ row.original.name }}</NuxtLink>
+                </template>
+                <template #job_title-cell="{ row }">{{ row.original.job_title || '—' }}</template>
+                <template #department-cell="{ row }">{{ row.original.department?.name ?? '—' }}</template>
+                <template #manager-cell="{ row }">{{ row.original.manager?.name ?? '—' }}</template>
+                <template #access-cell="{ row }"><AccessBadge :access="row.original.access" /></template>
+                <template v-if="showActions" #manage-cell="{ row }">
+                  <div class="flex gap-1" @click.stop>
+                    <UButton v-if="canManage" color="secondary" variant="ghost" size="sm" :disabled="!hydrated" data-testid="hr-employee-manage" :label="t('hr.directory.manage')" @click="emit('manage', row.original.id)" />
+                    <UButton v-if="canArchive" color="secondary" variant="ghost" size="sm" :disabled="!hydrated" data-testid="hr-employee-archive-row" :label="row.original.active ? t('hr.employee.archive') : t('hr.employee.unarchive')" @click="emit('archive', row.original.id)" />
+                  </div>
+                </template>
+              </UTable>
+            </div>
+          </UCard>
+          <ul class="md:hidden space-y-2" :aria-label="t('hr.directory.title')">
+            <li v-for="employee in items" :key="employee.id" class="rounded-lg border border-default bg-default p-4 shadow-sm" tabindex="0" role="button" @click="onRowClick(employee.id, $event)" @keydown.enter="onRowClick(employee.id, $event)" @keydown.space.prevent="onRowClick(employee.id, $event)">
+              <div class="flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                  <bdi class="block text-xs text-muted">#{{ employee.id }}</bdi>
+                  <NuxtLink :to="employeeTo(employee.id)" class="font-medium hover:underline" data-testid="hr-employee-name" @click.stop>{{ employee.name }}</NuxtLink>
+                </div>
+                <AccessBadge :access="employee.access" />
+              </div>
+              <dl class="mt-3 grid grid-cols-2 gap-2 text-xs text-muted">
+                <div><dt>{{ t('hr.directory.columns.jobTitle') }}</dt><dd>{{ employee.job_title || '—' }}</dd></div>
+                <div><dt>{{ t('hr.directory.columns.department') }}</dt><dd>{{ employee.department?.name ?? '—' }}</dd></div>
+                <div><dt>{{ t('hr.directory.columns.manager') }}</dt><dd>{{ employee.manager?.name ?? '—' }}</dd></div>
+              </dl>
+              <div v-if="showActions" class="mt-3 flex gap-2" @click.stop>
+                <UButton v-if="canManage" color="secondary" variant="ghost" size="sm" :disabled="!hydrated" data-testid="hr-employee-manage" :label="t('hr.directory.manage')" @click="emit('manage', employee.id)" />
+                <UButton v-if="canArchive" color="secondary" variant="ghost" size="sm" :disabled="!hydrated" data-testid="hr-employee-archive-row" :label="employee.active ? t('hr.employee.archive') : t('hr.employee.unarchive')" @click="emit('archive', employee.id)" />
+              </div>
+            </li>
+          </ul>
+        </template>
+      </div>
     </SharedPageState>
-    <div v-if="pages > 1" class="flex items-center justify-between text-sm text-muted-foreground"><Button variant="ghost" :disabled="!hydrated || hasPendingSearch || page === 1 || isLoading" @click="setPage(page - 1)">{{ t('access.previousPage') }}</Button><span>{{ t('access.pageOf', { page, pages }) }}</span><Button variant="ghost" :disabled="!hydrated || hasPendingSearch || page >= pages || isLoading" @click="setPage(page + 1)">{{ t('access.nextPage') }}</Button></div>
+    <div v-if="pages > 1" class="flex items-center justify-between text-sm text-muted">
+      <UButton color="secondary" variant="ghost" :disabled="!hydrated || hasPendingSearch || page === 1 || isLoading" :label="t('access.previousPage')" @click="setPage(page - 1)" />
+      <span>{{ t('access.pageOf', { page, pages }) }}</span>
+      <UButton color="secondary" variant="ghost" :disabled="!hydrated || hasPendingSearch || page >= pages || isLoading" :label="t('access.nextPage')" @click="setPage(page + 1)" />
+    </div>
   </div>
 </template>

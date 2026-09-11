@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { toast } from 'vue-sonner'
 import { ApiError } from '@/composables/useApi'
 import ProjectCharterReferenceForm from '@/components/settings/ProjectCharterReferenceForm.vue'
 import SettingsLayout from '@/components/settings/SettingsLayout.vue'
@@ -9,6 +8,7 @@ import { safeReturnTo } from '@/utils/safeReturnTo'
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
+const toast = useToast()
 const { can } = useAccess()
 const forbidden = computed(() => !can('pmo.settings.manage'))
 const resource = computed(() => (isCharterCatalogResource(route.params.resource) ? route.params.resource : null))
@@ -28,7 +28,7 @@ const returnTo = computed(() => {
 })
 
 function onSaved() {
-  toast.success(t('settings.projects.catalogs.saved'))
+  toast.add({ title: t('settings.projects.catalogs.saved'), color: 'success', icon: 'i-lucide-circle-check' })
   router.push(returnTo.value)
 }
 </script>
@@ -36,7 +36,7 @@ function onSaved() {
 <template>
   <SettingsLayout width="form">
     <SharedPageHeader :eyebrow="t('projects.refresh.settings.catalogEyebrow')" :title="t('settings.projects.catalogs.editTitle')" :description="t('projects.refresh.settings.catalogDescription')" :back-to="returnTo" :back-label="t('settings.projects.catalogs.back')" />
-    <p v-if="forbidden" class="text-muted-foreground">{{ t('settings.forbidden') }}</p>
+    <p v-if="forbidden" class="text-muted">{{ t('settings.forbidden') }}</p>
     <SharedPageState
       v-else
       :loading="query.isLoading.value"
@@ -45,7 +45,7 @@ function onSaved() {
       :empty-text="t('settings.projects.catalogs.notFound')"
       @retry="query.refetch"
     >
-      <section v-if="query.data.value && resource" class="nasq-panel nasq-panel-body">
+      <section v-if="query.data.value && resource" class="rounded-xl border border-default bg-default p-5">
         <ProjectCharterReferenceForm :resource="resource" :reference="query.data.value" @saved="onSaved" @cancel="router.push(returnTo)" />
       </section>
     </SharedPageState>

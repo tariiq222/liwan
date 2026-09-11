@@ -38,19 +38,17 @@ async function retryDefaults() {
       <NuxtLink
         :to="{ path: '/project-templates', query: returnToQuery(route.fullPath) }"
         data-testid="project-create-from-template"
-        class="w-fit text-sm font-medium text-primary underline-offset-4 hover:underline"
+        class="w-fit text-sm font-medium text-brand-link underline-offset-4 hover:underline"
       >
         {{ t('projects.create.fromTemplate') }}
       </NuxtLink>
-      <p v-if="defaultsLoading && !defaults" data-testid="project-create-loading" class="text-sm text-muted-foreground">{{ t('projects.create.loading') }}</p>
+      <p v-if="defaultsLoading && !defaults" data-testid="project-create-loading" class="text-sm text-muted">{{ t('projects.create.loading') }}</p>
       <div v-else-if="forbidden && !defaults" role="alert" class="grid gap-2" data-testid="project-create-forbidden">
-        <p class="text-sm text-destructive">{{ t('projects.createForbidden') }}</p>
+        <p class="text-sm text-error">{{ t('projects.createForbidden') }}</p>
       </div>
       <div v-else-if="defaultsFailed && !defaults" role="alert" class="grid gap-2" data-testid="project-create-defaults-error">
-        <p class="text-sm text-destructive">{{ t('projects.create.defaultsError') }}</p>
-        <Button type="button" variant="outline" size="sm" :disabled="!hydrated || defaultsFetching" data-testid="project-create-retry" @click="retryDefaults">
-          {{ t('projects.create.retry') }}
-        </Button>
+        <p class="text-sm text-error">{{ t('projects.create.defaultsError') }}</p>
+        <UButton type="button" color="secondary" size="sm" :disabled="!hydrated || defaultsFetching" data-testid="project-create-retry" :label="t('projects.create.retry')" @click="retryDefaults" variant="solid" />
       </div>
       <ProjectCharterForm
         mode="create"

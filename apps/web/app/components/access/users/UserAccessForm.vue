@@ -33,6 +33,12 @@ const catalogMissing = computed(() => dirty.value && !props.permissionsLoading &
 const previewLoading = computed(() => dirty.value && (roleDetails.isFetching.value || !!props.permissionsLoading))
 const previewError = computed(() => dirty.value && (!!roleDetails.error.value || !!props.permissionsError || catalogMissing.value))
 const previewReady = computed(() => catalogReady.value && !props.permissionsLoading && !props.permissionsError && !roleDetails.isFetching.value && !roleDetails.error.value)
+function toggleRole(roleId: number, checked: boolean) {
+  const next = new Set(selectedRoleIds.value)
+  if (checked) next.add(roleId)
+  else next.delete(roleId)
+  selectedRoleIds.value = [...next]
+}
 const retainedRoleCount = computed(() => selectedRoleIds.value.filter((id) => originalRoleIds.value.includes(id)).length)
 const addedRoleCount = computed(() => selectedRoleIds.value.filter((id) => !originalRoleIds.value.includes(id)).length)
 const removedRoleCount = computed(() => originalRoleIds.value.filter((id) => !selectedRoleIds.value.includes(id)).length)
@@ -105,30 +111,42 @@ async function save() {
 </script>
 
 <template>
-  <form class="nasq-form space-y-5" @submit.prevent="save">
+  <form class="space-y-5" @submit.prevent="save">
     <SharedUnsavedChanges :dirty="dirty" />
-    <fieldset :disabled="!canEdit || update.isPending.value" class="space-y-3">
+    <fieldset :disabled="!canEdit || update.isPending.value" class="space-y-5">
       <legend class="sr-only">{{ t('access.users.rolesTitle') }}</legend>
       <SharedFormSection :title="t('access.users.rolesTitle')" class="space-y-3">
-        <div class="nasq-settings-options"><label v-for="role in roles" :key="role.id" class="nasq-settings-option">
-          <input v-model="selectedRoleIds" type="checkbox" :value="role.id" :disabled="(!role.active || !role.assignable) && !selectedRoleIds.includes(role.id)" class="mt-1">
-          <span><span class="font-medium">{{ roleLabel(role) }}</span><span class="block text-xs text-muted-foreground">{{ role.description }}</span><span class="block text-xs text-muted-foreground">{{ t('access.roles.companyScope') }}</span><span v-if="!role.active" class="block text-xs nasq-status-text-warning">{{ t('access.roles.disabledExistingAssignments') }}</span></span>
-        </label></div>
-        <p v-if="props.user.protected" class="text-sm text-muted-foreground">{{ t('access.protectedUser') }}</p>
-        <p v-else-if="!canEdit" class="text-sm text-muted-foreground">{{ t('access.readOnly') }}</p>
-        <p v-if="dirty" class="text-xs text-muted-foreground">{{ t('access.users.assignmentDiff', { retained: retainedRoleCount, added: addedRoleCount, removed: removedRoleCount }) }}</p>
+        <div class="space-y-3">
+          <UCheckbox
+            v-for="role in roles"
+            :key="role.id"
+            :model-value="selectedRoleIds.includes(role.id)"
+            :disabled="(!role.active || !role.assignable) && !selectedRoleIds.includes(role.id)"
+            @update:model-value="(value) => toggleRole(role.id, Boolean(value))"
+          >
+            <template #label><span class="font-medium">{{ roleLabel(role) }}</span></template>
+            <template #description>
+              <span class="block text-xs text-muted">{{ role.description }}</span>
+              <span class="block text-xs text-muted">{{ t('access.roles.companyScope') }}</span>
+              <span v-if="!role.active" class="block text-xs text-warning">{{ t('access.roles.disabledExistingAssignments') }}</span>
+            </template>
+          </UCheckbox>
+        </div>
+        <p v-if="props.user.protected" class="text-sm text-muted">{{ t('access.protectedUser') }}</p>
+        <p v-else-if="!canEdit" class="text-sm text-muted">{{ t('access.readOnly') }}</p>
+        <p v-if="dirty" class="text-xs text-muted">{{ t('access.users.assignmentDiff', { retained: retainedRoleCount, added: addedRoleCount, removed: removedRoleCount }) }}</p>
       </SharedFormSection>
       <SharedFormSection :title="t('access.users.currentCapabilities')" class="space-y-3">
-        <ul class="space-y-1 text-xs"><li v-for="capability in currentCapabilities" :key="capability.key">{{ capability.label }} <span class="text-muted-foreground">({{ capability.sources }})</span></li></ul>
+        <ul class="space-y-1 text-xs"><li v-for="capability in currentCapabilities" :key="capability.key">{{ capability.label }} <span class="text-muted">({{ capability.sources }})</span></li></ul>
       </SharedFormSection>
       <SharedFormSection v-if="dirty" :title="t('access.users.capabilityChanges')" class="space-y-3">
-        <div v-if="previewLoading" class="text-xs text-muted-foreground">{{ t('access.users.loadingCapabilities') }}</div>
-        <div v-else-if="previewError" role="alert" class="flex items-center gap-2 text-xs text-destructive"><span>{{ t('access.users.capabilityPreviewError') }}</span><Button type="button" variant="ghost" size="sm" @click="retryPreview">{{ t('access.retry') }}</Button></div>
+        <div v-if="previewLoading" class="text-xs text-muted">{{ t('access.users.loadingCapabilities') }}</div>
+        <div v-else-if="previewError" role="alert" class="flex items-center gap-2 text-xs text-error"><span>{{ t('access.users.capabilityPreviewError') }}</span><UButton type="button" color="secondary" variant="ghost" size="sm" :label="t('access.retry')" @click="retryPreview" /></div>
         <div v-else class="space-y-1 text-xs"><p v-if="capabilityChanges.added.length">{{ t('access.roles.added') }}: {{ capabilityChanges.added.map((item) => capabilityLabel(item.key)).join('، ') }}</p><p v-if="capabilityChanges.removed.length">{{ t('access.roles.removed') }}: {{ capabilityChanges.removed.map((item) => capabilityLabel(item.key)).join('، ') }}</p><p v-if="capabilityChanges.retained.length">{{ t('access.roles.retained') }}: {{ capabilityChanges.retained.map((item) => `${capabilityLabel(item.key)} (${item.sources.map((source) => source.role.name.ar).join('، ')})`).join('؛ ') }}</p></div>
       </SharedFormSection>
-      <p v-if="addingAccessAdminRole" role="alert" class="text-sm nasq-status-text-warning">{{ t('access.users.accessAdminWarning') }}</p>
-      <p v-if="errorKey" role="alert" class="text-sm text-destructive">{{ errorKey.startsWith('access.') || errorKey === 'errors.generic' ? t(errorKey) : errorKey }}</p>
-      <div class="nasq-form-footer"><Button v-if="canEdit" type="submit" :disabled="!dirty || update.isPending.value || !previewReady">{{ t('access.save') }}</Button></div>
+      <UAlert v-if="addingAccessAdminRole" role="alert" color="warning" variant="subtle" :title="t('access.users.accessAdminWarning')" />
+      <UAlert v-if="errorKey" role="alert" color="error" variant="subtle" :title="errorKey.startsWith('access.') || errorKey === 'errors.generic' ? t(errorKey) : errorKey" />
+      <footer class="flex justify-end"><UButton v-if="canEdit" type="submit" color="primary" :label="t('access.save')" :disabled="!dirty || update.isPending.value || !previewReady" /></footer>
     </fieldset>
   </form>
 </template>

@@ -1,3 +1,19 @@
+# Current integration — 2026-09-11
+
+The nine Nuxt UI worktrees were reconciled against main baseline `d4b6fc9` in
+`/Users/tariq/code/nasq-merge-all-20260911` (`codex/merge-all-20260911`).
+Their 296 distinct changed paths are represented in the combined migration.
+Earlier worker variants are preserved; later coordinator fixes were reviewed
+rather than overwritten by older copies. The customer app now uses Nuxt UI.
+See [the integration report](verification/2026-09-11-worktree-integration.md)
+for fresh checks and the exact promotion record. Historical statements below
+about pending migration, old branch counts or recovery locations are snapshots.
+
+All nine source worktrees and their dirty content remain preserved. External
+patch/untracked backups and test logs are at
+`/Users/tariq/code/nasq-merge-20260911-artifacts`. No branch/worktree cleanup,
+push, deployment or canonical runtime restart is part of this integration.
+
 # التنظيف النهائي بعد حذف الريكوفري — 2026-09-10
 
 بطلب المستخدم حُذفت نسخ الريكوفري والنسخ الاحتياطية المفهرسة وأرشيفات جولة الدمج، وأُوقفت جلسة Claude التي تستخدم آخر وورك تري ثم أزيلت النسخة وفرعها بعد التحقق من محتواها. بقيت نسخة التطوير الرئيسية على main فقط. [تقرير الجرد وتحديث الحذف](worktree-recovery-audit-2026-09-10.md) يميز الحالة الحالية عن سجلات الاسترجاع التاريخية أدناه. لم يُحدّث Odoo أو يُدفع أو يُنشر شيء.

@@ -1,3 +1,4 @@
+import { meetingTabFromRoute, meetingTabQuery, isMeetingTab } from '../../utils/meetingTabs'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { parse } from '@vue/compiler-sfc'
@@ -23,7 +24,10 @@ function page(file: string, pmo = false, routeOverride: Record<string, unknown> 
     resolutions: [{ id: 9, can_update_execution: true, can_edit_decision: false, task_id: null, state: 'open', allowed_actions: ['start', 'complete', 'cancel'] }] })
   const meetingMutation = vi.fn(async () => undefined)
   const resolutionMutation = vi.fn(async () => undefined)
-  const scope = { ref, computed, watch, useRoute: () => route, useRouter: () => ({ replace, push: vi.fn() }),
+  const scope = {
+    meetingTabFromRoute, meetingTabQuery, isMeetingTab,
+    onMounted: () => {}, onBeforeUnmount: () => {}, // DOM scrolling is covered by the browser suite.
+ ref, computed, watch, useRoute: () => route, useRouter: () => ({ replace, push: vi.fn() }),
     refDebounced,
     useI18n: () => ({ t: (key: string) => key, locale: ref('ar') }), useHydrated: () => ref(true),
     useAccess: () => ({ can: () => pmo }), useProjects: projects,
@@ -38,9 +42,9 @@ function page(file: string, pmo = false, routeOverride: Record<string, unknown> 
     useMeetingAction: () => ({ mutateAsync: meetingMutation, isPending: ref(false) }),
     useResolutionAction: () => ({ mutateAsync: resolutionMutation }), resolutionActions,
     safeReturnTo: (_: unknown, fallback: string) => fallback, ApiError: class ApiError extends Error {},
-    navigateTo: vi.fn(), toast: { error: vi.fn() } }
+    navigateTo: vi.fn(), useToast: () => ({ add: vi.fn() }) }
   const ast = ts.createSourceFile('page.ts', source, ts.ScriptTarget.Latest, true)
-  const script = ast.statements.filter(statement => !ts.isImportDeclaration(statement)).map(statement => statement.getText(ast)).join('\n')
+  const script = ast.statements.filter(statement => !ts.isImportDeclaration(statement)).map(statement => statement.getText(ast)).join('\n').replaceAll('import.meta.client', 'false')
   const js = ts.transpileModule(script, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None } }).outputText
   const exposed = file === 'index.vue'
     ? '{ setPage, offset, createMeetingTo }'

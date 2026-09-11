@@ -20,7 +20,7 @@ const returnTo = computed(() => projectId.value ? safeReturnTo(route.query.retur
   <SharedPageContainer width="form">
     <SharedPageHeader :title="t('projects.updates.new')" :back-to="returnTo" :back-label="t('projects.backToProject')" />
     <template v-if="projectId === null">
-      <p class="text-muted-foreground">{{ t('projects.invalidId') }}</p>
+      <p class="text-muted">{{ t('projects.invalidId') }}</p>
     </template>
     <SharedPageState
       v-else
@@ -30,8 +30,8 @@ const returnTo = computed(() => projectId.value ? safeReturnTo(route.query.retur
       :empty-text="notFound ? t('projects.notFound') : t('projects.empty')"
       @retry="refetch"
     >
-      <p v-if="!project?.can_manage" class="text-muted-foreground">{{ t('projects.forbidden') }}</p>
-      <section v-else class="nasq-panel overflow-hidden"><div class="nasq-panel-body"><ProjectUpdateForm :project-id="projectId" @saved="router.push(returnTo)" @cancel="router.push(returnTo)" /></div></section>
+      <p v-if="!project?.can_manage" class="text-muted">{{ t('projects.forbidden') }}</p>
+      <section v-else class="rounded-xl border border-default bg-default overflow-hidden"><div class="p-5"><ProjectUpdateForm :project-id="projectId" @saved="router.push(returnTo)" @cancel="router.push(returnTo)" /></div></section>
     </SharedPageState>
   </SharedPageContainer>
 </template>

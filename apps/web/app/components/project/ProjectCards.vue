@@ -33,10 +33,10 @@ function openWithKeyboard(project: Project, event: KeyboardEvent) {
 </script>
 
 <template>
-  <div v-if="isLoading || !hydrated" class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-    <Skeleton v-for="n in 6" :key="n" class="h-40 rounded-lg" />
+  <div v-if="isLoading" class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+    <USkeleton v-for="n in 6" :key="n" class="h-40 rounded-lg" />
   </div>
-  <div v-else-if="items.length === 0" class="nasq-panel p-6">
+  <div v-else-if="items.length === 0" class="rounded-xl border border-default p-6">
     <EmptyState
       :title="t(filtered ? 'projects.filteredEmpty' : archived ? 'projects.archivedEmpty' : 'projects.empty')"
       :description="t(filtered ? 'projects.filteredEmptyHint' : archived ? 'projects.archivedEmptyHint' : 'projects.emptyHint')"
@@ -47,7 +47,7 @@ function openWithKeyboard(project: Project, event: KeyboardEvent) {
       <article
       v-for="project in items"
       :key="project.id"
-      class="nasq-panel cursor-pointer p-4 transition-colors hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      class="rounded-xl border border-default bg-default cursor-pointer p-4 transition-colors hover:bg-elevated/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
       data-testid="project-card"
       tabindex="0"
       :aria-labelledby="`project-card-${project.id}`"
@@ -56,22 +56,22 @@ function openWithKeyboard(project: Project, event: KeyboardEvent) {
       >
         <div class="flex items-start justify-between gap-3">
         <div class="min-w-0">
-          <h2 :id="`project-card-${project.id}`" class="truncate text-sm font-semibold"><NuxtLink :to="toFor(project)" class="hover:underline">{{ project.name }}</NuxtLink></h2>
-          <p class="mt-1 text-xs text-muted-foreground">{{ t('projects.projectId', { id: project.id }) }}</p>
+          <h2 :id="`project-card-${project.id}`" class="truncate text-sm font-semibold text-highlighted"><NuxtLink :to="toFor(project)" class="hover:underline">{{ project.name }}</NuxtLink></h2>
+          <p class="mt-1 text-xs text-muted">{{ t('projects.projectId', { id: project.id }) }}</p>
         </div>
         <ProjectStatusBadge :status="project.status" />
         </div>
-        <div class="mt-5 flex items-center justify-between gap-3 text-xs text-muted-foreground">
+        <div class="mt-5 flex items-center justify-between gap-3 text-xs text-muted">
           <span>{{ t('projects.progressOf', { closed: project.closed_task_count, total: project.task_count }) }}</span>
           <ProjectMenu :project="project" hide-settings />
         </div>
         <ProjectProgress class="mt-3" :progress="project.progress" :task-count="project.task_count" :closed-task-count="project.closed_task_count" compact />
-        <div class="mt-4 flex items-center justify-between gap-3 border-t pt-3 text-xs text-muted-foreground">
+        <div class="mt-4 flex items-center justify-between gap-3 border-t border-default pt-3 text-xs text-muted">
           <span class="min-w-0 truncate"><span class="sr-only">{{ t('projects.columns.manager') }}: </span>{{ project.manager?.name ?? '—' }}</span>
           <span dir="ltr">{{ project.date_end ? formatCalendarDate(project.date_end, locale) : '—' }}</span>
         </div>
       </article>
     </div>
-    <p v-if="capped" class="text-xs text-muted-foreground">{{ t('projects.capped') }}</p>
+    <p v-if="capped" class="text-xs text-muted">{{ t('projects.capped') }}</p>
   </div>
 </template>

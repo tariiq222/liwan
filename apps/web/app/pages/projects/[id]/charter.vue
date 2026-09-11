@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { toast } from 'vue-sonner'
 import { ApiError } from '@/composables/useApi'
 import { useProject } from '@/composables/useProjects'
 import { useMilestones } from '@/composables/useMilestones'
@@ -8,6 +7,7 @@ import ProjectCharterForm from '@/components/project/ProjectCharterForm.vue'
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
+const toast = useToast()
 const hydrated = useHydrated()
 const projectId = computed(() => {
   const n = Number(route.params.id)
@@ -24,7 +24,7 @@ const notFound = computed(() => projectId.value === null || (error.value instanc
 const readonly = computed(() => route.query.edit !== '1' || !(project.value?.can_manage ?? false))
 
 function onSaved() {
-  toast.success(t('projects.charter.saved'))
+  toast.add({ title: t('projects.charter.saved'), color: 'success', icon: 'i-lucide-circle-check' })
 }
 
 function onCancel() {
@@ -38,11 +38,11 @@ function onCancel() {
       :title="t(readonly ? 'projects.charter.title' : 'projects.clarity.editCharter')"
     >
       <template #actions>
-        <Button v-if="project?.can_manage && readonly" :disabled="!hydrated" @click="router.push({ path: route.path, query: { ...route.query, edit: '1' } })">{{ t('app.edit') }}</Button>
+        <UButton v-if="project?.can_manage && readonly" :disabled="!hydrated" @click="router.push({ path: route.path, query: { ...route.query, edit: '1' } })">{{ t('app.edit') }}</UButton>
       </template>
     </SharedPageHeader>
     <template v-if="projectId === null">
-      <p class="text-muted-foreground">{{ t('projects.invalidId') }}</p>
+      <p class="text-muted">{{ t('projects.invalidId') }}</p>
     </template>
     <SharedPageState
       v-else
@@ -53,7 +53,7 @@ function onCancel() {
       @retry="refetch"
     >
       <div class="project-charter-print-scope">
-        <div :class="readonly ? undefined : 'nasq-panel nasq-panel-body'">
+        <div :class="readonly ? undefined : 'rounded-xl border border-default bg-default p-5'">
             <ProjectCharterForm
               mode="edit"
               :project="project"

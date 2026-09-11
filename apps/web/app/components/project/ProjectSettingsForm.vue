@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { ProjectDetail } from '@nasq/contracts'
-import { toast } from 'vue-sonner'
 import { ApiError } from '@/composables/useApi'
 import { useAddStage, useDeleteStage, useReorderStages, useUpdateStage } from '@/composables/useProjectStages'
 import FollowerList from './FollowerList.vue'
@@ -11,6 +10,7 @@ import StageListEditor from './StageListEditor.vue'
 const props = defineProps<{ project: ProjectDetail }>()
 const { t } = useI18n()
 const route = useRoute()
+const toast = useToast()
 
 const { mutate: addStage, isPending: adding } = useAddStage()
 const { mutate: updateStage, isPending: updating } = useUpdateStage()
@@ -20,21 +20,21 @@ const stagesBusy = computed(() => adding.value || updating.value || reordering.v
 const sortedStages = computed(() => [...props.project.stages].sort((a, b) => a.sequence - b.sequence || a.id - b.id))
 
 function onApiError(e: unknown) {
-  toast.error(e instanceof ApiError ? e.message : t('errors.generic'))
+  toast.add({ title: e instanceof ApiError ? e.message : t('errors.generic'), color: 'error' })
 }
 function onAddStage(name: string) { addStage({ projectId: props.project.id, name }, { onError: onApiError }) }
 function onRenameStage(id: number | string, name: string) { updateStage({ projectId: props.project.id, id: Number(id), patch: { name } }, { onError: onApiError }) }
 function onFoldStage(id: number | string, fold: boolean) { updateStage({ projectId: props.project.id, id: Number(id), patch: { fold } }, { onError: onApiError }) }
 function onReorderStages(ids: (number | string)[]) { reorderStages({ projectId: props.project.id, ids: ids.map(Number) }, { onError: onApiError }) }
 function onDeleteStage(id: number | string) {
-  deleteStage({ projectId: props.project.id, id: Number(id) }, { onSuccess: () => toast.success(t('projects.stages.deleted')), onError: onApiError })
+  deleteStage({ projectId: props.project.id, id: Number(id) }, { onSuccess: () => toast.add({ title: t('projects.stages.deleted'), color: 'success' }), onError: onApiError })
 }
 </script>
 
 <template>
   <div data-testid="project-settings-page" class="grid gap-4">
-    <div class="nasq-project-toolbar text-sm">
-      <p class="text-sm text-muted-foreground">{{ t('projects.refresh.settings.individualScope') }}</p>
+    <div class="flex flex-wrap items-center justify-between gap-3 text-sm">
+      <p class="text-sm text-muted">{{ t('projects.refresh.settings.individualScope') }}</p>
       <NuxtLink :to="{ path: `/projects/${project.id}/charter`, query: { ...route.query, returnTo: route.fullPath } }" class="text-sm underline underline-offset-4">
         {{ t('projects.refresh.settings.openCharter') }}
       </NuxtLink>

@@ -21,6 +21,21 @@ const dirty = computed(() => serialized() !== baseline.value)
 const stageOptions = computed(() => draft.definition.stages)
 const milestoneOptions = computed(() => draft.definition.milestones)
 const taskOptions = computed(() => draft.definition.tasks)
+const stageItems = computed(() => stageOptions.value.map(stage => ({
+  value: stage.key,
+  label: stage.name || t('projects.templates.fields.stage'),
+})))
+const milestoneItems = computed(() => [
+  { value: ':no-milestone:', label: t('projects.templates.none') },
+  ...milestoneOptions.value.map(milestone => ({
+    value: milestone.key,
+    label: milestone.name || t('projects.templates.fields.milestone'),
+  })),
+])
+
+function selectMilestone(task: ProjectTemplateCreate['definition']['tasks'][number], value: unknown) {
+  task.milestone_key = !value || value === ':no-milestone:' ? null : String(value)
+}
 
 function nextKey(prefix: string, keys: string[]) { let index = 1; while (keys.includes(`${prefix}-${index}`)) index += 1; return `${prefix}-${index}` }
 function addStage() { if (disabled.value) return; draft.definition.stages.push({ key: nextKey('stage', draft.definition.stages.map(row => row.key)), name: '', fold: false }) }
@@ -49,6 +64,15 @@ function removeTask(index: number) {
   const [removed] = draft.definition.tasks.splice(index, 1)
   for (const task of draft.definition.tasks) task.dependency_keys = task.dependency_keys.filter(key => key !== removed?.key)
 }
+function setNumber(current: number, value: number | null | undefined, fallback: number) {
+  return value == null ? fallback : value
+}
+function setDependency(keys: string[], key: string, checked: boolean | 'indeterminate') {
+  const on = checked === true
+  const index = keys.indexOf(key)
+  if (on && index < 0) keys.push(key)
+  if (!on && index >= 0) keys.splice(index, 1)
+}
 function submit() {
   if (!hydrated.value || props.busy) return
   validationError.value = ''
@@ -69,64 +93,158 @@ watch(() => props.resetKey, () => { baseline.value = serialized(); validationErr
 <template>
   <form class="space-y-6" @submit.prevent="submit">
     <SharedUnsavedChanges :dirty="dirty" />
-    <fieldset :disabled="disabled" class="contents">
+    <fieldset :disabled="disabled" class="grid gap-6">
     <div class="grid gap-4 sm:grid-cols-2">
-      <label class="grid gap-1 text-sm"><span>{{ t('projects.templates.fields.name') }}</span><Input :disabled="disabled" v-model="draft.name" name="template-name" required maxlength="255" /></label>
-      <label class="grid gap-1 text-sm"><span>{{ t('projects.templates.fields.description') }}</span><Input :disabled="disabled" v-model="draft.description" name="template-description" /></label>
+      <UFormField :label="t('projects.templates.fields.name')" required>
+        <UInput :disabled="disabled" v-model="draft.name" name="template-name" class="w-full" required maxlength="255" />
+      </UFormField>
+      <UFormField :label="t('projects.templates.fields.description')">
+        <UInput :disabled="disabled" v-model="draft.description" name="template-description" class="w-full" />
+      </UFormField>
     </div>
 
-    <section class="space-y-3 rounded-lg border p-4" aria-labelledby="template-stages-title">
-      <div class="flex items-center justify-between gap-3"><div><h2 id="template-stages-title" class="font-medium">{{ t('projects.templates.stages.title') }}</h2><p class="text-xs text-muted-foreground">{{ t('projects.templates.stages.hint') }}</p></div><Button type="button" variant="outline" :disabled="disabled" @click="addStage">{{ t('projects.templates.actions.addStage') }}</Button></div>
-      <div v-for="(stage, index) in draft.definition.stages" :key="stage.key" class="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
-        <label :for="`stage-name-${index}`" class="grid gap-1 text-xs">
-          <span>{{ t('projects.templates.fields.name') }}</span>
-          <Input :id="`stage-name-${index}`" :disabled="disabled" v-model="stage.name" :name="`stage-name-${index}`" required />
-        </label>
-        <Button type="button" variant="ghost" :disabled="draft.definition.stages.length === 1 || disabled" @click="removeStage(index)">{{ t('projects.templates.actions.remove') }}</Button>
-        <label :for="`stage-fold-${index}`" class="flex items-center gap-2 text-xs sm:col-start-1"><input :id="`stage-fold-${index}`" :disabled="disabled" v-model="stage.fold" :name="`stage-fold-${index}`" type="checkbox" /> {{ t('projects.templates.fields.fold') }}</label>
+    <UCard>
+      <template #header>
+        <div class="flex w-full items-center justify-between gap-3">
+          <div>
+          <h2 id="template-stages-title" class="text-lg font-semibold text-highlighted">{{ t('projects.templates.stages.title') }}</h2>
+            <p class="text-xs text-muted">{{ t('projects.templates.stages.hint') }}</p>
+          </div>
+          <UButton type="button" color="secondary" :disabled="disabled" @click="addStage" variant="solid">{{ t('projects.templates.actions.addStage') }}</UButton>
+        </div>
+      </template>
+      <div v-for="(stage, index) in draft.definition.stages" :key="stage.key" class="mb-3 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] last:mb-0">
+        <UFormField :label="t('projects.templates.fields.name')">
+          <UInput :id="`stage-name-${index}`" :disabled="disabled" v-model="stage.name" :name="`stage-name-${index}`" class="w-full" required />
+        </UFormField>
+        <UButton type="button" color="neutral" variant="ghost" :disabled="draft.definition.stages.length === 1 || disabled" @click="removeStage(index)">{{ t('projects.templates.actions.remove') }}</UButton>
+        <UCheckbox :id="`stage-fold-${index}`" :disabled="disabled" :model-value="stage.fold" :name="`stage-fold-${index}`" :label="t('projects.templates.fields.fold')" class="sm:col-start-1" @update:model-value="stage.fold = $event === true" />
       </div>
-    </section>
+    </UCard>
 
-    <section class="space-y-3 rounded-lg border p-4" aria-labelledby="template-milestones-title">
-      <div class="flex items-center justify-between gap-3"><h2 id="template-milestones-title" class="font-medium">{{ t('projects.templates.milestones.title') }}</h2><Button type="button" variant="outline" :disabled="disabled" @click="addMilestone">{{ t('projects.templates.actions.addMilestone') }}</Button></div>
-      <p v-if="!draft.definition.milestones.length" class="text-sm text-muted-foreground">{{ t('projects.templates.emptyMilestones') }}</p>
-      <div v-for="(milestone, index) in draft.definition.milestones" :key="milestone.key" class="grid gap-2 sm:grid-cols-[minmax(0,1fr)_8rem_auto]">
-        <label :for="`milestone-name-${index}`" class="grid gap-1 text-xs">
-          <span>{{ t('projects.templates.fields.milestoneName') }}</span>
-          <Input :id="`milestone-name-${index}`" :disabled="disabled" v-model="milestone.name" :name="`milestone-name-${index}`" required />
-        </label>
-        <label :for="`milestone-offset-${index}`" class="grid gap-1 text-xs">
-          <span>{{ t('projects.templates.fields.offset') }}</span>
-          <Input :id="`milestone-offset-${index}`" :disabled="disabled" v-model.number="milestone.offset_days" :name="`milestone-offset-${index}`" type="number" min="-3650" max="3650" required />
-        </label>
-        <Button type="button" variant="ghost" :disabled="disabled" @click="removeMilestone(index)">{{ t('projects.templates.actions.remove') }}</Button>
+    <UCard>
+      <template #header>
+        <div class="flex w-full items-center justify-between gap-3">
+          <h2 id="template-milestones-title" class="text-lg font-semibold text-highlighted">{{ t('projects.templates.milestones.title') }}</h2>
+          <UButton type="button" color="secondary" :disabled="disabled" @click="addMilestone" variant="solid">{{ t('projects.templates.actions.addMilestone') }}</UButton>
+        </div>
+      </template>
+      <p v-if="!draft.definition.milestones.length" class="text-sm text-muted">{{ t('projects.templates.emptyMilestones') }}</p>
+      <div v-for="(milestone, index) in draft.definition.milestones" :key="milestone.key" class="mb-3 grid gap-2 sm:grid-cols-[minmax(0,1fr)_8rem_auto] last:mb-0">
+        <UFormField :label="t('projects.templates.fields.milestoneName')">
+          <UInput :id="`milestone-name-${index}`" :disabled="disabled" v-model="milestone.name" :name="`milestone-name-${index}`" class="w-full" required />
+        </UFormField>
+        <UFormField :label="t('projects.templates.fields.offset')">
+          <UInputNumber
+            :id="`milestone-offset-${index}`"
+            :disabled="disabled"
+            :model-value="milestone.offset_days"
+            :name="`milestone-offset-${index}`"
+            class="w-full"
+            :min="-3650"
+            :max="3650"
+            required
+            @update:model-value="milestone.offset_days = setNumber(milestone.offset_days, $event, 0)"
+          />
+        </UFormField>
+        <UButton type="button" color="neutral" variant="ghost" :disabled="disabled" @click="removeMilestone(index)">{{ t('projects.templates.actions.remove') }}</UButton>
       </div>
-      <p class="text-xs text-muted-foreground">{{ t('projects.templates.fields.offsetHint') }}</p>
-    </section>
+      <p class="text-xs text-muted">{{ t('projects.templates.fields.offsetHint') }}</p>
+    </UCard>
 
-    <section class="space-y-3 rounded-lg border p-4" aria-labelledby="template-tasks-title">
-      <div class="flex items-center justify-between gap-3"><div><h2 id="template-tasks-title" class="font-medium">{{ t('projects.templates.tasks.title') }}</h2><p class="text-xs text-muted-foreground">{{ t('projects.templates.tasks.hint') }}</p></div><Button type="button" variant="outline" :disabled="disabled" @click="addTask">{{ t('projects.templates.actions.addTask') }}</Button></div>
-      <p v-if="!draft.definition.tasks.length" class="text-sm text-muted-foreground">{{ t('projects.templates.emptyTasks') }}</p>
-      <div v-for="(task, index) in draft.definition.tasks" :key="task.key" class="space-y-2 rounded-md border p-3">
-        <div class="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]"><label :for="`task-name-${index}`" class="grid gap-1 text-xs"><span>{{ t('projects.templates.fields.taskName') }}</span><Input :id="`task-name-${index}`" :disabled="disabled" v-model="task.name" :name="`task-name-${index}`" required /></label><Button type="button" variant="ghost" :disabled="disabled" @click="removeTask(index)">{{ t('projects.templates.actions.remove') }}</Button></div>
-        <div class="grid gap-2 sm:grid-cols-4"><label class="grid gap-1 text-xs"><span>{{ t('projects.templates.fields.stage') }}</span><select :disabled="disabled" v-model="task.stage_key" :name="`task-stage-${index}`" :aria-label="t('projects.templates.fields.stage')" class="h-9 rounded-md border bg-background px-2"><option v-for="stage in stageOptions" :key="stage.key" :value="stage.key">{{ stage.name || t('projects.templates.fields.stage') }}</option></select></label><label class="grid gap-1 text-xs"><span>{{ t('projects.templates.fields.startOffset') }}</span><Input :disabled="disabled" v-model.number="task.start_offset" :name="`task-start-${index}`" :aria-label="t('projects.templates.fields.startOffset')" type="number" min="-3650" max="3650" required /></label><label class="grid gap-1 text-xs"><span>{{ t('projects.templates.fields.duration') }}</span><Input :disabled="disabled" v-model.number="task.duration_days" :name="`task-duration-${index}`" :aria-label="t('projects.templates.fields.duration')" type="number" min="1" max="3650" required /></label><label class="grid gap-1 text-xs"><span>{{ t('projects.templates.fields.milestone') }}</span><select :disabled="disabled" v-model="task.milestone_key" :name="`task-milestone-${index}`" :aria-label="t('projects.templates.fields.milestone')" class="h-9 rounded-md border bg-background px-2"><option :value="null">{{ t('projects.templates.none') }}</option><option v-for="milestone in milestoneOptions" :key="milestone.key" :value="milestone.key">{{ milestone.name || t('projects.templates.fields.milestone') }}</option></select></label></div>
-        <p class="text-xs text-muted-foreground">{{ t('projects.templates.fields.offsetHint') }}</p>
+    <UCard>
+      <template #header>
+        <div class="flex w-full items-center justify-between gap-3">
+          <div>
+          <h2 id="template-tasks-title" class="text-lg font-semibold text-highlighted">{{ t('projects.templates.tasks.title') }}</h2>
+            <p class="text-xs text-muted">{{ t('projects.templates.tasks.hint') }}</p>
+          </div>
+          <UButton type="button" color="secondary" :disabled="disabled" @click="addTask" variant="solid">{{ t('projects.templates.actions.addTask') }}</UButton>
+        </div>
+      </template>
+      <p v-if="!draft.definition.tasks.length" class="text-sm text-muted">{{ t('projects.templates.emptyTasks') }}</p>
+      <div v-for="(task, index) in draft.definition.tasks" :key="task.key" class="mb-3 space-y-2 rounded-md border border-default p-3 last:mb-0">
+        <div class="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+          <UFormField :label="t('projects.templates.fields.taskName')">
+            <UInput :id="`task-name-${index}`" :disabled="disabled" v-model="task.name" :name="`task-name-${index}`" class="w-full" required />
+          </UFormField>
+          <UButton type="button" color="neutral" variant="ghost" :disabled="disabled" @click="removeTask(index)">{{ t('projects.templates.actions.remove') }}</UButton>
+        </div>
+        <div class="grid gap-2 sm:grid-cols-4">
+          <UFormField :label="t('projects.templates.fields.stage')">
+            <USelect
+              :disabled="disabled"
+              :model-value="task.stage_key"
+              :items="stageItems"
+              :name="`task-stage-${index}`"
+              :aria-label="t('projects.templates.fields.stage')"
+              class="w-full"
+              @update:model-value="task.stage_key = String($event ?? task.stage_key)"
+            />
+          </UFormField>
+          <UFormField :label="t('projects.templates.fields.startOffset')">
+            <UInputNumber
+              :disabled="disabled"
+              :model-value="task.start_offset"
+              :name="`task-start-${index}`"
+              :aria-label="t('projects.templates.fields.startOffset')"
+              class="w-full"
+              :min="-3650"
+              :max="3650"
+              required
+              @update:model-value="task.start_offset = setNumber(task.start_offset, $event, 0)"
+            />
+          </UFormField>
+          <UFormField :label="t('projects.templates.fields.duration')">
+            <UInputNumber
+              :disabled="disabled"
+              :model-value="task.duration_days"
+              :name="`task-duration-${index}`"
+              :aria-label="t('projects.templates.fields.duration')"
+              class="w-full"
+              :min="1"
+              :max="3650"
+              required
+              @update:model-value="task.duration_days = setNumber(task.duration_days, $event, 1)"
+            />
+          </UFormField>
+          <UFormField :label="t('projects.templates.fields.milestone')">
+            <USelect
+              :disabled="disabled"
+              :model-value="task.milestone_key ?? ':no-milestone:'"
+              :items="milestoneItems"
+              :name="`task-milestone-${index}`"
+              :aria-label="t('projects.templates.fields.milestone')"
+              class="w-full"
+              @update:model-value="selectMilestone(task, $event)"
+            />
+          </UFormField>
+        </div>
+        <p class="text-xs text-muted">{{ t('projects.templates.fields.offsetHint') }}</p>
         <fieldset :disabled="disabled" class="grid gap-2 text-xs">
           <legend>{{ t('projects.templates.fields.dependencies') }}</legend>
-          <div class="grid gap-2 rounded-md border bg-background p-2 sm:grid-cols-2">
+          <div class="grid gap-2 rounded-md border border-default bg-default p-2 sm:grid-cols-2">
             <template v-if="taskOptions.some(item => item.key !== task.key)">
-              <label v-for="candidate in taskOptions.filter(item => item.key !== task.key)" :key="candidate.key" :for="`task-dependency-${index}-${candidate.key}`" class="flex items-start gap-2 rounded px-1 py-1">
-                <input :id="`task-dependency-${index}-${candidate.key}`" v-model="task.dependency_keys" :name="`task-dependency-${index}-${candidate.key}`" type="checkbox" :value="candidate.key" />
-                <span>{{ candidate.name || t('projects.templates.fields.taskName') }}</span>
-              </label>
+              <UCheckbox
+                v-for="candidate in taskOptions.filter(item => item.key !== task.key)"
+                :key="candidate.key"
+                :id="`task-dependency-${index}-${candidate.key}`"
+                :name="`task-dependency-${index}-${candidate.key}`"
+                :model-value="task.dependency_keys.includes(candidate.key)"
+                :label="candidate.name || t('projects.templates.fields.taskName')"
+                @update:model-value="setDependency(task.dependency_keys, candidate.key, $event)"
+              />
             </template>
-            <p v-else class="text-muted-foreground">{{ t('projects.templates.none') }}</p>
+            <p v-else class="text-muted col-span-2">{{ t('projects.templates.noPredecessors') }}</p>
           </div>
         </fieldset>
       </div>
-    </section>
-    <p v-if="validationError" role="alert" class="text-sm text-destructive">{{ validationError }}</p>
-    <div class="flex flex-wrap justify-end gap-2"><Button type="button" variant="ghost" :disabled="disabled" @click="emit('cancel')">{{ t('app.cancel') }}</Button><Button type="submit" :disabled="disabled">{{ t('app.save') }}</Button></div>
+    </UCard>
+    <UAlert v-if="validationError" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="validationError" />
+    <div class="flex flex-wrap justify-end gap-2">
+      <UButton type="button" color="secondary" :disabled="disabled" @click="emit('cancel')" variant="solid">{{ t('app.cancel') }}</UButton>
+      <UButton type="submit" :disabled="disabled">{{ t('app.save') }}</UButton>
+    </div>
     </fieldset>
   </form>
 </template>

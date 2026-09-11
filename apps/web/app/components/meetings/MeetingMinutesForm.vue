@@ -111,16 +111,16 @@ function readAgenda() {
       </div>
       <div class="grid gap-3 sm:grid-cols-2">
         <div class="grid gap-1">
-          <Label for="minutes-chairperson">{{ t('meetingMinutesForm.chairperson') }}</Label>
-          <Input id="minutes-chairperson" :model-value="modelValue.chairperson" maxlength="500" :disabled="readonly || pending || !hydrated" @update:model-value="update({ chairperson: String($event) })" />
+          <label for="minutes-chairperson" class="text-sm font-medium text-highlighted">{{ t('meetingMinutesForm.chairperson') }}</label>
+          <UInput id="minutes-chairperson" :model-value="modelValue.chairperson" class="w-full" maxlength="500" :disabled="readonly || pending || !hydrated" @update:model-value="update({ chairperson: String($event) })" />
         </div>
         <div class="grid gap-1">
-          <Label for="minutes-approver-name">{{ t('meetingMinutesForm.approverName') }}</Label>
-          <Input id="minutes-approver-name" :model-value="modelValue.approver_name" maxlength="500" :disabled="readonly || pending || !hydrated" @update:model-value="update({ approver_name: String($event) })" />
+          <label for="minutes-approver-name" class="text-sm font-medium text-highlighted">{{ t('meetingMinutesForm.approverName') }}</label>
+          <UInput id="minutes-approver-name" :model-value="modelValue.approver_name" class="w-full" maxlength="500" :disabled="readonly || pending || !hydrated" @update:model-value="update({ approver_name: String($event) })" />
         </div>
         <div class="grid gap-1 sm:col-span-2">
-          <Label for="minutes-approver-title">{{ t('meetingMinutesForm.approverTitle') }}</Label>
-          <Input id="minutes-approver-title" :model-value="modelValue.approver_title" maxlength="500" :disabled="readonly || pending || !hydrated" @update:model-value="update({ approver_title: String($event) })" />
+          <label for="minutes-approver-title" class="text-sm font-medium text-highlighted">{{ t('meetingMinutesForm.approverTitle') }}</label>
+          <UInput id="minutes-approver-title" :model-value="modelValue.approver_title" class="w-full" maxlength="500" :disabled="readonly || pending || !hydrated" @update:model-value="update({ approver_title: String($event) })" />
         </div>
       </div>
     </section>
@@ -128,44 +128,44 @@ function readAgenda() {
     <section class="grid gap-3">
       <div class="flex flex-wrap items-center justify-between gap-2">
         <h3 class="font-semibold">{{ t('meetingMinutesForm.body') }}</h3>
-        <Button v-if="legacyAgenda && !modelValue.opening.trim()" type="button" variant="outline" size="sm" :disabled="readonly || pending || !hydrated" @click="readAgenda">{{ t('meetingMinutesForm.readAgenda') }}</Button>
+        <UButton v-if="legacyAgenda && !modelValue.opening.trim()" type="button" color="secondary" variant="outline" size="sm" :disabled="readonly || pending || !hydrated" :label="t('meetingMinutesForm.readAgenda')" @click="readAgenda" />
       </div>
       <div class="grid gap-1">
-        <Label for="minutes-opening">{{ t('meetingMinutesForm.opening') }}</Label>
-        <textarea id="minutes-opening" :value="modelValue.opening" maxlength="50000" class="border-input min-h-24 w-full rounded-lg border bg-background px-3 py-2 text-sm" :disabled="readonly || pending" @input="update({ opening: normalizeMeetingMinutesText(($event.target as HTMLTextAreaElement).value) })" />
+        <label for="minutes-opening" class="text-sm font-medium text-highlighted">{{ t('meetingMinutesForm.opening') }}</label>
+        <UTextarea id="minutes-opening" :model-value="modelValue.opening" class="w-full" maxlength="50000" :rows="4" :disabled="readonly || pending" @update:model-value="update({ opening: normalizeMeetingMinutesText(String($event)) })" />
       </div>
       <div class="flex flex-wrap items-center justify-between gap-2">
         <h4 class="font-semibold">{{ t('meetingMinutesForm.topics') }}</h4>
-        <Button type="button" variant="outline" size="sm" :disabled="readonly || pending || modelValue.topics.length >= 100 || !hydrated" @click="addTopic">{{ t('meetingMinutesForm.addTopic') }}</Button>
+        <UButton type="button" color="secondary" variant="outline" size="sm" :disabled="readonly || pending || modelValue.topics.length >= 100 || !hydrated" :label="t('meetingMinutesForm.addTopic')" @click="addTopic" />
       </div>
       <div v-if="!modelValue.topics.length" class="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">{{ t('meetingMinutesForm.noTopics') }}</div>
       <article v-for="(topic, index) in modelValue.topics" :key="topic.key" class="grid gap-3 rounded-lg border border-border p-3">
         <div class="flex flex-wrap items-center justify-between gap-2">
           <h5 class="font-medium">{{ t('meetingMinutesForm.topicNumber', { number: index + 1 }) }}</h5>
           <div class="flex flex-wrap items-center gap-1">
-            <Button type="button" variant="ghost" size="sm" :aria-label="t('meetingMinutesForm.moveUp')" :disabled="readonly || pending || !hydrated || index === 0" @click="moveTopic(index, -1)">↑</Button>
-            <Button type="button" variant="ghost" size="sm" :aria-label="t('meetingMinutesForm.moveDown')" :disabled="readonly || pending || !hydrated || index === modelValue.topics.length - 1" @click="moveTopic(index, 1)">↓</Button>
-            <Button type="button" variant="ghost" size="sm" class="text-destructive" :disabled="readonly || pending || !hydrated" @click="removeTopic(index)">{{ t('meetingMinutesForm.removeTopic') }}</Button>
+            <UButton type="button" color="neutral" variant="ghost" size="sm" :aria-label="t('meetingMinutesForm.moveUp')" :disabled="readonly || pending || !hydrated || index === 0" @click="moveTopic(index, -1)">↑</UButton>
+            <UButton type="button" color="neutral" variant="ghost" size="sm" :aria-label="t('meetingMinutesForm.moveDown')" :disabled="readonly || pending || !hydrated || index === modelValue.topics.length - 1" @click="moveTopic(index, 1)">↓</UButton>
+            <UButton type="button" color="error" variant="ghost" size="sm" :disabled="readonly || pending || !hydrated" :label="t('meetingMinutesForm.removeTopic')" @click="removeTopic(index)" />
           </div>
         </div>
         <div class="grid gap-1">
-          <Label :for="`minutes-topic-title-${topic.key}`">{{ t('meetingMinutesForm.topicTitle') }}</Label>
-          <Input :id="`minutes-topic-title-${topic.key}`" :model-value="topic.title" maxlength="500" :disabled="readonly || pending" @update:model-value="updateTopic(index, { title: String($event) })" />
+          <label :for="`minutes-topic-title-${topic.key}`" class="text-sm font-medium text-highlighted">{{ t('meetingMinutesForm.topicTitle') }}</label>
+          <UInput :id="`minutes-topic-title-${topic.key}`" :model-value="topic.title" class="w-full" maxlength="500" :disabled="readonly || pending" @update:model-value="updateTopic(index, { title: String($event) })" />
         </div>
         <div class="grid gap-1">
-          <Label :for="`minutes-topic-discussion-${topic.key}`">{{ t('meetingMinutesForm.discussion') }}</Label>
-          <textarea :id="`minutes-topic-discussion-${topic.key}`" :value="topic.discussion" maxlength="50000" class="border-input min-h-24 w-full rounded-lg border bg-background px-3 py-2 text-sm" :disabled="readonly || pending" @input="updateTopic(index, { discussion: normalizeMeetingMinutesText(($event.target as HTMLTextAreaElement).value) })" />
+          <label :for="`minutes-topic-discussion-${topic.key}`" class="text-sm font-medium text-highlighted">{{ t('meetingMinutesForm.discussion') }}</label>
+          <UTextarea :id="`minutes-topic-discussion-${topic.key}`" :model-value="topic.discussion" class="w-full" maxlength="50000" :rows="4" :disabled="readonly || pending" @update:model-value="updateTopic(index, { discussion: normalizeMeetingMinutesText(String($event)) })" />
         </div>
         <div class="grid gap-1">
-          <Label :for="`minutes-topic-project-${topic.key}`">{{ t('meetingMinutesForm.project') }}</Label>
+          <label :for="`minutes-topic-project-${topic.key}`" class="text-sm font-medium text-highlighted">{{ t('meetingMinutesForm.project') }}</label>
           <MeetingProjectFilter :id="`minutes-topic-project-${topic.key}`" hide-label :model-value="topic.project_id ?? undefined" :disabled="readonly || pending" @update:model-value="updateTopic(index, { project_id: $event ?? null })" />
         </div>
         <div class="grid gap-1">
-          <Label :for="`minutes-topic-resolutions-${topic.key}`">{{ t('meetingMinutesForm.recommendations') }}</Label>
-          <fieldset :id="`minutes-topic-resolutions-${topic.key}`" class="grid gap-2 rounded-lg border border-border p-3">
+          <span :id="`minutes-topic-resolutions-${topic.key}`" class="text-sm font-medium text-highlighted">{{ t('meetingMinutesForm.recommendations') }}</span>
+          <fieldset :aria-labelledby="`minutes-topic-resolutions-${topic.key}`" class="grid gap-2 rounded-lg border border-border p-3">
             <legend class="sr-only">{{ t('meetingMinutesForm.recommendations') }}</legend>
             <label v-for="item in availableRecommendations(index)" :key="item.id" class="flex min-w-0 items-start gap-2 text-sm">
-              <input type="checkbox" :checked="topic.resolution_ids.includes(item.id)" :disabled="readonly || pending || !hydrated" @change="toggleRecommendation(index, item.id, ($event.target as HTMLInputElement).checked)">
+              <UCheckbox :model-value="topic.resolution_ids.includes(item.id)" :disabled="readonly || pending || !hydrated" :aria-label="item.name" @update:model-value="toggleRecommendation(index, item.id, Boolean($event))" />
               <span class="min-w-0 break-words">{{ item.name }}</span>
             </label>
             <p v-if="!availableRecommendations(index).length" class="text-sm text-muted-foreground">{{ t('meetingMinutesForm.noRecommendations') }}</p>
@@ -183,13 +183,13 @@ function readAgenda() {
     </section>
 
     <section class="grid gap-1">
-      <Label for="minutes-closing">{{ t('meetingMinutesForm.closing') }}</Label>
-      <textarea id="minutes-closing" :value="modelValue.closing" maxlength="50000" class="border-input min-h-24 w-full rounded-lg border bg-background px-3 py-2 text-sm" :disabled="readonly || pending" @input="update({ closing: normalizeMeetingMinutesText(($event.target as HTMLTextAreaElement).value) })" />
+      <label for="minutes-closing" class="text-sm font-medium text-highlighted">{{ t('meetingMinutesForm.closing') }}</label>
+      <UTextarea id="minutes-closing" :model-value="modelValue.closing" class="w-full" maxlength="50000" :rows="4" :disabled="readonly || pending" @update:model-value="update({ closing: normalizeMeetingMinutesText(String($event)) })" />
     </section>
 
     <div v-if="!readonly" class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-dashed p-3">
       <span class="text-sm text-muted-foreground">{{ t('meetingMinutesForm.addRecommendationHint') }}</span>
-      <Button type="button" variant="outline" :disabled="pending || !hydrated" @click="emit('save-and-create-resolution')">{{ t('meetingMinutesForm.saveAndCreateRecommendation') }}</Button>
+      <UButton type="button" color="secondary" variant="outline" :disabled="pending || !hydrated" :label="t('meetingMinutesForm.saveAndCreateRecommendation')" @click="emit('save-and-create-resolution')" />
     </div>
   </div>
 </template>

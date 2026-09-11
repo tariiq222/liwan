@@ -19,9 +19,7 @@ const hydrated = useHydrated()
   <SharedPageContainer v-if="route.path.replace(/\/+$/, '') === `/projects/${projectId}/stakeholders/${stakeholderId}`" width="detail">
     <SharedPageHeader :title="item.data?.value?.name ?? t('projects.governance.stakeholder.title')" :back-to="returnTo" :back-label="t('projects.governance.stakeholders')">
       <template #actions>
-        <NuxtLink v-if="item.data?.value && access.data.value?.can_manage && hydrated" :to="{ path: `/projects/${projectId}/stakeholders/${stakeholderId}/edit`, query: { returnTo } }">
-          <Button data-testid="stakeholder-detail-edit">{{ t('app.edit') }}</Button>
-        </NuxtLink>
+        <UButton v-if="item.data?.value && access.data.value?.can_manage && hydrated" data-testid="stakeholder-detail-edit" :to="{ path: `/projects/${projectId}/stakeholders/${stakeholderId}/edit`, query: { returnTo } }">{{ t('app.edit') }}</UButton>
       </template>
     </SharedPageHeader>
     <SharedPageState
@@ -32,35 +30,35 @@ const hydrated = useHydrated()
       @retry="item.refetch"
     />
     <section v-if="item.data?.value" class="grid gap-4">
-      <section class="nasq-panel overflow-hidden" aria-labelledby="stakeholder-identity-title">
-        <div class="nasq-panel-header"><h2 id="stakeholder-identity-title">{{ t('projects.refresh.workspace.stakeholderIdentity') }}</h2></div>
-        <div class="nasq-panel-body">
+      <section class="rounded-xl border border-default bg-default overflow-hidden" aria-labelledby="stakeholder-identity-title">
+        <div class="border-b border-default px-5 py-4"><h2 id="stakeholder-identity-title" class="text-lg font-semibold text-highlighted">{{ t('projects.refresh.workspace.stakeholderIdentity') }}</h2></div>
+        <div class="p-5">
           <dl class="grid gap-4 sm:grid-cols-2">
           <div>
-          <dt class="text-sm text-muted-foreground">{{ t('projects.governance.stakeholder.internalUser') }}</dt>
+          <dt class="text-sm text-muted">{{ t('projects.governance.stakeholder.internalUser') }}</dt>
           <dd>{{ item.data.value.user?.name || t('projects.governance.stakeholder.noInternalUser') }}</dd>
         </div>
         <div>
-          <dt class="text-sm text-muted-foreground">{{ t('projects.governance.stakeholder.organization') }}</dt>
+          <dt class="text-sm text-muted">{{ t('projects.governance.stakeholder.organization') }}</dt>
           <dd>{{ item.data.value.organization || '—' }}</dd>
         </div>
         <div>
-          <dt class="text-sm text-muted-foreground">{{ t('projects.governance.stakeholder.role') }}</dt>
+          <dt class="text-sm text-muted">{{ t('projects.governance.stakeholder.role') }}</dt>
           <dd>{{ item.data.value.role || '—' }}</dd>
           </div>
           </dl>
         </div>
       </section>
-      <section class="nasq-panel overflow-hidden" aria-labelledby="stakeholder-contact-title">
-        <div class="nasq-panel-header"><h2 id="stakeholder-contact-title">{{ t('projects.refresh.workspace.stakeholderContact') }}</h2></div>
-        <div class="nasq-panel-body">
+      <section class="rounded-xl border border-default bg-default overflow-hidden" aria-labelledby="stakeholder-contact-title">
+        <div class="border-b border-default px-5 py-4"><h2 id="stakeholder-contact-title" class="text-lg font-semibold text-highlighted">{{ t('projects.refresh.workspace.stakeholderContact') }}</h2></div>
+        <div class="p-5">
           <dl>
             <div>
-            <dt class="text-sm text-muted-foreground">{{ t('projects.governance.stakeholder.contact') }}</dt>
+            <dt class="text-sm text-muted">{{ t('projects.governance.stakeholder.contact') }}</dt>
             <dd dir="ltr" class="text-start">{{ item.data.value.contact || '—' }}</dd>
             </div>
             <div class="mt-4">
-            <dt class="text-sm text-muted-foreground">{{ t('projects.governance.stakeholder.notes') }}</dt>
+            <dt class="text-sm text-muted">{{ t('projects.governance.stakeholder.notes') }}</dt>
             <dd class="whitespace-pre-wrap">{{ item.data.value.notes || '—' }}</dd>
             </div>
           </dl>

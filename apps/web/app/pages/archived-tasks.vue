@@ -1,7 +1,5 @@
 <script setup lang="ts">
-import { toast } from 'vue-sonner'
 import type { Task } from '@nasq/contracts'
-import { Search } from '@lucide/vue'
 import { safeReturnTo } from '@/utils/safeReturnTo'
 import { ApiError } from '@/composables/useApi'
 import { useArchivedTasks, useRestoreTask } from '@/composables/useArchivedTasks'
@@ -10,6 +8,7 @@ import FilterBar from '@/components/shared/FilterBar.vue'
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
+const toast = useToast()
 const hydrated = useHydrated()
 const q = ref(typeof route.query.q === 'string' ? route.query.q : '')
 const projectId = computed(() => {
@@ -35,8 +34,8 @@ function clearFilters() {
 
 function restoreTask(task: Task) {
   restore({ id: task.id }, {
-    onSuccess: () => toast.success(t('taskLifecycle.restored')),
-    onError: (error) => toast.error(error instanceof ApiError ? error.message : t('errors.generic')),
+    onSuccess: () => toast.add({ title: t('taskLifecycle.restored'), color: 'success' }),
+    onError: (error) => toast.add({ title: error instanceof ApiError ? error.message : t('errors.generic'), color: 'error' }),
   })
 }
 </script>
@@ -53,17 +52,21 @@ function restoreTask(task: Task) {
     <div class="w-full min-w-0" data-testid="archived-tasks-toolbar">
       <FilterBar class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
         <template #search>
-          <div class="relative min-w-56 max-w-sm">
-            <Search class="pointer-events-none absolute start-2 top-1/2 size-[18px] -translate-y-1/2 text-muted-foreground" />
-            <Input v-model="q" :disabled="!hydrated" :placeholder="t('taskLifecycle.searchArchived')" :aria-label="t('taskLifecycle.searchArchived')" class="ps-8" />
-          </div>
+          <UInput
+            v-model="q"
+            :disabled="!hydrated"
+            :placeholder="t('taskLifecycle.searchArchived')"
+            :aria-label="t('taskLifecycle.searchArchived')"
+            icon="i-lucide-search"
+            class="min-w-56 max-w-sm"
+          />
         </template>
         <template #actions>
-          <Badge v-if="data" variant="secondary">{{ total }}</Badge>
+          <UBadge v-if="data" color="neutral" variant="subtle">{{ total }}</UBadge>
         </template>
         <template #active>
           <div v-if="q.trim()" class="flex flex-wrap items-center gap-2">
-            <Badge variant="secondary">{{ t('taskLifecycle.searchArchived') }}: {{ q }}</Badge>
+            <UBadge color="neutral" variant="subtle">{{ t('taskLifecycle.searchArchived') }}: {{ q }}</UBadge>
           </div>
         </template>
       </FilterBar>
@@ -76,22 +79,22 @@ function restoreTask(task: Task) {
       :empty-text="t('taskLifecycle.noArchivedTasks')"
       @retry="refetch"
     >
-      <div class="nasq-panel overflow-hidden">
-        <ul class="divide-y">
+      <UCard :ui="{ body: 'p-0 sm:p-0' }">
+        <ul class="divide-y divide-default">
           <li v-for="task in items" :key="task.id" class="flex items-center justify-between gap-3 p-3">
             <div class="min-w-0">
-              <p class="truncate font-medium">{{ task.name }}</p>
-              <p class="truncate text-sm text-muted-foreground">{{ task.project?.name ?? '—' }}</p>
+              <p class="truncate font-medium text-highlighted">{{ task.name }}</p>
+              <p class="truncate text-sm text-muted">{{ task.project?.name ?? '—' }}</p>
             </div>
-            <Button size="sm" type="button" :disabled="!hydrated || isPending" @click="restoreTask(task)">{{ t('taskLifecycle.restore') }}</Button>
+            <UButton size="sm" color="secondary" variant="solid" type="button" :disabled="!hydrated || isPending" @click="restoreTask(task)">{{ t('taskLifecycle.restore') }}</UButton>
           </li>
         </ul>
-        <div v-if="hasNextPage" class="border-t p-3 text-center">
-          <Button variant="outline" type="button" :disabled="isFetchingNextPage || !hydrated" @click="fetchNextPage()">
+        <div v-if="hasNextPage" class="border-t border-default p-3 text-center">
+          <UButton color="secondary" variant="outline" type="button" :disabled="isFetchingNextPage || !hydrated" @click="fetchNextPage()">
             {{ t('taskLifecycle.loadMore') }}
-          </Button>
+          </UButton>
         </div>
-      </div>
+      </UCard>
     </SharedPageState>
   </SharedPageContainer>
 </template>

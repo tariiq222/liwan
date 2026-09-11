@@ -1,12 +1,6 @@
 <script setup lang="ts">
+import type { SlideoverProps } from '@nuxt/ui'
 import type { RouteLocationNormalizedLoaded } from 'vue-router'
-import {
-  DialogContent,
-  DialogDescription,
-  DialogPortal,
-  DialogRoot,
-  DialogTitle,
-} from 'reka-ui'
 import { PROJECT_OVERLAY_INJECTION_KEY } from '@/utils/projectOverlayRoute'
 import { workspaceOverlayTitleKey } from '@/utils/workspacePresentation'
 
@@ -40,103 +34,33 @@ function closeOnEscape(event: Event) {
   event.preventDefault()
   emit('close')
 }
+
+const dialogContent = computed<NonNullable<SlideoverProps['content']> & { style: import('vue').CSSProperties }>(() => ({ style: { width: props.sheetWidth, position: 'absolute', inset: '0', maxWidth: '100%' }, onEscapeKeyDown: closeOnEscape, onInteractOutside: keepOpen, onPointerDownOutside: keepOpen }))
 </script>
 
 <template>
-  <DialogRoot :open="props.open" :modal="false" :unmount-on-hide="false" @update:open="open => { if (!open && props.open) emit('close') }">
-    <DialogPortal :force-mount="true">
-      <div
-        data-project-overlay
-        data-testid="project-route-overlay"
-        class="pointer-events-none fixed z-[50] overflow-hidden"
-        :style="props.frameStyle"
-      >
-        <Transition name="project-sheet-backdrop" appear>
-          <div
-            v-if="props.open"
-            data-testid="project-sheet-backdrop"
-            aria-hidden="true"
-            class="project-sheet-backdrop pointer-events-none absolute inset-0"
-          />
-        </Transition>
-        <Transition
-          appear
-          enter-active-class="project-overlay-transition transition-transform duration-200 ease-out motion-reduce:duration-0"
-          enter-from-class="project-overlay-enter-from"
-          enter-to-class="translate-x-0"
-          leave-active-class="project-overlay-transition transition-transform duration-180 ease-in motion-reduce:duration-0"
-          leave-from-class="translate-x-0"
-          leave-to-class="project-overlay-leave-to"
-          @after-leave="emit('afterLeave')"
-        >
-          <DialogContent
-            v-if="props.open"
-            force-mount
-            :style="{ width: props.sheetWidth, 'border-start-start-radius': 'inherit' }"
-            class="pointer-events-auto absolute inset-y-0 start-0 flex max-w-full min-h-0 flex-col gap-0 overflow-hidden rounded-none border border-border bg-background p-0 shadow-xl"
-            @escape-key-down="closeOnEscape"
-            @interact-outside="keepOpen"
-            @pointer-down-outside="keepOpen"
-          >
-          <DialogTitle class="sr-only">{{ t(workspaceOverlayTitleKey(props.route.path)) }}</DialogTitle>
-          <DialogDescription class="sr-only">{{ t(workspaceOverlayTitleKey(props.route.path)) }}</DialogDescription>
-            <div class="flex min-h-12 shrink-0 items-center justify-between gap-3 border-b border-border px-4 md:px-6">
-              <NuxtLink
-                :to="fullPageTo"
-                class="inline-flex min-h-9 items-center rounded-lg px-3 text-sm text-muted-foreground underline-offset-4 transition-colors hover:bg-muted hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                data-testid="project-overlay-full-page"
-              >
-                {{ t('projects.workspace.openFullPage') }}
-              </NuxtLink>
-              <button
-                type="button"
-                class="inline-flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                data-testid="project-overlay-close"
-                :aria-label="t('projects.workspace.close')"
-                @click="emit('close')"
-              >
-                <span aria-hidden="true" class="text-xl leading-none">×</span>
-              </button>
+  <Teleport to="body">
+    <div data-project-overlay data-testid="project-route-overlay" class="pointer-events-none fixed z-[60] overflow-hidden" :style="props.frameStyle">
+      <Transition name="project-sheet-backdrop" appear>
+        <div v-if="props.open" data-testid="project-sheet-backdrop" aria-hidden="true" class="project-sheet-backdrop pointer-events-none absolute inset-0" />
+      </Transition>
+      <USlideover :open="props.open" :modal="false" :portal="false" :overlay="false" :close="false"
+        :title="t(workspaceOverlayTitleKey(props.route.path))" :description="t(workspaceOverlayTitleKey(props.route.path))"
+        :content="dialogContent"
+        :ui="{ content: 'nasq-ui-route-sheet pointer-events-auto rounded-none', body: 'min-h-0 flex-1 overflow-y-auto p-0' }"
+        @update:open="open => { if (!open && props.open) emit('close') }" @after:leave="emit('afterLeave')">
+        <template #content>
+          <div class="flex min-h-12 shrink-0 items-center justify-between gap-3 border-b border-default px-4 md:px-6">
+            <UButton :to="fullPageTo" color="secondary" data-testid="project-overlay-full-page" variant="solid">{{ t('projects.workspace.openFullPage') }}</UButton>
+            <UButton type="button" color="secondary" square icon="i-lucide-x" data-testid="project-overlay-close" :aria-label="t('projects.workspace.close')" @click="emit('close')" variant="solid" />
+          </div>
+          <div class="min-h-0 flex-1 overflow-y-auto">
+            <div class="flex min-h-full flex-col gap-5 px-4 py-4 md:gap-6 md:px-6 md:py-6">
+              <NuxtPage :route="props.route" :page-key="pageKey" />
             </div>
-            <div class="min-h-0 flex-1 overflow-y-auto">
-              <div class="flex min-h-full flex-col gap-5 px-4 py-4 md:gap-6 md:px-6 md:py-6">
-                <NuxtPage :route="props.route" :page-key="pageKey" />
-              </div>
-            </div>
-          </DialogContent>
-        </Transition>
-      </div>
-    </DialogPortal>
-  </DialogRoot>
+          </div>
+        </template>
+      </USlideover>
+    </div>
+  </Teleport>
 </template>
-
-<style scoped>
-.project-sheet-backdrop {
-  background: rgb(0 0 0 / 20%);
-  -webkit-backdrop-filter: blur(2px);
-  backdrop-filter: blur(2px);
-}
-
-.project-sheet-backdrop-enter-active,
-.project-sheet-backdrop-leave-active { transition: opacity 180ms ease; }
-.project-sheet-backdrop-enter-from,
-.project-sheet-backdrop-leave-to { opacity: 0; }
-
-:global(.project-overlay-leave-to) {
-  transform: translateX(calc(-1 * var(--project-overlay-travel, 100vw)));
-}
-
-:global(.project-overlay-enter-from) {
-  transform: translateX(var(--project-overlay-travel, 100vw));
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .project-sheet-backdrop-enter-active,
-  .project-sheet-backdrop-leave-active { transition: none; }
-
-  :global(.project-overlay-leave-to),
-  :global(.project-overlay-transition) {
-    transition-duration: 0s !important;
-  }
-}
-</style>

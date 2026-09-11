@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { toast } from 'vue-sonner'
 import { ApiError } from '@/composables/useApi'
 import { usePostComment } from '@/composables/useTimeline'
 
@@ -8,6 +7,7 @@ const props = defineProps<{ taskId: number }>()
 const { t } = useI18n()
 const { mutate: postComment, isPending } = usePostComment()
 const hydrated = useHydrated()
+const toast = useToast()
 
 const body = ref('')
 
@@ -21,7 +21,7 @@ function submit() {
         body.value = ''
       },
       onError: (err) => {
-        toast.error(err instanceof ApiError ? err.message : t('errors.generic'))
+        toast.add({ title: err instanceof ApiError ? err.message : t('errors.generic'), color: 'error' })
       },
     },
   )
@@ -37,19 +37,20 @@ function onKeydown(e: KeyboardEvent) {
 
 <template>
   <form class="task-comment-form" @submit.prevent="submit">
-    <Label :for="`task-comment-${props.taskId}`" class="text-xs font-medium">{{ t('tasks.activity.add') }}</Label>
-    <Textarea
-      :id="`task-comment-${props.taskId}`"
-      v-model="body"
-      :placeholder="t('tasks.activity.write')"
-      :disabled="!hydrated || isPending"
-      class="min-h-[88px] resize-none"
-      @keydown="onKeydown"
-    />
+    <UFormField :label="t('tasks.activity.add')" :name="`task-comment-${props.taskId}`" class="text-xs font-medium">
+      <UTextarea
+        :id="`task-comment-${props.taskId}`"
+        v-model="body"
+        :placeholder="t('tasks.activity.write')"
+        :disabled="!hydrated || isPending"
+        class="min-h-[88px] w-full resize-none"
+        @keydown="onKeydown"
+      />
+    </UFormField>
     <div class="flex justify-end">
-      <Button type="submit" size="sm" :disabled="!hydrated || isPending || !body.trim()">
+      <UButton type="submit" size="sm" :disabled="!hydrated || isPending || !body.trim()">
         {{ t('tasks.activity.post') }}
-      </Button>
+      </UButton>
     </div>
   </form>
 </template>
@@ -60,6 +61,6 @@ function onKeydown(e: KeyboardEvent) {
   gap: 8px;
   margin-top: 16px;
   padding-top: 14px;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--ui-border);
 }
 </style>

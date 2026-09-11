@@ -38,6 +38,7 @@ function page(flags: { can_edit_decision: boolean; can_update_execution: boolean
     useRoute: () => route,
     useI18n: () => ({ t: (key: string) => key }),
     useHydrated: () => ref(true),
+    useSsrQuerySeed: () => {}, // Client workflow harness; real SSR is covered separately.
     useMeeting: () => ({ data: meeting, isLoading: ref(false), error: ref(null), refetch: vi.fn() }),
     usePatchResolution: () => ({ mutateAsync, isPending: ref(false), error: ref(null) }),
     safeReturnTo: (_value: unknown, fallback: string) => fallback,

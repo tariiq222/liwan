@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { Maximize, Minimize, Scan, ZoomIn, ZoomOut } from '@lucide/vue'
 import { filterDepartmentTree, type DepartmentTreeNode } from '@/lib/departmentTree'
 import {
   fitOrgChart,
@@ -137,68 +136,63 @@ onUnmounted(() => {
 <template>
   <section
     ref="chartSection"
-    class="nasq-panel relative flex h-[calc(100svh-14rem)] flex-col overflow-hidden"
+    class="relative flex h-[calc(100svh-14rem)] flex-col overflow-hidden rounded-lg border border-default bg-default shadow-sm"
     :class="{ 'hr-org-chart-expanded': fullscreen }"
     data-testid="hr-department-org-chart"
     :aria-label="$t('hr.depts.orgChart')"
   >
     <div
       v-if="layout.boxes.length"
-      class="flex shrink-0 items-center justify-end gap-0.5 border-b border-border p-2"
+      class="flex shrink-0 items-center justify-end gap-0.5 border-b border-default p-2"
       role="group"
       :aria-label="$t('hr.depts.orgChartControls')"
     >
-      <Button
+      <UButton
         type="button"
+        color="secondary"
         variant="ghost"
-        size="icon-sm"
-        class="size-8 rounded-md"
+        square
         :disabled="!hydrated || nextOrgScale(scale, 1.2) === scale"
         :aria-label="$t('hr.depts.zoomIn')"
+        icon="i-lucide-zoom-in"
         data-testid="hr-org-zoom-in"
         @click="zoomBy(1.2)"
-      >
-        <ZoomIn class="size-[18px]" />
-      </Button>
-      <Button
+      />
+      <UButton
         type="button"
+        color="secondary"
         variant="ghost"
-        size="icon-sm"
-        class="size-8 rounded-md"
+        square
         :disabled="!hydrated || nextOrgScale(scale, 1 / 1.2) === scale"
         :aria-label="$t('hr.depts.zoomOut')"
+        icon="i-lucide-zoom-out"
         data-testid="hr-org-zoom-out"
         @click="zoomBy(1 / 1.2)"
-      >
-        <ZoomOut class="size-[18px]" />
-      </Button>
-      <Button
+      />
+      <UButton
         type="button"
+        color="secondary"
         variant="ghost"
-        size="icon-sm"
-        class="size-8 rounded-md"
+        square
         :disabled="!hydrated"
         :aria-label="$t('hr.depts.zoomFit')"
+        icon="i-lucide-scan"
         data-testid="hr-org-zoom-fit"
         @click="fit"
-      >
-        <Scan class="size-[18px]" />
-      </Button>
-      <Button
+      />
+      <UButton
         type="button"
+        color="secondary"
         variant="ghost"
-        size="icon-sm"
-        class="size-8 rounded-md"
+        square
         :disabled="!hydrated"
         :aria-label="$t(fullscreen ? 'hr.depts.fullscreenExit' : 'hr.depts.fullscreen')"
         :aria-pressed="fullscreen"
         :title="$t(fullscreen ? 'hr.depts.fullscreenExit' : 'hr.depts.fullscreen')"
+        :icon="fullscreen ? 'i-lucide-minimize' : 'i-lucide-maximize'"
         data-testid="hr-org-fullscreen"
         @click="toggleFullscreen"
-      >
-        <Minimize v-if="fullscreen" class="size-[18px]" />
-        <Maximize v-else class="size-[18px]" />
-      </Button>
+      />
     </div>
     <div
       v-if="layout.boxes.length"
@@ -242,7 +236,7 @@ onUnmounted(() => {
             :key="box.id"
             :to="{ path: `/hr/departments/${box.id}`, query: returnToQuery(returnTo) }"
             dir="ltr"
-            class="absolute overflow-hidden rounded-lg border border-border bg-card px-3 py-2 shadow-[0_1px_2px_color-mix(in_oklab,var(--foreground)_6%,transparent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            class="absolute overflow-hidden rounded-lg border border-default bg-default px-3 py-2 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             :class="{ 'pointer-events-none opacity-60': !hydrated }"
             :style="nodeStyle(box)"
             :title="nodeLabel(box)"
@@ -255,14 +249,14 @@ onUnmounted(() => {
           >
             <span class="flex h-full flex-col justify-center text-start" :dir="rtl ? 'rtl' : 'ltr'" data-org-node-text>
               <span class="line-clamp-2 text-pretty text-sm font-medium leading-5">{{ box.name }}</span>
-              <span class="mt-1 line-clamp-1 text-xs text-muted-foreground">{{ box.manager || $t('hr.depts.noManager') }}</span>
-              <span class="line-clamp-1 text-xs text-muted-foreground">{{ $t('hr.depts.employeeReason', { count: box.employeeCount }) }}</span>
+              <span class="mt-1 line-clamp-1 text-xs text-muted">{{ box.manager || $t('hr.depts.noManager') }}</span>
+              <span class="line-clamp-1 text-xs text-muted">{{ $t('hr.depts.employeeReason', { count: box.employeeCount }) }}</span>
             </span>
           </NuxtLink>
         </div>
       </div>
     </div>
-    <p v-else class="nasq-panel-body py-10 text-center text-sm text-muted-foreground">{{ $t('hr.depts.empty') }}</p>
+    <p v-else class="py-10 text-center text-sm text-muted">{{ $t('hr.depts.empty') }}</p>
   </section>
 </template>
 

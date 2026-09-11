@@ -23,8 +23,10 @@ function go(id: string, event: Event) {
 </script>
 
 <template>
-  <nav v-if="sections.length" class="nasq-settings-nav" :aria-label="t('settings.toc.label')">
-    <a
+  <nav v-if="sections.length" class="flex flex-wrap gap-2" :aria-label="t('settings.toc.label')">
+    <UButton
+      color="neutral"
+      :variant="isCurrent(section.id, index) ? 'soft' : 'ghost'"
       v-for="(section, index) in sections"
       :key="section.id"
       :href="`#${section.id}`"
@@ -32,6 +34,6 @@ function go(id: string, event: Event) {
       @click="go(section.id, $event)"
     >
       {{ section.label }}
-    </a>
+    </UButton>
   </nav>
 </template>

@@ -9,6 +9,6 @@ function saved(documentId: number) { void navigateTo({ path: `/hr/departments/${
   <SharedPageContainer width="form">
     <SharedPageHeader :title="t('hr.docs.new')" :back-to="returnTo" />
     <SharedPageState v-if="!can('hr.documents.manage')" :empty="true" :empty-text="t('errors.forbidden')" />
-    <section v-else class="nasq-panel nasq-panel-body"><DocumentCreateForm :department-id="id" :back-to="returnTo" @saved="saved" /></section>
+    <UCard v-else><DocumentCreateForm :department-id="id" :back-to="returnTo" @saved="saved" /></UCard>
   </SharedPageContainer>
 </template>

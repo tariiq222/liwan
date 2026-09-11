@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { Plus } from '@lucide/vue'
 import TaskBoard from '@/components/task/TaskBoard.vue'
 import TaskTable from '@/components/task/TaskTable.vue'
 import TaskToolbar from '@/components/task/TaskToolbar.vue'
@@ -47,16 +46,12 @@ function openCreate() {
   <SharedPageContainer v-if="isBaseRoute" width="list">
     <SharedPageHeader :title="t('tasks.title')" :description="t('tasks.description')">
       <template #actions>
-        <NuxtLink v-if="can('pmo.tasks.create')" :to="{ path: '/tasks/new', query: returnToQuery(route.fullPath) }">
-          <Button class="gap-2" :disabled="!hydrated">
-            <Plus class="size-[18px]" />{{ t('tasks.new') }}
-          </Button>
-        </NuxtLink>
-        <Button as-child variant="outline">
-          <NuxtLink :to="{ path: '/archived-tasks', query: returnToQuery(route.fullPath) }">
-            {{ t('taskLifecycle.archivedTasks') }}
-          </NuxtLink>
-        </Button>
+        <UButton v-if="can('pmo.tasks.create')" icon="i-lucide-plus" :disabled="!hydrated" :to="{ path: '/tasks/new', query: returnToQuery(route.fullPath) }">
+          {{ t('tasks.new') }}
+        </UButton>
+        <UButton color="secondary" variant="solid" :to="{ path: '/archived-tasks', query: returnToQuery(route.fullPath) }">
+          {{ t('taskLifecycle.archivedTasks') }}
+        </UButton>
       </template>
     </SharedPageHeader>
 

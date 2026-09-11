@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { PROJECT_STATUSES } from '@nasq/contracts'
-import { LayoutGrid, List, Plus, Search } from '@lucide/vue'
 import { refDebounced } from '@vueuse/core'
 import FilterBar from '@/components/shared/FilterBar.vue'
 import ProjectTable from '@/components/project/ProjectTable.vue'
@@ -96,14 +95,14 @@ function watchCapability(query: ReturnType<typeof useProjectList>) {
     ([at, allowed]) => {
       if (typeof at === 'number' && at > 0 && typeof allowed === 'boolean') recordCapabilityOutcome(at, allowed)
     },
-    { immediate: true },
+    { immediate: true, flush: 'sync' },
   )
   watch(
     [() => query.errorUpdatedAt.value, () => query.error.value],
     ([at, error]) => {
       if (error && typeof at === 'number' && at > 0) recordCapabilityOutcome(at, false)
     },
-    { immediate: true },
+    { immediate: true, flush: 'sync' },
   )
 }
 
@@ -200,81 +199,74 @@ function projectListTabTo(mine: boolean) {
   <SharedPageContainer width="list">
     <SharedPageHeader :title="t(filters.mine ? 'nav.myProjects' : 'nav.allProjects')" :description="t(filters.mine ? 'projects.myDescription' : 'projects.description')">
       <template #actions>
-        <Button v-if="canCreate" data-testid="project-new" :disabled="!hydrated" class="gap-2" @click="openCreate">
-          <Plus class="size-[18px]" />{{ t('projects.new') }}
-        </Button>
-        <Button as-child variant="outline">
-          <NuxtLink :to="{ path: '/project-templates', query: returnToQuery(route.fullPath) }" data-testid="project-templates-link">
-            {{ t('projects.planningLinks.templates') }}
-          </NuxtLink>
-        </Button>
-      </template>
-    </SharedPageHeader>
-    <div v-if="activeList.error.value && !projectList.error.value" role="alert" class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-      <span>{{ t('projects.loadError') }}</span>
-      <Button variant="outline" size="sm" @click="activeList.refetch()">{{ t('app.retry') }}</Button>
-    </div>
-    <div class="w-full min-w-0" data-testid="projects-toolbar">
-      <FilterBar inline class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
+    <div class="min-w-0" data-testid="projects-toolbar">
+      <FilterBar :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
       <template #search>
-        <div class="relative min-w-52 flex-1">
-          <Search class="pointer-events-none absolute start-2 top-1/2 size-[18px] -translate-y-1/2 text-muted-foreground" />
-          <Input v-model="search" :disabled="!hydrated" :placeholder="t('projects.filters.search')" class="ps-8" />
-        </div>
+        <UInput v-model="search" :disabled="!hydrated" :placeholder="t('projects.filters.search')" icon="i-lucide-search" class="w-full min-w-52" />
       </template>
 
       <template #default>
-        <Tabs v-if="canListArchived" :model-value="archived ? 'archived' : 'active'" @update:model-value="onFilterChange">
-          <TabsList>
-            <TabsTrigger value="active" :disabled="!hydrated">{{ t('projects.filters.active') }}</TabsTrigger>
-            <TabsTrigger value="archived" :disabled="!hydrated">{{ t('projects.filters.archived') }}</TabsTrigger>
-          </TabsList>
-        </Tabs>
-        <Select :model-value="statusFilter" @update:model-value="onStatusChange">
-          <SelectTrigger data-testid="projects-status-filter" class="w-40" :disabled="!hydrated">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{{ t('projects.filters.allStatuses') }}</SelectItem>
-            <SelectItem value="unset">{{ t('projects.filters.unset') }}</SelectItem>
-            <SelectItem v-for="status in PROJECT_STATUSES" :key="status" :value="status">{{ t(`projects.status.${status}`) }}</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select :model-value="sort" @update:model-value="onSortChange">
-          <SelectTrigger data-testid="projects-sort" class="w-40" :disabled="!hydrated">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="default">{{ t('projects.filters.sortDefault') }}</SelectItem>
-            <SelectItem value="name">{{ t('projects.filters.sortName') }}</SelectItem>
-            <SelectItem value="progress">{{ t('projects.filters.sortProgress') }}</SelectItem>
-          </SelectContent>
-        </Select>
+        <UTabs
+          v-if="canListArchived"
+          :model-value="archived ? 'archived' : 'active'"
+          :items="[{ label: t('projects.filters.active'), value: 'active', disabled: !hydrated }, { label: t('projects.filters.archived'), value: 'archived', disabled: !hydrated }]"
+          size="sm"
+          @update:model-value="onFilterChange"
+        />
+        <USelect
+          :model-value="statusFilter"
+          :items="[{ value: 'all', label: t('projects.filters.allStatuses') }, { value: 'unset', label: t('projects.filters.unset') }, ...PROJECT_STATUSES.map(status => ({ value: status, label: t(`projects.status.${status}`) }))]"
+          data-testid="projects-status-filter"
+          class="w-40"
+          :disabled="!hydrated"
+          @update:model-value="onStatusChange"
+        />
+        <USelect
+          :model-value="sort"
+          :items="[{ value: 'default', label: t('projects.filters.sortDefault') }, { value: 'name', label: t('projects.filters.sortName') }, { value: 'progress', label: t('projects.filters.sortProgress') }]"
+          data-testid="projects-sort"
+          class="w-40"
+          :disabled="!hydrated"
+          @update:model-value="onSortChange"
+        />
       </template>
       <template #view>
-        <div role="group" class="inline-flex h-[40px] items-center rounded-lg border bg-muted/40 p-0.5" :aria-label="t('projects.filters.view')">
-          <Button data-testid="projects-view-table" type="button" variant="ghost" size="icon" class="size-[32px] rounded-md" :class="view === 'table' ? 'bg-background shadow-sm' : ''" :disabled="!hydrated" :aria-label="t('projects.filters.tableView')" :aria-pressed="view === 'table'" @click="onViewChange('table')">
-            <List class="size-[18px]" />
-          </Button>
-          <Button data-testid="projects-view-cards" type="button" variant="ghost" size="icon" class="size-[32px] rounded-md" :class="view === 'cards' ? 'bg-background shadow-sm' : ''" :disabled="!hydrated" :aria-label="t('projects.filters.cardView')" :aria-pressed="view === 'cards'" @click="onViewChange('cards')">
-            <LayoutGrid class="size-[18px]" />
-          </Button>
+        <div role="group" class="inline-flex h-[40px] items-center rounded-lg border bg-elevated/40 p-0.5" :aria-label="t('projects.filters.view')">
+          <UButton data-testid="projects-view-table" type="button" square :color="view === 'table' ? 'primary' : 'neutral'" :variant="view === 'table' ? 'solid' : 'ghost'" icon="i-lucide-list" :disabled="!hydrated" :aria-label="t('projects.filters.tableView')" :aria-pressed="view === 'table'" @click="onViewChange('table')" />
+          <UButton data-testid="projects-view-cards" type="button" square :color="view === 'cards' ? 'primary' : 'neutral'" :variant="view === 'cards' ? 'solid' : 'ghost'" icon="i-lucide-layout-grid" :disabled="!hydrated" :aria-label="t('projects.filters.cardView')" :aria-pressed="view === 'cards'" @click="onViewChange('cards')" />
         </div>
       </template>
 
       <template #active>
         <div v-if="rawSearch || statusFilter !== 'all' || sort !== 'default'" class="flex flex-wrap items-center gap-2">
-          <Badge v-if="rawSearch" variant="secondary">{{ t('projects.filters.searchValue', { value: rawSearch }) }}</Badge>
-          <Badge v-if="statusFilter !== 'all'" variant="secondary">{{ t(statusFilter === 'unset' ? 'projects.filters.unset' : `projects.status.${statusFilter}`) }}</Badge>
-          <Badge v-if="sort !== 'default'" variant="secondary">{{ t(sort === 'name' ? 'projects.filters.sortName' : 'projects.filters.sortProgress') }}</Badge>
+          <UBadge v-if="rawSearch" color="neutral" variant="subtle">{{ t('projects.filters.searchValue', { value: rawSearch }) }}</UBadge>
+          <UBadge v-if="statusFilter !== 'all'" color="neutral" variant="subtle">{{ t(statusFilter === 'unset' ? 'projects.filters.unset' : `projects.status.${statusFilter}`) }}</UBadge>
+          <UBadge v-if="sort !== 'default'" color="neutral" variant="subtle">{{ t(sort === 'name' ? 'projects.filters.sortName' : 'projects.filters.sortProgress') }}</UBadge>
         </div>
       </template>
       </FilterBar>
     </div>
+        <UButton v-if="canCreate" data-testid="project-new" icon="i-lucide-plus" :disabled="!hydrated" :label="t('projects.new')" @click="openCreate" />
+        <UButton color="secondary" variant="solid" :to="{ path: '/project-templates', query: returnToQuery(route.fullPath) }" data-testid="project-templates-link" :label="t('projects.planningLinks.templates')" />
+      </template>
+    </SharedPageHeader>
+    <UAlert
+      v-if="activeList.error.value && !projectList.error.value"
+      role="alert"
+      color="error"
+      variant="subtle"
+      icon="i-lucide-circle-alert"
+      :title="t('projects.loadError')"
+    >
+      <template #actions>
+        <UButton color="error" variant="outline" size="sm" :label="t('app.retry')" @click="activeList.refetch()" />
+      </template>
+    </UAlert>
+
 
     <SharedPageState v-if="projectList.error.value" :error="projectList.error.value" @retry="projectList.refetch" />
     <template v-else>
-    <p v-if="projectList.data.value" data-testid="projects-result-count" class="text-sm text-muted-foreground">
+    <p v-if="projectList.data.value" data-testid="projects-result-count" class="text-sm text-muted">
       {{ t('projects.refresh.workspace.resultCount', { count: total }) }}
     </p>
     <ProjectTable
@@ -297,14 +289,10 @@ function projectListTabTo(mine: boolean) {
       :to-for="projectTo"
       @open="openProject"
     />
-      <div v-if="pages > 1" class="flex items-center justify-between text-sm text-muted-foreground">
-        <Button variant="ghost" :disabled="!hydrated || page === 1 || projectList.isFetching.value" @click="setPage(page - 1)">
-          {{ t('projects.previousPage') }}
-        </Button>
+      <div v-if="pages > 1" class="flex items-center justify-between text-sm text-muted">
+        <UButton color="neutral" variant="ghost" :disabled="!hydrated || page === 1 || projectList.isFetching.value" :label="t('projects.previousPage')" @click="setPage(page - 1)" />
         <span>{{ t('projects.pageOf', { page, pages }) }}</span>
-        <Button variant="ghost" :disabled="!hydrated || page >= pages || projectList.isFetching.value" @click="setPage(page + 1)">
-          {{ t('projects.nextPage') }}
-        </Button>
+        <UButton color="neutral" variant="ghost" :disabled="!hydrated || page >= pages || projectList.isFetching.value" :label="t('projects.nextPage')" @click="setPage(page + 1)" />
       </div>
     </template>
   </SharedPageContainer>

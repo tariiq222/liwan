@@ -8,6 +8,7 @@ const secretaryId = defineModel<number | null>('secretaryId')
 const props = defineProps<{ known?: MeetingPerson[]; disabled?: boolean }>()
 
 const { t } = useI18n()
+const NO_SECRETARY = '__none__'
 const attendeeQuery = ref('')
 const secretaryQuery = ref('')
 const attendeeSearch = refDebounced(attendeeQuery, 250)
@@ -31,6 +32,10 @@ const secretaryOptions = computed(() => mergeMeetingPeople({
   known: knownPeople.value,
   results: (secretaryPeople.data.value ?? []).map(person => ({ id: person.user_id, name: person.name })),
 }))
+const secretarySelect = computed({
+  get: () => secretaryId.value ?? NO_SECRETARY,
+  set: value => { secretaryId.value = value === NO_SECRETARY ? null : Number(value) },
+})
 
 watch([attendeeIds, secretaryId, () => props.known, () => people.data.value, () => secretaryPeople.data.value], () => {
   const next = { ...remembered.value }
@@ -53,49 +58,50 @@ function remove(id: number) {
   attendeeIds.value = attendeeIds.value.filter(item => item !== id)
 }
 
-function chooseSecretary(event: Event) {
-  secretaryId.value = Number((event.target as HTMLSelectElement).value) || null
-}
 </script>
 
 <template>
   <fieldset class="grid gap-3">
     <legend class="text-sm font-medium">{{ t('meetingsUi.attendees') }}</legend>
     <div class="grid gap-2">
-      <Label for="meeting-attendee-search">{{ t('meetingsUi.searchPeople') }}</Label>
-      <Input id="meeting-attendee-search" v-model="attendeeQuery" :placeholder="t('meetingsUi.searchPeople')" :disabled="disabled" :aria-label="t('meetingsUi.searchPeople')" />
+      <label for="meeting-attendee-search" class="text-sm font-medium text-highlighted">{{ t('meetingsUi.searchPeople') }}</label>
+      <UInput id="meeting-attendee-search" v-model="attendeeQuery" class="w-full" :placeholder="t('meetingsUi.searchPeople')" :disabled="disabled" :aria-label="t('meetingsUi.searchPeople')" />
     </div>
     <div class="flex flex-wrap gap-1" aria-live="polite">
-      <Badge v-for="person in selectedPeople" :key="person.id" variant="secondary" class="gap-1 pe-1">
+      <UBadge v-for="person in selectedPeople" :key="person.id" color="neutral" variant="subtle" class="gap-1 pe-1">
         <span>{{ person.name }}</span>
-        <button type="button" class="rounded-full px-1 hover:bg-muted-foreground/20" :aria-label="t('meetingsUx.removePerson', { name: person.name })" :disabled="disabled" @click="remove(person.id)">×</button>
-      </Badge>
+        <UButton type="button" color="error" variant="ghost" size="xs" class="rounded-full px-1" :aria-label="t('meetingsUx.removePerson', { name: person.name })" :disabled="disabled" label="×" @click="remove(person.id)" />
+      </UBadge>
       <span v-if="!selectedPeople.length" class="text-sm text-muted-foreground">{{ t('meetingsUi.emptyAttendees') }}</span>
     </div>
     <div v-if="people.isLoading.value" class="text-sm text-muted-foreground" role="status">{{ t('meetingsUx.people.loading') }}</div>
     <div v-else-if="people.error.value" class="flex items-center gap-2 text-sm text-destructive" role="alert">
       <span>{{ t('meetingsUx.people.error') }}</span>
-      <Button type="button" variant="outline" size="sm" :disabled="disabled" @click="people.refetch()">{{ t('meetingsUx.people.retry') }}</Button>
+      <UButton type="button" color="secondary" variant="outline" size="sm" :disabled="disabled" :label="t('meetingsUx.people.retry')" @click="people.refetch()" />
     </div>
     <div v-else-if="!attendeeResults.length" class="text-sm text-muted-foreground">{{ t('meetingsUx.people.empty') }}</div>
     <div v-else class="grid max-h-48 gap-1 overflow-y-auto rounded-lg border border-border p-2" tabindex="0">
       <label v-for="person in attendeeResults" :key="person.id" class="flex items-center gap-2 text-sm">
-        <input type="checkbox" :checked="attendeeIds.includes(person.id)" :disabled="disabled" @change="toggle(person.id, person.name)">
+        <UCheckbox :model-value="attendeeIds.includes(person.id)" :disabled="disabled" :aria-label="person.name" @update:model-value="toggle(person.id, person.name)" />
         <span>{{ person.name }}</span>
       </label>
     </div>
     <div class="grid gap-2">
-      <Label for="meeting-secretary-search">{{ t('meetingsUx.secretarySearch') }}</Label>
-      <Input id="meeting-secretary-search" v-model="secretaryQuery" :placeholder="t('meetingsUx.secretarySearch')" :disabled="disabled" :aria-label="t('meetingsUx.secretarySearch')" />
+      <label for="meeting-secretary-search" class="text-sm font-medium text-highlighted">{{ t('meetingsUx.secretarySearch') }}</label>
+      <UInput id="meeting-secretary-search" v-model="secretaryQuery" class="w-full" :placeholder="t('meetingsUx.secretarySearch')" :disabled="disabled" :aria-label="t('meetingsUx.secretarySearch')" />
       <div v-if="secretaryPeople.isLoading.value" class="text-sm text-muted-foreground" role="status">{{ t('meetingsUx.people.loading') }}</div>
       <div v-else-if="secretaryPeople.error.value" class="flex items-center gap-2 text-sm text-destructive" role="alert">
         <span>{{ t('meetingsUx.people.error') }}</span>
-        <Button type="button" variant="outline" size="sm" :disabled="disabled" @click="secretaryPeople.refetch()">{{ t('meetingsUx.people.retry') }}</Button>
+        <UButton type="button" color="secondary" variant="outline" size="sm" :disabled="disabled" :label="t('meetingsUx.people.retry')" @click="secretaryPeople.refetch()" />
       </div>
-      <select id="meeting-secretary" class="border-input h-9 rounded-lg border bg-transparent px-2 text-sm" :aria-label="t('meetingsUi.secretary')" :disabled="disabled" :value="secretaryId ?? ''" @change="chooseSecretary">
-        <option value="">{{ t('meetingsUx.noSecretary') }}</option>
-        <option v-for="person in secretaryOptions" :key="person.id" :value="person.id">{{ person.name }}</option>
-      </select>
+      <USelect
+        id="meeting-secretary"
+        class="w-full"
+        :aria-label="t('meetingsUi.secretary')"
+        :disabled="disabled"
+        v-model="secretarySelect"
+        :items="[{ label: t('meetingsUx.noSecretary'), value: NO_SECRETARY }, ...secretaryOptions.map(person => ({ label: person.name, value: person.id }))]"
+      />
     </div>
   </fieldset>
 </template>

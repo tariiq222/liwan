@@ -5,7 +5,7 @@
       <slot />
       <slot name="view" />
       <slot name="actions" />
-      <Button v-if="props.activeCount > 0" type="button" variant="ghost" size="sm" :disabled="props.disabled || !hydrated" @click="$emit('clear')">{{ props.clearLabel || t('filterCard.clear') }}</Button>
+      <UButton v-if="props.activeCount > 0" type="button" color="error" variant="ghost" square icon="i-lucide-trash-2" :aria-label="props.clearLabel || t('filterCard.clear')" :disabled="props.disabled || !hydrated" @click="$emit('clear')"></UButton>
     </div>
     <div v-if="props.activeCount > 0 && $slots.active" class="flex flex-wrap items-center gap-2"><slot name="active" /></div>
   </div>

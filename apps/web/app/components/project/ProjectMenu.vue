@@ -1,8 +1,6 @@
 <script setup lang="ts">
 import type { Project, ProjectDetail } from '@nasq/contracts'
-import { MoreHorizontal } from '@lucide/vue'
-import { AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogOverlay, AlertDialogPortal, AlertDialogRoot, AlertDialogTitle } from 'reka-ui'
-import { toast } from 'vue-sonner'
+import type { DropdownMenuItem } from '@nuxt/ui'
 import { ApiError } from '@/composables/useApi'
 import { useArchiveProject, useUnarchiveProject } from '@/composables/useProjects'
 
@@ -11,76 +9,71 @@ const emit = defineEmits<{ settings: []; archived: []; unarchived: [] }>()
 
 const { t } = useI18n()
 const hydrated = useHydrated()
+const toast = useToast()
 const { mutateAsync: archiveMutate, isPending: archiving } = useArchiveProject()
 const { mutateAsync: unarchiveMutate, isPending: unarchiving } = useUnarchiveProject()
 
 const confirmOpen = ref(false)
 
+const items = computed<DropdownMenuItem[]>(() => {
+  const list: DropdownMenuItem[] = []
+  if (!props.hideSettings) list.push({ label: t('projects.menu.settings'), onSelect: () => emit('settings') })
+  if (props.project.active) list.push({ label: t('projects.menu.archive'), onSelect: () => { confirmOpen.value = true } })
+  else list.push({ label: t('projects.menu.unarchive'), disabled: unarchiving.value, onSelect: doUnarchive })
+  return list
+})
+
 async function doArchive() {
   try {
     await archiveMutate({ id: props.project.id })
-    toast.success(t('projects.archived'))
+    toast.add({ title: t('projects.archived'), color: 'success' })
     confirmOpen.value = false
     emit('archived')
   } catch (e) {
-    toast.error(e instanceof ApiError ? e.message : t('errors.generic'))
+    toast.add({ title: e instanceof ApiError ? e.message : t('errors.generic'), color: 'error' })
   }
 }
 
 async function doUnarchive() {
   try {
     await unarchiveMutate({ id: props.project.id })
-    toast.success(t('projects.unarchived'))
+    toast.add({ title: t('projects.unarchived'), color: 'success' })
     emit('unarchived')
   } catch (e) {
-    toast.error(e instanceof ApiError ? e.message : t('errors.generic'))
+    toast.add({ title: e instanceof ApiError ? e.message : t('errors.generic'), color: 'error' })
   }
 }
+
 </script>
 
 <template>
-  <DropdownMenu v-if="project.can_manage">
-    <DropdownMenuTrigger as-child :disabled="!hydrated">
-      <button
-        type="button"
-        data-testid="project-menu"
-        class="inline-flex size-[32px] items-center justify-center rounded-lg border border-border text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-60"
-        :disabled="!hydrated"
-        :aria-label="t('projects.menu.label')"
-        @click.stop
-      >
-        <MoreHorizontal class="size-[18px]" />
-      </button>
-    </DropdownMenuTrigger>
-    <DropdownMenuContent align="end">
-      <DropdownMenuItem v-if="!hideSettings" @select="emit('settings')">
-        {{ t('projects.menu.settings') }}
-      </DropdownMenuItem>
-      <DropdownMenuItem v-if="project.active" @select="confirmOpen = true">
-        {{ t('projects.menu.archive') }}
-      </DropdownMenuItem>
-      <DropdownMenuItem v-else :disabled="unarchiving" @select="doUnarchive">
-        {{ t('projects.menu.unarchive') }}
-      </DropdownMenuItem>
-    </DropdownMenuContent>
-  </DropdownMenu>
+  <UDropdownMenu v-if="project.can_manage" :items="items" :content="{ align: 'end' }">
+    <UButton
+      type="button"
+      data-testid="project-menu"
+      color="secondary"
+      variant="outline"
+      square
+      icon="i-lucide-more-horizontal"
+      :disabled="!hydrated"
+      :aria-label="t('projects.menu.label')"
+      @click.stop
+    />
+  </UDropdownMenu>
 
-  <AlertDialogRoot :open="project.active && confirmOpen" @update:open="open => { if (!open) confirmOpen = false }">
-    <AlertDialogPortal>
-      <AlertDialogOverlay class="fixed inset-0 z-50 bg-black/30" />
-      <AlertDialogContent
-        data-testid="project-archive-confirm"
-        class="fixed start-1/2 top-1/2 z-50 w-[calc(100%-2rem)] max-w-[420px] -translate-y-1/2 rounded-lg border bg-card p-6 text-start text-card-foreground shadow-lg ltr:-translate-x-1/2 rtl:translate-x-1/2"
-      >
-        <AlertDialogTitle class="text-base font-semibold">{{ t('projects.archiveConfirmTitle') }}</AlertDialogTitle>
-        <AlertDialogDescription class="mt-2 text-sm leading-6 text-muted-foreground">{{ t('projects.archiveConfirmText') }}</AlertDialogDescription>
-        <div class="mt-6 flex flex-wrap justify-end gap-2">
-          <AlertDialogCancel as-child>
-            <Button type="button" variant="outline" :disabled="archiving">{{ t('app.cancel') }}</Button>
-          </AlertDialogCancel>
-          <Button type="button" variant="destructive" :disabled="archiving" @click="doArchive">{{ t('projects.menu.archive') }}</Button>
-        </div>
-      </AlertDialogContent>
-    </AlertDialogPortal>
-  </AlertDialogRoot>
+  <UAlert
+    v-if="project.active && confirmOpen"
+    color="error"
+    variant="soft"
+    data-testid="project-archive-confirm"
+    :title="t('projects.archiveConfirmTitle')"
+    :description="t('projects.archiveConfirmText')"
+  >
+    <template #actions>
+      <div class="flex flex-wrap justify-end gap-2 w-full">
+        <UButton type="button" color="secondary" :disabled="archiving" @click="confirmOpen = false" variant="solid">{{ t('app.cancel') }}</UButton>
+        <UButton type="button" color="error" :loading="archiving" @click="doArchive">{{ t('projects.menu.archive') }}</UButton>
+      </div>
+    </template>
+  </UAlert>
 </template>

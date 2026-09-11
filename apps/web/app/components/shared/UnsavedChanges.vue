@@ -1,7 +1,7 @@
 <script setup lang="ts">
+import type { ModalProps } from '@nuxt/ui'
 import { inject } from 'vue'
 import { onBeforeRouteLeave, onBeforeRouteUpdate } from 'vue-router'
-import { AlertDialogRoot, AlertDialogPortal, AlertDialogOverlay, AlertDialogContent, AlertDialogTitle, AlertDialogDescription, AlertDialogCancel } from 'reka-ui'
 import { PROJECT_OVERLAY_INJECTION_KEY, wantsProjectOverlayFullPage } from '@/utils/projectOverlayRoute'
 import { isWorkspaceOverlayRoute } from '@/utils/workspacePresentation'
 
@@ -13,6 +13,14 @@ const guardRouteUpdates = computed(() => props.guardRouteUpdates || inProjectOve
 const pendingPath = ref<string | null>(null)
 const leaving = ref(false)
 let returnFocus: HTMLElement | null = null
+
+function guardBrowserUnload(event: BeforeUnloadEvent) {
+  if (!props.dirty || leaving.value) return
+  event.preventDefault()
+  event.returnValue = ''
+}
+onMounted(() => window.addEventListener('beforeunload', guardBrowserUnload))
+onBeforeUnmount(() => window.removeEventListener('beforeunload', guardBrowserUnload))
 
 function guard(to: { fullPath: string }) {
   if (!props.dirty || leaving.value) return true
@@ -55,26 +63,20 @@ async function discard() {
     leaving.value = false
   }
 }
+
+const dialogContent = computed<NonNullable<ModalProps['content']> & { 'data-testid': string }>(() => ({ 'data-testid': 'unsaved-changes-dialog', onCloseAutoFocus: (event: Event) => { event.preventDefault(); restoreFocus() } }))
 </script>
 
 <template>
-  <AlertDialogRoot :open="pendingPath !== null" @update:open="open => { if (!open && !leaving) pendingPath = null }">
-    <AlertDialogPortal>
-      <AlertDialogOverlay :class="['fixed inset-0 bg-black/30', inProjectOverlay ? 'z-[119]' : 'z-50']" />
-      <AlertDialogContent
-        data-testid="unsaved-changes-dialog"
-        @close-auto-focus.prevent="restoreFocus"
-        :class="['fixed start-1/2 top-1/2 w-[calc(100%-2rem)] max-w-[420px] -translate-y-1/2 rounded-lg border bg-card p-6 text-start text-card-foreground shadow-lg ltr:-translate-x-1/2 rtl:translate-x-1/2', inProjectOverlay ? 'z-[120]' : 'z-50']"
-      >
-        <AlertDialogTitle class="text-base font-semibold">{{ $t('app.unsavedChangesTitle') }}</AlertDialogTitle>
-        <AlertDialogDescription class="mt-2 text-sm leading-6 text-muted-foreground">{{ $t('app.unsavedChanges') }}</AlertDialogDescription>
-        <div class="mt-6 flex flex-wrap justify-end gap-2">
-          <AlertDialogCancel as-child>
-            <Button type="button" variant="outline" :disabled="leaving">{{ $t('app.stay') }}</Button>
-          </AlertDialogCancel>
-          <Button type="button" :disabled="leaving" @click="discard">{{ $t('app.discardAndLeave') }}</Button>
-        </div>
-      </AlertDialogContent>
-    </AlertDialogPortal>
-  </AlertDialogRoot>
+  <UModal :open="pendingPath !== null" :title="$t('app.unsavedChangesTitle')" :description="$t('app.unsavedChanges')" :close="false"
+    :content="dialogContent"
+    :ui="{ content: 'z-[150] max-w-md', overlay: 'z-[149]' }"
+    @update:open="open => { if (!open && !leaving) pendingPath = null }">
+    <template #footer>
+      <div class="flex w-full flex-wrap justify-end gap-2">
+        <UButton type="button" color="secondary" :disabled="leaving" @click="pendingPath = null">{{ $t('app.stay') }}</UButton>
+        <UButton type="button" :disabled="leaving" @click="discard">{{ $t('app.discardAndLeave') }}</UButton>
+      </div>
+    </template>
+  </UModal>
 </template>
