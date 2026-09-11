@@ -1,3 +1,11 @@
+# Current cleanup — 2026-09-11
+
+After integration at `a8cb1aa`, Tariq authorized deletion of all preserved task
+worktrees, branches and recovery/evidence directories. Only canonical `nasq`
+on `main` remains registered. Source databases and the active Odoo runtime
+were preserved. The external artifact paths in historical entries below were
+intentionally deleted; see [the cleanup receipt](verification/2026-09-11-worktree-cleanup.md).
+
 # Current integration — 2026-09-11
 
 The nine Nuxt UI worktrees were reconciled against main baseline `d4b6fc9` in
