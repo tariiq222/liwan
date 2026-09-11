@@ -2,17 +2,24 @@ import { describe, it, expect } from 'vitest'
 import { isContextPathActive, projectIdFromPath } from '../useShellNavigation'
 
 describe('project list context selection', () => {
-  it('marks only mine or all for the same list path', () => {
-    const mine = { path: '/projects', query: { mine: '1' } }
-    expect(isContextPathActive('/projects', mine, { mine: '1', q: 'site' })).toBe(true)
-    expect(isContextPathActive('/projects', '/projects', { mine: '1' })).toBe(false)
-    expect(isContextPathActive('/projects', mine, {})).toBe(false)
+  it('keeps all projects active for the list regardless of the mine toggle, its create form and every record', () => {
+    expect(isContextPathActive('/projects', '/projects', { mine: '1', q: 'site' })).toBe(true)
     expect(isContextPathActive('/projects', '/projects', {})).toBe(true)
+    expect(isContextPathActive('/projects/new', '/projects')).toBe(true)
+    expect(isContextPathActive('/projects/42', '/projects')).toBe(true)
+    expect(isContextPathActive('/projects/42/stakeholders/3/edit', '/projects')).toBe(true)
+    expect(isContextPathActive('/projects/42', '/projects/dashboard')).toBe(false)
+    expect(isContextPathActive('/project-templates/3', '/project-templates')).toBe(true)
+    expect(isContextPathActive('/project-templates', '/projects')).toBe(false)
   })
-  it('does not mark all-projects active on create or dashboard', () => {
-    expect(isContextPathActive('/projects/new', '/projects')).toBe(false)
+  it('keeps my tasks active for task records and the archive', () => {
+    expect(isContextPathActive('/tasks/new', '/tasks')).toBe(true)
+    expect(isContextPathActive('/tasks/7', '/tasks')).toBe(true)
+    expect(isContextPathActive('/archived-tasks', '/tasks')).toBe(true)
+    expect(isContextPathActive('/projects/1', '/tasks')).toBe(false)
+  })
+  it('does not mark a module list active on its create form or on the dashboard', () => {
     expect(isContextPathActive('/chat/new', '/chat')).toBe(false)
-    expect(isContextPathActive('/tasks/new', '/tasks')).toBe(false)
     expect(isContextPathActive('/meetings/new', '/meetings')).toBe(false)
     expect(isContextPathActive('/hr/employees/new', '/hr')).toBe(false)
     expect(isContextPathActive('/hr/departments/new', '/hr/departments')).toBe(false)

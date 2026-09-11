@@ -135,7 +135,7 @@ test('project settings: visibility, followers, and the full stage lifecycle', as
   await createTask(page, `${name} task`, id)
 
   await page.goto(`/projects/${id}`)
-  await page.getByTestId('context-link-settings').click()
+  await page.getByTestId('project-workspace-settings').click()
   await expect(page).toHaveURL(new RegExp(`/projects/${id}/settings\\?`))
   let settings = page.getByTestId('project-settings-page')
   await expect(settings).toBeVisible()

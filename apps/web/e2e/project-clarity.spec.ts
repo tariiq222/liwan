@@ -49,9 +49,9 @@ test('project list uses one create action and retains search between all and my 
   await page.goto('/projects?q=alpha')
   await expect(page.getByTestId('project-new')).toBeVisible()
   await expect(page.getByTestId('context-link-new-project')).toHaveCount(0)
-  await page.getByTestId('context-link-my-projects').click()
-  await expect(page).toHaveURL(/mine=1/)
-  await expect(page).toHaveURL(/q=alpha/)
+  await expect(page.getByTestId('context-link-my-projects')).toHaveCount(0)
+  await page.goto('/projects?mine=1&q=alpha')
+  await expect(page.getByTestId('context-link-projects')).toHaveAttribute('aria-current', 'page')
   await page.getByTestId('context-link-projects').click()
   await expect(page).not.toHaveURL(/mine=1/)
   await expect(page).toHaveURL(/q=alpha/)
@@ -126,7 +126,9 @@ for (const path of [
     await expect(page.locator('.animate-pulse')).toHaveCount(0)
     await expect(page.getByTestId('context-sidebar-toggle')).toBeEnabled()
     const dialog = page.getByRole('dialog')
-    const scope = await dialog.count() ? dialog : page.locator('[data-slot="page-container"]').first()
+    // The project workspace frame (title row + tabs) precedes the section container since 2026-09-11.
+    const scope = await dialog.count() ? dialog : page.locator('[data-slot="page-container"]').filter({ has: page.getByRole('heading', { level: 1 }) }).first()
+    if (!await dialog.count()) await expect(page.locator('main h1')).toHaveCount(1)
     await expect(scope.getByRole('heading', { level: 1 })).toHaveCount(1)
     await expect(scope.getByRole('heading', { level: 1 })).toBeVisible()
     const evidence = await scope.evaluate(el => ({

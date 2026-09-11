@@ -29,7 +29,7 @@ const redundantContextLabels = computed(() => [
   'nav.projects', 'nav.projectDashboard', 'nav.allProjects', 'nav.myProjects',
   'nav.tasks', 'nav.archivedTasks', 'nav.chat', 'nav.newConversation',
   'nav.meetings', 'nav.newMeeting', 'nav.meetingCalendar', 'nav.employees',
-  'nav.departments', 'nav.documents', 'nav.humanResources', 'nav.settings',
+  'nav.departments', 'nav.documents', 'nav.organization', 'nav.home', 'nav.projectTemplates', 'nav.settings',
   'nav.account', 'settings.appearance.title', 'settings.branding.title', 'settings.projects.title',
   'nav.users', 'nav.roles', 'nav.accessLog', 'nav.projectSummary',
   'nav.projectPlanning', 'nav.projectStakeholders', 'nav.projectRisks',

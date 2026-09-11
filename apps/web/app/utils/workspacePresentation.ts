@@ -69,7 +69,7 @@ export function deriveWorkspaceOverlayBackground(path: string, query: RouteQuery
   return params.size ? base + '?' + params.toString() : base
 }
 export function workspaceOverlayTitleKey(path: string): string {
-  if (path.startsWith('/hr')) return 'nav.humanResources'
+  if (path.startsWith('/hr')) return 'nav.organization'
   if (path.startsWith('/meetings')) return 'nav.meetings'
   if (path.startsWith('/tasks')) return 'nav.tasks'
   if (path.startsWith('/settings')) return 'nav.settings'

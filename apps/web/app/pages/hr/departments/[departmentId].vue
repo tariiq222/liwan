@@ -18,7 +18,7 @@ const route = useRoute(); const { t } = useI18n(); const { can } = useAccess(); 
         <UCard>
           <template #header><h2 class="text-lg font-semibold text-highlighted">{{ t('hr.card.overview') }}</h2></template>
           <dl class="grid gap-4">
-            <div><dt class="text-sm text-muted">{{ t('nav.employees') }}</dt><dd class="mt-1 font-medium">{{ department.employee_count }}</dd></div>
+            <div><dt class="text-sm text-muted">{{ t('hr.tabs.employees') }}</dt><dd class="mt-1 font-medium">{{ department.employee_count }}</dd></div>
             <div><dt class="text-sm text-muted">{{ t('hr.depts.manager') }}</dt><dd class="mt-1 font-medium">{{ department.manager?.name || t('hr.depts.noManager') }}</dd></div>
           </dl>
         </UCard>

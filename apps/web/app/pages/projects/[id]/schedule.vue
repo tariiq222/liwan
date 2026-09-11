@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import type { LocationQueryRaw } from 'vue-router'
 import { inject } from 'vue'
 import ProjectHeader from '@/components/project/ProjectHeader.vue'
 import { ApiError } from '@/composables/useApi'
@@ -26,17 +25,6 @@ const scale = computed<ScheduleScale>({
 })
 const notFound = computed(() => projectId.value === null || (projectError.value instanceof ApiError && [403, 404].includes(projectError.value.status)))
 function retry() { void Promise.all([refetchProject(), refetch()]) }
-
-function planningLink(view: 'list' | 'board' | 'gantt' | 'milestones') {
-  const query: LocationQueryRaw = { ...route.query }
-  delete query.view
-  if (view === 'gantt') {
-    delete query.tab
-    return { path: `/projects/${projectId.value}/schedule`, query }
-  }
-  query.tab = view === 'list' ? 'tasks' : view
-  return { path: `/projects/${projectId.value}`, query }
-}
 
 function openTaskCreate() {
   if (!projectId.value) return
@@ -68,11 +56,6 @@ function onArchived() {
       :title="t('projects.schedule.title')"
     />
     <div class="flex flex-wrap items-center justify-between gap-3">
-      <nav v-if="!isProjectOverlay" class="flex flex-wrap items-center gap-1" :aria-label="t('projects.planning.views')">
-        <UButton color="neutral" variant="ghost" :to="planningLink('list')">{{ t('projects.tabs.list') }}</UButton>
-        <UButton color="neutral" variant="ghost" :to="planningLink('board')">{{ t('projects.tabs.board') }}</UButton>
-        <UButton color="neutral" variant="soft" :to="planningLink('gantt')" aria-current="page">{{ t('projects.tabs.timeline') }}</UButton>
-      </nav>
       <div class="flex rounded-lg border p-0.5" role="group" :aria-label="t('projects.schedule.scale')">
         <UButton type="button" size="sm" class="rounded-md" :variant="scale === 'week' ? 'solid' : 'ghost'" :disabled="!hydrated" :aria-pressed="scale === 'week'" @click="scale = 'week'">{{ t('projects.schedule.week') }}</UButton>
         <UButton type="button" size="sm" class="rounded-md" :variant="scale === 'month' ? 'solid' : 'ghost'" :disabled="!hydrated" :aria-pressed="scale === 'month'" @click="scale = 'month'">{{ t('projects.schedule.month') }}</UButton>

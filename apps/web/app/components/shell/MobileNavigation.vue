@@ -4,7 +4,7 @@ import { Menu } from '@lucide/vue'
 import { useMediaQuery } from '@vueuse/core'
 import SidebarCreateAction from '@/components/shell/SidebarCreateAction.vue'
 import { useShellNavigation } from '@/composables/useShellNavigation'
-import { activeShellModule, contextGroupsForModule, shellModules, visibleShellModules } from '@/composables/useNav'
+import { activeShellModule, contextModuleFor, shellContextGroups, shellModules, visibleShellModules } from '@/composables/useNav'
 import { parseChatListRoute, serializeChatListRoute } from '@/utils/chatState'
 import { returnToQuery, safeReturnTo } from '@/utils/safeReturnTo'
 
@@ -17,40 +17,16 @@ const router = useRouter()
 const hydrated = useHydrated()
 const open = ref(false)
 const desktop = useMediaQuery('(min-width: 768px)', { ssrWidth: 1024 })
-const { module, projectId, project, contextLinks } = useShellNavigation(() => me.value)
+const { module, contextLinks } = useShellNavigation(() => me.value)
 const availableModules = computed(() => visibleShellModules(me.value))
 const activeModule = computed(() => activeShellModule(route.path))
-const moduleDefinition = computed(() => shellModules.find(item => item.id === activeModule.value) ?? module.value)
-const isProject = computed(() => !!projectId.value && activeModule.value === 'projects')
-const contextTitle = computed(() => isProject.value ? project.data.value?.name ?? t('nav.currentProject') : moduleDefinition.value ? t(moduleDefinition.value.labelKey) : t('app.productName'))
+// `home` and `projects` share one projects sidebar heading (2026-09-11).
+const linksModule = computed(() => contextModuleFor(activeModule.value))
+const moduleDefinition = computed(() => shellModules.find(item => item.id === linksModule.value) ?? module.value)
+const contextTitle = computed(() => moduleDefinition.value ? t(moduleDefinition.value.labelKey) : t('app.productName'))
 const primaryLinks = computed(() => contextLinks.value)
-const moduleLinks = computed(() => {
-  if (activeModule.value === 'projects') return primaryLinks.value
-  return [...primaryLinks.value.filter(item => item.pinned), ...primaryLinks.value.filter(item => !item.pinned)]
-})
-const contextGroups = computed(() => {
-  if (isProject.value) {
-    return [
-      { id: 'project-work', labelKey: 'nav.projectWork', links: moduleLinks.value.filter(link => ['tasks', 'milestones'].includes(link.id)) },
-      { id: 'project-followup', labelKey: 'nav.projectFollowup', links: moduleLinks.value.filter(link => !['tasks', 'milestones', 'current-project-settings'].includes(link.id)) },
-      { id: 'project-settings', links: moduleLinks.value.filter(link => link.id === 'current-project-settings') },
-    ].filter(group => group.links.length)
-  }
-  if (activeModule.value === 'projects') {
-    const overviewIds = ['new-project', 'project-dashboard', 'projects', 'my-projects']
-    return [
-      { id: 'projects-overview', labelKey: 'nav.projectsOverview', links: moduleLinks.value.filter(link => overviewIds.includes(link.id)) },
-      { id: 'current-project', labelKey: 'nav.currentProject', links: moduleLinks.value.filter(link => !overviewIds.includes(link.id) && link.id !== 'project-system-settings') },
-      { id: 'project-system', labelKey: 'nav.projectSystem', links: moduleLinks.value.filter(link => link.id === 'project-system-settings') },
-    ].filter(group => group.links.length)
-  }
-  if (activeModule.value === 'settings') {
-    return contextGroupsForModule('settings', me.value, route.path)
-      .map(group => ({ ...group, links: group.links.map(link => moduleLinks.value.find(item => item.id === link.id)).filter((link): link is NonNullable<typeof link> => Boolean(link)) }))
-      .filter(group => group.links.length)
-  }
-  return moduleLinks.value.length ? [{ id: 'default' as const, links: moduleLinks.value }] : []
-})
+// One shared grouping for the desktop sidebar and the mobile menu.
+const contextGroups = computed(() => linksModule.value ? shellContextGroups(linksModule.value, me.value, route.path, primaryLinks.value) : [])
 const createLinks = computed(() => contextGroups.value.flatMap(group => group.links).filter(link => link.pinned && !(link.id === 'new-project' && ['/projects', '/projects/new'].includes(route.path))))
 const navigationGroups = computed(() => contextGroups.value
   .map(group => ({ ...group, links: group.links.filter(link => !link.pinned) }))
@@ -66,11 +42,6 @@ function listReturnTo(linkId: string): string {
     return path === '/projects' || path === '/projects/dashboard'
       ? fullPath
       : safeReturnTo(route.query.returnTo, '/projects', ['/projects'])
-  }
-  if (linkId === 'new-task') {
-    return path === '/tasks' || path === '/archived-tasks'
-      ? fullPath
-      : safeReturnTo(route.query.returnTo, '/tasks', ['/tasks', '/archived-tasks', '/projects'])
   }
   if (linkId === 'new-meeting') {
     return path === '/meetings' || path === '/meetings/calendar' || path === '/meetings/series'

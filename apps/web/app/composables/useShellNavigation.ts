@@ -3,7 +3,7 @@ import { useProject } from './useProjects'
 import {
   activeShellModule,
   contextLinksForModule,
-  projectContextId,
+  contextModuleFor,
   projectSidebarLinks,
   visibleShellModules,
   type ProjectContextId,
@@ -31,11 +31,13 @@ const projectRootSections: Record<string, ProjectContextId> = {
   finance: 'finance',
   charter: 'charter',
   settings: 'settings',
+  updates: 'summary',
 }
 
 const shellSectionRoots = new Set([
   '/projects/dashboard',
   '/projects',
+  '/project-templates',
   '/tasks',
   '/archived-tasks',
   '/meetings',
@@ -66,7 +68,7 @@ export function shellSectionRoot(path: string, _query: Record<string, unknown> =
 
 export function shellRootBackTargets(path: string): readonly string[] {
   const normalized = normalizedPath(path)
-  if (normalized === '/projects' || normalized === '/projects/dashboard') return ['/projects', '/projects/dashboard']
+  if (normalized === '/projects' || normalized === '/projects/dashboard' || normalized === '/project-templates') return ['/projects', '/projects/dashboard', '/project-templates']
   if (normalized === '/tasks' || normalized === '/archived-tasks') return ['/tasks', '/archived-tasks']
   if (normalized === '/meetings' || normalized === '/meetings/calendar') return ['/meetings', '/meetings/calendar']
   if (normalized === '/hr' || normalized === '/hr/departments' || normalized === '/hr/documents') return ['/hr', '/hr/departments', '/hr/documents']
@@ -113,32 +115,27 @@ export function useShellNavigation(identity: MaybeRefOrGetter<AccessIdentity>) {
   const hydrated = useHydrated()
   // Server and first client render must use the same navigation shape.
   const project = { ...projectQuery, data: computed(() => hydrated.value ? projectQuery.data.value : undefined) }
+  const isProjectRoot = computed(() => /^\/projects\/\d+\/?$/.test(route.path))
+  // Inside a project the sidebar keeps the projects module links (2026-09-11);
+  // the project's own sections are tabs inside the page.
   const contextLinks = computed<ShellContextLink[]>(() => {
-    const currentModule = activeModule.value
-    if (projectId.value && currentModule === 'projects') {
-      const isProjectRoot = /^\/projects\/\d+\/?$/.test(route.path)
-      return projectSidebarLinks(projectId.value, identityValue.value, project.data.value?.active === true, project.data.value?.can_manage === true, route.query, isProjectRoot)
-        .map(link => ({ ...link, active: link.id === 'current-project-settings'
-          ? projectContextId(route.path, route.query) === 'settings'
-          : ['tasks', 'summary', 'milestones'].includes(link.id)
-            ? (isProjectRoot
-              ? (route.query.tab === 'summary' ? 'summary' : route.query.tab === 'milestones' ? 'milestones' : 'tasks') === link.id
-              : link.id === 'tasks' ? /^\/projects\/\d+\/(tasks|schedule)(\/|$)/.test(route.path)
-                : link.id === 'milestones' ? /^\/projects\/\d+\/milestones(\/|$)/.test(route.path)
-                  : /^\/projects\/\d+\/updates(\/|$)/.test(route.path))
-          : link.id === 'stakeholders'
-            ? projectContextId(route.path, route.query) === 'stakeholders'
-            : isContextPathActive(route.path, link.to, route.query) }))
-    }
-    if (!currentModule) return []
-    return contextLinksForModule(currentModule, identityValue.value, route.path)
-      .map(link => route.path === '/projects' && ['projects', 'my-projects'].includes(link.id)
-        ? { ...link, to: { path: '/projects', query: { ...route.query, mine: link.id === 'my-projects' ? '1' : undefined, offset: undefined } } }
+    const linksModule = contextModuleFor(activeModule.value)
+    if (!linksModule) return []
+    return contextLinksForModule(linksModule, identityValue.value, route.path)
+      .map(link => route.path === '/projects' && link.id === 'projects'
+        ? { ...link, to: { path: '/projects', query: { ...route.query, mine: undefined, offset: undefined } } }
         : link)
       .map(link => ({ ...link, active: isContextPathActive(route.path, link.to, route.query) }))
   })
+  // The sidebar breadcrumb still resolves project sections by id.
+  const breadcrumbLinks = computed<ShellContextLink[]>(() => {
+    if (projectId.value && activeModule.value === 'projects') {
+      return projectSidebarLinks(projectId.value, identityValue.value, project.data.value?.active === true, project.data.value?.can_manage === true, route.query, isProjectRoot.value)
+    }
+    return contextLinks.value
+  })
   const module = computed(() => visibleShellModules(identityValue.value).find(item => item.id === activeModule.value) ?? null)
-  return { activeModule, module, projectId, project, contextLinks }
+  return { activeModule, module, projectId, project, contextLinks, breadcrumbLinks }
 }
 
 export function isContextPathActive(path: string, to: ShellContextLink['to'], query: Record<string, unknown> = {}): boolean {
@@ -149,12 +146,9 @@ export function isContextPathActive(path: string, to: ShellContextLink['to'], qu
   if (target === '/meetings') return path === target || (path.startsWith(`${target}/`) && path !== '/meetings/new' && !path.startsWith('/meetings/calendar') && !path.startsWith('/meetings/series'))
   if (target === '/chat') return path === target || (path.startsWith(`${target}/`) && !path.startsWith('/chat/new'))
   if (target === '/meetings/calendar') return path === target
-  if (target === '/projects') {
-    const mine = query.mine === '1' || query.mine === 'true'
-    const targetMine = typeof to === 'object' && 'query' in to && (to.query?.mine === '1' || to.query?.mine === 'true')
-    return path === target && mine === Boolean(targetMine)
-  }
-  if (target === '/tasks') return path === target || (path.startsWith('/tasks/') && path !== '/tasks/new')
+  // «كل المشاريع» stays active on the list, its create form and every project record.
+  if (target === '/projects') return path === target || path === '/projects/new' || /^\/projects\/[1-9]\d*(?:\/|$)/.test(path)
+  if (target === '/tasks') return path === target || path.startsWith('/tasks/') || path === '/archived-tasks'
   if (target === '/settings/appearance') return path === target || path.startsWith(`${target}/`)
   return path === target || path.startsWith(`${target}/`)
 }

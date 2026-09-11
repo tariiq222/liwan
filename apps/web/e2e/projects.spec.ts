@@ -187,7 +187,7 @@ test('project primary action and contextual settings remain accessible across fo
       path: '/',
     }])
     await page.reload()
-    for (const testId of ['project-header-create', 'context-link-settings']) {
+    for (const testId of ['project-header-create', 'project-workspace-settings']) {
       const action = page.getByTestId(testId)
       await expect(action).toBeVisible()
       const box = await action.boundingBox()

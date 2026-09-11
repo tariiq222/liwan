@@ -1,22 +1,28 @@
 <script setup lang="ts">
-import type { LocationQueryRaw } from 'vue-router'
+import type { LocationQueryRaw, RouteLocationRaw } from 'vue-router'
 import { inject } from 'vue'
 import MilestoneTable from '@/components/project/MilestoneTable.vue'
 import ProjectHeader from '@/components/project/ProjectHeader.vue'
 import ProjectOverview from '@/components/project/ProjectOverview.vue'
+import ProjectStatusBadge from '@/components/project/ProjectStatusBadge.vue'
+import ProjectWorkspaceTabs from '@/components/project/workspace/ProjectWorkspaceTabs.vue'
 import TaskBoard from '@/components/task/TaskBoard.vue'
 import TaskTable from '@/components/task/TaskTable.vue'
 import TaskToolbar from '@/components/task/TaskToolbar.vue'
 import { ApiError } from '@/composables/useApi'
 import { projectTaskParams, projectTaskQuery } from '@/composables/projectTaskParams'
+import { projectContextId, projectContextLinks } from '@/composables/useNav'
+import { projectSectionRoot } from '@/composables/useShellNavigation'
 import { useProject } from '@/composables/useProjects'
 import type { TaskListParams } from '@/composables/useTasks'
+import { isProjectOverlayRoute } from '@/utils/projectOverlayRoute'
 import { safeReturnTo, returnToQuery } from '@/utils/safeReturnTo'
 
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
 const { can } = useAccess()
+const { me } = useMe()
 const hydrated = useHydrated()
 const isProjectOverlay = inject<boolean>(Symbol.for('nasq.project.overlay'), false)
 const normalizedPath = computed(() => route.path.replace(/\/+$/, '') || '/')
@@ -31,6 +37,23 @@ const { data: projectData, isLoading, error, refetch } = useProject(projectId)
 // Keep the first client tree identical to SSR, then reveal the cached project.
 const project = computed(() => hydrated.value ? projectData.value : undefined)
 const notFound = computed(() => projectId.value === null || (error.value instanceof ApiError && (error.value.status === 404 || error.value.status === 403)))
+// The workspace frame (title row + group tabs) belongs to section roots only:
+// never inside the route-backed side sheet nor on full-page detail/create/edit routes.
+const showWorkspaceFrame = computed(() => !isProjectOverlay
+  && projectId.value !== null
+  && !notFound.value
+  && !isProjectOverlayRoute({ path: route.path, query: route.query })
+  && projectSectionRoot(route.path, route.query) !== null)
+const isSettingsSection = computed(() => projectContextId(route.path, route.query) === 'settings')
+// Same query the old sidebar settings link carried (remembered task context +
+// list origin) plus a precise return to the current section.
+const settingsTo = computed<RouteLocationRaw>(() => {
+  const link = projectId.value
+    ? projectContextLinks(projectId.value, me.value, project.value?.active === true, true, route.query, isBaseRoute.value).find(item => item.id === 'settings')
+    : undefined
+  const contextQuery = link && typeof link.to === 'object' && 'query' in link.to ? link.to.query ?? {} : {}
+  return { path: `/projects/${projectId.value}/settings`, query: { ...contextQuery, ...returnToQuery(route.fullPath) } }
+})
 
 type PlanningView = 'list' | 'board' | 'milestones'
 function planningViewOf(tab: unknown, view: unknown): PlanningView | null {
@@ -68,13 +91,9 @@ function openTask(taskId: number) {
 const stageSource = computed(() => ({ kind: 'project' as const, stages: project.value?.stages ?? [] }))
 const projectReturnTo = computed(() => safeReturnTo(route.query.returnTo, '/projects', ['/projects', '/tasks', '/hr', '/settings', '/account', '/search', '/notifications', '/reports']))
 
-function planningLink(view: PlanningView | 'gantt') {
+function planningLink(view: PlanningView) {
   const query: LocationQueryRaw = { ...route.query }
   delete query.view
-  if (view === 'gantt') {
-    delete query.tab
-    return { path: `/projects/${projectId.value}/schedule`, query }
-  }
   query.tab = view === 'list' ? 'tasks' : view
   return { path: `/projects/${projectId.value}`, query }
 }
@@ -113,6 +132,32 @@ const workspaceCanCreate = computed(() => {
 </script>
 
 <template>
+  <SharedPageContainer v-if="showWorkspaceFrame" width="list" data-testid="project-workspace-frame">
+    <div class="flex flex-col gap-3">
+      <div class="flex flex-wrap items-center justify-between gap-3" data-testid="project-workspace-identity">
+        <div v-if="project" class="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
+          <p class="min-w-0 truncate text-lg font-semibold text-highlighted" data-testid="project-workspace-name">{{ project.name }}</p>
+          <ProjectStatusBadge :status="project.status" />
+          <span v-if="project.manager" class="text-sm text-muted"><span class="sr-only">{{ t('projects.columns.manager') }}: </span>{{ project.manager.name }}</span>
+        </div>
+        <USkeleton v-else-if="isLoading || !hydrated" class="h-7 w-1/3" />
+        <UButton
+          v-if="project?.can_manage"
+          square
+          icon="i-lucide-settings"
+          class="ms-auto"
+          data-testid="project-workspace-settings"
+          :to="settingsTo"
+          :aria-label="t('nav.projectSettings')"
+          :title="t('nav.projectSettings')"
+          :aria-current="isSettingsSection ? 'page' : undefined"
+        />
+      </div>
+      <!-- Tabs follow the hydrated project like the title row, so a first click is a client-side navigation. -->
+      <ProjectWorkspaceTabs v-if="project" :project-id="projectId!" :active="project.active" :can-manage="project.can_manage" />
+      <USkeleton v-else-if="isLoading || !hydrated" class="h-8 w-2/3" />
+    </div>
+  </SharedPageContainer>
   <SharedPageContainer v-if="isBaseRoute" width="list">
     <div v-if="notFound" class="flex flex-col items-start gap-3">
       <p class="text-muted">{{ t('projects.notFound') }}</p>
@@ -146,7 +191,6 @@ const workspaceCanCreate = computed(() => {
             <nav class="flex flex-wrap items-center gap-1" :aria-label="t('projects.planning.views')">
               <UButton color="neutral" size="sm" :variant="planningView === 'list' ? 'soft' : 'ghost'" :to="planningLink('list')" :aria-current="planningView === 'list' ? 'page' : undefined">{{ t('projects.tabs.list') }}</UButton>
               <UButton color="neutral" size="sm" :variant="planningView === 'board' ? 'soft' : 'ghost'" :to="planningLink('board')" :aria-current="planningView === 'board' ? 'page' : undefined">{{ t('projects.tabs.board') }}</UButton>
-              <UButton color="neutral" size="sm" variant="ghost" v-if="project.active" :to="planningLink('gantt')">{{ t('projects.tabs.timeline') }}</UButton>
             </nav>
           </template>
         </TaskToolbar>

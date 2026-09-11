@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { activeShellModule, contextGroupsForModule, contextLinksForModule, projectContextId, projectContextLinks, projectSidebarLinks, projectWorkspaceLinks, visibleShellModules, useNav } from '../useNav'
+import { activeShellModule, contextGroupsForModule, contextLinksForModule, contextModuleFor, projectContextId, projectContextLinks, projectSidebarLinks, projectWorkspaceGroups, projectWorkspaceLinks, shellContextGroups, visibleShellModules, useNav } from '../useNav'
 import { projectSectionRoot, shellSectionRoot } from '../useShellNavigation'
 
 const employee = { role: 'employee', capabilities: ['pmo.tasks.read', 'pmo.projects.read', 'meetings.read', 'hr.employees.read', 'hr.departments.read', 'hr.documents.read'] }
@@ -13,11 +13,13 @@ describe('capability-based navigation', () => {
   })
   it('groups the employee product pages without administrative links', () => {
     const nav = useNav(employee)
-    expect(nav.map(item => item.to)).toEqual(['/chat', '/projects/dashboard', '/tasks', '/meetings', '/meetings/calendar', '/meetings/series', '/hr', '/hr/departments', '/hr/documents', '/settings/appearance'])
+    expect(nav.map(item => item.to)).toEqual(['/projects/dashboard', '/projects', '/tasks', '/project-templates', '/meetings', '/meetings/calendar', '/meetings/series', '/chat', '/hr', '/hr/departments', '/hr/documents', '/settings/appearance'])
     expect(nav.filter(item => item.group === 'hr')).toHaveLength(3)
     expect(nav.filter(item => item.group === 'chat')).toHaveLength(1)
     expect(nav.filter(item => item.group === 'settings').map(item => item.to)).toEqual(['/settings/appearance'])
-    expect(nav.filter(item => item.group === 'projects').map(item => item.to)).toEqual(['/projects/dashboard', '/tasks'])
+    expect(nav.filter(item => item.group === 'projects').map(item => item.to)).toEqual(['/projects/dashboard', '/projects', '/tasks', '/project-templates'])
+    expect(nav.find(item => item.to === '/projects/dashboard')?.module).toBe('home')
+    expect(nav.find(item => item.to === '/projects')?.module).toBe('projects')
   })
   it('an access administrator does not inherit project settings', () => {
     const nav = useNav(admin)
@@ -57,7 +59,7 @@ describe('shell route classification', () => {
         'access.roles.read', 'access.audit.read', 'settings.branding.manage',
       ],
     }
-    const links = (['projects', 'tasks', 'meetings', 'chat', 'hr', 'settings'] as const).flatMap(module => contextLinksForModule(module, full))
+    const links = (['home', 'projects', 'meetings', 'chat', 'hr', 'settings'] as const).flatMap(module => contextLinksForModule(module, full))
     const pathOf = (to: unknown) => typeof to === 'string' ? to.split(/[?#]/, 1)[0] : (to as { path?: string }).path
     for (const link of links.filter(item => !item.pinned)) expect(shellSectionRoot(pathOf(link.to)!)).not.toBeNull()
     for (const link of links.filter(item => item.pinned)) expect(shellSectionRoot(pathOf(link.to)!)).toBeNull()
@@ -72,7 +74,17 @@ describe('shell route classification', () => {
 
   it('keeps the primary module active for direct and nested routes', () => {
     expect(activeShellModule('/projects/12/tasks/44')).toBe('projects')
-    expect(activeShellModule('/archived-tasks')).toBe('tasks')
+    expect(activeShellModule('/archived-tasks')).toBe('projects')
+    expect(activeShellModule('/tasks')).toBe('projects')
+    expect(activeShellModule('/tasks/44')).toBe('projects')
+    expect(activeShellModule('/project-templates/3/edit')).toBe('projects')
+    expect(activeShellModule('/projects/dashboard')).toBe('home')
+    expect(activeShellModule('/projects')).toBe('projects')
+    expect(activeShellModule('/projects/new')).toBe('projects')
+    expect(activeShellModule('/reports')).toBe('projects')
+    expect(activeShellModule('/account')).toBe('settings')
+    expect(contextModuleFor('home')).toBe('projects')
+    expect(contextModuleFor('meetings')).toBe('meetings')
     expect(activeShellModule('/meetings/calendar')).toBe('meetings')
     expect(activeShellModule('/settings/users/18/access')).toBe('settings')
     expect(activeShellModule('/search')).toBe('projects')
@@ -119,10 +131,10 @@ describe('shell route classification', () => {
     expect(contextLinksForModule('chat', internal)[0]).toMatchObject({ id: 'new-chat', pinned: true, capability: 'nasq.internal' })
   })
 
-  it('pins task creation only for task creators and selects one HR action for each context', () => {
+  it('keeps task creation out of the sidebar and selects one HR action for each context', () => {
     const taskCreator = { capabilities: ['pmo.tasks.read', 'pmo.tasks.create'] }
-    expect(contextLinksForModule('tasks', taskCreator).map(link => link.id)).toEqual(['new-task', 'tasks', 'archived-tasks'])
-    expect(contextLinksForModule('tasks', employee).some(link => link.id === 'new-task')).toBe(false)
+    expect(contextLinksForModule('projects', taskCreator).map(link => link.id)).toEqual(['tasks'])
+    expect(contextLinksForModule('projects', full).some(link => link.id === 'new-task')).toBe(false)
 
     const hrManager = { capabilities: ['hr.employees.read', 'hr.employees.manage', 'hr.departments.read', 'hr.departments.manage', 'hr.documents.read', 'hr.documents.manage'] }
     expect(contextLinksForModule('hr', hrManager, '/hr').filter(link => link.pinned).map(link => link.id)).toEqual(['new-employee'])
@@ -134,28 +146,40 @@ describe('shell route classification', () => {
 
 
 describe('module rail and project context continuity', () => {
-  it('orders rail modules with settings utilities anchored after primary modules', () => {
-    expect(visibleShellModules(full).map(item => item.id)).toEqual(['chat', 'meetings', 'projects', 'tasks', 'hr', 'settings'])
-    expect(visibleShellModules({ ...full, role: 'vendor' }).map(item => item.id)).toEqual(['chat', 'meetings', 'projects', 'tasks', 'hr', 'settings', 'vendor'])
+  it('orders rail modules home, projects, meetings, chat, organization with utilities anchored after them', () => {
+    expect(visibleShellModules(full).map(item => item.id)).toEqual(['home', 'projects', 'meetings', 'chat', 'hr', 'settings'])
+    expect(visibleShellModules({ ...full, role: 'vendor' }).map(item => item.id)).toEqual(['home', 'projects', 'meetings', 'chat', 'hr', 'settings', 'vendor'])
+    expect(visibleShellModules(full).find(item => item.id === 'home')?.to).toBe('/projects/dashboard')
+    expect(visibleShellModules(full).find(item => item.id === 'projects')?.to).toBe('/projects')
+    expect(visibleShellModules(full).find(item => item.id === 'hr')?.labelKey).toBe('nav.organization')
+    expect(visibleShellModules(full).map(item => item.id as string)).not.toContain('tasks')
+    expect(visibleShellModules(full).map(item => item.id as string)).not.toContain('reports')
   })
 
-  it('groups only settings context links and hides groups with no permitted links', () => {
-    expect(contextGroupsForModule('settings', employee).map(group => ({ id: group.id, links: group.links.map(link => link.id) }))).toEqual([{ id: 'personal', links: ['account', 'appearance'] }])
+  it('keeps settings links in one flat ordered group with capability gates', () => {
+    expect(contextGroupsForModule('settings', employee).map(group => ({ id: group.id, links: group.links.map(link => link.id) }))).toEqual([{ id: 'default', links: ['account', 'appearance'] }])
     expect(contextGroupsForModule('settings', full).map(group => ({ id: group.id, links: group.links.map(link => link.id) }))).toEqual([
-      { id: 'personal', links: ['account', 'appearance'] },
-      { id: 'administration', links: ['project-settings', 'users', 'roles', 'access-log'] },
+      { id: 'default', links: ['account', 'appearance', 'users', 'roles', 'access-log', 'project-settings'] },
     ])
     expect(contextGroupsForModule('settings', admin).map(group => ({ id: group.id, links: group.links.map(link => link.id) }))).toEqual([
-      { id: 'personal', links: ['account', 'appearance'] },
-      { id: 'administration', links: ['branding', 'users', 'roles', 'access-log'] },
+      { id: 'default', links: ['account', 'appearance', 'users', 'roles', 'access-log', 'branding'] },
     ])
+    expect(contextGroupsForModule('settings', full).every(group => !group.labelKey)).toBe(true)
     expect(contextGroupsForModule('projects', full)).toHaveLength(1)
+  })
+
+  it('shares one grouping function between the sidebar and the mobile menu', () => {
+    const links = contextLinksForModule('meetings', full)
+    const groups = shellContextGroups('meetings', full, '/meetings/calendar', [...links].reverse())
+    expect(groups.map(group => ({ id: group.id, links: group.links.map(link => link.id) }))).toEqual([{ id: 'default', links: ['new-meeting', 'meeting-series', 'meeting-calendar', 'meetings'] }])
+    expect(shellContextGroups('meetings', employee, undefined, links).flatMap(group => group.links.map(link => link.id))).not.toContain('new-meeting')
+    expect(shellContextGroups('projects', full, '/projects', [])).toEqual([])
   })
 
   it('selects permitted module destinations without legacy group leakage', () => {
     const taskOnly = visibleShellModules({ capabilities: ['pmo.tasks.read'] })
-    expect(taskOnly.map(item => item.id)).not.toContain('projects')
-    expect(taskOnly.find(item => item.id === 'tasks')?.to).toBe('/tasks')
+    expect(taskOnly.map(item => item.id)).toEqual(['projects', 'chat', 'settings'])
+    expect(taskOnly.find(item => item.id === 'projects')?.to).toBe('/tasks')
     const departmentOnly = visibleShellModules({ capabilities: ['hr.departments.read'] })
     expect(departmentOnly.find(item => item.id === 'hr')?.to).toBe('/hr/departments')
     expect(visibleShellModules(undefined)).toEqual([])
@@ -178,18 +202,27 @@ describe('module rail and project context continuity', () => {
 
 
 describe('projects dashboard navigation', () => {
-  it('opens the Projects module at its dashboard without a separate Reports module', () => {
+  it('opens Home at the dashboard and Projects at the list without a separate Reports module', () => {
     const modules = visibleShellModules(employee)
-    expect(modules.find(item => item.id === 'projects')?.to).toBe('/projects/dashboard')
-    expect(modules.some(item => item.id === 'reports')).toBe(false)
+    expect(modules.find(item => item.id === 'home')?.to).toBe('/projects/dashboard')
+    expect(modules.find(item => item.id === 'projects')?.to).toBe('/projects')
+    expect(modules.map(item => item.id as string)).not.toContain('reports')
     expect(activeShellModule('/reports')).toBe('projects')
-    expect(activeShellModule('/projects/dashboard')).toBe('projects')
+    expect(activeShellModule('/projects/dashboard')).toBe('home')
   })
-  it('orders dashboard, creation, all projects and mine with real capability gates', () => {
-    const creator = { capabilities: ['pmo.projects.read', 'pmo.projects.create'] }
-    expect(contextLinksForModule('projects', creator).map(link => link.id)).toEqual(['new-project', 'project-dashboard', 'projects', 'my-projects'])
-    expect(contextLinksForModule('projects', employee).map(link => link.id)).toEqual(['project-dashboard', 'projects', 'my-projects'])
+  it('orders creation, overview, all projects, my tasks and templates with real capability gates', () => {
+    const creator = { capabilities: ['pmo.projects.read', 'pmo.projects.create', 'pmo.tasks.read'] }
+    expect(contextLinksForModule('projects', creator).map(link => link.id)).toEqual(['new-project', 'project-dashboard', 'projects', 'tasks', 'project-templates'])
+    expect(contextLinksForModule('home', creator)).toEqual(contextLinksForModule('projects', creator))
+    expect(contextLinksForModule('projects', employee).map(link => link.id)).toEqual(['project-dashboard', 'projects', 'tasks', 'project-templates'])
+    expect(contextLinksForModule('projects', { capabilities: ['pmo.projects.read'] }).map(link => link.id)).toEqual(['project-dashboard', 'projects', 'project-templates'])
+    expect(contextLinksForModule('projects', employee).map(link => link.labelKey)).toEqual(['nav.projectDashboard', 'nav.allProjects', 'nav.tasks', 'nav.projectTemplates'])
+    expect(contextLinksForModule('projects', full).some(link => ['my-projects', 'archived-tasks', 'project-system-settings', 'summary', 'current-project-settings'].includes(link.id))).toBe(false)
     expect(contextLinksForModule('projects', undefined)).toEqual([])
+  })
+  it('orders meetings as list, calendar, recurring series after the pinned create action', () => {
+    expect(contextLinksForModule('meetings', full).map(link => link.id)).toEqual(['new-meeting', 'meetings', 'meeting-calendar', 'meeting-series'])
+    expect(contextLinksForModule('hr', full, '/hr').map(link => link.labelKey)).toEqual(['nav.employees', 'nav.departments', 'nav.documents'])
   })
 })
 
@@ -264,5 +297,70 @@ describe('project workspace tabs', () => {
     expect(settings.query.projectListReturnTo).toBe('/projects?mine=1')
     expect(JSON.parse(settings.query.taskContext!)).toMatchObject({ q: 'late' })
     expect(projectSidebarLinks(12, full, false, true).map(link => link.id)).toContain('current-project-settings')
+  })
+})
+
+describe('precise project context ids', () => {
+  it('keeps coarse ids for existing callers and exposes sub-sections when asked', () => {
+    expect(projectContextId('/projects/12/raci', {})).toBe('stakeholders')
+    expect(projectContextId('/projects/12/raci', {}, true)).toBe('raci')
+    expect(projectContextId('/projects/12/updates', {})).toBe('summary')
+    expect(projectContextId('/projects/12/updates/new', {}, true)).toBe('updates')
+    expect(projectContextId('/projects/12/schedule/tasks/3', {}, true)).toBe('schedule')
+    expect(projectContextId('/projects/12', { tab: 'milestones' }, true)).toBe('milestones')
+    expect(projectContextId('/projects/12', { tab: 'board' }, true)).toBe('tasks')
+    expect(projectContextId('/projects/12', { tab: 'summary' }, true)).toBe('summary')
+    expect(projectContextId('/projects/12/settings', {}, true)).toBe('settings')
+    expect(projectContextId('/tasks/12', {}, true)).toBeNull()
+  })
+})
+
+describe('project workspace tab model', () => {
+  const query = { returnTo: '/projects?mine=1&q=site', tab: 'board', q: 'late', view: 'board', closed: '1' }
+  it('orders the groups and their sub-sections and opens a group at its first sub-section', () => {
+    const model = projectWorkspaceGroups(12, full, true, true, query, true, '/projects/12')
+    expect(model.groups.map(group => group.id)).toEqual(['overview', 'execution', 'governance', 'finance', 'updates'])
+    expect(model.groups.map(group => group.links.map(link => link.id))).toEqual([
+      [], ['tasks', 'schedule', 'milestones'], ['charter', 'stakeholders', 'raci', 'risks'], [], [],
+    ])
+    expect(model.groups.map(group => group.labelKey)).toEqual(['projects.workspace.groups.overview', 'projects.workspace.groups.execution', 'projects.workspace.groups.governance', 'projects.workspace.groups.finance', 'projects.workspace.groups.updates'])
+    const execution = model.groups.find(group => group.id === 'execution')!
+    expect(execution.to).toEqual(execution.links[0]!.to)
+    const tasks = execution.links[0]!.to as { path: string; query: Record<string, string> }
+    expect(tasks.path).toBe('/projects/12')
+    expect(tasks.query).toMatchObject({ tab: 'tasks', q: 'late', view: 'board', closed: '1' })
+    const governance = model.groups.find(group => group.id === 'governance')!
+    expect((governance.to as { path: string }).path).toBe('/projects/12/charter')
+    expect((governance.links.find(link => link.id === 'raci')!.to as { path: string; query: Record<string, string> })).toMatchObject({ path: '/projects/12/raci', query: { projectListReturnTo: '/projects?mine=1&q=site' } })
+    expect((model.groups.find(group => group.id === 'updates')!.to as { path: string }).path).toBe('/projects/12/updates')
+    expect(model.activeGroup).toBe('execution')
+    expect(model.activeTab).toBe('tasks')
+  })
+  it('derives the active group and sub-section from the route', () => {
+    const at = (path: string, q: Record<string, string> = {}) => {
+      const model = projectWorkspaceGroups(12, full, true, true, q, /^\/projects\/\d+\/?$/.test(path), path)
+      return [model.activeGroup, model.activeTab]
+    }
+    expect(at('/projects/12', { tab: 'summary' })).toEqual(['overview', 'summary'])
+    expect(at('/projects/12', { tab: 'milestones' })).toEqual(['execution', 'milestones'])
+    expect(at('/projects/12/schedule')).toEqual(['execution', 'schedule'])
+    expect(at('/projects/12/raci')).toEqual(['governance', 'raci'])
+    expect(at('/projects/12/register/4/edit')).toEqual(['governance', 'risks'])
+    expect(at('/projects/12/charter')).toEqual(['governance', 'charter'])
+    expect(at('/projects/12/finance')).toEqual(['finance', 'finance'])
+    expect(at('/projects/12/updates')).toEqual(['updates', 'updates'])
+    expect(at('/projects/12/settings')).toEqual([null, null])
+  })
+  it('hides gated sections and empty groups exactly like the workspace links', () => {
+    const archived = projectWorkspaceGroups(12, full, false, true, {}, true, '/projects/12')
+    expect(archived.groups.map(group => group.id)).toEqual(['overview', 'finance', 'updates'])
+    expect(archived.activeGroup).toBe('overview')
+    expect(archived.activeTab).toBe('summary')
+    const noTasks = projectWorkspaceGroups(12, { capabilities: ['pmo.projects.read'] }, true, false, {}, true, '/projects/12')
+    expect(noTasks.groups.map(group => group.id)).toEqual(['overview', 'governance', 'finance', 'updates'])
+    expect(noTasks.groups.find(group => group.id === 'governance')!.links.map(link => link.id)).toEqual(['charter', 'stakeholders', 'raci', 'risks'])
+    expect(noTasks.activeGroup).toBe('overview')
+    expect(projectWorkspaceGroups(12, undefined, true, true).groups).toEqual([])
+    expect(projectWorkspaceGroups(12, full, true, true).activeGroup).toBeNull()
   })
 })

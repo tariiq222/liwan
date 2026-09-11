@@ -33,7 +33,11 @@ test('module context follows direct routes and refresh', async ({ page }) => {
   await login(page)
   await page.goto('/projects')
   await expect(page.getByTestId('context-sidebar').getByRole('link', { name: /قوالب/ })).toBeVisible()
+  // My tasks belongs to the projects module (2026-09-11): the same sidebar stays.
   await page.goto('/tasks')
+  await expect(page.getByTestId('context-sidebar').getByRole('link', { name: /قوالب/ })).toBeVisible()
+  await expect(page.getByTestId('context-link-tasks')).toHaveAttribute('aria-current', 'page')
+  await page.goto('/meetings')
   await expect(page.getByTestId('context-sidebar').getByRole('link', { name: /قوالب/ })).toHaveCount(0)
   await page.reload()
   await expect(page.getByTestId('context-sidebar')).toBeVisible()

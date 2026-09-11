@@ -17,7 +17,7 @@ test.beforeEach(async ({ page }) => { await login(page) })
 
 test('project settings opens as an ordinary page and keeps sidebar navigation', async ({ page }) => {
   await page.goto('/projects/1?tab=tasks&q=تصميم')
-  await page.getByTestId('context-link-current-project-settings').click()
+  await page.getByTestId('project-workspace-settings').click()
   await expect(page).toHaveURL(/\/projects\/1\/settings/)
   await expect(page.getByRole('heading', { name: 'إعدادات المشروع', level: 1 })).toBeVisible()
   await expect(page.getByRole('dialog')).toHaveCount(0)
@@ -25,7 +25,7 @@ test('project settings opens as an ordinary page and keeps sidebar navigation', 
   await page.reload()
   await expect(page.getByRole('heading', { name: 'إعدادات المشروع', level: 1 })).toBeVisible()
   await expect(page.getByRole('dialog')).toHaveCount(0)
-  await page.getByTestId('context-link-tasks').click()
+  await page.getByTestId('project-tab-execution').click()
   await expect(page.getByRole('heading', { name: 'المهام', level: 1 })).toBeVisible()
   expect(new URL(page.url()).searchParams.get('q')).toBe('تصميم')
 })
@@ -33,7 +33,7 @@ test('project settings opens as an ordinary page and keeps sidebar navigation', 
 for (const [path, current] of [
   ['/projects', 'المشاريع'],
   ['/projects?mine=1', 'مشاريعي'],
-  ['/projects/dashboard', 'إحصائيات كل المشاريع'],
+  ['/projects/dashboard', 'نظرة عامة'],
   ['/projects/new', 'مشروع جديد'],
   ['/projects/1?tab=summary', 'الملخص'],
   ['/projects/1?tab=milestones', 'المعالم'],
@@ -56,9 +56,14 @@ for (const [path, current] of [
     const breadcrumb = page.getByTestId('project-sidebar-breadcrumb')
     await expect(breadcrumb).toBeVisible()
     await expect(breadcrumb.locator('[aria-current="page"]')).toHaveText(current)
-    if (path === '/projects/1/raci') await expect(page.getByTestId('context-link-stakeholders')).toHaveAttribute('aria-current', 'page')
+    if (path === '/projects/1/raci') {
+      await expect(page.getByTestId('project-tab-governance')).toHaveAttribute('aria-current', 'page')
+      await expect(page.getByTestId('project-subtab-raci')).toHaveAttribute('aria-current', 'page')
+    }
     await expect(page.getByTestId('context-project-menu-back')).toHaveCount(0)
-    await expect(page.getByTestId('project-workspace-tabs')).toHaveCount(0)
+    // The sidebar keeps the projects module heading; project sections are in-page tabs (2026-09-11).
+    await expect(page.getByTestId('context-sidebar').getByRole('heading', { name: path.startsWith('/settings/') ? 'الإعدادات' : 'المشاريع', level: 2 })).toBeVisible()
+    await expect(page.getByTestId('project-workspace-tabs')).toHaveCount(path.startsWith('/projects/1') ? 1 : 0)
   })
 }
 
@@ -88,7 +93,7 @@ test('desktop project workspace has one identity and one toolbar after a direct 
   await expect(page.getByRole('heading', { name: 'المهام', exact: true, level: 1 })).toBeVisible()
   await expect(page.getByTestId('context-sidebar')).toBeVisible()
   await expect(page.getByTestId('project-tab-settings')).toHaveCount(0)
-  await expect(page.getByTestId('context-link-current-project-settings')).toBeVisible()
+  await expect(page.getByTestId('project-workspace-settings')).toBeVisible()
   await expect(page.locator('[data-slot="skeleton"] h1')).toHaveCount(0)
   expect(hydrationErrors).toEqual([])
   const filters = page.getByRole('button', { name: /^البحث والفلاتر/ })
@@ -100,30 +105,37 @@ test('desktop project workspace has one identity and one toolbar after a direct 
   expect(create.y).toBeGreaterThanOrEqual(header.y)
   expect(create.y + create.height).toBeLessThanOrEqual(header.y + header.height + 1)
   const title = (await page.getByRole('heading', { level: 1 }).boundingBox())!
-  await expect(page.getByTestId('project-workspace-tabs')).toHaveCount(0)
+  const tabs = (await page.getByTestId('project-workspace-tabs').boundingBox())!
+  expect(tabs.y + tabs.height).toBeLessThanOrEqual(title.y + 1)
   expect(search.y).toBeGreaterThan(title.y + title.height)
   await page.screenshot({ path: testInfo.outputPath('desktop-project-layout.png'), fullPage: true })
   await expect(page.getByRole('link', { name: 'العودة إلى المشاريع', exact: true })).toHaveCount(0)
-  await expect(page.getByTestId('context-link-tasks')).toHaveAttribute('aria-current', 'page')
+  await expect(page.getByTestId('project-tab-execution')).toHaveAttribute('aria-current', 'page')
+  await expect(page.getByTestId('project-subtab-tasks')).toHaveAttribute('aria-current', 'page')
+  await expect(page.getByTestId('context-link-projects')).toHaveAttribute('aria-current', 'page')
   const breadcrumb = page.getByTestId('project-sidebar-breadcrumb')
   await expect(breadcrumb).toContainText('المشاريع')
   await expect(breadcrumb).toContainText('مشروع ألفا')
   await expect(breadcrumb.locator('[aria-current="page"]')).toHaveText('المهام')
-  await expect(page.getByTestId('context-link-summary')).not.toHaveAttribute('aria-current', 'page')
-  await expect(page.getByTestId('context-sidebar').getByRole('heading', { name: 'العمل اليومي' })).toBeVisible()
-  await expect(page.getByTestId('context-sidebar').getByRole('heading', { name: 'متابعة المشروع' })).toBeVisible()
+  await expect(page.getByTestId('project-tab-overview')).not.toHaveAttribute('aria-current', 'page')
+  await expect(page.getByTestId('context-sidebar').getByRole('heading', { name: 'المشاريع', level: 2 })).toBeVisible()
+  await expect(page.getByTestId('context-sidebar').getByRole('heading', { name: 'العمل اليومي' })).toHaveCount(0)
+  await expect(page.getByTestId('context-sidebar').getByRole('heading', { name: 'متابعة المشروع' })).toHaveCount(0)
   await expect(page.getByTestId('context-link-project-system-settings')).toHaveCount(0)
-  await page.getByTestId('context-link-stakeholders').click()
+  await page.getByTestId('project-tab-governance').click()
+  await expect(page.getByRole('heading', { name: 'ملف المشروع', level: 1 })).toBeVisible()
+  await page.getByTestId('project-subtab-stakeholders').click()
   await expect(page.getByTestId('context-sidebar')).toBeVisible()
   await expect(page.getByRole('link', { name: 'العودة إلى المشاريع', exact: true })).toHaveCount(0)
-  await expect(page.getByTestId('context-link-stakeholders')).toHaveAttribute('aria-current', 'page')
+  await expect(page.getByTestId('project-subtab-stakeholders')).toHaveAttribute('aria-current', 'page')
   await expect(breadcrumb.locator('[aria-current="page"]')).toHaveText('أصحاب المصلحة')
   await expect(page.getByTestId('context-project-menu-back')).toHaveCount(0)
   await breadcrumb.getByRole('link', { name: 'مشروع ألفا', exact: true }).click()
   await expect(page).toHaveURL(/tab=summary/)
   await breadcrumb.getByRole('link', { name: 'المشاريع', exact: true }).click()
   await expect(page).toHaveURL(/\/projects\?mine=1&q=alpha/)
-  await expect(page.getByTestId('context-link-project-system-settings')).toHaveText('إعدادات نظام المشاريع')
+  await expect(page.getByTestId('context-link-project-system-settings')).toHaveCount(0)
+  await expect(page.getByTestId('context-link-project-templates')).toHaveText('قوالب المشاريع')
   await expect(page.getByTestId('context-sidebar')).toBeVisible()
 })
 
@@ -134,11 +146,16 @@ test('desktop sidebar keeps project navigation and collapses independently of th
   const toggle = page.getByTestId('context-sidebar-toggle')
   const rail = page.getByTestId('module-rail')
   await expect(toggle).toBeEnabled()
-  await expect(sidebar.getByRole('heading', { name: 'مشروع ألفا', exact: true })).toBeVisible()
-  for (const id of ['tasks', 'milestones', 'current-project-settings']) {
+  await expect(sidebar.getByRole('heading', { name: 'المشاريع', exact: true, level: 2 })).toBeVisible()
+  await expect(sidebar.getByRole('heading', { name: 'مشروع ألفا', exact: true })).toHaveCount(0)
+  await expect(page.getByTestId('project-workspace-name')).toHaveText('مشروع ألفا')
+  for (const id of ['subtab-tasks', 'subtab-milestones', 'workspace-settings']) {
+    await expect(page.getByTestId(`project-${id}`)).toBeVisible()
+  }
+  for (const id of ['new-project', 'project-dashboard', 'projects', 'tasks', 'project-templates']) {
     await expect(page.getByTestId(`context-link-${id}`)).toBeVisible()
   }
-  for (const id of ['new-project', 'project-dashboard', 'projects', 'my-projects', 'project-system-settings']) {
+  for (const id of ['my-projects', 'project-system-settings', 'current-project-settings', 'summary', 'stakeholders']) {
     await expect(page.getByTestId(`context-link-${id}`)).toHaveCount(0)
   }
   await expect(page.getByTestId('project-tab-settings')).toHaveCount(0)
@@ -150,11 +167,11 @@ test('desktop sidebar keeps project navigation and collapses independently of th
   await expect(rail).toHaveAttribute('data-expanded', 'true')
   await expect(sidebar).toHaveAttribute('data-expanded', 'false')
   await page.getByTestId('module-rail-toggle').click()
-  await page.getByTestId('context-link-current-project-settings').click()
+  await page.getByTestId('project-workspace-settings').click()
   await expect(page).toHaveURL(/\/projects\/1\/settings/)
   await expect(page.getByRole('heading', { name: 'إعدادات المشروع', level: 1 })).toBeVisible()
   await expect(page.getByRole('dialog')).toHaveCount(0)
-  await page.getByTestId('context-link-tasks').click()
+  await page.getByTestId('project-tab-execution').click()
   await expect(page.getByRole('heading', { name: 'المهام', level: 1 })).toBeVisible()
   await page.getByRole('button', { name: /^البحث والفلاتر/ }).click()
   await expect(page.getByRole('textbox', { name: 'بحث في العناوين…' })).toHaveValue('مهمة')
@@ -211,7 +228,8 @@ test('direct settings route remains a standalone page after refresh', async ({ p
   await page.reload()
   await expect(page.getByRole('heading', { name: 'إعدادات المشروع', level: 1 })).toBeVisible()
   await expect(page.getByRole('dialog')).toHaveCount(0)
-  await expect(page.getByTestId('context-link-current-project-settings')).toHaveAttribute('aria-current', 'page')
+  await expect(page.getByTestId('project-workspace-settings')).toHaveAttribute('aria-current', 'page')
+  await expect(page.getByTestId('project-workspace-tabs').locator('[aria-current="page"]')).toHaveCount(0)
 })
 
 test('non-project task details use the approved shared sheet with a full-page option', async ({ page }) => {
@@ -225,10 +243,11 @@ test('non-project task details use the approved shared sheet with a full-page op
 
 test('default project tasks retain search across Summary and Tasks tabs', async ({ page }) => {
   await page.goto('/projects/1?q=مهمة&view=board')
-  await page.getByTestId('context-link-summary').click()
-  await expect(page.getByTestId('context-link-summary')).toHaveAttribute('aria-current', 'page')
+  await page.getByTestId('project-tab-overview').click()
+  await expect(page.getByTestId('project-tab-overview')).toHaveAttribute('aria-current', 'page')
+  await expect(page.getByTestId('project-workspace-subtabs')).toHaveCount(0)
   await expect(page.getByRole('dialog')).toHaveCount(0)
-  await page.getByTestId('context-link-tasks').click()
+  await page.getByTestId('project-tab-execution').click()
   await expect(page.getByPlaceholder('بحث في العناوين…')).toHaveValue('مهمة')
 })
 
@@ -381,7 +400,8 @@ test('returning from full page to popup protects the full-page draft', async ({ 
 test('shell navigation remains available and protects a dirty project draft', async ({ page }) => {
   await page.goto('/projects/1/tasks/new')
   await page.getByRole('dialog').getByLabel('عنوان المهمة', { exact: true }).fill('مسودة قبل تغيير الموديول')
-  const moduleNavigation = page.getByRole('navigation', { name: 'الموديولات', exact: true })
+  // «مهامي» lives in the projects sidebar since 2026-09-11; the rail keeps the modules.
+  const moduleNavigation = page.getByTestId('context-sidebar')
   await moduleNavigation.getByRole('link', { name: 'مهامي', exact: true }).click()
   const confirmation = page.getByRole('alertdialog')
   await expect(confirmation).toBeVisible()

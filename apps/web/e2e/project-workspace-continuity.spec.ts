@@ -9,12 +9,14 @@ test.beforeEach(async ({ page }) => {
   await expect(page).not.toHaveURL(/\/login/)
 })
 async function openAlpha(page: Page) {
+  // The row link only knows the remembered section after hydration (localStorage is client-only).
+  await expect(page.getByTestId('context-sidebar-toggle')).toBeEnabled()
   await page.getByTestId('project-row').filter({ hasText: 'مشروع ألفا' }).click()
 }
 test('project reentry restores section filters and keeps the new list origin', async ({ page }) => {
   await page.goto('/projects/1/register?q=اعتماد&kind=risk')
   await expect(page.getByRole('link', { name: 'إضافة خطر أو مشكلة' })).toBeVisible()
-  await expect(page.getByTestId('context-link-current-project-settings')).toBeVisible()
+  await expect(page.getByTestId('project-workspace-settings')).toBeVisible()
   await page.goto('/projects?mine=1')
   await openAlpha(page)
   await expect(page).toHaveURL(/\/projects\/1\/register\?/)
@@ -25,7 +27,7 @@ test('project reentry restores section filters and keeps the new list origin', a
 })
 test('task board survives leaving the project and a browser refresh', async ({ page }) => {
   await page.goto('/projects/1?tab=tasks&view=board&q=تصميم')
-  await expect(page.getByTestId('context-link-current-project-settings')).toBeVisible()
+  await expect(page.getByTestId('project-workspace-settings')).toBeVisible()
   await page.goto('/projects')
   await page.reload()
   await openAlpha(page)
@@ -42,14 +44,24 @@ test('opening a create form does not replace the last workspace section', async 
   await expect(page).toHaveURL(/\/projects\/1\/register\?/)
   await expect(page.getByRole('dialog')).toHaveCount(0)
 })
-test('project navigation groups daily work before monitoring and settings', async ({ page }) => {
+test('project sections are in-page group tabs while the sidebar keeps the projects module', async ({ page }) => {
   await page.goto('/projects/1')
-  await expect(page.getByTestId('context-link-current-project-settings')).toBeVisible()
+  await expect(page.getByTestId('project-workspace-settings')).toBeVisible()
   const sidebar = page.getByRole('complementary', { name: 'التنقل السياقي' })
-  await expect(sidebar.getByRole('heading', { name: 'العمل اليومي' })).toBeVisible()
-  await expect(sidebar.getByRole('heading', { name: 'متابعة المشروع' })).toBeVisible()
+  await expect(sidebar.getByRole('heading', { name: 'المشاريع', level: 2 })).toBeVisible()
+  await expect(sidebar.getByRole('heading', { name: 'العمل اليومي' })).toHaveCount(0)
+  await expect(sidebar.getByRole('heading', { name: 'متابعة المشروع' })).toHaveCount(0)
   const links = await sidebar.locator('.nasq-context-link').allTextContents()
-  expect(links.map(s => s.trim())).toEqual(['المهام', 'المعالم', 'الملخص', 'أصحاب المصلحة', 'المخاطر والمشكلات', 'المالية', 'ملف المشروع', 'إعدادات المشروع'])
+  expect(links.map(s => s.trim())).toEqual(['مشروع جديد', 'نظرة عامة', 'كل المشاريع', 'مهامي', 'قوالب المشاريع'])
+  const tabs = await page.getByTestId('project-workspace-tabs').getByRole('link').allTextContents()
+  expect(tabs.map(s => s.trim())).toEqual(['الملخص', 'التنفيذ', 'الحوكمة', 'المالية', 'التحديثات'])
+  const subtabs = await page.getByTestId('project-workspace-subtabs').getByRole('link').allTextContents()
+  expect(subtabs.map(s => s.trim())).toEqual(['المهام', 'الجدول الزمني', 'المعالم'])
+  await page.getByTestId('project-tab-governance').click()
+  await expect(page.getByTestId('project-subtab-charter')).toHaveAttribute('aria-current', 'page')
+  const governance = await page.getByTestId('project-workspace-subtabs').getByRole('link').allTextContents()
+  expect(governance.map(s => s.trim())).toEqual(['ملف المشروع', 'أصحاب المصلحة', 'المسؤوليات RACI', 'المخاطر والمشكلات'])
+  await expect(page.locator('main h1')).toHaveCount(1)
 })
 test('project task keeps description and activity above expandable work resources', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 1440, height: 1000 })

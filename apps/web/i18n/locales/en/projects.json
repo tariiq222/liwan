@@ -826,7 +826,18 @@
     "workspace": {
       "tabsLabel": "Project sections",
       "close": "Close",
-      "openFullPage": "Open full page"
+      "openFullPage": "Open full page",
+      "subtabsLabel": "Project sub-sections",
+      "groups": {
+        "overview": "Summary",
+        "execution": "Execution",
+        "governance": "Governance",
+        "finance": "Finance",
+        "updates": "Updates"
+      },
+      "sections": {
+        "raci": "Responsibilities (RACI)"
+      }
     },
     "listTabsLabel": "Project list",
     "clarity": {

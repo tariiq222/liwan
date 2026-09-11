@@ -40,6 +40,18 @@ describe('approved shell structure', () => {
     expect(chatWorkspace).not.toContain('lg:grid-cols-[20rem_minmax(0,1fr)]')
   })
 
+  it('derives sidebar and mobile groups from one shared useNav function', () => {
+    for (const source of [contextSidebar, mobileNavigation]) {
+      expect(source).toContain('shellContextGroups(')
+      expect(source).toContain('contextModuleFor(')
+      expect(source).not.toContain('contextGroupsForModule')
+      expect(source).not.toContain('nav.projectWork')
+      expect(source).not.toContain('nav.projectsOverview')
+      expect(source).not.toContain('nav.currentProject')
+    }
+    expect(contextSidebar).toContain('breadcrumbLinks')
+  })
+
   it('uses the branded shell token for both header and rail', () => {
     expect(shellCss).toContain('background: var(--shell-background)')
     expect(shellCss).toContain('.nasq-module-rail')

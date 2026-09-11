@@ -826,7 +826,18 @@
     "workspace": {
       "tabsLabel": "أقسام المشروع",
       "close": "إغلاق",
-      "openFullPage": "فتح بصفحة كاملة"
+      "openFullPage": "فتح بصفحة كاملة",
+      "subtabsLabel": "الأقسام الفرعية للمشروع",
+      "groups": {
+        "overview": "الملخص",
+        "execution": "التنفيذ",
+        "governance": "الحوكمة",
+        "finance": "المالية",
+        "updates": "التحديثات"
+      },
+      "sections": {
+        "raci": "المسؤوليات RACI"
+      }
     },
     "listTabsLabel": "قائمة المشاريع",
     "clarity": {
