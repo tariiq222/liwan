@@ -31,6 +31,12 @@
   display: none;
 }
 
+/* The pinned create action keeps its primary fill even when its route is active. */
+.nasq-context-create[data-active="true"] {
+  background: var(--primary-fill);
+  color: var(--primary-fill-foreground);
+}
+
 .nasq-context-link[aria-current="page"],
 .nasq-context-link[data-active="true"] {
   border-block-end-color: transparent;
