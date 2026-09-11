@@ -257,21 +257,21 @@ test('standalone option remains available', async ({ page }) => {
   await expect(page.getByRole('dialog')).toHaveCount(0)
 })
 
-test('RTL side sheet enters from the right and remains mounted until it exits left', async ({ page }) => {
+test('RTL side sheet enters from the left and remains mounted until it exits right', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'no-preference' })
   await page.goto('/projects/1?tab=tasks')
   await page.evaluate(() => {
     const events: Array<{ type: string; state: string | null; x: number; right: number; translateX: number }> = []
     ;(window as any).__projectSheetMotion = events
-    for (const type of ['transitionrun', 'transitionend']) {
+    for (const type of ['animationstart', 'animationend']) {
       document.addEventListener(type, (event) => {
         const target = event.target
-        if (!(event instanceof TransitionEvent) || event.propertyName !== 'transform'
+        if (!(event instanceof AnimationEvent)
           || !(target instanceof HTMLElement) || target.getAttribute('role') !== 'dialog') return
         const rect = target.getBoundingClientRect()
         events.push({ type, state: target.getAttribute('data-state'), x: rect.x,
           right: rect.right, translateX: new DOMMatrix(getComputedStyle(target).transform).m41 })
-        if (type === 'transitionrun') {
+        if (type === 'animationstart') {
           const sample = () => {
             if (!target.isConnected) return
             const bounds = target.getBoundingClientRect()
@@ -286,17 +286,17 @@ test('RTL side sheet enters from the right and remains mounted until it exits le
   })
   await page.getByRole('button', { name: 'مهمة جديدة', exact: true }).click()
   await expect.poll(() => page.evaluate(() => (window as any).__projectSheetMotion.some(
-    (event: any) => event.type === 'transitionend' && event.state === 'open',
+    (event: any) => event.type === 'animationend' && event.state === 'open',
   ))).toBe(true)
   const entryEvents = await page.evaluate(() => (window as any).__projectSheetMotion)
-  expect(entryEvents.some((event: any) => event.type === 'transitionrun' && event.state === 'open' && event.translateX > 0)).toBe(true)
+  expect(entryEvents.some((event: any) => event.type === 'animationstart' && event.state === 'open' && event.translateX < 0)).toBe(true)
   await page.evaluate(() => { (window as any).__projectSheetMotion.length = 0 })
   await page.getByTestId('project-overlay-close').click()
   await expect(page.getByRole('dialog')).toHaveCount(0)
   const events = await page.evaluate(() => (window as any).__projectSheetMotion)
   // Vue may remove the leaving node on its timeout just before the browser's
   // last transitionend frame. Sample actual visible travel while still mounted.
-  expect(events.some((event: any) => event.type === 'sample' && event.translateX < 0), JSON.stringify(events)).toBe(true)
+  expect(events.some((event: any) => event.type === 'sample' && event.translateX > 0), JSON.stringify(events)).toBe(true)
 })
 
 test('project sheets remove redundant back navigation and retain the shell corner', async ({ page }) => {
@@ -319,10 +319,11 @@ test('side sheet respects reduced motion and follows the expanded module rail', 
   await expect(sheet).toBeVisible()
   await page.getByTestId('module-rail-toggle').click()
   await expect.poll(async () => {
-    const bounds = (await sheet.boundingBox())!
+    const overlay = (await page.getByTestId('project-route-overlay').boundingBox())!
     const rail = (await page.getByTestId('module-rail').boundingBox())!
-    return Math.abs(bounds.x + bounds.width - rail.x)
-  }).toBeLessThanOrEqual(1)
+    const bounds = (await sheet.boundingBox())!
+    return Math.abs(overlay.x + overlay.width - rail.x) <= 1 && Math.abs(bounds.x - overlay.x) <= 1
+  }).toBeTruthy()
   await page.getByTestId('project-overlay-close').click()
   await expect(page.getByRole('dialog')).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'مهمة جديدة', exact: true })).toBeEnabled()
@@ -442,8 +443,10 @@ for (const width of [390, 700, 768, 1440]) {
       const rail = (await page.getByTestId('module-rail').boundingBox())!
       const header = (await page.getByTestId('shell-header').boundingBox())!
       const top = Math.max(0, header.y + header.height)
-      return box.x >= -1 && Math.abs(box.y - top) <= 1
-        && Math.abs(box.x + box.width - rail.x) <= 1
+      const overlay = (await page.getByTestId('project-route-overlay').boundingBox())!
+      return Math.abs(box.y - top) <= 1
+        && Math.abs(box.x - overlay.x) <= 1
+        && Math.abs(overlay.x + overlay.width - rail.x) <= 1
         && Math.abs(box.y + box.height - 844) <= 1
     }).toBe(true)
     await expect(page.getByRole('banner', { name: 'رأس التطبيق' })).toBeVisible()

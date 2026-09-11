@@ -145,7 +145,7 @@ describe('task comment draft persistence', () => {
     expect(draft!.value).toBe('')
   })
 
-  it('keeps activity mounted beside a cached task when the detail query errors', async () => {
+  it('keeps task details mounted beside a cached task when the detail query errors', async () => {
     const detailPath = resolve(dirname(fileURLToPath(import.meta.url)), '../TaskDetailPanel.vue')
     const render = compileVueTemplate(detailPath, 'task-detail-draft')
     const error = ref<unknown>(null)
@@ -156,14 +156,13 @@ describe('task comment draft persistence', () => {
       allowed_actions: [],
       can_write: true,
     })
-    let activityMounts = 0
-    let activityUnmounts = 0
-    const activity = defineComponent({
-      props: { task: { type: Object, required: true } },
+    let detailsMounts = 0
+    let detailsUnmounts = 0
+    const details = defineComponent({
       setup() {
-        activityMounts += 1
-        onUnmounted(() => { activityUnmounts += 1 })
-        return () => h('div', 'activity')
+        detailsMounts += 1
+        onUnmounted(() => { detailsUnmounts += 1 })
+        return () => h('div', 'details')
       },
     })
     const detail = defineComponent({
@@ -199,8 +198,7 @@ describe('task comment draft persistence', () => {
     })
     mountWith({
       SharedPageState: pageState,
-      TaskActivity: activity,
-      TaskDetails: passthrough,
+      TaskDetails: details,
       TaskCompletionApproval: passthrough,
       StateMenu: passthrough,
       DeadlineBadge: passthrough,
@@ -218,11 +216,11 @@ describe('task comment draft persistence', () => {
       X: passthrough,
     }, detail)
 
-    expect(activityMounts).toBe(1)
+    expect(detailsMounts).toBe(1)
     error.value = new Error('detail unavailable')
     await nextTick()
-    expect(activityMounts).toBe(1)
-    expect(activityUnmounts).toBe(0)
+    expect(detailsMounts).toBe(1)
+    expect(detailsUnmounts).toBe(0)
     expect(task.value.name).toBe('Cached task')
   })
 })

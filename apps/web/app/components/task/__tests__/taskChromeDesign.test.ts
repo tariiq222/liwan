@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest'
 
 const root = dirname(fileURLToPath(import.meta.url))
 const panel = readFileSync(resolve(root, '../TaskDetailPanel.vue'), 'utf8')
+const details = readFileSync(resolve(root, '../TaskDetails.vue'), 'utf8')
 const detailPage = readFileSync(resolve(root, '../TaskDetailPage.vue'), 'utf8')
 const archived = readFileSync(resolve(root, '../../../pages/archived-tasks.vue'), 'utf8')
 const pageHeader = readFileSync(resolve(root, '../../shared/PageHeader.vue'), 'utf8')
@@ -19,6 +20,14 @@ describe('task chrome design', () => {
     expect(detailPage).not.toContain('<h1')
     expect(panel).toContain('focus-visible:ring-2 focus-visible:ring-primary')
     expect(pageHeader).toContain('focus-visible:ring-2 focus-visible:ring-ring')
+  })
+
+  it('puts task sections in UTabs instead of stacked cards', () => {
+    expect(details).toContain('data-testid="task-detail-tabs"')
+    expect(details).toContain(':unmount-on-hide="false"')
+    expect(details).not.toContain('task-optional-details')
+    expect(panel).not.toContain('task-detail-shell')
+    expect(panel).not.toContain('TaskActivity')
   })
 
   it('uses the shared danger treatment for inline archive confirmation', () => {

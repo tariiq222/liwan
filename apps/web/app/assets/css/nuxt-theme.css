@@ -108,10 +108,10 @@
 .project-sheet-backdrop { background: rgb(0 0 0 / 20%); backdrop-filter: blur(2px); }
 .project-sheet-backdrop-enter-active, .project-sheet-backdrop-leave-active { transition: opacity 180ms ease; }
 .project-sheet-backdrop-enter-from, .project-sheet-backdrop-leave-to { opacity: 0; }
-@keyframes nasq-sheet-in { from { transform: translateX(var(--project-overlay-travel, 100vw)); } to { transform: translateX(0); } }
-@keyframes nasq-sheet-out { from { transform: translateX(0); } to { transform: translateX(calc(-1 * var(--project-overlay-travel, 100vw))); } }
+@keyframes nasq-sheet-in { from { transform: translateX(var(--project-overlay-enter, 100vw)); } to { transform: translateX(0); } }
+@keyframes nasq-sheet-out { from { transform: translateX(0); } to { transform: translateX(var(--project-overlay-exit, -100vw)); } }
 .nasq-ui-route-sheet[data-state='open'] { animation: nasq-sheet-in 200ms ease-out; }
-.nasq-ui-route-sheet[data-state='closed'] { animation: nasq-sheet-out 180ms ease-in; }
+.nasq-ui-route-sheet[data-state='closed'] { animation: nasq-sheet-out 180ms ease-in forwards; }
 @media (prefers-reduced-motion: reduce) {
   .nasq-ui-route-sheet[data-state] { animation-duration: 0s; }
   .project-sheet-backdrop-enter-active, .project-sheet-backdrop-leave-active { transition: none; }

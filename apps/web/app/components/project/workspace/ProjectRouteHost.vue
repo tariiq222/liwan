@@ -24,7 +24,7 @@ const modalMounted = ref(false)
 let previouslyFocused: HTMLElement | null = null
 let closePending = false
 const hostElement = ref<HTMLElement | null>(null)
-const frame = ref({ top: 0, left: 0, width: 0, height: 0, sheetWidth: 0, radius: '24px', travel: '100vw' })
+const frame = ref({ top: 0, left: 0, width: 0, height: 0, sheetWidth: 0, radius: '24px', enter: '100vw', exit: '-100vw', side: 'right' as 'left' | 'right' })
 let frameObserver: ResizeObserver | null = null
 let directionObserver: MutationObserver | null = null
 let frameRequest: number | null = null
@@ -36,7 +36,8 @@ const frameStyle = computed(() => ({
   left: `${frame.value.left}px`,
   width: `${frame.value.width}px`,
   height: `${frame.value.height}px`,
-  '--project-overlay-travel': frame.value.travel,
+  '--project-overlay-enter': frame.value.enter,
+  '--project-overlay-exit': frame.value.exit,
   'border-start-start-radius': frame.value.radius,
 }))
 const sheetWidth = computed(() => `${frame.value.sheetWidth}px`)
@@ -134,7 +135,10 @@ function updateFrame() {
     height: Math.max(0, bottom - top),
     sheetWidth: window.innerWidth < 768 ? availableWidth : Math.min(targetSheetWidth, availableWidth),
     radius,
-    travel: `${availableWidth}px`,
+    // Dock opposite the module rail (inline-end): enter from that edge, leave the other way.
+    side: rtl ? 'left' : 'right',
+    enter: rtl ? `-${availableWidth}px` : `${availableWidth}px`,
+    exit: rtl ? `${availableWidth}px` : `-${availableWidth}px`,
   }
   syncContextSidebarInert(overlayVisible.value)
 }
@@ -268,6 +272,7 @@ async function close() {
       :open="modalOpen"
       :frame-style="frameStyle"
       :sheet-width="sheetWidth"
+      :side="frame.side"
       @close="close"
       @after-leave="finishClose"
     />

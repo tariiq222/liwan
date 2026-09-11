@@ -9,13 +9,12 @@ import { useArchiveTask, useTask, useTaskSiblings, useUpdateTask } from '@/compo
 import { PROJECT_OVERLAY_INJECTION_KEY } from '@/utils/projectOverlayRoute'
 import DeadlineBadge from './DeadlineBadge.vue'
 import StateMenu from './StateMenu.vue'
-import TaskActivity from './TaskActivity.vue'
 import TaskCompletionApproval from './TaskCompletionApproval.vue'
 import TaskDetails from './TaskDetails.vue'
 
-// Container-agnostic body: a compact task context row followed by the
-// details/activity card grid. The page wrapper owns the shell title so this
-// component stays focused on task data, editing, activity, and navigation.
+// Container-agnostic body: a compact task context row followed by section
+// tabs. The page wrapper owns the shell title so this component stays focused
+// on task data, editing, activity, and navigation.
 // basePath routes prev/next within the host's own URL space (default /tasks,
 // مهامي's own list). siblingParams lets a host that keeps its filters in the
 // URL (the project screen) drive prev/next from those instead of the
@@ -30,10 +29,6 @@ const route = useRoute()
 const router = useRouter()
 const { t, localeProperties } = useI18n()
 const inProjectOverlay = inject<boolean>(PROJECT_OVERLAY_INJECTION_KEY, false)
-// Global task details use the same single-column composition as project task
-// details. The base path still controls sibling navigation and is forwarded
-// unchanged; this flag only selects the presentation branches below.
-const isProjectTask = computed(() => props.basePath === '/tasks' || props.basePath.startsWith('/projects/'))
 // The chevrons point at list *order*, not at a fixed screen side: in RTL
 // "previous" is the right-hand arrow, in LTR the left-hand one. They were
 // hardcoded to the RTL pairing, so an `en` user saw them swapped.
@@ -245,8 +240,8 @@ useEventListener(document, 'keydown', onKeydown)
     </UCard>
 
     <template v-if="task">
-      <div data-testid="task-detail-grid" class="task-detail-shell" :class="{ 'task-detail-shell-project': isProjectTask }">
-        <div data-testid="task-details-card" class="task-detail-card space-y-6">
+      <div data-testid="task-detail-grid" class="space-y-6">
+        <div data-testid="task-details-card" class="space-y-6">
           <div class="task-detail-status-line">
             <StateMenu :task="task" :can-approve="task.can_approve" />
             <span class="text-xs text-muted">
@@ -255,15 +250,8 @@ useEventListener(document, 'keydown', onKeydown)
             <DeadlineBadge :deadline="task.date_deadline" :days-remaining="task.days_remaining" :is-closed="task.is_closed" />
           </div>
           <TaskCompletionApproval :task="task" />
-          <TaskDetails :key="task.id" :task="task" :base-path="props.basePath">
-            <template #activity>
-              <TaskActivity v-if="isProjectTask" :task="task" />
-            </template>
-          </TaskDetails>
+          <TaskDetails :key="task.id" :task="task" :base-path="props.basePath" />
         </div>
-        <aside v-if="!isProjectTask" class="task-detail-activity">
-          <TaskActivity :task="task" />
-        </aside>
       </div>
     </template>
   </div>
@@ -285,42 +273,11 @@ useEventListener(document, 'keydown', onKeydown)
   gap: 6px;
 }
 
-.task-detail-shell {
-  display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
-  align-items: start;
-  gap: 1.5rem;
-}
-
-.task-detail-shell-project {
-  grid-template-columns: minmax(0, 1fr);
-}
-
-.task-detail-card,
-.task-detail-activity {
-  min-width: 0;
-}
-
 .task-detail-status-line {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 8px;
-  margin-bottom: 14px;
-}
-
-
-@media (max-width: 1000px) {
-  .task-detail-shell {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
-@media (min-width: 1001px) {
-  .task-detail-activity {
-    position: sticky;
-    inset-block-start: 88px;
-  }
 }
 
 @media (max-width: 600px) {

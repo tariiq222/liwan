@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { TaskDetail } from '@nasq/contracts'
 import { CalendarDate } from '@internationalized/date'
-import { ChevronDown } from '@lucide/vue'
 import { formatNasqDate, formatNasqDateTime, toCalendarDate } from '@/composables/calendarDate'
 import { usePersonalStages } from '@/composables/usePersonalStages'
 import { useUpdateTask } from '@/composables/useTasks'
@@ -10,6 +9,7 @@ import { useProject } from '@/composables/useProjects'
 import { validateTaskDates } from '@/utils/projectDateBounds'
 import AssigneePicker from './AssigneePicker.vue'
 import DependencyPicker from './DependencyPicker.vue'
+import TaskActivity from './TaskActivity.vue'
 import TaskAttachments from './TaskAttachments.vue'
 import TaskDescription from './TaskDescription.vue'
 import TaskDeliverables from './TaskDeliverables.vue'
@@ -23,14 +23,18 @@ const props = withDefaults(defineProps<{ task: TaskDetail; basePath?: string }>(
 })
 
 const { t, locale } = useI18n()
+const hydrated = useHydrated()
 const { mutate: updateTask } = useUpdateTask()
 const { data: stages } = usePersonalStages()
 const projectId = computed(() => props.task.project?.id ?? null)
-// Keep the approved project detail composition for the global task route too.
-// This flag is presentation-only; task mutations and project-derived data
-// continue to use the original task/project props and composables.
-const isProjectTask = computed(() => props.basePath === '/tasks' || props.basePath.startsWith('/projects/'))
 const { data: milestones } = useMilestones(projectId)
+const tabs = computed(() => [
+  { label: t('tasks.drawer.details'), value: 'details', slot: 'details', disabled: !hydrated.value },
+  { label: t('tasks.drawer.description'), value: 'description', slot: 'description', disabled: !hydrated.value },
+  { label: t('tasks.detail.activityTitle'), value: 'activity', slot: 'activity', disabled: !hydrated.value },
+  { label: t('tasks.detail.resources'), value: 'resources', slot: 'resources', disabled: !hydrated.value },
+  { label: t('tasks.drawer.additionalDetails'), value: 'additional', slot: 'additional', disabled: !hydrated.value },
+])
 const { data: project } = useProject(projectId)
 const deadlineError = ref<string | null>(null)
 const selectedMilestone = computed(() => {
@@ -172,12 +176,16 @@ const completedSubtasks = computed(() => props.task.subtasks.filter(subtask => s
 </script>
 
 <template>
-  <div class="grid min-w-0 gap-6">
-    <UCard role="group" :aria-label="t('tasks.detail.primaryMetadata')">
-      <template #header>
-        <h2 class="text-lg font-semibold text-highlighted">{{ t('tasks.detail.primaryMetadata') }}</h2>
-      </template>
-      <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+  <UTabs
+    data-testid="task-detail-tabs"
+    :items="tabs"
+    default-value="details"
+    :unmount-on-hide="false"
+    :aria-label="t('tasks.detail.sections')"
+    class="min-w-0"
+  >
+    <template #details>
+      <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-4" role="group" :aria-label="t('tasks.detail.primaryMetadata')">
         <div class="task-meta-item">
           <span id="task-assignees-label" class="task-meta-label">{{ t('tasks.drawer.assignees') }}</span>
           <p v-if="!task.can_write" class="task-meta-value">{{ task.assignees.map(person => person.name).join('، ') || t('tasks.drawer.unassigned') }}</p>
@@ -216,21 +224,18 @@ const completedSubtasks = computed(() => props.task.subtasks.filter(subtask => s
           <p v-else class="task-meta-value">{{ task.milestone?.name || t('tasks.drawer.noMilestone') }}</p>
         </div>
       </div>
-    </UCard>
+    </template>
 
-    <section class="space-y-3">
-      <h2 class="text-lg font-semibold text-highlighted">{{ t('tasks.drawer.description') }}</h2>
+    <template #description>
       <TaskDescription :key="task.id" :task="task" />
-    </section>
+    </template>
 
-    <slot name="activity" />
+    <template #activity>
+      <TaskActivity :task="task" />
+    </template>
 
-    <component
-      :is="isProjectTask ? 'details' : 'div'"
-      :class="isProjectTask ? 'task-optional-details rounded-xl border border-default bg-default' : 'contents'"
-    >
-      <summary v-if="isProjectTask" class="task-details-summary flex items-center justify-between gap-3 px-5 py-4 text-lg font-semibold text-highlighted"><span>{{ t('tasks.detail.workResources') }}</span><ChevronDown class="task-disclosure-icon size-4 shrink-0" aria-hidden="true" /></summary>
-      <div :class="isProjectTask ? 'task-optional-content grid gap-6 border-t border-default p-5' : 'contents'">
+    <template #resources>
+      <div class="grid gap-6">
         <TaskDeliverables :key="`outputs-${task.id}`" :task="task" />
 
         <section class="space-y-3">
@@ -245,57 +250,54 @@ const completedSubtasks = computed(() => props.task.subtasks.filter(subtask => s
 
         <TaskAttachments :key="task.id" :task-id="task.id" :can-write="task.can_write" />
       </div>
-    </component>
+    </template>
 
-    <details class="rounded-xl border border-default bg-default">
-      <summary class="task-details-summary flex items-center justify-between gap-3 px-5 py-4 text-lg font-semibold text-highlighted"><span>{{ t('tasks.drawer.additionalDetails') }}</span><ChevronDown v-if="isProjectTask" class="task-disclosure-icon size-4 shrink-0" aria-hidden="true" /></summary>
-      <div class="border-t border-default p-5">
-        <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          <section class="task-additional-item">
-            <span id="task-stage-label">{{ t('tasks.drawer.stage') }}</span>
-            <strong v-if="!task.can_write">{{ task.personal_stage?.name || t('tasks.drawer.unassigned') }}</strong>
-            <USelect
-              v-else
-              size="sm"
-              class="w-full"
-              aria-labelledby="task-stage-label"
-              :items="[{ label: t('tasks.drawer.unassigned'), value: NONE }, ...(stages ?? []).map((s) => ({ label: s.name, value: String(s.id) }))]"
-              :model-value="task.personal_stage ? String(task.personal_stage.id) : NONE"
-              @update:model-value="onStageChange"
-            />
-          </section>
+    <template #additional>
+      <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <section class="task-additional-item">
+          <span id="task-stage-label">{{ t('tasks.drawer.stage') }}</span>
+          <strong v-if="!task.can_write">{{ task.personal_stage?.name || t('tasks.drawer.unassigned') }}</strong>
+          <USelect
+            v-else
+            size="sm"
+            class="w-full"
+            aria-labelledby="task-stage-label"
+            :items="[{ label: t('tasks.drawer.unassigned'), value: NONE }, ...(stages ?? []).map((s) => ({ label: s.name, value: String(s.id) }))]"
+            :model-value="task.personal_stage ? String(task.personal_stage.id) : NONE"
+            @update:model-value="onStageChange"
+          />
+        </section>
 
-          <section class="task-additional-item">
-            <span id="task-tags-label">{{ t('tasks.drawer.tags') }}</span>
-            <strong v-if="!task.can_write">{{ task.tags.map(tag => tag.name).join('، ') || '—' }}</strong>
-            <TagPicker v-else :model-value="task.tags" :can-create="task.can_approve" labelledby="task-tags-label" @update:model-value="onTagsChange" />
-          </section>
+        <section class="task-additional-item">
+          <span id="task-tags-label">{{ t('tasks.drawer.tags') }}</span>
+          <strong v-if="!task.can_write">{{ task.tags.map(tag => tag.name).join('، ') || '—' }}</strong>
+          <TagPicker v-else :model-value="task.tags" :can-create="task.can_approve" labelledby="task-tags-label" @update:model-value="onTagsChange" />
+        </section>
 
-          <section v-if="task.can_write && task.can_approve" class="task-additional-item">
-            <label for="allocated-hours" class="text-muted">{{ t('tasks.drawer.allocatedHours') }}</label>
-            <UInput id="allocated-hours" v-model="hoursDraft" type="number" min="0" step="0.5" class="mt-2" @change="onHoursChange" />
-          </section>
+        <section v-if="task.can_write && task.can_approve" class="task-additional-item">
+          <label for="allocated-hours" class="text-muted">{{ t('tasks.drawer.allocatedHours') }}</label>
+          <UInput id="allocated-hours" v-model="hoursDraft" type="number" min="0" step="0.5" class="mt-2" @change="onHoursChange" />
+        </section>
 
-          <section class="task-additional-item">
-            <span>{{ t('tasks.drawer.created') }}</span>
-            <strong>{{ createdLabel }}</strong>
-          </section>
-          <section class="task-additional-item">
-            <span>{{ t('tasks.drawer.updated') }}</span>
-            <strong>{{ updatedLabel }}</strong>
-          </section>
-          <section class="task-additional-item">
-            <span>{{ t('tasks.drawer.age') }}</span>
-            <strong>{{ t('tasks.drawer.days', { n: task.age_days }) }}</strong>
-          </section>
-          <section v-if="task.cycle_days !== null" class="task-additional-item">
-            <span>{{ t('tasks.drawer.cycle') }}</span>
-            <strong>{{ t('tasks.drawer.days', { n: task.cycle_days }) }}</strong>
-          </section>
-        </div>
+        <section class="task-additional-item">
+          <span>{{ t('tasks.drawer.created') }}</span>
+          <strong>{{ createdLabel }}</strong>
+        </section>
+        <section class="task-additional-item">
+          <span>{{ t('tasks.drawer.updated') }}</span>
+          <strong>{{ updatedLabel }}</strong>
+        </section>
+        <section class="task-additional-item">
+          <span>{{ t('tasks.drawer.age') }}</span>
+          <strong>{{ t('tasks.drawer.days', { n: task.age_days }) }}</strong>
+        </section>
+        <section v-if="task.cycle_days !== null" class="task-additional-item">
+          <span>{{ t('tasks.drawer.cycle') }}</span>
+          <strong>{{ t('tasks.drawer.days', { n: task.cycle_days }) }}</strong>
+        </section>
       </div>
-    </details>
-  </div>
+    </template>
+  </UTabs>
 </template>
 
 <style scoped>
@@ -319,18 +321,5 @@ const completedSubtasks = computed(() => props.task.subtasks.filter(subtask => s
   color: var(--ui-text-highlighted);
   font-size: var(--text-base);
   font-weight: 600;
-}
-
-.task-details-summary {
-  cursor: pointer;
-  list-style-position: inside;
-}
-
-.task-details-summary::marker {
-  color: var(--ui-text-muted);
-}
-
-details[open] > summary .task-disclosure-icon {
-  transform: rotate(180deg);
 }
 </style>

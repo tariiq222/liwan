@@ -9,6 +9,7 @@ const props = defineProps<{
   open: boolean
   frameStyle: Record<string, string>
   sheetWidth: string
+  side: 'left' | 'right'
 }>()
 const emit = defineEmits<{ close: []; afterLeave: [] }>()
 const { t } = useI18n()
@@ -35,7 +36,19 @@ function closeOnEscape(event: Event) {
   emit('close')
 }
 
-const dialogContent = computed<NonNullable<SlideoverProps['content']> & { style: import('vue').CSSProperties }>(() => ({ style: { width: props.sheetWidth, position: 'absolute', inset: '0', maxWidth: '100%' }, onEscapeKeyDown: closeOnEscape, onInteractOutside: keepOpen, onPointerDownOutside: keepOpen }))
+const dialogContent = computed<NonNullable<SlideoverProps['content']> & { style: import('vue').CSSProperties }>(() => ({
+  style: {
+    width: props.sheetWidth,
+    position: 'absolute',
+    maxWidth: '100%',
+    insetBlock: '0',
+    insetInlineStart: 'auto',
+    insetInlineEnd: '0',
+  },
+  onEscapeKeyDown: closeOnEscape,
+  onInteractOutside: keepOpen,
+  onPointerDownOutside: keepOpen,
+}))
 </script>
 
 <template>
@@ -44,7 +57,8 @@ const dialogContent = computed<NonNullable<SlideoverProps['content']> & { style:
       <Transition name="project-sheet-backdrop" appear>
         <div v-if="props.open" data-testid="project-sheet-backdrop" aria-hidden="true" class="project-sheet-backdrop pointer-events-none absolute inset-0" />
       </Transition>
-      <USlideover :open="props.open" :modal="false" :portal="false" :overlay="false" :close="false"
+      <USlideover :open="props.open" :modal="false" :portal="false" :overlay="false" :close="false" :transition="false"
+        :side="props.side"
         :title="t(workspaceOverlayTitleKey(props.route.path))" :description="t(workspaceOverlayTitleKey(props.route.path))"
         :content="dialogContent"
         :ui="{ content: 'nasq-ui-route-sheet pointer-events-auto rounded-none', body: 'min-h-0 flex-1 overflow-y-auto p-0' }"

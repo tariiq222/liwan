@@ -44,9 +44,15 @@ describe('internal UI width and status vocabulary', () => {
 
   it('exits the project side sheet opposite the entry travel', () => {
     const css = readFileSync(resolve(webRoot, 'app/assets/css/nuxt-theme.css'), 'utf8')
+    const host = readFileSync(resolve(webRoot, 'app/components/project/workspace/ProjectRouteHost.vue'), 'utf8')
+    const modal = readFileSync(resolve(webRoot, 'app/components/project/workspace/ProjectRouteModal.vue'), 'utf8')
     expect(css).toContain('@keyframes nasq-sheet-in')
-    expect(css).toContain('translateX(var(--project-overlay-travel, 100vw))')
-    expect(css).toContain('translateX(calc(-1 * var(--project-overlay-travel, 100vw)))')
+    expect(css).toContain('translateX(var(--project-overlay-enter, 100vw))')
+    expect(css).toContain('translateX(var(--project-overlay-exit, -100vw))')
+    expect(host).toContain("enter: rtl ? `-${availableWidth}px`")
+    expect(host).toContain("exit: rtl ? `${availableWidth}px`")
+    expect(host).toContain("side: rtl ? 'left' : 'right'")
+    expect(modal).toContain("insetInlineEnd: '0'")
   })
 
   it('uses SharedPageContainer or settings/digest shells on internal pages', () => {
