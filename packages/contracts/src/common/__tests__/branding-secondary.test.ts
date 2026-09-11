@@ -9,8 +9,12 @@ describe('secondary company brand color', () => {
     expect(BrandingSchema.parse({ name: 'Nasq', logo_url: '/logo', font: 'IBM', primary_color: '#123456', secondary_color: '#abcdef' }).secondary_color).toBe('#abcdef')
   })
   it('rejects malformed secondary and mixed identity updates atomically', () => {
-    for (const value of [{ secondary_color: '#abc' }, { secondary_color: null }, { secondary_color: '#123456', name: 'Changed' }, {}]) {
+    for (const value of [{ secondary_color: '#abc' }, { secondary_color: '#123456', name: 'Changed' }, {}]) {
       expect(BrandingPatchSchema.safeParse(value).success).toBe(false)
     }
+  })
+
+  it('accepts secondary clear in patch payload', () => {
+    expect(BrandingPatchSchema.parse({ secondary_color: null })).toEqual({ secondary_color: null })
   })
 })

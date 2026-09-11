@@ -74,7 +74,7 @@ function updateRoute(next: ChatListRoute) {
 <template>
   <SharedPageContainer width="list" class="nasq-chat-workspace flex min-h-0 flex-col">
     <div class="nasq-chat-pane flex min-h-0 flex-1 flex-col overflow-hidden">
-      <ConversationList v-if="showList" :route-state="routeState" :selected-id="props.conversationId" @update:route-state="updateRoute" @denied="onDenied" />
+      <ConversationList v-if="showList" page-heading :route-state="routeState" :selected-id="props.conversationId" @update:route-state="updateRoute" @denied="onDenied" />
       <section v-if="showConversation" class="nasq-chat-thread flex min-h-0 flex-1 flex-col" data-testid="chat-thread">
         <header v-if="props.conversationId && !denied" class="nasq-chat-thread-header">
           <UButton color="neutral" variant="ghost" square
@@ -138,8 +138,14 @@ function updateRoute(next: ChatListRoute) {
             @clear-reply="replyTo = null"
           />
         </template>
-        <EmptyState v-else-if="denied" :title="t('chat.unavailable')" />
-        <EmptyState v-else :title="t('chat.select')" />
+        <template v-else-if="denied">
+          <h1 class="sr-only">{{ t('chat.title') }}</h1>
+          <EmptyState :title="t('chat.unavailable')" />
+        </template>
+        <template v-else>
+          <h1 class="sr-only">{{ t('chat.title') }}</h1>
+          <EmptyState :title="t('chat.select')" :description="t('chat.description')" />
+        </template>
       </section>
     </div>
   </SharedPageContainer>

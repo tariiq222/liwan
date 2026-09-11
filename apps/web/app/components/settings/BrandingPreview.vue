@@ -13,10 +13,73 @@ const props = defineProps<{
 const { t } = useI18n()
 const previewMode = ref<AppearanceMode>('light')
 const theme = computed(() => createBrandTheme(props.color, previewMode.value, props.secondaryColor))
+const modeSurfaceTokens: Record<AppearanceMode, Record<string, string>> = {
+  light: {
+    '--ui-bg': '#ffffff',
+    '--ui-bg-muted': '#f5f6f8',
+    '--ui-bg-elevated': '#ebedf0',
+    '--ui-bg-accented': '#ebedf0',
+    '--ui-border': '#e1e3e7',
+    '--ui-border-muted': '#eaebee',
+    '--ui-border-accented': '#d1d4d9',
+    '--ui-text': '#18181b',
+    '--ui-text-highlighted': '#09090b',
+    '--ui-text-muted': '#71717a',
+    '--ui-text-toned': '#52525b',
+  },
+  cream: {
+    '--ui-bg': '#fbf7ef',
+    '--ui-bg-muted': '#f6f1e7',
+    '--ui-bg-elevated': '#efe8d9',
+    '--ui-bg-accented': '#e4d9c6',
+    '--ui-border': '#d8cbb7',
+    '--ui-border-muted': '#e4d9c6',
+    '--ui-border-accented': '#c2b293',
+    '--ui-text': '#3f3428',
+    '--ui-text-highlighted': '#30271f',
+    '--ui-text-muted': '#746753',
+    '--ui-text-toned': '#63533f',
+  },
+  dark: {
+    '--ui-bg': '#09090b',
+    '--ui-bg-muted': '#18181b',
+    '--ui-bg-elevated': '#27272a',
+    '--ui-bg-accented': '#27272a',
+    '--ui-border': '#3f3f46',
+    '--ui-border-muted': '#34343c',
+    '--ui-border-accented': '#52525b',
+    '--ui-text': '#f4f4f5',
+    '--ui-text-highlighted': '#fafafa',
+    '--ui-text-muted': '#a1a1aa',
+    '--ui-text-toned': '#71717a',
+  },
+}
+const previewStyle = computed(() => {
+  const surfaces = modeSurfaceTokens[previewMode.value]
+  return {
+    ...theme.value,
+    ...surfaces,
+    color: 'var(--ui-text)',
+    background: 'var(--ui-bg)',
+    '--background': surfaces['--ui-bg'],
+    '--foreground': surfaces['--ui-text'],
+    '--card': surfaces['--ui-bg'],
+    '--muted': surfaces['--ui-bg-muted'],
+    '--muted-foreground': surfaces['--ui-text-muted'],
+    '--border': surfaces['--ui-border'],
+    '--accent': surfaces['--ui-bg-accented'],
+  }
+})
 </script>
 
 <template>
-  <div data-testid="branding-preview" :data-preview-primary="theme['--primary']" :class="{ dark: previewMode === 'dark', cream: previewMode === 'cream' }" :style="theme">
+  <div
+    data-testid="branding-preview"
+    :data-preview-primary="theme['--primary']"
+    class="overflow-hidden rounded-xl"
+    :class="{ dark: previewMode === 'dark', cream: previewMode === 'cream' }"
+    :style="previewStyle"
+  >
   <UCard>
     <template #header>
       <div class="flex items-center justify-between gap-2">
@@ -69,9 +132,9 @@ const theme = computed(() => createBrandTheme(props.color, previewMode.value, pr
         <UButton type="button" color="neutral" variant="ghost" class="nasq-ui-tab" aria-current="page">{{ t('settings.branding.preview.action') }}</UButton>
         <UButton type="button" color="neutral" variant="ghost" class="nasq-ui-tab">{{ t('settings.branding.preview.selection') }}</UButton>
       </div>
-      <UCard>
+      <div class="nasq-ui-record-surface p-4">
         <p class="text-sm">{{ t('settings.branding.preview.hint') }}</p>
-      </UCard>
+      </div>
       <div>
         <p class="mb-1 text-xs text-muted">{{ t('settings.branding.preview.progress') }}</p>
         <UProgress :model-value="66" :style="{ '--nasq-ui-progress': '66%' }" class="nasq-ui-progress" size="sm" :aria-label="t('settings.branding.preview.progress')" />

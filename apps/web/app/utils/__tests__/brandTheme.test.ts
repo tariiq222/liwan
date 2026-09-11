@@ -18,6 +18,17 @@ function contrast(first: string, second: string) {
   return (light! + 0.05) / (dark! + 0.05)
 }
 
+function visualDistance(first: string, second: string): number {
+  const parse = (hex: string) => [
+    Number.parseInt(hex.slice(1, 3), 16),
+    Number.parseInt(hex.slice(3, 5), 16),
+    Number.parseInt(hex.slice(5, 7), 16),
+  ]
+  const firstBytes = parse(first)
+  const secondBytes = parse(second)
+  return Math.sqrt(firstBytes.reduce((acc, value, index) => acc + (value - secondBytes[index]!) ** 2, 0))
+}
+
 describe('createBrandTheme', () => {
   it.each([
     ['#000000', '#ffffff'],
@@ -150,6 +161,17 @@ describe('createBrandTheme', () => {
 
       expect(new Set(charts).size).toBe(6)
       expect(charts.every(value => /^#[0-9a-f]{6}$/.test(value))).toBe(true)
+    }
+  })
+
+  it('keeps near-neutral primaries visually separated in chart tones', () => {
+    const theme = createBrandTheme('#c9c9c9')
+    const charts = Array.from({ length: 6 }, (_, index) => theme[`--chart-${index + 1}`]!)
+
+    for (let first = 0; first < charts.length; first += 1) {
+      for (let second = first + 1; second < charts.length; second += 1) {
+        expect(visualDistance(charts[first]!, charts[second]!)).toBeGreaterThanOrEqual(13)
+      }
     }
   })
 

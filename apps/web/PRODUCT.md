@@ -2,10 +2,7 @@
 
 <!-- impeccable:product-schema 1 -->
 
-UI authority: [DESIGN.md](../../DESIGN.md) and its approved reference supersede
-earlier visual guidance. This product brief describes product scope, not a
-separate theme. See [the migration plan](../../docs/design-system/migration.md)
-for the distinction between approved design and implemented runtime.
+UI authority: [DESIGN.md](../../DESIGN.md). This file is product scope, not a theme.
 
 ## Platform
 
@@ -13,67 +10,64 @@ web
 
 ## Users
 
-الجمهور الوظيفي الظاهر في المستودع يشمل مستخدمي إدارة المشاريع والمهام،
-ومستخدمي دليل الموارد البشرية، ومديري المشاريع، ومديري الحسابات والصلاحيات.
-هذه أدوار مستدلّ عليها من المسارات والقدرات البرمجية، وليست نتائج مقابلة أو
-تأكيداً لترتيب الجمهور الأساسي.
+Confirmed: a customer **company and its employees**. Nasq is used inside the institution, not as a consumer app.
+
+Roles inside that company (from shipped routes, not a ranked persona): project managers and PMO staff, task assignees, meeting participants, HR directory operators, and account/permission administrators.
 
 ## Product Purpose
 
-نَسَق منتج قابل لإعادة البيع لإدارة المشاريع والمهام. لكل عميل نشر وقاعدة
-بيانات ونسخة Odoo وواجهة أمامية مستقلة؛ لا توجد طبقة مستأجرين مشتركة.
-واجهة العميل Nuxt، وOdoo 19 هو المحرك. هذا الوصف موثق في `../../CLAUDE.md`.
+نَسَق (Nasq) is a resellable project and task management product. Each customer has an independent deployment, database, Odoo 19 instance, and Nuxt customer UI; there is no shared tenant layer. Success means employees can run projects, tasks, meetings, HR directory work, and access settings in Nasq without using the vendor Odoo console.
 
 ## Positioning
 
-التميّز التجاري وآلية الاختلاف عن البدائل غير محسومين بعد، ولا ينبغي اختراع
-وعد أو نتيجة أعمال قبل تأكيدهما.
+Confirmed mechanisms a neighboring product cannot copy by renaming screens:
+
+1. Operational independence: one database, Odoo, and frontend per customer.
+2. Arabic RTL-first customer UI as the employees’ workplace; the Odoo backend remains the vendor console (`web_theme_shadcn`), not the staff product.
+
+Commercial slogans, pricing, and competitive claims stay undecided.
 
 ## Operating Context
 
-- الواجهة العميلية هي `apps/web`، وتخاطب Odoo عبر `/api/v1` في البنية الحالية.
-- الصفحات الداخلية تشمل المشاريع والمهام، دليل HR، الوثائق، الإشعارات، وإدارة
-  الحسابات والصلاحيات؛ المسارات موثقة تحت `app/pages/`.
-- إدارة HR منفصلة عن إدارة الحسابات: `/hr` للسجلات والهيكل والوثائق، و`/settings/users`
-  للإدارة والصلاحيات (`../../CLAUDE.md`).
+- Customer UI: `apps/web` (Nuxt 4) talking to Odoo through `/api/v1`.
+- Engine: Odoo 19 CE. Pillars: `nasq_core` (capabilities/identity), `nasq_pmo` (projects/tasks), `nasq_hr` (directory), `nasq_api` (shared HTTP). Meetings extend `cyan_meeting_minutes` through `nasq_pmo`.
+- HR records live at `/hr`. Account grants live at `/settings/users`. `/api/v1/people` remains the PMO user-id picker; employee ids and user ids stay distinct.
+- Customer-specific behavior belongs in a `customer_<name>_*` overlay, never in core pillars.
 
 ## Capabilities and Constraints
 
-- إدارة المشاريع والمهام، الجداول الزمنية، القوالب، المراحل، التبعيات، أصحاب
-  المصلحة، RACI، السجل، المالية/التكاليف، التحديثات، المرفقات، الأرشفة،
-  والإشعارات؛ الأدلة الحالية في `app/pages/projects/` و`app/pages/tasks/`.
-- دليل HR، الأقسام والهيكل، سجلات الموظفين ووثائقهم؛ الأدلة في
-  `app/pages/hr/`.
-- الصلاحيات والقدرات وتفويض السجلات والشركة قيود أساسية، لا مجرد تسميات أدوار
-  (`../../CLAUDE.md`).
-- العربية هي اللغة الافتراضية، والإنجليزية ثانوية، والواجهة RTL-first.
-- شاشات الأعمال صفحات داخلية بمسارات مباشرة، مع الحفاظ على التنقل الخلفي
-  ومرشحات القوائم. الاستثناءات الضيقة: بحث الرأس في popup مركزي، معاينة آخر
-  خمسة إشعارات في popover مع More إلى `/notifications`، وتأكيد مركزي عند ترك
-  نموذج غير محفوظ؛ التأكيدات التدميرية داخل الصفحة (`../../AGENTS.md`).
-- لا يشمل المنتج payroll أو time logging (`../../CLAUDE.md`).
+- PMO: projects, tasks, schedules, templates, milestones, dependencies, stakeholders, RACI, register, finance/costs, updates, attachments, archive/restore, notifications.
+- Meetings: list, calendar, recurring series, minutes; print stays outside the record sheet.
+- Chat: conversation workspace (not the record-sheet recipe).
+- HR: employees, departments/org, documents. No payroll or time logging.
+- Settings: appearance, users, roles, access log, institution branding (primary and optional secondary color in the customer UI; name and logo remain Odoo system-admin).
+- Authorization is capability-based, not role-name-based.
+- Default locale Arabic / RTL-first; English secondary. Business screens are real routes: direct link, refresh, back with list filters. Overlay exceptions: global search dialog, notification popover (latest five, then `/notifications`), unsaved-draft guard, value-selection menus, inline destroy confirm. Do not stack business dialogs.
+- Presentation follows DESIGN.md; contracts and security in `../../CLAUDE.md` are not visual.
 
 ## Brand Commitments
 
-الاسم المستخدم هو نَسَق (Nasq). مرجع الألوان والطباعة والمكونات والتنقل هو
-[دستور واجهات نسق](../../DESIGN.md). لا يعرّف هذا الملف ثيمًا مستقلًا.
+Name: نَسَق (Nasq). Binding UI constitution: [DESIGN.md](../../DESIGN.md). This file does not define a second theme.
 
 ## Evidence on Hand
 
-- بنية Nuxt والصفحات الحالية: `app/pages/` و`package.json`.
-- حدود Odoo والواجهة والمنتج: `../../CLAUDE.md`.
-- قواعد المسارات والاستثناءات وسياق العمل: `../../AGENTS.md`.
-- لا تُسجّل في هذا الملف شهادات عملاء أو مقاييس أو أسعار أو موافقات نشر؛ لا
-  يوجد مصدر مستودعي يثبتها.
+- Routes and copy: `app/pages/`, `i18n/locales/{ar,en}/`.
+- Product boundaries: `../../CLAUDE.md`, `../../AGENTS.md`.
+- Do not fabricate testimonials, metrics, pricing, or deploy approvals.
 
 ## Product Principles
 
-1. كل عميل مستقل تشغيلياً وبيانياً.
-2. إدارة المشاريع والمهام هي المجال الأساسي، مع HR منفصل وظيفياً.
-3. الصلاحية وسياق السجل والشركة جزء من كل عملية.
-4. صفحات الأعمال مباشرة وقابلة للرابط والتحديث والعودة مع المرشحات.
+1. Each customer is operationally and data-independent.
+2. Employees work in Nasq; the vendor console is not the product.
+3. Projects and tasks are the core domain; HR is a separate directory.
+4. Capability and record/company context gate every action.
+5. Work screens are addressable: link, refresh, back, filters.
+
+## Accessibility & Inclusion
+
+Product requirements already binding in DESIGN.md: Arabic RTL-first and English LTR, three appearance modes, three type sizes, keyboard use, reduced motion, text contrast ≥ 4.5:1 and fill ≥ 3:1. No additional inclusion standard was confirmed.
 
 ## Open Decisions
 
-- أولوية الجمهور الأساسي وسياق استخدامه.
-- التميّز التجاري والآلية التي ينبغي أن يثبتها المنتج.
+- First-run persona inside the company (which employee job the empty states speak to first).
+- Commercial differentiation beyond the two confirmed mechanisms.

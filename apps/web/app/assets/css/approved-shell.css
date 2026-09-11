@@ -113,7 +113,8 @@ html[dir="rtl"] body { padding-right: 0 !important; }
 .nasq-shell-brand-mark { display: grid; place-items: center; padding: 0; color: var(--primary); font-size: 1.45rem; }
 .nasq-shell-brand-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .nasq-shell-header-actions { display: flex; min-width: 0; align-items: center; justify-self: end; gap: 8px; }
-.nasq-shell-header .nasq-search-trigger { width: 100%; min-width: 0; height: 40px; justify-content: space-between; border: 1px solid color-mix(in srgb, var(--shell-foreground) 24%, transparent); border-radius: 12px; background: color-mix(in srgb, var(--shell-foreground) 12%, var(--shell-background)); color: var(--shell-foreground); box-shadow: none; }
+.nasq-shell-header .nasq-search-trigger { width: 100%; min-width: 0; height: 40px; justify-content: space-between; border: 1px solid color-mix(in srgb, var(--shell-foreground) 24%, transparent); border-radius: 12px; background: color-mix(in srgb, var(--shell-foreground) 12%, var(--shell-background)); color: var(--shell-foreground); }
+.nasq-shell-header .nasq-search-trigger:not(:focus-visible) { box-shadow: none; }
 .nasq-shell-header .nasq-search-trigger:hover { background: color-mix(in srgb, var(--shell-foreground) 19%, var(--shell-background)); }
 .nasq-shell-header .nasq-search-trigger kbd { border-color: color-mix(in srgb, var(--shell-foreground) 25%, transparent); background: color-mix(in srgb, var(--shell-foreground) 10%, transparent); color: inherit; }
 .nasq-shell-header .header-account { display: flex; min-width: 0; align-items: center; gap: 9px; border: 1px solid transparent; border-radius: 9px; padding: 4px 7px; color: inherit; text-align: start; }
@@ -129,6 +130,13 @@ html[dir="rtl"] body { padding-right: 0 !important; }
 .nasq-shell-header [data-testid="notification-bell"] { width: 34px; height: 34px; min-width: 34px; border-color: color-mix(in srgb, var(--shell-foreground) 24%, transparent); background: transparent; }
 .nasq-shell-header [data-slot="header-account"],
 .nasq-shell-header [data-testid="notification-bell"] { color: var(--shell-foreground); }
+.nasq-shell-header .nasq-search-trigger:focus-visible,
+.nasq-shell-header [data-testid="notification-bell"]:focus-visible,
+.nasq-shell-header [data-slot="header-account"]:focus-visible,
+.nasq-shell-header .nasq-mobile-menu-trigger:focus-visible {
+  outline-style: none !important;
+  box-shadow: 0 0 0 2px var(--shell-background), 0 0 0 4px var(--shell-foreground);
+}
 .approved-account-menu { z-index: 80; }
 .approved-account-menu [data-slot="dropdown-menu-item"] { width: 100%; overflow: hidden; white-space: nowrap; }
 .approved-account-menu .lucide { width: 18px; height: 18px; flex: none; }

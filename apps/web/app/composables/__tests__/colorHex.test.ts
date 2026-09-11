@@ -20,6 +20,13 @@ describe('buildBrandingPatch', () => {
     expect(buildBrandingPatch(staleDraft)).toEqual({ primary_color: '#abcdef' })
   })
 
+  it('forwards a clear secondary as a null patch', () => {
+    expect(buildBrandingPatch({ primaryColor: '#0055ff', secondaryColor: null })).toEqual({
+      primary_color: '#0055ff',
+      secondary_color: null,
+    })
+  })
+
   it('rejects invalid colours', () => {
     expect(buildBrandingPatch({ primaryColor: '#123' })).toBeNull()
   })

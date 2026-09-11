@@ -41,7 +41,7 @@ function contrastRatio(first: string, second: string) {
   return (light! + 0.05) / (dark! + 0.05)
 }
 
-function loadSaved(value: { primary_color: string; secondary_color?: string }) {
+function loadSaved(value: { primary_color: string; secondary_color?: string | null }) {
   savedColor.value = normalizeHex(value.primary_color) ?? DEFAULT_COLOR
   savedSecondary.value = normalizeHex(value.secondary_color ?? '') ?? ''
   color.value = savedColor.value
@@ -109,7 +109,7 @@ async function save() {
   validationError.value = ''
   const patch = buildBrandingPatch({
     primaryColor: color.value,
-    ...(secondaryChanged.value && secondary.value.trim() ? { secondaryColor: secondary.value } : {}),
+    ...(secondaryChanged.value ? { secondaryColor: secondary.value.trim() ? secondary.value : null } : {}),
   })
   if (!patch) {
     validationError.value = t('settings.branding.errors.invalidColor')

@@ -117,6 +117,12 @@ const CHART_TONES: Array<{ target: '#ffffff' | '#000000', amount: number }> = [
 ]
 const DISTINCT_HUE = 25
 
+const INTERACTION = {
+  regular: { hover: 0.18, active: 0.32 },
+  nearBlack: { hover: 0.24, active: 0.42 },
+  nearWhite: { hover: 0.16, active: 0.3 },
+} as const
+
 function hueDelta(first: number, second: number): number {
   const delta = Math.abs(first - second) % 360
   return Math.min(delta, 360 - delta)
@@ -137,11 +143,20 @@ function mixHue(from: string, to: string, amount: number): string {
   )
 }
 
+function visualDistance(first: string, second: string): number {
+  const firstChannels = channels(first)
+  const secondChannels = channels(second)
+  return Math.sqrt(firstChannels.reduce((acc, value, index) => acc + (value - secondChannels[index]!) ** 2, 0))
+}
+
 function uniqueCharts(colors: string[]): string[] {
   const next = [...colors]
   for (let index = 0; index < next.length; index += 1) {
     let step = 0
-    while (next.slice(0, index).includes(next[index]!) && step < 8) {
+    while (
+      next.slice(0, index).some((existing) => visualDistance(existing, next[index]!) < 13)
+      && step < 12
+    ) {
       step += 1
       next[index] = mix(next[index]!, step % 2 === 0 ? '#000000' : '#ffffff', 0.1 * step)
     }
@@ -153,9 +168,15 @@ function chartFamilyFromPrimary(hex: string, mode: AppearanceMode): string[] {
   const base = chartBase(hex, mode)
   const { s } = hexToHsl(base)
   if (s < 0.12) {
-    // Near-neutral brands have no hue to rotate; spread lightness toward the opposite pole of the theme.
-    const target = mode === 'dark' ? '#000000' : '#ffffff'
-    return uniqueCharts([0.6, 0, 0.15, 0.3, 0.45, 0.75].map(amount => mix(base, target, amount)))
+    // Near-neutral brands have weak hue; use a monotonic lightness ladder to preserve contrast on light/cream surfaces.
+    return uniqueCharts([
+      mix(base, '#000000', 0),
+      mix(base, '#000000', 0.18),
+      mix(base, '#000000', 0.36),
+      mix(base, '#000000', 0.54),
+      mix(base, '#000000', 0.72),
+      mix(base, '#000000', 0.9),
+    ])
   }
   return uniqueCharts(CHART_TONES.map((tone, index) => {
     if (index === 1) return base
@@ -184,10 +205,14 @@ function chartFamily(primaryHex: string, accentHex: string, mode: AppearanceMode
 
 function interaction(hex: string) {
   const foreground = foregroundFor(hex)
-  // Near-black brands need lighter interaction tones so each state remains visible.
-  const nearBlack = relativeLuminance(hex) < 0.02
-  const hover = mix(hex, nearBlack ? '#ffffff' : '#000000', nearBlack ? 0.08 : 0.1)
-  const active = mix(hex, nearBlack ? '#ffffff' : '#000000', nearBlack ? 0.16 : 0.2)
+  const luminance = relativeLuminance(hex)
+  const nearBlack = luminance < 0.08
+  const nearWhite = luminance > 0.95
+  const tone = nearBlack ? INTERACTION.nearBlack : nearWhite ? INTERACTION.nearWhite : INTERACTION.regular
+  // For dark bases, lighten states so the pressed states stay visible.
+  const target = nearBlack ? '#ffffff' : '#000000'
+  const hover = mix(hex, target, tone.hover)
+  const active = mix(hex, target, tone.active)
   return { hex, foreground, hover, hoverForeground: foregroundFor(hover), active, activeForeground: foregroundFor(active) }
 }
 

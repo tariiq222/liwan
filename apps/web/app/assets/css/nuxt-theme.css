@@ -42,14 +42,34 @@
 .nasq-elevation-2 { box-shadow: var(--elevation-2); }
 .nasq-elevation-3 { box-shadow: var(--elevation-3); }
 .nasq-elevation-4 { box-shadow: var(--elevation-4); }
-.nasq-ui-field:focus-visible { outline: 2px solid var(--tw-ring-color, var(--ring)); outline-offset: -2px; box-shadow: none; }
-.nasq-ui-field[aria-invalid='true'], .nasq-ui-field[data-invalid] { outline: 2px solid var(--ui-error); outline-offset: -2px; }
+.nasq-ui-field:focus-visible {
+  outline-style: solid;
+  outline-width: 2px;
+  outline-offset: -2px;
+  outline-color: var(--tw-ring-color, var(--ring));
+  box-shadow: none;
+}
+.nasq-ui-icon-button:focus-visible,
+.nasq-ui-primary-solid:focus-visible,
+.nasq-ui-secondary-solid:focus-visible {
+  outline-style: solid;
+  outline-width: 2px;
+  outline-offset: 2px;
+  outline-color: var(--brand-link) !important;
+}
+.nasq-ui-field[aria-invalid='true'], .nasq-ui-field[data-invalid] {
+  outline-style: solid;
+  outline-width: 2px;
+  outline-offset: -2px;
+  outline-color: var(--ui-error);
+}
 .nasq-ui-field:disabled, .nasq-ui-field[disabled], .nasq-ui-field[data-disabled] { opacity: 0.5; }
 .nasq-ui-primary-solid {
   background-color: var(--primary-fill);
   background-image: none;
   color: var(--primary-fill-foreground);
   box-shadow: var(--elevation-1);
+  transition: background-color 160ms ease, color 160ms ease;
 }
 .nasq-ui-primary-solid:hover {
   background-color: var(--primary-fill-hover);
@@ -59,10 +79,6 @@
 .nasq-ui-primary-solid:active {
   background-color: var(--primary-fill-active);
   color: var(--primary-fill-active-foreground);
-}
-.nasq-ui-primary-solid:focus-visible {
-  outline: 2px solid var(--ring);
-  outline-offset: 2px;
 }
 .nasq-ui-primary-solid:disabled, .nasq-ui-primary-solid[disabled], .nasq-ui-primary-solid[aria-disabled='true'] {
   opacity: 0.5;
@@ -74,6 +90,8 @@
   background-color: var(--nasq-brand-secondary-fill);
   background-image: none;
   color: var(--nasq-brand-secondary-fill-foreground);
+  box-shadow: var(--elevation-1);
+  transition: background-color 160ms ease, color 160ms ease;
 }
 .nasq-ui-secondary-solid:hover {
   background-color: var(--nasq-brand-secondary-fill-hover);
@@ -165,6 +183,7 @@ tr[data-selected='true'],
   .nasq-ui-icon-button { width: 44px; height: 44px; min-width: 44px; min-height: 44px; }
 }
 @media (prefers-reduced-motion: reduce) {
+  .nasq-ui-primary-solid, .nasq-ui-secondary-solid { transition: none; }
   .nasq-ui-progress [data-slot='indicator'] { transition: none; }
 }
 

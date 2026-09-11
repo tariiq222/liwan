@@ -78,7 +78,7 @@ async function submitTotp() {
     <UCard class="w-full max-w-sm">
       <template #header>
         <div class="flex flex-col items-center text-center">
-          <img v-if="branding" :src="branding.logo_url" :alt="branding.name" class="mb-3 h-28 w-auto max-w-full object-contain" />
+          <img v-if="branding" :src="branding.logo_url" :alt="branding.name" class="mb-3 h-14 w-auto max-w-full object-contain" />
           <span v-else class="mb-2 grid size-12 place-items-center rounded-xl bg-[var(--primary)] text-lg font-bold text-[var(--primary-foreground)]">ن</span>
           <h1 class="text-xl font-semibold text-highlighted">{{ productName }}</h1>
           <p class="text-sm text-muted">{{ $t('auth.signInToContinue') }}</p>

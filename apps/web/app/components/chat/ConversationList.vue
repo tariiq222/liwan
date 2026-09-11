@@ -7,6 +7,7 @@ import { CHAT_PAGE_SIZE, initialsFor, isFatalChatStatus, nextListOffset, seriali
 const props = defineProps<{
   routeState: ChatListRoute
   selectedId?: number
+  pageHeading?: boolean
 }>()
 const emit = defineEmits<{ 'update:routeState': [ChatListRoute]; denied: [] }>()
 const { t, locale } = useI18n()
@@ -46,6 +47,7 @@ function conversationTo(id: number) {
 
 <template>
   <section class="nasq-chat-list flex h-full min-h-0 flex-col" data-testid="chat-list">
+    <h1 v-if="props.pageHeading" class="px-3 pt-3 text-base font-semibold">{{ t('chat.title') }}</h1>
     <header class="nasq-chat-list-toolbar">
       <form class="nasq-chat-list-search" @submit.prevent="applySearch">
         <UInput

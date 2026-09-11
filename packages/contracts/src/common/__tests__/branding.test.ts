@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { BrandingPatchSchema } from '../branding'
+import { BrandingPatchSchema, BrandingSchema } from '../branding'
 
 describe('BrandingPatchSchema', () => {
   it('accepts only a primary colour update', () => {
@@ -17,5 +17,15 @@ describe('BrandingPatchSchema', () => {
     for (const patch of [{}, { unknown: true }, { primary_color: '#abc' }, { primary_color: null }]) {
       expect(BrandingPatchSchema.safeParse(patch).success).toBe(false)
     }
+  })
+
+  it('accepts nullable secondary color on BrandingSchema', () => {
+    expect(BrandingSchema.parse({
+      name: 'Nasq',
+      logo_url: '/logo',
+      font: 'IBM',
+      primary_color: '#123456',
+      secondary_color: null,
+    }).secondary_color).toBeNull()
   })
 })
