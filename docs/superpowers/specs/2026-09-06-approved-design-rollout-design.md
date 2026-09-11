@@ -1,6 +1,6 @@
 # Approved Nasq design rollout
 
-> UI authority update — 2026-09-07: [DESIGN.md](../../../DESIGN.md) supersedes this document's customer-UI appearance, component and navigation prescriptions wherever they conflict. Preserve historical implementation/verification evidence and still-valid API, permission, business and delivery contracts. This document is not a second theme source.
+> تاريخي. السياسة: [DESIGN.md](../../../DESIGN.md). ليس تعليمات واجهة.
 
 The user approved the OpenDesign shell, project list/detail, and task detail, then explicitly requested applying the complete design to the real Nasq application with institution colour editing preserved, light/dark mode, and small/medium/large typography (small active by default). They explicitly require isolated worktree delivery.
 

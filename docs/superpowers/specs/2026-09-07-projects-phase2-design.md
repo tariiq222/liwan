@@ -1,6 +1,6 @@
 # Projects phase two — budget, costs and reports
 
-> UI authority update — 2026-09-07: [DESIGN.md](../../../DESIGN.md) supersedes this document's customer-UI appearance, component and navigation prescriptions wherever they conflict. Preserve historical implementation/verification evidence and still-valid API, permission, business and delivery contracts. This document is not a second theme source.
+> تاريخي. السياسة: [DESIGN.md](../../../DESIGN.md). ليس تعليمات واجهة.
 
 ## Authority and baseline
 User requested phase two using Claude and Grok. Phase-one design records approval of the two-phase direction and isolated delegated implementation without further pauses. Work starts from main a036fa0 in independent worktrees; phase-one uncommitted work is not imported. Manual cost entry follows the prior no-accounting scope. No commits, Git merges, pushes, deployment, canonical runtime updates, worktree deletion or upstream Odoo changes.

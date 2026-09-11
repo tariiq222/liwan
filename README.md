@@ -1,8 +1,6 @@
 # nasq
 
-## Current UI authority — 2026-09-07
-
-For all Nasq customer-UI work, read [DESIGN.md](DESIGN.md) first, then the component catalog and frontend/theme role linked there. The approved module rail and contextual sidebar supersede older visual/navigation instructions. This is project-local policy; existing business, security and delivery rules still apply. The reference is approved; runtime migration remains a separate implementation phase.
+واجهة العميل: [DESIGN.md](DESIGN.md). Nuxt UI مرحّل في `apps/web`.
 
 nasq (نَسَق) is a resellable project and task management product. Odoo 19 CE
 is the engine and Nuxt 4 is the customer UI. Each customer has an independent
@@ -27,18 +25,15 @@ This unified checkout contains the PMO, HR and access administration surfaces:
   manage institution name/logo. `/account` handles self password changes.
 - PMO adds task attachments, recipient notifications, dependencies and a routed
   archived-task list with restore. HR document creation and edits use pages.
-- Arabic is the default locale and the UI supports RTL. The sidebar exposes
-  tasks, projects, HR, and capability-gated settings/admin entries.
+- Arabic is the default locale and the UI supports RTL. Navigation follows
+  DESIGN.md (module rail + contextual sidebar).
 
-Task detail is a full page at `/tasks/{id}` and at
-`/projects/{id}/tasks/{taskId}`. Returning from a nested task preserves the
-query filters in the URL; scroll restoration is not part of the contract.
+Task detail routes are `/tasks/{id}` and `/projects/{id}/tasks/{taskId}`.
+Presentation follows DESIGN.md. Returning from a nested task preserves query
+filters; scroll restoration is not part of the contract.
 
-The [unification report](docs/unification-2026-09-05.md) records current
-verification and recovery. [WORKSPACE.md](docs/WORKSPACE.md) is the canonical
-workspace map. Earlier branch delivery reports under `docs/superpowers/` are
-historical evidence. All business workflows use normal internal pages with
-filter-preserving back navigation; destructive confirmation stays inline.
+[WORKSPACE.md](docs/WORKSPACE.md) is the workspace map. Dated reports are
+historical evidence, not UI policy.
 
 ## Local development
 

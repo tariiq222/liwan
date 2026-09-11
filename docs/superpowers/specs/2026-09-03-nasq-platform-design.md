@@ -1,6 +1,6 @@
 # nasq — Platform Design Spec
 
-> UI authority update — 2026-09-07: [DESIGN.md](../../../DESIGN.md) supersedes this document's customer-UI appearance, component and navigation prescriptions wherever they conflict. Preserve historical implementation/verification evidence and still-valid API, permission, business and delivery contracts. This document is not a second theme source.
+> واجهة العميل: [DESIGN.md](../../../DESIGN.md). هذا الملف اتجاه المنصة والعقود، ليس ثيمًا.
 
 **Date:** 2026-09-03
 **Target:** Odoo 19.0 Community (pinned to `19.0` stable, never forked) + Nuxt 4

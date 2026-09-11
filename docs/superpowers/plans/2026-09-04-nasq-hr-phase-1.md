@@ -1,6 +1,6 @@
 # nasq HR-1 implementation record
 
-> UI authority update — 2026-09-07: [DESIGN.md](../../../DESIGN.md) supersedes this document's customer-UI appearance, component and navigation prescriptions wherever they conflict. Preserve historical implementation/verification evidence and still-valid API, permission, business and delivery contracts. This document is not a second theme source.
+> تاريخي. السياسة: [DESIGN.md](../../../DESIGN.md). ليس تعليمات واجهة.
 
 **Status:** Implemented and shipped in `v0.5.0-phase-hr` (commit
 `c7a534c`). This file records the delivered scope and maps the original HR-1

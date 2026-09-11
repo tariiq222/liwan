@@ -1,4 +1,7 @@
 # Project tabs and popups
+
+> تاريخي. السياسة الحالية: [DESIGN.md](../../../DESIGN.md). لا تغميق/شيت بلا خلفية ولا حصر بالمشاريع — أُلغيا لاحقًا.
+
 Approved by user in this conversation: practical tabs and popups across projects first, shortest workflows; other modules later. This explicitly overrides former no-popup project workflow policy.
 
 Project list offers All/My tabs with existing filters. Project opens task workspace with direct tabs: tasks, summary, milestones, stakeholders/RACI, risks, finance, charter, settings. Keep workspace mounted beneath one route-backed dialog for item/create/edit workflows. Existing URLs continue to work; fullPage=1 requests standalone route. Direct popup links reconstruct correct parent context. Close and browser navigation preserve filters and scrolling. Existing dirty guards protect drafts on any navigation. No stacked business dialogs.

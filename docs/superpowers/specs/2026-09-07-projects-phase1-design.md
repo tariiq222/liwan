@@ -1,6 +1,6 @@
 # Projects phase one design — 2026-09-07
 
-> UI authority update — 2026-09-07: [DESIGN.md](../../../DESIGN.md) supersedes this document's customer-UI appearance, component and navigation prescriptions wherever they conflict. Preserve historical implementation/verification evidence and still-valid API, permission, business and delivery contracts. This document is not a second theme source.
+> تاريخي. السياسة: [DESIGN.md](../../../DESIGN.md). ليس تعليمات واجهة.
 
 ## Approval and scope
 The user approved the two-phase direction and requested isolated planning and implementation with delegation without further pauses. Phase one delivers project templates, stakeholders/RACI, risks/issues and Timeline/Gantt. Phase two (cost ledger, actual budget and consolidated reports) remains separate. The existing charter estimate is preserved.

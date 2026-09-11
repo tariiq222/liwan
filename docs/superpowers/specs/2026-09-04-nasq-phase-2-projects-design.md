@@ -1,6 +1,6 @@
 # nasq — Phase 2: Projects List & Project Screen — Design Spec
 
-> UI authority update — 2026-09-07: [DESIGN.md](../../../DESIGN.md) supersedes this document's customer-UI appearance, component and navigation prescriptions wherever they conflict. Preserve historical implementation/verification evidence and still-valid API, permission, business and delivery contracts. This document is not a second theme source.
+> تاريخي. السياسة: [DESIGN.md](../../../DESIGN.md). ليس تعليمات واجهة.
 
 **Date:** 2026-09-04
 **Target:** nasq `main` @ `48017fa` (phase 1 delivered as `v0.2.0-phase1`, pillar

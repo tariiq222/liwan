@@ -1,6 +1,6 @@
 # nasq HR-1 — Directory, Dept Admin & Documents Implementation Plan
 
-> UI authority update — 2026-09-07: [DESIGN.md](../../DESIGN.md) supersedes this document's customer-UI appearance, component and navigation prescriptions wherever they conflict. Preserve historical implementation/verification evidence and still-valid API, permission, business and delivery contracts. This document is not a second theme source.
+> تاريخي. السياسة: [DESIGN.md](../../DESIGN.md). ليس تعليمات واجهة.
 
 > **STOP — isolation banner.** Execute this plan **AFTER** nasq phase-1 is merged to `main`. Until that merge, work is **new-files-only**. **NEVER** edit `odoo-addons/nasq_api/controllers/people.py`, `odoo-addons/nasq_api/controllers/tasks.py`, `apps/web/app/composables/useTasks.ts`, `apps/web/app/composables/usePeople.ts`, or anything under `/Users/tariq/code/nasq` while the other team owns phase-1. Do not check out `phase-1`. Do not reuse the `docs/phase-2-projects` worktree. Prefer new files. After merge: wire imports / `depends` as Task 2 says; still never change the people picker.
 

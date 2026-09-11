@@ -2,19 +2,11 @@
 
 Authority: [DESIGN.md](../../DESIGN.md). This catalog records current reusable code and pending migration; names in the approved HTML reference are not Vue APIs.
 
-## Nuxt UI adoption — 2026-09-10
+## Nuxt UI
 
-Read [the pinned reference and acceptance recipe](nuxt-ui-reference.md).
-All new components and modules belong to the shared Nasq theme based on Nuxt UI.
-The executable reference is in `apps/web/design-preview` using Nuxt UI 4.11.1.
-The customer application migration is being completed in the isolated
-`codex/nuxt-migration` checkout; see the verification report for accepted coverage. Do not
-build a lookalike with another library. Use Nuxt UI directly where sufficient,
-and reuse Nasq page recipes rather than wrapping every
-primitive. Register each new composite/specialized component here by exact
-backticked repository path, responsibility, page recipe and reused primitives.
-Colors, fonts, sizes, spacing, radius and states come from the shared theme.
-Arabic/RTL, English/LTR, all appearance/font modes and accessibility are required.
+السلطة: [DESIGN.md](../../DESIGN.md). اقرأ [المرجع](nuxt-ui-reference.md) للإصدارات والفحص.
+Nuxt UI مرحّل في `apps/web`. `design-preview` معاينة معزولة. لا مكتبة ثانية ولا تغليف لكل زر.
+سجّل كل مكوّن مركّب هنا بمساره ومسؤوليته. الألوان والخطوط من الثيم المشترك.
 
 `components/ui` definitions are retained for recovery but excluded from runtime
 auto-discovery. Only the explicit Unovis chart adapters remain in use.
@@ -59,13 +51,13 @@ provider is used. Fonts/color-mode modules are disabled, not another source of s
 
 | Responsibility | Current source | Usage |
 | --- | --- | --- |
-| App shell | `apps/web/app/layouts/default.vue` | The sidebar is the primary project-section navigation; duplicate workspace tabs are removed from project pages. A static sidebar heading sits above shared project breadcrumbs on list, dashboard, record, form, and project-system settings routes. Breadcrumb links navigate to real ancestor pages and retain return context. Section-level views remain. Module navigation and project-system settings belong to the general menu. Both retain independent desktop collapse. ProjectHeader owns the section title on tasks/summary/milestones/schedule; nested pages own their section or action title, without repeating project identity. |
+| App shell | `apps/web/app/layouts/default.vue` | Header + module rail + contextual sidebar. No layout breadcrumb. Desktop rail and sidebar collapse independently. Mobile <768 uses hamburger navigation. Project section tabs live in the project workspace page, not in the sidebar. Nested pages own their H1 without repeating project identity. |
 | Global search | `components/GlobalSearch.vue` | Shared centered dialog; compact search header, capability-filtered quick navigation, grouped query results and internal scrolling. Shared dialog layers sit above the app header. |
 | Primary navigation | `apps/web/app/components/shell/ModuleRail.vue`, `components/shell/ContextSidebar.vue`, `components/shell/MobileNavigation.vue`, `composables/useNav.ts`, `composables/useShellNavigation.ts` | Rail order (2026-09-11) is الرئيسية (`/projects/dashboard`), المشاريع (`/projects`; also active for tasks, templates, reports and search), الاجتماعات, المحادثات, المؤسسة, with settings and vendor utilities anchored below. `home` and `projects` share one «المشاريع» sidebar: نظرة عامة → كل المشاريع → مهامي → قوالب المشاريع, plus the pinned «مشروع جديد»; it stays the same inside a project. Meetings: list → calendar → recurring series. Settings is one flat list: حسابي → المظهر → المستخدمون → الأدوار والصلاحيات → سجل الوصول → هوية الجهة → إعدادات المشاريع. Both sidebar components derive their groups from `shellContextGroups()`; capability gates, the sidebar breadcrumb and create actions are unchanged. |
 | Context create action | `components/shell/SidebarCreateAction.vue` | Shared primary solid `UButton` for capability-filtered contextual creation routes; keeps the action region above context navigation and avoids nested buttons. |
 | Project navigation | `components/project/workspace/ProjectWorkspaceTabs.vue`, `pages/projects/[id].vue`, `projectWorkspaceGroups()` in `composables/useNav.ts` | In-page project navigation (2026-09-11): the workspace frame in `[id].vue` renders the project title row (name, status badge, manager, square settings icon button gated by `can_manage`) and two `UButton` `soft`/`ghost` tab rows on section roots only, never inside the side sheet or on full-page detail/create/edit routes. Groups: الملخص · التنفيذ (المهام · الجدول الزمني · المعالم) · الحوكمة (ملف المشروع · أصحاب المصلحة · المسؤوليات RACI · المخاطر والمشكلات) · المالية · التحديثات. A group opens its first visible sub-section; archived projects and `pmo.tasks.read` hide the same sections as before; the section page keeps the single H1. The 2026-09-10 rollout still applies the same page composition and record presentation to other modules except Chat. |
 | Shared workflow host | `components/project/workspace/ProjectRouteHost.vue`, `ProjectRouteModal.vue`, `utils/workspacePresentation.ts` | One route-backed workflow over a retained background, full-height Side Sheet below the header and beside the main module rail. The overlay frame still follows the rail; the panel docks to the opposite edge (inline-end) and enters from that edge. The approved background uses 20% dimming and 2px blur. Motion respects reduced motion. Frame geometry follows rendered direction and coalesces locale/direction, resize and scroll measurements. Direct URLs load the real background; close, refresh, nested return filters, standalone display and draft guards remain supported. Chat and meeting print routes are excluded. |
-| System-wide header context policy | `layouts/default.vue`, `composables/useShellNavigation.ts`, `components/shared/PageHeader.vue` | The shared layout has no breadcrumb component, row, reserved spacing or conditional exception. Section roots retain title/actions without generic subtitles. Detail/create/edit pages own their required back navigation, including filters/hash and distinct workflow returns. No invisible breadcrumb state may hide those links. Preserve meaningful scope/data. This supersedes earlier breadcrumb rules under the final 2026-09-08 decision in DESIGN.md. |
+| System-wide header context policy | `layouts/default.vue`, `composables/useShellNavigation.ts`, `components/shared/PageHeader.vue` | No layout breadcrumb. Section roots: title/actions only. Detail/create/edit pages own back links and keep filters/hash. |
 | Settings navigation | `components/settings/SettingsLayout.vue` | Preserve actual routes and permissions; avoid duplicated context menus |
 | Shell motion | `layouts/default.vue`, `components/shell/ContextSidebar.vue`, `assets/css/approved-shell.css` | Persistent shell frame; pathname changes animate page content, query-only navigation preserves mounted state, context motion is limited to module/project changes, and reduced-motion preferences disable shell animation. |
 | Notification preview formatting | `utils/notificationPresentation.ts`, `components/notifications/NotificationCenter.vue` | Shared formatting for the latest-five notification popover; the full notification workflow remains the `/notifications` internal page. |
@@ -87,7 +79,7 @@ provider is used. Fonts/color-mode modules are disabled, not another source of s
 Paths starting `components/` and `composables/` are relative to `apps/web/app/`.
 Inspect actual props before use. This catalog does not rename or regenerate any component.
 
-Project section roots share `PageContainer width="list"`; child forms use `form`, child details use `detail`. All modules share the reference 1.75rem page stack and list/detail/form widths of 100rem/68rem/58rem. Section creation belongs in header actions; FilterBar uses its default collapsed card and owns view controls. TaskToolbar accepts `collapsible` for project pages while retaining other consumers' embedded behavior. ScheduleGantt and MilestoneTable accept `embedded` to suppress repeated card headers when the owning page provides the title/tools. `nasq-project-toolbar` styles existing tools where there are no search filters.
+Project section roots share `PageContainer width="list"`; child forms use `form`, child details use `detail`. Widths: list/detail/form 100rem/68rem/58rem. Section creation belongs in header actions. Filters: visible search plus icon `UPopover` via FilterBar/FilterCard. TaskToolbar accepts `collapsible`. ScheduleGantt and MilestoneTable accept `embedded` to suppress repeated headers.
 
 Functional card sections use UCard header/body slots; plain sections use semantic headings. Legacy panel/header/body and metric-strip recipes are retired. Repeated task/meeting items keep metadata and actions together; tables scroll inside their data region. The meeting calendar switches to its agenda when its own container is narrower than 600px, so every date remains accessible beside the contextual sidebar. Action columns use the localized `app.actions` header; empty string table headers are avoided because their fallback fragments differ during hydration.
 
@@ -129,7 +121,7 @@ Shared recipes only; no page-local styles. Owner: `apps/web/app/assets/css/nuxt-
 
 `components/shared/FilterCard.vue` renders filter trigger, count and clear first, then the actions/view slot; `FilterBar.vue` pushes the view slot to the end edge (`ms-auto`). `components/task/TaskTable.vue` shows assignees as an initials avatar plus names and uses the soft `USelect` variant for priority. `components/project/ProjectCards.vue` shows record number, name, status, progress with a visible percent, then manager and end date with icons.
 
-## Runtime Nuxt UI migration (in progress)
+## Shared field and shell notes
 
 - `apps/web/app/components/shared/DateField.vue`: shared ISO date selector; UPopover, UCalendar, UButton; keeps calendar dates timezone-independent, with optional ISO minValue/maxValue bounds.
 - `apps/web/app/app.config.ts` and `apps/web/app/assets/css/nuxt-theme.css`: runtime U component recipes and tokens, using existing useAppearance and company brand state.

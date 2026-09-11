@@ -1,6 +1,6 @@
 # Projects phase two implementation plan
 
-> UI authority update — 2026-09-07: [DESIGN.md](../../../DESIGN.md) supersedes this document's customer-UI appearance, component and navigation prescriptions wherever they conflict. Preserve historical implementation/verification evidence and still-valid API, permission, business and delivery contracts. This document is not a second theme source.
+> تاريخي. السياسة: [DESIGN.md](../../../DESIGN.md). ليس تعليمات واجهة.
 
 > **For agentic workers:** Use executing-plans together with the requested Claude/Grok relays; the coordinator owns execution checks.
 

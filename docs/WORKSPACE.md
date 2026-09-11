@@ -98,9 +98,7 @@ The chart dashboard correction follows the all-branches integration. See [the de
 
 The user authorized all current Nasq branch/worktree integration, cleanup and local restart. See [the current consolidation report](all-branches-consolidation-2026-09-07.md) for reconciliation, recovery and final runtime evidence. Earlier worktree counts and pending states below describe their original checkpoints.
 
-## Current UI authority — 2026-09-07
-
-For all Nasq customer-UI work, read [DESIGN.md](../DESIGN.md) first, then the component catalog and frontend/theme role linked there. The approved module rail and contextual sidebar supersede older visual/navigation instructions. This is project-local policy; existing business, security and delivery rules still apply. The reference is approved; runtime migration remains a separate implementation phase.
+واجهة العميل: [DESIGN.md](../DESIGN.md). التقارير أدناه أدلة استرداد، ليست سياسة واجهة.
 
 The canonical Nasq checkout is `/Users/tariq/code/nasq` on `main`. Main is
 local-only; no Nasq Git remote is configured. The Odoo checkout at

@@ -1,5 +1,7 @@
 # Page order, module rail and contextual sidebar — user decision 2026-09-11
 
+> مدمج في [DESIGN.md](../../../DESIGN.md). هذا الملف ملاحظات تنفيذ، ليس دستورًا ثانيًا.
+
 **Source:** the user's interactive prototype `nasq-01-project-workspace.html`
 (model 1, «مساحة المشروع»: two stable menus + sections inside the page).
 **Scope:** navigation order, sidebar structure and how pages react to the

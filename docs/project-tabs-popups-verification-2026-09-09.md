@@ -1,5 +1,7 @@
 # Projects tabs and Side Sheets pilot
 
+> تاريخي. السياسة: [DESIGN.md](../DESIGN.md). الشيت الحالي بتغميق 20% ومُعمَّم خارج المحادثات.
+
 The user approved Projects-only tabs and Side Sheets. The final sheet attaches to the main module rail, fills the available height below the header, enters and exits at the logical start edge (right in RTL, left in LTR). There is no dimming backdrop. Header and module navigation remain clear and available; the sheet can cover contextual navigation. Other modules keep their existing presentation.
 
 Implementation checkout: `/Users/tariq/code/nasq-project-tabs-popups`, branch `codex/project-tabs-popups`, based on `508d256`. No commit, merge, push or deployment performed. Canonical main and other worktrees are preserved.

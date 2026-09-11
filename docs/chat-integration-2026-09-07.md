@@ -1,6 +1,6 @@
 # Chat integration — 2026-09-07
 
-> UI authority update — 2026-09-07: [DESIGN.md](../DESIGN.md) supersedes this document's customer-UI appearance, component and navigation prescriptions wherever they conflict. Preserve historical implementation/verification evidence and still-valid API, permission, business and delivery contracts. This document is not a second theme source.
+> تاريخي. السياسة: [DESIGN.md](../DESIGN.md). ليس تعليمات واجهة.
 
 The user authorizes merging and cleaning `codex/chat-workspace`. The Cyan
 meetings trial remains excluded. Base main is `d63f82f`; original chat HEAD

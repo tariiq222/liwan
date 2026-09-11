@@ -1,18 +1,11 @@
 # Nasq design system
 
-The sole current UI policy is [DESIGN.md](../../DESIGN.md), approved for the new contextual navigation on 2026-09-07.
+السياسة الوحيدة: [DESIGN.md](../../DESIGN.md).
 
-- [Approved interactive reference](reference/2026-09-07-header/index.html) and [provenance](reference/2026-09-07-header/README.md).
-- [Shared component catalog](components.md).
-- [Frontend/theme agent brief](../agents/frontend-theme.md).
-- [Migration and retirement plan](migration.md).
-- [Documentation inventory](documentation-inventory.md).
+- [فهرس المكونات](components.md) — جرد الكود الحالي، ليس دستورًا ثانيًا.
+- [مرجع Nuxt UI](nuxt-ui-reference.md) — المصدر والإصدارات وفحص `ui_policy`.
+- [دور الفرونت](../agents/frontend-theme.md).
 
-The reference contains demonstration data and hash navigation. It is not the production application and must not be imported as runtime code.
-Existing Vue components, APIs, permissions and routes remain the implementation foundation.
+`apps/web/design-preview` معاينة معزولة ببيانات وهمية. نموذج HTML `reference/2026-09-07-header/` تاريخي للمقارنة فقط.
 
-## Historical references
-
-`Components.html` and `approved-shell.html` are historical references, not alternative approved themes. Their old visual choices are superseded by DESIGN.md. Preserve licensing and existing evidence.
-`build.mjs` rebuilds only the legacy colour/component demonstration; running it does not regenerate the current approved reference.
-The earlier standalone guide exercised preview/save/cancel/default colour behavior. Production branding still uses the company API and explicit save; institution identity remains managed in Odoo.
+التقارير المؤرخة ومواصفات superpowers أدلة تسليم. لا تنسخ منها CSS أو مكوّنات.

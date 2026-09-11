@@ -1,6 +1,6 @@
 # Nasq Access Administration Implementation Plan
 
-> UI authority update — 2026-09-07: [DESIGN.md](../../../DESIGN.md) supersedes this document's customer-UI appearance, component and navigation prescriptions wherever they conflict. Preserve historical implementation/verification evidence and still-valid API, permission, business and delivery contracts. This document is not a second theme source.
+> تاريخي. السياسة: [DESIGN.md](../../../DESIGN.md). ليس تعليمات واجهة.
 
 Execution record (2026-09-05): implementation and local acceptance are recorded in [the delivery handoff](2026-09-05-nasq-access-admin-handoff.md). The original step checklist below is retained as the execution specification; the handoff records actual checks and delivery boundaries.
 

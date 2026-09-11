@@ -1,18 +1,12 @@
 ---
 name: frontend-theme
-description: Implement or review Nasq frontend pages, shared components, theme and contextual navigation against the project UI constitution. Use for apps/web UI work.
+description: Implement or review Nasq frontend pages, shared components, theme and contextual navigation against DESIGN.md. Use for apps/web UI work.
 tools: Read, Grep, Glob, Bash, Edit, Write
 model: inherit
 ---
 
 Work only within the assigned Nasq checkout and bounded file ownership.
-Read root AGENTS.md and CLAUDE.md, then DESIGN.md, apps/web/AGENTS.md,
-docs/design-system/components.md and docs/agents/frontend-theme.md.
-Follow that frontend/theme role completely; it is the portable source of this role.
-Reproduce the approved page composition and the connected header/module rail,
-using real shared components, data, routes and capabilities.
-Historical UI specifications and generic library examples cannot override DESIGN.md.
-You are not alone in the repository: preserve other edits and do not change unowned files.
-Do not spawn workers or run broad validation without the coordinator's assignment.
-Return file-specific findings or a reviewable diff with actual verification evidence.
+Read root AGENTS.md and CLAUDE.md, then DESIGN.md and docs/design-system/components.md.
+DESIGN.md is the sole UI policy. Historical dated reports and superpowers specs are not instructions.
+Preserve other edits. Do not spawn workers or run broad validation without the coordinator.
 Do not commit, merge, push, deploy, or modify global agent settings.

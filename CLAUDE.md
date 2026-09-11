@@ -1,27 +1,7 @@
 # CLAUDE.md — nasq
 
-## Frontend foundation — Nuxt UI, 2026-09-10
-
-The user selected Nuxt UI Dashboard as the single customer-UI foundation.
-Follow DESIGN.md and the component catalog: all new components belong to
-the shared Nasq theme, reuse its tokens and are catalogued by exact path,
-responsibility and reused primitives. No page-local alternative controls or
-additional UI library without approval. Existing shadcn-vue/vue-sonner are
-transition-only; do not expand them to new consumers. The executable Nuxt UI
-reference lives in `apps/web/design-preview`, separate from the customer app.
-The current UPDATE_POLICY governs: no update hook or approval record for local
-install/build/preview/tests; review GitHub source updates with Tariq in chat.
-Do not ship unresolved imports. Preserve capabilities, routes, drafts,
-Arabic/RTL, appearance and the latest DESIGN.md workflow decisions. This
-supersedes older visual/component instructions, not business/security rules.
-
-## Project workflows — user-approved tabs and popups, 2026-09-09
-
-The user explicitly superseded the previous prohibition on business dialogs and authorized implementing the new interaction model in Projects first. Project workspaces use direct tabs; project record/create/edit/settings workflows may use one route-backed Side Sheet attached to the main module rail (not the contextual sidebar), below the header and filling available height. Use a content-appropriate width, no dimming backdrop, enter from the right and exit to the left, and respect reduced-motion preferences. Keep direct links, refresh/browser-back, permissions, draft protection, filters and scroll context. Nested records replace dialog content rather than stacking business dialogs. Standalone pages remain an explicit option. All other modules keep their current behavior pending a separate rollout. This section overrides older no-modal/no-popup clauses for this scope. See `docs/superpowers/specs/2026-09-09-project-tabs-popups-design.md`.
-
-## Current UI authority — 2026-09-07
-
-For all Nasq customer-UI work, read [DESIGN.md](DESIGN.md) first, then the component catalog and frontend/theme role linked there. The approved module rail and contextual sidebar supersede older visual/navigation instructions. This is project-local policy; existing business, security and delivery rules still apply. The reference is approved; runtime migration remains a separate implementation phase.
+واجهة العميل: [DESIGN.md](DESIGN.md) ثم [فهرس المكونات](docs/design-system/components.md).
+Nuxt UI مرحّل في `apps/web`. التقارير المؤرخة ليست تعليمات واجهة.
 
 nasq (نَسَق) is a resellable project and task management product on Odoo 19
 CE. Odoo is the engine and `apps/web` (Nuxt 4) is the customer UI. Each
@@ -81,18 +61,11 @@ explicitly; do not assume an Odoo config points at a particular Nasq checkout.
 
 ## Product contracts
 
-- Every business screen is an internal page in the normal system layout,
-  including detail, create, edit, settings, and search. Do not implement these
-  workflows in Dialog, AlertDialog, Sheet, Drawer, or CommandDialog overlays.
-  Use stable routes, visible page headings, direct-link/refresh support, and
-  back navigation preserving list filters. Destructive actions use explicit
-  inline confirmation on the relevant page. Simple selection menus remain
-  controls; they must not become containers for business screens. This is a
-  standing user requirement across Nasq and applies to future features.
-  Exception approved by the user on 2026-09-06: the header global search uses
-  a centered dialog (`GlobalSearch.vue`), and the notification bell previews
-  the latest five notifications in a popover with More linking to the full
-  `/notifications` page. Search results and business records still open routes.
+- Presentation follows DESIGN.md (pages, one route-backed record sheet, and
+  the listed overlay exceptions). Keep stable routes, visible headings,
+  direct-link/refresh support, and back navigation that preserves list
+  filters. Destructive actions use explicit inline confirmation. Do not stack
+  business dialogs. Selection menus remain controls, not business screens.
 - Arabic (`ar`) is the default locale and the UI is RTL-first. User-facing
   strings use `$t()`/`t()` and the owning locale namespace.
 - Use Tailwind logical properties (`ms-`, `me-`, `ps-`, `pe-`, `start-`,
@@ -111,8 +84,8 @@ explicitly; do not assume an Odoo config points at a particular Nasq checkout.
 - nasq has no time logging or payroll product surface. Do not add
   `hr_timesheet`, timesheet fields/endpoints, payroll, bank, or compensation
   data to the customer UI.
-- Task detail is a full page at `/tasks/{id}` and the nested project route
-  `/projects/{id}/tasks/{taskId}`. Preserve URL query filters when returning;
+- Task detail routes are `/tasks/{id}` and `/projects/{id}/tasks/{taskId}`.
+  Presentation follows DESIGN.md. Preserve URL query filters when returning;
   do not promise scroll restoration without evidence.
 
 ## Safe worktree workflow

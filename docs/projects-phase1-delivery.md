@@ -1,6 +1,6 @@
 # Projects phase one — local delivery
 
-> UI authority update — 2026-09-07: [DESIGN.md](../DESIGN.md) supersedes this document's customer-UI appearance, component and navigation prescriptions wherever they conflict. Preserve historical implementation/verification evidence and still-valid API, permission, business and delivery contracts. This document is not a second theme source.
+> تاريخي. السياسة: [DESIGN.md](../DESIGN.md). ليس تعليمات واجهة.
 
 **Status: implemented and locally verified, 2026-09-07.** Work remains uncommitted in `/Users/tariq/code/nasq-projects-phase1`, branch `codex/projects-phase1`, based on main `d63f82f5367958eb9fb9c856d938b2cc0a0c9396`. No commit, merge, push or deployment was performed. Canonical checkout changes in nuxt.config.ts, deploy/Caddyfile and .agent were preserved. At close, an additional concurrent main-checkout edit in apps/web/app/composables/__tests__/hrAdmin.test.ts was observed; this task did not edit or revert it.
 

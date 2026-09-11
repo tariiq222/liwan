@@ -1,6 +1,6 @@
 # Unified Nasq components and company colour
 
-> UI authority update — 2026-09-07: [DESIGN.md](../../../DESIGN.md) supersedes this document's customer-UI appearance, component and navigation prescriptions wherever they conflict. Preserve historical implementation/verification evidence and still-valid API, permission, business and delivery contracts. This document is not a second theme source.
+> تاريخي. السياسة: [DESIGN.md](../../../DESIGN.md). ليس تعليمات واجهة.
 
 Approved in chat on 2026-09-05. Implement the existing quiet Arabic RTL design through reusable components; keep stock Odoo untouched.
 

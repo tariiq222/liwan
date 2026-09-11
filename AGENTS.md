@@ -1,32 +1,11 @@
 # Nasq agent entry point
 
-## Current frontend authority — Nuxt UI, 2026-09-10
+## واجهة العميل
 
-Nuxt UI Dashboard is the approved customer-UI foundation for all modules.
-Read DESIGN.md and docs/design-system/components.md before UI work. Every new
-component must belong to the shared Nasq theme and be registered in the catalog
-with its exact path, responsibility and reused primitives. No page-local
-alternative controls or extra UI library without Tariq's approval.
-Existing shadcn-vue/vue-sonner consumers are transitional only; do not extend
-them to new pages. Preserve routes, drafts, capabilities, Arabic/RTL, the
-module rail, contextual navigation and appearance preferences.
-The executable isolated reference is in `apps/web/design-preview`; the customer
-application now uses that foundation. See docs/verification/2026-09-11-worktree-integration.md
-for the local integration scope and evidence. Follow the current `docs/UPDATE_POLICY.md`:
-the update hook was removed by Tariq, local install/build/preview/tests need no
-update approval, and GitHub source updates require review and approval in chat.
-Do not ship unresolved U components or a second-library lookalike.
-Use applicable policy checks, behavior tests and visual review; documentation
-alone is not automated enforcement. This supersedes older component/visual
-choices; the latest DESIGN.md decisions govern workflow behavior.
-
-## Project workflows — user-approved tabs and popups, 2026-09-09
-
-The user explicitly superseded the previous prohibition on business dialogs and authorized implementing the new interaction model in Projects first. Project workspaces use direct tabs; project record/create/edit/settings workflows may use one route-backed Side Sheet attached to the main module rail (not the contextual sidebar), below the header and filling available height. Use a content-appropriate width, no dimming backdrop, enter from the right and exit to the left, and respect reduced-motion preferences. Keep direct links, refresh/browser-back, permissions, draft protection, filters and scroll context. Nested records replace dialog content rather than stacking business dialogs. Standalone pages remain an explicit option. All other modules keep their current behavior pending a separate rollout. This section overrides older no-modal/no-popup clauses for this scope. See `docs/superpowers/specs/2026-09-09-project-tabs-popups-design.md`.
-
-## Current UI authority — 2026-09-07
-
-For all Nasq customer-UI work, read [DESIGN.md](DESIGN.md) first, then the component catalog and frontend/theme role linked there. The approved module rail and contextual sidebar supersede older visual/navigation instructions. This is project-local policy; existing business, security and delivery rules still apply. The reference is approved; runtime migration remains a separate implementation phase.
+السياسة الوحيدة: [DESIGN.md](DESIGN.md) ثم [فهرس المكونات](docs/design-system/components.md).
+Nuxt UI مرحّل في `apps/web`. `apps/web/design-preview` معاينة معزولة وليست تطبيقًا ثانيًا.
+التقارير المؤرخة ومواصفات superpowers أدلة تسليم، ليست تعليمات واجهة.
+اتبع [UPDATE_POLICY.md](docs/UPDATE_POLICY.md).
 
 Read `CLAUDE.md` for the product architecture and engineering rules, then
 `docs/WORKSPACE.md` for the workspace and recovery map. Read
@@ -43,12 +22,10 @@ These are repository instructions for every coding agent, regardless of tool.
   through `nasq_hr`. Do not recreate either pillar.
 - The HR page is `/hr`; `/api/v1/people` remains the PMO user-id picker. Preserve
   HR documents and the `{items, total}` list envelopes.
-- All business screens use internal page routes in the normal app layout.
-  Do not introduce drawers, sheets, or modal popups for detail, create, edit,
-  settings, or search workflows. Give pages direct links and working refresh
-  and back navigation that preserves list filters. Confirm destructive actions
-  inline in the relevant page. This is the user's standing design rule for
-  the entire system; simple value-selection menus are controls, not screens.
+- Presentation (pages, the one route-backed record sheet, and the three overlay
+  exceptions) follows DESIGN.md. Keep direct links, refresh/back, filters,
+  permissions and draft protection. Do not stack business dialogs. Confirm
+  destructive actions inline. Value-selection menus are controls, not screens.
 - Phase 3b and the later access, design, HR hierarchy, and collaboration
   work are consolidated by the 2026-09-05 unification. Read
   `docs/runtime-upgrade-cleanup-2026-09-07.md` for current evidence and `docs/WORKSPACE.md`
@@ -101,19 +78,6 @@ Before every integration, including from an older worktree:
 These are mandatory agent workflow instructions. They are not a Git hook or
 server-enforced branch protection; do not claim automated merge protection
 exists unless it has actually been installed and verified.
-
-## Approved header exception (2026-09-06)
-
-The user explicitly changed header search to a centered popup and the
-notification bell to a latest-five popover with More opening `/notifications`.
-This narrow exception supersedes the older no-popup search wording above.
-All other business screens remain internal routes.
-
-## Approved unsaved-changes exception (2026-09-07)
-
-The user approved a centered confirmation popup for leaving a form with unsaved
-changes. SharedUnsavedChanges owns this confirmation across forms. Detail, create,
-edit and settings workflows themselves remain internal pages.
 
 ## Implementation agent routing — 2026-09-07 (scoped 2026-09-09)
 

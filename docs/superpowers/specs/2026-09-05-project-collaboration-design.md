@@ -1,6 +1,6 @@
 # Project collaboration design
 
-> UI authority update — 2026-09-07: [DESIGN.md](../../../DESIGN.md) supersedes this document's customer-UI appearance, component and navigation prescriptions wherever they conflict. Preserve historical implementation/verification evidence and still-valid API, permission, business and delivery contracts. This document is not a second theme source.
+> تاريخي. السياسة: [DESIGN.md](../../../DESIGN.md). ليس تعليمات واجهة.
 
 Status: approved intent from user; implementation in isolated codex/project-collaboration.
 Baseline: b17058a. User requested plan and Luna team execution of attachments, notifications, task dependencies and archived-task restoration. Root owns coordination and verification; Sol supplied architecture decisions and reviews; Luna implements.

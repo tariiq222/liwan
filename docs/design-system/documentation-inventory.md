@@ -1,5 +1,7 @@
 # Markdown authority inventory
 
+> جرد قديم عند `a2c1534`. ليس قائمة سلطة. السياسة: [DESIGN.md](../../DESIGN.md).
+
 Authority: [DESIGN.md](../../DESIGN.md). Inventory of all 110 Markdown files tracked at base `a2c1534`, before this documentation package. Generated recovery copies are deliberately not rewritten. Library skill references in the machine-local ignored `.claude/skills` tree are examples, not UI authority.
 
 | File | Treatment |

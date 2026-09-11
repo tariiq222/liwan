@@ -1,6 +1,6 @@
 # Internal UI integration — 2026-09-07
 
-> UI authority update — 2026-09-07: [DESIGN.md](../DESIGN.md) supersedes this document's customer-UI appearance, component and navigation prescriptions wherever they conflict. Preserve historical implementation/verification evidence and still-valid API, permission, business and delivery contracts. This document is not a second theme source.
+> تاريخي. السياسة: [DESIGN.md](../DESIGN.md). ليس تعليمات واجهة.
 
 Worktree: `/Users/tariq/code/nasq-internal-ui-merge`
 Branch: `codex/internal-ui-merge` based on `41964ca`, merge `--no-ff --no-commit` of `e6740da`.
