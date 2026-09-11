@@ -10,7 +10,6 @@ const route = useRoute()
 const router = useRouter()
 const { t, locale } = useI18n()
 const hydrated = useHydrated()
-const { can } = useAccess()
 const queryYear = Number(route.query.year)
 const queryMonth = Number(route.query.month)
 const cursor = ref(new Date(
@@ -108,11 +107,7 @@ function goToday() {
 
 <template>
   <SharedPageContainer width="list">
-    <SharedPageHeader :title="t('nav.meetingCalendar')" :back-to="'/meetings'">
-      <template #actions>
-        <UButton v-if="can('meetings.create')" icon="i-lucide-plus" :disabled="!hydrated" :to="{ path: '/meetings/new', query: returnToQuery(route.fullPath) }" :label="t('meetingsUi.new')" />
-      </template>
-    </SharedPageHeader>
+    <SharedPageHeader :title="t('nav.meetingCalendar')" :back-to="'/meetings'" />
     <div class="flex items-center justify-between gap-3 rounded-xl border border-default bg-default p-3">
       <div class="flex items-center gap-2" :aria-label="monthLabel">
         <UButton type="button" color="neutral" variant="ghost" square :disabled="!hydrated" :aria-label="t('projects.previousPage')" @click="shift(-1)">

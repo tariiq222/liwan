@@ -231,7 +231,7 @@ function projectListTabTo(mine: boolean) {
         />
       </template>
       <template #view>
-        <div role="group" class="inline-flex h-[40px] items-center rounded-lg border bg-elevated/40 p-0.5" :aria-label="t('projects.filters.view')">
+        <div role="group" class="hidden md:inline-flex h-[40px] items-center rounded-lg border bg-elevated/40 p-0.5" :aria-label="t('projects.filters.view')">
           <UButton data-testid="projects-view-table" type="button" square :color="view === 'table' ? 'primary' : 'neutral'" :variant="view === 'table' ? 'solid' : 'ghost'" icon="i-lucide-list" :disabled="!hydrated" :aria-label="t('projects.filters.tableView')" :aria-pressed="view === 'table'" @click="onViewChange('table')" />
           <UButton data-testid="projects-view-cards" type="button" square :color="view === 'cards' ? 'primary' : 'neutral'" :variant="view === 'cards' ? 'solid' : 'ghost'" icon="i-lucide-layout-grid" :disabled="!hydrated" :aria-label="t('projects.filters.cardView')" :aria-pressed="view === 'cards'" @click="onViewChange('cards')" />
         </div>

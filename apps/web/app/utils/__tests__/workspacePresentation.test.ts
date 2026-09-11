@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isWorkspaceThemeRoute, isWorkspaceOverlayRoute, deriveWorkspaceOverlayBackground } from '../workspacePresentation'
+import { isWorkspaceThemeRoute, isWorkspaceOverlayRoute, deriveWorkspaceOverlayBackground, workspaceOverlayTitleKey } from '../workspacePresentation'
 
 describe('approved workspace rollout excluding chat', () => {
   it('keeps chat, login and printable documents outside the shared theme', () => {
@@ -18,6 +18,11 @@ describe('approved workspace rollout excluding chat', () => {
     expect(deriveWorkspaceOverlayBackground('/tasks/7', {returnTo:'/archived-tasks?q=old'})).toBe('/archived-tasks?q=old')
     for (const returnTo of ['https://evil.example', '//evil.example', '/chat', '/settings/users', '/hr/employees/8']) expect(deriveWorkspaceOverlayBackground('/hr/employees/7', {returnTo})).toBe('/hr')
     expect(deriveWorkspaceOverlayBackground('/projects/42/tasks/7', {})).toBe('/projects/42?tab=tasks')
+  })
+  it('names task sheets after tasks, not the projects module', () => {
+    expect(workspaceOverlayTitleKey('/projects/40/tasks/701')).toBe('nav.tasks')
+    expect(workspaceOverlayTitleKey('/tasks/7')).toBe('nav.tasks')
+    expect(workspaceOverlayTitleKey('/projects/40/stakeholders/3')).toBe('projects.title')
   })
   it('unwraps nested record returns on edit refresh without accepting external context', () => {
     expect(deriveWorkspaceOverlayBackground('/hr/employees/7/edit', {

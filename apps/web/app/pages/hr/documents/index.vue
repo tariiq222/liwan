@@ -85,11 +85,7 @@ function documentTo(document: HrDocument) {
 
 <template>
   <SharedPageContainer width="list">
-    <SharedPageHeader :title="t('hr.docs.title')" :back-to="'/hr'">
-      <template #actions>
-        <UButton v-if="can('hr.documents.manage')" color="primary" :disabled="!hydrated" icon="i-lucide-plus" :label="t('hr.docs.new')" :to="{ path: '/hr/documents/new', query: { ...returnToQuery(route.fullPath), department_id: departmentId } }" @click="!hydrated && $event.preventDefault()" />
-      </template>
-    </SharedPageHeader>
+    <SharedPageHeader :title="t('nav.documents')" :back-to="'/hr'" />
     <div class="w-full min-w-0" data-testid="documents-toolbar">
       <FilterBar class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
         <template #search>

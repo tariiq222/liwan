@@ -9,7 +9,6 @@ import { formatCalendarDate } from '@/composables/calendarDate'
 import { usePeople } from '@/composables/usePeople'
 import { useMeetings } from '@/composables/useMeetings'
 import { returnToQuery } from '@/utils/safeReturnTo'
-import { meetingCreateRoute } from '@/utils/meetingRoutes'
 import { formatLocalDateTime } from '@/utils/meetingDateTime'
 import { clearMeetingListFilters, meetingDateRange, parseMeetingListFilters, patchMeetingListQuery, type MeetingFilterKey, type MeetingFilterPatch } from '@/utils/meetingListFilters'
 
@@ -55,7 +54,6 @@ const page = computed(() => Math.floor(offset.value / limit) + 1)
 const pages = computed(() => Math.max(1, Math.ceil((query.data.value?.total ?? 0) / limit)))
 const projectId = computed(() => routeFilters.value.projectId)
 const seriesId = computed(() => routeFilters.value.seriesId)
-const createMeetingTo = computed(() => meetingCreateRoute(route.fullPath, projectId.value, seriesId.value))
 const projectName = ref('')
 const rememberedOrganizers = ref<Record<number, string>>({})
 watch(() => organizerQuery.data.value, people => {
@@ -195,11 +193,7 @@ function setPage(next: number) {
 
 <template>
   <SharedPageContainer width="list">
-    <SharedPageHeader :title="t('nav.meetings')">
-      <template #actions>
-        <UButton v-if="can('meetings.create')" icon="i-lucide-plus" :disabled="!hydrated" :to="createMeetingTo" :label="t('meetingsUi.new')" />
-      </template>
-    </SharedPageHeader>
+    <SharedPageHeader :title="t('nav.meetings')" />
     <div class="w-full min-w-0">
       <FilterBar
         :title="t('filterCard.title')"

@@ -47,7 +47,7 @@ function page(file: string, pmo = false, routeOverride: Record<string, unknown> 
   const script = ast.statements.filter(statement => !ts.isImportDeclaration(statement)).map(statement => statement.getText(ast)).join('\n').replaceAll('import.meta.client', 'false')
   const js = ts.transpileModule(script, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None } }).outputText
   const exposed = file === 'index.vue'
-    ? '{ setPage, offset, createMeetingTo }'
+    ? '{ setPage, offset }'
     : file === '[id].vue'
       ? '{ convertResolution, projectByResolution, localTime, resolutionCanReopen, requestMeetingAction, confirmMeetingAction, pendingMeetingAction, requestResolutionAction, confirmResolutionAction, pendingResolutionAction, error: () => typeof conversionError === "undefined" ? null : conversionError.value }'
       : file === 'series/index.vue'
@@ -70,13 +70,6 @@ describe('meeting route and conversion behavior', () => {
     expect(list.route.query.offset).toBeUndefined()
     expect(list.route.query.q).toBe('review')
     expect(list.offset.value).toBe(0)
-  })
-  it('carries project context into the actual create link used by the meetings page', () => {
-    const list = page('index.vue', false, { fullPath: '/meetings?project_id=42', query: { project_id: '42' } })
-    expect(list.createMeetingTo.value).toEqual({
-      path: '/meetings/new',
-      query: { project_id: '42', returnTo: '/meetings?project_id=42' },
-    })
   })
   it('does not enable project lookup for a meetings-only editor', () => {
     const detail = page('[id].vue')

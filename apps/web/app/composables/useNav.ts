@@ -136,7 +136,9 @@ function projectWorkspaceTabOf(path: string, query: Record<string, unknown>): Pr
   if (rest === 'tasks' || rest.startsWith('tasks/')) return 'tasks'
   if (query.tab === 'milestones') return 'milestones'
   if (query.tab === 'tasks' || query.tab === 'list' || query.tab === 'board') return 'tasks'
-  return query.tab === 'summary' ? 'summary' : 'tasks'
+  if (query.tab === 'summary') return 'summary'
+  if (query.view === 'board') return 'tasks'
+  return 'summary'
 }
 
 /**
@@ -161,6 +163,12 @@ function hrCreateLinkForPath(path?: string): ShellContextLink {
     return { id: 'new-department', labelKey: 'hr.depts.new', icon: Plus, to: '/hr/departments/new', capability: 'hr.departments.manage', pinned: true }
   }
   return { id: 'new-employee', labelKey: 'hr.directory.newEmployee', icon: Plus, to: '/hr/employees/new', capability: 'hr.employees.manage', pinned: true }
+}
+
+/** Hide the pinned create on the projects list/form and inside a project workspace. */
+export function hidePinnedNewProject(path: string): boolean {
+  const normalized = path.split(/[?#]/, 1)[0]!.replace(/\/+$/, '') || '/'
+  return normalized === '/projects' || normalized === '/projects/new' || /^\/projects\/[1-9]\d*(?:\/|$)/.test(normalized)
 }
 
 /** Projects sidebar: shown for `home` and `projects`, including inside a project (2026-09-11). */

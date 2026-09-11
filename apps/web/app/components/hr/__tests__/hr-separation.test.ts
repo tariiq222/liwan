@@ -22,7 +22,6 @@ const hrRouteFiles = [
 ]
 
 const capabilityGatedFiles = [
-  'pages/hr/index.vue',
   'components/hr/DirectoryTable.vue',
   'components/hr/EmployeeGeneralForm.vue',
   'components/hr/EmployeeCard.vue',

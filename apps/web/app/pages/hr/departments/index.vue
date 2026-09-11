@@ -39,9 +39,7 @@ async function confirmDelete() {
 </script>
 <template>
   <SharedPageContainer width="list">
-    <SharedPageHeader :title="t('hr.depts.title')" back-to="/hr">
-      <UButton v-if="can('hr.departments.manage')" color="primary" :disabled="!hydrated" :to="{ path: '/hr/departments/new', query: returnToQuery(route.fullPath) }" :label="t('hr.depts.new')" @click="!hydrated && $event.preventDefault()" />
-    </SharedPageHeader>
+    <SharedPageHeader :title="t('nav.departments')" back-to="/hr" />
     <div class="w-full min-w-0">
       <FilterBar class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
         <template #search>

@@ -83,7 +83,10 @@ export function projectSectionRoot(path: string, query: Record<string, unknown> 
   if (!match || !positiveId(match[1])) return null
   const section = match[2]
   if (!section) {
-    return query.tab === 'summary' ? 'summary' : 'planning'
+    if (query.tab === 'summary') return 'summary'
+    if (query.tab === 'tasks' || query.tab === 'list' || query.tab === 'board') return 'planning'
+    if (!query.tab) return query.view === 'board' ? 'planning' : 'summary'
+    return 'planning'
   }
   return Object.hasOwn(projectRootSections, section) ? projectRootSections[section]! : null
 }

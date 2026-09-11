@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { activeShellModule, contextGroupsForModule, contextLinksForModule, contextModuleFor, projectContextId, projectContextLinks, projectSidebarLinks, projectWorkspaceGroups, projectWorkspaceLinks, shellContextGroups, visibleShellModules, useNav } from '../useNav'
+import { activeShellModule, contextGroupsForModule, contextLinksForModule, contextModuleFor, hidePinnedNewProject, projectContextId, projectContextLinks, projectSidebarLinks, projectWorkspaceGroups, projectWorkspaceLinks, shellContextGroups, visibleShellModules, useNav } from '../useNav'
 import { projectSectionRoot, shellSectionRoot } from '../useShellNavigation'
 
 const employee = { role: 'employee', capabilities: ['pmo.tasks.read', 'pmo.projects.read', 'meetings.read', 'hr.employees.read', 'hr.departments.read', 'hr.documents.read'] }
@@ -94,7 +94,7 @@ describe('shell route classification', () => {
   })
 
   it('maps every project area to one contextual section', () => {
-    expect(projectContextId('/projects/12', {})).toBe('planning')
+    expect(projectContextId('/projects/12', {})).toBe('summary')
     expect(projectContextId('/projects/12', { tab: 'summary', view: 'board' })).toBe('summary')
     expect(projectContextId('/projects/12', { tab: 'tasks' })).toBe('planning')
     expect(projectContextId('/projects/12/schedule', {})).toBe('planning')
@@ -106,8 +106,8 @@ describe('shell route classification', () => {
   })
 
   it('classifies only normalized project section roots', () => {
-    expect(projectSectionRoot('/projects/12')).toBe('planning')
-    expect(projectSectionRoot('/projects/12/', {})).toBe('planning')
+    expect(projectSectionRoot('/projects/12')).toBe('summary')
+    expect(projectSectionRoot('/projects/12/', {})).toBe('summary')
     expect(projectSectionRoot('/projects/12', { tab: 'tasks' })).toBe('planning')
     expect(projectSectionRoot('/projects/12', { tab: 'summary', view: 'board' })).toBe('summary')
     expect(projectSectionRoot('/projects/12', { view: 'board' })).toBe('planning')
@@ -219,6 +219,14 @@ describe('projects dashboard navigation', () => {
     expect(contextLinksForModule('projects', employee).map(link => link.labelKey)).toEqual(['nav.projectDashboard', 'nav.allProjects', 'nav.tasks', 'nav.projectTemplates'])
     expect(contextLinksForModule('projects', full).some(link => ['my-projects', 'archived-tasks', 'project-system-settings', 'summary', 'current-project-settings'].includes(link.id))).toBe(false)
     expect(contextLinksForModule('projects', undefined)).toEqual([])
+  })
+  it('hides the pinned new-project action on the list, create form and inside a project', () => {
+    expect(hidePinnedNewProject('/projects')).toBe(true)
+    expect(hidePinnedNewProject('/projects/new')).toBe(true)
+    expect(hidePinnedNewProject('/projects/40')).toBe(true)
+    expect(hidePinnedNewProject('/projects/40/tasks/701')).toBe(true)
+    expect(hidePinnedNewProject('/projects/dashboard')).toBe(false)
+    expect(hidePinnedNewProject('/project-templates')).toBe(false)
   })
   it('orders meetings as list, calendar, recurring series after the pinned create action', () => {
     expect(contextLinksForModule('meetings', full).map(link => link.id)).toEqual(['new-meeting', 'meetings', 'meeting-calendar', 'meeting-series'])

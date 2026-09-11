@@ -13,10 +13,15 @@ describe('access policy navigation', () => {
   })
   it('chooses an accessible home and has an account-only fallback', () => {
     expect(firstAllowedPath({ capabilities: ['meetings.read'] })).toBe('/meetings')
+    expect(firstAllowedPath({ capabilities: ['pmo.projects.read', 'pmo.tasks.read'] })).toBe('/projects/dashboard')
+    expect(firstAllowedPath({ capabilities: ['pmo.projects.read'] })).toBe('/projects/dashboard')
     expect(firstAllowedPath({ capabilities: ['pmo.tasks.read'] })).toBe('/tasks')
     expect(firstAllowedPath({ capabilities: ['hr.employees.read'] })).toBe('/hr')
     expect(firstAllowedPath({ capabilities: ['access.users.read'] })).toBe('/settings/users')
     expect(firstAllowedPath({ capabilities: [] })).toBe('/account')
+    expect(requiredCapabilityForPath('/projects/dashboard')).toBe('pmo.projects.read')
+    expect(isNavPathActive('/projects/dashboard', '/projects')).toBe(false)
+    expect(postLoginPath({ capabilities: ['pmo.projects.read', 'pmo.tasks.read'] }, undefined)).toBe('/projects/dashboard')
   })
   it('opens the shared inbox for task or meeting readers without granting the other domain', () => {
     const meetingReader = { capabilities: ['meetings.read'] }
@@ -92,7 +97,7 @@ describe('access policy navigation', () => {
     expect(requiredCapabilityForPath('/project-templates/7/edit')).toBe('pmo.settings.manage')
     const reader = { capabilities: ['pmo.projects.read'] }
     expect(postLoginPath(reader, '/project-templates/7?returnTo=%2Fprojects')).toBe('/project-templates/7?returnTo=%2Fprojects')
-    expect(postLoginPath(reader, '/project-templates/7/edit')).toBe('/projects')
+    expect(postLoginPath(reader, '/project-templates/7/edit')).toBe('/projects/dashboard')
     expect(postLoginPath({ capabilities: [] }, '/project-templates')).toBe('/account')
   })
 })

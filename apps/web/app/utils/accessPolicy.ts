@@ -13,6 +13,7 @@ export function hasCapability(identity: AccessIdentity, capability: string): boo
 }
 
 const destinations = [
+  ['/projects/dashboard', 'pmo.projects.read'],
   ['/tasks', 'pmo.tasks.read'], ['/projects', 'pmo.projects.read'],
   ['/project-templates', 'pmo.projects.read'], ['/reports', 'pmo.projects.read'],
   ['/meetings', 'meetings.read'], ['/meetings/calendar', 'meetings.read'], ['/meetings/series', 'meetings.read'],
@@ -35,6 +36,7 @@ export function isNavPathActive(path: string, target: string): boolean {
   if (target === '/hr') return path === '/hr' || path.startsWith('/hr/employees/')
   if (target === '/hr/documents') return path === target || path.startsWith(`${target}/`) || document
   if (target === '/hr/departments' && document) return false
+  if (target === '/projects' && (path === '/projects/dashboard' || path.startsWith('/projects/dashboard/'))) return false
   if (target === '/meetings' && (path.startsWith('/meetings/calendar') || path.startsWith('/meetings/series'))) return false
   if (target === '/meetings/calendar') return path === '/meetings/calendar'
   if (target === '/meetings/series') return path === '/meetings/series' || path.startsWith('/meetings/series/')

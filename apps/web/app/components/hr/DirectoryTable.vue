@@ -3,14 +3,14 @@ import type { TableColumn } from '@nuxt/ui'
 import FilterBar from '@/components/shared/FilterBar.vue'
 import RecordNumber from '@/components/shared/RecordNumber.vue'
 import { useHrDepartments } from '@/composables/useHrDepartments'
-import { useHrEmployees, type HrEmployee } from '@/composables/useHrEmployees'
+import { useArchiveHrEmployee, useHrEmployees, useUnarchiveHrEmployee, type HrEmployee } from '@/composables/useHrEmployees'
 import { returnToQuery } from '@/utils/safeReturnTo'
 import { hasPendingHrSearch, hrCommittedListParams } from '@/composables/useHrSearch'
 import AccessBadge from './AccessBadge.vue'
 import { refDebounced } from '@vueuse/core'
 
 const departmentId = defineModel<number | null>('departmentId', { default: null })
-const emit = defineEmits<{ open: [id: number]; manage: [id: number]; archive: [id: number] }>()
+const emit = defineEmits<{ open: [id: number]; manage: [id: number] }>()
 
 const { t } = useI18n()
 const route = useRoute()
@@ -29,6 +29,18 @@ const offset = ref(Math.max(0, Number(route.query.offset ?? 0) || 0))
 const { can } = useAccess()
 const canManage = computed(() => can('hr.employees.manage'))
 const canArchive = computed(() => can('hr.employees.archive'))
+const pendingArchiveId = ref<number | null>(null)
+const { mutateAsync: archiveEmployee, isPending: archiving } = useArchiveHrEmployee()
+const { mutateAsync: unarchiveEmployee, isPending: unarchiving } = useUnarchiveHrEmployee()
+const archivePending = computed(() => archiving.value || unarchiving.value)
+const pendingEmployee = computed(() => items.value.find(item => item.id === pendingArchiveId.value) ?? null)
+async function confirmPendingArchive() {
+  const employee = pendingEmployee.value
+  if (!employee || !hydrated.value) return
+  if (employee.active) await archiveEmployee(employee.id)
+  else await unarchiveEmployee(employee.id)
+  pendingArchiveId.value = null
+}
 
 const params = computed(() => {
   const query = route.query
@@ -125,6 +137,13 @@ function clearFilters() {
       </FilterBar>
     </div>
 
+    <UAlert v-if="pendingEmployee" role="alert" color="error" variant="subtle" :title="t('hr.employee.archiveConfirm')">
+      <template #actions>
+        <UButton color="error" :disabled="!hydrated || archivePending" :label="pendingEmployee.active ? t('hr.employee.archive') : t('hr.employee.unarchive')" @click="confirmPendingArchive" />
+        <UButton color="secondary" variant="solid" :disabled="archivePending" :label="t('app.cancel')" @click="pendingArchiveId = null" />
+      </template>
+    </UAlert>
+
     <SharedPageState :error="error" @retry="refetch">
       <div class="min-w-0 space-y-2">
         <UCard v-if="isLoading" class="hidden divide-y divide-default overflow-hidden md:block" role="status" :aria-label="t('app.loading')">
@@ -155,7 +174,7 @@ function clearFilters() {
                 <template v-if="showActions" #manage-cell="{ row }">
                   <div class="flex gap-1" @click.stop>
                     <UButton v-if="canManage" color="secondary" variant="ghost" size="sm" :disabled="!hydrated" data-testid="hr-employee-manage" :label="t('hr.directory.manage')" @click="emit('manage', row.original.id)" />
-                    <UButton v-if="canArchive" color="secondary" variant="ghost" size="sm" :disabled="!hydrated" data-testid="hr-employee-archive-row" :label="row.original.active ? t('hr.employee.archive') : t('hr.employee.unarchive')" @click="emit('archive', row.original.id)" />
+                    <UButton v-if="canArchive" color="secondary" variant="ghost" size="sm" :disabled="!hydrated" data-testid="hr-employee-archive-row" :label="row.original.active ? t('hr.employee.archive') : t('hr.employee.unarchive')" @click="pendingArchiveId = row.original.id" />
                   </div>
                 </template>
               </UTable>
@@ -177,7 +196,7 @@ function clearFilters() {
               </dl>
               <div v-if="showActions" class="mt-3 flex gap-2" @click.stop>
                 <UButton v-if="canManage" color="secondary" variant="ghost" size="sm" :disabled="!hydrated" data-testid="hr-employee-manage" :label="t('hr.directory.manage')" @click="emit('manage', employee.id)" />
-                <UButton v-if="canArchive" color="secondary" variant="ghost" size="sm" :disabled="!hydrated" data-testid="hr-employee-archive-row" :label="employee.active ? t('hr.employee.archive') : t('hr.employee.unarchive')" @click="emit('archive', employee.id)" />
+                <UButton v-if="canArchive" color="secondary" variant="ghost" size="sm" :disabled="!hydrated" data-testid="hr-employee-archive-row" :label="employee.active ? t('hr.employee.archive') : t('hr.employee.unarchive')" @click="pendingArchiveId = employee.id" />
               </div>
             </li>
           </ul>

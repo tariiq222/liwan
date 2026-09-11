@@ -4,8 +4,9 @@ import { Menu } from '@lucide/vue'
 import { useMediaQuery } from '@vueuse/core'
 import SidebarCreateAction from '@/components/shell/SidebarCreateAction.vue'
 import { useShellNavigation } from '@/composables/useShellNavigation'
-import { activeShellModule, contextModuleFor, shellContextGroups, shellModules, visibleShellModules } from '@/composables/useNav'
+import { activeShellModule, contextModuleFor, hidePinnedNewProject, shellContextGroups, shellModules, visibleShellModules } from '@/composables/useNav'
 import { parseChatListRoute, serializeChatListRoute } from '@/utils/chatState'
+import { meetingCreateRoute } from '@/utils/meetingRoutes'
 import { returnToQuery, safeReturnTo } from '@/utils/safeReturnTo'
 
 const { t, te, localeProperties } = useI18n()
@@ -27,7 +28,7 @@ const contextTitle = computed(() => moduleDefinition.value ? t(moduleDefinition.
 const primaryLinks = computed(() => contextLinks.value)
 // One shared grouping for the desktop sidebar and the mobile menu.
 const contextGroups = computed(() => linksModule.value ? shellContextGroups(linksModule.value, me.value, route.path, primaryLinks.value) : [])
-const createLinks = computed(() => contextGroups.value.flatMap(group => group.links).filter(link => link.pinned && !(link.id === 'new-project' && ['/projects', '/projects/new'].includes(route.path))))
+const createLinks = computed(() => contextGroups.value.flatMap(group => group.links).filter(link => link.pinned && !(link.id === 'new-project' && hidePinnedNewProject(route.path))))
 const navigationGroups = computed(() => contextGroups.value
   .map(group => ({ ...group, links: group.links.filter(link => !link.pinned) }))
   .filter(group => group.links.length))
@@ -63,6 +64,7 @@ function listReturnTo(linkId: string): string {
 
 function createTo(link: { id: string; to: import('vue-router').RouteLocationRaw }): import('vue-router').RouteLocationRaw {
   if (link.id === 'new-chat') return { path: '/chat/new', query: serializeChatListRoute(parseChatListRoute(route.query)) }
+  if (link.id === 'new-meeting') return meetingCreateRoute(listReturnTo(link.id), typeof route.query.project_id === 'string' ? route.query.project_id : undefined, typeof route.query.series_id === 'string' ? route.query.series_id : undefined)
   const target = typeof link.to === 'string' ? link.to : link.to.path
   if (!target) return link.to
   const query: Record<string, string> = returnToQuery(listReturnTo(link.id))

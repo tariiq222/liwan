@@ -4,9 +4,10 @@ import { useMediaQuery } from '@vueuse/core'
 import ConversationList from '@/components/chat/ConversationList.vue'
 import SidebarCreateAction from '@/components/shell/SidebarCreateAction.vue'
 import { useContextSidebar, useShellNavigation } from '@/composables/useShellNavigation'
-import { activeShellModule, contextModuleFor, shellContextGroups, shellModules } from '@/composables/useNav'
+import { activeShellModule, contextModuleFor, hidePinnedNewProject, shellContextGroups, shellModules } from '@/composables/useNav'
 import { workspaceBreadcrumbs } from '@/utils/workspaceBreadcrumbs'
 import { parseChatListRoute, serializeChatListRoute, type ChatListRoute } from '@/utils/chatState'
+import { meetingCreateRoute } from '@/utils/meetingRoutes'
 import { returnToQuery, safeReturnTo } from '@/utils/safeReturnTo'
 
 const { t, localeProperties } = useI18n()
@@ -44,7 +45,7 @@ const moduleLinks = computed(() => (isChat.value && isDesktop.value && expanded.
 const contextGroups = computed(() => linksModule.value ? shellContextGroups(linksModule.value, me.value, route.path, moduleLinks.value) : [])
 const createLinks = computed(() => {
   if (isChat.value && isDesktop.value) return []
-  return contextGroups.value.flatMap(group => group.links).filter(link => link.pinned && !(link.id === 'new-project' && ['/projects', '/projects/new'].includes(route.path)))
+  return contextGroups.value.flatMap(group => group.links).filter(link => link.pinned && !(link.id === 'new-project' && hidePinnedNewProject(route.path)))
 })
 const navigationGroups = computed(() => contextGroups.value
   .map(group => ({ ...group, links: group.links.filter(link => !link.pinned) }))
@@ -88,6 +89,7 @@ function listReturnTo(linkId: string): string {
 
 function createTo(link: { id: string; to: import('vue-router').RouteLocationRaw }): import('vue-router').RouteLocationRaw {
   if (link.id === 'new-chat') return { path: '/chat/new', query: serializeChatListRoute(parseChatListRoute(route.query)) }
+  if (link.id === 'new-meeting') return meetingCreateRoute(listReturnTo(link.id), typeof route.query.project_id === 'string' ? route.query.project_id : undefined, typeof route.query.series_id === 'string' ? route.query.series_id : undefined)
   const target = typeof link.to === 'string' ? link.to : link.to.path
   if (!target) return link.to
   const query: Record<string, string> = returnToQuery(listReturnTo(link.id))

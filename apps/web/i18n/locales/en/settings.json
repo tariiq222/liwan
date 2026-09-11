@@ -8,7 +8,7 @@
       "list": "Results"
     },
     "branding": {
-      "title": "Branding",
+      "title": "Company identity",
       "name": "Company name",
       "color": "Primary color",
       "logo": "Logo",
@@ -47,7 +47,7 @@
       "lowContrast": "The two colors have low contrast. Choose a clearer pair for readability."
     },
     "projects": {
-      "title": "Project system settings",
+      "title": "Project settings",
       "creators": {
         "label": "Who can create projects",
         "managers": "Project managers and administrators",

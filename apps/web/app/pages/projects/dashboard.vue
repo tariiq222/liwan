@@ -98,7 +98,7 @@ function clearFilters() {
     <SharedPageHeader :title="t('projects.dashboard.title')" :description="t('projects.dashboard.description')" />
 
     <div class="w-full min-w-0">
-      <FilterBar inline class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
+      <FilterBar class="w-full" :title="t('filterCard.title')" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
         <template #search>
           <UInput v-model="search" :disabled="!hydrated" :placeholder="t('projects.reports.search')" :aria-label="t('projects.reports.search')" icon="i-lucide-search" class="min-w-52 flex-1" />
         </template>

@@ -15,10 +15,8 @@ describe('HR documents list design', () => {
     expect(listSource).not.toMatch(/nasq-toolbar[^\n"']*nasq-panel|nasq-panel[^\n"']*nasq-toolbar/)
   })
 
-  it('puts create in the page header and keeps the document list with shared page state', () => {
-    expect(listSource).toContain("can('hr.documents.manage')")
+  it('keeps the document list with shared page state and leaves create to the pinned sidebar action', () => {
     expect(listSource).toContain("can('hr.departments.read')")
-    expect(listSource).toContain('/hr/documents/new')
     expect(listSource).toContain('returnToQuery')
     expect(listSource).toContain('SharedPageState')
     expect(listSource).toContain('useHydrated')
@@ -27,11 +25,10 @@ describe('HR documents list design', () => {
     expect(listSource).toContain('<UTable')
     expect(listSource).toContain("t('app.recordNumber')")
     expect(listSource).toContain('<RecordNumber :value="row.original.id" />')
-    const create = listSource.indexOf("t('hr.docs.new')")
+    expect(listSource).not.toContain("t('hr.docs.new')")
     const toolbar = listSource.indexOf('<FilterBar')
     const list = listSource.indexOf('query.data.value?.items')
-    expect(create).toBeGreaterThanOrEqual(0)
-    expect(toolbar).toBeGreaterThan(create)
+    expect(toolbar).toBeGreaterThan(0)
     expect(list).toBeGreaterThan(toolbar)
   })
 })

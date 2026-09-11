@@ -665,7 +665,7 @@
       }
     },
     "dashboard": {
-      "title": "Project statistics",
+      "title": "Projects home",
       "description": "A live summary of project status, tasks, and budgets for the current filters.",
       "summaryTitle": "Project summary",
       "summaryDescription": "Metrics and totals cover every matching project, not only the current page.",

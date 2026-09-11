@@ -116,7 +116,7 @@ const projectItems = computed(() => [
         @update:model-value="(v) => patch({ closed: v === 'closed' })"
       />
       <slot name="view" />
-      <div v-if="view" role="group" class="nasq-ui-segment inline-flex items-center rounded-lg border bg-elevated/40 p-0.5" :aria-label="t('projects.filters.view')">
+      <div v-if="view" role="group" class="nasq-ui-segment hidden md:inline-flex items-center rounded-lg border bg-elevated/40 p-0.5" :aria-label="t('projects.filters.view')">
         <UButton data-testid="project-tasks-view-table" type="button" color="neutral" square size="sm" :variant="view === 'table' ? 'soft' : 'ghost'" :disabled="!hydrated" :aria-label="t('projects.filters.tableView')" :aria-pressed="view === 'table'" @click="emit('update:view', 'table')">
           <List class="size-[18px]" />
         </UButton>
