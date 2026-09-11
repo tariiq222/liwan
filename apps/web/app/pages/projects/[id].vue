@@ -2,7 +2,6 @@
 import type { LocationQueryRaw, RouteLocationRaw } from 'vue-router'
 import { inject } from 'vue'
 import MilestoneTable from '@/components/project/MilestoneTable.vue'
-import ProjectHeader from '@/components/project/ProjectHeader.vue'
 import ProjectOverview from '@/components/project/ProjectOverview.vue'
 import ProjectStatusBadge from '@/components/project/ProjectStatusBadge.vue'
 import ProjectWorkspaceTabs from '@/components/project/workspace/ProjectWorkspaceTabs.vue'
@@ -104,16 +103,6 @@ function onWorkspaceCreate() {
   else if (planningView.value === 'milestones') router.push({ path: `/projects/${id}/milestones/new`, query })
   else openTaskCreate()
 }
-function openSettings() {
-  router.push({ path: `/projects/${projectId.value}/settings`, query: returnToQuery(route.fullPath) })
-}
-function openCharterEdit() {
-  router.push({ path: `/projects/${projectId.value}/charter`, query: { edit: '1' } })
-}
-function onArchived() {
-  router.push('/projects')
-}
-function onUnarchived() {}
 
 const workspaceCreateLabel = computed(() => {
   if (isSummary.value) return t('projects.updates.add')
@@ -165,19 +154,19 @@ const workspaceCanCreate = computed(() => {
     <SharedPageState v-else-if="error" :error="error" @retry="refetch" />
 
     <template v-else>
-      <ProjectHeader
+      <SharedPageHeader
         v-if="project && !isProjectOverlay"
-        :project="project"
         :title="t(isSummary ? 'nav.projectSummary' : planningView === 'milestones' ? 'projects.tabs.milestones' : 'nav.projectTasks')"
-        :can-create="workspaceCanCreate"
-        :show-create="true"
-        :create-label="workspaceCreateLabel"
-        @create="onWorkspaceCreate"
-        @edit="openCharterEdit"
-        @settings="openSettings"
-        @archived="onArchived"
-        @unarchived="onUnarchived"
-      />
+      >
+        <UButton
+          v-if="workspaceCanCreate && project.active"
+          icon="i-lucide-plus"
+          data-testid="project-header-create"
+          :disabled="!hydrated"
+          :label="workspaceCreateLabel"
+          @click="onWorkspaceCreate"
+        />
+      </SharedPageHeader>
       <USkeleton v-else-if="(isLoading || !hydrated) && !isProjectOverlay" class="h-9 w-1/2" />
 
 
@@ -203,9 +192,6 @@ const workspaceCanCreate = computed(() => {
 
       <div v-if="isBaseRoute && project && planningView === 'milestones'">
         <MilestoneTable :project-id="project.id" :can-manage="project.can_manage" embedded />
-        <div class="mt-4 flex justify-end">
-          <UButton :to="planningLink('list')">{{ t('projects.milestones.continueToTasks') }}</UButton>
-        </div>
       </div>
     </template>
   </SharedPageContainer>

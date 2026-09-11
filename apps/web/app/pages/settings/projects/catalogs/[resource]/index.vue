@@ -111,7 +111,7 @@ async function confirmAction() {
 
 <template>
   <SettingsLayout>
-    <SharedPageHeader :eyebrow="t('projects.refresh.settings.catalogEyebrow')" :title="title" :description="t('projects.refresh.settings.catalogDescription')" :back-to="returnTo" :back-label="t('settings.projects.catalogs.back')">
+    <SharedPageHeader :title="title" :description="t('projects.refresh.settings.catalogDescription')" :back-to="returnTo" :back-label="t('settings.projects.catalogs.back')">
       <UButton v-if="resource && !forbidden" :disabled="!hydrated" @click="openNew">{{ t('settings.projects.catalogs.add') }}</UButton>
     </SharedPageHeader>
     <p v-if="!resource" class="text-muted">{{ t('settings.projects.catalogs.notFound') }}</p>
@@ -158,9 +158,9 @@ async function confirmAction() {
         </div>
       </SharedPageState>
       <div v-if="pages > 1" class="flex items-center justify-between text-sm text-muted">
-        <UButton color="neutral" variant="outline" :disabled="!hydrated || page === 1 || query.isFetching.value" @click="router.replace({ query: listQuery({ offset: page === 2 ? undefined : String((page - 2) * CHARTER_CATALOG_PAGE_SIZE) }) })">{{ t('settings.projects.catalogs.previousPage') }}</UButton>
+        <UButton color="neutral" variant="ghost" :disabled="!hydrated || page === 1 || query.isFetching.value" :label="t('settings.projects.catalogs.previousPage')" @click="router.replace({ query: listQuery({ offset: page === 2 ? undefined : String((page - 2) * CHARTER_CATALOG_PAGE_SIZE) }) })" />
         <span>{{ t('settings.projects.catalogs.pageOf', { page, pages }) }}</span>
-        <UButton color="neutral" variant="outline" :disabled="!hydrated || page >= pages || query.isFetching.value" @click="router.replace({ query: listQuery({ offset: String(page * CHARTER_CATALOG_PAGE_SIZE) }) })">{{ t('settings.projects.catalogs.nextPage') }}</UButton>
+        <UButton color="neutral" variant="ghost" :disabled="!hydrated || page >= pages || query.isFetching.value" :label="t('settings.projects.catalogs.nextPage')" @click="router.replace({ query: listQuery({ offset: String(page * CHARTER_CATALOG_PAGE_SIZE) }) })" />
       </div>
       <div v-if="pendingItem && pendingAction" class="rounded-lg border border-error/30 bg-error/5 space-y-2 p-3 text-sm">
         <p>{{ t(`settings.projects.catalogs.confirm.${pendingAction}`, { name: pendingItem.name }) }}</p>

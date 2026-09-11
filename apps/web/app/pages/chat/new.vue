@@ -85,8 +85,8 @@ async function submit() {
           </li>
         </ul>
         <nav v-if="(data?.total ?? 0) > CHAT_PAGE_SIZE" class="flex flex-wrap items-center justify-between gap-2 text-sm text-muted">
-          <UButton type="button" size="sm" color="neutral" variant="ghost" :disabled="!hydrated || recipientOffset === 0" :label="t('chat.previousPage')" @click="recipientOffset = nextListOffset(recipientOffset, data?.total ?? 0, -CHAT_PAGE_SIZE)" />
-          <UButton type="button" size="sm" color="neutral" variant="ghost" :disabled="!hydrated || recipientOffset + CHAT_PAGE_SIZE >= (data?.total ?? 0)" :label="t('chat.nextPage')" @click="recipientOffset = nextListOffset(recipientOffset, data?.total ?? 0, CHAT_PAGE_SIZE)" />
+          <UButton type="button" color="neutral" variant="ghost" :disabled="!hydrated || recipientOffset === 0" :label="t('chat.previousPage')" @click="recipientOffset = nextListOffset(recipientOffset, data?.total ?? 0, -CHAT_PAGE_SIZE)" />
+          <UButton type="button" color="neutral" variant="ghost" :disabled="!hydrated || recipientOffset + CHAT_PAGE_SIZE >= (data?.total ?? 0)" :label="t('chat.nextPage')" @click="recipientOffset = nextListOffset(recipientOffset, data?.total ?? 0, CHAT_PAGE_SIZE)" />
         </nav>
         <p class="text-sm text-muted-foreground"><span class="font-medium text-foreground">{{ t('chat.selected') }}:</span> {{ selected.map(item => item.name).join(', ') || '—' }}</p>
       </SharedFormSection>

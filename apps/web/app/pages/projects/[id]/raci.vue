@@ -9,18 +9,9 @@ import type { ProjectRaci, ProjectRaciRole } from '@nasq/contracts'
 import { ApiError } from '@/composables/useApi'
 import FilterBar from '@/components/shared/FilterBar.vue'
 import RecordNumber from '@/components/shared/RecordNumber.vue'
-import { useProject } from '@/composables/useProjects'
 const route = useRoute(); const router = useRouter(); const { t } = useI18n(); const hydrated = useHydrated()
 const isProjectOverlay = inject<boolean>(Symbol.for('nasq.project.overlay'), false)
 const id = computed(() => Number(route.params.id)); const viewport = computed(() => governanceMatrixFilters(route.query))
-const { data: project } = useProject(computed(() => Number.isInteger(id.value) && id.value > 0 ? id.value : null))
-const viewQuery = computed(() => {
-  const query: Record<string, string> = {}
-  if (typeof route.query.returnTo === 'string') query.returnTo = route.query.returnTo
-  if (typeof route.query.taskContext === 'string') query.taskContext = route.query.taskContext
-  if (typeof route.query.projectListReturnTo === 'string') query.projectListReturnTo = route.query.projectListReturnTo
-  return query
-})
 function replaceFilter(key: string, value: string | undefined, pageKey: string) { router.replace({ query: { ...route.query, [key]: value, [pageKey]: undefined } }) }
 const taskSearch = computed({ get: () => viewport.value.taskQ, set: value => replaceFilter('task_q', value || undefined, 'task_page') })
 const stakeholderSearch = computed({ get: () => viewport.value.stakeholderQ, set: value => replaceFilter('stakeholder_q', value || undefined, 'stakeholder_page') })
@@ -76,12 +67,6 @@ async function deleteRow() {
       :title="t('projects.governance.raci.title')"
     />
     <FilterBar class="w-full" :active-count="activeFilterCount" :disabled="!hydrated || pending" @clear="clearFilters">
-      <template #view>
-        <nav class="flex flex-wrap items-center gap-1" :aria-label="t('projects.governance.views')">
-          <UButton color="neutral" variant="ghost" :to="{ path: `/projects/${id}/stakeholders`, query: viewQuery }">{{ t('projects.governance.viewList') }}</UButton>
-          <UButton color="neutral" variant="soft" :to="{ path: `/projects/${id}/raci`, query: viewQuery }" aria-current="page">{{ t('projects.governance.viewMatrix') }}</UButton>
-        </nav>
-      </template>
       <template #search>
         <div class="grid min-w-0 gap-3 sm:grid-cols-2">
           <UFormField :label="t('projects.governance.raci.task')">
@@ -143,8 +128,8 @@ async function deleteRow() {
       <p class="p-3 text-sm text-muted">{{ t('projects.governance.raci.legend') }}</p>
     </section>
     <div class="grid gap-3 sm:grid-cols-2">
-      <nav class="flex items-center gap-2" :aria-label="t('projects.governance.raci.task')"><UButton color="neutral" variant="outline" :disabled="!hydrated || loading || pending || !taskPage" @click="taskPage--">{{ t('projects.governance.previous') }}</UButton><span>{{ t('projects.governance.total', { total: tasks.data.value?.total ?? 0 }) }}</span><UButton color="neutral" variant="outline" :disabled="!hydrated || loading || pending || (taskPage + 1) * 50 >= (tasks.data.value?.total ?? 0)" @click="nextTasks">{{ t('projects.governance.next') }}</UButton></nav>
-      <nav class="flex items-center gap-2" :aria-label="t('projects.governance.raci.stakeholder')"><UButton color="neutral" variant="outline" :disabled="!hydrated || loading || pending || !stakeholderPage" @click="stakeholderPage--">{{ t('projects.governance.previous') }}</UButton><span>{{ t('projects.governance.total', { total: stakeholders.data.value?.total ?? 0 }) }}</span><UButton color="neutral" variant="outline" :disabled="!hydrated || loading || pending || (stakeholderPage + 1) * 10 >= (stakeholders.data.value?.total ?? 0)" @click="stakeholderPage++">{{ t('projects.governance.next') }}</UButton></nav>
+      <nav class="flex items-center gap-2" :aria-label="t('projects.governance.raci.task')"><UButton color="neutral" variant="ghost" :disabled="!hydrated || loading || pending || !taskPage" :label="t('projects.governance.previous')" @click="taskPage--" /><span>{{ t('projects.governance.total', { total: tasks.data.value?.total ?? 0 }) }}</span><UButton color="neutral" variant="ghost" :disabled="!hydrated || loading || pending || (taskPage + 1) * 50 >= (tasks.data.value?.total ?? 0)" :label="t('projects.governance.next')" @click="nextTasks" /></nav>
+      <nav class="flex items-center gap-2" :aria-label="t('projects.governance.raci.stakeholder')"><UButton color="neutral" variant="ghost" :disabled="!hydrated || loading || pending || !stakeholderPage" :label="t('projects.governance.previous')" @click="stakeholderPage--" /><span>{{ t('projects.governance.total', { total: stakeholders.data.value?.total ?? 0 }) }}</span><UButton color="neutral" variant="ghost" :disabled="!hydrated || loading || pending || (stakeholderPage + 1) * 10 >= (stakeholders.data.value?.total ?? 0)" :label="t('projects.governance.next')" @click="stakeholderPage++" /></nav>
     </div>
   </SharedPageContainer>
 </template>

@@ -106,8 +106,8 @@ async function confirmLeave() {
         </ul>
         <p v-else class="text-sm text-muted">{{ t('chat.noMembers') }}</p>
         <nav v-if="(members?.total ?? 0) > CHAT_PAGE_SIZE" class="mt-2 flex items-center justify-between text-sm text-muted">
-          <UButton type="button" size="sm" color="neutral" variant="ghost" :disabled="!hydrated || memberOffset === 0" :label="t('chat.previousPage')" @click="memberOffset = nextListOffset(memberOffset, members?.total ?? 0, -CHAT_PAGE_SIZE)" />
-          <UButton type="button" size="sm" color="neutral" variant="ghost" :disabled="!hydrated || memberOffset + CHAT_PAGE_SIZE >= (members?.total ?? 0)" :label="t('chat.nextPage')" @click="memberOffset = nextListOffset(memberOffset, members?.total ?? 0, CHAT_PAGE_SIZE)" />
+          <UButton type="button" color="neutral" variant="ghost" :disabled="!hydrated || memberOffset === 0" :label="t('chat.previousPage')" @click="memberOffset = nextListOffset(memberOffset, members?.total ?? 0, -CHAT_PAGE_SIZE)" />
+          <UButton type="button" color="neutral" variant="ghost" :disabled="!hydrated || memberOffset + CHAT_PAGE_SIZE >= (members?.total ?? 0)" :label="t('chat.nextPage')" @click="memberOffset = nextListOffset(memberOffset, members?.total ?? 0, CHAT_PAGE_SIZE)" />
         </nav>
         <div v-if="canManage" class="mt-3 grid gap-2">
           <UFormField :label="t('chat.addMember')" name="recipientSearch">
@@ -126,8 +126,8 @@ async function confirmLeave() {
         </div>
         <p v-else class="text-sm text-muted">{{ t('chat.noAttachments') }}</p>
         <nav v-if="(attachments?.total ?? 0) > CHAT_PAGE_SIZE" class="mt-2 flex items-center justify-between text-sm text-muted">
-          <UButton type="button" size="sm" color="neutral" variant="ghost" :disabled="!hydrated || fileOffset === 0" :label="t('chat.previousPage')" @click="fileOffset = nextListOffset(fileOffset, attachments?.total ?? 0, -CHAT_PAGE_SIZE)" />
-          <UButton type="button" size="sm" color="neutral" variant="ghost" :disabled="!hydrated || fileOffset + CHAT_PAGE_SIZE >= (attachments?.total ?? 0)" :label="t('chat.nextPage')" @click="fileOffset = nextListOffset(fileOffset, attachments?.total ?? 0, CHAT_PAGE_SIZE)" />
+          <UButton type="button" color="neutral" variant="ghost" :disabled="!hydrated || fileOffset === 0" :label="t('chat.previousPage')" @click="fileOffset = nextListOffset(fileOffset, attachments?.total ?? 0, -CHAT_PAGE_SIZE)" />
+          <UButton type="button" color="neutral" variant="ghost" :disabled="!hydrated || fileOffset + CHAT_PAGE_SIZE >= (attachments?.total ?? 0)" :label="t('chat.nextPage')" @click="fileOffset = nextListOffset(fileOffset, attachments?.total ?? 0, CHAT_PAGE_SIZE)" />
         </nav>
       </SharedFormSection>
       <div v-if="canLeave" class="flex justify-end gap-2">

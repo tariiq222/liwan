@@ -27,7 +27,7 @@ function onSaved() {
 
 <template>
   <SettingsLayout width="form">
-    <SharedPageHeader :eyebrow="t('projects.refresh.settings.catalogEyebrow')" :title="title" :description="t('projects.refresh.settings.catalogDescription')" :back-to="returnTo" :back-label="t('settings.projects.catalogs.back')" />
+    <SharedPageHeader :title="title" :description="t('projects.refresh.settings.catalogDescription')" :back-to="returnTo" :back-label="t('settings.projects.catalogs.back')" />
     <p v-if="!resource" class="text-muted">{{ t('settings.projects.catalogs.notFound') }}</p>
     <p v-else-if="forbidden" class="text-muted">{{ t('settings.forbidden') }}</p>
     <section v-else class="nasq-ui-record-surface p-5">

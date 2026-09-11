@@ -75,9 +75,9 @@ function onActionChange(value: unknown) { filters.action = value && value !== al
       <div id="results" class="nasq-settings-anchor">
         <SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!query.isLoading.value && !query.error.value && query.data.value?.items.length === 0" :empty-text="t('access.audit.empty')" @retry="query.refetch"><AuditTable :events="query.data.value?.items ?? []" @open="(id) => navigateTo({ path: `/settings/access-log/${id}`, query: route.query })" /></SharedPageState>
         <div v-if="pages > 1" class="nasq-settings-pagination">
-          <UButton color="secondary" variant="ghost" :disabled="!hydrated || page === 1 || query.isFetching.value" :label="t('access.previousPage')" @click="previousPage" />
+          <UButton color="neutral" variant="ghost" :disabled="!hydrated || page === 1 || query.isFetching.value" :label="t('access.previousPage')" @click="previousPage" />
           <span>{{ t('access.pageOf', { page, pages }) }}</span>
-          <UButton color="secondary" variant="ghost" :disabled="!hydrated || page >= pages || query.isFetching.value" :label="t('access.nextPage')" @click="nextPage" />
+          <UButton color="neutral" variant="ghost" :disabled="!hydrated || page >= pages || query.isFetching.value" :label="t('access.nextPage')" @click="nextPage" />
         </div>
       </div>
     </div>

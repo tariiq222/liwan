@@ -5,7 +5,6 @@ import { useProjectStakeholders, useDeleteProjectStakeholder } from '@/composabl
 import { governanceFilters } from '@/components/project/governance/state'
 import { ApiError } from '@/composables/useApi'
 import RecordNumber from '@/components/shared/RecordNumber.vue'
-import { useProject } from '@/composables/useProjects'
 
 const route = useRoute()
 const router = useRouter()
@@ -13,7 +12,6 @@ const { t } = useI18n()
 const hydrated = useHydrated()
 const isProjectOverlay = inject<boolean>(Symbol.for('nasq.project.overlay'), false)
 const id = computed(() => Number(route.params.id))
-const { data: project } = useProject(computed(() => Number.isInteger(id.value) && id.value > 0 ? id.value : null))
 const parsed = computed(() => governanceFilters(route.query))
 const filters = computed(() => ({ q: parsed.value.q, limit: 50, offset: parsed.value.offset }))
 const list = useProjectStakeholders(id, filters)
@@ -21,13 +19,6 @@ const remove = useDeleteProjectStakeholder()
 const confirmDeleteId = ref<number | null>(null)
 const error = ref<string | null>(null)
 const returnTo = computed(() => route.fullPath)
-const viewQuery = computed(() => {
-  const query: Record<string, string> = {}
-  if (typeof route.query.returnTo === 'string') query.returnTo = route.query.returnTo
-  if (typeof route.query.taskContext === 'string') query.taskContext = route.query.taskContext
-  if (typeof route.query.projectListReturnTo === 'string') query.projectListReturnTo = route.query.projectListReturnTo
-  return query
-})
 function setFilter(key: string, value: string) {
   router.replace({ query: { ...route.query, [key]: value || undefined, offset: undefined } })
 }
@@ -82,12 +73,6 @@ async function deleteItem(item: { id: number }) {
       </template>
     </SharedPageHeader>
     <FilterBar class="w-full" data-testid="stakeholders-toolbar" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
-      <template #view>
-        <nav class="flex flex-wrap items-center gap-1" :aria-label="t('projects.governance.views')">
-          <UButton color="neutral" variant="soft" :to="{ path: `/projects/${id}/stakeholders`, query: viewQuery }" aria-current="page">{{ t('projects.governance.viewList') }}</UButton>
-          <UButton color="neutral" variant="ghost" :to="{ path: `/projects/${id}/raci`, query: viewQuery }">{{ t('projects.governance.viewMatrix') }}</UButton>
-        </nav>
-      </template>
       <template #search>
         <UInput
           v-model="q"
@@ -205,16 +190,9 @@ async function deleteItem(item: { id: number }) {
       class="flex items-center justify-between text-sm text-muted"
       :aria-label="t('projects.governance.pagination')"
     >
-      <UButton color="neutral" variant="outline" :disabled="!hydrated || list.isFetching.value || !parsed.offset" @click="page(-1)">
-        {{ t('projects.governance.previous') }}
-      </UButton>
+      <UButton color="neutral" variant="ghost" :disabled="!hydrated || list.isFetching.value || !parsed.offset" :label="t('projects.governance.previous')" @click="page(-1)" />
       <span>{{ t('projects.governance.total', { total: list.data.value.total }) }}</span>
-      <UButton color="neutral" variant="outline"
-        :disabled="!hydrated || list.isFetching.value || (parsed.offset ?? 0) + 50 >= list.data.value.total"
-        @click="page(1)"
-      >
-        {{ t('projects.governance.next') }}
-      </UButton>
+      <UButton color="neutral" variant="ghost" :disabled="!hydrated || list.isFetching.value || (parsed.offset ?? 0) + 50 >= list.data.value.total" :label="t('projects.governance.next')" @click="page(1)" />
     </nav>
   </SharedPageContainer>
 </template>

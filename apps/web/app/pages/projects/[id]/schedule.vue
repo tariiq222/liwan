@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { inject } from 'vue'
-import ProjectHeader from '@/components/project/ProjectHeader.vue'
 import { ApiError } from '@/composables/useApi'
 import { useProject } from '@/composables/useProjects'
 import { useProjectSchedule } from '@/composables/useProjectSchedule'
@@ -30,37 +29,24 @@ function openTaskCreate() {
   if (!projectId.value) return
   router.push({ path: `/projects/${projectId.value}/tasks/new`, query: { ...route.query, ...returnToQuery(route.fullPath), tab: 'tasks' } })
 }
-function openSettings() {
-  if (!projectId.value) return
-  router.push({ path: `/projects/${projectId.value}/settings`, query: returnToQuery(route.fullPath) })
-}
-function onArchived() {
-  router.push('/projects')
-}
 </script>
 
 <template>
   <SharedPageContainer v-if="isBaseRoute" width="list">
-    <ProjectHeader
-      v-if="project && !isProjectOverlay"
-      :project="project"
-      :title="t('projects.schedule.title')"
-      :can-create="can('pmo.tasks.create')"
-      :create-label="t('tasks.new')"
-      @create="openTaskCreate"
-      @settings="openSettings"
-      @archived="onArchived"
-    />
-    <SharedPageHeader
-      v-else-if="!isProjectOverlay"
-      :title="t('projects.schedule.title')"
-    />
-    <div class="flex flex-wrap items-center justify-between gap-3">
-      <div class="flex rounded-lg border p-0.5" role="group" :aria-label="t('projects.schedule.scale')">
-        <UButton type="button" size="sm" class="rounded-md" :variant="scale === 'week' ? 'solid' : 'ghost'" :disabled="!hydrated" :aria-pressed="scale === 'week'" @click="scale = 'week'">{{ t('projects.schedule.week') }}</UButton>
-        <UButton type="button" size="sm" class="rounded-md" :variant="scale === 'month' ? 'solid' : 'ghost'" :disabled="!hydrated" :aria-pressed="scale === 'month'" @click="scale = 'month'">{{ t('projects.schedule.month') }}</UButton>
-      </div>
-    </div>
+    <SharedPageHeader v-if="!isProjectOverlay" :title="t('projects.schedule.title')">
+      <UButton
+        v-if="project?.active && can('pmo.tasks.create')"
+        icon="i-lucide-plus"
+        data-testid="project-header-create"
+        :disabled="!hydrated"
+        :label="t('tasks.new')"
+        @click="openTaskCreate"
+      />
+    </SharedPageHeader>
+    <nav class="nasq-ui-segment" :aria-label="t('projects.schedule.scale')">
+      <UButton type="button" color="neutral" size="sm" :variant="scale === 'week' ? 'soft' : 'ghost'" :disabled="!hydrated" :aria-pressed="scale === 'week'" @click="scale = 'week'">{{ t('projects.schedule.week') }}</UButton>
+      <UButton type="button" color="neutral" size="sm" :variant="scale === 'month' ? 'soft' : 'ghost'" :disabled="!hydrated" :aria-pressed="scale === 'month'" @click="scale = 'month'">{{ t('projects.schedule.month') }}</UButton>
+    </nav>
     <SharedPageState
       :loading="isLoading && !schedule"
       :error="projectError || error"

@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { ArrowLeft, ArrowRight } from '@lucide/vue'
 import { ApiError } from '@/composables/useApi'
 import {
   isDigestNotification,
@@ -11,10 +10,9 @@ import {
 } from '@/composables/useNotifications'
 import { formatNotificationTimestamp } from '@/utils/notificationPresentation'
 
-const { t, locale, localeProperties } = useI18n()
+const { t, locale } = useI18n()
 const toast = useToast()
 const hydrated = useHydrated()
-const router = useRouter()
 const { me } = useMe()
 const {
   data,
@@ -30,9 +28,6 @@ const {
 } = useNotificationsPage()
 const { mutateAsync: markRead } = useMarkNotificationRead()
 const { mutateAsync: markAllRead, isPending: markingAll } = useMarkAllNotificationsRead()
-const isRtl = computed(() => localeProperties.value.dir === 'rtl')
-// Root page: history back appears only when the browser has a real previous entry.
-const canGoBack = computed(() => hydrated.value && import.meta.client && Boolean(window.history.state?.back))
 const items = computed(() => (data.value?.pages ?? []).flatMap((page) => page.items))
 const unreadCount = computed(() => data.value?.pages[0]?.unread_count ?? 0)
 const notificationTimeZone = computed(() => me.value?.tz || 'UTC')
@@ -97,35 +92,26 @@ async function retryNextPage() {
 </script>
 
 <template>
-  <SharedPageContainer data-testid="notification-center" width="list" class="flex min-h-[calc(100vh-7rem)] flex-col">
+  <SharedPageContainer data-testid="notification-center" width="list">
     <SharedPageHeader :title="t('notifications.title')" :description="hydrated ? `${unreadCount} ${t('notifications.unread')}` : undefined">
-      <template v-if="canGoBack" #back>
-        <UButton color="neutral" variant="ghost" size="sm" class="gap-2 px-2" type="button" :label="t('notifications.back')" @click="router.back()">
-          <component :is="isRtl ? ArrowRight : ArrowLeft" class="size-[18px]" />
-          {{ t('notifications.back') }}
-        </UButton>
-      </template>
-        <UButton
-          v-if="hydrated && unreadCount"
-          type="button"
-          color="secondary"
-          variant="outline"
-          size="sm"
-          :disabled="!hydrated || actionPending"
-          @click="markAll"
-          :label="t('notifications.markAllRead')"
-        />
+      <UButton
+        v-if="hydrated && unreadCount"
+        type="button"
+        :disabled="actionPending"
+        :label="t('notifications.markAllRead')"
+        @click="markAll"
+      />
     </SharedPageHeader>
 
-    <UCard class="overflow-hidden">
-      <div class="max-h-[calc(100vh-14rem)] overflow-y-auto">
-        <div v-if="hasQueryError && !items.length" class="grid gap-3 py-8 text-center" role="alert">
-          <p class="text-sm text-destructive">{{ queryErrorMessage }}</p>
-          <UButton type="button" color="secondary" variant="outline" size="sm" class="mx-auto" :disabled="!hydrated || isFetching" :label="t('notifications.retry')" @click="retryNotifications" />
-        </div>
-        <p v-else-if="isLoading" class="py-8 text-center text-sm text-muted-foreground" aria-live="polite">{{ t('notifications.loading') }}</p>
-        <p v-else-if="!items.length" class="py-8 text-center text-sm text-muted-foreground">{{ t('notifications.empty') }}</p>
-        <div v-else class="grid gap-0">
+    <SharedPageState
+      :loading="isLoading && !items.length"
+      :error="hasQueryError && !items.length ? queryError : null"
+      :empty="!items.length"
+      :empty-text="t('notifications.empty')"
+      @retry="retryNotifications"
+    >
+      <div class="nasq-ui-record-surface overflow-hidden">
+        <div class="grid gap-0">
           <UButton
             v-for="item in items"
             :key="item.id"
@@ -150,20 +136,18 @@ async function retryNextPage() {
             <time v-if="notificationTimestamp(item)" class="text-xs text-muted-foreground" :datetime="notificationTimestamp(item)?.datetime">{{ notificationTimestamp(item)?.label }}</time>
           </UButton>
         </div>
-
         <div v-if="hasQueryError && items.length && !isFetchNextPageError" class="grid gap-2 py-4 text-center" role="alert">
           <p class="text-sm text-destructive">{{ queryErrorMessage }}</p>
-          <UButton type="button" color="secondary" variant="outline" size="sm" class="mx-auto" :disabled="!hydrated || isFetching" :label="t('notifications.retry')" @click="retryNotifications" />
+          <UButton type="button" color="neutral" variant="outline" class="mx-auto" :disabled="!hydrated || isFetching" :label="t('notifications.retry')" @click="retryNotifications" />
+        </div>
+        <div v-if="isFetchNextPageError" class="grid gap-2 border-t p-4 text-center" role="alert">
+          <p class="text-sm text-destructive">{{ queryErrorMessage }}</p>
+          <UButton type="button" color="neutral" variant="outline" class="mx-auto" :disabled="!hydrated || actionPending || isFetchingNextPage" :label="t('notifications.retry')" @click="retryNextPage" />
+        </div>
+        <div v-else-if="hasNextPage" class="border-t p-4 text-center">
+          <UButton color="neutral" variant="outline" :disabled="!hydrated || actionPending || isFetchingNextPage" :label="t('app.loadMore')" @click="fetchNextPage()" />
         </div>
       </div>
-
-      <div v-if="isFetchNextPageError" class="grid gap-2 border-t p-4 text-center" role="alert">
-        <p class="text-sm text-destructive">{{ queryErrorMessage }}</p>
-        <UButton type="button" color="secondary" variant="outline" size="sm" class="mx-auto" :disabled="!hydrated || actionPending || isFetchingNextPage" :label="t('notifications.retry')" @click="retryNextPage" />
-      </div>
-      <div v-else-if="hasNextPage" class="border-t p-4 text-center">
-        <UButton color="secondary" variant="outline" size="sm" :disabled="!hydrated || actionPending || isFetchingNextPage" :label="t('app.loadMore')" @click="fetchNextPage()" />
-      </div>
-    </UCard>
+    </SharedPageState>
   </SharedPageContainer>
 </template>

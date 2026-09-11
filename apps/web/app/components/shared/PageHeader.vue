@@ -34,7 +34,6 @@ const redundantContextLabels = computed(() => [
   'nav.users', 'nav.roles', 'nav.accessLog', 'nav.projectSummary',
   'nav.projectPlanning', 'nav.projectStakeholders', 'nav.projectRisks',
   'nav.projectFinance', 'nav.projectCharter', 'nav.projectSettings',
-  'projects.refresh.settings.catalogEyebrow',
 ].map(key => t(key)))
 const hideEyebrow = computed(() => Boolean(props.eyebrow && (
   isProjectRoute.value

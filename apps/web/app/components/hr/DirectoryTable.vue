@@ -204,9 +204,9 @@ function clearFilters() {
       </div>
     </SharedPageState>
     <div v-if="pages > 1" class="flex items-center justify-between text-sm text-muted">
-      <UButton color="secondary" variant="ghost" :disabled="!hydrated || hasPendingSearch || page === 1 || isLoading" :label="t('access.previousPage')" @click="setPage(page - 1)" />
+      <UButton color="neutral" variant="ghost" :disabled="!hydrated || hasPendingSearch || page === 1 || isLoading" :label="t('access.previousPage')" @click="setPage(page - 1)" />
       <span>{{ t('access.pageOf', { page, pages }) }}</span>
-      <UButton color="secondary" variant="ghost" :disabled="!hydrated || hasPendingSearch || page >= pages || isLoading" :label="t('access.nextPage')" @click="setPage(page + 1)" />
+      <UButton color="neutral" variant="ghost" :disabled="!hydrated || hasPendingSearch || page >= pages || isLoading" :label="t('access.nextPage')" @click="setPage(page + 1)" />
     </div>
   </div>
 </template>

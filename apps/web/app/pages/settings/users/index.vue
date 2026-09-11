@@ -97,9 +97,9 @@ function onDepartmentChange(value: unknown) { filters.department_id = value && v
           <UserTable :users="query.data.value?.items ?? []" @open="openUser" />
         </SharedPageState>
         <div v-if="pages > 1" class="nasq-settings-pagination">
-          <UButton color="secondary" variant="ghost" :disabled="!hydrated || page === 1 || query.isFetching.value" :label="t('access.previousPage')" @click="previousPage" />
+          <UButton color="neutral" variant="ghost" :disabled="!hydrated || page === 1 || query.isFetching.value" :label="t('access.previousPage')" @click="previousPage" />
           <span>{{ t('access.pageOf', { page, pages }) }}</span>
-          <UButton color="secondary" variant="ghost" :disabled="!hydrated || page >= pages || query.isFetching.value" :label="t('access.nextPage')" @click="nextPage" />
+          <UButton color="neutral" variant="ghost" :disabled="!hydrated || page >= pages || query.isFetching.value" :label="t('access.nextPage')" @click="nextPage" />
         </div>
       </div>
     </div>

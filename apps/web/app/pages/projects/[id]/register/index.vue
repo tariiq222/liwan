@@ -6,7 +6,6 @@ import { STATUS_COLOR } from '@/utils/statusTone'
 import { ApiError } from '@/composables/useApi'
 import FilterBar from '@/components/shared/FilterBar.vue'
 import RecordNumber from '@/components/shared/RecordNumber.vue'
-import { useProject } from '@/composables/useProjects'
 
 const route = useRoute()
 const router = useRouter()
@@ -14,7 +13,6 @@ const { t } = useI18n()
 const hydrated = useHydrated()
 const isProjectOverlay = inject<boolean>(Symbol.for('nasq.project.overlay'), false)
 const id = computed(() => Number(route.params.id))
-const { data: project } = useProject(computed(() => Number.isInteger(id.value) && id.value > 0 ? id.value : null))
 const parsed = computed(() => governanceFilters(route.query))
 const filters = computed(() => (parsed.value))
 const list = useProjectRegister(id, filters)
@@ -253,16 +251,9 @@ async function deleteItem(item: { id: number }) {
       </ul>
     </section>
     <nav v-if="list.data.value && (list.data.value.total > 50 || parsed.offset)" class="flex items-center gap-3" :aria-label="t('projects.governance.pagination')">
-      <UButton color="neutral" variant="outline" :disabled="!hydrated || list.isFetching.value || !parsed.offset" @click="page(-1)">
-        {{ t('projects.governance.previous') }}
-      </UButton>
+      <UButton color="neutral" variant="ghost" :disabled="!hydrated || list.isFetching.value || !parsed.offset" :label="t('projects.governance.previous')" @click="page(-1)" />
       <span>{{ t('projects.governance.total', { total: list.data.value.total }) }}</span>
-      <UButton color="neutral" variant="outline"
-        :disabled="!hydrated || list.isFetching.value || (parsed.offset ?? 0) + 50 >= list.data.value.total"
-        @click="page(1)"
-      >
-        {{ t('projects.governance.next') }}
-      </UButton>
+      <UButton color="neutral" variant="ghost" :disabled="!hydrated || list.isFetching.value || (parsed.offset ?? 0) + 50 >= list.data.value.total" :label="t('projects.governance.next')" @click="page(1)" />
     </nav>
   </SharedPageContainer>
 </template>

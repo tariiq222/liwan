@@ -85,7 +85,7 @@ function documentTo(document: HrDocument) {
 
 <template>
   <SharedPageContainer width="list">
-    <SharedPageHeader :title="t('nav.documents')" :back-to="'/hr'" />
+    <SharedPageHeader :title="t('nav.documents')" />
     <div class="w-full min-w-0" data-testid="documents-toolbar">
       <FilterBar class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
         <template #search>
@@ -145,9 +145,9 @@ function documentTo(document: HrDocument) {
       </div>
     </SharedPageState>
     <div v-if="pages > 1" class="flex items-center justify-between text-sm text-muted">
-      <UButton color="secondary" variant="ghost" :disabled="!hydrated || page === 1 || query.isFetching.value" :label="t('access.previousPage')" @click="setPage(page - 1)" />
+      <UButton color="neutral" variant="ghost" :disabled="!hydrated || page === 1 || query.isFetching.value" :label="t('access.previousPage')" @click="setPage(page - 1)" />
       <span>{{ t('access.pageOf', { page, pages }) }}</span>
-      <UButton color="secondary" variant="ghost" :disabled="!hydrated || page >= pages || query.isFetching.value" :label="t('access.nextPage')" @click="setPage(page + 1)" />
+      <UButton color="neutral" variant="ghost" :disabled="!hydrated || page >= pages || query.isFetching.value" :label="t('access.nextPage')" @click="setPage(page + 1)" />
     </div>
   </SharedPageContainer>
 </template>

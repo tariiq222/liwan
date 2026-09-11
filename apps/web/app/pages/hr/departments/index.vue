@@ -39,7 +39,7 @@ async function confirmDelete() {
 </script>
 <template>
   <SharedPageContainer width="list">
-    <SharedPageHeader :title="t('nav.departments')" back-to="/hr" />
+    <SharedPageHeader :title="t('nav.departments')" />
     <div class="w-full min-w-0">
       <FilterBar class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
         <template #search>

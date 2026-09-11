@@ -37,14 +37,15 @@ function loadDigestPage(setup: () => Record<string, unknown>) {
 }
 
 describe('notification pages shared header contract', () => {
-  it('uses shared list width for notifications while retaining history back', () => {
+  it('uses shared list chrome without history back', () => {
     expect(notificationsSource).toContain('SharedPageContainer')
     expect(notificationsSource).toContain('SharedPageHeader')
+    expect(notificationsSource).toContain('SharedPageState')
     expect(notificationsSource).toContain('width="list"')
     expect(notificationsSource).not.toContain('width="form"')
-    expect(notificationsSource).toContain('router.back()')
-    expect(notificationsSource).toContain('<UCard')
-    expect(notificationsSource).not.toContain('SharedPageState')
+    expect(notificationsSource).not.toContain('router.back()')
+    expect(notificationsSource).not.toContain('<UCard')
+    expect(notificationsSource).not.toContain('min-h-[calc')
     expect(notificationsSource).not.toMatch(/<h1[^>]*text-2xl/)
   })
 
