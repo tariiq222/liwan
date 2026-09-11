@@ -112,6 +112,21 @@ Prefer extending an existing shared API. If new shared behavior is needed, give 
 A removed component needs a replacement and zero remaining consumers (including generated config and tests). Record the evidence in the migration report.
 The HTML guides are visual references, never import sources for the runtime.
 
+## Layout, colour and card refinement — 2026-09-11
+
+Shared recipes only; no page-local styles. Owner: `apps/web/app/assets/css/nuxt-theme.css` and `apps/web/app/app.config.ts`.
+
+| Recipe | Responsibility / consumers |
+| --- | --- |
+| `nasq-ui-tab-strip`, `nasq-ui-tab` | Horizontal group tabs with a brand underline for `aria-current="page"`; `components/project/workspace/ProjectWorkspaceTabs.vue`. Sub-sections are small pills using the shared secondary solid recipe when active. |
+| `nasq-ui-segment` | Segmented view switch (list/board, table/cards); `pages/projects/[id].vue`, `components/task/TaskToolbar.vue`. |
+| `nasq-ui-table-head`, table `th`/`td` slots | Muted head band, small quiet header text, default-colour cells; every `UTable`. |
+| `nasq-ui-card-header` | Muted header band on every `UCard` header slot. |
+| `nasq-ui-record-surface` | One rounded bordered surface around tables, boards and record lists. |
+| `nasq-ui-metric-icon` | Brand-soft icon square for metric tiles; `components/project/dashboard/ProjectDashboardMetrics.vue`. |
+
+`components/shared/FilterCard.vue` renders filter trigger, count and clear first, then the actions/view slot; `FilterBar.vue` pushes the view slot to the end edge (`ms-auto`). `components/task/TaskTable.vue` shows assignees as an initials avatar plus names and uses the soft `USelect` variant for priority. `components/project/ProjectCards.vue` shows record number, name, status, progress with a visible percent, then manager and end date with icons.
+
 ## Runtime Nuxt UI migration (in progress)
 
 - `apps/web/app/components/shared/DateField.vue`: shared ISO date selector; UPopover, UCalendar, UButton; keeps calendar dates timezone-independent, with optional ISO minValue/maxValue bounds.

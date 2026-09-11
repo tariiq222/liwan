@@ -109,8 +109,14 @@ const projectItems = computed(() => [
     <template #actions><slot name="actions" /></template>
 
     <template #view>
+      <UTabs
+        :items="[{ label: t('tasks.filters.open'), value: 'open', disabled: !hydrated }, { label: t('tasks.filters.closed'), value: 'closed', disabled: !hydrated }]"
+        :model-value="modelValue.closed ? 'closed' : 'open'"
+        size="sm"
+        @update:model-value="(v) => patch({ closed: v === 'closed' })"
+      />
       <slot name="view" />
-      <div v-if="view" role="group" class="inline-flex min-h-10 items-center rounded-lg border bg-elevated/40 p-0.5" :aria-label="t('projects.filters.view')">
+      <div v-if="view" role="group" class="nasq-ui-segment inline-flex items-center rounded-lg border bg-elevated/40 p-0.5" :aria-label="t('projects.filters.view')">
         <UButton data-testid="project-tasks-view-table" type="button" color="neutral" square size="sm" :variant="view === 'table' ? 'soft' : 'ghost'" :disabled="!hydrated" :aria-label="t('projects.filters.tableView')" :aria-pressed="view === 'table'" @click="emit('update:view', 'table')">
           <List class="size-[18px]" />
         </UButton>
@@ -118,11 +124,6 @@ const projectItems = computed(() => [
           <LayoutGrid class="size-[18px]" />
         </UButton>
       </div>
-      <UTabs
-        :items="[{ label: t('tasks.filters.open'), value: 'open', disabled: !hydrated }, { label: t('tasks.filters.closed'), value: 'closed', disabled: !hydrated }]"
-        :model-value="modelValue.closed ? 'closed' : 'open'"
-        @update:model-value="(v) => patch({ closed: v === 'closed' })"
-      />
     </template>
   </FilterBar>
   </div>

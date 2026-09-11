@@ -8,8 +8,8 @@
         </template>
       </UPopover>
       <UBadge v-if="activeCount > 0" color="secondary">{{ activeCount }}</UBadge>
-      <slot name="actions" />
       <UButton v-if="activeCount > 0" type="button" color="error" variant="ghost" square icon="i-lucide-trash-2" :aria-label="resolvedClearLabel" :title="resolvedClearLabel" :disabled="isDisabled" @click="$emit('clear')" />
+      <slot name="actions" />
     </div>
     <div v-if="activeCount > 0 && $slots.active" data-slot="active-row" class="flex flex-wrap items-center gap-2 text-xs text-muted"><slot name="active" /></div>
   </div>

@@ -31,6 +31,7 @@ function onChange(value: unknown) {
   <USelect
     v-else
     size="sm"
+    variant="soft"
     class="w-full"
     :items="items"
     :model-value="task.priority"

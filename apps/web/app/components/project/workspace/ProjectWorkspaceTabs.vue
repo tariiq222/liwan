@@ -24,17 +24,19 @@ const activeGroup = computed(() => model.value.groups.find(group => group.id ===
 </script>
 
 <template>
-  <div v-if="model.groups.length" class="flex flex-col gap-1">
+  <div v-if="model.groups.length" class="flex flex-col gap-3">
+    <!-- Group tabs: underline strip, the horizontal counterpart of the sidebar's brand bar. -->
     <nav
-      class="flex flex-wrap items-center gap-1"
+      class="nasq-ui-tab-strip"
       data-testid="project-workspace-tabs"
       :aria-label="t('projects.workspace.tabsLabel')"
     >
       <UButton
         v-for="group in model.groups"
         :key="group.id"
-        color="neutral" size="sm"
-        :variant="model.activeGroup === group.id ? 'soft' : 'ghost'"
+        color="neutral"
+        variant="ghost"
+        class="nasq-ui-tab"
         :to="group.to"
         :aria-current="model.activeGroup === group.id ? 'page' : undefined"
         :data-active="model.activeGroup === group.id"
@@ -44,17 +46,19 @@ const activeGroup = computed(() => model.value.groups.find(group => group.id ===
         <span>{{ t(group.labelKey) }}</span>
       </UButton>
     </nav>
+    <!-- Sub-sections: quiet pills; the active one uses the shared secondary recipe. -->
     <nav
       v-if="activeGroup?.links.length"
-      class="flex flex-wrap items-center gap-1"
+      class="nasq-ui-subtab-row"
       data-testid="project-workspace-subtabs"
       :aria-label="t('projects.workspace.subtabsLabel')"
     >
       <UButton
         v-for="link in activeGroup.links"
         :key="link.id"
-        color="neutral" size="sm"
-        :variant="model.activeTab === link.id ? 'soft' : 'ghost'"
+        size="sm"
+        :color="model.activeTab === link.id ? 'secondary' : 'neutral'"
+        :variant="model.activeTab === link.id ? 'solid' : 'ghost'"
         :to="link.to"
         :aria-current="model.activeTab === link.id ? 'page' : undefined"
         :data-active="model.activeTab === link.id"

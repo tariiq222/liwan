@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Task } from '@nasq/contracts'
-import { UButton } from '#components'
+import { UAvatar, UButton } from '#components'
 import { createColumnHelper } from '@tanstack/vue-table'
 import { h } from 'vue'
 import type { TaskListParams } from '@/composables/useTasks'
@@ -104,10 +104,22 @@ const projectStageColumn = columnHelper.display({
   header: () => t('tasks.columns.stage'),
   cell: (info) => info.row.original.stage?.name ?? '—',
 })
+// Same short-initials rule as TaskCard/Timeline: first letter of up to two words.
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean)
+  return parts.length ? parts.slice(0, 2).map((p) => p[0]!.toUpperCase()).join('') : '?'
+}
 const assigneesColumn = columnHelper.display({
   id: 'assignees',
   header: () => t('tasks.columns.assignees'),
-  cell: (info) => h('span', { class: 'truncate text-xs text-muted' }, info.row.original.assignees.map((a) => a.name).join('، ')),
+  cell: (info) => {
+    const people = info.row.original.assignees
+    if (!people.length) return h('span', { class: 'text-muted' }, '—')
+    return h('span', { class: 'inline-flex min-w-0 max-w-full items-center gap-2' }, [
+      h(UAvatar, { text: initials(people[0]!.name), size: 'xs', class: 'shrink-0 bg-brand-soft text-brand-link' }),
+      h('span', { class: 'truncate' }, people.map((a) => a.name).join('، ')),
+    ])
+  },
 })
 
 const columns = computed(() =>
@@ -119,7 +131,7 @@ const columns = computed(() =>
 const columnWidths = computed(() =>
   props.variant === 'project'
     ? ['w-[6%]', 'w-[30%]', 'w-[12%]', 'w-[12%]', 'w-[12%]', 'w-[14%]', 'w-[14%]']
-    : ['w-[10%]', 'w-[44%]', 'w-[10%]', 'w-[10%]', 'w-[10%]', 'w-[10%]', 'w-[6%]'],
+    : ['w-[7%]', 'w-[30%]', 'w-[14%]', 'w-[14%]', 'w-[13%]', 'w-[12%]', 'w-[10%]'],
 )
 
 // Keep the number and title columns stable while preserving the row's
@@ -196,7 +208,10 @@ function onRowClick(task: Task, event: MouseEvent) {
             @click="onRowClick(task, $event)"
           >
             <div class="flex items-start justify-between gap-3">
-              <UButton type="button" color="neutral" variant="link" class="min-w-0 flex-1 justify-start truncate p-0 text-start font-medium" :disabled="!hydrated" @click.stop="emit('open', task.id)">{{ task.name }}</UButton>
+              <div class="min-w-0 flex-1">
+                <RecordNumber :value="task.id" />
+                <UButton type="button" color="neutral" variant="link" class="block min-w-0 max-w-full justify-start truncate p-0 text-start font-medium text-highlighted" :disabled="!hydrated" @click.stop="emit('open', task.id)">{{ task.name }}</UButton>
+              </div>
               <DeadlineBadge
                 class="shrink-0"
                 :deadline="task.date_deadline"
@@ -204,18 +219,18 @@ function onRowClick(task: Task, event: MouseEvent) {
                 :is-closed="task.is_closed"
               />
             </div>
-            <p class="truncate text-sm text-muted">
-              {{ task.project?.name ?? (props.variant === 'project' ? task.stage?.name : '—') }}
+            <p class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted">
+              <span class="truncate">{{ task.project?.name ?? (props.variant === 'project' ? task.stage?.name : '—') }}</span>
+              <span v-if="props.variant === 'project' && task.stage && task.project" aria-hidden="true">·</span>
+              <span v-if="props.variant === 'project' && task.stage && task.project" class="truncate">{{ task.stage.name }}</span>
+              <span v-else-if="props.variant !== 'project' && task.personal_stage" aria-hidden="true">·</span>
+              <span v-if="props.variant !== 'project' && task.personal_stage" class="truncate">{{ task.personal_stage.name }}</span>
+              <span v-if="task.assignees.length" aria-hidden="true">·</span>
+              <span v-if="task.assignees.length" class="truncate">{{ task.assignees.map((a) => a.name).join('، ') }}</span>
             </p>
             <div class="flex flex-wrap items-center gap-2">
               <StateMenu :task="task" />
               <PrioritySelect :task="task" />
-              <span v-if="props.variant === 'project' && task.stage" class="text-xs text-muted">
-                {{ task.stage.name }}
-              </span>
-              <span v-else-if="task.personal_stage" class="text-xs text-muted">
-                {{ task.personal_stage.name }}
-              </span>
             </div>
           </article>
         </template>

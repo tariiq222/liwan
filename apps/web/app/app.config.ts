@@ -20,8 +20,15 @@ export default defineAppConfig({
     popover: { slots: { content: 'z-[var(--nasq-ui-z-menu)]' } },
     calendar: { slots: { root: 'nasq-ui-calendar', cellTrigger: 'rounded-lg m-0' } },
     textarea: { slots: { base: 'nasq-ui-field rounded-lg leading-relaxed' } },
-    card: { slots: { root: 'rounded-xl shadow-none', header: 'px-5 py-4', body: 'p-5', footer: 'px-5 py-4' } },
-    table: { slots: { th: 'text-start font-medium text-muted', td: 'text-start py-4', tr: 'hover:bg-elevated/40' } },
+    card: { slots: { root: 'rounded-xl shadow-none', header: 'nasq-ui-card-header px-5 py-4', body: 'p-5', footer: 'px-5 py-4' } },
+    table: {
+      slots: {
+        thead: 'nasq-ui-table-head',
+        th: 'text-start text-xs font-medium text-muted px-4 py-3',
+        td: 'text-start px-4 py-3.5 text-default',
+        tr: 'hover:bg-elevated/40 transition-colors',
+      },
+    },
     progress: { defaultVariants: { size: 'md' } },
     slideover: {
       slots: {

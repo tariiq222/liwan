@@ -63,7 +63,7 @@ function onCardKeydown(event: KeyboardEvent) {
     role="button"
     tabindex="0"
     :ui="{ body: 'space-y-2 px-3 py-3' }"
-    class="shrink-0 cursor-pointer gap-2 shadow-sm transition-shadow hover:shadow-md"
+    class="shrink-0 cursor-pointer gap-2 transition-colors hover:ring-brand-border"
     @click="onCardClick"
     @keydown="onCardKeydown"
   >

@@ -19,7 +19,7 @@
     @clear="$emit('clear')"
   >
     <template v-if="$slots.view || $slots.actions" #actions>
-      <div v-if="$slots.view" data-slot="view" class="flex flex-wrap items-center gap-2">
+      <div v-if="$slots.view" data-slot="view" class="ms-auto flex flex-wrap items-center gap-2">
         <slot name="view" />
       </div>
       <div v-if="$slots.actions" data-slot="filter-actions" class="flex shrink-0 flex-wrap items-center gap-2">

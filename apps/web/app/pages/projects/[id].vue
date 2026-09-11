@@ -133,12 +133,15 @@ const workspaceCanCreate = computed(() => {
 
 <template>
   <SharedPageContainer v-if="showWorkspaceFrame" width="list" data-testid="project-workspace-frame">
-    <div class="flex flex-col gap-3">
+    <div class="flex flex-col gap-4">
       <div class="flex flex-wrap items-center justify-between gap-3" data-testid="project-workspace-identity">
         <div v-if="project" class="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
           <p class="min-w-0 truncate text-lg font-semibold text-highlighted" data-testid="project-workspace-name">{{ project.name }}</p>
           <ProjectStatusBadge :status="project.status" />
-          <span v-if="project.manager" class="text-sm text-muted"><span class="sr-only">{{ t('projects.columns.manager') }}: </span>{{ project.manager.name }}</span>
+          <span v-if="project.manager" class="inline-flex items-center gap-1.5 text-sm text-muted">
+            <UIcon name="i-lucide-user-round" class="size-4" aria-hidden="true" />
+            <span class="sr-only">{{ t('projects.columns.manager') }}: </span>{{ project.manager.name }}
+          </span>
         </div>
         <USkeleton v-else-if="isLoading || !hydrated" class="h-7 w-1/3" />
         <UButton
@@ -188,13 +191,13 @@ const workspaceCanCreate = computed(() => {
       <section v-if="isBaseRoute && project && (planningView === 'list' || planningView === 'board')" class="min-w-0 space-y-4" :aria-label="t('projects.tabs.tasks')">
         <TaskToolbar :model-value="params" embedded collapsible hide-project-filter @update:model-value="onParams">
           <template #view>
-            <nav class="flex flex-wrap items-center gap-1" :aria-label="t('projects.planning.views')">
-              <UButton color="neutral" size="sm" :variant="planningView === 'list' ? 'soft' : 'ghost'" :to="planningLink('list')" :aria-current="planningView === 'list' ? 'page' : undefined">{{ t('projects.tabs.list') }}</UButton>
-              <UButton color="neutral" size="sm" :variant="planningView === 'board' ? 'soft' : 'ghost'" :to="planningLink('board')" :aria-current="planningView === 'board' ? 'page' : undefined">{{ t('projects.tabs.board') }}</UButton>
+            <nav class="nasq-ui-segment" :aria-label="t('projects.planning.views')">
+              <UButton color="neutral" size="sm" icon="i-lucide-list" :variant="planningView === 'list' ? 'soft' : 'ghost'" :to="planningLink('list')" :aria-current="planningView === 'list' ? 'page' : undefined">{{ t('projects.tabs.list') }}</UButton>
+              <UButton color="neutral" size="sm" icon="i-lucide-layout-grid" :variant="planningView === 'board' ? 'soft' : 'ghost'" :to="planningLink('board')" :aria-current="planningView === 'board' ? 'page' : undefined">{{ t('projects.tabs.board') }}</UButton>
             </nav>
           </template>
         </TaskToolbar>
-        <div class="rounded-xl border border-default bg-default overflow-hidden">
+        <div class="nasq-ui-record-surface">
           <TaskTable v-if="taskView === 'table'" :params="params" variant="project" embedded @open="openTask" @create="openTaskCreate" />
           <TaskBoard v-else :params="params" :stage-source="stageSource" embedded @open="openTask" />
         </div>
