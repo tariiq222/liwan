@@ -23,7 +23,7 @@ withDefaults(defineProps<{
 <template>
   <UCard :data-testid="testId" class="min-w-0 overflow-hidden" :aria-labelledby="titleId">
     <template #header>
-      <div class="min-w-0 w-full text-center">
+      <div class="min-w-0 w-full">
         <h2 :id="titleId" class="text-lg font-semibold leading-6 text-highlighted">{{ title }}</h2>
         <p class="mt-1 text-sm leading-6 text-muted">{{ description }}</p>
       </div>

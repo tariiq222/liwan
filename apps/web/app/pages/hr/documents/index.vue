@@ -136,7 +136,7 @@ function documentTo(document: HrDocument) {
           </div>
         </UCard>
         <ul class="md:hidden space-y-2" :aria-label="t('hr.docs.title')">
-          <li v-for="document in query.data.value?.items ?? []" :key="document.id" class="cursor-pointer rounded-lg border border-default bg-default p-4 shadow-sm" tabindex="0" role="button" @click="navigateTo(documentTo(document))">
+          <li v-for="document in query.data.value?.items ?? []" :key="document.id" class="cursor-pointer nasq-ui-record-surface p-4" tabindex="0" role="button" @click="navigateTo(documentTo(document))">
             <bdi class="block text-xs text-muted">#{{ document.id }}</bdi>
             <p class="font-medium">{{ document.name }}</p>
             <p class="mt-1 text-xs text-muted">{{ document.department.name }}</p>

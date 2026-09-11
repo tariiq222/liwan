@@ -100,7 +100,7 @@ function detailsTo(document: HrDocument) {
       </div>
       <div v-else-if="items.length === 0" class="md:hidden"><SharedEmptyState :title="t('hr.docs.empty')" /></div>
       <ul v-else class="md:hidden space-y-2" :aria-label="t('hr.docs.title')">
-        <li v-for="document in items" :key="document.id" class="cursor-pointer rounded-lg border border-default bg-default p-4 shadow-sm" tabindex="0" role="button" @click="navigateTo(detailsTo(document))" @keydown.enter.self="navigateTo(detailsTo(document))" @keydown.space.self.prevent="navigateTo(detailsTo(document))">
+        <li v-for="document in items" :key="document.id" class="cursor-pointer nasq-ui-record-surface p-4" tabindex="0" role="button" @click="navigateTo(detailsTo(document))" @keydown.enter.self="navigateTo(detailsTo(document))" @keydown.space.self.prevent="navigateTo(detailsTo(document))">
           <bdi class="block text-xs text-muted">#{{ document.id }}</bdi>
           <p class="font-medium">{{ document.name }}</p>
           <p class="mt-1 text-xs text-muted">{{ formatDocumentDate(document.write_date) }}</p>

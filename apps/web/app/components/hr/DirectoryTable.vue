@@ -181,7 +181,7 @@ function clearFilters() {
             </div>
           </UCard>
           <ul class="md:hidden space-y-2" :aria-label="t('hr.directory.title')">
-            <li v-for="employee in items" :key="employee.id" class="rounded-lg border border-default bg-default p-4 shadow-sm" tabindex="0" role="button" @click="onRowClick(employee.id, $event)" @keydown.enter="onRowClick(employee.id, $event)" @keydown.space.prevent="onRowClick(employee.id, $event)">
+            <li v-for="employee in items" :key="employee.id" class="nasq-ui-record-surface p-4" tabindex="0" role="button" @click="onRowClick(employee.id, $event)" @keydown.enter="onRowClick(employee.id, $event)" @keydown.space.prevent="onRowClick(employee.id, $event)">
               <div class="flex items-start justify-between gap-3">
                 <div class="min-w-0">
                   <bdi class="block text-xs text-muted">#{{ employee.id }}</bdi>

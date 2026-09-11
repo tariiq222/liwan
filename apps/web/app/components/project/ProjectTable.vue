@@ -52,7 +52,7 @@ function onSelectRow(_event: Event, row: { original: ProjectListItem }) {
   <div class="min-w-0 space-y-2">
     <!-- Desktop: real UTable. Mobile: readable record cards via ProjectCards. -->
     <div class="hidden md:block">
-      <div v-if="isLoading" class="rounded-xl border border-default divide-y divide-default overflow-hidden" role="status" :aria-label="t('app.loading')">
+      <div v-if="isLoading" class="nasq-ui-record-surface divide-y divide-default" role="status" :aria-label="t('app.loading')">
         <div v-for="n in 5" :key="n" class="flex items-center gap-4 px-4 py-3">
           <USkeleton class="h-5 w-10" />
           <USkeleton class="h-5 flex-1" />
@@ -63,13 +63,13 @@ function onSelectRow(_event: Event, row: { original: ProjectListItem }) {
           <USkeleton class="h-5 w-8" />
         </div>
       </div>
-      <div v-else-if="items.length === 0" class="rounded-xl border border-default p-6">
+      <div v-else-if="items.length === 0" class="nasq-ui-record-surface p-6">
         <EmptyState
           :title="t(filtered ? 'projects.filteredEmpty' : archived ? 'projects.archivedEmpty' : 'projects.empty')"
           :description="t(filtered ? 'projects.filteredEmptyHint' : archived ? 'projects.archivedEmptyHint' : 'projects.emptyHint')"
         />
       </div>
-      <div v-else class="rounded-xl border border-default overflow-hidden">
+      <div v-else class="nasq-ui-record-surface">
         <div class="overflow-x-auto">
           <UTable :data="items" :columns="columns" :caption="t('projects.title')" :ui="{ caption: 'sr-only' }" @select="onSelectRow">
             <template #id-cell="{ row }"><RecordNumber :value="row.original.id" /></template>

@@ -55,7 +55,7 @@ function onSelectRow(_event: Event, row: { original: HrDepartment }) {
       <li
         v-for="department in departments"
         :key="department.id"
-        class="rounded-lg border border-default bg-default p-4 shadow-sm"
+        class="nasq-ui-record-surface p-4"
         :class="{ 'bg-elevated': selectedId === department.id }"
         tabindex="0"
         role="button"

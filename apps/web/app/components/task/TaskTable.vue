@@ -159,7 +159,7 @@ function onRowClick(task: Task, event: MouseEvent) {
 
 <template>
   <div :class="embedded ? 'space-y-0' : 'space-y-2'">
-    <div :class="embedded ? '' : 'rounded-xl border border-default overflow-hidden'">
+    <div :class="embedded ? '' : 'nasq-ui-record-surface'">
       <div class="hidden overflow-x-auto md:block">
         <SharedPageState v-if="error" :error="error" @retry="refetch" />
         <EmptyState v-else-if="!isLoading && items.length === 0" :title="t(emptyTitleKey)">

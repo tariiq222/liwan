@@ -186,70 +186,17 @@ async function openProject(id: number) {
   const project = items.value.find(item => item.id === id)
   router.push(entryTo(id, route.fullPath, project?.active ?? true))
 }
-
-function projectListTabTo(mine: boolean) {
-  return {
-    path: '/projects',
-    query: { ...route.query, mine: mine ? '1' : undefined, offset: undefined },
-  }
-}
 </script>
 
 <template>
   <SharedPageContainer width="list">
-    <SharedPageHeader :title="t(filters.mine ? 'nav.myProjects' : 'nav.allProjects')" :description="t(filters.mine ? 'projects.myDescription' : 'projects.description')">
+    <SharedPageHeader :title="t(filters.mine ? 'nav.myProjects' : 'nav.allProjects')">
       <template #actions>
-    <div class="min-w-0" data-testid="projects-toolbar">
-      <FilterBar :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
-      <template #search>
-        <UInput v-model="search" :disabled="!hydrated" :placeholder="t('projects.filters.search')" icon="i-lucide-search" class="w-full min-w-52" />
-      </template>
-
-      <template #default>
-        <UTabs
-          v-if="canListArchived"
-          :model-value="archived ? 'archived' : 'active'"
-          :items="[{ label: t('projects.filters.active'), value: 'active', disabled: !hydrated }, { label: t('projects.filters.archived'), value: 'archived', disabled: !hydrated }]"
-          size="sm"
-          @update:model-value="onFilterChange"
-        />
-        <USelect
-          :model-value="statusFilter"
-          :items="[{ value: 'all', label: t('projects.filters.allStatuses') }, { value: 'unset', label: t('projects.filters.unset') }, ...PROJECT_STATUSES.map(status => ({ value: status, label: t(`projects.status.${status}`) }))]"
-          data-testid="projects-status-filter"
-          class="w-40"
-          :disabled="!hydrated"
-          @update:model-value="onStatusChange"
-        />
-        <USelect
-          :model-value="sort"
-          :items="[{ value: 'default', label: t('projects.filters.sortDefault') }, { value: 'name', label: t('projects.filters.sortName') }, { value: 'progress', label: t('projects.filters.sortProgress') }]"
-          data-testid="projects-sort"
-          class="w-40"
-          :disabled="!hydrated"
-          @update:model-value="onSortChange"
-        />
-      </template>
-      <template #view>
-        <div role="group" class="hidden md:inline-flex h-[40px] items-center rounded-lg border bg-elevated/40 p-0.5" :aria-label="t('projects.filters.view')">
-          <UButton data-testid="projects-view-table" type="button" square :color="view === 'table' ? 'primary' : 'neutral'" :variant="view === 'table' ? 'solid' : 'ghost'" icon="i-lucide-list" :disabled="!hydrated" :aria-label="t('projects.filters.tableView')" :aria-pressed="view === 'table'" @click="onViewChange('table')" />
-          <UButton data-testid="projects-view-cards" type="button" square :color="view === 'cards' ? 'primary' : 'neutral'" :variant="view === 'cards' ? 'solid' : 'ghost'" icon="i-lucide-layout-grid" :disabled="!hydrated" :aria-label="t('projects.filters.cardView')" :aria-pressed="view === 'cards'" @click="onViewChange('cards')" />
-        </div>
-      </template>
-
-      <template #active>
-        <div v-if="rawSearch || statusFilter !== 'all' || sort !== 'default'" class="flex flex-wrap items-center gap-2">
-          <UBadge v-if="rawSearch" color="neutral" variant="subtle">{{ t('projects.filters.searchValue', { value: rawSearch }) }}</UBadge>
-          <UBadge v-if="statusFilter !== 'all'" color="neutral" variant="subtle">{{ t(statusFilter === 'unset' ? 'projects.filters.unset' : `projects.status.${statusFilter}`) }}</UBadge>
-          <UBadge v-if="sort !== 'default'" color="neutral" variant="subtle">{{ t(sort === 'name' ? 'projects.filters.sortName' : 'projects.filters.sortProgress') }}</UBadge>
-        </div>
-      </template>
-      </FilterBar>
-    </div>
         <UButton v-if="canCreate" data-testid="project-new" icon="i-lucide-plus" :disabled="!hydrated" :label="t('projects.new')" @click="openCreate" />
         <UButton color="neutral" variant="outline" :to="{ path: '/project-templates', query: returnToQuery(route.fullPath) }" data-testid="project-templates-link" :label="t('projects.planningLinks.templates')" />
       </template>
     </SharedPageHeader>
+
     <UAlert
       v-if="activeList.error.value && !projectList.error.value"
       role="alert"
@@ -259,41 +206,88 @@ function projectListTabTo(mine: boolean) {
       :title="t('projects.loadError')"
     >
       <template #actions>
-        <UButton color="error" variant="outline" size="sm" :label="t('app.retry')" @click="activeList.refetch()" />
+        <UButton color="secondary" variant="outline" size="sm" :label="t('app.retry')" @click="activeList.refetch()" />
       </template>
     </UAlert>
 
+    <div class="w-full min-w-0" data-testid="projects-toolbar">
+      <FilterBar class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
+        <template #search>
+          <UInput v-model="search" :disabled="!hydrated" :placeholder="t('projects.filters.search')" :aria-label="t('projects.filters.search')" icon="i-lucide-search" class="w-full min-w-52" />
+        </template>
+        <template #default>
+          <UTabs
+            v-if="canListArchived"
+            :model-value="archived ? 'archived' : 'active'"
+            :items="[{ label: t('projects.filters.active'), value: 'active', disabled: !hydrated }, { label: t('projects.filters.archived'), value: 'archived', disabled: !hydrated }]"
+            size="sm"
+            @update:model-value="onFilterChange"
+          />
+          <USelect
+            :model-value="statusFilter"
+            :items="[{ value: 'all', label: t('projects.filters.allStatuses') }, { value: 'unset', label: t('projects.filters.unset') }, ...PROJECT_STATUSES.map(status => ({ value: status, label: t(`projects.status.${status}`) }))]"
+            data-testid="projects-status-filter"
+            class="w-40"
+            :disabled="!hydrated"
+            @update:model-value="onStatusChange"
+          />
+          <USelect
+            :model-value="sort"
+            :items="[{ value: 'default', label: t('projects.filters.sortDefault') }, { value: 'name', label: t('projects.filters.sortName') }, { value: 'progress', label: t('projects.filters.sortProgress') }]"
+            data-testid="projects-sort"
+            class="w-40"
+            :disabled="!hydrated"
+            @update:model-value="onSortChange"
+          />
+        </template>
+        <template #view>
+          <div class="hidden md:block">
+            <div role="group" class="nasq-ui-segment" :aria-label="t('projects.filters.view')">
+              <UButton data-testid="projects-view-table" type="button" square color="neutral" size="sm" :variant="view === 'table' ? 'soft' : 'ghost'" icon="i-lucide-list" :disabled="!hydrated" :aria-label="t('projects.filters.tableView')" :aria-pressed="view === 'table'" @click="onViewChange('table')" />
+              <UButton data-testid="projects-view-cards" type="button" square color="neutral" size="sm" :variant="view === 'cards' ? 'soft' : 'ghost'" icon="i-lucide-layout-grid" :disabled="!hydrated" :aria-label="t('projects.filters.cardView')" :aria-pressed="view === 'cards'" @click="onViewChange('cards')" />
+            </div>
+          </div>
+        </template>
+        <template #active>
+          <div v-if="rawSearch || statusFilter !== 'all' || sort !== 'default'" class="flex flex-wrap items-center gap-2">
+            <UBadge v-if="rawSearch" color="secondary" variant="subtle">{{ t('projects.filters.searchValue', { value: rawSearch }) }}</UBadge>
+            <UBadge v-if="statusFilter !== 'all'" color="secondary" variant="subtle">{{ t(statusFilter === 'unset' ? 'projects.filters.unset' : `projects.status.${statusFilter}`) }}</UBadge>
+            <UBadge v-if="sort !== 'default'" color="secondary" variant="subtle">{{ t(sort === 'name' ? 'projects.filters.sortName' : 'projects.filters.sortProgress') }}</UBadge>
+          </div>
+        </template>
+      </FilterBar>
+    </div>
 
     <SharedPageState v-if="projectList.error.value" :error="projectList.error.value" @retry="projectList.refetch" />
-    <template v-else>
-    <p v-if="projectList.data.value" data-testid="projects-result-count" class="text-sm text-muted">
-      {{ t('projects.refresh.workspace.resultCount', { count: total }) }}
-    </p>
-    <ProjectTable
-      v-if="view === 'table'"
-      :items="displayedItems"
-      :capped="false"
-      :filtered="Boolean(rawSearch.trim()) || statusFilter !== 'all'"
-      :is-loading="isLoading"
-      :archived="archived"
-      :to-for="projectTo"
-      @open="openProject"
-    />
-    <ProjectCards
-      v-else
-      :items="displayedItems"
-      :is-loading="isLoading"
-      :filtered="Boolean(rawSearch.trim()) || statusFilter !== 'all'"
-      :archived="archived"
-      :capped="false"
-      :to-for="projectTo"
-      @open="openProject"
-    />
+    <div v-else class="grid gap-3">
+      <p v-if="projectList.data.value" data-testid="projects-result-count" class="text-sm text-muted">
+        {{ t('projects.refresh.workspace.resultCount', { count: total }) }}
+      </p>
+      <ProjectTable
+        v-if="view === 'table'"
+        :items="displayedItems"
+        :capped="false"
+        :filtered="Boolean(rawSearch.trim()) || statusFilter !== 'all'"
+        :is-loading="isLoading"
+        :archived="archived"
+        :to-for="projectTo"
+        @open="openProject"
+      />
+      <ProjectCards
+        v-else
+        :items="displayedItems"
+        :is-loading="isLoading"
+        :filtered="Boolean(rawSearch.trim()) || statusFilter !== 'all'"
+        :archived="archived"
+        :capped="false"
+        :to-for="projectTo"
+        @open="openProject"
+      />
       <div v-if="pages > 1" class="flex items-center justify-between text-sm text-muted">
         <UButton color="neutral" variant="ghost" :disabled="!hydrated || page === 1 || projectList.isFetching.value" :label="t('projects.previousPage')" @click="setPage(page - 1)" />
         <span>{{ t('projects.pageOf', { page, pages }) }}</span>
         <UButton color="neutral" variant="ghost" :disabled="!hydrated || page >= pages || projectList.isFetching.value" :label="t('projects.nextPage')" @click="setPage(page + 1)" />
       </div>
-    </template>
+    </div>
   </SharedPageContainer>
 </template>

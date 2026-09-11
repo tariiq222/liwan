@@ -27,7 +27,7 @@ const hydrated = useHydrated()
       @retry="item.refetch"
     />
     <section v-if="item.data?.value" class="grid gap-4">
-      <section class="rounded-xl border border-default bg-default overflow-hidden" aria-labelledby="register-summary-title">
+      <section class="nasq-ui-record-surface" aria-labelledby="register-summary-title">
         <div class="border-b border-default px-5 py-4"><h2 id="register-summary-title" class="text-lg font-semibold text-highlighted">{{ t('projects.refresh.workspace.registerSummary') }}</h2></div>
         <div class="p-5 space-y-4">
           <div class="flex flex-wrap gap-2 text-sm">
@@ -44,11 +44,11 @@ const hydrated = useHydrated()
           </dl>
         </div>
       </section>
-      <section class="rounded-xl border border-default bg-default overflow-hidden" aria-labelledby="register-description-title">
+      <section class="nasq-ui-record-surface" aria-labelledby="register-description-title">
         <div class="border-b border-default px-5 py-4"><h2 id="register-description-title" class="text-lg font-semibold text-highlighted">{{ t('projects.refresh.workspace.registerDescription') }}</h2></div>
         <div class="p-5"><p class="whitespace-pre-wrap">{{ item.data.value.description || '—' }}</p></div>
       </section>
-      <section class="rounded-xl border border-default bg-default overflow-hidden" aria-labelledby="register-plan-title">
+      <section class="nasq-ui-record-surface" aria-labelledby="register-plan-title">
         <div class="border-b border-default px-5 py-4"><h2 id="register-plan-title" class="text-lg font-semibold text-highlighted">{{ t('projects.refresh.workspace.registerPlan') }}</h2></div>
         <div class="p-5 space-y-2">
           <p class="whitespace-pre-wrap">{{ item.data.value.response || '—' }}</p>

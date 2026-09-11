@@ -18,8 +18,16 @@
       "saved": "Organisation colour saved",
       "preview": {
         "title": "Live preview",
-        "hint": "Changes appear here before you save",
-        "action": "Primary action"
+        "hint": "Chrome and the main action use primary; selection, progress and charts use secondary — before you save",
+        "action": "Primary action",
+        "selection": "Selected item",
+        "progress": "Progress",
+        "charts": "Data",
+        "modes": {
+          "light": "Light",
+          "cream": "Cream",
+          "dark": "Dark"
+        }
       },
       "errors": {
         "invalid": "Enter a valid name and six-digit color",
@@ -44,6 +52,11 @@
       },
       "managedIdentity": "The institution name and logo are managed by the system administrator in Odoo. You can customize the primary and secondary colors here.",
       "secondaryColor": "Secondary color",
+      "suggestSecondary": "Suggest secondary color",
+      "primaryHint": "Chrome, primary action, and focus.",
+      "secondaryHint": "Selection, progress, and charts.",
+      "usageContrast": "Generated fill and text have low contrast.",
+      "chartsNotDistinct": "The six chart colours are not all distinct.",
       "lowContrast": "The two colors have low contrast. Choose a clearer pair for readability."
     },
     "projects": {

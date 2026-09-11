@@ -47,7 +47,7 @@ function openWithKeyboard(project: Project, event: KeyboardEvent) {
       <article
         v-for="project in items"
         :key="project.id"
-        class="flex cursor-pointer flex-col gap-4 rounded-xl border border-default bg-default p-5 transition-colors hover:border-brand-border hover:bg-elevated/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        class="flex cursor-pointer flex-col gap-4 nasq-ui-record-surface p-5 transition-colors hover:bg-elevated/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
         data-testid="project-card"
         tabindex="0"
         :aria-labelledby="`project-card-${project.id}`"

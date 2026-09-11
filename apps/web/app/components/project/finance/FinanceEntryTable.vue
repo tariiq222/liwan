@@ -59,7 +59,7 @@ function onSelect(_event: Event, row: { original: FinanceEntry }) {
 </script>
 
 <template>
-  <div class="rounded-xl border border-default overflow-hidden">
+  <div class="nasq-ui-record-surface">
     <UTable
       v-if="!compactRecords"
       :data="loading ? [] : items"

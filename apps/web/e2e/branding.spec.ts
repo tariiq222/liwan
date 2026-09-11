@@ -10,6 +10,13 @@ async function loginAsAdmin(page) {
   await expect(page).toHaveURL(/\/tasks$/)
 }
 
+function hexToRgb(hex: string) {
+  const value = hex.trim()
+  if (value.startsWith('rgb')) return value
+  const n = Number.parseInt(value.replace('#', ''), 16)
+  return `rgb(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255})`
+}
+
 test('branding draft previews, cancels, resets to default, and saves explicitly', async ({ page }) => {
   await loginAsAdmin(page)
   await page.goto('/settings/branding')
@@ -34,7 +41,8 @@ test('branding draft previews, cancels, resets to default, and saves explicitly'
   await colour.fill('#ffffff')
   await expect(preview).toContainText(savedName)
   await expect(preview).toHaveAttribute('data-preview-primary', '#ffffff')
-  await expect(preview.getByTestId('branding-preview-action')).toHaveCSS('color', 'rgb(0, 0, 0)')
+  const previewFillFg = await preview.evaluate((el) => getComputedStyle(el).getPropertyValue('--primary-fill-foreground').trim())
+  await expect(preview.getByTestId('branding-preview-action')).toHaveCSS('color', hexToRgb(previewFillFg))
   await expect(preview.getByTestId('branding-preview-action')).toHaveCSS('border-top-style', 'solid')
   await expect(preview.getByTestId('branding-preview-action')).toHaveCSS('border-top-width', /[1-9]px/)
   await expect(shellBrand).toBeVisible()
@@ -50,7 +58,7 @@ test('branding draft previews, cancels, resets to default, and saves explicitly'
   await expect(page.getByTestId('branding-submit')).toBeDisabled()
   await expect(page.getByTestId('branding-submit')).toHaveAttribute('aria-invalid', 'true')
   await expect(colour).toHaveAttribute('aria-invalid', 'true')
-  await expect(page.getByRole('alert')).toContainText('ست خانات')
+  await expect(page.getByTestId('branding-form').getByRole('alert')).toContainText('ست خانات')
   page.off('request', onInvalidRequest)
   expect(invalidPatchCount).toBe(0)
   await colour.fill('#ffffff')
@@ -78,12 +86,17 @@ test('branding draft previews, cancels, resets to default, and saves explicitly'
   expect((await savedWhite).status()).toBe(200)
   const productionPrimary = page.getByTestId('branding-submit')
   await page.mouse.move(0, 0)
-  await expect(productionPrimary).toHaveCSS('background-color', 'rgb(255, 255, 255)')
-  await expect(productionPrimary).toHaveCSS('color', 'rgb(0, 0, 0)')
+  const fill = await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--primary-fill').trim())
+  const fillFg = await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--primary-fill-foreground').trim())
+  await expect(productionPrimary).toHaveCSS('background-color', hexToRgb(fill))
+  await expect(productionPrimary).toHaveCSS('color', hexToRgb(fillFg))
   await expect(productionPrimary).toHaveCSS('border-top-style', 'solid')
   await expect(productionPrimary).toHaveCSS('border-top-width', /[1-9]px/)
+  const restBg = await productionPrimary.evaluate((el) => getComputedStyle(el).backgroundColor)
+  const fillHover = await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--primary-fill-hover').trim())
   await productionPrimary.hover()
-  await expect(productionPrimary).toHaveCSS('background-color', 'rgb(230, 230, 230)')
+  if (fillHover) await expect(productionPrimary).toHaveCSS('background-color', hexToRgb(fillHover))
+  else await expect(productionPrimary).not.toHaveCSS('background-color', restBg)
 
   await colour.fill('#123456')
   const saved = page.waitForResponse((response) => (

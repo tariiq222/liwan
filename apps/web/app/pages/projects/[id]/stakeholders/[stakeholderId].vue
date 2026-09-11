@@ -30,7 +30,7 @@ const hydrated = useHydrated()
       @retry="item.refetch"
     />
     <section v-if="item.data?.value" class="grid gap-4">
-      <section class="rounded-xl border border-default bg-default overflow-hidden" aria-labelledby="stakeholder-identity-title">
+      <section class="nasq-ui-record-surface" aria-labelledby="stakeholder-identity-title">
         <div class="border-b border-default px-5 py-4"><h2 id="stakeholder-identity-title" class="text-lg font-semibold text-highlighted">{{ t('projects.refresh.workspace.stakeholderIdentity') }}</h2></div>
         <div class="p-5">
           <dl class="grid gap-4 sm:grid-cols-2">
@@ -49,7 +49,7 @@ const hydrated = useHydrated()
           </dl>
         </div>
       </section>
-      <section class="rounded-xl border border-default bg-default overflow-hidden" aria-labelledby="stakeholder-contact-title">
+      <section class="nasq-ui-record-surface" aria-labelledby="stakeholder-contact-title">
         <div class="border-b border-default px-5 py-4"><h2 id="stakeholder-contact-title" class="text-lg font-semibold text-highlighted">{{ t('projects.refresh.workspace.stakeholderContact') }}</h2></div>
         <div class="p-5">
           <dl>

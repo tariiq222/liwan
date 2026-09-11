@@ -19,16 +19,10 @@ const { mode, fontSize } = useAppearance()
 const { locale } = useI18n()
 const tokens = ref<Record<string, string>>({})
 const prefersReducedMotion = ref(false)
-const chartRoot = ref<HTMLElement | null>(null)
 let themeObserver: MutationObserver | null = null
 let motionMediaQuery: MediaQueryList | null = null
 let motionListener: (() => void) | null = null
-let entranceFrame = 0
-let entranceObserver: IntersectionObserver | null = null
-const entrancePlayed = ref(false)
 const motionEpoch = ref(0)
-const fullDonutAngleRange: [number, number] = [0, Math.PI * 2]
-const donutAngleRange = ref<[number, number]>([0, 0.0001])
 
 function readTokens() {
   if (typeof document === 'undefined') return
@@ -94,7 +88,6 @@ const barChartWidth = computed(() => {
   if (bars.value?.orientation !== 'vertical') return '100%'
   return `max(100%, ${Math.max(1, barData.value.length) * (barData.value.length > 8 ? 88 : 72)}px)`
 })
-const donutDuration = computed(() => prefersReducedMotion.value ? 0 : 900)
 const chartDuration = computed(() => prefersReducedMotion.value || barData.value.length > 120 ? 0 : 560)
 
 const numberFormatter = computed(() => new Intl.NumberFormat(locale.value))
@@ -162,40 +155,19 @@ onMounted(() => {
   motionListener = () => {
     const reducedMotion = motionMediaQuery?.matches ?? false
     if (reducedMotion && !previousReducedMotion) {
-      // Unovis transitions are D3-managed and cannot be cancelled through the
+      // Unovis bar transitions are D3-managed and cannot be cancelled through the
       // public component API. Remount only on the reduce edge so the current
       // geometry is committed immediately with duration=0.
       motionEpoch.value += 1
-      donutAngleRange.value = [...fullDonutAngleRange]
     }
     prefersReducedMotion.value = reducedMotion
     previousReducedMotion = reducedMotion
   }
   motionListener()
   motionMediaQuery.addEventListener?.('change', motionListener)
-  const playEntrance = () => {
-    if (entrancePlayed.value || prefersReducedMotion.value) return
-    entrancePlayed.value = true
-    donutAngleRange.value = [...fullDonutAngleRange]
-  }
-  if (prefersReducedMotion.value) {
-    donutAngleRange.value = [...fullDonutAngleRange]
-  } else if (typeof IntersectionObserver === 'undefined' || !chartRoot.value) {
-    entranceFrame = requestAnimationFrame(playEntrance)
-  } else {
-    entranceObserver = new IntersectionObserver((entries) => {
-      if (entries.some(entry => entry.isIntersecting)) {
-        playEntrance()
-        entranceObserver?.disconnect()
-      }
-    }, { threshold: 0.1 })
-    entranceObserver.observe(chartRoot.value)
-  }
 })
 onBeforeUnmount(() => {
   themeObserver?.disconnect()
-  cancelAnimationFrame(entranceFrame)
-  entranceObserver?.disconnect()
   if (motionListener) motionMediaQuery?.removeEventListener?.('change', motionListener)
 })
 watch([mode, fontSize], () => { void nextTick(readTokens) }, { flush: 'post' })
@@ -205,7 +177,6 @@ watch([mode, fontSize], () => { void nextTick(readTokens) }, { flush: 'post' })
   <div
     data-testid="chart-canvas"
     data-chart-library="unovis"
-    ref="chartRoot"
     role="group"
     dir="ltr"
     :aria-label="accessibleLabel"
@@ -223,11 +194,10 @@ watch([mode, fontSize], () => { void nextTick(readTokens) }, { flush: 'post' })
       }"
     >
       <div class="chart-donut-body">
-        <VisSingleContainer :key="motionEpoch" :data="donutData" :height="donutPlotHeight" :duration="donutDuration" :style="{ '--chart-motion-duration': `${donutDuration}ms` }" class="chart-donut-svg min-h-0 w-full max-w-[250px] shrink-0">
+        <VisSingleContainer :key="motionEpoch" :data="donutData" :height="donutPlotHeight" :duration="0" class="chart-donut-svg min-h-0 w-full max-w-[250px] shrink-0">
           <VisDonut
             :value="(item: { value: number }) => item.value"
             :color="donutColors"
-            :angle-range="donutAngleRange"
             :radius="96"
             :arc-width="props.variant === 'pie' ? 96 : 36"
             :corner-radius="0"
@@ -236,7 +206,7 @@ watch([mode, fontSize], () => { void nextTick(readTokens) }, { flush: 'post' })
             :central-sub-label-wrap="true"
             :show-empty-segments="false"
             :pad-angle="0"
-            :duration="donutDuration"
+            :duration="0"
           />
           <VisTooltip :triggers="donutTooltipTriggers" />
         </VisSingleContainer>
@@ -307,6 +277,12 @@ watch([mode, fontSize], () => { void nextTick(readTokens) }, { flush: 'post' })
 
 .chart-donut-svg {
   min-height: 0;
+  animation: nasq-chart-in 220ms ease-out;
+}
+
+@keyframes nasq-chart-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .chart-donut-svg :deep(path[class*="-segment"]),
@@ -364,6 +340,7 @@ watch([mode, fontSize], () => { void nextTick(readTokens) }, { flush: 'post' })
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .chart-donut-svg { animation: none; }
   .chart-donut-svg :deep(path[class*="-segment"]),
   .chart-bar-plot :deep(path[class*="-bar"]) {
     transition: none !important;

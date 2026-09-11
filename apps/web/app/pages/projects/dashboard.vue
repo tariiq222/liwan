@@ -95,7 +95,7 @@ function clearFilters() {
 
 <template>
   <SharedPageContainer width="list" data-testid="project-dashboard-page">
-    <SharedPageHeader :title="t('projects.dashboard.title')" :description="t('projects.dashboard.description')" />
+    <SharedPageHeader :title="t('projects.dashboard.title')" />
 
     <div class="w-full min-w-0">
       <FilterBar class="w-full" :title="t('filterCard.title')" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
@@ -123,24 +123,39 @@ function clearFilters() {
       </FilterBar>
     </div>
 
-    <div v-if="!hydrated || (analytics.isLoading.value && !analytics.data.value)" role="status" class="space-y-5" :aria-label="t('app.loading')">
-      <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"><USkeleton v-for="n in 4" :key="n" class=" h-24 rounded-none" /></div>
-      <div class="grid gap-5 xl:grid-cols-2"><USkeleton v-for="n in 6" :key="n" class="h-[350px] rounded-lg bg-default" /></div>
-    </div>
-
-    <div v-else-if="analytics.error.value" data-testid="project-dashboard-analytics-error" role="alert" class="rounded-xl border border-default bg-default overflow-hidden">
-      <div class="border-b border-default px-5 py-4"><h2 class="text-lg font-semibold text-highlighted">{{ t('projects.dashboard.analyticsError') }}</h2></div>
-      <div class="p-5 space-y-3">
-        <UButton variant="outline" :disabled="!hydrated" @click="analytics.refetch()">{{ t('projects.dashboard.retryAnalytics') }}</UButton>
+    <template v-if="!hydrated || (analytics.isLoading.value && !analytics.data.value)">
+      <div role="status" class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" :aria-label="t('app.loading')">
+        <USkeleton v-for="n in 4" :key="n" class="h-24 rounded-xl" />
       </div>
-    </div>
-
-    <div v-else-if="rows.length === 0" data-testid="project-dashboard-empty" role="status" class="rounded-xl border border-default bg-default overflow-hidden text-sm text-muted">
-      <div class="border-b border-default px-5 py-4"><h2 class="text-lg font-semibold text-highlighted">{{ t(filtered ? 'projects.filteredEmpty' : 'projects.dashboard.empty') }}</h2></div>
-      <div class="p-5 text-center">
-        <p>{{ t(filtered ? 'projects.filteredEmptyHint' : 'projects.emptyHint') }}</p>
-        <UButton v-if="filtered" variant="outline" class="mt-4" :disabled="!hydrated" @click="clearFilters">{{ t('projects.filters.clear') }}</UButton>
+      <div class="grid gap-5 xl:grid-cols-2" aria-hidden="true">
+        <USkeleton v-for="n in 6" :key="n" class="h-[350px] rounded-xl" />
       </div>
+      <USkeleton class="h-64 rounded-xl" aria-hidden="true" />
+    </template>
+
+    <UAlert
+      v-else-if="analytics.error.value"
+      data-testid="project-dashboard-analytics-error"
+      role="alert"
+      color="error"
+      variant="subtle"
+      icon="i-lucide-circle-alert"
+      :title="t('projects.dashboard.analyticsError')"
+    >
+      <template #actions>
+        <UButton color="secondary" variant="outline" :disabled="!hydrated" :label="t('projects.dashboard.retryAnalytics')" @click="analytics.refetch()" />
+      </template>
+    </UAlert>
+
+    <div v-else-if="rows.length === 0" data-testid="project-dashboard-empty">
+      <SharedEmptyState
+        :title="t(filtered ? 'projects.filteredEmpty' : 'projects.dashboard.empty')"
+        :description="t(filtered ? 'projects.filteredEmptyHint' : 'projects.emptyHint')"
+      >
+        <template v-if="filtered" #action>
+          <UButton variant="outline" :disabled="!hydrated" :label="t('projects.filters.clear')" @click="clearFilters" />
+        </template>
+      </SharedEmptyState>
     </div>
 
     <template v-else>

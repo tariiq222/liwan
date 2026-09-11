@@ -41,7 +41,7 @@ const columns = computed<TableColumn<AdminUserSummary>[]>(() => [
       </div>
     </UCard>
     <ul class="md:hidden space-y-2" :aria-label="t('access.users.title')">
-      <li v-for="user in users" :key="user.id" class="rounded-lg border border-default bg-default p-4 shadow-sm">
+      <li v-for="user in users" :key="user.id" class="nasq-ui-record-surface p-4">
         <div class="flex items-start justify-between gap-3">
           <div class="min-w-0">
             <bdi class="block text-xs text-muted">#{{ user.id }}</bdi>

@@ -54,7 +54,7 @@ async function confirmDelete() {
     >
       <p v-if="!project?.can_manage" class="text-muted">{{ t('projects.forbidden') }}</p>
       <template v-else-if="milestone && projectId">
-      <section class="rounded-xl border border-default bg-default overflow-hidden"><div class="p-5 space-y-5">
+      <section class="nasq-ui-record-surface"><div class="p-5 space-y-5">
         <MilestoneForm :project-id="projectId" :project-start="project?.date_start" :project-end="project?.date_end" :milestone="milestone" @saved="router.push(returnTo)" @cancel="router.push(returnTo)" />
         <div v-if="milestone.task_count > 0" class="rounded-md border border-default p-3 text-sm text-muted">{{ t('projects.milestones.hasTasks', { count: milestone.task_count }) }}</div>
         <div v-if="deleteOpen" data-testid="milestone-delete-confirm" class="rounded-lg border border-error/30 bg-error/5 space-y-2 p-3 text-sm">

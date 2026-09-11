@@ -151,7 +151,7 @@ function toggle(node: DepartmentTreeNode) {
       </div>
     </div>
   </UCard>
-  <p v-else class="rounded-lg border border-default bg-default py-10 text-center text-sm text-muted shadow-sm">{{ $t('hr.depts.empty') }}</p>
+  <p v-else class="nasq-ui-record-surface py-10 text-center text-sm text-muted">{{ $t('hr.depts.empty') }}</p>
 </template>
 
 <style scoped>

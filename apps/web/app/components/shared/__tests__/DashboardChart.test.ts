@@ -31,6 +31,15 @@ function loadProductionBarTooltip() {
   }) as (raw: unknown) => Record<string, unknown> | undefined
 }
 
+describe('DashboardChart donut path drawing', () => {
+  it('does not tween donut arc path strings, which interpolates SVG arc flags off 0/1', () => {
+    const source = readFileSync(filename, 'utf8')
+    expect(source).not.toContain('0.0001')
+    expect(source).not.toContain('angle-range')
+    expect(source).toContain(':duration="0"')
+  })
+})
+
 describe('DashboardChart production tooltip behavior', () => {
   it('keeps display formatting for measured values such as tracked progress percentages', () => {
     const barTooltip = loadProductionBarTooltip()

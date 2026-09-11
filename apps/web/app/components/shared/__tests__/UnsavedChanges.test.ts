@@ -93,7 +93,7 @@ function loadUnsavedChanges(): Component {
     compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.None },
   }).outputText
   const bindings: Record<string, unknown> = {
-    ...Object.fromEntries(Object.entries(Vue).map(([name, value]) => [`_${name}`, value])),
+    ...Object.fromEntries(Object.entries(Vue).filter(([name]) => /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(name)).map(([name, value]) => [`_${name}`, value])),
     onBeforeRouteLeave: VueRouter.onBeforeRouteLeave, onBeforeRouteUpdate: VueRouter.onBeforeRouteUpdate,
     onMounted: () => undefined, onBeforeUnmount: () => undefined, ref: Vue.ref, watch: Vue.watch, computed: Vue.computed, inject: Vue.inject,
     isWorkspaceOverlayRoute, PROJECT_OVERLAY_INJECTION_KEY, wantsProjectOverlayFullPage,

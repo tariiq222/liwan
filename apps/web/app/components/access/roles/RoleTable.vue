@@ -42,7 +42,7 @@ const columns = computed<TableColumn<RoleSummary>[]>(() => [
       </div>
     </UCard>
     <ul class="md:hidden space-y-2" :aria-label="t('access.roles.title')">
-      <li v-for="role in roles" :key="role.id" class="rounded-lg border border-default bg-default p-4 shadow-sm">
+      <li v-for="role in roles" :key="role.id" class="nasq-ui-record-surface p-4">
         <div class="flex items-start justify-between gap-3">
           <div class="min-w-0">
             <bdi class="block text-xs text-muted">#{{ role.id }}</bdi>

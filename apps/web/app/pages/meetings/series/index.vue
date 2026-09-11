@@ -103,7 +103,7 @@ function setPage(next: number) {
       <span class="text-sm text-muted-foreground" role="status">{{ totalLabel }}</span>
     </div>
     <SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!query.data.value?.items.length" :empty-text="t('meetingsUi.emptySeries')" @retry="query.refetch">
-      <div class="overflow-hidden rounded-xl border border-default bg-default">
+      <div class="nasq-ui-record-surface">
         <NuxtLink
           v-for="series in query.data.value?.items"
           :key="series.id"

@@ -46,7 +46,7 @@ const activeGroup = computed(() => model.value.groups.find(group => group.id ===
         <span>{{ t(group.labelKey) }}</span>
       </UButton>
     </nav>
-    <!-- Sub-sections: quiet pills; the active one uses the shared secondary recipe. -->
+    <!-- Sub-sections: quiet pills; the active one uses the primary link recipe (navigation). -->
     <nav
       v-if="activeGroup?.links.length"
       class="nasq-ui-subtab-row"
@@ -57,8 +57,8 @@ const activeGroup = computed(() => model.value.groups.find(group => group.id ===
         v-for="link in activeGroup.links"
         :key="link.id"
         size="sm"
-        :color="model.activeTab === link.id ? 'secondary' : 'neutral'"
-        :variant="model.activeTab === link.id ? 'solid' : 'ghost'"
+        :color="model.activeTab === link.id ? 'primary' : 'neutral'"
+        :variant="model.activeTab === link.id ? 'soft' : 'ghost'"
         :to="link.to"
         :aria-current="model.activeTab === link.id ? 'page' : undefined"
         :data-active="model.activeTab === link.id"

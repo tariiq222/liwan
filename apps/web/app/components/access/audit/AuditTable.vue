@@ -55,7 +55,7 @@ function onSelectRow(_event: Event, row: { original: AccessAuditSummary }) {
       </div>
     </UCard>
     <ul class="md:hidden space-y-2" :aria-label="t('access.audit.title')">
-      <li v-for="event in events" :key="event.id" class="cursor-pointer rounded-lg border border-default bg-default p-4 shadow-sm" tabindex="0" role="button" @click="open(event.id)" @keydown.enter.self="open(event.id)" @keydown.space.self.prevent="open(event.id)" >
+      <li v-for="event in events" :key="event.id" class="cursor-pointer nasq-ui-record-surface p-4" tabindex="0" role="button" @click="open(event.id)" @keydown.enter.self="open(event.id)" @keydown.space.self.prevent="open(event.id)" >
         <div class="flex items-start justify-between gap-3">
           <div class="min-w-0">
             <bdi class="block text-xs text-muted">#{{ event.id }}</bdi>

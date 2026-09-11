@@ -101,7 +101,7 @@ async function deleteRow() {
         </div>
       </template>
     </FilterBar>
-    <section class="rounded-xl border border-default bg-default overflow-hidden" aria-labelledby="raci-legend-title">
+    <section class="nasq-ui-record-surface" aria-labelledby="raci-legend-title">
       <div class="border-b border-default px-5 py-4"><h2 id="raci-legend-title" class="text-lg font-semibold text-highlighted">{{ t('projects.refresh.workspace.raciLegendTitle') }}</h2></div>
       <div class="p-5 space-y-2">
         <p class="text-sm text-muted">{{ t('projects.refresh.workspace.raciLegendDescription') }}</p>
@@ -114,7 +114,7 @@ async function deleteRow() {
       </div>
     </section>
     <p v-if="error" role="alert" class="text-sm text-error">{{ error }}</p>
-    <section v-if="confirmRow" class="rounded-xl border border-default bg-default overflow-hidden" role="group" :aria-label="t('projects.governance.confirmDelete')">
+    <section v-if="confirmRow" class="nasq-ui-record-surface" role="group" :aria-label="t('projects.governance.confirmDelete')">
       <div class="border-b border-default px-5 py-4"><h2 class="text-lg font-semibold text-highlighted">{{ t('projects.governance.confirmDelete') }}</h2></div>
       <div class="p-5 space-y-3">
         <p>{{ confirmRow.task.name }} — {{ confirmRow.stakeholder.name }} ({{ confirmRow.role }})</p>
@@ -122,7 +122,7 @@ async function deleteRow() {
       </div>
     </section>
     <SharedPageState :loading="tasks.isLoading.value || stakeholders.isLoading.value || rows.isLoading.value" :error="tasks.error.value || stakeholders.error.value || rows.error.value" :empty="false" @retry="() => { tasks.refetch(); stakeholders.refetch(); rows.refetch() }" />
-    <section v-if="!tasks.isLoading.value && !stakeholders.isLoading.value && !rows.isLoading.value && !tasks.error.value && !stakeholders.error.value && !rows.error.value && (!visibleTasks.length || !visibleStakeholders.length)" class="rounded-xl border border-default bg-default overflow-hidden" data-testid="raci-empty">
+    <section v-if="!tasks.isLoading.value && !stakeholders.isLoading.value && !rows.isLoading.value && !tasks.error.value && !stakeholders.error.value && !rows.error.value && (!visibleTasks.length || !visibleStakeholders.length)" class="nasq-ui-record-surface" data-testid="raci-empty">
       <div class="border-b border-default px-5 py-4"><h2 class="text-lg font-semibold text-highlighted">{{ t('projects.refresh.workspace.raciEmptyTitle') }}</h2></div>
       <div class="p-5 space-y-3">
         <p v-if="!visibleTasks.length && !visibleStakeholders.length" class="text-sm text-muted">{{ t('projects.refresh.workspace.raciEmptyBoth') }}</p>
@@ -134,7 +134,7 @@ async function deleteRow() {
         </div>
       </div>
     </section>
-    <section v-if="visibleTasks.length && visibleStakeholders.length" class="rounded-xl border border-default bg-default max-w-full overflow-x-auto overscroll-x-contain">
+    <section v-if="visibleTasks.length && visibleStakeholders.length" class="nasq-ui-record-surface max-w-full overflow-x-auto overscroll-x-contain">
       <table class="w-full min-w-max text-start text-sm"><caption class="p-3 text-start">{{ t('projects.governance.raci.matrixHelp') }}</caption><thead><tr class="border-b"><th scope="col" class="sticky start-0 z-10 h-auto w-28 min-w-28 max-w-28 bg-default p-3 text-start">{{ t('app.recordNumber') }}</th><th scope="col" class="sticky start-28 z-10 min-w-48 bg-default p-3 text-start">{{ t('projects.governance.raci.task') }}</th><th v-for="item in visibleStakeholders" :key="item.id" scope="col" class="min-w-32 p-3 text-start"><NuxtLink class="underline" :to="{ path: `/projects/${id}/stakeholders/${item.id}`, query: { returnTo: route.fullPath } }">{{ item.name }}</NuxtLink></th></tr></thead>
         <tbody><tr v-for="task in visibleTasks" :key="task.id" class="border-b"><td class="sticky start-0 z-10 h-auto w-28 min-w-28 max-w-28 bg-default p-3"><RecordNumber :value="task.id" /></td><th scope="row" class="sticky start-28 z-10 bg-default p-3 text-start font-medium"><NuxtLink class="underline" :to="{ path: `/projects/${id}/tasks/${task.id}`, query: { returnTo: route.fullPath } }">{{ task.name }}</NuxtLink></th><td v-for="item in visibleStakeholders" :key="item.id" class="p-3">
           <USelect v-if="rows.data.value?.can_manage" :model-value="assignment(task.id, item.id)?.role ?? 'none'" :items="[{ value: 'none', label: '—' }, ...['R', 'A', 'C', 'I'].map(role => ({ value: role, label: role }))]" :aria-label="`${task.name} — ${item.name} — ${t('projects.governance.raci.role')}`" class="min-w-24" :color="roleColor(task.id, item.id)" :disabled="!hydrated || pending || loading || !!confirmRow" @update:model-value="changeRole(task.id, item.id, $event)" /><UBadge v-else variant="subtle" :color="roleColor(task.id, item.id)">{{ assignment(task.id, item.id)?.role ?? '—' }}</UBadge>

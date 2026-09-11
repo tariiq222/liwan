@@ -140,7 +140,7 @@ async function confirmAction() {
         :empty-text="t('settings.projects.catalogs.empty')"
         @retry="query.refetch"
       >
-        <div class="rounded-xl border border-default bg-default overflow-hidden">
+        <div class="nasq-ui-record-surface overflow-hidden">
           <ul>
             <li v-for="item in query.data.value?.items ?? []" :key="item.id" class="flex flex-wrap items-center justify-between gap-3 border-b border-default/80 p-3 last:border-0">
               <div>

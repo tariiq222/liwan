@@ -70,7 +70,7 @@ function saved() {
             <UButton color="neutral" variant="outline" type="button" @click="access.refetch()">{{ t('app.retry') }}</UButton>
           </template>
         </UAlert>
-        <section class="rounded-xl border border-default bg-default overflow-hidden">
+        <section class="nasq-ui-record-surface">
           <div class="p-5">
             <FinanceEntryForm
               :project-id="projectId"
