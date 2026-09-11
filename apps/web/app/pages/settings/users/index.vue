@@ -63,14 +63,10 @@ const departmentOptions = computed(() => [{ value: allValue, label: t('access.us
 function onStatusChange(value: unknown) { filters.status = value === 'stopped' ? 'stopped' : value === 'active' ? 'active' : undefined; updateFilters() }
 function onRoleChange(value: unknown) { filters.role_id = value && value !== allValue ? Number(value) : undefined; updateFilters() }
 function onDepartmentChange(value: unknown) { filters.department_id = value && value !== allValue ? Number(value) : undefined; updateFilters() }
-const sections = computed(() => forbidden.value ? [] : [
-  { id: 'filters', label: t('settings.toc.filters') },
-  { id: 'results', label: t('settings.toc.list') },
-])
 </script>
 
 <template>
-  <SettingsLayout :sections>
+  <SettingsLayout>
     <SharedPageHeader :title="t('access.users.title')">
       <UButton v-if="can('access.users.grant')" color="primary" :disabled="!hydrated" :label="t('access.users.grantAccount')" @click="navigateTo({ path: '/settings/users/new', query: listQuery })" />
     </SharedPageHeader>

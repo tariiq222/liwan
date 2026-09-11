@@ -1,9 +1,0 @@
-{
-  "taskId": "flow-e4804219-7f51-4ac0-9b60-8b24a48ffff5",
-  "state": "BLOCKED",
-  "reason": "normalized task request must exactly preserve the original request",
-  "changedFiles": [],
-  "fixLoops": 0,
-  "reviewLoops": 0,
-  "calls": 1
-}

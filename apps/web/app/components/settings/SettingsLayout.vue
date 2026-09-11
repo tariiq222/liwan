@@ -1,6 +1,5 @@
 <script setup lang="ts">
 withDefaults(defineProps<{
-  sections?: { id: string; label: string }[]
   width?: 'list' | 'detail' | 'form'
 }>(), { width: 'list' })
 </script>

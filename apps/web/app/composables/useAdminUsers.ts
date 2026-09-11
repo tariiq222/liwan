@@ -227,11 +227,4 @@ function useChangeAdminUserState(action: 'disable' | 'reactivate') {
 export function useDisableAdminUser() { return useChangeAdminUserState('disable') }
 export function useReactivateAdminUser() { return useChangeAdminUserState('reactivate') }
 
-// Short aliases keep call sites readable while retaining the explicit admin names.
-export const useGrantAccount = useGrantAdminAccount
-export const useUpdateUserAccess = useUpdateAdminUserAccess
-export const useResetUserPassword = useResetAdminUserPassword
-export const useDisableUser = useDisableAdminUser
-export const useReactivateUser = useReactivateAdminUser
-
 export type { AdminUserCandidateList, AdminUserDetail, AdminUserList }

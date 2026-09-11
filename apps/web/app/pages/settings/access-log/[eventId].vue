@@ -14,15 +14,10 @@ const event = useAdminAuditEvent(id, computed(() => !forbidden.value))
 const actionLabels: Record<AuditAction, string> = {
   'user.granted': 'access.audit.actions.userGranted', 'user.roles_changed': 'access.audit.actions.userRolesChanged', 'user.disabled': 'access.audit.actions.userDisabled', 'user.reactivated': 'access.audit.actions.userReactivated', 'user.password_reset': 'access.audit.actions.userPasswordReset', 'employee.archived_access_disabled': 'access.audit.actions.employeeArchived', 'role.created': 'access.audit.actions.roleCreated', 'role.updated': 'access.audit.actions.roleUpdated', 'role.disabled': 'access.audit.actions.roleDisabled', 'role.enabled': 'access.audit.actions.roleEnabled', 'role.deleted': 'access.audit.actions.roleDeleted', 'migration.legacy_admin_preserved': 'access.audit.actions.legacyAdminPreserved',
 }
-const sections = computed(() => event.data.value ? [
-  { id: 'event', label: t('access.audit.detailTitle') },
-  { id: 'before', label: t('access.audit.before') },
-  { id: 'after', label: t('access.audit.after') },
-] : [])
 </script>
 
 <template>
-  <SettingsLayout :sections width="detail">
+  <SettingsLayout width="detail">
     <SharedPageHeader :title="t('access.audit.detailTitle')" :back-to="returnTo" />
     <SharedPageState v-if="forbidden" :empty="true" :empty-text="t('access.forbidden')" />
     <SharedPageState v-else :loading="event.isLoading.value" :error="event.error.value" :empty="!event.data.value" :empty-text="t('access.notFound')" @retry="event.refetch">

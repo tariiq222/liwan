@@ -18,15 +18,10 @@ const catalog = useAdminPermissionCatalog(computed(() => !forbidden.value && can
 const permissionLabels = computed(() => new Map<string, PermissionDefinition['label']>((catalog.data.value?.items ?? []).map((permission) => [permission.key, permission.label])))
 const permissionLabel = (key: string) => permissionLabels.value.get(key)?.[locale.value === 'ar' ? 'ar' : 'en'] ?? permissionLabels.value.get(key)?.ar ?? t('access.roles.unknownPermission')
 const sourceLabel = (source: { role: { name: { ar: string; en: string | null } } }) => source.role.name[locale.value === 'ar' ? 'ar' : 'en'] ?? source.role.name.ar
-const sections = computed(() => query.data.value ? [
-  { id: 'account', label: t('access.users.account') },
-  { id: 'roles', label: t('access.users.rolesAndScopes') },
-  { id: 'capabilities', label: t('access.users.capabilities') },
-] : [])
 </script>
 
 <template>
-  <SettingsLayout :sections width="detail">
+  <SettingsLayout width="detail">
     <SharedPageHeader :title="query.data.value?.name ?? t('access.users.title')" :description="query.data.value?.login" :back-to="returnTo" />
     <nav class="flex flex-wrap gap-2 border-b border-default pb-2" :aria-label="t('access.users.accountNavigation')">
       <UButton color="neutral" variant="soft" :to="route.path" aria-current="page">{{ t('access.users.account') }}</UButton>

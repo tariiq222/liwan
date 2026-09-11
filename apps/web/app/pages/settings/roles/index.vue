@@ -30,14 +30,10 @@ const typeOptions = computed(() => [{ value: allValue, label: t('access.roles.fi
 const statusOptions = computed(() => [{ value: allValue, label: t('access.roles.filters.allStatuses') }, { value: 'active', label: t('access.active') }, { value: 'disabled', label: t('access.disabled') }])
 function onTypeChange(value: unknown) { filters.type = value === 'custom' ? 'custom' : value === 'built_in' ? 'built_in' : undefined; updateFilters() }
 function onStatusChange(value: unknown) { filters.status = value === 'disabled' ? 'disabled' : value === 'active' ? 'active' : undefined; updateFilters() }
-const sections = computed(() => forbidden.value ? [] : [
-  { id: 'filters', label: t('settings.toc.filters') },
-  { id: 'results', label: t('settings.toc.list') },
-])
 </script>
 
 <template>
-  <SettingsLayout :sections>
+  <SettingsLayout>
     <SharedPageHeader :title="t('access.roles.title')">
       <UButton v-if="can('access.roles.manage')" color="primary" :disabled="!hydrated" :label="t('access.roles.create')" @click="navigateTo({ path: '/settings/roles/new', query: listQuery })" />
     </SharedPageHeader>

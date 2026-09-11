@@ -1,7 +1,6 @@
 import { computed, toValue, type MaybeRefOrGetter } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
 import {
-  ProjectDashboardSummarySchema,
   ProjectReportListSchema,
   type ProjectDashboardSummary,
   type ProjectReportList,
@@ -39,17 +38,6 @@ export function useProjectReports(filters: MaybeRefOrGetter<ProjectReportListFil
     queryFn: () => $api('/api/v1/reports/projects', {
       query: reportListQuery(toValue(filters)),
       schema: ProjectReportListSchema,
-    }),
-  })
-}
-
-export function useProjectReportsSummary(filters: MaybeRefOrGetter<ProjectReportSummaryFilters> = {}) {
-  const { $api } = useApi()
-  return useQuery({
-    queryKey: computed(() => reportKeys.summary(reportSummaryQuery(toValue(filters)))),
-    queryFn: () => $api('/api/v1/reports/projects/summary', {
-      query: reportSummaryQuery(toValue(filters)),
-      schema: ProjectDashboardSummarySchema,
     }),
   })
 }

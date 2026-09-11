@@ -1,5 +1,0 @@
-readonly originals (not deleted):
-/var/folders/17/rgg6yjtn60d3jf_3xszmvtw00000gn/T/opencode/psc-finalreview
-/var/folders/17/rgg6yjtn60d3jf_3xszmvtw00000gn/T/opencode/fable-review
-/var/folders/17/rgg6yjtn60d3jf_3xszmvtw00000gn/T/opencode/psc-loop2-wp3
-base-4b15cb1 full addon tree NOT duplicated here; original remains at /var/folders/17/rgg6yjtn60d3jf_3xszmvtw00000gn/T/opencode/psc-finalreview/base-4b15cb1

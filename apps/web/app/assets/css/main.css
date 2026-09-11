@@ -1,6 +1,5 @@
 @import "tailwindcss";
 @import "@nuxt/ui";
-@import "tw-animate-css";
 @import "./approved-shell.css";
 @import "./project-theme.css";
 @import "./nuxt-theme.css";

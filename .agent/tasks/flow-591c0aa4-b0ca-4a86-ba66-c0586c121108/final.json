@@ -1,9 +1,0 @@
-{
-  "taskId": "flow-591c0aa4-b0ca-4a86-ba66-c0586c121108",
-  "state": "BLOCKED",
-  "reason": "index[term].push is not a function",
-  "changedFiles": [],
-  "fixLoops": 0,
-  "reviewLoops": 0,
-  "calls": 1
-}

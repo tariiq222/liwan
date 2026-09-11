@@ -1,7 +1,0 @@
-commit 07fed619644392e50bded94163532785feef8922
-Author:     Tariq Alwalidi <tariq.alwalidi@gmail.com>
-AuthorDate: Sun Sep 6 23:22:21 2026 +0300
-Commit:     Tariq Alwalidi <tariq.alwalidi@gmail.com>
-CommitDate: Sun Sep 6 23:22:21 2026 +0300
-
-    Verify hydration guard on routed task back link

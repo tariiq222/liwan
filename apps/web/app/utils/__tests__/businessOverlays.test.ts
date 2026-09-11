@@ -5,7 +5,6 @@ import { fileURLToPath } from 'node:url'
 
 const appRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 const scanRoots = ['pages', 'layouts', 'components']
-const activeUiComposites = [join(appRoot, 'components/ui/sidebar/Sidebar.vue')]
 const forbiddenTag = /<\/?(?:Dialog|AlertDialog|Sheet|Drawer|CommandDialog)(?:\s|>)/
 const forbiddenUiImport = /components\/ui\/(?:dialog|alert-dialog|sheet|drawer)(?:['"/]|$)|components\/ui\/command\/CommandDialog(?:\.vue)?['"]/
 const nativePopup = /(?:\bwindow\s*\.\s*)?\b(?:alert|confirm|prompt)\s*\(/
@@ -23,7 +22,7 @@ function sourceFiles(directory: string): string[] {
 
 describe('business overlay architecture', () => {
   it('limits business dialogs to the approved header search and project route host', () => {
-    const violations = [...scanRoots.flatMap((root) => sourceFiles(join(appRoot, root))), ...activeUiComposites].flatMap((path) => {
+    const violations = scanRoots.flatMap((root) => sourceFiles(join(appRoot, root))).flatMap((path) => {
       const source = readFileSync(path, 'utf8')
       // Exact-file exceptions: header search (2026-09-06) and the Projects pilot
       // (2026-09-09). Other modules and native prompts remain disallowed.

@@ -138,10 +138,10 @@ Shared recipes only; no page-local styles. Owner: `apps/web/app/assets/css/nuxt-
 
 - `apps/web/app/components/project/ProjectOverview.vue`: actual `summary` tab; UCard metric and update/milestone sections, UProgress, ProjectStatusSelect and ProjectOverviewTasks. Named container queries adapt metric columns to available content width. Preserves server counts, capabilities, dates and return links.
 - `apps/web/app/components/project/ProjectOverviewTasks.vue`: bounded attention preview; UCard, UAlert, UBadge, USkeleton and existing task routes.
-- `apps/web/app/components/task/TaskDetailPanel.vue`: route-independent task actions and detail composition; UButton, StateMenu, TaskDetails and TaskActivity.
-- `apps/web/app/components/task/TaskDetails.vue`: task metadata UCard and optional details; shared selectors/date fields and TaskDescription. No nested legacy panel frame.
+- `apps/web/app/components/task/TaskDetailPanel.vue`: route-independent task actions and detail composition; UButton, StateMenu and TaskDetails.
+- `apps/web/app/components/task/TaskDetails.vue`: UTabs for details, description, activity, resources and additional fields; shared selectors/date fields. No stacked cards or nested legacy panel frame.
 - `apps/web/app/components/task/TaskDescription.vue`: plain description section with the existing rich-text editor and draft protection.
-- `apps/web/app/components/task/TaskActivity.vue`: UCard activity section with existing timeline and comment composer.
+- `apps/web/app/components/task/TaskActivity.vue`: activity tab content with existing timeline and comment composer.
 - `apps/web/app/components/task/TaskDeliverables.vue`, `DependencyPicker.vue`, `TaskAttachments.vue`: optional resource sections use the same plain section headings; preserve existing checkbox, dependency and file actions.
 - `data-nasq-reference-detail`: shared migration boundary for these detail compositions; reference 68rem width and 1.75rem page gap. Broad workspace typography overrides are removed. Nuxt neutral colors inherit the reference Zinc defaults with explicit reference cream tokens; compatibility aliases resolve to these same values.
 
@@ -151,8 +151,7 @@ Shared recipes only; no page-local styles. Owner: `apps/web/app/assets/css/nuxt-
 `tools/ui_inventory.py --check` enumerates every customer Vue source and rejects
 legacy controls/imports/panel/navigation recipes; `npm test` includes this gate.
 `apps/web/nuxt.config.ts` excludes `components/ui/**` from auto-discovery. The four
-Unovis adapters are explicit specialist imports; 144 other primitive definitions
-are retained without runtime registration. This is source enforcement, not a
+Unovis adapters are explicit specialist imports. This is source enforcement, not a
 claim of visual or behavior verification. See `docs/verification/2026-09-10-all-ui-unification.md`.
 
 | Exact path | Responsibility / primitives |
@@ -161,7 +160,6 @@ claim of visual or behavior verification. See `docs/verification/2026-09-10-all-
 | `apps/web/app/components/shared/PageHeader.vue` | Shared title/actions/back link with Nuxt text scale and UButton |
 | `apps/web/app/components/shared/PageState.vue` | Loading USkeleton, retryable UAlert/UButton, meaningful empty state |
 | `apps/web/app/components/settings/AppearanceForm.vue` | URadioGroup card recipes backed by the existing appearance cookie and setters |
-| `apps/web/app/components/settings/SettingsTabs.vue` | UButton section links preserving URL hash, active location and keyboard navigation |
 | `apps/web/app/components/settings/SettingsLayout.vue` | Settings geometry only; primitive surface, field and table styling belongs to Nuxt |
 | `apps/web/app/components/GlobalSearch.vue` | UModal, UInput, UButton and UBadge with capability-filtered real navigation/results |
 | `apps/web/app/components/ui/chart/ChartContainer.vue` | Explicit Unovis context/container using shared neutral/brand tokens |

@@ -4,7 +4,6 @@ import {
   FinanceDeletedSchema,
   FinanceEntryListSchema,
   FinanceEntrySchema,
-  FinanceSummarySchema,
   type FinanceEntry,
   type FinanceEntryCreate,
   type FinanceEntryList,
@@ -53,19 +52,6 @@ export function useProjectFinanceList(
         query: financeListQuery(toValue(filters)),
         schema: FinanceEntryListSchema,
       })
-    },
-  })
-}
-
-export function useProjectFinanceSummary(projectId: MaybeRefOrGetter<number | null>) {
-  const { $api } = useApi()
-  return useQuery({
-    queryKey: computed(() => financeKeys.summary(toValue(projectId) ?? 0)),
-    enabled: computed(() => parsePositiveId(toValue(projectId)) != null),
-    queryFn: () => {
-      const id = toValue(projectId)
-      if (id == null) throw new Error('invalid_id')
-      return $api(`/api/v1/projects/${id}/finance/summary`, { schema: FinanceSummarySchema })
     },
   })
 }

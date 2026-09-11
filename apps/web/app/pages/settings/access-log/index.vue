@@ -42,14 +42,10 @@ function onActorChange(value: unknown) { filters.actor_id = value && value !== a
 function onTargetTypeChange(value: unknown) { filters.target_type = value === 'role' ? 'role' : value === 'user' ? 'user' : undefined; filters.target_id = undefined; updateFilters() }
 function onTargetIdChange(value: unknown) { filters.target_id = value && value !== allValue ? Number(value) : undefined; updateFilters() }
 function onActionChange(value: unknown) { filters.action = value && value !== allValue ? String(value) : undefined; updateFilters() }
-const sections = computed(() => forbidden.value ? [] : [
-  { id: 'filters', label: t('settings.toc.filters') },
-  { id: 'results', label: t('settings.toc.list') },
-])
 </script>
 
 <template>
-  <SettingsLayout :sections>
+  <SettingsLayout>
     <SharedPageHeader :title="t('access.audit.title')" />
     <SharedPageState v-if="forbidden" :empty="true" :empty-text="t('access.forbidden')" />
     <div v-else class="space-y-3">

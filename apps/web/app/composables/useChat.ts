@@ -247,17 +247,6 @@ export function useAddChatMembers(id: MaybeRefOrGetter<number>) {
   })
 }
 
-export function useRemoveChatMember(id: MaybeRefOrGetter<number>) {
-  const { $api } = useApi()
-  const qc = useQueryClient()
-  const userId = currentUserId()
-  return useMutation({
-    retry: false,
-    mutationFn: (memberId: number) => $api(`/api/v1/chat/conversations/${toValue(id)}/members/${memberId}`, { method: 'DELETE' }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: chatKeys.root(userId.value) }),
-  })
-}
-
 export function useLeaveConversation(id: MaybeRefOrGetter<number>) {
   const { $api } = useApi()
   const qc = useQueryClient()

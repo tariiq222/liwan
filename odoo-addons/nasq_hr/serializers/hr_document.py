@@ -2,9 +2,8 @@
 import base64
 import binascii
 
-from odoo import fields
-
 from odoo.addons.nasq_api.controllers.common import ApiError, parse_positive_int
+from odoo.addons.nasq_api.serializers.common import iso
 
 CREATE_FIELDS = {'name', 'body', 'department_id'}
 PATCH_FIELDS = {'name', 'body'}
@@ -13,10 +12,6 @@ MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024
 # Four base64 characters encode three bytes. This is the largest canonical
 # base64 representation that can contain exactly MAX_ATTACHMENT_BYTES.
 MAX_ENCODED_CHARS = 4 * ((MAX_ATTACHMENT_BYTES + 2) // 3)
-
-
-def _iso(dt):
-    return fields.Datetime.to_string(dt).replace(' ', 'T') + 'Z' if dt else None
 
 
 def dump_document(doc):
@@ -31,7 +26,7 @@ def dump_document(doc):
             'mimetype': a.mimetype or '',
             'file_size': a.file_size or 0,
         } for a in doc.attachment_ids],
-        'write_date': _iso(doc.write_date),
+        'write_date': iso(doc.write_date),
     }
 
 

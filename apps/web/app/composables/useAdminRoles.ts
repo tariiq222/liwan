@@ -3,14 +3,12 @@ import { computed, toValue } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import {
   PermissionCatalogSchema,
-  RoleCloneInputSchema,
   RoleCreateInputSchema,
   RoleDetailSchema,
   RoleListSchema,
   RolePatchInputSchema,
   RoleStateInputSchema,
   type PermissionCatalog,
-  type RoleCloneInput,
   type RoleCreateInput,
   type RoleDetail,
   type RoleList,
@@ -138,19 +136,6 @@ export function useUpdateAdminRole() {
     mutationFn: ({ id, patch }: { id: number; patch: RolePatchInput }) => $api(`/api/v1/admin/roles/${id}`, {
       method: 'PATCH',
       body: RolePatchInputSchema.parse(patch),
-      schema: RoleDetailSchema,
-    }),
-    onSuccess: invalidate,
-  })
-}
-
-export function useCloneAdminRole() {
-  const { $api } = useApi()
-  const invalidate = useAdminRoleSuccessInvalidation()
-  return useMutation({
-    mutationFn: ({ id, body }: { id: number; body: RoleCloneInput }) => $api(`/api/v1/admin/roles/${id}/clone`, {
-      method: 'POST',
-      body: RoleCloneInputSchema.parse(body),
       schema: RoleDetailSchema,
     }),
     onSuccess: invalidate,

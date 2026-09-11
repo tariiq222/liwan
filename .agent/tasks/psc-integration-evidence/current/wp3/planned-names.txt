@@ -1,6 +1,0 @@
-unit_db=nasq_psc_scratch_integration_unit_20260906
-e2e_db=nasq_psc_scratch_integration_e2e_20260906
-upgrade_db=nasq_psc_scratch_integration_upgrade_20260906
-race_db=nasq_psc_scratch_integration_race_20260906
-unit_port=9791 e2e_odoo=9792 e2e_web=3792 upgrade_port=9793 race_port=9794
-pg_existing_psc_integration=(none)

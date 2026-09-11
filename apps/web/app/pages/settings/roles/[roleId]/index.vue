@@ -51,14 +51,10 @@ async function confirmAction(action: RoleAction) {
   }
 }
 function openUser(userId: number) { void navigateTo(`/settings/users/${userId}?role_id=${id.value}`) }
-const sections = computed(() => role.data.value ? [
-  { id: 'permissions', label: t('access.roles.permissions') },
-  ...(can('access.users.read') ? [{ id: 'assigned-users', label: t('access.roles.assignedUsers') }] : []),
-] : [])
 </script>
 
 <template>
-  <SettingsLayout :sections width="detail">
+  <SettingsLayout width="detail">
     <SharedPageHeader :title="role.data.value?.name[locale === 'ar' ? 'ar' : 'en'] ?? role.data.value?.name.ar ?? t('access.roles.title')" :back-to="returnTo">
       <UButton v-if="role.data.value?.allowed_actions.includes('edit')" color="secondary" variant="outline" :disabled="!role.data.value" :label="t('access.roles.editTitle')" @click="navigateTo(editTo)" />
       <UButton v-if="role.data.value?.allowed_actions.includes('clone')" color="secondary" variant="outline" :disabled="!role.data.value" :label="t('access.roles.clone')" @click="navigateTo(cloneTo)" />

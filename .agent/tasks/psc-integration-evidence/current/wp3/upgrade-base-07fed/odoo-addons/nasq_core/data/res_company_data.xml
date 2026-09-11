@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<odoo noupdate="1">
-    <record id="base.main_company" model="res.company">
-        <field name="font">IBM_Plex_Sans_Arabic</field>
-        <field name="primary_color">#18181b</field>
-    </record>
-</odoo>
