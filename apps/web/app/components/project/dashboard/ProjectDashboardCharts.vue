@@ -162,7 +162,7 @@ const financeChart = computed(() => selectedCurrency.value ? projectFinanceCompa
   container-type: inline-size;
 }
 
-@container (min-width: 760px) {
+@container (min-width: 768px) {
   .dashboard-chart-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }

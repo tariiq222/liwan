@@ -245,28 +245,14 @@
   background: var(--status-danger-soft);
   color: var(--status-danger-foreground);
 }
-.nasq-status-callout-warning {
-  border: 1px solid var(--status-warning-border);
-  background: var(--status-warning-soft);
-  color: var(--status-warning-foreground);
-  border-radius: 8px;
-}
+
 .nasq-status-callout-danger {
   border: 1px solid color-mix(in srgb, var(--destructive) 40%, var(--border));
   background: color-mix(in srgb, var(--destructive) 8%, var(--card));
   color: var(--foreground);
   border-radius: 8px;
 }
-.nasq-status-icon-warning {
-  border: 1px solid var(--status-warning-border);
-  background: var(--status-warning-soft);
-  color: var(--status-warning-foreground);
-}
-.nasq-status-icon-success {
-  border: 1px solid var(--status-success-border);
-  background: var(--status-success-soft);
-  color: var(--status-success-foreground);
-}
+
 .nasq-status-dot-success { background: var(--status-success); }
 .nasq-status-dot-warning { background: var(--status-warning); }
 .nasq-unread-count {

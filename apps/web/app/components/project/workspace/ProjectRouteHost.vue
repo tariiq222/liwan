@@ -114,7 +114,7 @@ function updateFrame() {
   const measuredRail = rail?.getBoundingClientRect()
   const railRect = measuredRail?.width ? measuredRail : undefined
   const mainStyles = getComputedStyle(main)
-  const radius = mainStyles.getPropertyValue('border-start-start-radius').trim() || (window.innerWidth <= 760 ? '18px' : '24px')
+  const radius = mainStyles.getPropertyValue('border-start-start-radius').trim() || (window.innerWidth <= 767 ? '18px' : '24px')
   const top = Math.max(headerRect?.bottom ?? 0, 0)
   const bottom = window.innerHeight
   const renderedDirection = getComputedStyle(rail || main).direction

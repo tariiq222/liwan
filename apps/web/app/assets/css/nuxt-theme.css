@@ -49,7 +49,7 @@
 .nasq-ui-calendar [data-slot='cellTrigger']:focus-visible { outline: 2px solid currentColor; outline-offset: -2px; }
 .nasq-ui-filter-content { width: min(24rem, calc(100vw - 2rem)); display: grid; gap: 1rem; padding: 1rem; }
 .nasq-ui-date-trigger { width: 100%; min-height: 2.5rem; justify-content: start; font-weight: 400; }
-.nasq-ui-mobile-records { display: none; }
+
 /* Quiet surfaces: card headers and table heads share one muted band. */
 .nasq-ui-card-header { background: color-mix(in srgb, var(--ui-bg-elevated) 45%, var(--ui-bg)); }
 .nasq-ui-table-head { background: color-mix(in srgb, var(--ui-bg-elevated) 45%, var(--ui-bg)); }
@@ -75,8 +75,6 @@
 .nasq-ui-progress [data-slot='indicator']:not([data-state='indeterminate']) { width: var(--nasq-ui-progress); transform: none !important; transition-property: width; }
 @media (max-width: 767px) {
   .nasq-ui-icon-button { width: 44px; height: 44px; min-width: 44px; min-height: 44px; }
-  .nasq-ui-desktop-records { display: none; }
-  .nasq-ui-mobile-records { display: grid; }
 }
 @media (prefers-reduced-motion: reduce) {
   .nasq-ui-progress [data-slot='indicator'] { transition: none; }
