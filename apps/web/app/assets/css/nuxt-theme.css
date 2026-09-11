@@ -62,16 +62,16 @@
 .nasq-ui-tab { position: relative; margin-block-end: -1px; min-height: 2.5rem; border-radius: 0.5rem 0.5rem 0 0; padding-block: 0.5rem; color: var(--ui-text-muted); font-weight: 500; }
 .nasq-ui-tab:hover { color: var(--ui-text-highlighted); background: color-mix(in srgb, var(--ui-bg-elevated) 60%, var(--ui-bg)); }
 .nasq-ui-tab[aria-current='page'], .nasq-ui-tab[aria-current='page']:hover { color: var(--brand-link); background: transparent; font-weight: 600; }
-.nasq-ui-tab[aria-current='page']::after { content: ''; position: absolute; inset-inline: 0.5rem; inset-block-end: 0; height: 3px; border-radius: 3px 3px 0 0; background: var(--primary); }
+.nasq-ui-tab[aria-current='page']::after { content: ''; position: absolute; inset-inline: 0.5rem; inset-block-end: 0; height: 3px; border-radius: 3px 3px 0 0; background: var(--brand-link); }
 .nasq-ui-subtab-row { display: flex; flex-wrap: nowrap; align-items: center; gap: 0.375rem; overflow-x: auto; }
 /* Segmented view switch shared by list pages. */
 .nasq-ui-segment { display: inline-flex; min-height: 2.25rem; align-items: center; gap: 0.125rem; border: 1px solid var(--ui-border); border-radius: 0.5rem; padding: 0.125rem; background: color-mix(in srgb, var(--ui-bg-elevated) 40%, var(--ui-bg)); }
 @media (forced-colors: active) {
   .nasq-ui-tab[aria-current='page']::after { forced-color-adjust: none; background: Highlight; }
 }
-.nasq-ui-progress [data-slot='indicator'] { background: linear-gradient(to right, var(--nasq-brand-secondary), var(--primary)); }
-.nasq-ui-progress:dir(rtl) [data-slot='indicator'] { background-image: linear-gradient(to left, var(--nasq-brand-secondary), var(--primary)); }
-.nasq-ui-progress [data-slot='indicator'][data-state='complete'] { background: var(--primary); }
+.nasq-ui-progress [data-slot='indicator'] { background: linear-gradient(to right, var(--nasq-brand-secondary), var(--primary-fill)); }
+.nasq-ui-progress:dir(rtl) [data-slot='indicator'] { background-image: linear-gradient(to left, var(--nasq-brand-secondary), var(--primary-fill)); }
+.nasq-ui-progress [data-slot='indicator'][data-state='complete'] { background: var(--primary-fill); }
 .nasq-ui-progress [data-slot='indicator']:not([data-state='indeterminate']) { width: var(--nasq-ui-progress); transform: none !important; transition-property: width; }
 @media (max-width: 767px) {
   .nasq-ui-icon-button { width: 44px; height: 44px; min-width: 44px; min-height: 44px; }

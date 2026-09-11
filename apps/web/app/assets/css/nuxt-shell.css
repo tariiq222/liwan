@@ -32,7 +32,8 @@
 }
 
 /* The pinned create action keeps its primary fill even when its route is active. */
-.nasq-context-create[data-active="true"] {
+.nasq-context-create[data-active="true"],
+.nasq-context-create[data-active="true"]:hover {
   background: var(--primary-fill);
   color: var(--primary-fill-foreground);
 }
@@ -53,7 +54,7 @@
   inset-block: 0.45rem;
   width: 4px;
   border-radius: 2px;
-  background: var(--primary);
+  background: var(--brand-link);
   pointer-events: none;
 }
 
