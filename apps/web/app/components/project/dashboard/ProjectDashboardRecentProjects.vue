@@ -3,6 +3,7 @@ import ProjectStatusBadge from '@/components/project/ProjectStatusBadge.vue'
 import { formatNullablePercent } from '@/utils/projectFinance'
 import type { DashboardProject } from '@/utils/projectChartData'
 import RecordNumber from '@/components/shared/RecordNumber.vue'
+import { formatNasqDateTime } from '@/composables/calendarDate'
 
 const props = defineProps<{ rows: readonly DashboardProject[] }>()
 const { t, locale } = useI18n()
@@ -10,7 +11,7 @@ const route = useRoute()
 const { entryTo } = useProjectWorkspaceMemory()
 const compactRecords = ref(false)
 const rows = computed(() => props.rows.slice(0, 5))
-const dateFormatter = computed(() => new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium', timeStyle: 'short' }))
+
 const projectListQuery = computed(() => ({
   q: typeof route.query.q === 'string' && route.query.q.trim() ? route.query.q : undefined,
   status: typeof route.query.status === 'string' ? route.query.status : undefined,
@@ -34,7 +35,7 @@ onMounted(() => {
 function updatedAt(value: string | null | undefined) {
   if (!value) return t('projects.dashboard.unknown')
   const date = new Date(value)
-  return Number.isNaN(date.valueOf()) ? t('projects.dashboard.unknown') : dateFormatter.value.format(date)
+  return Number.isNaN(date.valueOf()) ? t('projects.dashboard.unknown') : formatNasqDateTime(date, locale.value)
 }
 </script>
 

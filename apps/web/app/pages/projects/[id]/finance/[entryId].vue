@@ -80,7 +80,7 @@ async function confirmRemoval() {
       <template #actions>
         <div v-if="entry && canManage && projectId && entryId" class="flex flex-wrap gap-2">
         <UButton :disabled="!hydrated" :to="{ path: `/projects/${projectId}/finance/${entryId}/edit`, query: returnToQuery(route.fullPath) }">{{ t('app.edit') }}</UButton>
-        <UButton variant="outline" :disabled="!hydrated || deleting" @click="confirmDelete = !confirmDelete">{{ t('projects.finance.delete') }}</UButton>
+        <UButton color="error" variant="outline" :disabled="!hydrated || deleting" @click="confirmDelete = !confirmDelete">{{ t('projects.finance.delete') }}</UButton>
         </div>
       </template>
     </SharedPageHeader>

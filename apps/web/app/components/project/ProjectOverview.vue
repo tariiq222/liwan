@@ -6,6 +6,7 @@ import { useMilestones } from '@/composables/useMilestones'
 import { useProjectUpdates } from '@/composables/useProjectUpdates'
 import { TONE_BADGE_COLOR } from '@/components/project/projectTone'
 import { sanitizeHtml } from '@/utils/sanitize'
+import RecordNumber from '@/components/shared/RecordNumber.vue'
 import ProjectOverviewTasks from './ProjectOverviewTasks.vue'
 import ProjectStatusBadge from './ProjectStatusBadge.vue'
 import ProjectStatusSelect from './ProjectStatusSelect.vue'
@@ -48,7 +49,7 @@ function isOverdue(value: string | null) {
       <ProjectStatusSelect v-if="project.can_manage" :project="project" />
       <ProjectStatusBadge v-else :status="project.status" />
       <span class="text-muted">{{ dateRange }}</span>
-      <p class="font-mono text-xs text-muted" dir="ltr">{{ t('projects.projectId', { id: project.id }) }}</p>
+      <p class="flex items-center gap-1 text-xs text-muted"><span>{{ t('app.recordNumber') }}</span><RecordNumber :value="project.id" /></p>
       <NuxtLink :to="{ path: '/meetings', query: { project_id: String(project.id), returnTo: route.fullPath } }" class="text-brand-link underline underline-offset-4">
         {{ t('nav.meetings') }}
       </NuxtLink>

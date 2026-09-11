@@ -7,5 +7,5 @@ const displayValue = computed(() => {
 </script>
 
 <template>
-  <bdi data-slot="record-number" dir="ltr" class="inline-block whitespace-nowrap font-mono text-xs tabular-nums text-muted">{{ displayValue }}</bdi>
+  <bdi data-slot="record-number" dir="ltr" class="inline-block whitespace-nowrap text-xs tabular-nums text-muted">{{ displayValue }}</bdi>
 </template>

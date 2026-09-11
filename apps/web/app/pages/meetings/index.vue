@@ -5,7 +5,7 @@ import { refDebounced } from '@vueuse/core'
 import FilterBar from '@/components/shared/FilterBar.vue'
 import RecordNumber from '@/components/shared/RecordNumber.vue'
 import MeetingProjectFilter from '@/components/meetings/MeetingProjectFilter.vue'
-import { formatCalendarDate } from '@/composables/calendarDate'
+import { formatCalendarDate, formatNasqTime } from '@/composables/calendarDate'
 import { usePeople } from '@/composables/usePeople'
 import { useMeetings } from '@/composables/useMeetings'
 import { returnToQuery } from '@/utils/safeReturnTo'
@@ -93,7 +93,7 @@ function localTime(value: string | null) {
   if (!value) return ''
   const parsed = new Date(value)
   if (Number.isNaN(parsed.getTime())) return formatLocalDateTime(value)
-  return new Intl.DateTimeFormat(locale.value, { timeStyle: 'short', calendar: 'gregory' }).format(parsed)
+  return formatNasqTime(parsed, locale.value)
 }
 
 function meetingRecordNumber(meeting: { reference: string; id: number }) {

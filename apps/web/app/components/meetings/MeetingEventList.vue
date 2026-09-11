@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { formatNasqDateTime } from '@/composables/calendarDate'
+
 type MeetingEvent = {
   id: number
   meeting_id: number
@@ -43,8 +45,7 @@ function kindLabel(kind: string) {
   return te(key) ? t(key) : t('meetingMinutesForm.eventKinds.generic')
 }
 function occurredAt(value: string) {
-  const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium', timeStyle: 'short', calendar: 'gregory' }).format(date)
+  return formatNasqDateTime(value, locale.value)
 }
 function hasInformativeSummary(event: MeetingEvent) {
   const summary = event.summary.trim()

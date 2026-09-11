@@ -23,6 +23,8 @@ describe('record number presentation', () => {
     const html = await render('MIN/2026/0680')
     expect(html).toContain('<bdi')
     expect(html).toContain('dir="ltr"')
+    expect(html).toContain('tabular-nums')
+    expect(html).not.toContain('font-mono')
     expect(html).toContain('>MIN/2026/0680</bdi>')
   })
   it('renders the stable numeric id without a row index or invented prefix', async () => {

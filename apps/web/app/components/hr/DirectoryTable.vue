@@ -174,7 +174,7 @@ function clearFilters() {
                 <template v-if="showActions" #manage-cell="{ row }">
                   <div class="flex gap-1" @click.stop>
                     <UButton v-if="canManage" color="secondary" variant="ghost" size="sm" :disabled="!hydrated" data-testid="hr-employee-manage" :label="t('hr.directory.manage')" @click="emit('manage', row.original.id)" />
-                    <UButton v-if="canArchive" color="secondary" variant="ghost" size="sm" :disabled="!hydrated" data-testid="hr-employee-archive-row" :label="row.original.active ? t('hr.employee.archive') : t('hr.employee.unarchive')" @click="pendingArchiveId = row.original.id" />
+                    <UButton v-if="canArchive" color="error" variant="ghost" size="sm" :disabled="!hydrated" data-testid="hr-employee-archive-row" :label="row.original.active ? t('hr.employee.archive') : t('hr.employee.unarchive')" @click="pendingArchiveId = row.original.id" />
                   </div>
                 </template>
               </UTable>
@@ -196,7 +196,7 @@ function clearFilters() {
               </dl>
               <div v-if="showActions" class="mt-3 flex gap-2" @click.stop>
                 <UButton v-if="canManage" color="secondary" variant="ghost" size="sm" :disabled="!hydrated" data-testid="hr-employee-manage" :label="t('hr.directory.manage')" @click="emit('manage', employee.id)" />
-                <UButton v-if="canArchive" color="secondary" variant="ghost" size="sm" :disabled="!hydrated" data-testid="hr-employee-archive-row" :label="employee.active ? t('hr.employee.archive') : t('hr.employee.unarchive')" @click="pendingArchiveId = employee.id" />
+                <UButton v-if="canArchive" color="error" variant="ghost" size="sm" :disabled="!hydrated" data-testid="hr-employee-archive-row" :label="employee.active ? t('hr.employee.archive') : t('hr.employee.unarchive')" @click="pendingArchiveId = employee.id" />
               </div>
             </li>
           </ul>

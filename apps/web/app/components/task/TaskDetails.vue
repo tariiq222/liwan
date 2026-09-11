@@ -2,7 +2,7 @@
 import type { TaskDetail } from '@nasq/contracts'
 import { CalendarDate } from '@internationalized/date'
 import { ChevronDown } from '@lucide/vue'
-import { toCalendarDate } from '@/composables/calendarDate'
+import { formatNasqDate, formatNasqDateTime, toCalendarDate } from '@/composables/calendarDate'
 import { usePersonalStages } from '@/composables/usePersonalStages'
 import { useUpdateTask } from '@/composables/useTasks'
 import { useMilestones } from '@/composables/useMilestones'
@@ -62,8 +62,8 @@ function onTagsChange({ ids, resolved }: { ids: number[]; resolved: TaskDetail['
 // *both* locales by accident. `calendar: 'gregory'` pins the calendar system
 // explicitly so an Arabic locale still gets Gregorian dates (with
 // Arabic-Indic digits). Timeline.vue already follows this pattern.
-const dateFmt = computed(() => new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium', calendar: 'gregory' }))
-const dateTimeFmt = computed(() => new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium', timeStyle: 'short', calendar: 'gregory' }))
+const dateFmt = computed(() => ({ format: (value: Date) => formatNasqDate(value, locale.value) }))
+const dateTimeFmt = computed(() => ({ format: (value: Date) => formatNasqDateTime(value, locale.value) }))
 
 // --- deadline ------------------------------------------------------------
 // Contract: a deadline is a UTC *instant* (the API stores/returns an ISO

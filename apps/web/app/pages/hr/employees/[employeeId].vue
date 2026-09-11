@@ -22,7 +22,7 @@ async function toggleArchive() {
       <div class="flex flex-wrap gap-2">
         <UButton v-if="query.data.value && can('hr.employees.manage')" color="primary" :disabled="!hydrated" :to="{ path: `/hr/employees/${id}/edit`, query: returnToQuery(route.fullPath) }" :label="t('app.edit')" @click="!hydrated && $event.preventDefault()" />
         <UButton v-if="query.data.value?.user_id && can('access.users.read')" color="secondary" variant="outline" :disabled="!hydrated" :to="{ path: `/settings/users/${query.data.value.user_id}`, query: returnToQuery(route.fullPath) }" :label="t('hr.employee.manageAccount')" @click="!hydrated && $event.preventDefault()" />
-        <UButton v-if="query.data.value && can('hr.employees.archive')" color="secondary" variant="outline" :disabled="!hydrated || archivePending" :label="query.data.value.active ? t('hr.employee.archive') : t('hr.employee.unarchive')" @click="confirmArchive = !confirmArchive" />
+        <UButton v-if="query.data.value && can('hr.employees.archive')" color="error" variant="outline" :disabled="!hydrated || archivePending" :label="query.data.value.active ? t('hr.employee.archive') : t('hr.employee.unarchive')" @click="confirmArchive = !confirmArchive" />
       </div>
     </SharedPageHeader>
     <SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!query.data.value" @retry="query.refetch">

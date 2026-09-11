@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { formatNasqDateTime } from '@/composables/calendarDate'
+
 type MeetingVersion = {
   id: number
   number: number
@@ -23,8 +25,7 @@ const pages = computed(() => Math.max(1, Math.ceil((props.total ?? 0) / props.pa
 const errorText = computed(() => props.error instanceof Error ? props.error.message : t('errors.generic'))
 
 function capturedAt(value: string) {
-  const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium', timeStyle: 'short', calendar: 'gregory' }).format(date)
+  return formatNasqDateTime(value, locale.value)
 }
 </script>
 

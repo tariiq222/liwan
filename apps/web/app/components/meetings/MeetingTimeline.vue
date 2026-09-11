@@ -2,7 +2,7 @@
 import type { TableColumn } from '@nuxt/ui'
 import type { MeetingListItem } from '@nasq/contracts'
 import RecordNumber from '@/components/shared/RecordNumber.vue'
-import { formatCalendarDate } from '@/composables/calendarDate'
+import { formatCalendarDate, formatNasqTime } from '@/composables/calendarDate'
 import { groupMeetingsByMonth, meetingTimelinePhase } from '@/utils/meetingWorkspace'
 import { returnToQuery } from '@/utils/safeReturnTo'
 
@@ -35,7 +35,7 @@ function phase(meeting: MeetingListItem) {
 function localTime(value: string) {
   const parsed = new Date(value)
   if (Number.isNaN(parsed.getTime())) return t('meetingTimeline.unknownDate')
-  return new Intl.DateTimeFormat(locale.value, { timeStyle: 'short', calendar: 'gregory' }).format(parsed)
+  return formatNasqTime(parsed, locale.value)
 }
 
 function meetingDate(meeting: MeetingListItem) {

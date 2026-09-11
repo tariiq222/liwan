@@ -24,3 +24,24 @@ export function formatCalendarDate(iso: string | null, locale: string): string {
     new Date(Date.UTC(d.year, d.month - 1, d.day)),
   )
 }
+
+const BIDI = /[\u200e\u200f\u061c]/g
+
+function formatInstant(value: string | number | Date | null | undefined, locale: string, options: Intl.DateTimeFormatOptions): string {
+  if (value == null || value === '') return '—'
+  const date = value instanceof Date ? value : new Date(value)
+  if (Number.isNaN(date.getTime())) return typeof value === 'string' ? value : '—'
+  return new Intl.DateTimeFormat(locale, { calendar: 'gregory', ...options }).format(date).replace(BIDI, '')
+}
+
+export function formatNasqDate(value: string | number | Date | null | undefined, locale: string): string {
+  return formatInstant(value, locale, { dateStyle: 'medium' })
+}
+
+export function formatNasqDateTime(value: string | number | Date | null | undefined, locale: string): string {
+  return formatInstant(value, locale, { dateStyle: 'medium', timeStyle: 'short' })
+}
+
+export function formatNasqTime(value: string | number | Date | null | undefined, locale: string): string {
+  return formatInstant(value, locale, { timeStyle: 'short' })
+}

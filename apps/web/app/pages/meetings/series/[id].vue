@@ -4,7 +4,7 @@ import MeetingEventList from '@/components/meetings/MeetingEventList.vue'
 import MeetingTimeline from '@/components/meetings/MeetingTimeline.vue'
 import { useMeetingSeries } from '@/composables/useMeetings'
 import { useMeetingEvents, useMeetingSeriesResolutions } from '@/composables/useMeetingWorkspace'
-import { formatCalendarDate } from '@/composables/calendarDate'
+import { formatCalendarDate, formatNasqTime } from '@/composables/calendarDate'
 import { returnToQuery, safeReturnTo } from '@/utils/safeReturnTo'
 import { isCalendarDate } from '@/utils/meetingListFilters'
 import { meetingTimestamp, prioritizeTimelinePage, selectNextMeeting, selectPreviousMeeting } from '@/utils/meetingWorkspace'
@@ -99,7 +99,7 @@ function loadMoreMeetings() {
 function localTime(value: string | null) {
   if (!value) return '—'
   const parsed = new Date(value)
-  return Number.isNaN(parsed.getTime()) ? '—' : new Intl.DateTimeFormat(locale.value, { timeStyle: 'short', calendar: 'gregory' }).format(parsed)
+  return Number.isNaN(parsed.getTime()) ? '—' : formatNasqTime(parsed, locale.value)
 }
 function occurrenceLabel(meeting: { meeting_date: string | null; start_datetime: string | null }) {
   const date = meeting.meeting_date ? formatCalendarDate(meeting.meeting_date, locale.value) : t('meetingTimeline.unknownDate')

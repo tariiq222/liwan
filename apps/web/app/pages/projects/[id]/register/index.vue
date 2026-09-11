@@ -157,7 +157,7 @@ async function deleteItem(item: { id: number }) {
       :empty-text="t(activeFilterCount ? 'projects.clarity.filteredEmpty' : 'projects.clarity.registerEmpty')"
       @retry="list.refetch"
     />
-    <section v-if="list.data?.value?.items.length" class="rounded-xl border border-default bg-default overflow-hidden" :aria-label="t('projects.refresh.workspace.registerTitle')">
+    <section v-if="list.data?.value?.items.length" class="nasq-ui-record-surface" :aria-label="t('projects.refresh.workspace.registerTitle')">
       <div class="hidden overflow-x-auto md:block">
         <UTable :data="list.data.value.items" :columns="columns">
           <template #id-cell="{ row }"><RecordNumber :value="row.original.id" /></template>
@@ -177,6 +177,7 @@ async function deleteItem(item: { id: number }) {
             <div class="flex justify-end gap-2">
               <template v-if="list.data.value?.can_manage">
                 <UButton
+                  color="error"
                   variant="ghost"
                   size="sm"
                   :disabled="!hydrated || remove.isPending.value"
@@ -229,6 +230,7 @@ async function deleteItem(item: { id: number }) {
               </dl>
               <div v-if="list.data.value?.can_manage" class="flex justify-end gap-2">
                 <UButton
+                  color="error"
                   variant="ghost"
                   size="sm"
                   :disabled="!hydrated || remove.isPending.value"

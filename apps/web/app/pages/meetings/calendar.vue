@@ -2,7 +2,7 @@
 import { ChevronLeft, ChevronRight } from '@lucide/vue'
 import { useMeetings } from '@/composables/useMeetings'
 import { returnToQuery } from '@/utils/safeReturnTo'
-import { formatCalendarDate } from '@/composables/calendarDate'
+import { formatCalendarDate, formatNasqTime } from '@/composables/calendarDate'
 import { formatLocalDateTime } from '@/utils/meetingDateTime'
 import { calendarCoverage } from '@/utils/meetingWorkspace'
 
@@ -73,7 +73,7 @@ function localTime(value: string | null) {
   if (!value) return ''
   const parsed = new Date(value)
   if (Number.isNaN(parsed.getTime())) return formatLocalDateTime(value)
-  return new Intl.DateTimeFormat(locale.value, { timeStyle: 'short', calendar: 'gregory' }).format(parsed)
+  return formatNasqTime(parsed, locale.value)
 }
 
 function localDate(value: string | null) {

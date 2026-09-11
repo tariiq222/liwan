@@ -100,25 +100,19 @@ export function normalizeMeetingMinutesText(value: string, maxLength = 50000) {
   return value.replace(/\r\n?/g, '\n').slice(0, maxLength)
 }
 
+import { formatNasqDate, formatNasqDateTime, formatNasqTime } from '@/composables/calendarDate'
+
 export function formatMeetingDate(value: string | null | undefined, locale: string) {
   if (!value) return '—'
-  const date = new Date(`${value.slice(0, 10)}T00:00:00`)
-  if (Number.isNaN(date.getTime())) return value
-  return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', calendar: 'gregory' }).format(date).replace(/[\u200e\u200f\u061c]/g, '')
+  return formatNasqDate(`${value.slice(0, 10)}T00:00:00`, locale)
 }
 
 export function formatMeetingDateTime(value: string | null | undefined, locale: string) {
-  if (!value) return '—'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short', calendar: 'gregory' }).format(date).replace(/[\u200e\u200f\u061c]/g, '')
+  return formatNasqDateTime(value, locale)
 }
 
 export function formatMeetingTime(value: string | null | undefined, locale: string) {
-  if (!value) return '—'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return '—'
-  return new Intl.DateTimeFormat(locale, { timeStyle: 'short' }).format(date)
+  return formatNasqTime(value, locale)
 }
 
 export function validateMeetingMinutesForm(value: MeetingMinutesFormValue, recommendations: MeetingMinutesRecommendation[] = []) {
