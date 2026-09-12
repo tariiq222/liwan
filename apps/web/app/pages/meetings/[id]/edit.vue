@@ -13,13 +13,15 @@ const hydrated = useHydrated()
 const id = computed(() => Number(route.params.id))
 const query = useMeeting(id)
 const { mutateAsync, isPending, error } = usePatchMeeting()
-// The owning list is fixed by this page's own route, so the return trip is
-// literal and carries only the state the list was showing. A referrer's
-// returnTo is dropped rather than forwarded: on the list URL it would nest one
-// level deeper on every round trip and redirect that page's own controls.
+// An edit form returns to the record it edits, not past it to the list: being
+// thrown back to the list is exactly what the reader did not ask for. The
+// target is fixed by this page's own route and carries the list state through,
+// so the record's own back control still lands on a filtered list. A referrer's
+// returnTo is dropped rather than forwarded: on the destination URL it would
+// nest one level deeper on every round trip and redirect that page's controls.
 const backTo = computed(() => {
   const { returnTo: _referrer, ...listQuery } = route.query
-  return { path: '/meetings', query: listQuery }
+  return { path: `/meetings/${id.value}`, query: listQuery }
 })
 const name = ref('')
 const meetingDate = ref('')
@@ -108,7 +110,7 @@ async function save() {
   })
   baseline.value = snapshot()
   await nextTick()
-  await navigateTo(`/meetings/${id.value}`)
+  await navigateTo(backTo.value)
 }
 </script>
 

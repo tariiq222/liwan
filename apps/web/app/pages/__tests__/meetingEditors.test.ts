@@ -327,7 +327,7 @@ describe('meeting editor routes and guards', () => {
     editor.release()
     await save
     await second
-    expect(editor.navigateTo).toHaveBeenCalledWith('/meetings/series/12')
+    expect(editor.navigateTo).toHaveBeenCalledWith({ path: '/meetings/series/12', query: {} })
   })
 
   it('does not rewrite an untouched near-midnight schedule during an unrelated edit', async () => {

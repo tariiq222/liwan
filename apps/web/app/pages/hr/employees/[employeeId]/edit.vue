@@ -3,20 +3,22 @@ import EmployeeGeneralForm from '@/components/hr/EmployeeGeneralForm.vue'
 import { useHrDepartments } from '@/composables/useHrDepartments'
 import { useHrEmployee, useHrEmployees } from '@/composables/useHrEmployees'
 const route = useRoute(); const { t } = useI18n(); const { can } = useAccess(); const hydrated = useHydrated(); const id = computed(() => Number(route.params.employeeId)); const query = useHrEmployee(id)
-// The owning list is fixed by this page's own route, so the return trip is
-// literal and carries only the state the list was showing. A referrer's
-// returnTo is dropped rather than forwarded: on the list URL it would nest one
-// level deeper on every round trip and redirect that page's own controls.
+// An edit form returns to the record it edits, not past it to the list: being
+// thrown back to the list is exactly what the reader did not ask for. The
+// target is fixed by this page's own route and carries the list state through,
+// so the record's own back control still lands on a filtered list. A referrer's
+// returnTo is dropped rather than forwarded: on the destination URL it would
+// nest one level deeper on every round trip and redirect that page's controls.
 const backTo = computed(() => {
   const { returnTo: _referrer, ...listQuery } = route.query
-  return { path: '/hr', query: listQuery }
+  return { path: `/hr/employees/${id.value}`, query: listQuery }
 })
 const departments = useHrDepartments(); const employees = useHrEmployees({})
 const canManage = computed(() => can('hr.employees.manage'))
 const initialDataReady = computed(() => Boolean(query.data.value && departments.data.value && employees.data.value))
 const dependencyError = computed(() => query.error.value || departments.error.value || employees.error.value)
 function retryDependencies() { void query.refetch(); void departments.refetch(); void employees.refetch() }
-function saved() { void navigateTo(`/hr/employees/${id.value}`) }
+function saved() { void navigateTo(backTo.value) }
 </script>
 <template>
   <SharedPageContainer width="form">

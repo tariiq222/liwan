@@ -6,7 +6,10 @@ import { useSsrQuerySeed } from '@/lib/vueQuerySsr'
 const route = useRoute(); const router = useRouter(); const { t } = useI18n(); const toast = useToast(); const hydrated = useHydrated()
 const id = computed(() => { const value = Number(route.params.id); return Number.isInteger(value) && value > 0 ? value : null })
 const { data: template, isLoading, error, refetch } = useProjectTemplate(id); const mutation = useApplyProjectTemplate()
-const { backTo, templatePath } = useProjectTemplateNavigation()
+const { backTo: listTo, templatePath } = useProjectTemplateNavigation()
+// An edit or apply form returns to the template it acts on, not past it to the
+// list; only a template with no readable id has nowhere closer to go.
+const backTo = computed(() => id.value ? templatePath(id.value) : listTo.value)
 const name = ref(''); const startDate = ref<string | null>(null); const saved = ref(false)
 const baseline = ref(''); const initialized = ref(false); const validationError = ref('')
 const serialized = () => JSON.stringify({ name: name.value, start_date: startDate.value })

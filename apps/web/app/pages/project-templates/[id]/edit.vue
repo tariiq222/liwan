@@ -5,7 +5,10 @@ import { useProjectTemplate, useUpdateProjectTemplate, useProjectTemplateNavigat
 const route = useRoute(); const router = useRouter(); const { t } = useI18n(); const toast = useToast()
 const id = computed(() => { const value = Number(route.params.id); return Number.isInteger(value) && value > 0 ? value : null })
 const { data: template, isLoading, error, refetch } = useProjectTemplate(id); const mutation = useUpdateProjectTemplate(); const resetKey = ref(0)
-const { backTo, templatePath } = useProjectTemplateNavigation()
+const { backTo: listTo, templatePath } = useProjectTemplateNavigation()
+// An edit or apply form returns to the template it acts on, not past it to the
+// list; only a template with no readable id has nowhere closer to go.
+const backTo = computed(() => id.value ? templatePath(id.value) : listTo.value)
 async function save(patch: Parameters<typeof mutation.mutate>[0]['patch']) {
   if (!id.value || !template.value?.can_manage || mutation.isPending.value) return
   try {

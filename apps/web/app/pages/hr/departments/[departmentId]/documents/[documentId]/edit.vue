@@ -11,13 +11,15 @@ const toast = useToast()
 const departmentId = computed(() => Number(route.params.departmentId))
 const documentId = computed(() => Number(route.params.documentId))
 const query = useHrDocument(documentId)
-// The owning list is fixed by this page's own route, so the return trip is
-// literal and carries only the state the list was showing. A referrer's
-// returnTo is dropped rather than forwarded: on the list URL it would nest one
-// level deeper on every round trip and redirect that page's own controls.
+// An edit form returns to the record it edits, not past it to the list: being
+// thrown back to the list is exactly what the reader did not ask for. The
+// target is fixed by this page's own route and carries the list state through,
+// so the record's own back control still lands on a filtered list. A referrer's
+// returnTo is dropped rather than forwarded: on the destination URL it would
+// nest one level deeper on every round trip and redirect that page's controls.
 const backTo = computed(() => {
   const { returnTo: _referrer, ...listQuery } = route.query
-  return { path: '/hr/documents', query: listQuery }
+  return { path: `/hr/departments/${departmentId.value}/documents/${documentId.value}`, query: listQuery }
 })
 const name = ref('')
 const body = ref('')
@@ -44,7 +46,7 @@ async function save() {
     name.value = saved.name
     body.value = saved.body
     savedState.value = JSON.stringify([name.value, body.value])
-    await navigateTo(`/hr/departments/${departmentId.value}/documents/${documentId.value}`)
+    await navigateTo(backTo.value)
   } catch { toast.add({ title: t('errors.generic'), color: 'error' }) }
 }
 function readFile(file: File) {

@@ -48,13 +48,16 @@ const initialLoading = computed(() =>
 )
 const pageError = computed(() => keepForm.value ? null : (notFound.value ? null : query.error.value || access.error.value))
 const refreshError = computed(() => keepForm.value ? query.error.value || access.error.value : null)
-// The ledger this entry hangs off is fixed by the route, so the return trip is
-// literal and carries only the state the ledger was showing. A referrer's
-// returnTo is dropped rather than forwarded: on the ledger URL it would nest one
-// level deeper on every round trip and redirect that page's own controls.
+// An edit form returns to the record it edits, not past it to the list: being
+// thrown back to the list is exactly what the reader did not ask for. The
+// target is fixed by this page's own route and carries the list state through,
+// so the record's own back control still lands on a filtered list. A referrer's
+// returnTo is dropped rather than forwarded: on the destination URL it would
+// nest one level deeper on every round trip and redirect that page's controls.
 const backTo = computed(() => {
   const { returnTo: _referrer, ...listQuery } = route.query
-  return { path: projectId.value ? `/projects/${projectId.value}/finance` : '/projects', query: listQuery }
+  const ledger = projectId.value ? `/projects/${projectId.value}/finance` : '/projects'
+  return { path: projectId.value && entryId.value ? `${ledger}/${entryId.value}` : ledger, query: listQuery }
 })
 
 function saved() {

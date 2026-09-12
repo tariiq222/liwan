@@ -9,13 +9,15 @@ const { t } = useI18n()
 const projectId = computed(() => Number(route.params.id))
 const registerId = computed(() => Number(route.params.registerId))
 const item = useProjectRegisterItem(projectId, registerId)
-// The owning section list is fixed by this page's own route, so the return trip
-// is literal and carries only the state that list was showing. A referrer's
-// returnTo is dropped rather than forwarded: on the list URL it would nest one
-// level deeper on every round trip and redirect that page's own controls.
+// An edit form returns to the record it edits, not past it to the list: being
+// thrown back to the list is exactly what the reader did not ask for. The
+// target is fixed by this page's own route and carries the list state through,
+// so the record's own back control still lands on a filtered list. A referrer's
+// returnTo is dropped rather than forwarded: on the destination URL it would
+// nest one level deeper on every round trip and redirect that page's controls.
 const backTo = computed(() => {
   const { returnTo: _referrer, ...listQuery } = route.query
-  return { path: `/projects/${projectId.value}/register`, query: listQuery }
+  return { path: `/projects/${projectId.value}/register/${registerId.value}`, query: listQuery }
 })
 const access = useProject(projectId)
 </script>
