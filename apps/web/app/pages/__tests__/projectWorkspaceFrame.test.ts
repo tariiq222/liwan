@@ -46,6 +46,16 @@ describe('project workspace frame', () => {
     expect(tag).not.toContain('can-manage')
   })
 
+  // The useNav split deleted `grants settings only to record managers` along
+  // with the abstraction it tested, but the gate itself survived in the frame
+  // and is permission-bearing, so the behaviour keeps its own assertion here.
+  it('offers project settings only to someone who can manage the record', () => {
+    const button = frame.match(/<UButton\b(?:(?!<\/?UButton)[\s\S])*?data-testid="project-workspace-settings"[\s\S]*?>/)?.[0]
+      ?? frame.match(/<UButton\b[^>]*project-workspace-settings[^>]*>/s)?.[0]
+    expect(button, 'the settings control should still exist').toBeDefined()
+    expect(button).toContain('v-if="project?.can_manage"')
+  })
+
   it('shows itself on the sections, their records and project settings, and nowhere else', () => {
     // Nothing here asserted showFrame before, so replacing it with
     // `computed(() => true)` used to leave the whole suite green.
