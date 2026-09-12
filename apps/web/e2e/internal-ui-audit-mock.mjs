@@ -97,11 +97,16 @@ function task(id, name, state, extra = {}) {
   }
 }
 
+// Scroll restoration can only be exercised against a list taller than the
+// viewport, so MOCK_TASK_COUNT pads the fixture on demand. It defaults to the
+// original four so every existing spec keeps the counts it asserts.
+const EXTRA_TASKS = Math.max(0, Number(process.env.MOCK_TASK_COUNT ?? 0) - 4)
 const TASKS = [
   task(101, 'مهمة جارية', 'in_progress'),
   task(102, 'مهمة تحتاج تعديلاً', 'changes_requested'),
   task(103, 'مهمة ملغاة', 'cancelled'),
   task(104, 'مهمة مكتملة', 'done'),
+  ...Array.from({ length: EXTRA_TASKS }, (_, index) => task(105 + index, `مهمة ${index + 5}`, 'in_progress')),
 ]
 
 const NOTIFICATIONS = {
