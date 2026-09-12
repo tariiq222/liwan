@@ -46,14 +46,18 @@ describe('register list design alignment', () => {
     expect(listSource).toContain('projects.governance.confirmDeleteAction')
     expect(listSource).toContain('query: { returnTo }')
     expect(listSource).toContain('`/projects/${id}/register/${row.original.id}`')
-    // Nested project pages own their section heading; the parent page only
-    // renders the project workspace on the base route.
-    const projectSource = readFileSync(
-      resolve(dirname(fileURLToPath(import.meta.url)), '../../../pages/projects/[id].vue'), 'utf8',
-    )
-                expect(projectSource).not.toContain('ProjectWorkspaceNav')
-                expect(projectSource).toContain('<SharedPageContainer v-if="isBaseRoute"')
-                expect(projectSource).toContain('projectReturnTo')
-                expect(projectSource).not.toContain(':back-to="projectReturnTo"')
+    // Nested project pages own their section heading; the parent page is now
+    // only the workspace frame, and the base route's own content (including the
+    // not-found escape back to /projects) lives in its summary child page.
+    const here = dirname(fileURLToPath(import.meta.url))
+    const projectSource = readFileSync(resolve(here, '../../../pages/projects/[id].vue'), 'utf8')
+    const summarySource = readFileSync(resolve(here, '../../../pages/projects/[id]/index.vue'), 'utf8')
+    expect(projectSource).not.toContain('ProjectWorkspaceNav')
+    expect(projectSource).toContain('<NuxtPage')
+    expect(projectSource).not.toContain('isBaseRoute')
+    expect(projectSource).not.toContain('projectReturnTo')
+    expect(summarySource).toContain('<SharedPageContainer width="list">')
+    expect(summarySource).toContain('projectReturnTo')
+    expect(summarySource).not.toContain(':back-to="projectReturnTo"')
   })
 })
