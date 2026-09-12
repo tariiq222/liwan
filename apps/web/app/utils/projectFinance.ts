@@ -498,6 +498,14 @@ export function budgetStatus(summary: { planned: number | null; actual: number; 
   return 'within'
 }
 
+export type FinanceSummaryMode = 'empty' | 'need-budget' | 'dashboard'
+
+export function financeSummaryMode(summary: { planned: number | null; budget_count: number; expense_count: number }): FinanceSummaryMode {
+  if (summary.budget_count === 0 && summary.expense_count === 0) return 'empty'
+  if (summary.planned == null) return 'need-budget'
+  return 'dashboard'
+}
+
 export function formatTotalsPlanned(
   group: { planned: number; budgeted_project_count: number; currency: FinanceCurrency },
   unknownLabel: string,

@@ -23,6 +23,7 @@ import {
   formatTotalsPlanned,
   formatTotalsRemaining,
   formatUtilization,
+  financeSummaryMode,
   isFinanceDraftDirty,
   isFinanceIsoDate,
   isReferencedBudgetConflict,
@@ -298,6 +299,14 @@ describe('budgetStatus', () => {
     expect(budgetStatus({ planned: 0, actual: 0, over_budget: false })).toBe('within')
     expect(budgetStatus({ planned: 0, actual: 10, over_budget: true })).toBe('over')
     expect(budgetStatus({ planned: 100, actual: 40, over_budget: false })).toBe('within')
+  })
+})
+
+describe('financeSummaryMode', () => {
+  it('hides the KPI strip on an empty ledger, asks for a budget when spend has no plan, and dashboards when planned exists', () => {
+    expect(financeSummaryMode({ planned: null, budget_count: 0, expense_count: 0 })).toBe('empty')
+    expect(financeSummaryMode({ planned: null, budget_count: 0, expense_count: 2 })).toBe('need-budget')
+    expect(financeSummaryMode({ planned: 100, budget_count: 1, expense_count: 0 })).toBe('dashboard')
   })
 })
 

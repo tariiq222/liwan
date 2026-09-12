@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { RouteLocationRaw } from 'vue-router'
 import type { FinanceEntry, FinanceSummary } from '@nasq/contracts'
 import EmptyState from '@/components/shared/EmptyState.vue'
 import { formatCalendarDate } from '@/composables/calendarDate'
@@ -12,6 +13,8 @@ const props = defineProps<{
   summary: FinanceSummary
   isLoading: boolean
   filtered: boolean
+  canManage?: boolean
+  createTo?: RouteLocationRaw
 }>()
 const emit = defineEmits<{ open: [id: number] }>()
 const { t, locale } = useI18n()
@@ -19,6 +22,7 @@ const hydrated = useHydrated()
 const route = useRoute()
 const compactRecords = ref(false)
 const loading = computed(() => props.isLoading || !hydrated.value)
+const showCreate = computed(() => Boolean(props.canManage && props.createTo && !props.filtered))
 const budgets = computed(() => {
   const names = new Map<number, string>()
   for (const item of props.items) {
@@ -59,65 +63,30 @@ function onSelect(_event: Event, row: { original: FinanceEntry }) {
 </script>
 
 <template>
-  <div class="nasq-ui-record-surface">
-    <UTable
-      v-if="!compactRecords"
-      :data="loading ? [] : items"
-      :columns="columns"
-      :loading="loading"
-      :caption="t('projects.finance.columns.title')"
-      :ui="{ caption: 'sr-only' }"
-      :on-select="hydrated ? onSelect : undefined"
-    >
-      <template #loading>
-        <div class="grid gap-3 p-4" role="status" :aria-label="$t('app.loading')">
-          <USkeleton v-for="n in 5" :key="n" class="h-5 w-full" />
-        </div>
-      </template>
-      <template #empty>
-        <EmptyState
-          :title="t(filtered ? 'projects.finance.filteredEmpty' : 'projects.finance.empty')"
-          :description="t(filtered ? 'projects.finance.filteredEmptyHint' : 'projects.finance.emptyHint')"
-        />
-      </template>
-      <template #record-cell="{ row }">
-        <RecordNumber :value="row.original.reference || row.original.id" />
-      </template>
-      <template #title-cell="{ row }">
-        <div data-testid="finance-entry-row">
-          <UButton
-            color="neutral"
-            variant="link"
-            class="block truncate p-0 font-medium text-start"
-            :to="{ path: `/projects/${projectId}/finance/${row.original.id}`, query: returnToQuery(route.fullPath) }"
-            @click.stop
-          >
-            {{ row.original.title }}
-          </UButton>
-        </div>
-      </template>
-      <template #kind-cell="{ row }">{{ t(`projects.finance.kind.${row.original.kind}`) }}</template>
-      <template #amount-cell="{ row }"><span dir="ltr" class="tabular-nums">{{ formatMoney(row.original.amount, summary.currency) }}</span></template>
-      <template #date-cell="{ row }">{{ row.original.expense_date ? formatCalendarDate(row.original.expense_date, locale) : '—' }}</template>
-      <template #budget-cell="{ row }"><span class="truncate">{{ budgetLabel(row.original) }}</span></template>
-    </UTable>
-
-    <div v-else>
-      <div v-if="loading" class="grid gap-4 p-4" role="status" :aria-label="$t('app.loading')">
-        <USkeleton v-for="n in 5" :key="n" class="h-24 w-full" />
-      </div>
-      <EmptyState
-        v-else-if="items.length === 0"
-        :title="t(filtered ? 'projects.finance.filteredEmpty' : 'projects.finance.empty')"
-        :description="t(filtered ? 'projects.finance.filteredEmptyHint' : 'projects.finance.emptyHint')"
-      />
-      <ul v-else class="grid divide-y divide-default" :aria-label="t('projects.finance.columns.title')">
+  <div v-if="loading" class="nasq-ui-record-surface grid gap-3 p-4" role="status" :aria-label="$t('app.loading')">
+    <USkeleton v-for="n in 5" :key="n" :class="compactRecords ? 'h-24 w-full' : 'h-5 w-full'" />
+  </div>
+  <EmptyState
+    v-else-if="items.length === 0"
+    :title="t(filtered ? 'projects.finance.filteredEmpty' : 'projects.finance.empty')"
+    :description="t(filtered ? 'projects.finance.filteredEmptyHint' : 'projects.finance.emptyHint')"
+  >
+    <template v-if="showCreate" #action>
+      <UButton icon="i-lucide-plus" :disabled="!hydrated" :to="createTo">{{ t('projects.finance.newBudget') }}</UButton>
+    </template>
+  </EmptyState>
+  <div v-else-if="compactRecords" class="nasq-ui-record-surface">
+      <ul class="grid divide-y divide-default" :aria-label="t('projects.finance.columns.title')">
         <li
           v-for="item in items"
           :key="item.id"
           class="grid cursor-pointer gap-3 p-4"
           data-testid="finance-entry-row"
+          role="link"
+          tabindex="0"
           @click="open(item.id)"
+          @keydown.enter.prevent="open(item.id)"
+          @keydown.space.prevent="open(item.id)"
         >
           <div class="flex items-start justify-between gap-3">
             <div class="min-w-0">
@@ -150,6 +119,35 @@ function onSelect(_event: Event, row: { original: FinanceEntry }) {
           </dl>
         </li>
       </ul>
-    </div>
+  </div>
+  <div v-else class="nasq-ui-record-surface">
+    <UTable
+      :data="items"
+      :columns="columns"
+      :caption="t('projects.finance.columns.title')"
+      :ui="{ caption: 'sr-only' }"
+      :on-select="hydrated ? onSelect : undefined"
+    >
+      <template #record-cell="{ row }">
+        <RecordNumber :value="row.original.reference || row.original.id" />
+      </template>
+      <template #title-cell="{ row }">
+        <div data-testid="finance-entry-row">
+          <UButton
+            color="neutral"
+            variant="link"
+            class="block truncate p-0 font-medium text-start"
+            :to="{ path: `/projects/${projectId}/finance/${row.original.id}`, query: returnToQuery(route.fullPath) }"
+            @click.stop
+          >
+            {{ row.original.title }}
+          </UButton>
+        </div>
+      </template>
+      <template #kind-cell="{ row }">{{ t(`projects.finance.kind.${row.original.kind}`) }}</template>
+      <template #amount-cell="{ row }"><span dir="ltr" class="tabular-nums">{{ formatMoney(row.original.amount, summary.currency) }}</span></template>
+      <template #date-cell="{ row }">{{ row.original.expense_date ? formatCalendarDate(row.original.expense_date, locale) : '—' }}</template>
+      <template #budget-cell="{ row }"><span class="truncate">{{ budgetLabel(row.original) }}</span></template>
+    </UTable>
   </div>
 </template>

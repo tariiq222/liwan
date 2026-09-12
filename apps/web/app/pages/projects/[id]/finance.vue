@@ -141,11 +141,18 @@ function newQuery(kind: 'budget' | 'expense') {
   return { kind, ...returnToQuery(route.fullPath) }
 }
 
-const kindTabs = computed(() => [
-  { value: 'all', label: t('projects.finance.kind.all'), disabled: !hydrated.value },
-  { value: 'budget', label: t('projects.finance.kind.budget'), disabled: !hydrated.value },
-  { value: 'expense', label: t('projects.finance.kind.expense'), disabled: !hydrated.value },
+const kindItems = computed(() => [
+  { value: 'all', label: t('projects.finance.kind.all') },
+  { value: 'budget', label: t('projects.finance.kind.budget') },
+  { value: 'expense', label: t('projects.finance.kind.expense') },
 ])
+const kindFilter = computed({
+  get: () => filters.kind,
+  set: value => onKindChange(value),
+})
+const createBudgetTo = computed(() => projectId.value
+  ? { path: `/projects/${projectId.value}/finance/new`, query: newQuery('budget') }
+  : undefined)
 
 function financeChildKey(target: { path: string; params: Record<string, string | string[]> }) {
   const project = Array.isArray(target.params.id) ? target.params.id[0] : target.params.id
@@ -182,11 +189,16 @@ function financeChildKey(target: { path: string; params: Record<string, string |
       @clear="clearFilters"
     >
       <template #search>
-        <div class="flex min-w-0 flex-wrap items-center gap-2">
-          <UInput v-model="search" :disabled="!hydrated" :placeholder="t('projects.finance.search')" :aria-label="t('projects.finance.search')" data-testid="finance-search" class="min-w-52 max-w-md flex-1" />
-          <UTabs :model-value="filters.kind" data-testid="finance-kind-filter" :items="kindTabs" :content="false" class="shrink-0" @update:model-value="onKindChange" />
-        </div>
+        <UInput v-model="search" :disabled="!hydrated" :placeholder="t('projects.finance.search')" :aria-label="t('projects.finance.search')" data-testid="finance-search" class="min-w-52 max-w-md flex-1" />
       </template>
+      <USelect
+        v-model="kindFilter"
+        data-testid="finance-kind-filter"
+        class="w-40"
+        :aria-label="t('projects.finance.fields.kind')"
+        :disabled="!hydrated"
+        :items="kindItems"
+      />
       <template #active>
         <div v-if="filtered" class="flex flex-wrap items-center gap-2">
           <UBadge v-if="filters.q.trim()" color="secondary" variant="subtle">{{ t('projects.filters.searchValue', { value: filters.q }) }}</UBadge>
@@ -207,7 +219,7 @@ function financeChildKey(target: { path: string; params: Record<string, string |
     >
       <p v-if="notFound && !list.isLoading.value" class="text-muted">{{ t('projects.notFound') }}</p>
       <template v-else>
-        <FinanceSummaryCards v-if="summary && projectId" :project-id="projectId" :summary="summary" />
+        <FinanceSummaryCards v-if="summary && projectId" :project-id="projectId" :summary="summary" :can-manage="canManage" />
         <FinanceEntryTable
           v-if="summary"
           :project-id="projectId"
@@ -215,6 +227,8 @@ function financeChildKey(target: { path: string; params: Record<string, string |
           :summary="summary"
           :is-loading="list.isLoading.value"
           :filtered="filtered"
+          :can-manage="canManage"
+          :create-to="createBudgetTo"
           @open="openEntry"
         />
         <div v-if="pages > 1" class="flex items-center justify-between text-sm text-muted">

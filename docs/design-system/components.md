@@ -115,7 +115,7 @@ Shared recipes only; no page-local styles. Owner: `apps/web/app/assets/css/nuxt-
 | `nasq-ui-table-head`, table `th`/`td` slots | Muted head band, small quiet header text, default-colour cells; every `UTable`. |
 | `nasq-ui-card-header` | Muted header band on every `UCard` header slot. |
 | `nasq-ui-record-surface` | One rounded bordered surface around tables, boards and record lists. |
-| `nasq-ui-metric-icon` | Neutral icon square for metric tiles; `components/project/dashboard/ProjectDashboardMetrics.vue`. |
+| `nasq-ui-metric-icon` | Neutral icon square for metric tiles; `components/project/dashboard/ProjectDashboardMetrics.vue`, `components/project/finance/FinanceSummaryCards.vue`. |
 | `nasq-ui-primary-solid` / `nasq-ui-field` / `nasq-ui-tab` / `nasq-ui-selected` | Shared states: rest, hover, focus-visible, pressed/active, selected, disabled; fields also expose invalid. Live gallery: `apps/web/design-preview/app/components/PreviewComponents.vue`. |
 | `nasq-ui-record-surface` | One record surface for lists, tables, boards and form panels. Replace page-local `rounded-xl border border-default` copies. |
 

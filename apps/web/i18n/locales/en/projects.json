@@ -601,7 +601,7 @@
       "reload": "Reload latest",
       "saveOnLatest": "Save on latest revision",
       "empty": "No finance entries yet",
-      "emptyHint": "Add a budget row or an expense to start the project ledger.",
+      "emptyHint": "Add a budget row to start the project ledger.",
       "filteredEmpty": "No finance entries match these filters",
       "filteredEmptyHint": "Change the search or the budget/expense view, or clear the filters.",
       "kind": {
