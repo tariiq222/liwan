@@ -23,9 +23,7 @@ export function useBranding() {
   const themeStyle = computed(() => Object.entries(createBrandTheme(
     branding.value?.primary_color ?? '',
     mode.value,
-    branding.value?.secondary_color,
   ))
-    .filter(([key]) => key !== '--secondary' && !key.startsWith('--secondary-'))
     .map(([key, value]) => `${key}:${value}`)
     .join(';'))
   useHead(() => ({

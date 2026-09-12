@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { ArrowLeft, ArrowRight } from '@lucide/vue'
 import { ApiError } from '@/composables/useApi'
 import { useNotificationDigest } from '@/composables/useNotifications'
 import { safeReturnTo } from '@/utils/safeReturnTo'
@@ -72,7 +71,7 @@ async function retryNextPage() {
           @click="goBack"
           :label="t('notifications.back')"
         >
-          <component :is="isRtl ? ArrowRight : ArrowLeft" class="size-[18px]" />
+          <UIcon :name="isRtl ? 'i-lucide-arrow-right' : 'i-lucide-arrow-left'" class="size-[18px]" aria-hidden="true" />
           {{ t('notifications.back') }}
         </UButton>
       </template>

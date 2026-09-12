@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { Search, Folder, ArrowLeft } from '@lucide/vue'
 import { useQuery } from '@tanstack/vue-query'
 import { ProjectRefSchema } from '@nasq/contracts'
 import { safeReturnTo } from '@/utils/safeReturnTo'
@@ -37,13 +36,13 @@ useEventListener('keydown', (event: KeyboardEvent) => {
 <template>
   <SharedPageContainer width="form" data-testid="search-page">
     <SharedPageHeader :title="t('app.search')" :back-to="backTo" />
-    <UCard class="relative">
-      <Search aria-hidden="true" class="pointer-events-none absolute start-8 top-1/2 size-[18px] -translate-y-1/2 text-muted-foreground" />
+    <UCard class="nasq-ui-record-surface relative" :ui="{ body: 'p-4 sm:p-5' }">
+      <UIcon name="i-lucide-search" aria-hidden="true" class="pointer-events-none absolute start-8 top-1/2 size-[18px] -translate-y-1/2 text-muted-foreground" />
       <UInput id="navigation-search" v-model="query" class="w-full ps-10" :placeholder="t('nav.typeToNavigate')" autofocus :aria-label="t('nav.typeToNavigate')" />
     </UCard>
-    <section v-if="nav.length" class="grid gap-3"><h2 class="text-sm font-semibold text-muted">{{ t('nav.goTo') }}</h2><UCard class="overflow-hidden"><template v-for="item in nav" :key="item.to"><a v-if="item.to === '/odoo'" :href="item.to" target="_blank" rel="noopener" class="flex items-center gap-3 border-b border-default p-3 transition-colors last:border-0 hover:bg-elevated"><component :is="item.icon" class="size-[18px] text-muted" />{{ t(item.labelKey) }}<kbd class="ms-auto text-xs text-muted">{{ item.shortcut }}</kbd></a><NuxtLink v-else :to="item.to" class="flex items-center gap-3 border-b border-default p-3 transition-colors last:border-0 hover:bg-elevated"><component :is="item.icon" class="size-[18px] text-muted" />{{ t(item.labelKey) }}<kbd class="ms-auto text-xs text-muted">{{ item.shortcut }}</kbd></NuxtLink></template></UCard></section>
+    <section v-if="nav.length" class="grid gap-3"><h2 class="text-sm font-semibold text-muted">{{ t('nav.goTo') }}</h2><UCard class="nasq-ui-record-surface overflow-hidden" :ui="{ body: 'p-0' }"><template v-for="item in nav" :key="item.to"><a v-if="item.to === '/odoo'" :href="item.to" target="_blank" rel="noopener" class="flex items-center gap-3 border-b border-default p-3 transition-colors last:border-0 hover:bg-elevated"><UIcon :name="item.icon" class="size-[18px] text-muted" />{{ t(item.labelKey) }}<kbd class="ms-auto text-xs text-muted">{{ item.shortcut }}</kbd></a><NuxtLink v-else :to="item.to" class="flex items-center gap-3 border-b border-default p-3 transition-colors last:border-0 hover:bg-elevated"><UIcon :name="item.icon" class="size-[18px] text-muted" />{{ t(item.labelKey) }}<kbd class="ms-auto text-xs text-muted">{{ item.shortcut }}</kbd></NuxtLink></template></UCard></section>
     <div v-if="can('pmo.projects.read') && (isLoading || error)"><SharedPageState :loading="isLoading" :error="error" @retry="refetch()" /></div>
-    <section v-if="can('pmo.projects.read') && matchingProjects.length" class="grid gap-3"><h2 class="text-sm font-semibold text-muted">{{ t('nav.projects') }}</h2><UCard class="overflow-hidden"><NuxtLink v-for="project in matchingProjects" :key="project.id" :to="`/projects/${project.id}`" class="flex items-center gap-3 border-b border-default p-3 transition-colors last:border-0 hover:bg-elevated"><Folder aria-hidden="true" class="size-[18px] text-muted" /><span class="min-w-0 flex-1 truncate">{{ project.name }}</span><ArrowLeft aria-hidden="true" class="size-[18px] text-muted ltr:rotate-180" /></NuxtLink></UCard></section>
-    <UCard v-if="!nav.length && !matchingProjects.length && !isLoading && !error"><p class="text-sm text-muted">{{ t('app.noResults') }}</p></UCard>
+    <section v-if="can('pmo.projects.read') && matchingProjects.length" class="grid gap-3"><h2 class="text-sm font-semibold text-muted">{{ t('nav.projects') }}</h2><UCard class="nasq-ui-record-surface overflow-hidden" :ui="{ body: 'p-0' }"><NuxtLink v-for="project in matchingProjects" :key="project.id" :to="`/projects/${project.id}`" class="flex items-center gap-3 border-b border-default p-3 transition-colors last:border-0 hover:bg-elevated"><UIcon name="i-lucide-folder" aria-hidden="true" class="size-[18px] text-muted" /><span class="min-w-0 flex-1 truncate">{{ project.name }}</span><UIcon name="i-lucide-arrow-left" aria-hidden="true" class="size-[18px] text-muted ltr:rotate-180" /></NuxtLink></UCard></section>
+    <UCard v-if="!nav.length && !matchingProjects.length && !isLoading && !error" class="nasq-ui-record-surface"><p class="text-sm text-muted">{{ t('app.noResults') }}</p></UCard>
   </SharedPageContainer>
 </template>

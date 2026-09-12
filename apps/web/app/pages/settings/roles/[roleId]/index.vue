@@ -62,14 +62,14 @@ function openUser(userId: number) { void navigateTo(`/settings/users/${userId}?r
       <UButton v-if="role.data.value?.allowed_actions.includes('enable')" color="secondary" variant="outline" :disabled="!hydrated || actionBusy" :label="pendingAction === 'enable' ? t('access.roles.confirmAction') : t('access.roles.enable')" @click="requestAction('enable')" />
       <UButton v-if="role.data.value?.allowed_actions.includes('delete')" color="error" :disabled="!hydrated || actionBusy" :label="pendingAction === 'delete' ? t('access.roles.confirmAction') : t('access.roles.delete')" @click="requestAction('delete')" />
     </SharedPageHeader>
-    <nav class="flex flex-wrap gap-2 border-b border-default pb-2" :aria-label="t('access.roles.navigation')"><UButton color="neutral" variant="soft" :to="route.path" aria-current="page">{{ t('access.roles.permissions') }}</UButton><UButton color="neutral" variant="ghost" v-if="can('access.users.read')" to="#assigned-users">{{ t('access.roles.assignedUsers') }}</UButton><UButton color="neutral" variant="ghost" v-if="can('access.audit.read')" :to="`/settings/access-log?target_type=role&target_id=${id}`">{{ t('access.roles.changes') }}</UButton></nav>
+    <nav class="nasq-ui-tab-strip" :aria-label="t('access.roles.navigation')"><UButton color="neutral" variant="ghost" class="nasq-ui-tab" :to="route.path" aria-current="page">{{ t('access.roles.permissions') }}</UButton><UButton color="neutral" variant="ghost" class="nasq-ui-tab" v-if="can('access.users.read')" to="#assigned-users">{{ t('access.roles.assignedUsers') }}</UButton><UButton color="neutral" variant="ghost" class="nasq-ui-tab" v-if="can('access.audit.read')" :to="`/settings/access-log?target_type=role&target_id=${id}`">{{ t('access.roles.changes') }}</UButton></nav>
     <SharedPageState v-if="forbidden" :empty="true" :empty-text="t('access.forbidden')" />
     <UAlert v-else-if="versionConflict" role="alert" color="error" variant="subtle" :title="t('access.roles.conflict')" />
     <SharedPageState v-else :loading="role.isLoading.value" :error="role.error.value" :empty="!role.data.value" :empty-text="t('access.notFound')" @retry="role.refetch">
       <div v-if="role.data.value" class="space-y-6">
-        <UCard id="permissions" class="nasq-settings-anchor"><RolePermissionForm :role="role.data.value" :permissions="catalog.data.value?.items ?? []" :readonly="true" /></UCard>
+        <UCard id="permissions" class="nasq-ui-record-surface nasq-settings-anchor"><RolePermissionForm :role="role.data.value" :permissions="catalog.data.value?.items ?? []" :readonly="true" /></UCard>
         <UAlert v-if="actionError" role="alert" color="error" variant="subtle" :title="actionError" />
-        <UCard v-if="can('access.users.read')" id="assigned-users" class="nasq-settings-anchor min-w-0">
+        <UCard v-if="can('access.users.read')" id="assigned-users" class="nasq-ui-record-surface nasq-settings-anchor min-w-0" :ui="{ header: 'nasq-ui-card-header' }">
           <template #header><h2 class="text-lg font-semibold text-highlighted">{{ t('access.roles.assignedUsers') }}</h2></template>
           <SharedPageState :loading="assignedUsers.isLoading.value" :error="assignedUsers.error.value" :empty="!assignedUsers.isLoading.value && !assignedUsers.error.value && assignedUsers.data.value?.items.length === 0" :empty-text="t('access.roles.noAssignedUsers')" @retry="assignedUsers.refetch">
             <UserTable :users="assignedUsers.data.value?.items ?? []" @open="openUser" />

@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import type { ChartConfig } from '@/components/ui/chart'
+import type { ChartConfig } from '@/components/charts'
 import type { ChartPalette, DashboardBarChart, DashboardChart, DashboardDonutChart } from '@/utils/projectChartData'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { VisAxis, VisDonut, VisGroupedBar, VisTooltip, VisXYContainer, VisSingleContainer, VisDonutSelectors, VisGroupedBarSelectors } from '@unovis/vue'
-import { ChartContainer, ChartLegendContent, ChartTooltipContent, componentToString } from '@/components/ui/chart'
+import { ChartContainer, ChartLegendContent, ChartTooltipContent, componentToString } from '@/components/charts'
 
 const props = withDefaults(defineProps<{
   chart: DashboardChart

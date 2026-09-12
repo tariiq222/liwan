@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { X } from '@lucide/vue'
 import type { TaskDetail } from '@nasq/contracts'
 import { ApiError } from '@/composables/useApi'
 import { useTaskDependencies, useTaskDependencyCandidates, useUpdateTaskDependencies } from '@/composables/useTaskDependencies'
@@ -71,7 +70,7 @@ function remove(id: number) {
             :disabled="!hydrated || isPending"
             @click="remove(dep.id)"
           >
-            <X class="size-[18px]" />
+            <UIcon name="i-lucide-x" class="size-[18px]" aria-hidden="true" />
           </UButton>
         </li>
       </ul>

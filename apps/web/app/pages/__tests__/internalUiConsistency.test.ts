@@ -20,7 +20,7 @@ const businessComponentFiles = walk(componentsRoot, '.vue').filter(path => !path
 
 describe('internal UI width and status vocabulary', () => {
   it('keeps page widths aligned with the approved Nuxt reference', () => {
-    const css = readFileSync(resolve(webRoot, 'app/assets/css/approved-shell.css'), 'utf8')
+    const css = readFileSync(resolve(webRoot, 'app/assets/css/shell.css'), 'utf8')
     expect(css).toContain('.nasq-page-width-list')
     expect(css).toContain('.nasq-page-width-detail')
     expect(css).toContain('.nasq-page-width-form')
@@ -30,7 +30,7 @@ describe('internal UI width and status vocabulary', () => {
   })
 
   it('defines theme-aware status tokens instead of a second palette', () => {
-    const css = readFileSync(resolve(webRoot, 'app/assets/css/main.css'), 'utf8')
+    const css = readFileSync(resolve(webRoot, 'app/assets/css/components.css'), 'utf8') + readFileSync(resolve(webRoot, 'app/assets/css/tokens.css'), 'utf8')
     expect(css).toContain('--status-success')
     expect(css).toContain('--status-warning')
     expect(css).toContain('.nasq-status-chip-success')
@@ -43,7 +43,7 @@ describe('internal UI width and status vocabulary', () => {
   })
 
   it('marks workspace group tabs by data-active so cream and dark keep a visible current state', () => {
-    const css = readFileSync(resolve(webRoot, 'app/assets/css/nuxt-theme.css'), 'utf8')
+    const css = readFileSync(resolve(webRoot, 'app/assets/css/components.css'), 'utf8')
     const tabs = readFileSync(resolve(webRoot, 'app/components/project/workspace/ProjectWorkspaceTabs.vue'), 'utf8')
     expect(tabs).toContain(':data-active="model.activeGroup === group.id"')
     expect(tabs).toContain('!group.links.length')
@@ -56,7 +56,7 @@ describe('internal UI width and status vocabulary', () => {
   })
 
   it('exits the project side sheet opposite the entry travel', () => {
-    const css = readFileSync(resolve(webRoot, 'app/assets/css/nuxt-theme.css'), 'utf8')
+    const css = readFileSync(resolve(webRoot, 'app/assets/css/components.css'), 'utf8')
     const host = readFileSync(resolve(webRoot, 'app/components/project/workspace/ProjectRouteHost.vue'), 'utf8')
     const modal = readFileSync(resolve(webRoot, 'app/components/project/workspace/ProjectRouteModal.vue'), 'utf8')
     expect(css).toContain('@keyframes nasq-sheet-in')

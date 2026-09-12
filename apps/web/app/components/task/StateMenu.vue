@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { Task, TaskState } from '@nasq/contracts'
-import { Loader2 } from '@lucide/vue'
 import { STATE_LABEL_KEY } from '@/composables/taskState'
 import { ApiError } from '@/composables/useApi'
 import { useTransitionTask } from '@/composables/useTasks'
@@ -35,7 +34,7 @@ const items = computed(() => states.value.map((s) => ({ label: t(STATE_LABEL_KEY
   <StateBadge v-if="!states.length" :state="task.state" />
   <UDropdownMenu v-else :items="items" :content="{ align: 'start' }">
     <UButton type="button" color="neutral" variant="ghost" class="inline-flex items-center disabled:opacity-60" :disabled="isPending || !hydrated">
-      <Loader2 v-if="isPending" class="size-4 animate-spin text-muted" />
+      <UIcon v-if="isPending" name="i-lucide-loader-2" class="size-4 animate-spin text-muted" aria-hidden="true" />
       <StateBadge v-else :state="task.state" />
     </UButton>
   </UDropdownMenu>

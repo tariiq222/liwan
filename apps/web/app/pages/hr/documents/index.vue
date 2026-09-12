@@ -126,9 +126,9 @@ function documentTo(document: HrDocument) {
       @retry="query.refetch"
     >
       <div class="min-w-0 space-y-2">
-        <UCard class="hidden overflow-hidden md:block">
+        <UCard class="nasq-ui-record-surface hidden overflow-hidden md:block" :ui="{ body: 'p-0' }">
           <div class="overflow-x-auto">
-            <UTable :data="query.data.value?.items ?? []" :columns="columns" :caption="t('hr.docs.title')" :ui="{ caption: 'sr-only' }" @select="(_event, row) => navigateTo(documentTo(row.original))">
+            <UTable :data="query.data.value?.items ?? []" :columns="columns" :caption="t('hr.docs.title')" :ui="{ caption: 'sr-only', th: 'nasq-ui-table-head' }" @select="(_event, row) => navigateTo(documentTo(row.original))">
               <template #id-cell="{ row }"><RecordNumber :value="row.original.id" /></template>
               <template #name-cell="{ row }"><span class="font-medium">{{ row.original.name }}</span></template>
               <template #department-cell="{ row }"><span class="text-muted">{{ row.original.department.name }}</span></template>

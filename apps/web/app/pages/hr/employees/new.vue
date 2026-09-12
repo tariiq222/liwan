@@ -26,7 +26,7 @@ function created(employee: { id: number }) { void navigateTo({ path: `/hr/employ
       :error="initialDataReady ? undefined : dependencyError"
       @retry="retryDependencies"
     >
-      <UCard>
+      <UCard class="nasq-ui-record-surface" :ui="{ body: 'p-5 sm:p-6' }">
         <EmployeeGeneralForm :departments="departments.data.value?.items ?? []" :employees="employees.data.value?.items ?? []" @saved="created">
           <template #actions>
             <UButton type="button" color="neutral" variant="outline" :disabled="!hydrated" :to="returnTo" :label="t('app.cancel')" @click="!hydrated && $event.preventDefault()" />

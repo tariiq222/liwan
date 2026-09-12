@@ -17,7 +17,7 @@ function saved() { void navigateTo({ path: fallback.value, query: returnToQuery(
     <SharedPageHeader :title="t('hr.depts.edit')" :back-to="returnTo" />
     <SharedPageState v-if="!canManage" :empty="true" :empty-text="t('errors.forbidden')" />
     <SharedPageState v-else :loading="query.isLoading.value || departments.isLoading.value || employees.isLoading.value" :error="initialDataReady ? undefined : dependencyError" :empty="!department" @retry="retryDependencies">
-      <UCard v-if="department"><DepartmentForm :department="department" :departments="departments.data.value?.items ?? []" :employees="employees.data.value?.items ?? []" :back-to="returnTo" @saved="saved" /></UCard>
+      <UCard v-if="department" class="nasq-ui-record-surface" :ui="{ body: 'p-5 sm:p-6' }"><DepartmentForm :department="department" :departments="departments.data.value?.items ?? []" :employees="employees.data.value?.items ?? []" :back-to="returnTo" @saved="saved" /></UCard>
     </SharedPageState>
     <SharedPageState v-if="canManage && initialDataReady && dependencyError" :error="dependencyError" @retry="retryDependencies" />
   </SharedPageContainer>

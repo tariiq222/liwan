@@ -1,6 +1,8 @@
 # nasq
 
-واجهة العميل: [DESIGN.md](DESIGN.md). Nuxt UI مرحّل في `apps/web`.
+**تعليمات ومراجع الواجهة: ابدأ من [DESIGN.md](DESIGN.md).** التنفيذ في `apps/web/app` باستخدام Nuxt UI.
+
+هذه نسخة عمل؛ راجع [خريطة مساحة العمل](docs/WORKSPACE.md) قبل مقارنتها بـ`main` أو بمهمة أخرى.
 
 nasq (نَسَق) is a resellable project and task management product. Odoo 19 CE
 is the engine and Nuxt 4 is the customer UI. Each customer has an independent

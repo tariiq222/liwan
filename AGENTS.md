@@ -2,9 +2,8 @@
 
 ## واجهة العميل
 
-السياسة الوحيدة: [DESIGN.md](DESIGN.md) ثم [فهرس المكونات](docs/design-system/components.md).
-Nuxt UI مرحّل في `apps/web`. `apps/web/design-preview` معاينة معزولة وليست تطبيقًا ثانيًا.
-التقارير المؤرخة ومواصفات superpowers أدلة تسليم، ليست تعليمات واجهة.
+ابدأ من [DESIGN.md](DESIGN.md): سياسة الواجهة الوحيدة وروابط فهرس المكونات والمرجع التقني.
+التنفيذ في `apps/web/app`. [الأرشيف](docs/archive/ui/README.md) والتقارير وخطط التنفيذ أدلة لسياقها، لا تعليمات واجهة نشطة.
 اتبع [UPDATE_POLICY.md](docs/UPDATE_POLICY.md).
 
 Read `CLAUDE.md` for the product architecture and engineering rules, then
@@ -26,10 +25,9 @@ These are repository instructions for every coding agent, regardless of tool.
   exceptions) follows DESIGN.md. Keep direct links, refresh/back, filters,
   permissions and draft protection. Do not stack business dialogs. Confirm
   destructive actions inline. Value-selection menus are controls, not screens.
-- Phase 3b and the later access, design, HR hierarchy, and collaboration
-  work are consolidated by the 2026-09-05 unification. Read
-  `docs/runtime-upgrade-cleanup-2026-09-07.md` for current evidence and `docs/WORKSPACE.md`
-  for recovery. Older branch plans/reports and WIP are historical material.
+- Read `docs/WORKSPACE.md` for the checkout map and current delivery records.
+  Verify branch and dirty state live. Dated integration/recovery reports and
+  older WIP describe their own checkpoints, not the current source state.
 - Never run tests on `odoo19`. Do not commit, merge, push, deploy, remove
   worktrees/branches, or discard work without authorization for that action.
 - Local verification does not prove production deployment. Report fresh test

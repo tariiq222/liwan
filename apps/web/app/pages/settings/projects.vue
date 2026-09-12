@@ -15,7 +15,7 @@ const isBaseRoute = computed(() => normalizedPath.value === '/settings/projects'
   <SettingsLayout v-if="isBaseRoute" width="form">
     <SharedPageHeader :title="t('settings.projects.title')" />
     <p v-if="forbidden" class="text-muted">{{ t('settings.forbidden') }}</p>
-    <div v-else class="space-y-6">
+    <div v-else class="nasq-settings-projects space-y-6">
       <p class="mb-5 text-sm leading-6 text-muted">{{ t('settings.projects.scopeHint') }}</p>
       <ProjectSettingsForm />
       <section id="catalogs" class="nasq-settings-anchor space-y-3">

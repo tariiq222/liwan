@@ -51,9 +51,9 @@ function foregroundFor(background: string): string {
 }
 
 export const MODE_SURFACES: Record<AppearanceMode, string[]> = {
-  light: ['#ffffff', '#fafafa', '#f4f4f5', '#f5f6f8', '#ebedf0', '#e1e3e7', '#eaebee', '#d1d4d9'],
-  cream: ['#fbf7ef', '#f6f1e7', '#efe8d9', '#e4d9c6', '#d8cbb7', '#c2b293'],
-  dark: ['#09090b', '#18181b', '#27272a', '#3f3f46', '#34343c', '#52525b'],
+  light: ['#f6f7fb', '#ffffff', '#f8f9fc', '#eef1f7', '#f1f3f9', '#e5e8ef', '#d9dde7'],
+  cream: ['#f6f3ed', '#fffdf8', '#faf7f1', '#f6f1e7', '#efe8d9', '#e4d9c6', '#e8e0d4', '#d8cbb7'],
+  dark: ['#11131a', '#181b24', '#1e222c', '#272c38', '#2d3340', '#394150'],
 }
 
 function contrastTone(hex: string, minimumContrast: number, mode: AppearanceMode): string {
@@ -115,33 +115,11 @@ const CHART_TONES: Array<{ target: '#ffffff' | '#000000', amount: number }> = [
   { target: '#000000', amount: 0.38 },
   { target: '#ffffff', amount: 0.38 },
 ]
-const DISTINCT_HUE = 25
-
 const INTERACTION = {
   regular: { hover: 0.18, active: 0.32 },
   nearBlack: { hover: 0.24, active: 0.42 },
   nearWhite: { hover: 0.16, active: 0.3 },
 } as const
-
-function hueDelta(first: number, second: number): number {
-  const delta = Math.abs(first - second) % 360
-  return Math.min(delta, 360 - delta)
-}
-
-function lerpHue(from: number, to: number, amount: number): number {
-  const delta = ((to - from + 540) % 360) - 180
-  return (from + delta * amount + 360) % 360
-}
-
-function mixHue(from: string, to: string, amount: number): string {
-  const start = hexToHsl(from)
-  const end = hexToHsl(to)
-  return hslToHex(
-    lerpHue(start.h, end.h, amount),
-    start.s * (1 - amount) + end.s * amount,
-    start.l * (1 - amount) + end.l * amount,
-  )
-}
 
 function visualDistance(first: string, second: string): number {
   const firstChannels = channels(first)
@@ -149,8 +127,9 @@ function visualDistance(first: string, second: string): number {
   return Math.sqrt(firstChannels.reduce((acc, value, index) => acc + (value - secondChannels[index]!) ** 2, 0))
 }
 
-function uniqueCharts(colors: string[]): string[] {
+function uniqueCharts(colors: string[], mode: AppearanceMode): string[] {
   const next = [...colors]
+  const target = mode === 'dark' ? '#ffffff' : '#000000'
   for (let index = 0; index < next.length; index += 1) {
     let step = 0
     while (
@@ -158,7 +137,10 @@ function uniqueCharts(colors: string[]): string[] {
       && step < 12
     ) {
       step += 1
-      next[index] = mix(next[index]!, step % 2 === 0 ? '#000000' : '#ffffff', 0.1 * step)
+      // Move toward the contrast-safe endpoint for the active appearance.
+      // Every input has already passed through chartBase, so this preserves
+      // the 3:1 chart-surface contrast while separating near-identical tones.
+      next[index] = mix(next[index]!, target, 0.1 * step)
     }
   }
   return next
@@ -168,39 +150,21 @@ function chartFamilyFromPrimary(hex: string, mode: AppearanceMode): string[] {
   const base = chartBase(hex, mode)
   const { s } = hexToHsl(base)
   if (s < 0.12) {
-    // Near-neutral brands have weak hue; use a monotonic lightness ladder to preserve contrast on light/cream surfaces.
-    return uniqueCharts([
-      mix(base, '#000000', 0),
-      mix(base, '#000000', 0.18),
-      mix(base, '#000000', 0.36),
-      mix(base, '#000000', 0.54),
-      mix(base, '#000000', 0.72),
-      mix(base, '#000000', 0.9),
-    ])
+    // Near-neutral brands have weak hue. Start at the minimum-contrast
+    // boundary and walk evenly toward the safe endpoint so black and white
+    // brands still produce six distinct tones in every appearance.
+    const boundary = chartBase(mode === 'dark' ? '#000000' : '#ffffff', mode)
+    const endpoint = mode === 'dark' ? '#ffffff' : '#000000'
+    return uniqueCharts(
+      Array.from({ length: 6 }, (_, index) => mix(boundary, endpoint, index / 5)),
+      mode,
+    )
   }
   return uniqueCharts(CHART_TONES.map((tone, index) => {
     if (index === 1) return base
     const rotated = rotateHue(base, CHART_HUES[index]!)
     return tone.amount === 0 ? rotated : mix(rotated, tone.target, tone.amount)
-  }))
-}
-
-function chartFamily(primaryHex: string, accentHex: string, mode: AppearanceMode): string[] {
-  const primary = chartBase(primaryHex, mode)
-  const accent = chartBase(accentHex, mode)
-  const primaryHsl = hexToHsl(primary)
-  const accentHsl = hexToHsl(accent)
-  if (hueDelta(primaryHsl.h, accentHsl.h) < DISTINCT_HUE || (primaryHsl.s < 0.12 && accentHsl.s < 0.12)) {
-    return chartFamilyFromPrimary(primaryHex, mode)
-  }
-  return uniqueCharts([
-    mix(primary, '#ffffff', 0.5),
-    primary,
-    mixHue(primary, accent, 0.33),
-    mixHue(primary, accent, 0.66),
-    accent,
-    mix(accent, '#000000', 0.22),
-  ].map(hex => chartBase(hex, mode)))
+  }).map(color => chartBase(color, mode)), mode)
 }
 
 function interaction(hex: string) {
@@ -216,29 +180,14 @@ function interaction(hex: string) {
   return { hex, foreground, hover, hoverForeground: foregroundFor(hover), active, activeForeground: foregroundFor(active) }
 }
 
-export function derivedSecondary(primary: string, mode: AppearanceMode = 'light'): string {
-  const surface = mode === 'dark' ? '#18181b' : mode === 'cream' ? '#f6f1e7' : '#ffffff'
-  return mix(normalizeHex(primary), surface, 0.88)
-}
-
-export function brandPairContrast(primary: string, secondary: string): number {
-  const resolvedPrimary = normalizeHex(primary)
-  return contrast(resolvedPrimary, normalizeHex(secondary, derivedSecondary(resolvedPrimary)))
-}
-
-export function createBrandTheme(input: string, mode: AppearanceMode = 'light', secondaryInput?: string): Record<string, string> {
+export function createBrandTheme(input: string, mode: AppearanceMode = 'light'): Record<string, string> {
   const primary = interaction(normalizeHex(input))
-  const secondaryHex = typeof secondaryInput === 'string' && HEX_COLOR.test(secondaryInput.trim())
-    ? secondaryInput.trim().toLowerCase()
-    : derivedSecondary(primary.hex, mode)
-  const secondary = interaction(secondaryHex)
   const fill = interaction(chartBase(primary.hex, mode))
-  const accentFill = interaction(chartBase(secondary.hex, mode))
-  const surface = mode === 'dark' ? '#18181b' : mode === 'cream' ? '#f6f1e7' : '#ffffff'
-  const accentSoft = mix(accentFill.hex, surface, 0.82)
+  const surface = mode === 'dark' ? '#181b24' : mode === 'cream' ? '#fffdf8' : '#ffffff'
+  const soft = mix(fill.hex, surface, 0.82)
   const link = contrastTone(primary.hex, 4.5, mode)
   const ring = contrastTone(primary.hex, 3, mode)
-  const charts = chartFamily(primary.hex, secondary.hex, mode)
+  const charts = chartFamilyFromPrimary(primary.hex, mode)
   const shell = mode === 'dark' && relativeLuminance(primary.hex) < 0.05
     ? interaction(mix(primary.hex, '#ffffff', 0.18))
     : primary
@@ -256,25 +205,8 @@ export function createBrandTheme(input: string, mode: AppearanceMode = 'light', 
     '--primary-fill-hover-foreground': fill.hoverForeground,
     '--primary-fill-active': fill.active,
     '--primary-fill-active-foreground': fill.activeForeground,
-    '--nasq-brand-secondary': secondary.hex,
-    '--nasq-brand-secondary-foreground': secondary.foreground,
-    '--nasq-brand-secondary-fill': accentFill.hex,
-    '--nasq-brand-secondary-fill-foreground': accentFill.foreground,
-    '--nasq-brand-secondary-fill-hover': accentFill.hover,
-    '--nasq-brand-secondary-fill-hover-foreground': accentFill.hoverForeground,
-    '--nasq-brand-secondary-fill-active': accentFill.active,
-    '--nasq-brand-secondary-fill-active-foreground': accentFill.activeForeground,
-    '--nasq-brand-secondary-soft': accentSoft,
-    '--nasq-brand-secondary-soft-foreground': foregroundFor(accentSoft),
-    // Preview only: customer html keeps the neutral --secondary token.
-    ...(secondaryInput === undefined ? {} : {
-      '--secondary': secondary.hex,
-      '--secondary-foreground': secondary.foreground,
-      '--secondary-hover': secondary.hover,
-      '--secondary-hover-foreground': secondary.hoverForeground,
-      '--secondary-active': secondary.active,
-      '--secondary-active-foreground': secondary.activeForeground,
-    }),
+    '--primary-soft': soft,
+    '--primary-soft-foreground': foregroundFor(soft),
     '--brand-link': link,
     '--ring': ring,
     '--chart-1': charts[0]!,

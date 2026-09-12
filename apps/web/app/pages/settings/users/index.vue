@@ -71,7 +71,7 @@ function onDepartmentChange(value: unknown) { filters.department_id = value && v
       <UButton v-if="can('access.users.grant')" color="primary" :disabled="!hydrated" :label="t('access.users.grantAccount')" @click="navigateTo({ path: '/settings/users/new', query: listQuery })" />
     </SharedPageHeader>
     <SharedPageState v-if="forbidden" :empty="true" :empty-text="t('access.forbidden')" />
-    <div v-else class="space-y-3">
+    <div v-else class="space-y-6">
       <div id="filters" class="nasq-settings-anchor w-full min-w-0">
         <FilterBar class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
           <template #search>

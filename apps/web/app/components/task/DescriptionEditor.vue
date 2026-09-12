@@ -2,7 +2,6 @@
 import Link from '@tiptap/extension-link'
 import StarterKit from '@tiptap/starter-kit'
 import { EditorContent, useEditor } from '@tiptap/vue-3'
-import { Bold, Italic, Link as LinkIcon, List, ListOrdered } from '@lucide/vue'
 import { createDebouncedFlush } from '@/lib/debouncedFlush'
 
 // Tiptap StarterKit + Link, rendered client-only (SSR has no DOM for
@@ -123,25 +122,25 @@ function applyLink() {
 
 <template>
   <ClientOnly>
-    <div class="rounded-md border">
-      <div v-if="!readonly" class="flex items-center gap-1 border-b p-1">
+    <div class="overflow-hidden rounded-[14px] border border-default bg-default shadow-sm">
+      <div v-if="!readonly" class="flex items-center gap-1 border-b border-default bg-elevated/30 p-1">
         <UButton color="neutral" square size="sm" :disabled="!hydrated" :aria-label="t('tasks.detail.bold')" :variant="editor?.isActive('bold') ? 'soft' : 'ghost'" :aria-pressed="!!editor?.isActive('bold')" type="button" @click="toggleBold">
-          <Bold class="size-[18px]" />
+          <UIcon name="i-lucide-bold" class="size-[18px]" aria-hidden="true" />
         </UButton>
         <UButton color="neutral" square size="sm" :disabled="!hydrated" :aria-label="t('tasks.detail.italic')" :variant="editor?.isActive('italic') ? 'soft' : 'ghost'" :aria-pressed="!!editor?.isActive('italic')" type="button" @click="toggleItalic">
-          <Italic class="size-[18px]" />
+          <UIcon name="i-lucide-italic" class="size-[18px]" aria-hidden="true" />
         </UButton>
         <UButton color="neutral" square size="sm" :disabled="!hydrated" :aria-label="t('tasks.detail.bulletList')" :variant="editor?.isActive('bulletList') ? 'soft' : 'ghost'" :aria-pressed="!!editor?.isActive('bulletList')" type="button" @click="toggleBulletList">
-          <List class="size-[18px]" />
+          <UIcon name="i-lucide-list" class="size-[18px]" aria-hidden="true" />
         </UButton>
         <UButton
           color="neutral" square size="sm" :aria-label="t('tasks.detail.orderedList')" :variant="editor?.isActive('orderedList') ? 'soft' : 'ghost'" :aria-pressed="!!editor?.isActive('orderedList')" type="button"
           :disabled="!hydrated" @click="toggleOrderedList"
         >
-          <ListOrdered class="size-[18px]" />
+          <UIcon name="i-lucide-list-ordered" class="size-[18px]" aria-hidden="true" />
         </UButton>
         <UButton color="neutral" square size="sm" :disabled="!hydrated" :aria-label="t('tasks.detail.linkPrompt')" :variant="editor?.isActive('link') ? 'soft' : 'ghost'" :aria-pressed="!!editor?.isActive('link')" type="button" @click="toggleLink">
-          <LinkIcon class="size-[18px]" />
+          <UIcon name="i-lucide-link" class="size-[18px]" aria-hidden="true" />
         </UButton>
       </div>
       <div v-if="linkEditorOpen" data-testid="link-editor" class="flex flex-wrap items-center gap-2 border-b p-2">

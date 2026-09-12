@@ -27,6 +27,7 @@ import { projectIdFromPath, projectSectionRoot, shellRootBackTargets, shellSecti
 const pageHeaderFile = resolve(import.meta.dirname, '../PageHeader.vue')
 
 const ArrowRightStub = defineComponent({ render: () => h('span', { 'aria-hidden': 'true' }) })
+const UIconStub = defineComponent({ render: () => h('span', { 'aria-hidden': 'true' }) })
 const NuxtLinkStub = defineComponent({
   props: { to: { type: [String, Object], default: '#' } },
   setup(props, { slots }) {
@@ -85,6 +86,7 @@ async function renderHeader(props: Record<string, unknown>, slots: Record<string
   app.provide(Symbol.for('nasq.project.overlay'), inProjectSheet)
   app.component('NuxtLink', NuxtLinkStub)
   app.component('UButton', NuxtLinkStub)
+  app.component('UIcon', UIconStub)
   return renderToString(app)
 }
 

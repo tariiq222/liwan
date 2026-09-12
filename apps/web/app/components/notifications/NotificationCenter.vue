@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { Bell } from '@lucide/vue'
 import { ApiError } from '@/composables/useApi'
 import { useNotifications, useMarkNotificationRead, isDigestNotification, isMeetingNotification, type Notification } from '@/composables/useNotifications'
 import { formatNotificationTimestamp, notificationPreviewCaptionKey } from '@/utils/notificationPresentation'
@@ -58,7 +57,7 @@ async function openNotification(item: Notification) {
       class="relative text-muted"
     >
       <template #leading>
-        <Bell aria-hidden="true" />
+        <UIcon name="i-lucide-bell" class="size-[18px]" aria-hidden="true" />
       </template>
       <span
         v-if="hydrated && data?.unread_count"

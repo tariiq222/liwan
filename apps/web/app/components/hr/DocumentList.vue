@@ -80,7 +80,7 @@ function detailsTo(document: HrDocument) {
       </FilterBar>
     </div>
     <div class="min-w-0 space-y-2">
-      <UCard class="hidden overflow-hidden md:block" :class="props.embedded ? 'ring-0 border-0 shadow-none rounded-none' : ''" :ui="{ body: 'p-0' }">
+      <UCard class="nasq-ui-record-surface hidden overflow-hidden md:block" :class="props.embedded ? 'ring-0 border-0 shadow-none rounded-none' : ''" :ui="{ body: 'p-0' }">
         <div v-if="query.isLoading.value" class="divide-y divide-default" role="status" :aria-label="t('app.loading')">
           <div v-for="n in 3" :key="n" class="flex items-center gap-4 px-4 py-3">
             <USkeleton class="h-5 w-20" /><USkeleton class="h-5 flex-1" /><USkeleton class="h-5 w-24" />
@@ -88,7 +88,7 @@ function detailsTo(document: HrDocument) {
         </div>
         <div v-else-if="items.length === 0" class="p-6"><SharedEmptyState :title="t('hr.docs.empty')" /></div>
         <div v-else class="overflow-x-auto">
-          <UTable :data="items" :columns="columns" :caption="t('hr.docs.title')" :ui="{ caption: 'sr-only' }" @select="(_event, row) => navigateTo(detailsTo(row.original))">
+          <UTable :data="items" :columns="columns" :caption="t('hr.docs.title')" :ui="{ caption: 'sr-only', th: 'nasq-ui-table-head' }" @select="(_event, row) => navigateTo(detailsTo(row.original))">
             <template #id-cell="{ row }"><RecordNumber :value="row.original.id" /></template>
             <template #name-cell="{ row }">{{ row.original.name }}</template>
             <template #write_date-cell="{ row }"><span class="text-muted">{{ formatDocumentDate(row.original.write_date) }}</span></template>

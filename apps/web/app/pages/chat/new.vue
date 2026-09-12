@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { Check } from '@lucide/vue'
 import { ApiError } from '@/composables/useApi'
 import { CHAT_PAGE_SIZE, initialsFor, nextListOffset, parseChatListRoute, serializeChatListRoute } from '@/utils/chatState'
 
@@ -80,7 +79,7 @@ async function submit() {
             >
               <span class="grid size-9 shrink-0 place-items-center rounded-full bg-muted text-xs font-semibold">{{ initialsFor(person.name) }}</span>
               <span class="min-w-0 flex-1 truncate">{{ person.name }}</span>
-              <Check v-if="selected.some(item => item.id === person.id)" class="size-4 text-brand-link" aria-hidden="true" />
+              <UIcon v-if="selected.some(item => item.id === person.id)" name="i-lucide-check" class="size-4 text-brand-link" aria-hidden="true" />
             </UButton>
           </li>
         </ul>

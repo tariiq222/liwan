@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { inject } from 'vue'
-import { ArrowRight } from '@lucide/vue'
 import type { RouteLocationRaw } from 'vue-router'
 import { projectIdFromPath, projectSectionRoot, shellRootBackTargets, shellSectionRoot } from '@/composables/useShellNavigation'
 import { PROJECT_OVERLAY_INJECTION_KEY } from '@/utils/projectOverlayRoute'
@@ -58,7 +57,7 @@ usePageHeader(() => props.title, () => headerDescription.value)
         <div v-if="!hideBack && (props.backTo || $slots.back)" class="mb-1 flex items-center gap-2 text-sm">
           <slot name="back">
             <UButton :to="props.backTo!" color="neutral" variant="outline" class="focus-visible:ring-2 focus-visible:ring-ring">
-              <ArrowRight aria-hidden="true" class="size-[18px] ltr:rotate-180" />{{ props.backLabel || $t('app.back') }}
+              <UIcon name="i-lucide-arrow-right" aria-hidden="true" class="size-[18px] ltr:rotate-180" />{{ props.backLabel || $t('app.back') }}
             </UButton>
           </slot>
         </div>

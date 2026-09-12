@@ -14,7 +14,7 @@ const { data: employee, isLoading } = useHrEmployee(id)
 <template>
   <div class="grid gap-6 items-start lg:grid-cols-[2fr_1fr]">
     <template v-if="isLoading">
-      <UCard>
+      <UCard class="nasq-ui-record-surface">
         <div class="grid gap-4">
           <USkeleton class="size-16 rounded-full" />
           <USkeleton class="h-5 w-40" />
@@ -24,7 +24,7 @@ const { data: employee, isLoading } = useHrEmployee(id)
       </UCard>
     </template>
     <template v-else-if="employee">
-      <UCard>
+      <UCard class="nasq-ui-record-surface">
         <template #header><h2 class="text-lg font-semibold text-highlighted">{{ t('hr.card.overview') }}</h2></template>
         <div class="mb-4 flex items-center gap-3">
           <img
@@ -43,7 +43,7 @@ const { data: employee, isLoading } = useHrEmployee(id)
         </dl>
       </UCard>
       <aside v-if="canSeeAccess" class="grid content-start gap-4">
-        <UCard>
+        <UCard class="nasq-ui-record-surface" :ui="{ header: 'nasq-ui-card-header' }">
           <template #header><h2 class="text-lg font-semibold text-highlighted">{{ t('hr.card.account') }}</h2></template>
           <div class="space-y-3">
             <div class="flex items-center justify-between gap-3 text-sm">

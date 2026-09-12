@@ -83,7 +83,7 @@ onBeforeUnmount(clearSecrets)
 </script>
 
 <template>
-  <UCard>
+  <UCard class="nasq-ui-record-surface" :ui="{ header: 'nasq-ui-card-header' }">
     <template #header><h2 class="text-lg font-semibold text-highlighted">{{ t('access.users.securityTitle') }}</h2></template>
     <div class="space-y-5">
       <p v-if="props.user.protected" class="text-sm text-muted">{{ t('access.protectedUser') }}</p>

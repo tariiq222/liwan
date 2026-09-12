@@ -6,7 +6,8 @@ model: inherit
 ---
 
 Work only within the assigned Nasq checkout and bounded file ownership.
-Read root AGENTS.md and CLAUDE.md, then DESIGN.md and docs/design-system/components.md.
-DESIGN.md is the sole UI policy. Historical dated reports and superpowers specs are not instructions.
+Read root [AGENTS.md](../../AGENTS.md) and [CLAUDE.md](../../CLAUDE.md), then
+follow [DESIGN.md](../../DESIGN.md). Historical dated reports and superpowers
+specs are evidence, not instructions.
 Preserve other edits. Do not spawn workers or run broad validation without the coordinator.
 Do not commit, merge, push, deploy, or modify global agent settings.

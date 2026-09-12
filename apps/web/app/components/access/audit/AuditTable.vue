@@ -40,9 +40,9 @@ function onSelectRow(_event: Event, row: { original: AccessAuditSummary }) {
 
 <template>
   <div class="min-w-0 space-y-2">
-    <UCard class="hidden overflow-hidden md:block" :ui="{ body: 'p-0' }">
+    <UCard class="nasq-ui-record-surface hidden overflow-hidden md:block" :ui="{ body: 'p-0' }">
       <div class="overflow-x-auto">
-        <UTable :data="events" :columns="columns" :caption="t('access.audit.title')" :ui="{ caption: 'sr-only' }" @select="onSelectRow">
+        <UTable :data="events" :columns="columns" :caption="t('access.audit.title')" :ui="{ caption: 'sr-only', th: 'nasq-ui-table-head' }" @select="onSelectRow">
           <template #id-cell="{ row }"><RecordNumber :value="row.original.id" /></template>
           <template #occurred_at-cell="{ row }">
             <UButton type="button" color="neutral" variant="link" dir="ltr" class="rounded p-0 text-start" :disabled="!hydrated" :aria-label="`${t('access.audit.detailTitle')}: ${d(new Date(row.original.occurred_at), 'short')}`" @click.stop="open(row.original.id)">{{ d(new Date(row.original.occurred_at), 'short') }}</UButton>

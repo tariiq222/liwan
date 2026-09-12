@@ -42,7 +42,7 @@ const activeGroup = computed(() => model.value.groups.find(group => group.id ===
         :data-active="model.activeGroup === group.id"
         :data-testid="`project-tab-${group.id}`"
       >
-        <component :is="group.icon" aria-hidden="true" class="size-4" />
+        <UIcon :name="group.icon" aria-hidden="true" class="size-4" />
         <span>{{ t(group.labelKey) }}</span>
       </UButton>
     </nav>
@@ -64,7 +64,7 @@ const activeGroup = computed(() => model.value.groups.find(group => group.id ===
         :data-active="model.activeTab === link.id"
         :data-testid="`project-subtab-${link.id}`"
       >
-        <component :is="link.icon" aria-hidden="true" class="size-4" />
+        <UIcon :name="link.icon" aria-hidden="true" class="size-4" />
         <span>{{ t(link.labelKey) }}</span>
       </UButton>
     </nav>

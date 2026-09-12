@@ -1,27 +1,48 @@
 import { test, expect } from '@playwright/test'
 
-// These tests run only against the explicitly isolated migration runtime.
+// The caller must select an isolated scratch runtime; an exact port never proves DB isolation.
 test.beforeEach(async ({ page, baseURL }) => {
-  if (!baseURL?.includes(':3469')) throw new Error('Use E2E_BASE_URL=http://127.0.0.1:3469 and the isolated migration database')
+  expect(baseURL).toBeDefined()
   const login = await page.request.post('/api/auth/login', { data: { login: 'admin', password: 'admin' } })
   expect(login.status()).toBe(200)
 })
 
-test('branding saves both exact colors and retains the draft when navigation is cancelled', async ({ page }) => {
+test('branding saves the primary color and retains the draft when navigation is cancelled', async ({ page }) => {
   await page.goto('/settings/branding')
-  await expect(page.getByTestId('branding-color')).toBeEnabled()
-  await page.getByTestId('branding-color').fill('#123456')
-  await page.getByTestId('branding-secondary-color').fill('#abcdef')
-  await page.getByTestId('branding-submit').click()
-  await expect.poll(async () => (await (await page.request.get('/api/v1/admin/branding')).json()).secondary_color).toBe('#abcdef')
-  await page.reload()
-  await expect(page.getByTestId('branding-secondary-color')).toHaveValue('#abcdef')
-  await page.getByTestId('branding-secondary-color').fill('#fedcba')
-  await page.locator('[data-testid="module-rail"] a[href="/projects/dashboard"]').click()
-  await expect(page.getByTestId('unsaved-changes-dialog')).toBeVisible()
-  await page.getByRole('button', { name: 'البقاء في الصفحة', exact: true }).click()
-  await expect(page.getByTestId('branding-secondary-color')).toHaveValue('#fedcba')
-  await expect(page).toHaveURL(/settings\/branding/)
+  const primary = page.getByTestId('branding-color')
+  await expect(primary).toBeEnabled()
+  await expect(page.getByTestId('branding-secondary-color')).toHaveCount(0)
+  const initialResponse = await page.request.get('/api/v1/admin/branding')
+  expect(initialResponse.status()).toBe(200)
+  const initialBranding = await initialResponse.json() as { primary_color: string; secondary_color?: unknown }
+  const initialSecondary = initialBranding.secondary_color
+
+  try {
+    await primary.fill('#123456')
+    const save = page.waitForResponse(response => (
+      response.url().includes('/api/v1/admin/branding') && response.request().method() === 'PATCH'
+    ))
+    await page.getByTestId('branding-submit').click()
+    const saveResponse = await save
+    expect(saveResponse.status()).toBe(200)
+    expect(saveResponse.request().postDataJSON()).toEqual({ primary_color: '#123456' })
+    await expect.poll(async () => {
+      const branding = await (await page.request.get('/api/v1/admin/branding')).json()
+      return { primary_color: branding.primary_color, secondary_color: branding.secondary_color }
+    }).toEqual({ primary_color: '#123456', secondary_color: initialSecondary })
+    await page.reload()
+    await expect(primary).toHaveValue('#123456')
+    await expect(page.getByTestId('branding-secondary-color')).toHaveCount(0)
+    await primary.fill('#fedcba')
+    await page.locator('[data-testid="module-rail"] a[href="/projects/dashboard"]').click()
+    await expect(page.getByTestId('unsaved-changes-dialog')).toBeVisible()
+    await page.getByRole('button', { name: 'البقاء في الصفحة', exact: true }).click()
+    await expect(primary).toHaveValue('#fedcba')
+    await expect(page).toHaveURL(/settings\/branding/)
+  } finally {
+    const restore = await page.request.patch('/api/v1/admin/branding', { data: { primary_color: initialBranding.primary_color } })
+    expect(restore.status()).toBe(200)
+  }
 })
 
 test('project route opens a full-width mobile sheet and keeps query context on return', async ({ page }) => {
@@ -43,27 +64,55 @@ test('project route opens a full-width mobile sheet and keeps query context on r
 
 test('dirty branding prompts before browser reload and cancel retains the draft', async ({ page }) => {
   await page.goto('/settings/branding')
-  await page.getByTestId('branding-secondary-color').fill('#fedcba')
-  let prompted = false
-  page.once('dialog', async dialog => { prompted = dialog.type() === 'beforeunload'; await dialog.dismiss() })
-  await page.reload({ timeout: 5000 }).catch(() => undefined)
-  expect(prompted).toBe(true)
-  await expect(page.getByTestId('branding-secondary-color')).toHaveValue('#fedcba')
+  const primary = page.getByTestId('branding-color')
+  await expect(page.getByTestId('branding-secondary-color')).toHaveCount(0)
+  const initialResponse = await page.request.get('/api/v1/admin/branding')
+  expect(initialResponse.status()).toBe(200)
+  const initialBranding = await initialResponse.json() as { primary_color: string; secondary_color?: unknown }
+  try {
+    await primary.fill('#fedcba')
+    let prompted = false
+    page.once('dialog', async dialog => { prompted = dialog.type() === 'beforeunload'; await dialog.dismiss() })
+    await page.reload({ timeout: 5000 }).catch(() => undefined)
+    expect(prompted).toBe(true)
+    await expect(primary).toHaveValue('#fedcba')
+    await expect(page.getByTestId('branding-secondary-color')).toHaveCount(0)
+    await expect.poll(async () => (await (await page.request.get('/api/v1/admin/branding')).json()).secondary_color).toEqual(initialBranding.secondary_color)
+  } finally {
+    const restore = await page.request.patch('/api/v1/admin/branding', { data: { primary_color: initialBranding.primary_color } })
+    expect(restore.status()).toBe(200)
+  }
 })
 
 
 test('filter Escape restores focus and reopening preserves the search value', async ({ page }) => {
   await page.goto('/tasks')
-  const trigger = page.getByRole('button', { name: 'البحث والفلاتر', exact: true })
-  await trigger.click()
-  const search = page.getByPlaceholder('بحث في العناوين…')
+  const filterRoot = page.locator('[data-slot="filter-root"]')
+  const trigger = filterRoot.getByRole('button', { name: 'البحث والفلاتر', exact: true })
+  const search = filterRoot.getByPlaceholder('بحث في العناوين…')
   await expect(search).toBeVisible()
   await search.fill('migration-focus')
-  await search.press('Escape')
-  await expect(search).not.toBeVisible()
+  await trigger.click()
+  const fields = page.locator('[data-slot="filter-fields"]')
+  await expect(fields).toBeVisible()
+  await expect(trigger).toHaveAttribute('aria-expanded', 'true')
+  const contentId = await trigger.getAttribute('aria-controls')
+  expect(contentId).toBeTruthy()
+  await expect(fields).toHaveAttribute('id', contentId!)
+  await expect(fields).toHaveAttribute('aria-busy', 'false')
+  const stateFilter = fields.getByRole('button', { name: 'كل الحالات', exact: true })
+  await expect(stateFilter).toBeVisible()
+  await stateFilter.focus()
+  await expect(stateFilter).toBeFocused()
+  await page.keyboard.press('Escape')
+  await expect(fields).not.toBeVisible()
   await expect(trigger).toBeFocused()
-  await trigger.press('Enter')
   await expect(search).toBeVisible()
+  await expect(search).toHaveValue('migration-focus')
+  await trigger.press('Enter')
+  await expect(fields).toBeVisible()
+  await expect(trigger).toHaveAttribute('aria-expanded', 'true')
+  await expect(fields.getByRole('button', { name: 'كل الحالات', exact: true })).toBeVisible()
   await expect(search).toHaveValue('migration-focus')
 })
 
@@ -82,9 +131,15 @@ test('task sheet menus stay clickable and dependency selection persists', async 
   }
   await page.goto(`/projects/${project.id}/tasks/${tasks[0].id}`)
   await expect(page.locator('.nasq-ui-route-sheet')).toBeVisible()
-  await page.locator('summary').filter({ hasText: 'المخرجات والمرفقات والمهام المرتبطة' }).click()
+  const tabs = page.getByTestId('task-detail-tabs')
+  await expect(tabs.getByRole('tab', { name: 'التفاصيل', exact: true })).toHaveAttribute('data-state', 'active')
+  await tabs.getByRole('tab', { name: 'الموارد', exact: true }).click()
+  await expect(tabs.getByRole('tab', { name: 'الموارد', exact: true })).toHaveAttribute('data-state', 'active')
   const picker = page.getByTestId('dependency-picker')
-  await picker.getByRole('button', { name: 'إضافة اعتماد', exact: true }).click()
+  await expect(picker).toBeVisible()
+  const dependencyTrigger = picker.getByRole('button', { name: 'إضافة اعتماد', exact: true })
+  await expect(dependencyTrigger).toBeVisible()
+  await dependencyTrigger.click()
   const option = page.getByRole('option', { name: `Prerequisite ${stamp}`, exact: true })
   await expect(option).toBeVisible()
   await option.click()
@@ -92,7 +147,10 @@ test('task sheet menus stay clickable and dependency selection persists', async 
   await page.keyboard.press('Escape')
   await expect(page.locator('.nasq-ui-route-sheet')).toBeVisible()
   await page.reload()
-  await page.locator('summary').filter({ hasText: 'المخرجات والمرفقات والمهام المرتبطة' }).click()
+  const reloadedTabs = page.getByTestId('task-detail-tabs')
+  await reloadedTabs.getByRole('tab', { name: 'الموارد', exact: true }).click()
+  await expect(reloadedTabs.getByRole('tab', { name: 'الموارد', exact: true })).toHaveAttribute('data-state', 'active')
+  await expect(page.getByTestId('dependency-picker')).toBeVisible()
   await expect(page.getByTestId('dependency-picker')).toContainText(`Prerequisite ${stamp}`)
 })
 

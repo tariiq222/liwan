@@ -74,13 +74,13 @@ async function submitTotp() {
 </script>
 
 <template>
-  <main class="min-h-svh grid place-items-center bg-muted/40 p-4">
-    <UCard class="w-full max-w-sm">
+  <main class="nasq-login-page min-h-svh grid place-items-center bg-background p-4">
+    <UCard class="nasq-login-card w-full max-w-sm" :ui="{ header: 'nasq-ui-card-header' }">
       <template #header>
         <div class="flex flex-col items-center text-center">
-          <img v-if="branding" :src="branding.logo_url" :alt="branding.name" class="mb-3 h-14 w-auto max-w-full object-contain" />
-          <span v-else class="mb-2 grid size-12 place-items-center rounded-xl bg-[var(--primary)] text-lg font-bold text-[var(--primary-foreground)]">ن</span>
-          <h1 class="text-xl font-semibold text-highlighted">{{ productName }}</h1>
+          <img v-if="branding" :src="branding.logo_url" :alt="branding.name" class="mb-4 h-14 w-auto max-w-full object-contain" />
+          <span v-else class="mb-3 grid size-12 place-items-center rounded-xl bg-primary text-lg font-bold text-primary-foreground">ن</span>
+          <h1 class="text-2xl font-semibold text-highlighted">{{ productName }}</h1>
           <p class="text-sm text-muted">{{ $t('auth.signInToContinue') }}</p>
         </div>
       </template>
@@ -110,3 +110,13 @@ async function submitTotp() {
     </UCard>
   </main>
 </template>
+
+<style scoped>
+.nasq-login-page { background: var(--nasq-surface-page); }
+.nasq-login-card { border-radius: var(--nasq-radius); box-shadow: var(--elevation-2); }
+.nasq-login-card form { gap: 1.25rem; }
+@media (min-width: 768px) {
+  .nasq-login-page { padding: 2.5rem; }
+  .nasq-login-card { max-width: 28rem; }
+}
+</style>

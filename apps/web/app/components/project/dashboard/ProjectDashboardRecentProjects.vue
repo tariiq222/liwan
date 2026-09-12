@@ -56,7 +56,7 @@ function updatedAt(value: string | null | undefined) {
       :columns="columns"
       :caption="t('projects.dashboard.recentTitle')"
       :empty="t('projects.dashboard.noRecentProjects')"
-      :ui="{ caption: 'sr-only' }"
+      :ui="{ caption: 'sr-only', thead: 'nasq-ui-table-head' }"
     >
       <template #record-cell="{ row }">
         <RecordNumber :value="row.original.project.id" />

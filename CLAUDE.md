@@ -1,7 +1,7 @@
 # CLAUDE.md — nasq
 
-واجهة العميل: [DESIGN.md](DESIGN.md) ثم [فهرس المكونات](docs/design-system/components.md).
-Nuxt UI مرحّل في `apps/web`. التقارير المؤرخة ليست تعليمات واجهة.
+واجهة العميل: [DESIGN.md](DESIGN.md) هو نقطة البداية وسياسة التصميم الوحيدة، وفيه روابط الفهرس والمرجع التقني.
+هذا الملف يملك المعمارية والعقود والأمن والبيانات. [أرشيف الواجهة](docs/archive/ui/README.md) والتقارير لا يغيّران هذه القواعد.
 
 nasq (نَسَق) is a resellable project and task management product on Odoo 19
 CE. Odoo is the engine and `apps/web` (Nuxt 4) is the customer UI. Each
@@ -39,9 +39,10 @@ direction.
 
 The unified checkout brings together Phase 3b, routed internal pages, capability
 administration, the design system, HR hierarchy/documents, and PMO collaboration.
-The current integration evidence and recovery map are in `docs/WORKSPACE.md`
-and `docs/runtime-upgrade-cleanup-2026-09-07.md`. Older branch delivery reports are historical
-snapshots and do not override the capability policy below.
+The checkout map and delivery records are linked from `docs/WORKSPACE.md`.
+Confirm the selected branch and working tree before reading implementation
+guidance; dated delivery/recovery reports are historical snapshots and do not
+override the capability policy below.
 
 HR manages employee records and archival. Account grants, role assignments,
 password resets and reactivation belong to `/settings/users` and the
@@ -162,8 +163,10 @@ worktrees only after their content is preserved and no process is using them.
   and record-specific allowed actions decide transitions; do not infer them
   from a legacy role label.
 - Branding source of truth is `res.company`; `deploy/branding.json` seeds it.
-  The public branding response is cached. The admin API accepts only
-  `primary_color` and rejects mixed identity/color requests before any write.
+  The public branding response is cached. The customer UI edits and sends only
+  `primary_color`, and ignores stored secondary colour for rendering. The API
+  retains optional `secondary_color` compatibility; it rejects identity fields
+  and mixed identity/color requests before any write.
 - PMO project management uses record-scoped `_nasq_can_manage` and checked
   private mutation helpers. Task writes, approvals, archive, dependency edits
   and attachment mutations preserve their dedicated capability/visibility gates.
@@ -189,20 +192,16 @@ worktrees only after their content is preserved and no process is using them.
   unchanged user-id people picker.
 - RTL styling uses logical Tailwind properties only (`ms-`, `me-`, `ps-`,
   `pe-`, `start-`, `end-`, `text-start`), never physical `ml-`, `pl-`, or
-  `left-` classes. Keep the existing design tokens. Generated shadcn-vue
-  components under `apps/web/app/components/ui` include deliberate RTL and
-  hydration patches; re-apply them after `npx shadcn-vue add ... --overwrite`.
+  `left-` classes. Keep the shared tokens owned by `apps/web/app/assets/css/`
+  and configure Nuxt UI primitives through `apps/web/app/app.config.ts`.
 - Authenticated interactive controls whose first click must not be lost during
   SSR hydration use the shared `useHydrated()` composable and stay disabled
   until hydrated. Do not replace this with per-component `mounted` flags or
   make the whole authenticated app client-only. Hydration tests assert the
   disabled-to-enabled transition before clicking.
-- The generated shadcn-vue components have intentional RTL patches: `SidebarProvider.vue`
-  uses `useMediaQuery(..., { ssrWidth: 1024 })`; sidebar and dialog text use
-  `text-start`; `CommandShortcut.vue` uses `ms-auto`; Calendar and
-  NativeSelect use `ps-`/`pe-` and `end-`; DropdownMenuCheckboxItem uses
-  logical padding and `start-`; and the dialog close button uses `end-4`.
-  Re-apply these patches after regeneration.
+- Nuxt UI components are the customer control surface. Preserve their RTL
+  semantics, keyboard behavior and public props/slots; shared composite
+  components are documented in `docs/design-system/components.md`.
 - The data layer uses `@tanstack/vue-query` composables over `useApi()`, which
   throws `ApiError {status, code, message, field}`. Plain edits may be
   optimistic; transitions and approvals remain pending until the server
@@ -234,10 +233,9 @@ addon `tests/__init__.py`. Loading a code/data change into an authorized
 development database may use `-u <addon> --no-http --stop-after-init`; never
 run tests against the dev `odoo19` database.
 
-The global `~/.npmrc` may be malformed. Use `npm ci --ignore-scripts`, never
-edit that file, and set `npm_config_userconfig=/tmp/empty.npmrc` when running
-`npx shadcn-vue@latest ...`. Semantic searches across Odoo and Nasq addons
-may use the configured semtree index; resync it after installing addons.
+The global `~/.npmrc` may be malformed. Use `npm ci --ignore-scripts` and never
+edit that file. Semantic searches across Odoo and Nasq addons may use the
+configured semtree index; resync it after installing addons.
 
 New collaboration endpoints currently require the current company. Legacy
 company-less collaboration compatibility is awaiting explicit authorization;

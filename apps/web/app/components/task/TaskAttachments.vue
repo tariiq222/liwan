@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { Trash2 } from '@lucide/vue'
 import { ApiError } from '@/composables/useApi'
 import { useDeleteTaskAttachment, useTaskAttachments, useUploadTaskAttachment } from '@/composables/useTaskAttachments'
 
@@ -102,7 +101,7 @@ async function confirmDelete(id: number) {
               :disabled="!hydrated || deleting || pendingDeleteId !== null"
               @click="requestDelete(attachment.id)"
             >
-              <Trash2 class="size-[18px]" />
+              <UIcon name="i-lucide-trash-2" class="size-[18px]" aria-hidden="true" />
             </UButton>
           </div>
           <div

@@ -348,7 +348,7 @@ watch(() => props.denied, (value) => { if (value) seal() })
           </li>
         </template>
         <li v-if="pendingBody" class="ms-auto flex max-w-[min(100%,24rem)] flex-col items-end gap-1" data-testid="chat-pending">
-          <div class="rounded-2xl bg-[color-mix(in_srgb,var(--primary)_70%,transparent)] px-3 py-2 text-sm text-[var(--primary-foreground)]">{{ pendingBody }}</div>
+          <div class="nasq-chat-bubble max-w-full text-start text-sm whitespace-pre-wrap break-words" data-out="true">{{ pendingBody }}</div>
           <p class="text-[10px] text-muted-foreground">{{ t('chat.pending') }}</p>
         </li>
       </ol>

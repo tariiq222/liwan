@@ -21,7 +21,7 @@ const catalog = useAdminPermissionCatalog(computed(() => !forbidden.value))
     <SharedPageHeader :title="t('access.roles.editTitle')" :back-to="returnTo" />
     <SharedPageState v-if="forbidden" :empty="true" :empty-text="t('access.forbidden')" />
     <SharedPageState v-else :loading="role.isLoading.value" :error="role.error.value" :empty="!role.data.value" :empty-text="t('access.notFound')" @retry="role.refetch">
-      <UCard v-if="role.data.value"><RolePermissionForm :role="role.data.value" :permissions="catalog.data.value?.items ?? []" @saved="navigateTo(returnTo)" /></UCard>
+      <UCard v-if="role.data.value" class="nasq-ui-record-surface" :ui="{ body: 'p-5 sm:p-6' }"><RolePermissionForm :role="role.data.value" :permissions="catalog.data.value?.items ?? []" @saved="navigateTo(returnTo)" /></UCard>
     </SharedPageState>
   </SettingsLayout>
 </template>

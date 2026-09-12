@@ -63,9 +63,9 @@ async function submit() {
 
 <template>
   <SharedUnsavedChanges :dirty="dirty" />
-  <UForm :state="{ name, email, phone, jobTitle, departmentId, managerId }" class="space-y-5" method="post" @submit="submit">
+  <UForm :state="{ name, email, phone, jobTitle, departmentId, managerId }" class="nasq-form" method="post" @submit="submit">
     <SharedFormSection :title="t('hr.employee.general')" :description="t('hr.employee.generalHint')">
-      <div class="grid gap-4 sm:grid-cols-2 mt-4">
+      <div class="nasq-form-grid mt-4">
         <UFormField :label="t('hr.employee.name')" name="hr-employee-name" required>
           <UInput id="hr-employee-name" v-model="name" class="w-full" :disabled="!canManage || !hydrated || isPending" required />
         </UFormField>
@@ -82,7 +82,7 @@ async function submit() {
       </div>
     </SharedFormSection>
     <SharedFormSection :title="t('hr.employee.assignment')">
-      <div class="grid gap-4 sm:grid-cols-2 mt-4">
+      <div class="nasq-form-grid mt-4">
         <UFormField :label="t('hr.employee.department')" name="hr-employee-department">
           <USelect :model-value="departmentId ? String(departmentId) : 'none'" :items="departmentOptions" class="w-full" :disabled="!canManage || !hydrated || isPending" @update:model-value="departmentId = idOrNull($event)" />
         </UFormField>
@@ -97,7 +97,7 @@ async function submit() {
         </UFormField>
       </div>
     </SharedFormSection>
-    <footer class="flex flex-wrap items-center justify-end gap-2">
+    <footer class="nasq-form-footer flex-wrap justify-end">
       <span class="me-auto text-xs text-muted">{{ t('hr.employee.formHint') }}</span>
       <slot name="actions" />
       <UButton type="submit" color="primary" :disabled="!canManage || !hydrated || isPending || !name.trim()" :label="t('app.save')" />

@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { SlideoverProps } from '@nuxt/ui'
-import { Menu } from '@lucide/vue'
 import { useMediaQuery } from '@vueuse/core'
 import SidebarCreateAction from '@/components/shell/SidebarCreateAction.vue'
 import { useShellNavigation } from '@/composables/useShellNavigation'
@@ -115,7 +114,7 @@ const dialogContent = computed<NonNullable<SlideoverProps['content']> & { id: st
       :disabled="!hydrated"
     >
       <template #leading>
-        <Menu aria-hidden="true" />
+        <UIcon name="i-lucide-menu" class="nasq-shell-icon size-[18px] shrink-0" aria-hidden="true" />
       </template>
     </UButton>
     <template #body>
@@ -139,7 +138,7 @@ const dialogContent = computed<NonNullable<SlideoverProps['content']> & { id: st
             @click="onModuleActivate(item)"
           >
             <template #leading>
-              <component :is="item.icon" aria-hidden="true" />
+              <UIcon :name="item.icon" class="nasq-shell-icon size-[18px] shrink-0" aria-hidden="true" />
             </template>
           </UButton>
         </nav>
@@ -175,7 +174,7 @@ const dialogContent = computed<NonNullable<SlideoverProps['content']> & { id: st
               @click="closeIfCurrent(link.to)"
             >
               <template #leading>
-                <component :is="link.icon" aria-hidden="true" />
+                <UIcon :name="link.icon" class="nasq-shell-icon size-[18px] shrink-0" aria-hidden="true" />
               </template>
             </UButton>
           </div>

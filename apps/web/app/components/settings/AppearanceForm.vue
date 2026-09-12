@@ -9,7 +9,7 @@ const icons = { light: 'i-lucide-sun', cream: 'i-lucide-coffee', dark: 'i-lucide
 </script>
 
 <template>
-  <SharedFormSection id="appearance-mode" panel :title="t('settings.appearance.mode')" :description="t('settings.appearance.modeHint')">
+  <SharedFormSection id="appearance-mode" panel class="nasq-ui-record-surface" :title="t('settings.appearance.mode')" :description="t('settings.appearance.modeHint')">
     <URadioGroup
       name="appearance-mode" :model-value="mode" :disabled="!hydrated" variant="card" orientation="horizontal" indicator="hidden"
       :items="modes.map(value => ({ value, label: t(`settings.appearance.${value}`), icon: icons[value] }))"
@@ -18,7 +18,7 @@ const icons = { light: 'i-lucide-sun', cream: 'i-lucide-coffee', dark: 'i-lucide
       <template #label="{ item }"><span :data-testid="`appearance-mode-${item.value}`">{{ item.label }}</span></template>
     </URadioGroup>
   </SharedFormSection>
-  <SharedFormSection id="appearance-font" panel :title="t('settings.appearance.fontSize')" :description="t('settings.appearance.fontHint')">
+  <SharedFormSection id="appearance-font" panel class="nasq-ui-record-surface" :title="t('settings.appearance.fontSize')" :description="t('settings.appearance.fontHint')">
     <URadioGroup
       name="appearance-font" :model-value="fontSize" :disabled="!hydrated" variant="card" orientation="horizontal"
       :items="sizes.map(value => ({ value, label: t(`settings.appearance.${value}`), description: value === 'small' ? t('settings.appearance.default') : undefined }))"

@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { Plus } from '@lucide/vue'
 import type { RouteLocationRaw } from 'vue-router'
 
 withDefaults(defineProps<{
@@ -27,7 +26,7 @@ withDefaults(defineProps<{
     :label="label"
   >
     <template #leading>
-      <Plus aria-hidden="true" />
+      <UIcon name="i-lucide-plus" class="nasq-shell-icon size-[18px] shrink-0" aria-hidden="true" />
     </template>
   </UButton>
 </template>

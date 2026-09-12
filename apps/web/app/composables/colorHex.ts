@@ -6,18 +6,11 @@ export function normalizeHex(value: string): string | null {
   return /^#[0-9a-fA-F]{6}$/.test(withHash) ? withHash.toLowerCase() : null
 }
 
-export function buildBrandingPatch(input: { primaryColor: string; secondaryColor?: string | null }): BrandingPatch | null {
+export function buildBrandingPatch(input: { primaryColor: string }): BrandingPatch | null {
   const primaryColor = normalizeHex(input.primaryColor)
   if (!primaryColor) return null
-  const secondaryColor = input.secondaryColor === undefined
-    ? undefined
-    : input.secondaryColor === null
-      ? null
-      : normalizeHex(input.secondaryColor)
-  if (secondaryColor === null && input.secondaryColor !== null) return null
   const parsed = BrandingPatchSchema.safeParse({
     primary_color: primaryColor,
-    ...(secondaryColor !== undefined ? { secondary_color: secondaryColor } : {}),
   })
   return parsed.success ? parsed.data : null
 }

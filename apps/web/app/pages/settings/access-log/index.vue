@@ -48,7 +48,7 @@ function onActionChange(value: unknown) { filters.action = value && value !== al
   <SettingsLayout>
     <SharedPageHeader :title="t('access.audit.title')" />
     <SharedPageState v-if="forbidden" :empty="true" :empty-text="t('access.forbidden')" />
-    <div v-else class="space-y-3">
+    <div v-else class="space-y-6">
       <p class="text-sm leading-6 text-muted">{{ t('access.audit.description') }}</p>
       <div id="filters" class="nasq-settings-anchor w-full min-w-0">
         <FilterBar class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">

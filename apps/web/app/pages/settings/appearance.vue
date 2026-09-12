@@ -8,7 +8,7 @@ const { t } = useI18n()
 <template>
   <SettingsLayout width="form">
     <SharedPageHeader :title="t('settings.appearance.title')" />
-    <div class="space-y-6" data-testid="appearance-form">
+    <div class="nasq-settings-cards" data-testid="appearance-form">
       <AppearanceForm />
     </div>
   </SettingsLayout>

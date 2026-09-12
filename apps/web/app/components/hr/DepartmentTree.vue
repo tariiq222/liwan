@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { Network } from '@lucide/vue'
 import { filterDepartmentTree, flattenDepartmentTree, type DepartmentTreeNode } from '@/lib/departmentTree'
 
 const props = defineProps<{
@@ -86,7 +85,7 @@ function toggle(node: DepartmentTreeNode) {
         </UButton>
         <span v-else class="size-8" aria-hidden="true" />
       </span>
-      <Network class="size-[18px] shrink-0 text-muted" aria-hidden="true" />
+      <UIcon name="i-lucide-network" class="size-[18px] shrink-0 text-muted" aria-hidden="true" />
       <UButton
         type="button"
         color="neutral"

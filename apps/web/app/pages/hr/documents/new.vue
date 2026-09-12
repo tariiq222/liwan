@@ -33,7 +33,7 @@ function saved(id: number) {
       :empty="!departments.data.value?.items.length"
       @retry="departments.refetch"
     >
-      <UCard class="space-y-6">
+      <UCard class="nasq-ui-record-surface space-y-6" :ui="{ body: 'p-5 sm:p-6' }">
         <SharedFormSection :title="t('hr.docs.department')">
           <UFormField class="mt-4" :label="t('hr.docs.department')" name="new-document-department">
             <USelect

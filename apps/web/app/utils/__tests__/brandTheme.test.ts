@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createBrandTheme, DEFAULT_PRIMARY, derivedSecondary, brandPairContrast, MODE_SURFACES } from '../brandTheme'
+import { createBrandTheme, DEFAULT_PRIMARY, MODE_SURFACES } from '../brandTheme'
 
 function channel(value: number) {
   const normalized = value / 255
@@ -30,6 +30,12 @@ function visualDistance(first: string, second: string): number {
 }
 
 describe('createBrandTheme', () => {
+  it('uses the current reference surfaces and readable muted text baseline', () => {
+    expect(MODE_SURFACES.light).toEqual(['#f6f7fb', '#ffffff', '#f8f9fc', '#eef1f7', '#f1f3f9', '#e5e8ef', '#d9dde7'])
+    expect(contrast('#656c7e', '#f6f7fb')).toBeGreaterThanOrEqual(4.5)
+    expect(contrast('#656c7e', '#eef1f7')).toBeGreaterThanOrEqual(4.5)
+  })
+
   it.each([
     ['#000000', '#ffffff'],
     ['#ffffff', '#000000'],
@@ -75,7 +81,7 @@ describe('createBrandTheme', () => {
     const theme = createBrandTheme(primary, 'cream')
     expect(theme['--primary']).toBe(primary)
     expect(contrast(primary, theme['--primary-foreground']!)).toBeGreaterThanOrEqual(4.5)
-    for (const surface of ['#fbf7ef', '#f6f1e7', '#efe8d9']) {
+    for (const surface of MODE_SURFACES.cream) {
       expect(contrast(theme['--brand-link']!, surface)).toBeGreaterThanOrEqual(4.5)
       expect(contrast(theme['--ring']!, surface)).toBeGreaterThanOrEqual(3)
     }
@@ -87,7 +93,7 @@ describe('createBrandTheme', () => {
     expect(contrast(primary, theme['--primary-foreground']!)).toBeGreaterThanOrEqual(4.5)
     expect(theme['--sidebar-primary']).toBe(primary)
     expect(theme['--sidebar-ring']).toBe(theme['--ring'])
-    for (const surface of ['#09090b', '#18181b', '#27272a']) {
+    for (const surface of MODE_SURFACES.dark) {
       expect(contrast(theme['--brand-link']!, surface)).toBeGreaterThanOrEqual(4.5)
       expect(contrast(theme['--ring']!, surface)).toBeGreaterThanOrEqual(3)
     }
@@ -139,6 +145,21 @@ describe('createBrandTheme', () => {
     expect(first['--chart-2']).toBe('#0055ff')
   })
 
+  it.each(['#000000', '#ffffff', '#0055ff', '#d14a00', '#a855f7'])
+    ('keeps every chart tone at least 3:1 against chart surfaces for %s', (primary) => {
+      for (const mode of ['light', 'cream', 'dark'] as const) {
+        const theme = createBrandTheme(primary, mode)
+        const charts = Array.from({ length: 6 }, (_, index) => theme[`--chart-${index + 1}`]!)
+
+        expect(new Set(charts).size, `${primary} ${mode} chart uniqueness`).toBe(6)
+        for (const chart of charts) {
+          for (const surface of MODE_SURFACES[mode]) {
+            expect(contrast(chart, surface), `${primary} ${mode} ${chart} on ${surface}`).toBeGreaterThanOrEqual(3)
+          }
+        }
+      }
+    })
+
   it('spreads chart tones across neighbouring hues for a chromatic brand', () => {
     const theme = createBrandTheme('#0055ff')
     const hues = Array.from({ length: 6 }, (_, index) => theme[`--chart-${index + 1}`]!)
@@ -175,8 +196,8 @@ describe('createBrandTheme', () => {
     }
   })
 
-  it('returns only the documented CSS custom properties', () => {
-    expect(Object.keys(createBrandTheme('#0055ff', 'light', '#d14a00')).sort()).toEqual([
+  it('returns only the primary-derived CSS custom properties', () => {
+    expect(Object.keys(createBrandTheme('#0055ff')).sort()).toEqual([
       '--brand-link',
       '--chart-1',
       '--chart-2',
@@ -184,16 +205,6 @@ describe('createBrandTheme', () => {
       '--chart-4',
       '--chart-5',
       '--chart-6',
-      '--nasq-brand-secondary',
-      '--nasq-brand-secondary-fill',
-      '--nasq-brand-secondary-fill-active',
-      '--nasq-brand-secondary-fill-active-foreground',
-      '--nasq-brand-secondary-fill-foreground',
-      '--nasq-brand-secondary-fill-hover',
-      '--nasq-brand-secondary-fill-hover-foreground',
-      '--nasq-brand-secondary-foreground',
-      '--nasq-brand-secondary-soft',
-      '--nasq-brand-secondary-soft-foreground',
       '--primary',
       '--primary-active',
       '--primary-active-foreground',
@@ -206,13 +217,9 @@ describe('createBrandTheme', () => {
       '--primary-foreground',
       '--primary-hover',
       '--primary-hover-foreground',
+      '--primary-soft',
+      '--primary-soft-foreground',
       '--ring',
-      '--secondary',
-      '--secondary-active',
-      '--secondary-active-foreground',
-      '--secondary-foreground',
-      '--secondary-hover',
-      '--secondary-hover-foreground',
       '--shell-active',
       '--shell-background',
       '--shell-foreground',
@@ -223,68 +230,25 @@ describe('createBrandTheme', () => {
     ])
   })
 
-  it('derives a secondary from the primary instead of a hardcoded blue', () => {
-    const derived = derivedSecondary('#0055ff')
-    expect(createBrandTheme('#0055ff')['--secondary']).toBeUndefined()
-    expect(createBrandTheme('#0055ff')['--nasq-brand-secondary']).toBe(derived)
-    expect(createBrandTheme('#0055ff')['--nasq-brand-secondary']).not.toBe('#2563eb')
-    expect(createBrandTheme('#0055ff', 'light', 'not-a-colour')['--nasq-brand-secondary']).toBe(derived)
-    expect(createBrandTheme('#0055ff', 'light', 'not-a-colour')['--secondary']).toBe(derived)
-    const theme = createBrandTheme('#0055ff', 'light', '#d14a00')
-    expect(theme['--primary']).toBe('#0055ff')
-    expect(theme['--secondary']).toBe('#d14a00')
-    expect(theme['--nasq-brand-secondary']).toBe('#d14a00')
-    expect(theme['--secondary']).not.toBe(theme['--primary'])
-    expect(new Set([theme['--secondary'], theme['--secondary-hover'], theme['--secondary-active']]).size).toBe(3)
-    expect(contrast(theme['--nasq-brand-secondary']!, theme['--nasq-brand-secondary-foreground']!)).toBeGreaterThanOrEqual(4.5)
-  })
-
-  it.each(['#2563eb', '#d14a00', '#e3e3e4', '#ffffff', '#78ff3e'])('gives secondary text at least 4.5:1 on %s', (secondary) => {
-    const theme = createBrandTheme(DEFAULT_PRIMARY, 'light', secondary)
-    expect(contrast(theme['--nasq-brand-secondary']!, theme['--nasq-brand-secondary-foreground']!)).toBeGreaterThanOrEqual(4.5)
-  })
-
-  it.each(['#000000', '#ffffff', '#ffff00', '#78ff3e', '#00ffd2'])('keeps secondary soft text readable on %s', (secondary) => {
+  it.each(['#000000', '#ffffff', '#ffff00', '#0055ff', '#a855f7'])('keeps primary soft selection readable on %s', (primary) => {
     for (const mode of ['light', 'cream', 'dark'] as const) {
-      const theme = createBrandTheme('#0055ff', mode, secondary)
-      expect(contrast(theme['--nasq-brand-secondary-soft']!, theme['--nasq-brand-secondary-soft-foreground']!)).toBeGreaterThanOrEqual(4.5)
+      const theme = createBrandTheme(primary, mode)
+      expect(contrast(theme['--primary-soft']!, theme['--primary-soft-foreground']!), `${primary} ${mode}`).toBeGreaterThanOrEqual(4.5)
     }
   })
 
-  it.each(['#000000', '#ffffff', '#ffff00', '#78ff3e', '#00ffd2'])('keeps secondary fill readable on %s surfaces', (secondary) => {
+  it.each(['#000000', '#ffffff', '#ffff00', '#0055ff', '#a855f7'])('keeps primary soft selection distinct from fill on %s', (primary) => {
     for (const mode of ['light', 'cream', 'dark'] as const) {
-      const surfaces = MODE_SURFACES[mode]
-      const theme = createBrandTheme('#0055ff', mode, secondary)
-      expect(contrast(theme['--nasq-brand-secondary-fill']!, theme['--nasq-brand-secondary-fill-foreground']!)).toBeGreaterThanOrEqual(4.5)
-      for (const surface of surfaces) {
-        expect(contrast(theme['--nasq-brand-secondary-fill']!, surface), `${secondary} ${mode} ${surface}`).toBeGreaterThanOrEqual(3)
-      }
+      const theme = createBrandTheme(primary, mode)
+      expect(theme['--primary-soft']).not.toBe(theme['--primary-fill'])
+      expect(contrast(theme['--primary-fill']!, theme['--primary-fill-foreground']!), `${primary} ${mode}`).toBeGreaterThanOrEqual(4.5)
     }
   })
 
-  it('walks chart tones from primary to a distinct secondary', () => {
-    const theme = createBrandTheme('#0055ff', 'light', '#d14a00')
+  it('keeps charts in one primary-derived family', () => {
+    const theme = createBrandTheme('#0055ff')
     const charts = Array.from({ length: 6 }, (_, index) => theme[`--chart-${index + 1}`]!)
     expect(theme['--chart-2']).toBe('#0055ff')
-    expect(theme['--chart-5']).toBe(theme['--nasq-brand-secondary-fill'])
     expect(new Set(charts).size).toBe(6)
-    expect(charts).not.toEqual(Array.from({ length: 6 }, (_, index) => createBrandTheme('#0055ff')[`--chart-${index + 1}`]!))
-  })
-
-  it('keeps the primary chart family when secondary shares its hue', () => {
-    const without = Array.from({ length: 6 }, (_, index) => createBrandTheme('#0055ff')[`--chart-${index + 1}`]!)
-    const washed = Array.from({ length: 6 }, (_, index) => createBrandTheme('#0055ff', 'light', derivedSecondary('#0055ff'))[`--chart-${index + 1}`]!)
-    expect(washed).toEqual(without)
-  })
-
-  it('reports low-contrast pairs without changing either chosen colour', () => {
-    expect(brandPairContrast('#100060', '#b2ff32')).toBeGreaterThan(4.5)
-    expect(brandPairContrast('#ffff00', '#ffffff')).toBeLessThan(4.5)
-    for (const mode of ['light', 'cream', 'dark'] as const) {
-      const theme = createBrandTheme('#ffff00', mode, '#ffffff')
-      expect(theme['--primary']).toBe('#ffff00')
-      expect(theme['--secondary']).toBe('#ffffff')
-      expect(theme['--nasq-brand-secondary']).toBe('#ffffff')
-    }
   })
 })

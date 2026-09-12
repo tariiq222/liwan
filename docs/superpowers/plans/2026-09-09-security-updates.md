@@ -1,3 +1,5 @@
+> **سياق تاريخي للمنتج والتنفيذ.** قرارات الشكل القديمة هنا ليست تعليمات واجهة؛ اتبع [DESIGN.md](../../../DESIGN.md). تبقى العقود وقيود الأمن والبيانات خاضعة للمصادر الحالية في المشروع.
+
 # Internal security updates implementation plan
 
 **Goal:** Identify current security updates and apply tested compatible updates to the internal Nasq runtime.

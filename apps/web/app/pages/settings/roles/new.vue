@@ -91,19 +91,19 @@ async function submit() {
   <SettingsLayout width="form">
     <SharedPageHeader :title="t('access.roles.createTitle')" :back-to="backTo" />
     <SharedPageState v-if="forbidden" :empty="true" :empty-text="t('access.forbidden')" />
-    <UForm v-else :state="{ nameAr, nameEn, description }" class="space-y-6" method="post" @submit="submit">
+    <UForm v-else :state="{ nameAr, nameEn, description }" class="nasq-form" method="post" @submit="submit">
       <SharedUnsavedChanges :dirty="dirty" />
-      <UCard>
+      <UCard class="nasq-ui-record-surface" :ui="{ body: 'p-5 sm:p-6' }">
         <template #header><h2 class="text-lg font-semibold text-highlighted">{{ t('access.roles.details') }}</h2></template>
         <div class="space-y-4">
-          <div class="grid gap-4 sm:grid-cols-2">
+          <div class="nasq-form-grid">
             <UFormField :label="t('access.roles.nameArabic')" name="name-ar"><UInput id="name-ar" v-model="nameAr" class="w-full" :disabled="!hydrated || create.isPending.value" /></UFormField>
             <UFormField :label="t('access.roles.nameEnglish')" name="name-en"><UInput id="name-en" v-model="nameEn" dir="ltr" class="w-full" :disabled="!hydrated || create.isPending.value" /></UFormField>
           </div>
           <UFormField :label="t('access.roles.descriptionLabel')" name="description"><UTextarea id="description" v-model="description" class="w-full" :disabled="!hydrated || create.isPending.value" /></UFormField>
         </div>
       </UCard>
-      <UCard>
+      <UCard class="nasq-ui-record-surface" :ui="{ body: 'p-5 sm:p-6' }">
         <template #header><h2 class="text-lg font-semibold text-highlighted">{{ t('access.roles.permissions') }}</h2></template>
         <fieldset class="space-y-4" :disabled="!hydrated || create.isPending.value">
           <legend class="sr-only">{{ t('access.roles.permissions') }}</legend>
@@ -128,7 +128,7 @@ async function submit() {
         </fieldset>
       </UCard>
       <UAlert v-if="errorKey" role="alert" color="error" variant="subtle" :title="errorKey" />
-      <footer class="flex justify-end"><UButton type="submit" color="primary" :disabled="!hydrated || create.isPending.value || !nameAr.trim()" :label="t('access.roles.create')" /></footer>
+      <footer class="nasq-form-footer justify-end"><UButton type="submit" color="primary" :disabled="!hydrated || create.isPending.value || !nameAr.trim()" :label="t('access.roles.create')" /></footer>
     </UForm>
   </SettingsLayout>
 </template>

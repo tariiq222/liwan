@@ -1,3 +1,5 @@
+> **سياق تاريخي للمنتج والتنفيذ.** قرارات الشكل القديمة هنا ليست تعليمات واجهة؛ اتبع [DESIGN.md](../../../DESIGN.md). تبقى العقود وقيود الأمن والبيانات خاضعة للمصادر الحالية في المشروع.
+
 # Charter, milestones and tasks
 
 Approved in the current user conversation on 2026-09-08; the user explicitly requested execution. No further approval ceremony is needed for this agreed scope.
