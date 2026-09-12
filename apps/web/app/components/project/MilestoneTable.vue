@@ -3,7 +3,7 @@ import type { Milestone } from '@nasq/contracts'
 import { getLocalTimeZone, today } from '@internationalized/date'
 import { ApiError } from '@/composables/useApi'
 import { formatCalendarDate, toCalendarDate } from '@/composables/calendarDate'
-import { TONE_BADGE_COLOR } from '@/components/project/projectTone'
+import { STATUS_COLOR } from '@/utils/statusTone'
 import { useDeleteMilestone, useMilestones, useUpdateMilestone } from '@/composables/useMilestones'
 import { returnToQuery } from '@/utils/safeReturnTo'
 import { claimMilestoneChecklistUpdate, releaseMilestoneChecklistUpdate } from '@/utils/milestoneChecklist'
@@ -120,7 +120,7 @@ async function confirmDelete() {
           <div class="milestone-main min-w-0">
             <div class="flex flex-wrap items-center gap-2">
               <p class="font-medium">{{ m.name }}</p>
-              <UBadge variant="subtle" :color="TONE_BADGE_COLOR[m.is_reached ? 'success' : 'neutral']">{{ t(m.is_reached ? 'projects.milestones.reached' : 'projects.milestones.notReached') }}</UBadge>
+              <UBadge variant="subtle" :color="STATUS_COLOR[m.is_reached ? 'success' : 'neutral']">{{ t(m.is_reached ? 'projects.milestones.reached' : 'projects.milestones.notReached') }}</UBadge>
             </div>
             <div class="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted">
               <span>{{ t('projects.milestones.startDate') }}: {{ startText(m) }}</span>

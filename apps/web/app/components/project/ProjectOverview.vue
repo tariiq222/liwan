@@ -4,7 +4,7 @@ import { getLocalTimeZone, today } from '@internationalized/date'
 import { formatCalendarDate, toCalendarDate } from '@/composables/calendarDate'
 import { useMilestones } from '@/composables/useMilestones'
 import { useProjectUpdates } from '@/composables/useProjectUpdates'
-import { TONE_BADGE_COLOR } from '@/components/project/projectTone'
+import { STATUS_COLOR } from '@/utils/statusTone'
 import { sanitizeHtml } from '@/utils/sanitize'
 import RecordNumber from '@/components/shared/RecordNumber.vue'
 import ProjectOverviewTasks from './ProjectOverviewTasks.vue'
@@ -116,7 +116,7 @@ function isOverdue(value: string | null) {
             </div>
             <div class="project-summary-milestone-meta flex min-w-0 flex-wrap items-center justify-end gap-2">
               <span class="whitespace-nowrap text-xs text-muted">{{ dateLabel(item.deadline) }}</span>
-              <UBadge variant="subtle" :color="TONE_BADGE_COLOR[item.is_reached ? 'success' : isOverdue(item.deadline) ? 'destructive' : 'info']">
+              <UBadge variant="subtle" :color="STATUS_COLOR[item.is_reached ? 'success' : isOverdue(item.deadline) ? 'destructive' : 'info']">
                 {{ t(item.is_reached ? 'projects.milestones.reached' : isOverdue(item.deadline) ? 'projects.milestones.overdue' : 'projects.milestones.upcoming') }}
               </UBadge>
             </div>

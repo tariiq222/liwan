@@ -127,7 +127,6 @@
   --nasq-ui-z-sheet: 60;
   --nasq-ui-z-menu: 130;
 }
-:root.dark { --ui-warning: #fbbf24; --ui-success: #4ade80; --ui-info: #60a5fa; --ui-error: #f87171; }
 :root[data-font-size="medium"] { font-size: 16px; }
 :root[data-font-size="large"] { font-size: 18px; }
 /* Cream mode keeps the same geometry while warming neutral surfaces. */

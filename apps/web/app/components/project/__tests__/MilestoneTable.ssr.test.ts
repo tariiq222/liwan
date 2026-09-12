@@ -67,7 +67,7 @@ describe('MilestoneTable SSR', () => {
       error: ref(null),
       refetch: () => {},
       locale: ref('en-US'),
-      TONE_BADGE_COLOR: { success: 'success', neutral: 'neutral' },
+      STATUS_COLOR: { success: 'success', neutral: 'neutral' },
       DEADLINE_TEXT_CLASS: { destructive: '', neutral: '' },
       t: (key: string, params?: Record<string, unknown>) => params ? `${key}:${String(params.count)}` : key,
       deadlineTone: () => 'neutral',

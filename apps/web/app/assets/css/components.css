@@ -97,35 +97,7 @@
 }
 
 /* Semantic status surfaces: theme tokens, not ad-hoc Tailwind palettes. */
-.nasq-status-text-info { color: var(--status-info-foreground); }
-.nasq-status-text-success { color: var(--status-success-foreground); }
 .nasq-status-text-warning { color: var(--status-warning-foreground); }
-.nasq-status-text-danger { color: var(--status-danger-foreground); }
-.nasq-status-chip-muted {
-  border-color: transparent;
-  background: var(--muted);
-  color: var(--muted-foreground);
-}
-.nasq-status-chip-info {
-  border-color: transparent;
-  background: var(--status-info-soft);
-  color: var(--status-info-foreground);
-}
-.nasq-status-chip-warning {
-  border-color: transparent;
-  background: var(--status-warning-soft);
-  color: var(--status-warning-foreground);
-}
-.nasq-status-chip-success {
-  border-color: transparent;
-  background: var(--status-success-soft);
-  color: var(--status-success-foreground);
-}
-.nasq-status-chip-danger {
-  border-color: transparent;
-  background: var(--status-danger-soft);
-  color: var(--status-danger-foreground);
-}
 
 .nasq-status-callout-danger {
   border: 1px solid color-mix(in srgb, var(--destructive) 40%, var(--border));

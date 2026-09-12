@@ -1,9 +1,6 @@
 /* Shared page geometry from the approved executable Nuxt UI reference. */
 /* Full-height workspaces can override the default grid with Tailwind flex. */
-@layer components {
-  .nasq-page-stack { display: grid; }
-}
-.nasq-page-stack { grid-template-columns: minmax(0, 1fr); min-width: 0; gap: 1.75rem; }
+.nasq-page-stack { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; gap: 1.75rem; }
 .nasq-page-stack > * { min-width: 0; }
 /* Shared composition for project sections and their routed record workflows. */
 .nasq-page-stack[data-workspace-area="true"] { gap: 1.5rem; align-content: start; }
