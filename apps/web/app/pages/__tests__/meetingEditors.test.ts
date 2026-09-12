@@ -5,7 +5,7 @@ import { parse } from '@vue/compiler-sfc'
 import ts from 'typescript'
 import { computed, nextTick, ref, watch } from 'vue'
 import { describe, expect, it, vi } from 'vitest'
-import { createMeetingMinutesForm, validateMeetingMinutesForm } from '../../components/meetings/meetingMinutesForm'
+import { createMeetingMinutesForm, validateMeetingMinutesForm } from '../../utils/meetingMinutesForm'
 
 const page = (relativePath: string) => resolve('app/pages/meetings', relativePath)
 const source = (relativePath: string) => readFileSync(page(relativePath), 'utf8')

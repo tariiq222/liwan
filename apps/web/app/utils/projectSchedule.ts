@@ -1,4 +1,5 @@
 import type { ScheduleMilestone, ScheduleTask } from '@nasq/contracts'
+import { isCalendarDate } from '../composables/calendarDate'
 
 export type ScheduleScale = 'week' | 'month'
 export type ScheduleAxis = {
@@ -14,12 +15,6 @@ export type ScheduleAxis = {
 const DAY = 86_400_000
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
 
-export function isCalendarDate(value: unknown): value is string {
-  if (typeof value !== 'string' || !ISO_DATE.test(value)) return false
-  const [year = 0, month = 0, day = 0] = value.split('-').map(Number)
-  const date = new Date(Date.UTC(year, month - 1, day))
-  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day
-}
 
 export function dateToUtc(value: string): number {
   if (!isCalendarDate(value)) throw new Error('Invalid calendar date')

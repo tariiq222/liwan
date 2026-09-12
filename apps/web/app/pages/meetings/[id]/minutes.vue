@@ -2,7 +2,7 @@
 import DescriptionEditor from '@/components/task/DescriptionEditor.vue'
 import MeetingMinutesDocument from '@/components/meetings/MeetingMinutesDocument.vue'
 import MeetingMinutesForm from '@/components/meetings/MeetingMinutesForm.vue'
-import { createMeetingMinutesForm, type MeetingMinutesFormValue, type MeetingMinutesSnapshotLike, validateMeetingMinutesForm } from '@/components/meetings/meetingMinutesForm'
+import { createMeetingMinutesForm, type MeetingMinutesFormValue, type MeetingMinutesSnapshotLike, validateMeetingMinutesForm } from '@/utils/meetingMinutesForm'
 import { useMeeting, usePatchMeeting } from '@/composables/useMeetings'
 import { safeReturnTo } from '@/utils/safeReturnTo'
 import { useSsrQuerySeed } from '@/lib/vueQuerySsr'

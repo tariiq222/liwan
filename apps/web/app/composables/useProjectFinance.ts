@@ -11,7 +11,8 @@ import {
   type FinanceKind,
   type FinanceSummary,
 } from '@nasq/contracts'
-import { financeListQuery, parsePositiveId, type FinanceKindFilter } from '@/utils/projectFinance'
+import { financeListQuery, type FinanceKindFilter } from '@/utils/projectFinance'
+import { parsePositiveId } from '@/utils/routeParams'
 
 export type { FinanceEntry, FinanceEntryList, FinanceSummary }
 
@@ -115,5 +116,3 @@ export function useDeleteFinanceEntry() {
     },
   })
 }
-
-export { financeListQuery }

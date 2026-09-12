@@ -6,12 +6,12 @@ import { useCharterDefaults } from '@/composables/useProjectCharterCatalogs'
 import type { CharterDraft, CharterFieldKey, CharterMilestone, NativeDateSnapshot } from '@/utils/projectCharter'
 import {
   canOverwriteWithLatest,
-  createBodyFromDraft,
+  charterCreateBody,
   draftFromProject,
   emptyCharterDraft,
   isCharterDraftDirty,
   nativeDateSnapshot,
-  patchBodyFromDraft,
+  charterPatchBody,
   validateCharterDraft,
 } from '@/utils/projectCharter'
 import ProjectCharterFields from '@/components/project/ProjectCharterFields.vue'
@@ -145,7 +145,7 @@ async function submit(token = writeToken.value) {
   const preserved = draft.value
   try {
     if (props.mode === 'create') {
-      const created = await createProject(createBodyFromDraft(preserved, { includeNullManager: true }))
+      const created = await createProject(charterCreateBody(preserved, { includeNullManager: true }))
       submitted.value = true
       emit('created', created.id)
       return
@@ -153,7 +153,7 @@ async function submit(token = writeToken.value) {
     if (!props.project || !token) return
     const detail = await updateProject({
       id: props.project.id,
-      patch: patchBodyFromDraft(preserved, token, originalDates.value),
+      patch: charterPatchBody(preserved, token, originalDates.value),
     })
     applyLoadedProject(detail)
     stale.value = false

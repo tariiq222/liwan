@@ -4,7 +4,7 @@ import {
   CHARTER_FIELD_KEYS,
   canOverwriteWithLatest,
   charterWriteFromDraft,
-  createBodyFromDraft,
+  charterCreateBody,
   createdProjectLocation,
   draftFromProject,
   emptyCharterDraft,
@@ -14,7 +14,7 @@ import {
   isPairedDates,
   nativeDateSnapshot,
   parseAmountInput,
-  patchBodyFromDraft,
+  charterPatchBody,
   stripBlankDeliverables,
   stripBlankObjectives,
   validateCharterDraft,
@@ -112,17 +112,17 @@ describe('row stripping', () => {
   })
 })
 
-describe('createBodyFromDraft', () => {
+describe('charterCreateBody', () => {
   it('allows a name-only create and omits empty charter, code, and currency', () => {
     const draft = emptyCharterDraft('SAR (ر.س)')
     draft.name = '  New portal  '
-    expect(createBodyFromDraft(draft)).toEqual({ name: 'New portal' })
+    expect(charterCreateBody(draft)).toEqual({ name: 'New portal' })
   })
 
   it('can preserve an explicit optional no-manager selection from the create form', () => {
     const draft = emptyCharterDraft()
     draft.name = 'No manager'
-    expect(createBodyFromDraft(draft, { includeNullManager: true }).user_id).toBeNull()
+    expect(charterCreateBody(draft, { includeNullManager: true }).user_id).toBeNull()
   })
 
   it('puts native fields outside charter and catalog ids inside charter', () => {
@@ -137,7 +137,7 @@ describe('createBodyFromDraft', () => {
     draft.authority = 'Board'
     draft.budgetState = 'estimate'
     draft.amountInput = '0'
-    const body = createBodyFromDraft(draft)
+    const body = charterCreateBody(draft)
     expect(body).toMatchObject({
       name: 'Portal',
       description: 'Summary',
@@ -160,19 +160,19 @@ describe('createBodyFromDraft', () => {
     const draft = emptyCharterDraft()
     draft.name = 'Portal'
     draft.dateEnd = '2030-06-01'
-    expect(createBodyFromDraft(draft)).toMatchObject({ date_end: '2030-06-01' })
+    expect(charterCreateBody(draft)).toMatchObject({ date_end: '2030-06-01' })
     draft.dateStart = '2030-01-01'
     draft.dateEnd = null
     expect(validateCharterDraft(draft, { mode: 'create' }).some((error) => error.code === 'pair')).toBe(true)
   })
 })
 
-describe('patchBodyFromDraft dates', () => {
+describe('charterPatchBody dates', () => {
   it('omits unchanged native dates so a legacy one-sided range is not cleared', () => {
     const original = project()
     const draft = draftFromProject(original)
     draft.rationale = 'Need'
-    const patch = patchBodyFromDraft(draft, 'v4', nativeDateSnapshot(original))
+    const patch = charterPatchBody(draft, 'v4', nativeDateSnapshot(original))
     expect(patch.expected_updated_at).toBe('v4')
     expect(patch.charter?.rationale).toBe('Need')
     expect(patch).not.toHaveProperty('date_start')
@@ -184,7 +184,7 @@ describe('patchBodyFromDraft dates', () => {
     const draft = draftFromProject(original)
     draft.dateStart = '2030-02-01'
     draft.dateEnd = '2030-06-01'
-    const patch = patchBodyFromDraft(draft, 'v4', nativeDateSnapshot(original))
+    const patch = charterPatchBody(draft, 'v4', nativeDateSnapshot(original))
     expect(patch.date_start).toBe('2030-02-01')
     expect(patch.date).toBe('2030-06-01')
   })
@@ -194,7 +194,7 @@ describe('patchBodyFromDraft dates', () => {
     const draft = draftFromProject(original)
     draft.dateStart = null
     draft.dateEnd = null
-    const patch = patchBodyFromDraft(draft, 'v4', nativeDateSnapshot(original))
+    const patch = charterPatchBody(draft, 'v4', nativeDateSnapshot(original))
     expect(patch.date_start).toBeNull()
     expect(patch.date).toBeNull()
   })
@@ -203,13 +203,13 @@ describe('patchBodyFromDraft dates', () => {
     const original = project({ date_start: '2030-01-01', date_end: '2030-06-01' })
     const draft = draftFromProject(original)
     draft.dateStart = null
-    const patch = patchBodyFromDraft(draft, 'v4', nativeDateSnapshot(original))
+    const patch = charterPatchBody(draft, 'v4', nativeDateSnapshot(original))
     expect(patch).not.toHaveProperty('date_start')
     expect(patch.date).toBe('2030-06-01')
   })
 })
 
-describe('patchBodyFromDraft hidden charter values', () => {
+describe('charterPatchBody hidden charter values', () => {
   it('preserves historical values when editing only the project name', () => {
     const original = project({
       charter: {
@@ -223,7 +223,7 @@ describe('patchBodyFromDraft hidden charter values', () => {
     const draft = draftFromProject(original)
     draft.name = 'Renamed portal'
 
-    const patch = patchBodyFromDraft(draft, 'v4', nativeDateSnapshot(original))
+    const patch = charterPatchBody(draft, 'v4', nativeDateSnapshot(original))
 
     expect(patch.name).toBe('Renamed portal')
     expect(patch.charter).toMatchObject({

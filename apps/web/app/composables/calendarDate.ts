@@ -45,3 +45,17 @@ export function formatNasqDateTime(value: string | number | Date | null | undefi
 export function formatNasqTime(value: string | number | Date | null | undefined, locale: string): string {
   return formatInstant(value, locale, { timeStyle: 'short' })
 }
+
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
+
+/**
+ * True when `value` is a YYYY-MM-DD string naming a real calendar day.
+ * Rejects a well-formed but non-existent date such as `2030-02-30`, which
+ * `new Date(...)` would silently roll forward into March.
+ */
+export function isCalendarDate(value: unknown): value is string {
+  if (typeof value !== 'string' || !ISO_DATE.test(value)) return false
+  const [year = 0, month = 0, day = 0] = value.split('-').map(Number)
+  const date = new Date(Date.UTC(year, month - 1, day))
+  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day
+}

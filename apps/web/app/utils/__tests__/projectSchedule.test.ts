@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { addCalendarDays, buildScheduleAxis, daysBetween, formatScheduleDate, isCalendarDate, scheduleBarStyle, scheduleDatePosition } from '../projectSchedule'
+import { addCalendarDays, buildScheduleAxis, daysBetween, formatScheduleDate, scheduleBarStyle, scheduleDatePosition } from '../projectSchedule'
+import { isCalendarDate } from '../../composables/calendarDate'
 
 const task = { id: 1, name: 'Build', start: '2030-01-05', end: '2030-01-12', state: 'in_progress' as const, dependency_ids: [], milestone_id: null }
 

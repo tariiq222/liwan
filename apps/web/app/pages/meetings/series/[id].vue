@@ -6,7 +6,7 @@ import { useMeetingSeries } from '@/composables/useMeetings'
 import { useMeetingEvents, useMeetingSeriesResolutions } from '@/composables/useMeetingWorkspace'
 import { formatCalendarDate, formatNasqTime } from '@/composables/calendarDate'
 import { returnToQuery, safeReturnTo } from '@/utils/safeReturnTo'
-import { isCalendarDate } from '@/utils/meetingListFilters'
+import { isCalendarDate } from '@/composables/calendarDate'
 import { meetingTimestamp, prioritizeTimelinePage, selectNextMeeting, selectPreviousMeeting } from '@/utils/meetingWorkspace'
 
 type SeriesTab = 'sessions' | 'followup' | 'history' | 'details'

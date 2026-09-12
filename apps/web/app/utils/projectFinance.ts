@@ -56,13 +56,6 @@ const TITLE_MAX = 200
 const REFERENCE_MAX = 200
 const NOTES_MAX = 10000
 
-export function parsePositiveId(value: unknown): number | null {
-  const raw = Array.isArray(value) ? value[0] : value
-  if (typeof raw === 'number') return Number.isInteger(raw) && raw > 0 ? raw : null
-  if (typeof raw !== 'string' || !/^[1-9]\d*$/.test(raw)) return null
-  const n = Number(raw)
-  return Number.isInteger(n) && n > 0 ? n : null
-}
 
 function parseOffset(value: unknown): number {
   const raw = Array.isArray(value) ? value[0] : value
@@ -439,7 +432,7 @@ function amountFromDraft(draft: FinanceDraft, decimalPlaces: number): number {
   return amount.value
 }
 
-export function createBodyFromDraft(draft: FinanceDraft, decimalPlaces: number): FinanceEntryCreate {
+export function financeCreateBody(draft: FinanceDraft, decimalPlaces: number): FinanceEntryCreate {
   const title = draft.title.trim()
   const amount = amountFromDraft(draft, decimalPlaces)
   const reference = draft.reference.trim()
@@ -464,7 +457,7 @@ export function createBodyFromDraft(draft: FinanceDraft, decimalPlaces: number):
   }
 }
 
-export function patchBodyFromDraft(
+export function financePatchBody(
   draft: FinanceDraft,
   baseline: FinanceDraft,
   expectedUpdatedAt: string,

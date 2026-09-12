@@ -9,7 +9,7 @@ import {
   draftFromProject,
   isCharterDraftDirty,
   nativeDateSnapshot,
-  patchBodyFromDraft,
+  charterPatchBody,
 } from '../../../utils/projectCharter'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -61,7 +61,7 @@ describe('ProjectCharterForm field surface', () => {
     expect(canOverwriteWithLatest('v4', null)).toBe(false)
     expect(canOverwriteWithLatest('v4', server)).toBe(true)
     expect(isCharterDraftDirty(draft, draftFromProject(original))).toBe(true)
-    expect(patchBodyFromDraft(draft, 'v4', nativeDateSnapshot(original))).not.toHaveProperty('date_start')
+    expect(charterPatchBody(draft, 'v4', nativeDateSnapshot(original))).not.toHaveProperty('date_start')
   })
 
   it('places help beside fields and child rows without a permanent description paragraph', () => {

@@ -9,7 +9,7 @@ import {
   budgetStatus,
   canonicalFromMinor,
   clampListOffset,
-  createBodyFromDraft,
+  financeCreateBody,
   draftFromEntry,
   emptyFinanceDraft,
   financeListPath,
@@ -31,9 +31,8 @@ import {
   nextOffsetAfterListResult,
   parseFinanceListRoute,
   parseMoneyInput,
-  parsePositiveId,
   parseReportListRoute,
-  patchBodyFromDraft,
+  financePatchBody,
   patchFinanceListRoute,
   patchReportListRoute,
   reportListPath,
@@ -47,6 +46,7 @@ import {
   type FinanceDraft,
   type FinanceEntryLike,
 } from '../projectFinance'
+import { parsePositiveId } from '../routeParams'
 
 const SAR = { id: 1, name: 'SAR', symbol: 'ر.س', decimal_places: 2 }
 
@@ -424,9 +424,9 @@ describe('validateFinanceDraft', () => {
   })
 })
 
-describe('createBodyFromDraft', () => {
+describe('financeCreateBody', () => {
   it('omits expense date and budget reference on a budget create', () => {
-    const body = createBodyFromDraft(
+    const body = financeCreateBody(
       draft({
         kind: 'budget',
         amountInput: '١٢٫٥٠',
@@ -443,7 +443,7 @@ describe('createBodyFromDraft', () => {
   })
 
   it('sends a dated positive expense and an optional budget link', () => {
-    expect(createBodyFromDraft(
+    expect(financeCreateBody(
       draft({
         kind: 'expense',
         amountInput: '250.50',
@@ -465,7 +465,7 @@ describe('createBodyFromDraft', () => {
   })
 
   it('omits an empty expense budget link rather than sending null on create', () => {
-    const body = createBodyFromDraft(
+    const body = financeCreateBody(
       draft({ kind: 'expense', amountInput: '1.00', expenseDate: '2030-01-01', budgetEntryId: null }),
       2,
     )
@@ -473,11 +473,11 @@ describe('createBodyFromDraft', () => {
   })
 })
 
-describe('patchBodyFromDraft', () => {
+describe('financePatchBody', () => {
   it('sends only changed mutable fields plus the revision token, and never kind or project id', () => {
     const baseline = draftFromEntry(entry())
     const next = { ...baseline, title: 'Paint rooms', amountInput: '300.00' }
-    expect(patchBodyFromDraft(next, baseline, 'v2', 2)).toEqual({
+    expect(financePatchBody(next, baseline, 'v2', 2)).toEqual({
       expected_updated_at: 'v2',
       title: 'Paint rooms',
       amount: 300,
@@ -487,14 +487,14 @@ describe('patchBodyFromDraft', () => {
   it('does not submit budget reference or date when the entry is a budget', () => {
     const baseline = draftFromEntry(entry({ kind: 'budget', amount: 0, expense_date: null, budget_entry_id: null }))
     const next = { ...baseline, expenseDate: '2030-01-01', budgetEntryId: 4, amountInput: '0.00' }
-    expect(patchBodyFromDraft(next, baseline, 'v3', 2)).toEqual({
+    expect(financePatchBody(next, baseline, 'v3', 2)).toEqual({
       expected_updated_at: 'v3',
     })
   })
 
   it('does not produce a mutable patch for an unchanged edit', () => {
     const baseline = draftFromEntry(entry())
-    const patch = patchBodyFromDraft({ ...baseline }, baseline, 'v2', 2)
+    const patch = financePatchBody({ ...baseline }, baseline, 'v2', 2)
     expect(financePatchHasMutation(patch)).toBe(false)
     expect(isFinanceDraftDirty(baseline, baseline, 2)).toBe(false)
   })
@@ -502,7 +502,7 @@ describe('patchBodyFromDraft', () => {
   it('can clear an expense budget link with an explicit null', () => {
     const baseline = draftFromEntry(entry())
     const next = { ...baseline, budgetEntryId: null }
-    expect(patchBodyFromDraft(next, baseline, 'v2', 2)).toEqual({
+    expect(financePatchBody(next, baseline, 'v2', 2)).toEqual({
       expected_updated_at: 'v2',
       budget_entry_id: null,
     })

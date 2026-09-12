@@ -1,4 +1,6 @@
 import type { LocationQueryRaw } from 'vue-router'
+import { isCalendarDate } from '../composables/calendarDate'
+import { parsePositiveId } from './routeParams'
 
 export const MEETING_FILTER_KEYS = [
   'q',
@@ -36,18 +38,6 @@ function firstValue(value: unknown) {
   return Array.isArray(value) ? value[0] : value
 }
 
-export function parsePositiveId(value: unknown): number | undefined {
-  const raw = firstValue(value)
-  const parsed = typeof raw === 'number' || typeof raw === 'string' ? Number(raw) : Number.NaN
-  return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined
-}
-
-export function isCalendarDate(value: string): boolean {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
-  const parsed = new Date(`${value}T00:00:00Z`)
-  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value
-}
-
 export function meetingDateRange(dateFrom: string, dateTo: string): MeetingDateRange {
   const fromValid = !dateFrom || isCalendarDate(dateFrom)
   const toValid = !dateTo || isCalendarDate(dateTo)
@@ -64,9 +54,9 @@ export function parseMeetingListFilters(query: MeetingListQuery): MeetingListFil
     q: typeof q === 'string' ? q : '',
     state: typeof state === 'string' ? state : '',
     mine: firstValue(query.mine) === '1' || firstValue(query.mine) === 'true',
-    projectId: parsePositiveId(query.project_id),
-    organizerId: parsePositiveId(query.organizer_id),
-    seriesId: parsePositiveId(query.series_id),
+    projectId: parsePositiveId(query.project_id) ?? undefined,
+    organizerId: parsePositiveId(query.organizer_id) ?? undefined,
+    seriesId: parsePositiveId(query.series_id) ?? undefined,
     dateFrom: typeof dateFrom === 'string' ? dateFrom : '',
     dateTo: typeof dateTo === 'string' ? dateTo : '',
   }

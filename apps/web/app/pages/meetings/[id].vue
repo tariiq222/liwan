@@ -3,7 +3,7 @@ import FilterBar from '@/components/shared/FilterBar.vue'
 import MeetingEventList from '@/components/meetings/MeetingEventList.vue'
 import MeetingMinutesDocument from '@/components/meetings/MeetingMinutesDocument.vue'
 import MeetingVersionList from '@/components/meetings/MeetingVersionList.vue'
-import { formatMeetingDate, type MeetingMinutesFormValue, type MeetingMinutesRecommendation } from '@/components/meetings/meetingMinutesForm'
+import { formatMeetingDate, type MeetingMinutesFormValue, type MeetingMinutesRecommendation } from '@/utils/meetingMinutesForm'
 import { ApiError } from '@/composables/useApi'
 import {
   useConvertResolution,

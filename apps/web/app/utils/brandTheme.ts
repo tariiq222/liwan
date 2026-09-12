@@ -1,6 +1,5 @@
 import type { AppearanceMode } from './appearance'
 
-export type { AppearanceMode } from './appearance'
 
 export const DEFAULT_PRIMARY = '#18181b'
 

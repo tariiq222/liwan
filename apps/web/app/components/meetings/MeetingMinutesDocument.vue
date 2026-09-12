@@ -5,7 +5,7 @@ import {
   plainTextFromHtml,
   type MeetingMinutesFormValue,
   type MeetingMinutesRecommendation,
-} from './meetingMinutesForm'
+} from '@/utils/meetingMinutesForm'
 
 type MeetingMetadata = {
   name: string

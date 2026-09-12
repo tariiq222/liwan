@@ -447,7 +447,7 @@ export function createdProjectLocation(id: number, returnTo: string): {
   return { path: `/projects/${id}`, query: { returnTo, tab: 'milestones' } }
 }
 
-export function createBodyFromDraft(
+export function charterCreateBody(
   draft: CharterDraft,
   options: { includeNullManager?: boolean } = {},
 ): ProjectCreate {
@@ -467,7 +467,7 @@ export function createBodyFromDraft(
   return body
 }
 
-export function patchBodyFromDraft(
+export function charterPatchBody(
   draft: CharterDraft,
   expectedUpdatedAt: string,
   originalDates: NativeDateSnapshot,

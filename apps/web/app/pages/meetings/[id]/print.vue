@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import MeetingMinutesDocument from '@/components/meetings/MeetingMinutesDocument.vue'
-import { formatMeetingDate, selectMeetingMinutesSource, type MeetingMinutesFormValue, type MeetingMinutesRecommendation, type MeetingMinutesSnapshotLike } from '@/components/meetings/meetingMinutesForm'
+import { formatMeetingDate, selectMeetingMinutesSource, type MeetingMinutesFormValue, type MeetingMinutesRecommendation, type MeetingMinutesSnapshotLike } from '@/utils/meetingMinutesForm'
 import { useMeeting } from '@/composables/useMeetings'
 import { useMeetingVersion } from '@/composables/useMeetingWorkspace'
 import { safeReturnTo } from '@/utils/safeReturnTo'

@@ -4,7 +4,7 @@ import { ApiError } from '@/composables/useApi'
 import { useCreateFinanceEntry, useProjectFinanceEntry, useUpdateFinanceEntry } from '@/composables/useProjectFinance'
 import FinanceBudgetPicker from '@/components/project/finance/FinanceBudgetPicker.vue'
 import {
-  createBodyFromDraft,
+  financeCreateBody,
   draftFromEntry,
   emptyFinanceDraft,
   financeFieldErrorKey,
@@ -13,7 +13,7 @@ import {
   formatMoney,
   isFinanceDraftDirty,
   isStaleFinanceWrite,
-  patchBodyFromDraft,
+  financePatchBody,
   snapshotFinanceDraft,
   validateFinanceDraft,
   type FinanceCurrency,
@@ -134,7 +134,7 @@ async function submit(options: { overwrite?: boolean } = {}) {
   const preserved = snapshotFinanceDraft(draft.value)
   try {
     if (!isEdit.value) {
-      const created = await createEntry({ projectId: props.projectId, body: createBodyFromDraft(preserved, decimalPlaces.value) })
+      const created = await createEntry({ projectId: props.projectId, body: financeCreateBody(preserved, decimalPlaces.value) })
       submitted.value = true
       emit('saved', created)
       return
@@ -147,7 +147,7 @@ async function submit(options: { overwrite?: boolean } = {}) {
       latestFetchFailed: latestFetchFailed.value,
     })
     if (!props.entry || !token) return
-    const patch = patchBodyFromDraft(preserved, baseline.value, token, decimalPlaces.value)
+    const patch = financePatchBody(preserved, baseline.value, token, decimalPlaces.value)
     if (!financePatchHasMutation(patch)) return
     const updated = await updateEntry({ projectId: props.projectId, entryId: props.entry.id, patch })
     applyEntry(updated)

@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { refDebounced } from '@vueuse/core'
 import { useProjectFinanceList } from '@/composables/useProjectFinance'
-import { FINANCE_PAGE, nextOffsetAfterListResult, parsePositiveId } from '@/utils/projectFinance'
+import { FINANCE_PAGE, nextOffsetAfterListResult } from '@/utils/projectFinance'
+import { parsePositiveId } from '@/utils/routeParams'
 
 const props = defineProps<{
   projectId: number
