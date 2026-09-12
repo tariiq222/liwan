@@ -159,8 +159,12 @@ def findings(path: str, source: str, names: set[str], allowed: set[str], has_ui:
 
 def check(current: dict[str, str], baseline: dict[str, str], head: dict[str, str]) -> list[str]:
     errors = []
+    # @nuxt/schema ships inside nuxt itself and is where Nuxt's own docs put
+    # RouterConfig, which app/router.options.ts is typed against. It carries no
+    # components, so it cannot become the second UI library this guard exists
+    # to catch.
     allowed = dependencies(baseline) | {
-        '@nuxt/ui', '@iconify-json/lucide', '@internationalized/date',
+        '@nuxt/ui', '@iconify-json/lucide', '@internationalized/date', '@nuxt/schema',
     }
     names = legacy_names(baseline)
     has_ui = '@nuxt/ui' in json.loads(current.get('apps/web/package.json', '{}')).get('dependencies', {})
