@@ -158,6 +158,7 @@ function financeChildKey(target: { path: string; params: Record<string, string |
 
 <template>
   <SharedPageContainer v-if="isListRoute" width="list" data-testid="project-finance-page">
+    <div class="grid gap-2">
     <SharedPageHeader
       v-if="!isProjectOverlay"
       :title="t('projects.finance.title')"
@@ -167,7 +168,7 @@ function financeChildKey(target: { path: string; params: Record<string, string |
           <UButton icon="i-lucide-plus" :disabled="!hydrated" :to="{ path: `/projects/${projectId}/finance/new`, query: newQuery('budget') }">
             {{ t('projects.finance.newBudget') }}
           </UButton>
-          <UButton variant="outline" icon="i-lucide-plus" :disabled="!hydrated" :to="{ path: `/projects/${projectId}/finance/new`, query: newQuery('expense') }">
+          <UButton color="neutral" variant="outline" icon="i-lucide-plus" :disabled="!hydrated" :to="{ path: `/projects/${projectId}/finance/new`, query: newQuery('expense') }">
             {{ t('projects.finance.newExpense') }}
           </UButton>
         </template>
@@ -181,10 +182,10 @@ function financeChildKey(target: { path: string; params: Record<string, string |
       @clear="clearFilters"
     >
       <template #search>
-        <UInput v-model="search" :disabled="!hydrated" :placeholder="t('projects.finance.search')" :aria-label="t('projects.finance.search')" data-testid="finance-search" class="min-w-52" />
-      </template>
-      <template #view>
-        <UTabs :model-value="filters.kind" data-testid="finance-kind-filter" :items="kindTabs" :content="false" @update:model-value="onKindChange" />
+        <div class="flex min-w-0 flex-wrap items-center gap-2">
+          <UInput v-model="search" :disabled="!hydrated" :placeholder="t('projects.finance.search')" :aria-label="t('projects.finance.search')" data-testid="finance-search" class="min-w-52 max-w-md flex-1" />
+          <UTabs :model-value="filters.kind" data-testid="finance-kind-filter" :items="kindTabs" :content="false" class="shrink-0" @update:model-value="onKindChange" />
+        </div>
       </template>
       <template #active>
         <div v-if="filtered" class="flex flex-wrap items-center gap-2">
@@ -193,6 +194,7 @@ function financeChildKey(target: { path: string; params: Record<string, string |
         </div>
       </template>
     </FilterBar>
+    </div>
     <template v-if="projectId === null">
       <p class="text-muted">{{ t('projects.invalidId') }}</p>
     </template>

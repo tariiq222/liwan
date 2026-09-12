@@ -6,8 +6,8 @@
 .nasq-page-stack { grid-template-columns: minmax(0, 1fr); min-width: 0; gap: 1.75rem; }
 .nasq-page-stack > * { min-width: 0; }
 /* Shared composition for project sections and their routed record workflows. */
-.nasq-page-stack[data-workspace-area="true"] { gap: 1.75rem; align-content: start; }
-[data-workspace-area="true"] [data-slot="page-header"] { min-height: 40px; }
+.nasq-page-stack[data-workspace-area="true"] { gap: 1rem; align-content: start; }
+[data-workspace-area="true"] [data-slot="page-header"] { min-height: 2.25rem; align-items: center; }
 [data-workspace-area="true"] .nasq-form-footer { justify-content: flex-end; }
 
 .nasq-page-width-list, .nasq-page-width-detail, .nasq-page-width-form { width: 100%; margin-inline: auto; }

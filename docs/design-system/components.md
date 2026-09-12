@@ -110,7 +110,7 @@ Shared recipes only; no page-local styles. Owner: `apps/web/app/assets/css/nuxt-
 
 | Recipe | Responsibility / consumers |
 | --- | --- |
-| `nasq-ui-tab-strip`, `nasq-ui-tab` | Horizontal group tabs with a brand underline for `aria-current="page"`; `components/project/workspace/ProjectWorkspaceTabs.vue`. Sub-sections are small pills using the shared secondary solid recipe when active. |
+| `nasq-ui-tab-strip`, `nasq-ui-tab` | Horizontal group tabs with a brand underline for `aria-current="page"` or `data-active` (groups with children keep aria-current on the deepest subtab); `components/project/workspace/ProjectWorkspaceTabs.vue`. Subtabs use `--brand-link` on `--brand-soft` when current. |
 | `nasq-ui-segment` | Segmented view switch (list/board, table/cards); `pages/projects/[id].vue`, `components/task/TaskToolbar.vue`. |
 | `nasq-ui-table-head`, table `th`/`td` slots | Muted head band, small quiet header text, default-colour cells; every `UTable`. |
 | `nasq-ui-card-header` | Muted header band on every `UCard` header slot. |

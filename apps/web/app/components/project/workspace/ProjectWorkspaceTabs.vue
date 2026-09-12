@@ -24,7 +24,7 @@ const activeGroup = computed(() => model.value.groups.find(group => group.id ===
 </script>
 
 <template>
-  <div v-if="model.groups.length" class="flex flex-col gap-3">
+  <div v-if="model.groups.length" class="flex flex-col gap-2">
     <!-- Group tabs: underline strip, the horizontal counterpart of the sidebar's brand bar. -->
     <nav
       class="nasq-ui-tab-strip"
@@ -56,7 +56,6 @@ const activeGroup = computed(() => model.value.groups.find(group => group.id ===
       <UButton
         v-for="link in activeGroup.links"
         :key="link.id"
-        size="sm"
         :color="model.activeTab === link.id ? 'primary' : 'neutral'"
         :variant="model.activeTab === link.id ? 'soft' : 'ghost'"
         :to="link.to"

@@ -117,12 +117,12 @@ const workspaceCanCreate = computed(() => {
 
 <template>
   <SharedPageContainer v-if="showWorkspaceFrame" width="list" data-testid="project-workspace-frame">
-    <div class="flex flex-col gap-4">
-      <div class="flex flex-wrap items-center justify-between gap-3" data-testid="project-workspace-identity">
+    <div class="flex flex-col gap-2">
+      <div class="flex min-h-9 flex-wrap items-center justify-between gap-3" data-testid="project-workspace-identity">
         <div v-if="project" class="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
           <p class="min-w-0 truncate text-lg font-semibold text-highlighted" data-testid="project-workspace-name">{{ project.name }}</p>
           <ProjectStatusBadge :status="project.status" />
-          <span v-if="project.manager" class="inline-flex items-center gap-1.5 text-sm text-muted">
+          <span v-if="project.manager" class="inline-flex items-center gap-1.5 text-sm">
             <UIcon name="i-lucide-user-round" class="size-4" aria-hidden="true" />
             <span class="sr-only">{{ t('projects.columns.manager') }}: </span>{{ project.manager.name }}
           </span>
@@ -131,6 +131,8 @@ const workspaceCanCreate = computed(() => {
         <UButton
           v-if="project?.can_manage"
           square
+          color="neutral"
+          variant="outline"
           icon="i-lucide-settings"
           class="ms-auto"
           data-testid="project-workspace-settings"

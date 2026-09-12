@@ -42,6 +42,19 @@ describe('internal UI width and status vocabulary', () => {
     expect(css).toContain('--status-danger-foreground')
   })
 
+  it('marks workspace group tabs by data-active so cream and dark keep a visible current state', () => {
+    const css = readFileSync(resolve(webRoot, 'app/assets/css/nuxt-theme.css'), 'utf8')
+    const tabs = readFileSync(resolve(webRoot, 'app/components/project/workspace/ProjectWorkspaceTabs.vue'), 'utf8')
+    expect(tabs).toContain(':data-active="model.activeGroup === group.id"')
+    expect(tabs).toContain('!group.links.length')
+    expect(tabs).toContain(':aria-current="model.activeTab === link.id')
+    expect(css).toContain(".nasq-ui-tab-strip .nasq-ui-tab[data-active='true']")
+    expect(css).toContain('border-block-end: 1px solid var(--ui-border-accented)')
+    expect(css).toContain('.nasq-ui-subtab-row [data-active=\'true\']')
+    expect(css).toContain('min-height: 2.25rem')
+    expect(css).toContain('scrollbar-width: none')
+  })
+
   it('exits the project side sheet opposite the entry travel', () => {
     const css = readFileSync(resolve(webRoot, 'app/assets/css/nuxt-theme.css'), 'utf8')
     const host = readFileSync(resolve(webRoot, 'app/components/project/workspace/ProjectRouteHost.vue'), 'utf8')
