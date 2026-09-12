@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { projectWorkspaceGroups } from '@/composables/useNav'
+import { projectSections } from '@/composables/nav/projectSections'
+import { activeProjectSection } from '@/composables/nav/activeRoute'
 import { useProject } from '@/composables/useProjects'
 
 const props = defineProps<{
   projectId: number
   active?: boolean
-  canManage?: boolean
 }>()
 
 const route = useRoute()
@@ -17,56 +17,30 @@ const projectQuery = useProject(projectId)
 // Server and first client render must produce the same tab set.
 const projectData = computed(() => hydrated.value ? projectQuery.data.value : undefined)
 const activeProject = computed(() => props.active ?? projectData.value?.active ?? true)
-const canManage = computed(() => props.canManage ?? projectData.value?.can_manage ?? false)
-const isProjectRoot = computed(() => /^\/projects\/\d+\/?$/.test(route.path))
-const model = computed(() => projectWorkspaceGroups(props.projectId, me.value, activeProject.value, canManage.value, route.query, isProjectRoot.value, route.path))
-const activeGroup = computed(() => model.value.groups.find(group => group.id === model.value.activeGroup) ?? null)
+const sections = computed(() => projectSections(props.projectId, me.value, { active: activeProject.value }))
+const current = computed(() => activeProjectSection(route.path))
 </script>
 
 <template>
-  <div v-if="model.groups.length" class="flex flex-col gap-4">
-    <!-- Group tabs: underline strip, the horizontal counterpart of the sidebar's brand bar. -->
-    <nav
-      class="nasq-ui-tab-strip"
-      data-testid="project-workspace-tabs"
-      :aria-label="t('projects.workspace.tabsLabel')"
+  <nav
+    v-if="sections.length"
+    class="nasq-ui-tab-strip"
+    data-testid="project-workspace-tabs"
+    :aria-label="t('projects.workspace.tabsLabel')"
+  >
+    <UButton
+      v-for="section in sections"
+      :key="section.id"
+      color="neutral"
+      variant="ghost"
+      class="nasq-ui-tab"
+      :to="section.to"
+      :aria-current="current === section.id ? 'page' : undefined"
+      :data-active="current === section.id"
+      :data-testid="`project-tab-${section.id}`"
     >
-      <UButton
-        v-for="group in model.groups"
-        :key="group.id"
-        color="neutral"
-        variant="ghost"
-        class="nasq-ui-tab"
-        :to="group.to"
-        :aria-current="model.activeGroup === group.id && !group.links.length ? 'page' : undefined"
-        :data-active="model.activeGroup === group.id"
-        :data-testid="`project-tab-${group.id}`"
-      >
-        <UIcon :name="group.icon" aria-hidden="true" class="size-4" />
-        <span>{{ t(group.labelKey) }}</span>
-      </UButton>
-    </nav>
-    <!-- Sub-sections: same underline strip as the group row. -->
-    <nav
-      v-if="activeGroup?.links.length"
-      class="nasq-ui-tab-strip nasq-ui-subtab-row"
-      data-testid="project-workspace-subtabs"
-      :aria-label="t('projects.workspace.subtabsLabel')"
-    >
-      <UButton
-        v-for="link in activeGroup.links"
-        :key="link.id"
-        color="neutral"
-        variant="ghost"
-        class="nasq-ui-tab"
-        :to="link.to"
-        :aria-current="model.activeTab === link.id ? 'page' : undefined"
-        :data-active="model.activeTab === link.id"
-        :data-testid="`project-subtab-${link.id}`"
-      >
-        <UIcon :name="link.icon" aria-hidden="true" class="size-4" />
-        <span>{{ t(link.labelKey) }}</span>
-      </UButton>
-    </nav>
-  </div>
+      <UIcon :name="section.icon" aria-hidden="true" class="size-4" />
+      <span>{{ t(section.labelKey) }}</span>
+    </UButton>
+  </nav>
 </template>
