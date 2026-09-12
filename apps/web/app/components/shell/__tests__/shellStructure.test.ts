@@ -8,6 +8,7 @@ const nuxtConfig = readFileSync(resolve(root, '../nuxt.config.ts'), 'utf8')
 const shellCss = readFileSync(resolve(root, 'assets/css/shell.css'), 'utf8')
 const componentsCss = readFileSync(resolve(root, 'assets/css/components.css'), 'utf8')
 const navModel = readFileSync(resolve(root, 'composables/useNav.ts'), 'utf8')
+const projectSectionsModel = readFileSync(resolve(root, 'composables/nav/projectSections.ts'), 'utf8')
 const accountMenu = readFileSync(resolve(root, 'components/AppAccountMenu.vue'), 'utf8')
 const contextSidebar = readFileSync(resolve(root, 'components/shell/ContextSidebar.vue'), 'utf8')
 const moduleRail = readFileSync(resolve(root, 'components/shell/ModuleRail.vue'), 'utf8')
@@ -86,7 +87,9 @@ describe('Nuxt UI shell migration', () => {
       expect(source).not.toContain(directIconImport)
     }
     for (const source of [contextSidebar, moduleRail, mobileNavigation]) expect(source).toContain('<UIcon')
-    expect(navModel).toContain('export type NavIcon = `i-lucide-${string}`')
+    // NavIcon's declaration now lives in nav/projectSections.ts (its one auto-import
+    // owner); useNav.ts imports the type rather than redeclaring it.
+    expect(projectSectionsModel).toContain('export type NavIcon = `i-lucide-${string}`')
     expect(componentsCss).toContain('.nasq-shell-icon')
     expect(shellCss).toContain('[data-slot="label"]')
     expect(globalSearch).toContain('data-slot="label" class="nasq-search-trigger-label')

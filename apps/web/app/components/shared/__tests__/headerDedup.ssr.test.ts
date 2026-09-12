@@ -22,7 +22,8 @@ import {
 } from 'vue'
 import ts from 'typescript'
 import { describe, expect, it } from 'vitest'
-import { projectIdFromPath, projectSectionRoot, shellRootBackTargets, shellSectionRoot } from '../../../composables/useShellNavigation'
+import { projectSectionRoot, shellRootBackTargets, shellSectionRoot } from '../../../composables/useShellNavigation'
+import { projectIdFromPath } from '../../../composables/nav/activeRoute'
 
 const pageHeaderFile = resolve(import.meta.dirname, '../PageHeader.vue')
 

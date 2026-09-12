@@ -11,17 +11,15 @@ import {
   type ShellContextLink,
   type ShellModule,
 } from './useNav'
+// projectIdFromPath has one owner (nav/activeRoute.ts); import for internal use
+// only, never re-export, or the auto-import namespace collision just moves here.
+import { projectIdFromPath } from './nav/activeRoute'
 import type { AccessIdentity } from '@/utils/accessPolicy'
 
 function positiveId(value: unknown): number | null {
   const raw = Array.isArray(value) ? value[0] : value
   const parsed = typeof raw === 'string' || typeof raw === 'number' ? Number(raw) : NaN
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null
-}
-
-export function projectIdFromPath(path: string): number | null {
-  const match = path.match(/^\/projects\/([^/]+)/)
-  return match ? positiveId(match[1]) : null
 }
 
 const projectRootSections: Record<string, ProjectContextId> = {

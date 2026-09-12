@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { inject } from 'vue'
 import type { RouteLocationRaw } from 'vue-router'
-import { projectIdFromPath, projectSectionRoot, shellRootBackTargets, shellSectionRoot } from '@/composables/useShellNavigation'
+import { projectSectionRoot, shellRootBackTargets, shellSectionRoot } from '@/composables/useShellNavigation'
+import { projectIdFromPath } from '@/composables/nav/activeRoute'
 import { PROJECT_OVERLAY_INJECTION_KEY } from '@/utils/projectOverlayRoute'
 
 const props = defineProps<{

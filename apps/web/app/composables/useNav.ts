@@ -1,8 +1,9 @@
 import { projectListReturnTo } from '../utils/projectNavigation'
 import type { LocationQueryRaw, RouteLocationRaw } from 'vue-router'
 import { hasCapability, INTERNAL_NASQ_ACCESS, type AccessIdentity } from '../utils/accessPolicy'
-
-export type NavIcon = `i-lucide-${string}`
+// NavIcon has one owner (nav/projectSections.ts); import for internal use only,
+// never re-export, or the auto-import namespace collision just moves here.
+import type { NavIcon } from './nav/projectSections'
 
 // UIcon resolves these names from the local Lucide Iconify collection. Keep
 // the names in this shared model so every shell consumer renders the same icon
