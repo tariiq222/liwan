@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { Paperclip, Send } from '@lucide/vue'
 import { ApiError } from '@/composables/useApi'
 import { preserveFailedDraft, shouldSendOnEnter } from '@/utils/chatState'
 
@@ -133,7 +132,7 @@ onUnmounted(() => {
         :aria-label="t('chat.send')"
         :title="t('chat.send')"
       >
-        <Send class="size-4 rtl:rotate-180" aria-hidden="true" />
+        <UIcon name="i-lucide-send" class="size-4 rtl:rotate-180" aria-hidden="true" />
       </UButton>
     </div>
   </form>

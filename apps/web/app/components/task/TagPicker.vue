@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { Task } from '@nasq/contracts'
 import { refDebounced } from '@vueuse/core'
-import { X } from '@lucide/vue'
 import { ApiError } from '@/composables/useApi'
 import { useCreateTag, useTags } from '@/composables/useTags'
 
@@ -83,7 +82,7 @@ function onCreateItem() {
           :disabled="!hydrated"
           @click="remove(tag.id)"
         >
-          <X class="size-3" />
+          <UIcon name="i-lucide-x" class="size-3" aria-hidden="true" />
         </UButton>
       </UBadge>
       <span v-if="modelValue.length === 0" class="text-sm text-muted">—</span>

@@ -65,7 +65,7 @@ async function uploadFile(event: Event) {
     <SharedPageState v-else :loading="query.isLoading.value" :error="query.error.value" :empty="!query.data.value" @retry="query.refetch">
       <UForm v-if="query.data.value" :state="{ name, body }" class="space-y-6" method="post" @submit="save">
         <SharedUnsavedChanges :dirty="dirty" />
-        <UCard>
+        <UCard class="nasq-ui-record-surface" :ui="{ header: 'nasq-ui-card-header' }">
           <template #header><h2 class="text-lg font-semibold text-highlighted">{{ t('hr.docs.edit') }}</h2></template>
           <div class="grid gap-4">
             <UFormField :label="t('hr.docs.columns.name')" name="hr-doc-title">
@@ -76,7 +76,7 @@ async function uploadFile(event: Event) {
             </UFormField>
           </div>
         </UCard>
-        <UCard>
+        <UCard class="nasq-ui-record-surface" :ui="{ header: 'nasq-ui-card-header' }">
           <template #header><h2 class="text-lg font-semibold text-highlighted">{{ t('hr.docs.attachments') }}</h2></template>
           <div class="space-y-3">
             <ul class="grid gap-1 text-sm">
@@ -89,7 +89,7 @@ async function uploadFile(event: Event) {
             </UFormField>
           </div>
         </UCard>
-        <footer class="flex justify-end gap-2">
+        <footer class="nasq-form-footer justify-end">
           <UButton type="button" color="neutral" variant="outline" :disabled="updating" :to="returnTo" :label="t('app.cancel')" />
           <UButton type="submit" color="primary" :disabled="!hydrated || updating || uploading || !name.trim()" :label="t('app.save')" />
         </footer>

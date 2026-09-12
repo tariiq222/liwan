@@ -54,7 +54,7 @@ function openWithKeyboard(project: Project, event: KeyboardEvent) {
         @click="open(project, $event)"
         @keydown="openWithKeyboard(project, $event)"
       >
-        <div class="flex items-start justify-between gap-3">
+        <div class="nasq-ui-card-header -mx-5 -mt-5 flex items-start justify-between gap-3 border-b border-default px-5 py-4">
           <div class="min-w-0">
             <RecordNumber :value="project.id" />
             <h2 :id="`project-card-${project.id}`" class="mt-1 truncate text-base font-semibold text-highlighted"><NuxtLink :to="toFor(project)" class="hover:underline">{{ project.name }}</NuxtLink></h2>

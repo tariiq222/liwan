@@ -15,10 +15,19 @@ export default defineNuxtConfig({
   modules: ['@nuxt/ui', '@vueuse/nuxt', '@nuxtjs/i18n'],
   css: ['~/assets/css/main.css'],
   ui: { fonts: false, colorMode: false },
-  icon: { provider: 'none', fallbackToApi: false, clientBundle: { scan: true } },
-  // Retained historical primitives are never auto-discovered in customer UI.
-  // Specialist Unovis chart adapters remain explicit imports.
-  components: [{ path: '~/components', ignore: ['ui/**', '**/__tests__/**'] }],
+  icon: {
+    provider: 'none',
+    fallbackToApi: false,
+    clientBundle: {
+      scan: {
+        // Keep Nuxt Icon's default source patterns and include composable
+        // TypeScript where shared dynamic UIcon names are declared.
+        globInclude: ['**/*.{vue,jsx,tsx,md,mdc,mdx,yml,yaml}', 'app/composables/**/*.ts'],
+      },
+    },
+  },
+  // Discover runtime components; specialist chart adapters also use explicit imports.
+  components: [{ path: '~/components', ignore: ['**/__tests__/**'] }],
   app: {
     head: {
       title: 'nasq',

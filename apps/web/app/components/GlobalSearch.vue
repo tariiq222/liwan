@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { Search, X, Folder, CheckSquare } from '@lucide/vue'
 import { useQuery, useInfiniteQuery } from '@tanstack/vue-query'
 import { refDebounced, useEventListener } from '@vueuse/core'
 import { returnToQuery } from '@/utils/safeReturnTo'
@@ -60,15 +59,15 @@ function focusSearch() {
   >
     <UButton :aria-label="t('app.search')" color="neutral" variant="outline" class="nasq-search-trigger" :disabled="!hydrated">
       <span class="flex min-w-0 items-center gap-2">
-        <Search aria-hidden="true" />
-        <span class="truncate">{{ t('app.search') }}</span>
+        <UIcon name="i-lucide-search" aria-hidden="true" />
+        <span data-slot="label" class="nasq-search-trigger-label truncate">{{ t('app.search') }}</span>
       </span>
       <UKbd dir="ltr">⌘K</UKbd>
     </UButton>
     <template #content="{ close }">
       <div :dir="localeProperties.dir" class="flex max-h-[min(620px,calc(100dvh-2rem))] w-full flex-col overflow-hidden">
         <div class="nasq-search-bar">
-          <Search class="nasq-search-bar-icon" aria-hidden="true" />
+          <UIcon name="i-lucide-search" class="nasq-search-bar-icon" aria-hidden="true" />
           <UInput
             id="global-search-input"
             v-model="query"
@@ -80,7 +79,7 @@ function focusSearch() {
           />
           <UButton color="neutral" variant="ghost" square class="nasq-search-close" :aria-label="t('search.close')" @click="close">
             <template #leading>
-              <X aria-hidden="true" />
+              <UIcon name="i-lucide-x" aria-hidden="true" />
             </template>
           </UButton>
         </div>
@@ -106,7 +105,7 @@ function focusSearch() {
                   @click="open = false"
                 >
                   <template #leading>
-                    <span class="nasq-search-result-icon"><component :is="item.icon" aria-hidden="true" /></span>
+                    <span class="nasq-search-result-icon"><UIcon :name="item.icon" aria-hidden="true" /></span>
                   </template>
                 </UButton>
                 <UButton
@@ -120,7 +119,7 @@ function focusSearch() {
                   @click="open = false"
                 >
                   <template #leading>
-                    <span class="nasq-search-result-icon"><component :is="item.icon" aria-hidden="true" /></span>
+                    <span class="nasq-search-result-icon"><UIcon :name="item.icon" aria-hidden="true" /></span>
                   </template>
                 </UButton>
               </template>
@@ -146,7 +145,7 @@ function focusSearch() {
               @click="open = false"
             >
               <template #leading>
-                <span class="nasq-search-result-icon"><Folder aria-hidden="true" /></span>
+                <span class="nasq-search-result-icon"><UIcon name="i-lucide-folder" aria-hidden="true" /></span>
               </template>
             </UButton>
           </section>
@@ -169,7 +168,7 @@ function focusSearch() {
               @click="open = false"
             >
               <template #leading>
-                <span class="nasq-search-result-icon"><CheckSquare aria-hidden="true" /></span>
+                <span class="nasq-search-result-icon"><UIcon name="i-lucide-check-square" aria-hidden="true" /></span>
               </template>
             </UButton>
             <UButton

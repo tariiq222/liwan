@@ -24,7 +24,7 @@ const activeGroup = computed(() => model.value.groups.find(group => group.id ===
 </script>
 
 <template>
-  <div v-if="model.groups.length" class="flex flex-col gap-2">
+  <div v-if="model.groups.length" class="flex flex-col gap-4">
     <!-- Group tabs: underline strip, the horizontal counterpart of the sidebar's brand bar. -->
     <nav
       class="nasq-ui-tab-strip"
@@ -42,28 +42,29 @@ const activeGroup = computed(() => model.value.groups.find(group => group.id ===
         :data-active="model.activeGroup === group.id"
         :data-testid="`project-tab-${group.id}`"
       >
-        <component :is="group.icon" aria-hidden="true" class="size-4" />
+        <UIcon :name="group.icon" aria-hidden="true" class="size-4" />
         <span>{{ t(group.labelKey) }}</span>
       </UButton>
     </nav>
-    <!-- Sub-sections: quiet pills; the active one uses the primary link recipe (navigation). -->
+    <!-- Sub-sections: same underline strip as the group row. -->
     <nav
       v-if="activeGroup?.links.length"
-      class="nasq-ui-subtab-row"
+      class="nasq-ui-tab-strip nasq-ui-subtab-row"
       data-testid="project-workspace-subtabs"
       :aria-label="t('projects.workspace.subtabsLabel')"
     >
       <UButton
         v-for="link in activeGroup.links"
         :key="link.id"
-        :color="model.activeTab === link.id ? 'primary' : 'neutral'"
-        :variant="model.activeTab === link.id ? 'soft' : 'ghost'"
+        color="neutral"
+        variant="ghost"
+        class="nasq-ui-tab"
         :to="link.to"
         :aria-current="model.activeTab === link.id ? 'page' : undefined"
         :data-active="model.activeTab === link.id"
         :data-testid="`project-subtab-${link.id}`"
       >
-        <component :is="link.icon" aria-hidden="true" class="size-4" />
+        <UIcon :name="link.icon" aria-hidden="true" class="size-4" />
         <span>{{ t(link.labelKey) }}</span>
       </UButton>
     </nav>

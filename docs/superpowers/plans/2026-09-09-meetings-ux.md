@@ -1,3 +1,5 @@
+> **سياق تاريخي للمنتج والتنفيذ.** قرارات الشكل القديمة هنا ليست تعليمات واجهة؛ اتبع [DESIGN.md](../../../DESIGN.md). تبقى العقود وقيود الأمن والبيانات خاضعة للمصادر الحالية في المشروع.
+
 # Meetings UX repair implementation plan
 
 Goal: implement the user-approved meetings audit corrections while preserving the current approved UI and business policies.

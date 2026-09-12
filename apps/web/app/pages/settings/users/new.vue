@@ -108,7 +108,7 @@ async function submit() {
   <SettingsLayout width="form">
     <SharedPageHeader :title="t('access.users.grantTitle')" :back-to="backTo" />
     <SharedPageState v-if="forbidden" :empty="true" :empty-text="t('access.forbidden')" />
-    <UForm v-else :state="{ employeeId, selectedRoleIds, password, passwordConfirmation }" class="space-y-6" method="post" @submit="submit">
+    <UForm v-else :state="{ employeeId, selectedRoleIds, password, passwordConfirmation }" class="nasq-form" method="post" @submit="submit">
       <SharedUnsavedChanges :dirty="dirty" />
       <SharedFormSection :title="t('access.users.employee')" class="space-y-4">
         <UFormField :label="t('access.users.employee')" name="employee-search">
@@ -164,7 +164,7 @@ async function submit() {
         <p class="text-xs text-muted">{{ selectedCapabilities.join('، ') }}</p>
       </SharedFormSection>
       <UAlert v-if="errorKey" role="alert" color="error" variant="subtle" :title="errorKey" />
-      <footer class="flex justify-end">
+      <footer class="nasq-form-footer justify-end">
         <UButton
           type="submit"
           color="primary"

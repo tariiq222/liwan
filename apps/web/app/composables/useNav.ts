@@ -1,13 +1,44 @@
-import type { Component } from 'vue'
 import { projectListReturnTo } from '../utils/projectNavigation'
 import type { LocationQueryRaw, RouteLocationRaw } from 'vue-router'
-import { CheckSquare, FolderKanban, Users, Settings, Wrench, Network, Files, ShieldCheck, UserCog, History, SlidersHorizontal, Palette, MessageCircle, ChartNoAxesCombined, CalendarDays, CalendarRange, ClipboardList, CircleAlert, WalletCards, FileText, LayoutDashboard, LayoutTemplate, Grid3x3, House, Megaphone, Plus, Repeat } from '@lucide/vue'
 import { hasCapability, INTERNAL_NASQ_ACCESS, type AccessIdentity } from '../utils/accessPolicy'
+
+export type NavIcon = `i-lucide-${string}`
+
+// UIcon resolves these names from the local Lucide Iconify collection. Keep
+// the names in this shared model so every shell consumer renders the same icon
+// without importing Vue component implementations into navigation data.
+const CheckSquare = 'i-lucide-check-square'
+const FolderKanban = 'i-lucide-folder-kanban'
+const Users = 'i-lucide-users'
+const Settings = 'i-lucide-settings'
+const Wrench = 'i-lucide-wrench'
+const Network = 'i-lucide-network'
+const Files = 'i-lucide-files'
+const ShieldCheck = 'i-lucide-shield-check'
+const UserCog = 'i-lucide-user-cog'
+const History = 'i-lucide-history'
+const SlidersHorizontal = 'i-lucide-sliders-horizontal'
+const Palette = 'i-lucide-palette'
+const MessageCircle = 'i-lucide-message-circle'
+const ChartNoAxesCombined = 'i-lucide-chart-no-axes-combined'
+const CalendarDays = 'i-lucide-calendar-days'
+const CalendarRange = 'i-lucide-calendar-range'
+const ClipboardList = 'i-lucide-clipboard-list'
+const CircleAlert = 'i-lucide-circle-alert'
+const WalletCards = 'i-lucide-wallet-cards'
+const FileText = 'i-lucide-file-text'
+const LayoutDashboard = 'i-lucide-layout-dashboard'
+const LayoutTemplate = 'i-lucide-layout-template'
+const Grid3x3 = 'i-lucide-grid-3x3'
+const House = 'i-lucide-house'
+const Megaphone = 'i-lucide-megaphone'
+const Plus = 'i-lucide-plus'
+const Repeat = 'i-lucide-repeat'
 
 export type NavGroup = 'chat' | 'projects' | 'meetings' | 'hr' | 'settings'
 /** Rail modules. `home` is the projects dashboard; tasks, templates, reports and search live under `projects`. */
 export type ShellModule = NavGroup | 'home' | 'vendor'
-export interface NavItem { to: string; labelKey: string; icon: Component; shortcut: string; group?: NavGroup; module?: ShellModule; capability: string }
+export interface NavItem { to: string; labelKey: string; icon: NavIcon; shortcut: string; group?: NavGroup; module?: ShellModule; capability: string }
 const items: NavItem[] = [
   { to: '/projects/dashboard', labelKey: 'nav.home', icon: House, shortcut: 'h', group: 'projects', module: 'home', capability: 'pmo.projects.read' },
   { to: '/projects', labelKey: 'nav.projects', icon: FolderKanban, shortcut: '2', group: 'projects', module: 'projects', capability: 'pmo.projects.read' },
@@ -40,7 +71,7 @@ export function useNav(identity: AccessIdentity): NavItem[] {
 export interface ShellModuleDefinition {
   id: ShellModule
   labelKey: string
-  icon: Component
+  icon: NavIcon
   to: string
 }
 
@@ -89,7 +120,7 @@ export function contextModuleFor(module: ShellModule | null): ShellModule | null
 export interface ShellContextLink {
   id: string
   labelKey: string
-  icon: Component
+  icon: NavIcon
   to: RouteLocationRaw
   capability: string
   active?: boolean
@@ -181,7 +212,7 @@ const projectsContextLinks: ShellContextLink[] = [
 ]
 
 export function contextLinksForModule(module: ShellModule, identity: AccessIdentity, path?: string): ShellContextLink[] {
-  const links: ShellContextLink[] = {
+  const linksByModule: Record<ShellModule, ShellContextLink[]> = {
     home: projectsContextLinks,
     projects: projectsContextLinks,
     chat: [
@@ -212,7 +243,8 @@ export function contextLinksForModule(module: ShellModule, identity: AccessIdent
     vendor: [
       { id: 'console', labelKey: 'nav.console', icon: Wrench, to: '/odoo', capability: 'vendor' },
     ],
-  }[module]
+  }
+  const links = linksByModule[module]
   return links.filter(link => hasCapability(identity, link.capability))
 }
 
@@ -353,7 +385,7 @@ export type ProjectWorkspaceTabLink = ShellContextLink & { id: ProjectWorkspaceT
 export interface ProjectWorkspaceGroup {
   id: ProjectWorkspaceGroupId
   labelKey: string
-  icon: Component
+  icon: NavIcon
   to: RouteLocationRaw
   /** Sub-sections rendered as a second tab row; empty for single-page groups. */
   links: ProjectWorkspaceTabLink[]
@@ -396,7 +428,7 @@ export function projectWorkspaceGroups(
   const present = (links: Array<ProjectWorkspaceTabLink | undefined>) => links.filter((link): link is ProjectWorkspaceTabLink => Boolean(link))
   const single = (link: ProjectWorkspaceTabLink | undefined) => link ? { to: link.to, links: [] as ProjectWorkspaceTabLink[] } : null
   const nested = (links: ProjectWorkspaceTabLink[]) => links.length ? { to: links[0]!.to, links } : null
-  const candidates: Array<{ id: ProjectWorkspaceGroupId; labelKey: string; icon: Component; body: { to: RouteLocationRaw; links: ProjectWorkspaceTabLink[] } | null }> = [
+  const candidates: Array<{ id: ProjectWorkspaceGroupId; labelKey: string; icon: NavIcon; body: { to: RouteLocationRaw; links: ProjectWorkspaceTabLink[] } | null }> = [
     { id: 'overview', labelKey: 'projects.workspace.groups.overview', icon: LayoutDashboard, body: single(byId.get('summary')) },
     { id: 'execution', labelKey: 'projects.workspace.groups.execution', icon: ClipboardList, body: nested(present([byId.get('tasks'), schedule, byId.get('milestones')])) },
     { id: 'governance', labelKey: 'projects.workspace.groups.governance', icon: ShieldCheck, body: nested(present([byId.get('charter'), byId.get('stakeholders'), raci, byId.get('risks')])) },

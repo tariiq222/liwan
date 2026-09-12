@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { ArrowLeft, Info, Search } from '@lucide/vue'
 import { useMediaQuery } from '@vueuse/core'
 import { useQueryClient } from '@tanstack/vue-query'
 import EmptyState from '@/components/shared/EmptyState.vue'
@@ -83,7 +82,7 @@ function updateRoute(next: ChatListRoute) {
             :aria-label="t('app.back')"
             :title="t('app.back')"
           >
-            <ArrowLeft class="size-5 rtl:rotate-180" aria-hidden="true" />
+            <UIcon name="i-lucide-arrow-left" class="size-5 rtl:rotate-180" aria-hidden="true" />
           </UButton>
           <span class="nasq-chat-avatar shrink-0">{{ initialsFor(data?.name || '') }}</span>
           <div class="min-w-0 flex-1 text-start">
@@ -108,7 +107,7 @@ function updateRoute(next: ChatListRoute) {
               :aria-label="t('chat.info')"
               :title="t('chat.info')"
             >
-              <Info class="size-5" aria-hidden="true" />
+              <UIcon name="i-lucide-info" class="size-5" aria-hidden="true" />
             </UButton>
           </div>
           <UInput

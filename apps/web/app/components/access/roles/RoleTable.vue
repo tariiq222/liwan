@@ -23,9 +23,9 @@ const columns = computed<TableColumn<RoleSummary>[]>(() => [
 
 <template>
   <div class="min-w-0 space-y-2">
-    <UCard class="hidden overflow-hidden md:block" :ui="{ body: 'p-0' }">
+    <UCard class="nasq-ui-record-surface hidden overflow-hidden md:block" :ui="{ body: 'p-0' }">
       <div class="overflow-x-auto">
-        <UTable :data="roles" :columns="columns" :caption="t('access.roles.title')" :ui="{ caption: 'sr-only' }">
+        <UTable :data="roles" :columns="columns" :caption="t('access.roles.title')" :ui="{ caption: 'sr-only', th: 'nasq-ui-table-head' }">
           <template #id-cell="{ row }"><RecordNumber :value="row.original.id" /></template>
           <template #name-cell="{ row }"><span class="font-medium">{{ roleLabel(row.original) }}</span></template>
           <template #description-cell="{ row }"><span class="max-w-xs whitespace-normal">{{ row.original.description }}</span></template>

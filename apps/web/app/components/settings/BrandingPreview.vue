@@ -6,29 +6,29 @@ import { createBrandTheme } from '@/utils/brandTheme'
 const props = defineProps<{
   name: string
   color: string
-  secondaryColor?: string
   logoUrl: string
 }>()
 
 const { t } = useI18n()
 const previewMode = ref<AppearanceMode>('light')
-const theme = computed(() => createBrandTheme(props.color, previewMode.value, props.secondaryColor))
+const theme = computed(() => createBrandTheme(props.color, previewMode.value))
 const modeSurfaceTokens: Record<AppearanceMode, Record<string, string>> = {
   light: {
     '--ui-bg': '#ffffff',
-    '--ui-bg-muted': '#f5f6f8',
-    '--ui-bg-elevated': '#ebedf0',
-    '--ui-bg-accented': '#ebedf0',
-    '--ui-border': '#e1e3e7',
-    '--ui-border-muted': '#eaebee',
-    '--ui-border-accented': '#d1d4d9',
-    '--ui-text': '#18181b',
-    '--ui-text-highlighted': '#09090b',
-    '--ui-text-muted': '#71717a',
-    '--ui-text-toned': '#52525b',
+    '--ui-bg-muted': '#f8f9fc',
+    '--ui-bg-elevated': '#ffffff',
+    '--ui-bg-accented': '#eef1f7',
+    '--ui-border': '#e5e8ef',
+    '--ui-border-muted': '#e5e8ef',
+    '--ui-border-accented': '#d9dde7',
+    '--ui-text': '#171923',
+    '--ui-text-highlighted': '#171923',
+    '--ui-text-muted': '#656c7e',
+    '--ui-text-dimmed': '#656c7e',
+    '--ui-text-toned': '#656c7e',
   },
   cream: {
-    '--ui-bg': '#fbf7ef',
+    '--ui-bg': '#fffdf8',
     '--ui-bg-muted': '#f6f1e7',
     '--ui-bg-elevated': '#efe8d9',
     '--ui-bg-accented': '#e4d9c6',
@@ -38,27 +38,51 @@ const modeSurfaceTokens: Record<AppearanceMode, Record<string, string>> = {
     '--ui-text': '#3f3428',
     '--ui-text-highlighted': '#30271f',
     '--ui-text-muted': '#746753',
+    '--ui-text-dimmed': '#746753',
     '--ui-text-toned': '#63533f',
   },
   dark: {
-    '--ui-bg': '#09090b',
-    '--ui-bg-muted': '#18181b',
-    '--ui-bg-elevated': '#27272a',
-    '--ui-bg-accented': '#27272a',
-    '--ui-border': '#3f3f46',
-    '--ui-border-muted': '#34343c',
-    '--ui-border-accented': '#52525b',
-    '--ui-text': '#f4f4f5',
-    '--ui-text-highlighted': '#fafafa',
-    '--ui-text-muted': '#a1a1aa',
-    '--ui-text-toned': '#71717a',
+    '--ui-bg': '#181b24',
+    '--ui-bg-muted': '#1e222c',
+    '--ui-bg-elevated': '#181b24',
+    '--ui-bg-accented': '#272c38',
+    '--ui-border': '#2d3340',
+    '--ui-border-muted': '#2d3340',
+    '--ui-border-accented': '#394150',
+    '--ui-text': '#f6f7fb',
+    '--ui-text-highlighted': '#f6f7fb',
+    '--ui-text-muted': '#a9b0bf',
+    '--ui-text-dimmed': '#a9b0bf',
+    '--ui-text-toned': '#a9b0bf',
   },
 }
 const previewStyle = computed(() => {
   const surfaces = modeSurfaceTokens[previewMode.value]
+  const brandAliases = {
+    '--ui-primary': 'var(--brand-link)',
+    '--ui-secondary': 'var(--primary-fill)',
+    '--primary-2': 'color-mix(in srgb, var(--primary) 78%, #fff)',
+    '--brand-soft': 'color-mix(in srgb, var(--primary) 8%, var(--card))',
+    '--brand-border': 'color-mix(in srgb, var(--primary) 24%, var(--border))',
+    '--color-brand-50': 'color-mix(in srgb, var(--primary) 5%, white)',
+    '--color-brand-100': 'color-mix(in srgb, var(--primary) 10%, white)',
+    '--color-brand-200': 'color-mix(in srgb, var(--primary) 20%, white)',
+    '--color-brand-300': 'color-mix(in srgb, var(--primary) 35%, white)',
+    '--color-brand-400': 'var(--brand-link)',
+    '--color-brand-500': 'var(--brand-link)',
+    '--color-brand-600': 'var(--primary-hover)',
+    '--color-brand-700': 'var(--primary-active)',
+    '--color-brand-800': 'color-mix(in srgb, var(--primary) 80%, black)',
+    '--color-brand-900': 'color-mix(in srgb, var(--primary) 65%, black)',
+    '--color-brand-950': 'color-mix(in srgb, var(--primary) 50%, black)',
+    '--color-brand-link': 'var(--brand-link)',
+    '--color-brand-soft': 'var(--brand-soft)',
+    '--color-brand-border': 'var(--brand-border)',
+  }
   return {
     ...theme.value,
     ...surfaces,
+    ...brandAliases,
     color: 'var(--ui-text)',
     background: 'var(--ui-bg)',
     '--background': surfaces['--ui-bg'],
@@ -80,7 +104,7 @@ const previewStyle = computed(() => {
     :class="{ dark: previewMode === 'dark', cream: previewMode === 'cream' }"
     :style="previewStyle"
   >
-  <UCard>
+  <UCard class="nasq-ui-record-surface" :ui="{ header: 'nasq-ui-card-header' }">
     <template #header>
       <div class="flex items-center justify-between gap-2">
         <div>

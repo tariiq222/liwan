@@ -15,16 +15,9 @@ describe('normalizeHex', () => {
 })
 
 describe('buildBrandingPatch', () => {
-  it('normalizes colour and never forwards identity fields from a stale client draft', () => {
-    const staleDraft = { name: 'Changed', logo: 'cG5n', primaryColor: '#ABCDEF' }
+  it('normalizes colour and never forwards stale identity or secondary fields', () => {
+    const staleDraft = { name: 'Changed', logo: 'cG5n', primaryColor: '#ABCDEF', secondaryColor: '#d14a00' }
     expect(buildBrandingPatch(staleDraft)).toEqual({ primary_color: '#abcdef' })
-  })
-
-  it('forwards a clear secondary as a null patch', () => {
-    expect(buildBrandingPatch({ primaryColor: '#0055ff', secondaryColor: null })).toEqual({
-      primary_color: '#0055ff',
-      secondary_color: null,
-    })
   })
 
   it('rejects invalid colours', () => {

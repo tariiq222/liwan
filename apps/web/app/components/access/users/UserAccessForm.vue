@@ -111,7 +111,7 @@ async function save() {
 </script>
 
 <template>
-  <form class="space-y-5" @submit.prevent="save">
+  <form class="nasq-form" @submit.prevent="save">
     <SharedUnsavedChanges :dirty="dirty" />
     <fieldset :disabled="!canEdit || update.isPending.value" class="space-y-5">
       <legend class="sr-only">{{ t('access.users.rolesTitle') }}</legend>
@@ -146,7 +146,7 @@ async function save() {
       </SharedFormSection>
       <UAlert v-if="addingAccessAdminRole" role="alert" color="warning" variant="subtle" :title="t('access.users.accessAdminWarning')" />
       <UAlert v-if="errorKey" role="alert" color="error" variant="subtle" :title="errorKey.startsWith('access.') || errorKey === 'errors.generic' ? t(errorKey) : errorKey" />
-      <footer class="flex justify-end"><UButton v-if="canEdit" type="submit" color="primary" :label="t('access.save')" :disabled="!dirty || update.isPending.value || !previewReady" /></footer>
+      <footer class="nasq-form-footer justify-end"><UButton v-if="canEdit" type="submit" color="primary" :label="t('access.save')" :disabled="!dirty || update.isPending.value || !previewReady" /></footer>
     </fieldset>
   </form>
 </template>

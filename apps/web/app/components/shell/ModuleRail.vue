@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { PanelLeftClose, PanelLeftOpen } from '@lucide/vue'
 import { activeShellModule, visibleShellModules } from '@/composables/useNav'
 import { useModuleRail } from '@/composables/useShellNavigation'
 
@@ -35,10 +34,9 @@ const utilityModules = computed(() => availableModules.value.filter(module => mo
           @click="toggle"
         >
           <template #leading>
-            <PanelLeftClose v-if="expanded" aria-hidden="true" />
-            <PanelLeftOpen v-else aria-hidden="true" />
+            <UIcon :name="expanded ? 'i-lucide-panel-left-close' : 'i-lucide-panel-left-open'" class="nasq-shell-icon size-[18px] shrink-0" aria-hidden="true" />
           </template>
-          <span>{{ t(expanded ? 'nav.collapseModules' : 'nav.expandModules') }}</span>
+          <span data-slot="label">{{ t(expanded ? 'nav.collapseModules' : 'nav.expandModules') }}</span>
         </UButton>
       </UTooltip>
 
@@ -57,9 +55,9 @@ const utilityModules = computed(() => availableModules.value.filter(module => mo
             :title="t(module.labelKey)"
           >
             <template #leading>
-              <component :is="module.icon" aria-hidden="true" />
+              <UIcon :name="module.icon" class="nasq-shell-icon size-[18px] shrink-0" aria-hidden="true" />
             </template>
-            <span>{{ t(module.labelKey) }}</span>
+            <span data-slot="label">{{ t(module.labelKey) }}</span>
           </UButton>
         </UTooltip>
       </nav>
@@ -78,9 +76,9 @@ const utilityModules = computed(() => availableModules.value.filter(module => mo
             :title="t(module.labelKey)"
           >
             <template #leading>
-              <component :is="module.icon" aria-hidden="true" />
+              <UIcon :name="module.icon" class="nasq-shell-icon size-[18px] shrink-0" aria-hidden="true" />
             </template>
-            <span>{{ t(module.labelKey) }}</span>
+            <span data-slot="label">{{ t(module.labelKey) }}</span>
           </UButton>
         </UTooltip>
       </nav>

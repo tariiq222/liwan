@@ -100,7 +100,7 @@ async function confirmLeave() {
       </SharedFormSection>
       <SharedFormSection :title="t('chat.members')">
         <ul v-if="members?.items.length" class="grid gap-2">
-          <li v-for="member in members.items" :key="member.id" class="flex items-center justify-between gap-2 text-start">
+          <li v-for="member in members.items" :key="member.id" class="nasq-ui-record-surface flex items-center justify-between gap-2 p-3 text-start">
             <span>{{ member.name }}{{ member.im_status === 'online' ? ` · ${t('chat.online')}` : '' }}</span>
           </li>
         </ul>

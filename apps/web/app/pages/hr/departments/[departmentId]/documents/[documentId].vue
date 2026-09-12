@@ -12,7 +12,7 @@ const isEdit = computed(() => route.path.endsWith('/edit'))
       <UButton v-if="query.data.value && can('hr.documents.manage')" color="primary" :disabled="!hydrated" :to="{ path: `/hr/departments/${id}/documents/${documentId}/edit`, query: returnToQuery(route.fullPath) }" :label="t('app.edit')" @click="!hydrated && $event.preventDefault()" />
     </SharedPageHeader>
     <SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!query.data.value" @retry="query.refetch">
-      <UCard v-if="query.data.value">
+      <UCard v-if="query.data.value" class="nasq-ui-record-surface" :ui="{ header: 'nasq-ui-card-header' }">
         <template #header><h2 class="text-lg font-semibold text-highlighted">{{ t('hr.docs.body') }}</h2></template>
         <DocumentReader :document="query.data.value" hide-title />
       </UCard>

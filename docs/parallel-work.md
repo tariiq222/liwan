@@ -6,16 +6,15 @@ Nasq uses temporary worktrees for bounded tasks. The canonical checkout is `/Use
 permanent product pillar checkout. One writer owns each file. One orchestrator
 owns shared files, Git integration, runtime state, and final verification.
 
-## Current delivery status
+## Checkout and delivery context
 
-The sixteen-worktree integration extends the earlier unifications. See
-`docs/WORKSPACE.md` and `docs/worktree-consolidation-2026-09-07.md` for the
-current integration, verification and preserved source snapshots. Historical Phase 3b, access,
-design and collaboration reports preserve prior evidence only.
+Use [WORKSPACE.md](WORKSPACE.md) for the checkout map and delivery records;
+verify the selected branch and working tree before starting. Historical
+integration and recovery reports describe their own checkpoints only.
 
 Account administration belongs to the access capability domain; HR archival
 can disable a linked account but cannot grant roles or reactivate access.
-Branding settings accept only the primary colour; Odoo system administrators
+Customer branding settings edit only the primary colour; Odoo system administrators
 own institution identity. PMO collaboration preserves record and company guards.
 
 ## File ownership

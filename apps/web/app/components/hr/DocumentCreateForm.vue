@@ -30,7 +30,7 @@ async function submit() {
 
 <template>
   <SharedUnsavedChanges :dirty="dirty" />
-  <UForm :state="{ name, body }" class="space-y-5" method="post" @submit="submit">
+  <UForm :state="{ name, body }" class="nasq-form" method="post" @submit="submit">
     <SharedFormSection :title="t('hr.docs.newTitle')">
       <div class="grid gap-4 mt-4">
         <UFormField :label="t('hr.docs.newTitle')" name="hr-doc-new-name" required>
@@ -41,7 +41,7 @@ async function submit() {
         </UFormField>
       </div>
     </SharedFormSection>
-    <footer class="flex justify-end gap-2">
+    <footer class="nasq-form-footer justify-end">
       <UButton type="button" color="neutral" variant="outline" :to="props.backTo" :label="t('app.cancel')" />
       <UButton type="submit" color="primary" :disabled="!hydrated || isPending || !name.trim()" :label="t('app.create')" />
     </footer>

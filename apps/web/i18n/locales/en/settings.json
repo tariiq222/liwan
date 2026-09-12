@@ -13,12 +13,12 @@
       "color": "Primary color",
       "logo": "Logo",
       "logoHint": "PNG or JPEG, up to 1 MiB",
-      "save": "Save colors",
+      "save": "Save color",
       "saving": "Saving…",
       "saved": "Organisation colour saved",
       "preview": {
         "title": "Live preview",
-        "hint": "Chrome and the main action use primary; selection, progress and charts use secondary — before you save",
+        "hint": "Chrome and the main action use primary; selection, progress and charts use primary-derived tones — before you save",
         "action": "Primary action",
         "selection": "Selected item",
         "progress": "Progress",
@@ -50,14 +50,9 @@
         "teal": "Teal",
         "amber": "Amber"
       },
-      "managedIdentity": "The institution name and logo are managed by the system administrator in Odoo. You can customize the primary and secondary colors here.",
-      "secondaryColor": "Secondary color",
-      "suggestSecondary": "Suggest secondary color",
-      "primaryHint": "Chrome, primary action, and focus.",
-      "secondaryHint": "Selection, progress, and charts.",
-      "usageContrast": "Generated fill and text have low contrast.",
-      "chartsNotDistinct": "The six chart colours are not all distinct.",
-      "lowContrast": "The two colors have low contrast. Choose a clearer pair for readability."
+      "managedIdentity": "The institution name and logo are managed by the system administrator in Odoo. You can customize the primary color here.",
+      "primaryHint": "Chrome, primary action, focus, selection, progress, and charts.",
+      "chartsNotDistinct": "The six chart colours are not all distinct."
     },
     "projects": {
       "title": "Project settings",

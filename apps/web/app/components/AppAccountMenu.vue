@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { LogOut, Palette, UserRound } from '@lucide/vue'
 import { useQueryClient } from '@tanstack/vue-query'
 
 const queryClient = useQueryClient()
@@ -22,11 +21,11 @@ async function logout() {
 
 const items = computed(() => [
   [
-    { label: t('nav.account'), to: '/account', nasqIcon: UserRound },
-    { label: t('settings.appearance.title'), to: '/settings/appearance', nasqIcon: Palette },
+    { label: t('nav.account'), to: '/account', nasqIcon: 'i-lucide-user-round' },
+    { label: t('settings.appearance.title'), to: '/settings/appearance', nasqIcon: 'i-lucide-palette' },
   ],
   [
-    { label: t('nav.logout'), color: 'error' as const, nasqIcon: LogOut, onSelect: () => { void logout() } },
+    { label: t('nav.logout'), color: 'error' as const, nasqIcon: 'i-lucide-log-out', onSelect: () => { void logout() } },
   ],
 ])
 </script>
@@ -73,7 +72,7 @@ const items = computed(() => [
       </span>
     </UButton>
     <template #item-leading="{ item }">
-      <component :is="item.nasqIcon" aria-hidden="true" />
+      <UIcon :name="item.nasqIcon" class="nasq-shell-icon size-[18px] shrink-0" aria-hidden="true" />
     </template>
   </UDropdownMenu>
 </template>

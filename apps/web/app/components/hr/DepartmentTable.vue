@@ -31,10 +31,10 @@ function onSelectRow(_event: Event, row: { original: HrDepartment }) {
 
 <template>
   <div class="min-w-0 space-y-2" data-testid="hr-department-table">
-    <UCard class="hidden overflow-hidden md:block" :ui="{ body: 'p-0' }">
+    <UCard class="nasq-ui-record-surface hidden overflow-hidden md:block" :ui="{ body: 'p-0' }">
       <div v-if="!departments.length" class="p-6"><SharedEmptyState :title="t('hr.depts.empty')" /></div>
       <div v-else class="overflow-x-auto">
-        <UTable :data="departments" :columns="columns" :caption="t('hr.depts.title')" :ui="{ caption: 'sr-only' }" @select="onSelectRow">
+        <UTable :data="departments" :columns="columns" :caption="t('hr.depts.title')" :ui="{ caption: 'sr-only', th: 'nasq-ui-table-head' }" @select="onSelectRow">
           <template #id-cell="{ row }"><RecordNumber :value="row.original.id" /></template>
           <template #name-cell="{ row }">
             <span class="font-medium">{{ row.original.name }}</span>

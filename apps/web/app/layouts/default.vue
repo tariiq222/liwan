@@ -43,5 +43,3 @@ onBeforeUnmount(() => {
     </div>
   </div>
 </template>
-
-<style src="../assets/css/nuxt-shell.css"></style>

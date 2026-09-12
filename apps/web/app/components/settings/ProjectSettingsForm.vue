@@ -104,7 +104,7 @@ function onDeleteStage(id: number | string) {
 </script>
 
 <template>
-  <div class="nasq-form">
+  <div class="nasq-form nasq-project-settings-form">
     <USkeleton v-if="isLoading" class="h-64 w-full" />
 
     <SharedPageState v-else-if="error" :error="error" @retry="refetch" />

@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { ChevronLeft, ChevronRight } from '@lucide/vue'
 import { useMeetings } from '@/composables/useMeetings'
 import { returnToQuery } from '@/utils/safeReturnTo'
 import { formatCalendarDate, formatNasqTime } from '@/composables/calendarDate'
@@ -111,14 +110,14 @@ function goToday() {
     <div class="flex items-center justify-between gap-3 nasq-ui-record-surface p-3">
       <div class="flex items-center gap-2" :aria-label="monthLabel">
         <UButton type="button" color="neutral" variant="ghost" square :disabled="!hydrated" :aria-label="t('projects.previousPage')" @click="shift(-1)">
-          <ChevronRight v-if="locale === 'ar'" class="size-[18px]" />
-          <ChevronLeft v-else class="size-[18px]" />
+          <UIcon v-if="locale === 'ar'" name="i-lucide-chevron-right" class="size-[18px]" aria-hidden="true" />
+          <UIcon v-else name="i-lucide-chevron-left" class="size-[18px]" aria-hidden="true" />
         </UButton>
         <span class="min-w-40 text-center text-sm font-medium">{{ monthLabel }}</span>
         <UButton type="button" color="secondary" variant="outline" size="sm" :disabled="!hydrated" :label="t('meetingsUx.today')" @click="goToday" />
         <UButton type="button" color="neutral" variant="ghost" square :disabled="!hydrated" :aria-label="t('projects.nextPage')" @click="shift(1)">
-          <ChevronLeft v-if="locale === 'ar'" class="size-[18px]" />
-          <ChevronRight v-else class="size-[18px]" />
+          <UIcon v-if="locale === 'ar'" name="i-lucide-chevron-left" class="size-[18px]" aria-hidden="true" />
+          <UIcon v-else name="i-lucide-chevron-right" class="size-[18px]" aria-hidden="true" />
         </UButton>
       </div>
     </div>

@@ -14,7 +14,6 @@
   },
   "dependencies": {
     "@iconify-json/lucide": "1.2.129",
-    "@lucide/vue": "^1.41.0",
     "@nasq/contracts": "^0.1.0",
     "@nuxt/ui": "4.11.1",
     "@nuxtjs/i18n": "^10.6.0",

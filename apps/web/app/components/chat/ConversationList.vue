@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { MessageSquarePlus, Search, UsersRound } from '@lucide/vue'
 import EmptyState from '@/components/shared/EmptyState.vue'
 import { ApiError } from '@/composables/useApi'
 import { CHAT_PAGE_SIZE, initialsFor, isFatalChatStatus, nextListOffset, serializeChatListRoute, type ChatFilter, type ChatListRoute } from '@/utils/chatState'
@@ -66,7 +65,7 @@ function conversationTo(id: number) {
           :aria-label="t('chat.new')"
           :title="t('chat.new')"
         >
-          <MessageSquarePlus class="size-5" aria-hidden="true" />
+          <UIcon name="i-lucide-message-square-plus" class="size-5" aria-hidden="true" />
         </UButton>
         <UButton
           color="neutral" variant="ghost" square
@@ -74,7 +73,7 @@ function conversationTo(id: number) {
           :aria-label="t('chat.newGroup')"
           :title="t('chat.newGroup')"
         >
-          <UsersRound class="size-5" aria-hidden="true" />
+          <UIcon name="i-lucide-users-round" class="size-5" aria-hidden="true" />
         </UButton>
       </div>
     </header>
@@ -115,7 +114,7 @@ function conversationTo(id: number) {
               :title="item.im_status === 'online' ? t('chat.online') : t('chat.offline')"
             />
             <span v-else-if="item.type !== 'direct'" class="nasq-chat-avatar-badge" :title="t(`chat.${item.type}`)">
-              <UsersRound class="size-3" aria-hidden="true" />
+              <UIcon name="i-lucide-users-round" class="size-3" aria-hidden="true" />
             </span>
           </span>
           <span class="min-w-0 flex-1">

@@ -4,6 +4,7 @@ globs: "apps/web/**"
 alwaysApply: true
 ---
 
-Read `AGENTS.md` and `CLAUDE.md` at the repository root.
-UI policy is only `DESIGN.md` then `docs/design-system/components.md`.
-Dated reports and historical specs are not instructions.
+Read [AGENTS.md](../../AGENTS.md) and [CLAUDE.md](../../CLAUDE.md), then follow
+[DESIGN.md](../../DESIGN.md) for the customer UI.
+
+Dated reports and historical specifications are evidence, not UI instructions.

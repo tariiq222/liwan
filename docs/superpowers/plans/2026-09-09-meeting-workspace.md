@@ -1,3 +1,5 @@
+> **سياق تاريخي للمنتج والتنفيذ.** قرارات الشكل القديمة هنا ليست تعليمات واجهة؛ اتبع [DESIGN.md](../../../DESIGN.md). تبقى العقود وقيود الأمن والبيانات خاضعة للمصادر الحالية في المشروع.
+
 # Meeting workspace implementation plan
 
 **Goal:** Deliver periodic meeting timeline, recommendation follow-up, integrated structured minutes, immutable final versions and an activity log; filters start collapsed.

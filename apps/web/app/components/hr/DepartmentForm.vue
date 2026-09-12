@@ -69,9 +69,9 @@ async function submit() {
 
 <template>
   <SharedUnsavedChanges :dirty="dirty" />
-  <UForm :state="{ name, parentId, managerId }" class="space-y-5" method="post" @submit="submit">
+  <UForm :state="{ name, parentId, managerId }" class="nasq-form" method="post" @submit="submit">
     <SharedFormSection :title="t('hr.depts.formDescription')">
-      <div class="grid gap-4 sm:grid-cols-2 mt-4">
+      <div class="nasq-form-grid mt-4">
         <UFormField :label="t('hr.depts.name')" name="hr-dept-name" required>
           <UInput id="hr-dept-name" v-model="name" class="w-full" :disabled="!canManage || !hydrated || pending" required />
         </UFormField>
@@ -90,7 +90,7 @@ async function submit() {
         </UFormField>
       </div>
     </SharedFormSection>
-    <footer class="flex justify-end gap-2">
+    <footer class="nasq-form-footer justify-end">
       <UButton type="button" color="neutral" variant="outline" :to="props.backTo ?? (props.department ? `/hr/departments/${props.department.id}` : '/hr/departments')" :label="t('app.cancel')" />
       <UButton type="submit" color="primary" :disabled="!canManage || !hydrated || pending || !name.trim()" :label="t('app.save')" />
     </footer>

@@ -1,3 +1,5 @@
+> **سياق تاريخي للمنتج والتنفيذ.** قرارات الشكل القديمة هنا ليست تعليمات واجهة؛ اتبع [DESIGN.md](../../../DESIGN.md). تبقى العقود وقيود الأمن والبيانات خاضعة للمصادر الحالية في المشروع.
+
 # Coordinated consolidation of sixteen dirty worktrees
 
 > Execute with subagent-driven-development; user explicitly authorizes commits and local merges.

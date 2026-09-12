@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { Task } from '@nasq/contracts'
-import { Flag } from '@lucide/vue'
 import type { BoardStage } from '@/composables/boardStages'
 import { PRIORITY_LABEL_KEY } from '@/composables/taskState'
 import DeadlineBadge from './DeadlineBadge.vue'
@@ -87,14 +86,16 @@ function onCardKeydown(event: KeyboardEvent) {
     <div class="flex items-center justify-between gap-2 pt-1">
       <div class="flex items-center gap-2">
         <DeadlineBadge :deadline="task.date_deadline" :days-remaining="task.days_remaining" :is-closed="task.is_closed" />
-        <Flag
+        <UIcon
+          name="i-lucide-flag"
           v-if="PRIORITY_TONE[task.priority]"
+          role="img"
+          :aria-hidden="false"
           class="size-3.5"
           :class="PRIORITY_TONE[task.priority]"
           :aria-label="t(PRIORITY_LABEL_KEY[task.priority as '0' | '1' | '2' | '3'])"
-        >
-          <title>{{ t(PRIORITY_LABEL_KEY[task.priority as '0' | '1' | '2' | '3']) }}</title>
-        </Flag>
+          :title="t(PRIORITY_LABEL_KEY[task.priority as '0' | '1' | '2' | '3'])"
+        />
       </div>
       <div class="flex">
         <UAvatar v-for="a in task.assignees" :key="a.id" :text="initials(a.name)" class="-ms-2 size-6 border-2 border-default text-xs first:ms-0" />

@@ -4,8 +4,10 @@ import { resolve } from 'node:path'
 
 const root = resolve(import.meta.dirname, '../../..')
 const layout = readFileSync(resolve(root, 'layouts/default.vue'), 'utf8')
-const shellCss = readFileSync(resolve(root, 'assets/css/approved-shell.css'), 'utf8')
-const nuxtShellCss = readFileSync(resolve(root, 'assets/css/nuxt-shell.css'), 'utf8')
+const nuxtConfig = readFileSync(resolve(root, '../nuxt.config.ts'), 'utf8')
+const shellCss = readFileSync(resolve(root, 'assets/css/shell.css'), 'utf8')
+const componentsCss = readFileSync(resolve(root, 'assets/css/components.css'), 'utf8')
+const navModel = readFileSync(resolve(root, 'composables/useNav.ts'), 'utf8')
 const accountMenu = readFileSync(resolve(root, 'components/AppAccountMenu.vue'), 'utf8')
 const contextSidebar = readFileSync(resolve(root, 'components/shell/ContextSidebar.vue'), 'utf8')
 const moduleRail = readFileSync(resolve(root, 'components/shell/ModuleRail.vue'), 'utf8')
@@ -20,15 +22,15 @@ describe('approved shell structure', () => {
     expect(layout).toContain('ShellHeader')
     expect(layout).not.toContain('ShellBreadcrumb')
     expect(layout).not.toContain('SidebarProvider')
-    expect(shellCss).toContain('--module-rail-width: 64px')
-    expect(shellCss).toContain('--context-sidebar-width: 244px')
-    expect(layout).toContain('nuxt-shell.css')
+    expect(shellCss).toContain('--module-rail-width: 76px')
+    expect(shellCss).toContain('--context-sidebar-width: 236px')
+    expect(layout).not.toContain('nuxt-shell.css')
   })
 
-  it('keeps context navigation visible and reflows it on mobile', () => {
+  it('keeps context navigation in the desktop sidebar and reserves mobile for the slideover', () => {
     expect(shellCss).toContain('.nasq-context-sidebar {')
-    expect(shellCss).toContain('.nasq-context-links { display: flex; overflow-x: auto;')
-    expect(shellCss).toContain('.nasq-context-create')
+    expect(shellCss).toContain('.nasq-context-links { display: grid;')
+    expect(componentsCss).toContain('.nasq-context-create')
     expect(shellCss).not.toContain('.nasq-context-sidebar[aria-collapsed]')
   })
 
@@ -53,9 +55,17 @@ describe('approved shell structure', () => {
   })
 
   it('uses the branded shell token for both header and rail', () => {
-    expect(shellCss).toContain('background: var(--shell-background)')
+    expect(shellCss).toContain('background: var(--nasq-surface)')
+    expect(shellCss).toContain('background: var(--nasq-rail)')
     expect(shellCss).toContain('.nasq-module-rail')
     expect(shellCss).toContain('.nasq-shell-header')
+  })
+
+  it('keeps the reference shell frame square and the active rail item branded', () => {
+    expect(shellCss).toContain('border-radius: 0;')
+    expect(shellCss).toContain('border-inline-start: 1px solid var(--border)')
+    expect(shellCss).toContain('background: color-mix(in srgb, var(--nasq-rail) 72%, var(--primary))')
+    expect(shellCss).toContain('color: #fff;')
   })
 
   it('keeps the account menu above the shell and out of the header flow', () => {
@@ -70,6 +80,29 @@ describe('approved shell structure', () => {
 })
 
 describe('Nuxt UI shell migration', () => {
+  it('uses local UIcon names for shared navigation icons', () => {
+    const directIconImport = ['@', 'lucide/vue'].join('')
+    for (const source of [navModel, accountMenu, contextSidebar, moduleRail, mobileNavigation]) {
+      expect(source).not.toContain(directIconImport)
+    }
+    for (const source of [contextSidebar, moduleRail, mobileNavigation]) expect(source).toContain('<UIcon')
+    expect(navModel).toContain('export type NavIcon = `i-lucide-${string}`')
+    expect(componentsCss).toContain('.nasq-shell-icon')
+    expect(shellCss).toContain('[data-slot="label"]')
+    expect(globalSearch).toContain('data-slot="label" class="nasq-search-trigger-label')
+    expect(shellCss).toContain('.nasq-search-trigger-label')
+    expect(shellCss).not.toContain('.nasq-search-trigger > span > span')
+    expect(shellCss).not.toContain('.nasq-context-link > span')
+    expect(shellCss).not.toContain('.nasq-module-rail-link span')
+  })
+
+  it('scans app TypeScript so shared dynamic UIcon names are bundled offline', () => {
+    expect(nuxtConfig).toContain("provider: 'none'")
+    expect(nuxtConfig).toContain("fallbackToApi: false")
+    expect(nuxtConfig).toContain("'app/composables/**/*.ts'")
+    expect(nuxtConfig).toContain("'**/*.{vue,jsx,tsx,md,mdc,mdx,yml,yaml}'")
+  })
+
   it('uses Nuxt UI primitives for rail, context, search, notifications and account', () => {
     expect(moduleRail).toContain('<UButton')
     expect(moduleRail).toContain('<UTooltip')
@@ -89,16 +122,16 @@ describe('Nuxt UI shell migration', () => {
   })
 
   it('hides desktop rail and context under 768px and uses a real mobile slideover', () => {
-    expect(nuxtShellCss).toContain('@media (max-width: 767px)')
-    expect(nuxtShellCss).toContain('[data-nasq-shell] .nasq-module-rail')
-    expect(nuxtShellCss).toContain('[data-nasq-shell] .nasq-context-sidebar')
-    expect(nuxtShellCss).toContain('display: none !important')
-    expect(nuxtShellCss).toContain('.nasq-mobile-menu-trigger { display: none; }')
-    expect(nuxtShellCss).toMatch(/\[data-nasq-shell\] \.nasq-mobile-menu-trigger \{[^}]*display: inline-flex;/)
-    expect(nuxtShellCss).toContain('min-height: 44px')
-    expect(nuxtShellCss).toContain('var(--brand-soft)')
-    expect(nuxtShellCss).toContain('inset-inline-start: 0')
-    expect(nuxtShellCss.includes('var(--secondary)')).toBe(false)
+    expect(shellCss).toContain('@media (max-width: 767px)')
+    expect(shellCss).toContain('.nasq-module-rail,')
+    expect(shellCss).toContain('.nasq-context-sidebar { display: none !important; }')
+    expect(shellCss).toContain('display: none !important')
+    expect(componentsCss).toContain('.nasq-mobile-menu-trigger { display: none; }')
+    expect(shellCss).toMatch(/\.nasq-mobile-menu-trigger \{ display: inline-flex;/)
+    expect(componentsCss).toContain('min-height: 44px')
+    expect(shellCss).toContain('var(--brand-soft)')
+    expect(shellCss).toContain('inset-inline-start: 0')
+    expect(componentsCss.includes('var(--secondary)')).toBe(false)
     expect(mobileNavigation).toContain('<USlideover')
     expect(mobileNavigation).toContain("useMediaQuery('(min-width: 768px)'")
     expect(mobileNavigation).toContain('visibleShellModules')

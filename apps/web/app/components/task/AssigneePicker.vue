@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { Task } from '@nasq/contracts'
 import { refDebounced } from '@vueuse/core'
-import { X } from '@lucide/vue'
 import { usePeople } from '@/composables/usePeople'
 
 type PersonRef = Task['assignees'][number]
@@ -59,7 +58,7 @@ function onSelectMenuChange(ids: number[]) {
           :aria-label="t('tasks.drawer.removeAssignee')"
           @click="remove(p.id)"
         >
-          <X class="size-3" />
+          <UIcon name="i-lucide-x" class="size-3" aria-hidden="true" />
         </UButton>
       </UBadge>
       <span v-if="modelValue.length === 0" class="text-sm text-muted">{{ t('tasks.drawer.unassigned') }}</span>

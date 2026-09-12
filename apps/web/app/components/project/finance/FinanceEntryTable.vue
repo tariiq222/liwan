@@ -125,7 +125,7 @@ function onSelect(_event: Event, row: { original: FinanceEntry }) {
       :data="items"
       :columns="columns"
       :caption="t('projects.finance.columns.title')"
-      :ui="{ caption: 'sr-only' }"
+      :ui="{ caption: 'sr-only', thead: 'nasq-ui-table-head' }"
       :on-select="hydrated ? onSelect : undefined"
     >
       <template #record-cell="{ row }">

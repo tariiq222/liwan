@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { inject } from 'vue'
-import { Archive, ArrowLeft, ArrowRight, Check, ChevronLeft, ChevronRight, Pencil, X } from '@lucide/vue'
 import type { RouteLocationRaw } from 'vue-router'
 import { ApiError } from '@/composables/useApi'
 import { useTaskFilters } from '@/composables/useTaskFilters'
@@ -167,7 +166,7 @@ useEventListener(document, 'keydown', onKeydown)
     <div class="task-context-row" data-testid="task-detail-context">
       <div class="flex min-w-0 flex-1 items-center gap-2">
         <NuxtLink v-if="!inProjectOverlay" :to="backTo" class="inline-flex min-h-8 shrink-0 items-center gap-1 rounded-lg px-2 text-sm text-muted transition-colors hover:bg-elevated hover:text-highlighted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" :aria-label="props.backLabel ?? t('tasks.detail.back')" :aria-disabled="!hydrated || editingTitle || titleSaving" :tabindex="!hydrated || editingTitle || titleSaving ? -1 : undefined" @click="(!hydrated || editingTitle || titleSaving) && $event.preventDefault()">
-          <component :is="isRtl ? ArrowRight : ArrowLeft" class="size-[18px]" />
+          <UIcon :name="isRtl ? 'i-lucide-arrow-right' : 'i-lucide-arrow-left'" class="size-[18px]" aria-hidden="true" />
           <span>{{ props.backLabel ?? t('tasks.detail.back') }}</span>
         </NuxtLink>
 
@@ -182,10 +181,10 @@ useEventListener(document, 'keydown', onKeydown)
             @keydown.escape.stop.prevent="cancelTitleEdit"
           />
           <UButton data-testid="task-title-save" variant="outline" size="sm" type="button" :aria-label="t('tasks.detail.saveTitle')" :disabled="titleSaving || !titleDraft.trim()" @click="saveTitle">
-            <Check class="size-[18px]" />
+            <UIcon name="i-lucide-check" class="size-[18px]" aria-hidden="true" />
           </UButton>
           <UButton data-testid="task-title-cancel" variant="ghost" size="sm" type="button" :aria-label="t('tasks.detail.cancelTitle')" :disabled="titleSaving" @click="cancelTitleEdit">
-            <X class="size-[18px]" />
+            <UIcon name="i-lucide-x" class="size-[18px]" aria-hidden="true" />
           </UButton>
         </template>
         <template v-else-if="task?.project">
@@ -199,13 +198,13 @@ useEventListener(document, 'keydown', onKeydown)
 
       <div class="task-context-actions" role="group" :aria-label="t('tasks.detail.menu')">
         <UButton v-if="task?.can_write && !editingTitle" data-testid="task-title-edit" variant="outline" size="sm" type="button" :aria-label="t('tasks.detail.editTitle')" :disabled="!hydrated || titleSaving" @click="startTitleEdit">
-          <Pencil class="size-[18px]" />
+          <UIcon name="i-lucide-pencil" class="size-[18px]" aria-hidden="true" />
         </UButton>
         <UButton variant="outline" size="sm" type="button" :aria-label="t('tasks.detail.prev')" :disabled="!hydrated || editingTitle || titleSaving || !siblings.prevId" @click="goTo(siblings.prevId)">
-          <component :is="isRtl ? ChevronRight : ChevronLeft" class="size-[18px]" />
+          <UIcon :name="isRtl ? 'i-lucide-chevron-right' : 'i-lucide-chevron-left'" class="size-[18px]" aria-hidden="true" />
         </UButton>
         <UButton variant="outline" size="sm" type="button" :aria-label="t('tasks.detail.next')" :disabled="!hydrated || editingTitle || titleSaving || !siblings.nextId" @click="goTo(siblings.nextId)">
-          <component :is="isRtl ? ChevronLeft : ChevronRight" class="size-[18px]" />
+          <UIcon :name="isRtl ? 'i-lucide-chevron-left' : 'i-lucide-chevron-right'" class="size-[18px]" aria-hidden="true" />
         </UButton>
         <UButton
           v-if="task?.allowed_actions.includes('archive')"
@@ -219,7 +218,7 @@ useEventListener(document, 'keydown', onKeydown)
           :title="t('tasks.drawer.archive')"
           @click="archiveConfirmOpen = true"
         >
-          <Archive class="size-[18px]" />
+          <UIcon name="i-lucide-archive" class="size-[18px]" aria-hidden="true" />
         </UButton>
       </div>
     </div>
@@ -241,7 +240,7 @@ useEventListener(document, 'keydown', onKeydown)
 
     <template v-if="task">
       <div data-testid="task-detail-grid" class="space-y-6">
-        <div data-testid="task-details-card" class="space-y-6">
+        <div data-testid="task-details-card" class="nasq-ui-record-surface space-y-6 p-5">
           <div class="task-detail-status-line">
             <StateMenu :task="task" :can-approve="task.can_approve" />
             <span class="text-xs text-muted">

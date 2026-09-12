@@ -1,5 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-"""Read-only, dependency-free UI migration ratchet; not a security boundary."""
+"""Read-only, dependency-free UI migration gate; not a security boundary."""
 from __future__ import annotations
 
 import io
@@ -17,22 +17,34 @@ APP = 'apps/web/app/'
 PREVIEW = 'apps/web/design-preview/app/'
 SOURCE_ROOTS = (APP, PREVIEW)
 LEGACY = APP + 'components/ui/'
+CHARTS = APP + 'components/charts/'
 CATALOG = 'docs/design-system/components.md'
 MANIFESTS = ('package.json', 'apps/web/package.json')
 SCOPE = (*(root.rstrip('/') for root in SOURCE_ROOTS), *MANIFESTS, CATALOG)
 THEME_OWNERS = {
     APP + 'assets/css/main.css',
+    APP + 'assets/css/tokens.css',
+    APP + 'assets/css/components.css',
+    APP + 'assets/css/shell.css',
+    APP + 'utils/brandTheme.ts',
+    APP + 'app.config.ts',
+}
+RETIRED_CSS = {
     APP + 'assets/css/approved-shell.css',
     APP + 'assets/css/project-theme.css',
     APP + 'assets/css/nuxt-theme.css',
     APP + 'assets/css/nuxt-shell.css',
-    APP + 'utils/brandTheme.ts',
-    APP + 'app.config.ts',
-    PREVIEW + 'assets/theme.css',
-    PREVIEW + 'app.config.ts',
 }
-IMPORTS = re.compile(r'''(?:\b(?:from|import)\s*|\b(?:import|require)\s*\(\s*)(['"])([^'"]+)\1''')
+# Match actual import/export statements, side-effect imports, and dynamic
+# imports. Anchoring static imports to the start of a line prevents words such
+# as "from" inside route query strings from becoming fake specifiers.
+IMPORTS = re.compile(r'''(?mx)
+(?:^[ \t]*(?:import|export)\b(?:(?!;|^[ \t]*(?:import|export)\b)[\s\S])*?\bfrom[ \t\r\n]+|^[ \t]*(?:@import|import)\s*|\b(?:import|require)\s*\(\s*)
+(['"])([^'"]+)\1''')
 COMMENTS = re.compile(r'/\*[\s\S]*?\*/|<!--[\s\S]*?-->|^[ \t]*//[^\n]*', re.MULTILINE)
+CHART_IDENTIFIERS = {'chartcontainer', 'chartstyle', 'chartlegendcontent', 'charttooltipcontent'}
+MOCK_FIXTURE_PATH = re.compile(r'(?:^|/)(?:__mocks?__|mocks?|__fixtures?__|fixtures?)(?:/|$)', re.I)
+RETIRED_PACKAGES = {'@lucide/vue'}
 
 
 def source_file(path: str) -> bool:
@@ -47,6 +59,15 @@ def dependencies(snapshot: dict[str, str]) -> set[str]:
         for field in ('dependencies', 'devDependencies', 'peerDependencies', 'optionalDependencies'):
             names.update(data.get(field, {}))
     return names
+
+
+def dependency_versions(snapshot: dict[str, str]) -> dict[str, str]:
+    versions = {}
+    for path in MANIFESTS:
+        data = json.loads(snapshot.get(path, '{}'))
+        for field in ('dependencies', 'devDependencies', 'peerDependencies', 'optionalDependencies'):
+            versions.update(data.get(field, {}))
+    return versions
 
 
 def normalize(name: str) -> str:
@@ -75,16 +96,29 @@ def findings(path: str, source: str, names: set[str], allowed: set[str], has_ui:
     # expressions. Use compiler ASTs if dynamic aliases become a recurring gap.
     source = COMMENTS.sub('', source)
     result: Counter = Counter()
+    chart_adapter = path.startswith(CHARTS)
     # Template attribute values such as date-from must not be parsed as imports.
     scriptless = re.sub(r'<script\b[^>]*>[\s\S]*?</script\s*>', '', source, flags=re.I) if path.endswith('.vue') else ''
     import_source = re.sub(r'<template\b[^>]*>[\s\S]*</template\s*>', '', source, flags=re.I) if path.endswith('.vue') else source
+    if path.endswith('.vue'):
+        # Inline SFC blocks may put an import immediately after the opening
+        # tag. Replace block tags with boundaries so static imports retain the
+        # same line-oriented guard used for ordinary TypeScript files.
+        import_source = re.sub(r'</?(?:script|style)\b[^>]*>', '\n', import_source, flags=re.I)
     for match in IMPORTS.finditer(import_source):
         specifier = match.group(2)
         resolved = posixpath.normpath(posixpath.join(posixpath.dirname(path), specifier))
-        if ('components/ui/' in specifier or specifier.endswith('components/ui')
+        if package_name(specifier) in RETIRED_PACKAGES:
+            result['retired runtime import: ' + specifier] += 1
+        elif MOCK_FIXTURE_PATH.search(specifier):
+            result['runtime mock/fixture import: ' + specifier] += 1
+        elif ('components/ui/' in specifier or specifier.endswith('components/ui')
                 or resolved.startswith(LEGACY) or resolved == LEGACY.rstrip('/')
-                or package_name(specifier) in {'vue-sonner', 'reka-ui', 'shadcn-nuxt'}):
+                or package_name(specifier) in {'vue-sonner', 'shadcn-nuxt'}
+                or (package_name(specifier) == 'reka-ui' and not chart_adapter)):
             result['legacy import: ' + specifier] += 1
+        elif resolved in RETIRED_CSS:
+            result['retired stylesheet import: ' + specifier] += 1
         elif not specifier.startswith(('.', '#', '~/', '@/', '/', 'node:')):
             package = package_name(specifier)
             if package not in allowed:
@@ -99,8 +133,16 @@ def findings(path: str, source: str, names: set[str], allowed: set[str], has_ui:
     tags.extend(re.findall(r'''resolveComponent\(\s*['"]([\w-]+)['"]''', source))
     tags.extend(re.findall(r''':is\s*=\s*["']\s*["']([\w-]+)["']\s*["']''', source))
     for name in tags:
-        if normalize(name) in names:
-            result['legacy component: ' + normalize(name)] += 1
+        normalized_name = normalize(name)
+        # Chart adapters are specialist rendering files, and the shared
+        # dashboard is their explicit consumer. Their imported Chart* names
+        # are not legacy UI controls even though the historical snapshot used
+        # the same identifiers under components/ui/chart.
+        if normalized_name in names and not (
+            normalized_name in CHART_IDENTIFIERS
+            and (chart_adapter or path == APP + 'components/shared/DashboardChart.client.vue')
+        ):
+            result['legacy component: ' + normalized_name] += 1
         if re.match(r'^(?:Lazy)?U[A-Z]|^(?:lazy-)?u-', name) and not has_ui:
             result['Nuxt UI is not declared in apps/web/package.json'] += 1
 
@@ -117,24 +159,33 @@ def findings(path: str, source: str, names: set[str], allowed: set[str], has_ui:
 
 def check(current: dict[str, str], baseline: dict[str, str], head: dict[str, str]) -> list[str]:
     errors = []
-    allowed = dependencies(baseline) | {'@nuxt/ui', '@iconify-json/lucide'}
+    allowed = dependencies(baseline) | {
+        '@nuxt/ui', '@iconify-json/lucide', '@internationalized/date',
+    }
     names = legacy_names(baseline)
     has_ui = '@nuxt/ui' in json.loads(current.get('apps/web/package.json', '{}')).get('dependencies', {})
+    baseline_versions = dependency_versions(baseline)
+    current_versions = dependency_versions(current)
     for package in sorted(dependencies(current) - allowed):
         errors.append('dependency needs review: ' + package)
+    for package in sorted(dependencies(current) & RETIRED_PACKAGES):
+        errors.append('retired dependency: ' + package)
+    for package in sorted(set(current_versions) & set(baseline_versions)):
+        if current_versions[package] != baseline_versions[package]:
+            errors.append('dependency version needs review: ' + package)
     for path, source in sorted(current.items()):
         if not source_file(path):
             continue
-        if path.startswith(LEGACY) and path not in baseline:
-            errors.append(path + ': no new files in the legacy component tree')
-        if path.startswith(tuple(root + 'components/' for root in SOURCE_ROOTS)) and path.endswith('.vue') and path not in baseline:
+        if path.startswith(PREVIEW):
+            errors.append(path + ': retired design-preview source tree')
+        if path.startswith(LEGACY):
+            errors.append(path + ': retired legacy component tree')
+        if path in RETIRED_CSS:
+            errors.append(path + ': retired stylesheet')
+        if path.startswith(APP + 'components/') and path.endswith('.vue') and path not in baseline:
             if f'`{path}`' not in current.get(CATALOG, ''):
                 errors.append(path + ': register exact path, recipe and primitives in the catalog')
-        # A baseline allowance cannot be expanded or restored after a committed removal.
-        before = findings(path, baseline.get(path, ''), names, allowed, has_ui)
-        committed = findings(path, head.get(path, ''), names, allowed, has_ui)
-        added = findings(path, source, names, allowed, has_ui) - (before & committed)
-        errors.extend(f'{path}: {reason} (+{count})' for reason, count in sorted(added.items()))
+        errors.extend(f'{path}: {reason} (+{count})' for reason, count in sorted(findings(path, source, names, allowed, has_ui).items()))
     return errors
 
 

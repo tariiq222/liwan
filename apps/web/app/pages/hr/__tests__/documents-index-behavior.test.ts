@@ -29,7 +29,6 @@ function loadPage() {
   let documentParams: Vue.ComputedRef<Record<string, unknown>> | undefined
   const require = (name: string) => {
     if (name === 'vue') return Vue
-    if (name === '@lucide/vue') return { Plus: {}, Search: {}, X: {} }
     if (name === '@/components/shared/FilterBar.vue') return {}
     if (name === '@/components/shared/RecordNumber.vue') return {}
     if (name === '@vueuse/core') return { refDebounced: (value: Vue.Ref<string>) => value }

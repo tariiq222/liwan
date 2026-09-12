@@ -23,9 +23,9 @@ const columns = computed<TableColumn<AdminUserSummary>[]>(() => [
 
 <template>
   <div class="min-w-0 space-y-2">
-    <UCard class="hidden overflow-hidden md:block" :ui="{ body: 'p-0' }">
+    <UCard class="nasq-ui-record-surface hidden overflow-hidden md:block" :ui="{ body: 'p-0' }">
       <div class="overflow-x-auto">
-        <UTable :data="users" :columns="columns" :caption="t('access.users.title')" :ui="{ caption: 'sr-only' }">
+        <UTable :data="users" :columns="columns" :caption="t('access.users.title')" :ui="{ caption: 'sr-only', th: 'nasq-ui-table-head' }">
           <template #id-cell="{ row }"><RecordNumber :value="row.original.id" /></template>
           <template #name-cell="{ row }"><span class="font-medium">{{ row.original.name }}</span></template>
           <template #login-cell="{ row }"><bdi dir="ltr">{{ row.original.login }}</bdi></template>

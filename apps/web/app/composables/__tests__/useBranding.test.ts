@@ -8,8 +8,8 @@ afterEach(() => vi.unstubAllGlobals())
 
 describe('institution favicon', () => {
   function setup(logoUrl = '/web/binary/company_logo?company=7&v=first') {
-    const data = ref<null | { name: string, logo_url: string, primary_color: string, font: string }>({
-      name: 'Institution', logo_url: logoUrl, primary_color: '#001A33', font: 'IBM_Plex_Sans_Arabic',
+    const data = ref<null | { name: string, logo_url: string, primary_color: string, secondary_color?: string | null, font: string }>({
+      name: 'Institution', logo_url: logoUrl, primary_color: '#001A33', secondary_color: '#d14a00', font: 'IBM_Plex_Sans_Arabic',
     })
     let head: () => { link?: { rel: string, href: string }[] }
     vi.stubGlobal('computed', computed)
@@ -46,10 +46,10 @@ describe('institution favicon', () => {
     expect(head().link).toContainEqual(expect.objectContaining({ rel: 'icon', href: '/brand/logo.png?v=2' }))
   })
 
-  it('applies derived brand secondary without clobbering the neutral token', () => {
+  it('renders the primary family and ignores a stored secondary color', () => {
     let head!: () => { htmlAttrs?: { style?: string }, link?: { rel: string, href: string }[] }
-    const data = ref<null | { name: string, logo_url: string, primary_color: string, font: string }>({
-      name: 'Institution', logo_url: '/brand/logo.png', primary_color: '#001A33', font: 'IBM_Plex_Sans_Arabic',
+    const data = ref<null | { name: string, logo_url: string, primary_color: string, secondary_color?: string | null, font: string }>({
+      name: 'Institution', logo_url: '/brand/logo.png', primary_color: '#001A33', secondary_color: '#d14a00', font: 'IBM_Plex_Sans_Arabic',
     })
     vi.stubGlobal('computed', computed)
     vi.stubGlobal('useAppearance', () => ({ mode: ref('light') }))
@@ -57,9 +57,11 @@ describe('institution favicon', () => {
     vi.stubGlobal('useHead', (input: typeof head) => { head = input })
     useBranding()
     const style = head().htmlAttrs?.style ?? ''
-    expect(style).toContain('--nasq-brand-secondary:')
     expect(style).toContain('--primary-fill:')
+    expect(style).not.toContain('--nasq-brand-secondary')
     expect(style).not.toMatch(/(?:^|;)--secondary:/)
     expect(style).not.toContain('#2563eb')
+    data.value = { ...data.value!, secondary_color: '#00ff00' }
+    expect(head().htmlAttrs?.style).toBe(style)
   })
 })

@@ -81,10 +81,10 @@ async function save() {
 </script>
 
 <template>
-  <UForm :state="{ nameAr, nameEn, description }" class="min-w-0 space-y-5" method="post" @submit="save">
+  <UForm :state="{ nameAr, nameEn, description }" class="nasq-form min-w-0" method="post" @submit="save">
     <SharedUnsavedChanges :dirty="dirty" />
     <SharedFormSection :title="t('access.roles.details')" class="space-y-4">
-      <div class="grid gap-4 sm:grid-cols-2">
+      <div class="nasq-form-grid">
         <UFormField :label="t('access.roles.nameArabic')" name="nameAr"><UInput v-model="nameAr" class="w-full" :disabled="!canEdit" /></UFormField>
         <UFormField :label="t('access.roles.nameEnglish')" name="nameEn"><UInput v-model="nameEn" dir="ltr" class="w-full" :disabled="!canEdit" /></UFormField>
       </div>
@@ -123,7 +123,7 @@ async function save() {
     <p v-if="!props.role.active" class="text-sm text-warning">{{ t('access.roles.disabledExistingAssignments') }}</p>
     <p v-if="dirty && props.role.user_count" class="text-sm text-warning">{{ t('access.roles.affectedUsers', { count: props.role.user_count }) }}</p>
     <UAlert v-if="errorMessage" role="alert" color="error" variant="subtle" :title="errorMessage" />
-    <footer class="flex justify-end gap-2">
+    <footer class="nasq-form-footer justify-end">
       <UButton v-if="canEdit" type="submit" color="primary" :label="t('access.save')" :disabled="!dirty || update.isPending.value" />
     </footer>
   </UForm>

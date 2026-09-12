@@ -173,7 +173,7 @@ test('shared non-solid actions remain readable in every appearance mode', async 
   await page.emulateMedia({ reducedMotion: 'reduce' })
   for (const mode of ['light', 'dark', 'cream']) {
     await context.addCookies([{ name: 'nasq-appearance', value: encodeURIComponent(JSON.stringify({ mode, fontSize: 'small' })), url: baseURL! }])
-    for (const [url, selector] of [[`/chat/${ids.conversationId}/info`, '.nasq-ui-secondary-text'], [`/project-templates/${ids.templateId}`, '.nasq-ui-primary-text'], [`/meetings/${ids.meetingId}?tab=versions`, '[role=tab][aria-selected=true]']]) {
+    for (const [url, selector] of [[`/chat/${ids.conversationId}/info`, '.nasq-ui-primary-text'], [`/project-templates/${ids.templateId}`, '.nasq-ui-primary-text'], [`/meetings/${ids.meetingId}?tab=versions`, '[role=tab][aria-selected=true]']]) {
     await page.goto(url!)
     const control = page.locator(selector!).filter({ visible: true }).first()
     await expect(control).toBeEnabled()

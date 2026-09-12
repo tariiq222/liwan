@@ -71,7 +71,7 @@ function onSelectRow(_event: Event, row: { original: ProjectListItem }) {
       </div>
       <div v-else class="nasq-ui-record-surface">
         <div class="overflow-x-auto">
-          <UTable :data="items" :columns="columns" :caption="t('projects.title')" :ui="{ caption: 'sr-only' }" @select="onSelectRow">
+          <UTable :data="items" :columns="columns" :caption="t('projects.title')" :ui="{ caption: 'sr-only', thead: 'nasq-ui-table-head' }" @select="onSelectRow">
             <template #id-cell="{ row }"><RecordNumber :value="row.original.id" /></template>
             <template #name-cell="{ row }">
               <NuxtLink

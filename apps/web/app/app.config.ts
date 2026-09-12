@@ -1,16 +1,16 @@
 export default defineAppConfig({
   ui: {
-    colors: { primary: 'brand', secondary: 'brand2', neutral: 'zinc' },
+    colors: { primary: 'brand', secondary: 'brand', neutral: 'zinc' },
     button: {
       // Ranks: primary solid = one main action; neutral outline = cancel/back/print/close/pager;
-      // ghost = tertiary; error = destroy. Do not use secondary solid for chrome.
+      // ghost = tertiary; error = destroy. Use neutral for chrome.
       slots: { base: 'min-h-9 rounded-lg font-medium' },
       variants: { square: { true: 'nasq-ui-icon-button' } },
       compoundVariants: [
         { color: 'primary', variant: 'solid', class: { base: 'nasq-ui-primary-solid' } },
         { color: 'primary', variant: ['outline', 'soft', 'subtle', 'ghost', 'link'], class: { base: 'nasq-ui-primary-text' } },
-        { color: 'secondary', variant: 'solid', class: { base: 'nasq-ui-secondary-solid' } },
-        { color: 'secondary', variant: ['outline', 'soft', 'subtle', 'ghost', 'link'], class: { base: 'nasq-ui-secondary-text' } },
+        { color: 'secondary', variant: 'solid', class: { base: 'nasq-ui-primary-solid' } },
+        { color: 'secondary', variant: ['outline', 'soft', 'subtle', 'ghost', 'link'], class: { base: 'nasq-ui-primary-text' } },
       ],
     },
     input: { slots: { base: 'nasq-ui-field min-h-9 rounded-lg' } },
@@ -22,7 +22,7 @@ export default defineAppConfig({
     select: { slots: { base: 'nasq-ui-field min-h-9 rounded-lg', content: 'z-[var(--nasq-ui-z-menu)] nasq-elevation-3', item: 'data-[state=checked]:nasq-ui-selected' } },
     calendar: { slots: { root: 'nasq-ui-calendar', cellTrigger: 'rounded-lg m-0' } },
     textarea: { slots: { base: 'nasq-ui-field rounded-lg leading-relaxed' } },
-    card: { slots: { root: 'rounded-xl nasq-elevation-1', header: 'nasq-ui-card-header px-5 py-4', body: 'p-5', footer: 'px-5 py-4' } },
+    card: { slots: { root: 'rounded-[14px] nasq-elevation-1', header: 'nasq-ui-card-header px-5 py-4', body: 'p-5', footer: 'px-5 py-4' } },
     table: {
       slots: {
         thead: 'nasq-ui-table-head',

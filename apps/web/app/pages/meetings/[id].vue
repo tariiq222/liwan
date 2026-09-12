@@ -516,7 +516,7 @@ async function confirmResolutionAction() {
             <p v-if="!query.data.value.resolutions.length" class="meeting-empty">{{ t('meetingsUi.emptyResolutions') }}</p>
             <p v-else-if="!filteredResolutions.length" class="meeting-empty">{{ t('meetingsUx.noMatchingRecommendations') }}</p>
             <ul v-else class="meeting-resolution-list">
-            <li v-for="item in filteredResolutions" :key="item.id" class="meeting-resolution-card">
+            <li v-for="item in filteredResolutions" :key="item.id" class="meeting-resolution-card nasq-ui-record-surface">
               <div class="meeting-resolution-head">
                 <h3 class="meeting-resolution-title">{{ item.name }}</h3>
                 <div class="meeting-resolution-badges">
@@ -802,8 +802,6 @@ async function confirmResolutionAction() {
   min-width: 0;
   gap: 8px;
   padding: 12px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
 }
 
 .meeting-resolution-head { min-width: 0; }
