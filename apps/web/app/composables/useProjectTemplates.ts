@@ -1,4 +1,4 @@
-import { projectKeys } from '@/composables/useProjects'
+import { projectKeys } from '@/composables/projectKeys'
 import { safeReturnTo } from '@/utils/safeReturnTo'
 import { computed, toValue, type MaybeRefOrGetter, type Ref } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'

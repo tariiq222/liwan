@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import type { z } from 'zod'
 import { PROJECT_STATUSES, ProjectDetailSchema, ProjectListSchema, ProjectRefSchema, type ProjectCreate, type ProjectDetail, type ProjectPatch, type ProjectStatus } from '@nasq/contracts'
 import { ApiError } from './useApi'
+import { invalidateProjectCaches, projectKeys } from './projectKeys'
 
 export type ProjectRef = z.infer<typeof ProjectRefSchema>
 
@@ -101,17 +102,6 @@ export function sameProjectListRoute(
   return left.q === right.q && left.mine === right.mine && left.status === right.status && left.offset === right.offset && left.archived === right.archived && left.sort === right.sort && left.view === right.view
 }
 
-export const projectKeys = {
-  all: ['projects'] as const,
-  list: ['projects', 'list'] as const,
-  minimal: ['projects', 'minimal'] as const,
-  detail: (id: number) => ['project', id] as const,
-  stages: (id: number) => ['project', id, 'stages'] as const,
-  followers: (id: number) => ['project', id, 'followers'] as const,
-  milestones: (id: number) => ['project', id, 'milestones'] as const,
-  updates: (id: number) => ['project', id, 'updates'] as const,
-}
-
 const ProjectRefListSchema = ProjectRefSchema.array()
 
 export function projectListQuery(archived: boolean, filters: ProjectListFilters = {}) {
@@ -194,7 +184,7 @@ export function useCreateProject() {
     mutationFn: (body: ProjectCreate) => $api('/api/v1/projects', { method: 'POST', body, schema: ProjectDetailSchema }),
     onSuccess: (detail) => {
       qc.setQueryData(projectKeys.detail(detail.id), detail)
-      qc.invalidateQueries({ queryKey: projectKeys.all })
+      invalidateProjectCaches(qc)
     },
   })
 }
@@ -224,7 +214,7 @@ export function useUpdateProject() {
     },
     onSuccess: (detail, { id }) => {
       qc.setQueryData(projectKeys.detail(id), detail)
-      qc.invalidateQueries({ queryKey: projectKeys.all })
+      invalidateProjectCaches(qc)
     },
   })
 }
@@ -236,7 +226,7 @@ function useProjectAction(path: 'archive' | 'unarchive') {
     mutationFn: ({ id }: { id: number }) => $api(`/api/v1/projects/${id}/${path}`, { method: 'POST', body: {}, schema: ProjectDetailSchema }),
     onSuccess: (detail, { id }) => {
       qc.setQueryData(projectKeys.detail(id), detail)
-      qc.invalidateQueries({ queryKey: projectKeys.all })
+      invalidateProjectCaches(qc)
     },
   })
 }

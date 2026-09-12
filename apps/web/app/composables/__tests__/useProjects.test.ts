@@ -4,12 +4,12 @@ import {
   fetchAllProjectRefs,
   parseProjectListRoute,
   patchProjectListRoute,
-  projectKeys,
   projectListQuery,
   serializeProjectListRoute,
   sameProjectListRoute,
   type ProjectRef,
 } from '../useProjects'
+import { projectKeys } from '../projectKeys'
 
 function refs(...ids: number[]): ProjectRef[] {
   return ids.map((id) => ({ id, name: `P${id}` }))

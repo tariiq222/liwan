@@ -1,12 +1,13 @@
 import type { ProjectRaciRole, ProjectRegisterKind, ProjectRegisterStatus, ProjectRegisterPriority } from '../../../../../../packages/contracts/src/pmo/governance'
 import type { StateTone } from '@/composables/taskState'
+import { projectKeys } from '../../../composables/projectKeys'
 export type GovernanceRegisterFilters = { q?: string; kind?: ProjectRegisterKind; status?: ProjectRegisterStatus; priority?: ProjectRegisterPriority; limit?: number; offset?: number }
 export function governanceFilters(query: Record<string, unknown>): GovernanceRegisterFilters {
   const pick = <T extends string>(value: unknown, allowed: readonly T[]) => typeof value === 'string' && allowed.includes(value as T) ? value as T : undefined
   const offset = typeof query.offset === 'string' && /^\d+$/.test(query.offset) ? Number(query.offset) : 0
   return { q: typeof query.q === 'string' ? query.q.trim() || undefined : undefined, kind: pick(query.kind, ['risk', 'issue']), status: pick(query.status, ['open', 'in_progress', 'resolved', 'closed']), priority: pick(query.priority, ['low', 'normal', 'high', 'critical']), limit: 50, offset: Number.isSafeInteger(offset) ? offset : 0 }
 }
-const prefix = (id: number) => ['project', id, 'governance'] as const
+const prefix = (id: number) => [...projectKeys.detail(id), 'governance'] as const
 export const governanceKeys = {
   all: prefix,
   stakeholders: (projectId: number, params: Record<string, unknown>) => [...prefix(projectId), 'stakeholders', params] as const,

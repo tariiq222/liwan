@@ -1,6 +1,7 @@
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
 import { TaskDetailSchema, TaskListSchema, type TaskDetail } from '@nasq/contracts'
 import type { Ref } from 'vue'
+import { invalidateProjectCaches } from './projectKeys'
 
 const PAGE = 50
 
@@ -52,8 +53,7 @@ export function useRestoreTask() {
       qc.setQueryData(['tasks', 'detail', id], detail)
       qc.invalidateQueries({ queryKey: ['tasks', 'archived'] })
       qc.invalidateQueries({ queryKey: ['tasks', 'list'] })
-      qc.invalidateQueries({ queryKey: ['projects'] })
-      qc.invalidateQueries({ queryKey: ['project'] })
+      invalidateProjectCaches(qc)
     },
   })
 }

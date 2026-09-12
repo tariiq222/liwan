@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { ApiError } from '../useApi'
-import { isStaleProjectWrite, projectKeys } from '../useProjects'
+import { isStaleProjectWrite } from '../useProjects'
+import { projectKeys } from '../projectKeys'
 
 describe('isStaleProjectWrite', () => {
   it('matches only the standard 409 stale_write envelope', () => {
@@ -13,6 +14,6 @@ describe('isStaleProjectWrite', () => {
 
 describe('projectKeys', () => {
   it('keeps project detail cache identity so a charter save can replace the server snapshot', () => {
-    expect(projectKeys.detail(12)).toEqual(['project', 12])
+    expect(projectKeys.detail(12)).toEqual(['projects', 'detail', 12])
   })
 })

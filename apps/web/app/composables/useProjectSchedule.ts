@@ -1,10 +1,11 @@
 import { taskKeys } from './useTasks'
+import { projectKeys } from './projectKeys'
 import type { Ref } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { ProjectScheduleSchema, ScheduleTaskSchema, type ProjectSchedule, type ScheduleTaskPatch } from '@nasq/contracts'
 
 export const scheduleKeys = {
-  detail: (id: number) => ['project', id, 'schedule'] as const,
+  detail: (id: number) => [...projectKeys.detail(id), 'schedule'] as const,
 }
 
 export function useProjectSchedule(projectId: Ref<number | null>) {

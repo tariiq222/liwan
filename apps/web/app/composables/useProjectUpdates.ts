@@ -1,7 +1,7 @@
 import type { Ref } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { ProjectUpdateSchema, type ProjectUpdate, type ProjectUpdateBody } from '@nasq/contracts'
-import { projectKeys } from './useProjects'
+import { projectKeys } from './projectKeys'
 
 const ProjectUpdateListSchema = ProjectUpdateSchema.array()
 

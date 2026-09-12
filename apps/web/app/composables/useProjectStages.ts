@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import { ProjectStageSchema, type ProjectStage } from '@nasq/contracts'
-import { projectKeys } from './useProjects'
+import { projectKeys } from './projectKeys'
 
 const ProjectStageListSchema = ProjectStageSchema.array()
 

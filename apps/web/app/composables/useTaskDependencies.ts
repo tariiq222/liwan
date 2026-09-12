@@ -2,6 +2,7 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tansta
 import { DependencyCandidateListSchema, DependencyListSchema, TaskDetailSchema, type TaskDetail } from '@nasq/contracts'
 import type { Ref } from 'vue'
 import { taskKeys } from './useTasks'
+import { invalidateProjectCaches } from './projectKeys'
 
 const PAGE = 50
 
@@ -47,8 +48,7 @@ export function useUpdateTaskDependencies() {
       qc.invalidateQueries({ queryKey: dependencyKeys.detail(id) })
       qc.invalidateQueries({ queryKey: ['tasks', 'dependency-candidates', id] })
       qc.invalidateQueries({ queryKey: ['tasks', 'list'] })
-      qc.invalidateQueries({ queryKey: ['projects'] })
-      qc.invalidateQueries({ queryKey: ['project'] })
+      invalidateProjectCaches(qc)
     },
   })
 }

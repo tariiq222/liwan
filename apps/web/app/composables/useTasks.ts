@@ -10,6 +10,7 @@ import {
   type TaskState,
 } from '@nasq/contracts'
 import { daysRemaining } from './taskState'
+import { invalidateProjectCaches } from './projectKeys'
 
 export interface TaskListParams {
   closed: boolean
@@ -142,8 +143,7 @@ export function useUpdateTask() {
     },
     onSettled: () => {
       qc.invalidateQueries({ queryKey: ['tasks', 'list'] })
-      qc.invalidateQueries({ queryKey: ['projects'] })
-      qc.invalidateQueries({ queryKey: ['project'] })
+      invalidateProjectCaches(qc)
     },
   })
 }
@@ -161,8 +161,7 @@ export function useTransitionTask() {
       qc.setQueryData(taskKeys.detail(id), detail)
       qc.invalidateQueries({ queryKey: ['tasks', 'list'] })
       qc.invalidateQueries({ queryKey: taskKeys.timeline(id) })
-      qc.invalidateQueries({ queryKey: ['projects'] })
-      qc.invalidateQueries({ queryKey: ['project'] })
+      invalidateProjectCaches(qc)
     },
   })
 }
@@ -197,8 +196,7 @@ export function useCreateTask() {
     mutationFn: (body: TaskCreate) => $api('/api/v1/tasks', { method: 'POST', body, schema: TaskDetailSchema }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['tasks', 'list'] })
-      qc.invalidateQueries({ queryKey: ['projects'] })
-      qc.invalidateQueries({ queryKey: ['project'] })
+      invalidateProjectCaches(qc)
     },
   })
 }
@@ -212,7 +210,7 @@ export function useRequestTaskCompletion() {
     onSuccess: (detail, { id }) => {
       qc.setQueryData(taskKeys.detail(id), detail)
       qc.invalidateQueries({ queryKey: ['tasks', 'list'] })
-      qc.invalidateQueries({ queryKey: ['projects'] })
+      invalidateProjectCaches(qc)
     },
   })
 }
@@ -226,7 +224,7 @@ export function useAcceptTaskCompletion() {
     onSuccess: (detail, { id }) => {
       qc.setQueryData(taskKeys.detail(id), detail)
       qc.invalidateQueries({ queryKey: ['tasks', 'list'] })
-      qc.invalidateQueries({ queryKey: ['projects'] })
+      invalidateProjectCaches(qc)
     },
   })
 }
@@ -240,7 +238,7 @@ export function useReturnTaskCompletion() {
     onSuccess: (detail, { id }) => {
       qc.setQueryData(taskKeys.detail(id), detail)
       qc.invalidateQueries({ queryKey: ['tasks', 'list'] })
-      qc.invalidateQueries({ queryKey: ['projects'] })
+      invalidateProjectCaches(qc)
     },
   })
 }
@@ -254,7 +252,7 @@ export function useWithdrawTaskCompletion() {
     onSuccess: (detail, { id }) => {
       qc.setQueryData(taskKeys.detail(id), detail)
       qc.invalidateQueries({ queryKey: ['tasks', 'list'] })
-      qc.invalidateQueries({ queryKey: ['projects'] })
+      invalidateProjectCaches(qc)
     },
   })
 }
@@ -267,8 +265,7 @@ export function useArchiveTask() {
     onSuccess: (detail, { id }) => {
       qc.setQueryData(taskKeys.detail(id), detail)
       qc.invalidateQueries({ queryKey: ['tasks', 'list'] })
-      qc.invalidateQueries({ queryKey: ['projects'] })
-      qc.invalidateQueries({ queryKey: ['project'] })
+      invalidateProjectCaches(qc)
     },
   })
 }

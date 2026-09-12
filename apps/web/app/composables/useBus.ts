@@ -2,6 +2,7 @@ import { ref, type Ref } from 'vue'
 import { useQueryClient } from '@tanstack/vue-query'
 import { CHAT_TYPING_MS } from '../utils/chatState'
 import { taskKeys } from './useTasks'
+import { invalidateProjectCaches } from './projectKeys'
 
 export interface BusNotification {
   id: number
@@ -190,8 +191,7 @@ function invalidateForFrame(notifications: BusNotification[]) {
       queryClient.invalidateQueries({ queryKey: taskKeys.timeline(id) })
     }
     queryClient.invalidateQueries({ queryKey: ['tasks', 'list'] })
-    queryClient.invalidateQueries({ queryKey: ['projects'] })
-    queryClient.invalidateQueries({ queryKey: ['project'] })
+    invalidateProjectCaches(queryClient)
   }
   if (collectChatIds(notifications).length) {
     queryClient.invalidateQueries({ queryKey: ['chat'] })
