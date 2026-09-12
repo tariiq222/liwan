@@ -99,7 +99,7 @@ async function confirmDelete() {
 </script>
 
 <template>
-  <div class="space-y-3">
+  <div class="space-y-3" data-testid="milestone-table">
     <UCard :ui="{ body: 'p-0' }">
       <template v-if="!embedded" #header>
         <div>
