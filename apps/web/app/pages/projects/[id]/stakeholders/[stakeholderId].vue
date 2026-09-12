@@ -2,14 +2,20 @@
 import { ApiError } from '@/composables/useApi'
 import { useProject } from '@/composables/useProjects'
 import { useProjectStakeholder } from '@/composables/useProjectGovernance'
-import { safeReturnTo } from '@/utils/safeReturnTo'
 
 const route = useRoute()
 const { t } = useI18n()
 const projectId = computed(() => Number(route.params.id))
 const stakeholderId = computed(() => Number(route.params.stakeholderId))
 const item = useProjectStakeholder(projectId, stakeholderId)
-const returnTo = computed(() => safeReturnTo(route.query.returnTo, `/projects/${projectId.value}/stakeholders`, ['/projects']))
+// The owning section list is fixed by this page's own route, so the return trip
+// is literal and carries only the state that list was showing. A referrer's
+// returnTo is dropped rather than forwarded: on the list URL it would nest one
+// level deeper on every round trip and redirect that page's own controls.
+const backTo = computed(() => {
+  const { returnTo: _referrer, ...listQuery } = route.query
+  return { path: `/projects/${projectId.value}/stakeholders`, query: listQuery }
+})
 const notFound = computed(() => item.error.value instanceof ApiError && [403, 404].includes(item.error.value.status))
 const access = useProject(projectId)
 const hydrated = useHydrated()
@@ -17,9 +23,9 @@ const hydrated = useHydrated()
 
 <template>
   <SharedPageContainer v-if="route.path.replace(/\/+$/, '') === `/projects/${projectId}/stakeholders/${stakeholderId}`" width="detail">
-    <SharedPageHeader :title="item.data?.value?.name ?? t('projects.governance.stakeholder.title')" :back-to="returnTo" :back-label="t('projects.governance.stakeholders')">
+    <SharedPageHeader :title="item.data?.value?.name ?? t('projects.governance.stakeholder.title')" :back-to="backTo" :back-label="t('projects.governance.stakeholders')">
       <template #actions>
-        <UButton v-if="item.data?.value && access.data.value?.can_manage && hydrated" data-testid="stakeholder-detail-edit" :to="{ path: `/projects/${projectId}/stakeholders/${stakeholderId}/edit`, query: { returnTo } }">{{ t('app.edit') }}</UButton>
+        <UButton v-if="item.data?.value && access.data.value?.can_manage && hydrated" data-testid="stakeholder-detail-edit" :to="`/projects/${projectId}/stakeholders/${stakeholderId}/edit`">{{ t('app.edit') }}</UButton>
       </template>
     </SharedPageHeader>
     <SharedPageState

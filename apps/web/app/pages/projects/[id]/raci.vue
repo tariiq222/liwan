@@ -13,6 +13,9 @@ const route = useRoute(); const router = useRouter(); const { t } = useI18n(); c
 const isProjectOverlay = inject<boolean>(Symbol.for('nasq.project.overlay'), false)
 const id = computed(() => Number(route.params.id)); const viewport = computed(() => governanceMatrixFilters(route.query))
 function replaceFilter(key: string, value: string | undefined, pageKey: string) { router.replace({ query: { ...route.query, [key]: value, [pageKey]: undefined } }) }
+// Governance groups these four pages behind one card list; that card list is the
+// way back, and the project tab strip has no tab of its own for them.
+const backTo = computed(() => `/projects/${id.value}/governance`)
 const taskSearch = computed({ get: () => viewport.value.taskQ, set: value => replaceFilter('task_q', value || undefined, 'task_page') })
 const stakeholderSearch = computed({ get: () => viewport.value.stakeholderQ, set: value => replaceFilter('stakeholder_q', value || undefined, 'stakeholder_page') })
 const closed = computed({ get: () => viewport.value.closed, set: value => replaceFilter('closed', value ? '1' : undefined, 'task_page') })
@@ -65,6 +68,8 @@ async function deleteRow() {
     <SharedPageHeader
       v-if="!isProjectOverlay"
       :title="t('projects.governance.raci.title')"
+      :back-to="backTo"
+      :back-label="t('projects.workspace.groups.governance')"
     />
     <FilterBar class="w-full" :active-count="activeFilterCount" :disabled="!hydrated || pending" @clear="clearFilters">
       <template #search>

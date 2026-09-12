@@ -122,7 +122,6 @@ function evaluatedMinutesPage(mutation = deferredMutation(), state = 'confirmed'
     usePatchMeeting: () => mutation,
     createMeetingMinutesForm,
     validateMeetingMinutesForm,
-    safeReturnTo: (value: unknown, fallback: string) => typeof value === 'string' ? value : fallback,
     navigateTo,
   }
   const pageState = editorScript('[id]/minutes.vue', scope, '{ save, agenda, minutes, minutesForm, dirty, lifecycleLocked, canEdit }')
@@ -145,8 +144,6 @@ function evaluatedSeriesSettingsPage(mutation = deferredMutation()): Record<stri
     useMeetingSeries: () => ({ data: series, isLoading: ref(false), error: ref(null), refetch: vi.fn() }),
     usePatchMeetingSeriesSettings: () => mutation,
     formatCalendarDate: (value: string) => value,
-    returnToQuery: (value: string) => ({ returnTo: value }),
-    safeReturnTo: (value: unknown, fallback: string) => typeof value === 'string' ? value : fallback,
     navigateTo,
   }
   const pageState = editorScript('series/[id]/edit.vue', scope, '{ save, name, meetingUrl, dirty, formErrors }')
@@ -263,7 +260,7 @@ describe('meeting editor routes and guards', () => {
     expect(editor.navigateTo).not.toHaveBeenCalled()
   })
 
-  it('saves minutes and returns directly to the preserved list context', async () => {
+  it('saves minutes and returns to its own meeting, ignoring the referrer', async () => {
     const mutation = deferredMutation({})
     const editor = evaluatedMinutesPage(mutation)
     editor.minutes.value = '<p>Final minutes</p>'
@@ -272,7 +269,10 @@ describe('meeting editor routes and guards', () => {
     editor.release()
     await save
     expect(editor.mutateAsync).toHaveBeenCalledWith({ id: 7, body: { agenda: '<p>Agenda</p>', minutes: '<p>Final minutes</p>', minutes_form: expect.any(Object), scope: 'this' } })
-    expect(editor.navigateTo).toHaveBeenCalledWith('/meetings?q=review')
+    // The route carries ?returnTo=/meetings?q=review. The minutes editor
+    // belongs to one meeting, so that is where saving lands, and the referrer
+    // is dropped instead of being copied onto the destination.
+    expect(editor.navigateTo).toHaveBeenCalledWith({ path: '/meetings/7', query: {} })
   })
 
   it('saves the complete minutes draft before opening a new recommendation', async () => {
@@ -302,10 +302,9 @@ describe('meeting editor routes and guards', () => {
         scope: 'this',
       },
     })
-    expect(editor.navigateTo).toHaveBeenCalledWith({
-      path: '/meetings/7/resolutions/new',
-      query: { returnTo: editor.route.fullPath },
-    })
+    // The new resolution hangs off the same meeting; it needs no referrer to
+    // find its way back, and one here would ride onto the meeting URL.
+    expect(editor.navigateTo).toHaveBeenCalledWith('/meetings/7/resolutions/new')
   })
 
   it('explains the reopen requirement to an authorized manager while denying a non-editor', () => {
@@ -317,7 +316,7 @@ describe('meeting editor routes and guards', () => {
     expect(reader.canEdit.value).toBe(false)
   })
 
-  it('saves series settings once and returns without nesting the detail URL', async () => {
+  it('saves series settings once and returns to its own series', async () => {
     const mutation = deferredMutation({})
     const editor = evaluatedSeriesSettingsPage(mutation)
     editor.name.value = 'Weekly operations updated'
@@ -328,7 +327,7 @@ describe('meeting editor routes and guards', () => {
     editor.release()
     await save
     await second
-    expect(editor.navigateTo).toHaveBeenCalledWith('/meetings/series?q=weekly')
+    expect(editor.navigateTo).toHaveBeenCalledWith('/meetings/series/12')
   })
 
   it('does not rewrite an untouched near-midnight schedule during an unrelated edit', async () => {

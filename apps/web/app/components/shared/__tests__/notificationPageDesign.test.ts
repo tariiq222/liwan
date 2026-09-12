@@ -49,13 +49,14 @@ describe('notification pages shared header contract', () => {
     expect(notificationsSource).not.toMatch(/<h1[^>]*text-2xl/)
   })
 
-  it('registers digest title through SharedPageHeader and keeps safeReturnTo back', () => {
+  it('registers digest title through SharedPageHeader and keeps a fixed back', () => {
     expect(digestSource).toContain('SharedPageContainer')
     expect(digestSource).toContain('SharedPageHeader')
     expect(digestSource).toContain(":title=\"t('tasks.digest.title')\"")
     expect(digestSource).toContain('width="detail"')
     expect(digestSource).not.toContain('width="list"')
-    expect(digestSource).toContain('safeReturnTo')
+    expect(digestSource).not.toContain('safeReturnTo')
+    expect(digestSource).toContain("path: '/notifications'")
     expect(digestSource).toContain('goBack')
     expect(digestSource).toContain('<template #back>')
     expect(digestSource).toContain('<template #actions>')

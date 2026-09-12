@@ -3,7 +3,6 @@ import DescriptionEditor from '@/components/task/DescriptionEditor.vue'
 import MeetingPeopleFields from '@/components/meetings/MeetingPeopleFields.vue'
 import type { MeetingPatch } from '@nasq/contracts'
 import { useMeeting, usePatchMeeting } from '@/composables/useMeetings'
-import { safeReturnTo } from '@/utils/safeReturnTo'
 import { buildMeetingSchedulePayload, localDateFromUtc, localTimeFromUtc } from '@/utils/meetingDateTime'
 import { getMeetingFormErrors } from '@/utils/meetingForm'
 import { useSsrQuerySeed } from '@/lib/vueQuerySsr'
@@ -14,7 +13,14 @@ const hydrated = useHydrated()
 const id = computed(() => Number(route.params.id))
 const query = useMeeting(id)
 const { mutateAsync, isPending, error } = usePatchMeeting()
-const returnTo = computed(() => safeReturnTo(route.query.returnTo, `/meetings/${id.value}`, ['/meetings']))
+// The owning list is fixed by this page's own route, so the return trip is
+// literal and carries only the state the list was showing. A referrer's
+// returnTo is dropped rather than forwarded: on the list URL it would nest one
+// level deeper on every round trip and redirect that page's own controls.
+const backTo = computed(() => {
+  const { returnTo: _referrer, ...listQuery } = route.query
+  return { path: '/meetings', query: listQuery }
+})
 const name = ref('')
 const meetingDate = ref('')
 const start = ref('')
@@ -102,13 +108,13 @@ async function save() {
   })
   baseline.value = snapshot()
   await nextTick()
-  await navigateTo(returnTo.value)
+  await navigateTo(`/meetings/${id.value}`)
 }
 </script>
 
 <template>
   <SharedPageContainer width="form">
-    <SharedPageHeader :title="t('meetingsUi.edit')" :back-to="returnTo" />
+    <SharedPageHeader :title="t('meetingsUi.edit')" :back-to="backTo" />
     <SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!query.isLoading.value && !query.error.value && !query.data.value" @retry="query.refetch">
       <form v-if="query.data.value" class="space-y-8" @submit.prevent="save">
       <SharedUnsavedChanges :dirty="dirty" />
@@ -163,7 +169,7 @@ async function save() {
       </SharedFormSection>
       <UAlert v-if="error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('meetingsUx.errors.save')" />
       <div class="nasq-form-footer justify-end">
-        <UButton type="button" color="neutral" variant="outline" :to="returnTo" :label="t('app.cancel')" />
+        <UButton type="button" color="neutral" variant="outline" :to="backTo" :label="t('app.cancel')" />
         <UButton type="submit" :disabled="!hydrated || isPending || !canEdit || Object.keys(formErrors).length > 0" :label="t('app.save')" />
       </div>
     </form>

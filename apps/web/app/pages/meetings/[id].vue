@@ -16,7 +16,6 @@ import {
 } from '@/composables/useMeetings'
 import { useMeetingEvents, useMeetingVersions } from '@/composables/useMeetingWorkspace'
 import { useProjects } from '@/composables/useProjects'
-import { returnToQuery, safeReturnTo } from '@/utils/safeReturnTo'
 import { formatLocalDateTime } from '@/utils/meetingDateTime'
 import { STATUS_COLOR } from '@/utils/statusTone'
 import { filterMeetingResolutions, resolutionActions } from '@/utils/meetingWorkspace'
@@ -41,7 +40,14 @@ const { mutateAsync: remove, isPending: deleting } = useDeleteMeetingAttachment(
 const { mutateAsync: convert, isPending: converting } = useConvertResolution()
 const { mutateAsync: runMeeting, isPending: transitioning } = useMeetingAction()
 const { mutateAsync: runResolution } = useResolutionAction()
-const backTo = computed(() => safeReturnTo(route.query.returnTo, '/meetings', ['/meetings']))
+// The owning list is fixed by this page's own route, so the return trip is
+// literal and carries only the state the list was showing. A referrer's
+// returnTo is dropped rather than forwarded: on the list URL it would nest one
+// level deeper on every round trip and redirect that page's own controls.
+const backTo = computed(() => {
+  const { returnTo: _referrer, ...listQuery } = route.query
+  return { path: '/meetings', query: listQuery }
+})
 const projectByResolution = ref<Record<number, number>>({})
 const pendingDeleteId = ref<number | null>(null)
 const fileField = ref<{ reset: () => void } | null>(null)
@@ -343,8 +349,8 @@ async function confirmResolutionAction() {
         </span>
       </template>
       <template #actions>
-        <UButton color="secondary" variant="outline" :to="{ path: `/meetings/${id}/print`, query: { ...returnToQuery(route.fullPath) } }" :label="t('meetingMinutesForm.printPreview')" />
-        <UButton v-if="query.data.value?.can_edit && pendingResolutionIds.size === 0" color="secondary" variant="outline" :to="{ path: `/meetings/${id}/edit`, query: returnToQuery(route.fullPath) }" :label="t('app.edit')" />
+        <UButton color="secondary" variant="outline" :to="`/meetings/${id}/print`" :label="t('meetingMinutesForm.printPreview')" />
+        <UButton v-if="query.data.value?.can_edit && pendingResolutionIds.size === 0" color="secondary" variant="outline" :to="`/meetings/${id}/edit`" :label="t('app.edit')" />
         <UButton v-if="query.data.value?.can_edit && query.data.value.state === 'draft'" :disabled="!hydrated || transitioning" :label="t('meetingsUi.confirm')" @click="requestMeetingAction('confirm')" />
         <UButton v-if="query.data.value?.can_manage && query.data.value.state === 'confirmed'" :disabled="!hydrated || transitioning" :label="t('meetingsUi.complete')" @click="requestMeetingAction('complete')" />
         <UButton v-if="query.data.value?.can_manage && query.data.value.state !== 'cancelled' && query.data.value.state !== 'done'" color="secondary" variant="outline" :disabled="!hydrated || transitioning" :label="t('meetingsUi.cancelMeeting')" @click="requestMeetingAction('cancel')" />
@@ -417,7 +423,7 @@ async function confirmResolutionAction() {
           </UCard>
         </template>
         <template #minutes>
-          <div class="flex flex-wrap items-center justify-end gap-2"><UButton v-if="!historicalSnapshot && query.data.value.can_edit && pendingResolutionIds.size === 0" size="sm" :to="{ path: `/meetings/${id}/minutes`, query: returnToQuery(route.fullPath) }" :label="t('meetingsUx.editMinutes')" /></div>
+          <div class="flex flex-wrap items-center justify-end gap-2"><UButton v-if="!historicalSnapshot && query.data.value.can_edit && pendingResolutionIds.size === 0" size="sm" :to="`/meetings/${id}/minutes`" :label="t('meetingsUx.editMinutes')" /></div>
           <MeetingMinutesDocument
             v-if="historicalSnapshot || currentMinutesForm"
             :meeting="query.data.value"
@@ -483,7 +489,7 @@ async function confirmResolutionAction() {
             @select="selectVersion"
           />
           <div v-if="selectedVersion" class="flex justify-end">
-            <UButton color="secondary" variant="outline" size="sm" :to="{ path: `/meetings/${id}/print`, query: { ...returnToQuery(route.fullPath), version_id: selectedVersion.id } }" :label="t('meetingMinutesForm.printPreview')" />
+            <UButton color="secondary" variant="outline" size="sm" :to="{ path: `/meetings/${id}/print`, query: { version_id: selectedVersion.id } }" :label="t('meetingMinutesForm.printPreview')" />
           </div>
           <MeetingMinutesDocument
             v-if="selectedVersion"
@@ -500,7 +506,7 @@ async function confirmResolutionAction() {
         <template #resolutions>
         <UCard id="meeting-resolutions" class="meeting-section">
           <template #header>
-            <div class="flex min-w-0 flex-wrap items-center gap-2"><h2 class="text-lg font-semibold text-highlighted">{{ t('meetingsUi.resolutions') }}</h2><UBadge color="neutral" variant="subtle">{{ query.data.value.resolutions.length }}</UBadge><span class="text-xs text-muted">{{ t('meetingsUx.currentFollowUp') }}</span><UButton v-if="query.data.value.can_edit && !['done', 'cancelled'].includes(query.data.value.state)" size="sm" :to="{ path: `/meetings/${id}/resolutions/new`, query: returnToQuery(route.fullPath) }" :label="t('meetingsUi.newResolution')" /></div>
+            <div class="flex min-w-0 flex-wrap items-center gap-2"><h2 class="text-lg font-semibold text-highlighted">{{ t('meetingsUi.resolutions') }}</h2><UBadge color="neutral" variant="subtle">{{ query.data.value.resolutions.length }}</UBadge><span class="text-xs text-muted">{{ t('meetingsUx.currentFollowUp') }}</span><UButton v-if="query.data.value.can_edit && !['done', 'cancelled'].includes(query.data.value.state)" size="sm" :to="`/meetings/${id}/resolutions/new`" :label="t('meetingsUi.newResolution')" /></div>
           </template>
           <div>
             <FilterBar v-if="query.data.value.resolutions.length" class="mb-4" :active-count="Number(Boolean(recommendationSearch.trim())) + Number(Boolean(recommendationState))" :disabled="!hydrated" @clear="recommendationSearch = ''; recommendationState = ''">
@@ -540,7 +546,7 @@ async function confirmResolutionAction() {
                 </template>
                 <UButton v-if="item.task_id" variant="link" size="sm" class="h-auto p-0" :to="`/tasks/${item.task_id}`" :label="t('meetingsUi.openTask')" />
                 <span v-else-if="taskLinked(item)" class="text-xs text-muted-foreground">{{ t('meetingsUx.taskLinkedUnavailable') }}</span>
-                <UButton v-if="!taskLinked(item) && (item.can_edit_decision || item.can_update_execution) && !pendingResolutionIds.has(item.id)" color="secondary" variant="outline" size="sm" :to="{ path: `/meetings/${id}/resolutions/${item.id}/edit`, query: returnToQuery(route.fullPath) }" :label="t('meetingsUi.editResolution')" />
+                <UButton v-if="!taskLinked(item) && (item.can_edit_decision || item.can_update_execution) && !pendingResolutionIds.has(item.id)" color="secondary" variant="outline" size="sm" :to="`/meetings/${id}/resolutions/${item.id}/edit`" :label="t('meetingsUi.editResolution')" />
                 <UButton v-if="resolutionCanReopen(item)" size="sm" color="secondary" variant="outline" :disabled="!hydrated || pendingResolutionIds.has(item.id)" :label="t('meetingsUi.reopen')" @click="requestResolutionAction(item.id, 'reopen')" />
               </div>
               <p v-if="resolutionErrors[item.id]" role="alert" class="text-sm text-destructive">{{ resolutionErrors[item.id] }}</p>
@@ -574,7 +580,7 @@ async function confirmResolutionAction() {
           <template #header><h2 class="text-lg font-semibold text-highlighted">{{ t('meetingsUi.previousResolutions') }}</h2><span class="text-xs text-muted">{{ t('meetingsUx.currentPreviousFollowUp') }}</span></template>
           <div class="grid gap-3">
           <div v-for="item in query.data.value.previous_resolutions" :key="item.id" class="meeting-previous-row">
-            <NuxtLink :to="{ path: `/meetings/${item.meeting_id}`, query: returnToQuery(route.fullPath) }" class="font-medium text-brand-link">{{ item.meeting_name }}</NuxtLink>
+            <NuxtLink :to="`/meetings/${item.meeting_id}`" class="font-medium text-brand-link">{{ item.meeting_name }}</NuxtLink>
             <div class="flex min-w-0 flex-wrap items-center gap-2 text-sm">
               <span>{{ item.name }}</span>
               <span class="text-xs text-muted-foreground">{{ t('meetingsUx.currentFollowUpOrigin', { name: item.meeting_name }) }}</span>

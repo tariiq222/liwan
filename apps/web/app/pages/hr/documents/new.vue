@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import DocumentCreateForm from '@/components/hr/DocumentCreateForm.vue'
 import { useHrDepartments } from '@/composables/useHrDepartments'
-import { safeReturnTo, returnToQuery } from '@/utils/safeReturnTo'
 
 const route = useRoute()
 const { t } = useI18n()
@@ -12,19 +11,26 @@ const canManage = computed(() => can('hr.documents.manage'))
 const departmentId = ref(typeof route.query.department_id === 'string' ? Number(route.query.department_id) : 0)
 const departmentOptions = computed(() => (departments.data.value?.items ?? []).map(department => ({ value: String(department.id), label: department.name })))
 const selectedDepartment = computed(() => departments.data.value?.items.find(d => d.id === departmentId.value))
-const returnTo = computed(() => safeReturnTo(route.query.returnTo, '/hr/documents', ['/hr']))
+// The owning list is fixed by this page's own route, so the return trip is
+// literal and carries only the state the list was showing. A referrer's
+// returnTo is dropped rather than forwarded: on the list URL it would nest one
+// level deeper on every round trip and redirect that page's own controls.
+const backTo = computed(() => {
+  const { returnTo: _referrer, ...listQuery } = route.query
+  return { path: '/hr/documents', query: listQuery }
+})
 
 function selectDepartment(value: unknown) {
   departmentId.value = value ? Number(value) : 0
 }
 function saved(id: number) {
-  void navigateTo({ path: `/hr/departments/${departmentId.value}/documents/${id}`, query: returnToQuery(returnTo.value) })
+  void navigateTo(`/hr/departments/${departmentId.value}/documents/${id}`)
 }
 </script>
 
 <template>
   <SharedPageContainer width="form">
-    <SharedPageHeader :title="t('hr.docs.new')" :back-to="returnTo" />
+    <SharedPageHeader :title="t('hr.docs.new')" :back-to="backTo" />
     <SharedPageState v-if="!canManage" :empty="true" :empty-text="t('errors.forbidden')" />
     <SharedPageState
       v-else
@@ -47,7 +53,7 @@ function saved(id: number) {
             />
           </UFormField>
         </SharedFormSection>
-        <DocumentCreateForm v-if="selectedDepartment" :department-id="departmentId" :back-to="returnTo" @saved="saved" />
+        <DocumentCreateForm v-if="selectedDepartment" :department-id="departmentId" :back-to="backTo" @saved="saved" />
       </UCard>
     </SharedPageState>
   </SharedPageContainer>

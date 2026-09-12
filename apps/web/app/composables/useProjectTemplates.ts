@@ -1,5 +1,4 @@
 import { projectKeys } from '@/composables/projectKeys'
-import { safeReturnTo } from '@/utils/safeReturnTo'
 import { computed, toValue, type MaybeRefOrGetter, type Ref } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import {
@@ -88,10 +87,19 @@ export function useApplyProjectTemplate() {
 
 export function useProjectTemplateNavigation() {
   const route = useRoute()
-  const returnTo = computed(() => safeReturnTo(route.query.returnTo, '/project-templates', ['/project-templates']))
-  const templatePath = (id?: number | null, action?: 'edit' | 'apply' | 'new') => {
-    const path = action === 'new' ? '/project-templates/new' : `/project-templates/${id}${action ? `/${action}` : ''}`
-    return `${path}?${new URLSearchParams({ returnTo: returnTo.value })}`
-  }
-  return { returnTo, templatePath }
+  // Every template record and form hangs off the one list, so the return trip is
+  // literal and carries only the state that list was showing. A referrer's
+  // returnTo is dropped rather than forwarded: on the list URL it would nest one
+  // level deeper on every round trip and redirect that page's own controls.
+  const listQuery = computed(() => {
+    const { returnTo: _referrer, ...rest } = route.query
+    return rest
+  })
+  const backTo = computed(() => ({ path: '/project-templates', query: listQuery.value }))
+  // Drilling in keeps the same list state on the URL, so returning restores it.
+  const templatePath = (id?: number | null, action?: 'edit' | 'apply' | 'new') => ({
+    path: action === 'new' ? '/project-templates/new' : `/project-templates/${id}${action ? `/${action}` : ''}`,
+    query: listQuery.value,
+  })
+  return { backTo, templatePath }
 }

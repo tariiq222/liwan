@@ -1,10 +1,16 @@
 <script setup lang="ts">
 import EmployeeCard from '@/components/hr/EmployeeCard.vue'
 import { useArchiveHrEmployee, useHrEmployee, useUnarchiveHrEmployee } from '@/composables/useHrEmployees'
-import { returnToQuery, safeReturnTo } from '@/utils/safeReturnTo'
 const route = useRoute(); const { t } = useI18n(); const { can } = useAccess(); const hydrated = useHydrated()
 const id = computed(() => Number(route.params.employeeId)); const isDetail = computed(() => route.path === `/hr/employees/${id.value}`); const query = useHrEmployee(computed(() => isDetail.value ? id.value : null))
-const returnTo = computed(() => safeReturnTo(route.query.returnTo, '/hr', ['/hr']))
+// The owning list is fixed by this page's own route, so the return trip is
+// literal and carries only the state the list was showing. A referrer's
+// returnTo is dropped rather than forwarded: on the list URL it would nest one
+// level deeper on every round trip and redirect that page's own controls.
+const backTo = computed(() => {
+  const { returnTo: _referrer, ...listQuery } = route.query
+  return { path: '/hr', query: listQuery }
+})
 const confirmArchive = ref(false)
 const { mutateAsync: archive, isPending: archiving } = useArchiveHrEmployee()
 const { mutateAsync: unarchive, isPending: unarchiving } = useUnarchiveHrEmployee()
@@ -18,10 +24,10 @@ async function toggleArchive() {
 </script>
 <template>
   <SharedPageContainer v-if="isDetail" width="detail">
-    <SharedPageHeader :title="query.data.value?.name || t('hr.employee.title')" :description="query.data.value?.job_title" :back-to="returnTo">
+    <SharedPageHeader :title="query.data.value?.name || t('hr.employee.title')" :description="query.data.value?.job_title" :back-to="backTo">
       <div class="flex flex-wrap items-center gap-2">
-        <UButton v-if="query.data.value && can('hr.employees.manage')" color="primary" :disabled="!hydrated" :to="{ path: `/hr/employees/${id}/edit`, query: returnToQuery(route.fullPath) }" :label="t('app.edit')" @click="!hydrated && $event.preventDefault()" />
-        <UButton v-if="query.data.value?.user_id && can('access.users.read')" color="secondary" variant="outline" :disabled="!hydrated" :to="{ path: `/settings/users/${query.data.value.user_id}`, query: returnToQuery(route.fullPath) }" :label="t('hr.employee.manageAccount')" @click="!hydrated && $event.preventDefault()" />
+        <UButton v-if="query.data.value && can('hr.employees.manage')" color="primary" :disabled="!hydrated" :to="`/hr/employees/${id}/edit`" :label="t('app.edit')" @click="!hydrated && $event.preventDefault()" />
+        <UButton v-if="query.data.value?.user_id && can('access.users.read')" color="secondary" variant="outline" :disabled="!hydrated" :to="`/settings/users/${query.data.value.user_id}`" :label="t('hr.employee.manageAccount')" @click="!hydrated && $event.preventDefault()" />
         <UButton v-if="query.data.value && can('hr.employees.archive')" color="error" variant="outline" :disabled="!hydrated || archivePending" :label="query.data.value.active ? t('hr.employee.archive') : t('hr.employee.unarchive')" @click="confirmArchive = !confirmArchive" />
       </div>
     </SharedPageHeader>

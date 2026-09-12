@@ -44,8 +44,12 @@ describe('register list design alignment', () => {
     expect(listSource).toContain(':disabled="!hydrated"')
     expect(listSource).toContain('confirmDeleteId')
     expect(listSource).toContain('projects.governance.confirmDeleteAction')
-    expect(listSource).toContain('query: { returnTo }')
+    // A register row no longer hands its own URL to the record as a referrer:
+    // the record's back target is fixed by its route, so the param would be
+    // dead weight that rides back onto this list's URL.
+    expect(listSource).not.toContain('returnTo')
     expect(listSource).toContain('`/projects/${id}/register/${row.original.id}`')
+    expect(listSource).toContain('/governance`')
     // Nested project pages own their section heading; the parent page is now
     // only the workspace frame, and the base route's own content (including the
     // not-found escape back to /projects) lives in its summary child page.

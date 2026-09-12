@@ -3,13 +3,11 @@ import { ApiError } from '@/composables/useApi'
 import { formatCalendarDate } from '@/composables/calendarDate'
 import { useDeleteFinanceEntry, useProjectFinanceEntry, useProjectFinanceList } from '@/composables/useProjectFinance'
 import {
-  FINANCE_RETURN_PREFIXES,
   financeWriteAllowed,
   formatMoney,
   isReferencedBudgetConflict,
   parsePositiveId,
 } from '@/utils/projectFinance'
-import { returnToQuery, safeReturnTo } from '@/utils/safeReturnTo'
 
 const route = useRoute()
 const router = useRouter()
@@ -45,8 +43,14 @@ const notFound = computed(() =>
   || (query.error.value instanceof ApiError && [403, 404].includes(query.error.value.status))
   || (access.error.value instanceof ApiError && [403, 404].includes(access.error.value.status)),
 )
-const listFallback = computed(() => projectId.value ? `/projects/${projectId.value}/finance` : '/projects')
-const returnTo = computed(() => safeReturnTo(route.query.returnTo, listFallback.value, FINANCE_RETURN_PREFIXES))
+// The ledger this entry hangs off is fixed by the route, so the return trip is
+// literal and carries only the state the ledger was showing. A referrer's
+// returnTo is dropped rather than forwarded: on the ledger URL it would nest one
+// level deeper on every round trip and redirect that page's own controls.
+const backTo = computed(() => {
+  const { returnTo: _referrer, ...listQuery } = route.query
+  return { path: projectId.value ? `/projects/${projectId.value}/finance` : '/projects', query: listQuery }
+})
 const confirmDelete = ref(false)
 const deleteError = ref<string | null>(null)
 const { mutateAsync: remove, isPending: deleting } = useDeleteFinanceEntry()
@@ -64,7 +68,7 @@ async function confirmRemoval() {
     await remove({ projectId: entry.value.project_id, entryId: entry.value.id, expected_updated_at: entry.value.updated_at })
     toast.add({ title: t('projects.finance.deleted'), color: 'success', icon: 'i-lucide-circle-check' })
     confirmDelete.value = false
-    void router.push(returnTo.value)
+    void router.push(backTo.value)
   }
   catch (error) {
     deleteError.value = isReferencedBudgetConflict(error)
@@ -76,10 +80,10 @@ async function confirmRemoval() {
 
 <template>
   <SharedPageContainer v-if="isDetailRoute" width="detail" data-testid="finance-entry-detail">
-    <SharedPageHeader :title="entry?.title || t('projects.finance.detailTitle')" :back-to="returnTo" :back-label="t('projects.finance.backToLedger')">
+    <SharedPageHeader :title="entry?.title || t('projects.finance.detailTitle')" :back-to="backTo" :back-label="t('projects.finance.backToLedger')">
       <template #actions>
         <div v-if="entry && canManage && projectId && entryId" class="flex flex-wrap gap-2">
-        <UButton :disabled="!hydrated" :to="{ path: `/projects/${projectId}/finance/${entryId}/edit`, query: returnToQuery(route.fullPath) }">{{ t('app.edit') }}</UButton>
+        <UButton :disabled="!hydrated" :to="`/projects/${projectId}/finance/${entryId}/edit`">{{ t('app.edit') }}</UButton>
         <UButton color="error" variant="outline" :disabled="!hydrated || deleting" @click="confirmDelete = !confirmDelete">{{ t('projects.finance.delete') }}</UButton>
         </div>
       </template>
@@ -115,7 +119,7 @@ async function confirmRemoval() {
             <div><dt class="text-muted">{{ t('projects.finance.fields.kind') }}</dt><dd class="mt-1 font-medium">{{ t(`projects.finance.kind.${entry.kind}`) }}</dd></div>
             <div v-if="entry.kind === 'expense'"><dt class="text-muted">{{ t('projects.finance.fields.expense_date') }}</dt><dd class="mt-1">{{ entry.expense_date ? formatCalendarDate(entry.expense_date, locale) : '—' }}</dd></div>
             <div><dt class="text-muted">{{ t('projects.finance.fields.reference') }}</dt><dd class="mt-1">{{ entry.reference || '—' }}</dd></div>
-            <div v-if="entry.kind === 'expense'"><dt class="text-muted">{{ t('projects.finance.fields.budget_entry_id') }}</dt><dd class="mt-1"><NuxtLink v-if="entry.budget_entry_id" :to="{ path: `/projects/${projectId}/finance/${entry.budget_entry_id}`, query: returnToQuery(route.fullPath) }" class="underline underline-offset-4">{{ t('projects.finance.linkedBudget', { id: entry.budget_entry_id }) }}</NuxtLink><span v-else>{{ t('projects.finance.budgetNone') }}</span></dd></div>
+            <div v-if="entry.kind === 'expense'"><dt class="text-muted">{{ t('projects.finance.fields.budget_entry_id') }}</dt><dd class="mt-1"><NuxtLink v-if="entry.budget_entry_id" :to="`/projects/${projectId}/finance/${entry.budget_entry_id}`" class="underline underline-offset-4">{{ t('projects.finance.linkedBudget', { id: entry.budget_entry_id }) }}</NuxtLink><span v-else>{{ t('projects.finance.budgetNone') }}</span></dd></div>
             <div class="sm:col-span-2"><dt class="text-muted">{{ t('projects.finance.fields.notes') }}</dt><dd class="mt-1 whitespace-pre-wrap">{{ entry.notes || '—' }}</dd></div>
             </dl>
           </div>

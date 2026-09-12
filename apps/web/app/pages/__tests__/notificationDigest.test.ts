@@ -48,10 +48,15 @@ async function renderPage(setup: () => Record<string, unknown>) {
 const t = (key: string) => key
 
 describe('notification digest page production template', () => {
-  it('uses safeReturnTo for back and allows only internal digest/task prefixes', () => {
-    expect(source).toContain('safeReturnTo')
-    expect(source).toContain("['/notifications', '/notification-digests']")
-    expect(source).toContain('route.fullPath')
+  it('returns to the notification list its digest belongs to, ignoring any referrer', () => {
+    // A digest is always reached from /notifications, so the target is literal.
+    // safeReturnTo still guards the pages that do read a referrer; this page no
+    // longer needs it, and a ?returnTo= on the URL cannot redirect the back link.
+    expect(source).not.toContain('safeReturnTo')
+    expect(source).toContain("path: '/notifications'")
+    expect(source).toContain('returnTo: _referrer')
+    // Opening a task from the digest must not stamp a dead referrer on its URL.
+    expect(source).not.toContain('query: { returnTo: route.fullPath }')
     expect(safeReturnTo('/notification-digests/3', '/notifications', ['/notifications', '/notification-digests'])).toBe('/notification-digests/3')
     expect(safeReturnTo('/evil', '/notifications', ['/notifications', '/notification-digests'])).toBe('/notifications')
   })

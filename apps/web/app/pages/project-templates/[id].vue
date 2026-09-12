@@ -10,14 +10,14 @@ const id = computed(() => { const value = Number(route.params.id); return Number
 const { data: template, isLoading, error, refetch } = useProjectTemplate(id)
 const remove = useDeleteProjectTemplate()
 const confirmDelete = ref(false)
-const { returnTo, templatePath } = useProjectTemplateNavigation()
+const { backTo, templatePath } = useProjectTemplateNavigation()
 const isBaseRoute = computed(() => route.path.replace(/\/+$/, '') === `/project-templates/${id.value}`)
-function deleteTemplate() { if (!id.value) return; remove.mutate(id.value, { onSuccess: () => { toast.add({ title: t('projects.templates.deleted'), color: 'success', icon: 'i-lucide-circle-check' }); router.push(returnTo.value) } }) }
+function deleteTemplate() { if (!id.value) return; remove.mutate(id.value, { onSuccess: () => { toast.add({ title: t('projects.templates.deleted'), color: 'success', icon: 'i-lucide-circle-check' }); router.push(backTo.value) } }) }
 </script>
 
 <template>
   <SharedPageContainer v-if="isBaseRoute" width="detail">
-    <SharedPageHeader :title="template?.name ?? t('projects.templates.title')" :description="template?.description" :back-to="returnTo">
+    <SharedPageHeader :title="template?.name ?? t('projects.templates.title')" :description="template?.description" :back-to="backTo">
       <template #actions>
         <div class="flex flex-wrap gap-2"><UButton v-if="template?.can_apply" icon="i-lucide-play" :disabled="!hydrated || remove.isPending.value" @click="router.push(templatePath(template.id, 'apply'))">{{ t('projects.templates.actions.apply') }}</UButton><UButton v-if="template?.can_manage" variant="outline" icon="i-lucide-pencil" :disabled="!hydrated || remove.isPending.value" @click="router.push(templatePath(template.id, 'edit'))">{{ t('projects.templates.actions.edit') }}</UButton><UButton v-if="template?.can_manage" color="error" variant="outline" icon="i-lucide-trash-2" :disabled="!hydrated || remove.isPending.value" @click="confirmDelete = true">{{ t('projects.templates.actions.delete') }}</UButton></div>
       </template>

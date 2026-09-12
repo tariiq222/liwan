@@ -127,11 +127,14 @@ describe('project template page design', () => {
     expect(html).not.toContain('projects.templates.pagination.label')
   })
 
-  it('keeps create, edit, apply and detail on internal routes with returnTo and data guards', () => {
+  it('keeps create, edit, apply and detail on the template list route with data guards', () => {
     for (const source of [detail, create, edit, apply]) {
       expect(source).toContain('SharedPageState')
       expect(source).toContain('@retry')
-      expect(source).toContain('returnTo')
+      // Every template page returns to the one list it hangs off, and none of
+      // them reads a referrer to decide that.
+      expect(source).toContain('backTo')
+      expect(source).not.toContain('returnTo')
     }
     expect(create).toContain('can_manage')
     expect(edit).toContain('can_manage')

@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import MeetingPeopleFields from '@/components/meetings/MeetingPeopleFields.vue'
 import { useCreateMeetingSeries } from '@/composables/useMeetings'
-import { returnToQuery, safeReturnTo } from '@/utils/safeReturnTo'
 import { buildRecurrencePreview, getMeetingFormErrors, normalizeRecurrenceEnd } from '@/utils/meetingForm'
 import { toUtcDateTime } from '@/utils/meetingDateTime'
 
@@ -21,7 +20,14 @@ const meetingUrl = ref('')
 const attendeeIds = ref<number[]>([])
 const secretaryId = ref<number | null>(null)
 const { mutateAsync, isPending, error } = useCreateMeetingSeries()
-const returnTo = computed(() => safeReturnTo(route.query.returnTo, '/meetings/series', ['/meetings']))
+// The owning list is fixed by this page's own route, so the return trip is
+// literal and carries only the state the list was showing. A referrer's
+// returnTo is dropped rather than forwarded: on the list URL it would nest one
+// level deeper on every round trip and redirect that page's own controls.
+const backTo = computed(() => {
+  const { returnTo: _referrer, ...listQuery } = route.query
+  return { path: '/meetings/series', query: listQuery }
+})
 const projectId = computed(() => {
   const value = Number(route.query.project_id)
   return Number.isInteger(value) && value > 0 ? value : undefined
@@ -82,13 +88,13 @@ async function save() {
   })
   baseline.value = snapshot()
   await nextTick()
-  await navigateTo({ path: `/meetings/series/${series.id}`, query: returnToQuery(returnTo.value) })
+  await navigateTo(`/meetings/series/${series.id}`)
 }
 </script>
 
 <template>
   <SharedPageContainer width="form">
-    <SharedPageHeader :title="t('meetingsUi.newSeries')" :back-to="returnTo" />
+    <SharedPageHeader :title="t('meetingsUi.newSeries')" :back-to="backTo" />
     <form class="space-y-8" @submit.prevent="save">
       <SharedUnsavedChanges :dirty="dirty" />
       <p v-if="context" class="rounded-lg border border-border bg-muted/30 px-3 py-2 text-sm">{{ t('meetingsUx.context.project', { name: context }) }}</p>
@@ -149,7 +155,7 @@ async function save() {
       <p class="text-sm text-muted-foreground">{{ t('meetingsUx.recurrenceScope') }}</p>
       <UAlert v-if="error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('meetingsUx.errors.save')" />
       <div class="nasq-form-footer justify-end">
-        <UButton type="button" color="neutral" variant="outline" :to="returnTo" :label="t('app.cancel')" />
+        <UButton type="button" color="neutral" variant="outline" :to="backTo" :label="t('app.cancel')" />
         <UButton type="submit" :disabled="!hydrated || isPending || Object.keys(formErrors).length > 0" :label="t('app.create')" />
       </div>
     </form>

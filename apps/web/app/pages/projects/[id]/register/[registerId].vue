@@ -1,23 +1,29 @@
 <script setup lang="ts">
 import { useProject } from '@/composables/useProjects'
 import { useProjectRegisterItem } from '@/composables/useProjectGovernance'
-import { safeReturnTo } from '@/utils/safeReturnTo'
 
 const route = useRoute()
 const { t } = useI18n()
 const projectId = computed(() => Number(route.params.id))
 const registerId = computed(() => Number(route.params.registerId))
 const item = useProjectRegisterItem(projectId, registerId)
-const returnTo = computed(() => safeReturnTo(route.query.returnTo, `/projects/${projectId.value}/register`, ['/projects']))
+// The owning section list is fixed by this page's own route, so the return trip
+// is literal and carries only the state that list was showing. A referrer's
+// returnTo is dropped rather than forwarded: on the list URL it would nest one
+// level deeper on every round trip and redirect that page's own controls.
+const backTo = computed(() => {
+  const { returnTo: _referrer, ...listQuery } = route.query
+  return { path: `/projects/${projectId.value}/register`, query: listQuery }
+})
 const access = useProject(projectId)
 const hydrated = useHydrated()
 </script>
 
 <template>
   <SharedPageContainer v-if="route.path.replace(/\/+$/, '') === `/projects/${projectId}/register/${registerId}`" width="detail">
-    <SharedPageHeader :title="item.data?.value?.title ?? t('projects.refresh.workspace.registerTitle')" :back-to="returnTo" :back-label="t('projects.refresh.workspace.registerTitle')">
+    <SharedPageHeader :title="item.data?.value?.title ?? t('projects.refresh.workspace.registerTitle')" :back-to="backTo" :back-label="t('projects.refresh.workspace.registerTitle')">
       <template #actions>
-        <UButton v-if="item.data?.value && access.data.value?.can_manage && hydrated" data-testid="register-detail-edit" :to="{ path: `/projects/${projectId}/register/${registerId}/edit`, query: { returnTo } }">{{ t('app.edit') }}</UButton>
+        <UButton v-if="item.data?.value && access.data.value?.can_manage && hydrated" data-testid="register-detail-edit" :to="`/projects/${projectId}/register/${registerId}/edit`">{{ t('app.edit') }}</UButton>
       </template>
     </SharedPageHeader>
     <SharedPageState

@@ -1,19 +1,25 @@
 <script setup lang="ts">
 import StakeholderForm from '@/components/project/governance/StakeholderForm.vue'
 import { useProject } from '@/composables/useProjects'
-import { safeReturnTo } from '@/utils/safeReturnTo'
 
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
 const projectId = computed(() => Number(route.params.id))
-const returnTo = computed(() => safeReturnTo(route.query.returnTo, `/projects/${projectId.value}/stakeholders`, ['/projects']))
+// The owning section list is fixed by this page's own route, so the return trip
+// is literal and carries only the state that list was showing. A referrer's
+// returnTo is dropped rather than forwarded: on the list URL it would nest one
+// level deeper on every round trip and redirect that page's own controls.
+const backTo = computed(() => {
+  const { returnTo: _referrer, ...listQuery } = route.query
+  return { path: `/projects/${projectId.value}/stakeholders`, query: listQuery }
+})
 const access = useProject(projectId)
 </script>
 
 <template>
   <SharedPageContainer width="form">
-    <SharedPageHeader :title="t('projects.governance.stakeholder.createTitle')" :back-to="returnTo" :back-label="t('projects.governance.stakeholders')" />
+    <SharedPageHeader :title="t('projects.governance.stakeholder.createTitle')" :back-to="backTo" :back-label="t('projects.governance.stakeholders')" />
     <SharedPageState
       :loading="access.isLoading.value"
       :error="access.error.value"
@@ -23,7 +29,7 @@ const access = useProject(projectId)
     <p v-if="access.data.value && !access.data.value.can_manage" role="status">{{ t('projects.governance.readOnly') }}</p>
     <section v-if="access.data.value?.can_manage" class="nasq-ui-record-surface">
       <div class="p-5">
-        <StakeholderForm :project-id="projectId" @saved="() => router.push(returnTo)" @cancel="router.push(returnTo)" />
+        <StakeholderForm :project-id="projectId" @saved="() => router.push(backTo)" @cancel="router.push(backTo)" />
       </div>
     </section>
   </SharedPageContainer>

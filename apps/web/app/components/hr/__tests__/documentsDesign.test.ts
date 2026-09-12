@@ -39,8 +39,11 @@ describe('HR documents create design', () => {
     expect(newSource).toContain('DocumentCreateForm')
     expect(newSource).toContain('SharedPageState')
     expect(newSource).toContain('useHydrated')
-    expect(newSource).toContain('safeReturnTo')
-    expect(newSource).toContain('returnToQuery')
+    // The owning list is the route's own, not a referrer's: /hr/documents/new
+    // belongs to /hr/documents whatever link opened it.
+    expect(newSource).not.toContain('safeReturnTo')
+    expect(newSource).toContain("path: '/hr/documents'")
+    expect(newSource).toContain('returnTo: _referrer')
     expect(newSource).toContain('department_id')
     expect(newSource).not.toMatch(/<select[\s\S]*h-9/)
     expect(newSource).not.toMatch(/nasq-toolbar[^\n"']*nasq-panel|nasq-panel[^\n"']*nasq-toolbar/)

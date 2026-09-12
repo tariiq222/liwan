@@ -18,7 +18,9 @@ const list = useProjectStakeholders(id, filters)
 const remove = useDeleteProjectStakeholder()
 const confirmDeleteId = ref<number | null>(null)
 const error = ref<string | null>(null)
-const returnTo = computed(() => route.fullPath)
+// Governance groups these four pages behind one card list; that card list is the
+// way back, and the project tab strip has no tab of its own for them.
+const backTo = computed(() => `/projects/${id.value}/governance`)
 function setFilter(key: string, value: string) {
   router.replace({ query: { ...route.query, [key]: value || undefined, offset: undefined } })
 }
@@ -60,13 +62,15 @@ async function deleteItem(item: { id: number }) {
     <SharedPageHeader
       v-if="!isProjectOverlay"
       :title="t('nav.projectStakeholders')"
+      :back-to="backTo"
+      :back-label="t('projects.workspace.groups.governance')"
     >
       <template #actions>
         <UButton
           v-if="list.data.value?.can_manage && hydrated"
           data-testid="stakeholders-create"
           icon="i-lucide-plus"
-          :to="{ path: `/projects/${id}/stakeholders/new`, query: { returnTo } }"
+          :to="`/projects/${id}/stakeholders/new`"
         >
           {{ t('projects.governance.newStakeholder') }}
         </UButton>
@@ -104,7 +108,7 @@ async function deleteItem(item: { id: number }) {
           <template #name-cell="{ row }">
             <NuxtLink
               class="font-medium hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-              :to="{ path: `/projects/${id}/stakeholders/${row.original.id}`, query: { returnTo } }"
+              :to="`/projects/${id}/stakeholders/${row.original.id}`"
             >
               {{ row.original.name }}
             </NuxtLink>
@@ -145,7 +149,7 @@ async function deleteItem(item: { id: number }) {
                   <RecordNumber :value="item.id" />
                   <NuxtLink
                     class="block font-medium hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                    :to="{ path: `/projects/${id}/stakeholders/${item.id}`, query: { returnTo } }"
+                    :to="`/projects/${id}/stakeholders/${item.id}`"
                   >
                     {{ item.name }}
                   </NuxtLink>

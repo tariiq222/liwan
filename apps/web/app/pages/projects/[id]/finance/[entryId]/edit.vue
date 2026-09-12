@@ -3,12 +3,10 @@ import { ApiError } from '@/composables/useApi'
 import { useProjectFinanceEntry, useProjectFinanceList } from '@/composables/useProjectFinance'
 import FinanceEntryForm from '@/components/project/finance/FinanceEntryForm.vue'
 import {
-  FINANCE_RETURN_PREFIXES,
   financeWriteAllowed,
   parsePositiveId,
   shouldKeepFinanceFormMounted,
 } from '@/utils/projectFinance'
-import { safeReturnTo } from '@/utils/safeReturnTo'
 
 defineOptions({ name: 'ProjectFinanceEntryEdit' })
 
@@ -50,16 +48,18 @@ const initialLoading = computed(() =>
 )
 const pageError = computed(() => keepForm.value ? null : (notFound.value ? null : query.error.value || access.error.value))
 const refreshError = computed(() => keepForm.value ? query.error.value || access.error.value : null)
-const detailFallback = computed(() => {
-  if (projectId.value && entryId.value) return `/projects/${projectId.value}/finance/${entryId.value}`
-  if (projectId.value) return `/projects/${projectId.value}/finance`
-  return '/projects'
+// The ledger this entry hangs off is fixed by the route, so the return trip is
+// literal and carries only the state the ledger was showing. A referrer's
+// returnTo is dropped rather than forwarded: on the ledger URL it would nest one
+// level deeper on every round trip and redirect that page's own controls.
+const backTo = computed(() => {
+  const { returnTo: _referrer, ...listQuery } = route.query
+  return { path: projectId.value ? `/projects/${projectId.value}/finance` : '/projects', query: listQuery }
 })
-const returnTo = computed(() => safeReturnTo(route.query.returnTo, detailFallback.value, FINANCE_RETURN_PREFIXES))
 
 function saved() {
   toast.add({ title: t('projects.finance.saved'), color: 'success', icon: 'i-lucide-circle-check' })
-  void router.push(returnTo.value)
+  void router.push(backTo.value)
 }
 
 function retry() {
@@ -70,7 +70,7 @@ function retry() {
 
 <template>
   <SharedPageContainer width="form">
-    <SharedPageHeader :title="t('projects.finance.editTitle')" :back-to="returnTo" :back-label="t('projects.finance.backToLedger')" />
+    <SharedPageHeader :title="t('projects.finance.editTitle')" :back-to="backTo" :back-label="t('projects.finance.backToLedger')" />
     <template v-if="projectId === null || entryId === null">
       <p class="text-muted">{{ t('projects.invalidId') }}</p>
     </template>
@@ -97,7 +97,7 @@ function retry() {
               :entry="entry!"
               :write-allowed="writeAllowed"
               @saved="saved"
-              @cancel="router.push(returnTo)"
+              @cancel="router.push(backTo)"
             />
           </div>
         </section>

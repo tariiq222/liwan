@@ -2,7 +2,6 @@
 import DescriptionEditor from '@/components/task/DescriptionEditor.vue'
 import MeetingProjectFilter from '@/components/meetings/MeetingProjectFilter.vue'
 import { useMeeting, usePatchResolution } from '@/composables/useMeetings'
-import { safeReturnTo } from '@/utils/safeReturnTo'
 import { useSsrQuerySeed } from '@/lib/vueQuerySsr'
 
 const route = useRoute()
@@ -12,7 +11,14 @@ const meetingId = computed(() => Number(route.params.id))
 const resolutionId = computed(() => Number(route.params.resolutionId))
 const query = useMeeting(meetingId)
 const { mutateAsync, isPending, error } = usePatchResolution()
-const returnTo = computed(() => safeReturnTo(route.query.returnTo, `/meetings/${meetingId.value}`, ['/meetings']))
+// The owning list is fixed by this page's own route, so the return trip is
+// literal and carries only the state the list was showing. A referrer's
+// returnTo is dropped rather than forwarded: on the list URL it would nest one
+// level deeper on every round trip and redirect that page's own controls.
+const backTo = computed(() => {
+  const { returnTo: _referrer, ...listQuery } = route.query
+  return { path: `/meetings/${meetingId.value}`, query: listQuery }
+})
 const resolution = computed(() => query.data.value?.resolutions.find(item => item.id === resolutionId.value) ?? null)
 const knownPeople = computed(() => {
   const meeting = query.data.value
@@ -87,13 +93,13 @@ async function save() {
   await mutateAsync({ meetingId: meetingId.value, resolutionId: resolutionId.value, body })
   baseline.value = snapshot()
   await nextTick()
-  await navigateTo(returnTo.value)
+  await navigateTo(`/meetings/${meetingId.value}`)
 }
 </script>
 
 <template>
   <SharedPageContainer width="form">
-    <SharedPageHeader :title="t('meetingsUi.editResolution')" :back-to="returnTo" />
+    <SharedPageHeader :title="t('meetingsUi.editResolution')" :back-to="backTo" />
     <SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!query.isLoading.value && !query.error.value && !resolution" @retry="query.refetch">
       <UAlert v-if="resolution && !canEditDecision && !canEditResult" color="neutral" variant="subtle" :title="t('meetingsUi.resolutionReadOnly')" />
       <form v-else-if="resolution" class="space-y-8" @submit.prevent="save">
@@ -143,7 +149,7 @@ async function save() {
         <p v-if="validationMessage" class="text-sm text-muted-foreground" aria-live="polite">{{ validationMessage }}</p>
         <UAlert v-if="error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="error.message" />
         <div class="nasq-form-footer justify-end">
-          <UButton type="button" color="neutral" variant="outline" :to="returnTo" :label="t('app.cancel')" />
+          <UButton type="button" color="neutral" variant="outline" :to="backTo" :label="t('app.cancel')" />
           <UButton type="submit" :disabled="!canSave || isPending || !dirty || Boolean(validationMessage)" :label="t('app.save')" />
         </div>
       </form>

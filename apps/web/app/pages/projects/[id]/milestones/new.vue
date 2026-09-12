@@ -2,7 +2,6 @@
 import MilestoneForm from '@/components/project/MilestoneForm.vue'
 import { ApiError } from '@/composables/useApi'
 import { useProject } from '@/composables/useProjects'
-import { safeReturnTo } from '@/utils/safeReturnTo'
 
 const route = useRoute()
 const router = useRouter()
@@ -13,13 +12,20 @@ const projectId = computed(() => {
 })
 const { data: project, isLoading, error, refetch } = useProject(projectId)
 const notFound = computed(() => projectId.value === null || (error.value instanceof ApiError && [403, 404].includes(error.value.status)))
-const returnTo = computed(() => projectId.value ? safeReturnTo(route.query.returnTo, '/projects/' + projectId.value + '?tab=milestones', ['/projects']) : '/projects')
-function saved() { router.push(returnTo.value) }
+// The owning section list is fixed by this page's own route, so the return trip
+// is literal and carries only the state that list was showing. A referrer's
+// returnTo is dropped rather than forwarded: on the list URL it would nest one
+// level deeper on every round trip and redirect that page's own controls.
+const backTo = computed(() => {
+  const { returnTo: _referrer, ...listQuery } = route.query
+  return { path: `/projects/${projectId.value}/milestones`, query: listQuery }
+})
+function saved() { router.push(backTo.value) }
 </script>
 
 <template>
   <SharedPageContainer width="form">
-    <SharedPageHeader :title="t('projects.milestones.new')" :back-to="returnTo" :back-label="t('projects.backToProject')" />
+    <SharedPageHeader :title="t('projects.milestones.new')" :back-to="backTo" :back-label="t('projects.backToProject')" />
     <template v-if="projectId === null">
       <p class="text-muted">{{ t('projects.invalidId') }}</p>
     </template>
@@ -32,7 +38,7 @@ function saved() { router.push(returnTo.value) }
       @retry="refetch"
     >
       <p v-if="!project?.can_manage" class="text-muted">{{ t('projects.forbidden') }}</p>
-      <section v-else class="nasq-ui-record-surface"><div class="p-5"><MilestoneForm :project-id="projectId" :project-start="project?.date_start" :project-end="project?.date_end" @saved="saved" @cancel="router.push(returnTo)" /></div></section>
+      <section v-else class="nasq-ui-record-surface"><div class="p-5"><MilestoneForm :project-id="projectId" :project-start="project?.date_start" :project-end="project?.date_end" @saved="saved" @cancel="router.push(backTo)" /></div></section>
     </SharedPageState>
   </SharedPageContainer>
 </template>

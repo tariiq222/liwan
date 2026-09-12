@@ -4,7 +4,6 @@ import MeetingMinutesDocument from '@/components/meetings/MeetingMinutesDocument
 import MeetingMinutesForm from '@/components/meetings/MeetingMinutesForm.vue'
 import { createMeetingMinutesForm, type MeetingMinutesFormValue, type MeetingMinutesSnapshotLike, validateMeetingMinutesForm } from '@/utils/meetingMinutesForm'
 import { useMeeting, usePatchMeeting } from '@/composables/useMeetings'
-import { safeReturnTo } from '@/utils/safeReturnTo'
 import { useSsrQuerySeed } from '@/lib/vueQuerySsr'
 
 const route = useRoute()
@@ -13,7 +12,14 @@ const hydrated = useHydrated()
 const id = computed(() => Number(route.params.id))
 const query = useMeeting(id)
 const { mutateAsync, isPending, error } = usePatchMeeting()
-const returnTo = computed(() => safeReturnTo(route.query.returnTo, `/meetings/${id.value}`, ['/meetings']))
+// The owning list is fixed by this page's own route, so the return trip is
+// literal and carries only the state the list was showing. A referrer's
+// returnTo is dropped rather than forwarded: on the list URL it would nest one
+// level deeper on every round trip and redirect that page's own controls.
+const backTo = computed(() => {
+  const { returnTo: _referrer, ...listQuery } = route.query
+  return { path: `/meetings/${id.value}`, query: listQuery }
+})
 const agenda = ref('')
 const minutes = ref('')
 const minutesForm = ref<MeetingMinutesFormValue>(createMeetingMinutesForm())
@@ -64,8 +70,8 @@ async function save(navigateToRecommendation = false) {
   baseline.value = snapshot()
   await nextTick()
   await navigateTo(navigateToRecommendation
-    ? { path: `/meetings/${id.value}/resolutions/new`, query: { returnTo: route.fullPath } }
-    : returnTo.value)
+    ? `/meetings/${id.value}/resolutions/new`
+    : backTo.value)
 }
 
 function createRecommendation() {
@@ -75,14 +81,14 @@ function createRecommendation() {
 
 <template>
   <SharedPageContainer width="form">
-    <SharedPageHeader :title="t('meetingsUx.minutesEditorTitle')" :back-to="returnTo" />
+    <SharedPageHeader :title="t('meetingsUx.minutesEditorTitle')" :back-to="backTo" />
     <SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!query.isLoading.value && !query.error.value && !query.data.value" @retry="query.refetch">
       <form v-if="query.data.value" class="space-y-8" @submit.prevent="save(false)">
         <SharedUnsavedChanges :dirty="dirty" />
         <p class="rounded-lg border border-border bg-muted/30 px-3 py-2 text-sm">
           {{ t('meetingsUx.minutesEditorContext', { name: query.data.value.name }) }}
         </p>
-        <p v-if="lifecycleLocked && query.data.value.can_manage" role="alert" class="text-sm text-muted-foreground">{{ t('meetingsUx.minutesEditorReopen') }} <NuxtLink :to="returnTo" class="text-brand-link underline">{{ t('meetingsUx.openMeetingForReopen') }}</NuxtLink></p>
+        <p v-if="lifecycleLocked && query.data.value.can_manage" role="alert" class="text-sm text-muted-foreground">{{ t('meetingsUx.minutesEditorReopen') }} <NuxtLink :to="backTo" class="text-brand-link underline">{{ t('meetingsUx.openMeetingForReopen') }}</NuxtLink></p>
         <UAlert v-else-if="!canEdit" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('meetingsUx.minutesEditorForbidden')" />
         <MeetingMinutesDocument
           v-if="(readonlySnapshot || hasStructuredForm) && (lifecycleLocked || !canEdit)"
@@ -118,7 +124,7 @@ function createRecommendation() {
         <UAlert v-if="structuredValidationErrors.length" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('meetingMinutesForm.validation.invalid')" />
         <UAlert v-if="error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('meetingsUx.errors.save')" />
         <div class="nasq-form-footer justify-end">
-          <UButton type="button" color="neutral" variant="outline" :to="returnTo" :label="t('app.cancel')" />
+          <UButton type="button" color="neutral" variant="outline" :to="backTo" :label="t('app.cancel')" />
           <UButton type="submit" :disabled="!hydrated || isPending || !canSave" :label="t('app.save')" />
         </div>
       </form>

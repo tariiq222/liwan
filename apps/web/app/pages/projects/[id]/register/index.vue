@@ -19,7 +19,9 @@ const list = useProjectRegister(id, filters)
 const remove = useDeleteProjectRegister()
 const confirmDeleteId = ref<number | null>(null)
 const error = ref<string | null>(null)
-const returnTo = computed(() => route.fullPath)
+// Governance groups these four pages behind one card list; that card list is the
+// way back, and the project tab strip has no tab of its own for them.
+const backTo = computed(() => `/projects/${id.value}/governance`)
 function setFilter(key: string, value: string) {
   router.replace({ query: { ...route.query, [key]: value || undefined, offset: undefined } })
 }
@@ -94,13 +96,15 @@ async function deleteItem(item: { id: number }) {
     <SharedPageHeader
       v-if="!isProjectOverlay"
       :title="t('projects.refresh.workspace.registerTitle')"
+      :back-to="backTo"
+      :back-label="t('projects.workspace.groups.governance')"
     >
       <template #actions>
         <UButton
           v-if="list.data.value?.can_manage && hydrated"
           data-testid="register-create"
           icon="i-lucide-plus"
-          :to="{ path: `/projects/${id}/register/new`, query: { returnTo } }"
+          :to="`/projects/${id}/register/new`"
         >
           {{ t('projects.clarity.addRegister') }}
         </UButton>
@@ -162,7 +166,7 @@ async function deleteItem(item: { id: number }) {
           <template #title-cell="{ row }">
             <NuxtLink
               class="font-medium underline"
-              :to="{ path: `/projects/${id}/register/${row.original.id}`, query: { returnTo } }"
+              :to="`/projects/${id}/register/${row.original.id}`"
             >
               {{ row.original.title }}
             </NuxtLink>
@@ -205,7 +209,7 @@ async function deleteItem(item: { id: number }) {
                   <RecordNumber :value="item.id" />
                   <NuxtLink
                     class="block font-medium underline"
-                    :to="{ path: `/projects/${id}/register/${item.id}`, query: { returnTo } }"
+                    :to="`/projects/${id}/register/${item.id}`"
                   >
                     {{ item.title }}
                   </NuxtLink>

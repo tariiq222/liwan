@@ -5,7 +5,6 @@ import { useCreateMeeting } from '@/composables/useMeetings'
 import { useMeetingSeries } from '@/composables/useMeetings'
 import { buildMeetingSchedulePayload } from '@/utils/meetingDateTime'
 import { getMeetingFormErrors } from '@/utils/meetingForm'
-import { returnToQuery, safeReturnTo } from '@/utils/safeReturnTo'
 import { useSsrQuerySeed } from '@/lib/vueQuerySsr'
 
 const route = useRoute()
@@ -25,7 +24,14 @@ const agenda = ref('')
 const attendeeIds = ref<number[]>([])
 const secretaryId = ref<number | null>(null)
 const { mutateAsync, isPending, error } = useCreateMeeting()
-const returnTo = computed(() => safeReturnTo(route.query.returnTo, '/meetings', ['/meetings']))
+// The owning list is fixed by this page's own route, so the return trip is
+// literal and carries only the state the list was showing. A referrer's
+// returnTo is dropped rather than forwarded: on the list URL it would nest one
+// level deeper on every round trip and redirect that page's own controls.
+const backTo = computed(() => {
+  const { returnTo: _referrer, ...listQuery } = route.query
+  return { path: '/meetings', query: listQuery }
+})
 const seriesId = computed(() => {
   const value = Number(route.query.series_id)
   return Number.isInteger(value) && value > 0 ? value : null
@@ -120,13 +126,13 @@ async function save() {
   })
   baseline.value = snapshot()
   await nextTick()
-  await navigateTo({ path: `/meetings/${meeting.id}`, query: returnToQuery(returnTo.value) })
+  await navigateTo(`/meetings/${meeting.id}`)
 }
 </script>
 
 <template>
   <SharedPageContainer width="form">
-    <SharedPageHeader :title="t('meetingsUi.new')" :back-to="returnTo" />
+    <SharedPageHeader :title="t('meetingsUi.new')" :back-to="backTo" />
     <form class="space-y-8" @submit.prevent="save">
       <SharedUnsavedChanges :dirty="dirty" />
       <p v-if="context.series || context.project" class="rounded-lg border border-border bg-muted/30 px-3 py-2 text-sm">
@@ -170,7 +176,7 @@ async function save() {
       <UAlert v-if="seriesDefaultsError" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('meetingsUi.seriesDefaultsError')" />
       <UAlert v-else-if="error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('meetingsUx.errors.save')" />
       <div class="nasq-form-footer justify-end">
-        <UButton type="button" color="neutral" variant="outline" :to="returnTo" :label="t('app.cancel')" />
+        <UButton type="button" color="neutral" variant="outline" :to="backTo" :label="t('app.cancel')" />
         <UButton type="submit" :disabled="!hydrated || isPending || seriesDefaultsLoading || !!seriesDefaultsError || Object.keys(formErrors).length > 0" :label="t('app.create')" />
       </div>
     </form>

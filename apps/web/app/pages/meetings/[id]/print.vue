@@ -3,7 +3,6 @@ import MeetingMinutesDocument from '@/components/meetings/MeetingMinutesDocument
 import { formatMeetingDate, selectMeetingMinutesSource, type MeetingMinutesFormValue, type MeetingMinutesRecommendation, type MeetingMinutesSnapshotLike } from '@/utils/meetingMinutesForm'
 import { useMeeting } from '@/composables/useMeetings'
 import { useMeetingVersion } from '@/composables/useMeetingWorkspace'
-import { safeReturnTo } from '@/utils/safeReturnTo'
 
 const route = useRoute()
 const { t, locale } = useI18n()
@@ -16,7 +15,14 @@ const versionId = computed(() => {
 })
 const meetingQuery = useMeeting(id)
 const versionQuery = useMeetingVersion(id, versionId)
-const backTo = computed(() => safeReturnTo(route.query.returnTo, `/meetings/${id.value}?tab=minutes`, ['/meetings']))
+// The owning list is fixed by this page's own route, so the return trip is
+// literal and carries only the state the list was showing. A referrer's
+// returnTo is dropped rather than forwarded: on the list URL it would nest one
+// level deeper on every round trip and redirect that page's own controls.
+const backTo = computed(() => {
+  const { returnTo: _referrer, ...listQuery } = route.query
+  return { path: `/meetings/${id.value}`, query: listQuery }
+})
 
 const versionSnapshot = computed(() => (versionQuery.data.value as unknown as { snapshot?: MeetingMinutesSnapshotLike } | undefined)?.snapshot ?? null)
 const source = computed(() => {

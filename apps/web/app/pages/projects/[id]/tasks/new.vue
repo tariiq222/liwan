@@ -2,7 +2,6 @@
 import TaskCreateForm from '@/components/task/TaskCreateForm.vue'
 import { ApiError } from '@/composables/useApi'
 import { useProject } from '@/composables/useProjects'
-import { safeReturnTo } from '@/utils/safeReturnTo'
 
 const route = useRoute()
 const router = useRouter()
@@ -19,16 +18,23 @@ const milestoneId = computed(() => {
 })
 const { data: project, isLoading, error, refetch } = useProject(projectId)
 const notFound = computed(() => projectId.value === null || (error.value instanceof ApiError && [403, 404].includes(error.value.status)))
-const returnTo = computed(() => projectId.value ? safeReturnTo(route.query.returnTo, '/projects/' + projectId.value + '?tab=tasks', ['/projects']) : '/projects')
+// The owning section list is fixed by this page's own route, so the return trip
+// is literal and carries only the state that list was showing. A referrer's
+// returnTo is dropped rather than forwarded: on the list URL it would nest one
+// level deeper on every round trip and redirect that page's own controls.
+const backTo = computed(() => {
+  const { returnTo: _referrer, ...listQuery } = route.query
+  return { path: `/projects/${projectId.value}/tasks`, query: listQuery }
+})
 function created(_id: number) {
   toast.add({ title: t('tasks.created'), color: 'success', icon: 'i-lucide-circle-check' })
-  router.push(returnTo.value)
+  router.push(backTo.value)
 }
 </script>
 
 <template>
   <SharedPageContainer width="form">
-    <SharedPageHeader :title="t('tasks.new')" :back-to="returnTo" :back-label="t('projects.backToProject')" />
+    <SharedPageHeader :title="t('tasks.new')" :back-to="backTo" :back-label="t('projects.backToProject')" />
     <template v-if="projectId === null">
       <p class="text-muted">{{ t('tasks.invalidId') }}</p>
     </template>
@@ -40,7 +46,7 @@ function created(_id: number) {
       :empty-text="t('tasks.notFound')"
       @retry="refetch"
     >
-      <section class="nasq-ui-record-surface"><div class="p-5"><TaskCreateForm mode="project" :project-id="projectId" :milestone-id="milestoneId" :project-start="project?.date_start" :project-end="project?.date_end" :can-manage="project?.can_manage" @created="created" @cancel="router.push(returnTo)" /></div></section>
+      <section class="nasq-ui-record-surface"><div class="p-5"><TaskCreateForm mode="project" :project-id="projectId" :milestone-id="milestoneId" :project-start="project?.date_start" :project-end="project?.date_end" :can-manage="project?.can_manage" @created="created" @cancel="router.push(backTo)" /></div></section>
     </SharedPageState>
     <p v-if="!hydrated" class="sr-only">{{ t('tasks.loading') }}</p>
   </SharedPageContainer>

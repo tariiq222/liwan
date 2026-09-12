@@ -67,9 +67,9 @@ describe('guided task creation policy', () => {
     expect(buildTaskCreatePayload({ name: 'Quick task', projectId: 7 })).not.toHaveProperty('priority')
   })
 
-  it('returns a project quick-created task to the preserved project task list', () => {
+  it('returns a project quick-created task to its own project task list', () => {
     expect(projectTaskPageSource).toContain('mode="project"')
-    expect(projectTaskPageSource).toContain('router.push(returnTo)')
+    expect(projectTaskPageSource).toContain('router.push(backTo)')
     expect(projectTaskPageSource).not.toContain("'/projects/' + projectId.value + '/tasks/' + id")
   })
 })

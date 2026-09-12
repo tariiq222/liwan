@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ApiError } from '@/composables/useApi'
 import { useNotificationDigest } from '@/composables/useNotifications'
-import { safeReturnTo } from '@/utils/safeReturnTo'
 
 const route = useRoute()
 const router = useRouter()
@@ -25,7 +24,14 @@ const {
   fetchNextPage,
   hasNextPage,
 } = useNotificationDigest(id)
-const returnTo = computed(() => safeReturnTo(route.query.returnTo, '/notifications', ['/notifications', '/notification-digests']))
+// The owning list is fixed by this page's own route, so the return trip is
+// literal and carries only the state the list was showing. A referrer's
+// returnTo is dropped rather than forwarded: on the list URL it would nest one
+// level deeper on every round trip and redirect that page's own controls.
+const backTo = computed(() => {
+  const { returnTo: _referrer, ...listQuery } = route.query
+  return { path: '/notifications', query: listQuery }
+})
 const items = computed(() => (data.value?.pages ?? []).flatMap(page => page.items))
 const overdueCount = computed(() => data.value?.pages[0]?.overdue_count ?? items.value.length)
 const queryErrorMessage = computed(() => (
@@ -33,11 +39,11 @@ const queryErrorMessage = computed(() => (
 ))
 
 function openTask(taskId: number) {
-  router.push({ path: `/tasks/${taskId}`, query: { returnTo: route.fullPath } })
+  router.push(`/tasks/${taskId}`)
 }
 
 function goBack() {
-  router.push(returnTo.value)
+  router.push(backTo.value)
 }
 
 async function retryDigest() {

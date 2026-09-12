@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import DocumentEditor from '@/components/hr/DocumentEditor.vue'
 import { useHrDocument, useUpdateDocument, useUploadDocumentAttachment } from '@/composables/useHrDocuments'
-import { safeReturnTo } from '@/utils/safeReturnTo'
 import { useSsrQuerySeed } from '@/lib/vueQuerySsr'
 
 const route = useRoute()
@@ -12,7 +11,14 @@ const toast = useToast()
 const departmentId = computed(() => Number(route.params.departmentId))
 const documentId = computed(() => Number(route.params.documentId))
 const query = useHrDocument(documentId)
-const returnTo = computed(() => safeReturnTo(route.query.returnTo, `/hr/departments/${departmentId.value}/documents/${documentId.value}`, ['/hr']))
+// The owning list is fixed by this page's own route, so the return trip is
+// literal and carries only the state the list was showing. A referrer's
+// returnTo is dropped rather than forwarded: on the list URL it would nest one
+// level deeper on every round trip and redirect that page's own controls.
+const backTo = computed(() => {
+  const { returnTo: _referrer, ...listQuery } = route.query
+  return { path: '/hr/documents', query: listQuery }
+})
 const name = ref('')
 const body = ref('')
 const savedState = ref('')
@@ -38,7 +44,7 @@ async function save() {
     name.value = saved.name
     body.value = saved.body
     savedState.value = JSON.stringify([name.value, body.value])
-    await navigateTo(returnTo.value)
+    await navigateTo(`/hr/departments/${departmentId.value}/documents/${documentId.value}`)
   } catch { toast.add({ title: t('errors.generic'), color: 'error' }) }
 }
 function readFile(file: File) {
@@ -60,7 +66,7 @@ async function uploadFile(event: Event) {
 </script>
 <template>
   <SharedPageContainer width="form">
-    <SharedPageHeader :title="t('hr.docs.edit')" :back-to="returnTo" />
+    <SharedPageHeader :title="t('hr.docs.edit')" :back-to="backTo" />
     <SharedPageState v-if="!canManage" :empty="true" :empty-text="t('errors.forbidden')" />
     <SharedPageState v-else :loading="query.isLoading.value" :error="query.error.value" :empty="!query.data.value" @retry="query.refetch">
       <UForm v-if="query.data.value" :state="{ name, body }" class="space-y-6" method="post" @submit="save">
@@ -90,7 +96,7 @@ async function uploadFile(event: Event) {
           </div>
         </UCard>
         <footer class="nasq-form-footer justify-end">
-          <UButton type="button" color="neutral" variant="outline" :disabled="updating" :to="returnTo" :label="t('app.cancel')" />
+          <UButton type="button" color="neutral" variant="outline" :disabled="updating" :to="backTo" :label="t('app.cancel')" />
           <UButton type="submit" color="primary" :disabled="!hydrated || updating || uploading || !name.trim()" :label="t('app.save')" />
         </footer>
       </UForm>

@@ -3,7 +3,6 @@ import MeetingPeopleFields from '@/components/meetings/MeetingPeopleFields.vue'
 import { useMeetingSeries } from '@/composables/useMeetings'
 import { usePatchMeetingSeriesSettings } from '@/composables/useMeetingSeriesSettings'
 import { formatCalendarDate } from '@/composables/calendarDate'
-import { returnToQuery, safeReturnTo } from '@/utils/safeReturnTo'
 import { useSsrQuerySeed } from '@/lib/vueQuerySsr'
 
 const route = useRoute()
@@ -12,7 +11,14 @@ const hydrated = useHydrated()
 const id = computed(() => Number(route.params.id))
 const query = useMeetingSeries(id)
 const { mutateAsync, isPending, error } = usePatchMeetingSeriesSettings()
-const returnTo = computed(() => safeReturnTo(route.query.returnTo, `/meetings/series/${id.value}`, ['/meetings/series']))
+// The owning list is fixed by this page's own route, so the return trip is
+// literal and carries only the state the list was showing. A referrer's
+// returnTo is dropped rather than forwarded: on the list URL it would nest one
+// level deeper on every round trip and redirect that page's own controls.
+const backTo = computed(() => {
+  const { returnTo: _referrer, ...listQuery } = route.query
+  return { path: '/meetings/series', query: listQuery }
+})
 const name = ref('')
 const location = ref('')
 const meetingUrl = ref('')
@@ -80,13 +86,13 @@ async function save() {
   })
   baseline.value = snapshot()
   await nextTick()
-  await navigateTo(returnTo.value)
+  await navigateTo(`/meetings/series/${id.value}`)
 }
 </script>
 
 <template>
   <SharedPageContainer width="form">
-    <SharedPageHeader :title="t('meetingsUx.seriesSettingsTitle')" :back-to="returnTo" />
+    <SharedPageHeader :title="t('meetingsUx.seriesSettingsTitle')" :back-to="backTo" />
     <SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!query.isLoading.value && !query.error.value && !query.data.value" @retry="query.refetch">
       <form v-if="query.data.value" class="space-y-8" @submit.prevent="save">
         <SharedUnsavedChanges :dirty="dirty" />
@@ -114,7 +120,7 @@ async function save() {
         </SharedFormSection>
         <UAlert v-if="error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('meetingsUx.seriesSettingsSaveError')" />
         <div class="nasq-form-footer justify-end">
-          <UButton type="button" color="neutral" variant="outline" :to="returnTo" :label="t('app.cancel')" />
+          <UButton type="button" color="neutral" variant="outline" :to="backTo" :label="t('app.cancel')" />
           <UButton type="submit" :disabled="!hydrated || isPending || !canEdit || !dirty || Object.values(formErrors).some(Boolean)" :label="t('app.save')" />
         </div>
       </form>

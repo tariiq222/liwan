@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import MeetingProjectFilter from '@/components/meetings/MeetingProjectFilter.vue'
 import { useCreateResolution, useMeeting } from '@/composables/useMeetings'
-import { safeReturnTo } from '@/utils/safeReturnTo'
 
 const route = useRoute()
 const { t } = useI18n()
@@ -9,7 +8,14 @@ const hydrated = useHydrated()
 const id = computed(() => Number(route.params.id))
 const query = useMeeting(id)
 const { mutateAsync, isPending, error } = useCreateResolution()
-const returnTo = computed(() => safeReturnTo(route.query.returnTo, `/meetings/${id.value}`, ['/meetings']))
+// The owning list is fixed by this page's own route, so the return trip is
+// literal and carries only the state the list was showing. A referrer's
+// returnTo is dropped rather than forwarded: on the list URL it would nest one
+// level deeper on every round trip and redirect that page's own controls.
+const backTo = computed(() => {
+  const { returnTo: _referrer, ...listQuery } = route.query
+  return { path: `/meetings/${id.value}`, query: listQuery }
+})
 const canCreate = computed(() => query.data.value?.can_edit === true && !['done', 'cancelled'].includes(query.data.value.state))
 const knownPeople = computed(() => {
   const meeting = query.data.value
@@ -55,13 +61,13 @@ async function save() {
   })
   baseline.value = snapshot()
   await nextTick()
-  await navigateTo(returnTo.value)
+  await navigateTo(`/meetings/${id.value}`)
 }
 </script>
 
 <template>
   <SharedPageContainer width="form">
-    <SharedPageHeader :title="t('meetingsUi.newResolution')" :back-to="returnTo" />
+    <SharedPageHeader :title="t('meetingsUi.newResolution')" :back-to="backTo" />
     <SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!query.isLoading.value && !query.error.value && !query.data.value" @retry="query.refetch">
     <UAlert v-if="query.data.value && !canCreate" color="neutral" variant="subtle" :title="t('meetingMinutesForm.readOnlyMeeting')" />
     <form v-else-if="query.data.value" class="space-y-8" @submit.prevent="save">
@@ -106,7 +112,7 @@ async function save() {
       <p v-if="validationMessage" class="text-sm text-muted-foreground" aria-live="polite">{{ validationMessage }}</p>
       <UAlert v-if="error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="error.message" />
       <div class="nasq-form-footer justify-end">
-        <UButton type="button" color="neutral" variant="outline" :to="returnTo" :label="t('app.cancel')" />
+        <UButton type="button" color="neutral" variant="outline" :to="backTo" :label="t('app.cancel')" />
         <UButton type="submit" :disabled="!hydrated || !canCreate || isPending || Boolean(validationMessage)" :label="t('app.create')" />
       </div>
     </form>
