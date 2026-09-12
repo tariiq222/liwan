@@ -59,7 +59,7 @@ function loadPageHeader() {
   }
   const names = [
     ...Object.keys(runtimeBindings), 'ArrowRight', 'computed', 'useRoute', 'useRouter',
-    'useI18n', 'projectIdFromPath', 'projectSectionRoot', 'shellSectionRoot', 'shellRootBackTargets', 'usePageHeader',
+    'useI18n', 'projectIdFromPath', 'projectSectionRoot', 'shellSectionRoot', 'shellRootBackTargets', 'usePageHeader', 'useEscapeBack',
   ]
   const values = [
     ...Object.values(runtimeBindings), ArrowRightStub, computed,
@@ -75,7 +75,7 @@ function loadPageHeader() {
       }
     } }),
     () => ({ t: (key: string) => ({ 'nav.employees': 'الموظفون', 'nav.tasks': 'المهام' }[key] ?? key) }),
-    projectIdFromPath, projectSectionRoot, shellSectionRoot, shellRootBackTargets, () => undefined,
+    projectIdFromPath, projectSectionRoot, shellSectionRoot, shellRootBackTargets, () => undefined, () => undefined,
   ]
   return new Function(...names, javascript)(...values)
 }

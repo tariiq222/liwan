@@ -42,6 +42,10 @@ const hideBack = computed(() => isProjectSectionRoot.value || hideRootBack.value
 const headerDescription = computed(() => (isProjectSectionRoot.value || isShellSectionRoot.value) ? undefined : props.description)
 
 usePageHeader(() => props.title, () => headerDescription.value)
+// One shared Escape handler for every record and form page: it uses the same
+// target as the back control above, and stays out of the way where that
+// control is hidden.
+useEscapeBack(() => props.backTo, () => !hideBack.value)
 </script>
 
 <template>

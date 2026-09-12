@@ -131,15 +131,10 @@ function goTo(id: number | null) {
   router.push(siblingTo(id))
 }
 
-function isEditableTarget(el: EventTarget | null) {
-  if (!(el instanceof HTMLElement)) return false
-  return el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable
-}
-
 function onKeydown(e: KeyboardEvent) {
   if (!hydrated.value) return
   if (e.metaKey || e.ctrlKey || e.altKey) return
-  if (isEditableTarget(e.target)) return
+  if (isEditableKeyTarget(e.target)) return
   if (editingTitle.value || titleSaving.value) {
     if (e.key === 'Escape' && !titleSaving.value) cancelTitleEdit()
     return
@@ -147,7 +142,7 @@ function onKeydown(e: KeyboardEvent) {
   if (e.key === 'Escape') {
     // Let nested menus/popovers and the archive confirmation consume their
     // own Escape key before the page-level back action runs.
-    if (archiveConfirmOpen.value || document.querySelector('[role="menu"][data-state="open"], [role="listbox"][data-state="open"], [data-reka-popper-content-wrapper] [data-state="open"], [role="dialog"][data-state="open"]')) return
+    if (archiveConfirmOpen.value || overlayOwnsEscape(document)) return
     emit('close')
     return
   }
