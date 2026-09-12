@@ -57,6 +57,17 @@ describe('approved shell structure', () => {
     }
   })
 
+  it('gives the create actions one owning file for both shells', () => {
+    // A create rule edited in only one of the two shells silently missed the
+    // other while the builders were duplicated byte-for-byte.
+    for (const source of [contextSidebar, mobileNavigation]) {
+      expect(source).toContain("import { createLinkTo } from '@/composables/nav/createActions'")
+      expect(source).not.toContain('function listReturnTo')
+      expect(source).not.toContain('safeReturnTo(')
+      expect(source).not.toContain('meetingCreateRoute(')
+    }
+  })
+
   it('renders no breadcrumb anywhere in the shell', () => {
     // DESIGN.md §3 forbids a breadcrumb in the layout; the context heading and
     // the workspace tabs carry the context it used to duplicate.

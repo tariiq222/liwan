@@ -4,9 +4,8 @@ import ConversationList from '@/components/chat/ConversationList.vue'
 import SidebarCreateAction from '@/components/shell/SidebarCreateAction.vue'
 import { useContextSidebar, useShellNavigation } from '@/composables/useShellNavigation'
 import { activeShellModule, contextModuleFor, hidePinnedNewProject, shellContextGroups, shellModules } from '@/composables/useNav'
+import { createLinkTo } from '@/composables/nav/createActions'
 import { parseChatListRoute, serializeChatListRoute, type ChatListRoute } from '@/utils/chatState'
-import { meetingCreateRoute } from '@/utils/meetingRoutes'
-import { returnToQuery, safeReturnTo } from '@/utils/safeReturnTo'
 
 const { t, localeProperties } = useI18n()
 const { me } = useMe()
@@ -58,45 +57,8 @@ function href(link: { to: import('vue-router').RouteLocationRaw }) {
   return link.to
 }
 
-function listReturnTo(linkId: string): string {
-  const path = route.path.replace(/\/+$/, '') || '/'
-  const fullPath = route.fullPath
-  if (linkId === 'new-project') {
-    return path === '/projects' || path === '/projects/dashboard'
-      ? fullPath
-      : safeReturnTo(route.query.returnTo, '/projects', ['/projects'])
-  }
-  if (linkId === 'new-meeting') {
-    return path === '/meetings' || path === '/meetings/calendar' || path === '/meetings/series'
-      ? fullPath
-      : safeReturnTo(route.query.returnTo, '/meetings', ['/meetings'])
-  }
-  if (linkId === 'new-employee' || linkId === 'new-department' || linkId === 'new-document') {
-    const isHrList = linkId === 'new-employee'
-      ? path === '/hr'
-      : linkId === 'new-department'
-        ? path === '/hr/departments'
-        : path === '/hr/documents' || /^\/hr\/departments\/[^/]+\/documents$/.test(path)
-    if (isHrList) return fullPath
-    const fallback = linkId === 'new-department' ? '/hr/departments' : linkId === 'new-document' ? '/hr/documents' : '/hr'
-    return safeReturnTo(route.query.returnTo, fallback, ['/hr'])
-  }
-  return fullPath
-}
-
 function createTo(link: { id: string; to: import('vue-router').RouteLocationRaw }): import('vue-router').RouteLocationRaw {
-  if (link.id === 'new-chat') return { path: '/chat/new', query: serializeChatListRoute(parseChatListRoute(route.query)) }
-  if (link.id === 'new-meeting') return meetingCreateRoute(listReturnTo(link.id), typeof route.query.project_id === 'string' ? route.query.project_id : undefined, typeof route.query.series_id === 'string' ? route.query.series_id : undefined)
-  const target = typeof link.to === 'string' ? link.to : link.to.path
-  if (!target) return link.to
-  const query: Record<string, string> = returnToQuery(listReturnTo(link.id))
-  if (link.id === 'new-document') {
-    const departmentId = typeof route.query.department_id === 'string'
-      ? route.query.department_id
-      : typeof route.params.departmentId === 'string' ? route.params.departmentId : undefined
-    if (departmentId) query.department_id = departmentId
-  }
-  return { path: target, query }
+  return createLinkTo(link, { path: route.path, fullPath: route.fullPath, query: route.query, params: route.params })
 }
 
 function updateRoute(next: ChatListRoute) {
