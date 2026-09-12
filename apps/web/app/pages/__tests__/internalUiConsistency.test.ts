@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync, statSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { dirname, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
@@ -54,17 +54,19 @@ describe('internal UI width and status vocabulary', () => {
     expect(css).toContain('scrollbar-width: none')
   })
 
-  it('exits the project side sheet opposite the entry travel', () => {
+  it('opens every record as an ordinary page instead of a sliding side sheet', () => {
+    // The route-backed sheet and the machinery that guessed what sat behind it
+    // are deleted: a record's parent is now path arithmetic, not a return chain.
     const css = readFileSync(resolve(webRoot, 'app/assets/css/components.css'), 'utf8')
-    const host = readFileSync(resolve(webRoot, 'app/components/project/workspace/ProjectRouteHost.vue'), 'utf8')
-    const modal = readFileSync(resolve(webRoot, 'app/components/project/workspace/ProjectRouteModal.vue'), 'utf8')
-    expect(css).toContain('@keyframes nasq-sheet-in')
-    expect(css).toContain('translateX(var(--project-overlay-enter, 100vw))')
-    expect(css).toContain('translateX(var(--project-overlay-exit, -100vw))')
-    expect(host).toContain("enter: rtl ? `-${availableWidth}px`")
-    expect(host).toContain("exit: rtl ? `${availableWidth}px`")
-    expect(host).toContain("side: rtl ? 'left' : 'right'")
-    expect(modal).toContain("insetInlineEnd: '0'")
+    const app = readFileSync(resolve(webRoot, 'app/app.vue'), 'utf8')
+    expect(existsSync(resolve(webRoot, 'app/components/project/workspace/ProjectRouteHost.vue'))).toBe(false)
+    expect(existsSync(resolve(webRoot, 'app/components/project/workspace/ProjectRouteModal.vue'))).toBe(false)
+    expect(existsSync(resolve(webRoot, 'app/utils/projectOverlayRoute.ts'))).toBe(false)
+    expect(app).toContain('<NuxtPage />')
+    expect(app).not.toContain('ProjectRouteHost')
+    for (const dead of ['nasq-sheet-in', 'nasq-sheet-out', 'project-overlay-enter', 'project-overlay-exit', 'project-sheet-backdrop', 'nasq-ui-route-sheet']) {
+      expect(css, dead).not.toContain(dead)
+    }
   })
 
   it('uses SharedPageContainer or settings/digest shells on internal pages', () => {

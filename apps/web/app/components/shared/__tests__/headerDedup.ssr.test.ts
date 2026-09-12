@@ -12,7 +12,6 @@ import {
   createVNode,
   defineComponent,
   h,
-  inject,
   openBlock,
   renderSlot,
   resolveComponent,
@@ -59,11 +58,11 @@ function loadPageHeader() {
     _createElementVNode: createElementVNode,
   }
   const names = [
-    ...Object.keys(runtimeBindings), 'inject', 'PROJECT_OVERLAY_INJECTION_KEY', 'ArrowRight', 'computed', 'useRoute', 'useRouter',
+    ...Object.keys(runtimeBindings), 'ArrowRight', 'computed', 'useRoute', 'useRouter',
     'useI18n', 'projectIdFromPath', 'projectSectionRoot', 'shellSectionRoot', 'shellRootBackTargets', 'usePageHeader',
   ]
   const values = [
-    ...Object.values(runtimeBindings), inject, Symbol.for('nasq.project.overlay'), ArrowRightStub, computed,
+    ...Object.values(runtimeBindings), ArrowRightStub, computed,
     () => currentRoute,
     () => ({ resolve: (to: string | { path: string }) => {
       const fullPath = typeof to === 'string' ? to : to.path
@@ -82,9 +81,8 @@ function loadPageHeader() {
 }
 
 let currentRoute = { path: '/projects/1', fullPath: '/projects/1', query: {} as Record<string, unknown> }
-async function renderHeader(props: Record<string, unknown>, slots: Record<string, () => unknown> = {}, inProjectSheet = false) {
+async function renderHeader(props: Record<string, unknown>, slots: Record<string, () => unknown> = {}) {
   const app = createSSRApp({ render: () => h(loadPageHeader(), props, slots) })
-  app.provide(Symbol.for('nasq.project.overlay'), inProjectSheet)
   app.component('NuxtLink', NuxtLinkStub)
   app.component('UButton', NuxtLinkStub)
   app.component('UIcon', UIconStub)
@@ -92,11 +90,13 @@ async function renderHeader(props: Record<string, unknown>, slots: Record<string
 }
 
 describe('rendered page header navigation policies', () => {
-  it('removes duplicate back navigation inside a project sheet while retaining it standalone', async () => {
+  it('keeps back navigation on a project record now that it is an ordinary page', async () => {
+    // The sheet used to provide its own close control, so the header suppressed
+    // its back link. A record is a page now and owns the only way back.
     currentRoute = { path: '/projects/1/tasks/new', fullPath: '/projects/1/tasks/new', query: {} }
-    const props = { title: 'مهمة جديدة', backTo: '/projects/1', backLabel: 'العودة إلى المشروع' }
-    expect(await renderHeader(props, {}, true)).not.toContain('العودة إلى المشروع')
-    expect(await renderHeader(props)).toContain('العودة إلى المشروع')
+    const html = await renderHeader({ title: 'مهمة جديدة', backTo: '/projects/1/tasks', backLabel: 'العودة إلى المهام' })
+    expect(html).toContain('العودة إلى المهام')
+    expect(html).toContain('href="/projects/1/tasks"')
   })
   it('removes project identity, back, and generic description from a project root', async () => {
     currentRoute = { path: '/projects/1', fullPath: '/projects/1', query: {} }

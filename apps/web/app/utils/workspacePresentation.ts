@@ -1,4 +1,3 @@
-import { isProjectOverlayRoute, deriveProjectOverlayBackground } from './projectOverlayRoute'
 import { safeReturnTo } from './safeReturnTo'
 
 type RouteQuery = Record<string, unknown>
@@ -22,7 +21,7 @@ export function isWorkspaceThemeRoute(path: string): boolean {
   return !/^\/(?:chat|login)(\/|$)/.test(path) && !/^\/meetings\/[1-9]\d*\/print\/?$/.test(path)
 }
 export function isWorkspaceOverlayRoute(route: { path: string; query: RouteQuery }): boolean {
-  return isProjectOverlayRoute(route) || workflows.some(pattern => pattern.test(normalize(route.path)))
+  return workflows.some(pattern => pattern.test(normalize(route.path)))
 }
 function section(path: string): string {
   if (/^\/tasks\//.test(path)) return '/tasks'
@@ -48,7 +47,6 @@ export function isWorkspaceOverlayBackground(path: string, candidate: string): b
   return roots.includes(normalize(parsed.pathname)) && family(path) === family(parsed.pathname)
 }
 export function deriveWorkspaceOverlayBackground(path: string, query: RouteQuery, depth = 0): string {
-  if (isProjectOverlayRoute({ path, query })) return deriveProjectOverlayBackground(path, query)
   const candidate = safeReturnTo(query.returnTo, '', roots)
   if (candidate && isWorkspaceOverlayBackground(path, candidate)) return candidate
   if (candidate && depth < 8) {

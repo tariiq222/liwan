@@ -21,15 +21,12 @@ function sourceFiles(directory: string): string[] {
 }
 
 describe('business overlay architecture', () => {
-  it('limits business dialogs to the approved header search and project route host', () => {
+  it('limits business dialogs to the approved header search', () => {
     const violations = scanRoots.flatMap((root) => sourceFiles(join(appRoot, root))).flatMap((path) => {
       const source = readFileSync(path, 'utf8')
-      // Exact-file exceptions: header search (2026-09-06) and the Projects pilot
-      // (2026-09-09). Other modules and native prompts remain disallowed.
-      const allowsDialog = [
-        'components/GlobalSearch.vue',
-        'components/project/workspace/ProjectRouteModal.vue',
-      ].includes(relative(appRoot, path))
+      // Exact-file exception: the header search (2026-09-06). The project route
+      // sheet was the second one; records are ordinary pages now, so it is gone.
+      const allowsDialog = ['components/GlobalSearch.vue'].includes(relative(appRoot, path))
       const reasons = [
         !allowsDialog && forbiddenTag.test(source) && 'forbidden overlay tag',
         !allowsDialog && forbiddenUiImport.test(source) && 'forbidden overlay primitive import',

@@ -17,7 +17,6 @@ describe('approved workspace rollout excluding chat', () => {
     expect(deriveWorkspaceOverlayBackground('/hr/departments/3/documents/9', {})).toBe('/hr/documents')
     expect(deriveWorkspaceOverlayBackground('/tasks/7', {returnTo:'/archived-tasks?q=old'})).toBe('/archived-tasks?q=old')
     for (const returnTo of ['https://evil.example', '//evil.example', '/chat', '/settings/users', '/hr/employees/8']) expect(deriveWorkspaceOverlayBackground('/hr/employees/7', {returnTo})).toBe('/hr')
-    expect(deriveWorkspaceOverlayBackground('/projects/42/tasks/7', {})).toBe('/projects/42?tab=tasks')
   })
   it('names task sheets after tasks, not the projects module', () => {
     expect(workspaceOverlayTitleKey('/projects/40/tasks/701')).toBe('nav.tasks')

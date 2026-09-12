@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { ar, en } from '@nuxt/ui/locale'
-import ProjectRouteHost from '@/components/project/workspace/ProjectRouteHost.vue'
 
 const { locale } = useI18n()
 const { mode, fontSize } = useAppearance()
@@ -21,7 +20,7 @@ useHead(() => ({
 <template>
   <UApp :locale="locale === 'ar' ? ar : en">
     <NuxtLayout>
-      <ProjectRouteHost />
+      <NuxtPage />
     </NuxtLayout>
   </UApp>
 </template>

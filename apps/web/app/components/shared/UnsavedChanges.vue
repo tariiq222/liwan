@@ -1,15 +1,10 @@
 <script setup lang="ts">
 import type { ModalProps } from '@nuxt/ui'
-import { inject } from 'vue'
 import { onBeforeRouteLeave, onBeforeRouteUpdate } from 'vue-router'
-import { PROJECT_OVERLAY_INJECTION_KEY, wantsProjectOverlayFullPage } from '@/utils/projectOverlayRoute'
-import { isWorkspaceOverlayRoute } from '@/utils/workspacePresentation'
 
 const props = withDefaults(defineProps<{ dirty: boolean; guardRouteUpdates?: boolean }>(), {
   guardRouteUpdates: false,
 })
-const inProjectOverlay = inject<boolean>(PROJECT_OVERLAY_INJECTION_KEY, false)
-const guardRouteUpdates = computed(() => props.guardRouteUpdates || inProjectOverlay === true)
 const pendingPath = ref<string | null>(null)
 const leaving = ref(false)
 let returnFocus: HTMLElement | null = null
@@ -29,21 +24,10 @@ function guard(to: { fullPath: string }) {
   return false
 }
 
-function isProjectPresentationTransition(to: { path: string; query: Record<string, unknown> }, from: { path: string; query: Record<string, unknown> }) {
-  const fromIsWorkflow = isWorkspaceOverlayRoute(from)
-  const toIsWorkflow = isWorkspaceOverlayRoute(to)
-  if (!fromIsWorkflow || !toIsWorkflow) return false
-  return wantsProjectOverlayFullPage(from.query) !== wantsProjectOverlayFullPage(to.query)
-}
-
 onBeforeRouteLeave(guard)
-onBeforeRouteUpdate((to, from) => {
-  const presentationTransition = isProjectPresentationTransition(
-    to as { path: string; query: Record<string, unknown> },
-    from as { path: string; query: Record<string, unknown> },
-  )
-  return guardRouteUpdates.value || presentationTransition ? guard(to) : true
-})
+// A same-path query change (a filter, a tab) is not a departure, so only a
+// form that says its own query carries draft state asks to guard those too.
+onBeforeRouteUpdate(to => (props.guardRouteUpdates ? guard(to) : true))
 
 watch(() => props.dirty, dirty => {
   if (!dirty) pendingPath.value = null

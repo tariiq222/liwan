@@ -8,11 +8,6 @@ import { createRenderer, defineComponent, h, ref, type App, type Component } fro
 import { createMemoryHistory, createRouter, RouterView, useRoute } from 'vue-router'
 import * as VueRouter from 'vue-router'
 import { afterEach, describe, expect, it } from 'vitest'
-import {
-  PROJECT_OVERLAY_INJECTION_KEY,
-  wantsProjectOverlayFullPage,
-} from '../../../utils/projectOverlayRoute'
-import { isWorkspaceOverlayRoute } from '../../../utils/workspacePresentation'
 
 interface HostNode {
   children: HostNode[]
@@ -96,7 +91,6 @@ function loadUnsavedChanges(): Component {
     ...Object.fromEntries(Object.entries(Vue).filter(([name]) => /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(name)).map(([name, value]) => [`_${name}`, value])),
     onBeforeRouteLeave: VueRouter.onBeforeRouteLeave, onBeforeRouteUpdate: VueRouter.onBeforeRouteUpdate,
     onMounted: () => undefined, onBeforeUnmount: () => undefined, ref: Vue.ref, watch: Vue.watch, computed: Vue.computed, inject: Vue.inject,
-    isWorkspaceOverlayRoute, PROJECT_OVERLAY_INJECTION_KEY, wantsProjectOverlayFullPage,
     navigateTo: (...args: Parameters<typeof router.push>) => router.push(...args),
   }
   return new Function(...Object.keys(bindings), runnable)(...Object.values(bindings)) as Component
@@ -154,24 +148,33 @@ describe('SharedUnsavedChanges route update guard', () => {
     expect(findNode(host, node => node.props['data-testid'] === 'mode')?.text).toBe('readonly')
   })
 
-  it('protects a dirty project workflow when switching standalone and modal presentation', async () => {
+  it('protects a dirty project task page when its back link leaves for the task list', async () => {
+    // The sheet's presentation toggle is gone: a project task is a page, so the
+    // draft is defended on the ordinary departure its back link performs.
     const dirty = ref(true)
     const UnsavedChanges = loadUnsavedChanges()
-    const WorkflowRoute = defineComponent({
+    const TaskRoute = defineComponent({
       setup() {
-        const route = useRoute()
         return () => h('div', [
           h(UnsavedChanges, { dirty: dirty.value }),
-          h('span', { 'data-testid': 'presentation' }, route.query.fullPage ? 'full-page' : 'modal'),
+          h('span', { 'data-testid': 'screen' }, 'task'),
         ])
+      },
+    })
+    const ListRoute = defineComponent({
+      setup() {
+        return () => h('span', { 'data-testid': 'screen' }, 'list')
       },
     })
 
     router = createRouter({
       history: createMemoryHistory(),
-      routes: [{ path: '/projects/:id/tasks/:taskId', component: WorkflowRoute }],
+      routes: [
+        { path: '/projects/:id/tasks/:taskId', component: TaskRoute },
+        { path: '/projects/:id/tasks', component: ListRoute },
+      ],
     })
-    await router.push({ path: '/projects/3/tasks/7', query: { fullPage: '1' } })
+    await router.push({ path: '/projects/3/tasks/7', query: { q: 'عقد' } })
     await router.isReady()
 
     const app = renderer.createApp(defineComponent({ render: () => h(RouterView) }))
@@ -186,9 +189,10 @@ describe('SharedUnsavedChanges route update guard', () => {
     app.mount(host)
     mountedApps.push(app)
 
-    const stayResult = await router.push({ path: '/projects/3/tasks/7', query: {} })
+    const stayResult = await router.push({ path: '/projects/3/tasks', query: { q: 'عقد' } })
     expect(stayResult).toBeTruthy()
-    expect(router.currentRoute.value.query.fullPage).toBe('1')
+    expect(router.currentRoute.value.path).toBe('/projects/3/tasks/7')
+    expect(findNode(host, node => node.props['data-testid'] === 'screen')?.text).toBe('task')
     expect(findNode(host, node => node.props['data-testid'] === 'unsaved-changes-dialog')).toBeTruthy()
 
     const buttons = findNodes(host, node => node.type === 'button')
@@ -196,8 +200,8 @@ describe('SharedUnsavedChanges route update guard', () => {
     expect(discard).toBeTypeOf('function')
     await discard?.()
 
-    expect(router.currentRoute.value.query.fullPage).toBeUndefined()
-    expect(findNode(host, node => node.props['data-testid'] === 'presentation')?.text).toBe('modal')
+    expect(router.currentRoute.value.fullPath).toBe('/projects/3/tasks?q=%D8%B9%D9%82%D8%AF')
+    expect(findNode(host, node => node.props['data-testid'] === 'screen')?.text).toBe('list')
   })
 })
 

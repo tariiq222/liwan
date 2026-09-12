@@ -829,8 +829,6 @@
     },
     "workspace": {
       "tabsLabel": "أقسام المشروع",
-      "close": "إغلاق",
-      "openFullPage": "فتح بصفحة كاملة",
       "subtabsLabel": "الأقسام الفرعية للمشروع",
       "groups": {
         "overview": "الملخص",

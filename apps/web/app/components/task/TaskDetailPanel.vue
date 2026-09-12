@@ -1,11 +1,9 @@
 <script setup lang="ts">
-import { inject } from 'vue'
 import type { RouteLocationRaw } from 'vue-router'
 import { ApiError } from '@/composables/useApi'
 import { useTaskFilters } from '@/composables/useTaskFilters'
 import type { TaskListParams } from '@/composables/useTasks'
 import { useArchiveTask, useTask, useTaskSiblings, useUpdateTask } from '@/composables/useTasks'
-import { PROJECT_OVERLAY_INJECTION_KEY } from '@/utils/projectOverlayRoute'
 import DeadlineBadge from './DeadlineBadge.vue'
 import StateMenu from './StateMenu.vue'
 import TaskCompletionApproval from './TaskCompletionApproval.vue'
@@ -27,7 +25,6 @@ const emit = defineEmits<{ close: [] }>()
 const route = useRoute()
 const router = useRouter()
 const { t, localeProperties } = useI18n()
-const inProjectOverlay = inject<boolean>(PROJECT_OVERLAY_INJECTION_KEY, false)
 // The chevrons point at list *order*, not at a fixed screen side: in RTL
 // "previous" is the right-hand arrow, in LTR the left-hand one. They were
 // hardcoded to the RTL pairing, so an `en` user saw them swapped.
@@ -150,7 +147,7 @@ function onKeydown(e: KeyboardEvent) {
   if (e.key === 'Escape') {
     // Let nested menus/popovers and the archive confirmation consume their
     // own Escape key before the page-level back action runs.
-    if (archiveConfirmOpen.value || document.querySelector('[role="menu"][data-state="open"], [role="listbox"][data-state="open"], [data-reka-popper-content-wrapper] [data-state="open"], [role="dialog"][data-state="open"]:not(.nasq-ui-route-sheet)')) return
+    if (archiveConfirmOpen.value || document.querySelector('[role="menu"][data-state="open"], [role="listbox"][data-state="open"], [data-reka-popper-content-wrapper] [data-state="open"], [role="dialog"][data-state="open"]')) return
     emit('close')
     return
   }
@@ -165,7 +162,7 @@ useEventListener(document, 'keydown', onKeydown)
   <div data-nasq-reference-detail class="space-y-6">
     <div class="task-context-row" data-testid="task-detail-context">
       <div class="flex min-w-0 flex-1 items-center gap-2">
-        <NuxtLink v-if="!inProjectOverlay" :to="backTo" class="inline-flex min-h-8 shrink-0 items-center gap-1 rounded-lg px-2 text-sm text-muted transition-colors hover:bg-elevated hover:text-highlighted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" :aria-label="props.backLabel ?? t('tasks.detail.back')" :aria-disabled="!hydrated || editingTitle || titleSaving" :tabindex="!hydrated || editingTitle || titleSaving ? -1 : undefined" @click="(!hydrated || editingTitle || titleSaving) && $event.preventDefault()">
+        <NuxtLink :to="backTo" class="inline-flex min-h-8 shrink-0 items-center gap-1 rounded-lg px-2 text-sm text-muted transition-colors hover:bg-elevated hover:text-highlighted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" :aria-label="props.backLabel ?? t('tasks.detail.back')" :aria-disabled="!hydrated || editingTitle || titleSaving" :tabindex="!hydrated || editingTitle || titleSaving ? -1 : undefined" @click="(!hydrated || editingTitle || titleSaving) && $event.preventDefault()">
           <UIcon :name="isRtl ? 'i-lucide-arrow-right' : 'i-lucide-arrow-left'" class="size-[18px]" aria-hidden="true" />
           <span>{{ props.backLabel ?? t('tasks.detail.back') }}</span>
         </NuxtLink>
