@@ -5,7 +5,6 @@ import {
   contextLinksForModule,
   contextModuleFor,
   projectContextId,
-  projectSidebarLinks,
   visibleShellModules,
   type ProjectContextId,
   type ShellContextLink,
@@ -112,7 +111,6 @@ export function useShellNavigation(identity: MaybeRefOrGetter<AccessIdentity>) {
   const hydrated = useHydrated()
   // Server and first client render must use the same navigation shape.
   const project = { ...projectQuery, data: computed(() => hydrated.value ? projectQuery.data.value : undefined) }
-  const isProjectRoot = computed(() => /^\/projects\/\d+\/?$/.test(route.path))
   // Inside a project the sidebar keeps the projects module links (2026-09-11);
   // the project's own sections are tabs inside the page.
   const contextLinks = computed<ShellContextLink[]>(() => {
@@ -124,15 +122,8 @@ export function useShellNavigation(identity: MaybeRefOrGetter<AccessIdentity>) {
         : link)
       .map(link => ({ ...link, active: isContextPathActive(route.path, link.to, route.query) }))
   })
-  // The sidebar breadcrumb still resolves project sections by id.
-  const breadcrumbLinks = computed<ShellContextLink[]>(() => {
-    if (projectId.value && activeModule.value === 'projects') {
-      return projectSidebarLinks(projectId.value, identityValue.value, project.data.value?.active === true, project.data.value?.can_manage === true, route.query, isProjectRoot.value)
-    }
-    return contextLinks.value
-  })
   const module = computed(() => visibleShellModules(identityValue.value).find(item => item.id === activeModule.value) ?? null)
-  return { activeModule, module, projectId, project, contextLinks, breadcrumbLinks }
+  return { activeModule, module, projectId, project, contextLinks }
 }
 
 export function isContextPathActive(path: string, to: ShellContextLink['to'], query: Record<string, unknown> = {}): boolean {

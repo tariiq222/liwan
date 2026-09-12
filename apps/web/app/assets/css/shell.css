@@ -287,15 +287,7 @@ html[dir="rtl"] body { padding-right: 0 !important; }
 .nasq-context-link { display: flex; min-height: 42px; align-items: center; justify-content: start; gap: 10px; border-block-end: 2px solid transparent; border-radius: 9px; padding: 9px 11px; color: var(--muted-foreground); font-size: .82rem; text-align: start; text-decoration: none; }
 .nasq-context-link:hover { background: color-mix(in srgb, var(--foreground) 6%, var(--context-surface)); color: var(--foreground); }
 
-.nasq-project-breadcrumb { margin: 4px 0 0; color: var(--muted-foreground); font-size: .7rem; line-height: 1.8; overflow-wrap: anywhere; }
-.nasq-context-heading:has(.nasq-project-breadcrumb) { align-items: start; }
-.nasq-project-breadcrumb a:hover, .nasq-project-breadcrumb button:hover { color: var(--foreground); text-decoration: underline; }
-.nasq-project-breadcrumb [aria-current="page"] { color: var(--foreground); }
 /* Project screens use readable UI text at the smallest supported font setting. */
-.nasq-context-sidebar[data-project-module="true"] .nasq-project-breadcrumb { font-size: .786rem; line-height: 1.5; overflow: hidden; overflow-wrap: normal; }
-.nasq-project-breadcrumb ol { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.nasq-project-breadcrumb li { display: inline; }
-.nasq-project-breadcrumb li[aria-hidden="true"] { margin-inline: 2px; }
 .nasq-context-sidebar[data-project-module="true"] .nasq-context-group-heading { font-size: .929rem; }
 .nasq-context-sidebar[data-project-module="true"] .nasq-context-link { min-height: 40px; }
 @media (min-width: 768px) {

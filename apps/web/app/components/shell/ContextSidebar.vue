@@ -4,7 +4,6 @@ import ConversationList from '@/components/chat/ConversationList.vue'
 import SidebarCreateAction from '@/components/shell/SidebarCreateAction.vue'
 import { useContextSidebar, useShellNavigation } from '@/composables/useShellNavigation'
 import { activeShellModule, contextModuleFor, hidePinnedNewProject, shellContextGroups, shellModules } from '@/composables/useNav'
-import { workspaceBreadcrumbs } from '@/utils/workspaceBreadcrumbs'
 import { parseChatListRoute, serializeChatListRoute, type ChatListRoute } from '@/utils/chatState'
 import { meetingCreateRoute } from '@/utils/meetingRoutes'
 import { returnToQuery, safeReturnTo } from '@/utils/safeReturnTo'
@@ -13,7 +12,7 @@ const { t, localeProperties } = useI18n()
 const { me } = useMe()
 const route = useRoute()
 const router = useRouter()
-const { module, projectId, project, contextLinks, breadcrumbLinks } = useShellNavigation(() => me.value)
+const { module, projectId, project, contextLinks } = useShellNavigation(() => me.value)
 const { expanded, hydrated, toggle } = useContextSidebar()
 const navigationId = `context-navigation-${useId()}`
 const activeModule = computed(() => activeShellModule(route.path))
@@ -36,7 +35,6 @@ const selectedConversationId = computed(() => {
   return Number.isSafeInteger(id) && id > 0 ? id : undefined
 })
 const primaryLinks = computed(() => contextLinks.value)
-const breadcrumbs = computed(() => workspaceBreadcrumbs(route.path, route.query, breadcrumbLinks.value, project.data.value?.name))
 const moduleLinks = computed(() => (isChat.value && isDesktop.value && expanded.value
   ? primaryLinks.value.filter(item => item.id === 'new-chat')
   : primaryLinks.value))
@@ -125,17 +123,6 @@ function updateRoute(next: ChatListRoute) {
         </span>
         <div class="nasq-context-heading-copy">
           <h2>{{ contextTitle }}</h2>
-      <nav v-if="breadcrumbs.length && expanded" class="nasq-project-breadcrumb" :aria-label="t('nav.breadcrumb')" data-testid="project-sidebar-breadcrumb">
-        <ol class="flex flex-wrap items-center gap-x-1 gap-y-1">
-          <template v-for="(crumb, index) in breadcrumbs" :key="crumb.key">
-            <li v-if="index" aria-hidden="true">/</li>
-            <li>
-              <NuxtLink v-if="crumb.to" :to="crumb.to" :aria-current="index === breadcrumbs.length - 1 ? 'page' : undefined" aria-current-value="false">{{ crumb.label ?? t(crumb.labelKey!) }}</NuxtLink>
-              <span v-else :aria-current="index === breadcrumbs.length - 1 ? 'page' : undefined">{{ crumb.label ?? t(crumb.labelKey!) }}</span>
-            </li>
-          </template>
-        </ol>
-      </nav>
         </div>
         <UTooltip :text="t(expanded ? 'nav.collapseContext' : 'nav.expandContext')">
           <UButton

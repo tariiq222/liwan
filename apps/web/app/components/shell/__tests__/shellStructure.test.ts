@@ -16,6 +16,9 @@ const mobileNavigation = readFileSync(resolve(root, 'components/shell/MobileNavi
 const globalSearch = readFileSync(resolve(root, 'components/GlobalSearch.vue'), 'utf8')
 const notificationCenter = readFileSync(resolve(root, 'components/notifications/NotificationCenter.vue'), 'utf8')
 const chatWorkspace = readFileSync(resolve(root, 'components/chat/ChatWorkspace.vue'), 'utf8')
+const shellNavigation = readFileSync(resolve(root, 'composables/useShellNavigation.ts'), 'utf8')
+const arCommon = readFileSync(resolve(root, '../i18n/locales/ar/common.json'), 'utf8')
+const enCommon = readFileSync(resolve(root, '../i18n/locales/en/common.json'), 'utf8')
 
 describe('approved shell structure', () => {
   it('uses one explicit shell frame without SidebarProvider', () => {
@@ -52,7 +55,14 @@ describe('approved shell structure', () => {
       expect(source).not.toContain('nav.projectsOverview')
       expect(source).not.toContain('nav.currentProject')
     }
-    expect(contextSidebar).toContain('breadcrumbLinks')
+  })
+
+  it('renders no breadcrumb anywhere in the shell', () => {
+    // DESIGN.md §3 forbids a breadcrumb in the layout; the context heading and
+    // the workspace tabs carry the context it used to duplicate.
+    for (const source of [layout, contextSidebar, mobileNavigation, shellNavigation, shellCss, arCommon, enCommon]) {
+      expect(source).not.toMatch(/breadcrumb/i)
+    }
   })
 
   it('uses the branded shell token for both header and rail', () => {
