@@ -24,7 +24,7 @@ Nuxt UI مناسب مبدئيًا لبنية نسق، لكن **التثبيت ا
 ولا يثبّت حزمًا في node_modules أو يشغّل Nuxt أو Odoo. بعده نراجع كل إضافة
 وتغيير وحذف ثم نعرض تقرير تثبيت منفصل بالشجرة المحددة والبصمات.
 
-تقرير الإجراء المحمي: [nuxt-ui-lock-review-approval.json](../../../nuxt-ui-lock-review-approval.json).
+تقرير الإجراء المحمي: [nuxt-ui-lock-review-approval.json](../../../approvals/nuxt-ui-lock-review-approval.json).
 هذا منفصل عن الموافقة السابقة على تعليمات الوكلاء.
 
 ## الأدلة الحالية

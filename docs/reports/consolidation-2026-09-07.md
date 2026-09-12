@@ -1,6 +1,6 @@
 # Nasq consolidation — 2026-09-07
 
-> تاريخي. السياسة: [DESIGN.md](../DESIGN.md). ليس تعليمات واجهة.
+> تاريخي. السياسة: [DESIGN.md](../../DESIGN.md). ليس تعليمات واجهة.
 
 ## Scope and preservation
 

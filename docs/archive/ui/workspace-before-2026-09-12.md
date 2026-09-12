@@ -26,11 +26,11 @@ push, deployment or canonical runtime restart is part of this integration.
 
 # التنظيف النهائي بعد حذف الريكوفري — 2026-09-10
 
-بطلب المستخدم حُذفت نسخ الريكوفري والنسخ الاحتياطية المفهرسة وأرشيفات جولة الدمج، وأُوقفت جلسة Claude التي تستخدم آخر وورك تري ثم أزيلت النسخة وفرعها بعد التحقق من محتواها. بقيت نسخة التطوير الرئيسية على main فقط. [تقرير الجرد وتحديث الحذف](../../worktree-recovery-audit-2026-09-10.md) يميز الحالة الحالية عن سجلات الاسترجاع التاريخية أدناه. لم يُحدّث Odoo أو يُدفع أو يُنشر شيء.
+بطلب المستخدم حُذفت نسخ الريكوفري والنسخ الاحتياطية المفهرسة وأرشيفات جولة الدمج، وأُوقفت جلسة Claude التي تستخدم آخر وورك تري ثم أزيلت النسخة وفرعها بعد التحقق من محتواها. بقيت نسخة التطوير الرئيسية على main فقط. [تقرير الجرد وتحديث الحذف](../../reports/worktree-recovery-audit-2026-09-10.md) يميز الحالة الحالية عن سجلات الاسترجاع التاريخية أدناه. لم يُحدّث Odoo أو يُدفع أو يُنشر شيء.
 
 # جرد وتنظيف الوورك تري والريكوفري — 2026-09-10
 
-راجع [التحليل التفصيلي وفهرس الريكوفري](../../worktree-recovery-audit-2026-09-10.md). دُمجت معاينة Nuxt UI وإزالة الهوك محليًا عند `0d67389`. النسخ غير النشطة المدمجة حُفظت خارج المشروع وأزيلت تسجيلاتها؛ نسخة Claude المستخدمة ما زالت محفوظة. حالات «main فقط» القديمة أدناه تاريخية. الحالة الفعلية عند الإغلاق في ملف final-state المرتبط بالتقرير.
+راجع [التحليل التفصيلي وفهرس الريكوفري](../../reports/worktree-recovery-audit-2026-09-10.md). دُمجت معاينة Nuxt UI وإزالة الهوك محليًا عند `0d67389`. النسخ غير النشطة المدمجة حُفظت خارج المشروع وأزيلت تسجيلاتها؛ نسخة Claude المستخدمة ما زالت محفوظة. حالات «main فقط» القديمة أدناه تاريخية. الحالة الفعلية عند الإغلاق في ملف final-state المرتبط بالتقرير.
 
 # Nuxt UI reference foundation — 2026-09-10 (task worktree only)
 
@@ -48,15 +48,15 @@ See [module UI integration and recovery](module-ui-integration-2026-09-10.md) fo
 
 # UI consolidation and cleanup — 2026-09-09
 
-Projects presentation and chat workspace changes are integrated locally on main (product/test commit `063a721`). Only the canonical main worktree and branch remain. All four temporary worktrees are fully archived in `/Users/tariq/code/nasq-recovery-ui-20260909-224801/retired/`; their branch refs were removed after ancestry/content checks. See [the current inventory, commits, verification and recovery record](../../ui-consolidation-2026-09-09.md). Original dev port 3000 remains; synthetic previews 4097/4497 and 4197/4597 are stopped. Earlier project-preview and pending-work states below are historical. No upstream, database, dependency or deployment changes.
+Projects presentation and chat workspace changes are integrated locally on main (product/test commit `063a721`). Only the canonical main worktree and branch remain. All four temporary worktrees are fully archived in `/Users/tariq/code/nasq-recovery-ui-20260909-224801/retired/`; their branch refs were removed after ancestry/content checks. See [the current inventory, commits, verification and recovery record](../../reports/ui-consolidation-2026-09-09.md). Original dev port 3000 remains; synthetic previews 4097/4497 and 4197/4597 are stopped. Earlier project-preview and pending-work states below are historical. No upstream, database, dependency or deployment changes.
 
 # Approved security source integration — 2026-09-09
 
-See [the approved source integration](../../security-source-integration-2026-09-09.md) for exact versions, current verification and external final-state/recovery. This supersedes the pending-security status below after verified promotion; canonical runtime was not upgraded.
+See [the approved source integration](../../reports/security-source-integration-2026-09-09.md) for exact versions, current verification and external final-state/recovery. This supersedes the pending-security status below after verified promotion; canonical runtime was not upgraded.
 
 # Pending work integration — 2026-09-09
 
-See [the current integration record](../../pending-work-integration-2026-09-09.md) for source baselines, review fixes, tests, retained security branch and external recovery/final-state evidence. Actual Git state is authoritative.
+See [the current integration record](../../reports/pending-work-integration-2026-09-09.md) for source baselines, review fixes, tests, retained security branch and external recovery/final-state evidence. Actual Git state is authoritative.
 
 # Projects Side Sheet integration — 2026-09-09
 
@@ -68,14 +68,14 @@ Persistent tabs, the 2px active navigation underline, and richer meeting/series 
 
 # Latest meetings UX integration — 2026-09-09
 
-Meetings repairs and the preserved pending UI changes are integrated into local `main`; only the canonical worktree and main branch remain after verified archive-backed cleanup. See [integration and recovery](../../meetings-ux-integration-2026-09-09.md). This is source integration; `odoo19` and canonical running services were not upgraded or restarted.
+Meetings repairs and the preserved pending UI changes are integrated into local `main`; only the canonical worktree and main branch remain after verified archive-backed cleanup. See [integration and recovery](../../reports/meetings-ux-integration-2026-09-09.md). This is source integration; `odoo19` and canonical running services were not upgraded or restarted.
 
 # Current all-pending integration — 2026-09-08
 
-Current workspace: main only after [final consolidation](../../final-workspace-consolidation-2026-09-08.md); remaining sidebar work is integrated and retired worktrees are archived outside the repository.
+Current workspace: main only after [final consolidation](../../reports/final-workspace-consolidation-2026-09-08.md); remaining sidebar work is integrated and retired worktrees are archived outside the repository.
 
 
-Latest meetings integration: see [the 2026-09-08 integration record](../../meetings-integration-2026-09-08.md) for preserved main behavior, combined checks, and cleanup recovery.
+Latest meetings integration: see [the 2026-09-08 integration record](../../reports/meetings-integration-2026-09-08.md) for preserved main behavior, combined checks, and cleanup recovery.
 
 
 See [the combined integration record](../../verification/2026-09-08-all-pending-integration.md) for the latest local source, fresh checks and recovery. It supersedes older pending charter/task/chart and temporary-worktree states below. Actual promotion and cleanup are recorded in the linked external recovery final-state.json.
@@ -88,17 +88,17 @@ The user authorized merging all current branches into `main`. The Projects forms
 settings and workspace branch commits are reconciled in `codex/projects-refresh`,
 including the reviewed final corrections and the pre-existing main account-menu
 changes. `codex/ui-page-unify` was already an ancestor. See
-[the integration record](../../all-branches-integration-2026-09-08.md) for preservation,
+[the integration record](../../reports/all-branches-integration-2026-09-08.md) for preservation,
 fresh verification and the local merge boundary. Earlier unmerged/sole-worktree
 statements below are historical checkpoints.
 
 ## Project dashboard chart correction — 2026-09-07
 
-The chart dashboard correction follows the all-branches integration. See [the delivery report](../../project-charts-2026-09-07.md) for source, verification, runtime and recovery.
+The chart dashboard correction follows the all-branches integration. See [the delivery report](../../reports/project-charts-2026-09-07.md) for source, verification, runtime and recovery.
 
 ## Latest consolidation — 2026-09-07
 
-The user authorized all current Nasq branch/worktree integration, cleanup and local restart. See [the current consolidation report](../../all-branches-consolidation-2026-09-07.md) for reconciliation, recovery and final runtime evidence. Earlier worktree counts and pending states below describe their original checkpoints.
+The user authorized all current Nasq branch/worktree integration, cleanup and local restart. See [the current consolidation report](../../reports/all-branches-consolidation-2026-09-07.md) for reconciliation, recovery and final runtime evidence. Earlier worktree counts and pending states below describe their original checkpoints.
 
 واجهة العميل: [DESIGN.md](../../../DESIGN.md). التقارير أدناه أدلة استرداد، ليست سياسة واجهة.
 
@@ -115,7 +115,7 @@ Canonical main includes the additive meeting-permission migration `f71e3a3`.
 The user authorized updating `odoo19` and cleaning Git. The update and restart
 completed; Nuxt3000 and Odoo8069 respond. Only main and its canonical worktree
 remain; 35 merged extra branches/worktrees are retired with full recovery.
-See [the runtime and cleanup report](../../runtime-upgrade-cleanup-2026-09-07.md)
+See [the runtime and cleanup report](../../reports/runtime-upgrade-cleanup-2026-09-07.md)
 for backup paths, migration/rehearsal evidence and local verification limits.
 Earlier no-upgrade/no-cleanup statements describe their original delivery phase.
 The approved replacement layout remains the next implementation phase.
@@ -126,7 +126,7 @@ The user authorized all sixteen dirty worktrees, including meetings and Cyan,
 for coordinated local integration, now promoted to `main` (product `f117bac`).
 Source checkpoints, reconciliation decisions,
 independent reviews and fresh verification are recorded in
-[the sixteen-worktree report](../../worktree-consolidation-2026-09-07.md).
+[the sixteen-worktree report](../../reports/worktree-consolidation-2026-09-07.md).
 This supersedes earlier exclusions of meetings and old uncommitted-work notes.
 The source worktrees, branches and original Phase 2 stash are retained. This
 integration is code-only: existing services and `odoo19` are not upgraded.
@@ -150,7 +150,7 @@ restart, `odoo19` update or cleanup was performed.
 Project phases one and two are merged into local `main` at `e6f7929`.
 Sources `9b579c9` (governance, schedules, templates) and `04c5729` (budgets,
 costs, reports) are both ancestors. See
-[the integration report](../../projects-phases-integration-2026-09-07.md) for conflict
+[the integration report](../../reports/projects-phases-integration-2026-09-07.md) for conflict
 resolution, independent review and fresh gates: 119 contracts, 402 web units,
 436 Odoo tests, 21 phase browser cases plus one combined workflow. Node tests
 and Ruff passed again on main after promotion.
@@ -165,7 +165,7 @@ Older phase delivery statuses below and in their reports are historical.
 
 Chat is integrated locally at product commit `651e179`. Its original and
 temporary integration worktree directories and branch refs have been removed. See
-[the chat integration report](../../chat-integration-2026-09-07.md) for scope,
+[the chat integration report](../../reports/chat-integration-2026-09-07.md) for scope,
 verification, recovery and final promotion status. Only the chat source and
 its temporary integration worktree are in this cleanup scope. The meetings
 trial remains excluded; independently created Phase 1 worktrees remain active.
@@ -175,7 +175,7 @@ trial remains excluded; independently created Phase 1 worktrees remain active.
 Local consolidation is promoted into `main` (product commit `8af1060`).
 18 old source worktrees/branches are retired with full-directory recovery;
 the temporary integration worktree is retired at closure.
-See [the current consolidation report](../../consolidation-2026-09-07.md) for the
+See [the current consolidation report](../../reports/consolidation-2026-09-07.md) for the
 scope, passing gates and final recovery state. Older dated states below are
 historical; their branch counts and pending-work statements are not current.
 
@@ -201,7 +201,7 @@ content preservation and open-file checks. Only `/Users/tariq/code/nasq` on
 
 Fresh evidence: 80 contract, 235 web unit, 266 Odoo and 72 browser tests passed;
 web types, Ruff, production build, legacy upgrade/repeat, rollback and real
-concurrent transaction checks passed. See [the unification report](../../unification-2026-09-05.md)
+concurrent transaction checks passed. See [the unification report](../../reports/unification-2026-09-05.md)
 for scope, repairs, limitations and runtime state. Historical counts below
 belong to the earlier reorganization.
 
@@ -380,4 +380,4 @@ Local main now includes the approved shell, project workspace and compact global
 
 ## Project dashboard task — isolated, 2026-09-07
 
-The dashboard and four-item Projects contextual navigation are implemented in `/Users/tariq/code/nasq-project-dashboard` on `codex/project-dashboard`, based on c8f0448. This task is uncommitted and unmerged. See [the dashboard delivery report](../../project-dashboard-2026-09-07.md) for behavior, test evidence and isolated runtime. Canonical main is not updated by this task.
+The dashboard and four-item Projects contextual navigation are implemented in `/Users/tariq/code/nasq-project-dashboard` on `codex/project-dashboard`, based on c8f0448. This task is uncommitted and unmerged. See [the dashboard delivery report](../../reports/project-dashboard-2026-09-07.md) for behavior, test evidence and isolated runtime. Canonical main is not updated by this task.

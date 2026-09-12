@@ -4,7 +4,7 @@ Status: accepted and promoted into local `main`. The later authorized [runtime u
 
 ## Scope and preservation
 
-The user authorized committing all sixteen dirty worktrees and merging them into local `main` before the layout and Projects migration. All sixteen source snapshots were committed on their original branches. The [checkpoint manifest](consolidation/2026-09-07/checkpoints.json) records original heads, snapshot commits, trees and paths. Each snapshot is a real ancestor of the candidate, including the duplicate source branches.
+The user authorized committing all sixteen dirty worktrees and merging them into local `main` before the layout and Projects migration. All sixteen source snapshots were committed on their original branches. The [checkpoint manifest](../consolidation/2026-09-07/checkpoints.json) records original heads, snapshot commits, trees and paths. Each snapshot is a real ancestor of the candidate, including the duplicate source branches.
 
 The original inventory had 31 worktrees/branches, with 16 dirty and 15 clean. All branch tips before checkpointing were already ancestors of main; the remaining work was in their working directories. The meetings snapshot included three additional files and nine revised files since the initial audit; the commit captured the latest stable working tree. All original worktrees were clean immediately after checkpointing and are checked again at promotion.
 
@@ -18,7 +18,7 @@ External recovery and detailed logs: `/Users/tariq/.codex/visualizations/2026/09
 
 - Impeccable PMO and settings repair snapshots substantially duplicate `impeccable-fixes`. Useful behavior is ported into the later shared page chrome; original old page copies are not reapplied wholesale.
 - HR repair snapshots and the department chart are combined in the current HR routes. The two different DirectoryTable versions receive an explicit reconciliation.
-- Historical phase snapshots contain governance, schedule, templates, finance and reports already integrated through previous phase branches. [Per-path decisions](consolidation/2026-09-07/phase-decisions.md) retain later capability checks, finance exact cents, optimistic-concurrency recovery, combined contract exports, and task/project cache invalidation. Source test-name comparison found no missing source cases.
+- Historical phase snapshots contain governance, schedule, templates, finance and reports already integrated through previous phase branches. [Per-path decisions](../consolidation/2026-09-07/phase-decisions.md) retain later capability checks, finance exact cents, optimistic-concurrency recovery, combined contract exports, and task/project cache invalidation. Source test-name comparison found no missing source cases.
 - Gantt keeps the uncommitted project date range and capped axis. Integration restores visible dates, task state and undated information, a today cue, long-name containment, and inset milestone markers. The broad pressed-button color override is removed to preserve primary button contrast. Responsive child sizing and coarse-pointer hit areas are retained from the repair snapshot.
 - Meetings and Cyan are combined with current task/template behavior. Notification visibility, meeting-only UI access, Nasq-dependent Cyan tests and resolution conversion require dedicated integration repairs and verification.
 - The UI constitution, project frontend role, tool adapters and approved prototype are consolidated. `DESIGN.md` is the customer UI authority; existing light/cream/dark preferences remain supported. This does not implement the subsequent replacement layout or remove all legacy CSS.
@@ -51,10 +51,10 @@ repair, then two missing-datetime cases with three failing assertions before
 the final fix. New multi-company tests prove an A-company manager grant cannot
 expose unrelated B-company meetings, resolutions, attachments or notifications.
 
-Independent source reviews: [web](consolidation/2026-09-07/review-web-report.md),
-[HR](consolidation/2026-09-07/review-hr-report.md),
-[meetings](consolidation/2026-09-07/review-meetings-report.md), and
-[final integration](consolidation/2026-09-07/final-integration-review-report.md).
+Independent source reviews: [web](../consolidation/2026-09-07/review-web-report.md),
+[HR](../consolidation/2026-09-07/review-hr-report.md),
+[meetings](../consolidation/2026-09-07/review-meetings-report.md), and
+[final integration](../consolidation/2026-09-07/final-integration-review-report.md).
 All Important findings were reworked and accepted. Detailed package reports
 sit beside these reviews. Earlier failure/pending statements in their histories
 are superseded by their addenda and the fresh coordinator gates here.

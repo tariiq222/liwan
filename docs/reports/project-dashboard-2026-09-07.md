@@ -31,7 +31,7 @@ Preview: Nuxt `127.0.0.1:3983`, Odoo `127.0.0.1:9983`, database `nasq_dashboard_
 
 The first browser run failed because build-time /web proxies retained the default Odoo URL while the API used the scratch runtime URL, causing session logout. The final build points proxies to the scratch server and uses isolated session storage; all seven browser cases then passed. No business-write browser cases were used. Earlier failures and final evidence are preserved under `/tmp/nasq-dashboard-briefs/`.
 
-Screenshots: [desktop](evidence/project-dashboard-2026-09-07/dashboard-1440.png), [mobile](evidence/project-dashboard-2026-09-07/dashboard-390.png), [tablet](evidence/project-dashboard-2026-09-07/dashboard-768.png), [dark/large mobile](evidence/project-dashboard-2026-09-07/dashboard-dark-large-mobile.png).
+Screenshots: [desktop](../evidence/project-dashboard-2026-09-07/dashboard-1440.png), [mobile](../evidence/project-dashboard-2026-09-07/dashboard-390.png), [tablet](../evidence/project-dashboard-2026-09-07/dashboard-768.png), [dark/large mobile](../evidence/project-dashboard-2026-09-07/dashboard-dark-large-mobile.png).
 
 Worker sources remain preserved in `/Users/tariq/code/nasq-dashboard-data`, `/Users/tariq/code/nasq-dashboard-view`, and `/Users/tariq/code/nasq-my-projects`. Logs, briefs, and independent review: `/tmp/nasq-dashboard-briefs/`. No worktree cleanup, Git commit, or merge is included in this delivery.
 

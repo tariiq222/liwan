@@ -1,6 +1,6 @@
 # Nasq branch unification — 2026-09-05
 
-> تاريخي. السياسة: [DESIGN.md](../DESIGN.md). ليس تعليمات واجهة.
+> تاريخي. السياسة: [DESIGN.md](../../DESIGN.md). ليس تعليمات واجهة.
 
 Status: complete locally. Verified integration `a284019` was fast-forwarded to
 `main`; 12 extra worktrees and 13 preserved branches were removed. The sole

@@ -1,6 +1,6 @@
 # المرحلة الثانية: الميزانية والتكلفة وتقارير المشاريع
 
-> تاريخي. السياسة: [DESIGN.md](../DESIGN.md). ليس تعليمات واجهة.
+> تاريخي. السياسة: [DESIGN.md](../../DESIGN.md). ليس تعليمات واجهة.
 
 تاريخ العمل: 2026-09-07. الحالة: مكتملة ومتحقق منها محليًا في الفرع المعزول.
 
@@ -43,9 +43,9 @@ Claude Sonnet high عبر اشتراك claude.ai المتصل نفذ الخلف�
 
 تجارب المتصفح شملت CRUD، ربط المصروف، تأكيد الحذف داخل الصفحة، القارئ دون كتابة وصفحة المنع، حماية المسودة، تعارض الحفظ وفشل إعادة الجلب ثم نجاح إعادة المحاولة، وحذف آخر سجل في الصفحة الثانية والرجوع إلى صفحة فيها نتائج. راجعت لقطتي التقرير والجوال بصريًا، مع فحص عدم تجاوز عرض الشاشة.
 
-- [دليل الفحوص وبصمات ملفات المصدر](evidence/projects-phase2/verification.json)
-- [لقطة التقرير](evidence/projects-phase2/reports-desktop.png)
-- [لقطة الميزانية على الجوال](evidence/projects-phase2/finance-mobile.png)
+- [دليل الفحوص وبصمات ملفات المصدر](../evidence/projects-phase2/verification.json)
+- [لقطة التقرير](../evidence/projects-phase2/reports-desktop.png)
+- [لقطة الميزانية على الجوال](../evidence/projects-phase2/finance-mobile.png)
 
 السجلات التفصيلية في /tmp/nasq-phase2-evidence/: node-tests-final.log، web-types.log، ruff.log، build.log، odoo-tests-final.log، e2e-final.log، odoo-upgrade-repeat.log. هذا إثبات محلي للنسخة المعزولة، وليس إثبات نشر إنتاجي أو اختبار حمل واسع. تكرار تحديث الإضافة اختبر حفظ البيانات، ولا يمثل اختبار استعادة نسخة احتياطية.
 

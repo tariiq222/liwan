@@ -1,6 +1,6 @@
 # Chat integration — 2026-09-07
 
-> تاريخي. السياسة: [DESIGN.md](../DESIGN.md). ليس تعليمات واجهة.
+> تاريخي. السياسة: [DESIGN.md](../../DESIGN.md). ليس تعليمات واجهة.
 
 The user authorizes merging and cleaning `codex/chat-workspace`. The Cyan
 meetings trial remains excluded. Base main is `d63f82f`; original chat HEAD

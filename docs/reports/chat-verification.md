@@ -1,6 +1,6 @@
 # Chat workspace verification
 
-> تاريخي. السياسة: [DESIGN.md](../DESIGN.md). ليس تعليمات واجهة.
+> تاريخي. السياسة: [DESIGN.md](../../DESIGN.md). ليس تعليمات واجهة.
 
 Task branch: `codex/chat-workspace`. Isolated runtime only. Never `odoo19`.
 

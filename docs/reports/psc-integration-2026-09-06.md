@@ -1,6 +1,6 @@
 # PSC integration 2026-09-06
 
-> تاريخي. السياسة: [DESIGN.md](../DESIGN.md). ليس تعليمات واجهة.
+> تاريخي. السياسة: [DESIGN.md](../../DESIGN.md). ليس تعليمات واجهة.
 
 Worktree: `/Users/tariq/code/nasq-psc-integration-current`
 Branch: `codex/psc-integration-current`

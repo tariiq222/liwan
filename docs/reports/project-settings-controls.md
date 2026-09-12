@@ -1,6 +1,6 @@
 # Project settings controls
 
-> تاريخي. السياسة: [DESIGN.md](../DESIGN.md). ليس تعليمات واجهة.
+> تاريخي. السياسة: [DESIGN.md](../../DESIGN.md). ليس تعليمات واجهة.
 
 Creators and default stages are company fields with a read-only legacy
 fallback: until a company saves, `get()` reads global

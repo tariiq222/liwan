@@ -1,6 +1,6 @@
 # Institution identity permissions
 
-> تاريخي. السياسة: [DESIGN.md](../DESIGN.md). ليس تعليمات واجهة.
+> تاريخي. السياسة: [DESIGN.md](../../DESIGN.md). ليس تعليمات واجهة.
 
 User-approved correction, 2026-09-05. Worktree `/Users/tariq/code/nasq-design-system`, branch `codex/design-system`, uncommitted.
 
