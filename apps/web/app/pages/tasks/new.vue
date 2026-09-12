@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import TaskCreateForm from '@/components/task/TaskCreateForm.vue'
-import { returnToQuery, safeReturnTo } from '@/utils/safeReturnTo'
+import { safeReturnTo } from '@/utils/safeReturnTo'
 
 const route = useRoute()
 const router = useRouter()
@@ -10,7 +10,9 @@ const hydrated = useHydrated()
 const returnTo = computed(() => safeReturnTo(route.query.returnTo, '/tasks', ['/tasks', '/archived-tasks', '/projects']))
 function created(id: number) {
   toast.add({ title: t('tasks.created'), color: 'success' })
-  router.push({ path: '/tasks/' + id, query: returnToQuery(returnTo.value) })
+  // Hand the list's own state to the new task as plain query, so its back link
+  // restores the view the create was started from without a returnTo chain.
+  router.push({ path: '/tasks/' + id, query: router.resolve(returnTo.value).query })
 }
 </script>
 

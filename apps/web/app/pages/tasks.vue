@@ -25,11 +25,12 @@ function onViewChange(view: 'table' | 'board') {
   onTabChange(view)
 }
 
-// Detail is now a real route (/tasks/{id}, see pages/tasks/[id].vue) rather
-// than a ?task= query param. Row click / create both push there, carrying
-// the current query (?tab and any filters) forward so closing can restore it.
+// Detail is a real route (/tasks/{id}, see pages/tasks/[id].vue). The list's
+// own state travels as plain query, not wrapped in a returnTo: the detail page
+// hands the same keys straight back, so ?tab=board survives the round trip and
+// nothing accumulates in the URL.
 function openTask(id: number) {
-  router.push({ path: `/tasks/${id}`, query: returnToQuery(route.fullPath) })
+  router.push({ path: `/tasks/${id}`, query: { ...route.query } })
 }
 
 // Filters persist per browser, per the toolbar's contract; useTaskFilters

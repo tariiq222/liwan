@@ -54,7 +54,7 @@ const hydrated = useHydrated()
           <p class="whitespace-pre-wrap">{{ item.data.value.response || '—' }}</p>
           <p v-if="item.data.value.task">
           <span class="text-muted">{{ t('projects.governance.register.task') }}:</span>
-          <NuxtLink class="underline" :to="{ path: `/projects/${projectId}/tasks/${item.data.value.task.id}`, query: { returnTo: route.fullPath } }">{{ item.data.value.task.name }}</NuxtLink>
+          <NuxtLink class="underline" :to="{ path: `/projects/${projectId}/tasks/${item.data.value.task.id}` }">{{ item.data.value.task.name }}</NuxtLink>
           </p>
         </div>
       </section>

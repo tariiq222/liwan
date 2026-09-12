@@ -32,13 +32,14 @@ const canCreate = computed(() => can('pmo.tasks.create') && project.value?.activ
 // registers the shell title without emitting a competing heading.
 usePageHeader(() => t('nav.projectTasks'))
 
-// A link out of this list carries the query through unchanged except for
-// `view`, which is this page's own presentation choice and says nothing about
-// the record being opened. The section path already names where a close
-// returns to, so no returnTo is added either.
+// A link out of this list carries the list's own state through, `view`
+// included: the detail page hands these keys straight back, so the board
+// survives the round trip. A referrer's returnTo is dropped instead of
+// forwarded — the section path already names where the record returns to, and
+// a stale returnTo on the list URL would redirect this page's own controls.
 const filterQuery = computed<LocationQueryRaw>(() => {
-  const { view: _view, ...filters } = route.query
-  return filters as LocationQueryRaw
+  const { returnTo: _referrer, ...listState } = route.query
+  return listState as LocationQueryRaw
 })
 
 function onParams(value: TaskListParams) {

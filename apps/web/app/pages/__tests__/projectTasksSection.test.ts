@@ -92,8 +92,12 @@ describe('project tasks section page', () => {
     expect(openCreate).toContain('filterQuery')
     expect(openCreate).not.toContain('taskTo(')
     expect(source).not.toContain('defineExpose')
-    // `view` is this page's presentation choice, not a list filter.
-    expect(source).toContain('view: _view')
+    // `view` used to be stripped as "this page's presentation choice", which
+    // meant board -> open task -> Back landed on the table. It is list state the
+    // detail page hands straight back, so it now travels with the link; the
+    // referrer's returnTo is what gets dropped instead.
+    expect(source).not.toContain('view: _view')
+    expect(source).toContain('returnTo: _referrer')
   })
 
   it('leaves the only h1 to the frame and registers the shell title itself', () => {
