@@ -66,7 +66,7 @@ usePageHeader(() => props.title, () => headerDescription.value)
         <h1 class="text-xl font-semibold text-highlighted"><slot name="title">{{ props.title }}</slot></h1>
         <p v-if="headerDescription" class="mt-1 max-w-3xl text-start text-sm leading-6 text-muted">{{ headerDescription }}</p>
       </div>
-      <div v-if="$slots.actions || $slots.default" class="ms-auto flex min-w-0 max-w-full flex-wrap items-center gap-2">
+      <div v-if="$slots.actions || $slots.default" class="ms-auto flex min-w-0 max-w-full flex-wrap items-center gap-3">
         <slot name="actions"><slot /></slot>
       </div>
     </div>

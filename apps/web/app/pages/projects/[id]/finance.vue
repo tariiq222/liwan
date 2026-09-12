@@ -165,7 +165,6 @@ function financeChildKey(target: { path: string; params: Record<string, string |
 
 <template>
   <SharedPageContainer v-if="isListRoute" width="list" data-testid="project-finance-page">
-    <div class="grid gap-2">
     <SharedPageHeader
       v-if="!isProjectOverlay"
       :title="t('projects.finance.title')"
@@ -206,7 +205,6 @@ function financeChildKey(target: { path: string; params: Record<string, string |
         </div>
       </template>
     </FilterBar>
-    </div>
     <template v-if="projectId === null">
       <p class="text-muted">{{ t('projects.invalidId') }}</p>
     </template>

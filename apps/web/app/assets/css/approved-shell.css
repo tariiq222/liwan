@@ -6,7 +6,7 @@
 .nasq-page-stack { grid-template-columns: minmax(0, 1fr); min-width: 0; gap: 1.75rem; }
 .nasq-page-stack > * { min-width: 0; }
 /* Shared composition for project sections and their routed record workflows. */
-.nasq-page-stack[data-workspace-area="true"] { gap: 1rem; align-content: start; }
+.nasq-page-stack[data-workspace-area="true"] { gap: 1.5rem; align-content: start; }
 [data-workspace-area="true"] [data-slot="page-header"] { min-height: 2.25rem; align-items: center; }
 [data-workspace-area="true"] .nasq-form-footer { justify-content: flex-end; }
 
@@ -55,7 +55,7 @@ html[dir="rtl"] .nasq-gantt-name { box-shadow: 8px 0 16px -12px color-mix(in srg
   [data-nasq-shell] :is(
     [data-slot="button"], [data-testid="notification-bell"],
     [data-slot="select-trigger"], .header-account, .nasq-search-trigger,
-    .nasq-module-rail-toggle, .nasq-context-link
+    .nasq-module-rail-toggle, .nasq-context-toggle, .nasq-context-link
   ) {
     min-height: 44px;
     min-width: 44px;
@@ -205,12 +205,12 @@ html[dir="rtl"] body { padding-right: 0 !important; }
 .nasq-context-sidebar[data-chat="true"] .nasq-context-heading { padding-block-end: 4px; }
 .nasq-context-sidebar-inner { display: flex; min-height: 0; flex: 1; flex-direction: column; padding-block: 0 18px; }
 .nasq-context-sidebar[data-chat="true"] .nasq-context-sidebar-inner { min-height: 0; overflow: hidden; }
-.nasq-context-toggle { display: flex; flex: none; align-items: center; gap: 8px; min-height: 40px; margin: 8px 10px 0; padding: 8px 10px; border-radius: 8px; color: var(--muted-foreground); font-size: .75rem; text-align: start; }
+.nasq-context-toggle { color: var(--muted-foreground); }
 .nasq-context-toggle:hover { background: color-mix(in srgb, var(--foreground) 6%, var(--context-surface)); color: var(--foreground); }
 .nasq-context-toggle:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
 .nasq-context-toggle svg { width: 18px; height: 18px; flex: none; }
 
-.nasq-context-heading { display: grid; grid-template-columns: 36px minmax(0, 1fr); align-items: center; gap: 10px; padding: 14px 18px 20px; }
+.nasq-context-heading { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding-block: 14px 20px; padding-inline: 18px 12px; }
 .nasq-context-emblem { display: grid; width: 36px; height: 36px; place-items: center; border: 1px solid var(--border); border-radius: 10px; background: var(--brand-soft); color: var(--brand-link); }
 .nasq-context-heading-copy { min-width: 0; }
 .nasq-context-heading h2 { margin: 0; overflow-wrap: anywhere; font-size: 1rem; font-weight: 600; line-height: 1.55; }
@@ -273,11 +273,10 @@ html[dir="rtl"] body { padding-right: 0 !important; }
 }
 @media (min-width: 768px) {
   .nasq-shell:has(.nasq-context-sidebar[data-expanded="false"]) { --context-sidebar-width: 64px; }
-  .nasq-context-sidebar[data-expanded="false"] .nasq-context-heading,
-  .nasq-context-sidebar[data-expanded="false"] .nasq-context-group-heading,
-  .nasq-context-sidebar[data-expanded="false"] .nasq-context-toggle span { display: none; }
-  .nasq-context-sidebar[data-expanded="false"] .nasq-context-toggle { justify-content: center; padding-inline: 8px; }
-  .nasq-context-sidebar[data-expanded="false"] .nasq-context-sidebar-inner { padding-block-start: 12px; }
+  .nasq-context-sidebar[data-expanded="false"] .nasq-context-heading { display: flex; justify-content: center; padding: 12px 8px 8px; }
+  .nasq-context-sidebar[data-expanded="false"] .nasq-context-emblem,
+  .nasq-context-sidebar[data-expanded="false"] .nasq-context-heading-copy,
+  .nasq-context-sidebar[data-expanded="false"] .nasq-context-group-heading { display: none; }
   .nasq-context-sidebar[data-expanded="false"] .nasq-context-link { justify-content: center; padding-inline: 8px; }
   .nasq-context-sidebar[data-expanded="false"] .nasq-context-link > svg { width: 18px; height: 18px; flex: none; }
   .nasq-context-sidebar[data-expanded="false"] .nasq-context-link > span { position: fixed; inset-inline-start: calc(var(--module-rail-width) + var(--context-sidebar-width) + 8px); z-index: 90; opacity: 0; pointer-events: none; border-radius: 7px; background: var(--foreground); color: var(--background); padding: 6px 10px; white-space: nowrap; }

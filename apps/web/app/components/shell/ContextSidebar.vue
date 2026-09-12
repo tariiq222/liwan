@@ -118,27 +118,6 @@ function updateRoute(next: ChatListRoute) {
     :data-direction="localeProperties.dir"
     :aria-label="t('nav.context')"
   >
-    <UTooltip :text="t(expanded ? 'nav.collapseContext' : 'nav.expandContext')">
-      <UButton
-        type="button"
-        color="neutral"
-        variant="ghost"
-        class="nasq-context-toggle"
-        data-testid="context-sidebar-toggle"
-        :disabled="!hydrated"
-        :aria-expanded="expanded"
-        :aria-controls="navigationId"
-        :aria-label="t(expanded ? 'nav.collapseContext' : 'nav.expandContext')"
-        :title="t(expanded ? 'nav.collapseContext' : 'nav.expandContext')"
-        @click="toggle"
-      >
-        <template #leading>
-          <PanelLeftClose v-if="expanded" aria-hidden="true" />
-          <PanelLeftOpen v-else aria-hidden="true" />
-        </template>
-        <span>{{ t(expanded ? 'nav.collapseContext' : 'nav.expandContext') }}</span>
-      </UButton>
-    </UTooltip>
     <Transition name="nasq-context" mode="out-in">
       <div :id="navigationId" :key="contextMotionKey" class="nasq-context-sidebar-inner">
       <div class="nasq-context-heading">
@@ -159,6 +138,26 @@ function updateRoute(next: ChatListRoute) {
         </ol>
       </nav>
         </div>
+        <UTooltip :text="t(expanded ? 'nav.collapseContext' : 'nav.expandContext')">
+          <UButton
+            type="button"
+            color="neutral"
+            variant="ghost"
+            square
+            class="nasq-context-toggle"
+            data-testid="context-sidebar-toggle"
+            :disabled="!hydrated"
+            :aria-expanded="expanded"
+            :aria-controls="navigationId"
+            :aria-label="t(expanded ? 'nav.collapseContext' : 'nav.expandContext')"
+            @click="toggle"
+          >
+            <template #leading>
+              <PanelLeftClose v-if="expanded" aria-hidden="true" />
+              <PanelLeftOpen v-else aria-hidden="true" />
+            </template>
+          </UButton>
+        </UTooltip>
       </div>
 
       <div v-if="createLinks.length" class="nasq-context-create-actions">

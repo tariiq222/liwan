@@ -116,8 +116,9 @@ const workspaceCanCreate = computed(() => {
 </script>
 
 <template>
+  <div class="flex flex-col gap-8">
   <SharedPageContainer v-if="showWorkspaceFrame" width="list" data-testid="project-workspace-frame">
-    <div class="flex flex-col gap-2">
+    <div class="flex flex-col gap-4">
       <div class="flex min-h-9 flex-wrap items-center justify-between gap-3" data-testid="project-workspace-identity">
         <div v-if="project" class="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
           <p class="min-w-0 truncate text-lg font-semibold text-highlighted" data-testid="project-workspace-name">{{ project.name }}</p>
@@ -198,4 +199,5 @@ const workspaceCanCreate = computed(() => {
     </template>
   </SharedPageContainer>
   <NuxtPage />
+  </div>
 </template>
