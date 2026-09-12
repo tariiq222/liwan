@@ -32,9 +32,55 @@ describe('project tasks section page', () => {
   })
 
   it('links a task row to a sibling path and carries no returnTo', () => {
-    expect(source).toContain('`/projects/${projectId.value}/tasks/${taskId}`')
-    // The section path already says where a close returns to.
-    expect(source).not.toContain('returnTo')
+    const taskTo = source.match(/function taskTo\([\s\S]*?\n}/)?.[0]
+    expect(taskTo).toBeDefined()
+    expect(taskTo).toContain('`/projects/${projectId.value}/tasks/${taskId}`')
+    expect(taskTo).toContain('filterQuery.value')
+    // The section path already says where a close returns to, so no outbound
+    // link may be built through the returnTo query helper.
+    expect(source).not.toContain('returnToQuery')
+  })
+
+  it('escapes an unusable project id instead of querying with a blank one', () => {
+    // /projects/abc/tasks still mounts this page: <NuxtPage/> is unconditional
+    // and useProject is merely disabled, so without this branch TaskTable would
+    // ask the server for project_id= and take a 422.
+    expect(source).toContain('projectId.value === null')
+    const panel = source.match(/<div v-if="notFound"[\s\S]*?<\/div>/)?.[0]
+    expect(panel).toBeDefined()
+    expect(panel).toContain("t('projects.notFound')")
+    expect(panel).toContain("t('projects.backToProjects')")
+    // The list may only render once that branch has ruled a null id out.
+    expect(source).toContain('<SharedPageState v-else-if="error"')
+    expect(source.match(/<section v-else\b/)?.[0]).toBeDefined()
+  })
+
+  it('gates create on the task capability, not on project ownership', () => {
+    // This is the one section page where a capability rather than can_manage
+    // decides creation; widening it would be a security-relevant regression.
+    const canCreate = source.match(/const canCreate = computed\([\s\S]*?\n/)?.[0]
+    expect(canCreate).toBeDefined()
+    expect(canCreate).toContain("can('pmo.tasks.create')")
+    expect(canCreate).toContain('active')
+    expect(canCreate).not.toContain('can_manage')
+    const row = source.match(/<div v-if="canCreate"[\s\S]*?<\/div>/)?.[0]
+    expect(row).toBeDefined()
+    expect(row).toContain('data-testid="project-header-create"')
+    expect(row).toContain(':disabled="!hydrated"')
+  })
+
+  it('gives the board the project stages', () => {
+    // TaskBoard falls back to {kind:'personal'} when stageSource is omitted, so
+    // dropping this prop would silently render personal stages on a project.
+    expect(source.match(/<TaskBoard\b[^>]*>/s)?.[0]).toContain(':stage-source="stageSource"')
+    expect(source).toContain("kind: 'project' as const")
+  })
+
+  it('keeps a way out to the archived tasks of this project', () => {
+    const link = source.match(/<NuxtLink\b[^>]*>/s)?.[0]
+    expect(link).toBeDefined()
+    expect(link).toContain("path: '/archived-tasks'")
+    expect(link).toContain('project_id: projectId')
   })
 
   it('derives record and create links from one explicit filter query', () => {

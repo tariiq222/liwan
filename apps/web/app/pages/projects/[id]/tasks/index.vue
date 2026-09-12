@@ -3,10 +3,12 @@ import type { LocationQueryRaw } from 'vue-router'
 import TaskBoard from '@/components/task/TaskBoard.vue'
 import TaskTable from '@/components/task/TaskTable.vue'
 import TaskToolbar from '@/components/task/TaskToolbar.vue'
+import { ApiError } from '@/composables/useApi'
 import { projectIdFromPath } from '@/composables/nav/activeRoute'
 import { projectTaskParams, projectTaskQuery } from '@/composables/projectTaskParams'
 import { useProject } from '@/composables/useProjects'
 import type { TaskListParams } from '@/composables/useTasks'
+import { safeReturnTo } from '@/utils/safeReturnTo'
 
 const route = useRoute()
 const router = useRouter()
@@ -17,9 +19,11 @@ const projectId = computed(() => projectIdFromPath(route.path))
 const { data: projectData, error, refetch } = useProject(projectId)
 // Same SSR contract as the frame: reveal the cached project only once hydrated.
 const project = computed(() => hydrated.value ? projectData.value : undefined)
+const notFound = computed(() => projectId.value === null || (error.value instanceof ApiError && (error.value.status === 404 || error.value.status === 403)))
+const projectReturnTo = computed(() => safeReturnTo(route.query.returnTo, '/projects', ['/projects', '/tasks', '/hr', '/settings', '/account', '/search', '/notifications', '/reports']))
 const isBoard = computed(() => route.query.view === 'board')
-// projectId is non-null on this route: the frame only mounts a child once
-// projectIdFromPath has matched.
+// Only ever evaluated inside the v-else of the not-found branch below, which
+// is what rules out a null projectId here.
 const params = computed<TaskListParams>(() => projectTaskParams(projectId.value!, route.query))
 const stageSource = computed(() => ({ kind: 'project' as const, stages: project.value?.stages ?? [] }))
 const canCreate = computed(() => can('pmo.tasks.create') && project.value?.active === true)
@@ -28,9 +32,10 @@ const canCreate = computed(() => can('pmo.tasks.create') && project.value?.activ
 // registers the shell title without emitting a competing heading.
 usePageHeader(() => t('nav.projectTasks'))
 
-// A link out of this list carries only the filters that decide its order. The
-// section path already names where a close returns to, and `view` is this
-// page's own presentation choice, not a property of the record being opened.
+// A link out of this list carries the query through unchanged except for
+// `view`, which is this page's own presentation choice and says nothing about
+// the record being opened. The section path already names where a close
+// returns to, so no returnTo is added either.
 const filterQuery = computed<LocationQueryRaw>(() => {
   const { view: _view, ...filters } = route.query
   return filters as LocationQueryRaw
@@ -58,7 +63,12 @@ function openCreate() {
 
 <template>
   <SharedPageContainer width="list">
-    <SharedPageState v-if="error" :error="error" @retry="refetch" />
+    <div v-if="notFound" class="flex flex-col items-start gap-3">
+      <p class="text-muted">{{ t('projects.notFound') }}</p>
+      <UButton type="button" color="neutral" variant="outline" size="sm" @click="router.push(projectReturnTo)">{{ t('projects.backToProjects') }}</UButton>
+    </div>
+
+    <SharedPageState v-else-if="error" :error="error" @retry="refetch" />
     <section v-else class="min-w-0 space-y-4" :aria-label="t('projects.tabs.tasks')">
       <div v-if="canCreate" class="flex justify-end">
         <UButton

@@ -14,16 +14,21 @@ const { data: projectData, isLoading, error } = useProject(projectId)
 // Keep the first client tree identical to SSR, then reveal the cached project.
 const project = computed(() => hydrated.value ? projectData.value : undefined)
 const notFound = computed(() => projectId.value === null || (error.value instanceof ApiError && (error.value.status === 404 || error.value.status === 403)))
-// The frame belongs to the seven sections and their records; project settings
-// is a standalone page inside the workspace and owns its own header. A failed
-// load with nothing cached has no identity to show, so the child page's error
-// state stands alone. `projectData` rather than `project` here: gating on the
-// hydration-delayed value would make the first client render drop a frame the
-// server had already emitted.
+const settingsTo = computed(() => `/projects/${projectId.value}/settings`)
+// Settings is deliberately not one of the seven sections (activeProjectSection
+// returns null for it, and the tab strip must not grow an eighth tab), but it
+// is still a page of this workspace: without the frame it would lose the
+// project identity and every route back to the project.
+const isProjectSettings = computed(() => projectId.value !== null
+  && (route.path.replace(/\/+$/, '') || '/') === settingsTo.value)
+// The frame belongs to the seven sections and their records, plus settings. A
+// failed load with nothing cached has no identity to show, so the child page's
+// error state stands alone. `projectData` rather than `project` here: gating on
+// the hydration-delayed value would make the first client render drop a frame
+// the server had already emitted.
 const showFrame = computed(() => !notFound.value
   && !(error.value && !projectData.value)
-  && activeProjectSection(route.path) !== null)
-const settingsTo = computed(() => `/projects/${projectId.value}/settings`)
+  && (activeProjectSection(route.path) !== null || isProjectSettings.value))
 </script>
 
 <template>
@@ -53,6 +58,7 @@ const settingsTo = computed(() => `/projects/${projectId.value}/settings`)
             :to="settingsTo"
             :aria-label="t('nav.projectSettings')"
             :title="t('nav.projectSettings')"
+            :aria-current="isProjectSettings ? 'page' : undefined"
           />
         </div>
         <!-- Tabs follow the hydrated project like the title row, so a first click is a client-side navigation. -->

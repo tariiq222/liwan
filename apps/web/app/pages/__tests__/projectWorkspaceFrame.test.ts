@@ -7,6 +7,7 @@ import { resolve } from 'node:path'
 const pages = resolve(import.meta.dirname, '..')
 const framePath = resolve(pages, 'projects/[id].vue')
 const summaryPath = resolve(pages, 'projects/[id]/index.vue')
+const sectionsPath = resolve(pages, '../composables/nav/projectSections.ts')
 const frame = readFileSync(framePath, 'utf8')
 
 /** Structural markers that must only ever live in the section pages, not the frame. */
@@ -43,6 +44,33 @@ describe('project workspace frame', () => {
     expect(tag).toBeDefined()
     // Task 4 removed can-manage; passing it leaves an inert attribute on <nav>.
     expect(tag).not.toContain('can-manage')
+  })
+
+  it('shows itself on the sections, their records and project settings, and nowhere else', () => {
+    // Nothing here asserted showFrame before, so replacing it with
+    // `computed(() => true)` used to leave the whole suite green.
+    const showFrame = frame.slice(frame.indexOf('const showFrame'))
+    expect(showFrame).toContain('activeProjectSection(route.path) !== null')
+    expect(showFrame).toContain('isProjectSettings')
+    // A bad id and a 403/404 have no identity to show.
+    expect(showFrame).toContain('!notFound.value')
+    // A failed load with nothing cached must not leave an empty identity strip.
+    expect(showFrame).toContain('!(error.value && !projectData.value)')
+  })
+
+  it('keeps project settings inside the workspace without a settings tab', () => {
+    // settings is not one of the seven sections, so activeProjectSection is
+    // null there; the frame has to name that case itself or the settings page
+    // loses the project identity and every route back to the project.
+    const settings = frame.match(/const isProjectSettings = computed\([\s\S]*?\n(?=const |\/\/ )/)?.[0]
+    expect(settings).toBeDefined()
+    expect(settings).toContain('settingsTo.value')
+    expect(settings).toContain('projectId.value !== null')
+    const button = frame.match(/<UButton\b[^>]*data-testid="project-workspace-settings"[^>]*\/>/s)?.[0]
+    expect(button).toBeDefined()
+    expect(button).toContain(":aria-current=\"isProjectSettings ? 'page' : undefined\"")
+    // The tab strip must not grow an eighth tab for it.
+    expect(readFileSync(sectionsPath, 'utf8')).not.toContain("id: 'settings'")
   })
 
   it('no longer renders any section content inline', () => {

@@ -16,6 +16,18 @@ describe('project milestones section page', () => {
     expect(source).toContain('SharedPageContainer')
   })
 
+  it('escapes an unusable project id instead of rendering an empty table', () => {
+    // /projects/0/milestones still mounts this page: <NuxtPage/> is
+    // unconditional and useProject is merely disabled, so there is no error to
+    // show and nothing else would tell the visitor what went wrong.
+    expect(source).toContain('projectId.value === null')
+    const panel = source.match(/<div v-if="notFound"[\s\S]*?<\/div>/)?.[0]
+    expect(panel).toBeDefined()
+    expect(panel).toContain("t('projects.notFound')")
+    expect(panel).toContain("t('projects.backToProjects')")
+    expect(source).toContain('<SharedPageState v-else-if="error"')
+  })
+
   it('renders the milestone table with the project it owns', () => {
     const tag = source.match(/<MilestoneTable\b[^>]*>/s)?.[0]
     expect(tag).toBeDefined()
