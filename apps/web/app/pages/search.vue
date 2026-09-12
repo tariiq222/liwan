@@ -4,6 +4,7 @@ import { ProjectRefSchema } from '@nasq/contracts'
 import { safeReturnTo } from '@/utils/safeReturnTo'
 import { firstAllowedPath } from '@/utils/accessPolicy'
 import { findSearchShortcut } from '@/composables/searchKeyboard'
+import { useNav } from '@/composables/nav/shellModules'
 const { t } = useI18n()
 const { me } = useMe()
 const { can } = useAccess()

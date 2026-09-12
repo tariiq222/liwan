@@ -1,6 +1,6 @@
 import type { RouteLocationRaw } from 'vue-router'
 // Relative imports: the `@/` alias does not resolve for value imports under a
-// plain `vitest run`, and this module is unit-tested directly (useNav.ts:3).
+// plain `vitest run`, and this module is unit-tested directly.
 import { parseChatListRoute, serializeChatListRoute } from '../../utils/chatState'
 import { meetingCreateRoute } from '../../utils/meetingRoutes'
 import { returnToQuery, safeReturnTo } from '../../utils/safeReturnTo'

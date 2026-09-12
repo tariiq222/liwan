@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { activeShellModule, visibleShellModules } from '@/composables/useNav'
+import { visibleShellModules } from '@/composables/nav/shellModules'
+import { activeShellModule } from '@/composables/nav/activeRoute'
 import { useModuleRail } from '@/composables/useShellNavigation'
 
 const { t, localeProperties } = useI18n()

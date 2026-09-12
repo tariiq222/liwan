@@ -1,16 +1,14 @@
 import { toValue, type MaybeRefOrGetter } from 'vue'
 import { useProject } from './useProjects'
+// These names have one owner each under nav/; import for internal use only,
+// never re-export, or the auto-import namespace collision just moves here.
 import {
-  activeShellModule,
   contextLinksForModule,
-  contextModuleFor,
   visibleShellModules,
   type ShellContextLink,
   type ShellModule,
-} from './useNav'
-// projectIdFromPath has one owner (nav/activeRoute.ts); import for internal use
-// only, never re-export, or the auto-import namespace collision just moves here.
-import { projectIdFromPath } from './nav/activeRoute'
+} from './nav/shellModules'
+import { activeShellModule, contextModuleFor, projectIdFromPath } from './nav/activeRoute'
 import type { AccessIdentity } from '@/utils/accessPolicy'
 
 export function useModuleRail() {

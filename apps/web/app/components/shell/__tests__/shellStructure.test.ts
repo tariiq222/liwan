@@ -7,7 +7,7 @@ const layout = readFileSync(resolve(root, 'layouts/default.vue'), 'utf8')
 const nuxtConfig = readFileSync(resolve(root, '../nuxt.config.ts'), 'utf8')
 const shellCss = readFileSync(resolve(root, 'assets/css/shell.css'), 'utf8')
 const componentsCss = readFileSync(resolve(root, 'assets/css/components.css'), 'utf8')
-const navModel = readFileSync(resolve(root, 'composables/useNav.ts'), 'utf8')
+const navModel = readFileSync(resolve(root, 'composables/nav/shellModules.ts'), 'utf8')
 const projectSectionsModel = readFileSync(resolve(root, 'composables/nav/projectSections.ts'), 'utf8')
 const accountMenu = readFileSync(resolve(root, 'components/AppAccountMenu.vue'), 'utf8')
 const contextSidebar = readFileSync(resolve(root, 'components/shell/ContextSidebar.vue'), 'utf8')
@@ -46,14 +46,23 @@ describe('approved shell structure', () => {
     expect(chatWorkspace).not.toContain('lg:grid-cols-[20rem_minmax(0,1fr)]')
   })
 
-  it('derives sidebar and mobile groups from one shared useNav function', () => {
+  it('orders sidebar and mobile context links pinned-first from one shared model', () => {
     for (const source of [contextSidebar, mobileNavigation]) {
-      expect(source).toContain('shellContextGroups(')
       expect(source).toContain('contextModuleFor(')
       expect(source).not.toContain('contextGroupsForModule')
       expect(source).not.toContain('nav.projectWork')
       expect(source).not.toContain('nav.projectsOverview')
       expect(source).not.toContain('nav.currentProject')
+    }
+    // Both shells render one flat list. The grouping wrapper they used to share
+    // always produced exactly one unlabelled group, so the order is the whole
+    // contract: pinned create actions first, then navigation. Asserted per file
+    // because a drift here is invisible — each shell still renders every link.
+    for (const [source, links] of [[contextSidebar, 'moduleLinks'], [mobileNavigation, 'primaryLinks']] as const) {
+      expect(source).toContain(`[...${links}.value.filter(link => link.pinned), ...${links}.value.filter(link => !link.pinned)]`)
+      expect(source).not.toContain('shellContextGroups')
+      expect(source).not.toContain('navigationGroups')
+      expect(source).not.toContain('nasq-context-group')
     }
   })
 
@@ -109,7 +118,7 @@ describe('Nuxt UI shell migration', () => {
     }
     for (const source of [contextSidebar, moduleRail, mobileNavigation]) expect(source).toContain('<UIcon')
     // NavIcon's declaration now lives in nav/projectSections.ts (its one auto-import
-    // owner); useNav.ts imports the type rather than redeclaring it.
+    // owner); nav/shellModules.ts imports the type rather than redeclaring it.
     expect(projectSectionsModel).toContain('export type NavIcon = `i-lucide-${string}`')
     expect(componentsCss).toContain('.nasq-shell-icon')
     expect(shellCss).toContain('[data-slot="label"]')

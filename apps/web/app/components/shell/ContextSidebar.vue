@@ -3,7 +3,8 @@ import { useMediaQuery } from '@vueuse/core'
 import ConversationList from '@/components/chat/ConversationList.vue'
 import SidebarCreateAction from '@/components/shell/SidebarCreateAction.vue'
 import { useContextSidebar, useShellNavigation } from '@/composables/useShellNavigation'
-import { activeShellModule, contextModuleFor, hidePinnedNewProject, shellContextGroups, shellModules } from '@/composables/useNav'
+import { hidePinnedNewProject, shellModules } from '@/composables/nav/shellModules'
+import { activeShellModule, contextModuleFor } from '@/composables/nav/activeRoute'
 import { createLinkTo } from '@/composables/nav/createActions'
 import { parseChatListRoute, serializeChatListRoute, type ChatListRoute } from '@/utils/chatState'
 
@@ -37,17 +38,15 @@ const primaryLinks = computed(() => contextLinks.value)
 const moduleLinks = computed(() => (isChat.value && isDesktop.value && expanded.value
   ? primaryLinks.value.filter(item => item.id === 'new-chat')
   : primaryLinks.value))
-// One shared grouping for the desktop sidebar and the mobile menu.
-const contextGroups = computed(() => linksModule.value ? shellContextGroups(linksModule.value, me.value, route.path, moduleLinks.value) : [])
+// Pinned create actions first, then navigation — the same order as the mobile menu.
+const orderedLinks = computed(() => [...moduleLinks.value.filter(link => link.pinned), ...moduleLinks.value.filter(link => !link.pinned)])
 const createLinks = computed(() => {
   if (isChat.value && isDesktop.value) return []
-  return contextGroups.value.flatMap(group => group.links).filter(link => link.pinned && !(link.id === 'new-project' && hidePinnedNewProject(route.path)))
+  return orderedLinks.value.filter(link => link.pinned && !(link.id === 'new-project' && hidePinnedNewProject(route.path)))
 })
-const navigationGroups = computed(() => contextGroups.value
-  .map(group => ({ ...group, links: group.links.filter(link => !link.pinned) }))
-  .filter(group => group.links.length))
+const navigationLinks = computed(() => orderedLinks.value.filter(link => !link.pinned))
 const showContextNav = computed(() => {
-  const links = navigationGroups.value.flatMap(group => group.links)
+  const links = navigationLinks.value
   if (!createLinks.value.length && links.length === 1 && links[0]!.labelKey === moduleDefinition.value?.labelKey) return false
   return links.length > 0
 })
@@ -119,30 +118,25 @@ function updateRoute(next: ChatListRoute) {
       </div>
 
       <nav v-if="showContextNav" class="nasq-context-links" :data-grouped="activeModule === 'settings' || isProjectsArea" :aria-label="contextTitle">
-        <div v-for="group in navigationGroups" :key="group.id" class="nasq-context-group">
-          <h3 v-if="group.labelKey" class="nasq-context-group-heading">{{ t(group.labelKey) }}</h3>
-          <div class="nasq-context-group-links">
-            <UTooltip v-for="link in group.links" :key="link.id" :text="t(link.labelKey)">
-              <UButton
-                :to="href(link)"
-                color="neutral"
-                variant="ghost"
-                class="nasq-context-link"
-                :data-active="link.active"
-                :active="!!link.active"
-                :aria-current="link.active ? 'page' : undefined"
-                :aria-label="t(link.labelKey)"
-                :title="t(link.labelKey)"
-                :data-testid="link.id === 'appearance' ? 'sidebar-settings' : link.id === 'project-settings' ? 'settings-projects-tab' : link.id === 'branding' ? 'settings-branding-tab' : `context-link-${link.id}`"
-              >
-                <template #leading>
-                  <UIcon :name="link.icon" class="nasq-shell-icon size-[18px] shrink-0" aria-hidden="true" />
-                </template>
-                <span data-slot="label">{{ t(link.labelKey) }}</span>
-              </UButton>
-            </UTooltip>
-          </div>
-        </div>
+        <UTooltip v-for="link in navigationLinks" :key="link.id" :text="t(link.labelKey)">
+          <UButton
+            :to="href(link)"
+            color="neutral"
+            variant="ghost"
+            class="nasq-context-link"
+            :data-active="link.active"
+            :active="!!link.active"
+            :aria-current="link.active ? 'page' : undefined"
+            :aria-label="t(link.labelKey)"
+            :title="t(link.labelKey)"
+            :data-testid="link.id === 'appearance' ? 'sidebar-settings' : link.id === 'project-settings' ? 'settings-projects-tab' : link.id === 'branding' ? 'settings-branding-tab' : `context-link-${link.id}`"
+          >
+            <template #leading>
+              <UIcon :name="link.icon" class="nasq-shell-icon size-[18px] shrink-0" aria-hidden="true" />
+            </template>
+            <span data-slot="label">{{ t(link.labelKey) }}</span>
+          </UButton>
+        </UTooltip>
       </nav>
 
       <ConversationList

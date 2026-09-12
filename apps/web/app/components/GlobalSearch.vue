@@ -2,6 +2,7 @@
 import { useQuery, useInfiniteQuery } from '@tanstack/vue-query'
 import { refDebounced, useEventListener } from '@vueuse/core'
 import { returnToQuery } from '@/utils/safeReturnTo'
+import { useNav } from '@/composables/nav/shellModules'
 import { ProjectRefSchema, TaskListSchema } from '@nasq/contracts'
 
 const { t, localeProperties } = useI18n()

@@ -3,7 +3,8 @@ import type { SlideoverProps } from '@nuxt/ui'
 import { useMediaQuery } from '@vueuse/core'
 import SidebarCreateAction from '@/components/shell/SidebarCreateAction.vue'
 import { useShellNavigation } from '@/composables/useShellNavigation'
-import { activeShellModule, contextModuleFor, hidePinnedNewProject, shellContextGroups, shellModules, visibleShellModules } from '@/composables/useNav'
+import { hidePinnedNewProject, shellModules, visibleShellModules } from '@/composables/nav/shellModules'
+import { activeShellModule, contextModuleFor } from '@/composables/nav/activeRoute'
 import { createLinkTo } from '@/composables/nav/createActions'
 
 const { t, te, localeProperties } = useI18n()
@@ -23,12 +24,10 @@ const linksModule = computed(() => contextModuleFor(activeModule.value))
 const moduleDefinition = computed(() => shellModules.find(item => item.id === linksModule.value) ?? module.value)
 const contextTitle = computed(() => moduleDefinition.value ? t(moduleDefinition.value.labelKey) : t('app.productName'))
 const primaryLinks = computed(() => contextLinks.value)
-// One shared grouping for the desktop sidebar and the mobile menu.
-const contextGroups = computed(() => linksModule.value ? shellContextGroups(linksModule.value, me.value, route.path, primaryLinks.value) : [])
-const createLinks = computed(() => contextGroups.value.flatMap(group => group.links).filter(link => link.pinned && !(link.id === 'new-project' && hidePinnedNewProject(route.path))))
-const navigationGroups = computed(() => contextGroups.value
-  .map(group => ({ ...group, links: group.links.filter(link => !link.pinned) }))
-  .filter(group => group.links.length))
+// Pinned create actions first, then navigation — the same order as the desktop sidebar.
+const orderedLinks = computed(() => [...primaryLinks.value.filter(link => link.pinned), ...primaryLinks.value.filter(link => !link.pinned)])
+const createLinks = computed(() => orderedLinks.value.filter(link => link.pinned && !(link.id === 'new-project' && hidePinnedNewProject(route.path))))
+const navigationLinks = computed(() => orderedLinks.value.filter(link => !link.pinned))
 
 watch(desktop, value => { if (value) open.value = false })
 watch(() => route.fullPath, () => { open.value = false })
@@ -116,29 +115,26 @@ const dialogContent = computed<NonNullable<SlideoverProps['content']> & { id: st
             @click="closeIfCurrent(createTo(link))"
           />
         </div>
-        <nav v-if="navigationGroups.length" :aria-label="contextTitle" class="grid gap-2">
-          <div v-for="group in navigationGroups" :key="group.id" class="grid gap-2">
-            <h3 v-if="group.labelKey" class="text-sm text-muted">{{ t(group.labelKey) }}</h3>
-            <UButton
-              v-for="link in group.links"
-              :key="link.id"
-              :to="link.to"
-              color="neutral"
-              variant="ghost"
-              class="nasq-context-link"
-              :label="t(link.labelKey)"
-              :aria-label="t(link.labelKey)"
-              :aria-current="link.active ? 'page' : undefined"
-              :data-active="link.active"
-              :active="!!link.active"
-              :data-testid="`mobile-context-link-${link.id}`"
-              @click="closeIfCurrent(link.to)"
-            >
-              <template #leading>
-                <UIcon :name="link.icon" class="nasq-shell-icon size-[18px] shrink-0" aria-hidden="true" />
-              </template>
-            </UButton>
-          </div>
+        <nav v-if="navigationLinks.length" :aria-label="contextTitle" class="grid gap-2">
+          <UButton
+            v-for="link in navigationLinks"
+            :key="link.id"
+            :to="link.to"
+            color="neutral"
+            variant="ghost"
+            class="nasq-context-link"
+            :label="t(link.labelKey)"
+            :aria-label="t(link.labelKey)"
+            :aria-current="link.active ? 'page' : undefined"
+            :data-active="link.active"
+            :active="!!link.active"
+            :data-testid="`mobile-context-link-${link.id}`"
+            @click="closeIfCurrent(link.to)"
+          >
+            <template #leading>
+              <UIcon :name="link.icon" class="nasq-shell-icon size-[18px] shrink-0" aria-hidden="true" />
+            </template>
+          </UButton>
         </nav>
       </div>
     </template>

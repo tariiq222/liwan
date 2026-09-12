@@ -1,6 +1,6 @@
 import { hasCapability, type AccessIdentity } from '../../utils/accessPolicy'
 
-/** Declared here (not re-imported from useNav) so useNav can later re-export this module without a cycle. */
+/** Declared here so nav/shellModules.ts can import it without a cycle; this file is its one auto-import owner. */
 export type NavIcon = `i-lucide-${string}`
 
 export const PROJECT_SECTION_IDS = ['summary', 'tasks', 'schedule', 'milestones', 'governance', 'finance', 'updates'] as const

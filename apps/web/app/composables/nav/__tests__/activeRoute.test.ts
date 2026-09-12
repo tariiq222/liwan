@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { activeProjectSection, projectIdFromPath } from '../activeRoute'
+import { activeProjectSection, activeShellModule, contextModuleFor, projectIdFromPath } from '../activeRoute'
 
 describe('projectIdFromPath', () => {
   it('reads a positive integer id', () => {
@@ -41,5 +41,28 @@ describe('activeProjectSection', () => {
     expect(activeProjectSection('/projects/12/settings')).toBeNull()
     expect(activeProjectSection('/projects')).toBeNull()
     expect(activeProjectSection('/tasks/99')).toBeNull()
+  })
+})
+
+describe('shell route classification', () => {
+  it('keeps the primary module active for direct and nested routes', () => {
+    expect(activeShellModule('/projects/12/tasks/44')).toBe('projects')
+    expect(activeShellModule('/archived-tasks')).toBe('projects')
+    expect(activeShellModule('/tasks')).toBe('projects')
+    expect(activeShellModule('/tasks/44')).toBe('projects')
+    expect(activeShellModule('/project-templates/3/edit')).toBe('projects')
+    expect(activeShellModule('/projects/dashboard')).toBe('home')
+    expect(activeShellModule('/projects')).toBe('projects')
+    expect(activeShellModule('/projects/new')).toBe('projects')
+    expect(activeShellModule('/reports')).toBe('projects')
+    expect(activeShellModule('/account')).toBe('settings')
+    expect(contextModuleFor('home')).toBe('projects')
+    expect(contextModuleFor('meetings')).toBe('meetings')
+    expect(activeShellModule('/meetings/calendar')).toBe('meetings')
+    expect(activeShellModule('/settings/users/18/access')).toBe('settings')
+    expect(activeShellModule('/search')).toBe('projects')
+    expect(activeShellModule('/notifications')).toBeNull()
+    expect(activeShellModule('/notification-digests')).toBeNull()
+    expect(activeShellModule('/notification-digests/12')).toBeNull()
   })
 })
