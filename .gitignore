@@ -11,6 +11,10 @@ deploy/data/
 test-results/
 playwright-report/
 
+# Generated agent index and system map: regenerate locally, never track.
+.agent/index
+.agent/system-map/
+
 # Local worktrees and generated tooling artifacts
 .worktrees/
 .fastembed_cache/
@@ -24,3 +28,38 @@ playwright-report/
 !/.claude/agents/
 /.claude/agents/*
 !/.claude/agents/frontend-theme.md
+
+# --- Build and dependency output -------------------------------------------
+.nitro/
+.cache/
+*.tsbuildinfo
+
+# --- Test and coverage output ----------------------------------------------
+coverage/
+blob-report/
+.vitest/
+
+# --- Python tooling caches (ruff is the linter for odoo-addons) -------------
+.ruff_cache/
+.pytest_cache/
+.mypy_cache/
+*.egg-info/
+.venv/
+venv/
+
+# --- Agent scratch space: ledgers and run artifacts, never part of the product
+.superpowers/
+.impeccable/
+
+# --- Secrets: every real env file stays local; only the example is tracked ---
+.env.*
+!.env.example
+!deploy/.env.example
+*.pem
+*.key
+!**/public/**/*.key
+
+# --- Editor and OS ----------------------------------------------------------
+Thumbs.db
+*.swp
+*~
