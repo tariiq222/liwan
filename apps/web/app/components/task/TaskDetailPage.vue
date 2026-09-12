@@ -7,7 +7,7 @@ import TaskDetailPanel from './TaskDetailPanel.vue'
 const props = defineProps<{
   taskId: number
   basePath?: string
-  closeTo?: RouteLocationRaw
+  backTo?: RouteLocationRaw
   siblingParams?: TaskListParams
   backLabel?: string
 }>()
@@ -16,7 +16,7 @@ const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
 const hydrated = useHydrated()
-const backTo = computed(() => props.closeTo ?? { path: '/tasks', query: route.query })
+const backTo = computed(() => props.backTo ?? { path: '/tasks', query: route.query })
 const taskIdRef = computed(() => props.taskId)
 const { data: task } = useTask(taskIdRef)
 const title = computed(() => task.value?.name ?? t('tasks.detail.pageLabel'))

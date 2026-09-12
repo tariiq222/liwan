@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import TaskDetailPage from '@/components/task/TaskDetailPage.vue'
 import { projectTaskParams } from '@/composables/projectTaskParams'
-import { safeReturnTo } from '@/utils/safeReturnTo'
 
 function toPositiveInt(v: unknown): number | null {
   const n = Number(v)
@@ -10,19 +9,17 @@ function toPositiveInt(v: unknown): number | null {
 
 const route = useRoute()
 const router = useRouter()
-const { t } = useI18n()
 const projectId = computed(() => toPositiveInt(route.params.id))
 const taskId = computed(() => toPositiveInt(route.params.taskId))
 const siblingParams = computed(() => projectTaskParams(projectId.value ?? 0, route.query))
-const closeTo = computed(() => {
-  const fallback = `/projects/${projectId.value ?? ''}`
-  return safeReturnTo(route.query.returnTo, fallback, [fallback])
-})
+// The section is part of the path, so a project task returns to that
+// project's own task list with the filters it was opened from still applied.
+const backTo = computed(() => ({ path: `/projects/${projectId.value}/tasks`, query: route.query }))
 
 // A non-numeric project or task id (e.g. /projects/1/tasks/abc) has nothing to
-// render; bounce back to the project instead of leaving a broken detail page.
+// render; bounce to the task list instead of leaving a broken detail page.
 onMounted(() => {
-  if (projectId.value === null || taskId.value === null) router.replace(closeTo.value)
+  if (projectId.value === null || taskId.value === null) router.replace(projectId.value === null ? '/projects' : `/projects/${projectId.value}/tasks`)
 })
 </script>
 
@@ -31,8 +28,7 @@ onMounted(() => {
     v-if="projectId !== null && taskId !== null"
     :task-id="taskId"
     :base-path="`/projects/${projectId}/tasks`"
-    :close-to="closeTo"
+    :back-to="backTo"
     :sibling-params="siblingParams"
-    :back-label="t('projects.backToProject')"
   />
 </template>
