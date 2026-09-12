@@ -473,6 +473,10 @@
       "emptyTasks": "No tasks have been added to this template yet."
     },
     "governance": {
+      "charterHint": "Project scope, objectives, and justification.",
+      "stakeholdersHint": "Interested parties, their roles, and how to reach them.",
+      "raciHint": "Who does the work and who owns the decision on each task.",
+      "risksHint": "Open risks and issues with their treatment plans.",
       "stakeholders": "Stakeholders",
       "stakeholdersDescription": "People involved in the project and their roles.",
       "newStakeholder": "New stakeholder",
