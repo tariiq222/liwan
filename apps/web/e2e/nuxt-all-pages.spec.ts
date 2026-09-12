@@ -2,7 +2,6 @@ import { expect, test } from '@playwright/test'
 import { readFileSync, readdirSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
-import { isWorkspaceOverlayRoute } from '../app/utils/workspacePresentation'
 import { firstAllowedPath } from '../app/utils/accessPolicy'
 
 const fixturePath = process.env.E2E_ALL_UI_FIXTURES ?? '/Users/tariq/code/nasq-nuxt-migration-artifacts/all-ui/fixtures.json'
@@ -33,21 +32,15 @@ const routes = routeFiles.filter(source => source !== 'login.vue').flatMap(sourc
   return values.map(resource => ({ source, url: concrete(source, resource) }))
 })
 for (const tab of ['board', 'table']) routes.push({ source: 'tasks.vue', url: `/tasks?tab=${tab}` })
-for (const tab of ['tasks', 'summary', 'milestones', 'board']) routes.push({ source: 'projects/[id].vue', url: `/projects/${ids.projectId}?tab=${tab}` })
+for (const section of ['', '/tasks', '/schedule', '/milestones', '/governance', '/finance', '/updates']) routes.push({ source: section ? `projects/[id]${section}/index.vue` : 'projects/[id]/index.vue', url: `/projects/${ids.projectId}${section}` })
+routes.push({ source: 'projects/[id]/tasks/index.vue', url: `/projects/${ids.projectId}/tasks?view=board` })
 for (const tab of ['summary', 'agenda', 'minutes', 'resolutions', 'attachments', 'history', 'versions']) routes.push({ source: 'meetings/[id].vue', url: `/meetings/${ids.meetingId}?tab=${tab}` })
 routes.push({ source: 'projects/[id]/charter.vue', url: `/projects/${ids.projectId}/charter?edit=1` })
-for (const row of [...routes]) {
-  const url = new URL(row.url, 'http://nasq.local')
-  if (isWorkspaceOverlayRoute({ path: url.pathname, query: Object.fromEntries(url.searchParams) })) {
-    url.searchParams.set('fullPage', '1')
-    routes.push({ source: row.source, url: url.pathname + url.search })
-  }
-}
 
 test('English messages load inside a form without navigating through its draft guard', async ({ page, baseURL }) => {
   expect(baseURL).toBe('http://127.0.0.1:3469')
   expect((await page.request.post('/api/auth/login', { data: { login: 'admin', password: 'admin' } })).ok()).toBeTruthy()
-  await page.goto('/projects/new?fullPage=1')
+  await page.goto('/projects/new')
   await expect(page.getByTestId('mobile-navigation-trigger')).toBeEnabled()
   await page.evaluate(async () => {
     const app = (document.querySelector('#__nuxt') as any).__vue_app__.$nuxt
@@ -55,7 +48,7 @@ test('English messages load inside a form without navigating through its draft g
     app.$i18n.locale.value = 'en'
   })
   await expect(page.locator('html')).toHaveAttribute('dir', 'ltr')
-  await expect(page).toHaveURL(/\/projects\/new\?fullPage=1$/)
+  await expect(page).toHaveURL(/\/projects\/new$/)
 })
 
 for (const [mode, fontSize, width, locale] of [['light', 'small', 1440, 'ar'], ['dark', 'large', 768, 'en'], ['cream', 'medium', 390, 'ar']] as const) {
@@ -90,9 +83,7 @@ for (const [mode, fontSize, width, locale] of [['light', 'small', 1440, 'ar'], [
         await page.waitForLoadState('networkidle', { timeout: 2500 }).catch(() => undefined)
         // The shell can mount before its async route sheet. Switch locale
         // only once that foreground has mounted, as a user would do.
-        const initialUrl = new URL(page.url())
-        const initialSheet = isWorkspaceOverlayRoute({ path: initialUrl.pathname, query: Object.fromEntries(initialUrl.searchParams) }) && initialUrl.searchParams.get('fullPage') !== '1'
-        await expect(page.locator(initialSheet ? '.nasq-ui-route-sheet' : 'main').first()).toBeVisible()
+        await expect(page.locator('main').first()).toBeVisible()
         if (locale === 'en') {
           await page.evaluate(async () => {
             const app = (document.querySelector('#__nuxt') as any)?.__vue_app__?.$nuxt
@@ -108,14 +99,14 @@ for (const [mode, fontSize, width, locale] of [['light', 'small', 1440, 'ar'], [
         await expect.soft(page.locator('html'), row.url).toHaveAttribute('data-font-size', fontSize)
         const expectedPath = row.source === 'index.vue' ? firstAllowedPath(me) : row.source === 'reports.vue' ? '/projects/dashboard' : row.source.startsWith('hr/') && row.source.endsWith('/access.vue') ? `/settings/users/${ids.userId}` : new URL(row.url, baseURL).pathname
         expect.soft(new URL(page.url()).pathname, row.url).toBe(expectedPath)
-        const actual = new URL(page.url())
-        if (new URL(row.url, baseURL).searchParams.get('fullPage') === '1') expect.soft(actual.searchParams.get('fullPage'), row.url).toBe('1')
-        const sheetExpected = isWorkspaceOverlayRoute({ path: actual.pathname, query: Object.fromEntries(actual.searchParams) }) && actual.searchParams.get('fullPage') !== '1'
-        await expect.soft(page.locator('.nasq-ui-route-sheet'), row.url).toHaveCount(sheetExpected ? 1 : 0)
-        const foreground = sheetExpected ? page.locator('.nasq-ui-route-sheet') : page.locator('main').first()
+        // No route renders in a panel any more, so the panel must never appear
+        // and every route's foreground is <main>. The requirement the sheet
+        // assertions encoded is kept: visible, non-empty, inside the viewport.
+        await expect.soft(page.locator('.nasq-ui-route-sheet'), row.url).toHaveCount(0)
+        const foreground = page.locator('main').first()
         await expect.soft(foreground, row.url).toBeVisible()
         expect.soft((await foreground.innerText()).trim().length, row.url).toBeGreaterThan(0)
-        if (sheetExpected) expect.soft((await foreground.boundingBox())!.width, row.url).toBeLessThanOrEqual(width)
+        expect.soft((await foreground.boundingBox())!.width, row.url).toBeLessThanOrEqual(width)
         expect.soft(await page.locator('html').evaluate(el => el.classList.contains('dark')), row.url).toBe(mode === 'dark')
         expect.soft(await page.locator('html').evaluate(el => el.classList.contains('cream')), row.url).toBe(mode === 'cream')
         if (row.url.includes('tab=board')) await expect.soft(page.getByTestId('board-column').first()).toBeVisible()

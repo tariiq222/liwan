@@ -4,12 +4,13 @@ import { useCreateDepartment, useUpdateDepartment, type HrDepartment } from '@/c
 import { useHrEmployees, useHrEmployee, type HrEmployee } from '@/composables/useHrEmployees'
 import { refDebounced } from '@vueuse/core'
 import { getAllowedParentIds } from '@/lib/departmentTree'
+import type { RouteLocationRaw } from 'vue-router'
 
 const props = defineProps<{
   department?: HrDepartment | null
   departments: HrDepartment[]
   employees: HrEmployee[]
-  backTo?: string
+  backTo?: RouteLocationRaw
   initialParentId?: number | null
 }>()
 const emit = defineEmits<{ saved: [department: HrDepartment] }>()

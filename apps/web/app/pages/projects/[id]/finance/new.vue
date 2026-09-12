@@ -5,9 +5,9 @@ import FinanceEntryForm from '@/components/project/finance/FinanceEntryForm.vue'
 import {
   financeWriteAllowed,
   parseFinanceKind,
-  parsePositiveId,
   shouldKeepFinanceFormMounted,
 } from '@/utils/projectFinance'
+import { parsePositiveId } from '@/utils/routeParams'
 
 defineOptions({ name: 'ProjectFinanceEntryNew' })
 

@@ -2,8 +2,9 @@
 import { ApiError } from '@/composables/useApi'
 import { useCreateDocument } from '@/composables/useHrDocuments'
 import DocumentEditor from './DocumentEditor.vue'
+import type { RouteLocationRaw } from 'vue-router'
 
-const props = defineProps<{ departmentId: number; backTo: string }>()
+const props = defineProps<{ departmentId: number; backTo: RouteLocationRaw }>()
 const emit = defineEmits<{ saved: [id: number] }>()
 const { t } = useI18n()
 const hydrated = useHydrated()

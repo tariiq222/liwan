@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { RouteLocationRaw } from 'vue-router'
 import { ScheduleTaskPatchSchema, type Milestone, type ScheduleTask } from '@nasq/contracts'
 import { useUpdateProjectScheduleTask } from '@/composables/useProjectSchedule'
 import { ApiError } from '@/composables/useApi'
@@ -7,7 +8,7 @@ import { validateTaskDates } from '@/utils/projectDateBounds'
 const props = defineProps<{
   projectId: number
   task: ScheduleTask
-  returnTo: string
+  returnTo: RouteLocationRaw
   milestone?: Pick<Milestone, 'start_date' | 'deadline'> | null
   projectStart?: string | null
   projectEnd?: string | null

@@ -11,13 +11,13 @@ import {
   FINANCE_PAGE,
   parseFinanceKind,
   parseFinanceListRoute,
-  parsePositiveId,
   patchFinanceListRoute,
   nextOffsetAfterListResult,
   sameFinanceListRoute,
   serializeFinanceListRoute,
   type FinanceListRouteState,
 } from '@/utils/projectFinance'
+import { parsePositiveId } from '@/utils/routeParams'
 import { returnToQuery } from '@/utils/safeReturnTo'
 
 const route = useRoute()

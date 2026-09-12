@@ -52,6 +52,11 @@ describe('internal UI width and status vocabulary', () => {
     expect(css).toContain('border-block-end: 1px solid var(--ui-border-accented)')
     expect(css).toContain('min-height: 2.25rem')
     expect(css).toContain('scrollbar-width: none')
+    // DESIGN.md §4: the tab row scrolls horizontally, it never wraps. Without
+    // this, a long label like «الجدول الزمني» breaks onto a second line at
+    // 375px and the strip grows a second row.
+    const tabRule = css.slice(css.indexOf('.nasq-ui-tab-strip .nasq-ui-tab {'))
+    expect(tabRule.slice(0, tabRule.indexOf('}'))).toContain('white-space: nowrap')
   })
 
   it('opens every record as an ordinary page instead of a sliding side sheet', () => {

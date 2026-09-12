@@ -32,7 +32,7 @@ function loadLayout(route: { path: string }) {
     setTimeout: () => 1, clearTimeout: () => undefined,
   }
   const component = new Function(...Object.keys(bindings), js)(...Object.values(bindings))
-  return component.setup!({}, { expose: () => {}, attrs: {}, slots: {}, emit: () => {} }) as Record<string, Vue.Ref>
+  return component.setup!({}, { expose: () => {}, attrs: {}, slots: {}, emit: () => {} }) as Record<string, Vue.Ref> & { shellMain: Vue.Ref }
 }
 
 describe('shell focus after navigation', () => {

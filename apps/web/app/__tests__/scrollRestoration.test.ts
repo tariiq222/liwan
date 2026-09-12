@@ -1,4 +1,4 @@
-import { createMemoryHistory, createRouter, type Router } from 'vue-router'
+import { createMemoryHistory, createRouter, type RouteLocationNormalizedGeneric, type Router } from 'vue-router'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import routerOptions from '../router.options'
 import { forgetScrollPositions, recallScrollPosition } from '../utils/scrollMemory'
@@ -49,11 +49,17 @@ async function installRecorder() {
   plugin()
 }
 
+// router.resolve returns a resolved location, whose `name` is nullable;
+// scrollBehavior is typed for the normalized location vue-router hands it.
+function resolved(path: string) {
+  return router.resolve(path) as unknown as RouteLocationNormalizedGeneric
+}
+
 /** Drive the real scrollBehavior the way vue-router drives it on a push. */
 async function restore(toPath: string) {
   const behavior = routerOptions.scrollBehavior!
   // savedPosition is null for a push: it is populated for popstate only.
-  const result = behavior(router.resolve(toPath), router.currentRoute.value, null)
+  const result = behavior(resolved(toPath), router.currentRoute.value, null)
   return result
 }
 
@@ -122,7 +128,7 @@ describe('list scroll position survives a record visit', () => {
 
     await router.push('/projects/7/tasks?view=board')
     // A filter keystroke changes the query on the same path: nothing to restore.
-    expect(await routerOptions.scrollBehavior!(router.resolve('/projects/7/tasks?view=board&q=a'), router.currentRoute.value, null)).toBe(false)
+    expect(await routerOptions.scrollBehavior!(resolved('/projects/7/tasks?view=board&q=a'), router.currentRoute.value, null)).toBe(false)
   })
 
   it('prefers a browser back/forward savedPosition over the remembered one', async () => {
@@ -133,7 +139,7 @@ describe('list scroll position survives a record visit', () => {
     viewport.scrollHeight = 4000
 
     const behavior = routerOptions.scrollBehavior!
-    const pending = behavior(router.resolve('/projects/7/tasks?view=board'), router.currentRoute.value, { left: 0, top: 120 })
+    const pending = behavior(resolved('/projects/7/tasks?view=board'), router.currentRoute.value, { left: 0, top: 120 })
     await pumpFrames()
     expect(await pending).toEqual({ left: 0, top: 120, behavior: 'instant' })
   })

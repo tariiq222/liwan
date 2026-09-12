@@ -6,8 +6,8 @@ import {
   financeWriteAllowed,
   formatMoney,
   isReferencedBudgetConflict,
-  parsePositiveId,
 } from '@/utils/projectFinance'
+import { parsePositiveId } from '@/utils/routeParams'
 
 const route = useRoute()
 const router = useRouter()
