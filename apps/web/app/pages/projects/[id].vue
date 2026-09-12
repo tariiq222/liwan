@@ -29,6 +29,10 @@ const isProjectSettings = computed(() => projectId.value !== null
 const showFrame = computed(() => !notFound.value
   && !(error.value && !projectData.value)
   && (activeProjectSection(route.path) !== null || isProjectSettings.value))
+// The project name below is the page heading whenever it is actually on screen;
+// SharedPageHeader inside a child page reads this and demotes its own heading a
+// level, so a project page never renders two top-level headings and never none.
+provideProjectFrameHeading(computed(() => showFrame.value && Boolean(project.value)))
 </script>
 
 <template>

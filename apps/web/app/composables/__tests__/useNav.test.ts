@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest'
 import { activeShellModule, contextGroupsForModule, contextLinksForModule, contextModuleFor, hidePinnedNewProject, projectContextId, projectContextLinks, projectSidebarLinks, projectWorkspaceGroups, projectWorkspaceLinks, shellContextGroups, visibleShellModules, useNav } from '../useNav'
-import { projectSectionRoot, shellSectionRoot } from '../useShellNavigation'
 
 const employee = { role: 'employee', capabilities: ['pmo.tasks.read', 'pmo.projects.read', 'meetings.read', 'hr.employees.read', 'hr.departments.read', 'hr.documents.read'] }
 const admin = { role: 'admin', capabilities: [...employee.capabilities, 'access.users.read', 'access.roles.read', 'access.audit.read', 'settings.branding.manage'] }
@@ -49,29 +48,6 @@ describe('capability-based navigation', () => {
 })
 
 describe('shell route classification', () => {
-  it('classifies every visible non-pinned context root and excludes creation links', () => {
-    const full = {
-      role: 'admin',
-      capabilities: [
-        'nasq.internal', 'pmo.projects.read', 'pmo.projects.create', 'pmo.tasks.read',
-        'meetings.read', 'meetings.create', 'hr.employees.read', 'hr.departments.read',
-        'hr.documents.read', 'pmo.settings.manage', 'access.users.read',
-        'access.roles.read', 'access.audit.read', 'settings.branding.manage',
-      ],
-    }
-    const links = (['home', 'projects', 'meetings', 'chat', 'hr', 'settings'] as const).flatMap(module => contextLinksForModule(module, full))
-    const pathOf = (to: unknown) => typeof to === 'string' ? to.split(/[?#]/, 1)[0] : (to as { path?: string }).path
-    for (const link of links.filter(item => !item.pinned)) expect(shellSectionRoot(pathOf(link.to)!)).not.toBeNull()
-    for (const link of links.filter(item => item.pinned)) expect(shellSectionRoot(pathOf(link.to)!)).toBeNull()
-  })
-
-  it('normalizes root classification across trailing slashes and query strings', () => {
-    expect(shellSectionRoot('/projects/dashboard/')).toBe('/projects/dashboard')
-    expect(shellSectionRoot('/projects?mine=1')).toBe('/projects')
-    expect(shellSectionRoot('/settings/access-log/?offset=20')).toBe('/settings/access-log')
-    expect(shellSectionRoot('/projects/new')).toBeNull()
-  })
-
   it('keeps the primary module active for direct and nested routes', () => {
     expect(activeShellModule('/projects/12/tasks/44')).toBe('projects')
     expect(activeShellModule('/archived-tasks')).toBe('projects')
@@ -103,26 +79,6 @@ describe('shell route classification', () => {
     expect(projectContextId('/projects/12/finance', {})).toBe('finance')
     expect(projectContextId('/projects/12/charter', {})).toBe('charter')
     expect(projectContextId('/projects/12/settings', {})).toBe('settings')
-  })
-
-  it('classifies only normalized project section roots', () => {
-    expect(projectSectionRoot('/projects/12')).toBe('summary')
-    expect(projectSectionRoot('/projects/12/', {})).toBe('summary')
-    expect(projectSectionRoot('/projects/12', { tab: 'tasks' })).toBe('planning')
-    expect(projectSectionRoot('/projects/12', { tab: 'summary', view: 'board' })).toBe('summary')
-    expect(projectSectionRoot('/projects/12', { view: 'board' })).toBe('planning')
-    expect(projectSectionRoot('/projects/12', { view: 'tasks' })).toBe('planning')
-    expect(projectSectionRoot('/projects/12/schedule')).toBe('planning')
-    expect(projectSectionRoot('/projects/12/stakeholders/')).toBe('stakeholders')
-    expect(projectSectionRoot('/projects/12/raci')).toBe('stakeholders')
-    expect(projectSectionRoot('/projects/12/register')).toBe('risks')
-    expect(projectSectionRoot('/projects/12/finance')).toBe('finance')
-    expect(projectSectionRoot('/projects/12/charter')).toBe('charter')
-    expect(projectSectionRoot('/projects/12/settings')).toBe('settings')
-    expect(projectSectionRoot('/projects/12/schedule/tasks/44')).toBeNull()
-    expect(projectSectionRoot('/projects/12/unknown')).toBeNull()
-    expect(projectSectionRoot('/projects/0')).toBeNull()
-    expect(projectSectionRoot('/projects/not-a-project')).toBeNull()
   })
 
   it('gates and pins meeting and chat creation links', () => {

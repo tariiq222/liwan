@@ -4,9 +4,7 @@ import {
   activeShellModule,
   contextLinksForModule,
   contextModuleFor,
-  projectContextId,
   visibleShellModules,
-  type ProjectContextId,
   type ShellContextLink,
   type ShellModule,
 } from './useNav'
@@ -14,75 +12,6 @@ import {
 // only, never re-export, or the auto-import namespace collision just moves here.
 import { projectIdFromPath } from './nav/activeRoute'
 import type { AccessIdentity } from '@/utils/accessPolicy'
-
-function positiveId(value: unknown): number | null {
-  const raw = Array.isArray(value) ? value[0] : value
-  const parsed = typeof raw === 'string' || typeof raw === 'number' ? Number(raw) : NaN
-  return Number.isInteger(parsed) && parsed > 0 ? parsed : null
-}
-
-const projectRootSections: Record<string, ProjectContextId> = {
-  schedule: 'planning',
-  stakeholders: 'stakeholders',
-  raci: 'stakeholders',
-  register: 'risks',
-  finance: 'finance',
-  charter: 'charter',
-  settings: 'settings',
-  updates: 'summary',
-}
-
-const shellSectionRoots = new Set([
-  '/projects/dashboard',
-  '/projects',
-  '/project-templates',
-  '/tasks',
-  '/archived-tasks',
-  '/meetings',
-  '/meetings/calendar',
-  '/meetings/series',
-  '/chat',
-  '/hr',
-  '/hr/departments',
-  '/hr/documents',
-  '/account',
-  '/settings/appearance',
-  '/settings/branding',
-  '/settings/projects',
-  '/settings/users',
-  '/settings/roles',
-  '/settings/access-log',
-])
-
-function normalizedPath(path: string): string {
-  return path.split(/[?#]/, 1)[0]!.replace(/\/+$/, '') || '/'
-}
-
-/** Returns the exact shared-shell root represented by a route, if any. */
-export function shellSectionRoot(path: string, _query: Record<string, unknown> = {}): string | null {
-  const normalized = normalizedPath(path)
-  return shellSectionRoots.has(normalized) ? normalized : null
-}
-
-export function shellRootBackTargets(path: string): readonly string[] {
-  const normalized = normalizedPath(path)
-  if (normalized === '/projects' || normalized === '/projects/dashboard' || normalized === '/project-templates') return ['/projects', '/projects/dashboard', '/project-templates']
-  if (normalized === '/tasks' || normalized === '/archived-tasks') return ['/tasks', '/archived-tasks']
-  if (normalized === '/meetings' || normalized === '/meetings/calendar') return ['/meetings', '/meetings/calendar']
-  if (normalized === '/hr' || normalized === '/hr/departments' || normalized === '/hr/documents') return ['/hr', '/hr/departments', '/hr/documents']
-  if (normalized === '/account' || normalized.startsWith('/settings/')) return ['/account', '/settings/appearance', '/settings/branding', '/settings/projects', '/settings/users', '/settings/roles', '/settings/access-log']
-  return []
-}
-
-/** Returns the project context owned by an exact, top-level section route. */
-export function projectSectionRoot(path: string, query: Record<string, unknown> = {}): ProjectContextId | null {
-  const normalized = path.replace(/\/+$/, '') || '/'
-  const match = normalized.match(/^\/projects\/([^/]+)(?:\/(.*))?$/)
-  if (!match || !positiveId(match[1])) return null
-  const section = match[2]
-  if (!section) return projectContextId(normalized, query)
-  return Object.hasOwn(projectRootSections, section) ? projectRootSections[section]! : null
-}
 
 export function useModuleRail() {
   const expanded = useState('nasq-module-rail-expanded', () => false)

@@ -230,7 +230,7 @@ describe('SharedPageHeader wires the one Escape implementation', () => {
     const js = ts.transpileModule(compiled, {
       compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.None },
     }).outputText
-    const calls: { backTo: () => unknown; enabled: () => boolean }[] = []
+    const calls: { backTo: () => unknown; enabled?: () => boolean }[] = []
     const localRouter = createRouter({
       history: createMemoryHistory(),
       routes: [{ path: '/:rest(.*)', component: { template: '<div/>' } }],
@@ -242,26 +242,29 @@ describe('SharedPageHeader wires the one Escape implementation', () => {
       useRouter: () => localRouter,
       useI18n: () => ({ t: (key: string) => key }),
       usePageHeader: () => undefined,
-      useEscapeBack: (backTo: () => unknown, enabled: () => boolean) => { calls.push({ backTo, enabled }) },
-      projectIdFromPath: (value: string) => Number(value.match(/^\/projects\/(\d+)/)?.[1] ?? 0) || null,
-      projectSectionRoot: () => null,
-      shellSectionRoot: (value: string) => value === '/tasks' ? '/tasks' : null,
-      shellRootBackTargets: () => ['/projects'],
+      useEscapeBack: (backTo: () => unknown, enabled?: () => boolean) => { calls.push({ backTo, enabled }) },
+      useProjectFrameHeading: () => Vue.ref(false),
     }
     const component = new Function(...Object.keys(bindings), js)(...Object.values(bindings))
     component.setup!(props, { expose: () => {}, attrs: {}, slots: {}, emit: () => {} })
     return calls
   }
 
-  it('hands the header its own back target, enabled only where the control shows', () => {
+  it('hands the header its own back target and adds no second gate', () => {
     const backTo = { path: '/projects/7/tasks', query: { view: 'board' } }
     const record = headerState('/projects/7/tasks/99', { title: 'ملف', backTo })
     expect(record).toHaveLength(1)
     expect(record[0]!.backTo()).toBe(backTo)
-    expect(record[0]!.enabled()).toBe(true)
+    // The visible control and Escape must not be able to disagree: passing a
+    // second condition here is exactly how they used to drift apart.
+    expect(record[0]!.enabled, 'Escape is gated on the back target alone').toBeUndefined()
+  })
 
-    // A section root hides its back control, so Escape must not hijack it.
-    const sectionRoot = headerState('/tasks', { title: 'مهامي', backTo: '/projects' })
-    expect(sectionRoot[0]!.enabled()).toBe(false)
+  it('gives a page with no back target nothing for Escape to push', () => {
+    // The record above is the only shape that gets Escape. A list or section
+    // root supplies no target, and useEscapeBack returns early on undefined.
+    const list = headerState('/tasks', { title: 'مهامي' })
+    expect(list).toHaveLength(1)
+    expect(list[0]!.backTo()).toBeUndefined()
   })
 })
