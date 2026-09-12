@@ -51,12 +51,16 @@ export function scrollTopIsReachable(top: number, viewport: { scrollHeight: numb
  * The lists render from vue-query, so the document can still be one screen tall
  * when the route settles and the browser would clamp the restore to the top.
  * Waits for the page to grow past the offset, within a frame budget.
+ *
+ * The budget spans a cold list: the request behind it can take seconds, and a
+ * restore that lands once the rows arrive is still the right one. Waiting is
+ * only safe because the caller drops the restore if the reader scrolls first.
  */
 export async function whenScrollTopReachable(
   top: number,
   measure: () => { scrollHeight: number, innerHeight: number },
   nextFrame: () => Promise<void>,
-  maxFrames = 60,
+  maxFrames = 600,
 ): Promise<boolean> {
   for (let frame = 0; frame < maxFrames; frame += 1) {
     if (scrollTopIsReachable(top, measure())) return true

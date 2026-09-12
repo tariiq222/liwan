@@ -10,10 +10,9 @@ interface Viewport { scrollY: number, innerHeight: number, scrollHeight: number 
 let router: Router
 let viewport: Viewport
 let frames: (() => void)[]
-let pageFinish: (() => void | Promise<void>) | undefined
 
-// The restore waits on timers and animation frames, so pumping alternates
-// letting the queued work be scheduled with running the frames it asked for.
+// The restore waits on animation frames, so pumping alternates letting the
+// queued work be scheduled with running the frames it asked for.
 async function pumpFrames(rounds = 80) {
   for (let round = 0; round < rounds; round += 1) {
     await new Promise<void>(resolve => setTimeout(resolve, 0))
@@ -24,11 +23,9 @@ async function pumpFrames(rounds = 80) {
 function stubBrowser() {
   viewport = { scrollY: 0, innerHeight: 800, scrollHeight: 800 }
   frames = []
-  pageFinish = undefined
   globals.window = { get scrollY() { return viewport.scrollY }, get innerHeight() { return viewport.innerHeight } }
   globals.document = { documentElement: { get scrollHeight() { return viewport.scrollHeight } }, querySelector: () => null }
   globals.requestAnimationFrame = (callback: () => void) => { frames.push(callback); return frames.length }
-  globals.useNuxtApp = () => ({ hooks: { hookOnce: (_name: string, handler: () => void) => { pageFinish = handler } } })
 }
 
 function makeRouter() {
@@ -68,7 +65,7 @@ beforeEach(async () => {
 })
 
 afterEach(() => {
-  for (const key of ['window', 'document', 'requestAnimationFrame', 'useNuxtApp', 'useRouter', 'defineNuxtPlugin']) delete globals[key]
+  for (const key of ['window', 'document', 'requestAnimationFrame', 'useRouter', 'defineNuxtPlugin']) delete globals[key]
 })
 
 describe('list scroll position survives a record visit', () => {
@@ -91,7 +88,6 @@ describe('list scroll position survives a record visit', () => {
     viewport.scrollHeight = 4000
 
     const pending = restore('/projects/7/tasks?view=board')
-    void pageFinish!()
     await pumpFrames()
 
     expect(await pending).toEqual({ left: 0, top: 640, behavior: 'instant' })
@@ -108,7 +104,6 @@ describe('list scroll position survives a record visit', () => {
 
     let settled: unknown
     const pending = restore('/projects/7/tasks?view=board').then((value) => { settled = value; return value })
-    void pageFinish!()
     await pumpFrames(5)
     expect(settled, 'restoring into a short document would clamp to the top').toBeUndefined()
 
@@ -122,13 +117,12 @@ describe('list scroll position survives a record visit', () => {
     await router.isReady()
 
     const fresh = restore('/tasks')
-    void pageFinish!()
     await pumpFrames()
     expect(await fresh).toEqual({ left: 0, top: 0, behavior: 'instant' })
 
     await router.push('/projects/7/tasks?view=board')
     // A filter keystroke changes the query on the same path: nothing to restore.
-    expect(routerOptions.scrollBehavior!(router.resolve('/projects/7/tasks?view=board&q=a'), router.currentRoute.value, null)).toBe(false)
+    expect(await routerOptions.scrollBehavior!(router.resolve('/projects/7/tasks?view=board&q=a'), router.currentRoute.value, null)).toBe(false)
   })
 
   it('prefers a browser back/forward savedPosition over the remembered one', async () => {
@@ -140,8 +134,63 @@ describe('list scroll position survives a record visit', () => {
 
     const behavior = routerOptions.scrollBehavior!
     const pending = behavior(router.resolve('/projects/7/tasks?view=board'), router.currentRoute.value, { left: 0, top: 120 })
-    void pageFinish!()
     await pumpFrames()
     expect(await pending).toEqual({ left: 0, top: 120, behavior: 'instant' })
+  })
+
+  // The restore used to be wrapped in hookOnce('page:finish'). vue-router calls
+  // scrollBehavior after the navigation is confirmed, and for a page whose data
+  // is already cached Nuxt has fired page:finish before that — so the listener
+  // never ran and the page never moved. Nothing here provides useNuxtApp: the
+  // restore must reach the offset on measurement alone.
+  it('restores without waiting on a Nuxt lifecycle hook', async () => {
+    await router.push('/projects/7/tasks')
+    await router.isReady()
+    viewport.scrollY = 640
+    await router.push('/projects/7/tasks/99')
+    viewport.scrollY = 0
+    viewport.scrollHeight = 4000
+
+    const pending = restore('/projects/7/tasks')
+    await pumpFrames()
+
+    expect(await pending).toEqual({ left: 0, top: 640, behavior: 'instant' })
+  })
+
+  it('still lands on the offset when a cold list takes hundreds of frames to arrive', async () => {
+    await router.push('/projects/7/tasks')
+    await router.isReady()
+    viewport.scrollY = 640
+    await router.push('/projects/7/tasks/99')
+    viewport.scrollY = 0
+    viewport.scrollHeight = 800
+
+    let settled: unknown
+    const pending = restore('/projects/7/tasks').then((value) => { settled = value; return value })
+    // Far past the frame budget the old wait allowed a slow request.
+    await pumpFrames(200)
+    expect(settled, 'a slow list must not make the restore give up at the top').toBeUndefined()
+
+    viewport.scrollHeight = 4000
+    await pumpFrames()
+    expect(await pending).toEqual({ left: 0, top: 640, behavior: 'instant' })
+  })
+
+  it('leaves the page alone if the reader scrolled while the cold list was loading', async () => {
+    await router.push('/projects/7/tasks')
+    await router.isReady()
+    viewport.scrollY = 640
+    await router.push('/projects/7/tasks/99')
+    viewport.scrollY = 0
+    viewport.scrollHeight = 800
+
+    const pending = restore('/projects/7/tasks')
+    await pumpFrames(10)
+    // The reader started reading from the top rather than wait.
+    viewport.scrollY = 300
+    viewport.scrollHeight = 4000
+    await pumpFrames()
+
+    expect(await pending, 'a late restore over a reader is a yank, not a restore').toBe(false)
   })
 })
