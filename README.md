@@ -88,9 +88,9 @@ No production deployment or DNS cutover is implied by this repository.
 - `deploy` contains per-customer provisioning and reverse-proxy templates.
 
 The detailed one-writer ownership and isolation workflow is in
-[`docs/parallel-work.md`](docs/parallel-work.md). There is currently no Nasq
-Git remote configured, so repository work is local until an explicit remote is
-provided. Do not invent a remote URL or imply that a push occurred.
+[`docs/parallel-work.md`](docs/parallel-work.md). The Git remote is
+`origin` (`https://github.com/tariiq222/nasq.git`), tracked by `main`. Pushes
+need explicit authorization; do not imply that a push occurred.
 
 ## Documentation
 

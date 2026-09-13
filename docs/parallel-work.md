@@ -96,8 +96,9 @@ conflicts, and records the resulting branch and runtime state. A passing local
 test, health endpoint, or UI observation proves only the checked layer; it does
 not prove deployment, DNS, or release approval.
 
-No Nasq Git remote is currently configured. Do not invent one or imply that a
-push occurred. Do not remove a branch or worktree until its content is
-preserved and no process is using it. A production deployment or DNS cutover
+The Nasq Git remote is `origin` (`https://github.com/tariiq222/nasq.git`),
+tracked by `main`. Push only with explicit authorization, never force-push
+published history, and do not imply that a push occurred. Do not remove a
+branch or worktree until its content is preserved and no process is using it. A production deployment or DNS cutover
 requires separate authorization; local `:8069`/`:3000` development is not
 production evidence.

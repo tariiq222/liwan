@@ -31,4 +31,4 @@ git branch --show-current
 - `/Users/tariq/code/nasq-security-evidence-20260909` يحتوي بيئة يستخدمها Odoo المحلي؛ لا تحذفه على أنه مجلد أدلة زائد.
 - [أرشيف الواجهة](archive/ui/README.md) و[خريطة العمل السابقة كاملة](archive/ui/workspace-before-2026-09-12.md) يحفظان التاريخ. تقارير قديمة قد تشير إلى فروع ومنافذ وملفات أزيلت؛ تحقق قبل استعادتها أو حذف غيرها.
 
-التحقق المحلي لا يثبت النشر. لا يوجد remote مسجل للمستودع عند هذا التسليم. لا commit أو دمج أو push أو نشر أو حذف عمل دون تفويض الإجراء؛ الدمج يحفظ القرارات السابقة وفق [AGENTS.md](../AGENTS.md).
+التحقق المحلي لا يثبت النشر. الـ remote هو `origin` (`https://github.com/tariiq222/nasq.git`) ويتتبعه `main`؛ قارن `main` مع `origin/main` بعد `git fetch` قبل أي دمج. لا commit أو دمج أو push أو نشر أو حذف عمل دون تفويض الإجراء؛ الدمج يحفظ القرارات السابقة وفق [AGENTS.md](../AGENTS.md).

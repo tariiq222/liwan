@@ -105,10 +105,13 @@ tests against the production-style `odoo19` database. Temporary integration
 databases, ports, and logs are disposable and must not be described as
 production evidence.
 
-No Nasq Git remote is currently configured. Local commits and branches are
-valid; do not fabricate a remote URL or imply a push, merge, deployment, DNS
-cutover, or release approval that did not happen. Preserve unrelated user
-changes and inspect status/diffs before editing overlapping files.
+The Nasq Git remote is `origin` (`https://github.com/tariiq222/nasq.git`),
+tracked by `main`. Fetch and compare `main` with `origin/main` before
+integration work. Push only when the user authorizes that push, and do not
+force-push or rewrite published history. Do not imply a push, merge,
+deployment, DNS cutover, or release approval that did not happen. Preserve
+unrelated user changes and inspect status/diffs before editing overlapping
+files.
 
 ## Python and API conventions
 
