@@ -10,6 +10,7 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import { mswLoader } from 'msw-storybook-addon/csf3'
 import messages, { locales } from 'virtual:nasq-i18n'
+import { apiHandlers } from '../stories/handlers/api'
 import nuxtUiComponents from 'virtual:nasq-nuxt-ui-components'
 import { useAppearance } from '../app/composables/useAppearance'
 import { htmlAttrsFor, type AppearanceMode, type FontSize } from '../app/utils/appearance'
@@ -105,7 +106,7 @@ const preview: Preview = {
       }
     },
   ],
-  parameters: { layout: 'padded', msw: { handlers: {} } },
+  parameters: { layout: 'padded', msw: { handlers: { api: apiHandlers } } },
 }
 
 export default preview
