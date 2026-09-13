@@ -15,6 +15,13 @@ import { useAppearance } from '../app/composables/useAppearance'
 import { htmlAttrsFor, type AppearanceMode, type FontSize } from '../app/utils/appearance'
 import { createBrandTheme, DEFAULT_PRIMARY } from '../app/utils/brandTheme'
 import { __setRouter } from './nuxt-shims'
+import { init as initLucideIcons } from './nuxt-icon-client-bundle-shim.mjs'
+
+// @nuxt/icon's runtime only calls "#build/nuxt-icon-client-bundle"'s init()
+// from its own `loadIcon` helper (the CSS-mode render path); priming the same
+// @iconify/vue store here too, once, before any component renders, covers
+// every icon usage regardless of which internal path resolves it.
+initLucideIcons()
 
 // virtual:nasq-i18n's messages are generated per app locale from JSON files,
 // so vue-i18n's exact `{ ar, en }` message-map type cannot be declared statically.

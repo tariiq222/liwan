@@ -70,6 +70,28 @@ function nuxtUiComponents(): Plugin {
   }
 }
 
+// Vite's own `define` option (below) is documented to replace import.meta.*
+// tokens, but its dev-server "client environment" transform skips already-
+// valid plain .js files under node_modules (confirmed by fetching the served
+// @nuxt/icon runtime: "import.meta.client" reaches the browser unreplaced,
+// so `if (import.meta.client)` there is always false). That silently drops
+// the icon runtime's whole client-side branch — including the local-icon
+// lookup that keeps icons off the network — so replace the same three
+// tokens here too, for every node_modules file, to match what `define` only
+// achieves for the production build.
+function importMetaEnvShim(): Plugin {
+  const pattern = /import\.meta\.(server|client|dev)\b/g
+  const replacements: Record<string, string> = { server: 'false', client: 'true', dev: 'true' }
+  return {
+    name: 'nasq:import-meta-env-shim',
+    transform(code, id) {
+      if (!id.includes('node_modules') || !pattern.test(code)) return
+      pattern.lastIndex = 0
+      return code.replace(pattern, (_match, key: string) => replacements[key]!)
+    },
+  }
+}
+
 const config: StorybookConfig = {
   stories: ['../stories/**/*.mdx', '../stories/**/*.stories.ts'],
   addons: ['@storybook/addon-docs', 'msw-storybook-addon'],
@@ -107,10 +129,28 @@ const config: StorybookConfig = {
         vue(),
         i18nMessages(nuxtConfig.i18n.locales),
         nuxtUiComponents(),
+        importMetaEnvShim(),
         ui({
           ...nuxtConfig.ui,
           ui: appConfig.ui,
-          icon: { clientBundle: nuxtConfig.icon?.clientBundle },
+          // The real @nuxt/icon Nuxt module normally derives `cssSelectorPrefix`
+          // ('i-', its own default) and `collections` (from installed
+          // @iconify-json/* packages) and injects them into appConfig.icon;
+          // outside a real Nuxt build that never happens, so useResolvedName()
+          // in @nuxt/icon's runtime can't turn "i-lucide-*" into "lucide:*" and
+          // every lookup misses. Restore both from the installed collection's
+          // own prefix so name resolution — and therefore the local icon
+          // lookup in nuxt-icon-client-bundle-shim.mjs — works the same as in
+          // the real app.
+          // @nuxt/ui's own icon option type only declares size/customize/mode/
+          // clientBundle; cssSelectorPrefix/collections are real @nuxt/icon
+          // runtime options it still forwards into appConfig.icon at runtime
+          // (see the comment above), just not part of its narrower TS type.
+          icon: {
+            clientBundle: nuxtConfig.icon?.clientBundle,
+            cssSelectorPrefix: 'i-',
+            collections: [createRequire(import.meta.url)('@iconify-json/lucide/icons.json').prefix],
+          } as { clientBundle?: object },
           dts: false,
           // buildNuxtImports is plain JS (no declared types); its shape already
           // matches unplugin-auto-import's InlinePreset[], so assert it here.
