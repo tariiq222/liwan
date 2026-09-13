@@ -7,6 +7,7 @@ const accesses = [
   null,
   HrEmployeeAccessSchema.parse({ user_id: 7, login: 'sara', role: 'employee', active: true }),
   HrEmployeeAccessSchema.parse({ user_id: 2, login: 'admin', role: 'admin', active: true }),
+  HrEmployeeAccessSchema.parse({ user_id: 5, login: 'vendor', role: 'vendor', active: true }),
   HrEmployeeAccessSchema.parse({ user_id: 9, login: 'mohammed', role: 'employee', active: false }),
 ]
 
