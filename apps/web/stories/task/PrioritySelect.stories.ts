@@ -3,6 +3,7 @@ import PrioritySelect from '../../app/components/task/PrioritySelect.vue'
 import StateMenu from '../../app/components/task/StateMenu.vue'
 import { makeTask } from '../fixtures/pmo'
 import { storyContext } from '../support/context'
+import { useStoryTask } from '../support/taskCache'
 
 const meta = {
   title: 'Task/PrioritySelect',
@@ -11,8 +12,8 @@ const meta = {
   parameters: storyContext('apps/web/app/components/task/TaskTable.vue:233', 'صف المهمة على الجوال تحت 768px، فالغلاف بعرض 375px. التغيير يرسل PATCH إلى MSW.'),
   render: args => ({
     components: { PrioritySelect, StateMenu },
-    setup: () => ({ args }),
-    template: `<div class="divide-y divide-default" style="width: 375px"><article class="space-y-3 p-4"><div class="flex flex-wrap items-center gap-2"><StateMenu :task="args.task" /><PrioritySelect v-bind="args" /></div></article></div>`,
+    setup: () => ({ task: useStoryTask(() => args.task) }),
+    template: `<div class="divide-y divide-default" style="width: 375px"><article class="space-y-3 p-4"><div class="flex flex-wrap items-center gap-2"><StateMenu :task="task" /><PrioritySelect :task="task" /></div></article></div>`,
   }),
 } satisfies Meta<typeof PrioritySelect>
 export default meta

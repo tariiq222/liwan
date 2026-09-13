@@ -4,6 +4,7 @@ import StateMenu from '../../app/components/task/StateMenu.vue'
 import { makeTask } from '../fixtures/pmo'
 import { transitionForbidden } from '../handlers/api'
 import { storyContext } from '../support/context'
+import { useStoryTask } from '../support/taskCache'
 
 const meta = {
   title: 'Task/StateMenu',
@@ -12,8 +13,8 @@ const meta = {
   parameters: storyContext('apps/web/app/components/task/TaskTable.vue:232', 'صف المهمة على الجوال تحت 768px، فالغلاف بعرض 375px.'),
   render: args => ({
     components: { PrioritySelect, StateMenu },
-    setup: () => ({ args }),
-    template: `<div class="divide-y divide-default" style="width: 375px"><article class="space-y-3 p-4"><div class="flex flex-wrap items-center gap-2"><StateMenu v-bind="args" /><PrioritySelect :task="args.task" /></div></article></div>`,
+    setup: () => ({ task: useStoryTask(() => args.task) }),
+    template: `<div class="divide-y divide-default" style="width: 375px"><article class="space-y-3 p-4"><div class="flex flex-wrap items-center gap-2"><StateMenu :task="task" /><PrioritySelect :task="task" /></div></article></div>`,
   }),
 } satisfies Meta<typeof StateMenu>
 export default meta
