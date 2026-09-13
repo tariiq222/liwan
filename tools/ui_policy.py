@@ -45,6 +45,12 @@ COMMENTS = re.compile(r'/\*[\s\S]*?\*/|<!--[\s\S]*?-->|^[ \t]*//[^\n]*', re.MULT
 CHART_IDENTIFIERS = {'chartcontainer', 'chartstyle', 'chartlegendcontent', 'charttooltipcontent'}
 MOCK_FIXTURE_PATH = re.compile(r'(?:^|/)(?:__mocks?__|mocks?|__fixtures?__|fixtures?)(?:/|$)', re.I)
 RETIRED_PACKAGES = {'@lucide/vue'}
+# Storybook renders the real components for review; it is a dev-time viewer,
+# not a second UI library, so it cannot become the drift this guard catches.
+REVIEWED_STORYBOOK_TOOLING = {
+    'storybook', '@storybook/vue3-vite', '@storybook/addon-docs',
+    'msw', 'msw-storybook-addon', '@vitejs/plugin-vue', 'vite',
+}
 
 
 def source_file(path: str) -> bool:
@@ -163,7 +169,7 @@ def check(current: dict[str, str], baseline: dict[str, str], head: dict[str, str
     # RouterConfig, which app/router.options.ts is typed against. It carries no
     # components, so it cannot become the second UI library this guard exists
     # to catch.
-    allowed = dependencies(baseline) | {
+    allowed = dependencies(baseline) | REVIEWED_STORYBOOK_TOOLING | {
         '@nuxt/ui', '@iconify-json/lucide', '@internationalized/date', '@nuxt/schema',
     }
     names = legacy_names(baseline)

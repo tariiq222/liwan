@@ -211,6 +211,22 @@ class UiPolicyTest(unittest.TestCase):
         self.assertTrue(self.errors({MANIFEST: json.dumps(manifest)}))
         self.assertTrue(self.errors({PAGE: f'import {{ Search }} from "{RETIRED_RENDERER}"'}))
 
+    STORYBOOK_TOOLING = ("storybook", "@storybook/vue3-vite", "@storybook/addon-docs", "msw", "msw-storybook-addon", "@vitejs/plugin-vue", "vite")
+
+    def with_dev_dependencies(self, names):
+        manifest = json.loads(self.current[MANIFEST])
+        manifest["devDependencies"] = {name: "1.0.0" for name in names}
+        return {MANIFEST: json.dumps(manifest)}
+
+    def test_reviewed_storybook_tooling_passes(self):
+        self.assertEqual(self.errors(self.with_dev_dependencies(self.STORYBOOK_TOOLING)), [])
+
+    def test_unreviewed_storybook_addon_still_needs_review(self):
+        self.assertEqual(
+            self.errors(self.with_dev_dependencies(["@storybook/addon-a11y"])),
+            ["dependency needs review: @storybook/addon-a11y"],
+        )
+
     def test_cli_exit_codes_and_missing_history(self):
         for expected, current in ((0, self.current), (1, self.current | {PAGE: '<Button/><Button/>'})):
             with self.subTest(expected=expected), patch('ui_policy.snapshot', return_value=self.base), \

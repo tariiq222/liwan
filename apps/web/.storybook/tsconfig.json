@@ -1,0 +1,5 @@
+{
+  "extends": "../.nuxt/tsconfig.app.json",
+  "compilerOptions": { "allowArbitraryExtensions": true, "noEmit": true },
+  "include": ["./**/*.ts", "../stories/**/*.ts", "../.nuxt/nuxt.d.ts"]
+}
