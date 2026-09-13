@@ -38,19 +38,18 @@
 apps/web/
   .storybook/
     main.ts              إطار vue3-vite، aliases، ‏@nuxt/ui/vite بخيارات nuxt.config/app.config الحقيقية
-    nuxt-imports.mjs     يولّد الاستيرادات التلقائية والمكونات من .nuxt/imports.d.ts و.nuxt/components.d.ts (مكونات app/ فقط)
+    nuxt-imports.mjs     يولّد الاستيرادات التلقائية والمكونات من .nuxt/imports.d.ts و.nuxt/components.d.ts (مكونات app/ فقط)، ويفحص app/ عن واجهات Nuxt بلا بديل
     nuxt-shims.ts        بدائل واجهات Nuxt وقت التشغيل (قائمة §4)
-    nuxt-shim-report.mjs يفحص app/ ويفشل البناء إذا استُدعيت واجهة Nuxt بلا بديل
     preview.ts           i18n الحقيقي، vue-query، MSW، الـ decorator العام، أدوات الشريط
     public/mockServiceWorker.js
   stories/
     Overview.mdx                   الصفحة الشاملة
-    foundations/*.mdx              التوكنات
+    foundations/*.stories.ts       التوكنات
     nuxt-ui/*.stories.ts           وصفات app.config
-    shared/*.stories.ts
-    charts/*.stories.ts
+    <مجلد المكوّن>/*.stories.ts    قصص اللبنات بنفس مجلدها في app/components
+    support/context.ts             storyContext()
     fixtures/*.ts                  بيانات مُمررة عبر Zod
-    handlers/*.ts                  معالجات MSW لـ /api/v1
+    handlers/api.ts                معالجات MSW لـ /api/v1
 ```
 
 **الحزم (devDependencies في `apps/web`، إصدارات مثبتة بدقة):** `storybook`، `@storybook/vue3-vite`، `@storybook/addon-docs` (10.6.x)، `msw`، `msw-storybook-addon`، `@vitejs/plugin-vue`.
@@ -64,7 +63,7 @@ apps/web/
 البدائل في ملف واحد `nuxt-shims.ts`، كل منها أدنى سلوك يحتاجه مكوّن فعلي:
 `useFetch`، `useNuxtData`، `refreshNuxtData`، `useState`، `useCookie`، `$fetch`، `useRequestHeaders`، `useRuntimeConfig`، `useNuxtApp`/`tryUseNuxtApp`، `navigateTo`، `useRoute`/`useRouter` (vue-router حقيقي بذاكرة)، `useHead`؛ ومكونات `NuxtLink`، `ClientOnly`، `NuxtPage`.
 
-- **كشف الانحراف:** `nuxt-shim-report.mjs` يمسح `app/**` عند كل تشغيل. في `dev` يطبع تحذيرًا؛ في `storybook build` يفشل البناء إذا ظهرت واجهة Nuxt غير مغطاة.
+- **كشف الانحراف:** `nuxt-imports.mjs` يمسح `app/**` عند كل تشغيل. في `dev` يطبع تحذيرًا؛ في `storybook build` يفشل البناء إذا ظهرت واجهة Nuxt غير مغطاة.
 - **الأعلى خطرًا:** كاش `useFetch` المفتاحي (يعتمد عليه `useMe` و`useBranding`). `MeetingProjectFilter` يستخدم `useAccess` ← `useMe`، فيُختبر هذا المسار في هذه المرحلة بمحاكاة `/api/v1/me` عبر MSW.
 - **مكونات تحتاج API (5):** `MeetingProjectFilter` (`/api/v1/me`، `/api/v1/projects`)، `MeetingPeopleFields` (`/api/v1/people`)، `TagPicker` (`/api/v1/tags`)، `StateMenu` (انتقال المهمة)، `ProjectMenu` (أرشفة المشروع). معالجات MSW تعيد بيانات تمر عبر مخططات العقود.
 - **لا يُحاكى:** الـ bus، middleware المسارات، plugins Nuxt. أي مكوّن في النطاق يحتاجها يُسجَّل في §9 بدل ترقيعه.
@@ -72,6 +71,8 @@ apps/web/
 ## 5. الـ decorator وأدوات الشريط
 
 **تحسين مستهدف في كود التطبيق:** منطق `<html>` في `apps/web/app/app.vue` (class المظهر، `data-font-size`، `lang`، `dir`) يُستخرج إلى دالة نقية `htmlAttrsFor({ mode, fontSize, lang, dir })` في `apps/web/app/utils/appearance.ts` مع اختبار وحدة. يستخدمها `app.vue` والـ decorator معًا، فلا يوجد نسخة ثانية تنحرف. سلوك التطبيق لا يتغير.
+
+**تحسين ثانٍ بنفس السبب:** خريطة عناوين الرسوم في `ProjectDashboardCharts.vue` تُستخرج إلى `projectChartLabels(t)` في `apps/web/app/utils/projectChartData.ts` مع اختبار، لتبني قصص الرسوم بنفس المفاتيح بلا نسخة.
 
 الـ decorator يلف كل قصة بـ `UApp` باللغة الصحيحة من `@nuxt/ui/locale`، ويطبّق `htmlAttrsFor`، ويحقن متغيرات `createBrandTheme(primary, mode)` الحقيقية.
 
