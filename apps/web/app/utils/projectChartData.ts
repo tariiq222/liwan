@@ -87,6 +87,35 @@ export type DashboardBarChart = {
 
 export type DashboardChart = DashboardDonutChart | DashboardBarChart
 
+export function projectChartLabels(t: (key: string) => string): ChartLabels {
+  return {
+    status: {
+      on_track: t('projects.status.on_track'),
+      at_risk: t('projects.status.at_risk'),
+      off_track: t('projects.status.off_track'),
+      on_hold: t('projects.status.on_hold'),
+      done: t('projects.status.done'),
+      unset: t('projects.status.unset'),
+    },
+    taskClosed: t('projects.dashboard.charts.taskClosed'),
+    taskOpenOnTime: t('projects.dashboard.charts.taskOpenOnTime'),
+    taskOverdue: t('projects.dashboard.charts.taskOverdue'),
+    progressNoTasks: t('projects.dashboard.charts.progressNoTasks'),
+    progressUnknown: t('projects.dashboard.charts.progressUnknown'),
+    progress0to25: t('projects.dashboard.charts.progress0to25'),
+    progress26to50: t('projects.dashboard.charts.progress26to50'),
+    progress51to75: t('projects.dashboard.charts.progress51to75'),
+    progress76to99: t('projects.dashboard.charts.progress76to99'),
+    progress100: t('projects.dashboard.charts.progress100'),
+    budgetUnknown: t('projects.dashboard.charts.budgetUnknown'),
+    budgetWithin: t('projects.dashboard.charts.budgetWithin'),
+    budgetOver: t('projects.dashboard.charts.budgetOver'),
+    planned: t('projects.dashboard.charts.planned'),
+    actual: t('projects.dashboard.charts.actual'),
+    unavailable: t('projects.dashboard.unknown'),
+  }
+}
+
 const STATUS_ORDER: Array<ProjectStatus | null> = ['on_track', 'at_risk', 'off_track', 'on_hold', 'done', null]
 
 function percent(value: number, total: number): number {
