@@ -1,4 +1,4 @@
-# Storybook نسق — المرحلة 1: الأساس — 13 سبتمبر 2026
+# Storybook نسق — اللبنات المتكررة — 13 سبتمبر 2026
 
 **طلب المستخدم:** مرجع Storybook متكامل يعرض مكونات النظام في صفحة واحدة، بحيث يظهر أي تعديل على كود المكوّن أو التوكن في Storybook والتطبيق معًا. Storybook أداة **عرض واختبار** فقط؛ لا يُحرَّر منه شيء، ولا يصبح مصدر تصميم.
 
@@ -6,15 +6,21 @@
 
 ## 1. الهدف والنطاق
 
-المرحلة 1 من ست مراحل. نطاقها:
+**معيار الاختيار (قرار المستخدم):** Storybook للمكونات **المتكررة** فقط، لا لما يظهر مرة واحدة. المكوّن يدخل إذا استُخدم في ملفين أو أكثر، أو تكرر داخل ملف واحد (مثل بطاقة لكل مهمة)، **وكان لبنة** تُبنى بها الصفحات، لا نموذج إنشاء/تعديل أو قسم صفحة كامل. العدّ من الكود في 13 سبتمبر 2026: 53 مكونًا في ملفين أو أكثر، و3 مكررة داخل ملف، و68 مرة واحدة، و1 غير مستخدم كوسم.
+
+النطاق:
 
 1. **التوكنات:** الألوان والأسطح والحالات والخطوط والمسافات والزوايا والظلال وطبقات z، في المظاهر الثلاثة `light | dark | cream`، مع عائلة `--primary*` و`--chart-*` المشتقة من لون الهوية.
 2. **وصفات Nuxt UI:** كل مكوّن مخصص في `apps/web/app/app.config.ts` (16): button (رتب الأزرار)، input، inputNumber، select، selectMenu، dropdownMenu، tooltip، popover، calendar، textarea، card، table، progress، badge، slideover، modal. تُعرض مكونات Nuxt UI نفسها بالوصفة الحقيقية، لا مغلفات.
-3. **`shared/`** (12): PageContainer، PageHeader، FormSection، FilterBar، FilterCard، PageState، EmptyState، DateField، FileField، UnsavedChanges، RecordNumber، DashboardChart.
-4. **`charts/`** (4): ChartContainer، ChartLegendContent، ChartStyle، ChartTooltipContent (تُعرض عبر DashboardChart وقصة محول مباشرة).
-5. **الصفحة الشاملة «كل المكونات»:** صفحة docs واحدة تضم الأقسام الأربعة بالترتيب أعلاه.
+3. **اللبنات المتكررة (30)** — بين قوسين عدد الملفات المستخدِمة:
+   - الصفحة والحالة: `shared/PageHeader` (84)، `shared/PageState` (82)، `shared/PageContainer` (74)، `shared/UnsavedChanges` (29)، `shared/FormSection` (23)، `shared/RecordNumber` (18)، `settings/SettingsLayout` (17)، `shared/EmptyState` (11).
+   - الحقول والفلاتر: `shared/FilterBar` (21)، `shared/DateField` (14)، `task/DescriptionEditor` (6)، `meetings/MeetingProjectFilter` (5)، `meetings/MeetingPeopleFields` (4)، `shared/FileField` (3)، `project/ProjectFieldHelp` (23 استخدامًا في ملفين).
+   - الشارات: `project/ProjectStatusBadge` (6)، `task/StateBadge` (3)، `task/DeadlineBadge` (2)، `access/AccessStateBadge` (3)، `hr/AccessBadge` (2).
+   - المنتقيات والقوائم: `task/PrioritySelect`، `task/StateMenu`، `task/TagPicker`، `project/ProjectMenu`، `shell/SidebarCreateAction`، `chat/ChatAttachment` (2 لكل منها).
+   - البطاقات والرسوم: `task/TaskCard` (لكل مهمة في اللوحة)، `project/dashboard/DashboardChartPanel` (5 مرات)، `shared/DashboardChart` (2)، `charts/ChartContainer` (مرتان).
+4. **الصفحة الشاملة «كل المكونات»:** صفحة docs واحدة تضم التوكنات والوصفات واللبنات بالترتيب أعلاه.
 
-**خارج النطاق:** الغلاف والتنقل (المرحلة 2)، المهام (3)، المشاريع (4)، الاجتماعات والمحادثات والإشعارات (5)، HR والإدارة والحساب (6)؛ نشر Storybook أو استضافته؛ لقطات الانحدار البصري؛ تحرير التوكنات من الواجهة.
+**خارج النطاق:** المكونات المستخدمة مرة واحدة (68)، ومنها `shared/FilterCard` و`charts/ChartLegendContent` و`charts/ChartStyle` و`charts/ChartTooltipContent` التي تظهر فقط داخل آبائها؛ المكونات المتكررة التي هي نماذج إنشاء/تعديل أو أقسام صفحات (26، مثل `MilestoneForm` و`TaskTable` و`ChatWorkspace`)؛ نشر Storybook أو استضافته؛ لقطات الانحدار البصري؛ تحرير التوكنات من الواجهة.
 
 ## 2. المبدأ الحاكم: لا نسخ
 
@@ -59,8 +65,9 @@ apps/web/
 `useFetch`، `useNuxtData`، `refreshNuxtData`، `useState`، `useCookie`، `$fetch`، `useRequestHeaders`، `useRuntimeConfig`، `useNuxtApp`/`tryUseNuxtApp`، `navigateTo`، `useRoute`/`useRouter` (vue-router حقيقي بذاكرة)، `useHead`؛ ومكونات `NuxtLink`، `ClientOnly`، `NuxtPage`.
 
 - **كشف الانحراف:** `nuxt-shim-report.mjs` يمسح `app/**` عند كل تشغيل. في `dev` يطبع تحذيرًا؛ في `storybook build` يفشل البناء إذا ظهرت واجهة Nuxt غير مغطاة.
-- **الأعلى خطرًا:** كاش `useFetch` المفتاحي (يعتمد عليه `useMe` و`useBranding`). المرحلة 1 لا تستخدمهما؛ يُختبر في المرحلة 2.
-- **لا يُحاكى في المرحلة 1:** الـ bus، middleware المسارات، plugins Nuxt. أي مكوّن في النطاق يحتاجها يُسجَّل في §9 بدل ترقيعه.
+- **الأعلى خطرًا:** كاش `useFetch` المفتاحي (يعتمد عليه `useMe` و`useBranding`). `MeetingProjectFilter` يستخدم `useAccess` ← `useMe`، فيُختبر هذا المسار في هذه المرحلة بمحاكاة `/api/v1/me` عبر MSW.
+- **مكونات تحتاج API (5):** `MeetingProjectFilter` (`/api/v1/me`، `/api/v1/projects`)، `MeetingPeopleFields` (`/api/v1/people`)، `TagPicker` (`/api/v1/tags`)، `StateMenu` (انتقال المهمة)، `ProjectMenu` (أرشفة المشروع). معالجات MSW تعيد بيانات تمر عبر مخططات العقود.
+- **لا يُحاكى:** الـ bus، middleware المسارات، plugins Nuxt. أي مكوّن في النطاق يحتاجها يُسجَّل في §9 بدل ترقيعه.
 
 ## 5. الـ decorator وأدوات الشريط
 
@@ -94,7 +101,7 @@ apps/web/
 - إضافة حزم §3 إلى القائمة المسموحة، مع تعليق يوضح أنها أدوات عرض لا مكتبة واجهة.
 - رفض أي `.vue` تحت `apps/web/stories/` أو `apps/web/.storybook/`.
 - رفض استيراد مكونات من خارج `apps/web/app/components/` داخل القصص، ورفض استيراد `stories/` من `apps/web/app/`.
-- **شرط التغطية:** كل مكوّن `.vue` في `shared/` و`charts/` له قصة تستورده. نطاق الشرط يتوسع مع كل مرحلة.
+- **شرط التغطية:** قائمة صريحة `STORYBOOK_COMPONENTS` في `tools/ui_policy.py` بمسارات اللبنات الثلاثين؛ كل مسار فيها يجب أن يكون المكوّن الأساسي لقصة. إضافة لبنة جديدة تعني إضافتها للقائمة وكتابة قصتها.
 - **شرط مصدر السياق:** كل قصة تحمل `parameters.nasqContext` يشير إلى ملف موجود يستخدم المكوّن فعلًا. إذا تغيّر السطر ولم يعد يحوي استخدام المكوّن، يطبع الفحص تحذيرًا بتحديث المرجع.
 - قاعدة `design-preview` المتقاعدة تبقى.
 
@@ -112,12 +119,11 @@ apps/web/
 
 ## 9. مخاطر ومسائل مفتوحة
 
-- **مكونات تقاوم العزل:** `PageHeader` يعتمد على `usePageHeader` و`useProjectFrameHeading` و`useEscapeBack` والمسار؛ `PageContainer` على `useRoute`. تُعرض بمسار vue-router حقيقي بذاكرة. إن احتاج أيٌّ منها middleware أو بيانات جلسة، يُنقل إلى المرحلة 2 ويُسجَّل.
+- **مكونات تقاوم العزل:** `PageHeader` يعتمد على `usePageHeader` و`useProjectFrameHeading` و`useEscapeBack` والمسار؛ `PageContainer` على `useRoute`. تُعرض بمسار vue-router حقيقي بذاكرة. إن احتاج أيٌّ منها middleware أو بيانات جلسة، يُسجَّل هنا بدل ترقيعه في البدائل.
 - **تباين التقويم في الوضع الداكن:** لقطة التجربة أظهرت أسماء أيام الأسبوع شبه غير مرئية. يُتحقق هل هي في التطبيق نفسه؛ إن كانت، تُبلَّغ كمشكلة منفصلة ولا تُصلح ضمن هذه المرحلة.
 - **ترقيات Storybook:** إصدارات مثبتة بدقة؛ الترقية مهمة مستقلة تمر بفحص السياسة.
-- **worktrees التجربتين** (`../nasq-storybook-spike-a`، `../nasq-storybook-spike-b`) تبقى مرجعًا حتى دمج المرحلة 1، ثم تُحذف بموافقة المستخدم.
+- **worktrees التجربتين** (`../nasq-storybook-spike-a`، `../nasq-storybook-spike-b`) تبقى مرجعًا حتى دمج هذا العمل، ثم تُحذف بموافقة المستخدم.
 
-## 10. المراحل التالية (لكل منها مواصفة وخطة مستقلة)
+## 10. ما بعد هذه المرحلة
 
-2. الغلاف والتنقل — محاكاة `useMe` والصلاحيات و`useBranding` وكاش `useFetch`؛ نقطة إعادة تقييم الطريقة أ إن تضخمت البدائل.
-3. المهام. 4. المشاريع. 5. الاجتماعات والمحادثات والإشعارات. 6. HR والإدارة والحساب.
+لا مراحل حسب الركائز. عندما يصبح مكوّن لبنةً متكررة (ملفان أو أكثر) يُضاف إلى `STORYBOOK_COMPONENTS` مع قصته. إذا تضخمت بدائل Nuxt عند إضافة مكونات تعتمد على الجلسة أو الـ bus، يُعاد تقييم الطريقة أ.
