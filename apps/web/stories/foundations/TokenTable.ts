@@ -20,7 +20,7 @@ export const TokenTable = defineComponent({
       if (props.swatch === 'color') return h('span', { class: 'inline-block size-6 rounded border border-default', style: { background: `var(${name})` } })
       if (props.swatch === 'radius') return h('span', { class: 'inline-block size-8 border border-default bg-elevated', style: { borderRadius: `var(${name})` } })
       if (props.swatch === 'shadow') return h('span', { class: 'inline-block size-8 rounded bg-default', style: { boxShadow: `var(${name})` } })
-      return null
+      return undefined
     }
     return () => h('table', { class: 'w-full text-start text-sm' }, [
       h('tbody', props.names.map(name => h('tr', { key: name, class: 'border-t border-default' }, [

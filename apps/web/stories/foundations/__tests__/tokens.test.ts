@@ -33,6 +33,8 @@ describe('token names from tokens.css', () => {
     ['--text-xs', false],
     ['--font-sans', false],
     ['--shell-header-height', false],
+    ['--project-type-caption', false],
+    ['--project-section-surface', true],
   ])('%s is a colour token: %s', (name, expected) => {
     expect(isColorToken(name)).toBe(expected)
   })
