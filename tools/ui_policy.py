@@ -20,7 +20,17 @@ LEGACY = APP + 'components/ui/'
 CHARTS = APP + 'components/charts/'
 CATALOG = 'docs/design-system/components.md'
 MANIFESTS = ('package.json', 'apps/web/package.json')
-SCOPE = (*(root.rstrip('/') for root in SOURCE_ROOTS), *MANIFESTS, CATALOG)
+STORIES = 'apps/web/stories/'
+STORYBOOK = 'apps/web/.storybook/'
+STORY_ROOTS = (STORIES, STORYBOOK)
+STORY_SUFFIXES = {'.vue', '.ts', '.mjs', '.mdx'}
+COMPONENTS = APP + 'components/'
+# Reused building blocks that must each be the meta component of a story (filled in Task 11).
+STORYBOOK_COMPONENTS: tuple[str, ...] = ()
+STORY_CONTEXT = re.compile(r'''\bstoryContext\(\s*(['"])([^'"]+)\1''')
+META_COMPONENT = re.compile(r'\bcomponent:\s*(\w+)')
+DEFAULT_VUE_IMPORT = re.compile(r'''^\s*import\s+(\w+)\s+from\s+(['"])([^'"]+\.vue)\2''', re.M)
+SCOPE = (*(root.rstrip('/') for root in SOURCE_ROOTS), *(root.rstrip('/') for root in STORY_ROOTS), *MANIFESTS, CATALOG)
 THEME_OWNERS = {
     APP + 'assets/css/main.css',
     APP + 'assets/css/tokens.css',
@@ -56,6 +66,40 @@ REVIEWED_STORYBOOK_TOOLING = {
 def source_file(path: str) -> bool:
     return (path.startswith(SOURCE_ROOTS) and Path(path).suffix in {'.vue', '.ts', '.js', '.mjs', '.css', '.scss'}
             and '/__tests__/' not in path and not re.search(r'\.(test|spec)\.', path))
+
+
+def story_file(path: str) -> bool:
+    return (path.startswith(STORY_ROOTS) and Path(path).suffix in STORY_SUFFIXES
+            and '/__tests__/' not in path and not re.search(r'\.(test|spec)\.', path))
+
+
+def resolve_specifier(path: str, specifier: str) -> str | None:
+    if specifier.startswith(('@/', '~/')):
+        return APP + specifier[2:]
+    if specifier.startswith('.'):
+        return posixpath.normpath(posixpath.join(posixpath.dirname(path), specifier))
+    return None
+
+
+def component_names(component: str) -> set[str]:
+    relative = component[len(COMPONENTS):]
+    stem = relative.rsplit('/', 1)[-1].removesuffix('.vue').removesuffix('.client')
+    prefix = ''.join(part[:1].upper() + part[1:] for part in relative.split('/')[:-1])
+    return {stem, prefix + stem}
+
+
+def mentions(text: str, names: set[str]) -> bool:
+    return any(re.search(rf'(?<![\w-]){re.escape(name)}(?![\w-])', text) for name in names)
+
+
+def story_component(path: str, source: str) -> str | None:
+    meta = META_COMPONENT.search(source)
+    if not meta:
+        return None
+    for match in DEFAULT_VUE_IMPORT.finditer(source):
+        if match.group(1) == meta.group(1):
+            return resolve_specifier(path, match.group(3))
+    return None
 
 
 def dependencies(snapshot: dict[str, str]) -> set[str]:
@@ -163,6 +207,66 @@ def findings(path: str, source: str, names: set[str], allowed: set[str], has_ui:
     return result
 
 
+def story_errors(current: dict[str, str]) -> list[str]:
+    errors = []
+    covered = set()
+    for path, source in sorted(current.items()):
+        if source_file(path) and path.startswith(APP):
+            for match in IMPORTS.finditer(COMMENTS.sub('', source)):
+                target = resolve_specifier(path, match.group(2))
+                if target and target.startswith(('apps/web/stories', 'apps/web/.storybook')):
+                    errors.append(path + ': app code must not import Storybook files')
+                    break
+        if not story_file(path):
+            continue
+        if path.endswith('.vue'):
+            errors.append(path + ': Storybook renders real components; no .vue files in stories')
+            continue
+        for match in IMPORTS.finditer(source):
+            target = resolve_specifier(path, match.group(2))
+            if target and target.endswith('.vue') and not target.startswith(COMPONENTS):
+                errors.append(path + ': stories import components only from apps/web/app/components')
+                break
+        component = story_component(path, source)
+        if not component or not component.startswith(COMPONENTS):
+            continue
+        covered.add(component)
+        refs = [match.group(2) for match in STORY_CONTEXT.finditer(source)]
+        if not refs:
+            errors.append(path + ': story needs storyContext(<file:line> or unused)')
+        for ref in refs:
+            if ref == 'unused':
+                continue
+            file, _, line = ref.rpartition(':')
+            if not line.isdigit() or file not in current or not mentions(current[file], component_names(component)):
+                errors.append(f'{path}: storyContext {ref} does not point at a real usage of {component}')
+    for component in STORYBOOK_COMPONENTS:
+        if component not in current:
+            errors.append(component + ': listed Storybook component does not exist')
+        elif component not in covered:
+            errors.append(component + ': component needs a story')
+    return errors
+
+
+def story_warnings(current: dict[str, str]) -> list[str]:
+    warnings = []
+    for path, source in sorted(current.items()):
+        if not story_file(path) or path.endswith('.vue'):
+            continue
+        component = story_component(path, source)
+        if not component or not component.startswith(COMPONENTS):
+            continue
+        for match in STORY_CONTEXT.finditer(source):
+            file, _, line = match.group(2).rpartition(':')
+            if file not in current or not line.isdigit():
+                continue
+            lines = current[file].splitlines()
+            number = int(line)
+            if not 1 <= number <= len(lines) or not mentions(lines[number - 1], component_names(component)):
+                warnings.append(f'{path}: update storyContext {match.group(2)}; that line no longer uses the component')
+    return warnings
+
+
 def check(current: dict[str, str], baseline: dict[str, str], head: dict[str, str]) -> list[str]:
     errors = []
     # @nuxt/schema ships inside nuxt itself and is where Nuxt's own docs put
@@ -196,6 +300,7 @@ def check(current: dict[str, str], baseline: dict[str, str], head: dict[str, str
             if f'`{path}`' not in current.get(CATALOG, ''):
                 errors.append(path + ': register exact path, recipe and primitives in the catalog')
         errors.extend(f'{path}: {reason} (+{count})' for reason, count in sorted(findings(path, source, names, allowed, has_ui).items()))
+    errors.extend(story_errors(current))
     return errors
 
 
@@ -210,7 +315,7 @@ def snapshot(root: Path, ref: str) -> dict[str, str]:
     with tarfile.open(fileobj=io.BytesIO(data)) as archive:
         return {entry.name: archive.extractfile(entry).read().decode('utf-8')
                 for entry in archive if entry.isfile()
-                and (source_file(entry.name) or entry.name in (*MANIFESTS, CATALOG))}
+                and (source_file(entry.name) or story_file(entry.name) or entry.name in (*MANIFESTS, CATALOG))}
 
 
 def current_snapshot(root: Path) -> dict[str, str]:
@@ -220,7 +325,7 @@ def current_snapshot(root: Path) -> dict[str, str]:
         if not raw:
             continue
         path = raw.decode('utf-8')
-        if not (source_file(path) or path in (*MANIFESTS, CATALOG)):
+        if not (source_file(path) or story_file(path) or path in (*MANIFESTS, CATALOG)):
             continue
         target = root / path
         if target.is_symlink():
@@ -240,9 +345,12 @@ def main() -> int:
         head = snapshot(root, 'HEAD')
         current = current_snapshot(root)
         errors = check(current, baseline, head)
+        warnings = story_warnings(current)
     except (OSError, ValueError, subprocess.CalledProcessError, tarfile.TarError) as exc:
         sys.stderr.write(f'UI policy could not run (baseline/history and inputs required): {exc}\n')
         return 2
+    for warning in warnings:
+        sys.stdout.write('WARN: ' + warning + '\n')
     if errors:
         sys.stdout.write('\n'.join(errors) + f'\nFAIL: {len(errors)} UI policy finding(s). No files changed.\n')
         return 1
