@@ -1,16 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
-import { computed, type Component } from 'vue'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import UTableRaw from '@nuxt/ui/components/Table.vue'
-import UCardRaw from '@nuxt/ui/components/Card.vue'
 import RecordNumber from '../../app/components/shared/RecordNumber.vue'
 import { storyContext } from '../support/context'
-
-// Nuxt auto-imports these tags in real .vue files via its component resolver;
-// stories compile inline templates at runtime and must register them locally.
-// UTable's generic prop signature does not fit Vue's plain Component type.
-const UTable = UTableRaw as Component
-const UCard = UCardRaw as Component
 
 const rows = [{ id: 1042, name: 'وزارة التخطيط' }, { id: 7, name: 'فريق الجودة' }]
 
@@ -26,7 +18,7 @@ export const InTableCell: Story = {
   name: 'داخل خلية جدول',
   parameters: storyContext('apps/web/app/pages/projects/[id]/stakeholders/index.vue:107'),
   render: () => ({
-    components: { RecordNumber, UTable },
+    components: { RecordNumber },
     setup() {
       const { t } = useI18n()
       const columns = computed(() => [{ accessorKey: 'id', header: '#' }, { accessorKey: 'name', header: t('projects.governance.stakeholders') }])
@@ -40,7 +32,7 @@ export const InMobileCard: Story = {
   name: 'داخل بطاقة الجوال',
   parameters: storyContext('apps/web/app/pages/projects/[id]/stakeholders/index.vue:149', 'تظهر البطاقة تحت 768px (md:hidden)، فالغلاف بعرض شاشة جوال 375px.'),
   render: args => ({
-    components: { RecordNumber, UCard },
+    components: { RecordNumber },
     setup: () => ({ args }),
     template: `<ul class="grid gap-3 p-3" style="width: 375px"><li><UCard><div class="space-y-3"><div class="flex items-start justify-between gap-3"><div class="min-w-0 space-y-1"><RecordNumber v-bind="args" /><span class="block font-medium">وزارة التخطيط</span></div></div></div></UCard></li></ul>`,
   }),

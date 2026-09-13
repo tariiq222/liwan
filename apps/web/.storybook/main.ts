@@ -1,4 +1,6 @@
 import type { StorybookConfig } from '@storybook/vue3-vite'
+import { readdirSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { Plugin } from 'vite'
@@ -39,6 +41,35 @@ export default { ${table.join(', ')} }`
   }
 }
 
+// Nuxt auto-imports every U* component in real .vue files via its own
+// resolver; Storybook stories compile inline templates at runtime, so the
+// same set must be registered globally once, generated from the installed
+// package rather than a hand-written list.
+function nuxtUiComponents(): Plugin {
+  const id = 'virtual:nasq-nuxt-ui-components'
+  return {
+    name: 'nasq:nuxt-ui-components',
+    resolveId: source => (source === id ? `\0${id}` : undefined),
+    load(source) {
+      if (source !== `\0${id}`) return
+      // '@nuxt/ui/package.json' is not in the package's exports map; a
+      // components subpath is, and resolving it locates the same directory.
+      const anchor = createRequire(import.meta.url).resolve('@nuxt/ui/components/Table.vue')
+      const componentsDir = dirname(anchor)
+      const files = readdirSync(componentsDir).filter(file => file.endsWith('.vue'))
+      const imports: string[] = []
+      const entries: string[] = []
+      files.forEach((file, index) => {
+        const name = `c${index}`
+        const tag = `U${file.slice(0, -'.vue'.length)}`
+        imports.push(`import ${name} from ${JSON.stringify(`@nuxt/ui/components/${file}`)}`)
+        entries.push(`${JSON.stringify(tag)}: ${name}`)
+      })
+      return `${imports.join('\n')}\nexport default { ${entries.join(', ')} }`
+    },
+  }
+}
+
 const config: StorybookConfig = {
   stories: ['../stories/**/*.mdx', '../stories/**/*.stories.ts'],
   addons: ['@storybook/addon-docs', 'msw-storybook-addon'],
@@ -59,11 +90,23 @@ const config: StorybookConfig = {
     }
 
     return mergeConfig(viteConfig, {
-      resolve: { alias: { '~': join(webRoot, 'app'), '@': join(webRoot, 'app') } },
+      resolve: {
+        alias: {
+          '~': join(webRoot, 'app'),
+          '@': join(webRoot, 'app'),
+          // @nuxt/icon's runtime components import a few names from
+          // "#imports" that @nuxt/ui's own Vue-mode stub doesn't provide;
+          // this alias wins over @nuxt/ui's internal resolver for the same
+          // specifier so every top-level component (icons included) builds.
+          '#imports': join(here, 'nuxt-ui-imports-shim.mjs'),
+          '#build/nuxt-icon-client-bundle': join(here, 'nuxt-icon-client-bundle-shim.mjs'),
+        },
+      },
       define: { 'import.meta.server': 'false', 'import.meta.client': 'true', 'import.meta.dev': 'true' },
       plugins: [
         vue(),
         i18nMessages(nuxtConfig.i18n.locales),
+        nuxtUiComponents(),
         ui({
           ...nuxtConfig.ui,
           ui: appConfig.ui,

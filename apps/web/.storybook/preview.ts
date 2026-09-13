@@ -10,6 +10,7 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import { mswLoader } from 'msw-storybook-addon/csf3'
 import messages, { locales } from 'virtual:nasq-i18n'
+import nuxtUiComponents from 'virtual:nasq-nuxt-ui-components'
 import { useAppearance } from '../app/composables/useAppearance'
 import { htmlAttrsFor, type AppearanceMode, type FontSize } from '../app/utils/appearance'
 import { createBrandTheme, DEFAULT_PRIMARY } from '../app/utils/brandTheme'
@@ -28,6 +29,9 @@ setup((app) => {
   app.use(i18n)
   app.use(VueQueryPlugin, { queryClient })
   app.use(ui)
+  // Real .vue files get U* tags from Nuxt's own resolver; stories compile
+  // inline templates at runtime and need the same tags registered globally.
+  for (const [tag, component] of Object.entries(nuxtUiComponents)) app.component(tag, component)
 })
 
 // Same attributes app.vue and useBranding put on <html>, applied once per render.
