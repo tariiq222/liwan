@@ -222,16 +222,18 @@ def story_errors(current: dict[str, str]) -> list[str]:
         if path.endswith('.vue'):
             errors.append(path + ': Storybook renders real components; no .vue files in stories')
             continue
-        for match in IMPORTS.finditer(source):
+        # Strip comments from story source before checking for imports and context
+        story_source = COMMENTS.sub('', source)
+        for match in IMPORTS.finditer(story_source):
             target = resolve_specifier(path, match.group(2))
             if target and target.endswith('.vue') and not target.startswith(COMPONENTS):
                 errors.append(path + ': stories import components only from apps/web/app/components')
                 break
-        component = story_component(path, source)
+        component = story_component(path, story_source)
         if not component or not component.startswith(COMPONENTS):
             continue
         covered.add(component)
-        refs = [match.group(2) for match in STORY_CONTEXT.finditer(source)]
+        refs = [match.group(2) for match in STORY_CONTEXT.finditer(story_source)]
         if not refs:
             errors.append(path + ': story needs storyContext(<file:line> or unused)')
         for ref in refs:
@@ -253,10 +255,12 @@ def story_warnings(current: dict[str, str]) -> list[str]:
     for path, source in sorted(current.items()):
         if not story_file(path) or path.endswith('.vue'):
             continue
-        component = story_component(path, source)
+        # Strip comments from story source before checking for context and component
+        story_source = COMMENTS.sub('', source)
+        component = story_component(path, story_source)
         if not component or not component.startswith(COMPONENTS):
             continue
-        for match in STORY_CONTEXT.finditer(source):
+        for match in STORY_CONTEXT.finditer(story_source):
             file, _, line = match.group(2).rpartition(':')
             if file not in current or not line.isdigit():
                 continue

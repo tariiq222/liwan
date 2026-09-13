@@ -304,6 +304,17 @@ class UiPolicyTest(unittest.TestCase):
         changes = {"apps/web/stories/shared/Copy.vue": "<template><p /></template>"}
         self.assertIn("apps/web/stories/shared/Copy.vue: Storybook renders real components; no .vue files in stories", self.errors(changes))
 
+    def test_commented_out_context_does_not_count(self):
+        story_source = (
+            "import Example from '../../app/components/shared/Example.vue'\n"
+            "import { storyContext } from '../support/context'\n"
+            "export default { component: Example }\n"
+            "export const InPage = { parameters: {} }\n"
+            "// storyContext('apps/web/app/pages/example.vue:2')\n"
+        )
+        errors = story_errors(self.story_snapshot(**{STORY: story_source}))
+        self.assertEqual(errors, [STORY + ": story needs storyContext(<file:line> or unused)"])
+
 
 if __name__ == '__main__':
     unittest.main()
