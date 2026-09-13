@@ -5,7 +5,7 @@
         <slot name="search" />
       </div>
       <UPopover v-if="$slots.default" v-model:open="expanded">
-        <UButton type="button" color="neutral" variant="outline" square icon="i-lucide-list-filter" :aria-label="resolvedTitle" :title="resolvedTitle" :aria-expanded="expanded" :aria-controls="contentId" :disabled="isDisabled" />
+        <UButton type="button" color="neutral" variant="outline" square icon="i-lucide-plus" :aria-label="resolvedTitle" :title="resolvedTitle" :aria-expanded="expanded" :aria-controls="contentId" :disabled="isDisabled" />
         <template #content>
           <div :id="contentId" class="nasq-ui-filter-content" data-slot="filter-fields" :aria-busy="isDisabled"><slot /></div>
         </template>
