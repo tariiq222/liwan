@@ -192,6 +192,7 @@ async function openProject(id: number) {
   <SharedPageContainer width="list">
     <SharedPageHeader :title="t(filters.mine ? 'nav.myProjects' : 'nav.allProjects')">
       <template #actions>
+        <UButton v-if="canCreate" data-testid="project-new" icon="i-lucide-plus" :disabled="!hydrated" :label="t('projects.new')" @click="openCreate" />
         <UButton color="neutral" variant="outline" :to="{ path: '/project-templates', query: returnToQuery(route.fullPath) }" data-testid="project-templates-link" :label="t('projects.planningLinks.templates')" />
       </template>
     </SharedPageHeader>
@@ -210,64 +211,51 @@ async function openProject(id: number) {
     </UAlert>
 
     <div class="w-full min-w-0" data-testid="projects-toolbar">
-      <div class="flex items-center gap-2">
-        <UInput v-model="search" :disabled="!hydrated" :placeholder="t('projects.filters.search')" :aria-label="t('projects.filters.search')" icon="i-lucide-search" class="flex-1 min-w-52" />
-        <div class="hidden md:flex items-center gap-2">
-          <div role="group" class="nasq-ui-segment" :aria-label="t('projects.filters.view')">
-            <UButton data-testid="projects-view-table" type="button" square color="neutral" size="sm" :variant="view === 'table' ? 'soft' : 'ghost'" icon="i-lucide-list" :disabled="!hydrated" :aria-label="t('projects.filters.tableView')" :aria-pressed="view === 'table'" @click="onViewChange('table')" />
-            <UButton data-testid="projects-view-cards" type="button" square color="neutral" size="sm" :variant="view === 'cards' ? 'soft' : 'ghost'" icon="i-lucide-layout-grid" :disabled="!hydrated" :aria-label="t('projects.filters.cardView')" :aria-pressed="view === 'cards'" @click="onViewChange('cards')" />
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="fixed bottom-6 end-6 z-50 flex flex-col gap-2">
-      <UButton v-if="canCreate" data-testid="project-new" icon="i-lucide-plus" color="primary" :disabled="!hydrated" :aria-label="t('projects.new')" size="lg" @click="openCreate" />
-      <UPopover>
-        <UButton
-          type="button"
-          icon="i-lucide-list-filter"
-          color="neutral"
-          variant="outline"
-          square
-          :aria-label="t('filterCard.title')"
-          :title="t('filterCard.title')"
-          size="lg"
-        />
-        <template #content>
-          <div class="nasq-ui-filter-content p-4 space-y-3 w-72" data-slot="filter-fields">
-            <UTabs
-              v-if="canListArchived"
-              :model-value="archived ? 'archived' : 'active'"
-              :items="[{ label: t('projects.filters.active'), value: 'active', disabled: !hydrated }, { label: t('projects.filters.archived'), value: 'archived', disabled: !hydrated }]"
-              size="sm"
-              @update:model-value="onFilterChange"
-            />
-            <USelect
-              :model-value="statusFilter"
-              :items="[{ value: 'all', label: t('projects.filters.allStatuses') }, { value: 'unset', label: t('projects.filters.unset') }, ...PROJECT_STATUSES.map(status => ({ value: status, label: t(`projects.status.${status}`) }))]"
-              data-testid="projects-status-filter"
-              :disabled="!hydrated"
-              @update:model-value="onStatusChange"
-            />
-            <USelect
-              :model-value="sort"
-              :items="[{ value: 'default', label: t('projects.filters.sortDefault') }, { value: 'name', label: t('projects.filters.sortName') }, { value: 'progress', label: t('projects.filters.sortProgress') }]"
-              data-testid="projects-sort"
-              :disabled="!hydrated"
-              @update:model-value="onSortChange"
-            />
-            <div v-if="activeFilterCount > 0" class="pt-2 border-t">
-              <UButton type="button" color="error" variant="ghost" size="sm" icon="i-lucide-trash-2" :label="t('filterCard.clear')" :disabled="!hydrated" @click="clearFilters" />
-            </div>
-            <div v-if="rawSearch || statusFilter !== 'all' || sort !== 'default'" class="flex flex-wrap items-center gap-2 text-xs text-muted">
-              <UBadge v-if="rawSearch" color="secondary" variant="subtle">{{ t('projects.filters.searchValue', { value: rawSearch }) }}</UBadge>
-              <UBadge v-if="statusFilter !== 'all'" color="secondary" variant="subtle">{{ t(statusFilter === 'unset' ? 'projects.filters.unset' : `projects.status.${statusFilter}`) }}</UBadge>
-              <UBadge v-if="sort !== 'default'" color="secondary" variant="subtle">{{ t(sort === 'name' ? 'projects.filters.sortName' : 'projects.filters.sortProgress') }}</UBadge>
+      <FilterBar class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
+        <template #search>
+          <UInput v-model="search" :disabled="!hydrated" :placeholder="t('projects.filters.search')" :aria-label="t('projects.filters.search')" icon="i-lucide-search" class="w-full min-w-52" />
+        </template>
+        <template #default>
+          <UTabs
+            v-if="canListArchived"
+            :model-value="archived ? 'archived' : 'active'"
+            :items="[{ label: t('projects.filters.active'), value: 'active', disabled: !hydrated }, { label: t('projects.filters.archived'), value: 'archived', disabled: !hydrated }]"
+            size="sm"
+            @update:model-value="onFilterChange"
+          />
+          <USelect
+            :model-value="statusFilter"
+            :items="[{ value: 'all', label: t('projects.filters.allStatuses') }, { value: 'unset', label: t('projects.filters.unset') }, ...PROJECT_STATUSES.map(status => ({ value: status, label: t(`projects.status.${status}`) }))]"
+            data-testid="projects-status-filter"
+            class="w-40"
+            :disabled="!hydrated"
+            @update:model-value="onStatusChange"
+          />
+          <USelect
+            :model-value="sort"
+            :items="[{ value: 'default', label: t('projects.filters.sortDefault') }, { value: 'name', label: t('projects.filters.sortName') }, { value: 'progress', label: t('projects.filters.sortProgress') }]"
+            data-testid="projects-sort"
+            class="w-40"
+            :disabled="!hydrated"
+            @update:model-value="onSortChange"
+          />
+        </template>
+        <template #view>
+          <div class="hidden md:block">
+            <div role="group" class="nasq-ui-segment" :aria-label="t('projects.filters.view')">
+              <UButton data-testid="projects-view-table" type="button" square color="neutral" size="sm" :variant="view === 'table' ? 'soft' : 'ghost'" icon="i-lucide-list" :disabled="!hydrated" :aria-label="t('projects.filters.tableView')" :aria-pressed="view === 'table'" @click="onViewChange('table')" />
+              <UButton data-testid="projects-view-cards" type="button" square color="neutral" size="sm" :variant="view === 'cards' ? 'soft' : 'ghost'" icon="i-lucide-layout-grid" :disabled="!hydrated" :aria-label="t('projects.filters.cardView')" :aria-pressed="view === 'cards'" @click="onViewChange('cards')" />
             </div>
           </div>
         </template>
-      </UPopover>
+        <template #active>
+          <div v-if="rawSearch || statusFilter !== 'all' || sort !== 'default'" class="flex flex-wrap items-center gap-2">
+            <UBadge v-if="rawSearch" color="secondary" variant="subtle">{{ t('projects.filters.searchValue', { value: rawSearch }) }}</UBadge>
+            <UBadge v-if="statusFilter !== 'all'" color="secondary" variant="subtle">{{ t(statusFilter === 'unset' ? 'projects.filters.unset' : `projects.status.${statusFilter}`) }}</UBadge>
+            <UBadge v-if="sort !== 'default'" color="secondary" variant="subtle">{{ t(sort === 'name' ? 'projects.filters.sortName' : 'projects.filters.sortProgress') }}</UBadge>
+          </div>
+        </template>
+      </FilterBar>
     </div>
 
     <SharedPageState v-if="projectList.error.value" :error="projectList.error.value" @retry="projectList.refetch" />
