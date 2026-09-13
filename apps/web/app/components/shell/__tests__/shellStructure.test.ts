@@ -95,7 +95,7 @@ describe('approved shell structure', () => {
   it('keeps the reference shell frame square and the active rail item branded', () => {
     expect(shellCss).toContain('border-radius: 0;')
     expect(shellCss).toContain('border-inline-start: 1px solid var(--border)')
-    expect(shellCss).toContain('background: color-mix(in srgb, var(--nasq-rail) 72%, var(--primary))')
+    expect(shellCss).toContain('background: rgb(255 255 255 / 17%)')
     expect(shellCss).toContain('color: #fff;')
   })
 

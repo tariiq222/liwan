@@ -70,6 +70,8 @@ html[dir="rtl"] .nasq-gantt-name { box-shadow: 8px 0 16px -12px color-mix(in srg
 /* Approved application frame: one branded header and module rail, with a
    quiet context surface that remains visible on every route. */
 .nasq-shell {
+  --shell-duration: 320ms;
+  --shell-ease: cubic-bezier(.22, 1, .36, 1);
   --shell-header-height: 64px;
   --module-rail-width: 76px;
   --context-sidebar-width: 236px;
@@ -147,24 +149,30 @@ html[dir="rtl"] body { padding-right: 0 !important; }
   width: var(--module-rail-width);
   overflow: hidden;
   background: var(--nasq-rail);
-  color: #aeb5c5;
-  border-inline-start: 1px solid rgb(255 255 255 / 3%);
-  transition: width 180ms ease;
+  background-image: linear-gradient(180deg, var(--nasq-rail) 0%, var(--nasq-rail-deep) 100%);
+  color: rgb(255 255 255 / 76%);
+  border-inline-start: 1px solid rgb(255 255 255 / 6%);
+  transition: width var(--shell-duration) var(--shell-ease);
 }
-.nasq-module-rail-inner { display: flex; height: 100%; min-width: 0; flex-direction: column; overflow: hidden; padding: 18px 10px 14px; }
+.nasq-module-rail-inner { display: flex; height: 100%; min-width: 0; flex-direction: column; overflow: hidden; padding: 14px 6px 12px; transition: padding var(--shell-duration) var(--shell-ease); }
 .nasq-module-rail-toggle,
-.nasq-module-rail-link { display: flex; min-height: 40px; align-items: center; border-radius: 10px; color: inherit; transition: background-color 150ms, color 150ms; }
-.nasq-module-rail-toggle { width: 100%; justify-content: center; gap: 10px; margin-block-end: 18px; padding-inline: 8px; font-size: .75rem; }
+.nasq-module-rail-link { display: flex; min-height: 40px; align-items: center; border-radius: 12px; color: inherit; transition: background-color 200ms ease, color 200ms ease, transform 240ms var(--shell-ease); }
+.nasq-module-rail-toggle { width: 100%; justify-content: center; gap: 10px; margin-block-end: 14px; padding-inline: 8px; font-size: .75rem; }
 .nasq-module-rail-toggle [data-slot="label"] { display: none; white-space: nowrap; }
 .nasq-module-rail-toggle:hover,
-.nasq-module-rail-link:hover { background: color-mix(in srgb, #fff 13%, var(--nasq-rail)); }
+.nasq-module-rail-link:hover { background: rgb(255 255 255 / 10%); color: #fff; }
+.nasq-module-rail-toggle:active,
+.nasq-module-rail-link:active { transform: scale(.96); }
 .nasq-module-rail-toggle:focus-visible,
 .nasq-module-rail-link:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.nasq-module-rail .nasq-shell-icon { transition: transform 280ms var(--shell-ease); }
+.nasq-module-rail-link:hover .nasq-shell-icon { transform: translateY(-1px) scale(1.08); }
 .nasq-module-rail .nasq-module-rail-link[aria-current="page"],
 .nasq-module-rail .nasq-module-rail-link[data-active="true"],
 .nasq-module-rail .nasq-module-rail-link[aria-current="page"]:hover,
 .nasq-module-rail .nasq-module-rail-link[data-active="true"]:hover {
-  background: color-mix(in srgb, var(--nasq-rail) 72%, var(--primary));
+  background: rgb(255 255 255 / 17%);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 10%);
   color: #fff;
   font-weight: 650;
 }
@@ -173,16 +181,18 @@ html[dir="rtl"] body { padding-right: 0 !important; }
   content: '';
   position: absolute;
   inset-inline-start: auto;
-  inset-inline-end: -7px;
+  inset-inline-end: -6px;
   inset-block-start: 50%;
   inset-block-end: auto;
   width: 3px;
   height: 24px;
   border-radius: 999px;
-  background: var(--primary-2);
+  background: #fff;
   transform: translateY(-50%);
   pointer-events: none;
+  animation: nasq-rail-indicator 360ms var(--shell-ease) both;
 }
+@keyframes nasq-rail-indicator { from { opacity: 0; transform: translateY(-50%) scaleY(0); } }
 @media (forced-colors: active) {
   .nasq-module-rail .nasq-module-rail-link[aria-current="page"]::after,
   .nasq-module-rail .nasq-module-rail-link[data-active="true"]::after {
@@ -223,17 +233,17 @@ html[dir="rtl"] body { padding-right: 0 !important; }
     background: Highlight;
   }
 }
-.nasq-module-rail-links { display: flex; min-height: 0; flex: 1; flex-direction: column; gap: 8px; overflow-y: auto; scrollbar-width: thin; }
-.nasq-module-rail-utility { display: flex; flex: 0 0 auto; flex-direction: column; gap: 8px; margin-block-start: auto; padding-block-start: 14px; border-block-start: 1px solid rgb(255 255 255 / 20%); }
-.nasq-module-rail-link { position: relative; justify-content: center; gap: 11px; padding: 8px; font-size: .82rem; text-decoration: none; }
-.nasq-module-rail .nasq-module-rail-link [data-slot="label"] { position: fixed; inset-inline-start: calc(var(--module-rail-width) + 8px); z-index: 90; width: auto; height: auto; overflow: visible; clip: auto; pointer-events: none; opacity: 0; border-radius: 7px; background: var(--foreground); color: var(--background); padding: 6px 10px; white-space: nowrap; }
-.nasq-module-rail .nasq-module-rail-link:hover [data-slot="label"],
-.nasq-module-rail .nasq-module-rail-link:focus-visible [data-slot="label"] { opacity: 1; }
+.nasq-module-rail-links { display: flex; min-height: 0; flex: 1; flex-direction: column; gap: 6px; overflow-y: auto; overflow-x: hidden; scrollbar-width: none; }
+.nasq-module-rail-utility { display: flex; flex: 0 0 auto; flex-direction: column; gap: 6px; margin-block-start: auto; padding-block-start: 12px; border-block-start: 1px solid rgb(255 255 255 / 16%); }
+.nasq-module-rail-link { position: relative; flex-direction: column; justify-content: center; gap: 4px; min-height: 56px; padding: 8px 2px 6px; font-size: .82rem; text-decoration: none; }
+.nasq-module-rail .nasq-module-rail-link [data-slot="label"] { max-width: 100%; overflow: hidden; font-size: .72rem; font-weight: 500; line-height: 1.25; text-align: center; text-overflow: ellipsis; white-space: nowrap; animation: nasq-rail-label-stacked 300ms var(--shell-ease) both; }
 .nasq-module-rail[data-expanded="true"] .nasq-module-rail-inner { padding-inline: 10px; }
 .nasq-module-rail[data-expanded="true"] .nasq-module-rail-toggle { justify-content: flex-start; padding-inline: 10px; }
-.nasq-module-rail[data-expanded="true"] .nasq-module-rail-toggle [data-slot="label"] { display: inline; }
-  .nasq-module-rail[data-expanded="true"] .nasq-module-rail-link { justify-content: flex-start; padding-inline: 12px; }
-  .nasq-module-rail[data-expanded="true"] .nasq-module-rail-link [data-slot="label"] { position: static; padding: 0; opacity: 1; pointer-events: auto; background: none; color: inherit; white-space: normal; }
+.nasq-module-rail[data-expanded="true"] .nasq-module-rail-toggle [data-slot="label"] { display: inline; animation: nasq-rail-label-inline 300ms var(--shell-ease) 80ms both; }
+.nasq-module-rail[data-expanded="true"] .nasq-module-rail-link { flex-direction: row; justify-content: flex-start; gap: 11px; min-height: 44px; padding: 8px 12px; }
+.nasq-module-rail[data-expanded="true"] .nasq-module-rail-link [data-slot="label"] { font-size: .82rem; text-align: start; animation-name: nasq-rail-label-inline; animation-delay: 80ms; }
+@keyframes nasq-rail-label-stacked { from { opacity: 0; transform: translateY(3px); } }
+@keyframes nasq-rail-label-inline { from { opacity: 0; transform: scale(.96); } }
 .nasq-context-sidebar {
   position: fixed;
   inset-block-start: var(--shell-header-height);
@@ -243,12 +253,18 @@ html[dir="rtl"] body { padding-right: 0 !important; }
   width: var(--context-sidebar-width);
   border-inline-start: 1px solid var(--border);
   border-radius: 0;
+  overflow-x: hidden;
   overflow-y: auto;
   background: var(--context-surface);
   color: var(--foreground);
-  transition: inset-inline-start 180ms ease;
 }
-.nasq-context-sidebar { display: flex; flex-direction: column; transition: width 180ms ease, inset-inline-start 180ms ease; }
+.nasq-context-sidebar { display: flex; flex-direction: column; transition: width var(--shell-duration) var(--shell-ease), inset-inline-start var(--shell-duration) var(--shell-ease); }
+.nasq-context-enter-active, .nasq-context-leave-active { transition: opacity 200ms ease, transform 260ms var(--shell-ease); }
+.nasq-context-enter-from { opacity: 0; transform: translateY(6px); }
+.nasq-context-leave-to { opacity: 0; transform: translateY(-4px); }
+.nasq-context-heading-copy, .nasq-context-emblem, .nasq-context-link [data-slot="label"] { animation: nasq-context-fade 280ms var(--shell-ease) 60ms both; }
+.nasq-context-sidebar[data-expanded="false"] .nasq-context-link [data-slot="label"] { animation: none; transition: opacity 160ms ease; }
+@keyframes nasq-context-fade { from { opacity: 0; } }
 .nasq-shell:has(.nasq-context-sidebar[data-chat="true"]) { --context-sidebar-width: 400px; }
 .nasq-shell:has(.nasq-context-sidebar[data-chat="true"]) .nasq-shell-main { padding: 0; overflow: hidden; }
 .nasq-chat-workspace { max-width: none; height: calc(100svh - var(--shell-header-height)); }
@@ -279,7 +295,13 @@ html[dir="rtl"] body { padding-right: 0 !important; }
 .nasq-context-heading h2 { margin: 0; overflow-wrap: anywhere; font-size: 1rem; font-weight: 600; line-height: 1.55; }
 .nasq-context-heading p { margin: 2px 0 0; overflow: hidden; color: var(--muted-foreground); font-size: .72rem; text-overflow: ellipsis; white-space: nowrap; }
 .nasq-context-links { display: grid; gap: 4px; padding-inline: 10px; }
-.nasq-context-create-actions { display: grid; gap: 4px; margin-block-end: 8px; padding-inline: 10px; }
+.nasq-context-create-actions { display: flex; gap: 4px; }
+.nasq-context-create-icon { color: var(--brand-link); }
+.nasq-context-create-icon:hover { background: color-mix(in srgb, var(--brand-link) 10%, var(--context-surface)); color: var(--brand-link); }
+.nasq-context-create-icon svg, .nasq-context-create-icon [class*="i-lucide"] { width: 20px; height: 20px; }
+.nasq-context-footer { display: flex; justify-content: flex-end; margin-block-start: auto; padding-block-start: 8px; padding-inline: 12px; }
+.nasq-context-sidebar[data-chat="true"] .nasq-context-footer { flex: none; }
+.nasq-context-link { transition: background-color 180ms ease, color 180ms ease; }
 .nasq-context-link { display: flex; min-height: 42px; align-items: center; justify-content: start; gap: 10px; border-block-end: 2px solid transparent; border-radius: 9px; padding: 9px 11px; color: var(--muted-foreground); font-size: .82rem; text-align: start; text-decoration: none; }
 .nasq-context-link:hover { background: color-mix(in srgb, var(--foreground) 6%, var(--context-surface)); color: var(--foreground); }
 
@@ -306,7 +328,7 @@ html[dir="rtl"] body { padding-right: 0 !important; }
 }
 .nasq-chat-row:hover .nasq-chat-msg-actions, .nasq-chat-row:focus-within .nasq-chat-msg-actions { opacity: 1; }
 
-.nasq-shell-workspace { min-height: 100svh; margin-inline-start: calc(var(--module-rail-width) + var(--context-sidebar-width)); padding-block-start: var(--shell-header-height); background: var(--context-surface); transition: margin-inline-start 180ms ease; }
+.nasq-shell-workspace { min-height: 100svh; margin-inline-start: calc(var(--module-rail-width) + var(--context-sidebar-width)); padding-block-start: var(--shell-header-height); background: var(--context-surface); transition: margin-inline-start var(--shell-duration) var(--shell-ease); }
 .nasq-shell-main { min-height: calc(100svh - var(--shell-header-height)); min-width: 0; border-radius: 0; background: var(--background); box-shadow: var(--content-shadow); padding: 30px clamp(18px, 3vw, 48px) 56px; }
 .nasq-shell { animation: nasq-shell-enter 220ms ease both; }
 @keyframes nasq-shell-enter { from { opacity: 0; } to { opacity: 1; } }
@@ -325,6 +347,7 @@ html[dir="rtl"] body { padding-right: 0 !important; }
   .nasq-context-sidebar[data-expanded="false"] .nasq-context-heading { display: flex; justify-content: center; padding: 12px 8px 8px; }
   .nasq-context-sidebar[data-expanded="false"] .nasq-context-emblem,
   .nasq-context-sidebar[data-expanded="false"] .nasq-context-heading-copy { display: none; }
+  .nasq-context-sidebar[data-expanded="false"] .nasq-context-footer { justify-content: center; padding-inline: 8px; }
   .nasq-context-sidebar[data-expanded="false"] .nasq-context-link { justify-content: center; padding-inline: 8px; }
   .nasq-context-sidebar[data-expanded="false"] .nasq-context-link .nasq-shell-icon { width: 18px; height: 18px; flex: none; }
   .nasq-context-sidebar[data-expanded="false"] .nasq-context-link [data-slot="label"] { position: fixed; inset-inline-start: calc(var(--module-rail-width) + var(--context-sidebar-width) + 8px); z-index: 90; width: auto; height: auto; overflow: visible; clip: auto; opacity: 0; pointer-events: none; border-radius: 7px; background: var(--foreground); color: var(--background); padding: 6px 10px; white-space: nowrap; }

@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { useMediaQuery } from '@vueuse/core'
 import ConversationList from '@/components/chat/ConversationList.vue'
-import SidebarCreateAction from '@/components/shell/SidebarCreateAction.vue'
 import { useContextSidebar, useShellNavigation } from '@/composables/useShellNavigation'
 import { hidePinnedNewProject, shellModules } from '@/composables/nav/shellModules'
 import { activeShellModule, contextModuleFor } from '@/composables/nav/activeRoute'
@@ -85,36 +84,22 @@ function updateRoute(next: ChatListRoute) {
         <div class="nasq-context-heading-copy">
           <h2>{{ contextTitle }}</h2>
         </div>
-        <UTooltip :text="t(expanded ? 'nav.collapseContext' : 'nav.expandContext')">
-          <UButton
-            type="button"
-            color="neutral"
-            variant="ghost"
-            square
-            class="nasq-context-toggle"
-            data-testid="context-sidebar-toggle"
-            :disabled="!hydrated"
-            :aria-expanded="expanded"
-            :aria-controls="navigationId"
-            :aria-label="t(expanded ? 'nav.collapseContext' : 'nav.expandContext')"
-            @click="toggle"
-          >
-            <template #leading>
-              <UIcon :name="expanded ? 'i-lucide-panel-left-close' : 'i-lucide-panel-left-open'" class="nasq-shell-icon size-[18px] shrink-0" aria-hidden="true" />
-            </template>
-          </UButton>
-        </UTooltip>
-      </div>
-
-      <div v-if="createLinks.length" class="nasq-context-create-actions">
-        <SidebarCreateAction
-          v-for="link in createLinks"
-          :key="link.id"
-          :to="createTo(link)"
-          :label="t(link.labelKey)"
-          :active="link.active"
-          :test-id="`context-link-${link.id}`"
-        />
+        <div v-if="createLinks.length" class="nasq-context-create-actions">
+          <UTooltip v-for="link in createLinks" :key="link.id" :text="t(link.labelKey)">
+            <UButton
+              :to="createTo(link)"
+              color="primary"
+              variant="ghost"
+              square
+              icon="i-lucide-plus"
+              class="nasq-context-create-icon"
+              :data-active="link.active"
+              :aria-current="link.active ? 'page' : undefined"
+              :aria-label="t(link.labelKey)"
+              :data-testid="`context-link-${link.id}`"
+            />
+          </UTooltip>
+        </div>
       </div>
 
       <nav v-if="showContextNav" class="nasq-context-links" :data-grouped="activeModule === 'settings' || isProjectsArea" :aria-label="contextTitle">
@@ -147,6 +132,28 @@ function updateRoute(next: ChatListRoute) {
         :selected-id="selectedConversationId"
         @update:route-state="updateRoute"
       />
+
+      <div class="nasq-context-footer">
+        <UTooltip :text="t(expanded ? 'nav.collapseContext' : 'nav.expandContext')">
+          <UButton
+            type="button"
+            color="neutral"
+            variant="ghost"
+            square
+            class="nasq-context-toggle"
+            data-testid="context-sidebar-toggle"
+            :disabled="!hydrated"
+            :aria-expanded="expanded"
+            :aria-controls="navigationId"
+            :aria-label="t(expanded ? 'nav.collapseContext' : 'nav.expandContext')"
+            @click="toggle"
+          >
+            <template #leading>
+              <UIcon :name="expanded ? 'i-lucide-panel-left-close' : 'i-lucide-panel-left-open'" class="nasq-shell-icon size-[18px] shrink-0" aria-hidden="true" />
+            </template>
+          </UButton>
+        </UTooltip>
+      </div>
 
       </div>
     </Transition>

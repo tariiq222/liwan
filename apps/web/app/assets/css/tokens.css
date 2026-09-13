@@ -17,7 +17,8 @@
   --nasq-text: #171923;
   --nasq-muted: #656c7e;
   --nasq-border: #e5e8ef;
-  --nasq-rail: #1d2030;
+  --nasq-rail: color-mix(in srgb, var(--primary) 50%, #0a0c12);
+  --nasq-rail-deep: color-mix(in srgb, var(--primary) 36%, #0a0c12);
   --nasq-radius: 14px;
   --radius: var(--nasq-radius);
   --primary-contrast: #fff;
@@ -137,7 +138,8 @@
   --nasq-text: #3f3428;
   --nasq-muted: #746753;
   --nasq-border: #e8e0d4;
-  --nasq-rail: #1d2030;
+  --nasq-rail: color-mix(in srgb, var(--primary) 50%, #0a0c12);
+  --nasq-rail-deep: color-mix(in srgb, var(--primary) 36%, #0a0c12);
   --shell-background: var(--nasq-surface);
   --shell-foreground: var(--nasq-text);
   --context-surface: var(--nasq-surface);
@@ -162,7 +164,8 @@
   --nasq-text: #f6f7fb;
   --nasq-muted: #a9b0bf;
   --nasq-border: #2d3340;
-  --nasq-rail: #0d0f16;
+  --nasq-rail: color-mix(in srgb, var(--primary) 32%, #07080c);
+  --nasq-rail-deep: color-mix(in srgb, var(--primary) 20%, #07080c);
   --rail-hover: #242936;
   --ui-bg: var(--nasq-surface);
   --ui-bg-elevated: var(--nasq-surface);
