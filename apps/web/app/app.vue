@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ar, en } from '@nuxt/ui/locale'
+import { htmlAttrsFor } from '@/utils/appearance'
 
 const { locale } = useI18n()
 const { mode, fontSize } = useAppearance()
@@ -8,12 +9,12 @@ const { mode, fontSize } = useAppearance()
 // head is left to the app (see the module's lang-switcher guide).
 const i18nHead = useLocaleHead({ seo: false })
 useHead(() => ({
-  htmlAttrs: {
-    class: mode.value === 'dark' ? 'dark' : mode.value === 'cream' ? 'cream' : '',
-    'data-font-size': fontSize.value,
+  htmlAttrs: htmlAttrsFor({
+    mode: mode.value,
+    fontSize: fontSize.value,
     lang: i18nHead.value.htmlAttrs?.lang,
     dir: i18nHead.value.htmlAttrs?.dir,
-  },
+  }),
 }))
 </script>
 
