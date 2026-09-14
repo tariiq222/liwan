@@ -1,15 +1,18 @@
 <script setup lang="ts">
-defineProps<{
+import { accessTone } from '@/utils/statusTone'
+
+const props = defineProps<{
   active: boolean
   protected?: boolean
   readOnly?: boolean
 }>()
 
 const { t } = useI18n()
+const tone = computed(() => props.readOnly ? 'neutral' : accessTone(props.active))
 </script>
 
 <template>
-  <UBadge :color="active ? 'success' : 'neutral'" variant="subtle">
+  <span class="nasq-ui-status-pill" :data-tone="tone">
     {{ protected ? t('access.protected') : readOnly ? t('access.readOnly') : active ? t('access.active') : t('access.disabled') }}
-  </UBadge>
+  </span>
 </template>
