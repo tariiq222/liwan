@@ -68,6 +68,10 @@ function onDepartmentChange(value: unknown) {
   departmentId.value = value && value !== 'all' ? Number(value) : undefined
   updateFilters()
 }
+function clearSearch() {
+  search.value = ''
+  updateFilters()
+}
 function clearFilters() {
   search.value = ''
   departmentId.value = undefined
@@ -99,21 +103,22 @@ function documentTo(document: HrDocument) {
             @change="updateFilters"
           />
         </template>
-        <template #default>
-          <USelect
-            v-if="can('hr.departments.read')"
-            :model-value="departmentId ? String(departmentId) : 'all'"
-            :items="departmentOptions"
-            class="w-48"
-            :disabled="!hydrated"
-            :aria-label="t('hr.docs.allDepartments')"
-            @update:model-value="onDepartmentChange"
-          />
+        <template v-if="can('hr.departments.read')" #default>
+          <SharedFilterField :label="t('hr.docs.department')" for="hr-documents-department">
+            <USelect
+              id="hr-documents-department"
+              :model-value="departmentId ? String(departmentId) : 'all'"
+              :items="departmentOptions"
+              class="w-full"
+              :disabled="!hydrated"
+              @update:model-value="onDepartmentChange"
+            />
+          </SharedFilterField>
         </template>
         <template #active>
           <div v-if="hasActiveFilters" class="flex flex-wrap items-center gap-2">
-            <UBadge v-if="search.trim()" color="neutral" variant="subtle">{{ t('hr.directory.searchValue', { value: search }) }}</UBadge>
-            <UBadge v-if="selectedDepartment" color="neutral" variant="subtle">{{ selectedDepartment.name }}</UBadge>
+            <SharedFilterChip v-if="search.trim()" :label="t('hr.directory.searchValue', { value: search })" @remove="clearSearch" />
+            <SharedFilterChip v-if="selectedDepartment" :label="selectedDepartment.name" @remove="onDepartmentChange('all')" />
           </div>
         </template>
       </FilterBar>

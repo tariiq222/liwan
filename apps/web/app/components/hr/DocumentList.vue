@@ -74,7 +74,7 @@ function detailsTo(document: HrDocument) {
         </template>
         <template #active>
           <div v-if="hasActiveFilters" class="flex flex-wrap items-center gap-2">
-            <UBadge color="neutral" variant="subtle">{{ t('hr.directory.searchValue', { value: search }) }}</UBadge>
+            <SharedFilterChip :label="t('hr.directory.searchValue', { value: search })" @remove="clearSearch" />
           </div>
         </template>
       </FilterBar>

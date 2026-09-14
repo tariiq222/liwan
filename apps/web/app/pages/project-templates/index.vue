@@ -37,11 +37,11 @@ function clearFilters() {
     <div class="w-full min-w-0">
       <FilterBar class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
         <template #search>
-          <UInput v-model="search" name="template-search" :aria-label="t('projects.templates.filters.search')" icon="i-lucide-search" :disabled="!hydrated" :placeholder="t('projects.templates.filters.search')" class="min-w-52 flex-1" />
+          <UInput v-model="search" name="template-search" :aria-label="t('projects.templates.filters.search')" icon="i-lucide-search" :disabled="!hydrated" :placeholder="t('projects.templates.filters.search')" class="w-full min-w-52" />
         </template>
         <template #active>
           <div v-if="search.trim()" class="flex flex-wrap items-center gap-2">
-            <UBadge color="secondary" variant="subtle">{{ t('projects.templates.filters.search') }}: {{ search }}</UBadge>
+            <SharedFilterChip :label="`${t('projects.templates.filters.search')}: ${search}`" @remove="clearFilters" />
           </div>
         </template>
       </FilterBar>

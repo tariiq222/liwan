@@ -9,7 +9,7 @@
 | المسؤولية | المكونات الفعلية | الأساس المستخدم |
 | --- | --- | --- |
 | الحاوية والعنوان والأقسام | `apps/web/app/components/shared/PageContainer.vue`, `apps/web/app/components/shared/PageHeader.vue`, `apps/web/app/components/shared/FormSection.vue` | حاويات الصفحة، العنوان، أقسام النماذج |
-| البحث والفلاتر والحالة | `apps/web/app/components/shared/FilterBar.vue`, `apps/web/app/components/shared/FilterCard.vue`, `apps/web/app/components/shared/PageState.vue`, `apps/web/app/components/shared/EmptyState.vue` | بحث، فلاتر، تحميل، خطأ، فراغ وصلاحية |
+| البحث والفلاتر والحالة | `apps/web/app/components/shared/FilterBar.vue`, `apps/web/app/components/shared/FilterCard.vue`, `apps/web/app/components/shared/FilterField.vue`, `apps/web/app/components/shared/FilterChoice.vue`, `apps/web/app/components/shared/FilterChip.vue`, `apps/web/app/components/shared/PageState.vue`, `apps/web/app/components/shared/EmptyState.vue` | بحث، فلاتر (حقل بعنوان، اختيار مباشر، شريحة قابلة للإزالة)، تحميل، خطأ، فراغ وصلاحية |
 | الحقول وحماية المسودة | `apps/web/app/components/shared/DateField.vue`, `apps/web/app/components/shared/FileField.vue`, `apps/web/app/components/shared/UnsavedChanges.vue` | `DateField`: UPopover/UCalendar/UButton؛ `FileField`: UButton وحقل ملف مخفي؛ حارس المسودة |
 | هوية السجل والرسوم | `apps/web/app/components/shared/RecordNumber.vue`, `apps/web/app/components/shared/DashboardChart.client.vue` | رقم السجل ومحولات الرسوم |
 | محولات الرسوم | `apps/web/app/components/charts/ChartContainer.vue`, `apps/web/app/components/charts/ChartLegendContent.vue`, `apps/web/app/components/charts/ChartStyle.vue`, `apps/web/app/components/charts/ChartTooltipContent.vue` | Unovis وتوكنات الرسم المشتقة من الهوية |

@@ -91,6 +91,18 @@ function clearFilters() {
   search.value = ''
   applyPatch({ q: '', status: 'all' })
 }
+
+function clearSearch() {
+  search.value = ''
+  applyPatch({ q: '' })
+}
+
+const statusOptions = computed(() => [
+  { value: 'all', label: t('projects.filters.allStatuses') },
+  { value: 'unset', label: t('projects.status.unset') },
+  ...PROJECT_STATUSES.map(status => ({ value: status, label: t(`projects.status.${status}`) })),
+])
+const statusLabel = computed(() => t(filters.status === 'unset' ? 'projects.filters.unset' : `projects.status.${filters.status}`))
 </script>
 
 <template>
@@ -102,22 +114,20 @@ function clearFilters() {
         <template #search>
           <UInput v-model="search" :disabled="!hydrated" :placeholder="t('projects.reports.search')" :aria-label="t('projects.reports.search')" icon="i-lucide-search" class="min-w-52 flex-1" />
         </template>
-        <USelect
-          :model-value="filters.status"
-          data-testid="project-dashboard-status-filter"
-          class="w-40"
-          :disabled="!hydrated"
-          :items="[
-            { value: 'all', label: t('projects.filters.allStatuses') },
-            { value: 'unset', label: t('projects.status.unset') },
-            ...PROJECT_STATUSES.map(status => ({ value: status, label: t(`projects.status.${status}`) })),
-          ]"
-          @update:model-value="onStatusChange"
-        />
+        <template #default>
+          <SharedFilterChoice
+            data-testid="project-dashboard-status-filter"
+            :label="t('projects.filters.statusLabel')"
+            :items="statusOptions"
+            :model-value="filters.status"
+            :disabled="!hydrated"
+            @update:model-value="onStatusChange"
+          />
+        </template>
         <template #active>
           <div v-if="filtered" class="flex flex-wrap items-center gap-2">
-            <UBadge v-if="filters.q.trim()" color="secondary" variant="subtle">{{ t('projects.filters.searchValue', { value: filters.q }) }}</UBadge>
-            <UBadge v-if="filters.status !== 'all'" color="secondary" variant="subtle">{{ t(filters.status === 'unset' ? 'projects.filters.unset' : `projects.status.${filters.status}`) }}</UBadge>
+            <SharedFilterChip v-if="filters.q.trim()" :label="t('projects.filters.searchValue', { value: filters.q })" @remove="clearSearch" />
+            <SharedFilterChip v-if="filters.status !== 'all'" :label="statusLabel" @remove="onStatusChange('all')" />
           </div>
         </template>
       </FilterBar>

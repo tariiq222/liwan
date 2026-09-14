@@ -50,7 +50,7 @@ const title = computed(() => resource.value === 'owning-units'
 
 const page = computed(() => Math.floor(offset.value / CHARTER_CATALOG_PAGE_SIZE) + 1)
 const pages = computed(() => Math.max(1, Math.ceil((query.data.value?.total ?? 0) / CHARTER_CATALOG_PAGE_SIZE)))
-const activeFilterCount = computed(() => Number(Boolean(q.value)) + Number(showInactive.value))
+const activeFilterCount = computed(() => Number(Boolean(q.value)))
 
 function listQuery(next: Record<string, string | undefined> = {}) {
   const current = {
@@ -67,12 +67,19 @@ function onSearch(event: Event) {
   void router.replace({ query: listQuery({ q: value || undefined, offset: undefined }) })
 }
 
-function toggleInactive() {
-  void router.replace({ query: listQuery({ active: showInactive.value ? undefined : 'all', offset: undefined }) })
+// Active-only vs all is a dataset scope at the toolbar end, not a popover filter.
+function toggleInactive(value: unknown) {
+  const next = value === 'all'
+  if (next === showInactive.value) return
+  void router.replace({ query: listQuery({ active: next ? 'all' : undefined, offset: undefined }) })
+}
+
+function clearSearch() {
+  void router.replace({ query: listQuery({ q: undefined, offset: undefined }) })
 }
 
 function clearFilters() {
-  void router.replace({ query: listQuery({ q: undefined, active: undefined, offset: undefined }) })
+  clearSearch()
 }
 
 function openNew() {
@@ -122,13 +129,19 @@ async function confirmAction() {
           <template #search>
             <UInput :model-value="q" :placeholder="t('app.search')" :aria-label="t('app.search')" icon="i-lucide-search" class="min-w-52 flex-1" :disabled="!hydrated" @change="onSearch" />
           </template>
-          <UButton variant="outline" :disabled="!hydrated" :aria-pressed="showInactive" @click="toggleInactive">
-            {{ t('settings.projects.catalogs.showInactive') }}
-          </UButton>
+          <template #view>
+            <UTabs
+              data-testid="catalog-scope"
+              :model-value="showInactive ? 'all' : 'active'"
+              :items="[{ label: t('settings.projects.catalogs.scopeActive'), value: 'active', disabled: !hydrated }, { label: t('settings.projects.catalogs.scopeAll'), value: 'all', disabled: !hydrated }]"
+              :aria-label="t('settings.projects.catalogs.showInactive')"
+              size="sm"
+              @update:model-value="toggleInactive"
+            />
+          </template>
           <template #active>
             <div v-if="activeFilterCount" class="flex flex-wrap items-center gap-2">
-              <UBadge v-if="q" color="secondary" variant="subtle">{{ q }}</UBadge>
-              <UBadge v-if="showInactive" color="secondary" variant="subtle">{{ t('settings.projects.catalogs.showInactive') }}</UBadge>
+              <SharedFilterChip v-if="q" :label="q" @remove="clearSearch" />
             </div>
           </template>
         </FilterBar>

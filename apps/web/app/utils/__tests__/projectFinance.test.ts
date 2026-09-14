@@ -36,7 +36,6 @@ import {
   patchFinanceListRoute,
   patchReportListRoute,
   reportListPath,
-  reportListQuery,
   sameFinanceListRoute,
   sameReportListRoute,
   serializeFinanceListRoute,
@@ -203,12 +202,6 @@ describe('report list route helpers', () => {
     expect(reportListPath({ q: 'portal', status: 'off_track', offset: 50 })).toBe(
       '/reports?q=portal&status=off_track&offset=50',
     )
-    expect(reportListQuery({ q: '  ', status: 'all', limit: REPORT_PAGE, offset: 0 })).toEqual({
-      q: undefined,
-      status: undefined,
-      limit: 50,
-      offset: 0,
-    })
     expect(sameReportListRoute(
       serializeReportListRoute({ q: 'a', status: 'all', offset: 0 }),
       serializeReportListRoute(parseReportListRoute({ q: 'a' })),

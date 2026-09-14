@@ -103,6 +103,8 @@
         "active": "Active",
         "inactive": "Inactive",
         "showInactive": "Show inactive",
+        "scopeActive": "Active",
+        "scopeAll": "All",
         "disable": "Disable",
         "enable": "Enable",
         "delete": "Delete",

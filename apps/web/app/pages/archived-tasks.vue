@@ -66,7 +66,7 @@ function restoreTask(task: Task) {
         </template>
         <template #active>
           <div v-if="q.trim()" class="flex flex-wrap items-center gap-2">
-            <UBadge color="neutral" variant="subtle">{{ t('taskLifecycle.searchArchived') }}: {{ q }}</UBadge>
+            <SharedFilterChip :label="t('tasks.filters.searchValue', { value: q.trim() })" @remove="clearFilters" />
           </div>
         </template>
       </FilterBar>

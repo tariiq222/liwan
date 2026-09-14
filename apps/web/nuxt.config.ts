@@ -41,8 +41,8 @@ export default defineNuxtConfig({
     // i18n/locales/{ar,en}/hr.json and one entry per locale here, and never
     // touches common.json or tasks.json.
     locales: [
-      { code: 'ar', language: 'ar-SA', dir: 'rtl', name: 'العربية', files: ['ar/common.json', 'ar/tasks.json', 'ar/projects.json', 'ar/settings.json', 'ar/hr.json', 'ar/access.json', 'ar/attachments.json', 'ar/notifications.json', 'ar/taskLifecycle.json', 'ar/chat.json'] },
-      { code: 'en', language: 'en', dir: 'ltr', name: 'English', files: ['en/common.json', 'en/tasks.json', 'en/projects.json', 'en/settings.json', 'en/hr.json', 'en/access.json', 'en/attachments.json', 'en/notifications.json', 'en/taskLifecycle.json', 'en/chat.json'] },
+      { code: 'ar', language: 'ar-SA', dir: 'rtl', name: 'العربية', files: ['ar/common.json', 'ar/tasks.json', 'ar/projects.json', 'ar/settings.json', 'ar/hr.json', 'ar/access.json', 'ar/attachments.json', 'ar/notifications.json', 'ar/taskLifecycle.json', 'ar/chat.json', 'ar/meetings.json'] },
+      { code: 'en', language: 'en', dir: 'ltr', name: 'English', files: ['en/common.json', 'en/tasks.json', 'en/projects.json', 'en/settings.json', 'en/hr.json', 'en/access.json', 'en/attachments.json', 'en/notifications.json', 'en/taskLifecycle.json', 'en/chat.json', 'en/meetings.json'] },
     ],
     defaultLocale: 'ar',
     strategy: 'no_prefix',

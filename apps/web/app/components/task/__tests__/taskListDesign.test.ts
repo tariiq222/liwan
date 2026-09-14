@@ -22,8 +22,11 @@ describe('tasks list design', () => {
     expect(toolbar).toContain('bg-elevated/40')
     expect(toolbar).toContain("view === 'table' ? 'soft' : 'ghost'")
     expect(toolbar).toContain(":aria-pressed=\"view === 'table'\"")
-    expect(toolbar).toContain('stateFilterLabel')
-    expect(toolbar).toContain("tasks.filters.selectedStates")
+    expect(toolbar).toContain('<SharedFilterChoice')
+    expect(toolbar).toContain(':model-value="stateChoiceValue"')
+    expect(toolbar).toContain("tasks.filters.allStates")
+    expect(toolbar).toContain('for="task-filter-project"')
+    expect(toolbar).not.toContain('UDropdownMenu')
   })
 
   it('wraps the standalone table in the shared rounded border surface', () => {

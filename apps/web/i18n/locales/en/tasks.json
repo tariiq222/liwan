@@ -27,6 +27,8 @@
       "allStates": "All states",
       "selectedStates": "{count} states",
       "allProjects": "All projects",
+      "stateLabel": "State",
+      "projectLabel": "Project",
       "search": "Search titles…",
       "searchValue": "Search: {value}",
       "clear": "Clear filters"

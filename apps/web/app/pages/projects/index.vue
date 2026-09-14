@@ -151,6 +151,22 @@ const activeFilterCount = computed(() => Number(Boolean(rawSearch.value.trim()))
 function onSortChange(value: unknown) {
   applyPatch({ sort: value === 'name' || value === 'progress' ? value : 'default' })
 }
+const statusOptions = computed(() => [
+  { value: 'all', label: t('projects.filters.allStatuses') },
+  ...PROJECT_STATUSES.map(status => ({ value: status, label: t(`projects.status.${status}`) })),
+  { value: 'unset', label: t('projects.filters.unset') },
+])
+const sortOptions = computed(() => [
+  { value: 'default', label: t('projects.filters.sortDefault') },
+  { value: 'name', label: t('projects.filters.sortName') },
+  { value: 'progress', label: t('projects.filters.sortProgress') },
+])
+const statusLabel = computed(() => statusOptions.value.find(option => option.value === statusFilter.value)?.label ?? '')
+const sortLabel = computed(() => sortOptions.value.find(option => option.value === sort.value)?.label ?? '')
+function clearSearch() {
+  search.value = ''
+  applyPatch({ q: '' })
+}
 function onViewChange(value: 'table' | 'cards') { applyPatch({ view: value }) }
 // Ordering belongs to the server, before pagination.
 const displayedItems = items
@@ -216,6 +232,10 @@ async function openProject(id: number) {
           <UInput v-model="search" :disabled="!hydrated" :placeholder="t('projects.filters.search')" :aria-label="t('projects.filters.search')" icon="i-lucide-search" class="w-full min-w-52" />
         </template>
         <template #default>
+          <SharedFilterChoice data-testid="projects-status-filter" :label="t('projects.filters.statusLabel')" :items="statusOptions" :model-value="statusFilter" :disabled="!hydrated" @update:model-value="onStatusChange" />
+          <SharedFilterChoice data-testid="projects-sort" layout="segment" :label="t('projects.filters.sortLabel')" :items="sortOptions" :model-value="sort" :disabled="!hydrated" @update:model-value="onSortChange" />
+        </template>
+        <template #view>
           <UTabs
             v-if="canListArchived"
             :model-value="archived ? 'archived' : 'active'"
@@ -223,24 +243,6 @@ async function openProject(id: number) {
             size="sm"
             @update:model-value="onFilterChange"
           />
-          <USelect
-            :model-value="statusFilter"
-            :items="[{ value: 'all', label: t('projects.filters.allStatuses') }, { value: 'unset', label: t('projects.filters.unset') }, ...PROJECT_STATUSES.map(status => ({ value: status, label: t(`projects.status.${status}`) }))]"
-            data-testid="projects-status-filter"
-            class="w-40"
-            :disabled="!hydrated"
-            @update:model-value="onStatusChange"
-          />
-          <USelect
-            :model-value="sort"
-            :items="[{ value: 'default', label: t('projects.filters.sortDefault') }, { value: 'name', label: t('projects.filters.sortName') }, { value: 'progress', label: t('projects.filters.sortProgress') }]"
-            data-testid="projects-sort"
-            class="w-40"
-            :disabled="!hydrated"
-            @update:model-value="onSortChange"
-          />
-        </template>
-        <template #view>
           <div class="hidden md:block">
             <div role="group" class="nasq-ui-segment" :aria-label="t('projects.filters.view')">
               <UButton data-testid="projects-view-table" type="button" square color="neutral" size="sm" :variant="view === 'table' ? 'soft' : 'ghost'" icon="i-lucide-list" :disabled="!hydrated" :aria-label="t('projects.filters.tableView')" :aria-pressed="view === 'table'" @click="onViewChange('table')" />
@@ -250,9 +252,9 @@ async function openProject(id: number) {
         </template>
         <template #active>
           <div v-if="rawSearch || statusFilter !== 'all' || sort !== 'default'" class="flex flex-wrap items-center gap-2">
-            <UBadge v-if="rawSearch" color="secondary" variant="subtle">{{ t('projects.filters.searchValue', { value: rawSearch }) }}</UBadge>
-            <UBadge v-if="statusFilter !== 'all'" color="secondary" variant="subtle">{{ t(statusFilter === 'unset' ? 'projects.filters.unset' : `projects.status.${statusFilter}`) }}</UBadge>
-            <UBadge v-if="sort !== 'default'" color="secondary" variant="subtle">{{ t(sort === 'name' ? 'projects.filters.sortName' : 'projects.filters.sortProgress') }}</UBadge>
+            <SharedFilterChip v-if="rawSearch" :label="t('projects.filters.searchValue', { value: rawSearch })" @remove="clearSearch" />
+            <SharedFilterChip v-if="statusFilter !== 'all'" :label="statusLabel" @remove="onStatusChange('all')" />
+            <SharedFilterChip v-if="sort !== 'default'" :label="sortLabel" @remove="onSortChange('default')" />
           </div>
         </template>
       </FilterBar>

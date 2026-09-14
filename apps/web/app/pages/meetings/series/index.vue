@@ -59,6 +59,10 @@ watch(debouncedSearch, (value) => {
 function setProject(value: number | undefined) {
   void router.replace({ query: patchMeetingListQuery(route.query, { project_id: value }) })
 }
+function clearSearch() {
+  search.value = ''
+  void router.replace({ query: patchMeetingListQuery(route.query, { q: undefined }) })
+}
 function clearFilters() {
   search.value = ''
   void router.replace({ query: clearMeetingListFilters(route.query) })
@@ -91,12 +95,14 @@ function setPage(next: number) {
           <UInput id="meeting-series-search" v-model="search" icon="i-lucide-search" class="w-full" :disabled="!hydrated" :placeholder="t('meetingsFilters.searchSeries')" :aria-label="t('meetingsFilters.searchSeries')" />
         </template>
         <template v-if="can('pmo.projects.read')" #default>
-          <MeetingProjectFilter id="meeting-series-project" :label="t('meetingsFilters.project')" :model-value="projectId" @update:model-value="setProject" @resolved-name="projectName = $event" />
+          <SharedFilterField :label="t('meetingsFilters.project')" for="meeting-series-project">
+            <MeetingProjectFilter id="meeting-series-project" hide-label class="w-full" :model-value="projectId" @update:model-value="setProject" @resolved-name="projectName = $event" />
+          </SharedFilterField>
         </template>
         <template v-if="hasActiveFilters" #active>
           <div class="flex flex-wrap items-center gap-2">
-            <UBadge v-if="search.trim()" color="neutral" variant="subtle">{{ t('meetingsUi.searchValue', { value: search }) }}</UBadge>
-            <UBadge v-if="projectId" color="neutral" variant="subtle" class="gap-1">{{ projectName || t('meetingsFilters.selectedProject') }}<UButton type="button" color="neutral" variant="ghost" size="xs" square :aria-label="t('meetingsFilters.removeFilter')" label="×" @click="setProject(undefined)" /></UBadge>
+            <SharedFilterChip v-if="search.trim()" :label="t('meetingsUi.searchValue', { value: search })" @remove="clearSearch" />
+            <SharedFilterChip v-if="projectId" :label="projectName || t('meetingsFilters.selectedProject')" @remove="setProject(undefined)" />
           </div>
         </template>
       </FilterBar>

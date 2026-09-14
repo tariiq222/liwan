@@ -63,6 +63,7 @@ const departmentOptions = computed(() => [{ value: allValue, label: t('access.us
 function onStatusChange(value: unknown) { filters.status = value === 'stopped' ? 'stopped' : value === 'active' ? 'active' : undefined; updateFilters() }
 function onRoleChange(value: unknown) { filters.role_id = value && value !== allValue ? Number(value) : undefined; updateFilters() }
 function onDepartmentChange(value: unknown) { filters.department_id = value && value !== allValue ? Number(value) : undefined; updateFilters() }
+function clearSearch() { filters.q = ''; updateFilters() }
 </script>
 
 <template>
@@ -78,16 +79,16 @@ function onDepartmentChange(value: unknown) { filters.department_id = value && v
             <UInput v-model="filters.q" class="w-full" :aria-label="t('access.users.filters.search')" :placeholder="t('access.users.filters.search')" :disabled="!hydrated" @change="updateFilters" />
           </template>
           <template #default>
-            <UFormField :label="t('access.users.columns.status')" class="min-w-0"><USelect :model-value="filters.status ?? allValue" :items="statusOptions" class="w-full" :disabled="!hydrated" :aria-label="t('access.users.columns.status')" @update:model-value="onStatusChange" /></UFormField>
-            <UFormField :label="t('access.users.role')" class="min-w-0"><USelect :model-value="filters.role_id ? String(filters.role_id) : allValue" :items="roleOptions" class="w-full" :disabled="!hydrated" :aria-label="t('access.users.role')" @update:model-value="onRoleChange" /></UFormField>
-            <UFormField :label="t('nav.departments')" class="min-w-0"><USelect :model-value="filters.department_id ? String(filters.department_id) : allValue" :items="departmentOptions" class="w-full" :disabled="!hydrated || !can('hr.departments.read')" :aria-label="t('nav.departments')" @update:model-value="onDepartmentChange" /></UFormField>
+            <SharedFilterChoice :label="t('access.users.columns.status')" :items="statusOptions" :model-value="filters.status ?? allValue" :disabled="!hydrated" @update:model-value="onStatusChange" />
+            <SharedFilterField :label="t('access.users.role')" for="settings-users-role"><USelect id="settings-users-role" :model-value="filters.role_id ? String(filters.role_id) : allValue" :items="roleOptions" class="w-full" :disabled="!hydrated" @update:model-value="onRoleChange" /></SharedFilterField>
+            <SharedFilterField :label="t('nav.departments')" for="settings-users-department"><USelect id="settings-users-department" :model-value="filters.department_id ? String(filters.department_id) : allValue" :items="departmentOptions" class="w-full" :disabled="!hydrated || !can('hr.departments.read')" @update:model-value="onDepartmentChange" /></SharedFilterField>
           </template>
           <template #active>
             <div v-if="activeFilterCount" class="flex flex-wrap items-center gap-2">
-              <UBadge v-if="filters.q?.trim()" color="neutral" variant="subtle">{{ filters.q }}</UBadge>
-              <UBadge v-if="filters.status" color="neutral" variant="subtle">{{ filters.status === 'active' ? t('access.active') : t('access.disabled') }}</UBadge>
-              <UBadge v-if="filters.role_id" color="neutral" variant="subtle">{{ roles.data.value?.items.find(role => role.id === filters.role_id)?.name[locale === 'ar' ? 'ar' : 'en'] ?? t('access.users.role') }}</UBadge>
-              <UBadge v-if="filters.department_id" color="neutral" variant="subtle">{{ departments.data.value?.items.find(department => department.id === filters.department_id)?.name ?? t('nav.departments') }}</UBadge>
+              <SharedFilterChip v-if="filters.q?.trim()" :label="filters.q ?? ''" @remove="clearSearch" />
+              <SharedFilterChip v-if="filters.status" :label="filters.status === 'active' ? t('access.active') : t('access.disabled')" @remove="onStatusChange(allValue)" />
+              <SharedFilterChip v-if="filters.role_id" :label="roles.data.value?.items.find(role => role.id === filters.role_id)?.name[locale === 'ar' ? 'ar' : 'en'] ?? t('access.users.role')" @remove="onRoleChange(allValue)" />
+              <SharedFilterChip v-if="filters.department_id" :label="departments.data.value?.items.find(department => department.id === filters.department_id)?.name ?? t('nav.departments')" @remove="onDepartmentChange(allValue)" />
             </div>
           </template>
         </FilterBar>

@@ -511,11 +511,11 @@ async function confirmResolutionAction() {
           <div>
             <FilterBar v-if="query.data.value.resolutions.length" class="mb-4" :active-count="Number(Boolean(recommendationSearch.trim())) + Number(Boolean(recommendationState))" :disabled="!hydrated" @clear="recommendationSearch = ''; recommendationState = ''">
               <template #search><UInput :disabled="!hydrated" v-model="recommendationSearch" class="w-full" :placeholder="t('meetingsUx.searchRecommendations')" :aria-label="t('meetingsUx.searchRecommendations')" /></template>
-              <USelect :disabled="!hydrated" v-model="recommendationStateSelect" class="w-full" :items="[{ label: t('meetingsUi.allStates'), value: '__all__' }, ...['open', 'in_progress', 'done', 'cancelled'].map(state => ({ label: t(`meetingsUi.resolutionState.${state}`), value: state }))]" :aria-label="t('meetingsUi.stateLabel')" />
+              <SharedFilterChoice :disabled="!hydrated" :label="t('meetingsUi.stateLabel')" :model-value="recommendationStateSelect" :items="[{ label: t('meetingsUi.allStates'), value: '__all__' }, ...['open', 'in_progress', 'done', 'cancelled'].map(state => ({ label: t(`meetingsUi.resolutionState.${state}`), value: state }))]" @update:model-value="recommendationStateSelect = String($event)" />
 
             <template #active>
-              <UBadge v-if="recommendationSearch.trim()" color="neutral" variant="subtle">{{ recommendationSearch }}</UBadge>
-              <UBadge v-if="recommendationState" color="neutral" variant="subtle">{{ t(`meetingsUi.resolutionState.${recommendationState}`) }}</UBadge>
+              <SharedFilterChip v-if="recommendationSearch.trim()" :label="t('meetingsUi.searchValue', { value: recommendationSearch })" @remove="recommendationSearch = ''" />
+              <SharedFilterChip v-if="recommendationState" :label="t(`meetingsUi.resolutionState.${recommendationState}`)" @remove="recommendationState = ''" />
             </template>
           </FilterBar>
             <p v-if="conversionError" role="alert" class="text-sm text-destructive">{{ conversionError }}</p>

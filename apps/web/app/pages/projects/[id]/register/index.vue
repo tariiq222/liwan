@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { inject } from 'vue'
 import { useProjectRegister, useDeleteProjectRegister } from '@/composables/useProjectGovernance'
-import { governanceFilters, REGISTER_PRIORITY_TONE, REGISTER_STATUS_TONE, registerScoreTone } from '@/components/project/governance/state'
+import { governanceFilters } from '@/composables/projectGovernanceKeys'
+import { REGISTER_PRIORITY_TONE, REGISTER_STATUS_TONE, registerScoreTone } from '@/components/project/governance/state'
 import { STATUS_COLOR } from '@/utils/statusTone'
 import { ApiError } from '@/composables/useApi'
 import FilterBar from '@/components/shared/FilterBar.vue'
@@ -64,6 +65,9 @@ const priorityItems = computed(() => [
   { value: 'all', label: t('projects.clarity.allPriorities') },
   ...['low', 'normal', 'high', 'critical'].map(value => ({ value, label: t(`projects.governance.register.${value}`) })),
 ])
+function itemLabel(items: { value: string; label: string }[], value: string) {
+  return items.find(item => item.value === value)?.label ?? value
+}
 const columns = computed(() => [
   { accessorKey: 'id', header: t('app.recordNumber') },
   { accessorKey: 'title', header: t('projects.governance.register.itemTitle') },
@@ -118,36 +122,39 @@ async function deleteItem(item: { id: number }) {
           :disabled="!hydrated"
           :placeholder="t('projects.clarity.registerSearch')"
           icon="i-lucide-search"
-          class="min-w-52 flex-1"
+          class="w-full min-w-52"
         />
       </template>
-      <USelect
-        v-model="kind"
-        class="w-40"
-        :aria-label="t('projects.governance.register.kind')"
-        :disabled="!hydrated"
-        :items="kindItems"
-      />
-      <USelect
-        v-model="status"
-        class="w-40"
-        :aria-label="t('projects.governance.register.status')"
-        :disabled="!hydrated"
-        :items="statusItems"
-      />
-      <USelect
-        v-model="priority"
-        class="w-40"
-        :aria-label="t('projects.governance.register.priority')"
-        :disabled="!hydrated"
-        :items="priorityItems"
-      />
+      <template #default>
+        <SharedFilterChoice
+          layout="segment"
+          :label="t('projects.governance.register.kind')"
+          :items="kindItems"
+          :model-value="kind"
+          :disabled="!hydrated"
+          @update:model-value="kind = String($event)"
+        />
+        <SharedFilterChoice
+          :label="t('projects.governance.register.status')"
+          :items="statusItems"
+          :model-value="status"
+          :disabled="!hydrated"
+          @update:model-value="status = String($event)"
+        />
+        <SharedFilterChoice
+          :label="t('projects.governance.register.priority')"
+          :items="priorityItems"
+          :model-value="priority"
+          :disabled="!hydrated"
+          @update:model-value="priority = String($event)"
+        />
+      </template>
       <template #active>
         <div v-if="activeFilterCount" class="flex flex-wrap items-center gap-2">
-          <UBadge v-if="q.trim()" color="secondary" variant="subtle">{{ t('projects.clarity.registerSearch') }}: {{ q }}</UBadge>
-          <UBadge v-if="parsed.kind" color="secondary" variant="subtle">{{ t(`projects.governance.register.${kind}`) }}</UBadge>
-          <UBadge v-if="parsed.status" color="secondary" variant="subtle">{{ t(`projects.governance.register.${status}`) }}</UBadge>
-          <UBadge v-if="parsed.priority" color="secondary" variant="subtle">{{ t(`projects.governance.register.${priority}`) }}</UBadge>
+          <SharedFilterChip v-if="q.trim()" :label="`${t('projects.clarity.registerSearch')}: ${q}`" @remove="q = ''" />
+          <SharedFilterChip v-if="parsed.kind" :label="itemLabel(kindItems, kind)" @remove="kind = 'all'" />
+          <SharedFilterChip v-if="parsed.status" :label="itemLabel(statusItems, status)" @remove="status = 'all'" />
+          <SharedFilterChip v-if="parsed.priority" :label="itemLabel(priorityItems, priority)" @remove="priority = 'all'" />
         </div>
       </template>
     </FilterBar>

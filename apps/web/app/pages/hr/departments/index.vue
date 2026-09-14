@@ -54,7 +54,7 @@ async function confirmDelete() {
         </template>
         <template #active>
           <div v-if="search.trim()" class="flex flex-wrap items-center gap-2">
-            <UBadge color="neutral" variant="subtle">{{ t('hr.directory.searchValue', { value: search }) }}</UBadge>
+            <SharedFilterChip :label="t('hr.directory.searchValue', { value: search })" @remove="clearFilters" />
           </div>
         </template>
       </FilterBar>

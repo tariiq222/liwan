@@ -15,6 +15,9 @@ playwright-report/
 .agent/index
 .agent/system-map/
 
+# Stray Nuxt root created by `nuxt dev 127.0.0.1` (positional arg, not --host)
+apps/web/127.0.0.1/
+
 # Local worktrees and generated tooling artifacts
 .worktrees/
 .fastembed_cache/

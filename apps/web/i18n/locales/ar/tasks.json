@@ -27,6 +27,8 @@
       "allStates": "كل الحالات",
       "selectedStates": "{count} حالات",
       "allProjects": "كل المشاريع",
+      "stateLabel": "الحالة",
+      "projectLabel": "المشروع",
       "search": "بحث في العناوين…",
       "searchValue": "بحث: {value}",
       "clear": "مسح الفلاتر"

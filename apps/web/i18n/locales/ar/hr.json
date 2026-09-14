@@ -15,8 +15,8 @@
       "search": "بحث بالاسم…",
       "allDepartments": "كل الأقسام",
       "newEmployee": "موظف جديد",
-      "showArchived": "عرض المؤرشفين",
-      "showActive": "عرض النشطين",
+      "scopeActive": "النشطون",
+      "scopeArchived": "المؤرشفون",
       "manage": "إدارة",
       "columns": {
         "name": "الاسم",

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createApp, effectScope } from 'vue'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
-import { governanceKeys } from '../state'
+import { governanceKeys } from '../../../../composables/projectGovernanceKeys'
 import { useUpdateProjectStakeholder, useDeleteProjectStakeholder, useUpdateProjectRegister, useDeleteProjectRegister, useUpdateProjectRaci, useGovernanceTaskPage } from '../../../../composables/useProjectGovernance'
 vi.mock('@nasq/contracts', async () => ({ ...await import('../../../../../../../packages/contracts/src/pmo/governance'), ...await import('../../../../../../../packages/contracts/src/pmo/task') }))
 const stakeholder = { id: 11, name: 'Saved server name', user: null, organization: 'Org', role: 'Sponsor', contact: '', notes: 'Server note' }

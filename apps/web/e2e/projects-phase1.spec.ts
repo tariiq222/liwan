@@ -66,8 +66,9 @@ test('template application creates independent scheduled tasks through the inter
     data: { name: `قالب اختبار ${Date.now()}`, description: 'قالب بمرحلتين ومعلم واعتمادية', definition },
   }), 201)
   await page.goto('/tasks')
-  await expect(page.getByRole('combobox').first()).toBeEnabled()
-  await page.getByRole('combobox').first().click()
+  await page.getByRole('button', { name: /^البحث والفلاتر/ }).click()
+  await expect(page.locator('#task-filter-project')).toBeEnabled()
+  await page.locator('#task-filter-project').click()
   await expect(page.getByRole('option', { name: 'كل المشاريع', exact: true })).toBeVisible()
   await page.keyboard.press('Escape')
   await page.getByRole('link', { name: 'المشاريع', exact: true }).first().click()

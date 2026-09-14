@@ -37,6 +37,10 @@ const stateSelect = computed({
   get: () => state.value || ALL_STATES,
   set: value => { state.value = value === ALL_STATES ? '' : String(value) },
 })
+const stateOptions = computed(() => [
+  { value: ALL_STATES, label: t('meetingsUi.allStates') },
+  ...validStates.map(code => ({ value: code, label: t(`meetingsUi.state.${code}`) })),
+])
 const dateValidation = computed(() => meetingDateRange(dateFrom.value, dateTo.value))
 const query = useMeetings(computed(() => ({
   q: debouncedSearch.value.trim() || undefined,
@@ -150,6 +154,13 @@ watch(debouncedSearch, (value) => {
   if (next === current) return
   void router.replace({ query: patchMeetingListQuery(route.query, { q: next || undefined }) })
 })
+function onStateChange(value: unknown) {
+  stateSelect.value = String(value)
+  applyFilters()
+}
+function onScopeChange(value: unknown) {
+  toggleMine(value === 'mine')
+}
 function toggleMine(value: boolean) {
   mine.value = value
   applyFilters()
@@ -205,28 +216,12 @@ function setPage(next: number) {
         <template #search>
           <UInput id="meeting-search" v-model="search" icon="i-lucide-search" class="w-full" :disabled="!hydrated" :placeholder="t('meetingsFilters.searchMeetings')" :aria-label="t('meetingsFilters.searchMeetings')" />
         </template>
-        <div class="w-full min-w-0 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          <div class="grid min-w-0 content-start gap-1">
-            <label for="meeting-state" class="text-sm font-medium text-highlighted">{{ t('meetingsUi.stateLabel') }}</label>
-            <USelect
-              id="meeting-state"
-              v-model="stateSelect"
-              class="w-full"
-              :disabled="!hydrated"
-              :items="[{ label: t('meetingsUi.allStates'), value: ALL_STATES }, ...['draft', 'confirmed', 'done', 'cancelled'].map(code => ({ label: t(`meetingsUi.state.${code}`), value: code }))]"
-              @update:model-value="applyFilters"
-            />
-          </div>
-          <label class="flex min-h-9 items-center gap-2 self-end pb-1 text-sm">
-            <UCheckbox :model-value="mine" :disabled="!hydrated" @update:model-value="toggleMine(Boolean($event))" />
-            {{ t('meetingsUi.mine') }}
-          </label>
-          <div v-if="can('pmo.projects.read')" class="grid min-w-0 content-start gap-1">
-            <label for="meeting-project" class="text-sm font-medium text-highlighted">{{ t('meetingsFilters.project') }}</label>
-            <MeetingProjectFilter id="meeting-project" hide-label :model-value="projectId" @update:model-value="setProject" @resolved-name="projectName = $event" />
-          </div>
-          <div class="grid min-w-0 content-start gap-1">
-            <label for="meeting-organizer-search" class="text-sm font-medium text-highlighted">{{ t('meetingsFilters.organizer') }}</label>
+        <template #default>
+          <SharedFilterChoice data-testid="meeting-state" :label="t('meetingsUi.stateLabel')" :items="stateOptions" :model-value="stateSelect" :disabled="!hydrated" @update:model-value="onStateChange" />
+          <SharedFilterField v-if="can('pmo.projects.read')" :label="t('meetingsFilters.project')" for="meeting-project">
+            <MeetingProjectFilter id="meeting-project" hide-label class="w-full" :model-value="projectId" @update:model-value="setProject" @resolved-name="projectName = $event" />
+          </SharedFilterField>
+          <SharedFilterField :label="t('meetingsFilters.organizer')" for="meeting-organizer-search">
             <UInput id="meeting-organizer-search" v-model="organizerSearch" class="w-full" :disabled="!hydrated" :placeholder="t('meetingsFilters.organizerSearch')" :aria-label="t('meetingsFilters.organizerSearch')" />
             <USelectMenu
               id="meeting-organizer"
@@ -241,26 +236,34 @@ function setPage(next: number) {
             <p v-if="organizerQuery.isLoading.value" class="text-xs text-muted-foreground" role="status">{{ t('meetingsFilters.organizersLoading') }}</p>
             <div v-else-if="organizerQuery.error.value" class="flex items-center gap-2 text-xs text-destructive" role="alert"><span>{{ t('meetingsFilters.organizersError') }}</span><UButton type="button" color="secondary" variant="outline" size="sm" :disabled="!hydrated" :label="t('meetingsFilters.retry')" @click="organizerQuery.refetch()" /></div>
             <p v-else-if="!organizerOptions.length" class="text-xs text-muted-foreground">{{ t('meetingsFilters.noOrganizers') }}</p>
-          </div>
-          <div class="grid min-w-0 content-start gap-1">
-            <label for="meeting-date-from" class="text-sm font-medium text-highlighted">{{ t('meetingsFilters.fromDateLabel') }}</label>
+          </SharedFilterField>
+          <SharedFilterField :label="t('meetingsFilters.fromDateLabel')" for="meeting-date-from">
             <SharedDateField id="meeting-date-from" v-model="dateFromField" class="w-full" :disabled="!hydrated" />
-          </div>
-          <div class="grid min-w-0 content-start gap-1">
-            <label for="meeting-date-to" class="text-sm font-medium text-highlighted">{{ t('meetingsFilters.toDateLabel') }}</label>
+          </SharedFilterField>
+          <SharedFilterField :label="t('meetingsFilters.toDateLabel')" for="meeting-date-to">
             <SharedDateField id="meeting-date-to" v-model="dateToField" class="w-full" :disabled="!hydrated" />
-          </div>
-        </div>
+          </SharedFilterField>
+        </template>
+        <template #view>
+          <UTabs
+            data-testid="meeting-scope"
+            :model-value="mine ? 'mine' : 'all'"
+            :aria-label="t('meetingsFilters.scope')"
+            :items="[{ label: t('meetingsFilters.allMeetings'), value: 'all', disabled: !hydrated }, { label: t('meetingsUi.mine'), value: 'mine', disabled: !hydrated }]"
+            size="sm"
+            @update:model-value="onScopeChange"
+          />
+        </template>
         <template v-if="hasActiveFilters" #active>
           <div class="flex flex-wrap items-center gap-2">
-            <UBadge v-if="search.trim()" color="neutral" variant="subtle" class="gap-1">{{ t('meetingsUi.searchValue', { value: search }) }}<UButton type="button" color="neutral" variant="ghost" size="xs" square :aria-label="t('meetingsFilters.removeFilter')" label="×" @click="clearFilter('q')" /></UBadge>
-            <UBadge v-if="selectedState" color="neutral" variant="subtle" class="gap-1">{{ t(`meetingsUi.state.${selectedState}`) }}<UButton type="button" color="neutral" variant="ghost" size="xs" square :aria-label="t('meetingsFilters.removeFilter')" label="×" @click="clearFilter('state')" /></UBadge>
-            <UBadge v-if="routeFilters.mine" color="neutral" variant="subtle" class="gap-1">{{ t('meetingsUi.mine') }}<UButton type="button" color="neutral" variant="ghost" size="xs" square :aria-label="t('meetingsFilters.removeFilter')" label="×" @click="clearFilter('mine')" /></UBadge>
-            <UBadge v-if="projectId" color="neutral" variant="subtle" class="gap-1">{{ projectName || t('meetingsFilters.selectedProject') }}<UButton type="button" color="neutral" variant="ghost" size="xs" square :aria-label="t('meetingsFilters.removeFilter')" label="×" @click="clearFilter('project_id')" /></UBadge>
-            <UBadge v-if="routeFilters.organizerId" color="neutral" variant="subtle" class="gap-1">{{ selectedOrganizerLabel }}<UButton type="button" color="neutral" variant="ghost" size="xs" square :aria-label="t('meetingsFilters.removeFilter')" label="×" @click="clearFilter('organizer_id')" /></UBadge>
-            <UBadge v-if="routeFilters.dateFrom" color="neutral" variant="subtle" class="gap-1">{{ t('meetingsFilters.fromDate', { value: routeFilters.dateFrom }) }}<UButton type="button" color="neutral" variant="ghost" size="xs" square :aria-label="t('meetingsFilters.removeFilter')" label="×" @click="clearFilter('date_from')" /></UBadge>
-            <UBadge v-if="routeFilters.dateTo" color="neutral" variant="subtle" class="gap-1">{{ t('meetingsFilters.toDate', { value: routeFilters.dateTo }) }}<UButton type="button" color="neutral" variant="ghost" size="xs" square :aria-label="t('meetingsFilters.removeFilter')" label="×" @click="clearFilter('date_to')" /></UBadge>
-            <UBadge v-if="seriesId" color="neutral" variant="subtle" class="gap-1">{{ t('meetingsFilters.inheritedSeries') }}<UButton type="button" color="neutral" variant="ghost" size="xs" square :aria-label="t('meetingsFilters.removeFilter')" label="×" @click="clearFilter('series_id')" /></UBadge>
+            <SharedFilterChip v-if="search.trim()" :label="t('meetingsUi.searchValue', { value: search })" @remove="clearFilter('q')" />
+            <SharedFilterChip v-if="selectedState" :label="t(`meetingsUi.state.${selectedState}`)" @remove="clearFilter('state')" />
+            <SharedFilterChip v-if="routeFilters.mine" :label="t('meetingsUi.mine')" @remove="clearFilter('mine')" />
+            <SharedFilterChip v-if="projectId" :label="projectName || t('meetingsFilters.selectedProject')" @remove="clearFilter('project_id')" />
+            <SharedFilterChip v-if="routeFilters.organizerId" :label="selectedOrganizerLabel" @remove="clearFilter('organizer_id')" />
+            <SharedFilterChip v-if="routeFilters.dateFrom" :label="t('meetingsFilters.fromDate', { value: routeFilters.dateFrom })" @remove="clearFilter('date_from')" />
+            <SharedFilterChip v-if="routeFilters.dateTo" :label="t('meetingsFilters.toDate', { value: routeFilters.dateTo })" @remove="clearFilter('date_to')" />
+            <SharedFilterChip v-if="seriesId" :label="t('meetingsFilters.inheritedSeries')" @remove="clearFilter('series_id')" />
           </div>
         </template>
       </FilterBar>

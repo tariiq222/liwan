@@ -4,6 +4,7 @@ import {
   MeetingSeriesPatchSchema,
   type MeetingSeriesPatch,
 } from '@nasq/contracts'
+import { invalidateMeetingCaches } from './meetingKeys'
 
 export function usePatchMeetingSeriesSettings() {
   const qc = useQueryClient()
@@ -14,10 +15,7 @@ export function usePatchMeetingSeriesSettings() {
       body: MeetingSeriesPatchSchema.parse(body),
       schema: MeetingSeriesDetailSchema,
     }),
-    onSuccess: () => Promise.all([
-      qc.invalidateQueries({ queryKey: ['meeting-series'] }),
-      qc.invalidateQueries({ queryKey: ['meetings'] }),
-    ]),
+    onSuccess: () => invalidateMeetingCaches(qc),
   })
 }
 

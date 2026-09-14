@@ -108,7 +108,9 @@
       "tableView": "Table view",
       "cardView": "Card view",
       "boardView": "Board view",
-      "clear": "Clear filters"
+      "clear": "Clear filters",
+      "statusLabel": "Status",
+      "sortLabel": "Sort by"
     },
     "previousPage": "Previous",
     "pageOf": "Page {page} of {pages}",
@@ -558,6 +560,7 @@
       "next": "Next",
       "total": "Total: {total}",
       "loadMore": "Load more",
+      "openTasks": "Open tasks",
       "closedTasks": "Completed and cancelled tasks",
       "all": "All",
       "delete": "Delete",

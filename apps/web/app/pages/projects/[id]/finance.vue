@@ -127,6 +127,11 @@ function clearFilters() {
   applyPatch({ q: '', kind: 'all' })
 }
 
+function clearSearch() {
+  search.value = ''
+  applyPatch({ q: '' })
+}
+
 function setPage(next: number) {
   if (!hydrated.value || list.isFetching.value || next < 1 || next > pages.value) return
   applyPatch({ offset: (next - 1) * FINANCE_PAGE })
@@ -146,10 +151,6 @@ const kindItems = computed(() => [
   { value: 'budget', label: t('projects.finance.kind.budget') },
   { value: 'expense', label: t('projects.finance.kind.expense') },
 ])
-const kindFilter = computed({
-  get: () => filters.kind,
-  set: value => onKindChange(value),
-})
 const createBudgetTo = computed(() => projectId.value
   ? { path: `/projects/${projectId.value}/finance/new`, query: newQuery('budget') }
   : undefined)
@@ -190,18 +191,21 @@ function financeChildKey(target: { path: string; params: Record<string, string |
       <template #search>
         <UInput v-model="search" :disabled="!hydrated" :placeholder="t('projects.finance.search')" :aria-label="t('projects.finance.search')" data-testid="finance-search" class="min-w-52 max-w-md flex-1" />
       </template>
-      <USelect
-        v-model="kindFilter"
-        data-testid="finance-kind-filter"
-        class="w-40"
-        :aria-label="t('projects.finance.fields.kind')"
-        :disabled="!hydrated"
-        :items="kindItems"
-      />
+      <template #default>
+        <SharedFilterChoice
+          data-testid="finance-kind-filter"
+          layout="segment"
+          :label="t('projects.finance.fields.kind')"
+          :items="kindItems"
+          :model-value="filters.kind"
+          :disabled="!hydrated"
+          @update:model-value="onKindChange"
+        />
+      </template>
       <template #active>
         <div v-if="filtered" class="flex flex-wrap items-center gap-2">
-          <UBadge v-if="filters.q.trim()" color="secondary" variant="subtle">{{ t('projects.filters.searchValue', { value: filters.q }) }}</UBadge>
-          <UBadge v-if="filters.kind !== 'all'" color="secondary" variant="subtle">{{ t(`projects.finance.kind.${filters.kind}`) }}</UBadge>
+          <SharedFilterChip v-if="filters.q.trim()" :label="t('projects.filters.searchValue', { value: filters.q })" @remove="clearSearch" />
+          <SharedFilterChip v-if="filters.kind !== 'all'" :label="t(`projects.finance.kind.${filters.kind}`)" @remove="onKindChange('all')" />
         </div>
       </template>
     </FilterBar>

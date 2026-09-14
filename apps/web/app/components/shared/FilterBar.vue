@@ -30,7 +30,7 @@
       </div>
     </template>
     <template v-if="$slots.default" #default>
-      <div data-slot="controls" class="flex min-w-0 flex-wrap items-center gap-2">
+      <div data-slot="controls" class="flex min-w-0 flex-wrap items-start gap-x-6 gap-y-3">
         <slot />
       </div>
     </template>

@@ -2,7 +2,7 @@
 import { inject } from 'vue'
 import FilterBar from '@/components/shared/FilterBar.vue'
 import { useProjectStakeholders, useDeleteProjectStakeholder } from '@/composables/useProjectGovernance'
-import { governanceFilters } from '@/components/project/governance/state'
+import { governanceFilters } from '@/composables/projectGovernanceKeys'
 import { ApiError } from '@/composables/useApi'
 import RecordNumber from '@/components/shared/RecordNumber.vue'
 
@@ -84,12 +84,12 @@ async function deleteItem(item: { id: number }) {
           :disabled="!hydrated"
           :placeholder="t('projects.clarity.stakeholderSearch')"
           icon="i-lucide-search"
-          class="min-w-52"
+          class="w-full min-w-52"
         />
       </template>
       <template #active>
         <div v-if="q.trim()" class="flex flex-wrap items-center gap-2">
-          <UBadge color="secondary" variant="subtle">{{ t('projects.clarity.stakeholderSearch') }}: {{ q }}</UBadge>
+          <SharedFilterChip :label="`${t('projects.clarity.stakeholderSearch')}: ${q}`" @remove="clearFilters" />
         </div>
       </template>
     </FilterBar>

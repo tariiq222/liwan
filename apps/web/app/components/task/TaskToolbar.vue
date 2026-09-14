@@ -20,19 +20,28 @@ function patch(changes: Partial<TaskListParams>) {
 }
 
 const selectedStates = computed(() => props.modelValue.state ?? [])
-const stateFilterLabel = computed(() => {
-  const states = selectedStates.value
-  if (states.length === 1) return t(STATE_LABEL_KEY[states[0]!])
-  if (states.length > 1) return t('tasks.filters.selectedStates', { count: states.length })
-  return t('tasks.filters.allStates')
-})
 const selectedProject = computed(() => (projects.value ?? []).find((project) => project.id === props.modelValue.project_id) ?? null)
 const activeFilterCount = computed(() => Number(Boolean(props.modelValue.q)) + selectedStates.value.length + Number(!props.hideProjectFilter && Boolean(props.modelValue.project_id)))
-function toggleState(s: TaskState, checked: boolean) {
-  const next = new Set(selectedStates.value)
-  if (checked) next.add(s)
-  else next.delete(s)
-  patch({ state: next.size ? [...next] : undefined })
+
+// "All states" is the first chip and stands for an empty state filter. Picking
+// it clears the selection; picking a state while "all" is shown replaces it.
+const stateChoiceItems = computed(() => [
+  { value: 'all', label: t('tasks.filters.allStates') },
+  ...ALL_STATES.map((s) => ({ value: s, label: t(STATE_LABEL_KEY[s]) })),
+])
+const stateChoiceValue = computed(() => (selectedStates.value.length ? [...selectedStates.value] : ['all']))
+function onStatesChange(value: string | string[]) {
+  const next = Array.isArray(value) ? value : [value]
+  if (selectedStates.value.length && next.includes('all')) {
+    patch({ state: undefined })
+    return
+  }
+  const states = ALL_STATES.filter((s) => next.includes(s))
+  patch({ state: states.length ? states : undefined })
+}
+function removeState(s: TaskState) {
+  const states = selectedStates.value.filter((state) => state !== s)
+  patch({ state: states.length ? states : undefined })
 }
 
 // The debounce is about the network request, not the input's responsiveness:
@@ -55,13 +64,10 @@ function clearFilters() {
   patch({ q: undefined, state: undefined, project_id: props.hideProjectFilter ? props.modelValue.project_id : undefined })
 }
 
-const stateMenuItems = computed(() => ALL_STATES.map((s) => ({
-  label: t(STATE_LABEL_KEY[s]),
-  type: 'checkbox' as const,
-  checked: selectedStates.value.includes(s),
-  onUpdateChecked: (checked: boolean) => toggleState(s, checked),
-  onSelect: (e: Event) => e.preventDefault(),
-})))
+function clearSearch() {
+  search.value = ''
+  patch({ q: undefined })
+}
 
 const projectItems = computed(() => [
   { label: t('tasks.filters.allProjects'), value: 'all' },
@@ -80,28 +86,33 @@ const projectItems = computed(() => [
     </template>
 
     <template #default>
-      <UDropdownMenu :items="stateMenuItems" :content="{ align: 'start' }">
-        <UButton variant="outline" :disabled="!hydrated">{{ stateFilterLabel }}</UButton>
-      </UDropdownMenu>
+      <SharedFilterChoice
+        class="w-full"
+        :label="t('tasks.filters.stateLabel')"
+        :items="stateChoiceItems"
+        :model-value="stateChoiceValue"
+        :disabled="!hydrated"
+        @update:model-value="onStatesChange"
+      />
 
-      <template v-if="!hideProjectFilter">
+      <SharedFilterField v-if="!hideProjectFilter" :label="t('tasks.filters.projectLabel')" for="task-filter-project">
         <USelect
-          class="w-40"
+          id="task-filter-project"
+          class="w-full"
           :disabled="!hydrated"
           :items="projectItems"
           :model-value="modelValue.project_id ? String(modelValue.project_id) : 'all'"
           :placeholder="t('tasks.filters.allProjects')"
           @update:model-value="(v) => patch({ project_id: v === 'all' ? undefined : Number(v) })"
         />
-      </template>
-
+      </SharedFilterField>
     </template>
 
     <template #active>
       <div v-if="modelValue.q || selectedStates.length || (!hideProjectFilter && selectedProject)" class="flex flex-wrap items-center gap-2">
-        <UBadge v-if="modelValue.q" variant="subtle">{{ t('tasks.filters.searchValue', { value: modelValue.q }) }}</UBadge>
-        <UBadge v-for="state in selectedStates" :key="state" variant="subtle">{{ t(STATE_LABEL_KEY[state]) }}</UBadge>
-        <UBadge v-if="!hideProjectFilter && selectedProject" variant="subtle">{{ selectedProject.name }}</UBadge>
+        <SharedFilterChip v-if="modelValue.q" :label="t('tasks.filters.searchValue', { value: modelValue.q })" @remove="clearSearch" />
+        <SharedFilterChip v-for="state in selectedStates" :key="state" :label="t(STATE_LABEL_KEY[state])" @remove="removeState(state)" />
+        <SharedFilterChip v-if="!hideProjectFilter && selectedProject" :label="selectedProject.name" @remove="patch({ project_id: undefined })" />
       </div>
     </template>
 

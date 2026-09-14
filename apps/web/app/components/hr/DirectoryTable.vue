@@ -110,6 +110,15 @@ function onDepartmentChange(value: unknown) {
   departmentId.value = value === 'all' || !value ? null : Number(value)
   updateQuery()
 }
+function onScopeChange(value: string | number) {
+  if (!hydrated.value) return
+  archived.value = value === 'archived'
+  updateQuery()
+}
+function clearSearch() {
+  search.value = ''
+  updateQuery()
+}
 function clearFilters() {
   search.value = ''
   departmentId.value = null
@@ -124,14 +133,24 @@ function clearFilters() {
         <template #search>
           <UInput v-model="search" :disabled="!hydrated" :placeholder="t('hr.directory.search')" icon="i-lucide-search" class="min-w-48 flex-1" />
         </template>
-        <template #default>
-          <UButton v-if="canArchive" color="secondary" variant="outline" size="sm" :disabled="!hydrated" :label="archived ? t('hr.directory.showActive') : t('hr.directory.showArchived')" @click="archived = !archived; updateQuery()" />
-          <USelect v-if="can('hr.departments.read')" :model-value="departmentId ? String(departmentId) : 'all'" :items="departmentOptions" size="sm" class="w-48" :disabled="!hydrated" @update:model-value="onDepartmentChange" />
+        <template v-if="can('hr.departments.read')" #default>
+          <SharedFilterField :label="t('hr.directory.columns.department')" for="hr-directory-department">
+            <USelect id="hr-directory-department" :model-value="departmentId ? String(departmentId) : 'all'" :items="departmentOptions" class="w-full" :disabled="!hydrated" @update:model-value="onDepartmentChange" />
+          </SharedFilterField>
+        </template>
+        <template v-if="canArchive" #view>
+          <UTabs
+            data-testid="hr-directory-scope"
+            :model-value="archived ? 'archived' : 'active'"
+            :items="[{ label: t('hr.directory.scopeActive'), value: 'active', disabled: !hydrated }, { label: t('hr.directory.scopeArchived'), value: 'archived', disabled: !hydrated }]"
+            size="sm"
+            @update:model-value="onScopeChange"
+          />
         </template>
         <template #active>
           <div v-if="hasActiveFilters" class="flex flex-wrap items-center gap-2">
-            <UBadge v-if="search.trim()" color="neutral" variant="subtle">{{ t('hr.directory.searchValue', { value: search }) }}</UBadge>
-            <UBadge v-if="selectedDepartment" color="neutral" variant="subtle">{{ selectedDepartment.name }}</UBadge>
+            <SharedFilterChip v-if="search.trim()" :label="t('hr.directory.searchValue', { value: search })" @remove="clearSearch" />
+            <SharedFilterChip v-if="selectedDepartment" :label="selectedDepartment.name" @remove="onDepartmentChange('all')" />
           </div>
         </template>
       </FilterBar>

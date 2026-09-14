@@ -6,9 +6,8 @@ import {
   type ProjectRaci, type ProjectRaciWrite, type ProjectRegisterWrite, type ProjectStakeholderWrite,
 } from '@nasq/contracts'
 
-import { governanceKeys as projectGovernanceKeys, type GovernanceRegisterFilters } from '../components/project/governance/state'
+import { governanceKeys as projectGovernanceKeys, type GovernanceRegisterFilters } from './projectGovernanceKeys'
 export { projectGovernanceKeys }
-export type { GovernanceRegisterFilters }
 
 function invalidate(qc: ReturnType<typeof useQueryClient>, projectId: number) {
   return qc.invalidateQueries({ queryKey: projectGovernanceKeys.all(projectId) })

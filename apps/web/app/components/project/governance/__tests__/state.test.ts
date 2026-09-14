@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { QueryClient } from '@tanstack/vue-query'
-import { governanceKeys, governanceFilters } from '../state'
+import { governanceKeys, governanceFilters } from '../../../../composables/projectGovernanceKeys'
 
 describe('governance list state', () => {
   it('validates URL enums and offset while preserving valid filters on refresh', () => {
@@ -19,7 +19,7 @@ describe('governance list state', () => {
   })
 })
 
-import { governanceMatrixFilters } from '../state'
+import { governanceMatrixFilters } from '../../../../composables/projectGovernanceKeys'
 it('restores matrix viewport queries and rejects malformed page/filter values', () => {
   expect(governanceMatrixFilters({ task_q: 'Phase 2', stakeholder_q: 'Sponsor', closed: '1', task_page: '1', stakeholder_page: '20' })).toEqual({ taskQ: 'Phase 2', stakeholderQ: 'Sponsor', closed: true, taskPage: 1, stakeholderPage: 20 })
   expect(governanceMatrixFilters({ task_q: ['bad'], closed: 'false', task_page: '-2', stakeholder_page: 'NaN' })).toEqual({ taskQ: '', stakeholderQ: '', closed: false, taskPage: 0, stakeholderPage: 0 })

@@ -2,7 +2,8 @@
 import { inject } from 'vue'
 import { useQueryClient } from '@tanstack/vue-query'
 import { settleServerQueries } from '@/lib/vueQuerySsr'
-import { governanceMatrixFilters, RACI_ROLE_TONE } from '@/components/project/governance/state'
+import { governanceMatrixFilters } from '@/composables/projectGovernanceKeys'
+import { RACI_ROLE_TONE } from '@/components/project/governance/state'
 import { STATUS_COLOR } from '@/utils/statusTone'
 import { useGovernanceTaskPage, useProjectRaci, useProjectStakeholders, useCreateProjectRaci, useUpdateProjectRaci, useDeleteProjectRaci } from '@/composables/useProjectGovernance'
 import type { ProjectRaci, ProjectRaciRole } from '@nasq/contracts'
@@ -33,7 +34,7 @@ const rows = useProjectRaci(id, computed(() => ({ task_ids: visibleTasks.value.m
 const create = useCreateProjectRaci(); const update = useUpdateProjectRaci(); const remove = useDeleteProjectRaci()
 const pending = computed(() => create.isPending.value || update.isPending.value || remove.isPending.value)
 const loading = computed(() => tasks.isFetching.value || stakeholders.isFetching.value || rows.isFetching.value)
-const activeFilterCount = computed(() => Number(Boolean(taskSearch.value.trim())) + Number(Boolean(stakeholderSearch.value.trim())) + Number(closed.value))
+const activeFilterCount = computed(() => Number(Boolean(taskSearch.value.trim())) + Number(Boolean(stakeholderSearch.value.trim())))
 const error = ref<string | null>(null); const confirmRow = ref<ProjectRaci | null>(null)
 const assignments = computed(() => new Map(rows.data.value?.items.map(row => [`${row.task.id}:${row.stakeholder.id}`, row])))
 function assignment(taskId: number, stakeholderId: number) { return assignments.value.get(`${taskId}:${stakeholderId}`) }
@@ -43,7 +44,7 @@ function roleColor(taskId: number, stakeholderId: number) {
 }
 function nextTasks() { taskPage.value++ }
 function clearFilters() {
-  router.replace({ query: { ...route.query, task_q: undefined, stakeholder_q: undefined, closed: undefined, task_page: undefined, stakeholder_page: undefined } })
+  router.replace({ query: { ...route.query, task_q: undefined, stakeholder_q: undefined, task_page: undefined, stakeholder_page: undefined } })
 }
 async function changeRole(taskId: number, stakeholderId: number, value: string) {
   if (pending.value || loading.value || confirmRow.value) return
@@ -82,12 +83,19 @@ async function deleteRow() {
           </UFormField>
         </div>
       </template>
-      <UCheckbox :model-value="closed" :disabled="!hydrated || pending" :label="t('projects.governance.closedTasks')" @update:model-value="closed = $event === true" />
+      <template #view>
+        <UTabs
+          data-testid="raci-closed-scope"
+          :model-value="closed ? 'closed' : 'open'"
+          :items="[{ label: t('projects.governance.openTasks'), value: 'open', disabled: !hydrated || pending }, { label: t('projects.governance.closedTasks'), value: 'closed', disabled: !hydrated || pending }]"
+          size="sm"
+          @update:model-value="closed = $event === 'closed'"
+        />
+      </template>
       <template #active>
         <div v-if="activeFilterCount" class="flex flex-wrap items-center gap-2">
-          <UBadge v-if="taskSearch.trim()" color="secondary" variant="subtle">{{ t('projects.governance.raci.task') }}: {{ taskSearch }}</UBadge>
-          <UBadge v-if="stakeholderSearch.trim()" color="secondary" variant="subtle">{{ t('projects.governance.raci.stakeholder') }}: {{ stakeholderSearch }}</UBadge>
-          <UBadge v-if="closed" color="secondary" variant="subtle">{{ t('projects.governance.closedTasks') }}</UBadge>
+          <SharedFilterChip v-if="taskSearch.trim()" :label="`${t('projects.governance.raci.task')}: ${taskSearch}`" :disabled="pending" @remove="taskSearch = ''" />
+          <SharedFilterChip v-if="stakeholderSearch.trim()" :label="`${t('projects.governance.raci.stakeholder')}: ${stakeholderSearch}`" :disabled="pending" @remove="stakeholderSearch = ''" />
         </div>
       </template>
     </FilterBar>

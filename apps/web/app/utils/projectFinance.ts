@@ -192,24 +192,6 @@ export function sameReportListRoute(
   return left.q === right.q && left.status === right.status && left.offset === right.offset
 }
 
-export function reportListQuery(filters: {
-  q?: string
-  status?: ProjectReportStatusFilter
-  limit?: number
-  offset?: number
-}) {
-  const rawLimit = filters.limit ?? REPORT_PAGE
-  const limit = Number.isFinite(rawLimit) ? Math.min(Math.max(rawLimit, 1), 200) : REPORT_PAGE
-  const rawOffset = filters.offset ?? 0
-  const offset = Number.isInteger(rawOffset) && rawOffset > 0 ? rawOffset : 0
-  return {
-    q: filters.q?.trim() || undefined,
-    status: filters.status && filters.status !== 'all' ? filters.status : undefined,
-    limit,
-    offset,
-  }
-}
-
 export function reportListPath(state: ReportListRouteState): string {
   const query = serializeReportListRoute(state)
   const params = new URLSearchParams()

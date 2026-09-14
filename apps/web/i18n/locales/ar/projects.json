@@ -108,7 +108,9 @@
       "tableView": "عرض الجدول",
       "cardView": "عرض البطاقات",
       "boardView": "عرض اللوحة",
-      "clear": "مسح الفلاتر"
+      "clear": "مسح الفلاتر",
+      "statusLabel": "الحالة",
+      "sortLabel": "الترتيب"
     },
     "previousPage": "السابق",
     "pageOf": "صفحة {page} من {pages}",
@@ -558,6 +560,7 @@
       "next": "التالي",
       "total": "الإجمالي: {total}",
       "loadMore": "عرض المزيد",
+      "openTasks": "المهام المفتوحة",
       "closedTasks": "المهام المنتهية والملغاة",
       "all": "الكل",
       "delete": "حذف",

@@ -15,8 +15,8 @@
       "search": "Search by name…",
       "allDepartments": "All departments",
       "newEmployee": "New employee",
-      "showArchived": "Show archived",
-      "showActive": "Show active",
+      "scopeActive": "Active",
+      "scopeArchived": "Archived",
       "manage": "Manage",
       "columns": {
         "name": "Name",

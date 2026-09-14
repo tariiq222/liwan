@@ -1,6 +1,7 @@
 import { computed, onServerPrefetch, toValue, type MaybeRefOrGetter } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
 import { MeetingEventListSchema, MeetingVersionListSchema, MeetingVersionSchema, MeetingSeriesResolutionListSchema } from '@nasq/contracts'
+import { meetingKeys, meetingSeriesKeys } from './meetingKeys'
 
 type WorkspaceParams = { limit?: number; offset?: number; q?: string; state?: string }
 function paramsOf(params: MaybeRefOrGetter<WorkspaceParams>) {
@@ -18,7 +19,7 @@ export function useMeetingEvents(id: MaybeRefOrGetter<number | null>, params: Ma
   const { $api } = useApi()
   const enabled = computed(() => Number.isInteger(toValue(id)) && Number(toValue(id)) > 0)
   const query = useQuery({
-    queryKey: computed(() => [series ? 'meeting-series' : 'meetings', toValue(id), 'events', paramsOf(params)]),
+    queryKey: computed(() => (series ? meetingSeriesKeys : meetingKeys).events(toValue(id), paramsOf(params))),
     enabled,
     queryFn: () => $api(`/api/v1/${series ? 'meeting-series' : 'meetings'}/${toValue(id)}/events`, { query: paramsOf(params), schema: MeetingEventListSchema }),
   })
@@ -29,7 +30,7 @@ export function useMeetingVersions(id: MaybeRefOrGetter<number | null>, params: 
   const { $api } = useApi()
   const enabled = computed(() => Number.isInteger(toValue(id)) && Number(toValue(id)) > 0)
   const query = useQuery({
-    queryKey: computed(() => ['meetings', toValue(id), 'versions', paramsOf(params)]),
+    queryKey: computed(() => meetingKeys.versions(toValue(id), paramsOf(params))),
     enabled,
     queryFn: () => $api(`/api/v1/meetings/${toValue(id)}/versions`, { query: paramsOf(params), schema: MeetingVersionListSchema }),
   })
@@ -40,7 +41,7 @@ export function useMeetingSeriesResolutions(id: MaybeRefOrGetter<number | null>,
   const { $api } = useApi()
   const enabled = computed(() => Number.isInteger(toValue(id)) && Number(toValue(id)) > 0)
   const query = useQuery({
-    queryKey: computed(() => ['meeting-series', toValue(id), 'resolutions', paramsOf(params)]),
+    queryKey: computed(() => meetingSeriesKeys.resolutions(toValue(id), paramsOf(params))),
     enabled,
     queryFn: () => $api(`/api/v1/meeting-series/${toValue(id)}/resolutions`, { query: paramsOf(params), schema: MeetingSeriesResolutionListSchema }),
   })
@@ -52,7 +53,7 @@ export function useMeetingVersion(id: MaybeRefOrGetter<number | null>, versionId
   const { $api } = useApi()
   const enabled = computed(() => [toValue(id), toValue(versionId)].every(value => Number.isInteger(value) && Number(value) > 0))
   const query = useQuery({
-    queryKey: computed(() => ['meetings', toValue(id), 'versions', toValue(versionId)]),
+    queryKey: computed(() => meetingKeys.version(toValue(id), toValue(versionId))),
     enabled,
     queryFn: () => $api(`/api/v1/meetings/${toValue(id)}/versions/${toValue(versionId)}`, { schema: MeetingVersionSchema }),
   })

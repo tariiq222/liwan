@@ -103,6 +103,8 @@
         "active": "نشط",
         "inactive": "غير نشط",
         "showInactive": "إظهار غير النشطة",
+        "scopeActive": "النشطة",
+        "scopeAll": "الكل",
         "disable": "تعطيل",
         "enable": "تفعيل",
         "delete": "حذف",

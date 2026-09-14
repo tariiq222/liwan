@@ -13,7 +13,7 @@ describe('finance list design', () => {
     expect(page).toContain('<template #search>')
     expect(page).toContain('data-testid="finance-search"')
     expect(page).toContain('data-testid="finance-kind-filter"')
-    expect(page).toContain('<USelect')
+    expect(page).toContain('<SharedFilterChoice')
     expect(page).not.toContain('<UTabs')
     const searchSlot = page.slice(page.indexOf('<template #search>'), page.indexOf('</template>', page.indexOf('<template #search>')))
     expect(searchSlot).not.toContain('finance-kind-filter')

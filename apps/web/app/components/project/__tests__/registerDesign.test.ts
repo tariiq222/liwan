@@ -9,12 +9,14 @@ const listSource = readFileSync(
 )
 
 describe('register list design alignment', () => {
-  it('uses the /projects toolbar, FilterBar, USelect, and UTable primitives', () => {
+  it('uses the /projects toolbar, FilterBar, SharedFilterChoice, and UTable primitives', () => {
     expect(listSource).toContain(':active-count="activeFilterCount"')
     expect(listSource).toContain("import FilterBar from '@/components/shared/FilterBar.vue'")
-    expect(listSource.match(/<USelect\b/g)?.length).toBe(3)
+    expect(listSource.match(/<SharedFilterChoice\b/g)?.length).toBe(3)
+    expect(listSource).not.toContain('<USelect')
     expect(listSource).not.toContain("value: ''")
-    expect(listSource.match(/class="w-40"/g)?.length).toBe(3)
+    expect(listSource).toContain('<SharedFilterChip')
+    expect(listSource).not.toContain('<UBadge v-if="parsed.')
     expect(listSource).toContain('<UTable :data="list.data.value.items" :columns="columns">')
     expect(listSource).toContain('#id-cell="{ row }"')
     expect(listSource).toContain('@click="deleteItem(row.original)"')

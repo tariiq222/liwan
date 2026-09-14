@@ -103,7 +103,7 @@ describe('shared composition rendered contracts', () => {
     expect(searchMarker).toBeGreaterThanOrEqual(0)
     expect(controlsMarker).toBeGreaterThan(searchMarker)
     expect(viewMarker).toBeGreaterThanOrEqual(0)
-    // Filters are in a popover; slot DOM order no longer describes visual order.
+    // Filters open as a toggled row between the toolbar and the active filters.
     expect(activeRowMarker).toBeGreaterThan(controlsMarker)
   })
 

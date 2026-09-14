@@ -49,7 +49,7 @@ test('HR routes create, edit, reload, and archive an employee', async ({ page })
 
   await expect.poll(async () => (await (await page.request.get(`/api/v1/hr/employees/${employeeId}`)).json()).active).toBe(false)
   await page.goto('/hr')
-  await page.getByRole('button', { name: 'عرض المؤرشفين' }).click()
+  await page.getByTestId('hr-directory-scope').getByRole('tab', { name: 'المؤرشفون' }).click()
   await page.getByPlaceholder('بحث بالاسم…').fill(employeeName)
   await expect(page.getByRole('row', { name: new RegExp(employeeName) })).toBeVisible()
   const archived = await (await page.request.get(`/api/v1/hr/employees/${employeeId}`)).json()

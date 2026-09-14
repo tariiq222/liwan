@@ -237,8 +237,7 @@ development database may use `-u <addon> --no-http --stop-after-init`; never
 run tests against the dev `odoo19` database.
 
 The global `~/.npmrc` may be malformed. Use `npm ci --ignore-scripts` and never
-edit that file. Semantic searches across Odoo and Nasq addons may use the
-configured semtree index; resync it after installing addons.
+edit that file. Use `rg` and targeted file reads for code search across Odoo and Nasq addons.
 
 New collaboration endpoints currently require the current company. Legacy
 company-less collaboration compatibility is awaiting explicit authorization;

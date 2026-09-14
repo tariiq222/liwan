@@ -42,6 +42,7 @@ function onActorChange(value: unknown) { filters.actor_id = value && value !== a
 function onTargetTypeChange(value: unknown) { filters.target_type = value === 'role' ? 'role' : value === 'user' ? 'user' : undefined; filters.target_id = undefined; updateFilters() }
 function onTargetIdChange(value: unknown) { filters.target_id = value && value !== allValue ? Number(value) : undefined; updateFilters() }
 function onActionChange(value: unknown) { filters.action = value && value !== allValue ? String(value) : undefined; updateFilters() }
+function clearDate(key: 'from' | 'to') { filters[key] = undefined; updateFilters() }
 </script>
 
 <template>
@@ -53,21 +54,21 @@ function onActionChange(value: unknown) { filters.action = value && value !== al
       <div id="filters" class="nasq-settings-anchor w-full min-w-0">
         <FilterBar class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
           <template #default>
-            <UFormField :label="t('access.audit.filters.from')" class="min-w-0"><UInput v-model="filters.from" type="date" class="w-full" :disabled="!hydrated" :aria-label="t('access.audit.filters.from')" @change="updateFilters" /></UFormField>
-            <UFormField :label="t('access.audit.filters.to')" class="min-w-0"><UInput v-model="filters.to" type="date" class="w-full" :disabled="!hydrated" :aria-label="t('access.audit.filters.to')" @change="updateFilters" /></UFormField>
-            <UFormField :label="t('access.audit.columns.actor')" class="min-w-0"><USelect :model-value="filters.actor_id ? String(filters.actor_id) : allValue" :items="actorOptions" class="w-full" :disabled="!hydrated || actors.isLoading.value" :aria-label="t('access.audit.columns.actor')" @update:model-value="onActorChange" /></UFormField>
-            <UFormField :label="t('access.roles.columns.type')" class="min-w-0"><USelect :model-value="filters.target_type ?? allValue" :items="targetTypeOptions" class="w-full" :disabled="!hydrated" :aria-label="t('access.roles.columns.type')" @update:model-value="onTargetTypeChange" /></UFormField>
-            <UFormField :label="t('access.audit.columns.target')" class="min-w-0"><USelect :model-value="filters.target_id ? String(filters.target_id) : allValue" :items="targetIdOptions" class="w-full" :disabled="!hydrated || !filters.target_type" :aria-label="t('access.audit.columns.target')" @update:model-value="onTargetIdChange" /></UFormField>
-            <UFormField :label="t('access.audit.columns.action')" class="min-w-0"><USelect :model-value="filters.action ?? allValue" :items="actionSelectOptions" class="w-full" :disabled="!hydrated" :aria-label="t('access.audit.columns.action')" @update:model-value="onActionChange" /></UFormField>
+            <SharedFilterField :label="t('access.audit.filters.from')" for="access-log-from"><UInput id="access-log-from" v-model="filters.from" type="date" class="w-full" :disabled="!hydrated" @change="updateFilters" /></SharedFilterField>
+            <SharedFilterField :label="t('access.audit.filters.to')" for="access-log-to"><UInput id="access-log-to" v-model="filters.to" type="date" class="w-full" :disabled="!hydrated" @change="updateFilters" /></SharedFilterField>
+            <SharedFilterField :label="t('access.audit.columns.actor')" for="access-log-actor"><USelect id="access-log-actor" :model-value="filters.actor_id ? String(filters.actor_id) : allValue" :items="actorOptions" class="w-full" :disabled="!hydrated || actors.isLoading.value" @update:model-value="onActorChange" /></SharedFilterField>
+            <SharedFilterChoice :label="t('access.roles.columns.type')" :items="targetTypeOptions" :model-value="filters.target_type ?? allValue" :disabled="!hydrated" @update:model-value="onTargetTypeChange" />
+            <SharedFilterField :label="t('access.audit.columns.target')" for="access-log-target"><USelect id="access-log-target" :model-value="filters.target_id ? String(filters.target_id) : allValue" :items="targetIdOptions" class="w-full" :disabled="!hydrated || !filters.target_type" @update:model-value="onTargetIdChange" /></SharedFilterField>
+            <SharedFilterField :label="t('access.audit.columns.action')" for="access-log-action"><USelect id="access-log-action" :model-value="filters.action ?? allValue" :items="actionSelectOptions" class="w-full" :disabled="!hydrated" @update:model-value="onActionChange" /></SharedFilterField>
           </template>
           <template #active>
             <div v-if="activeFilterCount" class="flex flex-wrap items-center gap-2">
-              <UBadge v-if="filters.from" color="neutral" variant="subtle">{{ filters.from }}</UBadge>
-              <UBadge v-if="filters.to" color="neutral" variant="subtle">{{ filters.to }}</UBadge>
-              <UBadge v-if="filters.actor_id" color="neutral" variant="subtle">{{ actors.data.value?.items.find(actor => actor.id === filters.actor_id)?.name ?? t('access.audit.columns.actor') }}</UBadge>
-              <UBadge v-if="filters.target_type" color="neutral" variant="subtle">{{ filters.target_type === 'role' ? t('access.roles.title') : t('access.users.title') }}</UBadge>
-              <UBadge v-if="filters.target_id" color="neutral" variant="subtle">{{ targetOptions.find(target => target.id === filters.target_id)?.name ?? t('access.audit.columns.target') }}</UBadge>
-              <UBadge v-if="filters.action" color="neutral" variant="subtle">{{ t(actionLabels[filters.action as keyof typeof actionLabels]) }}</UBadge>
+              <SharedFilterChip v-if="filters.from" :label="`${t('access.audit.filters.from')}: ${filters.from}`" @remove="clearDate('from')" />
+              <SharedFilterChip v-if="filters.to" :label="`${t('access.audit.filters.to')}: ${filters.to}`" @remove="clearDate('to')" />
+              <SharedFilterChip v-if="filters.actor_id" :label="actors.data.value?.items.find(actor => actor.id === filters.actor_id)?.name ?? t('access.audit.columns.actor')" @remove="onActorChange(allValue)" />
+              <SharedFilterChip v-if="filters.target_type" :label="filters.target_type === 'role' ? t('access.roles.title') : t('access.users.title')" @remove="onTargetTypeChange(allValue)" />
+              <SharedFilterChip v-if="filters.target_id" :label="targetOptions.find(target => target.id === filters.target_id)?.name ?? t('access.audit.columns.target')" @remove="onTargetIdChange(allValue)" />
+              <SharedFilterChip v-if="filters.action" :label="t(actionLabels[filters.action as keyof typeof actionLabels])" @remove="onActionChange(allValue)" />
             </div>
           </template>
         </FilterBar>

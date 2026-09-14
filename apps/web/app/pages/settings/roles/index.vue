@@ -30,6 +30,7 @@ const typeOptions = computed(() => [{ value: allValue, label: t('access.roles.fi
 const statusOptions = computed(() => [{ value: allValue, label: t('access.roles.filters.allStatuses') }, { value: 'active', label: t('access.active') }, { value: 'disabled', label: t('access.disabled') }])
 function onTypeChange(value: unknown) { filters.type = value === 'custom' ? 'custom' : value === 'built_in' ? 'built_in' : undefined; updateFilters() }
 function onStatusChange(value: unknown) { filters.status = value === 'disabled' ? 'disabled' : value === 'active' ? 'active' : undefined; updateFilters() }
+function clearSearch() { filters.q = ''; updateFilters() }
 </script>
 
 <template>
@@ -45,14 +46,14 @@ function onStatusChange(value: unknown) { filters.status = value === 'disabled' 
             <UInput v-model="filters.q" class="w-full" :aria-label="t('access.roles.filters.search')" :placeholder="t('access.roles.filters.search')" :disabled="!hydrated" @change="updateFilters" />
           </template>
           <template #default>
-            <UFormField :label="t('access.roles.columns.type')" class="min-w-0"><USelect :model-value="filters.type ?? allValue" :items="typeOptions" class="w-full" :disabled="!hydrated" :aria-label="t('access.roles.columns.type')" @update:model-value="onTypeChange" /></UFormField>
-            <UFormField :label="t('access.roles.columns.status')" class="min-w-0"><USelect :model-value="filters.status ?? allValue" :items="statusOptions" class="w-full" :disabled="!hydrated" :aria-label="t('access.roles.columns.status')" @update:model-value="onStatusChange" /></UFormField>
+            <SharedFilterChoice :label="t('access.roles.columns.type')" :items="typeOptions" :model-value="filters.type ?? allValue" :disabled="!hydrated" @update:model-value="onTypeChange" />
+            <SharedFilterChoice :label="t('access.roles.columns.status')" :items="statusOptions" :model-value="filters.status ?? allValue" :disabled="!hydrated" @update:model-value="onStatusChange" />
           </template>
           <template #active>
             <div v-if="activeFilterCount" class="flex flex-wrap items-center gap-2">
-              <UBadge v-if="filters.q?.trim()" color="neutral" variant="subtle">{{ filters.q }}</UBadge>
-              <UBadge v-if="filters.type" color="neutral" variant="subtle">{{ filters.type === 'custom' ? t('access.roles.custom') : t('access.roles.builtIn') }}</UBadge>
-              <UBadge v-if="filters.status" color="neutral" variant="subtle">{{ filters.status === 'active' ? t('access.active') : t('access.disabled') }}</UBadge>
+              <SharedFilterChip v-if="filters.q?.trim()" :label="filters.q ?? ''" @remove="clearSearch" />
+              <SharedFilterChip v-if="filters.type" :label="filters.type === 'custom' ? t('access.roles.custom') : t('access.roles.builtIn')" @remove="onTypeChange(allValue)" />
+              <SharedFilterChip v-if="filters.status" :label="filters.status === 'active' ? t('access.active') : t('access.disabled')" @remove="onStatusChange(allValue)" />
             </div>
           </template>
         </FilterBar>

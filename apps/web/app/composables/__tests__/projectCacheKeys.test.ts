@@ -2,7 +2,7 @@ import { QueryClient } from '@tanstack/query-core'
 import { describe, expect, it } from 'vitest'
 import { invalidateProjectCaches, projectKeys } from '../projectKeys'
 import { scheduleKeys } from '../useProjectSchedule'
-import { governanceKeys } from '../../components/project/governance/state'
+import { governanceKeys } from '../projectGovernanceKeys'
 
 // Every cache entry a project screen reads. A task write changes project
 // progress, milestones and stage counts, so all of these must refresh from a
