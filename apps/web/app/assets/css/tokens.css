@@ -1,5 +1,10 @@
-/* Shared semantic tokens and the reference visual language. */
+/* Theme inputs layered on Nuxt UI's stock theme: the Arabic font and its size
+   modes, the brand primary derived at runtime (utils/brandTheme.ts), the
+   shell's rail colours, the chart palette, and the cream/dark display modes.
+   Component recipes are the library's own (Figma "Nuxt UI v4 (Community)"). */
 @theme {
+  --font-sans: "IBM Plex Sans Arabic", ui-sans-serif, system-ui, sans-serif;
+  /* Keep pixel sizes stable on the 14px "small" root. */
   --text-xs: 0.857143rem;
   --text-sm: 0.928571rem;
   --text-base: 1rem;
@@ -7,71 +12,9 @@
   --text-xl: 1.428571rem;
 }
 :root {
-  /* Reference neutral palette. Branding changes the primary family only. */
-  --font-sans: "IBM Plex Sans Arabic", ui-sans-serif, system-ui, sans-serif;
   color-scheme: light;
   font-size: 14px;
-  --nasq-surface-page: #f6f7fb;
-  --nasq-surface: #fff;
-  --nasq-surface-soft: #f8f9fc;
-  --nasq-text: #171923;
-  --nasq-muted: #656c7e;
-  --nasq-border: #e5e8ef;
-  --nasq-rail: color-mix(in srgb, var(--primary) 50%, #0a0c12);
-  --nasq-rail-deep: color-mix(in srgb, var(--primary) 36%, #0a0c12);
-  --nasq-radius: 14px;
-  --radius: var(--nasq-radius);
-  --primary-contrast: #fff;
-  --primary-2: color-mix(in srgb, var(--primary) 78%, #fff);
-  --rail-hover: #292d40;
-  /* Nuxt UI's bg-default is used by cards and other elevated controls. Keep
-     the page canvas on --background while default surfaces stay opaque. */
-  --ui-bg: var(--nasq-surface);
-  --ui-bg-elevated: var(--nasq-surface);
-  --ui-bg-muted: var(--nasq-surface-soft);
-  --ui-bg-accented: #eef1f7;
-  --ui-text: var(--nasq-text);
-  --ui-text-highlighted: var(--nasq-text);
-  --ui-text-muted: var(--nasq-muted);
-  --ui-text-toned: var(--nasq-muted);
-  --ui-text-dimmed: var(--nasq-muted);
-  --ui-border: var(--nasq-border);
-  --ui-border-muted: var(--nasq-border);
-  --ui-border-accented: #d9dde7;
-  --ui-radius: 7px;
-  --background: var(--nasq-surface-page);
-  --foreground: var(--nasq-text);
-  --card: var(--nasq-surface);
-  --card-foreground: var(--nasq-text);
-  --popover: var(--nasq-surface);
-  --popover-foreground: var(--nasq-text);
-  --secondary: var(--nasq-surface-soft);
-  --secondary-foreground: var(--nasq-text);
-  --muted: var(--nasq-surface-soft);
-  --muted-foreground: var(--nasq-muted);
-  --accent: #eef1f7;
-  --accent-foreground: var(--nasq-text);
-  --destructive: var(--ui-error);
-  --border: var(--nasq-border);
-  --input: var(--nasq-border);
-  --ring: var(--brand-link);
-  --sidebar: var(--nasq-surface-soft);
-  --sidebar-foreground: var(--nasq-text);
-  --sidebar-primary: var(--primary);
-  --sidebar-primary-foreground: #fff;
-  --sidebar-accent: #eef1f7;
-  --sidebar-accent-foreground: var(--nasq-text);
-  --sidebar-border: var(--nasq-border);
-  --sidebar-ring: var(--brand-link);
-  --context-surface: var(--nasq-surface);
-  --shell-background: var(--nasq-surface);
-  --shell-foreground: var(--nasq-text);
-  --content-shadow: 0 8px 28px rgb(28 32 48 / .055);
-  --elevation-1: 0 1px 2px rgb(16 24 40 / .03), 0 3px 10px rgb(16 24 40 / .035);
-  --elevation-2: 0 8px 28px rgb(28 32 48 / .055);
-  --elevation-3: 0 12px 34px rgb(28 32 48 / .12);
-  --elevation-4: 0 18px 48px rgb(28 32 48 / .18);
-  /* Runtime branding and chart interfaces remain stable for all modules. */
+  /* Runtime branding (brandTheme.ts overwrites these from the company colour). */
   --primary: #18181b;
   --primary-foreground: #fff;
   --primary-hover: #2a2a2d;
@@ -84,33 +27,71 @@
   --primary-fill-hover-foreground: var(--primary-hover-foreground);
   --primary-fill-active: var(--primary-active);
   --primary-fill-active-foreground: var(--primary-active-foreground);
-  --primary-soft: color-mix(in srgb, var(--primary-fill) 18%, var(--card));
-  --primary-soft-foreground: var(--foreground);
+  --primary-soft: color-mix(in srgb, var(--primary-fill) 18%, var(--ui-bg));
+  --primary-soft-foreground: var(--ui-text);
   --brand-link: #18181b;
+  --brand-soft: color-mix(in srgb, var(--primary) 8%, var(--ui-bg));
+  --brand-border: color-mix(in srgb, var(--primary) 24%, var(--ui-border));
   --chart-1: #18181b;
   --chart-2: #313136;
   --chart-3: #4a4a50;
   --chart-4: #63636a;
   --chart-5: #7b7b83;
   --chart-6: #94949c;
-  --brand-soft: color-mix(in srgb, var(--primary) 8%, var(--card));
-  --brand-border: color-mix(in srgb, var(--primary) 24%, var(--border));
+  /* Shell: module rail and surfaces. */
+  --nasq-rail: color-mix(in srgb, var(--primary) 50%, #0a0c12);
+  --nasq-rail-deep: color-mix(in srgb, var(--primary) 36%, #0a0c12);
+  --rail-hover: #292d40;
+  --shell-background: var(--ui-bg);
+  --shell-foreground: var(--ui-text);
+  --context-surface: var(--ui-bg);
+  /* Aliases used by the shell stylesheet and older components; every one
+     resolves to the library palette so the modes stay in one place. */
+  --background: var(--ui-bg);
+  --foreground: var(--ui-text);
+  --card: var(--ui-bg);
+  --card-foreground: var(--ui-text);
+  --popover: var(--ui-bg);
+  --popover-foreground: var(--ui-text);
+  --secondary: var(--ui-bg-muted);
+  --secondary-foreground: var(--ui-text);
+  --muted: var(--ui-bg-muted);
+  --muted-foreground: var(--ui-text-muted);
+  --accent: var(--ui-bg-accented);
+  --accent-foreground: var(--ui-text);
+  --destructive: var(--ui-error);
+  --border: var(--ui-border);
+  --input: var(--ui-border);
+  --ring: var(--brand-link);
+  --sidebar: var(--ui-bg-muted);
+  --sidebar-foreground: var(--ui-text);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: #fff;
+  --sidebar-accent: var(--ui-bg-accented);
+  --sidebar-accent-foreground: var(--ui-text);
+  --sidebar-border: var(--ui-border);
+  --sidebar-ring: var(--brand-link);
+  --nasq-surface: var(--ui-bg);
+  --nasq-surface-soft: var(--ui-bg-muted);
+  --nasq-text: var(--ui-text);
+  --nasq-border: var(--ui-border);
+  /* Semantic status colours follow the library's own. */
   --status-success: var(--ui-success);
   --status-success-foreground: var(--ui-success);
-  --status-success-soft: color-mix(in srgb, var(--status-success) 12%, var(--card));
-  --status-success-border: color-mix(in srgb, var(--status-success) 28%, var(--border));
+  --status-success-soft: color-mix(in srgb, var(--status-success) 12%, var(--ui-bg));
+  --status-success-border: color-mix(in srgb, var(--status-success) 28%, var(--ui-border));
   --status-warning: var(--ui-warning);
   --status-warning-foreground: var(--ui-warning);
-  --status-warning-soft: color-mix(in srgb, var(--status-warning) 14%, var(--card));
-  --status-warning-border: color-mix(in srgb, var(--status-warning) 32%, var(--border));
+  --status-warning-soft: color-mix(in srgb, var(--status-warning) 14%, var(--ui-bg));
+  --status-warning-border: color-mix(in srgb, var(--status-warning) 32%, var(--ui-border));
   --status-info: var(--ui-info);
   --status-info-foreground: var(--ui-info);
-  --status-info-soft: color-mix(in srgb, var(--status-info) 12%, var(--card));
-  --status-info-border: color-mix(in srgb, var(--status-info) 28%, var(--border));
+  --status-info-soft: color-mix(in srgb, var(--status-info) 12%, var(--ui-bg));
+  --status-info-border: color-mix(in srgb, var(--status-info) 28%, var(--ui-border));
   --status-danger: var(--ui-error);
   --status-danger-foreground: var(--ui-error);
-  --status-danger-soft: color-mix(in srgb, var(--status-danger) 12%, var(--card));
-  --status-danger-border: color-mix(in srgb, var(--status-danger) 40%, var(--border));
+  --status-danger-soft: color-mix(in srgb, var(--status-danger) 12%, var(--ui-bg));
+  --status-danger-border: color-mix(in srgb, var(--status-danger) 40%, var(--ui-border));
   --unread-count-foreground: #fff;
   --project-type-caption: var(--text-xs);
   --project-type-control: var(--text-sm);
@@ -118,33 +99,14 @@
   --project-type-section: var(--text-lg);
   --project-type-title: var(--text-xl);
   --project-section-surface: var(--ui-bg-muted);
-  --ui-primary: var(--brand-link);
-  --ui-secondary: var(--primary-fill);
-  --ui-warning: #a16207;
-  --ui-success: #166534;
-  --ui-error: #b91c1c;
-  --ui-info: #1d4ed8;
-  --ui-radius: .4rem;
   --nasq-ui-z-sheet: 60;
   --nasq-ui-z-menu: 130;
 }
 :root[data-font-size="medium"] { font-size: 16px; }
 :root[data-font-size="large"] { font-size: 18px; }
-/* Cream mode keeps the same geometry while warming neutral surfaces. */
+/* Cream mode: the library palette warmed; geometry untouched. */
 :root.cream {
-  --nasq-surface-page: #f6f3ed;
-  --nasq-surface: #fffdf8;
-  --nasq-surface-soft: #faf7f1;
-  --nasq-text: #3f3428;
-  --nasq-muted: #746753;
-  --nasq-border: #e8e0d4;
-  --nasq-rail: color-mix(in srgb, var(--primary) 50%, #0a0c12);
-  --nasq-rail-deep: color-mix(in srgb, var(--primary) 36%, #0a0c12);
-  --shell-background: var(--nasq-surface);
-  --shell-foreground: var(--nasq-text);
-  --context-surface: var(--nasq-surface);
-  --content-shadow: 0 8px 28px rgb(63 52 40 / .08);
-  --ui-bg: var(--nasq-surface);
+  --ui-bg: #fffdf8;
   --ui-bg-muted: #f6f1e7;
   --ui-bg-elevated: #efe8d9;
   --ui-bg-accented: #e4d9c6;
@@ -152,52 +114,21 @@
   --ui-text-highlighted: #30271f;
   --ui-text-muted: #746753;
   --ui-text-toned: #63533f;
+  --ui-text-dimmed: #8a7d68;
   --ui-border: #d8cbb7;
   --ui-border-muted: #e4d9c6;
   --ui-border-accented: #c2b293;
 }
+/* Dark mode is the library's own; only the shell rail and badge text differ. */
 .dark {
   color-scheme: dark;
-  --nasq-surface-page: #11131a;
-  --nasq-surface: #181b24;
-  --nasq-surface-soft: #1e222c;
-  --nasq-text: #f6f7fb;
-  --nasq-muted: #a9b0bf;
-  --nasq-border: #2d3340;
   --nasq-rail: color-mix(in srgb, var(--primary) 32%, #07080c);
   --nasq-rail-deep: color-mix(in srgb, var(--primary) 20%, #07080c);
   --rail-hover: #242936;
-  --ui-bg: var(--nasq-surface);
-  --ui-bg-elevated: var(--nasq-surface);
-  --ui-bg-muted: var(--nasq-surface-soft);
-  --ui-bg-accented: #272c38;
-  --ui-text: var(--nasq-text);
-  --ui-text-highlighted: var(--nasq-text);
-  --ui-text-muted: var(--nasq-muted);
-  --ui-border: var(--nasq-border);
-  --ui-border-muted: var(--nasq-border);
-  --ui-border-accented: #394150;
-  --background: var(--nasq-surface-page);
-  --foreground: var(--nasq-text);
-  --card: var(--nasq-surface);
-  --card-foreground: var(--nasq-text);
-  --popover: var(--nasq-surface);
-  --popover-foreground: var(--nasq-text);
-  --muted: var(--nasq-surface-soft);
-  --muted-foreground: var(--nasq-muted);
-  --accent: #272c38;
-  --border: var(--nasq-border);
-  --input: #394150;
-  --context-surface: var(--nasq-surface);
-  --shell-background: var(--nasq-surface);
-  --shell-foreground: var(--nasq-text);
-  --content-shadow: 0 12px 36px rgb(0 0 0 / .19);
-  --ui-warning: #fbbf24;
-  --ui-success: #4ade80;
-  --ui-info: #60a5fa;
-  --ui-error: #f87171;
-  --unread-count-foreground: var(--background);
+  --unread-count-foreground: var(--ui-bg);
 }
+/* `primary: 'brand'` in app.config reads this palette; brandTheme.ts keeps
+   --primary/--brand-link in sync with the institution colour. */
 :root {
   --color-brand-50: color-mix(in srgb, var(--primary) 5%, white);
   --color-brand-100: color-mix(in srgb, var(--primary) 10%, white);
@@ -219,7 +150,6 @@
   --color-card-foreground: var(--card-foreground);
   --color-popover: var(--popover);
   --color-popover-foreground: var(--popover-foreground);
-  --color-primary: var(--ui-primary);
   --color-primary-foreground: var(--primary-foreground);
   --color-primary-hover: var(--primary-hover);
   --color-primary-hover-foreground: var(--primary-hover-foreground);
@@ -232,7 +162,6 @@
   --color-status-success-foreground: var(--status-success-foreground);
   --color-status-warning: var(--status-warning);
   --color-status-warning-foreground: var(--status-warning-foreground);
-  --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);

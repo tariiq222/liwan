@@ -329,7 +329,7 @@ html[dir="rtl"] body { padding-right: 0 !important; }
 .nasq-chat-row:hover .nasq-chat-msg-actions, .nasq-chat-row:focus-within .nasq-chat-msg-actions { opacity: 1; }
 
 .nasq-shell-workspace { min-height: 100svh; margin-inline-start: calc(var(--module-rail-width) + var(--context-sidebar-width)); padding-block-start: var(--shell-header-height); background: var(--context-surface); transition: margin-inline-start var(--shell-duration) var(--shell-ease); }
-.nasq-shell-main { min-height: calc(100svh - var(--shell-header-height)); min-width: 0; border-radius: 0; background: var(--background); box-shadow: var(--content-shadow); padding: 30px clamp(18px, 3vw, 48px) 56px; }
+.nasq-shell-main { min-height: calc(100svh - var(--shell-header-height)); min-width: 0; border-radius: 0; background: var(--background); padding: 30px clamp(18px, 3vw, 48px) 56px; }
 .nasq-shell { animation: nasq-shell-enter 220ms ease both; }
 @keyframes nasq-shell-enter { from { opacity: 0; } to { opacity: 1; } }
 .nasq-page-content-motion { animation: nasq-page-content-enter 160ms ease both; }
