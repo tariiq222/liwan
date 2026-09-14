@@ -5,6 +5,13 @@
   --text-base: 1rem;
   --text-lg: 1.142857rem;
   --text-xl: 1.428571rem;
+  /* Geometry is owned here: rounded-* utilities read this scale, so one edit
+     moves every surface and control. */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 10px;
+  --radius-2xl: 12px;
 }
 :root {
   /* Reference neutral palette. Branding changes the primary family only. */
@@ -19,7 +26,8 @@
   --nasq-border: #e5e8ef;
   --nasq-rail: color-mix(in srgb, var(--primary) 50%, #0a0c12);
   --nasq-rail-deep: color-mix(in srgb, var(--primary) 36%, #0a0c12);
-  --nasq-radius: 14px;
+  --nasq-surface-hover: #f1f3f9;
+  --nasq-radius: 8px;
   --radius: var(--nasq-radius);
   --primary-contrast: #fff;
   --primary-2: color-mix(in srgb, var(--primary) 78%, #fff);
@@ -38,7 +46,19 @@
   --ui-border: var(--nasq-border);
   --ui-border-muted: var(--nasq-border);
   --ui-border-accented: #d9dde7;
-  --ui-radius: 7px;
+  --ui-radius: 6px;
+  /* State and priority are fixed semantic colours: they never inherit the
+     institution's primary and keep the same meaning in every mode. */
+  --state-in-progress: #1d4ed8;
+  --state-changes-requested: #c2410c;
+  --state-approved: #6d28d9;
+  --state-waiting: #6b7280;
+  --state-done: #15803d;
+  --state-cancelled: #374151;
+  --priority-urgent: #b91c1c;
+  --priority-high: #c2410c;
+  --priority-normal: #1d4ed8;
+  --priority-low: #6b7280;
   --background: var(--nasq-surface-page);
   --foreground: var(--nasq-text);
   --card: var(--nasq-surface);
@@ -124,7 +144,6 @@
   --ui-success: #166534;
   --ui-error: #b91c1c;
   --ui-info: #1d4ed8;
-  --ui-radius: .4rem;
   --nasq-ui-z-sheet: 60;
   --nasq-ui-z-menu: 130;
 }
@@ -138,6 +157,17 @@
   --nasq-text: #3f3428;
   --nasq-muted: #746753;
   --nasq-border: #e8e0d4;
+  --nasq-surface-hover: #f3eee4;
+  --state-in-progress: #1d4ed8;
+  --state-changes-requested: #b45309;
+  --state-approved: #6d28d9;
+  --state-waiting: #6b6256;
+  --state-done: #15803d;
+  --state-cancelled: #44403c;
+  --priority-urgent: #b91c1c;
+  --priority-high: #b45309;
+  --priority-normal: #1d4ed8;
+  --priority-low: #6b6256;
   --nasq-rail: color-mix(in srgb, var(--primary) 50%, #0a0c12);
   --nasq-rail-deep: color-mix(in srgb, var(--primary) 36%, #0a0c12);
   --shell-background: var(--nasq-surface);
@@ -164,6 +194,17 @@
   --nasq-text: #f6f7fb;
   --nasq-muted: #a9b0bf;
   --nasq-border: #2d3340;
+  --nasq-surface-hover: #202531;
+  --state-in-progress: #93c5fd;
+  --state-changes-requested: #fdba74;
+  --state-approved: #c4b5fd;
+  --state-waiting: #9ca3af;
+  --state-done: #86efac;
+  --state-cancelled: #d1d5db;
+  --priority-urgent: #fca5a5;
+  --priority-high: #fdba74;
+  --priority-normal: #93c5fd;
+  --priority-low: #9ca3af;
   --nasq-rail: color-mix(in srgb, var(--primary) 32%, #07080c);
   --nasq-rail-deep: color-mix(in srgb, var(--primary) 20%, #07080c);
   --rail-hover: #242936;
@@ -232,6 +273,17 @@
   --color-status-success-foreground: var(--status-success-foreground);
   --color-status-warning: var(--status-warning);
   --color-status-warning-foreground: var(--status-warning-foreground);
+  --color-state-in-progress: var(--state-in-progress);
+  --color-state-changes-requested: var(--state-changes-requested);
+  --color-state-approved: var(--state-approved);
+  --color-state-waiting: var(--state-waiting);
+  --color-state-done: var(--state-done);
+  --color-state-cancelled: var(--state-cancelled);
+  --color-priority-urgent: var(--priority-urgent);
+  --color-priority-high: var(--priority-high);
+  --color-priority-normal: var(--priority-normal);
+  --color-priority-low: var(--priority-low);
+  --color-surface-hover: var(--nasq-surface-hover);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
