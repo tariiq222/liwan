@@ -30,6 +30,6 @@ export const AllDeadlines: Story = {
         { deadline: null, daysRemaining: null, isClosed: false },
       ],
     }),
-    template: '<div class="flex flex-wrap items-center gap-2"><DeadlineBadge v-for="(item, index) in cases" :key="index" v-bind="item" /></div>',
+    template: '<div class="flex items-center gap-2"><DeadlineBadge v-for="(item, index) in cases" :key="index" v-bind="item" /></div>',
   }),
 }

@@ -24,5 +24,9 @@ export const InTaskRow: Story = {
 
 export const AllStates: Story = {
   name: 'كل الحالات',
-  render: () => ({ components: { StateBadge }, setup: () => ({ states: TaskStateSchema.options }), template: '<div class="flex flex-wrap items-center gap-2"><StateBadge v-for="state in states" :key="state" :state="state" /></div>' }),
+  render: () => ({
+    components: { StateBadge },
+    setup: () => ({ states: TaskStateSchema.options }),
+    template: '<div style="width: 375px"><article class="space-y-3 p-4"><div class="flex flex-wrap items-center gap-2"><StateBadge v-for="state in states" :key="state" :state="state" /></div></article></div>',
+  }),
 }

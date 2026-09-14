@@ -1,11 +1,11 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import DashboardChartPanel from '../../app/components/project/dashboard/DashboardChartPanel.vue'
-import PageContainer from '../../app/components/shared/PageContainer.vue'
-import type { DashboardChart } from '../../app/utils/projectChartData'
-import { dashboardCharts } from '../fixtures/projectReports'
-import { storyContext } from '../support/context'
+import DashboardChartPanel from '../../../app/components/project/dashboard/DashboardChartPanel.vue'
+import PageContainer from '../../../app/components/shared/PageContainer.vue'
+import type { DashboardChart } from '../../../app/utils/projectChartData'
+import { dashboardCharts } from '../../fixtures/projectReports'
+import { storyContext } from '../../support/context'
 
 const emptyChart: DashboardChart = { kind: 'donut', data: [], palette: 'primary', total: 0, centerLabel: '', centerSubLabel: '' }
 
