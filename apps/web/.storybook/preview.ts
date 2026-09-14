@@ -15,7 +15,7 @@ import nuxtUiComponents from 'virtual:nasq-nuxt-ui-components'
 import { useAppearance } from '../app/composables/useAppearance'
 import { htmlAttrsFor, type AppearanceMode, type FontSize } from '../app/utils/appearance'
 import { createBrandTheme, DEFAULT_PRIMARY } from '../app/utils/brandTheme'
-import { __setRouter } from './nuxt-shims'
+import { __resetState, __setRouter } from './nuxt-shims'
 import { init as initLucideIcons } from './nuxt-icon-client-bundle-shim.mjs'
 
 // @nuxt/icon's runtime only calls "#build/nuxt-icon-client-bundle"'s init()
@@ -59,7 +59,7 @@ function applyDocument(locale: string, mode: AppearanceMode, fontSize: FontSize,
 }
 
 const preview: Preview = {
-  loaders: [mswLoader(), async () => { queryClient.clear(); return {} }],
+  loaders: [mswLoader(), async () => { queryClient.clear(); __resetState(); return {} }],
   globalTypes: {
     locale: {
       description: 'Language and direction',
