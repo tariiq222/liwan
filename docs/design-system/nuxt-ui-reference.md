@@ -51,8 +51,22 @@ Storybook في `apps/web` يعرض المكونات **المتكررة** وتو�
 | البيانات والـ API | `apps/web/stories/fixtures/**` تمر عبر مخططات `@nasq/contracts`؛ `apps/web/stories/handlers/api.ts` يحاكي `/api/v1` عبر MSW |
 | قائمة التغطية | `STORYBOOK_COMPONENTS` في `tools/ui_policy.py` |
 
-التشغيل: `npm -w apps/web run storybook` (منفذ 6006، أو `-- -p <port>`). البناء: `npm -w apps/web run build-storybook`. الفحص: `cd apps/web && npx playwright test e2e/storybook-smoke.spec.ts` بعد البناء.
+التشغيل: `npm -w apps/web run storybook` (منفذ 6006، أو `-- -p <port>`). البناء: `npm -w apps/web run build-storybook`. الفحص: `cd apps/web && npx playwright test e2e/storybook-smoke.spec.ts` بعد البناء (بلا فلترة grep؛ فحص الأنواع `npx -w apps/web vue-tsc --noEmit -p .storybook/tsconfig.json` يجب أن يخرج بـ 0 مباشرة).
 
 إضافة لبنة: عندما يُستخدم مكوّن في ملفين أو أكثر، أضف مساره إلى `STORYBOOK_COMPONENTS` واكتب قصته داخل سياق استخدامه.
 
-حدود معروفة: الـ bus وmiddleware المسارات وplugins Nuxt غير محاكاة؛ كاش `useFetch` في البدائل مبسّط؛ أرشفة المشروع في `ProjectMenu` تعرض خطأ 422 بدل النجاح.
+**Vite:** إضافة `vite@8.2.2` إلى `apps/web/devDependencies` رفعت نسخة Vite على مستوى المستودع كله، فصار Nuxt وStorybook وvitest يحلّون جميعًا على 8.2.2 بدل 7.3.6 التي كان vitest يستخدمها وحده سابقًا. القرار المعتمد: الإبقاء على 8.2.2 كنسخة موحّدة، لا الرجوع عنها؛ كل تابع لـ Vite في المستودع يقبل `^8` وحزمة الويب الكاملة تمر بنجاح عليها (`npm ls vite` يُظهر نسخة واحدة مُوحَّدة).
+
+**سطح البدائل اليدوية** (كل بند فيه فحص يراقبه):
+
+| الملف | الغرض | يُراقبه |
+| --- | --- | --- |
+| `nuxt-shims.ts` | بدائل واجهات Nuxt وقت التشغيل (`useFetch`، `useState`، `useRoute`… راجع §4 في المواصفة) | فحص `nuxt-imports.mjs` وقت البناء يفشل إذا استدعى كود التطبيق واجهة بلا بديل هنا |
+| `nuxt-ui-imports-shim.mjs` | يوفّر `#imports` لداخليات Nuxt UI (`useAsyncData`، `onNuxtReady`…) التي لا يغطيها بديل `@nuxt/ui` نفسه | يُستخدم عبر alias `#imports` في `main.ts`؛ أي فشل في تحميله يظهر فورًا كخطأ بناء |
+| `nuxt-icon-client-bundle-shim.mjs` | يسجّل مجموعة lucide الكاملة عبر `addCollection` بدل حزمة العميل المولَّدة من `#build/nuxt-icon-client-bundle` | يُستدعى في `preview.ts` قبل أي عرض؛ راجع حد الانحراف أدناه |
+| مُلحق استبدال `import.meta.*` | يستبدل `import.meta.server/client/dev` داخل `node_modules` لأن Vite dev-server يتجاوز ملفات `.js` الصالحة هناك | `importMetaEnvShim()` في `main.ts` |
+| متغيرات `defineNuxtConfig`/`defineAppConfig` العامة واستعادة خيارات الأيقونة | تُبقي `nuxt.config.ts`/`app.config.ts` الحقيقيين قابلين للاستيراد كما هما، وتستعيد `cssSelectorPrefix`/`collections` التي يوفرها Nuxt عادة | أعلى `main.ts` وداخل خيارات `ui()` فيه |
+
+**حد معروف — تعتيم الأيقونات:** يسجّل Storybook مجموعة lucide كاملة، بينما يشحن التطبيق فعليًا حزمة العميل الممسوحة فقط مع `icon: { fallbackToApi: false }` في `nuxt.config.ts`. أيقونة غائبة عن مسح التطبيق قد تظهر في Storybook ولا تظهر في التطبيق نفسه؛ هذا التعتيم متعمّد لسرعة العرض وليس خطأ في البديل.
+
+حدود معروفة أخرى: الـ bus وmiddleware المسارات وplugins Nuxt غير محاكاة؛ كاش `useFetch` في البدائل مبسّط؛ أرشفة المشروع في `ProjectMenu` تعرض خطأ 422 بدل النجاح.

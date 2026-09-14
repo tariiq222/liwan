@@ -54,7 +54,7 @@ apps/web/
 
 **الحزم (devDependencies في `apps/web`، إصدارات مثبتة بدقة):** `storybook`، `@storybook/vue3-vite`، `@storybook/addon-docs` (10.6.x)، `msw`، `msw-storybook-addon`، `@vitejs/plugin-vue`.
 
-**Vite:** التطبيق يُبنى فعليًا بـ Vite 8.2.2 (داخل `@nuxt/vite-builder`) بينما المستوى الأعلى 7.3.6 مصدره vitest. يُربط Storybook بـ Vite 8.2.2 ليطابق التطبيق. شرط القبول: `npm test` يبقى ناجحًا بلا تغيير في نسخة Vite التي يستخدمها vitest. إن تعذّر ذلك دون overrides، يبقى Storybook على 7.3.6 ويُسجَّل الفرق صراحةً في المرجع التقني.
+**Vite:** إضافة `vite@8.2.2` إلى `apps/web/devDependencies` (لمطابقة Storybook مع `@nuxt/vite-builder`) رفعت نسخة Vite على مستوى الحزمة بأكملها؛ فصار vitest أيضًا يحل على 8.2.2 بدل 7.3.6 السابقة. **القرار المعتمد (حكم المراجع):** الإبقاء على Vite 8.2.2 كنسخة موحّدة على مستوى المستودع، يشترك فيها Nuxt وStorybook وvitest، بدل عزل vitest على نسخة مختلفة. كل تابع لـ Vite في هذا المستودع يقبل `^8`، وحزمة الويب الكاملة (`npm test`، `npx -w apps/web vue-tsc --noEmit`، `python3 -B tools/ui_policy.py`، `npm -w apps/web run build-storybook`) تمر بنجاح على هذه النسخة. لا رجوع عن هذا القرار.
 
 **المتطلب المسبق:** `nuxt prepare` قبل `storybook dev/build` (السكربتات تشغّله).
 

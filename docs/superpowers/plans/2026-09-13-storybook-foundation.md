@@ -570,10 +570,10 @@ export const EmptyValue: Story = { ...InMobileCard, name: 'بدون رقم', arg
 
 ```bash
 npm -w apps/web run build-storybook
-npx -w apps/web vue-tsc --noEmit -p .storybook/tsconfig.json 2>&1 | grep -E '\.storybook/|stories/' || echo "no Storybook type errors"
+npx -w apps/web vue-tsc --noEmit -p .storybook/tsconfig.json
 ```
 
-Expected: build succeeds with no `[nasq-storybook] app code calls Nuxt runtime APIs without a shim` error; the grep prints `no Storybook type errors`. If a Storybook file has a type error, fix that file (not app code).
+Expected: build succeeds with no `[nasq-storybook] app code calls Nuxt runtime APIs without a shim` error; the type-check exits 0. If a Storybook file has a type error, fix that file (not app code).
 
 - [ ] **Step 15: See it in the browser**
 
@@ -3004,7 +3004,7 @@ In `docs/design-system/components.md`, add below the intro paragraph:
 ```bash
 npm test
 npx -w apps/web vue-tsc --noEmit
-npx -w apps/web vue-tsc --noEmit -p .storybook/tsconfig.json 2>&1 | grep -E '\.storybook/|stories/' || echo "no Storybook type errors"
+npx -w apps/web vue-tsc --noEmit -p .storybook/tsconfig.json
 python3 -B tools/ui_policy.py
 npm -w apps/web run build-storybook
 cd apps/web && npx playwright test e2e/storybook-smoke.spec.ts; cd ../..
