@@ -90,23 +90,21 @@ async function submit() {
 <template>
   <SharedUnsavedChanges :dirty="dirty" />
   <form data-testid="milestone-form" class="grid gap-5" @submit.prevent="submit">
-    <div class="grid gap-2">
-      <label for="milestone-name" class="flex items-center gap-2 text-sm font-medium leading-none">{{ t('projects.milestones.name') }}</label>
+    <UFormField :label="t('projects.milestones.name')" required>
       <UInput id="milestone-name" v-model="name" class="w-full" required :disabled="!hydrated || isPending" />
-    </div>
-    <div class="grid gap-2">
-      <label id="milestone-start-label" class="flex items-center gap-2 text-sm font-medium leading-none">{{ t('projects.milestones.startDate') }}</label>
+    </UFormField>
+    <UFormField>
+      <template #label><span id="milestone-start-label">{{ t('projects.milestones.startDate') }}</span></template>
       <SharedDateField :min-value="projectStart" :max-value="projectEnd" v-model="startDate" :disabled="!hydrated || isPending" aria-labelledby="milestone-start-label" :aria-label="t('projects.milestones.startDate')" />
-    </div>
-    <div class="grid gap-2">
-      <label id="milestone-deadline-label" class="flex items-center gap-2 text-sm font-medium leading-none">{{ t('projects.milestones.deadline') }}</label>
+    </UFormField>
+    <UFormField>
+      <template #label><span id="milestone-deadline-label">{{ t('projects.milestones.deadline') }}</span></template>
       <SharedDateField :min-value="projectStart" :max-value="projectEnd" v-model="deadline" :disabled="!hydrated || isPending" aria-labelledby="milestone-deadline-label" :aria-label="t('projects.milestones.deadline')" />
-    </div>
-    <div class="grid gap-2 sm:col-span-2">
-      <div class="flex items-center justify-between gap-3">
-        <div><span class="flex items-center gap-2 text-sm font-medium leading-none">{{ t('projects.milestones.deliverables') }}</span><p class="text-xs text-muted">{{ t('projects.milestones.deliverablesHint') }}</p></div>
-        <UButton type="button" color="neutral" size="sm" :disabled="!hydrated || isPending" :label="t('projects.milestones.addDeliverable')" @click="addDeliverable" variant="outline" />
-      </div>
+    </UFormField>
+    <UFormField class="sm:col-span-2" :label="t('projects.milestones.deliverables')" :description="t('projects.milestones.deliverablesHint')">
+      <template #hint>
+        <UButton type="button" color="neutral" variant="outline" size="sm" icon="i-lucide-plus" :disabled="!hydrated || isPending" :label="t('projects.milestones.addDeliverable')" @click="addDeliverable" />
+      </template>
       <div v-if="deliverables.length" class="space-y-2">
         <div v-for="(item, index) in deliverables" :key="index" class="flex items-center gap-2">
           <USwitch :model-value="item.done" :aria-label="t('projects.milestones.deliverableDone')" :disabled="!hydrated || isPending" @update:model-value="item.done = $event" />
@@ -115,7 +113,7 @@ async function submit() {
         </div>
       </div>
       <p v-else class="text-sm text-muted">{{ t('projects.milestones.noDeliverables') }}</p>
-    </div>
+    </UFormField>
     <div v-if="error" role="alert" class="text-sm text-error sm:col-span-2">
       <p>{{ error }}</p>
       <NuxtLink v-if="projectScheduleMissing" class="mt-1 inline-block underline underline-offset-4" :to="{ path: `/projects/${props.projectId}/charter`, query: { edit: '1' } }">{{ t('projects.milestones.openProjectFile') }}</NuxtLink>

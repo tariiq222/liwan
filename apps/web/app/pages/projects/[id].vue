@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import ProjectStatusBadge from '@/components/project/ProjectStatusBadge.vue'
 import ProjectWorkspaceTabs from '@/components/project/workspace/ProjectWorkspaceTabs.vue'
+import ProjectGovernanceTabs from '@/components/project/workspace/ProjectGovernanceTabs.vue'
 import { ApiError } from '@/composables/useApi'
-import { activeProjectSection, projectIdFromPath } from '@/composables/nav/activeRoute'
+import { activeGovernanceSection, activeProjectSection, projectIdFromPath } from '@/composables/nav/activeRoute'
 import { useProject } from '@/composables/useProjects'
 
 const route = useRoute()
@@ -32,6 +33,10 @@ const showFrame = computed(() => !notFound.value
 // The project name below is the page heading whenever it is actually on screen;
 // SharedPageHeader inside a child page reads this and demotes its own heading a
 // level, so a project page never renders two top-level headings and never none.
+// Governance is the one section with sub-sections; they get a second strip
+// under the main one on every governance page, records included. An archived
+// project has no governance tab, so it gets no sub-strip either.
+const showGovernanceTabs = computed(() => Boolean(project.value?.active) && activeGovernanceSection(route.path) !== null)
 provideProjectFrameHeading(computed(() => showFrame.value && Boolean(project.value)))
 </script>
 
@@ -67,6 +72,7 @@ provideProjectFrameHeading(computed(() => showFrame.value && Boolean(project.val
         </div>
         <!-- Tabs follow the hydrated project like the title row, so a first click is a client-side navigation. -->
         <ProjectWorkspaceTabs v-if="project" :project-id="projectId!" :active="project.active" />
+        <ProjectGovernanceTabs v-if="showGovernanceTabs" :project-id="projectId!" class="-mt-4" />
         <USkeleton v-else-if="isLoading || !hydrated" class="h-8 w-2/3" />
       </div>
     </SharedPageContainer>

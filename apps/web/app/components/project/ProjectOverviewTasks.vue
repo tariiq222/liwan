@@ -34,7 +34,7 @@ function deadlineLabel(value: string | null) {
     </div>
     <UAlert v-else-if="isError" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="error instanceof Error ? error.message : t('errors.generic')">
       <template #actions>
-        <UButton type="button" color="error" variant="outline" size="sm" :label="t('app.retry')" @click="refetch()" />
+        <UButton type="button" color="neutral" variant="outline" size="sm" :label="t('app.retry')" @click="refetch()" />
       </template>
     </UAlert>
     <template v-else>

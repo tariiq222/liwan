@@ -9,7 +9,7 @@ const panelFile = resolve(import.meta.dirname, '../TaskDetailPanel.vue')
 const panel = readFileSync(panelFile, 'utf8')
 
 function backLinkTag(source: string): string | undefined {
-  return source.match(/<NuxtLink[^>]*t\('tasks\.detail\.back'\)[^>]*>/)?.[0]
+  return source.match(/<UButton[^>]*data-testid="task-detail-back"[^>]*>/)?.[0]
 }
 
 describe('task detail back link', () => {
@@ -19,6 +19,9 @@ describe('task detail back link', () => {
     const backLink = backLinkTag(panel)
     expect(backLink, 'the back link must still exist').toBeTruthy()
     expect(backLink).toContain(':to="backTo"')
+    expect(backLink).toContain('color="neutral"')
+    expect(backLink).toContain('variant="outline"')
+    expect(panel).toContain("{{ props.backLabel ?? t('tasks.detail.back') }}")
     expect(backLink, 'the back link must not be conditional').not.toMatch(/\sv-(?:if|else-if|show)[=\s>]/)
   })
 

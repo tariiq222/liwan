@@ -110,7 +110,7 @@ watch(() => props.resetKey, () => { baseline.value = serialized(); validationErr
           <h2 id="template-stages-title" class="text-lg font-semibold text-highlighted">{{ t('projects.templates.stages.title') }}</h2>
             <p class="text-xs text-muted">{{ t('projects.templates.stages.hint') }}</p>
           </div>
-          <UButton type="button" color="neutral" :disabled="disabled" @click="addStage" variant="outline">{{ t('projects.templates.actions.addStage') }}</UButton>
+          <UButton type="button" color="neutral" icon="i-lucide-plus" :disabled="disabled" @click="addStage" variant="outline">{{ t('projects.templates.actions.addStage') }}</UButton>
         </div>
       </template>
       <div v-for="(stage, index) in draft.definition.stages" :key="stage.key" class="mb-3 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] last:mb-0">
@@ -126,7 +126,7 @@ watch(() => props.resetKey, () => { baseline.value = serialized(); validationErr
       <template #header>
         <div class="flex w-full items-center justify-between gap-3">
           <h2 id="template-milestones-title" class="text-lg font-semibold text-highlighted">{{ t('projects.templates.milestones.title') }}</h2>
-          <UButton type="button" color="neutral" :disabled="disabled" @click="addMilestone" variant="outline">{{ t('projects.templates.actions.addMilestone') }}</UButton>
+          <UButton type="button" color="neutral" icon="i-lucide-plus" :disabled="disabled" @click="addMilestone" variant="outline">{{ t('projects.templates.actions.addMilestone') }}</UButton>
         </div>
       </template>
       <p v-if="!draft.definition.milestones.length" class="text-sm text-muted">{{ t('projects.templates.emptyMilestones') }}</p>
@@ -159,7 +159,7 @@ watch(() => props.resetKey, () => { baseline.value = serialized(); validationErr
           <h2 id="template-tasks-title" class="text-lg font-semibold text-highlighted">{{ t('projects.templates.tasks.title') }}</h2>
             <p class="text-xs text-muted">{{ t('projects.templates.tasks.hint') }}</p>
           </div>
-          <UButton type="button" color="neutral" :disabled="disabled" @click="addTask" variant="outline">{{ t('projects.templates.actions.addTask') }}</UButton>
+          <UButton type="button" color="neutral" icon="i-lucide-plus" :disabled="disabled" @click="addTask" variant="outline">{{ t('projects.templates.actions.addTask') }}</UButton>
         </div>
       </template>
       <p v-if="!draft.definition.tasks.length" class="text-sm text-muted">{{ t('projects.templates.emptyTasks') }}</p>

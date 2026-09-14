@@ -7,6 +7,9 @@ import { useMeetingEvents, useMeetingSeriesResolutions } from '@/composables/use
 import { formatCalendarDate, formatNasqTime } from '@/composables/calendarDate'
 import { isCalendarDate } from '@/composables/calendarDate'
 import { meetingTimestamp, prioritizeTimelinePage, selectNextMeeting, selectPreviousMeeting } from '@/utils/meetingWorkspace'
+import { resolutionStateColor } from '@/utils/meetingStatus'
+import { richTextHasContent } from '@/utils/richText'
+import { sectionTabsUi } from '@/utils/sectionTabs'
 
 type SeriesTab = 'sessions' | 'followup' | 'history' | 'details'
 const tabs: SeriesTab[] = ['sessions', 'followup', 'history', 'details']
@@ -164,9 +167,6 @@ function resolutionProject(item: unknown) {
   const project = (item as { project?: { id: number; name: string } | null }).project
   return project && Number.isInteger(project.id) ? project : null
 }
-function hasRichText(value: string | null | undefined) {
-  return Boolean(value?.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim() || /<(img|table|video|iframe)\b/i.test(value || ''))
-}
 
 const historyPage = computed(() => parsePage(routeValue('history_page')))
 const historyPageSize = 25
@@ -185,21 +185,63 @@ function setHistoryPage(page: number) {
   <SharedPageContainer v-if="isDetail" width="detail">
     <SharedPageHeader :title="query.data.value?.name || t('nav.meetingSeries')" :description="headerDescription" :back-to="backTo">
       <template #actions>
-        <UButton v-if="query.data.value?.can_edit === true" color="primary" variant="outline" :to="`/meetings/series/${id}/edit`" :label="t('meetingsUx.seriesSettingsLink')" />
+        <UButton v-if="query.data.value?.can_edit === true" color="neutral" variant="outline" :to="`/meetings/series/${id}/edit`" :label="t('meetingsUx.seriesSettingsLink')" />
         <UButton v-if="canAddOccurrence" :disabled="!hydrated" :to="{ path: '/meetings/new', query: { series_id: String(id) } }" :label="t('meetingsUi.addOccurrence')" />
       </template>
     </SharedPageHeader>
     <SharedPageState :loading="query.isLoading.value" :error="query.error.value" @retry="query.refetch">
       <template v-if="query.data.value">
-        <nav class="flex flex-wrap gap-2" :aria-label="t('meetingTimeline.sections')">
-          <UButton v-for="tab in tabs" :key="tab" type="button" size="sm" :color="activeTab === tab ? 'primary' : 'secondary'" :variant="activeTab === tab ? 'solid' : 'outline'" :disabled="!hydrated" :label="t(`meetingTimeline.tabs.${tab}`)" @click="setTab(tab)" />
-        </nav>
+        <UTabs
+          :model-value="activeTab"
+          :items="tabs.map(tab => ({ label: t(`meetingTimeline.tabs.${tab}`), value: tab, disabled: !hydrated }))"
+          variant="link"
+          :content="false"
+          class="min-w-0"
+          :ui="sectionTabsUi"
+          :aria-label="t('meetingTimeline.sections')"
+          @update:model-value="setTab"
+        />
 
         <section v-if="activeTab === 'sessions'" class="grid gap-4" data-testid="meeting-series-sessions">
-          <UCard class="grid gap-2">
-            <div class="flex flex-wrap items-start justify-between gap-3"><div><h2 class="text-lg font-semibold text-highlighted">{{ t('meetingTimeline.scheduleSummary') }}</h2><p class="mt-1 text-sm text-muted">{{ t('meetingTimeline.scheduleSummaryHint') }}</p></div><div class="flex items-center gap-2 text-sm"><UButton type="button" size="sm" :color="occurrenceView === 'timeline' ? 'primary' : 'secondary'" :variant="occurrenceView === 'timeline' ? 'solid' : 'outline'" :disabled="!hydrated" :label="t('meetingTimeline.timelineView')" @click="occurrenceView = 'timeline'" /><UButton type="button" size="sm" :color="occurrenceView === 'table' ? 'primary' : 'secondary'" :variant="occurrenceView === 'table' ? 'solid' : 'outline'" :disabled="!hydrated" :label="t('meetingTimeline.tableView')" @click="occurrenceView = 'table'" /></div></div>
-            <div class="flex flex-wrap gap-2"><NuxtLink :to="{ query: { ...route.query, tab: 'followup', followup_state: 'active', followup_page: undefined } }" class="rounded-lg border border-border bg-brand-soft/50 px-3 py-2 text-sm text-brand-link underline-offset-4 hover:underline">{{ t('meetingsUi.openCount', { count: query.data.value.open_resolution_count }) }}</NuxtLink><NuxtLink :to="{ query: { ...route.query, tab: 'followup', followup_state: 'overdue', followup_page: undefined } }" class="rounded-lg border border-border bg-brand-soft/50 px-3 py-2 text-sm text-brand-link underline-offset-4 hover:underline">{{ t('meetingsUi.overdueCount', { count: query.data.value.overdue_resolution_count }) }}</NuxtLink></div>
-            <div class="w-full min-w-0 grid gap-3 sm:grid-cols-2"><div class="rounded-lg border border-border/70 p-3"><p class="text-xs text-muted-foreground">{{ t('meetingsUi.nextMeeting') }}</p><p v-if="upcoming" class="mt-1 font-medium"><NuxtLink :to="`/meetings/${upcoming.id}`" class="text-brand-link underline-offset-4 hover:underline">{{ upcoming.name }}</NuxtLink><span class="mt-1 block text-sm text-muted-foreground">{{ occurrenceLabel(upcoming) }}</span></p><p v-else class="mt-1 text-sm text-muted-foreground">{{ t('meetingsUx.noNextMeeting') }}</p></div><div class="rounded-lg border border-border/70 p-3"><p class="text-xs text-muted-foreground">{{ t('meetingTimeline.lastCompleted') }}</p><p v-if="previous" class="mt-1 font-medium"><NuxtLink :to="`/meetings/${previous.id}`" class="text-brand-link underline-offset-4 hover:underline">{{ previous.name }}</NuxtLink><span class="mt-1 block text-sm text-muted-foreground">{{ occurrenceLabel(previous) }}</span></p><p v-else class="mt-1 text-sm text-muted-foreground">{{ t('meetingTimeline.noCompletedMeeting') }}</p></div></div>
+          <UCard>
+            <div class="grid gap-4">
+              <div class="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h2 class="text-lg font-semibold text-highlighted">{{ t('meetingTimeline.scheduleSummary') }}</h2>
+                  <p class="mt-1 text-sm text-muted">{{ t('meetingTimeline.scheduleSummaryHint') }}</p>
+                </div>
+                <UTabs
+                  :model-value="occurrenceView"
+                  :items="[{ label: t('meetingTimeline.timelineView'), value: 'timeline', disabled: !hydrated }, { label: t('meetingTimeline.tableView'), value: 'table', disabled: !hydrated }]"
+                  :content="false"
+                  size="sm"
+                  :aria-label="t('meetingTimeline.scheduleSummary')"
+                  @update:model-value="occurrenceView = $event === 'table' ? 'table' : 'timeline'"
+                />
+              </div>
+              <div class="flex flex-wrap gap-2">
+                <UButton color="primary" variant="subtle" size="sm" :to="{ query: { ...route.query, tab: 'followup', followup_state: 'active', followup_page: undefined } }" :label="t('meetingsUi.openCount', { count: query.data.value.open_resolution_count })" />
+                <UButton color="error" variant="subtle" size="sm" :to="{ query: { ...route.query, tab: 'followup', followup_state: 'overdue', followup_page: undefined } }" :label="t('meetingsUi.overdueCount', { count: query.data.value.overdue_resolution_count })" />
+              </div>
+              <div class="grid w-full min-w-0 gap-3 sm:grid-cols-2">
+                <div class="rounded-lg p-3 ring ring-default">
+                  <p class="text-sm text-muted">{{ t('meetingsUi.nextMeeting') }}</p>
+                  <div v-if="upcoming" class="mt-1 grid gap-1">
+                    <UButton color="primary" variant="link" class="w-fit p-0 font-medium whitespace-normal text-start" :to="`/meetings/${upcoming.id}`">{{ upcoming.name }}</UButton>
+                    <span class="text-sm text-muted">{{ occurrenceLabel(upcoming) }}</span>
+                  </div>
+                  <p v-else class="mt-1 text-sm text-muted">{{ t('meetingsUx.noNextMeeting') }}</p>
+                </div>
+                <div class="rounded-lg p-3 ring ring-default">
+                  <p class="text-sm text-muted">{{ t('meetingTimeline.lastCompleted') }}</p>
+                  <div v-if="previous" class="mt-1 grid gap-1">
+                    <UButton color="primary" variant="link" class="w-fit p-0 font-medium whitespace-normal text-start" :to="`/meetings/${previous.id}`">{{ previous.name }}</UButton>
+                    <span class="text-sm text-muted">{{ occurrenceLabel(previous) }}</span>
+                  </div>
+                  <p v-else class="mt-1 text-sm text-muted">{{ t('meetingTimeline.noCompletedMeeting') }}</p>
+                </div>
+              </div>
+            </div>
           </UCard>
           <FilterBar :title="t('filterCard.title')" :active-count="activeSessionFilterCount" :clear-label="t('meetingsUi.clear')" :disabled="!hydrated" @clear="clearSessionFilters">
             <template #search>
@@ -225,8 +267,9 @@ function setHistoryPage(page: number) {
               </div>
             </template>
           </FilterBar>
-          <UCard class="overflow-hidden"><MeetingTimeline :meetings="visibleMeetings" :next-meeting-id="upcoming?.id" :view="occurrenceView" :preserve-order="occurrenceSort !== 'timeline'" :return-to="route.fullPath" :now="now" /></UCard>
-          <div v-if="hasMoreMeetings" class="flex justify-center"><UButton color="primary" variant="outline" :disabled="!hydrated" :label="t('meetingTimeline.loadMore')" @click="loadMoreMeetings" /></div>
+          <UCard v-if="occurrenceView === 'timeline' && visibleMeetings.length"><MeetingTimeline :meetings="visibleMeetings" :next-meeting-id="upcoming?.id" view="timeline" :preserve-order="occurrenceSort !== 'timeline'" :return-to="route.fullPath" :now="now" /></UCard>
+          <MeetingTimeline v-else :meetings="visibleMeetings" :next-meeting-id="upcoming?.id" :view="occurrenceView" :preserve-order="occurrenceSort !== 'timeline'" :return-to="route.fullPath" :now="now" />
+          <div v-if="hasMoreMeetings" class="flex justify-center"><UButton color="neutral" variant="outline" :disabled="!hydrated" :label="t('meetingTimeline.loadMore')" @click="loadMoreMeetings" /></div>
         </section>
 
         <section v-else-if="activeTab === 'followup'" class="grid gap-4" data-testid="meeting-series-followup">
@@ -244,13 +287,51 @@ function setHistoryPage(page: number) {
               </div>
             </template>
           </FilterBar>
-          <SharedPageState :loading="followupQuery.isLoading.value" :error="followupQuery.error.value" :empty="!followupQuery.isLoading.value && !followupQuery.data.value?.items.length" :empty-text="t('meetingTimeline.noFollowup')" @retry="followupQuery.refetch"><UCard class="divide-y divide-default"><article v-for="item in followupQuery.data.value?.items" :key="`${item.meeting_id}-${item.id}`" class="grid gap-2 p-4"><div class="flex flex-wrap items-start justify-between gap-2"><div class="min-w-0"><NuxtLink :to="{ path: `/meetings/${item.meeting_id}`, query: { tab: 'resolutions' } }" class="font-medium text-brand-link underline-offset-4 hover:underline">{{ item.name }}</NuxtLink><p class="text-xs text-muted">{{ item.meeting_name }}</p></div><UBadge color="neutral" variant="outline">{{ followupStateLabel(item.execution_state || item.state) }}</UBadge></div><div class="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted"><span v-if="resolutionText(item, 'deadline')">{{ t('meetingsUi.deadline') }}: {{ resolutionText(item, 'deadline') }}</span><span v-if="resolutionText(item, 'execution_period')">{{ t('meetingTimeline.executionPeriod') }}: {{ resolutionText(item, 'execution_period') }}</span><NuxtLink v-if="resolutionProject(item)" :to="`/projects/${resolutionProject(item)?.id}`" class="text-brand-link underline-offset-4 hover:underline">{{ t('meetingsUi.project') }}: {{ resolutionProject(item)?.name }}</NuxtLink></div><p v-if="item.responsible" class="text-sm text-muted">{{ t('meetingsUi.responsible') }}: {{ item.responsible.name }}</p><p v-if="item.result && !hasRichText(item.result)" class="whitespace-pre-wrap text-sm">{{ item.result }}</p><div v-else-if="item.result" class="meeting-rich-text text-sm" v-html="item.result" /><NuxtLink v-if="resolutionTaskId(item)" :to="`/tasks/${resolutionTaskId(item)}`" class="text-sm text-brand-link underline-offset-4 hover:underline">{{ t('meetingsUi.openTask') }}</NuxtLink></article></UCard></SharedPageState>
-          <nav v-if="followupPages > 1" class="flex items-center justify-between text-sm text-muted" :aria-label="t('meetingTimeline.followupTitle')"><UButton color="neutral" variant="ghost" :disabled="!hydrated || followupPage === 0" :label="t('projects.previousPage')" @click="setFollowupPage(followupPage - 1)" /><span>{{ t('meetingsUi.pageOf', { page: followupPageNumber, pages: followupPages }) }}</span><UButton color="neutral" variant="ghost" :disabled="!hydrated || followupPageNumber >= followupPages" :label="t('projects.nextPage')" @click="setFollowupPage(followupPage + 1)" /></nav>
+          <SharedPageState :loading="followupQuery.isLoading.value" :error="followupQuery.error.value" :empty="!followupQuery.isLoading.value && !followupQuery.data.value?.items.length" :empty-text="t('meetingTimeline.noFollowup')" @retry="followupQuery.refetch">
+            <ul class="grid divide-y divide-default overflow-hidden rounded-lg bg-default ring ring-default">
+              <li v-for="item in followupQuery.data.value?.items" :key="`${item.meeting_id}-${item.id}`" class="grid gap-2 p-4">
+                <div class="flex flex-wrap items-start justify-between gap-2">
+                  <div class="grid min-w-0 gap-0.5">
+                    <UButton color="primary" variant="link" class="w-fit p-0 font-medium whitespace-normal text-start" :to="{ path: `/meetings/${item.meeting_id}`, query: { tab: 'resolutions' } }">{{ item.name }}</UButton>
+                    <p class="text-xs text-muted">{{ item.meeting_name }}</p>
+                  </div>
+                  <UBadge :color="resolutionStateColor(item.execution_state || item.state)" variant="subtle">{{ followupStateLabel(item.execution_state || item.state) }}</UBadge>
+                </div>
+                <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted">
+                  <span v-if="resolutionText(item, 'deadline')">{{ t('meetingsUi.deadline') }}: {{ resolutionText(item, 'deadline') }}</span>
+                  <span v-if="resolutionText(item, 'execution_period')">{{ t('meetingTimeline.executionPeriod') }}: {{ resolutionText(item, 'execution_period') }}</span>
+                  <UButton v-if="resolutionProject(item)" color="primary" variant="link" size="sm" class="p-0" :to="`/projects/${resolutionProject(item)?.id}`" :label="`${t('meetingsUi.project')}: ${resolutionProject(item)?.name}`" />
+                </div>
+                <p v-if="item.responsible" class="text-sm text-muted">{{ t('meetingsUi.responsible') }}: {{ item.responsible.name }}</p>
+                <SharedRichText v-if="richTextHasContent(item.result)" :html="item.result" size="sm" />
+                <UButton v-if="resolutionTaskId(item)" color="primary" variant="link" size="sm" class="w-fit p-0" :to="`/tasks/${resolutionTaskId(item)}`" :label="t('meetingsUi.openTask')" />
+              </li>
+            </ul>
+          </SharedPageState>
+          <SharedPagination :page="followupPageNumber" :pages="followupPages" :disabled="followupQuery.isFetching.value" @update:page="setFollowupPage($event - 1)" />
         </section>
 
-        <section v-else-if="activeTab === 'history'" class="grid gap-4" data-testid="meeting-series-history"><UCard><h2 class="text-lg font-semibold text-highlighted">{{ t('meetingTimeline.historyTitle') }}</h2><p class="mt-1 text-sm text-muted">{{ t('meetingTimeline.historyHint') }}</p></UCard><MeetingEventList :events="historyQuery.data.value?.items ?? []" :loading="historyQuery.isLoading.value" :error="historyQuery.error.value" :total="historyQuery.data.value?.total ?? 0" :page="historyPageNumber" :page-size="historyPageSize" @retry="historyQuery.refetch" @page="setHistoryPage" /></section>
+        <section v-else-if="activeTab === 'history'" class="grid gap-4" data-testid="meeting-series-history">
+          <UCard><h2 class="text-lg font-semibold text-highlighted">{{ t('meetingTimeline.historyTitle') }}</h2><p class="mt-1 text-sm text-muted">{{ t('meetingTimeline.historyHint') }}</p></UCard>
+          <MeetingEventList :events="historyQuery.data.value?.items ?? []" :loading="historyQuery.isLoading.value" :error="historyQuery.error.value" :total="historyQuery.data.value?.total ?? 0" :page="historyPageNumber" :page-size="historyPageSize" @retry="historyQuery.refetch" @page="setHistoryPage" />
+        </section>
 
-        <section v-else class="grid gap-4" data-testid="meeting-series-details"><UCard><template #header><h2 class="text-lg font-semibold text-highlighted">{{ t('meetingsUi.series') }}</h2></template><dl class="grid gap-4 sm:grid-cols-2"><div><dt class="text-sm text-muted">{{ t('meetingsUi.organizer') }}</dt><dd>{{ query.data.value.organizer?.name || '—' }}</dd></div><div><dt class="text-sm text-muted">{{ t('meetingsUi.recurrenceLabel') }}</dt><dd>{{ t(`meetingsUi.recurrence.${query.data.value.recurrence}`) }}</dd></div><div><dt class="text-sm text-muted">{{ t('meetingsUi.project') }}</dt><dd>{{ query.data.value.project?.name || '—' }}</dd></div><div><dt class="text-sm text-muted">{{ t('meetingsUi.secretary') }}</dt><dd>{{ query.data.value.secretary?.name || '—' }}</dd></div><div><dt class="text-sm text-muted">{{ t('meetingsUi.location') }}</dt><dd>{{ query.data.value.location || '—' }}</dd></div><div v-if="query.data.value.meeting_url"><dt class="text-sm text-muted">{{ t('meetingsUi.url') }}</dt><dd><a :href="query.data.value.meeting_url" target="_blank" rel="noopener" class="break-all text-brand-link underline" dir="ltr">{{ query.data.value.meeting_url }}</a></dd></div><div><dt class="text-sm text-muted">{{ t('meetingsUx.attendees') }}</dt><dd>{{ query.data.value.attendees.map(person => person.name).join('، ') || '—' }}</dd></div><div><dt class="text-sm text-muted">{{ t('meetingsUx.termination') }}</dt><dd>{{ query.data.value.until_count ? t('meetingsUx.terminationCount', { count: query.data.value.until_count }) : query.data.value.until_date ? formatCalendarDate(query.data.value.until_date, locale) : t('meetingsUx.terminationOpen') }}</dd></div><div><dt class="text-sm text-muted">{{ t('meetingsUi.openCount', { count: query.data.value.open_resolution_count }) }}</dt><dd>{{ t('meetingsUi.overdueCount', { count: query.data.value.overdue_resolution_count }) }}</dd></div></dl></UCard></section>
+        <section v-else class="grid gap-4" data-testid="meeting-series-details">
+          <UCard>
+            <template #header><h2 class="text-lg font-semibold text-highlighted">{{ t('meetingsUi.series') }}</h2></template>
+            <dl class="grid gap-4 sm:grid-cols-2">
+              <div class="min-w-0"><dt class="text-sm text-muted">{{ t('meetingsUi.organizer') }}</dt><dd class="text-highlighted">{{ query.data.value.organizer?.name || '—' }}</dd></div>
+              <div class="min-w-0"><dt class="text-sm text-muted">{{ t('meetingsUi.recurrenceLabel') }}</dt><dd class="text-highlighted">{{ t(`meetingsUi.recurrence.${query.data.value.recurrence}`) }}</dd></div>
+              <div class="min-w-0"><dt class="text-sm text-muted">{{ t('meetingsUi.project') }}</dt><dd class="text-highlighted">{{ query.data.value.project?.name || '—' }}</dd></div>
+              <div class="min-w-0"><dt class="text-sm text-muted">{{ t('meetingsUi.secretary') }}</dt><dd class="text-highlighted">{{ query.data.value.secretary?.name || '—' }}</dd></div>
+              <div class="min-w-0"><dt class="text-sm text-muted">{{ t('meetingsUi.location') }}</dt><dd class="break-words text-highlighted">{{ query.data.value.location || '—' }}</dd></div>
+              <div v-if="query.data.value.meeting_url" class="min-w-0"><dt class="text-sm text-muted">{{ t('meetingsUi.url') }}</dt><dd><UButton color="primary" variant="link" class="p-0 break-all whitespace-normal text-start" :to="query.data.value.meeting_url" external target="_blank" rel="noopener" dir="ltr">{{ query.data.value.meeting_url }}</UButton></dd></div>
+              <div class="min-w-0"><dt class="text-sm text-muted">{{ t('meetingsUx.attendees') }}</dt><dd class="text-highlighted">{{ query.data.value.attendees.map(person => person.name).join('، ') || '—' }}</dd></div>
+              <div class="min-w-0"><dt class="text-sm text-muted">{{ t('meetingsUx.termination') }}</dt><dd class="text-highlighted">{{ query.data.value.until_count ? t('meetingsUx.terminationCount', { count: query.data.value.until_count }) : query.data.value.until_date ? formatCalendarDate(query.data.value.until_date, locale) : t('meetingsUx.terminationOpen') }}</dd></div>
+              <div class="min-w-0"><dt class="text-sm text-muted">{{ t('meetingsUi.openCount', { count: query.data.value.open_resolution_count }) }}</dt><dd class="text-highlighted">{{ t('meetingsUi.overdueCount', { count: query.data.value.overdue_resolution_count }) }}</dd></div>
+            </dl>
+          </UCard>
+        </section>
       </template>
     </SharedPageState>
   </SharedPageContainer>

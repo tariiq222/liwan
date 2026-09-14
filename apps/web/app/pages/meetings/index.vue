@@ -10,6 +10,7 @@ import { usePeople } from '@/composables/usePeople'
 import { useMeetings } from '@/composables/useMeetings'
 import { returnToQuery } from '@/utils/safeReturnTo'
 import { formatLocalDateTime } from '@/utils/meetingDateTime'
+import { meetingStateColor } from '@/utils/meetingStatus'
 import { clearMeetingListFilters, meetingDateRange, parseMeetingListFilters, patchMeetingListQuery, type MeetingFilterKey, type MeetingFilterPatch } from '@/utils/meetingListFilters'
 
 const route = useRoute()
@@ -233,9 +234,9 @@ function setPage(next: number) {
               :aria-label="t('meetingsFilters.organizer')"
               @update:model-value="setOrganizer($event === 'all' ? '' : $event)"
             />
-            <p v-if="organizerQuery.isLoading.value" class="text-xs text-muted-foreground" role="status">{{ t('meetingsFilters.organizersLoading') }}</p>
-            <div v-else-if="organizerQuery.error.value" class="flex items-center gap-2 text-xs text-destructive" role="alert"><span>{{ t('meetingsFilters.organizersError') }}</span><UButton type="button" color="primary" variant="outline" size="sm" :disabled="!hydrated" :label="t('meetingsFilters.retry')" @click="organizerQuery.refetch()" /></div>
-            <p v-else-if="!organizerOptions.length" class="text-xs text-muted-foreground">{{ t('meetingsFilters.noOrganizers') }}</p>
+            <p v-if="organizerQuery.isLoading.value" class="text-xs text-muted" role="status">{{ t('meetingsFilters.organizersLoading') }}</p>
+            <div v-else-if="organizerQuery.error.value" class="flex items-center gap-2 text-xs text-error" role="alert"><span>{{ t('meetingsFilters.organizersError') }}</span><UButton type="button" color="neutral" variant="outline" size="sm" :disabled="!hydrated" :label="t('meetingsFilters.retry')" @click="organizerQuery.refetch()" /></div>
+            <p v-else-if="!organizerOptions.length" class="text-xs text-muted">{{ t('meetingsFilters.noOrganizers') }}</p>
           </SharedFilterField>
           <SharedFilterField :label="t('meetingsFilters.fromDateLabel')" for="meeting-date-from">
             <SharedDateField id="meeting-date-from" v-model="dateFromField" class="w-full" :disabled="!hydrated" />
@@ -268,9 +269,7 @@ function setPage(next: number) {
         </template>
       </FilterBar>
     </div>
-    <div v-if="invalidDateRange" class="rounded-lg border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive" role="alert">
-      {{ dateValidation.reversed ? t('meetingsFilters.reversedDates') : t('meetingsFilters.invalidDate') }}
-    </div>
+    <UAlert v-if="invalidDateRange" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="dateValidation.reversed ? t('meetingsFilters.reversedDates') : t('meetingsFilters.invalidDate')" />
     <SharedPageState
       v-else
       :loading="query.isLoading.value"
@@ -279,47 +278,40 @@ function setPage(next: number) {
       :empty-text="t('meetingsUi.empty')"
       @retry="query.refetch"
     >
-      <div class="min-w-0 space-y-2">
-        <div class="grid divide-y divide-border md:hidden">
-          <NuxtLink
-            v-for="meeting in query.data.value?.items"
-            :key="meeting.id"
-            :to="meetingTo(meeting)"
-            class="grid min-w-0 gap-2 p-3 hover:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <div class="flex min-w-0 items-start justify-between gap-2">
-              <span class="min-w-0 break-words font-medium text-brand-link">{{ meeting.name }}</span>
-              <UBadge color="neutral" variant="subtle" class="shrink-0">{{ t(`meetingsUi.state.${meeting.state}`) }}</UBadge>
-            </div>
-            <div class="flex min-w-0 flex-wrap gap-x-3 gap-y-1 text-sm text-muted-foreground">
-              <RecordNumber :value="meetingRecordNumber(meeting)" />
-              <span>{{ meeting.meeting_date ? formatCalendarDate(meeting.meeting_date, locale) : '—' }}</span>
-              <span v-if="meeting.start_datetime">{{ localTime(meeting.start_datetime) }}</span>
-              <span v-else>{{ t('meetingsUx.timeUnavailable') }}</span>
-            </div>
-          </NuxtLink>
-        </div>
+      <div class="min-w-0 overflow-hidden rounded-lg bg-default ring ring-default">
+        <ul class="grid divide-y divide-default md:hidden">
+          <li v-for="meeting in query.data.value?.items" :key="meeting.id">
+            <NuxtLink
+              :to="meetingTo(meeting)"
+              class="grid min-w-0 gap-2 p-3 hover:bg-elevated/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"
+            >
+              <div class="flex min-w-0 items-start justify-between gap-2">
+                <span class="min-w-0 break-words font-medium text-primary">{{ meeting.name }}</span>
+                <UBadge :color="meetingStateColor(meeting.state)" variant="subtle" class="shrink-0">{{ t(`meetingsUi.state.${meeting.state}`) }}</UBadge>
+              </div>
+              <div class="flex min-w-0 flex-wrap gap-x-3 gap-y-1 text-sm text-muted">
+                <RecordNumber :value="meetingRecordNumber(meeting)" />
+                <span>{{ meeting.meeting_date ? formatCalendarDate(meeting.meeting_date, locale) : '—' }}</span>
+                <span v-if="meeting.start_datetime">{{ localTime(meeting.start_datetime) }}</span>
+                <span v-else>{{ t('meetingsUx.timeUnavailable') }}</span>
+              </div>
+            </NuxtLink>
+          </li>
+        </ul>
         <div class="hidden overflow-x-auto md:block">
           <UTable :data="query.data.value?.items ?? []" :columns="columns" :caption="t('nav.meetings')" :ui="{ caption: 'sr-only' }">
             <template #id-cell="{ row }"><RecordNumber :value="meetingRecordNumber(row.original)" /></template>
             <template #name-cell="{ row }">
-              <NuxtLink
-                :to="meetingTo(row.original)"
-                class="block rounded-sm font-medium text-brand-link hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >{{ row.original.name }}</NuxtLink>
+              <UButton color="primary" variant="link" class="p-0 font-medium whitespace-normal text-start" :to="meetingTo(row.original)">{{ row.original.name }}</UButton>
             </template>
             <template #meeting_date-cell="{ row }">{{ row.original.meeting_date ? formatCalendarDate(row.original.meeting_date, locale) : '—' }}</template>
             <template #organizer-cell="{ row }">{{ row.original.organizer?.name || '—' }}</template>
-            <template #state-cell="{ row }"><UBadge color="neutral" variant="subtle">{{ t(`meetingsUi.state.${row.original.state}`) }}</UBadge></template>
+            <template #state-cell="{ row }"><UBadge :color="meetingStateColor(row.original.state)" variant="subtle">{{ t(`meetingsUi.state.${row.original.state}`) }}</UBadge></template>
             <template #open_resolution_count-cell="{ row }">{{ t('meetingsUi.openCount', { count: row.original.open_resolution_count }) }}</template>
           </UTable>
         </div>
       </div>
     </SharedPageState>
-    <nav v-if="!invalidDateRange && pages > 1" class="flex items-center justify-between text-sm text-muted-foreground">
-      <UButton color="neutral" variant="ghost" :disabled="!hydrated || page === 1 || query.isFetching.value" :label="t('projects.previousPage')" @click="setPage(page - 1)" />
-      <span>{{ t('meetingsUi.pageOf', { page, pages }) }}</span>
-      <UButton color="neutral" variant="ghost" :disabled="!hydrated || page >= pages || query.isFetching.value" :label="t('projects.nextPage')" @click="setPage(page + 1)" />
-    </nav>
+    <SharedPagination v-if="!invalidDateRange" :page="page" :pages="pages" :disabled="query.isFetching.value" @update:page="setPage" />
   </SharedPageContainer>
 </template>

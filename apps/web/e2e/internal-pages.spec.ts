@@ -8,7 +8,8 @@ async function login(page) {
   await page.getByLabel('اسم المستخدم').fill(ADMIN_LOGIN)
   await page.getByLabel('كلمة المرور').fill(ADMIN_PASSWORD)
   await page.getByRole('button', { name: 'دخول' }).click()
-  await expect(page).toHaveURL(/\/tasks$/)
+  // Login lands on the first section the user may open (accessPolicy.firstAllowedPath).
+  await expect(page).not.toHaveURL(/\/login(?:\?|$)/)
 }
 
 test('global search is a reloadable page with no overlay layer', async ({ page }) => {

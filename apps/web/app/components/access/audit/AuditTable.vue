@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import type { AccessAuditSummary } from '@nasq/contracts'
+import type { RouteLocationRaw } from 'vue-router'
 import RecordNumber from '@/components/shared/RecordNumber.vue'
 
-const props = defineProps<{ events: AccessAuditSummary[] }>()
+const props = defineProps<{ events: AccessAuditSummary[]; toFor: (id: number) => RouteLocationRaw }>()
 const emit = defineEmits<{ open: [id: number] }>()
 const { t, d } = useI18n()
 const hydrated = useHydrated()
@@ -31,35 +32,41 @@ const columns = computed<TableColumn<AccessAuditSummary>[]>(() => [
   { accessorKey: 'action', header: t('access.audit.columns.action') },
   { accessorKey: 'target', header: t('access.audit.columns.target') },
   { accessorKey: 'result', header: t('access.audit.columns.result') },
+  { id: 'actions', header: t('app.actions') },
 ])
 
-function onSelectRow(_event: Event, row: { original: AccessAuditSummary }) {
+function onSelectRow(event: Event, row: { original: AccessAuditSummary }) {
+  if ((event.target as HTMLElement | null)?.closest('a, button')) return
   open(row.original.id)
 }
+const actionsFor = (event: AccessAuditSummary) => [{ label: t('access.view'), to: props.toFor(event.id) }]
 </script>
 
 <template>
   <div class="min-w-0 space-y-2">
-    <UCard class="rounded-lg ring ring-default bg-default overflow-hidden hidden md:block" :ui="{ body: 'p-0' }">
+    <div class="hidden overflow-hidden rounded-lg bg-default ring ring-default md:block">
       <div class="overflow-x-auto">
-        <UTable :data="events" :columns="columns" :caption="t('access.audit.title')" :ui="{ caption: 'sr-only', th: '' }" @select="onSelectRow">
+        <UTable :data="events" :columns="columns" :caption="t('access.audit.title')" :ui="{ caption: 'sr-only', th: '', tr: 'cursor-pointer' }" @select="onSelectRow">
           <template #id-cell="{ row }"><RecordNumber :value="row.original.id" /></template>
           <template #occurred_at-cell="{ row }">
-            <UButton type="button" color="neutral" variant="link" dir="ltr" class="rounded p-0 text-start" :disabled="!hydrated" :aria-label="`${t('access.audit.detailTitle')}: ${d(new Date(row.original.occurred_at), 'short')}`" @click.stop="open(row.original.id)">{{ d(new Date(row.original.occurred_at), 'short') }}</UButton>
+            <NuxtLink :to="toFor(row.original.id)" dir="ltr" class="rounded font-medium text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" :aria-label="`${t('access.audit.detailTitle')}: ${d(new Date(row.original.occurred_at), 'short')}`">{{ d(new Date(row.original.occurred_at), 'short') }}</NuxtLink>
           </template>
           <template #actor-cell="{ row }">{{ row.original.actor?.name ?? t('access.audit.system') }}</template>
           <template #action-cell="{ row }">{{ actionLabel(row.original.action) }}</template>
           <template #target-cell="{ row }">{{ row.original.target.name }}</template>
-          <template #result-cell><span class="text-success">{{ t('access.audit.succeeded') }}</span></template>
+          <template #result-cell><UBadge color="success" variant="subtle">{{ t('access.audit.succeeded') }}</UBadge></template>
+          <template #actions-cell="{ row }">
+            <div class="flex justify-end"><SharedRowActions :actions="actionsFor(row.original)" :label="t('access.audit.rowActions', { name: actionLabel(row.original.action) })" /></div>
+          </template>
         </UTable>
       </div>
-    </UCard>
-    <ul class="md:hidden space-y-2" :aria-label="t('access.audit.title')">
-      <li v-for="event in events" :key="event.id" class="cursor-pointer rounded-lg ring ring-default bg-default overflow-hidden p-4" tabindex="0" role="button" @click="open(event.id)" @keydown.enter.self="open(event.id)" @keydown.space.self.prevent="open(event.id)" >
+    </div>
+    <ul class="divide-y divide-default overflow-hidden rounded-lg bg-default ring ring-default md:hidden" :aria-label="t('access.audit.title')">
+      <li v-for="event in events" :key="event.id" class="p-4">
         <div class="flex items-start justify-between gap-3">
           <div class="min-w-0">
             <bdi class="block text-xs text-muted">#{{ event.id }}</bdi>
-            <p class="font-medium">{{ actionLabel(event.action) }}</p>
+            <NuxtLink :to="toFor(event.id)" class="rounded font-medium text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">{{ actionLabel(event.action) }}</NuxtLink>
           </div>
           <UBadge color="success" variant="subtle">{{ t('access.audit.succeeded') }}</UBadge>
         </div>
@@ -68,6 +75,9 @@ function onSelectRow(_event: Event, row: { original: AccessAuditSummary }) {
           <div><dt>{{ t('access.audit.columns.actor') }}</dt><dd>{{ event.actor?.name ?? t('access.audit.system') }}</dd></div>
           <div class="col-span-2"><dt>{{ t('access.audit.columns.target') }}</dt><dd>{{ event.target.name }}</dd></div>
         </dl>
+        <div class="mt-3 flex justify-end">
+          <SharedRowActions :actions="actionsFor(event)" :label="t('access.audit.rowActions', { name: actionLabel(event.action) })" />
+        </div>
       </li>
     </ul>
   </div>

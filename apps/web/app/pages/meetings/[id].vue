@@ -17,9 +17,11 @@ import {
 import { useMeetingEvents, useMeetingVersions } from '@/composables/useMeetingWorkspace'
 import { useProjects } from '@/composables/useProjects'
 import { formatLocalDateTime } from '@/utils/meetingDateTime'
-import { STATUS_COLOR } from '@/utils/statusTone'
+import { meetingStateColor, resolutionStateColor } from '@/utils/meetingStatus'
+import { richTextHasContent } from '@/utils/richText'
 import { filterMeetingResolutions, resolutionActions } from '@/utils/meetingWorkspace'
 import { isMeetingTab, meetingTabFromRoute, meetingTabQuery, type MeetingTab } from '@/utils/meetingTabs'
+import { sectionTabsUi } from '@/utils/sectionTabs'
 
 const route = useRoute()
 const router = useRouter()
@@ -199,24 +201,6 @@ function displayValue(value: string | null | undefined) {
   return value || '—'
 }
 
-function hasRichText(value: string | null | undefined) {
-  return Boolean(value?.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim() || /<(img|table|video|iframe)\b/i.test(value || ''))
-}
-
-function meetingStateColor(state: 'draft' | 'confirmed' | 'done' | 'cancelled') {
-  return state === 'done' ? STATUS_COLOR.success
-    : state === 'cancelled' ? STATUS_COLOR.destructive
-      : state === 'confirmed' ? STATUS_COLOR.info
-        : STATUS_COLOR.neutral
-}
-
-function resolutionStateColor(state: 'open' | 'in_progress' | 'done' | 'cancelled') {
-  return state === 'done' ? STATUS_COLOR.success
-    : state === 'cancelled' ? STATUS_COLOR.destructive
-      : state === 'in_progress' ? STATUS_COLOR.warning
-        : STATUS_COLOR.info
-}
-
 function errorMessage(error: unknown) {
   return error instanceof ApiError || error instanceof Error ? error.message : t('errors.generic')
 }
@@ -336,526 +320,310 @@ async function confirmResolutionAction() {
 }
 </script>
 
+
 <template>
   <SharedPageContainer v-if="isDetail" width="detail">
     <SharedPageHeader :title="query.data.value?.name || t('nav.meetings')" :back-to="backTo">
       <template #title>
-        <span class="meeting-title">
+        <span class="inline-flex min-w-0 max-w-full flex-wrap items-center gap-2">
           <span class="min-w-0">{{ query.data.value?.name || t('nav.meetings') }}</span>
           <UBadge v-if="query.data.value" :color="meetingStateColor(query.data.value.state)" variant="subtle">
             {{ t('meetingsUi.state.' + query.data.value.state) }}
           </UBadge>
-          <span v-if="query.data.value?.reference" class="meeting-reference" dir="ltr">{{ query.data.value.reference }}</span>
+          <SharedRecordNumber v-if="query.data.value?.reference" :value="query.data.value.reference" />
         </span>
       </template>
       <template #actions>
-        <UButton color="primary" variant="outline" :to="`/meetings/${id}/print`" :label="t('meetingMinutesForm.printPreview')" />
-        <UButton v-if="query.data.value?.can_edit && pendingResolutionIds.size === 0" color="primary" variant="outline" :to="`/meetings/${id}/edit`" :label="t('app.edit')" />
+        <UButton color="neutral" variant="outline" :to="`/meetings/${id}/print`" :label="t('meetingMinutesForm.printPreview')" />
+        <UButton v-if="query.data.value?.can_edit && pendingResolutionIds.size === 0" color="neutral" variant="outline" :to="`/meetings/${id}/edit`" :label="t('app.edit')" />
         <UButton v-if="query.data.value?.can_edit && query.data.value.state === 'draft'" :disabled="!hydrated || transitioning" :label="t('meetingsUi.confirm')" @click="requestMeetingAction('confirm')" />
         <UButton v-if="query.data.value?.can_manage && query.data.value.state === 'confirmed'" :disabled="!hydrated || transitioning" :label="t('meetingsUi.complete')" @click="requestMeetingAction('complete')" />
-        <UButton v-if="query.data.value?.can_manage && query.data.value.state !== 'cancelled' && query.data.value.state !== 'done'" color="primary" variant="outline" :disabled="!hydrated || transitioning" :label="t('meetingsUi.cancelMeeting')" @click="requestMeetingAction('cancel')" />
-        <UButton v-if="query.data.value?.can_manage && (query.data.value.state === 'done' || query.data.value.state === 'cancelled')" color="primary" variant="outline" :disabled="!hydrated || transitioning" :label="t('meetingsUi.reopen')" @click="requestMeetingAction('reopen')" />
+        <UButton v-if="query.data.value?.can_manage && query.data.value.state !== 'cancelled' && query.data.value.state !== 'done'" color="neutral" variant="outline" :disabled="!hydrated || transitioning" :label="t('meetingsUi.cancelMeeting')" @click="requestMeetingAction('cancel')" />
+        <UButton v-if="query.data.value?.can_manage && (query.data.value.state === 'done' || query.data.value.state === 'cancelled')" color="neutral" variant="outline" :disabled="!hydrated || transitioning" :label="t('meetingsUi.reopen')" @click="requestMeetingAction('reopen')" />
       </template>
     </SharedPageHeader>
     <SharedPageState :loading="query.isLoading.value" :error="query.error.value" @retry="query.refetch">
-      <div v-if="query.data.value" class="meeting-detail-stack">
-        <UCard v-if="pendingMeetingAction" class="grid gap-3 border-error" role="alert">
-          <p>{{ t('meetingsUx.confirmMeetingAction', { name: query.data.value.name, scope: pendingMeetingAction.scope === 'this_and_following' ? t('meetingsUi.scopeFollowing') : t('meetingsUi.scopeThis') }) }}</p>
-          <USelect v-if="pendingMeetingAction.action === 'cancel' && query.data.value.series_id" v-model="pendingMeetingAction.scope" class="w-full" :disabled="transitioning" :items="[{ label: t('meetingsUi.scopeThis'), value: 'this' }, { label: t('meetingsUi.scopeFollowing'), value: 'this_and_following' }]" />
-          <div class="flex gap-2">
-            <UButton type="button" color="primary" variant="outline" :label="t('app.cancel')" @click="pendingMeetingAction = null" />
-            <UButton type="button" color="error" :disabled="!hydrated || transitioning" :label="t('meetingsUi.confirm')" @click="confirmMeetingAction" />
-          </div>
-        </UCard>
-        <div ref="meetingTabsRoot" class="min-w-0 max-w-full" :dir="locale === 'ar' ? 'rtl' : 'ltr'">
-        <UTabs
-          :model-value="activeTab"
-          :items="meetingTabs"
-          class="meeting-tabs"
-          :ui="{ list: 'meeting-tabs-viewport meeting-tabs-list', trigger: 'meeting-tabs-trigger', label: 'meeting-tabs-label', content: 'meeting-tab-panel' }"
-          :aria-label="t('meetingsUx.sections')"
-          @update:model-value="onTabChange"
+      <div v-if="query.data.value" class="grid min-w-0 gap-4">
+        <SharedInlineConfirm
+          v-if="pendingMeetingAction"
+          color="error"
+          :title="t('meetingsUx.confirmMeetingAction', { name: query.data.value.name, scope: pendingMeetingAction.scope === 'this_and_following' ? t('meetingsUi.scopeFollowing') : t('meetingsUi.scopeThis') })"
+          :confirm-label="t('meetingsUi.confirm')"
+          :pending="transitioning"
+          @cancel="pendingMeetingAction = null"
+          @confirm="confirmMeetingAction"
         >
-        <template #summary>
-          <UCard id="meeting-summary" class="meeting-summary">
-          <template #header><h2 class="text-lg font-semibold text-highlighted">{{ t('meetingsUi.summary') }}</h2></template>
-          <div>
-            <div class="meeting-summary-grid">
-              <section class="meeting-summary-group">
-                <h3 class="meeting-subheading">{{ t('meetingsUi.sectionSchedule') }}</h3>
-                <dl class="meeting-meta-grid">
-                  <div class="meeting-meta-item"><dt>{{ t('meetingsUi.date') }}</dt><dd>{{ formatMeetingDate(query.data.value.meeting_date, locale) }}</dd></div>
-                  <div class="meeting-meta-item"><dt>{{ t('meetingsUi.start') }}</dt><dd>{{ hydrated ? displayValue(localTime(query.data.value.start_datetime)) : '—' }}</dd></div>
-                  <div class="meeting-meta-item"><dt>{{ t('meetingsUi.end') }}</dt><dd>{{ hydrated ? displayValue(localTime(query.data.value.end_datetime)) : '—' }}</dd></div>
-                  <div class="meeting-meta-item"><dt>{{ t('meetingsUi.location') }}</dt><dd>{{ displayValue(query.data.value.location) }}</dd></div>
-                  <div v-if="query.data.value.meeting_url" class="meeting-meta-item"><dt>{{ t('meetingsUi.url') }}</dt><dd><a :href="query.data.value.meeting_url" target="_blank" rel="noopener" class="break-all text-brand-link underline" dir="ltr">{{ query.data.value.meeting_url }}</a></dd></div>
-                </dl>
-              </section>
-              <section class="meeting-summary-group">
-                <h3 class="meeting-subheading">{{ t('meetingsUi.sectionPeople') }}</h3>
-                <dl class="meeting-meta-grid">
-                  <div class="meeting-meta-item"><dt>{{ t('meetingsUi.organizer') }}</dt><dd>{{ displayValue(query.data.value.organizer?.name) }}</dd></div>
-                  <div class="meeting-meta-item"><dt>{{ t('meetingsUi.secretary') }}</dt><dd>{{ displayValue(query.data.value.secretary?.name) }}</dd></div>
-                  <div v-if="query.data.value.series" class="meeting-meta-item"><dt>{{ t('meetingsUi.series') }}</dt><dd><NuxtLink :to="`/meetings/series/${query.data.value.series.id}`" class="text-brand-link">{{ query.data.value.series.name }}</NuxtLink></dd></div>
-                </dl>
-                <div class="meeting-attendees">
-                  <ul v-if="query.data.value.attendees.length" class="meeting-attendee-list">
-                    <li v-for="person in query.data.value.attendees" :key="person.id" class="min-w-0 max-w-full"><UBadge color="neutral" variant="subtle" class="max-w-full whitespace-normal break-words text-start">{{ person.name }}</UBadge></li>
-                  </ul>
-                  <p v-else class="meeting-empty">{{ t('meetingsUi.emptyAttendees') }}</p>
+          <USelect v-if="pendingMeetingAction.action === 'cancel' && query.data.value.series_id" v-model="pendingMeetingAction.scope" class="mt-2 w-full" :aria-label="t('meetingsUi.scope')" :disabled="!hydrated || transitioning" :items="[{ label: t('meetingsUi.scopeThis'), value: 'this' }, { label: t('meetingsUi.scopeFollowing'), value: 'this_and_following' }]" />
+        </SharedInlineConfirm>
+        <div ref="meetingTabsRoot" class="min-w-0 max-w-full" :dir="locale === 'ar' ? 'rtl' : 'ltr'">
+          <UTabs
+            :model-value="activeTab"
+            :items="meetingTabs"
+            variant="link"
+            class="min-w-0"
+            :ui="{ ...sectionTabsUi, list: `${sectionTabsUi.list} meeting-tabs-viewport`, content: 'grid min-w-0 gap-4' }"
+            :aria-label="t('meetingsUx.sections')"
+            @update:model-value="onTabChange"
+          >
+            <template #summary>
+              <UCard id="meeting-summary" class="min-w-0">
+                <template #header><h2 class="text-lg font-semibold text-highlighted">{{ t('meetingsUi.summary') }}</h2></template>
+                <div class="grid min-w-0 gap-6 lg:grid-cols-2">
+                  <section class="grid min-w-0 content-start gap-3">
+                    <h3 class="font-semibold text-highlighted">{{ t('meetingsUi.sectionSchedule') }}</h3>
+                    <dl class="grid gap-4 sm:grid-cols-2">
+                      <div class="min-w-0"><dt class="text-sm text-muted">{{ t('meetingsUi.date') }}</dt><dd class="text-highlighted">{{ formatMeetingDate(query.data.value.meeting_date, locale) }}</dd></div>
+                      <div class="min-w-0"><dt class="text-sm text-muted">{{ t('meetingsUi.start') }}</dt><dd class="text-highlighted">{{ hydrated ? displayValue(localTime(query.data.value.start_datetime)) : '—' }}</dd></div>
+                      <div class="min-w-0"><dt class="text-sm text-muted">{{ t('meetingsUi.end') }}</dt><dd class="text-highlighted">{{ hydrated ? displayValue(localTime(query.data.value.end_datetime)) : '—' }}</dd></div>
+                      <div class="min-w-0"><dt class="text-sm text-muted">{{ t('meetingsUi.location') }}</dt><dd class="break-words text-highlighted">{{ displayValue(query.data.value.location) }}</dd></div>
+                      <div v-if="query.data.value.meeting_url" class="min-w-0 sm:col-span-2"><dt class="text-sm text-muted">{{ t('meetingsUi.url') }}</dt><dd><UButton color="primary" variant="link" class="p-0 break-all whitespace-normal text-start" :to="query.data.value.meeting_url" external target="_blank" rel="noopener" dir="ltr">{{ query.data.value.meeting_url }}</UButton></dd></div>
+                    </dl>
+                  </section>
+                  <section class="grid min-w-0 content-start gap-3">
+                    <h3 class="font-semibold text-highlighted">{{ t('meetingsUi.sectionPeople') }}</h3>
+                    <dl class="grid gap-4 sm:grid-cols-2">
+                      <div class="min-w-0"><dt class="text-sm text-muted">{{ t('meetingsUi.organizer') }}</dt><dd class="break-words text-highlighted">{{ displayValue(query.data.value.organizer?.name) }}</dd></div>
+                      <div class="min-w-0"><dt class="text-sm text-muted">{{ t('meetingsUi.secretary') }}</dt><dd class="break-words text-highlighted">{{ displayValue(query.data.value.secretary?.name) }}</dd></div>
+                      <div v-if="query.data.value.series" class="min-w-0"><dt class="text-sm text-muted">{{ t('meetingsUi.series') }}</dt><dd><UButton color="primary" variant="link" class="p-0 whitespace-normal text-start" :to="`/meetings/series/${query.data.value.series.id}`">{{ query.data.value.series.name }}</UButton></dd></div>
+                    </dl>
+                    <div class="grid gap-2 border-t border-default pt-4">
+                      <h4 class="text-sm text-muted">{{ t('meetingsUi.attendees') }}</h4>
+                      <ul v-if="query.data.value.attendees.length" class="flex min-w-0 flex-wrap gap-2">
+                        <li v-for="person in query.data.value.attendees" :key="person.id" class="min-w-0 max-w-full"><UBadge color="neutral" variant="subtle" class="max-w-full whitespace-normal break-words text-start">{{ person.name }}</UBadge></li>
+                      </ul>
+                      <SharedEmptyState v-else :title="t('meetingsUi.emptyAttendees')" />
+                    </div>
+                  </section>
                 </div>
-              </section>
-            </div>
-          </div>
-          </UCard>
-          </template>
-        <template #agenda>
-          <UCard id="meeting-agenda" class="meeting-rich-panel">
-            <template #header>
-              <h2>{{ t('meetingsUi.agenda') }}</h2>
-              <span v-if="historicalSnapshot" class="text-xs text-muted-foreground">{{ t('meetingsUx.historicalMinutesTitle') }}</span>
+              </UCard>
             </template>
-            <div>
-              <p v-if="doneWithoutSnapshot" class="mb-3 text-xs text-muted-foreground">{{ t('meetingsUx.historyUnavailable') }} {{ t('meetingsUx.currentContentAfterMissingHistory') }}</p>
-              <div v-if="hasRichText(historicalSnapshot ? historicalSnapshot.agenda : query.data.value.agenda)" class="meeting-rich-text" v-html="historicalSnapshot ? historicalSnapshot.agenda : query.data.value.agenda" />
-              <p v-else class="meeting-empty">{{ t('meetingsUi.emptyAgenda') }}</p>
-            </div>
-          </UCard>
-        </template>
-        <template #minutes>
-          <div class="flex flex-wrap items-center justify-end gap-2"><UButton v-if="!historicalSnapshot && query.data.value.can_edit && pendingResolutionIds.size === 0" size="sm" :to="`/meetings/${id}/minutes`" :label="t('meetingsUx.editMinutes')" /></div>
-          <MeetingMinutesDocument
-            v-if="historicalSnapshot || currentMinutesForm"
-            :meeting="query.data.value"
-            :snapshot="historicalSnapshot"
-            :form="historicalSnapshot ? historicalMinutesForm : currentMinutesForm"
-            :recommendations="historicalSnapshot ? historicalRecommendations : query.data.value.resolutions"
-            :legacy-agenda="historicalSnapshot ? historicalSnapshot.agenda : query.data.value.agenda"
-            :legacy-minutes="historicalSnapshot ? historicalSnapshot.minutes : query.data.value.minutes"
-            :legacy-recommendations="historicalSnapshot ? historicalRecommendations : query.data.value.resolutions"
-            :title="t('meetingMinutesForm.documentTitle')"
-          />
-          <UCard v-if="!historicalSnapshot && !currentMinutesForm" id="meeting-minutes" class="meeting-rich-panel">
-            <template #header>
-              <h2>{{ t('meetingsUi.minutes') }}</h2>
-            </template>
-            <div>
-              <p v-if="doneWithoutSnapshot" class="mb-3 text-xs text-muted-foreground">{{ t('meetingsUx.historyUnavailable') }} {{ t('meetingsUx.currentContentAfterMissingHistory') }}</p>
-              <div v-if="hasRichText(query.data.value.minutes)" class="meeting-rich-text" v-html="query.data.value.minutes" />
-              <p v-else class="meeting-empty">{{ t('meetingsUi.emptyMinutes') }}</p>
-            </div>
-          </UCard>
-          <UCard v-if="historicalSnapshot" id="meeting-snapshot" class="meeting-section">
-            <template #header>
-              <h2>{{ t('meetingsUx.historicalDecisionStates') }}</h2>
-              <span class="text-xs text-muted-foreground">{{ t('meetingsUx.historicalMinutesTitle') }}</span>
-            </template>
-            <div class="grid gap-4">
-              <div v-if="historicalSnapshot.resolutions.length" class="grid gap-2">
-                <div v-for="item in historicalSnapshot.resolutions" :key="item.id" class="flex min-w-0 flex-wrap items-center gap-2 text-sm">
-                  <span class="font-medium">{{ item.name }}</span>
-                  <span v-if="item.meeting_name" class="text-xs text-muted-foreground">{{ t('meetingsUx.snapshotOrigin', { name: item.meeting_name }) }}</span>
-                  <UBadge color="neutral" variant="outline">{{ t(`meetingsUi.resolutionState.${item.state}`) }}</UBadge>
-                  <span v-if="item.result && hasRichText(item.result)" class="meeting-rich-text" v-html="item.result" />
-                </div>
-              </div>
-              <p v-else class="text-sm text-muted-foreground">{{ t('meetingsUi.emptyResolutions') }}</p>
-            </div>
-          </UCard>
-        </template>
-        <template #history>
-          <MeetingEventList
-            :events="eventRows"
-            :loading="eventQuery.isLoading.value"
-            :error="eventQuery.error.value"
-            :total="eventTotal"
-            :page="eventPage"
-            :page-size="workspacePageSize"
-            @retry="eventQuery.refetch"
-            @page="goToEventPage"
-          />
-        </template>
-        <template #versions>
-          <MeetingVersionList
-            :versions="versionRows"
-            :loading="versionQuery.isLoading.value"
-            :error="versionQuery.error.value"
-            :total="versionTotal"
-            :page="versionPage"
-            :page-size="workspacePageSize"
-            :selected-id="selectedVersionId"
-            @retry="versionQuery.refetch"
-            @page="goToVersionPage"
-            @select="selectVersion"
-          />
-          <div v-if="selectedVersion" class="flex justify-end">
-            <UButton color="primary" variant="outline" size="sm" :to="{ path: `/meetings/${id}/print`, query: { version_id: selectedVersion.id } }" :label="t('meetingMinutesForm.printPreview')" />
-          </div>
-          <MeetingMinutesDocument
-            v-if="selectedVersion"
-            :meeting="query.data.value"
-            :snapshot="selectedVersion.snapshot"
-            :form="selectedVersion.snapshot.minutes_form"
-            :recommendations="selectedVersion.snapshot.resolutions || []"
-            :legacy-agenda="selectedVersion.snapshot.agenda"
-            :legacy-minutes="selectedVersion.snapshot.minutes"
-            :legacy-recommendations="selectedVersion.snapshot.resolutions || []"
-            :title="t('meetingMinutesForm.versionDocumentTitle', { number: selectedVersion.number })"
-          />
-        </template>
-        <template #resolutions>
-        <UCard id="meeting-resolutions" class="meeting-section">
-          <template #header>
-            <div class="flex min-w-0 flex-wrap items-center gap-2"><h2 class="text-lg font-semibold text-highlighted">{{ t('meetingsUi.resolutions') }}</h2><UBadge color="neutral" variant="subtle">{{ query.data.value.resolutions.length }}</UBadge><span class="text-xs text-muted">{{ t('meetingsUx.currentFollowUp') }}</span><UButton v-if="query.data.value.can_edit && !['done', 'cancelled'].includes(query.data.value.state)" size="sm" :to="`/meetings/${id}/resolutions/new`" :label="t('meetingsUi.newResolution')" /></div>
-          </template>
-          <div>
-            <FilterBar v-if="query.data.value.resolutions.length" class="mb-4" :active-count="Number(Boolean(recommendationSearch.trim())) + Number(Boolean(recommendationState))" :disabled="!hydrated" @clear="recommendationSearch = ''; recommendationState = ''">
-              <template #search><UInput :disabled="!hydrated" v-model="recommendationSearch" class="w-full" :placeholder="t('meetingsUx.searchRecommendations')" :aria-label="t('meetingsUx.searchRecommendations')" /></template>
-              <SharedFilterChoice :disabled="!hydrated" :label="t('meetingsUi.stateLabel')" :model-value="recommendationStateSelect" :items="[{ label: t('meetingsUi.allStates'), value: '__all__' }, ...['open', 'in_progress', 'done', 'cancelled'].map(state => ({ label: t(`meetingsUi.resolutionState.${state}`), value: state }))]" @update:model-value="recommendationStateSelect = String($event)" />
-
-            <template #active>
-              <SharedFilterChip v-if="recommendationSearch.trim()" :label="t('meetingsUi.searchValue', { value: recommendationSearch })" @remove="recommendationSearch = ''" />
-              <SharedFilterChip v-if="recommendationState" :label="t(`meetingsUi.resolutionState.${recommendationState}`)" @remove="recommendationState = ''" />
-            </template>
-          </FilterBar>
-            <p v-if="conversionError" role="alert" class="text-sm text-destructive">{{ conversionError }}</p>
-            <p v-if="!query.data.value.resolutions.length" class="meeting-empty">{{ t('meetingsUi.emptyResolutions') }}</p>
-            <p v-else-if="!filteredResolutions.length" class="meeting-empty">{{ t('meetingsUx.noMatchingRecommendations') }}</p>
-            <ul v-else class="meeting-resolution-list">
-            <li v-for="item in filteredResolutions" :key="item.id" class="meeting-resolution-card rounded-lg ring ring-default bg-default overflow-hidden">
-              <div class="meeting-resolution-head">
-                <h3 class="meeting-resolution-title">{{ item.name }}</h3>
-                <div class="meeting-resolution-badges">
-                  <UBadge :color="resolutionStateColor(resolutionProjection(item))" variant="subtle">{{ t(`meetingsUi.resolutionState.${resolutionProjection(item)}`) }}</UBadge>
-                  <UBadge v-if="resolutionProjection(item) !== item.state" color="neutral" variant="outline">{{ t('meetingsUx.decisionState', { state: t(`meetingsUi.resolutionState.${item.state}`) }) }}</UBadge>
-                  <UBadge color="neutral" variant="subtle">{{ t(`meetingsUx.priorityLabel.${item.priority}`) }}</UBadge>
-                </div>
-              </div>
-              <dl class="meeting-resolution-meta">
-                <div><dt>{{ t('meetingsUi.responsible') }}</dt><dd>{{ displayValue(item.responsible?.name) }}</dd></div>
-                <div><dt>{{ t('meetingsUi.deadline') }}</dt><dd>{{ formatMeetingDate(item.deadline, locale) }}</dd></div>
-                <div v-if="item.execution_period"><dt>{{ t('meetingMinutesForm.executionPeriod') }}</dt><dd>{{ item.execution_period }}</dd></div>
-                <div v-if="item.project"><dt>{{ t('meetingMinutesForm.project') }}</dt><dd>{{ item.project.name }}</dd></div>
-              </dl>
-              <div v-if="hasRichText(item.result)" class="meeting-rich-text meeting-resolution-result" v-html="item.result" />
-              <div class="meeting-resolution-actions">
-                <template v-if="!taskLinked(item)">
-                <UButton v-if="actionsFor(item).includes('start')" size="sm" color="primary" variant="outline" :disabled="!hydrated || pendingResolutionAction?.resolutionId === item.id || pendingResolutionIds.has(item.id)" :label="t('meetingsUi.startWork')" @click="requestResolutionAction(item.id, 'start')" />
-                <UButton v-if="actionsFor(item).includes('complete')" size="sm" :disabled="!hydrated || pendingResolutionAction?.resolutionId === item.id || pendingResolutionIds.has(item.id)" :label="t('meetingsUi.complete')" @click="requestResolutionAction(item.id, 'complete')" />
-                <UButton v-if="actionsFor(item).includes('cancel')" size="sm" color="primary" variant="outline" :disabled="!hydrated || pendingResolutionAction?.resolutionId === item.id || pendingResolutionIds.has(item.id)" :label="t('meetingsUi.cancelMeeting')" @click="requestResolutionAction(item.id, 'cancel')" />
+            <template #agenda>
+              <UCard id="meeting-agenda" class="min-w-0">
+                <template #header>
+                  <h2 class="text-lg font-semibold text-highlighted">{{ t('meetingsUi.agenda') }}</h2>
+                  <p v-if="historicalSnapshot" class="text-xs text-muted">{{ t('meetingsUx.historicalMinutesTitle') }}</p>
                 </template>
-                <UButton v-if="item.task_id" variant="link" size="sm" class="h-auto p-0" :to="`/tasks/${item.task_id}`" :label="t('meetingsUi.openTask')" />
-                <span v-else-if="taskLinked(item)" class="text-xs text-muted-foreground">{{ t('meetingsUx.taskLinkedUnavailable') }}</span>
-                <UButton v-if="!taskLinked(item) && (item.can_edit_decision || item.can_update_execution) && !pendingResolutionIds.has(item.id)" color="primary" variant="outline" size="sm" :to="`/meetings/${id}/resolutions/${item.id}/edit`" :label="t('meetingsUi.editResolution')" />
-                <UButton v-if="resolutionCanReopen(item)" size="sm" color="primary" variant="outline" :disabled="!hydrated || pendingResolutionIds.has(item.id)" :label="t('meetingsUi.reopen')" @click="requestResolutionAction(item.id, 'reopen')" />
-              </div>
-              <p v-if="resolutionErrors[item.id]" role="alert" class="text-sm text-destructive">{{ resolutionErrors[item.id] }}</p>
-              <div v-if="pendingResolutionAction?.resolutionId === item.id" class="meeting-inline-confirm" role="alert">
-                  <span class="text-sm">{{ t('meetingsUx.confirmResolutionAction', { name: pendingResolutionName }) }}</span>
-                <div class="flex flex-wrap gap-2">
-                  <UButton type="button" color="primary" variant="outline" size="sm" :disabled="pendingResolutionAction ? pendingResolutionIds.has(pendingResolutionAction.resolutionId) : false" :label="t('app.cancel')" @click="pendingResolutionAction = null" />
-                  <UButton type="button" color="error" size="sm" :disabled="!hydrated || (pendingResolutionAction ? pendingResolutionIds.has(pendingResolutionAction.resolutionId) : false)" :label="t('meetingsUi.confirm')" @click="confirmResolutionAction" />
-                </div>
-              </div>
-              <p v-if="item.task_id" class="text-xs text-muted-foreground">{{ t('meetingsUi.followedAsTask') }}</p>
-              <details v-if="!taskLinked(item) && !resolutionCanReopen(item) && canConvert && item.can_edit_decision" class="meeting-conversion">
-                <summary>{{ t('meetingsUi.conversionTitle') }}</summary>
-                <div class="meeting-conversion-body">
-                  <label :for="`meeting-project-${item.id}`" class="text-sm font-medium">{{ t('meetingsUi.chooseProject') }}</label>
-                  <div class="flex min-w-0 flex-wrap items-center gap-2">
-                    <UInput v-model="projectSearch[item.id]" class="meeting-project-select" :placeholder="t('meetingsUx.searchProjects')" :aria-label="t('meetingsUx.searchProjects')" :disabled="!hydrated || converting || pendingResolutionIds.has(item.id)" />
-                    <USelect :id="`meeting-project-${item.id}`" :model-value="projectByResolution[item.id] ? String(projectByResolution[item.id]) : '__none__'" class="meeting-project-select w-full min-w-0 max-w-full" :disabled="!hydrated || converting || pendingResolutionIds.has(item.id)" :items="[{ label: t('meetingsUi.project'), value: '__none__' }, ...projectsFor(item.id).map(project => ({ label: project.name, value: String(project.id) }))]" @update:model-value="value => { projectByResolution[item.id] = value === '__none__' ? 0 : Number(value) }" />
-                    <UButton size="sm" :disabled="!hydrated || converting || pendingResolutionIds.has(item.id) || !projectByResolution[item.id]" :label="t('meetingsUi.convert')" @click="convertResolution(item.id)" />
+                <p v-if="doneWithoutSnapshot" class="mb-3 text-xs text-muted">{{ t('meetingsUx.historyUnavailable') }} {{ t('meetingsUx.currentContentAfterMissingHistory') }}</p>
+                <SharedRichText v-if="richTextHasContent(historicalSnapshot ? historicalSnapshot.agenda : query.data.value.agenda)" :html="historicalSnapshot ? historicalSnapshot.agenda : query.data.value.agenda" size="sm" />
+                <SharedEmptyState v-else :title="t('meetingsUi.emptyAgenda')" />
+              </UCard>
+            </template>
+            <template #minutes>
+              <div v-if="!historicalSnapshot && query.data.value.can_edit && pendingResolutionIds.size === 0" class="flex flex-wrap items-center justify-end gap-2"><UButton size="sm" :to="`/meetings/${id}/minutes`" :label="t('meetingsUx.editMinutes')" /></div>
+              <MeetingMinutesDocument
+                v-if="historicalSnapshot || currentMinutesForm"
+                :meeting="query.data.value"
+                :snapshot="historicalSnapshot"
+                :form="historicalSnapshot ? historicalMinutesForm : currentMinutesForm"
+                :recommendations="historicalSnapshot ? historicalRecommendations : query.data.value.resolutions"
+                :legacy-agenda="historicalSnapshot ? historicalSnapshot.agenda : query.data.value.agenda"
+                :legacy-minutes="historicalSnapshot ? historicalSnapshot.minutes : query.data.value.minutes"
+                :legacy-recommendations="historicalSnapshot ? historicalRecommendations : query.data.value.resolutions"
+                :title="t('meetingMinutesForm.documentTitle')"
+              />
+              <UCard v-if="!historicalSnapshot && !currentMinutesForm" id="meeting-minutes" class="min-w-0">
+                <template #header>
+                  <h2 class="text-lg font-semibold text-highlighted">{{ t('meetingsUi.minutes') }}</h2>
+                </template>
+                <p v-if="doneWithoutSnapshot" class="mb-3 text-xs text-muted">{{ t('meetingsUx.historyUnavailable') }} {{ t('meetingsUx.currentContentAfterMissingHistory') }}</p>
+                <SharedRichText v-if="richTextHasContent(query.data.value.minutes)" :html="query.data.value.minutes" size="sm" />
+                <SharedEmptyState v-else :title="t('meetingsUi.emptyMinutes')" />
+              </UCard>
+              <UCard v-if="historicalSnapshot" id="meeting-snapshot" class="min-w-0">
+                <template #header>
+                  <h2 class="text-lg font-semibold text-highlighted">{{ t('meetingsUx.historicalDecisionStates') }}</h2>
+                  <p class="text-xs text-muted">{{ t('meetingsUx.historicalMinutesTitle') }}</p>
+                </template>
+                <div v-if="historicalSnapshot.resolutions.length" class="grid gap-3">
+                  <div v-for="item in historicalSnapshot.resolutions" :key="item.id" class="grid min-w-0 gap-1 text-sm">
+                    <div class="flex min-w-0 flex-wrap items-center gap-2">
+                      <span class="font-medium text-highlighted">{{ item.name }}</span>
+                      <span v-if="item.meeting_name" class="text-xs text-muted">{{ t('meetingsUx.snapshotOrigin', { name: item.meeting_name }) }}</span>
+                      <UBadge :color="resolutionStateColor(item.state)" variant="subtle">{{ t(`meetingsUi.resolutionState.${item.state}`) }}</UBadge>
+                    </div>
+                    <SharedRichText v-if="richTextHasContent(item.result)" :html="item.result" size="sm" />
                   </div>
-                  <p v-if="projectQuery.isLoading.value" class="text-xs text-muted-foreground">{{ t('meetingsUx.projectsLoading') }}</p>
-                  <p v-else-if="projectQuery.error.value" class="text-xs text-destructive">{{ t('meetingsUx.projectsError') }}</p>
-                  <p class="text-xs text-muted-foreground">{{ t('meetingsUi.conversionHelp') }}</p>
                 </div>
-              </details>
-            </li>
-            </ul>
-          </div>
-        </UCard>
-        <UCard v-if="query.data.value.previous_resolutions.length" id="meeting-follow-up">
-          <template #header><h2 class="text-lg font-semibold text-highlighted">{{ t('meetingsUi.previousResolutions') }}</h2><span class="text-xs text-muted">{{ t('meetingsUx.currentPreviousFollowUp') }}</span></template>
-          <div class="grid gap-3">
-          <div v-for="item in query.data.value.previous_resolutions" :key="item.id" class="meeting-previous-row">
-            <NuxtLink :to="`/meetings/${item.meeting_id}`" class="font-medium text-brand-link">{{ item.meeting_name }}</NuxtLink>
-            <div class="flex min-w-0 flex-wrap items-center gap-2 text-sm">
-              <span>{{ item.name }}</span>
-              <span class="text-xs text-muted-foreground">{{ t('meetingsUx.currentFollowUpOrigin', { name: item.meeting_name }) }}</span>
-              <UBadge :color="resolutionStateColor(item.state)" variant="subtle">{{ t(`meetingsUi.resolutionState.${item.state}`) }}</UBadge>
-              <span>{{ formatMeetingDate(item.deadline, locale) }}</span>
-            </div>
-            <div v-if="hasRichText(item.result)" class="meeting-rich-text" v-html="item.result" />
-            <UButton v-if="item.task_id" variant="link" size="sm" class="h-auto w-fit p-0" :to="`/tasks/${item.task_id}`" :label="t('meetingsUi.openTask')" />
-          </div>
-          </div>
-        </UCard>
-        </template>
-        <template #attachments>
-        <UCard id="meeting-attachments" class="meeting-section">
-          <template #header><h2 class="text-lg font-semibold text-highlighted">{{ t('meetingsUi.attachmentsTitle') }}</h2></template>
-          <div>
-          <div v-if="attachments.error.value" class="meeting-inline-error" role="alert">
-            <p class="text-sm text-destructive">{{ errorMessage(attachments.error.value) }}</p>
-            <UButton type="button" color="primary" variant="outline" size="sm" :disabled="!hydrated || attachments.isFetching.value" :label="t('app.retry')" @click="() => attachments.refetch()" />
-          </div>
-          <p v-else-if="attachments.isLoading.value" class="meeting-empty">{{ t('attachments.loading') }}</p>
-          <ul v-else-if="attachments.data.value?.items.length" class="meeting-attachment-list">
-            <li v-for="attachment in attachments.data.value.items" :key="attachment.id" class="meeting-attachment-row">
-              <a :href="attachment.url" class="min-w-0 flex-1 truncate text-brand-link underline" target="_blank" rel="noopener">{{ attachment.name }}</a>
-              <UButton v-if="query.data.value.can_edit && pendingDeleteId !== attachment.id" type="button" color="error" variant="ghost" square icon="i-lucide-trash-2" :aria-label="t('attachments.delete')" :disabled="!hydrated || deleting || pendingDeleteId !== null" @click="pendingDeleteId = attachment.id" />
-              <div v-if="pendingDeleteId === attachment.id" class="meeting-inline-confirm" role="group" :aria-label="t('attachments.deleteConfirm')">
-                <span class="text-sm text-muted-foreground">{{ t('attachments.deleteConfirm') }}</span>
-                <div class="flex flex-wrap gap-2">
-                  <UButton type="button" color="primary" variant="outline" size="sm" :disabled="!hydrated || deleting" :label="t('attachments.cancel')" @click="pendingDeleteId = null" />
-                  <UButton type="button" color="error" size="sm" :disabled="!hydrated || deleting" :label="t('attachments.confirm')" @click="confirmDelete(attachment.id)" />
-                </div>
+                <SharedEmptyState v-else :title="t('meetingsUi.emptyResolutions')" />
+              </UCard>
+            </template>
+            <template #history>
+              <MeetingEventList
+                :events="eventRows"
+                :loading="eventQuery.isLoading.value"
+                :error="eventQuery.error.value"
+                :total="eventTotal"
+                :page="eventPage"
+                :page-size="workspacePageSize"
+                @retry="eventQuery.refetch"
+                @page="goToEventPage"
+              />
+            </template>
+            <template #versions>
+              <MeetingVersionList
+                :versions="versionRows"
+                :loading="versionQuery.isLoading.value"
+                :error="versionQuery.error.value"
+                :total="versionTotal"
+                :page="versionPage"
+                :page-size="workspacePageSize"
+                :selected-id="selectedVersionId"
+                @retry="versionQuery.refetch"
+                @page="goToVersionPage"
+                @select="selectVersion"
+              />
+              <div v-if="selectedVersion" class="flex justify-end">
+                <UButton color="neutral" variant="outline" size="sm" :to="{ path: `/meetings/${id}/print`, query: { version_id: selectedVersion.id } }" :label="t('meetingMinutesForm.printPreview')" />
               </div>
-            </li>
-          </ul>
-          <p v-else class="meeting-empty">{{ t('meetingsUi.emptyAttachments') }}</p>
-          <div v-if="query.data.value.can_edit" class="meeting-upload">
-            <label for="meeting-attachment-upload" class="text-sm font-medium text-highlighted">{{ t('meetingsUi.uploadAttachment') }}</label>
-            <SharedFileField ref="fileField" id="meeting-attachment-upload" class="w-full" :disabled="!hydrated || uploading" @change="onFileChange" />
-            <p class="text-xs text-muted-foreground">{{ t('meetingsUi.attachmentHelp') }}</p>
-          </div>
-          </div>
-        </UCard>
-        </template>
-        </UTabs>
+              <MeetingMinutesDocument
+                v-if="selectedVersion"
+                :meeting="query.data.value"
+                :snapshot="selectedVersion.snapshot"
+                :form="selectedVersion.snapshot.minutes_form"
+                :recommendations="selectedVersion.snapshot.resolutions || []"
+                :legacy-agenda="selectedVersion.snapshot.agenda"
+                :legacy-minutes="selectedVersion.snapshot.minutes"
+                :legacy-recommendations="selectedVersion.snapshot.resolutions || []"
+                :title="t('meetingMinutesForm.versionDocumentTitle', { number: selectedVersion.number })"
+              />
+            </template>
+            <template #resolutions>
+              <UCard id="meeting-resolutions" class="min-w-0">
+                <template #header>
+                  <div class="flex min-w-0 flex-wrap items-center gap-2">
+                    <h2 class="text-lg font-semibold text-highlighted">{{ t('meetingsUi.resolutions') }}</h2>
+                    <UBadge color="neutral" variant="subtle">{{ query.data.value.resolutions.length }}</UBadge>
+                    <span class="text-xs text-muted">{{ t('meetingsUx.currentFollowUp') }}</span>
+                    <UButton v-if="query.data.value.can_edit && !['done', 'cancelled'].includes(query.data.value.state)" size="sm" class="ms-auto" :to="`/meetings/${id}/resolutions/new`" :label="t('meetingsUi.newResolution')" />
+                  </div>
+                </template>
+                <div class="grid min-w-0 gap-4">
+                  <FilterBar v-if="query.data.value.resolutions.length" :active-count="Number(Boolean(recommendationSearch.trim())) + Number(Boolean(recommendationState))" :disabled="!hydrated" @clear="recommendationSearch = ''; recommendationState = ''">
+                    <template #search><UInput v-model="recommendationSearch" :disabled="!hydrated" class="w-full" :placeholder="t('meetingsUx.searchRecommendations')" :aria-label="t('meetingsUx.searchRecommendations')" /></template>
+                    <SharedFilterChoice :disabled="!hydrated" :label="t('meetingsUi.stateLabel')" :model-value="recommendationStateSelect" :items="[{ label: t('meetingsUi.allStates'), value: '__all__' }, ...['open', 'in_progress', 'done', 'cancelled'].map(state => ({ label: t(`meetingsUi.resolutionState.${state}`), value: state }))]" @update:model-value="recommendationStateSelect = String($event)" />
+                    <template #active>
+                      <SharedFilterChip v-if="recommendationSearch.trim()" :label="t('meetingsUi.searchValue', { value: recommendationSearch })" @remove="recommendationSearch = ''" />
+                      <SharedFilterChip v-if="recommendationState" :label="t(`meetingsUi.resolutionState.${recommendationState}`)" @remove="recommendationState = ''" />
+                    </template>
+                  </FilterBar>
+                  <p v-if="conversionError" role="alert" class="text-sm text-error">{{ conversionError }}</p>
+                  <SharedEmptyState v-if="!query.data.value.resolutions.length" :title="t('meetingsUi.emptyResolutions')" />
+                  <SharedEmptyState v-else-if="!filteredResolutions.length" :title="t('meetingsUx.noMatchingRecommendations')" />
+                  <ul v-else class="grid min-w-0 gap-3">
+                    <li v-for="item in filteredResolutions" :key="item.id" class="grid min-w-0 gap-3 rounded-lg bg-default p-4 ring ring-default">
+                      <div class="grid min-w-0 gap-2">
+                        <h3 class="break-words font-semibold text-highlighted">{{ item.name }}</h3>
+                        <div class="flex min-w-0 flex-wrap gap-1.5">
+                          <UBadge :color="resolutionStateColor(resolutionProjection(item))" variant="subtle">{{ t(`meetingsUi.resolutionState.${resolutionProjection(item)}`) }}</UBadge>
+                          <UBadge v-if="resolutionProjection(item) !== item.state" :color="resolutionStateColor(item.state)" variant="outline">{{ t('meetingsUx.decisionState', { state: t(`meetingsUi.resolutionState.${item.state}`) }) }}</UBadge>
+                          <UBadge color="neutral" variant="subtle">{{ t(`meetingsUx.priorityLabel.${item.priority}`) }}</UBadge>
+                        </div>
+                      </div>
+                      <dl class="grid gap-4 rounded-md bg-elevated p-3 sm:grid-cols-2">
+                        <div class="min-w-0"><dt class="text-sm text-muted">{{ t('meetingsUi.responsible') }}</dt><dd class="break-words text-highlighted">{{ displayValue(item.responsible?.name) }}</dd></div>
+                        <div class="min-w-0"><dt class="text-sm text-muted">{{ t('meetingsUi.deadline') }}</dt><dd class="text-highlighted">{{ formatMeetingDate(item.deadline, locale) }}</dd></div>
+                        <div v-if="item.execution_period" class="min-w-0"><dt class="text-sm text-muted">{{ t('meetingMinutesForm.executionPeriod') }}</dt><dd class="break-words text-highlighted">{{ item.execution_period }}</dd></div>
+                        <div v-if="item.project" class="min-w-0"><dt class="text-sm text-muted">{{ t('meetingMinutesForm.project') }}</dt><dd class="break-words text-highlighted">{{ item.project.name }}</dd></div>
+                      </dl>
+                      <SharedRichText v-if="richTextHasContent(item.result)" :html="item.result" size="sm" />
+                      <div class="flex min-w-0 flex-wrap items-center gap-2">
+                        <template v-if="!taskLinked(item)">
+                          <UButton v-if="actionsFor(item).includes('start')" size="sm" color="neutral" variant="outline" :disabled="!hydrated || pendingResolutionAction?.resolutionId === item.id || pendingResolutionIds.has(item.id)" :label="t('meetingsUi.startWork')" @click="requestResolutionAction(item.id, 'start')" />
+                          <UButton v-if="actionsFor(item).includes('complete')" size="sm" :disabled="!hydrated || pendingResolutionAction?.resolutionId === item.id || pendingResolutionIds.has(item.id)" :label="t('meetingsUi.complete')" @click="requestResolutionAction(item.id, 'complete')" />
+                          <UButton v-if="actionsFor(item).includes('cancel')" size="sm" color="neutral" variant="outline" :disabled="!hydrated || pendingResolutionAction?.resolutionId === item.id || pendingResolutionIds.has(item.id)" :label="t('meetingsUi.cancelMeeting')" @click="requestResolutionAction(item.id, 'cancel')" />
+                        </template>
+                        <UButton v-if="item.task_id" color="primary" variant="link" size="sm" class="p-0" :to="`/tasks/${item.task_id}`" :label="t('meetingsUi.openTask')" />
+                        <span v-else-if="taskLinked(item)" class="text-xs text-muted">{{ t('meetingsUx.taskLinkedUnavailable') }}</span>
+                        <UButton v-if="!taskLinked(item) && (item.can_edit_decision || item.can_update_execution) && !pendingResolutionIds.has(item.id)" color="neutral" variant="outline" size="sm" :to="`/meetings/${id}/resolutions/${item.id}/edit`" :label="t('meetingsUi.editResolution')" />
+                        <UButton v-if="resolutionCanReopen(item)" size="sm" color="neutral" variant="outline" :disabled="!hydrated || pendingResolutionIds.has(item.id)" :label="t('meetingsUi.reopen')" @click="requestResolutionAction(item.id, 'reopen')" />
+                      </div>
+                      <p v-if="resolutionErrors[item.id]" role="alert" class="text-sm text-error">{{ resolutionErrors[item.id] }}</p>
+                      <SharedInlineConfirm
+                        v-if="pendingResolutionAction?.resolutionId === item.id"
+                        color="error"
+                        :title="t('meetingsUx.confirmResolutionAction', { name: pendingResolutionName })"
+                        :confirm-label="t('meetingsUi.confirm')"
+                        :pending="pendingResolutionIds.has(item.id)"
+                        @cancel="pendingResolutionAction = null"
+                        @confirm="confirmResolutionAction"
+                      />
+                      <p v-if="item.task_id" class="text-xs text-muted">{{ t('meetingsUi.followedAsTask') }}</p>
+                      <details v-if="!taskLinked(item) && !resolutionCanReopen(item) && canConvert && item.can_edit_decision" class="min-w-0 border-t border-default pt-3">
+                        <summary class="w-fit max-w-full cursor-pointer text-sm font-medium text-primary">{{ t('meetingsUi.conversionTitle') }}</summary>
+                        <div class="mt-3 grid min-w-0 gap-2">
+                          <label :for="`meeting-project-${item.id}`" class="text-sm font-medium text-highlighted">{{ t('meetingsUi.chooseProject') }}</label>
+                          <div class="flex min-w-0 flex-wrap items-center gap-2">
+                            <UInput v-model="projectSearch[item.id]" class="min-w-0 grow basis-full sm:basis-56" :placeholder="t('meetingsUx.searchProjects')" :aria-label="t('meetingsUx.searchProjects')" :disabled="!hydrated || converting || pendingResolutionIds.has(item.id)" />
+                            <USelect :id="`meeting-project-${item.id}`" :model-value="projectByResolution[item.id] ? String(projectByResolution[item.id]) : '__none__'" class="min-w-0 grow basis-full sm:basis-56" :disabled="!hydrated || converting || pendingResolutionIds.has(item.id)" :items="[{ label: t('meetingsUi.project'), value: '__none__' }, ...projectsFor(item.id).map(project => ({ label: project.name, value: String(project.id) }))]" @update:model-value="value => { projectByResolution[item.id] = value === '__none__' ? 0 : Number(value) }" />
+                            <UButton size="sm" :disabled="!hydrated || converting || pendingResolutionIds.has(item.id) || !projectByResolution[item.id]" :label="t('meetingsUi.convert')" @click="convertResolution(item.id)" />
+                          </div>
+                          <p v-if="projectQuery.isLoading.value" role="status" class="text-xs text-muted">{{ t('meetingsUx.projectsLoading') }}</p>
+                          <p v-else-if="projectQuery.error.value" role="alert" class="text-xs text-error">{{ t('meetingsUx.projectsError') }}</p>
+                          <p class="text-xs text-muted">{{ t('meetingsUi.conversionHelp') }}</p>
+                        </div>
+                      </details>
+                    </li>
+                  </ul>
+                </div>
+              </UCard>
+              <UCard v-if="query.data.value.previous_resolutions.length" id="meeting-follow-up" class="min-w-0">
+                <template #header>
+                  <h2 class="text-lg font-semibold text-highlighted">{{ t('meetingsUi.previousResolutions') }}</h2>
+                  <p class="text-xs text-muted">{{ t('meetingsUx.currentPreviousFollowUp') }}</p>
+                </template>
+                <ul class="grid min-w-0 divide-y divide-default">
+                  <li v-for="item in query.data.value.previous_resolutions" :key="item.id" class="grid min-w-0 gap-2 py-3 first:pt-0 last:pb-0">
+                    <UButton color="primary" variant="link" class="w-fit p-0 font-medium whitespace-normal text-start" :to="`/meetings/${item.meeting_id}`">{{ item.meeting_name }}</UButton>
+                    <div class="flex min-w-0 flex-wrap items-center gap-2 text-sm">
+                      <span class="text-highlighted">{{ item.name }}</span>
+                      <span class="text-xs text-muted">{{ t('meetingsUx.currentFollowUpOrigin', { name: item.meeting_name }) }}</span>
+                      <UBadge :color="resolutionStateColor(item.state)" variant="subtle">{{ t(`meetingsUi.resolutionState.${item.state}`) }}</UBadge>
+                      <span class="text-muted">{{ formatMeetingDate(item.deadline, locale) }}</span>
+                    </div>
+                    <SharedRichText v-if="richTextHasContent(item.result)" :html="item.result" size="sm" />
+                    <UButton v-if="item.task_id" color="primary" variant="link" size="sm" class="w-fit p-0" :to="`/tasks/${item.task_id}`" :label="t('meetingsUi.openTask')" />
+                  </li>
+                </ul>
+              </UCard>
+            </template>
+            <template #attachments>
+              <UCard id="meeting-attachments" class="min-w-0">
+                <template #header><h2 class="text-lg font-semibold text-highlighted">{{ t('meetingsUi.attachmentsTitle') }}</h2></template>
+                <UAlert v-if="attachments.error.value" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="errorMessage(attachments.error.value)">
+                  <template #actions>
+                    <UButton type="button" color="neutral" variant="outline" size="sm" :disabled="!hydrated || attachments.isFetching.value" :label="t('app.retry')" @click="() => attachments.refetch()" />
+                  </template>
+                </UAlert>
+                <div v-else-if="attachments.isLoading.value" role="status" class="grid gap-2" :aria-label="t('attachments.loading')"><USkeleton v-for="row in 2" :key="row" class="h-10 w-full" /></div>
+                <ul v-else-if="attachments.data.value?.items.length" class="grid min-w-0 divide-y divide-default">
+                  <li v-for="attachment in attachments.data.value.items" :key="attachment.id" class="flex min-w-0 flex-wrap items-center gap-2 py-2">
+                    <UButton color="primary" variant="link" class="min-w-0 flex-1 justify-start p-0" :to="attachment.url" external target="_blank" rel="noopener" :label="attachment.name" />
+                    <UButton v-if="query.data.value.can_edit && pendingDeleteId !== attachment.id" type="button" color="error" variant="ghost" square icon="i-lucide-trash-2" :aria-label="t('attachments.delete')" :disabled="!hydrated || deleting || pendingDeleteId !== null" @click="pendingDeleteId = attachment.id" />
+                    <SharedInlineConfirm
+                      v-if="pendingDeleteId === attachment.id"
+                      class="basis-full"
+                      color="error"
+                      :title="t('attachments.deleteConfirm')"
+                      :confirm-label="t('attachments.confirm')"
+                      :cancel-label="t('attachments.cancel')"
+                      :pending="deleting"
+                      @cancel="pendingDeleteId = null"
+                      @confirm="confirmDelete(attachment.id)"
+                    />
+                  </li>
+                </ul>
+                <SharedEmptyState v-else :title="t('meetingsUi.emptyAttachments')" />
+                <div v-if="query.data.value.can_edit" class="mt-4 grid min-w-0 gap-2 border-t border-default pt-4">
+                  <label for="meeting-attachment-upload" class="text-sm font-medium text-highlighted">{{ t('meetingsUi.uploadAttachment') }}</label>
+                  <SharedFileField id="meeting-attachment-upload" ref="fileField" class="w-full" :disabled="!hydrated || uploading" @change="onFileChange" />
+                  <p class="text-xs text-muted">{{ t('meetingsUi.attachmentHelp') }}</p>
+                </div>
+              </UCard>
+            </template>
+          </UTabs>
         </div>
       </div>
     </SharedPageState>
   </SharedPageContainer>
   <NuxtPage v-else />
 </template>
-
-<style scoped>
-.meeting-title {
-  display: inline-flex;
-  min-width: 0;
-  max-width: 100%;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-}
-
-.meeting-reference {
-  color: var(--muted-foreground);
-  font-size: 0.75rem;
-  font-weight: 500;
-  letter-spacing: 0.04em;
-}
-
-.meeting-detail-stack {
-  display: grid;
-  min-width: 0;
-  gap: 16px;
-  container: meeting-detail / inline-size;
-}
-
-.meeting-tabs { min-width: 0; }
-.meeting-tabs :deep(.meeting-tabs-viewport) { min-width: 0; max-width: 100%; overflow-x: auto; }
-.meeting-tabs :deep(.meeting-tabs-list) { flex-wrap: nowrap; width: 100%; }
-.meeting-tabs :deep(.meeting-tabs-trigger) { flex: 0 0 auto; min-width: max-content; white-space: nowrap; }
-.meeting-tabs :deep(.meeting-tabs-label) { max-width: none; overflow: visible; text-overflow: clip; white-space: nowrap; }
-.meeting-tab-panel { display: grid; min-width: 0; gap: 16px; }
-
-.meeting-summary,
-.meeting-section,
-.meeting-rich-panel {
-  min-width: 0;
-}
-
-.meeting-summary { container: meeting-summary / inline-size; }
-
-.meeting-summary-grid {
-  display: grid;
-  min-width: 0;
-  gap: 20px 28px;
-}
-
-.meeting-summary-group { min-width: 0; }
-.meeting-summary-group > .meeting-subheading { margin-block-end: 4px; }
-
-.meeting-meta-grid {
-  display: grid;
-  min-width: 0;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 0 24px;
-}
-
-.meeting-meta-item,
-.meeting-resolution-meta > div {
-  display: grid;
-  min-width: 0;
-  gap: 3px;
-  padding-block: 9px;
-  border-block-end: 1px solid var(--border);
-}
-
-.meeting-meta-item dt,
-.meeting-resolution-meta dt {
-  color: var(--muted-foreground);
-  font-size: 0.75rem;
-}
-
-.meeting-meta-item dd,
-.meeting-resolution-meta dd {
-  min-width: 0;
-  overflow-wrap: anywhere;
-  font-size: 0.875rem;
-  font-weight: 600;
-}
-
-.meeting-meta-item:last-child,
-.meeting-resolution-meta > div:last-child {
-  border-block-end: 0;
-}
-
-.meeting-attendees {
-  margin-block-start: 16px;
-  padding-block-start: 16px;
-  border-block-start: 1px solid var(--border);
-}
-
-.meeting-subheading,
-.meeting-section-title {
-  font-size: 1rem;
-  font-weight: 600;
-  line-height: 1.4;
-}
-
-.meeting-attendee-list {
-  display: flex;
-  min-width: 0;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-block-start: 10px;
-}
-
-.meeting-rich-text {
-  min-width: 0;
-  overflow-wrap: anywhere;
-  font-size: 0.875rem;
-  line-height: 1.8;
-}
-
-.meeting-rich-text :deep(p) { margin-block: 0 12px; }
-.meeting-rich-text :deep(p:last-child) { margin-block-end: 0; }
-.meeting-rich-text :deep(ul),
-.meeting-rich-text :deep(ol) { margin-block: 0 12px; padding-inline-start: 1.5rem; }
-.meeting-rich-text :deep(ul) { list-style-type: disc; }
-.meeting-rich-text :deep(ol) { list-style-type: decimal; }
-.meeting-rich-text :deep(h1) { font-size: 1.25rem; font-weight: 700; line-height: 1.5; }
-.meeting-rich-text :deep(h2) { font-size: 1.125rem; font-weight: 700; line-height: 1.5; }
-.meeting-rich-text :deep(h3) { font-size: 1rem; font-weight: 600; line-height: 1.5; }
-.meeting-rich-text :deep(a) { overflow-wrap: anywhere; color: var(--brand-link); text-decoration: underline; }
-.meeting-rich-text :deep(img) { max-width: 100%; height: auto; }
-
-.meeting-empty {
-  color: var(--muted-foreground);
-  font-size: 0.875rem;
-}
-
-.meeting-attachment-list,
-.meeting-resolution-list {
-  display: grid;
-  min-width: 0;
-  gap: 10px;
-}
-
-.meeting-attachment-row {
-  display: flex;
-  min-width: 0;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  padding-block: 8px;
-  border-block-end: 1px solid var(--border);
-}
-
-.meeting-attachment-row:last-child,
-.meeting-previous-row:last-child { border-block-end: 0; }
-
-.meeting-upload {
-  display: grid;
-  min-width: 0;
-  gap: 8px;
-  margin-block-start: 16px;
-  padding-block-start: 16px;
-  border-block-start: 1px solid var(--border);
-}
-
-.meeting-inline-error,
-.meeting-inline-confirm {
-  display: flex;
-  min-width: 0;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  margin-block-start: 12px;
-  padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-}
-
-.meeting-resolution-card {
-  display: grid;
-  min-width: 0;
-  gap: 8px;
-  padding: 12px;
-}
-
-.meeting-resolution-head { min-width: 0; }
-.meeting-resolution-title { min-width: 0; overflow-wrap: anywhere; font-size: 1rem; font-weight: 600; }
-.meeting-resolution-badges { display: flex; min-width: 0; flex-wrap: wrap; gap: 6px; margin-block-start: 6px; }
-.meeting-resolution-meta { display: grid; min-width: 0; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 0 12px; padding: 7px 10px; border-radius: 8px; background: var(--muted); }
-.meeting-resolution-meta > div { padding-block: 2px; border-block-end: 0; }
-.meeting-resolution-result { padding-block-start: 2px; }
-.meeting-resolution-actions { display: flex; min-width: 0; flex-wrap: wrap; align-items: center; gap: 8px; }
-
-.meeting-conversion {
-  min-width: 0;
-  border-block-start: 1px solid var(--border);
-  padding-block-start: 10px;
-}
-
-.meeting-conversion summary {
-  width: fit-content;
-  max-width: 100%;
-  cursor: pointer;
-  color: var(--brand-link);
-  font-size: 0.875rem;
-  font-weight: 500;
-}
-
-.meeting-conversion-body {
-  display: grid;
-  min-width: 0;
-  gap: 8px;
-  margin-block-start: 10px;
-}
-
-.meeting-project-select { flex: 1 1 220px; }
-.meeting-previous-row { display: grid; min-width: 0; gap: 8px; padding-block: 10px; border-block-end: 1px solid var(--border); }
-
-@container meeting-summary (min-width: 360px) {
-  .meeting-meta-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
-
-@container meeting-summary (min-width: 900px) {
-  .meeting-meta-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-}
-
-@container meeting-summary (min-width: 720px) {
-  .meeting-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
-
-@media (max-width: 520px) {
-  .meeting-project-select { flex-basis: 100%; }
-}
-</style>

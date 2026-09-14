@@ -80,7 +80,7 @@ const projectItems = computed(() => [
   <FilterBar class="w-full" :inline="embedded && !collapsible" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
     <template #search>
       <div class="relative min-w-48 flex-1">
-        <UIcon name="i-lucide-search" class="pointer-events-none absolute start-2 top-1/2 size-[18px] -translate-y-1/2 text-muted" aria-hidden="true" />
+        <UIcon name="i-lucide-search" class="pointer-events-none absolute start-2 top-1/2 size-4.5 -translate-y-1/2 text-muted" aria-hidden="true" />
         <UInput v-model="search" :disabled="!hydrated" :aria-label="t('tasks.filters.search')" :placeholder="t('tasks.filters.search')" class="w-full" :ui="{ base: 'ps-8' }" />
       </div>
     </template>
@@ -129,10 +129,10 @@ const projectItems = computed(() => [
       <div v-if="view" class="hidden md:block">
       <div role="group" class="inline-flex items-center gap-0.5 rounded-md p-0.5 ring ring-default bg-default bg-elevated/40" :aria-label="t('projects.filters.view')">
         <UButton data-testid="project-tasks-view-table" type="button" color="neutral" square size="sm" :variant="view === 'table' ? 'soft' : 'ghost'" :disabled="!hydrated" :aria-label="t('projects.filters.tableView')" :aria-pressed="view === 'table'" @click="emit('update:view', 'table')">
-          <UIcon name="i-lucide-list" class="size-[18px]" aria-hidden="true" />
+          <UIcon name="i-lucide-list" class="size-4.5" aria-hidden="true" />
         </UButton>
         <UButton data-testid="project-tasks-view-board" type="button" color="neutral" square size="sm" :variant="view === 'board' ? 'soft' : 'ghost'" :disabled="!hydrated" :aria-label="t('projects.filters.boardView')" :aria-pressed="view === 'board'" @click="emit('update:view', 'board')">
-          <UIcon name="i-lucide-layout-grid" class="size-[18px]" aria-hidden="true" />
+          <UIcon name="i-lucide-layout-grid" class="size-4.5" aria-hidden="true" />
         </UButton>
       </div>
       </div>

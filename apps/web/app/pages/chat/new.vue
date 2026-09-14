@@ -66,28 +66,25 @@ async function submit() {
         <UFormField :label="t('chat.recipientSearch')" name="recipientSearch">
           <UInput id="chat-recipient-search" v-model="q" class="w-full" :placeholder="t('chat.recipientSearch')" :disabled="!hydrated" />
         </UFormField>
-        <ul class="max-h-64 overflow-y-auto rounded-lg border">
+        <ul class="max-h-64 overflow-y-auto rounded-lg border border-default">
           <li v-for="person in recipients" :key="person.id">
             <UButton
               type="button"
               color="neutral"
               variant="ghost"
-              class="flex w-full items-center gap-3 px-3 py-2 text-start hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              class="flex w-full items-center gap-3 px-3 py-2 text-start hover:bg-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
               :aria-pressed="selected.some(item => item.id === person.id)"
               :disabled="!hydrated"
               @click="toggle(person)"
             >
-              <span class="grid size-9 shrink-0 place-items-center rounded-full bg-muted text-xs font-semibold">{{ initialsFor(person.name) }}</span>
+              <span class="grid size-9 shrink-0 place-items-center rounded-full bg-elevated text-xs font-semibold">{{ initialsFor(person.name) }}</span>
               <span class="min-w-0 flex-1 truncate">{{ person.name }}</span>
               <UIcon v-if="selected.some(item => item.id === person.id)" name="i-lucide-check" class="size-4 text-brand-link" aria-hidden="true" />
             </UButton>
           </li>
         </ul>
-        <nav v-if="(data?.total ?? 0) > CHAT_PAGE_SIZE" class="flex flex-wrap items-center justify-between gap-2 text-sm text-muted">
-          <UButton type="button" color="neutral" variant="ghost" :disabled="!hydrated || recipientOffset === 0" :label="t('chat.previousPage')" @click="recipientOffset = nextListOffset(recipientOffset, data?.total ?? 0, -CHAT_PAGE_SIZE)" />
-          <UButton type="button" color="neutral" variant="ghost" :disabled="!hydrated || recipientOffset + CHAT_PAGE_SIZE >= (data?.total ?? 0)" :label="t('chat.nextPage')" @click="recipientOffset = nextListOffset(recipientOffset, data?.total ?? 0, CHAT_PAGE_SIZE)" />
-        </nav>
-        <p class="text-sm text-muted-foreground"><span class="font-medium text-foreground">{{ t('chat.selected') }}:</span> {{ selected.map(item => item.name).join(', ') || '—' }}</p>
+        <SharedPagination :page="Math.floor(recipientOffset / CHAT_PAGE_SIZE) + 1" :pages="Math.max(1, Math.ceil((data?.total ?? 0) / CHAT_PAGE_SIZE))" @update:page="recipientOffset = nextListOffset(0, data?.total ?? 0, ($event - 1) * CHAT_PAGE_SIZE)" />
+        <p class="text-sm text-muted"><span class="font-medium text-highlighted">{{ t('chat.selected') }}:</span> {{ selected.map(item => item.name).join(', ') || '—' }}</p>
       </SharedFormSection>
       <SharedFormSection v-if="wantGroup || selected.length !== 1" :title="t('chat.groupName')" class="space-y-2">
         <UFormField :label="selected.length ? t('chat.groupName') : t('chat.channel')" name="groupName">

@@ -79,7 +79,7 @@ function updateRoute(next: ChatListRoute) {
       <div :id="navigationId" :key="contextMotionKey" class="nasq-context-sidebar-inner">
       <div class="nasq-context-heading">
         <span class="nasq-context-emblem" aria-hidden="true">
-          <UIcon :name="moduleDefinition?.icon ?? shellModules[0]!.icon" class="nasq-shell-icon size-[18px]" aria-hidden="true" />
+          <UIcon :name="moduleDefinition?.icon ?? shellModules[0]!.icon" class="nasq-shell-icon size-4.5" aria-hidden="true" />
         </span>
         <div class="nasq-context-heading-copy">
           <h2>{{ contextTitle }}</h2>
@@ -117,7 +117,7 @@ function updateRoute(next: ChatListRoute) {
             :data-testid="link.id === 'appearance' ? 'sidebar-settings' : link.id === 'project-settings' ? 'settings-projects-tab' : link.id === 'branding' ? 'settings-branding-tab' : `context-link-${link.id}`"
           >
             <template #leading>
-              <UIcon :name="link.icon" class="nasq-shell-icon size-[18px] shrink-0" aria-hidden="true" />
+              <UIcon :name="link.icon" class="nasq-shell-icon size-4.5 shrink-0" aria-hidden="true" />
             </template>
             <span data-slot="label">{{ t(link.labelKey) }}</span>
           </UButton>
@@ -149,7 +149,7 @@ function updateRoute(next: ChatListRoute) {
             @click="toggle"
           >
             <template #leading>
-              <UIcon :name="expanded ? 'i-lucide-panel-left-close' : 'i-lucide-panel-left-open'" class="nasq-shell-icon size-[18px] shrink-0" aria-hidden="true" />
+              <UIcon :name="expanded ? 'i-lucide-panel-left-close' : 'i-lucide-panel-left-open'" class="nasq-shell-icon size-4.5 shrink-0" aria-hidden="true" />
             </template>
           </UButton>
         </UTooltip>

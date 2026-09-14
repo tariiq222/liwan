@@ -214,7 +214,7 @@ watch([mode, fontSize], () => { void nextTick(readTokens) }, { flush: 'post' })
           <li v-for="(item, index) in donut.data" :key="`${item.name}-${index}`" class="chart-donut-legend-item">
             <span class="chart-donut-legend-swatch" :style="{ backgroundColor: donutColors[index] }" aria-hidden="true" />
             <span class="min-w-0 truncate">{{ item.name }}</span>
-            <span class="shrink-0 tabular-nums text-foreground">{{ formatNumber(item.value) }}</span>
+            <span class="shrink-0 tabular-nums text-highlighted">{{ formatNumber(item.value) }}</span>
           </li>
         </ul>
       </div>

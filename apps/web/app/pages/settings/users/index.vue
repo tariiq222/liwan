@@ -45,8 +45,7 @@ function clearFilters() {
   updateFilters()
 }
 function syncPage() { void router.replace({ query: adminQueryWithOffset(route.query, filters.offset ?? 0) }) }
-function previousPage() { if (hydrated.value) { filters.offset = Math.max(0, (filters.offset ?? 0) - (filters.limit ?? 25)); syncPage() } }
-function nextPage() { if (hydrated.value && page.value < pages.value) { filters.offset = (filters.offset ?? 0) + (filters.limit ?? 25); syncPage() } }
+function setPage(next: number) { if (hydrated.value && next >= 1 && next <= pages.value) { filters.offset = (next - 1) * (filters.limit ?? 25); syncPage() } }
 watch(() => [route.query.q, route.query.status, route.query.role_id, route.query.department_id, route.query.offset], ([q, status, roleId, departmentId, offset]) => {
   filters.q = String(q ?? '')
   filters.status = status === 'stopped' ? 'stopped' : status === 'active' ? 'active' : undefined
@@ -69,7 +68,7 @@ function clearSearch() { filters.q = ''; updateFilters() }
 <template>
   <SettingsLayout>
     <SharedPageHeader :title="t('access.users.title')">
-      <UButton v-if="can('access.users.grant')" color="primary" :disabled="!hydrated" :label="t('access.users.grantAccount')" @click="navigateTo({ path: '/settings/users/new', query: listQuery })" />
+      <UButton v-if="can('access.users.grant')" color="primary" icon="i-lucide-plus" :disabled="!hydrated" :label="t('access.users.grantAccount')" @click="navigateTo({ path: '/settings/users/new', query: listQuery })" />
     </SharedPageHeader>
     <SharedPageState v-if="forbidden" :empty="true" :empty-text="t('access.forbidden')" />
     <div v-else class="space-y-6">
@@ -97,11 +96,7 @@ function clearSearch() { filters.q = ''; updateFilters() }
         <SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!query.isLoading.value && !query.error.value && query.data.value?.items.length === 0" :empty-text="t('access.users.empty')" @retry="query.refetch">
           <UserTable :users="query.data.value?.items ?? []" @open="openUser" />
         </SharedPageState>
-        <div v-if="pages > 1" class="nasq-settings-pagination">
-          <UButton color="neutral" variant="ghost" :disabled="!hydrated || page === 1 || query.isFetching.value" :label="t('access.previousPage')" @click="previousPage" />
-          <span>{{ t('access.pageOf', { page, pages }) }}</span>
-          <UButton color="neutral" variant="ghost" :disabled="!hydrated || page >= pages || query.isFetching.value" :label="t('access.nextPage')" @click="nextPage" />
-        </div>
+        <SharedPagination class="mt-4" :page="page" :pages="pages" :disabled="query.isFetching.value" @update:page="setPage" />
       </div>
     </div>
   </SettingsLayout>

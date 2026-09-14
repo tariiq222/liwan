@@ -74,7 +74,7 @@ const dialogContent = computed<NonNullable<SlideoverProps['content']> & { id: st
       :disabled="!hydrated"
     >
       <template #leading>
-        <UIcon name="i-lucide-menu" class="nasq-shell-icon size-[18px] shrink-0" aria-hidden="true" />
+        <UIcon name="i-lucide-menu" class="nasq-shell-icon size-4.5 shrink-0" aria-hidden="true" />
       </template>
     </UButton>
     <template #body>
@@ -98,7 +98,7 @@ const dialogContent = computed<NonNullable<SlideoverProps['content']> & { id: st
             @click="onModuleActivate(item)"
           >
             <template #leading>
-              <UIcon :name="item.icon" class="nasq-shell-icon size-[18px] shrink-0" aria-hidden="true" />
+              <UIcon :name="item.icon" class="nasq-shell-icon size-4.5 shrink-0" aria-hidden="true" />
             </template>
           </UButton>
         </nav>
@@ -132,7 +132,7 @@ const dialogContent = computed<NonNullable<SlideoverProps['content']> & { id: st
             @click="closeIfCurrent(link.to)"
           >
             <template #leading>
-              <UIcon :name="link.icon" class="nasq-shell-icon size-[18px] shrink-0" aria-hidden="true" />
+              <UIcon :name="link.icon" class="nasq-shell-icon size-4.5 shrink-0" aria-hidden="true" />
             </template>
           </UButton>
         </nav>

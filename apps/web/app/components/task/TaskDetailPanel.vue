@@ -24,11 +24,10 @@ const emit = defineEmits<{ close: [] }>()
 
 const route = useRoute()
 const router = useRouter()
-const { t, localeProperties } = useI18n()
-// The chevrons point at list *order*, not at a fixed screen side: in RTL
-// "previous" is the right-hand arrow, in LTR the left-hand one. They were
-// hardcoded to the RTL pairing, so an `en` user saw them swapped.
-const isRtl = computed(() => localeProperties.value.dir === 'rtl')
+const { t } = useI18n()
+// The arrows point at list *order*, not at a fixed screen side: in RTL
+// "previous" is the right-hand chevron, in LTR the left-hand one. The icons are
+// drawn for RTL and `ltr:rotate-180` mirrors them, as the shared page header does.
 
 const idRef = computed(() => props.taskId)
 const backTo = computed(() => props.backTo ?? { path: '/tasks', query: route.query })
@@ -155,29 +154,33 @@ useEventListener(document, 'keydown', onKeydown)
 
 <template>
   <div class="nasq-page-width-detail space-y-6">
-    <div class="task-context-row" data-testid="task-detail-context">
+    <div class="flex min-w-0 flex-col items-stretch gap-2.5 sm:flex-row sm:items-center sm:justify-between" data-testid="task-detail-context">
       <div class="flex min-w-0 flex-1 items-center gap-2">
-        <NuxtLink :to="backTo" class="inline-flex min-h-8 shrink-0 items-center gap-1 rounded-lg px-2 text-sm text-muted transition-colors hover:bg-elevated hover:text-highlighted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" :aria-label="props.backLabel ?? t('tasks.detail.back')" :aria-disabled="!hydrated || editingTitle || titleSaving" :tabindex="!hydrated || editingTitle || titleSaving ? -1 : undefined" @click="(!hydrated || editingTitle || titleSaving) && $event.preventDefault()">
-          <UIcon :name="isRtl ? 'i-lucide-arrow-right' : 'i-lucide-arrow-left'" class="size-[18px]" aria-hidden="true" />
-          <span>{{ props.backLabel ?? t('tasks.detail.back') }}</span>
-        </NuxtLink>
+        <UButton
+          :to="backTo"
+          data-testid="task-detail-back"
+          color="neutral"
+          variant="outline"
+          size="sm"
+          class="shrink-0"
+          :disabled="!hydrated || editingTitle || titleSaving"
+        >
+          <UIcon name="i-lucide-arrow-right" aria-hidden="true" class="size-4.5 ltr:rotate-180" />{{ props.backLabel ?? t('tasks.detail.back') }}
+        </UButton>
 
         <template v-if="task && editingTitle">
           <UInput
             v-model="titleDraft"
             data-testid="task-title-input"
             :aria-label="t('tasks.newTitle')"
-            class="h-8 min-w-0 flex-1"
+            class="min-w-0 flex-1"
+            size="sm"
             :disabled="titleSaving"
             @keydown.enter.prevent="saveTitle"
             @keydown.escape.stop.prevent="cancelTitleEdit"
           />
-          <UButton data-testid="task-title-save" variant="outline" size="sm" type="button" :aria-label="t('tasks.detail.saveTitle')" :disabled="titleSaving || !titleDraft.trim()" @click="saveTitle">
-            <UIcon name="i-lucide-check" class="size-[18px]" aria-hidden="true" />
-          </UButton>
-          <UButton data-testid="task-title-cancel" variant="ghost" size="sm" type="button" :aria-label="t('tasks.detail.cancelTitle')" :disabled="titleSaving" @click="cancelTitleEdit">
-            <UIcon name="i-lucide-x" class="size-[18px]" aria-hidden="true" />
-          </UButton>
+          <UButton data-testid="task-title-save" variant="outline" size="sm" square type="button" icon="i-lucide-check" :aria-label="t('tasks.detail.saveTitle')" :loading="titleSaving" :disabled="titleSaving || !titleDraft.trim()" @click="saveTitle" />
+          <UButton data-testid="task-title-cancel" color="neutral" variant="outline" size="sm" square type="button" icon="i-lucide-x" :aria-label="t('tasks.detail.cancelTitle')" :disabled="titleSaving" @click="cancelTitleEdit" />
         </template>
         <template v-else-if="task?.project">
           <span class="text-xs text-muted">{{ t('tasks.project') }}</span>
@@ -188,41 +191,41 @@ useEventListener(document, 'keydown', onKeydown)
         <USkeleton v-else class="h-5 min-w-0 flex-1" />
       </div>
 
-      <div class="task-context-actions" role="group" :aria-label="t('tasks.detail.menu')">
-        <UButton v-if="task?.can_write && !editingTitle" data-testid="task-title-edit" variant="outline" size="sm" type="button" :aria-label="t('tasks.detail.editTitle')" :disabled="!hydrated || titleSaving" @click="startTitleEdit">
-          <UIcon name="i-lucide-pencil" class="size-[18px]" aria-hidden="true" />
+      <div class="flex flex-none items-center gap-1.5" role="group" :aria-label="t('tasks.detail.menu')">
+        <UButton v-if="task?.can_write && !editingTitle" data-testid="task-title-edit" color="neutral" variant="outline" size="sm" square type="button" icon="i-lucide-pencil" :aria-label="t('tasks.detail.editTitle')" :disabled="!hydrated || titleSaving" @click="startTitleEdit" />
+        <UButton color="neutral" variant="outline" size="sm" square type="button" :aria-label="t('tasks.detail.prev')" :disabled="!hydrated || editingTitle || titleSaving || !siblings.prevId" @click="goTo(siblings.prevId)">
+          <UIcon name="i-lucide-chevron-right" class="size-4.5 ltr:rotate-180" aria-hidden="true" />
         </UButton>
-        <UButton variant="outline" size="sm" type="button" :aria-label="t('tasks.detail.prev')" :disabled="!hydrated || editingTitle || titleSaving || !siblings.prevId" @click="goTo(siblings.prevId)">
-          <UIcon :name="isRtl ? 'i-lucide-chevron-right' : 'i-lucide-chevron-left'" class="size-[18px]" aria-hidden="true" />
-        </UButton>
-        <UButton variant="outline" size="sm" type="button" :aria-label="t('tasks.detail.next')" :disabled="!hydrated || editingTitle || titleSaving || !siblings.nextId" @click="goTo(siblings.nextId)">
-          <UIcon :name="isRtl ? 'i-lucide-chevron-left' : 'i-lucide-chevron-right'" class="size-[18px]" aria-hidden="true" />
+        <UButton color="neutral" variant="outline" size="sm" square type="button" :aria-label="t('tasks.detail.next')" :disabled="!hydrated || editingTitle || titleSaving || !siblings.nextId" @click="goTo(siblings.nextId)">
+          <UIcon name="i-lucide-chevron-left" class="size-4.5 ltr:rotate-180" aria-hidden="true" />
         </UButton>
         <UButton
           v-if="task?.allowed_actions.includes('archive')"
           data-testid="task-archive"
+          color="neutral"
           variant="outline"
           size="sm"
+          square
           type="button"
-          class="text-muted"
+          icon="i-lucide-archive"
           :disabled="!hydrated || editingTitle || titleSaving || archiving"
           :aria-label="t('tasks.drawer.archive')"
           :title="t('tasks.drawer.archive')"
           @click="archiveConfirmOpen = true"
-        >
-          <UIcon name="i-lucide-archive" class="size-[18px]" aria-hidden="true" />
-        </UButton>
+        />
       </div>
     </div>
 
-    <div v-if="task && archiveConfirmOpen" data-testid="task-archive-confirm" class="rounded-lg border border-error/30 bg-error/5 space-y-2 p-4 text-sm">
-      <p class="font-medium">{{ t('tasks.drawer.archive') }}</p>
-      <p class="text-muted">{{ t('tasks.drawer.archiveConfirm') }}</p>
-      <div class="flex flex-wrap gap-2">
-        <UButton color="neutral" variant="outline" type="button" :disabled="archiving" @click="archiveConfirmOpen = false">{{ t('app.cancel') }}</UButton>
-        <UButton color="error" type="button" :disabled="archiving" @click="doArchive">{{ t('tasks.drawer.archive') }}</UButton>
-      </div>
-    </div>
+    <SharedInlineConfirm
+      v-if="task && archiveConfirmOpen"
+      data-testid="task-archive-confirm"
+      :title="t('tasks.drawer.archive')"
+      :description="t('tasks.drawer.archiveConfirm')"
+      :confirm-label="t('tasks.drawer.archive')"
+      :pending="archiving"
+      @confirm="doArchive"
+      @cancel="archiveConfirmOpen = false"
+    />
 
     <SharedPageState v-if="error" :error="error" @retry="refetch" />
 
@@ -233,7 +236,7 @@ useEventListener(document, 'keydown', onKeydown)
     <template v-if="task">
       <div data-testid="task-detail-grid" class="space-y-6">
         <div data-testid="task-details-card" class="rounded-lg ring ring-default bg-default overflow-hidden space-y-6 p-5">
-          <div class="task-detail-status-line">
+          <div class="flex flex-wrap items-center gap-2">
             <StateMenu :task="task" :can-approve="task.can_approve" />
             <span class="text-xs text-muted">
               {{ t('tasks.detail.workflowStage') }}: {{ task.stage?.name ?? t('tasks.detail.stageUnset') }}
@@ -247,38 +250,3 @@ useEventListener(document, 'keydown', onKeydown)
     </template>
   </div>
 </template>
-
-<style scoped>
-.task-context-row {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.task-context-actions {
-  display: flex;
-  flex: none;
-  align-items: center;
-  gap: 6px;
-}
-
-.task-detail-status-line {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-@media (max-width: 600px) {
-  .task-context-row {
-    display: grid;
-    align-items: start;
-  }
-
-  .task-context-actions {
-    justify-content: flex-start;
-  }
-}
-</style>

@@ -61,12 +61,6 @@ async function renderFields(compact: boolean) {
       hydrated: true,
       canManageSettings: false,
       sectionOpen: () => true,
-      managerOpen: false,
-      managerQ: '',
-      managerItems: [],
-      sponsorOpen: false,
-      sponsorQ: '',
-      sponsorItems: [],
       typeOpen: false,
       unitOpen: false,
       typeQuery: '',
@@ -82,12 +76,11 @@ async function renderFields(compact: boolean) {
       startLabel: 'Not set',
       endLabel: 'Not set',
       descriptionLooksHtml: false,
-      readonlyDescription: '',
       t: (key: string) => key,
       helpLabel: (key: string) => key,
       catalogSettingsPath: () => '#',
-      onManagerSelect: () => {},
-      onSponsorSelect: () => {},
+      onManagerResolve: () => {},
+      onSponsorResolve: () => {},
       onTypeSelect: () => {},
       onUnitSelect: () => {},
       onBudgetState: () => {},
@@ -100,6 +93,7 @@ async function renderFields(compact: boolean) {
   const app = createSSRApp({ render: () => h(component) })
   for (const name of [
     'UInput', 'UTextarea', 'ProjectFieldHelp', 'UButton', 'USelectMenu', 'USelect', 'SharedDateField', 'NuxtLink',
+    'UFormField', 'SharedPersonPicker', 'SharedRichText',
   ]) app.component(name, Passthrough)
   app.component('ProjectCharterRows', defineComponent({
     props: { compact: Boolean },
@@ -130,7 +124,7 @@ async function renderRows(compact: boolean) {
     render,
   })
   const app = createSSRApp({ render: () => h(component) })
-  for (const name of ['UInput', 'UTextarea', 'ProjectFieldHelp', 'UButton']) app.component(name, Passthrough)
+  for (const name of ['UInput', 'UTextarea', 'ProjectFieldHelp', 'UButton', 'UFormField', 'SharedInlineConfirm']) app.component(name, Passthrough)
   return renderToString(app)
 }
 
@@ -177,6 +171,7 @@ async function renderDisplay(options: { legacy?: boolean; loading?: boolean; err
   }))
   app.component('UButton', Passthrough)
   app.component('UCheckbox', Passthrough)
+  app.component('SharedRichText', Passthrough)
   return renderToString(app)
 }
 

@@ -83,8 +83,9 @@ function openCreate() {
       <TaskToolbar :model-value="params" embedded collapsible hide-project-filter @update:model-value="onParams">
         <template #view>
           <nav class="inline-flex items-center gap-0.5 rounded-md p-0.5 ring ring-default bg-default" :aria-label="t('projects.planning.views')">
-            <UButton color="neutral" size="sm" icon="i-lucide-list" :variant="isBoard ? 'ghost' : 'soft'" :to="viewTo('list')" :aria-current="isBoard ? undefined : 'page'">{{ t('projects.tabs.list') }}</UButton>
-            <UButton color="neutral" size="sm" icon="i-lucide-layout-grid" :variant="isBoard ? 'soft' : 'ghost'" :to="viewTo('board')" :aria-current="isBoard ? 'page' : undefined">{{ t('projects.tabs.board') }}</UButton>
+            <!-- Icon-only like every other view switch; the accessible name keeps the label. -->
+            <UButton color="neutral" size="sm" square icon="i-lucide-list" :variant="isBoard ? 'ghost' : 'soft'" :to="viewTo('list')" :aria-label="t('projects.tabs.list')" :title="t('projects.tabs.list')" :aria-current="isBoard ? undefined : 'page'" />
+            <UButton color="neutral" size="sm" square icon="i-lucide-layout-grid" :variant="isBoard ? 'soft' : 'ghost'" :to="viewTo('board')" :aria-label="t('projects.tabs.board')" :title="t('projects.tabs.board')" :aria-current="isBoard ? 'page' : undefined" />
           </nav>
         </template>
       </TaskToolbar>

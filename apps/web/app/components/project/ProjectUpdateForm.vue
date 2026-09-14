@@ -52,8 +52,7 @@ async function submit() {
 <template>
   <SharedUnsavedChanges :dirty="dirty" />
   <form data-testid="project-update-form" class="grid gap-5" @submit.prevent="submit">
-    <div class="grid gap-2">
-      <label for="project-update-status" class="flex items-center gap-2 text-sm font-medium leading-none">{{ t('projects.updates.status') }}</label>
+    <UFormField :label="t('projects.updates.status')" required>
       <USelect
         id="project-update-status"
         :model-value="status"
@@ -63,15 +62,13 @@ async function submit() {
         class="w-full"
         @update:model-value="(v) => (status = v as ProjectStatus)"
       />
-    </div>
-    <div class="grid gap-2">
-      <label for="project-update-title" class="flex items-center gap-2 text-sm font-medium leading-none">{{ t('projects.updates.title') }}</label>
+    </UFormField>
+    <UFormField :label="t('projects.updates.title')" required>
       <UInput id="project-update-title" v-model="title" class="w-full" required :disabled="!hydrated || isPending" />
-    </div>
-    <div class="grid gap-2 sm:col-span-2">
-      <span class="flex items-center gap-2 text-sm font-medium leading-none">{{ t('projects.updates.body') }}</span>
+    </UFormField>
+    <UFormField class="sm:col-span-2" :label="t('projects.updates.body')">
       <DescriptionEditor ref="descriptionEditor" :model-value="description" :task-id="projectId" :readonly="isPending" @update:model-value="onDescriptionChange" @draft="onDescriptionDraft" />
-    </div>
+    </UFormField>
     <p v-if="error" role="alert" class="text-sm text-error sm:col-span-2">{{ error }}</p>
     <div class="flex flex-wrap gap-2 justify-end sm:col-span-2">
       <UButton type="button" color="neutral" :disabled="isPending" :label="t('app.cancel')" @click="emit('cancel')" variant="outline" />

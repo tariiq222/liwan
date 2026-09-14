@@ -3,6 +3,7 @@ import type { TableColumn } from '@nuxt/ui'
 import type { HrDepartment } from '@/composables/useHrDepartments'
 import { returnToQuery } from '@/utils/safeReturnTo'
 import RecordNumber from '@/components/shared/RecordNumber.vue'
+import type { RowAction } from '@/components/shared/RowActions.vue'
 
 const props = defineProps<{
   departments: HrDepartment[]
@@ -24,54 +25,55 @@ const columns = computed<TableColumn<HrDepartment>[]>(() => [
   ...(canManage.value ? [{ accessorKey: 'actions', header: t('hr.directory.columns.actions') } as TableColumn<HrDepartment>] : []),
 ])
 
-function onSelectRow(_event: Event, row: { original: HrDepartment }) {
-  if (hydrated.value) emit('select', row.original.id)
+function onSelectRow(event: Event, row: { original: HrDepartment }) {
+  if (!hydrated.value || (event.target as HTMLElement | null)?.closest('a, button')) return
+  emit('select', row.original.id)
+}
+function departmentTo(id: number) {
+  return { path: `/hr/departments/${id}`, query: returnToQuery(route.fullPath) }
+}
+function actionsFor(department: HrDepartment): RowAction[] {
+  return [
+    { label: t('hr.depts.edit'), icon: 'i-lucide-pencil', to: { path: `/hr/departments/${department.id}/edit`, query: returnToQuery(route.fullPath) } },
+    ...(props.canDelete !== false ? [{ label: t('hr.depts.delete'), icon: 'i-lucide-trash-2', destructive: true, onSelect: () => emit('delete', department) } satisfies RowAction] : []),
+  ]
 }
 </script>
 
 <template>
   <div class="min-w-0 space-y-2" data-testid="hr-department-table">
-    <UCard class="rounded-lg ring ring-default bg-default overflow-hidden hidden md:block" :ui="{ body: 'p-0' }">
+    <div class="hidden overflow-hidden rounded-lg bg-default ring ring-default md:block">
       <div v-if="!departments.length" class="p-6"><SharedEmptyState :title="t('hr.depts.empty')" /></div>
       <div v-else class="overflow-x-auto">
-        <UTable :data="departments" :columns="columns" :caption="t('hr.depts.title')" :ui="{ caption: 'sr-only', th: '' }" @select="onSelectRow">
+        <UTable :data="departments" :columns="columns" :caption="t('hr.depts.title')" :ui="{ caption: 'sr-only', th: '', tr: 'cursor-pointer' }" @select="onSelectRow">
           <template #id-cell="{ row }"><RecordNumber :value="row.original.id" /></template>
           <template #name-cell="{ row }">
-            <span class="font-medium">{{ row.original.name }}</span>
+            <NuxtLink :to="departmentTo(row.original.id)" class="rounded font-medium text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" @click="!hydrated && $event.preventDefault()">{{ row.original.name }}</NuxtLink>
             <span class="ms-2 text-muted">{{ row.original.employee_count }}</span>
           </template>
           <template #manager-cell="{ row }">{{ row.original.manager?.name || t('hr.depts.noManager') }}</template>
           <template #actions-cell="{ row }">
-            <div class="flex flex-wrap gap-1" @click.stop>
-              <UButton color="primary" variant="ghost" size="sm" :disabled="!hydrated" :label="t('hr.depts.edit')" :to="{ path: `/hr/departments/${row.original.id}/edit`, query: returnToQuery(route.fullPath) }" @click="!hydrated && $event.preventDefault()" />
-              <UButton v-if="props.canDelete !== false" color="error" variant="ghost" size="sm" :disabled="!hydrated" :label="t('hr.depts.delete')" @click="emit('delete', row.original)" />
-            </div>
+            <div class="flex justify-end"><SharedRowActions :actions="actionsFor(row.original)" :label="t('hr.depts.rowActions', { name: row.original.name })" /></div>
           </template>
         </UTable>
       </div>
-    </UCard>
+    </div>
     <div v-if="!departments.length" class="md:hidden"><SharedEmptyState :title="t('hr.depts.empty')" /></div>
-    <ul v-else class="md:hidden space-y-2" :aria-label="t('hr.depts.title')">
+    <ul v-else class="divide-y divide-default overflow-hidden rounded-lg bg-default ring ring-default md:hidden" :aria-label="t('hr.depts.title')">
       <li
         v-for="department in departments"
         :key="department.id"
-        class="rounded-lg ring ring-default bg-default overflow-hidden p-4"
+        class="p-4"
         :class="{ 'bg-elevated': selectedId === department.id }"
-        tabindex="0"
-        role="button"
-        @click="hydrated && emit('select', department.id)" @keydown.enter.self="hydrated && emit('select', department.id)" @keydown.space.self.prevent="hydrated && emit('select', department.id)"
       >
         <div class="flex items-start justify-between gap-3">
           <div class="min-w-0">
             <bdi class="block text-xs text-muted">#{{ department.id }}</bdi>
-            <p class="font-medium">{{ department.name }}<span class="ms-2 text-muted">{{ department.employee_count }}</span></p>
+            <NuxtLink :to="departmentTo(department.id)" class="rounded font-medium text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" @click="!hydrated && $event.preventDefault()">{{ department.name }}</NuxtLink><span class="ms-2 text-muted">{{ department.employee_count }}</span>
           </div>
+          <SharedRowActions v-if="canManage" :actions="actionsFor(department)" :label="t('hr.depts.rowActions', { name: department.name })" />
         </div>
         <p class="mt-2 text-xs text-muted">{{ department.manager?.name || t('hr.depts.noManager') }}</p>
-        <div v-if="canManage" class="mt-3 flex flex-wrap gap-2" @click.stop>
-          <UButton color="primary" variant="ghost" size="sm" :disabled="!hydrated" :label="t('hr.depts.edit')" :to="{ path: `/hr/departments/${department.id}/edit`, query: returnToQuery(route.fullPath) }" @click="!hydrated && $event.preventDefault()" />
-          <UButton v-if="props.canDelete !== false" color="error" variant="ghost" size="sm" :disabled="!hydrated" :label="t('hr.depts.delete')" @click="emit('delete', department)" />
-        </div>
       </li>
     </ul>
   </div>

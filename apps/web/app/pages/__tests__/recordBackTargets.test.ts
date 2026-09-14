@@ -183,10 +183,10 @@ describe('an edit form returns to the record it edits, not past it to the list',
 describe('a record returns to the list it belongs to', () => {
   expectTarget('record', RECORDS)
 
-  it('sends a governance child back to the governance card list, not the project', async () => {
-    // The four governance pages have no tab of their own; the card list is the
-    // only way back, and it is fixed by the project in the path.
-    const back = await backTargetOf('/projects/7/stakeholders?q=x', 'app/pages/projects/[id]/stakeholders/index.vue')
-    expect(back.path).toBe('/projects/7/governance')
+  it('gives the governance sub-sections no back line: they are tabs, not records', () => {
+    for (const page of ['charter.vue', 'raci.vue', 'stakeholders/index.vue', 'register/index.vue']) {
+      const source = readFileSync(resolve(webRoot, `app/pages/projects/[id]/${page}`), 'utf8')
+      expect(source, page).not.toContain('back-to=')
+    }
   })
 })

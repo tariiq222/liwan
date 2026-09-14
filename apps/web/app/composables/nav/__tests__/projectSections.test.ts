@@ -16,7 +16,7 @@ describe('projectSections', () => {
       '/projects/7/tasks',
       '/projects/7/schedule',
       '/projects/7/milestones',
-      '/projects/7/governance',
+      '/projects/7/charter',
       '/projects/7/finance',
       '/projects/7/updates',
     ])

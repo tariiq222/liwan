@@ -22,6 +22,15 @@ async function login(page: Page) {
 
 test.beforeEach(async ({ page }) => { await login(page) })
 
+// A row click before hydration is ignored on purpose (TaskTable.onRowClick), so
+// retry until the hydrated table navigates instead of racing it once.
+async function openFirstTask(page: Page) {
+  await expect(async () => {
+    await page.locator('tbody tr').first().click()
+    await expect(page).toHaveURL(/\/tasks\/\d+/, { timeout: 2_000 })
+  }).toPass({ timeout: 20_000 })
+}
+
 // ---------------------------------------------------------------- 1. scroll
 test.describe('a list returns to where the reader left it', () => {
   test('cold: an emptied cache and a delayed list still land on the offset', async ({ page }) => {
@@ -87,16 +96,14 @@ test.describe('back from an edit form returns to the record', () => {
 test.describe('Escape', () => {
   test('leaves a record the same way the back control does', async ({ page }) => {
     await page.goto('/tasks')
-    await page.locator('tbody tr').first().click()
-    await page.waitForURL(/\/tasks\/\d+/)
+    await openFirstTask(page)
     await page.locator('body').press('Escape')
     await expect(page).toHaveURL(/\/tasks(\?|$)/)
   })
 
   test('does not navigate while an overlay owns Escape', async ({ page }) => {
     await page.goto('/tasks')
-    await page.locator('tbody tr').first().click()
-    await page.waitForURL(/\/tasks\/\d+/)
+    await openFirstTask(page)
     const detail = page.url()
 
     // Cmd/Ctrl+K opens the global search dialog, which owns Escape itself.
@@ -126,7 +133,7 @@ test.describe('every page has exactly one h1', () => {
   const pages = [
     ['project summary', '/projects/1'],
     ['project tasks', '/projects/1/tasks'],
-    ['project governance', '/projects/1/governance'],
+    ['project governance', '/projects/1/charter'],
     ['project settings', '/projects/1/settings'],
     ['task record in a project', '/projects/1/tasks/101'],
     ['all projects', '/projects'],
@@ -150,8 +157,7 @@ test.describe('filters and permissions survive navigation', () => {
   test('a filtered list keeps its filter through a record and back', async ({ page }) => {
     await page.goto('/tasks?q=%D9%85%D9%87%D9%85%D8%A9')
     await expect(page.locator('tbody tr').first()).toBeVisible()
-    await page.locator('tbody tr').first().click()
-    await page.waitForURL(/\/tasks\/\d+/)
+    await openFirstTask(page)
     await page.getByRole('link', { name: 'العودة إلى المهام' }).click()
     await page.waitForURL(/\/tasks(\?|$)/)
     expect(new URL(page.url()).searchParams.get('q'), 'the filter did not survive the round trip').toBe('مهمة')

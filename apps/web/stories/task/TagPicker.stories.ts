@@ -9,7 +9,7 @@ import { storyContext } from '../support/context'
 const meta = {
   title: 'Task/TagPicker',
   component: TagPicker,
-  parameters: { layout: 'fullscreen', ...storyContext('apps/web/app/components/project/ProjectGeneralForm.vue:194', 'اكتب اسم وسم غير موجود لرؤية خيار الإنشاء.') },
+  parameters: { layout: 'fullscreen', ...storyContext('apps/web/app/components/project/ProjectGeneralForm.vue:190', 'اكتب اسم وسم غير موجود لرؤية خيار الإنشاء.') },
   args: { modelValue: [tags[0]!], canCreate: true },
   render: args => ({
     components: { PageContainer, TagPicker },

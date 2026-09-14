@@ -83,8 +83,8 @@ async function confirmRemoval() {
     <SharedPageHeader :title="entry?.title || t('projects.finance.detailTitle')" :back-to="backTo" :back-label="t('projects.finance.backToLedger')">
       <template #actions>
         <div v-if="entry && canManage && projectId && entryId" class="flex flex-wrap gap-2">
-        <UButton :disabled="!hydrated" :to="`/projects/${projectId}/finance/${entryId}/edit`">{{ t('app.edit') }}</UButton>
-        <UButton color="error" variant="outline" :disabled="!hydrated || deleting" @click="confirmDelete = !confirmDelete">{{ t('projects.finance.delete') }}</UButton>
+        <UButton icon="i-lucide-pencil" :disabled="!hydrated" :to="`/projects/${projectId}/finance/${entryId}/edit`">{{ t('app.edit') }}</UButton>
+        <UButton color="error" variant="outline" icon="i-lucide-trash-2" :disabled="!hydrated || deleting" @click="confirmDelete = !confirmDelete">{{ t('projects.finance.delete') }}</UButton>
         </div>
       </template>
     </SharedPageHeader>
@@ -100,12 +100,18 @@ async function confirmRemoval() {
     >
       <p v-if="notFound && !query.isLoading.value" class="text-muted">{{ t('projects.notFound') }}</p>
       <template v-else-if="entry && currency">
-        <UAlert v-if="confirmDelete" data-testid="finance-delete-confirm" color="error" variant="soft" :title="entry.kind === 'budget' ? t('projects.finance.deleteBudgetConfirm') : t('projects.finance.deleteExpenseConfirm')" :description="deleteError ?? undefined">
-          <template #actions>
-            <UButton color="error" :disabled="!hydrated || deleting" @click="confirmRemoval">{{ t('projects.finance.delete') }}</UButton>
-            <UButton color="neutral" variant="outline" :disabled="deleting" @click="confirmDelete = false">{{ t('app.cancel') }}</UButton>
-          </template>
-        </UAlert>
+        <SharedInlineConfirm
+          v-if="confirmDelete"
+          data-testid="finance-delete-confirm"
+          :title="entry.kind === 'budget' ? t('projects.finance.deleteBudgetConfirm') : t('projects.finance.deleteExpenseConfirm')"
+          :confirm-label="t('projects.finance.delete')"
+          :pending="deleting"
+          :disabled="!canManage"
+          @cancel="confirmDelete = false"
+          @confirm="confirmRemoval"
+        >
+          <p v-if="deleteError" class="text-error">{{ deleteError }}</p>
+        </SharedInlineConfirm>
         <section class="rounded-lg ring ring-default bg-default overflow-hidden" aria-labelledby="finance-entry-summary-title">
           <div class="border-b border-default px-5 py-4">
             <h2 id="finance-entry-summary-title" class="text-lg font-semibold text-highlighted">{{ t('projects.finance.detailTitle') }}</h2>

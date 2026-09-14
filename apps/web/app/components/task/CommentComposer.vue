@@ -36,31 +36,21 @@ function onKeydown(e: KeyboardEvent) {
 </script>
 
 <template>
-  <form class="task-comment-form" @submit.prevent="submit">
+  <form class="mt-4 grid gap-2 border-t border-default pt-3.5" @submit.prevent="submit">
     <UFormField :label="t('tasks.activity.add')" :name="`task-comment-${props.taskId}`" class="text-xs font-medium">
       <UTextarea
         :id="`task-comment-${props.taskId}`"
         v-model="body"
         :placeholder="t('tasks.activity.write')"
         :disabled="!hydrated || isPending"
-        class="min-h-[88px] w-full resize-none"
+        class="min-h-22 w-full resize-none"
         @keydown="onKeydown"
       />
     </UFormField>
     <div class="flex justify-end">
-      <UButton type="submit" size="sm" :disabled="!hydrated || isPending || !body.trim()">
+      <UButton type="submit" size="sm" :loading="isPending" :disabled="!hydrated || isPending || !body.trim()">
         {{ t('tasks.activity.post') }}
       </UButton>
     </div>
   </form>
 </template>
-
-<style scoped>
-.task-comment-form {
-  display: grid;
-  gap: 8px;
-  margin-top: 16px;
-  padding-top: 14px;
-  border-top: 1px solid var(--ui-border);
-}
-</style>

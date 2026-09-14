@@ -55,43 +55,43 @@ function focusSearch() {
     v-model:open="open"
     :title="t('app.search')"
     :description="t('search.description')"
-    :ui="{ content: 'nasq-search-dialog', overlay: 'nasq-search-overlay' }"
+    :ui="{ content: 'nasq-search-dialog max-w-2xl max-h-[min(620px,calc(100dvh-2rem))] gap-0 divide-y-0 overflow-hidden rounded-xl p-0', overlay: 'nasq-search-overlay' }"
     @after:enter="focusSearch"
   >
     <UButton :aria-label="t('app.search')" color="neutral" variant="outline" class="nasq-search-trigger" :disabled="!hydrated">
       <span class="flex min-w-0 items-center gap-2">
-        <UIcon name="i-lucide-search" aria-hidden="true" />
+        <UIcon name="i-lucide-search" class="size-4 shrink-0" aria-hidden="true" />
         <span data-slot="label" class="nasq-search-trigger-label truncate">{{ t('app.search') }}</span>
       </span>
       <UKbd dir="ltr">⌘K</UKbd>
     </UButton>
     <template #content="{ close }">
       <div :dir="localeProperties.dir" class="flex max-h-[min(620px,calc(100dvh-2rem))] w-full flex-col overflow-hidden">
-        <div class="nasq-search-bar">
-          <UIcon name="i-lucide-search" class="nasq-search-bar-icon" aria-hidden="true" />
+        <div class="flex min-h-16 shrink-0 items-center gap-2.5 border-b border-default px-3 py-2.5">
+          <UIcon name="i-lucide-search" class="size-4.5 shrink-0 text-muted" aria-hidden="true" />
           <UInput
             id="global-search-input"
             v-model="query"
             :aria-label="t('app.search')"
             :placeholder="t('search.description')"
-            class="nasq-search-input"
+            class="min-w-0 flex-1"
             autocomplete="off"
             variant="none"
           />
-          <UButton color="neutral" variant="ghost" square class="nasq-search-close" :aria-label="t('search.close')" @click="close">
+          <UButton color="neutral" variant="ghost" square class="shrink-0 text-muted" :aria-label="t('search.close')" @click="close">
             <template #leading>
-              <UIcon name="i-lucide-x" aria-hidden="true" />
+              <UIcon name="i-lucide-x" class="size-4.5" aria-hidden="true" />
             </template>
           </UButton>
         </div>
 
-        <div class="nasq-search-results" aria-live="polite">
-          <section v-if="nav.length" class="nasq-search-section">
-            <h2 class="nasq-search-section-title">
+        <div class="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain p-3" aria-live="polite">
+          <section v-if="nav.length">
+            <h2 class="mb-1.5 flex items-center gap-1.5 px-2 text-xs font-semibold text-muted">
               <span>{{ t('nav.goTo') }}</span>
               <UBadge color="neutral" variant="subtle" size="sm" aria-hidden="true">{{ nav.length }}</UBadge>
             </h2>
-            <div :class="['nasq-search-nav-list', { 'nasq-search-nav-list--grid': !trimmed }]">
+            <div class="grid gap-1" :class="{ 'sm:grid-cols-2': !trimmed }">
               <template v-for="item in nav" :key="item.to">
                 <UButton
                   v-if="item.to === '/odoo'"
@@ -100,13 +100,13 @@ function focusSearch() {
                   rel="noopener"
                   color="neutral"
                   variant="ghost"
-                  class="nasq-search-result"
+                  class="min-h-11 min-w-0 justify-start"
                   :title="navLabel(item)"
                   :label="navLabel(item)"
                   @click="open = false"
                 >
                   <template #leading>
-                    <span class="nasq-search-result-icon"><UIcon :name="item.icon" aria-hidden="true" /></span>
+                    <UIcon :name="item.icon" class="size-4 shrink-0 text-muted" aria-hidden="true" />
                   </template>
                 </UButton>
                 <UButton
@@ -114,25 +114,25 @@ function focusSearch() {
                   :to="item.to"
                   color="neutral"
                   variant="ghost"
-                  class="nasq-search-result"
+                  class="min-h-11 min-w-0 justify-start"
                   :title="navLabel(item)"
                   :label="navLabel(item)"
                   @click="open = false"
                 >
                   <template #leading>
-                    <span class="nasq-search-result-icon"><UIcon :name="item.icon" aria-hidden="true" /></span>
+                    <UIcon :name="item.icon" class="size-4 shrink-0 text-muted" aria-hidden="true" />
                   </template>
                 </UButton>
               </template>
             </div>
           </section>
 
-          <section v-if="trimmed && can('pmo.projects.read') && (projects.length || projectsQuery.isLoading.value || projectsQuery.error.value)" class="nasq-search-section">
-            <h2 class="nasq-search-section-title">
+          <section v-if="trimmed && can('pmo.projects.read') && (projects.length || projectsQuery.isLoading.value || projectsQuery.error.value)" class="grid gap-1">
+            <h2 class="mb-0.5 flex items-center gap-1.5 px-2 text-xs font-semibold text-muted">
               <span>{{ t('nav.projects') }}</span>
               <UBadge color="neutral" variant="subtle" size="sm" aria-hidden="true">{{ projects.length }}</UBadge>
             </h2>
-            <p v-if="(projectsQuery.data.value?.length ?? 0) >= 200" class="nasq-search-note" role="status">{{ t('projects.capped') }}</p>
+            <p v-if="(projectsQuery.data.value?.length ?? 0) >= 200" class="px-2 text-xs text-muted" role="status">{{ t('projects.capped') }}</p>
             <SharedPageState :loading="projectsQuery.isLoading.value" :error="projectsQuery.error.value" @retry="projectsQuery.refetch()" />
             <UButton
               v-for="project in projects"
@@ -140,19 +140,19 @@ function focusSearch() {
               :to="{ path: `/projects/${project.id}`, query: returnToQuery(route.fullPath) }"
               color="neutral"
               variant="ghost"
-              class="nasq-search-result"
+              class="min-h-11 min-w-0 justify-start"
               :title="project.name"
               :label="project.name"
               @click="open = false"
             >
               <template #leading>
-                <span class="nasq-search-result-icon"><UIcon name="i-lucide-folder" aria-hidden="true" /></span>
+                <UIcon name="i-lucide-folder" class="size-4 shrink-0 text-muted" aria-hidden="true" />
               </template>
             </UButton>
           </section>
 
-          <section v-if="trimmed && can('pmo.tasks.read') && (tasks.length || waiting || tasksQuery.error.value)" class="nasq-search-section">
-            <h2 class="nasq-search-section-title">
+          <section v-if="trimmed && can('pmo.tasks.read') && (tasks.length || waiting || tasksQuery.error.value)" class="grid gap-1">
+            <h2 class="mb-0.5 flex items-center gap-1.5 px-2 text-xs font-semibold text-muted">
               <span>{{ t('nav.tasks') }}</span>
               <UBadge color="neutral" variant="subtle" size="sm" aria-hidden="true">{{ tasks.length }}</UBadge>
             </h2>
@@ -163,151 +163,30 @@ function focusSearch() {
               :to="{ path: `/tasks/${task.id}`, query: returnToQuery(route.fullPath) }"
               color="neutral"
               variant="ghost"
-              class="nasq-search-result"
+              class="min-h-11 min-w-0 justify-start"
               :title="task.name"
               :label="task.name"
               @click="open = false"
             >
               <template #leading>
-                <span class="nasq-search-result-icon"><UIcon name="i-lucide-check-square" aria-hidden="true" /></span>
+                <UIcon name="i-lucide-check-square" class="size-4 shrink-0 text-muted" aria-hidden="true" />
               </template>
             </UButton>
             <UButton
               v-if="tasksQuery.hasNextPage.value"
               color="neutral"
               variant="outline"
-              class="nasq-search-load-more"
+              block
+              class="mt-1.5"
               :disabled="tasksQuery.isFetchingNextPage.value"
               :label="t('app.loadMore')"
               @click="tasksQuery.fetchNextPage()"
             />
           </section>
 
-          <p v-if="!nav.length && !projects.length && !tasks.length && (!trimmed || (!waiting && !projectsQuery.isLoading.value && !projectsQuery.error.value && !tasksQuery.error.value))" class="nasq-search-empty">{{ t('app.noResults') }}</p>
+          <p v-if="!nav.length && !projects.length && !tasks.length && (!trimmed || (!waiting && !projectsQuery.isLoading.value && !projectsQuery.error.value && !tasksQuery.error.value))" class="px-4 py-10 text-center text-base text-muted">{{ t('app.noResults') }}</p>
         </div>
       </div>
     </template>
   </UModal>
 </template>
-
-<style scoped>
-:global(.nasq-search-dialog) {
-  display: flex;
-  width: min(640px, calc(100vw - 2rem));
-  max-width: min(640px, calc(100vw - 2rem));
-  max-height: min(620px, calc(100dvh - 2rem));
-  flex-direction: column;
-  gap: 0;
-  overflow: hidden;
-  border-radius: calc(var(--ui-radius) * 3);
-  padding: 0;
-}
-
-.nasq-search-bar {
-  display: flex;
-  min-height: 64px;
-  flex-shrink: 0;
-  align-items: center;
-  gap: 0.625rem;
-  border-bottom: 1px solid var(--ui-border);
-  padding: 0.625rem 0.75rem;
-}
-
-.nasq-search-bar-icon {
-  width: 1.125rem;
-  height: 1.125rem;
-  flex: 0 0 auto;
-  color: var(--ui-text-muted);
-}
-
-.nasq-search-input {
-  min-width: 0;
-  flex: 1;
-}
-
-.nasq-search-close {
-  flex: 0 0 auto;
-  color: var(--ui-text-muted);
-}
-
-.nasq-search-results {
-  min-height: 0;
-  flex: 1;
-  overflow-y: auto;
-  padding: 0.75rem;
-  overscroll-behavior: contain;
-}
-
-.nasq-search-section + .nasq-search-section {
-  margin-top: 1rem;
-}
-
-.nasq-search-section-title {
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
-  margin: 0 0 0.375rem;
-  padding-inline: 0.5rem;
-  color: var(--ui-text-muted);
-  font-size: var(--text-xs);
-  font-weight: 600;
-  line-height: 1.25rem;
-}
-
-
-.nasq-search-nav-list {
-  display: grid;
-  gap: 0.25rem;
-}
-
-.nasq-search-nav-list--grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.nasq-search-result {
-  min-width: 0;
-  min-height: 44px;
-  justify-content: start;
-}
-
-.nasq-search-result-icon {
-  display: inline-flex;
-  width: 1.25rem;
-  height: 1.25rem;
-  flex: 0 0 auto;
-  align-items: center;
-  justify-content: center;
-  color: var(--ui-text-muted);
-}
-
-.nasq-search-result-icon :deep(svg) {
-  width: 1rem;
-  height: 1rem;
-}
-
-.nasq-search-note {
-  margin: 0 0 0.375rem;
-  padding-inline: 0.5rem;
-  color: var(--ui-text-muted);
-  font-size: var(--text-xs);
-  line-height: 1.125rem;
-}
-
-.nasq-search-load-more {
-  width: 100%;
-  margin-top: 0.375rem;
-}
-
-.nasq-search-empty {
-  padding: 2.5rem 1rem;
-  color: var(--ui-text-muted);
-  text-align: center;
-  font-size: 1rem;
-}
-
-@media (max-width: 639px) {
-  .nasq-search-nav-list--grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-</style>

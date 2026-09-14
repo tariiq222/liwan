@@ -91,16 +91,16 @@ function printPage() {
 
 <style>
 .meeting-print-sheet { min-width: 0; display: grid; gap: 18px; }
-.meeting-print-brand { display: flex; min-width: 0; align-items: center; gap: 12px; border-block-end: 2px solid var(--brand-border); padding-block-end: 12px; }
+.meeting-print-brand { display: flex; min-width: 0; align-items: center; gap: 12px; border-block-end: 2px solid var(--ui-primary); padding-block-end: 12px; }
 .meeting-print-logo { width: 52px; height: 52px; object-fit: contain; }
 .meeting-print-company { font-size: 1.25rem; font-weight: 700; }
-.meeting-print-kicker { color: var(--muted-foreground); font-size: .875rem; }
+.meeting-print-kicker { color: var(--ui-text-muted); font-size: .875rem; }
 .meeting-print-meta { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
-.meeting-print-meta > div { display: grid; gap: 3px; border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; }
-.meeting-print-meta span { color: var(--muted-foreground); font-size: .75rem; }
+.meeting-print-meta > div { display: grid; gap: 3px; border: 1px solid var(--ui-border); border-radius: 8px; padding: 8px 10px; }
+.meeting-print-meta span { color: var(--ui-text-muted); font-size: .75rem; }
 .meeting-print-signatures { display: grid; gap: 28px; grid-template-columns: repeat(3, minmax(0, 1fr)); padding-block-start: 20px; }
 .meeting-print-signatures > div { display: grid; gap: 18px; }
-.meeting-print-signature-line { display: block; min-height: 28px; border-block-end: 1px solid var(--border); }
+.meeting-print-signature-line { display: block; min-height: 28px; border-block-end: 1px solid var(--ui-border); }
 @media print {
   @page { size: A4 landscape; margin: 12mm; }
   body { background: white !important; }

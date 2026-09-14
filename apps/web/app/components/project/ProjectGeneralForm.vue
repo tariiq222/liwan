@@ -126,9 +126,8 @@ const approvalLocked = computed(() => approvalBusy.value)
 <template>
   <div class="space-y-5">
     <p role="status" class="text-sm text-muted" data-testid="project-autosave-status">{{ t(saving ? 'projects.clarity.saving' : pendingMode && !approvalError ? 'projects.clarity.chooseApprover' : saveFailed ? 'projects.clarity.saveFailed' : saved ? 'projects.clarity.saved' : 'projects.clarity.autosaveHint') }}</p>
-    <section class="space-y-2">
-        <label id="project-settings-visibility-label" for="project-settings-visibility" class="flex items-center gap-2 text-sm font-medium leading-none">{{ t('projects.settings.visibility') }}</label>
-        <p class="text-sm text-muted">{{ t('projects.refresh.settings.visibilityHint') }}</p>
+    <UFormField as="section" :description="t('projects.refresh.settings.visibilityHint')">
+        <template #label><span id="project-settings-visibility-label">{{ t('projects.settings.visibility') }}</span></template>
         <USelect
           id="project-settings-visibility"
           :model-value="project.privacy_visibility"
@@ -138,24 +137,20 @@ const approvalLocked = computed(() => approvalBusy.value)
           aria-labelledby="project-settings-visibility-label"
           @update:model-value="onVisibilityChange"
         />
-    </section>
+    </UFormField>
 
-    <section class="flex items-center justify-between gap-3">
-      <div>
-        <label class="flex items-center gap-2 text-sm font-medium leading-none">{{ t('taskLifecycle.enableDependencies') }}</label>
-        <p class="text-sm text-muted">{{ t('taskLifecycle.enableDependenciesHint') }}</p>
-      </div>
+    <UFormField as="section" orientation="horizontal" :label="t('taskLifecycle.enableDependencies')" :description="t('taskLifecycle.enableDependenciesHint')">
       <USwitch
         :model-value="project.allow_task_dependencies"
         :disabled="!hydrated || !project.can_manage"
         :aria-label="t('taskLifecycle.enableDependencies')"
         @update:model-value="value => patch({ allow_task_dependencies: value })"
       />
-    </section>
+    </UFormField>
 
-    <section class="space-y-2">
-      <label id="project-settings-approval-label" for="project-settings-approval" class="flex items-center gap-2 text-sm font-medium leading-none">{{ t('projects.settings.approval') }}</label>
-      <p class="text-sm text-muted">{{ t('projects.settings.approvalHint') }}</p>
+    <UFormField as="section" :description="t('projects.settings.approvalHint')">
+      <template #label><span id="project-settings-approval-label">{{ t('projects.settings.approval') }}</span></template>
+      <div class="grid gap-2">
       <USelect
         id="project-settings-approval"
         :model-value="displayedMode"
@@ -187,12 +182,13 @@ const approvalLocked = computed(() => approvalBusy.value)
       >
         <template #default><span id="project-settings-approver-value" class="truncate">{{ approverItems.find(person => person.id === (pendingApproverId ?? project.completion_approver?.id))?.name || t('projects.settings.noApprover') }}</span></template>
       </USelectMenu>
-    </section>
+      </div>
+    </UFormField>
 
-    <section class="space-y-2">
-      <label id="project-settings-tags-label" for="project-settings-tags" class="flex items-center gap-2 text-sm font-medium leading-none">{{ t('projects.settings.tags') }}</label>
+    <UFormField as="section">
+      <template #label><span id="project-settings-tags-label">{{ t('projects.settings.tags') }}</span></template>
       <div id="project-settings-tags" aria-labelledby="project-settings-tags-label"><TagPicker :model-value="project.tags" :can-create="project.can_manage" labelledby="project-settings-tags-label" @update:model-value="onTagsChange" /></div>
-    </section>
+    </UFormField>
 
     <USeparator />
 

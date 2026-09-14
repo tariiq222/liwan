@@ -116,7 +116,7 @@ onBeforeUnmount(() => update.reset())
           <UInput id="branding-color" v-model="color" data-testid="branding-color" dir="ltr" class="min-w-0 flex-1 font-mono" :aria-invalid="!primaryValid" :disabled="!hydrated || isBusy" @update:model-value="markDirty" />
           <UPopover>
             <UButton type="button" color="neutral" variant="outline" square data-testid="branding-color-picker" :aria-label="t('settings.branding.colorPicker')" :disabled="!hydrated || isBusy">
-              <span class="size-5 rounded border" :style="{ backgroundColor: previewColor }" />
+              <span class="size-5 rounded border border-default" :style="{ backgroundColor: previewColor }" />
             </UButton>
             <template #content><UColorPicker v-model="color" class="p-3" :disabled="isBusy" @update:model-value="markDirty" /></template>
           </UPopover>
@@ -134,13 +134,13 @@ onBeforeUnmount(() => update.reset())
             :disabled="!hydrated || isBusy"
             @click="dirty = true; color = preset.color"
           >
-            <span class="size-4 rounded-full border" :style="{ backgroundColor: preset.color }" aria-hidden="true" />
+            <span class="size-4 rounded-full border border-default" :style="{ backgroundColor: preset.color }" aria-hidden="true" />
             {{ t(preset.labelKey) }}
           </UButton>
         </div>
       </div>
       <UAlert v-if="chartsNotDistinct" color="warning" :title="t('settings.branding.chartsNotDistinct')" />
-      <p v-if="validationError" role="alert" class="text-sm text-error">{{ validationError }}</p>
+      <UAlert v-if="validationError" role="alert" color="error" variant="subtle" :title="validationError" />
       <div class="nasq-form-footer">
         <UButton type="submit" data-testid="branding-submit" :aria-invalid="!colorValid" :disabled="!hydrated || isBusy || !colorValid">
           {{ update.isPending.value ? t('settings.branding.saving') : t('settings.branding.save') }}

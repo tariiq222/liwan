@@ -1,13 +1,10 @@
 <script setup lang="ts">
 import type { ProjectCharterCatalogResource } from '@nasq/contracts'
-import { refDebounced } from '@vueuse/core'
 import { formatCalendarDate } from '@/composables/calendarDate'
-import { usePeople } from '@/composables/usePeople'
 import { useCharterCatalogSearch } from '@/composables/useProjectCharterCatalogs'
 import type { CharterDraft, CharterFieldKey } from '@/utils/projectCharter'
 import { PROJECT_PRIORITIES } from '@/utils/projectCharter'
 import { returnToQuery } from '@/utils/safeReturnTo'
-import { sanitizeHtml } from '@/utils/sanitize'
 import ProjectCharterRows from '@/components/project/ProjectCharterRows.vue'
 import ProjectFieldHelp from '@/components/project/ProjectFieldHelp.vue'
 
@@ -35,16 +32,6 @@ function sectionOpen(fields: CharterFieldKey[]): boolean {
   return !compact.value || fields.some(field => !!props.fieldErrors?.[field])
 }
 
-const managerOpen = ref(false)
-const managerQ = ref('')
-const debouncedManagerQ = refDebounced(managerQ, 250)
-const { data: managers } = usePeople(debouncedManagerQ)
-
-const sponsorOpen = ref(false)
-const sponsorQ = ref('')
-const debouncedSponsorQ = refDebounced(sponsorQ, 250)
-const { data: sponsors } = usePeople(debouncedSponsorQ)
-
 const typeOpen = ref(false)
 const unitOpen = ref(false)
 const {
@@ -70,18 +57,15 @@ function catalogSettingsPath(resource: ProjectCharterCatalogResource) {
   return { path: `/settings/projects/catalogs/${resource}`, query: returnToQuery(route.fullPath) }
 }
 
-function selectManager(userId: number | null, name: string | null) {
-  managerOpen.value = false
-  managerQ.value = ''
-  draft.value.userId = userId
-  draft.value.managerName = name
+// The charter manager and sponsor are res.users ids from /api/v1/people.
+function onManagerResolve(people: { id: number; name: string }[]) {
+  draft.value.userId = people[0]?.id ?? null
+  draft.value.managerName = people[0]?.name ?? null
 }
 
-function selectSponsor(userId: number | null, name: string | null) {
-  sponsorOpen.value = false
-  sponsorQ.value = ''
-  draft.value.sponsorId = userId
-  draft.value.sponsorName = name
+function onSponsorResolve(people: { id: number; name: string }[]) {
+  draft.value.sponsorId = people[0]?.id ?? null
+  draft.value.sponsorName = people[0]?.name ?? null
 }
 
 function selectType(id: number | null, name: string | null) {
@@ -99,31 +83,8 @@ function selectUnit(id: number | null, name: string | null) {
 }
 
 // USelectMenu can only show a label for an item present in `:items`; the
-// currently chosen person/catalog value may fall outside the active search
-// results, so it is always merged in to keep the trigger label correct.
-const managerItems = computed(() => {
-  const list = managers.value ?? []
-  const none = props.requireManager ? [] : [{ id: null as number | null, name: t('projects.settings.noManager') }]
-  const current = draft.value.userId != null && !list.some(person => person.id === draft.value.userId)
-    ? [{ id: draft.value.userId, name: draft.value.managerName ?? '' }]
-    : []
-  return [...none, ...current, ...list]
-})
-function onManagerSelect(userId: number | null) {
-  selectManager(userId, managerItems.value.find(item => item.id === userId)?.name ?? null)
-}
-
-const sponsorItems = computed(() => {
-  const list = sponsors.value ?? []
-  const current = draft.value.sponsorId != null && !list.some(person => person.id === draft.value.sponsorId)
-    ? [{ id: draft.value.sponsorId, name: draft.value.sponsorName ?? '' }]
-    : []
-  return [{ id: null as number | null, name: t('projects.charter.none') }, ...current, ...list]
-})
-function onSponsorSelect(userId: number | null) {
-  selectSponsor(userId, sponsorItems.value.find(item => item.id === userId)?.name ?? null)
-}
-
+// currently chosen catalog value may fall outside the active search results,
+// so it is always merged in to keep the trigger label correct.
 const typeMenuItems = computed(() => {
   const current = draft.value.typeId != null && !typeItems.value.some(item => item.id === draft.value.typeId)
     ? [{ id: draft.value.typeId, name: draft.value.typeName ?? '' }]
@@ -154,69 +115,61 @@ function onBudgetState(value: unknown) {
 }
 
 const descriptionLooksHtml = computed(() => /<\/?[a-z][\s\S]*>/i.test(draft.value.description))
-const readonlyDescription = computed(() => (
-  descriptionLooksHtml.value ? sanitizeHtml(draft.value.description) : draft.value.description
-))
 </script>
+
 
 <template>
   <div class="grid gap-6">
-    <div class="grid gap-2" data-testid="charter-field-name">
-      <div class="flex items-center gap-1">
-        <label for="charter-name" class="flex items-center gap-2 text-sm font-medium leading-none">{{ t('projects.charter.fields.name') }}</label>
-        <ProjectFieldHelp :label="helpLabel(t('projects.charter.fields.name'))" :text="t('projects.charter.help.name')" />
-      </div>
+    <UFormField :label="t('projects.charter.fields.name')" required :error="fieldErrors?.name" data-testid="charter-field-name">
+      <template #hint><ProjectFieldHelp :label="helpLabel(t('projects.charter.fields.name'))" :text="t('projects.charter.help.name')" /></template>
+      <template #error="{ error }"><span role="alert">{{ error }}</span></template>
       <UInput id="charter-name" v-model="draft.name" class="w-full" data-testid="project-create-name" required :readonly="readonly" :disabled="controlsDisabled" />
-      <p v-if="fieldErrors?.name" role="alert" class="text-sm text-error">{{ fieldErrors.name }}</p>
-    </div>
+    </UFormField>
 
-    <div class="grid gap-2" data-testid="charter-field-description">
-      <div class="flex items-center gap-1">
-        <label for="charter-description" class="flex items-center gap-2 text-sm font-medium leading-none">{{ t('projects.charter.fields.description') }}</label>
-        <ProjectFieldHelp :label="helpLabel(t('projects.charter.fields.description'))" :text="t('projects.charter.help.description')" />
+    <UFormField :label="t('projects.charter.fields.description')" data-testid="charter-field-description">
+      <template #hint><ProjectFieldHelp :label="helpLabel(t('projects.charter.fields.description'))" :text="t('projects.charter.help.description')" /></template>
+      <div v-if="readonly && descriptionLooksHtml" class="rounded-md bg-elevated/50 p-3">
+        <SharedRichText size="sm" :html="draft.description" />
       </div>
-      <div v-if="readonly && descriptionLooksHtml" class="rounded-md border bg-elevated/30 p-3 text-sm" v-html="readonlyDescription" />
       <UTextarea v-else id="charter-description" v-model="draft.description" class="w-full" :readonly="readonly" :disabled="controlsDisabled" :rows="4" />
-    </div>
+    </UFormField>
 
-    <div class="grid gap-2" data-testid="charter-field-manager">
-      <div class="flex items-center gap-1">
-        <label id="charter-manager-label" for="charter-manager" class="flex items-center gap-2 text-sm font-medium leading-none">
-          {{ t('projects.charter.fields.manager') }}
-          <span v-if="requireManager" class="text-error">*</span>
-        </label>
-        <ProjectFieldHelp :label="helpLabel(t('projects.charter.fields.manager'))" :text="t('projects.charter.help.manager')" />
-      </div>
+    <UFormField :required="requireManager" :error="fieldErrors?.manager" data-testid="charter-field-manager">
+      <template #label><span id="charter-manager-label">{{ t('projects.charter.fields.manager') }}</span></template>
+      <template #hint><ProjectFieldHelp :label="helpLabel(t('projects.charter.fields.manager'))" :text="t('projects.charter.help.manager')" /></template>
+      <template #error="{ error }"><span role="alert">{{ error }}</span></template>
       <p v-if="readonly" class="text-sm">{{ draft.managerName || t('projects.settings.noManager') }}</p>
-      <USelectMenu
-        v-else
-        id="charter-manager"
-        v-model:open="managerOpen"
-        v-model:search-term="managerQ"
-        :model-value="draft.userId"
-        :items="managerItems"
-        value-key="id"
-        label-key="name"
-        ignore-filter
-        class="w-full min-w-0"
-        data-testid="project-create-manager"
-        :disabled="controlsDisabled"
-        :aria-required="requireManager"
-        aria-labelledby="charter-manager-label charter-manager-value"
-        :placeholder="t('projects.settings.noManager')"
-        @update:model-value="onManagerSelect"
-      >
-        <template #default><span id="charter-manager-value" class="truncate">{{ draft.managerName || t('projects.settings.noManager') }}</span></template>
-      </USelectMenu>
-      <p v-if="fieldErrors?.manager" role="alert" class="text-sm text-error">{{ fieldErrors.manager }}</p>
-    </div>
+      <div v-else class="flex min-w-0 items-center gap-1">
+        <SharedPersonPicker
+          id="charter-manager"
+          :model-value="draft.userId"
+          value-key="user_id"
+          :known="draft.userId != null ? [{ id: draft.userId, name: draft.managerName ?? '' }] : []"
+          :placeholder="t('projects.settings.noManager')"
+          :disabled="controlsDisabled"
+          aria-labelledby="charter-manager-label charter-manager"
+          :aria-required="requireManager"
+          data-testid="project-create-manager"
+          @resolve="onManagerResolve"
+        />
+        <UButton
+          v-if="!requireManager && draft.userId != null"
+          type="button"
+          color="neutral"
+          variant="ghost"
+          square
+          icon="i-lucide-x"
+          :disabled="controlsDisabled"
+          :aria-label="t('projects.charter.clearField', { field: t('projects.charter.fields.manager') })"
+          @click="onManagerResolve([])"
+        />
+      </div>
+    </UFormField>
 
     <div class="grid gap-4 md:grid-cols-2">
-      <div class="grid gap-2" data-testid="charter-field-date_start">
-        <div class="flex items-center gap-1">
-          <label id="charter-date-start-label" for="charter-date-start" class="flex items-center gap-2 text-sm font-medium leading-none">{{ t('projects.charter.fields.date_start') }}</label>
-          <ProjectFieldHelp :label="helpLabel(t('projects.charter.fields.date_start'))" :text="t('projects.charter.help.date_start')" />
-        </div>
+      <UFormField :label="t('projects.charter.fields.date_start')" :error="fieldErrors?.date_start" data-testid="charter-field-date_start">
+        <template #hint><ProjectFieldHelp :label="helpLabel(t('projects.charter.fields.date_start'))" :text="t('projects.charter.help.date_start')" /></template>
+        <template #error="{ error }"><span role="alert">{{ error }}</span></template>
         <p v-if="readonly" class="text-sm">{{ startLabel }}</p>
         <SharedDateField
           v-else
@@ -225,10 +178,10 @@ const readonlyDescription = computed(() => (
           :disabled="controlsDisabled"
           :aria-label="t('projects.charter.fields.date_start')"
         />
-        <p v-if="fieldErrors?.date_start" role="alert" class="text-sm text-error">{{ fieldErrors.date_start }}</p>
-      </div>
-      <div class="grid gap-2" data-testid="charter-field-date_end">
-        <div class="flex items-center gap-1"><label id="charter-date-end-label" for="charter-date-end" class="flex items-center gap-2 text-sm font-medium leading-none">{{ t('projects.charter.fields.date_end') }}<span v-if="requireEndDate" class="text-error">*</span></label><ProjectFieldHelp :label="helpLabel(t('projects.charter.fields.date_end'))" :text="t('projects.charter.help.date_end')" /></div>
+      </UFormField>
+      <UFormField :label="t('projects.charter.fields.date_end')" :required="requireEndDate" :error="fieldErrors?.date_end" data-testid="charter-field-date_end">
+        <template #hint><ProjectFieldHelp :label="helpLabel(t('projects.charter.fields.date_end'))" :text="t('projects.charter.help.date_end')" /></template>
+        <template #error="{ error }"><span role="alert">{{ error }}</span></template>
         <p v-if="readonly" class="text-sm">{{ endLabel }}</p>
         <SharedDateField
           v-else
@@ -239,272 +192,231 @@ const readonlyDescription = computed(() => (
           :disabled="controlsDisabled"
           :aria-label="t('projects.charter.fields.date_end')"
         />
-        <p v-if="fieldErrors?.date_end" role="alert" class="text-sm text-error">{{ fieldErrors.date_end }}</p>
-      </div>
+      </UFormField>
     </div>
 
-    <details v-if="!compact" class="rounded-lg border p-4" :open="sectionOpen(['code', 'type', 'owning_unit', 'sponsor'])">
+    <details v-if="!compact" class="rounded-lg border border-default p-4" :open="sectionOpen(['code', 'type', 'owning_unit', 'sponsor'])">
       <summary class="cursor-pointer font-semibold">{{ t('projects.charter.sections.context') }}</summary>
       <div class="mt-4 grid gap-6">
-        <div v-if="!compact" class="grid gap-2" data-testid="charter-field-code">
-          <div class="flex items-center gap-1"><label for="charter-code" class="flex items-center gap-2 text-sm font-medium leading-none">{{ t('projects.charter.fields.code') }}</label><ProjectFieldHelp :label="helpLabel(t('projects.charter.fields.code'))" :text="t('projects.charter.help.code')" /></div>
+        <UFormField :label="t('projects.charter.fields.code')" data-testid="charter-field-code">
+          <template #hint><ProjectFieldHelp :label="helpLabel(t('projects.charter.fields.code'))" :text="t('projects.charter.help.code')" /></template>
           <UInput id="charter-code" :model-value="draft.code ?? t('projects.charter.codePending')" class="w-full" readonly disabled dir="ltr" />
-        </div>
-    <div class="grid gap-4 md:grid-cols-2">
-      <div class="grid gap-2" data-testid="charter-field-type">
-        <div class="flex items-center gap-1">
-          <label id="charter-type-label" for="charter-type" class="flex items-center gap-2 text-sm font-medium leading-none">{{ t('projects.charter.fields.type') }}</label>
-          <ProjectFieldHelp :label="helpLabel(t('projects.charter.fields.type'))" :text="t('projects.charter.help.type')" />
-        </div>
-        <p v-if="readonly" class="text-sm">{{ draft.typeName || t('projects.charter.none') }}</p>
-        <USelectMenu
-          v-else
-          id="charter-type"
-          v-model:open="typeOpen"
-          v-model:search-term="typeQuery"
-          :model-value="draft.typeId"
-          :items="typeMenuItems"
-          value-key="id"
-          label-key="name"
-          ignore-filter
-          :loading="typesPending"
-          class="w-full min-w-0"
-          :disabled="controlsDisabled"
-          aria-labelledby="charter-type-label charter-type-value"
-          :placeholder="t('projects.charter.none')"
-          @update:model-value="onTypeSelect"
-        >
-        <template #default><span id="charter-type-value" class="truncate">{{ draft.typeName || t('projects.charter.none') }}</span></template>
-          <template v-if="typesHasMore" #content-bottom>
-            <div class="border-t p-2">
-              <UButton type="button" color="neutral" variant="ghost" size="sm" class="w-full" :disabled="typesPending" :label="t('app.loadMore')" @click="loadMoreTypes()" />
-            </div>
-          </template>
-        </USelectMenu>
-        <p v-if="!readonly && !typeItems.length && !typesPending && canManageSettings" class="text-sm text-muted">
-          <NuxtLink :to="catalogSettingsPath('types')" class="underline">{{ t('projects.charter.emptyTypesLink') }}</NuxtLink>
-        </p>
-        <p v-else-if="!readonly && !typeItems.length && !typesPending" class="text-sm text-muted">
-          {{ t('projects.charter.emptyTypes') }}
-        </p>
-      </div>
+        </UFormField>
+        <div class="grid gap-4 md:grid-cols-2">
+          <UFormField data-testid="charter-field-type">
+            <template #label><span id="charter-type-label">{{ t('projects.charter.fields.type') }}</span></template>
+            <template #hint><ProjectFieldHelp :label="helpLabel(t('projects.charter.fields.type'))" :text="t('projects.charter.help.type')" /></template>
+            <p v-if="readonly" class="text-sm">{{ draft.typeName || t('projects.charter.none') }}</p>
+            <USelectMenu
+              v-else
+              id="charter-type"
+              v-model:open="typeOpen"
+              v-model:search-term="typeQuery"
+              :model-value="draft.typeId"
+              :items="typeMenuItems"
+              value-key="id"
+              label-key="name"
+              ignore-filter
+              :loading="typesPending"
+              class="w-full min-w-0"
+              :disabled="controlsDisabled"
+              aria-labelledby="charter-type-label charter-type-value"
+              :placeholder="t('projects.charter.none')"
+              @update:model-value="onTypeSelect"
+            >
+              <template #default><span id="charter-type-value" class="truncate">{{ draft.typeName || t('projects.charter.none') }}</span></template>
+              <template v-if="typesHasMore" #content-bottom>
+                <div class="border-t border-default p-2">
+                  <UButton type="button" color="neutral" variant="ghost" size="sm" class="w-full" :disabled="typesPending" :label="t('app.loadMore')" @click="loadMoreTypes()" />
+                </div>
+              </template>
+            </USelectMenu>
+            <p v-if="!readonly && !typeItems.length && !typesPending && canManageSettings" class="mt-2 text-sm text-muted">
+              <NuxtLink :to="catalogSettingsPath('types')" class="underline">{{ t('projects.charter.emptyTypesLink') }}</NuxtLink>
+            </p>
+            <p v-else-if="!readonly && !typeItems.length && !typesPending" class="mt-2 text-sm text-muted">
+              {{ t('projects.charter.emptyTypes') }}
+            </p>
+          </UFormField>
 
-      <div class="grid gap-2" data-testid="charter-field-owning_unit">
-        <div class="flex items-center gap-1">
-          <label id="charter-owning-unit-label" for="charter-owning-unit" class="flex items-center gap-2 text-sm font-medium leading-none">{{ t('projects.charter.fields.owning_unit') }}</label>
-          <ProjectFieldHelp :label="helpLabel(t('projects.charter.fields.owning_unit'))" :text="t('projects.charter.help.owning_unit')" />
-        </div>
-        <p v-if="readonly" class="text-sm">{{ draft.owningUnitName || t('projects.charter.none') }}</p>
-        <USelectMenu
-          v-else
-          id="charter-owning-unit"
-          v-model:open="unitOpen"
-          v-model:search-term="unitQuery"
-          :model-value="draft.owningUnitId"
-          :items="unitMenuItems"
-          value-key="id"
-          label-key="name"
-          ignore-filter
-          :loading="unitsPending"
-          class="w-full min-w-0"
-          :disabled="controlsDisabled"
-          aria-labelledby="charter-owning-unit-label charter-owning-unit-value"
-          :placeholder="t('projects.charter.none')"
-          @update:model-value="onUnitSelect"
-        >
-        <template #default><span id="charter-owning-unit-value" class="truncate">{{ draft.owningUnitName || t('projects.charter.none') }}</span></template>
-          <template v-if="unitsHasMore" #content-bottom>
-            <div class="border-t p-2">
-              <UButton type="button" color="neutral" variant="ghost" size="sm" class="w-full" :disabled="unitsPending" :label="t('app.loadMore')" @click="loadMoreUnits()" />
+          <UFormField data-testid="charter-field-owning_unit">
+            <template #label><span id="charter-owning-unit-label">{{ t('projects.charter.fields.owning_unit') }}</span></template>
+            <template #hint><ProjectFieldHelp :label="helpLabel(t('projects.charter.fields.owning_unit'))" :text="t('projects.charter.help.owning_unit')" /></template>
+            <p v-if="readonly" class="text-sm">{{ draft.owningUnitName || t('projects.charter.none') }}</p>
+            <USelectMenu
+              v-else
+              id="charter-owning-unit"
+              v-model:open="unitOpen"
+              v-model:search-term="unitQuery"
+              :model-value="draft.owningUnitId"
+              :items="unitMenuItems"
+              value-key="id"
+              label-key="name"
+              ignore-filter
+              :loading="unitsPending"
+              class="w-full min-w-0"
+              :disabled="controlsDisabled"
+              aria-labelledby="charter-owning-unit-label charter-owning-unit-value"
+              :placeholder="t('projects.charter.none')"
+              @update:model-value="onUnitSelect"
+            >
+              <template #default><span id="charter-owning-unit-value" class="truncate">{{ draft.owningUnitName || t('projects.charter.none') }}</span></template>
+              <template v-if="unitsHasMore" #content-bottom>
+                <div class="border-t border-default p-2">
+                  <UButton type="button" color="neutral" variant="ghost" size="sm" class="w-full" :disabled="unitsPending" :label="t('app.loadMore')" @click="loadMoreUnits()" />
+                </div>
+              </template>
+            </USelectMenu>
+            <p v-if="!readonly && !unitItems.length && !unitsPending && canManageSettings" class="mt-2 text-sm text-muted">
+              <NuxtLink :to="catalogSettingsPath('owning-units')" class="underline">{{ t('projects.charter.emptyUnitsLink') }}</NuxtLink>
+            </p>
+            <p v-else-if="!readonly && !unitItems.length && !unitsPending" class="mt-2 text-sm text-muted">
+              {{ t('projects.charter.emptyUnits') }}
+            </p>
+          </UFormField>
+
+          <UFormField data-testid="charter-field-sponsor">
+            <template #label><span id="charter-sponsor-label">{{ t('projects.charter.fields.sponsor') }}</span></template>
+            <template #hint><ProjectFieldHelp :label="helpLabel(t('projects.charter.fields.sponsor'))" :text="t('projects.charter.help.sponsor')" /></template>
+            <p v-if="readonly" class="text-sm">{{ draft.sponsorName || t('projects.charter.none') }}</p>
+            <div v-else class="flex min-w-0 items-center gap-1">
+              <SharedPersonPicker
+                id="charter-sponsor"
+                :model-value="draft.sponsorId"
+                value-key="user_id"
+                :known="draft.sponsorId != null ? [{ id: draft.sponsorId, name: draft.sponsorName ?? '' }] : []"
+                :placeholder="t('projects.charter.none')"
+                :disabled="controlsDisabled"
+                aria-labelledby="charter-sponsor-label charter-sponsor"
+                @resolve="onSponsorResolve"
+              />
+              <UButton
+                v-if="draft.sponsorId != null"
+                type="button"
+                color="neutral"
+                variant="ghost"
+                square
+                icon="i-lucide-x"
+                :disabled="controlsDisabled"
+                :aria-label="t('projects.charter.clearField', { field: t('projects.charter.fields.sponsor') })"
+                @click="onSponsorResolve([])"
+              />
             </div>
-          </template>
-        </USelectMenu>
-        <p v-if="!readonly && !unitItems.length && !unitsPending && canManageSettings" class="text-sm text-muted">
-          <NuxtLink :to="catalogSettingsPath('owning-units')" class="underline">{{ t('projects.charter.emptyUnitsLink') }}</NuxtLink>
-        </p>
-        <p v-else-if="!readonly && !unitItems.length && !unitsPending" class="text-sm text-muted">
-          {{ t('projects.charter.emptyUnits') }}
-        </p>
-      </div>
-    <div class="grid gap-2" data-testid="charter-field-sponsor">
-      <div class="flex items-center gap-1">
-        <label id="charter-sponsor-label" for="charter-sponsor" class="flex items-center gap-2 text-sm font-medium leading-none">{{ t('projects.charter.fields.sponsor') }}</label>
-        <ProjectFieldHelp :label="helpLabel(t('projects.charter.fields.sponsor'))" :text="t('projects.charter.help.sponsor')" />
-      </div>
-      <p v-if="readonly" class="text-sm">{{ draft.sponsorName || t('projects.charter.none') }}</p>
-      <USelectMenu
-        v-else
-        id="charter-sponsor"
-        v-model:open="sponsorOpen"
-        v-model:search-term="sponsorQ"
-        :model-value="draft.sponsorId"
-        :items="sponsorItems"
-        value-key="id"
-        label-key="name"
-        ignore-filter
-        class="w-full min-w-0"
-        :disabled="controlsDisabled"
-        aria-labelledby="charter-sponsor-label charter-sponsor-value"
-        :placeholder="t('projects.charter.none')"
-        @update:model-value="onSponsorSelect"
-      >
-        <template #default><span id="charter-sponsor-value" class="truncate">{{ draft.sponsorName || t('projects.charter.none') }}</span></template>
-      </USelectMenu>
-    </div>
-      </div>
+          </UFormField>
+        </div>
       </div>
     </details>
 
-    <details data-testid="project-create-charter-outcomes" class="rounded-lg border p-4" :open="!projectCreate || sectionOpen(['authority', 'rationale', 'objectives', 'benefits', 'scope', 'exclusions', 'high_level_requirements', 'deliverables', 'acceptance', 'success'])">
+    <details data-testid="project-create-charter-outcomes" class="rounded-lg border border-default p-4" :open="!projectCreate || sectionOpen(['authority', 'rationale', 'objectives', 'benefits', 'scope', 'exclusions', 'high_level_requirements', 'deliverables', 'acceptance', 'success'])">
       <summary class="cursor-pointer font-semibold">{{ t('projects.charter.sections.outcomes') }}</summary>
       <div class="mt-4 grid gap-6">
-    <div v-if="!compact" class="grid gap-2" data-testid="charter-field-authority">
-      <div class="flex items-center gap-1">
-        <label for="charter-authority" class="flex items-center gap-2 text-sm font-medium leading-none">{{ t('projects.charter.fields.authority') }}</label>
-        <ProjectFieldHelp :label="helpLabel(t('projects.charter.fields.authority'))" :text="t('projects.charter.help.authority')" />
-      </div>
-      <UTextarea id="charter-authority" v-model="draft.authority" class="w-full" :readonly="readonly" :disabled="controlsDisabled" :rows="3" />
-    </div>
+        <UFormField v-if="!compact" :label="t('projects.charter.fields.authority')" data-testid="charter-field-authority">
+          <template #hint><ProjectFieldHelp :label="helpLabel(t('projects.charter.fields.authority'))" :text="t('projects.charter.help.authority')" /></template>
+          <UTextarea id="charter-authority" v-model="draft.authority" class="w-full" :readonly="readonly" :disabled="controlsDisabled" :rows="3" />
+        </UFormField>
 
-    <div class="grid gap-2" data-testid="charter-field-rationale">
-      <div class="flex items-center gap-1">
-        <label for="charter-rationale" class="flex items-center gap-2 text-sm font-medium leading-none">{{ t('projects.charter.fields.rationale') }}</label>
-        <ProjectFieldHelp :label="helpLabel(t('projects.charter.fields.rationale'))" :text="t('projects.charter.help.rationale')" />
-      </div>
-      <UTextarea id="charter-rationale" v-model="draft.rationale" class="w-full" :readonly="readonly" :disabled="controlsDisabled" :rows="3" />
-    </div>
+        <UFormField :label="t('projects.charter.fields.rationale')" data-testid="charter-field-rationale">
+          <template #hint><ProjectFieldHelp :label="helpLabel(t('projects.charter.fields.rationale'))" :text="t('projects.charter.help.rationale')" /></template>
+          <UTextarea id="charter-rationale" v-model="draft.rationale" class="w-full" :readonly="readonly" :disabled="controlsDisabled" :rows="3" />
+        </UFormField>
 
-    <ProjectCharterRows v-model="draft" :readonly="readonly" :disabled="controlsDisabled" :compact="compact" />
+        <ProjectCharterRows v-model="draft" :readonly="readonly" :disabled="controlsDisabled" :compact="compact" />
 
-    <div v-if="!compact" class="grid gap-2" data-testid="charter-field-benefits">
-      <div class="flex items-center gap-1">
-        <label for="charter-benefits" class="flex items-center gap-2 text-sm font-medium leading-none">{{ t('projects.charter.fields.benefits') }}</label>
-        <ProjectFieldHelp :label="helpLabel(t('projects.charter.fields.benefits'))" :text="t('projects.charter.help.benefits')" />
-      </div>
-      <UTextarea id="charter-benefits" v-model="draft.benefits" class="w-full" :readonly="readonly" :disabled="controlsDisabled" :rows="3" />
-    </div>
+        <UFormField v-if="!compact" :label="t('projects.charter.fields.benefits')" data-testid="charter-field-benefits">
+          <template #hint><ProjectFieldHelp :label="helpLabel(t('projects.charter.fields.benefits'))" :text="t('projects.charter.help.benefits')" /></template>
+          <UTextarea id="charter-benefits" v-model="draft.benefits" class="w-full" :readonly="readonly" :disabled="controlsDisabled" :rows="3" />
+        </UFormField>
 
-    <div class="grid gap-2" data-testid="charter-field-scope">
-      <div class="flex items-center gap-1">
-        <label for="charter-scope" class="flex items-center gap-2 text-sm font-medium leading-none">{{ t('projects.charter.fields.scope') }}</label>
-        <ProjectFieldHelp :label="helpLabel(t('projects.charter.fields.scope'))" :text="t('projects.charter.help.scope')" />
-      </div>
-      <UTextarea id="charter-scope" v-model="draft.scope" class="w-full" :readonly="readonly" :disabled="controlsDisabled" :rows="3" />
-    </div>
+        <UFormField :label="t('projects.charter.fields.scope')" data-testid="charter-field-scope">
+          <template #hint><ProjectFieldHelp :label="helpLabel(t('projects.charter.fields.scope'))" :text="t('projects.charter.help.scope')" /></template>
+          <UTextarea id="charter-scope" v-model="draft.scope" class="w-full" :readonly="readonly" :disabled="controlsDisabled" :rows="3" />
+        </UFormField>
 
-    <div class="grid gap-2" data-testid="charter-field-exclusions">
-      <div class="flex items-center gap-1">
-        <label for="charter-exclusions" class="flex items-center gap-2 text-sm font-medium leading-none">{{ t('projects.charter.fields.exclusions') }}</label>
-        <ProjectFieldHelp :label="helpLabel(t('projects.charter.fields.exclusions'))" :text="t('projects.charter.help.exclusions')" />
-      </div>
-      <UTextarea id="charter-exclusions" v-model="draft.exclusions" class="w-full" :readonly="readonly" :disabled="controlsDisabled" :rows="3" />
-    </div>
+        <UFormField :label="t('projects.charter.fields.exclusions')" data-testid="charter-field-exclusions">
+          <template #hint><ProjectFieldHelp :label="helpLabel(t('projects.charter.fields.exclusions'))" :text="t('projects.charter.help.exclusions')" /></template>
+          <UTextarea id="charter-exclusions" v-model="draft.exclusions" class="w-full" :readonly="readonly" :disabled="controlsDisabled" :rows="3" />
+        </UFormField>
 
-    <div v-if="!compact" class="grid gap-2" data-testid="charter-field-high_level_requirements">
-      <div class="flex items-center gap-1">
-        <label for="charter-requirements" class="flex items-center gap-2 text-sm font-medium leading-none">{{ t('projects.charter.fields.high_level_requirements') }}</label>
-        <ProjectFieldHelp :label="helpLabel(t('projects.charter.fields.high_level_requirements'))" :text="t('projects.charter.help.high_level_requirements')" />
-      </div>
-      <UTextarea id="charter-requirements" v-model="draft.highLevelRequirements" class="w-full" :readonly="readonly" :disabled="controlsDisabled" :rows="3" />
-    </div>
+        <UFormField v-if="!compact" :label="t('projects.charter.fields.high_level_requirements')" data-testid="charter-field-high_level_requirements">
+          <template #hint><ProjectFieldHelp :label="helpLabel(t('projects.charter.fields.high_level_requirements'))" :text="t('projects.charter.help.high_level_requirements')" /></template>
+          <UTextarea id="charter-requirements" v-model="draft.highLevelRequirements" class="w-full" :readonly="readonly" :disabled="controlsDisabled" :rows="3" />
+        </UFormField>
 
-    <div v-if="!compact" class="grid gap-2" data-testid="charter-field-success">
-      <div class="flex items-center gap-1">
-        <label for="charter-success" class="flex items-center gap-2 text-sm font-medium leading-none">{{ t('projects.charter.fields.success') }}</label>
-        <ProjectFieldHelp :label="helpLabel(t('projects.charter.fields.success'))" :text="t('projects.charter.help.success')" />
-      </div>
-      <UTextarea id="charter-success" v-model="draft.success" class="w-full" :readonly="readonly" :disabled="controlsDisabled" :rows="3" />
-    </div>
+        <UFormField v-if="!compact" :label="t('projects.charter.fields.success')" data-testid="charter-field-success">
+          <template #hint><ProjectFieldHelp :label="helpLabel(t('projects.charter.fields.success'))" :text="t('projects.charter.help.success')" /></template>
+          <UTextarea id="charter-success" v-model="draft.success" class="w-full" :readonly="readonly" :disabled="controlsDisabled" :rows="3" />
+        </UFormField>
       </div>
     </details>
 
-    <details data-testid="project-create-charter-planning" class="rounded-lg border p-4" :open="!projectCreate || sectionOpen(['budget_state', 'amount', 'currency', 'priority', 'assumptions', 'constraints', 'closure'])">
+    <details data-testid="project-create-charter-planning" class="rounded-lg border border-default p-4" :open="!projectCreate || sectionOpen(['budget_state', 'amount', 'currency', 'priority', 'assumptions', 'constraints', 'closure'])">
       <summary class="cursor-pointer font-semibold">{{ t('projects.charter.sections.planning') }}</summary>
       <div class="mt-4 grid gap-6">
-    <div class="grid gap-4 md:grid-cols-3">
-      <div class="grid gap-2" data-testid="charter-field-budget_state">
-        <div class="flex items-center gap-1">
-          <label id="charter-budget-state-label" for="charter-budget-state" class="flex items-center gap-2 text-sm font-medium leading-none">{{ t('projects.charter.fields.budget_state') }}</label>
-          <ProjectFieldHelp :label="helpLabel(t('projects.charter.fields.budget_state'))" :text="t('projects.charter.help.budget_state')" />
+        <div class="grid gap-4 md:grid-cols-3">
+          <UFormField data-testid="charter-field-budget_state">
+            <template #label><span id="charter-budget-state-label">{{ t('projects.charter.fields.budget_state') }}</span></template>
+            <template #hint><ProjectFieldHelp :label="helpLabel(t('projects.charter.fields.budget_state'))" :text="t('projects.charter.help.budget_state')" /></template>
+            <p v-if="readonly" class="text-sm">{{ t(`projects.charter.budget.${draft.budgetState}`) }}</p>
+            <USelect
+              v-else
+              id="charter-budget-state"
+              :model-value="draft.budgetState"
+              :items="[{ value: 'unknown', label: t('projects.charter.budget.unknown') }, { value: 'estimate', label: t('projects.charter.budget.estimate') }]"
+              :disabled="controlsDisabled"
+              class="w-full"
+              aria-labelledby="charter-budget-state-label"
+              @update:model-value="onBudgetState"
+            />
+          </UFormField>
+          <UFormField :label="t('projects.charter.fields.amount')" :error="fieldErrors?.amount" data-testid="charter-field-amount">
+            <template #hint><ProjectFieldHelp :label="helpLabel(t('projects.charter.fields.amount'))" :text="t('projects.charter.help.amount')" /></template>
+            <template #error="{ error }"><span role="alert">{{ error }}</span></template>
+            <UInput
+              id="charter-amount"
+              v-model="draft.amountInput"
+              class="w-full"
+              inputmode="decimal"
+              dir="ltr"
+              :readonly="readonly || draft.budgetState === 'unknown'"
+              :disabled="controlsDisabled || draft.budgetState === 'unknown'"
+            />
+          </UFormField>
+          <UFormField :label="t('projects.charter.fields.currency')" data-testid="charter-field-currency">
+            <template #hint><ProjectFieldHelp :label="helpLabel(t('projects.charter.fields.currency'))" :text="t('projects.charter.help.currency')" /></template>
+            <UInput id="charter-currency" :model-value="draft.currencyLabel || t('projects.charter.none')" class="w-full" readonly disabled />
+          </UFormField>
         </div>
-        <p v-if="readonly" class="text-sm">{{ t(`projects.charter.budget.${draft.budgetState}`) }}</p>
-        <USelect
-          v-else
-          id="charter-budget-state"
-          :model-value="draft.budgetState"
-          :items="[{ value: 'unknown', label: t('projects.charter.budget.unknown') }, { value: 'estimate', label: t('projects.charter.budget.estimate') }]"
-          :disabled="controlsDisabled"
-          class="w-full"
-          aria-labelledby="charter-budget-state-label"
-          @update:model-value="onBudgetState"
-        />
-      </div>
-      <div class="grid gap-2" data-testid="charter-field-amount">
-        <div class="flex items-center gap-1">
-          <label for="charter-amount" class="flex items-center gap-2 text-sm font-medium leading-none">{{ t('projects.charter.fields.amount') }}</label>
-          <ProjectFieldHelp :label="helpLabel(t('projects.charter.fields.amount'))" :text="t('projects.charter.help.amount')" />
-        </div>
-        <UInput
-          id="charter-amount"
-          v-model="draft.amountInput"
-          class="w-full"
-          inputmode="decimal"
-          dir="ltr"
-          :readonly="readonly || draft.budgetState === 'unknown'"
-          :disabled="controlsDisabled || draft.budgetState === 'unknown'"
-        />
-        <p v-if="fieldErrors?.amount" role="alert" class="text-sm text-error">{{ fieldErrors.amount }}</p>
-      </div>
-      <div class="grid gap-2" data-testid="charter-field-currency">
-        <div class="flex items-center gap-1">
-          <label for="charter-currency" class="flex items-center gap-2 text-sm font-medium leading-none">{{ t('projects.charter.fields.currency') }}</label>
-          <ProjectFieldHelp :label="helpLabel(t('projects.charter.fields.currency'))" :text="t('projects.charter.help.currency')" />
-        </div>
-        <UInput id="charter-currency" :model-value="draft.currencyLabel || t('projects.charter.none')" class="w-full" readonly disabled />
-      </div>
-    </div>
 
-    <div v-if="!compact" class="grid gap-2" data-testid="charter-field-priority">
-      <div class="flex items-center gap-1">
-        <label id="charter-priority-label" for="charter-priority" class="flex items-center gap-2 text-sm font-medium leading-none">{{ t('projects.charter.fields.priority') }}</label>
-        <ProjectFieldHelp :label="helpLabel(t('projects.charter.fields.priority'))" :text="t('projects.charter.help.priority')" />
-      </div>
-      <p v-if="readonly" class="text-sm">{{ draft.priority ? t(`projects.charter.priority.${draft.priority}`) : t('projects.charter.none') }}</p>
-      <USelect
-        v-else
-        id="charter-priority"
-        :model-value="draft.priority ?? 'none'"
-        :items="[{ value: 'none', label: t('projects.charter.none') }, ...PROJECT_PRIORITIES.map(priority => ({ value: priority, label: t(`projects.charter.priority.${priority}`) }))]"
-        :disabled="controlsDisabled"
-        class="w-full"
-        aria-labelledby="charter-priority-label"
-        @update:model-value="value => draft.priority = value === 'none' ? null : (value as typeof PROJECT_PRIORITIES[number])"
-      />
-    </div>
+        <UFormField v-if="!compact" data-testid="charter-field-priority">
+          <template #label><span id="charter-priority-label">{{ t('projects.charter.fields.priority') }}</span></template>
+          <template #hint><ProjectFieldHelp :label="helpLabel(t('projects.charter.fields.priority'))" :text="t('projects.charter.help.priority')" /></template>
+          <p v-if="readonly" class="text-sm">{{ draft.priority ? t(`projects.charter.priority.${draft.priority}`) : t('projects.charter.none') }}</p>
+          <USelect
+            v-else
+            id="charter-priority"
+            :model-value="draft.priority ?? 'none'"
+            :items="[{ value: 'none', label: t('projects.charter.none') }, ...PROJECT_PRIORITIES.map(priority => ({ value: priority, label: t(`projects.charter.priority.${priority}`) }))]"
+            :disabled="controlsDisabled"
+            class="w-full"
+            aria-labelledby="charter-priority-label"
+            @update:model-value="value => draft.priority = value === 'none' ? null : (value as typeof PROJECT_PRIORITIES[number])"
+          />
+        </UFormField>
 
-    <div v-if="!compact" class="grid gap-2" data-testid="charter-field-assumptions">
-      <div class="flex items-center gap-1">
-        <label for="charter-assumptions" class="flex items-center gap-2 text-sm font-medium leading-none">{{ t('projects.charter.fields.assumptions') }}</label>
-        <ProjectFieldHelp :label="helpLabel(t('projects.charter.fields.assumptions'))" :text="t('projects.charter.help.assumptions')" />
-      </div>
-      <UTextarea id="charter-assumptions" v-model="draft.assumptions" class="w-full" :readonly="readonly" :disabled="controlsDisabled" :rows="3" />
-    </div>
+        <UFormField v-if="!compact" :label="t('projects.charter.fields.assumptions')" data-testid="charter-field-assumptions">
+          <template #hint><ProjectFieldHelp :label="helpLabel(t('projects.charter.fields.assumptions'))" :text="t('projects.charter.help.assumptions')" /></template>
+          <UTextarea id="charter-assumptions" v-model="draft.assumptions" class="w-full" :readonly="readonly" :disabled="controlsDisabled" :rows="3" />
+        </UFormField>
 
-    <div v-if="!compact" class="grid gap-2" data-testid="charter-field-constraints">
-      <div class="flex items-center gap-1">
-        <label for="charter-constraints" class="flex items-center gap-2 text-sm font-medium leading-none">{{ t('projects.charter.fields.constraints') }}</label>
-        <ProjectFieldHelp :label="helpLabel(t('projects.charter.fields.constraints'))" :text="t('projects.charter.help.constraints')" />
-      </div>
-      <UTextarea id="charter-constraints" v-model="draft.constraints" class="w-full" :readonly="readonly" :disabled="controlsDisabled" :rows="3" />
-    </div>
+        <UFormField v-if="!compact" :label="t('projects.charter.fields.constraints')" data-testid="charter-field-constraints">
+          <template #hint><ProjectFieldHelp :label="helpLabel(t('projects.charter.fields.constraints'))" :text="t('projects.charter.help.constraints')" /></template>
+          <UTextarea id="charter-constraints" v-model="draft.constraints" class="w-full" :readonly="readonly" :disabled="controlsDisabled" :rows="3" />
+        </UFormField>
 
-    <div v-if="!compact" class="grid gap-2" data-testid="charter-field-closure">
-      <div class="flex items-center gap-1">
-        <label for="charter-closure" class="flex items-center gap-2 text-sm font-medium leading-none">{{ t('projects.charter.fields.closure') }}</label>
-        <ProjectFieldHelp :label="helpLabel(t('projects.charter.fields.closure'))" :text="t('projects.charter.help.closure')" />
-      </div>
-      <UTextarea id="charter-closure" v-model="draft.closure" class="w-full" :readonly="readonly" :disabled="controlsDisabled" :rows="3" />
-    </div>
+        <UFormField v-if="!compact" :label="t('projects.charter.fields.closure')" data-testid="charter-field-closure">
+          <template #hint><ProjectFieldHelp :label="helpLabel(t('projects.charter.fields.closure'))" :text="t('projects.charter.help.closure')" /></template>
+          <UTextarea id="charter-closure" v-model="draft.closure" class="w-full" :readonly="readonly" :disabled="controlsDisabled" :rows="3" />
+        </UFormField>
       </div>
     </details>
   </div>

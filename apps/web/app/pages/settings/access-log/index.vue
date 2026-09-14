@@ -30,8 +30,7 @@ const activeFilterCount = computed(() => Number(Boolean(filters.from)) + Number(
 function updateFilters() { filters.offset = 0; void router.replace({ query: { ...(filters.from ? { from: filters.from } : {}), ...(filters.to ? { to: filters.to } : {}), ...(filters.actor_id ? { actor_id: filters.actor_id } : {}), ...(filters.target_type ? { target_type: filters.target_type } : {}), ...(filters.target_id ? { target_id: filters.target_id } : {}), ...(filters.action ? { action: filters.action } : {}) } }) }
 function clearFilters() { filters.from = undefined; filters.to = undefined; filters.actor_id = undefined; filters.target_type = undefined; filters.target_id = undefined; filters.action = undefined; updateFilters() }
 function syncPage() { void router.replace({ query: adminQueryWithOffset(route.query, filters.offset ?? 0) }) }
-function previousPage() { if (hydrated.value) { filters.offset = Math.max(0, (filters.offset ?? 0) - (filters.limit ?? ADMIN_PAGE_SIZE)); syncPage() } }
-function nextPage() { if (hydrated.value && page.value < pages.value) { filters.offset = (filters.offset ?? 0) + (filters.limit ?? ADMIN_PAGE_SIZE); syncPage() } }
+function setPage(next: number) { if (hydrated.value && next >= 1 && next <= pages.value) { filters.offset = (next - 1) * (filters.limit ?? ADMIN_PAGE_SIZE); syncPage() } }
 watch(() => [route.query.from, route.query.to, route.query.actor_id, route.query.target_type, route.query.target_id, route.query.action, route.query.offset], ([from, to, actorId, targetType, targetId, action, offset]) => { filters.from = String(from ?? '') || undefined; filters.to = String(to ?? '') || undefined; filters.actor_id = actorId ? Number(actorId) : undefined; filters.target_type = targetType === 'role' ? 'role' : targetType === 'user' ? 'user' : undefined; filters.target_id = targetId ? Number(targetId) : undefined; filters.action = actionOptions.includes(String(action) as AuditAction) ? String(action) : undefined; filters.offset = parseAdminOffset(offset) })
 const allValue = '__all__'
 const actorOptions = computed(() => [{ value: allValue, label: t('access.audit.filters.allActors') }, ...(actors.data.value?.items ?? []).map(actor => ({ value: String(actor.id), label: actor.name }))])
@@ -42,7 +41,9 @@ function onActorChange(value: unknown) { filters.actor_id = value && value !== a
 function onTargetTypeChange(value: unknown) { filters.target_type = value === 'role' ? 'role' : value === 'user' ? 'user' : undefined; filters.target_id = undefined; updateFilters() }
 function onTargetIdChange(value: unknown) { filters.target_id = value && value !== allValue ? Number(value) : undefined; updateFilters() }
 function onActionChange(value: unknown) { filters.action = value && value !== allValue ? String(value) : undefined; updateFilters() }
-function clearDate(key: 'from' | 'to') { filters[key] = undefined; updateFilters() }
+function auditTo(id: number) { return { path: `/settings/access-log/${id}`, query: route.query } }
+function setDate(key: 'from' | 'to', value: string | null) { filters[key] = value || undefined; updateFilters() }
+function clearDate(key: 'from' | 'to') { setDate(key, null) }
 </script>
 
 <template>
@@ -54,8 +55,8 @@ function clearDate(key: 'from' | 'to') { filters[key] = undefined; updateFilters
       <div id="filters" class="nasq-settings-anchor w-full min-w-0">
         <FilterBar class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
           <template #default>
-            <SharedFilterField :label="t('access.audit.filters.from')" for="access-log-from"><UInput id="access-log-from" v-model="filters.from" type="date" class="w-full" :disabled="!hydrated" @change="updateFilters" /></SharedFilterField>
-            <SharedFilterField :label="t('access.audit.filters.to')" for="access-log-to"><UInput id="access-log-to" v-model="filters.to" type="date" class="w-full" :disabled="!hydrated" @change="updateFilters" /></SharedFilterField>
+            <SharedFilterField :label="t('access.audit.filters.from')" for="access-log-from"><SharedDateField id="access-log-from" :model-value="filters.from ?? null" :max-value="filters.to ?? null" :disabled="!hydrated" @update:model-value="setDate('from', $event)" /></SharedFilterField>
+            <SharedFilterField :label="t('access.audit.filters.to')" for="access-log-to"><SharedDateField id="access-log-to" :model-value="filters.to ?? null" :min-value="filters.from ?? null" :disabled="!hydrated" @update:model-value="setDate('to', $event)" /></SharedFilterField>
             <SharedFilterField :label="t('access.audit.columns.actor')" for="access-log-actor"><USelect id="access-log-actor" :model-value="filters.actor_id ? String(filters.actor_id) : allValue" :items="actorOptions" class="w-full" :disabled="!hydrated || actors.isLoading.value" @update:model-value="onActorChange" /></SharedFilterField>
             <SharedFilterChoice :label="t('access.roles.columns.type')" :items="targetTypeOptions" :model-value="filters.target_type ?? allValue" :disabled="!hydrated" @update:model-value="onTargetTypeChange" />
             <SharedFilterField :label="t('access.audit.columns.target')" for="access-log-target"><USelect id="access-log-target" :model-value="filters.target_id ? String(filters.target_id) : allValue" :items="targetIdOptions" class="w-full" :disabled="!hydrated || !filters.target_type" @update:model-value="onTargetIdChange" /></SharedFilterField>
@@ -74,12 +75,8 @@ function clearDate(key: 'from' | 'to') { filters[key] = undefined; updateFilters
         </FilterBar>
       </div>
       <div id="results" class="nasq-settings-anchor">
-        <SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!query.isLoading.value && !query.error.value && query.data.value?.items.length === 0" :empty-text="t('access.audit.empty')" @retry="query.refetch"><AuditTable :events="query.data.value?.items ?? []" @open="(id) => navigateTo({ path: `/settings/access-log/${id}`, query: route.query })" /></SharedPageState>
-        <div v-if="pages > 1" class="nasq-settings-pagination">
-          <UButton color="neutral" variant="ghost" :disabled="!hydrated || page === 1 || query.isFetching.value" :label="t('access.previousPage')" @click="previousPage" />
-          <span>{{ t('access.pageOf', { page, pages }) }}</span>
-          <UButton color="neutral" variant="ghost" :disabled="!hydrated || page >= pages || query.isFetching.value" :label="t('access.nextPage')" @click="nextPage" />
-        </div>
+        <SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!query.isLoading.value && !query.error.value && query.data.value?.items.length === 0" :empty-text="t('access.audit.empty')" @retry="query.refetch"><AuditTable :events="query.data.value?.items ?? []" :to-for="auditTo" @open="(id) => navigateTo(auditTo(id))" /></SharedPageState>
+        <SharedPagination class="mt-4" :page="page" :pages="pages" :disabled="query.isFetching.value" @update:page="setPage" />
       </div>
     </div>
   </SettingsLayout>

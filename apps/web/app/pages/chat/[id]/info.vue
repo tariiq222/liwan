@@ -34,6 +34,9 @@ watch(() => conversation.value?.name, (value) => {
 }, { immediate: true })
 useSsrQuerySeed({ data: conversation }, seedConversationName)
 
+const pageFor = (offset: number) => Math.floor(offset / CHAT_PAGE_SIZE) + 1
+const pagesFor = (total: number | undefined) => Math.max(1, Math.ceil((total ?? 0) / CHAT_PAGE_SIZE))
+const offsetFor = (page: number, total: number | undefined) => nextListOffset(0, total ?? 0, (page - 1) * CHAT_PAGE_SIZE)
 const canManage = computed(() => Boolean(conversation.value?.can_manage))
 const canLeave = computed(() => conversation.value?.type === 'group' || conversation.value?.type === 'channel')
 
@@ -99,21 +102,18 @@ async function confirmLeave() {
         </div>
       </SharedFormSection>
       <SharedFormSection :title="t('chat.members')">
-        <ul v-if="members?.items.length" class="grid gap-2">
-          <li v-for="member in members.items" :key="member.id" class="rounded-lg ring ring-default bg-default overflow-hidden flex items-center justify-between gap-2 p-3 text-start">
+        <ul v-if="members?.items.length" class="divide-y divide-default overflow-hidden rounded-lg bg-default ring ring-default">
+          <li v-for="member in members.items" :key="member.id" class="flex items-center justify-between gap-2 p-3 text-start">
             <span>{{ member.name }}{{ member.im_status === 'online' ? ` · ${t('chat.online')}` : '' }}</span>
           </li>
         </ul>
         <p v-else class="text-sm text-muted">{{ t('chat.noMembers') }}</p>
-        <nav v-if="(members?.total ?? 0) > CHAT_PAGE_SIZE" class="mt-2 flex items-center justify-between text-sm text-muted">
-          <UButton type="button" color="neutral" variant="ghost" :disabled="!hydrated || memberOffset === 0" :label="t('chat.previousPage')" @click="memberOffset = nextListOffset(memberOffset, members?.total ?? 0, -CHAT_PAGE_SIZE)" />
-          <UButton type="button" color="neutral" variant="ghost" :disabled="!hydrated || memberOffset + CHAT_PAGE_SIZE >= (members?.total ?? 0)" :label="t('chat.nextPage')" @click="memberOffset = nextListOffset(memberOffset, members?.total ?? 0, CHAT_PAGE_SIZE)" />
-        </nav>
+        <SharedPagination class="mt-2" :page="pageFor(memberOffset)" :pages="pagesFor(members?.total)" @update:page="memberOffset = offsetFor($event, members?.total)" />
         <div v-if="canManage" class="mt-3 grid gap-2">
           <UFormField :label="t('chat.addMember')" name="recipientSearch">
             <UInput v-model="recipientQ" class="w-full" :placeholder="t('chat.recipientSearch')" :disabled="!hydrated || busy" />
           </UFormField>
-          <ul class="max-h-40 overflow-y-auto rounded-md border">
+          <ul class="max-h-40 overflow-y-auto rounded-md border border-default">
             <li v-for="person in recipients?.items ?? []" :key="person.id">
               <UButton type="button" color="neutral" variant="ghost" class="w-full justify-start px-3 py-2 text-start" :disabled="!hydrated || busy" :label="person.name" @click="add(person.id)" />
             </li>
@@ -125,17 +125,13 @@ async function confirmLeave() {
           <ChatAttachment v-for="attachment in attachments.items" :key="attachment.id" :attachment="attachment" />
         </div>
         <p v-else class="text-sm text-muted">{{ t('chat.noAttachments') }}</p>
-        <nav v-if="(attachments?.total ?? 0) > CHAT_PAGE_SIZE" class="mt-2 flex items-center justify-between text-sm text-muted">
-          <UButton type="button" color="neutral" variant="ghost" :disabled="!hydrated || fileOffset === 0" :label="t('chat.previousPage')" @click="fileOffset = nextListOffset(fileOffset, attachments?.total ?? 0, -CHAT_PAGE_SIZE)" />
-          <UButton type="button" color="neutral" variant="ghost" :disabled="!hydrated || fileOffset + CHAT_PAGE_SIZE >= (attachments?.total ?? 0)" :label="t('chat.nextPage')" @click="fileOffset = nextListOffset(fileOffset, attachments?.total ?? 0, CHAT_PAGE_SIZE)" />
-        </nav>
+        <SharedPagination class="mt-2" :page="pageFor(fileOffset)" :pages="pagesFor(attachments?.total)" @update:page="fileOffset = offsetFor($event, attachments?.total)" />
       </SharedFormSection>
-      <div v-if="canLeave" class="flex justify-end gap-2">
-        <UButton v-if="!leaving" type="button" color="primary" variant="outline" :disabled="!hydrated || busy" :label="t('chat.leave')" @click="leaving = true" />
-        <template v-else>
-          <UButton type="button" color="error" :disabled="!hydrated || busy" :label="t('chat.confirmLeave')" @click="confirmLeave" />
-          <UButton type="button" color="neutral" variant="ghost" :disabled="busy" :label="t('app.cancel')" @click="leaving = false" />
-        </template>
+      <div v-if="canLeave" class="grid gap-3">
+        <div v-if="!leaving" class="flex justify-end">
+          <UButton type="button" color="neutral" variant="outline" icon="i-lucide-log-out" :disabled="!hydrated || busy" :label="t('chat.leave')" @click="leaving = true" />
+        </div>
+        <SharedInlineConfirm v-else :title="t('chat.leaveConfirmTitle')" :confirm-label="t('chat.confirmLeave')" :pending="busy" @confirm="confirmLeave" @cancel="leaving = false" />
       </div>
     </section>
   </SharedPageContainer>

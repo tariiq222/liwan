@@ -1,7 +1,7 @@
 <template>
   <div v-if="props.inline" class="min-w-0 space-y-2" data-slot="inline-filter-bar">
     <div class="flex min-w-0 flex-wrap items-center gap-2">
-      <div v-if="$slots.search" class="min-w-48 flex-1"><slot name="search" /></div>
+      <div v-if="$slots.search" class="min-w-48 flex-1 *:w-full"><slot name="search" /></div>
       <slot />
       <slot name="view" />
       <slot name="actions" />

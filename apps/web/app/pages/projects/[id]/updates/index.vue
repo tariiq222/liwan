@@ -28,9 +28,10 @@ function openCreate() {
     <SharedPageHeader
       v-if="!isProjectOverlay"
       :title="t('projects.refresh.workspace.updatesTitle')"
+      :description="t('projects.updates.emptyHint')"
     >
       <template #actions>
-        <UButton v-if="project?.can_manage" data-testid="project-updates-create" :disabled="!hydrated" @click="openCreate">
+        <UButton v-if="project?.can_manage" data-testid="project-updates-create" icon="i-lucide-plus" :disabled="!hydrated" @click="openCreate">
           {{ t('projects.updates.new') }}
         </UButton>
       </template>

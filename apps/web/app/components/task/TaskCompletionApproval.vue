@@ -129,6 +129,7 @@ async function withdraw() {
     <UButton
       v-if="canWithdraw"
       type="button"
+      color="neutral"
       variant="outline"
       data-testid="task-completion-withdraw"
       :disabled="!hydrated || busy"
@@ -151,7 +152,8 @@ async function withdraw() {
         id="completion-note"
         v-model="note"
         data-testid="task-completion-note"
-        class="min-h-20 rounded-md border bg-default p-2 text-sm"
+        class="w-full"
+        :rows="3"
         :disabled="!hydrated || busy"
       />
       <UButton type="button" variant="outline" data-testid="task-completion-return" :disabled="!hydrated || busy || !note.trim()" @click="returnTask">

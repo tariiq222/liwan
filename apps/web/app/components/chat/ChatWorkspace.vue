@@ -86,8 +86,8 @@ function updateRoute(next: ChatListRoute) {
           </UButton>
           <span class="nasq-chat-avatar shrink-0">{{ initialsFor(data?.name || '') }}</span>
           <div class="min-w-0 flex-1 text-start">
-            <h1 class="truncate text-base font-semibold">{{ data?.name || t('chat.title') }}</h1>
-            <p class="truncate text-xs text-muted-foreground">{{ typingLabel || (data?.type ? t(`chat.${data.type}`) : '') }}</p>
+            <h1 class="truncate text-lg font-semibold text-highlighted">{{ data?.name || t('chat.title') }}</h1>
+            <p class="truncate text-xs text-muted">{{ typingLabel || (data?.type ? t(`chat.${data.type}`) : '') }}</p>
           </div>
           <div class="flex shrink-0 items-center gap-1">
             <UButton
@@ -137,13 +137,11 @@ function updateRoute(next: ChatListRoute) {
             @clear-reply="replyTo = null"
           />
         </template>
-        <template v-else-if="denied">
-          <h1 class="sr-only">{{ t('chat.title') }}</h1>
-          <EmptyState :title="t('chat.unavailable')" />
-        </template>
         <template v-else>
+          <!-- The one page heading when no thread header is shown. -->
           <h1 class="sr-only">{{ t('chat.title') }}</h1>
-          <EmptyState :title="t('chat.select')" :description="t('chat.description')" />
+          <EmptyState v-if="denied" :title="t('chat.unavailable')" />
+          <EmptyState v-else :title="t('chat.select')" :description="t('chat.description')" />
         </template>
       </section>
     </div>

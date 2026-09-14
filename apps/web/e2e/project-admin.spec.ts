@@ -35,7 +35,7 @@ async function loginAs(page, username: string, password: string) {
   await page.getByLabel('اسم المستخدم').fill(username)
   await page.getByLabel('كلمة المرور').fill(password)
   await submit.click()
-  await expect(page).toHaveURL(/\/tasks$/)
+  await expect(page).not.toHaveURL(/\/login(?:\?|$)/)
 }
 
 async function login(page) {

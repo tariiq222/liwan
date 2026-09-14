@@ -7,6 +7,7 @@ import ts from 'typescript'
 import * as Vue from 'vue'
 import { afterEach, describe, expect, it } from 'vitest'
 import { isDirtySnapshot } from '../../../lib/formDirty'
+import { richTextHasContent } from '../../../utils/richText'
 import { sanitizeHtml } from '../../../utils/sanitize'
 
 const filename = resolve(dirname(fileURLToPath(import.meta.url)), '../TaskDescription.vue')
@@ -41,6 +42,7 @@ function loadSetup(mutation: Mutation) {
     if (request.endsWith('/useTasks')) return { useUpdateTask: () => mutation }
     if (request.endsWith('/formDirty')) return { isDirtySnapshot }
     if (request.endsWith('/sanitize')) return { sanitizeHtml }
+    if (request.endsWith('/richText')) return { richTextHasContent }
     if (request.endsWith('/DescriptionEditor.vue')) return {}
     return {}
   }

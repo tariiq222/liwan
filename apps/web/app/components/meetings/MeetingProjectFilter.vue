@@ -55,11 +55,11 @@ function selectProject(value: unknown) {
       :aria-label="t('meetingsFilters.project')"
       @update:model-value="selectProject"
     />
-    <p v-if="projectQuery.isLoading.value" class="text-xs text-muted-foreground" role="status">{{ t('meetingsFilters.projectsLoading') }}</p>
-    <div v-else-if="projectQuery.error.value" class="flex items-center gap-2 text-xs text-destructive" role="alert">
+    <p v-if="projectQuery.isLoading.value" class="text-xs text-muted" role="status">{{ t('meetingsFilters.projectsLoading') }}</p>
+    <div v-else-if="projectQuery.error.value" class="flex items-center gap-2 text-xs text-error" role="alert">
       <span>{{ t('meetingsFilters.projectsError') }}</span>
-      <UButton type="button" color="primary" variant="outline" size="sm" :disabled="!hydrated || disabled" :label="t('meetingsFilters.retry')" @click="projectQuery.refetch()" />
+      <UButton type="button" color="neutral" variant="outline" size="sm" :disabled="!hydrated || disabled" :label="t('meetingsFilters.retry')" @click="projectQuery.refetch()" />
     </div>
-    <p v-else-if="!options.length" class="text-xs text-muted-foreground">{{ t('meetingsFilters.noProjects') }}</p>
+    <p v-else-if="!options.length" class="text-xs text-muted">{{ t('meetingsFilters.noProjects') }}</p>
   </div>
 </template>

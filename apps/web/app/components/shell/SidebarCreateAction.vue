@@ -26,7 +26,7 @@ withDefaults(defineProps<{
     :label="label"
   >
     <template #leading>
-      <UIcon name="i-lucide-plus" class="nasq-shell-icon size-[18px] shrink-0" aria-hidden="true" />
+      <UIcon name="i-lucide-plus" class="nasq-shell-icon size-4.5 shrink-0" aria-hidden="true" />
     </template>
   </UButton>
 </template>

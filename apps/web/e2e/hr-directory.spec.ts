@@ -5,7 +5,8 @@ async function login(page) {
   await page.getByLabel('اسم المستخدم').fill('admin')
   await page.getByLabel('كلمة المرور').fill('admin')
   await page.getByRole('button', { name: 'دخول' }).click()
-  await expect(page).toHaveURL(/\/tasks$/)
+  // Login lands on the first section the user may open (accessPolicy.firstAllowedPath).
+  await expect(page).not.toHaveURL(/\/login(?:\?|$)/)
 }
 
 test('HR employee creation Cancel returns to the filtered directory', async ({ page }) => {
@@ -86,7 +87,7 @@ test('HR employee names are real links that preserve filters; actions do not ste
     data: { name: employeeName, work_email: `e2e-link-${Date.now()}@example.com` },
   })).json()
   await page.goto(`/hr?q=${encodeURIComponent(employeeName)}`)
-  const nameLink = page.getByTestId('hr-employee-name').filter({ hasText: employeeName })
+  const nameLink = page.locator('tbody tr').getByTestId('hr-employee-name').filter({ hasText: employeeName })
   await expect(nameLink).toBeVisible()
   await expect(nameLink).toHaveAttribute('href', new RegExp(`/hr/employees/${employee.id}\\?returnTo=`))
   await nameLink.focus()
@@ -95,7 +96,10 @@ test('HR employee names are real links that preserve filters; actions do not ste
   await expect(page).toHaveURL(new RegExp(`/hr/employees/${employee.id}(?:\\?|$)`))
 
   await page.goto(`/hr?q=${encodeURIComponent(employeeName)}`)
-  await page.getByTestId('hr-employee-manage').click()
+  // Manage and archive share the row's "…" menu.
+  const employeeRow = page.locator('tbody tr').filter({ hasText: employeeName })
+  await employeeRow.getByTestId('row-actions-menu').click()
+  await page.getByRole('menuitem', { name: 'إدارة', exact: true }).click()
   await expect(page).toHaveURL(new RegExp(`/hr/employees/${employee.id}/edit(?:\\?|$)`))
   await expect(page.locator('[data-slot="dialog-content"], [data-slot="sheet-content"]').first()).toHaveCount(0)
 })

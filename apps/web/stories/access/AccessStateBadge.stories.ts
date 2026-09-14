@@ -18,7 +18,7 @@ const cases = [
 
 export const InTableCell: Story = {
   name: 'في خلية جدول المستخدمين',
-  parameters: storyContext('apps/web/app/components/access/users/UserTable.vue:34'),
+  parameters: storyContext('apps/web/app/components/access/users/UserTable.vue:36'),
   render: () => ({
     components: { AccessStateBadge },
     setup: () => {

@@ -83,7 +83,7 @@ const project: ProjectDetail = {
 
 async function renderGeneral(value: ProjectDetail) {
   const app = createSSRApp({ render: () => h(loadForm(), { project: value }) })
-  for (const name of ['UButton', 'USelect', 'USelectMenu', 'USwitch', 'USeparator', 'TagPicker', 'DescriptionEditor']) {
+  for (const name of ['UButton', 'USelect', 'USelectMenu', 'USwitch', 'USeparator', 'TagPicker', 'DescriptionEditor', 'UFormField']) {
     app.component(name, Passthrough)
   }
   return renderToString(app)

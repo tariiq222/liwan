@@ -1,5 +1,9 @@
 {
   "app": {
+    "pagination": "Pagination",
+    "pageOf": "Page {page} of {pages}",
+    "notAvailable": "—",
+    "selectPerson": "Select a person",
     "actions": "Actions",
     "edit": "Edit",
     "productName": "Nasq",
@@ -97,6 +101,11 @@
     "totpInvalid": "Invalid verification code"
   },
   "errors": {
+    "pageNotFoundTitle": "Page not found",
+    "pageNotFound": "The link may be wrong, or the page has moved.",
+    "pageErrorTitle": "This page could not be shown",
+    "pageError": "Something went wrong. Go back to the home page and try again.",
+    "goHome": "Back to home",
     "serverUnreachable": "Unable to reach the server",
     "badPayload": "Invalid response from the server",
     "generic": "An unexpected error occurred",

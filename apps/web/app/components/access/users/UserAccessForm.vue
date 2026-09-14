@@ -141,7 +141,7 @@ async function save() {
       </SharedFormSection>
       <SharedFormSection v-if="dirty" :title="t('access.users.capabilityChanges')" class="space-y-3">
         <div v-if="previewLoading" class="text-xs text-muted">{{ t('access.users.loadingCapabilities') }}</div>
-        <div v-else-if="previewError" role="alert" class="flex items-center gap-2 text-xs text-error"><span>{{ t('access.users.capabilityPreviewError') }}</span><UButton type="button" color="primary" variant="ghost" size="sm" :label="t('access.retry')" @click="retryPreview" /></div>
+        <UAlert v-else-if="previewError" role="alert" color="error" variant="subtle" :title="t('access.users.capabilityPreviewError')" :actions="[{ label: t('access.retry'), color: 'neutral', variant: 'outline', onClick: retryPreview }]" />
         <div v-else class="space-y-1 text-xs"><p v-if="capabilityChanges.added.length">{{ t('access.roles.added') }}: {{ capabilityChanges.added.map((item) => capabilityLabel(item.key)).join('، ') }}</p><p v-if="capabilityChanges.removed.length">{{ t('access.roles.removed') }}: {{ capabilityChanges.removed.map((item) => capabilityLabel(item.key)).join('، ') }}</p><p v-if="capabilityChanges.retained.length">{{ t('access.roles.retained') }}: {{ capabilityChanges.retained.map((item) => `${capabilityLabel(item.key)} (${item.sources.map((source) => source.role.name.ar).join('، ')})`).join('؛ ') }}</p></div>
       </SharedFormSection>
       <UAlert v-if="addingAccessAdminRole" role="alert" color="warning" variant="subtle" :title="t('access.users.accessAdminWarning')" />

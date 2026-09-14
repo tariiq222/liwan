@@ -1,4 +1,4 @@
-import { MeSchema, PersonRefSchema, ProjectRefSchema, ProjectSchema, TagSchema, TaskDetailSchema, TaskSchema, type Task } from '@nasq/contracts'
+import { MeSchema, PersonRefSchema, ProjectDetailSchema, ProjectRefSchema, ProjectSchema, TagSchema, TaskDetailSchema, TaskSchema, type Task } from '@nasq/contracts'
 
 export const tags = TagSchema.array().parse([
   { id: 1, name: 'عاجل', color: 1 },
@@ -45,6 +45,19 @@ export function taskDetail(overrides: Record<string, unknown> = {}) {
 export const project = ProjectSchema.parse({
   id: 1, name: 'مشروع ألفا', status: 'on_track', progress: 50, task_count: 24, closed_task_count: 12,
   active: true, can_manage: true, manager: { id: 2, name: 'Admin' }, date_end: '2026-12-31', allowed_actions: ['read', 'write', 'archive'],
+})
+
+export const projectDetail = ProjectDetailSchema.parse({
+  ...project, stages: [], description_html: '', privacy_visibility: 'employees', date_start: '2026-01-01',
+  tags: [], followers_count: 0, milestone_count: 1, allow_task_dependencies: false,
+  completion_approval: 'none', completion_approver: null, updated_at: 'v1',
+  charter: {
+    code: 'P-1', type: null, owning_unit: null, sponsor: null,
+    authority: '', rationale: '', objectives: [], benefits: '', scope: '', exclusions: '',
+    high_level_requirements: '', deliverables: [], success: '', budget_state: 'unknown',
+    amount: null, currency: { id: 1, name: 'SAR', symbol: 'ر.س', decimal_places: 2 },
+    priority: null, assumptions: '', constraints: '', closure: '',
+  },
 })
 
 export const archivedProject = ProjectSchema.parse({ ...project, id: 4, name: 'تحديث الأنظمة', active: false })

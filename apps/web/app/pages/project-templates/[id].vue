@@ -19,18 +19,21 @@ function deleteTemplate() { if (!id.value) return; remove.mutate(id.value, { onS
   <SharedPageContainer v-if="isBaseRoute" width="detail">
     <SharedPageHeader :title="template?.name ?? t('projects.templates.title')" :description="template?.description" :back-to="backTo">
       <template #actions>
-        <div class="flex flex-wrap gap-2"><UButton v-if="template?.can_apply" icon="i-lucide-play" :disabled="!hydrated || remove.isPending.value" @click="router.push(templatePath(template.id, 'apply'))">{{ t('projects.templates.actions.apply') }}</UButton><UButton v-if="template?.can_manage" variant="outline" icon="i-lucide-pencil" :disabled="!hydrated || remove.isPending.value" @click="router.push(templatePath(template.id, 'edit'))">{{ t('projects.templates.actions.edit') }}</UButton><UButton v-if="template?.can_manage" color="error" variant="outline" icon="i-lucide-trash-2" :disabled="!hydrated || remove.isPending.value" @click="confirmDelete = true">{{ t('projects.templates.actions.delete') }}</UButton></div>
+        <div class="flex flex-wrap gap-2"><UButton v-if="template?.can_apply" icon="i-lucide-play" :disabled="!hydrated || remove.isPending.value" @click="router.push(templatePath(template.id, 'apply'))">{{ t('projects.templates.actions.apply') }}</UButton><UButton v-if="template?.can_manage" color="neutral" variant="outline" icon="i-lucide-pencil" :disabled="!hydrated || remove.isPending.value" @click="router.push(templatePath(template.id, 'edit'))">{{ t('projects.templates.actions.edit') }}</UButton><UButton v-if="template?.can_manage" color="error" variant="outline" icon="i-lucide-trash-2" :disabled="!hydrated || remove.isPending.value" @click="confirmDelete = true">{{ t('projects.templates.actions.delete') }}</UButton></div>
       </template>
     </SharedPageHeader>
     <SharedPageState :loading="isLoading && !template" :error="template ? null : error" :empty="!isLoading && !error && !template" :empty-text="t('projects.templates.notFound')" @retry="refetch">
       <template v-if="template">
 
-        <UAlert v-if="confirmDelete" color="error" variant="soft" :title="t('projects.templates.deleteConfirm')">
-          <template #actions>
-            <UButton :disabled="!hydrated || remove.isPending.value" color="error" @click="deleteTemplate">{{ t('projects.templates.actions.confirmDelete') }}</UButton>
-            <UButton color="neutral" variant="outline" :disabled="!hydrated || remove.isPending.value" @click="confirmDelete = false">{{ t('app.cancel') }}</UButton>
-          </template>
-        </UAlert>
+        <SharedInlineConfirm
+          v-if="confirmDelete"
+          data-testid="template-delete-confirm"
+          :title="t('projects.templates.deleteConfirm')"
+          :confirm-label="t('projects.templates.actions.confirmDelete')"
+          :pending="remove.isPending.value"
+          @cancel="confirmDelete = false"
+          @confirm="deleteTemplate"
+        />
         <p v-if="remove.error.value" role="alert" class="text-error">{{ t('projects.templates.saveError') }}</p>
         <div class="grid gap-4 xl:grid-cols-3">
           <section class="rounded-lg ring ring-default bg-default overflow-hidden" aria-labelledby="template-stages-title">

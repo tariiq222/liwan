@@ -2,6 +2,7 @@
 import type { TableColumn } from '@nuxt/ui'
 import FilterBar from '@/components/shared/FilterBar.vue'
 import RecordNumber from '@/components/shared/RecordNumber.vue'
+import type { RowAction } from '@/components/shared/RowActions.vue'
 import { useHrDepartments } from '@/composables/useHrDepartments'
 import { useArchiveHrEmployee, useHrEmployees, useUnarchiveHrEmployee, type HrEmployee } from '@/composables/useHrEmployees'
 import { returnToQuery } from '@/utils/safeReturnTo'
@@ -85,6 +86,18 @@ function setPage(next: number) {
   void router.replace({ query: { ...route.query, ...(offset.value ? { offset: offset.value } : { offset: undefined }) } })
 }
 
+function actionsFor(employee: HrEmployee): RowAction[] {
+  return [
+    ...(canManage.value ? [{ label: t('hr.directory.manage'), icon: 'i-lucide-pencil', onSelect: () => emit('manage', employee.id) } satisfies RowAction] : []),
+    ...(canArchive.value ? [{
+      label: employee.active ? t('hr.employee.archive') : t('hr.employee.unarchive'),
+      icon: employee.active ? 'i-lucide-archive' : 'i-lucide-archive-restore',
+      destructive: employee.active,
+      onSelect: () => { pendingArchiveId.value = employee.id },
+    } satisfies RowAction] : []),
+  ]
+}
+
 function employeeTo(id: number) {
   return { path: `/hr/employees/${id}`, query: returnToQuery(route.fullPath) }
 }
@@ -156,76 +169,72 @@ function clearFilters() {
       </FilterBar>
     </div>
 
-    <UAlert v-if="pendingEmployee" role="alert" color="error" variant="subtle" :title="t('hr.employee.archiveConfirm')">
-      <template #actions>
-        <UButton color="error" :disabled="!hydrated || archivePending" :label="pendingEmployee.active ? t('hr.employee.archive') : t('hr.employee.unarchive')" @click="confirmPendingArchive" />
-        <UButton color="neutral" variant="outline" :disabled="archivePending" :label="t('app.cancel')" @click="pendingArchiveId = null" />
-      </template>
-    </UAlert>
+    <SharedInlineConfirm
+      v-if="pendingEmployee"
+      :color="pendingEmployee.active ? 'error' : 'primary'"
+      :title="t('hr.employee.archiveConfirm')"
+      :description="pendingEmployee.name"
+      :confirm-label="pendingEmployee.active ? t('hr.employee.archive') : t('hr.employee.unarchive')"
+      :pending="archivePending"
+      @confirm="confirmPendingArchive"
+      @cancel="pendingArchiveId = null"
+    />
 
     <SharedPageState :error="error" @retry="refetch">
       <div class="min-w-0 space-y-2">
-        <UCard v-if="isLoading" class="rounded-lg ring ring-default bg-default overflow-hidden hidden divide-y divide-default md:block" role="status" :aria-label="t('app.loading')">
+        <div v-if="isLoading" class="hidden divide-y divide-default overflow-hidden rounded-lg bg-default ring ring-default md:block" role="status" :aria-label="t('app.loading')">
           <div v-for="n in 5" :key="n" class="flex items-center gap-4 px-4 py-3">
             <USkeleton class="h-5 w-10" />
             <USkeleton class="h-5 flex-1" />
             <USkeleton class="h-5 w-24" />
             <USkeleton class="h-5 w-24" />
           </div>
-        </UCard>
-        <UCard v-else-if="items.length === 0" class="rounded-lg ring ring-default bg-default overflow-hidden">
+        </div>
+        <div v-else-if="items.length === 0" class="overflow-hidden rounded-lg bg-default p-6 ring ring-default">
           <SharedEmptyState :title="t(hasActiveFilters ? 'hr.directory.filteredEmpty' : 'hr.directory.empty')" :description="hasActiveFilters ? t('hr.directory.filteredEmptyHint') : undefined">
-            <template v-if="hasActiveFilters" #action><UButton color="primary" size="sm" :disabled="!hydrated" :label="t('hr.directory.clear')" @click="clearFilters" /></template>
+            <template v-if="hasActiveFilters" #action><UButton color="neutral" variant="outline" size="sm" :disabled="!hydrated" :label="t('hr.directory.clear')" @click="clearFilters" /></template>
           </SharedEmptyState>
-        </UCard>
+        </div>
         <template v-else>
-          <UCard class="rounded-lg ring ring-default bg-default overflow-hidden hidden md:block" :ui="{ body: 'p-0' }">
+          <div class="hidden overflow-hidden rounded-lg bg-default ring ring-default md:block">
             <div class="overflow-x-auto">
-              <UTable :data="items" :columns="columns" :caption="t('hr.directory.title')" :ui="{ caption: 'sr-only', th: '' }" @select="(event, row) => onRowClick(row.original.id, event)">
+              <UTable :data="items" :columns="columns" :caption="t('hr.directory.title')" :ui="{ caption: 'sr-only', th: '', tr: 'cursor-pointer' }" @select="(event, row) => onRowClick(row.original.id, event)">
                 <template #id-cell="{ row }"><RecordNumber :value="row.original.id" /></template>
                 <template #name-cell="{ row }">
-                  <NuxtLink :to="employeeTo(row.original.id)" class="font-medium hover:underline" data-testid="hr-employee-name" @click.stop>{{ row.original.name }}</NuxtLink>
+                  <NuxtLink :to="employeeTo(row.original.id)" class="rounded font-medium text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" data-testid="hr-employee-name" @click.stop>{{ row.original.name }}</NuxtLink>
                 </template>
                 <template #job_title-cell="{ row }">{{ row.original.job_title || '—' }}</template>
                 <template #department-cell="{ row }">{{ row.original.department?.name ?? '—' }}</template>
                 <template #manager-cell="{ row }">{{ row.original.manager?.name ?? '—' }}</template>
                 <template #access-cell="{ row }"><AccessBadge :access="row.original.access" /></template>
                 <template v-if="showActions" #manage-cell="{ row }">
-                  <div class="flex gap-1" @click.stop>
-                    <UButton v-if="canManage" color="primary" variant="ghost" size="sm" :disabled="!hydrated" data-testid="hr-employee-manage" :label="t('hr.directory.manage')" @click="emit('manage', row.original.id)" />
-                    <UButton v-if="canArchive" color="error" variant="ghost" size="sm" :disabled="!hydrated" data-testid="hr-employee-archive-row" :label="row.original.active ? t('hr.employee.archive') : t('hr.employee.unarchive')" @click="pendingArchiveId = row.original.id" />
-                  </div>
+                  <div class="flex justify-end"><SharedRowActions :actions="actionsFor(row.original)" :label="t('hr.directory.rowActions', { name: row.original.name })" /></div>
                 </template>
               </UTable>
             </div>
-          </UCard>
-          <ul class="md:hidden space-y-2" :aria-label="t('hr.directory.title')">
-            <li v-for="employee in items" :key="employee.id" class="rounded-lg ring ring-default bg-default overflow-hidden p-4" tabindex="0" role="button" @click="onRowClick(employee.id, $event)" @keydown.enter="onRowClick(employee.id, $event)" @keydown.space.prevent="onRowClick(employee.id, $event)">
+          </div>
+          <ul class="divide-y divide-default overflow-hidden rounded-lg bg-default ring ring-default md:hidden" :aria-label="t('hr.directory.title')">
+            <li v-for="employee in items" :key="employee.id" class="cursor-pointer p-4" @click="onRowClick(employee.id, $event)">
               <div class="flex items-start justify-between gap-3">
                 <div class="min-w-0">
                   <bdi class="block text-xs text-muted">#{{ employee.id }}</bdi>
-                  <NuxtLink :to="employeeTo(employee.id)" class="font-medium hover:underline" data-testid="hr-employee-name" @click.stop>{{ employee.name }}</NuxtLink>
+                  <NuxtLink :to="employeeTo(employee.id)" class="rounded font-medium text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" data-testid="hr-employee-name" @click.stop>{{ employee.name }}</NuxtLink>
                 </div>
-                <AccessBadge :access="employee.access" />
+                <div class="flex shrink-0 items-center gap-2">
+                  <AccessBadge :access="employee.access" />
+                  <SharedRowActions v-if="showActions" :actions="actionsFor(employee)" :label="t('hr.directory.rowActions', { name: employee.name })" />
+                </div>
               </div>
               <dl class="mt-3 grid grid-cols-2 gap-2 text-xs text-muted">
                 <div><dt>{{ t('hr.directory.columns.jobTitle') }}</dt><dd>{{ employee.job_title || '—' }}</dd></div>
                 <div><dt>{{ t('hr.directory.columns.department') }}</dt><dd>{{ employee.department?.name ?? '—' }}</dd></div>
                 <div><dt>{{ t('hr.directory.columns.manager') }}</dt><dd>{{ employee.manager?.name ?? '—' }}</dd></div>
               </dl>
-              <div v-if="showActions" class="mt-3 flex gap-2" @click.stop>
-                <UButton v-if="canManage" color="primary" variant="ghost" size="sm" :disabled="!hydrated" data-testid="hr-employee-manage" :label="t('hr.directory.manage')" @click="emit('manage', employee.id)" />
-                <UButton v-if="canArchive" color="error" variant="ghost" size="sm" :disabled="!hydrated" data-testid="hr-employee-archive-row" :label="employee.active ? t('hr.employee.archive') : t('hr.employee.unarchive')" @click="pendingArchiveId = employee.id" />
-              </div>
             </li>
           </ul>
         </template>
       </div>
     </SharedPageState>
-    <div v-if="pages > 1" class="flex items-center justify-between text-sm text-muted">
-      <UButton color="neutral" variant="ghost" :disabled="!hydrated || hasPendingSearch || page === 1 || isLoading" :label="t('access.previousPage')" @click="setPage(page - 1)" />
-      <span>{{ t('access.pageOf', { page, pages }) }}</span>
-      <UButton color="neutral" variant="ghost" :disabled="!hydrated || hasPendingSearch || page >= pages || isLoading" :label="t('access.nextPage')" @click="setPage(page + 1)" />
-    </div>
+    <SharedPagination :page="page" :pages="pages" :disabled="hasPendingSearch || isLoading" @update:page="setPage" />
   </div>
 </template>

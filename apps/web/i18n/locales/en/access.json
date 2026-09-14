@@ -70,6 +70,7 @@
       "accessDisabled": "Access disabled",
       "accessReactivated": "Access reactivated",
       "confirmAction": "Confirm",
+      "rowActions": "Actions for user {name}",
       "confirmResetPassword": "Confirm resetting the password for {name}.",
       "confirmDisable": "Confirm disabling access for {name}.",
       "confirmReactivate": "Confirm reactivating access for {name}."
@@ -105,6 +106,12 @@
       "unknownPermission": "Unavailable permission",
       "domains": { "access": "Access administration", "hr": "People and HR", "pmo": "Projects", "meetings": "Meetings", "settings": "Settings" },
       "clone": "Clone",
+      "rowActions": "Actions for role {name}",
+      "confirm": {
+        "disable": { "title": "Disable this role?", "description": "Disabling a role blocks new assignments only; existing assignments and their permissions stay in effect until removed explicitly." },
+        "enable": { "title": "Enable this role?", "description": "The role becomes available for new assignments." },
+        "delete": { "title": "Delete this role?", "description": "Deletion cannot be undone." }
+      },
       "builtIn": "Built-in",
       "custom": "Custom",
       "empty": "No matching roles.",
@@ -118,6 +125,7 @@
       "title": "Access change log",
       "description": "Successful account and role changes.",
       "detailTitle": "Access change details",
+      "rowActions": "Actions for entry {name}",
       "empty": "No matching changes.",
       "system": "System",
       "succeeded": "Succeeded",

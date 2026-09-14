@@ -27,7 +27,8 @@ describe('finance list design', () => {
   })
 
   it('uses metric tiles when planned exists and does not nest a charter UCard', () => {
-    expect(summary).toContain('rounded-md bg-elevated text-primary')
+    expect(summary.match(/<SharedMetricTile/g)?.length).toBe(3)
+    expect(summary).toContain('value-dir="ltr"')
     expect(summary).toContain('financeSummaryMode')
     expect(summary).toContain('data-testid="project-finance-charter"')
     expect(summary).not.toMatch(/<UCard[^>]*project-finance-charter/)

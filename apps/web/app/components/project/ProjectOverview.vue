@@ -5,15 +5,18 @@ import { formatCalendarDate, toCalendarDate } from '@/composables/calendarDate'
 import { useMilestones } from '@/composables/useMilestones'
 import { useProjectUpdates } from '@/composables/useProjectUpdates'
 import { STATUS_COLOR } from '@/utils/statusTone'
-import { sanitizeHtml } from '@/utils/sanitize'
 import RecordNumber from '@/components/shared/RecordNumber.vue'
 import ProjectOverviewTasks from './ProjectOverviewTasks.vue'
 import ProjectStatusBadge from './ProjectStatusBadge.vue'
 import ProjectStatusSelect from './ProjectStatusSelect.vue'
+import { sanitizeHtml } from '@/utils/sanitize'
 
 const props = defineProps<{ project: ProjectDetail }>()
 const { t, locale } = useI18n()
 const route = useRoute()
+// The card preview demotes headings so an update body never outranks the card title;
+// Sanitized here as well as in SharedRichText, so the heading rewrite never
+// runs on untrusted markup.
 function previewHtml(value: string) {
   return sanitizeHtml(value).replace(/<(\/?)h[1-6](\s[^>]*)?>/gi, '<$1h4$2>')
 }
@@ -56,22 +59,28 @@ function isOverdue(value: string | null) {
     </div>
 
     <section class="project-overview-stats grid gap-6">
-      <UCard>
-        <div class="flex items-center gap-2 text-sm text-muted"><UIcon name="i-lucide-list-checks" class="size-4" />{{ t('projects.overview.progress') }}</div>
-        <p class="mt-2 text-3xl font-semibold tabular-nums">{{ project.progress }}%</p>
-        <UProgress :model-value="project.progress" class="mt-3" size="sm" />
-        <p class="mt-1 text-xs text-muted">{{ t('projects.overview.completedOf', { closed: project.closed_task_count, total: project.task_count }) }}</p>
-      </UCard>
-      <UCard>
-        <div class="flex items-center gap-2 text-sm text-muted"><UIcon name="i-lucide-list-checks" class="size-4" />{{ t('projects.overview.openTasks') }}</div>
-        <p class="mt-2 text-3xl font-semibold tabular-nums">{{ openTaskCount }}</p>
-        <p class="mt-1 text-xs text-muted">{{ t('projects.overview.completedOf', { closed: project.closed_task_count, total: project.task_count }) }}</p>
-      </UCard>
-      <UCard>
-        <div class="flex items-center gap-2 text-sm text-muted"><UIcon name="i-lucide-flag" class="size-4" />{{ t('projects.overview.nextMilestone') }}</div>
-        <p class="mt-2 text-3xl font-semibold">{{ nearestMilestone ? dateLabel(nearestMilestone.deadline) : '—' }}</p>
-        <p class="mt-1 text-xs text-muted">{{ nearestMilestone?.name ?? t('projects.overview.noUpcomingMilestone') }}</p>
-      </UCard>
+      <SharedMetricTile
+        icon="i-lucide-chart-no-axes-column-increasing"
+        :label="t('projects.overview.progress')"
+        :value="project.progress"
+        unit="%"
+        value-dir="ltr"
+        :hint="t('projects.overview.completedOf', { closed: project.closed_task_count, total: project.task_count })"
+      >
+        <UProgress :model-value="project.progress" class="mt-2" size="sm" />
+      </SharedMetricTile>
+      <SharedMetricTile
+        icon="i-lucide-list-checks"
+        :label="t('projects.overview.openTasks')"
+        :value="openTaskCount"
+        :hint="t('projects.overview.completedOf', { closed: project.closed_task_count, total: project.task_count })"
+      />
+      <SharedMetricTile
+        icon="i-lucide-flag"
+        :label="t('projects.overview.nextMilestone')"
+        :value="nearestMilestone ? dateLabel(nearestMilestone.deadline) : null"
+        :hint="nearestMilestone?.name ?? t('projects.overview.noUpcomingMilestone')"
+      />
     </section>
 
     <div class="grid items-start gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(260px,1fr)]">
@@ -94,7 +103,7 @@ function isOverdue(value: string | null) {
           <template v-else-if="latestUpdate">
             <div class="flex items-center gap-2"><ProjectStatusBadge :status="latestUpdate.status" /><span class="truncate text-sm font-medium">{{ latestUpdate.name }}</span></div>
             <p class="mt-1 text-xs text-muted">{{ latestUpdate.author.name }} · {{ dateLabel(latestUpdate.date) }}</p>
-            <div class="prose prose-sm mt-2 max-w-none break-words text-sm" v-html="previewHtml(latestUpdate.description_html)" />
+            <SharedRichText class="mt-2" size="sm" :html="previewHtml(latestUpdate.description_html)" />
           </template>
           <p v-else class="text-sm text-muted">{{ t('projects.overview.noUpdates') }}</p>
         </UCard>

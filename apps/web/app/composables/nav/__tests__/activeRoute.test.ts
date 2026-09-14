@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { activeProjectSection, activeShellModule, contextModuleFor, projectIdFromPath } from '../activeRoute'
+import { activeGovernanceSection, activeProjectSection, activeShellModule, contextModuleFor, projectIdFromPath } from '../activeRoute'
 
 describe('projectIdFromPath', () => {
   it('reads a positive integer id', () => {
@@ -36,6 +36,14 @@ describe('activeProjectSection', () => {
     expect(activeProjectSection('/projects/12/stakeholders/3/edit')).toBe('governance')
     expect(activeProjectSection('/projects/12/raci')).toBe('governance')
     expect(activeProjectSection('/projects/12/register/8')).toBe('governance')
+  })
+  it('maps each governance page, record and form to its sub-tab', () => {
+    expect(activeGovernanceSection('/projects/12/charter?edit=1')).toBe('charter')
+    expect(activeGovernanceSection('/projects/12/raci')).toBe('raci')
+    expect(activeGovernanceSection('/projects/12/stakeholders/3/edit')).toBe('stakeholders')
+    expect(activeGovernanceSection('/projects/12/register/new')).toBe('register')
+    expect(activeGovernanceSection('/projects/12/tasks')).toBeNull()
+    expect(activeGovernanceSection('/projects')).toBeNull()
   })
   it('returns null for settings and for paths outside a project', () => {
     expect(activeProjectSection('/projects/12/settings')).toBeNull()

@@ -50,9 +50,11 @@ describe('internal UI width and status vocabulary', () => {
     expect(tabs).toContain(':aria-current="current === section.id ? \'page\' : undefined"')
     // Stock Nuxt UI utilities: the active tab is marked by data-active and
     // aria-current, the strip scrolls horizontally and never wraps.
-    expect(tabs).toContain('data-[active=true]:text-primary')
-    expect(tabs).toContain('overflow-x-auto border-b border-default')
-    expect(tabs).toContain('whitespace-nowrap')
+    const sectionTabs = readFileSync(resolve(webRoot, 'app/utils/sectionTabs.ts'), 'utf8')
+    expect(tabs).toContain(':class="routeTabClass"')
+    expect(sectionTabs).toContain('data-[active=true]:text-primary')
+    expect(sectionTabs).toContain('overflow-x-auto border-b border-default')
+    expect(sectionTabs).toContain('whitespace-nowrap')
     expect(css).not.toContain('.nasq-ui-tab')
   })
 

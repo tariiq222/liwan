@@ -20,9 +20,6 @@ const {
   error: milestonesError,
   refetch: refetchMilestones,
 } = useMilestones(projectId)
-// Governance groups these four pages behind one card list; that card list is the
-// way back, and the project tab strip has no tab of its own for them.
-const backTo = computed(() => `/projects/${projectId.value}/governance`)
 const notFound = computed(() => projectId.value === null || (error.value instanceof ApiError && [403, 404].includes(error.value.status)))
 const readonly = computed(() => route.query.edit !== '1' || !(project.value?.can_manage ?? false))
 
@@ -39,8 +36,6 @@ function onCancel() {
   <SharedPageContainer :width="readonly ? 'list' : 'form'">
     <SharedPageHeader
       :title="t(readonly ? 'projects.charter.title' : 'projects.clarity.editCharter')"
-      :back-to="backTo"
-      :back-label="t('projects.workspace.groups.governance')"
     >
       <template #actions>
         <UButton v-if="project?.can_manage && readonly" :disabled="!hydrated" @click="router.push({ path: route.path, query: { ...route.query, edit: '1' } })">{{ t('app.edit') }}</UButton>

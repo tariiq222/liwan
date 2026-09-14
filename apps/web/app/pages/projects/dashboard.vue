@@ -135,12 +135,18 @@ const statusLabel = computed(() => t(filters.status === 'unset' ? 'projects.filt
 
     <template v-if="!hydrated || (analytics.isLoading.value && !analytics.data.value)">
       <div role="status" class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" :aria-label="t('app.loading')">
-        <USkeleton v-for="n in 4" :key="n" class="h-24 rounded-xl" />
+        <UCard v-for="n in 4" :key="n" :ui="{ body: 'flex items-start gap-4 p-5' }" aria-hidden="true">
+          <USkeleton class="size-10 shrink-0 rounded-md" />
+          <div class="grid flex-1 gap-2">
+            <USkeleton class="h-4 w-24" />
+            <USkeleton class="h-7 w-16" />
+          </div>
+        </UCard>
       </div>
       <div class="grid gap-5 xl:grid-cols-2" aria-hidden="true">
-        <USkeleton v-for="n in 6" :key="n" class="h-[350px] rounded-xl" />
+        <USkeleton v-for="n in 6" :key="n" class="h-[350px] rounded-lg" />
       </div>
-      <USkeleton class="h-64 rounded-xl" aria-hidden="true" />
+      <USkeleton class="h-64 rounded-lg" aria-hidden="true" />
     </template>
 
     <UAlert
@@ -153,7 +159,7 @@ const statusLabel = computed(() => t(filters.status === 'unset' ? 'projects.filt
       :title="t('projects.dashboard.analyticsError')"
     >
       <template #actions>
-        <UButton color="primary" variant="outline" :disabled="!hydrated" :label="t('projects.dashboard.retryAnalytics')" @click="analytics.refetch()" />
+        <UButton color="neutral" variant="outline" :disabled="!hydrated" :label="t('projects.dashboard.retryAnalytics')" @click="analytics.refetch()" />
       </template>
     </UAlert>
 
@@ -163,7 +169,7 @@ const statusLabel = computed(() => t(filters.status === 'unset' ? 'projects.filt
         :description="t(filtered ? 'projects.filteredEmptyHint' : 'projects.emptyHint')"
       >
         <template v-if="filtered" #action>
-          <UButton variant="outline" :disabled="!hydrated" :label="t('projects.filters.clear')" @click="clearFilters" />
+          <UButton color="neutral" variant="outline" :disabled="!hydrated" :label="t('projects.filters.clear')" @click="clearFilters" />
         </template>
       </SharedEmptyState>
     </div>

@@ -30,8 +30,8 @@ const frameOwnsHeading = useProjectFrameHeading()
       <div class="min-w-0">
         <div v-if="props.backTo || $slots.back" class="mb-1 flex items-center gap-2 text-sm">
           <slot name="back">
-            <UButton :to="props.backTo!" color="neutral" variant="outline" class="focus-visible:ring-2 focus-visible:ring-ring">
-              <UIcon name="i-lucide-arrow-right" aria-hidden="true" class="size-[18px] ltr:rotate-180" />{{ props.backLabel || $t('app.back') }}
+            <UButton :to="props.backTo!" color="neutral" variant="outline" class="focus-visible:ring-2 focus-visible:ring-primary">
+              <UIcon name="i-lucide-arrow-right" aria-hidden="true" class="size-4.5 ltr:rotate-180" />{{ props.backLabel || $t('app.back') }}
             </UButton>
           </slot>
         </div>

@@ -20,7 +20,8 @@ async function loginAs(page: Page, username: string, password: string) {
   await page.getByLabel('اسم المستخدم').fill(username)
   await page.getByLabel('كلمة المرور').fill(password)
   await page.getByRole('button', { name: 'دخول' }).click()
-  await expect(page).toHaveURL(/\/tasks$/)
+  // Login lands on the first section the user may open (accessPolicy.firstAllowedPath).
+  await expect(page).not.toHaveURL(/\/login(?:\?|$)/)
 }
 
 async function json(request: APIRequestContext, method: 'get' | 'post', url: string, data?: unknown) {

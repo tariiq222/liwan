@@ -66,14 +66,9 @@ function showError(error: unknown) {
   return error.code && t(translated) !== translated ? t(translated) : (error.message || t('errors.generic'))
 }
 
-function previousCandidates() {
-  if (!hydrated.value) return
-  candidateParams.offset = Math.max(0, candidateParams.offset - candidateParams.limit)
-}
-
-function nextCandidates() {
-  if (!hydrated.value || candidateParams.offset + candidateParams.limit >= (employees.data.value?.total ?? 0)) return
-  candidateParams.offset += candidateParams.limit
+function setCandidatePage(next: number) {
+  if (!hydrated.value || next < 1 || next > candidatePages.value) return
+  candidateParams.offset = (next - 1) * candidateParams.limit
 }
 
 async function submit() {
@@ -125,13 +120,9 @@ async function submit() {
           @update:model-value="onEmployeeChange"
         />
         <p v-if="employees.isLoading.value" class="text-xs text-muted">{{ t('access.users.loadingCandidates') }}</p>
-        <p v-else-if="employees.error.value" role="alert" class="text-xs text-error">{{ t('errors.generic') }}</p>
-        <p v-if="selectedCandidate?.user_id && selectedCandidate.access_active !== false" role="alert" class="text-xs text-error">{{ t('access.users.alreadyHasAccount') }}</p>
-        <div v-if="candidatePages > 1" class="flex items-center justify-between text-xs text-muted">
-          <UButton type="button" color="primary" variant="ghost" size="sm" :disabled="!hydrated || candidateParams.offset === 0 || employees.isFetching.value" :label="t('access.users.previousCandidates')" @click="previousCandidates" />
-          <span>{{ t('access.users.candidatePage', { page: candidatePage, pages: candidatePages }) }}</span>
-          <UButton type="button" color="primary" variant="ghost" size="sm" :disabled="!hydrated || candidatePage >= candidatePages || employees.isFetching.value" :label="t('access.users.nextCandidates')" @click="nextCandidates" />
-        </div>
+        <UAlert v-else-if="employees.error.value" color="error" variant="subtle" :title="t('errors.generic')" />
+        <UAlert v-if="selectedCandidate?.user_id && selectedCandidate.access_active !== false" color="error" variant="subtle" :title="t('access.users.alreadyHasAccount')" />
+        <SharedPagination :page="candidatePage" :pages="candidatePages" :disabled="employees.isFetching.value" @update:page="setCandidatePage" />
       </SharedFormSection>
       <SharedFormSection :title="t('access.users.role')" class="space-y-4">
         <fieldset class="space-y-3" :disabled="!hydrated || roles.isLoading.value">
@@ -146,19 +137,18 @@ async function submit() {
             <template #description><span class="text-xs text-muted">{{ t('access.roles.companyScope') }}</span></template>
           </UCheckbox>
           <p v-if="roles.isLoading.value" class="text-xs text-muted">{{ t('access.users.loadingRoles') }}</p>
-          <p v-else-if="roles.error.value" role="alert" class="text-xs text-error">{{ t('errors.generic') }}</p>
+          <UAlert v-else-if="roles.error.value" color="error" variant="subtle" :title="t('errors.generic')" />
         </fieldset>
       </SharedFormSection>
       <p v-if="existingUser.isLoading.value" class="text-xs text-muted">{{ t('access.users.loadingAccount') }}</p>
-      <p v-else-if="existingUser.error.value" role="alert" class="text-xs text-error">{{ t('errors.generic') }}</p>
+      <UAlert v-else-if="existingUser.error.value" color="error" variant="subtle" :title="t('errors.generic')" />
       <SharedFormSection :title="t('access.users.password')" class="space-y-4">
         <UFormField :label="t('access.users.password')" name="password">
           <UInput id="password" v-model="password" type="password" autocomplete="new-password" dir="ltr" class="w-full" :disabled="!hydrated" />
         </UFormField>
-        <UFormField :label="t('access.users.passwordConfirmation')" name="password-confirmation">
+        <UFormField :label="t('access.users.passwordConfirmation')" name="password-confirmation" :error="passwordConfirmation && password !== passwordConfirmation ? t('access.users.passwordMismatch') : undefined">
           <UInput id="password-confirmation" v-model="passwordConfirmation" type="password" autocomplete="new-password" dir="ltr" class="w-full" :disabled="!hydrated" />
         </UFormField>
-        <p v-if="passwordConfirmation && password !== passwordConfirmation" class="text-xs text-error">{{ t('access.users.passwordMismatch') }}</p>
       </SharedFormSection>
       <SharedFormSection v-if="selectedCapabilities.length" :title="t('access.users.resultingCapabilities')" class="space-y-2">
         <p class="text-xs text-muted">{{ selectedCapabilities.join('، ') }}</p>

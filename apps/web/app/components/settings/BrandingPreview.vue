@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import type { AppearanceMode } from '@/utils/appearance'
 import { createBrandTheme } from '@/utils/brandTheme'
+import { routeTabClass, routeTabsStripClass } from '@/utils/sectionTabs'
 
 const props = defineProps<{
   name: string
@@ -152,9 +153,9 @@ const previewStyle = computed(() => {
         <span class="bg-primary/10 inline-flex min-h-9 items-center px-3 text-sm font-medium">{{ t('settings.branding.preview.selection') }}</span>
         <UInput :aria-label="t('settings.branding.preview.action')" :placeholder="t('settings.branding.preview.action')" class="w-40" readonly />
       </div>
-      <div class="flex gap-1 overflow-x-auto border-b border-default">
-        <UButton type="button" color="neutral" variant="ghost" class="inline-flex items-center gap-2 whitespace-nowrap px-3 py-2 text-sm font-medium text-muted transition-colors hover:text-default data-[active=true]:text-primary data-[active=true]:shadow-[inset_0_-2px_0_0_var(--ui-primary)] aria-[current=page]:text-primary aria-[current=page]:shadow-[inset_0_-2px_0_0_var(--ui-primary)]" aria-current="page">{{ t('settings.branding.preview.action') }}</UButton>
-        <UButton type="button" color="neutral" variant="ghost" class="inline-flex items-center gap-2 whitespace-nowrap px-3 py-2 text-sm font-medium text-muted transition-colors hover:text-default data-[active=true]:text-primary data-[active=true]:shadow-[inset_0_-2px_0_0_var(--ui-primary)] aria-[current=page]:text-primary aria-[current=page]:shadow-[inset_0_-2px_0_0_var(--ui-primary)]">{{ t('settings.branding.preview.selection') }}</UButton>
+      <div :class="routeTabsStripClass">
+        <UButton type="button" color="neutral" variant="ghost" :class="routeTabClass" aria-current="page">{{ t('settings.branding.preview.action') }}</UButton>
+        <UButton type="button" color="neutral" variant="ghost" :class="routeTabClass">{{ t('settings.branding.preview.selection') }}</UButton>
       </div>
       <div class="rounded-lg ring ring-default bg-default overflow-hidden p-4">
         <p class="text-sm">{{ t('settings.branding.preview.hint') }}</p>

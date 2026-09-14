@@ -40,72 +40,19 @@ function openSubtask(id: number) {
 
 <template>
   <div>
-    <ul v-if="task.subtasks.length" class="task-list">
-      <li v-for="sub in task.subtasks" :key="sub.id" class="task-subtask-row">
+    <ul v-if="task.subtasks.length" class="grid gap-1">
+      <li v-for="sub in task.subtasks" :key="sub.id" class="flex min-w-0 items-center gap-2 rounded-lg border border-transparent p-0.5 transition-colors hover:border-default hover:bg-elevated focus-within:border-primary">
         <UButton type="button" color="neutral" variant="ghost" class="flex min-w-0 flex-1 items-center justify-start gap-2 rounded-lg text-start" :disabled="!hydrated" @click="openSubtask(sub.id)">
           <StateBadge :state="sub.state" />
           <span class="flex-1 truncate text-sm">{{ sub.name }}</span>
         </UButton>
       </li>
     </ul>
-    <p v-else class="task-empty-inline">{{ t('tasks.detail.noSubtasks') }}</p>
-    <form v-if="can('pmo.tasks.create') && task.can_write" class="task-inline-form" @submit.prevent="addSubtask">
-      <UInput v-model="title" :placeholder="t('tasks.drawer.addSubtask')" class="h-8" />
-      <UButton type="submit" size="sm" variant="outline" :disabled="!hydrated || isPending || !title.trim()">{{ t('app.create') }}</UButton>
+    <p v-else class="py-2 text-sm text-muted">{{ t('tasks.detail.noSubtasks') }}</p>
+    <form v-if="can('pmo.tasks.create') && task.can_write" class="mt-3 flex items-end gap-2" @submit.prevent="addSubtask">
+      <UInput v-model="title" :placeholder="t('tasks.drawer.addSubtask')" :aria-label="t('tasks.drawer.addSubtask')" size="sm" class="min-w-0 flex-1" :disabled="!hydrated || isPending" />
+      <UButton type="submit" size="sm" variant="outline" :loading="isPending" :disabled="!hydrated || isPending || !title.trim()">{{ t('app.create') }}</UButton>
     </form>
-    <p v-if="error" role="alert" class="text-sm text-error">{{ error }}</p>
+    <p v-if="error" role="alert" class="mt-2 text-sm text-error">{{ error }}</p>
   </div>
 </template>
-
-<style scoped>
-.task-list {
-  display: grid;
-  gap: 4px;
-}
-
-.task-subtask-row {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  gap: 9px;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  padding: 3px;
-  transition: background-color 120ms ease, border-color 120ms ease;
-}
-
-.task-subtask-row:hover {
-  border-color: var(--ui-border);
-  background: var(--ui-bg-muted);
-}
-
-.task-subtask-row:focus-within {
-  border-color: var(--ui-primary);
-}
-
-.task-inline-form {
-  display: flex;
-  align-items: end;
-  gap: 8px;
-  margin-top: 12px;
-}
-
-.task-inline-form > :first-child {
-  min-width: 0;
-  flex: 1;
-}
-
-.task-empty-inline {
-  padding: 10px 0;
-  color: var(--ui-text-muted);
-  font-size: 0.75rem;
-}
-
-@media (max-width: 600px) {
-  .task-inline-form {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: stretch;
-  }
-}
-</style>

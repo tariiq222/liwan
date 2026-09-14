@@ -82,11 +82,11 @@ async function confirmDelete(id: number) {
     </header>
 
     <div class="space-y-3">
-      <p v-if="isLoading" class="task-empty-inline">{{ t('attachments.loading') }}</p>
+      <p v-if="isLoading" class="py-2 text-sm text-muted">{{ t('attachments.loading') }}</p>
       <SharedPageState v-else-if="error" :error="error" @retry="refetch" />
-      <p v-else-if="!data?.items.length" class="task-empty-inline">{{ t('attachments.empty') }}</p>
-      <ul v-else class="task-list">
-        <li v-for="attachment in data.items" :key="attachment.id" class="task-attachment-row">
+      <p v-else-if="!data?.items.length" class="py-2 text-sm text-muted">{{ t('attachments.empty') }}</p>
+      <ul v-else class="divide-y divide-default">
+        <li v-for="attachment in data.items" :key="attachment.id" class="grid min-w-0 gap-2 py-2 text-sm">
           <div class="flex items-center gap-2">
             <a :href="attachment.url" target="_blank" rel="noopener" class="min-w-0 flex-1 truncate text-brand-link underline">
               {{ attachment.name }}
@@ -96,34 +96,28 @@ async function confirmDelete(id: number) {
               type="button"
               variant="ghost"
               size="sm"
-              color="error" square
+              color="error"
+              square
+              icon="i-lucide-trash-2"
               :aria-label="t('attachments.delete')"
               :disabled="!hydrated || deleting || pendingDeleteId !== null"
               @click="requestDelete(attachment.id)"
-            >
-              <UIcon name="i-lucide-trash-2" class="size-[18px]" aria-hidden="true" />
-            </UButton>
+            />
           </div>
-          <div
-            v-if="pendingDeleteId === attachment.id"
-            role="group"
-            :aria-label="t('attachments.deleteConfirm')"
-            class="flex flex-wrap items-center justify-between gap-2 border-t pt-2"
-          >
-            <span class="text-sm text-muted">{{ t('attachments.deleteConfirm') }}</span>
-            <div class="flex items-center gap-2">
-              <UButton type="button" variant="outline" size="sm" :disabled="!hydrated || deleting" @click="cancelDelete">
-                {{ t('attachments.cancel') }}
-              </UButton>
-              <UButton type="button" color="error" size="sm" :disabled="!hydrated || deleting" @click="confirmDelete(attachment.id)">
-                {{ t('attachments.confirm') }}
-              </UButton>
-            </div>
+          <div v-if="pendingDeleteId === attachment.id" role="group" :aria-label="t('attachments.deleteConfirm')">
+            <SharedInlineConfirm
+              :title="t('attachments.deleteConfirm')"
+              :confirm-label="t('attachments.confirm')"
+              :cancel-label="t('attachments.cancel')"
+              :pending="deleting"
+              @confirm="confirmDelete(attachment.id)"
+              @cancel="cancelDelete"
+            />
           </div>
         </li>
       </ul>
 
-      <div v-if="props.canWrite" class="mt-3 grid gap-2">
+      <div v-if="props.canWrite" class="grid gap-2">
         <label for="task-attachment-upload">{{ t('attachments.upload') }}</label>
         <SharedFileField
           ref="fileField"
@@ -139,29 +133,3 @@ async function confirmDelete(id: number) {
     </div>
   </section>
 </template>
-
-<style scoped>
-.task-list {
-  display: grid;
-  gap: 2px;
-}
-
-.task-attachment-row {
-  display: grid;
-  min-width: 0;
-  gap: 8px;
-  padding: 8px 0;
-  border-bottom: 1px solid var(--ui-border);
-  font-size: 0.875rem;
-}
-
-.task-attachment-row:last-child {
-  border-bottom: 0;
-}
-
-.task-empty-inline {
-  padding: 10px 0;
-  color: var(--ui-text-muted);
-  font-size: 0.75rem;
-}
-</style>

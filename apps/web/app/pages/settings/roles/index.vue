@@ -19,8 +19,7 @@ const activeFilterCount = computed(() => Number(Boolean(filters.q?.trim())) + Nu
 function updateFilters() { filters.offset = 0; void router.replace({ query: { ...(filters.q ? { q: filters.q } : {}), ...(filters.type ? { type: filters.type } : {}), ...(filters.status ? { status: filters.status } : {}) } }) }
 function clearFilters() { filters.q = ''; filters.type = undefined; filters.status = undefined; updateFilters() }
 function syncPage() { void router.replace({ query: adminQueryWithOffset(route.query, filters.offset ?? 0) }) }
-function previousPage() { if (hydrated.value) { filters.offset = Math.max(0, (filters.offset ?? 0) - (filters.limit ?? 25)); syncPage() } }
-function nextPage() { if (hydrated.value && page.value < pages.value) { filters.offset = (filters.offset ?? 0) + (filters.limit ?? 25); syncPage() } }
+function setPage(next: number) { if (hydrated.value && next >= 1 && next <= pages.value) { filters.offset = (next - 1) * (filters.limit ?? 25); syncPage() } }
 watch(() => [route.query.q, route.query.type, route.query.status, route.query.offset], ([q, type, status, offset]) => { filters.q = String(q ?? ''); filters.type = type === 'custom' ? 'custom' : type === 'built_in' ? 'built_in' : undefined; filters.status = status === 'disabled' ? 'disabled' : status === 'active' ? 'active' : undefined; filters.offset = parseAdminOffset(offset) })
 const listQuery = computed(() => adminListQuery(route.query, ['q', 'type', 'status', 'offset']))
 function openRole(id: number) { void navigateTo({ path: `/settings/roles/${id}`, query: listQuery.value }) }
@@ -36,7 +35,7 @@ function clearSearch() { filters.q = ''; updateFilters() }
 <template>
   <SettingsLayout>
     <SharedPageHeader :title="t('access.roles.title')">
-      <UButton v-if="can('access.roles.manage')" color="primary" :disabled="!hydrated" :label="t('access.roles.create')" @click="navigateTo({ path: '/settings/roles/new', query: listQuery })" />
+      <UButton v-if="can('access.roles.manage')" color="primary" icon="i-lucide-plus" :disabled="!hydrated" :label="t('access.roles.create')" @click="navigateTo({ path: '/settings/roles/new', query: listQuery })" />
     </SharedPageHeader>
     <SharedPageState v-if="forbidden" :empty="true" :empty-text="t('access.forbidden')" />
     <div v-else class="space-y-6">
@@ -62,11 +61,7 @@ function clearSearch() { filters.q = ''; updateFilters() }
         <SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!query.isLoading.value && !query.error.value && query.data.value?.items.length === 0" :empty-text="t('access.roles.empty')" @retry="query.refetch">
           <RoleTable :roles="query.data.value?.items ?? []" :can-manage="can('access.roles.manage')" @open="openRole" @clone="cloneRole" />
         </SharedPageState>
-        <div v-if="pages > 1" class="nasq-settings-pagination">
-          <UButton color="neutral" variant="ghost" :disabled="!hydrated || page === 1 || query.isFetching.value" :label="t('access.previousPage')" @click="previousPage" />
-          <span>{{ t('access.pageOf', { page, pages }) }}</span>
-          <UButton color="neutral" variant="ghost" :disabled="!hydrated || page >= pages || query.isFetching.value" :label="t('access.nextPage')" @click="nextPage" />
-        </div>
+        <SharedPagination class="mt-4" :page="page" :pages="pages" :disabled="query.isFetching.value" @update:page="setPage" />
       </div>
     </div>
   </SettingsLayout>

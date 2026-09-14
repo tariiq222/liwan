@@ -269,7 +269,7 @@ watch(() => props.denied, (value) => { if (value) seal() })
     <div class="flex justify-center p-2">
       <UButton type="button" color="neutral" variant="ghost" size="sm" :disabled="!hydrated || isFetching || loadingOlder || !items.length || sealed" :label="t('chat.loadOlder')" @click="loadOlder" />
     </div>
-    <div v-if="(isError || sealed) && !items.length" class="p-4 text-sm text-destructive" role="alert">{{ t('chat.unavailable') }}</div>
+    <div v-if="(isError || sealed) && !items.length" class="p-4 text-sm text-error" role="alert">{{ t('chat.unavailable') }}</div>
     <div ref="scroller" class="nasq-chat-scroller min-h-0 flex-1 overflow-y-auto px-4 py-2" data-testid="chat-scroller" @scroll="onScroll">
       <ol class="flex flex-col gap-1">
         <template v-for="row in rows" :key="row.kind === 'day' ? row.key : row.item.id">
@@ -280,7 +280,7 @@ watch(() => props.denied, (value) => { if (value) seal() })
             class="nasq-chat-row flex max-w-[min(100%,28rem)] flex-col gap-1"
             :class="row.item.author.id === me?.id ? 'ms-auto items-end' : 'me-auto items-start'"
           >
-            <span v-if="!direct && row.item.author.id !== me?.id" class="flex items-center gap-2 px-1 text-xs font-medium text-muted-foreground">
+            <span v-if="!direct && row.item.author.id !== me?.id" class="flex items-center gap-2 px-1 text-xs font-medium text-muted">
               <span class="nasq-chat-avatar nasq-chat-avatar-sm">{{ initialsFor(row.item.author.name) }}</span>
               <span>{{ row.item.author.name }}</span>
             </span>
@@ -288,7 +288,7 @@ watch(() => props.denied, (value) => { if (value) seal() })
               class="nasq-chat-bubble max-w-full text-start text-sm whitespace-pre-wrap break-words"
               :data-out="row.item.author.id === me?.id"
             >
-              <p v-if="row.item.parent" class="mb-1 border-s-2 ps-2 text-[11px] opacity-80">{{ row.item.parent.author.name }}: {{ row.item.parent.body }}</p>
+              <p v-if="row.item.parent" class="mb-1 border-s-2 ps-2 text-xs opacity-80">{{ row.item.parent.author.name }}: {{ row.item.parent.body }}</p>
               <template v-if="editingId === row.item.id">
                 <UTextarea v-model="editDraft" :rows="2" class="w-full" />
                 <div class="mt-1 flex gap-1">
@@ -298,8 +298,8 @@ watch(() => props.denied, (value) => { if (value) seal() })
               </template>
               <template v-else>
                 {{ row.item.body }}
-                <span v-if="row.item.edited" class="ms-1 text-[10px] opacity-70">{{ t('chat.edited') }}</span>
-                <span v-if="row.item.pinned" class="ms-1 text-[10px] opacity-70">{{ t('chat.pinned') }}</span>
+                <span v-if="row.item.edited" class="ms-1 text-xs opacity-70">{{ t('chat.edited') }}</span>
+                <span v-if="row.item.pinned" class="ms-1 text-xs opacity-70">{{ t('chat.pinned') }}</span>
               </template>
               <div v-if="row.item.attachments.length" class="mt-2 flex flex-col gap-1">
                 <ChatAttachment v-for="attachment in row.item.attachments" :key="attachment.id" :attachment="attachment" />
@@ -323,7 +323,7 @@ watch(() => props.denied, (value) => { if (value) seal() })
                 <span v-if="row.item.author.id === me?.id">{{ direct && peerSeenMessageId && row.item.id <= peerSeenMessageId ? t('chat.seen') : t('chat.sent') }}</span>
               </p>
             </div>
-            <div class="nasq-chat-msg-actions flex flex-wrap gap-1 text-[11px] text-muted-foreground">
+            <div class="nasq-chat-msg-actions flex flex-wrap gap-1 text-xs text-muted">
               <UButton type="button" color="neutral" variant="ghost" size="xs" :disabled="busyId === row.item.id" :label="t('chat.reply')" @click="emit('reply', row.item)" />
               <UButton
                 v-for="emoji in CHAT_REACTIONS"
@@ -338,18 +338,23 @@ watch(() => props.denied, (value) => { if (value) seal() })
               <UButton type="button" color="neutral" variant="ghost" size="xs" :disabled="busyId === row.item.id" :label="row.item.pinned ? t('chat.unpin') : t('chat.pin')" @click="runMessageAction(row.item, () => pinMessage({ messageId: row.item.id, pinned: !row.item.pinned }))" />
               <template v-if="row.item.author.id === me?.id">
                 <UButton type="button" color="neutral" variant="ghost" size="xs" :disabled="busyId === row.item.id" :label="t('chat.edit')" @click="editingId = row.item.id; editDraft = row.item.body" />
-                <UButton v-if="confirmingDelete !== row.item.id" type="button" color="error" variant="ghost" size="xs" :disabled="busyId === row.item.id" :label="t('chat.delete')" @click="confirmingDelete = row.item.id" />
-                <template v-else>
-                  <UButton type="button" color="error" variant="ghost" size="xs" :disabled="busyId === row.item.id" :label="t('chat.confirmDelete')" @click="deleteMessage(row.item)" />
-                  <UButton type="button" color="neutral" variant="ghost" size="xs" :label="t('app.cancel')" @click="confirmingDelete = null" />
-                </template>
+                <UButton type="button" color="error" variant="ghost" size="xs" :disabled="busyId === row.item.id || confirmingDelete === row.item.id" :label="t('chat.delete')" @click="confirmingDelete = row.item.id" />
               </template>
             </div>
+            <SharedInlineConfirm
+              v-if="confirmingDelete === row.item.id"
+              class="w-full"
+              :title="t('chat.deleteConfirmTitle')"
+              :confirm-label="t('chat.confirmDelete')"
+              :pending="busyId === row.item.id"
+              @confirm="deleteMessage(row.item)"
+              @cancel="confirmingDelete = null"
+            />
           </li>
         </template>
         <li v-if="pendingBody" class="ms-auto flex max-w-[min(100%,24rem)] flex-col items-end gap-1" data-testid="chat-pending">
           <div class="nasq-chat-bubble max-w-full text-start text-sm whitespace-pre-wrap break-words" data-out="true">{{ pendingBody }}</div>
-          <p class="text-[10px] text-muted-foreground">{{ t('chat.pending') }}</p>
+          <p class="text-xs text-muted">{{ t('chat.pending') }}</p>
         </li>
       </ol>
     </div>

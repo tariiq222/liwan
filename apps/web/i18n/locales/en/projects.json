@@ -121,7 +121,8 @@
       "label": "Project actions",
       "settings": "Project settings",
       "archive": "Archive project",
-      "unarchive": "Unarchive"
+      "unarchive": "Unarchive",
+      "labelNamed": "Actions for {name}"
     },
     "archiveConfirmTitle": "Archive this project?",
     "archiveConfirmText": "The project and its tasks leave the lists. You can unarchive it later from the Archived filter.",
@@ -172,7 +173,9 @@
       "add": "Add follower",
       "remove": "Remove",
       "empty": "No followers yet",
-      "hint": "With \"Followers only\", only people on this list see the project."
+      "hint": "With \"Followers only\", only people on this list see the project.",
+      "removeNamed": "Remove {name}",
+      "removeConfirm": "Remove {name} from followers?"
     },
     "tabs": {
       "overview": "Overview",
@@ -221,7 +224,10 @@
       "checklistOf": "Checklist: {done} of {total}",
       "taskProgress": "Task progress: {percent}%",
       "continueToTasks": "Continue to tasks",
-      "openProjectFile": "Set project dates in the charter"
+      "openProjectFile": "Set project dates in the charter",
+      "deleteBlocked": "Delete (linked to {count} tasks)",
+      "deleteConfirm": "Delete milestone “{name}”?",
+      "actionsNamed": "Actions for milestone {name}"
     },
     "updates": {
       "add": "Add update",
@@ -357,7 +363,8 @@
       "retryMilestones": "Retry",
       "printUnavailable": "Printing is available after milestone outputs load.",
       "legacyDetails": "Legacy charter details",
-      "legacyDeliverables": "Legacy charter deliverables"
+      "legacyDeliverables": "Legacy charter deliverables",
+      "clearField": "Clear {field}"
     },
     "planningLinks": {
       "schedule": "Timeline / Gantt",
@@ -475,10 +482,6 @@
       "emptyTasks": "No tasks have been added to this template yet."
     },
     "governance": {
-      "charterHint": "Project scope, objectives, and justification.",
-      "stakeholdersHint": "Interested parties, their roles, and how to reach them.",
-      "raciHint": "Who does the work and who owns the decision on each task.",
-      "risksHint": "Open risks and issues with their treatment plans.",
       "stakeholders": "Stakeholders",
       "stakeholdersDescription": "People involved in the project and their roles.",
       "newStakeholder": "New stakeholder",
@@ -564,7 +567,9 @@
       "closedTasks": "Completed and cancelled tasks",
       "all": "All",
       "delete": "Delete",
-      "saving": "Saving…"
+      "saving": "Saving…",
+      "confirmDeleteNamed": "Delete “{name}”?",
+      "actionsNamed": "Actions for {name}"
     },
     "finance": {
       "title": "Budget and costs",
@@ -645,7 +650,8 @@
         "too_large": "The amount cannot exceed 1,000,000,000,000",
         "negative": "The amount cannot be negative",
         "referencedBudget": "This budget row is used by expenses. Unlink or delete those expenses first."
-      }
+      },
+      "actionsNamed": "Actions for {name}"
     },
     "reports": {
       "title": "Reports",

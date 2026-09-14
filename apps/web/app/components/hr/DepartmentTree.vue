@@ -80,12 +80,12 @@ function toggle(node: DepartmentTreeNode) {
           @click="toggle(node)"
         >
           <span class="dept-tree-chevron inline-flex" :class="{ 'dept-tree-chevron-collapsed': !isExpanded(node) }">
-            <UIcon name="i-lucide-chevron-down" class="size-[18px]" />
+            <UIcon name="i-lucide-chevron-down" class="size-4.5" />
           </span>
         </UButton>
         <span v-else class="size-8" aria-hidden="true" />
       </span>
-      <UIcon name="i-lucide-network" class="size-[18px] shrink-0 text-muted" aria-hidden="true" />
+      <UIcon name="i-lucide-network" class="size-4.5 shrink-0 text-muted" aria-hidden="true" />
       <UButton
         type="button"
         color="neutral"

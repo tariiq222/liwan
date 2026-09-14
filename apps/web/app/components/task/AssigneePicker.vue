@@ -1,27 +1,22 @@
 <script setup lang="ts">
 import type { Task } from '@nasq/contracts'
-import { refDebounced } from '@vueuse/core'
-import { usePeople } from '@/composables/usePeople'
+import type { PickedPerson } from '@/components/shared/PersonPicker.vue'
 
 type PersonRef = Task['assignees'][number]
 
 // modelValue carries the full ref objects (not just ids) so the picker can
 // render chips without an extra lookup; the emitted payload gives both the
 // bare ids (for the PATCH body) and the resolved objects (for useUpdateTask's
-// optimistic cache update).
+// optimistic cache update). Searching and selection belong to
+// SharedPersonPicker; task assignees use the PersonRef `id` the task API takes
+// as `user_ids`.
 const props = defineProps<{ modelValue: PersonRef[]; labelledby?: string }>()
 const emit = defineEmits<{ 'update:modelValue': [{ ids: number[]; resolved: PersonRef[] }] }>()
 
 const { t } = useI18n()
-const q = ref('')
-// Debounced: usePeople keys its query on the search term, so passing the raw
-// input ref fired one request per keystroke.
-const debouncedQ = refDebounced(q, 250)
-const { data: people } = usePeople(debouncedQ)
+const hydrated = useHydrated()
 
-const selectedIds = computed(() => new Set(props.modelValue.map((p) => p.id)))
-
-const peopleItems = computed(() => (people.value ?? []).map((p) => ({ label: p.name, value: p.id })))
+const selectedIds = computed(() => props.modelValue.map((p) => p.id))
 
 function commit(next: PersonRef[]) {
   emit('update:modelValue', { ids: next.map((p) => p.id), resolved: next })
@@ -31,15 +26,11 @@ function remove(id: number) {
   commit(props.modelValue.filter((p) => p.id !== id))
 }
 
-// USelectMenu emits the full list of selected values on every change; this
-// picker's contract needs the resolved PersonRef objects, not just ids, so
-// unmatched ids fall back to the already-selected ref (still in modelValue)
-// or the currently loaded search results (freshly picked).
-function onSelectMenuChange(ids: number[]) {
-  const byId = new Map<number, PersonRef>()
-  for (const p of props.modelValue) byId.set(p.id, p)
-  for (const p of people.value ?? []) byId.set(p.id, p)
-  commit(ids.map((id) => byId.get(id)).filter((p): p is PersonRef => !!p))
+// SharedPersonPicker resolves every selected id to `{ id, name }`, falling back
+// to `known` (the current assignees) for ids outside the search results.
+function onResolve(people: PickedPerson[]) {
+  const byId = new Map<number, PersonRef>(props.modelValue.map((p) => [p.id, p]))
+  commit(people.map((person) => byId.get(person.id) ?? { id: person.id, name: person.name }))
 }
 </script>
 
@@ -54,31 +45,24 @@ function onSelectMenuChange(ids: number[]) {
           variant="ghost"
           square
           size="xs"
-          class="rounded-full hover:bg-elevated/50"
+          icon="i-lucide-x"
+          class="rounded-full"
           :aria-label="t('tasks.drawer.removeAssignee')"
+          :disabled="!hydrated"
           @click="remove(p.id)"
-        >
-          <UIcon name="i-lucide-x" class="size-3" aria-hidden="true" />
-        </UButton>
+        />
       </UBadge>
       <span v-if="modelValue.length === 0" class="text-sm text-muted">{{ t('tasks.drawer.unassigned') }}</span>
     </div>
 
-    <USelectMenu
-      v-model:search-term="q"
-      :model-value="[...selectedIds]"
-      :items="peopleItems"
-      :ignore-filter="true"
+    <SharedPersonPicker
+      :model-value="selectedIds"
       multiple
-      value-key="value"
-      variant="outline"
-      size="sm"
+      value-key="id"
+      :known="modelValue"
       :placeholder="t('tasks.drawer.assignees')"
-      :search-input="{ placeholder: t('app.search') }"
       :aria-labelledby="props.labelledby"
-      @update:model-value="onSelectMenuChange"
-    >
-        <template #default><span class="truncate">{{ modelValue.length ? modelValue.map(person => person.name).join('، ') : t('tasks.drawer.assignees') }}</span></template>
-    </USelectMenu>
+      @resolve="onResolve"
+    />
   </div>
 </template>

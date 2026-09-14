@@ -8,10 +8,10 @@ const { t } = useI18n()
 <template>
   <a
     :href="props.attachment.url"
-    class="inline-flex min-h-8 items-center gap-2 rounded-lg border border-default bg-default px-2 py-1 text-sm text-start shadow-sm hover:bg-muted"
+    class="inline-flex min-h-8 items-center gap-2 rounded-lg border border-default bg-default px-2 py-1 text-sm text-start shadow-sm hover:bg-elevated"
     :download="props.attachment.name"
   >
     <span class="truncate">{{ props.attachment.name }}</span>
-    <span class="text-xs text-muted-foreground">{{ t('chat.download') }}</span>
+    <span class="text-xs text-muted">{{ t('chat.download') }}</span>
   </a>
 </template>

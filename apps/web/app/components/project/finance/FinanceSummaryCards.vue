@@ -32,34 +32,32 @@ const show = computed(() => mode.value !== 'empty' || props.summary.charter_esti
     </section>
 
     <section v-else-if="mode === 'dashboard'" class="grid gap-3 sm:grid-cols-3">
-      <UCard :ui="{ body: 'flex items-center gap-4 p-5' }">
-        <span class="flex size-10 shrink-0 items-center justify-center rounded-md bg-elevated text-primary" aria-hidden="true"><UIcon name="i-lucide-wallet" class="size-5" /></span>
-        <div class="min-w-0">
-          <p class="truncate text-sm text-muted">{{ t('projects.finance.planned') }}</p>
-          <p class="mt-0.5 text-2xl font-semibold tracking-tight text-highlighted tabular-nums" dir="ltr">{{ formatNullableAmount(summary.planned, currency, unknown) }}</p>
-          <p class="mt-1 text-xs text-muted">{{ t('projects.finance.budgetCount', { count: summary.budget_count }) }}</p>
-        </div>
-      </UCard>
-      <UCard :ui="{ body: 'flex items-center gap-4 p-5' }">
-        <span class="flex size-10 shrink-0 items-center justify-center rounded-md bg-elevated text-primary" aria-hidden="true"><UIcon name="i-lucide-receipt" class="size-5" /></span>
-        <div class="min-w-0">
-          <p class="truncate text-sm text-muted">{{ t('projects.finance.actual') }}</p>
-          <p class="mt-0.5 text-2xl font-semibold tracking-tight text-highlighted tabular-nums" dir="ltr">{{ formatNullableAmount(summary.actual, currency, unknown) }}</p>
-          <p class="mt-1 text-xs text-muted">{{ t('projects.finance.expenseCount', { count: summary.expense_count }) }}</p>
-        </div>
-      </UCard>
-      <UCard :ui="{ body: 'flex items-center gap-4 p-5' }">
-        <span class="flex size-10 shrink-0 items-center justify-center rounded-md bg-elevated text-primary" aria-hidden="true"><UIcon name="i-lucide-scale" class="size-5" /></span>
-        <div class="min-w-0">
-          <p class="truncate text-sm text-muted">{{ t('projects.finance.remaining') }}</p>
-          <p class="mt-0.5 text-2xl font-semibold tracking-tight text-highlighted tabular-nums" dir="ltr">{{ formatNullableAmount(summary.remaining, currency, unknown) }}</p>
-          <p class="mt-1 text-xs text-muted">
-            {{ t('projects.finance.utilization') }}:
-            <span dir="ltr">{{ formatUtilization(summary.utilization_percent, unknown) }}</span>
-            <UBadge v-if="plannedStatus === 'over'" color="error" variant="subtle" class="ms-2 align-middle">{{ t('projects.finance.overBudget') }}</UBadge>
-          </p>
-        </div>
-      </UCard>
+      <SharedMetricTile
+        icon="i-lucide-wallet"
+        :label="t('projects.finance.planned')"
+        :value="formatNullableAmount(summary.planned, currency, unknown)"
+        value-dir="ltr"
+        :hint="t('projects.finance.budgetCount', { count: summary.budget_count })"
+      />
+      <SharedMetricTile
+        icon="i-lucide-receipt"
+        :label="t('projects.finance.actual')"
+        :value="formatNullableAmount(summary.actual, currency, unknown)"
+        value-dir="ltr"
+        :hint="t('projects.finance.expenseCount', { count: summary.expense_count })"
+      />
+      <SharedMetricTile
+        icon="i-lucide-scale"
+        :label="t('projects.finance.remaining')"
+        :value="formatNullableAmount(summary.remaining, currency, unknown)"
+        value-dir="ltr"
+      >
+        <p class="text-xs text-muted">
+          {{ t('projects.finance.utilization') }}:
+          <span dir="ltr">{{ formatUtilization(summary.utilization_percent, unknown) }}</span>
+          <UBadge v-if="plannedStatus === 'over'" color="error" variant="subtle" class="ms-2 align-middle">{{ t('projects.finance.overBudget') }}</UBadge>
+        </p>
+      </SharedMetricTile>
     </section>
 
     <div v-if="showCharter" data-testid="project-finance-charter" class="flex flex-wrap items-center justify-between gap-3 text-sm">

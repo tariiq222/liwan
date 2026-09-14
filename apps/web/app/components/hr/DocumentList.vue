@@ -57,6 +57,10 @@ function setPage(next: number) {
   offset.value = (next - 1) * limit
   void router.replace({ query: { ...route.query, ...(offset.value ? { offset: offset.value } : { offset: undefined }) } })
 }
+function openRow(event: Event, document: HrDocument) {
+  if (!hydrated.value || (event.target as HTMLElement | null)?.closest('a, button')) return
+  void navigateTo(detailsTo(document))
+}
 function detailsTo(document: HrDocument) {
   return { path: `/hr/departments/${document.department.id}/documents/${document.id}`, query: returnToQuery(route.fullPath) }
 }
@@ -80,7 +84,7 @@ function detailsTo(document: HrDocument) {
       </FilterBar>
     </div>
     <div class="min-w-0 space-y-2">
-      <UCard class="rounded-lg ring ring-default bg-default overflow-hidden hidden md:block" :class="props.embedded ? 'ring-0 border-0 shadow-none rounded-none' : ''" :ui="{ body: 'p-0' }">
+      <div class="hidden overflow-hidden bg-default md:block" :class="props.embedded ? '' : 'rounded-lg ring ring-default'">
         <div v-if="query.isLoading.value" class="divide-y divide-default" role="status" :aria-label="t('app.loading')">
           <div v-for="n in 3" :key="n" class="flex items-center gap-4 px-4 py-3">
             <USkeleton class="h-5 w-20" /><USkeleton class="h-5 flex-1" /><USkeleton class="h-5 w-24" />
@@ -88,29 +92,25 @@ function detailsTo(document: HrDocument) {
         </div>
         <div v-else-if="items.length === 0" class="p-6"><SharedEmptyState :title="t('hr.docs.empty')" /></div>
         <div v-else class="overflow-x-auto">
-          <UTable :data="items" :columns="columns" :caption="t('hr.docs.title')" :ui="{ caption: 'sr-only', th: '' }" @select="(_event, row) => navigateTo(detailsTo(row.original))">
+          <UTable :data="items" :columns="columns" :caption="t('hr.docs.title')" :ui="{ caption: 'sr-only', th: '', tr: 'cursor-pointer' }" @select="(event, row) => openRow(event, row.original)">
             <template #id-cell="{ row }"><RecordNumber :value="row.original.id" /></template>
-            <template #name-cell="{ row }">{{ row.original.name }}</template>
+            <template #name-cell="{ row }"><NuxtLink :to="detailsTo(row.original)" class="rounded font-medium text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">{{ row.original.name }}</NuxtLink></template>
             <template #write_date-cell="{ row }"><span class="text-muted">{{ formatDocumentDate(row.original.write_date) }}</span></template>
           </UTable>
         </div>
-      </UCard>
+      </div>
       <div v-if="query.isLoading.value" class="md:hidden space-y-2">
         <USkeleton v-for="n in 3" :key="n" class="h-16 w-full rounded-lg" />
       </div>
       <div v-else-if="items.length === 0" class="md:hidden"><SharedEmptyState :title="t('hr.docs.empty')" /></div>
-      <ul v-else class="md:hidden space-y-2" :aria-label="t('hr.docs.title')">
-        <li v-for="document in items" :key="document.id" class="cursor-pointer rounded-lg ring ring-default bg-default overflow-hidden p-4" tabindex="0" role="button" @click="navigateTo(detailsTo(document))" @keydown.enter.self="navigateTo(detailsTo(document))" @keydown.space.self.prevent="navigateTo(detailsTo(document))">
+      <ul v-else class="divide-y divide-default overflow-hidden rounded-lg bg-default ring ring-default md:hidden" :aria-label="t('hr.docs.title')">
+        <li v-for="document in items" :key="document.id" class="cursor-pointer p-4" @click="openRow($event, document)">
           <bdi class="block text-xs text-muted">#{{ document.id }}</bdi>
-          <p class="font-medium">{{ document.name }}</p>
+          <NuxtLink :to="detailsTo(document)" class="rounded font-medium text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">{{ document.name }}</NuxtLink>
           <p class="mt-1 text-xs text-muted">{{ formatDocumentDate(document.write_date) }}</p>
         </li>
       </ul>
     </div>
-    <div v-if="pages > 1" class="flex items-center justify-between text-sm text-muted">
-      <UButton color="neutral" variant="ghost" :disabled="!hydrated || page === 1 || query.isFetching.value" :label="t('access.previousPage')" @click="setPage(page - 1)" />
-      <span>{{ t('access.pageOf', { page, pages }) }}</span>
-      <UButton color="neutral" variant="ghost" :disabled="!hydrated || page >= pages || query.isFetching.value" :label="t('access.nextPage')" @click="setPage(page + 1)" />
-    </div>
+    <SharedPagination :page="page" :pages="pages" :disabled="query.isFetching.value || hasPendingSearch" @update:page="setPage" />
   </section>
 </template>

@@ -7,6 +7,7 @@ import { STATUS_COLOR } from '@/utils/statusTone'
 import { ApiError } from '@/composables/useApi'
 import FilterBar from '@/components/shared/FilterBar.vue'
 import RecordNumber from '@/components/shared/RecordNumber.vue'
+import type { RowAction } from '@/components/shared/RowActions.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -20,9 +21,6 @@ const list = useProjectRegister(id, filters)
 const remove = useDeleteProjectRegister()
 const confirmDeleteId = ref<number | null>(null)
 const error = ref<string | null>(null)
-// Governance groups these four pages behind one card list; that card list is the
-// way back, and the project tab strip has no tab of its own for them.
-const backTo = computed(() => `/projects/${id.value}/governance`)
 function setFilter(key: string, value: string) {
   router.replace({ query: { ...route.query, [key]: value || undefined, offset: undefined } })
 }
@@ -93,6 +91,25 @@ async function deleteItem(item: { id: number }) {
       : cause instanceof ApiError ? cause.message : t('errors.generic')
   }
 }
+const confirmItem = computed(() => list.data.value?.items.find(item => item.id === confirmDeleteId.value) ?? null)
+// The row menu only opens the confirmation; deletion happens from SharedInlineConfirm.
+function rowActions(item: { id: number; title: string }): RowAction[] {
+  return [{
+    label: t('projects.governance.delete'),
+    icon: 'i-lucide-trash-2',
+    destructive: true,
+    disabled: remove.isPending.value,
+    onSelect: () => {
+      if (confirmDeleteId.value === item.id) return
+      void deleteItem(item)
+      void nextTick(() => document.querySelector('[data-testid="register-delete-confirm"]')?.scrollIntoView({ block: 'nearest' }))
+    },
+  }]
+}
+function cancelDelete() {
+  confirmDeleteId.value = null
+  error.value = null
+}
 </script>
 
 <template>
@@ -100,8 +117,6 @@ async function deleteItem(item: { id: number }) {
     <SharedPageHeader
       v-if="!isProjectOverlay"
       :title="t('projects.refresh.workspace.registerTitle')"
-      :back-to="backTo"
-      :back-label="t('projects.workspace.groups.governance')"
     >
       <template #actions>
         <UButton
@@ -158,7 +173,18 @@ async function deleteItem(item: { id: number }) {
         </div>
       </template>
     </FilterBar>
-    <p v-if="error" role="alert" class="text-sm text-error">{{ error }}</p>
+    <SharedInlineConfirm
+      v-if="confirmItem"
+      data-testid="register-delete-confirm"
+      :title="t('projects.governance.confirmDeleteNamed', { name: confirmItem.title })"
+      :confirm-label="t('projects.governance.confirmDeleteAction')"
+      :pending="remove.isPending.value"
+      @cancel="cancelDelete"
+      @confirm="deleteItem(confirmItem)"
+    >
+      <p v-if="error" class="text-error">{{ error }}</p>
+    </SharedInlineConfirm>
+    <p v-else-if="error" role="alert" class="text-sm text-error">{{ error }}</p>
     <SharedPageState
       :loading="list.isLoading.value"
       :error="list.error.value"
@@ -183,26 +209,8 @@ async function deleteItem(item: { id: number }) {
           <template #status-cell="{ row }"><UBadge variant="subtle" :color="STATUS_COLOR[REGISTER_STATUS_TONE[row.original.status]]">{{ t(`projects.governance.register.${row.original.status}`) }}</UBadge></template>
           <template #score-cell="{ row }"><UBadge variant="subtle" :color="STATUS_COLOR[registerScoreTone(row.original.score)]">{{ row.original.score ?? '—' }}</UBadge></template>
           <template #actions-cell="{ row }">
-            <div class="flex justify-end gap-2">
-              <template v-if="list.data.value?.can_manage">
-                <UButton
-                  color="error"
-                  variant="ghost"
-                  size="sm"
-                  :disabled="!hydrated || remove.isPending.value"
-                  @click="deleteItem(row.original)"
-                >
-                  {{ confirmDeleteId === row.original.id ? t('projects.governance.confirmDeleteAction') : t('projects.governance.delete') }}
-                </UButton>
-                <UButton color="neutral" variant="outline"
-                  v-if="confirmDeleteId === row.original.id"
-                  size="sm"
-                  :disabled="!hydrated || remove.isPending.value"
-                  @click="confirmDeleteId = null"
-                >
-                  {{ t('app.cancel') }}
-                </UButton>
-              </template>
+            <div v-if="list.data.value?.can_manage" class="flex justify-end">
+              <SharedRowActions :actions="rowActions(row.original)" :label="t('projects.governance.actionsNamed', { name: row.original.title })" :disabled="!hydrated" />
             </div>
           </template>
         </UTable>
@@ -221,7 +229,10 @@ async function deleteItem(item: { id: number }) {
                     {{ item.title }}
                   </NuxtLink>
                 </div>
-                <UBadge variant="subtle" class="shrink-0" :color="STATUS_COLOR[REGISTER_STATUS_TONE[item.status]]">{{ t(`projects.governance.register.${item.status}`) }}</UBadge>
+                <div class="flex shrink-0 items-center gap-1">
+                  <UBadge variant="subtle" :color="STATUS_COLOR[REGISTER_STATUS_TONE[item.status]]">{{ t(`projects.governance.register.${item.status}`) }}</UBadge>
+                  <SharedRowActions v-if="list.data.value?.can_manage" :actions="rowActions(item)" :label="t('projects.governance.actionsNamed', { name: item.title })" :disabled="!hydrated" />
+                </div>
               </div>
               <dl class="grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
                 <div>
@@ -237,25 +248,6 @@ async function deleteItem(item: { id: number }) {
                   <dd><UBadge variant="subtle" :color="STATUS_COLOR[registerScoreTone(item.score)]">{{ item.score ?? '—' }}</UBadge></dd>
                 </div>
               </dl>
-              <div v-if="list.data.value?.can_manage" class="flex justify-end gap-2">
-                <UButton
-                  color="error"
-                  variant="ghost"
-                  size="sm"
-                  :disabled="!hydrated || remove.isPending.value"
-                  @click="deleteItem(item)"
-                >
-                  {{ confirmDeleteId === item.id ? t('projects.governance.confirmDeleteAction') : t('projects.governance.delete') }}
-                </UButton>
-                <UButton color="neutral" variant="outline"
-                  v-if="confirmDeleteId === item.id"
-                  size="sm"
-                  :disabled="!hydrated || remove.isPending.value"
-                  @click="confirmDeleteId = null"
-                >
-                  {{ t('app.cancel') }}
-                </UButton>
-              </div>
             </div>
           </UCard>
         </li>

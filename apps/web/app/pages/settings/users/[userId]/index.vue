@@ -2,6 +2,7 @@
 import type { PermissionDefinition } from '@nasq/contracts'
 import SettingsLayout from '@/components/settings/SettingsLayout.vue'
 import { adminListQuery, adminPathWithQuery } from '@/composables/adminSettingsPaths'
+import { routeTabClass, routeTabsStripClass } from '@/utils/sectionTabs'
 const route = useRoute()
 const { t, locale } = useI18n()
 const { can } = useAccess()
@@ -23,12 +24,12 @@ const sourceLabel = (source: { role: { name: { ar: string; en: string | null } }
 <template>
   <SettingsLayout width="detail">
     <SharedPageHeader :title="query.data.value?.name ?? t('access.users.title')" :description="query.data.value?.login" :back-to="returnTo" />
-    <nav class="flex gap-1 overflow-x-auto border-b border-default" :aria-label="t('access.users.accountNavigation')">
-      <UButton color="neutral" variant="ghost" class="inline-flex items-center gap-2 whitespace-nowrap px-3 py-2 text-sm font-medium text-muted transition-colors hover:text-default data-[active=true]:text-primary data-[active=true]:shadow-[inset_0_-2px_0_0_var(--ui-primary)] aria-[current=page]:text-primary aria-[current=page]:shadow-[inset_0_-2px_0_0_var(--ui-primary)]" :to="route.path" aria-current="page">{{ t('access.users.account') }}</UButton>
-      <UButton color="neutral" variant="ghost" class="inline-flex items-center gap-2 whitespace-nowrap px-3 py-2 text-sm font-medium text-muted transition-colors hover:text-default data-[active=true]:text-primary data-[active=true]:shadow-[inset_0_-2px_0_0_var(--ui-primary)] aria-[current=page]:text-primary aria-[current=page]:shadow-[inset_0_-2px_0_0_var(--ui-primary)]" v-if="query.data.value?.allowed_actions.includes('assign_roles')" :to="accessTo">{{ t('access.users.editAccess') }}</UButton>
-      <UButton color="neutral" variant="ghost" class="inline-flex items-center gap-2 whitespace-nowrap px-3 py-2 text-sm font-medium text-muted transition-colors hover:text-default data-[active=true]:text-primary data-[active=true]:shadow-[inset_0_-2px_0_0_var(--ui-primary)] aria-[current=page]:text-primary aria-[current=page]:shadow-[inset_0_-2px_0_0_var(--ui-primary)]" v-if="query.data.value?.allowed_actions.includes('reset_password') || query.data.value?.allowed_actions.includes('disable') || query.data.value?.allowed_actions.includes('reactivate')" :to="securityTo">{{ t('access.users.security') }}</UButton>
-      <UButton color="neutral" variant="ghost" class="inline-flex items-center gap-2 whitespace-nowrap px-3 py-2 text-sm font-medium text-muted transition-colors hover:text-default data-[active=true]:text-primary data-[active=true]:shadow-[inset_0_-2px_0_0_var(--ui-primary)] aria-[current=page]:text-primary aria-[current=page]:shadow-[inset_0_-2px_0_0_var(--ui-primary)]" v-if="can('access.audit.read')" :to="`/settings/access-log?target_type=user&target_id=${id}`">{{ t('access.users.changes') }}</UButton>
-      <UButton color="neutral" variant="ghost" class="inline-flex items-center gap-2 whitespace-nowrap px-3 py-2 text-sm font-medium text-muted transition-colors hover:text-default data-[active=true]:text-primary data-[active=true]:shadow-[inset_0_-2px_0_0_var(--ui-primary)] aria-[current=page]:text-primary aria-[current=page]:shadow-[inset_0_-2px_0_0_var(--ui-primary)]" v-if="query.data.value?.employee && can('hr.employees.read')" :to="`/hr/employees/${query.data.value.employee.id}`">{{ t('access.users.employeeFile') }}</UButton>
+    <nav :class="routeTabsStripClass" :aria-label="t('access.users.accountNavigation')">
+      <UButton color="neutral" variant="ghost" :class="routeTabClass" :to="route.path" aria-current="page">{{ t('access.users.account') }}</UButton>
+      <UButton color="neutral" variant="ghost" :class="routeTabClass" v-if="query.data.value?.allowed_actions.includes('assign_roles')" :to="accessTo">{{ t('access.users.editAccess') }}</UButton>
+      <UButton color="neutral" variant="ghost" :class="routeTabClass" v-if="query.data.value?.allowed_actions.includes('reset_password') || query.data.value?.allowed_actions.includes('disable') || query.data.value?.allowed_actions.includes('reactivate')" :to="securityTo">{{ t('access.users.security') }}</UButton>
+      <UButton color="neutral" variant="ghost" :class="routeTabClass" v-if="can('access.audit.read')" :to="`/settings/access-log?target_type=user&target_id=${id}`">{{ t('access.users.changes') }}</UButton>
+      <UButton color="neutral" variant="ghost" :class="routeTabClass" v-if="query.data.value?.employee && can('hr.employees.read')" :to="`/hr/employees/${query.data.value.employee.id}`">{{ t('access.users.employeeFile') }}</UButton>
     </nav>
     <SharedPageState v-if="forbidden" :empty="true" :empty-text="t('access.forbidden')" />
     <SharedPageState v-else :loading="query.isLoading.value" :error="query.error.value" :empty="!query.isLoading.value && !query.error.value && !query.data.value" :empty-text="t('access.notFound')" @retry="query.refetch">

@@ -10,7 +10,7 @@ async function login(page: Page) {
   await page.getByLabel('اسم المستخدم').fill(ADMIN_LOGIN)
   await page.getByLabel('كلمة المرور').fill(ADMIN_PASSWORD)
   await submit.click()
-  await expect(page).toHaveURL(/\/tasks$/)
+  await expect(page).not.toHaveURL(/\/login(?:\?|$)/)
 }
 
 test('project settings links to both catalogs without a shared nav item', async ({ page }) => {

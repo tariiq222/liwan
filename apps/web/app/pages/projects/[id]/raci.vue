@@ -14,9 +14,6 @@ const route = useRoute(); const router = useRouter(); const { t } = useI18n(); c
 const isProjectOverlay = inject<boolean>(Symbol.for('nasq.project.overlay'), false)
 const id = computed(() => Number(route.params.id)); const viewport = computed(() => governanceMatrixFilters(route.query))
 function replaceFilter(key: string, value: string | undefined, pageKey: string) { router.replace({ query: { ...route.query, [key]: value, [pageKey]: undefined } }) }
-// Governance groups these four pages behind one card list; that card list is the
-// way back, and the project tab strip has no tab of its own for them.
-const backTo = computed(() => `/projects/${id.value}/governance`)
 const taskSearch = computed({ get: () => viewport.value.taskQ, set: value => replaceFilter('task_q', value || undefined, 'task_page') })
 const stakeholderSearch = computed({ get: () => viewport.value.stakeholderQ, set: value => replaceFilter('stakeholder_q', value || undefined, 'stakeholder_page') })
 const closed = computed({ get: () => viewport.value.closed, set: value => replaceFilter('closed', value ? '1' : undefined, 'task_page') })
@@ -69,8 +66,6 @@ async function deleteRow() {
     <SharedPageHeader
       v-if="!isProjectOverlay"
       :title="t('projects.governance.raci.title')"
-      :back-to="backTo"
-      :back-label="t('projects.workspace.groups.governance')"
     />
     <FilterBar class="w-full" :active-count="activeFilterCount" :disabled="!hydrated || pending" @clear="clearFilters">
       <template #search>
@@ -112,13 +107,19 @@ async function deleteRow() {
       </div>
     </section>
     <p v-if="error" role="alert" class="text-sm text-error">{{ error }}</p>
-    <section v-if="confirmRow" class="rounded-lg ring ring-default bg-default overflow-hidden" role="group" :aria-label="t('projects.governance.confirmDelete')">
-      <div class="border-b border-default px-5 py-4"><h2 class="text-lg font-semibold text-highlighted">{{ t('projects.governance.confirmDelete') }}</h2></div>
-      <div class="p-5 space-y-3">
-        <p>{{ confirmRow.task.name }} — {{ confirmRow.stakeholder.name }} ({{ confirmRow.role }})</p>
-        <div class="flex flex-wrap gap-2"><UButton color="error" :disabled="!hydrated || pending" @click="deleteRow">{{ t('projects.governance.confirmDeleteAction') }}</UButton><UButton color="neutral" variant="outline" :disabled="!hydrated || pending" @click="confirmRow = null">{{ t('app.cancel') }}</UButton></div>
-      </div>
-    </section>
+    <!-- role="group" keeps the confirmation addressable by its question while the matrix stays locked. -->
+    <SharedInlineConfirm
+      v-if="confirmRow"
+      role="group"
+      :aria-label="t('projects.governance.confirmDelete')"
+      data-testid="raci-delete-confirm"
+      :title="t('projects.governance.confirmDelete')"
+      :description="`${confirmRow.task.name} — ${confirmRow.stakeholder.name} (${confirmRow.role})`"
+      :confirm-label="t('projects.governance.confirmDeleteAction')"
+      :pending="pending"
+      @cancel="confirmRow = null"
+      @confirm="deleteRow"
+    />
     <SharedPageState :loading="tasks.isLoading.value || stakeholders.isLoading.value || rows.isLoading.value" :error="tasks.error.value || stakeholders.error.value || rows.error.value" :empty="false" @retry="() => { tasks.refetch(); stakeholders.refetch(); rows.refetch() }" />
     <section v-if="!tasks.isLoading.value && !stakeholders.isLoading.value && !rows.isLoading.value && !tasks.error.value && !stakeholders.error.value && !rows.error.value && (!visibleTasks.length || !visibleStakeholders.length)" class="rounded-lg ring ring-default bg-default overflow-hidden" data-testid="raci-empty">
       <div class="border-b border-default px-5 py-4"><h2 class="text-lg font-semibold text-highlighted">{{ t('projects.refresh.workspace.raciEmptyTitle') }}</h2></div>
@@ -127,8 +128,8 @@ async function deleteRow() {
         <p v-else-if="!visibleTasks.length" class="text-sm text-muted">{{ t('projects.refresh.workspace.raciEmptyTasks') }}</p>
         <p v-else class="text-sm text-muted">{{ t('projects.refresh.workspace.raciEmptyStakeholders') }}</p>
         <div class="flex flex-wrap gap-2">
-        <UButton v-if="!visibleTasks.length" variant="outline" :to="{ path: `/projects/${id}`, query: { ...route.query, tab: 'tasks' } }">{{ t('projects.refresh.workspace.raciOpenTasks') }}</UButton>
-        <UButton v-if="!visibleStakeholders.length && rows.data.value?.can_manage" variant="outline" :to="{ path: `/projects/${id}/stakeholders/new`, query: { returnTo: route.fullPath } }">{{ t('projects.refresh.workspace.raciAddStakeholder') }}</UButton>
+        <UButton v-if="!visibleTasks.length" color="neutral" variant="outline" :to="{ path: `/projects/${id}`, query: { ...route.query, tab: 'tasks' } }">{{ t('projects.refresh.workspace.raciOpenTasks') }}</UButton>
+        <UButton v-if="!visibleStakeholders.length && rows.data.value?.can_manage" color="neutral" variant="outline" icon="i-lucide-plus" :to="{ path: `/projects/${id}/stakeholders/new`, query: { returnTo: route.fullPath } }">{{ t('projects.refresh.workspace.raciAddStakeholder') }}</UButton>
         </div>
       </div>
     </section>

@@ -70,6 +70,7 @@
       "accessDisabled": "تم إيقاف الوصول",
       "accessReactivated": "تمت إعادة تفعيل الوصول",
       "confirmAction": "تأكيد",
+      "rowActions": "إجراءات المستخدم {name}",
       "confirmResetPassword": "أكد إعادة تعيين كلمة مرور {name}.",
       "confirmDisable": "أكد إيقاف الوصول عن {name}.",
       "confirmReactivate": "أكد إعادة تفعيل الوصول لـ {name}."
@@ -105,6 +106,12 @@
       "unknownPermission": "صلاحية غير متاحة",
       "domains": { "access": "إدارة الوصول", "hr": "الموارد البشرية", "pmo": "المشاريع", "meetings": "الاجتماعات", "settings": "الإعدادات" },
       "clone": "نسخ",
+      "rowActions": "إجراءات الدور {name}",
+      "confirm": {
+        "disable": { "title": "إيقاف هذا الدور؟", "description": "إيقاف الدور يمنع الإسنادات الجديدة فقط؛ تبقى الإسنادات الحالية وصلاحياتها فعالة حتى سحبها صراحةً." },
+        "enable": { "title": "تفعيل هذا الدور؟", "description": "سيصبح الدور متاحًا للإسنادات الجديدة." },
+        "delete": { "title": "حذف هذا الدور؟", "description": "لا يمكن التراجع عن الحذف." }
+      },
       "builtIn": "جاهز",
       "custom": "مخصص",
       "empty": "لا توجد أدوار مطابقة.",
@@ -118,6 +125,7 @@
       "title": "سجل تغييرات الوصول",
       "description": "تغييرات الحسابات والأدوار والنتائج الناجحة.",
       "detailTitle": "تفاصيل تغيير الوصول",
+      "rowActions": "إجراءات السجل {name}",
       "empty": "لا توجد تغييرات مطابقة.",
       "system": "النظام",
       "succeeded": "نجح",

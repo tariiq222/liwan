@@ -237,7 +237,7 @@ function onRowClick(task: Task, event: MouseEvent) {
       </div>
     </div>
     <div v-if="hasNextPage" class="flex justify-center">
-      <UButton color="neutral" variant="outline" size="sm" :disabled="isFetchingNextPage || !hydrated" @click="fetchNextPage()">
+      <UButton color="neutral" variant="outline" size="sm" :loading="isFetchingNextPage" :disabled="isFetchingNextPage || !hydrated" @click="fetchNextPage()">
         {{ t('app.loadMore') }}
       </UButton>
     </div>

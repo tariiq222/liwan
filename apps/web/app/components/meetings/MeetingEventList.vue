@@ -59,22 +59,20 @@ function hasInformativeSummary(event: MeetingEvent) {
   <UCard data-testid="meeting-event-list">
     <template #header><h2 class="text-lg font-semibold text-highlighted">{{ t('meetingMinutesForm.history') }}</h2></template>
     <div class="grid gap-3">
-      <div v-if="loading" class="grid gap-2" aria-busy="true"><USkeleton v-for="row in 4" :key="row" class="h-12 w-full" /></div>
-      <div v-else-if="error" class="flex flex-wrap items-center justify-between gap-2 text-sm text-destructive" role="alert"><span>{{ errorText }}</span><UButton type="button" color="primary" variant="outline" size="sm" :disabled="!hydrated" :label="t('meetingMinutesForm.retry')" @click="emit('retry')" /></div>
-      <div v-else-if="!events.length" class="text-sm text-muted-foreground">{{ t('meetingMinutesForm.noHistory') }}</div>
+      <div v-if="loading" class="grid gap-2" role="status" aria-busy="true" :aria-label="t('app.loading')"><USkeleton v-for="row in 4" :key="row" class="h-12 w-full" /></div>
+      <UAlert v-else-if="error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="errorText">
+        <template #actions><UButton type="button" color="neutral" variant="outline" size="sm" :disabled="!hydrated" :label="t('meetingMinutesForm.retry')" @click="emit('retry')" /></template>
+      </UAlert>
+      <SharedEmptyState v-else-if="!events.length" :title="t('meetingMinutesForm.noHistory')" />
       <ol v-else class="grid gap-2">
-        <li v-for="event in events" :key="event.id" class="grid min-w-0 gap-1 rounded-lg border border-border p-3">
-          <div class="flex min-w-0 flex-wrap items-center justify-between gap-2"><span class="font-medium">{{ kindLabel(event.kind) }}</span><time class="text-xs text-muted-foreground" :datetime="event.occurred_at">{{ occurredAt(event.occurred_at) }}</time></div>
-          <span v-if="event.meeting_name" class="text-xs text-muted-foreground">{{ event.meeting_name }}</span>
+        <li v-for="event in events" :key="event.id" class="grid min-w-0 gap-1 rounded-lg bg-default p-3 ring ring-default">
+          <div class="flex min-w-0 flex-wrap items-center justify-between gap-2"><span class="font-medium text-highlighted">{{ kindLabel(event.kind) }}</span><time class="text-xs text-muted" :datetime="event.occurred_at">{{ occurredAt(event.occurred_at) }}</time></div>
+          <span v-if="event.meeting_name" class="text-xs text-muted">{{ event.meeting_name }}</span>
           <p v-if="hasInformativeSummary(event)" class="whitespace-pre-wrap break-words text-sm">{{ event.summary }}</p>
-          <span class="text-xs text-muted-foreground">{{ event.actor?.name || t('meetingMinutesForm.systemActor') }}</span>
+          <span class="text-xs text-muted">{{ event.actor?.name || t('meetingMinutesForm.systemActor') }}</span>
         </li>
       </ol>
-      <nav v-if="pages > 1" class="flex items-center justify-between text-sm text-muted-foreground" :aria-label="t('meetingMinutesForm.pagination')">
-        <UButton type="button" color="neutral" variant="ghost" :disabled="!hydrated || loading || page <= 1" :label="t('meetingMinutesForm.previous')" @click="emit('page', page - 1)" />
-        <span>{{ t('meetingMinutesForm.pageOf', { page, pages }) }}</span>
-        <UButton type="button" color="neutral" variant="ghost" :disabled="!hydrated || loading || page >= pages" :label="t('meetingMinutesForm.next')" @click="emit('page', page + 1)" />
-      </nav>
+      <SharedPagination :page="page" :pages="pages" :disabled="loading" @update:page="emit('page', $event)" />
     </div>
   </UCard>
 </template>

@@ -47,7 +47,9 @@ describe('governance list/matrix design', () => {
     expect(stakeholders).toContain(':columns="columns"')
     expect(stakeholders).toContain('#name-cell="{ row }"')
     expect(stakeholders).toContain('list.data.value?.can_manage && hydrated')
-    expect(stakeholders).toContain('!hydrated || remove.isPending.value')
+    expect(stakeholders).toContain(':pending="remove.isPending.value"')
+    expect(stakeholders).toContain('<SharedRowActions :actions="rowActions(row.original)"')
+    expect(stakeholders).toMatch(/<SharedInlineConfirm[\s\S]*@confirm="deleteItem\(confirmItem\)"/)
     expect(stakeholders).toContain('router.replace({ query: { ...route.query, [key]: value || undefined, offset: undefined } })')
     expect(stakeholders).toContain('offset: String(Math.max(0, (parsed.value.offset ?? 0) + delta * 50))')
     expect(stakeholders).toContain('confirmDeleteId.value !== item.id')
@@ -178,6 +180,20 @@ describe('RACI role select authoritative value', () => {
       app.component('Label', Passthrough)
       app.component('Input', Passthrough)
       app.component('UButton', Button)
+      // Mirrors SharedInlineConfirm's contract: attrs on the root, cancel first, then the action.
+      app.component('SharedInlineConfirm', {
+        inheritAttrs: false,
+        props: { title: String, description: String, confirmLabel: String, pending: Boolean },
+        emits: ['confirm', 'cancel'],
+        setup(props: { title?: string; description?: string; confirmLabel?: string }, ctx: { attrs: Record<string, unknown>; emit: (event: 'confirm' | 'cancel') => void }) {
+          return () => Vue.h('div', ctx.attrs, [
+            Vue.h('p', props.title),
+            Vue.h('p', props.description),
+            Vue.h('button', { type: 'button', onClick: () => ctx.emit('cancel') }, 'app.cancel'),
+            Vue.h('button', { type: 'button', onClick: () => ctx.emit('confirm') }, props.confirmLabel),
+          ])
+        },
+      })
       // Controlled primitive stub: only emits the chosen value. The production
       // changeRole handler and assignment state decide what remains displayed.
       app.component('USelect', Vue.defineComponent({

@@ -6,6 +6,7 @@ import { formatCalendarDate } from '@/composables/calendarDate'
 import { formatMoney } from '@/utils/projectFinance'
 import { returnToQuery } from '@/utils/safeReturnTo'
 import RecordNumber from '@/components/shared/RecordNumber.vue'
+import type { RowAction } from '@/components/shared/RowActions.vue'
 
 const props = defineProps<{
   projectId: number
@@ -37,7 +38,17 @@ const columns = computed(() => [
   { id: 'amount', header: t('projects.finance.columns.amount') },
   { id: 'date', header: t('projects.finance.columns.date') },
   { id: 'budget', header: t('projects.finance.columns.budget') },
+  ...(props.canManage ? [{ id: 'actions', header: '', meta: { class: { th: 'w-0', td: 'w-0 text-end' } } }] : []),
 ])
+
+// Deletion stays on the entry page, where its inline confirmation lives.
+function entryActions(item: FinanceEntry): RowAction[] {
+  return [{
+    label: t('app.edit'),
+    icon: 'i-lucide-pencil',
+    to: { path: `/projects/${props.projectId}/finance/${item.id}/edit`, query: returnToQuery(route.fullPath) },
+  }]
+}
 
 onMounted(() => {
   const query = window.matchMedia('(max-width: 767px)')
@@ -101,7 +112,10 @@ function onSelect(_event: Event, row: { original: FinanceEntry }) {
                 {{ item.title }}
               </UButton>
             </div>
-            <span class="shrink-0 text-sm">{{ t(`projects.finance.kind.${item.kind}`) }}</span>
+            <div class="flex shrink-0 items-center gap-2">
+              <span class="text-sm">{{ t(`projects.finance.kind.${item.kind}`) }}</span>
+              <SharedRowActions v-if="canManage" :actions="entryActions(item)" :label="t('projects.finance.actionsNamed', { name: item.title })" />
+            </div>
           </div>
           <dl class="grid grid-cols-2 gap-3 text-xs">
             <div>
@@ -148,6 +162,9 @@ function onSelect(_event: Event, row: { original: FinanceEntry }) {
       <template #amount-cell="{ row }"><span dir="ltr" class="tabular-nums">{{ formatMoney(row.original.amount, summary.currency) }}</span></template>
       <template #date-cell="{ row }">{{ row.original.expense_date ? formatCalendarDate(row.original.expense_date, locale) : '—' }}</template>
       <template #budget-cell="{ row }"><span class="truncate">{{ budgetLabel(row.original) }}</span></template>
+      <template #actions-cell="{ row }">
+        <SharedRowActions :actions="entryActions(row.original)" :label="t('projects.finance.actionsNamed', { name: row.original.title })" />
+      </template>
     </UTable>
   </div>
 </template>

@@ -72,8 +72,8 @@
 }
 
 @layer base {
-  * { @apply border-border outline-ring; }
-  body { @apply bg-background text-foreground font-sans antialiased; }
+  * { border-color: var(--ui-border); outline-color: var(--brand-link); }
+  body { @apply bg-default text-default font-sans antialiased; }
 }
 
 /* The approved icon system uses one fixed Lucide geometry everywhere. */

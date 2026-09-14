@@ -72,14 +72,12 @@ async function submit() {
 <template>
   <form class="nasq-form" data-testid="charter-reference-form" @submit.prevent="submit">
     <SharedUnsavedChanges :dirty="dirty" />
-    <div class="grid gap-2">
-      <label for="catalog-name" class="flex items-center gap-2 text-sm font-medium leading-none">{{ t('settings.projects.catalogs.name') }}</label>
+    <UFormField :label="t('settings.projects.catalogs.name')" required>
       <UInput id="catalog-name" v-model="name" class="w-full" required :disabled="!hydrated || pending" />
-    </div>
-    <div class="grid gap-2">
-      <label for="catalog-sequence" class="flex items-center gap-2 text-sm font-medium leading-none">{{ t('settings.projects.catalogs.sequence') }}</label>
+    </UFormField>
+    <UFormField :label="t('settings.projects.catalogs.sequence')">
       <UInput id="catalog-sequence" v-model="sequence" class="w-full" inputmode="numeric" dir="ltr" :disabled="!hydrated || pending" />
-    </div>
+    </UFormField>
     <p v-if="error" role="alert" class="text-sm text-error">{{ error }}</p>
     <footer class="nasq-form-footer justify-end">
       <UButton type="button" color="neutral" variant="outline" :disabled="pending" :label="t('app.cancel')" @click="emit('cancel')" />

@@ -20,5 +20,5 @@ const layout = (width: 'list' | 'detail' | 'form', title: string): Story['render
 })
 
 export const FormPage: Story = { name: 'صفحة إعداد بنموذج', parameters: storyContext('apps/web/app/pages/settings/appearance.vue:9'), render: layout('form', 'settings.appearance.title') }
-export const ListPage: Story = { name: 'صفحة إعداد بقائمة', parameters: storyContext('apps/web/app/pages/settings/access-log/index.vue:49'), render: layout('list', 'access.audit.title') }
+export const ListPage: Story = { name: 'صفحة إعداد بقائمة', parameters: storyContext('apps/web/app/pages/settings/access-log/index.vue:50'), render: layout('list', 'access.audit.title') }
 export const DetailPage: Story = { name: 'صفحة إعداد بتفاصيل', parameters: storyContext('apps/web/app/pages/settings/access-log/[eventId].vue:20'), render: layout('detail', 'access.audit.detailTitle') }

@@ -57,19 +57,19 @@ async function openNotification(item: Notification) {
       class="relative text-muted"
     >
       <template #leading>
-        <UIcon name="i-lucide-bell" class="size-[18px]" aria-hidden="true" />
+        <UIcon name="i-lucide-bell" class="size-4.5" aria-hidden="true" />
       </template>
       <span
         v-if="hydrated && data?.unread_count"
         data-testid="notification-count"
         dir="ltr"
-        class="nasq-unread-count pointer-events-none absolute -end-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-[4px] text-[11px] leading-none font-bold tabular-nums ring-2 ring-background"
+        class="nasq-unread-count pointer-events-none absolute -end-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-[4px] text-xs leading-none font-bold tabular-nums ring-2 ring-(--ui-bg)"
       >{{ data.unread_count > 99 ? '99+' : data.unread_count }}</span>
     </UButton>
     <template #content>
       <div data-testid="notification-preview" :dir="localeProperties.dir === 'rtl' ? 'rtl' : 'ltr'" :aria-label="t('notifications.title')" class="flex max-h-[min(600px,80dvh)] flex-col overflow-hidden">
-        <div class="flex items-center justify-between border-b p-4">
-          <h2 class="font-semibold">{{ t('notifications.title') }}</h2>
+        <div class="flex items-center justify-between border-b border-default p-4">
+          <h2 class="font-semibold text-highlighted">{{ t('notifications.title') }}</h2>
           <span class="text-xs text-muted">{{ t('notifications.latestFive') }}</span>
         </div>
         <div class="min-h-0 overflow-y-auto p-2">

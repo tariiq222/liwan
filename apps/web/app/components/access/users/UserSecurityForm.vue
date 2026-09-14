@@ -93,21 +93,20 @@ onBeforeUnmount(clearSecrets)
             <UFormField :label="t('access.users.password')" name="admin-password">
               <UInput id="admin-password" v-model="password" type="password" autocomplete="new-password" dir="ltr" class="w-full" :disabled="!hydrated || anyPending" />
             </UFormField>
-            <UFormField :label="t('access.users.passwordConfirmation')" name="admin-password-confirmation">
+            <UFormField :label="t('access.users.passwordConfirmation')" name="admin-password-confirmation" :error="passwordConfirmation && password !== passwordConfirmation ? t('access.users.passwordMismatch') : undefined">
               <UInput id="admin-password-confirmation" v-model="passwordConfirmation" type="password" autocomplete="new-password" dir="ltr" class="w-full" :disabled="!hydrated || anyPending" />
             </UFormField>
           </div>
-          <p v-if="passwordConfirmation && password !== passwordConfirmation" class="text-xs text-error">{{ t('access.users.passwordMismatch') }}</p>
-          <UButton v-if="canReset" color="primary" :disabled="anyPending || !password.length || password !== passwordConfirmation" :label="pendingAction === 'reset' ? t('access.users.confirmAction') : t('access.users.resetPassword')" @click="resetPassword" />
-          <UAlert v-if="pendingAction === 'reset'" role="alert" color="warning" variant="subtle" :title="t('access.users.confirmResetPassword', { name: props.user.name })" :actions="[{ label: t('app.cancel'), color: 'neutral', variant: 'ghost', onClick: () => { pendingAction = null } }]" />
+          <UButton v-if="canReset" color="primary" :disabled="anyPending || pendingAction !== null || !password.length || password !== passwordConfirmation" :label="t('access.users.resetPassword')" @click="resetPassword" />
+          <SharedInlineConfirm v-if="pendingAction === 'reset'" color="warning" :title="t('access.users.confirmResetPassword', { name: props.user.name })" :confirm-label="t('access.users.confirmAction')" :pending="anyPending" @confirm="resetPassword" @cancel="pendingAction = null" />
         </div>
         <div v-if="canDisable || canReactivate" class="space-y-3">
           <div class="flex flex-wrap items-center gap-3">
-            <UButton color="primary" variant="outline" :disabled="anyPending || (canReactivate && (!password.length || password !== passwordConfirmation))" :label="pendingAction === (props.user.active ? 'disable' : 'reactivate') ? t('access.users.confirmAction') : (props.user.active ? t('access.users.disable') : t('access.users.reactivate'))" @click="changeState" />
+            <UButton color="neutral" variant="outline" :disabled="anyPending || pendingAction !== null || (canReactivate && (!password.length || password !== passwordConfirmation))" :label="props.user.active ? t('access.users.disable') : t('access.users.reactivate')" @click="changeState" />
             <span class="text-sm text-muted">{{ props.user.active ? t('access.users.disableHint') : t('access.users.reactivateHint') }}</span>
           </div>
-          <UAlert v-if="pendingAction === 'disable'" role="alert" color="warning" variant="subtle" :title="t('access.users.confirmDisable', { name: props.user.name })" :actions="[{ label: t('app.cancel'), color: 'neutral', variant: 'ghost', onClick: () => { pendingAction = null } }]" />
-          <UAlert v-if="pendingAction === 'reactivate'" role="alert" color="warning" variant="subtle" :title="t('access.users.confirmReactivate', { name: props.user.name })" :actions="[{ label: t('app.cancel'), color: 'neutral', variant: 'ghost', onClick: () => { pendingAction = null } }]" />
+          <SharedInlineConfirm v-if="pendingAction === 'disable'" color="warning" :title="t('access.users.confirmDisable', { name: props.user.name })" :confirm-label="t('access.users.confirmAction')" :pending="anyPending" @confirm="changeState" @cancel="pendingAction = null" />
+          <SharedInlineConfirm v-if="pendingAction === 'reactivate'" color="primary" :title="t('access.users.confirmReactivate', { name: props.user.name })" :confirm-label="t('access.users.confirmAction')" :pending="anyPending" @confirm="changeState" @cancel="pendingAction = null" />
         </div>
         <p v-if="!canReset && !canDisable && !canReactivate" class="text-sm text-muted">{{ t('access.readOnly') }}</p>
       </template>

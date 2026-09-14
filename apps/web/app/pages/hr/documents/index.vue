@@ -82,6 +82,10 @@ function setPage(next: number) {
   offset.value = (next - 1) * limit
   void router.replace({ query: { ...route.query, offset: offset.value > 0 ? offset.value : undefined } })
 }
+function openRow(event: Event, document: HrDocument) {
+  if (!hydrated.value || (event.target as HTMLElement | null)?.closest('a, button')) return
+  void navigateTo(documentTo(document))
+}
 function documentTo(document: HrDocument) {
   return { path: `/hr/departments/${document.department.id}/documents/${document.id}`, query: returnToQuery(route.fullPath) }
 }
@@ -131,28 +135,24 @@ function documentTo(document: HrDocument) {
       @retry="query.refetch"
     >
       <div class="min-w-0 space-y-2">
-        <UCard class="rounded-lg ring ring-default bg-default overflow-hidden hidden md:block" :ui="{ body: 'p-0' }">
+        <div class="hidden overflow-hidden rounded-lg bg-default ring ring-default md:block">
           <div class="overflow-x-auto">
-            <UTable :data="query.data.value?.items ?? []" :columns="columns" :caption="t('hr.docs.title')" :ui="{ caption: 'sr-only', th: '' }" @select="(_event, row) => navigateTo(documentTo(row.original))">
+            <UTable :data="query.data.value?.items ?? []" :columns="columns" :caption="t('hr.docs.title')" :ui="{ caption: 'sr-only', th: '', tr: 'cursor-pointer' }" @select="(event, row) => openRow(event, row.original)">
               <template #id-cell="{ row }"><RecordNumber :value="row.original.id" /></template>
-              <template #name-cell="{ row }"><span class="font-medium">{{ row.original.name }}</span></template>
+              <template #name-cell="{ row }"><NuxtLink :to="documentTo(row.original)" class="rounded font-medium text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">{{ row.original.name }}</NuxtLink></template>
               <template #department-cell="{ row }"><span class="text-muted">{{ row.original.department.name }}</span></template>
             </UTable>
           </div>
-        </UCard>
-        <ul class="md:hidden space-y-2" :aria-label="t('hr.docs.title')">
-          <li v-for="document in query.data.value?.items ?? []" :key="document.id" class="cursor-pointer rounded-lg ring ring-default bg-default overflow-hidden p-4" tabindex="0" role="button" @click="navigateTo(documentTo(document))">
+        </div>
+        <ul class="divide-y divide-default overflow-hidden rounded-lg bg-default ring ring-default md:hidden" :aria-label="t('hr.docs.title')">
+          <li v-for="document in query.data.value?.items ?? []" :key="document.id" class="cursor-pointer p-4" @click="openRow($event, document)">
             <bdi class="block text-xs text-muted">#{{ document.id }}</bdi>
-            <p class="font-medium">{{ document.name }}</p>
+            <NuxtLink :to="documentTo(document)" class="rounded font-medium text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">{{ document.name }}</NuxtLink>
             <p class="mt-1 text-xs text-muted">{{ document.department.name }}</p>
           </li>
         </ul>
       </div>
     </SharedPageState>
-    <div v-if="pages > 1" class="flex items-center justify-between text-sm text-muted">
-      <UButton color="neutral" variant="ghost" :disabled="!hydrated || page === 1 || query.isFetching.value" :label="t('access.previousPage')" @click="setPage(page - 1)" />
-      <span>{{ t('access.pageOf', { page, pages }) }}</span>
-      <UButton color="neutral" variant="ghost" :disabled="!hydrated || page >= pages || query.isFetching.value" :label="t('access.nextPage')" @click="setPage(page + 1)" />
-    </div>
+    <SharedPagination class="mt-4" :page="page" :pages="pages" :disabled="query.isFetching.value" @update:page="setPage" />
   </SharedPageContainer>
 </template>

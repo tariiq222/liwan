@@ -78,10 +78,8 @@ function setPage(next: number) {
   <SharedPageContainer width="list">
     <SharedPageHeader :title="t('nav.meetingSeries')">
       <template #actions>
-        <NuxtLink v-if="can('meetings.create')" :to="{ path: '/meetings/series/new', query: returnToQuery(route.fullPath) }">
-          <UButton :disabled="!hydrated" icon="i-lucide-plus" :label="t('meetingsUi.newSeries')" />
-        </NuxtLink>
-    </template>
+        <UButton v-if="can('meetings.create')" :to="{ path: '/meetings/series/new', query: returnToQuery(route.fullPath) }" :disabled="!hydrated" icon="i-lucide-plus" :label="t('meetingsUi.newSeries')" />
+      </template>
     </SharedPageHeader>
     <div class="w-full min-w-0">
       <FilterBar
@@ -106,33 +104,29 @@ function setPage(next: number) {
           </div>
         </template>
       </FilterBar>
-      <span class="text-sm text-muted-foreground" role="status">{{ totalLabel }}</span>
+      <span class="text-sm text-muted" role="status">{{ totalLabel }}</span>
     </div>
     <SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!query.data.value?.items.length" :empty-text="t('meetingsUi.emptySeries')" @retry="query.refetch">
-      <div class="rounded-lg ring ring-default bg-default overflow-hidden">
-        <NuxtLink
-          v-for="series in query.data.value?.items"
-          :key="series.id"
-          :to="{ path: `/meetings/series/${series.id}`, query: returnToQuery(route.fullPath) }"
-          class="flex min-w-0 flex-wrap items-start gap-x-4 gap-y-2 border-b border-border/80 p-4 last:border-0 hover:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          <span class="min-w-0 flex-1 font-medium break-words">{{ series.name }}</span>
-          <span class="ms-auto text-end text-sm text-muted-foreground">{{ t(`meetingsUi.recurrence.${series.recurrence}`) }}</span>
-          <span class="basis-full text-xs text-muted-foreground">
-            <span v-if="series.organizer">{{ t('meetingsUi.organizer') }}: {{ series.organizer.name }}</span>
-            <span v-if="series.organizer && series.project"> · </span>
-            <span v-if="series.project">{{ t('meetingsUi.project') }}: {{ series.project.name }}</span>
-            <span v-if="series.organizer || series.project"> · </span>
-            <span>{{ t('meetingsUi.openCount', { count: series.open_resolution_count }) }}</span>
-            <span> · {{ t('meetingsUi.overdueCount', { count: series.overdue_resolution_count }) }}</span>
-          </span>
-        </NuxtLink>
-      </div>
+      <ul class="grid divide-y divide-default overflow-hidden rounded-lg bg-default ring ring-default">
+        <li v-for="series in query.data.value?.items" :key="series.id">
+          <NuxtLink
+            :to="{ path: `/meetings/series/${series.id}`, query: returnToQuery(route.fullPath) }"
+            class="flex min-w-0 flex-wrap items-start gap-x-4 gap-y-2 p-4 hover:bg-elevated/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"
+          >
+            <span class="min-w-0 flex-1 break-words font-medium text-highlighted">{{ series.name }}</span>
+            <span class="ms-auto text-end text-sm text-muted">{{ t(`meetingsUi.recurrence.${series.recurrence}`) }}</span>
+            <span class="basis-full text-xs text-muted">
+              <span v-if="series.organizer">{{ t('meetingsUi.organizer') }}: {{ series.organizer.name }}</span>
+              <span v-if="series.organizer && series.project"> · </span>
+              <span v-if="series.project">{{ t('meetingsUi.project') }}: {{ series.project.name }}</span>
+              <span v-if="series.organizer || series.project"> · </span>
+              <span>{{ t('meetingsUi.openCount', { count: series.open_resolution_count }) }}</span>
+              <span> · {{ t('meetingsUi.overdueCount', { count: series.overdue_resolution_count }) }}</span>
+            </span>
+          </NuxtLink>
+        </li>
+      </ul>
     </SharedPageState>
-    <nav v-if="pages > 1" class="flex items-center justify-between text-sm text-muted-foreground">
-      <UButton color="neutral" variant="ghost" :disabled="!hydrated || page === 1 || query.isFetching.value" :label="t('projects.previousPage')" @click="setPage(page - 1)" />
-      <span>{{ t('meetingsUi.pageOf', { page, pages }) }}</span>
-      <UButton color="neutral" variant="ghost" :disabled="!hydrated || page >= pages || query.isFetching.value" :label="t('projects.nextPage')" @click="setPage(page + 1)" />
-    </nav>
+    <SharedPagination :page="page" :pages="pages" :disabled="query.isFetching.value" @update:page="setPage" />
   </SharedPageContainer>
 </template>

@@ -20,6 +20,11 @@ describe('legacyProjectTabTarget', () => {
     const target = legacyProjectTabTarget('/projects/7', { tab: 'tasks', q: 'عقد', state: 'in_progress', taskContext: '{"q":"x"}', projectListReturnTo: '/projects', returnTo: '/projects' })
     expect(target).toEqual({ path: '/projects/7/tasks', query: { q: 'عقد', state: 'in_progress' } })
   })
+  it('sends the retired governance index to its first sub-tab', () => {
+    expect(legacyProjectTabTarget('/projects/7/governance', {})).toEqual({ path: '/projects/7/charter', query: {} })
+    expect(legacyProjectTabTarget('/projects/7/governance/', { tab: 'x' })).toEqual({ path: '/projects/7/charter', query: {} })
+  })
+
   it('leaves already-migrated and non-project routes alone', () => {
     expect(legacyProjectTabTarget('/projects/7/tasks', { view: 'board' })).toBeNull()
     expect(legacyProjectTabTarget('/projects/7', {})).toBeNull()

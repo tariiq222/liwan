@@ -91,6 +91,7 @@
     },
     "drawer": {
       "details": "التفاصيل",
+      "deadlineTime": "وقت الموعد",
       "activity": "النشاط",
       "additionalDetails": "تفاصيل إضافية",
       "assignees": "المسؤولون",

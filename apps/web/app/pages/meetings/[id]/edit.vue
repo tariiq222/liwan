@@ -121,12 +121,12 @@ async function save() {
       <form v-if="query.data.value" class="space-y-8" @submit.prevent="save">
       <SharedUnsavedChanges :dirty="dirty" />
       <UAlert v-if="!canEdit" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('meetingsUx.editForbidden')" />
-        <p v-if="context.series || context.project" class="rounded-lg border border-border bg-muted/30 px-3 py-2 text-sm">
+        <p v-if="context.series || context.project" class="rounded-lg bg-elevated/50 px-3 py-2 text-sm ring ring-default">
         <span v-if="context.series">{{ t('meetingsUx.context.series', { name: context.series }) }}</span>
         <span v-if="context.series && context.project"> · </span>
         <span v-if="context.project">{{ t('meetingsUx.context.project', { name: context.project }) }}</span>
         </p>
-      <p class="text-xs text-muted-foreground">{{ t('meetingsUx.browserTimeZone', { zone: browserTimeZone }) }}</p>
+      <p class="text-xs text-muted">{{ t('meetingsUx.browserTimeZone', { zone: browserTimeZone }) }}</p>
       <SharedFormSection :title="t('meetingsUi.sectionSchedule')">
         <div class="nasq-form-grid">
           <UFormField class="sm:col-span-2" :label="t('meetingsUi.title')" name="name" required :error="formErrors.name ? t(`meetingsUx.errors.${formErrors.name}`) : undefined">

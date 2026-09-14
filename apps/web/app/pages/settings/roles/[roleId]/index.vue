@@ -6,6 +6,7 @@ import { ApiError } from '@/composables/useApi'
 import { useAdminUsers } from '@/composables/useAdminUsers'
 import { useAdminPermissionCatalog, useAdminRole, useDeleteAdminRole, useDisableAdminRole, useEnableAdminRole } from '@/composables/useAdminRoles'
 import { ADMIN_PAGE_SIZE, adminListQuery, adminPathWithQuery } from '@/composables/adminSettingsPaths'
+import { routeTabClass, routeTabsStripClass } from '@/utils/sectionTabs'
 
 const route = useRoute()
 const { t, locale } = useI18n()
@@ -30,10 +31,11 @@ const pendingAction = ref<RoleAction | null>(null)
 const actionError = ref('')
 const versionConflict = computed(() => (role.error.value as { code?: string } | null)?.code === 'conflict')
 const actionBusy = computed(() => disable.isPending.value || enable.isPending.value || remove.isPending.value)
+const confirmColor = computed(() => pendingAction.value === 'delete' ? 'error' as const : pendingAction.value === 'disable' ? 'warning' as const : 'primary' as const)
 function requestAction(action: RoleAction) {
   if (!hydrated.value) return
-  if (pendingAction.value === action) void confirmAction(action)
-  else { pendingAction.value = action; actionError.value = '' }
+  pendingAction.value = action
+  actionError.value = ''
 }
 async function confirmAction(action: RoleAction) {
   if (!role.data.value || actionBusy.value) return
@@ -56,13 +58,23 @@ function openUser(userId: number) { void navigateTo(`/settings/users/${userId}?r
 <template>
   <SettingsLayout width="detail">
     <SharedPageHeader :title="role.data.value?.name[locale === 'ar' ? 'ar' : 'en'] ?? role.data.value?.name.ar ?? t('access.roles.title')" :back-to="returnTo">
-      <UButton v-if="role.data.value?.allowed_actions.includes('edit')" color="primary" variant="outline" :disabled="!role.data.value" :label="t('access.roles.editTitle')" @click="navigateTo(editTo)" />
-      <UButton v-if="role.data.value?.allowed_actions.includes('clone')" color="primary" variant="outline" :disabled="!role.data.value" :label="t('access.roles.clone')" @click="navigateTo(cloneTo)" />
-      <UButton v-if="role.data.value?.allowed_actions.includes('disable')" color="primary" variant="outline" :disabled="!hydrated || actionBusy" :label="pendingAction === 'disable' ? t('access.roles.confirmAction') : t('access.roles.disable')" @click="requestAction('disable')" />
-      <UButton v-if="role.data.value?.allowed_actions.includes('enable')" color="primary" variant="outline" :disabled="!hydrated || actionBusy" :label="pendingAction === 'enable' ? t('access.roles.confirmAction') : t('access.roles.enable')" @click="requestAction('enable')" />
-      <UButton v-if="role.data.value?.allowed_actions.includes('delete')" color="error" :disabled="!hydrated || actionBusy" :label="pendingAction === 'delete' ? t('access.roles.confirmAction') : t('access.roles.delete')" @click="requestAction('delete')" />
+      <UButton v-if="role.data.value?.allowed_actions.includes('edit')" color="neutral" variant="outline" icon="i-lucide-pencil" :disabled="!role.data.value" :label="t('access.roles.editTitle')" @click="navigateTo(editTo)" />
+      <UButton v-if="role.data.value?.allowed_actions.includes('clone')" color="neutral" variant="outline" icon="i-lucide-copy" :disabled="!role.data.value" :label="t('access.roles.clone')" @click="navigateTo(cloneTo)" />
+      <UButton v-if="role.data.value?.allowed_actions.includes('disable')" color="neutral" variant="outline" :disabled="!hydrated || actionBusy || pendingAction !== null" :label="t('access.roles.disable')" @click="requestAction('disable')" />
+      <UButton v-if="role.data.value?.allowed_actions.includes('enable')" color="neutral" variant="outline" :disabled="!hydrated || actionBusy || pendingAction !== null" :label="t('access.roles.enable')" @click="requestAction('enable')" />
+      <UButton v-if="role.data.value?.allowed_actions.includes('delete')" color="error" variant="outline" icon="i-lucide-trash-2" :disabled="!hydrated || actionBusy || pendingAction !== null" :label="t('access.roles.delete')" @click="requestAction('delete')" />
     </SharedPageHeader>
-    <nav class="flex gap-1 overflow-x-auto border-b border-default" :aria-label="t('access.roles.navigation')"><UButton color="neutral" variant="ghost" class="inline-flex items-center gap-2 whitespace-nowrap px-3 py-2 text-sm font-medium text-muted transition-colors hover:text-default data-[active=true]:text-primary data-[active=true]:shadow-[inset_0_-2px_0_0_var(--ui-primary)] aria-[current=page]:text-primary aria-[current=page]:shadow-[inset_0_-2px_0_0_var(--ui-primary)]" :to="route.path" aria-current="page">{{ t('access.roles.permissions') }}</UButton><UButton color="neutral" variant="ghost" class="inline-flex items-center gap-2 whitespace-nowrap px-3 py-2 text-sm font-medium text-muted transition-colors hover:text-default data-[active=true]:text-primary data-[active=true]:shadow-[inset_0_-2px_0_0_var(--ui-primary)] aria-[current=page]:text-primary aria-[current=page]:shadow-[inset_0_-2px_0_0_var(--ui-primary)]" v-if="can('access.users.read')" to="#assigned-users">{{ t('access.roles.assignedUsers') }}</UButton><UButton color="neutral" variant="ghost" class="inline-flex items-center gap-2 whitespace-nowrap px-3 py-2 text-sm font-medium text-muted transition-colors hover:text-default data-[active=true]:text-primary data-[active=true]:shadow-[inset_0_-2px_0_0_var(--ui-primary)] aria-[current=page]:text-primary aria-[current=page]:shadow-[inset_0_-2px_0_0_var(--ui-primary)]" v-if="can('access.audit.read')" :to="`/settings/access-log?target_type=role&target_id=${id}`">{{ t('access.roles.changes') }}</UButton></nav>
+    <nav :class="routeTabsStripClass" :aria-label="t('access.roles.navigation')"><UButton color="neutral" variant="ghost" :class="routeTabClass" :to="route.path" aria-current="page">{{ t('access.roles.permissions') }}</UButton><UButton color="neutral" variant="ghost" :class="routeTabClass" v-if="can('access.users.read')" to="#assigned-users">{{ t('access.roles.assignedUsers') }}</UButton><UButton color="neutral" variant="ghost" :class="routeTabClass" v-if="can('access.audit.read')" :to="`/settings/access-log?target_type=role&target_id=${id}`">{{ t('access.roles.changes') }}</UButton></nav>
+    <SharedInlineConfirm
+      v-if="pendingAction && role.data.value"
+      :color="confirmColor"
+      :title="t(`access.roles.confirm.${pendingAction}.title`)"
+      :description="t(`access.roles.confirm.${pendingAction}.description`)"
+      :confirm-label="t('access.roles.confirmAction')"
+      :pending="actionBusy"
+      @confirm="confirmAction(pendingAction)"
+      @cancel="pendingAction = null"
+    />
     <SharedPageState v-if="forbidden" :empty="true" :empty-text="t('access.forbidden')" />
     <UAlert v-else-if="versionConflict" role="alert" color="error" variant="subtle" :title="t('access.roles.conflict')" />
     <SharedPageState v-else :loading="role.isLoading.value" :error="role.error.value" :empty="!role.data.value" :empty-text="t('access.notFound')" @retry="role.refetch">

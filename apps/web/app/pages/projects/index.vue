@@ -222,7 +222,7 @@ async function openProject(id: number) {
       :title="t('projects.loadError')"
     >
       <template #actions>
-        <UButton color="primary" variant="outline" size="sm" :label="t('app.retry')" @click="activeList.refetch()" />
+        <UButton color="neutral" variant="outline" size="sm" :disabled="!hydrated" :label="t('app.retry')" @click="activeList.refetch()" />
       </template>
     </UAlert>
 
@@ -285,11 +285,7 @@ async function openProject(id: number) {
         :to-for="projectTo"
         @open="openProject"
       />
-      <div v-if="pages > 1" class="flex items-center justify-between text-sm text-muted">
-        <UButton color="neutral" variant="ghost" :disabled="!hydrated || page === 1 || projectList.isFetching.value" :label="t('projects.previousPage')" @click="setPage(page - 1)" />
-        <span>{{ t('projects.pageOf', { page, pages }) }}</span>
-        <UButton color="neutral" variant="ghost" :disabled="!hydrated || page >= pages || projectList.isFetching.value" :label="t('projects.nextPage')" @click="setPage(page + 1)" />
-      </div>
+      <SharedPagination :page="page" :pages="pages" :disabled="projectList.isFetching.value" @update:page="setPage" />
     </div>
   </SharedPageContainer>
 </template>

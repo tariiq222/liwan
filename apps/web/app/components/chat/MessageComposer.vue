@@ -101,16 +101,16 @@ onUnmounted(() => {
 
 <template>
   <form class="nasq-chat-composer" @submit.prevent="submit">
-    <p v-if="props.replyTo" class="flex items-center justify-between px-1 text-xs text-muted-foreground">
+    <p v-if="props.replyTo" class="flex items-center justify-between px-1 text-xs text-muted">
       <span>{{ t('chat.replyingTo', { name: props.replyTo.author.name }) }}</span>
       <UButton type="button" color="neutral" variant="ghost" size="xs" :label="t('app.cancel')" @click="emit('clear-reply')" />
     </p>
-    <ul v-if="mentionChoices.length" class="rounded-md border bg-background text-sm">
+    <ul v-if="mentionChoices.length" class="rounded-md border border-default bg-default text-sm">
       <li v-for="person in mentionChoices" :key="person.id">
         <UButton type="button" color="neutral" variant="ghost" class="w-full justify-start px-3 py-1 text-start" :label="person.name" @click="pickMention(person)" />
       </li>
     </ul>
-    <p v-if="file" class="truncate px-1 text-xs text-muted-foreground">{{ file.name }}</p>
+    <p v-if="file" class="truncate px-1 text-xs text-muted">{{ file.name }}</p>
     <div class="flex items-end gap-2">
       <UButton type="button" color="neutral" variant="ghost" square icon="i-lucide-paperclip" :aria-label="t('chat.attach')" :disabled="!hydrated || sending" @click="fileInput?.click()" />
       <input ref="fileInput" type="file" class="hidden" tabindex="-1" :disabled="!hydrated || sending" @change="onFile">

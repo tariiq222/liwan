@@ -30,6 +30,9 @@ const selectedMilestoneId = ref<number | undefined>(props.milestoneId ?? undefin
 const plannedStart = ref<string | null>(null)
 const dateDeadline = ref<string | null>(null)
 const error = ref<string | null>(null)
+// Which field the current error belongs to, so it renders under that field.
+// Errors without a visible owning field stay in the form-level alert.
+const errorField = ref<string | null>(null)
 const submitted = ref(false)
 const baseline = ref(JSON.stringify(['', '', [], props.projectId, props.milestoneId ?? undefined, '', '']))
 
@@ -56,6 +59,8 @@ const policyError = computed(() => validateTaskCreatePolicy({
   dateDeadline: dateDeadline.value ? `${dateDeadline.value}T23:59:00Z` : null,
 }))
 const projectQuick = computed(() => props.mode === 'project')
+// Guided creation in a project with dated milestones requires a milestone and both dates.
+const scheduleRequired = computed(() => guided.value && hasDatedMilestones.value)
 
 function state() {
   return JSON.stringify([name.value, description.value, deliverables.value, selectedProjectId.value, selectedMilestoneId.value, plannedStart.value, dateDeadline.value])
@@ -116,16 +121,37 @@ function selectProject(value: unknown) {
   selectedProjectId.value = value ? Number(value) : undefined
 }
 
+const visibleErrorFields = computed(() => {
+  const fields = ['name', 'project_id']
+  if (canManageDates.value) fields.push('planned_start', 'date_deadline')
+  if (selectedProjectId.value && canManageDates.value) fields.push('milestone_id')
+  return fields
+})
+const generalError = computed(() => errorField.value && visibleErrorFields.value.includes(errorField.value) ? null : error.value)
+
+function fieldError(field: string): string | undefined {
+  return errorField.value === field && visibleErrorFields.value.includes(field) ? error.value ?? undefined : undefined
+}
+
+function policyErrorField(key: string): string | null {
+  if (key === 'tasks.milestoneRequired') return 'milestone_id'
+  if (key === 'tasks.scheduleRequired') return plannedStart.value ? 'date_deadline' : 'planned_start'
+  return null
+}
+
 async function submit() {
   error.value = null
+  errorField.value = null
   const trimmed = name.value.trim()
   if (!hydrated.value || isPending.value || !trimmed || !selectedProjectId.value) return
   if (policyError.value) {
     error.value = t(policyError.value)
+    errorField.value = policyErrorField(policyError.value)
     return
   }
   if (dateError.value) {
     error.value = dateErrorText(dateError.value)
+    errorField.value = dateError.value.startsWith('task.start') ? 'planned_start' : 'date_deadline'
     return
   }
   try {
@@ -143,6 +169,7 @@ async function submit() {
     emit('created', created.id)
   } catch (e) {
     error.value = e instanceof ApiError ? e.message : t('errors.generic')
+    errorField.value = e instanceof ApiError ? e.field ?? null : null
   }
 }
 </script>
@@ -150,12 +177,10 @@ async function submit() {
 <template>
   <SharedUnsavedChanges :dirty="dirty" />
   <form data-testid="task-create-form" class="grid gap-5" @submit.prevent="submit">
-    <div class="grid gap-2">
-      <label for="new-task-name">{{ t('tasks.newTitle') }}</label>
-      <UInput id="new-task-name" v-model="name" required :disabled="!hydrated || isPending" />
-    </div>
-    <div v-if="selectedProjectId && canManageDates" class="grid gap-2">
-      <label for="new-task-milestone">{{ t('tasks.drawer.milestone') }}</label>
+    <UFormField :label="t('tasks.newTitle')" name="name" required :error="fieldError('name')">
+      <UInput id="new-task-name" v-model="name" required class="w-full" :disabled="!hydrated || isPending" />
+    </UFormField>
+    <UFormField v-if="selectedProjectId && canManageDates" :label="t('tasks.drawer.milestone')" name="milestone_id" :required="scheduleRequired" :error="fieldError('milestone_id')">
       <USelect
         id="new-task-milestone"
         class="w-full"
@@ -164,17 +189,14 @@ async function submit() {
         :disabled="!hydrated || isPending"
         @update:model-value="(v) => (selectedMilestoneId = v && v !== 'none' ? Number(v) : undefined)"
       />
-    </div>
-    <div v-if="canManageDates" class="grid gap-2">
-      <label for="new-task-planned-start">{{ t('tasks.schedule.plannedStart') }}</label>
+    </UFormField>
+    <UFormField v-if="canManageDates" :label="t('tasks.schedule.plannedStart')" name="planned_start" :required="scheduleRequired" :error="fieldError('planned_start')">
       <SharedDateField id="new-task-planned-start" :aria-label="t('tasks.schedule.plannedStart')" v-model="plannedStart" :disabled="!hydrated || isPending" :min-value="selectedMilestone?.start_date ?? projectStart ?? undefined" :max-value="selectedMilestone?.deadline ?? projectEnd ?? undefined" />
-    </div>
-    <div v-if="canManageDates" class="grid gap-2">
-      <label for="new-task-deadline">{{ t('tasks.drawer.deadline') }}</label>
+    </UFormField>
+    <UFormField v-if="canManageDates" :label="t('tasks.drawer.deadline')" name="date_deadline" :required="scheduleRequired" :error="fieldError('date_deadline')">
       <SharedDateField id="new-task-deadline" :aria-label="t('tasks.drawer.deadline')" v-model="dateDeadline" :disabled="!hydrated || isPending" :min-value="selectedMilestone?.start_date ?? projectStart ?? undefined" :max-value="selectedMilestone?.deadline ?? projectEnd ?? undefined" />
-    </div>
-    <div class="grid gap-2">
-      <label for="new-task-project">{{ t('tasks.project') }}</label>
+    </UFormField>
+    <UFormField :label="t('tasks.project')" name="project_id" required :error="fieldError('project_id')">
       <p v-if="props.projectId" id="new-task-project" class="text-sm">{{ lockedProjectName }}</p>
       <USelect
         v-else
@@ -186,40 +208,37 @@ async function submit() {
         :disabled="!hydrated || isPending"
         @update:model-value="selectProject"
       />
-    </div>
+    </UFormField>
     <component
       :is="projectQuick ? 'details' : 'div'"
       :data-testid="projectQuick ? 'task-create-optional' : undefined"
-      :class="projectQuick ? 'sm:col-span-2 rounded-lg border p-4' : 'contents'"
+      :class="projectQuick ? 'sm:col-span-2 rounded-lg border border-default p-4' : 'contents'"
     >
       <summary v-if="projectQuick" class="cursor-pointer font-semibold">{{ t('tasks.quick.optional') }}</summary>
       <div :class="projectQuick ? 'mt-4 grid gap-6' : 'contents'">
-        <div class="grid gap-2 sm:col-span-2">
-          <label for="new-task-description">{{ t('tasks.drawer.description') }}</label>
-          <UTextarea id="new-task-description" v-model="description" class="min-h-28 w-full rounded-md border border-default bg-default px-3 py-2 text-sm outline-none placeholder:text-muted focus-visible:ring-2 focus-visible:ring-primary" :placeholder="t('tasks.descriptionField.placeholder')" :disabled="!hydrated || isPending" />
-        </div>
-        <div class="grid gap-2 sm:col-span-2">
-          <div class="flex flex-wrap items-center justify-between gap-3">
+        <UFormField :label="t('tasks.drawer.description')" name="description" class="sm:col-span-2">
+          <UTextarea id="new-task-description" v-model="description" class="w-full" :rows="4" :placeholder="t('tasks.descriptionField.placeholder')" :disabled="!hydrated || isPending" />
+        </UFormField>
+        <UFormField :label="t('tasks.deliverables.title')" :description="t('tasks.deliverables.hint')" name="deliverables" class="sm:col-span-2">
+          <div class="grid gap-2">
+            <div v-if="deliverables.length" class="space-y-2">
+              <div v-for="(item, index) in deliverables" :key="index" class="flex items-center gap-2">
+                <UInput v-model="item.name" class="flex-1" :aria-label="t('tasks.deliverables.name')" :disabled="!hydrated || isPending" />
+                <UButton type="button" color="neutral" variant="ghost" size="sm" square icon="i-lucide-x" :disabled="!hydrated || isPending" :aria-label="t('tasks.deliverables.remove')" @click="removeDeliverable(index)" />
+              </div>
+            </div>
+            <p v-else class="text-sm text-muted">{{ t('tasks.deliverables.empty') }}</p>
             <div>
-              <label>{{ t('tasks.deliverables.title') }}</label>
-              <p class="text-xs text-muted">{{ t('tasks.deliverables.hint') }}</p>
-            </div>
-            <UButton type="button" variant="outline" size="sm" :disabled="!hydrated || isPending" @click="addDeliverable">{{ t('tasks.deliverables.add') }}</UButton>
-          </div>
-          <div v-if="deliverables.length" class="space-y-2">
-            <div v-for="(item, index) in deliverables" :key="index" class="flex items-center gap-2">
-              <UInput v-model="item.name" class="flex-1" :aria-label="t('tasks.deliverables.name')" :disabled="!hydrated || isPending" />
-              <UButton type="button" variant="ghost" size="sm" :disabled="!hydrated || isPending" :aria-label="t('tasks.deliverables.remove')" @click="removeDeliverable(index)">×</UButton>
+              <UButton type="button" color="neutral" variant="outline" size="sm" icon="i-lucide-plus" :disabled="!hydrated || isPending" @click="addDeliverable">{{ t('tasks.deliverables.add') }}</UButton>
             </div>
           </div>
-          <p v-else class="text-sm text-muted">{{ t('tasks.deliverables.empty') }}</p>
-        </div>
+        </UFormField>
       </div>
     </component>
-    <p v-if="error" role="alert" class="sm:col-span-2 text-sm text-error">{{ error }}</p>
+    <p v-if="generalError" role="alert" class="sm:col-span-2 text-sm text-error">{{ generalError }}</p>
     <div class="flex flex-wrap gap-2 justify-end sm:col-span-2">
       <UButton color="neutral" variant="outline" type="button" :disabled="isPending" @click="emit('cancel')">{{ t('app.cancel') }}</UButton>
-      <UButton type="submit" :disabled="!hydrated || isPending || !name.trim() || !selectedProjectId">{{ t('app.create') }}</UButton>
+      <UButton type="submit" :loading="isPending" :disabled="!hydrated || isPending || !name.trim() || !selectedProjectId">{{ t('app.create') }}</UButton>
     </div>
   </form>
 </template>

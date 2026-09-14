@@ -121,7 +121,8 @@
       "label": "إجراءات المشروع",
       "settings": "إعدادات المشروع",
       "archive": "أرشفة المشروع",
-      "unarchive": "إلغاء الأرشفة"
+      "unarchive": "إلغاء الأرشفة",
+      "labelNamed": "إجراءات مشروع {name}"
     },
     "archiveConfirmTitle": "أرشفة المشروع؟",
     "archiveConfirmText": "يختفي المشروع ومهامه من القوائم. يمكنك إلغاء الأرشفة لاحقًا من فلتر المؤرشفة.",
@@ -172,7 +173,9 @@
       "add": "إضافة متابع",
       "remove": "إزالة",
       "empty": "لا متابعين بعد",
-      "hint": "عند اختيار \"المتابعون فقط\" لا يرى المشروع إلا من في هذه القائمة."
+      "hint": "عند اختيار \"المتابعون فقط\" لا يرى المشروع إلا من في هذه القائمة.",
+      "removeNamed": "إزالة {name}",
+      "removeConfirm": "إزالة {name} من المتابعين؟"
     },
     "tabs": {
       "overview": "نظرة عامة",
@@ -221,7 +224,10 @@
       "checklistOf": "المخرجات: {done} من {total}",
       "taskProgress": "إنجاز المهام: {percent}%",
       "continueToTasks": "الانتقال إلى المهام",
-      "openProjectFile": "تحديد تواريخ المشروع في الميثاق"
+      "openProjectFile": "تحديد تواريخ المشروع في الميثاق",
+      "deleteBlocked": "حذف (مرتبط بـ {count} مهمة)",
+      "deleteConfirm": "حذف المعلم «{name}»؟",
+      "actionsNamed": "إجراءات المعلم {name}"
     },
     "updates": {
       "add": "إضافة تحديث",
@@ -357,7 +363,8 @@
       "retryMilestones": "إعادة المحاولة",
       "printUnavailable": "تتوفر الطباعة بعد تحميل مخرجات المعالم.",
       "legacyDetails": "تفاصيل الميثاق السابقة",
-      "legacyDeliverables": "مخرجات الميثاق السابقة"
+      "legacyDeliverables": "مخرجات الميثاق السابقة",
+      "clearField": "مسح {field}"
     },
     "planningLinks": {
       "schedule": "الجدول الزمني",
@@ -475,10 +482,6 @@
       "emptyTasks": "لا توجد مهام في القالب بعد."
     },
     "governance": {
-      "charterHint": "نطاق المشروع وأهدافه ومبرراته.",
-      "stakeholdersHint": "الأطراف المعنية وأدوارها ووسائل التواصل معها.",
-      "raciHint": "من ينفّذ ومن يملك القرار في كل مهمة.",
-      "risksHint": "المخاطر والمشكلات المفتوحة وخطط معالجتها.",
       "stakeholders": "أصحاب المصلحة",
       "stakeholdersDescription": "الأطراف المشاركة في المشروع وأدوارها.",
       "newStakeholder": "صاحب مصلحة جديد",
@@ -564,7 +567,9 @@
       "closedTasks": "المهام المنتهية والملغاة",
       "all": "الكل",
       "delete": "حذف",
-      "saving": "جارٍ الحفظ…"
+      "saving": "جارٍ الحفظ…",
+      "confirmDeleteNamed": "حذف «{name}»؟",
+      "actionsNamed": "إجراءات {name}"
     },
     "finance": {
       "title": "الميزانية والتكلفة",
@@ -645,7 +650,8 @@
         "too_large": "لا يجوز أن يتجاوز المبلغ 1,000,000,000,000",
         "negative": "لا يجوز أن يكون المبلغ سالبًا",
         "referencedBudget": "بند الميزانية مرتبط بمصروفات. فك الارتباط أو احذف تلك المصروفات أولًا."
-      }
+      },
+      "actionsNamed": "إجراءات {name}"
     },
     "reports": {
       "title": "التقارير",

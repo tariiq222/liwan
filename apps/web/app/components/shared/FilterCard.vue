@@ -1,7 +1,7 @@
 <template>
   <div data-slot="filter-root" class="min-w-0 space-y-2">
     <div class="flex flex-wrap items-center gap-2">
-      <div v-if="$slots.search" data-slot="search" class="min-w-48 flex-1">
+      <div v-if="$slots.search" data-slot="search" class="min-w-48 flex-1 *:w-full">
         <slot name="search" />
       </div>
       <UButton v-if="$slots.default" ref="trigger" type="button" color="neutral" :variant="expanded ? 'soft' : 'outline'" square icon="i-lucide-list-filter" :aria-label="resolvedTitle" :title="resolvedTitle" :aria-expanded="expanded" :aria-controls="contentId" :disabled="isDisabled" @click="expanded = !expanded" />

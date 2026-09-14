@@ -91,6 +91,7 @@
     },
     "drawer": {
       "details": "Details",
+      "deadlineTime": "Deadline time",
       "activity": "Activity",
       "additionalDetails": "Additional details",
       "assignees": "Assignees",

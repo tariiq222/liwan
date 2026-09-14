@@ -36,6 +36,10 @@ STORYBOOK_COMPONENTS: tuple[str, ...] = tuple(COMPONENTS + path for path in (
     'hr/AccessBadge.vue', 'task/PrioritySelect.vue', 'task/StateMenu.vue', 'task/TagPicker.vue',
     'project/ProjectMenu.vue', 'shell/SidebarCreateAction.vue', 'chat/ChatAttachment.vue', 'task/TaskCard.vue',
     'project/dashboard/DashboardChartPanel.vue', 'shared/DashboardChart.client.vue', 'charts/ChartContainer.vue',
+    'project/workspace/ProjectWorkspaceTabs.vue', 'project/workspace/ProjectGovernanceTabs.vue',
+    'shared/RichText.vue', 'shared/Pagination.vue', 'shared/MetricTile.vue', 'shared/InlineConfirm.vue',
+    'shared/RowActions.vue', 'shared/PersonPicker.vue', 'shared/FilterChip.vue', 'shared/FilterChoice.vue',
+    'shared/FilterField.vue',
 ))
 STORY_CONTEXT = re.compile(r'''\bstoryContext\(\s*(['"])([^'"]+)\1''')
 META_COMPONENT = re.compile(r'\bcomponent:\s*(\w+)')
@@ -282,6 +286,35 @@ def story_warnings(current: dict[str, str]) -> list[str]:
     return warnings
 
 
+# Patterns the 2026-09-14 unification retired. Each has one shared replacement
+# (DESIGN.md §6), so a new occurrence is drift, not a design choice.
+RETIRED_PATTERNS = (
+    (re.compile(r'(?<![\w-])(?:text-muted-foreground|bg-muted-foreground|border-border|text-destructive|ring-ring|divide-border|bg-card|text-foreground|bg-background)(?![\w-])'),
+     'retired shadcn colour class; use Nuxt UI tokens (text-muted, border-default, text-error, bg-default)'),
+    (re.compile(r'shadow-\[inset'), 'hand-built tab underline; use routeTabClass/sectionTabsUi from utils/sectionTabs.ts'),
+    (re.compile(r'(?<![\w-])(?:size|text)-\[\d+(?:\.\d+)?px\]'), 'arbitrary size or font size; use the Tailwind scale'),
+    (re.compile(r'(?<![\w-])prose(?:-(?:sm|base|lg))?(?![\w-])'), 'prose classes have no plugin; render stored HTML with SharedRichText'),
+    (re.compile(r'\bv-html='), 'raw v-html; render stored HTML with SharedRichText'),
+    (re.compile(r'text-sm font-medium leading-none'), 'hand-built field label; use UFormField'),
+)
+RETIRED_PATTERN_OWNERS = {APP + 'components/shared/RichText.vue'}
+
+
+def retired_pattern_errors(current: dict[str, str]) -> list[str]:
+    errors = []
+    for path, source in sorted(current.items()):
+        if not path.startswith(APP) or '/__tests__/' in path or path in RETIRED_PATTERN_OWNERS:
+            continue
+        if not path.endswith(('.vue', '.ts')):
+            continue
+        text = COMMENTS.sub('', source)
+        for pattern, reason in RETIRED_PATTERNS:
+            count = len(pattern.findall(text))
+            if count:
+                errors.append(f'{path}: {reason} (+{count})')
+    return errors
+
+
 def check(current: dict[str, str], baseline: dict[str, str], head: dict[str, str]) -> list[str]:
     errors = []
     # @nuxt/schema ships inside nuxt itself and is where Nuxt's own docs put
@@ -320,6 +353,7 @@ def check(current: dict[str, str], baseline: dict[str, str], head: dict[str, str
                 errors.append(path + ': register exact path, recipe and primitives in the catalog')
         errors.extend(f'{path}: {reason} (+{count})' for reason, count in sorted(findings(path, source, names, allowed_source, has_ui).items()))
     errors.extend(story_errors(current))
+    errors.extend(retired_pattern_errors(current))
     return errors
 
 

@@ -51,63 +51,31 @@ function remove(id: number) {
       >
         <template #default><span class="truncate">{{ t('taskLifecycle.addDependency') }}</span></template>
         <template #content-bottom>
-          <UButton v-if="hasNextPage" color="neutral" variant="outline" block :disabled="isFetchingNextPage" :label="t('taskLifecycle.loadMore')" @click="fetchNextPage()" />
+          <UButton v-if="hasNextPage" color="neutral" variant="outline" block :loading="isFetchingNextPage" :disabled="isFetchingNextPage" :label="t('taskLifecycle.loadMore')" @click="fetchNextPage()" />
         </template>
       </USelectMenu>
     </header>
 
     <div class="space-y-3">
-      <ul v-if="dependencies.length" class="task-list">
-        <li v-for="dep in dependencies" :key="dep.id" class="task-dependency-row">
+      <ul v-if="dependencies.length" class="grid gap-1">
+        <li v-for="dep in dependencies" :key="dep.id" class="flex min-w-0 items-center gap-2 rounded-lg border border-transparent p-0.5 transition-colors hover:border-default hover:bg-elevated focus-within:border-primary">
           <StateBadge :state="dep.state" />
           <span class="min-w-0 flex-1 truncate text-sm font-medium">{{ dep.name }}</span>
           <UButton
             v-if="task.can_manage_dependencies"
+            color="neutral"
             variant="ghost"
             size="sm"
+            square
             type="button"
+            icon="i-lucide-x"
             :aria-label="t('taskLifecycle.removeDependency')"
             :disabled="!hydrated || isPending"
             @click="remove(dep.id)"
-          >
-            <UIcon name="i-lucide-x" class="size-[18px]" aria-hidden="true" />
-          </UButton>
+          />
         </li>
       </ul>
-      <p v-else class="task-empty-inline">{{ t('tasks.detail.noDependencies') }}</p>
+      <p v-else class="py-2 text-sm text-muted">{{ t('tasks.detail.noDependencies') }}</p>
     </div>
   </section>
 </template>
-
-<style scoped>
-.task-list {
-  display: grid;
-  gap: 4px;
-}
-
-.task-dependency-row {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  gap: 9px;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  padding: 3px;
-  transition: background-color 120ms ease, border-color 120ms ease;
-}
-
-.task-dependency-row:hover {
-  border-color: var(--ui-border);
-  background: var(--ui-bg-muted);
-}
-
-.task-dependency-row:focus-within {
-  border-color: var(--ui-primary);
-}
-
-.task-empty-inline {
-  padding: 10px 0;
-  color: var(--ui-text-muted);
-  font-size: 0.75rem;
-}
-</style>

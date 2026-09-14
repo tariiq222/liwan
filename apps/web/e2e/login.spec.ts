@@ -15,6 +15,7 @@ test('admin logs in and lands on the app shell', async ({ page }) => {
   await page.getByLabel('اسم المستخدم').fill('admin')
   await page.getByLabel('كلمة المرور').fill('admin')
   await page.getByRole('button', { name: 'دخول' }).click()
-  await expect(page).toHaveURL(/\/tasks$/)
+  // Login lands on the first section the user may open (accessPolicy.firstAllowedPath).
+  await expect(page).not.toHaveURL(/\/login(?:\?|$)/)
   await expect(page.getByRole('navigation', { name: 'الانتقال إلى' })).toContainText('مهامي')
 })

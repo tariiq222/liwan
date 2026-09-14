@@ -15,11 +15,12 @@ const { mutateAsync: unarchiveMutate, isPending: unarchiving } = useUnarchivePro
 
 const confirmOpen = ref(false)
 
-const items = computed<DropdownMenuItem[]>(() => {
+const items = computed<DropdownMenuItem[] | DropdownMenuItem[][]>(() => {
   const list: DropdownMenuItem[] = []
   if (!props.hideSettings) list.push({ label: t('projects.menu.settings'), onSelect: () => emit('settings') })
-  if (props.project.active) list.push({ label: t('projects.menu.archive'), onSelect: () => { confirmOpen.value = true } })
-  else list.push({ label: t('projects.menu.unarchive'), disabled: unarchiving.value, onSelect: doUnarchive })
+  if (!props.project.active) list.push({ label: t('projects.menu.unarchive'), icon: 'i-lucide-archive-restore', disabled: unarchiving.value, onSelect: doUnarchive })
+  // Same grouping as SharedRowActions: destructive items last, in the error colour, opening an inline confirmation.
+  if (props.project.active) return [list, [{ label: t('projects.menu.archive'), icon: 'i-lucide-archive', color: 'error', onSelect: () => { confirmOpen.value = true } }]]
   return list
 })
 
@@ -47,33 +48,31 @@ async function doUnarchive() {
 </script>
 
 <template>
+  <!-- The trigger matches SharedRowActions; the menu stays a menu even with one item so row layout is stable. -->
   <UDropdownMenu v-if="project.can_manage" :items="items" :content="{ align: 'end' }">
     <UButton
       type="button"
       data-testid="project-menu"
-      color="primary"
-      variant="outline"
+      color="neutral"
+      variant="ghost"
       square
-      icon="i-lucide-more-horizontal"
+      size="sm"
+      icon="i-lucide-ellipsis"
       :disabled="!hydrated"
-      :aria-label="t('projects.menu.label')"
+      :aria-label="t('projects.menu.labelNamed', { name: project.name })"
       @click.stop
     />
   </UDropdownMenu>
 
-  <UAlert
+  <SharedInlineConfirm
     v-if="project.active && confirmOpen"
-    color="error"
-    variant="soft"
+    class="basis-full"
     data-testid="project-archive-confirm"
     :title="t('projects.archiveConfirmTitle')"
     :description="t('projects.archiveConfirmText')"
-  >
-    <template #actions>
-      <div class="flex flex-wrap justify-end gap-2 w-full">
-        <UButton type="button" color="neutral" :disabled="archiving" @click="confirmOpen = false" variant="outline">{{ t('app.cancel') }}</UButton>
-        <UButton type="button" color="error" :loading="archiving" @click="doArchive">{{ t('projects.menu.archive') }}</UButton>
-      </div>
-    </template>
-  </UAlert>
+    :confirm-label="t('projects.menu.archive')"
+    :pending="archiving"
+    @cancel="confirmOpen = false"
+    @confirm="doArchive"
+  />
 </template>

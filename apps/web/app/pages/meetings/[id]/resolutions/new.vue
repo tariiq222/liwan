@@ -78,15 +78,14 @@ async function save() {
             <UInput id="res-name" v-model="name" class="w-full" :disabled="!hydrated || isPending" required />
           </UFormField>
           <UFormField :label="t('meetingsUi.responsible')" name="responsible" required>
-            <USelectMenu
+            <SharedPersonPicker
               id="res-user"
-              :model-value="responsibleId || undefined"
-                @update:model-value="responsibleId = $event ?? ''"
-              class="w-full"
-              value-key="value"
+              :model-value="responsibleId || null"
+              value-key="user_id"
+              :options="knownPeople"
               :disabled="!hydrated || isPending"
-              :items="knownPeople.map(person => ({ label: person.name, value: person.id }))"
               :placeholder="t('meetingsUi.responsible')"
+              @update:model-value="responsibleId = typeof $event === 'number' ? $event : ''"
             />
           </UFormField>
           <UFormField :label="t('meetingsUi.deadline')" name="deadline" :help="t('meetingMinutesForm.deadlineOrPeriodHint')">
@@ -109,7 +108,7 @@ async function save() {
           </UFormField>
         </div>
       </SharedFormSection>
-      <p v-if="validationMessage" class="text-sm text-muted-foreground" aria-live="polite">{{ validationMessage }}</p>
+      <p v-if="validationMessage" class="text-sm text-muted" aria-live="polite">{{ validationMessage }}</p>
       <UAlert v-if="error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="error.message" />
       <div class="nasq-form-footer justify-end">
         <UButton type="button" color="neutral" variant="outline" :to="backTo" :label="t('app.cancel')" />

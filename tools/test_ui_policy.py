@@ -79,6 +79,28 @@ class UiPolicyTest(unittest.TestCase):
         snapshot.update(changes)
         return snapshot
 
+    def test_retired_unification_patterns_fail(self):
+        for markup in (
+            '<template><p class="text-muted-foreground" /></template>',
+            '<template><div class="border border-border" /></template>',
+            '<template><UButton class="data-[active=true]:shadow-[inset_0_-2px_0_0_red]" /></template>',
+            '<template><UIcon class="size-[18px]" /></template>',
+            '<template><span class="text-[11px]" /></template>',
+            '<template><div class="prose prose-sm" /></template>',
+            '<template><div v-html="html" /></template>',
+            '<template><label class="flex items-center gap-2 text-sm font-medium leading-none" /></template>',
+        ):
+            with self.subTest(markup=markup):
+                self.assertTrue(self.errors({PAGE: markup}))
+
+    def test_retired_pattern_lookalikes_and_owners_pass(self):
+        self.assertEqual(self.errors({PAGE: '<template><p class="max-w-prose text-muted size-4.5 text-xs" /><!-- v-html="x" --></template>'}), [])
+        rich_text = APP + "components/shared/RichText.vue"
+        self.assertNotIn(
+            rich_text + ': raw v-html; render stored HTML with SharedRichText (+1)',
+            self.errors({rich_text: '<template><div v-html="rendered" /></template>', CATALOG: '`' + rich_text + '`'}),
+        )
+
     def test_baseline_and_unrelated_copy_edit_pass(self):
         self.assertEqual(self.errors({PAGE: '<template><h1>المهام</h1><button /></template>'}), [])
 

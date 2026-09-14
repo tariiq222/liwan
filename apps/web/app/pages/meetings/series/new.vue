@@ -97,7 +97,7 @@ async function save() {
     <SharedPageHeader :title="t('meetingsUi.newSeries')" :back-to="backTo" />
     <form class="space-y-8" @submit.prevent="save">
       <SharedUnsavedChanges :dirty="dirty" />
-      <p v-if="context" class="rounded-lg border border-border bg-muted/30 px-3 py-2 text-sm">{{ t('meetingsUx.context.project', { name: context }) }}</p>
+      <p v-if="context" class="rounded-lg bg-elevated/50 px-3 py-2 text-sm ring ring-default">{{ t('meetingsUx.context.project', { name: context }) }}</p>
       <SharedFormSection :title="t('meetingsUi.sectionSchedule')" class="space-y-4">
         <UFormField :label="t('meetingsUx.seriesName')" name="name" required :error="formErrors.name ? t(`meetingsUx.errors.${formErrors.name}`) : undefined">
           <UInput id="series-name" v-model="name" class="w-full" :disabled="!hydrated || isPending" :aria-invalid="!!formErrors.name" required />
@@ -135,8 +135,8 @@ async function save() {
             <UInput v-if="untilMode === 'count'" id="series-count" v-model="untilCount" type="number" min="1" max="60" class="w-full" :disabled="!hydrated || isPending" :aria-invalid="!!formErrors.untilCount" />
             <SharedDateField v-else id="series-until-date" v-model="untilDateField" class="w-full" :disabled="!hydrated || isPending" :aria-invalid="!!formErrors.untilDate" />
           </UFormField>
-          <div v-if="preview.length" class="rounded-lg border border-border bg-muted/20 p-3 text-sm">
-            <p class="font-medium">{{ t('meetingsUx.previewTitle') }}</p>
+          <div v-if="preview.length" class="rounded-lg bg-elevated/50 p-3 text-sm ring ring-default">
+            <p class="font-medium text-highlighted">{{ t('meetingsUx.previewTitle') }}</p>
             <ul class="mt-2 grid max-h-48 gap-1 overflow-y-auto" tabindex="0">
               <li v-for="(item, index) in preview" :key="item.start">{{ t('meetingsUx.previewItem', { index: index + 1, start: item.start.replace('T', ' '), end: item.end.replace('T', ' ') }) }}</li>
             </ul>
@@ -152,7 +152,7 @@ async function save() {
       <SharedFormSection :title="t('meetingsUi.sectionPeople')">
         <MeetingPeopleFields v-model:attendee-ids="attendeeIds" v-model:secretary-id="secretaryId" :disabled="!hydrated || isPending" />
       </SharedFormSection>
-      <p class="text-sm text-muted-foreground">{{ t('meetingsUx.recurrenceScope') }}</p>
+      <p class="text-sm text-muted">{{ t('meetingsUx.recurrenceScope') }}</p>
       <UAlert v-if="error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('meetingsUx.errors.save')" />
       <div class="nasq-form-footer justify-end">
         <UButton type="button" color="neutral" variant="outline" :to="backTo" :label="t('app.cancel')" />

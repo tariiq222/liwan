@@ -2,6 +2,7 @@
 import type { TaskDetail } from '@nasq/contracts'
 import { useUpdateTask } from '@/composables/useTasks'
 import { isDirtySnapshot } from '@/lib/formDirty'
+import { richTextHasContent } from '@/utils/richText'
 import { sanitizeHtml } from '@/utils/sanitize'
 import DescriptionEditor from './DescriptionEditor.vue'
 
@@ -21,10 +22,7 @@ const error = ref<string | null>(null)
 let editSession = 0
 
 const renderedHtml = computed(() => sanitizeHtml(readHtml.value))
-const hasDescription = computed(() => renderedHtml.value
-  .replace(/<[^>]*>/g, '')
-  .replace(/&nbsp;|&#160;/gi, ' ')
-  .trim().length > 0)
+const hasDescription = computed(() => richTextHasContent(readHtml.value))
 const dirty = computed(() => editing.value && isDirtySnapshot(baseline.value, draft.value, false))
 
 function resetReadView(html: string) {
@@ -103,9 +101,9 @@ watch(() => props.task.can_write, (canWrite) => {
   <SharedUnsavedChanges :dirty="dirty" :guard-route-updates="true" />
 
   <div data-testid="task-description" class="grid gap-3">
-    <div v-if="!editing" class="task-description-read">
+    <div v-if="!editing">
       <div class="flex items-start justify-between gap-3">
-        <div v-if="hasDescription" class="task-description-content max-w-none text-sm" v-html="renderedHtml" />
+        <SharedRichText v-if="hasDescription" :html="renderedHtml" size="sm" class="flex-1" />
         <p v-else data-testid="task-description-empty" class="text-sm text-muted">{{ t('tasks.descriptionField.empty') }}</p>
         <UButton
           v-if="task.can_write"
@@ -131,67 +129,8 @@ watch(() => props.task.can_write, (canWrite) => {
       <p v-if="error" role="alert" data-testid="task-description-error" class="text-sm text-error">{{ error }}</p>
       <div class="flex flex-wrap justify-end gap-2">
         <UButton type="button" color="neutral" variant="outline" :disabled="!hydrated || isPending" @click="cancelEdit">{{ t('tasks.descriptionField.cancel') }}</UButton>
-        <UButton type="submit" :disabled="!hydrated || isPending">{{ t('tasks.descriptionField.save') }}</UButton>
+        <UButton type="submit" :loading="isPending" :disabled="!hydrated || isPending">{{ t('tasks.descriptionField.save') }}</UButton>
       </div>
     </form>
   </div>
 </template>
-
-<style scoped>
-.task-description-content {
-  min-width: 0;
-  overflow-wrap: anywhere;
-  line-height: 1.7;
-}
-
-
-:deep(.task-description-content p) {
-  margin: 0 0 0.5em;
-}
-
-:deep(.task-description-content ul) {
-  list-style: disc;
-  padding-inline-start: 1.5em;
-}
-
-:deep(.task-description-content ol) {
-  list-style: decimal;
-  padding-inline-start: 1.5em;
-}
-
-:deep(.task-description-content h1),
-:deep(.task-description-content h2),
-:deep(.task-description-content h3),
-:deep(.task-description-content h4) {
-  margin: 0.75em 0 0.35em;
-  font-weight: 600;
-}
-
-:deep(.task-description-content blockquote) {
-  border-inline-start: 3px solid var(--ui-border);
-  margin-block: 0.5em;
-  padding-inline-start: 0.75em;
-  color: var(--ui-text-muted);
-}
-
-:deep(.task-description-content pre) {
-  overflow-x: auto;
-  border-radius: 0.375rem;
-  background: var(--ui-bg-muted);
-  padding: 0.625rem;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 0.875em;
-}
-
-:deep(.task-description-content code) {
-  border-radius: 0.25rem;
-  background: var(--ui-bg-muted);
-  padding-inline: 0.25em;
-}
-
-:deep(.task-description-content a) {
-  color: var(--brand-link);
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-</style>

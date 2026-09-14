@@ -2,7 +2,6 @@
 import type { CharterDraft, CharterMilestone } from '@/utils/projectCharter'
 import { aggregateMilestoneOutputs } from '@/utils/projectCharter'
 import { formatCalendarDate } from '@/composables/calendarDate'
-import { sanitizeHtml } from '@/utils/sanitize'
 
 const props = defineProps<{
   draft: CharterDraft
@@ -83,7 +82,7 @@ function budgetAmount(): string {
       <dl class="grid gap-x-6 gap-y-4 sm:grid-cols-2">
         <div data-testid="charter-display-name"><dt class="text-sm text-muted">{{ t('projects.charter.fields.name') }}</dt><dd class="mt-1 text-lg font-semibold text-highlighted">{{ draft.name }}</dd></div>
         <div v-if="draft.code" data-testid="charter-display-code"><dt class="text-sm text-muted">{{ t('projects.charter.fields.code') }}</dt><dd class="mt-1 font-mono text-sm" dir="ltr">{{ draft.code }}</dd></div>
-        <div v-if="draft.description.trim()" class="sm:col-span-2"><dt class="text-sm text-muted">{{ t('projects.charter.fields.description') }}</dt><dd v-if="/<\/?[a-z][\s\S]*>/i.test(draft.description)" class="mt-1 whitespace-pre-wrap text-sm" v-html="sanitizeHtml(draft.description)" /><dd v-else class="mt-1 whitespace-pre-wrap text-sm">{{ draft.description }}</dd></div>
+        <div v-if="draft.description.trim()" class="sm:col-span-2"><dt class="text-sm text-muted">{{ t('projects.charter.fields.description') }}</dt><dd v-if="/<\/?[a-z][\s\S]*>/i.test(draft.description)" class="mt-1"><SharedRichText size="sm" :html="draft.description" /></dd><dd v-else class="mt-1 whitespace-pre-wrap text-sm">{{ draft.description }}</dd></div>
         <div v-if="draft.managerName?.trim()"><dt class="text-sm text-muted">{{ t('projects.charter.fields.manager') }}</dt><dd class="mt-1 text-sm">{{ draft.managerName }}</dd></div>
         <div v-if="draft.dateStart"><dt class="text-sm text-muted">{{ t('projects.charter.fields.date_start') }}</dt><dd class="mt-1 text-sm">{{ date(draft.dateStart) }}</dd></div>
         <div v-if="draft.dateEnd"><dt class="text-sm text-muted">{{ t('projects.charter.fields.date_end') }}</dt><dd class="mt-1 text-sm">{{ date(draft.dateEnd) }}</dd></div>

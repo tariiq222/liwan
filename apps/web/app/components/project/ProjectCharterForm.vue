@@ -237,13 +237,15 @@ function discardToServer() {
         />
         <UButton type="button" color="neutral" data-testid="charter-discard-reload" :disabled="pending" :label="t('projects.charter.discardReload')" @click="requestDiscard" variant="outline" />
       </div>
-      <div v-if="confirmDiscard" class="space-y-2 rounded-md border border-error/40 bg-error/5 p-3" data-testid="charter-discard-confirm">
-        <p>{{ t('projects.charter.discardReloadConfirm') }}</p>
-        <div class="flex flex-wrap gap-2">
-          <UButton type="button" color="neutral" :label="t('app.cancel')" @click="confirmDiscard = false" variant="outline" />
-          <UButton type="button" color="error" :disabled="!hydrated || pending" :label="t('projects.charter.discardReload')" @click="discardToServer" />
-        </div>
-      </div>
+      <SharedInlineConfirm
+        v-if="confirmDiscard"
+        data-testid="charter-discard-confirm"
+        :title="t('projects.charter.discardReloadConfirm')"
+        :confirm-label="t('projects.charter.discardReload')"
+        :disabled="pending"
+        @cancel="confirmDiscard = false"
+        @confirm="discardToServer"
+      />
     </div>
     <p v-else-if="error" role="alert" class="text-sm text-error">{{ error }}</p>
     <div class="flex flex-wrap gap-2 justify-end">

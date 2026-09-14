@@ -74,7 +74,7 @@ async function submitTotp() {
 </script>
 
 <template>
-  <main class="nasq-login-page min-h-svh grid place-items-center bg-background p-4">
+  <main class="nasq-login-page min-h-svh grid place-items-center bg-default p-4">
     <UCard class="nasq-login-card w-full max-w-sm" :ui="{ header: '' }">
       <template #header>
         <div class="flex flex-col items-center text-center">

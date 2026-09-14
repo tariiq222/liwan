@@ -180,7 +180,6 @@ describe('task comment draft persistence', () => {
           titleDraft: '',
           archiveConfirmOpen: false,
           archiving: false,
-          isRtl: false,
           ArrowLeft: passthrough,
           ArrowRight: passthrough,
           ChevronLeft: passthrough,
@@ -199,6 +198,7 @@ describe('task comment draft persistence', () => {
     mountWith({
       SharedPageState: pageState,
       TaskDetails: details,
+      SharedInlineConfirm: passthrough,
       TaskCompletionApproval: passthrough,
       StateMenu: passthrough,
       DeadlineBadge: passthrough,

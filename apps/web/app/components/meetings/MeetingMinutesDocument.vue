@@ -71,26 +71,26 @@ const unassignedRecommendations = computed(() => props.recommendations.filter(it
     <template #header><h2 class="text-lg font-semibold text-highlighted">{{ title || t('meetingMinutesForm.documentTitle') }}</h2></template>
     <div class="grid gap-5">
       <dl class="grid min-w-0 gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
-        <div><dt class="text-xs text-muted-foreground">{{ t('meetingMinutesForm.name') }}</dt><dd class="break-words">{{ displayMeeting.name || '—' }}</dd></div>
-        <div><dt class="text-xs text-muted-foreground">{{ t('meetingMinutesForm.reference') }}</dt><dd dir="ltr">{{ displayMeeting.reference || '—' }}</dd></div>
-        <div><dt class="text-xs text-muted-foreground">{{ t('meetingMinutesForm.date') }}</dt><dd>{{ formatMeetingDate(displayMeeting.meeting_date, locale) }}</dd></div>
-        <div><dt class="text-xs text-muted-foreground">{{ t('meetingMinutesForm.time') }}</dt><dd dir="ltr"><bdi>{{ formatMeetingTime(displayMeeting.start_datetime, locale) }}</bdi><span v-if="displayMeeting.end_datetime"> – <bdi>{{ formatMeetingTime(displayMeeting.end_datetime, locale) }}</bdi></span></dd></div>
-        <div><dt class="text-xs text-muted-foreground">{{ t('meetingMinutesForm.location') }}</dt><dd>{{ displayMeeting.location || '—' }}</dd></div>
-        <div><dt class="text-xs text-muted-foreground">{{ t('meetingMinutesForm.secretary') }}</dt><dd>{{ displayMeeting.secretary?.name || '—' }}</dd></div>
+        <div><dt class="text-xs text-muted">{{ t('meetingMinutesForm.name') }}</dt><dd class="break-words">{{ displayMeeting.name || '—' }}</dd></div>
+        <div><dt class="text-xs text-muted">{{ t('meetingMinutesForm.reference') }}</dt><dd dir="ltr">{{ displayMeeting.reference || '—' }}</dd></div>
+        <div><dt class="text-xs text-muted">{{ t('meetingMinutesForm.date') }}</dt><dd>{{ formatMeetingDate(displayMeeting.meeting_date, locale) }}</dd></div>
+        <div><dt class="text-xs text-muted">{{ t('meetingMinutesForm.time') }}</dt><dd dir="ltr"><bdi>{{ formatMeetingTime(displayMeeting.start_datetime, locale) }}</bdi><span v-if="displayMeeting.end_datetime"> – <bdi>{{ formatMeetingTime(displayMeeting.end_datetime, locale) }}</bdi></span></dd></div>
+        <div><dt class="text-xs text-muted">{{ t('meetingMinutesForm.location') }}</dt><dd>{{ displayMeeting.location || '—' }}</dd></div>
+        <div><dt class="text-xs text-muted">{{ t('meetingMinutesForm.secretary') }}</dt><dd>{{ displayMeeting.secretary?.name || '—' }}</dd></div>
       </dl>
-      <div class="text-sm"><span class="text-muted-foreground">{{ t('meetingMinutesForm.attendees') }}:</span> {{ displayMeeting.attendees?.map(person => person.name).join('، ') || '—' }}</div>
+      <div class="text-sm"><span class="text-muted">{{ t('meetingMinutesForm.attendees') }}:</span> {{ displayMeeting.attendees?.map(person => person.name).join('، ') || '—' }}</div>
 
       <template v-if="form">
-        <div class="grid gap-1"><h3 class="font-semibold">{{ t('meetingMinutesForm.opening') }}</h3><p class="whitespace-pre-wrap text-sm">{{ form.opening || '—' }}</p></div>
-        <section v-if="legacyAgendaText" class="grid gap-2"><h3 class="font-semibold">{{ t('meetingsUi.agenda') }}</h3><p class="whitespace-pre-wrap text-sm">{{ legacyAgendaText }}</p></section>
-        <section v-if="legacyMinutesText" class="grid gap-2"><h3 class="font-semibold">{{ t('meetingsUi.minutes') }}</h3><p class="whitespace-pre-wrap text-sm">{{ legacyMinutesText }}</p></section>
+        <div class="grid gap-1"><h3 class="font-semibold text-highlighted">{{ t('meetingMinutesForm.opening') }}</h3><p class="whitespace-pre-wrap text-sm">{{ form.opening || '—' }}</p></div>
+        <section v-if="legacyAgendaText" class="grid gap-2"><h3 class="font-semibold text-highlighted">{{ t('meetingsUi.agenda') }}</h3><p class="whitespace-pre-wrap text-sm">{{ legacyAgendaText }}</p></section>
+        <section v-if="legacyMinutesText" class="grid gap-2"><h3 class="font-semibold text-highlighted">{{ t('meetingsUi.minutes') }}</h3><p class="whitespace-pre-wrap text-sm">{{ legacyMinutesText }}</p></section>
         <div class="grid gap-3">
-          <h3 class="font-semibold">{{ t('meetingMinutesForm.topics') }}</h3>
-          <div class="overflow-x-auto rounded-lg border border-border">
+          <h3 class="font-semibold text-highlighted">{{ t('meetingMinutesForm.topics') }}</h3>
+          <div class="overflow-x-auto rounded-lg ring ring-default">
             <table class="meeting-minutes-topic-table min-w-[980px] w-full text-sm">
               <thead><tr><th>{{ t('meetingMinutesForm.topicTitle') }}</th><th>{{ t('meetingMinutesForm.discussion') }}</th><th>{{ t('meetingMinutesForm.project') }}</th><th>{{ t('meetingMinutesForm.recommendations') }}</th><th>{{ t('meetingsUi.responsible') }}</th><th>{{ t('meetingMinutesForm.executionPeriod') }}</th><th>{{ t('meetingsUi.deadline') }}</th></tr></thead>
               <tbody>
-                <tr v-if="!topicRows.length"><td colspan="7" class="text-muted-foreground">{{ t('meetingMinutesForm.noTopics') }}</td></tr>
+                <tr v-if="!topicRows.length"><td colspan="7" class="text-muted">{{ t('meetingMinutesForm.noTopics') }}</td></tr>
                 <tr v-for="row in topicRows" :key="`${row.topic.key}-${row.recommendation?.id ?? 'none'}`">
                   <td class="font-medium">{{ row.topic.title || t('meetingMinutesForm.untitledTopic') }}</td>
                   <td class="whitespace-pre-wrap">{{ row.topic.discussion || '—' }}</td>
@@ -100,30 +100,30 @@ const unassignedRecommendations = computed(() => props.recommendations.filter(it
                   <td>{{ row.recommendation?.execution_period || '—' }}</td>
                   <td dir="ltr">{{ formatMeetingDate(row.recommendation?.deadline, locale) }}</td>
                 </tr>
-                <tr v-for="item in unassignedRecommendations" :key="`unassigned-${item.id}`" class="text-muted-foreground">
+                <tr v-for="item in unassignedRecommendations" :key="`unassigned-${item.id}`" class="text-muted">
                   <td>{{ t('meetingMinutesForm.unassigned') }}</td><td>—</td><td>{{ item.project?.name || '—' }}</td><td>{{ item.name }}</td><td>{{ item.responsible?.name || '—' }}</td><td>{{ item.execution_period || '—' }}</td><td dir="ltr">{{ formatMeetingDate(item.deadline, locale) }}</td>
                 </tr>
               </tbody>
             </table>
           </div>
         </div>
-        <div class="grid gap-1"><h3 class="font-semibold">{{ t('meetingMinutesForm.closing') }}</h3><p class="whitespace-pre-wrap text-sm">{{ form.closing || '—' }}</p></div>
-        <dl class="grid gap-3 border-t pt-3 text-sm sm:grid-cols-3">
-          <div><dt class="text-xs text-muted-foreground">{{ t('meetingMinutesForm.chairperson') }}</dt><dd>{{ form.chairperson || '—' }}</dd></div>
-          <div><dt class="text-xs text-muted-foreground">{{ t('meetingMinutesForm.approverName') }}</dt><dd>{{ form.approver_name || '—' }}</dd></div>
-          <div><dt class="text-xs text-muted-foreground">{{ t('meetingMinutesForm.approverTitle') }}</dt><dd>{{ form.approver_title || '—' }}</dd></div>
+        <div class="grid gap-1"><h3 class="font-semibold text-highlighted">{{ t('meetingMinutesForm.closing') }}</h3><p class="whitespace-pre-wrap text-sm">{{ form.closing || '—' }}</p></div>
+        <dl class="grid gap-3 border-t border-default pt-3 text-sm sm:grid-cols-3">
+          <div><dt class="text-xs text-muted">{{ t('meetingMinutesForm.chairperson') }}</dt><dd>{{ form.chairperson || '—' }}</dd></div>
+          <div><dt class="text-xs text-muted">{{ t('meetingMinutesForm.approverName') }}</dt><dd>{{ form.approver_name || '—' }}</dd></div>
+          <div><dt class="text-xs text-muted">{{ t('meetingMinutesForm.approverTitle') }}</dt><dd>{{ form.approver_title || '—' }}</dd></div>
         </dl>
       </template>
 
       <template v-else>
-        <section class="grid gap-2"><h3 class="font-semibold">{{ t('meetingsUi.agenda') }}</h3><p class="whitespace-pre-wrap text-sm">{{ legacyAgendaText || '—' }}</p></section>
-        <section class="grid gap-2"><h3 class="font-semibold">{{ t('meetingsUi.minutes') }}</h3><p class="whitespace-pre-wrap text-sm">{{ legacyMinutesText || '—' }}</p></section>
+        <section class="grid gap-2"><h3 class="font-semibold text-highlighted">{{ t('meetingsUi.agenda') }}</h3><p class="whitespace-pre-wrap text-sm">{{ legacyAgendaText || '—' }}</p></section>
+        <section class="grid gap-2"><h3 class="font-semibold text-highlighted">{{ t('meetingsUi.minutes') }}</h3><p class="whitespace-pre-wrap text-sm">{{ legacyMinutesText || '—' }}</p></section>
         <section class="grid gap-2">
-          <h3 class="font-semibold">{{ t('meetingsUi.resolutions') }}</h3>
-          <div class="overflow-x-auto rounded-lg border border-border">
+          <h3 class="font-semibold text-highlighted">{{ t('meetingsUi.resolutions') }}</h3>
+          <div class="overflow-x-auto rounded-lg ring ring-default">
             <table class="meeting-minutes-topic-table min-w-[700px] w-full text-sm">
               <thead><tr><th>{{ t('meetingMinutesForm.recommendations') }}</th><th>{{ t('meetingsUi.responsible') }}</th><th>{{ t('meetingMinutesForm.executionPeriod') }}</th><th>{{ t('meetingsUi.deadline') }}</th></tr></thead>
-              <tbody><tr v-if="!legacyRecommendations.length"><td colspan="4" class="text-muted-foreground">{{ t('meetingsUi.emptyResolutions') }}</td></tr><tr v-for="item in legacyRecommendations" :key="item.id"><td>{{ item.name }}</td><td>{{ item.responsible?.name || '—' }}</td><td>{{ item.execution_period || '—' }}</td><td dir="ltr">{{ formatMeetingDate(item.deadline, locale) }}</td></tr></tbody>
+              <tbody><tr v-if="!legacyRecommendations.length"><td colspan="4" class="text-muted">{{ t('meetingsUi.emptyResolutions') }}</td></tr><tr v-for="item in legacyRecommendations" :key="item.id"><td>{{ item.name }}</td><td>{{ item.responsible?.name || '—' }}</td><td>{{ item.execution_period || '—' }}</td><td dir="ltr">{{ formatMeetingDate(item.deadline, locale) }}</td></tr></tbody>
             </table>
           </div>
         </section>
@@ -135,6 +135,6 @@ const unassignedRecommendations = computed(() => props.recommendations.filter(it
 <style scoped>
 .meeting-minutes-topic-table { border-collapse: collapse; }
 .meeting-minutes-topic-table th,
-.meeting-minutes-topic-table td { padding: 9px 10px; border-block-end: 1px solid var(--border); text-align: start; vertical-align: top; overflow-wrap: anywhere; }
-.meeting-minutes-topic-table th { background: var(--ui-bg-muted); font-size: .75rem; font-weight: 600; white-space: nowrap; }
+.meeting-minutes-topic-table td { padding: 9px 10px; border-block-end: 1px solid var(--ui-border); text-align: start; vertical-align: top; overflow-wrap: anywhere; }
+.meeting-minutes-topic-table th { background: var(--ui-bg-elevated); font-size: .75rem; font-weight: 600; white-space: nowrap; }
 </style>

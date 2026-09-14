@@ -6,7 +6,7 @@ import { storyContext } from '../support/context'
 const meta = {
   title: 'Shared/PageState',
   component: PageState,
-  parameters: { layout: 'fullscreen', ...storyContext('apps/web/app/pages/settings/access-log/index.vue:77') },
+  parameters: { layout: 'fullscreen', ...storyContext('apps/web/app/pages/settings/access-log/index.vue:78') },
   args: { loading: false, empty: false, error: undefined, emptyText: undefined },
   render: args => ({
     components: { SettingsLayout, PageState },

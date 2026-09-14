@@ -18,6 +18,7 @@
       "scopeActive": "Active",
       "scopeArchived": "Archived",
       "manage": "Manage",
+      "rowActions": "Actions for employee {name}",
       "columns": {
         "name": "Name",
         "jobTitle": "Job title",
@@ -59,6 +60,7 @@
       "none": "None",
       "edit": "Edit department",
       "manage": "Manage departments",
+      "rowActions": "Actions for department {name}",
       "empty": "No departments",
       "selectHelp": "Choose a department to view its documents.",
       "detail": "Department documents",

@@ -85,10 +85,10 @@ function createRecommendation() {
     <SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!query.isLoading.value && !query.error.value && !query.data.value" @retry="query.refetch">
       <form v-if="query.data.value" class="space-y-8" @submit.prevent="save(false)">
         <SharedUnsavedChanges :dirty="dirty" />
-        <p class="rounded-lg border border-border bg-muted/30 px-3 py-2 text-sm">
+        <p class="rounded-lg bg-elevated/50 px-3 py-2 text-sm ring ring-default">
           {{ t('meetingsUx.minutesEditorContext', { name: query.data.value.name }) }}
         </p>
-        <p v-if="lifecycleLocked && query.data.value.can_manage" role="alert" class="text-sm text-muted-foreground">{{ t('meetingsUx.minutesEditorReopen') }} <NuxtLink :to="backTo" class="text-brand-link underline">{{ t('meetingsUx.openMeetingForReopen') }}</NuxtLink></p>
+        <p v-if="lifecycleLocked && query.data.value.can_manage" role="alert" class="text-sm text-muted">{{ t('meetingsUx.minutesEditorReopen') }} <UButton color="primary" variant="link" class="p-0" :to="backTo" :label="t('meetingsUx.openMeetingForReopen')" /></p>
         <UAlert v-else-if="!canEdit" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('meetingsUx.minutesEditorForbidden')" />
         <MeetingMinutesDocument
           v-if="(readonlySnapshot || hasStructuredForm) && (lifecycleLocked || !canEdit)"

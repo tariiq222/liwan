@@ -19,7 +19,9 @@ describe('register list design alignment', () => {
     expect(listSource).not.toContain('<UBadge v-if="parsed.')
     expect(listSource).toContain('<UTable :data="list.data.value.items" :columns="columns">')
     expect(listSource).toContain('#id-cell="{ row }"')
-    expect(listSource).toContain('@click="deleteItem(row.original)"')
+    expect(listSource).toContain('<SharedRowActions :actions="rowActions(row.original)"')
+    expect(listSource).toContain("destructive: true")
+    expect(listSource).toMatch(/<SharedInlineConfirm[\s\S]*@confirm="deleteItem\(confirmItem\)"/)
     expect(listSource).not.toContain('nasq-input')
     const formSource = readFileSync(
       resolve(dirname(fileURLToPath(import.meta.url)), '../governance/RegisterForm.vue'),
@@ -51,7 +53,7 @@ describe('register list design alignment', () => {
     // dead weight that rides back onto this list's URL.
     expect(listSource).not.toContain('returnTo')
     expect(listSource).toContain('`/projects/${id}/register/${row.original.id}`')
-    expect(listSource).toContain('/governance`')
+    expect(listSource).not.toContain('/governance`')
     // Nested project pages own their section heading; the parent page is now
     // only the workspace frame, and the base route's own content (including the
     // not-found escape back to /projects) lives in its summary child page.

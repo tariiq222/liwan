@@ -97,6 +97,9 @@ async function retryNextPage() {
       <UButton
         v-if="hydrated && unreadCount"
         type="button"
+        color="neutral"
+        variant="outline"
+        icon="i-lucide-check-check"
         :disabled="actionPending"
         :label="t('notifications.markAllRead')"
         @click="markAll"
@@ -118,13 +121,13 @@ async function retryNextPage() {
             type="button"
             color="neutral"
             variant="ghost"
-            class="grid w-full gap-1 rounded-none border-b border-border/80 p-3 text-start transition-colors last:border-b-0 hover:bg-muted/70"
-            :class="item.is_read ? 'bg-background' : 'border-s-2 border-s-brand-link bg-brand-soft'"
+            class="grid w-full gap-1 rounded-none border-b border-default p-3 text-start transition-colors last:border-b-0 hover:bg-elevated"
+            :class="item.is_read ? 'bg-default' : 'border-s-2 border-s-brand-link bg-brand-soft'"
             :disabled="!hydrated || actionPending"
             :data-testid="`notification-${item.id}`"
             @click="openNotification(item)"
           >
-            <span class="flex items-center gap-2 text-xs font-medium" :class="item.is_read ? 'text-muted-foreground' : 'text-brand-link'">
+            <span class="flex items-center gap-2 text-xs font-medium" :class="item.is_read ? 'text-muted' : 'text-brand-link'">
               <span>{{ kindLabel(item) }}</span>
               <span v-if="!item.is_read" class="inline-flex items-center gap-1 font-semibold">
                 <span class="size-1.5 shrink-0 rounded-full bg-brand-link" aria-hidden="true" />
@@ -132,19 +135,19 @@ async function retryNextPage() {
               </span>
             </span>
             <span class="font-medium">{{ itemTitle(item) }}</span>
-            <span v-if="item.kind === 'comment'" class="line-clamp-3 text-sm text-muted-foreground">{{ item.body }}</span>
-            <time v-if="notificationTimestamp(item)" class="text-xs text-muted-foreground" :datetime="notificationTimestamp(item)?.datetime">{{ notificationTimestamp(item)?.label }}</time>
+            <span v-if="item.kind === 'comment'" class="line-clamp-3 text-sm text-muted">{{ item.body }}</span>
+            <time v-if="notificationTimestamp(item)" class="text-xs text-muted" :datetime="notificationTimestamp(item)?.datetime">{{ notificationTimestamp(item)?.label }}</time>
           </UButton>
         </div>
         <div v-if="hasQueryError && items.length && !isFetchNextPageError" class="grid gap-2 py-4 text-center" role="alert">
-          <p class="text-sm text-destructive">{{ queryErrorMessage }}</p>
+          <p class="text-sm text-error">{{ queryErrorMessage }}</p>
           <UButton type="button" color="neutral" variant="outline" class="mx-auto" :disabled="!hydrated || isFetching" :label="t('notifications.retry')" @click="retryNotifications" />
         </div>
-        <div v-if="isFetchNextPageError" class="grid gap-2 border-t p-4 text-center" role="alert">
-          <p class="text-sm text-destructive">{{ queryErrorMessage }}</p>
+        <div v-if="isFetchNextPageError" class="grid gap-2 border-t border-default p-4 text-center" role="alert">
+          <p class="text-sm text-error">{{ queryErrorMessage }}</p>
           <UButton type="button" color="neutral" variant="outline" class="mx-auto" :disabled="!hydrated || actionPending || isFetchingNextPage" :label="t('notifications.retry')" @click="retryNextPage" />
         </div>
-        <div v-else-if="hasNextPage" class="border-t p-4 text-center">
+        <div v-else-if="hasNextPage" class="border-t border-default p-4 text-center">
           <UButton color="neutral" variant="outline" :disabled="!hydrated || actionPending || isFetchingNextPage" :label="t('app.loadMore')" @click="fetchNextPage()" />
         </div>
       </div>

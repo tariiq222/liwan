@@ -15,7 +15,7 @@ const meta = {
   title: 'HR/AccessBadge',
   component: AccessBadge,
   args: { access: accesses[1]! },
-  parameters: storyContext('apps/web/app/components/hr/DirectoryTable.vue:192', 'بطاقة الدليل على الجوال تحت 768px، فالغلاف بعرض 375px.'),
+  parameters: storyContext('apps/web/app/components/hr/DirectoryTable.vue:209', 'بطاقة الدليل على الجوال تحت 768px، فالغلاف بعرض 375px.'),
 } satisfies Meta<typeof AccessBadge>
 export default meta
 type Story = StoryObj<typeof meta>

@@ -35,7 +35,7 @@ const utilityModules = computed(() => availableModules.value.filter(module => mo
         @click="toggle"
       >
         <template #leading>
-          <UIcon :name="expanded ? 'i-lucide-panel-left-close' : 'i-lucide-panel-left-open'" class="nasq-shell-icon size-[18px] shrink-0" aria-hidden="true" />
+          <UIcon :name="expanded ? 'i-lucide-panel-left-close' : 'i-lucide-panel-left-open'" class="nasq-shell-icon size-4.5 shrink-0" aria-hidden="true" />
         </template>
         <span data-slot="label">{{ t(expanded ? 'nav.collapseModules' : 'nav.expandModules') }}</span>
       </UButton>
@@ -57,7 +57,7 @@ const utilityModules = computed(() => availableModules.value.filter(module => mo
           :title="t(module.labelKey)"
         >
           <template #leading>
-            <UIcon :name="module.icon" class="nasq-shell-icon size-[18px] shrink-0" aria-hidden="true" />
+            <UIcon :name="module.icon" class="nasq-shell-icon size-4.5 shrink-0" aria-hidden="true" />
           </template>
           <span data-slot="label">{{ t(module.labelKey) }}</span>
         </UButton>
@@ -78,7 +78,7 @@ const utilityModules = computed(() => availableModules.value.filter(module => mo
           :title="t(module.labelKey)"
         >
           <template #leading>
-            <UIcon :name="module.icon" class="nasq-shell-icon size-[18px] shrink-0" aria-hidden="true" />
+            <UIcon :name="module.icon" class="nasq-shell-icon size-4.5 shrink-0" aria-hidden="true" />
           </template>
           <span data-slot="label">{{ t(module.labelKey) }}</span>
         </UButton>

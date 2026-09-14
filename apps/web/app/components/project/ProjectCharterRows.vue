@@ -60,18 +60,12 @@ function addDeliverable() {
       <div
         v-for="(row, index) in draft.objectives"
         :key="row.key"
-        class="space-y-3 rounded-md border p-3"
+        class="space-y-3 rounded-md border border-default p-3"
         :data-testid="`charter-objective-${index}`"
       >
         <div class="grid gap-3 md:grid-cols-3">
-          <div class="space-y-2">
-            <div class="flex items-center gap-1">
-              <label :for="`objective-goal-${row.key}`" class="flex items-center gap-2 text-sm font-medium leading-none">{{ t('projects.charter.fields.objectiveGoal') }}</label>
-              <ProjectFieldHelp
-                :label="helpLabel(t('projects.charter.fields.objectiveGoal'))"
-                :text="t('projects.charter.help.objectiveGoal')"
-              />
-            </div>
+          <UFormField :label="t('projects.charter.fields.objectiveGoal')">
+            <template #hint><ProjectFieldHelp :label="helpLabel(t('projects.charter.fields.objectiveGoal'))" :text="t('projects.charter.help.objectiveGoal')" /></template>
             <UInput
               :id="`objective-goal-${row.key}`"
               v-model="row.goal"
@@ -79,15 +73,9 @@ function addDeliverable() {
               :readonly="readonly"
               :disabled="disabled"
             />
-          </div>
-          <div class="space-y-2">
-            <div class="flex items-center gap-1">
-              <label :for="`objective-metric-${row.key}`" class="flex items-center gap-2 text-sm font-medium leading-none">{{ t('projects.charter.fields.objectiveMetric') }}</label>
-              <ProjectFieldHelp
-                :label="helpLabel(t('projects.charter.fields.objectiveMetric'))"
-                :text="t('projects.charter.help.objectiveMetric')"
-              />
-            </div>
+          </UFormField>
+          <UFormField :label="t('projects.charter.fields.objectiveMetric')">
+            <template #hint><ProjectFieldHelp :label="helpLabel(t('projects.charter.fields.objectiveMetric'))" :text="t('projects.charter.help.objectiveMetric')" /></template>
             <UInput
               :id="`objective-metric-${row.key}`"
               v-model="row.metric"
@@ -95,15 +83,9 @@ function addDeliverable() {
               :readonly="readonly"
               :disabled="disabled"
             />
-          </div>
-          <div class="space-y-2">
-            <div class="flex items-center gap-1">
-              <label :for="`objective-target-${row.key}`" class="flex items-center gap-2 text-sm font-medium leading-none">{{ t('projects.charter.fields.objectiveTarget') }}</label>
-              <ProjectFieldHelp
-                :label="helpLabel(t('projects.charter.fields.objectiveTarget'))"
-                :text="t('projects.charter.help.objectiveTarget')"
-              />
-            </div>
+          </UFormField>
+          <UFormField :label="t('projects.charter.fields.objectiveTarget')">
+            <template #hint><ProjectFieldHelp :label="helpLabel(t('projects.charter.fields.objectiveTarget'))" :text="t('projects.charter.help.objectiveTarget')" /></template>
             <UInput
               :id="`objective-target-${row.key}`"
               v-model="row.target"
@@ -111,23 +93,20 @@ function addDeliverable() {
               :readonly="readonly"
               :disabled="disabled"
             />
-          </div>
+          </UFormField>
         </div>
         <div v-if="!readonly" class="flex flex-wrap items-center gap-2">
           <UButton type="button" color="neutral" variant="ghost" size="sm" :disabled="disabled" :label="t('projects.charter.removeRow')" @click="requestRemove('objective', row)" />
         </div>
-        <div
+        <SharedInlineConfirm
           v-if="pendingRemove?.kind === 'objective' && pendingRemove.key === row.key"
-          class="space-y-2 rounded-md border border-error/40 bg-error/5 p-3 text-sm"
-        >
-          <p>{{ t('projects.charter.removeRowConfirm') }}</p>
-          <div class="flex flex-wrap gap-2">
-            <UButton type="button" color="neutral" size="sm" :label="t('app.cancel')" @click="pendingRemove = null" variant="outline" />
-            <UButton type="button" color="error" size="sm" :label="t('projects.charter.removeRow')" @click="removeRow('objective', row.key)" />
-          </div>
-        </div>
+          :title="t('projects.charter.removeRowConfirm')"
+          :confirm-label="t('projects.charter.removeRow')"
+          @cancel="pendingRemove = null"
+          @confirm="removeRow('objective', row.key)"
+        />
       </div>
-      <UButton v-if="!readonly" type="button" color="neutral" size="sm" :disabled="disabled" :label="t('projects.charter.addObjective')" @click="addObjective" variant="outline" />
+      <UButton v-if="!readonly" type="button" color="neutral" size="sm" :disabled="disabled" icon="i-lucide-plus" :label="t('projects.charter.addObjective')" @click="addObjective" variant="outline" />
     </section>
 
     <section v-if="!compact" class="space-y-3" data-testid="charter-field-deliverables">
@@ -141,17 +120,11 @@ function addDeliverable() {
       <div
         v-for="(row, index) in draft.deliverables"
         :key="row.key"
-        class="space-y-3 rounded-md border p-3"
+        class="space-y-3 rounded-md border border-default p-3"
         :data-testid="`charter-deliverable-${index}`"
       >
-        <div class="space-y-2">
-          <div class="flex items-center gap-1">
-            <label :for="`deliverable-name-${row.key}`" class="flex items-center gap-2 text-sm font-medium leading-none">{{ t('projects.charter.fields.deliverableName') }}</label>
-            <ProjectFieldHelp
-              :label="helpLabel(t('projects.charter.fields.deliverableName'))"
-              :text="t('projects.charter.help.deliverableName')"
-            />
-          </div>
+        <UFormField :label="t('projects.charter.fields.deliverableName')">
+          <template #hint><ProjectFieldHelp :label="helpLabel(t('projects.charter.fields.deliverableName'))" :text="t('projects.charter.help.deliverableName')" /></template>
           <UInput
             :id="`deliverable-name-${row.key}`"
             v-model="row.name"
@@ -159,15 +132,9 @@ function addDeliverable() {
             :readonly="readonly"
             :disabled="disabled"
           />
-        </div>
-        <div class="space-y-2">
-          <div class="flex items-center gap-1">
-            <label :for="`deliverable-description-${row.key}`" class="flex items-center gap-2 text-sm font-medium leading-none">{{ t('projects.charter.fields.deliverableDescription') }}</label>
-            <ProjectFieldHelp
-              :label="helpLabel(t('projects.charter.fields.deliverableDescription'))"
-              :text="t('projects.charter.help.deliverableDescription')"
-            />
-          </div>
+        </UFormField>
+        <UFormField :label="t('projects.charter.fields.deliverableDescription')">
+          <template #hint><ProjectFieldHelp :label="helpLabel(t('projects.charter.fields.deliverableDescription'))" :text="t('projects.charter.help.deliverableDescription')" /></template>
           <UTextarea
             :id="`deliverable-description-${row.key}`"
             v-model="row.description"
@@ -176,15 +143,9 @@ function addDeliverable() {
             :disabled="disabled"
             :rows="2"
           />
-        </div>
-        <div class="space-y-2" data-testid="charter-field-acceptance">
-          <div class="flex items-center gap-1">
-            <label :for="`deliverable-acceptance-${row.key}`" class="flex items-center gap-2 text-sm font-medium leading-none">{{ t('projects.charter.fields.acceptance') }}</label>
-            <ProjectFieldHelp
-              :label="helpLabel(t('projects.charter.fields.acceptance'))"
-              :text="t('projects.charter.help.acceptance')"
-            />
-          </div>
+        </UFormField>
+        <UFormField :label="t('projects.charter.fields.acceptance')" data-testid="charter-field-acceptance">
+          <template #hint><ProjectFieldHelp :label="helpLabel(t('projects.charter.fields.acceptance'))" :text="t('projects.charter.help.acceptance')" /></template>
           <UTextarea
             :id="`deliverable-acceptance-${row.key}`"
             v-model="row.acceptance"
@@ -193,22 +154,19 @@ function addDeliverable() {
             :disabled="disabled"
             :rows="2"
           />
-        </div>
+        </UFormField>
         <div v-if="!readonly" class="flex flex-wrap items-center gap-2">
           <UButton type="button" color="neutral" variant="ghost" size="sm" :disabled="disabled" :label="t('projects.charter.removeRow')" @click="requestRemove('deliverable', row)" />
         </div>
-        <div
+        <SharedInlineConfirm
           v-if="pendingRemove?.kind === 'deliverable' && pendingRemove.key === row.key"
-          class="space-y-2 rounded-md border border-error/40 bg-error/5 p-3 text-sm"
-        >
-          <p>{{ t('projects.charter.removeRowConfirm') }}</p>
-          <div class="flex flex-wrap gap-2">
-            <UButton type="button" color="neutral" size="sm" :label="t('app.cancel')" @click="pendingRemove = null" variant="outline" />
-            <UButton type="button" color="error" size="sm" :label="t('projects.charter.removeRow')" @click="removeRow('deliverable', row.key)" />
-          </div>
-        </div>
+          :title="t('projects.charter.removeRowConfirm')"
+          :confirm-label="t('projects.charter.removeRow')"
+          @cancel="pendingRemove = null"
+          @confirm="removeRow('deliverable', row.key)"
+        />
       </div>
-      <UButton v-if="!readonly" type="button" color="neutral" size="sm" :disabled="disabled" :label="t('projects.charter.addDeliverable')" @click="addDeliverable" variant="outline" />
+      <UButton v-if="!readonly" type="button" color="neutral" size="sm" :disabled="disabled" icon="i-lucide-plus" :label="t('projects.charter.addDeliverable')" @click="addDeliverable" variant="outline" />
     </section>
   </div>
 </template>

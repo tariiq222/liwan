@@ -112,7 +112,7 @@ function isCollapsed(stage: BoardStage): boolean {
 </script>
 
 <template>
-  <div :class="embedded ? 'space-y-2 p-[18px]' : 'rounded-lg ring ring-default bg-default overflow-hidden space-y-2 p-[18px]'">
+  <div :class="embedded ? 'space-y-2 p-4' : 'rounded-lg ring ring-default bg-default overflow-hidden space-y-2 p-4'">
     <p v-if="isCapped" class="text-xs text-muted">{{ t('tasks.kanban.capped') }}</p>
     <SharedPageState v-if="error" :error="error" @retry="refetch" />
     <SharedPageState v-else-if="stageError" :error="stageError" @retry="refetchPersonalStages" />
@@ -123,7 +123,7 @@ function isCollapsed(stage: BoardStage): boolean {
       column's header and drop target reachable regardless of how many
       cards a stage holds — the board only scrolls horizontally, per spec.
     -->
-    <div v-else class="flex min-h-[420px] items-start gap-3 overflow-x-auto pb-2" :class="embedded ? 'h-[calc(100vh-340px)]' : 'h-[calc(100vh-260px)]'">
+    <div v-else class="flex min-h-105 items-start gap-3 overflow-x-auto pb-2" :class="embedded ? 'h-[calc(100vh-340px)]' : 'h-[calc(100vh-260px)]'">
       <!-- Leading "unstaged" column: tasks with no stage yet. Always shown on
            the personal board; on a project board only when it actually holds
            cards, since a project task always has a stage and the column

@@ -11,7 +11,8 @@ async function login(page, loginName = ADMIN_LOGIN, password = ADMIN_PASSWORD) {
   await page.getByLabel('اسم المستخدم').fill(loginName)
   await page.getByLabel('كلمة المرور').fill(password)
   await page.getByRole('button', { name: 'دخول' }).click()
-  await expect(page).toHaveURL(/\/tasks$/)
+  // Login lands on the first section the user may open (accessPolicy.firstAllowedPath).
+  await expect(page).not.toHaveURL(/\/login(?:\?|$)/)
 }
 
 async function createPasswordFixture(page) {

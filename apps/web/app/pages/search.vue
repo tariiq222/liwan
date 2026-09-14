@@ -37,13 +37,23 @@ useEventListener('keydown', (event: KeyboardEvent) => {
 <template>
   <SharedPageContainer width="form" data-testid="search-page">
     <SharedPageHeader :title="t('app.search')" :back-to="backTo" />
-    <UCard class="rounded-lg ring ring-default bg-default overflow-hidden relative" :ui="{ body: 'p-4 sm:p-5' }">
-      <UIcon name="i-lucide-search" aria-hidden="true" class="pointer-events-none absolute start-8 top-1/2 size-[18px] -translate-y-1/2 text-muted-foreground" />
-      <UInput id="navigation-search" v-model="query" class="w-full ps-10" :placeholder="t('nav.typeToNavigate')" autofocus :aria-label="t('nav.typeToNavigate')" />
-    </UCard>
-    <section v-if="nav.length" class="grid gap-3"><h2 class="text-sm font-semibold text-muted">{{ t('nav.goTo') }}</h2><UCard class="rounded-lg ring ring-default bg-default overflow-hidden" :ui="{ body: 'p-0' }"><template v-for="item in nav" :key="item.to"><a v-if="item.to === '/odoo'" :href="item.to" target="_blank" rel="noopener" class="flex items-center gap-3 border-b border-default p-3 transition-colors last:border-0 hover:bg-elevated"><UIcon :name="item.icon" class="size-[18px] text-muted" />{{ t(item.labelKey) }}<kbd class="ms-auto text-xs text-muted">{{ item.shortcut }}</kbd></a><NuxtLink v-else :to="item.to" class="flex items-center gap-3 border-b border-default p-3 transition-colors last:border-0 hover:bg-elevated"><UIcon :name="item.icon" class="size-[18px] text-muted" />{{ t(item.labelKey) }}<kbd class="ms-auto text-xs text-muted">{{ item.shortcut }}</kbd></NuxtLink></template></UCard></section>
+    <UInput id="navigation-search" v-model="query" class="w-full" size="lg" icon="i-lucide-search" :placeholder="t('nav.typeToNavigate')" autofocus :aria-label="t('nav.typeToNavigate')" />
+    <section v-if="nav.length" class="grid gap-3">
+      <h2 class="text-sm font-semibold text-muted">{{ t('nav.goTo') }}</h2>
+      <div class="divide-y divide-default overflow-hidden rounded-lg bg-default ring ring-default">
+        <template v-for="item in nav" :key="item.to">
+          <a v-if="item.to === '/odoo'" :href="item.to" target="_blank" rel="noopener" class="flex items-center gap-3 p-3 transition-colors hover:bg-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"><UIcon :name="item.icon" class="size-4.5 shrink-0 text-muted" aria-hidden="true" />{{ t(item.labelKey) }}<UKbd v-if="item.shortcut" class="ms-auto">{{ item.shortcut }}</UKbd></a>
+          <NuxtLink v-else :to="item.to" class="flex items-center gap-3 p-3 transition-colors hover:bg-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"><UIcon :name="item.icon" class="size-4.5 shrink-0 text-muted" aria-hidden="true" />{{ t(item.labelKey) }}<UKbd v-if="item.shortcut" class="ms-auto">{{ item.shortcut }}</UKbd></NuxtLink>
+        </template>
+      </div>
+    </section>
     <div v-if="can('pmo.projects.read') && (isLoading || error)"><SharedPageState :loading="isLoading" :error="error" @retry="refetch()" /></div>
-    <section v-if="can('pmo.projects.read') && matchingProjects.length" class="grid gap-3"><h2 class="text-sm font-semibold text-muted">{{ t('nav.projects') }}</h2><UCard class="rounded-lg ring ring-default bg-default overflow-hidden" :ui="{ body: 'p-0' }"><NuxtLink v-for="project in matchingProjects" :key="project.id" :to="`/projects/${project.id}`" class="flex items-center gap-3 border-b border-default p-3 transition-colors last:border-0 hover:bg-elevated"><UIcon name="i-lucide-folder" aria-hidden="true" class="size-[18px] text-muted" /><span class="min-w-0 flex-1 truncate">{{ project.name }}</span><UIcon name="i-lucide-arrow-left" aria-hidden="true" class="size-[18px] text-muted ltr:rotate-180" /></NuxtLink></UCard></section>
-    <UCard v-if="!nav.length && !matchingProjects.length && !isLoading && !error" class="rounded-lg ring ring-default bg-default overflow-hidden"><p class="text-sm text-muted">{{ t('app.noResults') }}</p></UCard>
+    <section v-if="can('pmo.projects.read') && matchingProjects.length" class="grid gap-3">
+      <h2 class="text-sm font-semibold text-muted">{{ t('nav.projects') }}</h2>
+      <div class="divide-y divide-default overflow-hidden rounded-lg bg-default ring ring-default">
+        <NuxtLink v-for="project in matchingProjects" :key="project.id" :to="`/projects/${project.id}`" class="flex items-center gap-3 p-3 transition-colors hover:bg-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"><UIcon name="i-lucide-folder" aria-hidden="true" class="size-4.5 shrink-0 text-muted" /><span class="min-w-0 flex-1 truncate">{{ project.name }}</span><UIcon name="i-lucide-arrow-left" aria-hidden="true" class="size-4.5 shrink-0 text-muted ltr:rotate-180" /></NuxtLink>
+      </div>
+    </section>
+    <p v-if="!nav.length && !matchingProjects.length && !isLoading && !error" class="rounded-lg bg-default p-4 text-sm text-muted ring ring-default">{{ t('app.noResults') }}</p>
   </SharedPageContainer>
 </template>

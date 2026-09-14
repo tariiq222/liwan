@@ -22,7 +22,7 @@ const DEFINITIONS: Array<Omit<ProjectSection, 'to'> & { segment: string }> = [
   { id: 'tasks', labelKey: 'nav.projectTasks', icon: 'i-lucide-clipboard-list', segment: '/tasks', capability: 'pmo.tasks.read' },
   { id: 'schedule', labelKey: 'projects.planningLinks.schedule', icon: 'i-lucide-calendar-range', segment: '/schedule', capability: 'pmo.tasks.read' },
   { id: 'milestones', labelKey: 'projects.tabs.milestones', icon: 'i-lucide-flag', segment: '/milestones', capability: 'pmo.tasks.read' },
-  { id: 'governance', labelKey: 'projects.workspace.groups.governance', icon: 'i-lucide-shield-check', segment: '/governance', capability: 'pmo.projects.read' },
+  { id: 'governance', labelKey: 'projects.workspace.groups.governance', icon: 'i-lucide-shield-check', segment: '/charter', capability: 'pmo.projects.read' },
   { id: 'finance', labelKey: 'nav.projectFinance', icon: 'i-lucide-wallet-cards', segment: '/finance', capability: 'pmo.projects.read' },
   { id: 'updates', labelKey: 'projects.tabs.updates', icon: 'i-lucide-megaphone', segment: '/updates', capability: 'pmo.projects.read' },
 ]

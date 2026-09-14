@@ -6,6 +6,7 @@ import { formatCalendarDate, toCalendarDate } from '@/composables/calendarDate'
 import { STATUS_COLOR } from '@/utils/statusTone'
 import { useDeleteMilestone, useMilestones, useUpdateMilestone } from '@/composables/useMilestones'
 import { returnToQuery } from '@/utils/safeReturnTo'
+import type { RowAction } from '@/components/shared/RowActions.vue'
 import { claimMilestoneChecklistUpdate, releaseMilestoneChecklistUpdate } from '@/utils/milestoneChecklist'
 
 const props = defineProps<{ projectId: number; canManage: boolean; embedded?: boolean }>()
@@ -17,12 +18,31 @@ const toast = useToast()
 const projectIdRef = computed(() => props.projectId)
 const { data, isLoading, error, refetch } = useMilestones(projectIdRef)
 const items = computed<Milestone[]>(() => data.value ?? [])
-const router = useRouter()
 const route = useRoute()
 const deliverablePending = ref(new Set<number>())
 
-function openEdit(m: Milestone) {
-  router.push({ path: `/projects/${props.projectId}/milestones/${m.id}/edit`, query: returnToQuery(route.fullPath) })
+function editTo(m: Milestone) {
+  return { path: `/projects/${props.projectId}/milestones/${m.id}/edit`, query: returnToQuery(route.fullPath) }
+}
+
+// A milestone with linked tasks cannot be deleted; the menu item stays visible,
+// disabled, and names the reason.
+function milestoneActions(m: Milestone): RowAction[] {
+  return [
+    {
+      label: t(m.is_reached ? 'projects.milestones.reopen' : 'projects.milestones.markReached'),
+      icon: m.is_reached ? 'i-lucide-rotate-ccw' : 'i-lucide-circle-check',
+      onSelect: () => { void toggleReached(m) },
+    },
+    { label: t('projects.milestones.edit'), icon: 'i-lucide-pencil', to: editTo(m) },
+    {
+      label: m.task_count > 0 ? t('projects.milestones.deleteBlocked', { count: m.task_count }) : t('projects.milestones.delete'),
+      icon: 'i-lucide-trash-2',
+      destructive: true,
+      disabled: m.task_count > 0,
+      onSelect: () => { deleteTarget.value = m },
+    },
+  ]
 }
 
 // --- deadline tone ---------------------------------------------------------
@@ -107,7 +127,7 @@ async function confirmDelete() {
           <p class="text-sm text-muted">{{ t('projects.milestones.emptyHint') }}</p>
         </div>
       </template>
-      <div v-if="isLoading || !hydrated" class="space-y-3 p-[18px]">
+      <div v-if="isLoading || !hydrated" class="space-y-3 p-4">
         <USkeleton v-for="n in 3" :key="n" class="h-14 w-full" />
       </div>
       <SharedPageState v-else-if="error" :error="error" @retry="refetch" />
@@ -116,70 +136,42 @@ async function confirmDelete() {
         <p class="mt-1 text-sm text-muted">{{ t('projects.milestones.emptyHint') }}</p>
       </div>
       <div v-else class="milestone-list divide-y divide-default">
-        <div v-for="m in items" :key="m.id" data-testid="milestone-row" class="milestone-row flex flex-col gap-3 px-[18px] py-4">
-          <div class="milestone-main min-w-0">
-            <div class="flex flex-wrap items-center gap-2">
-              <p class="font-medium">{{ m.name }}</p>
-              <UBadge variant="subtle" :color="STATUS_COLOR[m.is_reached ? 'success' : 'neutral']">{{ t(m.is_reached ? 'projects.milestones.reached' : 'projects.milestones.notReached') }}</UBadge>
+        <div v-for="m in items" :key="m.id" data-testid="milestone-row" class="space-y-3 px-4 py-4">
+          <div class="milestone-row flex items-start justify-between gap-3">
+            <div class="milestone-main min-w-0">
+              <div class="flex flex-wrap items-center gap-2">
+                <p class="font-medium">{{ m.name }}</p>
+                <UBadge variant="subtle" :color="STATUS_COLOR[m.is_reached ? 'success' : 'neutral']">{{ t(m.is_reached ? 'projects.milestones.reached' : 'projects.milestones.notReached') }}</UBadge>
+              </div>
+              <div class="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted">
+                <span>{{ t('projects.milestones.startDate') }}: {{ startText(m) }}</span>
+                <span :class="DEADLINE_TEXT_CLASS[deadlineTone(m)]">{{ t('projects.milestones.deadline') }}: {{ deadlineText(m) }}</span>
+                <span>{{ t('projects.milestones.tasksOf', { done: m.done_task_count, total: m.task_count }) }}</span>
+                <span>{{ t('projects.milestones.taskProgress', { percent: taskProgress(m) }) }}</span>
+                <span v-if="m.deliverables?.length">{{ t('projects.milestones.checklistOf', { done: m.deliverables.filter(item => item.done).length, total: m.deliverables.length }) }}</span>
+              </div>
+              <div v-if="m.deliverables?.length" class="mt-3 space-y-1.5">
+                <label v-for="(item, index) in m.deliverables" :key="`${m.id}-${index}`" class="flex items-center gap-2 text-sm">
+                  <USwitch :model-value="item.done" :disabled="!hydrated || !canManage || isDeliverablePending(m.id)" :aria-label="item.name" @update:model-value="value => toggleDeliverable(m, index, value)" />
+                  <span :class="item.done ? 'text-muted line-through' : ''">{{ item.name }}</span>
+                </label>
+              </div>
             </div>
-            <div class="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted">
-              <span>{{ t('projects.milestones.startDate') }}: {{ startText(m) }}</span>
-              <span :class="DEADLINE_TEXT_CLASS[deadlineTone(m)]">{{ t('projects.milestones.deadline') }}: {{ deadlineText(m) }}</span>
-              <span>{{ t('projects.milestones.tasksOf', { done: m.done_task_count, total: m.task_count }) }}</span>
-              <span>{{ t('projects.milestones.taskProgress', { percent: taskProgress(m) }) }}</span>
-              <span v-if="m.deliverables?.length">{{ t('projects.milestones.checklistOf', { done: m.deliverables.filter(item => item.done).length, total: m.deliverables.length }) }}</span>
-            </div>
-            <div v-if="m.deliverables?.length" class="mt-3 space-y-1.5">
-              <label v-for="(item, index) in m.deliverables" :key="`${m.id}-${index}`" class="flex items-center gap-2 text-sm">
-                <USwitch :model-value="item.done" :disabled="!hydrated || !canManage || isDeliverablePending(m.id)" :aria-label="item.name" @update:model-value="value => toggleDeliverable(m, index, value)" />
-                <span :class="item.done ? 'text-muted line-through' : ''">{{ item.name }}</span>
-              </label>
+            <div v-if="canManage" class="shrink-0" data-testid="milestone-actions">
+              <SharedRowActions :actions="milestoneActions(m)" :label="t('projects.milestones.actionsNamed', { name: m.name })" />
             </div>
           </div>
-          <div v-if="canManage" class="milestone-actions flex w-full shrink-0 flex-wrap items-center gap-1">
-            <UButton
-              color="neutral"
-              variant="ghost"
-              size="sm"
-              :icon="m.is_reached ? 'i-lucide-rotate-ccw' : 'i-lucide-check-circle-2'"
-              :disabled="!hydrated"
-              :label="t(m.is_reached ? 'projects.milestones.reopen' : 'projects.milestones.markReached')"
-              @click="toggleReached(m)"
-            />
-            <UButton color="neutral" variant="ghost" size="sm" icon="i-lucide-pencil" :disabled="!hydrated" :label="t('projects.milestones.edit')" @click="openEdit(m)" />
-            <UTooltip v-if="m.task_count > 0" :text="t('projects.milestones.hasTasks', { count: m.task_count })" :delay-duration="0">
-              <span><UButton color="neutral" variant="ghost" square icon="i-lucide-trash-2" disabled /></span>
-            </UTooltip>
-            <UButton v-else color="error" variant="ghost" square icon="i-lucide-trash-2" :disabled="!hydrated" :aria-label="t('projects.milestones.delete')" @click="deleteTarget = m" />
-          </div>
+          <SharedInlineConfirm
+            v-if="deleteTarget?.id === m.id"
+            data-testid="milestone-delete-confirm"
+            :title="t('projects.milestones.deleteConfirm', { name: m.name })"
+            :confirm-label="t('projects.milestones.delete')"
+            :pending="deleting"
+            @cancel="deleteTarget = null"
+            @confirm="confirmDelete"
+          />
         </div>
       </div>
     </UCard>
-
-    <UAlert v-if="deleteTarget" color="error" variant="soft" data-testid="milestone-delete-confirm" :title="t('projects.milestones.delete')" :description="deleteTarget.name">
-      <template #actions>
-        <UButton color="neutral" variant="outline" type="button" :disabled="deleting" :label="t('app.cancel')" @click="deleteTarget = null" />
-        <UButton color="error" type="button" :disabled="deleting" :label="t('projects.milestones.delete')" @click="confirmDelete" />
-      </template>
-    </UAlert>
   </div>
 </template>
-
-<style scoped>
-.milestone-list {
-  container-type: inline-size;
-}
-
-@container (min-width: 52rem) {
-  .milestone-row {
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-  }
-
-  .milestone-actions {
-    width: auto;
-    justify-content: flex-end;
-  }
-}
-</style>

@@ -1,8 +1,6 @@
 <script setup lang="ts">
 import type { ProjectDetail } from '@nasq/contracts'
-import { refDebounced } from '@vueuse/core'
 import { ApiError } from '@/composables/useApi'
-import { usePeople } from '@/composables/usePeople'
 import { useAddFollower, useFollowers, useRemoveFollower } from '@/composables/useProjectFollowers'
 
 const props = defineProps<{ project: ProjectDetail }>()
@@ -17,26 +15,24 @@ const { mutate: addFollower, isPending: adding } = useAddFollower()
 const { mutate: removeFollower, isPending: removing } = useRemoveFollower()
 
 const followerIds = computed(() => new Set((followers.value ?? []).map((f) => f.id)))
-const NO_FOLLOWER_SELECTION = undefined
 
 function onError(e: unknown) {
   toast.add({ title: e instanceof ApiError ? e.message : t('errors.generic'), color: 'error' })
 }
 
-const open = ref(false)
-const q = ref('')
-const debouncedQ = refDebounced(q, 250)
-const { data: people } = usePeople(debouncedQ)
-
-function addPerson(userId: number) {
-  open.value = false
-  q.value = ''
-  if (followerIds.value.has(userId)) return
+// Followers are res.users ids; the picker never keeps a selection, it adds on pick.
+function addPerson(value: number | number[] | null) {
+  const userId = Array.isArray(value) ? value[0] : value
+  if (userId == null || followerIds.value.has(userId)) return
   addFollower({ projectId: props.project.id, userId }, { onError })
 }
 
+// Removing a follower can take away their access to a followers-only project,
+// so it is confirmed inline like every other removal.
+const pendingRemoval = ref<number | null>(null)
+
 function removePerson(userId: number) {
-  removeFollower({ projectId: props.project.id, userId }, { onError })
+  removeFollower({ projectId: props.project.id, userId }, { onError, onSettled: () => { pendingRemoval.value = null } })
 }
 </script>
 
@@ -48,25 +44,36 @@ function removePerson(userId: number) {
     <p v-if="(followers ?? []).length === 0" class="text-sm text-muted">{{ t('projects.followers.empty') }}</p>
 
     <ul class="space-y-1">
-      <li v-for="f in followers ?? []" :key="f.id" data-testid="follower-row" class="flex items-center justify-between rounded-md border p-2 text-sm">
-        <span class="truncate">{{ f.name }}</span>
-        <UButton color="neutral" variant="ghost" square type="button" icon="i-lucide-x" :disabled="!hydrated || removing" :aria-label="t('projects.followers.remove')" @click="removePerson(f.id)" />
+      <li v-for="f in followers ?? []" :key="f.id" data-testid="follower-row" class="grid gap-2 rounded-md border border-default p-2 text-sm">
+        <div class="flex items-center justify-between gap-2">
+          <span class="truncate">{{ f.name }}</span>
+          <UButton v-if="pendingRemoval !== f.id" color="neutral" variant="ghost" square type="button" icon="i-lucide-x" :disabled="!hydrated || removing" :aria-label="t('projects.followers.removeNamed', { name: f.name })" @click="pendingRemoval = f.id" />
+        </div>
+        <SharedInlineConfirm
+          v-if="pendingRemoval === f.id"
+          data-testid="follower-remove-confirm"
+          :title="t('projects.followers.removeConfirm', { name: f.name })"
+          :description="project.privacy_visibility === 'followers' ? t('projects.followers.hint') : undefined"
+          :confirm-label="t('projects.followers.remove')"
+          :pending="removing"
+          @cancel="pendingRemoval = null"
+          @confirm="removePerson(f.id)"
+        />
       </li>
     </ul>
 
-    <USelectMenu
-      v-model:open="open"
-      v-model:search-term="q"
-      :key="followerIds.size"
-      :model-value="NO_FOLLOWER_SELECTION"
-      :items="people ?? []"
-      value-key="id"
-      label-key="name"
-      class="w-64"
-      data-testid="follower-add"
-      :placeholder="t('projects.followers.add')"
-      :disabled="!hydrated || adding"
-      @update:model-value="value => value != null && value !== NO_FOLLOWER_SELECTION && addPerson(value as number)"
-    />
+    <div class="w-64 max-w-full">
+      <SharedPersonPicker
+        :key="followerIds.size"
+        :model-value="null"
+        value-key="user_id"
+        :exclude="[...followerIds]"
+        data-testid="follower-add"
+        :placeholder="t('projects.followers.add')"
+        :aria-label="t('projects.followers.add')"
+        :disabled="adding"
+        @update:model-value="addPerson"
+      />
+    </div>
   </div>
 </template>

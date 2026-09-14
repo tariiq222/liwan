@@ -205,13 +205,16 @@ function confirmDelete(stageId: StageRow['id']) {
             :disabled="disabled"
             @click="requestDelete(stage.id)"
           />
-          <div v-if="pendingDeleteId === stage.id" class="basis-full space-y-2 rounded-md border border-error/40 bg-error/5 p-2 text-sm" data-testid="stage-delete-confirm">
-            <p>{{ t('projects.stages.deleteConfirm') }}</p>
-            <div class="flex flex-wrap gap-2">
-              <UButton type="button" color="neutral" size="sm" :disabled="props.busy" :label="t('app.cancel')" @click="cancelDelete" variant="outline" />
-              <UButton type="button" color="error" size="sm" :disabled="props.busy" :label="t('projects.stages.delete')" @click="confirmDelete(stage.id)" />
-            </div>
-          </div>
+          <SharedInlineConfirm
+            v-if="pendingDeleteId === stage.id"
+            class="basis-full"
+            data-testid="stage-delete-confirm"
+            :title="t('projects.stages.deleteConfirm')"
+            :confirm-label="t('projects.stages.delete')"
+            :pending="props.busy"
+            @cancel="cancelDelete"
+            @confirm="confirmDelete(stage.id)"
+          />
         </template>
         <UTooltip v-else :text="t('projects.stages.notEmpty', { count: stage.task_count })" :delay-duration="0">
           <span>
@@ -233,7 +236,7 @@ function confirmDelete(stageId: StageRow['id']) {
           @keydown.enter="submitAdd"
         />
       </label>
-      <UButton type="button" :disabled="disabled || !newName.trim()" :label="t('projects.stages.add')" @click="submitAdd" />
+      <UButton type="button" icon="i-lucide-plus" :disabled="disabled || !newName.trim()" :label="t('projects.stages.add')" @click="submitAdd" />
     </div>
   </div>
 </template>

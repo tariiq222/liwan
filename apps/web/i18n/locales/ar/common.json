@@ -1,5 +1,9 @@
 {
   "app": {
+    "pagination": "التنقل بين الصفحات",
+    "pageOf": "صفحة {page} من {pages}",
+    "notAvailable": "—",
+    "selectPerson": "اختر شخصًا",
     "actions": "الإجراءات",
     "edit": "تعديل",
     "productName": "نَسَق",
@@ -97,6 +101,11 @@
     "totpInvalid": "رمز التحقق غير صحيح"
   },
   "errors": {
+    "pageNotFoundTitle": "الصفحة غير موجودة",
+    "pageNotFound": "قد يكون الرابط غير صحيح أو نُقلت الصفحة إلى مكان آخر.",
+    "pageErrorTitle": "تعذّر عرض الصفحة",
+    "pageError": "حدث خطأ غير متوقع. عد إلى الصفحة الرئيسية وحاول مرة أخرى.",
+    "goHome": "العودة إلى الصفحة الرئيسية",
     "serverUnreachable": "تعذّر الوصول إلى الخادم",
     "badPayload": "استجابة غير صالحة من الخادم",
     "generic": "حدث خطأ غير متوقع",

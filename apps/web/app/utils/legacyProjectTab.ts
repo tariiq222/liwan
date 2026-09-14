@@ -8,13 +8,26 @@ function firstString(value: unknown): string | undefined {
   return typeof raw === 'string' ? raw : undefined
 }
 
+function keptQuery(query: Record<string, unknown>): Record<string, string> {
+  const kept: Record<string, string> = {}
+  for (const [key, raw] of Object.entries(query)) {
+    if (DEAD_KEYS.includes(key) || key === 'view') continue
+    const value = firstString(raw)
+    if (value !== undefined) kept[key] = value
+  }
+  return kept
+}
+
 export function legacyProjectTabTarget(
   path: string,
   query: Record<string, unknown>,
 ): { path: string; query: Record<string, string> } | null {
   const id = projectIdFromPath(path)
   if (id === null) return null
-  if ((path.replace(/\/+$/, '') || '/') !== `/projects/${id}`) return null
+  const bare = path.replace(/\/+$/, '') || '/'
+  // Governance lost its card index to sub-tabs; old links open the first one.
+  if (bare === `/projects/${id}/governance`) return { path: `/projects/${id}/charter`, query: keptQuery(query) }
+  if (bare !== `/projects/${id}`) return null
 
   const tab = firstString(query.tab)
   const view = firstString(query.view)
@@ -29,12 +42,7 @@ export function legacyProjectTabTarget(
 
   if (segment === null) return null
 
-  const nextQuery: Record<string, string> = {}
-  for (const [key, raw] of Object.entries(query)) {
-    if (DEAD_KEYS.includes(key) || key === 'view') continue
-    const value = firstString(raw)
-    if (value !== undefined) nextQuery[key] = value
-  }
+  const nextQuery = keptQuery(query)
   if (nextView) nextQuery.view = nextView
 
   return { path: `/projects/${id}${segment}`, query: nextQuery }

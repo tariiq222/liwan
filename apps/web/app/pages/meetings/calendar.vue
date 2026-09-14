@@ -4,6 +4,7 @@ import { returnToQuery } from '@/utils/safeReturnTo'
 import { formatCalendarDate, formatNasqTime } from '@/composables/calendarDate'
 import { formatLocalDateTime } from '@/utils/meetingDateTime'
 import { calendarCoverage } from '@/utils/meetingWorkspace'
+import { meetingStateColor } from '@/utils/meetingStatus'
 
 const route = useRoute()
 const router = useRouter()
@@ -107,63 +108,63 @@ function goToday() {
 <template>
   <SharedPageContainer width="list">
     <SharedPageHeader :title="t('nav.meetingCalendar')" />
-    <div class="flex items-center justify-between gap-3 rounded-lg ring ring-default bg-default overflow-hidden p-3">
-      <div class="flex items-center gap-2" :aria-label="monthLabel">
+    <div class="flex items-center justify-between gap-3 rounded-lg bg-default p-3 ring ring-default">
+      <div class="flex items-center gap-2" role="group" :aria-label="monthLabel">
         <UButton type="button" color="neutral" variant="ghost" square :disabled="!hydrated" :aria-label="t('projects.previousPage')" @click="shift(-1)">
-          <UIcon v-if="locale === 'ar'" name="i-lucide-chevron-right" class="size-[18px]" aria-hidden="true" />
-          <UIcon v-else name="i-lucide-chevron-left" class="size-[18px]" aria-hidden="true" />
+          <UIcon name="i-lucide-chevron-left" class="size-4.5 rtl:rotate-180" aria-hidden="true" />
         </UButton>
-        <span class="min-w-40 text-center text-sm font-medium">{{ monthLabel }}</span>
-        <UButton type="button" color="primary" variant="outline" size="sm" :disabled="!hydrated" :label="t('meetingsUx.today')" @click="goToday" />
+        <span class="min-w-40 text-center text-sm font-medium text-highlighted" aria-live="polite">{{ monthLabel }}</span>
+        <UButton type="button" color="neutral" variant="outline" size="sm" :disabled="!hydrated" :label="t('meetingsUx.today')" @click="goToday" />
         <UButton type="button" color="neutral" variant="ghost" square :disabled="!hydrated" :aria-label="t('projects.nextPage')" @click="shift(1)">
-          <UIcon v-if="locale === 'ar'" name="i-lucide-chevron-left" class="size-[18px]" aria-hidden="true" />
-          <UIcon v-else name="i-lucide-chevron-right" class="size-[18px]" aria-hidden="true" />
+          <UIcon name="i-lucide-chevron-right" class="size-4.5 rtl:rotate-180" aria-hidden="true" />
         </UButton>
       </div>
     </div>
-    <p v-if="coverage.status === 'truncated'" class="text-sm nasq-status-text-warning" role="status">
+    <p v-if="coverage.status === 'truncated'" class="text-sm text-warning" role="status">
       {{ t('meetingsUx.calendarTruncated', { count: coverage.total }) }}
     </p>
-    <p v-else-if="coverage.status === 'unknown' && !query.isLoading.value" class="text-sm text-muted-foreground" role="status">
+    <p v-else-if="coverage.status === 'unknown' && !query.isLoading.value" class="text-sm text-muted" role="status">
       {{ t('meetingsUx.calendarCoverageUnknown') }}
     </p>
     <SharedPageState :loading="query.isLoading.value" :error="query.error.value" @retry="query.refetch">
-      <UCard class="meeting-calendar overflow-hidden">
-        <div class="calendar-agenda">
-          <div v-if="!agenda.length" class="p-4 text-sm text-muted-foreground">{{ t('meetingsUi.empty') }}</div>
-          <NuxtLink
-            v-for="meeting in agenda"
-            :key="meeting.id"
-            :to="{ path: `/meetings/${meeting.id}`, query: returnToQuery(route.fullPath) }"
-            class="grid min-w-0 gap-1 border-b border-border p-3 last:border-0 hover:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <div class="flex min-w-0 items-start justify-between gap-2">
-              <span class="min-w-0 break-words font-medium">{{ meeting.name }}</span>
-              <UBadge color="neutral" variant="subtle" class="shrink-0">{{ t(`meetingsUi.state.${meeting.state}`) }}</UBadge>
-            </div>
-            <div class="flex flex-wrap gap-x-3 gap-y-1 text-sm text-muted-foreground">
-              <span>{{ localDate(meeting.meeting_date) }}</span>
-              <span v-if="meeting.start_datetime">{{ localTime(meeting.start_datetime) }}</span>
-              <span v-else>{{ t('meetingsUx.timeUnavailable') }}</span>
-            </div>
-          </NuxtLink>
+      <div class="@container min-w-0 overflow-hidden rounded-lg bg-default ring ring-default">
+        <div class="@min-[600px]:hidden">
+          <div v-if="!agenda.length" class="p-3"><SharedEmptyState :title="t('meetingsUi.empty')" /></div>
+          <ul v-else class="grid divide-y divide-default">
+            <li v-for="meeting in agenda" :key="meeting.id">
+              <NuxtLink
+                :to="{ path: `/meetings/${meeting.id}`, query: returnToQuery(route.fullPath) }"
+                class="grid min-w-0 gap-1 p-3 hover:bg-elevated/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"
+              >
+                <div class="flex min-w-0 items-start justify-between gap-2">
+                  <span class="min-w-0 break-words font-medium text-highlighted">{{ meeting.name }}</span>
+                  <UBadge :color="meetingStateColor(meeting.state)" variant="subtle" class="shrink-0">{{ t(`meetingsUi.state.${meeting.state}`) }}</UBadge>
+                </div>
+                <div class="flex flex-wrap gap-x-3 gap-y-1 text-sm text-muted">
+                  <span>{{ localDate(meeting.meeting_date) }}</span>
+                  <span v-if="meeting.start_datetime">{{ localTime(meeting.start_datetime) }}</span>
+                  <span v-else>{{ t('meetingsUx.timeUnavailable') }}</span>
+                </div>
+              </NuxtLink>
+            </li>
+          </ul>
         </div>
-        <div class="calendar-grid overflow-x-auto">
+        <div class="hidden overflow-x-auto @min-[600px]:block">
           <div class="min-w-[560px]">
-            <div class="grid grid-cols-7 border-b border-border text-center text-xs text-muted-foreground">
+            <div class="grid grid-cols-7 border-b border-default text-center text-xs text-muted">
               <div v-for="label in weekdayLabels" :key="label" class="p-2">{{ label }}</div>
             </div>
             <div class="grid grid-cols-7">
-              <div v-for="cell in cells" :key="cell.key" class="min-h-28 border-e border-b border-border p-1 last:border-e-0" :class="cell.today ? 'bg-brand-soft' : ''">
-                <p v-if="cell.day" class="px-1 text-xs text-muted-foreground">{{ cell.day }}</p>
+              <div v-for="cell in cells" :key="cell.key" class="min-h-28 border-e border-b border-default p-1 last:border-e-0" :class="cell.today ? 'bg-primary/10' : ''">
+                <p v-if="cell.day" class="px-1 text-xs text-muted">{{ cell.day }}</p>
                 <NuxtLink
                   v-for="meeting in (cell.day ? byDate.get(cell.key) ?? [] : [])"
                   :key="meeting.id"
                   :to="{ path: `/meetings/${meeting.id}`, query: returnToQuery(route.fullPath) }"
-                  class="mt-1 block truncate rounded-md px-1 py-0.5 text-xs hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  class="mt-1 block truncate rounded-md px-1 py-0.5 text-xs hover:bg-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                 >
-                  <span class="block truncate">{{ meeting.name }}</span>
-                  <span class="block truncate text-[11px] text-muted-foreground">
+                  <span class="block truncate text-highlighted">{{ meeting.name }}</span>
+                  <span class="block truncate text-xs text-muted">
                     <span v-if="meeting.start_datetime">{{ localTime(meeting.start_datetime) }}</span>
                     <span v-else>{{ t('meetingsUx.timeUnavailable') }}</span>
                     · {{ t(`meetingsUi.state.${meeting.state}`) }}
@@ -173,16 +174,7 @@ function goToday() {
             </div>
           </div>
         </div>
-      </UCard>
+      </div>
     </SharedPageState>
   </SharedPageContainer>
 </template>
-
-<style scoped>
-.meeting-calendar { container-type: inline-size; }
-.calendar-grid { display: none; }
-@container (min-width: 600px) {
-  .calendar-agenda { display: none; }
-  .calendar-grid { display: block; }
-}
-</style>

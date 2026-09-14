@@ -1,6 +1,6 @@
 import { http, HttpResponse } from 'msw'
 import { TagSchema } from '@nasq/contracts'
-import { me, people, projectRefs, tags, taskDetail } from '../fixtures/pmo'
+import { me, people, projectDetail, projectRefs, tags, taskDetail } from '../fixtures/pmo'
 
 const contains = (value: string, request: Request) => value.includes(new URL(request.url).searchParams.get('q') ?? '')
 
@@ -8,6 +8,7 @@ export const apiHandlers = [
   http.get('/api/v1/me', () => HttpResponse.json(me)),
   http.get('/api/v1/people', ({ request }) => HttpResponse.json(people.filter(person => contains(person.name, request)))),
   http.get('/api/v1/projects', () => HttpResponse.json(projectRefs)),
+  http.get('/api/v1/projects/:id', () => HttpResponse.json(projectDetail)),
   http.get('/api/v1/tags', ({ request }) => HttpResponse.json(tags.filter(tag => contains(tag.name, request)))),
   http.post('/api/v1/tags', async ({ request }) => {
     const body = await request.json() as { name: string }

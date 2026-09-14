@@ -82,6 +82,11 @@ function clearFilters() {
   clearSearch()
 }
 
+function setPage(next: number) {
+  if (!hydrated.value || query.isFetching.value || next < 1 || next > pages.value) return
+  void router.replace({ query: listQuery({ offset: next === 1 ? undefined : String((next - 1) * CHARTER_CATALOG_PAGE_SIZE) }) })
+}
+
 function openNew() {
   if (!resource.value) return
   void navigateTo({ path: `/settings/projects/catalogs/${resource.value}/new`, query: returnToQuery(route.fullPath) })
@@ -119,7 +124,7 @@ async function confirmAction() {
 <template>
   <SettingsLayout>
     <SharedPageHeader :title="title" :description="t('projects.refresh.settings.catalogDescription')" :back-to="returnTo" :back-label="t('settings.projects.catalogs.back')">
-      <UButton v-if="resource && !forbidden" :disabled="!hydrated" @click="openNew">{{ t('settings.projects.catalogs.add') }}</UButton>
+      <UButton v-if="resource && !forbidden" icon="i-lucide-plus" :disabled="!hydrated" :label="t('settings.projects.catalogs.add')" @click="openNew" />
     </SharedPageHeader>
     <p v-if="!resource" class="text-muted">{{ t('settings.projects.catalogs.notFound') }}</p>
     <p v-else-if="forbidden" class="text-muted">{{ t('settings.forbidden') }}</p>
@@ -161,28 +166,27 @@ async function confirmAction() {
                 <p class="text-sm text-muted">{{ t('settings.projects.catalogs.sequenceValue', { sequence: item.sequence }) }} · {{ item.active ? t('settings.projects.catalogs.active') : t('settings.projects.catalogs.inactive') }}</p>
               </div>
               <div class="flex flex-wrap gap-2">
-                <UButton type="button" variant="outline" size="sm" :disabled="!hydrated" @click="openEdit(item.id)">{{ t('settings.projects.catalogs.edit') }}</UButton>
-                <UButton v-if="item.active" type="button" variant="outline" size="sm" :disabled="!hydrated || patching" @click="requestAction(item, 'disable')">{{ t('settings.projects.catalogs.disable') }}</UButton>
-                <UButton v-else type="button" variant="outline" size="sm" :disabled="!hydrated || patching" @click="requestAction(item, 'enable')">{{ t('settings.projects.catalogs.enable') }}</UButton>
+                <UButton type="button" color="neutral" variant="outline" size="sm" :disabled="!hydrated" @click="openEdit(item.id)">{{ t('settings.projects.catalogs.edit') }}</UButton>
+                <UButton v-if="item.active" type="button" color="neutral" variant="outline" size="sm" :disabled="!hydrated || patching" @click="requestAction(item, 'disable')">{{ t('settings.projects.catalogs.disable') }}</UButton>
+                <UButton v-else type="button" color="neutral" variant="outline" size="sm" :disabled="!hydrated || patching" @click="requestAction(item, 'enable')">{{ t('settings.projects.catalogs.enable') }}</UButton>
                 <UButton type="button" color="error" size="sm" :disabled="!hydrated || deleting" @click="requestAction(item, 'delete')">{{ t('settings.projects.catalogs.delete') }}</UButton>
               </div>
             </li>
           </ul>
         </div>
       </SharedPageState>
-      <div v-if="pages > 1" class="flex items-center justify-between text-sm text-muted">
-        <UButton color="neutral" variant="ghost" :disabled="!hydrated || page === 1 || query.isFetching.value" :label="t('settings.projects.catalogs.previousPage')" @click="router.replace({ query: listQuery({ offset: page === 2 ? undefined : String((page - 2) * CHARTER_CATALOG_PAGE_SIZE) }) })" />
-        <span>{{ t('settings.projects.catalogs.pageOf', { page, pages }) }}</span>
-        <UButton color="neutral" variant="ghost" :disabled="!hydrated || page >= pages || query.isFetching.value" :label="t('settings.projects.catalogs.nextPage')" @click="router.replace({ query: listQuery({ offset: String(page * CHARTER_CATALOG_PAGE_SIZE) }) })" />
-      </div>
-      <div v-if="pendingItem && pendingAction" class="rounded-lg border border-error/30 bg-error/5 space-y-2 p-3 text-sm">
-        <p>{{ t(`settings.projects.catalogs.confirm.${pendingAction}`, { name: pendingItem.name }) }}</p>
+      <SharedPagination :page="page" :pages="pages" :disabled="query.isFetching.value" @update:page="setPage" />
+      <SharedInlineConfirm
+        v-if="pendingItem && pendingAction"
+        :color="pendingAction === 'enable' ? 'primary' : 'error'"
+        :title="t(`settings.projects.catalogs.confirm.${pendingAction}`, { name: pendingItem.name })"
+        :confirm-label="t(`settings.projects.catalogs.${pendingAction}`)"
+        :pending="patching || deleting"
+        @cancel="pendingItem = null; pendingAction = null"
+        @confirm="confirmAction"
+      >
         <p v-if="actionError" role="alert" class="text-error">{{ actionError }}</p>
-        <div class="flex flex-wrap gap-2">
-          <UButton color="neutral" variant="outline" type="button" :disabled="patching || deleting" @click="pendingItem = null; pendingAction = null">{{ t('app.cancel') }}</UButton>
-          <UButton type="button" color="error" :disabled="!hydrated || patching || deleting" @click="confirmAction">{{ t(`settings.projects.catalogs.${pendingAction}`) }}</UButton>
-        </div>
-      </div>
+      </SharedInlineConfirm>
     </template>
   </SettingsLayout>
 </template>

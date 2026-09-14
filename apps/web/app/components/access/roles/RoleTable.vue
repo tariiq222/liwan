@@ -3,12 +3,19 @@ import type { TableColumn } from '@nuxt/ui'
 import type { RoleSummary } from '@nasq/contracts'
 import AccessStateBadge from '@/components/access/AccessStateBadge.vue'
 import RecordNumber from '@/components/shared/RecordNumber.vue'
+import type { RowAction } from '@/components/shared/RowActions.vue'
 
 const props = defineProps<{ roles: RoleSummary[]; canManage?: boolean }>()
 const emit = defineEmits<{ open: [id: number]; clone: [id: number] }>()
 const { t, locale } = useI18n()
-const hydrated = useHydrated()
 const roleLabel = (role: { name: { ar: string; en: string | null } }) => role.name[locale.value === 'ar' ? 'ar' : 'en'] ?? role.name.ar
+
+function actionsFor(role: RoleSummary): RowAction[] {
+  return [
+    { label: t('access.view'), icon: 'i-lucide-eye', onSelect: () => emit('open', role.id) },
+    ...(props.canManage ? [{ label: t('access.roles.clone'), icon: 'i-lucide-copy', onSelect: () => emit('clone', role.id) } satisfies RowAction] : []),
+  ]
+}
 
 const columns = computed<TableColumn<RoleSummary>[]>(() => [
   { accessorKey: 'id', header: t('app.recordNumber') },
@@ -23,7 +30,7 @@ const columns = computed<TableColumn<RoleSummary>[]>(() => [
 
 <template>
   <div class="min-w-0 space-y-2">
-    <UCard class="rounded-lg ring ring-default bg-default overflow-hidden hidden md:block" :ui="{ body: 'p-0' }">
+    <div class="hidden overflow-hidden rounded-lg bg-default ring ring-default md:block">
       <div class="overflow-x-auto">
         <UTable :data="roles" :columns="columns" :caption="t('access.roles.title')" :ui="{ caption: 'sr-only', th: '' }">
           <template #id-cell="{ row }"><RecordNumber :value="row.original.id" /></template>
@@ -33,16 +40,13 @@ const columns = computed<TableColumn<RoleSummary>[]>(() => [
           <template #user_count-cell="{ row }">{{ row.original.user_count }}</template>
           <template #active-cell="{ row }"><AccessStateBadge :active="row.original.active" :protected="row.original.protected" /></template>
           <template #actions-cell="{ row }">
-            <div class="flex justify-end gap-1">
-              <UButton color="primary" variant="ghost" size="sm" :disabled="!hydrated" :label="t('access.view')" @click="emit('open', row.original.id)" />
-              <UButton v-if="canManage" color="primary" variant="ghost" size="sm" :disabled="!hydrated" :label="t('access.roles.clone')" @click="emit('clone', row.original.id)" />
-            </div>
+            <div class="flex justify-end"><SharedRowActions :actions="actionsFor(row.original)" :label="t('access.roles.rowActions', { name: roleLabel(row.original) })" /></div>
           </template>
         </UTable>
       </div>
-    </UCard>
-    <ul class="md:hidden space-y-2" :aria-label="t('access.roles.title')">
-      <li v-for="role in roles" :key="role.id" class="rounded-lg ring ring-default bg-default overflow-hidden p-4">
+    </div>
+    <ul class="divide-y divide-default overflow-hidden rounded-lg bg-default ring ring-default md:hidden" :aria-label="t('access.roles.title')">
+      <li v-for="role in roles" :key="role.id" class="p-4">
         <div class="flex items-start justify-between gap-3">
           <div class="min-w-0">
             <bdi class="block text-xs text-muted">#{{ role.id }}</bdi>
@@ -55,9 +59,8 @@ const columns = computed<TableColumn<RoleSummary>[]>(() => [
           <div><dt>{{ t('access.roles.columns.type') }}</dt><dd>{{ role.type === 'built_in' ? t('access.roles.builtIn') : t('access.roles.custom') }}</dd></div>
           <div><dt>{{ t('access.roles.columns.users') }}</dt><dd>{{ role.user_count }}</dd></div>
         </dl>
-        <div class="mt-3 flex justify-end gap-2">
-          <UButton color="primary" variant="ghost" size="sm" :disabled="!hydrated" :label="t('access.view')" @click="emit('open', role.id)" />
-          <UButton v-if="canManage" color="primary" variant="ghost" size="sm" :disabled="!hydrated" :label="t('access.roles.clone')" @click="emit('clone', role.id)" />
+        <div class="mt-3 flex justify-end">
+          <SharedRowActions :actions="actionsFor(role)" :label="t('access.roles.rowActions', { name: roleLabel(role) })" />
         </div>
       </li>
     </ul>

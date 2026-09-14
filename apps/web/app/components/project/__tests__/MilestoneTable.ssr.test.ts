@@ -4,7 +4,6 @@ import { renderToString } from '@vue/server-renderer'
 import ts from 'typescript'
 import * as Vue from 'vue'
 import { computed, createSSRApp, defineComponent, h, ref, type RenderFunction } from 'vue'
-import { TooltipContent, TooltipProvider, TooltipRoot, TooltipTrigger } from 'reka-ui'
 import { describe, expect, it } from 'vitest'
 
 const filename = new URL('../MilestoneTable.vue', import.meta.url)
@@ -28,23 +27,18 @@ const Stub = defineComponent({
   },
 })
 
-// Mirrors the real UTooltip slot API (default slot = trigger, `text` prop =
-// content) over genuine reka-ui primitives, so the disabled-delete tooltip's
-// closed-by-default state is exercised for real rather than stubbed away.
-const UTooltipStub = defineComponent({
-  inheritAttrs: false,
-  props: { text: { type: String, required: false }, delayDuration: { type: Number, required: false } },
-  setup(props, { slots }) {
-    return () => h(TooltipProvider, { delayDuration: props.delayDuration }, () =>
-      h(TooltipRoot, {}, () => [
-        h(TooltipTrigger, { asChild: true }, () => slots.default?.()),
-        h(TooltipContent, {}, () => props.text),
-      ]))
+// Renders each row action as a button so the rendered contract (labels,
+// destructive flag and disabled reason) can be asserted without Nuxt UI.
+const RowActionsStub = defineComponent({
+  props: { actions: { type: Array, required: true }, label: { type: String, required: true } },
+  setup(props) {
+    return () => h('div', { 'data-testid': 'row-actions', 'aria-label': props.label }, (props.actions as { label: string; destructive?: boolean; disabled?: boolean }[]).map(action =>
+      h('button', { 'data-destructive': action.destructive ? 'true' : undefined, disabled: action.disabled }, action.label)))
   },
 })
 
 describe('MilestoneTable SSR', () => {
-  it('renders an occupied milestone tooltip with its provider context', async () => {
+  it('keeps a disabled, explained delete action for a milestone with linked tasks', async () => {
     const milestone = {
       id: 1,
       name: 'In use',
@@ -76,17 +70,28 @@ describe('MilestoneTable SSR', () => {
       taskProgress: () => 50,
       toggleReached: () => {},
       toggleDeliverable: () => {},
-      openEdit: () => {},
+      isDeliverablePending: () => false,
+      milestoneActions: (m: typeof milestone) => [
+        { label: 'projects.milestones.markReached' },
+        { label: 'projects.milestones.edit' },
+        { label: m.task_count > 0 ? `projects.milestones.deleteBlocked:${m.task_count}` : 'projects.milestones.delete', destructive: true, disabled: m.task_count > 0 },
+      ],
       deleteTarget: ref(null),
       deleting: ref(false),
       confirmDelete: () => {},
     }
     const app = createSSRApp(defineComponent({ setup: () => bindings, render }))
     for (const name of ['UCard', 'SharedPageState', 'USkeleton', 'UBadge', 'UButton', 'USwitch']) app.component(name, Stub)
-    app.component('UTooltip', UTooltipStub)
+    app.component('SharedRowActions', RowActionsStub)
+    app.component('SharedInlineConfirm', Stub)
 
     const html = await renderToString(app)
     expect(html).toContain('data-testid="milestone-row"')
-    expect(html).toContain('data-state="closed"')
+    expect(html).toContain('data-testid="milestone-actions"')
+    expect(html).toContain('aria-label="projects.milestones.actionsNamed:')
+    expect(html).toMatch(/<button data-destructive="true" disabled[^>]*>projects\.milestones\.deleteBlocked:2<\/button>/)
+    expect(html).not.toContain('milestone-delete-confirm')
+    expect(source).toContain('<SharedInlineConfirm')
+    expect(source).toContain('disabled: m.task_count > 0')
   })
 })

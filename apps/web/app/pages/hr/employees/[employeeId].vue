@@ -26,18 +26,21 @@ async function toggleArchive() {
   <SharedPageContainer v-if="isDetail" width="detail">
     <SharedPageHeader :title="query.data.value?.name || t('hr.employee.title')" :description="query.data.value?.job_title" :back-to="backTo">
       <div class="flex flex-wrap items-center gap-2">
-        <UButton v-if="query.data.value && can('hr.employees.manage')" color="primary" :disabled="!hydrated" :to="`/hr/employees/${id}/edit`" :label="t('app.edit')" @click="!hydrated && $event.preventDefault()" />
-        <UButton v-if="query.data.value?.user_id && can('access.users.read')" color="primary" variant="outline" :disabled="!hydrated" :to="`/settings/users/${query.data.value.user_id}`" :label="t('hr.employee.manageAccount')" @click="!hydrated && $event.preventDefault()" />
+        <UButton v-if="query.data.value && can('hr.employees.manage')" color="primary" icon="i-lucide-pencil" :disabled="!hydrated" :to="`/hr/employees/${id}/edit`" :label="t('app.edit')" @click="!hydrated && $event.preventDefault()" />
+        <UButton v-if="query.data.value?.user_id && can('access.users.read')" color="neutral" variant="outline" :disabled="!hydrated" :to="`/settings/users/${query.data.value.user_id}`" :label="t('hr.employee.manageAccount')" @click="!hydrated && $event.preventDefault()" />
         <UButton v-if="query.data.value && can('hr.employees.archive')" color="error" variant="outline" :disabled="!hydrated || archivePending" :label="query.data.value.active ? t('hr.employee.archive') : t('hr.employee.unarchive')" @click="confirmArchive = !confirmArchive" />
       </div>
     </SharedPageHeader>
     <SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!query.data.value" @retry="query.refetch">
-      <UAlert v-if="confirmArchive" role="alert" color="error" variant="subtle" :title="t('hr.employee.archiveConfirm')">
-        <template #actions>
-          <UButton color="error" :disabled="!hydrated || archivePending" :label="query.data.value?.active ? t('hr.employee.archive') : t('hr.employee.unarchive')" @click="toggleArchive" />
-          <UButton color="neutral" variant="outline" :disabled="archivePending" :label="t('app.cancel')" @click="confirmArchive = false" />
-        </template>
-      </UAlert>
+      <SharedInlineConfirm
+        v-if="confirmArchive"
+        class="mb-4"
+        :title="t('hr.employee.archiveConfirm')"
+        :confirm-label="query.data.value?.active ? t('hr.employee.archive') : t('hr.employee.unarchive')"
+        :pending="archivePending"
+        @confirm="toggleArchive"
+        @cancel="confirmArchive = false"
+      />
       <EmployeeCard :employee-id="id" />
     </SharedPageState>
   </SharedPageContainer>

@@ -233,11 +233,7 @@ function financeChildKey(target: { path: string; params: Record<string, string |
           :create-to="createBudgetTo"
           @open="openEntry"
         />
-        <div v-if="pages > 1" class="flex items-center justify-between text-sm text-muted">
-          <UButton color="neutral" variant="ghost" :disabled="!hydrated || page === 1 || list.isFetching.value" :label="t('projects.previousPage')" @click="setPage(page - 1)" />
-          <span>{{ t('projects.pageOf', { page, pages }) }}</span>
-          <UButton color="neutral" variant="ghost" :disabled="!hydrated || page >= pages || list.isFetching.value" :label="t('projects.nextPage')" @click="setPage(page + 1)" />
-        </div>
+        <SharedPagination :page="page" :pages="pages" :disabled="list.isFetching.value" @update:page="setPage" />
       </template>
     </SharedPageState>
   </SharedPageContainer>

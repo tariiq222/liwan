@@ -59,7 +59,7 @@ const items = computed(() => [
         <ClientOnly>
           <span
             class="absolute -bottom-0.5 -end-0.5 block size-2.5 rounded-full ring-2 ring-background"
-            :class="connected ? 'nasq-status-dot-success' : 'bg-muted-foreground/50'"
+            :class="connected ? 'nasq-status-dot-success' : 'bg-(--ui-text-dimmed)'"
             :title="connected ? t('bus.connected') : t('bus.disconnected')"
             :aria-label="connected ? t('bus.connected') : t('bus.disconnected')"
             role="status"
@@ -72,7 +72,7 @@ const items = computed(() => [
       </span>
     </UButton>
     <template #item-leading="{ item }">
-      <UIcon :name="item.nasqIcon" class="nasq-shell-icon size-[18px] shrink-0" aria-hidden="true" />
+      <UIcon :name="item.nasqIcon" class="nasq-shell-icon size-4.5 shrink-0" aria-hidden="true" />
     </template>
   </UDropdownMenu>
 </template>

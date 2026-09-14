@@ -118,7 +118,7 @@ async function save() {
             <div><dt class="font-medium">{{ t('meetingsUi.recurrenceLabel') }}</dt><dd>{{ t(`meetingsUi.recurrence.${query.data.value.recurrence}`) }}</dd></div>
             <div><dt class="font-medium">{{ t('meetingsUi.untilMode') }}</dt><dd>{{ termination }}</dd></div>
           </dl>
-          <p class="text-sm text-muted-foreground">{{ t('meetingsUx.seriesSettingsScope') }}</p>
+          <p class="text-sm text-muted">{{ t('meetingsUx.seriesSettingsScope') }}</p>
         </SharedFormSection>
         <UAlert v-if="error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('meetingsUx.seriesSettingsSaveError')" />
         <div class="nasq-form-footer justify-end">

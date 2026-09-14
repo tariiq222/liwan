@@ -86,11 +86,15 @@ function restoreTask(task: Task) {
               <p class="truncate font-medium text-highlighted">{{ task.name }}</p>
               <p class="truncate text-sm text-muted">{{ task.project?.name ?? '—' }}</p>
             </div>
-            <UButton size="sm" color="neutral" variant="outline" type="button" :disabled="!hydrated || isPending" @click="restoreTask(task)">{{ t('taskLifecycle.restore') }}</UButton>
+            <SharedRowActions
+              :label="task.name"
+              :disabled="isPending"
+              :actions="[{ label: t('taskLifecycle.restore'), icon: 'i-lucide-archive-restore', onSelect: () => restoreTask(task) }]"
+            />
           </li>
         </ul>
         <div v-if="hasNextPage" class="border-t border-default p-3 text-center">
-          <UButton color="primary" variant="outline" type="button" :disabled="isFetchingNextPage || !hydrated" @click="fetchNextPage()">
+          <UButton color="neutral" variant="outline" type="button" :loading="isFetchingNextPage" :disabled="isFetchingNextPage || !hydrated" @click="fetchNextPage()">
             {{ t('taskLifecycle.loadMore') }}
           </UButton>
         </div>

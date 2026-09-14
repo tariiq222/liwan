@@ -111,59 +111,44 @@ function onDeleteStage(id: number | string) {
 
     <template v-else-if="settings">
       <SharedFormSection id="project-creation" :title="t('settings.projects.creation.title')" :description="t('settings.projects.creation.hint')" class="nasq-settings-anchor space-y-4">
-        <div id="project-creators" class="space-y-2">
-          <span class="flex items-center gap-2 text-sm font-medium leading-none">{{ t('settings.projects.creators.label') }}</span>
-          <p class="text-sm text-muted">{{ t('settings.projects.creators.hint') }}</p>
+        <UFormField id="project-creators" :label="t('settings.projects.creators.label')" :description="t('settings.projects.creators.hint')">
           <URadioGroup
             :model-value="settings.project_creators"
             :items="CREATOR_OPTIONS.map(option => ({ value: option.value, label: t(option.labelKey) }))"
             :disabled="!hydrated || isPending"
             @update:model-value="onCreatorsChange"
           />
-        </div>
-        <div id="project-requirements" class="space-y-3">
-          <span class="flex items-center gap-2 text-sm font-medium leading-none">{{ t('settings.projects.createRequirements.label') }}</span>
-          <p class="text-sm text-muted">{{ t('settings.projects.createRequirements.hint') }}</p>
-          <label class="flex items-center gap-2">
-            <USwitch :model-value="settings.require_manager_on_create" :disabled="!hydrated || isPending" @update:model-value="v => onBool('require_manager_on_create', v)" />
-            <span>{{ t('settings.projects.createRequirements.manager') }}</span>
-          </label>
-          <label class="flex items-center gap-2">
-            <USwitch :model-value="settings.require_end_date_on_create" :disabled="!hydrated || isPending" @update:model-value="v => onBool('require_end_date_on_create', v)" />
-            <span>{{ t('settings.projects.createRequirements.endDate') }}</span>
-          </label>
-        </div>
+        </UFormField>
+        <UFormField id="project-requirements" :label="t('settings.projects.createRequirements.label')" :description="t('settings.projects.createRequirements.hint')">
+          <div class="grid gap-3">
+            <USwitch :model-value="settings.require_manager_on_create" :label="t('settings.projects.createRequirements.manager')" :disabled="!hydrated || isPending" @update:model-value="v => onBool('require_manager_on_create', v)" />
+            <USwitch :model-value="settings.require_end_date_on_create" :label="t('settings.projects.createRequirements.endDate')" :disabled="!hydrated || isPending" @update:model-value="v => onBool('require_end_date_on_create', v)" />
+          </div>
+        </UFormField>
       </SharedFormSection>
 
       <SharedFormSection id="project-defaults" :title="t('settings.projects.defaults.title')" :description="t('settings.projects.defaults.hint')" class="nasq-settings-anchor space-y-4">
-        <div id="project-stages" class="space-y-4">
-          <span class="flex items-center gap-2 text-sm font-medium leading-none">{{ t('settings.projects.defaultStages.label') }}</span>
-          <p class="text-sm text-muted">{{ t('settings.projects.defaultStages.hint') }}</p>
+        <UFormField id="project-stages" :label="t('settings.projects.defaultStages.label')" :description="t('settings.projects.defaultStages.hint')">
           <StageListEditor :stages="rows" :busy="isPending" @add="onAddStage" @rename="onRenameStage" @fold="onFoldStage" @reorder="onReorderStages" @delete="onDeleteStage" />
-        </div>
-        <div id="project-approval" class="space-y-3">
-          <span class="flex items-center gap-2 text-sm font-medium leading-none">{{ t('settings.projects.approval.label') }}</span>
-          <p class="text-sm text-muted">{{ t('settings.projects.approval.hint') }}</p>
+        </UFormField>
+        <UFormField id="project-approval" :label="t('settings.projects.approval.label')" :description="t('settings.projects.approval.hint')">
           <URadioGroup
             :model-value="settings.default_completion_approval"
             :items="[{ value: 'none', label: t('settings.projects.approval.none') }, { value: 'project_manager', label: t('settings.projects.approval.projectManager') }]"
             :disabled="!hydrated || isPending"
             @update:model-value="onApprovalDefault"
           />
-        </div>
+        </UFormField>
       </SharedFormSection>
 
       <SharedFormSection id="project-reminders" :title="t('settings.projects.reminders.label')" :description="t('settings.projects.reminders.hint')" class="nasq-settings-anchor space-y-3">
-        <label class="flex items-center gap-2">
-          <USwitch
-            :model-value="settings.deadline_reminders_enabled"
-            :disabled="!hydrated || isPending"
-            @update:model-value="v => onBool('deadline_reminders_enabled', v)"
-          />
-          <span>{{ t('settings.projects.reminders.enabled') }}</span>
-        </label>
-        <div class="grid gap-2">
-          <label for="reminder-days" class="flex items-center gap-2 text-sm font-medium leading-none">{{ t('settings.projects.reminders.daysBefore') }}</label>
+        <USwitch
+          :model-value="settings.deadline_reminders_enabled"
+          :label="t('settings.projects.reminders.enabled')"
+          :disabled="!hydrated || isPending"
+          @update:model-value="v => onBool('deadline_reminders_enabled', v)"
+        />
+        <UFormField :label="t('settings.projects.reminders.daysBefore')">
           <UInputNumber
             id="reminder-days"
             :min="0"
@@ -173,15 +158,13 @@ function onDeleteStage(id: number | string) {
             class="w-full"
             @update:model-value="onDaysBefore"
           />
-        </div>
-        <label class="flex items-center gap-2">
-          <USwitch
-            :model-value="settings.overdue_digest_enabled"
-            :disabled="!hydrated || isPending"
-            @update:model-value="v => onBool('overdue_digest_enabled', v)"
-          />
-          <span>{{ t('settings.projects.reminders.digest') }}</span>
-        </label>
+        </UFormField>
+        <USwitch
+          :model-value="settings.overdue_digest_enabled"
+          :label="t('settings.projects.reminders.digest')"
+          :disabled="!hydrated || isPending"
+          @update:model-value="v => onBool('overdue_digest_enabled', v)"
+        />
       </SharedFormSection>
     </template>
   </div>

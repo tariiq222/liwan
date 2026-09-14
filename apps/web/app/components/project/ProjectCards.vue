@@ -21,7 +21,7 @@ const { t, locale } = useI18n()
 const hydrated = useHydrated()
 
 function open(project: Project, event: MouseEvent) {
-  if (!hydrated.value || (event.target as HTMLElement).closest('a, button, [role="menu"]')) return
+  if (!hydrated.value || (event.target as HTMLElement).closest('a, button, [role="menu"], [role="alert"]')) return
   emit('open', project.id)
 }
 function openWithKeyboard(project: Project, event: KeyboardEvent) {
@@ -34,7 +34,7 @@ function openWithKeyboard(project: Project, event: KeyboardEvent) {
 
 <template>
   <div v-if="isLoading" class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-    <USkeleton v-for="n in 6" :key="n" class="h-44 rounded-xl" />
+    <USkeleton v-for="n in 6" :key="n" class="h-44 rounded-lg" />
   </div>
   <div v-else-if="items.length === 0" class="rounded-lg ring ring-default bg-default overflow-hidden p-6">
     <EmptyState
@@ -68,20 +68,18 @@ function openWithKeyboard(project: Project, event: KeyboardEvent) {
           </div>
           <UProgress :model-value="project.progress" size="sm" :aria-label="t('projects.columns.progress')" />
         </div>
-        <div class="mt-auto flex items-center justify-between gap-3 border-t border-default pt-3 text-xs text-muted">
-          <span class="inline-flex min-w-0 items-center gap-1.5">
+        <div class="mt-auto flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-default pt-3 text-xs text-muted">
+          <span class="inline-flex min-w-0 flex-1 items-center gap-1.5">
             <UIcon name="i-lucide-user-round" class="size-4 shrink-0" aria-hidden="true" />
             <span class="sr-only">{{ t('projects.columns.manager') }}: </span>
             <span class="truncate">{{ project.manager?.name ?? '—' }}</span>
           </span>
-          <span class="inline-flex shrink-0 items-center gap-2">
-            <span class="inline-flex items-center gap-1.5">
-              <UIcon name="i-lucide-calendar-days" class="size-4" aria-hidden="true" />
-              <span class="sr-only">{{ t('projects.columns.dateEnd') }}: </span>
-              <span>{{ project.date_end ? formatCalendarDate(project.date_end, locale) : '—' }}</span>
-            </span>
-            <ProjectMenu :project="project" hide-settings />
+          <span class="inline-flex shrink-0 items-center gap-1.5">
+            <UIcon name="i-lucide-calendar-days" class="size-4" aria-hidden="true" />
+            <span class="sr-only">{{ t('projects.columns.dateEnd') }}: </span>
+            <span>{{ project.date_end ? formatCalendarDate(project.date_end, locale) : '—' }}</span>
           </span>
+          <ProjectMenu :project="project" hide-settings />
         </div>
       </article>
     </div>

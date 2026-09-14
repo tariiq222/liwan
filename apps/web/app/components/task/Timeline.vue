@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { TimelineEntry } from '@nasq/contracts'
-import { sanitizeHtml } from '@/utils/sanitize'
 import { formatTimelineChange } from '@/utils/taskTimeline'
 
 const props = defineProps<{ entries: TimelineEntry[] }>()
@@ -34,80 +33,33 @@ function changeMessage(change: { field: string; label: string; old: unknown; new
 </script>
 
 <template>
-  <ol v-if="entries.length" class="task-activity-list">
-    <li v-for="entry in entries" :key="entry.id" class="task-activity-item">
-      <div class="task-activity-marker" aria-hidden="true">
-        <UAvatar :text="entry.author ? initials(entry.author.name) : '?'" class="size-7 text-xs" />
-      </div>
-      <div class="min-w-0">
+  <ol v-if="entries.length" class="grid">
+    <li v-for="entry in entries" :key="entry.id" class="task-activity-item relative flex gap-2 pb-4">
+      <UAvatar :text="entry.author ? initials(entry.author.name) : '?'" class="z-10 size-7 shrink-0 text-xs ring ring-default" aria-hidden="true" />
+      <div class="min-w-0 flex-1">
         <div class="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-          <span class="task-activity-title">{{ entry.author?.name ?? (entry.kind === 'comment' ? t('tasks.activity.comment') : t('tasks.activity.system')) }}</span>
-          <span class="task-activity-meta">{{ relativeTime(entry.at) }}</span>
+          <span class="text-xs font-semibold text-highlighted">{{ entry.author?.name ?? (entry.kind === 'comment' ? t('tasks.activity.comment') : t('tasks.activity.system')) }}</span>
+          <span class="text-xs text-muted">{{ relativeTime(entry.at) }}</span>
         </div>
-        <div
-          v-if="entry.kind === 'comment'"
-          class="task-activity-body prose prose-sm max-w-none break-words"
-          v-html="sanitizeHtml(entry.body_html ?? '')"
-        />
-        <ul v-else class="task-activity-body space-y-0.5">
+        <SharedRichText v-if="entry.kind === 'comment'" :html="entry.body_html" size="sm" class="mt-1" />
+        <ul v-else class="mt-1 space-y-0.5 whitespace-pre-wrap text-xs leading-relaxed text-muted">
           <li v-for="(change, i) in entry.changes ?? []" :key="i">{{ changeMessage(change) }}</li>
         </ul>
       </div>
     </li>
   </ol>
-  <p v-else class="py-2 text-xs text-muted">{{ t('tasks.activity.empty') }}</p>
+  <p v-else class="py-2 text-sm text-muted">{{ t('tasks.activity.empty') }}</p>
 </template>
 
 <style scoped>
-.task-activity-list {
-  display: grid;
-}
-
-.task-activity-item {
-  position: relative;
-  display: grid;
-  grid-template-columns: 28px minmax(0, 1fr);
-  gap: 9px;
-  padding-bottom: 16px;
-}
-
+/* The connector between avatars is a pseudo-element; utilities cannot draw it
+   without a stack of arbitrary `after:` values. */
 .task-activity-item:not(:last-child)::after {
   position: absolute;
-  inset-block: 28px 0;
-  inset-inline-start: 13px;
+  inset-block: 1.75rem 0;
+  inset-inline-start: 0.8125rem;
   width: 1px;
   background: var(--ui-border);
   content: '';
-}
-
-.task-activity-marker {
-  z-index: 1;
-  display: grid;
-  width: 28px;
-  height: 28px;
-  place-items: center;
-  border: 1px solid var(--ui-border);
-  border-radius: 999px;
-  background: var(--ui-bg-muted);
-  color: var(--ui-text-muted);
-}
-
-.task-activity-title {
-  font-size: 0.75rem;
-  font-weight: 600;
-  line-height: 1.55;
-}
-
-.task-activity-meta {
-  color: var(--ui-text-muted);
-  font-size: 0.75rem;
-}
-
-.task-activity-body {
-  margin-top: 5px;
-  color: var(--ui-text-muted);
-  font-size: 0.75rem;
-  line-height: 1.75;
-  white-space: pre-wrap;
 }
 </style>

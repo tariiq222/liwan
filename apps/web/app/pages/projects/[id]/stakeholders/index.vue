@@ -5,6 +5,7 @@ import { useProjectStakeholders, useDeleteProjectStakeholder } from '@/composabl
 import { governanceFilters } from '@/composables/projectGovernanceKeys'
 import { ApiError } from '@/composables/useApi'
 import RecordNumber from '@/components/shared/RecordNumber.vue'
+import type { RowAction } from '@/components/shared/RowActions.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -18,9 +19,6 @@ const list = useProjectStakeholders(id, filters)
 const remove = useDeleteProjectStakeholder()
 const confirmDeleteId = ref<number | null>(null)
 const error = ref<string | null>(null)
-// Governance groups these four pages behind one card list; that card list is the
-// way back, and the project tab strip has no tab of its own for them.
-const backTo = computed(() => `/projects/${id.value}/governance`)
 function setFilter(key: string, value: string) {
   router.replace({ query: { ...route.query, [key]: value || undefined, offset: undefined } })
 }
@@ -55,6 +53,25 @@ async function deleteItem(item: { id: number }) {
       : cause instanceof ApiError ? cause.message : t('errors.generic')
   }
 }
+const confirmItem = computed(() => list.data.value?.items.find(item => item.id === confirmDeleteId.value) ?? null)
+// The row menu only opens the confirmation; deletion happens from SharedInlineConfirm.
+function rowActions(item: { id: number; name: string }): RowAction[] {
+  return [{
+    label: t('projects.governance.delete'),
+    icon: 'i-lucide-trash-2',
+    destructive: true,
+    disabled: remove.isPending.value,
+    onSelect: () => {
+      if (confirmDeleteId.value === item.id) return
+      void deleteItem(item)
+      void nextTick(() => document.querySelector('[data-testid="stakeholder-delete-confirm"]')?.scrollIntoView({ block: 'nearest' }))
+    },
+  }]
+}
+function cancelDelete() {
+  confirmDeleteId.value = null
+  error.value = null
+}
 </script>
 
 <template>
@@ -62,8 +79,6 @@ async function deleteItem(item: { id: number }) {
     <SharedPageHeader
       v-if="!isProjectOverlay"
       :title="t('nav.projectStakeholders')"
-      :back-to="backTo"
-      :back-label="t('projects.workspace.groups.governance')"
     >
       <template #actions>
         <UButton
@@ -93,7 +108,18 @@ async function deleteItem(item: { id: number }) {
         </div>
       </template>
     </FilterBar>
-    <p v-if="error" role="alert" class="text-sm text-error">{{ error }}</p>
+    <SharedInlineConfirm
+      v-if="confirmItem"
+      data-testid="stakeholder-delete-confirm"
+      :title="t('projects.governance.confirmDeleteNamed', { name: confirmItem.name })"
+      :confirm-label="t('projects.governance.confirmDeleteAction')"
+      :pending="remove.isPending.value"
+      @cancel="cancelDelete"
+      @confirm="deleteItem(confirmItem)"
+    >
+      <p v-if="error" class="text-error">{{ error }}</p>
+    </SharedInlineConfirm>
+    <p v-else-if="error" role="alert" class="text-sm text-error">{{ error }}</p>
     <SharedPageState
       :loading="list.isLoading.value"
       :error="list.error.value"
@@ -116,26 +142,8 @@ async function deleteItem(item: { id: number }) {
           <template #organization-cell="{ row }">{{ row.original.organization || '—' }}</template>
           <template #role-cell="{ row }">{{ row.original.role || '—' }}</template>
           <template #actions-cell="{ row }">
-            <div class="flex justify-end gap-2">
-              <template v-if="list.data.value?.can_manage">
-                <UButton
-                  color="error"
-                  variant="ghost"
-                  size="sm"
-                  :disabled="!hydrated || remove.isPending.value"
-                  @click="deleteItem(row.original)"
-                >
-                  {{ confirmDeleteId === row.original.id ? t('projects.governance.confirmDeleteAction') : t('projects.governance.delete') }}
-                </UButton>
-                <UButton color="neutral" variant="outline"
-                  v-if="confirmDeleteId === row.original.id"
-                  size="sm"
-                  :disabled="!hydrated || remove.isPending.value"
-                  @click="confirmDeleteId = null"
-                >
-                  {{ t('app.cancel') }}
-                </UButton>
-              </template>
+            <div v-if="list.data.value?.can_manage" class="flex justify-end">
+              <SharedRowActions :actions="rowActions(row.original)" :label="t('projects.governance.actionsNamed', { name: row.original.name })" :disabled="!hydrated" />
             </div>
           </template>
         </UTable>
@@ -154,6 +162,7 @@ async function deleteItem(item: { id: number }) {
                     {{ item.name }}
                   </NuxtLink>
                 </div>
+                <SharedRowActions v-if="list.data.value?.can_manage" :actions="rowActions(item)" :label="t('projects.governance.actionsNamed', { name: item.name })" :disabled="!hydrated" />
               </div>
               <dl class="grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
                 <div>
@@ -165,25 +174,6 @@ async function deleteItem(item: { id: number }) {
                   <dd>{{ item.role || '—' }}</dd>
                 </div>
               </dl>
-              <div v-if="list.data.value?.can_manage" class="flex justify-end gap-2">
-                <UButton
-                  color="error"
-                  variant="ghost"
-                  size="sm"
-                  :disabled="!hydrated || remove.isPending.value"
-                  @click="deleteItem(item)"
-                >
-                  {{ confirmDeleteId === item.id ? t('projects.governance.confirmDeleteAction') : t('projects.governance.delete') }}
-                </UButton>
-                <UButton color="neutral" variant="outline"
-                  v-if="confirmDeleteId === item.id"
-                  size="sm"
-                  :disabled="!hydrated || remove.isPending.value"
-                  @click="confirmDeleteId = null"
-                >
-                  {{ t('app.cancel') }}
-                </UButton>
-              </div>
             </div>
           </UCard>
         </li>

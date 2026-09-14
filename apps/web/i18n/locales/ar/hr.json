@@ -18,6 +18,7 @@
       "scopeActive": "النشطون",
       "scopeArchived": "المؤرشفون",
       "manage": "إدارة",
+      "rowActions": "إجراءات الموظف {name}",
       "columns": {
         "name": "الاسم",
         "jobTitle": "المسمى الوظيفي",
@@ -59,6 +60,7 @@
       "none": "بلا",
       "edit": "تعديل القسم",
       "manage": "إدارة الأقسام",
+      "rowActions": "إجراءات القسم {name}",
       "empty": "لا أقسام",
       "selectHelp": "اختر قسمًا لعرض مستنداته.",
       "detail": "مستندات القسم",

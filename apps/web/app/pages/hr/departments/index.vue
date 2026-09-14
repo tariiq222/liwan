@@ -59,16 +59,19 @@ async function confirmDelete() {
         </template>
       </FilterBar>
     </div>
+    <SharedInlineConfirm
+      v-if="deleting"
+      :title="t('hr.depts.deleteConfirm', { name: deleting.name })"
+      :description="deleteError?.message"
+      :confirm-label="t('hr.depts.delete')"
+      :pending="deletingPending"
+      @confirm="confirmDelete"
+      @cancel="deleting = null"
+    />
     <SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!departments.length" @retry="query.refetch">
       <DepartmentOrgChart v-if="canvasView" :roots="roots" :query="search" :hydrated="hydrated" :return-to="route.fullPath" />
       <DepartmentTree v-else-if="treeView" :roots="roots" :query="search" :hydrated="hydrated" :can-manage="can('hr.departments.manage')" :can-read-employees="can('hr.employees.read')" :can-read-documents="can('hr.documents.read')" @select="openDepartment" @edit="editDepartment" @create-child="createChild" />
       <DepartmentTable v-else :departments="filtered" :can-manage="can('hr.departments.manage')" @select="openDepartment" @delete="askDelete" />
     </SharedPageState>
-    <UAlert v-if="deleting" role="alert" color="error" variant="subtle" :title="t('hr.depts.deleteConfirm', { name: deleting.name })" :description="deleteError?.message">
-      <template #actions>
-        <UButton color="neutral" variant="outline" :disabled="deletingPending" :label="t('app.cancel')" @click="deleting = null" />
-        <UButton color="error" :disabled="!hydrated || deletingPending" :label="t('hr.depts.delete')" @click="confirmDelete" />
-      </template>
-    </UAlert>
   </SharedPageContainer>
 </template>
