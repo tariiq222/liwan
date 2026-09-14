@@ -6,7 +6,7 @@ import unittest
 from contextlib import redirect_stderr, redirect_stdout
 from unittest.mock import patch
 
-from ui_policy import check, main
+from ui_policy import check, main, story_errors, story_warnings
 
 APP = "apps/web/app/"
 PAGE = APP + "pages/tasks.vue"
@@ -21,10 +21,19 @@ PREVIEW_PAGE = "apps/web/design-preview/app/components/Example.vue"
 ACCESS_EVENT = APP + "pages/settings/access-log/[eventId].vue"
 REVIEWED_DATE = "@internationalized/date"
 RETIRED_RENDERER = "@lucide/vue"
+STORY = "apps/web/stories/shared/Example.stories.ts"
+USAGE_PAGE = APP + "pages/example.vue"
 
 
 class UiPolicyTest(unittest.TestCase):
     def setUp(self):
+        # Task 11 filled the real STORYBOOK_COMPONENTS with the app's actual
+        # component paths; these synthetic snapshots don't contain them, so
+        # tests that aren't specifically exercising that list patch it back to
+        # empty here and override it locally where needed.
+        self._storybook_components_patch = patch("ui_policy.STORYBOOK_COMPONENTS", ())
+        self._storybook_components_patch.start()
+        self.addCleanup(self._storybook_components_patch.stop)
         self.base = {
             APP + "components/ui/button/Button.vue": "<template><button /></template>",
             APP + "components/ui/sonner/index.ts": 'export { default as Toaster } from "./Sonner.vue"',
@@ -52,6 +61,23 @@ class UiPolicyTest(unittest.TestCase):
     def errors(self, changes, head=None, current=None):
         snapshot = self.current if current is None else current
         return check(snapshot | changes, self.base, self.current if head is None else head)
+
+    def story(self, context="storyContext('apps/web/app/pages/example.vue:2')", target="../../app/components/shared/Example.vue"):
+        return (
+            "import Example from '" + target + "'\n"
+            "import { storyContext } from '../support/context'\n"
+            "export default { component: Example }\n"
+            "export const InPage = { parameters: " + context + " }\n"
+        )
+
+    def story_snapshot(self, **changes):
+        snapshot = {
+            COMPONENT: "<template><p /></template>",
+            USAGE_PAGE: "<template>\n  <SharedExample />\n</template>",
+            STORY: self.story(),
+        }
+        snapshot.update(changes)
+        return snapshot
 
     def test_baseline_and_unrelated_copy_edit_pass(self):
         self.assertEqual(self.errors({PAGE: '<template><h1>المهام</h1><button /></template>'}), [])
@@ -211,6 +237,26 @@ class UiPolicyTest(unittest.TestCase):
         self.assertTrue(self.errors({MANIFEST: json.dumps(manifest)}))
         self.assertTrue(self.errors({PAGE: f'import {{ Search }} from "{RETIRED_RENDERER}"'}))
 
+    STORYBOOK_TOOLING = ("storybook", "@storybook/vue3-vite", "@storybook/addon-docs", "msw", "msw-storybook-addon", "@vitejs/plugin-vue", "vite")
+
+    def with_dev_dependencies(self, names):
+        manifest = json.loads(self.current[MANIFEST])
+        manifest["devDependencies"] = {name: "1.0.0" for name in names}
+        return {MANIFEST: json.dumps(manifest)}
+
+    def test_reviewed_storybook_tooling_passes(self):
+        self.assertEqual(self.errors(self.with_dev_dependencies(self.STORYBOOK_TOOLING)), [])
+
+    def test_app_source_importing_storybook_tooling_is_still_reported(self):
+        changes = self.with_dev_dependencies(self.STORYBOOK_TOOLING) | {PAGE: "import { http } from 'msw'"}
+        self.assertIn("apps/web/app/pages/tasks.vue: unreviewed import: msw (+1)", self.errors(changes))
+
+    def test_unreviewed_storybook_addon_still_needs_review(self):
+        self.assertEqual(
+            self.errors(self.with_dev_dependencies(["@storybook/addon-a11y"])),
+            ["dependency needs review: @storybook/addon-a11y"],
+        )
+
     def test_cli_exit_codes_and_missing_history(self):
         for expected, current in ((0, self.current), (1, self.current | {PAGE: '<Button/><Button/>'})):
             with self.subTest(expected=expected), patch('ui_policy.snapshot', return_value=self.base), \
@@ -221,6 +267,64 @@ class UiPolicyTest(unittest.TestCase):
                 redirect_stderr(io.StringIO()) as output:
             self.assertEqual(main(), 2)
             self.assertIn('missing history', output.getvalue())
+
+    def test_story_with_real_context_passes(self):
+        self.assertEqual(story_errors(self.story_snapshot()), [])
+
+    def test_vue_file_in_stories_fails(self):
+        errors = story_errors(self.story_snapshot(**{"apps/web/stories/shared/Copy.vue": "<template><p /></template>"}))
+        self.assertEqual(errors, ["apps/web/stories/shared/Copy.vue: Storybook renders real components; no .vue files in stories"])
+
+    def test_story_importing_component_outside_components_fails(self):
+        errors = story_errors(self.story_snapshot(**{STORY: self.story(target="../../app/pages/example.vue")}))
+        self.assertIn(STORY + ": stories import components only from apps/web/app/components", errors)
+
+    def test_app_importing_story_fails(self):
+        errors = story_errors(self.story_snapshot(**{PAGE: "<script setup>\nimport x from '../../stories/support/context'\n</script>"}))
+        self.assertEqual(errors, [PAGE + ": app code must not import Storybook files"])
+
+    def test_story_without_context_fails(self):
+        errors = story_errors(self.story_snapshot(**{STORY: self.story(context="{}")}))
+        self.assertEqual(errors, [STORY + ": story needs storyContext(<file:line> or unused)"])
+
+    def test_context_that_does_not_use_component_fails(self):
+        errors = story_errors(self.story_snapshot(**{USAGE_PAGE: "<template><p /></template>"}))
+        self.assertEqual(errors, [f"{STORY}: storyContext apps/web/app/pages/example.vue:2 does not point at a real usage of {COMPONENT}"])
+
+    def test_unused_context_passes(self):
+        self.assertEqual(story_errors(self.story_snapshot(**{STORY: self.story(context="storyContext('unused')")})), [])
+
+    def test_shifted_context_line_warns_without_failing(self):
+        snapshot = self.story_snapshot(**{USAGE_PAGE: "<template>\n  <p />\n  <SharedExample />\n</template>"})
+        self.assertEqual(story_errors(snapshot), [])
+        self.assertEqual(story_warnings(snapshot), [f"{STORY}: update storyContext apps/web/app/pages/example.vue:2; that line no longer uses the component"])
+
+    def test_coverage_requires_a_story_when_enabled(self):
+        snapshot = self.story_snapshot()
+        del snapshot[STORY]
+        with patch("ui_policy.STORYBOOK_COMPONENTS", (COMPONENT,)):
+            self.assertEqual(story_errors(snapshot), [COMPONENT + ": component needs a story"])
+            self.assertEqual(story_errors(self.story_snapshot()), [])
+
+    def test_coverage_list_entry_must_exist(self):
+        missing = APP + "components/shared/Missing.vue"
+        with patch("ui_policy.STORYBOOK_COMPONENTS", (missing,)):
+            self.assertEqual(story_errors(self.story_snapshot()), [missing + ": listed Storybook component does not exist"])
+
+    def test_check_reports_story_errors(self):
+        changes = {"apps/web/stories/shared/Copy.vue": "<template><p /></template>"}
+        self.assertIn("apps/web/stories/shared/Copy.vue: Storybook renders real components; no .vue files in stories", self.errors(changes))
+
+    def test_commented_out_context_does_not_count(self):
+        story_source = (
+            "import Example from '../../app/components/shared/Example.vue'\n"
+            "import { storyContext } from '../support/context'\n"
+            "export default { component: Example }\n"
+            "export const InPage = { parameters: {} }\n"
+            "// storyContext('apps/web/app/pages/example.vue:2')\n"
+        )
+        errors = story_errors(self.story_snapshot(**{STORY: story_source}))
+        self.assertEqual(errors, [STORY + ": story needs storyContext(<file:line> or unused)"])
 
 
 if __name__ == '__main__':

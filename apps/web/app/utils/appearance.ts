@@ -14,3 +14,26 @@ export function normalizeAppearance(value: unknown): AppearancePreference {
     fontSize: stored.fontSize === 'medium' || stored.fontSize === 'large' ? stored.fontSize : 'small',
   }
 }
+
+export interface HtmlAttrsInput {
+  mode: AppearanceMode
+  fontSize: FontSize
+  lang?: string
+  dir?: string
+}
+
+export interface HtmlAttrs {
+  class: '' | 'dark' | 'cream'
+  'data-font-size': FontSize
+  lang?: string
+  dir?: string
+}
+
+export function htmlAttrsFor({ mode, fontSize, lang, dir }: HtmlAttrsInput): HtmlAttrs {
+  return {
+    class: mode === 'dark' ? 'dark' : mode === 'cream' ? 'cream' : '',
+    'data-font-size': fontSize,
+    lang,
+    dir,
+  }
+}

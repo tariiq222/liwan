@@ -1,0 +1,61 @@
+import { MeSchema, PersonRefSchema, ProjectRefSchema, ProjectSchema, TagSchema, TaskDetailSchema, TaskSchema, type Task } from '@nasq/contracts'
+
+export const tags = TagSchema.array().parse([
+  { id: 1, name: 'عاجل', color: 1 },
+  { id: 2, name: 'ميزانية', color: 3 },
+  { id: 3, name: 'جودة', color: 10 },
+])
+
+export const people = PersonRefSchema.array().parse([
+  { id: 2, name: 'Admin', user_id: 2 },
+  { id: 7, name: 'سارة القحطاني', user_id: 7 },
+  { id: 9, name: 'محمد العتيبي', user_id: 9 },
+])
+
+export const boardStages = [
+  { id: 11, name: 'جديد', sequence: 1, fold: false },
+  { id: 12, name: 'قيد التنفيذ', sequence: 2, fold: false },
+  { id: 13, name: 'مكتمل', sequence: 3, fold: true },
+]
+
+export function makeTask(overrides: Partial<Task> = {}): Task {
+  return TaskSchema.parse({
+    id: 101, name: 'إعداد تقرير الربع الثالث', project: { id: 1, name: 'مشروع ألفا' }, state: 'in_progress', priority: '2',
+    date_deadline: '2026-09-15', days_remaining: 2, is_overdue: false, is_closed: false,
+    personal_stage: null, stage: { id: 11, name: 'جديد' },
+    assignees: [{ id: 2, name: 'Admin' }, { id: 7, name: 'سارة القحطاني' }], tags: [tags[0]!],
+    can_write: true, can_approve: true,
+    allowed_transitions: ['changes_requested', 'approved', 'waiting', 'done', 'cancelled'],
+    ...overrides,
+  })
+}
+
+export function taskDetail(overrides: Record<string, unknown> = {}) {
+  return TaskDetailSchema.parse({
+    ...makeTask(),
+    description_html: '', allocated_hours: 0, age_days: 3, cycle_days: null, subtasks: [], depends_on: [], attachments: [],
+    can_manage_dependencies: false, milestone: null, created_at: '2026-09-01 08:00:00', updated_at: '2026-09-10 08:00:00',
+    planned_start: null, deliverables: [], allowed_actions: ['read', 'write'],
+    completion_pending: false, completion_revision: 0, completion_return_note: null, completion_policy: 'none',
+    completion_approver: null, completion_blocked_reason: null,
+    ...overrides,
+  })
+}
+
+export const project = ProjectSchema.parse({
+  id: 1, name: 'مشروع ألفا', status: 'on_track', progress: 50, task_count: 24, closed_task_count: 12,
+  active: true, can_manage: true, manager: { id: 2, name: 'Admin' }, date_end: '2026-12-31', allowed_actions: ['read', 'write', 'archive'],
+})
+
+export const archivedProject = ProjectSchema.parse({ ...project, id: 4, name: 'تحديث الأنظمة', active: false })
+
+export const projectRefs = ProjectRefSchema.array().parse([
+  { id: 1, name: 'مشروع ألفا' },
+  { id: 2, name: 'تطوير البوابة' },
+  { id: 3, name: 'التحول الرقمي' },
+])
+
+export const me = MeSchema.parse({
+  id: 2, name: 'Admin', login: 'admin', email: 'admin@example.com', lang: 'ar_001', tz: 'Asia/Riyadh',
+  role: 'admin', roles: [], capabilities: ['pmo.projects.read'], access_policy_version: 1, company: { id: 1, name: 'نسق' },
+})

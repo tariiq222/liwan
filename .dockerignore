@@ -8,6 +8,7 @@ node_modules
 **/__pycache__
 **/test-results
 **/playwright-report
+**/storybook-static
 **/.env
 **/.env.*
 deploy/branding.json

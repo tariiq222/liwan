@@ -10,7 +10,9 @@
     "postinstall": "nuxt prepare",
     "test": "vitest run",
     "test:e2e": "playwright test",
-    "lint": "vue-tsc --build --noEmit"
+    "lint": "vue-tsc --build --noEmit",
+    "storybook": "nuxt prepare && storybook dev -p 6006 --no-open",
+    "build-storybook": "nuxt prepare && storybook build -o storybook-static"
   },
   "dependencies": {
     "@iconify-json/lucide": "1.2.129",
@@ -39,8 +41,15 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1",
+    "@storybook/addon-docs": "10.6.0",
+    "@storybook/vue3-vite": "10.6.0",
     "@types/node": "^22.20.1",
+    "@vitejs/plugin-vue": "6.0.8",
+    "msw": "2.15.0",
+    "msw-storybook-addon": "3.0.0",
+    "storybook": "10.6.0",
     "typescript": "^5.9.3",
+    "vite": "8.2.2",
     "vitest": "4.1.11",
     "vue-tsc": "^3.3.11"
   }

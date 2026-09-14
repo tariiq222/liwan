@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { ProjectReportRow } from '@nasq/contracts'
 import {
   projectBudgetHealthData,
+  projectChartLabels,
   projectDashboardCurrencies,
   projectFinanceComparisonChart,
   projectFinanceComparisonData,
@@ -89,5 +90,22 @@ describe('project dashboard chart data', () => {
     expect(finance.data).toHaveLength(205)
     expect(finance.data.at(-1)).toMatchObject({ name: 'Project 205' })
     expect(projectProgressBandsChart(rows, labels).kind).toBe('bar')
+  })
+})
+
+describe('dashboard chart labels', () => {
+  it('maps every label to its projects locale key', () => {
+    const labels = projectChartLabels(key => key)
+    expect(labels.status).toEqual({
+      on_track: 'projects.status.on_track',
+      at_risk: 'projects.status.at_risk',
+      off_track: 'projects.status.off_track',
+      on_hold: 'projects.status.on_hold',
+      done: 'projects.status.done',
+      unset: 'projects.status.unset',
+    })
+    expect(labels.taskOverdue).toBe('projects.dashboard.charts.taskOverdue')
+    expect(labels.progress100).toBe('projects.dashboard.charts.progress100')
+    expect(labels.unavailable).toBe('projects.dashboard.unknown')
   })
 })

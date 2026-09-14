@@ -1,0 +1,37 @@
+import type { Meta, StoryObj } from '@storybook/vue3-vite'
+import { ref } from 'vue'
+import { useI18n } from 'vue-i18n'
+import MeetingProjectFilter from '../../app/components/meetings/MeetingProjectFilter.vue'
+import FormSection from '../../app/components/shared/FormSection.vue'
+import PageContainer from '../../app/components/shared/PageContainer.vue'
+import { storyContext } from '../support/context'
+
+const meta = {
+  title: 'Meetings/MeetingProjectFilter',
+  component: MeetingProjectFilter,
+  parameters: { layout: 'fullscreen' },
+  args: { modelValue: undefined, disabled: false },
+} satisfies Meta<typeof MeetingProjectFilter>
+export default meta
+type Story = StoryObj<typeof meta>
+
+export const InFormField: Story = {
+  name: 'داخل حقل نموذج',
+  parameters: storyContext('apps/web/app/pages/meetings/[id]/resolutions/new.vue:99'),
+  render: args => ({
+    components: { FormSection, MeetingProjectFilter, PageContainer },
+    setup: () => ({ args, t: useI18n().t, projectId: ref(args.modelValue) }),
+    template: `<main class="nasq-shell-main"><PageContainer width="form"><FormSection><div class="nasq-form-grid"><UFormField class="sm:col-span-2" :label="t('meetingMinutesForm.project')" name="project"><MeetingProjectFilter id="res-project" hide-label v-model="projectId" :disabled="args.disabled" /></UFormField></div></FormSection></PageContainer></main>`,
+  }),
+}
+
+export const WithLabel: Story = {
+  name: 'بعنوان ظاهر في الفلاتر',
+  parameters: storyContext('apps/web/app/pages/meetings/series/index.vue:99'),
+  args: { modelValue: 2 },
+  render: args => ({
+    components: { MeetingProjectFilter, PageContainer },
+    setup: () => ({ args, t: useI18n().t, projectId: ref(args.modelValue) }),
+    template: `<main class="nasq-shell-main"><PageContainer width="list"><div class="nasq-ui-filter-content"><MeetingProjectFilter id="meeting-series-project" :label="t('meetingsFilters.project')" v-model="projectId" /></div></PageContainer></main>`,
+  }),
+}
