@@ -27,6 +27,13 @@ USAGE_PAGE = APP + "pages/example.vue"
 
 class UiPolicyTest(unittest.TestCase):
     def setUp(self):
+        # Task 11 filled the real STORYBOOK_COMPONENTS with the app's actual
+        # component paths; these synthetic snapshots don't contain them, so
+        # tests that aren't specifically exercising that list patch it back to
+        # empty here and override it locally where needed.
+        self._storybook_components_patch = patch("ui_policy.STORYBOOK_COMPONENTS", ())
+        self._storybook_components_patch.start()
+        self.addCleanup(self._storybook_components_patch.stop)
         self.base = {
             APP + "components/ui/button/Button.vue": "<template><button /></template>",
             APP + "components/ui/sonner/index.ts": 'export { default as Toaster } from "./Sonner.vue"',

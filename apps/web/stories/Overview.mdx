@@ -1,0 +1,108 @@
+import { Canvas, Meta } from '@storybook/addon-docs/blocks'
+import * as Colors from './foundations/Colors.stories'
+import * as Typography from './foundations/Typography.stories'
+import * as Shape from './foundations/Shape.stories'
+import * as Actions from './nuxt-ui/Actions.stories'
+import * as Fields from './nuxt-ui/Fields.stories'
+import * as Overlays from './nuxt-ui/Overlays.stories'
+import * as Surfaces from './nuxt-ui/Surfaces.stories'
+import * as PageContainer from './shared/PageContainer.stories'
+import * as PageHeader from './shared/PageHeader.stories'
+import * as FormSection from './shared/FormSection.stories'
+import * as SettingsLayout from './settings/SettingsLayout.stories'
+import * as PageState from './shared/PageState.stories'
+import * as EmptyState from './shared/EmptyState.stories'
+import * as RecordNumber from './shared/RecordNumber.stories'
+import * as UnsavedChanges from './shared/UnsavedChanges.stories'
+import * as FilterBar from './shared/FilterBar.stories'
+import * as DateField from './shared/DateField.stories'
+import * as FileField from './shared/FileField.stories'
+import * as DescriptionEditor from './task/DescriptionEditor.stories'
+import * as ProjectFieldHelp from './project/ProjectFieldHelp.stories'
+import * as MeetingProjectFilter from './meetings/MeetingProjectFilter.stories'
+import * as MeetingPeopleFields from './meetings/MeetingPeopleFields.stories'
+import * as ProjectStatusBadge from './project/ProjectStatusBadge.stories'
+import * as StateBadge from './task/StateBadge.stories'
+import * as DeadlineBadge from './task/DeadlineBadge.stories'
+import * as AccessStateBadge from './access/AccessStateBadge.stories'
+import * as AccessBadge from './hr/AccessBadge.stories'
+import * as PrioritySelect from './task/PrioritySelect.stories'
+import * as StateMenu from './task/StateMenu.stories'
+import * as TagPicker from './task/TagPicker.stories'
+import * as ProjectMenu from './project/ProjectMenu.stories'
+import * as SidebarCreateAction from './shell/SidebarCreateAction.stories'
+import * as ChatAttachment from './chat/ChatAttachment.stories'
+import * as TaskCard from './task/TaskCard.stories'
+import * as DashboardChartPanel from './project/DashboardChartPanel.stories'
+import * as DashboardChart from './shared/DashboardChart.stories'
+import * as ChartContainer from './charts/ChartContainer.stories'
+
+<Meta title="Overview/كل المكونات" />
+
+# كل المكونات
+
+المكونات المتكررة في نسق، وتوكناته ووصفات Nuxt UI، كما هي في التطبيق. غيّر اللغة والمظهر وحجم الخط ولون الهوية من الشريط العلوي. لكل مكوّن صفحة بحالاته وسياقاته في القائمة الجانبية.
+
+## الأساس
+
+<Canvas of={Colors.Brand} />
+<Canvas of={Colors.Status} />
+<Canvas of={Typography.Scale} />
+<Canvas of={Shape.RadiusAndElevation} />
+
+## وصفات Nuxt UI
+
+<Canvas of={Actions.ButtonRanks} />
+<Canvas of={Actions.BadgesAndProgress} />
+<Canvas of={Fields.TextInputs} />
+<Canvas of={Fields.Selects} />
+<Canvas of={Overlays.Menus} />
+<Canvas of={Surfaces.Card} />
+<Canvas of={Surfaces.Table} />
+
+## الصفحة والحالة
+
+<Canvas of={PageContainer.List} />
+<Canvas of={PageHeader.WithActions} />
+<Canvas of={SettingsLayout.FormPage} />
+<Canvas of={FormSection.InForm} />
+<Canvas of={FormSection.Panel} />
+<Canvas of={PageState.ErrorState} />
+<Canvas of={PageState.Empty} />
+<Canvas of={EmptyState.InTaskTable} />
+<Canvas of={RecordNumber.InTableCell} />
+<Canvas of={UnsavedChanges.CleanForm} />
+
+## الحقول والفلاتر
+
+<Canvas of={FilterBar.InPageToolbar} />
+<Canvas of={DateField.InFormField} />
+<Canvas of={FileField.InMeetingAttachments} />
+<Canvas of={DescriptionEditor.WithContent} />
+<Canvas of={ProjectFieldHelp.BesideFieldLabel} />
+<Canvas of={MeetingProjectFilter.InFormField} />
+<Canvas of={MeetingPeopleFields.InMeetingForm} />
+
+## الشارات
+
+<Canvas of={ProjectStatusBadge.InOverviewRow} />
+<Canvas of={StateBadge.AllStates} />
+<Canvas of={DeadlineBadge.AllDeadlines} />
+<Canvas of={AccessStateBadge.InMobileCard} />
+<Canvas of={AccessBadge.AllAccess} />
+
+## المنتقيات والقوائم
+
+<Canvas of={PrioritySelect.InTaskRow} />
+<Canvas of={StateMenu.InTaskRow} />
+<Canvas of={TagPicker.InProjectSettings} />
+<Canvas of={ProjectMenu.OnProjectCard} />
+<Canvas of={SidebarCreateAction.InContextSidebar} />
+<Canvas of={ChatAttachment.InConversationInfo} />
+
+## البطاقات والرسوم
+
+<Canvas of={TaskCard.InBoardColumn} />
+<Canvas of={DashboardChartPanel.StatusPie} />
+<Canvas of={DashboardChart.FinanceComparison} />
+<Canvas of={ChartContainer.Default} />

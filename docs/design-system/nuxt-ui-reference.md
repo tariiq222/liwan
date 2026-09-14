@@ -37,3 +37,22 @@
 الفحص الساكن المحلي هو `python3 -B tools/ui_policy.py`. يراجع الفحص مسارات
 المكونات والتبعيات والاستيرادات والألوان؛ لا يثبت وحده الشكل أو السلوك أو صحة
 Odoo أو API أو النشر. الاختبارات والبناء ومراجعة المتصفح مسؤولية المنسق.
+
+## Storybook
+
+Storybook في `apps/web` يعرض المكونات **المتكررة** وتوكنات النظام ووصفات Nuxt UI الحقيقية؛ لا يحرر شيئًا ولا يضيف مصدرًا بصريًا. المكوّن المستخدم مرة واحدة لا يدخله.
+
+| الجزء | المسار |
+| --- | --- |
+| الإعداد | `apps/web/.storybook/main.ts`، `preview.ts` |
+| الاستيرادات التلقائية | تُولَّد من `.nuxt/imports.d.ts` و`.nuxt/components.d.ts` في `nuxt-imports.mjs` |
+| بدائل Nuxt | `apps/web/.storybook/nuxt-shims.ts`؛ البناء يفشل إذا استدعى كود التطبيق واجهة Nuxt بلا بديل |
+| القصص | `apps/web/stories/**`؛ كل قصة مكوّن تذكر سياقها الحقيقي بـ `storyContext('ملف:سطر')` |
+| البيانات والـ API | `apps/web/stories/fixtures/**` تمر عبر مخططات `@nasq/contracts`؛ `apps/web/stories/handlers/api.ts` يحاكي `/api/v1` عبر MSW |
+| قائمة التغطية | `STORYBOOK_COMPONENTS` في `tools/ui_policy.py` |
+
+التشغيل: `npm -w apps/web run storybook` (منفذ 6006، أو `-- -p <port>`). البناء: `npm -w apps/web run build-storybook`. الفحص: `cd apps/web && npx playwright test e2e/storybook-smoke.spec.ts` بعد البناء.
+
+إضافة لبنة: عندما يُستخدم مكوّن في ملفين أو أكثر، أضف مساره إلى `STORYBOOK_COMPONENTS` واكتب قصته داخل سياق استخدامه.
+
+حدود معروفة: الـ bus وmiddleware المسارات وplugins Nuxt غير محاكاة؛ كاش `useFetch` في البدائل مبسّط؛ أرشفة المشروع في `ProjectMenu` تعرض خطأ 422 بدل النجاح.

@@ -25,8 +25,18 @@ STORYBOOK = 'apps/web/.storybook/'
 STORY_ROOTS = (STORIES, STORYBOOK)
 STORY_SUFFIXES = {'.vue', '.ts', '.mjs', '.mdx'}
 COMPONENTS = APP + 'components/'
-# Reused building blocks that must each be the meta component of a story (filled in Task 11).
-STORYBOOK_COMPONENTS: tuple[str, ...] = ()
+# Reused building blocks that must each have a story (spec §1). Add a path here when a
+# component starts being reused across pages, together with its story.
+STORYBOOK_COMPONENTS: tuple[str, ...] = tuple(COMPONENTS + path for path in (
+    'shared/PageHeader.vue', 'shared/PageState.vue', 'shared/PageContainer.vue', 'shared/UnsavedChanges.vue',
+    'shared/FormSection.vue', 'shared/RecordNumber.vue', 'settings/SettingsLayout.vue', 'shared/EmptyState.vue',
+    'shared/FilterBar.vue', 'shared/DateField.vue', 'task/DescriptionEditor.vue', 'meetings/MeetingProjectFilter.vue',
+    'meetings/MeetingPeopleFields.vue', 'shared/FileField.vue', 'project/ProjectFieldHelp.vue',
+    'project/ProjectStatusBadge.vue', 'task/StateBadge.vue', 'task/DeadlineBadge.vue', 'access/AccessStateBadge.vue',
+    'hr/AccessBadge.vue', 'task/PrioritySelect.vue', 'task/StateMenu.vue', 'task/TagPicker.vue',
+    'project/ProjectMenu.vue', 'shell/SidebarCreateAction.vue', 'chat/ChatAttachment.vue', 'task/TaskCard.vue',
+    'project/dashboard/DashboardChartPanel.vue', 'shared/DashboardChart.client.vue', 'charts/ChartContainer.vue',
+))
 STORY_CONTEXT = re.compile(r'''\bstoryContext\(\s*(['"])([^'"]+)\1''')
 META_COMPONENT = re.compile(r'\bcomponent:\s*(\w+)')
 DEFAULT_VUE_IMPORT = re.compile(r'''^\s*import\s+(\w+)\s+from\s+(['"])([^'"]+\.vue)\2''', re.M)
