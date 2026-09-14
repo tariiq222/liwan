@@ -17,7 +17,7 @@ export const RadiusAndElevation: StoryObj = {
   render: (_args, { globals }) => ({
     components: { TokenTable },
     setup: () => ({ radius, elevation, elevationClasses, key: JSON.stringify(globals) }),
-    template: `<div class="space-y-6"><div class="flex flex-wrap gap-6"><div v-for="level in elevationClasses" :key="level" :class="level" class="grid size-28 place-items-center rounded-[14px] bg-default text-xs"><span dir="ltr">{{ level }}</span></div></div><TokenTable :key="key + 'r'" :names="radius" swatch="radius" /><TokenTable :key="key + 'e'" :names="elevation" swatch="shadow" /></div>`,
+    template: `<div class="space-y-6"><div class="flex flex-wrap gap-6"><div v-for="level in elevationClasses" :key="level" :class="level" class="grid size-28 place-items-center rounded-lg border border-default bg-default text-xs"><span dir="ltr">{{ level }}</span></div></div><TokenTable :key="key + 'r'" :names="radius" swatch="radius" /><TokenTable :key="key + 'e'" :names="elevation" swatch="shadow" /></div>`,
   }),
 }
 

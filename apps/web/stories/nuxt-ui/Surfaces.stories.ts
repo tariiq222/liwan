@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/vue3-vite'
 
 export default {
   title: 'Nuxt UI/Surfaces',
-  parameters: { docs: { description: { component: 'وصفات `card` (زاوية 14px و`nasq-elevation-1`) و`table` (`nasq-ui-table-head`).' } } },
+  parameters: { docs: { description: { component: 'وصفات `card` (زاوية `--radius-lg` وحد hairline بلا ظل) و`table` (صف 40px، رأس `nasq-ui-table-head`، مرور `--nasq-surface-hover`).' } } },
 } satisfies Meta
 
 export const Card: StoryObj = {
