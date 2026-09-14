@@ -13,6 +13,28 @@
 .nasq-page-width-form { max-width: 58rem; }
 .nasq-toolbar { display: flex; min-width: 0; flex-wrap: wrap; align-items: center; gap: 8px; }
 
+/* Record template: long-form content in the main column, field-by-field
+   properties in a 300px aside at the end of reading order (Stripe). Below
+   1024px the aside stacks under the content. */
+.nasq-record-grid { display: grid; grid-template-columns: minmax(0, 1fr); align-items: start; gap: 1.25rem; }
+.nasq-record-main { display: grid; min-width: 0; gap: 1.25rem; }
+.nasq-record-aside { min-width: 0; }
+@media (min-width: 1024px) {
+  .nasq-record-grid { grid-template-columns: minmax(0, 1fr) 300px; }
+  .nasq-record-aside { position: sticky; top: calc(var(--shell-header-height, 64px) + 16px); border-inline-start: 1px solid var(--border); padding-inline-start: 1.25rem; }
+}
+.nasq-record-props { display: grid; margin: 0; gap: 1rem; }
+.nasq-record-prop { display: grid; min-width: 0; gap: 0.375rem; }
+.nasq-record-prop > dd { margin: 0; min-width: 0; font-size: var(--text-sm); overflow-wrap: anywhere; }
+.nasq-record-prop-meta { gap: 0.125rem; }
+.nasq-record-context { display: flex; min-width: 0; align-items: center; justify-content: space-between; gap: 10px; }
+.nasq-record-context-actions { display: flex; flex: none; align-items: center; gap: 6px; }
+.nasq-record-status-line { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+@media (max-width: 600px) {
+  .nasq-record-context { display: grid; align-items: start; }
+  .nasq-record-context-actions { justify-content: flex-start; }
+}
+
 .nasq-form { display: grid; gap: 1.5rem; width: 100%; max-width: 58rem; margin-inline: auto; }
 .nasq-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.25rem; }
 .nasq-form-section { display: grid; gap: 1.25rem; }

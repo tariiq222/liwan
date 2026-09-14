@@ -22,6 +22,19 @@ describe('task chrome design', () => {
     expect(pageHeader).toContain('focus-visible:ring-2 focus-visible:ring-ring')
   })
 
+  it('is a two-column record with the properties aside and no scoped css', () => {
+    const properties = readFileSync(resolve(root, '../TaskProperties.vue'), 'utf8')
+    const shell = readFileSync(resolve(root, '../../../assets/css/shell.css'), 'utf8')
+    expect(panel).toContain('data-testid="task-detail-grid" class="nasq-record-grid"')
+    expect(panel).toMatch(/<aside class="nasq-record-aside"[\s\S]*?<TaskProperties/)
+    expect(panel).not.toContain('<style')
+    expect(details).not.toContain('<style')
+    expect(properties).toContain('<dl class="nasq-record-props"')
+    for (const control of ['StateMenu', 'AssigneePicker', 'PrioritySelect', 'MilestoneSelect', 'TagPicker']) expect(properties).toContain(`<${control}`)
+    expect(details).not.toContain('AssigneePicker')
+    expect(shell).toMatch(/\.nasq-record-grid \{/)
+  })
+
   it('puts task sections in UTabs instead of stacked cards', () => {
     expect(details).toContain('data-testid="task-detail-tabs"')
     expect(details).toContain(':unmount-on-hide="false"')

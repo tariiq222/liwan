@@ -8,10 +8,13 @@ import DeadlineBadge from './DeadlineBadge.vue'
 import StateMenu from './StateMenu.vue'
 import TaskCompletionApproval from './TaskCompletionApproval.vue'
 import TaskDetails from './TaskDetails.vue'
+import TaskProperties from './TaskProperties.vue'
 
-// Container-agnostic body: a compact task context row followed by section
-// tabs. The page wrapper owns the shell title so this component stays focused
-// on task data, editing, activity, and navigation.
+// Container-agnostic body: a compact task context row, then the two-column
+// record (nasq-record-grid in shell.css): long-form sections in the main
+// column, field-by-field properties in the aside. The page wrapper owns the
+// shell title so this component stays focused on task data, editing,
+// activity, and navigation.
 // basePath routes prev/next within the host's own URL space (default /tasks,
 // مهامي's own list). siblingParams lets a host that keeps its filters in the
 // URL (the project screen) drive prev/next from those instead of the
@@ -154,10 +157,10 @@ useEventListener(document, 'keydown', onKeydown)
 </script>
 
 <template>
-  <div data-nasq-reference-detail class="space-y-6">
-    <div class="task-context-row" data-testid="task-detail-context">
+  <div class="space-y-4">
+    <div class="nasq-record-context" data-testid="task-detail-context">
       <div class="flex min-w-0 flex-1 items-center gap-2">
-        <NuxtLink :to="backTo" class="inline-flex min-h-8 shrink-0 items-center gap-1 rounded-lg px-2 text-sm text-muted transition-colors hover:bg-elevated hover:text-highlighted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" :aria-label="props.backLabel ?? t('tasks.detail.back')" :aria-disabled="!hydrated || editingTitle || titleSaving" :tabindex="!hydrated || editingTitle || titleSaving ? -1 : undefined" @click="(!hydrated || editingTitle || titleSaving) && $event.preventDefault()">
+        <NuxtLink :to="backTo" class="inline-flex min-h-8 shrink-0 items-center gap-1 rounded-md px-2 text-sm text-muted transition-colors hover:bg-surface-hover hover:text-highlighted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" :aria-label="props.backLabel ?? t('tasks.detail.back')" :aria-disabled="!hydrated || editingTitle || titleSaving" :tabindex="!hydrated || editingTitle || titleSaving ? -1 : undefined" @click="(!hydrated || editingTitle || titleSaving) && $event.preventDefault()">
           <UIcon :name="isRtl ? 'i-lucide-arrow-right' : 'i-lucide-arrow-left'" class="size-[18px]" aria-hidden="true" />
           <span>{{ props.backLabel ?? t('tasks.detail.back') }}</span>
         </NuxtLink>
@@ -180,7 +183,7 @@ useEventListener(document, 'keydown', onKeydown)
           </UButton>
         </template>
         <template v-else-if="task?.project">
-          <span class="text-xs text-muted">{{ t('tasks.project') }}</span>
+          <span class="nasq-ui-label">{{ t('tasks.project') }}</span>
           <NuxtLink :to="`/projects/${task.project.id}`" class="min-w-0 truncate text-sm font-semibold hover:underline">
             {{ task.project.name }}
           </NuxtLink>
@@ -188,7 +191,7 @@ useEventListener(document, 'keydown', onKeydown)
         <USkeleton v-else class="h-5 min-w-0 flex-1" />
       </div>
 
-      <div class="task-context-actions" role="group" :aria-label="t('tasks.detail.menu')">
+      <div class="nasq-record-context-actions" role="group" :aria-label="t('tasks.detail.menu')">
         <UButton v-if="task?.can_write && !editingTitle" data-testid="task-title-edit" variant="outline" size="sm" type="button" :aria-label="t('tasks.detail.editTitle')" :disabled="!hydrated || titleSaving" @click="startTitleEdit">
           <UIcon name="i-lucide-pencil" class="size-[18px]" aria-hidden="true" />
         </UButton>
@@ -226,14 +229,14 @@ useEventListener(document, 'keydown', onKeydown)
 
     <SharedPageState v-if="error" :error="error" @retry="refetch" />
 
-    <UCard v-if="!task" :ui="{ body: 'flex min-h-56 items-center justify-center' }">
+    <div v-if="!task" class="nasq-ui-record-surface flex min-h-56 items-center justify-center p-4">
       <USkeleton class="h-40 w-full" />
-    </UCard>
+    </div>
 
-    <template v-if="task">
-      <div data-testid="task-detail-grid" class="space-y-6">
-        <div data-testid="task-details-card" class="nasq-ui-record-surface space-y-6 p-5">
-          <div class="task-detail-status-line">
+    <div v-if="task" data-testid="task-detail-grid" class="nasq-record-grid">
+      <div class="nasq-record-main">
+        <div data-testid="task-details-card" class="nasq-ui-record-surface space-y-4 p-4">
+          <div class="nasq-record-status-line">
             <StateMenu :task="task" :can-approve="task.can_approve" />
             <span class="text-xs text-muted">
               {{ t('tasks.detail.workflowStage') }}: {{ task.stage?.name ?? t('tasks.detail.stageUnset') }}
@@ -244,41 +247,9 @@ useEventListener(document, 'keydown', onKeydown)
           <TaskDetails :key="task.id" :task="task" :base-path="props.basePath" />
         </div>
       </div>
-    </template>
+      <aside class="nasq-record-aside" :aria-label="t('tasks.detail.primaryMetadata')">
+        <TaskProperties :key="task.id" :task="task" />
+      </aside>
+    </div>
   </div>
 </template>
-
-<style scoped>
-.task-context-row {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.task-context-actions {
-  display: flex;
-  flex: none;
-  align-items: center;
-  gap: 6px;
-}
-
-.task-detail-status-line {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-@media (max-width: 600px) {
-  .task-context-row {
-    display: grid;
-    align-items: start;
-  }
-
-  .task-context-actions {
-    justify-content: flex-start;
-  }
-}
-</style>
