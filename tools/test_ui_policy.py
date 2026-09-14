@@ -247,6 +247,10 @@ class UiPolicyTest(unittest.TestCase):
     def test_reviewed_storybook_tooling_passes(self):
         self.assertEqual(self.errors(self.with_dev_dependencies(self.STORYBOOK_TOOLING)), [])
 
+    def test_app_source_importing_storybook_tooling_is_still_reported(self):
+        changes = self.with_dev_dependencies(self.STORYBOOK_TOOLING) | {PAGE: "import { http } from 'msw'"}
+        self.assertIn("apps/web/app/pages/tasks.vue: unreviewed import: msw (+1)", self.errors(changes))
+
     def test_unreviewed_storybook_addon_still_needs_review(self):
         self.assertEqual(
             self.errors(self.with_dev_dependencies(["@storybook/addon-a11y"])),

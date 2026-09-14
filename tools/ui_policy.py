@@ -287,14 +287,18 @@ def check(current: dict[str, str], baseline: dict[str, str], head: dict[str, str
     # RouterConfig, which app/router.options.ts is typed against. It carries no
     # components, so it cannot become the second UI library this guard exists
     # to catch.
-    allowed = dependencies(baseline) | REVIEWED_STORYBOOK_TOOLING | {
+    allowed_source = dependencies(baseline) | {
         '@nuxt/ui', '@iconify-json/lucide', '@internationalized/date', '@nuxt/schema',
     }
+    # The tooling manifest review accepts Storybook's own dev-time packages;
+    # app runtime source importing them is still a finding (via allowed_source
+    # below), since Storybook is a viewer, not a second UI library.
+    allowed_manifest = allowed_source | REVIEWED_STORYBOOK_TOOLING
     names = legacy_names(baseline)
     has_ui = '@nuxt/ui' in json.loads(current.get('apps/web/package.json', '{}')).get('dependencies', {})
     baseline_versions = dependency_versions(baseline)
     current_versions = dependency_versions(current)
-    for package in sorted(dependencies(current) - allowed):
+    for package in sorted(dependencies(current) - allowed_manifest):
         errors.append('dependency needs review: ' + package)
     for package in sorted(dependencies(current) & RETIRED_PACKAGES):
         errors.append('retired dependency: ' + package)
@@ -313,7 +317,7 @@ def check(current: dict[str, str], baseline: dict[str, str], head: dict[str, str
         if path.startswith(APP + 'components/') and path.endswith('.vue') and path not in baseline:
             if f'`{path}`' not in current.get(CATALOG, ''):
                 errors.append(path + ': register exact path, recipe and primitives in the catalog')
-        errors.extend(f'{path}: {reason} (+{count})' for reason, count in sorted(findings(path, source, names, allowed, has_ui).items()))
+        errors.extend(f'{path}: {reason} (+{count})' for reason, count in sorted(findings(path, source, names, allowed_source, has_ui).items()))
     errors.extend(story_errors(current))
     return errors
 
