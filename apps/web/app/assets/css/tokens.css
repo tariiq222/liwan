@@ -14,6 +14,8 @@
 :root {
   color-scheme: light;
   font-size: 14px;
+  /* Official Nuxt UI radius token: 0.5rem reads calmer than the 0.25rem default. */
+  --ui-radius: 0.5rem;
   /* Runtime branding (brandTheme.ts overwrites these from the company colour). */
   --primary: #18181b;
   --primary-foreground: #fff;
