@@ -103,8 +103,16 @@ describe('shared composition rendered contracts', () => {
     expect(searchMarker).toBeGreaterThanOrEqual(0)
     expect(controlsMarker).toBeGreaterThan(searchMarker)
     expect(viewMarker).toBeGreaterThanOrEqual(0)
-    // Filters open as a toggled row between the toolbar and the active filters.
-    expect(activeRowMarker).toBeGreaterThan(controlsMarker)
+    // Active chips sit inline in the toolbar row; the toggled fields row comes after.
+    expect(activeRowMarker).toBeGreaterThan(searchMarker)
+    expect(activeRowMarker).toBeLessThan(controlsMarker)
+  })
+
+  it('keeps PageHeader a compact 40px row with tight action spacing', () => {
+    const source = readFileSync(resolve(webRoot, 'app/components/shared/PageHeader.vue'), 'utf8')
+    expect(source).toContain('min-h-10')
+    expect(source).toMatch(/ms-auto flex[^"]*gap-2/)
+    expect(source).not.toContain('leading-6')
   })
 
   it('keeps PageContainer width vocabulary in CSS classes, not ad-hoc max-width utilities', () => {

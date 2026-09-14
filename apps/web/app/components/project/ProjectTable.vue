@@ -53,7 +53,7 @@ function onSelectRow(_event: Event, row: { original: ProjectListItem }) {
     <!-- Desktop: real UTable. Mobile: readable record cards via ProjectCards. -->
     <div class="hidden md:block">
       <div v-if="isLoading" class="nasq-ui-record-surface divide-y divide-default" role="status" :aria-label="t('app.loading')">
-        <div v-for="n in 5" :key="n" class="flex items-center gap-4 px-4 py-3">
+        <div v-for="n in 5" :key="n" class="flex items-center gap-4 px-3 py-2.5">
           <USkeleton class="h-5 w-10" />
           <USkeleton class="h-5 flex-1" />
           <USkeleton class="h-5 w-24" />
@@ -83,12 +83,12 @@ function onSelectRow(_event: Event, row: { original: ProjectListItem }) {
             </template>
             <template #manager-cell="{ row }">{{ row.original.manager?.name ?? '—' }}</template>
             <template #status-cell="{ row }"><ProjectStatusBadge :status="row.original.status" /></template>
-            <template #date_end-cell="{ row }">{{ row.original.date_end ? formatCalendarDate(row.original.date_end, locale) : '—' }}</template>
+            <template #date_end-cell="{ row }"><span class="nasq-ui-num">{{ row.original.date_end ? formatCalendarDate(row.original.date_end, locale) : '—' }}</span></template>
             <template #progress-cell="{ row }">
               <ProjectProgress :progress="row.original.progress" :task-count="row.original.task_count" :closed-task-count="row.original.closed_task_count" compact />
             </template>
             <template #menu-cell="{ row }">
-              <ProjectMenu :project="row.original" hide-settings @click.stop />
+              <div class="nasq-ui-row-actions"><ProjectMenu :project="row.original" hide-settings @click.stop /></div>
             </template>
           </UTable>
         </div>

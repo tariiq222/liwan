@@ -181,7 +181,7 @@ function onRowClick(task: Task, event: MouseEvent) {
 
       <div class="divide-y divide-default md:hidden">
         <template v-if="isLoading">
-          <div v-for="n in 5" :key="`mobile-skeleton-${n}`" class="space-y-3 p-4">
+          <div v-for="n in 5" :key="`mobile-skeleton-${n}`" class="space-y-2 p-3">
             <USkeleton class="h-5 w-4/5" />
             <USkeleton class="h-4 w-2/5" />
             <div class="flex gap-2"><USkeleton class="h-6 w-20" /><USkeleton class="h-6 w-20" /></div>
@@ -203,7 +203,7 @@ function onRowClick(task: Task, event: MouseEvent) {
           <article
             v-for="task in items"
             :key="`mobile-${task.id}`"
-            class="space-y-3 p-4"
+            class="space-y-2 p-3"
             :class="hydrated ? 'cursor-pointer active:bg-elevated/50' : ''"
             @click="onRowClick(task, $event)"
           >

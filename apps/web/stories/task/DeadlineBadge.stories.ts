@@ -6,7 +6,7 @@ const meta = {
   title: 'Task/DeadlineBadge',
   component: DeadlineBadge,
   args: { deadline: '2026-09-15', daysRemaining: 2, isClosed: false },
-  parameters: storyContext('apps/web/app/components/task/TaskCard.vue:88'),
+  parameters: storyContext('apps/web/app/components/task/TaskCard.vue:94'),
 } satisfies Meta<typeof DeadlineBadge>
 export default meta
 type Story = StoryObj<typeof meta>
