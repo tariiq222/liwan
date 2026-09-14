@@ -1,25 +1,177 @@
 <script setup lang="ts">
 import type { TaskDetail } from '@nasq/contracts'
+import { CalendarDate } from '@internationalized/date'
+import { formatNasqDate, formatNasqDateTime, toCalendarDate } from '@/composables/calendarDate'
+import { usePersonalStages } from '@/composables/usePersonalStages'
+import { useUpdateTask } from '@/composables/useTasks'
+import { useMilestones } from '@/composables/useMilestones'
+import { useProject } from '@/composables/useProjects'
+import { validateTaskDates } from '@/utils/projectDateBounds'
+import AssigneePicker from './AssigneePicker.vue'
 import DependencyPicker from './DependencyPicker.vue'
 import TaskActivity from './TaskActivity.vue'
 import TaskAttachments from './TaskAttachments.vue'
 import TaskDescription from './TaskDescription.vue'
 import TaskDeliverables from './TaskDeliverables.vue'
+import MilestoneSelect from './MilestoneSelect.vue'
+import PrioritySelect from './PrioritySelect.vue'
 import SubtaskList from './SubtaskList.vue'
+import TagPicker from './TagPicker.vue'
 
-// Long-form sections of the record (description, activity, resources). The
-// field-by-field properties live in TaskProperties, the record's aside.
 const props = withDefaults(defineProps<{ task: TaskDetail; basePath?: string }>(), {
   basePath: '/tasks',
 })
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const hydrated = useHydrated()
+const { mutate: updateTask } = useUpdateTask()
+const { data: stages } = usePersonalStages()
+const projectId = computed(() => props.task.project?.id ?? null)
+const { data: milestones } = useMilestones(projectId)
 const tabs = computed(() => [
+  { label: t('tasks.drawer.details'), value: 'details', slot: 'details', disabled: !hydrated.value },
   { label: t('tasks.drawer.description'), value: 'description', slot: 'description', disabled: !hydrated.value },
   { label: t('tasks.detail.activityTitle'), value: 'activity', slot: 'activity', disabled: !hydrated.value },
   { label: t('tasks.detail.resources'), value: 'resources', slot: 'resources', disabled: !hydrated.value },
+  { label: t('tasks.drawer.additionalDetails'), value: 'additional', slot: 'additional', disabled: !hydrated.value },
 ])
+const { data: project } = useProject(projectId)
+const deadlineError = ref<string | null>(null)
+const selectedMilestone = computed(() => {
+  const milestoneId = props.task.milestone?.id
+  return milestones.value?.find(item => item.id === milestoneId)
+})
+const milestoneStart = computed(() => selectedMilestone.value?.start_date ?? project.value?.date_start ?? null)
+const milestoneDeadline = computed(() => selectedMilestone.value?.deadline ?? project.value?.date_end ?? null)
+const milestoneStartCalendar = computed(() => toCalendarDate(milestoneStart.value))
+const milestoneDeadlineCalendar = computed(() => toCalendarDate(milestoneDeadline.value))
+
+function patch(body: Parameters<typeof updateTask>[0]['patch'], resolved?: Parameters<typeof updateTask>[0]['resolved']) {
+  if (props.task.can_write) updateTask({ id: props.task.id, patch: body, resolved })
+}
+
+// --- assignees -------------------------------------------------------
+function onAssigneesChange({ ids, resolved }: { ids: number[]; resolved: TaskDetail['assignees'] }) {
+  patch({ user_ids: ids }, { assignees: resolved })
+}
+
+// --- tags --------------------------------------------------------------
+function onTagsChange({ ids, resolved }: { ids: number[]; resolved: TaskDetail['tags'] }) {
+  patch({ tag_ids: ids }, { tags: resolved })
+}
+
+// --- formatters ----------------------------------------------------------
+// Driven by the active locale, never a hardcoded 'ar-SA': V8 resolves ar-SA
+// to the Umm al-Qura (Hijri) calendar, so every date here rendered Hijri in
+// *both* locales by accident. `calendar: 'gregory'` pins the calendar system
+// explicitly so an Arabic locale still gets Gregorian dates (with
+// Arabic-Indic digits). Timeline.vue already follows this pattern.
+const dateFmt = computed(() => ({ format: (value: Date) => formatNasqDate(value, locale.value) }))
+const dateTimeFmt = computed(() => ({ format: (value: Date) => formatNasqDateTime(value, locale.value) }))
+
+// --- deadline ------------------------------------------------------------
+// Contract: a deadline is a UTC *instant* (the API stores/returns an ISO
+// `...Z` string). Everything below therefore converts once, at the boundary:
+// reads project that instant into the viewer's local zone, and the write
+// converts the viewer's local wall clock back to an instant. Previously the
+// button label was formatted in the local zone while the calendar highlight
+// and the time input were sliced out of the raw UTC string, so on either side
+// of midnight the two disagreed — and the write stamped the local wall clock
+// with a literal 'Z', shifting the saved instant by the whole tz offset.
+const deadlineInstant = computed(() => {
+  if (!props.task.date_deadline) return null
+  const d = new Date(props.task.date_deadline)
+  return Number.isNaN(d.getTime()) ? null : d
+})
+
+const calendarValue = computed(() => {
+  const d = deadlineInstant.value
+  if (!d) return undefined
+  return new CalendarDate(d.getFullYear(), d.getMonth() + 1, d.getDate())
+})
+
+function localTimeOf(d: Date): string {
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+}
+
+const timeDraft = ref(deadlineInstant.value ? localTimeOf(deadlineInstant.value) : '09:00')
+watch(deadlineInstant, (d) => {
+  if (d) timeDraft.value = localTimeOf(d)
+})
+
+const deadlineButtonLabel = computed(() =>
+  deadlineInstant.value ? dateFmt.value.format(deadlineInstant.value) : t('tasks.deadline.none'),
+)
+
+function setDeadline(date: CalendarDate | undefined, time: string) {
+  if (!date) return
+  const [rawHours = '0', rawMinutes = '0'] = time.split(':')
+  const hours = Number(rawHours)
+  const minutes = Number(rawMinutes)
+  const local = new Date(
+    date.year, date.month - 1, date.day,
+    Number.isFinite(hours) ? hours : 0,
+    Number.isFinite(minutes) ? minutes : 0,
+    0, 0,
+  )
+  const dateDeadline = `${local.toISOString().slice(0, 19)}Z`
+  const boundsError = validateTaskDates({
+    milestoneStart: milestoneStart.value,
+    milestoneDeadline: milestoneDeadline.value,
+    plannedStart: props.task.planned_start,
+    dateDeadline,
+  })
+  if (boundsError) {
+    deadlineError.value = t(`tasks.schedule.${boundsError.split('.').pop()}`)
+    return
+  }
+  deadlineError.value = null
+  // Second precision: toISOString() emits milliseconds, and the API's
+  // contract shape (serializers/common.py::iso) has none.
+  patch({ date_deadline: `${local.toISOString().slice(0, 19)}Z` })
+}
+
+function onCalendarChange(v: unknown) {
+  setDeadline(v as CalendarDate, timeDraft.value)
+}
+function onTimeChange() {
+  setDeadline(calendarValue.value, timeDraft.value)
+}
+function clearDeadline() {
+  deadlineError.value = null
+  patch({ date_deadline: null })
+}
+
+// --- personal stage ----------------------------------------------------
+const NONE = 'none'
+function onStageChange(value: unknown) {
+  if (value === NONE) {
+    patch({ personal_stage_type_id: null }, { personal_stage: null })
+    return
+  }
+  const id = Number(value)
+  const stage = (stages.value ?? []).find((s) => s.id === id)
+  if (!stage) return
+  patch({ personal_stage_type_id: id }, { personal_stage: { id: stage.id, name: stage.name } })
+}
+
+// --- allocated hours (managers only) ------------------------------------
+const hoursDraft = ref(String(props.task.allocated_hours))
+watch(
+  () => props.task.allocated_hours,
+  (v) => {
+    hoursDraft.value = String(v)
+  },
+)
+function onHoursChange() {
+  const n = Number(hoursDraft.value)
+  if (!Number.isFinite(n) || n === props.task.allocated_hours) return
+  patch({ allocated_hours: n })
+}
+
+// --- metrics ---------------------------------------------------------------
+const createdLabel = computed(() => dateTimeFmt.value.format(new Date(props.task.created_at)))
+const updatedLabel = computed(() => dateTimeFmt.value.format(new Date(props.task.updated_at)))
 const completedSubtasks = computed(() => props.task.subtasks.filter(subtask => subtask.is_closed).length)
 </script>
 
@@ -27,11 +179,53 @@ const completedSubtasks = computed(() => props.task.subtasks.filter(subtask => s
   <UTabs
     data-testid="task-detail-tabs"
     :items="tabs"
-    default-value="description"
+    default-value="details"
     :unmount-on-hide="false"
     :aria-label="t('tasks.detail.sections')"
     class="min-w-0"
   >
+    <template #details>
+      <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-4" role="group" :aria-label="t('tasks.detail.primaryMetadata')">
+        <div class="task-meta-item">
+          <span id="task-assignees-label" class="task-meta-label">{{ t('tasks.drawer.assignees') }}</span>
+          <p v-if="!task.can_write" class="task-meta-value">{{ task.assignees.map(person => person.name).join('، ') || t('tasks.drawer.unassigned') }}</p>
+          <AssigneePicker v-else :model-value="task.assignees" labelledby="task-assignees-label" @update:model-value="onAssigneesChange" />
+        </div>
+
+        <div class="task-meta-item">
+          <span id="task-priority-label" class="task-meta-label">{{ t('tasks.drawer.priority') }}</span>
+          <PrioritySelect :task="task" labelledby="task-priority-label" />
+        </div>
+
+        <div class="task-meta-item">
+          <span id="task-deadline-label" class="task-meta-label">{{ t('tasks.drawer.deadline') }}</span>
+          <p v-if="!task.can_write" class="task-meta-value">{{ deadlineButtonLabel }}</p>
+          <UPopover v-else :content="{ align: 'start' }">
+            <UButton variant="outline" size="sm" class="w-full justify-start" type="button" aria-labelledby="task-deadline-label task-deadline-value">
+              <span id="task-deadline-value">{{ deadlineButtonLabel }}</span>
+            </UButton>
+            <template #content>
+              <UCalendar :model-value="calendarValue" :min-value="milestoneStartCalendar" :max-value="milestoneDeadlineCalendar" @update:model-value="onCalendarChange" />
+              <div class="flex items-center gap-2 border-t p-2">
+                <label for="deadline-time" class="sr-only">{{ t('tasks.drawer.deadline') }}</label>
+                <UInput id="deadline-time" v-model="timeDraft" type="time" class="h-8" @change="onTimeChange" />
+                <UButton v-if="task.date_deadline" variant="ghost" size="sm" type="button" @click="clearDeadline">
+                  {{ t('tasks.deadline.none') }}
+                </UButton>
+              </div>
+            </template>
+          </UPopover>
+          <p v-if="deadlineError" role="alert" class="mt-1 text-xs text-error">{{ deadlineError }}</p>
+        </div>
+
+        <div class="task-meta-item">
+          <span id="task-milestone-label" class="task-meta-label">{{ t('tasks.drawer.milestone') }}</span>
+          <MilestoneSelect v-if="task.project && task.can_write" :task="task" labelledby="task-milestone-label" />
+          <p v-else class="task-meta-value">{{ task.milestone?.name || t('tasks.drawer.noMilestone') }}</p>
+        </div>
+      </div>
+    </template>
+
     <template #description>
       <TaskDescription :key="task.id" :task="task" />
     </template>
@@ -41,13 +235,13 @@ const completedSubtasks = computed(() => props.task.subtasks.filter(subtask => s
     </template>
 
     <template #resources>
-      <div class="grid gap-5">
+      <div class="grid gap-6">
         <TaskDeliverables :key="`outputs-${task.id}`" :task="task" />
 
         <section class="space-y-3">
           <div class="flex items-center justify-between gap-2">
-            <h2 class="text-base font-semibold text-highlighted">{{ t('tasks.drawer.subtasks') }}</h2>
-            <span class="nasq-ui-num text-xs font-normal text-muted">{{ t('tasks.detail.subtaskProgress', { done: completedSubtasks, total: task.subtasks.length }) }}</span>
+            <h2 class="text-lg font-semibold text-highlighted">{{ t('tasks.drawer.subtasks') }}</h2>
+            <span class="text-xs font-normal text-muted">{{ t('tasks.detail.subtaskProgress', { done: completedSubtasks, total: task.subtasks.length }) }}</span>
           </div>
           <SubtaskList :task="task" :base-path="props.basePath" />
         </section>
@@ -57,5 +251,75 @@ const completedSubtasks = computed(() => props.task.subtasks.filter(subtask => s
         <TaskAttachments :key="task.id" :task-id="task.id" :can-write="task.can_write" />
       </div>
     </template>
+
+    <template #additional>
+      <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <section class="task-additional-item">
+          <span id="task-stage-label">{{ t('tasks.drawer.stage') }}</span>
+          <strong v-if="!task.can_write">{{ task.personal_stage?.name || t('tasks.drawer.unassigned') }}</strong>
+          <USelect
+            v-else
+            size="sm"
+            class="w-full"
+            aria-labelledby="task-stage-label"
+            :items="[{ label: t('tasks.drawer.unassigned'), value: NONE }, ...(stages ?? []).map((s) => ({ label: s.name, value: String(s.id) }))]"
+            :model-value="task.personal_stage ? String(task.personal_stage.id) : NONE"
+            @update:model-value="onStageChange"
+          />
+        </section>
+
+        <section class="task-additional-item">
+          <span id="task-tags-label">{{ t('tasks.drawer.tags') }}</span>
+          <strong v-if="!task.can_write">{{ task.tags.map(tag => tag.name).join('، ') || '—' }}</strong>
+          <TagPicker v-else :model-value="task.tags" :can-create="task.can_approve" labelledby="task-tags-label" @update:model-value="onTagsChange" />
+        </section>
+
+        <section v-if="task.can_write && task.can_approve" class="task-additional-item">
+          <label for="allocated-hours" class="text-muted">{{ t('tasks.drawer.allocatedHours') }}</label>
+          <UInput id="allocated-hours" v-model="hoursDraft" type="number" min="0" step="0.5" class="mt-2" @change="onHoursChange" />
+        </section>
+
+        <section class="task-additional-item">
+          <span>{{ t('tasks.drawer.created') }}</span>
+          <strong>{{ createdLabel }}</strong>
+        </section>
+        <section class="task-additional-item">
+          <span>{{ t('tasks.drawer.updated') }}</span>
+          <strong>{{ updatedLabel }}</strong>
+        </section>
+        <section class="task-additional-item">
+          <span>{{ t('tasks.drawer.age') }}</span>
+          <strong>{{ t('tasks.drawer.days', { n: task.age_days }) }}</strong>
+        </section>
+        <section v-if="task.cycle_days !== null" class="task-additional-item">
+          <span>{{ t('tasks.drawer.cycle') }}</span>
+          <strong>{{ t('tasks.drawer.days', { n: task.cycle_days }) }}</strong>
+        </section>
+      </div>
+    </template>
   </UTabs>
 </template>
+
+<style scoped>
+.task-meta-item,
+.task-additional-item {
+  min-width: 0;
+}
+
+.task-meta-label,
+.task-additional-item > span {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--ui-text-muted);
+  font-size: var(--text-sm);
+}
+
+.task-meta-value,
+.task-additional-item > strong {
+  display: block;
+  overflow-wrap: anywhere;
+  color: var(--ui-text-highlighted);
+  font-size: var(--text-base);
+  font-weight: 600;
+}
+</style>

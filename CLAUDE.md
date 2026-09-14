@@ -202,11 +202,6 @@ worktrees only after their content is preserved and no process is using them.
   until hydrated. Do not replace this with per-component `mounted` flags or
   make the whole authenticated app client-only. Hydration tests assert the
   disabled-to-enabled transition before clicking.
-- Storybook (`npm -w apps/web run storybook`, `apps/web/stories/**`) is the
-  mandatory component catalog for every agent: reuse the story component; a
-  shared component ships with its story and is listed in `STORYBOOK_COMPONENTS`
-  (`tools/ui_policy.py`) before a second page uses it. No local copy of a
-  component that has a story.
 - Nuxt UI components are the customer control surface. Preserve their RTL
   semantics, keyboard behavior and public props/slots; shared composite
   components are documented in `docs/design-system/components.md`.

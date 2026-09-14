@@ -36,7 +36,6 @@ STORYBOOK_COMPONENTS: tuple[str, ...] = tuple(COMPONENTS + path for path in (
     'hr/AccessBadge.vue', 'task/PrioritySelect.vue', 'task/StateMenu.vue', 'task/TagPicker.vue',
     'project/ProjectMenu.vue', 'shell/SidebarCreateAction.vue', 'chat/ChatAttachment.vue', 'task/TaskCard.vue',
     'project/dashboard/DashboardChartPanel.vue', 'shared/DashboardChart.client.vue', 'charts/ChartContainer.vue',
-    'task/TaskProperties.vue',
 ))
 STORY_CONTEXT = re.compile(r'''\bstoryContext\(\s*(['"])([^'"]+)\1''')
 META_COMPONENT = re.compile(r'\bcomponent:\s*(\w+)')
@@ -66,9 +65,8 @@ COMMENTS = re.compile(r'/\*[\s\S]*?\*/|<!--[\s\S]*?-->|^[ \t]*//[^\n]*', re.MULT
 CHART_IDENTIFIERS = {'chartcontainer', 'chartstyle', 'chartlegendcontent', 'charttooltipcontent'}
 MOCK_FIXTURE_PATH = re.compile(r'(?:^|/)(?:__mocks?__|mocks?|__fixtures?__|fixtures?)(?:/|$)', re.I)
 RETIRED_PACKAGES = {'@lucide/vue'}
-# Storybook renders the real components and is the mandatory component
-# catalog agents build from; it is not a second UI library, so it cannot
-# become the drift this guard catches.
+# Storybook renders the real components for review; it is a dev-time viewer,
+# not a second UI library, so it cannot become the drift this guard catches.
 REVIEWED_STORYBOOK_TOOLING = {
     'storybook', '@storybook/vue3-vite', '@storybook/addon-docs',
     'msw', 'msw-storybook-addon', '@vitejs/plugin-vue', 'vite',

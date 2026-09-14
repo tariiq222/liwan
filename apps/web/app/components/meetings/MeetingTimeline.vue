@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { meetingStateTone } from '@/composables/meetingState'
 import type { TableColumn } from '@nuxt/ui'
 import type { MeetingListItem } from '@nasq/contracts'
 import RecordNumber from '@/components/shared/RecordNumber.vue'
@@ -65,7 +64,7 @@ function meetingTo(meeting: MeetingListItem, tab?: string) {
   <div v-else-if="view === 'table'" class="min-w-0 overflow-x-auto">
     <div class="grid gap-2 md:hidden">
       <article v-for="meeting in meetings" :key="meeting.id" class="nasq-ui-record-surface grid gap-2 p-3" :class="meeting.id === nextMeetingId ? 'bg-brand-soft/50' : ''">
-        <div class="flex flex-wrap items-start justify-between gap-2"><NuxtLink :to="meetingTo(meeting)" class="font-medium text-brand-link underline-offset-4 hover:underline">{{ meeting.name }}</NuxtLink><span class="nasq-ui-status-pill" :data-tone="meetingStateTone(meeting.state)">{{ t(`meetingsUi.state.${meeting.state}`) }}</span></div>
+        <div class="flex flex-wrap items-start justify-between gap-2"><NuxtLink :to="meetingTo(meeting)" class="font-medium text-brand-link underline-offset-4 hover:underline">{{ meeting.name }}</NuxtLink><UBadge color="neutral" variant="outline">{{ t(`meetingsUi.state.${meeting.state}`) }}</UBadge></div>
         <div class="flex flex-wrap gap-x-3 gap-y-1 text-sm text-muted"><RecordNumber :value="meeting.reference || meeting.id" /><span>{{ meetingDate(meeting) }}</span><span>{{ t('meetingsUi.openCount', { count: meeting.open_resolution_count }) }}</span></div>
         <NuxtLink :to="meetingTo(meeting, 'minutes')" class="text-sm text-brand-link underline-offset-4 hover:underline">{{ t('meetingTimeline.openMinutes') }}</NuxtLink>
       </article>
@@ -75,7 +74,7 @@ function meetingTo(meeting: MeetingListItem, tab?: string) {
       <template #reference-cell="{ row }"><RecordNumber :value="row.original.reference || row.original.id" /></template>
       <template #name-cell="{ row }"><NuxtLink :to="meetingTo(row.original)" class="font-medium text-brand-link underline-offset-4 hover:underline">{{ row.original.name }}</NuxtLink></template>
       <template #meeting_date-cell="{ row }"><span class="text-muted">{{ meetingDate(row.original) }}</span></template>
-      <template #state-cell="{ row }"><span class="nasq-ui-status-pill" :data-tone="meetingStateTone(row.original.state)">{{ t(`meetingsUi.state.${row.original.state}`) }}</span><span class="ms-2 text-xs text-muted">{{ t(`meetingTimeline.phase.${phase(row.original)}`) }}</span></template>
+      <template #state-cell="{ row }"><UBadge color="neutral" variant="outline">{{ t(`meetingsUi.state.${row.original.state}`) }}</UBadge><span class="ms-2 text-xs text-muted">{{ t(`meetingTimeline.phase.${phase(row.original)}`) }}</span></template>
       <template #actions-cell="{ row }"><NuxtLink :to="meetingTo(row.original, 'minutes')" class="text-brand-link underline-offset-4 hover:underline">{{ t('meetingTimeline.openMinutes') }}</NuxtLink></template>
     </UTable>
     </div>
@@ -90,7 +89,7 @@ function meetingTo(meeting: MeetingListItem, tab?: string) {
             <RecordNumber :value="meeting.reference || meeting.id" class="shrink-0" />
             <NuxtLink :to="meetingTo(meeting)" class="min-w-0 flex-1 font-medium text-brand-link underline-offset-4 hover:underline">{{ meeting.name }}</NuxtLink>
             <UBadge v-if="meeting.id === nextMeetingId" color="primary" variant="subtle">{{ t('meetingTimeline.next') }}</UBadge>
-            <span class="nasq-ui-status-pill" :data-tone="meetingStateTone(meeting.state)">{{ t(`meetingsUi.state.${meeting.state}`) }}</span>
+            <UBadge color="neutral" variant="outline">{{ t(`meetingsUi.state.${meeting.state}`) }}</UBadge>
           </div>
           <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
             <time :datetime="meeting.start_datetime || meeting.meeting_date || undefined" dir="ltr">{{ meetingDate(meeting) }}</time>

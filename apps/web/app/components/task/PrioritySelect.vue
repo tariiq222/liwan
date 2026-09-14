@@ -2,7 +2,6 @@
 import type { Task } from '@nasq/contracts'
 import { PRIORITY_LABEL_KEY } from '@/composables/taskState'
 import { useUpdateTask } from '@/composables/useTasks'
-import { PRIORITY_TONE } from '@/utils/statusTone'
 
 // Ruling: priority has four values, so this is a compact Select (not the
 // brief's star toggle). Owns its own optimistic mutation — useUpdateTask
@@ -28,7 +27,7 @@ function onChange(value: unknown) {
 </script>
 
 <template>
-  <span v-if="!task.can_write" class="nasq-ui-status-pill" :data-tone="PRIORITY_TONE[task.priority]">{{ t(PRIORITY_LABEL_KEY[task.priority]) }}</span>
+  <span v-if="!task.can_write" class="text-sm">{{ t(PRIORITY_LABEL_KEY[task.priority]) }}</span>
   <USelect
     v-else
     size="sm"

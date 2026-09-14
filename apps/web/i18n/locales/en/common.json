@@ -129,7 +129,6 @@
   },
   "filterCard": {
     "title": "Search and filters",
-    "filters": "Filters",
     "clear": "Clear filters",
     "remove": "Remove filter"
   }

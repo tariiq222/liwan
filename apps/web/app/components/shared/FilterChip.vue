@@ -2,8 +2,8 @@
   <UButton
     type="button"
     size="xs"
-    color="neutral"
-    variant="outline"
+    color="secondary"
+    variant="subtle"
     trailing-icon="i-lucide-x"
     data-slot="filter-chip"
     :label="label"

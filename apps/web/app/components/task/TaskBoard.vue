@@ -112,7 +112,7 @@ function isCollapsed(stage: BoardStage): boolean {
 </script>
 
 <template>
-  <div :class="embedded ? 'space-y-2 p-3' : 'nasq-ui-record-surface space-y-2 p-3'">
+  <div :class="embedded ? 'space-y-2 p-[18px]' : 'nasq-ui-record-surface space-y-2 p-[18px]'">
     <p v-if="isCapped" class="text-xs text-muted">{{ t('tasks.kanban.capped') }}</p>
     <SharedPageState v-if="error" :error="error" @retry="refetch" />
     <SharedPageState v-else-if="stageError" :error="stageError" @retry="refetchPersonalStages" />
@@ -132,11 +132,11 @@ function isCollapsed(stage: BoardStage): boolean {
         v-if="kind === 'personal' || (columns[UNSTAGED]?.length ?? 0) > 0"
         data-testid="board-column"
         data-stage-id="unstaged"
-        class="flex h-full w-72 shrink-0 flex-col gap-2 rounded-lg border border-default bg-muted/60 p-2"
+        class="flex h-full w-72 shrink-0 flex-col gap-2 rounded-lg border border-default bg-elevated/30 p-2"
       >
         <div class="flex items-center justify-between px-1">
-          <h3 data-testid="board-column-title" class="text-xs font-semibold text-muted">{{ t('tasks.kanban.unstaged') }}</h3>
-          <span class="nasq-ui-num text-xs text-muted">{{ columns[UNSTAGED]?.length ?? 0 }}</span>
+          <h3 data-testid="board-column-title" class="text-sm font-medium text-muted">{{ t('tasks.kanban.unstaged') }}</h3>
+          <span class="text-xs text-muted">{{ columns[UNSTAGED]?.length ?? 0 }}</span>
         </div>
         <VueDraggable
           v-model="columns[UNSTAGED]!"
@@ -171,7 +171,7 @@ function isCollapsed(stage: BoardStage): boolean {
           :data-stage-id="stage.id"
           :aria-expanded="false"
           :aria-label="t('tasks.kanban.expand', { name: stage.name })"
-          class="flex h-full w-12 shrink-0 flex-col items-center gap-2 rounded-lg border border-default bg-muted/60 p-2 text-muted hover:bg-surface-hover"
+          class="flex h-full w-12 shrink-0 flex-col items-center gap-2 rounded-lg border border-default bg-elevated/30 p-2 text-muted hover:bg-elevated"
           @click="toggleFold(stage.id)"
         >
           <span data-testid="board-column-count" class="text-xs font-medium">{{ columns[String(stage.id)]?.length ?? 0 }}</span>
@@ -182,7 +182,7 @@ function isCollapsed(stage: BoardStage): boolean {
           v-else
           data-testid="board-column"
           :data-stage-id="stage.id"
-          class="flex h-full w-72 shrink-0 flex-col gap-2 rounded-lg border border-default bg-muted/60 p-2"
+          class="flex h-full w-72 shrink-0 flex-col gap-2 rounded-lg border border-default bg-elevated/30 p-2"
         >
           <div class="flex items-center justify-between px-1">
             <UButton
@@ -191,15 +191,15 @@ function isCollapsed(stage: BoardStage): boolean {
               color="neutral"
               variant="ghost"
               data-testid="board-column-title"
-              class="text-start text-xs font-semibold hover:underline"
+              class="text-start text-sm font-medium hover:underline"
               :aria-expanded="!isCollapsed(stage)"
               :aria-label="t('tasks.kanban.collapse', { name: stage.name })"
               @click="toggleFold(stage.id)"
             >
               {{ stage.name }}
             </UButton>
-            <h3 v-else data-testid="board-column-title" class="text-xs font-semibold text-muted">{{ stage.name }}</h3>
-            <span class="nasq-ui-num text-xs text-muted">{{ columns[String(stage.id)]?.length ?? 0 }}</span>
+            <h3 v-else data-testid="board-column-title" class="text-sm font-medium">{{ stage.name }}</h3>
+            <span class="text-xs text-muted">{{ columns[String(stage.id)]?.length ?? 0 }}</span>
           </div>
           <VueDraggable
             v-model="columns[String(stage.id)]!"

@@ -8,13 +8,10 @@ import DeadlineBadge from './DeadlineBadge.vue'
 import StateMenu from './StateMenu.vue'
 import TaskCompletionApproval from './TaskCompletionApproval.vue'
 import TaskDetails from './TaskDetails.vue'
-import TaskProperties from './TaskProperties.vue'
 
-// Container-agnostic body: a compact task context row, then the two-column
-// record (nasq-record-grid in shell.css): long-form sections in the main
-// column, field-by-field properties in the aside. The page wrapper owns the
-// shell title so this component stays focused on task data, editing,
-// activity, and navigation.
+// Container-agnostic body: a compact task context row followed by section
+// tabs. The page wrapper owns the shell title so this component stays focused
+// on task data, editing, activity, and navigation.
 // basePath routes prev/next within the host's own URL space (default /tasks,
 // مهامي's own list). siblingParams lets a host that keeps its filters in the
 // URL (the project screen) drive prev/next from those instead of the
@@ -154,24 +151,13 @@ function onKeydown(e: KeyboardEvent) {
 }
 
 useEventListener(document, 'keydown', onKeydown)
-
-// The properties aside is always open on desktop (its summary is hidden by
-// shell.css); under 1024px it collapses above the content and the user
-// toggles it. SSR renders it open so the desktop first paint never flashes.
-const isDesktop = useMediaQuery('(min-width: 1024px)')
-const asideUserOpen = ref(true)
-onMounted(() => { if (!isDesktop.value) asideUserOpen.value = false })
-const asideOpen = computed(() => isDesktop.value || asideUserOpen.value)
-function onAsideToggle(event: Event) {
-  if (!isDesktop.value) asideUserOpen.value = (event.target as HTMLDetailsElement).open
-}
 </script>
 
 <template>
-  <div class="space-y-4">
-    <div class="nasq-record-context" data-testid="task-detail-context">
+  <div data-nasq-reference-detail class="space-y-6">
+    <div class="task-context-row" data-testid="task-detail-context">
       <div class="flex min-w-0 flex-1 items-center gap-2">
-        <NuxtLink :to="backTo" class="inline-flex min-h-8 shrink-0 items-center gap-1 rounded-md px-2 text-sm text-muted transition-colors hover:bg-surface-hover hover:text-highlighted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" :aria-label="props.backLabel ?? t('tasks.detail.back')" :aria-disabled="!hydrated || editingTitle || titleSaving" :tabindex="!hydrated || editingTitle || titleSaving ? -1 : undefined" @click="(!hydrated || editingTitle || titleSaving) && $event.preventDefault()">
+        <NuxtLink :to="backTo" class="inline-flex min-h-8 shrink-0 items-center gap-1 rounded-lg px-2 text-sm text-muted transition-colors hover:bg-elevated hover:text-highlighted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" :aria-label="props.backLabel ?? t('tasks.detail.back')" :aria-disabled="!hydrated || editingTitle || titleSaving" :tabindex="!hydrated || editingTitle || titleSaving ? -1 : undefined" @click="(!hydrated || editingTitle || titleSaving) && $event.preventDefault()">
           <UIcon :name="isRtl ? 'i-lucide-arrow-right' : 'i-lucide-arrow-left'" class="size-[18px]" aria-hidden="true" />
           <span>{{ props.backLabel ?? t('tasks.detail.back') }}</span>
         </NuxtLink>
@@ -194,7 +180,7 @@ function onAsideToggle(event: Event) {
           </UButton>
         </template>
         <template v-else-if="task?.project">
-          <span class="nasq-ui-label">{{ t('tasks.project') }}</span>
+          <span class="text-xs text-muted">{{ t('tasks.project') }}</span>
           <NuxtLink :to="`/projects/${task.project.id}`" class="min-w-0 truncate text-sm font-semibold hover:underline">
             {{ task.project.name }}
           </NuxtLink>
@@ -202,7 +188,7 @@ function onAsideToggle(event: Event) {
         <USkeleton v-else class="h-5 min-w-0 flex-1" />
       </div>
 
-      <div class="nasq-record-context-actions" role="group" :aria-label="t('tasks.detail.menu')">
+      <div class="task-context-actions" role="group" :aria-label="t('tasks.detail.menu')">
         <UButton v-if="task?.can_write && !editingTitle" data-testid="task-title-edit" variant="outline" size="sm" type="button" :aria-label="t('tasks.detail.editTitle')" :disabled="!hydrated || titleSaving" @click="startTitleEdit">
           <UIcon name="i-lucide-pencil" class="size-[18px]" aria-hidden="true" />
         </UButton>
@@ -240,14 +226,14 @@ function onAsideToggle(event: Event) {
 
     <SharedPageState v-if="error" :error="error" @retry="refetch" />
 
-    <div v-if="!task" class="nasq-ui-record-surface flex min-h-56 items-center justify-center p-4">
+    <UCard v-if="!task" :ui="{ body: 'flex min-h-56 items-center justify-center' }">
       <USkeleton class="h-40 w-full" />
-    </div>
+    </UCard>
 
-    <div v-if="task" data-testid="task-detail-grid" class="nasq-record-grid">
-      <div class="nasq-record-main">
-        <div data-testid="task-details-card" class="nasq-ui-record-surface space-y-4 p-4">
-          <div class="nasq-record-status-line">
+    <template v-if="task">
+      <div data-testid="task-detail-grid" class="space-y-6">
+        <div data-testid="task-details-card" class="nasq-ui-record-surface space-y-6 p-5">
+          <div class="task-detail-status-line">
             <StateMenu :task="task" :can-approve="task.can_approve" />
             <span class="text-xs text-muted">
               {{ t('tasks.detail.workflowStage') }}: {{ task.stage?.name ?? t('tasks.detail.stageUnset') }}
@@ -258,10 +244,41 @@ function onAsideToggle(event: Event) {
           <TaskDetails :key="task.id" :task="task" :base-path="props.basePath" />
         </div>
       </div>
-      <details class="nasq-record-aside" :open="asideOpen" @toggle="onAsideToggle">
-        <summary class="nasq-record-aside-summary">{{ t('tasks.drawer.details') }}</summary>
-        <TaskProperties :key="task.id" :task="task" />
-      </details>
-    </div>
+    </template>
   </div>
 </template>
+
+<style scoped>
+.task-context-row {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.task-context-actions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+}
+
+.task-detail-status-line {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+@media (max-width: 600px) {
+  .task-context-row {
+    display: grid;
+    align-items: start;
+  }
+
+  .task-context-actions {
+    justify-content: flex-start;
+  }
+}
+</style>

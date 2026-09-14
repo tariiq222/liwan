@@ -1,9 +1,9 @@
 /* Shared page geometry from the approved executable Nuxt UI reference. */
 /* Full-height workspaces can override the default grid with Tailwind flex. */
-.nasq-page-stack { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; gap: 1.25rem; }
+.nasq-page-stack { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; gap: 1.75rem; }
 .nasq-page-stack > * { min-width: 0; }
 /* Shared composition for project sections and their routed record workflows. */
-.nasq-page-stack[data-workspace-area="true"] { gap: 1.25rem; align-content: start; }
+.nasq-page-stack[data-workspace-area="true"] { gap: 1.5rem; align-content: start; }
 [data-workspace-area="true"] [data-slot="page-header"] { min-height: 2.25rem; align-items: center; }
 [data-workspace-area="true"] .nasq-form-footer { justify-content: flex-end; }
 
@@ -12,37 +12,6 @@
 .nasq-page-width-detail { max-width: 68rem; }
 .nasq-page-width-form { max-width: 58rem; }
 .nasq-toolbar { display: flex; min-width: 0; flex-wrap: wrap; align-items: center; gap: 8px; }
-
-/* Record template: long-form content in the main column, field-by-field
-   properties in a 300px aside at the end of reading order (Stripe). Below
-   1024px the aside stacks under the content. */
-.nasq-record-grid { display: grid; grid-template-columns: minmax(0, 1fr); align-items: start; gap: 1.25rem; }
-.nasq-record-main { display: grid; min-width: 0; gap: 1.25rem; }
-.nasq-record-aside { min-width: 0; }
-.nasq-record-aside-summary { display: none; }
-@media (max-width: 1023px) {
-  details.nasq-record-aside { order: -1; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--card); padding: 0.5rem 0.75rem; }
-  details.nasq-record-aside > .nasq-record-aside-summary { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; list-style: none; min-height: 2rem; font-size: var(--text-sm); font-weight: 600; }
-  details.nasq-record-aside > .nasq-record-aside-summary::-webkit-details-marker { display: none; }
-  details.nasq-record-aside > .nasq-record-aside-summary::before { content: ''; width: 0.5rem; height: 0.5rem; border-inline-end: 2px solid currentColor; border-block-end: 2px solid currentColor; transform: rotate(45deg); transition: transform 120ms ease; }
-  details.nasq-record-aside[open] > .nasq-record-aside-summary::before { transform: rotate(-135deg); }
-  details.nasq-record-aside[open] > .nasq-record-aside-summary { margin-block-end: 0.75rem; }
-}
-@media (min-width: 1024px) {
-  .nasq-record-grid { grid-template-columns: minmax(0, 1fr) 300px; }
-  .nasq-record-aside { position: sticky; top: calc(var(--shell-header-height, 64px) + 16px); border-inline-start: 1px solid var(--border); padding-inline-start: 1.25rem; }
-}
-.nasq-record-props { display: grid; margin: 0; gap: 1rem; }
-.nasq-record-prop { display: grid; min-width: 0; gap: 0.375rem; }
-.nasq-record-prop > dd { margin: 0; min-width: 0; font-size: var(--text-sm); overflow-wrap: anywhere; }
-.nasq-record-prop-meta { gap: 0.125rem; }
-.nasq-record-context { display: flex; min-width: 0; align-items: center; justify-content: space-between; gap: 10px; }
-.nasq-record-context-actions { display: flex; flex: none; align-items: center; gap: 6px; }
-.nasq-record-status-line { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-@media (max-width: 600px) {
-  .nasq-record-context { display: grid; align-items: start; }
-  .nasq-record-context-actions { justify-content: flex-start; }
-}
 
 .nasq-form { display: grid; gap: 1.5rem; width: 100%; max-width: 58rem; margin-inline: auto; }
 .nasq-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.25rem; }
@@ -360,7 +329,7 @@ html[dir="rtl"] body { padding-right: 0 !important; }
 .nasq-chat-row:hover .nasq-chat-msg-actions, .nasq-chat-row:focus-within .nasq-chat-msg-actions { opacity: 1; }
 
 .nasq-shell-workspace { min-height: 100svh; margin-inline-start: calc(var(--module-rail-width) + var(--context-sidebar-width)); padding-block-start: var(--shell-header-height); background: var(--context-surface); transition: margin-inline-start var(--shell-duration) var(--shell-ease); }
-.nasq-shell-main { min-height: calc(100svh - var(--shell-header-height)); min-width: 0; border-radius: 0; background: var(--background); border-inline-start: 1px solid var(--border); padding: 20px 24px 40px; }
+.nasq-shell-main { min-height: calc(100svh - var(--shell-header-height)); min-width: 0; border-radius: 0; background: var(--background); box-shadow: var(--content-shadow); padding: 30px clamp(18px, 3vw, 48px) 56px; }
 .nasq-shell { animation: nasq-shell-enter 220ms ease both; }
 @keyframes nasq-shell-enter { from { opacity: 0; } to { opacity: 1; } }
 .nasq-page-content-motion { animation: nasq-page-content-enter 160ms ease both; }

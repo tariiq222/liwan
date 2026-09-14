@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { meetingStateTone } from '@/composables/meetingState'
 import type { TableColumn } from '@nuxt/ui'
 import type { MeetingListItem } from '@nasq/contracts'
 import { refDebounced } from '@vueuse/core'
@@ -290,7 +289,7 @@ function setPage(next: number) {
           >
             <div class="flex min-w-0 items-start justify-between gap-2">
               <span class="min-w-0 break-words font-medium text-brand-link">{{ meeting.name }}</span>
-              <span class="nasq-ui-status-pill shrink-0" :data-tone="meetingStateTone(meeting.state)">{{ t(`meetingsUi.state.${meeting.state}`) }}</span>
+              <UBadge color="neutral" variant="subtle" class="shrink-0">{{ t(`meetingsUi.state.${meeting.state}`) }}</UBadge>
             </div>
             <div class="flex min-w-0 flex-wrap gap-x-3 gap-y-1 text-sm text-muted-foreground">
               <RecordNumber :value="meetingRecordNumber(meeting)" />
@@ -311,7 +310,7 @@ function setPage(next: number) {
             </template>
             <template #meeting_date-cell="{ row }">{{ row.original.meeting_date ? formatCalendarDate(row.original.meeting_date, locale) : '—' }}</template>
             <template #organizer-cell="{ row }">{{ row.original.organizer?.name || '—' }}</template>
-            <template #state-cell="{ row }"><span class="nasq-ui-status-pill" :data-tone="meetingStateTone(row.original.state)">{{ t(`meetingsUi.state.${row.original.state}`) }}</span></template>
+            <template #state-cell="{ row }"><UBadge color="neutral" variant="subtle">{{ t(`meetingsUi.state.${row.original.state}`) }}</UBadge></template>
             <template #open_resolution_count-cell="{ row }">{{ t('meetingsUi.openCount', { count: row.original.open_resolution_count }) }}</template>
           </UTable>
         </div>

@@ -112,7 +112,7 @@ describe('PMO repair form contracts', () => {
   it('keeps field purpose and selected value in popover accessible names', () => {
     const general = source('apps/web/app/components/project/ProjectGeneralForm.vue')
     const charter = source('apps/web/app/components/project/ProjectCharterFields.vue')
-    const details = source('apps/web/app/components/task/TaskProperties.vue')
+    const details = source('apps/web/app/components/task/TaskDetails.vue')
     expect(general).toContain('aria-labelledby="project-settings-approval-label project-settings-approver-value"')
     expect(general).not.toContain('project-settings-date-start-label')
     expect(general).not.toContain('project-settings-manager-label')

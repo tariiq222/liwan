@@ -236,7 +236,6 @@ async function openProject(id: number) {
           <SharedFilterChoice data-testid="projects-sort" layout="segment" :label="t('projects.filters.sortLabel')" :items="sortOptions" :model-value="sort" :disabled="!hydrated" @update:model-value="onSortChange" />
         </template>
         <template #view>
-          <span v-if="projectList.data.value" data-testid="projects-result-count" class="nasq-ui-num text-xs text-muted">{{ t('projects.refresh.workspace.resultCount', { count: total }) }}</span>
           <UTabs
             v-if="canListArchived"
             :model-value="archived ? 'archived' : 'active'"
@@ -262,7 +261,10 @@ async function openProject(id: number) {
     </div>
 
     <SharedPageState v-if="projectList.error.value" :error="projectList.error.value" @retry="projectList.refetch" />
-    <div v-else data-testid="projects-list-surface" class="grid gap-2">
+    <div v-else class="grid gap-3">
+      <p v-if="projectList.data.value" data-testid="projects-result-count" class="text-sm text-muted">
+        {{ t('projects.refresh.workspace.resultCount', { count: total }) }}
+      </p>
       <ProjectTable
         v-if="view === 'table'"
         :items="displayedItems"
@@ -283,10 +285,10 @@ async function openProject(id: number) {
         :to-for="projectTo"
         @open="openProject"
       />
-      <div v-if="pages > 1" data-testid="projects-pager" class="flex items-center justify-between px-1 text-xs text-muted">
-        <UButton color="neutral" variant="ghost" size="sm" :disabled="!hydrated || page === 1 || projectList.isFetching.value" :label="t('projects.previousPage')" @click="setPage(page - 1)" />
-        <span class="nasq-ui-num">{{ t('projects.pageOf', { page, pages }) }}</span>
-        <UButton color="neutral" variant="ghost" size="sm" :disabled="!hydrated || page >= pages || projectList.isFetching.value" :label="t('projects.nextPage')" @click="setPage(page + 1)" />
+      <div v-if="pages > 1" class="flex items-center justify-between text-sm text-muted">
+        <UButton color="neutral" variant="ghost" :disabled="!hydrated || page === 1 || projectList.isFetching.value" :label="t('projects.previousPage')" @click="setPage(page - 1)" />
+        <span>{{ t('projects.pageOf', { page, pages }) }}</span>
+        <UButton color="neutral" variant="ghost" :disabled="!hydrated || page >= pages || projectList.isFetching.value" :label="t('projects.nextPage')" @click="setPage(page + 1)" />
       </div>
     </div>
   </SharedPageContainer>

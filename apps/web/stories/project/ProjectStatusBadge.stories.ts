@@ -14,7 +14,7 @@ type Story = StoryObj<typeof meta>
 
 export const InOverviewRow: Story = {
   name: 'في سطر ملخص المشروع',
-  parameters: storyContext('apps/web/app/components/project/ProjectOverview.vue:98'),
+  parameters: storyContext('apps/web/app/components/project/ProjectOverview.vue:50'),
   render: args => ({
     components: { ProjectStatusBadge },
     setup: () => ({ args, statuses: [...ProjectStatusSchema.options, null] }),
