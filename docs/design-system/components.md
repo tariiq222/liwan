@@ -4,7 +4,7 @@
 الحالي في `apps/web/app` ومساراته؛ لا يضيف سياسة ثانية، ولا مصدرًا بصريًا أو
 بيانات تجريبية. المرجع البصري `/Users/tariq/Downloads/nasq-ui` للمقارنة فقط.
 
-المكونات المتكررة لها قصص Storybook في `apps/web/stories/<المجلد>/<المكوّن>.stories.ts`؛ القائمة الملزمة `STORYBOOK_COMPONENTS` في `tools/ui_policy.py`.
+Storybook هو فهرس المكونات الملزم: كل وكيل يأخذ اللبنة من `apps/web/stories/<المجلد>/<المكوّن>.stories.ts` ولا ينسخها محليًا؛ المكوّن المشترك الجديد يُشحن مع قصته ويُضاف إلى القائمة الملزمة `STORYBOOK_COMPONENTS` في `tools/ui_policy.py`.
 
 ## الأساس المشترك
 
