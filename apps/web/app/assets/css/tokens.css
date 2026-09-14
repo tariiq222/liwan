@@ -143,7 +143,6 @@
   --color-brand-950: color-mix(in srgb, var(--primary) 50%, black);
 }
 @theme inline {
-  --font-sans: var(--font-sans);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
