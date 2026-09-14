@@ -154,6 +154,17 @@ function onKeydown(e: KeyboardEvent) {
 }
 
 useEventListener(document, 'keydown', onKeydown)
+
+// The properties aside is always open on desktop (its summary is hidden by
+// shell.css); under 1024px it collapses above the content and the user
+// toggles it. SSR renders it open so the desktop first paint never flashes.
+const isDesktop = useMediaQuery('(min-width: 1024px)')
+const asideUserOpen = ref(true)
+onMounted(() => { if (!isDesktop.value) asideUserOpen.value = false })
+const asideOpen = computed(() => isDesktop.value || asideUserOpen.value)
+function onAsideToggle(event: Event) {
+  if (!isDesktop.value) asideUserOpen.value = (event.target as HTMLDetailsElement).open
+}
 </script>
 
 <template>
@@ -247,9 +258,10 @@ useEventListener(document, 'keydown', onKeydown)
           <TaskDetails :key="task.id" :task="task" :base-path="props.basePath" />
         </div>
       </div>
-      <aside class="nasq-record-aside" :aria-label="t('tasks.detail.primaryMetadata')">
+      <details class="nasq-record-aside" :open="asideOpen" @toggle="onAsideToggle">
+        <summary class="nasq-record-aside-summary">{{ t('tasks.drawer.details') }}</summary>
         <TaskProperties :key="task.id" :task="task" />
-      </aside>
+      </details>
     </div>
   </div>
 </template>
