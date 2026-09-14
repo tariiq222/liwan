@@ -8,7 +8,9 @@ import { useStoryTask } from '../support/taskCache'
 const meta = {
   title: 'Task/TaskProperties',
   component: TaskProperties,
-  args: { task: taskDetail({ ...makeTask() }) },
+  // No project: the properties column then needs only the personal stages the
+  // handlers serve; a project task would also fetch the full project detail.
+  args: { task: taskDetail({ ...makeTask({ project: null }) }) },
   parameters: storyContext('apps/web/app/components/task/TaskDetailPanel.vue:251', 'عمود الخصائص في سجل المهمة (`aside.nasq-record-aside`، 300px على ≥1024px). كل تغيير يرسل PATCH إلى MSW.'),
   render: args => ({
     components: { TaskProperties },
@@ -23,4 +25,4 @@ export default meta
 type Story = StoryObj<typeof meta>
 
 export const InRecordAside: Story = { name: 'في عمود خصائص السجل' }
-export const ReadOnly: Story = { name: 'بلا صلاحية تعديل', args: { task: taskDetail({ ...makeTask({ can_write: false }) }) } }
+export const ReadOnly: Story = { name: 'بلا صلاحية تعديل', args: { task: taskDetail({ ...makeTask({ project: null, can_write: false }) }) } }
