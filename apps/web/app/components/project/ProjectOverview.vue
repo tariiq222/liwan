@@ -44,7 +44,7 @@ function isOverdue(value: string | null) {
 </script>
 
 <template>
-  <div data-testid="project-overview" data-nasq-reference-detail class="project-overview space-y-6">
+  <div data-testid="project-overview" class="nasq-page-width-detail project-overview space-y-6">
     <div class="flex flex-wrap items-center gap-3 text-sm">
       <ProjectStatusSelect v-if="project.can_manage" :project="project" />
       <ProjectStatusBadge v-else :status="project.status" />
@@ -59,7 +59,7 @@ function isOverdue(value: string | null) {
       <UCard>
         <div class="flex items-center gap-2 text-sm text-muted"><UIcon name="i-lucide-list-checks" class="size-4" />{{ t('projects.overview.progress') }}</div>
         <p class="mt-2 text-3xl font-semibold tabular-nums">{{ project.progress }}%</p>
-        <UProgress :model-value="project.progress" :style="{ '--nasq-ui-progress': `${Math.min(100, Math.max(0, project.progress))}%` }" class="nasq-ui-progress mt-3" size="sm" />
+        <UProgress :model-value="project.progress" class="mt-3" size="sm" />
         <p class="mt-1 text-xs text-muted">{{ t('projects.overview.completedOf', { closed: project.closed_task_count, total: project.task_count }) }}</p>
       </UCard>
       <UCard>

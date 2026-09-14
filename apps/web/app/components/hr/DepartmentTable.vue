@@ -31,10 +31,10 @@ function onSelectRow(_event: Event, row: { original: HrDepartment }) {
 
 <template>
   <div class="min-w-0 space-y-2" data-testid="hr-department-table">
-    <UCard class="nasq-ui-record-surface hidden overflow-hidden md:block" :ui="{ body: 'p-0' }">
+    <UCard class="rounded-lg ring ring-default bg-default overflow-hidden hidden md:block" :ui="{ body: 'p-0' }">
       <div v-if="!departments.length" class="p-6"><SharedEmptyState :title="t('hr.depts.empty')" /></div>
       <div v-else class="overflow-x-auto">
-        <UTable :data="departments" :columns="columns" :caption="t('hr.depts.title')" :ui="{ caption: 'sr-only', th: 'nasq-ui-table-head' }" @select="onSelectRow">
+        <UTable :data="departments" :columns="columns" :caption="t('hr.depts.title')" :ui="{ caption: 'sr-only', th: '' }" @select="onSelectRow">
           <template #id-cell="{ row }"><RecordNumber :value="row.original.id" /></template>
           <template #name-cell="{ row }">
             <span class="font-medium">{{ row.original.name }}</span>
@@ -43,7 +43,7 @@ function onSelectRow(_event: Event, row: { original: HrDepartment }) {
           <template #manager-cell="{ row }">{{ row.original.manager?.name || t('hr.depts.noManager') }}</template>
           <template #actions-cell="{ row }">
             <div class="flex flex-wrap gap-1" @click.stop>
-              <UButton color="secondary" variant="ghost" size="sm" :disabled="!hydrated" :label="t('hr.depts.edit')" :to="{ path: `/hr/departments/${row.original.id}/edit`, query: returnToQuery(route.fullPath) }" @click="!hydrated && $event.preventDefault()" />
+              <UButton color="primary" variant="ghost" size="sm" :disabled="!hydrated" :label="t('hr.depts.edit')" :to="{ path: `/hr/departments/${row.original.id}/edit`, query: returnToQuery(route.fullPath) }" @click="!hydrated && $event.preventDefault()" />
               <UButton v-if="props.canDelete !== false" color="error" variant="ghost" size="sm" :disabled="!hydrated" :label="t('hr.depts.delete')" @click="emit('delete', row.original)" />
             </div>
           </template>
@@ -55,7 +55,7 @@ function onSelectRow(_event: Event, row: { original: HrDepartment }) {
       <li
         v-for="department in departments"
         :key="department.id"
-        class="nasq-ui-record-surface p-4"
+        class="rounded-lg ring ring-default bg-default overflow-hidden p-4"
         :class="{ 'bg-elevated': selectedId === department.id }"
         tabindex="0"
         role="button"
@@ -69,7 +69,7 @@ function onSelectRow(_event: Event, row: { original: HrDepartment }) {
         </div>
         <p class="mt-2 text-xs text-muted">{{ department.manager?.name || t('hr.depts.noManager') }}</p>
         <div v-if="canManage" class="mt-3 flex flex-wrap gap-2" @click.stop>
-          <UButton color="secondary" variant="ghost" size="sm" :disabled="!hydrated" :label="t('hr.depts.edit')" :to="{ path: `/hr/departments/${department.id}/edit`, query: returnToQuery(route.fullPath) }" @click="!hydrated && $event.preventDefault()" />
+          <UButton color="primary" variant="ghost" size="sm" :disabled="!hydrated" :label="t('hr.depts.edit')" :to="{ path: `/hr/departments/${department.id}/edit`, query: returnToQuery(route.fullPath) }" @click="!hydrated && $event.preventDefault()" />
           <UButton v-if="props.canDelete !== false" color="error" variant="ghost" size="sm" :disabled="!hydrated" :label="t('hr.depts.delete')" @click="emit('delete', department)" />
         </div>
       </li>

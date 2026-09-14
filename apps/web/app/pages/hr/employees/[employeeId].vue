@@ -27,7 +27,7 @@ async function toggleArchive() {
     <SharedPageHeader :title="query.data.value?.name || t('hr.employee.title')" :description="query.data.value?.job_title" :back-to="backTo">
       <div class="flex flex-wrap items-center gap-2">
         <UButton v-if="query.data.value && can('hr.employees.manage')" color="primary" :disabled="!hydrated" :to="`/hr/employees/${id}/edit`" :label="t('app.edit')" @click="!hydrated && $event.preventDefault()" />
-        <UButton v-if="query.data.value?.user_id && can('access.users.read')" color="secondary" variant="outline" :disabled="!hydrated" :to="`/settings/users/${query.data.value.user_id}`" :label="t('hr.employee.manageAccount')" @click="!hydrated && $event.preventDefault()" />
+        <UButton v-if="query.data.value?.user_id && can('access.users.read')" color="primary" variant="outline" :disabled="!hydrated" :to="`/settings/users/${query.data.value.user_id}`" :label="t('hr.employee.manageAccount')" @click="!hydrated && $event.preventDefault()" />
         <UButton v-if="query.data.value && can('hr.employees.archive')" color="error" variant="outline" :disabled="!hydrated || archivePending" :label="query.data.value.active ? t('hr.employee.archive') : t('hr.employee.unarchive')" @click="confirmArchive = !confirmArchive" />
       </div>
     </SharedPageHeader>

@@ -136,7 +136,7 @@ onUnmounted(() => {
 <template>
   <section
     ref="chartSection"
-    class="relative flex h-[calc(100svh-14rem)] flex-col overflow-hidden nasq-ui-record-surface"
+    class="relative flex h-[calc(100svh-14rem)] flex-col overflow-hidden rounded-lg ring ring-default bg-default"
     :class="{ 'hr-org-chart-expanded': fullscreen }"
     data-testid="hr-department-org-chart"
     :aria-label="$t('hr.depts.orgChart')"
@@ -149,7 +149,7 @@ onUnmounted(() => {
     >
       <UButton
         type="button"
-        color="secondary"
+        color="primary"
         variant="ghost"
         square
         :disabled="!hydrated || nextOrgScale(scale, 1.2) === scale"
@@ -160,7 +160,7 @@ onUnmounted(() => {
       />
       <UButton
         type="button"
-        color="secondary"
+        color="primary"
         variant="ghost"
         square
         :disabled="!hydrated || nextOrgScale(scale, 1 / 1.2) === scale"
@@ -171,7 +171,7 @@ onUnmounted(() => {
       />
       <UButton
         type="button"
-        color="secondary"
+        color="primary"
         variant="ghost"
         square
         :disabled="!hydrated"
@@ -182,7 +182,7 @@ onUnmounted(() => {
       />
       <UButton
         type="button"
-        color="secondary"
+        color="primary"
         variant="ghost"
         square
         :disabled="!hydrated"
@@ -236,7 +236,7 @@ onUnmounted(() => {
             :key="box.id"
             :to="{ path: `/hr/departments/${box.id}`, query: returnToQuery(returnTo) }"
             dir="ltr"
-            class="absolute overflow-hidden nasq-ui-record-surface px-3 py-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            class="absolute overflow-hidden rounded-lg ring ring-default bg-default px-3 py-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             :class="{ 'pointer-events-none opacity-60': !hydrated }"
             :style="nodeStyle(box)"
             :title="nodeLabel(box)"

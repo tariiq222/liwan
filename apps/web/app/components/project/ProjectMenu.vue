@@ -51,7 +51,7 @@ async function doUnarchive() {
     <UButton
       type="button"
       data-testid="project-menu"
-      color="secondary"
+      color="primary"
       variant="outline"
       square
       icon="i-lucide-more-horizontal"

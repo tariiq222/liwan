@@ -14,7 +14,7 @@ describe('department list toolbar design', () => {
     expect(source).toContain(':active-count="activeFilterCount"')
     expect(source).not.toMatch(/nasq-toolbar nasq-panel/)
     expect(source).toContain('role="group"')
-    expect(source).toContain('nasq-ui-segment')
+    expect(source).toContain('rounded-md p-0.5 ring ring-default')
     expect(source).not.toContain('h-[40px]')
     expect(source).toContain('square')
     expect(source).toContain('data-testid="hr-departments-view-list"')

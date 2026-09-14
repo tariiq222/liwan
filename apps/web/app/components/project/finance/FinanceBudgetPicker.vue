@@ -109,11 +109,11 @@ function setPage(next: number) {
     />
     <p v-if="error" id="finance-budget-entry-error" role="alert" class="text-sm text-error">{{ error }}</p>
     <div v-if="pages > 1" class="flex items-center justify-between text-xs text-muted">
-      <UButton type="button" color="secondary" variant="ghost" size="sm" :disabled="!hydrated || page === 1 || list.isFetching.value" @click="setPage(page - 1)">
+      <UButton type="button" color="primary" variant="ghost" size="sm" :disabled="!hydrated || page === 1 || list.isFetching.value" @click="setPage(page - 1)">
         {{ t('projects.previousPage') }}
       </UButton>
       <span>{{ t('projects.pageOf', { page, pages }) }}</span>
-      <UButton type="button" color="secondary" variant="ghost" size="sm" :disabled="!hydrated || page >= pages || list.isFetching.value" @click="setPage(page + 1)">
+      <UButton type="button" color="primary" variant="ghost" size="sm" :disabled="!hydrated || page >= pages || list.isFetching.value" @click="setPage(page + 1)">
         {{ t('projects.nextPage') }}
       </UButton>
     </div>

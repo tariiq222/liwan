@@ -29,7 +29,7 @@ const cards = [
         v-for="card in cards"
         :key="card.id"
         :to="`/projects/${projectId}/${card.segment}`"
-        class="nasq-ui-record-surface flex items-start gap-3 p-4 transition-colors hover:bg-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        class="rounded-lg ring ring-default bg-default overflow-hidden flex items-start gap-3 p-4 transition-colors hover:bg-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
         :data-testid="`governance-card-${card.id}`"
       >
         <UIcon :name="card.icon" class="size-5 shrink-0 text-muted" aria-hidden="true" />

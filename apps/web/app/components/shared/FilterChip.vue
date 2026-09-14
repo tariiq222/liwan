@@ -2,7 +2,7 @@
   <UButton
     type="button"
     size="xs"
-    color="secondary"
+    color="primary"
     variant="subtle"
     trailing-icon="i-lucide-x"
     data-slot="filter-chip"

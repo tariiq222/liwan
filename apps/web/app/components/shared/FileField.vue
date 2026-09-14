@@ -78,7 +78,7 @@ function onChange(event: Event) {
       type="button"
       :color="formFieldColor || 'neutral'"
       variant="outline"
-      class="nasq-ui-field shrink-0"
+      class="shrink-0"
       icon="i-lucide-paperclip"
       :label="t('app.chooseFile')"
       :aria-label="ariaLabel"

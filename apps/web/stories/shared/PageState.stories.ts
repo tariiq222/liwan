@@ -11,7 +11,7 @@ const meta = {
   render: args => ({
     components: { SettingsLayout, PageState },
     setup: () => ({ args }),
-    template: `<main class="nasq-shell-main"><SettingsLayout width="list"><div id="results" class="nasq-settings-anchor"><PageState v-bind="args"><div class="nasq-ui-record-surface p-5 text-sm">{{ $t('app.noResults') }}</div></PageState></div></SettingsLayout></main>`,
+    template: `<main class="nasq-shell-main"><SettingsLayout width="list"><div id="results" class="nasq-settings-anchor"><PageState v-bind="args"><div class="rounded-lg ring ring-default bg-default overflow-hidden p-5 text-sm">{{ $t('app.noResults') }}</div></PageState></div></SettingsLayout></main>`,
   }),
 } satisfies Meta<typeof PageState>
 export default meta

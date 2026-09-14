@@ -48,7 +48,7 @@ function clearFilters() {
     </div>
     <SharedPageState :loading="list.isLoading.value" :error="list.error.value" :empty="!list.isLoading.value && !list.error.value && !items.length" :empty-text="t('projects.templates.empty')" @retry="list.refetch">
       <div class="grid gap-3 md:grid-cols-2">
-        <NuxtLink v-for="item in items" :key="item.id" :to="detailPath(item.id)" class="nasq-ui-record-surface p-4 text-start transition-colors hover:bg-elevated/30">
+        <NuxtLink v-for="item in items" :key="item.id" :to="detailPath(item.id)" class="rounded-lg ring ring-default bg-default overflow-hidden p-4 text-start transition-colors hover:bg-elevated/30">
           <div class="flex items-start justify-between gap-3"><div><h2 class="font-medium">{{ item.name }}</h2><p class="mt-1 text-sm text-muted">{{ item.description }}</p></div><span v-if="item.can_apply && canApply" class="text-xs text-muted">{{ t('projects.templates.canApply') }}</span></div>
           <p class="mt-3 text-xs text-muted">{{ t('projects.templates.summary', { stages: item.definition.stages.length, tasks: item.definition.tasks.length, milestones: item.definition.milestones.length }) }}</p>
         </NuxtLink>

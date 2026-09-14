@@ -25,7 +25,7 @@ export const InTableCell: Story = {
       const { t } = useI18n()
       return { data: cases, columns: [{ accessorKey: 'name', header: t('access.users.columns.name') }, { accessorKey: 'active', header: t('access.users.columns.status') }] }
     },
-    template: `<div class="min-w-0 space-y-2"><UCard class="nasq-ui-record-surface hidden overflow-hidden md:block" :ui="{ body: 'p-0' }"><div class="overflow-x-auto"><UTable :data="data" :columns="columns" :ui="{ caption: 'sr-only', th: 'nasq-ui-table-head' }"><template #active-cell="{ row }"><AccessStateBadge :active="row.original.active" :protected="row.original.protected" /></template></UTable></div></UCard></div>`,
+    template: `<div class="min-w-0 space-y-2"><UCard class="rounded-lg ring ring-default bg-default overflow-hidden hidden md:block" :ui="{ body: 'p-0' }"><div class="overflow-x-auto"><UTable :data="data" :columns="columns" :ui="{ caption: 'sr-only', th: '' }"><template #active-cell="{ row }"><AccessStateBadge :active="row.original.active" :protected="row.original.protected" /></template></UTable></div></UCard></div>`,
   }),
 }
 
@@ -35,7 +35,7 @@ export const InMobileCard: Story = {
   render: args => ({
     components: { AccessStateBadge },
     setup: () => ({ args }),
-    template: `<ul class="space-y-2" style="width: 375px"><li class="nasq-ui-record-surface p-4"><div class="flex items-start justify-between gap-3"><div class="min-w-0"><bdi class="block text-xs text-muted">#7</bdi><p class="font-medium">سارة القحطاني</p></div><AccessStateBadge v-bind="args" /></div></li></ul>`,
+    template: `<ul class="space-y-2" style="width: 375px"><li class="rounded-lg ring ring-default bg-default overflow-hidden p-4"><div class="flex items-start justify-between gap-3"><div class="min-w-0"><bdi class="block text-xs text-muted">#7</bdi><p class="font-medium">سارة القحطاني</p></div><AccessStateBadge v-bind="args" /></div></li></ul>`,
   }),
 }
 

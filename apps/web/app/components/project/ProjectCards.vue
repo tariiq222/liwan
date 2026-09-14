@@ -36,7 +36,7 @@ function openWithKeyboard(project: Project, event: KeyboardEvent) {
   <div v-if="isLoading" class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
     <USkeleton v-for="n in 6" :key="n" class="h-44 rounded-xl" />
   </div>
-  <div v-else-if="items.length === 0" class="nasq-ui-record-surface p-6">
+  <div v-else-if="items.length === 0" class="rounded-lg ring ring-default bg-default overflow-hidden p-6">
     <EmptyState
       :title="t(filtered ? 'projects.filteredEmpty' : archived ? 'projects.archivedEmpty' : 'projects.empty')"
       :description="t(filtered ? 'projects.filteredEmptyHint' : archived ? 'projects.archivedEmptyHint' : 'projects.emptyHint')"
@@ -47,14 +47,14 @@ function openWithKeyboard(project: Project, event: KeyboardEvent) {
       <article
         v-for="project in items"
         :key="project.id"
-        class="flex cursor-pointer flex-col gap-4 nasq-ui-record-surface p-5 transition-colors hover:bg-elevated/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        class="flex cursor-pointer flex-col gap-4 rounded-lg ring ring-default bg-default overflow-hidden p-5 transition-colors hover:bg-elevated/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
         data-testid="project-card"
         tabindex="0"
         :aria-labelledby="`project-card-${project.id}`"
         @click="open(project, $event)"
         @keydown="openWithKeyboard(project, $event)"
       >
-        <div class="nasq-ui-card-header -mx-5 -mt-5 flex items-start justify-between gap-3 border-b border-default px-5 py-4">
+        <div class="-mx-5 -mt-5 flex items-start justify-between gap-3 border-b border-default px-5 py-4">
           <div class="min-w-0">
             <RecordNumber :value="project.id" />
             <h2 :id="`project-card-${project.id}`" class="mt-1 truncate text-base font-semibold text-highlighted"><NuxtLink :to="toFor(project)" class="hover:underline">{{ project.name }}</NuxtLink></h2>
@@ -66,7 +66,7 @@ function openWithKeyboard(project: Project, event: KeyboardEvent) {
             <span>{{ t('projects.progressOf', { closed: project.closed_task_count, total: project.task_count }) }}</span>
             <span class="tabular-nums font-medium text-highlighted">{{ project.progress }}%</span>
           </div>
-          <UProgress :model-value="project.progress" :style="{ '--nasq-ui-progress': `${Math.min(100, Math.max(0, project.progress))}%` }" class="nasq-ui-progress" size="sm" :aria-label="t('projects.columns.progress')" />
+          <UProgress :model-value="project.progress" size="sm" :aria-label="t('projects.columns.progress')" />
         </div>
         <div class="mt-auto flex items-center justify-between gap-3 border-t border-default pt-3 text-xs text-muted">
           <span class="inline-flex min-w-0 items-center gap-1.5">

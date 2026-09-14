@@ -38,7 +38,7 @@ describe('governance list/matrix design', () => {
   it('matches projects toolbar and table primitives on the stakeholder list', () => {
     expect(projects).toContain(':active-count="activeFilterCount"')
     expect(projects).toContain('FilterBar')
-    expect(inputSource).toContain('input:')
+    expect(inputSource).toContain("primary: 'brand'")
     expect(stakeholders).toContain(':active-count="activeFilterCount"')
     expect(stakeholders).toContain('FilterBar')
     expect(stakeholders).toContain('i-lucide-search')

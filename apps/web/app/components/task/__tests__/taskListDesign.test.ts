@@ -30,12 +30,12 @@ describe('tasks list design', () => {
   })
 
   it('wraps the standalone table in the shared rounded border surface', () => {
-    expect(table).toContain("embedded ? '' : 'nasq-ui-record-surface'")
+    expect(table).toContain("embedded ? '' : 'rounded-lg ring ring-default bg-default overflow-hidden'")
     expect(table).not.toContain('nasq-panel')
   })
 
   it('wraps the standalone board in the shared rounded border surface and keeps the embedded inner section', () => {
-    expect(board).toContain("embedded ? 'space-y-2 p-[18px]' : 'nasq-ui-record-surface space-y-2 p-[18px]'")
+    expect(board).toContain("embedded ? 'space-y-2 p-[18px]' : 'rounded-lg ring ring-default bg-default overflow-hidden space-y-2 p-[18px]'")
     expect(board).not.toContain('nasq-panel')
     expect(page).not.toMatch(/stat-card|metrics-strip|nasq-metric/)
     expect(toolbar).not.toContain("t('tasks.table')")

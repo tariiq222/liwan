@@ -77,7 +77,7 @@ function remove(id: number) {
     <div v-if="people.isLoading.value" class="text-sm text-muted-foreground" role="status">{{ t('meetingsUx.people.loading') }}</div>
     <div v-else-if="people.error.value" class="flex items-center gap-2 text-sm text-destructive" role="alert">
       <span>{{ t('meetingsUx.people.error') }}</span>
-      <UButton type="button" color="secondary" variant="outline" size="sm" :disabled="disabled" :label="t('meetingsUx.people.retry')" @click="people.refetch()" />
+      <UButton type="button" color="primary" variant="outline" size="sm" :disabled="disabled" :label="t('meetingsUx.people.retry')" @click="people.refetch()" />
     </div>
     <div v-else-if="!attendeeResults.length" class="text-sm text-muted-foreground">{{ t('meetingsUx.people.empty') }}</div>
     <div v-else class="grid max-h-48 gap-1 overflow-y-auto rounded-lg border border-border p-2" tabindex="0">
@@ -92,7 +92,7 @@ function remove(id: number) {
       <div v-if="secretaryPeople.isLoading.value" class="text-sm text-muted-foreground" role="status">{{ t('meetingsUx.people.loading') }}</div>
       <div v-else-if="secretaryPeople.error.value" class="flex items-center gap-2 text-sm text-destructive" role="alert">
         <span>{{ t('meetingsUx.people.error') }}</span>
-        <UButton type="button" color="secondary" variant="outline" size="sm" :disabled="disabled" :label="t('meetingsUx.people.retry')" @click="secretaryPeople.refetch()" />
+        <UButton type="button" color="primary" variant="outline" size="sm" :disabled="disabled" :label="t('meetingsUx.people.retry')" @click="secretaryPeople.refetch()" />
       </div>
       <USelect
         id="meeting-secretary"

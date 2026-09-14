@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/vue3-vite'
 
 export default {
   title: 'Nuxt UI/Surfaces',
-  parameters: { docs: { description: { component: 'وصفات `card` (زاوية 14px و`nasq-elevation-1`) و`table` (`nasq-ui-table-head`).' } } },
+  parameters: { docs: { description: { component: 'وصفات `card` (زاوية 14px و``) و`table` (``).' } } },
 } satisfies Meta
 
 export const Card: StoryObj = {
@@ -23,6 +23,6 @@ export const Table: StoryObj = {
       data: [{ id: 1, name: 'مشروع ألفا', status: 'on_track' }, { id: 2, name: 'تطوير البوابة', status: 'at_risk' }],
       columns: [{ accessorKey: 'id', header: '#' }, { accessorKey: 'name', header: 'Name' }, { accessorKey: 'status', header: 'Status' }],
     }),
-    template: '<div class="nasq-ui-record-surface"><UTable :data="data" :columns="columns" /></div>',
+    template: '<div class="rounded-lg ring ring-default bg-default overflow-hidden"><UTable :data="data" :columns="columns" /></div>',
   }),
 }

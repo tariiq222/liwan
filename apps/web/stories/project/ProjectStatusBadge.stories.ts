@@ -33,6 +33,6 @@ export const InTableCell: Story = {
       const columns = [{ accessorKey: 'name', header: t('projects.columns.name') }, { accessorKey: 'status', header: t('projects.columns.status') }]
       return { data, columns }
     },
-    template: `<div class="hidden md:block"><div class="nasq-ui-record-surface"><div class="overflow-x-auto"><UTable :data="data" :columns="columns" :ui="{ caption: 'sr-only', thead: 'nasq-ui-table-head' }"><template #status-cell="{ row }"><ProjectStatusBadge :status="row.original.status" /></template></UTable></div></div></div>`,
+    template: `<div class="hidden md:block"><div class="rounded-lg ring ring-default bg-default overflow-hidden"><div class="overflow-x-auto"><UTable :data="data" :columns="columns" :ui="{ caption: 'sr-only', thead: '' }"><template #status-cell="{ row }"><ProjectStatusBadge :status="row.original.status" /></template></UTable></div></div></div>`,
   }),
 }

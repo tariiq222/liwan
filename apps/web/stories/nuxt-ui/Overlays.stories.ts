@@ -13,7 +13,7 @@ export const Menus: StoryObj = {
         <UButton color="neutral" variant="outline" trailing-icon="i-lucide-chevron-down">{{ $t('filterCard.title') }}</UButton>
       </UDropdownMenu>
       <UTooltip :text="$t('app.back')"><UButton color="neutral" variant="ghost" square icon="i-lucide-info" :aria-label="$t('app.back')" /></UTooltip>
-      <UPopover><UButton color="neutral" variant="outline">{{ $t('app.search') }}</UButton><template #content><div class="nasq-ui-filter-content"><UInput icon="i-lucide-search" class="w-full" /></div></template></UPopover>
+      <UPopover><UButton color="neutral" variant="outline">{{ $t('app.search') }}</UButton><template #content><div><UInput icon="i-lucide-search" class="w-full" /></div></template></UPopover>
     </div>`,
   }),
 }

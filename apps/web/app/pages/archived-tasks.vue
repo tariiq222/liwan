@@ -90,7 +90,7 @@ function restoreTask(task: Task) {
           </li>
         </ul>
         <div v-if="hasNextPage" class="border-t border-default p-3 text-center">
-          <UButton color="secondary" variant="outline" type="button" :disabled="isFetchingNextPage || !hydrated" @click="fetchNextPage()">
+          <UButton color="primary" variant="outline" type="button" :disabled="isFetchingNextPage || !hydrated" @click="fetchNextPage()">
             {{ t('taskLifecycle.loadMore') }}
           </UButton>
         </div>

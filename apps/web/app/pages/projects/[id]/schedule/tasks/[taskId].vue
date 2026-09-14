@@ -37,7 +37,7 @@ const backTo = computed(() => {
       :empty-text="notFound ? t('projects.notFound') : !schedule?.can_manage ? t('projects.forbidden') : t('projects.loadError')"
       @retry="refetch"
     >
-      <section v-if="schedule && task && projectId" class="nasq-ui-record-surface"><div class="p-5"><ScheduleTaskForm :project-id="projectId" :task="task" :milestone="taskMilestone" :project-start="project?.date_start" :project-end="project?.date_end" :return-to="backTo" /></div></section>
+      <section v-if="schedule && task && projectId" class="rounded-lg ring ring-default bg-default overflow-hidden"><div class="p-5"><ScheduleTaskForm :project-id="projectId" :task="task" :milestone="taskMilestone" :project-start="project?.date_start" :project-end="project?.date_end" :return-to="backTo" /></div></section>
     </SharedPageState>
   </SharedPageContainer>
 </template>

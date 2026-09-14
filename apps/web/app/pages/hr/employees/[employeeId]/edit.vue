@@ -31,7 +31,7 @@ function saved() { void navigateTo(backTo.value) }
       :empty="!query.data.value"
       @retry="retryDependencies"
     >
-      <UCard v-if="query.data.value" class="nasq-ui-record-surface" :ui="{ body: 'p-5 sm:p-6' }">
+      <UCard v-if="query.data.value" class="rounded-lg ring ring-default bg-default overflow-hidden" :ui="{ body: 'p-5 sm:p-6' }">
         <EmployeeGeneralForm :employee="query.data.value" :departments="departments.data.value?.items ?? []" :employees="employees.data.value?.items ?? []" @saved="saved">
           <template #actions>
             <UButton type="button" color="neutral" variant="outline" :disabled="!hydrated" :to="backTo" :label="t('app.cancel')" @click="!hydrated && $event.preventDefault()" />

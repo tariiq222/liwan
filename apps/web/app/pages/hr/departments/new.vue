@@ -23,7 +23,7 @@ function saved(department: { id: number }) { void navigateTo(`/hr/departments/${
     <SharedPageHeader :title="t('hr.depts.new')" :back-to="backTo" />
     <SharedPageState v-if="!canManage" :empty="true" :empty-text="t('errors.forbidden')" />
     <SharedPageState v-else :loading="departments.isLoading.value || employees.isLoading.value" :error="initialDataReady ? undefined : dependencyError" @retry="retryDependencies">
-      <UCard class="nasq-ui-record-surface" :ui="{ body: 'p-5 sm:p-6' }"><DepartmentForm :initial-parent-id="initialParentId" :departments="departments.data.value?.items ?? []" :employees="employees.data.value?.items ?? []" :back-to="backTo" @saved="saved" /></UCard>
+      <UCard class="rounded-lg ring ring-default bg-default overflow-hidden" :ui="{ body: 'p-5 sm:p-6' }"><DepartmentForm :initial-parent-id="initialParentId" :departments="departments.data.value?.items ?? []" :employees="employees.data.value?.items ?? []" :back-to="backTo" @saved="saved" /></UCard>
     </SharedPageState>
     <SharedPageState v-if="canManage && initialDataReady && dependencyError" :error="dependencyError" @retry="retryDependencies" />
   </SharedPageContainer>

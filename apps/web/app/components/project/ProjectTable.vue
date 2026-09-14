@@ -52,7 +52,7 @@ function onSelectRow(_event: Event, row: { original: ProjectListItem }) {
   <div class="min-w-0 space-y-2">
     <!-- Desktop: real UTable. Mobile: readable record cards via ProjectCards. -->
     <div class="hidden md:block">
-      <div v-if="isLoading" class="nasq-ui-record-surface divide-y divide-default" role="status" :aria-label="t('app.loading')">
+      <div v-if="isLoading" class="rounded-lg ring ring-default bg-default overflow-hidden divide-y divide-default" role="status" :aria-label="t('app.loading')">
         <div v-for="n in 5" :key="n" class="flex items-center gap-4 px-4 py-3">
           <USkeleton class="h-5 w-10" />
           <USkeleton class="h-5 flex-1" />
@@ -63,15 +63,15 @@ function onSelectRow(_event: Event, row: { original: ProjectListItem }) {
           <USkeleton class="h-5 w-8" />
         </div>
       </div>
-      <div v-else-if="items.length === 0" class="nasq-ui-record-surface p-6">
+      <div v-else-if="items.length === 0" class="rounded-lg ring ring-default bg-default overflow-hidden p-6">
         <EmptyState
           :title="t(filtered ? 'projects.filteredEmpty' : archived ? 'projects.archivedEmpty' : 'projects.empty')"
           :description="t(filtered ? 'projects.filteredEmptyHint' : archived ? 'projects.archivedEmptyHint' : 'projects.emptyHint')"
         />
       </div>
-      <div v-else class="nasq-ui-record-surface">
+      <div v-else class="rounded-lg ring ring-default bg-default overflow-hidden">
         <div class="overflow-x-auto">
-          <UTable :data="items" :columns="columns" :caption="t('projects.title')" :ui="{ caption: 'sr-only', thead: 'nasq-ui-table-head' }" @select="onSelectRow">
+          <UTable :data="items" :columns="columns" :caption="t('projects.title')" :ui="{ caption: 'sr-only', thead: '' }" @select="onSelectRow">
             <template #id-cell="{ row }"><RecordNumber :value="row.original.id" /></template>
             <template #name-cell="{ row }">
               <NuxtLink

@@ -40,9 +40,9 @@ function onSelectRow(_event: Event, row: { original: AccessAuditSummary }) {
 
 <template>
   <div class="min-w-0 space-y-2">
-    <UCard class="nasq-ui-record-surface hidden overflow-hidden md:block" :ui="{ body: 'p-0' }">
+    <UCard class="rounded-lg ring ring-default bg-default overflow-hidden hidden md:block" :ui="{ body: 'p-0' }">
       <div class="overflow-x-auto">
-        <UTable :data="events" :columns="columns" :caption="t('access.audit.title')" :ui="{ caption: 'sr-only', th: 'nasq-ui-table-head' }" @select="onSelectRow">
+        <UTable :data="events" :columns="columns" :caption="t('access.audit.title')" :ui="{ caption: 'sr-only', th: '' }" @select="onSelectRow">
           <template #id-cell="{ row }"><RecordNumber :value="row.original.id" /></template>
           <template #occurred_at-cell="{ row }">
             <UButton type="button" color="neutral" variant="link" dir="ltr" class="rounded p-0 text-start" :disabled="!hydrated" :aria-label="`${t('access.audit.detailTitle')}: ${d(new Date(row.original.occurred_at), 'short')}`" @click.stop="open(row.original.id)">{{ d(new Date(row.original.occurred_at), 'short') }}</UButton>
@@ -55,7 +55,7 @@ function onSelectRow(_event: Event, row: { original: AccessAuditSummary }) {
       </div>
     </UCard>
     <ul class="md:hidden space-y-2" :aria-label="t('access.audit.title')">
-      <li v-for="event in events" :key="event.id" class="cursor-pointer nasq-ui-record-surface p-4" tabindex="0" role="button" @click="open(event.id)" @keydown.enter.self="open(event.id)" @keydown.space.self.prevent="open(event.id)" >
+      <li v-for="event in events" :key="event.id" class="cursor-pointer rounded-lg ring ring-default bg-default overflow-hidden p-4" tabindex="0" role="button" @click="open(event.id)" @keydown.enter.self="open(event.id)" @keydown.space.self.prevent="open(event.id)" >
         <div class="flex items-start justify-between gap-3">
           <div class="min-w-0">
             <bdi class="block text-xs text-muted">#{{ event.id }}</bdi>

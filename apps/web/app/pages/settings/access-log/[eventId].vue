@@ -23,7 +23,7 @@ const actionLabels: Record<AuditAction, string> = {
     <SharedPageState v-else :loading="event.isLoading.value" :error="event.error.value" :empty="!event.data.value" :empty-text="t('access.notFound')" @retry="event.refetch">
       <template v-if="event.data.value">
         <div class="nasq-settings-detail space-y-6">
-          <UCard id="event" class="nasq-ui-record-surface nasq-settings-anchor" :ui="{ header: 'nasq-ui-card-header' }">
+          <UCard id="event" class="rounded-lg ring ring-default bg-default overflow-hidden nasq-settings-anchor" :ui="{ header: '' }">
             <template #header><h2 class="text-lg font-semibold text-highlighted">{{ t('access.audit.detailTitle') }}</h2></template>
             <dl class="grid gap-4 sm:grid-cols-2">
               <div><dt class="text-sm text-muted">{{ t('access.audit.columns.time') }}</dt><dd class="mt-1 font-medium" dir="ltr">{{ event.data.value.occurred_at }}</dd></div>
@@ -33,9 +33,9 @@ const actionLabels: Record<AuditAction, string> = {
               <div v-if="event.data.value.reason"><dt class="text-sm text-muted">{{ t('access.audit.reason') }}</dt><dd class="mt-1 font-medium">{{ event.data.value.reason }}</dd></div>
             </dl>
           </UCard>
-          <UCard v-for="side in (['before', 'after'] as const)" :id="side" :key="side" class="nasq-ui-record-surface nasq-settings-anchor" :ui="{ header: 'nasq-ui-card-header' }">
+          <UCard v-for="side in (['before', 'after'] as const)" :id="side" :key="side" class="rounded-lg ring ring-default bg-default overflow-hidden nasq-settings-anchor" :ui="{ header: '' }">
             <template #header><h2 class="text-lg font-semibold text-highlighted">{{ t(`access.audit.${side}`) }}</h2></template>
-            <div class="nasq-ui-record-surface">
+            <div class="rounded-lg ring ring-default bg-default overflow-hidden">
               <pre class="overflow-x-auto p-3 text-xs leading-6" dir="ltr">{{ JSON.stringify(event.data.value[side], null, 2) }}</pre>
             </div>
           </UCard>

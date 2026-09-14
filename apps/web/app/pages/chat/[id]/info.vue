@@ -100,7 +100,7 @@ async function confirmLeave() {
       </SharedFormSection>
       <SharedFormSection :title="t('chat.members')">
         <ul v-if="members?.items.length" class="grid gap-2">
-          <li v-for="member in members.items" :key="member.id" class="nasq-ui-record-surface flex items-center justify-between gap-2 p-3 text-start">
+          <li v-for="member in members.items" :key="member.id" class="rounded-lg ring ring-default bg-default overflow-hidden flex items-center justify-between gap-2 p-3 text-start">
             <span>{{ member.name }}{{ member.im_status === 'online' ? ` · ${t('chat.online')}` : '' }}</span>
           </li>
         </ul>
@@ -131,7 +131,7 @@ async function confirmLeave() {
         </nav>
       </SharedFormSection>
       <div v-if="canLeave" class="flex justify-end gap-2">
-        <UButton v-if="!leaving" type="button" color="secondary" variant="outline" :disabled="!hydrated || busy" :label="t('chat.leave')" @click="leaving = true" />
+        <UButton v-if="!leaving" type="button" color="primary" variant="outline" :disabled="!hydrated || busy" :label="t('chat.leave')" @click="leaving = true" />
         <template v-else>
           <UButton type="button" color="error" :disabled="!hydrated || busy" :label="t('chat.confirmLeave')" @click="confirmLeave" />
           <UButton type="button" color="neutral" variant="ghost" :disabled="busy" :label="t('app.cancel')" @click="leaving = false" />

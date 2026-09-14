@@ -24,7 +24,7 @@ const current = computed(() => activeProjectSection(route.path))
 <template>
   <nav
     v-if="sections.length"
-    class="nasq-ui-tab-strip"
+    class="flex gap-1 overflow-x-auto border-b border-default"
     data-testid="project-workspace-tabs"
     :aria-label="t('projects.workspace.tabsLabel')"
   >
@@ -33,7 +33,7 @@ const current = computed(() => activeProjectSection(route.path))
       :key="section.id"
       color="neutral"
       variant="ghost"
-      class="nasq-ui-tab"
+      class="inline-flex items-center gap-2 whitespace-nowrap px-3 py-2 text-sm font-medium text-muted transition-colors hover:text-default data-[active=true]:text-primary data-[active=true]:shadow-[inset_0_-2px_0_0_var(--ui-primary)] aria-[current=page]:text-primary aria-[current=page]:shadow-[inset_0_-2px_0_0_var(--ui-primary)]"
       :to="section.to"
       :aria-current="current === section.id ? 'page' : undefined"
       :data-active="current === section.id"

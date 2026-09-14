@@ -153,7 +153,7 @@ const statusLabel = computed(() => t(filters.status === 'unset' ? 'projects.filt
       :title="t('projects.dashboard.analyticsError')"
     >
       <template #actions>
-        <UButton color="secondary" variant="outline" :disabled="!hydrated" :label="t('projects.dashboard.retryAnalytics')" @click="analytics.refetch()" />
+        <UButton color="primary" variant="outline" :disabled="!hydrated" :label="t('projects.dashboard.retryAnalytics')" @click="analytics.refetch()" />
       </template>
     </UAlert>
 

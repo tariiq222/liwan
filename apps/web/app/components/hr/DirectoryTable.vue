@@ -165,7 +165,7 @@ function clearFilters() {
 
     <SharedPageState :error="error" @retry="refetch">
       <div class="min-w-0 space-y-2">
-        <UCard v-if="isLoading" class="nasq-ui-record-surface hidden divide-y divide-default overflow-hidden md:block" role="status" :aria-label="t('app.loading')">
+        <UCard v-if="isLoading" class="rounded-lg ring ring-default bg-default overflow-hidden hidden divide-y divide-default md:block" role="status" :aria-label="t('app.loading')">
           <div v-for="n in 5" :key="n" class="flex items-center gap-4 px-4 py-3">
             <USkeleton class="h-5 w-10" />
             <USkeleton class="h-5 flex-1" />
@@ -173,15 +173,15 @@ function clearFilters() {
             <USkeleton class="h-5 w-24" />
           </div>
         </UCard>
-        <UCard v-else-if="items.length === 0" class="nasq-ui-record-surface">
+        <UCard v-else-if="items.length === 0" class="rounded-lg ring ring-default bg-default overflow-hidden">
           <SharedEmptyState :title="t(hasActiveFilters ? 'hr.directory.filteredEmpty' : 'hr.directory.empty')" :description="hasActiveFilters ? t('hr.directory.filteredEmptyHint') : undefined">
             <template v-if="hasActiveFilters" #action><UButton color="primary" size="sm" :disabled="!hydrated" :label="t('hr.directory.clear')" @click="clearFilters" /></template>
           </SharedEmptyState>
         </UCard>
         <template v-else>
-          <UCard class="nasq-ui-record-surface hidden overflow-hidden md:block" :ui="{ body: 'p-0' }">
+          <UCard class="rounded-lg ring ring-default bg-default overflow-hidden hidden md:block" :ui="{ body: 'p-0' }">
             <div class="overflow-x-auto">
-              <UTable :data="items" :columns="columns" :caption="t('hr.directory.title')" :ui="{ caption: 'sr-only', th: 'nasq-ui-table-head' }" @select="(event, row) => onRowClick(row.original.id, event)">
+              <UTable :data="items" :columns="columns" :caption="t('hr.directory.title')" :ui="{ caption: 'sr-only', th: '' }" @select="(event, row) => onRowClick(row.original.id, event)">
                 <template #id-cell="{ row }"><RecordNumber :value="row.original.id" /></template>
                 <template #name-cell="{ row }">
                   <NuxtLink :to="employeeTo(row.original.id)" class="font-medium hover:underline" data-testid="hr-employee-name" @click.stop>{{ row.original.name }}</NuxtLink>
@@ -192,7 +192,7 @@ function clearFilters() {
                 <template #access-cell="{ row }"><AccessBadge :access="row.original.access" /></template>
                 <template v-if="showActions" #manage-cell="{ row }">
                   <div class="flex gap-1" @click.stop>
-                    <UButton v-if="canManage" color="secondary" variant="ghost" size="sm" :disabled="!hydrated" data-testid="hr-employee-manage" :label="t('hr.directory.manage')" @click="emit('manage', row.original.id)" />
+                    <UButton v-if="canManage" color="primary" variant="ghost" size="sm" :disabled="!hydrated" data-testid="hr-employee-manage" :label="t('hr.directory.manage')" @click="emit('manage', row.original.id)" />
                     <UButton v-if="canArchive" color="error" variant="ghost" size="sm" :disabled="!hydrated" data-testid="hr-employee-archive-row" :label="row.original.active ? t('hr.employee.archive') : t('hr.employee.unarchive')" @click="pendingArchiveId = row.original.id" />
                   </div>
                 </template>
@@ -200,7 +200,7 @@ function clearFilters() {
             </div>
           </UCard>
           <ul class="md:hidden space-y-2" :aria-label="t('hr.directory.title')">
-            <li v-for="employee in items" :key="employee.id" class="nasq-ui-record-surface p-4" tabindex="0" role="button" @click="onRowClick(employee.id, $event)" @keydown.enter="onRowClick(employee.id, $event)" @keydown.space.prevent="onRowClick(employee.id, $event)">
+            <li v-for="employee in items" :key="employee.id" class="rounded-lg ring ring-default bg-default overflow-hidden p-4" tabindex="0" role="button" @click="onRowClick(employee.id, $event)" @keydown.enter="onRowClick(employee.id, $event)" @keydown.space.prevent="onRowClick(employee.id, $event)">
               <div class="flex items-start justify-between gap-3">
                 <div class="min-w-0">
                   <bdi class="block text-xs text-muted">#{{ employee.id }}</bdi>
@@ -214,7 +214,7 @@ function clearFilters() {
                 <div><dt>{{ t('hr.directory.columns.manager') }}</dt><dd>{{ employee.manager?.name ?? '—' }}</dd></div>
               </dl>
               <div v-if="showActions" class="mt-3 flex gap-2" @click.stop>
-                <UButton v-if="canManage" color="secondary" variant="ghost" size="sm" :disabled="!hydrated" data-testid="hr-employee-manage" :label="t('hr.directory.manage')" @click="emit('manage', employee.id)" />
+                <UButton v-if="canManage" color="primary" variant="ghost" size="sm" :disabled="!hydrated" data-testid="hr-employee-manage" :label="t('hr.directory.manage')" @click="emit('manage', employee.id)" />
                 <UButton v-if="canArchive" color="error" variant="ghost" size="sm" :disabled="!hydrated" data-testid="hr-employee-archive-row" :label="employee.active ? t('hr.employee.archive') : t('hr.employee.unarchive')" @click="pendingArchiveId = employee.id" />
               </div>
             </li>

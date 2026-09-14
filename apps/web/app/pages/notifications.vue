@@ -110,7 +110,7 @@ async function retryNextPage() {
       :empty-text="t('notifications.empty')"
       @retry="retryNotifications"
     >
-      <div class="nasq-ui-record-surface overflow-hidden">
+      <div class="rounded-lg ring ring-default bg-default overflow-hidden">
         <div class="grid gap-0">
           <UButton
             v-for="item in items"

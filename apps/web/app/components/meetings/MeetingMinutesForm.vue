@@ -128,7 +128,7 @@ function readAgenda() {
     <section class="grid gap-3">
       <div class="flex flex-wrap items-center justify-between gap-2">
         <h3 class="font-semibold">{{ t('meetingMinutesForm.body') }}</h3>
-        <UButton v-if="legacyAgenda && !modelValue.opening.trim()" type="button" color="secondary" variant="outline" size="sm" :disabled="readonly || pending || !hydrated" :label="t('meetingMinutesForm.readAgenda')" @click="readAgenda" />
+        <UButton v-if="legacyAgenda && !modelValue.opening.trim()" type="button" color="primary" variant="outline" size="sm" :disabled="readonly || pending || !hydrated" :label="t('meetingMinutesForm.readAgenda')" @click="readAgenda" />
       </div>
       <div class="grid gap-1">
         <label for="minutes-opening" class="text-sm font-medium text-highlighted">{{ t('meetingMinutesForm.opening') }}</label>
@@ -136,7 +136,7 @@ function readAgenda() {
       </div>
       <div class="flex flex-wrap items-center justify-between gap-2">
         <h4 class="font-semibold">{{ t('meetingMinutesForm.topics') }}</h4>
-        <UButton type="button" color="secondary" variant="outline" size="sm" :disabled="readonly || pending || modelValue.topics.length >= 100 || !hydrated" :label="t('meetingMinutesForm.addTopic')" @click="addTopic" />
+        <UButton type="button" color="primary" variant="outline" size="sm" :disabled="readonly || pending || modelValue.topics.length >= 100 || !hydrated" :label="t('meetingMinutesForm.addTopic')" @click="addTopic" />
       </div>
       <div v-if="!modelValue.topics.length" class="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">{{ t('meetingMinutesForm.noTopics') }}</div>
       <article v-for="(topic, index) in modelValue.topics" :key="topic.key" class="grid gap-3 rounded-lg border border-border p-3">
@@ -189,7 +189,7 @@ function readAgenda() {
 
     <div v-if="!readonly" class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-dashed p-3">
       <span class="text-sm text-muted-foreground">{{ t('meetingMinutesForm.addRecommendationHint') }}</span>
-      <UButton type="button" color="secondary" variant="outline" :disabled="pending || !hydrated" :label="t('meetingMinutesForm.saveAndCreateRecommendation')" @click="emit('save-and-create-resolution')" />
+      <UButton type="button" color="primary" variant="outline" :disabled="pending || !hydrated" :label="t('meetingMinutesForm.saveAndCreateRecommendation')" @click="emit('save-and-create-resolution')" />
     </div>
   </div>
 </template>

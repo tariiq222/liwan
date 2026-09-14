@@ -34,11 +34,11 @@ function capturedAt(value: string) {
     <template #header><h2 class="text-lg font-semibold text-highlighted">{{ t('meetingMinutesForm.versions') }}</h2></template>
     <div class="grid gap-3">
       <div v-if="loading" class="grid gap-2" aria-busy="true"><USkeleton v-for="row in 4" :key="row" class="h-12 w-full" /></div>
-      <div v-else-if="error" class="flex flex-wrap items-center justify-between gap-2 text-sm text-destructive" role="alert"><span>{{ errorText }}</span><UButton type="button" color="secondary" variant="outline" size="sm" :disabled="!hydrated" :label="t('meetingMinutesForm.retry')" @click="emit('retry')" /></div>
+      <div v-else-if="error" class="flex flex-wrap items-center justify-between gap-2 text-sm text-destructive" role="alert"><span>{{ errorText }}</span><UButton type="button" color="primary" variant="outline" size="sm" :disabled="!hydrated" :label="t('meetingMinutesForm.retry')" @click="emit('retry')" /></div>
       <div v-else-if="!versions.length" class="text-sm text-muted-foreground">{{ t('meetingMinutesForm.noVersions') }}</div>
       <ol v-else class="grid gap-2">
         <li v-for="version in versions" :key="version.id">
-          <UButton type="button" color="neutral" variant="ghost" class="nasq-ui-record-surface grid w-full min-w-0 justify-items-start gap-1 p-3 text-start transition-colors hover:bg-muted/30" :class="{ 'nasq-ui-selected border-brand-link bg-muted/30': selectedId === version.id }" :data-selected="selectedId === version.id ? 'true' : undefined" :disabled="!hydrated" @click="emit('select', version)">
+          <UButton type="button" color="neutral" variant="ghost" class="rounded-lg ring ring-default bg-default overflow-hidden grid w-full min-w-0 justify-items-start gap-1 p-3 text-start transition-colors hover:bg-muted/30" :class="{ 'bg-primary/10 border-brand-link bg-muted/30': selectedId === version.id }" :data-selected="selectedId === version.id ? 'true' : undefined" :disabled="!hydrated" @click="emit('select', version)">
             <span class="font-medium">{{ t('meetingMinutesForm.versionNumber', { number: version.number }) }}</span>
             <span class="text-xs text-muted-foreground">{{ capturedAt(version.captured_at) }} · {{ version.actor?.name || t('meetingMinutesForm.systemActor') }}</span>
           </UButton>

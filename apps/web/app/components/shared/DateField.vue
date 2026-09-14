@@ -35,7 +35,7 @@ const buttonAttrs = computed(() => {
 </script>
 <template>
   <UPopover v-model:open="open">
-    <UButton v-bind="buttonAttrs" :id="id" :name="name" type="button" :color="formFieldColor || 'neutral'" variant="outline" class="nasq-ui-field nasq-ui-date-trigger" icon="i-lucide-calendar-days" :label="text" :highlight="formFieldHighlight" :disabled="formFieldDisabled || !hydrated" @focus="emitFormFocus" @blur="emitFormBlur" />
+    <UButton v-bind="buttonAttrs" :id="id" :name="name" type="button" :color="formFieldColor || 'neutral'" variant="outline" class="w-full justify-start font-normal" icon="i-lucide-calendar-days" :label="text" :highlight="formFieldHighlight" :disabled="formFieldDisabled || !hydrated" @focus="emitFormFocus" @blur="emitFormBlur" />
     <template #content>
       <UCalendar v-model="date" class="p-2" :disabled="formFieldDisabled" :min-value="toCalendarDate(minValue ?? null)" :max-value="toCalendarDate(maxValue ?? null)" />
       <div v-if="modelValue" class="flex justify-end p-2">

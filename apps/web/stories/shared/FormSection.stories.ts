@@ -28,6 +28,6 @@ export const Panel: Story = {
   render: () => ({
     components: { SettingsLayout, FormSection },
     setup: () => ({ t: useI18n().t, modes: ['light', 'cream', 'dark'] }),
-    template: `<main class="nasq-shell-main"><SettingsLayout width="form"><div class="nasq-settings-cards"><FormSection panel class="nasq-ui-record-surface" :title="t('settings.appearance.mode')" :description="t('settings.appearance.modeHint')"><URadioGroup model-value="light" variant="card" orientation="horizontal" indicator="hidden" :items="modes.map(value => ({ value, label: t('settings.appearance.' + value) }))" :ui="{ fieldset: 'grid grid-cols-1 sm:grid-cols-3' }" /></FormSection></div></SettingsLayout></main>`,
+    template: `<main class="nasq-shell-main"><SettingsLayout width="form"><div class="nasq-settings-cards"><FormSection panel class="rounded-lg ring ring-default bg-default overflow-hidden" :title="t('settings.appearance.mode')" :description="t('settings.appearance.modeHint')"><URadioGroup model-value="light" variant="card" orientation="horizontal" indicator="hidden" :items="modes.map(value => ({ value, label: t('settings.appearance.' + value) }))" :ui="{ fieldset: 'grid grid-cols-1 sm:grid-cols-3' }" /></FormSection></div></SettingsLayout></main>`,
   }),
 }

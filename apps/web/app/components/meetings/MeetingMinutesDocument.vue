@@ -88,7 +88,7 @@ const unassignedRecommendations = computed(() => props.recommendations.filter(it
           <h3 class="font-semibold">{{ t('meetingMinutesForm.topics') }}</h3>
           <div class="overflow-x-auto rounded-lg border border-border">
             <table class="meeting-minutes-topic-table min-w-[980px] w-full text-sm">
-              <thead class="nasq-ui-table-head"><tr><th>{{ t('meetingMinutesForm.topicTitle') }}</th><th>{{ t('meetingMinutesForm.discussion') }}</th><th>{{ t('meetingMinutesForm.project') }}</th><th>{{ t('meetingMinutesForm.recommendations') }}</th><th>{{ t('meetingsUi.responsible') }}</th><th>{{ t('meetingMinutesForm.executionPeriod') }}</th><th>{{ t('meetingsUi.deadline') }}</th></tr></thead>
+              <thead><tr><th>{{ t('meetingMinutesForm.topicTitle') }}</th><th>{{ t('meetingMinutesForm.discussion') }}</th><th>{{ t('meetingMinutesForm.project') }}</th><th>{{ t('meetingMinutesForm.recommendations') }}</th><th>{{ t('meetingsUi.responsible') }}</th><th>{{ t('meetingMinutesForm.executionPeriod') }}</th><th>{{ t('meetingsUi.deadline') }}</th></tr></thead>
               <tbody>
                 <tr v-if="!topicRows.length"><td colspan="7" class="text-muted-foreground">{{ t('meetingMinutesForm.noTopics') }}</td></tr>
                 <tr v-for="row in topicRows" :key="`${row.topic.key}-${row.recommendation?.id ?? 'none'}`">
@@ -122,7 +122,7 @@ const unassignedRecommendations = computed(() => props.recommendations.filter(it
           <h3 class="font-semibold">{{ t('meetingsUi.resolutions') }}</h3>
           <div class="overflow-x-auto rounded-lg border border-border">
             <table class="meeting-minutes-topic-table min-w-[700px] w-full text-sm">
-              <thead class="nasq-ui-table-head"><tr><th>{{ t('meetingMinutesForm.recommendations') }}</th><th>{{ t('meetingsUi.responsible') }}</th><th>{{ t('meetingMinutesForm.executionPeriod') }}</th><th>{{ t('meetingsUi.deadline') }}</th></tr></thead>
+              <thead><tr><th>{{ t('meetingMinutesForm.recommendations') }}</th><th>{{ t('meetingsUi.responsible') }}</th><th>{{ t('meetingMinutesForm.executionPeriod') }}</th><th>{{ t('meetingsUi.deadline') }}</th></tr></thead>
               <tbody><tr v-if="!legacyRecommendations.length"><td colspan="4" class="text-muted-foreground">{{ t('meetingsUi.emptyResolutions') }}</td></tr><tr v-for="item in legacyRecommendations" :key="item.id"><td>{{ item.name }}</td><td>{{ item.responsible?.name || '—' }}</td><td>{{ item.execution_period || '—' }}</td><td dir="ltr">{{ formatMeetingDate(item.deadline, locale) }}</td></tr></tbody>
             </table>
           </div>

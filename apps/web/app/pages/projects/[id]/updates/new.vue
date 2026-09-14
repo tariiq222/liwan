@@ -37,7 +37,7 @@ const backTo = computed(() => {
       @retry="refetch"
     >
       <p v-if="!project?.can_manage" class="text-muted">{{ t('projects.forbidden') }}</p>
-      <section v-else class="nasq-ui-record-surface"><div class="p-5"><ProjectUpdateForm :project-id="projectId" @saved="router.push(backTo)" @cancel="router.push(backTo)" /></div></section>
+      <section v-else class="rounded-lg ring ring-default bg-default overflow-hidden"><div class="p-5"><ProjectUpdateForm :project-id="projectId" @saved="router.push(backTo)" @cancel="router.push(backTo)" /></div></section>
     </SharedPageState>
   </SharedPageContainer>
 </template>

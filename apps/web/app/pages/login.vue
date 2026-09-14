@@ -75,7 +75,7 @@ async function submitTotp() {
 
 <template>
   <main class="nasq-login-page min-h-svh grid place-items-center bg-background p-4">
-    <UCard class="nasq-login-card w-full max-w-sm" :ui="{ header: 'nasq-ui-card-header' }">
+    <UCard class="nasq-login-card w-full max-w-sm" :ui="{ header: '' }">
       <template #header>
         <div class="flex flex-col items-center text-center">
           <img v-if="branding" :src="branding.logo_url" :alt="branding.name" class="mb-4 h-14 w-auto max-w-full object-contain" />

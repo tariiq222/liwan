@@ -82,13 +82,13 @@ function openCreate() {
       </div>
       <TaskToolbar :model-value="params" embedded collapsible hide-project-filter @update:model-value="onParams">
         <template #view>
-          <nav class="nasq-ui-segment" :aria-label="t('projects.planning.views')">
+          <nav class="inline-flex items-center gap-0.5 rounded-md p-0.5 ring ring-default bg-default" :aria-label="t('projects.planning.views')">
             <UButton color="neutral" size="sm" icon="i-lucide-list" :variant="isBoard ? 'ghost' : 'soft'" :to="viewTo('list')" :aria-current="isBoard ? undefined : 'page'">{{ t('projects.tabs.list') }}</UButton>
             <UButton color="neutral" size="sm" icon="i-lucide-layout-grid" :variant="isBoard ? 'soft' : 'ghost'" :to="viewTo('board')" :aria-current="isBoard ? 'page' : undefined">{{ t('projects.tabs.board') }}</UButton>
           </nav>
         </template>
       </TaskToolbar>
-      <div class="nasq-ui-record-surface">
+      <div class="rounded-lg ring ring-default bg-default overflow-hidden">
         <TaskTable v-if="!isBoard" :params="params" variant="project" embedded @open="(id: number) => router.push(taskTo(id))" @create="openCreate" />
         <TaskBoard v-else :params="params" :stage-source="stageSource" embedded @open="(id: number) => router.push(taskTo(id))" />
       </div>

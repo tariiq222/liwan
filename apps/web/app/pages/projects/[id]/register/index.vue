@@ -166,7 +166,7 @@ async function deleteItem(item: { id: number }) {
       :empty-text="t(activeFilterCount ? 'projects.clarity.filteredEmpty' : 'projects.clarity.registerEmpty')"
       @retry="list.refetch"
     />
-    <section v-if="list.data?.value?.items.length" class="nasq-ui-record-surface" :aria-label="t('projects.refresh.workspace.registerTitle')">
+    <section v-if="list.data?.value?.items.length" class="rounded-lg ring ring-default bg-default overflow-hidden" :aria-label="t('projects.refresh.workspace.registerTitle')">
       <div class="hidden overflow-x-auto md:block">
         <UTable :data="list.data.value.items" :columns="columns">
           <template #id-cell="{ row }"><RecordNumber :value="row.original.id" /></template>

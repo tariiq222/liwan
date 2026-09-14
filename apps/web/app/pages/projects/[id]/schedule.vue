@@ -43,7 +43,7 @@ function openTaskCreate() {
         @click="openTaskCreate"
       />
     </SharedPageHeader>
-    <nav class="nasq-ui-segment" :aria-label="t('projects.schedule.scale')">
+    <nav class="inline-flex items-center gap-0.5 rounded-md p-0.5 ring ring-default bg-default" :aria-label="t('projects.schedule.scale')">
       <UButton type="button" color="neutral" size="sm" :variant="scale === 'week' ? 'soft' : 'ghost'" :disabled="!hydrated" :aria-pressed="scale === 'week'" @click="scale = 'week'">{{ t('projects.schedule.week') }}</UButton>
       <UButton type="button" color="neutral" size="sm" :variant="scale === 'month' ? 'soft' : 'ghost'" :disabled="!hydrated" :aria-pressed="scale === 'month'" @click="scale = 'month'">{{ t('projects.schedule.month') }}</UButton>
     </nav>

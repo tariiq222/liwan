@@ -63,7 +63,7 @@ function onSelect(_event: Event, row: { original: FinanceEntry }) {
 </script>
 
 <template>
-  <div v-if="loading" class="nasq-ui-record-surface grid gap-3 p-4" role="status" :aria-label="$t('app.loading')">
+  <div v-if="loading" class="rounded-lg ring ring-default bg-default overflow-hidden grid gap-3 p-4" role="status" :aria-label="$t('app.loading')">
     <USkeleton v-for="n in 5" :key="n" :class="compactRecords ? 'h-24 w-full' : 'h-5 w-full'" />
   </div>
   <EmptyState
@@ -75,7 +75,7 @@ function onSelect(_event: Event, row: { original: FinanceEntry }) {
       <UButton icon="i-lucide-plus" :disabled="!hydrated" :to="createTo">{{ t('projects.finance.newBudget') }}</UButton>
     </template>
   </EmptyState>
-  <div v-else-if="compactRecords" class="nasq-ui-record-surface">
+  <div v-else-if="compactRecords" class="rounded-lg ring ring-default bg-default overflow-hidden">
       <ul class="grid divide-y divide-default" :aria-label="t('projects.finance.columns.title')">
         <li
           v-for="item in items"
@@ -120,12 +120,12 @@ function onSelect(_event: Event, row: { original: FinanceEntry }) {
         </li>
       </ul>
   </div>
-  <div v-else class="nasq-ui-record-surface">
+  <div v-else class="rounded-lg ring ring-default bg-default overflow-hidden">
     <UTable
       :data="items"
       :columns="columns"
       :caption="t('projects.finance.columns.title')"
-      :ui="{ caption: 'sr-only', thead: 'nasq-ui-table-head' }"
+      :ui="{ caption: 'sr-only', thead: '' }"
       :on-select="hydrated ? onSelect : undefined"
     >
       <template #record-cell="{ row }">

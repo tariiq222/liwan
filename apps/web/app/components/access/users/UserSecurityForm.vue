@@ -83,7 +83,7 @@ onBeforeUnmount(clearSecrets)
 </script>
 
 <template>
-  <UCard class="nasq-ui-record-surface" :ui="{ header: 'nasq-ui-card-header' }">
+  <UCard class="rounded-lg ring ring-default bg-default overflow-hidden" :ui="{ header: '' }">
     <template #header><h2 class="text-lg font-semibold text-highlighted">{{ t('access.users.securityTitle') }}</h2></template>
     <div class="space-y-5">
       <p v-if="props.user.protected" class="text-sm text-muted">{{ t('access.protectedUser') }}</p>
@@ -103,7 +103,7 @@ onBeforeUnmount(clearSecrets)
         </div>
         <div v-if="canDisable || canReactivate" class="space-y-3">
           <div class="flex flex-wrap items-center gap-3">
-            <UButton color="secondary" variant="outline" :disabled="anyPending || (canReactivate && (!password.length || password !== passwordConfirmation))" :label="pendingAction === (props.user.active ? 'disable' : 'reactivate') ? t('access.users.confirmAction') : (props.user.active ? t('access.users.disable') : t('access.users.reactivate'))" @click="changeState" />
+            <UButton color="primary" variant="outline" :disabled="anyPending || (canReactivate && (!password.length || password !== passwordConfirmation))" :label="pendingAction === (props.user.active ? 'disable' : 'reactivate') ? t('access.users.confirmAction') : (props.user.active ? t('access.users.disable') : t('access.users.reactivate'))" @click="changeState" />
             <span class="text-sm text-muted">{{ props.user.active ? t('access.users.disableHint') : t('access.users.reactivateHint') }}</span>
           </div>
           <UAlert v-if="pendingAction === 'disable'" role="alert" color="warning" variant="subtle" :title="t('access.users.confirmDisable', { name: props.user.name })" :actions="[{ label: t('app.cancel'), color: 'neutral', variant: 'ghost', onClick: () => { pendingAction = null } }]" />

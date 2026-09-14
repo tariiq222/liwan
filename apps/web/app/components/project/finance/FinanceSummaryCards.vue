@@ -33,7 +33,7 @@ const show = computed(() => mode.value !== 'empty' || props.summary.charter_esti
 
     <section v-else-if="mode === 'dashboard'" class="grid gap-3 sm:grid-cols-3">
       <UCard :ui="{ body: 'flex items-center gap-4 p-5' }">
-        <span class="nasq-ui-metric-icon" aria-hidden="true"><UIcon name="i-lucide-wallet" class="size-5" /></span>
+        <span class="flex size-10 shrink-0 items-center justify-center rounded-md bg-elevated text-primary" aria-hidden="true"><UIcon name="i-lucide-wallet" class="size-5" /></span>
         <div class="min-w-0">
           <p class="truncate text-sm text-muted">{{ t('projects.finance.planned') }}</p>
           <p class="mt-0.5 text-2xl font-semibold tracking-tight text-highlighted tabular-nums" dir="ltr">{{ formatNullableAmount(summary.planned, currency, unknown) }}</p>
@@ -41,7 +41,7 @@ const show = computed(() => mode.value !== 'empty' || props.summary.charter_esti
         </div>
       </UCard>
       <UCard :ui="{ body: 'flex items-center gap-4 p-5' }">
-        <span class="nasq-ui-metric-icon" aria-hidden="true"><UIcon name="i-lucide-receipt" class="size-5" /></span>
+        <span class="flex size-10 shrink-0 items-center justify-center rounded-md bg-elevated text-primary" aria-hidden="true"><UIcon name="i-lucide-receipt" class="size-5" /></span>
         <div class="min-w-0">
           <p class="truncate text-sm text-muted">{{ t('projects.finance.actual') }}</p>
           <p class="mt-0.5 text-2xl font-semibold tracking-tight text-highlighted tabular-nums" dir="ltr">{{ formatNullableAmount(summary.actual, currency, unknown) }}</p>
@@ -49,7 +49,7 @@ const show = computed(() => mode.value !== 'empty' || props.summary.charter_esti
         </div>
       </UCard>
       <UCard :ui="{ body: 'flex items-center gap-4 p-5' }">
-        <span class="nasq-ui-metric-icon" aria-hidden="true"><UIcon name="i-lucide-scale" class="size-5" /></span>
+        <span class="flex size-10 shrink-0 items-center justify-center rounded-md bg-elevated text-primary" aria-hidden="true"><UIcon name="i-lucide-scale" class="size-5" /></span>
         <div class="min-w-0">
           <p class="truncate text-sm text-muted">{{ t('projects.finance.remaining') }}</p>
           <p class="mt-0.5 text-2xl font-semibold tracking-tight text-highlighted tabular-nums" dir="ltr">{{ formatNullableAmount(summary.remaining, currency, unknown) }}</p>

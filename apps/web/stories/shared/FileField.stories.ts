@@ -27,7 +27,7 @@ export const InDocumentCard: Story = {
   render: args => ({
     components: { FileField },
     setup: () => ({ args, t: useI18n().t }),
-    template: `<UCard class="nasq-ui-record-surface" :ui="{ header: 'nasq-ui-card-header' }"><template #header><h2 class="text-lg font-semibold text-highlighted">{{ t('hr.docs.attachments') }}</h2></template><div class="space-y-3"><UFormField :label="t('hr.docs.upload')" name="hr-doc-upload"><FileField id="hr-doc-upload" class="w-full" :disabled="args.disabled" /></UFormField></div></UCard>`,
+    template: `<UCard class="rounded-lg ring ring-default bg-default overflow-hidden" :ui="{ header: '' }"><template #header><h2 class="text-lg font-semibold text-highlighted">{{ t('hr.docs.attachments') }}</h2></template><div class="space-y-3"><UFormField :label="t('hr.docs.upload')" name="hr-doc-upload"><FileField id="hr-doc-upload" class="w-full" :disabled="args.disabled" /></UFormField></div></UCard>`,
   }),
 }
 

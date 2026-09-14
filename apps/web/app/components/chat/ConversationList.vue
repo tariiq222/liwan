@@ -94,7 +94,7 @@ function conversationTo(id: number) {
     </div>
     <div v-if="isError" class="grid gap-2 p-4 text-center" role="alert">
       <p class="text-sm text-destructive">{{ t('chat.unavailable') }}</p>
-      <UButton type="button" color="secondary" variant="outline" size="sm" class="mx-auto" :disabled="!hydrated || isFetching" :label="t('app.retry')" @click="refetch()" />
+      <UButton type="button" color="primary" variant="outline" size="sm" class="mx-auto" :disabled="!hydrated || isFetching" :label="t('app.retry')" @click="refetch()" />
     </div>
     <EmptyState v-else-if="!items.length" :title="props.routeState.q || props.routeState.filter !== 'all' ? t('chat.emptyFiltered') : t('chat.empty')" />
     <ul v-else class="min-h-0 flex-1 overflow-y-auto">

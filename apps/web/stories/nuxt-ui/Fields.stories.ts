@@ -4,7 +4,7 @@ import { ProjectStatusSchema } from '@nasq/contracts'
 
 export default {
   title: 'Nuxt UI/Fields',
-  parameters: { docs: { description: { component: 'وصفات `input` و`inputNumber` و`textarea` و`select` و`selectMenu` و`calendar` (فئة `nasq-ui-field`).' } } },
+  parameters: { docs: { description: { component: 'وصفات `input` و`inputNumber` و`textarea` و`select` و`selectMenu` و`calendar` (فئة ``).' } } },
 } satisfies Meta
 
 export const TextInputs: StoryObj = {

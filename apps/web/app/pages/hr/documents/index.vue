@@ -131,9 +131,9 @@ function documentTo(document: HrDocument) {
       @retry="query.refetch"
     >
       <div class="min-w-0 space-y-2">
-        <UCard class="nasq-ui-record-surface hidden overflow-hidden md:block" :ui="{ body: 'p-0' }">
+        <UCard class="rounded-lg ring ring-default bg-default overflow-hidden hidden md:block" :ui="{ body: 'p-0' }">
           <div class="overflow-x-auto">
-            <UTable :data="query.data.value?.items ?? []" :columns="columns" :caption="t('hr.docs.title')" :ui="{ caption: 'sr-only', th: 'nasq-ui-table-head' }" @select="(_event, row) => navigateTo(documentTo(row.original))">
+            <UTable :data="query.data.value?.items ?? []" :columns="columns" :caption="t('hr.docs.title')" :ui="{ caption: 'sr-only', th: '' }" @select="(_event, row) => navigateTo(documentTo(row.original))">
               <template #id-cell="{ row }"><RecordNumber :value="row.original.id" /></template>
               <template #name-cell="{ row }"><span class="font-medium">{{ row.original.name }}</span></template>
               <template #department-cell="{ row }"><span class="text-muted">{{ row.original.department.name }}</span></template>
@@ -141,7 +141,7 @@ function documentTo(document: HrDocument) {
           </div>
         </UCard>
         <ul class="md:hidden space-y-2" :aria-label="t('hr.docs.title')">
-          <li v-for="document in query.data.value?.items ?? []" :key="document.id" class="cursor-pointer nasq-ui-record-surface p-4" tabindex="0" role="button" @click="navigateTo(documentTo(document))">
+          <li v-for="document in query.data.value?.items ?? []" :key="document.id" class="cursor-pointer rounded-lg ring ring-default bg-default overflow-hidden p-4" tabindex="0" role="button" @click="navigateTo(documentTo(document))">
             <bdi class="block text-xs text-muted">#{{ document.id }}</bdi>
             <p class="font-medium">{{ document.name }}</p>
             <p class="mt-1 text-xs text-muted">{{ document.department.name }}</p>

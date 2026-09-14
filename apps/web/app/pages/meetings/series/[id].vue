@@ -185,7 +185,7 @@ function setHistoryPage(page: number) {
   <SharedPageContainer v-if="isDetail" width="detail">
     <SharedPageHeader :title="query.data.value?.name || t('nav.meetingSeries')" :description="headerDescription" :back-to="backTo">
       <template #actions>
-        <UButton v-if="query.data.value?.can_edit === true" color="secondary" variant="outline" :to="`/meetings/series/${id}/edit`" :label="t('meetingsUx.seriesSettingsLink')" />
+        <UButton v-if="query.data.value?.can_edit === true" color="primary" variant="outline" :to="`/meetings/series/${id}/edit`" :label="t('meetingsUx.seriesSettingsLink')" />
         <UButton v-if="canAddOccurrence" :disabled="!hydrated" :to="{ path: '/meetings/new', query: { series_id: String(id) } }" :label="t('meetingsUi.addOccurrence')" />
       </template>
     </SharedPageHeader>
@@ -226,7 +226,7 @@ function setHistoryPage(page: number) {
             </template>
           </FilterBar>
           <UCard class="overflow-hidden"><MeetingTimeline :meetings="visibleMeetings" :next-meeting-id="upcoming?.id" :view="occurrenceView" :preserve-order="occurrenceSort !== 'timeline'" :return-to="route.fullPath" :now="now" /></UCard>
-          <div v-if="hasMoreMeetings" class="flex justify-center"><UButton color="secondary" variant="outline" :disabled="!hydrated" :label="t('meetingTimeline.loadMore')" @click="loadMoreMeetings" /></div>
+          <div v-if="hasMoreMeetings" class="flex justify-center"><UButton color="primary" variant="outline" :disabled="!hydrated" :label="t('meetingTimeline.loadMore')" @click="loadMoreMeetings" /></div>
         </section>
 
         <section v-else-if="activeTab === 'followup'" class="grid gap-4" data-testid="meeting-series-followup">

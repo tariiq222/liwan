@@ -5,11 +5,11 @@
         <slot name="search" />
       </div>
       <UButton v-if="$slots.default" ref="trigger" type="button" color="neutral" :variant="expanded ? 'soft' : 'outline'" square icon="i-lucide-list-filter" :aria-label="resolvedTitle" :title="resolvedTitle" :aria-expanded="expanded" :aria-controls="contentId" :disabled="isDisabled" @click="expanded = !expanded" />
-      <UBadge v-if="activeCount > 0" color="secondary">{{ activeCount }}</UBadge>
+      <UBadge v-if="activeCount > 0" color="primary">{{ activeCount }}</UBadge>
       <UButton v-if="activeCount > 0" type="button" color="error" variant="ghost" square icon="i-lucide-trash-2" :aria-label="resolvedClearLabel" :title="resolvedClearLabel" :disabled="isDisabled" @click="$emit('clear')" />
       <slot name="actions" />
     </div>
-    <div v-if="$slots.default" v-show="expanded" :id="contentId" class="nasq-ui-filter-row" data-slot="filter-fields" :aria-label="resolvedTitle" role="region" :aria-busy="isDisabled" @keydown.esc.stop="close"><slot /></div>
+    <div v-if="$slots.default" v-show="expanded" :id="contentId" class="rounded-lg ring ring-default bg-default p-4" data-slot="filter-fields" :aria-label="resolvedTitle" role="region" :aria-busy="isDisabled" @keydown.esc.stop="close"><slot /></div>
     <div v-if="activeCount > 0 && $slots.active" data-slot="active-row" class="flex flex-wrap items-center gap-2 text-xs text-muted"><slot name="active" /></div>
   </div>
 </template>

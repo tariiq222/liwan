@@ -92,7 +92,7 @@ function retry() {
             <UButton color="neutral" variant="outline" type="button" @click="retry">{{ t('app.retry') }}</UButton>
           </template>
         </UAlert>
-        <section class="nasq-ui-record-surface">
+        <section class="rounded-lg ring ring-default bg-default overflow-hidden">
           <div class="p-5">
             <FinanceEntryForm
               :project-id="projectId"

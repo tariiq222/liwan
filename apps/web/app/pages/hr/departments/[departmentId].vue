@@ -18,11 +18,11 @@ const backTo = computed(() => {
     </SharedPageHeader>
     <SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!department" @retry="query.refetch">
       <div v-if="department" class="grid gap-6 items-start lg:grid-cols-[2fr_1fr]">
-        <UCard v-if="can('hr.documents.read')" class="nasq-ui-record-surface" :ui="{ header: 'nasq-ui-card-header' }">
+        <UCard v-if="can('hr.documents.read')" class="rounded-lg ring ring-default bg-default overflow-hidden" :ui="{ header: '' }">
           <template #header><h2 class="text-lg font-semibold text-highlighted">{{ t('hr.depts.detail') }}</h2></template>
           <DocumentList :department-id="id" :can-write="can('hr.documents.manage')" embedded />
         </UCard>
-        <UCard class="nasq-ui-record-surface" :ui="{ header: 'nasq-ui-card-header' }">
+        <UCard class="rounded-lg ring ring-default bg-default overflow-hidden" :ui="{ header: '' }">
           <template #header><h2 class="text-lg font-semibold text-highlighted">{{ t('hr.card.overview') }}</h2></template>
           <dl class="grid gap-4">
             <div><dt class="text-sm text-muted">{{ t('hr.tabs.employees') }}</dt><dd class="mt-1 font-medium">{{ department.employee_count }}</dd></div>

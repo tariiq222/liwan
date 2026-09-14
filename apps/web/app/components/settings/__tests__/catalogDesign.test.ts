@@ -33,10 +33,10 @@ describe('charter catalog list design', () => {
   })
 
   it('renders catalog rows with existing panel primitives', () => {
-    expect(list).toContain('<div class="nasq-ui-record-surface overflow-hidden">')
+    expect(list).toContain('<div class="rounded-lg ring ring-default bg-default overflow-hidden">')
     expect(list).toContain('v-for="item in query.data.value?.items ?? []"')
-    expect(create).toContain('nasq-ui-record-surface p-5')
-    expect(edit).toContain('nasq-ui-record-surface p-5')
+    expect(create).toContain('rounded-lg ring ring-default bg-default overflow-hidden p-5')
+    expect(edit).toContain('rounded-lg ring ring-default bg-default overflow-hidden p-5')
     expect(create).not.toContain('<Card')
     expect(edit).not.toContain('<Card')
   })

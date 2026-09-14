@@ -58,7 +58,7 @@ function onCancel() {
       @retry="refetch"
     >
       <div class="project-charter-print-scope">
-        <div :class="readonly ? undefined : 'nasq-ui-record-surface p-5'">
+        <div :class="readonly ? undefined : 'rounded-lg ring ring-default bg-default overflow-hidden p-5'">
             <ProjectCharterForm
               mode="edit"
               :project="project"

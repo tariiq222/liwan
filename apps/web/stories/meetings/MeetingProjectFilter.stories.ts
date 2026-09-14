@@ -32,6 +32,6 @@ export const WithLabel: Story = {
   render: args => ({
     components: { MeetingProjectFilter, PageContainer },
     setup: () => ({ args, t: useI18n().t, projectId: ref(args.modelValue) }),
-    template: `<main class="nasq-shell-main"><PageContainer width="list"><div class="nasq-ui-filter-content"><MeetingProjectFilter id="meeting-series-project" :label="t('meetingsFilters.project')" v-model="projectId" /></div></PageContainer></main>`,
+    template: `<main class="nasq-shell-main"><PageContainer width="list"><div><MeetingProjectFilter id="meeting-series-project" :label="t('meetingsFilters.project')" v-model="projectId" /></div></PageContainer></main>`,
   }),
 }

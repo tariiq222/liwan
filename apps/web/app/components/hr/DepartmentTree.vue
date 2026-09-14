@@ -71,7 +71,7 @@ function toggle(node: DepartmentTreeNode) {
         <UButton
           v-if="node.children.length"
           type="button"
-          color="secondary"
+          color="primary"
           variant="ghost"
           square
           :disabled="!hydrated || isSearching"
@@ -110,7 +110,7 @@ function toggle(node: DepartmentTreeNode) {
         <UButton
           v-if="canManage"
           type="button"
-          color="secondary"
+          color="primary"
           variant="ghost"
           square
           :disabled="!hydrated"
@@ -121,7 +121,7 @@ function toggle(node: DepartmentTreeNode) {
         <UButton
           v-if="canManage"
           type="button"
-          color="secondary"
+          color="primary"
           variant="ghost"
           square
           :disabled="!hydrated"
@@ -131,7 +131,7 @@ function toggle(node: DepartmentTreeNode) {
         />
         <UButton
           v-if="canReadEmployees"
-          color="secondary"
+          color="primary"
           variant="ghost"
           square
           :to="`/hr?department_id=${node.department.id}`"
@@ -140,7 +140,7 @@ function toggle(node: DepartmentTreeNode) {
         />
         <UButton
           v-if="canReadDocuments"
-          color="secondary"
+          color="primary"
           variant="ghost"
           square
           :to="`/hr/documents?department_id=${node.department.id}`"
@@ -150,7 +150,7 @@ function toggle(node: DepartmentTreeNode) {
       </div>
     </div>
   </UCard>
-  <p v-else class="nasq-ui-record-surface py-10 text-center text-sm text-muted">{{ $t('hr.depts.empty') }}</p>
+  <p v-else class="rounded-lg ring ring-default bg-default overflow-hidden py-10 text-center text-sm text-muted">{{ $t('hr.depts.empty') }}</p>
 </template>
 
 <style scoped>

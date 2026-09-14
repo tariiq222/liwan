@@ -127,7 +127,7 @@ const projectItems = computed(() => [
       />
       <slot name="view" />
       <div v-if="view" class="hidden md:block">
-      <div role="group" class="nasq-ui-segment bg-elevated/40" :aria-label="t('projects.filters.view')">
+      <div role="group" class="inline-flex items-center gap-0.5 rounded-md p-0.5 ring ring-default bg-default bg-elevated/40" :aria-label="t('projects.filters.view')">
         <UButton data-testid="project-tasks-view-table" type="button" color="neutral" square size="sm" :variant="view === 'table' ? 'soft' : 'ghost'" :disabled="!hydrated" :aria-label="t('projects.filters.tableView')" :aria-pressed="view === 'table'" @click="emit('update:view', 'table')">
           <UIcon name="i-lucide-list" class="size-[18px]" aria-hidden="true" />
         </UButton>

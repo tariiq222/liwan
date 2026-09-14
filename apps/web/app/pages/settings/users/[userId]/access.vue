@@ -23,7 +23,7 @@ function retryAccessData() {
     <SharedPageHeader :title="t('access.users.editAccess')" :back-to="backTo" />
     <SharedPageState v-if="forbidden" :empty="true" :empty-text="t('access.forbidden')" />
       <SharedPageState v-else :loading="user.isLoading.value || roles.isLoading.value || catalog.isLoading.value" :error="user.error.value || roles.error.value || catalog.error.value" :empty="!user.data.value" :empty-text="t('access.notFound')" @retry="retryAccessData">
-      <UCard v-if="user.data.value" class="nasq-ui-record-surface" :ui="{ body: 'p-5 sm:p-6' }"><UserAccessForm :user="user.data.value" :roles="roles.data.value?.items ?? []" :permissions="catalog.data.value?.items ?? []" :permissions-loading="catalog.isLoading.value" :permissions-error="catalog.error.value" @saved="navigateTo(backTo)" @retry="retryAccessData" /></UCard>
+      <UCard v-if="user.data.value" class="rounded-lg ring ring-default bg-default overflow-hidden" :ui="{ body: 'p-5 sm:p-6' }"><UserAccessForm :user="user.data.value" :roles="roles.data.value?.items ?? []" :permissions="catalog.data.value?.items ?? []" :permissions-loading="catalog.isLoading.value" :permissions-error="catalog.error.value" @saved="navigateTo(backTo)" @retry="retryAccessData" /></UCard>
     </SharedPageState>
   </SettingsLayout>
 </template>

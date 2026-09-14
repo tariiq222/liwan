@@ -104,7 +104,7 @@ const previewStyle = computed(() => {
     :class="{ dark: previewMode === 'dark', cream: previewMode === 'cream' }"
     :style="previewStyle"
   >
-  <UCard class="nasq-ui-record-surface" :ui="{ header: 'nasq-ui-card-header' }">
+  <UCard class="rounded-lg ring ring-default bg-default overflow-hidden" :ui="{ header: '' }">
     <template #header>
       <div class="flex items-center justify-between gap-2">
         <div>
@@ -149,19 +149,19 @@ const previewStyle = computed(() => {
       </div>
       <div class="flex flex-wrap items-center gap-2">
         <UButton type="button" data-testid="branding-preview-action">{{ t('settings.branding.preview.action') }}</UButton>
-        <span class="nasq-ui-selected inline-flex min-h-9 items-center px-3 text-sm font-medium">{{ t('settings.branding.preview.selection') }}</span>
+        <span class="bg-primary/10 inline-flex min-h-9 items-center px-3 text-sm font-medium">{{ t('settings.branding.preview.selection') }}</span>
         <UInput :aria-label="t('settings.branding.preview.action')" :placeholder="t('settings.branding.preview.action')" class="w-40" readonly />
       </div>
-      <div class="nasq-ui-tab-strip">
-        <UButton type="button" color="neutral" variant="ghost" class="nasq-ui-tab" aria-current="page">{{ t('settings.branding.preview.action') }}</UButton>
-        <UButton type="button" color="neutral" variant="ghost" class="nasq-ui-tab">{{ t('settings.branding.preview.selection') }}</UButton>
+      <div class="flex gap-1 overflow-x-auto border-b border-default">
+        <UButton type="button" color="neutral" variant="ghost" class="inline-flex items-center gap-2 whitespace-nowrap px-3 py-2 text-sm font-medium text-muted transition-colors hover:text-default data-[active=true]:text-primary data-[active=true]:shadow-[inset_0_-2px_0_0_var(--ui-primary)] aria-[current=page]:text-primary aria-[current=page]:shadow-[inset_0_-2px_0_0_var(--ui-primary)]" aria-current="page">{{ t('settings.branding.preview.action') }}</UButton>
+        <UButton type="button" color="neutral" variant="ghost" class="inline-flex items-center gap-2 whitespace-nowrap px-3 py-2 text-sm font-medium text-muted transition-colors hover:text-default data-[active=true]:text-primary data-[active=true]:shadow-[inset_0_-2px_0_0_var(--ui-primary)] aria-[current=page]:text-primary aria-[current=page]:shadow-[inset_0_-2px_0_0_var(--ui-primary)]">{{ t('settings.branding.preview.selection') }}</UButton>
       </div>
-      <div class="nasq-ui-record-surface p-4">
+      <div class="rounded-lg ring ring-default bg-default overflow-hidden p-4">
         <p class="text-sm">{{ t('settings.branding.preview.hint') }}</p>
       </div>
       <div>
         <p class="mb-1 text-xs text-muted">{{ t('settings.branding.preview.progress') }}</p>
-        <UProgress :model-value="66" :style="{ '--nasq-ui-progress': '66%' }" class="nasq-ui-progress" size="sm" :aria-label="t('settings.branding.preview.progress')" />
+        <UProgress :model-value="66" size="sm" :aria-label="t('settings.branding.preview.progress')" />
       </div>
       <div>
         <p class="mb-1 text-xs text-muted">{{ t('settings.branding.preview.charts') }}</p>

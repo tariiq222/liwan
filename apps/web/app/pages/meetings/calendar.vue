@@ -107,14 +107,14 @@ function goToday() {
 <template>
   <SharedPageContainer width="list">
     <SharedPageHeader :title="t('nav.meetingCalendar')" />
-    <div class="flex items-center justify-between gap-3 nasq-ui-record-surface p-3">
+    <div class="flex items-center justify-between gap-3 rounded-lg ring ring-default bg-default overflow-hidden p-3">
       <div class="flex items-center gap-2" :aria-label="monthLabel">
         <UButton type="button" color="neutral" variant="ghost" square :disabled="!hydrated" :aria-label="t('projects.previousPage')" @click="shift(-1)">
           <UIcon v-if="locale === 'ar'" name="i-lucide-chevron-right" class="size-[18px]" aria-hidden="true" />
           <UIcon v-else name="i-lucide-chevron-left" class="size-[18px]" aria-hidden="true" />
         </UButton>
         <span class="min-w-40 text-center text-sm font-medium">{{ monthLabel }}</span>
-        <UButton type="button" color="secondary" variant="outline" size="sm" :disabled="!hydrated" :label="t('meetingsUx.today')" @click="goToday" />
+        <UButton type="button" color="primary" variant="outline" size="sm" :disabled="!hydrated" :label="t('meetingsUx.today')" @click="goToday" />
         <UButton type="button" color="neutral" variant="ghost" square :disabled="!hydrated" :aria-label="t('projects.nextPage')" @click="shift(1)">
           <UIcon v-if="locale === 'ar'" name="i-lucide-chevron-left" class="size-[18px]" aria-hidden="true" />
           <UIcon v-else name="i-lucide-chevron-right" class="size-[18px]" aria-hidden="true" />

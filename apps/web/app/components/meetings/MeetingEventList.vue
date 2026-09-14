@@ -60,7 +60,7 @@ function hasInformativeSummary(event: MeetingEvent) {
     <template #header><h2 class="text-lg font-semibold text-highlighted">{{ t('meetingMinutesForm.history') }}</h2></template>
     <div class="grid gap-3">
       <div v-if="loading" class="grid gap-2" aria-busy="true"><USkeleton v-for="row in 4" :key="row" class="h-12 w-full" /></div>
-      <div v-else-if="error" class="flex flex-wrap items-center justify-between gap-2 text-sm text-destructive" role="alert"><span>{{ errorText }}</span><UButton type="button" color="secondary" variant="outline" size="sm" :disabled="!hydrated" :label="t('meetingMinutesForm.retry')" @click="emit('retry')" /></div>
+      <div v-else-if="error" class="flex flex-wrap items-center justify-between gap-2 text-sm text-destructive" role="alert"><span>{{ errorText }}</span><UButton type="button" color="primary" variant="outline" size="sm" :disabled="!hydrated" :label="t('meetingMinutesForm.retry')" @click="emit('retry')" /></div>
       <div v-else-if="!events.length" class="text-sm text-muted-foreground">{{ t('meetingMinutesForm.noHistory') }}</div>
       <ol v-else class="grid gap-2">
         <li v-for="event in events" :key="event.id" class="grid min-w-0 gap-1 rounded-lg border border-border p-3">

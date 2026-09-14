@@ -128,9 +128,9 @@ async function submit() {
         <p v-else-if="employees.error.value" role="alert" class="text-xs text-error">{{ t('errors.generic') }}</p>
         <p v-if="selectedCandidate?.user_id && selectedCandidate.access_active !== false" role="alert" class="text-xs text-error">{{ t('access.users.alreadyHasAccount') }}</p>
         <div v-if="candidatePages > 1" class="flex items-center justify-between text-xs text-muted">
-          <UButton type="button" color="secondary" variant="ghost" size="sm" :disabled="!hydrated || candidateParams.offset === 0 || employees.isFetching.value" :label="t('access.users.previousCandidates')" @click="previousCandidates" />
+          <UButton type="button" color="primary" variant="ghost" size="sm" :disabled="!hydrated || candidateParams.offset === 0 || employees.isFetching.value" :label="t('access.users.previousCandidates')" @click="previousCandidates" />
           <span>{{ t('access.users.candidatePage', { page: candidatePage, pages: candidatePages }) }}</span>
-          <UButton type="button" color="secondary" variant="ghost" size="sm" :disabled="!hydrated || candidatePage >= candidatePages || employees.isFetching.value" :label="t('access.users.nextCandidates')" @click="nextCandidates" />
+          <UButton type="button" color="primary" variant="ghost" size="sm" :disabled="!hydrated || candidatePage >= candidatePages || employees.isFetching.value" :label="t('access.users.nextCandidates')" @click="nextCandidates" />
         </div>
       </SharedFormSection>
       <SharedFormSection :title="t('access.users.role')" class="space-y-4">

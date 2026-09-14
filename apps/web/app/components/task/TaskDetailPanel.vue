@@ -154,7 +154,7 @@ useEventListener(document, 'keydown', onKeydown)
 </script>
 
 <template>
-  <div data-nasq-reference-detail class="space-y-6">
+  <div class="nasq-page-width-detail space-y-6">
     <div class="task-context-row" data-testid="task-detail-context">
       <div class="flex min-w-0 flex-1 items-center gap-2">
         <NuxtLink :to="backTo" class="inline-flex min-h-8 shrink-0 items-center gap-1 rounded-lg px-2 text-sm text-muted transition-colors hover:bg-elevated hover:text-highlighted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" :aria-label="props.backLabel ?? t('tasks.detail.back')" :aria-disabled="!hydrated || editingTitle || titleSaving" :tabindex="!hydrated || editingTitle || titleSaving ? -1 : undefined" @click="(!hydrated || editingTitle || titleSaving) && $event.preventDefault()">
@@ -232,7 +232,7 @@ useEventListener(document, 'keydown', onKeydown)
 
     <template v-if="task">
       <div data-testid="task-detail-grid" class="space-y-6">
-        <div data-testid="task-details-card" class="nasq-ui-record-surface space-y-6 p-5">
+        <div data-testid="task-details-card" class="rounded-lg ring ring-default bg-default overflow-hidden space-y-6 p-5">
           <div class="task-detail-status-line">
             <StateMenu :task="task" :can-approve="task.can_approve" />
             <span class="text-xs text-muted">

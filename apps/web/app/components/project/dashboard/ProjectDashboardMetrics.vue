@@ -18,7 +18,7 @@ const METRIC_ICON: Record<string, string> = {
 <template>
   <section :aria-label="t('projects.dashboard.metrics.metricsLabel')" class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
     <UCard v-for="metric in metrics" :key="metric.key" :ui="{ body: 'flex items-center gap-4 p-5' }">
-      <span class="nasq-ui-metric-icon" aria-hidden="true">
+      <span class="flex size-10 shrink-0 items-center justify-center rounded-md bg-elevated text-primary" aria-hidden="true">
         <UIcon :name="METRIC_ICON[metric.key] ?? 'i-lucide-bar-chart-3'" class="size-5" />
       </span>
       <div class="min-w-0">

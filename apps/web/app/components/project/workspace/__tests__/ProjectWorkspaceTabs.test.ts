@@ -12,7 +12,7 @@ const source = readFileSync(
 
 describe('ProjectWorkspaceTabs', () => {
   it('renders exactly one flat tab strip', () => {
-    expect(source.match(/nasq-ui-tab-strip/g)).toHaveLength(1)
+    expect(source.match(/overflow-x-auto border-b border-default/g)).toHaveLength(1)
     expect(source).toContain('data-testid="project-workspace-tabs"')
   })
 

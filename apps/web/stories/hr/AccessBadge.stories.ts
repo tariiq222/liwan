@@ -25,7 +25,7 @@ export const InDirectoryCard: Story = {
   render: args => ({
     components: { AccessBadge },
     setup: () => ({ args }),
-    template: `<ul style="width: 375px"><li class="nasq-ui-record-surface p-4"><div class="flex items-start justify-between gap-3"><div class="min-w-0"><bdi class="block text-xs text-muted">#7</bdi><a class="font-medium hover:underline">سارة القحطاني</a></div><AccessBadge v-bind="args" /></div></li></ul>`,
+    template: `<ul style="width: 375px"><li class="rounded-lg ring ring-default bg-default overflow-hidden p-4"><div class="flex items-start justify-between gap-3"><div class="min-w-0"><bdi class="block text-xs text-muted">#7</bdi><a class="font-medium hover:underline">سارة القحطاني</a></div><AccessBadge v-bind="args" /></div></li></ul>`,
   }),
 }
 
@@ -34,6 +34,6 @@ export const AllAccess: Story = {
   render: () => ({
     components: { AccessBadge },
     setup: () => ({ accesses }),
-    template: `<ul style="width: 375px" class="space-y-2"><li v-for="(access, index) in accesses" :key="index" class="nasq-ui-record-surface p-4"><div class="flex items-start justify-between gap-3"><div class="min-w-0"><bdi class="block text-xs text-muted">#{{ index }}</bdi><a class="font-medium hover:underline">مستخدم {{ index }}</a></div><AccessBadge :access="access" /></div></li></ul>`,
+    template: `<ul style="width: 375px" class="space-y-2"><li v-for="(access, index) in accesses" :key="index" class="rounded-lg ring ring-default bg-default overflow-hidden p-4"><div class="flex items-start justify-between gap-3"><div class="min-w-0"><bdi class="block text-xs text-muted">#{{ index }}</bdi><a class="font-medium hover:underline">مستخدم {{ index }}</a></div><AccessBadge :access="access" /></div></li></ul>`,
   }),
 }

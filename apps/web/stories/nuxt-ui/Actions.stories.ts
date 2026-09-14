@@ -20,7 +20,7 @@ export const ButtonRanks: StoryObj = {
       <div class="flex flex-wrap items-center gap-3">
         <UButton disabled>{{ $t('app.save') }}</UButton>
         <UButton loading>{{ $t('app.save') }}</UButton>
-        <UButton size="sm" color="secondary" variant="outline">{{ $t('app.retry') }}</UButton>
+        <UButton size="sm" color="primary" variant="outline">{{ $t('app.retry') }}</UButton>
       </div>
     </div>`,
   }),
@@ -36,7 +36,7 @@ export const BadgesAndProgress: StoryObj = {
         <UBadge color="warning" variant="subtle">{{ $t('projects.status.at_risk') }}</UBadge>
         <UBadge color="error" variant="subtle">{{ $t('projects.status.off_track') }}</UBadge>
         <UBadge color="success" variant="subtle">{{ $t('projects.status.done') }}</UBadge>
-        <UBadge color="secondary">3</UBadge>
+        <UBadge color="primary">3</UBadge>
       </div>
       <UProgress :model-value="45" />
       <UProgress :model-value="100" color="success" />

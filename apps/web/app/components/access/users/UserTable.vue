@@ -23,9 +23,9 @@ const columns = computed<TableColumn<AdminUserSummary>[]>(() => [
 
 <template>
   <div class="min-w-0 space-y-2">
-    <UCard class="nasq-ui-record-surface hidden overflow-hidden md:block" :ui="{ body: 'p-0' }">
+    <UCard class="rounded-lg ring ring-default bg-default overflow-hidden hidden md:block" :ui="{ body: 'p-0' }">
       <div class="overflow-x-auto">
-        <UTable :data="users" :columns="columns" :caption="t('access.users.title')" :ui="{ caption: 'sr-only', th: 'nasq-ui-table-head' }">
+        <UTable :data="users" :columns="columns" :caption="t('access.users.title')" :ui="{ caption: 'sr-only', th: '' }">
           <template #id-cell="{ row }"><RecordNumber :value="row.original.id" /></template>
           <template #name-cell="{ row }"><span class="font-medium">{{ row.original.name }}</span></template>
           <template #login-cell="{ row }"><bdi dir="ltr">{{ row.original.login }}</bdi></template>
@@ -34,14 +34,14 @@ const columns = computed<TableColumn<AdminUserSummary>[]>(() => [
           <template #active-cell="{ row }"><AccessStateBadge :active="row.original.active" :protected="row.original.protected" /></template>
           <template #actions-cell="{ row }">
             <div class="flex justify-end">
-              <UButton color="secondary" variant="ghost" size="sm" :disabled="!hydrated" :label="t('access.view')" @click="emit('open', row.original.id)" />
+              <UButton color="primary" variant="ghost" size="sm" :disabled="!hydrated" :label="t('access.view')" @click="emit('open', row.original.id)" />
             </div>
           </template>
         </UTable>
       </div>
     </UCard>
     <ul class="md:hidden space-y-2" :aria-label="t('access.users.title')">
-      <li v-for="user in users" :key="user.id" class="nasq-ui-record-surface p-4">
+      <li v-for="user in users" :key="user.id" class="rounded-lg ring ring-default bg-default overflow-hidden p-4">
         <div class="flex items-start justify-between gap-3">
           <div class="min-w-0">
             <bdi class="block text-xs text-muted">#{{ user.id }}</bdi>
@@ -55,7 +55,7 @@ const columns = computed<TableColumn<AdminUserSummary>[]>(() => [
           <div><dt>{{ t('access.users.columns.roles') }}</dt><dd>{{ user.assignments.map((assignment) => roleLabel(assignment.role)).join('، ') || t('access.users.noRoles') }}</dd></div>
         </dl>
         <div class="mt-3 flex justify-end">
-          <UButton color="secondary" variant="ghost" size="sm" :disabled="!hydrated" :label="t('access.view')" @click="emit('open', user.id)" />
+          <UButton color="primary" variant="ghost" size="sm" :disabled="!hydrated" :label="t('access.view')" @click="emit('open', user.id)" />
         </div>
       </li>
     </ul>

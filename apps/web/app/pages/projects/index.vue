@@ -222,7 +222,7 @@ async function openProject(id: number) {
       :title="t('projects.loadError')"
     >
       <template #actions>
-        <UButton color="secondary" variant="outline" size="sm" :label="t('app.retry')" @click="activeList.refetch()" />
+        <UButton color="primary" variant="outline" size="sm" :label="t('app.retry')" @click="activeList.refetch()" />
       </template>
     </UAlert>
 
@@ -244,7 +244,7 @@ async function openProject(id: number) {
             @update:model-value="onFilterChange"
           />
           <div class="hidden md:block">
-            <div role="group" class="nasq-ui-segment" :aria-label="t('projects.filters.view')">
+            <div role="group" class="inline-flex items-center gap-0.5 rounded-md p-0.5 ring ring-default bg-default" :aria-label="t('projects.filters.view')">
               <UButton data-testid="projects-view-table" type="button" square color="neutral" size="sm" :variant="view === 'table' ? 'soft' : 'ghost'" icon="i-lucide-list" :disabled="!hydrated" :aria-label="t('projects.filters.tableView')" :aria-pressed="view === 'table'" @click="onViewChange('table')" />
               <UButton data-testid="projects-view-cards" type="button" square color="neutral" size="sm" :variant="view === 'cards' ? 'soft' : 'ghost'" icon="i-lucide-layout-grid" :disabled="!hydrated" :aria-label="t('projects.filters.cardView')" :aria-pressed="view === 'cards'" @click="onViewChange('cards')" />
             </div>

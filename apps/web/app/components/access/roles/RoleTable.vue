@@ -23,9 +23,9 @@ const columns = computed<TableColumn<RoleSummary>[]>(() => [
 
 <template>
   <div class="min-w-0 space-y-2">
-    <UCard class="nasq-ui-record-surface hidden overflow-hidden md:block" :ui="{ body: 'p-0' }">
+    <UCard class="rounded-lg ring ring-default bg-default overflow-hidden hidden md:block" :ui="{ body: 'p-0' }">
       <div class="overflow-x-auto">
-        <UTable :data="roles" :columns="columns" :caption="t('access.roles.title')" :ui="{ caption: 'sr-only', th: 'nasq-ui-table-head' }">
+        <UTable :data="roles" :columns="columns" :caption="t('access.roles.title')" :ui="{ caption: 'sr-only', th: '' }">
           <template #id-cell="{ row }"><RecordNumber :value="row.original.id" /></template>
           <template #name-cell="{ row }"><span class="font-medium">{{ roleLabel(row.original) }}</span></template>
           <template #description-cell="{ row }"><span class="max-w-xs whitespace-normal">{{ row.original.description }}</span></template>
@@ -34,15 +34,15 @@ const columns = computed<TableColumn<RoleSummary>[]>(() => [
           <template #active-cell="{ row }"><AccessStateBadge :active="row.original.active" :protected="row.original.protected" /></template>
           <template #actions-cell="{ row }">
             <div class="flex justify-end gap-1">
-              <UButton color="secondary" variant="ghost" size="sm" :disabled="!hydrated" :label="t('access.view')" @click="emit('open', row.original.id)" />
-              <UButton v-if="canManage" color="secondary" variant="ghost" size="sm" :disabled="!hydrated" :label="t('access.roles.clone')" @click="emit('clone', row.original.id)" />
+              <UButton color="primary" variant="ghost" size="sm" :disabled="!hydrated" :label="t('access.view')" @click="emit('open', row.original.id)" />
+              <UButton v-if="canManage" color="primary" variant="ghost" size="sm" :disabled="!hydrated" :label="t('access.roles.clone')" @click="emit('clone', row.original.id)" />
             </div>
           </template>
         </UTable>
       </div>
     </UCard>
     <ul class="md:hidden space-y-2" :aria-label="t('access.roles.title')">
-      <li v-for="role in roles" :key="role.id" class="nasq-ui-record-surface p-4">
+      <li v-for="role in roles" :key="role.id" class="rounded-lg ring ring-default bg-default overflow-hidden p-4">
         <div class="flex items-start justify-between gap-3">
           <div class="min-w-0">
             <bdi class="block text-xs text-muted">#{{ role.id }}</bdi>
@@ -56,8 +56,8 @@ const columns = computed<TableColumn<RoleSummary>[]>(() => [
           <div><dt>{{ t('access.roles.columns.users') }}</dt><dd>{{ role.user_count }}</dd></div>
         </dl>
         <div class="mt-3 flex justify-end gap-2">
-          <UButton color="secondary" variant="ghost" size="sm" :disabled="!hydrated" :label="t('access.view')" @click="emit('open', role.id)" />
-          <UButton v-if="canManage" color="secondary" variant="ghost" size="sm" :disabled="!hydrated" :label="t('access.roles.clone')" @click="emit('clone', role.id)" />
+          <UButton color="primary" variant="ghost" size="sm" :disabled="!hydrated" :label="t('access.view')" @click="emit('open', role.id)" />
+          <UButton v-if="canManage" color="primary" variant="ghost" size="sm" :disabled="!hydrated" :label="t('access.roles.clone')" @click="emit('clone', role.id)" />
         </div>
       </li>
     </ul>

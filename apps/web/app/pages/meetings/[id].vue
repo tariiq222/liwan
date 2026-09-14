@@ -349,12 +349,12 @@ async function confirmResolutionAction() {
         </span>
       </template>
       <template #actions>
-        <UButton color="secondary" variant="outline" :to="`/meetings/${id}/print`" :label="t('meetingMinutesForm.printPreview')" />
-        <UButton v-if="query.data.value?.can_edit && pendingResolutionIds.size === 0" color="secondary" variant="outline" :to="`/meetings/${id}/edit`" :label="t('app.edit')" />
+        <UButton color="primary" variant="outline" :to="`/meetings/${id}/print`" :label="t('meetingMinutesForm.printPreview')" />
+        <UButton v-if="query.data.value?.can_edit && pendingResolutionIds.size === 0" color="primary" variant="outline" :to="`/meetings/${id}/edit`" :label="t('app.edit')" />
         <UButton v-if="query.data.value?.can_edit && query.data.value.state === 'draft'" :disabled="!hydrated || transitioning" :label="t('meetingsUi.confirm')" @click="requestMeetingAction('confirm')" />
         <UButton v-if="query.data.value?.can_manage && query.data.value.state === 'confirmed'" :disabled="!hydrated || transitioning" :label="t('meetingsUi.complete')" @click="requestMeetingAction('complete')" />
-        <UButton v-if="query.data.value?.can_manage && query.data.value.state !== 'cancelled' && query.data.value.state !== 'done'" color="secondary" variant="outline" :disabled="!hydrated || transitioning" :label="t('meetingsUi.cancelMeeting')" @click="requestMeetingAction('cancel')" />
-        <UButton v-if="query.data.value?.can_manage && (query.data.value.state === 'done' || query.data.value.state === 'cancelled')" color="secondary" variant="outline" :disabled="!hydrated || transitioning" :label="t('meetingsUi.reopen')" @click="requestMeetingAction('reopen')" />
+        <UButton v-if="query.data.value?.can_manage && query.data.value.state !== 'cancelled' && query.data.value.state !== 'done'" color="primary" variant="outline" :disabled="!hydrated || transitioning" :label="t('meetingsUi.cancelMeeting')" @click="requestMeetingAction('cancel')" />
+        <UButton v-if="query.data.value?.can_manage && (query.data.value.state === 'done' || query.data.value.state === 'cancelled')" color="primary" variant="outline" :disabled="!hydrated || transitioning" :label="t('meetingsUi.reopen')" @click="requestMeetingAction('reopen')" />
       </template>
     </SharedPageHeader>
     <SharedPageState :loading="query.isLoading.value" :error="query.error.value" @retry="query.refetch">
@@ -363,7 +363,7 @@ async function confirmResolutionAction() {
           <p>{{ t('meetingsUx.confirmMeetingAction', { name: query.data.value.name, scope: pendingMeetingAction.scope === 'this_and_following' ? t('meetingsUi.scopeFollowing') : t('meetingsUi.scopeThis') }) }}</p>
           <USelect v-if="pendingMeetingAction.action === 'cancel' && query.data.value.series_id" v-model="pendingMeetingAction.scope" class="w-full" :disabled="transitioning" :items="[{ label: t('meetingsUi.scopeThis'), value: 'this' }, { label: t('meetingsUi.scopeFollowing'), value: 'this_and_following' }]" />
           <div class="flex gap-2">
-            <UButton type="button" color="secondary" variant="outline" :label="t('app.cancel')" @click="pendingMeetingAction = null" />
+            <UButton type="button" color="primary" variant="outline" :label="t('app.cancel')" @click="pendingMeetingAction = null" />
             <UButton type="button" color="error" :disabled="!hydrated || transitioning" :label="t('meetingsUi.confirm')" @click="confirmMeetingAction" />
           </div>
         </UCard>
@@ -489,7 +489,7 @@ async function confirmResolutionAction() {
             @select="selectVersion"
           />
           <div v-if="selectedVersion" class="flex justify-end">
-            <UButton color="secondary" variant="outline" size="sm" :to="{ path: `/meetings/${id}/print`, query: { version_id: selectedVersion.id } }" :label="t('meetingMinutesForm.printPreview')" />
+            <UButton color="primary" variant="outline" size="sm" :to="{ path: `/meetings/${id}/print`, query: { version_id: selectedVersion.id } }" :label="t('meetingMinutesForm.printPreview')" />
           </div>
           <MeetingMinutesDocument
             v-if="selectedVersion"
@@ -522,7 +522,7 @@ async function confirmResolutionAction() {
             <p v-if="!query.data.value.resolutions.length" class="meeting-empty">{{ t('meetingsUi.emptyResolutions') }}</p>
             <p v-else-if="!filteredResolutions.length" class="meeting-empty">{{ t('meetingsUx.noMatchingRecommendations') }}</p>
             <ul v-else class="meeting-resolution-list">
-            <li v-for="item in filteredResolutions" :key="item.id" class="meeting-resolution-card nasq-ui-record-surface">
+            <li v-for="item in filteredResolutions" :key="item.id" class="meeting-resolution-card rounded-lg ring ring-default bg-default overflow-hidden">
               <div class="meeting-resolution-head">
                 <h3 class="meeting-resolution-title">{{ item.name }}</h3>
                 <div class="meeting-resolution-badges">
@@ -540,20 +540,20 @@ async function confirmResolutionAction() {
               <div v-if="hasRichText(item.result)" class="meeting-rich-text meeting-resolution-result" v-html="item.result" />
               <div class="meeting-resolution-actions">
                 <template v-if="!taskLinked(item)">
-                <UButton v-if="actionsFor(item).includes('start')" size="sm" color="secondary" variant="outline" :disabled="!hydrated || pendingResolutionAction?.resolutionId === item.id || pendingResolutionIds.has(item.id)" :label="t('meetingsUi.startWork')" @click="requestResolutionAction(item.id, 'start')" />
+                <UButton v-if="actionsFor(item).includes('start')" size="sm" color="primary" variant="outline" :disabled="!hydrated || pendingResolutionAction?.resolutionId === item.id || pendingResolutionIds.has(item.id)" :label="t('meetingsUi.startWork')" @click="requestResolutionAction(item.id, 'start')" />
                 <UButton v-if="actionsFor(item).includes('complete')" size="sm" :disabled="!hydrated || pendingResolutionAction?.resolutionId === item.id || pendingResolutionIds.has(item.id)" :label="t('meetingsUi.complete')" @click="requestResolutionAction(item.id, 'complete')" />
-                <UButton v-if="actionsFor(item).includes('cancel')" size="sm" color="secondary" variant="outline" :disabled="!hydrated || pendingResolutionAction?.resolutionId === item.id || pendingResolutionIds.has(item.id)" :label="t('meetingsUi.cancelMeeting')" @click="requestResolutionAction(item.id, 'cancel')" />
+                <UButton v-if="actionsFor(item).includes('cancel')" size="sm" color="primary" variant="outline" :disabled="!hydrated || pendingResolutionAction?.resolutionId === item.id || pendingResolutionIds.has(item.id)" :label="t('meetingsUi.cancelMeeting')" @click="requestResolutionAction(item.id, 'cancel')" />
                 </template>
                 <UButton v-if="item.task_id" variant="link" size="sm" class="h-auto p-0" :to="`/tasks/${item.task_id}`" :label="t('meetingsUi.openTask')" />
                 <span v-else-if="taskLinked(item)" class="text-xs text-muted-foreground">{{ t('meetingsUx.taskLinkedUnavailable') }}</span>
-                <UButton v-if="!taskLinked(item) && (item.can_edit_decision || item.can_update_execution) && !pendingResolutionIds.has(item.id)" color="secondary" variant="outline" size="sm" :to="`/meetings/${id}/resolutions/${item.id}/edit`" :label="t('meetingsUi.editResolution')" />
-                <UButton v-if="resolutionCanReopen(item)" size="sm" color="secondary" variant="outline" :disabled="!hydrated || pendingResolutionIds.has(item.id)" :label="t('meetingsUi.reopen')" @click="requestResolutionAction(item.id, 'reopen')" />
+                <UButton v-if="!taskLinked(item) && (item.can_edit_decision || item.can_update_execution) && !pendingResolutionIds.has(item.id)" color="primary" variant="outline" size="sm" :to="`/meetings/${id}/resolutions/${item.id}/edit`" :label="t('meetingsUi.editResolution')" />
+                <UButton v-if="resolutionCanReopen(item)" size="sm" color="primary" variant="outline" :disabled="!hydrated || pendingResolutionIds.has(item.id)" :label="t('meetingsUi.reopen')" @click="requestResolutionAction(item.id, 'reopen')" />
               </div>
               <p v-if="resolutionErrors[item.id]" role="alert" class="text-sm text-destructive">{{ resolutionErrors[item.id] }}</p>
               <div v-if="pendingResolutionAction?.resolutionId === item.id" class="meeting-inline-confirm" role="alert">
                   <span class="text-sm">{{ t('meetingsUx.confirmResolutionAction', { name: pendingResolutionName }) }}</span>
                 <div class="flex flex-wrap gap-2">
-                  <UButton type="button" color="secondary" variant="outline" size="sm" :disabled="pendingResolutionAction ? pendingResolutionIds.has(pendingResolutionAction.resolutionId) : false" :label="t('app.cancel')" @click="pendingResolutionAction = null" />
+                  <UButton type="button" color="primary" variant="outline" size="sm" :disabled="pendingResolutionAction ? pendingResolutionIds.has(pendingResolutionAction.resolutionId) : false" :label="t('app.cancel')" @click="pendingResolutionAction = null" />
                   <UButton type="button" color="error" size="sm" :disabled="!hydrated || (pendingResolutionAction ? pendingResolutionIds.has(pendingResolutionAction.resolutionId) : false)" :label="t('meetingsUi.confirm')" @click="confirmResolutionAction" />
                 </div>
               </div>
@@ -599,7 +599,7 @@ async function confirmResolutionAction() {
           <div>
           <div v-if="attachments.error.value" class="meeting-inline-error" role="alert">
             <p class="text-sm text-destructive">{{ errorMessage(attachments.error.value) }}</p>
-            <UButton type="button" color="secondary" variant="outline" size="sm" :disabled="!hydrated || attachments.isFetching.value" :label="t('app.retry')" @click="() => attachments.refetch()" />
+            <UButton type="button" color="primary" variant="outline" size="sm" :disabled="!hydrated || attachments.isFetching.value" :label="t('app.retry')" @click="() => attachments.refetch()" />
           </div>
           <p v-else-if="attachments.isLoading.value" class="meeting-empty">{{ t('attachments.loading') }}</p>
           <ul v-else-if="attachments.data.value?.items.length" class="meeting-attachment-list">
@@ -609,7 +609,7 @@ async function confirmResolutionAction() {
               <div v-if="pendingDeleteId === attachment.id" class="meeting-inline-confirm" role="group" :aria-label="t('attachments.deleteConfirm')">
                 <span class="text-sm text-muted-foreground">{{ t('attachments.deleteConfirm') }}</span>
                 <div class="flex flex-wrap gap-2">
-                  <UButton type="button" color="secondary" variant="outline" size="sm" :disabled="!hydrated || deleting" :label="t('attachments.cancel')" @click="pendingDeleteId = null" />
+                  <UButton type="button" color="primary" variant="outline" size="sm" :disabled="!hydrated || deleting" :label="t('attachments.cancel')" @click="pendingDeleteId = null" />
                   <UButton type="button" color="error" size="sm" :disabled="!hydrated || deleting" :label="t('attachments.confirm')" @click="confirmDelete(attachment.id)" />
                 </div>
               </div>

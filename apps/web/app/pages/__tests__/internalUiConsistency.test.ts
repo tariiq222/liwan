@@ -48,15 +48,12 @@ describe('internal UI width and status vocabulary', () => {
     const tabs = readFileSync(resolve(webRoot, 'app/components/project/workspace/ProjectWorkspaceTabs.vue'), 'utf8')
     expect(tabs).toContain(':data-active="current === section.id"')
     expect(tabs).toContain(':aria-current="current === section.id ? \'page\' : undefined"')
-    expect(css).toContain(".nasq-ui-tab-strip .nasq-ui-tab[data-active='true']")
-    expect(css).toContain('border-block-end: 1px solid var(--ui-border-accented)')
-    expect(css).toContain('min-height: 2.25rem')
-    expect(css).toContain('scrollbar-width: none')
-    // DESIGN.md §4: the tab row scrolls horizontally, it never wraps. Without
-    // this, a long label like «الجدول الزمني» breaks onto a second line at
-    // 375px and the strip grows a second row.
-    const tabRule = css.slice(css.indexOf('.nasq-ui-tab-strip .nasq-ui-tab {'))
-    expect(tabRule.slice(0, tabRule.indexOf('}'))).toContain('white-space: nowrap')
+    // Stock Nuxt UI utilities: the active tab is marked by data-active and
+    // aria-current, the strip scrolls horizontally and never wraps.
+    expect(tabs).toContain('data-[active=true]:text-primary')
+    expect(tabs).toContain('overflow-x-auto border-b border-default')
+    expect(tabs).toContain('whitespace-nowrap')
+    expect(css).not.toContain('.nasq-ui-tab')
   })
 
   it('opens every record as an ordinary page instead of a sliding side sheet', () => {

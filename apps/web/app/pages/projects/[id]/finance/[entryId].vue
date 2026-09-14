@@ -106,7 +106,7 @@ async function confirmRemoval() {
             <UButton color="neutral" variant="outline" :disabled="deleting" @click="confirmDelete = false">{{ t('app.cancel') }}</UButton>
           </template>
         </UAlert>
-        <section class="nasq-ui-record-surface" aria-labelledby="finance-entry-summary-title">
+        <section class="rounded-lg ring ring-default bg-default overflow-hidden" aria-labelledby="finance-entry-summary-title">
           <div class="border-b border-default px-5 py-4">
             <h2 id="finance-entry-summary-title" class="text-lg font-semibold text-highlighted">{{ t('projects.finance.detailTitle') }}</h2>
           </div>

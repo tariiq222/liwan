@@ -45,7 +45,7 @@ function onSaved() {
       :empty-text="t('settings.projects.catalogs.notFound')"
       @retry="query.refetch"
     >
-      <section v-if="query.data.value && resource" class="nasq-ui-record-surface p-5">
+      <section v-if="query.data.value && resource" class="rounded-lg ring ring-default bg-default overflow-hidden p-5">
         <ProjectCharterReferenceForm :resource="resource" :reference="query.data.value" @saved="onSaved" @cancel="router.push(returnTo)" />
       </section>
     </SharedPageState>

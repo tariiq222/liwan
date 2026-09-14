@@ -93,7 +93,7 @@ async function submit() {
     <SharedPageState v-if="forbidden" :empty="true" :empty-text="t('access.forbidden')" />
     <UForm v-else :state="{ nameAr, nameEn, description }" class="nasq-form" method="post" @submit="submit">
       <SharedUnsavedChanges :dirty="dirty" />
-      <UCard class="nasq-ui-record-surface" :ui="{ body: 'p-5 sm:p-6' }">
+      <UCard class="rounded-lg ring ring-default bg-default overflow-hidden" :ui="{ body: 'p-5 sm:p-6' }">
         <template #header><h2 class="text-lg font-semibold text-highlighted">{{ t('access.roles.details') }}</h2></template>
         <div class="space-y-4">
           <div class="nasq-form-grid">
@@ -103,7 +103,7 @@ async function submit() {
           <UFormField :label="t('access.roles.descriptionLabel')" name="description"><UTextarea id="description" v-model="description" class="w-full" :disabled="!hydrated || create.isPending.value" /></UFormField>
         </div>
       </UCard>
-      <UCard class="nasq-ui-record-surface" :ui="{ body: 'p-5 sm:p-6' }">
+      <UCard class="rounded-lg ring ring-default bg-default overflow-hidden" :ui="{ body: 'p-5 sm:p-6' }">
         <template #header><h2 class="text-lg font-semibold text-highlighted">{{ t('access.roles.permissions') }}</h2></template>
         <fieldset class="space-y-4" :disabled="!hydrated || create.isPending.value">
           <legend class="sr-only">{{ t('access.roles.permissions') }}</legend>

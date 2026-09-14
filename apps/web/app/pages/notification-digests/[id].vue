@@ -82,7 +82,7 @@ async function retryNextPage() {
         </UButton>
       </template>
       <template #actions>
-        <UButton type="button" color="secondary" variant="outline" size="sm" :disabled="!hydrated || isLoading || isFetching" :label="t('notifications.retry')" @click="retryDigest" />
+        <UButton type="button" color="primary" variant="outline" size="sm" :disabled="!hydrated || isLoading || isFetching" :label="t('notifications.retry')" @click="retryDigest" />
       </template>
     </SharedPageHeader>
     <UCard class="overflow-hidden">
@@ -92,7 +92,7 @@ async function retryNextPage() {
         </div>
         <div v-else-if="isError && !items.length" class="grid gap-3 py-8 text-center" role="alert" data-testid="digest-error">
           <p class="text-sm text-destructive">{{ queryErrorMessage }}</p>
-          <UButton type="button" color="secondary" variant="outline" size="sm" class="mx-auto" :disabled="!hydrated || isFetching" :label="t('notifications.retry')" @click="retryDigest" />
+          <UButton type="button" color="primary" variant="outline" size="sm" class="mx-auto" :disabled="!hydrated || isFetching" :label="t('notifications.retry')" @click="retryDigest" />
         </div>
         <p v-else-if="isLoading" class="py-8 text-center text-sm text-muted-foreground">{{ t('notifications.loading') }}</p>
         <p v-else-if="!items.length" class="py-8 text-center text-sm text-muted-foreground" data-testid="digest-empty">{{ t('tasks.digest.empty') }}</p>
@@ -115,10 +115,10 @@ async function retryNextPage() {
       </div>
       <div v-if="isFetchNextPageError" class="grid gap-2 border-t p-4 text-center" role="alert" data-testid="digest-next-error">
         <p class="text-sm text-destructive">{{ t('tasks.digest.loadMoreError') }}</p>
-        <UButton type="button" color="secondary" variant="outline" size="sm" class="mx-auto" :disabled="!hydrated || isFetchingNextPage" data-testid="digest-retry-page" :label="t('notifications.retry')" @click="retryNextPage" />
+        <UButton type="button" color="primary" variant="outline" size="sm" class="mx-auto" :disabled="!hydrated || isFetchingNextPage" data-testid="digest-retry-page" :label="t('notifications.retry')" @click="retryNextPage" />
       </div>
       <div v-else-if="hasNextPage" class="border-t p-4 text-center">
-        <UButton color="secondary" variant="outline" size="sm" :disabled="!hydrated || isFetchingNextPage" data-testid="digest-load-more" :label="t('app.loadMore')" @click="retryNextPage" />
+        <UButton color="primary" variant="outline" size="sm" :disabled="!hydrated || isFetchingNextPage" data-testid="digest-load-more" :label="t('app.loadMore')" @click="retryNextPage" />
       </div>
     </UCard>
   </SharedPageContainer>
