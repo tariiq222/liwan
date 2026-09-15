@@ -38,6 +38,20 @@ watch([year, month], ([nextYear, nextMonth]) => {
 }, { immediate: true })
 const weekStart = computed(() => (locale.value === 'ar' ? 6 : 1))
 
+function dateKey(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+}
+const queryDay = typeof route.query.day === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(route.query.day) ? route.query.day : null
+const selectedDay = ref<string | null>(queryDay ?? (dateKey(new Date()).startsWith(dateFrom.value.slice(0, 7)) ? dateKey(new Date()) : null))
+watch(selectedDay, (day) => {
+  if ((route.query.day ?? null) === day) return
+  const { day: _omit, ...rest } = route.query
+  void router.replace({ query: day ? { ...rest, day } : rest })
+})
+watch([year, month], () => {
+  if (selectedDay.value && !selectedDay.value.startsWith(dateFrom.value.slice(0, 7))) selectedDay.value = null
+})
+
 const monthLabel = computed(() => new Intl.DateTimeFormat(locale.value, {
   month: 'long',
   year: 'numeric',
@@ -68,6 +82,15 @@ const agenda = computed(() => [...(query.data.value?.items ?? [])].sort((a, b) =
   const bTime = b.start_datetime ? Date.parse(b.start_datetime) : Date.parse(`${b.meeting_date ?? '9999-12-31'}T00:00:00`)
   return aTime - bTime || a.id - b.id
 }))
+
+const selectedMeetings = computed(() => {
+  if (!selectedDay.value) return []
+  return [...(byDate.value.get(selectedDay.value) ?? [])].sort((a, b) => {
+    const aTime = a.start_datetime ? Date.parse(a.start_datetime) : Number.MAX_SAFE_INTEGER
+    const bTime = b.start_datetime ? Date.parse(b.start_datetime) : Number.MAX_SAFE_INTEGER
+    return aTime - bTime || a.id - b.id
+  })
+})
 
 function localTime(value: string | null) {
   if (!value) return ''
@@ -149,19 +172,34 @@ function goToday() {
             </li>
           </ul>
         </div>
-        <div class="hidden overflow-x-auto @min-[600px]:block">
+        <div class="hidden @min-[600px]:grid @min-[900px]:grid-cols-[minmax(0,1fr)_18rem]">
+          <div class="min-w-0 overflow-x-auto">
           <div class="min-w-[560px]">
             <div class="grid grid-cols-7 border-b border-default text-center text-xs text-muted">
               <div v-for="label in weekdayLabels" :key="label" class="p-2">{{ label }}</div>
             </div>
             <div class="grid grid-cols-7">
-              <div v-for="cell in cells" :key="cell.key" class="min-h-28 border-e border-b border-default p-1 last:border-e-0" :class="cell.today ? 'bg-primary/10' : ''">
-                <p v-if="cell.day" class="px-1 text-xs text-muted">{{ cell.day }}</p>
+              <div
+                v-for="cell in cells"
+                :key="cell.key"
+                class="relative min-h-28 border-e border-b border-default p-1 last:border-e-0"
+                :class="[cell.today ? 'bg-primary/10' : '', cell.key === selectedDay ? 'ring-2 ring-inset ring-primary' : '']"
+              >
+                <button
+                  v-if="cell.day"
+                  type="button"
+                  class="absolute inset-0 rounded-none hover:bg-elevated/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"
+                  :disabled="!hydrated"
+                  :aria-pressed="cell.key === selectedDay"
+                  :aria-label="t('meetingsUx.dayCardSelect', { date: localDate(cell.key) })"
+                  @click="selectedDay = cell.key"
+                />
+                <p v-if="cell.day" class="relative px-1 text-xs text-muted" aria-hidden="true">{{ cell.day }}</p>
                 <NuxtLink
                   v-for="meeting in (cell.day ? byDate.get(cell.key) ?? [] : [])"
                   :key="meeting.id"
                   :to="{ path: `/meetings/${meeting.id}`, query: returnToQuery(route.fullPath) }"
-                  class="mt-1 block truncate rounded-md px-1 py-0.5 text-xs hover:bg-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                  class="relative mt-1 block truncate rounded-md px-1 py-0.5 text-xs hover:bg-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                 >
                   <span class="block truncate text-highlighted">{{ meeting.name }}</span>
                   <span class="block truncate text-xs text-muted">
@@ -173,6 +211,44 @@ function goToday() {
               </div>
             </div>
           </div>
+          </div>
+          <aside class="min-w-0 border-t border-default @min-[900px]:border-s @min-[900px]:border-t-0" :aria-label="t('meetingsUx.dayCardTitle')">
+            <div class="flex items-start justify-between gap-2 border-b border-default p-3">
+              <div class="min-w-0">
+                <h2 class="text-sm font-semibold text-highlighted">{{ t('meetingsUx.dayCardTitle') }}</h2>
+                <p class="text-xs text-muted">{{ selectedDay ? localDate(selectedDay) : t('meetingsUx.dayCardHint') }}</p>
+              </div>
+              <UBadge v-if="selectedDay" color="neutral" variant="subtle" class="shrink-0">{{ t('meetingsUx.dayCardCount', { count: selectedMeetings.length }) }}</UBadge>
+            </div>
+            <div v-if="selectedDay && !selectedMeetings.length" class="p-3"><SharedEmptyState :title="t('meetingsUx.dayCardEmpty')" /></div>
+            <ul v-else-if="selectedDay" class="grid gap-2 p-3">
+              <li v-for="meeting in selectedMeetings" :key="meeting.id">
+                <UCard :ui="{ body: 'p-3 sm:p-3' }">
+                  <div class="flex min-w-0 items-start justify-between gap-2">
+                    <div class="min-w-0 grid gap-1">
+                      <p class="break-words text-sm font-medium text-highlighted">{{ meeting.name }}</p>
+                      <div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">
+                        <span v-if="meeting.start_datetime">{{ localTime(meeting.start_datetime) }}</span>
+                        <span v-else>{{ t('meetingsUx.timeUnavailable') }}</span>
+                        <UBadge :color="meetingStateColor(meeting.state)" variant="subtle" size="sm">{{ t(`meetingsUi.state.${meeting.state}`) }}</UBadge>
+                      </div>
+                    </div>
+                    <UButton
+                      color="neutral"
+                      variant="ghost"
+                      size="sm"
+                      square
+                      icon="i-lucide-eye"
+                      class="shrink-0"
+                      :aria-label="`${t('meetingsUx.dayCardView')}: ${meeting.name}`"
+                      :title="t('meetingsUx.dayCardView')"
+                      :to="{ path: `/meetings/${meeting.id}`, query: returnToQuery(route.fullPath) }"
+                    />
+                  </div>
+                </UCard>
+              </li>
+            </ul>
+          </aside>
         </div>
       </div>
     </SharedPageState>

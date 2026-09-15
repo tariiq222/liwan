@@ -202,7 +202,13 @@
     "browserTimeZone": "Times use your browser timezone: {zone}.",
     "currentPreviousFollowUp": "Current follow-up from earlier meetings",
     "currentFollowUpOrigin": "From current record: {name}",
-    "snapshotOrigin": "Captured from: {name}"
+    "snapshotOrigin": "Captured from: {name}",
+    "dayCardTitle": "Day events",
+    "dayCardHint": "Select a day in the calendar to see its meetings.",
+    "dayCardEmpty": "No meetings on this day.",
+    "dayCardCount": "{count} meetings",
+    "dayCardView": "View",
+    "dayCardSelect": "Show meetings on {date}"
   },
   "meetingsFilters": {
     "searchMeetings": "Search title, reference, or location",

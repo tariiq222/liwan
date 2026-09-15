@@ -202,7 +202,13 @@
     "browserTimeZone": "تُعرض الأوقات حسب المنطقة الزمنية للمتصفح: {zone}.",
     "currentPreviousFollowUp": "المتابعة الحالية من اللقاءات السابقة",
     "currentFollowUpOrigin": "من السجل الحالي: {name}",
-    "snapshotOrigin": "محفوظ من: {name}"
+    "snapshotOrigin": "محفوظ من: {name}",
+    "dayCardTitle": "أحداث اليوم",
+    "dayCardHint": "اختر يومًا من التقويم لعرض اجتماعاته.",
+    "dayCardEmpty": "لا اجتماعات في هذا اليوم.",
+    "dayCardCount": "{count} اجتماع",
+    "dayCardView": "عرض",
+    "dayCardSelect": "عرض اجتماعات يوم {date}"
   },
   "meetingsFilters": {
     "searchMeetings": "ابحث في العنوان أو المرجع أو المكان",
