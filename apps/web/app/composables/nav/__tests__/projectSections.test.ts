@@ -1,13 +1,13 @@
 import { describe, it, expect } from 'vitest'
 import { PROJECT_SECTION_IDS, projectSections } from '../projectSections'
 
-const reader = { role: 'employee', capabilities: ['pmo.projects.read', 'pmo.tasks.read'] }
+const reader = { role: 'employee', capabilities: ['pmo.projects.read', 'pmo.tasks.read', 'meetings.read'] }
 const projectOnly = { role: 'employee', capabilities: ['pmo.projects.read'] }
 const opts = { active: true }
 
 describe('projectSections', () => {
-  it('declares the seven sections in reading order', () => {
-    expect(PROJECT_SECTION_IDS).toEqual(['summary', 'tasks', 'schedule', 'milestones', 'governance', 'finance', 'updates'])
+  it('declares the eight sections in reading order', () => {
+    expect(PROJECT_SECTION_IDS).toEqual(['summary', 'tasks', 'schedule', 'milestones', 'governance', 'finance', 'meetings', 'updates'])
   })
 
   it('maps every section to its own path', () => {
@@ -18,6 +18,7 @@ describe('projectSections', () => {
       '/projects/7/milestones',
       '/projects/7/charter',
       '/projects/7/finance',
+      '/projects/7/meetings',
       '/projects/7/updates',
     ])
   })
@@ -27,7 +28,11 @@ describe('projectSections', () => {
   })
 
   it('an archived project keeps only read-only sections', () => {
-    expect(projectSections(7, reader, { active: false }).map(s => s.id)).toEqual(['summary', 'schedule', 'finance', 'updates'])
+    expect(projectSections(7, reader, { active: false }).map(s => s.id)).toEqual(['summary', 'schedule', 'finance', 'meetings', 'updates'])
+  })
+
+  it('hides meetings without meetings.read', () => {
+    expect(projectSections(7, { role: 'employee', capabilities: ['pmo.projects.read', 'pmo.tasks.read'] }, opts).map(s => s.id)).not.toContain('meetings')
   })
 
   it('returns nothing before capabilities arrive', () => {

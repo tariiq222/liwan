@@ -188,9 +188,13 @@
       "timeline": "Timeline"
     },
     "milestones": {
+      "meetings": "Meetings",
       "actions": "Milestone actions",
       "new": "New milestone",
       "edit": "Edit milestone",
+    "meetings": {
+      "empty": "No meetings are linked to this project"
+    },
       "name": "Name",
       "deadline": "Deadline",
       "tasks": "Tasks",

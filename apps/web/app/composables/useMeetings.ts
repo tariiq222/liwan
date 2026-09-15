@@ -43,10 +43,11 @@ export function useMeetings(params: MaybeRefOrGetter<{
   project_id?: number
   series_id?: number
   mine?: boolean
-}>) {
+}>, options: { enabled?: MaybeRefOrGetter<boolean> } = {}) {
   const { $api } = useApi()
   const query = useQuery({
     queryKey: computed(() => meetingKeys.list(toValue(params))),
+    enabled: computed(() => toValue(options.enabled) ?? true),
     queryFn: () => {
       const p = toValue(params)
       const ranged = Boolean(p.date_from && p.date_to)

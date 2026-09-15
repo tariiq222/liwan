@@ -25,7 +25,7 @@ test('project summary and task detail use the reference cards without legacy nes
   const fontRatio = await progressLabel.evaluate(el => parseFloat(getComputedStyle(el).fontSize) / parseFloat(getComputedStyle(document.documentElement).fontSize))
   expect(fontRatio).toBeCloseTo(0.928571, 3)
   await expect(summary.locator('section > [data-slot="root"]').first()).toHaveCSS('background-color', 'rgb(255, 255, 255)')
-  await expect(summary.getByRole('link', { name: 'الاجتماعات', exact: true })).toHaveAttribute('href', /project_id=/)
+  await expect(page.getByTestId('project-tab-meetings')).toHaveAttribute('href', `/projects/${project.id}/meetings`)
   await page.evaluate(async () => { await Promise.all(document.getAnimations().filter(a => a.effect?.getTiming().iterations !== Infinity).map(a => a.finished.catch(() => undefined))) })
   await page.screenshot({ path: testInfo.outputPath('reference-project-summary.png'), fullPage: true })
   await page.goto(`/projects/${project.id}/tasks/${task.id}`)

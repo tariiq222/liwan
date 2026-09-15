@@ -3,7 +3,7 @@ import { hasCapability, type AccessIdentity } from '../../utils/accessPolicy'
 /** Declared here so nav/shellModules.ts can import it without a cycle; this file is its one auto-import owner. */
 export type NavIcon = `i-lucide-${string}`
 
-export const PROJECT_SECTION_IDS = ['summary', 'tasks', 'schedule', 'milestones', 'governance', 'finance', 'updates'] as const
+export const PROJECT_SECTION_IDS = ['summary', 'tasks', 'schedule', 'milestones', 'governance', 'finance', 'meetings', 'updates'] as const
 export type ProjectSectionId = typeof PROJECT_SECTION_IDS[number]
 
 export interface ProjectSection {
@@ -24,6 +24,7 @@ const DEFINITIONS: Array<Omit<ProjectSection, 'to'> & { segment: string }> = [
   { id: 'milestones', labelKey: 'projects.tabs.milestones', icon: 'i-lucide-flag', segment: '/milestones', capability: 'pmo.tasks.read' },
   { id: 'governance', labelKey: 'projects.workspace.groups.governance', icon: 'i-lucide-shield-check', segment: '/charter', capability: 'pmo.projects.read' },
   { id: 'finance', labelKey: 'nav.projectFinance', icon: 'i-lucide-wallet-cards', segment: '/finance', capability: 'pmo.projects.read' },
+  { id: 'meetings', labelKey: 'projects.tabs.meetings', icon: 'i-lucide-calendar-days', segment: '/meetings', capability: 'meetings.read' },
   { id: 'updates', labelKey: 'projects.tabs.updates', icon: 'i-lucide-megaphone', segment: '/updates', capability: 'pmo.projects.read' },
 ]
 

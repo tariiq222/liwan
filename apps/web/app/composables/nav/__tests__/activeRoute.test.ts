@@ -24,6 +24,7 @@ describe('activeProjectSection', () => {
     expect(activeProjectSection('/projects/12/governance')).toBe('governance')
     expect(activeProjectSection('/projects/12/finance')).toBe('finance')
     expect(activeProjectSection('/projects/12/updates')).toBe('updates')
+    expect(activeProjectSection('/projects/12/meetings')).toBe('meetings')
   })
   it('keeps a record page on its owning section', () => {
     expect(activeProjectSection('/projects/12/tasks/99')).toBe('tasks')

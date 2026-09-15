@@ -18,7 +18,7 @@ export function projectIdFromPath(path: string): number | null {
 /** The four governance children keep their own top-level paths. */
 const GOVERNANCE_SEGMENTS = new Set<string>(GOVERNANCE_SECTION_IDS)
 
-const SECTION_SEGMENTS = new Set<ProjectSectionId>(['tasks', 'schedule', 'milestones', 'governance', 'finance', 'updates'])
+const SECTION_SEGMENTS = new Set<ProjectSectionId>(['tasks', 'schedule', 'milestones', 'governance', 'finance', 'meetings', 'updates'])
 
 export function activeProjectSection(path: string): ProjectSectionId | null {
   const id = projectIdFromPath(path)
