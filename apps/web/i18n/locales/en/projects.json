@@ -188,17 +188,17 @@
       "board": "Board",
       "gantt": "Gantt",
       "milestones": "Milestones",
+      "meetings": "Meetings",
       "updates": "Updates",
       "timeline": "Timeline"
     },
-    "milestones": {
-      "meetings": "Meetings",
-      "actions": "Milestone actions",
-      "new": "New milestone",
-      "edit": "Edit milestone",
     "meetings": {
       "empty": "No meetings are linked to this project"
     },
+    "milestones": {
+      "actions": "Milestone actions",
+      "new": "New milestone",
+      "edit": "Edit milestone",
       "name": "Name",
       "deadline": "Deadline",
       "tasks": "Tasks",
@@ -246,7 +246,9 @@
       "emptyHint": "Post a concise update so followers know where the project stands.",
       "empty": "No updates yet",
       "by": "by {name}",
-      "posted": "Update posted"
+      "posted": "Update posted",
+      "showMore": "Show more",
+      "showLess": "Show less"
     },
     "charter": {
       "title": "Project file",
