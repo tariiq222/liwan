@@ -146,7 +146,7 @@ function clearFilters() {
   applyPatch({ q: '', status: 'all', sort: 'default' })
 }
 const sort = computed(() => filters.sort ?? 'default')
-const view = computed(() => filters.view ?? 'table')
+const view = computed(() => filters.view ?? 'cards')
 const activeFilterCount = computed(() => Number(Boolean(rawSearch.value.trim())) + Number(statusFilter.value !== 'all') + Number(sort.value !== 'default'))
 function onSortChange(value: unknown) {
   applyPatch({ sort: value === 'name' || value === 'progress' ? value : 'default' })

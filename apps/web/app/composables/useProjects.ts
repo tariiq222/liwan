@@ -52,7 +52,7 @@ export function parseProjectListRoute(query: Record<string, unknown>): ProjectLi
     offset: parseProjectListOffset(query.offset),
     archived: query.archived === '1' || query.archived === 1,
     ...(query.sort === 'name' || query.sort === 'progress' ? { sort: query.sort } : {}),
-    ...(query.view === 'cards' ? { view: 'cards' as const } : {}),
+    ...(query.view === 'cards' || query.view === 'table' ? { view: query.view } : {}),
   }
 }
 
@@ -64,7 +64,7 @@ export function serializeProjectListRoute(state: ProjectListRouteState) {
     offset: state.offset || undefined,
     archived: state.archived ? '1' : undefined,
     ...(state.sort && state.sort !== 'default' ? { sort: state.sort } : {}),
-    ...(state.view === 'cards' ? { view: state.view } : {}),
+    ...(state.view === 'cards' || state.view === 'table' ? { view: state.view } : {}),
   }
 }
 

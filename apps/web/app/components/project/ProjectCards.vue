@@ -33,7 +33,7 @@ function openWithKeyboard(project: Project, event: KeyboardEvent) {
 </script>
 
 <template>
-  <div v-if="isLoading" class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+  <div v-if="isLoading" class="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
     <USkeleton v-for="n in 6" :key="n" class="h-44 rounded-lg" />
   </div>
   <div v-else-if="items.length === 0" class="rounded-lg ring ring-default bg-default overflow-hidden p-6">
@@ -43,7 +43,7 @@ function openWithKeyboard(project: Project, event: KeyboardEvent) {
     />
   </div>
   <div v-else class="space-y-2">
-    <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+    <div class="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
       <article
         v-for="project in items"
         :key="project.id"
