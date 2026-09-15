@@ -82,6 +82,12 @@ export default defineNuxtConfig({
     '/odoo/**': { proxy: { to: `${odoo}/odoo/**`, fetchOptions: { redirect: 'manual' } } },
   },
   // Opt-in diagnostic build: identify actual SSR/client differences during UI acceptance.
-  vite: { define: { __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: process.env.NASQ_HYDRATION_DEBUG === '1' } },
+  vite: {
+    define: { __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: process.env.NASQ_HYDRATION_DEBUG === '1' },
+    // Pre-bundle deps that only lazily-loaded pages import. Discovered late,
+    // Vite re-optimizes and changes the dep hash, so an open page's module
+    // imports fail with 504 "Outdated Optimize Dep" and the route errors.
+    optimizeDeps: { include: ['@tanstack/vue-table'] },
+  },
   typescript: { strict: true },
 })
