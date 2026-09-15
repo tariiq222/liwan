@@ -179,6 +179,8 @@ test('template editor saves a real draft, blocks pending edits and preserves cat
   const name = `قالب عبر النموذج ${Date.now()}`
   const catalog = `/project-templates?q=${encodeURIComponent(name)}`
   await page.goto(`/project-templates/new?returnTo=${encodeURIComponent(catalog)}`)
+  await expect(page.getByRole('dialog')).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'قالب مشروع جديد' })).toBeVisible()
   await page.locator('[name="template-name"]').fill(name)
   await page.locator('[name="stage-name-0"]').fill('التحضير')
   await page.getByRole('button', { name: 'إضافة مرحلة', exact: true }).click()
@@ -267,6 +269,8 @@ test('stakeholder forms and RACI matrix persist edits, explain conflicts and con
   const name = `جهة شريكة ${Date.now()}`
   const listUrl = `/projects/${p.id}/stakeholders?q=${encodeURIComponent(name)}`
   await page.goto(`/projects/${p.id}/stakeholders/new?returnTo=${encodeURIComponent(listUrl)}`)
+  await expect(page.getByRole('dialog')).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'إضافة صاحب مصلحة' })).toBeVisible()
   await page.locator('#stakeholder-name').fill(name)
   await page.locator('#stakeholder-organization').fill('إدارة الشراكات')
   await page.locator('#stakeholder-role').fill('مالك المتطلبات')
@@ -334,6 +338,8 @@ test('register forms preserve risk metrics, filters and failed drafts through ne
   const name = `تأخر محتمل ${Date.now()}`
   const listUrl = `/projects/${p.id}/register?kind=risk&priority=high&q=${encodeURIComponent(name)}`
   await page.goto(`/projects/${p.id}/register/new?returnTo=${encodeURIComponent(listUrl)}`)
+  await expect(page.getByRole('dialog')).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'إضافة عنصر' })).toBeVisible()
   await page.locator('#register-title').fill(name)
   await page.locator('#register-priority').selectOption('high')
   await page.locator('#register-description').fill('تأخر المورد في تسليم المعدات')

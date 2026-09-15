@@ -23,8 +23,7 @@ function retryDependencies() { void departments.refetch(); void employees.refetc
 function created(employee: { id: number }) { void navigateTo(`/hr/employees/${employee.id}`) }
 </script>
 <template>
-  <SharedPageContainer width="form">
-    <SharedPageHeader :title="t('hr.employee.createTitle')" :back-to="backTo" />
+  <SharedCreatePanel :title="t('hr.employee.createTitle')" :back-to="backTo">
     <SharedPageState v-if="!canManage" :empty="true" :empty-text="t('errors.forbidden')" />
     <SharedPageState
       v-else
@@ -32,14 +31,12 @@ function created(employee: { id: number }) { void navigateTo(`/hr/employees/${em
       :error="initialDataReady ? undefined : dependencyError"
       @retry="retryDependencies"
     >
-      <UCard class="rounded-lg ring ring-default bg-default overflow-hidden" :ui="{ body: 'p-5 sm:p-6' }">
-        <EmployeeGeneralForm :departments="departments.data.value?.items ?? []" :employees="employees.data.value?.items ?? []" @saved="created">
-          <template #actions>
-            <UButton type="button" color="neutral" variant="outline" :disabled="!hydrated" :to="backTo" :label="t('app.cancel')" @click="!hydrated && $event.preventDefault()" />
-          </template>
-        </EmployeeGeneralForm>
-      </UCard>
+      <EmployeeGeneralForm :departments="departments.data.value?.items ?? []" :employees="employees.data.value?.items ?? []" @saved="created">
+        <template #actions>
+          <UButton type="button" color="neutral" variant="outline" :disabled="!hydrated" :to="backTo" :label="t('app.cancel')" @click="!hydrated && $event.preventDefault()" />
+        </template>
+      </EmployeeGeneralForm>
     </SharedPageState>
     <SharedPageState v-if="canManage && initialDataReady && dependencyError" :error="dependencyError" @retry="retryDependencies" />
-  </SharedPageContainer>
+  </SharedCreatePanel>
 </template>

@@ -13,6 +13,11 @@ const router = useRouter()
 const { t } = useI18n()
 const hydrated = useHydrated()
 const { can } = useAccess()
+const normalizedPath = computed(() => route.path.replace(/\/+$/, '') || '/')
+const isListRoute = computed(() => {
+  const rest = normalizedPath.value.replace(/^\/hr\/documents/, '')
+  return rest === '' || rest === '/new'
+})
 const search = ref(String(route.query.q ?? ''))
 const debouncedSearch = refDebounced(search, 250)
 const hasPendingSearch = computed(() => hasPendingHrSearch(search.value, route.query.q))
@@ -54,6 +59,7 @@ watch(debouncedSearch, (value) => {
 })
 
 function updateFilters() {
+  if (normalizedPath.value !== '/hr/documents') return
   offset.value = 0
   void router.replace({
     query: {
@@ -79,6 +85,7 @@ function clearFilters() {
 }
 function setPage(next: number) {
   if (!hydrated.value || query.isFetching.value || hasPendingSearch.value || next < 1 || next > pages.value) return
+  if (normalizedPath.value !== '/hr/documents') return
   offset.value = (next - 1) * limit
   void router.replace({ query: { ...route.query, offset: offset.value > 0 ? offset.value : undefined } })
 }
@@ -92,7 +99,7 @@ function documentTo(document: HrDocument) {
 </script>
 
 <template>
-  <SharedPageContainer width="list">
+  <SharedPageContainer v-if="isListRoute" width="list">
     <SharedPageHeader :title="t('nav.documents')" />
     <div class="w-full min-w-0" data-testid="documents-toolbar">
       <FilterBar class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
@@ -155,4 +162,5 @@ function documentTo(document: HrDocument) {
     </SharedPageState>
     <SharedPagination class="mt-4" :page="page" :pages="pages" :disabled="query.isFetching.value" @update:page="setPage" />
   </SharedPageContainer>
+  <NuxtPage />
 </template>

@@ -50,7 +50,7 @@ function page(file: string, pmo = false, routeOverride: Record<string, unknown> 
     ? '{ setPage, offset }'
     : file === '[id].vue'
       ? '{ convertResolution, projectByResolution, localTime, resolutionCanReopen, requestMeetingAction, confirmMeetingAction, pendingMeetingAction, requestResolutionAction, confirmResolutionAction, pendingResolutionAction, error: () => typeof conversionError === "undefined" ? null : conversionError.value }'
-      : file === 'series/index.vue'
+      : file === 'series.vue'
         ? '{ search, offset, pages, params }'
         : '{ convertResolution, projectByResolution, error: () => typeof conversionError === "undefined" ? null : conversionError.value }'
   return { ...new Function(...Object.keys(scope), `${js};return ${exposed}`)(...Object.values(scope)), route, meeting: meetingData, projects, seriesList, replace, mutateAsync: meetingMutation, resolutionMutation }
@@ -126,7 +126,7 @@ describe('meeting route and conversion behavior', () => {
   })
 
   it('keeps series search and pagination in the API params and reports total pages', async () => {
-    const list = page('series/index.vue')
+    const list = page('series.vue')
     expect(list.pages.value).toBe(5)
     list.search.value = 'weekly'
     await new Promise(resolve => setTimeout(resolve, 300))

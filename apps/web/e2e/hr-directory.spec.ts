@@ -14,8 +14,10 @@ test('HR employee creation Cancel returns to the filtered directory', async ({ p
 
   const returnTo = '/hr?q=cancel-filter'
   await page.goto(`/hr/employees/new?returnTo=${encodeURIComponent(returnTo)}`)
-  await expect(page.getByRole('heading', { name: 'موظف جديد' })).toBeVisible()
-  await page.getByRole('button', { name: 'إلغاء' }).click()
+  const create = page.getByRole('dialog')
+  await expect(create).toBeVisible()
+  await expect(create.getByRole('heading', { name: 'موظف جديد' })).toBeVisible()
+  await create.getByRole('button', { name: 'إلغاء' }).click()
   await expect(page).toHaveURL(/\/hr\?q=cancel-filter$/)
 })
 
@@ -24,6 +26,7 @@ test('HR routes create, edit, reload, and archive an employee', async ({ page })
 
   const employeeName = `E2E employee ${Date.now()}`
   await page.goto('/hr/employees/new')
+  await expect(page.getByRole('dialog')).toBeVisible()
   await expect(page.getByRole('heading', { name: 'موظف جديد' })).toBeVisible()
   await page.getByLabel('الاسم').fill(employeeName)
   await page.getByLabel('البريد الوظيفي').fill(`e2e-${Date.now()}@example.com`)
@@ -110,6 +113,7 @@ test('HR department route creates, edits, and reloads a department', async ({ pa
   const departmentName = `E2E department ${Date.now()}`
   const editedName = `${departmentName} edited`
   await page.goto('/hr/departments/new')
+  await expect(page.getByRole('dialog')).toBeVisible()
   await expect(page.getByRole('heading', { name: 'قسم جديد' })).toBeVisible()
   await page.getByLabel('الاسم').fill(departmentName)
   await page.getByRole('button', { name: 'حفظ' }).click()

@@ -17,11 +17,8 @@ function created(id: number) {
 </script>
 
 <template>
-  <SharedPageContainer width="form">
-    <SharedPageHeader :title="t('tasks.new')" :back-to="returnTo" :back-label="t('tasks.detail.back')" />
-    <UCard>
-      <TaskCreateForm mode="project" @created="created" @cancel="router.push(returnTo)" />
-    </UCard>
+  <SharedCreatePanel :title="t('tasks.new')" :back-to="returnTo">
+    <TaskCreateForm mode="project" @created="created" @cancel="router.push(returnTo)" />
     <p v-if="!hydrated" class="sr-only">{{ t('tasks.loading') }}</p>
-  </SharedPageContainer>
+  </SharedCreatePanel>
 </template>

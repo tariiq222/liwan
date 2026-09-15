@@ -51,9 +51,10 @@ for (const [mode, fontSize, width] of [['light', 'small', 1440], ['dark', 'large
       await page.evaluate(async () => {
         await Promise.all(document.getAnimations().filter(animation => animation.effect?.getTiming().iterations !== Infinity).map(animation => animation.finished.catch(() => undefined)))
       })
-      if (route.endsWith('/tasks/new') && width < 768) {
-        await expect.poll(async () => (await page.locator('.nasq-ui-route-sheet').boundingBox())?.x).toBeLessThan(1)
-        await expect.poll(async () => (await page.locator('.nasq-ui-route-sheet').boundingBox())?.width).toBeGreaterThan(width - 1)
+      if ((route.endsWith('/tasks/new') || route.endsWith('/project-templates/new')) && width < 768) {
+        const panel = page.getByRole('dialog')
+        await expect(panel).toBeVisible()
+        await expect.poll(async () => (await panel.boundingBox())?.width).toBeGreaterThan(width - 1)
       }
       await page.screenshot({ path: testInfo.outputPath(`${index}-${mode}-${width}.png`), fullPage: true })
     }

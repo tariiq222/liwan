@@ -77,11 +77,13 @@ watch(() => [route.query.q, route.query.department_id, route.query.archived, rou
 watch(debouncedSearch, (value) => { if (value !== String(route.query.q ?? '')) updateQuery() })
 
 function updateQuery() {
+  if ((route.path.replace(/\/+$/, '') || '/') !== '/hr') return
   offset.value = 0
   void router.replace({ query: { ...route.query, ...(search.value.trim() ? { q: search.value.trim() } : { q: undefined }), ...(departmentId.value ? { department_id: departmentId.value } : { department_id: undefined }), ...(archived.value ? { archived: '1' } : { archived: undefined }), offset: undefined } })
 }
 function setPage(next: number) {
   if (!hydrated.value || isLoading.value || hasPendingSearch.value || next < 1 || next > pages.value) return
+  if ((route.path.replace(/\/+$/, '') || '/') !== '/hr') return
   offset.value = (next - 1) * 25
   void router.replace({ query: { ...route.query, ...(offset.value ? { offset: offset.value } : { offset: undefined }) } })
 }

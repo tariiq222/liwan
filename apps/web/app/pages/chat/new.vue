@@ -58,8 +58,7 @@ async function submit() {
 </script>
 
 <template>
-  <SharedPageContainer width="form">
-    <SharedPageHeader :title="t(wantGroup ? 'chat.newGroupTitle' : 'chat.newTitle')" :description="t(wantGroup ? 'chat.newGroupDescription' : 'chat.newDescription')" :back-to="{ path: '/chat', query: listQuery }" />
+  <SharedCreatePanel :title="t(wantGroup ? 'chat.newGroupTitle' : 'chat.newTitle')" :description="t(wantGroup ? 'chat.newGroupDescription' : 'chat.newDescription')" :back-to="{ path: '/chat', query: listQuery }">
     <form class="space-y-6" @submit.prevent="submit">
       <SharedUnsavedChanges :dirty="dirty" />
       <SharedFormSection :title="t('chat.recipients')" class="space-y-4">
@@ -96,5 +95,5 @@ async function submit() {
         <UButton type="submit" :disabled="!hydrated || isPending || (wantGroup ? selected.length < 2 : selected.length < 1 && !groupName.trim())" :label="t('chat.create')" />
       </div>
     </form>
-  </SharedPageContainer>
+  </SharedCreatePanel>
 </template>

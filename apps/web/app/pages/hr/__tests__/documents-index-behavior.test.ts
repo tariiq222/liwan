@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest'
 import * as Vue from 'vue'
 import ts from 'typescript'
 
-const filename = resolve(dirname(fileURLToPath(import.meta.url)), '../documents/index.vue')
+const filename = resolve(dirname(fileURLToPath(import.meta.url)), '../documents.vue')
 const source = readFileSync(filename, 'utf8')
 
 function loadPage() {
@@ -16,6 +16,7 @@ function loadPage() {
   }).outputText
   const module = { exports: {} as Record<string, unknown> }
   const route = {
+    path: '/hr/documents',
     query: Vue.reactive<Record<string, string>>({ q: 'term', department_id: '2', offset: '25' }),
     fullPath: '/hr/documents?q=term&department_id=2&offset=25',
   }

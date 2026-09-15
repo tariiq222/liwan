@@ -79,6 +79,14 @@ describe('internal UI width and status vocabulary', () => {
       'login.vue',
       'reports.vue', // Legacy query-preserving redirect to /projects/dashboard.
       'hr/employees/[employeeId]/access.vue',
+      'meetings.vue', // Nested parent: list or <NuxtPage /> by route.
+      'projects.vue', // Nested parent: list or <NuxtPage /> by route.
+      'project-templates.vue', // Nested parent: list or <NuxtPage /> by route.
+      'hr.vue', // Thin parent: directory under /hr/employees/new then <NuxtPage />.
+      'hr/departments.vue', // Thin parent: list under /hr/departments/new then <NuxtPage />.
+      'settings/users.vue', // Thin parent: list under /settings/users/new then <NuxtPage />.
+      'settings/roles.vue', // Thin parent: list under /settings/roles/new then <NuxtPage />.
+      'settings/projects/catalogs/[resource].vue', // Thin parent: list under /new then <NuxtPage />.
     ])
     const missing = pageFiles.filter((file) => {
       const rel = relative(pagesRoot, file)
@@ -86,6 +94,7 @@ describe('internal UI width and status vocabulary', () => {
       const source = readFileSync(file, 'utf8')
       return !(
         source.includes('SharedPageContainer')
+        || source.includes('SharedCreatePanel')
         || source.includes('SettingsLayout')
         || source.includes('nasq-page-width-form')
         || source.includes('ChatWorkspace')

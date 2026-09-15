@@ -3,7 +3,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 // Source-text assertions: this repo has no DOM/component-mount harness.
-const pagePath = resolve(import.meta.dirname, '../projects/[id]/milestones/index.vue')
+const pagePath = resolve(import.meta.dirname, '../projects/[id]/milestones.vue')
 const source = existsSync(pagePath) ? readFileSync(pagePath, 'utf8') : ''
 const table = readFileSync(resolve(import.meta.dirname, '../../components/project/MilestoneTable.vue'), 'utf8')
 

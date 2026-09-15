@@ -22,15 +22,25 @@ const project = computed(() => hydrated.value ? projectData.value : undefined)
 const notFound = computed(() => projectId.value === null || (error.value instanceof ApiError && (error.value.status === 404 || error.value.status === 403)))
 const projectReturnTo = computed(() => safeReturnTo(route.query.returnTo, '/projects', ['/projects', '/tasks', '/hr', '/settings', '/account', '/search', '/notifications', '/reports']))
 const isBoard = computed(() => route.query.view === 'board')
+const normalizedPath = computed(() => route.path.replace(/\/+$/, '') || '/')
+const isListRoute = computed(() => {
+  const rest = normalizedPath.value.replace(/^\/projects\/[^/]+\/tasks/, '')
+  return rest === '' || rest === '/new'
+})
 // Only ever evaluated inside the v-else of the not-found branch below, which
 // is what rules out a null projectId here.
 const params = computed<TaskListParams>(() => projectTaskParams(projectId.value!, route.query))
 const stageSource = computed(() => ({ kind: 'project' as const, stages: project.value?.stages ?? [] }))
 const canCreate = computed(() => can('pmo.tasks.create') && project.value?.active === true)
 
-// The frame renders the project name as the page's only h1, so this page
-// registers the shell title without emitting a competing heading.
-usePageHeader(() => t('nav.projectTasks'))
+// Register the shell title only while this list is on screen, so a task record
+// child can own the title without the parent overwriting it.
+const ListTitle = defineComponent({
+  setup() {
+    usePageHeader(() => t('nav.projectTasks'))
+    return () => null
+  },
+})
 
 // A link out of this list carries the list's own state through, `view`
 // included: the detail page hands these keys straight back, so the board
@@ -63,7 +73,8 @@ function openCreate() {
 </script>
 
 <template>
-  <SharedPageContainer width="list">
+  <SharedPageContainer v-if="isListRoute" width="list">
+    <ListTitle />
     <div v-if="notFound" class="flex flex-col items-start gap-3">
       <p class="text-muted">{{ t('projects.notFound') }}</p>
       <UButton type="button" color="neutral" variant="outline" size="sm" @click="router.push(projectReturnTo)">{{ t('projects.backToProjects') }}</UButton>
@@ -98,4 +109,5 @@ function openCreate() {
       </div>
     </section>
   </SharedPageContainer>
+  <NuxtPage />
 </template>

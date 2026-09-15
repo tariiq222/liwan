@@ -29,9 +29,8 @@ const normalizedPath = computed(() => route.path.replace(/\/+$/, '') || '/')
 const projectId = computed(() => parsePositiveId(route.params.id))
 const { data: project } = useProject(projectId)
 const isListRoute = computed(() => {
-  const id = projectId.value
-  if (id == null) return !normalizedPath.value.includes('/finance/')
-  return normalizedPath.value === `/projects/${id}/finance`
+  const rest = normalizedPath.value.replace(/^\/projects\/[^/]+\/finance/, '')
+  return rest === '' || rest === '/new'
 })
 
 const filters = reactive<FinanceListRouteState>(parseFinanceListRoute(route.query as Record<string, unknown>))

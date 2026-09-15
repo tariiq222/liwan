@@ -2,7 +2,6 @@
 import { ApiError } from '@/composables/useApi'
 import { useAdminUser, useGrantAdminAccount, useReactivateAdminUser, useUpdateAdminUserAccess, useAdminUserCandidates } from '@/composables/useAdminUsers'
 import { useAdminPermissionCatalog, useAdminRoleDetails, useAdminRoles } from '@/composables/useAdminRoles'
-import SettingsLayout from '@/components/settings/SettingsLayout.vue'
 import { adminListQuery, adminPathWithQuery } from '@/composables/adminSettingsPaths'
 
 const { t, locale } = useI18n()
@@ -100,8 +99,7 @@ async function submit() {
 </script>
 
 <template>
-  <SettingsLayout width="form">
-    <SharedPageHeader :title="t('access.users.grantTitle')" :back-to="backTo" />
+  <SharedCreatePanel :title="t('access.users.grantTitle')" :back-to="backTo" width="wide">
     <SharedPageState v-if="forbidden" :empty="true" :empty-text="t('access.forbidden')" />
     <UForm v-else :state="{ employeeId, selectedRoleIds, password, passwordConfirmation }" class="nasq-form" method="post" @submit="submit">
       <SharedUnsavedChanges :dirty="dirty" />
@@ -163,5 +161,5 @@ async function submit() {
         />
       </footer>
     </UForm>
-  </SettingsLayout>
+  </SharedCreatePanel>
 </template>

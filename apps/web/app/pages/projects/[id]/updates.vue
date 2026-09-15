@@ -16,6 +16,11 @@ const projectId = computed(() => {
 })
 const { data: project, isLoading, error, refetch } = useProject(projectId)
 const notFound = computed(() => projectId.value === null || (error.value instanceof ApiError && [403, 404].includes(error.value.status)))
+const normalizedPath = computed(() => route.path.replace(/\/+$/, '') || '/')
+const isListRoute = computed(() => {
+  const rest = normalizedPath.value.replace(/^\/projects\/[^/]+\/updates/, '')
+  return rest === '' || rest === '/new'
+})
 
 function openCreate() {
   if (!projectId.value || !project.value?.can_manage || !hydrated.value) return
@@ -24,7 +29,7 @@ function openCreate() {
 </script>
 
 <template>
-  <SharedPageContainer v-if="route.path.replace(/\/+$/, '') === `/projects/${projectId}/updates`" width="list">
+  <SharedPageContainer v-if="isListRoute" width="list">
     <SharedPageHeader
       v-if="!isProjectOverlay"
       :title="t('projects.refresh.workspace.updatesTitle')"
@@ -46,4 +51,5 @@ function openCreate() {
       <ProjectUpdateList v-if="project" :project-id="project.id" :can-manage="project.can_manage" :show-create="false" />
     </SharedPageState>
   </SharedPageContainer>
+  <NuxtPage />
 </template>

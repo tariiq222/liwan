@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import ProjectCharterReferenceForm from '@/components/settings/ProjectCharterReferenceForm.vue'
-import SettingsLayout from '@/components/settings/SettingsLayout.vue'
 import { isCharterCatalogResource } from '@/composables/useProjectCharterCatalogs'
 import { safeReturnTo } from '@/utils/safeReturnTo'
 
@@ -26,12 +25,9 @@ function onSaved() {
 </script>
 
 <template>
-  <SettingsLayout width="form">
-    <SharedPageHeader :title="title" :description="t('projects.refresh.settings.catalogDescription')" :back-to="returnTo" :back-label="t('settings.projects.catalogs.back')" />
+  <SharedCreatePanel :title="title" :description="t('projects.refresh.settings.catalogDescription')" :back-to="returnTo">
     <p v-if="!resource" class="text-muted">{{ t('settings.projects.catalogs.notFound') }}</p>
     <p v-else-if="forbidden" class="text-muted">{{ t('settings.forbidden') }}</p>
-    <section v-else class="rounded-lg ring ring-default bg-default overflow-hidden p-5">
-      <ProjectCharterReferenceForm :resource="resource" @saved="onSaved" @cancel="router.push(returnTo)" />
-    </section>
-  </SettingsLayout>
+    <ProjectCharterReferenceForm v-else :resource="resource" @saved="onSaved" @cancel="router.push(returnTo)" />
+  </SharedCreatePanel>
 </template>

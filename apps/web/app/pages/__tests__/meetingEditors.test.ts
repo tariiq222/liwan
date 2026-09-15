@@ -379,7 +379,7 @@ describe('meetings module design-system contract', () => {
   const componentSource = (name: string) => readFileSync(resolve('app/components/meetings', name), 'utf8')
   const moduleFiles = [
     '[id].vue', 'calendar.vue', 'index.vue', 'new.vue', '[id]/edit.vue', '[id]/minutes.vue', '[id]/print.vue',
-    '[id]/resolutions/new.vue', '[id]/resolutions/[resolutionId]/edit.vue', 'series/[id].vue', 'series/index.vue',
+    '[id]/resolutions/new.vue', '[id]/resolutions/[resolutionId]/edit.vue', 'series/[id].vue', 'series.vue',
     'series/new.vue', 'series/[id]/edit.vue',
   ].map(file => [file, source(file)] as const)
     .concat(['MeetingEventList.vue', 'MeetingMinutesDocument.vue', 'MeetingMinutesForm.vue', 'MeetingPeopleFields.vue', 'MeetingProjectFilter.vue', 'MeetingTimeline.vue', 'MeetingVersionList.vue'].map(file => [file, componentSource(file)] as const))
@@ -419,7 +419,7 @@ describe('meetings module design-system contract', () => {
     expect(source('index.vue')).toContain('meetingStateColor(row.original.state)')
     expect(source('calendar.vue')).toContain('meetingStateColor(meeting.state)')
     expect(componentSource('MeetingTimeline.vue')).toContain('meetingStateColor(meeting.state)')
-    for (const file of ['index.vue', 'series/index.vue', 'series/[id].vue']) expect(source(file), file).toContain('<SharedPagination')
+    for (const file of ['index.vue', 'series.vue', 'series/[id].vue']) expect(source(file), file).toContain('<SharedPagination')
     for (const file of ['MeetingEventList.vue', 'MeetingVersionList.vue']) expect(componentSource(file), file).toContain('<SharedPagination')
     expect(source('calendar.vue')).not.toContain("locale === 'ar'")
     expect(source('calendar.vue')).toContain('rtl:rotate-180')

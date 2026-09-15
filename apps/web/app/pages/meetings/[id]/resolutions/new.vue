@@ -66,8 +66,7 @@ async function save() {
 </script>
 
 <template>
-  <SharedPageContainer width="form">
-    <SharedPageHeader :title="t('meetingsUi.newResolution')" :back-to="backTo" />
+  <SharedCreatePanel :title="t('meetingsUi.newResolution')" :back-to="backTo">
     <SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!query.isLoading.value && !query.error.value && !query.data.value" @retry="query.refetch">
     <UAlert v-if="query.data.value && !canCreate" color="neutral" variant="subtle" :title="t('meetingMinutesForm.readOnlyMeeting')" />
     <form v-else-if="query.data.value" class="space-y-8" @submit.prevent="save">
@@ -116,5 +115,5 @@ async function save() {
       </div>
     </form>
     </SharedPageState>
-  </SharedPageContainer>
+  </SharedCreatePanel>
 </template>

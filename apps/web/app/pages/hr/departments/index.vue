@@ -14,7 +14,8 @@ const { can } = useAccess()
 const query = useHrDepartments()
 const hydrated = useHydrated()
 const toast = useToast()
-const search = computed({ get: () => typeof route.query.q === 'string' ? route.query.q : '', set: q => { void router.replace({ query: { ...route.query, q: q || undefined } }) } })
+const listPath = computed(() => (route.path.replace(/\/+$/, '') || '/') === '/hr/departments')
+const search = computed({ get: () => typeof route.query.q === 'string' ? route.query.q : '', set: q => { if (!listPath.value) return; void router.replace({ query: { ...route.query, q: q || undefined } }) } })
 const treeView = computed(() => route.query.view === 'tree')
 const canvasView = computed(() => route.query.view === 'canvas')
 const departments = computed(() => query.data.value?.items ?? [])
@@ -27,8 +28,8 @@ const { mutateAsync: deleteDepartment, isPending: deletingPending } = useDeleteH
 function openDepartment(id: number) { void navigateTo({ path: `/hr/departments/${id}`, query: returnToQuery(route.fullPath) }) }
 function editDepartment(id: number) { void navigateTo({ path: `/hr/departments/${id}/edit`, query: returnToQuery(route.fullPath) }) }
 function createChild(id: number) { void navigateTo({ path: '/hr/departments/new', query: { ...returnToQuery(route.fullPath), parent_id: id } }) }
-function setView(tree: boolean) { void router.replace({ query: { ...route.query, view: tree ? 'tree' : undefined } }) }
-function setCanvasView() { void router.replace({ query: { ...route.query, view: 'canvas' } }) }
+function setView(tree: boolean) { if (!listPath.value) return; void router.replace({ query: { ...route.query, view: tree ? 'tree' : undefined } }) }
+function setCanvasView() { if (!listPath.value) return; void router.replace({ query: { ...route.query, view: 'canvas' } }) }
 function clearFilters() { search.value = '' }
 function askDelete(department: HrDepartment) { deleting.value = department; deleteError.value = null }
 async function confirmDelete() {

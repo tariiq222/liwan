@@ -179,7 +179,7 @@ test('project task routes preserve the explicit board tab and filters', async ({
 test('project primary action and contextual settings remain accessible across font sizes', async ({ page, context }) => {
   await login(page)
   const id = await createProjectWithStages(page, `E2E header actions ${Date.now()}`)
-  await page.goto(`/projects/${id}`)
+  await page.goto(`/projects/${id}/tasks`)
 
   const hostname = new URL(page.url()).hostname
   for (const fontSize of ['small', 'large'] as const) {
@@ -208,9 +208,10 @@ test('project task creation preserves the explicit board tab and filters', async
   await page.goto(returnPath)
   await page.getByTestId('project-header-create').click()
   await expect(page).toHaveURL(new RegExp(`/projects/${id}/tasks/new\\?`))
-  await expect.poll(() => new URL(page.url()).searchParams.get('returnTo')).toBe(returnPath)
-  await page.getByRole('link', { name: 'العودة إلى المشروع' }).click()
-  await expect(page).toHaveURL(returnPath)
+  await expect(page.getByRole('dialog')).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'مهمة جديدة' })).toBeVisible()
+  await page.getByRole('button', { name: 'إلغاء' }).click()
+  await expect(page).toHaveURL(new RegExp(`/projects/${id}/tasks`))
 })
 
 test('create task from the project locks the project, and a manager sets the status', async ({ page }) => {
@@ -218,7 +219,7 @@ test('create task from the project locks the project, and a manager sets the sta
   const name = `E2E pcreate ${Date.now()}`
   const id = await createProjectWithStages(page, name)
 
-  await page.goto(`/projects/${id}`)
+  await page.goto(`/projects/${id}/tasks`)
   await page.getByTestId('project-header-create').click()
   await expect(page).toHaveURL(new RegExp(`/projects/${id}/tasks/new\\?returnTo=`))
   const form = page.getByTestId('task-create-form')
@@ -227,8 +228,11 @@ test('create task from the project locks the project, and a manager sets the sta
   await form.getByRole('button', { name: 'إنشاء' }).click()
   await expect(page).toHaveURL(new RegExp(`/projects/${id}/tasks/\\d+`))
   await page.keyboard.press('Escape')
-  await expect(page).toHaveURL(new RegExp(`/projects/${id}$`))
+  await expect(page).toHaveURL(new RegExp(`/projects/${id}/tasks$`))
 
+  await page.goto(`/projects/${id}`)
+  await expect(page.getByTestId('project-overview').getByTestId('project-status-select')).toHaveCount(0)
+  await page.goto(`/projects/${id}/settings`)
   await page.getByTestId('project-status-select').click()
   await page.getByRole('option', { name: 'خارج المسار' }).click()
   await expect(page.getByTestId('project-status-select')).toContainText('خارج المسار')

@@ -15,7 +15,7 @@ const hrRouteFiles = [
   'hr/departments/new.vue',
   'hr/departments/[departmentId].vue',
   'hr/departments/[departmentId]/edit.vue',
-  'hr/documents/index.vue',
+  'hr/documents.vue',
   'hr/departments/[departmentId]/documents/new.vue',
   'hr/departments/[departmentId]/documents/[documentId].vue',
   'hr/departments/[departmentId]/documents/[documentId]/edit.vue',

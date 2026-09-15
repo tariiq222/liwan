@@ -29,7 +29,8 @@ const { t, locale } = useI18n()
 const toast = useToast()
 const hydrated = useHydrated()
 const id = computed(() => Number(route.params.id))
-const isDetail = computed(() => route.path === `/meetings/${id.value}`)
+const isCreateResolution = computed(() => route.path === `/meetings/${id.value}/resolutions/new`)
+const isDetail = computed(() => route.path === `/meetings/${id.value}` || isCreateResolution.value)
 const query = useMeeting(computed(() => isDetail.value ? id.value : null))
 const attachments = useMeetingAttachments(computed(() => isDetail.value ? id.value : null))
 const { can } = useAccess()
@@ -64,7 +65,7 @@ const recommendationStateSelect = computed({
   set: value => { recommendationState.value = value === '__all__' ? '' : String(value) },
 })
 const projectSearch = ref<Record<number, string>>({})
-const activeTab = computed<MeetingTab>(() => meetingTabFromRoute(route.query.tab, hydrated.value ? route.hash : undefined))
+const activeTab = computed<MeetingTab>(() => isCreateResolution.value ? 'resolutions' : meetingTabFromRoute(route.query.tab, hydrated.value ? route.hash : undefined))
 const meetingTabsRoot = ref<HTMLElement | null>(null)
 let activeTabScrollFrame: number | null = null
 const meetingTabs = computed(() => [
@@ -323,7 +324,7 @@ async function confirmResolutionAction() {
 
 <template>
   <SharedPageContainer v-if="isDetail" width="detail">
-    <SharedPageHeader :title="query.data.value?.name || t('nav.meetings')" :back-to="backTo">
+    <SharedPageHeader :title="isCreateResolution ? t('nav.meetings') : (query.data.value?.name || t('nav.meetings'))" :back-to="isCreateResolution ? undefined : backTo">
       <template #title>
         <span class="inline-flex min-w-0 max-w-full flex-wrap items-center gap-2">
           <span class="min-w-0">{{ query.data.value?.name || t('nav.meetings') }}</span>
@@ -494,7 +495,7 @@ async function confirmResolutionAction() {
                     <h2 class="text-lg font-semibold text-highlighted">{{ t('meetingsUi.resolutions') }}</h2>
                     <UBadge color="neutral" variant="subtle">{{ query.data.value.resolutions.length }}</UBadge>
                     <span class="text-xs text-muted">{{ t('meetingsUx.currentFollowUp') }}</span>
-                    <UButton v-if="query.data.value.can_edit && !['done', 'cancelled'].includes(query.data.value.state)" size="sm" class="ms-auto" :to="`/meetings/${id}/resolutions/new`" :label="t('meetingsUi.newResolution')" />
+                    <UButton v-if="query.data.value.can_edit && !['done', 'cancelled'].includes(query.data.value.state)" size="sm" class="ms-auto" :to="{ path: `/meetings/${id}/resolutions/new`, query: { ...route.query, tab: 'resolutions' } }" :label="t('meetingsUi.newResolution')" />
                   </div>
                 </template>
                 <div class="grid min-w-0 gap-4">
@@ -625,5 +626,5 @@ async function confirmResolutionAction() {
       </div>
     </SharedPageState>
   </SharedPageContainer>
-  <NuxtPage v-else />
+  <NuxtPage />
 </template>

@@ -20,8 +20,7 @@ function onCreated(id: number) {
 </script>
 
 <template>
-  <SharedPageContainer width="form">
-    <SharedPageHeader :title="t('projects.new')" :back-to="returnTo" :back-label="t('projects.backToProjects')" />
+  <SharedCreatePanel :title="t('projects.new')" :back-to="returnTo" width="wide">
     <p v-if="isLoading" role="status" class="text-muted">
       {{ t('projects.loading') }}
     </p>
@@ -31,12 +30,11 @@ function onCreated(id: number) {
     <p v-else-if="!canCreate" class="text-muted">
       {{ t('projects.createForbidden') }}
     </p>
-    <UCard v-else class="space-y-6">
-      <ProjectCreateForm
-        @created="onCreated"
-        @cancel="router.push(returnTo)"
-      />
-    </UCard>
+    <ProjectCreateForm
+      v-else
+      @created="onCreated"
+      @cancel="router.push(returnTo)"
+    />
     <p v-if="!hydrated" class="sr-only">{{ t('app.loading') }}</p>
-  </SharedPageContainer>
+  </SharedCreatePanel>
 </template>

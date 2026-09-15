@@ -82,6 +82,8 @@ test('stage rename is discoverable by keyboard and Escape preserves the name', a
 
 test('template predecessors use labeled checkboxes without modifier keys', async ({ page }) => {
   await page.goto('/project-templates/new')
+  await expect(page.getByRole('dialog')).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'قالب مشروع جديد' })).toBeVisible()
   await page.getByRole('button', { name: 'إضافة مهمة', exact: true }).click()
   await page.locator('[name="task-name-0"]').fill('المهمة الأولى')
   await page.getByRole('button', { name: 'إضافة مهمة', exact: true }).click()

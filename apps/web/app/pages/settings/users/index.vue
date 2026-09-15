@@ -28,7 +28,11 @@ const page = computed(() => Math.floor((filters.offset ?? 0) / (filters.limit ??
 const pages = computed(() => Math.max(1, Math.ceil((query.data.value?.total ?? 0) / (filters.limit ?? 25))))
 const activeFilterCount = computed(() => Number(Boolean(filters.q?.trim())) + Number(Boolean(filters.status)) + Number(Boolean(filters.role_id)) + Number(Boolean(filters.department_id)))
 
+function isUsersList() {
+  return (route.path.replace(/\/+$/, '') || '/') === '/settings/users'
+}
 function updateFilters() {
+  if (!isUsersList()) return
   filters.offset = 0
   void router.replace({ query: {
     ...(filters.q ? { q: filters.q } : {}),
@@ -44,7 +48,7 @@ function clearFilters() {
   filters.department_id = undefined
   updateFilters()
 }
-function syncPage() { void router.replace({ query: adminQueryWithOffset(route.query, filters.offset ?? 0) }) }
+function syncPage() { if (!isUsersList()) return; void router.replace({ query: adminQueryWithOffset(route.query, filters.offset ?? 0) }) }
 function setPage(next: number) { if (hydrated.value && next >= 1 && next <= pages.value) { filters.offset = (next - 1) * (filters.limit ?? 25); syncPage() } }
 watch(() => [route.query.q, route.query.status, route.query.role_id, route.query.department_id, route.query.offset], ([q, status, roleId, departmentId, offset]) => {
   filters.q = String(q ?? '')

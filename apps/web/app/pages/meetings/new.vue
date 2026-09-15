@@ -136,8 +136,7 @@ async function save() {
 </script>
 
 <template>
-  <SharedPageContainer width="form">
-    <SharedPageHeader :title="t('meetingsUi.new')" :back-to="backTo" />
+  <SharedCreatePanel :title="t('meetingsUi.new')" :back-to="backTo">
     <form class="space-y-8" novalidate @submit.prevent="save">
       <SharedUnsavedChanges :dirty="dirty" />
       <p v-if="context.series || context.project" class="rounded-lg bg-elevated/50 px-3 py-2 text-sm ring ring-default">
@@ -185,5 +184,5 @@ async function save() {
         <UButton type="submit" :disabled="!hydrated || isPending || seriesDefaultsLoading || !!seriesDefaultsError" :label="t('app.create')" />
       </div>
     </form>
-  </SharedPageContainer>
+  </SharedCreatePanel>
 </template>

@@ -184,7 +184,7 @@ describe('a record returns to the list it belongs to', () => {
   expectTarget('record', RECORDS)
 
   it('gives the governance sub-sections no back line: they are tabs, not records', () => {
-    for (const page of ['charter.vue', 'raci.vue', 'stakeholders/index.vue', 'register/index.vue']) {
+    for (const page of ['charter.vue', 'raci.vue', 'stakeholders.vue', 'register.vue']) {
       const source = readFileSync(resolve(webRoot, `app/pages/projects/[id]/${page}`), 'utf8')
       expect(source, page).not.toContain('back-to=')
     }

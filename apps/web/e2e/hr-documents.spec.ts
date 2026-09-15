@@ -20,7 +20,9 @@ test('HR document routes create, edit, reload, and preserve attachments', async 
   const body = `E2E document body ${Date.now()}`
 
   await page.goto(`/hr/departments/${department.id}/documents/new`)
-  await expect(page.getByRole('heading', { name: 'مستند جديد' }).first()).toBeVisible()
+  const create = page.getByRole('dialog')
+  await expect(create).toBeVisible()
+  await expect(create.getByRole('heading', { name: 'مستند جديد' })).toBeVisible()
   await page.getByLabel('عنوان المستند').fill(title)
   await page.getByRole('button', { name: 'إنشاء' }).click()
   await expect(page).toHaveURL(new RegExp(`/hr/departments/${department.id}/documents/\\d+(?:\\?|$)`))

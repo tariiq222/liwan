@@ -93,8 +93,7 @@ async function save() {
 </script>
 
 <template>
-  <SharedPageContainer width="form">
-    <SharedPageHeader :title="t('meetingsUi.newSeries')" :back-to="backTo" />
+  <SharedCreatePanel :title="t('meetingsUi.newSeries')" :back-to="backTo">
     <form class="space-y-8" @submit.prevent="save">
       <SharedUnsavedChanges :dirty="dirty" />
       <p v-if="context" class="rounded-lg bg-elevated/50 px-3 py-2 text-sm ring ring-default">{{ t('meetingsUx.context.project', { name: context }) }}</p>
@@ -159,5 +158,5 @@ async function save() {
         <UButton type="submit" :disabled="!hydrated || isPending || Object.keys(formErrors).length > 0" :label="t('app.create')" />
       </div>
     </form>
-  </SharedPageContainer>
+  </SharedCreatePanel>
 </template>

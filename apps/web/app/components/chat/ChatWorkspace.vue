@@ -66,6 +66,7 @@ function onDenied() {
 }
 
 function updateRoute(next: ChatListRoute) {
+  if ((route.path.replace(/\/+$/, '') || '/') === '/chat/new') return
   void router.replace({ path: route.path, query: serializeChatListRoute(next) })
 }
 </script>

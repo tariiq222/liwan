@@ -98,7 +98,7 @@ test('task creation is a reloadable page with a safe return target', async ({ pa
   await page.reload()
   await expect(page.getByRole('heading', { name: 'مهمة جديدة' })).toBeVisible()
   await expect(page.getByTestId('task-create-form')).toBeVisible()
-  await expect(page.locator('[data-slot="dialog-content"], [data-slot="sheet-content"], [data-slot="dialog-overlay"], [data-slot="sheet-overlay"]')).toHaveCount(0)
+  await expect(page.getByRole('dialog')).toBeVisible()
   await page.getByRole('button', { name: 'إلغاء' }).click()
   await expect(page).toHaveURL(/\/tasks\?q=return-check/)
 })

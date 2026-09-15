@@ -48,6 +48,8 @@ async function loginContext(browser: Browser, username: string, password: string
 test('create form requires a real calendar day and explains creation-only defaults', async ({ page }) => {
   await login(page)
   await page.goto('/projects/new')
+  await expect(page.getByRole('dialog')).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'مشروع جديد' })).toBeVisible()
   await expect(page.getByTestId('project-create-form')).toBeVisible()
   await expect(page.getByTestId('project-create-defaults-error')).toHaveCount(0)
   await expect(page.getByText(/عند الإنشاء فقط|only at creation/i)).toBeVisible()
@@ -62,6 +64,8 @@ test('create form requires a real calendar day and explains creation-only defaul
 test('end-only create then date edit persists after reload', async ({ page }) => {
   await login(page)
   await page.goto('/projects/new')
+  await expect(page.getByRole('dialog')).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'مشروع جديد' })).toBeVisible()
   await expect(page.getByTestId('project-create-form')).toBeVisible()
   const name = `PSC lone end ${Date.now()}`
   await page.getByTestId('project-create-name').fill(name)

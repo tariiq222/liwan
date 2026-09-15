@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 
 const listSource = readFileSync(
-  resolve(dirname(fileURLToPath(import.meta.url)), '../../../pages/projects/[id]/register/index.vue'),
+  resolve(dirname(fileURLToPath(import.meta.url)), '../../../pages/projects/[id]/register.vue'),
   'utf8',
 )
 

@@ -24,8 +24,7 @@ function saved() { router.push(backTo.value) }
 </script>
 
 <template>
-  <SharedPageContainer width="form">
-    <SharedPageHeader :title="t('projects.milestones.new')" :back-to="backTo" :back-label="t('projects.backToProject')" />
+  <SharedCreatePanel :title="t('projects.milestones.new')" :back-to="backTo">
     <template v-if="projectId === null">
       <p class="text-muted">{{ t('projects.invalidId') }}</p>
     </template>
@@ -38,7 +37,7 @@ function saved() { router.push(backTo.value) }
       @retry="refetch"
     >
       <p v-if="!project?.can_manage" class="text-muted">{{ t('projects.forbidden') }}</p>
-      <section v-else class="rounded-lg ring ring-default bg-default overflow-hidden"><div class="p-5"><MilestoneForm :project-id="projectId" :project-start="project?.date_start" :project-end="project?.date_end" @saved="saved" @cancel="router.push(backTo)" /></div></section>
+      <MilestoneForm v-else :project-id="projectId" :project-start="project?.date_start" :project-end="project?.date_end" @saved="saved" @cancel="router.push(backTo)" />
     </SharedPageState>
-  </SharedPageContainer>
+  </SharedCreatePanel>
 </template>

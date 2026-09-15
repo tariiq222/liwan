@@ -45,6 +45,7 @@ watch(() => [route.query.q, route.query.offset], ([q, nextOffset]) => {
 })
 watch(debouncedSearch, (value) => { if (value !== String(route.query.q ?? '')) updateSearch() })
 function updateSearch() {
+  if (!/^\/hr\/departments\/[^/]+$/.test(route.path.replace(/\/+$/, '') || '/')) return
   offset.value = 0
   void router.replace({ query: { ...route.query, ...(search.value.trim() ? { q: search.value.trim() } : { q: undefined }), offset: undefined } })
 }
@@ -54,6 +55,7 @@ function clearSearch() {
 }
 function setPage(next: number) {
   if (!hydrated.value || query.isFetching.value || hasPendingSearch.value || next < 1 || next > pages.value) return
+  if (!/^\/hr\/departments\/[^/]+$/.test(route.path.replace(/\/+$/, '') || '/')) return
   offset.value = (next - 1) * limit
   void router.replace({ query: { ...route.query, ...(offset.value ? { offset: offset.value } : { offset: undefined }) } })
 }

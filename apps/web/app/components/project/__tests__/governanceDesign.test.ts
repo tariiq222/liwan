@@ -9,7 +9,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 const here = dirname(fileURLToPath(import.meta.url))
 const webRoot = resolve(here, '../../../../')
 const root = resolve(here, '../../../pages/projects/[id]')
-const stakeholders = readFileSync(resolve(root, 'stakeholders/index.vue'), 'utf8')
+const stakeholders = readFileSync(resolve(root, 'stakeholders.vue'), 'utf8')
 const raciPath = resolve(root, 'raci.vue')
 const raci = readFileSync(raciPath, 'utf8')
 const projects = readFileSync(resolve(here, '../../../pages/projects/index.vue'), 'utf8')

@@ -21,6 +21,6 @@ export const Single: Story = { name: 'اختيار واحد' }
 export const Multiple: Story = { name: 'اختيار متعدد', parameters: storyContext('apps/web/app/components/task/AssigneePicker.vue:58'), args: { multiple: true, modelValue: [], valueKey: 'id', placeholder: 'المسؤولون' } }
 export const FixedOptions: Story = {
   name: 'من قائمة ثابتة',
-  parameters: storyContext('apps/web/app/pages/meetings/[id]/resolutions/new.vue:81'),
+  parameters: storyContext('apps/web/app/pages/meetings/[id]/resolutions/new.vue:80'),
   args: { options: [{ id: 11, name: 'أحمد العتيبي' }, { id: 12, name: 'نورة الحربي' }], placeholder: 'المسؤول' },
 }

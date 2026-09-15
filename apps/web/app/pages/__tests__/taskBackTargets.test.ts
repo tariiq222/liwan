@@ -22,6 +22,7 @@ function loadSetupState(rel: string, router: Router, extraBindings: Record<strin
   }).outputText
   const bindings: Record<string, unknown> = {
     _defineComponent: Vue.defineComponent,
+    defineComponent: Vue.defineComponent,
     computed: Vue.computed, ref: Vue.ref, watch: Vue.watch, shallowRef: Vue.shallowRef,
     onMounted: () => undefined, onBeforeUnmount: () => undefined,
     useRoute: () => router.currentRoute.value, useRouter: () => router,
@@ -128,7 +129,7 @@ describe('task detail back targets — runtime round trip', () => {
     const router = makeRouter()
     await router.push('/projects/7/tasks?view=board&q=a')
     await router.isReady()
-    const list = loadSetupState('app/pages/projects/[id]/tasks/index.vue', router)
+    const list = loadSetupState('app/pages/projects/[id]/tasks.vue', router)
     const to = (list.taskTo as (id: number) => RouteLocationRaw)(99)
 
     const detail = router.resolve(to)

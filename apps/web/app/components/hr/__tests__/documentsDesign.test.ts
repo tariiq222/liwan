@@ -3,7 +3,7 @@ import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const appRoot = resolve(import.meta.dirname, '../../..')
-const listSource = readFileSync(resolve(appRoot, 'pages/hr/documents/index.vue'), 'utf8')
+const listSource = readFileSync(resolve(appRoot, 'pages/hr/documents.vue'), 'utf8')
 const newSource = readFileSync(resolve(appRoot, 'pages/hr/documents/new.vue'), 'utf8')
 
 describe('HR documents list design', () => {

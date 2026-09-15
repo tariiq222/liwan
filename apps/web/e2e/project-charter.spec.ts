@@ -23,7 +23,9 @@ async function login(page: Page) {
 
 async function openCreate(page: Page) {
   await page.goto('/projects/new')
+  await expect(page.getByRole('dialog')).toBeVisible()
   await expect(page.getByRole('heading', { name: 'مشروع جديد' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'إغلاق' })).toBeVisible()
   const help = page.getByTestId('field-help').first()
   await expect(help).toBeEnabled()
   return help
@@ -38,6 +40,7 @@ test('create page shows every charter field and allows a name-only save', async 
   expect(optional.status()).toBe(200)
   try {
     await page.goto('/projects/new')
+    await expect(page.getByRole('dialog')).toBeVisible()
     await expect(page.getByRole('heading', { name: 'مشروع جديد' })).toBeVisible()
     for (const key of FIELD_KEYS) {
       await expect(page.getByTestId(`charter-field-${key}`)).toBeVisible()
@@ -249,6 +252,7 @@ test('charter create/edit round-trip persists every field through the UI and API
   const sponsor = uniquePeople.find((person) => person.id !== manager.id) ?? manager
 
   await page.goto('/projects/new')
+  await expect(page.getByRole('dialog')).toBeVisible()
   await expect(page.getByRole('heading', { name: 'مشروع جديد' })).toBeVisible()
   await expect(page.getByTestId('project-create-name')).toBeEnabled()
   await page.getByTestId('project-create-name').fill(name)

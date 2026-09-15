@@ -62,7 +62,11 @@ function listQuery(next: Record<string, string | undefined> = {}) {
   return Object.fromEntries(Object.entries(current).filter(([, value]) => value))
 }
 
+function isCatalogList() {
+  return /^\/settings\/projects\/catalogs\/[^/]+$/.test(route.path.replace(/\/+$/, '') || '/')
+}
 function onSearch(event: Event) {
+  if (!isCatalogList()) return
   const value = (event.target as HTMLInputElement).value
   void router.replace({ query: listQuery({ q: value || undefined, offset: undefined }) })
 }
@@ -71,10 +75,12 @@ function onSearch(event: Event) {
 function toggleInactive(value: unknown) {
   const next = value === 'all'
   if (next === showInactive.value) return
+  if (!isCatalogList()) return
   void router.replace({ query: listQuery({ active: next ? 'all' : undefined, offset: undefined }) })
 }
 
 function clearSearch() {
+  if (!isCatalogList()) return
   void router.replace({ query: listQuery({ q: undefined, offset: undefined }) })
 }
 
@@ -84,6 +90,7 @@ function clearFilters() {
 
 function setPage(next: number) {
   if (!hydrated.value || query.isFetching.value || next < 1 || next > pages.value) return
+  if (!isCatalogList()) return
   void router.replace({ query: listQuery({ offset: next === 1 ? undefined : String((next - 1) * CHARTER_CATALOG_PAGE_SIZE) }) })
 }
 

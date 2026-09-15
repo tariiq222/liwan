@@ -18,6 +18,8 @@ const hydrated = useHydrated()
 const tab = computed(() => (route.query.tab === 'board' ? 'board' : 'table'))
 const normalizedPath = computed(() => route.path.replace(/\/+$/, '') || '/')
 const isBaseRoute = computed(() => normalizedPath.value === '/tasks')
+const isCreateRoute = computed(() => normalizedPath.value === '/tasks/new')
+const showList = computed(() => isBaseRoute.value || isCreateRoute.value)
 function onTabChange(v: unknown) {
   router.replace({ query: { ...route.query, tab: v === 'board' ? 'board' : undefined } })
 }
@@ -44,7 +46,7 @@ function openCreate() {
 </script>
 
 <template>
-  <SharedPageContainer v-if="isBaseRoute" width="list">
+  <SharedPageContainer v-if="showList" width="list">
     <SharedPageHeader :title="t('tasks.title')" :description="t('tasks.description')">
       <template #actions>
         <UButton v-if="can('pmo.tasks.create')" icon="i-lucide-plus" :disabled="!hydrated" :to="{ path: '/tasks/new', query: returnToQuery(route.fullPath) }">

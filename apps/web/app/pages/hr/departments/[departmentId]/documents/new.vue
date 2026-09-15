@@ -12,9 +12,8 @@ const backTo = computed(() => {
 function saved(documentId: number) { void navigateTo(`/hr/departments/${id.value}/documents/${documentId}`) }
 </script>
 <template>
-  <SharedPageContainer width="form">
-    <SharedPageHeader :title="t('hr.docs.new')" :back-to="backTo" />
+  <SharedCreatePanel :title="t('hr.docs.new')" :back-to="backTo">
     <SharedPageState v-if="!can('hr.documents.manage')" :empty="true" :empty-text="t('errors.forbidden')" />
-    <UCard v-else class="rounded-lg ring ring-default bg-default overflow-hidden" :ui="{ body: 'p-5 sm:p-6' }"><DocumentCreateForm :department-id="id" :back-to="backTo" @saved="saved" /></UCard>
-  </SharedPageContainer>
+    <DocumentCreateForm v-else :department-id="id" :back-to="backTo" @saved="saved" />
+  </SharedCreatePanel>
 </template>

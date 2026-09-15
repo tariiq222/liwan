@@ -48,8 +48,10 @@ test('closing message search restores the thread and muted conversations stay ma
 test('explicit group creation requires two recipients and preserves their ids', async ({ page }) => {
   const creates = await setup(page)
   await page.goto('/chat/new?kind=group')
-  await expect(page.getByRole('heading', { name: 'مجموعة جديدة', exact: true })).toBeVisible()
-  const create = page.locator('main button[type="submit"]')
+  const dialog = page.getByRole('dialog')
+  await expect(dialog).toBeVisible()
+  await expect(dialog.getByRole('heading', { name: 'مجموعة جديدة', exact: true })).toBeVisible()
+  const create = dialog.locator('button[type="submit"]')
   await expect(create).toBeDisabled()
   await page.getByRole('button', { name: /سارة/ }).click()
   await expect(create).toBeDisabled()

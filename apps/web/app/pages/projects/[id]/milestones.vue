@@ -16,10 +16,20 @@ const project = computed(() => hydrated.value ? projectData.value : undefined)
 const notFound = computed(() => projectId.value === null || (error.value instanceof ApiError && (error.value.status === 404 || error.value.status === 403)))
 const projectReturnTo = computed(() => safeReturnTo(route.query.returnTo, '/projects', ['/projects', '/tasks', '/hr', '/settings', '/account', '/search', '/notifications', '/reports']))
 const canCreate = computed(() => project.value?.can_manage === true && project.value.active)
+const normalizedPath = computed(() => route.path.replace(/\/+$/, '') || '/')
+const isListRoute = computed(() => {
+  const rest = normalizedPath.value.replace(/^\/projects\/[^/]+\/milestones/, '')
+  return rest === '' || rest === '/new'
+})
 
-// The frame renders the project name as the page's only h1, so this page
-// registers the shell title without emitting a competing heading.
-usePageHeader(() => t('projects.tabs.milestones'))
+// Register the shell title only while this list is on screen, so a milestone
+// record child can own the title without the parent overwriting it.
+const ListTitle = defineComponent({
+  setup() {
+    usePageHeader(() => t('projects.tabs.milestones'))
+    return () => null
+  },
+})
 
 function openCreate() {
   router.push(`/projects/${projectId.value}/milestones/new`)
@@ -27,7 +37,8 @@ function openCreate() {
 </script>
 
 <template>
-  <SharedPageContainer width="list">
+  <SharedPageContainer v-if="isListRoute" width="list">
+    <ListTitle />
     <div v-if="notFound" class="flex flex-col items-start gap-3">
       <p class="text-muted">{{ t('projects.notFound') }}</p>
       <UButton type="button" color="neutral" variant="outline" size="sm" @click="router.push(projectReturnTo)">{{ t('projects.backToProjects') }}</UButton>
@@ -50,4 +61,5 @@ function openCreate() {
       <USkeleton v-else-if="isLoading || !hydrated" class="h-40 w-full" />
     </template>
   </SharedPageContainer>
+  <NuxtPage />
 </template>

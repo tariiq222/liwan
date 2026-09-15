@@ -11,6 +11,11 @@ const router = useRouter()
 const { t } = useI18n()
 const hydrated = useHydrated()
 const { can } = useAccess()
+const normalizedPath = computed(() => route.path.replace(/\/+$/, '') || '/')
+const isListRoute = computed(() => {
+  const rest = normalizedPath.value.replace(/^\/meetings\/series/, '')
+  return rest === '' || rest === '/new'
+})
 const routeFilters = computed(() => parseMeetingListFilters(route.query))
 const search = ref(routeFilters.value.q)
 const debouncedSearch = refDebounced(search, 250)
@@ -54,28 +59,33 @@ watch(debouncedSearch, (value) => {
   const next = value.trim()
   const current = routeFilters.value.q
   if (next === current) return
+  if (normalizedPath.value !== '/meetings/series') return
   void router.replace({ query: patchMeetingListQuery(route.query, { q: next || undefined }) })
 })
 function setProject(value: number | undefined) {
+  if (normalizedPath.value !== '/meetings/series') return
   void router.replace({ query: patchMeetingListQuery(route.query, { project_id: value }) })
 }
 function clearSearch() {
   search.value = ''
+  if (normalizedPath.value !== '/meetings/series') return
   void router.replace({ query: patchMeetingListQuery(route.query, { q: undefined }) })
 }
 function clearFilters() {
   search.value = ''
+  if (normalizedPath.value !== '/meetings/series') return
   void router.replace({ query: clearMeetingListFilters(route.query) })
 }
 function setPage(next: number) {
   if (!hydrated.value || query.isFetching.value || next < 1 || next > pages.value) return
+  if (normalizedPath.value !== '/meetings/series') return
   offset.value = (next - 1) * limit
   void router.replace({ query: patchMeetingListQuery(route.query, { offset: offset.value || undefined }) })
 }
 </script>
 
 <template>
-  <SharedPageContainer width="list">
+  <SharedPageContainer v-if="isListRoute" width="list">
     <SharedPageHeader :title="t('nav.meetingSeries')">
       <template #actions>
         <UButton v-if="can('meetings.create')" :to="{ path: '/meetings/series/new', query: returnToQuery(route.fullPath) }" :disabled="!hydrated" icon="i-lucide-plus" :label="t('meetingsUi.newSeries')" />
@@ -129,4 +139,5 @@ function setPage(next: number) {
     </SharedPageState>
     <SharedPagination :page="page" :pages="pages" :disabled="query.isFetching.value" @update:page="setPage" />
   </SharedPageContainer>
+  <NuxtPage />
 </template>

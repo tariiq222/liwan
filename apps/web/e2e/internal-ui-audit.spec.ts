@@ -76,7 +76,14 @@ async function assertH1(page: Page, expected: string) {
 async function visit(page: Page, route: (typeof ROUTES)[number], opts: { checkWidth: boolean; checkForm: boolean }) {
   const defects: string[] = []
   await page.goto(route.path)
-  await assertH1(page, route.h1)
+  const createPanel = route.id === 'employee-new' || route.id === 'catalog-new'
+  if (createPanel) {
+    const dialog = page.getByRole('dialog')
+    await expect(dialog).toBeVisible()
+    await expect(dialog.getByRole('heading', { name: route.h1 })).toBeVisible()
+  } else {
+    await assertH1(page, route.h1)
+  }
   await expect(page.getByRole('button', { name: 'بحث', exact: true })).toBeEnabled()
   await page.evaluate(() => document.fonts.ready)
   if (route.id === 'projects') await expect(page.getByTestId('project-row')).toHaveCount(3)
@@ -92,7 +99,7 @@ async function visit(page: Page, route: (typeof ROUTES)[number], opts: { checkWi
     if (layout.display !== 'flex') defects.push(`full-height page overrides flex: ${layout.display}`)
     if (layout.headerHeight > 96) defects.push(`stretched page header: ${layout.headerHeight}px`)
   }
-  if (opts.checkWidth && route.width) {
+  if (opts.checkWidth && route.width && !createPanel) {
     const count = await page.locator(`[data-slot="page-container"][data-layout-width="${route.width}"]`).count()
     if (!count) defects.push(`missing page-container width=${route.width}`)
   }
@@ -206,15 +213,9 @@ test('desktop 1440 light medium — route smoke and targeted fixes', async ({ pa
 
   await page.setViewportSize({ width: 1920, height: 1080 })
   await page.goto('/settings/projects/catalogs/types/new')
-  await assertH1(page, 'نوع مشروع جديد')
-  const catalog = page.locator('[data-slot="page-container"][data-layout-width="form"]')
-  await expect(catalog).toBeVisible()
-  const catalogBox = await catalog.evaluate((el) => {
-    const style = getComputedStyle(el)
-    return { width: el.getBoundingClientRect().width, maxWidth: style.maxWidth }
-  })
-  expect(catalogBox.maxWidth).toBe('940px')
-  expect(catalogBox.width).toBeLessThanOrEqual(940)
+  const catalogDialog = page.getByRole('dialog')
+  await expect(catalogDialog).toBeVisible()
+  await expect(catalogDialog.getByRole('heading', { name: 'نوع مشروع جديد' })).toBeVisible()
   await page.screenshot({ path: shot('catalog-new-1920.png'), fullPage: true })
 
   await page.goto('/settings/appearance')

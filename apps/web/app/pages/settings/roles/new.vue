@@ -2,7 +2,6 @@
 import type { Capability, PermissionDefinition } from '@nasq/contracts'
 import { ApiError } from '@/composables/useApi'
 import { useAdminPermissionCatalog, useAdminRole, useCreateAdminRole } from '@/composables/useAdminRoles'
-import SettingsLayout from '@/components/settings/SettingsLayout.vue'
 import { adminListQuery, adminPathWithQuery } from '@/composables/adminSettingsPaths'
 
 const { t, locale } = useI18n()
@@ -88,8 +87,7 @@ async function submit() {
 </script>
 
 <template>
-  <SettingsLayout width="form">
-    <SharedPageHeader :title="t('access.roles.createTitle')" :back-to="backTo" />
+  <SharedCreatePanel :title="t('access.roles.createTitle')" :back-to="backTo" width="wide">
     <SharedPageState v-if="forbidden" :empty="true" :empty-text="t('access.forbidden')" />
     <UForm v-else :state="{ nameAr, nameEn, description }" class="nasq-form" method="post" @submit="submit">
       <SharedUnsavedChanges :dirty="dirty" />
@@ -130,5 +128,5 @@ async function submit() {
       <UAlert v-if="errorKey" role="alert" color="error" variant="subtle" :title="errorKey" />
       <footer class="nasq-form-footer justify-end"><UButton type="submit" color="primary" :disabled="!hydrated || create.isPending.value || !nameAr.trim()" :label="t('access.roles.create')" /></footer>
     </UForm>
-  </SettingsLayout>
+  </SharedCreatePanel>
 </template>

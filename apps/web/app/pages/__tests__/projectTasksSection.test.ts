@@ -5,7 +5,7 @@ import { resolve } from 'node:path'
 // No DOM/component-mount harness exists here (no @nuxt/test-utils, no jsdom),
 // so the page contract is asserted against its source, like the shell suite
 // and the Task 5 frame suite.
-const pagePath = resolve(import.meta.dirname, '../projects/[id]/tasks/index.vue')
+const pagePath = resolve(import.meta.dirname, '../projects/[id]/tasks.vue')
 const source = existsSync(pagePath) ? readFileSync(pagePath, 'utf8') : ''
 
 describe('project tasks section page', () => {

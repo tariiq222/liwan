@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import DocumentList from '@/components/hr/DocumentList.vue'
 import { useHrDepartment } from '@/composables/useHrDepartments'
-const route = useRoute(); const { t } = useI18n(); const { can } = useAccess(); const hydrated = useHydrated(); const id = computed(() => Number(route.params.departmentId)); const isDetail = computed(() => route.path === `/hr/departments/${id.value}`); const query = useHrDepartment(computed(() => isDetail.value ? id.value : null)); const department = computed(() => query.data.value)
+const route = useRoute(); const { t } = useI18n(); const { can } = useAccess(); const hydrated = useHydrated(); const id = computed(() => Number(route.params.departmentId)); const isCreateDocument = computed(() => route.path === `/hr/departments/${id.value}/documents/new`); const isDetail = computed(() => route.path === `/hr/departments/${id.value}` || isCreateDocument.value); const query = useHrDepartment(computed(() => isDetail.value ? id.value : null)); const department = computed(() => query.data.value)
 // The owning list is fixed by this page's own route, so the return trip is
 // literal and carries only the state the list was showing. A referrer's
 // returnTo is dropped rather than forwarded: on the list URL it would nest one
@@ -13,7 +13,10 @@ const backTo = computed(() => {
 </script>
 <template>
   <SharedPageContainer v-if="isDetail" width="detail">
-    <SharedPageHeader :title="department?.name || t('hr.depts.title')" :back-to="backTo">
+    <!-- Under the create-document panel the registered (shell) title stays static so the
+         loaded department name never overwrites the panel's title; the visible heading keeps the name. -->
+    <SharedPageHeader :title="isCreateDocument ? t('hr.depts.title') : (department?.name || t('hr.depts.title'))" :back-to="isCreateDocument ? undefined : backTo">
+      <template #title>{{ department?.name || t('hr.depts.title') }}</template>
       <UButton v-if="department && can('hr.departments.manage')" color="primary" :disabled="!hydrated" :to="`/hr/departments/${id}/edit`" :label="t('hr.depts.edit')" @click="!hydrated && $event.preventDefault()" />
     </SharedPageHeader>
     <SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!department" @retry="query.refetch">
@@ -32,5 +35,5 @@ const backTo = computed(() => {
       </div>
     </SharedPageState>
   </SharedPageContainer>
-  <NuxtPage v-else />
+  <NuxtPage />
 </template>

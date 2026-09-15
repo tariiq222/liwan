@@ -22,5 +22,10 @@ async function save(body: Parameters<typeof mutation.mutate>[0]) {
 </script>
 
 <template>
-  <SharedPageContainer width="form"><SharedPageHeader :title="t('projects.templates.new')" :back-to="backTo" /><SharedPageState :loading="permissions.isLoading.value && !permissions.data.value" :error="permissions.data.value ? null : permissions.error.value" :empty="!permissions.isLoading.value && !permissions.error.value && !permissions.data.value?.can_manage" :empty-text="t('projects.forbidden')" @retry="permissions.refetch"><ProjectTemplateEditor :reset-key="resetKey" :busy="mutation.isPending.value" @save="save" @cancel="router.push(backTo)" /></SharedPageState><p v-if="mutation.error.value" role="alert" class="text-error">{{ t('projects.templates.saveError') }}</p></SharedPageContainer>
+  <SharedCreatePanel :title="t('projects.templates.new')" :back-to="backTo" width="wide">
+    <SharedPageState :loading="permissions.isLoading.value && !permissions.data.value" :error="permissions.data.value ? null : permissions.error.value" :empty="!permissions.isLoading.value && !permissions.error.value && !permissions.data.value?.can_manage" :empty-text="t('projects.forbidden')" @retry="permissions.refetch">
+      <ProjectTemplateEditor :reset-key="resetKey" :busy="mutation.isPending.value" @save="save" @cancel="router.push(backTo)" />
+    </SharedPageState>
+    <p v-if="mutation.error.value" role="alert" class="text-error">{{ t('projects.templates.saveError') }}</p>
+  </SharedCreatePanel>
 </template>

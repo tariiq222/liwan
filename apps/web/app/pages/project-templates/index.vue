@@ -14,7 +14,7 @@ const offset = computed(() => {
   const value = Number(route.query.offset)
   return Number.isSafeInteger(value) && value >= 0 ? value : 0
 })
-watch(q, value => { if (value.trim() !== (route.query.q ?? '')) router.replace({ query: value.trim() ? { q: value.trim() } : {} }) })
+watch(q, value => { if ((route.path.replace(/\/+$/, '') || '/') !== '/project-templates' || value.trim() === (route.query.q ?? '')) return; router.replace({ query: value.trim() ? { q: value.trim() } : {} }) })
 watch(() => route.query.q, value => { search.value = typeof value === 'string' ? value : '' })
 const list = useProjectTemplateList(computed(() => ({ q: typeof route.query.q === 'string' ? route.query.q : '', limit: pageSize, offset: offset.value })))
 const total = computed(() => list.data.value?.total ?? 0)

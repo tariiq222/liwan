@@ -29,8 +29,7 @@ function saved(id: number) {
 </script>
 
 <template>
-  <SharedPageContainer width="form">
-    <SharedPageHeader :title="t('hr.docs.new')" :back-to="backTo" />
+  <SharedCreatePanel :title="t('hr.docs.new')" :back-to="backTo">
     <SharedPageState v-if="!canManage" :empty="true" :empty-text="t('errors.forbidden')" />
     <SharedPageState
       v-else
@@ -39,7 +38,7 @@ function saved(id: number) {
       :empty="!departments.data.value?.items.length"
       @retry="departments.refetch"
     >
-      <UCard class="rounded-lg ring ring-default bg-default overflow-hidden space-y-6" :ui="{ body: 'p-5 sm:p-6' }">
+      <div class="space-y-6">
         <SharedFormSection :title="t('hr.docs.department')">
           <UFormField class="mt-4" :label="t('hr.docs.department')" name="new-document-department">
             <USelect
@@ -54,7 +53,7 @@ function saved(id: number) {
           </UFormField>
         </SharedFormSection>
         <DocumentCreateForm v-if="selectedDepartment" :department-id="departmentId" :back-to="backTo" @saved="saved" />
-      </UCard>
+      </div>
     </SharedPageState>
-  </SharedPageContainer>
+  </SharedCreatePanel>
 </template>

@@ -69,7 +69,7 @@ describe('project workspace frame', () => {
   })
 
   it('keeps project settings inside the workspace without a settings tab', () => {
-    // settings is not one of the seven sections, so activeProjectSection is
+    // settings is not one of the eight sections, so activeProjectSection is
     // null there; the frame has to name that case itself or the settings page
     // loses the project identity and every route back to the project.
     const settings = frame.match(/const isProjectSettings = computed\([\s\S]*?\n(?=const |\/\/ )/)?.[0]
@@ -79,7 +79,7 @@ describe('project workspace frame', () => {
     const button = frame.match(/<UButton\b[^>]*data-testid="project-workspace-settings"[^>]*\/>/s)?.[0]
     expect(button).toBeDefined()
     expect(button).toContain(":aria-current=\"isProjectSettings ? 'page' : undefined\"")
-    // The tab strip must not grow an eighth tab for it.
+    // The tab strip must not grow a ninth tab for it.
     expect(readFileSync(sectionsPath, 'utf8')).not.toContain("id: 'settings'")
   })
 

@@ -9,7 +9,6 @@ const { data, isLoading, isError, error, refetch } = useTasks(taskParams)
 const tasks = computed(() => data.value?.pages.flatMap((page) => page.items) ?? [])
 const attention = computed(() => tasks.value.filter(task => task.is_overdue).slice(0, 5))
 const { t, locale } = useI18n()
-const route = useRoute()
 
 function taskQuery() {
   return returnToQuery(props.returnTo)
@@ -24,7 +23,7 @@ function deadlineLabel(value: string | null) {
     <template #header>
       <div class="flex items-center justify-between gap-3">
         <h2 class="text-lg font-semibold text-highlighted">{{ t('projects.overview.needsAttention') }}</h2>
-        <NuxtLink :to="{ path: `/projects/${props.projectId}`, query: { ...route.query, tab: 'tasks' } }" class="text-xs text-muted underline underline-offset-4 hover:text-highlighted">
+        <NuxtLink :to="`/projects/${props.projectId}/tasks`" class="text-xs text-muted underline underline-offset-4 hover:text-highlighted">
           {{ t('projects.overview.viewTasks') }}
         </NuxtLink>
       </div>
@@ -48,9 +47,10 @@ function deadlineLabel(value: string | null) {
         >
           <span class="min-w-0">
             <span class="block truncate text-sm font-medium">{{ task.name }}</span>
-            <span class="mt-1 block text-xs text-muted">
-              {{ task.assignees[0]?.name ?? t('tasks.drawer.unassigned') }}
-              · {{ deadlineLabel(task.date_deadline) }}
+            <span class="mt-1 flex flex-wrap gap-x-2 text-xs text-muted">
+              <span>{{ task.assignees[0]?.name ?? t('tasks.drawer.unassigned') }}</span>
+              <span aria-hidden="true">·</span>
+              <bdi>{{ deadlineLabel(task.date_deadline) }}</bdi>
             </span>
           </span>
           <UBadge variant="subtle" color="error">{{ t('projects.milestones.overdue') }}</UBadge>

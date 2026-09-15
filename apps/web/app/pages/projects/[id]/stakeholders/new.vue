@@ -18,8 +18,7 @@ const access = useProject(projectId)
 </script>
 
 <template>
-  <SharedPageContainer width="form">
-    <SharedPageHeader :title="t('projects.governance.stakeholder.createTitle')" :back-to="backTo" :back-label="t('projects.governance.stakeholders')" />
+  <SharedCreatePanel :title="t('projects.governance.stakeholder.createTitle')" :back-to="backTo">
     <SharedPageState
       :loading="access.isLoading.value"
       :error="access.error.value"
@@ -27,10 +26,6 @@ const access = useProject(projectId)
       @retry="access.refetch"
     />
     <p v-if="access.data.value && !access.data.value.can_manage" role="status">{{ t('projects.governance.readOnly') }}</p>
-    <section v-if="access.data.value?.can_manage" class="rounded-lg ring ring-default bg-default overflow-hidden">
-      <div class="p-5">
-        <StakeholderForm :project-id="projectId" @saved="() => router.push(backTo)" @cancel="router.push(backTo)" />
-      </div>
-    </section>
-  </SharedPageContainer>
+    <StakeholderForm v-if="access.data.value?.can_manage" :project-id="projectId" @saved="() => router.push(backTo)" @cancel="router.push(backTo)" />
+  </SharedCreatePanel>
 </template>

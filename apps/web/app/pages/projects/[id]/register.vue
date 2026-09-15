@@ -14,10 +14,15 @@ const router = useRouter()
 const { t } = useI18n()
 const hydrated = useHydrated()
 const isProjectOverlay = inject<boolean>(Symbol.for('nasq.project.overlay'), false)
+const normalizedPath = computed(() => route.path.replace(/\/+$/, '') || '/')
+const isListRoute = computed(() => {
+  const rest = normalizedPath.value.replace(/^\/projects\/[^/]+\/register/, '')
+  return rest === '' || rest === '/new'
+})
 const id = computed(() => Number(route.params.id))
 const parsed = computed(() => governanceFilters(route.query))
 const filters = computed(() => (parsed.value))
-const list = useProjectRegister(id, filters)
+const list = useProjectRegister(computed(() => isListRoute.value ? id.value : null), filters)
 const remove = useDeleteProjectRegister()
 const confirmDeleteId = ref<number | null>(null)
 const error = ref<string | null>(null)
@@ -113,7 +118,7 @@ function cancelDelete() {
 </script>
 
 <template>
-  <SharedPageContainer width="list">
+  <SharedPageContainer v-if="isListRoute" width="list">
     <SharedPageHeader
       v-if="!isProjectOverlay"
       :title="t('projects.refresh.workspace.registerTitle')"
@@ -259,4 +264,5 @@ function cancelDelete() {
       <UButton color="neutral" variant="ghost" :disabled="!hydrated || list.isFetching.value || (parsed.offset ?? 0) + 50 >= list.data.value.total" :label="t('projects.governance.next')" @click="page(1)" />
     </nav>
   </SharedPageContainer>
+  <NuxtPage />
 </template>

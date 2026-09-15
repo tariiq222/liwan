@@ -54,8 +54,7 @@ function saved() {
 </script>
 
 <template>
-  <SharedPageContainer width="form">
-    <SharedPageHeader :title="t('projects.finance.createTitle')" :back-to="backTo" :back-label="t('projects.finance.backToLedger')" />
+  <SharedCreatePanel :title="t('projects.finance.createTitle')" :back-to="backTo">
     <template v-if="projectId === null">
       <p class="text-muted">{{ t('projects.invalidId') }}</p>
     </template>
@@ -74,19 +73,15 @@ function saved() {
             <UButton color="neutral" variant="outline" type="button" @click="access.refetch()">{{ t('app.retry') }}</UButton>
           </template>
         </UAlert>
-        <section class="rounded-lg ring ring-default bg-default overflow-hidden">
-          <div class="p-5">
-            <FinanceEntryForm
-              :project-id="projectId"
-              :currency="currency!"
-              :default-kind="defaultKind"
-              :write-allowed="writeAllowed"
-              @saved="saved"
-              @cancel="router.push(backTo)"
-            />
-          </div>
-        </section>
+        <FinanceEntryForm
+          :project-id="projectId"
+          :currency="currency!"
+          :default-kind="defaultKind"
+          :write-allowed="writeAllowed"
+          @saved="saved"
+          @cancel="router.push(backTo)"
+        />
       </template>
     </template>
-  </SharedPageContainer>
+  </SharedCreatePanel>
 </template>

@@ -49,6 +49,7 @@ function applyPatch(patch: Partial<ProjectListRouteState>) {
 
 function scheduleQueryWrite(): Promise<void> {
   writeQuery = writeQuery.then(async () => {
+    if ((route.path.replace(/\/+$/, '') || '/') !== '/projects') return
     const query = serializeProjectListRoute(committedState())
     if (sameProjectListRoute(query, serializeProjectListRoute(parseProjectListRoute(route.query as Record<string, unknown>)))) return
     applyingRoute = true
