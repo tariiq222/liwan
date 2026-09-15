@@ -203,7 +203,9 @@ test('a milestone created on the project can be linked from the task detail page
 
   await page.goto(`/projects/${id}?tab=milestones`)
   await page.getByTestId('milestone-new').click()
-  await expect(page).toHaveURL(new RegExp(`/projects/${id}/milestones/new\\?returnTo=`))
+  await expect(page).toHaveURL(new RegExp(`/projects/${id}/milestones/new`))
+  await expect(page.getByRole('dialog')).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'معلم جديد' })).toBeVisible()
   const milestoneForm = page.getByTestId('milestone-form')
   await milestoneForm.getByLabel('الاسم').fill(milestoneName)
   await milestoneForm.getByRole('button', { name: 'إنشاء' }).click()
@@ -226,25 +228,26 @@ test('a milestone created on the project can be linked from the task detail page
   await expect(page.getByTestId('milestone-row').filter({ hasText: milestoneName })).toContainText('0 من 1')
 })
 
-test('posting a project update changes the header status badge', async ({ page }) => {
+test('posting a project update keeps the status set in settings', async ({ page }) => {
   await login(page)
   const name = `E2E update ${Date.now()}`
   const id = await createProject(page, name)
 
   await page.goto(`/projects/${id}?tab=updates`)
   await page.getByTestId('project-update-new').click()
-  await expect(page).toHaveURL(new RegExp(`/projects/${id}/updates/new\\?returnTo=`))
+  await expect(page).toHaveURL(new RegExp(`/projects/${id}/updates/new`))
+  await expect(page.getByRole('dialog')).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'تحديث جديد' })).toBeVisible()
   const updateForm = page.getByTestId('project-update-form')
-  await updateForm.getByLabel('الحالة').click()
-  await page.getByRole('option', { name: 'خارج المسار' }).click()
+  await expect(updateForm.getByLabel('الحالة')).toHaveCount(0)
   await updateForm.getByLabel('العنوان').fill(`${name} update`)
   await updateForm.getByRole('button', { name: 'إنشاء' }).click()
   await expect(page).toHaveURL(new RegExp(`/projects/${id}\\?tab=updates`))
 
   await expect(page.getByTestId('project-update').filter({ hasText: `${name} update` })).toBeVisible()
-  await expect(page.getByTestId('project-status-select')).toContainText('خارج المسار')
-  await page.reload()
-  await expect(page.getByTestId('project-status-select')).toContainText('خارج المسار')
+  await expect(page.getByTestId('project-status-select')).toHaveCount(0)
+  await page.goto(`/projects/${id}/settings`)
+  await expect(page.getByTestId('project-status-select')).toBeVisible()
 })
 
 test('archiving a task removes it from the project list', async ({ page }) => {
@@ -357,6 +360,7 @@ test('project administration direct links expose invalid and forbidden states wi
   await expect(page.locator('[data-slot="dialog-content"], [data-slot="sheet-content"], [data-slot="dialog-overlay"], [data-slot="sheet-overlay"]')).toHaveCount(0)
 
   await page.goto('/projects/999999/milestones/new')
+  await expect(page.getByRole('dialog')).toBeVisible()
   await expect(page.getByText('المشروع غير موجود أو لا تملك صلاحية عرضه')).toBeVisible()
   await page.reload()
   await expect(page.getByText('المشروع غير موجود أو لا تملك صلاحية عرضه')).toBeVisible()

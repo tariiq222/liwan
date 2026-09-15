@@ -1,8 +1,5 @@
 <script setup lang="ts">
-import type { ProjectStatus } from '@nasq/contracts'
-import { PROJECT_STATUSES } from '@nasq/contracts'
 import DescriptionEditor from '@/components/task/DescriptionEditor.vue'
-import { PROJECT_STATUS_LABEL_KEY } from '@/composables/projectStatus'
 import { ApiError } from '@/composables/useApi'
 import { useCreateProjectUpdate } from '@/composables/useProjectUpdates'
 import { isDirtySnapshot } from '@/lib/formDirty'
@@ -14,15 +11,14 @@ const hydrated = useHydrated()
 const toast = useToast()
 const { mutateAsync, isPending } = useCreateProjectUpdate()
 const descriptionEditor = ref<{ flush: () => void } | null>(null)
-const status = ref<ProjectStatus | undefined>()
 const title = ref('')
 const description = ref('')
 const error = ref<string | null>(null)
 const submitted = ref(false)
-const baseline = ref(JSON.stringify([undefined, '', '']))
+const baseline = ref(JSON.stringify(['', '']))
 
 function state() {
-  return JSON.stringify([status.value, title.value, description.value])
+  return JSON.stringify([title.value, description.value])
 }
 
 const dirty = computed(() => isDirtySnapshot(baseline.value, state(), submitted.value))
@@ -37,9 +33,9 @@ async function submit() {
   error.value = null
   descriptionEditor.value?.flush()
   const name = title.value.trim()
-  if (!hydrated.value || !status.value || !name || isPending.value) return
+  if (!hydrated.value || !name || isPending.value) return
   try {
-    await mutateAsync({ projectId: props.projectId, body: { status: status.value, name, description: description.value } })
+    await mutateAsync({ projectId: props.projectId, body: { name, description: description.value } })
     submitted.value = true
     toast.add({ title: t('projects.updates.posted'), color: 'success' })
     emit('saved')
@@ -52,17 +48,6 @@ async function submit() {
 <template>
   <SharedUnsavedChanges :dirty="dirty" />
   <form data-testid="project-update-form" class="grid gap-5" @submit.prevent="submit">
-    <UFormField :label="t('projects.updates.status')" required>
-      <USelect
-        id="project-update-status"
-        :model-value="status"
-        :items="PROJECT_STATUSES.map(s => ({ value: s, label: t(PROJECT_STATUS_LABEL_KEY[s]) }))"
-        :placeholder="t('projects.updates.status')"
-        :disabled="!hydrated || isPending"
-        class="w-full"
-        @update:model-value="(v) => (status = v as ProjectStatus)"
-      />
-    </UFormField>
     <UFormField :label="t('projects.updates.title')" required>
       <UInput id="project-update-title" v-model="title" class="w-full" required :disabled="!hydrated || isPending" />
     </UFormField>
@@ -72,7 +57,7 @@ async function submit() {
     <p v-if="error" role="alert" class="text-sm text-error sm:col-span-2">{{ error }}</p>
     <div class="flex flex-wrap gap-2 justify-end sm:col-span-2">
       <UButton type="button" color="neutral" :disabled="isPending" :label="t('app.cancel')" @click="emit('cancel')" variant="outline" />
-      <UButton type="submit" :disabled="!hydrated || isPending || !status || !title.trim()" :label="t('app.create')" />
+      <UButton type="submit" :disabled="!hydrated || isPending || !title.trim()" :label="t('app.create')" />
     </div>
   </form>
 </template>

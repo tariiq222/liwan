@@ -239,7 +239,6 @@ describe('PMO repair form contracts', () => {
     const buffer = createDebouncedFlush<{ html: string; taskId: number }>(800, autosave)
     const flush = vi.fn(() => buffer.flush())
     state.descriptionEditor.value = { flush }
-    state.status.value = 'in_progress'
     state.title.value = 'Weekly update'
     state.onDescriptionDraft({ html: '<p>latest body</p>', taskId: 7 })
     buffer.schedule({ html: '<p>latest body</p>', taskId: 7 })
@@ -247,7 +246,7 @@ describe('PMO repair form contracts', () => {
     const failed = state.submit()
     expect(flush).toHaveBeenCalledOnce()
     expect(autosave).toHaveBeenCalledExactlyOnceWith({ html: '<p>latest body</p>', taskId: 7 })
-    expect(payloads[0]).toEqual({ projectId: 7, body: { status: 'in_progress', name: 'Weekly update', description: '<p>latest body</p>' } })
+    expect(payloads[0]).toEqual({ projectId: 7, body: { name: 'Weekly update', description: '<p>latest body</p>' } })
     expect(pending.value).toBe(true)
     expect(state.dirty.value).toBe(true)
     release()

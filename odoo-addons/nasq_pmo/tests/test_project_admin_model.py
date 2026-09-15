@@ -191,13 +191,12 @@ class TestProjectAdminModel(TransactionCase):
     # --- updates -----------------------------------------------------------
     def test_post_update(self):
         p = self.project.with_user(self.manager)
-        u = p._nasq_post_update('at_risk', 'Week 3', '<p>late</p>')
+        p._nasq_set_status('at_risk')
+        u = p._nasq_post_update('Week 3', '<p>late</p>')
         self.assertEqual((u.status, u.name, u.description), ('at_risk', 'Week 3', '<p>late</p>'))
         self.assertEqual(self.project.last_update_status, 'at_risk')
         with self.assertRaises(AccessError):
-            self.project.with_user(self.other)._nasq_post_update('done', 'x')
-        with self.assertRaises(ValueError):
-            p._nasq_post_update('to_define', 'x')
+            self.project.with_user(self.other)._nasq_post_update('x')
 
     # --- assigned-user-as-manager (Odoo ACL has no notion of it) -----------
     def test_assigned_user_sets_status(self):

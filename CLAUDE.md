@@ -79,7 +79,7 @@ explicitly; do not assume an Odoo config points at a particular Nasq checkout.
 - Keep `/api/v1/people?q=` and its user-id `PersonRef` contract unchanged.
   HR employee ids and user ids are distinct resources and must not be merged.
 - `nasq_hr` has no `sudo()` path. In PMO, only the documented manager-write,
-  policy/config, display-lookup, integer-count and notification cases use `sudo()` after the
+  policy/config, display-lookup, integer-count, completion-status and notification cases use `sudo()` after the
   caller's authorization check; do not add another case without documenting
   it and fixing ACLs/rules where possible.
 - nasq has no time logging or payroll product surface. Do not add
@@ -175,7 +175,8 @@ worktrees only after their content is preserved and no process is using them.
   and attachment mutations preserve their dedicated capability/visibility gates.
 - Documented PMO elevated operations are policy/config access, policy-based
   project creation, checked manager mutations, serializer display lookups,
-  integer counts, and notification delivery/recipient-owned reads. Notification
+  integer counts, automatic completion status after an authorized task
+  mutation, and notification delivery/recipient-owned reads. Notification
   elevated reads must first restrict recipient and readable current-company
   tasks or meetings; resource lookup stays in the caller's ordinary ACL and
   record-rule environment. Meeting-only access must not reveal task/digest

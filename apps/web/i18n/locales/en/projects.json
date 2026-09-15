@@ -131,6 +131,10 @@
     "settings": {
       "title": "Project settings",
       "pageDescription": "Operating options, visibility, and approval.",
+      "status": {
+        "title": "Project status",
+        "description": "The status changes only here. When every task is complete it becomes Complete automatically, and returns to its previous status if a task reopens."
+      },
       "tabs": {
         "general": "General",
         "stages": "Stages",

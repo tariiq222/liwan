@@ -10,6 +10,8 @@ from odoo.addons.project.models.project_task import CLOSED_STATES
 MANAGER_STATES = {'03_approved', '02_changes_requested'}
 ALL_STATES = {'01_in_progress', '02_changes_requested', '03_approved', '04_waiting_normal', *CLOSED_STATES}
 DONE_STATE = '1_done'
+# Task fields whose change can complete or reopen the project status.
+COMPLETION_STATUS_FIELDS = {'state', 'active', 'project_id'}
 TASK_CREATE_MARKER = 'nasq_pmo.task_create_depth'
 TEMPLATE_APPLY_MARKER = 'nasq_pmo.template_apply_scope'
 ACCESS_USER_CREATE_MARKER = 'nasq_core.access_user_create_depth'
@@ -616,6 +618,7 @@ class ProjectTask(models.Model):
         if dirty:
             raise AccessError(self.env._("Completion metadata cannot be set on create."))
         tasks._nasq_notify('created')
+        tasks.project_id._nasq_sync_completion_status()
         return tasks
 
     @api.constrains('milestone_id', 'project_id', 'nasq_planned_start', 'date_deadline')
@@ -720,6 +723,7 @@ class ProjectTask(models.Model):
             self.invalidate_recordset()
             self.mapped('project_id').invalidate_recordset()
         before = {task.id: task.user_ids.partner_id for task in self}
+        status_projects = self.project_id if COMPLETION_STATUS_FIELDS & set(vals) else None
         res = super().write(vals)
         if vals.get('state') == DONE_STATE:
             self._nasq_reject_unauthorized_done(self)
@@ -734,6 +738,8 @@ class ProjectTask(models.Model):
                     if requester and requester not in task.user_ids:
                         task._nasq_clear_completion_request(invalidate=True)
         self._nasq_notify('updated', extra_partners=before)
+        if status_projects is not None:
+            (status_projects | self.project_id)._nasq_sync_completion_status()
         return res
 
     def _nasq_write_completion_meta(self, vals):
@@ -870,7 +876,10 @@ class ProjectTask(models.Model):
             and not self.env.cr.precommit.data.get(ACCESS_USER_CREATE_MARKER)
         ):
             raise AccessError(self.env._("Tasks cannot be permanently deleted."))
-        return super().unlink()
+        projects = self.project_id
+        res = super().unlink()
+        projects._nasq_sync_completion_status()
+        return res
 
     def _message_post_after_hook(self, message, msg_values):
         # message_post() (used for comments, e.g. by

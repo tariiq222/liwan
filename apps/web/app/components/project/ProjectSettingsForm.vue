@@ -5,6 +5,7 @@ import { useAddStage, useDeleteStage, useReorderStages, useUpdateStage } from '@
 import FollowerList from './FollowerList.vue'
 import ProjectArchiveAction from './ProjectArchiveAction.vue'
 import ProjectGeneralForm from './ProjectGeneralForm.vue'
+import ProjectStatusSelect from './ProjectStatusSelect.vue'
 import StageListEditor from './StageListEditor.vue'
 
 const props = defineProps<{ project: ProjectDetail }>()
@@ -39,6 +40,9 @@ function onDeleteStage(id: number | string) {
         {{ t('projects.refresh.settings.openCharter') }}
       </NuxtLink>
     </div>
+    <SharedFormSection panel :title="t('projects.settings.status.title')" :description="t('projects.settings.status.description')">
+      <ProjectStatusSelect :project="project" />
+    </SharedFormSection>
     <SharedFormSection panel :title="t('projects.refresh.settings.operation.title')" :description="t('projects.refresh.settings.operation.description')">
       <ProjectGeneralForm :project="project" />
     </SharedFormSection>

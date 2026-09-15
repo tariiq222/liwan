@@ -4,7 +4,6 @@ from odoo.exceptions import AccessError
 from odoo.http import request
 
 from odoo.addons.nasq_api.controllers.common import ApiError, api_handler, get_record
-from odoo.addons.nasq_pmo.models.project_project import STATUS_VALUES
 from odoo.addons.nasq_pmo.serializers.project_update import dump_update
 
 MAX_UPDATES = 50
@@ -21,14 +20,14 @@ class ProjectUpdateController(http.Controller):
 
     @http.route('/api/v1/projects/<int:project_id>/updates', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
-    def create_update(self, project_id, status=None, name=None, description=None, **_):
-        if not isinstance(status, str) or status not in STATUS_VALUES:
-            raise ApiError(422, 'invalid_status', f"status must be one of {sorted(STATUS_VALUES)}", field='status')
+    def create_update(self, project_id, name=None, description=None, **extra):
+        if 'status' in extra:
+            raise ApiError(422, 'invalid', "status is set in project settings, not by an update", field='status')
         if not isinstance(name, str) or not name.strip():
             raise ApiError(422, 'invalid', "name must not be empty", field='name')
         project = get_record('project.project', project_id)
         try:
-            update = project._nasq_post_update(status, name.strip(), description if isinstance(description, str) else '')
+            update = project._nasq_post_update(name.strip(), description if isinstance(description, str) else '')
         except AccessError as e:
             raise ApiError(403, 'status_forbidden', str(e)) from e
         return request.make_json_response(dump_update(update), status=201)

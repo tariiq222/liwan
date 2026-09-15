@@ -104,3 +104,15 @@ msgstr "يجب أن يكون الموعد النهائي للمهمة في أو 
 #: code:addons/nasq_pmo/models/project_task.py:0
 msgid "Milestone must belong to the task's project."
 msgstr "يجب أن ينتمي المعلم إلى مشروع المهمة."
+
+#. module: nasq_pmo
+#. odoo-python
+#: code:addons/nasq_pmo/models/project_project.py:0
+msgid "All tasks are complete"
+msgstr "اكتملت جميع المهام"
+
+#. module: nasq_pmo
+#. odoo-python
+#: code:addons/nasq_pmo/models/project_project.py:0
+msgid "The project has open tasks again"
+msgstr "عادت للمشروع مهام مفتوحة"
