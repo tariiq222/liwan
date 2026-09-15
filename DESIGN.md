@@ -23,7 +23,7 @@
 
 ## 1. الأساس
 
-Nuxt UI هي مكتبة مكونات واجهة العميل **بشكلها الافتراضي**. المكونات الفعلية في `apps/web/app` هي مصدر التنفيذ الوحيد. مدخلات الثيم الوحيدة: لون الهوية من الإعدادات (يغذّي `primary`)، المحايد `slate`، خط IBM Plex Sans Arabic وأحجامه الثلاثة، والمظاهر الثلاثة. أي تخصيص لاحق يُضاف في `apps/web/app/app.config.ts` فقط ويُوثَّق هنا أولًا.
+Nuxt UI هي مكتبة مكونات واجهة العميل **بشكلها الافتراضي**. المكونات الفعلية في `apps/web/app` هي مصدر التنفيذ الوحيد. مدخلات الثيم الوحيدة: لون الهوية من الإعدادات (يغذّي `primary`)، المحايد `slate`، خط IBM Plex Sans Arabic وأحجامه الثلاثة، والمظاهر الثلاثة. التخصيص الوحيد هو جدول «وصفات الثيم المعتمدة» أدناه في `apps/web/app/app.config.ts`؛ أي إضافة تُوثَّق فيه أولًا.
 
 - كل مكوّن جديد جزء من ثيم نسق، ويُسجَّل في الفهرس بمساره ومسؤوليته ووصفته.
 - استخدم مكوّن Nuxt UI مباشرة إن كفى. لا تغليف لكل زر، ولا مكتبة واجهات ثانية، ولا نسخة محلية من حقل أو فلتر أو بطاقة موجودة.
@@ -65,6 +65,23 @@ Nuxt UI هي مكتبة مكونات واجهة العميل **بشكلها ال
 | المحايد | أسطح الوضع | البطاقات، الحدود، إلغاء/رجوع/ترقيم |
 
 رتب الأزرار: ممتلئ واحد للإجراء، محايد بإطار للإلغاء والرجوع والإغلاق، شفاف للثالثي، أحمر للحذف. مربعات الاختيار والمفاتيح تتبع الأساسي. أزرار الأيقونة فقط مربعة (`UButton` variant `square`)، ولمس 44px في الجوال.
+
+### وصفات الثيم المعتمدة
+
+طبقة تحسين واحدة هادئة فوق وصفات المكتبة، كلها في `apps/web/app/app.config.ts` (والتوكن الرسمي `--ui-radius: 0.5rem` في `tokens.css`). أي وصفة غير مذكورة هنا غير معتمدة؛ الاختبار `stockTheme.test.ts` يحصر مفاتيح الملف.
+
+| المكوّن | الوصفة | القصد |
+|---|---|---|
+| الزوايا | `--ui-radius: 0.5rem` | زوايا أنعم وأحدث عبر توكن المكتبة |
+| `UButton` | `rounded-lg transition-colors duration-150`؛ الأساسي الممتلئ `shadow-xs` | انتقال لطيف وظل خافت لإجراء واحد |
+| `UInput`/`UInputNumber`/`UTextarea`/`USelect`/`USelectMenu` | `rounded-lg bg-elevated/30` | حقول أهدأ مميزة عن السطح |
+| `UCard` | `rounded-xl shadow-xs`، رأس `bg-muted/40`، جسم `p-4 sm:p-5`، تذييل `bg-muted/20` | بطاقة ناعمة بظل hairline بدل الحد الصلب |
+| `UTable` | رأس `text-xs font-medium text-muted`؛ صف `hover:bg-muted/50`، المختار `bg-primary/5` | رأس هادئ ومرور واضح |
+| `UBadge`، `UProgress` | `rounded-full` | شارات وأشرطة تقدم بشكل pill |
+| `UAvatar` | `ring-2 ring-bg` | تراكب الصور الرمزية بحلقة سطح |
+| `UTabs` | قائمة `rounded-lg`، مؤشر `rounded-md shadow-xs`، مشغّل `rounded-md` | تبويبات حبّية بمؤشر مرتفع |
+| القوائم والـpopover | `rounded-xl shadow-lg ring-default/60` | طبقات عائمة مرتفعة وناعمة |
+| `UModal` | `rounded-2xl shadow-xl`، غطاء `backdrop-blur-xs` | نافذة حديثة |
 
 المصدر التنفيذي في العميل: `apps/web/app/assets/css/main.css` الذي يستورد `tokens.css` (مدخلات الثيم فقط) و`components.css` (قواعد الغلاف فقط) و`shell.css` (هندسة الغلاف)، و`apps/web/app/app.config.ts` (الألوان وطبقات z فقط)، و`apps/web/app/utils/brandTheme.ts` لاشتقاق اللون. لا وصفة مكوّن مخصصة في أي منها؛ الاختبار `app/assets/__tests__/stockTheme.test.ts` و`components/shared/__tests__/noCustomRecipes.test.ts` يحرسان ذلك.
 
