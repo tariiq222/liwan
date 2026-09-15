@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { ProjectSchedule } from '@nasq/contracts'
 import { STATE_TONE, type StateTone } from '@/composables/taskState'
-import { buildScheduleAxis, formatScheduleDate, scheduleBarStyle, scheduleDatePosition, type ScheduleScale } from '@/utils/projectSchedule'
+import { buildScheduleAxis, formatScheduleDate, scheduleBarStyle, scheduleDatePosition, scheduleFocusDate, type ScheduleScale } from '@/utils/projectSchedule'
 import { returnToQuery } from '@/utils/safeReturnTo'
 
 const BAR_TONE: Record<StateTone, string> = {
@@ -46,6 +46,29 @@ const milestoneLink = (milestoneId: number) => props.schedule.can_manage
 const datePosition = (value: string) => scheduleDatePosition(value, axis.value)
 const markerPosition = (value: string) => ({ insetInlineStart: `clamp(8px, ${datePosition(value).insetInlineStart}, calc(100% - 8px))` })
 const barClass = (state: string) => BAR_TONE[(STATE_TONE as Record<string, StateTone>)[state] ?? 'neutral']
+
+// The track runs left-to-right inside an RTL page, so the browser opens the
+// scroller at the timeline's end. Bring today (or the start) into view instead,
+// with a quarter of the visible track before it. A delta via scrollBy is independent of
+// the RTL scrollLeft sign convention.
+const scroller = ref<HTMLElement | null>(null)
+const focusAnchor = ref<HTMLElement | null>(null)
+const focusDate = computed(() => scheduleFocusDate(axis.value, today.value))
+async function scrollToFocus() {
+  await nextTick()
+  const container = scroller.value
+  const anchor = focusAnchor.value
+  if (!container || !anchor) return
+  const nameWidth = container.querySelector<HTMLElement>('.nasq-gantt-corner')?.offsetWidth ?? 0
+  const box = container.getBoundingClientRect()
+  const visibleLeft = box.left + (getComputedStyle(container).direction === 'ltr' ? nameWidth : 0)
+  // A quarter of the visible track stays before the focus date for context.
+  const lead = Math.max(box.width - nameWidth, 0) / 4
+  container.scrollBy({ left: anchor.getBoundingClientRect().left - visibleLeft - lead })
+}
+watch([hydrated, () => props.scale, () => axis.value.start, () => axis.value.end], () => {
+  if (hydrated.value) void scrollToFocus()
+}, { immediate: true, flush: 'post' })
 </script>
 
 <template>
@@ -59,10 +82,11 @@ const barClass = (state: string) => BAR_TONE[(STATE_TONE as Record<string, State
         </div>
       </div>
     </template>
-      <div class="nasq-gantt">
+      <div ref="scroller" class="nasq-gantt" data-testid="schedule-gantt-scroller">
         <div class="nasq-gantt-grid" :style="gridStyle">
           <div class="nasq-gantt-name nasq-gantt-corner">{{ t('projects.schedule.task') }}</div>
           <div class="nasq-gantt-head" role="row">
+            <span ref="focusAnchor" class="nasq-gantt-focus" :style="datePosition(focusDate)" aria-hidden="true" />
             <span
               v-for="date in axis.dates"
               :key="date"

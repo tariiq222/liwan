@@ -43,6 +43,19 @@ export function scheduleDatePosition(value: string, axis: Pick<ScheduleAxis, 'st
   return { insetInlineStart: `${(offset / total) * 100}%` }
 }
 
+export type ScheduleColumnSpan = { unit: ScheduleScale; count: number; form: Intl.LDMLPluralRule }
+
+/** How many weeks or months one column covers, with the locale's plural form for its label. */
+export function scheduleColumnSpan(axis: Pick<ScheduleAxis, 'unitDays'>, scale: ScheduleScale, locale: string): ScheduleColumnSpan {
+  const count = Math.max(Math.round(axis.unitDays / (scale === 'month' ? 30 : 7)), 1)
+  return { unit: scale, count, form: new Intl.PluralRules(locale).select(count) }
+}
+
+/** The date the timeline opens on: today while it is inside the axis, otherwise the start. */
+export function scheduleFocusDate(axis: Pick<ScheduleAxis, 'start' | 'end'>, today: string): string {
+  return today && today >= axis.start && today < axis.end ? today : axis.start
+}
+
 export function buildScheduleAxis(
   tasks: ScheduleTask[],
   milestones: ScheduleMilestone[],

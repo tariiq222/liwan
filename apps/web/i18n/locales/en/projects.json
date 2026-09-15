@@ -394,6 +394,16 @@
       "weekLabel": "Week {n}",
       "month": "Month",
       "monthLabel": "Month {n}",
+      "columnSpan": {
+        "week": {
+          "one": "Each column = 1 week",
+          "other": "Each column = {n} weeks"
+        },
+        "month": {
+          "one": "Each column = 1 month",
+          "other": "Each column = {n} months"
+        }
+      },
       "task": "Task",
       "milestones": "Milestones",
       "start": "Start date",

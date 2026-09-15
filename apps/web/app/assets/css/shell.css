@@ -23,14 +23,16 @@
 .nasq-form-section > :is(h2, h3) { font-size: var(--text-lg); font-weight: 600; line-height: 1.5; }
 .nasq-form-footer { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding-block-start: 20px; border-block-start: 1px solid var(--border); }
 .nasq-gantt { overflow-x: auto; }
-.nasq-gantt-grid { display: grid; min-width: 720px; }
+/* max-content: the grid must span every track, or its sticky name column stops at the scroller's width. */
+.nasq-gantt-grid { display: grid; width: max-content; min-width: max(720px, 100%); }
 .nasq-gantt-name { position: sticky; inset-inline-start: 0; z-index: 2; display: flex; min-height: 48px; align-items: center; padding: 8px 12px; background: var(--card); border-block-end: 1px solid var(--border); box-shadow: -8px 0 16px -12px color-mix(in srgb, var(--foreground) 18%, transparent); font-size: 0.8125rem; color: var(--muted-foreground); }
 html[dir="rtl"] .nasq-gantt-name { box-shadow: 8px 0 16px -12px color-mix(in srgb, var(--foreground) 18%, transparent); }
 .nasq-gantt-corner { min-height: 40px; font-size: 0.75rem; font-weight: 500; border-block-end: 0; }
 .nasq-gantt-task { min-width: 0; color: var(--foreground); font-weight: 500; }
 .nasq-gantt-task:hover { background: var(--muted); }
-.nasq-gantt-head { display: grid; grid-template-columns: repeat(var(--gantt-cols, 6), minmax(0, 1fr)); min-height: 40px; direction: ltr; background: var(--primary); color: var(--primary-foreground); }
-.nasq-gantt-head > span { display: flex; align-items: center; justify-content: center; padding: 8px 4px; font-size: 0.75rem; font-weight: 500; box-shadow: inset -1px 0 0 color-mix(in srgb, white 22%, transparent); }
+.nasq-gantt-head { position: relative; display: grid; grid-template-columns: repeat(var(--gantt-cols, 6), minmax(0, 1fr)); min-height: 40px; direction: ltr; background: var(--muted); color: var(--muted-foreground); border-block-end: 1px solid var(--border); }
+.nasq-gantt-head > span:not(.nasq-gantt-focus) { display: flex; align-items: center; justify-content: center; padding: 8px 4px; font-size: 0.75rem; font-weight: 500; box-shadow: inset -1px 0 0 var(--border); }
+.nasq-gantt-focus { position: absolute; inset-block: 0; width: 0; pointer-events: none; }
 .nasq-gantt-track { position: relative; direction: ltr; min-height: 64px; border-block-end: 1px solid var(--border); background-image: linear-gradient(to right, var(--border) 1px, transparent 1px); background-size: calc(100% / var(--gantt-cols, 6)) 100%; background-repeat: repeat-x; }
 .nasq-gantt-dates { position: absolute; inset-inline-start: 10px; inset-block-end: 3px; font-size: 0.6875rem; color: var(--muted-foreground); }
 .nasq-gantt-today { position: absolute; inset-block: 0; border-inline-start: 1px dashed var(--foreground); opacity: 0.6; pointer-events: none; }

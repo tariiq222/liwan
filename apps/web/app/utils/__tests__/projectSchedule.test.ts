@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { addCalendarDays, buildScheduleAxis, daysBetween, formatScheduleDate, scheduleBarStyle, scheduleDatePosition } from '../projectSchedule'
+import { addCalendarDays, buildScheduleAxis, daysBetween, formatScheduleDate, scheduleBarStyle, scheduleColumnSpan, scheduleDatePosition, scheduleFocusDate } from '../projectSchedule'
 import { isCalendarDate } from '../../composables/calendarDate'
 
 const task = { id: 1, name: 'Build', start: '2030-01-05', end: '2030-01-12', state: 'in_progress' as const, dependency_ids: [], milestone_id: null }
@@ -34,5 +34,39 @@ describe('project schedule date math', () => {
     expect(axis.start).toBe('2030-01-01')
     expect(axis.dates.length).toBeGreaterThanOrEqual(6)
     expect(daysBetween(axis.start, axis.end)).toBeGreaterThanOrEqual(42)
+  })
+})
+
+describe('scheduleFocusDate', () => {
+  const axis = { start: '2026-01-01', end: '2035-12-31' }
+
+  it('focuses today while the project is running', () => {
+    expect(scheduleFocusDate(axis, '2026-09-15')).toBe('2026-09-15')
+  })
+
+  it('falls back to the timeline start when today is outside it', () => {
+    expect(scheduleFocusDate(axis, '2025-06-01')).toBe('2026-01-01')
+    expect(scheduleFocusDate(axis, '2036-01-01')).toBe('2026-01-01')
+    expect(scheduleFocusDate(axis, '')).toBe('2026-01-01')
+  })
+})
+
+describe('scheduleColumnSpan', () => {
+  it('reports a plain week or month when the axis is not grouped', () => {
+    const task10w = { ...task, start: '2030-01-01', end: '2030-03-01' }
+    expect(scheduleColumnSpan(buildScheduleAxis([task10w], [], 'week'), 'week', 'ar')).toEqual({ unit: 'week', count: 1, form: 'one' })
+    expect(scheduleColumnSpan(buildScheduleAxis([task10w], [], 'month'), 'month', 'ar')).toEqual({ unit: 'month', count: 1, form: 'one' })
+  })
+
+  it('reports grouped columns on a long project', () => {
+    const axis = buildScheduleAxis([], [], 'week', { start: '2026-01-01', end: '2035-12-31' })
+    expect(axis.unitDays).toBe(77)
+    expect(scheduleColumnSpan(axis, 'week', 'ar')).toEqual({ unit: 'week', count: 11, form: 'many' })
+  })
+
+  it('picks the plural form of the UI locale', () => {
+    expect([1, 2, 3, 10, 11, 100].map(n => scheduleColumnSpan({ unitDays: n * 7 }, 'week', 'ar').form))
+      .toEqual(['one', 'two', 'few', 'few', 'many', 'other'])
+    expect([1, 11].map(n => scheduleColumnSpan({ unitDays: n * 30 }, 'month', 'en').form)).toEqual(['one', 'other'])
   })
 })
