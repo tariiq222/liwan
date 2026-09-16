@@ -3,7 +3,11 @@ import { ar, en } from '@nuxt/ui/locale'
 import { htmlAttrsFor } from '@/utils/appearance'
 
 const { locale } = useI18n()
-const { mode, fontSize } = useAppearance()
+const { mode, fontSize, syncFromUser } = useAppearance()
+const { me } = useMe()
+// Each signed-in user gets their own saved appearance; the cookie only
+// carries the last applied one for the first server paint.
+watch(me, syncFromUser, { immediate: true })
 // @nuxtjs/i18n does not patch <html lang/dir> on its own — the module only
 // computes the values via useLocaleHead(); applying them to the document
 // head is left to the app (see the module's lang-switcher guide).

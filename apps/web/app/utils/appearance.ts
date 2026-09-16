@@ -15,6 +15,28 @@ export function normalizeAppearance(value: unknown): AppearancePreference {
   }
 }
 
+// The server keeps one preference per user (`/api/v1/me.appearance`); the
+// wire names differ from the client ones only in `font_size`.
+export interface WireAppearance {
+  mode: AppearanceMode
+  font_size: FontSize
+}
+
+export function appearanceFromWire(value: WireAppearance | null | undefined): AppearancePreference {
+  return normalizeAppearance(value ? { mode: value.mode, fontSize: value.font_size } : null)
+}
+
+export function appearancePatchBody(patch: Partial<AppearancePreference>): Partial<WireAppearance> {
+  const body: Partial<WireAppearance> = {}
+  if (patch.mode !== undefined) body.mode = patch.mode
+  if (patch.fontSize !== undefined) body.font_size = patch.fontSize
+  return body
+}
+
+export function sameAppearance(left: AppearancePreference, right: AppearancePreference): boolean {
+  return left.mode === right.mode && left.fontSize === right.fontSize
+}
+
 export interface HtmlAttrsInput {
   mode: AppearanceMode
   fontSize: FontSize

@@ -3,7 +3,7 @@ import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 
-const catalogRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../../pages/settings/projects/catalogs/[resource]')
+const catalogRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../../pages/projects/settings/catalogs/[resource]')
 const list = readFileSync(resolve(catalogRoot, 'index.vue'), 'utf8')
 const create = readFileSync(resolve(catalogRoot, 'new.vue'), 'utf8')
 const edit = readFileSync(resolve(catalogRoot, '[referenceId]/edit.vue'), 'utf8')
@@ -49,8 +49,8 @@ describe('charter catalog list design', () => {
     expect(list).toContain('listQuery')
     expect(list).toContain('returnToQuery(route.fullPath)')
     expect(list).toContain('CHARTER_CATALOG_PAGE_SIZE')
-    expect(list).toContain('/settings/projects/catalogs/${resource.value}/new')
-    expect(list).toContain('/settings/projects/catalogs/${resource.value}/${id}/edit')
+    expect(list).toContain('/projects/settings/catalogs/${resource.value}/new')
+    expect(list).toContain('/projects/settings/catalogs/${resource.value}/${id}/edit')
     expect(create).toContain('safeReturnTo')
     expect(edit).toContain('safeReturnTo')
     for (const source of pages) {

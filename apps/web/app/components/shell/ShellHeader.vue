@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { firstAllowedPath } from '@/utils/accessPolicy'
+import AppearanceMenu from '@/components/shell/AppearanceMenu.vue'
 import MobileNavigation from '@/components/shell/MobileNavigation.vue'
 import NotificationCenter from '@/components/notifications/NotificationCenter.vue'
 
@@ -22,6 +23,7 @@ const homePath = computed(() => firstAllowedPath(me.value))
     </div>
     <GlobalSearch />
     <div class="nasq-shell-header-actions">
+      <AppearanceMenu />
       <NotificationCenter v-if="can('nasq.notifications')" />
       <AppAccountMenu />
     </div>

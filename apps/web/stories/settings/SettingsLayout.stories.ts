@@ -19,6 +19,6 @@ const layout = (width: 'list' | 'detail' | 'form', title: string): Story['render
   template: `<main class="nasq-shell-main"><SettingsLayout :width="width"><PageHeader :title="t(title)" /><PageState :empty="true" /></SettingsLayout></main>`,
 })
 
-export const FormPage: Story = { name: 'صفحة إعداد بنموذج', parameters: storyContext('apps/web/app/pages/settings/appearance.vue:9'), render: layout('form', 'settings.appearance.title') }
+export const FormPage: Story = { name: 'صفحة إعداد بنموذج', parameters: storyContext('apps/web/app/pages/projects/settings/catalogs/[resource]/new.vue:29'), render: layout('form', 'settings.appearance.title') }
 export const ListPage: Story = { name: 'صفحة إعداد بقائمة', parameters: storyContext('apps/web/app/pages/settings/access-log/index.vue:49'), render: layout('list', 'access.audit.title') }
 export const DetailPage: Story = { name: 'صفحة إعداد بتفاصيل', parameters: storyContext('apps/web/app/pages/settings/access-log/[eventId].vue:20'), render: layout('detail', 'access.audit.detailTitle') }

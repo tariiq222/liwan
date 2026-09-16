@@ -20,7 +20,7 @@ const toast = useToast()
 const hydrated = useHydrated()
 const forbidden = computed(() => !can('pmo.settings.manage'))
 const resource = computed(() => (isCharterCatalogResource(route.params.resource) ? route.params.resource : null))
-const returnTo = computed(() => safeReturnTo(route.query.returnTo, '/settings/projects', ['/settings/projects', '/projects']))
+const returnTo = computed(() => safeReturnTo(route.query.returnTo, '/projects/settings', ['/projects/settings', '/projects']))
 const q = computed(() => typeof route.query.q === 'string' ? route.query.q : '')
 const showInactive = computed(() => route.query.active === 'all' || route.query.active === '0')
 const offset = computed(() => {
@@ -84,12 +84,12 @@ function clearFilters() {
 
 function openNew() {
   if (!resource.value) return
-  void navigateTo({ path: `/settings/projects/catalogs/${resource.value}/new`, query: returnToQuery(route.fullPath) })
+  void navigateTo({ path: `/projects/settings/catalogs/${resource.value}/new`, query: returnToQuery(route.fullPath) })
 }
 
 function openEdit(id: number) {
   if (!resource.value) return
-  void navigateTo({ path: `/settings/projects/catalogs/${resource.value}/${id}/edit`, query: returnToQuery(route.fullPath) })
+  void navigateTo({ path: `/projects/settings/catalogs/${resource.value}/${id}/edit`, query: returnToQuery(route.fullPath) })
 }
 
 function requestAction(item: ProjectCharterReference, action: 'disable' | 'enable' | 'delete') {
