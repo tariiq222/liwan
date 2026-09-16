@@ -20,7 +20,6 @@ const Files = 'i-lucide-files'
 const ShieldCheck = 'i-lucide-shield-check'
 const UserCog = 'i-lucide-user-cog'
 const History = 'i-lucide-history'
-const SlidersHorizontal = 'i-lucide-sliders-horizontal'
 const Palette = 'i-lucide-palette'
 const MessageCircle = 'i-lucide-message-circle'
 const ChartNoAxesCombined = 'i-lucide-chart-no-axes-combined'
@@ -46,7 +45,6 @@ const items: NavItem[] = [
   { to: '/hr', labelKey: 'nav.employees', icon: Users, shortcut: '3', group: 'hr', module: 'hr', capability: 'hr.employees.read' },
   { to: '/hr/departments', labelKey: 'nav.departments', icon: Network, shortcut: '5', group: 'hr', module: 'hr', capability: 'hr.departments.read' },
   { to: '/hr/documents', labelKey: 'nav.documents', icon: Files, shortcut: '6', group: 'hr', module: 'hr', capability: 'hr.documents.read' },
-  { to: '/settings/appearance', labelKey: 'settings.appearance.title', icon: SlidersHorizontal, shortcut: 'b', group: 'settings', module: 'settings', capability: 'nasq.internal' },
   { to: '/settings/branding', labelKey: 'settings.branding.title', icon: Palette, shortcut: 'g', group: 'settings', module: 'settings', capability: 'settings.branding.manage' },
   { to: '/settings/projects', labelKey: 'settings.projects.title', icon: Settings, shortcut: '4', group: 'settings', module: 'settings', capability: 'pmo.settings.manage' },
   { to: '/settings/users', labelKey: 'nav.users', icon: UserCog, shortcut: '7', group: 'settings', module: 'settings', capability: 'access.users.read' },
@@ -77,7 +75,8 @@ export const shellModules: ShellModuleDefinition[] = [
   { id: 'meetings', labelKey: 'nav.meetings', icon: CalendarDays, to: '/meetings' },
   { id: 'chat', labelKey: 'nav.chat', icon: MessageCircle, to: '/chat' },
   { id: 'hr', labelKey: 'nav.organization', icon: Users, to: '/hr' },
-  { id: 'settings', labelKey: 'nav.settings', icon: Settings, to: '/settings/appearance' },
+  // Settings is administration only: account and appearance live in the header.
+  { id: 'settings', labelKey: 'nav.settings', icon: Settings, to: '/settings/users' },
   { id: 'vendor', labelKey: 'nav.console', icon: Wrench, to: '/odoo' },
 ]
 
@@ -146,8 +145,6 @@ export function contextLinksForModule(module: ShellModule, identity: AccessIdent
       { id: 'documents', labelKey: 'nav.documents', icon: Files, to: '/hr/documents', capability: 'hr.documents.read' },
     ],
     settings: [
-      { id: 'account', labelKey: 'nav.account', icon: UserCog, to: '/account', capability: INTERNAL_NASQ_ACCESS },
-      { id: 'appearance', labelKey: 'settings.appearance.title', icon: SlidersHorizontal, to: '/settings/appearance', capability: INTERNAL_NASQ_ACCESS },
       { id: 'users', labelKey: 'nav.users', icon: UserCog, to: '/settings/users', capability: 'access.users.read' },
       { id: 'roles', labelKey: 'nav.roles', icon: ShieldCheck, to: '/settings/roles', capability: 'access.roles.read' },
       { id: 'access-log', labelKey: 'nav.accessLog', icon: History, to: '/settings/access-log', capability: 'access.audit.read' },

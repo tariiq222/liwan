@@ -16,7 +16,6 @@ const ROUTES = [
   { id: 'employee-new', path: '/hr/employees/new', width: 'form', h1: 'موظف جديد' },
   { id: 'account', path: '/account', width: 'form', h1: 'الحساب' },
   { id: 'settings-users', path: '/settings/users', width: null, h1: 'المستخدمون' },
-  { id: 'settings-appearance', path: '/settings/appearance', width: null, h1: 'المظهر' },
   { id: 'catalog-new', path: '/settings/projects/catalogs/types/new', width: 'form', h1: 'نوع مشروع جديد' },
   { id: 'notifications', path: '/notifications', width: 'form', h1: 'الإشعارات' },
   { id: 'chat', path: '/chat', width: 'list', h1: 'المحادثة' },
@@ -217,7 +216,7 @@ test('desktop 1440 light medium — route smoke and targeted fixes', async ({ pa
   expect(catalogBox.width).toBeLessThanOrEqual(940)
   await page.screenshot({ path: shot('catalog-new-1920.png'), fullPage: true })
 
-  await page.goto('/settings/appearance')
+  await page.goto('/settings/projects')
   const settingsForm = page.locator('.nasq-settings-form-page')
   await expect(settingsForm).toBeVisible()
   const settingsBox = await settingsForm.evaluate((el) => {

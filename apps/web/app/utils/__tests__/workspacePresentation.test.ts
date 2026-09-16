@@ -12,7 +12,7 @@ describe('workspacePresentation', () => {
     for (const path of ['/chat', '/chat/7', '/chat/new', '/login', '/meetings/7/print']) {
       expect(presentation.isWorkspaceThemeRoute(path), path).toBe(false)
     }
-    for (const path of ['/projects', '/projects/7/tasks', '/hr', '/tasks/7', '/settings/appearance', '/notifications', '/account', '/search', '/reports']) {
+    for (const path of ['/projects', '/projects/7/tasks', '/hr', '/tasks/7', '/settings/users', '/notifications', '/account', '/search', '/reports']) {
       expect(presentation.isWorkspaceThemeRoute(path), path).toBe(true)
     }
   })

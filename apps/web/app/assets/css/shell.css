@@ -81,7 +81,7 @@ html[dir="rtl"] .nasq-gantt-name { box-shadow: 8px 0 16px -12px color-mix(in srg
 /* Keep compact desktop geometry while preserving touch target sizes. */
 @media (pointer: coarse) {
   [data-nasq-shell] :is(
-    [data-slot="button"], [data-testid="notification-bell"],
+    [data-slot="button"], [data-testid="notification-bell"], [data-testid="appearance-menu"],
     [data-slot="select-trigger"], .header-account, .nasq-search-trigger,
     .nasq-module-rail-toggle, .nasq-context-toggle, .nasq-context-link
   ) {
@@ -160,8 +160,10 @@ html[dir="rtl"] body { padding-right: 0 !important; }
 .nasq-shell-header [data-slot="avatar-fallback"] { background: var(--nasq-surface-soft); color: var(--nasq-text); }
 .nasq-shell-header [data-testid="notification-bell"] { width: 34px; height: 34px; min-width: 34px; border-color: var(--nasq-border); background: transparent; }
 .nasq-shell-header [data-slot="header-account"],
+.nasq-shell-header [data-testid="appearance-menu"],
 .nasq-shell-header [data-testid="notification-bell"] { color: var(--nasq-text); }
 .nasq-shell-header .nasq-search-trigger:focus-visible,
+.nasq-shell-header [data-testid="appearance-menu"]:focus-visible,
 .nasq-shell-header [data-testid="notification-bell"]:focus-visible,
 .nasq-shell-header [data-slot="header-account"]:focus-visible,
 .nasq-shell-header .nasq-mobile-menu-trigger:focus-visible {

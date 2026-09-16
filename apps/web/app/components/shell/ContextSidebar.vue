@@ -114,7 +114,7 @@ function updateRoute(next: ChatListRoute) {
             :aria-current="link.active ? 'page' : undefined"
             :aria-label="t(link.labelKey)"
             :title="t(link.labelKey)"
-            :data-testid="link.id === 'appearance' ? 'sidebar-settings' : link.id === 'project-settings' ? 'settings-projects-tab' : link.id === 'branding' ? 'settings-branding-tab' : `context-link-${link.id}`"
+            :data-testid="link.id === 'users' ? 'sidebar-settings' : link.id === 'project-settings' ? 'settings-projects-tab' : link.id === 'branding' ? 'settings-branding-tab' : `context-link-${link.id}`"
           >
             <template #leading>
               <UIcon :name="link.icon" class="nasq-shell-icon size-[18px] shrink-0" aria-hidden="true" />

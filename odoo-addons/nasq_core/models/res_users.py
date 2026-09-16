@@ -77,8 +77,13 @@ class NasqResUsers(models.Model):
             msg = f'use_protected_nasq_access_operation:res_users_write:{fields}'
             raise AccessError(msg)
         result = super().write(vals)
-        self._nasq_bump_record_versions()
+        if set(vals) - self._nasq_unversioned_fields():
+            self._nasq_bump_record_versions()
         return result
+
+    def _nasq_unversioned_fields(self):
+        """Fields a write may change without bumping the access version."""
+        return set()
 
     def unlink(self):
         if (

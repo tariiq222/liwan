@@ -38,8 +38,44 @@ class TestMeEndpoint(HttpCase):
         self.assertEqual(body['company']['id'], self.env.ref('base.main_company').id)
         self.assertEqual(set(body), {
             'id', 'name', 'login', 'email', 'lang', 'tz', 'role', 'company',
-            'roles', 'capabilities', 'access_policy_version',
+            'roles', 'capabilities', 'access_policy_version', 'appearance',
         })
+        self.assertEqual(body['appearance'], {'mode': 'light', 'font_size': 'small'})
+
+    def patch_appearance(self, payload):
+        return self.url_open(
+            '/api/v1/me/appearance', json=payload, method='PATCH',
+            headers={'Content-Type': 'application/json'},
+        )
+
+    def test_appearance_is_personal_and_self_writable(self):
+        emp = new_test_user(self.env, login='emp_look', password='emp_look_pass_123',
+                            groups='nasq_core.group_employee')
+        other = new_test_user(self.env, login='emp_other', password='emp_other_pass_123',
+                              groups='nasq_core.group_employee')
+        version_before = emp.nasq_access_version
+        self.authenticate('emp_look', 'emp_look_pass_123')
+        res = self.patch_appearance({'mode': 'dark', 'font_size': 'large'})
+        self.assertEqual(res.status_code, 200, res.text)
+        self.assertEqual(res.json()['appearance'], {'mode': 'dark', 'font_size': 'large'})
+        self.assertEqual(self.url_open('/api/v1/me').json()['appearance'], {'mode': 'dark', 'font_size': 'large'})
+        emp.invalidate_recordset()
+        self.assertEqual((emp.nasq_appearance_mode, emp.nasq_font_size), ('dark', 'large'))
+        # A display preference never counts as an access change.
+        self.assertEqual(emp.nasq_access_version, version_before)
+        # Nobody else's preference moves.
+        self.assertEqual((other.nasq_appearance_mode, other.nasq_font_size), ('light', 'small'))
+        partial = self.patch_appearance({'mode': 'cream'})
+        self.assertEqual(partial.json()['appearance'], {'mode': 'cream', 'font_size': 'large'})
+        bad_mode = self.patch_appearance({'mode': 'sepia'})
+        self.assertEqual((bad_mode.status_code, bad_mode.json()['field']), (422, 'mode'))
+        bad_size = self.patch_appearance({'font_size': 'huge'})
+        self.assertEqual((bad_size.status_code, bad_size.json()['field']), (422, 'font_size'))
+        unknown = self.patch_appearance({'name': 'x'})
+        self.assertEqual((unknown.status_code, unknown.json()['field']), (422, 'name'))
+        self.assertEqual(self.patch_appearance({}).status_code, 422)
+        self.authenticate('emp_other', 'emp_other_pass_123')
+        self.assertEqual(self.url_open('/api/v1/me').json()['appearance'], {'mode': 'light', 'font_size': 'small'})
 
     def test_customer_admin(self):
         new_test_user(self.env, login='cadmin', password='cadmin_password_123',

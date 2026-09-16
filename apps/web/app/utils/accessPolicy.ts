@@ -27,7 +27,7 @@ export function firstAllowedPath(identity: AccessIdentity): string {
 }
 export function postLoginPath(identity: AccessIdentity, next: unknown): string {
   const fallback = firstAllowedPath(identity)
-  const target = safeReturnTo(next, fallback, [...destinations.map(([path]) => path), '/account', '/search', '/notifications', '/archived-tasks', '/settings/appearance', '/chat'])
+  const target = safeReturnTo(next, fallback, [...destinations.map(([path]) => path), '/account', '/search', '/notifications', '/archived-tasks', '/chat'])
   const capability = requiredCapabilityForPath(new URL(target, 'http://nasq.local').pathname)
   return capability && !hasCapability(identity, capability) ? fallback : target
 }

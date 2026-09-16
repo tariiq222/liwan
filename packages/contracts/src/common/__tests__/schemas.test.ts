@@ -1,4 +1,4 @@
-import { BrandingSchema, MeSchema } from '../index'
+import { BrandingSchema, MeAppearancePatchSchema, MeSchema } from '../index'
 
 describe('BrandingSchema', () => {
   it('accepts the shape served by GET /api/v1/branding', () => {
@@ -20,6 +20,18 @@ describe('MeSchema', () => {
       tz: 'Asia/Riyadh', role: 'employee', company: { id: 1, name: 'Erada' },
     })
     expect(me.role).toBe('employee')
+  })
+  it('carries the personal appearance and validates its patch', () => {
+    const me = MeSchema.parse({
+      id: 2, name: 'Sara', login: 'emp', email: 'sara@example.com', lang: 'ar_001',
+      tz: 'Asia/Riyadh', role: 'employee', company: { id: 1, name: 'Erada' },
+      appearance: { mode: 'dark', font_size: 'large' },
+    })
+    expect(me.appearance).toEqual({ mode: 'dark', font_size: 'large' })
+    expect(() => MeSchema.parse({ ...me, appearance: { mode: 'sepia', font_size: 'small' } })).toThrow()
+    expect(MeAppearancePatchSchema.parse({ mode: 'cream' })).toEqual({ mode: 'cream' })
+    expect(() => MeAppearancePatchSchema.parse({})).toThrow()
+    expect(() => MeAppearancePatchSchema.parse({ font_size: 'huge' })).toThrow()
   })
   it('rejects unknown roles', () => {
     expect(() => MeSchema.parse({

@@ -184,9 +184,9 @@ for (const width of [390, 768, 1440]) {
     }
 
     for (const mode of ['light', 'cream', 'dark']) {
-      await page.goto('/settings/appearance')
-      await page.getByTestId('appearance-font-large').click()
-      await page.getByTestId(`appearance-mode-${mode}`).click()
+      // The preference is per user on the server; the header menu writes the same endpoint.
+      await page.request.patch('/api/v1/me/appearance', { data: { mode, font_size: 'large' } })
+      await page.goto('/tasks')
       await expect(page.locator('html')).toHaveAttribute('data-font-size', 'large')
       if (mode === 'dark') {
         await expect(page.locator('html')).toHaveClass(/dark/)

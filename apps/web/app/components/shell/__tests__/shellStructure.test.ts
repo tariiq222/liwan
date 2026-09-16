@@ -10,6 +10,10 @@ const componentsCss = readFileSync(resolve(root, 'assets/css/components.css'), '
 const navModel = readFileSync(resolve(root, 'composables/nav/shellModules.ts'), 'utf8')
 const projectSectionsModel = readFileSync(resolve(root, 'composables/nav/projectSections.ts'), 'utf8')
 const accountMenu = readFileSync(resolve(root, 'components/AppAccountMenu.vue'), 'utf8')
+const appearanceMenu = readFileSync(resolve(root, 'components/shell/AppearanceMenu.vue'), 'utf8')
+const shellHeader = readFileSync(resolve(root, 'components/shell/ShellHeader.vue'), 'utf8')
+const appRoot = readFileSync(resolve(root, 'app.vue'), 'utf8')
+const appearanceComposable = readFileSync(resolve(root, 'composables/useAppearance.ts'), 'utf8')
 const contextSidebar = readFileSync(resolve(root, 'components/shell/ContextSidebar.vue'), 'utf8')
 const moduleRail = readFileSync(resolve(root, 'components/shell/ModuleRail.vue'), 'utf8')
 const mobileNavigation = readFileSync(resolve(root, 'components/shell/MobileNavigation.vue'), 'utf8')
@@ -152,6 +156,25 @@ describe('Nuxt UI shell migration', () => {
     expect(accountMenu).toContain('<UDropdownMenu')
     expect(accountMenu).toContain('<UAvatar')
     expect(accountMenu).toContain("navigateTo('/login')")
+  })
+
+  it('keeps display mode and font size in the header, saved per signed-in user', () => {
+    expect(shellHeader).toContain('<AppearanceMenu />')
+    expect(appearanceMenu).toContain('<UDropdownMenu')
+    expect(appearanceMenu).toContain('data-testid="appearance-menu"')
+    expect(appearanceMenu).toContain("type: 'checkbox'")
+    expect(appearanceMenu).toContain('settings.appearance.mode')
+    expect(appearanceMenu).toContain('settings.appearance.fontSize')
+    expect(appearanceMenu).toContain(':disabled="!hydrated"')
+    expect(appearanceComposable).toContain("'/api/v1/me/appearance'")
+    expect(appearanceComposable).toContain('syncFromUser')
+    expect(appRoot).toContain('watch(me, syncFromUser, { immediate: true })')
+    expect(shellCss).toContain('[data-testid="appearance-menu"]')
+    // Settings holds administration only; no account or appearance pages there.
+    expect(navModel).not.toContain('/settings/appearance')
+    expect(navModel).not.toContain("to: '/account'")
+    expect(accountMenu).not.toContain('/settings/appearance')
+    expect(accountMenu).toContain("to: '/account'")
   })
 
   it('hides desktop rail and context under 768px and uses a real mobile slideover', () => {
