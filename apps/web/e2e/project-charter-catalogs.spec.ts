@@ -15,7 +15,7 @@ async function login(page: Page) {
 
 test('project settings links to both catalogs without a shared nav item', async ({ page }) => {
   await login(page)
-  await page.goto('/settings/projects')
+  await page.goto('/projects/settings')
   await expect(page.getByRole('heading', { name: 'المشاريع', exact: true })).toBeVisible()
   await expect(page.getByTestId('catalog-types-link')).toBeVisible()
   await expect(page.getByTestId('catalog-units-link')).toBeVisible()
@@ -33,7 +33,7 @@ test('project settings links to both catalogs without a shared nav item', async 
 test('owning units can be created, renamed, ordered, and deleted when unused', async ({ page }) => {
   await login(page)
   const name = `E2E unit ${Date.now()}`
-  await page.goto('/settings/projects/catalogs/owning-units')
+  await page.goto('/projects/settings/catalogs/owning-units')
   await page.getByRole('button', { name: 'إضافة' }).click()
   await expect(page).toHaveURL(/\/settings\/projects\/catalogs\/owning-units\/new/)
   await page.getByLabel('الاسم').fill(name)
@@ -60,7 +60,7 @@ test('catalog edit departure is guarded while preserving the draft', async ({ pa
   const item = (await response.json()).items[0]
   expect(item).toBeTruthy()
 
-  await page.goto(`/settings/projects/catalogs/types/${item.id}/edit?returnTo=${encodeURIComponent('/settings/projects/catalogs/types')}`)
+  await page.goto(`/projects/settings/catalogs/types/${item.id}/edit?returnTo=${encodeURIComponent('/projects/settings/catalogs/types')}`)
   const name = page.getByLabel('الاسم')
   await expect(name).toBeVisible()
   const draft = `${item.name} مسودة`

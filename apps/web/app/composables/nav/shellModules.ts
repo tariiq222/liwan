@@ -38,6 +38,7 @@ const items: NavItem[] = [
   { to: '/projects', labelKey: 'nav.projects', icon: FolderKanban, shortcut: '2', group: 'projects', module: 'projects', capability: 'pmo.projects.read' },
   { to: '/tasks', labelKey: 'nav.tasks', icon: CheckSquare, shortcut: '1', group: 'projects', module: 'projects', capability: 'pmo.tasks.read' },
   { to: '/project-templates', labelKey: 'nav.projectTemplates', icon: LayoutTemplate, shortcut: 't', group: 'projects', module: 'projects', capability: 'pmo.projects.read' },
+  { to: '/projects/settings', labelKey: 'settings.projects.title', icon: Settings, shortcut: '4', group: 'projects', module: 'projects', capability: 'pmo.settings.manage' },
   { to: '/meetings', labelKey: 'nav.meetings', icon: CalendarDays, shortcut: 'm', group: 'meetings', module: 'meetings', capability: 'meetings.read' },
   { to: '/meetings/calendar', labelKey: 'nav.meetingCalendar', icon: CalendarDays, shortcut: 'k', group: 'meetings', module: 'meetings', capability: 'meetings.read' },
   { to: '/meetings/series', labelKey: 'nav.meetingSeries', icon: Repeat, shortcut: 'y', group: 'meetings', module: 'meetings', capability: 'meetings.read' },
@@ -46,7 +47,6 @@ const items: NavItem[] = [
   { to: '/hr/departments', labelKey: 'nav.departments', icon: Network, shortcut: '5', group: 'hr', module: 'hr', capability: 'hr.departments.read' },
   { to: '/hr/documents', labelKey: 'nav.documents', icon: Files, shortcut: '6', group: 'hr', module: 'hr', capability: 'hr.documents.read' },
   { to: '/settings/branding', labelKey: 'settings.branding.title', icon: Palette, shortcut: 'g', group: 'settings', module: 'settings', capability: 'settings.branding.manage' },
-  { to: '/settings/projects', labelKey: 'settings.projects.title', icon: Settings, shortcut: '4', group: 'settings', module: 'settings', capability: 'pmo.settings.manage' },
   { to: '/settings/users', labelKey: 'nav.users', icon: UserCog, shortcut: '7', group: 'settings', module: 'settings', capability: 'access.users.read' },
   { to: '/settings/roles', labelKey: 'nav.roles', icon: ShieldCheck, shortcut: '8', group: 'settings', module: 'settings', capability: 'access.roles.read' },
   { to: '/settings/access-log', labelKey: 'nav.accessLog', icon: History, shortcut: '9', group: 'settings', module: 'settings', capability: 'access.audit.read' },
@@ -122,6 +122,8 @@ const projectsContextLinks: ShellContextLink[] = [
   { id: 'projects', labelKey: 'nav.allProjects', icon: FolderKanban, to: '/projects', capability: 'pmo.projects.read' },
   { id: 'tasks', labelKey: 'nav.tasks', icon: CheckSquare, to: '/tasks', capability: 'pmo.tasks.read' },
   { id: 'project-templates', labelKey: 'nav.projectTemplates', icon: LayoutTemplate, to: '/project-templates', capability: 'pmo.projects.read' },
+  // Project settings close the projects sidebar (user decision 2026-09-16); they are not a settings-module page.
+  { id: 'project-settings', labelKey: 'settings.projects.title', icon: Settings, to: '/projects/settings', capability: 'pmo.settings.manage' },
 ]
 
 export function contextLinksForModule(module: ShellModule, identity: AccessIdentity, path?: string): ShellContextLink[] {
@@ -149,7 +151,6 @@ export function contextLinksForModule(module: ShellModule, identity: AccessIdent
       { id: 'roles', labelKey: 'nav.roles', icon: ShieldCheck, to: '/settings/roles', capability: 'access.roles.read' },
       { id: 'access-log', labelKey: 'nav.accessLog', icon: History, to: '/settings/access-log', capability: 'access.audit.read' },
       { id: 'branding', labelKey: 'settings.branding.title', icon: Palette, to: '/settings/branding', capability: 'settings.branding.manage' },
-      { id: 'project-settings', labelKey: 'settings.projects.title', icon: Settings, to: '/settings/projects', capability: 'pmo.settings.manage' },
     ],
     vendor: [
       { id: 'console', labelKey: 'nav.console', icon: Wrench, to: '/odoo', capability: 'vendor' },

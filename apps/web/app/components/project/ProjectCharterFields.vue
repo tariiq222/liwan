@@ -67,7 +67,7 @@ function helpLabel(field: string): string {
 }
 
 function catalogSettingsPath(resource: ProjectCharterCatalogResource) {
-  return { path: `/settings/projects/catalogs/${resource}`, query: returnToQuery(route.fullPath) }
+  return { path: `/projects/settings/catalogs/${resource}`, query: returnToQuery(route.fullPath) }
 }
 
 function selectManager(userId: number | null, name: string | null) {

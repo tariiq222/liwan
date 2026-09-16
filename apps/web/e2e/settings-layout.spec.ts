@@ -24,7 +24,7 @@ for (const width of [1440, 390]) {
     const role = roles.find((item: { type: string }) => item.type === 'custom') ?? roles[0]
     const usersResponse = await page.request.get('/api/v1/admin/users')
     const user = (await usersResponse.json()).items[0]
-    const paths = ['/settings/branding', '/settings/projects', '/settings/users', '/settings/roles', '/settings/access-log', '/settings/users/new', '/settings/roles/new', `/settings/users/${user.id}`, `/settings/users/${user.id}/access`, `/settings/users/${user.id}/security`, `/settings/roles/${role.id}`, `/settings/roles/${role.id}/edit`]
+    const paths = ['/settings/branding', '/projects/settings', '/settings/users', '/settings/roles', '/settings/access-log', '/settings/users/new', '/settings/roles/new', `/settings/users/${user.id}`, `/settings/users/${user.id}/access`, `/settings/users/${user.id}/security`, `/settings/roles/${role.id}`, `/settings/roles/${role.id}/edit`]
     const auditResponse = await page.request.get('/api/v1/admin/access-log?limit=1')
     const audit = (await auditResponse.json()).items[0]
     expect(audit).toBeTruthy()

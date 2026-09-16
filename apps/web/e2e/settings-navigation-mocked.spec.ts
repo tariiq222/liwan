@@ -151,27 +151,24 @@ async function openApp(page: Page, path: string) {
 
 test('settings submenu opens project settings only as a real category page', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 1440, height: 900 })
-  await openApp(page, '/settings/users')
+  // Project settings live at the bottom of the projects sidebar, not under settings.
+  await openApp(page, '/projects/settings')
   await expect(page.getByTestId('settings-layout')).toBeVisible()
-  await expect(page.getByTestId('sidebar-settings')).toBeVisible()
+  await expect(page.getByTestId('sidebar-settings')).toHaveCount(0)
   const projectsNav = page.getByRole('navigation', { name: 'الانتقال إلى' }).getByRole('link', { name: 'المشاريع', exact: true })
   await expect(projectsNav).toHaveAttribute('href', '/projects')
   const settingsProjects = page.getByTestId('settings-projects-tab')
-  await expect(settingsProjects).toHaveAttribute('href', '/settings/projects')
-  await Promise.all([
-    page.waitForURL(/\/settings\/projects/, { timeout: 15_000, waitUntil: 'commit' }),
-    settingsProjects.click(),
-  ])
-  await expect(page.getByTestId('settings-layout')).toBeVisible()
+  await expect(settingsProjects).toHaveAttribute('href', '/projects/settings')
+  await expect(settingsProjects).toHaveAttribute('aria-current', 'page')
   await expect(page.locator('#project-creators')).toBeVisible()
   await expect(page.locator('.nasq-settings-content .nasq-panel')).toHaveCount(1)
-  expect(new URL(page.url()).pathname).toBe('/settings/projects')
+  expect(new URL(page.url()).pathname).toBe('/projects/settings')
   await page.screenshot({ path: testInfo.outputPath('submenu-projects-desktop-rtl.png'), fullPage: true })
 })
 
 test('in-page anchors scroll, mark location current, and survive hash refresh', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 1440, height: 900 })
-  await openApp(page, '/settings/projects')
+  await openApp(page, '/projects/settings')
   const remindersLink = page.locator('.nasq-settings-nav a[href="#project-reminders"]')
   const catalogsLink = page.locator('.nasq-settings-nav a[href="#catalogs"]')
   await expect(remindersLink).toHaveCSS('font-weight', '600')
@@ -185,7 +182,7 @@ test('in-page anchors scroll, mark location current, and survive hash refresh', 
     const rect = el.getBoundingClientRect()
     return rect.top < innerHeight && rect.bottom > 0
   })).toBe(true)
-  await openApp(page, '/settings/projects#catalogs')
+  await openApp(page, '/projects/settings#catalogs')
   await expect(page.locator('.nasq-settings-nav a[href="#catalogs"]')).toHaveAttribute('aria-current', 'location')
   await page.screenshot({ path: testInfo.outputPath('anchors-desktop-rtl.png'), fullPage: true })
 })
@@ -243,7 +240,7 @@ test('users hash navigation keeps list query on click, refresh and back', async 
 test('section dividers use last-child not last-of-type', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
   const width = (selector: string) => page.locator(selector).evaluate((el) => getComputedStyle(el).borderBlockEndWidth)
-  await openApp(page, '/settings/projects')
+  await openApp(page, '/projects/settings')
   await page.locator('#project-reminders').waitFor({ state: 'visible', timeout: 15_000 })
   await expect.poll(() => width('#project-reminders')).toBe('1px')
   await expect.poll(() => width('#catalogs')).toBe('0px')

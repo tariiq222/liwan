@@ -117,8 +117,8 @@ for (const path of [
   '/projects/1/stakeholders/new', '/projects/1/stakeholders/1', '/projects/1/stakeholders/1/edit',
   '/projects/1/register/new', '/projects/1/register/1', '/projects/1/register/1/edit',
   '/projects/1/finance', '/projects/1/finance/new', '/projects/1/finance/1', '/projects/1/finance/1/edit',
-  '/projects/1/updates', '/projects/1/updates/new', '/settings/projects',
-  '/settings/projects/catalogs/types', '/settings/projects/catalogs/types/new', '/settings/projects/catalogs/types/1/edit',
+  '/projects/1/updates', '/projects/1/updates/new', '/projects/settings',
+  '/projects/settings/catalogs/types', '/projects/settings/catalogs/types/new', '/projects/settings/catalogs/types/1/edit',
   '/project-templates', '/project-templates/new', '/project-templates/1', '/project-templates/1/edit',
 ]) {
   test(`project page inventory ${path}`, async ({ page }, testInfo) => {

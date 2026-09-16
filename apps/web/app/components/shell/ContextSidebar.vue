@@ -69,7 +69,7 @@ function updateRoute(next: ChatListRoute) {
     data-testid="context-sidebar"
     class="nasq-context-sidebar"
     :data-project="isProject"
-    :data-project-module="isProjectsArea || route.path.startsWith('/settings/projects')"
+    :data-project-module="isProjectsArea || route.path.startsWith('/projects/settings')"
     :data-chat="isChat"
     :data-expanded="expanded"
     :data-direction="localeProperties.dir"

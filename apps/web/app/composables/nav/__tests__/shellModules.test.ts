@@ -20,6 +20,7 @@ describe('capability-based navigation', () => {
     expect(nav.filter(item => item.group === 'settings')).toEqual([])
     expect(visibleShellModules(employee).map(module => module.id)).not.toContain('settings')
     expect(nav.filter(item => item.group === 'projects').map(item => item.to)).toEqual(['/projects/dashboard', '/projects', '/tasks', '/project-templates'])
+    expect(nav.map(item => item.to)).not.toContain('/projects/settings')
     expect(nav.find(item => item.to === '/projects/dashboard')?.module).toBe('home')
     expect(nav.find(item => item.to === '/projects')?.module).toBe('projects')
   })
@@ -31,16 +32,18 @@ describe('capability-based navigation', () => {
     expect(paths).not.toContain('/settings/appearance')
     expect(paths).toContain('/settings/branding')
     expect(visibleShellModules(admin).find(module => module.id === 'settings')?.to).toBe('/settings/users')
-    expect(paths).not.toContain('/settings/projects')
+    expect(paths).not.toContain('/projects/settings')
     expect(paths).not.toContain('/odoo')
     expect(nav.find(item => item.to === '/settings/users')?.group).toBe('settings')
   })
-  it('puts project settings only in the settings group', () => {
+  it('puts project settings last in the projects group, never in settings', () => {
     const nav = useNav({ ...admin, capabilities: [...admin.capabilities, 'pmo.settings.manage'] })
-    const projects = nav.find(item => item.to === '/settings/projects')
-    expect(projects?.group).toBe('settings')
+    const projects = nav.find(item => item.to === '/projects/settings')
+    expect(projects?.group).toBe('projects')
+    expect(projects?.module).toBe('projects')
     expect(projects?.labelKey).toBe('settings.projects.title')
-    expect(nav.filter(item => item.group === 'projects').map(item => item.to)).not.toContain('/settings/projects')
+    expect(nav.filter(item => item.group === 'projects').map(item => item.to).at(-1)).toBe('/projects/settings')
+    expect(nav.filter(item => item.group === 'settings').map(item => item.to)).not.toContain('/projects/settings')
   })
   it('combines capabilities without duplicate paths or shortcuts', () => {
     const nav = useNav({ ...admin, role: 'vendor', capabilities: [...admin.capabilities, 'pmo.settings.manage'] })
@@ -73,7 +76,9 @@ describe('contextual module links', () => {
 
   it('keeps settings links in one flat capability-gated order', () => {
     expect(contextLinksForModule('settings', employee)).toEqual([])
-    expect(contextLinksForModule('settings', full).map(link => link.id)).toEqual(['users', 'roles', 'access-log', 'project-settings'])
+    expect(contextLinksForModule('settings', full).map(link => link.id)).toEqual(['users', 'roles', 'access-log'])
+    expect(contextLinksForModule('projects', full).map(link => link.id).at(-1)).toBe('project-settings')
+    expect(contextLinksForModule('projects', employee).map(link => link.id)).not.toContain('project-settings')
     expect(contextLinksForModule('settings', admin).map(link => link.id)).toEqual(['users', 'roles', 'access-log', 'branding'])
   })
 })
