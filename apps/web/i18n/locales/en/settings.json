@@ -128,7 +128,10 @@
           "nameRequired": "Name is required.",
           "sequence": "Sequence must be a whole number.",
           "inUse": "A value that is still in use cannot be deleted."
-        }
+        },
+        "charterSteps": "Charter steps",
+        "charterStepsHint": "The steps a charter of this classification walks through. Basics and review are always present.",
+        "charterStepsColumn": "{count} steps"
       },
       "scopeHint": "Policies, defaults, and shared reference data for this company. Existing projects change only where a section says they do.",
       "creation": {

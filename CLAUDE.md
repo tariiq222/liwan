@@ -180,6 +180,11 @@ worktrees only after their content is preserved and no process is using them.
   tasks or meetings; resource lookup stays in the caller's ordinary ACL and
   record-rule environment. Meeting-only access must not reveal task/digest
   notifications. Do not add an undocumented bypass.
+- The project charter is written as a stepper: basics, then the optional
+  steps the project type configures (`charter_steps` on `nasq.project.type`,
+  exposed on the types catalog and on `charter.type`), then review. The
+  charter carries `state` (`draft | final`); a new charter is a draft and the
+  review step finalizes it. `/projects/new` is a full page, never a sheet.
 - Task attachment uploads accept PDF, PNG, JPEG, text, DOCX and XLSX up to
   10 MiB decoded, with exact binary task linkage and ordinary attachment ACLs.
   Dependency edits require project management, same active project, positive

@@ -1,0 +1,33 @@
+import type { Meta, StoryObj } from '@storybook/vue3-vite'
+import { useI18n } from 'vue-i18n'
+import ProjectCharterForm from '../../app/components/project/ProjectCharterForm.vue'
+import FormSection from '../../app/components/shared/FormSection.vue'
+import PageContainer from '../../app/components/shared/PageContainer.vue'
+import { projectCreateDefaults } from '../fixtures/pmo'
+import { storyContext } from '../support/context'
+
+// The charter wizard: basics → the steps the chosen classification configures →
+// review. "Save as draft" is offered on every step; the review step finalizes.
+const meta = {
+  title: 'Project/ProjectCharterForm',
+  component: ProjectCharterForm,
+  parameters: { layout: 'fullscreen', ...storyContext('apps/web/app/components/project/ProjectCreateForm.vue:54') },
+  args: { mode: 'create', createDefaults: projectCreateDefaults, defaultManagerName: 'Admin', disabled: false },
+  render: args => ({
+    components: { FormSection, PageContainer, ProjectCharterForm },
+    setup: () => ({ args, t: useI18n().t }),
+    template: `<main class="nasq-shell-main"><PageContainer width="form"><FormSection :title="t('projects.charter.title')" :description="t('projects.create.defaultsHint')"><ProjectCharterForm v-bind="args" /></FormSection></PageContainer></main>`,
+  }),
+} satisfies Meta<typeof ProjectCharterForm>
+export default meta
+type Story = StoryObj<typeof meta>
+
+export const CreateWizard: Story = {
+  name: 'إنشاء مشروع على خطوات',
+  parameters: storyContext('apps/web/app/components/project/ProjectCreateForm.vue:54', 'اختر التصنيف في الخطوة الأولى لتتغيّر الخطوات التالية. «حفظ كمسودة» متاح في كل خطوة.'),
+}
+export const WaitingForDefaults: Story = {
+  name: 'قبل تحميل متطلبات الإنشاء',
+  args: { createDefaults: undefined, disabled: true },
+  parameters: storyContext('apps/web/app/components/project/ProjectCreateForm.vue:54', 'النموذج معطّل حتى تصل متطلبات الإنشاء.'),
+}

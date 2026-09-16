@@ -1,7 +1,12 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import api, models
 
-from .project_charter_reference import CHARTER_SEED_MARKER, TYPE_SEEDS
+from .project_charter_reference import (
+    CHARTER_SEED_MARKER,
+    TYPE_SEED_STEPS,
+    TYPE_SEEDS,
+    default_charter_steps,
+)
 
 
 class ResCompany(models.Model):
@@ -33,6 +38,7 @@ class ResCompany(models.Model):
                     Type.create({
                         'name': name,
                         'seed_key': seed_key,
+                        'charter_steps': TYPE_SEED_STEPS.get(seed_key, default_charter_steps()),
                         'sequence': (index + 1) * 10,
                         'company_id': company.id,
                         'active': True,

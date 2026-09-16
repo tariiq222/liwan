@@ -9,7 +9,7 @@ CHARTER_KEYS = {
     'code', 'type', 'owning_unit', 'sponsor', 'authority', 'rationale', 'objectives',
     'benefits', 'scope', 'exclusions', 'high_level_requirements', 'deliverables',
     'success', 'budget_state', 'amount', 'currency', 'priority', 'assumptions',
-    'constraints', 'closure',
+    'constraints', 'closure', 'state',
 }
 
 
@@ -45,6 +45,7 @@ class TestProjectCharterApi(NasqPmoCase):
         self.assertIsNone(body['charter']['amount'])
         self.assertEqual(body['charter']['authority'], '')
         self.assertEqual(body['charter']['objectives'], [])
+        self.assertEqual(body['charter']['state'], 'draft')
         self.assertEqual(self.api('POST', '/api/v1/projects', {'name': 'Nope', 'secret': 1}).status_code, 422)
 
     def test_full_charter_roundtrip_and_partial_rows(self):
@@ -74,11 +75,16 @@ class TestProjectCharterApi(NasqPmoCase):
                 'assumptions': 'A',
                 'constraints': 'C',
                 'closure': 'Close when signed',
+                'state': 'final',
             },
         })
         self.assertEqual(res.status_code, 201, res.text)
         charter = res.json()['charter']
         self.assertEqual(charter['type']['id'], self.type_tech.id)
+        self.assertEqual(set(charter['type']), {'id', 'name', 'charter_steps'})
+        self.assertEqual(charter['type']['charter_steps'], ['justification', 'scope', 'schedule', 'budget', 'risks'])
+        self.assertEqual(set(charter['owning_unit']), {'id', 'name'})
+        self.assertEqual(charter['state'], 'final')
         self.assertEqual(charter['owning_unit']['id'], self.unit.id)
         self.assertEqual(charter['sponsor']['id'], self.employee.id)
         self.assertEqual(charter['amount'], 0)
@@ -93,7 +99,38 @@ class TestProjectCharterApi(NasqPmoCase):
         self.assertEqual(patched.status_code, 200)
         self.assertEqual(patched.json()['charter']['authority'], 'Board note')
         self.assertEqual(patched.json()['charter']['rationale'], 'Updated')
+        self.assertEqual(patched.json()['charter']['state'], 'final')
         self.assertNotEqual(patched.json()['updated_at'], token)
+
+    def test_charter_state_draft_then_final(self):
+        self.authenticate('api_mgr', 'api_mgr_pass_123')
+        created = self.api('POST', '/api/v1/projects', {
+            'name': 'Draft charter',
+            'charter': {'rationale': 'Partial', 'state': 'draft'},
+        })
+        self.assertEqual(created.status_code, 201, created.text)
+        body = created.json()
+        self.assertEqual(body['charter']['state'], 'draft')
+        path = f"/api/v1/projects/{body['id']}"
+        bad = self.api('PATCH', path, {
+            'expected_updated_at': body['updated_at'],
+            'charter': {'state': 'approved'},
+        })
+        self.assertEqual((bad.status_code, bad.json()['field']), (422, 'state'))
+        final = self.api('PATCH', path, {
+            'expected_updated_at': body['updated_at'],
+            'charter': {'scope': 'In', 'state': 'final'},
+        })
+        self.assertEqual(final.status_code, 200, final.text)
+        self.assertEqual(final.json()['charter']['state'], 'final')
+        self.assertEqual(final.json()['charter']['rationale'], 'Partial')
+        self.assertNotEqual(final.json()['updated_at'], body['updated_at'])
+        reopened = self.api('PATCH', path, {
+            'expected_updated_at': final.json()['updated_at'],
+            'charter': {'state': 'draft'},
+        })
+        self.assertEqual(reopened.status_code, 200, reopened.text)
+        self.assertEqual(reopened.json()['charter']['state'], 'draft')
 
     def test_bad_nested_and_readonly_charter_fields(self):
         self.authenticate('api_mgr', 'api_mgr_pass_123')

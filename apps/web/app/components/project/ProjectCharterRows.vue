@@ -4,11 +4,12 @@ import { emptyDeliverable, emptyObjective } from '@/utils/projectCharter'
 import ProjectFieldHelp from '@/components/project/ProjectFieldHelp.vue'
 
 const draft = defineModel<CharterDraft>({ required: true })
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   readonly?: boolean
   disabled?: boolean
-  compact?: boolean
-}>()
+  showObjectives?: boolean
+  showDeliverables?: boolean
+}>(), { showObjectives: true, showDeliverables: true })
 
 const { t } = useI18n()
 const pendingRemove = ref<{ kind: 'objective' | 'deliverable'; key: string } | null>(null)
@@ -49,7 +50,7 @@ function addDeliverable() {
 
 <template>
   <div class="space-y-8">
-    <section class="space-y-3" data-testid="charter-field-objectives">
+    <section v-if="showObjectives" class="space-y-3" data-testid="charter-field-objectives">
       <div class="flex items-center gap-1">
         <h2 class="text-base font-semibold text-highlighted">{{ t('projects.charter.fields.objectives') }}</h2>
         <ProjectFieldHelp
@@ -130,7 +131,7 @@ function addDeliverable() {
       <UButton v-if="!readonly" type="button" color="neutral" size="sm" :disabled="disabled" :label="t('projects.charter.addObjective')" @click="addObjective" variant="outline" />
     </section>
 
-    <section v-if="!compact" class="space-y-3" data-testid="charter-field-deliverables">
+    <section v-if="showDeliverables" class="space-y-3" data-testid="charter-field-deliverables">
       <div class="flex items-center gap-1">
         <h2 class="text-base font-semibold text-highlighted">{{ t('projects.charter.fields.deliverables') }}</h2>
         <ProjectFieldHelp

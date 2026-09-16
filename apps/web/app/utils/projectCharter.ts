@@ -1,5 +1,7 @@
 import type {
   BudgetState,
+  ProjectCharterState,
+  ProjectCharterStep,
   ProjectCharterWrite,
   ProjectCreate,
   ProjectDetail,
@@ -83,6 +85,8 @@ export type CharterDraft = {
   dateEnd: string | null
   typeId: number | null
   typeName: string | null
+  // Optional wizard steps of the chosen type; null walks every step.
+  typeSteps: ProjectCharterStep[] | null
   owningUnitId: number | null
   owningUnitName: string | null
   sponsorId: number | null
@@ -104,6 +108,7 @@ export type CharterDraft = {
   assumptions: string
   constraints: string
   closure: string
+  charterState: ProjectCharterState
 }
 
 let rowSeq = 0
@@ -135,6 +140,7 @@ export function emptyCharterDraft(currencyLabel: string | null = null): CharterD
     dateEnd: null,
     typeId: null,
     typeName: null,
+    typeSteps: null,
     owningUnitId: null,
     owningUnitName: null,
     sponsorId: null,
@@ -156,6 +162,7 @@ export function emptyCharterDraft(currencyLabel: string | null = null): CharterD
     assumptions: '',
     constraints: '',
     closure: '',
+    charterState: 'draft',
   }
 }
 
@@ -189,6 +196,7 @@ export function draftFromProject(project: ProjectDetail): CharterDraft {
     dateEnd: project.date_end,
     typeId: charter.type?.id ?? null,
     typeName: charter.type?.name ?? null,
+    typeSteps: charter.type ? [...charter.type.charter_steps] : null,
     owningUnitId: charter.owning_unit?.id ?? null,
     owningUnitName: charter.owning_unit?.name ?? null,
     sponsorId: charter.sponsor?.id ?? null,
@@ -210,6 +218,7 @@ export function draftFromProject(project: ProjectDetail): CharterDraft {
     assumptions: charter.assumptions,
     constraints: charter.constraints,
     closure: charter.closure,
+    charterState: charter.state,
   }
 }
 
@@ -324,6 +333,12 @@ export function validateCharterDraft(
   return errors
 }
 
+// The wizard validates one step at a time: only errors on the fields that
+// step shows may stop the walker from moving on.
+export function charterErrorsForFields(errors: readonly CharterFieldError[], fields: readonly CharterFieldKey[]): CharterFieldError[] {
+  return errors.filter(error => fields.includes(error.field))
+}
+
 export function canOverwriteWithLatest(originalToken: string | null, serverVersion: Pick<ProjectDetail, 'updated_at'> | null): boolean {
   return !!originalToken && !!serverVersion?.updated_at && serverVersion.updated_at !== originalToken
 }
@@ -409,6 +424,8 @@ export function charterWriteFromDraft(draft: CharterDraft, mode: 'create' | 'pat
     if (constraints) write.constraints = constraints
     const closure = compactText(draft.closure)
     if (closure) write.closure = closure
+    // The server starts every charter as a draft; only finalizing needs a value.
+    if (draft.charterState === 'final') write.state = 'final'
     return write
   }
 
@@ -430,6 +447,7 @@ export function charterWriteFromDraft(draft: CharterDraft, mode: 'create' | 'pat
     assumptions: draft.assumptions,
     constraints: draft.constraints,
     closure: draft.closure,
+    state: draft.charterState,
   }
   if (draft.budgetState === 'unknown') write.amount = null
   else write.amount = amountValue ?? 0
@@ -445,6 +463,13 @@ export function createdProjectLocation(id: number, returnTo: string): {
   query: { returnTo: string; tab: 'milestones' }
 } {
   return { path: `/projects/${id}`, query: { returnTo, tab: 'milestones' } }
+}
+
+export function draftedProjectLocation(id: number, step: string, returnTo: string): {
+  path: string
+  query: { returnTo: string; edit: '1'; step: string }
+} {
+  return { path: `/projects/${id}/charter`, query: { returnTo, edit: '1', step } }
 }
 
 export function charterCreateBody(

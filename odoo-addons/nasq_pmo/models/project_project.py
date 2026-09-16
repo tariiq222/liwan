@@ -22,6 +22,7 @@ OBJECTIVE_KEYS = ('goal', 'metric', 'target')
 DELIVERABLE_KEYS = ('name', 'description', 'acceptance')
 BUDGET_STATES = ('unknown', 'estimate')
 PRIORITY_VALUES = ('low', 'normal', 'high', 'critical')
+CHARTER_STATES = ('draft', 'final')
 CHARTER_TEXT_FIELDS = (
     'nasq_authority', 'nasq_rationale', 'nasq_benefits', 'nasq_scope',
     'nasq_exclusions', 'nasq_high_level_requirements', 'nasq_success',
@@ -30,7 +31,7 @@ CHARTER_TEXT_FIELDS = (
 CHARTER_JSON_FIELDS = ('nasq_objectives', 'nasq_deliverables')
 CHARTER_MANAGER_FIELDS = {
     'nasq_type_id', 'nasq_owning_unit_id', 'nasq_sponsor_id',
-    'nasq_budget_state', 'nasq_budget_amount', 'nasq_priority',
+    'nasq_budget_state', 'nasq_budget_amount', 'nasq_priority', 'nasq_charter_state',
     *CHARTER_TEXT_FIELDS, *CHARTER_JSON_FIELDS,
 }
 PROTECTED_FIELDS = {'nasq_code', 'nasq_revision'}
@@ -122,6 +123,13 @@ class ProjectProject(models.Model):
     nasq_assumptions = fields.Text(default='')
     nasq_constraints = fields.Text(default='')
     nasq_closure = fields.Text(default='')
+    # A charter starts as a draft the wizard can save at any step; the final
+    # step marks it final. Existing projects load as drafts until finalized.
+    nasq_charter_state = fields.Selection(
+        [('draft', 'Draft'), ('final', 'Final')],
+        default='draft',
+        required=True,
+    )
 
     _nasq_code_uniq = models.Constraint(
         'UNIQUE(nasq_code)',

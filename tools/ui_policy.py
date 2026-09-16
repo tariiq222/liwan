@@ -36,7 +36,7 @@ STORYBOOK_COMPONENTS: tuple[str, ...] = tuple(COMPONENTS + path for path in (
     'hr/AccessBadge.vue', 'task/PrioritySelect.vue', 'task/StateMenu.vue', 'task/TagPicker.vue',
     'project/ProjectMenu.vue', 'shell/SidebarCreateAction.vue', 'chat/ChatAttachment.vue', 'task/TaskCard.vue',
     'project/dashboard/DashboardChartPanel.vue', 'shared/DashboardChart.client.vue', 'charts/ChartContainer.vue',
-    'task/TaskProperties.vue',
+    'task/TaskProperties.vue', 'project/ProjectCharterForm.vue',
 ))
 STORY_CONTEXT = re.compile(r'''\bstoryContext\(\s*(['"])([^'"]+)\1''')
 META_COMPONENT = re.compile(r'\bcomponent:\s*(\w+)')
