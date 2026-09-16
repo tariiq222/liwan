@@ -158,7 +158,7 @@ async function confirmAction() {
             <li v-for="item in query.data.value?.items ?? []" :key="item.id" class="flex flex-wrap items-center justify-between gap-3 border-b border-default/80 p-3 last:border-0">
               <div>
                 <p class="font-medium">{{ item.name }}</p>
-                <p class="text-sm text-muted">{{ t('settings.projects.catalogs.sequenceValue', { sequence: item.sequence }) }} · {{ item.active ? t('settings.projects.catalogs.active') : t('settings.projects.catalogs.inactive') }}</p>
+                <p class="text-sm text-muted">{{ t('settings.projects.catalogs.sequenceValue', { sequence: item.sequence }) }} · {{ item.active ? t('settings.projects.catalogs.active') : t('settings.projects.catalogs.inactive') }}<template v-if="item.charter_steps"> · {{ t('settings.projects.catalogs.charterStepsColumn', { count: item.charter_steps.length }) }}</template></p>
               </div>
               <div class="flex flex-wrap gap-2">
                 <UButton type="button" variant="outline" size="sm" :disabled="!hydrated" @click="openEdit(item.id)">{{ t('settings.projects.catalogs.edit') }}</UButton>

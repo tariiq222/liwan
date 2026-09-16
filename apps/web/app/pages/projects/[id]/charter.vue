@@ -25,13 +25,28 @@ const {
 const backTo = computed(() => `/projects/${projectId.value}/governance`)
 const notFound = computed(() => projectId.value === null || (error.value instanceof ApiError && [403, 404].includes(error.value.status)))
 const readonly = computed(() => route.query.edit !== '1' || !(project.value?.can_manage ?? false))
+const charterState = computed(() => project.value?.charter.state ?? null)
+const isDraft = computed(() => charterState.value === 'draft')
 
-function onSaved() {
-  toast.add({ title: t('projects.charter.saved'), color: 'success', icon: 'i-lucide-circle-check' })
+function leaveEdit() {
+  if (projectId.value) void router.push({ path: `/projects/${projectId.value}/charter`, query: { ...route.query, edit: undefined, step: undefined } })
+}
+
+function onSaved(finalized: boolean) {
+  toast.add({
+    title: t(finalized ? 'projects.charter.finalized' : 'projects.charter.saved'),
+    color: 'success',
+    icon: 'i-lucide-circle-check',
+  })
+  leaveEdit()
+}
+
+function onDraftSaved() {
+  toast.add({ title: t('projects.charter.draftSaved'), color: 'success', icon: 'i-lucide-save' })
 }
 
 function onCancel() {
-  if (projectId.value) void router.push({ path: `/projects/${projectId.value}/charter`, query: { ...route.query, edit: undefined } })
+  leaveEdit()
 }
 </script>
 
@@ -43,9 +58,25 @@ function onCancel() {
       :back-label="t('projects.workspace.groups.governance')"
     >
       <template #actions>
-        <UButton v-if="project?.can_manage && readonly" :disabled="!hydrated" @click="router.push({ path: route.path, query: { ...route.query, edit: '1' } })">{{ t('app.edit') }}</UButton>
+        <UBadge
+          v-if="charterState"
+          data-testid="charter-state-badge"
+          :color="isDraft ? 'warning' : 'success'"
+          variant="subtle"
+          :label="t(`projects.charter.state.${charterState}`)"
+          :aria-label="`${t('projects.charter.stateLabel')}: ${t(`projects.charter.state.${charterState}`)}`"
+        />
+        <UButton v-if="project?.can_manage && readonly" data-testid="project-charter-edit" :disabled="!hydrated" @click="router.push({ path: route.path, query: { ...route.query, edit: '1' } })">{{ t(isDraft ? 'projects.charter.continueDraft' : 'app.edit') }}</UButton>
       </template>
     </SharedPageHeader>
+    <UAlert
+      v-if="readonly && isDraft && project"
+      data-testid="charter-draft-banner"
+      color="warning"
+      variant="subtle"
+      icon="i-lucide-pencil-line"
+      :title="t('projects.charter.draftBanner')"
+    />
     <template v-if="projectId === null">
       <p class="text-muted">{{ t('projects.invalidId') }}</p>
     </template>
@@ -67,6 +98,7 @@ function onCancel() {
               :milestones-loading="milestonesLoading"
               :milestones-error="milestonesError"
               @saved="onSaved"
+              @draft-saved="onDraftSaved"
               @cancel="onCancel"
               @retry-milestones="refetchMilestones"
             />

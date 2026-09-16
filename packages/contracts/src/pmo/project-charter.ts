@@ -17,6 +17,18 @@ export const CatalogRefSchema = z.object({
   name: z.string(),
 }).strict()
 
+// Optional charter wizard steps, in walk order. The basics and review steps
+// always exist and are not part of this list; a project type chooses which of
+// these it includes.
+export const ProjectCharterStepSchema = z.enum(['justification', 'scope', 'schedule', 'budget', 'risks'])
+export const PROJECT_CHARTER_STEPS = ProjectCharterStepSchema.options
+export const ProjectCharterStateSchema = z.enum(['draft', 'final'])
+export const PROJECT_CHARTER_STATES = ProjectCharterStateSchema.options
+
+export const ProjectTypeRefSchema = CatalogRefSchema.extend({
+  charter_steps: z.array(ProjectCharterStepSchema),
+}).strict()
+
 export const ProjectObjectiveSchema = z.object({
   goal: z.string(),
   metric: z.string(),
@@ -34,7 +46,7 @@ export const ProjectPrioritySchema = z.enum(['low', 'normal', 'high', 'critical'
 
 export const ProjectCharterSchema = z.object({
   code: z.string().nullable(),
-  type: CatalogRefSchema.nullable(),
+  type: ProjectTypeRefSchema.nullable(),
   owning_unit: CatalogRefSchema.nullable(),
   sponsor: CharterUserRefSchema.nullable(),
   authority: z.string(),
@@ -53,6 +65,7 @@ export const ProjectCharterSchema = z.object({
   assumptions: z.string(),
   constraints: z.string(),
   closure: z.string(),
+  state: ProjectCharterStateSchema,
 }).strict()
 
 export const ProjectCharterWriteSchema = z.object({
@@ -74,6 +87,7 @@ export const ProjectCharterWriteSchema = z.object({
   assumptions: z.string().optional(),
   constraints: z.string().optional(),
   closure: z.string().optional(),
+  state: ProjectCharterStateSchema.optional(),
 }).strict()
 
 export const ProjectCharterDefaultsSchema = z.object({
@@ -82,6 +96,9 @@ export const ProjectCharterDefaultsSchema = z.object({
 
 export type CurrencyRef = z.infer<typeof CurrencyRefSchema>
 export type CatalogRef = z.infer<typeof CatalogRefSchema>
+export type ProjectTypeRef = z.infer<typeof ProjectTypeRefSchema>
+export type ProjectCharterStep = z.infer<typeof ProjectCharterStepSchema>
+export type ProjectCharterState = z.infer<typeof ProjectCharterStateSchema>
 export type ProjectObjective = z.infer<typeof ProjectObjectiveSchema>
 export type ProjectDeliverable = z.infer<typeof ProjectDeliverableSchema>
 export type BudgetState = z.infer<typeof BudgetStateSchema>

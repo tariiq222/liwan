@@ -1,14 +1,16 @@
 import {
   BudgetStateSchema,
+  PROJECT_CHARTER_STEPS,
   ProjectCharterDefaultsSchema,
   ProjectCharterSchema,
+  ProjectCharterStateSchema,
   ProjectCharterWriteSchema,
   ProjectPrioritySchema,
 } from '../project-charter'
 
 const CHARTER = {
   code: 'PRJ-000001',
-  type: { id: 4, name: 'تقني' },
+  type: { id: 4, name: 'تقني', charter_steps: ['justification', 'scope', 'schedule', 'budget', 'risks'] },
   owning_unit: { id: 8, name: 'PMO' },
   sponsor: { id: 2, name: 'Sara' },
   authority: 'Board',
@@ -27,6 +29,7 @@ const CHARTER = {
   assumptions: 'A',
   constraints: 'C',
   closure: 'Close',
+  state: 'final',
 }
 
 describe('ProjectCharterSchema', () => {
@@ -51,6 +54,15 @@ describe('ProjectCharterSchema', () => {
     expect(() => BudgetStateSchema.parse('approved')).toThrow()
     expect(() => ProjectPrioritySchema.parse('urgent')).toThrow()
   })
+  it('carries the charter state and the type steps that drive the wizard', () => {
+    expect(ProjectCharterSchema.parse({ ...CHARTER, state: 'draft' }).state).toBe('draft')
+    expect(() => ProjectCharterSchema.parse({ ...CHARTER, state: 'approved' })).toThrow()
+    expect(() => ProjectCharterSchema.parse({ ...CHARTER, type: { id: 4, name: 'تقني' } })).toThrow()
+    expect(() => ProjectCharterSchema.parse({ ...CHARTER, type: { ...CHARTER.type, charter_steps: ['signatures'] } })).toThrow()
+    expect(ProjectCharterSchema.parse({ ...CHARTER, type: { ...CHARTER.type, charter_steps: [] } }).type?.charter_steps).toEqual([])
+    expect(PROJECT_CHARTER_STEPS).toEqual(['justification', 'scope', 'schedule', 'budget', 'risks'])
+    expect(ProjectCharterStateSchema.options).toEqual(['draft', 'final'])
+  })
 })
 
 describe('ProjectCharterWriteSchema', () => {
@@ -60,6 +72,8 @@ describe('ProjectCharterWriteSchema', () => {
     expect(() => ProjectCharterWriteSchema.parse({ code: 'PRJ-000001' })).toThrow()
     expect(() => ProjectCharterWriteSchema.parse({ currency: CHARTER.currency })).toThrow()
     expect(() => ProjectCharterWriteSchema.parse({ type: CHARTER.type })).toThrow()
+    expect(ProjectCharterWriteSchema.parse({ state: 'draft' }).state).toBe('draft')
+    expect(() => ProjectCharterWriteSchema.parse({ state: 'archived' })).toThrow()
   })
 })
 

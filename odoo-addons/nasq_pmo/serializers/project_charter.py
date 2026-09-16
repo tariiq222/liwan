@@ -6,6 +6,7 @@ from odoo.http import request
 from odoo.addons.nasq_api.controllers.common import ApiError
 from odoo.addons.nasq_pmo.models.project_project import (
     BUDGET_STATES,
+    CHARTER_STATES,
     DELIVERABLE_KEYS,
     OBJECTIVE_KEYS,
     PRIORITY_VALUES,
@@ -15,7 +16,7 @@ CHARTER_WRITE_FIELDS = {
     'type_id', 'owning_unit_id', 'sponsor_id', 'authority', 'rationale',
     'objectives', 'benefits', 'scope', 'exclusions', 'high_level_requirements',
     'deliverables', 'success', 'budget_state', 'amount', 'priority',
-    'assumptions', 'constraints', 'closure',
+    'assumptions', 'constraints', 'closure', 'state',
 }
 CHARTER_READONLY_FIELDS = {'code', 'type', 'owning_unit', 'sponsor', 'currency'}
 TEXT_TO_ORM = {
@@ -47,6 +48,14 @@ def dump_catalog_ref(record):
     return {'id': record.id, 'name': record.name} if record else None
 
 
+def dump_type_ref(record):
+    # The charter wizard derives its steps from the project type, so the type
+    # reference carries them alongside the plain catalog identity.
+    if not record:
+        return None
+    return {'id': record.id, 'name': record.name, 'charter_steps': record._nasq_charter_steps()}
+
+
 def dump_user_ref(user):
     return {'id': user.id, 'name': user.name} if user else None
 
@@ -55,7 +64,7 @@ def dump_charter(project):
     amount = None if project.nasq_budget_state == 'unknown' else project.nasq_budget_amount
     return {
         'code': project.nasq_code or None,
-        'type': dump_catalog_ref(project.nasq_type_id),
+        'type': dump_type_ref(project.nasq_type_id),
         'owning_unit': dump_catalog_ref(project.nasq_owning_unit_id),
         'sponsor': dump_user_ref(project.nasq_sponsor_id),
         'authority': project.nasq_authority or '',
@@ -74,6 +83,7 @@ def dump_charter(project):
         'assumptions': project.nasq_assumptions or '',
         'constraints': project.nasq_constraints or '',
         'closure': project.nasq_closure or '',
+        'state': project.nasq_charter_state or 'draft',
     }
 
 
@@ -128,6 +138,10 @@ def parse_charter_vals(payload, project=None):
             vals['nasq_budget_state'] = value
         elif key == 'amount':
             vals['nasq_budget_amount'] = _parse_amount(value)
+        elif key == 'state':
+            if value not in CHARTER_STATES:
+                raise ApiError(422, 'invalid', "state must be 'draft' or 'final'", field='state')
+            vals['nasq_charter_state'] = value
     return _apply_budget_policy(vals, project)
 
 

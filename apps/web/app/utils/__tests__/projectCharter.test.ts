@@ -5,8 +5,10 @@ import {
   canOverwriteWithLatest,
   charterWriteFromDraft,
   charterCreateBody,
+  charterErrorsForFields,
   createdProjectLocation,
   draftFromProject,
+  draftedProjectLocation,
   emptyCharterDraft,
   hasCharterWriteContent,
   isCharterDraftDirty,
@@ -26,7 +28,7 @@ const EMPTY_CHARTER = {
   objectives: [], benefits: '', scope: '', exclusions: '', high_level_requirements: '',
   deliverables: [], success: '', budget_state: 'unknown' as const, amount: null,
   currency: { id: 1, name: 'SAR', symbol: 'ر.س', decimal_places: 2 },
-  priority: null, assumptions: '', constraints: '', closure: '',
+  priority: null, assumptions: '', constraints: '', closure: '', state: 'draft' as const,
 }
 
 function project(overrides: Partial<ProjectDetail> = {}): ProjectDetail {
@@ -304,5 +306,47 @@ describe('charter document helpers', () => {
       { milestoneId: 4, milestoneName: 'Discovery', name: 'Brief', done: true },
       { milestoneId: 5, milestoneName: 'Launch', name: 'Runbook', done: false },
     ])
+  })
+})
+
+describe('charter state on the wire', () => {
+  it('sends state only when a create finalizes, and always on a patch', () => {
+    const draft = emptyCharterDraft()
+    draft.name = 'Portal'
+    expect(charterCreateBody(draft)).not.toHaveProperty('charter')
+    draft.charterState = 'final'
+    expect(charterCreateBody(draft).charter).toEqual({ state: 'final' })
+    draft.charterState = 'draft'
+    expect(charterPatchBody(draft, 'v1', { dateStart: null, dateEnd: null }).charter?.state).toBe('draft')
+    draft.charterState = 'final'
+    expect(charterPatchBody(draft, 'v1', { dateStart: null, dateEnd: null }).charter?.state).toBe('final')
+  })
+
+  it('loads the charter state and the type steps from the project detail', () => {
+    const loaded = draftFromProject(project({
+      charter: {
+        ...EMPTY_CHARTER,
+        state: 'final',
+        type: { id: 4, name: 'تقني', charter_steps: ['justification', 'scope'] },
+      },
+    }))
+    expect(loaded.charterState).toBe('final')
+    expect(loaded.typeSteps).toEqual(['justification', 'scope'])
+    expect(draftFromProject(project()).typeSteps).toBeNull()
+  })
+
+  it('does not count a state change as an unsaved edit', () => {
+    const base = emptyCharterDraft()
+    const changed = { ...emptyCharterDraft(), charterState: 'final' as const }
+    expect(isCharterDraftDirty(changed, base)).toBe(false)
+  })
+
+  it('filters step errors and routes a drafted project back into its charter step', () => {
+    const errors = [{ field: 'name' as const, code: 'required' }, { field: 'amount' as const, code: 'invalid' }]
+    expect(charterErrorsForFields(errors, ['name', 'description'])).toEqual([{ field: 'name', code: 'required' }])
+    expect(draftedProjectLocation(9, 'scope', '/projects?q=x')).toEqual({
+      path: '/projects/9/charter',
+      query: { returnTo: '/projects?q=x', edit: '1', step: 'scope' },
+    })
   })
 })

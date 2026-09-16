@@ -95,7 +95,7 @@ const EMPTY_CHARTER = {
   objectives: [], benefits: '', scope: '', exclusions: '', high_level_requirements: '',
   deliverables: [], success: '', budget_state: 'unknown', amount: null,
   currency: { id: 1, name: 'SAR', symbol: 'ر.س', decimal_places: 2 },
-  priority: null, assumptions: '', constraints: '', closure: '',
+  priority: null, assumptions: '', constraints: '', closure: '', state: 'draft',
 }
 const PROJECT_JSON = { id: 3, name: 'Erada Portal', status: null, progress: 33, task_count: 3, closed_task_count: 1, active: true, can_manage: false }
 
