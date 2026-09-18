@@ -62,11 +62,13 @@ explicitly; do not assume an Odoo config points at a particular Nasq checkout.
 
 ## Product contracts
 
-- Presentation follows DESIGN.md (pages, one route-backed record sheet, and
-  the listed overlay exceptions). Keep stable routes, visible headings,
-  direct-link/refresh support, and back navigation that preserves list
-  filters. Destructive actions use explicit inline confirmation. Do not stack
-  business dialogs. Selection menus remain controls, not business screens.
+- Presentation follows DESIGN.md (pages, the route-backed `SharedCreatePanel`
+  for `/new`, and the overlay exceptions: search, notification bell, unsaved
+  draft). Keep stable routes, visible headings, direct-link/refresh support,
+  and back navigation that preserves list filters. Task board view is
+  `?view=board`. Destructive actions use explicit inline confirmation. Do not
+  stack business dialogs. Selection menus remain controls, not business
+  screens.
 - Arabic (`ar`) is the default locale and the UI is RTL-first. User-facing
   strings use `$t()`/`t()` and the owning locale namespace.
 - Use Tailwind logical properties (`ms-`, `me-`, `ps-`, `pe-`, `start-`,
@@ -185,7 +187,8 @@ worktrees only after their content is preserved and no process is using them.
   steps the project type configures (`charter_steps` on `nasq.project.type`,
   exposed on the types catalog and on `charter.type`), then review. The
   charter carries `state` (`draft | final`); a new charter is a draft and the
-  review step finalizes it. `/projects/new` is a full page, never a sheet.
+  review step finalizes it. `/projects/new` uses the route-backed create panel
+  (`SharedCreatePanel`), like other `/new` routes.
 - Task attachment uploads accept PDF, PNG, JPEG, text, DOCX and XLSX up to
   10 MiB decoded, with exact binary task linkage and ordinary attachment ACLs.
   Dependency edits require project management, same active project, positive

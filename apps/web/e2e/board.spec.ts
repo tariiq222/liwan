@@ -54,7 +54,7 @@ test('board tab: drag between stages persists, and the keyboard menu moves a car
   const name = `E2E board ${Date.now()}`
   const id = await createTask(page, name)
 
-  await page.goto('/tasks?tab=board')
+  await page.goto('/tasks?view=board')
   await expect(page.getByRole('heading', { name: 'مهامي' })).toBeVisible()
 
   // The leading "بلا مرحلة" column always renders (Odoo assigns every new
@@ -107,7 +107,7 @@ test('board tab: drag between stages persists, and the keyboard menu moves a car
 
 test('board tab: a folded stage renders collapsed with a count and expands on click', async ({ page }) => {
   await login(page)
-  await page.goto('/tasks?tab=board')
+  await page.goto('/tasks?view=board')
   await expect(page.getByRole('heading', { name: 'مهامي' })).toBeVisible()
 
   // The default personal stages seed "Done"/"Cancelled" (translated) as

@@ -22,10 +22,13 @@ These are repository instructions for every coding agent, regardless of tool.
   through `nasq_hr`. Do not recreate either pillar.
 - The HR page is `/hr`; `/api/v1/people` remains the PMO user-id picker. Preserve
   HR documents and the `{items, total}` list envelopes.
-- Presentation (pages, the one route-backed record sheet, and the three overlay
-  exceptions) follows DESIGN.md. Keep direct links, refresh/back, filters,
-  permissions and draft protection. Do not stack business dialogs. Confirm
-  destructive actions inline. Value-selection menus are controls, not screens.
+- Presentation (pages, the one route-backed create panel `SharedCreatePanel`,
+  and the three overlay exceptions: search, notification bell, unsaved draft)
+  follows DESIGN.md. `/new` routes open that panel; records and edits are
+  pages. Task board view is `?view=board`. Keep direct links, refresh/back,
+  filters, permissions and draft protection. Do not stack business dialogs.
+  Confirm destructive actions inline. Value-selection menus are controls, not
+  screens.
 - Read `docs/WORKSPACE.md` for the checkout map and current delivery records.
   Verify branch and dirty state live. Dated integration/recovery reports and
   older WIP describe their own checkpoints, not the current source state.

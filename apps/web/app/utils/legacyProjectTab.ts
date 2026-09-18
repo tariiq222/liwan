@@ -22,9 +22,13 @@ export function legacyProjectTabTarget(
   path: string,
   query: Record<string, unknown>,
 ): { path: string; query: Record<string, string> } | null {
+  const bare = path.replace(/\/+$/, '') || '/'
+  // Standalone /tasks used ?tab=board before DESIGN settled on ?view=board.
+  if (bare === '/tasks' && firstString(query.tab) === 'board') {
+    return { path: '/tasks', query: { ...keptQuery(query), view: 'board' } }
+  }
   const id = projectIdFromPath(path)
   if (id === null) return null
-  const bare = path.replace(/\/+$/, '') || '/'
   // Governance lost its card index to sub-tabs; old links open the first one.
   if (bare === `/projects/${id}/governance`) return { path: `/projects/${id}/charter`, query: keptQuery(query) }
   if (bare !== `/projects/${id}`) return null

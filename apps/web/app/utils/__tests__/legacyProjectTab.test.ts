@@ -25,9 +25,15 @@ describe('legacyProjectTabTarget', () => {
     expect(legacyProjectTabTarget('/projects/7/governance/', { tab: 'x' })).toEqual({ path: '/projects/7/charter', query: {} })
   })
 
+  it('turns standalone /tasks?tab=board into ?view=board and keeps filters', () => {
+    expect(legacyProjectTabTarget('/tasks', { tab: 'board' })).toEqual({ path: '/tasks', query: { view: 'board' } })
+    expect(legacyProjectTabTarget('/tasks/', { tab: 'board', q: 'عقد' })).toEqual({ path: '/tasks', query: { q: 'عقد', view: 'board' } })
+  })
+
   it('leaves already-migrated and non-project routes alone', () => {
     expect(legacyProjectTabTarget('/projects/7/tasks', { view: 'board' })).toBeNull()
     expect(legacyProjectTabTarget('/projects/7', {})).toBeNull()
     expect(legacyProjectTabTarget('/tasks', { tab: 'tasks' })).toBeNull()
+    expect(legacyProjectTabTarget('/tasks', { view: 'board' })).toBeNull()
   })
 })

@@ -9,6 +9,12 @@ const table = readFileSync(resolve(appRoot, 'components/task/TaskTable.vue'), 'u
 const board = readFileSync(resolve(appRoot, 'components/task/TaskBoard.vue'), 'utf8')
 
 describe('tasks list design', () => {
+  it('picks the board only on ?view=board', () => {
+    expect(page).toContain("route.query.view === 'board'")
+    expect(page).not.toContain("route.query.tab === 'board'")
+    expect(page).toContain("view: view === 'board' ? 'board' : undefined")
+  })
+
   it('puts create and archive in the page header, filters in the toolbar', () => {
     expect(page).toContain('#actions')
     expect(page).toContain("can('pmo.tasks.create')")

@@ -15,21 +15,19 @@ const { can } = useAccess()
 // its listener.
 const hydrated = useHydrated()
 
-const tab = computed(() => (route.query.tab === 'board' ? 'board' : 'table'))
+const isBoard = computed(() => route.query.view === 'board')
 const normalizedPath = computed(() => route.path.replace(/\/+$/, '') || '/')
 const isBaseRoute = computed(() => normalizedPath.value === '/tasks')
 const isCreateRoute = computed(() => normalizedPath.value === '/tasks/new')
 const showList = computed(() => isBaseRoute.value || isCreateRoute.value)
-function onTabChange(v: unknown) {
-  router.replace({ query: { ...route.query, tab: v === 'board' ? 'board' : undefined } })
-}
 function onViewChange(view: 'table' | 'board') {
-  onTabChange(view)
+  const { tab: _legacy, ...rest } = route.query
+  router.replace({ query: { ...rest, view: view === 'board' ? 'board' : undefined } })
 }
 
 // Detail is a real route (/tasks/{id}, see pages/tasks/[id].vue). The list's
 // own state travels as plain query, not wrapped in a returnTo: the detail page
-// hands the same keys straight back, so ?tab=board survives the round trip and
+// hands the same keys straight back, so ?view=board survives the round trip and
 // nothing accumulates in the URL.
 function openTask(id: number) {
   router.push({ path: `/tasks/${id}`, query: { ...route.query } })
@@ -58,12 +56,12 @@ function openCreate() {
       </template>
     </SharedPageHeader>
 
-    <TaskToolbar v-model="params" :view="tab" collapsible @update:view="onViewChange" />
+    <TaskToolbar v-model="params" :view="isBoard ? 'board' : 'table'" collapsible @update:view="onViewChange" />
     <!-- Query data may resolve after SSR markup is emitted but before
          client hydration starts. Mount the dynamic result surface only
          after this page has hydrated so the toolbar controls above keep
          their listeners and their first click is never lost. -->
-    <TaskTable v-if="hydrated && tab === 'table'" :params="params" @open="openTask" @create="openCreate" />
+    <TaskTable v-if="hydrated && !isBoard" :params="params" @open="openTask" @create="openCreate" />
     <TaskBoard v-else-if="hydrated" :params="params" @open="openTask" />
 
   </SharedPageContainer>

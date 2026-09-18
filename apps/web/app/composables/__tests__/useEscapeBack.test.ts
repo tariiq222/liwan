@@ -137,14 +137,14 @@ async function buildRouter(recordComponent: Component, start: string) {
 
 describe('Escape returns a record to its own back target', () => {
   it('pushes the page back target that its visible back control uses', async () => {
-    const record = escapeBackRoute({ backTo: { path: '/tasks', query: { tab: 'board' } } })
-    const host = await buildRouter(record, '/tasks/7?tab=board')
+    const record = escapeBackRoute({ backTo: { path: '/tasks', query: { view: 'board' } } })
+    const host = await buildRouter(record, '/tasks/7?view=board')
     expect(doc.listenerCount(), 'the record must be listening for Escape').toBe(1)
 
     doc.press({ key: 'Escape', target: { tagName: 'BODY' } })
     await settle()
 
-    expect(router.currentRoute.value.fullPath).toBe('/tasks?tab=board')
+    expect(router.currentRoute.value.fullPath).toBe('/tasks?view=board')
     expect(findNode(host, node => node.props['data-testid'] === 'screen')?.text).toBe('list')
   })
 
@@ -198,8 +198,8 @@ describe('Escape returns a record to its own back target', () => {
     // Escape navigates rather than emitting, so SharedUnsavedChanges answers it
     // through its own onBeforeRouteLeave — the draft is defended, not discarded.
     const dirty = ref(true)
-    const record = escapeBackRoute({ backTo: { path: '/tasks', query: { tab: 'board' } }, dirty })
-    const host = await buildRouter(record, '/tasks/7?tab=board')
+    const record = escapeBackRoute({ backTo: { path: '/tasks', query: { view: 'board' } }, dirty })
+    const host = await buildRouter(record, '/tasks/7?view=board')
 
     doc.press({ key: 'Escape', target: { tagName: 'BODY' } })
     await settle()

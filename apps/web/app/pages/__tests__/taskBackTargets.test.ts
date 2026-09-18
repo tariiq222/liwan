@@ -107,7 +107,7 @@ describe('task detail back targets — runtime round trip', () => {
     // Round trip through the list's own link builder: whatever it puts on the
     // detail URL is what the detail page has to send back.
     const router = makeRouter()
-    await router.push('/tasks?tab=board')
+    await router.push('/tasks?view=board')
     await router.isReady()
     // openTask navigates rather than returning a location, so record the push.
     let pushed: RouteLocationRaw | undefined
@@ -121,7 +121,7 @@ describe('task detail back targets — runtime round trip', () => {
 
     const back = await backTargetAfter(router, detail.fullPath, 'app/pages/tasks/[id].vue')
     expect(back.path).toBe('/tasks')
-    expect(back.query.tab, 'the board view must survive the round trip').toBe('board')
+    expect(back.query.view, 'the board view must survive the round trip').toBe('board')
     expect(back.query.returnTo).toBeUndefined()
   })
 
@@ -152,8 +152,8 @@ describe('task detail back targets — runtime round trip', () => {
     expect(back.fullPath).toBe('/projects/7/tasks?q=a')
     expect(back.query.returnTo).toBeUndefined()
 
-    const standalone = await backTargetAfter(router, '/tasks/5?returnTo=%2Ftasks%3Ftab%3Dboard&tab=board', 'app/pages/tasks/[id].vue')
-    expect(standalone.fullPath).toBe('/tasks?tab=board')
+    const standalone = await backTargetAfter(router, '/tasks/5?returnTo=%2Ftasks%3Fview%3Dboard&view=board', 'app/pages/tasks/[id].vue')
+    expect(standalone.fullPath).toBe('/tasks?view=board')
     expect(standalone.query.returnTo).toBeUndefined()
   })
 })
