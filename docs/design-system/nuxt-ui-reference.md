@@ -55,7 +55,7 @@ Storybook في `apps/web` هو **فهرس المكونات الملزم** لكل
 | البيانات والـ API | `apps/web/stories/fixtures/**` تمر عبر مخططات `@nasq/contracts`؛ `apps/web/stories/handlers/api.ts` يحاكي `/api/v1` عبر MSW |
 | قائمة التغطية | `STORYBOOK_COMPONENTS` في `tools/ui_policy.py` |
 
-التشغيل: `npm -w apps/web run storybook` (منفذ 6006، أو `-- -p <port>`). البناء: `npm -w apps/web run build-storybook`. الفحص: `cd apps/web && npx playwright test e2e/storybook-smoke.spec.ts` بعد البناء (بلا فلترة grep؛ فحص الأنواع `npx -w apps/web vue-tsc --noEmit -p .storybook/tsconfig.json` يجب أن يخرج بـ 0 مباشرة).
+التشغيل: `npm -w apps/web run storybook` (منفذ 6006، أو `-- -p <port>`). البناء: `npm -w apps/web run build-storybook`. الفحص: `cd apps/web && npx playwright test e2e/storybook-smoke.spec.ts` بعد البناء (بلا فلترة grep؛ فحص الأنواع `cd apps/web && npx vue-tsc --noEmit -p .storybook/tsconfig.json` يجب أن يخرج بـ 0 مباشرة (لا تستخدم `npx -w`؛ `npx` لا يدعمها فيفحص لا شيء ويخرج بـ 0 كاذب)).
 
 إضافة لبنة: عندما يُستخدم مكوّن في ملفين أو أكثر، أضف مساره إلى `STORYBOOK_COMPONENTS` واكتب قصته داخل سياق استخدامه.
 

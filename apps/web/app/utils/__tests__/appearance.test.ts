@@ -34,6 +34,16 @@ describe('document attributes for an appearance', () => {
       dir: 'rtl',
     })
   })
+
+  it.each(['rtl', 'ltr', 'auto'] as const)('keeps the valid direction %j', (dir) => {
+    expect(htmlAttrsFor({ mode: 'light', fontSize: 'small', dir }).dir).toBe(dir)
+  })
+
+  it('drops a direction the document cannot use instead of writing it out', () => {
+    expect(htmlAttrsFor({ mode: 'light', fontSize: 'small', dir: 'sideways' }).dir).toBeUndefined()
+    expect(htmlAttrsFor({ mode: 'light', fontSize: 'small', dir: '' }).dir).toBeUndefined()
+    expect(htmlAttrsFor({ mode: 'light', fontSize: 'small' }).dir).toBeUndefined()
+  })
 })
 
 describe('per-user appearance on the wire', () => {

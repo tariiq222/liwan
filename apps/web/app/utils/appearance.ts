@@ -37,6 +37,15 @@ export function sameAppearance(left: AppearancePreference, right: AppearancePref
   return left.mode === right.mode && left.fontSize === right.fontSize
 }
 
+// `useHead` types `htmlAttrs.dir` as this union, so the loose `string` that
+// `useLocaleHead()` and `localeProperties.dir` hand us is narrowed here once
+// instead of being cast at every call site.
+export type HtmlDir = 'ltr' | 'rtl' | 'auto'
+
+function normalizeDir(value: string | undefined): HtmlDir | undefined {
+  return value === 'ltr' || value === 'rtl' || value === 'auto' ? value : undefined
+}
+
 export interface HtmlAttrsInput {
   mode: AppearanceMode
   fontSize: FontSize
@@ -44,11 +53,14 @@ export interface HtmlAttrsInput {
   dir?: string
 }
 
-export interface HtmlAttrs {
+// A type alias, not an interface: `useHead` expects `htmlAttrs` to carry
+// template-literal index signatures (`xmlns:*`, `data-*`), and TypeScript
+// infers those implicitly for aliases but never for interfaces.
+export type HtmlAttrs = {
   class: '' | 'dark' | 'cream'
   'data-font-size': FontSize
   lang?: string
-  dir?: string
+  dir?: HtmlDir
 }
 
 export function htmlAttrsFor({ mode, fontSize, lang, dir }: HtmlAttrsInput): HtmlAttrs {
@@ -56,6 +68,6 @@ export function htmlAttrsFor({ mode, fontSize, lang, dir }: HtmlAttrsInput): Htm
     class: mode === 'dark' ? 'dark' : mode === 'cream' ? 'cream' : '',
     'data-font-size': fontSize,
     lang,
-    dir,
+    dir: normalizeDir(dir),
   }
 }

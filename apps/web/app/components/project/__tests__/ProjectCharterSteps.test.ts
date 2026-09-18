@@ -84,7 +84,6 @@ async function renderFields(fields: readonly CharterFieldKey[] = CHARTER_FIELD_K
       t: (key: string) => key,
       helpLabel: (key: string) => key,
       catalogSettingsPath: () => '#',
-      typeStepLabels: ['justification'],
       onManagerResolve: () => {},
       onSponsorResolve: () => {},
       onTypeSelect: () => {},

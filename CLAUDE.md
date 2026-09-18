@@ -241,9 +241,12 @@ cd /Users/tariq/code/odoo
   --http-port=8169 --stop-after-init
 ```
 
-Use `npm test` for contracts and web unit tests, `npx -w apps/web vue-tsc
---noEmit` for the web type check, and `cd apps/web && npm run test:e2e` for
-Playwright. Employee fixtures are created through Odoo, never through the
+Use `npm test` for contracts and web unit tests, `npm -w apps/web run lint`
+(that is `vue-tsc --build --noEmit`) for the web type check, and
+`cd apps/web && npm run test:e2e` for Playwright. Do not type-check with
+`npx -w apps/web vue-tsc ...`: `npx` has no `-w` flag, so it silently runs
+from the repo root, checks nothing, and exits 0. Every `vue-tsc` invocation
+runs from `apps/web`. Employee fixtures are created through Odoo, never through the
 Nuxt UI. API tests extend `NasqApiCase` from `nasq_api/tests/common.py` or
 `NasqPmoCase` for PMO fixtures; every `test_*.py` must be imported by its
 addon `tests/__init__.py`. Loading a code/data change into an authorized

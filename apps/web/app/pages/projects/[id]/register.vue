@@ -33,18 +33,21 @@ const q = computed({
   get: () => typeof route.query.q === 'string' ? route.query.q : '',
   set: value => setFilter('q', value),
 })
-const kind = computed({
-  get: () => parsed.value.kind ?? 'all',
-  set: value => setFilter('kind', value === 'all' ? '' : String(value ?? '')),
-})
-const status = computed({
-  get: () => parsed.value.status ?? 'all',
-  set: value => setFilter('status', value === 'all' ? '' : String(value ?? '')),
-})
-const priority = computed({
-  get: () => parsed.value.priority ?? 'all',
-  set: value => setFilter('priority', value === 'all' ? '' : String(value ?? '')),
-})
+const kind = computed(() => parsed.value.kind ?? 'all')
+const status = computed(() => parsed.value.status ?? 'all')
+const priority = computed(() => parsed.value.priority ?? 'all')
+// The choice controls emit a plain string, so each filter gets its own
+// setter instead of a writable computed whose setter would inherit the
+// getter's narrowed union type.
+function setKind(value: unknown) {
+  setFilter('kind', value === 'all' ? '' : String(value ?? ''))
+}
+function setStatus(value: unknown) {
+  setFilter('status', value === 'all' ? '' : String(value ?? ''))
+}
+function setPriority(value: unknown) {
+  setFilter('priority', value === 'all' ? '' : String(value ?? ''))
+}
 const activeFilterCount = computed(() => Number(Boolean(q.value.trim())) + Number(Boolean(parsed.value.kind)) + Number(Boolean(parsed.value.status)) + Number(Boolean(parsed.value.priority)))
 function clearFilters() {
   router.replace({ query: { ...route.query, q: undefined, kind: undefined, status: undefined, priority: undefined, offset: undefined } })
@@ -152,29 +155,29 @@ function cancelDelete() {
           :items="kindItems"
           :model-value="kind"
           :disabled="!hydrated"
-          @update:model-value="kind = String($event)"
+          @update:model-value="setKind($event)"
         />
         <SharedFilterChoice
           :label="t('projects.governance.register.status')"
           :items="statusItems"
           :model-value="status"
           :disabled="!hydrated"
-          @update:model-value="status = String($event)"
+          @update:model-value="setStatus($event)"
         />
         <SharedFilterChoice
           :label="t('projects.governance.register.priority')"
           :items="priorityItems"
           :model-value="priority"
           :disabled="!hydrated"
-          @update:model-value="priority = String($event)"
+          @update:model-value="setPriority($event)"
         />
       </template>
       <template #active>
         <div v-if="activeFilterCount" class="flex flex-wrap items-center gap-2">
           <SharedFilterChip v-if="q.trim()" :label="`${t('projects.clarity.registerSearch')}: ${q}`" @remove="q = ''" />
-          <SharedFilterChip v-if="parsed.kind" :label="itemLabel(kindItems, kind)" @remove="kind = 'all'" />
-          <SharedFilterChip v-if="parsed.status" :label="itemLabel(statusItems, status)" @remove="status = 'all'" />
-          <SharedFilterChip v-if="parsed.priority" :label="itemLabel(priorityItems, priority)" @remove="priority = 'all'" />
+          <SharedFilterChip v-if="parsed.kind" :label="itemLabel(kindItems, kind)" @remove="setKind('all')" />
+          <SharedFilterChip v-if="parsed.status" :label="itemLabel(statusItems, status)" @remove="setStatus('all')" />
+          <SharedFilterChip v-if="parsed.priority" :label="itemLabel(priorityItems, priority)" @remove="setPriority('all')" />
         </div>
       </template>
     </FilterBar>
