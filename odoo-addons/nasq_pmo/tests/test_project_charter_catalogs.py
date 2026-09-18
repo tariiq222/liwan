@@ -1,10 +1,18 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from odoo.exceptions import AccessError, UserError
+from odoo.exceptions import AccessError, UserError, ValidationError
 from odoo.tests import TransactionCase, new_test_user, tagged
 
 from .common import NasqPmoCase
 
 CATALOG_KEYS = {'id', 'name', 'sequence', 'active'}
+TYPE_KEYS = CATALOG_KEYS | {'charter_steps'}
+ALL_STEPS = ['justification', 'scope', 'schedule', 'budget', 'risks']
+SEED_STEPS = [
+    ALL_STEPS,
+    ['justification', 'scope', 'schedule'],
+    ALL_STEPS,
+    ['justification', 'scope', 'schedule', 'budget'],
+]
 
 
 @tagged('post_install', '-at_install', 'nasq')
@@ -21,7 +29,8 @@ class TestProjectCharterCatalogApi(NasqPmoCase):
         self.assertEqual(set(types), {'items', 'total'})
         self.assertEqual(types['total'], 4)
         self.assertEqual([item['name'] for item in types['items']], ['تقني', 'تشغيلي', 'إنشائي', 'تطويري'])
-        self.assertEqual(set(types['items'][0]), CATALOG_KEYS)
+        self.assertEqual(set(types['items'][0]), TYPE_KEYS)
+        self.assertEqual([item['charter_steps'] for item in types['items']], SEED_STEPS)
         units = self.api('GET', '/api/v1/project-charter/catalogs/owning-units').json()
         self.assertEqual((units['items'], units['total']), ([], 0))
         defaults = self.api('GET', '/api/v1/project-charter/defaults').json()
@@ -54,6 +63,42 @@ class TestProjectCharterCatalogApi(NasqPmoCase):
         self.assertEqual(inactive['total'], 1)
         deleted = self.api('DELETE', f"/api/v1/project-charter/catalogs/owning-units/{item['id']}")
         self.assertEqual(deleted.json(), {'deleted': True})
+
+    def test_type_charter_steps_create_patch_and_validation(self):
+        self.authenticate('api_mgr', 'api_mgr_pass_123')
+        created = self.api('POST', '/api/v1/project-charter/catalogs/types', {'name': 'Light'})
+        self.assertEqual(created.status_code, 201, created.text)
+        item = created.json()
+        self.assertEqual(set(item), TYPE_KEYS)
+        self.assertEqual(item['charter_steps'], ALL_STEPS)
+        path = f"/api/v1/project-charter/catalogs/types/{item['id']}"
+        # Steps are stored in canonical order whatever order the client sends.
+        patched = self.api('PATCH', path, {'charter_steps': ['budget', 'justification']})
+        self.assertEqual(patched.status_code, 200, patched.text)
+        self.assertEqual(patched.json()['charter_steps'], ['justification', 'budget'])
+        self.assertEqual(self.api('GET', path).json()['charter_steps'], ['justification', 'budget'])
+        emptied = self.api('PATCH', path, {'charter_steps': []})
+        self.assertEqual(emptied.json()['charter_steps'], [])
+        unknown = self.api('PATCH', path, {'charter_steps': ['signatures']})
+        self.assertEqual((unknown.status_code, unknown.json()['field']), (422, 'charter_steps'))
+        repeated = self.api('PATCH', path, {'charter_steps': ['scope', 'scope']})
+        self.assertEqual(repeated.status_code, 422)
+        not_list = self.api('PATCH', path, {'charter_steps': 'scope'})
+        self.assertEqual(not_list.status_code, 422)
+        with_steps = self.api('POST', '/api/v1/project-charter/catalogs/types', {
+            'name': 'Scoped', 'charter_steps': ['scope'],
+        })
+        self.assertEqual(with_steps.status_code, 201, with_steps.text)
+        self.assertEqual(with_steps.json()['charter_steps'], ['scope'])
+        unit = self.api('POST', '/api/v1/project-charter/catalogs/owning-units', {
+            'name': 'Ops', 'charter_steps': ['scope'],
+        })
+        self.assertEqual((unit.status_code, unit.json()['field']), (422, 'charter_steps'))
+        plain_unit = self.api('POST', '/api/v1/project-charter/catalogs/owning-units', {'name': 'Ops'}).json()
+        self.assertEqual(set(plain_unit), CATALOG_KEYS)
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        forbidden = self.api('PATCH', path, {'charter_steps': ['scope']})
+        self.assertEqual(forbidden.status_code, 403)
 
     def test_delete_used_is_generic_conflict(self):
         self.authenticate('api_mgr', 'api_mgr_pass_123')
@@ -117,6 +162,9 @@ class TestProjectCharterCatalogModel(TransactionCase):
             ('company_id', '=', other.id),
         ], order='sequence, id')
         self.assertEqual(seeded.mapped('name'), ['تقني', 'تشغيلي', 'إنشائي', 'تطويري'])
+        self.assertEqual([record._nasq_charter_steps() for record in seeded], SEED_STEPS)
+        with self.assertRaises(ValidationError):
+            seeded[0].write({'charter_steps': ['nope']})
         units = self.env['nasq.project.owning.unit'].search([('company_id', '=', other.id)])
         self.assertFalse(units)
 

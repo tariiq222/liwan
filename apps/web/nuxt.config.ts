@@ -69,8 +69,6 @@ export default defineNuxtConfig({
   // fetches to /api/v1/** go through server/routes/api/v1/[...path].ts, which reads
   // odooUrl at runtime.
   routeRules: {
-    // Settings has no index page; its rail entry opens appearance, available to everyone.
-    '/settings': { redirect: '/settings/appearance' },
     // Odoo's public login bootstrap also loads translations outside /web/.
     '/website/translations': { proxy: `${odoo}/website/translations` },
     '/base_setup/**': { proxy: `${odoo}/base_setup/**` },

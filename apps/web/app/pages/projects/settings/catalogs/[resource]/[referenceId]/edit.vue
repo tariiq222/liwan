@@ -23,8 +23,8 @@ const query = useCharterCatalogItem(
 )
 const notFound = computed(() => !resource.value || referenceId.value === null || (query.error.value instanceof ApiError && [403, 404].includes(query.error.value.status)))
 const returnTo = computed(() => {
-  const fallback = resource.value ? `/settings/projects/catalogs/${resource.value}` : '/settings/projects'
-  return safeReturnTo(route.query.returnTo, fallback, ['/settings/projects', '/projects'])
+  const fallback = resource.value ? `/projects/settings/catalogs/${resource.value}` : '/projects/settings'
+  return safeReturnTo(route.query.returnTo, fallback, ['/projects/settings', '/projects'])
 })
 
 function onSaved() {

@@ -56,7 +56,7 @@ export const projectDetail = ProjectDetailSchema.parse({
     authority: '', rationale: '', objectives: [], benefits: '', scope: '', exclusions: '',
     high_level_requirements: '', deliverables: [], success: '', budget_state: 'unknown',
     amount: null, currency: { id: 1, name: 'SAR', symbol: 'ر.س', decimal_places: 2 },
-    priority: null, assumptions: '', constraints: '', closure: '',
+    priority: null, assumptions: '', constraints: '', closure: '', state: 'draft',
   },
 })
 
@@ -72,3 +72,17 @@ export const me = MeSchema.parse({
   id: 2, name: 'Admin', login: 'admin', email: 'admin@example.com', lang: 'ar_001', tz: 'Asia/Riyadh',
   role: 'admin', roles: [], capabilities: ['pmo.projects.read'], access_policy_version: 1, company: { id: 1, name: 'نسق' },
 })
+
+// Charter wizard: the classification catalog decides which steps a charter walks.
+export const charterTypes = [
+  { id: 1, name: 'تقني', sequence: 10, active: true, charter_steps: ['justification', 'scope', 'schedule', 'budget', 'risks'] },
+  { id: 2, name: 'تشغيلي', sequence: 20, active: true, charter_steps: ['justification', 'scope', 'schedule'] },
+  { id: 3, name: 'إنشائي', sequence: 30, active: true, charter_steps: ['justification', 'scope', 'schedule', 'budget', 'risks'] },
+  { id: 4, name: 'تطويري', sequence: 40, active: true, charter_steps: ['justification', 'scope', 'schedule', 'budget'] },
+]
+export const charterOwningUnits = [
+  { id: 1, name: 'مكتب إدارة المشاريع', sequence: 10, active: true },
+  { id: 2, name: 'تقنية المعلومات', sequence: 20, active: true },
+]
+export const charterDefaults = { currency: { id: 1, name: 'SAR', symbol: 'ر.س', decimal_places: 2 } }
+export const projectCreateDefaults = { require_manager_on_create: true, require_end_date_on_create: false, default_manager_id: 2 }

@@ -20,7 +20,7 @@ const toast = useToast()
 const hydrated = useHydrated()
 const forbidden = computed(() => !can('pmo.settings.manage'))
 const resource = computed(() => (isCharterCatalogResource(route.params.resource) ? route.params.resource : null))
-const returnTo = computed(() => safeReturnTo(route.query.returnTo, '/settings/projects', ['/settings/projects', '/projects']))
+const returnTo = computed(() => safeReturnTo(route.query.returnTo, '/projects/settings', ['/projects/settings', '/projects']))
 const q = computed(() => typeof route.query.q === 'string' ? route.query.q : '')
 const showInactive = computed(() => route.query.active === 'all' || route.query.active === '0')
 const offset = computed(() => {
@@ -63,7 +63,7 @@ function listQuery(next: Record<string, string | undefined> = {}) {
 }
 
 function isCatalogList() {
-  return /^\/settings\/projects\/catalogs\/[^/]+$/.test(route.path.replace(/\/+$/, '') || '/')
+  return /^\/projects\/settings\/catalogs\/[^/]+$/.test(route.path.replace(/\/+$/, '') || '/')
 }
 function onSearch(event: Event) {
   if (!isCatalogList()) return
@@ -96,12 +96,12 @@ function setPage(next: number) {
 
 function openNew() {
   if (!resource.value) return
-  void navigateTo({ path: `/settings/projects/catalogs/${resource.value}/new`, query: returnToQuery(route.fullPath) })
+  void navigateTo({ path: `/projects/settings/catalogs/${resource.value}/new`, query: returnToQuery(route.fullPath) })
 }
 
 function openEdit(id: number) {
   if (!resource.value) return
-  void navigateTo({ path: `/settings/projects/catalogs/${resource.value}/${id}/edit`, query: returnToQuery(route.fullPath) })
+  void navigateTo({ path: `/projects/settings/catalogs/${resource.value}/${id}/edit`, query: returnToQuery(route.fullPath) })
 }
 
 function requestAction(item: ProjectCharterReference, action: 'disable' | 'enable' | 'delete') {
@@ -170,7 +170,7 @@ async function confirmAction() {
             <li v-for="item in query.data.value?.items ?? []" :key="item.id" class="flex flex-wrap items-center justify-between gap-3 border-b border-default/80 p-3 last:border-0">
               <div>
                 <p class="font-medium">{{ item.name }}</p>
-                <p class="text-sm text-muted">{{ t('settings.projects.catalogs.sequenceValue', { sequence: item.sequence }) }} · {{ item.active ? t('settings.projects.catalogs.active') : t('settings.projects.catalogs.inactive') }}</p>
+                <p class="text-sm text-muted">{{ t('settings.projects.catalogs.sequenceValue', { sequence: item.sequence }) }} · {{ item.active ? t('settings.projects.catalogs.active') : t('settings.projects.catalogs.inactive') }}<template v-if="item.charter_steps"> · {{ t('settings.projects.catalogs.charterStepsColumn', { count: item.charter_steps.length }) }}</template></p>
               </div>
               <div class="flex flex-wrap gap-2">
                 <UButton type="button" color="neutral" variant="outline" size="sm" :disabled="!hydrated" @click="openEdit(item.id)">{{ t('settings.projects.catalogs.edit') }}</UButton>

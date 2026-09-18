@@ -42,7 +42,7 @@ describe('access policy navigation', () => {
     expect(postLoginPath(admin, '//example.test')).toBe('/settings/users')
     expect(postLoginPath(admin, '/login')).toBe('/settings/users')
     expect(postLoginPath({ capabilities: [] }, '/account')).toBe('/account')
-    expect(postLoginPath({ capabilities: [] }, '/settings/appearance')).toBe('/settings/appearance')
+    expect(postLoginPath({ capabilities: [] }, '/settings/appearance')).toBe('/account')
     expect(postLoginPath({ capabilities: [] }, '/settings/branding')).toBe('/account')
   })
   it('does not activate the employee item for departments or documents', () => {
@@ -69,6 +69,9 @@ describe('access policy navigation', () => {
     expect(isNavPathActive('/meetings/calendar', '/meetings')).toBe(false)
     expect(isNavPathActive('/meetings/calendar', '/meetings/calendar')).toBe(true)
     expect(requiredCapabilityForPath('/account')).toBe(null)
+    expect(requiredCapabilityForPath('/projects/settings')).toBe('pmo.settings.manage')
+    expect(requiredCapabilityForPath('/projects/settings/catalogs/types/new')).toBe('pmo.settings.manage')
+    expect(isNavPathActive('/projects/settings', '/projects')).toBe(false)
   })
   it('keeps /chat for internal Nasq identities and rejects portal or role-only objects', () => {
     const internal = { capabilities: ['access.users.read'] }

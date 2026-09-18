@@ -38,10 +38,16 @@ function compileSfcTemplate(filename: string) {
   return new Function('Vue', runnableCode)(Vue) as RenderFunction
 }
 
-async function renderFields(compact: boolean) {
+import { CHARTER_FIELD_KEYS, type CharterFieldKey } from '../../../utils/projectCharter'
+import { CHARTER_STEP_FIELDS, charterStepsForType } from '../../../utils/charterSteps'
+
+async function renderFields(fields: readonly CharterFieldKey[] = CHARTER_FIELD_KEYS) {
   const render = compileSfcTemplate(fieldsFilename)
+  const visible = new Set<string>(fields)
   const component = defineComponent({
     setup: () => ({
+      show: (field: string) => visible.has(field),
+      typeStepLabels: ['justification'],
       draft: {
         name: 'Portal', description: '', userId: null, managerName: null, dateStart: null, dateEnd: null,
         typeId: 3, typeName: 'Technical', owningUnitId: 4, owningUnitName: 'PMO', sponsorId: 8, sponsorName: 'Noura',
@@ -49,18 +55,16 @@ async function renderFields(compact: boolean) {
         benefits: 'Faster service', scope: 'Web app', exclusions: 'Mobile app', highLevelRequirements: 'SSO',
         deliverables: [{ key: 'd1', name: 'Legacy output', description: '', acceptance: 'Signed off', persisted: true }],
         success: 'Stable launch', budgetState: 'unknown', amountInput: '', currencyLabel: 'SAR', code: 'PRJ-1', priority: null,
-        assumptions: '', constraints: '', closure: '',
+        assumptions: '', constraints: '', closure: '', charterState: 'draft', typeSteps: ['justification'],
       },
       readonly: false,
       disabled: false,
       fieldErrors: {},
       requireManager: false,
       requireEndDate: false,
-      compact,
       controlsDisabled: false,
       hydrated: true,
       canManageSettings: false,
-      sectionOpen: () => true,
       typeOpen: false,
       unitOpen: false,
       typeQuery: '',
@@ -76,9 +80,11 @@ async function renderFields(compact: boolean) {
       startLabel: 'Not set',
       endLabel: 'Not set',
       descriptionLooksHtml: false,
+      readonlyDescription: '',
       t: (key: string) => key,
       helpLabel: (key: string) => key,
       catalogSettingsPath: () => '#',
+      typeStepLabels: ['justification'],
       onManagerResolve: () => {},
       onSponsorResolve: () => {},
       onTypeSelect: () => {},
@@ -96,13 +102,18 @@ async function renderFields(compact: boolean) {
     'UFormField', 'SharedPersonPicker', 'SharedRichText',
   ]) app.component(name, Passthrough)
   app.component('ProjectCharterRows', defineComponent({
-    props: { compact: Boolean },
-    setup(props) { return () => props.compact ? h('div') : h('div', { 'data-testid': 'charter-field-deliverables' }) },
+    props: { showObjectives: Boolean, showDeliverables: Boolean },
+    setup(props) {
+      return () => h('div', [
+        props.showObjectives ? h('div', { 'data-testid': 'charter-field-objectives' }) : null,
+        props.showDeliverables ? h('div', { 'data-testid': 'charter-field-deliverables' }) : null,
+      ])
+    },
   }))
   return renderToString(app)
 }
 
-async function renderRows(compact: boolean) {
+async function renderRows(sections: { showObjectives: boolean; showDeliverables: boolean }) {
   const render = compileSfcTemplate(rowsFilename)
   const component = defineComponent({
     setup: () => ({
@@ -112,7 +123,7 @@ async function renderRows(compact: boolean) {
       },
       readonly: false,
       disabled: false,
-      compact,
+      ...sections,
       pendingRemove: null,
       t: (key: string) => key,
       helpLabel: (key: string) => key,
@@ -124,7 +135,7 @@ async function renderRows(compact: boolean) {
     render,
   })
   const app = createSSRApp({ render: () => h(component) })
-  for (const name of ['UInput', 'UTextarea', 'ProjectFieldHelp', 'UButton', 'UFormField', 'SharedInlineConfirm']) app.component(name, Passthrough)
+  for (const name of ['UInput', 'UTextarea', 'ProjectFieldHelp', 'UButton']) app.component(name, Passthrough)
   return renderToString(app)
 }
 
@@ -137,6 +148,7 @@ async function renderDisplay(options: { legacy?: boolean; loading?: boolean; err
         typeName: options.legacy ? 'Technical' : null, owningUnitName: null, sponsorName: options.legacy ? 'Noura' : null, authority: '', rationale: 'Why now',
         objectives: [] as ObjectiveDraft[], benefits: '', scope: 'Web app', exclusions: '', highLevelRequirements: '', deliverables: [] as DeliverableDraft[], success: '',
         budgetState: 'unknown', amountInput: '', currencyLabel: null, priority: null, assumptions: '', constraints: '', closure: '',
+        charterState: 'draft', typeSteps: null,
       }
       const visibleObjectives = draft.objectives.filter(row => row.goal.trim() || row.metric.trim() || row.target.trim())
       const legacyDeliverables = draft.deliverables.filter(row => row.name.trim() || row.description.trim() || row.acceptance.trim())
@@ -171,41 +183,78 @@ async function renderDisplay(options: { legacy?: boolean; loading?: boolean; err
   }))
   app.component('UButton', Passthrough)
   app.component('UCheckbox', Passthrough)
-  app.component('SharedRichText', Passthrough)
   return renderToString(app)
 }
 
-describe('compact charter editor', () => {
-  it('renders the compact purpose fields while hiding sponsor and advanced charter controls', async () => {
-    const html = await renderFields(true)
-    expect(html).toContain('data-testid="charter-field-name"')
-    expect(html).toContain('data-testid="charter-field-rationale"')
-    expect(html).toContain('data-testid="charter-field-scope"')
-    expect(html).toContain('data-testid="charter-field-exclusions"')
-    expect(html).not.toContain('data-testid="charter-field-sponsor"')
-    expect(html).not.toContain('data-testid="charter-field-benefits"')
-    expect(html).not.toContain('data-testid="charter-field-high_level_requirements"')
-    expect(html).not.toContain('data-testid="charter-field-deliverables"')
+describe('charter wizard steps', () => {
+  it('renders only the fields of the basics step', async () => {
+    const html = await renderFields(CHARTER_STEP_FIELDS.basics)
+    for (const key of ['name', 'code', 'description', 'type', 'owning_unit', 'manager', 'sponsor']) {
+      expect(html, key).toContain(`data-testid="charter-field-${key}"`)
+    }
+    expect(html).toContain('data-testid="charter-type-steps"')
+    for (const key of ['rationale', 'objectives', 'scope', 'deliverables', 'date_end', 'budget_state', 'closure']) {
+      expect(html, key).not.toContain(`data-testid="charter-field-${key}"`)
+    }
   })
 
-  it('uses the compact surface for the editable charter in both create and edit modes', async () => {
-    const editHtml = await renderFields(true)
-    expect(editHtml).toContain('data-testid="charter-field-name"')
-    expect(editHtml).not.toContain('data-testid="charter-field-sponsor"')
-    expect(editHtml).not.toContain('data-testid="charter-field-high_level_requirements"')
-    expect(editHtml).not.toContain('data-testid="charter-field-deliverables"')
-    expect(editHtml).toContain('data-testid="charter-field-rationale"')
+  it('renders the justification and scope steps with their child rows', async () => {
+    const justification = await renderFields(CHARTER_STEP_FIELDS.justification)
+    expect(justification).toContain('data-testid="charter-field-authority"')
+    expect(justification).toContain('data-testid="charter-field-rationale"')
+    expect(justification).toContain('data-testid="charter-field-objectives"')
+    expect(justification).toContain('data-testid="charter-field-benefits"')
+    expect(justification).not.toContain('data-testid="charter-field-deliverables"')
+    expect(justification).not.toContain('data-testid="charter-field-name"')
+    const scope = await renderFields(CHARTER_STEP_FIELDS.scope)
+    expect(scope).toContain('data-testid="charter-field-scope"')
+    expect(scope).toContain('data-testid="charter-field-exclusions"')
+    expect(scope).toContain('data-testid="charter-field-high_level_requirements"')
+    expect(scope).toContain('data-testid="charter-field-deliverables"')
+    expect(scope).toContain('data-testid="charter-field-success"')
+    expect(scope).not.toContain('data-testid="charter-field-objectives"')
   })
 
-  it('keeps optional project-create charter sections collapsed while allowing full edit to retain every field', () => {
-    const fields = readFileSync(fieldsFilename, 'utf8')
+  it('renders schedule, budget and risks as separate steps', async () => {
+    const schedule = await renderFields(CHARTER_STEP_FIELDS.schedule)
+    expect(schedule).toContain('data-testid="charter-field-date_start"')
+    expect(schedule).toContain('data-testid="charter-field-date_end"')
+    expect(schedule).toContain('data-testid="charter-field-priority"')
+    expect(schedule).not.toContain('data-testid="charter-field-amount"')
+    const budget = await renderFields(CHARTER_STEP_FIELDS.budget)
+    expect(budget).toContain('data-testid="charter-field-budget_state"')
+    expect(budget).toContain('data-testid="charter-field-amount"')
+    expect(budget).toContain('data-testid="charter-field-currency"')
+    expect(budget).not.toContain('data-testid="charter-field-date_end"')
+    const risks = await renderFields(CHARTER_STEP_FIELDS.risks)
+    expect(risks).toContain('data-testid="charter-field-assumptions"')
+    expect(risks).toContain('data-testid="charter-field-constraints"')
+    expect(risks).toContain('data-testid="charter-field-closure"')
+    expect(risks).not.toContain('data-testid="charter-field-budget_state"')
+  })
+
+  it('renders every commercial field when no step filter is given', async () => {
+    const html = await renderFields()
+    for (const key of CHARTER_FIELD_KEYS) {
+      if (key === 'acceptance') continue // lives inside the deliverable rows stub
+      expect(html, key).toContain(`data-testid="charter-field-${key}"`)
+    }
+  })
+
+  it('walks the steps the chosen classification configures, framed by basics and review', () => {
+    expect(charterStepsForType(null)).toEqual(['basics', 'justification', 'scope', 'schedule', 'budget', 'risks', 'review'])
+    expect(charterStepsForType(['justification', 'scope', 'schedule'])).toEqual(['basics', 'justification', 'scope', 'schedule', 'review'])
+    expect(charterStepsForType([])).toEqual(['basics', 'review'])
     const form = readFileSync(resolve(here, '../ProjectCharterForm.vue'), 'utf8')
-    expect(form).toContain(':compact="mode === \'create\'"')
-    expect(form).toContain(':project-create="mode === \'create\'"')
-    expect(fields).toContain(':open="!projectCreate || sectionOpen([')
-    expect(fields).toContain('data-testid="charter-field-rationale"')
-    expect(fields).toContain('data-testid="charter-field-scope"')
-    expect(fields).toContain('data-testid="charter-field-budget_state"')
+    const fields = readFileSync(fieldsFilename, 'utf8')
+    expect(form).toContain('UStepper')
+    expect(form).toContain(':fields="currentFields"')
+    expect(form).toContain('data-testid="charter-save-draft"')
+    expect(form).toContain('data-testid="charter-review-step"')
+    expect(form).toContain(':ignore-query-keys="[\'step\']"')
+    expect(form).not.toContain('<details')
+    expect(fields).not.toContain('<details')
+    expect(fields).toContain('draft.value.typeSteps')
   })
 })
 
@@ -239,13 +288,16 @@ describe('project charter document', () => {
 })
 
 describe('charter rows', () => {
-  it('does not render legacy charter deliverable inputs in compact mode', async () => {
-    const html = await renderRows(true)
+  it('renders only the objectives section on the justification step', async () => {
+    const html = await renderRows({ showObjectives: true, showDeliverables: false })
+    expect(html).toContain('data-testid="charter-field-objectives"')
     expect(html).not.toContain('data-testid="charter-field-deliverables"')
   })
 
-  it('renders legacy charter deliverables in the full read/edit surface', async () => {
-    const html = await renderRows(false)
+  it('renders only the deliverables section on the scope step', async () => {
+    const html = await renderRows({ showObjectives: false, showDeliverables: true })
+    expect(html).not.toContain('data-testid="charter-field-objectives"')
     expect(html).toContain('data-testid="charter-field-deliverables"')
+    expect(html).toContain('data-testid="charter-field-acceptance"')
   })
 })

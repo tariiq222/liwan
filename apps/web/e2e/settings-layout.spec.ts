@@ -17,17 +17,14 @@ for (const width of [1440, 390]) {
     await expect(page.getByTestId('branding-color')).toBeVisible()
     await expect(page.getByTestId('settings-branding-tab')).toBeVisible()
     await expect(page.locator('.nasq-settings-nav a[href="/settings/branding"]')).toHaveCount(0)
-    await page.goto('/settings/appearance')
-    await expect(page.locator('.nasq-settings-nav a[href="#appearance-mode"]')).toHaveCount(1)
-    await page.getByTestId('appearance-font-large').check()
-    await page.getByTestId('appearance-mode-dark').check()
+    await page.request.patch('/api/v1/me/appearance', { data: { mode: 'dark', font_size: 'large' } })
 
     const rolesResponse = await page.request.get('/api/v1/admin/roles')
     const roles = (await rolesResponse.json()).items
     const role = roles.find((item: { type: string }) => item.type === 'custom') ?? roles[0]
     const usersResponse = await page.request.get('/api/v1/admin/users')
     const user = (await usersResponse.json()).items[0]
-    const paths = ['/settings/appearance', '/settings/branding', '/settings/projects', '/settings/users', '/settings/roles', '/settings/access-log', '/settings/users/new', '/settings/roles/new', `/settings/users/${user.id}`, `/settings/users/${user.id}/access`, `/settings/users/${user.id}/security`, `/settings/roles/${role.id}`, `/settings/roles/${role.id}/edit`]
+    const paths = ['/settings/branding', '/projects/settings', '/settings/users', '/settings/roles', '/settings/access-log', '/settings/users/new', '/settings/roles/new', `/settings/users/${user.id}`, `/settings/users/${user.id}/access`, `/settings/users/${user.id}/security`, `/settings/roles/${role.id}`, `/settings/roles/${role.id}/edit`]
     const auditResponse = await page.request.get('/api/v1/admin/access-log?limit=1')
     const audit = (await auditResponse.json()).items[0]
     expect(audit).toBeTruthy()

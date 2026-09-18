@@ -3,8 +3,9 @@ import { ApiError } from '@/composables/useApi'
 import { useProjectCreateDefaults } from '@/composables/useProjectSettings'
 import ProjectCharterForm from '@/components/project/ProjectCharterForm.vue'
 import { returnToQuery } from '@/utils/safeReturnTo'
+import type { CharterWizardStep } from '@/utils/charterSteps'
 
-const emit = defineEmits<{ created: [id: number]; cancel: [] }>()
+const emit = defineEmits<{ created: [id: number]; drafted: [id: number, step: CharterWizardStep]; cancel: [] }>()
 const { t } = useI18n()
 const route = useRoute()
 const hydrated = useHydrated()
@@ -56,6 +57,7 @@ async function retryDefaults() {
         :default-manager-name="defaultManagerName"
         :disabled="!defaults || forbidden"
         @created="emit('created', $event)"
+        @drafted="(id, step) => emit('drafted', id, step)"
         @cancel="emit('cancel')"
       />
     </div>

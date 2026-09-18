@@ -86,7 +86,7 @@ describe('internal UI width and status vocabulary', () => {
       'hr/departments.vue', // Thin parent: list under /hr/departments/new then <NuxtPage />.
       'settings/users.vue', // Thin parent: list under /settings/users/new then <NuxtPage />.
       'settings/roles.vue', // Thin parent: list under /settings/roles/new then <NuxtPage />.
-      'settings/projects/catalogs/[resource].vue', // Thin parent: list under /new then <NuxtPage />.
+      'projects/settings/catalogs/[resource].vue', // Thin parent: list under /new then <NuxtPage />.
     ])
     const missing = pageFiles.filter((file) => {
       const rel = relative(pagesRoot, file)

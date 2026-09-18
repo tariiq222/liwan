@@ -16,8 +16,7 @@ const ROUTES = [
   { id: 'employee-new', path: '/hr/employees/new', width: 'form', h1: 'موظف جديد' },
   { id: 'account', path: '/account', width: 'form', h1: 'الحساب' },
   { id: 'settings-users', path: '/settings/users', width: null, h1: 'المستخدمون' },
-  { id: 'settings-appearance', path: '/settings/appearance', width: null, h1: 'المظهر' },
-  { id: 'catalog-new', path: '/settings/projects/catalogs/types/new', width: 'form', h1: 'نوع مشروع جديد' },
+  { id: 'catalog-new', path: '/projects/settings/catalogs/types/new', width: 'form', h1: 'نوع مشروع جديد' },
   { id: 'notifications', path: '/notifications', width: 'form', h1: 'الإشعارات' },
   { id: 'chat', path: '/chat', width: 'list', h1: 'المحادثة' },
   { id: 'search', path: '/search', width: 'form', h1: 'بحث' },
@@ -212,13 +211,13 @@ test('desktop 1440 light medium — route smoke and targeted fixes', async ({ pa
   for (const item of staged) expect(item.gap, JSON.stringify(item)).toBeGreaterThanOrEqual(12)
 
   await page.setViewportSize({ width: 1920, height: 1080 })
-  await page.goto('/settings/projects/catalogs/types/new')
+  await page.goto('/projects/settings/catalogs/types/new')
   const catalogDialog = page.getByRole('dialog')
   await expect(catalogDialog).toBeVisible()
   await expect(catalogDialog.getByRole('heading', { name: 'نوع مشروع جديد' })).toBeVisible()
   await page.screenshot({ path: shot('catalog-new-1920.png'), fullPage: true })
 
-  await page.goto('/settings/appearance')
+  await page.goto('/projects/settings')
   const settingsForm = page.locator('.nasq-settings-form-page')
   await expect(settingsForm).toBeVisible()
   const settingsBox = await settingsForm.evaluate((el) => {

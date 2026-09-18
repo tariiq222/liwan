@@ -8,7 +8,7 @@ const { t } = useI18n()
 const { can } = useAccess()
 const forbidden = computed(() => !can('pmo.settings.manage'))
 const normalizedPath = computed(() => route.path.replace(/\/+$/, '') || '/')
-const isBaseRoute = computed(() => normalizedPath.value === '/settings/projects')
+const isBaseRoute = computed(() => normalizedPath.value === '/projects/settings')
 </script>
 
 <template>
@@ -23,14 +23,14 @@ const isBaseRoute = computed(() => normalizedPath.value === '/settings/projects'
         <p class="text-sm text-muted">{{ t('settings.projects.catalogs.hint') }}</p>
         <div class="flex flex-wrap gap-3 text-sm">
           <NuxtLink
-            :to="{ path: '/settings/projects/catalogs/types', query: returnToQuery(route.fullPath) }"
+            :to="{ path: '/projects/settings/catalogs/types', query: returnToQuery(route.fullPath) }"
             class="underline underline-offset-4"
             data-testid="catalog-types-link"
           >
             {{ t('settings.projects.catalogs.types') }}
           </NuxtLink>
           <NuxtLink
-            :to="{ path: '/settings/projects/catalogs/owning-units', query: returnToQuery(route.fullPath) }"
+            :to="{ path: '/projects/settings/catalogs/owning-units', query: returnToQuery(route.fullPath) }"
             class="underline underline-offset-4"
             data-testid="catalog-units-link"
           >

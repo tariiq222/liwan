@@ -32,7 +32,7 @@ for (const width of [1440, 390]) {
     await expect(color).toHaveValue(draft)
     await projects.click()
     await dialog.getByRole('button', { name: 'المغادرة بدون حفظ' }).click()
-    await expect(page).toHaveURL(/\/settings\/projects$/)
+    await expect(page).toHaveURL(/\/projects\/settings$/)
     await page.goto('/settings/branding')
     await expect(color).toHaveValue(saved)
 
@@ -43,6 +43,6 @@ for (const width of [1440, 390]) {
     await page.getByTestId('sidebar-settings').click()
     await expect(dialog).toBeVisible()
     await dialog.getByRole('button', { name: 'المغادرة بدون حفظ' }).click()
-    await expect(page).toHaveURL(/\/settings\/appearance$/)
+    await expect(page).toHaveURL(/\/settings\/users$/)
   })
 }

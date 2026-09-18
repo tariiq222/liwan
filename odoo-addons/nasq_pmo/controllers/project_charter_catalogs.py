@@ -70,7 +70,7 @@ class ProjectCharterCatalogController(http.Controller):
     @api_handler
     def create_catalog(self, resource, **payload):
         Model = _catalog_model(resource)
-        vals = parse_catalog_create(payload)
+        vals = parse_catalog_create(payload, resource)
         record = Model.create(vals)
         return request.make_json_response(dump_catalog_item(record), status=201)
 
@@ -94,7 +94,7 @@ class ProjectCharterCatalogController(http.Controller):
         payload.pop('item_id', None)
         payload.pop('resource', None)
         record = _get_catalog_record(resource, item_id)
-        record.write(parse_catalog_patch(payload))
+        record.write(parse_catalog_patch(payload, resource))
         return dump_catalog_item(record)
 
     @http.route(

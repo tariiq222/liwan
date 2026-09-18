@@ -320,7 +320,7 @@ test('changing the default stages in settings applies to the next created projec
   await login(page)
   const extraStage = `Policy Extra ${Date.now()}`
 
-  await page.goto('/settings/projects')
+  await page.goto('/projects/settings')
   const saved = page.waitForResponse((r) => r.url().includes('/api/v1/settings/projects') && r.request().method() === 'PATCH')
   await page.getByTestId('stage-add-input').fill(extraStage)
   await page.getByTestId('stage-add-input').press('Enter')
@@ -346,7 +346,7 @@ test('an employee sees no project-create button and no settings nav entry', asyn
   await expect(page.getByRole('heading', { name: 'المشاريع' })).toBeVisible()
   await expect(page.getByTestId('project-new')).toHaveCount(0)
 
-  await page.goto('/settings/projects')
+  await page.goto('/projects/settings')
   await expect(page.getByRole('heading', { name: 'هذه الصفحة لمدير النظام فقط' })).toBeVisible()
   await page.goto(`/projects/${guardedProject}/settings`)
   await expect(page.getByText('لا تملك صلاحية إدارة هذا المشروع')).toBeVisible()

@@ -40,7 +40,7 @@ STORYBOOK_COMPONENTS: tuple[str, ...] = tuple(COMPONENTS + path for path in (
     'project/workspace/ProjectWorkspaceTabs.vue', 'project/workspace/ProjectGovernanceTabs.vue',
     'shared/RichText.vue', 'shared/Pagination.vue', 'shared/MetricTile.vue', 'shared/InlineConfirm.vue',
     'shared/RowActions.vue', 'shared/PersonPicker.vue', 'shared/FilterChip.vue', 'shared/FilterChoice.vue',
-    'shared/FilterField.vue',
+    'shared/FilterField.vue', 'project/ProjectCharterForm.vue',
 ))
 STORY_CONTEXT = re.compile(r'''\bstoryContext\(\s*(['"])([^'"]+)\1''')
 META_COMPONENT = re.compile(r'\bcomponent:\s*(\w+)')

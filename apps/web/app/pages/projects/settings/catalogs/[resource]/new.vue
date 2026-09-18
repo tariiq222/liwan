@@ -11,8 +11,8 @@ const { can } = useAccess()
 const forbidden = computed(() => !can('pmo.settings.manage'))
 const resource = computed(() => (isCharterCatalogResource(route.params.resource) ? route.params.resource : null))
 const returnTo = computed(() => {
-  const fallback = resource.value ? `/settings/projects/catalogs/${resource.value}` : '/settings/projects'
-  return safeReturnTo(route.query.returnTo, fallback, ['/settings/projects', '/projects'])
+  const fallback = resource.value ? `/projects/settings/catalogs/${resource.value}` : '/projects/settings'
+  return safeReturnTo(route.query.returnTo, fallback, ['/projects/settings', '/projects'])
 })
 const title = computed(() => resource.value === 'owning-units'
   ? t('settings.projects.catalogs.newUnit')

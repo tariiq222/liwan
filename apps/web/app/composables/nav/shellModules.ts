@@ -20,7 +20,6 @@ const Files = 'i-lucide-files'
 const ShieldCheck = 'i-lucide-shield-check'
 const UserCog = 'i-lucide-user-cog'
 const History = 'i-lucide-history'
-const SlidersHorizontal = 'i-lucide-sliders-horizontal'
 const Palette = 'i-lucide-palette'
 const MessageCircle = 'i-lucide-message-circle'
 const ChartNoAxesCombined = 'i-lucide-chart-no-axes-combined'
@@ -39,6 +38,7 @@ const items: NavItem[] = [
   { to: '/projects', labelKey: 'nav.projects', icon: FolderKanban, shortcut: '2', group: 'projects', module: 'projects', capability: 'pmo.projects.read' },
   { to: '/tasks', labelKey: 'nav.tasks', icon: CheckSquare, shortcut: '1', group: 'projects', module: 'projects', capability: 'pmo.tasks.read' },
   { to: '/project-templates', labelKey: 'nav.projectTemplates', icon: LayoutTemplate, shortcut: 't', group: 'projects', module: 'projects', capability: 'pmo.projects.read' },
+  { to: '/projects/settings', labelKey: 'settings.projects.title', icon: Settings, shortcut: '4', group: 'projects', module: 'projects', capability: 'pmo.settings.manage' },
   { to: '/meetings', labelKey: 'nav.meetings', icon: CalendarDays, shortcut: 'm', group: 'meetings', module: 'meetings', capability: 'meetings.read' },
   { to: '/meetings/calendar', labelKey: 'nav.meetingCalendar', icon: CalendarDays, shortcut: 'k', group: 'meetings', module: 'meetings', capability: 'meetings.read' },
   { to: '/meetings/series', labelKey: 'nav.meetingSeries', icon: Repeat, shortcut: 'y', group: 'meetings', module: 'meetings', capability: 'meetings.read' },
@@ -46,9 +46,7 @@ const items: NavItem[] = [
   { to: '/hr', labelKey: 'nav.employees', icon: Users, shortcut: '3', group: 'hr', module: 'hr', capability: 'hr.employees.read' },
   { to: '/hr/departments', labelKey: 'nav.departments', icon: Network, shortcut: '5', group: 'hr', module: 'hr', capability: 'hr.departments.read' },
   { to: '/hr/documents', labelKey: 'nav.documents', icon: Files, shortcut: '6', group: 'hr', module: 'hr', capability: 'hr.documents.read' },
-  { to: '/settings/appearance', labelKey: 'settings.appearance.title', icon: SlidersHorizontal, shortcut: 'b', group: 'settings', module: 'settings', capability: 'nasq.internal' },
   { to: '/settings/branding', labelKey: 'settings.branding.title', icon: Palette, shortcut: 'g', group: 'settings', module: 'settings', capability: 'settings.branding.manage' },
-  { to: '/settings/projects', labelKey: 'settings.projects.title', icon: Settings, shortcut: '4', group: 'settings', module: 'settings', capability: 'pmo.settings.manage' },
   { to: '/settings/users', labelKey: 'nav.users', icon: UserCog, shortcut: '7', group: 'settings', module: 'settings', capability: 'access.users.read' },
   { to: '/settings/roles', labelKey: 'nav.roles', icon: ShieldCheck, shortcut: '8', group: 'settings', module: 'settings', capability: 'access.roles.read' },
   { to: '/settings/access-log', labelKey: 'nav.accessLog', icon: History, shortcut: '9', group: 'settings', module: 'settings', capability: 'access.audit.read' },
@@ -77,7 +75,8 @@ export const shellModules: ShellModuleDefinition[] = [
   { id: 'meetings', labelKey: 'nav.meetings', icon: CalendarDays, to: '/meetings' },
   { id: 'chat', labelKey: 'nav.chat', icon: MessageCircle, to: '/chat' },
   { id: 'hr', labelKey: 'nav.organization', icon: Users, to: '/hr' },
-  { id: 'settings', labelKey: 'nav.settings', icon: Settings, to: '/settings/appearance' },
+  // Settings is administration only: account and appearance live in the header.
+  { id: 'settings', labelKey: 'nav.settings', icon: Settings, to: '/settings/users' },
   { id: 'vendor', labelKey: 'nav.console', icon: Wrench, to: '/odoo' },
 ]
 
@@ -123,6 +122,8 @@ const projectsContextLinks: ShellContextLink[] = [
   { id: 'projects', labelKey: 'nav.allProjects', icon: FolderKanban, to: '/projects', capability: 'pmo.projects.read' },
   { id: 'tasks', labelKey: 'nav.tasks', icon: CheckSquare, to: '/tasks', capability: 'pmo.tasks.read' },
   { id: 'project-templates', labelKey: 'nav.projectTemplates', icon: LayoutTemplate, to: '/project-templates', capability: 'pmo.projects.read' },
+  // Project settings close the projects sidebar (user decision 2026-09-16); they are not a settings-module page.
+  { id: 'project-settings', labelKey: 'settings.projects.title', icon: Settings, to: '/projects/settings', capability: 'pmo.settings.manage' },
 ]
 
 export function contextLinksForModule(module: ShellModule, identity: AccessIdentity, path?: string): ShellContextLink[] {
@@ -146,13 +147,10 @@ export function contextLinksForModule(module: ShellModule, identity: AccessIdent
       { id: 'documents', labelKey: 'nav.documents', icon: Files, to: '/hr/documents', capability: 'hr.documents.read' },
     ],
     settings: [
-      { id: 'account', labelKey: 'nav.account', icon: UserCog, to: '/account', capability: INTERNAL_NASQ_ACCESS },
-      { id: 'appearance', labelKey: 'settings.appearance.title', icon: SlidersHorizontal, to: '/settings/appearance', capability: INTERNAL_NASQ_ACCESS },
       { id: 'users', labelKey: 'nav.users', icon: UserCog, to: '/settings/users', capability: 'access.users.read' },
       { id: 'roles', labelKey: 'nav.roles', icon: ShieldCheck, to: '/settings/roles', capability: 'access.roles.read' },
       { id: 'access-log', labelKey: 'nav.accessLog', icon: History, to: '/settings/access-log', capability: 'access.audit.read' },
       { id: 'branding', labelKey: 'settings.branding.title', icon: Palette, to: '/settings/branding', capability: 'settings.branding.manage' },
-      { id: 'project-settings', labelKey: 'settings.projects.title', icon: Settings, to: '/settings/projects', capability: 'pmo.settings.manage' },
     ],
     vendor: [
       { id: 'console', labelKey: 'nav.console', icon: Wrench, to: '/odoo', capability: 'vendor' },

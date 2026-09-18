@@ -13,7 +13,7 @@ const EMPTY_CHARTER = {
   code: null, type: null, owning_unit: null, sponsor: null, authority: '', rationale: '',
   objectives: [], benefits: '', scope: '', exclusions: '', high_level_requirements: '',
   deliverables: [], success: '', budget_state: 'unknown', amount: null, currency: null,
-  priority: null, assumptions: '', constraints: '', closure: '',
+  priority: null, assumptions: '', constraints: '', closure: '', state: 'draft',
 }
 
 describe('project settings controls contracts', () => {

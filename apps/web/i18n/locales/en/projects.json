@@ -92,7 +92,9 @@
       "loading": "Loading create requirements…",
       "defaultsError": "Could not load create requirements",
       "retry": "Retry",
-      "fromTemplate": "Start from a project template"
+      "fromTemplate": "Start from a project template",
+      "createFinal": "Create project",
+      "drafted": "Project created with its charter saved as a draft"
     },
     "filters": {
       "active": "Active",
@@ -374,7 +376,39 @@
       "printUnavailable": "Printing is available after milestone outputs load.",
       "legacyDetails": "Legacy charter details",
       "legacyDeliverables": "Legacy charter deliverables",
-      "clearField": "Clear {field}"
+      "clearField": "Clear {field}",
+      "steps": {
+        "basics": "Basics",
+        "justification": "Justification and objectives",
+        "scope": "Scope and deliverables",
+        "schedule": "Schedule",
+        "budget": "Budget",
+        "risks": "Assumptions and constraints",
+        "review": "Review"
+      },
+      "stepsTitle": "Charter steps",
+      "stepOf": "Step {step} of {total}: {title}",
+      "stepsForType": "Charter steps for this classification: {steps}",
+      "stepsForTypeNone": "This classification needs only the basics and the review.",
+      "stepsJoin": ", ",
+      "stepsHint": "The charter is written in steps set by the project classification. Save it as a draft at any step and come back later.",
+      "next": "Next",
+      "previous": "Previous",
+      "saveDraft": "Save as draft",
+      "draftSaved": "Charter saved as a draft",
+      "finalize": "Finalize charter",
+      "finalized": "Charter finalized",
+      "continueDraft": "Continue draft",
+      "state": {
+        "draft": "Draft",
+        "final": "Final"
+      },
+      "stateLabel": "Charter state",
+      "draftBanner": "This charter is a draft and has not been finalized yet.",
+      "reviewHint": "Review the charter before finalizing it. Go back to any step to change it.",
+      "reviewEmpty": "Not filled in yet",
+      "stepErrors": "Fix the marked fields on this step.",
+      "stepJumped": "Moved to a step with fields that need fixing."
     },
     "planningLinks": {
       "schedule": "Timeline / Gantt",

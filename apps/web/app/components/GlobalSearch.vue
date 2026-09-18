@@ -16,7 +16,7 @@ const query = ref('')
 const trimmed = computed(() => query.value.trim())
 const debounced = refDebounced(trimmed, 200)
 function navLabel(item: ReturnType<typeof useNav>[number]) {
-  return item.to === '/settings/projects' ? t('nav.projectSettings') : t(item.labelKey)
+  return item.to === '/projects/settings' ? t('nav.projectSettings') : t(item.labelKey)
 }
 const nav = computed(() => useNav(me.value).filter(item => navLabel(item).toLocaleLowerCase().includes(trimmed.value.toLocaleLowerCase())))
 const projectsQuery = useQuery({

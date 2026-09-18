@@ -127,7 +127,7 @@ test.beforeAll(async () => {
   const started = Date.now()
   while (Date.now() - started < 20_000) {
     try {
-      const response = await fetch(`${origin}/settings/appearance`)
+      const response = await fetch(`${origin}/settings/users`)
       if (response.status === 200) return
     } catch { /* still booting */ }
     await new Promise((resolveWait) => setTimeout(resolveWait, 200))
@@ -151,44 +151,39 @@ async function openApp(page: Page, path: string) {
 
 test('settings submenu opens project settings only as a real category page', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 1440, height: 900 })
-  await openApp(page, '/settings/appearance')
+  // Project settings live at the bottom of the projects sidebar, not under settings.
+  await openApp(page, '/projects/settings')
   await expect(page.getByTestId('settings-layout')).toBeVisible()
-  await expect(page.getByTestId('appearance-form')).toBeVisible()
-  await expect(page.getByTestId('sidebar-settings')).toBeVisible()
+  await expect(page.getByTestId('sidebar-settings')).toHaveCount(0)
   const projectsNav = page.getByRole('navigation', { name: 'الانتقال إلى' }).getByRole('link', { name: 'المشاريع', exact: true })
   await expect(projectsNav).toHaveAttribute('href', '/projects')
   const settingsProjects = page.getByTestId('settings-projects-tab')
-  await expect(settingsProjects).toHaveAttribute('href', '/settings/projects')
-  await Promise.all([
-    page.waitForURL(/\/settings\/projects/, { timeout: 15_000, waitUntil: 'commit' }),
-    settingsProjects.click(),
-  ])
-  await expect(page.getByTestId('settings-layout')).toBeVisible()
+  await expect(settingsProjects).toHaveAttribute('href', '/projects/settings')
+  await expect(settingsProjects).toHaveAttribute('aria-current', 'page')
   await expect(page.locator('#project-creators')).toBeVisible()
   await expect(page.locator('.nasq-settings-content .nasq-panel')).toHaveCount(1)
-  expect(new URL(page.url()).pathname).toBe('/settings/projects')
+  expect(new URL(page.url()).pathname).toBe('/projects/settings')
   await page.screenshot({ path: testInfo.outputPath('submenu-projects-desktop-rtl.png'), fullPage: true })
 })
 
 test('in-page anchors scroll, mark location current, and survive hash refresh', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 1440, height: 900 })
-  await openApp(page, '/settings/appearance')
-  const modeLink = page.locator('.nasq-settings-nav a[href="#appearance-mode"]')
-  const fontLink = page.locator('.nasq-settings-nav a[href="#appearance-font"]')
-  await expect(modeLink).toHaveAttribute('aria-current', 'location')
-  await expect(modeLink).toHaveCSS('font-weight', '600')
-  await fontLink.click()
-  await expect(page).toHaveURL(/#appearance-font/)
-  await expect(fontLink).toHaveAttribute('aria-current', 'location')
-  await expect(fontLink).toHaveCSS('font-weight', '600')
+  await openApp(page, '/projects/settings')
+  const remindersLink = page.locator('.nasq-settings-nav a[href="#project-reminders"]')
+  const catalogsLink = page.locator('.nasq-settings-nav a[href="#catalogs"]')
+  await expect(remindersLink).toHaveCSS('font-weight', '600')
+  await catalogsLink.click()
+  await expect(page).toHaveURL(/#catalogs/)
+  await expect(catalogsLink).toHaveAttribute('aria-current', 'location')
+  await expect(catalogsLink).toHaveCSS('font-weight', '600')
   await expect.poll(async () => page.evaluate(() => {
-    const el = document.getElementById('appearance-font')
+    const el = document.getElementById('catalogs')
     if (!el) return false
     const rect = el.getBoundingClientRect()
     return rect.top < innerHeight && rect.bottom > 0
   })).toBe(true)
-  await openApp(page, '/settings/appearance#appearance-font')
-  await expect(page.locator('.nasq-settings-nav a[href="#appearance-font"]')).toHaveAttribute('aria-current', 'location')
+  await openApp(page, '/projects/settings#catalogs')
+  await expect(page.locator('.nasq-settings-nav a[href="#catalogs"]')).toHaveAttribute('aria-current', 'location')
   await page.screenshot({ path: testInfo.outputPath('anchors-desktop-rtl.png'), fullPage: true })
 })
 
@@ -202,7 +197,7 @@ test('users category is one card without nested chrome; mobile toc is static bel
   await expect(nested).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
 
   await page.setViewportSize({ width: 390, height: 844 })
-  await openApp(page, '/settings/appearance')
+  await openApp(page, '/settings/users')
   const header = page.locator('.nasq-app-header')
   const nav = page.locator('.nasq-settings-nav')
   await expect(nav).toHaveCSS('position', 'static')
@@ -233,7 +228,7 @@ test('users hash navigation keeps list query on click, refresh and back', async 
   expect(new URL(page.url()).searchParams.get('offset')).toBe('25')
   expect(new URL(page.url()).hash).toBe('#results')
   await expect(page.locator('#filters .nasq-settings-search input')).toHaveValue('sara')
-  await page.goto(`${origin}/settings/appearance`, { waitUntil: 'domcontentloaded' })
+  await page.goto(`${origin}/settings/branding`, { waitUntil: 'domcontentloaded' })
   await page.goBack()
   await page.getByTestId('settings-layout').waitFor({ state: 'visible', timeout: 15_000 })
   expect(new URL(page.url()).searchParams.get('q')).toBe('sara')
@@ -244,11 +239,8 @@ test('users hash navigation keeps list query on click, refresh and back', async 
 
 test('section dividers use last-child not last-of-type', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
-  await openApp(page, '/settings/appearance')
   const width = (selector: string) => page.locator(selector).evaluate((el) => getComputedStyle(el).borderBlockEndWidth)
-  await expect.poll(() => width('#appearance-mode')).toBe('1px')
-  await expect.poll(() => width('#appearance-font')).toBe('0px')
-  await openApp(page, '/settings/projects')
+  await openApp(page, '/projects/settings')
   await page.locator('#project-reminders').waitFor({ state: 'visible', timeout: 15_000 })
   await expect.poll(() => width('#project-reminders')).toBe('1px')
   await expect.poll(() => width('#catalogs')).toBe('0px')
@@ -269,6 +261,6 @@ test('unsaved branding draft is guarded when leaving to project settings', async
   await expect(color).toHaveValue('#abcdef')
   await page.getByTestId('settings-projects-tab').click()
   await page.getByRole('button', { name: 'المغادرة بدون حفظ' }).click()
-  await expect(page).toHaveURL(/\/settings\/projects$/)
+  await expect(page).toHaveURL(/\/projects\/settings$/)
   await page.screenshot({ path: testInfo.outputPath('unsaved-desktop-rtl.png'), fullPage: true })
 })

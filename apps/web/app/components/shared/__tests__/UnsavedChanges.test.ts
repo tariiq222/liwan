@@ -148,6 +148,51 @@ describe('SharedUnsavedChanges route update guard', () => {
     expect(findNode(host, node => node.props['data-testid'] === 'mode')?.text).toBe('readonly')
   })
 
+  it('lets a guarded form rewrite its own ignored query keys while still guarding a real departure', async () => {
+    const UnsavedChanges = loadUnsavedChanges()
+    const WizardRoute = defineComponent({
+      setup() {
+        const route = useRoute()
+        return () => h('div', [
+          h(UnsavedChanges, { dirty: true, guardRouteUpdates: true, ignoreQueryKeys: ['step'] }),
+          h('span', { 'data-testid': 'step' }, String(route.query.step ?? 'basics')),
+          h('span', { 'data-testid': 'mode' }, route.query.edit ? 'edit' : 'readonly'),
+        ])
+      },
+    })
+
+    router = createRouter({
+      history: createMemoryHistory(),
+      routes: [{ path: '/projects/:id/charter', component: WizardRoute }],
+    })
+    await router.push({ path: '/projects/3/charter', query: { edit: '1', step: 'basics' } })
+    await router.isReady()
+
+    const app = renderer.createApp(defineComponent({ render: () => h(RouterView) }))
+    app.component('UButton', button)
+    app.component('UModal', defineComponent({
+      props: { open: Boolean, content: Object },
+      setup(props, { slots }) { return () => props.open ? h('div', props.content, slots.footer?.()) : null },
+    }))
+    app.config.globalProperties.$t = (key: string) => key
+    app.use(router)
+    const host = createHostNode()
+    app.mount(host)
+    mountedApps.push(app)
+
+    // The wizard moves to its next step: not a departure, no dialog.
+    await router.replace({ path: '/projects/3/charter', query: { edit: '1', step: 'scope' } })
+    expect(router.currentRoute.value.query.step).toBe('scope')
+    expect(findNode(host, node => node.props['data-testid'] === 'step')?.text).toBe('scope')
+    expect(findNode(host, node => node.props['data-testid'] === 'unsaved-changes-dialog')).toBeFalsy()
+
+    // Dropping edit mode is a departure even though the path is unchanged.
+    await router.push({ path: '/projects/3/charter', query: { step: 'scope' } })
+    expect(router.currentRoute.value.query.edit).toBe('1')
+    expect(findNode(host, node => node.props['data-testid'] === 'mode')?.text).toBe('edit')
+    expect(findNode(host, node => node.props['data-testid'] === 'unsaved-changes-dialog')).toBeTruthy()
+  })
+
   it('protects a dirty project task page when its back link leaves for the task list', async () => {
     // The sheet's presentation toggle is gone: a project task is a page, so the
     // draft is defended on the ordinary departure its back link performs.

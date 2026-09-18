@@ -22,7 +22,6 @@ async function logout() {
 const items = computed(() => [
   [
     { label: t('nav.account'), to: '/account', nasqIcon: 'i-lucide-user-round' },
-    { label: t('settings.appearance.title'), to: '/settings/appearance', nasqIcon: 'i-lucide-palette' },
   ],
   [
     { label: t('nav.logout'), color: 'error' as const, nasqIcon: 'i-lucide-log-out', onSelect: () => { void logout() } },

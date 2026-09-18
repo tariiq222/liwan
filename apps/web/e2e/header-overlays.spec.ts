@@ -102,9 +102,9 @@ test('notification preview keeps a failed read open and opens the task after ret
 test('overlays fit mobile dark mode with large text and search handles no results', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await login(page)
-  await page.goto('/settings/appearance')
-  await page.getByTestId('appearance-font-large').check()
-  await page.getByTestId('appearance-mode-dark').check()
+  await page.request.patch('/api/v1/me/appearance', { data: { mode: 'dark', font_size: 'large' } })
+  await page.goto('/tasks')
+  await expect(page.locator('html')).toHaveClass(/dark/)
   await page.getByRole('button', { name: 'بحث', exact: true }).click()
   const dialog = page.getByRole('dialog', { name: 'بحث', exact: true })
   await dialog.getByRole('textbox').fill('zzzero-result-unmatchable-098765')

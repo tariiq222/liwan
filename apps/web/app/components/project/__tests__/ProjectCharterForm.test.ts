@@ -23,7 +23,7 @@ const EMPTY_CHARTER = {
   objectives: [], benefits: '', scope: '', exclusions: '', high_level_requirements: '',
   deliverables: [], success: '', budget_state: 'unknown' as const, amount: null,
   currency: { id: 1, name: 'SAR', symbol: 'ر.س', decimal_places: 2 },
-  priority: null, assumptions: '', constraints: '', closure: '',
+  priority: null, assumptions: '', constraints: '', closure: '', state: 'draft' as const,
 }
 
 function project(overrides: Partial<ProjectDetail> = {}): ProjectDetail {
@@ -62,6 +62,25 @@ describe('ProjectCharterForm field surface', () => {
     expect(canOverwriteWithLatest('v4', server)).toBe(true)
     expect(isCharterDraftDirty(draft, draftFromProject(original))).toBe(true)
     expect(charterPatchBody(draft, 'v4', nativeDateSnapshot(original))).not.toHaveProperty('date_start')
+  })
+
+  it('walks the charter as steps with a draft save on every step and a review step at the end', () => {
+    const form = source('ProjectCharterForm.vue')
+    expect(form).toContain('charterStepsForType(draft.value.typeSteps)')
+    expect(form).toContain('parseCharterStepQuery(route.query.step')
+    expect(form).toContain('data-testid="charter-stepper"')
+    expect(form).toContain('data-testid="charter-step-next"')
+    expect(form).toContain('data-testid="charter-step-previous"')
+    expect(form).toContain('data-testid="charter-save-draft"')
+    expect(form).toContain('data-testid="project-create-submit"')
+    expect(form).toContain("emit('drafted', created.id, step.value)")
+    expect(form).toContain("emit('draftSaved')")
+    expect(form).toContain("emit('saved', finalized)")
+    // "Next" validates the current step only; a save validates the whole charter
+    // and jumps to the first step that still fails.
+    expect(form).toContain('charterErrorsForFields(collectErrors(), currentFields.value)')
+    expect(form).toContain('stepForField(steps.value, item.field)')
+    expect(form).not.toContain(':compact=')
   })
 
   it('places help beside fields and child rows without a permanent description paragraph', () => {

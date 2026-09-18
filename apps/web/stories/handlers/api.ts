@@ -1,6 +1,6 @@
 import { http, HttpResponse } from 'msw'
 import { TagSchema } from '@nasq/contracts'
-import { me, people, projectDetail, projectRefs, tags, taskDetail } from '../fixtures/pmo'
+import { charterDefaults, charterOwningUnits, charterTypes, me, people, projectCreateDefaults, projectDetail, projectRefs, tags, taskDetail } from '../fixtures/pmo'
 
 const contains = (value: string, request: Request) => value.includes(new URL(request.url).searchParams.get('q') ?? '')
 
@@ -17,6 +17,17 @@ export const apiHandlers = [
   http.patch('/api/v1/tasks/:id', async ({ request }) => HttpResponse.json(taskDetail(await request.json() as Record<string, unknown>))),
   http.post('/api/v1/tasks/:id/transition', async ({ request }) => HttpResponse.json(taskDetail(await request.json() as Record<string, unknown>))),
   http.post('/api/v1/projects/:id/:action', () => HttpResponse.json({ code: 'invalid', message: 'Storybook لا يحاكي أرشفة المشروع.' }, { status: 422 })),
+  http.get('/api/v1/project-charter/defaults', () => HttpResponse.json(charterDefaults)),
+  http.get('/api/v1/project-charter/catalogs/types', ({ request }) => {
+    const items = charterTypes.filter(item => contains(item.name, request))
+    return HttpResponse.json({ items, total: items.length })
+  }),
+  http.get('/api/v1/project-charter/catalogs/owning-units', ({ request }) => {
+    const items = charterOwningUnits.filter(item => contains(item.name, request))
+    return HttpResponse.json({ items, total: items.length })
+  }),
+  http.get('/api/v1/settings/projects/create-defaults', () => HttpResponse.json(projectCreateDefaults)),
+  http.post('/api/v1/projects', () => HttpResponse.json({ code: 'invalid', message: 'Storybook لا يحاكي إنشاء المشروع.' }, { status: 422 })),
 ]
 
 export const transitionForbidden = [

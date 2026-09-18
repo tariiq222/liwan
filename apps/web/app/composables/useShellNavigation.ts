@@ -64,6 +64,5 @@ export function isContextPathActive(path: string, to: ShellContextLink['to'], qu
   // «كل المشاريع» stays active on the list, its create form and every project record.
   if (target === '/projects') return path === target || path === '/projects/new' || /^\/projects\/[1-9]\d*(?:\/|$)/.test(path)
   if (target === '/tasks') return path === target || path.startsWith('/tasks/') || path === '/archived-tasks'
-  if (target === '/settings/appearance') return path === target || path.startsWith(`${target}/`)
   return path === target || path.startsWith(`${target}/`)
 }

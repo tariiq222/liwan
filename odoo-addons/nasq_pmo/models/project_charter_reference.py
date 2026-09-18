@@ -1,17 +1,55 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import api, fields, models
-from odoo.exceptions import AccessError, UserError
+from odoo.exceptions import AccessError, UserError, ValidationError
 from odoo.fields import Domain
 
 ACCESS_USER_CREATE_MARKER = 'nasq_core.access_user_create_depth'
 
 CHARTER_SEED_MARKER = 'nasq_pmo.charter_seed'
+# Optional charter wizard steps a project type may include, in the order the
+# customer UI walks them. The basics and review steps are always present and
+# are not stored.
+CHARTER_STEP_KEYS = ('justification', 'scope', 'schedule', 'budget', 'risks')
 TYPE_SEEDS = (
     ('technical', 'تقني'),
     ('operational', 'تشغيلي'),
     ('construction', 'إنشائي'),
     ('development', 'تطويري'),
 )
+TYPE_SEED_STEPS = {
+    'technical': list(CHARTER_STEP_KEYS),
+    'operational': ['justification', 'scope', 'schedule'],
+    'construction': list(CHARTER_STEP_KEYS),
+    'development': ['justification', 'scope', 'schedule', 'budget'],
+}
+
+
+def default_charter_steps(_model=None):
+    return list(CHARTER_STEP_KEYS)
+
+
+STEPS_NOT_LIST = "charter_steps must be a list of step keys"
+STEPS_REPEATED = "charter_steps must not repeat a step"
+
+
+def normalize_charter_steps(value):
+    """Return the canonical ordered step list, or raise TypeError/ValueError."""
+    # Odoo Json stores [] as NULL (`if not value`), so None/False is the
+    # emptied charter: basics and review only, no optional steps.
+    if value is None or value is False:
+        return []
+    if isinstance(value, str | bytes | dict) or not isinstance(value, list | tuple):
+        raise TypeError(STEPS_NOT_LIST)
+    steps = list(value)
+    if any(not isinstance(step, str) for step in steps):
+        raise ValueError(STEPS_NOT_LIST)
+    unknown = [step for step in steps if step not in CHARTER_STEP_KEYS]
+    if unknown:
+        message = f"charter_steps contains an unknown step {unknown[0]!r}"
+        raise ValueError(message)
+    if len(set(steps)) != len(steps):
+        raise ValueError(STEPS_REPEATED)
+    return [step for step in CHARTER_STEP_KEYS if step in steps]
 
 
 def _conflict(message):
@@ -139,6 +177,8 @@ class NasqProjectType(models.Model):
     _inherit = ['nasq.project.charter.catalog.mixin']
 
     seed_key = fields.Char(copy=False, index=True)
+    # Which optional charter steps a project of this type walks through.
+    charter_steps = fields.Json(default=default_charter_steps)
 
     _nasq_type_seed_uniq = models.Constraint(
         'UNIQUE(company_id, seed_key)',
@@ -147,6 +187,40 @@ class NasqProjectType(models.Model):
 
     def _nasq_usage_field(self):
         return 'nasq_type_id'
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        vals_list = [self._nasq_prepare_step_vals(vals) for vals in vals_list]
+        return super().create(vals_list)
+
+    def write(self, vals):
+        return super().write(self._nasq_prepare_step_vals(vals))
+
+    @api.model
+    def _nasq_prepare_step_vals(self, vals):
+        if 'charter_steps' not in vals:
+            return vals
+        vals = dict(vals)
+        try:
+            vals['charter_steps'] = normalize_charter_steps(vals['charter_steps'])
+        except (TypeError, ValueError) as error:
+            raise ValidationError(str(error)) from error
+        return vals
+
+    @api.constrains('charter_steps')
+    def _check_charter_steps(self):
+        for record in self:
+            try:
+                normalize_charter_steps(record.charter_steps)
+            except (TypeError, ValueError) as error:
+                raise ValidationError(str(error)) from error
+
+    def _nasq_charter_steps(self):
+        self.ensure_one()
+        try:
+            return normalize_charter_steps(self.charter_steps)
+        except (TypeError, ValueError):
+            return default_charter_steps()
 
     def init(self):
         self._nasq_seed_all_companies()

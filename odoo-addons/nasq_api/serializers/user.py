@@ -35,4 +35,12 @@ def dump_me(user):
         'capabilities': identity['capabilities'],
         'access_policy_version': identity['version'],
         'company': {'id': user.env.company.id, 'name': user.env.company.name},
+        'appearance': dump_appearance(user),
+    }
+
+
+def dump_appearance(user):
+    return {
+        'mode': user.nasq_appearance_mode or 'light',
+        'font_size': user.nasq_font_size or 'small',
     }

@@ -1,12 +1,15 @@
 import { z } from 'zod'
+import { ProjectCharterStepSchema } from './project-charter'
 
 export const ProjectCharterCatalogResourceSchema = z.enum(['types', 'owning-units'])
 
+// `charter_steps` is present on project types only; owning units never carry it.
 export const ProjectCharterReferenceSchema = z.object({
   id: z.number().int().positive(),
   name: z.string(),
   sequence: z.number().int(),
   active: z.boolean(),
+  charter_steps: z.array(ProjectCharterStepSchema).optional(),
 }).strict()
 
 export const ProjectCharterReferenceListSchema = z.object({
@@ -17,12 +20,14 @@ export const ProjectCharterReferenceListSchema = z.object({
 export const ProjectCharterReferenceCreateSchema = z.object({
   name: z.string().min(1),
   sequence: z.number().int().optional(),
+  charter_steps: z.array(ProjectCharterStepSchema).optional(),
 }).strict()
 
 export const ProjectCharterReferencePatchSchema = z.object({
   name: z.string().min(1).optional(),
   sequence: z.number().int().optional(),
   active: z.boolean().optional(),
+  charter_steps: z.array(ProjectCharterStepSchema).optional(),
 }).strict()
 
 export const ProjectCharterReferenceDeletedSchema = z.object({

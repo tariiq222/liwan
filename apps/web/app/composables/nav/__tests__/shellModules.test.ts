@@ -13,11 +13,14 @@ describe('capability-based navigation', () => {
   })
   it('groups the employee product pages without administrative links', () => {
     const nav = useNav(employee)
-    expect(nav.map(item => item.to)).toEqual(['/projects/dashboard', '/projects', '/tasks', '/project-templates', '/meetings', '/meetings/calendar', '/meetings/series', '/chat', '/hr', '/hr/departments', '/hr/documents', '/settings/appearance'])
+    expect(nav.map(item => item.to)).toEqual(['/projects/dashboard', '/projects', '/tasks', '/project-templates', '/meetings', '/meetings/calendar', '/meetings/series', '/chat', '/hr', '/hr/departments', '/hr/documents'])
     expect(nav.filter(item => item.group === 'hr')).toHaveLength(3)
     expect(nav.filter(item => item.group === 'chat')).toHaveLength(1)
-    expect(nav.filter(item => item.group === 'settings').map(item => item.to)).toEqual(['/settings/appearance'])
+    // Account and appearance live in the header, so an employee has no settings module.
+    expect(nav.filter(item => item.group === 'settings')).toEqual([])
+    expect(visibleShellModules(employee).map(module => module.id)).not.toContain('settings')
     expect(nav.filter(item => item.group === 'projects').map(item => item.to)).toEqual(['/projects/dashboard', '/projects', '/tasks', '/project-templates'])
+    expect(nav.map(item => item.to)).not.toContain('/projects/settings')
     expect(nav.find(item => item.to === '/projects/dashboard')?.module).toBe('home')
     expect(nav.find(item => item.to === '/projects')?.module).toBe('projects')
   })
@@ -26,18 +29,21 @@ describe('capability-based navigation', () => {
     const paths = nav.map(item => item.to)
     expect(paths).toContain('/settings/users')
     expect(paths).toContain('/settings/roles')
-    expect(paths).toContain('/settings/appearance')
+    expect(paths).not.toContain('/settings/appearance')
     expect(paths).toContain('/settings/branding')
-    expect(paths).not.toContain('/settings/projects')
+    expect(visibleShellModules(admin).find(module => module.id === 'settings')?.to).toBe('/settings/users')
+    expect(paths).not.toContain('/projects/settings')
     expect(paths).not.toContain('/odoo')
     expect(nav.find(item => item.to === '/settings/users')?.group).toBe('settings')
   })
-  it('puts project settings only in the settings group', () => {
+  it('puts project settings last in the projects group, never in settings', () => {
     const nav = useNav({ ...admin, capabilities: [...admin.capabilities, 'pmo.settings.manage'] })
-    const projects = nav.find(item => item.to === '/settings/projects')
-    expect(projects?.group).toBe('settings')
+    const projects = nav.find(item => item.to === '/projects/settings')
+    expect(projects?.group).toBe('projects')
+    expect(projects?.module).toBe('projects')
     expect(projects?.labelKey).toBe('settings.projects.title')
-    expect(nav.filter(item => item.group === 'projects').map(item => item.to)).not.toContain('/settings/projects')
+    expect(nav.filter(item => item.group === 'projects').map(item => item.to).at(-1)).toBe('/projects/settings')
+    expect(nav.filter(item => item.group === 'settings').map(item => item.to)).not.toContain('/projects/settings')
   })
   it('combines capabilities without duplicate paths or shortcuts', () => {
     const nav = useNav({ ...admin, role: 'vendor', capabilities: [...admin.capabilities, 'pmo.settings.manage'] })
@@ -69,9 +75,11 @@ describe('contextual module links', () => {
   })
 
   it('keeps settings links in one flat capability-gated order', () => {
-    expect(contextLinksForModule('settings', employee).map(link => link.id)).toEqual(['account', 'appearance'])
-    expect(contextLinksForModule('settings', full).map(link => link.id)).toEqual(['account', 'appearance', 'users', 'roles', 'access-log', 'project-settings'])
-    expect(contextLinksForModule('settings', admin).map(link => link.id)).toEqual(['account', 'appearance', 'users', 'roles', 'access-log', 'branding'])
+    expect(contextLinksForModule('settings', employee)).toEqual([])
+    expect(contextLinksForModule('settings', full).map(link => link.id)).toEqual(['users', 'roles', 'access-log'])
+    expect(contextLinksForModule('projects', full).map(link => link.id).at(-1)).toBe('project-settings')
+    expect(contextLinksForModule('projects', employee).map(link => link.id)).not.toContain('project-settings')
+    expect(contextLinksForModule('settings', admin).map(link => link.id)).toEqual(['users', 'roles', 'access-log', 'branding'])
   })
 })
 
@@ -88,7 +96,7 @@ describe('module rail', () => {
 
   it('selects permitted module destinations without legacy group leakage', () => {
     const taskOnly = visibleShellModules({ capabilities: ['pmo.tasks.read'] })
-    expect(taskOnly.map(item => item.id)).toEqual(['projects', 'chat', 'settings'])
+    expect(taskOnly.map(item => item.id)).toEqual(['projects', 'chat'])
     expect(taskOnly.find(item => item.id === 'projects')?.to).toBe('/tasks')
     const departmentOnly = visibleShellModules({ capabilities: ['hr.departments.read'] })
     expect(departmentOnly.find(item => item.id === 'hr')?.to).toBe('/hr/departments')
