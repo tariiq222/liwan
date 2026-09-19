@@ -114,7 +114,7 @@ jobs:
           set -euo pipefail
           python _odoo/odoo-bin $ODOO_DB_ARGS --addons-path="$PWD/_odoo/addons,$PWD/odoo-addons" \
             -d nasq_ci_upgrade_scratch -u "$MODULES" --http-port=8169 --stop-after-init 2>&1 | tee upgrade.log
-          ! grep -E " (ERROR|CRITICAL) " upgrade.log
+          python3 -B tools/upgrade_log_guard.py upgrade.log
       - name: Post-upgrade smoke
         if: steps.base.outputs.tag != ''
         run: |
