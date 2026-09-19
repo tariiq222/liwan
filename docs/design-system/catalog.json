@@ -77,7 +77,7 @@
         {
           "id": "Default",
           "name": "عبر DashboardChart",
-          "context": "apps/web/app/components/shared/DashboardChart.client.vue:186"
+          "context": "apps/web/app/components/shared/DashboardChart.client.vue:172"
         }
       ]
     },
@@ -251,7 +251,7 @@
         {
           "id": "WithLabel",
           "name": "بعنوان ظاهر في الفلاتر",
-          "context": "apps/web/app/pages/meetings/series.vue:107"
+          "context": "apps/web/app/pages/meetings/series.vue:102"
         }
       ]
     },
@@ -485,7 +485,7 @@
       "slots": [],
       "nuxtUi": [
         "UButton",
-        "UTooltip"
+        "UPopover"
       ],
       "stories": [
         {
@@ -843,7 +843,7 @@
         {
           "id": "InFilterPopover",
           "name": "داخل نافذة الفلاتر",
-          "context": "apps/web/app/pages/meetings/index.vue:245"
+          "context": "apps/web/app/pages/meetings/index.vue:237"
         },
         {
           "id": "WithTime",
@@ -1117,22 +1117,22 @@
         {
           "id": "Chips",
           "name": "شرائح",
-          "context": "apps/web/app/pages/meetings/index.vue:221"
+          "context": "apps/web/app/pages/meetings/index.vue:216"
         },
         {
           "id": "Multiple",
           "name": "اختيار متعدد",
-          "context": "apps/web/app/pages/meetings/index.vue:221"
+          "context": "apps/web/app/pages/meetings/index.vue:216"
         },
         {
           "id": "Segment",
           "name": "شريط مقسّم",
-          "context": "apps/web/app/pages/meetings/index.vue:221"
+          "context": "apps/web/app/pages/meetings/index.vue:216"
         },
         {
           "id": "Disabled",
           "name": "معطّل",
-          "context": "apps/web/app/pages/meetings/index.vue:221"
+          "context": "apps/web/app/pages/meetings/index.vue:216"
         }
       ]
     },
@@ -1163,7 +1163,7 @@
         {
           "id": "InFilterPanel",
           "name": "داخل نافذة الفلاتر",
-          "context": "apps/web/app/pages/meetings/index.vue:224"
+          "context": "apps/web/app/pages/meetings/index.vue:217"
         }
       ]
     },
@@ -1761,12 +1761,12 @@
         {
           "id": "Menu",
           "name": "قائمة إجراءات",
-          "context": "apps/web/app/components/project/MilestoneTable.vue:161"
+          "context": "apps/web/app/components/project/MilestoneTable.vue:172"
         },
         {
           "id": "SingleAction",
           "name": "إجراء واحد",
-          "context": "apps/web/app/components/project/MilestoneTable.vue:161"
+          "context": "apps/web/app/components/project/MilestoneTable.vue:172"
         }
       ]
     },
@@ -2178,12 +2178,12 @@
         {
           "id": "InBoardColumn",
           "name": "داخل عمود اللوحة",
-          "context": "apps/web/app/components/task/TaskBoard.vue:149"
+          "context": "apps/web/app/components/task/TaskBoard.vue:152"
         },
         {
           "id": "ProjectBoard",
           "name": "في لوحة المشروع (بلا اسم المشروع)",
-          "context": "apps/web/app/components/task/TaskBoard.vue:149"
+          "context": "apps/web/app/components/task/TaskBoard.vue:152"
         }
       ]
     }
