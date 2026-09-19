@@ -1,5 +1,9 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-"""Read-only, dependency-free UI migration gate; not a security boundary."""
+"""Dependency-free UI migration gate; not a security boundary.
+
+Read-only, except for --refresh-story-context, which repoints story
+references whose line numbers a refactor left behind.
+"""
 from __future__ import annotations
 
 import io
@@ -689,6 +693,48 @@ def toolbar_errors(current: dict[str, str]) -> list[str]:
             and SEARCH_CONTROL.search(source) and 'FilterBar' not in source]
 
 
+DECLARATION_LINE = re.compile(r'^\s*(?:import|export)\b')
+
+
+def refreshed_story_context(current: dict[str, str]) -> dict[str, str]:
+    """Story sources whose storyContext line numbers a refactor left behind.
+
+    The reference names a real usage; the line number is navigation, not
+    policy. Re-pointing it by hand after every refactor is how a guard gets
+    edited instead of obeyed, so this repoints it mechanically. A reference
+    whose file no longer uses the component at all is left alone: that is a
+    finding for story_errors, not a line that moved.
+    """
+    updates = {}
+    for path, source in sorted(current.items()):
+        if not story_file(path) or path.endswith('.vue'):
+            continue
+        story_source = COMMENTS.sub('', source)
+        component = story_component(path, story_source)
+        if not component or not component.startswith(COMPONENTS):
+            continue
+        names = component_names(component)
+        updated = source
+        for match in STORY_CONTEXT.finditer(story_source):
+            reference = match.group(2)
+            file, _, line = reference.rpartition(':')
+            if file not in current or not line.isdigit():
+                continue
+            lines = current[file].splitlines()
+            number = int(line)
+            if 1 <= number <= len(lines) and mentions(lines[number - 1], names):
+                continue
+            # An import names the component too; the reference is meant to open
+            # the place it is rendered, so a declaration is the last resort.
+            moved = next((index + 1 for index, text in enumerate(lines)
+                          if mentions(text, names) and not DECLARATION_LINE.match(text)), None)
+            if moved is not None:
+                updated = updated.replace(reference, f'{file}:{moved}')
+        if updated != source:
+            updates[path] = updated
+    return updates
+
+
 def check(current: dict[str, str], baseline: dict[str, str], head: dict[str, str]) -> list[str]:
     errors = []
     # @nuxt/schema ships inside nuxt itself and is where Nuxt's own docs put
@@ -785,6 +831,12 @@ def main() -> int:
         baseline = snapshot(root, BASELINE)
         head = snapshot(root, 'HEAD')
         current = current_snapshot(root)
+        if '--refresh-story-context' in sys.argv[1:]:
+            refreshed = refreshed_story_context(current)
+            for path, source in sorted(refreshed.items()):
+                (root / path).write_text(source, encoding='utf-8')
+                sys.stdout.write('refreshed storyContext in ' + path + '\n')
+            current = {**current, **refreshed}
         errors = check(current, baseline, head)
         warnings = story_warnings(current)
     except (OSError, ValueError, subprocess.CalledProcessError, tarfile.TarError) as exc:

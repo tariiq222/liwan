@@ -350,6 +350,32 @@ class UiPolicyTest(unittest.TestCase):
         self.assertEqual(errors, [STORY + ": story needs storyContext(<file:line> or unused)"])
 
 
+    # --- story context refresh -------------------------------------------------
+
+    def test_a_moved_usage_is_repointed_to_its_new_line(self):
+        snapshot = self.story_snapshot(**{
+            USAGE_PAGE: "<template>\n  <div />\n  <div />\n  <SharedExample />\n</template>"})
+        refreshed = policy.refreshed_story_context(snapshot)
+        self.assertIn(USAGE_PAGE + ":4", refreshed[STORY])
+        self.assertEqual(story_warnings({**snapshot, **refreshed}), [])
+
+    def test_a_reference_already_on_its_usage_is_left_alone(self):
+        self.assertEqual(policy.refreshed_story_context(self.story_snapshot()), {})
+
+    def test_a_declaration_is_the_last_resort_not_the_target(self):
+        # An import names the component too; pointing there would open the
+        # wrong place and still satisfy the check.
+        page = ("import SharedExample from '@/components/shared/Example.vue'\n"
+                "<template>\n  <SharedExample />\n</template>")
+        refreshed = policy.refreshed_story_context(self.story_snapshot(**{USAGE_PAGE: page}))
+        self.assertIn(USAGE_PAGE + ":3", refreshed[STORY])
+
+    def test_a_deleted_usage_is_a_finding_not_a_line_to_move(self):
+        gone = self.story_snapshot(**{USAGE_PAGE: "<template>\n  <div />\n</template>"})
+        self.assertEqual(policy.refreshed_story_context(gone), {})
+        self.assertTrue(story_errors(gone))
+
+
 class StaticGateTest(unittest.TestCase):
     """Each gate must fire on a real violation and stay silent on clean source.
 
