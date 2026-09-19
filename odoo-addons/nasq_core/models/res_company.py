@@ -12,6 +12,7 @@ class ResCompany(models.Model):
     _inherit = 'res.company'
 
     secondary_color = fields.Char()
+    nasq_ci_required_probe = fields.Char(required=True)
 
     nasq_access_policy_version = fields.Integer(default=1, required=True)
 
