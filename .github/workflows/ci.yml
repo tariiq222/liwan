@@ -28,3 +28,38 @@ jobs:
       - run: npm -w apps/web run postinstall   # nuxt prepare: required before vue-tsc
       - run: npm test
       - run: npm -w apps/web run lint
+
+  odoo:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    services:
+      postgres:
+        image: postgres:16
+        env: { POSTGRES_USER: odoo, POSTGRES_PASSWORD: odoo, POSTGRES_DB: postgres }
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U odoo" --health-interval 5s --health-timeout 5s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - id: pin
+        run: echo "sha=$(cat deploy/odoo/ODOO_COMMIT)" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v4
+        with: { repository: odoo/odoo, ref: '${{ steps.pin.outputs.sha }}', path: _odoo, fetch-depth: 1 }
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12', cache: pip, cache-dependency-path: deploy/odoo/requirements-python312-linux.txt }
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends libpq-dev libldap2-dev libsasl2-dev
+      - run: pip install -r deploy/odoo/requirements-python312-linux.txt
+      - name: Odoo tests on a fresh scratch database
+        run: |
+          set -euo pipefail
+          python _odoo/odoo-bin \
+            --db_host=127.0.0.1 --db_port=5432 --db_user=odoo --db_password=odoo \
+            --addons-path="$PWD/_odoo/addons,$PWD/odoo-addons" \
+            -d nasq_ci_scratch_${{ github.run_id }} \
+            -i nasq_core,nasq_api,nasq_pmo,nasq_hr,nasq_chat \
+            --test-tags /nasq_core,/nasq_api,/nasq_pmo,/nasq_hr,/nasq_chat \
+            --http-port=8169 --stop-after-init --log-level=test 2>&1 | tee odoo-test.log
+          grep -Eq 'odoo.tests.result: 0 failed, 0 error\(s\) of [1-9][0-9]* tests when loading database' odoo-test.log
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with: { name: odoo-test-log, path: odoo-test.log }
