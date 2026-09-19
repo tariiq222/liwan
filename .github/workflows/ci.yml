@@ -24,6 +24,7 @@ jobs:
       - run: pip install ruff==0.16.3
       - run: ruff check odoo-addons
       - run: python3 -B -m unittest discover -s deploy -p 'test_*.py' -v
+      - run: python3 -B tools/migration_guard.py --base "origin/${{ github.base_ref || 'main' }}"
       - run: npm ci --ignore-scripts
       - run: npm -w apps/web run postinstall   # nuxt prepare: required before vue-tsc
       - run: npm test
@@ -63,3 +64,60 @@ jobs:
       - if: always()
         uses: actions/upload-artifact@v4
         with: { name: odoo-test-log, path: odoo-test.log }
+
+  upgrade:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    services:
+      postgres:
+        image: postgres:16
+        env: { POSTGRES_USER: odoo, POSTGRES_PASSWORD: odoo, POSTGRES_DB: postgres }
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U odoo" --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      ODOO_DB_ARGS: --db_host=127.0.0.1 --db_port=5432 --db_user=odoo --db_password=odoo
+      MODULES: nasq_core,nasq_api,nasq_pmo,nasq_hr,nasq_chat
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - id: base
+        run: |
+          tag=$(git tag --list 'release/*' --sort=-v:refname | head -n1)
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          [ -n "$tag" ] || echo "::warning::no release/* tag on the remote; upgrade job skipped"
+      - if: steps.base.outputs.tag != ''
+        run: git worktree add _baseline "${{ steps.base.outputs.tag }}"
+      - if: steps.base.outputs.tag != ''
+        id: pin
+        run: echo "sha=$(cat deploy/odoo/ODOO_COMMIT)" >> "$GITHUB_OUTPUT"
+      - if: steps.base.outputs.tag != ''
+        uses: actions/checkout@v4
+        with: { repository: odoo/odoo, ref: '${{ steps.pin.outputs.sha }}', path: _odoo, fetch-depth: 1 }
+      - if: steps.base.outputs.tag != ''
+        uses: actions/setup-python@v5
+        with: { python-version: '3.12', cache: pip, cache-dependency-path: deploy/odoo/requirements-python312-linux.txt }
+      - if: steps.base.outputs.tag != ''
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends libpq-dev libldap2-dev libsasl2-dev
+          pip install -r deploy/odoo/requirements-python312-linux.txt
+      - name: Install the previous release
+        if: steps.base.outputs.tag != ''
+        run: |
+          set -euo pipefail
+          python _odoo/odoo-bin $ODOO_DB_ARGS --addons-path="$PWD/_odoo/addons,$PWD/_baseline/odoo-addons" \
+            -d nasq_ci_upgrade_scratch -i "$MODULES" --without-demo=all --http-port=8169 --stop-after-init
+      - name: Upgrade to this commit
+        if: steps.base.outputs.tag != ''
+        run: |
+          set -euo pipefail
+          python _odoo/odoo-bin $ODOO_DB_ARGS --addons-path="$PWD/_odoo/addons,$PWD/odoo-addons" \
+            -d nasq_ci_upgrade_scratch -u "$MODULES" --http-port=8169 --stop-after-init 2>&1 | tee upgrade.log
+          ! grep -E " (ERROR|CRITICAL) " upgrade.log
+      - name: Post-upgrade smoke
+        if: steps.base.outputs.tag != ''
+        run: |
+          set -euo pipefail
+          python _odoo/odoo-bin shell $ODOO_DB_ARGS --addons-path="$PWD/_odoo/addons,$PWD/odoo-addons" \
+            -d nasq_ci_upgrade_scratch --http-port=8169 --no-http < deploy/odoo/upgrade_smoke.py | tee smoke.log
+          grep -q UPGRADE_SMOKE_OK smoke.log
