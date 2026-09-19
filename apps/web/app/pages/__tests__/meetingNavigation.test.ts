@@ -9,6 +9,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { formatLocalDateTime } from '../../utils/meetingDateTime'
 import { meetingCreateRoute } from '../../utils/meetingRoutes'
 import { clearMeetingListFilters, parseMeetingListFilters, patchMeetingListQuery } from '../../utils/meetingListFilters'
+import { parseOffset } from '../../utils/routeQuery'
 import { resolutionActions } from '../../utils/meetingWorkspace'
 
 function page(file: string, pmo = false, routeOverride: Record<string, unknown> = {}) {
@@ -33,7 +34,7 @@ function page(file: string, pmo = false, routeOverride: Record<string, unknown> 
     useAccess: () => ({ can: () => pmo }), useProjects: projects,
     useMeetings: () => ({ data: ref({ total: 60 }), isFetching: ref(false) }),
     useMeetingSeriesList: seriesList, usePeople: people, meetingCreateRoute, formatLocalDateTime,
-    clearMeetingListFilters, parseMeetingListFilters, patchMeetingListQuery,
+    clearMeetingListFilters, parseMeetingListFilters, patchMeetingListQuery, parseOffset,
     useMeeting: () => ({ data: meetingData }), useMeetingAttachments: () => ({}),
     useMeetingEvents: () => ({ data: ref({ items: [], total: 0 }), isLoading: ref(false), error: ref(null), refetch: vi.fn() }),
     useMeetingVersions: () => ({ data: ref({ items: [], total: 0 }), isLoading: ref(false), error: ref(null), refetch: vi.fn() }),

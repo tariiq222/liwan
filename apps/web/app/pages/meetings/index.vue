@@ -12,6 +12,7 @@ import { returnToQuery } from '@/utils/safeReturnTo'
 import { formatLocalDateTime } from '@/utils/meetingDateTime'
 import { meetingStateColor } from '@/utils/meetingStatus'
 import { clearMeetingListFilters, meetingDateRange, parseMeetingListFilters, patchMeetingListQuery, type MeetingFilterKey, type MeetingFilterPatch } from '@/utils/meetingListFilters'
+import { parseOffset } from '@/utils/routeQuery'
 
 const route = useRoute()
 const router = useRouter()
@@ -87,12 +88,6 @@ const activeFilterCount = computed(() => [
 ].filter(Boolean).length)
 const hasActiveFilters = computed(() => activeFilterCount.value > 0)
 const invalidDateRange = computed(() => dateValidation.value.invalid || dateValidation.value.reversed)
-
-function parseOffset(value: unknown) {
-  const raw = Array.isArray(value) ? value[0] : value
-  const parsed = typeof raw === 'string' || typeof raw === 'number' ? Number(raw) : 0
-  return Number.isInteger(parsed) && parsed >= 0 ? parsed : 0
-}
 
 function localTime(value: string | null) {
   if (!value) return ''

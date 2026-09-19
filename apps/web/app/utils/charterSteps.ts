@@ -1,5 +1,6 @@
 import { PROJECT_CHARTER_STEPS, type ProjectCharterStep } from '@nasq/contracts'
 import type { CharterFieldKey } from '@/utils/projectCharter'
+import { firstQuery } from './routeQuery'
 
 // The charter is written step by step. `basics` opens every walk and `review`
 // closes it; the optional steps in between come from the project type chosen
@@ -45,7 +46,7 @@ export function stepForField(steps: readonly CharterWizardStep[], field: Charter
 // `?step=` carries the step key so a refresh or a shared link reopens the
 // same place; an unknown or absent value starts from the first step.
 export function parseCharterStepQuery(value: unknown, steps: readonly CharterWizardStep[]): CharterWizardStep {
-  const raw = Array.isArray(value) ? value[0] : value
+  const raw = firstQuery(value)
   return isCharterWizardStep(raw) && steps.includes(raw) ? raw : steps[0]!
 }
 

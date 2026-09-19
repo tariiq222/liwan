@@ -4,6 +4,7 @@ import type { z } from 'zod'
 import { PROJECT_STATUSES, ProjectDetailSchema, ProjectListSchema, ProjectRefSchema, type ProjectCreate, type ProjectDetail, type ProjectPatch, type ProjectStatus } from '@nasq/contracts'
 import { ApiError } from './useApi'
 import { invalidateProjectCaches, projectKeys } from './projectKeys'
+import { parseOffset } from '../utils/routeQuery'
 
 export type ProjectRef = z.infer<typeof ProjectRefSchema>
 
@@ -32,10 +33,7 @@ export type ProjectListRouteState = {
 }
 
 export function parseProjectListOffset(value: unknown): number {
-  const raw = Array.isArray(value) ? value[0] : value
-  const n = typeof raw === 'string' || typeof raw === 'number' ? Number(raw) : 0
-  if (!Number.isInteger(n) || n < 0) return 0
-  return n
+  return parseOffset(value)
 }
 
 export function parseProjectListStatus(value: unknown): ProjectListStatusFilter {

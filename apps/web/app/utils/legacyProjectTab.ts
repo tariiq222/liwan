@@ -1,18 +1,14 @@
 import { projectIdFromPath } from '../composables/nav/activeRoute'
+import { firstQuery } from './routeQuery'
 
 /** Query keys the old workspace carried that the section path now expresses. */
 const DEAD_KEYS = ['tab', 'taskContext', 'projectListReturnTo', 'returnTo']
-
-function firstString(value: unknown): string | undefined {
-  const raw = Array.isArray(value) ? value[0] : value
-  return typeof raw === 'string' ? raw : undefined
-}
 
 function keptQuery(query: Record<string, unknown>): Record<string, string> {
   const kept: Record<string, string> = {}
   for (const [key, raw] of Object.entries(query)) {
     if (DEAD_KEYS.includes(key) || key === 'view') continue
-    const value = firstString(raw)
+    const value = firstQuery(raw)
     if (value !== undefined) kept[key] = value
   }
   return kept
@@ -24,7 +20,7 @@ export function legacyProjectTabTarget(
 ): { path: string; query: Record<string, string> } | null {
   const bare = path.replace(/\/+$/, '') || '/'
   // Standalone /tasks used ?tab=board before DESIGN settled on ?view=board.
-  if (bare === '/tasks' && firstString(query.tab) === 'board') {
+  if (bare === '/tasks' && firstQuery(query.tab) === 'board') {
     return { path: '/tasks', query: { ...keptQuery(query), view: 'board' } }
   }
   const id = projectIdFromPath(path)
@@ -33,8 +29,8 @@ export function legacyProjectTabTarget(
   if (bare === `/projects/${id}/governance`) return { path: `/projects/${id}/charter`, query: keptQuery(query) }
   if (bare !== `/projects/${id}`) return null
 
-  const tab = firstString(query.tab)
-  const view = firstString(query.view)
+  const tab = firstQuery(query.tab)
+  const view = firstQuery(query.view)
   let segment: string | null = null
   let nextView: string | undefined
 

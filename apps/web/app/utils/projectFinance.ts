@@ -1,5 +1,6 @@
 import { PROJECT_STATUSES, type FinanceEntry, type FinanceEntryCreate, type FinanceEntryPatch, type FinanceKind, type ProjectStatus } from '@nasq/contracts'
 import { ApiError } from '../composables/useApi'
+import { parseOffset } from './routeQuery'
 
 export const FINANCE_PAGE = 50
 export const MAX_FINANCE_AMOUNT = 1e12
@@ -49,14 +50,10 @@ const TITLE_MAX = 200
 const REFERENCE_MAX = 200
 const NOTES_MAX = 10000
 
-
-function parseOffset(value: unknown): number {
-  const raw = Array.isArray(value) ? value[0] : value
-  const n = typeof raw === 'string' || typeof raw === 'number' ? Number(raw) : 0
-  if (!Number.isInteger(n) || n < 0) return 0
-  return n
-}
-
+// Unlike the shared `firstQuery`, this does not unwrap a repeated `?q=`
+// query param into its first value — a caller that ever sent one would see
+// an empty search rather than the array's first entry, which is the
+// established behaviour here and is left unchanged.
 function firstQueryString(value: unknown): string {
   if (typeof value === 'string') return value
   return ''

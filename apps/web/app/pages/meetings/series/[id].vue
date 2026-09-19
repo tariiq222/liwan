@@ -9,6 +9,7 @@ import { isCalendarDate } from '@/composables/calendarDate'
 import { meetingTimestamp, prioritizeTimelinePage, selectNextMeeting, selectPreviousMeeting } from '@/utils/meetingWorkspace'
 import { resolutionStateColor } from '@/utils/meetingStatus'
 import { richTextHasContent } from '@/utils/richText'
+import { firstQuery } from '@/utils/routeQuery'
 import { sectionTabsUi } from '@/utils/sectionTabs'
 
 type SeriesTab = 'sessions' | 'followup' | 'history' | 'details'
@@ -35,8 +36,7 @@ const now = ref(new Date())
 const headerDescription = computed(() => query.data.value ? `${query.data.value.organizer?.name || t('meetingTimeline.noOrganizer')} · ${t(`meetingsUi.recurrence.${query.data.value.recurrence}`)}` : undefined)
 
 function routeValue(key: string) {
-  const value = route.query[key]
-  return Array.isArray(value) ? String(value[0] ?? '') : typeof value === 'string' ? value : ''
+  return firstQuery(route.query[key]) ?? ''
 }
 function parsePage(value: string, fallback = 0) {
   const parsed = Number(value)
