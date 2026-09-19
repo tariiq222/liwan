@@ -1,7 +1,7 @@
 import { createMemoryHistory, createRouter, type RouteLocationNormalizedGeneric, type Router } from 'vue-router'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import routerOptions from '../router.options'
-import { forgetScrollPositions, recallScrollPosition } from '../utils/scrollMemory'
+import { recallScrollPosition } from '../utils/scrollMemory'
 
 const globals = globalThis as Record<string, unknown>
 
@@ -64,7 +64,6 @@ async function restore(toPath: string) {
 }
 
 beforeEach(async () => {
-  forgetScrollPositions()
   stubBrowser()
   router = makeRouter()
   await installRecorder()

@@ -1,10 +1,7 @@
 <script lang="ts">
 import type { HTMLAttributes } from "vue"
 import type { ChartConfig } from "."
-import { useId } from "reka-ui"
-import { computed, toRefs } from "vue"
-import { cn } from "@/lib/utils"
-import { provideChartContext } from "."
+import { computed, useId } from "vue"
 import ChartStyle from "./ChartStyle.vue"
 </script>
 
@@ -23,24 +20,18 @@ defineSlots<{
   }
 }>()
 
-const { config } = toRefs(props)
 const uniqueId = useId()
 const chartId = computed(() => `chart-${props.id || uniqueId.replace(/:/g, "")}`)
-
-provideChartContext({
-  id: uniqueId,
-  config,
-})
 </script>
 
 <template>
   <div
     data-slot="chart"
     :data-chart="chartId"
-    :class="cn(
+    :class="[
       `[&_.tick_text]:!fill-muted-foreground [&_.tick_line]:!stroke-border/50 flex min-h-0 flex-col justify-center text-xs [&_[data-vis-xy-container]]:w-full [&_[data-vis-single-container]]:w-full h-full w-full `,
       props.class,
-    )"
+    ]"
     :style="{
       '--vis-tooltip-padding': '0px',
       '--vis-tooltip-background-color': 'transparent',
@@ -70,7 +61,7 @@ provideChartContext({
       '--vis-dark-donut-background-color': 'var(--card)',
     }"
   >
-    <slot :id="uniqueId" :config="config" />
-    <ChartStyle :id="chartId" />
+    <slot :id="uniqueId" :config="props.config" />
+    <ChartStyle :id="chartId" :config="props.config" />
   </div>
 </template>

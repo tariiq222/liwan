@@ -1,5 +1,6 @@
 import { PROJECT_CHARTER_STEPS, type ProjectCharterStep } from '@nasq/contracts'
 import type { CharterFieldKey } from '@/utils/projectCharter'
+import { firstQuery } from './routeQuery'
 
 // The charter is written step by step. `basics` opens every walk and `review`
 // closes it; the optional steps in between come from the project type chosen
@@ -9,7 +10,7 @@ export const CHARTER_WIZARD_STEPS = ['basics', ...PROJECT_CHARTER_STEPS, 'review
 
 export type CharterWizardStep = (typeof CHARTER_WIZARD_STEPS)[number]
 
-export const OPTIONAL_CHARTER_STEPS: readonly ProjectCharterStep[] = PROJECT_CHARTER_STEPS
+const OPTIONAL_CHARTER_STEPS: readonly ProjectCharterStep[] = PROJECT_CHARTER_STEPS
 
 export const CHARTER_STEP_FIELDS: Record<CharterWizardStep, readonly CharterFieldKey[]> = {
   basics: ['name', 'code', 'description', 'type', 'owning_unit', 'manager', 'sponsor'],
@@ -21,7 +22,7 @@ export const CHARTER_STEP_FIELDS: Record<CharterWizardStep, readonly CharterFiel
   review: [],
 }
 
-export function isCharterWizardStep(value: unknown): value is CharterWizardStep {
+function isCharterWizardStep(value: unknown): value is CharterWizardStep {
   return typeof value === 'string' && (CHARTER_WIZARD_STEPS as readonly string[]).includes(value)
 }
 
@@ -38,13 +39,6 @@ export function fieldsForStep(step: CharterWizardStep): readonly CharterFieldKey
   return CHARTER_STEP_FIELDS[step]
 }
 
-// Fields that no step of this walk shows. The wizard never validates or
-// requires them, and the review step lists them only when they carry values.
-export function fieldsOutsideSteps(steps: readonly CharterWizardStep[]): CharterFieldKey[] {
-  const shown = new Set(steps.flatMap(step => CHARTER_STEP_FIELDS[step]))
-  return (Object.values(CHARTER_STEP_FIELDS).flat() as CharterFieldKey[]).filter(field => !shown.has(field))
-}
-
 export function stepForField(steps: readonly CharterWizardStep[], field: CharterFieldKey): CharterWizardStep | null {
   return steps.find(step => CHARTER_STEP_FIELDS[step].includes(field)) ?? null
 }
@@ -52,7 +46,7 @@ export function stepForField(steps: readonly CharterWizardStep[], field: Charter
 // `?step=` carries the step key so a refresh or a shared link reopens the
 // same place; an unknown or absent value starts from the first step.
 export function parseCharterStepQuery(value: unknown, steps: readonly CharterWizardStep[]): CharterWizardStep {
-  const raw = Array.isArray(value) ? value[0] : value
+  const raw = firstQuery(value)
   return isCharterWizardStep(raw) && steps.includes(raw) ? raw : steps[0]!
 }
 

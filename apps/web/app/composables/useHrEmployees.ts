@@ -2,23 +2,16 @@ import type { MaybeRefOrGetter } from 'vue'
 import { computed, toValue } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import {
-  HrEmployeeCreateSchema,
   HrEmployeeListSchema,
-  HrEmployeePatchSchema,
   HrEmployeeSchema,
   type HrEmployee,
   type HrEmployeeCreate,
-  type HrEmployeeList,
   type HrEmployeePatch,
 } from '@nasq/contracts'
 
-export type { HrEmployee, HrEmployeeList }
+export type { HrEmployee }
 
-// Kept as a compatibility export for consumers that used the old HR access
-// mutation cache policy. Account mutations now belong to the access module.
-export const HR_ACCESS_MUTATION_GC_TIME = 0
-
-export type HrEmployeeListParams = {
+type HrEmployeeListParams = {
   q?: string
   department_id?: number
   archived?: boolean
@@ -96,7 +89,7 @@ export function invalidateHrEmployeeLists(qc: ReturnType<typeof useQueryClient>)
   void qc.invalidateQueries({ queryKey: ['hr', 'employees'] })
 }
 
-export function invalidateHrDepartmentLists(qc: ReturnType<typeof useQueryClient>) {
+function invalidateHrDepartmentLists(qc: ReturnType<typeof useQueryClient>) {
   void qc.invalidateQueries({ queryKey: ['hr', 'departments'] })
 }
 
@@ -105,11 +98,6 @@ function setEmployeeDetailAndInvalidate(qc: ReturnType<typeof useQueryClient>, e
   invalidateHrEmployeeLists(qc)
   if (includeDepartments) invalidateHrDepartmentLists(qc)
   if (includePeople) void qc.invalidateQueries({ queryKey: ['people'] })
-}
-
-export function invalidateHrAccessCaches(qc: ReturnType<typeof useQueryClient>) {
-  invalidateHrEmployeeLists(qc)
-  void qc.invalidateQueries({ queryKey: ['people'] })
 }
 
 export function useCreateHrEmployee() {
@@ -138,5 +126,3 @@ function useEmployeeArchiveMutation(action: 'archive' | 'unarchive') {
 }
 export function useArchiveHrEmployee() { return useEmployeeArchiveMutation('archive') }
 export function useUnarchiveHrEmployee() { return useEmployeeArchiveMutation('unarchive') }
-
-export { HrEmployeeCreateSchema, HrEmployeePatchSchema }

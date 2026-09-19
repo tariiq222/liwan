@@ -2,7 +2,6 @@
 import type { HTMLAttributes } from "vue"
 import type { ChartConfig } from "."
 import { computed } from "vue"
-import { cn } from "@/lib/utils"
 
 const props = withDefaults(defineProps<{
   hideLabel?: boolean
@@ -21,9 +20,6 @@ const props = withDefaults(defineProps<{
   config: () => ({}),
   indicator: "dot",
 })
-
-// TODO: currently we use `createElement` and `render` to render the
-// const chartContext = useChart(null)
 
 const payload = computed(() => {
   return Object.entries(props.payload).map(([key, value]) => {
@@ -48,10 +44,7 @@ const tooltipLabel = computed(() => {
 
 <template>
   <div
-    :class="cn(
-      'ring ring-default bg-default grid min-w-[8rem] items-start gap-1.5 rounded-lg px-3 py-2 text-xs shadow-md',
-      props.class,
-    )"
+    :class="['ring ring-default bg-default grid min-w-[8rem] items-start gap-1.5 rounded-lg px-3 py-2 text-xs shadow-md', props.class]"
   >
     <slot>
       <div v-if="!nestLabel && tooltipLabel" class="font-medium">
@@ -61,31 +54,26 @@ const tooltipLabel = computed(() => {
         <div
           v-for="{ value, itemConfig, indicatorColor, key } in payload"
           :key="key"
-          :class="
-            cn('[&>svg]:text-muted flex w-full flex-wrap items-stretch gap-2 [&>svg]:h-2.5 [&>svg]:w-2.5',
-               indicator === 'dot' && 'items-center')"
+          :class="['[&>svg]:text-muted flex w-full flex-wrap items-stretch gap-2 [&>svg]:h-2.5 [&>svg]:w-2.5', indicator === 'dot' && 'items-center']"
         >
-          <component :is="itemConfig.icon" v-if="itemConfig?.icon" />
-          <template v-else-if="!hideIndicator">
-            <div
-              :class="cn(
-                'shrink-0 rounded-xs border-(--color-border) bg-(--color-bg)',
-                {
-                  'h-2.5 w-2.5': indicator === 'dot',
-                  'w-1': indicator === 'line',
-                  'w-0 border-[1.5px] border-dashed bg-transparent':
-                    indicator === 'dashed',
-                  'my-0.5': nestLabel && indicator === 'dashed',
-                },
-              )"
-              :style="{
-                '--color-bg': indicatorColor,
-                '--color-border': indicatorColor,
-              }"
-            />
-          </template>
+          <div
+            v-if="!hideIndicator"
+            :class="[
+              'shrink-0 rounded-xs border-(--color-border) bg-(--color-bg)',
+              {
+                'h-2.5 w-2.5': indicator === 'dot',
+                'w-1': indicator === 'line',
+                'w-0 border-[1.5px] border-dashed bg-transparent': indicator === 'dashed',
+                'my-0.5': nestLabel && indicator === 'dashed',
+              },
+            ]"
+            :style="{
+              '--color-bg': indicatorColor,
+              '--color-border': indicatorColor,
+            }"
+          />
 
-          <div :class="cn('flex flex-1 justify-between leading-none', nestLabel ? 'items-end' : 'items-center')">
+          <div :class="['flex flex-1 justify-between leading-none', nestLabel ? 'items-end' : 'items-center']">
             <div class="grid gap-1.5">
               <div v-if="nestLabel" class="font-medium">
                 {{ tooltipLabel }}

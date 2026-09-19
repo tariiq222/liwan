@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import { TaskDetailSchema } from '@nasq/contracts'
-import { permittedNextStates } from '../taskState'
 
 const base = {
   id: 1, name: 'Task', project: { id: 4, name: 'Project' }, state: 'in_progress' as const, priority: '0' as const,
@@ -26,10 +25,5 @@ describe('task completion approval client shape', () => {
     expect(detail.can_approve).toBe(false)
     expect(detail.allowed_actions).toContain('request_completion')
     expect(detail.allowed_actions).not.toContain('accept_completion')
-  })
-
-  it('keeps done out of ordinary transitions when a policy is present', () => {
-    const next = permittedNextStates('in_progress', true, false).filter(state => state !== 'done')
-    expect(next).not.toContain('done')
   })
 })

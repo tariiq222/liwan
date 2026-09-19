@@ -2,8 +2,7 @@ import { MutationObserver, QueryClient } from '@tanstack/query-core'
 import { refDebounced } from '@vueuse/core'
 import { computed, nextTick, ref, watch } from 'vue'
 import { describe, expect, it, vi } from 'vitest'
-import { HR_ACCESS_MUTATION_GC_TIME, hrEmployeeListQuery, hrManagerOptions, invalidateHrAccessCaches, invalidateHrEmployeeLists, retryHrManagerQueries, type HrEmployee } from '../useHrEmployees'
-import { hrDocumentListRouteQuery } from '../useHrDocuments'
+import { hrEmployeeListQuery, hrManagerOptions, invalidateHrEmployeeLists, retryHrManagerQueries, type HrEmployee } from '../useHrEmployees'
 import { hasPendingHrSearch, hrCommittedListParams } from '../useHrSearch'
 
 describe('HR administration helpers', () => {
@@ -69,14 +68,6 @@ describe('HR administration helpers', () => {
     }
   })
 
-  it('removes a stale document offset when returning to the first page', () => {
-    expect(hrDocumentListRouteQuery({ q: 'policy', department_id: '7', offset: '25', returnTo: '/hr' }, {
-      q: 'policy',
-      department_id: 7,
-      offset: 0,
-    })).toEqual({ q: 'policy', department_id: 7, offset: undefined, returnTo: '/hr' })
-  })
-
   it('keeps the selected manager and exposes server search results beyond the initial page', () => {
     const employee = (id: number, name: string) => ({ id, name } as HrEmployee)
     const options = hrManagerOptions({
@@ -108,17 +99,6 @@ describe('HR administration helpers', () => {
     })
   })
 
-  it('invalidates employee and people reads after access changes', async () => {
-    const queryClient = new QueryClient()
-    const employeeKey = ['hr', 'employees', { archived: false }]
-    await queryClient.prefetchQuery({ queryKey: employeeKey, queryFn: async () => ({ items: [], total: 0 }) })
-    await queryClient.prefetchQuery({ queryKey: ['people'], queryFn: async () => [] })
-    invalidateHrAccessCaches(queryClient)
-    expect(queryClient.getQueryState(employeeKey)?.isInvalidated).toBe(true)
-    expect(queryClient.getQueryState(['people'])?.isInvalidated).toBe(true)
-    queryClient.clear()
-  })
-
   it('invalidates every employee list variant after an employee mutation', async () => {
     const queryClient = new QueryClient()
     const activeKey = ['hr', 'employees', { archived: false }]
@@ -136,7 +116,7 @@ describe('HR administration helpers', () => {
       const queryClient = new QueryClient()
       let reset = () => {}
       const observer = new MutationObserver(queryClient, {
-        gcTime: HR_ACCESS_MUTATION_GC_TIME,
+        gcTime: 0,
         mutationFn,
         onSettled: () => reset(),
       })

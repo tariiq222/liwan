@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { RouteLocationRaw } from 'vue-router'
 import type { FinanceEntry, FinanceSummary } from '@nasq/contracts'
+import { useMediaQuery } from '@vueuse/core'
 import EmptyState from '@/components/shared/EmptyState.vue'
 import { formatCalendarDate } from '@/composables/calendarDate'
 import { formatMoney } from '@/utils/projectFinance'
@@ -21,7 +22,7 @@ const emit = defineEmits<{ open: [id: number] }>()
 const { t, locale } = useI18n()
 const hydrated = useHydrated()
 const route = useRoute()
-const compactRecords = ref(false)
+const compactRecords = useMediaQuery('(max-width: 767px)', { ssrWidth: 1024 })
 const loading = computed(() => props.isLoading || !hydrated.value)
 const showCreate = computed(() => Boolean(props.canManage && props.createTo && !props.filtered))
 const budgets = computed(() => {
@@ -49,14 +50,6 @@ function entryActions(item: FinanceEntry): RowAction[] {
     to: { path: `/projects/${props.projectId}/finance/${item.id}/edit`, query: returnToQuery(route.fullPath) },
   }]
 }
-
-onMounted(() => {
-  const query = window.matchMedia('(max-width: 767px)')
-  const sync = () => { compactRecords.value = query.matches }
-  sync()
-  query.addEventListener('change', sync)
-  onUnmounted(() => query.removeEventListener('change', sync))
-})
 
 function budgetLabel(item: FinanceEntry) {
   if (!item.budget_entry_id) return '—'

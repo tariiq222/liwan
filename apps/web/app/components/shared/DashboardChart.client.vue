@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import type { ChartConfig } from '@/components/charts'
 import type { ChartPalette, DashboardBarChart, DashboardChart, DashboardDonutChart } from '@/utils/projectChartData'
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useMediaQuery, useMutationObserver } from '@vueuse/core'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { VisAxis, VisDonut, VisGroupedBar, VisTooltip, VisXYContainer, VisSingleContainer, VisDonutSelectors, VisGroupedBarSelectors } from '@unovis/vue'
 import { ChartContainer, ChartLegendContent, ChartTooltipContent, componentToString } from '@/components/charts'
 
@@ -18,10 +19,7 @@ const props = withDefaults(defineProps<{
 const { mode, fontSize } = useAppearance()
 const { locale } = useI18n()
 const tokens = ref<Record<string, string>>({})
-const prefersReducedMotion = ref(false)
-let themeObserver: MutationObserver | null = null
-let motionMediaQuery: MediaQueryList | null = null
-let motionListener: (() => void) | null = null
+const prefersReducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)')
 const motionEpoch = ref(0)
 
 function readTokens() {
@@ -146,30 +144,18 @@ function barTooltip(raw: unknown) {
 const donutTooltipTriggers = computed(() => ({ [VisDonutSelectors.segment]: donutTooltip }))
 const barTooltipTriggers = computed(() => ({ [VisGroupedBarSelectors.bar]: barTooltip }))
 
-onMounted(() => {
-  readTokens()
-  themeObserver = new MutationObserver(readTokens)
-  themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class', 'style', 'data-font-size'] })
-  motionMediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
-  let previousReducedMotion = false
-  motionListener = () => {
-    const reducedMotion = motionMediaQuery?.matches ?? false
-    if (reducedMotion && !previousReducedMotion) {
-      // Unovis bar transitions are D3-managed and cannot be cancelled through the
-      // public component API. Remount only on the reduce edge so the current
-      // geometry is committed immediately with duration=0.
-      motionEpoch.value += 1
-    }
-    prefersReducedMotion.value = reducedMotion
-    previousReducedMotion = reducedMotion
+useMutationObserver(() => document.documentElement, readTokens, { attributes: true, attributeFilter: ['class', 'style', 'data-font-size'] })
+
+watch(prefersReducedMotion, (reducedMotion, previousReducedMotion) => {
+  if (reducedMotion && !previousReducedMotion) {
+    // Unovis bar transitions are D3-managed and cannot be cancelled through the
+    // public component API. Remount only on the reduce edge so the current
+    // geometry is committed immediately with duration=0.
+    motionEpoch.value += 1
   }
-  motionListener()
-  motionMediaQuery.addEventListener?.('change', motionListener)
 })
-onBeforeUnmount(() => {
-  themeObserver?.disconnect()
-  if (motionListener) motionMediaQuery?.removeEventListener?.('change', motionListener)
-})
+
+onMounted(readTokens)
 watch([mode, fontSize], () => { void nextTick(readTokens) }, { flush: 'post' })
 </script>
 
@@ -256,7 +242,7 @@ watch([mode, fontSize], () => { void nextTick(readTokens) }, { flush: 'post' })
             <VisTooltip :triggers="barTooltipTriggers" />
           </VisXYContainer>
         </div>
-        <ChartLegendContent v-if="bars.series.length > 1" vertical-align="bottom" class="chart-bar-legend w-full flex-wrap gap-x-4 gap-y-1 px-2 text-xs" />
+        <ChartLegendContent v-if="bars.series.length > 1" :config="chartConfig" vertical-align="bottom" class="chart-bar-legend w-full flex-wrap gap-x-4 gap-y-1 px-2 text-xs" />
       </div>
     </ChartContainer>
   </div>

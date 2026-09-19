@@ -1,27 +1,20 @@
 import { describe, expect, it } from 'vitest'
 import { ApiError } from '../../composables/useApi'
-import { safeReturnTo } from '../safeReturnTo'
 import {
   FINANCE_PAGE,
-  FINANCE_RETURN_PREFIXES,
   MAX_FINANCE_AMOUNT,
-  REPORT_PAGE,
   budgetStatus,
   canonicalFromMinor,
   clampListOffset,
   financeCreateBody,
   draftFromEntry,
   emptyFinanceDraft,
-  financeListPath,
   financeListQuery,
   financePatchHasMutation,
   financeSubmitToken,
   financeWriteAllowed,
   formatNullableAmount,
-  formatNullableCount,
   formatNullablePercent,
-  formatTotalsPlanned,
-  formatTotalsRemaining,
   formatUtilization,
   financeSummaryMode,
   isFinanceDraftDirty,
@@ -31,15 +24,10 @@ import {
   nextOffsetAfterListResult,
   parseFinanceListRoute,
   parseMoneyInput,
-  parseReportListRoute,
   financePatchBody,
   patchFinanceListRoute,
-  patchReportListRoute,
-  reportListPath,
   sameFinanceListRoute,
-  sameReportListRoute,
   serializeFinanceListRoute,
-  serializeReportListRoute,
   shouldKeepFinanceFormMounted,
   validateFinanceDraft,
   type FinanceDraft,
@@ -138,13 +126,6 @@ describe('finance list route helpers', () => {
     })
   })
 
-  it('builds a list path that create/detail/delete can return to with the same filters', () => {
-    expect(financeListPath(4, { kind: 'expense', q: 'paint', offset: 50 })).toBe(
-      '/projects/4/finance?kind=expense&q=paint&offset=50',
-    )
-    expect(financeListPath(4, { kind: 'all', q: '', offset: 0 })).toBe('/projects/4/finance')
-  })
-
   it('keeps list query keys distinct per kind, search and page', () => {
     const page0 = financeListQuery({ kind: 'budget', q: 'a', limit: FINANCE_PAGE, offset: 0 })
     const page1 = financeListQuery({ kind: 'budget', q: 'a', limit: FINANCE_PAGE, offset: 50 })
@@ -164,62 +145,6 @@ describe('finance list route helpers', () => {
     const left = serializeFinanceListRoute(parseFinanceListRoute({ q: 'a', offset: '0' }))
     const right = serializeFinanceListRoute({ kind: 'all', q: 'a', offset: 0 })
     expect(sameFinanceListRoute(left, right)).toBe(true)
-  })
-})
-
-describe('report list route helpers', () => {
-  it('reads search and project status from the URL, including unset, and drops unknown status', () => {
-    expect(parseReportListRoute({ q: 'portal', status: 'at_risk', offset: '50' })).toEqual({
-      q: 'portal',
-      status: 'at_risk',
-      offset: 50,
-    })
-    expect(parseReportListRoute({ status: 'unset' }).status).toBe('unset')
-    expect(parseReportListRoute({ status: 'archived' }).status).toBe('all')
-    expect(parseReportListRoute({}).status).toBe('all')
-  })
-
-  it('resets offset when search or status changes', () => {
-    const paged = parseReportListRoute({ q: 'portal', status: 'on_track', offset: '100' })
-    expect(serializeReportListRoute(patchReportListRoute(paged, { q: 'hr' }))).toEqual({
-      q: 'hr',
-      status: 'on_track',
-      offset: undefined,
-    })
-    expect(serializeReportListRoute(patchReportListRoute(paged, { status: 'all' }))).toEqual({
-      q: 'portal',
-      status: undefined,
-      offset: undefined,
-    })
-    expect(serializeReportListRoute(patchReportListRoute(paged, { offset: 50 }))).toEqual({
-      q: 'portal',
-      status: 'on_track',
-      offset: 50,
-    })
-  })
-
-  it('preserves the reports URL so a project finance link can return to the same filters', () => {
-    expect(reportListPath({ q: 'portal', status: 'off_track', offset: 50 })).toBe(
-      '/reports?q=portal&status=off_track&offset=50',
-    )
-    expect(sameReportListRoute(
-      serializeReportListRoute({ q: 'a', status: 'all', offset: 0 }),
-      serializeReportListRoute(parseReportListRoute({ q: 'a' })),
-    )).toBe(true)
-  })
-})
-
-describe('safeReturnTo /reports allow-list', () => {
-  it('keeps a reports URL only when the call site explicitly allows /reports', () => {
-    const reportsUrl = '/reports?q=portal&status=on_track&offset=50'
-    expect(safeReturnTo(reportsUrl, '/projects/4/finance', FINANCE_RETURN_PREFIXES)).toBe(reportsUrl)
-    expect(safeReturnTo(reportsUrl, '/projects/4/finance', ['/projects'])).toBe('/projects/4/finance')
-    expect(safeReturnTo('/projects/4/finance?kind=expense', '/reports', FINANCE_RETURN_PREFIXES)).toBe(
-      '/projects/4/finance?kind=expense',
-    )
-    expect(safeReturnTo('https://evil.example/reports', '/projects/4/finance', FINANCE_RETURN_PREFIXES)).toBe(
-      '/projects/4/finance',
-    )
   })
 })
 
@@ -303,21 +228,6 @@ describe('financeSummaryMode', () => {
   })
 })
 
-describe('totals unknown versus known zero', () => {
-  it('labels remaining and planned unknown when no project in the currency group has a budget', () => {
-    const none = { planned: 0, remaining: 0, budgeted_project_count: 0, currency: SAR }
-    expect(formatTotalsPlanned(none, 'unknown')).toBe('unknown')
-    expect(formatTotalsRemaining(none, 'unknown')).toBe('unknown')
-    expect(formatTotalsPlanned(none, 'unknown')).not.toBe(formatNullableAmount(0, SAR, 'unknown'))
-  })
-
-  it('keeps an explicit zero planned remaining when at least one project is budgeted', () => {
-    const budgetedZero = { planned: 0, remaining: 0, budgeted_project_count: 1, currency: SAR }
-    expect(formatTotalsPlanned(budgetedZero, 'unknown')).toBe('0.00 ر.س')
-    expect(formatTotalsRemaining(budgetedZero, 'unknown')).toBe('0.00 ر.س')
-  })
-})
-
 describe('clampListOffset', () => {
   it('moves a past-the-end page back onto the last page that still has rows', () => {
     expect(clampListOffset(50, 50, 50)).toBe(0)
@@ -375,9 +285,6 @@ describe('unknown versus zero formatting', () => {
     expect(formatNullablePercent(0, 'unknown')).toBe('0%')
     expect(formatUtilization(null, 'unknown')).toBe('unknown')
     expect(formatUtilization(12.5, 'unknown')).toBe('12.50%')
-    expect(formatNullableCount(null, 'unavailable')).toBe('unavailable')
-    expect(formatNullableCount(0, 'unavailable')).toBe('0')
-    expect(formatNullableCount(null, 'unavailable')).not.toBe(formatNullableCount(0, 'unavailable'))
   })
 })
 

@@ -6,7 +6,7 @@ import { invalidateProjectCaches } from './projectKeys'
 
 const PAGE = 50
 
-export const dependencyKeys = {
+const dependencyKeys = {
   detail: (id: number) => ['tasks', 'dependencies', id] as const,
   candidates: (id: number, q: string) => ['tasks', 'dependency-candidates', id, q] as const,
 }

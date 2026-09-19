@@ -8,19 +8,19 @@ import { type ProjectReportStatusFilter } from '../utils/projectFinance'
 
 export type { ProjectDashboardAnalytics }
 
-export type ProjectDashboardAnalyticsFilters = Pick<{
+type ProjectDashboardAnalyticsFilters = Pick<{
   q?: string
   status?: ProjectReportStatusFilter
 }, 'q' | 'status'>
 
-export function projectDashboardAnalyticsQuery(filters: ProjectDashboardAnalyticsFilters = {}) {
+function projectDashboardAnalyticsQuery(filters: ProjectDashboardAnalyticsFilters = {}) {
   return {
     q: filters.q?.trim() || undefined,
     status: filters.status && filters.status !== 'all' ? filters.status : undefined,
   }
 }
 
-export const projectDashboardAnalyticsKeys = {
+const projectDashboardAnalyticsKeys = {
   all: ['project-dashboard-analytics'] as const,
   detail: (query: ReturnType<typeof projectDashboardAnalyticsQuery>) => ['project-dashboard-analytics', query] as const,
 }

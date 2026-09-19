@@ -1,6 +1,6 @@
 import type { LocationQueryRaw } from 'vue-router'
 
-export const MEETING_TAB_VALUES = ['summary', 'agenda', 'minutes', 'resolutions', 'attachments', 'history', 'versions'] as const
+const MEETING_TAB_VALUES = ['summary', 'agenda', 'minutes', 'resolutions', 'attachments', 'history', 'versions'] as const
 
 export type MeetingTab = typeof MEETING_TAB_VALUES[number]
 

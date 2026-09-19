@@ -9,6 +9,7 @@ import { useMeetings } from '@/composables/useMeetings'
 import { useProject } from '@/composables/useProjects'
 import { meetingStateColor } from '@/utils/meetingStatus'
 import { parsePositiveId } from '@/utils/routeParams'
+import { parseOffset } from '@/utils/routeQuery'
 import { returnToQuery } from '@/utils/safeReturnTo'
 
 const route = useRoute()
@@ -21,11 +22,7 @@ const projectId = computed(() => parsePositiveId(route.params.id))
 const { data: project, error: projectError } = useProject(projectId)
 
 const limit = 25
-const offset = computed(() => {
-  const raw = Array.isArray(route.query.offset) ? route.query.offset[0] : route.query.offset
-  const parsed = Number(raw ?? 0)
-  return Number.isInteger(parsed) && parsed >= 0 ? parsed : 0
-})
+const offset = computed(() => parseOffset(route.query.offset))
 // Without a valid project id the request would drop its only filter and list every meeting.
 const query = useMeetings(
   computed(() => ({ project_id: projectId.value ?? undefined, limit, offset: offset.value })),

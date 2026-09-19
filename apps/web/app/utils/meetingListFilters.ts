@@ -1,8 +1,9 @@
 import type { LocationQueryRaw } from 'vue-router'
 import { isCalendarDate } from '../composables/calendarDate'
 import { parsePositiveId } from './routeParams'
+import { firstQuery } from './routeQuery'
 
-export const MEETING_FILTER_KEYS = [
+const MEETING_FILTER_KEYS = [
   'q',
   'state',
   'mine',
@@ -14,9 +15,9 @@ export const MEETING_FILTER_KEYS = [
 ] as const
 
 export type MeetingFilterKey = typeof MEETING_FILTER_KEYS[number]
-export type MeetingListQuery = Record<string, unknown>
+type MeetingListQuery = Record<string, unknown>
 
-export type MeetingListFilters = {
+type MeetingListFilters = {
   q: string
   state: string
   mine: boolean
@@ -27,15 +28,11 @@ export type MeetingListFilters = {
   dateTo: string
 }
 
-export type MeetingDateRange = {
+type MeetingDateRange = {
   fromValid: boolean
   toValid: boolean
   reversed: boolean
   invalid: boolean
-}
-
-function firstValue(value: unknown) {
-  return Array.isArray(value) ? value[0] : value
 }
 
 export function meetingDateRange(dateFrom: string, dateTo: string): MeetingDateRange {
@@ -46,19 +43,15 @@ export function meetingDateRange(dateFrom: string, dateTo: string): MeetingDateR
 }
 
 export function parseMeetingListFilters(query: MeetingListQuery): MeetingListFilters {
-  const q = firstValue(query.q)
-  const state = firstValue(query.state)
-  const dateFrom = firstValue(query.date_from)
-  const dateTo = firstValue(query.date_to)
   return {
-    q: typeof q === 'string' ? q : '',
-    state: typeof state === 'string' ? state : '',
-    mine: firstValue(query.mine) === '1' || firstValue(query.mine) === 'true',
+    q: firstQuery(query.q) ?? '',
+    state: firstQuery(query.state) ?? '',
+    mine: firstQuery(query.mine) === '1' || firstQuery(query.mine) === 'true',
     projectId: parsePositiveId(query.project_id) ?? undefined,
     organizerId: parsePositiveId(query.organizer_id) ?? undefined,
     seriesId: parsePositiveId(query.series_id) ?? undefined,
-    dateFrom: typeof dateFrom === 'string' ? dateFrom : '',
-    dateTo: typeof dateTo === 'string' ? dateTo : '',
+    dateFrom: firstQuery(query.date_from) ?? '',
+    dateTo: firstQuery(query.date_to) ?? '',
   }
 }
 

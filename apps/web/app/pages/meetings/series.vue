@@ -5,6 +5,7 @@ import FilterBar from '@/components/shared/FilterBar.vue'
 import { useMeetingSeriesList } from '@/composables/useMeetings'
 import { returnToQuery } from '@/utils/safeReturnTo'
 import { clearMeetingListFilters, parseMeetingListFilters, patchMeetingListQuery } from '@/utils/meetingListFilters'
+import { parseOffset } from '@/utils/routeQuery'
 
 const route = useRoute()
 const router = useRouter()
@@ -40,12 +41,6 @@ const totalLabel = computed(() => query.isLoading.value
 
 const activeFilterCount = computed(() => [search.value.trim(), projectId.value].filter(Boolean).length)
 const hasActiveFilters = computed(() => activeFilterCount.value > 0)
-
-function parseOffset(value: unknown) {
-  const raw = Array.isArray(value) ? value[0] : value
-  const parsed = typeof raw === 'string' || typeof raw === 'number' ? Number(raw) : 0
-  return Number.isInteger(parsed) && parsed >= 0 ? parsed : 0
-}
 
 watch(() => route.query.q, value => {
   const next = typeof value === 'string' ? value : ''

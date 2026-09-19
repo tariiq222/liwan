@@ -1,5 +1,5 @@
 import type { MaybeRefOrGetter } from 'vue'
-import { computed, inject, onScopeDispose, provide, readonly, ref, toValue, useId, watch, type InjectionKey, type Ref } from 'vue'
+import { inject, onScopeDispose, provide, readonly, ref, toValue, useId, watch, type InjectionKey, type Ref } from 'vue'
 
 interface PageHeaderRegistration {
   owner: string
@@ -44,16 +44,6 @@ export function usePageHeader(
   onScopeDispose(() => {
     if (state.value?.owner === owner) state.value = null
   })
-}
-
-export function useShellPageHeader() {
-  const route = useRoute()
-  const state = usePageHeaderState()
-
-  const title = computed(() => state.value?.route === route.path ? state.value.title : undefined)
-  const description = computed(() => state.value?.route === route.path ? state.value.description : undefined)
-
-  return { title, description }
 }
 
 const PROJECT_FRAME_HEADING = Symbol('nasq-project-frame-heading') as InjectionKey<Readonly<Ref<boolean>>>

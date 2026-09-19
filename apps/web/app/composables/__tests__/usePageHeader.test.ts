@@ -1,6 +1,6 @@
-import { createRenderer, defineComponent, h, nextTick, reactive, ref, type App, type Component } from 'vue'
+import { computed, createRenderer, defineComponent, h, nextTick, reactive, ref, type App, type Component } from 'vue'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { usePageHeader, useShellPageHeader } from '../usePageHeader'
+import { usePageHeader } from '../usePageHeader'
 
 interface HostNode {
   children: HostNode[]
@@ -77,10 +77,14 @@ describe('usePageHeader', () => {
     vi.stubGlobal('useRoute', () => route)
     vi.stubGlobal('useState', () => pageState)
 
-    let shell: ReturnType<typeof useShellPageHeader> | undefined
+    let shell: { title: { value: string | undefined } } | undefined
     const Shell = defineComponent({
       setup() {
-        shell = useShellPageHeader()
+        const shellRoute = useRoute()
+        const state = useState<{ route: string; title: string } | null>()
+        shell = {
+          title: computed(() => state.value?.route === shellRoute.path ? state.value.title : undefined),
+        }
         return () => h('div')
       },
     })

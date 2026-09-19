@@ -34,12 +34,6 @@ export const PRIORITY_LABEL_KEY: Record<'0' | '1' | '2' | '3', string> = {
 // Fixed display order for pickers/menus, not the enum's declaration order.
 const ALL_STATES: TaskState[] = ['in_progress', 'waiting', 'changes_requested', 'approved', 'done', 'cancelled']
 
-export function canTransition(from: TaskState, to: TaskState, canApprove: boolean): boolean {
-  if (to === from) return false
-  if (MANAGER_STATES.includes(to) && !canApprove) return false
-  return true
-}
-
 export function nextStates(from: TaskState, canApprove: boolean): TaskState[] {
   return ALL_STATES.filter((s) => s !== from && !(MANAGER_STATES.includes(s) && !canApprove))
 }
@@ -60,9 +54,4 @@ export function deadlineLabel(days: number | null, t: (key: string, params?: Rec
   if (days === 1) return t('tasks.deadline.tomorrow')
   if (days > 1) return t('tasks.deadline.inDays', { n: days })
   return t('tasks.deadline.overdueDays', { n: Math.abs(days) })
-}
-
-/** Approval can be assigned without general task editing. */
-export function permittedNextStates(current: TaskState, canWrite: boolean, canApprove: boolean): TaskState[] {
-  return nextStates(current, canApprove).filter(state => canWrite || (canApprove && MANAGER_STATES.includes(state)))
 }

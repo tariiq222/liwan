@@ -76,7 +76,7 @@ function setDependency(keys: string[], key: string, checked: boolean | 'indeterm
 function submit() {
   if (!hydrated.value || props.busy) return
   validationError.value = ''
-  const payload = JSON.parse(JSON.stringify(draft)) as ProjectTemplateCreate
+  const payload = structuredClone(toRaw(draft)) as ProjectTemplateCreate
   const result = ProjectTemplateCreateSchema.safeParse(payload)
   if (!result.success) {
     const issue = result.error.issues[0]

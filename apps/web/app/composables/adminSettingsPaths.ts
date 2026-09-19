@@ -1,15 +1,19 @@
+import { parseOffset } from '../utils/routeQuery'
+
 export const ADMIN_PAGE_SIZE = 25
 
 type QueryRecord = Record<string, unknown>
 
+// Unlike the shared `firstQuery`, admin query values may already be numbers
+// (e.g. an offset passed straight from a computed `page`), so this keeps its
+// own array-unwrap that accepts both strings and numbers.
 function firstQueryValue(value: unknown): string | undefined {
   if (Array.isArray(value)) return firstQueryValue(value[0])
   return typeof value === 'string' || typeof value === 'number' ? String(value) : undefined
 }
 
 export function parseAdminOffset(value: unknown, pageSize = ADMIN_PAGE_SIZE): number {
-  const candidate = typeof value === 'number' ? value : Number(firstQueryValue(value))
-  if (!Number.isInteger(candidate) || candidate < 0) return 0
+  const candidate = parseOffset(value)
   return Math.floor(candidate / pageSize) * pageSize
 }
 

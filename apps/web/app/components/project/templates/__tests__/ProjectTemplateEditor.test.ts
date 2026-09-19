@@ -37,8 +37,8 @@ function editor() {
   const exports = { default: null as unknown as { setup: (props: unknown, context: unknown) => EditorState } }
   const hydrated = Vue.ref(false)
   const require = (name: string) => name === 'vue' ? Vue : { ProjectTemplateCreateSchema }
-  new Function('require', 'exports', 'useHydrated', 'useI18n', 'reactive', 'ref', 'computed', 'watch', code)(
-    require, exports, () => hydrated, () => ({ t: (key: string) => key }), Vue.reactive, Vue.ref, Vue.computed, Vue.watch,
+  new Function('require', 'exports', 'useHydrated', 'useI18n', 'reactive', 'ref', 'computed', 'watch', 'toRaw', code)(
+    require, exports, () => hydrated, () => ({ t: (key: string) => key }), Vue.reactive, Vue.ref, Vue.computed, Vue.watch, Vue.toRaw,
   )
   const props = Vue.reactive({
     template: Vue.readonly({ id: 7, name: 'Template', description: '', definition, can_manage: true, can_apply: true }),

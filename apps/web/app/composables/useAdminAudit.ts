@@ -20,7 +20,7 @@ export type AdminAuditListParams = {
   offset?: number
 }
 
-export const adminAuditKeys = {
+const adminAuditKeys = {
   all: ['access', 'audit'] as const,
   list: (params: AdminAuditListParams) => ['access', 'audit', 'list', params] as const,
   detail: (id: number) => ['access', 'audit', id] as const,

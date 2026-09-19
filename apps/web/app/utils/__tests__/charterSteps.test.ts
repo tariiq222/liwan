@@ -6,7 +6,6 @@ import {
   charterStepsForType,
   clampCharterStep,
   fieldsForStep,
-  fieldsOutsideSteps,
   parseCharterStepQuery,
   stepForField,
 } from '../charterSteps'
@@ -31,16 +30,6 @@ describe('charter wizard steps', () => {
     expect([...assigned].sort()).toEqual([...CHARTER_FIELD_KEYS].sort())
     expect(fieldsForStep('review')).toEqual([])
     expect(fieldsForStep('basics')).toContain('type')
-  })
-
-  it('reports the fields a shortened walk never shows', () => {
-    const steps = charterStepsForType(['justification'])
-    const hidden = fieldsOutsideSteps(steps)
-    expect(hidden).toContain('scope')
-    expect(hidden).toContain('budget_state')
-    expect(hidden).not.toContain('name')
-    expect(hidden).not.toContain('rationale')
-    expect(fieldsOutsideSteps(charterStepsForType(null))).toEqual([])
   })
 
   it('finds the step that owns a field within the current walk', () => {

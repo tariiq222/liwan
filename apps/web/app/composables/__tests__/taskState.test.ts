@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import {
-  canTransition,
   daysRemaining,
   deadlineLabel,
   nextStates,
@@ -51,29 +50,6 @@ describe('deadlineLabel', () => {
 
   it('returns "overdueDays" with the absolute value for negative days', () => {
     expect(deadlineLabel(-3, t)).toBe('tasks.deadline.overdueDays:{"n":3}')
-  })
-})
-
-describe('canTransition', () => {
-  it('forbids transitioning to the same state', () => {
-    expect(canTransition('in_progress', 'in_progress', true)).toBe(false)
-  })
-
-  it('forbids a manager-only target without canApprove', () => {
-    expect(canTransition('in_progress', 'approved', false)).toBe(false)
-  })
-
-  it('allows a manager-only target with canApprove', () => {
-    expect(canTransition('in_progress', 'approved', true)).toBe(true)
-  })
-
-  it('forbids changes_requested without canApprove', () => {
-    expect(canTransition('in_progress', 'changes_requested', false)).toBe(false)
-  })
-
-  it('allows a non-manager target regardless of canApprove', () => {
-    expect(canTransition('waiting', 'done', false)).toBe(true)
-    expect(canTransition('waiting', 'cancelled', false)).toBe(true)
   })
 })
 

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useMediaQuery } from '@vueuse/core'
 import ProjectStatusBadge from '@/components/project/ProjectStatusBadge.vue'
 import { formatNullablePercent } from '@/utils/projectFinance'
 import type { DashboardProject } from '@/utils/projectChartData'
@@ -9,7 +10,7 @@ const props = defineProps<{ rows: readonly DashboardProject[] }>()
 const { t, locale } = useI18n()
 const route = useRoute()
 const { entryTo } = useProjectWorkspaceMemory()
-const compactRecords = ref(false)
+const compactRecords = useMediaQuery('(max-width: 767px)', { ssrWidth: 1024 })
 const rows = computed(() => props.rows.slice(0, 5))
 
 const projectListQuery = computed(() => ({
@@ -23,14 +24,6 @@ const columns = computed(() => [
   { id: 'progress', header: t('projects.dashboard.recentProgress') },
   { id: 'updated', header: t('projects.dashboard.recentUpdated') },
 ])
-
-onMounted(() => {
-  const query = window.matchMedia('(max-width: 767px)')
-  const sync = () => { compactRecords.value = query.matches }
-  sync()
-  query.addEventListener('change', sync)
-  onUnmounted(() => query.removeEventListener('change', sync))
-})
 
 function updatedAt(value: string | null | undefined) {
   if (!value) return t('projects.dashboard.unknown')

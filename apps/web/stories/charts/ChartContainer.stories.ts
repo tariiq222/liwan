@@ -11,7 +11,7 @@ export default meta
 
 export const Default: StoryObj<typeof meta> = {
   name: 'عبر DashboardChart',
-  parameters: storyContext('apps/web/app/components/shared/DashboardChart.client.vue:186', 'حاوية الرسم تتكرر مرتين داخل `DashboardChart` (دائري وأعمدة)، ولا تُستخدم خارجه. غيّر لون الهوية لرؤية `--chart-*` تتبدل.'),
+  parameters: storyContext('apps/web/app/components/shared/DashboardChart.client.vue:172', 'حاوية الرسم تتكرر مرتين داخل `DashboardChart` (دائري وأعمدة)، ولا تُستخدم خارجه. غيّر لون الهوية لرؤية `--chart-*` تتبدل.'),
   render: () => ({
     components: { DashboardChart },
     setup() {

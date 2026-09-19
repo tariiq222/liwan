@@ -6,7 +6,7 @@ import { storyContext } from '../support/context'
 const meta = {
   title: 'Shared/RowActions',
   component: RowActions,
-  parameters: storyContext('apps/web/app/components/project/MilestoneTable.vue:161', 'إجراء واحد غير هدّام زر رابط، وأكثر من ذلك قائمة «…» والحذف آخرها باللون الهدّام.'),
+  parameters: storyContext('apps/web/app/components/project/MilestoneTable.vue:172', 'إجراء واحد غير هدّام زر رابط، وأكثر من ذلك قائمة «…» والحذف آخرها باللون الهدّام.'),
   args: {
     label: 'إجراءات معلم اعتماد الخطة',
     actions: [
