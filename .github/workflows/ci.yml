@@ -27,6 +27,7 @@ jobs:
       - run: python3 -B tools/migration_guard.py --base "origin/${{ github.base_ref || 'main' }}"
       - run: npm ci --ignore-scripts
       - run: npm -w apps/web run postinstall   # nuxt prepare: required before vue-tsc
+      - run: npx playwright install --with-deps chromium
       - run: npm test
       - run: npm -w apps/web run lint
 
