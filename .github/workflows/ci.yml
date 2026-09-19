@@ -211,3 +211,54 @@ jobs:
       - if: always()
         uses: actions/upload-artifact@v4
         with: { name: restored-odoo-log, path: restored-odoo.log }
+
+  e2e-mock:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version-file: .nvmrc, cache: npm }
+      - run: npm ci --ignore-scripts
+      - run: npm -w apps/web run postinstall
+      - run: npx playwright install --with-deps chromium
+        working-directory: apps/web
+      - name: Mock API + Nuxt + Playwright
+        working-directory: apps/web
+        env:
+          PROJECTS_UI_PREVIEW: '1'
+          MODULE_UI_PREVIEW: '1'
+          MOCK_PORT: '4498'
+          NUXT_ODOO_URL: http://127.0.0.1:4498
+          NUXT_ODOO_DB: nasq_ui_mock_only
+          NUXT_PUBLIC_WS_URL: ws://127.0.0.1:4498/websocket
+          E2E_BASE_URL: http://localhost:4097
+          E2E_PROJECT_POPUPS: '1'
+        run: |
+          set -euo pipefail
+          test -s e2e/ci-mock-specs.txt
+          node e2e/internal-ui-audit-mock.mjs > mock.log 2>&1 &
+          MOCK_PID=$!
+          cleanup() {
+            if [ -n "${SERVER_PID:-}" ]; then kill "$SERVER_PID" 2>/dev/null || true; wait "$SERVER_PID" 2>/dev/null || true; fi
+            kill "$MOCK_PID" 2>/dev/null || true; wait "$MOCK_PID" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+          npx nuxt build
+          PORT=4097 node .output/server/index.mjs > nuxt.log 2>&1 &
+          SERVER_PID=$!
+          for i in $(seq 1 60); do
+            kill -0 "$MOCK_PID" "$SERVER_PID"
+            if curl -fs http://localhost:4097/login >/dev/null; then break; fi
+            sleep 2
+          done
+          curl -fs http://localhost:4097/login >/dev/null
+          npx playwright test $(sed 's#^#e2e/#' e2e/ci-mock-specs.txt | tr '\n' ' ')
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-results
+          path: |
+            apps/web/test-results
+            apps/web/mock.log
+            apps/web/nuxt.log
