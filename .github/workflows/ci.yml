@@ -1,0 +1,30 @@
+# .github/workflows/ci.yml
+name: ci
+on:
+  pull_request:
+  push:
+    branches: [main]
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+
+jobs:
+  static:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - uses: actions/setup-node@v4
+        with: { node-version-file: .nvmrc, cache: npm }
+      - run: pip install ruff==0.16.3
+      - run: ruff check odoo-addons
+      - run: python3 -B -m unittest discover -s deploy -p 'test_*.py' -v
+      - run: npm ci --ignore-scripts
+      - run: npm -w apps/web run postinstall   # nuxt prepare: required before vue-tsc
+      - run: npm test
+      - run: npm -w apps/web run lint
