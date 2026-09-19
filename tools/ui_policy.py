@@ -629,6 +629,66 @@ def locale_parity_errors(current: dict[str, str]) -> list[str]:
     return errors
 
 
+# The 2026-09-06 ruling deleted the route-backed sheet: a record is an ordinary
+# page. These files and class names are its remains, and a reappearance is the
+# regression, whichever file brings it back.
+RETIRED_FILES = (
+    COMPONENTS + 'project/workspace/ProjectRouteHost.vue',
+    COMPONENTS + 'project/workspace/ProjectRouteModal.vue',
+    APP + 'utils/projectOverlayRoute.ts',
+)
+RETIRED_ARTIFACT = re.compile(r'nasq-sheet-in|nasq-sheet-out|project-overlay-enter|project-overlay-exit'
+                              r'|project-sheet-backdrop|nasq-ui-route-sheet|ProjectRouteHost')
+
+
+def retired_artifact_errors(current: dict[str, str]) -> list[str]:
+    errors = [path + ': retired route-sheet file; a record is an ordinary page'
+              for path in RETIRED_FILES if path in current]
+    errors.extend(path + ': retired route-sheet artifact; a record is an ordinary page'
+                  for path, source in sorted(current.items())
+                  if path.startswith(APP) and path.endswith(('.vue', '.ts', '.css'))
+                  and RETIRED_ARTIFACT.search(COMMENTS.sub('', source)))
+    return errors
+
+
+# HR owns employee records. An account grant, a role assignment, a password
+# reset and a reactivation belong to /settings/users and /api/v1/admin/users,
+# and HR visibility is decided by a capability, never by a role label.
+HR_ROOTS = (COMPONENTS + 'hr/', PAGES + 'hr/')
+HR_ROLE_BRANCH = re.compile(r'\.value\?\.role\b|\brole\s*===')
+LEGACY_HR_ACCESS = re.compile(r'\buse(?:Grant|Update|Revoke)HrAccess\b')
+
+
+def hr_boundary_errors(current: dict[str, str]) -> list[str]:
+    errors = []
+    for path, source in sorted(current.items()):
+        if not path.startswith(APP) or not path.endswith(('.vue', '.ts')):
+            continue
+        text = COMMENTS.sub('', source)
+        if LEGACY_HR_ACCESS.search(text):
+            errors.append(path + ': account grants belong to /api/v1/admin/users, not the HR pillar')
+        if path.startswith(HR_ROOTS) and HR_ROLE_BRANCH.search(text):
+            errors.append(path + ': HR visibility is decided by a capability, not by a role label')
+    return errors
+
+
+# One list toolbar: a page that offers a search control offers it through
+# FilterBar, so filters, the active-filter row and the clear action behave the
+# same everywhere. /search is the search surface itself, and the account form
+# searches candidates inside a form rather than filtering a list.
+SEARCH_CONTROL = re.compile(r'i-lucide-search|name="[a-z-]*search"|t\(\'app\.search\'\)')
+TOOLBAR_EXEMPT = frozenset((PAGES + 'search.vue', PAGES + 'settings/users/new.vue'))
+
+
+def toolbar_errors(current: dict[str, str]) -> list[str]:
+    if not whole_tree(current):
+        return []
+    return [path + ': a page search control belongs in FilterBar, with :active-count'
+            for path, source in sorted(current.items())
+            if path.startswith(PAGES) and path.endswith('.vue') and path not in TOOLBAR_EXEMPT
+            and SEARCH_CONTROL.search(source) and 'FilterBar' not in source]
+
+
 def check(current: dict[str, str], baseline: dict[str, str], head: dict[str, str]) -> list[str]:
     errors = []
     # @nuxt/schema ships inside nuxt itself and is where Nuxt's own docs put
@@ -678,6 +738,9 @@ def check(current: dict[str, str], baseline: dict[str, str], head: dict[str, str
     errors.extend(scoped_style_errors(current))
     errors.extend(locale_parity_errors(current))
     errors.extend(button_rank_errors(current))
+    errors.extend(retired_artifact_errors(current))
+    errors.extend(hr_boundary_errors(current))
+    errors.extend(toolbar_errors(current))
     return errors
 
 

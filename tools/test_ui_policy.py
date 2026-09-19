@@ -6,6 +6,7 @@ import unittest
 from contextlib import redirect_stderr, redirect_stdout
 from unittest.mock import patch
 
+import ui_policy as policy
 from ui_policy import check, main, story_errors, story_warnings
 
 APP = "apps/web/app/"
@@ -348,6 +349,229 @@ class UiPolicyTest(unittest.TestCase):
         errors = story_errors(self.story_snapshot(**{STORY: story_source}))
         self.assertEqual(errors, [STORY + ": story needs storyContext(<file:line> or unused)"])
 
+
+class StaticGateTest(unittest.TestCase):
+    """Each gate must fire on a real violation and stay silent on clean source.
+
+    A gate that only ever returns [] passes every run and guards nothing, so
+    every rule here is asserted in both directions.
+    """
+
+    COMPONENTS = APP + "components/"
+    PAGES = APP + "pages/"
+    LOCALES = "apps/web/i18n/locales/"
+    HR_COMPONENT = COMPONENTS + "hr/DirectoryTable.vue"
+
+    def whole(self, **files):
+        """A snapshot the completeness rules accept, with the required content."""
+        snapshot = {
+            APP + "app.vue": "<template><NuxtPage /></template>",
+            APP + "app.config.ts": "export default defineAppConfig({\n  ui: {\n"
+                                   "    colors: { primary: 'brand', neutral: 'slate' },\n  },\n})",
+            APP + "assets/css/tokens.css": ":root { --color-brand-500: #06c; --ui-radius: 0.5rem;\n"
+                                           "  --status-success: green; --status-warning: amber; --status-info: blue;\n"
+                                           "  --status-danger: red; --status-danger-foreground: white;\n"
+                                           "  --unread-count-foreground: white;\n"
+                                           "  font-family: 'IBM Plex Sans Arabic'; }\n"
+                                           ":root.cream { color: #000; }\n.dark { color: #fff; }",
+            APP + "assets/css/components.css": ".nasq-status-text-warning { color: var(--status-warning); }\n"
+                                               ".nasq-unread-count { color: var(--unread-count-foreground); }",
+            APP + "assets/css/shell.css": ".nasq-page-width-list { max-width: 100rem; }\n"
+                                          ".nasq-page-width-detail { max-width: 68rem; }\n"
+                                          ".nasq-page-width-form { max-width: 58rem; }",
+        }
+        snapshot.update(files)
+        return snapshot
+
+    # --- auto-import namespace -------------------------------------------------
+
+    def test_auto_import_name_with_two_owners_is_reported(self):
+        clash = policy.auto_import_errors({
+            APP + "composables/useThing.ts": "export function useThing() {}",
+            APP + "utils/thing.ts": "export const useThing = 1",
+        })
+        self.assertEqual(len(clash), 1)
+        self.assertIn("useThing", clash[0])
+        self.assertEqual(policy.auto_import_errors({
+            APP + "composables/useThing.ts": "export function useThing() {}",
+            APP + "utils/thing.ts": "export const other = 1",
+        }), [])
+
+    def test_renamed_export_publishes_the_new_name_only(self):
+        # `export { a as b }` publishes b, so b is what may collide.
+        self.assertEqual(
+            policy.exported_names("const a = 1\nexport { a as useThing }\n"), ["useThing"])
+
+    def test_component_name_claimed_twice_is_reported(self):
+        collision = policy.auto_import_errors({
+            self.COMPONENTS + "task/Card.vue": "", self.COMPONENTS + "task/card.ts": ""})
+        self.assertEqual(len(collision), 1)
+        self.assertIn("task-card", collision[0])
+
+    # --- business overlays -----------------------------------------------------
+
+    def test_overlay_tag_and_native_popup_are_reported(self):
+        self.assertTrue(policy.overlay_errors({self.PAGES + "x.vue": "<template><Dialog /></template>"}))
+        self.assertTrue(policy.overlay_errors({self.COMPONENTS + "x.vue": 'if (confirm("sure")) {}'}))
+
+    def test_header_search_keeps_its_approved_dialog(self):
+        search = self.COMPONENTS + "GlobalSearch.vue"
+        self.assertEqual(policy.overlay_errors({search: "<template><Dialog /></template>"}), [])
+
+    def test_overlay_named_in_a_comment_is_not_a_finding(self):
+        self.assertEqual(policy.overlay_errors({
+            self.PAGES + "x.vue": "<!-- the <Dialog> this replaced --><template><div /></template>"}), [])
+
+    def test_a_confirm_handler_is_not_a_native_popup(self):
+        self.assertEqual(policy.overlay_errors({
+            self.COMPONENTS + "x.vue": '<SharedInlineConfirm @confirm="confirmDelete(id)" />'}), [])
+
+    # --- theme and recipes -----------------------------------------------------
+
+    def test_custom_recipe_class_is_reported_and_z_tokens_are_not(self):
+        self.assertTrue(policy.recipe_errors({self.COMPONENTS + "x.vue": '<div class="nasq-ui-panel" />'}))
+        self.assertEqual(policy.recipe_errors({self.COMPONENTS + "x.vue": '<div class="nasq-ui-z-40" />'}), [])
+
+    def test_theme_colors_and_undocumented_recipe_key_are_reported(self):
+        config = APP + "app.config.ts"
+        moved = self.whole(**{config: "  ui: {\n    colors: { primary: 'sky', neutral: 'slate' },\n  }"})
+        self.assertTrue(any("theme colors" in error for error in policy.theme_errors(moved)))
+        added = self.whole(**{config: self.whole()[config].replace("  },", "    carousel: {},\n  },")})
+        self.assertTrue(any("carousel" in error for error in policy.theme_errors(added)))
+
+    def test_theme_probes_tolerate_reformatting(self):
+        spaced = self.whole(**{APP + "app.config.ts":
+                               "  ui: {\n    colors: {   primary: 'brand',\n      neutral: 'slate' },\n  }"})
+        self.assertEqual([e for e in policy.theme_errors(spaced) if "theme colors" in e], [])
+
+    def test_retired_theme_token_is_reported(self):
+        snapshot = self.whole()
+        snapshot[APP + "assets/css/tokens.css"] += "\n--elevation-1: 0 1px 2px #0001;"
+        self.assertTrue(any("--elevation-1" in error for error in policy.theme_errors(snapshot)))
+
+    # --- page shell ------------------------------------------------------------
+
+    def test_page_without_an_approved_shell_is_reported(self):
+        bare = self.whole(**{self.PAGES + "probe.vue": "<template><div /></template>"})
+        self.assertTrue(any("approved shells" in error for error in policy.page_shell_errors(bare)))
+        shelled = self.whole(**{self.PAGES + "probe.vue": '<SharedPageContainer width="list" />'})
+        self.assertEqual([e for e in policy.page_shell_errors(shelled) if "approved shells" in e], [])
+
+    def test_route_parent_exemption_holds(self):
+        parent = self.whole(**{self.PAGES + "projects.vue": "<template><NuxtPage /></template>"})
+        self.assertEqual([e for e in policy.page_shell_errors(parent) if "approved shells" in e], [])
+
+    def test_ad_hoc_page_width_is_reported(self):
+        wide = {self.PAGES + "probe.vue": '<div class="mx-auto max-w-5xl">'}
+        self.assertTrue(any("max-width" in error for error in policy.page_shell_errors(wide)))
+
+    def test_page_width_probe_tolerates_minified_css(self):
+        minified = self.whole()
+        minified[APP + "assets/css/shell.css"] = (".nasq-page-width-list{max-width:100rem}"
+                                                  ".nasq-page-width-detail{max-width:68rem}"
+                                                  ".nasq-page-width-form{max-width:58rem}")
+        self.assertEqual([e for e in policy.page_shell_errors(minified) if "page width" in e], [])
+
+    def test_completeness_rules_say_nothing_about_a_partial_snapshot(self):
+        # The caller passed one file; reporting every missing token would be noise.
+        partial = {self.PAGES + "probe.vue": "<template><div /></template>"}
+        self.assertFalse(policy.whole_tree(partial))
+        self.assertEqual(policy.page_shell_errors(partial), [])
+        self.assertEqual(policy.theme_errors(partial), [])
+
+    # --- credentials -----------------------------------------------------------
+
+    def test_rendered_credential_and_credential_in_url_are_reported(self):
+        self.assertTrue(policy.secret_render_errors({self.COMPONENTS + "x.vue": "{{ user.password }}"}))
+        self.assertTrue(policy.secret_render_errors({
+            self.COMPONENTS + "x.ts": "useApi()('/api/v1/admin/users?password=' + value)"}))
+
+    def test_an_unrelated_identifier_is_not_a_credential(self):
+        self.assertEqual(policy.secret_render_errors({self.COMPONENTS + "x.vue": "{{ user.name }}"}), [])
+
+    # --- shell, styles, button ranks ------------------------------------------
+
+    def test_breadcrumb_in_the_shell_is_reported_but_a_comment_is_not(self):
+        layout = APP + "layouts/default.vue"
+        self.assertTrue(policy.breadcrumb_errors({layout: "<ShellBreadcrumb />"}))
+        self.assertEqual(policy.breadcrumb_errors({layout: "// the breadcrumb is gone\n<div />"}), [])
+
+    def test_new_scoped_style_is_reported_and_a_listed_owner_is_not(self):
+        self.assertTrue(policy.scoped_style_errors({self.COMPONENTS + "task/New.vue": "<style scoped>.a{}</style>"}))
+        owner = self.COMPONENTS + "shared/RichText.vue"
+        self.assertIn(owner, policy.STYLE_OWNERS)
+        self.assertEqual(policy.scoped_style_errors({owner: "<style scoped>.a{}</style>"}), [])
+
+    def test_filled_secondary_button_is_reported_and_quiet_variants_are_not(self):
+        self.assertTrue(policy.button_rank_errors({
+            self.COMPONENTS + "x.vue": '<UButton color="secondary">Go</UButton>'}))
+        for variant in ("outline", "ghost", "soft", "subtle", "link"):
+            self.assertEqual(policy.button_rank_errors({
+                self.COMPONENTS + "x.vue": f'<UButton color="secondary" variant="{variant}">Go</UButton>'}), [])
+
+    def test_retired_route_sheet_file_and_artifact_are_reported(self):
+        self.assertTrue(policy.retired_artifact_errors({policy.RETIRED_FILES[0]: "<template><div /></template>"}))
+        self.assertTrue(policy.retired_artifact_errors({
+            APP + "assets/css/components.css": ".nasq-sheet-in { opacity: 0; }"}))
+
+    # --- HR boundary -----------------------------------------------------------
+
+    def test_hr_role_branch_and_legacy_access_composable_are_reported(self):
+        self.assertTrue(policy.hr_boundary_errors({self.HR_COMPONENT: "if (me.value?.role === 'hr') {}"}))
+        self.assertTrue(policy.hr_boundary_errors({
+            APP + "composables/useHrEmployees.ts": "export function useGrantHrAccess() {}"}))
+        self.assertEqual(policy.hr_boundary_errors({self.HR_COMPONENT: "can('hr.employees.manage')"}), [])
+
+    # --- locale parity ---------------------------------------------------------
+
+    def test_locale_key_missing_from_one_catalogue_is_reported(self):
+        gap = policy.locale_parity_errors({
+            self.LOCALES + "hr.json": "{}",  # not under a locale directory; ignored
+            self.LOCALES + "ar/hr.json": '{"a": {"b": "x"}}',
+            self.LOCALES + "en/hr.json": '{"a": {}}',
+        })
+        self.assertEqual(gap, [self.LOCALES + "en/hr.json: missing key a.b"])
+
+    def test_arabic_plural_categories_are_one_key_not_six(self):
+        # Arabic declines six categories where English has two.
+        self.assertEqual(policy.locale_parity_errors({
+            self.LOCALES + "ar/x.json": '{"n": {"one": "1", "two": "2", "few": "3", "many": "4", "other": "n"}}',
+            self.LOCALES + "en/x.json": '{"n": {"one": "1", "other": "n"}}',
+        }), [])
+
+    def test_a_catalogue_without_a_counterpart_is_reported(self):
+        self.assertTrue(policy.locale_parity_errors({self.LOCALES + "ar/only.json": '{"a": 1}'}))
+
+    def test_invalid_locale_json_is_reported_rather_than_raised(self):
+        errors = policy.locale_parity_errors({self.LOCALES + "ar/x.json": "{",
+                                              self.LOCALES + "en/x.json": "{}"})
+        self.assertTrue(any("invalid JSON" in error for error in errors))
+
+    # --- physical CSS ----------------------------------------------------------
+
+    def test_physical_edges_are_reported_and_logical_ones_are_not(self):
+        for markup in ('<div class="ml-2" />', '<div class="pr-4" />', '<div class="left-0" />',
+                       '<div class="text-right" />', '<div class="ltr:ml-2" />'):
+            self.assertTrue(policy.retired_pattern_errors({self.COMPONENTS + "x.vue": markup}), markup)
+        for markup in ('<div class="ms-2 pe-4 start-0 text-start" />', '<div class="rtl:rotate-180" />',
+                       '<div class="border-r" />', '<div class="rounded-l-md" />'):
+            self.assertEqual(policy.retired_pattern_errors({self.COMPONENTS + "x.vue": markup}), [], markup)
+
+
+    # --- list toolbar ----------------------------------------------------------
+
+    def test_hand_rolled_page_search_is_reported(self):
+        rolled = self.whole(**{self.PAGES + "probe.vue":
+                               '<SharedPageContainer><UInput icon="i-lucide-search" /></SharedPageContainer>'})
+        self.assertTrue(any("FilterBar" in error for error in policy.toolbar_errors(rolled)))
+        shared = self.whole(**{self.PAGES + "probe.vue":
+                               '<FilterBar :active-count="n"><template #search>'
+                               '<UInput icon="i-lucide-search" /></template></FilterBar>'})
+        self.assertEqual(policy.toolbar_errors(shared), [])
+
+    def test_the_search_page_itself_is_exempt(self):
+        search = self.whole(**{self.PAGES + "search.vue": '<UInput icon="i-lucide-search" />'})
+        self.assertEqual(policy.toolbar_errors(search), [])
 
 if __name__ == '__main__':
     unittest.main()
