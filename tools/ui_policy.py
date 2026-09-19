@@ -25,6 +25,9 @@ STORYBOOK = 'apps/web/.storybook/'
 STORY_ROOTS = (STORIES, STORYBOOK)
 STORY_SUFFIXES = {'.vue', '.ts', '.mjs', '.mdx'}
 COMPONENTS = APP + 'components/'
+PAGES = APP + 'pages/'
+LAYOUTS = APP + 'layouts/'
+LOCALES = 'apps/web/i18n/locales/'
 # Reused building blocks that must each have a story (spec §1). Add a path here when a
 # component starts being reused across pages, together with its story.
 STORYBOOK_COMPONENTS: tuple[str, ...] = tuple(COMPONENTS + path for path in (
@@ -45,7 +48,8 @@ STORYBOOK_COMPONENTS: tuple[str, ...] = tuple(COMPONENTS + path for path in (
 STORY_CONTEXT = re.compile(r'''\bstoryContext\(\s*(['"])([^'"]+)\1''')
 META_COMPONENT = re.compile(r'\bcomponent:\s*(\w+)')
 DEFAULT_VUE_IMPORT = re.compile(r'''^\s*import\s+(\w+)\s+from\s+(['"])([^'"]+\.vue)\2''', re.M)
-SCOPE = (*(root.rstrip('/') for root in SOURCE_ROOTS), *(root.rstrip('/') for root in STORY_ROOTS), *MANIFESTS, CATALOG)
+SCOPE = (*(root.rstrip('/') for root in SOURCE_ROOTS), *(root.rstrip('/') for root in STORY_ROOTS),
+         LOCALES.rstrip('/'), *MANIFESTS, CATALOG)
 THEME_OWNERS = {
     APP + 'assets/css/main.css',
     APP + 'assets/css/tokens.css',
@@ -69,7 +73,7 @@ IMPORTS = re.compile(r'''(?mx)
 COMMENTS = re.compile(r'/\*[\s\S]*?\*/|<!--[\s\S]*?-->|^[ \t]*//[^\n]*', re.MULTILINE)
 CHART_IDENTIFIERS = {'chartcontainer', 'chartstyle', 'chartlegendcontent', 'charttooltipcontent'}
 MOCK_FIXTURE_PATH = re.compile(r'(?:^|/)(?:__mocks?__|mocks?|__fixtures?__|fixtures?)(?:/|$)', re.I)
-RETIRED_PACKAGES = {'@lucide/vue'}
+RETIRED_PACKAGES = {'@lucide/vue', 'lucide-vue-next'}
 # Storybook renders the real components and is the mandatory component
 # catalog agents build from; it is not a second UI library, so it cannot
 # become the drift this guard catches.
@@ -82,6 +86,10 @@ REVIEWED_STORYBOOK_TOOLING = {
 def source_file(path: str) -> bool:
     return (path.startswith(SOURCE_ROOTS) and Path(path).suffix in {'.vue', '.ts', '.js', '.mjs', '.css', '.scss'}
             and '/__tests__/' not in path and not re.search(r'\.(test|spec)\.', path))
+
+
+def locale_file(path: str) -> bool:
+    return path.startswith(LOCALES) and path.endswith('.json')
 
 
 def story_file(path: str) -> bool:
@@ -297,6 +305,13 @@ RETIRED_PATTERNS = (
     (re.compile(r'(?<![\w-])prose(?:-(?:sm|base|lg))?(?![\w-])'), 'prose classes have no plugin; render stored HTML with SharedRichText'),
     (re.compile(r'\bv-html='), 'raw v-html; render stored HTML with SharedRichText'),
     (re.compile(r'text-sm font-medium leading-none'), 'hand-built field label; use UFormField'),
+    # RTL is the default direction (CLAUDE.md), so a physical edge is a defect, not a style.
+    (re.compile(r'(?<![\w-])(?:ml|mr|pl|pr)-(?:\d|px|auto|\[)'
+                r'|(?<![\w-])(?:left|right)-(?:\d|px|full|auto|\[)'
+                r'|(?<![\w-])text-(?:left|right)(?![\w-])'),
+     'physical property; use the logical form (ms-/me-/ps-/pe-/start-/end-/text-start)'),
+    (re.compile(r'(?<![\w-])nasq-(?:input|toolbar|panel)(?![\w-])'),
+     'retired pre-unification class; use the Nuxt UI primitive'),
 )
 RETIRED_PATTERN_OWNERS = {APP + 'components/shared/RichText.vue'}
 
@@ -313,6 +328,266 @@ def retired_pattern_errors(current: dict[str, str]) -> list[str]:
             count = len(pattern.findall(text))
             if count:
                 errors.append(f'{path}: {reason} (+{count})')
+    return errors
+
+
+# Nuxt flattens every export under composables/ and utils/ into one namespace and
+# derives one component name per file. A name claimed twice is resolved silently:
+# the bundler keeps one definition and drops the other, so a caller can get the
+# wrong implementation with no error anywhere, and `nuxt prepare` only warns.
+DECLARATION = re.compile(
+    r'^export\s+(?:declare\s+)?(?:async\s+)?(?:function|const|let|var|class|type|interface|enum)\s+([A-Za-z_$][\w$]*)',
+    re.M)
+NAMED_BLOCK = re.compile(r'^export\s+(?:type\s+)?\{([^}]*)\}', re.M)
+IDENTIFIER = re.compile(r'^[A-Za-z_$][\w$]*$')
+AUTO_IMPORT_ROOTS = (APP + 'composables/', APP + 'utils/')
+
+
+def exported_names(source: str) -> list[str]:
+    names = [match.group(1) for match in DECLARATION.finditer(source)]
+    for match in NAMED_BLOCK.finditer(source):
+        for clause in match.group(1).split(','):
+            # `export { a as b }` publishes `b`; a bare `export { a }` publishes `a`.
+            published = re.split(r'\sas\s', clause)[-1].replace('type', '').strip()
+            if published != 'default' and IDENTIFIER.match(published):
+                names.append(published)
+    return names
+
+
+def auto_import_errors(current: dict[str, str]) -> list[str]:
+    owners: dict[str, set[str]] = {}
+    for path, source in sorted(current.items()):
+        if path.startswith(AUTO_IMPORT_ROOTS) and path.endswith('.ts'):
+            for name in exported_names(source):
+                owners.setdefault(name, set()).add(path)
+    errors = [f'{name}: auto-imported name has {len(files)} owners ({" + ".join(sorted(files))}); '
+              'rename it, or give it one owner and import it explicitly'
+              for name, files in sorted(owners.items()) if len(files) > 1]
+    components: dict[str, list[str]] = {}
+    for path in sorted(current):
+        if path.startswith(COMPONENTS) and path.endswith(('.vue', '.ts')):
+            # Nuxt joins the directory segments and the basename, ignoring case.
+            stem = path[len(COMPONENTS):].rsplit('.', 1)[0]
+            components.setdefault(stem.replace('/', '-').lower(), []).append(path)
+    errors.extend(f'{name}: component name is claimed by {" + ".join(sorted(files))}; '
+                  'a non-component helper belongs in app/utils'
+                  for name, files in sorted(components.items()) if len(files) > 1)
+    return errors
+
+
+# DESIGN.md: a record or a form is a routed page. The header search is the one
+# approved dialog; the project route sheet was the second and is gone.
+OVERLAY_TAG = re.compile(r'</?(?:Dialog|AlertDialog|Sheet|Drawer|CommandDialog)(?:\s|>|/)')
+OVERLAY_IMPORT = re.compile(r'components/ui/(?:dialog|alert-dialog|sheet|drawer)(?:["\'/]|$)'
+                            r'|components/ui/command/CommandDialog(?:\.vue)?["\']')
+NATIVE_POPUP = re.compile(r'(?:\bwindow\s*\.\s*)?\b(?:alert|confirm|prompt)\s*\(')
+OVERLAY_OWNERS = {COMPONENTS + 'GlobalSearch.vue'}
+OVERLAY_ROOTS = (PAGES, LAYOUTS, COMPONENTS)
+
+
+def overlay_errors(current: dict[str, str]) -> list[str]:
+    errors = []
+    for path, source in sorted(current.items()):
+        if not path.startswith(OVERLAY_ROOTS) or not path.endswith(('.vue', '.ts')):
+            continue
+        text = COMMENTS.sub('', source)
+        if path not in OVERLAY_OWNERS:
+            if OVERLAY_TAG.search(text):
+                errors.append(path + ': business dialog overlay; a record or form is a routed page')
+            if OVERLAY_IMPORT.search(text):
+                errors.append(path + ': overlay primitive import; a record or form is a routed page')
+        if NATIVE_POPUP.search(text):
+            errors.append(path + ': native alert/confirm/prompt; use SharedInlineConfirm')
+    return errors
+
+
+# Components render with Nuxt UI's stock recipes; the z-index tokens are the one
+# shell exception.
+CUSTOM_RECIPE = re.compile(r'nasq-ui-(?!z-)[a-z-]+|nasq-elevation-\d|data-nasq-reference-detail|--nasq-ui-progress')
+
+
+def recipe_errors(current: dict[str, str]) -> list[str]:
+    return [path + ': custom component recipe; use the Nuxt UI primitive and its utilities'
+            for path, source in sorted(current.items())
+            if path.startswith((APP, STORIES)) and path.endswith(('.vue', '.ts'))
+            and CUSTOM_RECIPE.search(COMMENTS.sub('', source))]
+
+
+# The theme inputs are the brand primary, the neutral palette, the official
+# --ui-radius token, the Arabic font and the display modes (DESIGN.md).
+ALLOWED_RECIPE_KEYS = frozenset((
+    'colors', 'button', 'input', 'inputNumber', 'textarea', 'select', 'selectMenu', 'card', 'table', 'badge',
+    'tabs', 'progress', 'avatar', 'dropdownMenu', 'popover', 'tooltip', 'slideover', 'modal', 'checkbox',
+    'switch', 'formField',
+))
+REQUIRED_TOKENS = ('--color-brand-500', 'IBM Plex Sans Arabic', ':root.cream', '.dark')
+RETIRED_TOKENS = ('--nasq-radius', '--elevation-1', '--content-shadow', '--radius:')
+
+
+def theme_errors(current: dict[str, str]) -> list[str]:
+    errors = []
+    config = current.get(APP + 'app.config.ts', '')
+    tokens = current.get(APP + 'assets/css/tokens.css', '')
+    components = current.get(APP + 'assets/css/components.css', '')
+    shell = current.get(APP + 'assets/css/shell.css', '')
+    if "colors: { primary: 'brand', neutral: 'slate' }" not in config:
+        errors.append(APP + "app.config.ts: theme colors must stay { primary: 'brand', neutral: 'slate' }")
+    for key in re.findall(r'^\s{4}([a-zA-Z]+):', config, re.M):
+        if key not in ALLOWED_RECIPE_KEYS:
+            errors.append(f'{APP}app.config.ts: undocumented theme recipe key {key}')
+    for token in REQUIRED_TOKENS:
+        if token not in tokens:
+            errors.append(f'{APP}assets/css/tokens.css: missing theme input {token}')
+    if not re.search(r'--ui-radius:\s*0\.5rem', tokens):
+        errors.append(f'{APP}assets/css/tokens.css: --ui-radius is the one official radius token')
+    for token in RETIRED_TOKENS:
+        if token in tokens:
+            errors.append(f'{APP}assets/css/tokens.css: retired token {token}')
+    if re.search(r'\.nasq-ui-|\.nasq-elevation-|data-nasq-reference-detail', components):
+        errors.append(f'{APP}assets/css/components.css: component recipes belong to Nuxt UI, not this sheet')
+    if 'content-shadow' in shell:
+        errors.append(f'{APP}assets/css/shell.css: retired content-shadow')
+    return errors
+
+
+# Every internal page sits in one of the approved shells, and the width
+# vocabulary lives in CSS classes rather than ad-hoc max-width utilities.
+PAGE_SHELLS = ('SharedPageContainer', 'SharedCreatePanel', 'SettingsLayout', 'nasq-page-width-form',
+               'ChatWorkspace', 'TaskDetailPage')
+# Route parents that render a list or <NuxtPage /> by route, plus the unshelled
+# roots. Each entry is a deliberate exception, not a backlog.
+PAGE_SHELL_EXEMPT = frozenset(PAGES + name for name in (
+    'index.vue', 'login.vue', 'reports.vue', 'hr/employees/[employeeId]/access.vue', 'meetings.vue',
+    'projects.vue', 'project-templates.vue', 'hr.vue', 'hr/departments.vue', 'settings/users.vue',
+    'settings/roles.vue', 'projects/settings/catalogs/[resource].vue',
+))
+AD_HOC_WIDTH = re.compile(r'nasq-page-stack[^"\n]*(?:max-w-\[1440px\]|max-w-\[940px\]|max-w-(?:2xl|3xl|4xl|5xl|7xl))'
+                          r'|class="[^"]*max-w-(?:3xl|4xl|5xl|7xl)[^"]*"')
+PAGE_WIDTHS = ('.nasq-page-width-list { max-width: 100rem; }', '.nasq-page-width-detail { max-width: 68rem; }',
+               '.nasq-page-width-form { max-width: 58rem; }')
+STATUS_TOKENS = ('--status-success', '--status-warning', '--status-info', '--status-danger',
+                 '--status-danger-foreground', '--unread-count-foreground', '.nasq-status-text-warning',
+                 '.nasq-unread-count')
+
+
+def page_shell_errors(current: dict[str, str]) -> list[str]:
+    errors = []
+    for path, source in sorted(current.items()):
+        if not path.startswith(PAGES) or not path.endswith('.vue'):
+            continue
+        if path not in PAGE_SHELL_EXEMPT and not any(shell in source for shell in PAGE_SHELLS):
+            errors.append(path + ': page needs one of the approved shells (' + ', '.join(PAGE_SHELLS) + ')')
+        if AD_HOC_WIDTH.search(source):
+            errors.append(path + ': ad-hoc page max-width; use the SharedPageContainer width vocabulary')
+    shell = current.get(APP + 'assets/css/shell.css', '')
+    for width in PAGE_WIDTHS:
+        if width not in shell:
+            errors.append(f'{APP}assets/css/shell.css: missing page width {width}')
+    status = current.get(APP + 'assets/css/components.css', '') + current.get(APP + 'assets/css/tokens.css', '')
+    for token in STATUS_TOKENS:
+        if token not in status:
+            errors.append(f'{APP}assets/css: missing theme-aware status token {token}')
+    return errors
+
+
+# A credential or session identifier must never be rendered, and never travel in
+# a URL path or query string.
+SECRET_RENDER = re.compile(r'\{\{[^}]*\b(?:password|password_hash|session_id|token)\b[^}]*\}\}', re.I)
+SECRET_DIFF = re.compile(r'\b(?:before|after)\.(?:password|token|session_id|hash)\b', re.I)
+SECRET_IN_URL = re.compile(r'/api/v1/[^"\'`]*password=|query:\s*\{[^}]*password', re.I)
+
+
+def secret_render_errors(current: dict[str, str]) -> list[str]:
+    errors = []
+    for path, source in sorted(current.items()):
+        if not path.startswith(APP) or not path.endswith(('.vue', '.ts')):
+            continue
+        text = COMMENTS.sub('', source)
+        if SECRET_RENDER.search(text) or SECRET_DIFF.search(text):
+            errors.append(path + ': renders a credential or session identifier')
+        if SECRET_IN_URL.search(text):
+            errors.append(path + ': credential in a URL path or query string; send it in the body')
+    return errors
+
+
+# DESIGN.md forbids a breadcrumb in the shell; the context heading and the
+# workspace tabs carry the context it used to duplicate.
+BREADCRUMB = re.compile(r'breadcrumb', re.I)
+BREADCRUMB_SCOPE = (
+    APP + 'layouts/default.vue', COMPONENTS + 'shell/ContextSidebar.vue', COMPONENTS + 'shell/MobileNavigation.vue',
+    APP + 'composables/useShellNavigation.ts', APP + 'assets/css/shell.css',
+    LOCALES + 'ar/common.json', LOCALES + 'en/common.json',
+)
+
+
+def breadcrumb_errors(current: dict[str, str]) -> list[str]:
+    return [path + ': no breadcrumb in the shell (DESIGN.md)'
+            for path in BREADCRUMB_SCOPE if BREADCRUMB.search(COMMENTS.sub('', current.get(path, '')))]
+
+
+# Styling belongs to the shared sheets and Tailwind utilities. These files carry
+# a scoped block for a real reason (print, a third-party editor, canvas drawing);
+# a sixteenth owner is drift, so it needs review and an entry here.
+STYLE_OWNERS = frozenset((
+    COMPONENTS + 'settings/SettingsLayout.vue', COMPONENTS + 'shared/DashboardChart.client.vue',
+    COMPONENTS + 'shared/RichText.vue', COMPONENTS + 'project/ProjectOverview.vue',
+    COMPONENTS + 'project/dashboard/ProjectDashboardCharts.vue', COMPONENTS + 'task/Timeline.vue',
+    COMPONENTS + 'hr/DepartmentTree.vue', COMPONENTS + 'task/DescriptionEditor.vue',
+    COMPONENTS + 'hr/DocumentEditor.vue', COMPONENTS + 'hr/DepartmentOrgChart.vue',
+    COMPONENTS + 'meetings/MeetingMinutesDocument.vue', PAGES + 'login.vue', PAGES + 'account.vue',
+    PAGES + 'projects/[id]/charter.vue', PAGES + 'meetings/[id]/print.vue',
+))
+
+
+def scoped_style_errors(current: dict[str, str]) -> list[str]:
+    return [path + ': new scoped <style> block; use the shared sheets and Tailwind utilities'
+            for path, source in sorted(current.items())
+            if path.endswith('.vue') and path.startswith((COMPONENTS, PAGES, LAYOUTS))
+            and path not in STYLE_OWNERS and '<style' in source]
+
+
+# Arabic is the default locale and English is secondary: a key present in one
+# catalogue and missing from the other ships an untranslated screen.
+# Arabic declines six plural categories where English has two, so a plural
+# message is one key in both catalogues, not one key per category.
+PLURAL_CATEGORIES = frozenset(('zero', 'one', 'two', 'few', 'many', 'other'))
+
+
+def flatten_keys(prefix: str, value: object, out: set[str]) -> None:
+    if isinstance(value, dict) and value and set(value) <= PLURAL_CATEGORIES:
+        out.add(prefix)
+    elif isinstance(value, dict):
+        for key, child in value.items():
+            flatten_keys(f'{prefix}.{key}' if prefix else str(key), child, out)
+    else:
+        out.add(prefix)
+
+
+def locale_parity_errors(current: dict[str, str]) -> list[str]:
+    catalogs: dict[str, dict[str, set[str]]] = {}
+    errors = []
+    for path, source in sorted(current.items()):
+        if not locale_file(path):
+            continue
+        locale, _, name = path[len(LOCALES):].partition('/')
+        if locale not in ('ar', 'en') or '/' in name:
+            continue
+        try:
+            keys: set[str] = set()
+            flatten_keys('', json.loads(source), keys)
+        except json.JSONDecodeError as exc:
+            errors.append(f'{path}: invalid JSON ({exc.msg} at line {exc.lineno})')
+            continue
+        catalogs.setdefault(name, {})[locale] = keys
+    for name, by_locale in sorted(catalogs.items()):
+        arabic, english = by_locale.get('ar'), by_locale.get('en')
+        if arabic is None or english is None:
+            errors.append(f'{LOCALES}{name}: needs both an ar and an en catalogue')
+            continue
+        for key in sorted(arabic - english):
+            errors.append(f'{LOCALES}en/{name}: missing key {key}')
+        for key in sorted(english - arabic):
+            errors.append(f'{LOCALES}ar/{name}: missing key {key}')
     return errors
 
 
@@ -355,6 +630,15 @@ def check(current: dict[str, str], baseline: dict[str, str], head: dict[str, str
         errors.extend(f'{path}: {reason} (+{count})' for reason, count in sorted(findings(path, source, names, allowed_source, has_ui).items()))
     errors.extend(story_errors(current))
     errors.extend(retired_pattern_errors(current))
+    errors.extend(auto_import_errors(current))
+    errors.extend(overlay_errors(current))
+    errors.extend(recipe_errors(current))
+    errors.extend(theme_errors(current))
+    errors.extend(page_shell_errors(current))
+    errors.extend(secret_render_errors(current))
+    errors.extend(breadcrumb_errors(current))
+    errors.extend(scoped_style_errors(current))
+    errors.extend(locale_parity_errors(current))
     return errors
 
 
@@ -369,7 +653,8 @@ def snapshot(root: Path, ref: str) -> dict[str, str]:
     with tarfile.open(fileobj=io.BytesIO(data)) as archive:
         return {entry.name: archive.extractfile(entry).read().decode('utf-8')
                 for entry in archive if entry.isfile()
-                and (source_file(entry.name) or story_file(entry.name) or entry.name in (*MANIFESTS, CATALOG))}
+                and (source_file(entry.name) or story_file(entry.name) or locale_file(entry.name)
+                     or entry.name in (*MANIFESTS, CATALOG))}
 
 
 def current_snapshot(root: Path) -> dict[str, str]:
@@ -379,7 +664,7 @@ def current_snapshot(root: Path) -> dict[str, str]:
         if not raw:
             continue
         path = raw.decode('utf-8')
-        if not (source_file(path) or story_file(path) or path in (*MANIFESTS, CATALOG)):
+        if not (source_file(path) or story_file(path) or locale_file(path) or path in (*MANIFESTS, CATALOG)):
             continue
         target = root / path
         if target.is_symlink():
