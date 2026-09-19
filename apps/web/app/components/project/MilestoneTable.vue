@@ -7,9 +7,20 @@ import { STATUS_COLOR } from '@/utils/statusTone'
 import { useDeleteMilestone, useMilestones, useUpdateMilestone } from '@/composables/useMilestones'
 import { returnToQuery } from '@/utils/safeReturnTo'
 import type { RowAction } from '@/components/shared/RowActions.vue'
-import { claimMilestoneChecklistUpdate, releaseMilestoneChecklistUpdate } from '@/utils/milestoneChecklist'
 
 const props = defineProps<{ projectId: number; canManage: boolean; embedded?: boolean }>()
+
+/** Claim one milestone checklist mutation at a time to prevent lost toggles. */
+function claimMilestoneChecklistUpdate(pending: ReadonlySet<number>, milestoneId: number): Set<number> | null {
+  if (pending.has(milestoneId)) return null
+  return new Set(pending).add(milestoneId)
+}
+
+function releaseMilestoneChecklistUpdate(pending: ReadonlySet<number>, milestoneId: number): Set<number> {
+  const next = new Set(pending)
+  next.delete(milestoneId)
+  return next
+}
 
 const { t, locale } = useI18n()
 const hydrated = useHydrated()

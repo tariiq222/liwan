@@ -1,4 +1,4 @@
-export type MeetingMinutesTopic = {
+type MeetingMinutesTopic = {
   key: string
   title: string
   discussion: string
@@ -78,10 +78,6 @@ export function createMeetingMinutesForm(value?: Partial<MeetingMinutesFormValue
   }
 }
 
-export function cloneMeetingMinutesForm(value: MeetingMinutesFormValue): MeetingMinutesFormValue {
-  return createMeetingMinutesForm(JSON.parse(JSON.stringify(value)) as MeetingMinutesFormValue)
-}
-
 export function plainTextFromHtml(value: string | null | undefined) {
   if (!value) return ''
   return value
@@ -100,15 +96,11 @@ export function normalizeMeetingMinutesText(value: string, maxLength = 50000) {
   return value.replace(/\r\n?/g, '\n').slice(0, maxLength)
 }
 
-import { formatNasqDate, formatNasqDateTime, formatNasqTime } from '../composables/calendarDate'
+import { formatNasqDate, formatNasqTime } from '../composables/calendarDate'
 
 export function formatMeetingDate(value: string | null | undefined, locale: string) {
   if (!value) return '—'
   return formatNasqDate(`${value.slice(0, 10)}T00:00:00`, locale)
-}
-
-export function formatMeetingDateTime(value: string | null | undefined, locale: string) {
-  return formatNasqDateTime(value, locale)
 }
 
 export function formatMeetingTime(value: string | null | undefined, locale: string) {

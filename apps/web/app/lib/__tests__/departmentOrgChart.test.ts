@@ -5,7 +5,6 @@ import {
   fitOrgChart,
   layoutDepartmentOrgChart,
   nextOrgScale,
-  orgBoxesOverlap,
   type OrgChartBox,
 } from '../departmentOrgChart'
 import type { HrDepartment } from '@/composables/useHrDepartments'
@@ -26,10 +25,14 @@ function department(
   }
 }
 
+function boxesOverlap(a: OrgChartBox, b: OrgChartBox): boolean {
+  return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y
+}
+
 function assertNoOverlaps(boxes: OrgChartBox[]) {
   for (let i = 0; i < boxes.length; i++) {
     for (let j = i + 1; j < boxes.length; j++) {
-      expect(orgBoxesOverlap(boxes[i]!, boxes[j]!), `${boxes[i]!.id}-${boxes[j]!.id}`).toBe(false)
+      expect(boxesOverlap(boxes[i]!, boxes[j]!), `${boxes[i]!.id}-${boxes[j]!.id}`).toBe(false)
     }
   }
 }

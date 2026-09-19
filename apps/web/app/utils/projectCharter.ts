@@ -60,7 +60,7 @@ export type DeliverableDraft = {
   persisted: boolean
 }
 
-export type CharterMilestoneDeliverable = {
+type CharterMilestoneDeliverable = {
   name: string
   done: boolean
 }
@@ -71,7 +71,7 @@ export type CharterMilestone = {
   deliverables?: readonly CharterMilestoneDeliverable[]
 }
 
-export type CharterMilestoneOutput = CharterMilestoneDeliverable & {
+type CharterMilestoneOutput = CharterMilestoneDeliverable & {
   milestoneId: number
   milestoneName: string
 }
@@ -117,7 +117,7 @@ function charterRowKey(kind: 'objective' | 'deliverable', index: number): string
   return `charter-${kind}-${index}`
 }
 
-export function nextCharterRowKey(): string {
+function nextCharterRowKey(): string {
   rowSeq += 1
   return `charter-row-${rowSeq}`
 }
@@ -222,11 +222,11 @@ export function draftFromProject(project: ProjectDetail): CharterDraft {
   }
 }
 
-export function isBlankObjective(row: Pick<ObjectiveDraft, 'goal' | 'metric' | 'target'>): boolean {
+function isBlankObjective(row: Pick<ObjectiveDraft, 'goal' | 'metric' | 'target'>): boolean {
   return !row.goal.trim() && !row.metric.trim() && !row.target.trim()
 }
 
-export function isBlankDeliverable(row: Pick<DeliverableDraft, 'name' | 'description' | 'acceptance'>): boolean {
+function isBlankDeliverable(row: Pick<DeliverableDraft, 'name' | 'description' | 'acceptance'>): boolean {
   return !row.name.trim() && !row.description.trim() && !row.acceptance.trim()
 }
 
@@ -249,7 +249,7 @@ export function aggregateMilestoneOutputs(milestones: readonly CharterMilestone[
     })))
 }
 
-export type AmountParse =
+type AmountParse =
   | { ok: true; value: number | null }
   | { ok: false; code: 'invalid' | 'negative' | 'nonfinite' }
 
@@ -279,7 +279,7 @@ export type NativeDateSnapshot = {
   dateEnd: string | null
 }
 
-export type CharterValidateContext = {
+type CharterValidateContext = {
   mode: 'create' | 'edit'
   originalDates?: NativeDateSnapshot
 }
@@ -288,23 +288,19 @@ export function nativeDateSnapshot(project: Pick<ProjectDetail, 'date_start' | '
   return { dateStart: project.date_start, dateEnd: project.date_end }
 }
 
-export function draftDateSnapshot(draft: Pick<CharterDraft, 'dateStart' | 'dateEnd'>): NativeDateSnapshot {
+function draftDateSnapshot(draft: Pick<CharterDraft, 'dateStart' | 'dateEnd'>): NativeDateSnapshot {
   return { dateStart: draft.dateStart, dateEnd: draft.dateEnd }
 }
 
-export function datesEqual(left: NativeDateSnapshot, right: NativeDateSnapshot): boolean {
+function datesEqual(left: NativeDateSnapshot, right: NativeDateSnapshot): boolean {
   return left.dateStart === right.dateStart && left.dateEnd === right.dateEnd
 }
 
-export function isPairedDates(snapshot: NativeDateSnapshot): boolean {
-  return Boolean(snapshot.dateStart) === Boolean(snapshot.dateEnd)
-}
-
-export function isSupportedDateWrite(snapshot: NativeDateSnapshot): boolean {
+function isSupportedDateWrite(snapshot: NativeDateSnapshot): boolean {
   return !snapshot.dateStart || !!snapshot.dateEnd
 }
 
-export function datesChangedFromOriginal(draft: CharterDraft, originalDates: NativeDateSnapshot): boolean {
+function datesChangedFromOriginal(draft: CharterDraft, originalDates: NativeDateSnapshot): boolean {
   return !datesEqual(draftDateSnapshot(draft), originalDates)
 }
 

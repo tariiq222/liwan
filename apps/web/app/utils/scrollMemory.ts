@@ -25,10 +25,6 @@ export function recallScrollPosition(fullPath: string): number | undefined {
   return positions.get(fullPath)
 }
 
-export function forgetScrollPositions() {
-  positions.clear()
-}
-
 export function scrollTargetFor(
   to: { path: string, fullPath: string, meta?: Record<string, unknown> },
   from: { path: string },
@@ -43,7 +39,7 @@ export function scrollTargetFor(
   return { left: 0, top: recallScrollPosition(to.fullPath) ?? 0 }
 }
 
-export function scrollTopIsReachable(top: number, viewport: { scrollHeight: number, innerHeight: number }): boolean {
+function scrollTopIsReachable(top: number, viewport: { scrollHeight: number, innerHeight: number }): boolean {
   return top <= 0 || viewport.scrollHeight - viewport.innerHeight >= top
 }
 

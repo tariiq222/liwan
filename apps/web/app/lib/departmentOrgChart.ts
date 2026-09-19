@@ -1,14 +1,14 @@
 import type { DepartmentTreeNode } from '@/lib/departmentTree'
 
 /** Chart x/y are LTR coordinates. The viewport must be dir=ltr so scrollLeft and inset-inline-start match these values. */
-export const ORG_NODE_WIDTH = 220
+const ORG_NODE_WIDTH = 220
 export const ORG_NODE_HEIGHT = 96
-export const ORG_H_GAP = 32
-export const ORG_V_GAP = 64
-export const ORG_PAD = 32
-export const ORG_ROOT_GAP = 48
-export const ORG_MIN_SCALE = 0.25
-export const ORG_MAX_SCALE = 2.5
+const ORG_H_GAP = 32
+const ORG_V_GAP = 64
+const ORG_PAD = 32
+const ORG_ROOT_GAP = 48
+const ORG_MIN_SCALE = 0.25
+const ORG_MAX_SCALE = 2.5
 
 export type OrgChartBox = {
   id: number
@@ -23,13 +23,13 @@ export type OrgChartBox = {
   h: number
 }
 
-export type OrgChartEdge = {
+type OrgChartEdge = {
   from: number
   to: number
   d: string
 }
 
-export type OrgChartLayout = {
+type OrgChartLayout = {
   boxes: OrgChartBox[]
   edges: OrgChartEdge[]
   width: number
@@ -123,10 +123,6 @@ export function layoutDepartmentOrgChart(
     height: Math.max(...boxes.map(box => box.y + box.h)) + ORG_PAD,
   }
   return options.rtl ? flipRtl(layout) : layout
-}
-
-export function orgBoxesOverlap(a: OrgChartBox, b: OrgChartBox): boolean {
-  return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y
 }
 
 export function nextOrgScale(current: number, factor: number): number {

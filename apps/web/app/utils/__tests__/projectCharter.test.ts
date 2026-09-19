@@ -13,7 +13,6 @@ import {
   hasCharterWriteContent,
   isCharterDraftDirty,
   isIsoDate,
-  isPairedDates,
   nativeDateSnapshot,
   parseAmountInput,
   charterPatchBody,
@@ -263,7 +262,6 @@ describe('validateCharterDraft', () => {
     const draft = draftFromProject(original)
     expect(validateCharterDraft(draft, { mode: 'edit', originalDates: nativeDateSnapshot(original) })).toEqual([])
     draft.dateEnd = '2030-06-01'
-    expect(isPairedDates({ dateStart: draft.dateStart, dateEnd: draft.dateEnd })).toBe(true)
     draft.dateStart = null
     expect(validateCharterDraft(draft, { mode: 'edit', originalDates: nativeDateSnapshot(original) })).toEqual([])
   })

@@ -2,7 +2,7 @@ import type { LocationQueryRaw } from 'vue-router'
 import { isCalendarDate } from '../composables/calendarDate'
 import { parsePositiveId } from './routeParams'
 
-export const MEETING_FILTER_KEYS = [
+const MEETING_FILTER_KEYS = [
   'q',
   'state',
   'mine',
@@ -14,9 +14,9 @@ export const MEETING_FILTER_KEYS = [
 ] as const
 
 export type MeetingFilterKey = typeof MEETING_FILTER_KEYS[number]
-export type MeetingListQuery = Record<string, unknown>
+type MeetingListQuery = Record<string, unknown>
 
-export type MeetingListFilters = {
+type MeetingListFilters = {
   q: string
   state: string
   mine: boolean
@@ -27,7 +27,7 @@ export type MeetingListFilters = {
   dateTo: string
 }
 
-export type MeetingDateRange = {
+type MeetingDateRange = {
   fromValid: boolean
   toValid: boolean
   reversed: boolean

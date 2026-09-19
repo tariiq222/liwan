@@ -2,9 +2,7 @@ import { PROJECT_STATUSES, type FinanceEntry, type FinanceEntryCreate, type Fina
 import { ApiError } from '../composables/useApi'
 
 export const FINANCE_PAGE = 50
-export const REPORT_PAGE = 50
 export const MAX_FINANCE_AMOUNT = 1e12
-export const FINANCE_RETURN_PREFIXES = ['/projects', '/reports'] as const
 
 export type FinanceKindFilter = 'all' | FinanceKind
 export type FinanceListRouteState = {
@@ -14,11 +12,6 @@ export type FinanceListRouteState = {
 }
 
 export type ProjectReportStatusFilter = 'all' | 'unset' | ProjectStatus
-export type ReportListRouteState = {
-  q: string
-  status: ProjectReportStatusFilter
-  offset: number
-}
 
 export type FinanceCurrency = {
   id: number
@@ -43,9 +36,9 @@ export type FinanceEntryLike = Pick<
 >
 
 export type FinanceFieldKey = 'title' | 'amount' | 'expense_date' | 'reference' | 'notes' | 'budget_entry_id' | 'kind'
-export type FinanceFieldError = { field: FinanceFieldKey; code: string }
+type FinanceFieldError = { field: FinanceFieldKey; code: string }
 
-export type MoneyParse =
+type MoneyParse =
   | { ok: true; value: number; minor: bigint; canonical: string }
   | { ok: false; code: 'empty' | 'invalid' | 'negative' | 'precision' | 'too_large' }
 
@@ -134,72 +127,10 @@ export function financeListQuery(filters: {
   }
 }
 
-export function financeListPath(projectId: number, state: FinanceListRouteState): string {
-  const query = serializeFinanceListRoute(state)
-  const params = new URLSearchParams()
-  if (query.kind) params.set('kind', query.kind)
-  if (query.q) params.set('q', query.q)
-  if (query.offset) params.set('offset', String(query.offset))
-  const suffix = params.toString()
-  return suffix ? `/projects/${projectId}/finance?${suffix}` : `/projects/${projectId}/finance`
-}
-
 export function parseReportStatus(value: unknown): ProjectReportStatusFilter {
   if (value === 'unset') return 'unset'
   if (typeof value === 'string' && (PROJECT_STATUSES as readonly string[]).includes(value)) return value as ProjectStatus
   return 'all'
-}
-
-export function parseReportListRoute(query: Record<string, unknown>): ReportListRouteState {
-  return {
-    q: firstQueryString(query.q),
-    status: parseReportStatus(query.status),
-    offset: parseOffset(query.offset),
-  }
-}
-
-export function serializeReportListRoute(state: ReportListRouteState) {
-  return {
-    q: state.q.trim() || undefined,
-    status: state.status === 'all' ? undefined : state.status,
-    offset: state.offset || undefined,
-  }
-}
-
-export function patchReportListRoute(
-  current: ReportListRouteState,
-  patch: Partial<ReportListRouteState>,
-): ReportListRouteState {
-  const next: ReportListRouteState = {
-    q: patch.q ?? current.q,
-    status: patch.status ?? current.status,
-    offset: patch.offset ?? current.offset,
-  }
-  if (patch.offset === undefined && (patch.q !== undefined || patch.status !== undefined)) {
-    next.offset = 0
-  }
-  return {
-    q: next.q,
-    status: parseReportStatus(next.status === 'all' ? undefined : next.status),
-    offset: parseOffset(next.offset),
-  }
-}
-
-export function sameReportListRoute(
-  left: ReturnType<typeof serializeReportListRoute>,
-  right: ReturnType<typeof serializeReportListRoute>,
-) {
-  return left.q === right.q && left.status === right.status && left.offset === right.offset
-}
-
-export function reportListPath(state: ReportListRouteState): string {
-  const query = serializeReportListRoute(state)
-  const params = new URLSearchParams()
-  if (query.q) params.set('q', query.q)
-  if (query.status) params.set('status', query.status)
-  if (query.offset) params.set('offset', String(query.offset))
-  const suffix = params.toString()
-  return suffix ? `/reports?${suffix}` : '/reports'
 }
 
 function mapDigit(char: string): string {
@@ -301,7 +232,7 @@ export function parseMoneyInput(raw: string, decimalPlaces: number): MoneyParse 
   return { ok: true, value: Number(canonical), minor, canonical }
 }
 
-export function formatCanonicalAmount(value: number, decimalPlaces: number): string {
+function formatCanonicalAmount(value: number, decimalPlaces: number): string {
   if (!Number.isFinite(value)) return ''
   const sign = value < 0 ? '-' : ''
   const places = Math.max(decimalPlaces, 0)
@@ -328,11 +259,6 @@ export function formatNullablePercent(value: number | null, unknownLabel: string
 export function formatUtilization(value: number | null, unknownLabel: string): string {
   if (value == null) return unknownLabel
   return `${formatCanonicalAmount(value, 2)}%`
-}
-
-export function formatNullableCount(value: number | null, unavailableLabel: string): string {
-  if (value == null) return unavailableLabel
-  return String(value)
 }
 
 export function isFinanceIsoDate(value: string | null | undefined): boolean {
@@ -465,7 +391,7 @@ export function financePatchHasMutation(patch: FinanceEntryPatch): boolean {
   return Object.keys(patch).some(key => key !== 'expected_updated_at')
 }
 
-export type BudgetStatus = 'unknown' | 'over' | 'within'
+type BudgetStatus = 'unknown' | 'over' | 'within'
 
 export function budgetStatus(summary: { planned: number | null; actual: number; over_budget: boolean }): BudgetStatus {
   if (summary.planned == null) return 'unknown'
@@ -473,28 +399,12 @@ export function budgetStatus(summary: { planned: number | null; actual: number; 
   return 'within'
 }
 
-export type FinanceSummaryMode = 'empty' | 'need-budget' | 'dashboard'
+type FinanceSummaryMode = 'empty' | 'need-budget' | 'dashboard'
 
 export function financeSummaryMode(summary: { planned: number | null; budget_count: number; expense_count: number }): FinanceSummaryMode {
   if (summary.budget_count === 0 && summary.expense_count === 0) return 'empty'
   if (summary.planned == null) return 'need-budget'
   return 'dashboard'
-}
-
-export function formatTotalsPlanned(
-  group: { planned: number; budgeted_project_count: number; currency: FinanceCurrency },
-  unknownLabel: string,
-): string {
-  if (group.budgeted_project_count === 0) return unknownLabel
-  return formatMoney(group.planned, group.currency)
-}
-
-export function formatTotalsRemaining(
-  group: { remaining: number; budgeted_project_count: number; currency: FinanceCurrency },
-  unknownLabel: string,
-): string {
-  if (group.budgeted_project_count === 0) return unknownLabel
-  return formatMoney(group.remaining, group.currency)
 }
 
 export function clampListOffset(offset: number, total: number, pageSize: number): number {

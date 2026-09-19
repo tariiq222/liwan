@@ -13,10 +13,6 @@ export function toCalendarDate(iso: string | null): CalendarDate | undefined {
   }
 }
 
-export function fromCalendarDate(d: CalendarDate | undefined): string | null {
-  return d ? d.toString() : null
-}
-
 export function formatCalendarDate(iso: string | null, locale: string): string {
   const d = toCalendarDate(iso)
   if (!d) return ''

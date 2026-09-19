@@ -5,7 +5,7 @@ import { invalidateProjectCaches } from './projectKeys'
 
 const PAGE = 50
 
-export interface ArchivedTaskParams {
+interface ArchivedTaskParams {
   project_id?: number
   q?: string
   mine?: boolean
@@ -24,7 +24,7 @@ export function archivedTaskQuery(params: ArchivedTaskParams, offset: number) {
   }
 }
 
-export const archivedTaskKeys = {
+const archivedTaskKeys = {
   list: (params: ArchivedTaskParams) => ['tasks', 'archived', params] as const,
 }
 

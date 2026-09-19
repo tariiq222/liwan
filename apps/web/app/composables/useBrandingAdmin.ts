@@ -5,7 +5,7 @@ import {
   type BrandingPatch,
 } from '@nasq/contracts'
 
-export const brandingAdminKeys = {
+const brandingAdminKeys = {
   all: ['branding-admin'] as const,
 }
 
