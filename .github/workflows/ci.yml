@@ -121,3 +121,26 @@ jobs:
           python _odoo/odoo-bin shell $ODOO_DB_ARGS --addons-path="$PWD/_odoo/addons,$PWD/odoo-addons" \
             -d nasq_ci_upgrade_scratch --http-port=8169 --no-http < deploy/odoo/upgrade_smoke.py | tee smoke.log
           grep -q UPGRADE_SMOKE_OK smoke.log
+
+  image:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          docker build -f deploy/odoo/Dockerfile \
+            --build-arg ODOO_COMMIT="$(cat deploy/odoo/ODOO_COMMIT)" \
+            --build-arg NASQ_REVISION="${GITHUB_SHA::12}" -t nasq-odoo:ci .
+      - name: Install every pillar inside the image
+        run: |
+          docker network create t
+          docker run -d --name db --network t -e POSTGRES_USER=odoo -e POSTGRES_PASSWORD=odoo -e POSTGRES_DB=postgres postgres:16
+          printf '%s\n' '[options]' 'db_host = db' 'db_user = odoo' 'db_password = odoo' 'list_db = False' > odoo.conf
+          for i in $(seq 1 30); do docker exec db pg_isready -U odoo && break; sleep 2; done
+          docker run --rm --network t -v "$PWD/odoo.conf:/etc/odoo/odoo.conf:ro" nasq-odoo:ci \
+            -d nasq_image_scratch -i nasq_core,nasq_api,nasq_pmo,nasq_hr,nasq_chat --without-demo=all --http-port=8169 --stop-after-init
+          docker run --rm --entrypoint sh nasq-odoo:ci -c 'test ! -w /opt/nasq/addons && test "$(id -u)" = 10001 && ! command -v git'
+      - if: always()
+        run: |
+          docker rm -fv db || true
+          docker network rm t || true

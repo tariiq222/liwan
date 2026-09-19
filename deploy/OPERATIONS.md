@@ -3,6 +3,28 @@
 These tools are operator wrappers. They do not start, stop, restore, schedule,
 or delete services. Local success is not production assurance.
 
+## Odoo image
+
+Build the Odoo image from the repository root with the pinned upstream source
+revision:
+
+```sh
+docker build -f deploy/odoo/Dockerfile \
+  --build-arg ODOO_COMMIT="$(cat deploy/odoo/ODOO_COMMIT)" \
+  --build-arg NASQ_REVISION="$(git rev-parse --short HEAD)" \
+  -t "nasq-odoo:${NASQ_IMAGE_TAG:-dev}" .
+```
+
+`NASQ_IMAGE_TAG` selects the image tag used by Compose. `ODOO_COMMIT` selects
+the immutable upstream Odoo revision fetched during the image build. The
+Odoo source and Nasq addons are baked into the image and made read-only at
+runtime; only `/var/lib/odoo` is writable customer data. Every container start
+passes through `/opt/nasq/odoo_secure.py`, including provisioning shell runs.
+The image replaces Debian's unpatched `wkhtmltopdf` with the architecture-
+specific, vendored `wkhtmltox 0.12.6.1-3 bookworm` package after verifying the
+matching entry in `deploy/odoo/vendor/SHA256SUMS`. The build fails when the
+current architecture has no matching vendored package.
+
 ## Observed layout (this machine, 2026-09-06)
 
 This is a description of paths that existed when the wrappers were written. It
@@ -31,11 +53,11 @@ Not started by these tools. Named volumes, not bind mounts:
 | Service | Image | Data |
 | --- | --- | --- |
 | `db` | `postgres:16` | volume `db_data` → `/var/lib/postgresql/data` |
-| `odoo` | `odoo:19.0` | volume `odoo_data` → `/var/lib/odoo` (`data_dir`); filestore inside the volume at `filestore/${DB_NAME}` |
+| `odoo` | `nasq-odoo:${NASQ_IMAGE_TAG}` | baked Odoo and Nasq addons; volume `odoo_data` → `/var/lib/odoo` (`data_dir`); filestore inside the volume at `filestore/${DB_NAME}` |
 | `web` | apps/web image | listens on container port `3000` |
 | `proxy` | `caddy:2` | `80`/`443` |
 
-`deploy/odoo.conf` uses `data_dir = /var/lib/odoo`, `db_host = db`, `dbfilter = ^${DB_NAME}$`. Provisioning (`deploy/provision.sh`) is out of scope for this work package and is not invoked here.
+`deploy/odoo.conf` uses `data_dir = /var/lib/odoo`, `db_host = db`, `dbfilter = ^${DB_NAME}$`. Provisioning (`deploy/provision.sh`) validates all three secrets, selects the pinned baked image, then installs and seeds through its guarded entrypoint. The manual backup wrappers do not invoke provisioning.
 
 To back up a Compose customer, the operator must supply **host paths** for
 `pg_dump` output and for `<data_dir>/filestore/<db_name>` after copying or

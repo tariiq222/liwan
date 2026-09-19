@@ -61,12 +61,18 @@ DB_NAME="${2:?usage: provision.sh <domain> <db name>}"
 [[ "$DB_NAME" =~ ^[a-zA-Z0-9_]+$ ]] || { echo "db name must be [a-zA-Z0-9_]+" >&2; exit 1; }
 export DOMAIN DB_NAME
 
-case "${VENDOR_PASSWORD:-}" in
-  ''|change-me)
-    echo "VENDOR_PASSWORD in deploy/.env must be a real password (it becomes the admin login)"
-    exit 1
-    ;;
-esac
+for var in DB_PASSWORD ODOO_ADMIN_PASSWORD VENDOR_PASSWORD; do
+  eval "value=\${$var:-}"
+  case "$value" in
+    ''|change-me|changeme|validation-only|odoo|admin)
+      echo "provision: $var is empty or a known placeholder; set a real secret in deploy/.env" >&2
+      exit 1 ;;
+  esac
+  [ "${#value}" -ge 16 ] || { echo "provision: $var must be at least 16 characters" >&2; exit 1; }
+done
+
+export ODOO_COMMIT="$(cat "$PWD/odoo/ODOO_COMMIT")"
+export NASQ_IMAGE_TAG="${NASQ_IMAGE_TAG:-$(git -C "$PWD/.." rev-parse --short HEAD)}"
 
 mkdir -p data
 envsubst < odoo.conf > data/odoo.conf
@@ -83,8 +89,8 @@ docker compose exec -T db pg_isready -U odoo >/dev/null 2>&1 || { echo "db not r
 
 # Every pillar must be listed explicitly: pillars depend on nasq_api, not the other way round.
 docker compose run --rm -v "$PWD/data/odoo.conf:/etc/odoo/odoo.conf:ro" odoo \
-  odoo -c /etc/odoo/odoo.conf -d "$DB_NAME" -i nasq_core,nasq_api,nasq_pmo,nasq_hr,nasq_chat,web_theme_shadcn --stop-after-init
-docker compose run --rm -e VENDOR_PASSWORD -v "$PWD/data/odoo.conf:/etc/odoo/odoo.conf:ro" -v "$PWD/data/seed:/seed:ro" odoo \
-  sh -c 'odoo shell -c /etc/odoo/odoo.conf -d "$1" --no-http < /seed/seed_branding.py' sh "$DB_NAME"
+  -d "$DB_NAME" -i nasq_core,nasq_api,nasq_pmo,nasq_hr,nasq_chat,web_theme_shadcn --stop-after-init
+docker compose run --rm -T -e VENDOR_PASSWORD -v "$PWD/data/odoo.conf:/etc/odoo/odoo.conf:ro" -v "$PWD/data/seed:/seed:ro" odoo \
+  shell -d "$DB_NAME" --no-http < data/seed/seed_branding.py
 docker compose up -d
 echo "https://$DOMAIN is provisioning; vendor login: admin / (VENDOR_PASSWORD from .env)."
