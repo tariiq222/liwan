@@ -1,53 +1,47 @@
 <script setup lang="ts">
 import type { HTMLAttributes } from "vue"
+import type { ChartConfig } from "."
 import { computed, onMounted, ref } from "vue"
-import { cn } from "@/lib/utils"
-import { useChart } from "."
 
 const props = withDefaults(defineProps<{
-  hideIcon?: boolean
+  config: ChartConfig
   nameKey?: string
   verticalAlign?: "bottom" | "top"
-  // payload?: any[]
   class?: HTMLAttributes["class"]
 }>(), {
   verticalAlign: "bottom",
 })
 
-const { id, config } = useChart()
-
-const payload = computed(() => Object.entries(config.value).map(([key, value]) => {
+const payload = computed(() => Object.entries(props.config).map(([key, value]) => {
   return {
     key: props.nameKey || key,
     itemConfig: value,
   }
 }))
 
-const containerSelector = ref("")
+// The legend enumerates chart config synchronously, but waits for mount so it
+// never renders ahead of the chart it labels during SSR.
+const mounted = ref(false)
 onMounted(() => {
-  containerSelector.value = `[data-chart="chart-${id.replace(/:/g, "")}"]>[data-vis-xy-container]`
+  mounted.value = true
 })
 </script>
 
 <template>
   <div
-    v-if="containerSelector"
-    :class="cn(
+    v-if="mounted"
+    :class="[
       'flex items-center justify-center gap-4',
       verticalAlign === 'top' ? 'pb-3' : 'pt-3',
       props.class,
-    )"
+    ]"
   >
     <div
       v-for="{ key, itemConfig } in payload"
       :key="key"
-      :class="cn(
-        '[&>svg]:text-muted flex items-center gap-1.5 [&>svg]:h-3 [&>svg]:w-3',
-      )"
+      class="[&>svg]:text-muted flex items-center gap-1.5 [&>svg]:h-3 [&>svg]:w-3"
     >
-      <component :is="itemConfig.icon" v-if="itemConfig.icon" />
       <div
-        v-else
         class="h-2 w-2 shrink-0 rounded-xs"
         :style="{
           backgroundColor: itemConfig?.color,
