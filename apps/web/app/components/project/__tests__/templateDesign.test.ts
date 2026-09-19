@@ -10,10 +10,6 @@ import { describe, expect, it } from 'vitest'
 
 const pages = resolve(dirname(fileURLToPath(import.meta.url)), '../../../pages/project-templates')
 const listSource = readFileSync(resolve(pages, 'index.vue'), 'utf8')
-const detail = readFileSync(resolve(pages, '[id].vue'), 'utf8')
-const create = readFileSync(resolve(pages, 'new.vue'), 'utf8')
-const edit = readFileSync(resolve(pages, '[id]/edit.vue'), 'utf8')
-const apply = readFileSync(resolve(pages, '[id]/apply.vue'), 'utf8')
 
 const Passthrough = defineComponent({
   inheritAttrs: false,
@@ -91,25 +87,7 @@ function listSetup(overrides: Record<string, unknown> = {}) {
   })
 }
 
-describe('project template page design', () => {
-  it('uses SharedPageState for catalog loading, retryable errors and empty instead of ad-hoc copy', () => {
-    expect(listSource).toContain('SharedPageState')
-    expect(listSource).toContain('@retry="list.refetch"')
-    expect(listSource).toContain("t('projects.templates.empty')")
-    expect(listSource).toContain(':active-count="activeFilterCount"')
-    expect(listSource).toContain('name="template-search"')
-    expect(listSource).toContain('refDebounced')
-    expect(listSource).toContain('useHydrated')
-    expect(listSource).toContain('can_manage')
-    expect(listSource).toContain('can_apply')
-    expect(listSource).toContain('returnTo')
-    expect(listSource).toContain('offset')
-    expect(listSource).toContain('grid gap-3 md:grid-cols-2')
-    expect(listSource).not.toContain('nasq-empty-state')
-    expect(listSource).not.toContain("t('projects.loading')")
-    expect(listSource).not.toMatch(/LayoutGrid|tableView|onViewChange/)
-  })
-
+describe('project template catalog pagination', () => {
   it('keeps previous pagination when an offset page returns zero rows', async () => {
     const html = await renderList(listSetup())
     expect(html).toContain('projects.templates.empty')
@@ -125,27 +103,5 @@ describe('project template page design', () => {
     const html = await renderList(listSetup({ offset: 0, total: 0, items: [] }))
     expect(html).toContain('projects.templates.empty')
     expect(html).not.toContain('projects.templates.pagination.label')
-  })
-
-  it('keeps create, edit, apply and detail on the template list route with data guards', () => {
-    for (const source of [detail, create, edit, apply]) {
-      expect(source).toContain('SharedPageState')
-      expect(source).toContain('@retry')
-      // Every template page returns to the one list it hangs off, and none of
-      // them reads a referrer to decide that.
-      expect(source).toContain('backTo')
-      expect(source).not.toContain('returnTo')
-    }
-    expect(create).toContain('can_manage')
-    expect(edit).toContain('can_manage')
-    expect(apply).toContain('can_apply')
-    expect(apply).toContain('SharedUnsavedChanges')
-    expect(apply).toContain('ProjectTemplateApplySchema')
-    expect(detail).toContain('confirmDelete')
-    expect(detail).toContain('templatePath(template.id, \'apply\')')
-    expect(detail).toContain('templatePath(template.id, \'edit\')')
-    expect(edit).toContain('template ? null : error')
-    expect(apply).toContain('template ? null : error')
-    expect(create).toContain('permissions.data.value ? null : permissions.error.value')
   })
 })

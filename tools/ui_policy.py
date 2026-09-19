@@ -413,6 +413,16 @@ def recipe_errors(current: dict[str, str]) -> list[str]:
             and CUSTOM_RECIPE.search(COMMENTS.sub('', source))]
 
 
+def whole_tree(current: dict[str, str]) -> bool:
+    """Whether the snapshot is a full app tree rather than a few files.
+
+    A rule that requires content to be present ("every page has a shell", "the
+    token sheet defines the brand ramp") says nothing about a partial snapshot,
+    and would otherwise report every file the caller simply did not pass.
+    """
+    return APP + 'app.vue' in current
+
+
 # The theme inputs are the brand primary, the neutral palette, the official
 # --ui-radius token, the Arabic font and the display modes (DESIGN.md).
 ALLOWED_RECIPE_KEYS = frozenset((
@@ -420,6 +430,7 @@ ALLOWED_RECIPE_KEYS = frozenset((
     'tabs', 'progress', 'avatar', 'dropdownMenu', 'popover', 'tooltip', 'slideover', 'modal', 'checkbox',
     'switch', 'formField',
 ))
+BRAND_COLORS = re.compile(r"colors:\s*\{\s*primary:\s*'brand',\s*neutral:\s*'slate'\s*\}")
 REQUIRED_TOKENS = ('--color-brand-500', 'IBM Plex Sans Arabic', ':root.cream', '.dark')
 RETIRED_TOKENS = ('--nasq-radius', '--elevation-1', '--content-shadow', '--radius:')
 
@@ -430,16 +441,19 @@ def theme_errors(current: dict[str, str]) -> list[str]:
     tokens = current.get(APP + 'assets/css/tokens.css', '')
     components = current.get(APP + 'assets/css/components.css', '')
     shell = current.get(APP + 'assets/css/shell.css', '')
-    if "colors: { primary: 'brand', neutral: 'slate' }" not in config:
-        errors.append(APP + "app.config.ts: theme colors must stay { primary: 'brand', neutral: 'slate' }")
-    for key in re.findall(r'^\s{4}([a-zA-Z]+):', config, re.M):
-        if key not in ALLOWED_RECIPE_KEYS:
-            errors.append(f'{APP}app.config.ts: undocumented theme recipe key {key}')
-    for token in REQUIRED_TOKENS:
-        if token not in tokens:
-            errors.append(f'{APP}assets/css/tokens.css: missing theme input {token}')
-    if not re.search(r'--ui-radius:\s*0\.5rem', tokens):
-        errors.append(f'{APP}assets/css/tokens.css: --ui-radius is the one official radius token')
+    complete = whole_tree(current)
+    if complete:
+        if not BRAND_COLORS.search(config):
+            errors.append(APP + "app.config.ts: theme colors must stay { primary: 'brand', neutral: 'slate' }")
+        for key in re.findall(r'^\s{4}([a-zA-Z]+):', config, re.M):
+            if key not in ALLOWED_RECIPE_KEYS:
+                errors.append(f'{APP}app.config.ts: undocumented theme recipe key {key}')
+    if complete:
+        for token in REQUIRED_TOKENS:
+            if token not in tokens:
+                errors.append(f'{APP}assets/css/tokens.css: missing theme input {token}')
+        if not re.search(r'--ui-radius:\s*0\.5rem', tokens):
+            errors.append(f'{APP}assets/css/tokens.css: --ui-radius is the one official radius token')
     for token in RETIRED_TOKENS:
         if token in tokens:
             errors.append(f'{APP}assets/css/tokens.css: retired token {token}')
@@ -463,8 +477,8 @@ PAGE_SHELL_EXEMPT = frozenset(PAGES + name for name in (
 ))
 AD_HOC_WIDTH = re.compile(r'nasq-page-stack[^"\n]*(?:max-w-\[1440px\]|max-w-\[940px\]|max-w-(?:2xl|3xl|4xl|5xl|7xl))'
                           r'|class="[^"]*max-w-(?:3xl|4xl|5xl|7xl)[^"]*"')
-PAGE_WIDTHS = ('.nasq-page-width-list { max-width: 100rem; }', '.nasq-page-width-detail { max-width: 68rem; }',
-               '.nasq-page-width-form { max-width: 58rem; }')
+PAGE_WIDTHS = tuple(re.compile(rf'\.nasq-page-width-{name}\s*\{{[^}}]*max-width:\s*{value}')
+                    for name, value in (('list', '100rem'), ('detail', '68rem'), ('form', '58rem')))
 STATUS_TOKENS = ('--status-success', '--status-warning', '--status-info', '--status-danger',
                  '--status-danger-foreground', '--unread-count-foreground', '.nasq-status-text-warning',
                  '.nasq-unread-count')
@@ -472,21 +486,24 @@ STATUS_TOKENS = ('--status-success', '--status-warning', '--status-info', '--sta
 
 def page_shell_errors(current: dict[str, str]) -> list[str]:
     errors = []
+    complete = whole_tree(current)
     for path, source in sorted(current.items()):
         if not path.startswith(PAGES) or not path.endswith('.vue'):
             continue
-        if path not in PAGE_SHELL_EXEMPT and not any(shell in source for shell in PAGE_SHELLS):
+        if complete and path not in PAGE_SHELL_EXEMPT and not any(shell in source for shell in PAGE_SHELLS):
             errors.append(path + ': page needs one of the approved shells (' + ', '.join(PAGE_SHELLS) + ')')
         if AD_HOC_WIDTH.search(source):
             errors.append(path + ': ad-hoc page max-width; use the SharedPageContainer width vocabulary')
-    shell = current.get(APP + 'assets/css/shell.css', '')
-    for width in PAGE_WIDTHS:
-        if width not in shell:
-            errors.append(f'{APP}assets/css/shell.css: missing page width {width}')
-    status = current.get(APP + 'assets/css/components.css', '') + current.get(APP + 'assets/css/tokens.css', '')
-    for token in STATUS_TOKENS:
-        if token not in status:
-            errors.append(f'{APP}assets/css: missing theme-aware status token {token}')
+    if complete:
+        shell = current.get(APP + 'assets/css/shell.css', '')
+        for width in PAGE_WIDTHS:
+            if not width.search(shell):
+                errors.append(f'{APP}assets/css/shell.css: missing page width rule {width.pattern}')
+    if complete:
+        status = current.get(APP + 'assets/css/components.css', '') + current.get(APP + 'assets/css/tokens.css', '')
+        for token in STATUS_TOKENS:
+            if token not in status:
+                errors.append(f'{APP}assets/css: missing theme-aware status token {token}')
     return errors
 
 
@@ -548,6 +565,27 @@ def scoped_style_errors(current: dict[str, str]) -> list[str]:
 
 # Arabic is the default locale and English is secondary: a key present in one
 # catalogue and missing from the other ships an untranslated screen.
+# A filled secondary button competes with the page's primary action, so chrome
+# actions carry a quiet variant instead. The branding preview renders sample
+# buttons at every rank on purpose.
+BUTTON_TAG = re.compile(r'<UButton\b[^>]*>', re.S)
+SECONDARY_COLOR = re.compile(r'color=["\']secondary["\']')
+QUIET_VARIANT = re.compile(r'variant=["\'](?:outline|ghost|soft|subtle|link)["\']')
+BUTTON_RANK_OWNERS = {COMPONENTS + 'settings/BrandingPreview.vue'}
+
+
+def button_rank_errors(current: dict[str, str]) -> list[str]:
+    errors = []
+    for path, source in sorted(current.items()):
+        if not path.startswith(APP) or not path.endswith('.vue') or path in BUTTON_RANK_OWNERS:
+            continue
+        for match in BUTTON_TAG.finditer(source):
+            if SECONDARY_COLOR.search(match.group()) and not QUIET_VARIANT.search(match.group()):
+                errors.append(f'{path}: filled secondary button; a chrome action uses '
+                              'outline/ghost/soft/subtle/link')
+    return errors
+
+
 # Arabic declines six plural categories where English has two, so a plural
 # message is one key in both catalogues, not one key per category.
 PLURAL_CATEGORIES = frozenset(('zero', 'one', 'two', 'few', 'many', 'other'))
@@ -639,6 +677,7 @@ def check(current: dict[str, str], baseline: dict[str, str], head: dict[str, str
     errors.extend(breadcrumb_errors(current))
     errors.extend(scoped_style_errors(current))
     errors.extend(locale_parity_errors(current))
+    errors.extend(button_rank_errors(current))
     return errors
 
 
