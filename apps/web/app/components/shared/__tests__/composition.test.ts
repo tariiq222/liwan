@@ -44,9 +44,16 @@ function loadShared(name: string): Component {
       description: String,
       backTo: [String, Object],
       backLabel: String,
+      width: { type: String, default: 'list' },
     },
     setup(props) {
-      return { props, hideBack: false, headerDescription: props.description }
+      return {
+        props, hideBack: false, headerDescription: props.description,
+        // PageContainer derives its band from the prop; the route-shaped flags
+        // are presentation hooks, not part of the width vocabulary.
+        widthClass: `nasq-page-width-${props.width}`,
+        projectArea: false, workspaceArea: false, projectRecord: false,
+      }
     },
     render,
   })
@@ -107,12 +114,18 @@ describe('shared composition rendered contracts', () => {
     expect(activeRowMarker).toBeGreaterThan(controlsMarker)
   })
 
-  it('keeps PageContainer width vocabulary in CSS classes, not ad-hoc max-width utilities', () => {
-    const source = readFileSync(resolve(webRoot, 'app/components/shared/PageContainer.vue'), 'utf8')
-    expect(source).toContain("'list' | 'detail' | 'form'")
-    expect(source).toContain('nasq-page-width-')
-    expect(source).not.toMatch(/max-w-\[/)
-    expect(source).not.toMatch(/max-w-(2xl|3xl|4xl|5xl|7xl)/)
+  it('renders each page width as its own class, and defaults to the list band', async () => {
+    // The width is a vocabulary of three named bands, not a utility a page
+    // picks for itself: the class is what the stylesheet sizes.
+    for (const width of ['list', 'detail', 'form'] as const) {
+      const html = await renderShared('PageContainer', { width }, { default: () => h('p', 'محتوى') })
+      expect(html, width).toContain(`data-layout-width="${width}"`)
+      expect(html, width).toContain(`nasq-page-width-${width}`)
+      expect(html, width).toContain('محتوى')
+    }
+    const fallback = await renderShared('PageContainer', {}, { default: () => h('p', 'محتوى') })
+    expect(fallback).toContain('nasq-page-width-list')
+    expect(fallback, 'a band is a class, never an inline max-width').not.toMatch(/max-w-/)
   })
 
   it('renders FormSection title and description with reference section spacing', async () => {

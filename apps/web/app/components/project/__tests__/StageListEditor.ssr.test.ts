@@ -29,13 +29,12 @@ const Stub = defineComponent({
 })
 
 describe('StageListEditor SSR', () => {
-  it('renders an occupied stage tooltip with its provider context', async () => {
-    const stage = { id: 1, name: 'In use', fold: false, task_count: 2 }
-    const localStages = ref([stage])
+  async function renderStages(stages: { id: number; name: string; fold: boolean; task_count: number }[]) {
+    const localStages = ref(stages)
     const hydrated = ref(true)
     const bindings = {
       props: { busy: false },
-      stages: [stage],
+      stages,
       localStages,
       hydrated,
       disabled: computed(() => false),
@@ -61,10 +60,14 @@ describe('StageListEditor SSR', () => {
     app.component('UTooltip', defineComponent({
       props: ['text'],
       setup(props, { slots }) {
-        return () => h(TooltipProvider, {}, { default: () => h(TooltipRoot, {}, { default: () => [
-          h(TooltipTrigger, { asChild: true }, { default: () => slots.default?.() }),
-          h(TooltipContent, {}, { default: () => props.text }),
-        ] }) })
+        // A closed tooltip renders no content on the server, so the text it was
+        // given is surfaced here; the provider context is still exercised.
+        return () => h('div', { 'data-tooltip-text': props.text }, [
+          h(TooltipProvider, {}, { default: () => h(TooltipRoot, {}, { default: () => [
+            h(TooltipTrigger, { asChild: true }, { default: () => slots.default?.() }),
+            h(TooltipContent, {}, { default: () => props.text }),
+          ] }) }),
+        ])
       },
     }))
     app.component('TooltipProvider', TooltipProvider)
@@ -72,8 +75,23 @@ describe('StageListEditor SSR', () => {
     app.component('TooltipTrigger', TooltipTrigger)
     app.component('TooltipContent', TooltipContent)
 
-    const html = await renderToString(app)
+    return renderToString(app)
+  }
+
+  it('offers a plain delete for an empty stage', async () => {
+    const html = await renderStages([{ id: 1, name: 'Empty', fold: false, task_count: 0 }])
     expect(html).toContain('data-testid="stage-delete"')
+    expect(html).not.toContain('data-tooltip-text')
+  })
+
+  it('replaces the delete of an occupied stage with a tooltip naming the count', async () => {
+    // A stage holding tasks cannot be deleted, and the reason has to be
+    // readable rather than a control that silently does nothing.
+    const html = await renderStages([{ id: 1, name: 'In use', fold: false, task_count: 2 }])
+    expect(html).toContain('data-tooltip-text="projects.stages.notEmpty:2"')
     expect(html).toContain('data-state="closed"')
+    // The control stays visible and disabled inside the tooltip, so the reason
+    // is reachable; a removed button would explain nothing.
+    expect(html).toMatch(/data-tooltip-text="projects\.stages\.notEmpty:2"[\s\S]*data-testid="stage-delete"[^>]*disabled/)
   })
 })

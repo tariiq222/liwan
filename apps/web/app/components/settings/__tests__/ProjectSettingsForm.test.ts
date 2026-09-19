@@ -6,11 +6,12 @@ import { renderToString } from '@vue/server-renderer'
 import ts from 'typescript'
 import * as Vue from 'vue'
 import { createSSRApp, defineComponent, h, type RenderFunction } from 'vue'
+import { QueryClient } from '@tanstack/query-core'
 import { describe, expect, it } from 'vitest'
+import { invalidateProjectSettingsCaches, projectSettingsKeys } from '../../../composables/useProjectSettings'
 
 const filename = resolve(dirname(fileURLToPath(import.meta.url)), '../ProjectSettingsForm.vue')
 const source = readFileSync(filename, 'utf8')
-const settingsSource = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '../../../composables/useProjectSettings.ts'), 'utf8')
 
 const Passthrough = defineComponent({
   inheritAttrs: false,
@@ -52,9 +53,21 @@ async function renderForm(setup: () => Record<string, unknown>) {
 }
 
 describe('ProjectSettingsForm production template', () => {
-  it('refreshes create defaults from the dedicated query key after a settings patch', () => {
-    expect(settingsSource).toContain("createDefaults: ['project-settings', 'create-defaults']")
-    expect(settingsSource).toContain('invalidateQueries({ queryKey: projectSettingsKeys.createDefaults })')
+  it('replaces the saved settings and makes create defaults ask the server again', async () => {
+    const queryClient = new QueryClient()
+    await queryClient.prefetchQuery({ queryKey: projectSettingsKeys.all, queryFn: async () => ({ project_creators: 'managers' }) })
+    await queryClient.prefetchQuery({ queryKey: projectSettingsKeys.createDefaults, queryFn: async () => ({ require_manager_on_create: false }) })
+
+    invalidateProjectSettingsCaches(queryClient, { project_creators: 'employees' } as never)
+
+    // The server answered with the settings, so they are authoritative.
+    expect(queryClient.getQueryData(projectSettingsKeys.all)).toEqual({ project_creators: 'employees' })
+    // The defaults are derived from them by the server, so a local guess would
+    // be wrong: /projects/new has to ask again.
+    expect(queryClient.getQueryState(projectSettingsKeys.createDefaults)?.isInvalidated).toBe(true)
+    expect(queryClient.getQueryData(projectSettingsKeys.createDefaults), 'the stale answer stays visible until the refetch lands')
+      .toEqual({ require_manager_on_create: false })
+    queryClient.clear()
   })
 
   it('renders create and reminder controls from loaded settings', async () => {

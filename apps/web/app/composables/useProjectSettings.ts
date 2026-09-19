@@ -1,3 +1,4 @@
+import type { QueryClient } from '@tanstack/vue-query'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { ProjectCreateDefaultsSchema, ProjectSettingsSchema, type ProjectSettings } from '@nasq/contracts'
 
@@ -22,14 +23,19 @@ export function useProjectCreateDefaults() {
   })
 }
 
+// The saved settings are the server's answer, so they replace the cache
+// outright. Create defaults are derived from them by the server and are only
+// marked stale, so /projects/new asks again rather than trusting a local guess.
+export function invalidateProjectSettingsCaches(qc: QueryClient, settings: ProjectSettings) {
+  qc.setQueryData(projectSettingsKeys.all, settings)
+  qc.invalidateQueries({ queryKey: projectSettingsKeys.createDefaults })
+}
+
 export function useUpdateProjectSettings() {
   const qc = useQueryClient()
   const { $api } = useApi()
   return useMutation({
     mutationFn: (patch: Partial<ProjectSettings>) => $api('/api/v1/settings/projects', { method: 'PATCH', body: patch, schema: ProjectSettingsSchema }),
-    onSuccess: (settings) => {
-      qc.setQueryData(projectSettingsKeys.all, settings)
-      qc.invalidateQueries({ queryKey: projectSettingsKeys.createDefaults })
-    },
+    onSuccess: settings => invalidateProjectSettingsCaches(qc, settings),
   })
 }

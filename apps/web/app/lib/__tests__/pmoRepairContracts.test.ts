@@ -1,10 +1,11 @@
 import { readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { parse, compileScript } from '@vue/compiler-sfc'
+import { compileScript, compileTemplate, parse } from '@vue/compiler-sfc'
 import ts from 'typescript'
 import * as Vue from 'vue'
-import { computed, nextTick, ref, shallowRef, watch } from 'vue'
+import { computed, createSSRApp, defineComponent, h, nextTick, ref, shallowRef, watch } from 'vue'
+import { renderToString } from '@vue/server-renderer'
 import { CalendarDate } from '@internationalized/date'
 import { createDebouncedFlush } from '../debouncedFlush'
 import { describe, expect, it, vi } from 'vitest'
@@ -83,19 +84,60 @@ function loadSetup(path: string, props: Record<string, unknown>, deps: SetupDeps
   return { state, events }
 }
 
+// Every component the template asks for is stubbed by name, read out of the
+// compiled render itself: a hand-written list would go stale silently and the
+// form would render without the guard under test.
+async function renderedGuardDirty(path: string, state: Record<string, unknown>) {
+  const filename = resolve(root, path)
+  const parsed = parse(readFileSync(filename, 'utf8'), { filename })
+  const compiled = compileTemplate({
+    source: parsed.descriptor.template!.content,
+    filename, id: 'pmo-repair-guard',
+    compilerOptions: { mode: 'function', expressionPlugins: ['typescript'] },
+  })
+  if (compiled.errors.length) throw compiled.errors[0]
+  const code = ts.transpileModule(compiled.code, {
+    compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.None },
+  }).outputText
+  const render = new Function('Vue', code)(Vue) as () => unknown
+  let received: unknown
+  const app = createSSRApp({ render: () => h(defineComponent({ setup: () => ({ ...state }), render })) })
+  app.config.globalProperties.$t = (key: string) => key
+  for (const match of code.matchAll(/_resolveComponent\("([^"]+)"\)/g)) {
+    const name = match[1]!
+    app.component(name, defineComponent({
+      inheritAttrs: false,
+      setup: (_, { slots, attrs }) => () => h('div', attrs, slots.default?.()),
+    }))
+  }
+  app.component('SharedUnsavedChanges', defineComponent({
+    props: { dirty: Boolean },
+    setup(props) { received = props.dirty; return () => h('div', { 'data-guard': String(props.dirty) }) },
+  }))
+  const html = await renderToString(app)
+  return { html, received }
+}
+
 describe('PMO repair form contracts', () => {
-  it.each([
-    ['TaskCreateForm', 'apps/web/app/components/task/TaskCreateForm.vue'],
-    ['MilestoneForm', 'apps/web/app/components/project/MilestoneForm.vue'],
-    ['ProjectUpdateForm', 'apps/web/app/components/project/ProjectUpdateForm.vue'],
-  ])('%s protects drafts until successful navigation', (_name, path) => {
-    const form = source(path)
-    expect(form).toContain('<SharedUnsavedChanges :dirty="dirty" />')
-    expect(form).toContain('const submitted = ref(false)')
-    expect(form).toContain('submitted.value = true')
+  it('reports a draft dirty until the save that carries it away succeeds', () => {
     expect(isDirtySnapshot('baseline', 'edited', false)).toBe(true)
     expect(isDirtySnapshot('baseline', 'edited', true)).toBe(false)
     expect(isDirtySnapshot('baseline', 'baseline', false)).toBe(false)
+  })
+
+  it.each([
+    ['TaskCreateForm', 'apps/web/app/components/task/TaskCreateForm.vue', { projectId: 7 }, 'name'],
+    ['MilestoneForm', 'apps/web/app/components/project/MilestoneForm.vue', { projectId: 7 }, 'name'],
+    ['ProjectUpdateForm', 'apps/web/app/components/project/ProjectUpdateForm.vue', { projectId: 7 }, 'title'],
+  ])('%s hands its own draft state to the departure guard', async (_name, path, props, field) => {
+    const { state } = loadSetup(path, props)
+    const clean = await renderedGuardDirty(path, state)
+    expect(clean.html, 'the guard must be mounted, not conditional').toContain('data-guard=')
+    expect(clean.received).toBe(false)
+
+    ;(state[field] as { value: string }).value = 'مسودة'
+    const dirty = await renderedGuardDirty(path, state)
+    expect(dirty.received, 'an edited draft must reach the guard').toBe(true)
   })
 
 
@@ -233,10 +275,6 @@ describe('PMO repair form contracts', () => {
     state.confirmDelete(1)
     expect(events).toEqual([['delete', 1]])
     expect(state.pendingDeleteId.value).toBe(null)
-    const template = source('apps/web/app/components/project/StageListEditor.vue')
-    expect(template).toContain('<template v-if="(stage.task_count ?? 0) === 0">')
-    expect(template).toContain('<UTooltip v-else')
-    expect(template).toContain(':text="t(\'projects.stages.notEmpty\', { count: stage.task_count })"')
-    expect(stages[1]?.task_count).toBeGreaterThan(0)
+    expect(stages[1]?.task_count, 'the occupied stage is what the tooltip covers').toBeGreaterThan(0)
   })
 })

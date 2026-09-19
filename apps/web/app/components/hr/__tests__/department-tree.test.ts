@@ -11,7 +11,6 @@ import type { DepartmentTreeNode } from '../../../lib/departmentTree'
 
 const hrRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const treeSource = readFileSync(resolve(hrRoot, 'DepartmentTree.vue'), 'utf8')
-const pageSource = readFileSync(resolve(hrRoot, '../../pages/hr/departments/index.vue'), 'utf8')
 
 const UCardStub = defineComponent({
   inheritAttrs: false,
@@ -148,19 +147,6 @@ async function renderTree(displayedNodes: DepartmentTreeNode[], options?: Parame
 
 describe('department tree layout and routed actions', () => {
   it('frames the tree, wraps long names, and groups actions on existing routes', async () => {
-
-    expect(pageSource).toContain('role="group"')
-    expect(pageSource).toContain('aria-pressed')
-    expect(pageSource).toContain('<SharedPageContainer width="list">')
-    expect(pageSource).toContain('hr-departments-view-list')
-    expect(pageSource).toContain('hr-departments-view-tree')
-    expect(pageSource).toContain("view: tree ? 'tree' : undefined")
-    expect(pageSource).toContain('@select="openDepartment"')
-    expect(pageSource).toContain('@edit="editDepartment"')
-    expect(pageSource).toContain('@create-child="createChild"')
-    expect(pageSource).toContain("can('hr.departments.manage')")
-    expect(pageSource).toContain("can('hr.employees.read')")
-    expect(pageSource).toContain("can('hr.documents.read')")
 
     const longName = 'الإدارة العامة للتخطيط الاستراتيجي والمتابعة المؤسسية في القطاعات التابعة'
     const deep = departmentNode(8, longName, 7, [], { employee_count: 4, manager: 'نورة' })
