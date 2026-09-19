@@ -32,7 +32,7 @@ test('manager can add a dependency and it survives reload', async ({ page }) => 
   await page.goto(`/tasks/${firstId}`)
   const picker = page.getByTestId('dependency-picker')
   await expect(picker).toBeVisible()
-  await picker.getByRole('button', { name: 'إضافة اعتماد' }).click()
+  await picker.getByRole('button', { name: 'إضافة مهمة سابقة' }).click()
   const dependencySaved = page.waitForResponse((response) => response.url().includes(`/api/v1/tasks/${firstId}/dependencies`) && response.request().method() === 'PUT')
   await page.getByRole('option', { name: `E2E prerequisite ${stamp}` }).click()
   const dependencyDetail = await (await dependencySaved).json()

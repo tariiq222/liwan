@@ -13,10 +13,11 @@ export const Sections: StoryObj = {
       ui: sectionTabsUi,
       items: [
         { label: 'التفاصيل', slot: 'details', value: 'details' },
-        { label: 'الوصف', value: 'description' },
-        { label: 'النشاط', value: 'activity' },
-        { label: 'الموارد', value: 'resources' },
-        { label: 'تفاصيل إضافية', value: 'extra' },
+        { label: 'التعليقات', value: 'comments' },
+        { label: 'السجل', value: 'log' },
+        { label: 'المهام الفرعية', value: 'subtasks' },
+        { label: 'المرفقات', value: 'attachments' },
+        { label: 'المهام السابقة', value: 'dependencies' },
       ],
     }),
     template: `<UTabs variant="link" :ui="ui" :items="items" default-value="details">

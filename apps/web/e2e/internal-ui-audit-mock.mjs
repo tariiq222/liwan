@@ -265,7 +265,7 @@ async function handle(req, res) {
   if (method === 'GET' && path === '/api/v1/admin/roles') return json(res, 200, { items: [], total: 0 })
   if (method === 'GET' && path === '/api/v1/chat/conversations') return json(res, 200, { items: [], total: 0 })
   if (method === 'GET' && path === '/api/v1/me/personal-stages') return json(res, 200, [])
-  if (method === 'GET' && path === '/api/v1/people') return json(res, 200, [])
+  if (method === 'GET' && path === '/api/v1/people') return json(res, 200, [{ id: 5, name: 'نورة الحربي', user_id: 5 }, { id: 6, name: 'سارة محمد', user_id: 6 }])
   if (method === 'GET' && path === '/api/v1/tags') return json(res, 200, [])
   if (method === 'GET' && path === '/api/v1/settings/projects') return json(res, 200, SETTINGS)
   if (method === 'GET' && path === '/api/v1/settings/projects/create-defaults') {

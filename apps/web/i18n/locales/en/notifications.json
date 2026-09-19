@@ -7,10 +7,12 @@
     "unread": "unread",
     "assignment": "You were assigned to the task “{task}”",
     "comment": "New comment on the task",
+    "mention": "Mentioned you in a comment",
     "deadline": "Task deadline is near: “{task}”",
     "preview": {
       "assignment": "You were assigned a task",
       "comment": "New comment on a task",
+      "mention": "You were mentioned in a comment",
       "deadline": "A task deadline is near"
     },
     "openTask": "Open task",

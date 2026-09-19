@@ -21,7 +21,8 @@ export function projectsPreviewData(path, url, { PROJECTS, TASKS, projectDetail,
     if (!item) return undefined
     return { ...item, description_html: '<p>توثيق خطوات العمل ومراجعة المخرجات مع الفريق.</p>', allocated_hours: 0, age_days: 4, cycle_days: null, subtasks: [], depends_on: [], attachments: [], can_manage_dependencies: true, milestone: { id: 1, name: milestone.name }, created_at: '2026-09-01T09:00:00Z', updated_at: '2026-09-08T06:00:00Z', allowed_actions: ['read', 'write', 'archive'], completion_pending: false, completion_revision: 0, completion_return_note: null, completion_policy: 'none', completion_approver: null, completion_blocked_reason: null }
   }
-  if (/\/tasks\/\d+\/timeline$/.test(path)) return [{ id: 1, kind: 'tracking', at: '2026-09-08T06:00:00Z', author: user, changes: [{ field: 'date_deadline', label: 'الموعد النهائي', old: false, new: '2026-10-01' }] }]
+  if (/\/tasks\/\d+\/thread-tasks$/.test(path)) return [{ id: 102, name: 'تجهيز بيئة الاختبار' }, { id: 103, name: 'مراجعة المتطلبات' }]
+  if (/\/tasks\/\d+\/timeline$/.test(path)) return [{ id: 2, kind: 'comment', at: '2026-09-09T08:00:00Z', author: user, task: { id: 102, name: 'تجهيز بيئة الاختبار' }, body_html: '<p><strong>@نورة الحربي</strong> البيئة جاهزة، راجعي <a href="/tasks/103">/مراجعة المتطلبات</a> قبل الاعتماد.</p>' }, { id: 1, kind: 'tracking', at: '2026-09-08T06:00:00Z', author: user, changes: [{ field: 'date_deadline', label: 'الموعد النهائي', old: false, new: '2026-10-01' }] }]
   if (/\/tasks\/\d+\/dependencies$/.test(path)) return { items: [], total: 0, can_manage: true, enabled: true }
   const section = path.match(/^\/api\/v1\/projects\/(\d+)\/(.+)$/)
   if (!section) return undefined

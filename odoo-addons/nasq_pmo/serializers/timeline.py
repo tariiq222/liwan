@@ -32,4 +32,7 @@ def dump_message(message):
     else:
         base['kind'] = 'comment'
         base['body_html'] = message.body
+        # Comments are shared by a task family; say which task each one was written on.
+        task = message.env['project.task'].browse(message.res_id)
+        base['task'] = {'id': task.id, 'name': task.name}
     return base

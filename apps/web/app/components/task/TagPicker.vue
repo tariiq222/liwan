@@ -68,7 +68,7 @@ function onCreateItem() {
 
 <template>
   <div class="space-y-2" data-testid="tag-picker">
-    <div class="flex flex-wrap gap-1">
+    <div v-if="modelValue.length" class="flex flex-wrap gap-1">
       <UBadge v-for="tag in modelValue" :key="tag.id" variant="outline" class="min-w-0 max-w-full gap-1 pe-1">
         <span class="min-w-0 max-w-full truncate" :title="tag.name">{{ tag.name }}</span>
         <UButton
@@ -85,7 +85,6 @@ function onCreateItem() {
           <UIcon name="i-lucide-x" class="size-3" aria-hidden="true" />
         </UButton>
       </UBadge>
-      <span v-if="modelValue.length === 0" class="text-sm text-muted">—</span>
     </div>
 
     <USelectMenu
@@ -98,6 +97,7 @@ function onCreateItem() {
       value-key="value"
       variant="outline"
       size="sm"
+      class="w-full"
       :disabled="!hydrated"
       :placeholder="t('tasks.drawer.addTag')"
       :search-input="{ placeholder: t('app.search') }"

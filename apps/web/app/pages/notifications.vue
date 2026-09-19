@@ -43,7 +43,8 @@ const queryErrorMessage = computed(() => (
 function kindLabel(item: Notification) {
   if (isDigestNotification(item)) return t('tasks.digest.kind')
   if (isMeetingNotification(item)) return t(`meetingsUi.notify.${item.kind}`)
-  return item.kind === 'comment' ? t('notifications.comment') : t(`notifications.${item.kind}`, { task: item.task_name })
+  if (item.kind === 'comment' || item.kind === 'mention') return t(`notifications.${item.kind}`)
+  return t(`notifications.${item.kind}`, { task: item.task_name })
 }
 
 function itemTitle(item: Notification) {
@@ -135,7 +136,7 @@ async function retryNextPage() {
               </span>
             </span>
             <span class="font-medium">{{ itemTitle(item) }}</span>
-            <span v-if="item.kind === 'comment'" class="line-clamp-3 text-sm text-muted">{{ item.body }}</span>
+            <span v-if="item.kind === 'comment' || item.kind === 'mention'" class="line-clamp-3 text-sm text-muted">{{ item.body }}</span>
             <time v-if="notificationTimestamp(item)" class="text-xs text-muted" :datetime="notificationTimestamp(item)?.datetime">{{ notificationTimestamp(item)?.label }}</time>
           </UButton>
         </div>

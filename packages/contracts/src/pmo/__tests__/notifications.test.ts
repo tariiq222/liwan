@@ -21,8 +21,12 @@ describe('notification contracts', () => {
       id: 8, kind: 'overdue_digest', digest_id: 8, overdue_count: 2, local_date: '2026-09-05',
       body: '2 overdue tasks', created_at: '2026-09-05T10:00:00Z', is_read: true,
     }).kind).toBe('overdue_digest')
+    expect(NotificationSchema.parse({
+      id: 1, kind: 'mention', task_id: 2, task_name: 'x', body: '@Nora look',
+      created_at: '2026-09-05T10:00:00Z', is_read: false,
+    }).kind).toBe('mention')
     expect(() => NotificationSchema.parse({
-      id: 1, kind: 'mention', task_id: 2, task_name: 'x', body: 'x',
+      id: 1, kind: 'reaction', task_id: 2, task_name: 'x', body: 'x',
       created_at: '2026-09-05T10:00:00Z', is_read: false,
     })).toThrow()
     expect(() => NotificationReadResultSchema.parse({ updated: 1, ignored: true })).toThrow()

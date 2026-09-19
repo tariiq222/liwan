@@ -97,7 +97,7 @@ async function openNotification(item: Notification) {
                 <span class="min-w-0 break-words text-xs text-muted">{{ t(notificationPreviewCaptionKey(item.kind)) }}</span>
                 <span v-if="!item.is_read" class="sr-only">{{ t('notifications.unread') }}</span>
                 <span class="min-w-0 break-words line-clamp-2 text-start text-sm font-medium"><bdi dir="auto">{{ isDigestNotification(item) ? t('tasks.digest.count', item.overdue_count) : isMeetingNotification(item) ? item.meeting_name : item.task_name }}</bdi></span>
-                <span v-if="item.kind === 'comment' || isDigestNotification(item)" class="min-w-0 break-words line-clamp-2 text-start text-xs text-muted"><bdi dir="auto">{{ item.body }}</bdi></span>
+                <span v-if="item.kind === 'comment' || item.kind === 'mention' || isDigestNotification(item)" class="min-w-0 break-words line-clamp-2 text-start text-xs text-muted"><bdi dir="auto">{{ item.body }}</bdi></span>
                 <time v-if="notificationTimestamp(item)" :datetime="notificationTimestamp(item)?.datetime" class="text-xs text-muted">{{ notificationTimestamp(item)?.label }}</time>
               </span>
             </UButton>

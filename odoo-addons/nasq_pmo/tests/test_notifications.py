@@ -61,6 +61,27 @@ class TestTaskNotifications(NasqPmoCase):
         self.assertTrue(markers)
         self.assertTrue(all(row.notification_type == 'inbox' and not row.mail_mail_id for row in markers))
 
+    def test_mention_notifies_once_and_only_when_the_token_is_written(self):
+        task = self.env['project.task'].create({
+            'name': 'Notify mention', 'project_id': self.project.id, 'company_id': self.env.company.id,
+            'user_ids': [(4, self.other.id), (4, self.employee.id)],
+        })
+        self.authenticate(self.employee.login, 'api_emp_pass_123')
+        url = f'/api/v1/tasks/{task.id}/comments'
+        self.assertEqual(self.api('POST', url, {'body': 'no token here', 'mentions': [self.manager.id]}).status_code, 201)
+        self.assertEqual(self.api('POST', url, {
+            'body': f'@{self.other.name} and @{self.manager.name} look', 'mentions': [self.other.id, self.manager.id],
+        }).status_code, 201)
+        kinds = lambda user: sorted(self.env['mail.notification'].sudo().search([  # noqa: E731
+            ('res_partner_id', '=', user.partner_id.id), ('mail_message_id.nasq_task_id', '=', task.id),
+            ('mail_message_id.nasq_notification_kind', 'in', ('comment', 'mention')),
+        ]).mapped('mail_message_id.nasq_notification_kind'))
+        self.assertEqual(kinds(self.other), ['comment', 'mention'], 'assignee: plain comment, then one mention row')
+        self.assertEqual(kinds(self.manager), ['mention'], 'a declared mention without its token notifies nobody')
+        self.authenticate(self.manager.login, 'api_mgr_pass_123')
+        items = self.api('GET', '/api/v1/notifications').json()['items']
+        self.assertTrue(any(item['kind'] == 'mention' and item['task_id'] == task.id for item in items))
+
     def test_read_is_idempotent_and_other_recipient_gets_404(self):
         task = self.env['project.task'].with_user(self.manager).create({
             'name': 'Read notification', 'project_id': self.project.id,

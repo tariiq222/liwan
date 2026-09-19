@@ -189,6 +189,15 @@ worktrees only after their content is preserved and no process is using them.
   charter carries `state` (`draft | final`); a new charter is a draft and the
   review step finalizes it. `/projects/new` uses the route-backed create panel
   (`SharedCreatePanel`), like other `/new` routes.
+- Task comments are one conversation per task family: `/tasks/{id}/timeline`
+  returns the comments of the topmost readable ancestor and every readable
+  descendant (each carries `task`), while tracking entries stay per task. A
+  comment is stored on the task it was posted from. `POST .../comments` takes
+  plain-text `body` plus optional `mentions` (user ids, the `/people`
+  population) and `task_refs` (family task ids from `.../thread-tasks`); the
+  server marks up only declared `@name` / `/task name` tokens present in the
+  text. A mention sends one `mention` notification, only to a person who can
+  read the task, and replaces that person's `comment` row.
 - Task attachment uploads accept PDF, PNG, JPEG, text, DOCX and XLSX up to
   10 MiB decoded, with exact binary task linkage and ordinary attachment ACLs.
   Dependency edits require project management, same active project, positive

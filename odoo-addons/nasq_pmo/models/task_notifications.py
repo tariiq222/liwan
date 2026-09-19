@@ -76,10 +76,19 @@ class ProjectTaskNotifications(models.Model):
     def _nasq_emit_comment_notification(self, message):
         self.ensure_one()
         author = message.author_id
-        recipients = self._nasq_internal_users().filtered(lambda user: not author or user.partner_id != author)
+        # A mentioned person gets one `mention` row, never a second `comment` row. A mention
+        # only reaches someone who can read this task, checked as that person.
+        mentioned = self._nasq_internal_users(
+            self.env['res.users'].browse(self.env.context.get('nasq_mention_user_ids') or []),
+        ).filtered(lambda user: (not author or user.partner_id != author) and self.with_user(user).has_access('read'))
+        recipients = self._nasq_internal_users().filtered(
+            lambda user: (not author or user.partner_id != author) and user not in mentioned,
+        )
         body = html2plaintext(message.body or '', include_references=False).strip()
         if not body:
             return
+        for user in mentioned:
+            self._nasq_create_notification(kind='mention', partner=user.partner_id, body=body)
         for user in recipients:
             self._nasq_create_notification(kind='comment', partner=user.partner_id, body=body)
 

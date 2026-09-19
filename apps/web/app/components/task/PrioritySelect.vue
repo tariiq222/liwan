@@ -6,7 +6,8 @@ import { useUpdateTask } from '@/composables/useTasks'
 // Ruling: priority has four values, so this is a compact Select (not the
 // brief's star toggle). Owns its own optimistic mutation — useUpdateTask
 // already rolls back on error, so there is nothing else to wire up here.
-const props = defineProps<{ task: Task; labelledby?: string }>()
+// `soft` suits a table cell; a form beside outlined fields passes `outline`.
+const props = withDefaults(defineProps<{ task: Task; labelledby?: string; variant?: 'soft' | 'outline' }>(), { variant: 'soft' })
 
 const { t } = useI18n()
 const { mutate, isPending } = useUpdateTask()
@@ -27,11 +28,11 @@ function onChange(value: unknown) {
 </script>
 
 <template>
-  <span v-if="!task.can_write" class="text-sm">{{ t(PRIORITY_LABEL_KEY[task.priority]) }}</span>
+  <span v-if="!task.can_write" class="text-sm font-medium text-highlighted">{{ t(PRIORITY_LABEL_KEY[task.priority]) }}</span>
   <USelect
     v-else
     size="sm"
-    variant="soft"
+    :variant="props.variant"
     class="w-full"
     :items="items"
     :model-value="task.priority"

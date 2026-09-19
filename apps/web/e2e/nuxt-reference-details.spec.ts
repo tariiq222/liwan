@@ -33,7 +33,6 @@ test('project summary and task detail use the reference cards without legacy nes
   await expect(sheet.getByRole('heading', { name: task.name, exact: true })).toBeVisible()
   await expect(sheet.locator('.nasq-panel-header,.task-detail-card.nasq-panel')).toHaveCount(0)
   await expect(sheet.getByRole('tab', { name: 'التفاصيل', exact: true })).toBeVisible()
-  await sheet.getByRole('tab', { name: 'الوصف', exact: true }).click()
   await expect(sheet.getByRole('button', { name: 'إضافة وصف', exact: true })).toBeEnabled()
   await page.evaluate(async () => { await Promise.all(document.getAnimations().filter(a => a.effect?.getTiming().iterations !== Infinity).map(a => a.finished.catch(() => undefined))) })
   await page.screenshot({ path: testInfo.outputPath('reference-task-detail.png'), fullPage: true })

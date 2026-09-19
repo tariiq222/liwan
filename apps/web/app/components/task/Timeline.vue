@@ -2,7 +2,7 @@
 import type { TimelineEntry } from '@nasq/contracts'
 import { formatTimelineChange } from '@/utils/taskTimeline'
 
-const props = defineProps<{ entries: TimelineEntry[] }>()
+const props = defineProps<{ entries: TimelineEntry[]; emptyLabel?: string; taskId?: number }>()
 
 const { t, locale } = useI18n()
 
@@ -40,6 +40,15 @@ function changeMessage(change: { field: string; label: string; old: unknown; new
         <div class="flex flex-wrap items-baseline gap-x-2 gap-y-1">
           <span class="text-xs font-semibold text-highlighted">{{ entry.author?.name ?? (entry.kind === 'comment' ? t('tasks.activity.comment') : t('tasks.activity.system')) }}</span>
           <span class="text-xs text-muted">{{ relativeTime(entry.at) }}</span>
+          <NuxtLink
+            v-if="entry.task && props.taskId && entry.task.id !== props.taskId"
+            :to="`/tasks/${entry.task.id}`"
+            data-testid="comment-origin-task"
+            class="inline-flex min-w-0 items-center gap-1 text-xs text-muted hover:text-default"
+          >
+            <UIcon name="i-lucide-list-tree" class="size-3.5 shrink-0" aria-hidden="true" />
+            <span class="truncate">{{ t('tasks.activity.onTask', { task: entry.task.name }) }}</span>
+          </NuxtLink>
         </div>
         <SharedRichText v-if="entry.kind === 'comment'" :html="entry.body_html" size="sm" class="mt-1" />
         <ul v-else class="mt-1 space-y-0.5 whitespace-pre-wrap text-xs leading-relaxed text-muted">
@@ -48,7 +57,7 @@ function changeMessage(change: { field: string; label: string; old: unknown; new
       </div>
     </li>
   </ol>
-  <p v-else class="py-2 text-sm text-muted">{{ t('tasks.activity.empty') }}</p>
+  <p v-else class="py-2 text-sm text-muted">{{ props.emptyLabel ?? t('tasks.activity.empty') }}</p>
 </template>
 
 <style scoped>

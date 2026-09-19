@@ -31,12 +31,16 @@ const projectId = computed(() => props.task.project?.id ?? null)
 const { data: milestones } = useMilestones(projectId)
 const tabs = computed(() => [
   { label: t('tasks.drawer.details'), value: 'details', slot: 'details', disabled: !hydrated.value },
-  { label: t('tasks.drawer.description'), value: 'description', slot: 'description', disabled: !hydrated.value },
-  { label: t('tasks.detail.activityTitle'), value: 'activity', slot: 'activity', disabled: !hydrated.value },
-  { label: t('tasks.detail.resources'), value: 'resources', slot: 'resources', disabled: !hydrated.value },
-  { label: t('tasks.drawer.additionalDetails'), value: 'additional', slot: 'additional', disabled: !hydrated.value },
+  { label: t('tasks.detail.commentsTitle'), value: 'comments', slot: 'comments', disabled: !hydrated.value },
+  { label: t('tasks.detail.logTitle'), value: 'log', slot: 'log', disabled: !hydrated.value },
+  { label: t('tasks.drawer.subtasks'), value: 'subtasks', slot: 'subtasks', disabled: !hydrated.value },
+  { label: t('tasks.drawer.attachments'), value: 'attachments', slot: 'attachments', disabled: !hydrated.value },
+  { label: t('taskLifecycle.dependencies'), value: 'dependencies', slot: 'dependencies', disabled: !hydrated.value },
 ])
 const { data: project } = useProject(projectId)
+// The details tab stacks its sections as rows: title in the start column, content beside it.
+const rowClass = 'grid gap-x-8 gap-y-4 py-6 first:pt-2 last:pb-0 lg:grid-cols-[11rem_minmax(0,1fr)]'
+const rowTitleClass = 'text-sm font-semibold text-highlighted'
 const deadlineError = ref<string | null>(null)
 const selectedMilestone = computed(() => {
   const milestoneId = props.task.milestone?.id
@@ -187,117 +191,135 @@ const completedSubtasks = computed(() => props.task.subtasks.filter(subtask => s
     class="min-w-0"
   >
     <template #details>
-      <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-4" role="group" :aria-label="t('tasks.detail.primaryMetadata')">
-        <div class="min-w-0">
-          <span id="task-assignees-label" class="mb-1.5 block text-sm text-muted">{{ t('tasks.drawer.assignees') }}</span>
-          <p v-if="!task.can_write" class="block wrap-anywhere text-base font-semibold text-highlighted">{{ task.assignees.map(person => person.name).join('، ') || t('tasks.drawer.unassigned') }}</p>
-          <AssigneePicker v-else :model-value="task.assignees" labelledby="task-assignees-label" @update:model-value="onAssigneesChange" />
-        </div>
+      <div class="divide-y divide-default">
+        <section :class="rowClass" aria-labelledby="task-section-assignment">
+          <h2 id="task-section-assignment" :class="rowTitleClass">{{ t('tasks.detail.sectionAssignment') }}</h2>
+          <div class="grid gap-x-6 gap-y-5 sm:grid-cols-2" role="group" :aria-label="t('tasks.detail.primaryMetadata')">
+            <div class="min-w-0">
+              <span id="task-assignees-label" class="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-muted"><UIcon name="i-lucide-users" class="size-4 shrink-0 text-dimmed" aria-hidden="true" />{{ t('tasks.drawer.assignees') }}</span>
+              <p v-if="!task.can_write" class="block wrap-anywhere text-sm font-medium text-highlighted">{{ task.assignees.map(person => person.name).join('، ') || t('tasks.drawer.unassigned') }}</p>
+              <AssigneePicker v-else :model-value="task.assignees" labelledby="task-assignees-label" @update:model-value="onAssigneesChange" />
+            </div>
 
-        <div class="min-w-0">
-          <span id="task-priority-label" class="mb-1.5 block text-sm text-muted">{{ t('tasks.drawer.priority') }}</span>
-          <PrioritySelect :task="task" labelledby="task-priority-label" />
-        </div>
+            <div class="min-w-0">
+              <span id="task-priority-label" class="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-muted"><UIcon name="i-lucide-flag" class="size-4 shrink-0 text-dimmed" aria-hidden="true" />{{ t('tasks.drawer.priority') }}</span>
+              <PrioritySelect :task="task" labelledby="task-priority-label" variant="outline" />
+            </div>
 
-        <div class="min-w-0">
-          <span id="task-deadline-label" class="mb-1.5 block text-sm text-muted">{{ t('tasks.drawer.deadline') }}</span>
-          <p v-if="!task.can_write" class="block wrap-anywhere text-base font-semibold text-highlighted">{{ deadlineButtonLabel }}</p>
-          <SharedDateField
-            v-else
-            id="task-deadline"
-            :model-value="calendarValue?.toString() ?? null"
-            :label="deadlineInstant ? deadlineButtonLabel : undefined"
-            :min-value="milestoneStart"
-            :max-value="milestoneDeadline"
-            :aria-label="t('tasks.drawer.deadline')"
-            @update:model-value="onDeadlineDateChange"
-          >
-            <template #footer>
-              <label for="deadline-time" class="sr-only">{{ t('tasks.drawer.deadlineTime') }}</label>
-              <UInput id="deadline-time" v-model="timeDraft" type="time" class="me-auto w-32" :disabled="!hydrated" @change="onTimeChange" />
-            </template>
-          </SharedDateField>
-          <p v-if="deadlineError" role="alert" class="mt-1 text-xs text-error">{{ deadlineError }}</p>
-        </div>
+            <div class="min-w-0">
+              <span id="task-deadline-label" class="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-muted"><UIcon name="i-lucide-calendar" class="size-4 shrink-0 text-dimmed" aria-hidden="true" />{{ t('tasks.drawer.deadline') }}</span>
+              <p v-if="!task.can_write" class="block wrap-anywhere text-sm font-medium text-highlighted">{{ deadlineButtonLabel }}</p>
+              <SharedDateField
+                v-else
+                id="task-deadline"
+                :model-value="calendarValue?.toString() ?? null"
+                :label="deadlineInstant ? deadlineButtonLabel : undefined"
+                :min-value="milestoneStart"
+                :max-value="milestoneDeadline"
+                :aria-label="t('tasks.drawer.deadline')"
+                @update:model-value="onDeadlineDateChange"
+              >
+                <template #footer>
+                  <label for="deadline-time" class="sr-only">{{ t('tasks.drawer.deadlineTime') }}</label>
+                  <UInput id="deadline-time" v-model="timeDraft" type="time" class="me-auto w-32" :disabled="!hydrated" @change="onTimeChange" />
+                </template>
+              </SharedDateField>
+              <p v-if="deadlineError" role="alert" class="mt-1 text-xs text-error">{{ deadlineError }}</p>
+            </div>
 
-        <div class="min-w-0">
-          <span id="task-milestone-label" class="mb-1.5 block text-sm text-muted">{{ t('tasks.drawer.milestone') }}</span>
-          <MilestoneSelect v-if="task.project && task.can_write" :task="task" labelledby="task-milestone-label" />
-          <p v-else class="block wrap-anywhere text-base font-semibold text-highlighted">{{ task.milestone?.name || t('tasks.drawer.noMilestone') }}</p>
-        </div>
-      </div>
-    </template>
-
-    <template #description>
-      <TaskDescription :key="task.id" :task="task" />
-    </template>
-
-    <template #activity>
-      <TaskActivity :task="task" />
-    </template>
-
-    <template #resources>
-      <div class="grid gap-6">
-        <TaskDeliverables :key="`outputs-${task.id}`" :task="task" />
-
-        <section class="space-y-3">
-          <div class="flex items-center justify-between gap-2">
-            <h2 class="text-lg font-semibold text-highlighted">{{ t('tasks.drawer.subtasks') }}</h2>
-            <span class="text-xs font-normal text-muted">{{ t('tasks.detail.subtaskProgress', { done: completedSubtasks, total: task.subtasks.length }) }}</span>
+            <div class="min-w-0">
+              <span id="task-milestone-label" class="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-muted"><UIcon name="i-lucide-milestone" class="size-4 shrink-0 text-dimmed" aria-hidden="true" />{{ t('tasks.drawer.milestone') }}</span>
+              <MilestoneSelect v-if="task.project && task.can_write" :task="task" labelledby="task-milestone-label" />
+              <p v-else class="block wrap-anywhere text-sm font-medium text-highlighted">{{ task.milestone?.name || t('tasks.drawer.noMilestone') }}</p>
+            </div>
           </div>
-          <SubtaskList :task="task" :base-path="props.basePath" />
         </section>
 
-        <DependencyPicker :task="task" />
+        <section :class="rowClass" aria-labelledby="task-section-organization">
+          <h2 id="task-section-organization" :class="rowTitleClass">{{ t('tasks.detail.sectionOrganization') }}</h2>
+          <div class="grid gap-x-6 gap-y-5 sm:grid-cols-2">
+            <div class="min-w-0">
+              <span id="task-stage-label" class="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-muted"><UIcon name="i-lucide-inbox" class="size-4 shrink-0 text-dimmed" aria-hidden="true" />{{ t('tasks.drawer.stage') }}</span>
+              <p v-if="!task.can_write" class="block wrap-anywhere text-sm font-medium text-highlighted">{{ task.personal_stage?.name || t('tasks.drawer.unassigned') }}</p>
+              <USelect
+                v-else
+                size="sm"
+                class="w-full"
+                aria-labelledby="task-stage-label"
+                :items="[{ label: t('tasks.drawer.unassigned'), value: NONE }, ...(stages ?? []).map((s) => ({ label: s.name, value: String(s.id) }))]"
+                :model-value="task.personal_stage ? String(task.personal_stage.id) : NONE"
+                @update:model-value="onStageChange"
+              />
+            </div>
 
-        <TaskAttachments :key="task.id" :task-id="task.id" :can-write="task.can_write" />
+            <div v-if="task.can_write && task.can_approve" class="min-w-0">
+              <label for="allocated-hours" class="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-muted"><UIcon name="i-lucide-clock" class="size-4 shrink-0 text-dimmed" aria-hidden="true" />{{ t('tasks.drawer.allocatedHours') }}</label>
+              <UInput id="allocated-hours" v-model="hoursDraft" type="number" min="0" step="0.5" size="sm" class="w-full" @change="onHoursChange" />
+            </div>
+
+            <div class="min-w-0 sm:col-span-2">
+              <span id="task-tags-label" class="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-muted"><UIcon name="i-lucide-tag" class="size-4 shrink-0 text-dimmed" aria-hidden="true" />{{ t('tasks.drawer.tags') }}</span>
+              <p v-if="!task.can_write" class="block wrap-anywhere text-sm font-medium text-highlighted">{{ task.tags.map(tag => tag.name).join('، ') || '—' }}</p>
+              <TagPicker v-else :model-value="task.tags" :can-create="task.can_approve" labelledby="task-tags-label" @update:model-value="onTagsChange" />
+            </div>
+          </div>
+        </section>
+
+        <section :class="rowClass" aria-labelledby="task-description-title">
+          <h2 id="task-description-title" :class="rowTitleClass">{{ t('tasks.drawer.description') }}</h2>
+          <TaskDescription :key="task.id" :task="task" />
+        </section>
+
+        <TaskDeliverables :key="`outputs-${task.id}`" :task="task" :class="rowClass" />
+
+        <section :class="rowClass" aria-labelledby="task-section-metrics">
+          <h2 id="task-section-metrics" :class="rowTitleClass">{{ t('tasks.drawer.metrics') }}</h2>
+          <dl class="grid gap-x-6 gap-y-4 text-sm sm:grid-cols-2 xl:grid-cols-4">
+            <div class="min-w-0">
+              <dt class="text-xs font-medium text-muted">{{ t('tasks.drawer.created') }}</dt>
+              <dd class="mt-1 wrap-anywhere text-toned">{{ createdLabel }}</dd>
+            </div>
+            <div class="min-w-0">
+              <dt class="text-xs font-medium text-muted">{{ t('tasks.drawer.updated') }}</dt>
+              <dd class="mt-1 wrap-anywhere text-toned">{{ updatedLabel }}</dd>
+            </div>
+            <div class="min-w-0">
+              <dt class="text-xs font-medium text-muted">{{ t('tasks.drawer.age') }}</dt>
+              <dd class="mt-1 wrap-anywhere text-toned">{{ t('tasks.drawer.days', { n: task.age_days }) }}</dd>
+            </div>
+            <div v-if="task.cycle_days !== null" class="min-w-0">
+              <dt class="text-xs font-medium text-muted">{{ t('tasks.drawer.cycle') }}</dt>
+              <dd class="mt-1 wrap-anywhere text-toned">{{ t('tasks.drawer.days', { n: task.cycle_days }) }}</dd>
+            </div>
+          </dl>
+        </section>
       </div>
     </template>
 
-    <template #additional>
-      <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        <section class="min-w-0">
-          <span id="task-stage-label" class="mb-1.5 block text-sm text-muted">{{ t('tasks.drawer.stage') }}</span>
-          <strong v-if="!task.can_write" class="block wrap-anywhere text-base font-semibold text-highlighted">{{ task.personal_stage?.name || t('tasks.drawer.unassigned') }}</strong>
-          <USelect
-            v-else
-            size="sm"
-            class="w-full"
-            aria-labelledby="task-stage-label"
-            :items="[{ label: t('tasks.drawer.unassigned'), value: NONE }, ...(stages ?? []).map((s) => ({ label: s.name, value: String(s.id) }))]"
-            :model-value="task.personal_stage ? String(task.personal_stage.id) : NONE"
-            @update:model-value="onStageChange"
-          />
-        </section>
+    <template #comments>
+      <TaskActivity :task="task" mode="comments" />
+    </template>
 
-        <section class="min-w-0">
-          <span id="task-tags-label" class="mb-1.5 block text-sm text-muted">{{ t('tasks.drawer.tags') }}</span>
-          <strong v-if="!task.can_write" class="block wrap-anywhere text-base font-semibold text-highlighted">{{ task.tags.map(tag => tag.name).join('، ') || '—' }}</strong>
-          <TagPicker v-else :model-value="task.tags" :can-create="task.can_approve" labelledby="task-tags-label" @update:model-value="onTagsChange" />
-        </section>
+    <template #log>
+      <TaskActivity :task="task" mode="log" />
+    </template>
 
-        <section v-if="task.can_write && task.can_approve" class="min-w-0">
-          <label for="allocated-hours" class="mb-1.5 block text-sm text-muted">{{ t('tasks.drawer.allocatedHours') }}</label>
-          <UInput id="allocated-hours" v-model="hoursDraft" type="number" min="0" step="0.5" class="w-full" @change="onHoursChange" />
-        </section>
+    <template #subtasks>
+      <section class="space-y-3">
+        <div class="flex items-center justify-between gap-2">
+          <h2 class="text-lg font-semibold text-highlighted">{{ t('tasks.drawer.subtasks') }}</h2>
+          <span class="text-xs font-normal text-muted">{{ t('tasks.detail.subtaskProgress', { done: completedSubtasks, total: task.subtasks.length }) }}</span>
+        </div>
+        <SubtaskList :task="task" :base-path="props.basePath" />
+      </section>
+    </template>
 
-        <section class="min-w-0">
-          <span class="mb-1.5 block text-sm text-muted">{{ t('tasks.drawer.created') }}</span>
-          <strong class="block wrap-anywhere text-base font-semibold text-highlighted">{{ createdLabel }}</strong>
-        </section>
-        <section class="min-w-0">
-          <span class="mb-1.5 block text-sm text-muted">{{ t('tasks.drawer.updated') }}</span>
-          <strong class="block wrap-anywhere text-base font-semibold text-highlighted">{{ updatedLabel }}</strong>
-        </section>
-        <section class="min-w-0">
-          <span class="mb-1.5 block text-sm text-muted">{{ t('tasks.drawer.age') }}</span>
-          <strong class="block wrap-anywhere text-base font-semibold text-highlighted">{{ t('tasks.drawer.days', { n: task.age_days }) }}</strong>
-        </section>
-        <section v-if="task.cycle_days !== null" class="min-w-0">
-          <span class="mb-1.5 block text-sm text-muted">{{ t('tasks.drawer.cycle') }}</span>
-          <strong class="block wrap-anywhere text-base font-semibold text-highlighted">{{ t('tasks.drawer.days', { n: task.cycle_days }) }}</strong>
-        </section>
-      </div>
+    <template #attachments>
+      <TaskAttachments :key="task.id" :task-id="task.id" :can-write="task.can_write" />
+    </template>
+
+    <template #dependencies>
+      <DependencyPicker :task="task" />
     </template>
   </UTabs>
 </template>

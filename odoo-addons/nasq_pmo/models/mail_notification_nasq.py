@@ -10,6 +10,7 @@ class NasqMailMessage(models.Model):
         [
             ('assignment', 'Assignment'),
             ('comment', 'Comment'),
+            ('mention', 'Mention'),
             ('deadline', 'Deadline'),
             ('overdue_digest', 'Overdue digest'),
             ('meeting_invite', 'Meeting invite'),

@@ -37,9 +37,9 @@ async function toggle(index: number) {
 </script>
 
 <template>
-  <section v-if="deliverables.length" class="space-y-3" data-testid="task-deliverables" aria-labelledby="task-deliverables-title">
-    <header class="flex flex-wrap items-center justify-between gap-3">
-      <h2 class="text-lg font-semibold text-highlighted" id="task-deliverables-title">{{ t('tasks.deliverables.title') }}</h2>
+  <section v-if="deliverables.length" data-testid="task-deliverables" aria-labelledby="task-deliverables-title">
+    <header class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 lg:flex-col lg:justify-start">
+      <h2 id="task-deliverables-title" class="text-sm font-semibold text-highlighted">{{ t('tasks.deliverables.title') }}</h2>
       <span class="text-xs text-muted">{{ t('tasks.deliverables.checklistOf', { done: deliverables.filter(item => item.done).length, total: deliverables.length }) }}</span>
     </header>
     <div class="space-y-3 grid gap-3">

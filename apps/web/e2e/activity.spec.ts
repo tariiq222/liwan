@@ -27,7 +27,10 @@ test('task activity: post a comment and see a tracking entry after a state chang
   // wait for the client-rendered detail body before interacting (SSR hydration race)
   await expect(page.locator('h1')).toHaveText(name)
 
-  const composer = detail.getByPlaceholder('اكتب تعليقًا…')
+  const tabs = page.getByTestId('task-detail-tabs')
+  await tabs.getByRole('tab', { name: 'التعليقات', exact: true }).click()
+  const comments = page.getByTestId('task-comments-card')
+  const composer = comments.getByPlaceholder('اكتب تعليقًا…')
   await expect(composer).toBeVisible()
   const commentText = `تعليق تجريبي ${Date.now()}`
   await composer.fill(commentText)
@@ -36,7 +39,7 @@ test('task activity: post a comment and see a tracking entry after a state chang
   await commentPosted
   await expect(composer).toHaveValue('')
 
-  const timeline = detail.getByRole('list').first()
+  const timeline = comments.getByRole('list').first()
   const firstEntry = timeline.locator('li').first()
   await expect(firstEntry).toContainText(commentText)
   await expect(firstEntry).toContainText(currentUser.name)
@@ -48,5 +51,8 @@ test('task activity: post a comment and see a tracking entry after a state chang
   await page.getByRole('menuitem').first().click()
   await transitioned
   // Fresh isolated Odoo databases may retain the stock English field label.
-  await expect(detail.locator('li').filter({ hasText: /الحالة|State/ }).first()).toBeVisible()
+  await tabs.getByRole('tab', { name: 'السجل', exact: true }).click()
+  const log = page.getByTestId('task-activity-card')
+  await expect(log.locator('li').filter({ hasText: /الحالة|State/ }).first()).toBeVisible()
+  await expect(log.getByPlaceholder('اكتب تعليقًا…')).toHaveCount(0)
 })

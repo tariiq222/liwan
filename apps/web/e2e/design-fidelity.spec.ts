@@ -65,7 +65,7 @@ test('task details use tabs and title editing remains explicit', async ({ page }
   await expect(tabs).toBeVisible()
   await expect(tabs.getByRole('tab', { name: 'التفاصيل', exact: true })).toHaveAttribute('data-state', 'active')
   await expect(page.getByTestId('task-activity-card')).toBeHidden()
-  await tabs.getByRole('tab', { name: 'النشاط', exact: true }).click()
+  await tabs.getByRole('tab', { name: 'السجل', exact: true }).click()
   await expect(page.getByTestId('task-activity-card')).toBeVisible()
   await page.getByTestId('task-title-edit').click()
   await page.getByRole('textbox', { name: 'عنوان المهمة' }).fill(`${task.name} edited`)

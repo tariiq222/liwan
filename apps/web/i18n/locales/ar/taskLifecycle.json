@@ -7,11 +7,11 @@
     "back": "عودة",
     "searchArchived": "بحث في المهام المؤرشفة…",
     "noArchivedTasks": "لا توجد مهام مؤرشفة",
-    "dependencies": "الاعتماديات",
-    "addDependency": "إضافة اعتماد",
-    "removeDependency": "إزالة الاعتماد",
+    "dependencies": "المهام السابقة",
+    "addDependency": "إضافة مهمة سابقة",
+    "removeDependency": "إزالة المهمة السابقة",
     "noCandidates": "لا توجد مهام متاحة",
-    "enableDependencies": "تفعيل اعتماديات المهام",
+    "enableDependencies": "تفعيل المهام السابقة",
     "enableDependenciesHint": "اسمح للمدير بربط المهام ببعضها",
     "loadMore": "عرض المزيد"
   }
