@@ -175,6 +175,80 @@ The manifest never sets `writer_stop_verified`, `consistency_verified`, or
 - backup `odoo19` / `production` / `postgres`
 - claim encryption, offsite copy, RPO, RTO, or live/stopped consistency
 
+## Restore and verification (`deploy/restore_verify.py`)
+
+Restore a candidate backup into a new scratch database and a new filestore
+directory. Supply absolute paths to the PostgreSQL client tools:
+
+```sh
+ODOO_ROOT=/Users/tariq/code/odoo
+WORKTREE=/Users/tariq/code/nasq/.worktrees/phase-0-reliability
+ODOO_CONF=/absolute/path/to/scratch-only.conf
+# Use a separate scratch config, never the live/upstream config. Disable
+# configured tests and log files; CLI flags below override DB, data and ports.
+export PYTHONDONTWRITEBYTECODE=1
+ODOO_PYTHON="$ODOO_ROOT/.venv/bin/python"
+PGHOST=${PGHOST:-127.0.0.1}; PGPORT=${PGPORT:-5432}; PGUSER=${PGUSER:-tariq}
+# Set PGPASSWORD through the environment when local PostgreSQL auth requires it;
+# do not put a password on an argv list.
+PGBIN=$(dirname "$(command -v pg_dump)"); WORK=$(mktemp -d)
+"$ODOO_PYTHON" "$ODOO_ROOT/odoo-bin" -c "$ODOO_CONF" \
+  --addons-path="$ODOO_ROOT/odoo/addons,$ODOO_ROOT/addons,$WORKTREE/odoo-addons" \
+  --db_host="$PGHOST" --db_port="$PGPORT" --db_user="$PGUSER" \
+  -d nasq_drill_src_scratch --db-filter='^nasq_drill_src_scratch$' \
+  --data-dir="$WORK/data" --without-demo=all \
+  -i nasq_core,nasq_api,nasq_pmo,nasq_hr,nasq_chat \
+  --http-port=8169 --http-interface=127.0.0.1 --workers=0 --max-cron-threads=0 --stop-after-init
+python3 deploy/backup.py --opt-in MANUAL_BACKUP_OPT_IN --acknowledge-unverified CANDIDATE_BACKUP_UNVERIFIED \
+  --db-name nasq_drill_src_scratch --filestore "$WORK/data/filestore/nasq_drill_src_scratch" \
+  --output-dir "$WORK/backup" --pg-dump "$PGBIN/pg_dump" \
+  --pg-host "$PGHOST" --pg-port "$PGPORT" --pg-user "$PGUSER"
+python3 deploy/restore_verify.py --backup-dir "$WORK/backup" --target-db nasq_drill_restored_scratch \
+  --target-filestore "$WORK/restored-data/filestore/nasq_drill_restored_scratch" \
+  --pg-restore "$PGBIN/pg_restore" --createdb "$PGBIN/createdb" --psql "$PGBIN/psql" \
+  --pg-host "$PGHOST" --pg-port "$PGPORT" --pg-user "$PGUSER"; echo exit=$?
+```
+
+Success writes `restore-verification.json` beside the backup with
+`"restore_verified": true` and no missing attachment files. This is a
+separate verification record; the tool never changes `manifest.json`, so its
+capture-time `consistency: "UNVERIFIED"` claim remains unchanged.
+
+Start Odoo against the restored scratch database without `-i`, `-u`, or
+`--stop-after-init`, then check its health endpoint:
+
+```sh
+"$ODOO_PYTHON" "$ODOO_ROOT/odoo-bin" -c "$ODOO_CONF" \
+  --addons-path="$ODOO_ROOT/odoo/addons,$ODOO_ROOT/addons,$WORKTREE/odoo-addons" \
+  --db_host="$PGHOST" --db_port="$PGPORT" --db_user="$PGUSER" \
+  -d nasq_drill_restored_scratch --db-filter='^nasq_drill_restored_scratch$' \
+  --data-dir="$WORK/restored-data" --http-port=8169 --http-interface=127.0.0.1 \
+  --workers=0 --max-cron-threads=0 &
+RESTORED_PID=$!
+sleep 25; curl -fsS -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8169/web/health
+```
+
+The expected response is `200`. Stop only that process with
+`kill "$RESTORED_PID"; wait "$RESTORED_PID"` after the check. Delete one
+SQL-referenced attachment from the candidate filestore and repeat the restore
+into another scratch database to prove the verifier returns exit `1` and names
+the missing file in `missing_attachment_files`:
+
+```sh
+STORE_FNAME=$("$PGBIN/psql" --host="$PGHOST" --port="$PGPORT" --username="$PGUSER" \
+  -d nasq_drill_src_scratch -At \
+  -c "SELECT store_fname FROM ir_attachment WHERE store_fname IS NOT NULL ORDER BY store_fname LIMIT 1")
+test -n "$STORE_FNAME"
+rm -- "$WORK/backup/filestore/$STORE_FNAME"
+python3 deploy/restore_verify.py --backup-dir "$WORK/backup" --target-db nasq_drill_restored2_scratch \
+  --target-filestore "$WORK/restored-data/filestore/nasq_drill_restored2_scratch" \
+  --pg-restore "$PGBIN/pg_restore" --createdb "$PGBIN/createdb" --psql "$PGBIN/psql" \
+  --pg-host "$PGHOST" --pg-port "$PGPORT" --pg-user "$PGUSER"; echo exit=$?
+```
+
+After the drill, drop the three scratch databases created above and remove only
+the temporary `$WORK` directory. Never reuse an existing database or filestore.
+
 ## Unresolved (do not invent answers)
 
 | Topic | Status |

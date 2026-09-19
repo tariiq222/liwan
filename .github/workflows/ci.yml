@@ -144,3 +144,70 @@ jobs:
         run: |
           docker rm -fv db || true
           docker network rm t || true
+
+  restore-drill:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    services:
+      postgres:
+        image: postgres:16
+        env: { POSTGRES_USER: odoo, POSTGRES_PASSWORD: odoo, POSTGRES_DB: postgres }
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U odoo" --health-interval 5s --health-timeout 5s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - id: pin
+        run: echo "sha=$(cat deploy/odoo/ODOO_COMMIT)" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v4
+        with: { repository: odoo/odoo, ref: '${{ steps.pin.outputs.sha }}', path: _odoo, fetch-depth: 1 }
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12', cache: pip, cache-dependency-path: deploy/odoo/requirements-python312-linux.txt }
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends libpq-dev libldap2-dev libsasl2-dev postgresql-client-16
+      - run: pip install -r deploy/odoo/requirements-python312-linux.txt
+      - name: Backup, restore, and prove the negative
+        env: { PGPASSWORD: odoo }
+        run: |
+          set -euo pipefail
+          B=/usr/lib/postgresql/16/bin; W=$(mktemp -d)
+          cleanup() {
+            if [ -n "${SERVER_PID:-}" ]; then kill "$SERVER_PID" 2>/dev/null || true; wait "$SERVER_PID" 2>/dev/null || true; fi
+            for db in nasq_drill_src_scratch nasq_drill_restored_scratch nasq_drill_restored2_scratch; do
+              "$B/dropdb" -h 127.0.0.1 -U odoo --if-exists "$db"
+            done
+            rm -rf "$W"
+          }
+          trap cleanup EXIT
+          python _odoo/odoo-bin --db_host=127.0.0.1 --db_user=odoo --db_password=odoo \
+            --addons-path="$PWD/_odoo/addons,$PWD/odoo-addons" --data-dir="$W/data" \
+            -d nasq_drill_src_scratch -i nasq_core,nasq_api,nasq_pmo,nasq_hr,nasq_chat \
+            --without-demo=all --http-port=8169 --stop-after-init
+          python3 deploy/backup.py --opt-in MANUAL_BACKUP_OPT_IN --acknowledge-unverified CANDIDATE_BACKUP_UNVERIFIED \
+            --db-name nasq_drill_src_scratch --filestore "$W/data/filestore/nasq_drill_src_scratch" \
+            --output-dir "$W/backup" --pg-dump "$B/pg_dump" --pg-host 127.0.0.1 --pg-user odoo
+          cp "$W/backup/manifest.json" "$W/original-manifest.json"
+          verify() { python3 deploy/restore_verify.py --backup-dir "$W/backup" --target-db "$1" \
+            --target-filestore "$W/restored/filestore/$1" --pg-restore "$B/pg_restore" --createdb "$B/createdb" \
+            --psql "$B/psql" --pg-host 127.0.0.1 --pg-user odoo; }
+          verify nasq_drill_restored_scratch
+          python _odoo/odoo-bin --db_host=127.0.0.1 --db_user=odoo --db_password=odoo \
+            --addons-path="$PWD/_odoo/addons,$PWD/odoo-addons" --data-dir="$W/restored" \
+            -d nasq_drill_restored_scratch --http-port=8169 --max-cron-threads=0 > restored-odoo.log 2>&1 &
+          SERVER_PID=$!
+          for i in $(seq 1 60); do
+            kill -0 "$SERVER_PID"
+            if curl -fsS http://127.0.0.1:8169/web/health >/dev/null; then break; fi
+            sleep 1
+          done
+          curl -fsS -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8169/web/health
+          kill "$SERVER_PID"; wait "$SERVER_PID" || true; SERVER_PID=
+          missing=$("$B/psql" -h 127.0.0.1 -U odoo -d nasq_drill_restored_scratch -At -v ON_ERROR_STOP=1 \
+            -c 'SELECT store_fname FROM ir_attachment WHERE store_fname IS NOT NULL ORDER BY store_fname LIMIT 1')
+          test -n "$missing"
+          rm "$W/backup/filestore/$missing"
+          if verify nasq_drill_restored2_scratch; then echo "negative case passed unexpectedly"; exit 1; fi
+          python3 -c 'import json,sys; r=json.load(open(sys.argv[1])); assert r["restore_verified"] is False; assert sys.argv[2] in r["checks"]["missing_attachment_files"]' "$W/backup/restore-verification.json" "$missing"
+          cmp "$W/original-manifest.json" "$W/backup/manifest.json"
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with: { name: restored-odoo-log, path: restored-odoo.log }
