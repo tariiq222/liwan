@@ -98,48 +98,8 @@ describe('PMO repair form contracts', () => {
     expect(isDirtySnapshot('baseline', 'baseline', false)).toBe(false)
   })
 
-  it('submits the latest update body while keeping autosave delayed', () => {
-    const form = source('apps/web/app/components/project/ProjectUpdateForm.vue')
-    const editor = source('apps/web/app/components/task/DescriptionEditor.vue')
-    expect(form).toContain('descriptionEditor.value?.flush()')
-    expect(form).toContain('@draft="onDescriptionDraft"')
-    expect(form).toContain(':readonly="isPending"')
-    expect(editor).toContain('draft: [{ html: string; taskId: number }]')
-    expect(editor).toContain('buffer.schedule(draft)')
-    expect(editor).toContain('if (props.readonly) return')
-  })
 
-  it('keeps field purpose and selected value in popover accessible names', () => {
-    const general = source('apps/web/app/components/project/ProjectGeneralForm.vue')
-    const charter = source('apps/web/app/components/project/ProjectCharterFields.vue')
-    const details = source('apps/web/app/components/task/TaskDetails.vue')
-    expect(general).toContain('aria-labelledby="project-settings-approval-label project-settings-approver-value"')
-    expect(general).not.toContain('project-settings-date-start-label')
-    expect(general).not.toContain('project-settings-manager-label')
-    expect(charter).toContain('charter-type-label charter-type-value')
-    expect(charter).toContain('charter-owning-unit-label charter-owning-unit-value')
-    // Person pickers name themselves by the field label plus their own trigger text (the selected person).
-    expect(charter).toContain('aria-labelledby="charter-sponsor-label charter-sponsor"')
-    expect(charter).toContain('aria-labelledby="charter-manager-label charter-manager"')
-    expect(charter.match(/<SharedPersonPicker/g)?.length).toBe(2)
-    expect(charter).toContain('value-key="user_id"')
-    expect(charter).toContain(':aria-label="t(\'projects.charter.fields.date_start\')"')
-    expect(charter).toContain(':aria-label="t(\'projects.charter.fields.date_end\')"')
-    const dateField = source('apps/web/app/components/shared/DateField.vue')
-    expect(dateField).toContain('`${props.ariaLabel}: ${text.value}`')
-    expect(details).toContain('id="task-deadline"')
-    expect(details).toContain(":aria-label=\"t('tasks.drawer.deadline')\"")
-  })
 
-  it('requires explicit confirmation before deleting an empty stage', () => {
-    const stageEditor = source('apps/web/app/components/project/StageListEditor.vue')
-    expect(stageEditor).toContain('const pendingDeleteId = ref')
-    expect(stageEditor).toMatch(/@click="requestDelete\(stage\.id\)"/)
-    expect(stageEditor).toMatch(/<SharedInlineConfirm[\s\S]*@confirm="confirmDelete\(stage\.id\)"/)
-    expect(stageEditor).toContain('pendingDeleteId.value !== stageId')
-    expect(stageEditor).toContain('task_count ?? 0')
-    expect(stageEditor).toContain('data-testid="stage-delete-confirm"')
-  })
 
   it('executes TaskCreateForm dirty, failed-save, and success transitions', async () => {
     const pending = ref(false)

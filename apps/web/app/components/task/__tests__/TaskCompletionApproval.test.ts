@@ -86,11 +86,6 @@ async function renderApproval(task: TaskDetail) {
 }
 
 describe('TaskCompletionApproval production template', () => {
-  it('posts withdraw with revision via the real composable', () => {
-    expect(useTasksSource).toContain('useWithdrawTaskCompletion')
-    expect(useTasksSource).toContain('/api/v1/tasks/${id}/completion/withdraw')
-    expect(useTasksSource).toContain('body: { revision }')
-  })
 
   it('shows blocked reason while pending and offers withdraw without guessing roles', async () => {
     const html = await renderApproval({

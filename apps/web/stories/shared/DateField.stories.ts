@@ -44,7 +44,7 @@ export const InFilterPopover: Story = {
 
 export const WithTime: Story = {
   name: 'مع وقت',
-  parameters: storyContext('apps/web/app/components/task/TaskDetails.vue:211', 'موعد المهمة: التسمية تعرض التاريخ والوقت، وحقل الوقت في تذييل التقويم يُبقي النافذة مفتوحة بعد اختيار اليوم.'),
+  parameters: storyContext('apps/web/app/components/task/TaskDetails.vue:212', 'موعد المهمة: التسمية تعرض التاريخ والوقت، وحقل الوقت في تذييل التقويم يُبقي النافذة مفتوحة بعد اختيار اليوم.'),
   args: { modelValue: '2026-09-20' },
   render: args => ({
     components: { DateField, PageContainer },

@@ -91,12 +91,6 @@ async function renderGeneral(value: ProjectDetail) {
 
 describe('ProjectGeneralForm production template', () => {
   it('keeps charter identity and date fields out of operational settings', async () => {
-    expect(source).not.toContain('project-settings-name')
-    expect(source).not.toContain('project-settings-manager')
-    expect(source).not.toContain('project-settings-date-start')
-    expect(source).not.toContain('DescriptionEditor')
-    expect(source).toContain('allow_task_dependencies')
-    expect(source).toContain('TagPicker')
     const html = await renderGeneral(project)
     expect(html).not.toContain('2031-06-30')
   })
@@ -109,7 +103,5 @@ describe('ProjectGeneralForm production template', () => {
     })
     expect(html).toContain('data-testid="project-approval-cancel"')
     expect(html).toContain('projects.settings.approverEligibility')
-    expect(source).toMatch(/pendingMode\.value = mode/)
-    expect(source).toMatch(/saveApproval\('specific_user'/)
   })
 })

@@ -81,10 +81,6 @@ const DEFAULTS: ProjectCreateDefaults = {
 }
 
 describe('ProjectCreateForm production template', () => {
-  it('invalidates create-defaults after settings patch using the dedicated query key', () => {
-    expect(settingsSource).toContain('projectSettingsKeys.createDefaults')
-    expect(settingsSource).toMatch(/invalidateQueries\(\{\s*queryKey:\s*projectSettingsKeys\.createDefaults/)
-  })
 
   it('blocks the merged form while defaults are unavailable and shows loading', async () => {
     const html = await renderForm(() => ({

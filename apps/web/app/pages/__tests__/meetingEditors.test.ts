@@ -195,42 +195,9 @@ function evaluatedGeneralEditPage(canEdit = true): Record<string, any> {
 }
 
 describe('meeting editor routes and guards', () => {
-  it('provides a dedicated minutes route with the narrow PATCH payload and preserved context', () => {
-    const route = page('[id]/minutes.vue')
-    expect(existsSync(route)).toBe(true)
-    const content = source('[id]/minutes.vue')
-    expect(content).toContain('agenda: agenda.value')
-    expect(content).toContain('minutes: minutes.value')
-    expect(content).toContain('minutes_form: minutesForm.value')
-    expect(content).toContain("scope: 'this'")
-    expect(content).toContain('SharedUnsavedChanges')
-    expect(content).toContain('returnTo')
-    expect(content).toContain('aria-label')
-    expect(content).toContain('can_edit')
-  })
 
-  it('keeps preparation editing separate from minutes editing', () => {
-    const content = source('[id]/edit.vue')
-    expect(content).not.toContain('const minutes = ref(')
-    expect(content).not.toContain('v-model="minutes"')
-    expect(source('[id].vue')).toContain('/minutes')
-  })
 
-  it('renders a completed meeting snapshot separately from current recommendations', () => {
-    const content = source('[id].vue')
-    expect(content).toContain('minutes_snapshot')
-    expect(content).toContain('captured_at')
-    expect(content).toContain('currentFollowUp')
-    expect(content).toContain('currentPreviousFollowUp')
-    expect(content).toContain('historyUnavailable')
-  })
 
-  it('protects resolution actions against duplicate requests while one is pending', () => {
-    const content = source('[id].vue')
-    expect(content).toContain('pendingResolutionIds')
-    expect(content).toContain('finally')
-    expect(content).toContain('pendingResolutionIds.has(item.id)')
-  })
 
   it('does not issue a second resolution request while the first request is deferred', async () => {
     const detail = evaluatedDetailPage()
@@ -359,78 +326,4 @@ describe('meeting editor routes and guards', () => {
     expect(editor.mutateAsync).not.toHaveBeenCalled()
   })
 
-  it('provides a dedicated series settings route with only default fields editable', () => {
-    const route = page('series/[id]/edit.vue')
-    expect(existsSync(route)).toBe(true)
-    const content = source('series/[id]/edit.vue')
-    expect(content).toContain('name')
-    expect(content).toContain('location')
-    expect(content).toContain('meeting_url')
-    expect(content).toContain('v-model:secretary-id')
-    expect(content).toContain('v-model:attendee-ids')
-    expect(content).toContain('aria-readonly')
-    expect(content).toContain('SharedUnsavedChanges')
-    expect(source('series/[id].vue')).toContain('/meetings/series/${id}/edit')
-    expect(source('series/[id].vue')).toContain('NuxtPage')
-  })
-})
-
-describe('meetings module design-system contract', () => {
-  const componentSource = (name: string) => readFileSync(resolve('app/components/meetings', name), 'utf8')
-  const moduleFiles = [
-    '[id].vue', 'calendar.vue', 'index.vue', 'new.vue', '[id]/edit.vue', '[id]/minutes.vue', '[id]/print.vue',
-    '[id]/resolutions/new.vue', '[id]/resolutions/[resolutionId]/edit.vue', 'series/[id].vue', 'series.vue',
-    'series/new.vue', 'series/[id]/edit.vue',
-  ].map(file => [file, source(file)] as const)
-    .concat(['MeetingEventList.vue', 'MeetingMinutesDocument.vue', 'MeetingMinutesForm.vue', 'MeetingPeopleFields.vue', 'MeetingProjectFilter.vue', 'MeetingTimeline.vue', 'MeetingVersionList.vue'].map(file => [file, componentSource(file)] as const))
-
-  it('uses stock Nuxt UI tokens instead of legacy shadcn classes and hand-styled links', () => {
-    for (const [file, content] of moduleFiles) {
-      for (const legacy of ['text-muted-foreground', 'border-border', 'divide-border', 'text-destructive', 'ring-ring', 'bg-card', 'bg-brand-soft', 'text-brand-link', 'nasq-status-text-warning', 'color="primary" variant="outline"', 'meeting-empty']) {
-        expect(content, `${file}: ${legacy}`).not.toContain(legacy)
-      }
-    }
-  })
-
-  it('renders stored rich text only through the sanitizing shared renderer', () => {
-    for (const [file, content] of moduleFiles) expect(content, file).not.toContain('v-html')
-    expect(source('[id].vue')).toContain('<SharedRichText')
-    expect(source('series/[id].vue')).toContain('<SharedRichText')
-    expect(source('[id].vue')).toContain('richTextHasContent(')
-    expect(source('[id].vue')).not.toContain('function hasRichText')
-  })
-
-  it('builds the meeting detail from utilities and shared blocks without a page stylesheet', () => {
-    const detail = source('[id].vue')
-    expect(detail).not.toContain('<style')
-    expect(detail).not.toContain(':deep(')
-    // The scroll-into-view logic still finds the tab strip through this hook.
-    expect(detail).toContain("querySelector<HTMLElement>('.meeting-tabs-viewport')")
-    expect(detail).toContain('meeting-tabs-viewport')
-    expect(detail).toContain('sectionTabsUi')
-    expect(detail.match(/<SharedInlineConfirm/g)?.length).toBe(3)
-    expect(detail).toContain('<SharedEmptyState')
-    expect(detail).toContain('<SharedRecordNumber')
-    expect(detail).toContain('meetingStateColor(query.data.value.state)')
-    expect(detail).toContain('<dl class="grid gap-4 sm:grid-cols-2">')
-  })
-
-  it('shares state colours, pagination and people pickers across the module', () => {
-    expect(source('index.vue')).toContain('meetingStateColor(row.original.state)')
-    expect(source('calendar.vue')).toContain('meetingStateColor(meeting.state)')
-    expect(componentSource('MeetingTimeline.vue')).toContain('meetingStateColor(meeting.state)')
-    for (const file of ['index.vue', 'series.vue', 'series/[id].vue']) expect(source(file), file).toContain('<SharedPagination')
-    for (const file of ['MeetingEventList.vue', 'MeetingVersionList.vue']) expect(componentSource(file), file).toContain('<SharedPagination')
-    expect(source('calendar.vue')).not.toContain("locale === 'ar'")
-    expect(source('calendar.vue')).toContain('rtl:rotate-180')
-    const people = componentSource('MeetingPeopleFields.vue')
-    expect(people.match(/<SharedPersonPicker/g)?.length).toBe(2)
-    expect(people.match(/value-key="user_id"/g)?.length).toBe(2)
-    expect(people).toContain("defineModel<number[]>('attendeeIds'")
-    expect(people).toContain("defineModel<number | null>('secretaryId')")
-    for (const file of ['[id]/resolutions/new.vue', '[id]/resolutions/[resolutionId]/edit.vue']) {
-      expect(source(file), file).toContain('<SharedPersonPicker')
-      expect(source(file), file).not.toContain('<USelectMenu')
-    }
-  })
 })

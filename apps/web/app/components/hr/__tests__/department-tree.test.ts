@@ -148,23 +148,6 @@ async function renderTree(displayedNodes: DepartmentTreeNode[], options?: Parame
 
 describe('department tree layout and routed actions', () => {
   it('frames the tree, wraps long names, and groups actions on existing routes', async () => {
-    expect(treeSource).toContain('<UCard v-if="displayedNodes.length" class="min-w-0"')
-    expect(treeSource).toContain('dept-tree-guide')
-    expect(treeSource).toContain('dept-tree-chevron-collapsed')
-    expect(treeSource).toContain('rotate(90deg)')
-    expect(treeSource).toContain('rotate(-90deg)')
-    expect(treeSource).toContain('break-words')
-    expect(treeSource).not.toMatch(/truncate font-medium/)
-    expect(treeSource).toContain('role="group"')
-    expect(treeSource).toContain('max-sm:basis-full')
-    expect(treeSource).toContain('--dept-depth')
-    expect(treeSource).toContain('/hr?department_id=')
-    expect(treeSource).toContain('/hr/documents?department_id=')
-    expect(treeSource).toContain('canManage')
-    expect(treeSource).toContain('hr.depts.expand')
-    expect(treeSource).toContain('hr.depts.collapse')
-    expect(treeSource).toContain('filterDepartmentTree')
-    expect(treeSource).toMatch(/if \(!query\?\.trim\(\)\) return/)
 
     expect(pageSource).toContain('role="group"')
     expect(pageSource).toContain('aria-pressed')

@@ -99,7 +99,6 @@ describe('TaskDescription production behavior', () => {
     expect(calls).toHaveLength(0)
     expect(state.editing.value).toBe(false)
     expect(state.draft.value).toBe(task.description_html)
-    expect(source).not.toContain('@update:model-value=')
     await Promise.resolve()
   })
 

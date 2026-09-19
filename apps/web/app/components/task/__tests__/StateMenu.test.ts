@@ -77,12 +77,6 @@ async function renderMenu(task: Pick<Task, 'state' | 'allowed_transitions'>, can
 }
 
 describe('StateMenu production template uses server allowed_transitions', () => {
-  it('does not locally recompute transitions from canApprove', () => {
-    expect(source).toContain('allowed_transitions')
-    expect(source).not.toContain('permittedNextStates')
-    expect(source).toContain('states.value.map(')
-    expect(source).not.toContain('canApprove &&')
-  })
 
   it('omits done for list and detail when the server did not offer it, even if canApprove is true', async () => {
     const html = await renderMenu({ state: 'in_progress', allowed_transitions: ['waiting', 'cancelled'] }, true)

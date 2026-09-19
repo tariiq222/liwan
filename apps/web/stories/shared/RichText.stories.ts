@@ -7,7 +7,7 @@ const sample = '<h2>اعتماد نطاق المرحلة الأولى</h2><p>ا�
 const meta = {
   title: 'Shared/RichText',
   component: RichText,
-  parameters: storyContext('apps/web/app/components/project/ProjectUpdateList.vue:63', 'العارض الوحيد لـ HTML مخزّن. ينقّي المحتوى دائمًا (الوسم script في المثال يُحذف) ويطبّق تنسيقًا واحدًا.'),
+  parameters: storyContext('apps/web/app/components/project/ProjectUpdateList.vue:74', 'العارض الوحيد لـ HTML مخزّن. ينقّي المحتوى دائمًا (الوسم script في المثال يُحذف) ويطبّق تنسيقًا واحدًا.'),
   args: { html: sample, size: 'md' },
   render: args => ({
     components: { RichText },

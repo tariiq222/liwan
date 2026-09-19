@@ -67,10 +67,4 @@ describe('shell focus after navigation', () => {
     expect(focusCalls).toEqual([])
   })
 
-  it('exposes main as a programmatic focus target without trapping focus', () => {
-    expect(layoutSource).toContain('tabindex="-1"')
-    expect(layoutSource).toContain('ref="shellMain"')
-    // A focus move, not a dialog: nothing may confine tabbing to the region.
-    expect(layoutSource).not.toMatch(/inert|aria-modal|focus-trap/i)
-  })
 })

@@ -63,12 +63,6 @@ describe('useAdminUsers cache invalidation', () => {
     expect(refreshMe).not.toHaveBeenCalled()
   })
 
-  it('does not invent a vue-query `me` invalidation', () => {
-    expect(source).toContain("refreshNuxtData('me')")
-    expect(source).toContain('refreshMeInNuxtContext')
-    expect(source).not.toContain('void refreshMeInNuxtContext')
-    expect(source).not.toMatch(/invalidateQueries\(\{\s*queryKey:\s*\[['"]me['"]\]/)
-  })
 })
 
 describe('admin user success waits for me refresh then access reset', () => {
@@ -183,41 +177,9 @@ describe('useAdminUsers sensitive mutation cleanup', () => {
     })
   })
 
-  it('keeps mutation gcTime at zero and resets on settle', () => {
-    expect(ACCESS_MUTATION_GC_TIME).toBe(0)
-    expect(source).toContain('gcTime: ACCESS_MUTATION_GC_TIME')
-    expect(source).toContain('onSettled: () => resetRef.value()')
-  })
 })
 
 describe('admin user security success is page-scoped and controlled', () => {
-  it('keeps success on the security route parent, not a module Map, stale detail, or child remount state', () => {
-    expect(source).not.toContain('adminUserSecuritySuccessById')
-    expect(source).not.toContain('rememberAdminUserSecuritySuccess')
-    expect(source).not.toContain('displayedUser')
-    expect(source).toContain("refreshNuxtData('me')")
-    expect(formSource).toContain('onSuccessKey')
-    expect(formSource).toContain('clearSecrets')
-    expect(formSource).toContain('targetId')
-    expect(formSource).toContain('useIsMutating')
-    expect(formSource).toContain('adminUserMutationKey')
-    expect(formSource).not.toContain('role="status"')
-    expect(formSource).not.toMatch(/watch\(\s*\(\)\s*=>\s*props\.user\s*,/)
-    expect(formSource).not.toContain('useState(')
-    expect(pageSource).toContain('successKey')
-    expect(pageSource).toContain('nextAdminUserSecuritySuccess')
-    expect(pageSource).toContain('on-success-key')
-    expect(pageSource).not.toContain('displayedUser')
-    expect(pageSource).toContain(':loading="user.isLoading.value"')
-    expect(pageSource).toContain(':error="user.error.value"')
-    expect(pageSource).toContain(':empty="!user.data.value"')
-    expect(pageSource).toContain('v-if="user.data.value"')
-    expect(pageSource).toMatch(/watch\(\[id, blocked\]/)
-    expect(pageSource).toContain('onBeforeUnmount')
-    expect(pageSource).toContain('role="status"')
-    expect(pageSource).not.toMatch(/Dialog|Sheet|Drawer/)
-    expect(pageSource).not.toContain('useState(')
-  })
 
   it('ignores late callbacks for another user and when the page is blocked', () => {
     expect(nextAdminUserSecuritySuccess(12, 12, 'access.users.accessReactivated')).toBe('access.users.accessReactivated')

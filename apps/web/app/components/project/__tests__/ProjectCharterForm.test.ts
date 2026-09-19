@@ -1,6 +1,3 @@
-import { readFileSync } from 'node:fs'
-import { dirname, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import type { ProjectDetail } from '@nasq/contracts'
 import {
@@ -12,12 +9,9 @@ import {
   charterPatchBody,
 } from '../../../utils/projectCharter'
 
-const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-
-function source(name: string): string {
-  return readFileSync(resolve(root, name), 'utf8')
-}
-
+// The form's markup is rendered in ProjectCharterSteps.test.ts and driven end to
+// end by e2e/project-charter.spec.ts; what is decided in these helpers is the
+// part a screenshot cannot show.
 const EMPTY_CHARTER = {
   code: null, type: null, owning_unit: null, sponsor: null, authority: '', rationale: '',
   objectives: [], benefits: '', scope: '', exclusions: '', high_level_requirements: '',
@@ -37,61 +31,32 @@ function project(overrides: Partial<ProjectDetail> = {}): ProjectDetail {
   }
 }
 
-describe('ProjectCharterForm field surface', () => {
-  it('renders a named test id for every commercial charter field including requirements, benefits, success and acceptance', () => {
-    const fields = source('ProjectCharterFields.vue') + source('ProjectCharterRows.vue')
-    for (const key of CHARTER_FIELD_KEYS) {
-      expect(fields, `missing charter-field-${key}`).toContain(`data-testid="charter-field-${key}"`)
-    }
-    expect(CHARTER_FIELD_KEYS).toHaveLength(26)
+describe('charter conflict resolution', () => {
+  it('refuses to overwrite until the newer version has actually been fetched', () => {
+    // A 409 means someone else saved. Overwriting on the write token the form
+    // already held would discard their edit without anyone seeing it.
+    expect(canOverwriteWithLatest('v4', null)).toBe(false)
+    expect(canOverwriteWithLatest('v4', project({ updated_at: 'v7' }))).toBe(true)
   })
 
-  it('reviews a 409 against a fetched server version without silently refreshing the write token', () => {
-    const form = source('ProjectCharterForm.vue')
-    expect(form).toContain('canOverwriteWithLatest')
-    expect(form).toContain('overwriteOnLatest')
-    expect(form).toContain('serverVersion.value.updated_at')
-    expect(form).toContain('projectQuery.refetch')
-    expect(form).toContain('isCharterDraftDirty')
-    expect(form).not.toContain('retrySave')
-    const original = project({ updated_at: 'v4' })
-    const server = project({ updated_at: 'v7' })
+  it('keeps the visitor draft distinguishable from the record it started as', () => {
+    const original = project()
     const draft = draftFromProject(original)
+    expect(isCharterDraftDirty(draft, draftFromProject(original))).toBe(false)
     draft.rationale = 'kept'
-    expect(canOverwriteWithLatest('v4', null)).toBe(false)
-    expect(canOverwriteWithLatest('v4', server)).toBe(true)
     expect(isCharterDraftDirty(draft, draftFromProject(original))).toBe(true)
+  })
+
+  it('omits an untouched native date from the patch instead of rewriting it', () => {
+    const original = project()
+    const draft = draftFromProject(original)
     expect(charterPatchBody(draft, 'v4', nativeDateSnapshot(original))).not.toHaveProperty('date_start')
   })
+})
 
-  it('walks the charter as steps with a draft save on every step and a review step at the end', () => {
-    const form = source('ProjectCharterForm.vue')
-    expect(form).toContain('charterStepsForType(draft.value.typeSteps)')
-    expect(form).toContain('parseCharterStepQuery(route.query.step')
-    expect(form).toContain('data-testid="charter-stepper"')
-    expect(form).toContain('data-testid="charter-step-next"')
-    expect(form).toContain('data-testid="charter-step-previous"')
-    expect(form).toContain('data-testid="charter-save-draft"')
-    expect(form).toContain('data-testid="project-create-submit"')
-    expect(form).toContain("emit('drafted', created.id, step.value)")
-    expect(form).toContain("emit('draftSaved')")
-    expect(form).toContain("emit('saved', finalized)")
-    // "Next" validates the current step only; a save validates the whole charter
-    // and jumps to the first step that still fails.
-    expect(form).toContain('charterErrorsForFields(collectErrors(), currentFields.value)')
-    expect(form).toContain('stepForField(steps.value, item.field)')
-    expect(form).not.toContain(':compact=')
-  })
-
-  it('places help beside fields and child rows without a permanent description paragraph', () => {
-    const fields = source('ProjectCharterFields.vue')
-    const rows = source('ProjectCharterRows.vue')
-    expect(fields).toContain('ProjectFieldHelp')
-    expect(rows).toContain('ProjectFieldHelp')
-    expect(fields).toContain('projects.charter.help.name')
-    expect(rows).toContain('projects.charter.help.acceptance')
-    expect(rows).toContain('removeRowConfirm')
-    expect(fields).not.toContain('Dialog')
-    expect(fields).not.toContain('Sheet')
+describe('charter field surface', () => {
+  it('names every commercial field exactly once', () => {
+    expect(CHARTER_FIELD_KEYS).toHaveLength(26)
+    expect(new Set(CHARTER_FIELD_KEYS).size).toBe(CHARTER_FIELD_KEYS.length)
   })
 })

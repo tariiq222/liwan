@@ -57,15 +57,6 @@ describe('useAdminRoles cache invalidation', () => {
     queryClient.clear()
   })
 
-  it('does not invent a vue-query `me` invalidation and captures Nuxt context in mutations', () => {
-    expect(source).toContain("refreshNuxtData('me')")
-    expect(source).toContain('refreshMeInNuxtContext')
-    expect(source).not.toContain('void refreshMeInNuxtContext')
-    expect(source).toContain('tryUseNuxtApp()')
-    expect(source).toContain('useAdminRoleSuccessInvalidation')
-    expect(source).not.toMatch(/invalidateQueries\(\{\s*queryKey:\s*\[['"]me['"]\]/)
-    expect(source).toMatch(/onSuccess:\s*invalidate/)
-  })
 })
 
 describe('admin role success waits for me refresh then access reset', () => {

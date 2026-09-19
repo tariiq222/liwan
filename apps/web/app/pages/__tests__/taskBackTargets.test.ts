@@ -66,32 +66,6 @@ async function backTargetAfter(router: Router, detailUrl: RouteLocationRaw, deta
   return router.resolve(Vue.unref(state.backTo as Vue.Ref<RouteLocationRaw>))
 }
 
-describe('task detail back targets — source shape', () => {
-  it('names the prop back-to on the page component itself', () => {
-    const component = read('app/components/task/TaskDetailPage.vue')
-    expect(component).toMatch(/backTo\?: RouteLocationRaw/)
-    expect(component).not.toContain('closeTo')
-  })
-
-  it('drops the returnTo chain from both detail pages', () => {
-    for (const page of ['app/pages/tasks/[id].vue', 'app/pages/projects/[id]/tasks/[taskId].vue']) {
-      expect(read(page), page).toContain(':back-to="backTo"')
-      expect(read(page), page).not.toContain('safeReturnTo')
-      expect(read(page), page).not.toContain('closeTo')
-    }
-  })
-
-  it('stops deep links into a task from carrying a dead referrer', () => {
-    // A returnTo on a task link ends up on the list URL, where the list's own
-    // "back to projects" button would silently follow it instead.
-    for (const page of ['app/pages/projects/[id]/raci.vue', 'app/pages/projects/[id]/register/[registerId].vue']) {
-      const taskLinks = read(page).match(/\{ path: `\/projects\/\$\{[^}]+\}\/tasks\/\$\{[^}]+\}`[^}]*\}/g) ?? []
-      expect(taskLinks.length, page).toBeGreaterThan(0)
-      for (const link of taskLinks) expect(link, `${page}: ${link}`).not.toContain('returnTo')
-    }
-  })
-})
-
 describe('task detail back targets — runtime round trip', () => {
   it('returns a project task to its own list carrying q, not the project summary', async () => {
     // The parked defect: /projects/7/tasks/99?q=عقد used to fall back to

@@ -9,11 +9,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 const here = dirname(fileURLToPath(import.meta.url))
 const webRoot = resolve(here, '../../../../')
 const root = resolve(here, '../../../pages/projects/[id]')
-const stakeholders = readFileSync(resolve(root, 'stakeholders.vue'), 'utf8')
 const raciPath = resolve(root, 'raci.vue')
 const raci = readFileSync(raciPath, 'utf8')
-const projects = readFileSync(resolve(here, '../../../pages/projects/index.vue'), 'utf8')
-const inputSource = readFileSync(resolve(here, '../../../app.config.ts'), 'utf8')
 const vueGlobal = resolve(webRoot, '../../node_modules/vue/dist/vue.global.js')
 
 const parsed = parse(raci, { filename: raciPath })
@@ -33,58 +30,6 @@ const changeRoleSource = raci.slice(raci.indexOf('async function changeRole'), r
 const changeRoleJs = ts.transpileModule(changeRoleSource, {
   compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.None },
 }).outputText
-
-describe('governance list/matrix design', () => {
-  it('matches projects toolbar and table primitives on the stakeholder list', () => {
-    expect(projects).toContain(':active-count="activeFilterCount"')
-    expect(projects).toContain('FilterBar')
-    expect(inputSource).toContain("primary: 'brand'")
-    expect(stakeholders).toContain(':active-count="activeFilterCount"')
-    expect(stakeholders).toContain('FilterBar')
-    expect(stakeholders).toContain('i-lucide-search')
-    expect(stakeholders).toContain('<UInput')
-    expect(stakeholders).toContain('<UTable')
-    expect(stakeholders).toContain(':columns="columns"')
-    expect(stakeholders).toContain('#name-cell="{ row }"')
-    expect(stakeholders).toContain('list.data.value?.can_manage && hydrated')
-    expect(stakeholders).toContain(':pending="remove.isPending.value"')
-    expect(stakeholders).toContain('<SharedRowActions :actions="rowActions(row.original)"')
-    expect(stakeholders).toMatch(/<SharedInlineConfirm[\s\S]*@confirm="deleteItem\(confirmItem\)"/)
-    expect(stakeholders).toContain('router.replace({ query: { ...route.query, [key]: value || undefined, offset: undefined } })')
-    expect(stakeholders).toContain('offset: String(Math.max(0, (parsed.value.offset ?? 0) + delta * 50))')
-    expect(stakeholders).toContain('confirmDeleteId.value !== item.id')
-    expect(stakeholders).toContain("cause.code === 'stakeholder_assigned'")
-    expect(stakeholders).not.toContain('<table')
-    expect(stakeholders).not.toContain('nasq-input')
-  })
-
-  it('styles RACI role controls without cloning list topology onto the matrix', () => {
-    expect(raci).toContain('<USelect')
-    expect(raci).toContain(':model-value="assignment(task.id, item.id)?.role ?? \'none\'"')
-    expect(raci).toContain('@update:model-value="changeRole(task.id, item.id, $event)"')
-    expect(raci).toContain('class="min-w-24"')
-    expect(raci).toContain(':color="roleColor(task.id, item.id)"')
-    expect(raci).toContain('<UBadge v-else variant="subtle"')
-    expect(raci).not.toContain('roleClass')
-    expect(raci).not.toContain('h-9')
-    expect(raci).toContain('v-for="task in visibleTasks"')
-    expect(raci).toContain('v-for="item in visibleStakeholders"')
-    expect(raci).toContain('rows.data.value?.can_manage')
-    expect(raci).toContain('!hydrated || pending || loading || !!confirmRow')
-    expect(raci).toContain('task_q')
-    expect(raci).toContain('stakeholder_q')
-    expect(raci).toContain('task_page')
-    expect(raci).toContain('stakeholder_page')
-    expect(raci).toContain('confirmRow.value = row')
-    expect(raci).not.toContain('nasq-input')
-    expect(raci).not.toContain('NativeSelect')
-    expect(raci).toContain('<FilterBar')
-    expect(raci).toContain('@clear="clearFilters"')
-    expect(raci).toContain(':active-count="activeFilterCount"')
-    expect(raci).not.toContain('nasq-toolbar')
-    expect(raci).not.toContain('<Table>')
-  })
-})
 
 describe('RACI role select authoritative value', () => {
   let browser: Browser

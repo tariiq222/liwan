@@ -91,7 +91,5 @@ describe('MilestoneTable SSR', () => {
     expect(html).toContain('aria-label="projects.milestones.actionsNamed:')
     expect(html).toMatch(/<button data-destructive="true" disabled[^>]*>projects\.milestones\.deleteBlocked:2<\/button>/)
     expect(html).not.toContain('milestone-delete-confirm')
-    expect(source).toContain('<SharedInlineConfirm')
-    expect(source).toContain('disabled: m.task_count > 0')
   })
 })

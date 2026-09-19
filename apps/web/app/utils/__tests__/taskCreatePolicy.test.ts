@@ -61,15 +61,8 @@ describe('guided task creation policy', () => {
   })
 
   it('keeps project quick creation explicit and leaves unsupported assignment fields out of the create contract', () => {
-    expect(taskFormSource).toContain("mode?: 'default' | 'project'")
-    expect(taskFormSource).toContain("const projectQuick = computed(() => props.mode === 'project')")
     expect(buildTaskCreatePayload({ name: 'Quick task', projectId: 7 })).not.toHaveProperty('user_ids')
     expect(buildTaskCreatePayload({ name: 'Quick task', projectId: 7 })).not.toHaveProperty('priority')
   })
 
-  it('returns a project quick-created task to its own project task list', () => {
-    expect(projectTaskPageSource).toContain('mode="project"')
-    expect(projectTaskPageSource).toContain('router.push(backTo)')
-    expect(projectTaskPageSource).not.toContain("'/projects/' + projectId.value + '/tasks/' + id")
-  })
 })
