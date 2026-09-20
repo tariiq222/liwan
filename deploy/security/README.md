@@ -1,6 +1,6 @@
 # Guarded internal Odoo runtime
 
-This profile was verified on macOS arm64, CPython3.12.13, Odoo19 official commit157874aad3aebef5bc9268de6e17530641107e31. It does not update the Docker/customer template.
+This profile was verified on macOS arm64, CPython3.12.13, Odoo 19 at the commit pinned in `deploy/odoo/ODOO_COMMIT`. It does not update the Docker/customer template.
 
 Install the frozen requirements into a separate Python3.12 virtual environment, not over the upstream Odoo `.venv`. Do not reinstall upstream requirements afterward: they reintroduce older vulnerable pins and PyPDF2.
 

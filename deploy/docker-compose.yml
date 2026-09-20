@@ -27,20 +27,24 @@ services:
       odoo: { condition: service_healthy }
 
   odoo:
-    image: odoo:19.0
+    image: nasq-odoo:${NASQ_IMAGE_TAG:?set NASQ_IMAGE_TAG to the built image tag}
+    build:
+      context: ..
+      dockerfile: deploy/odoo/Dockerfile
+      args:
+        ODOO_COMMIT: ${ODOO_COMMIT:?set ODOO_COMMIT from deploy/odoo/ODOO_COMMIT}
     restart: unless-stopped
-    command: ["odoo", "-c", "/etc/odoo/odoo.conf", "--workers", "2", "--proxy-mode"]
+    command: ["--workers", "2", "--proxy-mode"]
     environment:
       HOST: db
       USER: odoo
       PASSWORD: "${DB_PASSWORD}"
     volumes:
       - ./data/odoo.conf:/etc/odoo/odoo.conf:ro
-      - ../odoo-addons:/mnt/extra-addons:ro
       - odoo_data:/var/lib/odoo
     expose: ["8069", "8072"]
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8069/web/version || exit 1"]
+      test: ["CMD", "/opt/venv/bin/python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8069/web/health', timeout=2)"]
       interval: 5s
       timeout: 10s
       retries: 20

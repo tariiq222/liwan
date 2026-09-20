@@ -3,6 +3,28 @@
 These tools are operator wrappers. They do not start, stop, restore, schedule,
 or delete services. Local success is not production assurance.
 
+## Odoo image
+
+Build the Odoo image from the repository root with the pinned upstream source
+revision:
+
+```sh
+docker build -f deploy/odoo/Dockerfile \
+  --build-arg ODOO_COMMIT="$(cat deploy/odoo/ODOO_COMMIT)" \
+  --build-arg NASQ_REVISION="$(git rev-parse --short HEAD)" \
+  -t "nasq-odoo:${NASQ_IMAGE_TAG:-dev}" .
+```
+
+`NASQ_IMAGE_TAG` selects the image tag used by Compose. `ODOO_COMMIT` selects
+the immutable upstream Odoo revision fetched during the image build. The
+Odoo source and Nasq addons are baked into the image and made read-only at
+runtime; only `/var/lib/odoo` is writable customer data. Every container start
+passes through `/opt/nasq/odoo_secure.py`, including provisioning shell runs.
+The image replaces Debian's unpatched `wkhtmltopdf` with the architecture-
+specific, vendored `wkhtmltox 0.12.6.1-3 bookworm` package after verifying the
+matching entry in `deploy/odoo/vendor/SHA256SUMS`. The build fails when the
+current architecture has no matching vendored package.
+
 ## Observed layout (this machine, 2026-09-06)
 
 This is a description of paths that existed when the wrappers were written. It
@@ -31,11 +53,11 @@ Not started by these tools. Named volumes, not bind mounts:
 | Service | Image | Data |
 | --- | --- | --- |
 | `db` | `postgres:16` | volume `db_data` → `/var/lib/postgresql/data` |
-| `odoo` | `odoo:19.0` | volume `odoo_data` → `/var/lib/odoo` (`data_dir`); filestore inside the volume at `filestore/${DB_NAME}` |
+| `odoo` | `nasq-odoo:${NASQ_IMAGE_TAG}` | baked Odoo and Nasq addons; volume `odoo_data` → `/var/lib/odoo` (`data_dir`); filestore inside the volume at `filestore/${DB_NAME}` |
 | `web` | apps/web image | listens on container port `3000` |
 | `proxy` | `caddy:2` | `80`/`443` |
 
-`deploy/odoo.conf` uses `data_dir = /var/lib/odoo`, `db_host = db`, `dbfilter = ^${DB_NAME}$`. Provisioning (`deploy/provision.sh`) is out of scope for this work package and is not invoked here.
+`deploy/odoo.conf` uses `data_dir = /var/lib/odoo`, `db_host = db`, `dbfilter = ^${DB_NAME}$`. Provisioning (`deploy/provision.sh`) validates all three secrets, selects the pinned baked image, then installs and seeds through its guarded entrypoint. The manual backup wrappers do not invoke provisioning.
 
 To back up a Compose customer, the operator must supply **host paths** for
 `pg_dump` output and for `<data_dir>/filestore/<db_name>` after copying or
@@ -152,6 +174,80 @@ The manifest never sets `writer_stop_verified`, `consistency_verified`, or
 - drain sessions or certify quiescence
 - backup `odoo19` / `production` / `postgres`
 - claim encryption, offsite copy, RPO, RTO, or live/stopped consistency
+
+## Restore and verification (`deploy/restore_verify.py`)
+
+Restore a candidate backup into a new scratch database and a new filestore
+directory. Supply absolute paths to the PostgreSQL client tools:
+
+```sh
+ODOO_ROOT=/Users/tariq/code/odoo
+WORKTREE=/Users/tariq/code/nasq/.worktrees/phase-0-reliability
+ODOO_CONF=/absolute/path/to/scratch-only.conf
+# Use a separate scratch config, never the live/upstream config. Disable
+# configured tests and log files; CLI flags below override DB, data and ports.
+export PYTHONDONTWRITEBYTECODE=1
+ODOO_PYTHON="$ODOO_ROOT/.venv/bin/python"
+PGHOST=${PGHOST:-127.0.0.1}; PGPORT=${PGPORT:-5432}; PGUSER=${PGUSER:-tariq}
+# Set PGPASSWORD through the environment when local PostgreSQL auth requires it;
+# do not put a password on an argv list.
+PGBIN=$(dirname "$(command -v pg_dump)"); WORK=$(mktemp -d)
+"$ODOO_PYTHON" "$ODOO_ROOT/odoo-bin" -c "$ODOO_CONF" \
+  --addons-path="$ODOO_ROOT/odoo/addons,$ODOO_ROOT/addons,$WORKTREE/odoo-addons" \
+  --db_host="$PGHOST" --db_port="$PGPORT" --db_user="$PGUSER" \
+  -d nasq_drill_src_scratch --db-filter='^nasq_drill_src_scratch$' \
+  --data-dir="$WORK/data" --without-demo=all \
+  -i nasq_core,nasq_api,nasq_pmo,nasq_hr,nasq_chat \
+  --http-port=8169 --http-interface=127.0.0.1 --workers=0 --max-cron-threads=0 --stop-after-init
+python3 deploy/backup.py --opt-in MANUAL_BACKUP_OPT_IN --acknowledge-unverified CANDIDATE_BACKUP_UNVERIFIED \
+  --db-name nasq_drill_src_scratch --filestore "$WORK/data/filestore/nasq_drill_src_scratch" \
+  --output-dir "$WORK/backup" --pg-dump "$PGBIN/pg_dump" \
+  --pg-host "$PGHOST" --pg-port "$PGPORT" --pg-user "$PGUSER"
+python3 deploy/restore_verify.py --backup-dir "$WORK/backup" --target-db nasq_drill_restored_scratch \
+  --target-filestore "$WORK/restored-data/filestore/nasq_drill_restored_scratch" \
+  --pg-restore "$PGBIN/pg_restore" --createdb "$PGBIN/createdb" --psql "$PGBIN/psql" \
+  --pg-host "$PGHOST" --pg-port "$PGPORT" --pg-user "$PGUSER"; echo exit=$?
+```
+
+Success writes `restore-verification.json` beside the backup with
+`"restore_verified": true` and no missing attachment files. This is a
+separate verification record; the tool never changes `manifest.json`, so its
+capture-time `consistency: "UNVERIFIED"` claim remains unchanged.
+
+Start Odoo against the restored scratch database without `-i`, `-u`, or
+`--stop-after-init`, then check its health endpoint:
+
+```sh
+"$ODOO_PYTHON" "$ODOO_ROOT/odoo-bin" -c "$ODOO_CONF" \
+  --addons-path="$ODOO_ROOT/odoo/addons,$ODOO_ROOT/addons,$WORKTREE/odoo-addons" \
+  --db_host="$PGHOST" --db_port="$PGPORT" --db_user="$PGUSER" \
+  -d nasq_drill_restored_scratch --db-filter='^nasq_drill_restored_scratch$' \
+  --data-dir="$WORK/restored-data" --http-port=8169 --http-interface=127.0.0.1 \
+  --workers=0 --max-cron-threads=0 &
+RESTORED_PID=$!
+sleep 25; curl -fsS -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8169/web/health
+```
+
+The expected response is `200`. Stop only that process with
+`kill "$RESTORED_PID"; wait "$RESTORED_PID"` after the check. Delete one
+SQL-referenced attachment from the candidate filestore and repeat the restore
+into another scratch database to prove the verifier returns exit `1` and names
+the missing file in `missing_attachment_files`:
+
+```sh
+STORE_FNAME=$("$PGBIN/psql" --host="$PGHOST" --port="$PGPORT" --username="$PGUSER" \
+  -d nasq_drill_src_scratch -At \
+  -c "SELECT store_fname FROM ir_attachment WHERE store_fname IS NOT NULL ORDER BY store_fname LIMIT 1")
+test -n "$STORE_FNAME"
+rm -- "$WORK/backup/filestore/$STORE_FNAME"
+python3 deploy/restore_verify.py --backup-dir "$WORK/backup" --target-db nasq_drill_restored2_scratch \
+  --target-filestore "$WORK/restored-data/filestore/nasq_drill_restored2_scratch" \
+  --pg-restore "$PGBIN/pg_restore" --createdb "$PGBIN/createdb" --psql "$PGBIN/psql" \
+  --pg-host "$PGHOST" --pg-port "$PGPORT" --pg-user "$PGUSER"; echo exit=$?
+```
+
+After the drill, drop the three scratch databases created above and remove only
+the temporary `$WORK` directory. Never reuse an existing database or filestore.
 
 ## Unresolved (do not invent answers)
 

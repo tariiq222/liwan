@@ -146,6 +146,12 @@ class TestScratchDbAndPorts(unittest.TestCase):
 
 
 class TestOdooWrapper(unittest.TestCase):
+    def test_nasq_addons_cover_every_shipped_pillar(self) -> None:
+        self.assertEqual(
+            check_isolated.NASQ_ADDONS,
+            ('nasq_core', 'nasq_api', 'nasq_pmo', 'nasq_hr', 'nasq_chat'),
+        )
+
     def test_build_odoo_argv_is_explicit_and_overrides_conf(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

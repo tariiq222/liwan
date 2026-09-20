@@ -27,6 +27,7 @@ git branch --show-current
 
 - [دمج الواجهة والتنظيف والتحقق الجديد](verification/2026-09-12-main-integration-cleanup.md).
 - [تطبيق الواجهة الجديدة](reports/ui-redesign-2026-09-12.md)، [اللون الرئيسي فقط](reports/ui-primary-color-review-2026-09-12.md)، [تنظيف المراجع](verification/2026-09-12-ui-documentation-cleanup.md): تقارير تسليم بتاريخها، وليست سياسات إضافية أو الحالة الحية.
+- [خطة موثوقية Phase 0](superpowers/plans/2026-09-19-phase-0-reliability.md) و[مواصفة نماذج التوزيع](superpowers/specs/2026-09-19-nasq-distribution-models-design.md): سجل التنفيذ المحلي على `codex/phase-0-reliability`؛ وظائف GitHub Actions لم تُشغّل بعد، ولم يحدث دفع أو دمج.
 - نسخة حفظ العمل قبل هذا الدمج: `/Users/tariq/code/nasq-merge-20260912-artifacts`؛ تحتوي Git bundle وملفات المصدر وجرد الفروق وسجلات الاختبارات. لا تُحذف ضمن تنظيف نسخ المهام.
 - `/Users/tariq/code/nasq-security-evidence-20260909` يحتوي بيئة يستخدمها Odoo المحلي؛ لا تحذفه على أنه مجلد أدلة زائد.
 - [أرشيف الواجهة](archive/ui/README.md) و[خريطة العمل السابقة كاملة](archive/ui/workspace-before-2026-09-12.md) يحفظان التاريخ. تقارير قديمة قد تشير إلى فروع ومنافذ وملفات أزيلت؛ تحقق قبل استعادتها أو حذف غيرها.

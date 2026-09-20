@@ -239,16 +239,41 @@ worktrees only after their content is preserved and no process is using them.
 ## Check commands
 
 Run Odoo checks from `/Users/tariq/code/odoo` using a fresh scratch database
-and the selected Nasq worktree's explicit addons path:
+and the selected Nasq worktree's explicit addons path. Use a scratch-only
+config at `/absolute/path/to/scratch-only.conf`; do not use a live config whose
+`data_dir` or `logfile` points inside the read-only Odoo checkout. Keep the
+temporary data and logs outside that checkout, and remove the scratch database,
+temporary data, logs, and scratch-only config after the check:
 
 ```sh
+export PYTHONDONTWRITEBYTECODE=1
 cd /Users/tariq/code/odoo
-.venv/bin/python odoo-bin -c /Users/tariq/code/odoo/odoo.conf \
-  --addons-path=/Users/tariq/code/odoo/addons,/path/to/nasq-worktree/odoo-addons \
-  -d nasq_scratch -i nasq_core,nasq_api,nasq_pmo,nasq_hr \
-  --test-tags /nasq_core,/nasq_api,/nasq_pmo,/nasq_hr \
-  --http-port=8169 --stop-after-init
+ODOO_ROOT=/Users/tariq/code/odoo
+ODOO_PYTHON="$ODOO_ROOT/.venv/bin/python"
+ODOO_CONF=/absolute/path/to/scratch-only.conf
+WORKTREE=/absolute/path/to/nasq-worktree
+SCRATCH_ROOT=$(mktemp -d)
+mkdir -p "$SCRATCH_ROOT/data" "$SCRATCH_ROOT/logs"
+# Set PGHOST, PGPORT, PGUSER, and PGPASSWORD in the environment as needed;
+# never put a password on the command line.
+PGHOST=${PGHOST:-127.0.0.1}; PGPORT=${PGPORT:-5432}; PGUSER=${PGUSER:-tariq}
+"$ODOO_PYTHON" "$ODOO_ROOT/odoo-bin" -c "$ODOO_CONF" \
+  --addons-path="$ODOO_ROOT/odoo/addons,$ODOO_ROOT/addons,$WORKTREE/odoo-addons" \
+  --db_host="$PGHOST" --db_port="$PGPORT" --db_user="$PGUSER" \
+  -d nasq_scratch --db-filter='^nasq_scratch$' \
+  --data-dir="$SCRATCH_ROOT/data" --logfile="$SCRATCH_ROOT/logs/odoo.log" \
+  -i nasq_core,nasq_api,nasq_pmo,nasq_hr,nasq_chat \
+  --test-tags /nasq_core,/nasq_api,/nasq_pmo,/nasq_hr,/nasq_chat \
+  --http-port=8169 --workers=0 --max-cron-threads=0 --stop-after-init
 ```
+
+The CI workflow (`.github/workflows/ci.yml`) has six jobs—`static`, `odoo`,
+`upgrade`, `image`, `restore-drill`, and `e2e-mock`. Each job is runnable
+locally with the same command blocks in that workflow: static checks, explicit
+scratch Odoo install/upgrade commands, the Docker image checks, the backup and
+restore drill, and the mock Playwright run. The migration policy is
+[`docs/migrations.md`](docs/migrations.md), and the pinned Odoo source commit
+is [`deploy/odoo/ODOO_COMMIT`](deploy/odoo/ODOO_COMMIT).
 
 Use `npm test` for contracts and web unit tests, `npm -w apps/web run lint`
 (that is `vue-tsc --build --noEmit`) for the web type check, and

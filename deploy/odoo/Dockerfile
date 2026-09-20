@@ -1,0 +1,45 @@
+# deploy/odoo/Dockerfile — build context: repository root
+FROM python:3.12-slim-bookworm AS base
+ENV PYTHONDONTWRITEBYTECODE=1 PIP_NO_CACHE_DIR=1
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      libpq5 libldap-2.5-0 libsasl2-2 libxml2 libxslt1.1 libjpeg62-turbo \
+      fonts-noto-core wkhtmltopdf postgresql-client \
+    && rm -rf /var/lib/apt/lists/*
+
+FROM base AS build
+ARG ODOO_COMMIT
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      git ca-certificates build-essential libpq-dev libldap2-dev libsasl2-dev \
+    && rm -rf /var/lib/apt/lists/*
+RUN test -n "$ODOO_COMMIT" \
+    && git init -q /opt/odoo && cd /opt/odoo \
+    && git fetch -q --depth 1 https://github.com/odoo/odoo.git "$ODOO_COMMIT" \
+    && git checkout -q FETCH_HEAD && rm -rf .git
+COPY deploy/odoo/requirements-python312-linux.txt /tmp/requirements.txt
+RUN python -m venv /opt/venv && /opt/venv/bin/pip install -r /tmp/requirements.txt
+
+FROM base
+ARG ODOO_COMMIT
+ARG NASQ_REVISION=unknown
+LABEL sa.nasq.revision=$NASQ_REVISION sa.nasq.odoo-commit=$ODOO_COMMIT
+COPY --from=build /opt/odoo /opt/odoo
+COPY --from=build /opt/venv /opt/venv
+COPY odoo-addons /opt/nasq/addons
+COPY deploy/security/odoo_secure.py /opt/nasq/odoo_secure.py
+COPY deploy/odoo/entrypoint.sh /usr/local/bin/nasq-odoo
+RUN chmod 0755 /usr/local/bin/nasq-odoo \
+    && useradd --system --uid 10001 --home-dir /var/lib/odoo --create-home odoo \
+    && chmod -R a-w /opt/odoo /opt/nasq
+ARG TARGETARCH
+COPY deploy/odoo/vendor/wkhtmltox_0.12.6.1-3.bookworm_${TARGETARCH}.deb /tmp/wkhtmltox/
+COPY deploy/odoo/vendor/SHA256SUMS /tmp/wkhtmltox/
+RUN cd /tmp/wkhtmltox \
+    && sha256sum -c --ignore-missing SHA256SUMS \
+    && apt-get update \
+    && apt-get remove -y wkhtmltopdf \
+    && apt-get install -y --no-install-recommends "./wkhtmltox_0.12.6.1-3.bookworm_${TARGETARCH}.deb" \
+    && rm -rf /tmp/wkhtmltox /var/lib/apt/lists/*
+USER odoo
+VOLUME /var/lib/odoo
+EXPOSE 8069 8072
+ENTRYPOINT ["nasq-odoo"]
