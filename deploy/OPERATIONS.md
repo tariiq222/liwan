@@ -80,8 +80,8 @@ python3 deploy/check_isolated.py odoo \
   --scratch-db nasq_scratch_example \
   --scratch-lifecycle CREATE_NEW_SCRATCH \
   --http-port 8169 \
-  --modules nasq_core,nasq_api,nasq_pmo,nasq_hr \
-  --test-tags /nasq_core,/nasq_api,/nasq_pmo,/nasq_hr
+  --modules nasq_core,nasq_platform,nasq_api,nasq_pmo,nasq_hr,nasq_chat \
+  --test-tags /nasq_core,/nasq_platform,/nasq_api,/nasq_pmo,/nasq_hr,/nasq_chat
 
 python3 deploy/check_isolated.py e2e \
   --worktree /absolute/worktree \
@@ -197,7 +197,7 @@ PGBIN=$(dirname "$(command -v pg_dump)"); WORK=$(mktemp -d)
   --db_host="$PGHOST" --db_port="$PGPORT" --db_user="$PGUSER" \
   -d nasq_drill_src_scratch --db-filter='^nasq_drill_src_scratch$' \
   --data-dir="$WORK/data" --without-demo=all \
-  -i nasq_core,nasq_api,nasq_pmo,nasq_hr,nasq_chat \
+  -i nasq_core,nasq_platform,nasq_api,nasq_pmo,nasq_hr,nasq_chat \
   --http-port=8169 --http-interface=127.0.0.1 --workers=0 --max-cron-threads=0 --stop-after-init
 python3 deploy/backup.py --opt-in MANUAL_BACKUP_OPT_IN --acknowledge-unverified CANDIDATE_BACKUP_UNVERIFIED \
   --db-name nasq_drill_src_scratch --filestore "$WORK/data/filestore/nasq_drill_src_scratch" \

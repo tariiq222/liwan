@@ -6,7 +6,9 @@
 nasq (نَسَق) is a resellable project and task management product on Odoo 19
 CE. Odoo is the engine and `apps/web` (Nuxt 4) is the customer UI. Each
 customer has an independent deployment, database, Odoo instance, and frontend;
-there is no shared tenant layer. Customer-specific behavior belongs in a
+Nasq has a tenant abstraction through nasq_platform,
+but tenant isolation remains database-per-tenant.
+There is no shared-database tenant layer. Customer-specific behavior belongs in a
 `customer_<name>_*` overlay, never in the core pillars. See
 `docs/superpowers/specs/2026-09-03-nasq-platform-design.md` for the platform
 direction.
@@ -14,6 +16,7 @@ direction.
 ## Repository layout
 
 - `odoo-addons/nasq_core` owns the capability catalog, roles, assignments, access audit, migration and identity protection.
+- `odoo-addons/nasq_platform` owns the tenant profile singleton and `root_company_id`.
 - `odoo-addons/nasq_api` owns shared `/api/v1` plumbing, common serializers,
   authentication, branding, and the shared test fixture. It does not import a
   pillar.
@@ -262,8 +265,8 @@ PGHOST=${PGHOST:-127.0.0.1}; PGPORT=${PGPORT:-5432}; PGUSER=${PGUSER:-tariq}
   --db_host="$PGHOST" --db_port="$PGPORT" --db_user="$PGUSER" \
   -d nasq_scratch --db-filter='^nasq_scratch$' \
   --data-dir="$SCRATCH_ROOT/data" --logfile="$SCRATCH_ROOT/logs/odoo.log" \
-  -i nasq_core,nasq_api,nasq_pmo,nasq_hr,nasq_chat \
-  --test-tags /nasq_core,/nasq_api,/nasq_pmo,/nasq_hr,/nasq_chat \
+  -i nasq_core,nasq_platform,nasq_api,nasq_pmo,nasq_hr,nasq_chat \
+  --test-tags /nasq_core,/nasq_platform,/nasq_api,/nasq_pmo,/nasq_hr,/nasq_chat \
   --http-port=8169 --workers=0 --max-cron-threads=0 --stop-after-init
 ```
 
@@ -290,7 +293,7 @@ run tests against the dev `odoo19` database.
 The global `~/.npmrc` may be malformed. Use `npm ci --ignore-scripts` and never
 edit that file. Use `rg` and targeted file reads for code search across Odoo and Nasq addons.
 
-New collaboration endpoints currently require the current company. Legacy
-company-less collaboration compatibility is awaiting explicit authorization;
-existing baseline record rules are unchanged. New Nasq projects use the current
-company and explicit foreign-company projects/tasks remain excluded.
+New collaboration endpoints require the current company. Company-less
+projects and tasks are not visible after the Phase 1 backfill; isolation is
+database-per-tenant with `nasq_platform.root_company_id`. Addon versions follow
+[`docs/migrations.md`](docs/migrations.md).

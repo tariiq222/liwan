@@ -238,7 +238,9 @@ class TestProjectReports(NasqPmoCase):
         foreign = self.env['project.project'].create({
             'company_id': company_b.id, 'name': 'Foreign dashboard project',
         })
-        companyless = self.env['project.project'].create({'name': 'Companyless dashboard project'})
+        companyless = self.env['project.project'].create({
+            'name': 'Companyless dashboard project', 'company_id': False,
+        })
         self.authenticate('api_emp', 'api_emp_pass_123')
         body = self.api('GET', SUMMARY_URL).json()
         ids = {item['project']['id'] for item in body['attention']}
@@ -337,7 +339,9 @@ class TestProjectReports(NasqPmoCase):
         foreign = self.env['project.project'].create({
             'name': 'Foreign analytics project', 'company_id': company_b.id,
         })
-        companyless = self.env['project.project'].create({'name': 'Companyless analytics project'})
+        companyless = self.env['project.project'].create({
+            'name': 'Companyless analytics project', 'company_id': False,
+        })
 
         self.authenticate('api_emp', 'api_emp_pass_123')
         body = self.api('GET', ANALYTICS_URL).json()

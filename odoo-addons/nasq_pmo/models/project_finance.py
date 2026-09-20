@@ -126,6 +126,7 @@ def _validate_text_field(value, max_len, label, env):
 class NasqProjectFinanceEntry(models.Model):
     _name = 'nasq.project.finance.entry'
     _description = 'Nasq Project Finance Entry'
+    _nasq_scope = 'company'
     _order = 'id desc'
     _rec_name = 'title'
 

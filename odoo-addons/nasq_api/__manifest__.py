@@ -6,9 +6,9 @@
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
     'license': 'LGPL-3',
-    # Shared plumbing only: nasq_core for the role groups serializers/user.py reads,
+    # Shared plumbing only: nasq_platform for the tenant profile branding reads,
     # auth_totp for controllers/auth.py's MFA step. No pillar addon may be depended on.
-    'depends': ['nasq_core', 'auth_totp'],
+    'depends': ['nasq_platform', 'auth_totp'],
     'data': [
         'security/ir.model.access.csv',
         'security/branding_rules.xml',

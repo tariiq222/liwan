@@ -163,6 +163,9 @@ class NasqResUsers(models.Model):
             self.modified(['nasq_access_version'])
 
     def _nasq_sync_capability_groups(self):
+        # Groups are not company-scoped in Odoo. Union across the user's
+        # companies is intentional; isolation is ir.rule + _nasq_scope=company
+        # (see test_record_rule_coverage).
         Permission = self.env['nasq.access.permission']
         service = self.env['nasq.access.service']
         all_permission_groups = self.env['res.groups']

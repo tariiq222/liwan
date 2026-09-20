@@ -32,6 +32,21 @@ class TestBrandingEndpoint(HttpCase):
         res = self.url_open('/api/v1/branding')
         self.assertEqual(res.json()['primary_color'], '#18181b')
 
+    def test_branding_uses_root_company_not_lowest_id(self):
+        decoy = self.env.ref('base.main_company')
+        decoy.write({'name': 'Decoy', 'primary_color': '#111111'})
+        root = self.env['res.company'].create({
+            'name': 'Root Brand', 'primary_color': '#00aa00',
+        })
+        self.env.ref('nasq_platform.tenant_profile').root_company_id = root
+        res = self.url_open('/api/v1/branding')
+        self.assertEqual(res.status_code, 200)
+        body = res.json()
+        self.assertEqual(body['name'], 'Root Brand')
+        self.assertEqual(body['primary_color'], '#00aa00')
+        self.assertNotEqual(body['name'], decoy.name)
+        self.assertGreater(root.id, decoy.id)
+
 
 def image_base64(image_format):
     stream = BytesIO()

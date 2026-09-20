@@ -100,6 +100,7 @@ class NasqPmoSettings(models.AbstractModel):
     """
     _name = 'nasq.pmo.settings'
     _description = 'nasq project policies'
+    _nasq_scope = 'global'
 
     def _params(self):
         return self.env['ir.config_parameter'].sudo()

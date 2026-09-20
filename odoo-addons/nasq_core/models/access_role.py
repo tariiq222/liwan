@@ -8,6 +8,7 @@ from odoo.exceptions import AccessError, ValidationError
 class NasqAccessRole(models.Model):
     _name = 'nasq.access.role'
     _description = 'Nasq Access Role'
+    _nasq_scope = 'company'
     _order = 'type, name_ar, id'
 
     key = fields.Char(required=True, index=True)

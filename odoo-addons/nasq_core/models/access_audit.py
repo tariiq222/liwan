@@ -21,6 +21,7 @@ def _assert_safe(value):
 class NasqAccessAudit(models.Model):
     _name = 'nasq.access.audit'
     _description = 'Nasq Access Audit Event'
+    _nasq_scope = 'company'
     _order = 'id desc'
 
     company_id = fields.Many2one('res.company', required=True, index=True, ondelete='cascade')

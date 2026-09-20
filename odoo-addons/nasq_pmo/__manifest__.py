@@ -2,7 +2,7 @@
 {
     'name': 'nasq PMO',
     'summary': 'nasq platform: the project pillar — /api/v1 tasks, timeline, projects (status, stages), people',
-    'version': '19.0.1.0.0',
+    'version': '19.0.1.1.0',
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
     'license': 'LGPL-3',

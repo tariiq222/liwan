@@ -12,6 +12,7 @@ ACCESS_USER_WRITE_MARKER = 'nasq_core.access_user_write'
 class NasqHrDocument(models.Model):
     _name = 'nasq.hr.document'
     _description = 'HR Document'
+    _nasq_scope = 'company'
     _check_company_auto = True
 
     name = fields.Char(required=True)

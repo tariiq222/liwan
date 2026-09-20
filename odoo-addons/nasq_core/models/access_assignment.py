@@ -6,6 +6,7 @@ from odoo.exceptions import AccessError, ValidationError
 class NasqAccessAssignment(models.Model):
     _name = 'nasq.access.assignment'
     _description = 'Nasq Access Assignment'
+    _nasq_scope = 'company'
     _order = 'user_id, role_id, company_id'
     _check_company_auto = True
 

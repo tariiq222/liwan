@@ -188,7 +188,7 @@ class ProjectProject(models.Model):
         if not self:
             return self
         if any(
-            project.company_id and project.company_id != self.env.company
+            not project.company_id or project.company_id != self.env.company
             for project in self
         ):
             raise AccessError(self.env._("Project is outside the current company."))
@@ -267,6 +267,7 @@ class ProjectProject(models.Model):
         prepared = []
         for vals in vals_list:
             vals = dict(vals)
+            vals.setdefault('company_id', self.env.company.id)
             if public:
                 if (
                     set(vals) - PROJECT_CREATE_FIELDS

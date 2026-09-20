@@ -49,9 +49,9 @@
         "--http-port",
         "REPLACE_WITH_NONDEFAULT_ODOO_HTTP_PORT",
         "--modules",
-        "nasq_core,nasq_api,nasq_pmo,nasq_hr",
+        "nasq_core,nasq_platform,nasq_api,nasq_pmo,nasq_hr,nasq_chat",
         "--test-tags",
-        "/nasq_core,/nasq_api,/nasq_pmo,/nasq_hr"
+        "/nasq_core,/nasq_platform,/nasq_api,/nasq_pmo,/nasq_hr,/nasq_chat"
       ]
     },
     {

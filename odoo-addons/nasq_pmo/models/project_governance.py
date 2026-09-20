@@ -131,9 +131,11 @@ class ProjectStakeholder(models.Model):
     _name = 'nasq.project.stakeholder'
     _inherit = 'nasq.governance.visibility'
     _description = 'Project stakeholder'
+    _nasq_scope = 'company'
     _order = 'name, id'
 
     project_id = fields.Many2one('project.project', required=True, ondelete='cascade', index=True)
+    company_id = fields.Many2one(related='project_id.company_id', store=True, index=True)
     name = fields.Char(required=True)
     user_id = fields.Many2one('res.users', ondelete='set null', index=True)
     organization = fields.Char(default='')
@@ -203,9 +205,11 @@ class ProjectRaci(models.Model):
     _inherit = 'nasq.governance.visibility'
     _nasq_governance_task_mode = 'required'
     _description = 'Project RACI assignment'
+    _nasq_scope = 'company'
     _order = 'task_id, stakeholder_id, id'
 
     project_id = fields.Many2one('project.project', required=True, ondelete='cascade', index=True)
+    company_id = fields.Many2one(related='project_id.company_id', store=True, index=True)
     task_id = fields.Many2one('project.task', required=True, ondelete='cascade', index=True)
     stakeholder_id = fields.Many2one('nasq.project.stakeholder', required=True, ondelete='restrict', index=True)
     role = fields.Selection([(value, value) for value in GOVERNANCE_ROLES], required=True)
@@ -318,9 +322,11 @@ class ProjectRegister(models.Model):
     _inherit = 'nasq.governance.visibility'
     _nasq_governance_task_mode = 'optional'
     _description = 'Project risk and issue register item'
+    _nasq_scope = 'company'
     _order = 'priority, due_date, id'
 
     project_id = fields.Many2one('project.project', required=True, ondelete='cascade', index=True)
+    company_id = fields.Many2one(related='project_id.company_id', store=True, index=True)
     kind = fields.Selection([('risk', 'Risk'), ('issue', 'Issue')], required=True, index=True)
     title = fields.Char(required=True)
     description = fields.Text(default='')

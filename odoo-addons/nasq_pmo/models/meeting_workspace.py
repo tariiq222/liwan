@@ -14,6 +14,7 @@ def workspace_write_context():
 class NasqMeetingMinutesVersion(models.Model):
     _name = 'nasq.meeting.minutes.version'
     _description = 'Immutable meeting minutes version'
+    _nasq_scope = 'company'
     _order = 'captured_at desc, id desc'
     _check_company_auto = True
 
@@ -42,6 +43,7 @@ class NasqMeetingMinutesVersion(models.Model):
 class NasqMeetingEvent(models.Model):
     _name = 'nasq.meeting.event'
     _description = 'Meeting activity event'
+    _nasq_scope = 'company'
     _order = 'occurred_at desc, id desc'
     _check_company_auto = True
 

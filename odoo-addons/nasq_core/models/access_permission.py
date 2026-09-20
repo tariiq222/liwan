@@ -5,6 +5,7 @@ from odoo import api, fields, models
 class NasqAccessPermission(models.Model):
     _name = 'nasq.access.permission'
     _description = 'Nasq Access Permission'
+    _nasq_scope = 'tenant'
     _order = 'key'
 
     key = fields.Char(required=True, index=True)

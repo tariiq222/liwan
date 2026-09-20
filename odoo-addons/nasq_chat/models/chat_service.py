@@ -14,6 +14,7 @@ MAX_LIMIT = 50
 class NasqChatService(models.AbstractModel):
     _name = 'nasq.chat.service'
     _description = 'Nasq Chat Service'
+    _nasq_scope = 'global'
 
     @api.model
     def _nasq_require_chat_access(self):

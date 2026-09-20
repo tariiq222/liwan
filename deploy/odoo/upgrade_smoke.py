@@ -8,6 +8,8 @@ unsettled = Module.search([('state', 'in', ('to upgrade', 'to install', 'to remo
 problems = [f'{m.name} state={m.state}' for m in unsettled]
 if not installed:
     problems.append('no nasq module is installed')
+if not installed.filtered(lambda module: module.name == 'nasq_platform'):
+    problems.append('nasq_platform is not installed')
 for problem in problems:
     print(f'UPGRADE_SMOKE_FAIL {problem}')
 print('UPGRADE_SMOKE_FAILED' if problems else f'UPGRADE_SMOKE_OK installed={len(installed)}')

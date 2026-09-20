@@ -71,6 +71,7 @@ class NasqAccessRule(AccessError, ValidationError):
 class NasqAccessService(models.AbstractModel):
     _name = 'nasq.access.service'
     _description = 'Nasq Access Service'
+    _nasq_scope = 'global'
 
     @api.model
     def _nasq_identity_management_state(self, user):

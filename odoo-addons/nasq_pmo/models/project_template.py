@@ -176,6 +176,7 @@ def _template_offset_date(start, offset, label):
 class ProjectTemplate(models.Model):
     _name = 'nasq.project.template'
     _description = 'Nasq reusable project template'
+    _nasq_scope = 'company'
     _order = 'name, id'
     _check_company_auto = True
 

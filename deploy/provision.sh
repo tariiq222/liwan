@@ -89,7 +89,7 @@ docker compose exec -T db pg_isready -U odoo >/dev/null 2>&1 || { echo "db not r
 
 # Every pillar must be listed explicitly: pillars depend on nasq_api, not the other way round.
 docker compose run --rm -v "$PWD/data/odoo.conf:/etc/odoo/odoo.conf:ro" odoo \
-  -d "$DB_NAME" -i nasq_core,nasq_api,nasq_pmo,nasq_hr,nasq_chat,web_theme_shadcn --stop-after-init
+  -d "$DB_NAME" -i nasq_core,nasq_platform,nasq_api,nasq_pmo,nasq_hr,nasq_chat,web_theme_shadcn --stop-after-init
 docker compose run --rm -T -e VENDOR_PASSWORD -v "$PWD/data/odoo.conf:/etc/odoo/odoo.conf:ro" -v "$PWD/data/seed:/seed:ro" odoo \
   shell -d "$DB_NAME" --no-http < data/seed/seed_branding.py
 docker compose up -d

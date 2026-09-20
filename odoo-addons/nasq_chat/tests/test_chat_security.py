@@ -149,3 +149,15 @@ class TestChatSecurity(NasqApiCase):
             'body': 'managed chat message',
         })
         self.assertEqual(sent.status_code, 201)
+
+    def test_member_cannot_read_channel_after_switching_company(self):
+        conversation = self._direct()
+        path = f"/api/v1/chat/conversations/{conversation['id']}"
+        company_b = self.env['res.company'].create({'name': 'Chat company B'})
+        self.employee.sudo().write({
+            'company_ids': [(4, company_b.id)],
+            'company_id': company_b.id,
+        })
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        denied = self.api('GET', path)
+        self.assertIn(denied.status_code, (403, 404), denied.text)

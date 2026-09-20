@@ -5,4 +5,6 @@ from . import (
     test_access_security,
     test_groups,
     test_meeting_access,
+    test_nasq_scope,
+    test_record_rule_coverage,
 )

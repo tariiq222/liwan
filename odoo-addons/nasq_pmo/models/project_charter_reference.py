@@ -174,6 +174,7 @@ class NasqProjectCharterCatalogMixin(models.AbstractModel):
 class NasqProjectType(models.Model):
     _name = 'nasq.project.type'
     _description = 'Nasq project type'
+    _nasq_scope = 'company'
     _inherit = ['nasq.project.charter.catalog.mixin']
 
     seed_key = fields.Char(copy=False, index=True)
@@ -233,6 +234,7 @@ class NasqProjectType(models.Model):
 class NasqProjectOwningUnit(models.Model):
     _name = 'nasq.project.owning.unit'
     _description = 'Nasq project owning unit'
+    _nasq_scope = 'company'
     _inherit = ['nasq.project.charter.catalog.mixin']
 
     def _nasq_usage_field(self):

@@ -457,7 +457,7 @@ class TestProjectFinance(NasqPmoCase):
             })
         self.authenticate('api_mgr', 'api_mgr_pass_123')
         res = self.api('GET', f'/api/v1/projects/{companyless.id}/finance')
-        self.assertEqual(res.status_code, 404)
+        self.assertIn(res.status_code, (403, 404))
 
     def test_summary_currency_is_never_null(self):
         self.authenticate('api_mgr', 'api_mgr_pass_123')

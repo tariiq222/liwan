@@ -7,6 +7,7 @@ from . import (
     access_service,
     ir_attachment,
     meeting_access,
+    nasq_model,
     res_company,
     res_partner,
     res_users,

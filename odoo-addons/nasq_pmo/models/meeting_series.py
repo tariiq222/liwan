@@ -15,6 +15,7 @@ MAX_OCCURRENCES = 60
 class NasqMeetingSeries(models.Model):
     _name = 'nasq.meeting.series'
     _description = 'Meeting series'
+    _nasq_scope = 'company'
     _order = 'name, id'
     _check_company_auto = True
 
