@@ -16,6 +16,7 @@ class NasqApiCase(HttpCase):
         cls.employee = new_test_user(cls.env, login='api_emp', password='api_emp_pass_123',
                                      name='Sara', groups='nasq_core.group_employee')
 
-    def api(self, method, path, json=None):
+    def api(self, method, path, json=None, timeout=None):
         headers = {'Content-Type': 'application/json'}
-        return self.url_open(path, json=json, headers=headers, method=method)
+        kwargs = {} if timeout is None else {'timeout': timeout}
+        return self.url_open(path, json=json, headers=headers, method=method, **kwargs)

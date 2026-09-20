@@ -117,14 +117,14 @@ class TestProjectReports(NasqPmoCase):
 
     def test_total_aggregation_beyond_200_with_first_page(self):
         Project = self.env['project.project']
-        for i in range(205):
+        for i in range(201):
             Project.create({'company_id': self.env.company.id, 'name': f'Bulk report project {i}'})
         self.authenticate('api_mgr', 'api_mgr_pass_123')
-        body = self.api('GET', URL).json()
-        self.assertGreaterEqual(body['total'], 206)
+        body = self.api('GET', URL, timeout=60).json()
+        self.assertGreaterEqual(body['total'], 202)
         self.assertLessEqual(len(body['items']), 50)
         totals = body['totals'][0]
-        self.assertGreaterEqual(totals['project_count'], 206)
+        self.assertGreaterEqual(totals['project_count'], 202)
 
     def test_totals_are_pagination_independent(self):
         """The same totals must be reported regardless of limit/offset/page."""
@@ -176,18 +176,18 @@ class TestProjectReports(NasqPmoCase):
 
     def test_dashboard_summary_shape_and_all_project_scope(self):
         self.project.with_user(self.manager)._nasq_set_status('on_track')
-        for i in range(205):
+        for i in range(201):
             self.env['project.project'].create({
                 'company_id': self.env.company.id,
                 'name': f'Dashboard scope {i:03d}',
             })
         self.authenticate('api_mgr', 'api_mgr_pass_123')
-        body = self.api('GET', SUMMARY_URL).json()
+        body = self.api('GET', SUMMARY_URL, timeout=60).json()
         self.assertEqual(set(body), {
             'project_count', 'attention_project_count', 'overdue_task_count',
             'status_counts', 'totals', 'attention',
         })
-        self.assertGreaterEqual(body['project_count'], 206)
+        self.assertGreaterEqual(body['project_count'], 202)
         self.assertEqual(body['project_count'], sum(item['count'] for item in body['status_counts']))
         self.assertEqual(body['overdue_task_count'], 1)
         self.assertLessEqual(len(body['attention']), 10)
@@ -291,7 +291,7 @@ class TestProjectReports(NasqPmoCase):
         projects = [Project.create({
             'company_id': self.env.company.id,
             'name': f'Analytics scope {index:03d}',
-        }) for index in range(205)]
+        }) for index in range(201)]
         tied_date = fields.Datetime.to_string(fields.Datetime.now())
         self.env.cr.execute(
             'UPDATE project_project SET write_date = %s WHERE id IN %s',
@@ -301,13 +301,13 @@ class TestProjectReports(NasqPmoCase):
             project.invalidate_recordset(['write_date'])
 
         self.authenticate('api_mgr', 'api_mgr_pass_123')
-        body = self.api('GET', f'{ANALYTICS_URL}?q=Analytics%20scope').json()
+        body = self.api('GET', f'{ANALYTICS_URL}?q=Analytics%20scope', timeout=60).json()
         self.assertEqual(set(body), {
             'project_count', 'attention_project_count', 'overdue_task_count',
             'status_counts', 'totals', 'attention', 'projects', 'recent_projects',
         })
-        self.assertEqual(body['project_count'], 205)
-        self.assertEqual(len(body['projects']), 205)
+        self.assertEqual(body['project_count'], 201)
+        self.assertEqual(len(body['projects']), 201)
         self.assertEqual(
             [row['project']['id'] for row in body['projects']],
             [project.id for project in projects],

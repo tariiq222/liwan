@@ -196,7 +196,9 @@ class TestProjectGovernance(NasqPmoCase):
         self.authenticate('api_mgr', 'api_mgr_pass_123')
         hidden = self.env['project.project'].create({'name': 'Hidden company-less', 'company_id': False})
         for resource in ('stakeholders', 'raci', 'register'):
-            self.assertIn(self.api('GET', f'/api/v1/projects/{hidden.id}/{resource}').status_code, (403, 404))
+            denied = self.api('GET', f'/api/v1/projects/{hidden.id}/{resource}')
+            self.assertEqual(denied.status_code, 403)
+            self.assertEqual(denied.json()['code'], 'forbidden')
 
     def test_all_models_reject_foreign_company_and_mismatched_parents(self):
         other_company = self.env['res.company'].create({'name': 'Foreign governance company'})

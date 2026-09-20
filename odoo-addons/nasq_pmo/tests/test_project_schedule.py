@@ -128,7 +128,7 @@ class TestProjectSchedule(NasqPmoCase):
         self.assertIn(response.status_code, (403, 404), response.text)
         foreign = self.env['project.project'].create({'name': 'Foreign', 'company_id': False})
         response = self.api('GET', f'/api/v1/projects/{foreign.id}/schedule')
-        self.assertIn(response.status_code, (403, 404), response.text)
+        self.assertEqual(response.status_code, 403, response.text)
         company_b = self.env['res.company'].create({'name': 'Schedule foreign company'})
         foreign_company = self.env['project.project'].create({
             'name': 'Foreign company schedule', 'company_id': company_b.id,
