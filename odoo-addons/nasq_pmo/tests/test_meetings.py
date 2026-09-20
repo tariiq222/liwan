@@ -465,16 +465,21 @@ class TestMeetingsApi(NasqPmoCase):
         self.authenticate('api_emp', 'api_emp_pass_123')
         body = self.api('GET', '/api/v1/notifications').json()
         meeting_items = [item for item in body['items'] if item.get('meeting_id')]
+        assignment_items = [item for item in body['items'] if item.get('task_id')]
         self.assertEqual({item['meeting_id'] for item in meeting_items}, {visible.id, second.id})
-        self.assertGreaterEqual(body['unread_count'], 2)
+        # The shared fixture project is now current-company, so the employee's
+        # two assigned fixture tasks also notify. Meetings stay exactly two.
+        self.assertEqual(len(assignment_items), 2)
+        self.assertEqual((body['total'], body['unread_count']), (4, 4))
         row_id = by_meeting[visible.id].id
         self.assertEqual(self.api('POST', f'/api/v1/notifications/{row_id}/read', {}).json(), {'updated': 1})
         self.assertEqual(self.api('POST', f'/api/v1/notifications/{row_id}/read', {}).json(), {'updated': 0})
         read = self.api('GET', '/api/v1/notifications?unread=false').json()
-        self.assertTrue(any(item.get('meeting_id') == visible.id for item in read['items']))
+        self.assertEqual((read['total'], read['unread_count']), (1, 3))
+        self.assertEqual([item['meeting_id'] for item in read['items']], [visible.id])
         for meeting in (hidden, foreign):
             self.assertEqual(self.api('POST', f'/api/v1/notifications/{by_meeting[meeting.id].id}/read', {}).status_code, 404)
-        self.assertGreaterEqual(self.api('POST', '/api/v1/notifications/read-all', {}).json()['updated'], 1)
+        self.assertEqual(self.api('POST', '/api/v1/notifications/read-all', {}).json(), {'updated': 3})
         self.assertEqual(self.api('POST', '/api/v1/notifications/read-all', {}).json(), {'updated': 0})
         for meeting in (hidden, foreign):
             by_meeting[meeting.id].invalidate_recordset(['is_read'])
@@ -482,6 +487,7 @@ class TestMeetingsApi(NasqPmoCase):
         visible.write({'attendee_ids': [(6, 0, [])]})
         second.write({'active': False})
         remaining = self.api('GET', '/api/v1/notifications').json()
+        self.assertEqual((remaining['total'], remaining['unread_count']), (2, 0))
         self.assertFalse([item for item in remaining['items'] if item.get('meeting_id')])
         self.assertEqual(self.api('POST', f'/api/v1/notifications/{row_id}/read', {}).status_code, 404)
         self.authenticate('api_mgr', 'api_mgr_pass_123')

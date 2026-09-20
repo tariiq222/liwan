@@ -17,6 +17,10 @@ class NasqTenantProfile(models.Model):
         'UNIQUE(singleton_key)',
         'nasq tenant profile is a singleton',
     )
+    _singleton_key = models.Constraint(
+        "CHECK(singleton_key = 'tenant')",
+        "nasq tenant profile only accepts the 'tenant' key",
+    )
 
     @api.model
     def _nasq_xmlid_vals(self, profile):

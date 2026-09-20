@@ -7,10 +7,13 @@
     'author': 'Tariq Alwalidi',
     'license': 'LGPL-3',
     # nasq_api: shared api_handler/ApiError + the iso() serializer helper + NasqApiCase.
+    # nasq_platform: the pre-backfill migration reads nasq.tenant.profile, and a
+    # `-u nasq_pmo` must install it directly instead of relying on the caller to
+    # upgrade nasq_api as well.
     # project: _inherit'd model and CLOSED_STATES. hr: hr.employee.public in
     # controllers/people.py. mail: message_post / _message_post_after_hook in the
     # timeline. bus: bus.bus in the task notifier.
-    'depends': ['nasq_api', 'project', 'hr', 'mail', 'bus', 'cyan_meeting_minutes'],
+    'depends': ['nasq_api', 'nasq_platform', 'project', 'hr', 'mail', 'bus', 'cyan_meeting_minutes'],
     'data': [
         'security/project_finance_rules.xml',
         'security/ir.model.access-finance.csv',

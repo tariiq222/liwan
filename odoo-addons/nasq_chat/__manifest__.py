@@ -6,9 +6,11 @@
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
     'license': 'LGPL-3',
-    # nasq_api: api_handler/ApiError and iso(). mail: discuss.channel, message_post.
+    # nasq_api: api_handler/ApiError and iso(). nasq_platform: the post-migration
+    # and post-install backfills read nasq.tenant.profile, so `-u nasq_chat` must
+    # install it directly. mail: discuss.channel, message_post.
     # Channels are company-scoped; isolation is a global ir.rule plus stored company_id.
-    'depends': ['nasq_api', 'mail'],
+    'depends': ['nasq_api', 'nasq_platform', 'mail'],
     'data': [
         'security/chat_rules.xml',
     ],
