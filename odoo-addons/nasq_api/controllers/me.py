@@ -17,6 +17,7 @@ from odoo.addons.nasq_api.serializers.user import dump_me
 class MeController(http.Controller):
 
     @http.route('/api/v1/me', type='json2', auth='user', methods=['GET'], readonly=True)
+    @api_handler
     def me(self):
         return dump_me(request.env.user)
 

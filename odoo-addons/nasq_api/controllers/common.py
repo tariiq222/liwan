@@ -48,6 +48,7 @@ def api_handler(func):
             # so Odoo would otherwise commit mutations performed before the error.
             # Catch outside the savepoint to guarantee an atomic request operation.
             with request.env.cr.savepoint():
+                request.env['nasq.entitlement.service'].sudo()._nasq_guard_api()
                 return func(*args, **kwargs)
         except ApiError as e:
             return error_response(e.status, e.code, e.message, e.field, e.details)

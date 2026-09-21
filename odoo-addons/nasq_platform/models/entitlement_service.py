@@ -2,7 +2,8 @@
 from datetime import datetime, timezone
 
 from odoo import api, models
-from odoo.exceptions import AccessError, UserError, ValidationError
+from odoo.exceptions import AccessDenied, AccessError, UserError, ValidationError
+from odoo.http import request
 
 from odoo.addons.nasq_core.models.access_service import NasqAccessRule
 
@@ -58,6 +59,67 @@ class NasqEntitlementService(models.AbstractModel):
         if valid_until and valid_until < self._nasq_utc_today():
             return 'expired'
         return 'active'
+
+    @api.model
+    def _nasq_is_support_user(self, user=None):
+        user = user or self.env.user
+        if not user or not user.id:
+            return False
+        group = self.env.ref('nasq_core.group_vendor_support')
+        self.env.cr.execute(
+            'SELECT 1 FROM res_groups_users_rel WHERE uid = %s AND gid = %s',
+            [user.id, group.id],
+        )
+        return bool(self.env.cr.fetchone())
+
+    @api.model
+    def _nasq_support_login_allowed(self, user=None):
+        user = user or self.env.user
+        if not self._nasq_is_support_user(user) or not user.active:
+            return False
+        return bool(self._nasq_profile().support_access_enabled)
+
+    @api.model
+    def _nasq_assert_login_allowed(self, user):
+        if self._nasq_is_support_user(user) and not self._nasq_support_login_allowed(user):
+            raise AccessDenied()
+        if self._nasq_effective_state() == 'suspended' and not self._nasq_support_login_allowed(user):
+            raise AccessDenied()
+        return True
+
+    @api.model
+    def _nasq_session_forbidden(self, user=None):
+        user = user or self.env.user
+        if not user or user._is_public():
+            return False
+        if self._nasq_is_support_user(user) and not self._nasq_support_login_allowed(user):
+            return True
+        return (
+            self._nasq_effective_state() == 'suspended'
+            and not self._nasq_support_login_allowed(user)
+        )
+
+    @api.model
+    def _nasq_api_write_allowed(self, path):
+        return path in {'/api/v1/me/password', '/api/v1/auth/totp'}
+
+    @api.model
+    def _nasq_guard_api(self):
+        user = self.env.user
+        if not user or user._is_public():
+            return True
+        path = request.httprequest.path
+        method = (request.httprequest.method or 'GET').upper()
+        write = method not in {'GET', 'HEAD', 'OPTIONS'} and not self._nasq_api_write_allowed(path)
+        if path == '/api/v1/auth/totp':
+            return True
+        if self._nasq_session_forbidden(user):
+            if request and request.session:
+                request.session.logout(keep_db=True)
+            code = 'tenant_suspended'
+            raise NasqAccessRule(code, 'this tenant is suspended', status=403)
+        self._nasq_assert_lifecycle(write=write)
+        return True
 
     @api.model
     def _nasq_installed_modules(self):
@@ -128,6 +190,11 @@ class NasqEntitlementService(models.AbstractModel):
     def _nasq_assert_lifecycle(self, write=False):
         state = self._nasq_effective_state()
         if state == 'suspended':
+            if self._nasq_support_login_allowed():
+                if write:
+                    code = 'tenant_read_only'
+                    raise NasqAccessRule(code, 'this tenant is read-only', status=403)
+                return state
             code = 'tenant_suspended'
             raise NasqAccessRule(code, 'this tenant is suspended', status=403)
         if write and state == 'expired':
