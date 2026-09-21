@@ -19,6 +19,22 @@ export const MeAppearancePatchSchema = z.object({
   message: 'mode or font_size is required',
 })
 
+export const NasqModuleIdSchema = z.enum(['nasq_chat', 'nasq_hr', 'nasq_pmo'])
+export const TenantStateSchema = z.enum(['active', 'suspended', 'expired'])
+export const MePlatformSchema = z.object({
+  schema_version: z.literal(1),
+  policy_revision: z.number().int().nonnegative(),
+  state: TenantStateSchema,
+  valid_until: z.string().nullable(),
+  read_only: z.boolean(),
+  readable_features: z.array(z.string()),
+  writable_features: z.array(z.string()),
+}).strict()
+export const MeTerminologySchema = z.object({
+  ar: z.record(z.string(), z.string()),
+  en: z.record(z.string(), z.string()),
+}).strict()
+
 export const MeSchema = z.object({
   id: z.number().int().positive(),
   name: z.string(),
@@ -32,6 +48,10 @@ export const MeSchema = z.object({
   access_policy_version: z.number().int().nonnegative().optional().default(0),
   company: z.object({ id: z.number().int().positive(), name: z.string() }),
   appearance: MeAppearanceSchema.optional(),
+  modules: z.array(NasqModuleIdSchema).optional().default([]),
+  entitlements: z.record(z.string(), z.union([z.boolean(), z.number().int().nonnegative().nullable()])).optional().default({}),
+  platform: MePlatformSchema.optional(),
+  terminology: MeTerminologySchema.optional().default({ ar: {}, en: {} }),
 })
 export type Me = z.infer<typeof MeSchema>
 export type MeAppearance = z.infer<typeof MeAppearanceSchema>

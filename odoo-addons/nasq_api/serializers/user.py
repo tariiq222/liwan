@@ -1,4 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+from odoo.exceptions import UserError
+
 DEFAULT_LANG = 'ar_001'
 
 ROLE_GROUPS = (
@@ -19,6 +21,7 @@ def role_of(user):
 
 def dump_me(user):
     identity = user.env['nasq.access.service']._nasq_identity(user)
+    platform = dump_platform(user)
     return {
         'id': user.id,
         'name': user.name,
@@ -36,6 +39,53 @@ def dump_me(user):
         'access_policy_version': identity['version'],
         'company': {'id': user.env.company.id, 'name': user.env.company.name},
         'appearance': dump_appearance(user),
+        'modules': platform['modules'],
+        'entitlements': platform['entitlements'],
+        'platform': platform['platform'],
+        'terminology': platform['terminology'],
+    }
+
+
+def dump_platform(user):
+    service = user.env['nasq.entitlement.service'].sudo()
+    empty = {
+        'modules': [],
+        'entitlements': {},
+        'platform': {
+            'schema_version': 1,
+            'policy_revision': 0,
+            'state': 'active',
+            'valid_until': None,
+            'read_only': False,
+            'readable_features': [],
+            'writable_features': [],
+        },
+        'terminology': {'ar': {}, 'en': {}},
+    }
+    try:
+        profile = service._nasq_profile()
+    except UserError:
+        return empty
+    state = service._nasq_effective_state(profile)
+    terminology = profile.terminology or {}
+    if not isinstance(terminology, dict):
+        terminology = {}
+    return {
+        'modules': list(service._nasq_installed_modules()),
+        'entitlements': service._nasq_dump_entitlements(profile),
+        'platform': {
+            'schema_version': 1,
+            'policy_revision': profile.policy_revision or 0,
+            'state': state,
+            'valid_until': profile.valid_until.isoformat() if profile.valid_until else None,
+            'read_only': state != 'active',
+            'readable_features': list(service._nasq_readable_features(profile)),
+            'writable_features': list(service._nasq_writable_features(profile)),
+        },
+        'terminology': {
+            'ar': dict(terminology.get('ar') or {}),
+            'en': dict(terminology.get('en') or {}),
+        },
     }
 
 

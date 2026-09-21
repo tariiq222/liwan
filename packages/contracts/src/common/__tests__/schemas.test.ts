@@ -38,4 +38,27 @@ describe('MeSchema', () => {
       id: 2, name: 'x', login: 'x', email: '', lang: 'ar_001', tz: '', role: 'root', company: { id: 1, name: 'c' },
     })).toThrow()
   })
+  it('accepts tenant modules, entitlements, and platform state', () => {
+    const me = MeSchema.parse({
+      id: 2, name: 'Sara', login: 'emp', email: 'sara@example.com', lang: 'ar_001',
+      tz: 'Asia/Riyadh', role: 'employee', company: { id: 1, name: 'Erada' },
+      modules: ['nasq_pmo', 'nasq_hr'],
+      entitlements: { 'pmo.enabled': true, 'users.limit': null, 'projects.max_projects': 12 },
+      platform: {
+        schema_version: 1, policy_revision: 3, state: 'expired', valid_until: '2026-01-01',
+        read_only: true, readable_features: ['pmo.enabled'], writable_features: [],
+      },
+      terminology: { ar: { project: 'مبادرة' }, en: { project: 'Initiative' } },
+    })
+    expect(me.platform?.state).toBe('expired')
+    expect(me.entitlements['projects.max_projects']).toBe(12)
+    expect(me.terminology.ar.project).toBe('مبادرة')
+  })
+  it('rejects an unknown module id', () => {
+    expect(() => MeSchema.parse({
+      id: 2, name: 'Sara', login: 'emp', email: 'sara@example.com', lang: 'ar_001',
+      tz: 'Asia/Riyadh', role: 'employee', company: { id: 1, name: 'Erada' },
+      modules: ['nasq_unknown'],
+    })).toThrow()
+  })
 })

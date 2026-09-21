@@ -23,6 +23,17 @@ const ME = {
   id: 2, name: 'مدير النظام', login: 'admin', email: 'admin@example.com', lang: 'ar_001',
   tz: 'Asia/Riyadh', role: 'admin', roles: [], capabilities: [...CAPABILITIES],
   access_policy_version: 1, company: { id: 1, name: 'نَسَق' },
+  modules: ['nasq_chat', 'nasq_hr', 'nasq_pmo'],
+  entitlements: {
+    'pmo.enabled': true, 'meetings.enabled': true, 'hr.enabled': true, 'chat.enabled': true,
+    'users.limit': null, 'projects.max_projects': null, 'storage.limit_mb': null,
+  },
+  platform: {
+    schema_version: 1, policy_revision: 1, state: 'active', valid_until: null, read_only: false,
+    readable_features: ['chat.enabled', 'hr.enabled', 'meetings.enabled', 'pmo.enabled'],
+    writable_features: ['chat.enabled', 'hr.enabled', 'meetings.enabled', 'pmo.enabled'],
+  },
+  terminology: { ar: {}, en: {} },
 }
 const BRANDING = { name: 'نَسَق', logo_url: '/web/binary/company_logo?company=1', primary_color: '#18181b', font: 'IBM_Plex_Sans_Arabic' }
 const PROJECT_SETTINGS = {

@@ -25,6 +25,17 @@ const ME = {
   roles: [{ id: 1, key: 'admin', name: { ar: 'مدير', en: 'Admin' }, type: 'built_in', protected: true, source: 'assignment' }],
   capabilities: CAPABILITIES, access_policy_version: 1,
   company: { id: 1, name: 'Nasq' },
+  modules: ['nasq_chat', 'nasq_hr', 'nasq_pmo'],
+  entitlements: {
+    'pmo.enabled': true, 'meetings.enabled': true, 'hr.enabled': true, 'chat.enabled': true,
+    'users.limit': null, 'projects.max_projects': null, 'storage.limit_mb': null,
+  },
+  platform: {
+    schema_version: 1, policy_revision: 1, state: 'active', valid_until: null, read_only: false,
+    readable_features: ['chat.enabled', 'hr.enabled', 'meetings.enabled', 'pmo.enabled'],
+    writable_features: ['chat.enabled', 'hr.enabled', 'meetings.enabled', 'pmo.enabled'],
+  },
+  terminology: { ar: {}, en: {} },
 }
 
 const BRANDING = {

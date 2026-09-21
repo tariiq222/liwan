@@ -39,7 +39,10 @@ class TestMeEndpoint(HttpCase):
         self.assertEqual(set(body), {
             'id', 'name', 'login', 'email', 'lang', 'tz', 'role', 'company',
             'roles', 'capabilities', 'access_policy_version', 'appearance',
+            'modules', 'entitlements', 'platform', 'terminology',
         })
+        self.assertEqual(body['platform']['schema_version'], 1)
+        self.assertIn(body['platform']['state'], ('active', 'expired', 'suspended'))
         self.assertEqual(body['appearance'], {'mode': 'light', 'font_size': 'small'})
 
     def patch_appearance(self, payload):
