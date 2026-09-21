@@ -1,7 +1,19 @@
+import { canUse, featureForPath, hasFeature, pathIsWrite } from '../modules/registry'
 import { safeReturnTo } from './safeReturnTo'
 
 /** Server capabilities gate navigation; resource authorization remains on the API. */
-export type AccessIdentity = { role?: string; capabilities?: readonly string[] } | null | undefined
+export type AccessIdentity = {
+  role?: string
+  capabilities?: readonly string[]
+  modules?: readonly string[]
+  entitlements?: Record<string, boolean | number | null>
+  platform?: {
+    readable_features: readonly string[]
+    writable_features: readonly string[]
+    state?: string
+    read_only?: boolean
+  }
+} | null | undefined
 /** Authenticated Nasq /api/v1/me identities carry a capabilities array. Portal/legacy role-only objects do not. */
 export const INTERNAL_NASQ_ACCESS = 'nasq.internal'
 /** UI predicate for the shared inbox; this is not a server capability grant. */
@@ -22,14 +34,25 @@ const destinations = [
   ['/settings/roles', 'access.roles.read'], ['/settings/access-log', 'access.audit.read'],
   ['/projects/settings', 'pmo.settings.manage'], ['/settings/branding', 'settings.branding.manage'],
 ] as const
+export function canReach(identity: AccessIdentity, capability: string, path?: string): boolean {
+  if (capability === NOTIFICATION_ACCESS) {
+    return hasCapability(identity, capability) && canUse(identity, capability)
+  }
+  if (!hasCapability(identity, capability)) return false
+  const write = path ? pathIsWrite(path) : false
+  if (!canUse(identity, capability, write)) return false
+  const feature = path ? featureForPath(path) : null
+  return hasFeature(identity, feature, write)
+}
 export function firstAllowedPath(identity: AccessIdentity): string {
-  return destinations.find(([, capability]) => hasCapability(identity, capability))?.[0] ?? '/account'
+  return destinations.find(([path, capability]) => canReach(identity, capability, path))?.[0] ?? '/account'
 }
 export function postLoginPath(identity: AccessIdentity, next: unknown): string {
   const fallback = firstAllowedPath(identity)
   const target = safeReturnTo(next, fallback, [...destinations.map(([path]) => path), '/account', '/search', '/notifications', '/archived-tasks', '/chat'])
-  const capability = requiredCapabilityForPath(new URL(target, 'http://nasq.local').pathname)
-  return capability && !hasCapability(identity, capability) ? fallback : target
+  const pathname = new URL(target, 'http://nasq.local').pathname
+  const capability = requiredCapabilityForPath(pathname)
+  return capability && !canReach(identity, capability, pathname) ? fallback : target
 }
 export function isNavPathActive(path: string, target: string): boolean {
   const document = /^\/hr\/departments\/[^/]+\/documents(?:\/|$)/.test(path)

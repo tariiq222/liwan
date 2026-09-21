@@ -1,7 +1,8 @@
 import type { RouteLocationRaw } from 'vue-router'
 // Relative imports: the `@/` alias does not resolve for value imports under a
 // plain `vitest run`, and this module is unit-tested directly.
-import { hasCapability, INTERNAL_NASQ_ACCESS, type AccessIdentity } from '../../utils/accessPolicy'
+import { canReach, INTERNAL_NASQ_ACCESS, type AccessIdentity } from '../../utils/accessPolicy'
+import { MODULE_FEATURES, hasFeature } from '../../modules/registry'
 import { normalizedPath } from './activeRoute'
 // NavIcon has one owner (nav/projectSections.ts); import for internal use only,
 // never re-export, or the auto-import namespace collision just moves here.
@@ -54,8 +55,8 @@ const items: NavItem[] = [
 export function useNav(identity: AccessIdentity): NavItem[] {
   const visible = items.filter(item => (
     item.capability === 'nasq.internal'
-      ? Array.isArray(identity?.capabilities)
-      : hasCapability(identity, item.capability)
+      ? Array.isArray(identity?.capabilities) && hasFeature(identity, MODULE_FEATURES.chat)
+      : canReach(identity, item.capability, item.to)
   ))
   if (identity?.role === 'vendor' && identity.capabilities?.length) visible.push({ to: '/odoo', labelKey: 'nav.console', icon: Wrench, shortcut: 's', module: 'vendor', capability: 'vendor' })
   return visible
@@ -157,5 +158,5 @@ export function contextLinksForModule(module: ShellModule, identity: AccessIdent
     ],
   }
   const links = linksByModule[module]
-  return links.filter(link => hasCapability(identity, link.capability))
+  return links.filter(link => canReach(identity, link.capability, typeof link.to === 'string' ? link.to : undefined))
 }
