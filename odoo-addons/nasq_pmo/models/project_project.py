@@ -285,6 +285,8 @@ class ProjectProject(models.Model):
                 vals = self._nasq_resolved_create_vals(vals)
                 self._nasq_check_create_requirements(vals)
             prepared.append(vals)
+        if prepared:
+            self.env['nasq.entitlement.service'].sudo()._nasq_claim_projects(len(prepared))
         projects = super().create(prepared)
         if not bootstrap:
             for project in projects:
@@ -330,6 +332,7 @@ class ProjectProject(models.Model):
         policy_changed = 'nasq_completion_approval' in vals or 'nasq_completion_approver_id' in vals
         manager_changed = 'user_id' in vals
         archived = vals.get('active') is False
+        restored = vals.get('active') is True
         old_modes = {project.id: project.nasq_completion_approval for project in self}
         if policy_changed or manager_changed or archived:
             pending = self.env['project.task'].sudo().search([
@@ -342,6 +345,14 @@ class ProjectProject(models.Model):
         if policy_changed:
             self._nasq_check_completion_policy_vals(vals)
         self._nasq_prepare_charter_vals(vals, records=self)
+        if restored:
+            inactive = self.filtered(lambda project: not project.active)
+            if inactive:
+                self.env['nasq.entitlement.service'].sudo()._nasq_claim_projects(len(inactive))
+        elif archived:
+            active = self.filtered(lambda project: project.active)
+            if active:
+                self.env['nasq.entitlement.service'].sudo()._nasq_claim_projects(-len(active))
         content = set(vals) & REVISION_CONTENT_FIELDS
         result = self._nasq_write_vals(vals)
         if content and self.ids:

@@ -249,6 +249,92 @@ class NasqEntitlementService(models.AbstractModel):
         return True
 
     @api.model
+    def _nasq_excluded_user_ids(self):
+        ids = [self.env.ref('base.user_root').id]
+        support = self.env.ref('nasq_core.group_vendor_support', raise_if_not_found=False)
+        if support:
+            self.env.cr.execute(
+                'SELECT uid FROM res_groups_users_rel WHERE gid = %s',
+                [support.id],
+            )
+            ids.extend(row[0] for row in self.env.cr.fetchall())
+        return tuple(set(ids))
+
+    @api.model
+    def _nasq_count_users(self):
+        excluded = self._nasq_excluded_user_ids()
+        self.env.cr.execute(
+            '''
+                SELECT count(*) FROM res_users
+                 WHERE active AND NOT share AND id != ALL(%s)
+            ''',
+            [list(excluded)],
+        )
+        return self.env.cr.fetchone()[0]
+
+    @api.model
+    def _nasq_count_projects(self):
+        if 'project.project' not in self.env.registry:
+            return 0
+        self.env.cr.execute('SELECT count(*) FROM project_project WHERE active')
+        return self.env.cr.fetchone()[0]
+
+    @api.model
+    def _nasq_count_storage_bytes(self):
+        self.env.cr.execute(
+            """
+                SELECT COALESCE(SUM(file_size), 0)
+                  FROM ir_attachment
+                 WHERE type = 'binary'
+            """,
+        )
+        return self.env.cr.fetchone()[0]
+
+    @api.model
+    def _nasq_claim(self, key, current, delta):
+        if delta <= 0:
+            if delta < 0:
+                self._nasq_profile()._nasq_bump_quota_revision()
+            return True
+        self._nasq_profile()._nasq_lock()
+        self.require_within_limit(key, current + delta)
+        self._nasq_profile()._nasq_bump_quota_revision()
+        return True
+
+    @api.model
+    def _nasq_claim_users(self, delta):
+        return self._nasq_claim('users.limit', self._nasq_count_users(), delta)
+
+    @api.model
+    def _nasq_claim_projects(self, delta):
+        return self._nasq_claim('projects.max_projects', self._nasq_count_projects(), delta)
+
+    @api.model
+    def _nasq_claim_storage(self, delta_bytes):
+        if delta_bytes <= 0:
+            if delta_bytes < 0:
+                self._nasq_profile()._nasq_bump_quota_revision()
+            return True
+        self._nasq_assert_lifecycle(write=True)
+        self._nasq_profile()._nasq_lock()
+        limit_mb = self.get('storage.limit_mb')
+        if limit_mb is None:
+            self._nasq_profile()._nasq_bump_quota_revision()
+            return True
+        if not isinstance(limit_mb, int) or isinstance(limit_mb, bool) or limit_mb < 0:
+            code = 'tenant_configuration_invalid'
+            raise NasqAccessRule(code, 'tenant limit payload is invalid', status=503)
+        current = self._nasq_count_storage_bytes()
+        if current + delta_bytes > limit_mb * 1048576:
+            code = 'feature_not_included'
+            raise NasqAccessRule(
+                code, 'this limit has been reached', status=403,
+                details={'reason': 'limit', 'limit_key': 'storage.limit_mb'},
+            )
+        self._nasq_profile()._nasq_bump_quota_revision()
+        return True
+
+    @api.model
     def _nasq_readable_features(self, profile=None):
         profile = profile or self._nasq_profile()
         keys = []

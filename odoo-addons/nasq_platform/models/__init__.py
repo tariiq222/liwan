@@ -2,6 +2,7 @@
 from . import (
     entitlement_service,
     feature_registry,
+    ir_attachment,
     ir_binary,
     ir_http,
     res_users,
