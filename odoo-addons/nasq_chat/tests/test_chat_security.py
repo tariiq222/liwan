@@ -88,7 +88,11 @@ class TestChatSecurity(NasqApiCase):
         url = sent['attachments'][0]['url']
         self.authenticate('sec_out', 'sec_out_pass_123')
         blocked = self.api('GET', url)
-        self.assertIn(blocked.status_code, (403, 404))
+        # Stock /web/content answers 404: ir.attachment._check_access denies
+        # reads whose comodel channel the membership rules hide, and
+        # /web/content converts the AccessError into 404; only /api/v1
+        # endpoints answer 403 forbidden.
+        self.assertEqual(blocked.status_code, 404)
         self.authenticate('sec_peer', 'sec_peer_pass_123')
         allowed = self.api('GET', url)
         self.assertEqual(allowed.status_code, 200)
@@ -101,7 +105,7 @@ class TestChatSecurity(NasqApiCase):
         revoked_api = self.api('GET', f"/api/v1/chat/conversations/{conversation['id']}")
         self.assertEqual(revoked_api.status_code, 403)
         revoked_file = self.api('GET', url)
-        self.assertIn(revoked_file.status_code, (403, 404))
+        self.assertEqual(revoked_file.status_code, 404)
 
     def test_stock_superuser_download_is_not_claimed_revoked(self):
         conversation = self._direct()
@@ -114,10 +118,10 @@ class TestChatSecurity(NasqApiCase):
             },
         }).json()
         self.authenticate('admin', 'admin')
-        # Native /web/content keeps stock superuser privileges. Nasq does not
-        # pretend those are revoked.
+        # Native /web/content keeps stock privileges for the group_system
+        # admin. Nasq does not pretend those are revoked.
         download = self.api('GET', sent['attachments'][0]['url'])
-        self.assertIn(download.status_code, (200, 403, 404))
+        self.assertEqual(download.status_code, 200)
 
     def test_inactive_or_self_recipients_are_rejected(self):
         self.authenticate('api_emp', 'api_emp_pass_123')
@@ -160,4 +164,4 @@ class TestChatSecurity(NasqApiCase):
         })
         self.authenticate('api_emp', 'api_emp_pass_123')
         denied = self.api('GET', path)
-        self.assertIn(denied.status_code, (403, 404), denied.text)
+        self.assertEqual(denied.status_code, 403, denied.text)

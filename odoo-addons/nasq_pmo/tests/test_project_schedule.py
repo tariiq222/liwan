@@ -125,7 +125,7 @@ class TestProjectSchedule(NasqPmoCase):
         self.assertIn(visible.id, target['dependency_ids'])
         self.assertNotIn(hidden.id, target['dependency_ids'])
         response = self.api('GET', f'/api/v1/projects/{hidden_project.id}/schedule')
-        self.assertIn(response.status_code, (403, 404), response.text)
+        self.assertEqual(response.status_code, 403, response.text)
         foreign = self.env['project.project'].create({'name': 'Foreign', 'company_id': False})
         response = self.api('GET', f'/api/v1/projects/{foreign.id}/schedule')
         self.assertEqual(response.status_code, 403, response.text)

@@ -148,7 +148,10 @@ class TestTaskAttachments(NasqPmoCase):
         employee_task = self.env['project.task'].with_user(self.employee).browse(task.id)
         self.assertFalse(employee_task.has_access('read'))
         revoked = self.api('GET', item['url'])
-        self.assertIn(revoked.status_code, (403, 404))
+        # Stock /web/content answers 404: the comodel task rules make
+        # ir.attachment._check_access deny the read and /web/content converts
+        # the AccessError into 404, unlike /api/v1 which answers 403 forbidden.
+        self.assertEqual(revoked.status_code, 404)
         self.assertNotEqual(revoked.content, b'revocable bytes')
 
     def test_unreadable_task_is_rejected_for_all_attachment_operations(self):
@@ -165,7 +168,7 @@ class TestTaskAttachments(NasqPmoCase):
             ('DELETE', f'/api/v1/tasks/{task.id}/attachments/{attachment.id}', None),
         ):
             response = self.api(method, path, payload)
-            self.assertIn(response.status_code, (403, 404))
+            self.assertEqual(response.status_code, 403)
         self.assertTrue(attachment.exists())
 
     def test_message_only_and_url_attachments_are_not_exposed_or_deletable(self):
@@ -184,7 +187,8 @@ class TestTaskAttachments(NasqPmoCase):
         self.assertEqual(response.json(), {'items': [], 'total': 0})
         for attachment in (message_attachment, url_attachment):
             response = self.api('DELETE', f'/api/v1/tasks/{self.task_overdue.id}/attachments/{attachment.id}')
-            self.assertIn(response.status_code, (403, 404))
+            self.assertEqual(response.status_code, 404)
+            self.assertEqual(response.json()['code'], 'not_found')
             self.assertTrue(attachment.exists())
 
     def test_upload_requires_task_write_access(self):

@@ -434,7 +434,7 @@ class TestProjectTemplatesHttp(NasqPmoCase):
         path = f'/api/v1/project-templates/{self.foreign_template.id}'
         for method, suffix, payload in [('GET', '', None), ('PATCH', '', {'name': 'Denied'}), ('DELETE', '', None), ('POST', '/apply', {'name': 'Denied', 'start_date': '2030-01-10'})]:
             response = self.api(method, path + suffix, payload)
-            self.assertIn(response.status_code, (403, 404), response.text)
+            self.assertEqual(response.status_code, 403, response.text)
         definition = deepcopy(TEMPLATE)
         definition['tasks'][1]['start_offset'] = -2
         template = self.env['nasq.project.template'].create({'name': 'HTTP underflow', 'definition': definition})

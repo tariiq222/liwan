@@ -205,7 +205,10 @@ class TestHrDocuments(NasqHrCase):
         result = self.api('GET', f'/api/v1/hr/documents/{other_document.id}')
         self.assertEqual((result.status_code, result.json()['code']), (404, 'not_found'))
         download = self.url_open(f'/web/content/{attachment.id}')
-        self.assertIn(download.status_code, (403, 404))
+        # Stock /web/content answers 404 for the hidden cross-company
+        # attachment, while the /api/v1 document route above answers 404
+        # not_found with the Nasq error envelope.
+        self.assertEqual(download.status_code, 404)
 
     def test_patch_cannot_reparent(self):
         self.authenticate('hr_doc_admin', 'hr_doc_admin_pass_123')

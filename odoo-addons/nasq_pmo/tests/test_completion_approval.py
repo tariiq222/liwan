@@ -153,7 +153,7 @@ class TestCompletionApproval(NasqPmoCase):
         admin_only = self.api('POST', f'/api/v1/tasks/{task.id}/completion/accept', {
             'revision': requested['completion_revision'],
         })
-        self.assertIn(admin_only.status_code, (403, 404))
+        self.assertEqual(admin_only.status_code, 403)
         self.authenticate('psc_reviewer', 'psc_reviewer_pass_123')
         ok = self.api('POST', f'/api/v1/tasks/{task.id}/completion/accept', {
             'revision': requested['completion_revision'],
