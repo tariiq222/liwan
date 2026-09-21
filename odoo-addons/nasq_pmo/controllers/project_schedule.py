@@ -5,7 +5,12 @@ from odoo import http
 from odoo.exceptions import AccessError
 from odoo.http import request
 
-from odoo.addons.nasq_api.controllers.common import ApiError, api_handler, get_record
+from odoo.addons.nasq_api.controllers.common import (
+    ApiError,
+    api_handler,
+    get_record,
+    requires_feature,
+)
 from odoo.addons.nasq_pmo.serializers.dates import parse_date
 from odoo.addons.nasq_pmo.serializers.project_schedule import (
     dump_schedule_milestone,
@@ -34,6 +39,7 @@ class ProjectScheduleController(http.Controller):
 
     @http.route('/api/v1/projects/<int:project_id>/schedule', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
+    @requires_feature('pmo.enabled', operation='read')
     def get_schedule(self, project_id):
         project = get_record('project.project', project_id)
         if not project.active or not project.company_id or project.company_id != request.env.company:
@@ -54,6 +60,7 @@ class ProjectScheduleController(http.Controller):
 
     @http.route('/api/v1/projects/<int:project_id>/schedule/tasks/<int:task_id>', type='json2', auth='user', methods=['PATCH'], readonly=False)
     @api_handler
+    @requires_feature('pmo.enabled', operation='write')
     def patch_schedule_task(self, project_id, task_id, **payload):
         project = get_record('project.project', project_id)
         if not project.active or not project.company_id or project.company_id != request.env.company:

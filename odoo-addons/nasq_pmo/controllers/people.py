@@ -2,7 +2,11 @@
 from odoo import http
 from odoo.http import request
 
-from odoo.addons.nasq_api.controllers.common import api_handler, parse_nonneg_int
+from odoo.addons.nasq_api.controllers.common import (
+    api_handler,
+    parse_nonneg_int,
+    requires_feature,
+)
 
 MAX_LIMIT = 50
 
@@ -11,6 +15,7 @@ class PeopleController(http.Controller):
 
     @http.route('/api/v1/people', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
+    @requires_feature('pmo.enabled', 'meetings.enabled', operation='read', match='any')
     def list_people(self, **_):
         # json2 routes do not receive query-string params as kwargs — read them from the
         # raw request (see the same note in controllers/tasks.py::list_tasks).

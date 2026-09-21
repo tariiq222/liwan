@@ -8,6 +8,7 @@ from odoo.addons.nasq_api.controllers.common import (
     api_handler,
     get_record,
     parse_nonneg_int,
+    requires_feature,
 )
 from odoo.addons.nasq_pmo.serializers.task import STATE_TO_API, dump_task_detail
 
@@ -16,6 +17,7 @@ class TaskDependencyController(http.Controller):
 
     @http.route('/api/v1/tasks/<int:task_id>/dependencies', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
+    @requires_feature('pmo.enabled', operation='read')
     def list_dependencies(self, task_id):
         task = get_record('project.task', task_id)
         task._nasq_check_visible_current()
@@ -40,6 +42,7 @@ class TaskDependencyController(http.Controller):
 
     @http.route('/api/v1/tasks/<int:task_id>/dependencies/candidates', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
+    @requires_feature('pmo.enabled', operation='read')
     def list_candidates(self, task_id, **_):
         task = get_record('project.task', task_id)
         task._nasq_check_visible_current()
@@ -75,6 +78,7 @@ class TaskDependencyController(http.Controller):
 
     @http.route('/api/v1/tasks/<int:task_id>/dependencies', type='json2', auth='user', methods=['PUT'], readonly=False)
     @api_handler
+    @requires_feature('pmo.enabled', operation='write')
     def set_dependencies(self, task_id, ids=None, **_):
         task = get_record('project.task', task_id)
         if not isinstance(ids, list) or any(isinstance(value, bool) or not isinstance(value, int) or value <= 0 for value in ids):

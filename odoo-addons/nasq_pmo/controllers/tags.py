@@ -3,7 +3,11 @@ from odoo import http
 from odoo.exceptions import AccessError
 from odoo.http import request
 
-from odoo.addons.nasq_api.controllers.common import ApiError, api_handler
+from odoo.addons.nasq_api.controllers.common import (
+    ApiError,
+    api_handler,
+    requires_feature,
+)
 
 MAX_TAGS = 100
 
@@ -16,6 +20,7 @@ class TagController(http.Controller):
 
     @http.route('/api/v1/tags', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
+    @requires_feature('pmo.enabled', operation='read')
     def list_tags(self, **_):
         q = request.httprequest.args.get('q')
         domain = [('name', 'ilike', q)] if q else []
@@ -23,6 +28,7 @@ class TagController(http.Controller):
 
     @http.route('/api/v1/tags', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
+    @requires_feature('pmo.enabled', operation='write')
     def create_tag(self, name=None, **_):
         if not request.env['project.project']._nasq_is_manager():
             raise AccessError(request.env._("Only a project manager can create tags."))

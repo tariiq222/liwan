@@ -3,7 +3,12 @@ from odoo import http
 from odoo.exceptions import AccessError
 from odoo.http import request
 
-from odoo.addons.nasq_api.controllers.common import ApiError, api_handler, get_record
+from odoo.addons.nasq_api.controllers.common import (
+    ApiError,
+    api_handler,
+    get_record,
+    requires_feature,
+)
 from odoo.addons.nasq_pmo.serializers.project_update import dump_update
 
 MAX_UPDATES = 50
@@ -13,6 +18,7 @@ class ProjectUpdateController(http.Controller):
 
     @http.route('/api/v1/projects/<int:project_id>/updates', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
+    @requires_feature('pmo.enabled', operation='read')
     def list_updates(self, project_id):
         project = get_record('project.project', project_id)
         updates = request.env['project.update'].search([('project_id', '=', project.id)], order='date desc, id desc', limit=MAX_UPDATES)
@@ -20,6 +26,7 @@ class ProjectUpdateController(http.Controller):
 
     @http.route('/api/v1/projects/<int:project_id>/updates', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
+    @requires_feature('pmo.enabled', operation='write')
     def create_update(self, project_id, name=None, description=None, **extra):
         if 'status' in extra:
             raise ApiError(422, 'invalid', "status is set in project settings, not by an update", field='status')

@@ -8,6 +8,7 @@ from odoo.addons.nasq_api.controllers.common import (
     ApiError,
     api_handler,
     parse_nonneg_int,
+    requires_feature,
 )
 from odoo.addons.nasq_hr.serializers.hr_department import (
     dump_department,
@@ -59,6 +60,7 @@ class HrDepartmentController(http.Controller):
 
     @http.route('/api/v1/hr/departments', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
+    @requires_feature('hr.enabled', operation='read')
     def list_departments(self, **_):
         _require('hr.departments.read')
         args = request.httprequest.args
@@ -71,6 +73,7 @@ class HrDepartmentController(http.Controller):
 
     @http.route('/api/v1/hr/departments/<int:department_id>', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
+    @requires_feature('hr.enabled', operation='read')
     def get_department(self, department_id):
         _require('hr.departments.read')
         department = request.env['hr.department'].search([
@@ -85,6 +88,7 @@ class HrDepartmentController(http.Controller):
     @http.route('/api/v1/hr/departments', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
     @hr_rule_handler
+    @requires_feature('hr.enabled', operation='write')
     def create_department(self, **payload):
         _require('hr.departments.manage')
         if 'name' not in payload:
@@ -97,6 +101,7 @@ class HrDepartmentController(http.Controller):
     @http.route('/api/v1/hr/departments/<int:department_id>', type='json2', auth='user', methods=['PATCH'], readonly=False)
     @api_handler
     @hr_rule_handler
+    @requires_feature('hr.enabled', operation='write')
     def patch_department(self, department_id, **payload):
         _require('hr.departments.manage')
         department = _admin_department(department_id)
@@ -111,6 +116,7 @@ class HrDepartmentController(http.Controller):
     @http.route('/api/v1/hr/departments/<int:department_id>', type='json2', auth='user', methods=['DELETE'], readonly=False)
     @api_handler
     @hr_rule_handler
+    @requires_feature('hr.enabled', operation='write')
     def delete_department(self, department_id, **_):
         _require('hr.departments.manage')
         department = _admin_department(department_id)

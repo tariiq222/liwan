@@ -10,6 +10,7 @@ from odoo.addons.nasq_api.controllers.common import (
     api_handler,
     parse_nonneg_int,
     parse_positive_int,
+    requires_feature,
 )
 from odoo.addons.nasq_chat.models.chat_service import MAX_LIMIT
 from odoo.addons.nasq_chat.serializers.chat import (
@@ -54,6 +55,7 @@ class ChatController(http.Controller):
 
     @http.route('/api/v1/chat/conversations', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
+    @requires_feature('chat.enabled', operation='read')
     def list_conversations(self, **_):
         args = request.httprequest.args
         list_filter = args.get('filter', 'all') or 'all'
@@ -70,6 +72,7 @@ class ChatController(http.Controller):
 
     @http.route('/api/v1/chat/recipients', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
+    @requires_feature('chat.enabled', operation='read')
     def list_recipients(self, **_):
         args = request.httprequest.args
         limit, offset = self._page(args)
@@ -83,6 +86,7 @@ class ChatController(http.Controller):
 
     @http.route('/api/v1/chat/conversations', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
+    @requires_feature('chat.enabled', operation='write')
     def create_conversation(self, **payload):
         _reject_extra(payload, CREATE_FIELDS)
         channel = self._service()._nasq_create_channel(
@@ -98,6 +102,7 @@ class ChatController(http.Controller):
         type='json2', auth='user', methods=['GET'], readonly=True,
     )
     @api_handler
+    @requires_feature('chat.enabled', operation='read')
     def get_conversation(self, conversation_id, **_):
         channel = self._service()._nasq_member_channel(conversation_id)
         return dump_conversation(channel)
@@ -107,6 +112,7 @@ class ChatController(http.Controller):
         type='json2', auth='user', methods=['PATCH'], readonly=False,
     )
     @api_handler
+    @requires_feature('chat.enabled', operation='write')
     def patch_conversation(self, conversation_id, **payload):
         _reject_extra(payload, PATCH_FIELDS)
         service = self._service()
@@ -137,6 +143,7 @@ class ChatController(http.Controller):
         type='json2', auth='user', methods=['GET'], readonly=True,
     )
     @api_handler
+    @requires_feature('chat.enabled', operation='read')
     def list_messages(self, conversation_id, **_):
         args = request.httprequest.args
         limit, _offset = self._page(args)
@@ -159,6 +166,7 @@ class ChatController(http.Controller):
         type='json2', auth='user', methods=['POST'], readonly=False,
     )
     @api_handler
+    @requires_feature('chat.enabled', operation='write')
     def send_message(self, conversation_id, **payload):
         _reject_extra(payload, SEND_FIELDS)
         attachment_payload = payload.get('attachment')
@@ -184,6 +192,7 @@ class ChatController(http.Controller):
         type='json2', auth='user', methods=['PATCH'], readonly=False,
     )
     @api_handler
+    @requires_feature('chat.enabled', operation='write')
     def patch_message(self, conversation_id, message_id, **payload):
         _reject_extra(payload, MESSAGE_PATCH_FIELDS)
         if 'body' not in payload or not isinstance(payload['body'], str):
@@ -205,6 +214,7 @@ class ChatController(http.Controller):
         type='json2', auth='user', methods=['POST'], readonly=False,
     )
     @api_handler
+    @requires_feature('chat.enabled', operation='write')
     def react_to_message(self, conversation_id, message_id, **payload):
         _reject_extra(payload, REACTION_FIELDS)
         content = payload.get('content')
@@ -229,6 +239,7 @@ class ChatController(http.Controller):
         type='json2', auth='user', methods=['POST'], readonly=False,
     )
     @api_handler
+    @requires_feature('chat.enabled', operation='write')
     def pin_message(self, conversation_id, message_id, **payload):
         _reject_extra(payload, PIN_FIELDS)
         if not isinstance(payload.get('pinned'), bool):
@@ -246,6 +257,7 @@ class ChatController(http.Controller):
         type='json2', auth='user', methods=['POST'], readonly=False,
     )
     @api_handler
+    @requires_feature('chat.enabled', operation='write')
     def star_message(self, conversation_id, message_id, **payload):
         _reject_extra(payload, frozenset())
         service = self._service()
@@ -260,6 +272,7 @@ class ChatController(http.Controller):
         type='json2', auth='user', methods=['POST'], readonly=False,
     )
     @api_handler
+    @requires_feature('chat.enabled', operation='write')
     def mark_read(self, conversation_id, **payload):
         _reject_extra(payload, READ_FIELDS)
         channel = self._service()._nasq_member_channel(conversation_id)
@@ -272,6 +285,7 @@ class ChatController(http.Controller):
         type='json2', auth='user', methods=['GET'], readonly=True,
     )
     @api_handler
+    @requires_feature('chat.enabled', operation='read')
     def list_members(self, conversation_id, **_):
         args = request.httprequest.args
         limit, offset = self._page(args)
@@ -287,6 +301,7 @@ class ChatController(http.Controller):
         type='json2', auth='user', methods=['POST'], readonly=False,
     )
     @api_handler
+    @requires_feature('chat.enabled', operation='write')
     def add_members(self, conversation_id, **payload):
         _reject_extra(payload, MEMBER_FIELDS)
         service = self._service()
@@ -304,6 +319,7 @@ class ChatController(http.Controller):
         type='json2', auth='user', methods=['DELETE'], readonly=False,
     )
     @api_handler
+    @requires_feature('chat.enabled', operation='write')
     def remove_member(self, conversation_id, user_id, **payload):
         _reject_extra(payload, frozenset())
         service = self._service()
@@ -328,6 +344,7 @@ class ChatController(http.Controller):
         type='json2', auth='user', methods=['POST'], readonly=False,
     )
     @api_handler
+    @requires_feature('chat.enabled', operation='write')
     def leave_conversation(self, conversation_id, **payload):
         _reject_extra(payload, frozenset())
         service = self._service()
@@ -346,6 +363,7 @@ class ChatController(http.Controller):
         type='json2', auth='user', methods=['POST'], readonly=False,
     )
     @api_handler
+    @requires_feature('chat.enabled', operation='write')
     def notify_typing(self, conversation_id, **payload):
         _reject_extra(payload, TYPING_FIELDS)
         if not isinstance(payload.get('is_typing'), bool):
@@ -366,6 +384,7 @@ class ChatController(http.Controller):
         type='json2', auth='user', methods=['GET'], readonly=True,
     )
     @api_handler
+    @requires_feature('chat.enabled', operation='read')
     def list_attachments(self, conversation_id, **_):
         args = request.httprequest.args
         limit, offset = self._page(args)

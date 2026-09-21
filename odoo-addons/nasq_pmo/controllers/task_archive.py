@@ -3,7 +3,11 @@ from odoo import http
 from odoo.exceptions import AccessError, MissingError
 from odoo.http import request
 
-from odoo.addons.nasq_api.controllers.common import ApiError, api_handler
+from odoo.addons.nasq_api.controllers.common import (
+    ApiError,
+    api_handler,
+    requires_feature,
+)
 from odoo.addons.nasq_pmo.serializers.task import dump_task, dump_task_detail
 
 MAX_LIMIT = 200
@@ -34,6 +38,7 @@ class TaskArchiveController(http.Controller):
 
     @http.route('/api/v1/tasks/archived', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
+    @requires_feature('pmo.enabled', operation='read')
     def list_archived(self, **_):
         request.env['nasq.access.service']._nasq_require_capability('pmo.tasks.read')
         args = request.httprequest.args
@@ -94,6 +99,7 @@ class TaskArchiveController(http.Controller):
 
     @http.route('/api/v1/tasks/<int:task_id>/unarchive', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
+    @requires_feature('pmo.enabled', operation='write')
     def unarchive_task(self, task_id, **_):
         Task = request.env['project.task'].with_context(active_test=False)
         company_id = request.env.company.id

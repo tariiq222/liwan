@@ -3,7 +3,11 @@ from odoo import http
 from odoo.exceptions import AccessError, MissingError
 from odoo.http import request
 
-from odoo.addons.nasq_api.controllers.common import api_handler, get_record
+from odoo.addons.nasq_api.controllers.common import (
+    api_handler,
+    get_record,
+    requires_feature,
+)
 from odoo.addons.nasq_pmo.serializers.task_attachment import (
     dump_task_attachment,
     parse_task_attachment_upload,
@@ -21,6 +25,7 @@ class MeetingAttachmentController(http.Controller):
 
     @http.route('/api/v1/meetings/<int:meeting_id>/attachments', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
+    @requires_feature('meetings.enabled', operation='read')
     def list_meeting_attachments(self, meeting_id):
         request.env['nasq.access.service']._nasq_require_capability('meetings.read')
         meeting = get_record('cyan.meeting.minute', meeting_id)
@@ -31,6 +36,7 @@ class MeetingAttachmentController(http.Controller):
 
     @http.route('/api/v1/meetings/<int:meeting_id>/attachments', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
+    @requires_feature('meetings.enabled', operation='write')
     def upload_meeting_attachment(self, meeting_id, **payload):
         request.env['nasq.access.service']._nasq_require_capability('meetings.read')
         meeting = get_record('cyan.meeting.minute', meeting_id)
@@ -55,6 +61,7 @@ class MeetingAttachmentController(http.Controller):
         type='json2', auth='user', methods=['DELETE'], readonly=False,
     )
     @api_handler
+    @requires_feature('meetings.enabled', operation='write')
     def delete_meeting_attachment(self, meeting_id, attachment_id):
         request.env['nasq.access.service']._nasq_require_capability('meetings.read')
         meeting = get_record('cyan.meeting.minute', meeting_id)

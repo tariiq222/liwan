@@ -10,6 +10,7 @@ from odoo.addons.nasq_api.controllers.common import (
     get_record,
     parse_nonneg_int,
     parse_positive_int,
+    requires_feature,
 )
 from odoo.addons.nasq_pmo.controllers.meetings import _parse_url
 from odoo.addons.nasq_pmo.serializers.meeting import dump_meeting, dump_series
@@ -74,6 +75,7 @@ class MeetingSeriesController(http.Controller):
 
     @http.route('/api/v1/meeting-series', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
+    @requires_feature('meetings.enabled', operation='read')
     def list_series(self, **_):
         request.env['nasq.access.service']._nasq_require_capability('meetings.read')
         args = request.httprequest.args
@@ -94,12 +96,14 @@ class MeetingSeriesController(http.Controller):
 
     @http.route('/api/v1/meeting-series/<int:series_id>', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
+    @requires_feature('meetings.enabled', operation='read')
     def get_series(self, series_id, **_):
         request.env['nasq.access.service']._nasq_require_capability('meetings.read')
         return dump_series(get_record('nasq.meeting.series', series_id), detail=True)
 
     @http.route('/api/v1/meeting-series/<int:series_id>', type='json2', auth='user', methods=['PATCH'], readonly=False)
     @api_handler
+    @requires_feature('meetings.enabled', operation='write')
     def patch_series(self, series_id, **payload):
         request.env['nasq.access.service']._nasq_require_capability('meetings.read')
         series = get_record('nasq.meeting.series', series_id)
@@ -136,6 +140,7 @@ class MeetingSeriesController(http.Controller):
 
     @http.route('/api/v1/meeting-series', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
+    @requires_feature('meetings.enabled', operation='write')
     def create_series(self, name=None, project_id=None, secretary_id=None, attendee_ids=None, recurrence='none', until_date=None, until_count=None, location=None, meeting_url=None, start_datetime=None, end_datetime=None, **_):
         request.env['nasq.access.service']._nasq_require_capability('meetings.create')
         if not isinstance(name, str) or not name.strip():
@@ -174,6 +179,7 @@ class MeetingSeriesController(http.Controller):
 
     @http.route('/api/v1/meeting-series/<int:series_id>/occurrences', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
+    @requires_feature('meetings.enabled', operation='write')
     def add_occurrence(self, series_id, start_datetime=None, end_datetime=None, name=None, **_):
         request.env['nasq.access.service']._nasq_require_capability('meetings.create')
         series = get_record('nasq.meeting.series', series_id)

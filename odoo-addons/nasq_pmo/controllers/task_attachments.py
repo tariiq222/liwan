@@ -3,7 +3,11 @@ from odoo import http
 from odoo.exceptions import AccessError, MissingError
 from odoo.http import request
 
-from odoo.addons.nasq_api.controllers.common import api_handler, get_record
+from odoo.addons.nasq_api.controllers.common import (
+    api_handler,
+    get_record,
+    requires_feature,
+)
 from odoo.addons.nasq_pmo.serializers.task_attachment import (
     dump_task_attachment,
     parse_task_attachment_upload,
@@ -17,6 +21,7 @@ class TaskAttachmentController(http.Controller):
         type='json2', auth='user', methods=['GET'], readonly=True,
     )
     @api_handler
+    @requires_feature('pmo.enabled', operation='read')
     def list_task_attachments(self, task_id):
         task = get_record('project.task', task_id)
         task._nasq_check_visible_current()
@@ -33,6 +38,7 @@ class TaskAttachmentController(http.Controller):
         type='json2', auth='user', methods=['POST'], readonly=False,
     )
     @api_handler
+    @requires_feature('pmo.enabled', operation='write')
     def upload_task_attachment(self, task_id, **payload):
         task = get_record('project.task', task_id)
         task._nasq_check_visible_current()
@@ -58,6 +64,7 @@ class TaskAttachmentController(http.Controller):
         type='json2', auth='user', methods=['DELETE'], readonly=False,
     )
     @api_handler
+    @requires_feature('pmo.enabled', operation='write')
     def delete_task_attachment(self, task_id, attachment_id):
         task = get_record('project.task', task_id)
         task._nasq_check_visible_current()

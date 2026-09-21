@@ -9,6 +9,7 @@ from odoo.addons.nasq_api.controllers.common import (
     ApiError,
     api_handler,
     parse_nonneg_int,
+    requires_feature,
 )
 from odoo.addons.nasq_pmo.serializers.project_charter import dump_currency
 from odoo.addons.nasq_pmo.serializers.project_charter_reference import (
@@ -25,6 +26,7 @@ class ProjectCharterCatalogController(http.Controller):
 
     @http.route('/api/v1/project-charter/defaults', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
+    @requires_feature('pmo.enabled', operation='read')
     def get_defaults(self, **_):
         Catalog = request.env['nasq.project.type']
         if not Catalog._nasq_can_read_catalog():
@@ -36,6 +38,7 @@ class ProjectCharterCatalogController(http.Controller):
         type='json2', auth='user', methods=['GET'], readonly=True,
     )
     @api_handler
+    @requires_feature('pmo.enabled', operation='read')
     def list_catalog(self, resource, **_):
         Model = _catalog_model(resource)
         args = request.httprequest.args
@@ -68,6 +71,7 @@ class ProjectCharterCatalogController(http.Controller):
         type='json2', auth='user', methods=['POST'], readonly=False,
     )
     @api_handler
+    @requires_feature('pmo.enabled', operation='write')
     def create_catalog(self, resource, **payload):
         Model = _catalog_model(resource)
         vals = parse_catalog_create(payload, resource)
@@ -79,6 +83,7 @@ class ProjectCharterCatalogController(http.Controller):
         type='json2', auth='user', methods=['GET'], readonly=True,
     )
     @api_handler
+    @requires_feature('pmo.enabled', operation='read')
     def get_catalog_item(self, resource, item_id, **_):
         record = _get_catalog_record(resource, item_id)
         if not record.active and not record._nasq_can_manage_catalog():
@@ -90,6 +95,7 @@ class ProjectCharterCatalogController(http.Controller):
         type='json2', auth='user', methods=['PATCH'], readonly=False,
     )
     @api_handler
+    @requires_feature('pmo.enabled', operation='write')
     def patch_catalog_item(self, resource, item_id, **payload):
         payload.pop('item_id', None)
         payload.pop('resource', None)
@@ -102,6 +108,7 @@ class ProjectCharterCatalogController(http.Controller):
         type='json2', auth='user', methods=['DELETE'], readonly=False,
     )
     @api_handler
+    @requires_feature('pmo.enabled', operation='write')
     def delete_catalog_item(self, resource, item_id, **_):
         record = _get_catalog_record(resource, item_id)
         try:

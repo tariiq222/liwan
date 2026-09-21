@@ -39,6 +39,47 @@ def error_response(status, code, message, field=None, details=None):
     return request.make_json_response(body, status=status)
 
 
+def requires_feature(*keys, operation='write', match='all'):
+    """Declare the entitlement key(s) a route needs. Default operation is write."""
+    if not keys:
+        msg = 'requires_feature keys are required'
+        raise ValueError(msg)
+    if operation not in ('read', 'write'):
+        msg = 'requires_feature operation must be read or write'
+        raise ValueError(msg)
+    if match not in ('all', 'any'):
+        msg = 'requires_feature match must be all or any'
+        raise ValueError(msg)
+
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            service = request.env['nasq.entitlement.service']
+            check = service.require if operation == 'write' else service.require_read
+            error = None
+            for key in keys:
+                try:
+                    check(key)
+                    if match == 'any':
+                        error = None
+                        break
+                except NasqAccessRule as exc:
+                    error = exc
+                    if match == 'all':
+                        break
+            if error:
+                routing = getattr(func, 'routing', None) or {}
+                if routing.get('type') == 'http':
+                    raise AccessError(error.message)
+                raise error
+            return func(*args, **kwargs)
+        wrapper._nasq_feature_keys = keys
+        wrapper._nasq_feature_operation = operation
+        wrapper._nasq_feature_match = match
+        return wrapper
+    return decorator
+
+
 def api_handler(func):
     """Map exceptions raised by an /api/v1 controller to the contract error shape."""
     @functools.wraps(func)
@@ -60,6 +101,9 @@ def api_handler(func):
             return error_response(403, 'forbidden', str(e))
         except (ValidationError, UserError) as e:
             return error_response(422, 'invalid', str(e))
+    wrapper._nasq_feature_keys = getattr(func, '_nasq_feature_keys', None)
+    wrapper._nasq_feature_operation = getattr(func, '_nasq_feature_operation', None)
+    wrapper._nasq_feature_match = getattr(func, '_nasq_feature_match', None)
     return wrapper
 
 

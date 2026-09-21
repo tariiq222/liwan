@@ -8,6 +8,7 @@ from odoo.addons.nasq_api.controllers.common import (
     api_handler,
     parse_nonneg_int,
     parse_positive_int,
+    requires_feature,
 )
 from odoo.addons.nasq_hr.serializers.hr_document import (
     dump_document,
@@ -56,6 +57,7 @@ class HrDocumentController(http.Controller):
 
     @http.route('/api/v1/hr/documents', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
+    @requires_feature('hr.enabled', operation='read')
     def list_documents(self, **_):
         _require('hr.documents.read')
         args = request.httprequest.args
@@ -75,12 +77,14 @@ class HrDocumentController(http.Controller):
 
     @http.route('/api/v1/hr/documents/<int:document_id>', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
+    @requires_feature('hr.enabled', operation='read')
     def get_document(self, document_id):
         _require('hr.documents.read')
         return dump_document(_current_document(document_id))
 
     @http.route('/api/v1/hr/documents', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
+    @requires_feature('hr.enabled', operation='write')
     def create_document(self, name=None, body=None, department_id=None, **extra):
         _require('hr.documents.manage')
         payload = {'name': name, 'body': body, 'department_id': department_id}
@@ -93,6 +97,7 @@ class HrDocumentController(http.Controller):
 
     @http.route('/api/v1/hr/documents/<int:document_id>', type='json2', auth='user', methods=['PATCH'], readonly=False)
     @api_handler
+    @requires_feature('hr.enabled', operation='write')
     def patch_document(self, document_id, **payload):
         _require('hr.documents.manage')
         payload.pop('document_id', None)
@@ -108,6 +113,7 @@ class HrDocumentController(http.Controller):
         type='json2', auth='user', methods=['POST'], readonly=False,
     )
     @api_handler
+    @requires_feature('hr.enabled', operation='write')
     def upload_document_attachment(self, document_id, **payload):
         _require('hr.documents.manage')
         payload.pop('document_id', None)

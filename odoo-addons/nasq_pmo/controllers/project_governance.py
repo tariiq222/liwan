@@ -9,6 +9,7 @@ from odoo.addons.nasq_api.controllers.common import (
     get_record,
     parse_nonneg_int,
     parse_positive_int,
+    requires_feature,
 )
 from odoo.addons.nasq_pmo.models.project_governance import (
     GOVERNANCE_ROLES,
@@ -174,6 +175,7 @@ class ProjectGovernanceController(http.Controller):
 
     @http.route('/api/v1/projects/<int:project_id>/stakeholders', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
+    @requires_feature('pmo.enabled', operation='read')
     def list_stakeholders(self, project_id):
         project = _project(project_id)
         args = request.httprequest.args
@@ -186,6 +188,7 @@ class ProjectGovernanceController(http.Controller):
 
     @http.route('/api/v1/projects/<int:project_id>/stakeholders/<int:item_id>', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
+    @requires_feature('pmo.enabled', operation='read')
     def get_stakeholder(self, project_id, item_id):
         project = _project(project_id)
         item = _same_project('nasq.project.stakeholder', item_id, project, 'stakeholder_id', missing=True)
@@ -193,6 +196,7 @@ class ProjectGovernanceController(http.Controller):
 
     @http.route('/api/v1/projects/<int:project_id>/stakeholders', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
+    @requires_feature('pmo.enabled', operation='write')
     def create_stakeholder(self, project_id, **payload):
         project = _project(project_id)
         _require_manage(project)
@@ -202,6 +206,7 @@ class ProjectGovernanceController(http.Controller):
 
     @http.route('/api/v1/projects/<int:project_id>/stakeholders/<int:item_id>', type='json2', auth='user', methods=['PATCH'], readonly=False)
     @api_handler
+    @requires_feature('pmo.enabled', operation='write')
     def patch_stakeholder(self, project_id, item_id, **payload):
         project = _project(project_id)
         _require_manage(project)
@@ -214,6 +219,7 @@ class ProjectGovernanceController(http.Controller):
 
     @http.route('/api/v1/projects/<int:project_id>/stakeholders/<int:item_id>', type='json2', auth='user', methods=['DELETE'], readonly=False)
     @api_handler
+    @requires_feature('pmo.enabled', operation='write')
     def delete_stakeholder(self, project_id, item_id):
         project = _project(project_id)
         _require_manage(project)
@@ -226,6 +232,7 @@ class ProjectGovernanceController(http.Controller):
 
     @http.route('/api/v1/projects/<int:project_id>/raci', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
+    @requires_feature('pmo.enabled', operation='read')
     def list_raci(self, project_id):
         project = _project(project_id)
         args = request.httprequest.args
@@ -241,6 +248,7 @@ class ProjectGovernanceController(http.Controller):
 
     @http.route('/api/v1/projects/<int:project_id>/raci', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
+    @requires_feature('pmo.enabled', operation='write')
     def create_raci(self, project_id, **payload):
         project = _project(project_id)
         _require_manage(project)
@@ -256,6 +264,7 @@ class ProjectGovernanceController(http.Controller):
 
     @http.route('/api/v1/projects/<int:project_id>/raci/<int:item_id>', type='json2', auth='user', methods=['PATCH'], readonly=False)
     @api_handler
+    @requires_feature('pmo.enabled', operation='write')
     def patch_raci(self, project_id, item_id, **payload):
         project = _project(project_id)
         _require_manage(project)
@@ -268,6 +277,7 @@ class ProjectGovernanceController(http.Controller):
 
     @http.route('/api/v1/projects/<int:project_id>/raci/<int:item_id>', type='json2', auth='user', methods=['DELETE'], readonly=False)
     @api_handler
+    @requires_feature('pmo.enabled', operation='write')
     def delete_raci(self, project_id, item_id):
         project = _project(project_id)
         _require_manage(project)
@@ -277,6 +287,7 @@ class ProjectGovernanceController(http.Controller):
 
     @http.route('/api/v1/projects/<int:project_id>/register', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
+    @requires_feature('pmo.enabled', operation='read')
     def list_register(self, project_id):
         project = _project(project_id)
         args = request.httprequest.args
@@ -296,6 +307,7 @@ class ProjectGovernanceController(http.Controller):
 
     @http.route('/api/v1/projects/<int:project_id>/register/<int:item_id>', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
+    @requires_feature('pmo.enabled', operation='read')
     def get_register(self, project_id, item_id):
         project = _project(project_id)
         item = _same_project('nasq.project.register', item_id, project, 'register_id', missing=True)
@@ -304,6 +316,7 @@ class ProjectGovernanceController(http.Controller):
 
     @http.route('/api/v1/projects/<int:project_id>/register', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
+    @requires_feature('pmo.enabled', operation='write')
     def create_register(self, project_id, **payload):
         project = _project(project_id)
         _require_manage(project)
@@ -316,6 +329,7 @@ class ProjectGovernanceController(http.Controller):
 
     @http.route('/api/v1/projects/<int:project_id>/register/<int:item_id>', type='json2', auth='user', methods=['PATCH'], readonly=False)
     @api_handler
+    @requires_feature('pmo.enabled', operation='write')
     def patch_register(self, project_id, item_id, **payload):
         project = _project(project_id)
         _require_manage(project)
@@ -328,6 +342,7 @@ class ProjectGovernanceController(http.Controller):
 
     @http.route('/api/v1/projects/<int:project_id>/register/<int:item_id>', type='json2', auth='user', methods=['DELETE'], readonly=False)
     @api_handler
+    @requires_feature('pmo.enabled', operation='write')
     def delete_register(self, project_id, item_id):
         project = _project(project_id)
         _require_manage(project)

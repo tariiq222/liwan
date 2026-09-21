@@ -3,7 +3,12 @@ from odoo import http
 from odoo.exceptions import UserError, ValidationError
 from odoo.http import request
 
-from odoo.addons.nasq_api.controllers.common import ApiError, api_handler, get_record
+from odoo.addons.nasq_api.controllers.common import (
+    ApiError,
+    api_handler,
+    get_record,
+    requires_feature,
+)
 from odoo.addons.nasq_pmo.models.project_milestone import _validate_deliverables
 from odoo.addons.nasq_pmo.serializers.dates import parse_date
 from odoo.addons.nasq_pmo.serializers.milestone import dump_milestone
@@ -43,12 +48,14 @@ class MilestoneController(http.Controller):
 
     @http.route('/api/v1/projects/<int:project_id>/milestones', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
+    @requires_feature('pmo.enabled', operation='read')
     def list_milestones(self, project_id):
         project = get_record('project.project', project_id)
         return [dump_milestone(project, m) for m in _sorted(project.milestone_ids)]
 
     @http.route('/api/v1/projects/<int:project_id>/milestones', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
+    @requires_feature('pmo.enabled', operation='write')
     def create_milestone(self, project_id, name=None, deadline=None, start_date=None, deliverables=None, **_):
         project = get_record('project.project', project_id)
         if not isinstance(name, str) or not name.strip():
@@ -63,6 +70,7 @@ class MilestoneController(http.Controller):
 
     @http.route('/api/v1/projects/<int:project_id>/milestones/<int:mid>', type='json2', auth='user', methods=['PATCH'], readonly=False)
     @api_handler
+    @requires_feature('pmo.enabled', operation='write')
     def patch_milestone(self, project_id, mid, **payload):
         payload.pop('project_id', None)
         payload.pop('mid', None)
@@ -90,6 +98,7 @@ class MilestoneController(http.Controller):
 
     @http.route('/api/v1/projects/<int:project_id>/milestones/<int:mid>', type='json2', auth='user', methods=['DELETE'], readonly=False)
     @api_handler
+    @requires_feature('pmo.enabled', operation='write')
     def delete_milestone(self, project_id, mid, **_):
         project = get_record('project.project', project_id)
         m = _milestone_of(project, mid)

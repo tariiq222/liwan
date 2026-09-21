@@ -6,6 +6,7 @@ from odoo.addons.nasq_api.controllers.common import (
     ApiError,
     api_handler,
     parse_nonneg_int,
+    requires_feature,
 )
 from odoo.addons.nasq_pmo.models.project_project import STATUS_VALUES
 from odoo.addons.nasq_pmo.serializers.project_reports import (
@@ -50,6 +51,7 @@ class ProjectReportsController(http.Controller):
 
     @http.route('/api/v1/reports/projects', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
+    @requires_feature('pmo.enabled', operation='read')
     def list_project_reports(self, **_):
         request.env['nasq.access.service']._nasq_require_capability('pmo.projects.read')
         args = request.httprequest.args
@@ -76,6 +78,7 @@ class ProjectReportsController(http.Controller):
 
     @http.route('/api/v1/reports/projects/summary', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
+    @requires_feature('pmo.enabled', operation='read')
     def project_dashboard_summary(self, **_):
         request.env['nasq.access.service']._nasq_require_capability('pmo.projects.read')
         domain = self._project_report_domain(request.httprequest.args, SUMMARY_QUERY)
@@ -87,6 +90,7 @@ class ProjectReportsController(http.Controller):
 
     @http.route('/api/v1/reports/projects/analytics', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
+    @requires_feature('pmo.enabled', operation='read')
     def project_dashboard_analytics(self, **_):
         request.env['nasq.access.service']._nasq_require_capability('pmo.projects.read')
         domain = self._project_report_domain(request.httprequest.args, SUMMARY_QUERY)

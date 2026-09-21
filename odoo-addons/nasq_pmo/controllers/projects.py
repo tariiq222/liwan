@@ -8,6 +8,7 @@ from odoo.addons.nasq_api.controllers.common import (
     api_handler,
     get_record,
     parse_nonneg_int,
+    requires_feature,
 )
 from odoo.addons.nasq_pmo.models.project_project import STATUS_VALUES, NasqStaleWrite
 from odoo.addons.nasq_pmo.serializers.project import (
@@ -27,6 +28,7 @@ class ProjectController(http.Controller):
 
     @http.route('/api/v1/projects', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
+    @requires_feature('pmo.enabled', operation='read')
     def list_projects(self, **_):
         request.env['nasq.access.service']._nasq_require_capability(
             'pmo.projects.read',
@@ -91,6 +93,7 @@ class ProjectController(http.Controller):
 
     @http.route('/api/v1/projects', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
+    @requires_feature('pmo.enabled', operation='write')
     def create_project(self, **payload):
         Project = request.env['project.project']
         if not Project._nasq_can_create():
@@ -106,6 +109,7 @@ class ProjectController(http.Controller):
 
     @http.route('/api/v1/projects/<int:project_id>', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
+    @requires_feature('pmo.enabled', operation='read')
     def get_project(self, project_id):
         request.env['nasq.access.service']._nasq_require_capability(
             'pmo.projects.read',
@@ -114,6 +118,7 @@ class ProjectController(http.Controller):
 
     @http.route('/api/v1/projects/<int:project_id>', type='json2', auth='user', methods=['PATCH'], readonly=False)
     @api_handler
+    @requires_feature('pmo.enabled', operation='write')
     def patch_project(self, project_id, **payload):
         payload.pop('project_id', None)
         charter = payload.pop('charter', _ABSENT)
@@ -142,12 +147,14 @@ class ProjectController(http.Controller):
 
     @http.route('/api/v1/projects/<int:project_id>/archive', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
+    @requires_feature('pmo.enabled', operation='write')
     def archive_project(self, project_id, **_):
         project = get_record('project.project', project_id)
         return dump_project_detail(project._nasq_archive())
 
     @http.route('/api/v1/projects/<int:project_id>/unarchive', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
+    @requires_feature('pmo.enabled', operation='write')
     def unarchive_project(self, project_id, **_):
         project = request.env['project.project'].with_context(active_test=False).browse(int(project_id)).exists()
         if not project:
@@ -157,6 +164,7 @@ class ProjectController(http.Controller):
 
     @http.route('/api/v1/projects/<int:project_id>/status', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
+    @requires_feature('pmo.enabled', operation='write')
     def set_status(self, project_id, status=None, **_):
         if not isinstance(status, str) or status not in STATUS_VALUES:
             raise ApiError(422, 'invalid_status', f"status must be one of {sorted(STATUS_VALUES)}", field='status')

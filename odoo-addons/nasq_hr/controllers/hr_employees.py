@@ -8,6 +8,7 @@ from odoo.addons.nasq_api.controllers.common import (
     ApiError,
     api_handler,
     parse_nonneg_int,
+    requires_feature,
 )
 from odoo.addons.nasq_hr.serializers.hr_employee import (
     dump_employee,
@@ -75,6 +76,7 @@ class HrEmployeeController(http.Controller):
 
     @http.route('/api/v1/hr/employees', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
+    @requires_feature('hr.enabled', operation='read')
     def list_employees(self, **_):
         args = request.httprequest.args
         q = args.get('q')
@@ -120,6 +122,7 @@ class HrEmployeeController(http.Controller):
 
     @http.route('/api/v1/hr/employees/<int:employee_id>', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
+    @requires_feature('hr.enabled', operation='read')
     def get_employee(self, employee_id):
         _require('hr.employees.read')
         privileged = _can('hr.employees.archive') or _can('hr.employees.access_status.read')
@@ -129,6 +132,7 @@ class HrEmployeeController(http.Controller):
     @http.route('/api/v1/hr/employees', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
     @hr_rule_handler
+    @requires_feature('hr.enabled', operation='write')
     def create_employee(self, **payload):
         _require('hr.employees.manage')
         vals = parse_employee_create(payload)
@@ -142,6 +146,7 @@ class HrEmployeeController(http.Controller):
     @http.route('/api/v1/hr/employees/<int:employee_id>', type='json2', auth='user', methods=['PATCH'], readonly=False)
     @api_handler
     @hr_rule_handler
+    @requires_feature('hr.enabled', operation='write')
     def patch_employee(self, employee_id, **payload):
         _require('hr.employees.manage')
         employee = _admin_employee(employee_id)
@@ -156,6 +161,7 @@ class HrEmployeeController(http.Controller):
     @http.route('/api/v1/hr/employees/<int:employee_id>/archive', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
     @hr_rule_handler
+    @requires_feature('hr.enabled', operation='write')
     def archive_employee(self, employee_id, **_):
         _require('hr.employees.archive')
         employee = _admin_employee(employee_id)
@@ -165,6 +171,7 @@ class HrEmployeeController(http.Controller):
     @http.route('/api/v1/hr/employees/<int:employee_id>/unarchive', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
     @hr_rule_handler
+    @requires_feature('hr.enabled', operation='write')
     def unarchive_employee(self, employee_id, **_):
         _require('hr.employees.archive')
         employee = _admin_employee(employee_id)

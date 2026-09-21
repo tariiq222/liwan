@@ -13,6 +13,11 @@ class NasqApiCase(HttpCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
+        profile = cls.env.ref('nasq_platform.tenant_profile', raise_if_not_found=False)
+        if profile:
+            profile._nasq_initialize_legacy_policy(
+                cls.env['nasq.feature.registry']._nasq_installed_module_ids(),
+            )
         cls.employee = new_test_user(cls.env, login='api_emp', password='api_emp_pass_123',
                                      name='Sara', groups='nasq_core.group_employee')
 

@@ -5,7 +5,12 @@ from odoo import http
 from odoo.http import request
 from odoo.tools.mail import plaintext2html
 
-from odoo.addons.nasq_api.controllers.common import ApiError, api_handler, get_record
+from odoo.addons.nasq_api.controllers.common import (
+    ApiError,
+    api_handler,
+    get_record,
+    requires_feature,
+)
 from odoo.addons.nasq_pmo.serializers.timeline import dump_message
 
 MAX_REFERENCES = 20
@@ -81,12 +86,14 @@ class TimelineController(http.Controller):
 
     @http.route('/api/v1/tasks/<int:task_id>/timeline', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
+    @requires_feature('pmo.enabled', operation='read')
     def timeline(self, task_id):
         task = get_record('project.task', task_id)
         return [dump_message(m) for m in self._timeline_messages(task)]
 
     @http.route('/api/v1/tasks/<int:task_id>/thread-tasks', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
+    @requires_feature('pmo.enabled', operation='read')
     def thread_tasks(self, task_id):
         """Tasks a comment on this task may reference with `/`: its family, minus itself."""
         task = get_record('project.task', task_id)
@@ -95,6 +102,7 @@ class TimelineController(http.Controller):
 
     @http.route('/api/v1/tasks/<int:task_id>/comments', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
+    @requires_feature('pmo.enabled', operation='write')
     def post_comment(self, task_id, body=None, mentions=None, task_refs=None, **_):
         if not isinstance(body, str) or not body.strip():
             raise ApiError(422, 'invalid', "body must not be empty", field='body')

@@ -9,7 +9,9 @@ from odoo.addons.nasq_api.controllers.common import (
     ApiError,
     api_handler,
     parse_nonneg_int,
+    requires_feature,
 )
+from odoo.addons.nasq_core.models.access_service import NasqAccessRule
 from odoo.addons.nasq_pmo.serializers.notification import dump_notification
 from odoo.addons.nasq_pmo.serializers.task import dump_task
 
@@ -196,6 +198,7 @@ class NotificationController(http.Controller):
 
     @http.route('/api/v1/notifications', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
+    @requires_feature('pmo.enabled', 'meetings.enabled', operation='read', match='any')
     def list_notifications(self, **_):
         args = request.httprequest.args
         supported = {'limit', 'offset', 'unread'}
@@ -226,6 +229,20 @@ class NotificationController(http.Controller):
             'unread_count': self._visible_count(base_domain + [('is_read', '=', False)]),
         }
 
+    def _feature_key_for_row(self, row):
+        message = row.mail_message_id
+        if message.nasq_notification_kind == 'overdue_digest' or message.model == 'project.task':
+            return 'pmo.enabled'
+        return 'meetings.enabled'
+
+    def _can_write_notification(self, row):
+        service = request.env['nasq.entitlement.service']
+        try:
+            service.require(self._feature_key_for_row(row))
+            return True
+        except NasqAccessRule:
+            return False
+
     @http.route('/api/v1/notifications/<int:notification_id>/read', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
     def mark_read(self, notification_id, **_):
@@ -237,6 +254,8 @@ class NotificationController(http.Controller):
         if not visible:
             raise MissingError(request.env._('Notification does not exist'))
         unread = rows.filtered(lambda row: not row.is_read)
+        if unread and not self._can_write_notification(unread):
+            request.env['nasq.entitlement.service'].require(self._feature_key_for_row(unread))
         if unread:
             unread.write({'is_read': True})
         return {'updated': len(unread)}
@@ -245,13 +264,15 @@ class NotificationController(http.Controller):
     @api_handler
     def mark_all_read(self, **_):
         rows = self._visible_rows(self._domain() + [('is_read', '=', False)])
-        count = len(rows)
-        if rows:
-            request.env['mail.notification'].sudo().browse([row.id for row, _live in rows]).write({'is_read': True})
+        writable = [row for row, _live in rows if self._can_write_notification(row)]
+        count = len(writable)
+        if writable:
+            request.env['mail.notification'].sudo().browse([row.id for row in writable]).write({'is_read': True})
         return {'updated': count}
 
     @http.route('/api/v1/notification-digests/<int:notification_id>', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
+    @requires_feature('pmo.enabled', operation='read')
     def get_digest(self, notification_id, **_):
         args = request.httprequest.args
         limit = parse_nonneg_int(args.get('limit', 50), 'limit') or 50

@@ -7,6 +7,7 @@ from odoo.addons.nasq_api.controllers.common import (
     api_handler,
     get_record,
     parse_nonneg_int,
+    requires_feature,
 )
 from odoo.addons.nasq_pmo.models.project_finance import (
     NasqFinanceEntryLinked,
@@ -87,6 +88,7 @@ class ProjectFinanceController(http.Controller):
 
     @http.route('/api/v1/projects/<int:project_id>/finance', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
+    @requires_feature('pmo.enabled', operation='read')
     def list_finance_entries(self, project_id, **_):
         project = _finance_project(project_id)
         args = request.httprequest.args
@@ -107,12 +109,14 @@ class ProjectFinanceController(http.Controller):
 
     @http.route('/api/v1/projects/<int:project_id>/finance/summary', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
+    @requires_feature('pmo.enabled', operation='read')
     def get_finance_summary(self, project_id):
         project = _finance_project(project_id)
         return build_finance_summary(project)
 
     @http.route('/api/v1/projects/<int:project_id>/finance', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
+    @requires_feature('pmo.enabled', operation='write')
     def create_finance_entry(self, project_id, **payload):
         payload.pop('project_id', None)
         project = _finance_project(project_id)
@@ -125,6 +129,7 @@ class ProjectFinanceController(http.Controller):
         type='json2', auth='user', methods=['GET'], readonly=True,
     )
     @api_handler
+    @requires_feature('pmo.enabled', operation='read')
     def get_finance_entry(self, project_id, entry_id):
         project = _finance_project(project_id)
         entry = _entry_of(project, entry_id)
@@ -135,6 +140,7 @@ class ProjectFinanceController(http.Controller):
         type='json2', auth='user', methods=['PATCH'], readonly=False,
     )
     @api_handler
+    @requires_feature('pmo.enabled', operation='write')
     def patch_finance_entry(self, project_id, entry_id, **payload):
         payload.pop('project_id', None)
         payload.pop('entry_id', None)
@@ -156,6 +162,7 @@ class ProjectFinanceController(http.Controller):
         type='json2', auth='user', methods=['DELETE'], readonly=False,
     )
     @api_handler
+    @requires_feature('pmo.enabled', operation='write')
     def delete_finance_entry(self, project_id, entry_id, expected_updated_at=None, **_):
         expected = _parse_revision_token(expected_updated_at)
         project = _finance_project(project_id)

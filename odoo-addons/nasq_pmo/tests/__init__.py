@@ -5,6 +5,7 @@ from . import (
     test_bus,
     test_completion_approval,
     test_deadline_digest,
+    test_feature_enforcement,
     test_meeting_history,
     test_meeting_people,
     test_meeting_permissions,

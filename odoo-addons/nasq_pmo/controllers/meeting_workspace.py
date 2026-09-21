@@ -7,6 +7,7 @@ from odoo.addons.nasq_api.controllers.common import (
     api_handler,
     get_record,
     parse_nonneg_int,
+    requires_feature,
 )
 from odoo.addons.nasq_pmo.serializers.meeting import (
     dump_event,
@@ -35,6 +36,7 @@ class MeetingWorkspaceController(http.Controller):
 
     @http.route('/api/v1/meetings/<int:meeting_id>/events', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
+    @requires_feature('meetings.enabled', operation='read')
     def meeting_events(self, meeting_id, **_):
         self._read()
         meeting = get_record('cyan.meeting.minute', meeting_id)
@@ -46,6 +48,7 @@ class MeetingWorkspaceController(http.Controller):
 
     @http.route('/api/v1/meeting-series/<int:series_id>/events', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
+    @requires_feature('meetings.enabled', operation='read')
     def series_events(self, series_id, **_):
         self._read()
         series = get_record('nasq.meeting.series', series_id)
@@ -58,6 +61,7 @@ class MeetingWorkspaceController(http.Controller):
 
     @http.route('/api/v1/meetings/<int:meeting_id>/versions', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
+    @requires_feature('meetings.enabled', operation='read')
     def meeting_versions(self, meeting_id, **_):
         self._read()
         meeting = get_record('cyan.meeting.minute', meeting_id)
@@ -69,6 +73,7 @@ class MeetingWorkspaceController(http.Controller):
 
     @http.route('/api/v1/meetings/<int:meeting_id>/versions/<int:version_id>', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
+    @requires_feature('meetings.enabled', operation='read')
     def meeting_version(self, meeting_id, version_id, **_):
         self._read()
         meeting = get_record('cyan.meeting.minute', meeting_id)
@@ -79,6 +84,7 @@ class MeetingWorkspaceController(http.Controller):
 
     @http.route('/api/v1/meeting-series/<int:series_id>/resolutions', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
+    @requires_feature('meetings.enabled', operation='read')
     def series_resolutions(self, series_id, **_):
         self._read()
         series = get_record('nasq.meeting.series', series_id)

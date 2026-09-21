@@ -3,7 +3,12 @@ from odoo import http
 from odoo.exceptions import UserError
 from odoo.http import request
 
-from odoo.addons.nasq_api.controllers.common import ApiError, api_handler, get_record
+from odoo.addons.nasq_api.controllers.common import (
+    ApiError,
+    api_handler,
+    get_record,
+    requires_feature,
+)
 from odoo.addons.nasq_pmo.serializers.project import dump_stage
 
 
@@ -31,6 +36,7 @@ class ProjectStageController(http.Controller):
 
     @http.route('/api/v1/projects/<int:project_id>/stages', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
+    @requires_feature('pmo.enabled', operation='write')
     def add_stage(self, project_id, name=None, fold=None, **_):
         project = get_record('project.project', project_id)
         vals = _parse_stage_body(name, fold)
@@ -39,6 +45,7 @@ class ProjectStageController(http.Controller):
 
     @http.route('/api/v1/projects/<int:project_id>/stages/<int:stage_id>', type='json2', auth='user', methods=['PATCH'], readonly=False)
     @api_handler
+    @requires_feature('pmo.enabled', operation='write')
     def patch_stage(self, project_id, stage_id, name=None, fold=None, **_):
         project = get_record('project.project', project_id)
         stage = _stage_of(project, stage_id)
@@ -49,6 +56,7 @@ class ProjectStageController(http.Controller):
 
     @http.route('/api/v1/projects/<int:project_id>/stages/order', type='json2', auth='user', methods=['PUT'], readonly=False)
     @api_handler
+    @requires_feature('pmo.enabled', operation='write')
     def reorder_stages(self, project_id, ids=None, **_):
         project = get_record('project.project', project_id)
         if not isinstance(ids, list) or not all(isinstance(i, int) for i in ids):
@@ -61,6 +69,7 @@ class ProjectStageController(http.Controller):
 
     @http.route('/api/v1/projects/<int:project_id>/stages/<int:stage_id>', type='json2', auth='user', methods=['DELETE'], readonly=False)
     @api_handler
+    @requires_feature('pmo.enabled', operation='write')
     def delete_stage(self, project_id, stage_id, **_):
         project = get_record('project.project', project_id)
         stage = _stage_of(project, stage_id)

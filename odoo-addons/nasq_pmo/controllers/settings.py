@@ -3,7 +3,11 @@ from odoo import http
 from odoo.exceptions import AccessError
 from odoo.http import request
 
-from odoo.addons.nasq_api.controllers.common import ApiError, api_handler
+from odoo.addons.nasq_api.controllers.common import (
+    ApiError,
+    api_handler,
+    requires_feature,
+)
 
 ALLOWED = {
     'project_creators',
@@ -21,6 +25,7 @@ class SettingsController(http.Controller):
 
     @http.route('/api/v1/settings/projects', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
+    @requires_feature('pmo.enabled', operation='read')
     def get_project_settings(self):
         settings = request.env['nasq.pmo.settings']
         if not settings._can_edit():
@@ -29,6 +34,7 @@ class SettingsController(http.Controller):
 
     @http.route('/api/v1/settings/projects/create-defaults', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
+    @requires_feature('pmo.enabled', operation='read')
     def get_project_create_defaults(self):
         if not request.env['project.project']._nasq_can_create():
             raise AccessError(request.env._("You are not allowed to create projects."))
@@ -36,6 +42,7 @@ class SettingsController(http.Controller):
 
     @http.route('/api/v1/settings/projects', type='json2', auth='user', methods=['PATCH'], readonly=False)
     @api_handler
+    @requires_feature('pmo.enabled', operation='write')
     def patch_project_settings(self, **payload):
         unknown = set(payload) - ALLOWED
         if unknown:

@@ -10,6 +10,7 @@ from odoo.addons.nasq_api.controllers.common import (
     get_record,
     parse_nonneg_int,
     parse_positive_int,
+    requires_feature,
 )
 from odoo.addons.nasq_pmo.models.project_task import _validate_task_deliverables
 from odoo.addons.nasq_pmo.serializers.dates import parse_date
@@ -45,6 +46,7 @@ class TaskController(http.Controller):
 
     @http.route('/api/v1/tasks', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
+    @requires_feature('pmo.enabled', operation='read')
     def list_tasks(self, **_):
         request.env['nasq.access.service']._nasq_require_capability(
             'pmo.tasks.read',
@@ -112,6 +114,7 @@ class TaskController(http.Controller):
 
     @http.route('/api/v1/tasks/<int:task_id>', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
+    @requires_feature('pmo.enabled', operation='read')
     def get_task(self, task_id):
         request.env['nasq.access.service']._nasq_require_capability(
             'pmo.tasks.read',
@@ -121,6 +124,7 @@ class TaskController(http.Controller):
 
     @http.route('/api/v1/tasks', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
+    @requires_feature('pmo.enabled', operation='write')
     def create_task(
         self, name=None, project_id=None, parent_id=None, milestone_id=None,
         planned_start=None, date_deadline=None, description=_MISSING,
@@ -166,6 +170,7 @@ class TaskController(http.Controller):
 
     @http.route('/api/v1/tasks/<int:task_id>', type='json2', auth='user', methods=['PATCH'], readonly=False)
     @api_handler
+    @requires_feature('pmo.enabled', operation='write')
     def patch_task(self, task_id, **payload):
         payload.pop('task_id', None)
         if not payload:
@@ -179,6 +184,7 @@ class TaskController(http.Controller):
 
     @http.route('/api/v1/tasks/<int:task_id>/transition', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
+    @requires_feature('pmo.enabled', operation='write')
     def transition_task(self, task_id, state=None, **_):
         if state not in API_TO_STATE:
             raise ApiError(422, 'invalid_state', f"unknown state {state!r}", field='state')
@@ -191,6 +197,7 @@ class TaskController(http.Controller):
 
     @http.route('/api/v1/tasks/<int:task_id>/archive', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
+    @requires_feature('pmo.enabled', operation='write')
     def archive_task(self, task_id, **_):
         task = get_record('project.task', task_id)
         task._nasq_archive()  # AccessError → 403 forbidden via api_handler
@@ -198,6 +205,7 @@ class TaskController(http.Controller):
 
     @http.route('/api/v1/tasks/<int:task_id>/completion/request', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
+    @requires_feature('pmo.enabled', operation='write')
     def request_completion(self, task_id, **extra):
         if extra:
             field = sorted(extra)[0]
@@ -213,6 +221,7 @@ class TaskController(http.Controller):
 
     @http.route('/api/v1/tasks/<int:task_id>/completion/accept', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
+    @requires_feature('pmo.enabled', operation='write')
     def accept_completion(self, task_id, revision=None, **extra):
         if extra:
             field = sorted(extra)[0]
@@ -228,6 +237,7 @@ class TaskController(http.Controller):
 
     @http.route('/api/v1/tasks/<int:task_id>/completion/return', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
+    @requires_feature('pmo.enabled', operation='write')
     def return_completion(self, task_id, revision=None, note=None, **extra):
         if extra:
             field = sorted(extra)[0]
@@ -244,6 +254,7 @@ class TaskController(http.Controller):
 
     @http.route('/api/v1/tasks/<int:task_id>/completion/withdraw', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
+    @requires_feature('pmo.enabled', operation='write')
     def withdraw_completion(self, task_id, revision=None, **extra):
         if extra:
             field = sorted(extra)[0]

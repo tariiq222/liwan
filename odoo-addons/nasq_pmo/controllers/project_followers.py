@@ -2,7 +2,12 @@
 from odoo import http
 from odoo.http import request
 
-from odoo.addons.nasq_api.controllers.common import ApiError, api_handler, get_record
+from odoo.addons.nasq_api.controllers.common import (
+    ApiError,
+    api_handler,
+    get_record,
+    requires_feature,
+)
 
 
 def _dump_users(users):
@@ -21,17 +26,20 @@ class ProjectFollowerController(http.Controller):
 
     @http.route('/api/v1/projects/<int:project_id>/followers', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
+    @requires_feature('pmo.enabled', operation='read')
     def list_followers(self, project_id):
         return _dump_users(get_record('project.project', project_id)._nasq_followers())
 
     @http.route('/api/v1/projects/<int:project_id>/followers', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
+    @requires_feature('pmo.enabled', operation='write')
     def add_follower(self, project_id, user_id=None, **_):
         project = get_record('project.project', project_id)
         return _dump_users(project._nasq_add_follower(_user(user_id)))
 
     @http.route('/api/v1/projects/<int:project_id>/followers/<int:user_id>', type='json2', auth='user', methods=['DELETE'], readonly=False)
     @api_handler
+    @requires_feature('pmo.enabled', operation='write')
     def remove_follower(self, project_id, user_id, **_):
         project = get_record('project.project', project_id)
         return _dump_users(project._nasq_remove_follower(_user(user_id)))

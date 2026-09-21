@@ -8,6 +8,7 @@ from odoo.addons.nasq_api.controllers.common import (
     api_handler,
     get_record,
     parse_nonneg_int,
+    requires_feature,
 )
 from odoo.addons.nasq_pmo.serializers.project_template import (
     dump_applied_project,
@@ -23,6 +24,7 @@ class ProjectTemplateController(http.Controller):
 
     @http.route('/api/v1/project-templates', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
+    @requires_feature('pmo.enabled', operation='read')
     def list_templates(self, **_):
         args = request.httprequest.args
         unknown = set(args) - {'q', 'limit', 'offset'}
@@ -45,6 +47,7 @@ class ProjectTemplateController(http.Controller):
 
     @http.route('/api/v1/project-templates', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
+    @requires_feature('pmo.enabled', operation='write')
     def create_template(self, **payload):
         values = parse_project_template_vals(payload)
         try:
@@ -57,11 +60,13 @@ class ProjectTemplateController(http.Controller):
 
     @http.route('/api/v1/project-templates/<int:template_id>', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
+    @requires_feature('pmo.enabled', operation='read')
     def get_template(self, template_id):
         return dump_project_template(get_record('nasq.project.template', template_id))
 
     @http.route('/api/v1/project-templates/<int:template_id>', type='json2', auth='user', methods=['PATCH'], readonly=False)
     @api_handler
+    @requires_feature('pmo.enabled', operation='write')
     def patch_template(self, template_id, **payload):
         template = get_record('nasq.project.template', template_id)
         values = parse_project_template_vals(payload, partial=True)
@@ -75,6 +80,7 @@ class ProjectTemplateController(http.Controller):
 
     @http.route('/api/v1/project-templates/<int:template_id>', type='json2', auth='user', methods=['DELETE'], readonly=False)
     @api_handler
+    @requires_feature('pmo.enabled', operation='write')
     def delete_template(self, template_id):
         template = get_record('nasq.project.template', template_id)
         try:
@@ -85,6 +91,7 @@ class ProjectTemplateController(http.Controller):
 
     @http.route('/api/v1/project-templates/<int:template_id>/apply', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
+    @requires_feature('pmo.enabled', operation='write')
     def apply_template(self, template_id, **payload):
         template = get_record('nasq.project.template', template_id)
         name, start_date = parse_project_template_apply(payload)

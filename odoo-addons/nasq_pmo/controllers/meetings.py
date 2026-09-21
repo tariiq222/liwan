@@ -11,6 +11,7 @@ from odoo.addons.nasq_api.controllers.common import (
     get_record,
     parse_nonneg_int,
     parse_positive_int,
+    requires_feature,
 )
 from odoo.addons.nasq_pmo.serializers.meeting import dump_meeting, dump_resolution
 
@@ -109,6 +110,7 @@ class MeetingController(http.Controller):
 
     @http.route('/api/v1/meetings', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
+    @requires_feature('meetings.enabled', operation='read')
     def list_meetings(self, **_):
         request.env['nasq.access.service']._nasq_require_capability('meetings.read')
         args = request.httprequest.args
@@ -157,6 +159,7 @@ class MeetingController(http.Controller):
 
     @http.route('/api/v1/meetings/<int:meeting_id>', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
+    @requires_feature('meetings.enabled', operation='read')
     def get_meeting(self, meeting_id, **_):
         request.env['nasq.access.service']._nasq_require_capability('meetings.read')
         meeting = get_record('cyan.meeting.minute', meeting_id)
@@ -164,6 +167,7 @@ class MeetingController(http.Controller):
 
     @http.route('/api/v1/meetings', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
+    @requires_feature('meetings.enabled', operation='write')
     def create_meeting(self, name=None, meeting_date=None, location=None, start_datetime=None, end_datetime=None, meeting_url=None, attendee_ids=None, secretary_id=None, agenda=None, series_id=None, project_id=None, minutes_form=None, **extra):
         request.env['nasq.access.service']._nasq_require_capability('meetings.create')
         if extra:
@@ -221,6 +225,7 @@ class MeetingController(http.Controller):
 
     @http.route('/api/v1/meetings/<int:meeting_id>', type='json2', auth='user', methods=['PATCH'], readonly=False)
     @api_handler
+    @requires_feature('meetings.enabled', operation='write')
     def patch_meeting(self, meeting_id, **payload):
         request.env['nasq.access.service']._nasq_require_capability('meetings.read')
         meeting = get_record('cyan.meeting.minute', meeting_id)
@@ -298,6 +303,7 @@ class MeetingController(http.Controller):
 
     @http.route('/api/v1/meetings/<int:meeting_id>/cancel', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
+    @requires_feature('meetings.enabled', operation='write')
     def cancel_meeting(self, meeting_id, scope='this', **_):
         request.env['nasq.access.service']._nasq_require_capability('meetings.read')
         meeting = get_record('cyan.meeting.minute', meeting_id)
@@ -308,6 +314,7 @@ class MeetingController(http.Controller):
 
     @http.route('/api/v1/meetings/<int:meeting_id>/resolutions', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
+    @requires_feature('meetings.enabled', operation='write')
     def create_resolution(self, meeting_id, name=None, responsible_id=None, deadline=None, priority=None, execution_period=None, project_id=None, **extra):
         request.env['nasq.access.service']._nasq_require_capability('meetings.read')
         if extra:
@@ -354,6 +361,7 @@ class MeetingController(http.Controller):
         type='json2', auth='user', methods=['POST'], readonly=False,
     )
     @api_handler
+    @requires_feature('meetings.enabled', 'pmo.enabled', operation='write')
     def convert_resolution(self, meeting_id, resolution_id, project_id=None, **_):
         request.env['nasq.access.service']._nasq_require_capability('meetings.read')
         meeting = get_record('cyan.meeting.minute', meeting_id)
@@ -372,6 +380,7 @@ class MeetingController(http.Controller):
 
     @http.route('/api/v1/meetings/<int:meeting_id>/confirm', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
+    @requires_feature('meetings.enabled', operation='write')
     def confirm_meeting(self, meeting_id, **_):
         request.env['nasq.access.service']._nasq_require_capability('meetings.read')
         meeting = get_record('cyan.meeting.minute', meeting_id)
@@ -380,6 +389,7 @@ class MeetingController(http.Controller):
 
     @http.route('/api/v1/meetings/<int:meeting_id>/complete', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
+    @requires_feature('meetings.enabled', operation='write')
     def complete_meeting(self, meeting_id, **_):
         request.env['nasq.access.service']._nasq_require_capability('meetings.read')
         meeting = get_record('cyan.meeting.minute', meeting_id)
@@ -388,6 +398,7 @@ class MeetingController(http.Controller):
 
     @http.route('/api/v1/meetings/<int:meeting_id>/reopen', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
+    @requires_feature('meetings.enabled', operation='write')
     def reopen_meeting(self, meeting_id, **_):
         request.env['nasq.access.service']._nasq_require_capability('meetings.read')
         meeting = get_record('cyan.meeting.minute', meeting_id)
@@ -399,6 +410,7 @@ class MeetingController(http.Controller):
         type='json2', auth='user', methods=['PATCH'], readonly=False,
     )
     @api_handler
+    @requires_feature('meetings.enabled', operation='write')
     def patch_resolution(self, meeting_id, resolution_id, **payload):
         request.env['nasq.access.service']._nasq_require_capability('meetings.read')
         _meeting, resolution = self._resolution(meeting_id, resolution_id)
@@ -452,6 +464,7 @@ class MeetingController(http.Controller):
         type='json2', auth='user', methods=['POST'], readonly=False,
     )
     @api_handler
+    @requires_feature('meetings.enabled', operation='write')
     def resolution_action(self, meeting_id, resolution_id, action, **_):
         request.env['nasq.access.service']._nasq_require_capability('meetings.read')
         _meeting, resolution = self._resolution(meeting_id, resolution_id)
@@ -462,6 +475,7 @@ class MeetingController(http.Controller):
         return dump_resolution(resolution)
 
     @http.route('/api/v1/meetings/<int:meeting_id>/minutes.pdf', type='http', auth='user', methods=['GET'], csrf=False)
+    @requires_feature('meetings.enabled', operation='read')
     def minutes_pdf(self, meeting_id, **_):
         request.env['nasq.access.service']._nasq_require_capability('meetings.read')
         meeting = get_record('cyan.meeting.minute', meeting_id)
