@@ -7,6 +7,8 @@ EXPLICIT_ABSTRACT = {
     'nasq.access.service': 'global',
     'nasq.chat.service': 'global',
     'nasq.pmo.settings': 'global',
+    'nasq.entitlement.service': 'global',
+    'nasq.feature.registry': 'global',
 }
 
 

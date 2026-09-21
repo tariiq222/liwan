@@ -1,8 +1,8 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 {
     'name': 'nasq Platform',
-    'summary': 'nasq platform: tenant profile and root company',
-    'version': '19.0.1.0.0',
+    'summary': 'nasq platform: tenant profile, entitlements and feature registry',
+    'version': '19.0.1.1.0',
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
     'license': 'LGPL-3',

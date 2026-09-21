@@ -22,6 +22,7 @@ stage_branding() {
   mkdir -p data/seed
   cp branding.json data/seed/branding.json
   cp seed_branding.py data/seed/seed_branding.py
+  cp seed_legacy_policy.py data/seed/seed_legacy_policy.py
 
   local logo_path resolved_path staged_name
   logo_path="$(sed -n 's/.*"logo_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' branding.json | head -n 1)"
@@ -90,6 +91,8 @@ docker compose exec -T db pg_isready -U odoo >/dev/null 2>&1 || { echo "db not r
 # Every pillar must be listed explicitly: pillars depend on nasq_api, not the other way round.
 docker compose run --rm -v "$PWD/data/odoo.conf:/etc/odoo/odoo.conf:ro" odoo \
   -d "$DB_NAME" -i nasq_core,nasq_platform,nasq_api,nasq_pmo,nasq_hr,nasq_chat,web_theme_shadcn --stop-after-init
+docker compose run --rm -T -v "$PWD/data/odoo.conf:/etc/odoo/odoo.conf:ro" -v "$PWD/data/seed:/seed:ro" odoo \
+  shell -d "$DB_NAME" --no-http < data/seed/seed_legacy_policy.py
 docker compose run --rm -T -e VENDOR_PASSWORD -v "$PWD/data/odoo.conf:/etc/odoo/odoo.conf:ro" -v "$PWD/data/seed:/seed:ro" odoo \
   shell -d "$DB_NAME" --no-http < data/seed/seed_branding.py
 docker compose up -d

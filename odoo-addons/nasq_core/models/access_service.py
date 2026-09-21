@@ -34,7 +34,6 @@ BUILTIN_MEETING_PERMISSION_KEYS = {
 CAPABILITIES = frozenset(
     SYSTEM_PERMISSIONS | HR_PERMISSIONS | PMO_PERMISSIONS | MEETINGS_PERMISSIONS,
 )
-assert len(CAPABILITIES) == 28
 
 PERMISSION_DEPENDENCIES = {
     'access.users.grant': {'access.users.read', 'access.roles.read'},
@@ -74,6 +73,22 @@ class NasqAccessService(models.AbstractModel):
     _nasq_scope = 'global'
 
     @api.model
+    def _nasq_capability_definitions(self):
+        """Pure descriptors composed through super(); preserve the 28 baseline keys."""
+        return tuple({'key': key, 'owner': 'nasq_core'} for key in sorted(CAPABILITIES))
+
+    @api.model
+    def _nasq_capability_map(self):
+        seen = {}
+        for item in self._nasq_capability_definitions():
+            key = item.get('key')
+            if not key or key in seen:
+                msg = 'duplicate_or_invalid_capability'
+                raise ValidationError(msg)
+            seen[key] = item
+        return seen
+
+    @api.model
     def _nasq_identity_management_state(self, user):
         self.env.cr.execute(
             '''
@@ -95,7 +110,7 @@ class NasqAccessService(models.AbstractModel):
         user = user or self.env.user
         company = company or self.env.company
         if user._is_superuser() or user.has_group('nasq_core.group_vendor_support'):
-            return set(CAPABILITIES)
+            return set(self._nasq_capability_map())
         self.env.cr.execute(
             '''
                 SELECT DISTINCT permission.key

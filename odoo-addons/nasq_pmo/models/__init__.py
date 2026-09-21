@@ -1,5 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from . import (
+    feature_registry,
     mail_notification_nasq,
     meeting_minute,
     meeting_resolution,
