@@ -1,7 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from unittest.mock import patch
 
-from odoo.exceptions import AccessDenied
+from odoo.exceptions import AccessDenied, UserError
 from odoo.http import root
 from odoo.tests import HttpCase, new_test_user, tagged
 from odoo.tests.common import HOST, Opener
@@ -10,7 +10,8 @@ from odoo.addons.nasq_api.controllers.common import (
     clear_security_caches_after_commit,
     fresh_session_token,
 )
-from odoo.addons.nasq_api.serializers.user import dump_me
+from odoo.addons.nasq_api.serializers.user import dump_me, dump_platform
+from odoo.addons.nasq_api.tests.common import NasqApiCase
 
 
 @tagged('post_install', '-at_install', 'nasq')
@@ -39,7 +40,7 @@ class TestMeEndpoint(HttpCase):
         self.assertEqual(set(body), {
             'id', 'name', 'login', 'email', 'lang', 'tz', 'role', 'company',
             'roles', 'capabilities', 'access_policy_version', 'appearance',
-            'modules', 'entitlements', 'platform', 'terminology',
+            'modules', 'entitlements', 'platform', 'terminology', 'commercial',
         })
         self.assertEqual(body['platform']['schema_version'], 1)
         self.assertIn(body['platform']['state'], ('active', 'expired', 'suspended'))
@@ -157,6 +158,70 @@ class TestMeEndpoint(HttpCase):
 
         self.assertEqual(body['company']['id'], company_b.id)
         self.assertNotIn('access.users.assign_roles', body['capabilities'])
+
+
+@tagged('post_install', '-at_install', 'nasq')
+class TestMeCommercial(NasqApiCase):
+
+    def test_anonymous_metadata_is_not_public(self):
+        self.assertEqual(self.api('GET', '/api/v1/me').status_code, 403)
+
+    def test_saas_metadata_is_local_disabled_and_whitelisted(self):
+        before = dump_me(self.employee)
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        response = self.api('GET', '/api/v1/me')
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertEqual(body['commercial'], {
+            'schema_version': 1, 'mode': 'saas', 'self_service_available': False,
+        })
+        self.assertEqual(set(body['platform']), {
+            'schema_version', 'policy_revision', 'state', 'valid_until',
+            'read_only', 'readable_features', 'writable_features',
+        })
+        self.assertFalse(any(key.startswith('billing.') for key in body['capabilities']))
+        for key in ('capabilities', 'roles', 'entitlements', 'modules', 'platform'):
+            self.assertEqual(body[key], before[key])
+
+    def test_non_saas_metadata_does_not_change_business_identity(self):
+        before = dump_me(self.employee)
+        # Fixture conversion only; the production write API prohibits mode changes.
+        self.env.cr.execute("""
+            UPDATE nasq_tenant_profile SET commercial_mode='non_saas',
+                entitlement_source='local_policy', valid_until=NULL
+        """)
+        self.env['nasq.tenant.profile'].invalidate_model()
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        response = self.api('GET', '/api/v1/me')
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertEqual(body['commercial'], {
+            'schema_version': 1, 'mode': 'non_saas', 'self_service_available': False,
+        })
+        for key in ('capabilities', 'roles', 'entitlements', 'modules', 'platform'):
+            self.assertEqual(body[key], before[key])
+
+    def test_missing_profile_does_not_guess_commercial_mode(self):
+        service = type(self.env['nasq.entitlement.service'])
+        with patch.object(service, '_nasq_profile', side_effect=UserError('missing profile')):
+            self.assertNotIn('commercial', dump_me(self.employee))
+
+    def test_profile_unavailable_during_serialization_over_http(self):
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        service = type(self.env['nasq.entitlement.service'])
+
+        def unavailable_at_serialization(user):
+            # Authentication/lifecycle must still use the real profile. Simulate a
+            # failure specifically at the optional metadata serialization boundary.
+            with patch.object(service, '_nasq_profile', side_effect=UserError('missing profile')):
+                return dump_platform(user)
+
+        with patch('odoo.addons.nasq_api.serializers.user.dump_platform',
+                   side_effect=unavailable_at_serialization):
+            response = self.api('GET', '/api/v1/me')
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn('commercial', response.json())
+        self.assertEqual(response.json()['platform']['schema_version'], 1)
 
 
 @tagged('post_install', '-at_install', 'nasq')

@@ -43,6 +43,7 @@ def dump_me(user):
         'entitlements': platform['entitlements'],
         'platform': platform['platform'],
         'terminology': platform['terminology'],
+        **({'commercial': platform['commercial']} if 'commercial' in platform else {}),
     }
 
 
@@ -71,6 +72,12 @@ def dump_platform(user):
     if not isinstance(terminology, dict):
         terminology = {}
     return {
+        # Local metadata only: never a billing grant or a network health check.
+        'commercial': {
+            'schema_version': 1,
+            'mode': profile.commercial_mode,
+            'self_service_available': False,
+        },
         'modules': list(service._nasq_installed_modules()),
         'entitlements': service._nasq_dump_entitlements(profile),
         'platform': {

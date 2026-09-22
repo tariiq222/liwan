@@ -2,6 +2,7 @@
 from odoo import api, fields, models
 from odoo.exceptions import AccessError, ValidationError
 
+from odoo.addons.nasq_platform.commercial_config import SOURCES, load_classification
 from odoo.addons.nasq_platform.models.entitlement_service import (
     OPERATOR_CONTEXT,
     POLICY_FIELDS,
@@ -17,6 +18,22 @@ class NasqTenantProfile(models.Model):
     root_company_id = fields.Many2one(
         'res.company', required=True, ondelete='restrict', index=True,
     )
+    commercial_mode = fields.Selection(
+        [('saas', 'SaaS'), ('non_saas', 'Independent')], required=True,
+    )
+    entitlement_source = fields.Selection(
+        [('control_plane', 'Control plane'), ('local_policy', 'Local policy')], required=True,
+    )
+    _commercial_pair = models.Constraint(
+        "CHECK ((commercial_mode = 'saas' AND entitlement_source = 'control_plane') "
+        "OR (commercial_mode = 'non_saas' AND entitlement_source = 'local_policy'))",
+        'nasq commercial mode and entitlement source must match',
+    )
+    _independent_cutoff = models.Constraint(
+        "CHECK (commercial_mode != 'non_saas' OR valid_until IS NULL)",
+        'independent installations cannot have a subscription expiry',
+    )
+
     solution = fields.Char()
     tier = fields.Char()
     status = fields.Selection(
@@ -151,11 +168,37 @@ class NasqTenantProfile(models.Model):
         })
         return locked.quota_revision
 
+    def _nasq_require_policy_source(self, source):
+        """Internal service boundary, never an RPC or caller-supplied context grant."""
+        self.ensure_one()
+        if not self.env.su:
+            raise AccessError(self.env._('A trusted local operator is required.'))
+        if source not in SOURCES.values() or self.entitlement_source != source:
+            raise AccessError(self.env._('Policy source is not permitted for this installation.'))
+        return True
+
+    @api.constrains('commercial_mode', 'entitlement_source', 'valid_until')
+    def _nasq_check_commercial_mode(self):
+        for record in self:
+            if SOURCES.get(record.commercial_mode) != record.entitlement_source:
+                raise ValidationError(self.env._('Commercial mode and policy source must match.'))
+            if record.commercial_mode == 'non_saas' and record.valid_until:
+                raise ValidationError(self.env._('Independent installations cannot have a subscription expiry.'))
+
     @api.model_create_multi
     def create(self, vals_list):
         if self.search([], limit=1) or len(vals_list) != 1:
             raise ValidationError(self.env._('nasq tenant profile is a singleton.'))
+        if not self.env.su:
+            raise AccessError(self.env._('A trusted local operator is required.'))
         vals = dict(vals_list[0])
+        classification = load_classification(self.env.cr.dbname, fields.Date.to_date(vals.get('valid_until')))
+        for key in ('commercial_mode', 'entitlement_source'):
+            if key in vals and vals[key] != classification[key]:
+                raise ValidationError(self.env._('Classification differs from the local operator input.'))
+            vals[key] = classification[key]
+        if classification['clear_valid_until']:
+            vals['valid_until'] = False
         vals.setdefault('status', 'active')
         vals.setdefault('support_access_enabled', True)
         vals.setdefault('policy_revision', 0)
@@ -166,8 +209,12 @@ class NasqTenantProfile(models.Model):
         return super().create([vals])
 
     def write(self, vals):
+        if {'commercial_mode', 'entitlement_source'}.intersection(vals):
+            raise AccessError(self.env._('Commercial classification is immutable; conversion requires a separate procedure.'))
+        if vals.get('valid_until') and any(record.commercial_mode == 'non_saas' for record in self):
+            raise ValidationError(self.env._('Independent installations cannot have a subscription expiry.'))
         policy_keys = POLICY_FIELDS.intersection(vals)
-        trusted = self.env.context.get(OPERATOR_CONTEXT)
+        trusted = self.env.su and self.env.context.get(OPERATOR_CONTEXT)
         if policy_keys and not trusted:
             raise AccessError(self.env._(
                 'nasq tenant policy can only be changed by a trusted operator.',

@@ -35,6 +35,15 @@ export const MeTerminologySchema = z.object({
   en: z.record(z.string(), z.string()),
 }).strict()
 
+// Independent of the strict platform v1 shape. Missing on older servers.
+// Availability is deliberately false until a separately authorized billing surface exists.
+export const MeCommercialSchema = z.object({
+  schema_version: z.literal(1),
+  mode: z.enum(['saas', 'non_saas']),
+  self_service_available: z.literal(false),
+}).strict()
+export type MeCommercial = z.infer<typeof MeCommercialSchema>
+
 export const MeSchema = z.object({
   id: z.number().int().positive(),
   name: z.string(),
@@ -51,6 +60,7 @@ export const MeSchema = z.object({
   modules: z.array(NasqModuleIdSchema).optional().default([]),
   entitlements: z.record(z.string(), z.union([z.boolean(), z.number().int().nonnegative().nullable()])).optional().default({}),
   platform: MePlatformSchema.optional(),
+  commercial: MeCommercialSchema.optional(),
   terminology: MeTerminologySchema.optional().default({ ar: {}, en: {} }),
 })
 export type Me = z.infer<typeof MeSchema>

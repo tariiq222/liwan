@@ -1,2 +1,8 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from . import test_entitlements, test_lifecycle, test_quotas, test_tenant_profile
+from . import (
+    test_commercial_mode,
+    test_entitlements,
+    test_lifecycle,
+    test_quotas,
+    test_tenant_profile,
+)

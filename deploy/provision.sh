@@ -72,6 +72,18 @@ for var in DB_PASSWORD ODOO_ADMIN_PASSWORD VENDOR_PASSWORD; do
   [ "${#value}" -ge 16 ] || { echo "provision: $var must be at least 16 characters" >&2; exit 1; }
 done
 
+# Explicit classification is required before starting any Docker service.
+# Keep the validated snapshot separate from branding's replaceable staging directory.
+CLASSIFICATION_DIR="$(mktemp -d "${TMPDIR:-/tmp}/nasq-classification.XXXXXX")"
+trap 'rm -rf -- "$CLASSIFICATION_DIR"' EXIT
+python3 classification.py stage \
+  --file "${NASQ_COMMERCIAL_CONFIG:?set NASQ_COMMERCIAL_CONFIG to an absolute operator mapping file}" \
+  --output "$CLASSIFICATION_DIR/classification.json" --database "$DB_NAME" \
+  --expected-valid-until none --fresh
+export NASQ_CLASSIFICATION_FILE="$CLASSIFICATION_DIR/classification.json"
+# Directory traversal for the container's unprivileged UID; input contains no secrets.
+chmod 0755 "$CLASSIFICATION_DIR"
+
 export ODOO_COMMIT="$(cat "$PWD/odoo/ODOO_COMMIT")"
 export NASQ_IMAGE_TAG="${NASQ_IMAGE_TAG:-$(git -C "$PWD/.." rev-parse --short HEAD)}"
 
@@ -89,7 +101,8 @@ done
 docker compose exec -T db pg_isready -U odoo >/dev/null 2>&1 || { echo "db not ready after 60s"; exit 1; }
 
 # Every pillar must be listed explicitly: pillars depend on nasq_api, not the other way round.
-docker compose run --rm -v "$PWD/data/odoo.conf:/etc/odoo/odoo.conf:ro" odoo \
+docker compose -f docker-compose.yml -f docker-compose.classification.yml run --rm \
+  -v "$PWD/data/odoo.conf:/etc/odoo/odoo.conf:ro" odoo \
   -d "$DB_NAME" -i nasq_core,nasq_platform,nasq_api,nasq_pmo,nasq_hr,nasq_chat,web_theme_shadcn --stop-after-init
 docker compose run --rm -T -v "$PWD/data/odoo.conf:/etc/odoo/odoo.conf:ro" -v "$PWD/data/seed:/seed:ro" odoo \
   shell -d "$DB_NAME" --no-http < data/seed/seed_legacy_policy.py

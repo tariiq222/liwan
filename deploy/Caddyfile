@@ -2,6 +2,7 @@
 	encode zstd gzip
 
 	# */static/* (not /*/static/*): Caddy's path matcher does not let * cross / in multi-wildcard patterns
+	# /api/commercial/v1 is intentionally absent: Nuxt rejects it before any upstream.
 	@odoo path /api/v1/* /web/* /odoo/* /website/translations /base_setup/* /bus/* /json/* /doc/* */static/* /report/* /mail/* /discuss/*
 	handle @odoo {
 		reverse_proxy odoo:8069

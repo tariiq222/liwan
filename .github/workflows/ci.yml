@@ -54,6 +54,8 @@ jobs:
       - name: Odoo tests on a fresh scratch database
         run: |
           set -euo pipefail
+          export NASQ_COMMERCIAL_CONFIG="$RUNNER_TEMP/odoo-classification.json"
+          python3 deploy/classification.py fixture --database "nasq_ci_scratch_${{ github.run_id }}" --mode saas --output "$NASQ_COMMERCIAL_CONFIG"
           python _odoo/odoo-bin \
             --db_host=127.0.0.1 --db_port=5432 --db_user=odoo --db_password=odoo \
             --addons-path="$PWD/_odoo/addons,$PWD/odoo-addons" \
@@ -102,14 +104,24 @@ jobs:
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends libpq-dev libldap2-dev libsasl2-dev
           pip install -r deploy/odoo/requirements-python312-linux.txt
+      - name: Prepare explicit scratch upgrade classification
+        if: steps.base.outputs.tag != ''
+        run: |
+          python3 deploy/classification.py fixture --database nasq_ci_upgrade_scratch --mode saas --output "$RUNNER_TEMP/upgrade-classification.json"
       - name: Install the previous release
         if: steps.base.outputs.tag != ''
         run: |
           set -euo pipefail
+          if [ -n "${NASQ_COMMERCIAL_CONFIG:-}" ]; then
+            echo "previous release must not inherit a commercial classification" >&2
+            exit 1
+          fi
           python _odoo/odoo-bin $ODOO_DB_ARGS --addons-path="$PWD/_odoo/addons,$PWD/_baseline/odoo-addons" \
             -d nasq_ci_upgrade_scratch -i "$MODULES" --without-demo=all --http-port=8169 --stop-after-init
       - name: Upgrade to this commit
         if: steps.base.outputs.tag != ''
+        env:
+          NASQ_COMMERCIAL_CONFIG: ${{ runner.temp }}/upgrade-classification.json
         run: |
           set -euo pipefail
           python _odoo/odoo-bin $ODOO_DB_ARGS --addons-path="$PWD/_odoo/addons,$PWD/odoo-addons" \
@@ -134,11 +146,15 @@ jobs:
             --build-arg NASQ_REVISION="${GITHUB_SHA::12}" -t nasq-odoo:ci .
       - name: Install every pillar inside the image
         run: |
+          set -euo pipefail
+          python3 deploy/classification.py fixture --database nasq_image_scratch --mode non_saas --output "$RUNNER_TEMP/image-classification.json"
           docker network create t
           docker run -d --name db --network t -e POSTGRES_USER=odoo -e POSTGRES_PASSWORD=odoo -e POSTGRES_DB=postgres postgres:16
           printf '%s\n' '[options]' 'db_host = db' 'db_user = odoo' 'db_password = odoo' 'list_db = False' > odoo.conf
           for i in $(seq 1 30); do docker exec db pg_isready -U odoo && break; sleep 2; done
-          docker run --rm --network t -v "$PWD/odoo.conf:/etc/odoo/odoo.conf:ro" nasq-odoo:ci \
+          docker run --rm --network t -v "$PWD/odoo.conf:/etc/odoo/odoo.conf:ro" \
+            -v "$RUNNER_TEMP/image-classification.json:/run/nasq/classification.json:ro" \
+            -e NASQ_COMMERCIAL_CONFIG=/run/nasq/classification.json nasq-odoo:ci \
             -d nasq_image_scratch -i nasq_core,nasq_platform,nasq_api,nasq_pmo,nasq_hr,nasq_chat --without-demo=all --http-port=8169 --stop-after-init
           docker run --rm --entrypoint sh nasq-odoo:ci -c 'test ! -w /opt/nasq/addons && test "$(id -u)" = 10001 && ! command -v git'
       - if: always()
@@ -179,6 +195,8 @@ jobs:
             rm -rf "$W"
           }
           trap cleanup EXIT
+          export NASQ_COMMERCIAL_CONFIG="$W/restore-classification.json"
+          python3 deploy/classification.py fixture --database nasq_drill_src_scratch --mode non_saas --output "$NASQ_COMMERCIAL_CONFIG"
           python _odoo/odoo-bin --db_host=127.0.0.1 --db_user=odoo --db_password=odoo \
             --addons-path="$PWD/_odoo/addons,$PWD/odoo-addons" --data-dir="$W/data" \
             -d nasq_drill_src_scratch -i nasq_core,nasq_platform,nasq_api,nasq_pmo,nasq_hr,nasq_chat \
@@ -191,6 +209,8 @@ jobs:
             --target-filestore "$W/restored/filestore/$1" --pg-restore "$B/pg_restore" --createdb "$B/createdb" \
             --psql "$B/psql" --pg-host 127.0.0.1 --pg-user odoo; }
           verify nasq_drill_restored_scratch
+          # Classified restored databases must start without a mapping or billing service.
+          unset NASQ_COMMERCIAL_CONFIG
           python _odoo/odoo-bin --db_host=127.0.0.1 --db_user=odoo --db_password=odoo \
             --addons-path="$PWD/_odoo/addons,$PWD/odoo-addons" --data-dir="$W/restored" \
             -d nasq_drill_restored_scratch --http-port=8169 --max-cron-threads=0 > restored-odoo.log 2>&1 &

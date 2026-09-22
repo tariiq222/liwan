@@ -51,6 +51,7 @@ const items: NavItem[] = [
   { to: '/settings/users', labelKey: 'nav.users', icon: UserCog, shortcut: '7', group: 'settings', module: 'settings', capability: 'access.users.read' },
   { to: '/settings/roles', labelKey: 'nav.roles', icon: ShieldCheck, shortcut: '8', group: 'settings', module: 'settings', capability: 'access.roles.read' },
   { to: '/settings/access-log', labelKey: 'nav.accessLog', icon: History, shortcut: '9', group: 'settings', module: 'settings', capability: 'access.audit.read' },
+  // Billing pages are a later phase. Do not add /settings/billing here, even as a placeholder.
 ]
 export function useNav(identity: AccessIdentity): NavItem[] {
   const visible = items.filter(item => (

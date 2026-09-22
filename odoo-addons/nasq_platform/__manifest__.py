@@ -2,7 +2,7 @@
 {
     'name': 'nasq Platform',
     'summary': 'nasq platform: tenant profile, entitlements and feature registry',
-    'version': '19.0.1.1.0',
+    'version': '19.0.1.2.0',
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
     'license': 'LGPL-3',

@@ -10,7 +10,7 @@ from odoo.addons.nasq_core.models.access_service import NasqAccessRule
 POLICY_FIELDS = frozenset({
     'solution', 'tier', 'status', 'valid_until', 'features',
     'retained_read_features', 'terminology', 'policy_revision',
-    'quota_revision', 'support_access_enabled',
+    'quota_revision', 'support_access_enabled', 'commercial_mode', 'entitlement_source',
 })
 OPERATOR_CONTEXT = 'nasq_platform.operator_policy'
 TERMINOLOGY_LOCALES = ('ar', 'en')
@@ -365,7 +365,7 @@ class NasqEntitlementService(models.AbstractModel):
 
     @api.model
     def _nasq_assert_operator(self):
-        if self.env.context.get(OPERATOR_CONTEXT):
+        if self.env.su and self.env.context.get(OPERATOR_CONTEXT):
             return True
         raise AccessError(self.env._(
             'nasq tenant policy can only be changed by a trusted operator.',

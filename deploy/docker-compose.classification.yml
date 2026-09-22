@@ -1,0 +1,12 @@
+# Opt-in install/upgrade overlay only. Ordinary docker-compose.yml has no mapping dependency.
+services:
+  odoo:
+    environment:
+      NASQ_COMMERCIAL_CONFIG: /run/nasq/classification.json
+    volumes:
+      - type: bind
+        source: ${NASQ_CLASSIFICATION_FILE:?set absolute path to validated classification snapshot}
+        target: /run/nasq/classification.json
+        read_only: true
+        bind:
+          create_host_path: false

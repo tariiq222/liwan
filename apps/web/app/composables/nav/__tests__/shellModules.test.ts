@@ -34,6 +34,8 @@ describe('capability-based navigation', () => {
     expect(visibleShellModules(admin).find(module => module.id === 'settings')?.to).toBe('/settings/users')
     expect(paths).not.toContain('/projects/settings')
     expect(paths).not.toContain('/odoo')
+    expect(paths).not.toContain('/settings/billing')
+    expect(paths.some(path => path.startsWith('/settings/billing'))).toBe(false)
     expect(nav.find(item => item.to === '/settings/users')?.group).toBe('settings')
   })
   it('puts project settings last in the projects group, never in settings', () => {
