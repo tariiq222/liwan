@@ -44,3 +44,12 @@ git branch --show-current
 - [أرشيف الواجهة](archive/ui/README.md) و[خريطة العمل السابقة كاملة](archive/ui/workspace-before-2026-09-12.md) يحفظان التاريخ. تقارير قديمة قد تشير إلى فروع ومنافذ وملفات أزيلت؛ تحقق قبل استعادتها أو حذف غيرها.
 
 التحقق المحلي لا يثبت النشر. الـ remote هو `origin` (`https://github.com/tariiq222/nasq.git`) ويتتبعه `main`؛ قارن `main` مع `origin/main` بعد `git fetch` قبل أي دمج. لا commit أو دمج أو push أو نشر أو حذف عمل دون تفويض الإجراء؛ الدمج يحفظ القرارات السابقة وفق [AGENTS.md](../AGENTS.md).
+
+## Vendor workspace local integration — 2026-09-23
+
+The CP2 operator, independent control service, and company-only `/vendor` pages
+are integrated locally from baseline `abc2400e`. Vendor flags remain disabled
+by default. See [integration evidence](verification/2026-09-23-vendor-local-integration.md)
+for checks and remaining delivery boundaries. This does not establish a remote
+push, production deployment, recovery-ready backup, billing, CRM, or a completed
+government/customer delivery package.

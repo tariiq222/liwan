@@ -1,5 +1,8 @@
 # Company workspace and vendor administration — 2026-09-23
 
+This report records the implementation checkpoint. For subsequent local integration
+and fresh combined-tree checks, see [local integration](2026-09-23-vendor-local-integration.md).
+
 ## Decision and delivery boundary
 
 The company uses its own internal non-SaaS Nasq installation for projects, people,
