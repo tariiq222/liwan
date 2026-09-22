@@ -6,9 +6,11 @@
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
     'license': 'LGPL-3',
-    # Shared plumbing only: nasq_platform for the tenant profile branding reads,
-    # auth_totp for controllers/auth.py's MFA step. No pillar addon may be depended on.
-    'depends': ['nasq_platform', 'auth_totp'],
+    # Shared plumbing only: nasq_core for the NasqAccessRule exception and the
+    # nasq.access.service identity reads, nasq_platform for the tenant profile
+    # and entitlement service reads, auth_totp for controllers/auth.py's MFA
+    # step. No pillar addon (nasq_pmo/nasq_hr/nasq_chat) may be depended on.
+    'depends': ['nasq_core', 'nasq_platform', 'auth_totp'],
     'data': [
         'security/ir.model.access.csv',
         'security/branding_rules.xml',

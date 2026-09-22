@@ -55,7 +55,7 @@ Not started by these tools. Named volumes, not bind mounts:
 | `db` | `postgres:16` | volume `db_data` → `/var/lib/postgresql/data` |
 | `odoo` | `nasq-odoo:${NASQ_IMAGE_TAG}` | baked Odoo and Nasq addons; volume `odoo_data` → `/var/lib/odoo` (`data_dir`); filestore inside the volume at `filestore/${DB_NAME}` |
 | `web` | apps/web image | listens on container port `3000` |
-| `proxy` | `caddy:2` | `80`/`443` |
+| `proxy` | `nasq-caddy:${NASQ_IMAGE_TAG}` from `deploy/proxy/Dockerfile` | `80`/`443`; official Caddy plus `http.handlers.rate_limit` |
 
 `deploy/odoo.conf` uses `data_dir = /var/lib/odoo`, `db_host = db`, `dbfilter = ^${DB_NAME}$`. Provisioning (`deploy/provision.sh`) validates all three secrets, selects the pinned baked image, then installs and seeds through its guarded entrypoint. The manual backup wrappers do not invoke provisioning.
 

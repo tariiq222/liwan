@@ -124,6 +124,29 @@ def get_record(model, rec_id):
     return record
 
 
+# Standard list envelope is {'items': [...], 'total': <int>}. A missing limit
+# means the route default, never an unlimited page. Explicit 0 keeps that
+# default because Odoo treats search(limit=0) as unlimited. Caps stay
+# route-owned: people is 50, project updates 50, other lists 200, and a
+# calendar month may use its own higher bound. Cursor paging is not this
+# contract.
+DEFAULT_PAGE_LIMIT = 50
+MAX_PAGE_LIMIT = 200
+
+
+def parse_page(args, default=DEFAULT_PAGE_LIMIT, maximum=MAX_PAGE_LIMIT):
+    """Return a bounded ``(limit, offset)`` pair from a query mapping.
+
+    ``args`` is ``request.httprequest.args`` or any mapping with ``.get``.
+    The pair is safe to pass to ``search(limit=..., offset=...)``: ``limit``
+    is always at least 1 and at most ``maximum``.
+    """
+    raw_limit = args.get('limit', default)
+    limit = parse_nonneg_int(raw_limit, 'limit') or default
+    offset = parse_nonneg_int(args.get('offset', 0), 'offset')
+    return min(limit, maximum), offset
+
+
 def parse_nonneg_int(value, field):
     """Coerce a query-string value into a non-negative int → ApiError(422) otherwise."""
     try:

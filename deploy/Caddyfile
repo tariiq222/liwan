@@ -1,16 +1,73 @@
+# Edge policy for one customer deployment. Limits are per client IP and are
+# the abuse boundary; they are not a billing quota. WebSockets are not counted.
+# Health probes are exempt so an upstream check cannot exhaust a customer's
+# interactive budget. Tune the four zone sizes per deployment; do not remove
+# the zones. A request matches exactly one zone.
+{
+	# Caddy sees the customer edge directly. Do not add another trusted proxy
+	# unless this Caddy sits behind one.
+	servers {
+		trusted_proxies static private_ranges
+		client_ip_headers X-Forwarded-For
+	}
+}
+
 {$DOMAIN} {
 	encode zstd gzip
 
 	# */static/* (not /*/static/*): Caddy's path matcher does not let * cross / in multi-wildcard patterns
 	# /api/commercial/v1 is intentionally absent: Nuxt rejects it before any upstream.
 	@odoo path /api/v1/* /web/* /odoo/* /website/translations /base_setup/* /bus/* /json/* /doc/* */static/* /report/* /mail/* /discuss/*
+
 	handle @odoo {
-		reverse_proxy odoo:8069
+		route {
+			rate_limit {
+				zone nasq_auth {
+					match {
+						path /api/v1/auth/* /web/session/* /web/login
+					}
+					key {client_ip}
+					events 20
+					window 1m
+					ipv6_prefix 64
+				}
+				zone nasq_api {
+					match {
+						path /api/v1/*
+						not path /api/v1/auth/*
+					}
+					key {client_ip}
+					events 300
+					window 1m
+					ipv6_prefix 64
+				}
+				zone nasq_odoo {
+					match {
+						not path /api/v1/* /web/health
+					}
+					key {client_ip}
+					events 600
+					window 1m
+					ipv6_prefix 64
+				}
+			}
+			reverse_proxy odoo:8069
+		}
 	}
 	handle /websocket* {
 		reverse_proxy odoo:8072
 	}
 	handle {
-		reverse_proxy web:3000
+		route {
+			rate_limit {
+				zone nasq_web {
+					key {client_ip}
+					events 600
+					window 1m
+					ipv6_prefix 64
+				}
+			}
+			reverse_proxy web:3000
+		}
 	}
 }

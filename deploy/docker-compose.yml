@@ -1,6 +1,9 @@
 services:
   proxy:
-    image: caddy:2
+    image: nasq-caddy:${NASQ_IMAGE_TAG:?set NASQ_IMAGE_TAG to the built image tag}
+    build:
+      context: ..
+      dockerfile: deploy/proxy/Dockerfile
     restart: unless-stopped
     ports: ["80:80", "443:443"]
     environment: { DOMAIN: "${DOMAIN}" }
