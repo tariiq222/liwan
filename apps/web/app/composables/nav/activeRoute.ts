@@ -39,6 +39,7 @@ export function activeGovernanceSection(path: string): GovernanceSectionId | nul
 }
 
 export function activeShellModule(path: string): ShellModule | null {
+  if (path === '/vendor' || path.startsWith('/vendor/')) return 'management'
   if (path === '/projects/dashboard' || path.startsWith('/projects/dashboard/')) return 'home'
   if (path === '/chat' || path.startsWith('/chat/')) return 'chat'
   if (path === '/meetings' || path.startsWith('/meetings/')) return 'meetings'

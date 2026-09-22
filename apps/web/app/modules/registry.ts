@@ -16,7 +16,7 @@ export type TenantIdentity = {
 
 export type FeatureKey = 'pmo.enabled' | 'meetings.enabled' | 'hr.enabled' | 'chat.enabled'
 
-export const MODULE_FEATURES: Record<'home' | 'projects' | 'meetings' | 'chat' | 'hr' | 'settings' | 'vendor', FeatureKey | null> = {
+export const MODULE_FEATURES: Record<'home' | 'projects' | 'meetings' | 'chat' | 'hr' | 'settings' | 'vendor' | 'management', FeatureKey | null> = {
   home: 'pmo.enabled',
   projects: 'pmo.enabled',
   meetings: 'meetings.enabled',
@@ -24,6 +24,7 @@ export const MODULE_FEATURES: Record<'home' | 'projects' | 'meetings' | 'chat' |
   hr: 'hr.enabled',
   settings: null,
   vendor: null,
+  management: null,
 }
 
 const WRITE_CAPABILITIES = new Set([

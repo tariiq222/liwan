@@ -1,0 +1,26 @@
+{
+  "name": "@nasq/control-plane",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx src/main.ts",
+    "worker": "tsx src/worker-main.ts",
+    "admin": "tsx src/admin.ts",
+    "migrate": "tsx src/migrate.ts",
+    "build": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@nasq/commercial-contracts": "0.1.0",
+    "pg": "^8.16.3",
+    "zod": "^4.5.4"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.1",
+    "@types/pg": "^8.15.5",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.3",
+    "vitest": "4.1.11"
+  }
+}

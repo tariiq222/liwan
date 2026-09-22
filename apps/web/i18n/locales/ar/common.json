@@ -87,7 +87,8 @@
     "myProjects": "مشاريعي",
     "projectTasks": "المهام",
     "openMenu": "فتح القائمة",
-    "navigation": "القائمة"
+    "navigation": "القائمة",
+    "management": "إدارة نسق"
   },
   "auth": {
     "username": "اسم المستخدم",

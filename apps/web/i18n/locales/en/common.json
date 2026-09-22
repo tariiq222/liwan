@@ -87,7 +87,8 @@
     "myProjects": "My projects",
     "projectTasks": "Tasks",
     "openMenu": "Open menu",
-    "navigation": "Navigation"
+    "navigation": "Navigation",
+    "management": "Nasq administration"
   },
   "auth": {
     "username": "Username",

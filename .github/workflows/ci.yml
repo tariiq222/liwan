@@ -24,6 +24,7 @@ jobs:
       - run: pip install ruff==0.16.3
       - run: ruff check odoo-addons
       - run: python3 -B -m unittest discover -s deploy -p 'test_*.py' -v
+      - run: python3 -B tools/catalog_check.py   # distribution-models spec §7.3
       - run: python3 -B tools/migration_guard.py --base "origin/${{ github.base_ref || 'main' }}"
       - run: npm ci --ignore-scripts
       - run: npm -w apps/web run postinstall   # nuxt prepare: required before vue-tsc
@@ -283,3 +284,30 @@ jobs:
             apps/web/test-results
             apps/web/mock.log
             apps/web/nuxt.log
+
+  control-plane:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: nasq_test
+          POSTGRES_PASSWORD: odoo
+          POSTGRES_DB: nasq_control_scratch_ci
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U nasq_test -d nasq_control_scratch_ci"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      CONTROL_TEST_DATABASE_URL: postgres://nasq_test:odoo@127.0.0.1:5432/nasq_control_scratch_ci
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version-file: .nvmrc, cache: npm }
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - run: npm ci --ignore-scripts
+      - run: npm run test:commercial
+      - run: npm -w packages/commercial-contracts run build
+      - run: npm -w apps/control-plane run build

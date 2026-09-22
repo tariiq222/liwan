@@ -32,7 +32,7 @@ const Repeat = 'i-lucide-repeat'
 
 export type NavGroup = 'chat' | 'projects' | 'meetings' | 'hr' | 'settings'
 /** Rail modules. `home` is the projects dashboard; tasks, templates, reports and search live under `projects`. */
-export type ShellModule = NavGroup | 'home' | 'vendor'
+export type ShellModule = NavGroup | 'home' | 'vendor' | 'management'
 export interface NavItem { to: string; labelKey: string; icon: NavIcon; shortcut: string; group?: NavGroup; module?: ShellModule; capability: string }
 const items: NavItem[] = [
   { to: '/projects/dashboard', labelKey: 'nav.home', icon: House, shortcut: 'h', group: 'projects', module: 'home', capability: 'pmo.projects.read' },
@@ -51,6 +51,7 @@ const items: NavItem[] = [
   { to: '/settings/users', labelKey: 'nav.users', icon: UserCog, shortcut: '7', group: 'settings', module: 'settings', capability: 'access.users.read' },
   { to: '/settings/roles', labelKey: 'nav.roles', icon: ShieldCheck, shortcut: '8', group: 'settings', module: 'settings', capability: 'access.roles.read' },
   { to: '/settings/access-log', labelKey: 'nav.accessLog', icon: History, shortcut: '9', group: 'settings', module: 'settings', capability: 'access.audit.read' },
+  { to: '/vendor/overview', labelKey: 'nav.management', icon: 'i-lucide-building-2', shortcut: '', module: 'management', capability: 'vendor.read' },
   // Billing pages are a later phase. Do not add /settings/billing here, even as a placeholder.
 ]
 export function useNav(identity: AccessIdentity): NavItem[] {
@@ -79,6 +80,7 @@ export const shellModules: ShellModuleDefinition[] = [
   { id: 'hr', labelKey: 'nav.organization', icon: Users, to: '/hr' },
   // Settings is administration only: account and appearance live in the header.
   { id: 'settings', labelKey: 'nav.settings', icon: Settings, to: '/settings/users' },
+  { id: 'management', labelKey: 'nav.management', icon: 'i-lucide-building-2', to: '/vendor/overview' },
   { id: 'vendor', labelKey: 'nav.console', icon: Wrench, to: '/odoo' },
 ]
 
@@ -153,6 +155,14 @@ export function contextLinksForModule(module: ShellModule, identity: AccessIdent
       { id: 'roles', labelKey: 'nav.roles', icon: ShieldCheck, to: '/settings/roles', capability: 'access.roles.read' },
       { id: 'access-log', labelKey: 'nav.accessLog', icon: History, to: '/settings/access-log', capability: 'access.audit.read' },
       { id: 'branding', labelKey: 'settings.branding.title', icon: Palette, to: '/settings/branding', capability: 'settings.branding.manage' },
+    ],
+    management: [
+      { id: 'new-tenant', labelKey: 'vendor.tenants.new', icon: Plus, to: '/vendor/tenants/new', capability: 'vendor.tenants.manage', pinned: true },
+      { id: 'vendor-overview', labelKey: 'vendor.overview.title', icon: House, to: '/vendor/overview', capability: 'vendor.read' },
+      { id: 'vendor-tenants', labelKey: 'vendor.tenants.title', icon: 'i-lucide-building-2', to: '/vendor/tenants', capability: 'vendor.read' },
+      { id: 'vendor-catalog', labelKey: 'vendor.catalog.title', icon: 'i-lucide-library', to: '/vendor/catalog', capability: 'vendor.read' },
+      { id: 'vendor-operations', labelKey: 'vendor.operations.title', icon: Wrench, to: '/vendor/operations', capability: 'vendor.read' },
+      { id: 'vendor-audit', labelKey: 'vendor.audit.title', icon: History, to: '/vendor/audit', capability: 'vendor.audit.read' },
     ],
     vendor: [
       { id: 'console', labelKey: 'nav.console', icon: Wrench, to: '/odoo', capability: 'vendor' },

@@ -4,10 +4,10 @@ import { activeShellModule } from '@/composables/nav/activeRoute'
 import { useModuleRail } from '@/composables/useShellNavigation'
 
 const { t, localeProperties } = useI18n()
-const { me } = useMe()
+const workspaceIdentity = useWorkspaceIdentity()
 const route = useRoute()
 const { expanded, hydrated, toggle } = useModuleRail()
-const availableModules = computed(() => visibleShellModules(me.value))
+const availableModules = computed(() => visibleShellModules(workspaceIdentity.value))
 const activeModule = computed(() => activeShellModule(route.path))
 const primaryModules = computed(() => availableModules.value.filter(module => module.id !== 'settings' && module.id !== 'vendor'))
 const utilityModules = computed(() => availableModules.value.filter(module => module.id === 'settings' || module.id === 'vendor'))

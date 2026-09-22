@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nasq.local/catalog/industry.schema.json",
+  "title": "nasq industry pack catalog",
+  "description": "An industry pack is data only: terminology, stages, project types and templates. It must never ship Python logic.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "id", "name"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+    "name": { "type": "string", "minLength": 1 },
+    "description": { "type": "string" },
+    "terminology": {
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    },
+    "stage_keys": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" }
+    },
+    "project_types": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    }
+  }
+}

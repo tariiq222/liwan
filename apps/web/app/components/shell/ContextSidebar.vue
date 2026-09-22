@@ -9,9 +9,10 @@ import { parseChatListRoute, serializeChatListRoute, type ChatListRoute } from '
 
 const { t, localeProperties } = useI18n()
 const { me } = useMe()
+const workspaceIdentity = useWorkspaceIdentity()
 const route = useRoute()
 const router = useRouter()
-const { module, projectId, project, contextLinks } = useShellNavigation(() => me.value)
+const { module, projectId, project, contextLinks } = useShellNavigation(workspaceIdentity)
 const { expanded, hydrated, toggle } = useContextSidebar()
 const navigationId = `context-navigation-${useId()}`
 const activeModule = computed(() => activeShellModule(route.path))

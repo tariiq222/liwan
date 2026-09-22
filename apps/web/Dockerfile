@@ -3,6 +3,8 @@ WORKDIR /repo
 COPY package.json package-lock.json ./
 COPY apps/web/package.json apps/web/
 COPY packages/contracts/package.json packages/contracts/
+COPY packages/commercial-contracts/package.json packages/commercial-contracts/
+COPY apps/control-plane/package.json apps/control-plane/
 RUN npm ci
 COPY . .
 RUN npm -w apps/web run build

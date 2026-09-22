@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nasq.local/catalog/solution.schema.json",
+  "title": "nasq solution catalog",
+  "description": "A solution is a sellable shape of the one nasq codebase. It carries no prices: pricing belongs to a later authorized phase.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "id", "name", "base_modules", "tiers"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+    "name": { "type": "string", "minLength": 1 },
+    "description": { "type": "string" },
+    "industry": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$",
+      "description": "Optional industry pack id that must exist in industries/."
+    },
+    "base_modules": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/moduleName" }
+    },
+    "tiers": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/tier" }
+    },
+    "addons": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/addon" }
+    }
+  },
+  "$defs": {
+    "featureName": {
+      "type": "string",
+      "pattern": "^(boolean|limit):[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+      "description": "boolean:<key> grants a feature; limit:<key> sets a numeric ceiling."
+    },
+    "moduleName": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$"
+    },
+    "limitValue": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "0 means the capability is included but unusable. null is rejected: an absent limit is expressed by omitting the key."
+    },
+    "tier": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "modules", "features"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+        "name": { "type": "string", "minLength": 1 },
+        "description": { "type": "string" },
+        "modules": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/moduleName" }
+        },
+        "features": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/featureName" }
+        },
+        "limits": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/limitValue" }
+        },
+        "addons": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/moduleName" }
+        }
+      }
+    },
+    "addon": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "modules"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+        "name": { "type": "string", "minLength": 1 },
+        "description": { "type": "string" },
+        "modules": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/moduleName" }
+        },
+        "features": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/featureName" }
+        }
+      }
+    }
+  }
+}

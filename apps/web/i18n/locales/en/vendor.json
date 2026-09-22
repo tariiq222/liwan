@@ -1,0 +1,210 @@
+{
+  "vendor": {
+    "forbidden": "You do not have access to this vendor workspace.",
+    "common": {
+      "none": "Not available",
+      "unknown": "Unknown",
+      "status": "Status",
+      "enabled": "Enabled",
+      "disabled": "Disabled",
+      "save": "Save",
+      "refresh": "Refresh",
+      "allModes": "All modes",
+      "yes": "Yes",
+      "no": "No",
+      "unlimited": "Unlimited"
+    },
+    "errors": {
+      "save": "The changes could not be saved.",
+      "action": "The action could not be completed.",
+      "field": {
+        "name": "Check the tenant name.",
+        "inventory_target": "Select an available target.",
+        "catalog_version": "Select a published catalog version.",
+        "catalog_tier": "Choose a valid catalog composition.",
+        "reason": "Enter a reason.",
+        "request_id": "The request identifier is invalid.",
+        "page": "The selected page is invalid."
+      }
+    },
+    "pagination": {
+      "total": "{count} records"
+    },
+    "status": {
+      "registered": "Registered",
+      "provisioning": "Provisioning",
+      "active": "Active",
+      "needs_intervention": "Needs attention",
+      "queued": "Queued",
+      "running": "Running",
+      "succeeded": "Succeeded",
+      "failed": "Failed"
+    },
+    "mode": {
+      "saas": "SaaS",
+      "nonSaas": "Non-SaaS"
+    },
+    "hosting": {
+      "managed": "Managed hosting",
+      "customerHosted": "Customer-hosted"
+    },
+    "targetKind": {
+      "scratch": "Scratch",
+      "customer": "Customer"
+    },
+    "overview": {
+      "title": "Nasq management",
+      "description": "Customer installations and operation status.",
+      "tenants": "Customer installations",
+      "active": "Active installations",
+      "pending": "Pending operations",
+      "failed": "Failed operations",
+      "lastHealth": "Last health check"
+    },
+    "tenants": {
+      "title": "Customers and installations",
+      "new": "Register installation",
+      "create": "Register installation",
+      "details": "Customer installation",
+      "search": "Search customers",
+      "empty": "No customer installations found.",
+      "noTargets": "No available environments are currently listed.",
+      "noPublishedCatalog": "A published catalog version is required before registering an installation.",
+      "target": "Installation environment",
+      "targetHelp": "Choose an available environment. Connection details stay private on the server.",
+      "operations": "Operations access",
+      "operationsTitle": "Queue an operation",
+      "operationsHint": "The service validates and queues each request; queued work is not shown as completed.",
+      "operationsDisabledHint": "Operations are disabled for this installation. An authorized manager must enable them first.",
+      "enableOperations": "Enable operations",
+      "disableOperations": "Disable operations",
+      "confirmDisable": "Disable operations for this installation?",
+      "viewOperations": "View operations",
+      "healthChecked": "Last health check",
+      "grantTitle": "Operations access",
+      "grantHint": "This setting controls operational access only. It does not grant billing authority.",
+      "grantState": "Access state",
+      "policyTitle": "Configuration",
+      "policyHint": "Desired and observed configuration reported by the service.",
+      "desiredPolicy": "Desired",
+      "observedPolicy": "Observed",
+      "currentRevision": "Current policy revision: {revision}",
+      "revisionUnavailable": "The current policy revision is unavailable. Refresh installation state before submitting a policy change.",
+      "limitHelp": "Leave blank to keep this limit unset.",
+      "fields": {
+        "name": "Customer name",
+        "mode": "Commercial mode",
+        "hosting": "Hosting model",
+        "target": "Installation environment",
+        "catalogVersion": "Catalog version",
+        "catalogTier": "Catalog composition",
+        "reason": "Reason"
+      }
+    },
+    "catalog": {
+      "title": "Catalog",
+      "description": "Review the trusted solution catalog versions available to tenant operations.",
+      "empty": "No catalog versions are available.",
+      "noComposition": "No catalog composition",
+      "reasonNotice": "Validation and publication are recorded with a reason. Published versions are immutable.",
+      "validate": "Validate",
+      "publish": "Publish",
+      "solution": "Solution details",
+      "tiers": {
+        "core": "Core",
+        "projects": "Projects",
+        "people": "People",
+        "messaging": "Messaging"
+      },
+      "status": {
+        "draft": "Draft",
+        "validated": "Validated",
+        "published": "Published"
+      }
+    },
+    "features": {
+      "users": {
+        "limit": "Maximum users"
+      },
+      "storage": {
+        "limit_mb": "Storage limit (MB)"
+      },
+      "pmo": {
+        "enabled": "Projects"
+      },
+      "meetings": {
+        "enabled": "Meetings"
+      },
+      "projects": {
+        "max_projects": "Maximum projects"
+      },
+      "hr": {
+        "enabled": "People directory"
+      },
+      "chat": {
+        "enabled": "Private messaging"
+      }
+    },
+    "operations": {
+      "title": "Operations",
+      "enqueue": "Queue operation",
+      "details": "Operation details",
+      "empty": "No operations found.",
+      "tenantFilter": "Filter by installation ID",
+      "stage": "Stage",
+      "target": "Customer installation",
+      "type": "Operation",
+      "requestId": "Request ID",
+      "events": "Progress",
+      "noEvents": "No progress events have been recorded.",
+      "result": "Technical details",
+      "retryTitle": "Retry operation",
+      "retryHint": "Only eligible failed read operations can be retried. The service checks eligibility.",
+      "retry": "Retry",
+      "deploymentIncomplete": "Installation work needs attention before it can be treated as ready.",
+      "needsAttention": "This operation needs attention.",
+      "reconcileHint": "Review the recorded progress and reconcile the installation before starting another change.",
+      "backupUnverified": "The backup was captured but has not been verified.",
+      "backupUnverifiedHint": "This backup is marked UNVERIFIED. It is not evidence of a successful restore.",
+      "autoRefreshHint": "This page checks for progress for up to two minutes.",
+      "stages": {
+        "claimed": "Execution started",
+        "entitlement_commit": "Policy saved",
+        "candidate_backup": "Candidate backup created",
+        "health_verified": "Database and modules checked",
+        "snapshot": "Installation inspected",
+        "health": "Database check completed",
+        "restore_verified": "Isolated restore verified",
+        "module_upgrade_verified": "Module upgrade verified",
+        "queued": "Queued",
+        "running": "In progress",
+        "deployment_incomplete": "Deployment needs attention",
+        "operator_failed": "Operator reported a failure"
+      },
+      "types": {
+        "tenant": {
+          "create": "Create installation",
+          "inspect": "Inspect installation",
+          "entitle": "Update installation features"
+        },
+        "health": "Health check",
+        "backup": "Create backup",
+        "upgrade": "Upgrade installation",
+        "restore": "Restore backup"
+      }
+    },
+    "audit": {
+      "title": "Audit log",
+      "description": "Recorded vendor workspace actions.",
+      "empty": "No audit entries found.",
+      "actor": "Actor",
+      "subject": "Subject",
+      "actions": {
+        "membership": { "granted": "Vendor access granted", "revoked": "Vendor access revoked" },
+        "catalog": { "imported": "Catalog imported", "validate": "Catalog validated", "publish": "Catalog published" },
+        "tenant": { "registered": "Installation registered", "operations": { "enabled": "Installation operations enabled", "disabled": "Installation operations disabled" } },
+        "restore": { "approved": "Restore approved" }
+      }
+    }
+  }
+}

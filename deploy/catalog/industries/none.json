@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "id": "none",
+  "name": "No industry pack",
+  "description": "The neutral pack: a solution that ships no vertical terminology, stages or project types. It exists so a solution can name an industry explicitly instead of leaving the field ambiguous.",
+  "terminology": {},
+  "stage_keys": [],
+  "project_types": []
+}

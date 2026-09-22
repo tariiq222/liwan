@@ -475,7 +475,7 @@ PAGE_SHELLS = ('SharedPageContainer', 'SharedCreatePanel', 'SettingsLayout', 'na
 # Route parents that render a list or <NuxtPage /> by route, plus the unshelled
 # roots. Each entry is a deliberate exception, not a backlog.
 PAGE_SHELL_EXEMPT = frozenset(PAGES + name for name in (
-    'index.vue', 'login.vue', 'reports.vue', 'hr/employees/[employeeId]/access.vue', 'meetings.vue',
+    'index.vue', 'vendor/index.vue', 'login.vue', 'reports.vue', 'hr/employees/[employeeId]/access.vue', 'meetings.vue',
     'projects.vue', 'project-templates.vue', 'hr.vue', 'hr/departments.vue', 'settings/users.vue',
     'settings/roles.vue', 'projects/settings/catalogs/[resource].vue',
 ))
@@ -743,6 +743,8 @@ def check(current: dict[str, str], baseline: dict[str, str], head: dict[str, str
     # to catch.
     allowed_source = dependencies(baseline) | {
         '@nuxt/ui', '@iconify-json/lucide', '@internationalized/date', '@nuxt/schema',
+        # Internal schemas and server-only signing; no visual components or UI library.
+        '@nasq/commercial-contracts',
     }
     # The tooling manifest review accepts Storybook's own dev-time packages;
     # app runtime source importing them is still a finding (via allowed_source
