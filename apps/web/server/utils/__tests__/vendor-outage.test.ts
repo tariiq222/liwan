@@ -5,7 +5,7 @@ afterEach(() => vi.unstubAllGlobals())
 describe('ordinary API proxy independence from vendor control availability', () => {
   it('continues proxying ordinary Odoo API requests when vendor control is unavailable', async () => {
     const event = { path: '/api/v1/projects', context: { params: { path: 'projects' } } }
-    const runtimeConfig = { odooUrl: 'https://nasq.local', vendorWorkspaceEnabled: true, vendorControlUrl: 'https://custom.example' }
+    const runtimeConfig = { odooUrl: 'https://odoo.example', vendorWorkspaceEnabled: true, vendorControlUrl: 'https://control.example' }
     const proxyRequest = vi.fn().mockResolvedValue({ items: [], total: 0 })
     const fetch = vi.fn().mockRejectedValue(new Error('vendor control service unavailable'))
 
@@ -20,7 +20,7 @@ describe('ordinary API proxy independence from vendor control availability', () 
     const { default: ordinaryApiHandler } = await import('../../routes/api/v1/[...path]')
     await expect(ordinaryApiHandler(event as never)).resolves.toEqual({ items: [], total: 0 })
 
-    expect(proxyRequest).toHaveBeenCalledWith(event, 'https://nasq.local/api/v1/projects')
+    expect(proxyRequest).toHaveBeenCalledWith(event, 'https://odoo.example/api/v1/projects')
     expect(fetch).not.toHaveBeenCalled()
   })
 })

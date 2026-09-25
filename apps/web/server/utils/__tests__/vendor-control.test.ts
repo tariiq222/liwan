@@ -61,7 +61,7 @@ describe('vendor BFF boundary', () => {
   })
 
   it('fails closed when the session cookie is missing and never contacts either upstream', async () => {
-    const config = { vendorWorkspaceEnabled: true, vendorControlUrl: 'https://custom.example', vendorServiceKey: 'a'.repeat(48), vendorInstallationId: 'company', vendorPublicOrigin: 'https://example.test', odooUrl: 'https://nasq.local' }
+    const config = { vendorWorkspaceEnabled: true, vendorControlUrl: 'https://control.example', vendorServiceKey: 'a'.repeat(48), vendorInstallationId: 'company', vendorPublicOrigin: 'https://example.test', odooUrl: 'https://odoo.example' }
     vi.stubGlobal('useRuntimeConfig', () => config)
     vi.stubGlobal('getMethod', () => 'GET')
     vi.stubGlobal('getHeader', () => undefined)
@@ -76,7 +76,7 @@ describe('vendor BFF boundary', () => {
   })
 
   it('rejects an invalid session response instead of trusting client-supplied actor headers', async () => {
-    const config = { vendorWorkspaceEnabled: true, vendorControlUrl: 'https://custom.example', vendorServiceKey: 'a'.repeat(48), vendorInstallationId: 'company', vendorPublicOrigin: 'https://example.test', odooUrl: 'https://nasq.local' }
+    const config = { vendorWorkspaceEnabled: true, vendorControlUrl: 'https://control.example', vendorServiceKey: 'a'.repeat(48), vendorInstallationId: 'company', vendorPublicOrigin: 'https://example.test', odooUrl: 'https://odoo.example' }
     const headers: Record<string, string> = { cookie: 'session_id=invalid' }
     vi.stubGlobal('useRuntimeConfig', () => config)
     vi.stubGlobal('getMethod', () => 'GET')
@@ -92,7 +92,7 @@ describe('vendor BFF boundary', () => {
   })
 
   it('fails closed for missing signing configuration before authenticating or forwarding', async () => {
-    const config = { vendorWorkspaceEnabled: true, vendorControlUrl: 'https://custom.example', vendorInstallationId: 'company', vendorPublicOrigin: 'https://example.test', odooUrl: 'https://nasq.local' }
+    const config = { vendorWorkspaceEnabled: true, vendorControlUrl: 'https://control.example', vendorInstallationId: 'company', vendorPublicOrigin: 'https://example.test', odooUrl: 'https://odoo.example' }
     vi.stubGlobal('useRuntimeConfig', () => config)
     vi.stubGlobal('getMethod', () => 'GET')
     vi.stubGlobal('getHeader', () => 'session_id=valid')
@@ -106,7 +106,7 @@ describe('vendor BFF boundary', () => {
   })
 
   it('rejects an unreachable company identity service before forwarding to control', async () => {
-    const config = { vendorWorkspaceEnabled: true, vendorControlUrl: 'https://custom.example', vendorServiceKey: 'a'.repeat(48), vendorInstallationId: 'company', vendorPublicOrigin: 'https://example.test', odooUrl: 'https://nasq.local' }
+    const config = { vendorWorkspaceEnabled: true, vendorControlUrl: 'https://control.example', vendorServiceKey: 'a'.repeat(48), vendorInstallationId: 'company', vendorPublicOrigin: 'https://example.test', odooUrl: 'https://odoo.example' }
     vi.stubGlobal('useRuntimeConfig', () => config)
     vi.stubGlobal('getMethod', () => 'GET')
     vi.stubGlobal('getHeader', () => 'session_id=valid')
@@ -120,7 +120,7 @@ describe('vendor BFF boundary', () => {
   })
 
   it('maps control timeouts to unavailable but preserves control 4xx authorization errors', async () => {
-    const config = { vendorWorkspaceEnabled: true, vendorControlUrl: 'https://custom.example', vendorServiceKey: 'a'.repeat(48), vendorInstallationId: 'company', vendorPublicOrigin: 'https://example.test', odooUrl: 'https://nasq.local' }
+    const config = { vendorWorkspaceEnabled: true, vendorControlUrl: 'https://control.example', vendorServiceKey: 'a'.repeat(48), vendorInstallationId: 'company', vendorPublicOrigin: 'https://example.test', odooUrl: 'https://odoo.example' }
     const headers: Record<string, string> = { cookie: 'session_id=valid' }
     vi.stubGlobal('useRuntimeConfig', () => config)
     vi.stubGlobal('getMethod', () => 'GET')
