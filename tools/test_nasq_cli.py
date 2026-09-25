@@ -102,6 +102,54 @@ class CliCase(unittest.TestCase):
             'conflict': 4, 'operation_failed': 5, 'needs_intervention': 6,
         })
 
+    def test_non_ok_adapter_receipts_use_documented_exit_codes_without_leaking_payload(self):
+        cases = (
+            ('conflict', 'request_conflict', cli.EXIT_CONFLICT),
+            ('needs_intervention', 'needs_intervention', cli.EXIT_NEEDS_INTERVENTION),
+            ('error', 'adapter_failure', cli.EXIT_FAILED_OPERATION),
+        )
+        for status, error_code, expected in cases:
+            with self.subTest(status=status):
+                secret_detail = 'private adapter detail must stay in JSON only'
+
+                def adapter(_fields):
+                    return expected, {
+                        'status': status,
+                        'error': {'code': error_code, 'message': secret_detail},
+                    }
+
+                code, payload, err = self.invoke(['status', '--target', 'install_demo',
+                                                  '--request-id', 'req_1', '--json'],
+                                                 adapter=adapter)
+                self.assertEqual(code, expected)
+                self.assertEqual(payload['status'], status)
+                self.assertEqual(err.strip(), f'nasq-cli: {error_code}')
+                self.assertNotIn(secret_detail, err)
+                self.assertNotIn('Traceback', err)
+
+    def test_error_receipt_preserves_adapter_invalid_and_authorization_exit_codes(self):
+        for original_code in (cli.EXIT_INVALID_INPUT, cli.EXIT_AUTHORIZATION):
+            with self.subTest(exit_code=original_code):
+                def adapter(_fields):
+                    return original_code, {'status': 'error', 'error': {'code': 'safe_error'}}
+
+                code, payload, err = self.invoke(['status', '--target', 'install_demo',
+                                                  '--request-id', 'req_1', '--json'],
+                                                 adapter=adapter)
+                self.assertEqual(payload['status'], 'error')
+                self.assertEqual(code, original_code)
+                self.assertEqual(err.strip(), 'nasq-cli: safe_error')
+
+    def test_conflict_receipt_without_error_uses_status_name_without_traceback(self):
+        code, payload, err = self.invoke(
+            ['status', '--target', 'install_demo', '--request-id', 'req_1', '--json'],
+            adapter=lambda _fields: (cli.EXIT_OK, {'status': 'conflict'}),
+        )
+        self.assertEqual(payload['status'], 'conflict')
+        self.assertEqual(code, cli.EXIT_CONFLICT)
+        self.assertEqual(err.strip(), 'nasq-cli: conflict')
+        self.assertNotIn('Traceback', err)
+
     def test_unwired_operation_exits_5_and_says_so(self):
         code, payload, err = self.invoke(['backup', '--target', 'install_demo',
                                           '--request-id', 'req_1', '--json'])
@@ -194,6 +242,35 @@ class CliCase(unittest.TestCase):
     def test_policy_file_is_validated_before_the_target(self):
         code, _, _ = self.invoke([
             'tenant', 'preflight', '--target', 'odoo19', '--policy-file', 'rel.json', '--json',
+        ])
+        self.assertEqual(code, cli.EXIT_INVALID_INPUT)
+
+    def test_policy_bytes_file_is_status_only_and_bounded(self):
+        valid = ['status', '--target', 'install_demo', '--request-id', 'req_1',
+                 '--policy-bytes-file', str(self.policy), '--json']
+        captured = []
+        code, payload, _ = self.invoke(valid, adapter=lambda fields: (
+            captured.append(fields) or (cli.EXIT_OK, {'status': 'ok'})))
+        self.assertEqual(code, cli.EXIT_OK)
+        self.assertEqual(captured[0]['policy_bytes_file'], str(self.policy))
+        for value in ('relative.json', str(Path(self.tmp.name) / 'missing.json'), self.tmp.name):
+            with self.subTest(value=value):
+                code, payload, _ = self.invoke([
+                    'status', '--target', 'install_demo', '--request-id', 'req_1',
+                    '--policy-bytes-file', value, '--json',
+                ])
+                self.assertEqual(code, cli.EXIT_INVALID_INPUT)
+                self.assertEqual(payload['error']['code'], 'invalid_input')
+        oversized = Path(self.tmp.name) / 'oversized-policy.json'
+        oversized.write_bytes(b'x' * (cli.POLICY_MAX_BYTES + 1))
+        code, payload, _ = self.invoke([
+            'status', '--target', 'install_demo', '--request-id', 'req_1',
+            '--policy-bytes-file', str(oversized), '--json',
+        ])
+        self.assertEqual(code, cli.EXIT_INVALID_INPUT)
+        # Other command parsers remain unchanged and reject the status-only flag.
+        code, payload, _ = self.invoke([
+            'health', '--target', 'install_demo', '--policy-bytes-file', str(self.policy), '--json',
         ])
         self.assertEqual(code, cli.EXIT_INVALID_INPUT)
 

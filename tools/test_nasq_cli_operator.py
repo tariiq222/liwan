@@ -1,6 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 """Focused local operation journal tests. External commands are never started."""
 import fcntl
+import inspect
 import json
 import os
 import sys
@@ -107,6 +108,136 @@ class JournalCase(unittest.TestCase):
                                                   'changed': True})
         self.assertEqual(self.store.find_operation('demo', receipt['operation_id'])['status'], 'ok')
         self.assertIsNone(self.store.find_operation('other', receipt['operation_id']))
+
+    def _operations_snapshot(self):
+        with self.store._connection() as db:
+            return db.execute(
+                'SELECT target, request_id, operation_id, operation, digest,'
+                ' fingerprint, status, receipt FROM operations'
+                ' ORDER BY target, request_id',
+            ).fetchall()
+
+    def test_read_receipt_returns_identity_and_stored_receipt(self):
+        receipt = self.store.execute(
+            'demo', 'tenant.create', 'req_1', 'digest-a', 'fingerprint-a',
+            lambda _id: {'status': 'ok', 'stage': 'provisioned', 'changed': True,
+                         'deployment_ready': False},
+        )
+        read = self.store.read_receipt('demo', 'req_1')
+        self.assertEqual(read['status'], 'ok')
+        self.assertEqual(read['operation_id'], receipt['operation_id'])
+        self.assertEqual(read['operation'], 'tenant.create')
+        self.assertEqual(read['digest'], 'digest-a')
+        self.assertEqual(read['fingerprint'], 'fingerprint-a')
+        self.assertEqual(read['receipt']['stage'], 'provisioned')
+        self.assertIs(read['receipt']['deployment_ready'], False)
+        self.assertEqual(read['receipt']['operation'], 'tenant.create')
+
+    def test_read_receipt_leaves_a_mutating_row_mutating(self):
+        with self.store._connection() as db:
+            db.execute('INSERT INTO operations VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                       ('demo', 'req_1', 'op_' + 'a' * 32, 'tenant.create',
+                        'digest-a', 'fingerprint-a', 'mutating', None))
+            db.commit()
+        read = self.store.read_receipt('demo', 'req_1')
+        self.assertEqual(read['status'], 'mutating')
+        self.assertEqual(read['receipt'], {})
+        self.assertEqual(read['operation_id'], 'op_' + 'a' * 32)
+        self.assertEqual(read['operation'], 'tenant.create')
+        self.assertEqual(read['digest'], 'digest-a')
+        self.assertEqual(read['fingerprint'], 'fingerprint-a')
+        with self.store._connection() as db:
+            status, receipt = db.execute(
+                'SELECT status, receipt FROM operations'
+                ' WHERE target = ? AND request_id = ?',
+                ('demo', 'req_1'),
+            ).fetchone()
+        self.assertEqual(status, 'mutating')
+        self.assertIsNone(receipt)
+
+    def test_read_receipt_writes_nothing_for_any_status(self):
+        self.store.execute('demo', 'tenant.create', 'req_ok', 'digest-a', 'fingerprint-a',
+                           lambda _id: {'status': 'ok', 'stage': 'done', 'changed': True})
+        self.store.execute('demo', 'tenant.create', 'req_conflict', 'digest-b', 'fingerprint-a',
+                           lambda _id: {'status': 'conflict', 'stage': 'preflight', 'changed': False})
+        with self.store._connection() as db:
+            db.execute('INSERT INTO operations VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                       ('demo', 'req_mutating', 'op_' + 'a' * 32, 'tenant.create',
+                        'digest-c', 'fingerprint-a', 'mutating', None))
+            db.commit()
+        before = self._operations_snapshot()
+        for request_id in ('req_ok', 'req_conflict', 'req_mutating', 'req_absent'):
+            self.store.read_receipt('demo', request_id)
+        self.assertEqual(self._operations_snapshot(), before)
+
+    def test_read_receipt_absent_request_is_none(self):
+        self.assertIsNone(self.store.read_receipt('demo', 'req_absent'))
+
+    def test_read_receipt_defaults_operation_without_rewriting_the_row(self):
+        payload = json.dumps({'status': 'ok', 'stage': 'done'})
+        with self.store._connection() as db:
+            db.execute('INSERT INTO operations VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                       ('demo', 'req_1', 'op_' + 'b' * 32, 'tenant.inspect',
+                        'digest-a', 'fingerprint-a', 'ok', payload))
+            db.commit()
+        read = self.store.read_receipt('demo', 'req_1')
+        self.assertEqual(read['receipt']['operation'], 'tenant.inspect')
+        self.assertEqual(read['receipt']['stage'], 'done')
+        with self.store._connection() as db:
+            stored = db.execute(
+                'SELECT receipt FROM operations WHERE target = ? AND request_id = ?',
+                ('demo', 'req_1'),
+            ).fetchone()[0]
+        self.assertEqual(stored, payload)
+
+    def test_read_receipt_refuses_a_held_target_lock(self):
+        lock_path = self.store.lock_path('demo')
+        with lock_path.open('a+b') as handle:
+            fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            with self.assertRaises(journal.TargetBusy):
+                self.store.read_receipt('demo', 'req_1')
+            fcntl.flock(handle, fcntl.LOCK_UN)
+
+    def test_read_receipt_never_calls_a_mutating_journal_method(self):
+        source = inspect.getsource(journal.OperationJournal.read_receipt)
+        for forbidden in ('_uncertain(', '.inspect(', '.find_operation(', '.execute('):
+            self.assertNotIn(forbidden, source, forbidden)
+
+    def _store_raw_receipt(self, request_id, payload):
+        with self.store._connection() as db:
+            db.execute('DELETE FROM operations WHERE target = ?', ('demo',))
+            db.execute('INSERT INTO operations VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                       ('demo', request_id, 'op_' + 'c' * 32, 'tenant.inspect',
+                        'digest-a', 'fingerprint-a', 'ok', payload))
+            db.commit()
+
+    def test_read_receipt_rejects_valid_non_object_json_bodies(self):
+        # A stored body that parses to a list, string, number, boolean or JSON
+        # null is corrupt data, not an absent receipt: it must raise rather than
+        # be silently reported as {}.
+        for payload in ('[]', '[1, 2]', '"text"', '5', 'true', 'null'):
+            with self.subTest(payload=payload):
+                self._store_raw_receipt('req_1', payload)
+                with self.assertRaises(ValueError):
+                    self.store.read_receipt('demo', 'req_1')
+
+    def test_read_receipt_distinguishes_sql_null_from_json_null(self):
+        with self.store._connection() as db:
+            db.execute('INSERT INTO operations VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                       ('demo', 'req_sql_null', 'op_' + 'd' * 32, 'tenant.inspect',
+                        'digest-a', 'fingerprint-a', 'ok', None))
+            db.execute('INSERT INTO operations VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                       ('demo', 'req_json_null', 'op_' + 'e' * 32, 'tenant.inspect',
+                        'digest-a', 'fingerprint-a', 'ok', 'null'))
+            db.commit()
+        self.assertEqual(self.store.read_receipt('demo', 'req_sql_null')['receipt'], {})
+        with self.assertRaises(ValueError):
+            self.store.read_receipt('demo', 'req_json_null')
+
+    def test_read_receipt_rejects_invalid_json(self):
+        self._store_raw_receipt('req_1', 'not json at all')
+        with self.assertRaises(ValueError):
+            self.store.read_receipt('demo', 'req_1')
 
 
 class OperatorCase(unittest.TestCase):

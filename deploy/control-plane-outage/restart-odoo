@@ -1,0 +1,79 @@
+#!/usr/bin/env bash
+# Restart only the Odoo runtime whose identity is fully proven from fixture state.
+set +xv
+case "$-" in *x*|*v*) printf 'fixture refuses traced shell\n' >&2; exit 2 ;; esac
+set -euo pipefail
+ROOT="$(git -C "$(dirname "$0")/../.." rev-parse --show-toplevel)"
+FIXTURE="$ROOT/deploy/control-plane-outage"
+STATE="$FIXTURE/state"
+ODOO_BIN=/Users/tariq/code/odoo/odoo-bin
+DB=nasq_scratch_p1outage
+PORT=18179
+WRAPPER="$ROOT/deploy/check_isolated.py"
+PYTHON=/Users/tariq/code/odoo/.venv/bin/python
+ADDONS="$ROOT/odoo-addons"
+STOCK=/Users/tariq/code/odoo/addons
+fail() { printf 'fixture Odoo restart stopped: %s\n' "$1" >&2; exit 1; }
+expected="$PYTHON $ODOO_BIN -c $STATE/odoo.conf --addons-path=/Users/tariq/code/odoo/odoo/addons,$STOCK,$ADDONS -d $DB --http-port $PORT --http-interface 127.0.0.1 --max-cron-threads 0 --db-filter=^$DB$"
+expected_wrapper="$PYTHON $WRAPPER runtime --worktree $ROOT --addons-path $ADDONS --stock-addons $STOCK --python $PYTHON --odoo-bin $ODOO_BIN --odoo-conf $STATE/odoo.conf --scratch-db $DB --scratch-lifecycle CREATE_NEW_SCRATCH --http-port $PORT"
+[[ "$ROOT" == /Users/tariq/code/nasq-saas-outage-fixture ]] || fail 'unexpected worktree root'
+[[ "$(git -C "$ROOT" branch --show-current)" == codex/saas-outage-fixture ]] || fail 'wrong task branch'
+[[ -f "$STATE/odoo.conf" && -f "$STATE/pg-password" && -f "$STATE/odoo.pid" && -f "$STATE/odoo.starttime" ]] || fail 'fixture runtime identity state missing'
+[[ -x "$PYTHON" && -f "$ODOO_BIN" && -f "$WRAPPER" && -d "$ADDONS/nasq_core" ]] || fail 'required runtime paths missing'
+
+# The handed-off process may have an orphaned wrapper after its previous
+# supervisor exited. Require exact PID record, start time, argv and listener;
+# do not signal a process based on port or executable name alone.
+pid=$(<"$STATE/odoo.pid")
+[[ "$pid" =~ ^[0-9]+$ ]] || fail 'recorded Odoo PID is invalid'
+[[ "$(lsof -nP -t -iTCP:"$PORT" -sTCP:LISTEN | sort -u)" == "$pid" ]] || fail 'Odoo listener differs from the recorded process'
+[[ "$(ps -p "$pid" -o lstart= | xargs)" == "$(<"$STATE/odoo.starttime")" ]] || fail 'Odoo process start time differs from fixture record'
+[[ "$(ps -p "$pid" -o command=)" == "$expected" ]] || fail 'Odoo executable/config/addons/database/port argv changed'
+parent=$(ps -p "$pid" -o ppid= | xargs)
+[[ "$parent" =~ ^[0-9]+$ ]] || fail 'Odoo parent PID invalid'
+[[ "$(ps -p "$parent" -o command=)" == "$expected_wrapper" ]] || fail 'Odoo parent is not the exact isolated runtime wrapper'
+
+# Migrate legacy fixture state and render the random manager password before restarting Odoo.
+"$FIXTURE/outage-fixture" refresh-config || fail 'fixture config refresh failed'
+
+kill -TERM "$pid"
+for _ in $(seq 1 30); do
+  if ! kill -0 "$pid" 2>/dev/null; then break; fi
+  sleep 1
+done
+kill -0 "$pid" 2>/dev/null && fail 'verified Odoo process did not exit; not escalating signal'
+for _ in $(seq 1 30); do
+  if ! lsof -nP -iTCP:"$PORT" -sTCP:LISTEN >/dev/null 2>&1; then break; fi
+  sleep 1
+done
+lsof -nP -iTCP:"$PORT" -sTCP:LISTEN >/dev/null 2>&1 && fail 'Odoo port still occupied by another process'
+
+# Launch exact isolated Odoo runtime with secret only in process environment.
+PGPASSWORD="$(<"$STATE/pg-password")" PGHOST=127.0.0.1 PGPORT=55439 PGUSER=nasq_fixture \
+  "$PYTHON" "$WRAPPER" runtime --worktree "$ROOT" --addons-path "$ADDONS" \
+  --stock-addons "$STOCK" --python "$PYTHON" --odoo-bin "$ODOO_BIN" \
+  --odoo-conf "$STATE/odoo.conf" --scratch-db "$DB" \
+  --scratch-lifecycle CREATE_NEW_SCRATCH --http-port "$PORT" \
+  >"$STATE/logs/odoo-restart.stdout" 2>&1 &
+launcher=$!
+printf '%s\n' "$launcher" > "$STATE/odoo-launcher.pid"
+ps -p "$launcher" -o lstart= | xargs > "$STATE/odoo-launcher.starttime"
+[[ -s "$STATE/odoo-launcher.starttime" ]] || fail 'new Odoo launcher start time is unavailable'
+chmod 600 "$STATE/odoo-launcher.pid" "$STATE/odoo-launcher.starttime"
+for _ in $(seq 1 180); do
+  if curl -fsS "http://127.0.0.1:$PORT/web/login" -o /dev/null 2>/dev/null; then
+    child=$(pgrep -P "$launcher" | head -n 1 || true)
+    [[ "$child" =~ ^[0-9]+$ ]] || fail 'isolated Odoo wrapper did not expose one direct runtime child'
+    [[ "$(lsof -nP -t -iTCP:"$PORT" -sTCP:LISTEN | sort -u)" == "$child" ]] || fail 'Odoo listener is not the new wrapper child'
+    [[ "$(ps -p "$child" -o command=)" == "$expected" ]] || fail 'new Odoo runtime argv does not match exact isolated target'
+    [[ "$(ps -p "$child" -o ppid= | xargs)" == "$launcher" ]] || fail 'new Odoo runtime parent mismatch'
+    printf '%s\n' "$child" > "$STATE/odoo.pid"
+    ps -p "$child" -o lstart= | xargs > "$STATE/odoo.starttime"
+    chmod 600 "$STATE/odoo.pid" "$STATE/odoo.starttime"
+    printf 'restarted exact isolated Odoo runtime; pid=%s; Nuxt/PostgreSQL left running\n' "$child"
+    exit 0
+  fi
+  kill -0 "$launcher" 2>/dev/null || fail 'isolated Odoo wrapper exited; inspect private log'
+  sleep 1
+done
+fail 'Odoo web login route did not become ready; inspect private log'

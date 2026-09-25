@@ -1,6 +1,25 @@
 import { readFile } from 'node:fs/promises'
 import type { Pool, PoolClient } from 'pg'
 
+export function isTransientDatabaseError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false
+  const candidate = error as Error & { code?: unknown }
+  const stack = error.stack ?? ''
+  if (candidate.code === undefined && error.constructor === Error && !('cause' in error) && error.message === 'Connection terminated unexpectedly' && stack.split('\n').some((line) => line.includes('at Connection.<anonymous>') && (line.includes('/pg/lib/client.js:') || line.includes('\\pg\\lib\\client.js:')))) return true
+  return typeof candidate.code === 'string' && (
+    /^08[0-9A-Z]{3}$/.test(candidate.code) ||
+    ['57P01', '57P02', '57P03', 'ECONNRESET', 'ECONNREFUSED', 'EPIPE', 'ETIMEDOUT'].includes(candidate.code)
+  )
+}
+
+export function attachPoolErrorHandler(pool: Pool, onError: (error: Error) => void = () => {
+  console.error('[control-plane] database pool connection error')
+}): void {
+  pool.on('error', (error: Error) => {
+    try { onError(error) } catch { /* never let logging recreate an unhandled pool error */ }
+  })
+}
+
 export async function migrate(pool: Pool): Promise<void> {
   const sql = await readFile(new URL('./schema.sql', import.meta.url), 'utf8')
   const sql2 = await readFile(new URL('./schema_002.sql', import.meta.url), 'utf8')
@@ -26,13 +45,22 @@ export async function migrate(pool: Pool): Promise<void> {
   })
 }
 
+export function isScratchDeploymentExemption(result: Record<string, unknown>): boolean {
+  return result.status === 'ok' && result.policy_verified === true && result.deployment_ready === false && result._control_lane === 'scratch'
+}
+
 export async function hasUnresolvedMutation(client: Pool | PoolClient, tenantId: string): Promise<boolean> {
   const result = await client.query(`SELECT 1 FROM operations
     WHERE tenant_id=$1 AND status='needs_intervention'
       AND type IN ('tenant.create','tenant.entitle','backup','upgrade','restore')
-      AND NOT (type='tenant.create' AND stage='deployment_incomplete'
+      AND NOT COALESCE(
+        type='tenant.create' AND stage='deployment_incomplete'
         AND result->>'status'='ok' AND result->>'policy_verified'='true'
-        AND result->>'deployment_ready'='false')
+        AND jsonb_typeof(result->'deployment_ready')='boolean'
+        AND result->'deployment_ready'='false'::jsonb
+        AND result->>'_control_lane'='scratch',
+        false
+      )
     LIMIT 1`, [tenantId])
   return Boolean(result.rowCount)
 }
@@ -45,7 +73,7 @@ export async function transaction<T>(pool: Pool, action: (client: PoolClient) =>
     await client.query('COMMIT')
     return result
   } catch (error) {
-    await client.query('ROLLBACK')
+    try { await client.query('ROLLBACK') } catch { /* retain the operation's original failure */ }
     throw error
   } finally { client.release() }
 }

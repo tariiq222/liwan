@@ -127,6 +127,22 @@ def validate_identifier(value, flag):
     return value
 
 
+def validate_policy_bytes_file(value):
+    """Validate an independent, bounded local policy-byte input for status."""
+    if not isinstance(value, str) or not value:
+        _fail('invalid_input', '--policy-bytes-file is required')
+    path = Path(value)
+    if not path.is_absolute():
+        _fail('invalid_input', '--policy-bytes-file must be an absolute local path')
+    if not path.exists():
+        _fail('invalid_input', '--policy-bytes-file does not exist')
+    if not path.is_file():
+        _fail('invalid_input', '--policy-bytes-file is not a regular file')
+    if path.stat().st_size > POLICY_MAX_BYTES:
+        _fail('invalid_input', f'--policy-bytes-file exceeds {POLICY_MAX_BYTES} bytes')
+    return str(path)
+
+
 def validate_policy_file(value):
     """A bounded, absolute, local file. No URL, no shell interpolation."""
     if not isinstance(value, str) or not value:
@@ -169,6 +185,8 @@ def build_parser():
             command.add_argument('--approval-id', required=True)
         if request:
             command.add_argument('--request-id', required=True)
+        if name == 'status':
+            command.add_argument('--policy-bytes-file')
         command.set_defaults(operation=name.replace('.', '_'), adapter_command=name)
         return command
 
@@ -194,12 +212,14 @@ def build_parser():
 def _validated(args):
     """Validate a parsed command locally. Returns the validated field dict."""
     fields = {'operation': args.adapter_command, 'target': validate_target(args.target)}
-    for flag in ('--policy-file', '--release'):
+    for flag in ('--policy-file', '--policy-bytes-file', '--release'):
         attribute = flag.lstrip('-').replace('-', '_')
         if getattr(args, attribute, None) is not None:
             value = getattr(args, attribute)
             fields[attribute] = (
                 validate_policy_file(value) if flag == '--policy-file'
+                else validate_policy_bytes_file(value)
+                if flag == '--policy-bytes-file'
                 else _validate_local_path(value, flag)
             )
     for attribute, flag in (('expected_revision', '--expected-revision'),
@@ -292,7 +312,21 @@ def main(argv=None, adapter=None):
         exit_code = error.exit_code
     except SystemExit as stop:  # --help / --version
         return int(stop.code or 0)
+    status = payload.get('status') if isinstance(payload, dict) else None
+    status_codes = {
+        'conflict': 'conflict',
+        'needs_intervention': 'needs_intervention',
+        'error': 'operation_failed',
+        'failed': 'operation_failed',
+    }
+    if status in status_codes and payload.get('stage') != 'parser' and exit_code not in (EXIT_INVALID_INPUT, EXIT_AUTHORIZATION):
+        exit_code = EXIT_CODES[status_codes[status]]
+
     print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
     if exit_code != EXIT_OK:
-        print(f'nasq-cli: {payload["error"]["code"]}', file=sys.stderr)
+        error = payload.get('error') if isinstance(payload, dict) else None
+        error_code = error.get('code') if isinstance(error, dict) else None
+        if not isinstance(error_code, str) or not error_code:
+            error_code = status_codes.get(status, 'operation_failed')
+        print(f'nasq-cli: {error_code}', file=sys.stderr)
     return exit_code

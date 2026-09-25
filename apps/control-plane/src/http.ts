@@ -45,10 +45,29 @@ function parseJson<T>(raw: string, schema: { safeParse(value: unknown): { succes
   return parsed.data as T
 }
 
-export async function inventory(config: Config): Promise<{ version: number; targets: Record<string, { kind: 'scratch' | 'customer'; commercial_mode: 'saas' | 'non_saas'; release_root?: string }> }> {
-  const file = await stat(config.inventoryPath)
+export type OperatorTarget = { kind: 'scratch' | 'customer'; commercial_mode: 'saas' | 'non_saas'; release_root?: string }
+export type TargetLane =
+  | { kind: 'scratch'; target: OperatorTarget }
+  | { kind: 'compose-local'; target: { kind: 'customer'; commercial_mode: 'saas' }; inventoryPath: string; stateDir: string; descriptorDigest: string; descriptorBytes: Buffer }
+
+async function readInventoryFile(path: string): Promise<unknown> {
+  const file = await stat(path)
   if (!file.isFile() || file.size > 65536) throw new ApiError(503, 'inventory_unavailable', 'Operator inventory is unavailable')
-  const data = JSON.parse(await readFile(config.inventoryPath, 'utf8')) as { version?: number; targets?: Record<string, { kind?: string; database?: string; classification_file?: string; release_root?: string }> }
+  try { return JSON.parse(await readFile(path, 'utf8')) } catch { throw new ApiError(503, 'inventory_unavailable', 'Operator inventory is unavailable') }
+}
+
+function canonicalJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`
+  if (value && typeof value === 'object') {
+    const record = value as Record<string, unknown>
+    return `{${Object.keys(record).sort().map((key) => `${JSON.stringify(key)}:${canonicalJson(record[key])}`).join(',')}}`
+  }
+  return JSON.stringify(value)
+}
+
+export async function inventory(config: Config): Promise<{ version: number; targets: Record<string, OperatorTarget> }> {
+  const raw = await readInventoryFile(config.inventoryPath)
+  const data = raw as { version?: number; targets?: Record<string, { kind?: string; database?: string; classification_file?: string; release_root?: string }> }
   if (data.version !== 2 || !data.targets || typeof data.targets !== 'object' || Array.isArray(data.targets)) throw new ApiError(503, 'inventory_unavailable', 'Operator inventory is unavailable')
   const targets: Record<string, { kind: 'scratch' | 'customer'; commercial_mode: 'saas' | 'non_saas'; release_root?: string }> = {}
   for (const [id, item] of Object.entries(data.targets)) {
@@ -58,6 +77,36 @@ export async function inventory(config: Config): Promise<{ version: number; targ
     targets[id] = { kind: item.kind, commercial_mode: classification.commercial_mode as 'saas' | 'non_saas', release_root: item.release_root }
   }
   return { version: 2, targets }
+}
+
+export async function resolveTargetLane(config: Config, targetId: string, commercialMode: 'saas' | 'non_saas'): Promise<TargetLane> {
+  if (!/^[a-z][a-z0-9._-]{0,63}$/.test(targetId)) throw new ApiError(422, 'target_not_authorized', 'Operator target is not authorized')
+  const scratch = (await inventory(config)).targets[targetId]
+  if (scratch) {
+    if (scratch.kind !== 'scratch' || scratch.commercial_mode !== commercialMode) throw new ApiError(422, 'target_not_authorized', 'Operator target is not authorized')
+    return { kind: 'scratch', target: scratch }
+  }
+  if (commercialMode !== 'saas' || !config.managedInventoryPath) throw new ApiError(422, 'target_not_authorized', 'Operator target is not authorized')
+  const raw = await readInventoryFile(config.managedInventoryPath)
+  const data = raw as { schema_version?: unknown; targets?: unknown }
+  if (data.schema_version !== 3 || !data.targets || typeof data.targets !== 'object' || Array.isArray(data.targets)) throw new ApiError(503, 'inventory_unavailable', 'Managed inventory is unavailable')
+  const targets = data.targets as Record<string, unknown>
+  const descriptor = targets[targetId]
+  if (!/^tgt_[a-z0-9_]{1,59}$/.test(targetId) || !descriptor || typeof descriptor !== 'object' || Array.isArray(descriptor)) throw new ApiError(422, 'target_not_authorized', 'Operator target is not authorized')
+  const entry = descriptor as Record<string, unknown>
+  const adapter = entry.adapter as Record<string, unknown> | undefined
+  if (Object.keys(entry).sort().join(',') !== ['adapter','allowed_operations','commercial_mode','descriptor_digest','environment_id','release_ref','resource_refs','revision','secret_refs'].sort().join(',') ||
+      adapter?.kind !== 'compose-local' || adapter.version !== 1 || entry.commercial_mode !== 'saas' ||
+      !Array.isArray(entry.allowed_operations) || !entry.allowed_operations.includes('tenant.create') ||
+      !Number.isSafeInteger(entry.revision) || (entry.revision as number) < 0 ||
+      typeof entry.descriptor_digest !== 'string' || !/^sha256:[a-f0-9]{64}$/.test(entry.descriptor_digest)) {
+    throw new ApiError(422, 'target_not_authorized', 'Managed target descriptor is not authorized')
+  }
+  const descriptorForDigest = Object.fromEntries(Object.entries(entry).filter(([key]) => key !== 'descriptor_digest'))
+  const descriptorBytes = Buffer.from(canonicalJson({ target: targetId, descriptor: descriptorForDigest }), 'utf8')
+  const digest = `sha256:${createHash('sha256').update(descriptorBytes).digest('hex')}`
+  if (digest !== entry.descriptor_digest) throw new ApiError(422, 'target_not_authorized', 'Managed target descriptor is not authorized')
+  return { kind: 'compose-local', target: { kind: 'customer', commercial_mode: 'saas' }, inventoryPath: config.managedInventoryPath, stateDir: config.stateDir, descriptorDigest: digest, descriptorBytes }
 }
 
 async function authorize(pool: Pool, req: IncomingMessage, raw: string, config: Config): Promise<{ actor: number; capabilities: VendorCapability[] }> {
@@ -109,14 +158,15 @@ async function enqueue(pool: Pool, config: Config, auth: { actor: number }, tena
     if (original.rowCount) {
       if (String(original.rows[0].actor_uid) !== String(auth.actor) || original.rows[0].issuer !== config.installationId || original.rows[0].tenant_id !== tenantId || original.rows[0].payload_digest !== payloadDigest) throw new ApiError(409, 'conflict', 'Request ID is already in use')
       const { payload_digest: _digest, actor_uid: _actor, issuer: _issuer, ...data } = original.rows[0]
+      if (data.type === 'status') data.payload = { request_id: (data.payload as Record<string, unknown>).receipt_request_id, operation: (data.payload as Record<string, unknown>).operation, operation_id: (data.payload as Record<string, unknown>).operation_id }
       return { status: 200, data }
     }
     if (['tenant.create','tenant.entitle','backup','upgrade','restore'].includes(kind) && await hasUnresolvedMutation(client, tenantId)) throw new ApiError(409, 'reconciliation_required', 'An unresolved operation requires reconciliation')
     if (!tenant.operations_enabled) throw new ApiError(403, 'operations_disabled', 'Operations are disabled for this installation')
-    const target = (await inventory(config)).targets[tenant.inventory_target]
-    if (!target) throw new ApiError(422, 'invalid', 'Installation target is absent from operator inventory')
-    if (target.kind !== 'scratch') throw new ApiError(422, 'operation_unavailable', 'This operation has no verified customer-target adapter')
+    const lane = await resolveTargetLane(config, tenant.inventory_target, tenant.commercial_mode)
+    const target = lane.target
     if (kind === 'tenant.create' && tenant.status !== 'registered') throw new ApiError(409, 'conflict', 'Installation has already entered provisioning')
+    if (lane.kind === 'compose-local' && kind !== 'tenant.create' && kind !== 'tenant.inspect' && kind !== 'health' && kind !== 'status') throw new ApiError(422, 'operation_unavailable', 'This managed operation is not authorized in this slice')
     if (kind === 'tenant.entitle' && tenant.commercial_mode === 'non_saas') throw new ApiError(422, 'local_policy_protected', 'This installation uses an independent local policy')
     if (kind === 'tenant.create') {
       if (!tenant.catalog_version || !tenant.catalog_tier) throw new ApiError(422, 'catalog_required', 'Select a published catalog version and tier before provisioning')
@@ -129,8 +179,8 @@ async function enqueue(pool: Pool, config: Config, auth: { actor: number }, tena
       if (!approval.rowCount) throw new ApiError(422, 'approval_required', 'A matching persisted restore approval is required')
     }
     if (input.type === 'upgrade') {
-      if (!target.release_root || !/^[a-z][a-z0-9._-]{0,63}$/.test(String(input.release_id))) throw new ApiError(422, 'invalid', 'Trusted release is unavailable')
-      const release = await stat(join(target.release_root, String(input.release_id))).catch(() => null)
+      if (lane.kind === 'compose-local' || !(target as OperatorTarget).release_root || !/^[a-z][a-z0-9._-]{0,63}$/.test(String(input.release_id))) throw new ApiError(422, 'invalid', 'Trusted release is unavailable')
+      const release = await stat(join((target as OperatorTarget).release_root!, String(input.release_id))).catch(() => null)
       if (!release?.isFile()) throw new ApiError(422, 'invalid', 'Trusted release is unavailable')
     }
     const id = randomUUID()

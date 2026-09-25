@@ -1,0 +1,367 @@
+#!/usr/bin/env bash
+# Enforce tracing/verbose off before any env-file/credential read.
+set +xv
+case "$-" in *x*|*v*) printf 'fixture refuses traced shell\n' >&2; exit 2 ;; esac
+set -euo pipefail
+
+ROOT="$(git -C "$(dirname "$0")/../.." rev-parse --show-toplevel)"
+FIXTURE="$ROOT/deploy/control-plane-outage"
+STATE="$FIXTURE/state"
+PROJECT=nasq-saas-outage-fixture
+SERVICE=postgres
+CONTAINER=nasq-saas-outage-fixture-postgres
+POSTGRES_IMAGE=postgres@sha256:16bc17c64a573ef34162af9298258d1aec548232985b33ed7b1eac33ba35c229
+DB=nasq_scratch_p1outage
+ODOO_PORT=18179
+WEB_PORT=13109
+PG_PORT=55439
+ODOO_ROOT=/Users/tariq/code/odoo
+PYTHON="$ODOO_ROOT/.venv/bin/python"
+ODOO_BIN="$ODOO_ROOT/odoo-bin"
+STOCK_ADDONS="$ODOO_ROOT/addons"
+ADDONS="$ROOT/odoo-addons"
+MODULES=nasq_core,nasq_platform,nasq_api,nasq_pmo,nasq_hr,nasq_chat
+
+fail() { printf 'fixture stopped: %s\n' "$1" >&2; exit 1; }
+
+port_free() {
+  local port="$1"
+  if lsof -nP -iTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1; then
+    fail "TCP port $port is already listening"
+  fi
+}
+
+check_identity() {
+  [[ "$ROOT" == /Users/tariq/code/nasq-saas-outage-fixture ]] || fail 'unexpected worktree root'
+  [[ "$(git -C "$ROOT" branch --show-current)" == codex/saas-outage-fixture ]] || fail 'wrong task branch'
+  [[ -x "$PYTHON" && -f "$ODOO_BIN" && -d "$STOCK_ADDONS/project" && -d "$ADDONS/nasq_hr" ]] || fail 'required Odoo/worktree paths missing'
+  local py_major node_major
+  py_major=$("$PYTHON" -c 'import sys;print(sys.version_info.major,sys.version_info.minor)')
+  node_major=$(PATH="/opt/homebrew/opt/node@22/bin:$PATH" node -p 'process.versions.node.split(".").slice(0,2).join(".")')
+  [[ "$py_major" == '3 12' ]] || fail 'Odoo interpreter must be Python 3.12'
+  [[ "$node_major" == '22.22' ]] || fail 'fixture Node must be 22.22.x'
+  docker image inspect "$POSTGRES_IMAGE" >/dev/null 2>&1 || fail 'postgres:16-alpine image is not cached; pulls are forbidden'
+}
+
+assert_container_image() {
+  local expected_id
+  expected_id=$(docker image inspect "$POSTGRES_IMAGE" --format '{{.Id}}') || fail 'pinned PostgreSQL image is unavailable locally'
+  [[ "$(docker inspect "$CONTAINER" --format '{{.Image}}')" == "$expected_id" ]] || fail 'container image ID differs from pinned cached image'
+}
+
+write_secret_file() {
+  umask 077
+  python3 - "$1" <<'PY'
+import secrets, sys
+from pathlib import Path
+path = Path(sys.argv[1])
+password = secrets.token_urlsafe(36)
+admin = secrets.token_urlsafe(28)
+marker = 'OUTAGE-FIXTURE-' + secrets.token_hex(16)
+path.write_text(f'FIXTURE_PG_PASSWORD={password}\nNASQ_FIXTURE_ADMIN_LOGIN=outage_fixture_admin\nNASQ_FIXTURE_ADMIN_PASSWORD={admin}\nNASQ_FIXTURE_MARKER={marker}\n', encoding='utf-8')
+path.chmod(0o600)
+PY
+}
+
+compose() {
+  docker compose --project-name "$PROJECT" --project-directory "$FIXTURE" --env-file "$STATE/secrets.env" -f "$FIXTURE/compose.yml" "$@"
+}
+
+render_conf() {
+  cat > "$STATE/odoo.conf" <<EOF
+[options]
+admin_passwd = ${FIXTURE_ODOO_MASTER_PASSWORD}
+http_interface = 127.0.0.1
+http_port = $ODOO_PORT
+gevent_port = 18180
+workers = 0
+max_cron_threads = 0
+db_host = 127.0.0.1
+db_port = $PG_PORT
+db_user = nasq_fixture
+db_password = ${FIXTURE_DB_PASSWORD}
+dbfilter = ^${DB}$
+data_dir = $STATE/odoo-data
+logfile = $STATE/logs/odoo.log
+addons_path = $ODOO_ROOT/odoo/addons,$STOCK_ADDONS,$ADDONS
+EOF
+  chmod 600 "$STATE/odoo.conf"
+}
+
+load_fixture_secrets() {
+  python3 "$FIXTURE/ensure_master_password.py" "$STATE/secrets.env" || fail 'cannot safely prepare fixture secrets'
+  set -a
+  # shellcheck disable=SC1090
+  source "$STATE/secrets.env"
+  set +a
+  FIXTURE_DB_PASSWORD="$FIXTURE_PG_PASSWORD"
+  render_conf
+}
+
+prepare() {
+  check_identity
+  [[ ! -e "$STATE" ]] || fail "state already exists at $STATE; refusing to overwrite"
+  port_free "$PG_PORT"; port_free "$ODOO_PORT"; port_free "$WEB_PORT"; port_free 18180
+  mkdir -p "$STATE/logs" "$STATE/odoo-data" "$STATE/nuxt"
+  chmod 700 "$STATE" "$STATE/logs" "$STATE/odoo-data" "$STATE/nuxt"
+  write_secret_file "$STATE/secrets.env"
+  load_fixture_secrets
+  printf '%s\n' "$FIXTURE_DB_PASSWORD" > "$STATE/pg-password"
+  chmod 600 "$STATE/pg-password"
+  # Ensure project name has no preexisting container/volume to avoid data reuse.
+  if docker volume ls --format '{{.Name}}' | grep -Fx 'nasq-saas-outage-fixture_outage_pg' >/dev/null; then
+    fail 'fixture volume already exists; preserve and inspect manually, do not reuse'
+  fi
+  if docker inspect "$CONTAINER" >/dev/null 2>&1; then
+    [[ "$(docker inspect "$CONTAINER" --format '{{index .Config.Labels "com.docker.compose.project"}}')" == "$PROJECT" ]] || fail 'same-name container belongs to a different project; preserve and inspect'
+    assert_container_image
+    [[ "$(docker port "$CONTAINER" 5432/tcp)" == '127.0.0.1:55439' ]] || fail 'existing container port drift; preserve without recreation'
+    [[ "$(docker inspect "$CONTAINER" --format '{{.State.Running}}')" == true ]] || docker start "$CONTAINER"
+  else
+    docker compose --project-name "$PROJECT" --project-directory "$FIXTURE" --env-file "$STATE/secrets.env" -f "$FIXTURE/compose.yml" create --pull never "$SERVICE"
+    [[ "$(docker inspect "$CONTAINER" --format '{{index .Config.Labels "com.docker.compose.project"}}')" == "$PROJECT" ]] || fail 'created container identity mismatch'
+    assert_container_image
+    docker start "$CONTAINER"
+  fi
+  for _ in $(seq 1 60); do
+    if compose exec -T "$SERVICE" pg_isready -U nasq_fixture -d postgres >/dev/null 2>&1; then break; fi
+    sleep 1
+  done
+  compose exec -T "$SERVICE" pg_isready -U nasq_fixture -d postgres >/dev/null || fail 'dedicated fixture PostgreSQL did not become ready'
+  if compose exec -T "$SERVICE" psql -U nasq_fixture -d postgres -Atc "SELECT 1 FROM pg_database WHERE datname='$DB'" | grep -qx 1; then
+    fail 'scratch DB already exists; refuse to touch it'
+  fi
+  compose exec -T "$SERVICE" createdb -U nasq_fixture -T template0 "$DB"
+  printf 'created isolated fixture state; DB=%s PG=%s Odoo=%s Nuxt=%s\n' "$DB" "$PG_PORT" "$ODOO_PORT" "$WEB_PORT"
+}
+
+runtime_args() {
+  printf '%s\0' --worktree "$ROOT" --addons-path "$ADDONS" --stock-addons "$STOCK_ADDONS" --python "$PYTHON" --odoo-bin "$ODOO_BIN" --odoo-conf "$STATE/odoo.conf" --scratch-db "$DB" --scratch-lifecycle CREATE_NEW_SCRATCH --http-port "$ODOO_PORT"
+}
+
+odoo_runtime() {
+  # wrapper is used for strict path/db/loopback validation; PG password is provided
+  # only in environment, not command args or printed output.
+  PGHOST=127.0.0.1 PGPORT="$PG_PORT" PGUSER=nasq_fixture PGPASSWORD="$(<"$STATE/pg-password")" \
+    "$PYTHON" "$ROOT/deploy/check_isolated.py" runtime \
+    --worktree "$ROOT" --addons-path "$ADDONS" --stock-addons "$STOCK_ADDONS" \
+    --python "$PYTHON" --odoo-bin "$ODOO_BIN" --odoo-conf "$STATE/odoo.conf" \
+    --scratch-db "$DB" --scratch-lifecycle CREATE_NEW_SCRATCH --http-port "$ODOO_PORT"
+}
+
+write_classification() {
+  cat > "$STATE/classification.json" <<EOF
+{"schema_version":1,"database":"$DB","commercial_mode":"non_saas","entitlement_source":"local_policy","expected_valid_until":null,"valid_until_action":"preserve"}
+EOF
+  chmod 600 "$STATE/classification.json"
+}
+
+install_modules() {
+  load_fixture_secrets
+  write_classification
+  PGHOST=127.0.0.1 PGPORT="$PG_PORT" PGUSER=nasq_fixture PGPASSWORD="$(<"$STATE/pg-password")" \
+  NASQ_COMMERCIAL_CONFIG="$STATE/classification.json" \
+    "$PYTHON" "$ODOO_BIN" -c "$STATE/odoo.conf" \
+    --addons-path="$ODOO_ROOT/odoo/addons,$STOCK_ADDONS,$ADDONS" \
+    --db_host=127.0.0.1 --db_port="$PG_PORT" --db_user=nasq_fixture \
+    -d "$DB" --db-filter="^$DB$" --data-dir="$STATE/odoo-data" \
+    --logfile="$STATE/logs/install.log" --http-interface=127.0.0.1 --http-port="$ODOO_PORT" \
+    --workers=0 --max-cron-threads=0 --without-demo=all -i "$MODULES" --stop-after-init
+}
+
+start_odoo() {
+  odoo_runtime >"$STATE/logs/odoo-start.stdout" 2>&1 &
+  echo $! > "$STATE/odoo-launcher.pid"
+  chmod 600 "$STATE/odoo-launcher.pid"
+  ps -p "$(<"$STATE/odoo-launcher.pid")" -o lstart= | xargs > "$STATE/odoo-launcher.starttime"
+  chmod 600 "$STATE/odoo-launcher.starttime"
+  for _ in $(seq 1 180); do
+    if curl -fsS "http://127.0.0.1:$ODOO_PORT/web/login" >/dev/null 2>&1; then
+      local child
+      child=$(pgrep -P "$(<"$STATE/odoo-launcher.pid")" | head -n 1 || true)
+      [[ -n "$child" ]] || fail 'Odoo launcher has no runtime child'
+      ps -p "$child" -o command= | grep -F "$ODOO_BIN" >/dev/null || fail 'Odoo child executable mismatch'
+      ps -p "$child" -o command= | grep -F -- "-d $DB" >/dev/null || fail 'Odoo child database mismatch'
+      ps -p "$child" -o command= | grep -F -- "--http-port $ODOO_PORT" >/dev/null || fail 'Odoo child port mismatch'
+      ps -p "$child" -o command= | grep -F "$STATE/odoo.conf" >/dev/null || fail 'Odoo child config mismatch'
+      echo "$child" > "$STATE/odoo.pid"; ps -p "$child" -o lstart= | xargs > "$STATE/odoo.starttime"; chmod 600 "$STATE/odoo.pid" "$STATE/odoo.starttime"
+      return
+    fi
+    kill -0 "$(<"$STATE/odoo-launcher.pid")" 2>/dev/null || fail 'Odoo process exited; inspect private log'
+    sleep 1
+  done
+  fail 'Odoo HTTP not ready; inspect private log'
+}
+
+bootstrap() {
+  set -a
+  # shellcheck disable=SC1090
+  source "$STATE/secrets.env"
+  set +a
+  PGHOST=127.0.0.1 PGPORT="$PG_PORT" PGUSER=nasq_fixture PGPASSWORD="$(<"$STATE/pg-password")" \
+    NASQ_FIXTURE_ADMIN_LOGIN="$NASQ_FIXTURE_ADMIN_LOGIN" \
+    NASQ_FIXTURE_ADMIN_PASSWORD="$NASQ_FIXTURE_ADMIN_PASSWORD" \
+    NASQ_FIXTURE_MARKER="$NASQ_FIXTURE_MARKER" \
+    "$PYTHON" "$ODOO_BIN" shell -c "$STATE/odoo.conf" \
+    --addons-path="$ODOO_ROOT/odoo/addons,$STOCK_ADDONS,$ADDONS" \
+    --db_host=127.0.0.1 --db_port="$PG_PORT" --db_user=nasq_fixture \
+    -d "$DB" --db-filter="^$DB$" --data-dir="$STATE/odoo-data" \
+    --logfile="$STATE/logs/bootstrap.log" --http-interface=127.0.0.1 --http-port="$ODOO_PORT" \
+    --workers=0 --max-cron-threads=0 --no-http < "$FIXTURE/bootstrap.py" > "$STATE/logs/bootstrap.stdout" 2>&1
+}
+
+start_nuxt() {
+  local nodebin=/opt/homebrew/opt/node@22/bin
+  PATH="$nodebin:$PATH" NUXT_ODOO_URL="http://127.0.0.1:$ODOO_PORT" NUXT_FIXTURE_DB="$DB" \
+  NUXT_ODOO_DB="$DB" NUXT_PUBLIC_WS_URL="ws://127.0.0.1:$ODOO_PORT/websocket" \
+  npm -w apps/web run dev -- --host 127.0.0.1 --port "$WEB_PORT" \
+    >"$STATE/logs/nuxt.log" 2>&1 &
+  echo $! > "$STATE/nuxt-launcher.pid"
+  chmod 600 "$STATE/nuxt-launcher.pid"
+  ps -p "$(<"$STATE/nuxt-launcher.pid")" -o lstart= | xargs > "$STATE/nuxt-launcher.starttime"
+  chmod 600 "$STATE/nuxt-launcher.starttime"
+  for _ in $(seq 1 180); do
+    if curl -fsS "http://127.0.0.1:$WEB_PORT/login" >/dev/null 2>&1; then
+      local child
+      child=$(pgrep -P "$(<"$STATE/nuxt-launcher.pid")" | head -n 1 || true)
+      [[ -n "$child" ]] || fail 'Nuxt launcher has no child process'
+      ps -p "$child" -o command= | grep -F "$ROOT/node_modules/.bin/nuxt" >/dev/null || fail 'Nuxt child executable mismatch'
+      ps -p "$child" -o command= | grep -F -- "--port $WEB_PORT" >/dev/null || fail 'Nuxt child port mismatch'
+      echo "$child" > "$STATE/nuxt.pid"; ps -p "$child" -o lstart= | xargs > "$STATE/nuxt.starttime"; chmod 600 "$STATE/nuxt.pid" "$STATE/nuxt.starttime"
+    local runtime_db
+    runtime_db=$(curl -fsS -X POST "http://127.0.0.1:$ODOO_PORT/web/database/selector" -o /dev/null -w '%{http_code}' || true)
+    [[ "$runtime_db" == 404 ]] || fail 'Odoo health endpoint unexpected; check fixture Odoo target'
+    return
+    fi
+    kill -0 "$(<"$STATE/nuxt-launcher.pid")" 2>/dev/null || fail 'Nuxt process exited; inspect private log'
+    sleep 1
+  done
+  fail 'Nuxt HTTP not ready; inspect private log'
+}
+
+start() {
+  [[ -d "$STATE" ]] || fail 'run prepare first'
+  load_fixture_secrets
+  check_identity
+  for port in "$ODOO_PORT" "$WEB_PORT" 18180; do port_free "$port"; done
+  compose ps --all --services | grep -Fx "$SERVICE" >/dev/null || fail 'expected fixture PostgreSQL service is absent'
+  [[ "$(docker inspect "$CONTAINER" --format '{{.State.Running}}')" == true ]] || fail 'owned fixture PostgreSQL is not running'
+  docker inspect "$CONTAINER" --format '{{index .Config.Labels "com.docker.compose.project"}}' | grep -Fx "$PROJECT" >/dev/null || fail 'expected fixture container is not owned by this Compose project'
+  assert_container_image
+  docker port "$CONTAINER" 5432/tcp | grep -Fx '127.0.0.1:55439' >/dev/null || fail 'port 55439 is not backed by the named fixture container'
+  # Install Web deps independently; no symlinks/shared generated state.
+  PATH="/opt/homebrew/opt/node@22/bin:$PATH" npm ci --ignore-scripts --prefix "$ROOT" >"$STATE/logs/npm-ci.log" 2>&1
+  PATH="/opt/homebrew/opt/node@22/bin:$PATH" npm -w apps/web run postinstall >"$STATE/logs/nuxt-postinstall.log" 2>&1
+  install_modules
+  bootstrap
+  start_odoo
+  start_nuxt
+  printf 'baseline services started: PostgreSQL container=%s, Odoo PID=%s, Nuxt PID=%s\n' "$CONTAINER" "$(<"$STATE/odoo.pid")" "$(<"$STATE/nuxt.pid")"
+  printf 'synthetic credentials and DB marker are stored only in ignored %s/secrets.env (not displayed)\n' "$STATE"
+}
+
+status() {
+  if [[ ! -d "$STATE" ]]; then printf 'fixture not prepared\n'; return; fi
+  printf 'fixture project=%s database=%s\n' "$PROJECT" "$DB"
+  compose ps --all || true
+  for name in odoo nuxt; do
+    if [[ -f "$STATE/$name.pid" ]] && kill -0 "$(<"$STATE/$name.pid")" 2>/dev/null; then printf '%s runtime pid=%s running\n' "$name" "$(<"$STATE/$name.pid")"; else printf '%s runtime not running\n' "$name"; fi
+  done
+}
+
+probe() {
+  [[ -d "$STATE" ]] || fail 'run prepare first'
+  curl -fsS "http://127.0.0.1:$WEB_PORT/login" >/dev/null || fail 'Nuxt is not responding'
+  set -a
+  # shellcheck disable=SC1090
+  source "$STATE/secrets.env"
+  set +a
+  local nuxt_child
+  nuxt_child=$(<"$STATE/nuxt.pid")
+  ps -p "$nuxt_child" -o command= | grep -F "$ROOT/node_modules/.bin/nuxt" >/dev/null || fail 'Nuxt process does not match selected worktree executable'
+  ps -p "$nuxt_child" -o command= | grep -F -- "--port $WEB_PORT" >/dev/null || fail 'Nuxt process does not match expected fixture port'
+  [[ "$(ps -p "$nuxt_child" -o lstart= | xargs)" == "$(<"$STATE/nuxt.starttime")" ]] || fail 'Nuxt PID identity start-time changed'
+  [[ "$(ps -p "$nuxt_child" -o ppid= | xargs)" == "$(<"$STATE/nuxt-launcher.pid")" ]] || fail 'Nuxt process parent does not match launcher'
+  local odoo_pid
+  odoo_pid=$(<"$STATE/odoo.pid")
+  ps -p "$odoo_pid" -o command= | grep -F "$ODOO_BIN" >/dev/null || fail 'Odoo process does not match upstream executable'
+  ps -p "$odoo_pid" -o command= | grep -F -- "-d $DB" >/dev/null || fail 'Odoo process does not match scratch database'
+  ps -p "$odoo_pid" -o command= | grep -F -- "--http-port $ODOO_PORT" >/dev/null || fail 'Odoo process does not match fixture port'
+  [[ "$(ps -p "$odoo_pid" -o lstart= | xargs)" == "$(<"$STATE/odoo.starttime")" ]] || fail 'Odoo PID identity start-time changed'
+  PATH="/opt/homebrew/opt/node@22/bin:$PATH" node "$FIXTURE/probe.mjs" \
+    "http://127.0.0.1:$WEB_PORT" "$STATE/evidence.json" "$STATE/secrets.env" "$nuxt_child"
+  chmod 600 "$STATE/evidence.json"
+}
+
+stop_owned_pid() {
+  local name="$1" pidfile="$STATE/$1.pid" pid command starttime
+  [[ -f "$pidfile" ]] || return 0
+  pid=$(<"$pidfile")
+  if ! kill -0 "$pid" 2>/dev/null; then rm -f "$pidfile"; return 0; fi
+  [[ "$(ps -p "$pid" -o ppid= | xargs)" == "$(<"$STATE/$name-launcher.pid")" ]] || fail "$name parent does not match owned launcher"
+  [[ "$(ps -p "$pid" -o command=)" == *"$ODOO_BIN"* && "$name" == odoo || "$(ps -p "$pid" -o command=)" == *"$ROOT/node_modules/.bin/nuxt"* && "$name" == nuxt ]] || fail "$name runtime command mismatch; refusing to signal"
+  local verified_pid="$pid"
+  [[ -n "$verified_pid" ]] || fail "$name launcher has no child; refusing broad signal"
+  pid="$verified_pid"
+  command=$(ps -p "$pid" -o command=)
+  if [[ "$name" == odoo ]]; then
+    [[ "$command" == *"$ODOO_BIN"* && "$command" == *"-d $DB"* && "$command" == *"--http-port $ODOO_PORT"* && "$command" == *"$STATE/odoo.conf"* ]] || fail 'Odoo runtime ownership proof failed; refusing to signal'
+  else
+    [[ "$command" == *"$ROOT/node_modules/.bin/nuxt"* && "$command" == *"--port $WEB_PORT"* ]] || fail 'Nuxt runtime ownership proof failed; refusing to signal'
+  fi
+  starttime=$(ps -p "$pid" -o lstart= | xargs)
+  [[ "$(ps -p "$pid" -o ppid= | xargs)" == "$(<"$STATE/$name-launcher.pid")" || "$name" == odoo ]] || fail "$name parent PID differs from recorded launcher"
+  [[ -f "$STATE/$name.starttime" && "$starttime" == "$(<"$STATE/$name.starttime")" ]] || fail "$name PID start time differs from recorded fixture process"
+  # Only signal exact recorded process after verifying its executable/arguments.
+  kill -TERM "$pid"
+  for _ in $(seq 1 20); do kill -0 "$pid" 2>/dev/null || break; sleep 1; done
+  kill -0 "$pid" 2>/dev/null && fail "$name PID $pid did not stop; left running"
+  rm -f "$pidfile"
+}
+
+stop() {
+  [[ -d "$STATE" ]] || fail 'no fixture state'
+  source "$STATE/secrets.env"
+  stop_owned_pid nuxt
+  stop_owned_pid odoo
+  for launcher in nuxt odoo; do
+    local pidfile="$STATE/$launcher-launcher.pid"
+    if [[ -f "$pidfile" ]]; then
+      local pid parent
+      pid=$(<"$pidfile")
+      [[ "$pid" =~ ^[0-9]+$ ]] || fail "$launcher launcher PID is invalid; refusing to signal"
+      if python3 "$ROOT/deploy/control-plane/pid_probe.py" "$pid"; then
+        rm -f "$pidfile" "$STATE/$launcher-launcher.starttime"
+        continue
+      fi
+      kill -0 "$pid" 2>/dev/null || fail "$launcher process identity is uncertain; preserving its records"
+      parent=$(ps -p "$pid" -o command= || true)
+      if [[ "$launcher" == odoo ]]; then
+        [[ "$parent" == *"$ROOT/deploy/check_isolated.py runtime"* && "$parent" == *"--scratch-db $DB"* && "$parent" == *"--http-port $ODOO_PORT"* ]] || fail 'Odoo launcher identity mismatch; refusing to signal'
+      else
+        [[ "$parent" == *"npm -w apps/web run dev -- --host 127.0.0.1 --port $WEB_PORT"* ]] || fail 'Nuxt launcher identity mismatch; refusing to signal'
+      fi
+      [[ -f "$STATE/$launcher-launcher.starttime" && "$(ps -p "$pid" -o lstart= | xargs)" == "$(<"$STATE/$launcher-launcher.starttime")" ]] || fail "$launcher launcher PID start time changed; refusing to signal"
+      kill -TERM "$pid"
+      for _ in $(seq 1 20); do
+        if python3 "$ROOT/deploy/control-plane/pid_probe.py" "$pid"; then break; fi
+        sleep 1
+      done
+      python3 "$ROOT/deploy/control-plane/pid_probe.py" "$pid" || fail "$launcher launcher did not stop; preserving its records"
+      rm -f "$pidfile" "$STATE/$launcher-launcher.starttime"
+    fi
+  done
+  compose stop "$SERVICE"
+  printf 'stopped only owned Nuxt/Odoo PIDs and named fixture PostgreSQL; data volume preserved\n'
+}
+
+case "${1:-}" in
+  prepare) prepare ;;
+  install) install_modules ; bootstrap ;;
+  start) start ;;
+  refresh-config) [[ -d "$STATE" ]] || fail 'run prepare first'; check_identity; load_fixture_secrets ;;
+  status) status ;;
+  probe) probe ;;
+  stop) stop ;;
+  *) printf 'usage: %s {prepare|install|start|status|probe|stop}\n' "$0" >&2; exit 2 ;;
+esac

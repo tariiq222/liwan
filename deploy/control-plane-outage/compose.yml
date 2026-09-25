@@ -1,0 +1,22 @@
+services:
+  postgres:
+    image: postgres@sha256:16bc17c64a573ef34162af9298258d1aec548232985b33ed7b1eac33ba35c229
+    container_name: nasq-saas-outage-fixture-postgres
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: nasq_fixture
+      POSTGRES_PASSWORD: ${FIXTURE_PG_PASSWORD:?set in private ignored env file}
+    ports:
+      - "127.0.0.1:55439:5432"
+    volumes:
+      - outage_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nasq_fixture -d postgres"]
+      interval: 2s
+      timeout: 3s
+      retries: 40
+    restart: unless-stopped
+
+volumes:
+  outage_pg:
+    name: nasq-saas-outage-fixture_outage_pg

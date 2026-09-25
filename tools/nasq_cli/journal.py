@@ -176,6 +176,42 @@ class OperationJournal:
             value.setdefault('operation', operation)
             return value
 
+    def read_receipt(self, target, request_id):
+        """Read-only receipt lookup. Holds the target lock; performs no write.
+
+        Unlike :meth:`inspect` and :meth:`find_operation`, which convert a
+        ``mutating`` row into ``needs_intervention``, this accessor returns the
+        stored values unchanged so a caller can validate request identity without
+        altering durable state.
+
+        The body is ``{}`` only when the stored receipt is SQL ``NULL``. A stored
+        value that parses to something other than a JSON object is rejected with
+        ``ValueError`` rather than silently reported as empty, so a corrupt or
+        unexpected row cannot masquerade as an absent receipt. ``None`` is
+        returned when no row is bound.
+        """
+        with self._target_lock(target), self._connection() as db:
+            row = self._row(db, target, request_id)
+            if row is None:
+                return None
+            operation_id, operation, digest, fingerprint, status, receipt = row
+            if receipt is None:
+                body = {}
+            else:
+                body = json.loads(receipt)
+                if not isinstance(body, dict):
+                    msg = 'stored receipt is not a JSON object'
+                    raise ValueError(msg)
+                body.setdefault('operation', operation)
+            return {
+                'status': status,
+                'receipt': body,
+                'operation_id': operation_id,
+                'operation': operation,
+                'digest': digest,
+                'fingerprint': fingerprint,
+            }
+
     def execute(self, target, operation, request_id, digest, fingerprint, action):
         with self._target_lock(target):
             with self._connection() as db:

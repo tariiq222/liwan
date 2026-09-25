@@ -158,6 +158,20 @@ else describe('control-plane PostgreSQL integration', () => {
     claim!.client.release()
   })
 
+  it('fails closed for incomplete create without the trusted scratch lane marker', async () => {
+    const tenant = await pool.query("SELECT id FROM tenants WHERE inventory_target='scratch-one' LIMIT 1")
+    expect(tenant.rowCount).toBe(1)
+    await pool.query(`INSERT INTO operations(id,tenant_id,actor_uid,issuer,type,request_id,reason,payload,payload_digest,status,stage,result)
+      VALUES($1,$2,7,$3,'tenant.create',$4,'Markerless incomplete create','{}','markerless-fixture','needs_intervention','deployment_incomplete',$5)`, [
+      crypto.randomUUID(), tenant.rows[0].id, config.installationId, crypto.randomUUID(),
+      {status:'ok',policy_verified:true,deployment_ready:false},
+    ])
+
+    const blocked = await call('POST',`/v1/tenants/${tenant.rows[0].id}/operations`,JSON.stringify({type:'backup',request_id:crypto.randomUUID(),reason:'Markerless result stays unresolved'}))
+    expect(blocked.status).toBe(409)
+    expect((await blocked.json() as {code:string}).code).toBe('reconciliation_required')
+  })
+
   it('retains verified desired and observed policy after incomplete create without activating tenant', async () => {
     const create = JSON.stringify({name:'Second scratch',commercial_mode:'saas',hosting_model:'managed',inventory_target:'scratch-two',catalog_version:'test-v1',catalog_tier:'core',reason:'Register scratch'})
     const tenant = await (await call('POST','/v1/tenants',create)).json() as {id:string}
@@ -166,7 +180,7 @@ else describe('control-plane PostgreSQL integration', () => {
     const claim = await claimNext(pool)
     expect(claim).not.toBeNull()
     const features = {'users.limit':null,'storage.limit_mb':null}
-    expect(await finishClaim(pool,claim!,'needs_intervention','deployment_incomplete',{status:'ok',policy_revision:1,policy_verified:true,deployment_ready:false},features,features)).toBe(true)
+    expect(await finishClaim(pool,claim!,'needs_intervention','deployment_incomplete',{status:'ok',policy_revision:1,policy_verified:true,deployment_ready:false,_control_lane:'scratch'},features,features)).toBe(true)
     const row = await pool.query('SELECT status,desired_policy,observed_policy,policy_revision FROM tenants WHERE id=$1',[tenant.id])
     expect(row.rows[0]).toEqual({status:'needs_intervention',desired_policy:features,observed_policy:features,policy_revision:1})
     await claim!.client.query('SELECT pg_advisory_unlock(hashtext($1))', [claim!.lockKey])
