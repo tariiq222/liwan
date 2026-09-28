@@ -24,6 +24,11 @@ export async function migrate(pool: Pool): Promise<void> {
   const sql = await readFile(new URL('./schema.sql', import.meta.url), 'utf8')
   const sql2 = await readFile(new URL('./schema_002.sql', import.meta.url), 'utf8')
   const sql3 = await readFile(new URL('./schema_003.sql', import.meta.url), 'utf8')
+  const sql4 = await readFile(new URL('./schema_004.sql', import.meta.url), 'utf8')
+  const sql5 = await readFile(new URL('./schema_005.sql', import.meta.url), 'utf8')
+  const sql6 = await readFile(new URL('./schema_006.sql', import.meta.url), 'utf8')
+  const sql7 = await readFile(new URL('./schema_007.sql', import.meta.url), 'utf8')
+  const sql8 = await readFile(new URL('./schema_008.sql', import.meta.url), 'utf8')
   await transaction(pool, async (client) => {
     await client.query('SELECT pg_advisory_xact_lock(1397969233)')
     await client.query('CREATE TABLE IF NOT EXISTS schema_migrations(version integer PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT now())')
@@ -41,6 +46,31 @@ export async function migrate(pool: Pool): Promise<void> {
     if (!third.rowCount) {
       await client.query(sql3)
       await client.query('INSERT INTO schema_migrations(version) VALUES(3)')
+    }
+    const fourth = await client.query('SELECT version FROM schema_migrations WHERE version=4')
+    if (!fourth.rowCount) {
+      await client.query(sql4)
+      await client.query('INSERT INTO schema_migrations(version) VALUES(4)')
+    }
+    const fifth = await client.query('SELECT version FROM schema_migrations WHERE version=5')
+    if (!fifth.rowCount) {
+      await client.query(sql5)
+      await client.query('INSERT INTO schema_migrations(version) VALUES(5)')
+    }
+    const sixth = await client.query('SELECT version FROM schema_migrations WHERE version=6')
+    if (!sixth.rowCount) {
+      await client.query(sql6)
+      await client.query('INSERT INTO schema_migrations(version) VALUES(6)')
+    }
+    const seventh = await client.query('SELECT version FROM schema_migrations WHERE version=7')
+    if (!seventh.rowCount) {
+      await client.query(sql7)
+      await client.query('INSERT INTO schema_migrations(version) VALUES(7)')
+    }
+    const eighth = await client.query('SELECT version FROM schema_migrations WHERE version=8')
+    if (!eighth.rowCount) {
+      await client.query(sql8)
+      await client.query('INSERT INTO schema_migrations(version) VALUES(8)')
     }
   })
 }

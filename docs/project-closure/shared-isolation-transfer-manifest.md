@@ -1,0 +1,173 @@
+# shared-isolation transfer manifest
+
+generated: 2026-09-28T08:48:17Z
+baseline: d780862e468e027286374ecebb9643f1490cc9e6
+branch: codex/shared-isolation
+
+## tracked modifications (18)
+ M CLAUDE.md
+ M apps/control-plane/src/__tests__/adapter-boundary.test.ts
+ M apps/control-plane/src/__tests__/worker-managed.test.ts
+ M apps/control-plane/src/__tests__/worker-real-adapter.test.ts
+ M apps/control-plane/src/http.ts
+ M apps/control-plane/src/worker.ts
+ M apps/web/app/pages/vendor/operations/[id].vue
+ M apps/web/app/pages/vendor/tenants/[id].vue
+ M apps/web/i18n/locales/ar/vendor.json
+ M apps/web/i18n/locales/en/vendor.json
+ M docs/superpowers/plans/2026-09-23-company-operations-and-vendor-roadmap.md
+ M docs/superpowers/plans/nasq-commercial-control-plane-plan.md
+ M docs/superpowers/specs/2026-09-03-nasq-platform-design.md
+ M docs/superpowers/specs/2026-09-15-nasq-vertical-saas-transformation.md
+ M docs/superpowers/specs/2026-09-19-nasq-distribution-models-design.md
+ M docs/superpowers/specs/nasq-cp0-commercial-contracts.md
+ M tools/nasq_cli/managed_runtime.py
+ M tools/test_managed_runtime.py
+
+## untracked (transferred)
+?? apps/control-plane/src/__tests__/managed-registration.test.ts
+?? apps/web/app/pages/vendor/__tests__/operation-polling.test.ts
+?? apps/web/app/pages/vendor/__tests__/tenant-available-operations.test.ts
+?? apps/web/server/utils/__tests__/tenantHostResolver.test.ts
+?? apps/web/server/utils/tenantHostResolver.ts
+?? docs/project-closure/managed-boundary-regression.md
+?? docs/project-closure/managed-bundle-tdd.md
+?? docs/project-closure/managed-credentials-tdd.md
+?? docs/project-closure/managed-health-tdd.md
+?? docs/project-closure/managed-policy-tdd.md
+?? docs/project-closure/managed-probe-tdd.md
+?? docs/project-closure/managed-process-tdd.md
+?? docs/project-closure/managed-runtime-regression.md
+?? docs/project-closure/managed-saas-acceptance.md
+?? docs/project-closure/managed-saas-charter.md
+?? docs/project-closure/managed-saas-progress.md
+?? docs/project-closure/managed-saas-receipt.json
+?? docs/project-closure/managed-saas-self-evaluation.md
+?? docs/project-closure/managed-secrets-tdd.md
+?? docs/project-closure/managed-verify-tdd.md
+?? docs/project-closure/managed-worker-tdd.md
+?? docs/project-closure/saas-audit-repro.mts
+?? docs/project-closure/saas-cycle-delivery-plan.md
+?? docs/project-closure/saas-cycle-progress.md
+?? docs/project-closure/saas-full-cycle-audit.md
+?? docs/project-closure/saas-full-cycle-evidence.json
+?? docs/project-closure/saas-hosting-direction-status.md
+?? docs/project-closure/shared-isolation-transfer-manifest.md
+?? docs/project-closure/shared-saas-host-contract-tdd.md
+?? docs/superpowers/specs/nasq-shared-saas-and-sovereign-deployment.md
+?? tools/managed_local_acceptance.py
+?? tools/nasq_cli/managed_bundle.py
+?? tools/nasq_cli/managed_credentials.py
+?? tools/nasq_cli/managed_health.py
+?? tools/nasq_cli/managed_policy.py
+?? tools/nasq_cli/managed_probe.py
+?? tools/nasq_cli/managed_process.py
+?? tools/nasq_cli/managed_secrets.py
+?? tools/nasq_cli/managed_verify.py
+?? tools/test_managed_bundle.py
+?? tools/test_managed_create_acceptance.py
+?? tools/test_managed_credentials.py
+?? tools/test_managed_health.py
+?? tools/test_managed_policy.py
+?? tools/test_managed_probe.py
+?? tools/test_managed_process.py
+?? tools/test_managed_secrets.py
+?? tools/test_managed_verify.py
+
+## sha256 (source)
+4372e6dde4cd41904838181fdbab678b114e95d2f6d3ad737a62cedf60241fb2  /Users/tariq/code/nasq-managed-saas-acceptance/apps/control-plane/src/__tests__/managed-registration.test.ts
+2c1ae85a3558044b2ddb7735b9c084850e78124e5242a288e4a35cc04abc8b1b  /Users/tariq/code/nasq-managed-saas-acceptance/apps/web/app/pages/vendor/__tests__/operation-polling.test.ts
+5e52142bae6a34e97c5d35a03c5ae6e396ee1aa561f6831053250154aaa4f0be  /Users/tariq/code/nasq-managed-saas-acceptance/apps/web/app/pages/vendor/__tests__/tenant-available-operations.test.ts
+c12233a416bc0d168713e0a6df7ae29ce57babcc5ddc8c300cafec8b98e95af2  /Users/tariq/code/nasq-managed-saas-acceptance/apps/web/server/utils/__tests__/tenantHostResolver.test.ts
+2507c6a06f3d2eb6d6e11a5daec633e89c9db63ff5e09076f09e5540426d9f5c  /Users/tariq/code/nasq-managed-saas-acceptance/apps/web/server/utils/tenantHostResolver.ts
+5e0da4dcba7a3ccdd896987f6c76f06749f8e7f19987b9e9f65512b81627fb50  /Users/tariq/code/nasq-managed-saas-acceptance/docs/project-closure/managed-boundary-regression.md
+f369efec15b506c39407b7e89703d99f297c8e57f3b25a869a385d3bb862ba19  /Users/tariq/code/nasq-managed-saas-acceptance/docs/project-closure/managed-bundle-tdd.md
+0f1bb0d02ef1a407d70060be8025459cbd78e919aa95d2a7e435f70a387f19a5  /Users/tariq/code/nasq-managed-saas-acceptance/docs/project-closure/managed-credentials-tdd.md
+d482b11f01c22b4f4d909fedd580f09343cc769e659a653c731d161cf8bc1a17  /Users/tariq/code/nasq-managed-saas-acceptance/docs/project-closure/managed-health-tdd.md
+700d6835c123770cb452e994f61cdec846635b48cba3bb565e53aaa80b932934  /Users/tariq/code/nasq-managed-saas-acceptance/docs/project-closure/managed-policy-tdd.md
+b2f293e3a9ae6b931470836bfee4fa73bd196c5dee2b9682a6f01c94eb2de3f0  /Users/tariq/code/nasq-managed-saas-acceptance/docs/project-closure/managed-probe-tdd.md
+fa555a0f492e594252f18902ba897ea6e71a8fc5db90b006c2f5aaf523bd3877  /Users/tariq/code/nasq-managed-saas-acceptance/docs/project-closure/managed-process-tdd.md
+47d55de294aea2b8130e1b77ae052dd1914cf2cfb4d80f898d5570d94cef2426  /Users/tariq/code/nasq-managed-saas-acceptance/docs/project-closure/managed-runtime-regression.md
+50d3bc9e5490751bc8b161cf897746554b52c17c45fe4069578521845676feda  /Users/tariq/code/nasq-managed-saas-acceptance/docs/project-closure/managed-saas-acceptance.md
+4a77448f98cbe9090f0b670de882381729da70b1dd46fe88aabdecc741050ca9  /Users/tariq/code/nasq-managed-saas-acceptance/docs/project-closure/managed-saas-charter.md
+f5c14cb026d4e5ee9a9fe368e10f1943d1ab34c9659f3383f353dfdfc1c0019c  /Users/tariq/code/nasq-managed-saas-acceptance/docs/project-closure/managed-saas-progress.md
+b11f74543d9cf03d93af57b42d17fb399c51f3e1e35d44be9b5c3473b454fc90  /Users/tariq/code/nasq-managed-saas-acceptance/docs/project-closure/managed-saas-receipt.json
+6ab6b6399dba6a24534e32ec572996361e8fb10ec061897f85a959bde7de1f67  /Users/tariq/code/nasq-managed-saas-acceptance/docs/project-closure/managed-saas-self-evaluation.md
+3d5aae8ad23cb62b3ad0a66b9e51458b6b28bef7f13ab88be08125c19bdaf61e  /Users/tariq/code/nasq-managed-saas-acceptance/docs/project-closure/managed-secrets-tdd.md
+916a83dcd79556cb65ea5d233082c66207bc1ade526c55cde41cce132ef5cb33  /Users/tariq/code/nasq-managed-saas-acceptance/docs/project-closure/managed-verify-tdd.md
+866da1e9fd320b4e665b3feb734906cafddf4611c6c20d370e9507083728f03c  /Users/tariq/code/nasq-managed-saas-acceptance/docs/project-closure/managed-worker-tdd.md
+ca0baeed165d5a2e85706c51ab727c147251fee3807ef1640a9dbaf9158f249a  /Users/tariq/code/nasq-managed-saas-acceptance/docs/project-closure/saas-audit-repro.mts
+934b4602fd2aa1c003a8d811d01ba9982bf1654ffc0c95e900064c41dedaac48  /Users/tariq/code/nasq-managed-saas-acceptance/docs/project-closure/saas-cycle-delivery-plan.md
+51a2086edf4c6a8b01812f5f9d2d3a9bac0bdb7535dd0afaf007027c43842232  /Users/tariq/code/nasq-managed-saas-acceptance/docs/project-closure/saas-cycle-progress.md
+411c2da97652afb5e031b062dff5f7edf68f53876d9f5894fea80818bcf86647  /Users/tariq/code/nasq-managed-saas-acceptance/docs/project-closure/saas-full-cycle-audit.md
+f0a89add32a29268370ac57d71b7159c0c7d31077ab1f8c77a4c40a451dbdf74  /Users/tariq/code/nasq-managed-saas-acceptance/docs/project-closure/saas-full-cycle-evidence.json
+b3baea49ebed46158d838bee2d92c056de586b332adba3e79d332a65bd7a9012  /Users/tariq/code/nasq-managed-saas-acceptance/docs/project-closure/saas-hosting-direction-status.md
+bfb9e36466cdef9797ed0620d5ce5575971a3d7e50b400009ba1d0761c0e77c8  /Users/tariq/code/nasq-managed-saas-acceptance/docs/project-closure/shared-saas-host-contract-tdd.md
+3a85c4e8fb3f6cf3cd4dc3a86f0a85b2ee9ae0597bf0fb0e57086d04c90bae3e  /Users/tariq/code/nasq-managed-saas-acceptance/docs/superpowers/specs/nasq-shared-saas-and-sovereign-deployment.md
+1676d7b991dc3e21212ba7cd96362d27b9943d5f0930547f6472c39ac9e5d44f  /Users/tariq/code/nasq-managed-saas-acceptance/tools/managed_local_acceptance.py
+34d8cd36890c79c85bd8dbb5d274d7b06f566072470a8982cbd19616b0e423b1  /Users/tariq/code/nasq-managed-saas-acceptance/tools/nasq_cli/managed_bundle.py
+daddc44f83f542cb5e71edad7e05fcd1df6dd49582f8a3ee5b30ac9f9c7dce0d  /Users/tariq/code/nasq-managed-saas-acceptance/tools/nasq_cli/managed_credentials.py
+4a4c682a2ad02ea5e64f1a49859814645a363cfb96469ee1adba0387626f6557  /Users/tariq/code/nasq-managed-saas-acceptance/tools/nasq_cli/managed_health.py
+8809ce390f4f74a660474e8bbfffa01a0a4b19c917e555f0e4c881f359f30da9  /Users/tariq/code/nasq-managed-saas-acceptance/tools/nasq_cli/managed_policy.py
+753d870855644992e712340e1b8690d011a9354d8bd4008d0276c8c13af08644  /Users/tariq/code/nasq-managed-saas-acceptance/tools/nasq_cli/managed_probe.py
+c11d1b278ca536cbf9bf6676da83cef780a3ce274d6e792f9c12f9cbc2aa9257  /Users/tariq/code/nasq-managed-saas-acceptance/tools/nasq_cli/managed_process.py
+aa9472a0c75cb7fd2f80f0def2c05500a802eda72c0544fc17946817a7e5fbed  /Users/tariq/code/nasq-managed-saas-acceptance/tools/nasq_cli/managed_secrets.py
+751e000de5794fdd01d2880d32875f51c8d54e2fa0e86d531daba83337381c6a  /Users/tariq/code/nasq-managed-saas-acceptance/tools/nasq_cli/managed_verify.py
+6b9e5d2f08f2fcc5bad23a5a10142c733b675253148bf76bd3188c1e8f25fcec  /Users/tariq/code/nasq-managed-saas-acceptance/tools/test_managed_bundle.py
+abf2ea4e18996feb006f84edda4e12a6e38577d7d1df4351e5311622ac5e9f11  /Users/tariq/code/nasq-managed-saas-acceptance/tools/test_managed_create_acceptance.py
+7e8bad5f183f554b0110df1ff9d95a4beac5a7c947c0492d8c3a6aabbe361716  /Users/tariq/code/nasq-managed-saas-acceptance/tools/test_managed_credentials.py
+f46ff3280f161c9eae6e063d3383e13af8376f9dbf34f682855c52ad2f69412a  /Users/tariq/code/nasq-managed-saas-acceptance/tools/test_managed_health.py
+7ef4f06a1140421e5daffdf8e2ead47a7ec89c7b5e8de8df8cfcb1ea01d5b382  /Users/tariq/code/nasq-managed-saas-acceptance/tools/test_managed_policy.py
+7cd9a1517706b750feeb5879a41ab8ad6366b079a6f7647de06c5f9f5dfab4ea  /Users/tariq/code/nasq-managed-saas-acceptance/tools/test_managed_probe.py
+af642fcaa2f0763c98b2ff30a4dc5091b15dbf0a074999a617d5464b1c3deffd  /Users/tariq/code/nasq-managed-saas-acceptance/tools/test_managed_process.py
+bb27edb8277ca98ccb1d935c10fdd96de1cced5cbb353146eeead90c39b508b8  /Users/tariq/code/nasq-managed-saas-acceptance/tools/test_managed_secrets.py
+d12119d6b743efe1bafd38c5628448a5c145ec08a9a702328d5ed327c58da940  /Users/tariq/code/nasq-managed-saas-acceptance/tools/test_managed_verify.py
+
+## sha256 (copied)
+4372e6dde4cd41904838181fdbab678b114e95d2f6d3ad737a62cedf60241fb2  /Users/tariq/code/nasq-shared-isolation/apps/control-plane/src/__tests__/managed-registration.test.ts
+2c1ae85a3558044b2ddb7735b9c084850e78124e5242a288e4a35cc04abc8b1b  /Users/tariq/code/nasq-shared-isolation/apps/web/app/pages/vendor/__tests__/operation-polling.test.ts
+5e52142bae6a34e97c5d35a03c5ae6e396ee1aa561f6831053250154aaa4f0be  /Users/tariq/code/nasq-shared-isolation/apps/web/app/pages/vendor/__tests__/tenant-available-operations.test.ts
+c12233a416bc0d168713e0a6df7ae29ce57babcc5ddc8c300cafec8b98e95af2  /Users/tariq/code/nasq-shared-isolation/apps/web/server/utils/__tests__/tenantHostResolver.test.ts
+2507c6a06f3d2eb6d6e11a5daec633e89c9db63ff5e09076f09e5540426d9f5c  /Users/tariq/code/nasq-shared-isolation/apps/web/server/utils/tenantHostResolver.ts
+5e0da4dcba7a3ccdd896987f6c76f06749f8e7f19987b9e9f65512b81627fb50  /Users/tariq/code/nasq-shared-isolation/docs/project-closure/managed-boundary-regression.md
+f369efec15b506c39407b7e89703d99f297c8e57f3b25a869a385d3bb862ba19  /Users/tariq/code/nasq-shared-isolation/docs/project-closure/managed-bundle-tdd.md
+0f1bb0d02ef1a407d70060be8025459cbd78e919aa95d2a7e435f70a387f19a5  /Users/tariq/code/nasq-shared-isolation/docs/project-closure/managed-credentials-tdd.md
+d482b11f01c22b4f4d909fedd580f09343cc769e659a653c731d161cf8bc1a17  /Users/tariq/code/nasq-shared-isolation/docs/project-closure/managed-health-tdd.md
+700d6835c123770cb452e994f61cdec846635b48cba3bb565e53aaa80b932934  /Users/tariq/code/nasq-shared-isolation/docs/project-closure/managed-policy-tdd.md
+b2f293e3a9ae6b931470836bfee4fa73bd196c5dee2b9682a6f01c94eb2de3f0  /Users/tariq/code/nasq-shared-isolation/docs/project-closure/managed-probe-tdd.md
+fa555a0f492e594252f18902ba897ea6e71a8fc5db90b006c2f5aaf523bd3877  /Users/tariq/code/nasq-shared-isolation/docs/project-closure/managed-process-tdd.md
+47d55de294aea2b8130e1b77ae052dd1914cf2cfb4d80f898d5570d94cef2426  /Users/tariq/code/nasq-shared-isolation/docs/project-closure/managed-runtime-regression.md
+50d3bc9e5490751bc8b161cf897746554b52c17c45fe4069578521845676feda  /Users/tariq/code/nasq-shared-isolation/docs/project-closure/managed-saas-acceptance.md
+4a77448f98cbe9090f0b670de882381729da70b1dd46fe88aabdecc741050ca9  /Users/tariq/code/nasq-shared-isolation/docs/project-closure/managed-saas-charter.md
+f5c14cb026d4e5ee9a9fe368e10f1943d1ab34c9659f3383f353dfdfc1c0019c  /Users/tariq/code/nasq-shared-isolation/docs/project-closure/managed-saas-progress.md
+b11f74543d9cf03d93af57b42d17fb399c51f3e1e35d44be9b5c3473b454fc90  /Users/tariq/code/nasq-shared-isolation/docs/project-closure/managed-saas-receipt.json
+6ab6b6399dba6a24534e32ec572996361e8fb10ec061897f85a959bde7de1f67  /Users/tariq/code/nasq-shared-isolation/docs/project-closure/managed-saas-self-evaluation.md
+3d5aae8ad23cb62b3ad0a66b9e51458b6b28bef7f13ab88be08125c19bdaf61e  /Users/tariq/code/nasq-shared-isolation/docs/project-closure/managed-secrets-tdd.md
+916a83dcd79556cb65ea5d233082c66207bc1ade526c55cde41cce132ef5cb33  /Users/tariq/code/nasq-shared-isolation/docs/project-closure/managed-verify-tdd.md
+866da1e9fd320b4e665b3feb734906cafddf4611c6c20d370e9507083728f03c  /Users/tariq/code/nasq-shared-isolation/docs/project-closure/managed-worker-tdd.md
+ca0baeed165d5a2e85706c51ab727c147251fee3807ef1640a9dbaf9158f249a  /Users/tariq/code/nasq-shared-isolation/docs/project-closure/saas-audit-repro.mts
+934b4602fd2aa1c003a8d811d01ba9982bf1654ffc0c95e900064c41dedaac48  /Users/tariq/code/nasq-shared-isolation/docs/project-closure/saas-cycle-delivery-plan.md
+51a2086edf4c6a8b01812f5f9d2d3a9bac0bdb7535dd0afaf007027c43842232  /Users/tariq/code/nasq-shared-isolation/docs/project-closure/saas-cycle-progress.md
+411c2da97652afb5e031b062dff5f7edf68f53876d9f5894fea80818bcf86647  /Users/tariq/code/nasq-shared-isolation/docs/project-closure/saas-full-cycle-audit.md
+f0a89add32a29268370ac57d71b7159c0c7d31077ab1f8c77a4c40a451dbdf74  /Users/tariq/code/nasq-shared-isolation/docs/project-closure/saas-full-cycle-evidence.json
+b3baea49ebed46158d838bee2d92c056de586b332adba3e79d332a65bd7a9012  /Users/tariq/code/nasq-shared-isolation/docs/project-closure/saas-hosting-direction-status.md
+bfb9e36466cdef9797ed0620d5ce5575971a3d7e50b400009ba1d0761c0e77c8  /Users/tariq/code/nasq-shared-isolation/docs/project-closure/shared-saas-host-contract-tdd.md
+3a85c4e8fb3f6cf3cd4dc3a86f0a85b2ee9ae0597bf0fb0e57086d04c90bae3e  /Users/tariq/code/nasq-shared-isolation/docs/superpowers/specs/nasq-shared-saas-and-sovereign-deployment.md
+1676d7b991dc3e21212ba7cd96362d27b9943d5f0930547f6472c39ac9e5d44f  /Users/tariq/code/nasq-shared-isolation/tools/managed_local_acceptance.py
+34d8cd36890c79c85bd8dbb5d274d7b06f566072470a8982cbd19616b0e423b1  /Users/tariq/code/nasq-shared-isolation/tools/nasq_cli/managed_bundle.py
+daddc44f83f542cb5e71edad7e05fcd1df6dd49582f8a3ee5b30ac9f9c7dce0d  /Users/tariq/code/nasq-shared-isolation/tools/nasq_cli/managed_credentials.py
+4a4c682a2ad02ea5e64f1a49859814645a363cfb96469ee1adba0387626f6557  /Users/tariq/code/nasq-shared-isolation/tools/nasq_cli/managed_health.py
+8809ce390f4f74a660474e8bbfffa01a0a4b19c917e555f0e4c881f359f30da9  /Users/tariq/code/nasq-shared-isolation/tools/nasq_cli/managed_policy.py
+753d870855644992e712340e1b8690d011a9354d8bd4008d0276c8c13af08644  /Users/tariq/code/nasq-shared-isolation/tools/nasq_cli/managed_probe.py
+c11d1b278ca536cbf9bf6676da83cef780a3ce274d6e792f9c12f9cbc2aa9257  /Users/tariq/code/nasq-shared-isolation/tools/nasq_cli/managed_process.py
+aa9472a0c75cb7fd2f80f0def2c05500a802eda72c0544fc17946817a7e5fbed  /Users/tariq/code/nasq-shared-isolation/tools/nasq_cli/managed_secrets.py
+751e000de5794fdd01d2880d32875f51c8d54e2fa0e86d531daba83337381c6a  /Users/tariq/code/nasq-shared-isolation/tools/nasq_cli/managed_verify.py
+6b9e5d2f08f2fcc5bad23a5a10142c733b675253148bf76bd3188c1e8f25fcec  /Users/tariq/code/nasq-shared-isolation/tools/test_managed_bundle.py
+abf2ea4e18996feb006f84edda4e12a6e38577d7d1df4351e5311622ac5e9f11  /Users/tariq/code/nasq-shared-isolation/tools/test_managed_create_acceptance.py
+7e8bad5f183f554b0110df1ff9d95a4beac5a7c947c0492d8c3a6aabbe361716  /Users/tariq/code/nasq-shared-isolation/tools/test_managed_credentials.py
+f46ff3280f161c9eae6e063d3383e13af8376f9dbf34f682855c52ad2f69412a  /Users/tariq/code/nasq-shared-isolation/tools/test_managed_health.py
+7ef4f06a1140421e5daffdf8e2ead47a7ec89c7b5e8de8df8cfcb1ea01d5b382  /Users/tariq/code/nasq-shared-isolation/tools/test_managed_policy.py
+7cd9a1517706b750feeb5879a41ab8ad6366b079a6f7647de06c5f9f5dfab4ea  /Users/tariq/code/nasq-shared-isolation/tools/test_managed_probe.py
+af642fcaa2f0763c98b2ff30a4dc5091b15dbf0a074999a617d5464b1c3deffd  /Users/tariq/code/nasq-shared-isolation/tools/test_managed_process.py
+bb27edb8277ca98ccb1d935c10fdd96de1cced5cbb353146eeead90c39b508b8  /Users/tariq/code/nasq-shared-isolation/tools/test_managed_secrets.py
+d12119d6b743efe1bafd38c5628448a5c145ec08a9a702328d5ed327c58da940  /Users/tariq/code/nasq-shared-isolation/tools/test_managed_verify.py

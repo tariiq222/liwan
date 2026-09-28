@@ -1,0 +1,58 @@
+# Shared opt-in; requires deploy/proxy/Dockerfile with pinned caddy-ratelimit.
+# Only TLS edge publishes ports. No trusted_proxies: client_ip is the socket peer.
+{$DOMAIN} {
+	@privateToken header X-Nasq-Proxy-Token *
+	@privateRevision header X-Nasq-Tenant-Revision *
+	route {
+		respond @privateToken 403
+		respond @privateRevision 403
+		rate_limit {
+			zone nasq_auth {
+				match {
+					path /api/auth/* /api/v1/auth/* /web/session/* /web/login
+				}
+				key {client_ip}
+				events 20
+				window 1m
+				ipv6_prefix 64
+			}
+			zone nasq_api {
+				match {
+					path /api/v1/*
+					not path /api/v1/auth/*
+				}
+				key {client_ip}
+				events 300
+				window 1m
+				ipv6_prefix 64
+			}
+			zone nasq_odoo {
+				match {
+					path /web/* /odoo/* /jsonrpc /xmlrpc/* /report/* /mail/* /bus/* /discuss/*
+					not path /web/session/* /web/login
+				}
+				key {client_ip}
+				events 600
+				window 1m
+				ipv6_prefix 64
+			}
+			zone nasq_web {
+				match {
+					not path /api/auth/* /api/v1/* /web/* /odoo/* /jsonrpc /xmlrpc/* /report/* /mail/* /bus/* /discuss/* /websocket
+				}
+				key {client_ip}
+				events 600
+				window 1m
+				ipv6_prefix 64
+			}
+		}
+		reverse_proxy guard:8080 {
+			header_up -X-Forwarded-For
+			header_up -X-Forwarded-Host
+			header_up -X-Forwarded-Proto
+			header_up -Forwarded
+			header_up -X-Nasq-Proxy-Token
+			header_up -X-Nasq-Tenant-Revision
+		}
+	}
+}

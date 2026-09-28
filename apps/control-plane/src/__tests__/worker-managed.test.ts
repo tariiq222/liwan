@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto'
+import { spawnSync } from 'node:child_process'
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -28,7 +29,11 @@ async function managedConfig(adapter: (invocation: OperatorInvocation) => Promis
   const classificationPath = join(fixture, 'classification.json')
   const inventoryPath = join(fixture, 'inventory.json')
   const managedInventoryPath = join(fixture, 'managed.json')
-  const descriptor = { adapter: { kind: 'compose-local', version: 1 }, allowed_operations: ['tenant.create'], commercial_mode: 'saas', environment_id: 'env-a', release_ref: 'release-a', resource_refs: [], revision: 1, secret_refs: [] }
+  const digest = `sha256:${'a'.repeat(64)}`
+  const descriptor = { adapter: { kind: 'compose-local', version: 1 }, allowed_operations: ['tenant.create'], commercial_mode: 'saas', environment_id: 'env-a',
+    release_ref: { catalog_version: 'release-a', catalog_sha256: digest, identity_kind: 'image_id', odoo_image: digest, web_image: digest, proxy_image: digest },
+    resource_refs: { project: 'managed-fixture', compose_file: join(fixture, 'compose.yml'), db_name: 'nasq_scratch_managed_fixture', data_dir: join(fixture, 'data'), backup_root: join(fixture, 'backups'), ports: { db: 55433, odoo: 18169, web: 13130 } },
+    revision: 1, secret_refs: { db_password: 'db-handle', admin_password: 'admin-handle' } }
   const descriptorDigest = `sha256:${createHash('sha256').update(canonical({ target, descriptor })).digest('hex')}`
   await writeFile(classificationPath, JSON.stringify({ schema_version: 1, database: 'scratch_db', commercial_mode: 'saas', entitlement_source: 'control_plane' }))
   await writeFile(inventoryPath, JSON.stringify({ version: 2, targets: { scratch: { kind: 'scratch', database: 'scratch_db', classification_file: classificationPath } } }))
@@ -60,6 +65,48 @@ function fakePool(claim: Claimed, catalog?: unknown): Pool & { finishQueries: Ar
 
 const basicReceipt = (operation: string, extras: Record<string, unknown> = {}) => ({ schema_version: 1, status: 'ok', target, operation, request_id: requestId, ...extras })
 
+// journal.payload_digest includes the full enrolled descriptor (including its digest),
+// unlike the descriptor fingerprint itself. Policy JSON must not be reserialized.
+function journalDigest(invocation: OperatorInvocation, policyBytes = invocation.policyBytes!): string {
+  const enrollment = JSON.parse(invocation.descriptorBytes!.toString())
+  enrollment.descriptor.descriptor_digest = invocation.fingerprint
+  const hash = createHash('sha256').update(canonical({ operation: invocation.operation, request_id: invocation.requestId, target: invocation.target }))
+  hash.update('\0target\0').update(invocation.fingerprint!)
+  for (const bytes of [policyBytes, Buffer.from(canonical(enrollment))]) {
+    const length = Buffer.alloc(8)
+    length.writeBigUInt64BE(BigInt(bytes.length))
+    hash.update('\0file\0').update(length).update(bytes)
+  }
+  return hash.digest('hex')
+}
+
+function verifiedReceipt(invocation: OperatorInvocation): Record<string, unknown> {
+  const policy = JSON.parse(invocation.policyBytes!.toString())
+  return basicReceipt('tenant.create', {
+    operation_id: operationId, stage: 'provisioned', deployment_ready: true, policy_verified: true,
+    policy_revision: 1, digest: journalDigest(invocation), fingerprint: invocation.fingerprint,
+    profile: { commercial_mode: 'saas', entitlement_source: 'control_plane', policy_revision: 1,
+      status: 'active', valid_until: null, features: policy.features, modules: [...policy.modules, 'base', 'web'] },
+  })
+}
+
+function returnedProfile(receipt: Record<string, unknown>) {
+  return receipt.profile as { features: Record<string, unknown>; modules: unknown; commercial_mode: string; entitlement_source: string; policy_revision: unknown }
+}
+
+async function publishedCatalog() {
+  const source = await readFile(join(repo, 'deploy/catalog/solutions/platform.json'))
+  return { solution: JSON.parse(source.toString()), source_sha256: createHash('sha256').update(source).digest('hex') }
+}
+
+function terminal(pool: ReturnType<typeof fakePool>) {
+  return pool.finishQueries.find(({ sql }) => sql.includes('UPDATE operations SET status=$1'))!.values!
+}
+
+function expectNotActivated(pool: ReturnType<typeof fakePool>) {
+  expect(pool.finishQueries.some(({ sql }) => sql.includes("SET status='active'") || sql.includes('observed_policy=desired_policy'))).toBe(false)
+}
+
 describe('scratch deployment exemption classifier', () => {
   it('accepts only a server-owned scratch false boolean deployment marker', () => {
     const base = { status: 'ok', policy_verified: true, _control_lane: 'scratch' }
@@ -87,6 +134,289 @@ describe('scratch deployment exemption classifier', () => {
 })
 
 describe('executeClaimed lanes', () => {
+  it('activates only from the durable verified matching create profile, not the immediate response', async () => {
+    const claim = fakeClaim('tenant.create')
+    const calls: OperatorInvocation[] = []
+    const config = await managedConfig(async (invocation) => {
+      calls.push(invocation)
+      return { code: 0, receipt: calls.length === 1
+        ? basicReceipt('tenant.create', { operation_id: operationId }) : verifiedReceipt(invocation) }
+    })
+    const pool = fakePool(claim, await publishedCatalog())
+    await executeClaimed(pool, claim, config)
+    expect(calls).toHaveLength(2)
+    expect(terminal(pool).slice(0, 2)).toEqual(['succeeded', 'provisioned'])
+    expect(terminal(pool)[2]).toMatchObject({ policy_verified: true, deployment_ready: true, policy_revision: 1, _control_lane: 'managed' })
+    expect(terminal(pool)[2]).not.toHaveProperty('profile')
+    expect(pool.finishQueries.some(({ sql }) => sql.includes("SET status='active'"))).toBe(true)
+    const expectedFeatures = JSON.parse(calls[0].policyBytes!.toString()).features
+    expect(pool.finishQueries.find(({ sql }) => sql.includes('SET desired_policy=$1'))?.values?.[0]).toEqual(expectedFeatures)
+    expect(pool.finishQueries.find(({ sql }) => sql.includes('SET policy_revision=$1'))?.values?.[0]).toBe(1)
+    expect(pool.query).toHaveBeenCalledTimes(4) // grant, fresh tenant, unresolved mutations, catalog once
+  })
+
+  it.each([
+    ['absent profile', (r: Record<string, unknown>) => { delete r.profile }],
+    ['wrong features', (r: Record<string, unknown>) => { returnedProfile(r).features['users.limit'] = 10 }],
+    ['extra features', (r: Record<string, unknown>) => { returnedProfile(r).features['unexpected.enabled'] = true }],
+    ['wrong mode', (r: Record<string, unknown>) => { returnedProfile(r).commercial_mode = 'non_saas' }],
+    ['wrong source', (r: Record<string, unknown>) => { returnedProfile(r).entitlement_source = 'local_policy' }],
+    ['invalid revision', (r: Record<string, unknown>) => { returnedProfile(r).policy_revision = -1 }],
+    ['uninitialized revision', (r: Record<string, unknown>) => { returnedProfile(r).policy_revision = 0; r.policy_revision = 0 }],
+    ['revision disagreement', (r: Record<string, unknown>) => { r.policy_revision = 2 }],
+    ['missing module', (r: Record<string, unknown>) => { (returnedProfile(r).modules as string[]).shift() }],
+    ['extra NASQ module', (r: Record<string, unknown>) => { (returnedProfile(r).modules as string[]).push('nasq_unselected') }],
+    ['duplicate module', (r: Record<string, unknown>) => { (returnedProfile(r).modules as string[]).push('nasq_core') }],
+    ['malformed modules', (r: Record<string, unknown>) => { returnedProfile(r).modules = 'nasq_core' }],
+  ])('rejects truth flags with %s in the durable receipt', async (_name, corrupt) => {
+    const claim = fakeClaim('tenant.create')
+    const config = await managedConfig(async (invocation) => {
+      const receipt = verifiedReceipt(invocation)
+      if (invocation.args[0] === 'status') corrupt(receipt)
+      return { code: 0, receipt }
+    })
+    const pool = fakePool(claim, await publishedCatalog())
+    await executeClaimed(pool, claim, config)
+    expect(terminal(pool)[0]).toBe('needs_intervention')
+    expect(terminal(pool)[2]).toMatchObject({ policy_verified: false, deployment_ready: false })
+    expect(pool.finishQueries.some(({ sql }) => sql.includes('SET policy_revision=$1') || sql.includes('health_checked_at=now()'))).toBe(false)
+    expectNotActivated(pool)
+  })
+
+  it.each(['target', 'request_id', 'operation_id', 'fingerprint', 'digest', 'policy bytes'])('quarantines a durable %s mismatch even with verified flags and matching profile', async (field) => {
+    const claim = fakeClaim('tenant.create')
+    const config = await managedConfig(async (invocation) => {
+      const receipt = verifiedReceipt(invocation)
+      if (invocation.args[0] === 'status') {
+        if (field === 'policy bytes') receipt.digest = journalDigest(invocation, Buffer.concat([invocation.policyBytes!, Buffer.from('\n')]))
+        else receipt[field] = { target: 'tgt_other', request_id: randomUUID(), operation_id: `op_${'b'.repeat(32)}`, fingerprint: `sha256:${'b'.repeat(64)}`, digest: 'b'.repeat(64) }[field]
+      }
+      return { code: 0, receipt }
+    })
+    const pool = fakePool(claim, await publishedCatalog())
+    await executeClaimed(pool, claim, config)
+    expect(terminal(pool).slice(0, 2)).toEqual(['needs_intervention', 'receipt_unverified'])
+    expectNotActivated(pool)
+  })
+
+  it.each(['deployment_ready', 'policy_verified'])('does not reuse immediate true %s when durable verification is incomplete', async (flag) => {
+    const claim = fakeClaim('tenant.create')
+    const config = await managedConfig(async (invocation) => {
+      const receipt = verifiedReceipt(invocation)
+      if (invocation.args[0] === 'status') receipt[flag] = false
+      return { code: 0, receipt }
+    })
+    const pool = fakePool(claim, await publishedCatalog())
+    await executeClaimed(pool, claim, config)
+    expect(terminal(pool).slice(0, 2)).toEqual(['needs_intervention', 'deployment_incomplete'])
+    expectNotActivated(pool)
+  })
+
+  it('accepts a journal digest computed by Python over the identical request and policy bytes', async () => {
+    const claim = fakeClaim('tenant.create')
+    const config = await managedConfig(async (invocation) => {
+      const receipt = verifiedReceipt(invocation)
+      if (invocation.args[0] === 'status') {
+        const enrollment = JSON.parse(invocation.descriptorBytes!.toString())
+        enrollment.descriptor.descriptor_digest = invocation.fingerprint
+        const digest = spawnSync('python3', ['-B', '-c', [
+          'import base64,json,sys',
+          'from nasq_cli.journal import payload_digest',
+          'd=json.load(sys.stdin)',
+          'descriptor=json.dumps(d["descriptor"],sort_keys=True,separators=(",",":"),ensure_ascii=False).encode()',
+          'print(payload_digest(d["fields"],[base64.b64decode(d["policy"]),descriptor],d["fingerprint"]))',
+        ].join(';')], { cwd: repo, encoding: 'utf8', timeout: 10000,
+          env: { ...process.env, PYTHONPATH: join(repo, 'tools') },
+          input: JSON.stringify({ fields: { operation: 'tenant.create', target, request_id: requestId },
+            descriptor: enrollment, policy: invocation.policyBytes!.toString('base64'), fingerprint: invocation.fingerprint }) })
+        expect(digest.status).toBe(0)
+        expect(digest.stderr).toBe('')
+        receipt.digest = digest.stdout.trim()
+      }
+      return { code: 0, receipt }
+    })
+    const pool = fakePool(claim, await publishedCatalog())
+    await executeClaimed(pool, claim, config)
+    expect(terminal(pool)[0]).toBe('succeeded')
+  })
+
+  it('rejects a verified profile without the required modules evidence', async () => {
+    const claim = fakeClaim('tenant.create')
+    const config = await managedConfig(async (invocation) => {
+      const receipt = verifiedReceipt(invocation)
+      delete (receipt.profile as Record<string, unknown>).modules
+      return { code: 0, receipt }
+    })
+    const pool = fakePool(claim, await publishedCatalog())
+    await executeClaimed(pool, claim, config)
+    expect(terminal(pool).slice(0, 2)).toEqual(['needs_intervention', 'deployment_incomplete'])
+    expect(terminal(pool)[2]).toMatchObject({ deployment_ready: false, policy_verified: false })
+    expectNotActivated(pool)
+  })
+
+  it('preserves the incomplete scratch create exemption and its observed policy', async () => {
+    const claim = fakeClaim('tenant.create')
+    claim.tenant.inventory_target = 'scratch'
+    const calls: OperatorInvocation[] = []
+    const config = await managedConfig(async (invocation) => {
+      calls.push(invocation)
+      return { code: 0, receipt: basicReceipt('tenant.create', { target: 'scratch', operation_id: operationId,
+        policy_verified: true, deployment_ready: false, policy_revision: 1 }) }
+    })
+    const pool = fakePool(claim, await publishedCatalog())
+    await executeClaimed(pool, claim, config)
+    expect(calls.map(({ moduleName }) => moduleName)).toEqual(['nasq_cli.operator', 'nasq_cli.operator'])
+    expect(terminal(pool).slice(0, 2)).toEqual(['needs_intervention', 'deployment_incomplete'])
+    expect(isScratchDeploymentExemption(terminal(pool)[2] as Record<string, unknown>)).toBe(true)
+    expect(pool.finishQueries.find(({ sql }) => sql.includes('SET observed_policy=$1'))?.values?.[0]).toEqual(JSON.parse(calls[0].policyBytes!.toString()).features)
+    expectNotActivated(pool)
+  })
+
+  it('returns a managed create to registered after a proven effect-free port preflight refusal', async () => {
+    const claim = fakeClaim('tenant.create')
+    const config = await managedConfig(async () => ({ code: 4, receipt: basicReceipt('tenant.create', {
+      status: 'conflict', stage: 'preflight', changed: false, error: { code: 'port_shared' },
+    }) }))
+    const pool = fakePool(claim, await publishedCatalog())
+    await executeClaimed(pool, claim, config)
+    expect(terminal(pool)[0]).toBe('failed')
+    expect(pool.finishQueries.some(({ sql }) => sql.includes("SET status='registered'"))).toBe(true)
+    expect(pool.finishQueries.some(({ sql }) => sql.includes("SET status='needs_intervention'") || sql.includes("SET status='active'"))).toBe(false)
+  })
+
+  it.each(['database_exists', 'project_shared', 'volume_shared', 'network_shared', 'image_identity_untrusted', 'catalog_digest_mismatch'])('recovers registered state only from effect-free %s refusal', async (code) => {
+    const claim = fakeClaim('tenant.create')
+    const config = await managedConfig(async () => ({ code: 4, receipt: basicReceipt('tenant.create', {
+      status: 'conflict', stage: 'preflight', changed: false, error: { code },
+    }) }))
+    const pool = fakePool(claim, await publishedCatalog())
+    await executeClaimed(pool, claim, config)
+    expect(terminal(pool)[0]).toBe('failed')
+    expect(pool.finishQueries.some(({ sql }) => sql.includes("SET status='registered'"))).toBe(true)
+    expectNotActivated(pool)
+  })
+
+  it.each(['target', 'request_id', 'operation', 'schema_version'])('quarantines an effect-free-looking refusal with a wrong %s binding', async (field) => {
+    const claim = fakeClaim('tenant.create')
+    const config = await managedConfig(async () => ({ code: 4, receipt: basicReceipt('tenant.create', {
+      status: 'conflict', stage: 'preflight', changed: false, error: { code: 'port_shared' },
+      [field]: { target: 'tgt_unrelated', request_id: randomUUID(), operation: 'tenant.inspect', schema_version: 2 }[field],
+    }) }))
+    const pool = fakePool(claim, await publishedCatalog())
+    await executeClaimed(pool, claim, config)
+    expect(terminal(pool)[0]).toBe('needs_intervention')
+    expect(pool.finishQueries.some(({ sql }) => sql.includes("SET status='registered'"))).toBe(false)
+  })
+
+  it.each(['unrecognized_error', 'secret_unavailable'])('does not assert retryability for unrecognized %s', async (code) => {
+    const claim = fakeClaim('tenant.create')
+    const config = await managedConfig(async () => ({ code: 4, receipt: basicReceipt('tenant.create', {
+      status: 'conflict', stage: 'preflight', changed: false, error: { code },
+    }) }))
+    const pool = fakePool(claim, await publishedCatalog())
+    await executeClaimed(pool, claim, config)
+    expect(terminal(pool)[0]).toBe('needs_intervention')
+    expect(pool.finishQueries.some(({ sql }) => sql.includes("SET status='needs_intervention'"))).toBe(true)
+    expect(pool.finishQueries.some(({ sql }) => sql.includes("SET status='registered'"))).toBe(false)
+    expectNotActivated(pool)
+  })
+
+  it('keeps changed or uncertain managed create failures in intervention, not registered', async () => {
+    const claim = fakeClaim('tenant.create')
+    const config = await managedConfig(async () => ({ code: 6, receipt: basicReceipt('tenant.create', {
+      status: 'needs_intervention', stage: 'health', changed: true, error: { code: 'health_unverified' },
+    }) }))
+    const pool = fakePool(claim, await publishedCatalog())
+    await executeClaimed(pool, claim, config)
+    expect(terminal(pool)[0]).toBe('needs_intervention')
+    expect(pool.finishQueries.some(({ sql }) => sql.includes("SET status='needs_intervention'"))).toBe(true)
+    expect(pool.finishQueries.some(({ sql }) => sql.includes("SET status='registered'"))).toBe(false)
+  })
+
+  it.each([true, false])('managed inspect uses a safe profile only, without create activation (profile=%s)', async (withProfile) => {
+    const claim = fakeClaim('tenant.inspect')
+    const features = { 'users.limit': null, 'storage.limit_mb': null }
+    const config = await managedConfig(async (invocation) => ({ code: 0, receipt: basicReceipt('tenant.inspect', withProfile
+      ? { policy_verified: true, fingerprint: invocation.fingerprint, profile: { commercial_mode: 'saas', entitlement_source: 'control_plane', policy_revision: 1, features } } : {}) }))
+    const pool = fakePool(claim)
+    await executeClaimed(pool, claim, config)
+    expect(terminal(pool)[0]).toBe(withProfile ? 'succeeded' : 'failed')
+    expect(pool.finishQueries.some(({ sql }) => sql.includes('SET observed_policy=$1'))).toBe(withProfile)
+    expectNotActivated(pool)
+  })
+
+  it.each([
+    ['missing inspect proof', {}],
+    ['wrong inspect fingerprint', { policy_verified: true, fingerprint: `sha256:${'f'.repeat(64)}` }],
+  ])('does not accept a managed inspect profile with %s', async (_label, response) => {
+    const claim = fakeClaim('tenant.inspect')
+    const config = await managedConfig(async () => ({ code: 0, receipt: basicReceipt('tenant.inspect', {
+      profile: { commercial_mode: 'saas', entitlement_source: 'control_plane', policy_revision: 1, features: { 'users.limit': null, 'storage.limit_mb': null } },
+      ...response,
+    }) }))
+    const pool = fakePool(claim)
+    await executeClaimed(pool, claim, config)
+    expect(terminal(pool)[0]).toBe('failed')
+    expect(pool.finishQueries.some(({ sql }) => sql.includes('SET observed_policy=$1'))).toBe(false)
+  })
+
+  it.each([
+    ['missing health proof', {}],
+    ['missing profile', { health_verified: true, policy_verified: true }],
+    ['wrong fingerprint', { health_verified: true, policy_verified: true, fingerprint: `sha256:${'e'.repeat(64)}`, profile: { commercial_mode: 'saas', entitlement_source: 'control_plane', policy_revision: 1, features: { 'users.limit': null, 'storage.limit_mb': null } } }],
+  ])('does not record a managed health success from %s', async (_label, response) => {
+    const claim = fakeClaim('health')
+    const config = await managedConfig(async () => ({ code: 0, receipt: basicReceipt('health', response) }))
+    const pool = fakePool(claim)
+    await executeClaimed(pool, claim, config)
+    expect(terminal(pool)[0]).toBe('failed')
+    expect(pool.finishQueries.some(({ sql }) => sql.includes('health_checked_at=now()'))).toBe(false)
+  })
+
+  it('accepts only a bound current managed health observation without activating tenant create', async () => {
+    const claim = fakeClaim('health')
+    const config = await managedConfig(async (invocation) => ({ code: 0, receipt: basicReceipt('health', {
+      health_verified: true, policy_verified: true, fingerprint: invocation.fingerprint,
+      profile: { commercial_mode: 'saas', entitlement_source: 'control_plane', policy_revision: 1, features: { 'users.limit': null, 'storage.limit_mb': null } },
+    }) }))
+    const pool = fakePool(claim)
+    await executeClaimed(pool, claim, config)
+    expect(terminal(pool)[0]).toBe('succeeded')
+    expect(pool.finishQueries.some(({ sql }) => sql.includes('health_checked_at=now()'))).toBe(true)
+    expectNotActivated(pool)
+  })
+
+  it('a bound verified status lookup does not replay creation or activate the tenant', async () => {
+    const policy = { schema_version: 1, channel: 'control_plane', modules: ['nasq_core'], features: { 'users.limit': null, 'storage.limit_mb': null } }
+    const claim = fakeClaim('status', 'saas', { operation: 'tenant.create', receipt_request_id: requestId, operation_id: operationId, policy_bytes: JSON.stringify(policy) })
+    const calls: OperatorInvocation[] = []
+    const config = await managedConfig(async (invocation) => { calls.push(invocation); return { code: 0, receipt: verifiedReceipt(invocation) } })
+    const pool = fakePool(claim)
+    await executeClaimed(pool, claim, config)
+    expect(calls).toHaveLength(1)
+    expect(calls[0].args[0]).toBe('status')
+    // Status is a journal-only lookup: the bound create receipt succeeds without
+    // granting it create activation or policy/health reconciliation authority.
+    expect(terminal(pool).slice(0, 2)).toEqual(['succeeded', 'provisioned'])
+    expect(pool.finishQueries.some(({ sql }) => sql.includes('SET desired_policy=$1') || sql.includes('SET observed_policy=$1') || sql.includes('health_checked_at=now()') || sql.includes("SET status='active'"))).toBe(false)
+    expectNotActivated(pool)
+  })
+
+  it.each(['digest', 'fingerprint', 'request_id', 'operation'])('rejects a status receipt with invalid %s binding', async (field) => {
+    const claim = fakeClaim('status', 'saas', { operation: 'tenant.create', receipt_request_id: requestId, operation_id: operationId,
+      policy_bytes: JSON.stringify({ schema_version: 1, channel: 'control_plane', modules: ['nasq_core'], features: { 'users.limit': null, 'storage.limit_mb': null } }) })
+    const config = await managedConfig(async (invocation) => {
+      const receipt = verifiedReceipt(invocation)
+      receipt[field] = { digest: 'b'.repeat(64), fingerprint: `sha256:${'b'.repeat(64)}`, request_id: randomUUID(), operation: 'tenant.inspect' }[field]
+      return { code: 0, receipt }
+    })
+    const pool = fakePool(claim)
+    await executeClaimed(pool, claim, config)
+    expect(terminal(pool).slice(0, 2)).toEqual(['needs_intervention', 'receipt_unverified'])
+    expect(pool.finishQueries.some(({ sql }) => sql.includes('SET desired_policy=$1') || sql.includes('SET observed_policy=$1') || sql.includes('health_checked_at=now()') || sql.includes("SET status='active'"))).toBe(false)
+    expectNotActivated(pool)
+  })
+
   it('keeps scratch operations on nasq_cli.operator', async () => {
     const calls: OperatorInvocation[] = []
     const claim = fakeClaim('health', 'saas')
@@ -110,7 +440,7 @@ describe('executeClaimed lanes', () => {
       calls.push(invocation)
       return calls.length === 1
         ? { code: 0, receipt: basicReceipt('tenant.create', { operation_id: operationId, deployment_ready: false, policy_verified: false }) }
-        : { code: 0, receipt: basicReceipt('tenant.create', { operation_id: operationId, deployment_ready: false, policy_verified: false, digest: 'b'.repeat(64), fingerprint: invocation.fingerprint }) }
+        : { code: 0, receipt: basicReceipt('tenant.create', { operation_id: operationId, deployment_ready: false, policy_verified: false, digest: journalDigest(invocation), fingerprint: invocation.fingerprint }) }
     })
     const pool = fakePool(claim, { solution, source_sha256: createHash('sha256').update(catalogSource).digest('hex') })
     await executeClaimed(pool, claim, config)
@@ -140,15 +470,15 @@ describe('executeClaimed lanes', () => {
     const calls: OperatorInvocation[] = []
     const claim = fakeClaim('status')
     claim.operation.payload = { operation: 'tenant.create', receipt_request_id: requestId, operation_id: operationId, policy_bytes: '{"schema_version":1,"channel":"control_plane"}' }
-    const config = await managedConfig(async (invocation) => { calls.push(invocation); return { code: 0, receipt: basicReceipt('tenant.create', { operation_id: operationId, deployment_ready: true, policy_verified: false, digest: 'c'.repeat(64), fingerprint: invocation.fingerprint }) } })
+    const config = await managedConfig(async (invocation) => { calls.push(invocation); return { code: 0, receipt: basicReceipt('tenant.create', { operation_id: operationId, deployment_ready: true, policy_verified: false, digest: journalDigest(invocation), fingerprint: invocation.fingerprint }) } })
     const pool = fakePool(claim)
     await executeClaimed(pool, claim, config)
     expect(calls).toHaveLength(1)
     expect(calls[0].moduleName).toBe('nasq_cli.managed_runtime')
     expect(calls[0].args).toContain('--policy-bytes-file')
     expect(calls[0].policyBytes?.toString()).toBe('{"schema_version":1,"channel":"control_plane"}')
-    expect(pool.finishQueries.some(({ sql, values }) => sql.includes('UPDATE operations SET status=$1') && values?.[0] === 'failed')).toBe(true)
-    expect(pool.finishQueries.some(({ sql }) => sql.includes("SET status='active'"))).toBe(false)
+    expect(pool.finishQueries.some(({ sql, values }) => sql.includes('UPDATE operations SET status=$1') && values?.[0] === 'succeeded')).toBe(true)
+    expect(pool.finishQueries.some(({ sql }) => sql.includes("SET status='active'") || sql.includes('SET desired_policy=$1') || sql.includes('SET observed_policy=$1') || sql.includes('health_checked_at=now()'))).toBe(false)
   })
 
   it('does not route managed health into a create-completion path', async () => {

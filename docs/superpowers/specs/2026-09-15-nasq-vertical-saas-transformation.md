@@ -1,7 +1,7 @@
 # NASQ — تحليل الوضع الحالي وخارطة التحول إلى Vertical SaaS Platform
 
 **التاريخ:** 2026-09-15
-**الحالة:** تحليل وخطة للاعتماد. لا يتضمن أي تغيير في الكود.
+**الحالة:** تحليل تاريخي للكود عند `dbf580c7`، وليس وصف الحالة الحية أو اتجاه الاستضافة النهائي. الهدف الأحدث SaaS ذاتي الخدمة بخدمات مشتركة وقاعدة وملفات مستقلة، مع حكومة غير SaaS؛ [عقد الاتجاه الحالي](nasq-shared-saas-and-sovereign-deployment.md). لا يتضمن هذا التحليل تغييرًا في الكود.
 **المرجعية:** فحص فعلي للكود على `main` (`dbf580c7`) في `/Users/tariq/code/nasq` مع مصدر Odoo 19 في `/Users/tariq/code/odoo`.
 **الأدوار:** Principal Software Architect + SaaS Product Architect + Technical Product Manager.
 
@@ -190,7 +190,7 @@ Tenant "cluster-riyadh" (DB واحدة)
 | النموذج | متى | التغيير المطلوب |
 |---|---|---|
 | **Dedicated** (الحالي) | العملاء الكبار، متطلبات تعاقدية | لا شيء الآن |
-| **Shared SaaS** | عملاء صغار ومتوسطون | Odoo cluster واحد يخدم عدة قواعد عبر `dbfilter=^%h$`-style routing، Nuxt واحد يستنتج قاعدة البيانات من الـ Host بدل `NUXT_ODOO_DB` الثابت، Caddy wildcard cert. **نفس الكود**. المرحلة 5. |
+| **Shared SaaS** | الهدف الأساسي المعتمد لاحقًا | **وصفة هذا الصف التاريخية غير صالحة للتنفيذ:** `dbfilter=^%h$` واستنتاج Nuxt للقاعدة من Host لا يكفيان. يلزم resolver موثوق وفشل مغلق في login/SSR/API/content/WS/jobs وعزل filestore/backup وفق [العقد الأحدث](nasq-shared-saas-and-sovereign-deployment.md). ترقيم «المرحلة 5» والتأجيل تاريخيان. |
 
 ---
 
@@ -402,7 +402,7 @@ export interface ModuleManifest {
 | البند | الحالي | الحكم |
 |---|---|---|
 | Boundaries | `/api/v1/<pillar>/…`، addon لكل pillar، `nasq_api` مشترك | KEEP |
-| Tenant resolution | ضمني (قاعدة واحدة) | MODIFY للـ Shared SaaS: Odoo `dbfilter` بالـ host + Nuxt يستنتج `db` من `Host` في `server/api/auth/login.post.ts` |
+| Tenant resolution | ضمني (قاعدة واحدة عند كتابة التقرير) | **الوصفة التاريخية منسوخة:** لا يكفي `dbfilter` ولا يجوز أن يستنتج Nuxt قاعدة من Host غير موثوق؛ مرجع التنفيذ الحالي [عقد resolver والفشل المغلق](nasq-shared-saas-and-sovereign-deployment.md) |
 | Authorization | capability + record rule + إعادة فحص في الخدمة | KEEP |
 | Entitlement checks | غير موجود | ADD `@requires_feature` + `entitlement.service` |
 | Validation | يدوي لكل endpoint (`_exact`, `parse_positive_int`) | KEEP الآن؛ DEFER مُساعد تحقق مشترك (لا Pydantic لتجنب اعتمادية) |
@@ -726,9 +726,9 @@ sequenceDiagram
 - باقة `health_cluster`.
 - **مخرج:** تجمع = Tenant واحد بشجرة شركات. لا fork.
 
-### المرحلة 5 — Shared SaaS runtime (3–4 أسابيع) `P2`
-- Odoo multi-db routing بالـ host، Nuxt يستنتج DB من Host، Caddy wildcard، backups مجدولة موثّقة بالاستعادة، suspension/export/delete في CLI، usage counters.
-- **مخرج:** عملاء صغار على بنية مشتركة بنفس الكود؛ الكبار Dedicated.
+### المرحلة 5 — Shared SaaS runtime (تسلسل وتقدير تاريخيان، لا خطة التنفيذ الحالية)
+- **لا تنفذ الوصفة القديمة**: استنتاج DB من Host في Nuxt وOdoo multi-db بالـHost وحدهما لا يثبتان العزل. الهدف الحالي يبدأ بعقد resolver موثوق واختبارات عبور وفشل مغلق، ثم تسجيل/هوية/دفع sandbox وتجهيز وعمليات نسخ/استعادة/ترقية وفق [AC-01–AC-09](nasq-shared-saas-and-sovereign-deployment.md). لا تقدير أسابيع معتمد لهذا المسار.
+- **مخرج مستهدف لا منجز:** عملاء SaaS على طبقة تطبيق مشتركة، لكل عميل قاعدة وfilestore وbackup مستقل؛ dedicated مسار منفصل.
 
 ### المرحلة 6 — القطاع الثاني كاختبار (3–4 أسابيع) `P3`
 - `nasq_industry_engineering` أو `consulting` ببيانات فقط + أول shared module يحتاجه (مثلًا `nasq_contracts` أو `nasq_strategy` إذا تأخر).

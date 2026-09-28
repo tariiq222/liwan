@@ -4,14 +4,21 @@
 هذا الملف يملك المعمارية والعقود والأمن والبيانات. [أرشيف الواجهة](docs/archive/ui/README.md) والتقارير لا يغيّران هذه القواعد.
 
 nasq (نَسَق) is a resellable project and task management product on Odoo 19
-CE. Odoo is the engine and `apps/web` (Nuxt 4) is the customer UI. Each
-customer has an independent deployment, database, Odoo instance, and frontend;
-Nasq has a tenant abstraction through nasq_platform,
-but tenant isolation remains database-per-tenant.
-There is no shared-database tenant layer. Customer-specific behavior belongs in a
-`customer_<name>_*` overlay, never in the core pillars. See
-`docs/superpowers/specs/2026-09-03-nasq-platform-design.md` for the platform
-direction.
+CE. Odoo is the engine and `apps/web` (Nuxt 4) is the customer UI. The current
+deployment templates run an independent database, Odoo instance, frontend, and
+edge per customer. The **target primary model** is self-service SaaS on shared
+application services, retaining a separate database and filestore per customer;
+it has not been implemented or accepted for release. Managed dedicated remains
+separate from customer-hosted non-SaaS, which must not require SaaS billing or a
+vendor connection at runtime. Nasq has a tenant abstraction through
+`nasq_platform`, but tenant isolation remains database-per-tenant. There is no
+shared-database tenant layer. Customer-specific behavior belongs in a
+`customer_<name>_*` overlay, never in the core pillars. See the new
+[hosting and acceptance contract](docs/superpowers/specs/nasq-shared-saas-and-sovereign-deployment.md)
+for the target and its pending gates; the older
+`docs/superpowers/specs/2026-09-03-nasq-platform-design.md` describes its own
+historical scope. Government packaging from one release line is preferred for
+assessment; a permanent fork is not approved by default.
 
 ## Repository layout
 

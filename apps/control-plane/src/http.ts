@@ -1,3 +1,5 @@
+import { z } from 'zod'
+import { enqueueSharedJob } from './shared/job-store.js'
 import { createHash, randomUUID } from 'node:crypto'
 import { readFile, stat } from 'node:fs/promises'
 import { join } from 'node:path'
@@ -10,8 +12,14 @@ import { operationRequestSchema, operationsGrantSchema, reasonRequestSchema, ret
 import { verifyServiceRequest } from '@nasq/commercial-contracts/server'
 import type { Config } from './config.js'
 import { hasUnresolvedMutation, transaction } from './db.js'
+import { publishRegistryMutation, recoverRegistry, RegistryError, registryMutationSchema } from './shared/registry-store.js'
 
 const exec = promisify(execFile)
+// No shared durable publisher/fenced adapter is wired. Never fall back to the
+// dedicated inventory in a shared (or misspelled) process configuration.
+export function dedicatedExecutionEnabled(): boolean {
+  return (process.env.NASQ_TENANCY_MODE ?? 'dedicated') === 'dedicated'
+}
 const UUID = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
 const TENANT_FIELDS = 'id,name,commercial_mode,hosting_model,inventory_target,catalog_version,catalog_tier,status,desired_policy,observed_policy,policy_revision,health_checked_at,operations_enabled,created_at'
 const OP_FIELDS = 'id,tenant_id,type,status,stage,request_id,reason,result,created_at,updated_at'
@@ -48,7 +56,7 @@ function parseJson<T>(raw: string, schema: { safeParse(value: unknown): { succes
 export type OperatorTarget = { kind: 'scratch' | 'customer'; commercial_mode: 'saas' | 'non_saas'; release_root?: string }
 export type TargetLane =
   | { kind: 'scratch'; target: OperatorTarget }
-  | { kind: 'compose-local'; target: { kind: 'customer'; commercial_mode: 'saas' }; inventoryPath: string; stateDir: string; descriptorDigest: string; descriptorBytes: Buffer }
+  | { kind: 'compose-local'; target: { kind: 'customer'; commercial_mode: 'saas' }; inventoryPath: string; stateDir: string; descriptorDigest: string; descriptorBytes: Buffer; catalogVersion: string; catalogSha256: string; allowedOperations: string[] }
 
 async function readInventoryFile(path: string): Promise<unknown> {
   const file = await stat(path)
@@ -80,8 +88,16 @@ export async function inventory(config: Config): Promise<{ version: number; targ
 }
 
 export async function resolveTargetLane(config: Config, targetId: string, commercialMode: 'saas' | 'non_saas'): Promise<TargetLane> {
+  if (!dedicatedExecutionEnabled()) throw new ApiError(503, 'shared_execution_unavailable', 'Shared execution is unavailable')
   if (!/^[a-z][a-z0-9._-]{0,63}$/.test(targetId)) throw new ApiError(422, 'target_not_authorized', 'Operator target is not authorized')
   const scratch = (await inventory(config)).targets[targetId]
+  if (scratch && config.managedInventoryPath) {
+    const managedRaw = await readInventoryFile(config.managedInventoryPath)
+    const managedData = managedRaw as { schema_version?: unknown; targets?: unknown }
+    if (managedData.schema_version === 3 && managedData.targets && typeof managedData.targets === 'object' && !Array.isArray(managedData.targets) && Object.hasOwn(managedData.targets, targetId)) {
+      throw new ApiError(422, 'target_not_authorized', 'Operator target is not authorized')
+    }
+  }
   if (scratch) {
     if (scratch.kind !== 'scratch' || scratch.commercial_mode !== commercialMode) throw new ApiError(422, 'target_not_authorized', 'Operator target is not authorized')
     return { kind: 'scratch', target: scratch }
@@ -95,9 +111,28 @@ export async function resolveTargetLane(config: Config, targetId: string, commer
   if (!/^tgt_[a-z0-9_]{1,59}$/.test(targetId) || !descriptor || typeof descriptor !== 'object' || Array.isArray(descriptor)) throw new ApiError(422, 'target_not_authorized', 'Operator target is not authorized')
   const entry = descriptor as Record<string, unknown>
   const adapter = entry.adapter as Record<string, unknown> | undefined
+  const resources = entry.resource_refs as Record<string, unknown> | undefined
+  const databaseName = resources?.db_name
+  const ports = resources?.ports as Record<string, unknown> | undefined
+  const secrets = entry.secret_refs as Record<string, unknown> | undefined
+  const release = entry.release_ref as Record<string, unknown> | undefined
+  const allowedOperations = ['tenant.preflight', 'tenant.inspect', 'health', 'tenant.create', 'tenant.entitle']
+  const identityKind = release?.identity_kind
+  const releaseImages = ['odoo_image', 'web_image', 'proxy_image']
   if (Object.keys(entry).sort().join(',') !== ['adapter','allowed_operations','commercial_mode','descriptor_digest','environment_id','release_ref','resource_refs','revision','secret_refs'].sort().join(',') ||
-      adapter?.kind !== 'compose-local' || adapter.version !== 1 || entry.commercial_mode !== 'saas' ||
-      !Array.isArray(entry.allowed_operations) || !entry.allowed_operations.includes('tenant.create') ||
+      !adapter || Object.keys(adapter).sort().join(',') !== 'kind,version' || adapter.kind !== 'compose-local' || adapter.version !== 1 || entry.commercial_mode !== 'saas' ||
+      typeof entry.environment_id !== 'string' || !/^[a-z][a-z0-9-]{0,62}$/.test(entry.environment_id) ||
+      !resources || Object.keys(resources).sort().join(',') !== 'backup_root,compose_file,data_dir,db_name,ports,project' ||
+      typeof resources.project !== 'string' || !/^[a-z][a-z0-9-]{0,62}$/.test(resources.project) ||
+      typeof databaseName !== 'string' || !/^nasq_scratch_[a-z0-9_]{1,42}$/.test(databaseName) || ['odoo19', 'production', 'prod', 'postgres', 'template0', 'template1'].some((token) => databaseName.split('_').includes(token)) ||
+      ['compose_file','data_dir','backup_root'].some((key) => typeof resources[key] !== 'string' || !(resources[key] as string).startsWith('/') || (resources[key] as string).split('/').includes('..')) ||
+      !ports || Object.keys(ports).sort().join(',') !== 'db,odoo,web' || ['db','odoo','web'].some((key) => !Number.isSafeInteger(ports[key]) || (ports[key] as number) < 1 || (ports[key] as number) > 65535 || [80, 443, 3000, 5432, 8069, 8072].includes(ports[key] as number)) || new Set(['db','odoo','web'].map((key) => ports[key])).size !== 3 ||
+      !secrets || Object.keys(secrets).sort().join(',') !== 'admin_password,db_password' || ['admin_password','db_password'].some((key) => typeof secrets[key] !== 'string' || !(secrets[key] as string)) ||
+      !release || Object.keys(release).sort().join(',') !== 'catalog_sha256,catalog_version,identity_kind,odoo_image,proxy_image,web_image' ||
+      ['catalog_version','odoo_image','web_image','proxy_image'].some((key) => typeof release[key] !== 'string' || !(release[key] as string)) ||
+      typeof release.catalog_sha256 !== 'string' || !/^sha256:[a-f0-9]{64}$/.test(release.catalog_sha256) || !['image_id','repo_digest'].includes(String(identityKind)) ||
+      (identityKind === 'image_id' && releaseImages.some((key) => typeof release[key] !== 'string' || !/^sha256:[a-f0-9]{64}$/.test(release[key] as string))) ||
+      !Array.isArray(entry.allowed_operations) || entry.allowed_operations.length === 0 || entry.allowed_operations.some((operation) => !allowedOperations.includes(String(operation))) || !entry.allowed_operations.includes('tenant.create') ||
       !Number.isSafeInteger(entry.revision) || (entry.revision as number) < 0 ||
       typeof entry.descriptor_digest !== 'string' || !/^sha256:[a-f0-9]{64}$/.test(entry.descriptor_digest)) {
     throw new ApiError(422, 'target_not_authorized', 'Managed target descriptor is not authorized')
@@ -106,7 +141,7 @@ export async function resolveTargetLane(config: Config, targetId: string, commer
   const descriptorBytes = Buffer.from(canonicalJson({ target: targetId, descriptor: descriptorForDigest }), 'utf8')
   const digest = `sha256:${createHash('sha256').update(descriptorBytes).digest('hex')}`
   if (digest !== entry.descriptor_digest) throw new ApiError(422, 'target_not_authorized', 'Managed target descriptor is not authorized')
-  return { kind: 'compose-local', target: { kind: 'customer', commercial_mode: 'saas' }, inventoryPath: config.managedInventoryPath, stateDir: config.stateDir, descriptorDigest: digest, descriptorBytes }
+  return { kind: 'compose-local', target: { kind: 'customer', commercial_mode: 'saas' }, inventoryPath: config.managedInventoryPath, stateDir: config.stateDir, descriptorDigest: digest, descriptorBytes, catalogVersion: release.catalog_version as string, catalogSha256: release.catalog_sha256 as string, allowedOperations: entry.allowed_operations as string[] }
 }
 
 async function authorize(pool: Pool, req: IncomingMessage, raw: string, config: Config): Promise<{ actor: number; capabilities: VendorCapability[] }> {
@@ -132,6 +167,22 @@ function pageFrom(url: URL): number {
   return page
 }
 
+async function availableTenantOperations(pool: Pool, config: Config, tenant: Record<string, unknown>): Promise<string[]> {
+  if (!dedicatedExecutionEnabled() || tenant.operations_enabled !== true) return []
+  const lane = await resolveTargetLane(config, String(tenant.inventory_target), tenant.commercial_mode as 'saas' | 'non_saas')
+  if (tenant.status === 'registered') {
+    if (!tenant.catalog_version || !tenant.catalog_tier) return []
+    if (lane.kind === 'compose-local') {
+      const catalog = await pool.query('SELECT solution,source_sha256 FROM catalog_entries WHERE version=$1 AND status=$2', [tenant.catalog_version, 'published'])
+      if (!catalog.rowCount || tenant.catalog_version !== lane.catalogVersion || `sha256:${catalog.rows[0].source_sha256}` !== lane.catalogSha256 || !(catalog.rows[0].solution?.tiers as Array<{ id: string }> | undefined)?.some((tier) => tier.id === tenant.catalog_tier)) return []
+    }
+    return lane.kind === 'compose-local' && !lane.allowedOperations.includes('tenant.create') ? [] : ['tenant.create']
+  }
+  if (tenant.status !== 'active') return []
+  if (lane.kind === 'compose-local') return ['tenant.inspect', 'health'].filter((operation) => lane.allowedOperations.includes(operation))
+  return ['tenant.inspect', 'health', 'backup', ...(tenant.commercial_mode === 'saas' && tenant.catalog_version && tenant.catalog_tier ? ['tenant.entitle'] : [])]
+}
+
 async function audit(client: PoolClient, actor: number | string, action: string, subject: string, reason: string): Promise<void> {
   await client.query('INSERT INTO audit_events(id,actor,action,subject,reason) VALUES($1,$2,$3,$4,$5)', [randomUUID(), String(actor), action, subject, reason])
 }
@@ -146,6 +197,7 @@ async function operationDetail(pool: Pool, id: string) {
 }
 
 async function enqueue(pool: Pool, config: Config, auth: { actor: number }, tenantId: string, value: Record<string, unknown>): Promise<{ status: number; data: unknown }> {
+  if (!dedicatedExecutionEnabled()) throw new ApiError(503, 'shared_execution_unavailable', 'Shared execution is unavailable')
   const input = parseJson(JSON.stringify(value), operationRequestSchema)
   const requestId = String(input.request_id)
   const kind = String(input.type)
@@ -166,12 +218,13 @@ async function enqueue(pool: Pool, config: Config, auth: { actor: number }, tena
     const lane = await resolveTargetLane(config, tenant.inventory_target, tenant.commercial_mode)
     const target = lane.target
     if (kind === 'tenant.create' && tenant.status !== 'registered') throw new ApiError(409, 'conflict', 'Installation has already entered provisioning')
-    if (lane.kind === 'compose-local' && kind !== 'tenant.create' && kind !== 'tenant.inspect' && kind !== 'health' && kind !== 'status') throw new ApiError(422, 'operation_unavailable', 'This managed operation is not authorized in this slice')
+    if (lane.kind === 'compose-local' && (kind !== 'status' && (kind !== 'tenant.create' && kind !== 'tenant.inspect' && kind !== 'health' || !lane.allowedOperations.includes(kind)))) throw new ApiError(422, 'operation_unavailable', 'This managed operation is not authorized in this slice')
     if (kind === 'tenant.entitle' && tenant.commercial_mode === 'non_saas') throw new ApiError(422, 'local_policy_protected', 'This installation uses an independent local policy')
     if (kind === 'tenant.create') {
       if (!tenant.catalog_version || !tenant.catalog_tier) throw new ApiError(422, 'catalog_required', 'Select a published catalog version and tier before provisioning')
-      const catalog = await client.query('SELECT solution FROM catalog_entries WHERE version=$1 AND status=$2', [tenant.catalog_version, 'published'])
+      const catalog = await client.query('SELECT solution,source_sha256 FROM catalog_entries WHERE version=$1 AND status=$2', [tenant.catalog_version, 'published'])
       if (!catalog.rowCount || !(catalog.rows[0].solution?.tiers as Array<{id:string}> | undefined)?.some((tier) => tier.id === tenant.catalog_tier)) throw new ApiError(422, 'catalog_required', 'Published catalog tier is unavailable')
+      if (lane.kind === 'compose-local' && (tenant.catalog_version !== lane.catalogVersion || `sha256:${catalog.rows[0].source_sha256}` !== lane.catalogSha256)) throw new ApiError(422, 'catalog_required', 'Published catalog does not match managed target release')
     }
     if (kind !== 'tenant.create' && tenant.status === 'registered') throw new ApiError(422, 'invalid', 'Installation must be provisioned first')
     if (input.type === 'restore') {
@@ -184,9 +237,18 @@ async function enqueue(pool: Pool, config: Config, auth: { actor: number }, tena
       if (!release?.isFile()) throw new ApiError(422, 'invalid', 'Trusted release is unavailable')
     }
     const id = randomUUID()
+    // Dedicated enqueue remains compatible with existing migrated installations.
+    // Shared enqueue is refused above; its future store must persist a bound job
+    // and business_key atomically rather than adding a key to a legacy payload.
     let inserted
     try { inserted = await client.query(`INSERT INTO operations(id,tenant_id,actor_uid,issuer,type,request_id,reason,payload,payload_digest) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING ${OP_FIELDS}`, [id, tenantId, auth.actor, config.installationId, kind, requestId, input.reason, input, payloadDigest]) }
-    catch (error) { if ((error as { code?: string }).code === '23505') throw new ApiError(409, 'conflict', 'Request ID is already in use'); throw error }
+    catch (error) {
+      if ((error as { code?: string }).code === '23505') {
+        if ((error as { constraint?: string }).constraint === 'operations_business_key_unique') throw new ApiError(409, 'conflict', 'Installation has already entered provisioning')
+        throw new ApiError(409, 'conflict', 'Request ID is already in use')
+      }
+      throw error
+    }
     await client.query('INSERT INTO operation_events(operation_id,stage,status) VALUES($1,$2,$3)', [id, 'queued', 'queued'])
     if (input.type === 'restore') await client.query('UPDATE restore_approvals SET used_by=$1 WHERE id=$2', [id, input.approval_id])
     if (kind === 'tenant.create') await client.query('UPDATE tenants SET status=$1 WHERE id=$2', ['provisioning', tenantId])
@@ -209,6 +271,28 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
       const auth = await authorize(pool, req, raw, config)
       const url = new URL(path, 'http://localhost')
       const pathname = url.pathname
+      const sharedQueue = pathname.match(new RegExp(`^/v1/shared/tenants/(${UUID})/jobs$`))
+      if (method === 'POST' && sharedQueue) {
+        requireCapability(auth, 'vendor.operations.run')
+        if (process.env.NASQ_TENANCY_MODE !== 'shared' || !config.tenantRegistryPath) throw new ApiError(503, 'shared_execution_unavailable', 'Shared queue is not configured')
+        const input = parseJson(raw, z.strictObject({ reason: z.string().trim().min(3).max(1000), job: z.unknown() }))
+        // Only provision/backup are currently operational; restore requires a
+        // durable approval/backup authority that is not configured yet.
+        const job = parseJson(JSON.stringify(input.job ?? null), z.strictObject({
+          schemaVersion: z.literal(1), requestId: z.uuid(), operation: z.enum(['provision','backup']),
+        }))
+        const result = await enqueueSharedJob(pool, sharedQueue[1]!, { issuer: config.installationId, actorUid: auth.actor }, job, input.reason)
+        return respond(res, result.replay ? 200 : 202, result)
+      }
+      if (method === 'POST' && ['/v1/registry/mutations', '/v1/registry/recover'].includes(pathname)) {
+        requireCapability(auth, 'vendor.tenants.manage')
+        if (!config.tenantRegistryPath) throw new ApiError(503, 'registry_unavailable', 'Registry publication is not configured')
+        const actor = { issuer: config.installationId, actorUid: auth.actor }
+        const result = pathname === '/v1/registry/mutations'
+          ? await publishRegistryMutation(pool, config.tenantRegistryPath, actor, parseJson(raw, registryMutationSchema))
+          : await recoverRegistry(pool, config.tenantRegistryPath, actor, parseJson(raw, reasonRequestSchema).reason)
+        return respond(res, 200, { snapshotRevision: result.snapshotRevision })
+      }
       if (method === 'GET' && pathname === '/v1/context') return respond(res, 200, { enabled: true, capabilities: auth.capabilities })
       if (method === 'GET' && pathname === '/v1/overview') {
         requireCapability(auth, 'vendor.read')
@@ -217,7 +301,27 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
       }
       if (method === 'GET' && pathname === '/v1/targets') {
         requireCapability(auth, 'vendor.tenants.manage')
-        const items = Object.entries((await inventory(config)).targets).map(([id, item]) => ({ id, kind: item.kind }))
+        const scratchTargets = (await inventory(config)).targets
+        let managedTargets: Record<string, unknown> = {}
+        if (config.managedInventoryPath) {
+          const managedRaw = await readInventoryFile(config.managedInventoryPath)
+          const managedData = managedRaw as { schema_version?: unknown; targets?: unknown }
+          if (managedData.schema_version !== 3 || !managedData.targets || typeof managedData.targets !== 'object' || Array.isArray(managedData.targets)) throw new ApiError(503, 'inventory_unavailable', 'Managed inventory is unavailable')
+          managedTargets = managedData.targets as Record<string, unknown>
+          if (Object.keys(managedTargets).some((id) => Object.hasOwn(scratchTargets, id))) throw new ApiError(503, 'inventory_unavailable', 'Operator inventory contains a duplicate target')
+        }
+        const managedItems = []
+        for (const id of Object.keys(managedTargets)) {
+          try {
+            const lane = await resolveTargetLane(config, id, 'saas')
+            if (lane.kind !== 'compose-local') throw new ApiError(503, 'inventory_unavailable', 'Managed target is not authorized')
+            managedItems.push({ id, kind: 'customer' as const })
+          } catch { throw new ApiError(503, 'inventory_unavailable', 'Managed target inventory is invalid') }
+        }
+        const items = [
+          ...Object.entries(scratchTargets).map(([id, item]) => ({ id, kind: item.kind })),
+          ...managedItems,
+        ]
         return respond(res, 200, { items, total: items.length })
       }
       if (pathname === '/v1/tenants' && method === 'GET') {
@@ -233,14 +337,14 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
       if (pathname === '/v1/tenants' && method === 'POST') {
         requireCapability(auth, 'vendor.tenants.manage')
         const input = parseJson(raw, tenantCreateSchema)
-        const target = (await inventory(config)).targets[input.inventory_target]
-        if (!target) throw new ApiError(422, 'invalid', 'Select a target from the operator inventory', 'inventory_target')
-        if (target.commercial_mode !== input.commercial_mode) throw new ApiError(422, 'invalid', 'Commercial mode does not match trusted target classification', 'commercial_mode')
+        const lane = await resolveTargetLane(config, input.inventory_target, input.commercial_mode)
+        if (lane.kind === 'scratch' && lane.target.kind !== 'scratch') throw new ApiError(422, 'invalid', 'Select an authorized operator target', 'inventory_target')
         const data = await transaction(pool, async (client) => {
           if (input.catalog_version) {
-            const catalog = await client.query('SELECT solution FROM catalog_entries WHERE version=$1 AND status=$2', [input.catalog_version, 'published'])
+            const catalog = await client.query('SELECT solution,source_sha256 FROM catalog_entries WHERE version=$1 AND status=$2', [input.catalog_version, 'published'])
             if (!catalog.rowCount) throw new ApiError(422, 'invalid', 'Catalog version is not published', 'catalog_version')
             if (!(catalog.rows[0].solution?.tiers as Array<{id:string}> | undefined)?.some((tier) => tier.id === input.catalog_tier)) throw new ApiError(422, 'invalid', 'Catalog tier is not published', 'catalog_tier')
+            if (lane.kind === 'compose-local' && (input.catalog_version !== lane.catalogVersion || `sha256:${catalog.rows[0].source_sha256}` !== lane.catalogSha256)) throw new ApiError(422, 'invalid', 'Published catalog does not match managed target release', 'catalog_version')
           }
           try {
             const created = await client.query(`INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,catalog_version,catalog_tier,operations_enabled) VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING ${TENANT_FIELDS}`, [randomUUID(), input.name, input.commercial_mode, input.hosting_model, input.inventory_target, input.catalog_version ?? null, input.catalog_tier ?? null, input.commercial_mode === 'saas'])
@@ -255,7 +359,7 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
         requireCapability(auth, 'vendor.read')
         const result = await pool.query(`SELECT ${TENANT_FIELDS} FROM tenants WHERE id=$1`, [tenantMatch[1]])
         if (!result.rowCount) throw new ApiError(404, 'not_found', 'Installation not found')
-        return respond(res, 200, result.rows[0])
+        return respond(res, 200, { ...result.rows[0], available_operations: await availableTenantOperations(pool, config, result.rows[0]) })
       }
       const grantMatch = pathname.match(new RegExp(`^/v1/tenants/(${UUID})/operations-grant$`))
       if (grantMatch && method === 'POST') {
@@ -267,7 +371,11 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
           await audit(client, auth.actor, input.enabled ? 'tenant.operations.enabled' : 'tenant.operations.disabled', grantMatch[1], input.reason)
           return row.rows[0]
         })
-        return respond(res, 200, result)
+        // The grant has committed. A now-unavailable inventory must not turn
+        // that committed write into an apparent failed request or grant actions.
+        let availableOperations: string[] = []
+        try { availableOperations = await availableTenantOperations(pool, config, result) } catch { /* fail closed */ }
+        return respond(res, 200, { ...result, available_operations: availableOperations })
       }
       const tenantOpMatch = pathname.match(new RegExp(`^/v1/tenants/(${UUID})/operations$`))
       if (tenantOpMatch && method === 'POST') {
@@ -332,7 +440,7 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
       }
       throw new ApiError(404, 'not_found', 'Endpoint not found')
     } catch (error) {
-      const failure = error instanceof ApiError ? error : new ApiError(503, 'service_unavailable', 'Control service is unavailable')
+      const failure = error instanceof ApiError ? error : error instanceof RegistryError ? new ApiError(error.status, error.code, 'Registry operation rejected') : new ApiError(503, 'service_unavailable', 'Control service is unavailable')
       return respond(res, failure.status, { code: failure.code, message: failure.message, ...(failure.field ? { field: failure.field } : {}) })
     }
   }

@@ -17,6 +17,11 @@ export function useApi() {
   // Cookie forwarding is only meaningful during SSR: on the client the browser
   // already attaches the session cookie to same-origin requests.
   const headers = import.meta.server ? useRequestHeaders(['cookie']) : {}
+  // Only middleware-validated server events may supply private hop identity.
+  // This stays in the SSR closure, never in returned data or the client payload.
+  const trustedHeaders = import.meta.server && useRequestEvent()?.context.tenant
+    ? useRequestHeaders(['host', 'x-nasq-proxy-token', 'x-nasq-tenant-revision'])
+    : {}
 
   async function $api<T>(
     path: string,
@@ -27,7 +32,11 @@ export function useApi() {
         method: (opts.method ?? 'GET') as any,
         body: opts.body as any,
         query: opts.query,
-        headers,
+        // Never forward a cookie or private hop identity to an absolute URL,
+        // protocol-relative URL, encoded path or normalized traversal target.
+        headers: /^\/api\/v1\/[a-zA-Z0-9_/-]+$/.test(path) && !path.includes('..')
+          ? { ...headers, ...trustedHeaders }
+          : {},
       })
       return opts.schema ? opts.schema.parse(data) : (data as T)
     } catch (e: any) {

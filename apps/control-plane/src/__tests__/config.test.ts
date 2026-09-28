@@ -19,6 +19,7 @@ const CONFIG_KEYS: readonly string[] = [
   'CONTROL_DATABASE_URL',
   'NASQ_CLI_INVENTORY',
   'NASQ_MANAGED_INVENTORY',
+  'NASQ_TENANT_REGISTRY_PATH',
   'NASQ_CLI_STATE_DIR',
   'NASQ_REPOSITORY_ROOT',
   'CONTROL_HOST',
@@ -134,6 +135,17 @@ describe('CONTROL_SERVICE_KEY strength', () => {
   it('rejects an empty service key as missing', () => {
     applyEnv({ CONTROL_SERVICE_KEY: '' })
     expect(() => getConfig()).toThrowError('CONTROL_SERVICE_KEY is required')
+  })
+})
+
+describe('registry publication path', () => {
+  it('accepts an explicitly configured absolute registry publication path', () => {
+    applyEnv({ NASQ_TENANT_REGISTRY_PATH: '/srv/nasq/registry/registry.json' })
+    expect(getConfig()).toHaveProperty('tenantRegistryPath', '/srv/nasq/registry/registry.json')
+  })
+  it('rejects a relative registry publication path', () => {
+    applyEnv({ NASQ_TENANT_REGISTRY_PATH: 'registry.json' })
+    expect(() => getConfig()).toThrow('operator paths must be absolute')
   })
 })
 

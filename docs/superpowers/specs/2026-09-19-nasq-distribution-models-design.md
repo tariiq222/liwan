@@ -1,11 +1,11 @@
 # NASQ — نماذج التوزيع الثلاثة وطبقة المنصة: مواصفة التصميم
 
 **التاريخ:** 2026-09-19
-**الحالة:** مواصفة للاعتماد. لا تتضمن أي تغيير في الكود.
+**الحالة:** مواصفة تاريخية لمرحلتها. قرار المنتج الأحدث يجعل SaaS المشترك والتسجيل الذاتي الهدف الأساسي بدل التأجيل في §10؛ انظر [عقد الاتجاه والقبول](nasq-shared-saas-and-sovereign-deployment.md). لا يدل تحديث التوجيه على تنفيذ shared أو اعتماد نشره.
 **تمدّد:** `2026-09-15-nasq-vertical-saas-transformation.md` (التحليل والأدلة على مستوى الملف والسطر هناك؛ لا تُكرَّر هنا).
 **تحلّ محل:** بند "No multi-tenant SaaS" في `2026-09-03-nasq-platform-design.md` بالقدر المحدد أدناه فقط.
 
-> حيث تتعارض هذه الوثيقة مع مواصفة 09-15، تسود هذه الوثيقة. مواضع التعارض مذكورة صراحة في §11.
+> في نطاقهما التاريخي فقط، كانت هذه الوثيقة تسود مواصفة 09-15 في مواضع §11؛ [العقد الأحدث](nasq-shared-saas-and-sovereign-deployment.md) يسود الآن في نموذج الاستضافة والتسجيل والدفع والحكومة.
 
 ---
 
@@ -15,8 +15,7 @@
 One codebase · One release line · One platform · Multiple deployment models
 ```
 
-لا توجد منتجات `Nasq SaaS` / `Nasq Enterprise` / `Nasq Government` كفروع منفصلة.
-نفس الكود، ونفس migrations، ونفس الصور. معيار الجاهزية أربع قدرات بلا fork:
+كان افتراض هذه المواصفة **خط منتج واحد دون فروع منفصلة** لـ`Nasq SaaS` / `Nasq Enterprise` / `Nasq Government`، وبنفس الكود والمهاجرات والصور. القرار الأحدث يُبقي ذلك **افتراضًا مبدئيًا لا منعًا دائمًا لـfork حكومي**؛ أي fork لاحق يحتاج اختلافًا مثبتًا وADR وموافقة المستخدم. معيار هذه المرحلة التاريخية أربع قدرات:
 
 ```text
 Create · Upgrade · Isolate · Entitle
@@ -34,7 +33,7 @@ Create · Upgrade · Isolate · Entitle
 
 - "حكومي" و"شركات" تسميات بيع. المحور التقني الوحيد: **Managed** مقابل **Customer-Hosted**.
 - لا `if mode ==` في الكود. الفروق إعدادات أو features.
-- إلى أن يُبنى التشغيل المشترك (§10)، SaaS وDedicated متطابقان تقنياً؛ الفرق باقة وحجم خادم.
+- كان SaaS وDedicated متطابقين تقنيًا في نشر تلك المرحلة؛ القرار الحالي أن SaaS المشترك هو **الهدف الأساسي** مع DB/filestore لكل عميل، ولا يزال غير منفذ. Dedicated وCustomer-Hosted مساران منفصلان في الاستضافة والإدارة، و`saas/non_saas` محور تجاري مستقل. §10 سجل تأجيل تاريخي لا يحدد الأولوية الحالية.
 
 ### 2.1 ما يفرضه Customer-Hosted على المنتج من الآن
 
@@ -230,8 +229,8 @@ backup DB + filestore → upgrade (-u) → health check → failure → restore 
 
 | مؤجَّل | المحفِّز |
 |---|---|
-| تسجيل ذاتي + فوترة (واجهة ويب فوق `nasq-cli`، خارج المنتج) | طلب ذاتي مثبت أو >15–20 عميلاً صغيراً |
-| تشغيل مشترك (dbfilter بالـHost، استنتاج القاعدة في Nuxt، wildcard) | كلفة خادم لكل عميل صغير |
+| تسجيل ذاتي + فوترة (كانتا مؤجلتين في هذه المرحلة) | **تاريخي:** أصبح التسجيل الذاتي والدفع ضمن هدف SaaS الأساسي بالعقد الجديد، لكنهما غير منفذين |
+| تشغيل مشترك (كان اقتراحه `dbfilter` بالـHost واستنتاج القاعدة في Nuxt) | **تاريخي وغير كافٍ للعزل:** العقد الأحدث يشترط resolver موثوقًا وفشلًا مغلقًا عبر login/API/content/WS/jobs؛ لا تعتمد اقتراح §10 كتصميم تنفيذ |
 | تغليف الحزمة (صور `docker save` · مصدر · SBOM · TLS داخلي)، ترخيص موقَّع، `auth_ldap` / نفاذ، سياسات كلمات المرور والجلسات، syslog | أول طلب Customer-Hosted — من آخر إصدار موسوم |
 | تجمع صحي (`subtree` scope، `parent_path`) | أول تجمع |
 | قطاع ثانٍ — معيار النجاح: صفر تعديل في النواة والواجهة المركزية | صفقة في القطاع |
@@ -260,4 +259,4 @@ backup DB + filestore → upgrade (-u) → health check → failure → restore 
 
 ## 13. خارج النطاق
 
-billing · self-signup · shared Odoo workers · license server · LDAP/نفاذ · government installer · overlay framework · قطاع ثانٍ · workflow engine · AI · portal users.
+**خارج نطاق تنفيذ هذه المواصفة التاريخية، لا خارج هدف المنتج الحالي:** billing · self-signup · shared Odoo workers. أصبحت الثلاثة ضمن اتجاه SaaS الجديد، وبواباتها في [العقد الأحدث](nasq-shared-saas-and-sovereign-deployment.md). بقيت العناصر الأخرى خارج هذه المرحلة: license server · LDAP/نفاذ · government installer · overlay framework · قطاع ثانٍ · workflow engine · AI · portal users.

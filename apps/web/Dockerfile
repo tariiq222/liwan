@@ -7,6 +7,9 @@ COPY packages/commercial-contracts/package.json packages/commercial-contracts/
 COPY apps/control-plane/package.json apps/control-plane/
 RUN npm ci
 COPY . .
+# Nuxt proxy rules are compiled; runtime-only shared mode is insufficient.
+ARG NASQ_TENANCY_MODE=dedicated
+ENV NASQ_TENANCY_MODE=${NASQ_TENANCY_MODE}
 RUN npm -w apps/web run build
 
 FROM node:22-alpine

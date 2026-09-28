@@ -3,11 +3,18 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { Pool, PoolClient } from 'pg'
 import type { Config } from './config.js'
-import { inventory, resolveTargetLane, type TargetLane } from './http.js'
+import { dedicatedExecutionEnabled, inventory, resolveTargetLane, type TargetLane } from './http.js'
 import { hasUnresolvedMutation, transaction } from './db.js'
 import { runProcessGroup } from './process-group.js'
 
 const MUTATIONS = new Set(['tenant.create','tenant.entitle','backup','upgrade','restore'])
+// Only managed preflight refusals produced before any effect may return a
+// registered tenant to a retryable state. An unknown error stays fail-closed.
+const EFFECT_FREE_CREATE_REFUSALS = new Set([
+  'preflight_unavailable', 'docker_context_unavailable', 'docker_context_not_local',
+  'catalog_digest_mismatch', 'image_identity_untrusted', 'compose_file_invalid',
+  'database_exists', 'project_shared', 'volume_shared', 'network_shared', 'port_shared',
+])
 const LEASE_SECONDS = 120
 
 export function safeProfileFeatures(profile: unknown, expectedMode: unknown): Record<string, boolean | number | null> | null {
@@ -26,6 +33,45 @@ export function safeProfileFeatures(profile: unknown, expectedMode: unknown): Re
   return result
 }
 
+function canonicalJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`
+  if (value && typeof value === 'object') {
+    const record = value as Record<string, unknown>
+    return `{${Object.keys(record).sort().map((key) => `${JSON.stringify(key)}:${canonicalJson(record[key])}`).join(',')}}`
+  }
+  return JSON.stringify(value)
+}
+
+// Match nasq_cli.journal.payload_digest: exact policy bytes and the full enrolled
+// descriptor are length-framed; descriptor_digest itself excludes that field.
+function managedRequestDigest(lane: Extract<TargetLane, { kind: 'compose-local' }>, policyBytes: Buffer, fields: Record<string, string>): string {
+  const enrollment = JSON.parse(lane.descriptorBytes.toString('utf8'))
+  enrollment.descriptor.descriptor_digest = lane.descriptorDigest
+  const hash = createHash('sha256').update(canonicalJson(fields)).update('\0target\0').update(lane.descriptorDigest)
+  for (const bytes of [policyBytes, Buffer.from(canonicalJson(enrollment), 'utf8')]) {
+    const length = Buffer.alloc(8)
+    length.writeBigUInt64BE(BigInt(bytes.length))
+    hash.update('\0file\0').update(length).update(bytes)
+  }
+  return hash.digest('hex')
+}
+
+type CreatePolicy = Awaited<ReturnType<typeof policyForCreate>>
+
+function verifiedManagedCreate(receipt: Record<string, unknown>, policy: CreatePolicy | undefined, mode: unknown): boolean {
+  if (!policy || receipt.deployment_ready !== true || receipt.policy_verified !== true) return false
+  const features = safeProfileFeatures(receipt.profile, mode)
+  if (!features || canonicalJson(features) !== canonicalJson(policy.features)) return false
+  const profile = receipt.profile as Record<string, unknown>
+  // This is initial creation, whose independent Python readback requires revision 1.
+  if (profile.policy_revision !== 1 || receipt.policy_revision !== profile.policy_revision) return false
+  const modules = profile.modules
+  if (!Array.isArray(modules) || modules.length > 1024 || modules.some((name) => typeof name !== 'string' || !/^[a-z][a-z0-9_]{0,127}$/.test(name)) || new Set(modules).size !== modules.length) return false
+  // Stock Odoo dependencies are not additional Nasq pillars.
+  if (canonicalJson(modules.filter((name: string) => name.startsWith('nasq_')).sort()) !== canonicalJson([...policy.modules].sort())) return false
+  return true
+}
+
 export type Claimed = { client: PoolClient; operation: Record<string, unknown>; tenant: Record<string, unknown>; lockKey: string }
 export type OperatorInvocation = { moduleName: 'nasq_cli.operator' | 'nasq_cli.managed_runtime'; args: string[]; env: NodeJS.ProcessEnv; policyBytes?: Buffer; descriptorBytes?: Buffer; target?: string; operation?: string; requestId?: string; fingerprint?: string }
 
@@ -42,6 +88,7 @@ export async function expireLeases(pool: Pool): Promise<number> {
 }
 
 export async function claimNext(pool: Pool): Promise<Claimed | null> {
+  if (!dedicatedExecutionEnabled()) return null
   const client = await pool.connect()
   try {
     const candidates = await client.query("SELECT o.*,t.inventory_target,t.commercial_mode,t.catalog_version,t.catalog_tier,t.status AS tenant_status,t.operations_enabled FROM operations o JOIN tenants t ON t.id=o.tenant_id WHERE o.status='queued' ORDER BY o.created_at,o.id LIMIT 20")
@@ -217,6 +264,7 @@ export async function executeClaimed(pool: Pool, claimed: Claimed, config: Confi
   let temporary: string | null = null
   const heartbeat = setInterval(() => { void pool.query("UPDATE operations SET lease_until=now()+interval '120 seconds' WHERE id=$1 AND status='running' AND lease_until>now()", [op.id]).catch(() => {}) }, 30000)
   try {
+    if (!dedicatedExecutionEnabled()) { await finishClaim(pool, claimed, 'needs_intervention', 'shared_execution_unavailable', { code: 'shared_execution_unavailable' }); return }
     if (!await grantStillActive(pool, op)) { await finishClaim(pool, claimed, 'failed', 'grant_revoked', { code:'grant_revoked' }); return }
     const fresh = await pool.query('SELECT inventory_target,commercial_mode,operations_enabled FROM tenants WHERE id=$1', [op.tenant_id])
     if (!fresh.rowCount) { await finishClaim(pool, claimed, 'failed', 'tenant_missing', {code:'tenant_missing'}); return }
@@ -233,11 +281,15 @@ export async function executeClaimed(pool: Pool, claimed: Claimed, config: Confi
     }
     temporary = await mkdtemp(join(config.stateDir, 'control-policy-'))
     const invocation = await operatorArgs(pool, claimed, config, temporary, lane)
+    // Retain the policy actually sent, not a later catalog read that may differ.
+    const createPolicy: CreatePolicy | undefined = op.type === 'tenant.create' && invocation.policyBytes ? JSON.parse(invocation.policyBytes.toString('utf8')) : undefined
+    const expectedManagedDigest = lane.kind === 'compose-local' && invocation.policyBytes && invocation.journalFields
+      ? managedRequestDigest(lane, invocation.policyBytes, invocation.journalFields) : undefined
     const first = await operator(config, invocation.args, lane, invocation.policyBytes, invocation.journalFields)
     let receipt = first.receipt
     if (op.type === 'status' && lane.kind === 'compose-local') {
       const request = op.payload as Record<string, unknown>
-      if (first.code !== 0 || !/^op_[a-f0-9]{32}$/.test(String(request.operation_id)) || receipt.operation_id !== request.operation_id || receipt.request_id !== request.receipt_request_id || receipt.target !== claimed.tenant.inventory_target || receipt.operation !== request.operation || !/^[a-f0-9]{64}$/.test(String(receipt.digest)) || receipt.fingerprint !== lane.descriptorDigest) {
+      if (first.code !== 0 || !/^op_[a-f0-9]{32}$/.test(String(request.operation_id)) || receipt.operation_id !== request.operation_id || receipt.request_id !== request.receipt_request_id || receipt.target !== claimed.tenant.inventory_target || receipt.operation !== request.operation || !expectedManagedDigest || receipt.digest !== expectedManagedDigest || receipt.fingerprint !== lane.descriptorDigest) {
         await finishClaim(pool, claimed, 'needs_intervention', 'receipt_unverified', { code:'receipt_unverified' }); return
       }
     }
@@ -249,30 +301,47 @@ export async function executeClaimed(pool: Pool, claimed: Claimed, config: Confi
       } else {
         durable = await operator(config, ['status','--target',String(claimed.tenant.inventory_target),'--request-id',String(op.request_id)], lane)
       }
-      if (durable.code !== 0 || durable.receipt.status !== 'ok' || !/^op_[a-f0-9]{32}$/.test(String(receipt.operation_id)) || durable.receipt.operation_id !== receipt.operation_id || durable.receipt.request_id !== op.request_id || durable.receipt.target !== claimed.tenant.inventory_target || durable.receipt.operation !== op.type || (lane.kind === 'compose-local' && (!/^[a-f0-9]{64}$/.test(String(durable.receipt.digest)) || durable.receipt.fingerprint !== lane.descriptorDigest))) {
+      if (durable.code !== 0 || durable.receipt.status !== 'ok' || !/^op_[a-f0-9]{32}$/.test(String(receipt.operation_id)) || durable.receipt.operation_id !== receipt.operation_id || durable.receipt.request_id !== op.request_id || durable.receipt.target !== claimed.tenant.inventory_target || durable.receipt.operation !== op.type || (lane.kind === 'compose-local' && (!expectedManagedDigest || durable.receipt.digest !== expectedManagedDigest || durable.receipt.fingerprint !== lane.descriptorDigest))) {
         await finishClaim(pool, claimed, 'needs_intervention', 'receipt_unverified', { code:'receipt_unverified' }); return
       }
       receipt = durable.receipt
     }
-    let valid = first.code === 0 && receipt.schema_version === 1 && receipt.status === 'ok' && receipt.target === claimed.tenant.inventory_target && receipt.operation === op.type && (!MUTATIONS.has(String(op.type)) || receipt.request_id === op.request_id)
+    // A managed status operation reads an existing mutation's journal row. Its
+    // receipt is bound to that original operation above, not to the lookup type.
+    const statusReceiptMatches = op.type === 'status' && lane.kind === 'compose-local' &&
+      receipt.operation === (op.payload as Record<string, unknown>).operation
+    let valid = first.code === 0 && receipt.schema_version === 1 && receipt.status === 'ok' && receipt.target === claimed.tenant.inventory_target &&
+      (receipt.operation === op.type || statusReceiptMatches) && (!MUTATIONS.has(String(op.type)) || receipt.request_id === op.request_id)
     const inspectedFeatures = op.type === 'tenant.inspect' && valid ? safeProfileFeatures(receipt.profile, claimed.tenant.commercial_mode) : null
-    if (op.type === 'tenant.inspect' && !inspectedFeatures) valid = false
-    const incompleteCreate = valid && op.type === 'tenant.create' && (receipt.deployment_ready !== true || typeof receipt.deployment_ready !== 'boolean' || (lane.kind === 'compose-local' && receipt.policy_verified !== true))
-    const status = incompleteCreate ? 'needs_intervention' : valid ? 'succeeded' : (MUTATIONS.has(String(op.type)) && (receipt.status === 'needs_intervention' || receipt.changed === true) ? 'needs_intervention' : 'failed')
+    if (op.type === 'tenant.inspect' && (!inspectedFeatures || (lane.kind === 'compose-local' &&
+        (receipt.policy_verified !== true || receipt.fingerprint !== lane.descriptorDigest)))) valid = false
+    if (lane.kind === 'compose-local' && op.type === 'health' &&
+        (receipt.health_verified !== true || receipt.policy_verified !== true ||
+         receipt.fingerprint !== lane.descriptorDigest || !safeProfileFeatures(receipt.profile, claimed.tenant.commercial_mode))) valid = false
+    const managedCreateVerified = valid && op.type === 'tenant.create' && lane.kind === 'compose-local' && verifiedManagedCreate(receipt, createPolicy, claimed.tenant.commercial_mode)
+    const incompleteCreate = valid && op.type === 'tenant.create' && (lane.kind === 'compose-local' ? !managedCreateVerified : receipt.deployment_ready !== true)
+    const effectFreeManagedRefusal = lane.kind === 'compose-local' && op.type === 'tenant.create' && first.code !== 0 &&
+      receipt.schema_version === 1 && receipt.target === claimed.tenant.inventory_target &&
+      receipt.request_id === op.request_id && receipt.operation === op.type &&
+      receipt.status === 'conflict' && receipt.stage === 'preflight' && receipt.changed === false &&
+      EFFECT_FREE_CREATE_REFUSALS.has(String((receipt.error as Record<string, unknown> | undefined)?.code))
+    const status = incompleteCreate ? 'needs_intervention' : valid ? 'succeeded' :
+      (lane.kind === 'compose-local' && op.type === 'tenant.create' && !effectFreeManagedRefusal) ||
+      (MUTATIONS.has(String(op.type)) && (receipt.status === 'needs_intervention' || receipt.changed === true)) ? 'needs_intervention' : 'failed'
     const stage = incompleteCreate ? 'deployment_incomplete' : typeof receipt.stage === 'string' && /^[a-z_]{1,64}$/.test(receipt.stage) ? receipt.stage : 'operator_failed'
     const result = publicReceipt(receipt)
     if (lane.kind === 'compose-local' && op.type === 'tenant.create') {
-      result.policy_verified = false
-      result.deployment_ready = false
-      if (status === 'failed' && receipt.status === 'conflict' && receipt.stage === 'preflight' && receipt.changed === false && (receipt.error as Record<string, unknown> | undefined)?.code === 'preflight_unavailable') {
-        delete result.deployment_ready
-      }
+      result.policy_verified = managedCreateVerified
+      result.deployment_ready = managedCreateVerified
+      // A rejected profile must not advance revision or imply a health check.
+      if (!managedCreateVerified) delete result.policy_revision
+      if (effectFreeManagedRefusal) delete result.deployment_ready
       result._control_lane = 'managed'
       delete result.payload_digest
     } else if (lane.kind === 'scratch' && op.type === 'tenant.create') {
       result._control_lane = 'scratch'
     }
-    const desiredPolicy = (status === 'succeeded' || incompleteCreate) && op.type === 'tenant.create' ? (await policyForCreate(pool, claimed.tenant, config)).features
+    const desiredPolicy = (status === 'succeeded' || incompleteCreate) && op.type === 'tenant.create' ? createPolicy?.features
       : status === 'succeeded' && op.type === 'tenant.entitle' ? (op.payload as Record<string,unknown>).features as Record<string,unknown> : undefined
     const observedPolicy = inspectedFeatures ?? (status === 'succeeded' && op.type === 'tenant.entitle' ? desiredPolicy
       : op.type === 'tenant.create' && lane.kind === 'scratch' && receipt.policy_verified === true ? desiredPolicy : undefined)

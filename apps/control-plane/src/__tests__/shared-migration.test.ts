@@ -1,0 +1,69 @@
+import { expect, it, vi } from 'vitest'
+import type { Pool } from 'pg'
+import { migrate } from '../db.js'
+function fixture(applied: number[], fail = false, rollbackFails = false) {
+  const query = vi.fn(async (sql: string) => {
+    if (rollbackFails && sql === 'ROLLBACK') throw new Error('rollback_failure')
+    if (fail && sql.includes('ALTER TABLE operations ADD COLUMN')) throw new Error('migration_failure')
+    const match = sql.match(/SELECT version FROM schema_migrations WHERE version=(\d+)/)
+    return { rowCount: match && applied.includes(Number(match[1])) ? 1 : 0, rows: [] }
+  })
+  const release = vi.fn()
+  return { query, release, pool: { connect: async () => ({ query, release }) } as unknown as Pool }
+}
+it('applies forward migration to legacy rows before recording version four', async () => {
+  const f = fixture([1, 2, 3])
+  await migrate(f.pool)
+  const sql = f.query.mock.calls.map(([s]) => s)
+  const body = sql.findIndex((s) => s.includes('ALTER TABLE operations ADD COLUMN'))
+  expect(body).toBeGreaterThan(0)
+  expect(sql[body]).toContain('WHERE business_key IS NOT NULL')
+  expect(sql[body]).not.toContain('UPDATE operations')
+  expect(sql.indexOf('INSERT INTO schema_migrations(version) VALUES(4)')).toBeGreaterThan(body)
+  expect(sql.at(-1)).toBe('COMMIT')
+})
+it('registers durable registry migration after version four', async () => {
+  const f = fixture([1, 2, 3, 4])
+  await migrate(f.pool)
+  const sql = f.query.mock.calls.map(([s]) => s)
+  expect(sql).toContain('SELECT version FROM schema_migrations WHERE version=5')
+  expect(sql).toContain('INSERT INTO schema_migrations(version) VALUES(5)')
+  expect(sql.at(-1)).toBe('COMMIT')
+})
+it('registers isolated shared queue storage as version six', async () => {
+  const f = fixture([1, 2, 3, 4, 5])
+  await migrate(f.pool)
+  expect(f.query.mock.calls.map(([s]) => s)).toContain('INSERT INTO schema_migrations(version) VALUES(6)')
+})
+it('registers backup authority as version seven and orders as version eight', async () => {
+  const f = fixture([1, 2, 3, 4, 5, 6])
+  await migrate(f.pool)
+  const sql = f.query.mock.calls.map(([s]) => s)
+  expect(sql).toContain('INSERT INTO schema_migrations(version) VALUES(7)')
+  expect(sql).toContain('INSERT INTO schema_migrations(version) VALUES(8)')
+  expect(sql.some(s => String(s).includes('shared_backups'))).toBe(true)
+  expect(sql.some(s => String(s).includes('shared_orders'))).toBe(true)
+})
+it('does not apply version five twice', async () => {
+  const f = fixture([1, 2, 3, 4, 5])
+  await migrate(f.pool)
+  expect(f.query.mock.calls.map(([s]) => s)).not.toContain('INSERT INTO schema_migrations(version) VALUES(5)')
+})
+it('does not apply version four twice', async () => {
+  const f = fixture([1, 2, 3, 4])
+  await migrate(f.pool)
+  expect(f.query.mock.calls.some(([s]) => s.includes('ALTER TABLE operations ADD COLUMN'))).toBe(false)
+})
+it('retains original SQL failure when rollback itself fails', async () => {
+  const f = fixture([1, 2, 3], true, true)
+  await expect(migrate(f.pool)).rejects.toThrow('migration_failure')
+  expect(f.release).toHaveBeenCalledOnce()
+})
+it('rolls back on failed forward SQL without marking migration applied', async () => {
+  const f = fixture([1, 2, 3], true)
+  await expect(migrate(f.pool)).rejects.toThrow('migration_failure')
+  const sql = f.query.mock.calls.map(([s]) => s)
+  expect(sql).not.toContain('INSERT INTO schema_migrations(version) VALUES(4)')
+  expect(sql.at(-1)).toBe('ROLLBACK')
+  expect(f.release).toHaveBeenCalledOnce()
+})

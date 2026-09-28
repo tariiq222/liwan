@@ -1,0 +1,84 @@
+# Explicit opt-in overlay, never loaded by dedicated deployments.
+# Render/review with: docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.shared.yml config
+# NOT deployment authorization. Requires Compose supporting !reset (2.24.4+).
+services:
+  proxy:
+    volumes:
+      - ./shared/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+    networks: [edge]
+    depends_on:
+      guard: { condition: service_healthy }
+
+  guard:
+    image: nasq-guard:${NASQ_IMAGE_TAG:?set NASQ_IMAGE_TAG}
+    build:
+      context: ..
+      dockerfile: deploy/shared/Dockerfile
+    restart: unless-stopped
+    ports: !reset []
+    environment:
+      NASQ_TENANCY_MODE: shared
+      NASQ_TENANT_REGISTRY_PATH: /etc/nasq/registry.json
+      NASQ_SHARED_PROXY_TOKEN: ${NASQ_SHARED_PROXY_TOKEN:?set NASQ_SHARED_PROXY_TOKEN}
+      NASQ_SESSION_KEYS: ${NASQ_SESSION_KEYS:?set NASQ_SESSION_KEYS}
+      NASQ_SESSION_ACTIVE_KID: ${NASQ_SESSION_ACTIVE_KID:?set NASQ_SESSION_ACTIVE_KID}
+      NASQ_GUARD_ODOO_URL: http://odoo:8069
+      NASQ_GUARD_WEB_URL: http://web:3000
+      NASQ_GUARD_WS_URL: http://odoo:8072
+      NASQ_GUARD_PORT: "8080"
+    volumes:
+      - ${NASQ_TENANT_REGISTRY_DIR:?set NASQ_TENANT_REGISTRY_DIR}:/etc/nasq:ro
+    expose: ["8080"]
+    networks: [edge, guard_web, guard_odoo]
+    healthcheck:
+      test: ["CMD", "node", "deploy/shared/healthcheck.mjs"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    depends_on:
+      web: { condition: service_healthy }
+      odoo: { condition: service_healthy }
+
+  web:
+    build:
+      args:
+        NASQ_TENANCY_MODE: shared
+    ports: !reset []
+    networks: [guard_web]
+    environment:
+      NUXT_ODOO_URL: http://guard:8080
+      NUXT_ODOO_DB: ""
+      NUXT_PUBLIC_WS_URL: ""
+      NASQ_TENANCY_MODE: shared
+      NASQ_TENANT_REGISTRY_PATH: /etc/nasq/registry.json
+      NASQ_SHARED_PROXY_TOKEN: ${NASQ_SHARED_PROXY_TOKEN:?set NASQ_SHARED_PROXY_TOKEN}
+    volumes:
+      - ${NASQ_TENANT_REGISTRY_DIR:?set NASQ_TENANT_REGISTRY_DIR}:/etc/nasq:ro
+    # Liveness only: no tokenless HTTP auth bypass and no guard dependency cycle.
+    healthcheck:
+      test: ["CMD", "node", "-e", "const s=require('node:net').connect(3000,'127.0.0.1',()=>{s.end();process.exit(0)});s.setTimeout(2000,()=>process.exit(1));s.on('error',()=>process.exit(1))"]
+
+  odoo:
+    # Validation runs before the existing secure launcher; no CLI overrides.
+    entrypoint: ["/opt/venv/bin/python", "/opt/nasq/shared/launch_odoo.py"]
+    command: []
+    environment:
+      NASQ_TENANCY_MODE: shared
+    ports: !reset []
+    networks: [guard_odoo, database]
+    volumes:
+      - ${NASQ_SHARED_ODOO_CONFIG:?set NASQ_SHARED_ODOO_CONFIG to validated external secret config}:/etc/odoo/odoo.conf:ro
+      - ./shared/launch_odoo.py:/opt/nasq/shared/launch_odoo.py:ro
+      - ./shared/validate_odoo_config.py:/opt/nasq/shared/validate_odoo_config.py:ro
+      - odoo_data:/var/lib/odoo
+
+  db:
+    ports: !reset []
+    networks: [database]
+
+networks:
+  edge: {}
+  guard_web: { internal: true }
+  guard_odoo: { internal: true }
+  database: { internal: true }

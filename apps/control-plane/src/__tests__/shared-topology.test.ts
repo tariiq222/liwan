@@ -1,0 +1,55 @@
+import { execFileSync } from 'node:child_process'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import { runInNewContext } from 'node:vm'
+import { expect, it } from 'vitest'
+const root = resolve(import.meta.dirname, '../../../..')
+function rendered(shared: boolean) {
+  const args = ['compose', '--env-file', '/dev/null', '-f', 'deploy/docker-compose.yml']
+  if (shared) args.push('-f', 'deploy/docker-compose.shared.yml')
+  args.push('config', '--format', 'json')
+  return JSON.parse(execFileSync('docker', args, { cwd: root, encoding: 'utf8', env: {
+    PATH: process.env.PATH, HOME: process.env.HOME, NASQ_IMAGE_TAG: 'synthetic', DOMAIN: 'tenant.invalid',
+    ODOO_COMMIT: 'synthetic', DB_NAME: 'synthetic', DB_PASSWORD: 'synthetic-not-secret',
+    NASQ_SHARED_PROXY_TOKEN: 'synthetic-not-a-real-token', NASQ_SESSION_KEYS: '{}', NASQ_SESSION_ACTIVE_KID: 'test',
+    NASQ_TENANT_REGISTRY_DIR: '/synthetic/registry', NASQ_SHARED_ODOO_CONFIG: '/synthetic/odoo.conf',
+  } }))
+}
+it('renders dedicated defaults without shared services or build mode', () => {
+  const s = rendered(false).services
+  expect(s.guard).toBeUndefined()
+  expect(s.odoo.command).toEqual(['--workers', '2', '--proxy-mode'])
+  expect(s.web.environment.NUXT_ODOO_URL).toBe('http://odoo:8069')
+})
+it('renders shared network boundaries, commands, directory mounts and compiled mode', () => {
+  const s = rendered(true).services
+  for (const name of ['web', 'odoo', 'guard', 'db']) expect(s[name].ports ?? []).toEqual([])
+  expect(s.proxy.ports.map((p: { published: string }) => p.published).sort()).toEqual(['443', '80'])
+  expect(s.odoo.command ?? []).toEqual([])
+  expect(s.odoo.entrypoint).toEqual(['/opt/venv/bin/python', '/opt/nasq/shared/launch_odoo.py'])
+  expect(s.odoo.environment.NASQ_TENANCY_MODE).toBe('shared')
+  expect(Object.keys(s.proxy.networks)).toEqual(['edge'])
+  expect(Object.keys(s.web.networks)).toEqual(['guard_web'])
+  expect(Object.keys(s.odoo.networks).sort()).toEqual(['database', 'guard_odoo'])
+  expect(s.web.build.args.NASQ_TENANCY_MODE).toBe('shared')
+  expect(s.web.environment.NUXT_ODOO_URL).toBe('http://guard:8080')
+  for (const name of ['web', 'guard']) expect(s[name].volumes).toContainEqual(expect.objectContaining({ source: '/synthetic/registry', target: '/etc/nasq', read_only: true }))
+  expect(s.odoo.volumes).toContainEqual(expect.objectContaining({ source: '/synthetic/odoo.conf', target: '/etc/odoo/odoo.conf', read_only: true }))
+  expect(JSON.stringify(s.web.healthcheck)).not.toContain('/login')
+})
+function nuxt(mode: string) {
+  const source = readFileSync(resolve(root, 'apps/web/nuxt.config.ts'), 'utf8').replace('export default defineNuxtConfig(', 'globalThis.result = defineNuxtConfig(')
+  const context = { process: { env: { NASQ_TENANCY_MODE: mode, NODE_ENV: 'production' } }, defineNuxtConfig: (v: unknown) => v, result: undefined as any }
+  runInNewContext(source, context)
+  return context.result
+}
+it('only removes the seven dedicated proxy rules and enforces same-origin WS in shared compile', () => {
+  const dedicated = nuxt('dedicated'); const shared = nuxt('shared')
+  expect(Object.keys(dedicated.routeRules)).toHaveLength(7)
+  expect(Object.values(dedicated.routeRules).every((v: any) => v.proxy)).toBe(true)
+  expect(shared.routeRules).toEqual({})
+  expect(shared.runtimeConfig.public.wsUrl).toBe('')
+  expect(shared.runtimeConfig.odooDb).toBe('')
+  expect(shared.nitro.devProxy).toBeUndefined()
+  expect(() => nuxt('typo')).toThrow('invalid_tenancy_mode')
+})

@@ -77,6 +77,43 @@ class TestCommercialMode(TransactionCase):
         self.assertEqual(self.env['nasq.entitlement.service']._nasq_effective_state(record), 'suspended')
         self.assertFalse(record.support_access_enabled)
 
+    def test_independent_runtime_uses_persisted_local_policy(self):
+        record = self.independent()
+        record._nasq_initialize_legacy_policy(
+            self.env['nasq.feature.registry']._nasq_installed_module_ids(),
+        )
+        record.write({'status': 'active', 'support_access_enabled': False})
+        service = self.env['nasq.entitlement.service'].with_user(self.employee)
+        self.assertEqual(service._nasq_assert_lifecycle(write=True), 'active')
+        self.assertTrue(service._nasq_assert_login_allowed(self.employee))
+        self.assertFalse(service._nasq_session_forbidden(self.employee))
+        self.assertFalse(record.valid_until)
+
+    def test_independent_commercial_source_rejection_preserves_policy(self):
+        record = self.independent()
+        before = (record.status, record.policy_revision, record.features, record.valid_until)
+        with self.assertRaises(AccessError):
+            record._nasq_require_policy_source('control_plane')
+        self.assertEqual(
+            before, (record.status, record.policy_revision, record.features, record.valid_until),
+        )
+
+    def test_saas_rejects_local_policy_source_and_preserves_cutoff(self):
+        # Fixture-only conversion; same immutable production boundary as independent().
+        self.env.cr.execute("""
+            UPDATE nasq_tenant_profile SET commercial_mode='saas',
+                entitlement_source='control_plane', valid_until='2020-01-01'
+            WHERE id=%s
+        """, [self.profile.id])
+        self.profile.invalidate_recordset()
+        record = self.profile.sudo().with_context(**{OPERATOR_CONTEXT: True})
+        self.assertTrue(record._nasq_require_policy_source('control_plane'))
+        with self.assertRaises(AccessError):
+            record._nasq_require_policy_source('local_policy')
+        self.assertEqual(record.valid_until, date(2020, 1, 1))
+        record.write({'status': 'active'})
+        self.assertEqual(self.env['nasq.entitlement.service']._nasq_effective_state(record), 'expired')
+
     def test_sql_rejects_invalid_pair(self):
         with self.assertRaises(IntegrityError), self.cr.savepoint():
             self.cr.execute("UPDATE nasq_tenant_profile SET commercial_mode='non_saas', entitlement_source='control_plane' WHERE id=%s", [self.profile.id])

@@ -52,3 +52,7 @@ export type Tenant = z.infer<typeof tenantSchema>
 export type Operation = z.infer<typeof operationSchema>
 export type TenantCreate = z.infer<typeof tenantCreateSchema>
 export type OperationRequest = z.infer<typeof operationRequestSchema>
+
+// Shared multi-tenant provisioning contracts (t3). Subpath `@nasq/commercial-contracts/shared`
+// is the canonical import; this barrel re-export keeps root-package consumers working.
+export * from './shared/provisioning.js'

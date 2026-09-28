@@ -1,0 +1,1 @@
+{"schemaVersion":1,"snapshotRevision":1,"targets":[{"host":"t17.acceptance.test","tenantId":"t17","database":"synthetic_t17","filestore":"synthetic_t17","enabled":true,"registryRevision":1}]}

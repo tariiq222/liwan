@@ -42,6 +42,8 @@ function stopPolling() {
   pollTimer = undefined
 }
 
+const pollingPaused = computed(() => isActive.value && pollCount.value >= 24)
+
 function schedulePoll() {
   stopPolling()
   if (!import.meta.client || !isActive.value || pollCount.value >= 24) return
@@ -51,6 +53,12 @@ function schedulePoll() {
     await refresh()
     schedulePoll()
   }, 5000)
+}
+
+async function manualRefresh() {
+  pollCount.value = 0
+  await refresh()
+  schedulePoll()
 }
 
 watch(isActive, schedulePoll)
@@ -80,7 +88,7 @@ async function retry() {
   <SharedPageContainer width="list">
     <SharedPageHeader :title="t('vendor.operations.details')" :description="data?.id" :back-to="backTo">
       <template #actions>
-        <UButton color="neutral" variant="outline" icon="i-lucide-refresh-cw" :loading="pending" @click="refresh()">{{ t('vendor.common.refresh') }}</UButton>
+        <UButton color="neutral" variant="outline" icon="i-lucide-refresh-cw" :loading="pending" @click="manualRefresh">{{ t('vendor.common.refresh') }}</UButton>
       </template>
     </SharedPageHeader>
     <SharedPageState :loading="pending" :error="error" :empty="!pending && !error && !data" @retry="refresh">
@@ -116,7 +124,8 @@ async function retry() {
             </li>
           </ol>
           <p v-else class="text-sm text-muted">{{ t('vendor.operations.noEvents') }}</p>
-          <p v-if="isActive && pollCount < 24" class="mt-4 text-xs text-muted" role="status">{{ t('vendor.operations.autoRefreshHint') }}</p>
+          <p v-if="isActive && !pollingPaused" class="mt-4 text-xs text-muted" role="status">{{ t('vendor.operations.autoRefreshHint') }}</p>
+          <p v-if="pollingPaused" class="mt-4 text-xs text-muted" role="status">{{ t('vendor.operations.pollingPaused') }}</p>
         </UCard>
 
         <UCard v-if="data.result" class="lg:col-span-2">

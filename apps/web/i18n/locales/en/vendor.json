@@ -76,6 +76,7 @@
       "operationsTitle": "Queue an operation",
       "operationsHint": "The service validates and queues each request; queued work is not shown as completed.",
       "operationsDisabledHint": "Operations are disabled for this installation. An authorized manager must enable them first.",
+      "operationsUnavailableHint": "Available operations could not be confirmed. Refresh this installation before queuing an operation.",
       "enableOperations": "Enable operations",
       "disableOperations": "Disable operations",
       "confirmDisable": "Disable operations for this installation?",
@@ -167,6 +168,7 @@
       "backupUnverified": "The backup was captured but has not been verified.",
       "backupUnverifiedHint": "This backup is marked UNVERIFIED. It is not evidence of a successful restore.",
       "autoRefreshHint": "This page checks for progress for up to two minutes.",
+      "pollingPaused": "Automatic checks stopped after two minutes. Refresh manually to check again; automatic checks will resume for up to two minutes.",
       "stages": {
         "claimed": "Execution started",
         "entitlement_commit": "Policy saved",

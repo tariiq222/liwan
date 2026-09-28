@@ -1,4 +1,4 @@
-> **سياق تاريخي للمنتج والتنفيذ.** قرارات الشكل القديمة هنا ليست تعليمات واجهة؛ اتبع [DESIGN.md](../../../DESIGN.md). تبقى العقود وقيود الأمن والبيانات خاضعة للمصادر الحالية في المشروع.
+> **سياق تاريخي للمنتج والتنفيذ.** قرارات الشكل القديمة هنا ليست تعليمات واجهة؛ اتبع [DESIGN.md](../../../DESIGN.md). افتراض «لا SaaS متعدد العملاء/نشر مستقل لكل عميل» في هذا الملف **ليس سياسة الاستضافة الحالية**: الهدف المعتمد SaaS ذاتي الخدمة بخدمات مشتركة مع قاعدة وملفات منفصلة لكل عميل، وحكومة غير SaaS؛ انظر [العقد الأحدث](nasq-shared-saas-and-sovereign-deployment.md). هذا التنبيه لا يعني اكتمال التنفيذ. تبقى قيود الأمن والبيانات التي لم تُنسخ سارية.
 
 # nasq — Platform Design Spec
 
@@ -24,8 +24,8 @@ not the scope.
 
 | Question | Decision |
 |---|---|
-| Business model | Productized enterprise software: annual platform license (Core / Professional / Enterprise packages by module set) + one-time implementation + managed hosting/support. No per-user pricing. No multi-tenant SaaS. |
-| Delivery | One independent deployment per customer: own domain, Nuxt, Odoo, PostgreSQL, files, backups. Managed (we host) or On-prem (they host, we ship updates). |
+| Business model (historical; superseded) | Earlier plan: annual license and implementation, no multi-tenant SaaS. **Not the current product direction**; see [shared self-service SaaS contract](nasq-shared-saas-and-sovereign-deployment.md). |
+| Delivery (historical; superseded as primary SaaS) | Earlier plan: independent Nuxt/Odoo/PostgreSQL/files deployment per customer. Current templates still resemble this, but primary SaaS targets shared application services and separate DB/filestore per tenant; dedicated/customer-hosted remain separate lanes. |
 | Engine | Odoo 19 CE pinned to `origin/19.0`, fixes pulled on our schedule. Zero modifications inside `odoo/` or `addons/`. Everything in our addons. Major migration every ~3 years via OpenUpgrade. |
 | Frontend | Nuxt 4 + Vue 3 + TypeScript + Tailwind v4 + shadcn-vue. PWA. Arabic-first RTL, English secondary. |
 | Topology | Single origin behind a reverse proxy. Nuxt at `/`, Odoo at `/api/v1`, `/web/content`, `/websocket`, `/odoo`. Session cookie only; no CORS, no bearer keys for humans. |
@@ -321,7 +321,7 @@ approval is implied.
 ## Out of scope (v1)
 
 Risks, initiatives, meetings, KPIs, Gantt, external/portal users, SSO, native
-app, accounting/invoicing, payroll, multi-tenancy, dark mode.
+app, accounting/invoicing, payroll, multi-tenancy, dark mode. **This is the historical v1 scope, not a ban on the later approved shared SaaS target.**
 
 ## Licensing
 

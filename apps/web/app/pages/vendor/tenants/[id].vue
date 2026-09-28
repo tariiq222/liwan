@@ -2,7 +2,9 @@
 import { buildVendorPolicy, type VendorFeatureValue } from '@/utils/vendorPolicy'
 import { safeReturnTo } from '@/utils/safeReturnTo'
 definePageMeta({ middleware: 'vendor', vendorCapability: 'vendor.read' })
-type Tenant = { id: string; name: string; commercial_mode: string; hosting_model: string; inventory_target: string; catalog_version: string | null; catalog_tier: string | null; status: string; desired_policy: Record<string, any> | null; observed_policy: Record<string, any> | null; policy_revision: number | null; health_checked_at: string | null; operations_enabled: boolean; created_at: string }
+type Tenant = { id: string; name: string; commercial_mode: string; hosting_model: string; inventory_target: string; catalog_version: string | null; catalog_tier: string | null; status: string; desired_policy: Record<string, any> | null; observed_policy: Record<string, any> | null; policy_revision: number | null; health_checked_at: string | null; operations_enabled: boolean; available_operations?: unknown; created_at: string }
+type TenantOperation = 'tenant.create' | 'tenant.inspect' | 'health' | 'backup' | 'tenant.entitle'
+const tenantOperationTypes = new Set<TenantOperation>(['tenant.create', 'tenant.inspect', 'health', 'backup', 'tenant.entitle'])
 type Catalog = { version: string; status: string; solution: { tiers?: { id: string; name: string; features?: string[]; limits?: Record<string, number> }[] } }
 const { t } = useI18n()
 const route = useRoute()
@@ -26,12 +28,17 @@ const featureKeys = computed(() => {
 })
 const currentFeatures = computed<Record<string, unknown>>(() => data.value?.observed_policy ?? data.value?.desired_policy ?? {})
 const expectedRevision = computed(() => data.value?.policy_revision ?? null)
+const availableOperations = computed<TenantOperation[]>(() => {
+  const operations = data.value?.available_operations
+  if (!Array.isArray(operations) || !operations.every((operation): operation is TenantOperation => typeof operation === 'string' && tenantOperationTypes.has(operation as TenantOperation))) return []
+  return [...new Set(operations)]
+})
 const canVendor = vendorContext.can
 const grantReason = ref('')
 const grantError = ref<unknown>(null)
 const grantBusy = ref(false)
 const confirmRevoke = ref(false)
-const actionType = ref('tenant.inspect')
+const actionType = ref<TenantOperation>('tenant.inspect')
 const reason = ref('')
 const actionError = ref<unknown>(null)
 const actionBusy = ref(false)
@@ -46,9 +53,9 @@ function policyValue(value: unknown): string {
   if (typeof value === 'boolean') return t(value ? 'vendor.common.enabled' : 'vendor.common.disabled')
   return String(value)
 }
-watch([data, selectedTier], () => {
+watch([data, selectedTier, availableOperations], () => {
   submitted.value = false
-  if (data.value) actionType.value = data.value.status === 'registered' ? 'tenant.create' : 'tenant.inspect'
+  if (!availableOperations.value.includes(actionType.value)) actionType.value = availableOperations.value[0] ?? 'tenant.inspect'
   for (const [key, kind] of featureKeys.value) {
     const current = currentFeatures.value[key]
     edits[key] = kind === 'boolean' ? current === true : typeof current === 'number' ? String(current) : ''
@@ -65,16 +72,22 @@ async function updateGrant(enabled: boolean) {
   if (!data.value || !canVendor('vendor.tenants.manage') || grantBusy.value || !grantReason.value.trim()) return
   grantBusy.value = true
   grantError.value = null
+  data.value = { ...data.value, available_operations: undefined }
   try {
-    data.value = await request<Tenant>(`tenants/${encodeURIComponent(id.value)}/operations-grant`, { method: 'POST', body: { enabled, reason: grantReason.value } })
+    await request<Tenant>(`tenants/${encodeURIComponent(id.value)}/operations-grant`, { method: 'POST', body: { enabled, reason: grantReason.value } })
+    await refresh()
     grantReason.value = ''
     confirmRevoke.value = false
-  } catch (cause) { grantError.value = cause }
-  finally { grantBusy.value = false }
+  } catch (cause) {
+    grantError.value = cause
+    // The request may have committed before a response failed; recover server truth.
+    await refresh().catch(() => {})
+  } finally { grantBusy.value = false }
 }
 
 async function enqueueOperation() {
   if (!data.value || !data.value.operations_enabled || !canVendor('vendor.operations.run') || actionBusy.value || !reason.value.trim()) return
+  if (!operationTypes.value.some(operation => operation.value === actionType.value)) return
   if (actionType.value === 'tenant.entitle' && expectedRevision.value === null) return
   actionBusy.value = true
   actionError.value = null
@@ -92,14 +105,14 @@ async function enqueueOperation() {
   finally { actionBusy.value = false }
 }
 
-const operationTypes = computed(() => [
-  { value: data.value?.status === 'registered' ? 'tenant.create' : 'tenant.inspect', label: t(data.value?.status === 'registered' ? 'vendor.operations.types.tenant.create' : 'vendor.operations.types.tenant.inspect') },
-  ...(data.value?.status === 'registered' ? [] : [
-    { value: 'health', label: t('vendor.operations.types.health') },
-    { value: 'backup', label: t('vendor.operations.types.backup') },
-    ...(selectedTier.value && data.value?.commercial_mode === 'saas' ? [{ value: 'tenant.entitle', label: t('vendor.operations.types.tenant.entitle') }] : []),
-  ]),
-])
+const operationLabels: Record<TenantOperation, string> = {
+  'tenant.create': 'vendor.operations.types.tenant.create',
+  'tenant.inspect': 'vendor.operations.types.tenant.inspect',
+  health: 'vendor.operations.types.health',
+  backup: 'vendor.operations.types.backup',
+  'tenant.entitle': 'vendor.operations.types.tenant.entitle',
+}
+const operationTypes = computed(() => availableOperations.value.map(value => ({ value, label: t(operationLabels[value]) })))
 const operationsNeedEnabling = computed(() => Boolean(data.value && !data.value.operations_enabled))
 </script>
 
@@ -137,8 +150,9 @@ const operationsNeedEnabling = computed(() => Boolean(data.value && !data.value.
         <UCard class="lg:col-span-2">
           <template #header><h2 class="font-semibold">{{ t('vendor.tenants.operationsTitle') }}</h2><p class="text-sm text-muted">{{ t('vendor.tenants.operationsHint') }}</p></template>
           <UAlert v-if="operationsNeedEnabling" color="neutral" variant="subtle" :title="t('vendor.tenants.operationsDisabledHint')" />
+          <UAlert v-else-if="!availableOperations.length" color="neutral" variant="subtle" :title="t('vendor.tenants.operationsUnavailableHint')" />
           <UAlert v-if="actionError" class="mb-4" color="error" variant="subtle" :title="t(fieldErrorKey(actionError))" />
-          <form v-if="canVendor('vendor.operations.run') && !operationsNeedEnabling" class="grid gap-4" @submit.prevent="enqueueOperation">
+          <form v-if="canVendor('vendor.operations.run') && !operationsNeedEnabling && availableOperations.length" class="grid gap-4" @submit.prevent="enqueueOperation">
             <UFormField :label="t('vendor.operations.type')" required><USelect v-model="actionType" :items="operationTypes" class="w-full sm:max-w-md" /></UFormField>
             <template v-if="actionType === 'tenant.entitle'">
               <p class="text-sm text-muted">{{ t('vendor.tenants.currentRevision', { revision: expectedRevision ?? t('vendor.common.unknown') }) }}</p>
@@ -151,7 +165,7 @@ const operationsNeedEnabling = computed(() => Boolean(data.value && !data.value.
             <UFormField :label="t('vendor.tenants.fields.reason')" required><UTextarea v-model="reason" required maxlength="1000" class="w-full" /></UFormField>
             <div><UButton type="submit" :loading="actionBusy" :disabled="actionBusy || !reason.trim() || (actionType === 'tenant.entitle' && expectedRevision === null)">{{ t('vendor.operations.enqueue') }}</UButton></div>
           </form>
-          <p v-else-if="!operationsNeedEnabling" class="text-sm text-muted">{{ t('vendor.forbidden') }}</p>
+          <p v-else-if="!operationsNeedEnabling && availableOperations.length && !canVendor('vendor.operations.run')" class="text-sm text-muted">{{ t('vendor.forbidden') }}</p>
         </UCard>
 
         <UCard class="lg:col-span-2">

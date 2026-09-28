@@ -19,15 +19,15 @@ Boundaries this module preserves:
   never writes a journal row, while a world-dependent refusal returns a
   journal-legal ``conflict`` so it can never create a false quarantine.
 
-Deliberate limits of this slice (no live provisioning is claimed):
+Local acceptance boundaries:
 
-- The default ``_probe`` is **fail-closed**: it answers only the loopback port
-  check and refuses every other observation with ``preflight_unavailable``.
-  Approving and wiring the real observation probe belongs to the acceptance
-  slice, and tests always inject one.
-- ``tenant.entitle`` validates the descriptor and the lifecycle precondition and
-  then reports ``policy_application_not_wired``. The scratch entitlement script
-  is deliberately not reused, and no policy is written.
+- The default descriptor-bound DockerProbe validates a narrow four-service JSON
+  Compose bundle and pinned local images. Unknown observations fail closed.
+- Creation validates the enrolled catalog composition, initializes features and
+  independently reads them back before loopback HTTP checks can report ready.
+  That marker describes this local target, not a production release approval.
+- Existing-customer ``tenant.entitle`` remains unwired. Initial-create feature
+  application is a separate guarded script, not the scratch operator script.
 - ``backup``, ``restore`` and ``upgrade`` stay outside the allowlist.
 """
 from __future__ import annotations
@@ -36,11 +36,10 @@ import hashlib
 import json
 import os
 import re
-import socket
 import stat
-import subprocess
 import sys
 import tempfile
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import NoReturn
@@ -59,7 +58,26 @@ from .cli import (
 from .cli import (
     main as cli_main,
 )
+from .managed_credentials import (
+    CredentialsError,
+    build_credentials_script,
+    build_credentials_snapshot_script,
+    parse_credentials,
+)
+from .managed_health import health as managed_health
+from .managed_policy import PolicyError, parse_create_policy
+from .managed_probe import DockerProbe, ProbeError
+from .managed_process import ProcessError, local_docker_runner
+from .managed_process import run as bounded_run
+from .managed_secrets import resolve_secret
+from .managed_verify import (
+    VerificationError,
+    build_policy_script,
+    build_snapshot_script,
+    parse_snapshot,
+)
 
+CATALOG_PATH = Path(__file__).resolve().parents[2] / 'deploy/catalog/solutions/platform.json'
 INVENTORY_SCHEMA_VERSION = 3
 PROJECTION_SCHEMA_VERSION = 1
 MANAGED_INVENTORY_ENV = 'NASQ_MANAGED_INVENTORY'
@@ -100,14 +118,7 @@ RECEIPT_OPERATIONS = frozenset({'status'})
 JOURNALED_OPERATIONS = frozenset({'tenant.create', 'tenant.entitle'})
 RECEIPT_OPERATION_ID_RE = re.compile(r'^op_[a-f0-9]{32}$')
 JOURNAL_DIGEST_RE = re.compile(r'^[0-9a-f]{64}$')
-CREATE_MODULES = ('nasq_core', 'nasq_platform', 'nasq_api', 'nasq_pmo',
-                  'nasq_hr', 'nasq_chat')
 COMPOSE_ACTIONS = ('db.up', 'modules.install', 'services.up')
-CREATE_STEPS = (
-    ('db.up', 'database'),
-    ('modules.install', 'modules'),
-    ('services.up', 'services'),
-)
 
 DOCUMENT_KEYS = frozenset({'schema_version', 'targets'})
 TARGET_KEYS = frozenset({
@@ -511,7 +522,7 @@ def preflight(descriptor, *, probe, state, target_id):
     return None
 
 
-def build_compose_argv(descriptor, action):
+def build_compose_argv(descriptor, action, *, modules=None):
     """Build one bounded Compose argv from a closed action registry."""
     if action not in COMPOSE_ACTIONS:
         _fail(EXIT_INVALID_INPUT, 'invalid_input', 'argv',
@@ -525,11 +536,17 @@ def build_compose_argv(descriptor, action):
     if action == 'db.up':
         argv = base + ['up', '-d', 'db']
     elif action == 'modules.install':
+        if (not isinstance(modules, list) or not modules
+                or any(not isinstance(item, str) or not re.fullmatch(r'nasq_[a-z0-9_]+', item)
+                       for item in modules)):
+            _fail(EXIT_INVALID_INPUT, 'policy_invalid', 'policy',
+                  'installation requires an explicitly validated module composition')
         argv = base + [
-            'run', '--rm', 'odoo',
+            'run', '--rm', '--no-deps', '-T', 'odoo',
             '-d', resources['db_name'],
-            '-i', ','.join(CREATE_MODULES),
-            '--stop-after-init',
+            '-i', ','.join(modules),
+            '--without-demo=all', '--no-http', '--workers=0',
+            '--max-cron-threads=0', '--stop-after-init',
         ]
     else:
         argv = base + ['up', '-d']
@@ -573,47 +590,164 @@ def _record(state, target_id, descriptor, fields, lifecycle, stage, clock):
     })
 
 
-def execute_steps(descriptor, *, runner, state, target_id, operation_id,
-                  fields, secrets, clock):
-    """Run the bounded provisioning steps; never destroy what exists.
+def _verification_failed(code):
+    raise VerificationError(code)
 
-    No step may emit a destructive subcommand. On failure the resources are left
-    in place, the failure stage is preserved, and the outcome is reported as
-    uncertain so a later reconciliation can settle it.
-    """
+
+def _compose_base(descriptor):
+    resources = descriptor['resource_refs']
+    return ['docker', 'compose', '-p', resources['project'], '-f', resources['compose_file']]
+
+
+def _shell_argv(descriptor, *, credentials=False):
+    database = descriptor['resource_refs']['db_name']
+    secret_env = ['-e', 'NASQ_ADMIN_PASSWORD'] if credentials else []
+    return _compose_base(descriptor) + ['run', '--rm', '--no-deps', '-T'] + secret_env + [
+        'odoo', 'shell',
+        '-d', database, '--db-filter=^' + database + '$', '--no-http',
+        '--workers=0', '--max-cron-threads=0',
+    ]
+
+
+def _http_health(descriptor, *, runner):
+    """Verify exact running container identities and loopback product responses."""
+    return managed_health(descriptor, runner=runner)
+
+
+def _read_only_shell_argv(descriptor):
+    """Exec an Odoo shell in the enrolled running service without creating a container."""
+    database = descriptor['resource_refs']['db_name']
+    return _compose_base(descriptor) + [
+        'exec', '-T', 'odoo', 'odoo', 'shell',
+        '-d', database, '--db-filter=^' + database + '$', '--no-http',
+        '--workers=0', '--max-cron-threads=0',
+    ]
+
+
+def execute_steps(descriptor, *, runner, state, target_id, operation_id,
+                  fields, secrets, clock, create_policy):
+    """Create only a new target; verify independently before marking provisioned."""
     del operation_id
     env = _child_env(secrets)
+    database = descriptor['resource_refs']['db_name']
+    stage = 'database'
     try:
-        for action, stage in CREATE_STEPS:
-            argv = build_compose_argv(descriptor, action)
-            code, _out, _err = runner(argv, env, None)
-            if code != 0:
-                _record(state, target_id, descriptor, fields, 'quarantined', stage, clock)
-                return {'status': 'needs_intervention', 'stage': stage,
-                        'code': 'provisioning_interrupted'}
-    except OSError:
-        _record(state, target_id, descriptor, fields, 'quarantined', 'runner_failed', clock)
-        raise
+        code, _, _ = runner(build_compose_argv(descriptor, 'db.up'), env, None)
+        if code != 0:
+            _verification_failed('policy_script_failed')
+        stage = 'database_readiness'
+        ready = False
+        for _attempt in range(30):
+            code, _, _ = runner(_compose_base(descriptor) + [
+                'exec', '-T', 'db', 'pg_isready', '-h', '127.0.0.1', '-p', '5432',
+                '-U', 'odoo', '-d', database,
+            ], env, None)
+            if code == 0:
+                ready = True
+                break
+            time.sleep(0.2)
+        if not ready:
+            _verification_failed('policy_script_failed')
+        stage = 'modules'
+        code, _, _ = runner(build_compose_argv(
+            descriptor, 'modules.install', modules=create_policy['modules']), env, None)
+        if code != 0:
+            _verification_failed('policy_script_failed')
+        stage = 'initial_policy'
+        code, output, _ = runner(_shell_argv(descriptor), env,
+                                 build_policy_script(create_policy, database))
+        if code != 0:
+            _verification_failed('policy_script_failed')
+        applied = parse_snapshot(output, create_policy, database)
+        stage = 'policy_readback'
+        code, output, _ = runner(_shell_argv(descriptor), env, build_snapshot_script(database))
+        if code != 0:
+            _verification_failed('snapshot_invalid')
+        observed = parse_snapshot(output, create_policy, database)
+        if observed['policy_revision'] != applied['policy_revision'] or observed['policy_revision'] != 1:
+            _verification_failed('profile_invalid')
+        stage = 'credentials'
+        code, output, _ = runner(_shell_argv(descriptor, credentials=True), env,
+                                 build_credentials_script(database))
+        if code != 0:
+            _verification_failed('snapshot_invalid')
+        parse_credentials(output, database)
+        stage = 'credential_readback'
+        code, output, _ = runner(_shell_argv(descriptor, credentials=True), env,
+                                 build_credentials_snapshot_script(database))
+        if code != 0:
+            _verification_failed('snapshot_invalid')
+        parse_credentials(output, database, expected_changed=False)
+        stage = 'services'
+        code, _, _ = runner(build_compose_argv(descriptor, 'services.up'), env, None)
+        if code != 0:
+            _verification_failed('policy_script_failed')
+        stage = 'health'
+        if not _http_health(descriptor, runner=runner):
+            _verification_failed('snapshot_invalid')
+    except (OSError, VerificationError, CredentialsError):
+        _record(state, target_id, descriptor, fields, 'quarantined', stage, clock)
+        return {'status': 'needs_intervention', 'stage': stage,
+                'code': 'provisioning_unverified'}
     _record(state, target_id, descriptor, fields, 'provisioned', 'provisioned', clock)
-    return {'status': 'ok', 'stage': 'provisioned', 'code': None}
+    return {'status': 'ok', 'stage': 'provisioned', 'code': None, 'profile': observed}
 
 
 def _run_mutation(fields, target_id, descriptor, state, probe, resolver, runner,
-                  clock, operation_id):
+                  clock, operation_id, create_policy):
     operation = fields['operation']
     lifecycle = observed_lifecycle(None, state, target_id, descriptor)
     required = 'reserved' if operation == 'tenant.create' else 'provisioned'
     if lifecycle != required:
         _fail(EXIT_CONFLICT, 'lifecycle_conflict', 'lifecycle',
               'the target lifecycle does not allow this operation')
-    conflict = preflight(descriptor, probe=probe, state=state, target_id=target_id)
+    if runner is _subprocess:
+        try:
+            runner = local_docker_runner()
+        except ProcessError as error:
+            _fail(EXIT_CONFLICT, error.code, 'preflight',
+                  'a local Docker endpoint could not be verified')
+        if isinstance(probe, DockerProbe):
+            probe.runner = runner
+    try:
+        conflict = preflight(descriptor, probe=probe, state=state, target_id=target_id)
+    except ProbeError as error:
+        _fail(EXIT_CONFLICT, error.code, 'preflight',
+              'managed resource observation is unavailable or unsafe')
     if conflict is not None:
         _fail(EXIT_CONFLICT, conflict, 'preflight',
               'the observed target world conflicts with the immutable enrollment')
     secrets = _resolve_secrets(descriptor, resolver)
+    guarded_runner = runner
+    if isinstance(probe, DockerProbe):
+        try:
+            input_snapshot = probe.validate_runtime_inputs(secrets)
+        except ProbeError as error:
+            _fail(EXIT_CONFLICT, error.code, 'preflight',
+                  'managed runtime inputs do not match the approved secret bindings')
+
+        def guarded_runner(argv, env=None, stdin_text=None):
+            try:
+                probe.assert_unchanged(input_snapshot)
+            except ProbeError:
+                _verification_failed('snapshot_invalid')
+            return runner(argv, env, stdin_text)
+    # Close the observation window as far as a non-atomic external probe can:
+    # repeat every preflight check after secret/input preparation, immediately
+    # before db.up. Only this confirmed pre-effect refusal is a clean conflict;
+    # once the runner starts, uncertain outcomes remain quarantined.
+    try:
+        conflict = preflight(descriptor, probe=probe, state=state, target_id=target_id)
+    except ProbeError as error:
+        _fail(EXIT_CONFLICT, error.code, 'preflight',
+              'managed resource recheck is unavailable or unsafe')
+    if conflict is not None:
+        _fail(EXIT_CONFLICT, conflict, 'preflight',
+              'the rechecked target world conflicts with the immutable enrollment')
     outcome = execute_steps(
-        descriptor, runner=runner, state=state, target_id=target_id,
+        descriptor, runner=guarded_runner, state=state, target_id=target_id,
         operation_id=operation_id, fields=fields, secrets=secrets, clock=clock,
+        create_policy=create_policy,
     )
     if outcome['status'] != 'ok':
         return _payload(
@@ -623,22 +757,155 @@ def _run_mutation(fields, target_id, descriptor, state, probe, resolver, runner,
                    'message': 'the provisioning outcome requires inspection'},
         )
     return _payload(fields, 'ok', 'provisioned', changed=True,
-                    lifecycle='provisioned', deployment_ready=False)
+                    lifecycle='provisioned', deployment_ready=True,
+                    policy_verified=True, profile=outcome['profile'],
+                    policy_revision=outcome['profile']['policy_revision'])
 
 
-def _read_only(fields, operation, target_id, descriptor, state):
-    lifecycle = observed_lifecycle(None, state, target_id, descriptor)
+def _catalog_policies(descriptor):
+    """Return the bounded set of catalog-authorized SaaS compositions.
+
+    The enrollment binds the catalog bytes, not a mutable tier label. Readback is
+    therefore accepted only when it matches one exact base-plus-tier policy.
+    """
+    try:
+        raw = CATALOG_PATH.read_bytes()
+        if 'sha256:' + hashlib.sha256(raw).hexdigest() != descriptor['release_ref']['catalog_sha256']:
+            return []
+        catalog = json.loads(raw)
+        base = catalog['base_modules']
+        policies = []
+        for tier in catalog['tiers']:
+            modules = base + tier['modules']
+            features = {'users.limit': None, 'storage.limit_mb': None}
+            for feature in tier['features']:
+                kind, key = feature.split(':', 1)
+                features[key] = True if kind == 'boolean' else None
+            policy = {'schema_version': 1, 'channel': 'control_plane',
+                      'modules': modules, 'features': features}
+            encoded = json.dumps(policy, sort_keys=True, separators=(',', ':')).encode()
+            validated = parse_create_policy(
+                encoded, catalog_path=CATALOG_PATH,
+                catalog_sha256=descriptor['release_ref']['catalog_sha256'],
+                commercial_mode=descriptor['commercial_mode'])
+            policies.append(validated)
+        return policies
+    except (OSError, ValueError, KeyError, TypeError, PolicyError):
+        return []
+
+
+def _creation_policy(descriptor, state, target_id):
+    """Resolve the exact original composition from the durable create receipt."""
+    record = state.read(target_id)
+    request_id = record.get('request_id') if isinstance(record, dict) else None
+    if not isinstance(request_id, str) or not request_id:
+        return None
+    try:
+        row = journal.OperationJournal(os.environ[STATE_ENV]).read_receipt(target_id, request_id)
+    except (KeyError, journal.TargetBusy, journal.JournalUnsafe, OSError, ValueError):
+        return None
+    if (not isinstance(row, dict) or row.get('operation') != 'tenant.create'
+            or row.get('status') != 'ok' or row.get('fingerprint') != descriptor['descriptor_digest']
+            or not isinstance(row.get('receipt'), dict)):
+        return None
+    receipt = row['receipt']
+    if (receipt.get('target') != target_id or receipt.get('request_id') != request_id
+            or receipt.get('operation') != 'tenant.create'
+            or receipt.get('status') != 'ok' or receipt.get('policy_verified') is not True
+            or receipt.get('deployment_ready') is not True):
+        return None
+    profile = receipt.get('profile')
+    if not isinstance(profile, dict):
+        return None
+    for policy in _catalog_policies(descriptor):
+        try:
+            verified = parse_snapshot(
+                'NASQ_MANAGED_POLICY:' + json.dumps(profile, allow_nan=False),
+                policy, descriptor['resource_refs']['db_name'])
+            if verified['policy_revision'] == 1:
+                return policy
+        except (VerificationError, TypeError, ValueError):
+            continue
+    return None
+
+
+def _read_profile(descriptor, target_id, state, runner):
+    """Read and bind to DB, immutable descriptor and the original create tier."""
+    database = descriptor['resource_refs']['db_name']
+    policy = _creation_policy(descriptor, state, target_id)
+    if policy is None:
+        return None
+    env = {key: os.environ[key] for key in ('PATH', 'HOME', 'LANG') if key in os.environ}
+    try:
+        code, output, _ = runner(_read_only_shell_argv(descriptor), env,
+                                 build_snapshot_script(database))
+        if code != 0:
+            return None
+        profile = parse_snapshot(output, policy, database)
+        if profile['policy_revision'] < 1:
+            return None
+        return profile
+    except (OSError, ValueError, TypeError, VerificationError):
+        return None
+
+
+def _bound_lifecycle(state, target_id, descriptor):
+    record = state.read(target_id)
+    if record is None:
+        return 'reserved'
+    if (record.get('schema_version') != PROJECTION_SCHEMA_VERSION
+            or record.get('target_id') != target_id
+            or record.get('descriptor_digest') != descriptor['descriptor_digest']
+            or record.get('lifecycle') not in LIFECYCLES):
+        return 'quarantined'
+    return observed_lifecycle(None, state, target_id, descriptor)
+
+
+def _read_only(fields, operation, target_id, descriptor, state, runner):
+    lifecycle = _bound_lifecycle(state, target_id, descriptor)
     if operation == 'tenant.preflight':
         return EXIT_OK, _payload(fields, 'validated_input', 'preflight',
                                  lifecycle=lifecycle, execution_ready=False)
-    if operation == 'health':
+    if lifecycle != 'provisioned':
         return EXIT_CONFLICT, _payload(
-            fields, 'conflict', 'health', lifecycle=lifecycle,
-            error={'code': 'health_unverified',
-                   'message': 'managed target health has not been probed'},
+            fields, 'conflict', operation, lifecycle=lifecycle,
+            error={'code': 'lifecycle_conflict',
+                   'message': 'read-only verification requires a provisioned target'},
         )
-    return EXIT_OK, _payload(fields, 'ok', 'snapshot', lifecycle=lifecycle,
-                             descriptor_revision=descriptor['revision'])
+    if runner is _subprocess:
+        try:
+            runner = local_docker_runner()
+        except ProcessError:
+            return EXIT_CONFLICT, _payload(
+                fields, 'conflict', operation, lifecycle=lifecycle,
+                error={'code': 'health_unverified' if operation == 'health' else 'snapshot_invalid',
+                       'message': 'the approved local Docker endpoint is unavailable'},
+            )
+    if operation == 'health':
+        try:
+            healthy = _http_health(descriptor, runner=runner)
+        except Exception:  # noqa: BLE001 - observation diagnostics are private
+            healthy = False
+        if not healthy:
+            return EXIT_CONFLICT, _payload(
+                fields, 'conflict', 'health', lifecycle=lifecycle,
+                error={'code': 'health_unverified',
+                       'message': 'fresh container and HTTP observations did not verify'},
+            )
+    profile = _read_profile(descriptor, target_id, state, runner)
+    if profile is None:
+        stage = 'health' if operation == 'health' else 'snapshot'
+        return EXIT_CONFLICT, _payload(
+            fields, 'conflict', stage, lifecycle=lifecycle,
+            error={'code': 'snapshot_invalid',
+                   'message': 'independent target policy readback did not verify'},
+        )
+    return EXIT_OK, _payload(
+        fields, 'ok', 'health' if operation == 'health' else 'snapshot',
+        lifecycle=lifecycle, profile=profile, policy_revision=profile['policy_revision'],
+        fingerprint=descriptor['descriptor_digest'], policy_verified=True,
+        **({'health_verified': True} if operation == 'health' else {}),
+    )
 
 
 def _request_identity(fields):
@@ -722,10 +989,28 @@ def _status(fields, target_id, descriptor, fingerprint, state_root):
               'the stored receipt was created for a different enrollment descriptor')
     receipt_fields = dict(fields)
     receipt_fields['operation'] = row['operation']
+    verified = {}
+    if (row['status'] == 'ok' and body.get('policy_verified') is True
+            and body.get('deployment_ready') is True):
+        try:
+            policy = parse_create_policy(
+                policy_bytes, catalog_path=CATALOG_PATH,
+                catalog_sha256=descriptor['release_ref']['catalog_sha256'],
+                commercial_mode=descriptor['commercial_mode'])
+            profile = parse_snapshot('NASQ_MANAGED_POLICY:' + json.dumps(body.get('profile')),
+                                     policy, descriptor['resource_refs']['db_name'])
+            if profile['policy_revision'] != 1:
+                _verification_failed('profile_invalid')
+            verified = {'policy_verified': True, 'deployment_ready': True,
+                        'profile': profile, 'policy_revision': profile['policy_revision']}
+        except (PolicyError, VerificationError, TypeError, ValueError):
+            _fail(EXIT_NEEDS_INTERVENTION, 'receipt_invalid', 'receipt',
+                  'the stored creation evidence is not verifiable')
     return exit_code, _payload(
         receipt_fields, row['status'], str(body.get('stage') or 'receipt'),
         operation_id=row['operation_id'], digest=row['digest'],
-        fingerprint=row['fingerprint'], receipt=body, policy_verified=False,
+        fingerprint=row['fingerprint'], receipt=body,
+        **(verified if verified else {'policy_verified': False}),
     )
 
 
@@ -743,6 +1028,8 @@ def _dispatch(fields, *, runner, probe, resolver, clock):
     document = load_managed_inventory(inventory_path)
     descriptor, fingerprint = descriptor_for(target_id, document)
     validate_descriptor(target_id, descriptor)
+    if probe is None:
+        probe = DockerProbe(descriptor, catalog_path=CATALOG_PATH, runner=runner)
     # Receipt operations are admissible before the target allowlist, the
     # commercial-mode gate and the static resource checks: reading durable
     # evidence must not depend on the target's current world.
@@ -753,7 +1040,7 @@ def _dispatch(fields, *, runner, probe, resolver, clock):
     _static_checks(target_id, descriptor, document, root)
     state = ManagedState(state_root)
     if operation in READ_ONLY_OPERATIONS:
-        return _read_only(fields, operation, target_id, descriptor, state)
+        return _read_only(fields, operation, target_id, descriptor, state, runner)
     if operation == 'tenant.entitle':
         lifecycle = observed_lifecycle(None, state, target_id, descriptor)
         if lifecycle != 'provisioned':
@@ -772,6 +1059,15 @@ def _dispatch(fields, *, runner, probe, resolver, clock):
                   'managed create requires a policy byte file')
         policy_bytes = _private_bytes(
             policy_path, 'policy file', max_bytes=POLICY_MAX_BYTES)
+        try:
+            create_policy = parse_create_policy(
+                policy_bytes, catalog_path=CATALOG_PATH,
+                catalog_sha256=descriptor['release_ref']['catalog_sha256'],
+                commercial_mode=descriptor['commercial_mode'],
+            )
+        except PolicyError as error:
+            _fail(EXIT_INVALID_INPUT, error.code, 'policy',
+                  'managed create policy must match the enrolled catalog composition')
         identity_fields = _request_identity(fields)
         digest = journal.payload_digest(
             identity_fields, [policy_bytes, _descriptor_bytes(target_id, descriptor)],
@@ -790,7 +1086,7 @@ def _dispatch(fields, *, runner, probe, resolver, clock):
         # as a journal-legal status, and its original exit code is carried out.
         try:
             return _run_mutation(fields, target_id, descriptor, state, probe,
-                                 resolver, runner, clock, operation_id)
+                                 resolver, runner, clock, operation_id, create_policy)
         except ManagedFailure as failure:
             refused['failure'] = failure
             uncertain = failure.exit_code == EXIT_NEEDS_INTERVENTION
@@ -827,7 +1123,7 @@ def managed_adapter(fields, *, runner=None, probe=None, resolver=None, clock=Non
         return _dispatch(
             fields,
             runner=runner if runner is not None else _subprocess,
-            probe=probe if probe is not None else _probe,
+            probe=probe,
             resolver=resolver if resolver is not None else _resolve_handle,
             clock=clock if clock is not None else _utc_now,
         )
@@ -846,43 +1142,13 @@ def managed_adapter(fields, *, runner=None, probe=None, resolver=None, clock=Non
 
 def _subprocess(argv, env=None, stdin_text=None):
     """Bounded child execution: argv list, no shell, capped output, hard timeout."""
-    with tempfile.TemporaryFile(mode='w+t', encoding='utf-8') as out:
-        try:
-            done = subprocess.run(
-                argv, input=stdin_text, text=True, stdout=out,
-                stderr=subprocess.DEVNULL, env=env, shell=False, check=False,
-                timeout=SUBPROCESS_TIMEOUT,
-            )
-        except (OSError, subprocess.TimeoutExpired):
-            return 124, '', ''
-        out.seek(0, os.SEEK_END)
-        out.seek(max(0, out.tell() - OUTPUT_LIMIT))
-        return done.returncode, out.read(), ''
-
-
-def _probe(check, value=None):
-    """Default observation probe.
-
-    Deliberately fail-closed for this slice: only the loopback port check is
-    implemented. Everything else refuses with ``preflight_unavailable`` so the
-    adapter can never act on an unobserved world. The approved observation probe
-    belongs to the acceptance slice, and tests always inject one.
-    """
-    if check == 'port_in_use':
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
-            probe.settimeout(0.5)
-            return probe.connect_ex(('127.0.0.1', int(value))) == 0
-    _fail(EXIT_CONFLICT, 'preflight_unavailable', 'preflight',
-          'the managed observation probe is not wired in this slice')
+    return bounded_run(argv, env, stdin_text, timeout=SUBPROCESS_TIMEOUT,
+                       output_limit=OUTPUT_LIMIT)
 
 
 def _resolve_handle(handle):
     """Default secret resolver: an operator-owned file holding the value."""
-    try:
-        raw = Path(handle).read_bytes()
-    except OSError as error:
-        raise OSError(f'secret handle is unavailable: {error.errno}') from error
-    return raw.decode('utf-8').strip()
+    return resolve_secret(handle)
 
 
 def _utc_now():

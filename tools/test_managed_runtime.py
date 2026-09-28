@@ -7,6 +7,11 @@ Package 2 plan (``docs/superpowers/plans/2026-09-23-saas-p2-managed-runtime-plan
 They are authored before ``tools/nasq_cli/managed_runtime.py`` exists, so the
 first run is the RED gate.
 
+The local managed-create acceptance slice now supplies a real catalog-bound
+core policy, database-readiness evidence, separate policy and credential
+apply/readback snapshots, and explicit synthetic health success. The original guard/refusal/replay assertions
+remain; success no longer means merely three zero-exit command results.
+
 Everything here is hermetic: temporary directories and injected
 runner/probe/resolver/clock doubles only. No Docker, network, database or
 service is touched, and no shared file is modified.
@@ -45,6 +50,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 # RED gate: the module under test does not exist yet. Detect absence precisely
 # (find_spec) so that a genuinely broken import inside the module raises loudly
@@ -68,6 +74,12 @@ IMAGE_PROXY = 'sha256:' + 'c' * 64
 DB_A = 'nasq_scratch_accept_a'
 DB_B = 'nasq_scratch_accept_b'
 PROJECT_A = 'nasq-saas-accept-a-local'
+CATALOG_PATH = Path(__file__).resolve().parents[1] / 'deploy/catalog/solutions/platform.json'
+CORE_POLICY = {
+    'schema_version': 1, 'channel': 'control_plane',
+    'modules': ['nasq_core', 'nasq_platform', 'nasq_api'],
+    'features': {'users.limit': None, 'storage.limit_mb': None},
+}
 
 INVENTORY_ENV = 'NASQ_MANAGED_INVENTORY'
 
@@ -104,9 +116,13 @@ class ForbiddenRunner:
 
 
 class RecordingRunner:
-    """Runner double recording bounded argv/env and returning scripted codes."""
+    """Record argv/env; simulate explicit apply and independent shell readback.
 
-    def __init__(self, results=None, default=(0, '', '')):
+    Only shell invocations yield the sentinel. Explicit scripted/default results
+    remain authoritative, so empty stdout cannot silently become policy evidence.
+    """
+
+    def __init__(self, results=None, default=None):
         self.calls = []
         self.results = list(results or [])
         self.default = default
@@ -115,7 +131,33 @@ class RecordingRunner:
         self.calls.append((list(argv), dict(env or {}), stdin_text))
         if self.results:
             return self.results.pop(0)
-        return self.default
+        if self.default is not None:
+            return self.default
+        if 'shell' in argv:
+            if not isinstance(stdin_text, str) or not stdin_text:
+                message = 'a simulated shell requires a script on stdin'
+                raise AssertionError(message)
+            if 'NASQ_MANAGED_CREDENTIALS:' in stdin_text:
+                if '\nsnapshot = False\n' in stdin_text:
+                    changed = True
+                elif '\nsnapshot = True\n' in stdin_text:
+                    changed = False
+                else:
+                    message = 'credential simulation requires an explicit snapshot mode'
+                    raise AssertionError(message)
+                credentials = {
+                    'database': argv[argv.index('-d') + 1],
+                    'changed': changed, 'verified': True,
+                }
+                return 0, 'NASQ_MANAGED_CREDENTIALS:' + json.dumps(credentials) + '\n', ''
+            snapshot = {
+                'database': argv[argv.index('-d') + 1],
+                'commercial_mode': 'saas', 'entitlement_source': 'control_plane',
+                'status': 'active', 'valid_until': None, 'policy_revision': 1,
+                'features': CORE_POLICY['features'], 'modules': CORE_POLICY['modules'],
+            }
+            return 0, 'NASQ_MANAGED_POLICY:' + json.dumps(snapshot) + '\n', ''
+        return 0, '', ''
 
     @property
     def argv(self):
@@ -167,6 +209,28 @@ class FakeProbe:
         return False
 
 
+class SequencedProbe(FakeProbe):
+    """Introduce one collision only on the second full resource observation."""
+
+    def __init__(self, catalog_sha, *, collision=('project_exists', PROJECT_A),
+                 fail_on_recheck=False):
+        super().__init__({'catalog_sha256': catalog_sha})
+        self.collision = collision
+        self.fail_on_recheck = fail_on_recheck
+        self.catalog_checks = 0
+
+    def __call__(self, check, value=None):
+        if check == 'catalog_sha256':
+            self.catalog_checks += 1
+        if self.catalog_checks == 2 and (check, value) == self.collision:
+            self.checks.append((check, value))
+            if self.fail_on_recheck:
+                code = 'preflight_unavailable'
+                raise managed_runtime.ProbeError(code)
+            return True
+        return super().__call__(check, value)
+
+
 class FakeResolver:
     """Secret-handle resolver double. Values are only ever returned, never logged."""
 
@@ -207,13 +271,13 @@ class ManagedRuntimeCase(unittest.TestCase):
         self.compose_file = self.root / 'compose.yml'
         self.compose_file.write_text('services: {}\n')
         self.catalog = self.root / 'catalog.json'
-        self.catalog.write_text(json.dumps({'schema_version': 1, 'base_modules': []}))
+        self.catalog.write_bytes(CATALOG_PATH.read_bytes())
         self.catalog_sha = 'sha256:' + hashlib.sha256(self.catalog.read_bytes()).hexdigest()
         self.secret_value = 'synthetic-secret-value-0123456789'
         self.admin_value = 'synthetic-admin-value-0123456789'
         self.inventory = self.root / 'managed-inventory.json'
         self.policy = self.root / 'policy.json'
-        self.policy.write_bytes(b'{"policy":"same"}\n')
+        self.policy.write_bytes(json.dumps(CORE_POLICY).encode('utf-8') + b'\n')
         self.base = self.descriptor()
         self.write_inventory({TARGET_A: self.base})
         self.old_env = {name: os.environ.get(name)
@@ -221,6 +285,12 @@ class ManagedRuntimeCase(unittest.TestCase):
         os.environ[INVENTORY_ENV] = str(self.inventory)
         os.environ[operator.STATE_ENV] = str(self.state)
         self.addCleanup(self.restore_env)
+        # Every accidental live health call is forbidden. Successful-create
+        # helpers override this guard locally with explicit synthetic evidence.
+        health_guard = patch.object(self.runtime(), '_http_health',
+                                    side_effect=AssertionError('live health is forbidden'))
+        self.health_guard = health_guard.start()
+        self.addCleanup(health_guard.stop)
 
     def restore_env(self):
         for name, value in self.old_env.items():
@@ -343,14 +413,46 @@ class ManagedRuntimeCase(unittest.TestCase):
 
     def successful_create(self, runner=None, request_id='req_0001'):
         runner = runner if runner is not None else RecordingRunner()
-        code, payload = self.adapter(
-            self.fields('tenant.create', request_id=request_id), runner=runner)
+        with patch.object(self.runtime(), '_http_health', return_value=True) as health:
+            code, payload = self.adapter(
+                self.fields('tenant.create', request_id=request_id), runner=runner)
         self.assertEqual(code, 0, payload)
+        health.assert_called_once()
+        self.assertEqual(health.call_args.args[0]['resource_refs']['db_name'], DB_A)
+        self.assertEqual(len(runner.calls), 8)
+        self.assertIn('pg_isready', runner.argv[1])
+        install = runner.argv[2]
+        self.assertEqual(install[install.index('-i') + 1], ','.join(CORE_POLICY['modules']))
+        shell_calls = [call for call in runner.calls if 'shell' in call[0]]
+        self.assertEqual(len(shell_calls), 4, 'policy and credentials each need apply and readback')
+        self.assertNotEqual(shell_calls[0][2], shell_calls[1][2])
+        self.assertIn('OPERATOR_CONTEXT', shell_calls[0][2])
+        self.assertNotIn('OPERATOR_CONTEXT', shell_calls[1][2])
+        for call in shell_calls[:2]:
+            self.assertIn('NASQ_MANAGED_POLICY:', call[2])
+            self.assertNotIn('-e', call[0])
+        for call in shell_calls[2:]:
+            argv, env, script = call
+            self.assertIn('NASQ_MANAGED_CREDENTIALS:', script)
+            self.assertEqual(argv[argv.index('-e') + 1], 'NASQ_ADMIN_PASSWORD')
+            self.assertLess(argv.index('-e'), argv.index('odoo'))
+            self.assertEqual(env['NASQ_ADMIN_PASSWORD'], self.admin_value)
+            for secret in (self.secret_value, self.admin_value):
+                self.assertNotIn(secret, ' '.join(argv))
+                self.assertNotIn(secret, script)
+        self.assertIn('\nsnapshot = False\n', shell_calls[2][2])
+        self.assertIn('\nsnapshot = True\n', shell_calls[3][2])
+        self.assertIn("_nasq_access_write({'password': secret}", shell_calls[2][2])
+        self.assertNotIn('_nasq_access_write', shell_calls[3][2])
+        self.assertIn('SET TRANSACTION READ ONLY', shell_calls[3][2])
+        self.assertEqual(runner.argv[-1][-2:], ['up', '-d'])
+        self.assertIs(payload['policy_verified'], True)
+        self.assertEqual(payload['profile']['features'], CORE_POLICY['features'])
         return code, payload, runner
 
     def failed_create(self, runner=None, request_id='req_0001'):
         runner = runner if runner is not None else RecordingRunner(
-            results=[(0, '', ''), (1, 'boom', '')])
+            results=[(0, '', ''), (0, '', ''), (1, 'boom', '')])
         return self.adapter(self.fields('tenant.create', request_id=request_id), runner=runner)
 
     def error_code(self, payload):
@@ -635,6 +737,63 @@ class PreflightCollisionCase(ManagedRuntimeCase):
         self.assertEqual(payload['status'], 'conflict')
         self.assertNotIn(self.secret_value, json.dumps(payload))
 
+    def test_new_resource_after_initial_preflight_refuses_before_db_up(self):
+        collisions = (
+            ('database_exists', DB_A, 'database_exists'),
+            ('project_exists', PROJECT_A, 'project_shared'),
+            ('volume_exists', f'{PROJECT_A}-db', 'volume_shared'),
+            ('network_exists', f'{PROJECT_A}-private', 'network_shared'),
+            ('port_in_use', 55433, 'port_shared'),
+        )
+        for check, value, expected in collisions:
+            with self.subTest(check=check):
+                probe = SequencedProbe(self.catalog_sha, collision=(check, value))
+                runner = ForbiddenRunner()
+                code, payload = self.adapter(
+                    self.fields('tenant.create', request_id=f'req_race_{check}'),
+                    runner=runner, probe=probe)
+                self.assertEqual(code, 4, payload)
+                self.assertEqual(self.error_code(payload), expected)
+                self.assertEqual(payload['status'], 'conflict')
+                self.assertIs(payload['changed'], False)
+                self.assertEqual(payload['stage'], 'preflight')
+                self.assertEqual(probe.catalog_checks, 2, 'complete preflight must rerun')
+                self.assertEqual(runner.calls, 0)
+                self.assertIsNone(self.projection())
+                self.assertEqual(self.unresolved_journal_rows(), [])
+        self.assertEqual([row[3] for row in self.journal_rows()], ['conflict'] * 5)
+
+    def test_recheck_probe_failure_is_no_effect_conflict(self):
+        probe = SequencedProbe(self.catalog_sha, fail_on_recheck=True)
+        payload = self.refuse(4, 'preflight_unavailable', probe=probe)
+        self.assertEqual(payload['status'], 'conflict')
+        self.assertIs(payload['changed'], False)
+        self.assertEqual(probe.catalog_checks, 2)
+        self.assertEqual(self.journal_rows()[0][3], 'conflict')
+        self.assertIsNone(self.projection())
+
+    def test_complete_recheck_precedes_first_runner_call(self):
+        probe = self.probe()
+        observed_at_first_effect = []
+        recording = RecordingRunner()
+
+        def runner(argv, env=None, stdin_text=None):
+            if not observed_at_first_effect:
+                observed_at_first_effect.extend(probe.checks)
+            return recording(argv, env, stdin_text)
+
+        with patch.object(self.runtime(), '_http_health', return_value=True):
+            code, payload = self.adapter(self.fields('tenant.create'),
+                                         runner=runner, probe=probe)
+        self.assertEqual(code, 0, payload)
+        checks = [name for name, _value in observed_at_first_effect]
+        self.assertEqual(checks.count('catalog_sha256'), 2)
+        for name in ('image_identity', 'compose_file', 'database_exists',
+                     'project_exists', 'volume_exists', 'network_exists', 'port_in_use'):
+            self.assertEqual(checks.count(name),
+                             {'image_identity': 6, 'port_in_use': 6}.get(name, 2))
+        self.assertEqual(recording.argv[0][-3:], ['up', '-d', 'db'])
+
 
 # --------------------------------------------------------------------------
 # T-28..T-30, T-48 refusal semantics and the exit-code contract
@@ -687,8 +846,7 @@ class RefusalSemanticsCase(ManagedRuntimeCase):
         self.assertEqual(code, 3, payload)
         self.write_inventory({TARGET_A: self.base})
         runner = RecordingRunner()
-        code, payload = self.adapter(
-            self.fields('tenant.create', request_id='req_phase_a'), runner=runner)
+        code, payload, _ = self.successful_create(runner=runner, request_id='req_phase_a')
         self.assertEqual(code, 0, payload)
         self.assertTrue(runner.argv)
 
@@ -915,7 +1073,10 @@ class StatusReceiptCase(ManagedRuntimeCase):
         self.assertEqual(payload['fingerprint'], self.base['descriptor_digest'])
         self.assertTrue(payload['digest'])
         self.assertEqual(payload['receipt']['stage'], 'provisioned')
-        self.assertIs(payload['policy_verified'], False)
+        self.assertIs(payload['policy_verified'], True)
+        self.assertIs(payload['deployment_ready'], True)
+        self.assertEqual(payload['profile']['features'], CORE_POLICY['features'])
+        self.assertEqual(payload['profile']['policy_revision'], 1)
 
     def test_status_requires_independent_policy_bytes_and_rejects_mismatch(self):
         self.successful_create()
@@ -928,7 +1089,7 @@ class StatusReceiptCase(ManagedRuntimeCase):
         self.assertEqual(probe.checks, [])
 
         other = self.root / 'other-policy.json'
-        other.write_bytes(b'{"policy":"different"}\n')
+        other.write_bytes(self.policy.read_bytes() + b' ')
         before_rows, before_projection = self.journal_rows(), self.projection()
         code, payload = self.adapter(
             self.status_fields(policy_path=other), runner=runner, probe=probe)
@@ -959,7 +1120,25 @@ class StatusReceiptCase(ManagedRuntimeCase):
         self.assertEqual(self.journal_rows(), rows_before)
         self.assertEqual(self.raw_journal_row('req_0001'), receipt_before)
         self.assertEqual(payload['operation'], 'tenant.create')
+        self.assertIs(payload['policy_verified'], True)
+        self.assertIs(payload['deployment_ready'], True)
+        self.assertEqual(payload['profile']['features'], CORE_POLICY['features'])
+        self.assertEqual(payload['profile']['policy_revision'], 1)
+
+    def test_legacy_incomplete_receipt_stays_unverified_and_read_only(self):
+        self.seed_journal_row('req_legacy')
+        before = self.raw_journal_row('req_legacy')
+        runner, probe = ForbiddenRunner(), ForbiddenProbe()
+        code, payload = self.adapter(self.status_fields('req_legacy'), runner=runner, probe=probe)
+        self.assertEqual(code, 0, payload)
         self.assertIs(payload['policy_verified'], False)
+        self.assertIsNot(payload.get('deployment_ready'), True)
+        self.assertNotIn('profile', payload)
+        self.assertEqual(self.raw_journal_row('req_legacy'), before)
+        self.assertIsNone(self.projection())
+        self.assertEqual(runner.calls, 0)
+        self.assertEqual(probe.checks, [])
+        self.health_guard.assert_not_called()
 
     def test_t65_status_missing_receipt_is_bounded(self):
         runner = ForbiddenRunner()
@@ -1078,7 +1257,7 @@ class ReplayIdempotencyCase(ManagedRuntimeCase):
 
     def test_policy_byte_change_with_same_request_id_conflicts(self):
         self.successful_create()
-        self.policy.write_bytes(b'{"policy":"changed"}\n')
+        self.policy.write_bytes(self.policy.read_bytes() + b' ')
         runner = ForbiddenRunner()
         code, payload = self.adapter(self.fields('tenant.create'), runner=runner)
         self.assertEqual(code, 4, payload)
@@ -1120,11 +1299,108 @@ class ReplayIdempotencyCase(ManagedRuntimeCase):
 class LifecycleCase(ManagedRuntimeCase):
     def test_health_stays_unverified_without_a_target_probe(self):
         runner = ForbiddenRunner()
-        code, payload = self.adapter(self.fields('health'), runner=runner)
+        with patch.object(self.runtime(), '_http_health', return_value=False):
+            code, payload = self.adapter(self.fields('health'), runner=runner)
         self.assertEqual(code, 4, payload)
         self.assertEqual(payload['status'], 'conflict')
-        self.assertEqual(payload['error']['code'], 'health_unverified')
+        self.assertEqual(payload['error']['code'], 'lifecycle_conflict')
         self.assertEqual(runner.calls, 0)
+
+    def test_inspect_reads_policy_snapshot_and_returns_safe_profile(self):
+        self.successful_create()
+        runner = RecordingRunner()
+        code, payload = self.adapter(self.fields('tenant.inspect'), runner=runner)
+        self.assertEqual(code, 0, payload)
+        self.assertEqual(payload['stage'], 'snapshot')
+        self.assertEqual(payload['profile']['modules'], CORE_POLICY['modules'])
+        self.assertEqual(payload['profile']['features'], CORE_POLICY['features'])
+        self.assertEqual(payload['policy_revision'], 1)
+        self.assertEqual(len(runner.calls), 1)
+        argv, _env, script = runner.calls[0]
+        self.assertIn('exec', argv)
+        self.assertIn('shell', argv)
+        self.assertIn('SET TRANSACTION READ ONLY', script)
+        self.assertNotIn('write(', script)
+        self.assertEqual(payload['fingerprint'], self.base['descriptor_digest'])
+
+    def test_inspect_rejects_policy_drift_and_wrong_database(self):
+        self.successful_create()
+
+        def mismatched(argv, env=None, stdin_text=None):
+            if 'shell' not in argv:
+                return 0, '', ''
+            snapshot = {
+                'database': DB_A, 'commercial_mode': 'saas',
+                'entitlement_source': 'control_plane', 'status': 'active',
+                'valid_until': None, 'policy_revision': 2,
+                'features': CORE_POLICY['features'],
+                'modules': [*CORE_POLICY['modules'], 'nasq_unknown'],
+            }
+            return 0, 'NASQ_MANAGED_POLICY:' + json.dumps(snapshot) + '\\n', ''
+
+        code, payload = self.adapter(self.fields('tenant.inspect'), runner=mismatched)
+        self.assertEqual(code, 4, payload)
+        self.assertNotIn('profile', payload)
+        self.assertEqual(payload['error']['code'], 'snapshot_invalid')
+
+    def test_inspect_rejects_readback_from_another_valid_catalog_tier(self):
+        self.successful_create()
+
+        def other_tier(argv, env=None, stdin_text=None):
+            if 'shell' not in argv:
+                return 0, '', ''
+            snapshot = {
+                'database': DB_A, 'commercial_mode': 'saas',
+                'entitlement_source': 'control_plane', 'status': 'active',
+                'valid_until': None, 'policy_revision': 2,
+                'features': {'users.limit': None, 'storage.limit_mb': None,
+                             'hr.enabled': True},
+                'modules': ['nasq_core', 'nasq_platform', 'nasq_api', 'nasq_hr'],
+            }
+            return 0, 'NASQ_MANAGED_POLICY:' + json.dumps(snapshot) + '\\n', ''
+
+        code, payload = self.adapter(self.fields('tenant.inspect'), runner=other_tier)
+        self.assertEqual(code, 4, payload)
+        self.assertEqual(payload['error']['code'], 'snapshot_invalid')
+        self.assertNotIn('profile', payload)
+
+    def test_inspect_quarantine_does_not_probe_target_or_claim_profile(self):
+        self.runtime().ManagedState(self.state).write(TARGET_A, {
+            'schema_version': 1, 'target_id': TARGET_A,
+            'descriptor_digest': self.base['descriptor_digest'],
+            'stage': 'interrupted', 'request_id': 'req_0001',
+            'lifecycle': 'quarantined', 'updated_at': FIXED_CLOCK,
+        })
+        runner = ForbiddenRunner()
+        code, payload = self.adapter(self.fields('tenant.inspect'), runner=runner)
+        self.assertEqual(code, 4, payload)
+        self.assertNotIn('profile', payload)
+        self.assertEqual(runner.calls, 0)
+
+    def test_health_freshly_checks_http_then_database_policy(self):
+        self.successful_create()
+        runner = RecordingRunner()
+        with patch.object(self.runtime(), '_http_health', return_value=True) as health:
+            code, payload = self.adapter(self.fields('health'), runner=runner)
+        self.assertEqual(code, 0, payload)
+        self.assertEqual(payload['status'], 'ok')
+        self.assertEqual(payload['profile']['policy_revision'], 1)
+        self.assertEqual(runner.calls[0][0][runner.calls[0][0].index('shell')], 'shell')
+        health.assert_called_once()
+
+    def test_health_quarantine_skips_all_probes(self):
+        self.runtime().ManagedState(self.state).write(TARGET_A, {
+            'schema_version': 1, 'target_id': TARGET_A,
+            'descriptor_digest': self.base['descriptor_digest'],
+            'stage': 'interrupted', 'request_id': 'req_0001',
+            'lifecycle': 'quarantined', 'updated_at': FIXED_CLOCK,
+        })
+        runner = ForbiddenRunner()
+        with patch.object(self.runtime(), '_http_health') as health:
+            code, payload = self.adapter(self.fields('health'), runner=runner)
+        self.assertEqual(code, 4, payload)
+        self.assertEqual(runner.calls, 0)
+        health.assert_not_called()
 
     def test_t36_reserved_admits_create(self):
         code, payload, runner = self.successful_create()
@@ -1132,7 +1408,7 @@ class LifecycleCase(ManagedRuntimeCase):
         self.assertEqual(payload['status'], 'ok', payload)
         self.assertEqual(payload['stage'], 'provisioned', payload)
         self.assertIs(payload['changed'], True)
-        self.assertIs(payload['deployment_ready'], False)
+        self.assertIs(payload['deployment_ready'], True)
         self.assertEqual(payload['lifecycle'], 'provisioned')
         self.assertTrue(runner.argv)
 
@@ -1156,10 +1432,13 @@ class LifecycleCase(ManagedRuntimeCase):
         self.refuse(4, 'lifecycle_conflict',
                     fields=self.fields('tenant.create', request_id='req_0003'),
                     probe=self.probe())
+        runner = ForbiddenRunner()
         code, payload = self.adapter(
-            self.fields('tenant.inspect'), runner=ForbiddenRunner())
-        self.assertEqual(code, 0, payload)
+            self.fields('tenant.inspect'), runner=runner)
+        self.assertEqual(code, 4, payload)
         self.assertEqual(payload['lifecycle'], 'quarantined')
+        self.assertNotIn('profile', payload)
+        self.assertEqual(runner.calls, 0)
 
     def test_t39_lifecycle_projection_survives_restart(self):
         module = self.runtime()
@@ -1169,7 +1448,7 @@ class LifecycleCase(ManagedRuntimeCase):
         self.assertEqual(record['lifecycle'], 'provisioned')
         self.assertEqual(record['descriptor_digest'], self.base['descriptor_digest'])
         code, payload = self.adapter(
-            self.fields('tenant.inspect'), runner=ForbiddenRunner())
+            self.fields('tenant.inspect'), runner=RecordingRunner())
         self.assertEqual(code, 0, payload)
         self.assertEqual(payload['lifecycle'], 'provisioned')
 
@@ -1188,7 +1467,7 @@ class LifecycleCase(ManagedRuntimeCase):
 # --------------------------------------------------------------------------
 class FailurePreservationCase(ManagedRuntimeCase):
     def test_t41_interrupted_create_preserves_resources(self):
-        runner = RecordingRunner(results=[(0, '', ''), (1, 'boom', '')])
+        runner = RecordingRunner(results=[(0, '', ''), (0, '', ''), (1, 'boom', '')])
         code, payload = self.failed_create(runner=runner)
         self.assertEqual(code, 6, payload)
         self.assertEqual(payload['status'], 'needs_intervention', payload)
@@ -1203,7 +1482,7 @@ class FailurePreservationCase(ManagedRuntimeCase):
         self.assertNotIn('kill', tokens)
 
     def test_t42_no_destructive_argv_is_emitted(self):
-        runner = RecordingRunner(results=[(0, '', ''), (1, 'boom', '')])
+        runner = RecordingRunner(results=[(0, '', ''), (0, '', ''), (1, 'boom', '')])
         self.failed_create(runner=runner)
         tokens = runner.tokens()
         for verb in ('down', 'rm', 'kill', 'prune'):
@@ -1240,6 +1519,12 @@ class BoundedArgvSecretsCase(ManagedRuntimeCase):
         self.assertEqual(argv[argv.index('-f') + 1], str(self.compose_file))
         self.assertNotIn('--privileged', argv)
         self.assertNotIn(';', ' '.join(argv))
+        install = module.build_compose_argv(
+            self.base, 'modules.install', modules=CORE_POLICY['modules'])
+        self.assertEqual(install[install.index('-i') + 1], ','.join(CORE_POLICY['modules']))
+        with self.assertRaises(module.ManagedFailure) as caught:
+            module.build_compose_argv(self.base, 'modules.install')
+        self.assertEqual(caught.exception.code, 'policy_invalid')
 
     def test_t45_argv_rejects_injection(self):
         for db_name in ('nasq_scratch_a;rm -rf /', 'nasq_scratch_a\n--privileged',
@@ -1276,9 +1561,12 @@ class BoundedArgvSecretsCase(ManagedRuntimeCase):
 
     def test_t49_stdout_is_one_json_document(self):
         module = self.runtime()
+        self.successful_create()
         stream = io.StringIO()
-        with contextlib.redirect_stdout(stream):
-            code = module.main(['tenant', 'inspect', '--target', TARGET_A, '--json'])
+        runner = RecordingRunner()
+        with patch.object(module, 'local_docker_runner', return_value=runner):
+            with contextlib.redirect_stdout(stream):
+                code = module.main(['tenant', 'inspect', '--target', TARGET_A, '--json'])
         self.assertEqual(code, 0)
         lines = [line for line in stream.getvalue().splitlines() if line.strip()]
         self.assertEqual(len(lines), 1, lines)

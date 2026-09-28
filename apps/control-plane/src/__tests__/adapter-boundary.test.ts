@@ -29,7 +29,17 @@ async function privateFile(path: string, contents: string | Buffer): Promise<voi
   await chmod(path, 0o600)
 }
 
-function invokeAdapter(args: string[], inventoryPath: string, stateDir: string): AdapterResult {
+async function fakeDocker(temporaryRoot: string): Promise<{ path: string; calls: string }> {
+  const bin = join(temporaryRoot, 'bin')
+  const calls = join(temporaryRoot, 'docker-calls.log')
+  await import('node:fs/promises').then(({ mkdir }) => mkdir(bin, { mode: 0o700 }))
+  const executable = join(bin, 'docker')
+  await privateFile(executable, `#!/bin/sh\nprintf '%s\\n' "$*" >> '${calls}'\nif [ "$1" = context ] && [ "$2" = inspect ]; then\n  printf '%s\\n' '[{"Endpoints":{"docker":{"Host":"unix://${join(temporaryRoot, 'missing-docker.sock')}"}}}]'\n  exit 0\nfi\nexit 97\n`)
+  await chmod(executable, 0o700)
+  return { path: bin, calls }
+}
+
+function invokeAdapter(args: string[], inventoryPath: string, stateDir: string, path: string): AdapterResult {
   const result = spawnSync('python3', ['-B', '-m', 'nasq_cli.managed_runtime', ...args, '--json'], {
     cwd: repositoryRoot,
     encoding: 'utf8',
@@ -38,6 +48,7 @@ function invokeAdapter(args: string[], inventoryPath: string, stateDir: string):
       PYTHONPATH: join(repositoryRoot, 'tools'),
       NASQ_MANAGED_INVENTORY: inventoryPath,
       NASQ_CLI_STATE_DIR: stateDir,
+      PATH: `${path}:${process.env.PATH ?? ''}`,
     },
     timeout: 10_000,
   })
@@ -84,6 +95,9 @@ describe('real managed adapter subprocess boundary', () => {
   it('binds policy bytes to the journal and returns a strictly read-only status receipt', async () => {
     temporaryRoot = await mkdtemp(join(tmpdir(), 'nasq-adapter-boundary-'))
     const stateDir = join(temporaryRoot, 'state')
+    const fake = await fakeDocker(temporaryRoot)
+    const catalogBytes = await readFile(join(repositoryRoot, 'deploy/catalog/solutions/platform.json'))
+    const catalogDigest = `sha256:${createHash('sha256').update(catalogBytes).digest('hex')}`
     const inventoryRoot = join(temporaryRoot, 'inventory')
     await import('node:fs/promises').then(({ mkdir }) => mkdir(inventoryRoot, { mode: 0o700 }))
     const composePath = join(inventoryRoot, 'compose.yml')
@@ -104,7 +118,7 @@ describe('real managed adapter subprocess boundary', () => {
       secret_refs: { db_password: 'handle-db', admin_password: 'handle-admin' },
       release_ref: {
         catalog_version: 'test-v1',
-        catalog_sha256: `sha256:${'b'.repeat(64)}`,
+        catalog_sha256: catalogDigest,
         identity_kind: 'repo_digest',
         odoo_image: 'odoo@sha256:test',
         web_image: 'web@sha256:test',
@@ -118,16 +132,17 @@ describe('real managed adapter subprocess boundary', () => {
     const inventoryPath = join(inventoryRoot, 'managed.json')
     await privateFile(inventoryPath, JSON.stringify({ schema_version: 3, targets: { [target]: { ...descriptorWithoutDigest, descriptor_digest: descriptorDigest } } }))
 
-    const policyBytes = Buffer.from('{"schema_version":1,"channel":"control_plane","features":{"projects":true,"storage":"15"}}', 'utf8')
+    const policyBytes = Buffer.from('{"schema_version":1,"channel":"control_plane","modules":["nasq_core","nasq_platform","nasq_api"],"features":{"users.limit":null,"storage.limit_mb":null}}', 'utf8')
     const firstPolicyPath = join(temporaryRoot, 'policy-original.json')
     await privateFile(firstPolicyPath, policyBytes)
     expect((await import('node:fs/promises').then(({ stat }) => stat(firstPolicyPath))).mode & 0o777).toBe(0o600)
 
-    // The real adapter's default preflight fails closed before any world probe:
-    // this creates a durable conflict receipt without Docker, sockets or clients.
-    const created = invokeAdapter(['tenant', 'create', '--target', target, '--policy-file', firstPolicyPath, '--request-id', requestId], inventoryPath, stateDir)
+    // The isolated fake Docker executable returns a missing local socket context;
+    // the adapter refuses before any Docker command beyond context inspection.
+    const created = invokeAdapter(['tenant', 'create', '--target', target, '--policy-file', firstPolicyPath, '--request-id', requestId], inventoryPath, stateDir, fake.path)
     expect(created.code).toBe(4)
-    expect(created.receipt).toMatchObject({ status: 'conflict', operation: 'tenant.create', target, request_id: requestId, error: { code: 'preflight_unavailable' } })
+    expect(created.receipt).toMatchObject({ status: 'conflict', stage: 'preflight', operation: 'tenant.create', target, request_id: requestId, error: { code: 'docker_context_unavailable' } })
+    expect((await readFile(fake.calls, 'utf8')).trim().split('\\n')).toEqual(['context inspect'])
 
     const createdSnapshot = await stateSnapshot(stateDir)
     const operationRow = (createdSnapshot.rows as unknown[][])[0]
@@ -150,13 +165,13 @@ describe('real managed adapter subprocess boundary', () => {
 
     const secondPolicyPath = join(temporaryRoot, 'policy-replay-copy.json')
     await privateFile(secondPolicyPath, policyBytes)
-    const replayed = invokeAdapter(['tenant', 'create', '--target', target, '--policy-file', secondPolicyPath, '--request-id', requestId], inventoryPath, stateDir)
+    const replayed = invokeAdapter(['tenant', 'create', '--target', target, '--policy-file', secondPolicyPath, '--request-id', requestId], inventoryPath, stateDir, fake.path)
     expect(replayed.code).toBe(4)
     expect(replayed.receipt.operation_id).toBe(created.receipt.operation_id)
     expect(replayed.receipt.operation).toBe('tenant.create')
 
     const statusSnapshotBefore = await stateSnapshot(stateDir)
-    const status = invokeAdapter(['status', '--target', target, '--request-id', requestId, '--policy-bytes-file', secondPolicyPath], inventoryPath, stateDir)
+    const status = invokeAdapter(['status', '--target', target, '--request-id', requestId, '--policy-bytes-file', secondPolicyPath], inventoryPath, stateDir, fake.path)
     const statusSnapshotAfter = await stateSnapshot(stateDir)
     expect(status.code).toBe(4)
     expect(status.receipt).toMatchObject({
@@ -173,8 +188,8 @@ describe('real managed adapter subprocess boundary', () => {
     expect(statusSnapshotAfter.files).toEqual(createdSnapshot.files)
 
     const differentPolicyPath = join(temporaryRoot, 'policy-different.json')
-    await privateFile(differentPolicyPath, Buffer.from('{"schema_version":1,"channel":"control_plane","features":{"projects":false}}', 'utf8'))
-    const conflict = invokeAdapter(['tenant', 'create', '--target', target, '--policy-file', differentPolicyPath, '--request-id', requestId], inventoryPath, stateDir)
+    await privateFile(differentPolicyPath, Buffer.from(` ${policyBytes.toString('utf8')}`, 'utf8'))
+    const conflict = invokeAdapter(['tenant', 'create', '--target', target, '--policy-file', differentPolicyPath, '--request-id', requestId], inventoryPath, stateDir, fake.path)
     expect(conflict.code).toBe(4)
     expect(conflict.receipt).toMatchObject({ status: 'conflict', error: { code: 'request_conflict' } })
     expect(await stateSnapshot(stateDir)).toEqual(createdSnapshot)

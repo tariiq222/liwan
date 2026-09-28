@@ -1,3 +1,5 @@
+import { tenantRequest } from './tenantRequest'
+import { tenantTransport } from './tenantTransport'
 import type { H3Event } from 'h3'
 import { MeSchema } from '@nasq/contracts'
 import { signVendorForward } from './vendor-signature'
@@ -46,7 +48,11 @@ export async function vendorActor(event: H3Event, config: VendorRuntimeConfig) {
   if (!cookie) fail(401, 'unauthorized', 'A signed-in company session is required')
   let me: unknown
   try {
-    me = await $fetch(`${config.odooUrl}/api/v1/me`, { headers: { cookie }, redirect: 'error', signal: AbortSignal.timeout(5000) })
+    if (tenantRequest(event)) {
+      const response = await tenantTransport(event, config.odooUrl ?? '', '/api/v1/me')
+      if (!response.ok) throw new Error('tenant_actor_unavailable')
+      me = await response.json()
+    } else me = await $fetch(`${config.odooUrl}/api/v1/me`, { headers: { cookie }, redirect: 'error', signal: AbortSignal.timeout(5000) })
   } catch {
     fail(401, 'unauthorized', 'The company session is not valid')
   }

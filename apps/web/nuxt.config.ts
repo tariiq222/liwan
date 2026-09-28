@@ -1,5 +1,10 @@
 
-const odoo = process.env.NUXT_ODOO_URL ?? 'http://localhost:8069'
+// Shared multi-tenant lane is opt-in. Dedicated (default) keeps the historical topology:
+// Nuxt talks to Odoo directly and routeRules proxy Odoo browser paths.
+const tenancyMode = process.env.NASQ_TENANCY_MODE ?? 'dedicated'
+if (!['dedicated', 'shared'].includes(tenancyMode)) throw new Error('invalid_tenancy_mode')
+const shared = tenancyMode === 'shared'
+const odoo = process.env.NUXT_ODOO_URL ?? (shared ? 'http://guard:8080' : 'http://localhost:8069')
 
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
@@ -48,10 +53,14 @@ export default defineNuxtConfig({
     strategy: 'no_prefix',
     detectBrowserLanguage: false,
   },
+  // Dev-only Odoo WS bypass. Shared keeps same-origin WS through the guard, so the
+  // dev proxy is not registered there (deploy/shared/Caddyfile carries the WS route).
   nitro: {
-    devProxy: {
+    // Literal bundled into the server plugin, outside runtimeConfig/env overrides.
+    replace: { __NASQ_BUILD_TENANCY_MODE__: JSON.stringify(tenancyMode) },
+    ...(shared ? {} : { devProxy: {
       '/websocket': { target: 'ws://localhost:8069/websocket', ws: true, changeOrigin: false },
-    },
+    } }),
   },
   runtimeConfig: {
     vendorWorkspaceEnabled: false,
@@ -60,7 +69,7 @@ export default defineNuxtConfig({
     vendorInstallationId: '',
     vendorPublicOrigin: '',
     odooUrl: odoo,
-    odooDb: process.env.NUXT_ODOO_DB ?? 'odoo19',
+    odooDb: shared ? '' : (process.env.NUXT_ODOO_DB ?? 'odoo19'),
     public: {
       vendorWorkspaceEnabled: false,
       // Dev: the Nitro dev proxy above does not upgrade websockets, so
@@ -68,13 +77,19 @@ export default defineNuxtConfig({
       // so useBus() falls back to same-origin (Caddy routes /websocket through).
       // `process.dev` is a runtime (app-code) global, not available while
       // nuxt.config.ts itself is evaluated - NODE_ENV is what `nuxt dev` sets here.
-      wsUrl: process.env.NUXT_PUBLIC_WS_URL ?? (process.env.NODE_ENV !== 'production' ? 'ws://localhost:8069/websocket' : ''),
+      wsUrl: shared ? '' : (process.env.NUXT_PUBLIC_WS_URL ?? (process.env.NODE_ENV !== 'production' ? 'ws://localhost:8069/websocket' : '')),
     },
   },
   // Browser-only paths, dev convenience: in production Caddy routes them to Odoo. SSR
   // fetches to /api/v1/** go through server/routes/api/v1/[...path].ts, which reads
   // odooUrl at runtime.
+  //
+  // Shared lane: these routeRules bypass the guard by proxying straight to Odoo, so in
+  // shared mode they are removed entirely and the edge sends every Odoo path to the guard
+  // (deploy/shared/Caddyfile). Dedicated keeps every rule unchanged.
   routeRules: {
+    // Keep future security/cache rules outside this proxy-only spread.
+    ...(shared ? {} : {
     // Odoo's public login bootstrap also loads translations outside /web/.
     '/website/translations': { proxy: `${odoo}/website/translations` },
     '/base_setup/**': { proxy: `${odoo}/base_setup/**` },
@@ -84,6 +99,7 @@ export default defineNuxtConfig({
     // Keep Odoo's redirects and login Set-Cookie response in the browser.
     '/web/**': { proxy: { to: `${odoo}/web/**`, fetchOptions: { redirect: 'manual' } } },
     '/odoo/**': { proxy: { to: `${odoo}/odoo/**`, fetchOptions: { redirect: 'manual' } } },
+    }),
   },
   // Opt-in diagnostic build: identify actual SSR/client differences during UI acceptance.
   vite: {
