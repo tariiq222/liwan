@@ -1,0 +1,38 @@
+# Woodpecker CI pipeline for the local instance (http://127.0.0.1:58000).
+# Mirrors the fast gates of .github/workflows/ci.yml: `static` and
+# `control-plane`. The heavier jobs (odoo, upgrade, image, restore-drill,
+# e2e-mock) stay in GitHub Actions until the local engine is sized for them.
+# The control-plane live-PG suites share one scratch database and must run
+# with --no-file-parallelism (verified locally; parallel runs conflict).
+when:
+  event: [push, manual]
+  branch: main
+
+steps:
+  - name: static
+    image: node:22-bookworm
+    commands:
+      - apt-get update -qq && apt-get install -y -qq python3 python3-pip >/dev/null
+      - pip3 install --break-system-packages --quiet ruff==0.16.3
+      - ruff check odoo-addons
+      - python3 -B -m unittest discover -s deploy -p 'test_*.py'
+      - python3 -B tools/catalog_check.py
+      - git fetch origin main:refs/remotes/origin/main || true
+      - python3 -B tools/migration_guard.py --base origin/main
+      - npm ci --ignore-scripts
+      - npm -w apps/web run postinstall
+      - npm test
+      - npm -w apps/web run lint
+
+  - name: control-plane
+    image: node:22-bookworm
+    commands:
+      - apt-get update -qq && apt-get install -y -qq postgresql >/dev/null
+      - pg_ctlcluster 15 main start
+      - su postgres -c "psql -qc \"CREATE USER nasq_test WITH SUPERUSER PASSWORD 'odoo'\""
+      - su postgres -c "createdb -O nasq_test nasq_control_scratch_ci"
+      - export CONTROL_TEST_DATABASE_URL="postgres://nasq_test:odoo@127.0.0.1:5432/nasq_control_scratch_ci"
+      - npm -w packages/commercial-contracts run test
+      - npm -w apps/control-plane test -- --no-file-parallelism
+      - npm -w packages/commercial-contracts run build
+      - npm -w apps/control-plane run build

@@ -308,6 +308,6 @@ jobs:
       - uses: actions/setup-python@v5
         with: { python-version: '3.12' }
       - run: npm ci --ignore-scripts
-      - run: npm run test:commercial
+      - run: npm run test:commercial -- --no-file-parallelism
       - run: npm -w packages/commercial-contracts run build
       - run: npm -w apps/control-plane run build
