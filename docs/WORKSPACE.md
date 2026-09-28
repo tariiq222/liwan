@@ -53,3 +53,20 @@ by default. See [integration evidence](verification/2026-09-23-vendor-local-inte
 for checks and remaining delivery boundaries. This does not establish a remote
 push, production deployment, recovery-ready backup, billing, CRM, or a completed
 government/customer delivery package.
+
+## Shared-SaaS lane integration — 2026-09-29
+
+The shared-tenant SaaS lane is integrated locally into `main` (`7ffee66e` +
+gate fixes `3fd76c38`) from baseline `d780862e`: durable registry and queue
+(schema 005–008), tenant routing boundary and guard overlay, physically fenced
+adapter, provision readiness/activation gate, backup/restore authority,
+sandbox order/payment lifecycle, and the acceptance suites (live-SQL gates,
+ten-tenant isolation matrix, full journey). Gate evidence and explicit
+boundaries: [packages 1–3](verification/shared-live-sql-gate.md),
+[isolation matrix](verification/shared-isolation-matrix.md),
+[fenced adapter](verification/shared-fenced-adapter.md),
+[packages 4–7](verification/shared-packages-4-7.md). This is local acceptance
+only: no push, no deployment, no real Odoo/ACL drill, no real payment provider,
+and no release approval. The two tool fixes unblocked root gates that already
+failed on the `d780862e` baseline (reproduced before the merge, not caused by
+it).
