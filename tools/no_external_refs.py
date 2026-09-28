@@ -33,11 +33,21 @@ ALLOWED_HOSTS = frozenset({
 })
 
 
+# RFC 2606/6761 reserve these TLDs/domains for documentation and testing; any
+# host under them is a fixture by construction, never a runtime third party.
+RESERVED_TEST_SUFFIXES = (
+    '.example', '.example.com', '.example.net', '.example.org',
+    '.example.test', '.example.invalid', '.test', '.invalid', '.localhost',
+)
+
+
 def find_external_refs(path: str, text: str) -> list[tuple[str, int]]:
     hits = []
     for number, line in enumerate(text.splitlines(), start=1):
-        hosts = {h.lower() for h in URL_RE.findall(line)}
-        if hosts - ALLOWED_HOSTS:
+        hosts = {h.lower().rstrip('.') for h in URL_RE.findall(line)}
+        unknown = hosts - ALLOWED_HOSTS
+        unknown = {h for h in unknown if not h.endswith(RESERVED_TEST_SUFFIXES)}
+        if unknown:
             hits.append((path, number))
     return hits
 

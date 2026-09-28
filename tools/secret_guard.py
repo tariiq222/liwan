@@ -37,6 +37,11 @@ def find_secret_lines(path: str, text: str) -> list[tuple[str, int]]:
         value = match.group(3).rstrip(',;}')
         if value.startswith(('${', '$', '<', 'REPLACE_WITH_')) or value.lower() in PLACEHOLDERS:
             continue
+        # A `*_FILE:` key pointing at a mounted Docker/Compose secret path is
+        # the correct no-literal-secret idiom: the value is a file PATH, not a
+        # secret. Only trust this escape hatch for that exact shape.
+        if match.group(1).upper().endswith('_FILE') and value.startswith('/run/secrets/'):
+            continue
         hits.append((path, number))
     return hits
 
