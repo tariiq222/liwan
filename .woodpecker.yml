@@ -1,17 +1,11 @@
-# Woodpecker CI — the project's only CI system (GitHub Actions was removed).
-# Runs against the local instance; the pipeline is also valid on any
-# Woodpecker deployment with a Docker backend.
+# Woodpecker CI — local backend pipeline for macOS.
+# GitHub Actions was removed; this is the project's only CI system.
 #
-# Steps, in order (Woodpecker runs steps sequentially unless depends_on says
-# otherwise; the heavy jobs would exhaust a single small agent in parallel):
-#   prepare       normalise workspace ownership/permissions after clone
-#   static        lint, python tools, contracts, web unit tests, type check
-#   control-plane control service/worker contracts against PostgreSQL
-#   odoo          full Odoo test suite on a fresh scratch database
-#   upgrade       install the previous release tag, then upgrade to this commit
-#   restore-drill backup, restore, and prove the negative restore case
-#   image         build the Odoo image and install every pillar inside it
-#   e2e-mock      built Nuxt against the mock API, then Playwright
+# Designed for WOODPECKER_BACKEND=local on macOS arm64.
+# The `image` field specifies the shell, not a container image.
+# All tools (node, python3, ruff, psql, docker, git) must exist on the host.
+#
+# Steps: static, control-plane, odoo, upgrade, restore-drill, image, e2e-mock.
 #
 # The control-plane live-PG suites share one scratch database and must run with
 # --no-file-parallelism (parallel runs conflict, verified locally).
@@ -19,152 +13,150 @@ when:
   event: [push, manual, pull_request]
   branch: main
 
-clone:
-  git:
-    image: woodpeckerci/plugin-git
-    settings:
-      # upgrade diffs against a release tag and ui_policy diffs against a
-      # recorded baseline 183 commits back; a shallow/partial clone cannot
-      # resolve either.
-      depth: 0
-      partial: false
-
 steps:
-  - name: prepare
-    image: node:22-bookworm
-    commands:
-      # The clone step writes the workspace with a permissive umask (files
-      # 0666, dirs 0777) and uid 1000, while step containers run as root with
-      # umask 0022. The managed CLI's operator-file safety checks reject
-      # group/other-writable files (st_mode & 0o022) and foreign owners
-      # (st_uid == getuid), so normalise both after clone.
-      - chown -R root:root /woodpecker/src
-      - find /woodpecker/src -type d -exec chmod go-w {} +
-      - find /woodpecker/src -type f -exec chmod go-w {} +
-
   - name: static
-    image: node:22-bookworm
+    image: bash
     commands:
-      - apt-get update -qq && apt-get install -y -qq python3 python3-pip >/dev/null
-      - pip3 install --break-system-packages --quiet --retries 5 --timeout 60 ruff==0.16.3
+      - set -euo pipefail
+      - export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
       - ruff check odoo-addons
       - python3 -B -m unittest discover -s deploy -p 'test_*.py'
       - python3 -B tools/catalog_check.py
       - python3 -B tools/migration_guard.py --base origin/main
       - npm ci --ignore-scripts
       - npm -w apps/web run postinstall
-      # governanceDesign.test.ts launches a real headless Chromium.
-      - npx playwright install --with-deps chromium
+      - npx playwright install chromium
       - npm test
       - npm -w apps/web run lint
 
   - name: control-plane
-    image: node:22-bookworm
+    image: bash
     commands:
-      - apt-get update -qq && apt-get install -y -qq postgresql >/dev/null
-      - pg_ctlcluster 15 main start
-      - su postgres -c "psql -qc \"CREATE USER nasq_test WITH SUPERUSER PASSWORD 'odoo'\""
-      - su postgres -c "createdb -O nasq_test nasq_control_scratch_ci"
+      - set -euo pipefail
+      - export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
       - export CONTROL_TEST_DATABASE_URL="postgres://nasq_test:odoo@127.0.0.1:5432/nasq_control_scratch_ci"
+      - PGPASSWORD=odoo dropdb -h 127.0.0.1 -U nasq_test --if-exists nasq_control_scratch_ci || true
+      - PGPASSWORD=odoo createdb -h 127.0.0.1 -U nasq_test nasq_control_scratch_ci
       - npm -w packages/commercial-contracts run test
       - npm -w apps/control-plane test -- --no-file-parallelism
       - npm -w packages/commercial-contracts run build
       - npm -w apps/control-plane run build
 
   - name: odoo
-    image: python:3.12-bookworm
+    image: bash
     commands:
-      - apt-get update -qq && apt-get install -y -qq --no-install-recommends libpq-dev libldap2-dev libsasl2-dev postgresql git >/dev/null
-      - pg_ctlcluster 15 main start
-      - su postgres -c "psql -qc \"CREATE USER odoo WITH SUPERUSER PASSWORD 'odoo'\""
-      - git clone --depth=1 --branch "$(cat deploy/odoo/ODOO_COMMIT)" https://github.com/odoo/odoo.git _odoo || (git clone https://github.com/odoo/odoo.git _odoo && git -C _odoo checkout "$(cat deploy/odoo/ODOO_COMMIT)")
-      - pip install --quiet --retries 5 --timeout 60 -r deploy/odoo/requirements-python312-linux.txt
-      - export NASQ_COMMERCIAL_CONFIG=/tmp/odoo-classification.json
-      - python3 deploy/classification.py fixture --database "nasq_ci_scratch_${CI_PIPELINE_NUMBER}" --mode saas --output "$NASQ_COMMERCIAL_CONFIG"
       - |
-        python _odoo/odoo-bin \
+        set -euo pipefail
+        export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+        ODOO_ROOT="/Users/tariq/code/odoo"
+        ODOO_PYTHON="$ODOO_ROOT/.venv/bin/python"
+        ODOO_COMMIT="$(cat deploy/odoo/ODOO_COMMIT)"
+        SCRATCH_DB="nasq_ci_scratch_${CI_PIPELINE_NUMBER}"
+        SCRATCH_ROOT="$(mktemp -d)"
+        mkdir -p "$SCRATCH_ROOT/data" "$SCRATCH_ROOT/logs"
+        cleanup() { PGPASSWORD=odoo dropdb -h 127.0.0.1 -U odoo --if-exists "$SCRATCH_DB" 2>/dev/null || true; rm -rf "$SCRATCH_ROOT"; }
+        trap cleanup EXIT
+        PGPASSWORD=odoo dropdb -h 127.0.0.1 -U odoo --if-exists "$SCRATCH_DB" || true
+        if [ ! -d "$SCRATCH_ROOT/_odoo/.git" ]; then git clone https://github.com/odoo/odoo.git "$SCRATCH_ROOT/_odoo" && git -C "$SCRATCH_ROOT/_odoo" checkout "$ODOO_COMMIT"; fi
+        export NASQ_COMMERCIAL_CONFIG="$SCRATCH_ROOT/odoo-classification.json"
+        python3 deploy/classification.py fixture --database "$SCRATCH_DB" --mode saas --output "$NASQ_COMMERCIAL_CONFIG"
+        "$ODOO_PYTHON" "$ODOO_ROOT/odoo-bin" \
+          --addons-path="$ODOO_ROOT/odoo/addons,$ODOO_ROOT/addons,$PWD/odoo-addons" \
           --db_host=127.0.0.1 --db_port=5432 --db_user=odoo --db_password=odoo \
-          --addons-path="$PWD/_odoo/addons,$PWD/odoo-addons" \
-          -d "nasq_ci_scratch_${CI_PIPELINE_NUMBER}" \
+          -d "$SCRATCH_DB" --db-filter="^${SCRATCH_DB}$" \
+          --data-dir="$SCRATCH_ROOT/data" --logfile="$SCRATCH_ROOT/logs/odoo.log" \
           -i nasq_core,nasq_platform,nasq_api,nasq_pmo,nasq_hr,nasq_chat \
           --test-tags /nasq_core,/nasq_platform,/nasq_api,/nasq_pmo,/nasq_hr,/nasq_chat \
-          --http-port=8169 --stop-after-init --log-level=test 2>&1 | tee odoo-test.log
-      - |
-        grep -Eq 'odoo.tests.result: 0 failed, 0 error\(s\) of [1-9][0-9]* tests when loading database' odoo-test.log
+          --http-port=8169 --workers=0 --max-cron-threads=0 --stop-after-init --log-level=test 2>&1 | tee "$SCRATCH_ROOT/odoo-test.log"
+        grep -Eq 'odoo.tests.result: 0 failed, 0 error\(s\) of [1-9][0-9]* tests when loading database' "$SCRATCH_ROOT/odoo-test.log"
 
   - name: upgrade
-    image: python:3.12-bookworm
+    image: bash
     commands:
-      - apt-get update -qq && apt-get install -y -qq --no-install-recommends libpq-dev libldap2-dev libsasl2-dev postgresql git >/dev/null
-      - pg_ctlcluster 15 main start
-      - su postgres -c "psql -qc \"CREATE USER odoo WITH SUPERUSER PASSWORD 'odoo'\""
-      - git clone --depth=1 --branch "$(cat deploy/odoo/ODOO_COMMIT)" https://github.com/odoo/odoo.git _odoo || (git clone https://github.com/odoo/odoo.git _odoo && git -C _odoo checkout "$(cat deploy/odoo/ODOO_COMMIT)")
-      - pip install --quiet --retries 5 --timeout 60 -r deploy/odoo/requirements-python312-linux.txt
-      - export ODOO_DB_ARGS="--db_host=127.0.0.1 --db_port=5432 --db_user=odoo --db_password=odoo"
-      - export MODULES="nasq_core,nasq_platform,nasq_api,nasq_pmo,nasq_hr,nasq_chat"
-      - export BASE_TAG="$(git tag --list 'release/*' --sort=-v:refname | head -n1)"
-      - test -n "$BASE_TAG" || { echo "no release/* tag; upgrade job skipped"; exit 0; }
-      - git worktree add _baseline "$BASE_TAG"
-      # Install the previous release
       - |
+        set -euo pipefail
+        export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+        ODOO_ROOT="/Users/tariq/code/odoo"
+        ODOO_PYTHON="$ODOO_ROOT/.venv/bin/python"
+        ODOO_COMMIT="$(cat deploy/odoo/ODOO_COMMIT)"
+        MODULES="nasq_core,nasq_platform,nasq_api,nasq_pmo,nasq_hr,nasq_chat"
+        BASE_TAG="$(git tag --list 'release/*' --sort=-v:refname | head -n1)"
+        test -n "$BASE_TAG" || { echo "no release/* tag; upgrade job skipped"; exit 0; }
+        SCRATCH_DB="nasq_ci_upgrade_scratch"
+        SCRATCH_ROOT="$(mktemp -d)"
+        mkdir -p "$SCRATCH_ROOT/data" "$SCRATCH_ROOT/logs"
+        cleanup() { PGPASSWORD=odoo dropdb -h 127.0.0.1 -U odoo --if-exists "$SCRATCH_DB" 2>/dev/null || true; rm -rf "$SCRATCH_ROOT"; git worktree remove _baseline --force 2>/dev/null || true; }
+        trap cleanup EXIT
+        PGPASSWORD=odoo dropdb -h 127.0.0.1 -U odoo --if-exists "$SCRATCH_DB" || true
+        if [ ! -d "$SCRATCH_ROOT/_odoo/.git" ]; then git clone https://github.com/odoo/odoo.git "$SCRATCH_ROOT/_odoo" && git -C "$SCRATCH_ROOT/_odoo" checkout "$ODOO_COMMIT"; fi
+        ODOO_DB_ARGS="--db_host=127.0.0.1 --db_port=5432 --db_user=odoo --db_password=odoo"
+        git worktree add _baseline "$BASE_TAG"
+        # Install the previous release
         if [ -n "${NASQ_COMMERCIAL_CONFIG:-}" ]; then
           echo "previous release must not inherit a commercial classification" >&2
           exit 1
         fi
-        python _odoo/odoo-bin $ODOO_DB_ARGS --addons-path="$PWD/_odoo/addons,$PWD/_baseline/odoo-addons" \
-          -d nasq_ci_upgrade_scratch -i "$MODULES" --without-demo=all --http-port=8169 --stop-after-init
-      # Upgrade to this commit
-      - python3 deploy/classification.py fixture --database nasq_ci_upgrade_scratch --mode saas --output /tmp/upgrade-classification.json
-      - export NASQ_COMMERCIAL_CONFIG=/tmp/upgrade-classification.json
-      - |
-        python _odoo/odoo-bin $ODOO_DB_ARGS --addons-path="$PWD/_odoo/addons,$PWD/odoo-addons" \
-          -d nasq_ci_upgrade_scratch -u "$MODULES" --http-port=8169 --stop-after-init 2>&1 | tee upgrade.log
-      - python3 -B tools/upgrade_log_guard.py upgrade.log
-      # Post-upgrade smoke
-      - |
-        python _odoo/odoo-bin shell $ODOO_DB_ARGS --addons-path="$PWD/_odoo/addons,$PWD/odoo-addons" \
-          -d nasq_ci_upgrade_scratch --http-port=8169 --no-http < deploy/odoo/upgrade_smoke.py | tee smoke.log
-      - grep -q UPGRADE_SMOKE_OK smoke.log
+        "$ODOO_PYTHON" "$SCRATCH_ROOT/_odoo/odoo-bin" $ODOO_DB_ARGS \
+          --addons-path="$SCRATCH_ROOT/_odoo/addons,$PWD/_baseline/odoo-addons" \
+          --data-dir="$SCRATCH_ROOT/data" --logfile="$SCRATCH_ROOT/logs/odoo.log" \
+          -d "$SCRATCH_DB" -i "$MODULES" --without-demo=all --http-port=8169 --workers=0 --max-cron-threads=0 --stop-after-init
+        # Upgrade to this commit
+        python3 deploy/classification.py fixture --database "$SCRATCH_DB" --mode saas --output "$SCRATCH_ROOT/upgrade-classification.json"
+        export NASQ_COMMERCIAL_CONFIG="$SCRATCH_ROOT/upgrade-classification.json"
+        "$ODOO_PYTHON" "$SCRATCH_ROOT/_odoo/odoo-bin" $ODOO_DB_ARGS \
+          --addons-path="$SCRATCH_ROOT/_odoo/addons,$PWD/odoo-addons" \
+          --data-dir="$SCRATCH_ROOT/data" --logfile="$SCRATCH_ROOT/logs/upgrade.log" \
+          -d "$SCRATCH_DB" -u "$MODULES" --http-port=8169 --workers=0 --max-cron-threads=0 --stop-after-init 2>&1 | tee "$SCRATCH_ROOT/upgrade-output.log"
+        python3 -B tools/upgrade_log_guard.py "$SCRATCH_ROOT/upgrade-output.log"
+        # Post-upgrade smoke
+        "$ODOO_PYTHON" "$SCRATCH_ROOT/_odoo/odoo-bin" shell $ODOO_DB_ARGS \
+          --addons-path="$SCRATCH_ROOT/_odoo/addons,$PWD/odoo-addons" \
+          -d "$SCRATCH_DB" --http-port=8169 --no-http < deploy/odoo/upgrade_smoke.py | tee "$SCRATCH_ROOT/smoke.log"
+        grep -q UPGRADE_SMOKE_OK "$SCRATCH_ROOT/smoke.log"
 
   - name: restore-drill
-    image: python:3.12-bookworm
+    image: bash
     commands:
-      - apt-get update -qq && apt-get install -y -qq --no-install-recommends libpq-dev libldap2-dev libsasl2-dev postgresql git curl >/dev/null
-      - pg_ctlcluster 15 main start
-      - su postgres -c "psql -qc \"CREATE USER odoo WITH SUPERUSER PASSWORD 'odoo'\""
-      - git clone --depth=1 --branch "$(cat deploy/odoo/ODOO_COMMIT)" https://github.com/odoo/odoo.git _odoo || (git clone https://github.com/odoo/odoo.git _odoo && git -C _odoo checkout "$(cat deploy/odoo/ODOO_COMMIT)")
-      - pip install --quiet --retries 5 --timeout 60 -r deploy/odoo/requirements-python312-linux.txt
       - |
         set -euo pipefail
-        export PGPASSWORD=odoo
-        B=$(dirname "$(readlink -f "$(command -v pg_dump)")"); W=$(mktemp -d)
+        export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+        ODOO_ROOT="/Users/tariq/code/odoo"
+        ODOO_PYTHON="$ODOO_ROOT/.venv/bin/python"
+        ODOO_COMMIT="$(cat deploy/odoo/ODOO_COMMIT)"
+        W="$(mktemp -d)"
+        mkdir -p "$W/data" "$W/restored" "$W/logs"
+        SRC_DB="nasq_drill_src_scratch"
+        RST_DB="nasq_drill_restored_scratch"
+        RST2_DB="nasq_drill_restored2_scratch"
         cleanup() {
           if [ -n "${SERVER_PID:-}" ]; then kill "$SERVER_PID" 2>/dev/null || true; wait "$SERVER_PID" 2>/dev/null || true; fi
-          for db in nasq_drill_src_scratch nasq_drill_restored_scratch nasq_drill_restored2_scratch; do
-            "$B/dropdb" -h 127.0.0.1 -U odoo --if-exists "$db"
-          done
+          for db in "$SRC_DB" "$RST_DB" "$RST2_DB"; do PGPASSWORD=odoo dropdb -h 127.0.0.1 -U odoo --if-exists "$db" 2>/dev/null || true; done
           rm -rf "$W"
         }
         trap cleanup EXIT
+        for db in "$SRC_DB" "$RST_DB" "$RST2_DB"; do PGPASSWORD=odoo dropdb -h 127.0.0.1 -U odoo --if-exists "$db" || true; done
+        if [ ! -d "$W/_odoo/.git" ]; then git clone https://github.com/odoo/odoo.git "$W/_odoo" && git -C "$W/_odoo" checkout "$ODOO_COMMIT"; fi
+        export PGPASSWORD=odoo
+        B="$(dirname "$(readlink -f "$(command -v pg_dump)")")"
         export NASQ_COMMERCIAL_CONFIG="$W/restore-classification.json"
-        python3 deploy/classification.py fixture --database nasq_drill_src_scratch --mode non_saas --output "$NASQ_COMMERCIAL_CONFIG"
-        python _odoo/odoo-bin --db_host=127.0.0.1 --db_user=odoo --db_password=odoo \
-          --addons-path="$PWD/_odoo/addons,$PWD/odoo-addons" --data-dir="$W/data" \
-          -d nasq_drill_src_scratch -i nasq_core,nasq_platform,nasq_api,nasq_pmo,nasq_hr,nasq_chat \
-          --without-demo=all --http-port=8169 --stop-after-init
+        python3 deploy/classification.py fixture --database "$SRC_DB" --mode non_saas --output "$NASQ_COMMERCIAL_CONFIG"
+        "$ODOO_PYTHON" "$W/_odoo/odoo-bin" --db_host=127.0.0.1 --db_user=odoo --db_password=odoo \
+          --addons-path="$W/_odoo/addons,$PWD/odoo-addons" --data-dir="$W/data" \
+          -d "$SRC_DB" -i nasq_core,nasq_platform,nasq_api,nasq_pmo,nasq_hr,nasq_chat \
+          --without-demo=all --http-port=8169 --workers=0 --max-cron-threads=0 --stop-after-init
         python3 deploy/backup.py --opt-in MANUAL_BACKUP_OPT_IN --acknowledge-unverified CANDIDATE_BACKUP_UNVERIFIED \
-          --db-name nasq_drill_src_scratch --filestore "$W/data/filestore/nasq_drill_src_scratch" \
+          --db-name "$SRC_DB" --filestore "$W/data/filestore/$SRC_DB" \
           --output-dir "$W/backup" --pg-dump "$B/pg_dump" --pg-host 127.0.0.1 --pg-user odoo
         cp "$W/backup/manifest.json" "$W/original-manifest.json"
         verify() { python3 deploy/restore_verify.py --backup-dir "$W/backup" --target-db "$1" \
           --target-filestore "$W/restored/filestore/$1" --pg-restore "$B/pg_restore" --createdb "$B/createdb" \
           --psql "$B/psql" --pg-host 127.0.0.1 --pg-user odoo; }
-        verify nasq_drill_restored_scratch
+        verify "$RST_DB"
         # Classified restored databases must start without a mapping or billing service.
         unset NASQ_COMMERCIAL_CONFIG
-        python _odoo/odoo-bin --db_host=127.0.0.1 --db_user=odoo --db_password=odoo \
-          --addons-path="$PWD/_odoo/addons,$PWD/odoo-addons" --data-dir="$W/restored" \
-          -d nasq_drill_restored_scratch --http-port=8169 --max-cron-threads=0 > restored-odoo.log 2>&1 &
+        "$ODOO_PYTHON" "$W/_odoo/odoo-bin" --db_host=127.0.0.1 --db_user=odoo --db_password=odoo \
+          --addons-path="$W/_odoo/addons,$PWD/odoo-addons" --data-dir="$W/restored" \
+          -d "$RST_DB" --http-port=8169 --workers=0 --max-cron-threads=0 > "$W/restored-odoo.log" 2>&1 &
         SERVER_PID=$!
         for i in $(seq 1 60); do
           kill -0 "$SERVER_PID"
@@ -173,23 +165,45 @@ steps:
         done
         curl -fsS -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8169/web/health
         kill "$SERVER_PID"; wait "$SERVER_PID" || true; SERVER_PID=
-        missing=$("$B/psql" -h 127.0.0.1 -U odoo -d nasq_drill_restored_scratch -At -v ON_ERROR_STOP=1 \
-          -c 'SELECT store_fname FROM ir_attachment WHERE store_fname IS NOT NULL ORDER BY store_fname LIMIT 1')
+        missing="$(psql -h 127.0.0.1 -U odoo -d "$RST_DB" -At -v ON_ERROR_STOP=1 -c 'SELECT store_fname FROM ir_attachment WHERE store_fname IS NOT NULL ORDER BY store_fname LIMIT 1')"
         test -n "$missing"
         rm "$W/backup/filestore/$missing"
-        if verify nasq_drill_restored2_scratch; then echo "negative case passed unexpectedly"; exit 1; fi
+        if verify "$RST2_DB"; then echo "negative case passed unexpectedly"; exit 1; fi
         python3 -c 'import json,sys; r=json.load(open(sys.argv[1])); assert r["restore_verified"] is False; assert sys.argv[2] in r["checks"]["missing_attachment_files"]' "$W/backup/restore-verification.json" "$missing"
         cmp "$W/original-manifest.json" "$W/backup/manifest.json"
 
-  - name: e2e-mock
-    image: node:22-bookworm
+  - name: image
+    image: bash
     commands:
-      - apt-get update -qq && apt-get install -y -qq curl >/dev/null
-      - npm -w apps/web run postinstall
-      - cd apps/web
-      - npx playwright install --with-deps chromium
       - |
         set -euo pipefail
+        export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+        docker info
+        docker build -f deploy/odoo/Dockerfile --build-arg ODOO_COMMIT="$(cat deploy/odoo/ODOO_COMMIT)" --build-arg NASQ_REVISION="${CI_COMMIT_SHA:0:12}" -t nasq-odoo:ci .
+        SCRATCH_DB="nasq_image_scratch"
+        cleanup() { docker rm -fv db 2>/dev/null || true; docker network rm t 2>/dev/null || true; PGPASSWORD=odoo dropdb -h 127.0.0.1 -U odoo --if-exists "$SCRATCH_DB" 2>/dev/null || true; }
+        trap cleanup EXIT
+        PGPASSWORD=odoo dropdb -h 127.0.0.1 -U odoo --if-exists "$SCRATCH_DB" || true
+        python3 deploy/classification.py fixture --database "$SCRATCH_DB" --mode non_saas --output /tmp/image-classification.json
+        docker network create t
+        docker run -d --name db --network t -e POSTGRES_USER=odoo -e POSTGRES_PASSWORD=odoo -e POSTGRES_DB=postgres postgres:16
+        printf '%s\n' '[options]' 'db_host = db' 'db_user = odoo' 'db_password = odoo' 'list_db = False' > /tmp/odoo.conf
+        for i in $(seq 1 30); do docker exec db pg_isready -U odoo && break; sleep 2; done
+        docker run --rm --network t -v /tmp/odoo.conf:/etc/odoo/odoo.conf:ro \
+          -v /tmp/image-classification.json:/run/nasq/classification.json:ro \
+          -e NASQ_COMMERCIAL_CONFIG=/run/nasq/classification.json nasq-odoo:ci \
+          -d "$SCRATCH_DB" -i nasq_core,nasq_platform,nasq_api,nasq_pmo,nasq_hr,nasq_chat --without-demo=all --http-port=8169 --stop-after-init
+        docker run --rm --entrypoint sh nasq-odoo:ci -c 'test ! -w /opt/nasq/addons && test "$(id -u)" = 10001 && ! command -v git'
+
+  - name: e2e-mock
+    image: bash
+    commands:
+      - |
+        set -euo pipefail
+        export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+        npm -w apps/web run postinstall
+        cd apps/web
+        npx playwright install chromium
         test -s e2e/ci-mock-specs.txt
         export PROJECTS_UI_PREVIEW=1 MODULE_UI_PREVIEW=1 MOCK_PORT=4498
         export NUXT_ODOO_URL=http://127.0.0.1:4498 NUXT_ODOO_DB=nasq_ui_mock_only

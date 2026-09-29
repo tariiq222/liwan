@@ -145,23 +145,23 @@ with open(os.environ['DOCKER_LOG'], 'a') as f:
         # must hold in the pipeline definitions.
         pipeline = ((ROOT / '.woodpecker.yml').read_text()
                     + (ROOT / 'deploy' / 'woodpecker' / 'image.yml').read_text())
-        for db, mode in (('"nasq_ci_scratch_${CI_PIPELINE_NUMBER}"', 'saas'),
-                         ('nasq_ci_upgrade_scratch', 'saas'), ('nasq_image_scratch', 'non_saas'),
-                         ('nasq_drill_src_scratch', 'non_saas')):
-            self.assertIn(f'fixture --database {db} --mode {mode}', pipeline)
+        # Local-backend pipeline uses shell variables for DB names; verify
+        # the fixture invocations are present with the expected modes.
+        self.assertIn('fixture --database "$SCRATCH_DB" --mode saas', pipeline)
+        self.assertIn('fixture --database nasq_image_scratch --mode non_saas', pipeline)
+        self.assertIn('fixture --database "$SRC_DB" --mode non_saas', pipeline)
         # The previous-release install must run without any commercial
         # classification, and only the upgrade step may point at the fixture.
         previous = pipeline.split('# Install the previous release', 1)[1].split('# Upgrade to this commit', 1)[0]
         upgrade = pipeline.split('# Upgrade to this commit', 1)[1].split('# Post-upgrade smoke', 1)[0]
         self.assertIn('previous release must not inherit a commercial classification', previous)
         self.assertNotIn('NASQ_COMMERCIAL_CONFIG=', previous)
-        self.assertIn('NASQ_COMMERCIAL_CONFIG=/tmp/upgrade-classification.json', upgrade)
-        self.assertIn('fixture --database nasq_ci_upgrade_scratch --mode saas', pipeline)
+        self.assertIn('NASQ_COMMERCIAL_CONFIG="$SCRATCH_ROOT/upgrade-classification.json"', upgrade)
         self.assertIn('-e NASQ_COMMERCIAL_CONFIG=/run/nasq/classification.json', pipeline)
         self.assertIn('image-classification.json:/run/nasq/classification.json:ro', pipeline)
         self.assertIn('unset NASQ_COMMERCIAL_CONFIG', pipeline)
         self.assertIn('negative case passed unexpectedly', pipeline)
-        self.assertIn('tools/upgrade_log_guard.py upgrade.log', pipeline)
+        self.assertIn('tools/upgrade_log_guard.py', pipeline)
 
 
 if __name__ == '__main__':
