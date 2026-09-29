@@ -1,22 +1,44 @@
-# Woodpecker CI pipeline for the local instance (http://127.0.0.1:58000).
-# Mirrors the fast gates of .github/workflows/ci.yml: `static` and
-# `control-plane`. The heavier jobs (odoo, upgrade, image, restore-drill,
-# e2e-mock) stay in GitHub Actions until the local engine is sized for them.
-# The control-plane live-PG suites share one scratch database and must run
-# with --no-file-parallelism (verified locally; parallel runs conflict).
+# Woodpecker CI — the project's only CI system (GitHub Actions was removed).
+# Runs against the local instance; the pipeline is also valid on any
+# Woodpecker deployment with a Docker backend.
+#
+# Steps, in order (Woodpecker runs steps sequentially unless depends_on says
+# otherwise; the heavy jobs would exhaust a single small agent in parallel):
+#   prepare       normalise workspace ownership/permissions after clone
+#   static        lint, python tools, contracts, web unit tests, type check
+#   control-plane control service/worker contracts against PostgreSQL
+#   odoo          full Odoo test suite on a fresh scratch database
+#   upgrade       install the previous release tag, then upgrade to this commit
+#   restore-drill backup, restore, and prove the negative restore case
+#   image         build the Odoo image and install every pillar inside it
+#   e2e-mock      built Nuxt against the mock API, then Playwright
+#
+# The control-plane live-PG suites share one scratch database and must run with
+# --no-file-parallelism (parallel runs conflict, verified locally).
 when:
-  event: [push, manual]
+  event: [push, manual, pull_request]
   branch: main
 
 clone:
   git:
     image: woodpeckerci/plugin-git
     settings:
-      # ui_policy.py diffs against a recorded baseline 183 commits back, and
-      # the partial (tree:0) filter needs remote access the step containers do
-      # not have. Fetch full history like GitHub Actions' fetch-depth: 0.
+      # upgrade diffs against a release tag and ui_policy diffs against a
+      # recorded baseline 183 commits back; a shallow/partial clone cannot
+      # resolve either.
       depth: 0
       partial: false
+
+services:
+  # Docker-in-Docker for the image job. Declared here so `docker build` and
+  # `docker run` inside that step talk to their own daemon instead of the
+  # agent's.
+  docker:
+    image: docker:29-dind-rootless
+    privileged: true
+    environment:
+      DOCKER_TLS_CERTDIR: ""
+    command: ["--host=tcp://0.0.0.0:2375", "--tls=false"]
 
 steps:
   - name: prepare
@@ -30,7 +52,6 @@ steps:
       - chown -R root:root /woodpecker/src
       - find /woodpecker/src -type d -exec chmod go-w {} +
       - find /woodpecker/src -type f -exec chmod go-w {} +
-      - stat -c '%u:%g %a' /woodpecker/src/github.com/tariiq222/nasq/deploy/catalog/solutions/platform.json
 
   - name: static
     image: node:22-bookworm
@@ -40,12 +61,10 @@ steps:
       - ruff check odoo-addons
       - python3 -B -m unittest discover -s deploy -p 'test_*.py'
       - python3 -B tools/catalog_check.py
-      - git fetch origin main:refs/remotes/origin/main || true
       - python3 -B tools/migration_guard.py --base origin/main
       - npm ci --ignore-scripts
       - npm -w apps/web run postinstall
-      # governanceDesign.test.ts launches a real headless Chromium, exactly
-      # like the GitHub Actions static job.
+      # governanceDesign.test.ts launches a real headless Chromium.
       - npx playwright install --with-deps chromium
       - npm test
       - npm -w apps/web run lint
@@ -62,3 +81,166 @@ steps:
       - npm -w apps/control-plane test -- --no-file-parallelism
       - npm -w packages/commercial-contracts run build
       - npm -w apps/control-plane run build
+
+  - name: odoo
+    image: python:3.12-bookworm
+    commands:
+      - apt-get update -qq && apt-get install -y -qq --no-install-recommends libpq-dev libldap2-dev libsasl2-dev postgresql git >/dev/null
+      - pg_ctlcluster 15 main start
+      - su postgres -c "psql -qc \"CREATE USER odoo WITH SUPERUSER PASSWORD 'odoo'\""
+      - git clone --depth=1 --branch "$(cat deploy/odoo/ODOO_COMMIT)" https://github.com/odoo/odoo.git _odoo || (git clone https://github.com/odoo/odoo.git _odoo && git -C _odoo checkout "$(cat deploy/odoo/ODOO_COMMIT)")
+      - pip install --quiet -r deploy/odoo/requirements-python312-linux.txt
+      - export NASQ_COMMERCIAL_CONFIG=/tmp/odoo-classification.json
+      - python3 deploy/classification.py fixture --database "nasq_ci_scratch_${CI_PIPELINE_NUMBER}" --mode saas --output "$NASQ_COMMERCIAL_CONFIG"
+      - |
+        python _odoo/odoo-bin \
+          --db_host=127.0.0.1 --db_port=5432 --db_user=odoo --db_password=odoo \
+          --addons-path="$PWD/_odoo/addons,$PWD/odoo-addons" \
+          -d "nasq_ci_scratch_${CI_PIPELINE_NUMBER}" \
+          -i nasq_core,nasq_platform,nasq_api,nasq_pmo,nasq_hr,nasq_chat \
+          --test-tags /nasq_core,/nasq_platform,/nasq_api,/nasq_pmo,/nasq_hr,/nasq_chat \
+          --http-port=8169 --stop-after-init --log-level=test 2>&1 | tee odoo-test.log
+      - grep -Eq 'odoo.tests.result: 0 failed, 0 error\(s\) of [1-9][0-9]* tests when loading database' odoo-test.log
+
+  - name: upgrade
+    image: python:3.12-bookworm
+    commands:
+      - apt-get update -qq && apt-get install -y -qq --no-install-recommends libpq-dev libldap2-dev libsasl2-dev postgresql git >/dev/null
+      - pg_ctlcluster 15 main start
+      - su postgres -c "psql -qc \"CREATE USER odoo WITH SUPERUSER PASSWORD 'odoo'\""
+      - git clone --depth=1 --branch "$(cat deploy/odoo/ODOO_COMMIT)" https://github.com/odoo/odoo.git _odoo || (git clone https://github.com/odoo/odoo.git _odoo && git -C _odoo checkout "$(cat deploy/odoo/ODOO_COMMIT)")
+      - pip install --quiet -r deploy/odoo/requirements-python312-linux.txt
+      - export ODOO_DB_ARGS="--db_host=127.0.0.1 --db_port=5432 --db_user=odoo --db_password=odoo"
+      - export MODULES="nasq_core,nasq_platform,nasq_api,nasq_pmo,nasq_hr,nasq_chat"
+      - export BASE_TAG="$(git tag --list 'release/*' --sort=-v:refname | head -n1)"
+      - test -n "$BASE_TAG" || { echo "no release/* tag; upgrade job skipped"; exit 0; }
+      - git worktree add _baseline "$BASE_TAG"
+      # Install the previous release
+      - |
+        if [ -n "${NASQ_COMMERCIAL_CONFIG:-}" ]; then
+          echo "previous release must not inherit a commercial classification" >&2
+          exit 1
+        fi
+        python _odoo/odoo-bin $ODOO_DB_ARGS --addons-path="$PWD/_odoo/addons,$PWD/_baseline/odoo-addons" \
+          -d nasq_ci_upgrade_scratch -i "$MODULES" --without-demo=all --http-port=8169 --stop-after-init
+      # Upgrade to this commit
+      - python3 deploy/classification.py fixture --database nasq_ci_upgrade_scratch --mode saas --output /tmp/upgrade-classification.json
+      - export NASQ_COMMERCIAL_CONFIG=/tmp/upgrade-classification.json
+      - |
+        python _odoo/odoo-bin $ODOO_DB_ARGS --addons-path="$PWD/_odoo/addons,$PWD/odoo-addons" \
+          -d nasq_ci_upgrade_scratch -u "$MODULES" --http-port=8169 --stop-after-init 2>&1 | tee upgrade.log
+      - python3 -B tools/upgrade_log_guard.py upgrade.log
+      # Post-upgrade smoke
+      - |
+        python _odoo/odoo-bin shell $ODOO_DB_ARGS --addons-path="$PWD/_odoo/addons,$PWD/odoo-addons" \
+          -d nasq_ci_upgrade_scratch --http-port=8169 --no-http < deploy/odoo/upgrade_smoke.py | tee smoke.log
+      - grep -q UPGRADE_SMOKE_OK smoke.log
+
+  - name: restore-drill
+    image: python:3.12-bookworm
+    commands:
+      - apt-get update -qq && apt-get install -y -qq --no-install-recommends libpq-dev libldap2-dev libsasl2-dev postgresql git curl >/dev/null
+      - pg_ctlcluster 15 main start
+      - su postgres -c "psql -qc \"CREATE USER odoo WITH SUPERUSER PASSWORD 'odoo'\""
+      - git clone --depth=1 --branch "$(cat deploy/odoo/ODOO_COMMIT)" https://github.com/odoo/odoo.git _odoo || (git clone https://github.com/odoo/odoo.git _odoo && git -C _odoo checkout "$(cat deploy/odoo/ODOO_COMMIT)")
+      - pip install --quiet -r deploy/odoo/requirements-python312-linux.txt
+      - |
+        set -euo pipefail
+        export PGPASSWORD=odoo
+        B=$(dirname "$(readlink -f "$(command -v pg_dump)")"); W=$(mktemp -d)
+        cleanup() {
+          if [ -n "${SERVER_PID:-}" ]; then kill "$SERVER_PID" 2>/dev/null || true; wait "$SERVER_PID" 2>/dev/null || true; fi
+          for db in nasq_drill_src_scratch nasq_drill_restored_scratch nasq_drill_restored2_scratch; do
+            "$B/dropdb" -h 127.0.0.1 -U odoo --if-exists "$db"
+          done
+          rm -rf "$W"
+        }
+        trap cleanup EXIT
+        export NASQ_COMMERCIAL_CONFIG="$W/restore-classification.json"
+        python3 deploy/classification.py fixture --database nasq_drill_src_scratch --mode non_saas --output "$NASQ_COMMERCIAL_CONFIG"
+        python _odoo/odoo-bin --db_host=127.0.0.1 --db_user=odoo --db_password=odoo \
+          --addons-path="$PWD/_odoo/addons,$PWD/odoo-addons" --data-dir="$W/data" \
+          -d nasq_drill_src_scratch -i nasq_core,nasq_platform,nasq_api,nasq_pmo,nasq_hr,nasq_chat \
+          --without-demo=all --http-port=8169 --stop-after-init
+        python3 deploy/backup.py --opt-in MANUAL_BACKUP_OPT_IN --acknowledge-unverified CANDIDATE_BACKUP_UNVERIFIED \
+          --db-name nasq_drill_src_scratch --filestore "$W/data/filestore/nasq_drill_src_scratch" \
+          --output-dir "$W/backup" --pg-dump "$B/pg_dump" --pg-host 127.0.0.1 --pg-user odoo
+        cp "$W/backup/manifest.json" "$W/original-manifest.json"
+        verify() { python3 deploy/restore_verify.py --backup-dir "$W/backup" --target-db "$1" \
+          --target-filestore "$W/restored/filestore/$1" --pg-restore "$B/pg_restore" --createdb "$B/createdb" \
+          --psql "$B/psql" --pg-host 127.0.0.1 --pg-user odoo; }
+        verify nasq_drill_restored_scratch
+        # Classified restored databases must start without a mapping or billing service.
+        unset NASQ_COMMERCIAL_CONFIG
+        python _odoo/odoo-bin --db_host=127.0.0.1 --db_user=odoo --db_password=odoo \
+          --addons-path="$PWD/_odoo/addons,$PWD/odoo-addons" --data-dir="$W/restored" \
+          -d nasq_drill_restored_scratch --http-port=8169 --max-cron-threads=0 > restored-odoo.log 2>&1 &
+        SERVER_PID=$!
+        for i in $(seq 1 60); do
+          kill -0 "$SERVER_PID"
+          if curl -fsS http://127.0.0.1:8169/web/health >/dev/null; then break; fi
+          sleep 1
+        done
+        curl -fsS -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8169/web/health
+        kill "$SERVER_PID"; wait "$SERVER_PID" || true; SERVER_PID=
+        missing=$("$B/psql" -h 127.0.0.1 -U odoo -d nasq_drill_restored_scratch -At -v ON_ERROR_STOP=1 \
+          -c 'SELECT store_fname FROM ir_attachment WHERE store_fname IS NOT NULL ORDER BY store_fname LIMIT 1')
+        test -n "$missing"
+        rm "$W/backup/filestore/$missing"
+        if verify nasq_drill_restored2_scratch; then echo "negative case passed unexpectedly"; exit 1; fi
+        python3 -c 'import json,sys; r=json.load(open(sys.argv[1])); assert r["restore_verified"] is False; assert sys.argv[2] in r["checks"]["missing_attachment_files"]' "$W/backup/restore-verification.json" "$missing"
+        cmp "$W/original-manifest.json" "$W/backup/manifest.json"
+
+  - name: image
+    image: docker:29-cli
+    environment:
+      DOCKER_HOST: tcp://docker:2375
+    commands:
+      - apk add --no-cache python3 bash
+      - docker build -f deploy/odoo/Dockerfile --build-arg ODOO_COMMIT="$(cat deploy/odoo/ODOO_COMMIT)" --build-arg NASQ_REVISION="${CI_COMMIT_SHA:0:12}" -t nasq-odoo:ci .
+      - |
+        set -euo pipefail
+        python3 deploy/classification.py fixture --database nasq_image_scratch --mode non_saas --output /tmp/image-classification.json
+        docker network create t
+        docker run -d --name db --network t -e POSTGRES_USER=odoo -e POSTGRES_PASSWORD=odoo -e POSTGRES_DB=postgres postgres:16
+        printf '%s\n' '[options]' 'db_host = db' 'db_user = odoo' 'db_password = odoo' 'list_db = False' > odoo.conf
+        for i in $(seq 1 30); do docker exec db pg_isready -U odoo && break; sleep 2; done
+        docker run --rm --network t -v "$PWD/odoo.conf:/etc/odoo/odoo.conf:ro" \
+          -v /tmp/image-classification.json:/run/nasq/classification.json:ro \
+          -e NASQ_COMMERCIAL_CONFIG=/run/nasq/classification.json nasq-odoo:ci \
+          -d nasq_image_scratch -i nasq_core,nasq_platform,nasq_api,nasq_pmo,nasq_hr,nasq_chat --without-demo=all --http-port=8169 --stop-after-init
+        docker run --rm --entrypoint sh nasq-odoo:ci -c 'test ! -w /opt/nasq/addons && test "$(id -u)" = 10001 && ! command -v git'
+        docker rm -fv db || true
+        docker network rm t || true
+
+  - name: e2e-mock
+    image: node:22-bookworm
+    commands:
+      - apt-get update -qq && apt-get install -y -qq curl >/dev/null
+      - npm -w apps/web run postinstall
+      - cd apps/web
+      - npx playwright install --with-deps chromium
+      - |
+        set -euo pipefail
+        test -s e2e/ci-mock-specs.txt
+        export PROJECTS_UI_PREVIEW=1 MODULE_UI_PREVIEW=1 MOCK_PORT=4498
+        export NUXT_ODOO_URL=http://127.0.0.1:4498 NUXT_ODOO_DB=nasq_ui_mock_only
+        export NUXT_PUBLIC_WS_URL=ws://127.0.0.1:4498/websocket
+        export E2E_BASE_URL=http://localhost:4097 E2E_PROJECT_POPUPS=1
+        node e2e/internal-ui-audit-mock.mjs > mock.log 2>&1 &
+        MOCK_PID=$!
+        cleanup() {
+          if [ -n "${SERVER_PID:-}" ]; then kill "$SERVER_PID" 2>/dev/null || true; wait "$SERVER_PID" 2>/dev/null || true; fi
+          kill "$MOCK_PID" 2>/dev/null || true; wait "$MOCK_PID" 2>/dev/null || true
+        }
+        trap cleanup EXIT
+        npx nuxt build
+        PORT=4097 node .output/server/index.mjs > nuxt.log 2>&1 &
+        SERVER_PID=$!
+        for i in $(seq 1 60); do
+          kill -0 "$MOCK_PID" "$SERVER_PID"
+          if curl -fs http://localhost:4097/login >/dev/null; then break; fi
+          sleep 2
+        done
+        curl -fs http://localhost:4097/login >/dev/null
+        npx playwright test $(sed 's#^#e2e/#' e2e/ci-mock-specs.txt | tr '\n' ' ')

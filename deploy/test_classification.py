@@ -140,21 +140,26 @@ with open(os.environ['DOCKER_LOG'], 'a') as f:
         self.assertNotIn('NASQ_COMMERCIAL_CONFIG', base)
         for text in ('read_only: true', 'create_host_path: false', '/run/nasq/classification.json', '${NASQ_CLASSIFICATION_FILE:?'):
             self.assertIn(text, overlay)
-        workflow = (ROOT / '.github/workflows/ci.yml').read_text()
-        for db, mode in (('"nasq_ci_scratch_${{ github.run_id }}"', 'saas'),
+        # CI is Woodpecker (.woodpecker.yml); GitHub Actions was removed. The
+        # same provisioning invariants must hold in the pipeline definition.
+        pipeline = (ROOT / '.woodpecker.yml').read_text()
+        for db, mode in (('"nasq_ci_scratch_${CI_PIPELINE_NUMBER}"', 'saas'),
                          ('nasq_ci_upgrade_scratch', 'saas'), ('nasq_image_scratch', 'non_saas'),
                          ('nasq_drill_src_scratch', 'non_saas')):
-            self.assertIn(f'fixture --database {db} --mode {mode}', workflow)
-        self.assertNotIn('NASQ_COMMERCIAL_CONFIG=$RUNNER_TEMP/upgrade-classification.json', workflow)
-        upgrade = workflow.split('Upgrade to this commit', 1)[1].split('Post-upgrade smoke', 1)[0]
-        previous = workflow.split('Install the previous release', 1)[1].split('Upgrade to this commit', 1)[0]
-        self.assertIn('NASQ_COMMERCIAL_CONFIG: ${{ runner.temp }}/upgrade-classification.json', upgrade)
+            self.assertIn(f'fixture --database {db} --mode {mode}', pipeline)
+        # The previous-release install must run without any commercial
+        # classification, and only the upgrade step may point at the fixture.
+        previous = pipeline.split('# Install the previous release', 1)[1].split('# Upgrade to this commit', 1)[0]
+        upgrade = pipeline.split('# Upgrade to this commit', 1)[1].split('# Post-upgrade smoke', 1)[0]
         self.assertIn('previous release must not inherit a commercial classification', previous)
-        self.assertIn('-e NASQ_COMMERCIAL_CONFIG=/run/nasq/classification.json', workflow)
-        self.assertIn('image-classification.json:/run/nasq/classification.json:ro', workflow)
-        self.assertIn('unset NASQ_COMMERCIAL_CONFIG', workflow)
-        self.assertIn('negative case passed unexpectedly', workflow)
-        self.assertIn('tools/upgrade_log_guard.py upgrade.log', workflow)
+        self.assertNotIn('NASQ_COMMERCIAL_CONFIG=', previous)
+        self.assertIn('NASQ_COMMERCIAL_CONFIG=/tmp/upgrade-classification.json', upgrade)
+        self.assertIn('fixture --database nasq_ci_upgrade_scratch --mode saas', pipeline)
+        self.assertIn('-e NASQ_COMMERCIAL_CONFIG=/run/nasq/classification.json', pipeline)
+        self.assertIn('image-classification.json:/run/nasq/classification.json:ro', pipeline)
+        self.assertIn('unset NASQ_COMMERCIAL_CONFIG', pipeline)
+        self.assertIn('negative case passed unexpectedly', pipeline)
+        self.assertIn('tools/upgrade_log_guard.py upgrade.log', pipeline)
 
 
 if __name__ == '__main__':

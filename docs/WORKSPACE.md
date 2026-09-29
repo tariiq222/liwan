@@ -45,6 +45,18 @@ git branch --show-current
 
 التحقق المحلي لا يثبت النشر. الـ remote هو `origin` (`https://github.com/tariiq222/nasq.git`) ويتتبعه `main`؛ قارن `main` مع `origin/main` بعد `git fetch` قبل أي دمج. لا commit أو دمج أو push أو نشر أو حذف عمل دون تفويض الإجراء؛ الدمج يحفظ القرارات السابقة وفق [AGENTS.md](../AGENTS.md).
 
+## CI — Woodpecker (2026-09-29)
+
+CI is Woodpecker, defined in [`.woodpecker.yml`](../.woodpecker.yml); GitHub
+Actions was removed from the project. The pipeline runs eight steps on the
+local instance (`prepare`, `static`, `control-plane`, `odoo`, `upgrade`,
+`restore-drill`, `image`, `e2e-mock`) and is portable to any Woodpecker
+deployment with a Docker backend. `.github/` keeps only non-Actions files
+(Copilot instructions and hooks). A temporary Cloudflare tunnel fronts the
+instance because GitHub rejects `localhost` webhook URLs; if the tunnel or its
+address changes, `WOODPECKER_HOST` must be updated and the server restarted.
+The migration policy is [`migrations.md`](migrations.md).
+
 ## Vendor workspace local integration — 2026-09-23
 
 The CP2 operator, independent control service, and company-only `/vendor` pages

@@ -53,7 +53,7 @@ ALLOWED = {
     'docs/verification/cp1-me-commercial.md',
     'deploy/classification.py', 'deploy/docker-compose.classification.yml',
     'deploy/provision.sh', 'deploy/test_classification.py', 'deploy/.env.example',
-    '.github/workflows/ci.yml', 'docs/verification/cp1-provisioning.md',
+    '.woodpecker.yml', 'docs/verification/cp1-provisioning.md',
     'odoo-addons/nasq_api/controllers/commercial.py',
     'odoo-addons/nasq_api/controllers/__init__.py',
     'odoo-addons/nasq_api/tests/test_commercial_surface.py',

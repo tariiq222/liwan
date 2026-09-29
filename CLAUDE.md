@@ -277,13 +277,14 @@ PGHOST=${PGHOST:-127.0.0.1}; PGPORT=${PGPORT:-5432}; PGUSER=${PGUSER:-tariq}
   --http-port=8169 --workers=0 --max-cron-threads=0 --stop-after-init
 ```
 
-The CI workflow (`.github/workflows/ci.yml`) has six jobs—`static`, `odoo`,
-`upgrade`, `image`, `restore-drill`, and `e2e-mock`. Each job is runnable
-locally with the same command blocks in that workflow: static checks, explicit
-scratch Odoo install/upgrade commands, the Docker image checks, the backup and
-restore drill, and the mock Playwright run. The migration policy is
-[`docs/migrations.md`](docs/migrations.md), and the pinned Odoo source commit
-is [`deploy/odoo/ODOO_COMMIT`](deploy/odoo/ODOO_COMMIT).
+CI is Woodpecker (`.woodpecker.yml`); GitHub Actions is not used. The pipeline
+has eight steps—`prepare`, `static`, `control-plane`, `odoo`, `upgrade`,
+`restore-drill`, `image`, and `e2e-mock`. Each step is runnable locally with the
+same command block in that file: static checks, the control-plane PostgreSQL
+contracts, explicit scratch Odoo install/upgrade commands, the Docker image
+checks, the backup and restore drill, and the mock Playwright run. The migration
+policy is [`docs/migrations.md`](docs/migrations.md), and the pinned Odoo source
+commit is [`deploy/odoo/ODOO_COMMIT`](deploy/odoo/ODOO_COMMIT).
 
 Use `npm test` for contracts and web unit tests, `npm -w apps/web run lint`
 (that is `vue-tsc --build --noEmit`) for the web type check, and
