@@ -1,4 +1,10 @@
-# The Docker image gate, kept in its own pipeline file.
+# The Docker image gate. Deliberately NOT under .woodpecker/: Woodpecker
+# auto-discovers .woodpecker/*.yml, and a pipeline file whose `when` filter
+# matches nothing makes the server reject the whole webhook
+# ("'when' filters filtered out all steps"), which would break every push on
+# engines that cannot provide Docker. Activate it by pointing the repository's
+# "Pipeline path" setting at this file (or copying it into .woodpecker/) on an
+# agent that supports it.
 #
 # Building `deploy/odoo/Dockerfile` and running the image requires a Docker
 # daemon reachable from the step, i.e. a Woodpecker agent whose engine can

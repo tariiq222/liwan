@@ -140,11 +140,11 @@ with open(os.environ['DOCKER_LOG'], 'a') as f:
         self.assertNotIn('NASQ_COMMERCIAL_CONFIG', base)
         for text in ('read_only: true', 'create_host_path: false', '/run/nasq/classification.json', '${NASQ_CLASSIFICATION_FILE:?'):
             self.assertIn(text, overlay)
-        # CI is Woodpecker (.woodpecker.yml plus .woodpecker/image.yml);
-        # GitHub Actions was removed. The same provisioning invariants must hold
-        # in the pipeline definitions.
+        # CI is Woodpecker (.woodpecker.yml plus the deploy/woodpecker image
+        # gate); GitHub Actions was removed. The same provisioning invariants
+        # must hold in the pipeline definitions.
         pipeline = ((ROOT / '.woodpecker.yml').read_text()
-                    + (ROOT / '.woodpecker' / 'image.yml').read_text())
+                    + (ROOT / 'deploy' / 'woodpecker' / 'image.yml').read_text())
         for db, mode in (('"nasq_ci_scratch_${CI_PIPELINE_NUMBER}"', 'saas'),
                          ('nasq_ci_upgrade_scratch', 'saas'), ('nasq_image_scratch', 'non_saas'),
                          ('nasq_drill_src_scratch', 'non_saas')):

@@ -52,10 +52,13 @@ Actions was removed from the project. The main pipeline runs seven steps on the
 local instance (`prepare`, `static`, `control-plane`, `odoo`, `upgrade`,
 `restore-drill`, `e2e-mock`) and is portable to any Woodpecker deployment with
 a Docker backend. The Docker image gate lives in
-[`.woodpecker/image.yml`](../.woodpecker/image.yml) and is opt-in via the
-`DOCKER_IN_DOCKER` pipeline variable: it needs an agent whose engine can start
-a privileged dind service, which the local rootless-dind engine cannot do
-(nested rootlesskit fails with `newuidmap: Operation not permitted`).
+[`deploy/woodpecker/image.yml`](../deploy/woodpecker/image.yml) and is
+activated by pointing the repository pipeline path at it: it needs an agent
+whose engine can start a privileged dind service, which the local
+rootless-dind engine cannot do (nested rootlesskit fails with
+`newuidmap: Operation not permitted`). Keep it out of `.woodpecker/` because a
+pipeline file whose `when` matches nothing makes the server reject the whole
+webhook.
 `.github/` keeps only non-Actions files (Copilot instructions and hooks). A
 temporary Cloudflare tunnel fronts the instance because GitHub rejects
 `localhost` webhook URLs; if the tunnel or its address changes,
