@@ -20,11 +20,14 @@ import { createFencedStorageAdapter, ensureTenantStorageSchema, type TenantStora
 import { bindJob, payloadDigest } from '../shared/provisioning.js'
 import { bootstrapFirstAdmin, ensureAdminBindingSchema } from '../shared/provision-readiness.js'
 import { createTenantBackup, approveSharedRestore, restoreBackupToNewTarget } from '../shared/shared-backup.js'
+import { ensureTenantDatabases, tenantDatabaseNames } from './live-tenant-databases.js'
 
 const url = process.env.CONTROL_TEST_DATABASE_URL
-const suffix = 'sharedgate20260928'
-const sourceDatabase = `nasq_shared_scratch_${suffix}_t04`
-const targetDatabase = `nasq_shared_scratch_${suffix}_t05`
+const scratchDatabases = url ? tenantDatabaseNames(7, url) : []
+const sourceDatabase = scratchDatabases[3] ?? ''
+const targetDatabase = scratchDatabases[4] ?? ''
+const reservedDatabase = scratchDatabases[5] ?? ''
+const unverifiedDatabase = scratchDatabases[6] ?? ''
 if (url) {
   const parsed = new URL(url)
   if (!['127.0.0.1','localhost','::1'].includes(parsed.hostname) || !/^nasq_control_scratch_[a-z0-9]+$/.test(parsed.pathname.slice(1))) throw new Error('CONTROL_TEST_DATABASE_URL must select a unique loopback nasq_control_scratch database')
@@ -48,6 +51,7 @@ else describe('shared backup and restore authority', () => {
     backupRoot = join(gateRoot, 'backups')
     await mkdir(backupRoot, { recursive: true })
     await migrate(pool)
+    await ensureTenantDatabases(pool, scratchDatabases)
     await pool.query('TRUNCATE shared_job_events, shared_jobs, shared_registry_audit, shared_registry_hosts, shared_registry_bindings, shared_registry_state CASCADE')
     await pool.query('TRUNCATE shared_payment_events, shared_orders, shared_restore_approvals, shared_backups CASCADE')
     await pool.query('TRUNCATE tenants CASCADE')
@@ -98,7 +102,7 @@ else describe('shared backup and restore authority', () => {
     // Refuses to snapshot an unverified tenant (bound but never provisioned).
     const unverified = randomUUID()
     await pool.query('INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,catalog_version,catalog_tier,operations_enabled) VALUES ($1,$2,\'saas\',\'managed\',$3,\'live-v1\',\'core\',true)', [unverified, 'Unverified', 'unverified-target'])
-    await publishRegistryMutation(pool, registryPath, actor, { controlTenantId: unverified, expectedSnapshotRevision: 1, target: { host: 't99.backup.invalid', tenantId: 't99', database: `nasq_shared_scratch_${suffix}_t07`, filestore: `nasq_shared_scratch_${suffix}_t07`, enabled: true, registryRevision: 1 }, reason: 'Unverified fixture tenant' })
+    await publishRegistryMutation(pool, registryPath, actor, { controlTenantId: unverified, expectedSnapshotRevision: 1, target: { host: 't99.backup.invalid', tenantId: 't99', database: unverifiedDatabase, filestore: unverifiedDatabase, enabled: true, registryRevision: 1 }, reason: 'Unverified fixture tenant' })
     await expect(createTenantBackup(pool, connect, { controlTenantId: unverified, backupRoot, createdBy: `${issuer}:7` })).rejects.toThrow('provision_not_verified')
   })
 
@@ -131,7 +135,7 @@ else describe('shared backup and restore authority', () => {
     await pool.query('INSERT INTO shared_restore_approvals(id,backup_id,control_tenant_id,target_database,reason,expires_at) VALUES($1,$2,$3,$4,$5,clock_timestamp()-interval \'1 second\')',
       [expired, backupId, tenantId, targetDatabase, 'Expired fixture approval'])
     await expect(restoreBackupToNewTarget(pool, connect, { approvalId: expired, actor })).rejects.toThrow('restore_approval_unavailable')
-    await expect(approveSharedRestore(pool, { backupId, controlTenantId: tenantId, targetDatabase: `nasq_shared_scratch_${suffix}_t06`, ttlSeconds: 3600, actor: { issuer, actorUid: 99 } }))
+    await expect(approveSharedRestore(pool, { backupId, controlTenantId: tenantId, targetDatabase: reservedDatabase, ttlSeconds: 3600, actor: { issuer, actorUid: 99 } }))
       .rejects.toThrow('shared_restore_forbidden')
   })
 })

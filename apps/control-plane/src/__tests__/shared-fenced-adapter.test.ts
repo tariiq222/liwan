@@ -17,10 +17,10 @@ import { publishRegistryMutation } from '../shared/registry-store.js'
 import { enqueueSharedJob } from '../shared/job-store.js'
 import { runSharedJob, expireSharedLeases } from '../shared/job-worker.js'
 import { createFencedStorageAdapter, ensureTenantStorageSchema, type TenantStorage } from '../shared/fenced-adapter.js'
+import { ensureTenantDatabases, tenantDatabaseNames } from './live-tenant-databases.js'
 
 const url = process.env.CONTROL_TEST_DATABASE_URL
-const suffix = 'sharedgate20260928'
-const tenantDatabases = [`nasq_shared_scratch_${suffix}_t01`, `nasq_shared_scratch_${suffix}_t02`]
+const tenantDatabases = url ? tenantDatabaseNames(2, url) : []
 if (url) {
   const parsed = new URL(url)
   if (!['127.0.0.1','localhost','::1'].includes(parsed.hostname) || !/^nasq_control_scratch_[a-z0-9]+$/.test(parsed.pathname.slice(1))) throw new Error('CONTROL_TEST_DATABASE_URL must select a unique loopback nasq_control_scratch database')
@@ -49,6 +49,7 @@ else describe('fenced adapter live PostgreSQL integration', () => {
       : await mkdtemp(join(tmpdir(), 'nasq-fenced-'))
     await mkdir(registryDir, { recursive: true })
     await migrate(pool)
+    await ensureTenantDatabases(pool, tenantDatabases)
     await pool.query('TRUNCATE shared_job_events, shared_jobs, shared_registry_audit, shared_registry_hosts, shared_registry_bindings, shared_registry_state CASCADE')
     await pool.query('TRUNCATE tenants CASCADE')
     await pool.query('TRUNCATE catalog_entries')

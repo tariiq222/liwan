@@ -4,6 +4,13 @@ import { resolve } from 'node:path'
 import { runInNewContext } from 'node:vm'
 import { expect, it } from 'vitest'
 const root = resolve(import.meta.dirname, '../../../..')
+// These assertions render the Compose model with the real `docker compose`
+// CLI. Environments without a Docker client (for example a plain CI step
+// container) skip instead of reporting a false regression; GitHub's runner and
+// developer machines do exercise them.
+const hasDocker = (() => {
+  try { execFileSync('docker', ['compose', 'version'], { stdio: 'ignore' }); return true } catch { return false }
+})()
 function rendered(shared: boolean) {
   const args = ['compose', '--env-file', '/dev/null', '-f', 'deploy/docker-compose.yml']
   if (shared) args.push('-f', 'deploy/docker-compose.shared.yml')
@@ -15,13 +22,13 @@ function rendered(shared: boolean) {
     NASQ_TENANT_REGISTRY_DIR: '/synthetic/registry', NASQ_SHARED_ODOO_CONFIG: '/synthetic/odoo.conf',
   } }))
 }
-it('renders dedicated defaults without shared services or build mode', () => {
+it.skipIf(!hasDocker)('renders dedicated defaults without shared services or build mode', () => {
   const s = rendered(false).services
   expect(s.guard).toBeUndefined()
   expect(s.odoo.command).toEqual(['--workers', '2', '--proxy-mode'])
   expect(s.web.environment.NUXT_ODOO_URL).toBe('http://odoo:8069')
 })
-it('renders shared network boundaries, commands, directory mounts and compiled mode', () => {
+it.skipIf(!hasDocker)('renders shared network boundaries, commands, directory mounts and compiled mode', () => {
   const s = rendered(true).services
   for (const name of ['web', 'odoo', 'guard', 'db']) expect(s[name].ports ?? []).toEqual([])
   expect(s.proxy.ports.map((p: { published: string }) => p.published).sort()).toEqual(['443', '80'])

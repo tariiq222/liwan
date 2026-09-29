@@ -19,10 +19,10 @@ import { createFencedStorageAdapter, ensureTenantStorageSchema, type TenantStora
 import { bindJob, payloadDigest } from '../shared/provisioning.js'
 import { bootstrapFirstAdmin, ensureAdminBindingSchema, inspectTenantReadiness, activateSharedTenant } from '../shared/provision-readiness.js'
 import { createSharedOrder, applyPaymentEvent, provisionPaidOrder, reconcilePaidOrder } from '../shared/shared-order.js'
+import { ensureTenantDatabases, tenantDatabaseNames } from './live-tenant-databases.js'
 
 const url = process.env.CONTROL_TEST_DATABASE_URL
-const suffix = 'sharedgate20260928'
-const tenantDatabases = [`nasq_shared_scratch_${suffix}_t08`, `nasq_shared_scratch_${suffix}_t09`]
+const tenantDatabases = url ? tenantDatabaseNames(9, url).slice(7) : []
 if (url) {
   const parsed = new URL(url)
   if (!['127.0.0.1','localhost','::1'].includes(parsed.hostname) || !/^nasq_control_scratch_[a-z0-9]+$/.test(parsed.pathname.slice(1))) throw new Error('CONTROL_TEST_DATABASE_URL must select a unique loopback nasq_control_scratch database')
@@ -44,6 +44,7 @@ else describe('shared order and sandbox payment lifecycle', () => {
     const gateRoot = process.env.NASQ_LIVE_GATE_ROOT ?? await mkdtemp(join(tmpdir(), 'nasq-order-'))
     await mkdir(gateRoot, { recursive: true })
     await migrate(pool)
+    await ensureTenantDatabases(pool, tenantDatabases)
     await pool.query('TRUNCATE shared_job_events, shared_jobs, shared_registry_audit, shared_registry_hosts, shared_registry_bindings, shared_registry_state CASCADE')
     await pool.query('TRUNCATE shared_payment_events, shared_orders, shared_restore_approvals, shared_backups CASCADE')
     await pool.query('TRUNCATE tenants CASCADE')

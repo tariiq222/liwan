@@ -22,11 +22,12 @@ import { bindJob, payloadDigest } from '../shared/provisioning.js'
 import { bootstrapFirstAdmin, ensureAdminBindingSchema, inspectTenantReadiness, activateSharedTenant } from '../shared/provision-readiness.js'
 import { createSharedOrder, applyPaymentEvent, provisionPaidOrder, reconcilePaidOrder } from '../shared/shared-order.js'
 import { createTenantBackup, approveSharedRestore, restoreBackupToNewTarget } from '../shared/shared-backup.js'
+import { ensureTenantDatabases, tenantDatabaseNames } from './live-tenant-databases.js'
 
 const url = process.env.CONTROL_TEST_DATABASE_URL
-const suffix = 'sharedgate20260928'
-const sourceDatabase = `nasq_shared_scratch_${suffix}_t10`
-const restoreTarget = `nasq_shared_scratch_${suffix}_t06`
+const scratchDatabases = url ? tenantDatabaseNames(10, url) : []
+const sourceDatabase = scratchDatabases[9] ?? ''
+const restoreTarget = scratchDatabases[5] ?? ''
 if (url) {
   const parsed = new URL(url)
   if (!['127.0.0.1','localhost','::1'].includes(parsed.hostname) || !/^nasq_control_scratch_[a-z0-9]+$/.test(parsed.pathname.slice(1))) throw new Error('CONTROL_TEST_DATABASE_URL must select a unique loopback nasq_control_scratch database')
@@ -51,6 +52,7 @@ else describe('shared SaaS full journey', () => {
     registryPath = join(gateRoot, 'journey-registry.json')
     await mkdir(backupRoot, { recursive: true })
     await migrate(pool)
+    await ensureTenantDatabases(pool, scratchDatabases)
     await pool.query('TRUNCATE shared_job_events, shared_jobs, shared_registry_audit, shared_registry_hosts, shared_registry_bindings, shared_registry_state CASCADE')
     await pool.query('TRUNCATE shared_payment_events, shared_orders, shared_restore_approvals, shared_backups CASCADE')
     await pool.query('TRUNCATE tenants CASCADE')
