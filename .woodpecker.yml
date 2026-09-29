@@ -44,6 +44,9 @@ steps:
       - python3 -B tools/migration_guard.py --base origin/main
       - npm ci --ignore-scripts
       - npm -w apps/web run postinstall
+      # governanceDesign.test.ts launches a real headless Chromium, exactly
+      # like the GitHub Actions static job.
+      - npx playwright install --with-deps chromium
       - npm test
       - npm -w apps/web run lint
 
