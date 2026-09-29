@@ -32,13 +32,12 @@ clone:
 services:
   # Docker-in-Docker for the image job. Declared here so `docker build` and
   # `docker run` inside that step talk to their own daemon instead of the
-  # agent's.
+  # agent's. Requires the repository trust level to allow privileged mode.
   docker:
     image: docker:29-dind-rootless
     privileged: true
     environment:
       DOCKER_TLS_CERTDIR: ""
-    command: ["--host=tcp://0.0.0.0:2375", "--tls=false"]
 
 steps:
   - name: prepare
