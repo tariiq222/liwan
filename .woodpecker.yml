@@ -9,6 +9,14 @@ when:
   branch: main
 
 steps:
+  - name: prepare
+    image: node:22-bookworm
+    commands:
+      # The clone step writes the workspace as uid 1000 while step containers
+      # run as root; the managed CLI's operator-file ownership checks
+      # (st_uid == getuid) would otherwise reject every repo file.
+      - chown -R root:root /woodpecker/src
+
   - name: static
     image: node:22-bookworm
     commands:
