@@ -29,16 +29,6 @@ clone:
       depth: 0
       partial: false
 
-services:
-  # Docker-in-Docker for the image job. Declared here so `docker build` and
-  # `docker run` inside that step talk to their own daemon instead of the
-  # agent's. Requires the repository trust level to allow privileged mode.
-  docker:
-    image: docker:29-dind-rootless
-    privileged: true
-    environment:
-      DOCKER_TLS_CERTDIR: ""
-
 steps:
   - name: prepare
     image: node:22-bookworm
@@ -56,7 +46,7 @@ steps:
     image: node:22-bookworm
     commands:
       - apt-get update -qq && apt-get install -y -qq python3 python3-pip >/dev/null
-      - pip3 install --break-system-packages --quiet ruff==0.16.3
+      - pip3 install --break-system-packages --quiet --retries 5 --timeout 60 ruff==0.16.3
       - ruff check odoo-addons
       - python3 -B -m unittest discover -s deploy -p 'test_*.py'
       - python3 -B tools/catalog_check.py
@@ -88,7 +78,7 @@ steps:
       - pg_ctlcluster 15 main start
       - su postgres -c "psql -qc \"CREATE USER odoo WITH SUPERUSER PASSWORD 'odoo'\""
       - git clone --depth=1 --branch "$(cat deploy/odoo/ODOO_COMMIT)" https://github.com/odoo/odoo.git _odoo || (git clone https://github.com/odoo/odoo.git _odoo && git -C _odoo checkout "$(cat deploy/odoo/ODOO_COMMIT)")
-      - pip install --quiet -r deploy/odoo/requirements-python312-linux.txt
+      - pip install --quiet --retries 5 --timeout 60 -r deploy/odoo/requirements-python312-linux.txt
       - export NASQ_COMMERCIAL_CONFIG=/tmp/odoo-classification.json
       - python3 deploy/classification.py fixture --database "nasq_ci_scratch_${CI_PIPELINE_NUMBER}" --mode saas --output "$NASQ_COMMERCIAL_CONFIG"
       - |
@@ -109,7 +99,7 @@ steps:
       - pg_ctlcluster 15 main start
       - su postgres -c "psql -qc \"CREATE USER odoo WITH SUPERUSER PASSWORD 'odoo'\""
       - git clone --depth=1 --branch "$(cat deploy/odoo/ODOO_COMMIT)" https://github.com/odoo/odoo.git _odoo || (git clone https://github.com/odoo/odoo.git _odoo && git -C _odoo checkout "$(cat deploy/odoo/ODOO_COMMIT)")
-      - pip install --quiet -r deploy/odoo/requirements-python312-linux.txt
+      - pip install --quiet --retries 5 --timeout 60 -r deploy/odoo/requirements-python312-linux.txt
       - export ODOO_DB_ARGS="--db_host=127.0.0.1 --db_port=5432 --db_user=odoo --db_password=odoo"
       - export MODULES="nasq_core,nasq_platform,nasq_api,nasq_pmo,nasq_hr,nasq_chat"
       - export BASE_TAG="$(git tag --list 'release/*' --sort=-v:refname | head -n1)"
@@ -143,7 +133,7 @@ steps:
       - pg_ctlcluster 15 main start
       - su postgres -c "psql -qc \"CREATE USER odoo WITH SUPERUSER PASSWORD 'odoo'\""
       - git clone --depth=1 --branch "$(cat deploy/odoo/ODOO_COMMIT)" https://github.com/odoo/odoo.git _odoo || (git clone https://github.com/odoo/odoo.git _odoo && git -C _odoo checkout "$(cat deploy/odoo/ODOO_COMMIT)")
-      - pip install --quiet -r deploy/odoo/requirements-python312-linux.txt
+      - pip install --quiet --retries 5 --timeout 60 -r deploy/odoo/requirements-python312-linux.txt
       - |
         set -euo pipefail
         export PGPASSWORD=odoo
@@ -190,28 +180,6 @@ steps:
         if verify nasq_drill_restored2_scratch; then echo "negative case passed unexpectedly"; exit 1; fi
         python3 -c 'import json,sys; r=json.load(open(sys.argv[1])); assert r["restore_verified"] is False; assert sys.argv[2] in r["checks"]["missing_attachment_files"]' "$W/backup/restore-verification.json" "$missing"
         cmp "$W/original-manifest.json" "$W/backup/manifest.json"
-
-  - name: image
-    image: docker:29-cli
-    environment:
-      DOCKER_HOST: tcp://docker:2375
-    commands:
-      - apk add --no-cache python3 bash
-      - docker build -f deploy/odoo/Dockerfile --build-arg ODOO_COMMIT="$(cat deploy/odoo/ODOO_COMMIT)" --build-arg NASQ_REVISION="${CI_COMMIT_SHA:0:12}" -t nasq-odoo:ci .
-      - |
-        set -euo pipefail
-        python3 deploy/classification.py fixture --database nasq_image_scratch --mode non_saas --output /tmp/image-classification.json
-        docker network create t
-        docker run -d --name db --network t -e POSTGRES_USER=odoo -e POSTGRES_PASSWORD=odoo -e POSTGRES_DB=postgres postgres:16
-        printf '%s\n' '[options]' 'db_host = db' 'db_user = odoo' 'db_password = odoo' 'list_db = False' > odoo.conf
-        for i in $(seq 1 30); do docker exec db pg_isready -U odoo && break; sleep 2; done
-        docker run --rm --network t -v "$PWD/odoo.conf:/etc/odoo/odoo.conf:ro" \
-          -v /tmp/image-classification.json:/run/nasq/classification.json:ro \
-          -e NASQ_COMMERCIAL_CONFIG=/run/nasq/classification.json nasq-odoo:ci \
-          -d nasq_image_scratch -i nasq_core,nasq_platform,nasq_api,nasq_pmo,nasq_hr,nasq_chat --without-demo=all --http-port=8169 --stop-after-init
-        docker run --rm --entrypoint sh nasq-odoo:ci -c 'test ! -w /opt/nasq/addons && test "$(id -u)" = 10001 && ! command -v git'
-        docker rm -fv db || true
-        docker network rm t || true
 
   - name: e2e-mock
     image: node:22-bookworm

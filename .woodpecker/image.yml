@@ -1,0 +1,53 @@
+# The Docker image gate, kept in its own pipeline file.
+#
+# Building `deploy/odoo/Dockerfile` and running the image requires a Docker
+# daemon reachable from the step, i.e. a Woodpecker agent whose engine can
+# start a privileged dind service. The local rootless-dind engine cannot
+# (nested rootlesskit fails with "newuidmap: Operation not permitted"), so this
+# pipeline is opt-in: trigger it with the additional pipeline variable
+# DOCKER_IN_DOCKER=true from an agent that supports it.
+#
+#   Woodpecker UI -> repository -> Run pipeline -> DOCKER_IN_DOCKER=true
+#
+when:
+  - event: [manual, push]
+    branch: main
+    evaluate: 'DOCKER_IN_DOCKER == "true"'
+
+clone:
+  git:
+    image: woodpeckerci/plugin-git
+    settings:
+      depth: 0
+      partial: false
+
+services:
+  docker:
+    image: docker:29-dind-rootless
+    privileged: true
+    environment:
+      DOCKER_TLS_CERTDIR: ""
+
+steps:
+  - name: image
+    image: docker:29-cli
+    environment:
+      DOCKER_HOST: tcp://docker:2375
+    commands:
+      - apk add --no-cache python3 bash
+      - docker info
+      - docker build -f deploy/odoo/Dockerfile --build-arg ODOO_COMMIT="$(cat deploy/odoo/ODOO_COMMIT)" --build-arg NASQ_REVISION="${CI_COMMIT_SHA:0:12}" -t nasq-odoo:ci .
+      - |
+        set -euo pipefail
+        python3 deploy/classification.py fixture --database nasq_image_scratch --mode non_saas --output /tmp/image-classification.json
+        docker network create t
+        docker run -d --name db --network t -e POSTGRES_USER=odoo -e POSTGRES_PASSWORD=odoo -e POSTGRES_DB=postgres postgres:16
+        printf '%s\n' '[options]' 'db_host = db' 'db_user = odoo' 'db_password = odoo' 'list_db = False' > odoo.conf
+        for i in $(seq 1 30); do docker exec db pg_isready -U odoo && break; sleep 2; done
+        docker run --rm --network t -v "$PWD/odoo.conf:/etc/odoo/odoo.conf:ro" \
+          -v /tmp/image-classification.json:/run/nasq/classification.json:ro \
+          -e NASQ_COMMERCIAL_CONFIG=/run/nasq/classification.json nasq-odoo:ci \
+          -d nasq_image_scratch -i nasq_core,nasq_platform,nasq_api,nasq_pmo,nasq_hr,nasq_chat --without-demo=all --http-port=8169 --stop-after-init
+        docker run --rm --entrypoint sh nasq-odoo:ci -c 'test ! -w /opt/nasq/addons && test "$(id -u)" = 10001 && ! command -v git'
+        docker rm -fv db || true
+        docker network rm t || true

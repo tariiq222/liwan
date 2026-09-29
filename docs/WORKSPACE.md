@@ -48,14 +48,19 @@ git branch --show-current
 ## CI — Woodpecker (2026-09-29)
 
 CI is Woodpecker, defined in [`.woodpecker.yml`](../.woodpecker.yml); GitHub
-Actions was removed from the project. The pipeline runs eight steps on the
+Actions was removed from the project. The main pipeline runs seven steps on the
 local instance (`prepare`, `static`, `control-plane`, `odoo`, `upgrade`,
-`restore-drill`, `image`, `e2e-mock`) and is portable to any Woodpecker
-deployment with a Docker backend. `.github/` keeps only non-Actions files
-(Copilot instructions and hooks). A temporary Cloudflare tunnel fronts the
-instance because GitHub rejects `localhost` webhook URLs; if the tunnel or its
-address changes, `WOODPECKER_HOST` must be updated and the server restarted.
-The migration policy is [`migrations.md`](migrations.md).
+`restore-drill`, `e2e-mock`) and is portable to any Woodpecker deployment with
+a Docker backend. The Docker image gate lives in
+[`.woodpecker/image.yml`](../.woodpecker/image.yml) and is opt-in via the
+`DOCKER_IN_DOCKER` pipeline variable: it needs an agent whose engine can start
+a privileged dind service, which the local rootless-dind engine cannot do
+(nested rootlesskit fails with `newuidmap: Operation not permitted`).
+`.github/` keeps only non-Actions files (Copilot instructions and hooks). A
+temporary Cloudflare tunnel fronts the instance because GitHub rejects
+`localhost` webhook URLs; if the tunnel or its address changes,
+`WOODPECKER_HOST` must be updated and the server restarted. The migration
+policy is [`migrations.md`](migrations.md).
 
 ## Vendor workspace local integration — 2026-09-23
 
