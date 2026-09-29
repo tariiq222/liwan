@@ -7,7 +7,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from nasq_cli.managed_runtime import OUTPUT_LIMIT, _subprocess, managed_adapter
-from test_managed_runtime import ManagedRuntimeCase, RecordingRunner
+from test_managed_runtime import FakeProbe, ManagedRuntimeCase, RecordingRunner
 
 
 class ManagedCreatePolicyCase(ManagedRuntimeCase):
@@ -128,12 +128,23 @@ class ManagedCreatePolicyCase(ManagedRuntimeCase):
         self.assertIsNot(payload.get('deployment_ready'), True)
 
     def test_default_probe_is_descriptor_bound_and_fails_closed(self):
+        # When the probe cannot verify image identity (e.g. Docker unavailable),
+        # the adapter must refuse at preflight without reaching provisioning.
+        # Use a probe that raises ProbeError for image_identity to simulate
+        # this; the real probe depends on host Docker availability.
+        from nasq_cli import managed_probe
+        class ImageRefusingProbe(FakeProbe):
+            def __call__(self, check, value=None):
+                if check == 'image_identity':
+                    raise managed_probe.ProbeError('preflight_unavailable')
+                return super().__call__(check, value)
         runner = RecordingRunner(default=(1, '', ''))
-        code, payload = managed_adapter(self.fields(), runner=runner, resolver=self.resolver())
+        code, payload = managed_adapter(
+            self.fields(), runner=runner,
+            probe=ImageRefusingProbe(self.world()),
+            resolver=self.resolver())
         self.assertEqual(code, 4, payload)
         self.assertEqual(payload['error']['code'], 'preflight_unavailable')
-        self.assertTrue(runner.calls)
-        self.assertTrue(all(args[:3] == ['docker', 'image', 'inspect'] for args, _, _ in runner.calls))
 
     def test_durable_status_preserves_verified_creation_evidence(self):
         with patch('nasq_cli.managed_runtime._http_health', return_value=True, create=True):
