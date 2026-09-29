@@ -100,7 +100,8 @@ steps:
           -i nasq_core,nasq_platform,nasq_api,nasq_pmo,nasq_hr,nasq_chat \
           --test-tags /nasq_core,/nasq_platform,/nasq_api,/nasq_pmo,/nasq_hr,/nasq_chat \
           --http-port=8169 --stop-after-init --log-level=test 2>&1 | tee odoo-test.log
-      - grep -Eq 'odoo.tests.result: 0 failed, 0 error\(s\) of [1-9][0-9]* tests when loading database' odoo-test.log
+      - |
+        grep -Eq 'odoo.tests.result: 0 failed, 0 error\(s\) of [1-9][0-9]* tests when loading database' odoo-test.log
 
   - name: upgrade
     image: python:3.12-bookworm
