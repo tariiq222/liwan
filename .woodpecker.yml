@@ -19,6 +19,8 @@ steps:
     commands:
       - set -euo pipefail
       - export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+      # plugin-git may produce a shallow clone on the local backend; ui_policy needs full history.
+      - if git rev-parse --is-shallow-repository | grep -q true; then git fetch --unshallow origin; fi
       - ruff check odoo-addons
       - python3 -B -m unittest discover -s deploy -p 'test_*.py'
       - python3 -B tools/catalog_check.py
@@ -34,6 +36,8 @@ steps:
     commands:
       - set -euo pipefail
       - export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+      # plugin-git may produce a shallow clone on the local backend; ui_policy needs full history.
+      - if git rev-parse --is-shallow-repository | grep -q true; then git fetch --unshallow origin; fi
       - export CONTROL_TEST_DATABASE_URL="postgres://nasq_test:odoo@127.0.0.1:5432/nasq_control_scratch_ci"
       - PGPASSWORD=odoo dropdb -h 127.0.0.1 -U nasq_test --if-exists nasq_control_scratch_ci || true
       - PGPASSWORD=odoo createdb -h 127.0.0.1 -U nasq_test nasq_control_scratch_ci
