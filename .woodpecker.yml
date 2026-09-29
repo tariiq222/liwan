@@ -16,10 +16,17 @@ steps:
       # run as root; the managed CLI's operator-file ownership checks
       # (st_uid == getuid) would otherwise reject every repo file.
       - chown -R root:root /woodpecker/src
+      - id
+      - ls -la /woodpecker/src/github.com/tariiq222/nasq/deploy/catalog/solutions/ | head -3
+      - stat -c '%u:%g %a %n' /woodpecker/src/github.com/tariiq222/nasq/deploy/catalog/solutions/platform.json
+      - umask
 
   - name: static
     image: node:22-bookworm
     commands:
+      - id
+      - umask
+      - stat -c '%u:%g %a %n' /woodpecker/src/github.com/tariiq222/nasq/deploy/catalog/solutions/platform.json
       - apt-get update -qq && apt-get install -y -qq python3 python3-pip >/dev/null
       - pip3 install --break-system-packages --quiet ruff==0.16.3
       - ruff check odoo-addons
