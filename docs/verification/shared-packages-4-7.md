@@ -1,5 +1,11 @@
 # Shared SaaS gate — packages 4–7: provisioning, backup/restore, sandbox payment, full journey
 
+> Historical checkpoint: the commands, results, branch and unmerged status below
+> describe the execution stage recorded here. Shared packages 1–7 were subsequently
+> integrated into `main` through `7ffee66e` and `3fd76c38`. For the consolidated
+> implementation status and remaining release gates, see [current hosting status](../project-closure/saas-hosting-direction-status.md).
+> This annotation does not rerun tests or broaden the original evidence.
+
 **Status:** completed for their local scope on real loopback PostgreSQL. These
 packages close the remaining shared-lane gates that can be proven without real
 Odoo, a real payment provider, TLS/Caddy, or a deployment. They are NOT a

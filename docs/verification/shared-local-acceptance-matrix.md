@@ -1,5 +1,11 @@
 # Shared operational acceptance matrix — current local checkpoint
 
+> Historical checkpoint: the commands, results, branch and unmerged status below
+> describe the execution stage recorded here. Shared packages 1–7 were subsequently
+> integrated into `main` through `7ffee66e` and `3fd76c38`. For the consolidated
+> implementation status and remaining release gates, see [current hosting status](../project-closure/saas-hosting-direction-status.md).
+> This annotation does not rerun tests or broaden the original evidence.
+
 This is a current summary, not phase-one closure. Historical incremental command
 results are in `shared-operational-progress.md`. Execution tree is
 `/Users/tariq/code/nasq-shared-isolation`, branch `codex/shared-isolation`.

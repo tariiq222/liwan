@@ -1,5 +1,11 @@
 # Shared isolation boundary — implementation foundation, not release approval
 
+> Historical checkpoint: the commands, results, branch and unmerged status below
+> describe the execution stage recorded here. Shared packages 1–7 were subsequently
+> integrated into `main` through `7ffee66e` and `3fd76c38`. For the consolidated
+> implementation status and remaining release gates, see [current hosting status](../../docs/project-closure/saas-hosting-direction-status.md).
+> This annotation does not rerun tests or broaden the original evidence.
+
 `guard.mjs` is a Node 24+ private HTTP/WS proxy; `start.mjs` is its opt-in entrypoint.
 It imports the existing TypeScript resolver and registry utilities using Node native
 TS stripping. The image must retain `apps/web/server/utils/{tenantRegistry,tenantHostResolver}.ts`

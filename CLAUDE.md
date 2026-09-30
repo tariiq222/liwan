@@ -3,12 +3,26 @@
 واجهة العميل: [DESIGN.md](DESIGN.md) هو نقطة البداية وسياسة التصميم الوحيدة، وفيه روابط الفهرس والمرجع التقني.
 هذا الملف يملك المعمارية والعقود والأمن والبيانات. [أرشيف الواجهة](docs/archive/ui/README.md) والتقارير لا يغيّران هذه القواعد.
 
-nasq (نَسَق) is a resellable project and task management product on Odoo 19
-CE. Odoo is the engine and `apps/web` (Nuxt 4) is the customer UI. The current
+nasq (نَسَق) is an Arabic-first unified business platform whose vision is to
+be the shared foundation for all of a company's business applications, with
+connected data, workflows, and permissions. Its breadth of ambition is
+comparable to Odoo: replace fragmented systems and subscriptions with one
+coherent platform that companies can adopt progressively, aiming to reduce
+total subscription, integration, and operating cost. PMO and HR are initial
+applications, not the full product definition. Sales, finance, purchasing,
+inventory, and other company functions are part of the broader vision, not
+claims of currently delivered functionality. See the owner-approved
+[product definition](apps/web/PRODUCT.md) dated 2026-09-30. Current delivery
+limits describe implementation stages, not permanent product exclusions.
+
+Odoo 19 Community is the engine and `apps/web` (Nuxt 4) is the customer UI,
+with Nasq's own identity and experience. The current
 deployment templates run an independent database, Odoo instance, frontend, and
 edge per customer. The **target primary model** is self-service SaaS on shared
 application services, retaining a separate database and filestore per customer;
-it has not been implemented or accepted for release. Managed dedicated remains
+local integration and acceptance boundaries are recorded in
+[WORKSPACE.md](docs/WORKSPACE.md); they do not establish release approval.
+Managed dedicated remains
 separate from customer-hosted non-SaaS, which must not require SaaS billing or a
 vendor connection at runtime. Nasq has a tenant abstraction through
 `nasq_platform`, but tenant isolation remains database-per-tenant. There is no
@@ -94,7 +108,9 @@ explicitly; do not assume an Odoo config points at a particular Nasq checkout.
   policy/config, display-lookup, integer-count, completion-status and notification cases use `sudo()` after the
   caller's authorization check; do not add another case without documenting
   it and fixing ACLs/rules where possible.
-- nasq has no time logging or payroll product surface. Do not add
+- The current delivery scope has no time logging or payroll product surface.
+  These are stage constraints, not permanent exclusions from the product
+  vision; adding them requires a separately scoped implementation request. Do not add
   `hr_timesheet`, timesheet fields/endpoints, payroll, bank, or compensation
   data to the customer UI.
 - Task detail routes are `/tasks/{id}` and `/projects/{id}/tasks/{taskId}`.

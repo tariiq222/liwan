@@ -1,5 +1,11 @@
 # Shared provisioning contracts — t3 handoff
 
+> Historical checkpoint: the commands, results, branch and unmerged status below
+> describe the execution stage recorded here. Shared packages 1–7 were subsequently
+> integrated into `main` through `7ffee66e` and `3fd76c38`. For the consolidated
+> implementation status and remaining release gates, see [current hosting status](../../../../docs/project-closure/saas-hosting-direction-status.md).
+> This annotation does not rerun tests or broaden the original evidence.
+
 Status: **contract proof only**. No adapter, DB creation, payment, deployment,
 worker registration or tenant activation was implemented here. No Compose runtime
 is relabeled shared SaaS. The contracts reuse the existing catalog source digest,

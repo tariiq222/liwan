@@ -76,6 +76,10 @@ government/customer delivery package.
 
 ## Shared-SaaS lane integration — 2026-09-29
 
+Current implementation status and remaining release gates are maintained in
+[the consolidated hosting status](project-closure/saas-hosting-direction-status.md).
+The following is the integration record, not a new test run.
+
 The shared-tenant SaaS lane is integrated locally into `main` (`7ffee66e` +
 gate fixes `3fd76c38`) from baseline `d780862e`: durable registry and queue
 (schema 005–008), tenant routing boundary and guard overlay, physically fenced

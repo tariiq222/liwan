@@ -1,5 +1,11 @@
 # Shared SaaS gate — package 3: physically fenced adapter (live SQL)
 
+> Historical checkpoint: the commands, results, branch and unmerged status below
+> describe the execution stage recorded here. Shared packages 1–7 were subsequently
+> integrated into `main` through `7ffee66e` and `3fd76c38`. For the consolidated
+> implementation status and remaining release gates, see [current hosting status](../project-closure/saas-hosting-direction-status.md).
+> This annotation does not rerun tests or broaden the original evidence.
+
 **Status:** completed for its scope. This closes the "storage-boundary fencing"
 gap named in the shared local handoff: an adapter whose fencing guarantee does
 NOT rely on the worker's `assertOwned` callback. A stale worker that lost

@@ -4,11 +4,26 @@
 
 هذه نسخة عمل؛ راجع [خريطة مساحة العمل](docs/WORKSPACE.md) قبل مقارنتها بـ`main` أو بمهمة أخرى.
 
-nasq (نَسَق) is a resellable project and task management product. Odoo 19 CE
-is the engine and Nuxt 4 is the customer UI. Each customer has an independent
-deployment, database, Odoo instance, and frontend; there is no shared tenant
-layer. The platform design is in
-[`docs/superpowers/specs/2026-09-03-nasq-platform-design.md`](docs/superpowers/specs/2026-09-03-nasq-platform-design.md).
+**نَسَق منصة عربية موحّدة لتشغيل الشركات، تكون الأساس المشترك لجميع تطبيقاتها،
+وتربط بياناتها وإجراءاتها وصلاحياتها في نظام واحد.** تستهدف الرؤية الشركات بمختلف
+أنشطتها؛ بدل اشتراكات متعددة في أنظمة معزولة، تبدأ الشركة بما تحتاجه وتتوسع
+تدريجيًا، بهدف خفض التكلفة الإجمالية للاشتراكات والتكامل والتشغيل.
+
+Nasq's product vision is a unified business platform spanning company functions,
+comparable in breadth of ambition to Odoo. Projects, tasks, and HR are initial
+applications, not the limit of the product. Sales, finance, purchasing,
+inventory, and other business applications belong to the broader vision;
+this does not claim that all of them are implemented or ready for release.
+Lower total cost is a product objective, not a measured savings claim.
+See [the product definition](apps/web/PRODUCT.md).
+
+Odoo 19 Community is the business engine and Nuxt 4 is the customer UI, under
+Nasq's own identity and experience. The primary hosting target is self-service
+SaaS with shared application services and a separate database and filestore per
+customer. Dedicated and customer-hosted deployments are separate options.
+See [the hosting contract](docs/superpowers/specs/nasq-shared-saas-and-sovereign-deployment.md)
+and [WORKSPACE.md](docs/WORKSPACE.md) for implementation and acceptance evidence;
+the product vision does not establish production readiness.
 
 ## Current product
 
