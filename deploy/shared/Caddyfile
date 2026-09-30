@@ -38,7 +38,7 @@
 			}
 			zone nasq_web {
 				match {
-					not path /api/auth/* /api/v1/* /web/* /odoo/* /jsonrpc /xmlrpc/* /report/* /mail/* /bus/* /discuss/* /websocket
+					not path /api/auth/* /api/v1/* /web/* /odoo/* /jsonrpc /xmlrpc/* /report/* /mail/* /bus/* /discuss/* /websocket /_nuxt/* /_i18n/* /fonts/* /favicon.ico /robots.txt
 				}
 				key {client_ip}
 				events 600

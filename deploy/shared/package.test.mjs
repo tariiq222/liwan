@@ -27,7 +27,7 @@ test('shared Odoo selection config never names a default database or trusts forw
 })
 test('rate module is present in actual proxy build recipe and all four shared zones are wired', () => {
   const recipe = read('../proxy/Dockerfile')
-  assert.match(recipe, /github.com\/mholt\/caddy-ratelimit@v0\.2\.0/)
+  assert.match(recipe, /github.com\/mholt\/caddy-ratelimit@v0\.1\.0/)
   assert.match(recipe, /http.handlers.rate_limit/)
   const config = read('Caddyfile')
   for (const name of ['auth', 'api', 'odoo', 'web']) assert.equal(config.split(`zone nasq_${name} {`).length, 2)
@@ -35,6 +35,14 @@ test('rate module is present in actual proxy build recipe and all four shared zo
   assert.match(config, /respond @privateRevision 403/)
   assert.match(config, /reverse_proxy guard:8080/)
   assert.doesNotMatch(config, /reverse_proxy (?:odoo|web):/)
+  const webZone = config.split('zone nasq_web {')[1].split('}')[0]
+  // The built web image serves only /_nuxt/*, /_i18n/* (Nitro route
+  // /_i18n/:hash/:locale/messages.json), /fonts/*, /favicon.ico, /robots.txt.
+  // There is no /i18n/* route, so it must NOT be exempted (r2 verification).
+  for (const p of ['/_nuxt/*', '/_i18n/*', '/fonts/*', '/favicon.ico', '/robots.txt']) {
+    assert.ok(webZone.includes(p), `nasq_web must exempt ${p}`)
+  }
+  assert.ok(!webZone.includes('/i18n/*'), 'nasq_web must not exempt the nonexistent /i18n/* prefix')
 })
 test('health probe uses only loopback TCP with timeout and fails invalid configuration silently', () => {
   const script = read('healthcheck.mjs')

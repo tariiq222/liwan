@@ -195,6 +195,8 @@ services:
 the absent `caddy:2.11.4-builder` image plus Go module downloads — **network access**, which this
 task excludes.
 
+> Note (2026-10-01, Stage A acceptance): the `v0.2.0` module pin quoted above does not exist; the Go module proxy lists only `v0.1.0` (commit 12435ecef5dbb1b137eb68002b85d775a9d5cdb2, 2024-08-28). `deploy/proxy/Dockerfile` now pins `v0.1.0`. The narrative above describes its original inspection-time state and is not rewritten.
+
 **Unverified and flagged:** whether the locally available stock `caddy:2` (v2.11.4) can load and
 serve `deploy/Caddyfile`, whose `handle @odoo` block uses `rate_limit` zones, cannot be settled
 read-only (it requires `caddy validate` / `caddy list-modules` inside a container, i.e. a run).

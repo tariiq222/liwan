@@ -13,6 +13,8 @@
 
 `deploy/Caddyfile` is the production-oriented customer edge. Its `rate_limit` blocks require `http.handlers.rate_limit`; stock official `caddy:2` does not contain that module. `deploy/proxy/Dockerfile` builds Caddy 2.11.4 with `xcaddy` 0.4.7 and `github.com/mholt/caddy-ratelimit@v0.2.0`, then checks that the module is present. The production Compose template names `nasq-caddy:${NASQ_IMAGE_TAG}` and mounts `deploy/Caddyfile`.
 
+> Note (2026-10-01, Stage A acceptance): the `v0.2.0` pin stated above was wrong — no such release exists on the Go module proxy. The pin was corrected to `v0.1.0` (commit 12435ecef5dbb1b137eb68002b85d775a9d5cdb2, 2024-08-28) in `deploy/proxy/Dockerfile`. The narrative above describes its original inspection-time state and is not rewritten.
+
 At inspection, local Docker reported stock images `caddy:2`, `caddy:2-alpine`, and `caddy:2.10.2-alpine`; no `nasq-caddy` image appeared. The local image inventory does not prove that the exact generic `caddy:2` tag is pinned/reproducible or that a tag has the needed version. Before acceptance, record exact `docker image inspect` RepoDigests/IDs and `caddy version`. Do not pull images as part of this read-only check.
 
 ### Local-only customer Caddyfile template (stock Caddy)

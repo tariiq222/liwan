@@ -3,7 +3,7 @@
 # build, with github.com/mholt/caddy-ratelimit, onto the official runtime.
 ARG CADDY_VERSION=2.11.4
 ARG XCADDY_VERSION=0.4.7
-ARG RATELIMIT_MODULE=github.com/mholt/caddy-ratelimit@v0.2.0
+ARG RATELIMIT_MODULE=github.com/mholt/caddy-ratelimit@v0.1.0
 
 FROM caddy:${CADDY_VERSION}-builder AS build
 ARG XCADDY_VERSION

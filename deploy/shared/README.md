@@ -22,7 +22,10 @@ header secret is defense in depth, NOT a replacement for this network boundary.
 `Caddyfile` includes four rate zones using the actual pinned module in
 `deploy/proxy/Dockerfile` (not the unmodified official Caddy image). Limits are per
 edge socket client IP: auth 20/min, API 300/min, Odoo/web 600/min. WS remains exempt
-from HTTP rate counting. No trusted proxy headers are enabled. Module execution,
+from HTTP rate counting. Immutable static assets (`/_nuxt/*`, `/_i18n/*`, `/i18n/*`,
+`/fonts/*`, `/favicon.ico`, `/robots.txt`) are exempt from the `nasq_web` zone so client
+asset requests do not exhaust the interactive web budget or cause 429 white-screens for
+tenants behind a shared client IP. No trusted proxy headers are enabled. Module execution,
 Caddy syntax validation and real rate-limit behavior are NOT RUN (no local Caddy).
 Reject inbound `X-Nasq-Proxy-Token` and `X-Nasq-Tenant-Revision` at edge;
 do not merely forward it. Strip forwarding headers, do not trust client proxy IPs.
