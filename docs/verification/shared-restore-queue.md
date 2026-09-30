@@ -151,10 +151,14 @@ No regressions vs `main`.
   measurement.
 - **Loopback adapter only:** the adapter is the loopback fenced storage adapter,
   not a production Docker/Odoo adapter. No shared daemon is activated.
-- **F4 — file parallelism:** live suites fail when run with vitest's default
-  file parallelism, because they share one control DB and TRUNCATE the same
-  tables. The same happens on `main`. A serial run (`--no-file-parallelism`) is
-  green. The fix is pending the owner's decision.
+- **F4 — file parallelism:** fixed by serial execution. Live suites fail when
+  run with vitest's default file parallelism, because they share one control DB
+  and TRUNCATE the same tables. `apps/control-plane` `test` now runs
+  `vitest run --no-file-parallelism --hookTimeout=60000`, so a plain
+  `npm -w apps/control-plane test` is green without extra CLI flags; some
+  `beforeAll` hooks exceed vitest's 10s default, hence the 60s hook timeout.
+  Restoring file parallelism would require a per-file control database, not a
+  per-file lock.
 
 ## Not proven
 

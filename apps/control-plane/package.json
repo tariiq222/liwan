@@ -9,7 +9,7 @@
     "admin": "tsx src/admin.ts",
     "migrate": "tsx src/migrate.ts",
     "build": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run --no-file-parallelism --hookTimeout=60000"
   },
   "dependencies": {
     "@nasq/commercial-contracts": "0.1.0",

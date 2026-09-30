@@ -63,7 +63,10 @@ webhook.
 temporary Cloudflare tunnel fronts the instance because GitHub rejects
 `localhost` webhook URLs; if the tunnel or its address changes,
 `WOODPECKER_HOST` must be updated and the server restarted. The migration
-policy is [`migrations.md`](migrations.md).
+policy is [`migrations.md`](migrations.md). The control-plane live-PG suites
+run serially by design: its `test` script sets `--no-file-parallelism` and a
+60s hook timeout because the suites share one scratch control database and
+TRUNCATE the same tables.
 
 ## Vendor workspace local integration — 2026-09-23
 
@@ -101,7 +104,7 @@ The shared-tenant restore path is wired end-to-end in `apps/control-plane`:
 signed HTTP enqueue, approval-gated exactly-once consumption, worker/recovery/
 dispatcher execution only through the fenced adapter, and one control
 transaction with explicit lock ordering. Evidence record and remaining
-boundaries: [shared restore queue](verification/shared-restore-queue.md).
-Readiness stays `not ready`; this is local only: no push, no deployment, no
-real Odoo/filestore restore, and the tenant storage is synthetic marker
-schemas.
+boundaries: [shared restore queue](verification/shared-restore-queue.md). The
+live control-plane suites now run serially by design. Readiness stays
+`not ready`; this is local only: no push, no deployment, no real
+Odoo/filestore restore, and the tenant storage is synthetic marker schemas.

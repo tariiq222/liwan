@@ -299,7 +299,10 @@ Actions is not used. The main pipeline has seven steps—`prepare`, `static`,
 `control-plane`, `odoo`, `upgrade`, `restore-drill`, and `e2e-mock`—and each is
 runnable locally with the same command block in that file: static checks, the
 control-plane PostgreSQL contracts, explicit scratch Odoo install/upgrade
-commands, the backup and restore drill, and the mock Playwright run. The Docker
+commands, the backup and restore drill, and the mock Playwright run. The
+control-plane live suites run serially by design: its `test` script sets
+`--no-file-parallelism --hookTimeout=60000` because they share one scratch
+control database and TRUNCATE the same tables. The Docker
 image gate lives in `deploy/woodpecker/image.yml` and is opt-in, because it
 needs an agent whose engine can start a privileged dind service. The
 migration policy is [`docs/migrations.md`](docs/migrations.md), and the pinned

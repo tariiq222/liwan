@@ -7,8 +7,9 @@
 #
 # Steps: static, control-plane, odoo, upgrade, restore-drill, image, e2e-mock.
 #
-# The control-plane live-PG suites share one scratch database and must run with
-# --no-file-parallelism (parallel runs conflict, verified locally).
+# The control-plane live-PG suites share one scratch database. They run serially
+# by design (apps/control-plane `test` sets --no-file-parallelism and a 60s hook
+# timeout); parallel runs conflict because the suites TRUNCATE the same tables.
 when:
   event: [push, manual, pull_request]
   branch: main
@@ -42,7 +43,7 @@ steps:
       - PGPASSWORD=odoo dropdb -h 127.0.0.1 -U nasq_test --if-exists nasq_control_scratch_ci || true
       - PGPASSWORD=odoo createdb -h 127.0.0.1 -U nasq_test nasq_control_scratch_ci
       - npm -w packages/commercial-contracts run test
-      - npm -w apps/control-plane test -- --no-file-parallelism
+      - npm -w apps/control-plane test
       - npm -w packages/commercial-contracts run build
       - npm -w apps/control-plane run build
 
