@@ -108,3 +108,12 @@ boundaries: [shared restore queue](verification/shared-restore-queue.md). The
 live control-plane suites now run serially by design. Readiness stays
 `not ready`; this is local only: no push, no deployment, no real
 Odoo/filestore restore, and the tenant storage is synthetic marker schemas.
+
+### Shared live acceptance — 2026-09-30
+
+Local Caddy/TLS/image/browser acceptance for two tenants passed 9/9 on the
+committed configuration. Evidence: [shared live acceptance](verification/shared-live-acceptance.md).
+This is local only: no push, no deployment, no public TLS, no DNS, 2 tenants
+not 10, no MFA/websocket/filestore restore. F2b (initial policy grant missing
+from provisioning) and F5 (nasq_odoo zone exhaustible by ordinary traffic)
+remain open. Readiness stays `not ready`.
