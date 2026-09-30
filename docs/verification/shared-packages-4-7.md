@@ -131,3 +131,8 @@ npm -w apps/control-plane run build   # tsc --noEmit exit 0
   measurements, no DNS/deployment** — all remain separately authorized work.
 - Scratch resources are retained for future drills; deletion requires
   separate authorization.
+
+> Note (2026-09-30): the scratch database `nasq_control_scratch_sharedgate20260928`
+> referenced in this document was dropped by a later verification run. The results
+> recorded here are historical and the live DB can no longer be re-inspected.
+> Recovery is pending the owner's decision.

@@ -56,3 +56,8 @@ independent. Local integration is not a push or deployment. Customer provisionin
 still reports `deployment_ready:false`, backup capture remains UNVERIFIED, and
 live customer mutations remain blocked. CRM, recurring billing and a fully
 operational government/corporate delivery package remain subsequent work.
+
+> Note (2026-09-30): the scratch database `nasq_control_scratch_merge923a`
+> referenced in this document was dropped by a later verification run. The results
+> recorded here are historical and the live DB can no longer be re-inspected.
+> Recovery is pending the owner's decision.

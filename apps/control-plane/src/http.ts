@@ -23,6 +23,10 @@ export function dedicatedExecutionEnabled(): boolean {
 const UUID = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
 const TENANT_FIELDS = 'id,name,commercial_mode,hosting_model,inventory_target,catalog_version,catalog_tier,status,desired_policy,observed_policy,policy_revision,health_checked_at,operations_enabled,created_at'
 const OP_FIELDS = 'id,tenant_id,type,status,stage,request_id,reason,result,created_at,updated_at'
+// A restore request carries no caller-owned authority: only the approval ID.
+const restoreRequestSchema = z.strictObject({
+  schemaVersion: z.literal(1), requestId: z.uuid(), operation: z.literal('restore'), approvalId: z.uuid(),
+})
 
 export class ApiError extends Error {
   constructor(public status: number, public code: string, message: string, public field?: string) { super(message) }
@@ -276,11 +280,15 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
         requireCapability(auth, 'vendor.operations.run')
         if (process.env.NASQ_TENANCY_MODE !== 'shared' || !config.tenantRegistryPath) throw new ApiError(503, 'shared_execution_unavailable', 'Shared queue is not configured')
         const input = parseJson(raw, z.strictObject({ reason: z.string().trim().min(3).max(1000), job: z.unknown() }))
-        // Only provision/backup are currently operational; restore requires a
-        // durable approval/backup authority that is not configured yet.
-        const job = parseJson(JSON.stringify(input.job ?? null), z.strictObject({
-          schemaVersion: z.literal(1), requestId: z.uuid(), operation: z.enum(['provision','backup']),
-        }))
+        // Restore callers supply only the approval ID; binding, backup and
+        // target are derived server-side from the durable approval authority.
+        const rawJob = input.job ?? null
+        const operation = rawJob && typeof rawJob === 'object' && !Array.isArray(rawJob) ? (rawJob as { operation?: unknown }).operation : undefined
+        const job = operation === 'restore'
+          ? parseJson(JSON.stringify(rawJob), restoreRequestSchema)
+          : parseJson(JSON.stringify(rawJob), z.strictObject({
+              schemaVersion: z.literal(1), requestId: z.uuid(), operation: z.enum(['provision','backup']),
+            }))
         const result = await enqueueSharedJob(pool, sharedQueue[1]!, { issuer: config.installationId, actorUid: auth.actor }, job, input.reason)
         return respond(res, result.replay ? 200 : 202, result)
       }

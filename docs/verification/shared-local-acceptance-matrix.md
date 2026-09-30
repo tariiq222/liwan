@@ -57,6 +57,12 @@ part of this work. No tests run against `odoo19`.
    directional pairs, session/MFA/ACL/company and Caddy/TLS/bypass evidence.
 
 Restore remains deliberately unavailable at HTTP, enqueue and worker boundaries.
+
+> Note (2026-10-01): restore is now wired end-to-end through the signed queue,
+> worker and fenced adapter on live local SQL. See
+> [shared-restore-queue.md](./shared-restore-queue.md) for the evidence record.
+> The statement above describes the historical checkpoint, not the current
+> branch state.
 The current shared runner is explicit composition code, not an activated daemon.
 A production provisioner, durable backup/restore approvals, billing/onboarding,
 non_saas offline runtime and launch belong to separately tracked unfinished work;

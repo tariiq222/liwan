@@ -79,3 +79,8 @@ implementations (not scripted fixtures) with two synthetic SaaS tenants:
   billing sandbox, TLS/Caddy, and capacity measurements are NOT covered.
 - Scratch resources are retained for the next packages; deletion requires
   separate authorization.
+
+> Note (2026-09-30): the scratch database `nasq_control_scratch_sharedgate20260928`
+> referenced in this document was dropped by a later verification run. The results
+> recorded here are historical and the live DB can no longer be re-inspected.
+> Recovery is pending the owner's decision.

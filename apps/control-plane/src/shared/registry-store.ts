@@ -14,7 +14,11 @@ export type RegistryActor = { issuer: string; actorUid: number }
 export class RegistryError extends Error {
   constructor(public code: string, public status = 409) { super(code) }
 }
-const LOCK = 1397969234
+/** The advisory lock every registry publication takes, and that a restore holds
+ * while it owns an approved target. One definition: a restore and a publication
+ * must contend on the same key. */
+export const REGISTRY_ADVISORY_LOCK = 1397969234
+const LOCK = REGISTRY_ADVISORY_LOCK
 const fields = 'tenant_id AS "tenantId",host,database_name AS database,filestore,enabled,registry_revision::float8 AS "registryRevision"'
 async function authorize(client: PoolClient, actor: RegistryActor) {
   if (!actor.issuer || !Number.isSafeInteger(actor.actorUid) || actor.actorUid < 1) throw new RegistryError('registry_forbidden', 403)

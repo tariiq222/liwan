@@ -35,7 +35,7 @@ it('expires leases before selecting eligible work and delegates trusted adapter'
     expect(expireSharedLeases).toHaveBeenCalled()
     expect(sql).toContain('tenant.operations_enabled=true')
     expect(sql).toContain('binding.enabled=true')
-    expect(sql).toContain("queued.payload->>'operation' IN ('provision','backup')")
+    expect(sql).toContain("queued.payload->>'operation' IN ('provision','backup','restore')")
     expect(sql).toContain("queued.payload->'binding'=jsonb_build_object(")
     expect(sql).toContain("'tenantId',binding.tenant_id")
     expect(sql).toContain("'database',binding.database_name")

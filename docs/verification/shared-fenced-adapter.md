@@ -80,3 +80,8 @@ npm -w apps/control-plane run build
   shutdown (pre-existing documented limitation, unchanged).
 - Backup/restore authority, provisioner readiness checks, Odoo ACLs,
   TLS/Caddy, and billing remain packages 4–7.
+
+> Note (2026-09-30): the scratch database `nasq_control_scratch_sharedgate20260928`
+> referenced in this document was dropped by a later verification run. The results
+> recorded here are historical and the live DB can no longer be re-inspected.
+> Recovery is pending the owner's decision.

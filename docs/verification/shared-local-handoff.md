@@ -19,6 +19,12 @@ Execution branch: `codex/shared-isolation`, worktree
 No commit/merge/push/deploy, Odoo resource creation or customer database operation
 was performed for this objective. `odoo19` was not used for tests.
 
+> Note (2026-10-01): restore is now wired end-to-end through the signed queue,
+> worker and fenced adapter on live local SQL. See
+> [shared-restore-queue.md](./shared-restore-queue.md) for the evidence record.
+> The statement below that "Restore remains unavailable" describes the historical
+> checkpoint at which this handoff was written, not the current branch state.
+
 ## Delivered
 
 - Authorized SQL registry schema/store, immutable resource identity, revision CAS,

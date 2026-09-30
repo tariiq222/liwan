@@ -5,20 +5,89 @@
 // decision: an approval references one verified backup and one NEW target
 // database, expires, and can be consumed exactly once. Restore never writes
 // into a database that the registry already maps to a tenant, and refuses
-// non-empty targets. The shared job queue keeps refusing restore operations;
-// this module is the deliberate authority those guards were waiting for.
+// non-empty targets — at enqueue (before a job exists) and again at the effect
+// stage. This module is the durable authority behind those refusals.
 import { createHash, randomUUID } from 'node:crypto'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
-import type { Pool } from 'pg'
+import type { Pool, PoolClient } from 'pg'
 import { z } from 'zod'
+import type { SharedJob } from '@nasq/commercial-contracts/shared'
 import { transaction } from '../db.js'
 import type { TenantStorage } from './fenced-adapter.js'
 import { ensureTenantStorageSchema } from './fenced-adapter.js'
 import { ensureAdminBindingSchema } from './provision-readiness.js'
+import { REGISTRY_ADVISORY_LOCK } from './registry-store.js'
 
 function digest(value: string): string {
   return createHash('sha256').update(value).digest('hex')
+}
+
+/** A restore target must not be a database the registry already maps to a
+ * tenant (binding database/filestore or host reservation). One definition,
+ * used by the approval authority and by the enqueue pre-check. */
+export async function assertRestoreTargetUnreserved(client: Pool | PoolClient, targetDatabase: string): Promise<void> {
+  const reserved = await client.query(
+    `SELECT 1 FROM shared_registry_hosts WHERE host=$1
+     UNION ALL
+     SELECT 1 FROM shared_registry_bindings WHERE database_name=$1 OR filestore=$1
+     LIMIT 1`, [targetDatabase])
+  if (reserved.rowCount) throw new Error('restore_target_reserved')
+}
+
+/** The target's restore tables must exist before they can be locked or read. */
+export async function ensureRestoreTargetSchema(storage: TenantStorage): Promise<void> {
+  await ensureTenantStorageSchema(storage)
+  await ensureAdminBindingSchema(storage)
+}
+
+/** A restore target must be NEW: no fencing, effect or admin row was ever
+ * applied to it. One definition, shared by the enqueue pre-check and the effect
+ * stage. The runner is the caller's connection, so the effect stage can run it
+ * inside the exclusive table lock of the transaction that writes the snapshot. */
+export async function assertRestoreTargetEmpty(runner: Pool | PoolClient): Promise<void> {
+  const occupied = await runner.query(
+    `SELECT (SELECT count(*) FROM shared_fencing)
+          + (SELECT count(*) FROM shared_effects)
+          + (SELECT count(*) FROM shared_admin) AS count`)
+  if (Number(occupied.rows[0].count) > 0) throw new Error('restore_target_not_empty')
+}
+
+/** Connection-class failures mean the target cannot be inspected from here
+ * (for example a database that does not exist yet); the effect stage stays the
+ * backstop for those, so enqueue does not turn them into a rejection. */
+const UNREACHABLE = new Set(['3D000','57P03','08001','08004','08006','ECONNREFUSED','ECONNRESET','ENOTFOUND','ETIMEDOUT','EHOSTUNREACH'])
+
+/** Inspect the approved target through the caller's tenant connector: an
+ * absent connector or an unreachable target leaves the decision to the effect
+ * stage. */
+export async function assertRestoreTargetInspectable(connect: ((database: string) => Promise<TenantStorage>) | undefined, targetDatabase: string): Promise<void> {
+  if (!connect) return
+  let storage: TenantStorage | undefined
+  try {
+    storage = await connect(targetDatabase)
+    await ensureRestoreTargetSchema(storage)
+    await assertRestoreTargetEmpty(storage.pool)
+  } catch (error) {
+    if (!UNREACHABLE.has((error as { code?: string }).code ?? '')) throw error
+    // The original error stays authoritative; closing is best effort.
+  } finally { if (storage) { try { await storage.pool.end() } catch { /* already settled */ } } }
+}
+
+/** The verified restore is finalized in the caller's transaction. The effect
+ * stage normally consumes the approval and writes the completion audit; if its
+ * control transaction was lost after the tenant commit (crash between the two
+ * commits), the worker's verified receipt consumes the approval here instead,
+ * exactly once, and records `shared_restore.completed` once. Idempotent: an
+ * approval already consumed by the effect stage is left alone. */
+export async function finalizeVerifiedRestore(client: PoolClient, job: SharedJob, actor: { issuer: string; actorUid: number }): Promise<void> {
+  if (job.operation !== 'restore') return
+  const consumed = await client.query('UPDATE shared_restore_approvals SET consumed_at=clock_timestamp() WHERE id=$1 AND consumed_at IS NULL RETURNING id,target_database', [job.approvalId])
+  if (!consumed.rowCount) return
+  await client.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)',
+    [randomUUID(), `${actor.issuer}:${actor.actorUid}`, 'shared_restore.completed', job.approvalId,
+      'Verified restore finalized from the job receipt after the effect stage lost its control transaction',
+      { targetDatabase: consumed.rows[0].target_database, jobBinding: job.binding.database }])
 }
 
 export type SharedBackupRecord = {
@@ -26,6 +95,12 @@ export type SharedBackupRecord = {
   databaseSha256: string
   filestoreSha256: string
 }
+
+/** Fault-injection / pause seams for the live persistence tests: `beforeWrite`
+ * runs inside the tenant write transaction after the exclusive lock and the
+ * emptiness check, `beforeConsume` runs after the tenant readback and before the
+ * consumption update. Both are absent in production callers. */
+export type RestoreHooks = { beforeWrite?: () => Promise<void>; beforeConsume?: () => Promise<void> }
 
 /** Capture a consistent snapshot and record it only after readback
  * verification. The tenant-DB read happens in one transaction; the artifact
@@ -97,8 +172,7 @@ export async function approveSharedRestore(pool: Pool, input: { backupId: string
     if (!backup.rowCount || backup.rows[0].control_tenant_id !== input.controlTenantId) throw new Error('backup_unavailable')
     // The target must not be a live tenant database: registry bindings and
     // reservations make existing databases ineligible for restore targets.
-    const reserved = await client.query('SELECT 1 FROM shared_registry_bindings WHERE database_name=$1', [input.targetDatabase])
-    if (reserved.rowCount) throw new Error('restore_target_reserved')
+    await assertRestoreTargetUnreserved(client, input.targetDatabase)
     await client.query('INSERT INTO shared_restore_approvals(id,backup_id,control_tenant_id,target_database,reason,expires_at) VALUES($1,$2,$3,$4,$5,clock_timestamp()+($6||\' seconds\')::interval)',
       [approvalId, input.backupId, input.controlTenantId, input.targetDatabase, 'Approved restore to a new isolated target', input.ttlSeconds])
     await client.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)',
@@ -107,46 +181,68 @@ export async function approveSharedRestore(pool: Pool, input: { backupId: string
   return { approvalId }
 }
 
-/** Execute an approved restore into the new target. The approval is consumed
- * exactly once; the target must be empty; the applied snapshot is verified by
- * readback before the consumption is committed. */
-export async function restoreBackupToNewTarget(pool: Pool, connect: (database: string) => Promise<TenantStorage>, input: { approvalId: string; actor: { issuer: string; actorUid: number } }): Promise<{ databaseSha256: string; applied: boolean }> {
+/** Execute an approved restore into the new target. The target must be
+ * unregistered and empty; the snapshot is written under an exclusive tenant
+ * table lock and verified by readback; the approval is consumed exactly once,
+ * in the same control transaction that holds the registry publication lock, so
+ * no binding for the target can be published between the reservation check and
+ * the consumption.
+ *
+ * Lock order (deadlock-free): the registry advisory lock, then control row locks
+ * (approval), then tenant table locks. `publishRegistryMutation` takes the same
+ * advisory lock first, so the two can never form a cycle; nothing that holds a
+ * control row lock ever waits for the advisory lock. */
+export async function restoreBackupToNewTarget(pool: Pool, connect: (database: string) => Promise<TenantStorage>, input: { approvalId: string; actor: { issuer: string; actorUid: number }; hooks?: RestoreHooks }): Promise<{ databaseSha256: string; applied: boolean }> {
   z.uuid().parse(input.approvalId)
-  const approval = await transaction(pool, async client => {
+  const client = await pool.connect()
+  let controlHeld = false
+  try {
+    await client.query('BEGIN')
+    controlHeld = true
+    // Same advisory lock the registry publisher holds, so a binding for the
+    // target cannot be published between the check below and the consumption.
+    await client.query('SELECT pg_advisory_xact_lock($1)', [REGISTRY_ADVISORY_LOCK])
     const row = await client.query(`SELECT a.id,a.backup_id,a.control_tenant_id,a.target_database,a.expires_at,b.snapshot,b.database_sha256
       FROM shared_restore_approvals a JOIN shared_backups b ON b.id=a.backup_id
       WHERE a.id=$1 AND a.consumed_at IS NULL AND a.expires_at>clock_timestamp() FOR UPDATE OF a`, [input.approvalId])
     if (!row.rowCount) throw new Error('restore_approval_unavailable')
-    return row.rows[0]
-  })
-  const snapshot = approval.snapshot as { fencing: { tenant_id: string; fence: string }[]; effects: { tenant_id: string; business_key: string; payload_digest: string; attempt_id: string; fence: string }[]; admin: { tenant_id: string; request_id: string; login: string }[] }
-  const storage = await connect(approval.target_database)
-  let databaseSha256 = ''
-  try {
-    await ensureTenantStorageSchema(storage)
-    await ensureAdminBindingSchema(storage)
-    const occupied = await storage.pool.query('SELECT count(*)::int AS count FROM shared_effects')
-    if (occupied.rows[0].count > 0) throw new Error('restore_target_not_empty')
-    await transaction(storage.pool, async client => {
-      for (const row of snapshot.fencing) await client.query('INSERT INTO shared_fencing(tenant_id,fence) VALUES($1,$2)', [row.tenant_id, row.fence])
-      for (const row of snapshot.effects) await client.query('INSERT INTO shared_effects(tenant_id,business_key,payload_digest,attempt_id,fence) VALUES($1,$2,$3,$4,$5)', [row.tenant_id, row.business_key, row.payload_digest, row.attempt_id, row.fence])
-      for (const row of snapshot.admin) await client.query('INSERT INTO shared_admin(tenant_id,request_id,login) VALUES($1,$2,$3)', [row.tenant_id, row.request_id, row.login])
-    })
-    // Readback verification of the applied state.
-    const applied = await transaction(storage.pool, async client => {
-      const fencing = await client.query('SELECT tenant_id,fence::float8 AS fence FROM shared_fencing ORDER BY tenant_id')
-      const effects = await client.query('SELECT tenant_id,business_key,payload_digest,attempt_id::text AS attempt_id,fence::float8 AS fence FROM shared_effects ORDER BY tenant_id,business_key')
-      const admin = await client.query('SELECT tenant_id,request_id::text AS request_id,login FROM shared_admin ORDER BY tenant_id')
-      return { schemaVersion: 1, tenantId: (snapshot as unknown as { tenantId: string }).tenantId, fencing: fencing.rows, effects: effects.rows, admin: admin.rows }
-    })
-    databaseSha256 = digest(JSON.stringify(applied))
-  } finally { await storage.pool.end() }
-  if (databaseSha256 !== approval.database_sha256) throw new Error('restore_readback_mismatch')
-  await transaction(pool, async client => {
+    const approval = row.rows[0]
+    await assertRestoreTargetUnreserved(client, approval.target_database)
+    const snapshot = approval.snapshot as { fencing: { tenant_id: string; fence: string }[]; effects: { tenant_id: string; business_key: string; payload_digest: string; attempt_id: string; fence: string }[]; admin: { tenant_id: string; request_id: string; login: string }[] }
+    const storage = await connect(approval.target_database)
+    let databaseSha256 = ''
+    try {
+      await ensureRestoreTargetSchema(storage)
+      // One tenant transaction: exclusive table lock, emptiness check and the
+      // snapshot write are atomic, so no concurrent writer can interleave.
+      await transaction(storage.pool, async tenant => {
+        await tenant.query('LOCK TABLE shared_fencing, shared_effects, shared_admin IN EXCLUSIVE MODE')
+        await assertRestoreTargetEmpty(tenant)
+        await input.hooks?.beforeWrite?.()
+        for (const row of snapshot.fencing) await tenant.query('INSERT INTO shared_fencing(tenant_id,fence) VALUES($1,$2)', [row.tenant_id, row.fence])
+        for (const row of snapshot.effects) await tenant.query('INSERT INTO shared_effects(tenant_id,business_key,payload_digest,attempt_id,fence) VALUES($1,$2,$3,$4,$5)', [row.tenant_id, row.business_key, row.payload_digest, row.attempt_id, row.fence])
+        for (const row of snapshot.admin) await tenant.query('INSERT INTO shared_admin(tenant_id,request_id,login) VALUES($1,$2,$3)', [row.tenant_id, row.request_id, row.login])
+      })
+      // Readback verification of the applied state.
+      const applied = await transaction(storage.pool, async tenant => {
+        const fencing = await tenant.query('SELECT tenant_id,fence::float8 AS fence FROM shared_fencing ORDER BY tenant_id')
+        const effects = await tenant.query('SELECT tenant_id,business_key,payload_digest,attempt_id::text AS attempt_id,fence::float8 AS fence FROM shared_effects ORDER BY tenant_id,business_key')
+        const admin = await tenant.query('SELECT tenant_id,request_id::text AS request_id,login FROM shared_admin ORDER BY tenant_id')
+        return { schemaVersion: 1, tenantId: (snapshot as unknown as { tenantId: string }).tenantId, fencing: fencing.rows, effects: effects.rows, admin: admin.rows }
+      })
+      databaseSha256 = digest(JSON.stringify(applied))
+    } finally { await storage.pool.end() }
+    if (databaseSha256 !== approval.database_sha256) throw new Error('restore_readback_mismatch')
+    await input.hooks?.beforeConsume?.()
     const consumed = await client.query('UPDATE shared_restore_approvals SET consumed_at=clock_timestamp() WHERE id=$1 AND consumed_at IS NULL RETURNING id', [input.approvalId])
     if (!consumed.rowCount) throw new Error('restore_approval_unavailable')
     await client.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)',
       [randomUUID(), `${input.actor.issuer}:${input.actor.actorUid}`, 'shared_restore.completed', input.approvalId, 'Verified restore applied to a new target', { targetDatabase: approval.target_database, databaseSha256 }])
-  })
-  return { databaseSha256, applied: true }
+    await client.query('COMMIT')
+    controlHeld = false
+    return { databaseSha256, applied: true }
+  } catch (error) {
+    if (controlHeld) { try { await client.query('ROLLBACK') } catch { /* original error wins */ } }
+    throw error
+  } finally { client.release() }
 }

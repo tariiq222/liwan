@@ -5,6 +5,18 @@ import { sharedPolicySchema, type TenantBinding } from '@nasq/commercial-contrac
 import { transaction } from '../db.js'
 import { resolveRegistryBinding, type RegistryActor } from './registry-store.js'
 import { bindJob, businessKey, payloadDigest } from './provisioning.js'
+import type { TenantStorage } from './fenced-adapter.js'
+import { assertRestoreTargetInspectable, assertRestoreTargetUnreserved } from './shared-backup.js'
+
+/** Restore enqueues may carry the caller's tenant-database connector so the
+ * approved target can be inspected before anything is queued. */
+export type SharedEnqueueOptions = { connect?: (database: string) => Promise<TenantStorage> }
+
+// Restore callers supply only the approval ID; the binding, backup identity
+// and verified digests are derived here from the durable approval authority.
+const restoreInputSchema = z.strictObject({
+  schemaVersion: z.literal(1), requestId: z.uuid(), operation: z.literal('restore'), approvalId: z.uuid(),
+})
 
 export function deriveSharedPolicy(value: unknown, tierId: string) {
   const catalog = z.object({ base_modules: z.array(z.string()), tiers: z.array(z.object({ id: z.string(), modules: z.array(z.string()), features: z.array(z.string()) })) }).parse(value)
@@ -31,7 +43,7 @@ export async function requireJobAuthority(client: PoolClient, controlTenantId: s
   const tenant = await client.query("SELECT id FROM tenants WHERE id=$1 AND commercial_mode='saas' AND operations_enabled=true FOR SHARE", [controlTenantId])
   if (!tenant.rowCount) throw new Error('tenant_operations_unavailable')
 }
-export async function enqueueSharedJob(pool: Pool, controlTenantId: string, actor: RegistryActor, value: unknown, reason: string) {
+export async function enqueueSharedJob(pool: Pool, controlTenantId: string, actor: RegistryActor, value: unknown, reason: string, options: SharedEnqueueOptions = {}) {
   z.uuid().parse(controlTenantId); z.string().trim().min(3).max(1000).parse(reason)
   return transaction(pool, async client => {
     await requireJobAuthority(client, controlTenantId, actor)
@@ -39,6 +51,7 @@ export async function enqueueSharedJob(pool: Pool, controlTenantId: string, acto
     // Provision callers supply only the operation/request ID. Catalog and policy
     // are selected from the enrolled tenant and immutable published catalog.
     let authoritative = value
+    let restoreTarget = ''
     if (value && typeof value === 'object' && (value as { operation?: unknown }).operation === 'provision') {
       const request = z.strictObject({ schemaVersion: z.literal(1), operation: z.literal('provision'), requestId: z.uuid() }).parse(value)
       const tenant = await client.query('SELECT catalog_version,catalog_tier FROM tenants WHERE id=$1 FOR SHARE', [controlTenantId])
@@ -48,7 +61,30 @@ export async function enqueueSharedJob(pool: Pool, controlTenantId: string, acto
       if (!catalog.rowCount) throw new Error('published_catalog_missing')
       authoritative = { ...request, catalog: { version, tier, sourceSha256: catalog.rows[0].source_sha256 }, policy: deriveSharedPolicy(catalog.rows[0].solution, tier) }
     }
-    const job = bindQueuedRequest(authoritative, target)
+    if (value && typeof value === 'object' && (value as { operation?: unknown }).operation === 'restore') {
+      const request = restoreInputSchema.parse(value)
+      if (!target.enabled) throw new Error('tenant_unavailable')
+      const approval = await client.query(`SELECT a.control_tenant_id AS approval_tenant_id,a.backup_id,a.target_database,
+          b.control_tenant_id AS backup_tenant_id,b.tenant_id,b.database_name,b.filestore,b.database_sha256,b.filestore_sha256
+        FROM shared_restore_approvals a JOIN shared_backups b ON b.id=a.backup_id
+        WHERE a.id=$1 AND a.consumed_at IS NULL AND a.expires_at>clock_timestamp() AND b.consistency='verified' FOR UPDATE OF a`, [request.approvalId])
+      if (!approval.rowCount) throw new Error('shared_restore_approval_unavailable')
+      const row = approval.rows[0]
+      if (row.approval_tenant_id !== controlTenantId || row.backup_tenant_id !== controlTenantId) throw new Error('shared_restore_approval_unavailable')
+      restoreTarget = row.target_database as string
+      const { enabled: _enabled, ...binding } = target
+      // The full payload is constructed server-side: no caller-supplied binding,
+      // backup or digest ever enters the job. A source identity that no longer
+      // matches the registry binding fails closed in bindJob.
+      authoritative = { ...request, binding, backup: {
+        schemaVersion: 1, backupId: row.backup_id,
+        binding: { tenantId: row.tenant_id, database: row.database_name, filestore: row.filestore, registryRevision: binding.registryRevision },
+        databaseSha256: row.database_sha256, filestoreSha256: row.filestore_sha256, consistency: 'verified',
+      } }
+    }
+    const job = value && typeof value === 'object' && (value as { operation?: unknown }).operation === 'restore'
+      ? bindJob(authoritative)
+      : bindQueuedRequest(authoritative, target)
     const key = businessKey(job), digest = payloadDigest(job)
     // Serialize enqueue/approval consumption for this tenant, in addition to SQL uniqueness.
     await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))', [controlTenantId])
@@ -69,9 +105,17 @@ export async function enqueueSharedJob(pool: Pool, controlTenantId: string, acto
       // Policy above was derived from this transaction's locked published catalog.
     }
     if (job.operation === 'restore') {
-      // Existing dedicated approval IDs refer to a different backup receipt format.
-      // Do not reinterpret them or accept the caller's verified-backup assertion.
-      throw new Error('shared_restore_authority_unavailable')
+      // One approval authorizes exactly one queued job: a second job (different
+      // request ID) for the same approval can never legitimately consume it.
+      const duplicate = await client.query("SELECT 1 FROM shared_jobs WHERE control_tenant_id=$1 AND payload->>'approvalId'=$2 AND business_key<>$3 LIMIT 1", [controlTenantId, job.approvalId, key])
+      if (duplicate.rowCount) throw new Error('shared_restore_approval_unavailable')
+      // The approved target must still be a NEW database. This is decided
+      // before any row is inserted, so a predictable, preventable restore can
+      // never leave a queued job that later needs intervention. Replays return
+      // above, so an identical retry stays idempotent.
+      if (!restoreTarget) throw new Error('shared_restore_approval_unavailable')
+      await assertRestoreTargetUnreserved(client, restoreTarget)
+      await assertRestoreTargetInspectable(options.connect, restoreTarget)
     }
     const id = randomUUID()
     await client.query('INSERT INTO shared_jobs(id,control_tenant_id,business_key,payload,payload_digest,issuer,actor_uid,reason) VALUES($1,$2,$3,$4,$5,$6,$7,$8)', [id,controlTenantId,key,job,digest,actor.issuer,actor.actorUid,reason])

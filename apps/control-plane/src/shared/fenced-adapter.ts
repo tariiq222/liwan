@@ -13,9 +13,12 @@
 // (scratch loopback databases). It is NOT the production Docker adapter and
 // its selection is always explicit.
 import { Pool } from 'pg'
+import { createHash } from 'node:crypto'
 import type { SharedJob } from '@nasq/commercial-contracts/shared'
 import { businessKey, payloadDigest } from './provisioning.js'
 import type { SharedFencedAdapter } from './job-worker.js'
+import { restoreBackupToNewTarget } from './shared-backup.js'
+import { ensureAdminBindingSchema } from './provision-readiness.js'
 
 export class StaleFenceError extends Error {
   constructor(public code: string) { super(code) }
@@ -47,10 +50,42 @@ export async function ensureTenantStorageSchema(storage: TenantStorage): Promise
   )`)
 }
 
+/** Restore observation truth: the approval's target database is compared
+ * against the verified backup digest. An empty target is absent; an exact
+ * digest match is present; any other non-empty state is foreign data and must
+ * quarantine the job (surface as effect_identity_mismatch). */
+async function observeRestore(control: Pool, connect: FencedStorageAdapterOptions['connect'], job: SharedJob) {
+  if (job.operation !== 'restore') throw new Error('unexpected_job')
+  const approval = await control.query(
+    `SELECT a.target_database,b.database_sha256,b.snapshot FROM shared_restore_approvals a
+     JOIN shared_backups b ON b.id=a.backup_id WHERE a.id=$1`, [job.approvalId])
+  if (!approval.rowCount) return { state: 'absent' as const }
+  const row = approval.rows[0]
+  const storage = await connect(row.target_database)
+  try {
+    await ensureTenantStorageSchema(storage)
+    await ensureAdminBindingSchema(storage)
+    const fencing = await storage.pool.query('SELECT tenant_id,fence::float8 AS fence FROM shared_fencing ORDER BY tenant_id')
+    const effects = await storage.pool.query('SELECT tenant_id,business_key,payload_digest,attempt_id::text AS attempt_id,fence::float8 AS fence FROM shared_effects ORDER BY tenant_id,business_key')
+    const admin = await storage.pool.query('SELECT tenant_id,request_id::text AS request_id,login FROM shared_admin ORDER BY tenant_id')
+    if (!fencing.rowCount && !effects.rowCount && !admin.rowCount) return { state: 'absent' as const }
+    // Same readback shape and digest as restoreBackupToNewTarget.
+    const applied = { schemaVersion: 1, tenantId: row.snapshot?.tenantId ?? null, fencing: fencing.rows, effects: effects.rows, admin: admin.rows }
+    const appliedDigest = createHash('sha256').update(JSON.stringify(applied)).digest('hex')
+    if (appliedDigest === row.database_sha256) {
+      return { state: 'present' as const, binding: job.binding, businessKey: businessKey(job), payloadDigest: payloadDigest(job), verified: true }
+    }
+    // Foreign data in the target: present with a foreign identity so the
+    // reconciliation quarantines the job instead of verifying or overwriting.
+    return { state: 'present' as const, binding: job.binding, businessKey: 'foreign', payloadDigest: '0'.repeat(64), verified: false }
+  } finally { await storage.pool.end() }
+}
+
 export function createFencedStorageAdapter(options: FencedStorageAdapterOptions): SharedFencedAdapter {
   const control = options.controlPool
   return {
     async observe(job: SharedJob) {
+      if (job.operation === 'restore') return observeRestore(control, options.connect, job)
       const key = businessKey(job)
       const storage = await options.connect(job.binding.database)
       try {
@@ -65,6 +100,44 @@ export function createFencedStorageAdapter(options: FencedStorageAdapterOptions)
       } finally { await storage.pool.end() }
     },
     async applyFenced({ job, attemptId, fence, assertOwned }) {
+      if (job.operation === 'restore') {
+        // Restore delegates the effect to the durable authority
+        // (restoreBackupToNewTarget), which consumes the approval exactly once
+        // and verifies the applied snapshot by readback. The job-row lock below
+        // keeps lease expiry from interleaving with the effect.
+        await assertOwned()
+        const key = businessKey(job)
+        const client = await control.connect()
+        let controlHeld = false
+        try {
+          await client.query('BEGIN')
+          controlHeld = true
+          const bindingRow = await client.query(
+            'SELECT control_tenant_id FROM shared_registry_bindings WHERE tenant_id=$1',
+            [job.binding.tenantId])
+          if (!bindingRow.rowCount) throw new StaleFenceError('binding_unavailable')
+          const authority = await client.query(
+            `SELECT issuer,actor_uid,state,attempt_id::text AS attempt_id,fence::float8 AS fence,payload_digest,lease_until
+             FROM shared_jobs WHERE control_tenant_id=$1 AND business_key=$2 FOR UPDATE`,
+            [bindingRow.rows[0].control_tenant_id, key])
+          if (!authority.rowCount) throw new StaleFenceError('job_unavailable')
+          const row = authority.rows[0]
+          if (!options.trustWorkerClaim) {
+            if (row.state !== 'running' || row.attempt_id !== attemptId || Number(row.fence) !== fence ||
+                row.payload_digest !== payloadDigest(job) || !row.lease_until || new Date(row.lease_until).getTime() <= Date.now())
+              throw new StaleFenceError('stale_fence')
+          }
+          await restoreBackupToNewTarget(control, options.connect, {
+            approvalId: job.approvalId,
+            actor: { issuer: row.issuer, actorUid: Number(row.actor_uid) },
+          })
+          await client.query('COMMIT')
+        } catch (error) {
+          if (controlHeld) { try { await client.query('ROLLBACK') } catch { /* original error wins */ } }
+          throw error
+        } finally { client.release() }
+        return
+      }
       // Defense in depth only. The physical guarantee is the authority row
       // lock below: a lying callback must not unlock an effect.
       await assertOwned()

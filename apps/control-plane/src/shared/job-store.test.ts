@@ -111,3 +111,105 @@ it('pins backup restore to exact source identity and revision', () => {
   const restore = { schemaVersion: 1, requestId: request.requestId, operation: 'restore', approvalId: '81e71f13-a412-4d5d-b230-c6cd1dd45d35', backup: { schemaVersion: 1, backupId: request.requestId, binding: { tenantId: 'foreign', database: 'db_a', filestore: 'db_a', registryRevision: 1 }, databaseSha256: 'a'.repeat(64), filestoreSha256: 'b'.repeat(64), consistency: 'verified' } }
   expect(() => bindQueuedRequest(restore, binding)).toThrow('tenant_binding_mismatch')
 })
+
+const approvalId = '1b6f9c50-93c2-4a55-b3e2-77c2cf0d1a01'
+const restoreRequest = { schemaVersion: 1, requestId: '687674dc-5789-4a99-b151-12d69f010cc3', operation: 'restore', approvalId }
+function restoreFixture(approval: Record<string, unknown> | null, flags: { duplicate?: boolean; reserved?: boolean } = {}) {
+  const stored: Array<{ id:string; payload:any; payload_digest:string; state:string; issuer:string; actor_uid:number; business_key:string }> = []
+  const audits:string[]=[]
+  const client={release(){},async query(sql:string,params:any[]=[]){
+    const result=(rows:unknown[]=[])=>({rows,rowCount:rows.length})
+    if (['BEGIN','COMMIT','ROLLBACK'].includes(sql)||sql.startsWith('SELECT pg_advisory')) return result()
+    if (sql.includes('FROM vendor_memberships')) return result([{}])
+    if (sql.includes('FROM tenants')) return result([{}])
+    if (sql.startsWith('SELECT 1 FROM shared_registry_hosts')) return flags.reserved ? result([{ok:1}]) : result()
+    if (sql.includes('FROM shared_registry_bindings')) return result([{...binding,host:'a.invalid'}])
+    if (sql.includes('FROM shared_restore_approvals')) return approval && !approval.consumed_at && approval.expires_at !== 'expired' ? result([approval]) : result()
+    if (sql.includes("state IN ('running','needs_intervention')")) return result([])
+    if (sql.includes("payload->>'approvalId'")) return flags.duplicate ? result([{ok:1}]) : result([])
+    if (sql.includes('FROM shared_jobs')) return result(stored.filter((row)=>row.business_key===params[1]))
+    if (sql.startsWith('INSERT INTO shared_jobs')) { stored.push({id:params[0],payload:params[3],payload_digest:params[4],state:'queued',issuer:params[5],actor_uid:params[6],business_key:params[2]}); return result() }
+    if (sql.startsWith('INSERT INTO audit_events')) { audits.push(params[2]); return result() }
+    throw Error('unexpected_sql:'+sql)
+  }}
+  return { pool:{connect:async()=>client} as unknown as Pool, stored, audits }
+}
+const approvalRow = {
+  approval_tenant_id: request.requestId, backup_tenant_id: request.requestId, backup_id: request.requestId,
+  target_database: 'db_new',
+  tenant_id: 'a', database_name: 'db_a', filestore: 'db_a', database_sha256: 'a'.repeat(64), filestore_sha256: 'b'.repeat(64),
+}
+const actor={issuer:'vendor',actorUid:7}
+it('derives restore payload from the durable approval inside the enqueue transaction', async () => {
+  const f=restoreFixture(approvalRow)
+  const result=await enqueueSharedJob(f.pool,request.requestId,actor,restoreRequest,'Approved restore')
+  expect(result).toEqual({id:result.id,state:'queued',replay:false})
+  expect(f.audits).toEqual(['shared_job.queued'])
+  const payload=f.stored[0]!.payload
+  expect(payload.binding).toEqual({tenantId:'a',database:'db_a',filestore:'db_a',registryRevision:1})
+  expect(payload.backup).toEqual({schemaVersion:1,backupId:request.requestId,binding:{tenantId:'a',database:'db_a',filestore:'db_a',registryRevision:1},databaseSha256:'a'.repeat(64),filestoreSha256:'b'.repeat(64),consistency:'verified'})
+  expect(payload.approvalId).toBe(approvalId)
+  expect(f.stored[0]!.business_key).toBe(businessKey(payload))
+  expect(f.stored[0]!.payload_digest).toBe(payloadDigest(payload))
+})
+it.each([
+  ['missing', null],
+  ['cross-tenant', { ...approvalRow, approval_tenant_id: 'ad03d956-efef-4f80-baf3-9c23ea46e945' }],
+  ['foreign backup', { ...approvalRow, backup_tenant_id: 'ad03d956-efef-4f80-baf3-9c23ea46e945' }],
+  ['already consumed', { ...approvalRow, consumed_at: '2026-01-01T00:00:00Z' }],
+  ['expired', { ...approvalRow, expires_at: 'expired' }],
+])('rejects a %s restore approval before any job is queued', async (_name,approval)=>{
+  const f=restoreFixture(approval as Record<string, unknown>)
+  await expect(enqueueSharedJob(f.pool,request.requestId,actor,restoreRequest,'Restore')).rejects.toThrow('shared_restore_approval_unavailable')
+  expect(f.stored).toEqual([]);expect(f.audits).toEqual([])
+})
+it('replays an identical restore request for the same actor and rejects a different actor', async () => {
+  const f=restoreFixture(approvalRow)
+  const first=await enqueueSharedJob(f.pool,request.requestId,actor,restoreRequest,'Approved restore')
+  const replay=await enqueueSharedJob(f.pool,request.requestId,actor,restoreRequest,'Retry restore')
+  expect(replay).toEqual({...first,replay:true});expect(f.audits).toEqual(['shared_job.queued','shared_job.replayed'])
+  await expect(enqueueSharedJob(f.pool,request.requestId,{...actor,actorUid:8},restoreRequest,'Other actor')).rejects.toThrow('shared_replay_forbidden')
+  expect(f.stored).toHaveLength(1)
+})
+it('refuses a second job for an approval that is already referenced', async () => {
+  const flags={duplicate:false}
+  const f=restoreFixture(approvalRow,flags)
+  await enqueueSharedJob(f.pool,request.requestId,actor,restoreRequest,'Approved restore')
+  flags.duplicate=true
+  await expect(enqueueSharedJob(f.pool,request.requestId,actor,{...restoreRequest,requestId:'81e71f13-a412-4d5d-b230-c6cd1dd45d35'},'Second restore')).rejects.toThrow('shared_restore_approval_unavailable')
+  expect(f.stored).toHaveLength(1)
+})
+it('rejects caller-injected restore authority fields before any lookup', async () => {
+  const f=restoreFixture(approvalRow)
+  await expect(enqueueSharedJob(f.pool,request.requestId,actor,{...restoreRequest,binding:{tenantId:'x'}},'Injected binding')).rejects.toThrow()
+  await expect(enqueueSharedJob(f.pool,request.requestId,actor,{...restoreRequest,backup:{schemaVersion:1,backupId:request.requestId,binding:{tenantId:'a',database:'db_a',filestore:'db_a',registryRevision:1},databaseSha256:'a'.repeat(64),filestoreSha256:'b'.repeat(64),consistency:'verified'}},'Injected backup')).rejects.toThrow()
+  expect(f.stored).toEqual([]);expect(f.audits).toEqual([])
+})
+it('refuses restore enqueue without a live vendor operations grant', async () => {
+  const client={release(){},async query(sql:string){
+    const result=(rows:unknown[]=[])=>({rows,rowCount:rows.length})
+    if (['BEGIN','COMMIT','ROLLBACK'].includes(sql)) return result()
+    if (sql.includes('FROM vendor_memberships')) return result()
+    if (sql.includes('FROM shared_registry_bindings')) return result([{...binding,host:'a.invalid'}])
+    throw Error('unexpected_sql:'+sql)
+  }}
+  await expect(enqueueSharedJob({connect:async()=>client} as unknown as Pool,request.requestId,actor,restoreRequest,'Revoked grant restore')).rejects.toThrow('shared_job_forbidden')
+})
+const tenantTarget = (count: string) => {
+  const pool={query:async(sql:string)=>sql.includes('count(*)')?{rows:[{count}],rowCount:1}:{rows:[],rowCount:0},end:async()=>{}}
+  return { pool } as unknown as { pool: Pool }
+}
+it('refuses a restore whose approved target is registered or already carries rows, before any job exists', async () => {
+  // Registered target: rejected from the control-side registry probe.
+  const reserved=restoreFixture(approvalRow,{reserved:true})
+  await expect(enqueueSharedJob(reserved.pool,request.requestId,actor,restoreRequest,'Reserved target')).rejects.toThrow('restore_target_reserved')
+  expect(reserved.stored).toEqual([]);expect(reserved.audits).toEqual([])
+  // Reachable but non-empty target: rejected from the shared emptiness check.
+  const occupied=restoreFixture(approvalRow)
+  await expect(enqueueSharedJob(occupied.pool,request.requestId,actor,restoreRequest,'Occupied target',{connect:async()=>tenantTarget('1')})).rejects.toThrow('restore_target_not_empty')
+  expect(occupied.stored).toEqual([]);expect(occupied.audits).toEqual([])
+  // A reachable, empty target still queues normally.
+  const fresh=restoreFixture(approvalRow)
+  const queued=await enqueueSharedJob(fresh.pool,request.requestId,actor,restoreRequest,'Fresh target',{connect:async()=>tenantTarget('0')})
+  expect(queued.state).toBe('queued');expect(fresh.stored).toHaveLength(1)
+})

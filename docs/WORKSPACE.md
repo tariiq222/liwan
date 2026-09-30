@@ -94,3 +94,14 @@ only: no push, no deployment, no real Odoo/ACL drill, no real payment provider,
 and no release approval. The two tool fixes unblocked root gates that already
 failed on the `d780862e` baseline (reproduced before the merge, not caused by
 it).
+
+### Shared restore queue — 2026-09-30
+
+The shared-tenant restore path is wired end-to-end in `apps/control-plane`:
+signed HTTP enqueue, approval-gated exactly-once consumption, worker/recovery/
+dispatcher execution only through the fenced adapter, and one control
+transaction with explicit lock ordering. Evidence record and remaining
+boundaries: [shared restore queue](verification/shared-restore-queue.md).
+Readiness stays `not ready`; this is local only: no push, no deployment, no
+real Odoo/filestore restore, and the tenant storage is synthetic marker
+schemas.

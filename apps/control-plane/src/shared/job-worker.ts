@@ -6,6 +6,7 @@ import { transaction } from '../db.js'
 import { resolveRegistryBinding } from './registry-store.js'
 import { requireJobAuthority } from './job-store.js'
 import { bindJob, businessKey, payloadDigest, reconcileSharedJob, verifiedReceipt } from './provisioning.js'
+import { finalizeVerifiedRestore } from './shared-backup.js'
 
 /** The physical adapter must atomically enforce fence validity at each mutation.
  * A caller-provided callback or a preflight lease check alone is NOT sufficient.
@@ -42,8 +43,8 @@ export async function recoverSharedJob(pool: Pool, id: string, actor: { issuer: 
     const fence = Number(row.fence)
     if (!Number.isSafeInteger(fence) || fence < 0) throw new Error('shared_fence_invalid')
     const job = bindJob(row.payload)
-    // Persisted payload is not a durable restore approval or backup authority.
-    if (job.operation === 'restore') throw new Error('shared_restore_authority_unavailable')
+    // Recovery reconciles from observation only: a started journal finalizes
+    // exact existing effects and never consumes a second approval.
     if (row.business_key !== businessKey(job) || row.payload_digest !== payloadDigest(job)) throw new Error('shared_job_identity_corrupt')
     if (row.journal && row.journal.attemptId !== row.attempt_id) throw new Error('shared_job_identity_corrupt')
     const target = await resolveRegistryBinding(client,row.control_tenant_id)
@@ -67,6 +68,9 @@ export async function recoverSharedJob(pool: Pool, id: string, actor: { issuer: 
     const journal = { ...row.journal,sequence:nextSequence(row.journal.sequence),stage:'verified' }
     const receipt = verifiedReceipt(job,target,journal,fresh)
     await client.query('INSERT INTO shared_job_events(job_id,attempt_id,fence,sequence,stage,evidence) VALUES($1,$2,$3,$4,$5,$6)', [id,journal.attemptId,fence,journal.sequence,'verified',{observation:fresh,receipt,recoveredBy:actor}])
+    // A restore whose effect committed while the authority lost its control
+    // transaction is consumed here, exactly once, with the job receipt.
+    await finalizeVerifiedRestore(client,job,{ issuer: row.issuer, actorUid: Number(row.actor_uid) })
     const updated = await client.query("UPDATE shared_jobs SET journal=$1,receipt=$2,state='verified',lease_until=NULL WHERE id=$3 AND fence=$4 AND state='needs_intervention' RETURNING id", [journal,receipt,id,fence])
     if (!updated.rowCount) throw new Error('shared_lease_lost')
     return { state:'verified',receipt }
@@ -84,8 +88,6 @@ export async function runSharedJob(pool: Pool, id: string, adapter?: SharedFence
     if (unresolved.rowCount) throw new Error('shared_reconciliation_required')
     await requireJobAuthority(client, row.control_tenant_id, { issuer: row.issuer, actorUid: Number(row.actor_uid) })
     const job = bindJob(row.payload)
-    // Persisted payload is not a durable restore approval or backup authority.
-    if (job.operation === 'restore') throw new Error('shared_restore_authority_unavailable')
     if (row.business_key !== businessKey(job) || row.payload_digest !== payloadDigest(job)) throw new Error('shared_job_identity_corrupt')
     const target = await resolveRegistryBinding(client, row.control_tenant_id)
     reconcileSharedJob(job,target,row.journal ?? null,{ state:'unknown' })
@@ -144,6 +146,9 @@ export async function runSharedJob(pool: Pool, id: string, adapter?: SharedFence
       const currentTarget = await resolveRegistryBinding(client,claim.row.control_tenant_id)
       const receipt = verifiedReceipt(claim.job,currentTarget,verified,observation)
       await client.query('INSERT INTO shared_job_events(job_id,attempt_id,fence,sequence,stage,evidence) VALUES($1,$2,$3,$4,$5,$6)', [id,claim.attemptId,claim.fence,verified.sequence,'verified',{observation,receipt}])
+      // A restore whose effect committed while the authority lost its control
+      // transaction is consumed here, exactly once, with the job receipt.
+      await finalizeVerifiedRestore(client,claim.job,{ issuer: row.issuer, actorUid: Number(row.actor_uid) })
       const updated = await client.query("UPDATE shared_jobs SET journal=$1,receipt=$2,state='verified',lease_until=NULL WHERE id=$3 AND attempt_id=$4 AND fence=$5 AND state='running' AND lease_until>clock_timestamp() RETURNING id", [verified,receipt,id,claim.attemptId,claim.fence])
       if (!updated.rowCount) throw new Error('shared_lease_lost')
       return { state:'verified',receipt }

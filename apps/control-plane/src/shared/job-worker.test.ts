@@ -7,12 +7,13 @@ function fixture() {
   const binding = { tenantId: 'a', database: 'db_a', filestore: 'db_a', registryRevision: 1 }
   const job = { schemaVersion: 1, requestId: id, binding, operation: 'backup' }
   const row: Record<string, any> = { id, control_tenant_id: id, payload: job, business_key: businessKey(job), payload_digest: payloadDigest(job), issuer: 'vendor', actor_uid: 7, fence: 0, journal: null, state: 'queued' }
-  const flags = { owned: true, enabled: true, authorized: true, rejectCompletion: false, unresolved: false, registryRevision: 1, revokeAfterClaim: false, loseVerifiedCommitAck: false }
+  const flags = { owned: true, enabled: true, authorized: true, rejectCompletion: false, unresolved: false, registryRevision: 1, revokeAfterClaim: false, loseVerifiedCommitAck: false, approvalConsumed: false }
   const events: string[] = []
-  let snapshot: { row: Record<string, any>; events: string[] } | undefined
+  const actions: string[] = []
+  let snapshot: { row: Record<string, any>; events: string[]; actions: string[]; approvalConsumed: boolean } | undefined
   const client = { release() {}, async query(sql: string, values: any[] = []) {
     const result = (rows: unknown[] = []) => ({ rows, rowCount: rows.length })
-    if (sql === 'BEGIN') { snapshot = { row: structuredClone(row), events: [...events] }; return result() }
+    if (sql === 'BEGIN') { snapshot = { row: structuredClone(row), events: [...events], actions: [...actions], approvalConsumed: flags.approvalConsumed }; return result() }
     if (sql === 'COMMIT') {
       snapshot = undefined
       if(flags.revokeAfterClaim && row.state==='running') flags.authorized=false
@@ -23,6 +24,7 @@ function fixture() {
       if (snapshot) {
         for (const key of Object.keys(row)) delete row[key]
         Object.assign(row, snapshot.row); events.splice(0, events.length, ...snapshot.events)
+        actions.splice(0, actions.length, ...snapshot.actions); flags.approvalConsumed = snapshot.approvalConsumed
       }
       snapshot = undefined; return result()
     }
@@ -32,15 +34,20 @@ function fixture() {
     if (sql.includes('FROM vendor_memberships')) return result(flags.authorized ? [{}] : [])
     if (sql.includes('FROM tenants')) return result([{}])
     if (sql.includes('FROM shared_registry_bindings')) return result([{ ...binding, registryRevision:flags.registryRevision, host:'a.invalid', enabled:flags.enabled }])
+    if (sql.startsWith('UPDATE shared_restore_approvals SET consumed_at=')) {
+      if (flags.approvalConsumed) return result()
+      flags.approvalConsumed = true
+      return result([{ id: values[0], target_database: 'db_new' }])
+    }
     if (sql.startsWith("UPDATE shared_jobs SET state='running'")) { Object.assign(row,{ state:'running',attempt_id:values[0],fence:values[1] }); return result() }
-    if (sql.startsWith('INSERT INTO audit_events')) return result()
+    if (sql.startsWith('INSERT INTO audit_events')) { if (values[2]) actions.push(values[2]); return result() }
     if (sql.startsWith('INSERT INTO shared_job_events')) { events.push(values[4]); return result() }
     if (sql.startsWith('UPDATE shared_jobs SET journal=') && sql.includes("state='verified'") && flags.rejectCompletion) return result()
     if (sql.startsWith('UPDATE shared_jobs SET journal=')) { row.journal=values[0]; if (sql.includes("state='verified'")) { row.state='verified'; row.receipt=values[1] }; return result([{id}]) }
     if (sql.startsWith("UPDATE shared_jobs SET state='needs_intervention'")) { row.state='needs_intervention'; return result() }
     throw Error('unexpected_sql:'+sql)
   } }
-  return { inTransaction:()=>snapshot !== undefined, pool:{ connect:async()=>client } as unknown as Pool, row, flags, events, job, present:{ state:'present', binding, businessKey:businessKey(job), payloadDigest:payloadDigest(job), verified:true } }
+  return { inTransaction:()=>snapshot !== undefined, pool:{ connect:async()=>client } as unknown as Pool, row, flags, events, actions, job, present:{ state:'present', binding, businessKey:businessKey(job), payloadDigest:payloadDigest(job), verified:true } }
 }
 it('persists intent before effect and completes receipt only after exact readback', async () => {
   const f=fixture(); let effects=0
@@ -218,16 +225,59 @@ it('refuses exhausted journal sequence before appending an event', async () => {
   await expect(runSharedJob(f.pool,id,{observe:async()=>({state:'absent'}),applyFenced})).rejects.toThrow('shared_sequence_invalid')
   expect(f.events).toEqual([]);expect(applyFenced).not.toHaveBeenCalled()
 })
-it.each(['run','recover'])('keeps persisted restore unavailable at %s boundary without durable approval authority', async mode => {
+it('executes a persisted restore job through the fenced adapter exactly once', async () => {
   const f=fixture()
   const job={schemaVersion:1,operation:'restore',requestId:id,binding:f.job.binding,approvalId:id,
     backup:{schemaVersion:1,backupId:id,binding:f.job.binding,databaseSha256:'a'.repeat(64),filestoreSha256:'b'.repeat(64),consistency:'verified'}}
   f.row.payload=job;f.row.business_key=businessKey(job);f.row.payload_digest=payloadDigest(job)
-  if(mode==='recover') {f.row.state='needs_intervention';f.row.attempt_id=id;f.row.journal={schemaVersion:1,job,attemptId:id,sequence:2,stage:'started'}}
-  const observe=vi.fn(async()=>({state:'absent'})),applyFenced=vi.fn()
-  const action=mode==='run'?runSharedJob(f.pool,id,{observe,applyFenced}):recoverSharedJob(f.pool,id,{issuer:'vendor',actorUid:7},'Inspect unsupported restore',{observe,applyFenced})
-  await expect(action).rejects.toThrow('shared_restore_authority_unavailable')
-  expect(observe).not.toHaveBeenCalled();expect(applyFenced).not.toHaveBeenCalled();expect(f.row.receipt).toBeUndefined()
+  const present={state:'present',binding:f.job.binding,businessKey:businessKey(job),payloadDigest:payloadDigest(job),verified:true}
+  let consumed=0
+  const result=await runSharedJob(f.pool,id,{
+    observe:async()=>consumed?present:{state:'absent'},
+    applyFenced:async context=>{ await context.assertOwned(); consumed++ },
+  })
+  expect(result.state).toBe('verified'); expect(consumed).toBe(1)
+  expect(f.events).toEqual(['prepared','started','verified'])
+  // The effect stage did not record the consumption, so the verified receipt
+  // consumes the approval and records the completion audit exactly once.
+  expect(f.flags.approvalConsumed).toBe(true)
+  expect(f.actions.filter(action=>action==='shared_restore.completed')).toHaveLength(1)
+  // Double dispatch cannot re-run the effect: the job is no longer claimable.
+  await expect(runSharedJob(f.pool,id,{observe:vi.fn(),applyFenced:vi.fn()})).rejects.toThrow('shared_job_not_claimable')
+  expect(consumed).toBe(1)
+  expect(f.actions.filter(action=>action==='shared_restore.completed')).toHaveLength(1)
+})
+it('leaves an approval the effect stage already consumed alone and writes no second completion audit', async () => {
+  const f=fixture(); f.flags.approvalConsumed=true
+  const job={schemaVersion:1,operation:'restore',requestId:id,binding:f.job.binding,approvalId:id,
+    backup:{schemaVersion:1,backupId:id,binding:f.job.binding,databaseSha256:'a'.repeat(64),filestoreSha256:'b'.repeat(64),consistency:'verified'}}
+  f.row.payload=job;f.row.business_key=businessKey(job);f.row.payload_digest=payloadDigest(job)
+  const present={state:'present',binding:f.job.binding,businessKey:businessKey(job),payloadDigest:payloadDigest(job),verified:true}
+  let consumed=0
+  const result=await runSharedJob(f.pool,id,{observe:async()=>consumed?present:{state:'absent'},applyFenced:async context=>{ await context.assertOwned(); consumed++ }})
+  expect(result.state).toBe('verified')
+  expect(f.actions.filter(action=>action==='shared_restore.completed')).toHaveLength(0)
+})
+it.each([
+  { stage:'started' as const, verified:false },
+  { stage:'verified' as const, verified:true },
+])('recovers a restore from journal stage $stage by readback only, without a second approval consumption', async ({stage,verified}) => {
+  const f=fixture()
+  const job={schemaVersion:1,operation:'restore',requestId:id,binding:f.job.binding,approvalId:id,
+    backup:{schemaVersion:1,backupId:id,binding:f.job.binding,databaseSha256:'a'.repeat(64),filestoreSha256:'b'.repeat(64),consistency:'verified'}}
+  f.row.payload=job;f.row.business_key=businessKey(job);f.row.payload_digest=payloadDigest(job)
+  f.row.state='needs_intervention';f.row.attempt_id=id;f.row.fence=2
+  f.row.journal={schemaVersion:1,job,attemptId:id,sequence:2,stage}
+  const present={state:'present',binding:f.job.binding,businessKey:businessKey(job),payloadDigest:payloadDigest(job),verified:true}
+  const applyFenced=vi.fn()
+  const observation = verified ? present : { state:'absent' }
+  const result=await recoverSharedJob(f.pool,id,{issuer:'vendor',actorUid:7},'Recover restore',{observe:async()=>observation,applyFenced})
+  expect(result.state).toBe(verified?'verified':'needs_intervention')
+  expect(applyFenced).not.toHaveBeenCalled()
+  // Recovery consumes the approval from the receipt only when the verified
+  // restore was not already finalized by the effect stage.
+  expect(f.flags.approvalConsumed).toBe(verified)
+  expect(f.actions.filter(action=>action==='shared_restore.completed')).toHaveLength(verified?1:0)
 })
 it('rolls back recovery verified event when completion CAS fails', async () => {
   const f=fixture();f.row.state='needs_intervention';f.row.attempt_id=id;f.flags.rejectCompletion=true

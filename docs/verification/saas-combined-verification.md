@@ -395,6 +395,11 @@ $ npm -w apps/control-plane run test -- --reporter=verbose src/__tests__/worker-
 
 فحص Git live لهذه الجولة: combined `codex/team-saas-combined` عند `abde67b64155250f015b8ad213c26609532a124c`، 27 مسارًا dirty (12 modified + 15 untracked)، ولا staged؛ adapter عند baseline نفسه و7 مسارات dirty؛ control عند baseline نفسه و16 مسارًا dirty؛ canonical `/Users/tariq/code/nasq` على `main` عند baseline نفسه و4 مسارات pre-existing dirty. `git diff --check` مرّ لكل من combined/adapter/control/canonical. لا commits أو merge أو push أو deploy أو حذف؛ لم تُمس canonical. هذه لقطات حالة وقت الفحص وليست ادعاءً بأن أشجار المصدر نظيفة.
 
+> ملاحظة (2026-09-30): قواعد البيانات المحلية المؤقتة المُشار إليها في هذا المستند
+> (`nasq_control_scratch_{merge923a,runtime_b72a6,aebb2cfcb0}`) أُسقطت بواسطة جولة
+> تحقق لاحقة. النتائج المسجلة هنا تاريخية ولم تعد القواعد الحية قابلة لإعادة الفحص.
+> الاسترداد معلّق على قرار المالك.
+
 ## §14 تصحيح حكم t14 بعد مراجعة t15 (E2E-1) — 2026-09-24
 
 يُقرأ هذا التصحيح مع الاحتفاظ بسجل التشغيل في §13، ولا يمحو مخرجاته أو يغيّر أرقامها: الاختبار نُفذ ونتيجته **1 file / 3 tests passed** فعلًا. لكن هذا الرقم يثبت أن assertions الحالية مرت، لا أن السيناريو الثالث اختبر السلوك المدعى.

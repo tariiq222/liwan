@@ -12,7 +12,7 @@ export async function dispatchSharedOnce(pool: Pool, adapter?: SharedFencedAdapt
     JOIN shared_registry_bindings binding ON binding.control_tenant_id=queued.control_tenant_id
     WHERE queued.state='queued' AND tenant.commercial_mode='saas'
     AND tenant.operations_enabled=true AND binding.enabled=true
-    AND queued.payload->>'operation' IN ('provision','backup')
+    AND queued.payload->>'operation' IN ('provision','backup','restore')
     AND queued.payload->'binding'=jsonb_build_object(
       'tenantId',binding.tenant_id,'database',binding.database_name,
       'filestore',binding.filestore,'registryRevision',binding.registry_revision

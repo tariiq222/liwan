@@ -7,6 +7,12 @@
 > This annotation does not rerun tests or broaden the original evidence.
 
 This is implementation evidence, **not phase-one acceptance**. Worktree:
+
+> Note (2026-10-01): restore is now wired end-to-end through the signed queue,
+> worker and fenced adapter on live local SQL. See
+> [shared-restore-queue.md](./shared-restore-queue.md) for the evidence record.
+> Historical statements below that restore "remains unavailable" describe the
+> checkpoint at which they were written, not the current branch state.
 `/Users/tariq/code/nasq-shared-isolation`, branch `codex/shared-isolation`,
 starting HEAD `d780862e`. Existing dirty implementation is preserved. No commit,
 merge, push, deployment, Odoo or customer database operation is authorized here.

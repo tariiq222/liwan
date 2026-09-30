@@ -54,8 +54,24 @@ it.each([
   expect(response.status).toBe(422)
   expect(enqueueSharedJob).not.toHaveBeenCalled()
 })
-it('rejects unconfigured restore operation before enqueue',async()=>{
-  const response=await post({reason:'Unsupported restore',job:{schemaVersion:1,operation:'restore',requestId:tenant}})
+it('accepts restore with only approval id and forwards it to the store',async()=>{
+  const job={schemaVersion:1,operation:'restore',requestId:tenant,approvalId:'ad03d956-efef-4f80-baf3-9c23ea46e945'}
+  const result={id:'job-1',state:'queued',replay:false}
+  vi.mocked(enqueueSharedJob).mockResolvedValue(result)
+  const response=await post({reason:'Approved restore',job})
+  expect(response.status).toBe(202)
+  expect(await response.json()).toEqual(result)
+  expect(enqueueSharedJob).toHaveBeenCalledWith(pool,tenant,{issuer:'queue-test',actorUid:7},job,'Approved restore')
+})
+it.each([
+  {binding:{tenantId:'foreign'}},
+  {backup:{schemaVersion:1,backupId:tenant,binding:{tenantId:'foreign',database:'db',filestore:'fs',registryRevision:1},databaseSha256:'a'.repeat(64),filestoreSha256:'b'.repeat(64),consistency:'verified'}},
+  {policy:{modules:['unapproved']}},
+  {catalog:{version:'caller-selected'}},
+  {targetDatabase:'caller_selected'},
+  {payloadDigest:'a'.repeat(64)},
+])('rejects caller-owned authority fields on restore %j before enqueue',async extra=>{
+  const response=await post({reason:'Injected restore authority',job:{schemaVersion:1,operation:'restore',requestId:tenant,approvalId:tenant,...extra}})
   expect(response.status).toBe(422)
   expect(enqueueSharedJob).not.toHaveBeenCalled()
 })
