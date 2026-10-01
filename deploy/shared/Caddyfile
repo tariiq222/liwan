@@ -10,6 +10,9 @@
 			zone nasq_auth {
 				match {
 					path /api/auth/* /api/v1/auth/* /web/session/* /web/login
+					# F5: the browser's version probe is not a credential endpoint
+					# (guard 403s it); it must not drain the 20/min login budget.
+					not path /web/session/get_session_info
 				}
 				key {client_ip}
 				events 20
@@ -26,10 +29,24 @@
 				window 1m
 				ipv6_prefix 64
 			}
+			# F5: ACL-checked image bytes keep their own limited budget so avatar
+			# grids cannot starve the rest of the Odoo-routed traffic.
+			zone nasq_odoo_image {
+				match {
+					path /web/image/* /web/binary/company_logo
+				}
+				key {client_ip}
+				events 1200
+				window 1m
+				ipv6_prefix 64
+			}
 			zone nasq_odoo {
 				match {
 					path /web/* /odoo/* /jsonrpc /xmlrpc/* /report/* /mail/* /bus/* /discuss/*
-					not path /web/session/* /web/login
+					not path /web/session/* /web/login /web/image/* /web/binary/company_logo
+				}
+				match {
+					path /web/session/get_session_info
 				}
 				key {client_ip}
 				events 600
