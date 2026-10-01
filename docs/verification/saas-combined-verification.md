@@ -399,6 +399,7 @@ $ npm -w apps/control-plane run test -- --reporter=verbose src/__tests__/worker-
 > (`nasq_control_scratch_{merge923a,runtime_b72a6,aebb2cfcb0}`) أُسقطت بواسطة جولة
 > تحقق لاحقة. النتائج المسجلة هنا تاريخية ولم تعد القواعد الحية قابلة لإعادة الفحص.
 > الاسترداد معلّق على قرار المالك.
+> إعادة توليد (2026-09-30): أُعيد تشغيل الدليل الحي المكافئ عند HEAD الحالي على قواعد scratch جديدة — راجع [2026-09-30-regenerated-gate-evidence.md](2026-09-30-regenerated-gate-evidence.md).
 
 ## §14 تصحيح حكم t14 بعد مراجعة t15 (E2E-1) — 2026-09-24
 
