@@ -57,21 +57,10 @@ employee = env['hr.employee'].create({
     'user_id': user.id,
 })
 
-# The tenant feature policy is NOT granted by installing the addons on a fresh
-# database: nasq.tenant.profile is created with policy_revision=0 and no features,
-# so /api/v1/projects answers feature_not_included ("pmo.enabled"). The product
-# grants the initial policy through its own model, exactly as the shared HTTP test
-# fixture (nasq_api/tests/common.py) and the 19.0.1.1.0 migration do:
-#   profile._nasq_initialize_legacy_policy(
-#       env['nasq.feature.registry']._nasq_installed_module_ids())
-profile = env.ref('nasq_platform.tenant_profile', raise_if_not_found=False)
-assert profile, 'nasq_platform.tenant_profile is missing; nasq_platform is not installed'
-profile._nasq_initialize_legacy_policy(
-    env['nasq.feature.registry']._nasq_installed_module_ids(),
-)
-assert profile.policy_revision >= 1, 'tenant policy was not initialized'
-for feature in ('pmo.enabled', 'hr.enabled'):
-    assert profile.features.get(feature) is True, 'missing tenant feature: %s' % feature
+# The tenant feature policy is initialized separately by piping the repository's
+# single canonical seeding script (deploy/seed_legacy_policy.py) into `odoo shell`
+# on stdin, exactly as deploy/provision.sh does. This script stays free of any
+# policy logic; the post-seed readback in up.sh verifies the policy was written.
 
 # Commit explicitly AFTER EACH STEP. The odoo shell rolls the transaction back on
 # exit unless a commit has already been reached: a script that only relies on a

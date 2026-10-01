@@ -64,7 +64,7 @@ else describe('shared order and sandbox payment lifecycle', () => {
       const storage = await connect(tenantDatabases[index]!)
       await ensureTenantStorageSchema(storage)
       await ensureAdminBindingSchema(storage)
-      await storage.pool.query('TRUNCATE shared_fencing, shared_effects, shared_admin')
+      await storage.pool.query('TRUNCATE shared_fencing, shared_effects, shared_admin, shared_tenant_policy')
       await storage.pool.end()
     }
   })

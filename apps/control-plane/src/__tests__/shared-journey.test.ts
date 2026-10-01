@@ -70,7 +70,7 @@ else describe('shared SaaS full journey', () => {
       const storage = await connect(database)
       await ensureTenantStorageSchema(storage)
       await ensureAdminBindingSchema(storage)
-      await storage.pool.query('TRUNCATE shared_fencing, shared_effects, shared_admin')
+      await storage.pool.query('TRUNCATE shared_fencing, shared_effects, shared_admin, shared_tenant_policy')
       await storage.pool.end()
     }
   })

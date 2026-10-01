@@ -49,7 +49,8 @@ export async function assertRestoreTargetEmpty(runner: Pool | PoolClient): Promi
   const occupied = await runner.query(
     `SELECT (SELECT count(*) FROM shared_fencing)
           + (SELECT count(*) FROM shared_effects)
-          + (SELECT count(*) FROM shared_admin) AS count`)
+          + (SELECT count(*) FROM shared_admin)
+          + (SELECT count(*) FROM shared_tenant_policy) AS count`)
   if (Number(occupied.rows[0].count) > 0) throw new Error('restore_target_not_empty')
 }
 
@@ -98,9 +99,12 @@ export type SharedBackupRecord = {
 
 /** Fault-injection / pause seams for the live persistence tests: `beforeWrite`
  * runs inside the tenant write transaction after the exclusive lock and the
- * emptiness check, `beforeConsume` runs after the tenant readback and before the
- * consumption update. Both are absent in production callers. */
-export type RestoreHooks = { beforeWrite?: () => Promise<void>; beforeConsume?: () => Promise<void> }
+ * emptiness check, `beforeReadback` runs inside the same transaction after the
+ * snapshot write and before the readback digest (a test can tamper with the
+ * written state to force a mismatch), `beforeConsume` runs after the tenant
+ * transaction has verified and committed, before the consumption update. All
+ * three are absent in production callers. */
+export type RestoreHooks = { beforeWrite?: (tenant: PoolClient) => Promise<void>; beforeReadback?: (tenant: PoolClient) => Promise<void>; beforeConsume?: () => Promise<void> }
 
 /** Capture a consistent snapshot and record it only after readback
  * verification. The tenant-DB read happens in one transaction; the artifact
@@ -126,7 +130,8 @@ export async function createTenantBackup(pool: Pool, connect: (database: string)
       const fencing = await client.query('SELECT tenant_id,fence::float8 AS fence FROM shared_fencing ORDER BY tenant_id')
       const effects = await client.query('SELECT tenant_id,business_key,payload_digest,attempt_id::text AS attempt_id,fence::float8 AS fence FROM shared_effects ORDER BY tenant_id,business_key')
       const admin = await client.query('SELECT tenant_id,request_id::text AS request_id,login FROM shared_admin ORDER BY tenant_id')
-      return { schemaVersion: 1, tenantId: authority.tenant_id, fencing: fencing.rows, effects: effects.rows, admin: admin.rows }
+      const policy = await client.query('SELECT tenant_id,policy_revision::float8 AS policy_revision,features FROM shared_tenant_policy ORDER BY tenant_id')
+      return { schemaVersion: 1, tenantId: authority.tenant_id, fencing: fencing.rows, effects: effects.rows, admin: admin.rows, policy: policy.rows }
     })
     databaseSha256 = digest(JSON.stringify(snapshot))
   } finally { await storage.pool.end() }
@@ -144,7 +149,8 @@ export async function createTenantBackup(pool: Pool, connect: (database: string)
     const fencing = await verifyStorage.pool.query('SELECT tenant_id,fence::float8 AS fence FROM shared_fencing ORDER BY tenant_id')
     const effects = await verifyStorage.pool.query('SELECT tenant_id,business_key,payload_digest,attempt_id::text AS attempt_id,fence::float8 AS fence FROM shared_effects ORDER BY tenant_id,business_key')
     const admin = await verifyStorage.pool.query('SELECT tenant_id,request_id::text AS request_id,login FROM shared_admin ORDER BY tenant_id')
-    const reread = { schemaVersion: 1, tenantId: authority.tenant_id, fencing: fencing.rows, effects: effects.rows, admin: admin.rows }
+    const policy = await verifyStorage.pool.query('SELECT tenant_id,policy_revision::float8 AS policy_revision,features FROM shared_tenant_policy ORDER BY tenant_id')
+    const reread = { schemaVersion: 1, tenantId: authority.tenant_id, fencing: fencing.rows, effects: effects.rows, admin: admin.rows, policy: policy.rows }
     if (digest(JSON.stringify(reread)) !== databaseSha256) throw new Error('backup_readback_mismatch')
   } finally { await verifyStorage.pool.end() }
   await transaction(pool, async client => {
@@ -183,10 +189,31 @@ export async function approveSharedRestore(pool: Pool, input: { backupId: string
 
 /** Execute an approved restore into the new target. The target must be
  * unregistered and empty; the snapshot is written under an exclusive tenant
- * table lock and verified by readback; the approval is consumed exactly once,
- * in the same control transaction that holds the registry publication lock, so
- * no binding for the target can be published between the reservation check and
- * the consumption.
+ * table lock and verified by readback INSIDE the same tenant transaction,
+ * before COMMIT, so a readback mismatch rolls the target back to empty instead
+ * of leaving a partially written tenant behind. The previous design committed
+ * the tenant transaction first and read back afterwards; for this synthetic
+ * storage reading inside the transaction is equivalent — and strictly safer:
+ * the readback observes exactly the written state through the same client that
+ * holds the EXCLUSIVE lock (no concurrent writer can interleave between COMMIT
+ * and the readback to forge or corrupt the verified state), and a mismatch now
+ * rolls back the write instead of failing after the target was mutated.
+ *
+ * The readback digest is computed over the snapshot's own shape: a backup
+ * taken before `shared_tenant_policy` existed stores a snapshot with no
+ * `policy` key and a digest over that shape, so the readback omits `policy`
+ * for it too. A restored tenant without a policy row then fails the
+ * activation gate's `initial_policy` check — fail-closed by design: an
+ * operator must grant the policy before the tenant can activate.
+ *
+ * Everything that can fail without touching the target (the reservation check
+ * and the target schema checks) runs before the first tenant write; the digest
+ * verification is the in-transaction readback, which rolls back on mismatch
+ * (see the comment inside for why the stored snapshot cannot be re-digested).
+ * The approval is consumed exactly once, in the same
+ * control transaction that holds the registry publication lock, so no binding
+ * for the target can be published between the reservation check and the
+ * consumption.
  *
  * Lock order (deadlock-free): the registry advisory lock, then control row locks
  * (approval), then tenant table locks. `publishRegistryMutation` takes the same
@@ -208,31 +235,49 @@ export async function restoreBackupToNewTarget(pool: Pool, connect: (database: s
     if (!row.rowCount) throw new Error('restore_approval_unavailable')
     const approval = row.rows[0]
     await assertRestoreTargetUnreserved(client, approval.target_database)
-    const snapshot = approval.snapshot as { fencing: { tenant_id: string; fence: string }[]; effects: { tenant_id: string; business_key: string; payload_digest: string; attempt_id: string; fence: string }[]; admin: { tenant_id: string; request_id: string; login: string }[] }
+    const snapshot = approval.snapshot as { tenantId?: string; fencing: { tenant_id: string; fence: string }[]; effects: { tenant_id: string; business_key: string; payload_digest: string; attempt_id: string; fence: string }[]; admin: { tenant_id: string; request_id: string; login: string }[]; policy?: { tenant_id: string; policy_revision: string | number; features: Record<string, unknown> }[] }
+    // Pre-write verification: everything that can fail without touching the
+    // target runs before the first tenant write — the reservation check above
+    // and the target schema checks below. The snapshot digest itself CANNOT be
+    // verified from the stored `snapshot` column here: jsonb does not preserve
+    // object key order, so re-serializing the stored value would not reproduce
+    // the capture-time digest. Digest verification therefore happens as the
+    // in-transaction readback below, where a fresh row read reproduces the
+    // capture shape exactly — and where a mismatch now rolls the target back
+    // to empty instead of failing after the target was mutated.
     const storage = await connect(approval.target_database)
     let databaseSha256 = ''
     try {
       await ensureRestoreTargetSchema(storage)
-      // One tenant transaction: exclusive table lock, emptiness check and the
-      // snapshot write are atomic, so no concurrent writer can interleave.
+      // One tenant transaction: exclusive table lock, emptiness check, the
+      // snapshot write and the readback verification are atomic, so no
+      // concurrent writer can interleave and a mismatch rolls everything back.
       await transaction(storage.pool, async tenant => {
-        await tenant.query('LOCK TABLE shared_fencing, shared_effects, shared_admin IN EXCLUSIVE MODE')
+        await tenant.query('LOCK TABLE shared_fencing, shared_effects, shared_admin, shared_tenant_policy IN EXCLUSIVE MODE')
         await assertRestoreTargetEmpty(tenant)
-        await input.hooks?.beforeWrite?.()
+        await input.hooks?.beforeWrite?.(tenant)
         for (const row of snapshot.fencing) await tenant.query('INSERT INTO shared_fencing(tenant_id,fence) VALUES($1,$2)', [row.tenant_id, row.fence])
         for (const row of snapshot.effects) await tenant.query('INSERT INTO shared_effects(tenant_id,business_key,payload_digest,attempt_id,fence) VALUES($1,$2,$3,$4,$5)', [row.tenant_id, row.business_key, row.payload_digest, row.attempt_id, row.fence])
         for (const row of snapshot.admin) await tenant.query('INSERT INTO shared_admin(tenant_id,request_id,login) VALUES($1,$2,$3)', [row.tenant_id, row.request_id, row.login])
-      })
-      // Readback verification of the applied state.
-      const applied = await transaction(storage.pool, async tenant => {
+        // A pre-policy backup carries no `policy` key: restore its shape as-is.
+        // The restored tenant then stays below the activation gate until an
+        // operator grants the policy (initial_policy check).
+        if ('policy' in snapshot) for (const row of snapshot.policy ?? []) await tenant.query('INSERT INTO shared_tenant_policy(tenant_id,policy_revision,features) VALUES($1,$2,$3::jsonb)', [row.tenant_id, row.policy_revision, JSON.stringify(row.features)])
+        await input.hooks?.beforeReadback?.(tenant)
+        // Readback verification of the applied state, still uncommitted: the
+        // digest shape mirrors the snapshot's own key shape.
         const fencing = await tenant.query('SELECT tenant_id,fence::float8 AS fence FROM shared_fencing ORDER BY tenant_id')
         const effects = await tenant.query('SELECT tenant_id,business_key,payload_digest,attempt_id::text AS attempt_id,fence::float8 AS fence FROM shared_effects ORDER BY tenant_id,business_key')
         const admin = await tenant.query('SELECT tenant_id,request_id::text AS request_id,login FROM shared_admin ORDER BY tenant_id')
-        return { schemaVersion: 1, tenantId: (snapshot as unknown as { tenantId: string }).tenantId, fencing: fencing.rows, effects: effects.rows, admin: admin.rows }
+        const applied: Record<string, unknown> = { schemaVersion: 1, tenantId: snapshot.tenantId, fencing: fencing.rows, effects: effects.rows, admin: admin.rows }
+        if ('policy' in snapshot) {
+          const policy = await tenant.query('SELECT tenant_id,policy_revision::float8 AS policy_revision,features FROM shared_tenant_policy ORDER BY tenant_id')
+          applied.policy = policy.rows
+        }
+        databaseSha256 = digest(JSON.stringify(applied))
+        if (databaseSha256 !== approval.database_sha256) throw new Error('restore_readback_mismatch')
       })
-      databaseSha256 = digest(JSON.stringify(applied))
     } finally { await storage.pool.end() }
-    if (databaseSha256 !== approval.database_sha256) throw new Error('restore_readback_mismatch')
     await input.hooks?.beforeConsume?.()
     const consumed = await client.query('UPDATE shared_restore_approvals SET consumed_at=clock_timestamp() WHERE id=$1 AND consumed_at IS NULL RETURNING id', [input.approvalId])
     if (!consumed.rowCount) throw new Error('restore_approval_unavailable')

@@ -34,6 +34,19 @@ export type FencedStorageAdapterOptions = {
   trustWorkerClaim?: boolean
 }
 
+/** Key-order-independent canonical form so jsonb readback compares exactly. */
+function canonicalFeatures(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canonicalFeatures).join(',')}]`
+  if (value && typeof value === 'object') {
+    const record = value as Record<string, unknown>
+    return `{${Object.keys(record).sort().map(k => `${JSON.stringify(k)}:${canonicalFeatures(record[k])}`).join(',')}}`
+  }
+  return JSON.stringify(value)
+}
+
+/** The initial policy revision a verified provision effect writes. */
+export const INITIAL_POLICY_REVISION = 1
+
 export async function ensureTenantStorageSchema(storage: TenantStorage): Promise<void> {
   await storage.pool.query(`CREATE TABLE IF NOT EXISTS shared_fencing (
     tenant_id text PRIMARY KEY,
@@ -47,6 +60,16 @@ export async function ensureTenantStorageSchema(storage: TenantStorage): Promise
     fence bigint NOT NULL CHECK (fence >= 0),
     applied_at timestamptz NOT NULL DEFAULT clock_timestamp(),
     PRIMARY KEY (tenant_id, business_key)
+  )`)
+  // Initial tenant feature policy, written ONLY by the verified provision
+  // effect from the job payload's server-side catalog policy (never from a
+  // caller). The activation gate refuses a tenant without revision >= 1 and
+  // non-empty features, so a fresh tenant cannot be active before policy.
+  await storage.pool.query(`CREATE TABLE IF NOT EXISTS shared_tenant_policy (
+    tenant_id text PRIMARY KEY,
+    policy_revision bigint NOT NULL CHECK (policy_revision >= 0),
+    features jsonb NOT NULL DEFAULT '{}'::jsonb,
+    recorded_at timestamptz NOT NULL DEFAULT clock_timestamp()
   )`)
 }
 
@@ -68,9 +91,13 @@ async function observeRestore(control: Pool, connect: FencedStorageAdapterOption
     const fencing = await storage.pool.query('SELECT tenant_id,fence::float8 AS fence FROM shared_fencing ORDER BY tenant_id')
     const effects = await storage.pool.query('SELECT tenant_id,business_key,payload_digest,attempt_id::text AS attempt_id,fence::float8 AS fence FROM shared_effects ORDER BY tenant_id,business_key')
     const admin = await storage.pool.query('SELECT tenant_id,request_id::text AS request_id,login FROM shared_admin ORDER BY tenant_id')
-    if (!fencing.rowCount && !effects.rowCount && !admin.rowCount) return { state: 'absent' as const }
-    // Same readback shape and digest as restoreBackupToNewTarget.
-    const applied = { schemaVersion: 1, tenantId: row.snapshot?.tenantId ?? null, fencing: fencing.rows, effects: effects.rows, admin: admin.rows }
+    const policy = await storage.pool.query('SELECT tenant_id,policy_revision::float8 AS policy_revision,features FROM shared_tenant_policy ORDER BY tenant_id')
+    if (!fencing.rowCount && !effects.rowCount && !admin.rowCount && !policy.rowCount) return { state: 'absent' as const }
+    // Same readback shape and digest as restoreBackupToNewTarget: the digest
+    // mirrors the stored snapshot's own key shape, so a pre-policy backup
+    // (snapshot without a `policy` key) is compared without a policy key.
+    const applied: Record<string, unknown> = { schemaVersion: 1, tenantId: row.snapshot?.tenantId ?? null, fencing: fencing.rows, effects: effects.rows, admin: admin.rows }
+    if (row.snapshot && typeof row.snapshot === 'object' && 'policy' in row.snapshot) applied.policy = policy.rows
     const appliedDigest = createHash('sha256').update(JSON.stringify(applied)).digest('hex')
     if (appliedDigest === row.database_sha256) {
       return { state: 'present' as const, binding: job.binding, businessKey: businessKey(job), payloadDigest: payloadDigest(job), verified: true }
@@ -94,9 +121,21 @@ export function createFencedStorageAdapter(options: FencedStorageAdapterOptions)
           [job.binding.tenantId, key])
         if (!rows.rowCount) return { state: 'absent' }
         const row = rows.rows[0]
+        // A provision is verified when the initial policy exists (revision
+        // >= 1). The provision effect's identity is "the initial policy was
+        // written", so the features are compared against the payload's
+        // server-side catalog policy only at the initial revision; a higher
+        // revision means provisioned-then-updated and stays verified.
+        let verified = true
+        if (job.operation === 'provision') {
+          const policy = await storage.pool.query('SELECT policy_revision::float8 AS revision, features FROM shared_tenant_policy WHERE tenant_id=$1', [job.binding.tenantId])
+          const revision = policy.rowCount === 1 ? Number(policy.rows[0].revision) : 0
+          verified = revision >= INITIAL_POLICY_REVISION &&
+            (revision === INITIAL_POLICY_REVISION ? canonicalFeatures(policy.rows[0].features) === canonicalFeatures(job.policy.features) : true)
+        }
         // Observed truth, never the caller's assertion: a foreign digest here
         // surfaces as effect_identity_mismatch and quarantines the job.
-        return { state: 'present', binding: job.binding, businessKey: row.business_key, payloadDigest: row.payload_digest, verified: true }
+        return { state: 'present', binding: job.binding, businessKey: row.business_key, payloadDigest: row.payload_digest, verified }
       } finally { await storage.pool.end() }
     },
     async applyFenced({ job, attemptId, fence, assertOwned }) {
@@ -189,6 +228,12 @@ export function createFencedStorageAdapter(options: FencedStorageAdapterOptions)
           await storage.pool.query(
             'INSERT INTO shared_effects(tenant_id,business_key,payload_digest,attempt_id,fence) VALUES($1,$2,$3,$4,$5)',
             [job.binding.tenantId, key, digest, attemptId, fence])
+          if (job.operation === 'provision') {
+            // Same tenant transaction as the effect: policy derived from the
+            // server-side catalog policy carried in the authoritative payload.
+            await storage.pool.query('INSERT INTO shared_tenant_policy(tenant_id,policy_revision,features) VALUES($1,$2,$3::jsonb)',
+              [job.binding.tenantId, INITIAL_POLICY_REVISION, JSON.stringify(job.policy.features)])
+          }
           await storage.pool.query('COMMIT')
         } catch (error) {
           try { await storage.pool.query('ROLLBACK') } catch { /* connection already closed */ }

@@ -173,7 +173,7 @@ else describe('shared restore queue', () => {
       try {
         await ensureTenantStorageSchema(storage)
         await ensureAdminBindingSchema(storage)
-        await storage.pool.query('TRUNCATE shared_fencing, shared_effects, shared_admin')
+        await storage.pool.query('TRUNCATE shared_fencing, shared_effects, shared_admin, shared_tenant_policy')
       } finally { await storage.pool.end() }
     }
     await publishRegistryMutation(pool, registryPath, actor, { controlTenantId: tenantId, expectedSnapshotRevision: 0, target: { host: 't07.restore.invalid', tenantId: tenantSlug, database: sourceDatabase, filestore: sourceDatabase, enabled: true, registryRevision: 1 }, reason: 'Restore source tenant' })
