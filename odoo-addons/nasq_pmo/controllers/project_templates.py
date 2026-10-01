@@ -3,6 +3,7 @@ from odoo import http
 from odoo.exceptions import AccessError, UserError, ValidationError
 from odoo.http import request
 
+from odoo.addons.nasq_core.models.access_service import NasqAccessRule
 from odoo.addons.nasq_api.controllers.common import (
     ApiError,
     api_handler,
@@ -97,6 +98,8 @@ class ProjectTemplateController(http.Controller):
         name, start_date = parse_project_template_apply(payload)
         try:
             result = template._nasq_apply(name, start_date, serialize=dump_applied_project)
+        except NasqAccessRule:
+            raise
         except AccessError as error:
             raise ApiError(403, 'forbidden', str(error)) from error
         except (ValidationError, UserError) as error:

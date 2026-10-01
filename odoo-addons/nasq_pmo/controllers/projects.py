@@ -3,6 +3,7 @@ from odoo import http
 from odoo.exceptions import AccessError, UserError
 from odoo.http import request
 
+from odoo.addons.nasq_core.models.access_service import NasqAccessRule
 from odoo.addons.nasq_api.controllers.common import (
     ApiError,
     api_handler,
@@ -101,6 +102,8 @@ class ProjectController(http.Controller):
         name, extra = parse_project_create(payload)
         try:
             project = Project._nasq_create_from_policy(name, extra or None)
+        except NasqAccessRule:
+            raise
         except AccessError as e:
             raise ApiError(403, 'create_forbidden', str(e)) from e
         except UserError as e:

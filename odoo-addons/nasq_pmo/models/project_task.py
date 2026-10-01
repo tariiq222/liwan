@@ -119,7 +119,9 @@ class ProjectTask(models.Model):
             active_test=active_test, bypass_access=bypass_access,
         )
 
-    def check_access(self, operation):
+    def _check_access(self, operation):
+        # Stock ir.attachment checks its comodel through _filtered_access.
+        # Enforce the same capability in all raising/non-raising ORM helpers.
         if (
             operation == 'read'
             and not self.env.is_superuser()
@@ -128,20 +130,28 @@ class ProjectTask(models.Model):
         ):
             service = self.env['nasq.access.service']
             if not service._nasq_has_capability(self.env.user, 'pmo.tasks.read'):
-                boundary = self._nasq_template_population_domain()
-                if boundary is None:
-                    service._nasq_require_capability('pmo.tasks.read')
-                elif self:
-                    # Never read project_id from this unverified recordset to
-                    # decide access: fields may recurse into fetch or be cached.
-                    # The empty-recordset ACL check performed by stock _search
-                    # below is allowed, but every real id must match the scope.
-                    query = super()._search(
-                        Domain('id', 'in', self.ids) & boundary, active_test=False,
-                    )
-                    if set(query) != set(self.ids):
-                        raise AccessError(self.env._("Only tasks in the new template project may be read during application."))
-        return super().check_access(operation)
+                try:
+                    boundary = self._nasq_template_population_domain()
+                    if boundary is None:
+                        return self, lambda: AccessError('forbidden')
+                    if self:
+                        # The inherited search enforces both stock rules and
+                        # the template scope without reading unverified fields.
+                        # Return the denied subset so mixed recordsets retain
+                        # only genuinely readable tasks in _filtered_access.
+                        query = super()._search(
+                            Domain('id', 'in', self.ids) & boundary, active_test=False,
+                        )
+                        forbidden = self - self.browse(query)
+                        if forbidden:
+                            return forbidden, lambda: AccessError(self.env._(
+                                "Only tasks in the new template project may be read during application.",
+                            ))
+                except AccessError as error:
+                    # Scope validation and stock search may raise; this hook
+                    # must instead let its caller choose raising or filtering.
+                    return self, lambda error=error: error
+        return super()._check_access(operation)
 
     def _nasq_check_visible_current(self):
         if not self:

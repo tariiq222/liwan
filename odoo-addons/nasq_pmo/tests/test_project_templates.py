@@ -7,6 +7,8 @@ from unittest.mock import patch
 from odoo.exceptions import AccessError, ValidationError
 from odoo.tests import TransactionCase, new_test_user, tagged
 
+from odoo.addons.nasq_platform.models.entitlement_service import OPERATOR_CONTEXT
+
 from .common import NasqPmoCase
 from odoo.addons.nasq_pmo.models.project_task import TEMPLATE_APPLY_MARKER
 from odoo.addons.nasq_pmo.models.project_template import validate_template_definition
@@ -428,6 +430,43 @@ class TestProjectTemplatesHttp(NasqPmoCase):
         response = self.api('DELETE', path)
         self.assertEqual(response.status_code, 204, response.text)
         self.assertEqual(self.api('GET', path).status_code, 404)
+
+    def test_http_apply_at_project_quota_preserves_limit_error_and_population(self):
+        template = self.env['nasq.project.template'].create({
+            'name': 'Quota template', 'definition': TEMPLATE,
+        })
+        service = self.env['nasq.entitlement.service'].sudo()
+        profile = self.env.ref('nasq_platform.tenant_profile')
+        models = ('project.project', 'project.task.type', 'project.milestone', 'project.task')
+        before = {
+            model: self.env[model].with_context(active_test=False).search_count([])
+            for model in models
+        }
+        project_count = service._nasq_count_projects()
+        profile.with_context(**{OPERATOR_CONTEXT: True}).write({
+            'features': {**profile.features, 'projects.max_projects': project_count},
+        })
+        quota_revision = profile.quota_revision
+
+        self._login(self.template_creator)
+        path = f'/api/v1/project-templates/{template.id}'
+        self.assertTrue(self.api('GET', path).json()['can_apply'])
+        response = self.api('POST', path + '/apply', {
+            'name': 'Over quota template', 'start_date': '2030-01-10',
+        })
+
+        self.assertEqual(response.status_code, 403, response.text)
+        self.assertEqual(response.json()['code'], 'feature_not_included')
+        self.assertEqual(response.json()['details'], {
+            'reason': 'limit', 'limit_key': 'projects.max_projects',
+        })
+        self.assertEqual(service._nasq_count_projects(), project_count)
+        self.assertEqual(before, {
+            model: self.env[model].with_context(active_test=False).search_count([])
+            for model in models
+        })
+        profile.invalidate_recordset(['quota_revision'])
+        self.assertEqual(profile.quota_revision, quota_revision)
 
     def test_http_foreign_company_and_mid_apply_rollback(self):
         self._login(self.template_manager)

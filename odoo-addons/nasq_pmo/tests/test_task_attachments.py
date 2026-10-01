@@ -3,6 +3,7 @@ import base64
 import io
 import zipfile
 
+from odoo.exceptions import AccessError
 from odoo.tests import tagged
 
 from .common import NasqPmoCase
@@ -153,6 +154,92 @@ class TestTaskAttachments(NasqPmoCase):
         # the AccessError into 404, unlike /api/v1 which answers 403 forbidden.
         self.assertEqual(revoked.status_code, 404)
         self.assertNotEqual(revoked.content, b'revocable bytes')
+
+    def _assert_capability_revocation_blocks_attachment(self, record, api_path, capability):
+        content = b'private capability-protected attachment'
+        attachment = self.env['ir.attachment'].create({
+            'name': 'capability-private.txt', 'raw': content, 'mimetype': 'text/plain',
+            'res_model': record._name, 'res_id': record.id, 'public': False,
+        })
+        url = f'/web/content/{attachment.id}?download=true'
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        self.assertEqual(self.api('GET', api_path).status_code, 200)
+        allowed = self.api('GET', url)
+        self.assertEqual(allowed.status_code, 200)
+        self.assertEqual(allowed.content, content)
+
+        # Keep the stock groups, company and record visibility unchanged.
+        # A managed account with no assignments must no longer inherit the
+        # legacy employee capabilities, even when Odoo itself allows reading.
+        self.assertFalse(self.env['nasq.access.assignment'].search([
+            ('user_id', '=', self.employee.id),
+        ]))
+        self.employee.write({'nasq_access_managed': True})
+        self.employee.flush_recordset(['nasq_access_managed'])
+        actor_record = record.with_user(self.employee)
+        self.assertFalse(actor_record.env.su)
+        self.assertTrue(self.employee.active)
+        self.assertFalse(self.env['nasq.access.service']._nasq_has_capability(self.employee, capability))
+        self.assertTrue(actor_record.env['ir.model.access'].check(
+            record._name, 'read', raise_exception=False,
+        ))
+        stock_domain = actor_record.env['ir.rule']._compute_domain(record._name, 'read')
+        self.assertEqual(record.filtered_domain(stock_domain), record)
+        with self.assertRaises(AccessError):
+            actor_record.check_access('read')
+        self.assertEqual(self.api('GET', api_path).status_code, 403)
+
+        denied = self.api('GET', url)
+        self.assertEqual(denied.status_code, 404)
+        self.assertNotEqual(denied.content, content)
+        self.assertFalse(actor_record.has_access('read'))
+        self.assertFalse(actor_record._filtered_access('read'))
+        self.assertFalse(attachment.with_user(self.employee).has_access('read'))
+
+        # An explicit managed grant restores the same private download URL.
+        self.env['nasq.access.assignment'].create({
+            'user_id': self.employee.id,
+            'role_id': self.env.ref('nasq_core.role_employee').id,
+            'company_id': self.env.company.id,
+        })
+        self.assertTrue(actor_record.has_access('read'))
+        self.assertEqual(actor_record._filtered_access('read'), actor_record)
+        self.assertEqual(self.api('GET', api_path).status_code, 200)
+        restored = self.api('GET', url)
+        self.assertEqual(restored.status_code, 200)
+        self.assertEqual(restored.content, content)
+
+    def test_capability_revocation_blocks_task_attachment_with_stock_read_access(self):
+        self._assert_capability_revocation_blocks_attachment(
+            self.task_overdue, f'/api/v1/tasks/{self.task_overdue.id}', 'pmo.tasks.read',
+        )
+
+    def test_capability_revocation_blocks_project_attachment_with_stock_read_access(self):
+        self._assert_capability_revocation_blocks_attachment(
+            self.project, f'/api/v1/projects/{self.project.id}', 'pmo.projects.read',
+        )
+
+    def test_capability_denial_filters_mixed_stock_visibility(self):
+        private = self.env['project.project'].create({
+            'name': 'Mixed visibility private project', 'privacy_visibility': 'followers',
+            'company_id': self.env.company.id,
+        })
+        hidden_task = self.env['project.task'].create({
+            'name': 'Mixed visibility private task', 'project_id': private.id,
+            'user_ids': [(4, self.manager.id)],
+        })
+        for visible, hidden in ((self.project, private), (self.task_overdue, hidden_task)):
+            records = (visible | hidden).with_user(self.employee)
+            self.assertEqual(records._filtered_access('read'), visible.with_user(self.employee))
+
+        self.employee.write({'nasq_access_managed': True})
+        self.employee.flush_recordset(['nasq_access_managed'])
+        for visible, hidden in ((self.project, private), (self.task_overdue, hidden_task)):
+            records = (visible | hidden).with_user(self.employee)
+            # A partial stock denial must not skip the capability requirement
+            # for the otherwise-readable part of a mixed recordset.
+            self.assertFalse(records.has_access('read'))
+            self.assertFalse(records._filtered_access('read'))
 
     def test_unreadable_task_is_rejected_for_all_attachment_operations(self):
         private = self.env['project.project'].create({'name': 'Private attachments', 'privacy_visibility': 'followers'})

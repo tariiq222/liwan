@@ -1,6 +1,8 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo.tests import tagged
 
+from odoo.addons.nasq_platform.models.entitlement_service import OPERATOR_CONTEXT
+
 from .common import NasqPmoCase
 
 PROJECT_KEYS = {'id', 'name', 'status', 'progress', 'task_count', 'closed_task_count', 'active', 'can_manage', 'allowed_actions', 'manager', 'date_end'}
@@ -169,6 +171,30 @@ class TestProjects(NasqPmoCase):
         self.assertEqual(body['updated_at'], 'v1')
         self.assertEqual(body['charter']['budget_state'], 'unknown')
         self.assertEqual(self.api('POST', '/api/v1/projects', {'name': ' '}).status_code, 422)
+
+    def test_create_at_project_quota_preserves_limit_error_and_usage(self):
+        service = self.env['nasq.entitlement.service'].sudo()
+        profile = self.env.ref('nasq_platform.tenant_profile')
+        project_count = service._nasq_count_projects()
+        profile.with_context(**{OPERATOR_CONTEXT: True}).write({
+            'features': {**profile.features, 'projects.max_projects': project_count},
+        })
+        quota_revision = profile.quota_revision
+
+        self.authenticate('api_mgr', 'api_mgr_pass_123')
+        self.assertTrue(self.api('GET', '/api/v1/projects').json()['can_create'])
+        res = self.api('POST', '/api/v1/projects', {
+            'name': 'Over project quota', 'date_end': '2030-12-31',
+        })
+
+        self.assertEqual(res.status_code, 403, res.text)
+        self.assertEqual(res.json()['code'], 'feature_not_included')
+        self.assertEqual(res.json()['details'], {
+            'reason': 'limit', 'limit_key': 'projects.max_projects',
+        })
+        self.assertEqual(service._nasq_count_projects(), project_count)
+        profile.invalidate_recordset(['quota_revision'])
+        self.assertEqual(profile.quota_revision, quota_revision)
 
     def test_patch_whitelist(self):
         self.authenticate('api_mgr', 'api_mgr_pass_123')

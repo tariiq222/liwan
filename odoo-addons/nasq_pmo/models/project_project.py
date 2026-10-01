@@ -172,17 +172,21 @@ class ProjectProject(models.Model):
             active_test=active_test, bypass_access=bypass_access,
         )
 
-    def check_access(self, operation):
+    def _check_access(self, operation):
+        # Stock attachment downloads use _filtered_access on their comodel,
+        # which bypasses a check_access-only override. Keep the non-raising
+        # hook shared by check_access, has_access and _filtered_access.
         if (
             operation == 'read'
             and not self.env.is_superuser()
             and not self.env.user.has_group('base.group_system')
             and not self.env.cr.precommit.data.get(ACCESS_USER_CREATE_MARKER)
         ):
-            self.env['nasq.access.service']._nasq_require_capability(
-                'pmo.projects.read',
-            )
-        return super().check_access(operation)
+            if not self.env['nasq.access.service']._nasq_has_capability(
+                self.env.user, 'pmo.projects.read',
+            ):
+                return self, lambda: AccessError('forbidden')
+        return super()._check_access(operation)
 
     def _nasq_check_visible_current(self):
         if not self:
