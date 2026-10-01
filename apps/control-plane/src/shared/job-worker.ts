@@ -3,7 +3,7 @@ import type { Pool, PoolClient } from 'pg'
 import { z } from 'zod'
 import type { SharedJob } from '@nasq/commercial-contracts/shared'
 import { transaction } from '../db.js'
-import { resolveRegistryBinding } from './registry-store.js'
+import { resolveProvisionTarget } from './onboarding.js'
 import { requireJobAuthority } from './job-store.js'
 import { bindJob, businessKey, payloadDigest, reconcileSharedJob, verifiedReceipt } from './provisioning.js'
 import { finalizeVerifiedRestore } from './shared-backup.js'
@@ -47,7 +47,7 @@ export async function recoverSharedJob(pool: Pool, id: string, actor: { issuer: 
     // exact existing effects and never consumes a second approval.
     if (row.business_key !== businessKey(job) || row.payload_digest !== payloadDigest(job)) throw new Error('shared_job_identity_corrupt')
     if (row.journal && row.journal.attemptId !== row.attempt_id) throw new Error('shared_job_identity_corrupt')
-    const target = await resolveRegistryBinding(client,row.control_tenant_id)
+    const target = await resolveProvisionTarget(client,row.control_tenant_id,job)
     reconcileSharedJob(job,target,row.journal,{state:'unknown'})
     return { row, job, target, fence }
   }
@@ -89,7 +89,7 @@ export async function runSharedJob(pool: Pool, id: string, adapter?: SharedFence
     await requireJobAuthority(client, row.control_tenant_id, { issuer: row.issuer, actorUid: Number(row.actor_uid) })
     const job = bindJob(row.payload)
     if (row.business_key !== businessKey(job) || row.payload_digest !== payloadDigest(job)) throw new Error('shared_job_identity_corrupt')
-    const target = await resolveRegistryBinding(client, row.control_tenant_id)
+    const target = await resolveProvisionTarget(client,row.control_tenant_id,job)
     reconcileSharedJob(job,target,row.journal ?? null,{ state:'unknown' })
     const previousFence = Number(row.fence)
     if (!Number.isSafeInteger(previousFence) || previousFence < 0 || previousFence >= Number.MAX_SAFE_INTEGER) throw new Error('shared_fence_invalid')
@@ -101,11 +101,13 @@ export async function runSharedJob(pool: Pool, id: string, adapter?: SharedFence
     const current = await client.query("SELECT * FROM shared_jobs WHERE id=$1 AND attempt_id=$2 AND fence=$3 AND state='running' AND lease_until>clock_timestamp() FOR UPDATE", [id,claim.attemptId,claim.fence])
     if (!current.rowCount) throw new Error('shared_lease_lost')
     await requireJobAuthority(client, claim.row.control_tenant_id, { issuer: claim.row.issuer, actorUid: Number(claim.row.actor_uid) })
-    const target = await resolveRegistryBinding(client,claim.row.control_tenant_id)
+    const target = await resolveProvisionTarget(client,claim.row.control_tenant_id,claim.job)
     reconcileSharedJob(claim.job,target,current.rows[0].journal,{state:'unknown'})
     return action(client,current.rows[0])
   })
-  const assertOwned = () => owned(async () => {})
+  const assertOwned = () => owned(async client => {
+    await client.query("UPDATE shared_jobs SET lease_until=clock_timestamp()+interval '120 seconds' WHERE id=$1 AND attempt_id=$2 AND fence=$3 AND state='running' AND lease_until>clock_timestamp()", [id,claim.attemptId,claim.fence])
+  })
   const append = async (stage: 'prepared'|'started'|'verified'|'needs_intervention', observation: unknown) => owned(async (client,row) => {
     const journal = { schemaVersion:1,job:claim.job,attemptId:claim.attemptId,sequence:nextSequence(row.journal?.sequence ?? 0),stage }
     await client.query('INSERT INTO shared_job_events(job_id,attempt_id,fence,sequence,stage,evidence) VALUES($1,$2,$3,$4,$5,$6)', [id,claim.attemptId,claim.fence,journal.sequence,stage,{observation}])
@@ -118,7 +120,7 @@ export async function runSharedJob(pool: Pool, id: string, adapter?: SharedFence
   try {
     await assertOwned()
     let observation = await adapter.observe(claim.job)
-    const target = await transaction(pool, client => resolveRegistryBinding(client,claim.row.control_tenant_id))
+    const target = await transaction(pool, client => resolveProvisionTarget(client,claim.row.control_tenant_id,claim.job))
     let decision = reconcileSharedJob(claim.job,target,journal,observation)
     if (decision.action === 'persist_intent') {
       journal = await append('prepared',observation)
@@ -130,7 +132,7 @@ export async function runSharedJob(pool: Pool, id: string, adapter?: SharedFence
       await adapter.applyFenced({job:claim.job,attemptId:claim.attemptId,fence:claim.fence,assertOwned})
       await assertOwned()
       observation = await adapter.observe(claim.job)
-      const freshTarget = await transaction(pool, client => resolveRegistryBinding(client,claim.row.control_tenant_id))
+      const freshTarget = await transaction(pool, client => resolveProvisionTarget(client,claim.row.control_tenant_id,claim.job))
       decision = reconcileSharedJob(claim.job,freshTarget,journal,observation)
     }
     if (decision.action !== 'record_verified' && decision.action !== 'replay_verified') {
@@ -143,7 +145,7 @@ export async function runSharedJob(pool: Pool, id: string, adapter?: SharedFence
     observation = await adapter.observe(claim.job)
     return await owned(async (client,row) => {
       const verified = { schemaVersion:1,job:claim.job,attemptId:claim.attemptId,sequence:nextSequence(row.journal?.sequence ?? 0),stage:'verified' }
-      const currentTarget = await resolveRegistryBinding(client,claim.row.control_tenant_id)
+      const currentTarget = await resolveProvisionTarget(client,claim.row.control_tenant_id,claim.job)
       const receipt = verifiedReceipt(claim.job,currentTarget,verified,observation)
       await client.query('INSERT INTO shared_job_events(job_id,attempt_id,fence,sequence,stage,evidence) VALUES($1,$2,$3,$4,$5,$6)', [id,claim.attemptId,claim.fence,verified.sequence,'verified',{observation,receipt}])
       // A restore whose effect committed while the authority lost its control

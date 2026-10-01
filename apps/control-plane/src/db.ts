@@ -29,6 +29,8 @@ export async function migrate(pool: Pool): Promise<void> {
   const sql6 = await readFile(new URL('./schema_006.sql', import.meta.url), 'utf8')
   const sql7 = await readFile(new URL('./schema_007.sql', import.meta.url), 'utf8')
   const sql8 = await readFile(new URL('./schema_008.sql', import.meta.url), 'utf8')
+  const sql10 = await readFile(new URL('./schema_010.sql', import.meta.url), 'utf8')
+  const sql9 = await readFile(new URL('./schema_009.sql', import.meta.url), 'utf8')
   await transaction(pool, async (client) => {
     await client.query('SELECT pg_advisory_xact_lock(1397969233)')
     await client.query('CREATE TABLE IF NOT EXISTS schema_migrations(version integer PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT now())')
@@ -67,10 +69,20 @@ export async function migrate(pool: Pool): Promise<void> {
       await client.query(sql7)
       await client.query('INSERT INTO schema_migrations(version) VALUES(7)')
     }
+    const ninth = await client.query('SELECT version FROM schema_migrations WHERE version=9')
     const eighth = await client.query('SELECT version FROM schema_migrations WHERE version=8')
     if (!eighth.rowCount) {
       await client.query(sql8)
       await client.query('INSERT INTO schema_migrations(version) VALUES(8)')
+    }
+    if (!ninth.rowCount) {
+      await client.query(sql9)
+      await client.query('INSERT INTO schema_migrations(version) VALUES(9)')
+    }
+    const tenth = await client.query('SELECT version FROM schema_migrations WHERE version=10')
+    if (!tenth.rowCount) {
+      await client.query(sql10)
+      await client.query('INSERT INTO schema_migrations(version) VALUES(10)')
     }
   })
 }

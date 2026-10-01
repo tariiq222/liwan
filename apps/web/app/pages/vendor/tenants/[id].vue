@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { sharedTenantLoginUrl, type SharedTenantProgress } from '@/composables/useSharedTenantOnboarding'
 import { buildVendorPolicy, type VendorFeatureValue } from '@/utils/vendorPolicy'
 import { safeReturnTo } from '@/utils/safeReturnTo'
 definePageMeta({ middleware: 'vendor', vendorCapability: 'vendor.read' })
@@ -15,6 +16,49 @@ const id = computed(() => String(route.params.id))
 const backTo = computed(() => safeReturnTo(route.query.returnTo, '/vendor/tenants', ['/vendor/tenants']))
 const { data, error, pending, refresh } = await useAsyncData(() => `vendor:tenant:${id.value}`, () => request<Tenant>(`tenants/${encodeURIComponent(id.value)}`))
 const { data: catalog } = await useAsyncData('vendor:catalog-features', () => request<{ items: Catalog[]; total: number }>('catalog'))
+const hydrated = useHydrated()
+const { data: provisioning, error: provisioningError, pending: provisioningPending, refresh: refreshProvisioning } = await useAsyncData(
+  () => `vendor:tenant-provisioning:${id.value}`,
+  async () => {
+    if (!vendorContext.sharedOnboardingEnabled.value) return null
+    try { return await request<SharedTenantProgress>(`shared/tenants/${encodeURIComponent(id.value)}/provisioning`) }
+    catch (cause) {
+      const error = cause as { statusCode?: number; status?: number; response?: { status?: number } }
+      if ((error.statusCode ?? error.status ?? error.response?.status) === 404) return null
+      throw cause
+    }
+  },
+)
+const loginUrl = computed(() => provisioningError.value ? null : sharedTenantLoginUrl(provisioning.value))
+const provisioningFailed = computed(() => ['failed', 'needs_intervention'].includes(provisioning.value?.status ?? '') || Boolean(provisioning.value?.error_code))
+const provisioningActive = computed(() => Boolean(provisioning.value && !loginUrl.value && !provisioningFailed.value))
+const provisioningStage = computed(() => {
+  const stage = provisioning.value?.stage
+  return stage && ['reserved', 'queued', 'verifying', 'activating', 'active', 'needs_intervention'].includes(stage) ? stage : 'pending'
+})
+const provisioningPollCount = ref(0)
+const provisioningPollingPaused = computed(() => provisioningActive.value && provisioningPollCount.value >= 60)
+let provisioningTimer: ReturnType<typeof setTimeout> | undefined
+let provisioningDisposed = false
+function stopProvisioningPoll() { if (provisioningTimer) clearTimeout(provisioningTimer); provisioningTimer = undefined }
+function scheduleProvisioningPoll() {
+  stopProvisioningPoll()
+  if (!import.meta.client || provisioningDisposed || !provisioningActive.value || provisioningError.value || provisioningPollCount.value >= 60) return
+  provisioningTimer = setTimeout(async () => {
+    provisioningPollCount.value++
+    await refreshProvisioning()
+    scheduleProvisioningPoll()
+  }, 5000)
+}
+async function refreshSharedProvisioning() {
+  provisioningPollCount.value = 0
+  await refreshProvisioning()
+  scheduleProvisioningPoll()
+}
+watch(id, () => { provisioningPollCount.value = 0; stopProvisioningPoll() })
+watch([provisioningActive, provisioningError], scheduleProvisioningPoll)
+onMounted(scheduleProvisioningPoll)
+onBeforeUnmount(() => { provisioningDisposed = true; stopProvisioningPoll() })
 const publishedCatalog = computed(() => catalog.value?.items.find(item => item.status === 'published' && item.version === data.value?.catalog_version))
 const selectedTier = computed(() => publishedCatalog.value?.solution.tiers?.find(item => item.id === data.value?.catalog_tier))
 const featureKeys = computed(() => {
@@ -124,13 +168,27 @@ const operationsNeedEnabling = computed(() => Boolean(data.value && !data.value.
     </SharedPageHeader>
     <SharedPageState :loading="pending" :error="error" :empty="!pending && !error && !data" @retry="refresh">
       <div v-if="data" class="grid gap-5 lg:grid-cols-2">
+        <UCard v-if="provisioning || provisioningError" class="lg:col-span-2">
+          <template #header><h2 class="font-semibold">{{ t('vendor.tenants.provisioning.title') }}</h2></template>
+          <div aria-live="polite" class="grid gap-3">
+            <UAlert v-if="provisioningError" color="error" variant="subtle" :title="t('vendor.tenants.provisioning.unavailable')" />
+            <UAlert v-else-if="provisioningFailed" color="error" variant="subtle" :title="t('vendor.tenants.provisioning.failed')" :description="t('vendor.tenants.provisioning.failedHint')" />
+            <p v-if="provisioning">{{ t(`vendor.tenants.provisioning.stages.${provisioningStage}`) }}</p>
+            <p v-if="provisioning?.admin_login" class="text-sm"><span class="text-muted">{{ t('vendor.tenants.fields.adminLogin') }}: </span><bdi>{{ provisioning.admin_login }}</bdi></p>
+            <p v-if="provisioningPollingPaused" class="text-sm text-muted">{{ t('vendor.tenants.provisioning.paused') }}</p>
+          </div>
+          <div class="mt-4 flex flex-wrap gap-2">
+            <UButton v-if="loginUrl" :to="loginUrl" external target="_blank" rel="noopener noreferrer" icon="i-lucide-external-link">{{ t('vendor.tenants.provisioning.open') }}</UButton>
+            <UButton color="neutral" variant="outline" :disabled="!hydrated || provisioningPending" :loading="provisioningPending" @click="refreshSharedProvisioning">{{ t('vendor.common.refresh') }}</UButton>
+          </div>
+        </UCard>
         <UCard>
           <dl class="grid gap-4 sm:grid-cols-2">
             <div><dt class="text-sm text-muted">{{ t('vendor.tenants.fields.mode') }}</dt><dd class="mt-1">{{ t(`vendor.mode.${data.commercial_mode === 'saas' ? 'saas' : 'nonSaas'}`) }}</dd></div>
             <div><dt class="text-sm text-muted">{{ t('vendor.tenants.fields.hosting') }}</dt><dd class="mt-1">{{ t(`vendor.hosting.${data.hosting_model === 'managed' ? 'managed' : 'customerHosted'}`) }}</dd></div>
-            <div><dt class="text-sm text-muted">{{ t('vendor.tenants.target') }}</dt><dd class="mt-1"><bdi>{{ data.inventory_target }}</bdi></dd></div>
+            <div v-if="!provisioning"><dt class="text-sm text-muted">{{ t('vendor.tenants.target') }}</dt><dd class="mt-1"><bdi>{{ data.inventory_target }}</bdi></dd></div>
             <div><dt class="text-sm text-muted">{{ t('vendor.tenants.fields.catalogVersion') }}</dt><dd class="mt-1">{{ data.catalog_version || t('vendor.common.none') }}<span v-if="data.catalog_tier"> · {{ t(`vendor.catalog.tiers.${data.catalog_tier}`, data.catalog_tier) }}</span></dd></div>
-            <div><dt class="text-sm text-muted">{{ t('vendor.common.status') }}</dt><dd class="mt-1"><UBadge color="neutral" variant="subtle">{{ t(`vendor.status.${data.status}`) }}</UBadge></dd></div>
+            <div><dt class="text-sm text-muted">{{ t('vendor.common.status') }}</dt><dd class="mt-1"><UBadge color="neutral" variant="subtle">{{ t(`vendor.status.${provisioning?.status ?? data.status}`) }}</UBadge></dd></div>
             <div><dt class="text-sm text-muted">{{ t('vendor.tenants.operations') }}</dt><dd class="mt-1">{{ data.operations_enabled ? t('vendor.common.enabled') : t('vendor.common.disabled') }}</dd></div>
           </dl>
           <p v-if="data.health_checked_at" class="mt-4 text-sm text-muted">{{ t('vendor.tenants.healthChecked') }}: <time :datetime="data.health_checked_at">{{ new Date(data.health_checked_at).toLocaleString() }}</time></p>

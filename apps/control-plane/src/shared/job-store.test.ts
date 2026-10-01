@@ -21,6 +21,7 @@ it('persists one provisioning business key across distinct request IDs', async (
     if (sql.includes("state IN ('running','needs_intervention')")) return result([])
     if (sql.includes('FROM shared_jobs')) return result(stored)
     if (sql.startsWith('INSERT INTO shared_jobs')) { inserts++;stored.push({id:params[0],payload_digest:params[4],state:'queued',issuer:params[5],actor_uid:params[6]});return result() }
+    if (sql.startsWith('UPDATE shared_onboardings SET job_id=')) return result()
     if (sql.startsWith('INSERT INTO audit_events')) { audits.push(params[2]); return result() }
     throw Error('unexpected_sql:'+sql)
   }}
@@ -124,11 +125,17 @@ function restoreFixture(approval: Record<string, unknown> | null, flags: { dupli
     if (sql.includes('FROM tenants')) return result([{}])
     if (sql.startsWith('SELECT 1 FROM shared_registry_hosts')) return flags.reserved ? result([{ok:1}]) : result()
     if (sql.includes('FROM shared_registry_bindings')) return result([{...binding,host:'a.invalid'}])
-    if (sql.includes('FROM shared_restore_approvals')) return approval && !approval.consumed_at && approval.expires_at !== 'expired' ? result([approval]) : result()
+    if (sql.includes('FROM shared_odoo_restore_targets')) return result()
+    if (sql.includes('FROM shared_restore_approvals')) {
+      const available=Boolean(approval && !approval.consumed_at && approval.expires_at!=='expired')
+      if(!approval || (sql.includes('WHERE a.id=$1 AND a.consumed_at IS NULL') && !available))return result()
+      return result([{...approval,approval_available:available}])
+    }
     if (sql.includes("state IN ('running','needs_intervention')")) return result([])
     if (sql.includes("payload->>'approvalId'")) return flags.duplicate ? result([{ok:1}]) : result([])
     if (sql.includes('FROM shared_jobs')) return result(stored.filter((row)=>row.business_key===params[1]))
     if (sql.startsWith('INSERT INTO shared_jobs')) { stored.push({id:params[0],payload:params[3],payload_digest:params[4],state:'queued',issuer:params[5],actor_uid:params[6],business_key:params[2]}); return result() }
+    if (sql.startsWith('UPDATE shared_onboardings SET job_id=')) return result()
     if (sql.startsWith('INSERT INTO audit_events')) { audits.push(params[2]); return result() }
     throw Error('unexpected_sql:'+sql)
   }}
@@ -169,6 +176,19 @@ it('replays an identical restore request for the same actor and rejects a differ
   const replay=await enqueueSharedJob(f.pool,request.requestId,actor,restoreRequest,'Retry restore')
   expect(replay).toEqual({...first,replay:true});expect(f.audits).toEqual(['shared_job.queued','shared_job.replayed'])
   await expect(enqueueSharedJob(f.pool,request.requestId,{...actor,actorUid:8},restoreRequest,'Other actor')).rejects.toThrow('shared_replay_forbidden')
+  expect(f.stored).toHaveLength(1)
+})
+it.each(['consumed','expired'])('replays the exact verified restore after approval is %s and refuses changed identities',async(state)=>{
+  const authority:Record<string,unknown>={...approvalRow}
+  const f=restoreFixture(authority)
+  const first=await enqueueSharedJob(f.pool,request.requestId,actor,restoreRequest,'Initial restore')
+  f.stored[0]!.state='verified'
+  if(state==='consumed')authority.consumed_at='2026-10-01T00:00:00Z'
+  else authority.expires_at='expired'
+  expect(await enqueueSharedJob(f.pool,request.requestId,actor,restoreRequest,'Exact replay')).toEqual({id:first.id,state:'verified',replay:true})
+  await expect(enqueueSharedJob(f.pool,request.requestId,{...actor,actorUid:8},restoreRequest,'Changed actor')).rejects.toThrow('shared_replay_forbidden')
+  await expect(enqueueSharedJob(f.pool,request.requestId,actor,{...restoreRequest,approvalId:'81e71f13-a412-4d5d-b230-c6cd1dd45d35'},'Changed approval')).rejects.toThrow('idempotency_conflict')
+  await expect(enqueueSharedJob(f.pool,request.requestId,actor,{...restoreRequest,requestId:'81e71f13-a412-4d5d-b230-c6cd1dd45d35'},'Changed request')).rejects.toThrow('shared_restore_approval_unavailable')
   expect(f.stored).toHaveLength(1)
 })
 it('refuses a second job for an approval that is already referenced', async () => {

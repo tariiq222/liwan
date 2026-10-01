@@ -12,6 +12,7 @@ export async function runSharedWorker(input: {
   adapter?: SharedFencedAdapter
   signal: AbortSignal
   wait?: (ms: number) => Promise<void>
+  afterDispatch?: () => Promise<void>
 }): Promise<void> {
   const { pool, adapter, signal } = input
   if (!adapter) throw new Error('shared_adapter_unavailable')
@@ -22,7 +23,11 @@ export async function runSharedWorker(input: {
     signal.addEventListener('abort', done, { once: true })
   }))
   await runSharedLoop({
-    dispatch: () => dispatchSharedOnce(pool, adapter),
+    dispatch: async () => {
+      const result = await dispatchSharedOnce(pool, adapter)
+      await input.afterDispatch?.()
+      return result
+    },
     isStopping: () => signal.aborted,
     isTransient: isTransientDatabaseError,
     wait,

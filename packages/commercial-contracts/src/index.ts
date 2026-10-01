@@ -56,3 +56,16 @@ export type OperationRequest = z.infer<typeof operationRequestSchema>
 // Shared multi-tenant provisioning contracts (t3). Subpath `@nasq/commercial-contracts/shared`
 // is the canonical import; this barrel re-export keeps root-package consumers working.
 export * from './shared/provisioning.js'
+
+export const sharedOnboardingRequestSchema = z.strictObject({
+  request_id: z.uuid(), name: z.string().trim().min(1).max(200),
+  catalog_version: z.string().regex(/^[a-zA-Z0-9._-]{1,100}$/), catalog_tier: z.string().regex(/^[a-z][a-z0-9._-]{0,63}$/),
+  admin_name: z.string().trim().min(1).max(120), admin_login: z.email().max(100), reason: z.string().trim().min(3).max(1000),
+})
+export const sharedOnboardingResponseSchema = z.strictObject({
+  tenant_id: z.uuid(), job_id: z.uuid().nullable(), status: tenantStatusSchema, host: z.string(), replay: z.boolean(),
+})
+export const sharedProvisioningProgressSchema = z.strictObject({
+  tenant_id: z.uuid(), job_id: z.uuid().nullable(), status: tenantStatusSchema, host: z.string(),
+  admin_login: z.string(), stage: z.string(), error_code: z.string().nullable(),
+})

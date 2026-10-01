@@ -96,6 +96,18 @@ describe('useVendorContext', () => {
     expect(context.can('vendor.tenants.manage')).toBe(false)
   })
 
+  it('enables shared onboarding only for an explicit boolean and clears it on loss of context', async () => {
+    const { context, fetchMock, me } = setup({ enabled: true, actorId: 7 })
+    for (const flag of [undefined, false, 'true', true]) {
+      fetchMock.mockResolvedValueOnce({ enabled: true, capabilities: ['vendor.read'], shared_onboarding_enabled: flag })
+      await context.refresh()
+      expect(context.sharedOnboardingEnabled.value).toBe(flag === true)
+    }
+    me.value = null
+    await nextTick()
+    expect(context.sharedOnboardingEnabled.value).toBe(false)
+  })
+
   it('rejects malformed context payloads instead of granting capabilities', async () => {
     const malformed: Array<[string, unknown]> = [
       ['a disabled payload', { enabled: false, capabilities: ['vendor.read'] }],

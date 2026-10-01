@@ -15,3 +15,6 @@ node_modules
 deploy/branding.json
 deploy/data
 *.log
+
+# Local acceptance credentials and runtime evidence never enter image layers.
+**/.state

@@ -13,7 +13,7 @@ function fixture() {
   let state = { revision: 0, targets: [] as Record<string, unknown>[], audit: [] as unknown[][] }
   let backup = structuredClone(state)
   let tail = Promise.resolve()
-  const flags = { authorized: true, commitUnknown: false, reservedHost: false, failInsert: false }
+  const flags = { authorized: true, commitUnknown: false, reservedHost: false, failInsert: false, onboarding: false, onboardingStage: 'activating', operationsEnabled: true, operationsCapability: true }
   const queries: string[] = []
   const pool = { connect: async () => {
     let releaseLock: () => void = () => {}
@@ -29,9 +29,11 @@ function fixture() {
       if (sql === 'COMMIT') { backup = structuredClone(state); if (flags.commitUnknown) { flags.commitUnknown = false; throw new Error('connection_lost_after_commit') }; return result() }
       if (sql.startsWith('INSERT INTO service_nonces')) return result([{ nonce: values[1] }])
       if (sql.startsWith('DELETE FROM service_nonces')) return result()
+      if (sql.includes('FROM shared_onboardings')) return result(flags.onboarding ? [{control_tenant_id: input.controlTenantId, issuer: actor.issuer, actor_uid: actor.actorUid, stage: flags.onboardingStage}] : [])
+      if (sql.includes('FROM vendor_memberships') && sql.includes('capabilities @>')) return result(flags.authorized && flags.operationsCapability ? [{}] : [])
       if (sql.includes('FROM vendor_memberships')) return result(flags.authorized ? [{ capabilities: ['vendor.tenants.manage'] }] : [])
       if (sql.includes('FROM shared_registry_state')) return result([{ revision: state.revision }])
-      if (sql.includes('FROM tenants')) return result([{ id: values[0] }])
+      if (sql.includes('FROM tenants')) return result(sql.includes('operations_enabled=true') && !flags.operationsEnabled ? [] : [{ id: values[0] }])
       if (sql.includes('FROM shared_registry_hosts')) return result(flags.reservedHost ? [{ control_tenant_id: 'different-owner' }] : [])
       if (sql.includes('FROM shared_registry_bindings')) return result(state.targets)
       if (sql.startsWith('INSERT INTO shared_registry_bindings')) { if (flags.failInsert) throw new Error('insert_failed'); state.targets.push({ tenantId: values[1], host: values[2], database: values[3], filestore: values[4], enabled: values[5], registryRevision: values[6] }); return result() }
@@ -182,4 +184,34 @@ it('rejects caller authority and mismatched filestore', () => {
 it('rejects noncanonical hosts and unbounded revision', () => {
   expect(() => registryMutationSchema.parse({ ...input, target: { ...input.target, host: 'A.invalid' } })).toThrow()
   expect(() => registryMutationSchema.parse({ ...input, expectedSnapshotRevision: Number.MAX_SAFE_INTEGER + 1 })).toThrow()
+})
+
+it.each(['operationsEnabled','operationsCapability'] as const)('rechecks %s inside first-route publication before opening the barrier', async revoked => {
+  const f=fixture(), path=await publicationPath()
+  f.flags.onboarding=true
+  f.flags[revoked]=false
+  await expect(publishRegistryMutation(f.pool,path,actor,input)).rejects.toMatchObject({code:revoked==='operationsEnabled'?'tenant_operations_unavailable':'shared_onboarding_forbidden'})
+  expect(f.state().targets).toEqual([])
+  expect(f.queries.some(sql=>sql.startsWith('INSERT INTO shared_registry_bindings'))).toBe(false)
+  expect(f.queries.some(sql=>sql.includes('capabilities @>') && sql.endsWith('FOR SHARE'))).toBe(true)
+  await expect(access(`${path}.pending`)).rejects.toThrow()
+})
+it.each(['operationsEnabled','operationsCapability'] as const)('recovery preserves fail-closed barrier when %s is revoked after commit', async revoked => {
+  const f=fixture(), path=await publicationPath()
+  f.flags.onboarding=true
+  f.flags.commitUnknown=true
+  await expect(publishRegistryMutation(f.pool,path,actor,input)).rejects.toThrow('connection_lost_after_commit')
+  await access(`${path}.pending`)
+  f.flags[revoked]=false
+  await expect(recoverRegistry(f.pool,path,actor,'Recover interrupted activation')).rejects.toMatchObject({code:revoked==='operationsEnabled'?'tenant_operations_unavailable':'shared_onboarding_forbidden'})
+  await access(`${path}.pending`)
+})
+
+it('cannot recover an enabled pending snapshot after readiness was quarantined', async()=>{
+  const f=fixture(),path=await publicationPath()
+  f.flags.onboarding=true;f.flags.commitUnknown=true
+  await expect(publishRegistryMutation(f.pool,path,actor,input)).rejects.toThrow('connection_lost_after_commit')
+  f.flags.onboardingStage='needs_intervention'
+  await expect(recoverRegistry(f.pool,path,actor,'Readiness was lost')).rejects.toMatchObject({code:'shared_onboarding_readiness_required'})
+  await access(`${path}.pending`)
 })

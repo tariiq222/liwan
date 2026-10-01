@@ -1,0 +1,70 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import { describe, expect, it, vi } from 'vitest'
+import { createSharedTenantRequest, sharedTenantLoginUrl, type SharedTenantProgress } from '../../../composables/useSharedTenantOnboarding'
+
+const webRoot = resolve(import.meta.dirname, '../../../..')
+const form = readFileSync(resolve(webRoot, 'app/pages/vendor/tenants/new.vue'), 'utf8')
+const detail = readFileSync(resolve(webRoot, 'app/pages/vendor/tenants/[id].vue'), 'utf8')
+const input = { name: 'Company', catalog_version: '1', catalog_tier: 'projects', admin_name: 'Admin', admin_login: 'admin@example.test', reason: 'First tenant' }
+const ready: SharedTenantProgress = { tenant_id: 'tenant', job_id: 'job', status: 'active', host: 'tenant.nasq.test', admin_login: input.admin_login, stage: 'active', error_code: null }
+
+describe('shared tenant onboarding browser contract', () => {
+  it('retains request identity through a failed attempt and starts a new one only after accepted navigation', async () => {
+    const uuid = vi.fn().mockReturnValueOnce('request-1').mockReturnValueOnce('request-2')
+    const submission = createSharedTenantRequest(uuid)
+    const transport = vi.fn().mockRejectedValueOnce(new Error('Response lost')).mockResolvedValueOnce({ tenant_id: 'tenant' })
+    await expect(transport(submission.body(input))).rejects.toThrow('Response lost')
+    await transport(submission.body(input))
+    expect(transport.mock.calls[0]?.[0]).toEqual(transport.mock.calls[1]?.[0])
+    expect(submission.body(input).request_id).toBe('request-1')
+    expect(uuid).toHaveBeenCalledTimes(1)
+    submission.acceptedNavigation()
+    expect(submission.body(input).request_id).toBe('request-2')
+  })
+
+  it('sends only the strict shared contract even when the source is the legacy form', () => {
+    const body = createSharedTenantRequest(() => 'request').body({ ...input, inventory_target: '/private/path', commercial_mode: 'saas' } as typeof input)
+    expect(body).toEqual({ request_id: 'request', ...input })
+    expect(body).not.toHaveProperty('inventory_target')
+  })
+
+  it('selects the shared form only through explicit server context and retains dedicated registration', () => {
+    expect(form).toContain('sharedOnboardingEnabled: sharedEnabled')
+    expect(form).toContain('sharedEnabled.value ? Promise.resolve({ items: [], total: 0 })')
+    for (const field of ['mode', 'hosting', 'target']) expect(form).toContain(`v-if="!sharedEnabled" :label="t('vendor.tenants.fields.${field}')"`)
+    expect(form).toContain('v-if="sharedEnabled"')
+    expect(form).toContain("request<SharedTenantCreated>('shared/tenants'")
+    expect(form).toContain("request<{ id: string }>('tenants'")
+    expect(form).toContain('<SharedUnsavedChanges :dirty="dirty"')
+    expect(form).toContain("can('vendor.tenants.manage')")
+  })
+
+  it('keeps a partially accepted request on the form for same-request recovery', () => {
+    expect(form).toContain('if (result.job_id === null) { saveError.value = { incompleteOnboarding: true }; return }')
+    expect(form.indexOf('result.job_id === null')).toBeLessThan(form.indexOf('submitted.value = true'))
+    expect(form).toContain('else sharedRequest.acceptedNavigation()')
+  })
+
+  it('does not publish a customer link for failed, stale, or partially activated progress', () => {
+    expect(sharedTenantLoginUrl(ready)).toBe('https://tenant.nasq.test/login')
+    expect(sharedTenantLoginUrl(null)).toBeNull()
+    expect(sharedTenantLoginUrl({ ...ready, error_code: 'verification_failed' })).toBeNull()
+    for (const status of ['registered', 'provisioning', 'needs_intervention', 'failed', 'ready']) expect(sharedTenantLoginUrl({ ...ready, status })).toBeNull()
+    for (const stage of ['activating', 'verifying', 'needs_intervention', null]) expect(sharedTenantLoginUrl({ ...ready, stage })).toBeNull()
+    for (const host of ['https://tenant.test', 'tenant.test/private', 'user@tenant.test', 'javascript:alert(1)', 'tenant..test']) expect(sharedTenantLoginUrl({ ...ready, host })).toBeNull()
+  })
+
+  it('localizes failure and unknown stages without displaying raw errors or private values', () => {
+    expect(detail).toContain("vendor.tenants.provisioning.failed")
+    expect(detail).toContain("vendor.tenants.provisioning.unavailable")
+    expect(detail).toContain("? stage : 'pending'")
+    expect(detail).not.toContain('{{ provisioning.error_code }}')
+    expect(detail).toContain('provisioningDisposed = true')
+    for (const lang of ['ar', 'en']) {
+      const locale = JSON.parse(readFileSync(resolve(webRoot, `i18n/locales/${lang}/vendor.json`), 'utf8')).vendor.tenants.provisioning
+      expect(locale.failed).toBeTruthy()
+      expect(locale.stages.pending).toBeTruthy()
+    }
+  })
+})

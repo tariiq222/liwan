@@ -1,3 +1,7 @@
+import {approveOdooRestore,odooJobProgress} from './shared/odoo-backup.js'
+import {loadSharedRuntimeConfig} from './shared/runtime-config.js'
+import { sharedOnboardingRequestSchema } from '@nasq/commercial-contracts'
+import { onboardSharedTenant, sharedProvisioningProgress, sharedOnboardingEnabled } from './shared/onboarding.js'
 import { z } from 'zod'
 import { enqueueSharedJob } from './shared/job-store.js'
 import { createHash, randomUUID } from 'node:crypto'
@@ -275,6 +279,26 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
       const auth = await authorize(pool, req, raw, config)
       const url = new URL(path, 'http://localhost')
       const pathname = url.pathname
+      if (method === 'POST' && pathname === '/v1/shared/tenants') {
+        requireCapability(auth, 'vendor.tenants.manage')
+        requireCapability(auth, 'vendor.operations.run')
+        const result = await onboardSharedTenant(pool, config, {issuer:config.installationId,actorUid:auth.actor}, parseJson(raw, sharedOnboardingRequestSchema))
+        return respond(res, result.replay ? 200 : 202, result)
+      }
+      const sharedProgress = pathname.match(new RegExp(`^/v1/shared/tenants/(${UUID})/provisioning$`))
+      if (method === 'GET' && sharedProgress) {
+        requireCapability(auth, 'vendor.read')
+        return respond(res, 200, await sharedProvisioningProgress(pool,sharedProgress[1]!))
+      }
+      const realProgress=pathname.match(new RegExp(`^/v1/shared/tenants/(${UUID})/jobs/(${UUID})$`))
+      const realApproval=pathname.match(new RegExp(`^/v1/shared/tenants/(${UUID})/restore-approvals$`))
+      if((method==='GET' && realProgress)||(method==='POST' && realApproval)){
+        if(process.env.NASQ_TENANCY_MODE!=='shared'||!config.sharedRuntimeConfigPath)throw new ApiError(503,'shared_execution_unavailable','Shared runtime is unavailable')
+        const runtime=loadSharedRuntimeConfig(config.sharedRuntimeConfigPath)
+        if(realProgress){requireCapability(auth,'vendor.read');return respond(res,200,await odooJobProgress(pool,realProgress[1]!,realProgress[2]!))}
+        requireCapability(auth,'vendor.operations.run')
+        return respond(res,201,await approveOdooRestore(pool,runtime,{issuer:config.installationId,actorUid:auth.actor},realApproval![1]!,parseJson(raw,z.strictObject({backup_id:z.uuid(),reason:z.string().trim().min(3).max(1000)}))))
+      }
       const sharedQueue = pathname.match(new RegExp(`^/v1/shared/tenants/(${UUID})/jobs$`))
       if (method === 'POST' && sharedQueue) {
         requireCapability(auth, 'vendor.operations.run')
@@ -301,7 +325,7 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
           : await recoverRegistry(pool, config.tenantRegistryPath, actor, parseJson(raw, reasonRequestSchema).reason)
         return respond(res, 200, { snapshotRevision: result.snapshotRevision })
       }
-      if (method === 'GET' && pathname === '/v1/context') return respond(res, 200, { enabled: true, capabilities: auth.capabilities })
+      if (method === 'GET' && pathname === '/v1/context') return respond(res, 200, { enabled: true, capabilities: auth.capabilities, shared_onboarding_enabled: await sharedOnboardingEnabled(config) })
       if (method === 'GET' && pathname === '/v1/overview') {
         requireCapability(auth, 'vendor.read')
         const counts = await pool.query(`SELECT (SELECT count(*)::int FROM tenants) AS tenants, (SELECT count(*)::int FROM tenants WHERE status='active') AS active, (SELECT count(*)::int FROM operations WHERE status IN ('queued','running')) AS pending_operations, (SELECT count(*)::int FROM operations WHERE status IN ('failed','needs_intervention')) AS failed_operations, (SELECT max(health_checked_at) FROM tenants) AS last_health_at`)
@@ -448,7 +472,8 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
       }
       throw new ApiError(404, 'not_found', 'Endpoint not found')
     } catch (error) {
-      const failure = error instanceof ApiError ? error : error instanceof RegistryError ? new ApiError(error.status, error.code, 'Registry operation rejected') : new ApiError(503, 'service_unavailable', 'Control service is unavailable')
+      const known = error instanceof Error && ['shared_job_unavailable','shared_backup_unavailable','shared_restore_approval_unavailable','shared_artifact_mismatch','shared_job_forbidden','tenant_operations_unavailable','restore_target_reserved','shared_replay_forbidden','shared_onboarding_forbidden','idempotency_conflict','published_catalog_missing','catalog_tier_missing','shared_adapter_unavailable','shared_onboarding_missing'].includes(error.message) ? new ApiError(error.message.endsWith('forbidden') ? 403 : error.message === 'shared_adapter_unavailable' ? 503 : error.message === 'shared_onboarding_missing' ? 404 : 409,error.message,'Shared onboarding request rejected') : null
+      const failure = known ?? (error instanceof ApiError ? error : error instanceof RegistryError ? new ApiError(error.status, error.code, 'Registry operation rejected') : new ApiError(503, 'service_unavailable', 'Control service is unavailable'))
       return respond(res, failure.status, { code: failure.code, message: failure.message, ...(failure.field ? { field: failure.field } : {}) })
     }
   }

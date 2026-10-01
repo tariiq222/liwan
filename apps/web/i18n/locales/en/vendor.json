@@ -24,7 +24,9 @@
         "catalog_tier": "Choose a valid catalog composition.",
         "reason": "Enter a reason.",
         "request_id": "The request identifier is invalid.",
-        "page": "The selected page is invalid."
+        "page": "The selected page is invalid.",
+        "admin_name": "Enter an administrator name.",
+        "admin_login": "Enter a valid administrator login."
       }
     },
     "pagination": {
@@ -99,7 +101,27 @@
         "target": "Installation environment",
         "catalogVersion": "Catalog version",
         "catalogTier": "Catalog composition",
-        "reason": "Reason"
+        "reason": "Reason",
+        "adminName": "Administrator name",
+        "adminLogin": "Administrator login"
+      },
+      "provisioning": {
+        "title": "Set up customer workspace",
+        "unavailable": "Progress could not be checked. Refresh to try again.",
+        "failed": "Workspace setup needs attention.",
+        "failedHint": "Review the operation before retrying. Refresh checks progress without creating another installation.",
+        "paused": "Automatic checks paused after five minutes. Refresh to check again.",
+        "open": "Open customer workspace",
+        "stages": {
+          "reserved": "Workspace reserved",
+          "queued": "Waiting for setup",
+          "verifying": "Verifying the workspace",
+          "activating": "Activating access",
+          "active": "Workspace ready",
+          "needs_intervention": "Needs attention",
+          "pending": "Setup is in progress"
+        },
+        "incomplete": "The installation was reserved but setup has not been queued. Submit again with the same details to resume this request."
       }
     },
     "catalog": {
@@ -202,10 +224,25 @@
       "actor": "Actor",
       "subject": "Subject",
       "actions": {
-        "membership": { "granted": "Vendor access granted", "revoked": "Vendor access revoked" },
-        "catalog": { "imported": "Catalog imported", "validate": "Catalog validated", "publish": "Catalog published" },
-        "tenant": { "registered": "Installation registered", "operations": { "enabled": "Installation operations enabled", "disabled": "Installation operations disabled" } },
-        "restore": { "approved": "Restore approved" }
+        "membership": {
+          "granted": "Vendor access granted",
+          "revoked": "Vendor access revoked"
+        },
+        "catalog": {
+          "imported": "Catalog imported",
+          "validate": "Catalog validated",
+          "publish": "Catalog published"
+        },
+        "tenant": {
+          "registered": "Installation registered",
+          "operations": {
+            "enabled": "Installation operations enabled",
+            "disabled": "Installation operations disabled"
+          }
+        },
+        "restore": {
+          "approved": "Restore approved"
+        }
       }
     }
   }

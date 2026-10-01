@@ -25,6 +25,20 @@ async function authorize(client: PoolClient, actor: RegistryActor) {
   const grant = await client.query("SELECT 1 FROM vendor_memberships WHERE issuer=$1 AND actor_uid=$2 AND revoked_at IS NULL AND 'vendor.tenants.manage'=ANY(capabilities) FOR SHARE", [actor.issuer, actor.actorUid])
   if (!grant.rowCount) throw new RegistryError('registry_forbidden', 403)
 }
+/** First activation must retain both the request actor and publishing actor's
+ * current grants. All locks live in the publication transaction, including recovery. */
+export async function requireOnboardingPublicationAuthority(client: PoolClient, controlTenantId: string, actor: RegistryActor) {
+  const onboarding = await client.query('SELECT issuer,actor_uid,stage FROM shared_onboardings WHERE control_tenant_id=$1 FOR SHARE', [controlTenantId])
+  if (!onboarding.rowCount || onboarding.rows[0].stage === 'active') return
+  const owner = onboarding.rows[0]
+  if (owner.stage !== 'activating') throw new RegistryError('shared_onboarding_readiness_required')
+  for (const identity of [actor, {issuer: owner.issuer as string, actorUid: Number(owner.actor_uid)}]) {
+    const grant = await client.query("SELECT 1 FROM vendor_memberships WHERE issuer=$1 AND actor_uid=$2 AND revoked_at IS NULL AND capabilities @> ARRAY['vendor.tenants.manage','vendor.operations.run']::text[] FOR SHARE", [identity.issuer, identity.actorUid])
+    if (!grant.rowCount) throw new RegistryError('shared_onboarding_forbidden', 403)
+  }
+  const tenant = await client.query("SELECT id FROM tenants WHERE id=$1 AND commercial_mode='saas' AND operations_enabled=true FOR SHARE", [controlTenantId])
+  if (!tenant.rowCount) throw new RegistryError('tenant_operations_unavailable')
+}
 export async function resolveRegistryBinding(client: PoolClient, controlTenantId: string) {
   const result = await client.query(`SELECT ${fields} FROM shared_registry_bindings WHERE control_tenant_id=$1 FOR SHARE`, [controlTenantId])
   if (!result.rowCount) throw new RegistryError('tenant_binding_unavailable', 404)
@@ -63,6 +77,7 @@ export async function publishRegistryMutation(pool: Pool, path: string, actor: R
     const old = await client.query(`SELECT ${fields} FROM shared_registry_bindings WHERE control_tenant_id=$1 FOR UPDATE`, [input.controlTenantId])
     const previous = old.rowCount ? registryTargetSchema.parse(old.rows[0]) : null
     const target = input.target
+    if (target.enabled) await requireOnboardingPublicationAuthority(client, input.controlTenantId, actor)
     if (previous && (previous.tenantId !== target.tenantId || previous.database !== target.database || previous.filestore !== target.filestore)) throw new RegistryError('tenant_binding_immutable')
     if (target.registryRevision !== (previous?.registryRevision ?? 0) + 1) throw new RegistryError('registry_revision_conflict')
     const reserved = await client.query('SELECT control_tenant_id FROM shared_registry_hosts WHERE host=$1', [target.host])
@@ -89,6 +104,8 @@ export async function recoverRegistry(pool: Pool, path: string, actor: RegistryA
   return withPublicationLock(path, () => locked(pool, async client => {
     await client.query('BEGIN')
     await authorize(client, actor)
+    const activating = await client.query("SELECT o.control_tenant_id FROM shared_onboardings o JOIN shared_registry_bindings b ON b.control_tenant_id=o.control_tenant_id WHERE b.enabled=true AND o.stage<>'active' FOR SHARE OF o")
+    for (const row of activating.rows) await requireOnboardingPublicationAuthority(client, row.control_tenant_id, actor)
     const current = await snapshot(client)
     await client.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES(gen_random_uuid(),$1,$2,$3,$4,$5)', [actor.issuer + ':' + actor.actorUid,'registry.recovery_requested','shared-registry',reason,{ snapshotRevision: current.snapshotRevision }])
     await client.query('COMMIT')

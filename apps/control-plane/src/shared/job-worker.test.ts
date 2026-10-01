@@ -29,6 +29,8 @@ function fixture() {
       snapshot = undefined; return result()
     }
     if (sql.startsWith('SELECT pg_advisory')) return result()
+    if (sql.startsWith('UPDATE shared_jobs SET lease_until=')) return result()
+    if (sql.includes('FROM shared_onboardings')) return result()
     if (sql.includes("state IN ('running','needs_intervention')")) return result(flags.unresolved ? [{id:'another-job'}] : [])
     if (sql.startsWith('SELECT * FROM shared_jobs')) return result((sql.includes("state='queued'") ? row.state === 'queued' : sql.includes("state='needs_intervention'") ? row.state === 'needs_intervention' : flags.owned && row.state === 'running') ? [{ ...row }] : [])
     if (sql.includes('FROM vendor_memberships')) return result(flags.authorized ? [{}] : [])

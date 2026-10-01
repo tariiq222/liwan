@@ -11,7 +11,12 @@ export async function dispatchSharedOnce(pool: Pool, adapter?: SharedFencedAdapt
     JOIN tenants tenant ON tenant.id=queued.control_tenant_id
     JOIN shared_registry_bindings binding ON binding.control_tenant_id=queued.control_tenant_id
     WHERE queued.state='queued' AND tenant.commercial_mode='saas'
-    AND tenant.operations_enabled=true AND binding.enabled=true
+    AND tenant.operations_enabled=true AND (binding.enabled=true OR EXISTS (
+      SELECT 1 FROM shared_onboardings onboarding WHERE onboarding.control_tenant_id=queued.control_tenant_id
+      AND onboarding.job_id=queued.id AND onboarding.job_digest=queued.payload_digest
+      AND onboarding.request_id::text=queued.payload->>'requestId' AND onboarding.stage='queued'
+      AND queued.payload->>'operation'='provision'
+    ))
     AND queued.payload->>'operation' IN ('provision','backup','restore')
     AND queued.payload->'binding'=jsonb_build_object(
       'tenantId',binding.tenant_id,'database',binding.database_name,

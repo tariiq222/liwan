@@ -9,7 +9,8 @@
     "admin": "tsx src/admin.ts",
     "migrate": "tsx src/migrate.ts",
     "build": "tsc --noEmit",
-    "test": "vitest run --no-file-parallelism --hookTimeout=60000"
+    "test": "vitest run --no-file-parallelism --hookTimeout=60000",
+    "worker:shared": "tsx src/shared-worker-main.ts"
   },
   "dependencies": {
     "@nasq/commercial-contracts": "0.1.0",
