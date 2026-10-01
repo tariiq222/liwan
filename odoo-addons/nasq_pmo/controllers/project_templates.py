@@ -3,7 +3,6 @@ from odoo import http
 from odoo.exceptions import AccessError, UserError, ValidationError
 from odoo.http import request
 
-from odoo.addons.nasq_core.models.access_service import NasqAccessRule
 from odoo.addons.nasq_api.controllers.common import (
     ApiError,
     api_handler,
@@ -11,6 +10,7 @@ from odoo.addons.nasq_api.controllers.common import (
     parse_nonneg_int,
     requires_feature,
 )
+from odoo.addons.nasq_core.models.access_service import NasqAccessRule
 from odoo.addons.nasq_pmo.serializers.project_template import (
     dump_applied_project,
     dump_project_template,

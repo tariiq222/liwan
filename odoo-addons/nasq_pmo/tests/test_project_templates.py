@@ -7,9 +7,8 @@ from unittest.mock import patch
 from odoo.exceptions import AccessError, ValidationError
 from odoo.tests import TransactionCase, new_test_user, tagged
 
-from odoo.addons.nasq_platform.models.entitlement_service import OPERATOR_CONTEXT
-
 from .common import NasqPmoCase
+from odoo.addons.nasq_platform.models.entitlement_service import OPERATOR_CONTEXT
 from odoo.addons.nasq_pmo.models.project_task import TEMPLATE_APPLY_MARKER
 from odoo.addons.nasq_pmo.models.project_template import validate_template_definition
 

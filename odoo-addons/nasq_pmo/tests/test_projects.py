@@ -1,9 +1,8 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo.tests import tagged
 
-from odoo.addons.nasq_platform.models.entitlement_service import OPERATOR_CONTEXT
-
 from .common import NasqPmoCase
+from odoo.addons.nasq_platform.models.entitlement_service import OPERATOR_CONTEXT
 
 PROJECT_KEYS = {'id', 'name', 'status', 'progress', 'task_count', 'closed_task_count', 'active', 'can_manage', 'allowed_actions', 'manager', 'date_end'}
 DETAIL_KEYS = PROJECT_KEYS | {
