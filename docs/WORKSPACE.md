@@ -117,3 +117,19 @@ This is local only: no push, no deployment, no public TLS, no DNS, 2 tenants
 not 10, no MFA/websocket/filestore restore. F2b (initial policy grant missing
 from provisioning) and F5 (nasq_odoo zone exhaustible by ordinary traffic)
 remain open. Readiness stays `not ready`.
+
+### F2b/F5 fixes and regenerated gate evidence — 2026-09-30
+
+F2b and F5 are fixed in source on `codex/integration-f2b-f5-gate`, based on local
+`main` `329ef573`: shared provisioning now requires and verifies the initial
+tenant policy (server-derived catalog policy, `initial_policy` activation gate,
+revision >= 1, carried through backup/restore), and the edge no longer counts the
+`get_session_info` page-load probe against the shared auth rate limit (it moves
+into `nasq_odoo` by exact path, with image bytes in a new `nasq_odoo_image`
+zone). Seven pre-existing local scratch control databases had been dropped by
+pattern with no backup, so the evidence they backed was regenerated at current
+HEAD on fresh scratch databases: [regenerated gate evidence](verification/2026-09-30-regenerated-gate-evidence.md).
+Current status: [shared live acceptance](verification/shared-live-acceptance.md)
+and [hosting direction status](project-closure/saas-hosting-direction-status.md).
+Local only: no push, no deployment, and `main` is not fast-forwarded; the r3 live
+rerun is still pending.

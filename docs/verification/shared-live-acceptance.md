@@ -1,6 +1,6 @@
 # Shared-mode live acceptance run — evidence record
 
-**Status: 9 of 9 proofs pass against the committed configuration (r2 rerun, 2026-10-01); F2, F3 and F4 are verified live.** This document
+**Status: 9 of 9 proofs pass against the committed configuration (r2 rerun, 2026-10-01); F2, F3 and F4 are verified live; F2b and F5 are fixed in source, pending live rerun r3.** This document
 records local, loopback-only acceptance runs of the two-tenant shared stack, each in a
 single isolated Compose project that published only `127.0.0.1:443` and `127.0.0.1:80`
 and was removed at the end.
@@ -163,6 +163,8 @@ The acceptance harness works around this inside
 healthcheck there, or drop `odoo` from the `service_healthy` conditions.
 
 ### F2b — a freshly installed tenant has NO feature policy, so every pillar API 403s `feature_not_included`
+
+**Status: fixed in source, pending live rerun r3** — shared provisioning now writes and verifies the initial tenant policy itself from the server-derived catalog policy (control-plane `initial_policy` activation gate, revision >= 1, backup/restore carry it), and the live harness seeds through the repository's canonical `deploy/seed_legacy_policy.py` with a readback instead of granting the policy inline. The description below is of the pre-fix state; the fix is not yet re-proven live.
 
 Installing the addons on a fresh database leaves `nasq.tenant.profile` at
 `policy_revision = 0` with `features = {}`. Nothing in the install path grants the
@@ -478,10 +480,13 @@ from one client → `200×8` then `429×17` through attempt 25, so auth limiting
 
 ### 9e. New observations from r2
 
-- **F5 (OPEN, low–medium): the `nasq_odoo` zone (600 events/min per client IP) can be exhausted by ordinary multi-page traffic.** During the repeated A/B run's 4th pass, `POST /web/session/get_session_info` returned `429` twice. Every page load issues that H12 call plus `/web/image/*` requests, all inside the `nasq_odoo` zone; ~16 page loads in one minute from one IP reached the cap. Pages still rendered (the caller falls back), but a shared-NAT office could see degraded Odoo-side features. Candidates: remove the browser-direct `get_session_info` call (H12), and/or key the zone per host, and/or raise the ceiling.
+- **F5 (fixed in source, pending live rerun r3; low–medium): page loads consumed the shared auth rate limit, not the `nasq_odoo` budget.** During the repeated A/B run's 4th pass, `POST /web/session/get_session_info` returned `429` twice. **Correction to the cause first recorded here:** those `429`s came from `nasq_auth` (20 events/min per client IP), because the auth zone matched `/web/session/*` and therefore counted the browser's websocket version probe as a credential request; they were **not** `nasq_odoo` (600/min) exhaustion. Every page load issues that H12 call, so ordinary multi-page traffic from one shared-NAT IP drained the budget that logins need. Fixed in source by moving `get_session_info` into `nasq_odoo` by exact path and giving ACL-checked image bytes their own `nasq_odoo_image` zone (1200/min); the budget arithmetic is in `deploy/shared/README.md`. Pages still rendered throughout (the caller falls back). Not yet re-proven live.
 - **H14 (harness):** `up.sh` validated the odoo uid against `nasq-accept-odoo:` while the compose files resolve `nasq-odoo:` — fixed so the validator uses the same tag set.
 
-F2b (initial feature policy) remains open as a separate task: **the harness still grants it** (the seed performs `_nasq_initialize_legacy_policy`); no product change.
+F2b (initial feature policy) is **fixed in source, pending live rerun r3** as a
+separate task: provisioning now writes and verifies the initial policy itself, and
+the harness seeds through the repository's canonical `deploy/seed_legacy_policy.py`
+instead of granting it inline.
 
 ### 9f. Teardown verification
 
@@ -521,7 +526,6 @@ all nine proofs pass against the committed configuration (F2, F3 and F4 verified
 F4 no longer white-screens a tenant). It still does not close the remaining gates:
 independent security review, real DNS and public TLS/ACME, MFA and websocket behavior,
 filestore restore, RPO/RTO, capacity, payment, `non_saas`, and the tenant-scale matrix.
-F2b (initial feature policy) remains open as a separate task, and **F5 is open**
-(`nasq_odoo` zone exhaustible by ordinary traffic: ~16 page loads/min from one IP
-reached the 600/min cap and `POST /web/session/get_session_info` returned `429`,
-§9e). Readiness stays `not ready`.
+**F2b (initial feature policy) and F5 (page loads consuming the shared auth
+budget) are fixed in source, pending live rerun r3** (§9e); neither is yet
+re-proven live. Readiness stays `not ready`.
