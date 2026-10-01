@@ -69,3 +69,7 @@ Thumbs.db
 
 # Storybook static build
 apps/web/storybook-static/
+
+# Local agent tool state
+.agent-teams/
+.dsh-auto/
