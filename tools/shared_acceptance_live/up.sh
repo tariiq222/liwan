@@ -235,6 +235,51 @@ for DBT in "${TENANT_DATABASES[@]}"; do
 done
 echo "Addons installed."
 
+# --- 4b. Seed the initial tenant feature policy (canonical script) ---
+# deploy/seed_legacy_policy.py is the repository's single canonical seeding
+# script for the tenant policy: installing the addons alone leaves
+# nasq.tenant.profile with policy_revision=0 and no features. Run it once per
+# tenant DB, piped on stdin exactly as deploy/provision.sh does (the container
+# cannot see the repo, but stdin is sufficient — no bind mount needed). The
+# script commits inside odoo shell, so no extra commit handling is required.
+seed_policy() {
+  local DBT="$1"
+  # All options precede the service name (see the note in the install step).
+  compose run --rm --no-deps -T \
+    -e NASQ_COMMERCIAL_CONFIG="/etc/nasq-commercial/$DBT.json" \
+    --entrypoint /usr/local/bin/nasq-odoo odoo \
+    shell -c /etc/odoo/odoo.conf -d "$DBT" --db-filter="^${DBT}\$" --no-http \
+    < "$REPO_ROOT/deploy/seed_legacy_policy.py"
+}
+for DBT in "${TENANT_DATABASES[@]}"; do
+  seed_policy "$DBT"
+done
+echo "Legacy policy seeded."
+
+# --- 4c. Post-seed policy readback: fail up.sh if the policy was not written ---
+# Read-only check inside odoo shell: policy_revision must be 1 and the pillar
+# features must be enabled. A failed assert exits non-zero and the ERR trap /
+# set -e aborts up.sh.
+verify_policy() {
+  local DBT="$1"
+  # All options precede the service name (see the note in the install step).
+  compose run --rm --no-deps -T \
+    -e NASQ_COMMERCIAL_CONFIG="/etc/nasq-commercial/$DBT.json" \
+    --entrypoint /usr/local/bin/nasq-odoo odoo \
+    shell -c /etc/odoo/odoo.conf -d "$DBT" --db-filter="^${DBT}\$" --no-http << PYEOF
+profile = env.ref('nasq_platform.tenant_profile')
+assert profile.policy_revision == 1, 'policy_revision=%r, expected 1' % profile.policy_revision
+features = profile.features or {}
+assert features.get('pmo.enabled') is True, 'pmo.enabled missing: %r' % features
+assert features.get('hr.enabled') is True, 'hr.enabled missing: %r' % features
+print('initial policy verified: db=$DBT revision=%s features=%d' % (profile.policy_revision, len(features)))
+PYEOF
+}
+for DBT in "${TENANT_DATABASES[@]}"; do
+  verify_policy "$DBT"
+done
+echo "Initial tenant policy verified."
+
 # --- 5. Seed admin + capability roles + HR employee per tenant via odoo shell ---
 # The seed script is passed through an environment variable so no secret ever
 # reaches a command line and no stdin/TTY allocation is required.

@@ -70,7 +70,7 @@ else describe('shared provision lifecycle', () => {
       const storage = await connect(database)
       await ensureTenantStorageSchema(storage)
       await ensureAdminBindingSchema(storage)
-      await storage.pool.query('TRUNCATE shared_fencing, shared_effects, shared_admin')
+      await storage.pool.query('TRUNCATE shared_fencing, shared_effects, shared_admin, shared_tenant_policy')
       await storage.pool.end()
       tenantPools.set(database, new Pool({ connectionString: tenantUrl(database) }))
     }
@@ -96,17 +96,48 @@ else describe('shared provision lifecycle', () => {
     } finally { await storage.pool.end() }
     const report = await inspectTenantReadiness(pool, connect, tenantA)
     expect(report.ready).toBe(true)
-    expect(report.checks.map(c => c.name).sort()).toEqual(['database_connectivity', 'first_admin_bound', 'policy_modules', 'provision_job_verified', 'provision_operation', 'provisioned_effect', 'storage_fence'].sort())
+    expect(report.checks.map(c => c.name).sort()).toEqual(['database_connectivity', 'first_admin_bound', 'initial_policy', 'policy_modules', 'provision_job_verified', 'provision_operation', 'provisioned_effect', 'storage_fence'].sort())
     expect(report.checks.every(c => c.passed)).toBe(true)
     const activation = await activateSharedTenant(pool, tenantA, report, actor)
     expect(activation.activated).toBe(true)
     expect(await tenantStatus(tenantA)).toBe('active')
     const audit = (await pool.query("SELECT count(*)::int AS count FROM audit_events WHERE action='tenant.activated' AND subject=$1", [tenantA])).rows[0].count
     expect(Number(audit)).toBe(1)
+    // The verified provision effect must have written the initial policy into
+    // the tenant storage, derived from the job payload's server-side catalog
+    // policy (never from the caller): revision >= 1 and non-empty features.
+    const policyRow = (await tenantPools.get(tenantDatabases[0]!)!.query('SELECT policy_revision::float8 AS revision, features FROM shared_tenant_policy WHERE tenant_id=$1', ['t01'])).rows[0]
+    expect(Number(policyRow.revision)).toBeGreaterThanOrEqual(1)
+    expect(Object.keys(policyRow.features ?? {}).length).toBeGreaterThan(0)
+    const payloadPolicy = (stored as { policy: { features: Record<string, unknown> } }).policy
+    expect(policyRow.features).toEqual(payloadPolicy.features)
     // AC-06: the admin binding stores identity only — no password column exists.
     const columns = (await tenantPools.get(tenantDatabases[0]!)!.query("SELECT column_name FROM information_schema.columns WHERE table_name='shared_admin'")).rows.map((r: { column_name: string }) => r.column_name)
     expect([...columns].sort()).toEqual(['bound_at', 'login', 'request_id', 'tenant_id'])
     expect(columns.some(c => /pass|secret|token/i.test(c))).toBe(false)
+  })
+
+  it('fails closed with a named initial_policy check when the initial policy record is missing', async () => {
+    // Remove the policy row the provision effect wrote; the gate must refuse
+    // activation on a named check, never activate on modules alone.
+    const database = tenantDatabases[0]!
+    const removed = (await tenantPools.get(database)!.query('DELETE FROM shared_tenant_policy WHERE tenant_id=$1 RETURNING policy_revision::float8 AS revision, features', ['t01'])).rows[0]
+    expect(removed).toBeDefined()
+    try {
+      const report = await inspectTenantReadiness(pool, connect, tenantA)
+      expect(report.ready).toBe(false)
+      const check = report.checks.find(c => c.name === 'initial_policy')
+      expect(check).toBeDefined()
+      expect(check!.passed).toBe(false)
+      const activation = await activateSharedTenant(pool, tenantA, report, actor)
+      expect(activation.activated).toBe(false)
+      const refusal = (await pool.query("SELECT metadata FROM audit_events WHERE action='tenant.activation_refused' AND subject=$1 ORDER BY created_at DESC LIMIT 1", [tenantA])).rows[0].metadata
+      expect(refusal.failed).toContain('initial_policy')
+    } finally {
+      // Test-setup restore of the exact deleted row so later suites see the
+      // provisioned state again; the gate above was proven by the failing case.
+      await tenantPools.get(database)!.query('INSERT INTO shared_tenant_policy(tenant_id,policy_revision,features) VALUES($1,$2,$3) ON CONFLICT (tenant_id) DO NOTHING', ['t01', removed.revision, JSON.stringify(removed.features)])
+    }
   })
 
   it('refuses activation with an audited refusal and never a false active', async () => {

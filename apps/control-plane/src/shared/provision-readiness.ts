@@ -94,6 +94,10 @@ export async function inspectTenantReadiness(pool: Pool, connect: (database: str
       const unique = new Set(modules)
       checks.push({ name: 'policy_modules', passed: modules.length > 0 && unique.size === modules.length, detail: modules.join(',') })
     } else checks.push({ name: 'policy_modules', passed: false, detail: 'no_policy' })
+    const initial = await storage.pool.query('SELECT policy_revision::float8 AS revision, features FROM shared_tenant_policy WHERE tenant_id=$1', [slug])
+    const initialRow = initial.rows[0]
+    const initialFeatures = initialRow && initialRow.features && typeof initialRow.features === 'object' ? Object.keys(initialRow.features).length : 0
+    checks.push({ name: 'initial_policy', passed: initial.rowCount === 1 && Number(initialRow.revision) >= 1 && initialFeatures > 0, detail: initial.rowCount ? `revision=${initialRow.revision} features=${initialFeatures}` : 'missing' })
     const fencing = await storage.pool.query('SELECT fence::float8 AS fence FROM shared_fencing WHERE tenant_id=$1', [slug])
     checks.push({ name: 'storage_fence', passed: fencing.rowCount === 1 && Number(fencing.rows[0].fence) >= 1, detail: String(fencing.rows[0]?.fence ?? 'missing') })
   } finally { await storage.pool.end() }

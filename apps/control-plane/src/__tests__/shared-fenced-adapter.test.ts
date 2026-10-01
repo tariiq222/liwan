@@ -67,7 +67,7 @@ else describe('fenced adapter live PostgreSQL integration', () => {
     for (const database of tenantDatabases) {
       const storage = await connect(database)
       await ensureTenantStorageSchema(storage)
-      await storage.pool.query('TRUNCATE shared_fencing, shared_effects')
+      await storage.pool.query('TRUNCATE shared_fencing, shared_effects, shared_tenant_policy')
       await storage.pool.end()
       tenantPools.set(database, new Pool({ connectionString: tenantUrl(database) }))
     }
@@ -102,6 +102,55 @@ else describe('fenced adapter live PostgreSQL integration', () => {
     expect(rowsA[0]!.payload_digest).toBe(receiptA.payloadDigest)
     expect(await effectsCount(1)).toBe(1)
     expect(rowsA[0]!.attempt_id).toBe(receiptA.attemptId)
+    // The verified provision effect wrote the policy derived from the job payload
+    // (server-side catalog policy), in the same tenant transaction.
+    const stored = (await pool.query('SELECT payload FROM shared_jobs WHERE id=$1', [jobA.id])).rows[0].payload
+    const policy = (await tenantPools.get(tenantDatabases[0])!.query('SELECT policy_revision::float8 AS revision,features FROM shared_tenant_policy WHERE tenant_id=$1', ['t01'])).rows
+    expect(policy).toHaveLength(1)
+    expect(Number(policy[0].revision)).toBe(1)
+    expect(policy[0].features).toEqual(stored.policy.features)
+  })
+
+  it('observes a provision as verified only when the policy row matches', async () => {
+    const { rows } = await pool.query("SELECT payload FROM shared_jobs WHERE business_key=$1 AND payload->'binding'->>'tenantId'='t01'", [JSON.stringify(['shared-v1', 't01', 'provision', 'initial'])])
+    const job = rows[0].payload
+    const db = tenantPools.get(tenantDatabases[0])!
+    expect(await adapter.observe(job)).toMatchObject({ state: 'present', verified: true })
+    const saved = (await db.query('SELECT policy_revision::float8 AS revision,features FROM shared_tenant_policy WHERE tenant_id=$1', ['t01'])).rows[0]
+    try {
+      await db.query("UPDATE shared_tenant_policy SET features='{\"forged.feature\": true}'::jsonb WHERE tenant_id='t01'")
+      expect(await adapter.observe(job)).toMatchObject({ state: 'present', verified: false })
+      await db.query('DELETE FROM shared_tenant_policy WHERE tenant_id=$1', ['t01'])
+      expect(await adapter.observe(job)).toMatchObject({ state: 'present', verified: false })
+    } finally {
+      await db.query('DELETE FROM shared_tenant_policy WHERE tenant_id=$1', ['t01'])
+      await db.query('INSERT INTO shared_tenant_policy(tenant_id,policy_revision,features) VALUES($1,$2,$3::jsonb)', ['t01', saved.revision, JSON.stringify(saved.features)])
+    }
+    expect(await adapter.observe(job)).toMatchObject({ state: 'present', verified: true })
+  })
+
+  it('stays verified after a policy-revision bump (provisioned-then-updated)', async () => {
+    const { rows } = await pool.query("SELECT payload FROM shared_jobs WHERE business_key=$1 AND payload->'binding'->>'tenantId'='t02'", [JSON.stringify(['shared-v1', 't02', 'provision', 'initial'])])
+    const job = rows[0].payload
+    const db = tenantPools.get(tenantDatabases[1])!
+    const saved = (await db.query('SELECT policy_revision::float8 AS revision,features FROM shared_tenant_policy WHERE tenant_id=$1', ['t02'])).rows[0]
+    expect(await adapter.observe(job)).toMatchObject({ state: 'present', verified: true })
+    try {
+      // A later policy-revision bump must not make an already-verified
+      // provision observe as unverified: the provision effect's identity is
+      // "the initial policy was written", so a higher revision is
+      // provisioned-then-updated, not a foreign effect.
+      await db.query('UPDATE shared_tenant_policy SET policy_revision=2 WHERE tenant_id=$1', ['t02'])
+      expect(await adapter.observe(job)).toMatchObject({ state: 'present', verified: true })
+    } finally {
+      await db.query('UPDATE shared_tenant_policy SET policy_revision=$1 WHERE tenant_id=$2', [saved.revision, 't02'])
+    }
+    expect(await adapter.observe(job)).toMatchObject({ state: 'present', verified: true })
+  })
+
+  it('rejects a forged caller policy at enqueue', async () => {
+    await expect(enqueueSharedJob(pool, tenantA, actor, { schemaVersion: 1, operation: 'provision', requestId: randomUUID(), policy: { schema_version: 1, channel: 'control_plane', modules: ['nasq_core'], features: { 'forged.enabled': true } } }, 'Forged policy'))
+      .rejects.toThrow()
   })
 
   it('re-applies idempotently for the same live attempt and rejects a different attempt', async () => {
