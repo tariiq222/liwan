@@ -132,5 +132,23 @@ pattern with no backup, so the evidence they backed was regenerated at current
 HEAD on fresh scratch databases: [regenerated gate evidence](verification/2026-09-30-regenerated-gate-evidence.md).
 Current status: [shared live acceptance](verification/shared-live-acceptance.md)
 and [hosting direction status](project-closure/saas-hosting-direction-status.md).
-Local only: no push, no deployment, and `main` is not fast-forwarded; the r3 live
-rerun is still pending.
+Local only: no push and no deployment. `main` (`4eab6fd7`) includes
+`codex/integration-f2b-f5-gate` and the r3 live acceptance rerun is recorded
+(F2b and F5 verified live in r3).
+
+### أرشيف العمل غير المدمج — 2026-10-01
+
+اندمجت كل الفروع في `main` وأُزيلت worktrees وفروع `codex/*`. العمل الفريد غير
+المتحقق حُفظ في وسوم موسومة (annotated) تحت `archive/` ولم يُدمج في `main`.
+الحالة لكل عنصر: غير متحقق، بانتظار المراجعة. الأحجام مقابل `main`.
+
+| الوسم | sha | الغرض | الحجم | الحالة |
+|---|---|---|---|---|
+| `archive/saas-closure-wip` | `dc1643da` | مسودات إغلاق SaaS متجاوزة (10 commits) | 314 ملفًا، +227082/−4901 | غير متحقق، بانتظار المراجعة |
+| `archive/managed-saas-acceptance-wip` | `41bf98a4` | سجلات قبول SaaS المُدار وإغلاق المشروع (4 commits) | 190 ملفًا، +28098/−14112 | غير متحقق، بانتظار المراجعة |
+| `archive/integrate-offline` | `8747cfbc` | أدوات النشر دون اتصال: bootstrap/import/lifecycle | 18 ملفًا، +19740/−50 | غير متحقق، بانتظار المراجعة |
+| `archive/integrate-pmo` | `3a99c1dc` | تحديثات PMO للمهام والمشاريع والقوالب (تتضمن تعديلات غير مُلتزمة سابقًا) | 9 ملفات، +190/−70 | غير متحقق، بانتظار المراجعة |
+| `archive/architecture-evidence-wip` | `1168c5db` | أدلة المعمارية v2/v3 وv1 من checkout الرئيسي (`docs/architecture`) | 352 ملفًا، +168890/−22364 | غير متحقق، بانتظار المراجعة |
+| `archive/stash-cp2-originals` | `558e9f8a` | stash: أصول CP2 قبل الدمج (2026-09-23) | 372 ملفًا، +403/−44287 | غير متحقق، بانتظار المراجعة |
+
+(`archive/pre-reorganization-20260905` وسم سابق لا علاقة له بهذا الأرشيف.)
