@@ -114,6 +114,10 @@ async function login(host, loginName, password) {
 }
 
 async function run() {
+  // Split proof 9 from the non-rate proofs when a browser run follows.
+  const rateOnly = process.argv.includes('--rate-limit-only')
+  const skipRate = process.argv.includes('--skip-rate-limit')
+  if (!rateOnly) {
   // ---- Proof 1: TLS chain verifies against the exported root, SAN contains the host
   // The chain is proven by rejectUnauthorized: true with ca = the exported root; a
   // request that completes at all means OpenSSL accepted the chain up to that root.
@@ -327,9 +331,11 @@ async function run() {
     }
   }
 
+  }
+
   // ---- Proof 9: exceeding the nasq_auth zone returns 429. RUN LAST: it locks the
   // auth zone for the rest of the window.
-  try {
+  if (!skipRate) try {
     let code = null
     let n = 0
     for (; n < 40; n++) {
@@ -344,7 +350,7 @@ async function run() {
     record('rate-limit-429', code === 429, `429 after ${n + 1} auth requests (last status=${code})`)
   } catch (e) { record('rate-limit-429', false, `error=${e.message}`) }
 
-  const out = resolve(__dirname, 'probe-results.json')
+  const out = resolve(__dirname, rateOnly ? 'probe-rate-results.json' : 'probe-results.json')
   writeFileSync(out, JSON.stringify({ project: PROJECT, imageTag: IMAGE_TAG, results: RESULTS }, null, 2))
   console.log(`\nResults written to ${out}`)
   const failed = RESULTS.filter(r => !r.passed)

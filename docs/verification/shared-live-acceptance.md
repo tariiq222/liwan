@@ -1,6 +1,6 @@
 # Shared-mode live acceptance run — evidence record
 
-**Status: 9 of 9 proofs pass against the committed configuration (r2 rerun, 2026-10-01); F2, F3 and F4 are verified live; F2b and F5 are fixed in source, pending live rerun r3.** This document
+**Status: 9 of 9 proofs pass against the committed production configuration (r3 rerun, 2026-10-01); F2, F3 and F4 remain verified live; F2b's canonical harness seed/readback and F5's measured page-load/auth-budget isolation are verified live. The control-plane provision worker and populated-avatar budget are not proven by r3.** This document
 records local, loopback-only acceptance runs of the two-tenant shared stack, each in a
 single isolated Compose project that published only `127.0.0.1:443` and `127.0.0.1:80`
 and was removed at the end.
@@ -164,7 +164,7 @@ healthcheck there, or drop `odoo` from the `service_healthy` conditions.
 
 ### F2b — a freshly installed tenant has NO feature policy, so every pillar API 403s `feature_not_included`
 
-**Status: fixed in source, pending live rerun r3** — shared provisioning now writes and verifies the initial tenant policy itself from the server-derived catalog policy (control-plane `initial_policy` activation gate, revision >= 1, backup/restore carry it), and the live harness seeds through the repository's canonical `deploy/seed_legacy_policy.py` with a readback instead of granting the policy inline. The description below is of the pre-fix state; the fix is not yet re-proven live.
+**Status: harness path verified live in the r3 rerun (§ r3b); the control-plane provision worker itself is not exercised by the live stack** — shared provisioning now writes and verifies the initial tenant policy itself from the server-derived catalog policy (control-plane `initial_policy` activation gate, revision >= 1, backup/restore carry it), and the live harness seeds through the repository's canonical `deploy/seed_legacy_policy.py` with a readback instead of granting the policy inline. The description below is of the pre-fix state.
 
 Installing the addons on a fresh database leaves `nasq.tenant.profile` at
 `policy_revision = 0` with `features = {}`. Nothing in the install path grants the
@@ -480,13 +480,12 @@ from one client → `200×8` then `429×17` through attempt 25, so auth limiting
 
 ### 9e. New observations from r2
 
-- **F5 (fixed in source, pending live rerun r3; low–medium): page loads consumed the shared auth rate limit, not the `nasq_odoo` budget.** During the repeated A/B run's 4th pass, `POST /web/session/get_session_info` returned `429` twice. **Correction to the cause first recorded here:** those `429`s came from `nasq_auth` (20 events/min per client IP), because the auth zone matched `/web/session/*` and therefore counted the browser's websocket version probe as a credential request; they were **not** `nasq_odoo` (600/min) exhaustion. Every page load issues that H12 call, so ordinary multi-page traffic from one shared-NAT IP drained the budget that logins need. Fixed in source by moving `get_session_info` into `nasq_odoo` by exact path and giving ACL-checked image bytes their own `nasq_odoo_image` zone (1200/min); the budget arithmetic is in `deploy/shared/README.md`. Pages still rendered throughout (the caller falls back). Not yet re-proven live.
+- **F5 (fixed in source; measured-page-load isolation verified live in r3; low–medium): page loads consumed the shared auth rate limit, not the `nasq_odoo` budget.** During the repeated A/B run's 4th pass, `POST /web/session/get_session_info` returned `429` twice. **Correction to the cause first recorded here:** those `429`s came from `nasq_auth` (20 events/min per client IP), because the auth zone matched `/web/session/*` and therefore counted the browser's websocket version probe as a credential request; they were **not** `nasq_odoo` (600/min) exhaustion. Every page load issues that H12 call, so ordinary multi-page traffic from one shared-NAT IP drained the budget that logins need. Fixed in source by moving `get_session_info` into `nasq_odoo` by exact path and giving ACL-checked image bytes their own `nasq_odoo_image` zone (1200/min); the budget arithmetic is in `deploy/shared/README.md`. Pages still rendered throughout (the caller falls back). r3 measured 30 real page loads with zero image/probe 429s and a first wrong-login 429 at attempt 21 (§ r3d); populated-avatar budget remains unmeasured.
 - **H14 (harness):** `up.sh` validated the odoo uid against `nasq-accept-odoo:` while the compose files resolve `nasq-odoo:` — fixed so the validator uses the same tag set.
 
-F2b (initial feature policy) is **fixed in source, pending live rerun r3** as a
-separate task: provisioning now writes and verifies the initial policy itself, and
-the harness seeds through the repository's canonical `deploy/seed_legacy_policy.py`
-instead of granting it inline.
+F2b (initial feature policy) was **fixed in source** and its canonical harness
+seed/readback is **verified live in r3** (§ r3b); the control-plane provision
+worker's activation gate is a separate path not exercised by this stack.
 
 ### 9f. Teardown verification
 
@@ -498,6 +497,179 @@ removed, no prune): the four `*:28b6c04-r2` images plus the earlier `*:28b6c04` 
 
 `git status --short` after r2 keeps the same modified/untracked sets as §1 plus the
 edits described above; nothing was committed, merged, pushed, stashed or reset.
+
+## Rerun r3 — F2b canonical policy seed and F5 live budget isolation (2026-10-01)
+
+### r3a. Scope, revision and images
+
+- Worktree `/Users/tariq/code/nasq-integration-r3`, branch
+  `codex/integration-f2b-f5-gate`, tip
+  `9fc26f38be068e042389a9f6d519f6f8165102b1`; initially clean.
+- Date UTC: 2026-10-01. One isolated project `nasq-accept-1790852898`;
+  only `127.0.0.1:443/80` published. No host PostgreSQL or `odoo19` access.
+- **No image rebuild was necessary.** Runtime Dockerfile/COPY inputs are unchanged
+  from the r2 committed baseline `329ef573` (checked with `git diff --name-only
+  329ef573 HEAD -- apps/web packages/contracts odoo-addons deploy/odoo deploy/security
+  deploy/shared/guard.mjs deploy/shared/start.mjs deploy/shared/healthcheck.mjs
+  deploy/shared/Dockerfile deploy/proxy/Dockerfile`: empty). The Caddyfile is mounted;
+  control-plane changes are not in this stack. The r2 images were retagged, not replaced.
+
+| r3 tag | Local image ID (unchanged from r2) |
+|---|---|
+| `nasq-odoo:9fc26f3-r3` | `sha256:80d4d94621c687ab190e522ff23550090e251773412f39a71100eb39650f2810` |
+| `nasq-web:9fc26f3-r3` | `sha256:629347b1b992b83516c779fa7a52b0fd72a45ad5ace8b05187edf5dfe1e5df0d` |
+| `nasq-guard:9fc26f3-r3` | `sha256:f941dfb7df5a13e52c82023ade45b88efca0b41e1e43a0740a99a709a908b6f7` |
+| `nasq-accept-caddy:9fc26f3-r3` | `sha256:148b2c09f91476d586f276656f2ad7967394fa38e10b5de6f982321b4e03d0f1` |
+
+Remaining overrides are exactly §9a with r3 image tags: loopback edge ports,
+acceptance domains, the local-CA wrapper importing the committed production
+Caddyfile (no route/rate-rule variant), proxy admin-API/module healthcheck,
+external Odoo config/classification mounts with empty steady-state classification,
+and explicit `10.240.2/4/6/8.0/24` subnets. Odoo/web healthchecks and dependency
+ordering remain the committed ones. Live `caddy list-modules` contains
+`http.handlers.rate_limit`; the mounted production file defines five zones in r3,
+including the new `nasq_odoo_image` (1200/min), with `nasq_auth` still 20/min.
+
+### r3b. Up attempt, harness changes and F2b readback
+
+`NASQ_IMAGE_TAG=9fc26f3-r3 bash tools/shared_acceptance_live/up.sh` succeeded on
+**one attempt**. db → odoo → web → guard → proxy all healthy; strict-root-CA
+routed readiness A/B each 302. No production file changed for this rerun.
+
+Uncommitted tooling changes:
+
+| File under `tools/shared_acceptance_live/` | Purpose |
+|---|---|
+| `up.sh` | Export the seed password and pass `-e NASQ_ACCEPT_ADMIN_PASSWORD` by name, not expanded secret bytes in Docker argv; inherit the seed script by name too. |
+| `probe.mjs` | Add `--skip-rate-limit` and `--rate-limit-only` so proof 9 genuinely runs last without locking proof 8; separate result file for rate-only run. |
+| `.gitignore` | Ignore the rate-only result file. |
+| `README.md` | Document deferred proof 9 and the optional F5 measurement command. |
+| `f5-measure.mjs` | Real Chromium page-load/status/request-count evidence, raw HTTPS bypass requests, and immediate wrong-login burst; no credentials/cookies logged. |
+
+`up.sh` piped the unchanged **`deploy/seed_legacy_policy.py`** into `odoo shell`
+for each database before fixture seeding, then independently read back and asserted
+revision 1 and both `pmo.enabled`/`hr.enabled` true. Fresh live output (no secret values):
+
+```text
+legacy policy initialized: 1 [('chat.enabled', True), ('hr.enabled', True), ('meetings.enabled', True), ('pmo.enabled', True), ('projects.max_projects', None), ('storage.limit_mb', None), ('users.limit', None)]
+legacy policy initialized: 1 [('chat.enabled', True), ('hr.enabled', True), ('meetings.enabled', True), ('pmo.enabled', True), ('projects.max_projects', None), ('storage.limit_mb', None), ('users.limit', None)]
+initial policy verified: db=nasq_accept_a_scratch revision=1 features=7
+initial policy verified: db=nasq_accept_b_scratch revision=1 features=7
+Initial tenant policy verified.
+```
+
+Search of harness `*.sh`, `*.py`, `*.mjs` for `_nasq_initialize_legacy_policy`
+returned **no matches**. F2b's **canonical harness seed/readback is verified live**;
+this stack does not run the control-plane provision worker or its activation gate,
+so this is not a live proof of that separate control-plane path.
+
+### r3c. Nine-proof table
+
+| # | Proof | Result | Fresh evidence |
+|---|---|---|---|
+| 1 | Strict TLS chain and host SAN | **PASS** | A/B strict exported-root CA, SAN `DNS:{a,b}.accept.nasq.test`, matching host, 302; issuer Caddy ECC Intermediate. |
+| 2 | Host/data isolation | **PASS** | `/me` 200 with distinct admin logins; projects only `ACCEPT-A-ONLY` / `ACCEPT-B-ONLY`; HR only own employee plus Administrator. |
+| 3 | Private headers rejected | **PASS** | Proxy-token and tenant-revision headers each 403. |
+| 4 | Port isolation | **PASS** | Only proxy publishes loopback 443/80; forbidden/non-loopback bindings empty. No host-5432 probe. |
+| 5 | Session cookie flags | **PASS** | Four headers: Secure, HttpOnly, SameSite=Lax, no Domain; cookie bytes omitted. |
+| 6 | Cross-tenant cookies | **PASS** | A→B and B→A 403 `tenant_boundary_rejected`. |
+| 7 | Fail closed without restart | **PASS** | Unknown host TLS aborted; disabled B 403, restored B 200; no restart. |
+| 8 | Real Chromium A/B Arabic pages and logout | **PASS** | `2 passed (34.3s)`; both first login attempts 200; own markers on `/`, `/projects`, `/hr`, other markers absent; logout 204 → `/login`. No asset 429. Screenshots in ignored r3 evidence directory. |
+| 9 | Auth limiter | **PASS** | Measurement burst: wrong logins 1–20 = 401, 21–25 = 429. Final `probe.mjs --rate-limit-only` = 1/1 pass, 429 on its first request because the measurement already exhausted the zone; not a fresh onset measurement. |
+
+Exact execution order from repo root:
+
+```sh
+node tools/shared_acceptance_live/selfcheck.mjs
+NASQ_IMAGE_TAG=9fc26f3-r3 bash tools/shared_acceptance_live/up.sh
+node tools/shared_acceptance_live/probe.mjs --skip-rate-limit
+NASQ_SCREENSHOT_DIR=/Users/tariq/code/nasq-integration-r3/tools/shared_acceptance_live/test-results/r3/screenshots npx playwright test --config /Users/tariq/code/nasq-integration-r3/tools/shared_acceptance_live/playwright.config.mjs
+node tools/shared_acceptance_live/f5-measure.mjs
+node tools/shared_acceptance_live/probe.mjs --rate-limit-only
+bash tools/shared_acceptance_live/down.sh
+```
+
+All above exited 0. Selfcheck 12 checks; non-rate probe 11/11; browser 2/2;
+F5 aggregate passed; rate-only probe 1/1. `bash -n up.sh`, `node --check probe.mjs`,
+`node --check f5-measure.mjs`, and `git diff --check` also passed.
+
+### r3d. F5 measurements (a)–(d)
+
+One loopback client IP, **one authenticated session per tenant** retained throughout
+measurement; separate Chromium cookie jars, full navigations, no synthetic asset
+fetches or omitted page assets. Session setup/bypass checks preceded a 65-second
+auth-window drain. 15 loads per tenant, 10 per path, **30 loads in 28.988 seconds**.
+All loads rendered their own fixture markers and remained authenticated. `/`
+redirects to `/projects/dashboard` (302 → 200), and counts as one requested load.
+
+| Requested page | Loads | `get_session_info` | `/web/image/*` | `/web/binary/company_logo` | Browser `/api/v1/*` | `/_nuxt/*` observed responses | Avatar requests/load | Logo requests/load |
+|---|---:|---|---:|---|---:|---|---:|---:|
+| `/` | 10 | 403×10 | 0 | 200×2 + 304×8 | 0 | 200×1862; 1 response unobserved | 0 | 1 |
+| `/projects` | 10 | 403×10 | 0 | 304×10 | 0 | 200×1883 | 0 | 1 |
+| `/hr` | 10 | 403×10 | 0 | 304×10 | 0 | 200×1771 | 0 | 1 |
+| **Total** | **30** | **403×30; 429×0** | **0 requests; 429×0** | **200×2 + 304×28; 429×0** | **0 browser requests** | **200×5516; 429×0 observed** | **0** | **1** |
+
+The one unobserved Nuxt response was A's initial
+`/_nuxt/builds/meta/3897a01d-2d50-4dd8-ac72-439125b50b3e.json`; it is **not**
+claimed as 200. Browser `/api/v1/*` is zero because these full navigations render
+the fixture data through SSR; private BFF/SSR traffic is not included in browser
+response counts. Favicon requests were zero in the measured browser traffic.
+H12 still holds: the guard denies the websocket version probe with 403, and the UI
+falls back. F5 fixes the **budget classification**, not that route's availability.
+
+Actual image arithmetic is materially lower than the README's unmeasured
+~2 logo/favicon + ~10 avatars: **one logo and zero avatar requests/load**, using
+initials/no avatar-image fixtures. At 60 loads/min that is 60 image requests/min
+(not the assumed 720) and 60 version probes/min, below 1200/600. The README numbers
+are **not empirically confirmed** by this sparse fixture; a populated avatar-grid
+budget/capacity test remains needed. No Caddyfile edit was made. The live logo zone
+and zero image/probe 429 expectation pass for the traffic actually produced.
+
+Bypass checks used raw Node HTTPS request paths with strict root CA and authenticated
+cookies; no client URL dot-segment normalization. They ran **before** the drain and
+wrong-login burst so no auth 429 could conceal access to a credential endpoint.
+
+| Raw GET path | A | B | Credential access |
+|---|---:|---:|---|
+| `/web/session/get_session_info/../authenticate` | 403 | 403 | Denied: `tenant_boundary_rejected`. |
+| `/WEB/session/get_session_info` | 404 | 404 | No credential handler response. |
+| `/web%2Fsession%2Fget_session_info` | 404 | 404 | No credential handler response. |
+
+**Immediately after the 30 loads** (recorded gap 0 ms), same IP, 25 sequential rapid
+`POST /api/auth/login` calls with wrong credentials: **401×20 then 429×5**, first 429
+**attempt 21**. No intervening requests and no reauthentication occurred. Thus these
+page loads did not consume the drained 20/min auth allowance. F5's live budget
+isolation is verified within this measured scope, not a production capacity claim.
+
+### r3e. Teardown and retained artifacts
+
+`down.sh` exited 0 for **`nasq-accept-1790852898` only**, removed its five containers,
+four networks, three named volumes, temporary secret directory and `.state`.
+Compose emitted two harmless `DB_PASSWORD` unset/interpolation warnings during
+`down` (no value printed); teardown still succeeded.
+
+Post-teardown project-label queries returned **0 containers, 0 networks, 0 volumes**.
+`lsof -nP -iTCP:443 -iTCP:80 -sTCP:LISTEN` had no listeners (exit 1 = no match).
+Sorted pre/post inventories of all container IDs, running IDs, volume names and
+network IDs/names compare **identically**. Every pre-existing image tag/ID remains
+unchanged; the only image inventory additions are the four r3 tags. No prune, image
+removal, hosts/trust-store change, commit, merge, push, stash or reset occurred.
+
+Raw non-secret logs, F5 JSON, six screenshots and baseline/after inventories are in
+`tools/shared_acceptance_live/test-results/r3/` (gitignored); passwords/cookies were
+never written there. `git status --short` after documentation:
+
+```text
+ M docs/verification/shared-live-acceptance.md
+ M tools/shared_acceptance_live/.gitignore
+ M tools/shared_acceptance_live/README.md
+ M tools/shared_acceptance_live/probe.mjs
+ M tools/shared_acceptance_live/up.sh
+?? tools/shared_acceptance_live/f5-measure.mjs
+```
+
+All changes remain **uncommitted** for coordinator review. Readiness is still
+**`not ready`**; the not-proven list below is unchanged.
 
 ## 10. What this does NOT prove
 
@@ -521,11 +693,12 @@ edits described above; nothing was committed, merged, pushed, stashed or reset.
 
 ## 11. Readiness
 
-**Readiness remains `not ready`.** The r2 rerun produced local runtime evidence that
+**Readiness remains `not ready`.** The r3 rerun produced local runtime evidence that
 all nine proofs pass against the committed configuration (F2, F3 and F4 verified live;
-F4 no longer white-screens a tenant). It still does not close the remaining gates:
-independent security review, real DNS and public TLS/ACME, MFA and websocket behavior,
-filestore restore, RPO/RTO, capacity, payment, `non_saas`, and the tenant-scale matrix.
-**F2b (initial feature policy) and F5 (page loads consuming the shared auth
-budget) are fixed in source, pending live rerun r3** (§9e); neither is yet
-re-proven live. Readiness stays `not ready`.
+F2b's canonical harness seed/readback and F5's measured page-load/auth-budget
+isolation now also verified live — see the r3 section above). It still does not close
+the remaining gates: independent security review, real DNS and public TLS/ACME, MFA
+and websocket behavior, filestore restore, RPO/RTO, capacity, payment, `non_saas`,
+and the tenant-scale matrix. Still not exercised live: the control-plane provision
+worker's `initial_policy` activation gate, and the image budget under a populated
+avatar workload. Readiness stays `not ready`.

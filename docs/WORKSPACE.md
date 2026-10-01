@@ -116,7 +116,8 @@ committed configuration. Evidence: [shared live acceptance](verification/shared-
 This is local only: no push, no deployment, no public TLS, no DNS, 2 tenants
 not 10, no MFA/websocket/filestore restore. F2b (initial policy grant missing
 from provisioning) and F5 (nasq_odoo zone exhaustible by ordinary traffic)
-remain open. Readiness stays `not ready`.
+remain open (superseded below: fixed in source and verified live in r3).
+Readiness stays `not ready`.
 
 ### F2b/F5 fixes and regenerated gate evidence — 2026-09-30
 

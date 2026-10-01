@@ -10,8 +10,8 @@ and runs browser-level isolation proofs. **NOT deployment authorization.**
 export NASQ_IMAGE_TAG=<short-sha of HEAD>          # e.g. 28b6c04
 bash tools/shared_acceptance_live/up.sh
 
-# Proofs 1–7 and 9 (reads the .state file written by up.sh)
-node tools/shared_acceptance_live/probe.mjs
+# Proofs 1–7 (reads the .state file written by up.sh); defer proof 9 until last.
+node tools/shared_acceptance_live/probe.mjs --skip-rate-limit
 
 # Proof 8 (real browser). Run from apps/web so @playwright/test resolves, and use the
 # harness config (apps/web's own testDir: './e2e' does not discover this spec).
@@ -20,6 +20,13 @@ cd apps/web && npx playwright test \
 
 # Offline parser self-check (no stack needed)
 node tools/shared_acceptance_live/selfcheck.mjs
+
+# From repository root: optional r3 F5 measurements (30 real page loads, then
+# immediately 25 wrong logins; retains one authenticated session per tenant).
+node tools/shared_acceptance_live/f5-measure.mjs
+
+# Proof 9 LAST: this locks the auth zone for the remaining window.
+node tools/shared_acceptance_live/probe.mjs --rate-limit-only
 
 # Teardown (containers, networks, volumes of this project only)
 bash tools/shared_acceptance_live/down.sh

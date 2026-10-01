@@ -287,14 +287,17 @@ seed_tenant() {
   local DBT="$1" LOGIN="$2" PROJ="$3" EMP="$4" PW_FILE="$5"
   local PW
   PW="$(cat "$PW_FILE")"
+  # Inherit secrets by name: docker's argv must never contain their values.
+  export NASQ_ACCEPT_ADMIN_PASSWORD="$PW"
+  export NASQ_ACCEPT_SEED="$(cat "$TOOL_DIR/seed_tenant.py")"
   # All options precede the service name (see the note in the install step).
   compose run --rm --no-deps -T \
     -e NASQ_COMMERCIAL_CONFIG="/etc/nasq-commercial/$DBT.json" \
     -e NASQ_ACCEPT_ADMIN_LOGIN="$LOGIN" \
-    -e NASQ_ACCEPT_ADMIN_PASSWORD="$PW" \
+    -e NASQ_ACCEPT_ADMIN_PASSWORD \
     -e NASQ_ACCEPT_PROJECT_NAME="$PROJ" \
     -e NASQ_ACCEPT_EMPLOYEE="$EMP" \
-    -e NASQ_ACCEPT_SEED="$(cat "$TOOL_DIR/seed_tenant.py")" \
+    -e NASQ_ACCEPT_SEED \
     --entrypoint /usr/local/bin/nasq-odoo odoo \
     shell -c /etc/odoo/odoo.conf -d "$DBT" --db-filter="^${DBT}\$" --no-http << 'PYEOF'
 import os
