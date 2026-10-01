@@ -22,11 +22,22 @@ header secret is defense in depth, NOT a replacement for this network boundary.
 `Caddyfile` includes four rate zones using the actual pinned module in
 `deploy/proxy/Dockerfile` (not the unmodified official Caddy image). Limits are per
 edge socket client IP: auth 20/min, API 300/min, Odoo/web 600/min. WS remains exempt
-from HTTP rate counting. Immutable static assets (`/_nuxt/*`, `/_i18n/*`, `/i18n/*`,
+from HTTP rate counting. Immutable static assets (`/_nuxt/*`, `/_i18n/*`,
 `/fonts/*`, `/favicon.ico`, `/robots.txt`) are exempt from the `nasq_web` zone so client
 asset requests do not exhaust the interactive web budget or cause 429 white-screens for
-tenants behind a shared client IP. No trusted proxy headers are enabled. Module execution,
-Caddy syntax validation and real rate-limit behavior are NOT RUN (no local Caddy).
+tenants behind a shared client IP. No trusted proxy headers are enabled. Module execution
+and real rate-limit behavior under load are NOT RUN; `caddy adapt` structure is tested.
+
+F5 rate budget (per client IP/min). Odoo's own `/web/assets/*` and `/web/static/*` are
+not served through this edge (guard admits no such route), so nothing is exempted for
+them; `/web/content/*` and `/web/image/*` are ACL-checked and stay limited.
+`/web/session/get_session_info` (browser websocket version probe, `useBus.ts`) was
+matched by the `/web/session/*` auth zone, i.e. it shared the 20/min login bucket; it
+now counts in `nasq_odoo`. Other `/web/session/*`, `/web/login`, `/api/auth/*` stay in
+`nasq_auth` at 20. Image bytes get `nasq_odoo_image` (1200) instead of competing with
+RPC/report traffic in `nasq_odoo` (600). Target: 30 users behind one NAT x 2 page
+loads/min = 60 loads/min. Per load: 1 probe + ~2 logo/favicon + ~10 avatars (assumed,
+unmeasured) -> odoo 60 (<600), image 60x12=720 (<1200). Auth unchanged.
 Reject inbound `X-Nasq-Proxy-Token` and `X-Nasq-Tenant-Revision` at edge;
 do not merely forward it. Strip forwarding headers, do not trust client proxy IPs.
 Guard itself rejects DB/session/forwarding selection headers. TLS is terminated at
