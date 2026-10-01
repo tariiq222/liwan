@@ -105,3 +105,49 @@ In OpenCode (including the Flex-* agents and `flex_delegate`) this rule does
 not apply: models are chosen per task from the connected providers by cost and
 adequacy, subject to any restriction the user gives in that session. The
 coordinator owns planning, integration and review in both tools.
+
+## Odoo development
+
+- Use the `odoo-workflow` skill before any Odoo change; trace real source into a
+  Context Brief with `file:line`, then consult the `odoo-19` reference pack.
+- Runtime: Odoo **19.0**, read-only core `/Users/tariq/code/odoo`, custom addons
+  in this checkout's `odoo-addons/`. `.claude/odoo.json` is machine-local and
+  already gitignored; it pins `odoo_version`, `odoo_root`, `addons` (a JSON
+  array), and `python`, deliberately without a live config or `dev_db`.
+  Read-only trace command from the repo root (use Python 3.12 for core syntax):
+  `/Users/tariq/code/odoo/.venv/bin/python /Users/tariq/.agents/skills/odoo-workflow/scripts/odoo_trace.py env`.
+- Never run against named/live databases (including `odoo19`); use an explicitly
+  isolated throwaway database and scratch-only config, data directory and logs.
+  Test execution needs authorization; this setup does not authorize Odoo startup.
+- Manifests: Odoo copyright header, `LGPL-3`, author `Tariq Alwalidi`,
+  `category: Hidden`, `installable: True`, `application: False`; versions use
+  `19.0.X.Y.Z` (core/HR `19.0.1.0.0`, PMO `19.0.1.1.0`). Follow
+  `docs/migrations.md` for schema/data version bumps and migrations.
+- Declare real dependencies: core uses `base`, `project`, `hr`,
+  `cyan_meeting_minutes`; HR uses `nasq_api`, `hr`, `mail`; PMO also uses
+  `nasq_platform`, `project`, `bus`, `cyan_meeting_minutes` (see manifests).
+  Preserve pillar direction: shared `nasq_api` never imports a pillar.
+- Keep `models/`, `security/`, `data/`, `tests/`; API pillars additionally use
+  `controllers/` and whitelist-based `serializers/`; PMO has `report/`, `i18n/`
+  and `migrations/`. Import Python modules through their `__init__.py` files;
+  list every XML/CSV file in manifest `data` in the required dependency order.
+- New models use dotted `nasq.*` names and `Nasq*` classes; extend stock models
+  with `_inherit`, not copies. Model files and local XML ids use snake_case
+  (`permission_access_users_read`, `nasq_hr_document_company_rule`); qualify
+  cross-addon ids. ACLs live in `security/ir.model.access.csv` (PMO also has
+  suffixed ACL CSVs), with `access_*` ids and `model_<dots_as_underscores>` refs.
+- Tests live in `tests/test_*.py` and must be imported in `tests/__init__.py`.
+  Model tests use `TransactionCase`; HTTP tests use `NasqApiCase(HttpCase)` via
+  `NasqHrCase` / `NasqPmoCase`. Mirror existing `nasq` / `nasq_access` tags and
+  `post_install`, `-at_install` selection where appropriate.
+- Arabic: PMO ships `i18n/ar.po`; core/HR currently have no `i18n/` directory.
+  Core capability data has explicit `name_ar` / `name_en` fields. Keep shipped
+  PO filenames; make new UI strings extractable and update Arabic translations.
+- Lint: `ruff check odoo-addons` uses root `ruff.toml` (upstream Odoo rules;
+  imports: stdlib, third-party, `odoo`, `odoo.addons`). No project pre-commit
+  or pylint-odoo configuration was found; do not introduce another convention.
+- Authorized module tests: use the existing `CLAUDE.md` **Check commands** block
+  and `.woodpecker.yml` **odoo** step (including its classification fixture),
+  with the selected checkout's explicit addons path, `-i` modules,
+  `--test-tags /<addon>` and `--stop-after-init`. Require a nonzero test count;
+  preserve isolation/cleanup. These are documented commands, not run by setup.
