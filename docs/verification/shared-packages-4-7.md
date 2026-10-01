@@ -136,3 +136,4 @@ npm -w apps/control-plane run build   # tsc --noEmit exit 0
 > referenced in this document was dropped by a later verification run. The results
 > recorded here are historical and the live DB can no longer be re-inspected.
 > Recovery is pending the owner's decision.
+> Regenerated (2026-09-30): equivalent live evidence was rerun at current HEAD on fresh scratch databases — see [2026-09-30-regenerated-gate-evidence.md](2026-09-30-regenerated-gate-evidence.md).
