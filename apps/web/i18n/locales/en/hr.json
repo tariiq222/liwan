@@ -152,6 +152,7 @@
       "empty": "No documents",
       "search": "Search by title…",
       "newTitle": "Document title",
+      "titleRequired": "Document title is required.",
       "body": "Body",
       "linkPrompt": "Link URL",
       "attachments": "Attachments",
