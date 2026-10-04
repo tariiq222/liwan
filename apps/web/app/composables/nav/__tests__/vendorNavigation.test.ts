@@ -9,7 +9,7 @@ describe('company vendor administration navigation', () => {
   it('shows administration only from separate current vendor grants', () => {
     const identity = { capabilities: ['pmo.projects.read'], vendorCapabilities: ['vendor.read', 'vendor.audit.read'] }
     expect(visibleShellModules(identity).find(m => m.id === 'management')?.to).toBe('/vendor/overview')
-    expect(contextLinksForModule('management', identity).map(m => m.to)).toEqual(['/vendor/overview', '/vendor/tenants', '/vendor/customers', '/vendor/invoices', '/vendor/catalog', '/vendor/bundles', '/vendor/plans', '/vendor/operations', '/vendor/audit'])
+    expect(contextLinksForModule('management', identity).map(m => m.to)).toEqual(['/vendor/overview', '/vendor/tenants', '/vendor/customers', '/vendor/catalog', '/vendor/bundles', '/vendor/plans', '/vendor/operations', '/vendor/audit'])
     expect(activeShellModule('/vendor/tenants/example')).toBe('management')
   })
   it('keeps bundles and plans under management without a billing link', () => {
@@ -19,9 +19,11 @@ describe('company vendor administration navigation', () => {
     expect(activeShellModule('/vendor/bundles/new')).toBe('management')
     expect(activeShellModule('/vendor/plans/abc/edit')).toBe('management')
   })
-  it('lists commercial customers and invoices under management for vendor.read', () => {
+  it('lists customers for vendor.read and invoices only for billing managers', () => {
     const links = contextLinksForModule('management', { capabilities: [], vendorCapabilities: ['vendor.read'] })
-    expect(links.map(l => l.id)).toEqual(expect.arrayContaining(['vendor-customers', 'vendor-invoices']))
+    expect(links.map(l => l.id)).toContain('vendor-customers')
+    expect(links.map(l => l.id)).not.toContain('vendor-invoices')
+    expect(contextLinksForModule('management', { capabilities: [], vendorCapabilities: ['vendor.read', 'vendor.billing.manage'] }).map(l => l.id)).toContain('vendor-invoices')
     expect(activeShellModule('/vendor/customers/abc/terms/new')).toBe('management')
     expect(activeShellModule('/vendor/invoices/abc')).toBe('management')
     expect(contextLinksForModule('management', { capabilities: [], vendorCapabilities: [] }).length).toBe(0)

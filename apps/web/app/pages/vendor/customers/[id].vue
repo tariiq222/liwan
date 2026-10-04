@@ -1,18 +1,20 @@
 <script setup lang="ts">
 import { formatVendorMoney } from '@/utils/vendorCommercial'
-import { branchSummaryText, customersReturnTo, invoiceStatusColor, isNotAvailable } from '@/utils/vendorSubscriptions'
+import { cancellationErrorKey, branchSummaryText, customersReturnTo, invoiceStatusColor, isNotAvailable } from '@/utils/vendorSubscriptions'
 import { useVendorSubscriptions } from '@/composables/useVendorSubscriptions'
 import { useVendorCommercial } from '@/composables/useVendorCommercial'
 definePageMeta({ middleware: 'vendor', vendorCapability: 'vendor.read' })
 const { t, locale } = useI18n(); const route = useRoute(); const { can } = useVendorContext(); const api = useVendorSubscriptions()
 const id = computed(() => String(route.params.id))
-const isChild = computed(() => /\/terms\//.test(route.path))
+const isChild = computed(() => /\/(?:change\/?$|terms\/)/.test(route.path))
 const backTo = computed(() => customersReturnTo(route.query.returnTo))
 const { data: customer, error, pending, refresh } = await useAsyncData(() => `vendor:customer:${id.value}`, async () => {
   const c = await api.customer(id.value)
   if (!c) throw createError({ statusCode: 404, statusMessage: 'not_found' })
   return c
 })
+const hydrated = useHydrated()
+const canBilling = computed(() => can('vendor.billing.manage'))
 const sub = computed(() => customer.value?.subscription ?? null)
 const subId = computed(() => sub.value?.id)
 async function soft<T>(fn: () => Promise<T>): Promise<{ value: T | null; unavailable: boolean; failed: boolean }> {
@@ -24,7 +26,7 @@ const { data: extra, refresh: refreshExtra } = await useAsyncData(() => `vendor:
     s ? soft(() => api.subscription(s)) : Promise.resolve({ value: null, unavailable: false, failed: false }),
     s ? soft(() => api.branches(s)) : Promise.resolve({ value: null, unavailable: false, failed: false }),
     s ? soft(() => api.usage(s)) : Promise.resolve({ value: null, unavailable: false, failed: false }),
-    soft(() => api.listInvoices({ customer_id: id.value, limit: 10 })),
+    canBilling.value ? soft(() => api.listInvoices({ customer_id: id.value, limit: 10 })) : Promise.resolve({ value: null, unavailable: false, failed: false }),
     soft(() => useVendorCommercial().listPlans({ limit: 200 })),
     soft(() => useVendorCommercial().releases()),
   ])
@@ -38,7 +40,30 @@ const branchText = computed(() => (extra.value?.branches.value ? branchSummaryTe
 const invoices = computed(() => extra.value?.invoices.value?.items ?? [])
 const selfTo = computed(() => ({ query: { returnTo: backTo.value } }))
 const canTerms = computed(() => can('vendor.pricing.manage') && can('vendor.subscriptions.manage'))
-const canChange = computed(() => can('vendor.subscriptions.manage') && Boolean(view.value?.applied))
+const canChange = computed(() => can('vendor.subscriptions.manage') && Boolean(view.value) && !view.value?.pending_order)
+const cancelOpen = ref(false)
+const cancelReason = ref('')
+const cancelBusy = ref(false)
+const cancelFailure = ref<string | undefined>()
+const canCancel = computed(() => can('vendor.subscriptions.manage') && !error.value && !extra.value?.full.failed && !extra.value?.full.unavailable && view.value?.pending_order?.payment_state === 'awaiting_payment' && view.value.pending_order.fulfillment_state === 'not_started' && view.value.pending_order.kind !== 'renewal')
+const validCancelReason = computed(() => cancelReason.value.trim().length >= 3 && cancelReason.value.trim().length <= 1000)
+async function refreshCancellationState() {
+  await refresh()
+  await refreshExtra()
+}
+async function cancelPendingOrder() {
+  const order = view.value?.pending_order
+  if (!hydrated.value || cancelBusy.value || !canCancel.value || !order || !validCancelReason.value) return
+  cancelBusy.value = true; cancelFailure.value = undefined
+  try {
+    await api.cancelOrder(order.id, cancelReason.value.trim())
+    cancelReason.value = ''; cancelOpen.value = false
+  } catch (cause) {
+    cancelFailure.value = t(cancellationErrorKey(cause))
+  } finally {
+    try { await refreshCancellationState() } finally { cancelBusy.value = false }
+  }
+}
 </script>
 <template>
   <NuxtPage v-if="isChild" />
@@ -55,6 +80,14 @@ const canChange = computed(() => can('vendor.subscriptions.manage') && Boolean(v
         <UCard><template #header><h2 class="font-semibold">{{ t('vendor.customers.sections.subscription') }}</h2></template>
           <VendorSubscriptionSummary v-if="view" :subscription="view" :plan-name="planName" />
           <p v-else class="text-sm text-muted">{{ t('vendor.customers.noSubscription') }}</p>
+          <div v-if="canCancel || cancelFailure" class="mt-4 space-y-3">
+            <UAlert v-if="cancelFailure" color="error" variant="subtle" :title="cancelFailure" />
+            <SharedInlineConfirm v-if="cancelOpen && canCancel" :title="t('vendor.customers.cancelOrder.title')" :description="t('vendor.customers.cancelOrder.description')" :confirm-label="t('vendor.customers.cancelOrder.action')" :pending="cancelBusy" :disabled="!hydrated || cancelBusy || !validCancelReason" @confirm="cancelPendingOrder" @cancel="cancelOpen = false; cancelReason = ''; cancelFailure = undefined">
+              <UFormField :label="t('vendor.customers.cancelOrder.reason')" required class="mt-3"><UTextarea v-model="cancelReason" :maxlength="1000" :disabled="!hydrated || cancelBusy" class="w-full" /></UFormField>
+            </SharedInlineConfirm>
+            <UButton v-else-if="canCancel" color="error" variant="outline" :disabled="!hydrated || cancelBusy" @click="cancelOpen = true">{{ t('vendor.customers.cancelOrder.action') }}</UButton>
+          </div>
+          <UAlert v-if="extra?.full.failed" class="mt-3" color="error" variant="subtle" :title="t('vendor.customers.cancelOrder.refreshFailed')"><template #actions><UButton color="neutral" variant="outline" :disabled="!hydrated || cancelBusy" @click="refreshCancellationState">{{ t('app.retry') }}</UButton></template></UAlert>
           <NuxtLink v-if="customer.tenant_id" :to="{ path: `/vendor/tenants/${encodeURIComponent(customer.tenant_id)}` }" class="mt-3 inline-block text-sm text-primary">{{ t('vendor.customers.openTenant') }}</NuxtLink>
         </UCard>
         <UCard v-if="view?.applied"><template #header><h2 class="font-semibold">{{ t('vendor.customers.sections.services') }}</h2></template>
@@ -74,7 +107,7 @@ const canChange = computed(() => can('vendor.subscriptions.manage') && Boolean(v
           <p v-if="extra?.usage.unavailable" class="text-sm text-muted">{{ t('vendor.customers.sectionUnavailable') }}</p>
           <VendorUsageMeters v-else :usage="extra?.usage.value" />
         </UCard>
-        <UCard><template #header><div class="flex items-center justify-between gap-3"><h2 class="font-semibold">{{ t('vendor.customers.sections.invoices') }}</h2><UButton :to="{ path: '/vendor/invoices', query: { customer_id: id } }" color="neutral" variant="link">{{ t('vendor.customers.allInvoices') }}</UButton></div></template>
+        <UCard v-if="canBilling"><template #header><div class="flex items-center justify-between gap-3"><h2 class="font-semibold">{{ t('vendor.customers.sections.invoices') }}</h2><UButton :to="{ path: '/vendor/invoices', query: { customer_id: id } }" color="neutral" variant="link">{{ t('vendor.customers.allInvoices') }}</UButton></div></template>
           <p v-if="extra?.invoices.unavailable" class="text-sm text-muted">{{ t('vendor.customers.sectionUnavailable') }}</p>
           <p v-else-if="!invoices.length" class="text-sm text-muted">{{ t('vendor.invoices.empty') }}</p>
           <ul v-else class="divide-y divide-default">
@@ -98,5 +131,6 @@ const canChange = computed(() => can('vendor.subscriptions.manage') && Boolean(v
         </details>
       </div>
     </SharedPageState>
+    <SharedUnsavedChanges :dirty="Boolean(cancelReason.trim())" guard-route-updates />
   </SharedPageContainer>
 </template>

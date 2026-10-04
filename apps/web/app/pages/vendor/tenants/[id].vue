@@ -15,7 +15,7 @@ const vendorContext = useVendorContext()
 const { can } = vendorContext
 const id = computed(() => String(route.params.id))
 const { data: commercialCustomer } = await useAsyncData(() => `vendor:tenant-customer:${id.value}`, async () => {
-  try { const page = await useVendorSubscriptions().listCustomers({ limit: 200, offset: 0 }); return page.items.find(c => c.tenant_id === id.value) ?? null } catch { return null }
+  try { const page = await useVendorSubscriptions().listCustomers({ tenant_id: id.value, limit: 1 }); return page.items.find(c => c.tenant_id === id.value) ?? null } catch { return null }
 })
 const backTo = computed(() => safeReturnTo(route.query.returnTo, '/vendor/tenants', ['/vendor/tenants']))
 const { data, error, pending, refresh } = await useAsyncData(() => `vendor:tenant:${id.value}`, () => request<Tenant>(`tenants/${encodeURIComponent(id.value)}`))

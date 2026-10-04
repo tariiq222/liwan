@@ -2,11 +2,19 @@
 import { formatVendorMoney } from '@/utils/vendorCommercial'
 import { invoiceStatusColor, invoicesReturnTo, isCreditRelated, isNotAvailable } from '@/utils/vendorSubscriptions'
 import { useVendorSubscriptions } from '@/composables/useVendorSubscriptions'
-definePageMeta({ middleware: 'vendor', vendorCapability: 'vendor.read' })
+definePageMeta({ middleware: 'vendor', vendorCapability: 'vendor.billing.manage' })
 const { t, locale } = useI18n(); const route = useRoute(); const api = useVendorSubscriptions()
+const { can } = useVendorContext()
+const canBilling = computed(() => can('vendor.billing.manage'))
 const id = computed(() => String(route.params.id))
 const backTo = computed(() => invoicesReturnTo(route.query.returnTo))
 const { data, error, pending, refresh } = await useAsyncData(() => `vendor:invoice:${id.value}`, () => api.invoice(id.value))
+const orderId = computed(() => data.value?.order_id)
+const { data: attempts, error: attemptsError, pending: attemptsPending, refresh: refreshAttempts } = await useAsyncData(
+  () => `vendor:invoice-attempts:${id.value}:${orderId.value ?? 'none'}:${canBilling.value}`,
+  () => orderId.value && canBilling.value ? api.paymentAttempts(orderId.value) : Promise.resolve(null),
+)
+const attemptTime = (value: string) => new Date(value).toLocaleString(locale.value)
 const unavailable = computed(() => isNotAvailable(error.value) && !data.value)
 const money = (m: NonNullable<typeof data.value>['total']) => formatVendorMoney(m, locale.value)
 const date = (v: string | null) => (v ? new Date(v).toLocaleDateString(locale.value) : t('app.notAvailable'))
@@ -37,7 +45,18 @@ const date = (v: string | null) => (v ? new Date(v).toLocaleDateString(locale.va
           </dl>
           <p class="mt-2 text-xs text-muted">{{ t('vendor.invoices.vatNote') }}</p>
         </UCard>
-        <UCard><template #header><h2 class="font-semibold">{{ t('vendor.invoices.attempts') }}</h2></template><p class="text-sm text-muted">{{ t('vendor.invoices.attemptsNone') }}</p></UCard>
+        <UCard v-if="canBilling"><template #header><h2 class="font-semibold">{{ t('vendor.invoices.attempts') }}</h2></template>
+          <SharedPageState :loading="attemptsPending" :error="attemptsError" @retry="refreshAttempts">
+            <SharedEmptyState v-if="!attempts?.items.length" :title="t('vendor.invoices.attemptsNone')" icon="i-lucide-credit-card" />
+            <ul v-else class="divide-y divide-default">
+              <li v-for="attempt in attempts.items" :key="attempt.id" class="flex flex-wrap items-center justify-between gap-3 py-3" data-testid="payment-attempt">
+                <UBadge color="neutral" variant="subtle">{{ t(`vendor.invoices.attemptStatus.${attempt.status}`) }}</UBadge>
+                <span class="tabular-nums">{{ money(attempt.amount) }}</span>
+                <time :datetime="attempt.created_at" class="text-sm text-muted">{{ attemptTime(attempt.created_at) }}</time>
+              </li>
+            </ul>
+          </SharedPageState>
+        </UCard>
         <UCard><template #header><h2 class="font-semibold">{{ t('vendor.invoices.adjustments') }}</h2></template>
           <p class="text-sm" :class="isCreditRelated(data) ? '' : 'text-muted'">{{ isCreditRelated(data) ? t('vendor.invoices.creditPending') : t('vendor.invoices.adjustmentsNone') }}</p>
           <p class="mt-1 text-xs text-muted">{{ t('vendor.invoices.immutable') }}</p>

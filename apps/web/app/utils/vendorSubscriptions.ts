@@ -1,6 +1,6 @@
 import { subscriptionDisplayState, type Cadence, type Invoice, type InvoiceLine, type Order, type SubscriptionDisplayState, type SubscriptionView, type UsageMetric } from '@nasq/commercial-contracts'
 import {
-  CURRENCY, emptyLimit, limitFromDraft, parseCount, parseVendorMoneyInput, sar, type LimitDraft,
+  commercialErrorKey, commercialFailure, CURRENCY, emptyLimit, limitFromDraft, parseCount, parseVendorMoneyInput, sar, type LimitDraft,
 } from './vendorCommercial'
 
 export { subscriptionDisplayState }
@@ -149,7 +149,14 @@ export function hasTermsOverride(d: TermsDraft): boolean {
 /** Preview body for POST commercial/customer-quotes: the server computes both sides; `terms` is an unsaved draft, nothing is persisted. */
 export function customerQuoteBody(customerId: string, view: SubscriptionView, extra: { terms?: Omit<TermsPayload, 'customer_id' | 'reason'>; planRevisionId?: string; bundleIds?: string[]; cadence?: Cadence; extraBranches?: number } = {}) {
   const base = view.target ?? view.applied
-  if (!base) throw new Error('no_subscription')
+  if (!base) {
+    if (!extra.planRevisionId || !extra.cadence || !extra.bundleIds) throw new Error('no_subscription')
+    return {
+      customer_id: customerId, kind: 'new' as const, subscription_id: view.id, expected_subscription_revision: view.revision,
+      plan_revision_id: extra.planRevisionId, bundle_revision_ids: extra.bundleIds,
+      cadence: extra.cadence, requested_extra_branches: extra.extraBranches ?? 0,
+    }
+  }
   return {
     customer_id: customerId, kind: 'change' as const, subscription_id: view.id, expected_subscription_revision: view.revision,
     plan_revision_id: extra.planRevisionId ?? base.plan_revision_id, bundle_revision_ids: extra.bundleIds ?? base.bundle_revision_ids,
@@ -176,4 +183,11 @@ export function customersReturnTo(value: unknown): string {
 export function invoicesReturnTo(value: unknown): string {
   if (typeof value !== 'string' || !value.startsWith('/vendor/invoices')) return '/vendor/invoices'
   try { const u = new URL(value, 'http://nasq.local'); return u.pathname.replace(/\/$/, '') === '/vendor/invoices' ? `${u.pathname}${u.search}` : '/vendor/invoices' } catch { return '/vendor/invoices' }
+}
+
+/** Cancellation errors remain actionable without displaying provider internals. */
+export function cancellationErrorKey(cause: unknown): string {
+  const code = commercialFailure(cause).code
+  return ['order_not_cancellable', 'payment_reconciliation_required', 'provider_mismatch', 'reason_required'].includes(code)
+    ? `vendor.customers.cancelOrder.errors.${code}` : commercialErrorKey(cause)
 }

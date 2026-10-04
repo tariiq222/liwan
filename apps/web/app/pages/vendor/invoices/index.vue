@@ -2,7 +2,7 @@
 import { formatVendorMoney } from '@/utils/vendorCommercial'
 import { INVOICE_STATUS_FILTERS, invoiceListQuery, invoiceStatusColor, isInvoiceStatusFilter, isNotAvailable } from '@/utils/vendorSubscriptions'
 import { useVendorSubscriptions } from '@/composables/useVendorSubscriptions'
-definePageMeta({ middleware: 'vendor', vendorCapability: 'vendor.read' })
+definePageMeta({ middleware: 'vendor', vendorCapability: 'vendor.billing.manage' })
 const { t, locale } = useI18n(); const route = useRoute(); const router = useRouter(); const hydrated = useHydrated(); const api = useVendorSubscriptions()
 const PAGE = 25
 const customerId = computed(() => (typeof route.query.customer_id === 'string' ? route.query.customer_id : ''))

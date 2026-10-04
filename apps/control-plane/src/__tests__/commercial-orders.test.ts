@@ -10,6 +10,8 @@ import { routesB } from '../commercial/routes-b.js'
 import { SimulatorAdapter } from '../commercial/payment-simulator.js'
 import { createPaymentAttempt, handleProviderEvent } from '../commercial/payments.js'
 import { applyReceipt } from '../commercial/fulfillment.js'
+import { listBranches } from '../commercial/branches.js'
+import { applyDunning } from '../commercial/renewals.js'
 const suite = url ? describe : describe.skip
 suite('commercial B1 atomic orders', () => {
   const pool = new Pool({ connectionString: url, max: 8 })
@@ -113,9 +115,59 @@ suite('commercial B1 atomic orders', () => {
   it('allows a new acceptance after explicit cancellation releases the previous target', async () => {
     const id = await customer(), quote = await createQuoteForCustomer(pool, {customer_id:id,request:request()})
     const first = await acceptQuote(pool, accept(quote), vendor)
-    await cancelOrder(pool, {order_id:first.order.id,principal:vendor,reason:'Customer changed selection'})
-    const fresh = await createQuoteForCustomer(pool, {customer_id:id,request:request()})
+    const pathname = `/v1/commercial/orders/${first.order.id}/cancel`
+    const response = await routesB(pool, { method:'POST',pathname,raw:JSON.stringify({reason:'Customer changed selection'}),issuer:'commercial-test',actor:7,capabilities:vendor.capabilities }, new URL(pathname, 'http://localhost'))
+    expect(response).toMatchObject({status:200,data:{id:first.order.id}})
+    const view = await getSubscription(pool, id)
+    expect(view).toMatchObject({applied:null,target:null,pending_order:null,revision:2})
+    const fresh = await createQuoteForCustomer(pool, {customer_id:id,request:{...request(),subscription_id:view.id,expected_subscription_revision:view.revision}})
     expect((await acceptQuote(pool, accept(fresh), vendor)).replay).toBe(false)
+  })
+  it('releases only canceled-order pending extra branch reservations and permits the same names again', async () => {
+    const id = await customer(), req = { ...request(), requested_extra_branches: 2 }
+    const first = await acceptQuote(pool, accept(await createQuoteForCustomer(pool, {customer_id:id,request:req})), vendor)
+    const hq = randomUUID(), active = randomUUID()
+    // Unrelated applied resources must survive even if an inconsistent legacy row
+    // associates them with this order. Only unfulfilled extra reservations release.
+    await pool.query("INSERT INTO commercial_branches(id,subscription_id,name,kind,billing,state,order_id) VALUES($1,$3,'HQ','hq','included','active',$4),($2,$3,'Existing archived','extra','paid','archived',$4)", [hq, active, first.order.subscription_id, first.order.id])
+    expect(await listBranches(pool, first.order.subscription_id)).toMatchObject({free_extra_used:1,paid:1})
+    await cancelOrder(pool, {order_id:first.order.id,principal:vendor,reason:'Choose another initial plan'})
+    const old = await pool.query('SELECT id,state,archived_at FROM commercial_branches WHERE order_id=$1 ORDER BY name', [first.order.id])
+    expect(old.rows.filter(r => ![hq, active].includes(r.id))).toHaveLength(2)
+    expect(old.rows.filter(r => ![hq, active].includes(r.id)).every(r => r.state === 'archived' && r.archived_at)).toBe(true)
+    expect(old.rows.find(r => r.id === hq)?.state).toBe('active')
+    expect(old.rows.find(r => r.id === active)?.archived_at).toBeNull()
+    expect(await listBranches(pool, first.order.subscription_id)).toMatchObject({free_extra_used:0,paid:0})
+    const view = await getSubscription(pool, id)
+    const fresh = await createQuoteForCustomer(pool, {customer_id:id,request:{...req,subscription_id:view.id,expected_subscription_revision:view.revision}})
+    const replacement = await acceptQuote(pool, accept(fresh), vendor)
+    expect(replacement.order.kind).toBe('new')
+    expect(await listBranches(pool, view.id)).toMatchObject({free_extra_used:1,paid:1})
+    expect((await pool.query("SELECT name,state FROM commercial_branches WHERE order_id=$1 ORDER BY name", [replacement.order.id])).rows).toEqual([{name:'Branch 1',state:'pending'},{name:'Branch 2',state:'pending'}])
+  })
+  it('persists the full-cycle price baseline for a replacement initial order', async () => {
+    const id = await customer(), first = await acceptQuote(pool, accept(await createQuoteForCustomer(pool, {customer_id:id,request:request()})), vendor)
+    await cancelOrder(pool, {order_id:first.order.id,principal:vendor,reason:'Choose another initial plan'})
+    const view = await getSubscription(pool, id)
+    const fresh = await createQuoteForCustomer(pool, {customer_id:id,request:{...request(),requested_extra_branches:2,subscription_id:view.id,expected_subscription_revision:view.revision}})
+    const replacement = await acceptQuote(pool, accept(fresh), vendor)
+    const snapshot = (await pool.query('SELECT snapshot FROM subscription_revisions WHERE id=$1', [replacement.order.target_revision_id])).rows[0].snapshot
+    expect(snapshot.pricing).toMatchObject({base_minor:10000,branch_unit_minor:5000,paid_extra_branches:1})
+  })
+  it('voids the canceled purchase invoice without changing its immutable contents or collecting it later', async () => {
+    const id = await customer(), first = await acceptQuote(pool, accept(await createQuoteForCustomer(pool, {customer_id:id,request:request()})), vendor)
+    const before = (await pool.query('SELECT * FROM invoices WHERE order_id=$1', [first.order.id])).rows[0]
+    const lines = (await pool.query('SELECT * FROM invoice_lines WHERE invoice_id=$1 ORDER BY position', [before.id])).rows
+    await cancelOrder(pool, {order_id:first.order.id,principal:vendor,reason:'Choose another initial plan'})
+    expect((await pool.query('SELECT * FROM invoices WHERE id=$1', [before.id])).rows[0]).toEqual({...before,status:'void'})
+    expect((await pool.query('SELECT * FROM invoice_lines WHERE invoice_id=$1 ORDER BY position', [before.id])).rows).toEqual(lines)
+    const replacement = await acceptQuote(pool, accept(await createQuoteForCustomer(pool, {customer_id:id,request:request()})), vendor)
+    // Controlled SQL receipt boundary; this runs no provider or physical Odoo adapter.
+    await pool.query("UPDATE orders SET payment_state='paid',fulfillment_state='applied' WHERE id=$1", [replacement.order.id])
+    await pool.query("UPDATE invoices SET status='paid',paid_at=now() WHERE order_id=$1", [replacement.order.id])
+    await pool.query("UPDATE subscriptions SET applied_revision_id=target_revision_id,target_revision_id=NULL,state='active',revision=revision+1 WHERE id=$1", [replacement.order.subscription_id])
+    await applyDunning(pool, {now:new Date(Date.now()+3*86400000)})
+    expect((await pool.query('SELECT state FROM subscriptions WHERE id=$1', [replacement.order.subscription_id])).rows[0].state).toBe('active')
   })
   it('rejects expired quotes and quotes from another customer', async () => {
     const id=await customer()
@@ -192,7 +244,7 @@ describe('order cancellation provider uncertainty', () => {
     const result=await cancelOrder(f.pool,{order_id:'order',principal,reason:'Customer request',adapter:f.adapter})
     expect(result).toMatchObject({id:'order',payment_state:'awaiting_payment',fulfillment_state:'not_started'})
     expect(f.providerCalls).toEqual(['ref'])
-    expect(f.writes).toHaveLength(4)
+    expect(f.writes).toHaveLength(6)
   })
   it.each([{payment_state:'paid'}, {fulfillment_state:'applying'}])('refuses an order outside cancellable state %j', async(state)=>{
     const f=fixture({},state)

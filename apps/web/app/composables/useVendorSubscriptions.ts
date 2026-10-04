@@ -1,5 +1,6 @@
+import { commercialFailure } from '@/utils/vendorCommercial'
 import { normalizeQuoteResponse, withoutDraftTerms } from '@/utils/vendorSubscriptions'
-import type { BranchSummary, Invoice, Quote, SubscriptionView, UsageSnapshot, CustomerTermsRevision, Order } from '@nasq/commercial-contracts'
+import type { BranchSummary, Invoice, Quote, SubscriptionView, UsageSnapshot, CustomerTermsRevision, Order, PaymentAttempt } from '@nasq/commercial-contracts'
 import type { VendorCustomer, VendorCustomerList, VendorInvoiceList } from '@/utils/vendorSubscriptions'
 
 /** Typed access to the vendor customer / subscription / invoice endpoints (proxy /api/vendor/v1 → /v1). Totals and prices always come from the server. */
@@ -9,16 +10,12 @@ export function useVendorSubscriptions() {
   return {
     listCustomers: (query: Record<string, unknown>) => request<VendorCustomerList>('commercial/customers', { query }),
     createCustomer: (body: { name: string; tenant_id?: string; reason: string }) => request<VendorCustomer>('commercial/customers', { method: 'POST', body }),
-    /** No by-id customer route in the contract: page through the list. */
     customer: async (id: string) => {
-      for (let offset = 0; offset < 5000; offset += 200) {
-        const page = await request<VendorCustomerList>('commercial/customers', { query: { limit: 200, offset } })
-        const hit = page.items.find(c => c.id === id)
-        if (hit) return hit
-        if (offset + 200 >= page.total) break
-      }
-      return null
+      try { return await request<VendorCustomer>(`commercial/customers/${seg(id)}`) }
+      catch (cause) { if (commercialFailure(cause).status === 404) return null; throw cause }
     },
+    cancelOrder: (id: string, reason: string) => request<Order>(`commercial/orders/${seg(id)}/cancel`, { method: 'POST', body: { reason: reason.trim() } }),
+    paymentAttempts: (orderId: string) => request<{ items: PaymentAttempt[]; total: number }>(`commercial/orders/${seg(orderId)}/payment-attempts`),
     subscription: (id: string) => request<SubscriptionView>(`commercial/subscriptions/${seg(id)}`),
     branches: (subscriptionId: string) => request<BranchSummary>(`commercial/subscriptions/${seg(subscriptionId)}/branches`),
     usage: (subscriptionId: string) => request<UsageSnapshot>(`commercial/subscriptions/${seg(subscriptionId)}/usage`),

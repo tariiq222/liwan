@@ -2,13 +2,14 @@ import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
 import type { Pool } from 'pg'
 import type { IncomingHttpHeaders } from 'node:http'
-import { quoteRequestSchema, acceptQuoteRequestSchema, subscriptionDisplayState, customerTermsRevisionSchema, type Principal } from '@nasq/commercial-contracts'
+import { quoteRequestSchema, acceptQuoteRequestSchema, customerTermsRevisionSchema, type Principal } from '@nasq/commercial-contracts'
 import { parseBody, need, type CommercialInput } from './http.js'
 import { CommercialHttpError } from './lifecycle.js'
 import { createCustomerTerms } from './customer-terms.js'
 import { createQuoteForCustomer } from './quotes.js'
 import { getSubscription } from './subscriptions.js'
-import { acceptQuote } from './orders.js'
+import { acceptQuote, cancelOrder } from './orders.js'
+import { listCustomers, customerView } from './customers.js'
 import { listInvoices, getInvoice } from './invoices.js'
 import { listBranches } from './branches.js'
 import { getUsage } from './usage.js'
@@ -30,12 +31,8 @@ export async function routesB(pool: Pool, input: CommercialInput, url: URL, runt
   const principal:Principal={actor_id:String(input.actor),kind:'vendor',customer_id:null,tenant_id:null,capabilities:input.capabilities}
   if(path==='/customers'){
     if(m==='GET'){
-      need(input,'vendor.read');const state=url.searchParams.get('state')
-      if(state&&!['awaiting_payment','activating','active','failed','inactive','setup_required'].includes(state))throw new CommercialHttpError('invalid',422,'state')
-      const r=await pool.query('SELECT * FROM customers ORDER BY created_at DESC,id LIMIT 200')
-      const items=[]
-      for(const customer of r.rows){const subscription=await getSubscription(pool,customer.id).catch(e=>{if(e instanceof CommercialHttpError&&e.status===404)return null;throw e});const display_state=customer.commercial_setup_required?'setup_required':subscription?subscriptionDisplayState(subscription):'setup_required';if(!state||state===display_state)items.push({...customer,subscription,display_state})}
-      return {status:200,data:{items,total:items.length}}
+      need(input,'vendor.read')
+      return {status:200,data:await listCustomers(pool,url)}
     }
     if(m==='POST'){
       need(input,'vendor.subscriptions.manage')
@@ -44,7 +41,7 @@ export async function routesB(pool: Pool, input: CommercialInput, url: URL, runt
     }
   }
   const customerDetail=/^\/customers\/([^/]+)$/.exec(path)
-  if(m==='GET'&&customerDetail){need(input,'vendor.read');if(!z.uuid().safeParse(customerDetail[1]).success)throw new CommercialHttpError('not_found',404);const customer=(await pool.query('SELECT * FROM customers WHERE id=$1',[customerDetail[1]])).rows[0];if(!customer)throw new CommercialHttpError('not_found',404);const subscription=await getSubscription(pool,customer.id).catch(e=>{if(e instanceof CommercialHttpError&&e.status===404)return null;throw e});return {status:200,data:{...customer,subscription}}}
+  if(m==='GET'&&customerDetail){need(input,'vendor.read');if(!z.uuid().safeParse(customerDetail[1]).success)throw new CommercialHttpError('not_found',404);const customer=(await pool.query('SELECT * FROM customers WHERE id=$1',[customerDetail[1]])).rows[0];if(!customer)throw new CommercialHttpError('not_found',404);return {status:200,data:await customerView(pool,customer)}}
   const subscription=/^\/subscriptions\/([^/]+)(?:\/(branches|usage))?$/.exec(path)
   if(m==='GET'&&subscription){
     need(input,'vendor.read')
@@ -76,6 +73,13 @@ export async function routesB(pool: Pool, input: CommercialInput, url: URL, runt
   if(m==='POST'&&path==='/orders'){
     need(input,'vendor.subscriptions.manage')
     const result=await acceptQuote(pool,parseBody(input.raw,acceptQuoteRequestSchema),principal);return {status:result.replay?200:201,data:result}
+  }
+  const cancel=/^\/orders\/([^/]+)\/cancel$/.exec(path)
+  if(cancel&&m==='POST'){
+    need(input,'vendor.subscriptions.manage')
+    if(!z.uuid().safeParse(cancel[1]).success)throw new CommercialHttpError('not_found',404)
+    const body=parseBody(input.raw,z.strictObject({reason:z.string().trim().min(3).max(1000)}))
+    return {status:200,data:await cancelOrder(pool,{order_id:cancel[1]!,principal,reason:body.reason,adapter:runtime?.adapter ?? undefined})}
   }
   if(m==='GET'&&path==='/invoices'){need(input,'vendor.billing.manage');const customer=url.searchParams.get('customer_id');if(customer&&!z.uuid().safeParse(customer).success)throw new CommercialHttpError('invalid',422,'customer_id');return {status:200,data:await listInvoices(pool,{customer_id:customer??undefined})}}
   const invoice=/^\/invoices\/([^/]+)$/.exec(path)

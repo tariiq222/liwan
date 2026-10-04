@@ -817,9 +817,24 @@
         "onBehalf": "You are making this change on the customer's behalf.",
         "extraBranches": "Extra branches",
         "quote": "Calculate price",
-        "place": "Place order"
+        "place": "Place order",
+        "cadence": "Billing cadence",
+        "pendingOrder": "This subscription has a pending order. Review its status on the customer page before placing another order."
       },
-      "openProfile": "Open commercial profile"
+      "openProfile": "Open commercial profile",
+      "cancelOrder": {
+        "action": "Cancel pending order",
+        "title": "Cancel this unpaid order?",
+        "description": "The payment provider must confirm cancellation before you can choose another plan. Applied services stay as they are.",
+        "reason": "Cancellation reason (3–1000 characters)",
+        "refreshFailed": "Subscription status could not be refreshed. Reload before trying again.",
+        "errors": {
+          "order_not_cancellable": "This order can no longer be cancelled. Review the current subscription status.",
+          "payment_reconciliation_required": "Payment reconciliation is required before cancellation. Check the payment status, then retry.",
+          "provider_mismatch": "This payment belongs to a different provider. Review the payment configuration before retrying.",
+          "reason_required": "Enter a cancellation reason between 3 and 1000 characters."
+        }
+      }
     },
     "invoices": {
       "title": "Invoices and collection",
@@ -888,6 +903,15 @@
         "paid": "Paid",
         "void": "Void",
         "credit_pending": "Credit pending"
+      },
+      "attemptStatus": {
+        "created": "Created",
+        "redirected": "Redirected to payment",
+        "pending": "Pending",
+        "succeeded": "Succeeded",
+        "failed": "Failed",
+        "canceled": "Cancelled",
+        "unknown": "Unknown"
       }
     },
     "overviewCommercial": {

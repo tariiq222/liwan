@@ -144,7 +144,10 @@ export async function createQuoteForCustomer(pool: Pool, value: { customer_id: s
 }
 
 export function pricingBaseline(quote: Quote, included: number) {
-  const lines = quote.lines.filter(l => l.timing === (quote.subscription_id ? 'renewal' : 'now') && !l.key.endsWith(':delta'))
+  // Persisted quotes do not include request kind. The full base line identifies
+  // the target cycle: initial (including reselection) uses now; changes use renewal.
+  const timing = quote.lines.find(l => l.key === 'base' && l.kind === 'base')?.timing
+  const lines = quote.lines.filter(l => l.timing === timing && !l.key.endsWith(':delta'))
   const branch = lines.find(l => l.kind === 'branch')
   return { plan_revision_id: quote.plan_revision_id, bundle_revision_ids: quote.bundle_revision_ids,
     paid_extra_branches: Math.max(0, quote.requested_extra_branches - included), base_minor: lines.find(l => l.kind === 'base')?.amount.minor ?? 0,

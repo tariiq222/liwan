@@ -3,6 +3,7 @@ import { commercialMetrics } from '@/utils/vendorSubscriptions'
 import { useVendorSubscriptions } from '@/composables/useVendorSubscriptions'
 definePageMeta({ middleware: 'vendor', vendorCapability: 'vendor.read' })
 const { t } = useI18n()
+const { can } = useVendorContext()
 const { request } = useVendorApi()
 const { data, error, pending, refresh } = await useAsyncData('vendor:overview:all', () => request<{ tenants: number; active: number; pending_operations: number; failed_operations: number; last_health_at: string | null }>('overview', { query: { source: 'all' } }))
 const { data: commercial, pending: commercialPending } = await useAsyncData('vendor:overview:commercial', async () => {
@@ -40,7 +41,7 @@ const { data: commercial, pending: commercialPending } = await useAsyncData('ven
           <p v-if="commercial.total > commercial.metrics.counted" class="mt-3 text-sm text-warning">{{ t('vendor.overviewCommercial.partial', { count: commercial.metrics.counted }) }}</p>
         </template>
       </section>
-      <nav class="mt-6 flex flex-wrap gap-3"><UButton to="/vendor/tenants">{{ t('vendor.tenants.title') }}</UButton><UButton to="/vendor/customers" color="neutral" variant="outline">{{ t('vendor.overviewCommercial.customers') }}</UButton><UButton to="/vendor/invoices" color="neutral" variant="outline">{{ t('vendor.overviewCommercial.invoices') }}</UButton><UButton to="/vendor/catalog" color="neutral" variant="outline">{{ t('vendor.catalog.title') }}</UButton><UButton to="/vendor/operations" color="neutral" variant="outline">{{ t('vendor.operations.title') }}</UButton></nav>
+      <nav class="mt-6 flex flex-wrap gap-3"><UButton to="/vendor/tenants">{{ t('vendor.tenants.title') }}</UButton><UButton to="/vendor/customers" color="neutral" variant="outline">{{ t('vendor.overviewCommercial.customers') }}</UButton><UButton v-if="can('vendor.billing.manage')" to="/vendor/invoices" color="neutral" variant="outline">{{ t('vendor.overviewCommercial.invoices') }}</UButton><UButton to="/vendor/catalog" color="neutral" variant="outline">{{ t('vendor.catalog.title') }}</UButton><UButton to="/vendor/operations" color="neutral" variant="outline">{{ t('vendor.operations.title') }}</UButton></nav>
     </SharedPageState>
   </SharedPageContainer>
 </template>

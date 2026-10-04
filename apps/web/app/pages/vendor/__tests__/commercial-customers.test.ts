@@ -10,7 +10,8 @@ const flat = (o: unknown, prefix = ''): string[] => (o && typeof o === 'object' 
 
 describe('vendor commercial customers and invoices pages', () => {
   it('gates reads on vendor.read and terms/change on the manage capabilities', () => {
-    for (const p of ['customers.vue', 'customers/index.vue', 'customers/[id].vue', 'invoices.vue', 'invoices/index.vue', 'invoices/[id].vue']) expect(page(p)).toContain("vendorCapability: 'vendor.read'")
+    for (const p of ['customers.vue', 'customers/index.vue', 'customers/[id].vue']) expect(page(p)).toContain("vendorCapability: 'vendor.read'")
+    for (const p of ['invoices.vue', 'invoices/index.vue', 'invoices/[id].vue']) expect(page(p)).toContain("vendorCapability: 'vendor.billing.manage'")
     expect(page('customers/[id]/terms/new.vue')).toContain("vendorCapability: 'vendor.pricing.manage'")
     expect(page('customers/[id]/terms/new.vue')).toMatch(/can\('vendor\.pricing\.manage'\) && can\('vendor\.subscriptions\.manage'\)/)
     expect(page('customers/[id]/change.vue')).toContain("vendorCapability: 'vendor.subscriptions.manage'")

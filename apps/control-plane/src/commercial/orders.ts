@@ -25,7 +25,9 @@ export async function cancelOrder(pool: Pool, input: { order_id: string; princip
       throw new CommercialHttpError('not_found', 404)
     await client.query('SELECT id FROM subscriptions WHERE id=$1 FOR UPDATE', [found.subscription_id])
     const order = (await client.query('SELECT * FROM orders WHERE id=$1 FOR UPDATE', [input.order_id])).rows[0]
-    if (order.cancelled || order.payment_state !== 'awaiting_payment' || order.fulfillment_state !== 'not_started')
+    // Renewal cycles have a separate collection lifecycle and a unique period;
+    // purchase cancellation must not silently erase that cycle's obligation.
+    if (order.kind === 'renewal' || order.cancelled || order.payment_state !== 'awaiting_payment' || order.fulfillment_state !== 'not_started')
       throw new CommercialHttpError('order_not_cancellable', 409)
     const attempts = (await client.query("SELECT * FROM payment_attempts WHERE order_id=$1 AND status IN ('created','redirected','pending','unknown') FOR UPDATE", [order.id])).rows
     // Preflight every attempt before any provider or local cancellation effect.
@@ -41,8 +43,12 @@ export async function cancelOrder(pool: Pool, input: { order_id: string; princip
     }
     const updated = (await client.query('UPDATE orders SET cancelled=true WHERE id=$1 RETURNING *', [order.id])).rows[0]
     await client.query('UPDATE subscriptions SET target_revision_id=NULL,revision=revision+1 WHERE id=$1 AND target_revision_id=$2', [order.subscription_id,order.target_revision_id])
+    // Retain immutable purchase evidence while releasing unfulfilled reservations
+    // and preventing dunning from collecting the canceled purchase invoice.
+    const released = await client.query("UPDATE commercial_branches SET state='archived',archived_at=now() WHERE order_id=$1 AND subscription_id=$2 AND kind='extra' AND state='pending' RETURNING id", [order.id,order.subscription_id])
+    const voided = await client.query("UPDATE invoices SET status='void' WHERE order_id=$1 AND status='issued' RETURNING id", [order.id])
     await client.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)',
-      [randomUUID(),principal.actor_id,'order.cancelled',order.id,reason,JSON.stringify({ customer_id: order.customer_id, target_revision_id: order.target_revision_id })])
+      [randomUUID(),principal.actor_id,'order.cancelled',order.id,reason,JSON.stringify({ customer_id: order.customer_id, target_revision_id: order.target_revision_id, archived_branch_ids: released.rows.map(r => r.id), void_invoice_ids: voided.rows.map(r => r.id) })])
     return orderView(updated)
   })
 }
