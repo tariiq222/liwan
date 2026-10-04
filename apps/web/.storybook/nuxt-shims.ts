@@ -12,6 +12,8 @@ export { useHead } from '@unhead/vue'
 // --- fetch (MSW intercepts window.fetch underneath) -----------------------
 export const $fetch = ofetch.create({})
 export function useRequestHeaders(_keys?: string[]): Record<string, string> { return {} }
+// Browser-only: there is never a server request event in Storybook.
+export function useRequestEvent(): undefined { return undefined }
 
 // --- app / config ----------------------------------------------------------
 let router: Router | null = null
@@ -25,7 +27,7 @@ const nuxtApp = {
 }
 export function useNuxtApp() { return nuxtApp }
 export function tryUseNuxtApp() { return nuxtApp }
-export function useRuntimeConfig() { return { app: { baseURL: '/' }, public: { wsUrl: '' } } }
+export function useRuntimeConfig() { return { app: { baseURL: '/' }, public: { wsUrl: '', vendorWorkspaceEnabled: true } } }
 export function navigateTo(to: Parameters<Router['push']>[0], _opts?: unknown) { return router?.push(to) }
 
 // --- state / cookie --------------------------------------------------------
@@ -65,6 +67,18 @@ export function useFetch<T>(url: string | (() => string), opts: { key?: string; 
       e.status.value = 'error'
     }
   }
+  if (e.status.value === 'idle') void e.refresh()
+  const result = { data: e.data as Ref<T | null>, error: e.error, status: e.status, pending: ref(false), refresh: () => e.refresh(), execute: () => e.refresh() }
+  return Object.assign(Promise.resolve(result), result)
+}
+// useAsyncData runs its handler once per key (browser only); MSW answers the underlying requests.
+export function useAsyncData<T>(key: string, handler: () => Promise<T>, opts: { default?: () => T } = {}) {
+  const e = entry(key)
+  e.refresh = async () => {
+    e.status.value = 'pending'
+    try { e.data.value = await handler(); e.error.value = null; e.status.value = 'success' } catch (err) { e.error.value = err; e.status.value = 'error' }
+  }
+  if (e.data.value === null && opts.default) e.data.value = opts.default()
   if (e.status.value === 'idle') void e.refresh()
   const result = { data: e.data as Ref<T | null>, error: e.error, status: e.status, pending: ref(false), refresh: () => e.refresh(), execute: () => e.refresh() }
   return Object.assign(Promise.resolve(result), result)

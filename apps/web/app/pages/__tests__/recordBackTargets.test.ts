@@ -1,7 +1,10 @@
+import * as recordNavigation from '../../utils/recordListOrigin'
+import * as hrNavigation from '../../utils/hrReturnTo'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { compileScript, parse } from '@vue/compiler-sfc'
 import ts from 'typescript'
+import { refDebounced } from '@vueuse/core'
 import * as Vue from 'vue'
 import { createMemoryHistory, createRouter, type RouteLocationRaw, type Router } from 'vue-router'
 import { describe, expect, it } from 'vitest'
@@ -42,9 +45,11 @@ function loadSetupState(rel: string, router: Router) {
     compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.None },
   }).outputText
   const bindings: Record<string, unknown> = {
+    ...recordNavigation,
+    ...hrNavigation,
     _defineComponent: Vue.defineComponent,
     computed: Vue.computed, ref: Vue.ref, watch: Vue.watch, shallowRef: Vue.shallowRef, reactive: Vue.reactive,
-    inject: () => false, nextTick: Vue.nextTick,
+    inject: () => false, nextTick: Vue.nextTick, refDebounced,
     onMounted: () => undefined, onBeforeUnmount: () => undefined,
     useRoute: () => router.currentRoute.value, useRouter: () => router,
     useI18n: () => ({ t: (k: string) => k, locale: Vue.ref('ar'), localeProperties: Vue.ref({ dir: 'rtl' }) }),
@@ -183,4 +188,42 @@ describe('an edit form returns to the record it edits, not past it to the list',
 describe('a record returns to the list it belongs to', () => {
   expectTarget('record', RECORDS)
 
+})
+
+// Exercise the catalog's actual link builder: nesting the list URL in returnTo
+// loses its filters when the record/form strips that unrelated referrer.
+describe('template catalog navigation preserves direct list state', () => {
+  for (const creating of [false, true]) {
+    it(`catalog -> ${creating ? 'new -> ' : ''}record -> catalog keeps q and offset`, async () => {
+      const router = makeRouter()
+      await router.push(`${withState('/project-templates')}&offset=50`)
+      await router.isReady()
+      const scope = Vue.effectScope()
+      try {
+        const catalog = scope.run(() => loadSetupState('app/pages/project-templates/index.vue', router))!
+        const detailPath = catalog.detailPath as (id?: number) => RouteLocationRaw
+        await router.push(detailPath(creating ? undefined : 7))
+        expect(router.currentRoute.value.path).toBe(creating ? '/project-templates/new' : '/project-templates/7')
+        expect(router.currentRoute.value.query).toEqual({ q: 'عقد', offset: '50' })
+
+        if (creating) {
+          const form = scope.run(() => loadSetupState('app/pages/project-templates/new.vue', router))!
+          const cancel = router.resolve(Vue.unref(form.backTo as Vue.Ref<RouteLocationRaw>))
+          expect(cancel.path).toBe('/project-templates')
+          expect(cancel.query).toEqual({ q: 'عقد', offset: '50' })
+          const templatePath = form.templatePath as (id: number) => RouteLocationRaw
+          await router.push(templatePath(7))
+          expect(router.currentRoute.value.path).toBe('/project-templates/7')
+          expect(router.currentRoute.value.query).toEqual({ q: 'عقد', offset: '50' })
+        }
+
+        const record = scope.run(() => loadSetupState('app/pages/project-templates/[id].vue', router))!
+        await router.push(Vue.unref(record.backTo as Vue.Ref<RouteLocationRaw>))
+        expect(router.currentRoute.value.path).toBe('/project-templates')
+        expect(router.currentRoute.value.query).toEqual({ q: 'عقد', offset: '50' })
+      } finally {
+        scope.stop()
+      }
+    })
+  }
 })

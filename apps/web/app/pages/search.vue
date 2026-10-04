@@ -51,7 +51,7 @@ useEventListener('keydown', (event: KeyboardEvent) => {
     <section v-if="can('pmo.projects.read') && matchingProjects.length" class="grid gap-3">
       <h2 class="text-sm font-semibold text-muted">{{ t('nav.projects') }}</h2>
       <div class="divide-y divide-default overflow-hidden rounded-lg bg-default ring ring-default">
-        <NuxtLink v-for="project in matchingProjects" :key="project.id" :to="`/projects/${project.id}`" class="flex items-center gap-3 p-3 transition-colors hover:bg-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"><UIcon name="i-lucide-folder" aria-hidden="true" class="size-4.5 shrink-0 text-muted" /><span class="min-w-0 flex-1 truncate">{{ project.name }}</span><UIcon name="i-lucide-arrow-left" aria-hidden="true" class="size-4.5 shrink-0 text-muted ltr:rotate-180" /></NuxtLink>
+        <NuxtLink v-for="project in matchingProjects" :key="project.id" :to="{ path: `/projects/${project.id}`, query: { returnTo: route.fullPath } }" class="flex items-center gap-3 p-3 transition-colors hover:bg-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"><UIcon name="i-lucide-folder" aria-hidden="true" class="size-4.5 shrink-0 text-muted" /><span class="min-w-0 flex-1 truncate">{{ project.name }}</span><UIcon name="i-lucide-arrow-left" aria-hidden="true" class="size-4.5 shrink-0 text-muted ltr:rotate-180" /></NuxtLink>
       </div>
     </section>
     <p v-if="!nav.length && !matchingProjects.length && !isLoading && !error" class="rounded-lg bg-default p-4 text-sm text-muted ring ring-default">{{ t('app.noResults') }}</p>

@@ -6,6 +6,8 @@ import type { Config } from './config.js'
 import { dedicatedExecutionEnabled, inventory, resolveTargetLane, type TargetLane } from './http.js'
 import { hasUnresolvedMutation, transaction } from './db.js'
 import { runProcessGroup } from './process-group.js'
+import { resolveCatalogSource } from './shared/catalog-source.js'
+import { deriveFeatures } from './shared/catalog-features.js'
 
 const MUTATIONS = new Set(['tenant.create','tenant.entitle','backup','upgrade','restore'])
 // Only managed preflight refusals produced before any effect may return a
@@ -130,17 +132,13 @@ async function grantStillActive(pool: Pool, operation: Record<string, unknown>):
 async function policyForCreate(pool: Pool, tenant: Record<string, unknown>, config: Config): Promise<{ schema_version: number; channel: string; modules: string[]; features: Record<string, boolean | number | null> }> {
   const result = await pool.query("SELECT solution,source_sha256 FROM catalog_entries WHERE version=$1 AND status='published'", [tenant.catalog_version])
   if (!result.rowCount) throw new Error('published_catalog_missing')
-  const source = await readFile(join(config.repositoryRoot, 'deploy/catalog/solutions/platform.json'))
-  if (createHash('sha256').update(source).digest('hex') !== result.rows[0].source_sha256) throw new Error('catalog_source_changed')
-  const catalog = result.rows[0].solution as { base_modules?: string[]; tiers?: Array<{ id: string; modules?: string[]; features?: string[] }> }
+  try { await resolveCatalogSource(config.repositoryRoot, result.rows[0].source_sha256) } catch { throw new Error('catalog_source_changed') }
+  const catalog = result.rows[0].solution as { schema_version?: number; descriptor_grammar?: string; base_modules?: string[]; tiers?: Array<{ id: string; modules?: string[]; features?: string[] }> }
   const tier = catalog.tiers?.find((item) => item.id === tenant.catalog_tier)
   if (!tier || !Array.isArray(catalog.base_modules) || !Array.isArray(tier.modules) || !Array.isArray(tier.features)) throw new Error('catalog_tier_missing')
-  const features: Record<string, boolean | number | null> = { 'users.limit': null, 'storage.limit_mb': null }
-  for (const entry of tier.features) {
-    const [type, key] = entry.split(':')
-    if (!key || !/^[a-z][a-z0-9_.]*$/.test(key) || (type !== 'boolean' && type !== 'limit')) throw new Error('catalog_feature_invalid')
-    features[key] = type === 'boolean' ? true : null
-  }
+  // Keep the trusted catalog intact for the shared schema/descriptor parser;
+    // schema-2 fields (grammar and inherited core descriptors) are policy inputs.
+    const { features } = deriveFeatures(catalog as { schema_version?: number; tiers: Array<{ id: string; features: string[] }> }, { id: tier.id, features: tier.features })
   return { schema_version: 1, channel: tenant.commercial_mode === 'saas' ? 'control_plane' : 'local_policy', modules: [...catalog.base_modules, ...tier.modules], features }
 }
 

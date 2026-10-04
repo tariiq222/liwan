@@ -105,7 +105,7 @@ function openCreate() {
         <TaskBoard v-else :params="params" :stage-source="stageSource" embedded @open="(id: number) => router.push(taskTo(id))" />
       </div>
       <div class="flex justify-end">
-        <NuxtLink :to="{ path: '/archived-tasks', query: { project_id: projectId } }" class="text-sm text-muted hover:underline">{{ t('taskLifecycle.archivedTasks') }}</NuxtLink>
+        <NuxtLink :to="{ path: '/archived-tasks', query: { project_id: projectId, returnTo: route.fullPath } }" class="text-sm text-muted hover:underline">{{ t('taskLifecycle.archivedTasks') }}</NuxtLink>
       </div>
     </section>
   </SharedPageContainer>

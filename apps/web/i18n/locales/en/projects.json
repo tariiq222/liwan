@@ -237,7 +237,8 @@
       "openProjectFile": "Set project dates in the charter",
       "deleteBlocked": "Delete (linked to {count} tasks)",
       "deleteConfirm": "Delete milestone “{name}”?",
-      "actionsNamed": "Actions for milestone {name}"
+      "actionsNamed": "Actions for milestone {name}",
+      "nameRequired": "Enter a milestone name."
     },
     "updates": {
       "add": "Add update",
@@ -250,7 +251,8 @@
       "by": "by {name}",
       "posted": "Update posted",
       "showMore": "Show more",
-      "showLess": "Show less"
+      "showLess": "Show less",
+      "titleRequired": "Enter an update title."
     },
     "charter": {
       "title": "Project file",
@@ -524,7 +526,9 @@
         "missingDependency": "Choose predecessor tasks that still exist.",
         "dependencyCycle": "Predecessor tasks form a loop. Remove a dependency to break the loop.",
         "invalidFields": "Enter all names and check offsets (-3650 to 3650), durations (1 to 3650) and the limit of 100 rows per section.",
-        "applyFields": "Enter a project name and a valid start date."
+        "applyFields": "Enter a project name and a valid start date.",
+        "projectName": "Enter a project name of 1 to 255 characters.",
+        "startDate": "Enter a valid start date."
       },
       "pagination": {
         "label": "Template pages",
@@ -553,7 +557,8 @@
         "title": "Stakeholder",
         "createTitle": "Add stakeholder",
         "editTitle": "Edit stakeholder",
-        "noUsers": "No matching users"
+        "noUsers": "No matching users",
+        "nameRequired": "Enter a stakeholder name."
       },
       "registerForm": {
         "create": "Add item",
@@ -608,7 +613,8 @@
         "inProgress": "In progress",
         "resolved": "Resolved",
         "closed": "Closed",
-        "in_progress": "In progress"
+        "in_progress": "In progress",
+        "titleRequired": "Enter an item title."
       },
       "readOnly": "Project management permission is required to make changes.",
       "stakeholderAssigned": "Remove this stakeholder’s RACI assignments first.",

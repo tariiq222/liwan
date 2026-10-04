@@ -48,6 +48,31 @@ class TestEntitlements(TransactionCase):
         self.assertEqual(self.record.policy_revision, first_revision)
         self.assertTrue(self.record.features['hr.enabled'])
 
+    def test_legacy_missing_branch_preserves_feature_keys_and_input(self):
+        legacy = {key: value for key, value in self.record.features.items()
+                  if key != 'branches.extra_limit'}
+        original = dict(legacy)
+        cached = dict(self.record.features)
+        cleaned = self.service._nasq_validate_features(legacy)
+        self.assertEqual(cleaned, original)
+        self.assertEqual(legacy, original)
+        self.assertEqual(self.record.features, cached)
+        self._operator().write({'features': legacy})
+        self.record.invalidate_recordset(['features'])
+        self.assertEqual(self.record.features, original)
+        for key in ('users.limit', 'storage.limit_mb', 'pmo.enabled'):
+            with self.subTest(key=key), self.assertRaises(ValidationError):
+                self.service._nasq_validate_features({k: v for k, v in legacy.items() if k != key})
+
+    def test_branch_limit_values_remain_strict(self):
+        for value in (True, False, 0.0, -1):
+            with self.subTest(value=value), self.assertRaises(ValidationError):
+                self.service._nasq_validate_features({**self.record.features, 'branches.extra_limit': value})
+        for value in (None, 0, 1):
+            self.assertEqual(self.service._nasq_validate_features(
+                {**self.record.features, 'branches.extra_limit': value},
+            )['branches.extra_limit'], value)
+
     def test_customer_cannot_write_policy_fields(self):
         with self.assertRaises(AccessError):
             self.record.with_user(self.employee).write({'status': 'suspended'})
@@ -113,6 +138,7 @@ class TestEntitlements(TransactionCase):
         })
         self.assertEqual(set(self.features._nasq_limit_keys()), {
             'users.limit', 'projects.max_projects', 'storage.limit_mb',
+            'branches.extra_limit',
         })
         capability_map = self.env['nasq.access.service']._nasq_capability_map()
         self.assertEqual(set(capability_map), set(CAPABILITIES))

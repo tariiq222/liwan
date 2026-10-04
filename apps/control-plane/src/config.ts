@@ -2,6 +2,8 @@ import { readFileSync } from 'node:fs'
 import { isAbsolute } from 'node:path'
 
 export type Config = {
+  customerCommercialIssuer?: string
+  customerCommercialServiceKey?: string
   sharedRuntimeConfigPath?: string
   installationId: string
   key: string
@@ -19,6 +21,10 @@ export function getConfig(): Config & { databaseUrl: string; host: string; port:
   const installationId = required('CONTROL_INSTALLATION_ID')
   const key = required('CONTROL_SERVICE_KEY')
   if (Buffer.byteLength(key) < 32) throw new Error('CONTROL_SERVICE_KEY must contain at least 32 bytes')
+  const customerCommercialIssuer = process.env.CUSTOMER_COMMERCIAL_ISSUER
+  const customerCommercialServiceKey = process.env.CUSTOMER_COMMERCIAL_SERVICE_KEY
+  if (customerCommercialServiceKey && (Buffer.byteLength(customerCommercialServiceKey) < 32 || customerCommercialServiceKey === key)) throw new Error('CUSTOMER_COMMERCIAL_SERVICE_KEY must be distinct and contain at least 32 bytes')
+  if (customerCommercialIssuer && customerCommercialIssuer === installationId) throw new Error('CUSTOMER_COMMERCIAL_ISSUER must be distinct from vendor issuer')
   const inventoryPath = required('NASQ_CLI_INVENTORY')
   const managedInventoryPath = process.env.NASQ_MANAGED_INVENTORY
   const sharedRuntimeConfigPath = process.env.NASQ_SHARED_RUNTIME_CONFIG
@@ -32,6 +38,6 @@ export function getConfig(): Config & { databaseUrl: string; host: string; port:
   const tlsKey = process.env.CONTROL_TLS_KEY
   const tlsCert = process.env.CONTROL_TLS_CERT
   if ((host !== '127.0.0.1' && host !== '::1' && host !== 'localhost') && (!tlsKey || !tlsCert)) throw new Error('HTTPS is required outside loopback')
-  return { installationId, key, ...(sharedRuntimeConfigPath ? { sharedRuntimeConfigPath } : {}), inventoryPath, managedInventoryPath, ...(tenantRegistryPath ? { tenantRegistryPath } : {}), stateDir, repositoryRoot, python: process.env.NASQ_CLI_PYTHON ?? 'python3', databaseUrl: required('CONTROL_DATABASE_URL'), host, port,
+  return { installationId, key, customerCommercialIssuer, customerCommercialServiceKey, ...(sharedRuntimeConfigPath ? { sharedRuntimeConfigPath } : {}), inventoryPath, managedInventoryPath, ...(tenantRegistryPath ? { tenantRegistryPath } : {}), stateDir, repositoryRoot, python: process.env.NASQ_CLI_PYTHON ?? 'python3', databaseUrl: required('CONTROL_DATABASE_URL'), host, port,
     tls: tlsKey && tlsCert ? { key: readFileSync(tlsKey), cert: readFileSync(tlsCert) } : undefined }
 }

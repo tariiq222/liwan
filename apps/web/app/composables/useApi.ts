@@ -14,6 +14,7 @@ export class ApiError extends Error {
 }
 
 export function useApi() {
+  const { t } = useI18n()
   // Cookie forwarding is only meaningful during SSR: on the client the browser
   // already attaches the session cookie to same-origin requests.
   const headers = import.meta.server ? useRequestHeaders(['cookie']) : {}
@@ -45,7 +46,20 @@ export function useApi() {
       if (e?.name === 'ZodError' || e?.cause?.name === 'ZodError') throw e
       const status: number = e?.statusCode ?? e?.response?.status ?? 0
       const parsed = ApiErrorSchema.safeParse(e?.data)
-      if (parsed.success) throw new ApiError(status, parsed.data.code, parsed.data.message, parsed.data.field, parsed.data.details)
+      if (parsed.success) {
+        const { code, field, details } = parsed.data
+        let message = parsed.data.message
+        // Translate only structured quota denials; arbitrary server messages
+        // and other feature denials retain their existing meaning.
+        if (code === 'feature_not_included' && details?.reason === 'limit') {
+          const key = details.limit_key
+          const quota = key === 'users.limit' ? 'users'
+            : key === 'projects.max_projects' ? 'projects'
+              : key === 'storage.limit_mb' ? 'storage' : 'generic'
+          message = t(`errors.packageQuota.${quota}`)
+        }
+        throw new ApiError(status, code, message, field, details)
+      }
       throw new ApiError(status, 'http_error', e?.message ?? 'request failed')
     }
   }

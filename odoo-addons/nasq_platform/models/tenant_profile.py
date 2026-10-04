@@ -47,6 +47,9 @@ class NasqTenantProfile(models.Model):
     policy_revision = fields.Integer(default=0, required=True)
     quota_revision = fields.Integer(default=0, required=True)
     support_access_enabled = fields.Boolean(default=True, required=True)
+    commercial_revision_id = fields.Char()
+    commercial_digest = fields.Char()
+    commercial_applied_at = fields.Datetime()
 
     _singleton = models.Constraint(
         'UNIQUE(singleton_key)',
@@ -244,7 +247,10 @@ class NasqTenantProfile(models.Model):
         if 'terminology' in next_vals:
             next_vals['terminology'] = service._nasq_validate_terminology(next_vals['terminology'])
         policy_touch = set(next_vals) & (
-            POLICY_FIELDS - {'quota_revision', 'policy_revision'}
+            POLICY_FIELDS - {
+                'quota_revision', 'policy_revision', 'commercial_revision_id',
+                'commercial_digest', 'commercial_applied_at',
+            }
         )
         if policy_touch and 'policy_revision' not in next_vals:
             next_vals['policy_revision'] = (self.policy_revision or 0) + 1
@@ -253,6 +259,86 @@ class NasqTenantProfile(models.Model):
         if 'quota_revision' in next_vals and next_vals['quota_revision'] < 0:
             raise ValidationError(self.env._('nasq_platform: revisions cannot be negative'))
         return super().write(next_vals)
+
+    def _nasq_require_operator(self):
+        self.ensure_one()
+        if not (self.env.su and self.env.context.get(OPERATOR_CONTEXT)):
+            raise AccessError(self.env._('A trusted local operator is required.'))
+
+    def _nasq_apply_branches(self, operation_id, target_revision_id, branches):
+        """Bind control-plane branches to child companies of the root company.
+
+        Operator-only and idempotent per branch uid; returns the Odoo company id
+        for each requested branch.
+        """
+        self._nasq_require_operator()
+        if not operation_id or not isinstance(branches, (list, tuple)):
+            raise ValidationError(self.env._('branch_binding_invalid'))
+        requested = {}
+        for item in branches:
+            uid = item.get('branch_id') if isinstance(item, dict) else None
+            name = item.get('name') if isinstance(item, dict) else None
+            if not uid or not isinstance(uid, str) or not name or not isinstance(name, str):
+                raise ValidationError(self.env._('branch_binding_invalid'))
+            if uid in requested and requested[uid] != name:
+                raise ValidationError(self.env._('branch_binding_conflict'))
+            requested[uid] = name
+        profile = self._nasq_lock()
+        Branch = self.env['nasq.tenant.branch']
+        existing = Branch.search([('branch_uid', 'in', list(requested))])
+        by_uid = {branch.branch_uid: branch for branch in existing}
+        for branch in existing:
+            if (
+                branch.state != 'active'
+                or branch.company_id.parent_id != profile.root_company_id
+            ):
+                raise ValidationError(self.env._('branch_binding_conflict'))
+        new_uids = [uid for uid in requested if uid not in by_uid]
+        if new_uids:
+            active_count = Branch.search_count([('state', '=', 'active')])
+            self.env['nasq.entitlement.service'].require_within_limit(
+                'branches.extra_limit', active_count + len(new_uids),
+            )
+        result = []
+        for uid, name in requested.items():
+            branch = by_uid.get(uid)
+            if not branch:
+                company = self.env['res.company'].create({
+                    'name': name,
+                    'parent_id': profile.root_company_id.id,
+                })
+                branch = Branch.create({
+                    'branch_uid': uid,
+                    'company_id': company.id,
+                    'operation_id': operation_id,
+                    'target_revision_id': target_revision_id,
+                    'state': 'active',
+                })
+            result.append({'branch_id': uid, 'odoo_company_id': branch.company_id.id})
+        return result
+
+    def _nasq_archive_branch(self, operation_id, branch_uid):
+        self._nasq_require_operator()
+        self._nasq_lock()
+        branch = self.env['nasq.tenant.branch'].search([('branch_uid', '=', branch_uid)])
+        if not branch:
+            raise ValidationError(self.env._('branch_not_found'))
+        branch.write({'state': 'archived', 'operation_id': operation_id})
+        branch.company_id.write({'active': False})
+        return branch.company_id
+
+    def _nasq_bind_user_to_branch(self, user, branch_uid):
+        self._nasq_require_operator()
+        branch = self.env['nasq.tenant.branch'].search([
+            ('branch_uid', '=', branch_uid), ('state', '=', 'active'),
+        ])
+        if not branch or branch.company_id.root_id != self.root_company_id:
+            raise ValidationError(self.env._('branch_binding_conflict'))
+        user.write({
+            'company_ids': [(6, 0, branch.company_id.ids)],
+            'company_id': branch.company_id.id,
+        })
+        return user
 
     def unlink(self):
         raise ValidationError(self.env._('nasq tenant profile cannot be deleted.'))

@@ -29,6 +29,14 @@ export async function migrate(pool: Pool): Promise<void> {
   const sql6 = await readFile(new URL('./schema_006.sql', import.meta.url), 'utf8')
   const sql7 = await readFile(new URL('./schema_007.sql', import.meta.url), 'utf8')
   const sql8 = await readFile(new URL('./schema_008.sql', import.meta.url), 'utf8')
+  const sql11 = await readFile(new URL('./schema_011.sql', import.meta.url), 'utf8')
+  const sql12 = await readFile(new URL('./schema_012.sql', import.meta.url), 'utf8')
+  const sql13 = await readFile(new URL('./schema_013.sql', import.meta.url), 'utf8')
+  const sql14 = await readFile(new URL('./schema_014.sql', import.meta.url), 'utf8')
+  const sql15 = await readFile(new URL('./schema_015.sql', import.meta.url), 'utf8')
+  const sql16 = await readFile(new URL('./schema_016.sql', import.meta.url), 'utf8')
+  const sql17 = await readFile(new URL('./schema_017.sql', import.meta.url), 'utf8')
+  const sql18 = await readFile(new URL('./schema_018.sql', import.meta.url), 'utf8')
   const sql10 = await readFile(new URL('./schema_010.sql', import.meta.url), 'utf8')
   const sql9 = await readFile(new URL('./schema_009.sql', import.meta.url), 'utf8')
   await transaction(pool, async (client) => {
@@ -79,10 +87,46 @@ export async function migrate(pool: Pool): Promise<void> {
       await client.query(sql9)
       await client.query('INSERT INTO schema_migrations(version) VALUES(9)')
     }
+    const eleventh = await client.query('SELECT version FROM schema_migrations WHERE version=11')
     const tenth = await client.query('SELECT version FROM schema_migrations WHERE version=10')
     if (!tenth.rowCount) {
       await client.query(sql10)
       await client.query('INSERT INTO schema_migrations(version) VALUES(10)')
+    }
+    if (!eleventh.rowCount) {
+      await client.query(sql11)
+      await client.query('INSERT INTO schema_migrations(version) VALUES(11)')
+    }
+    const twelfth = await client.query('SELECT version FROM schema_migrations WHERE version=12')
+    if (!twelfth.rowCount) {
+      await client.query(sql12)
+      await client.query('INSERT INTO schema_migrations(version) VALUES(12)')
+    }
+    const thirteenth = await client.query('SELECT version FROM schema_migrations WHERE version=13')
+    if (!thirteenth.rowCount) {
+      await client.query(sql13)
+      await client.query('INSERT INTO schema_migrations(version) VALUES(13)')
+    }
+    const fourteenth = await client.query('SELECT version FROM schema_migrations WHERE version=14')
+    if (!fourteenth.rowCount) {
+      await client.query(sql14)
+      await client.query('INSERT INTO schema_migrations(version) VALUES(14)')
+    }
+    const fifteenth = await client.query('SELECT version FROM schema_migrations WHERE version=15')
+    if (!fifteenth.rowCount) {
+      await client.query(sql15)
+      await client.query('INSERT INTO schema_migrations(version) VALUES(15)')
+    }
+    const sixteenth = await client.query('SELECT version FROM schema_migrations WHERE version=16')
+    if (!sixteenth.rowCount) {
+      await client.query(sql16)
+      await client.query('INSERT INTO schema_migrations(version) VALUES(16)')
+    }
+    for (const [version, body] of [[17, sql17], [18, sql18]] as const) {
+      if (!(await client.query(`SELECT version FROM schema_migrations WHERE version=${version}`)).rowCount) {
+        await client.query(body)
+        await client.query(`INSERT INTO schema_migrations(version) VALUES(${version})`)
+      }
     }
   })
 }

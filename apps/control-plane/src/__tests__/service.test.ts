@@ -28,8 +28,7 @@ else describe('control-plane PostgreSQL integration', () => {
 
   beforeAll(async () => {
     await migrate(pool)
-    await pool.query('TRUNCATE tenants CASCADE')
-    await pool.query('TRUNCATE catalog_entries')
+    await pool.query('TRUNCATE tenants, package_revisions, commercial_packages, catalog_entries CASCADE')
     await pool.query('DELETE FROM vendor_memberships')
     fixtureDir = await mkdtemp(join(tmpdir(), 'nasq-control-test-'))
     const classification = join(fixtureDir, 'classification.json')

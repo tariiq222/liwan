@@ -34,6 +34,8 @@ const error = ref<string | null>(null)
 // Errors without a visible owning field stay in the form-level alert.
 const errorField = ref<string | null>(null)
 const submitted = ref(false)
+// Local required-field attempts must not mark the draft as successfully saved.
+const requiredAttempted = ref(false)
 const baseline = ref(JSON.stringify(['', '', [], props.projectId, props.milestoneId ?? undefined, '', '']))
 
 const milestoneProjectId = computed(() => selectedProjectId.value ?? null)
@@ -130,6 +132,10 @@ const visibleErrorFields = computed(() => {
 const generalError = computed(() => errorField.value && visibleErrorFields.value.includes(errorField.value) ? null : error.value)
 
 function fieldError(field: string): string | undefined {
+  if (requiredAttempted.value) {
+    if (field === 'name') return !name.value.trim() ? t('tasks.nameRequired') : undefined
+    if (field === 'project_id') return !selectedProjectId.value ? t('tasks.projectRequired') : undefined
+  }
   return errorField.value === field && visibleErrorFields.value.includes(field) ? error.value ?? undefined : undefined
 }
 
@@ -140,10 +146,17 @@ function policyErrorField(key: string): string | null {
 }
 
 async function submit() {
+  if (!hydrated.value || isPending.value) return
+  requiredAttempted.value = true
   error.value = null
   errorField.value = null
   const trimmed = name.value.trim()
-  if (!hydrated.value || isPending.value || !trimmed || !selectedProjectId.value) return
+  if (!trimmed || !selectedProjectId.value) {
+    errorField.value = !trimmed ? 'name' : 'project_id'
+    error.value = t(!trimmed ? 'tasks.nameRequired' : 'tasks.projectRequired')
+    return
+  }
+  requiredAttempted.value = false
   if (policyError.value) {
     error.value = t(policyError.value)
     errorField.value = policyErrorField(policyError.value)
@@ -176,7 +189,8 @@ async function submit() {
 
 <template>
   <SharedUnsavedChanges :dirty="dirty" />
-  <form data-testid="task-create-form" class="grid gap-5" @submit.prevent="submit">
+  <form novalidate data-testid="task-create-form" class="grid gap-5" @submit.prevent="submit">
+    <UAlert v-if="generalError" role="alert" class="sm:col-span-2" color="error" variant="subtle" :title="generalError" />
     <UFormField :label="t('tasks.newTitle')" name="name" required :error="fieldError('name')">
       <UInput id="new-task-name" v-model="name" required class="w-full" :disabled="!hydrated || isPending" />
     </UFormField>
@@ -235,10 +249,9 @@ async function submit() {
         </UFormField>
       </div>
     </component>
-    <p v-if="generalError" role="alert" class="sm:col-span-2 text-sm text-error">{{ generalError }}</p>
     <div class="flex flex-wrap gap-2 justify-end sm:col-span-2">
       <UButton color="neutral" variant="outline" type="button" :disabled="isPending" @click="emit('cancel')">{{ t('app.cancel') }}</UButton>
-      <UButton type="submit" :loading="isPending" :disabled="!hydrated || isPending || !name.trim() || !selectedProjectId">{{ t('app.create') }}</UButton>
+      <UButton type="submit" :loading="isPending" :disabled="!hydrated || isPending">{{ t('app.create') }}</UButton>
     </div>
   </form>
 </template>

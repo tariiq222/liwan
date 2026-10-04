@@ -11,6 +11,7 @@ POLICY_FIELDS = frozenset({
     'solution', 'tier', 'status', 'valid_until', 'features',
     'retained_read_features', 'terminology', 'policy_revision',
     'quota_revision', 'support_access_enabled', 'commercial_mode', 'entitlement_source',
+    'commercial_revision_id', 'commercial_digest', 'commercial_applied_at',
 })
 OPERATOR_CONTEXT = 'nasq_platform.operator_policy'
 TERMINOLOGY_LOCALES = ('ar', 'en')
@@ -405,7 +406,9 @@ class NasqEntitlementService(models.AbstractModel):
             required = module_id == 'nasq_platform' or module_id in installed
             if item['type'] == 'boolean' and required:
                 required_boolean.append(key)
-            if item['type'] == 'limit' and required:
+            if (item['type'] == 'limit' and required
+                    and (key != 'branches.extra_limit' or key in features)):
+                # Legacy signed policies omit only this later platform limit.
                 required_limit.append(key)
         for key, value in features.items():
             definition = registry.get(key)
@@ -526,6 +529,7 @@ class NasqEntitlementService(models.AbstractModel):
         features = {
             'users.limit': None,
             'storage.limit_mb': None,
+            'branches.extra_limit': None,
         }
         grants = {
             'nasq_pmo': (

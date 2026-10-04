@@ -45,6 +45,7 @@ export function activeShellModule(path: string): ShellModule | null {
   if (path === '/meetings' || path.startsWith('/meetings/')) return 'meetings'
   if (path === '/hr' || path.startsWith('/hr/')) return 'hr'
   if (path === '/settings' || path.startsWith('/settings/')) return 'settings'
+  if (path === '/subscription' || path.startsWith('/subscription/')) return 'settings'
   if (path === '/reports' || path.startsWith('/reports/')) return 'projects'
   if (path === '/tasks' || path.startsWith('/tasks/') || path === '/archived-tasks') return 'projects'
   if (path === '/projects' || path.startsWith('/projects/') || path === '/project-templates' || path.startsWith('/project-templates/')) return 'projects'

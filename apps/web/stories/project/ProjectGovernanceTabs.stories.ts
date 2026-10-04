@@ -9,7 +9,7 @@ const meta = {
   title: 'Project/ProjectGovernanceTabs',
   component: ProjectGovernanceTabs,
   args: { projectId: 1 },
-  parameters: storyContext('apps/web/app/pages/projects/[id].vue:75', 'تبويبات الحوكمة الفرعية تحت صفّ أقسام المشروع، بنفس الخط المستقيم. تظهر في كل صفحات الحوكمة وسجلاتها.'),
+  parameters: storyContext('apps/web/app/pages/projects/[id].vue:97', 'تبويبات الحوكمة الفرعية تحت صفّ أقسام المشروع، بنفس الخط المستقيم. تظهر في كل صفحات الحوكمة وسجلاتها.'),
   render: args => ({
     components: { ProjectGovernanceTabs, ProjectWorkspaceTabs },
     setup: () => {

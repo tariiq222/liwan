@@ -1,3 +1,4 @@
+import * as recordNavigation from '../../utils/recordListOrigin'
 import { meetingTabFromRoute, meetingTabQuery, isMeetingTab } from '../../utils/meetingTabs'
 import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -32,6 +33,7 @@ function evaluatedDetailPage() {
   const pendingRequest = new Promise<void>(resolveRequest => { release = resolveRequest })
   const runResolution = vi.fn(() => pendingRequest)
   const scope = {
+    ...recordNavigation,
     meetingTabFromRoute, meetingTabQuery, isMeetingTab,
     onMounted: () => {}, onBeforeUnmount: () => {}, // DOM scrolling is covered by the browser suite.
 
@@ -110,6 +112,7 @@ function evaluatedMinutesPage(mutation = deferredMutation(), state = 'confirmed'
   const meeting = ref({ id: 7, name: 'Operations review', state, can_edit: canEdit, can_manage: canManage, agenda: '<p>Agenda</p>', minutes: '<p>Minutes</p>' })
   const navigateTo = vi.fn(async () => {})
   const scope = {
+    ...recordNavigation,
     ref,
     computed,
     watch,
@@ -133,6 +136,7 @@ function evaluatedSeriesSettingsPage(mutation = deferredMutation()): Record<stri
   const series = ref({ id: 12, name: 'Weekly operations', can_edit: true, location: 'Room 1', meeting_url: 'https://meet.example.test/old', secretary: null, attendees: [], organizer: { id: 3, name: 'Tariq' }, recurrence: 'weekly', until_count: 4, until_date: null })
   const navigateTo = vi.fn(async () => {})
   const scope = {
+    ...recordNavigation,
     ref,
     computed,
     watch,
@@ -170,6 +174,7 @@ function evaluatedGeneralEditPage(canEdit = true): Record<string, any> {
   const mutateAsync = vi.fn(async () => ({}))
   const navigateTo = vi.fn(async () => {})
   const scope = {
+    ...recordNavigation,
     ref,
     computed,
     watch,

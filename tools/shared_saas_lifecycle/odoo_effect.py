@@ -17,9 +17,10 @@ import subprocess
 import sys
 import threading
 
-from tools.nasq_cli.managed_verify import build_policy_script, build_snapshot_script, parse_snapshot
+from tools.nasq_cli.managed_verify import ERROR_CODES, VerificationError, build_policy_script, build_snapshot_script, parse_snapshot
+from tools.shared_saas_lifecycle.catalog_source import CatalogSourceError, resolve_catalog_path
 from tools.nasq_cli.managed_credentials import build_credentials_script, parse_credentials
-from tools.nasq_cli.managed_policy import parse_create_policy
+from tools.nasq_cli.managed_policy import POLICY_ERROR_CODES, PolicyError, parse_create_policy, parse_package_create_policy
 
 ALLOWED_MODULES = {'nasq_core', 'nasq_platform', 'nasq_api', 'nasq_pmo', 'nasq_hr', 'nasq_chat'}
 MAX_OUTPUT = 65536
@@ -202,10 +203,22 @@ class Runner:
             return
         # Policy composition is checked against the shipped catalog bytes, in
         # addition to the signed immutable catalog selected by the server.
-        catalog = Path(__file__).resolve().parents[2] / 'deploy/catalog/solutions/platform.json'
+        try:
+            catalog = resolve_catalog_path(self.request['job']['catalog']['sourceSha256'])
+        except CatalogSourceError:
+            raise
         policy = json.dumps(self.request['job']['policy']).encode()
-        parse_create_policy(policy, catalog_path=catalog,
-                            catalog_sha256='sha256:' + self.request['job']['catalog']['sourceSha256'], commercial_mode='saas')
+        reference = self.request['job'].get('packageAuthority')
+        trusted = self.request.get('packageAuthority')
+        if reference is not None or trusted is not None:
+            if not reference or reference.get('catalog') != self.request['job']['catalog']:
+                raise EffectError('package_authority_mismatch')
+            parse_package_create_policy(policy, catalog_path=catalog,
+                catalog_sha256='sha256:' + self.request['job']['catalog']['sourceSha256'],
+                commercial_mode='saas', package_reference=reference, trusted_authority=trusted)
+        else:
+            parse_create_policy(policy, catalog_path=catalog,
+                                catalog_sha256='sha256:' + self.request['job']['catalog']['sourceSha256'], commercial_mode='saas')
 
     def exists(self):
         sql = "SELECT count(*) FROM pg_database WHERE datname='" + self.database + "'"
@@ -294,7 +307,8 @@ class Runner:
 
     def admin_script(self, secret, *, snapshot):
         values = {'database': self.database, 'name': self.request['admin']['name'], 'login': self.request['admin']['login'],
-                  'companyName': self.request['companyName'], 'modules': self.request['job']['policy']['modules']}
+                  'companyName': self.request['companyName'], 'modules': self.request['job']['policy']['modules'],
+                  'packageAdmin': self.request['job'].get('packageAuthority') is not None}
         prefix = 'import json\nvalues = json.loads(' + repr(json.dumps(values)) + ')\nsecret = ' + repr(secret) + '\nsnapshot = ' + repr(snapshot) + '\n'
         return prefix + '''
 result = {'verified': False}
@@ -322,6 +336,21 @@ try:
             assignment = env['nasq.access.assignment'].search([('user_id', '=', admin.id), ('role_id', '=', role.id), ('company_id', '=', profile.root_company_id.id)])
             if not assignment:
                 env['nasq.access.assignment'].create({'user_id': admin.id, 'role_id': role.id, 'company_id': profile.root_company_id.id})
+        if values['packageAdmin']:
+            # The stock nasq install seeds admin as vendor support. A package
+            # customer administrator is counted against users.limit instead.
+            support = env.ref('nasq_core.group_vendor_support')
+            admin._nasq_access_write({'group_ids': [(3, support.id, 0)]}, 'access.users.assign_roles')
+            # Role creation above may have synced support's wildcard grants.
+            # Re-derive permission groups from retained customer assignments;
+            # the existing service preserves unrelated explicit groups.
+            admin._nasq_sync_capability_groups()
+            env.flush_all()
+    if values['packageAdmin']:
+        service = env['nasq.entitlement.service']
+        assert not admin.share and not admin.has_group('nasq_core.group_vendor_support')
+        assert admin.id not in service._nasq_excluded_user_ids()
+        assert service._nasq_count_users() >= 1
     assert admin.login == values['login'] and admin.name == values['name']
     assert profile.root_company_id.name == values['companyName']
     assigned = env['nasq.access.assignment'].search([('user_id', '=', admin.id), ('company_id', '=', profile.root_company_id.id)]).mapped('role_id.key')
@@ -391,6 +420,22 @@ print('NASQ_SHARED_ADMIN:' + json.dumps(result))
         return verified_observation(self.request, result == {'authenticated': True})
 
 
+# Non-secret refusal codes that may be reported; everything else is opaque.
+REPORTABLE_CODES = frozenset(ERROR_CODES) | {
+    'catalog_source_unavailable', 'catalog_source_ambiguous',
+} | set(POLICY_ERROR_CODES)
+
+
+def classify_error(error):
+    code = getattr(error, 'code', None)
+    if isinstance(error, (VerificationError, CatalogSourceError)) and code in REPORTABLE_CODES:
+        return code
+    # Policy/catalog validation refusals carry stable safe codes only.
+    if isinstance(error, PolicyError) and error.code in POLICY_ERROR_CODES:
+        return error.code
+    return 'shared_effect_unverified'
+
+
 def main():
     runner = None
     try:
@@ -410,9 +455,10 @@ def main():
             runner.apply_owned()
         else:
             raise EffectError('operation_unavailable')
-    except Exception:
+    except Exception as error:
         # Never disclose input, secret, command output, paths or exception text.
-        emit({'error_code': 'shared_effect_unverified'})
+        # Only a code from the explicit allowlist crosses the boundary.
+        emit({'error_code': classify_error(error)})
         return 1
     return 0
 

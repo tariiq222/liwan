@@ -47,7 +47,12 @@ STORYBOOK_COMPONENTS: tuple[str, ...] = tuple(COMPONENTS + path for path in (
     'project/workspace/ProjectWorkspaceTabs.vue', 'project/workspace/ProjectGovernanceTabs.vue',
     'shared/RichText.vue', 'shared/Pagination.vue', 'shared/MetricTile.vue', 'shared/InlineConfirm.vue',
     'shared/RowActions.vue', 'shared/PersonPicker.vue', 'shared/FilterChip.vue', 'shared/FilterChoice.vue',
-    'shared/FilterField.vue', 'project/ProjectCharterForm.vue',
+    'shared/FilterField.vue', 'project/ProjectCharterForm.vue', 'vendor/PackageForm.vue',
+    'vendor/PriceBreakdown.vue', 'vendor/EntitlementSummary.vue', 'vendor/LifecycleBadge.vue', 'vendor/PriceListEditor.vue',
+    'vendor/CapacityLimitsEditor.vue', 'vendor/BundleForm.vue', 'vendor/PlanForm.vue', 'vendor/LifecyclePanel.vue',
+    'subscription/StateBadge.vue', 'subscription/UsagePanel.vue', 'subscription/AutoRenewControl.vue',
+    'subscription/InvoiceLines.vue', 'subscription/BranchSummary.vue',
+    'vendor/SubscriptionSummary.vue', 'vendor/CustomerTermsForm.vue', 'vendor/InvoiceLines.vue', 'vendor/OrderStateBadge.vue', 'vendor/UsageMeters.vue',
 ))
 STORY_CONTEXT = re.compile(r'''\bstoryContext\(\s*(['"])([^'"]+)\1''')
 META_COMPONENT = re.compile(r'\bcomponent:\s*(\w+)')
@@ -475,7 +480,7 @@ PAGE_SHELLS = ('SharedPageContainer', 'SharedCreatePanel', 'SettingsLayout', 'na
 # Route parents that render a list or <NuxtPage /> by route, plus the unshelled
 # roots. Each entry is a deliberate exception, not a backlog.
 PAGE_SHELL_EXEMPT = frozenset(PAGES + name for name in (
-    'index.vue', 'vendor/index.vue', 'login.vue', 'reports.vue', 'hr/employees/[employeeId]/access.vue', 'meetings.vue',
+    'index.vue', 'vendor/index.vue', 'vendor/catalog.vue', 'vendor/bundles.vue', 'vendor/plans.vue', 'vendor/customers.vue', 'vendor/invoices.vue', 'login.vue', 'reports.vue', 'hr/employees/[employeeId]/access.vue', 'meetings.vue',
     'projects.vue', 'project-templates.vue', 'hr.vue', 'hr/departments.vue', 'settings/users.vue',
     'settings/roles.vue', 'projects/settings/catalogs/[resource].vue',
 ))

@@ -21,6 +21,7 @@ test('task attachments upload, download real bytes, delete, and reload', async (
   const taskId = await createTask(page, `E2E attachment ${Date.now()}`)
   await page.goto(`/tasks/${taskId}`)
 
+  await page.getByTestId('task-detail-tabs').getByRole('tab', { name: 'المرفقات', exact: true }).click()
   const section = page.getByTestId('task-attachments')
   await expect(section).toBeVisible()
   const filename = `e2e-${Date.now()}.pdf`
@@ -28,7 +29,8 @@ test('task attachments upload, download real bytes, delete, and reload', async (
   const uploaded = page.waitForResponse((response) =>
     response.url().includes(`/api/v1/tasks/${taskId}/attachments`) && response.request().method() === 'POST',
   )
-  await section.getByLabel('رفع ملف').setInputFiles({ name: filename, mimeType: 'application/pdf', buffer: content })
+  await expect(section.getByLabel('رفع ملف')).toBeEnabled()
+  await section.locator('input[type="file"]').setInputFiles({ name: filename, mimeType: 'application/pdf', buffer: content })
   expect((await uploaded).status()).toBe(201)
   const link = section.getByRole('link', { name: filename })
   await expect(link).toBeVisible()
@@ -53,6 +55,8 @@ test('task attachments upload, download real bytes, delete, and reload', async (
   expect((await deleted).status()).toBe(204)
   await expect(link).toHaveCount(0)
   await page.reload()
+  await page.getByTestId('task-detail-tabs').getByRole('tab', { name: 'المرفقات', exact: true }).click()
+  await expect(section).toBeVisible()
   await expect(page.getByTestId('task-attachments').getByRole('link', { name: filename })).toHaveCount(0)
 })
 

@@ -79,7 +79,11 @@ test('template application creates independent scheduled tasks through the inter
   await expect(page).toHaveURL(url => url.pathname === `/project-templates/${template.id}/apply`)
   const appliedName = `مشروع من قالب ${Date.now()}`
   await page.getByLabel('اسم المشروع الجديد').fill(appliedName)
-  await page.getByLabel('تاريخ البداية', { exact: true }).fill('2030-05-01')
+  // The shared date field is a calendar control. Fix only the browser date
+  // so the intended start date is visible without time-dependent paging.
+  await page.clock.setFixedTime(new Date('2030-05-01T12:00:00Z'))
+  await page.getByRole('button', { name: /^تاريخ البداية:/ }).click()
+  await page.getByRole('button', { name: 'الأربعاء، 1 مايو 2030', exact: true }).click()
   await page.getByRole('button', { name: 'استخدام القالب', exact: true }).click()
   await expect(page).toHaveURL(/\/projects\/\d+$/)
   const projectId = Number(new URL(page.url()).pathname.split('/').at(-1))
@@ -95,7 +99,8 @@ test('template application creates independent scheduled tasks through the inter
   const another = await json(await page.request.get(`/api/v1/projects/${again.id}/schedule`))
   expect(another.tasks.map((item: { id: number }) => item.id).some((id: number) => schedule.tasks.some((item: { id: number }) => item.id === id))).toBe(false)
   await page.getByRole('link', { name: 'مهامي', exact: true }).first().click()
-  await page.getByRole('combobox').first().click()
+  await page.getByRole('button', { name: /^البحث والفلاتر/ }).click()
+  await page.locator('#task-filter-project').click()
   await expect(page.getByRole('option', { name: appliedName, exact: true })).toBeVisible()
   await page.keyboard.press('Escape')
   await page.goto(`/project-templates/${template.id}/edit`)
@@ -177,8 +182,7 @@ test('schedule keeps drafts after errors, guards navigation and clears dates exp
 
 test('template editor saves a real draft, blocks pending edits and preserves catalog navigation', async ({ page }) => {
   const name = `قالب عبر النموذج ${Date.now()}`
-  const catalog = `/project-templates?q=${encodeURIComponent(name)}`
-  await page.goto(`/project-templates/new?returnTo=${encodeURIComponent(catalog)}`)
+  await page.goto(`/project-templates/new?q=${encodeURIComponent(name)}`)
   await expect(page.getByRole('dialog')).toBeVisible()
   await expect(page.getByRole('heading', { name: 'قالب مشروع جديد' })).toBeVisible()
   await page.locator('[name="template-name"]').fill(name)
@@ -192,7 +196,7 @@ test('template editor saves a real draft, blocks pending edits and preserves cat
   await page.locator('[name="task-milestone-0"]').selectOption({ label: 'التسليم' })
   await page.getByRole('button', { name: 'إضافة مهمة', exact: true }).click()
   await page.locator('[name="task-name-1"]').fill('التنفيذ الفعلي')
-  await page.locator('[name="task-dependencies-1"]').selectOption({ label: 'تجهيز المتطلبات' })
+  await page.getByRole('checkbox', { name: 'تجهيز المتطلبات', exact: true }).check()
   let release!: () => void
   const gate = new Promise<void>(resolve => { release = resolve })
   await page.route('**/api/v1/project-templates', async route => {
@@ -211,12 +215,12 @@ test('template editor saves a real draft, blocks pending edits and preserves cat
   await expect(page.locator('[name="template-name"]')).toHaveValue(name)
   await page.reload()
   await expect(page.locator('[name="task-name-1"]')).toHaveValue('التنفيذ الفعلي')
-  const stages = page.locator('form section').filter({ has: page.getByRole('heading', { name: 'المراحل', exact: true }) })
+  const stages = page.locator('form fieldset > [data-slot="root"]').filter({ has: page.getByRole('heading', { name: 'المراحل', exact: true }) })
   await stages.getByRole('button', { name: 'إزالة', exact: true }).first().click()
   await expect(page.getByRole('alert')).toContainText('انقل مهام هذه المرحلة')
-  const milestones = page.locator('form section').filter({ has: page.getByRole('heading', { name: 'المعالم', exact: true }) })
+  const milestones = page.locator('form fieldset > [data-slot="root"]').filter({ has: page.getByRole('heading', { name: 'المعالم', exact: true }) })
   await milestones.getByRole('button', { name: 'إزالة', exact: true }).click()
-  const tasks = page.locator('form section').filter({ has: page.getByRole('heading', { name: 'المهام', exact: true }) })
+  const tasks = page.locator('form fieldset > [data-slot="root"]').filter({ has: page.getByRole('heading', { name: 'المهام', exact: true }) })
   await tasks.getByRole('button', { name: 'إزالة', exact: true }).first().click()
   await page.getByRole('button', { name: 'حفظ', exact: true }).click()
   await expect(page).toHaveURL(url => url.pathname === `/project-templates/${templateId}`)
@@ -228,7 +232,8 @@ test('template editor saves a real draft, blocks pending edits and preserves cat
   await page.getByRole('button', { name: 'إلغاء', exact: true }).click()
   await expect(page).toHaveURL(url => url.pathname === `/project-templates/${templateId}`)
   await expect(page.getByRole('alertdialog')).toHaveCount(0)
-  await page.locator(`a[href="${catalog}"]`).click()
+  await page.getByRole('main').getByRole('link', { name: 'رجوع', exact: true }).click()
+  await expect(page).toHaveURL(url => url.pathname === '/project-templates' && url.searchParams.get('q') === name)
   await expect(page.locator('[name="template-search"]')).toHaveValue(name)
   await expect(page.getByRole('link', { name: new RegExp(name) })).toBeVisible()
   await page.getByRole('link', { name: new RegExp(name) }).click()

@@ -1,28 +1,18 @@
 <script setup lang="ts">
+import type { Operation as LegacyOperation, OperationFeed } from '@nasq/commercial-contracts'
 import { safeReturnTo } from '@/utils/safeReturnTo'
 definePageMeta({ middleware: 'vendor', vendorCapability: 'vendor.read' })
-type Operation = {
-  id: string
-  tenant_id: string
-  type: string
-  status: string
-  stage: string
-  request_id: string
-  reason: string
-  result: Record<string, unknown> | null
-  created_at: string
-  updated_at: string
-  events?: { stage: string; status: string; at: string }[]
-}
+type Operation = LegacyOperation | OperationFeed
 
 const { t } = useI18n()
 const route = useRoute()
 const { request } = useVendorApi()
 const id = computed(() => String(route.params.id))
+const source = computed(() => route.query.source === undefined ? 'legacy' : String(route.query.source))
 const backTo = computed(() => safeReturnTo(route.query.returnTo, '/vendor/operations', ['/vendor/operations']))
 const { data, error, pending, refresh } = await useAsyncData(
-  () => `vendor:operation:${id.value}`,
-  () => request<Operation>(`operations/${encodeURIComponent(id.value)}`),
+  () => `vendor:operation:${source.value}:${id.value}`,
+  () => request<Operation>(`operations/${encodeURIComponent(id.value)}`, { query: { source: source.value } }),
 )
 const { can } = useVendorContext()
 const busy = ref(false)
@@ -32,7 +22,8 @@ const pollCount = ref(0)
 let pollTimer: ReturnType<typeof setTimeout> | undefined
 
 const isActive = computed(() => data.value?.status === 'queued' || data.value?.status === 'running')
-const canRetry = computed(() => data.value?.status === 'failed' && ['tenant.inspect', 'health'].includes(data.value.type))
+const isShared = computed(() => source.value === 'shared' || (data.value && 'source' in data.value && data.value.source === 'shared'))
+const canRetry = computed(() => !isShared.value && data.value?.status === 'failed' && ['tenant.inspect', 'health'].includes(data.value.type))
 const needsAttention = computed(() => data.value?.status === 'needs_intervention' || data.value?.stage === 'deployment_incomplete')
 const deploymentIncomplete = computed(() => data.value?.stage === 'deployment_incomplete' || data.value?.result?.deployment_ready === false)
 const backupUnverified = computed(() => data.value?.type === 'backup' && data.value?.result?.consistency === 'UNVERIFIED')
@@ -98,10 +89,11 @@ async function retry() {
             <div><dt class="text-sm text-muted">{{ t('vendor.operations.type') }}</dt><dd class="mt-1">{{ t(`vendor.operations.types.${data.type}`, data.type) }}</dd></div>
             <div><dt class="text-sm text-muted">{{ t('vendor.common.status') }}</dt><dd class="mt-1"><UBadge color="neutral" variant="subtle">{{ t(`vendor.status.${data.status}`) }}</UBadge></dd></div>
             <div><dt class="text-sm text-muted">{{ t('vendor.operations.stage') }}</dt><dd class="mt-1">{{ t(`vendor.operations.stages.${data.stage}`, data.stage) }}</dd></div>
-            <div><dt class="text-sm text-muted">{{ t('vendor.operations.target') }}</dt><dd class="mt-1"><bdi>{{ data.tenant_id }}</bdi></dd></div>
+            <div><dt class="text-sm text-muted">{{ t('vendor.operations.target') }}</dt><dd class="mt-1"><NuxtLink :to="`/vendor/tenants/${data.tenant_id}`" class="text-primary underline"><bdi>{{ data.tenant_id }}</bdi></NuxtLink></dd></div>
             <div><dt class="text-sm text-muted">{{ t('vendor.operations.requestId') }}</dt><dd class="mt-1 break-all font-mono text-xs">{{ data.request_id }}</dd></div>
           </dl>
-          <p class="mt-4 text-sm">{{ data.reason }}</p>
+          <p class="mt-4 text-sm">{{ isShared ? t(`vendor.operations.reasons.${data.reason}`) : data.reason }}</p>
+          <UAlert v-if="isShared" class="mt-4" color="info" variant="subtle" :title="t('vendor.operations.sharedExecution')" :description="t('vendor.operations.sharedExecutionHint')" />
           <UAlert v-if="needsAttention" class="mt-4" color="warning" variant="subtle" :title="t(deploymentIncomplete ? 'vendor.operations.deploymentIncomplete' : 'vendor.operations.needsAttention')" :description="t('vendor.operations.reconcileHint')" />
           <UAlert v-else-if="backupUnverified" class="mt-4" color="warning" variant="subtle" :title="t('vendor.operations.backupUnverified')" :description="t('vendor.operations.backupUnverifiedHint')" />
           <div v-if="can('vendor.operations.run') && canRetry" class="mt-5 border-t border-default pt-4">

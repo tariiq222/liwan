@@ -246,7 +246,7 @@
         {
           "id": "InFormField",
           "name": "داخل حقل نموذج",
-          "context": "apps/web/app/pages/meetings/[id]/resolutions/new.vue:97"
+          "context": "apps/web/app/pages/meetings/[id]/resolutions/new.vue:92"
         },
         {
           "id": "WithLabel",
@@ -597,7 +597,7 @@
         {
           "id": "Stakeholders",
           "name": "أصحاب المصلحة",
-          "context": "apps/web/app/pages/projects/[id].vue:75"
+          "context": "apps/web/app/pages/projects/[id].vue:97"
         }
       ]
     },
@@ -628,12 +628,12 @@
         {
           "id": "Active",
           "name": "مشروع نشط",
-          "context": "apps/web/app/pages/projects/[id].vue:74"
+          "context": "apps/web/app/pages/projects/[id].vue:96"
         },
         {
           "id": "Archived",
           "name": "مشروع مؤرشف",
-          "context": "apps/web/app/pages/projects/[id].vue:74"
+          "context": "apps/web/app/pages/projects/[id].vue:96"
         }
       ]
     },
@@ -935,7 +935,7 @@
         {
           "id": "InMeetingAttachments",
           "name": "داخل مرفقات الاجتماع",
-          "context": "apps/web/app/pages/meetings/[id].vue:619"
+          "context": "apps/web/app/pages/meetings/[id].vue:616"
         },
         {
           "id": "InDocumentCard",
@@ -945,7 +945,7 @@
         {
           "id": "Disabled",
           "name": "معطّل",
-          "context": "apps/web/app/pages/meetings/[id].vue:619"
+          "context": "apps/web/app/pages/meetings/[id].vue:616"
         }
       ]
     },
@@ -1369,7 +1369,7 @@
         {
           "id": "Detail",
           "name": "صفحة تفاصيل",
-          "context": "apps/web/app/pages/meetings/[id]/print.vue:59"
+          "context": "apps/web/app/pages/meetings/[id]/print.vue:54"
         },
         {
           "id": "Form",
@@ -1650,7 +1650,7 @@
         {
           "id": "FixedOptions",
           "name": "من قائمة ثابتة",
-          "context": "apps/web/app/pages/meetings/[id]/resolutions/new.vue:80"
+          "context": "apps/web/app/pages/meetings/[id]/resolutions/new.vue:75"
         }
       ]
     },
@@ -1857,6 +1857,201 @@
           "id": "Active",
           "name": "نشط",
           "context": "unused"
+        }
+      ]
+    },
+    {
+      "name": "SubscriptionAutoRenewControl",
+      "file": "apps/web/app/components/subscription/AutoRenewControl.vue",
+      "story": "apps/web/stories/subscription/AutoRenewControl.stories.ts",
+      "title": "Subscription/AutoRenewControl",
+      "props": [
+        {
+          "name": "enabled",
+          "type": "boolean",
+          "required": true
+        },
+        {
+          "name": "canManage",
+          "type": "boolean",
+          "required": true
+        },
+        {
+          "name": "pending",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "hydrated",
+          "type": "boolean",
+          "required": false
+        }
+      ],
+      "events": [
+        {
+          "name": "change",
+          "payload": "[enabled: boolean]"
+        }
+      ],
+      "slots": [],
+      "nuxtUi": [
+        "UBadge",
+        "UButton",
+        "UCheckbox"
+      ],
+      "stories": [
+        {
+          "id": "Off",
+          "name": "Off",
+          "context": "apps/web/app/pages/subscription/index.vue:66"
+        },
+        {
+          "id": "On",
+          "name": "On",
+          "context": "apps/web/app/pages/subscription/index.vue:66"
+        },
+        {
+          "id": "ReadOnly",
+          "name": "ReadOnly",
+          "context": "apps/web/app/pages/subscription/index.vue:66"
+        },
+        {
+          "id": "Saving",
+          "name": "Saving",
+          "context": "apps/web/app/pages/subscription/index.vue:66"
+        }
+      ]
+    },
+    {
+      "name": "SubscriptionBranchSummary",
+      "file": "apps/web/app/components/subscription/BranchSummary.vue",
+      "story": "apps/web/stories/subscription/BranchSummary.stories.ts",
+      "title": "Subscription/BranchSummary",
+      "props": [
+        {
+          "name": "summary",
+          "type": "{ items: { id: string; subscription_id: string; tenant_id: string; name: string; kind: \"hq\" | \"extra\"; billing: \"paid\" | \"included\" | \"free_extra\"; state: \"active\" | \"archived\" | \"pending\" | \"failed\"; odoo_company_id: number | null; order_id: string | null; activated_at: string | null; archived_at: string | null; }[]; total: number; hq: 1; free_extra_used: number; free_extra_allowed: number; paid: number; limit: number | null; }",
+          "required": true
+        }
+      ],
+      "events": [],
+      "slots": [],
+      "nuxtUi": [
+        "UBadge"
+      ],
+      "stories": [
+        {
+          "id": "Mixed",
+          "name": "Mixed",
+          "context": "apps/web/app/pages/subscription/branches.vue:17"
+        },
+        {
+          "id": "HeadquartersOnly",
+          "name": "HeadquartersOnly",
+          "context": "apps/web/app/pages/subscription/branches.vue:17"
+        }
+      ]
+    },
+    {
+      "name": "SubscriptionInvoiceLines",
+      "file": "apps/web/app/components/subscription/InvoiceLines.vue",
+      "story": "apps/web/stories/subscription/InvoiceLines.stories.ts",
+      "title": "Subscription/InvoiceLines",
+      "props": [
+        {
+          "name": "invoice",
+          "type": "{ id: string; number: string | null; customer_id: string; subscription_id: string; order_id: string | null; kind: \"change\" | \"initial\" | \"adjustment\" | \"renewal\"; status: \"draft\" | \"void\" | \"issued\" | \"paid\" | \"credit_pending\"; currency: string; lines: { key: string; kind: \"base\" | \"bundle\" | \"branch\" | \"discount\" | \"tax\" | \"adjustment\"; timing: \"now\" | \"renewal\"; description: string; quantity: number; unit_amount: { currency: string; exponent: number; minor: number; }; amount: { currency: string; exponent: number; minor: number; }; period_start: string; period_end: string; source_revision_id: string; free_quantity?: number | undefined; }[]; subtotal: { currency: string; exponent: number; minor: number; }; tax: { currency: string; exponent: number; minor: number; }; total: { currency: string; exponent: number; minor: number; }; period_start: string; period_end: string; issued_at: string | null; due_at: string | null; paid_at: string | null; tax_label: \"VAT 15% exclusive\"; official_tax_invoice: false; }",
+          "required": true
+        }
+      ],
+      "events": [],
+      "slots": [],
+      "nuxtUi": [],
+      "stories": [
+        {
+          "id": "Issued",
+          "name": "Issued",
+          "context": "apps/web/app/pages/subscription/invoices/[id].vue:15"
+        }
+      ]
+    },
+    {
+      "name": "SubscriptionStateBadge",
+      "file": "apps/web/app/components/subscription/StateBadge.vue",
+      "story": "apps/web/stories/subscription/StateBadge.stories.ts",
+      "title": "Subscription/StateBadge",
+      "props": [
+        {
+          "name": "state",
+          "type": "globalThis.SubscriptionDisplayState",
+          "required": true
+        }
+      ],
+      "events": [],
+      "slots": [],
+      "nuxtUi": [
+        "UBadge"
+      ],
+      "stories": [
+        {
+          "id": "Active",
+          "name": "Active",
+          "context": "apps/web/app/pages/subscription/index.vue:34"
+        },
+        {
+          "id": "AwaitingPayment",
+          "name": "AwaitingPayment",
+          "context": "apps/web/app/pages/subscription/index.vue:34"
+        },
+        {
+          "id": "Activating",
+          "name": "Activating",
+          "context": "apps/web/app/pages/subscription/index.vue:34"
+        },
+        {
+          "id": "Failed",
+          "name": "Failed",
+          "context": "apps/web/app/pages/subscription/index.vue:34"
+        },
+        {
+          "id": "Inactive",
+          "name": "Inactive",
+          "context": "apps/web/app/pages/subscription/index.vue:34"
+        }
+      ]
+    },
+    {
+      "name": "SubscriptionUsagePanel",
+      "file": "apps/web/app/components/subscription/UsagePanel.vue",
+      "story": "apps/web/stories/subscription/UsagePanel.stories.ts",
+      "title": "Subscription/UsagePanel",
+      "props": [
+        {
+          "name": "usage",
+          "type": "{ tenant_id: string; observed_at: string | null; policy_revision_id: string; freshness: \"fresh\" | \"stale\" | \"unavailable\"; metrics: { key: string; used: number | null; limit: number | null; unit: \"users\" | \"projects\" | \"attachment_bytes\" | \"extra_branches\"; reason: \"source_unreachable\" | \"timeout\" | \"not_collected\" | \"forbidden\" | null; }[]; }",
+          "required": true
+        }
+      ],
+      "events": [],
+      "slots": [],
+      "nuxtUi": [
+        "UBadge"
+      ],
+      "stories": [
+        {
+          "id": "Fresh",
+          "name": "Fresh",
+          "context": "apps/web/app/pages/subscription/index.vue:53"
+        },
+        {
+          "id": "Stale",
+          "name": "Stale",
+          "context": "apps/web/app/pages/subscription/index.vue:53"
+        },
+        {
+          "id": "Unavailable",
+          "name": "Unavailable",
+          "context": "apps/web/app/pages/subscription/index.vue:53"
         }
       ]
     },
@@ -2184,6 +2379,854 @@
           "id": "ProjectBoard",
           "name": "في لوحة المشروع (بلا اسم المشروع)",
           "context": "apps/web/app/components/task/TaskBoard.vue:152"
+        }
+      ]
+    },
+    {
+      "name": "VendorBundleForm",
+      "file": "apps/web/app/components/vendor/BundleForm.vue",
+      "story": "apps/web/stories/vendor/BundleForm.stories.ts",
+      "title": "Vendor/BundleForm",
+      "props": [
+        {
+          "name": "releases",
+          "type": "{ id: string; version: string; source_digest: string; artifact_digest: string; applications: { id: string; name_ar: string; name_en: string; modules: string[]; requires_apps: string[]; conflicts_with_apps: string[]; selectable: boolean; features: { key: string; kind: \"boolean\" | \"limit\"; selectable: boolean; requires: string[]; enforcement_refs: string[]; ceiling?: number | undefined; }[]; }[]; base_modules?: string[] | undefined; }[]",
+          "required": true
+        },
+        {
+          "name": "initial",
+          "type": "{ bundle_id: string; description: string; catalog_release_id: string; selections: { app_id: string; feature_keys: string[]; }[]; domain_limits: Record<string, number | null>; id: string; version: number; edit_revision: number; name: string; status: \"draft\" | \"validated\" | \"published\"; available: boolean; audience: { kind: \"public\"; } | { kind: \"customer\"; customer_id: string; }; prices: { cadence: { unit: \"month\" | \"year\"; count: number; }; amount: { currency: string; exponent: number; minor: number; }; }[]; content_digest: string; validated_digest: string | null; customer_count: number; created_at: string; published_at: string | null; issues: { code: string; field?: string | undefined; }[]; }",
+          "required": false
+        },
+        {
+          "name": "busy",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
+        },
+        {
+          "name": "error",
+          "type": "unknown",
+          "required": false
+        },
+        {
+          "name": "resetKey",
+          "type": "number",
+          "required": false,
+          "default": "0"
+        },
+        {
+          "name": "requireReason",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
+        },
+        {
+          "name": "canPrice",
+          "type": "boolean",
+          "required": false,
+          "default": "true"
+        }
+      ],
+      "events": [
+        {
+          "name": "cancel",
+          "payload": "[]"
+        },
+        {
+          "name": "save",
+          "payload": "[draft: globalThis.BundleDraft, release: { id: string; version: string; source_digest: string; artifact_digest: string; applications: { id: string; name_ar: string; name_en: string; modules: string[]; requires_apps: string[]; conflicts_with_apps: string[]; selectable: boolean; features: { key: string; kind: \"boolean\" | \"limit\"; selectable: boolean; requires: string[]; enforcement_refs: string[]; ceiling?: number | undefined; }[]; }[]; base_modules?: string[] | undefined; } | undefined]"
+        }
+      ],
+      "slots": [],
+      "nuxtUi": [
+        "UAlert",
+        "UButton",
+        "UCheckbox",
+        "UFormField",
+        "UIcon",
+        "UInput",
+        "USelect",
+        "UTextarea"
+      ],
+      "stories": [
+        {
+          "id": "Create",
+          "name": "Create",
+          "context": "apps/web/app/pages/vendor/bundles/new.vue:39"
+        },
+        {
+          "id": "Saving",
+          "name": "Saving",
+          "context": "apps/web/app/pages/vendor/bundles/new.vue:39"
+        },
+        {
+          "id": "Conflict",
+          "name": "Conflict",
+          "context": "apps/web/app/pages/vendor/bundles/new.vue:39"
+        },
+        {
+          "id": "PriceMissing",
+          "name": "PriceMissing",
+          "context": "apps/web/app/pages/vendor/bundles/new.vue:39"
+        }
+      ]
+    },
+    {
+      "name": "VendorCapacityLimitsEditor",
+      "file": "apps/web/app/components/vendor/CapacityLimitsEditor.vue",
+      "story": "apps/web/stories/vendor/CapacityLimitsEditor.stories.ts",
+      "title": "Vendor/CapacityLimitsEditor",
+      "props": [
+        {
+          "name": "modelValue",
+          "type": "Record<string, globalThis.LimitDraft>",
+          "required": true
+        },
+        {
+          "name": "keys",
+          "type": "string[]",
+          "required": true
+        },
+        {
+          "name": "labels",
+          "type": "Record<string, string>",
+          "required": true
+        },
+        {
+          "name": "hints",
+          "type": "Record<string, string>",
+          "required": false
+        },
+        {
+          "name": "disabled",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
+        },
+        {
+          "name": "showErrors",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
+        },
+        {
+          "name": "serverErrors",
+          "type": "Record<string, string>",
+          "required": false
+        },
+        {
+          "name": "noneAllowed",
+          "type": "boolean",
+          "required": false,
+          "default": "true"
+        }
+      ],
+      "events": [
+        {
+          "name": "update:modelValue",
+          "payload": "[Record<string, globalThis.LimitDraft>]"
+        }
+      ],
+      "slots": [],
+      "nuxtUi": [
+        "UFormField",
+        "UInput",
+        "USelect"
+      ],
+      "stories": [
+        {
+          "id": "Mixed",
+          "name": "Mixed",
+          "context": "apps/web/app/components/vendor/BundleForm.vue:87"
+        },
+        {
+          "id": "ExplicitNone",
+          "name": "ExplicitNone",
+          "context": "apps/web/app/components/vendor/BundleForm.vue:87"
+        },
+        {
+          "id": "Invalid",
+          "name": "Invalid",
+          "context": "apps/web/app/components/vendor/BundleForm.vue:87"
+        }
+      ]
+    },
+    {
+      "name": "VendorCustomerTermsForm",
+      "file": "apps/web/app/components/vendor/CustomerTermsForm.vue",
+      "story": "apps/web/stories/vendor/CustomerTermsForm.stories.ts",
+      "title": "Vendor/CustomerTermsForm",
+      "props": [
+        {
+          "name": "busy",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
+        },
+        {
+          "name": "previewing",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
+        },
+        {
+          "name": "error",
+          "type": "unknown",
+          "required": false
+        },
+        {
+          "name": "resetKey",
+          "type": "number",
+          "required": false,
+          "default": "0"
+        },
+        {
+          "name": "canSave",
+          "type": "boolean",
+          "required": false,
+          "default": "true"
+        },
+        {
+          "name": "canPreview",
+          "type": "boolean",
+          "required": false,
+          "default": "true"
+        }
+      ],
+      "events": [
+        {
+          "name": "cancel",
+          "payload": "[]"
+        },
+        {
+          "name": "save",
+          "payload": "[draft: globalThis.TermsDraft]"
+        },
+        {
+          "name": "preview",
+          "payload": "[draft: globalThis.TermsDraft]"
+        }
+      ],
+      "slots": [],
+      "nuxtUi": [
+        "UAlert",
+        "UButton",
+        "UFormField",
+        "UInput",
+        "USelect",
+        "UTextarea"
+      ],
+      "stories": [
+        {
+          "id": "Empty",
+          "name": "Empty",
+          "context": "apps/web/app/pages/vendor/customers/[id]/terms/new.vue:42"
+        },
+        {
+          "id": "Busy",
+          "name": "Busy",
+          "context": "apps/web/app/pages/vendor/customers/[id]/terms/new.vue:42"
+        },
+        {
+          "id": "Failed",
+          "name": "Failed",
+          "context": "apps/web/app/pages/vendor/customers/[id]/terms/new.vue:42"
+        }
+      ]
+    },
+    {
+      "name": "VendorEntitlementSummary",
+      "file": "apps/web/app/components/vendor/EntitlementSummary.vue",
+      "story": "apps/web/stories/vendor/EntitlementSummary.stories.ts",
+      "title": "Vendor/EntitlementSummary",
+      "props": [
+        {
+          "name": "release",
+          "type": "{ id: string; version: string; source_digest: string; artifact_digest: string; applications: { id: string; name_ar: string; name_en: string; modules: string[]; requires_apps: string[]; conflicts_with_apps: string[]; selectable: boolean; features: { key: string; kind: \"boolean\" | \"limit\"; selectable: boolean; requires: string[]; enforcement_refs: string[]; ceiling?: number | undefined; }[]; }[]; base_modules?: string[] | undefined; } | null",
+          "required": false
+        },
+        {
+          "name": "selections",
+          "type": "{ app_id: string; feature_keys: string[]; }[]",
+          "required": true
+        },
+        {
+          "name": "limits",
+          "type": "Record<string, number | null>",
+          "required": false
+        },
+        {
+          "name": "includeCore",
+          "type": "boolean",
+          "required": false
+        }
+      ],
+      "events": [],
+      "slots": [],
+      "nuxtUi": [
+        "UBadge"
+      ],
+      "stories": [
+        {
+          "id": "Default",
+          "name": "Default",
+          "context": "apps/web/app/pages/vendor/bundles/[id].vue:30"
+        },
+        {
+          "id": "NoZeroCoercion",
+          "name": "NoZeroCoercion",
+          "context": "apps/web/app/pages/vendor/bundles/[id].vue:30"
+        },
+        {
+          "id": "Empty",
+          "name": "Empty",
+          "context": "apps/web/app/pages/vendor/bundles/[id].vue:30"
+        }
+      ]
+    },
+    {
+      "name": "VendorInvoiceLines",
+      "file": "apps/web/app/components/vendor/InvoiceLines.vue",
+      "story": "apps/web/stories/vendor/InvoiceLines.stories.ts",
+      "title": "Vendor/InvoiceLines",
+      "props": [
+        {
+          "name": "lines",
+          "type": "{ key: string; kind: \"base\" | \"bundle\" | \"branch\" | \"discount\" | \"tax\" | \"adjustment\"; timing: \"now\" | \"renewal\"; description: string; quantity: number; unit_amount: { currency: string; exponent: number; minor: number; }; amount: { currency: string; exponent: number; minor: number; }; period_start: string; period_end: string; source_revision_id: string; free_quantity?: number | undefined; }[]",
+          "required": true
+        }
+      ],
+      "events": [],
+      "slots": [],
+      "nuxtUi": [
+        "UBadge"
+      ],
+      "stories": [
+        {
+          "id": "Default",
+          "name": "Default",
+          "context": "apps/web/app/pages/vendor/invoices/[id].vue:31"
+        }
+      ]
+    },
+    {
+      "name": "VendorLifecycleBadge",
+      "file": "apps/web/app/components/vendor/LifecycleBadge.vue",
+      "story": "apps/web/stories/vendor/LifecycleBadge.stories.ts",
+      "title": "Vendor/LifecycleBadge",
+      "props": [
+        {
+          "name": "status",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "available",
+          "type": "boolean",
+          "required": false
+        }
+      ],
+      "events": [],
+      "slots": [],
+      "nuxtUi": [
+        "UBadge"
+      ],
+      "stories": [
+        {
+          "id": "Draft",
+          "name": "Draft",
+          "context": "apps/web/app/pages/vendor/bundles/index.vue:40"
+        },
+        {
+          "id": "Validated",
+          "name": "Validated",
+          "context": "apps/web/app/pages/vendor/bundles/index.vue:40"
+        },
+        {
+          "id": "Published",
+          "name": "Published",
+          "context": "apps/web/app/pages/vendor/bundles/index.vue:40"
+        },
+        {
+          "id": "Withdrawn",
+          "name": "Withdrawn",
+          "context": "apps/web/app/pages/vendor/bundles/index.vue:40"
+        }
+      ]
+    },
+    {
+      "name": "VendorLifecyclePanel",
+      "file": "apps/web/app/components/vendor/LifecyclePanel.vue",
+      "story": "apps/web/stories/vendor/LifecyclePanel.stories.ts",
+      "title": "Vendor/LifecyclePanel",
+      "props": [
+        {
+          "name": "kind",
+          "type": "globalThis.CommercialKind",
+          "required": true
+        },
+        {
+          "name": "view",
+          "type": "{ bundle_id: string; description: string; catalog_release_id: string; selections: { app_id: string; feature_keys: string[]; }[]; domain_limits: Record<string, number | null>; id: string; version: number; edit_revision: number; name: string; status: \"draft\" | \"validated\" | \"published\"; available: boolean; audience: { kind: \"public\"; } | { kind: \"customer\"; customer_id: string; }; prices: { cadence: { unit: \"month\" | \"year\"; count: number; }; amount: { currency: string; exponent: number; minor: number; }; }[]; content_digest: string; validated_digest: string | null; customer_count: number; created_at: string; published_at: string | null; issues: { code: string; field?: string | undefined; }[]; } | { plan_id: string; term_months: number; platform_limits: Record<string, number | null>; included_bundle_revision_ids: string[]; optional_bundle_revision_ids: string[]; included_extra_branches: number; extra_branch_prices: { cadence: { unit: \"month\" | \"year\"; count: number; }; amount: { currency: string; exponent: number; minor: number; }; }[]; extra_branches_limit: number | null; policy_revision_id: string; currency: string; trial_days: number; grace_days: number; auto_suspend: boolean; auto_renew_allowed: boolean; id: string; version: number; edit_revision: number; name: string; status: \"draft\" | \"validated\" | \"published\"; available: boolean; audience: { kind: \"public\"; } | { kind: \"customer\"; customer_id: string; }; prices: { cadence: { unit: \"month\" | \"year\"; count: number; }; amount: { currency: string; exponent: number; minor: number; }; }[]; content_digest: string; validated_digest: string | null; customer_count: number; created_at: string; published_at: string | null; issues: { code: string; field?: string | undefined; }[]; }",
+          "required": true
+        }
+      ],
+      "events": [
+        {
+          "name": "done",
+          "payload": "[action: globalThis.LifecycleAction, result: { bundle_id: string; description: string; catalog_release_id: string; selections: { app_id: string; feature_keys: string[]; }[]; domain_limits: Record<string, number | null>; id: string; version: number; edit_revision: number; name: string; status: \"draft\" | \"validated\" | \"published\"; available: boolean; audience: { kind: \"public\"; } | { kind: \"customer\"; customer_id: string; }; prices: { cadence: { unit: \"month\" | \"year\"; count: number; }; amount: { currency: string; exponent: number; minor: number; }; }[]; content_digest: string; validated_digest: string | null; customer_count: number; created_at: string; published_at: string | null; issues: { code: string; field?: string | undefined; }[]; } | { plan_id: string; term_months: number; platform_limits: Record<string, number | null>; included_bundle_revision_ids: string[]; optional_bundle_revision_ids: string[]; included_extra_branches: number; extra_branch_prices: { cadence: { unit: \"month\" | \"year\"; count: number; }; amount: { currency: string; exponent: number; minor: number; }; }[]; extra_branches_limit: number | null; policy_revision_id: string; currency: string; trial_days: number; grace_days: number; auto_suspend: boolean; auto_renew_allowed: boolean; id: string; version: number; edit_revision: number; name: string; status: \"draft\" | \"validated\" | \"published\"; available: boolean; audience: { kind: \"public\"; } | { kind: \"customer\"; customer_id: string; }; prices: { cadence: { unit: \"month\" | \"year\"; count: number; }; amount: { currency: string; exponent: number; minor: number; }; }[]; content_digest: string; validated_digest: string | null; customer_count: number; created_at: string; published_at: string | null; issues: { code: string; field?: string | undefined; }[]; } | null]"
+        },
+        {
+          "name": "reload",
+          "payload": "[]"
+        }
+      ],
+      "slots": [],
+      "nuxtUi": [
+        "UAlert",
+        "UButton",
+        "UFormField",
+        "UTextarea"
+      ],
+      "stories": [
+        {
+          "id": "Draft",
+          "name": "Draft",
+          "context": "apps/web/app/pages/vendor/bundles/[id].vue:35"
+        },
+        {
+          "id": "Validated",
+          "name": "Validated",
+          "context": "apps/web/app/pages/vendor/bundles/[id].vue:35"
+        },
+        {
+          "id": "Published",
+          "name": "Published",
+          "context": "apps/web/app/pages/vendor/bundles/[id].vue:35"
+        },
+        {
+          "id": "Withdrawn",
+          "name": "Withdrawn",
+          "context": "apps/web/app/pages/vendor/bundles/[id].vue:35"
+        },
+        {
+          "id": "WithIssues",
+          "name": "WithIssues",
+          "context": "apps/web/app/pages/vendor/bundles/[id].vue:35"
+        },
+        {
+          "id": "PricingBlocked",
+          "name": "PricingBlocked",
+          "context": "apps/web/app/pages/vendor/bundles/[id].vue:35"
+        }
+      ]
+    },
+    {
+      "name": "VendorOrderStateBadge",
+      "file": "apps/web/app/components/vendor/OrderStateBadge.vue",
+      "story": "apps/web/stories/vendor/OrderStateBadge.stories.ts",
+      "title": "Vendor/OrderStateBadge",
+      "props": [
+        {
+          "name": "order",
+          "type": "Pick<{ id: string; customer_id: string; subscription_id: string; kind: \"change\" | \"renewal\" | \"new\" | \"branch_add\" | \"branch_archive\"; quote_id: string; target_revision_id: string; expected_applied_revision_id: string | null; payment_state: \"awaiting_payment\" | \"failed\" | \"paid\" | \"not_required\" | \"refund_pending\" | \"refunded\"; fulfillment_state: \"failed\" | \"applied\" | \"not_started\" | \"queued\" | \"applying\" | \"needs_intervention\"; effective_at: string | null; idempotency_key: string; request_digest: string; due_now: { currency: string; exponent: number; minor: number; }; created_at: string; }, \"payment_state\" | \"fulfillment_state\">",
+          "required": true
+        }
+      ],
+      "events": [],
+      "slots": [],
+      "nuxtUi": [
+        "UBadge"
+      ],
+      "stories": [
+        {
+          "id": "Awaiting",
+          "name": "Awaiting",
+          "context": "apps/web/app/components/vendor/SubscriptionSummary.vue:27"
+        },
+        {
+          "id": "Applied",
+          "name": "Applied",
+          "context": "apps/web/app/components/vendor/SubscriptionSummary.vue:27"
+        },
+        {
+          "id": "NeedsIntervention",
+          "name": "NeedsIntervention",
+          "context": "apps/web/app/components/vendor/SubscriptionSummary.vue:27"
+        }
+      ]
+    },
+    {
+      "name": "VendorPackageForm",
+      "file": "apps/web/app/components/vendor/PackageForm.vue",
+      "story": "apps/web/stories/vendor/PackageForm.stories.ts",
+      "title": "Vendor/PackageForm",
+      "props": [
+        {
+          "name": "catalogs",
+          "type": "globalThis.PackageCatalog[]",
+          "required": true
+        },
+        {
+          "name": "initial",
+          "type": "{ name: string; description: string; catalog_version: string; catalog_tier: string; limits: Record<string, number | null>; id: string; package_id: string; version: number; revision: number; status: \"draft\" | \"validated\" | \"published\"; available: boolean; source_sha256: string; modules: string[]; features: string[]; customer_count: number; created_at: string; published_at: string | null; }",
+          "required": false
+        },
+        {
+          "name": "busy",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
+        },
+        {
+          "name": "error",
+          "type": "unknown",
+          "required": false
+        },
+        {
+          "name": "resetKey",
+          "type": "number",
+          "required": false,
+          "default": "0"
+        }
+      ],
+      "events": [
+        {
+          "name": "cancel",
+          "payload": "[]"
+        },
+        {
+          "name": "save",
+          "payload": "[{ name: string; description: string; catalog_version: string; catalog_tier: string; limits: Record<string, number | null>; }]"
+        }
+      ],
+      "slots": [],
+      "nuxtUi": [
+        "UAlert",
+        "UBadge",
+        "UButton",
+        "UFormField",
+        "UInput",
+        "USelect",
+        "UTextarea"
+      ],
+      "stories": [
+        {
+          "id": "Create",
+          "name": "Create",
+          "context": "apps/web/app/pages/vendor/catalog/new.vue:17"
+        },
+        {
+          "id": "Saving",
+          "name": "Saving",
+          "context": "apps/web/app/pages/vendor/catalog/new.vue:17"
+        },
+        {
+          "id": "SaveConflict",
+          "name": "SaveConflict",
+          "context": "apps/web/app/pages/vendor/catalog/new.vue:17"
+        }
+      ]
+    },
+    {
+      "name": "VendorPlanForm",
+      "file": "apps/web/app/components/vendor/PlanForm.vue",
+      "story": "apps/web/stories/vendor/PlanForm.stories.ts",
+      "title": "Vendor/PlanForm",
+      "props": [
+        {
+          "name": "bundles",
+          "type": "{ bundle_id: string; description: string; catalog_release_id: string; selections: { app_id: string; feature_keys: string[]; }[]; domain_limits: Record<string, number | null>; id: string; version: number; edit_revision: number; name: string; status: \"draft\" | \"validated\" | \"published\"; available: boolean; audience: { kind: \"public\"; } | { kind: \"customer\"; customer_id: string; }; prices: { cadence: { unit: \"month\" | \"year\"; count: number; }; amount: { currency: string; exponent: number; minor: number; }; }[]; content_digest: string; validated_digest: string | null; customer_count: number; created_at: string; published_at: string | null; issues: { code: string; field?: string | undefined; }[]; }[]",
+          "required": true
+        },
+        {
+          "name": "policy",
+          "type": "{ id: string; timezone: \"Asia/Riyadh\"; rounding: \"half_up_per_line\"; tax: { kind: \"vat_exclusive\"; rate_bps: 1500; } | { kind: \"none\"; }; }",
+          "required": false
+        },
+        {
+          "name": "initial",
+          "type": "{ plan_id: string; term_months: number; platform_limits: Record<string, number | null>; included_bundle_revision_ids: string[]; optional_bundle_revision_ids: string[]; included_extra_branches: number; extra_branch_prices: { cadence: { unit: \"month\" | \"year\"; count: number; }; amount: { currency: string; exponent: number; minor: number; }; }[]; extra_branches_limit: number | null; policy_revision_id: string; currency: string; trial_days: number; grace_days: number; auto_suspend: boolean; auto_renew_allowed: boolean; id: string; version: number; edit_revision: number; name: string; status: \"draft\" | \"validated\" | \"published\"; available: boolean; audience: { kind: \"public\"; } | { kind: \"customer\"; customer_id: string; }; prices: { cadence: { unit: \"month\" | \"year\"; count: number; }; amount: { currency: string; exponent: number; minor: number; }; }[]; content_digest: string; validated_digest: string | null; customer_count: number; created_at: string; published_at: string | null; issues: { code: string; field?: string | undefined; }[]; }",
+          "required": false
+        },
+        {
+          "name": "busy",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
+        },
+        {
+          "name": "error",
+          "type": "unknown",
+          "required": false
+        },
+        {
+          "name": "resetKey",
+          "type": "number",
+          "required": false,
+          "default": "0"
+        },
+        {
+          "name": "requireReason",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
+        }
+      ],
+      "events": [
+        {
+          "name": "cancel",
+          "payload": "[]"
+        },
+        {
+          "name": "save",
+          "payload": "[draft: globalThis.PlanDraft]"
+        }
+      ],
+      "slots": [],
+      "nuxtUi": [
+        "UAlert",
+        "UButton",
+        "UCheckbox",
+        "UFormField",
+        "UInput",
+        "USelect",
+        "UTextarea"
+      ],
+      "stories": [
+        {
+          "id": "Create",
+          "name": "Create",
+          "context": "apps/web/app/pages/vendor/plans/new.vue:25"
+        },
+        {
+          "id": "Saving",
+          "name": "Saving",
+          "context": "apps/web/app/pages/vendor/plans/new.vue:25"
+        },
+        {
+          "id": "Conflict",
+          "name": "Conflict",
+          "context": "apps/web/app/pages/vendor/plans/new.vue:25"
+        }
+      ]
+    },
+    {
+      "name": "VendorPriceBreakdown",
+      "file": "apps/web/app/components/vendor/PriceBreakdown.vue",
+      "story": "apps/web/stories/vendor/PriceBreakdown.stories.ts",
+      "title": "Vendor/PriceBreakdown",
+      "props": [
+        {
+          "name": "quote",
+          "type": "{ id: string; customer_id: string; subscription_id: string | null; expected_subscription_revision: number; plan_revision_id: string; bundle_revision_ids: string[]; terms_revision_id: string | null; entitlement_digest: string; requested_extra_branches: number; cadence: { unit: \"month\" | \"year\"; count: number; }; effective_date: string; policy_revision_id: string; lines: { key: string; kind: \"base\" | \"bundle\" | \"branch\" | \"discount\" | \"tax\" | \"adjustment\"; timing: \"now\" | \"renewal\"; description: string; quantity: number; amount: { currency: string; exponent: number; minor: number; }; period_start: string; period_end: string; source_revision_id: string; }[]; due_now: { currency: string; exponent: number; minor: number; }; next_renewal: { currency: string; exponent: number; minor: number; }; next_renewal_at: string; expires_at: string; digest: string; } | null",
+          "required": false
+        },
+        {
+          "name": "pending",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "error",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "includedExtraBranches",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "hqIncluded",
+          "type": "boolean",
+          "required": false
+        }
+      ],
+      "events": [
+        {
+          "name": "retry",
+          "payload": "[]"
+        }
+      ],
+      "slots": [],
+      "nuxtUi": [
+        "UAlert",
+        "UButton"
+      ],
+      "stories": [
+        {
+          "id": "Quoted",
+          "name": "Quoted",
+          "context": "apps/web/app/pages/vendor/plans/[id].vue:72"
+        },
+        {
+          "id": "Loading",
+          "name": "Loading",
+          "context": "apps/web/app/pages/vendor/plans/[id].vue:72"
+        },
+        {
+          "id": "Recomputing",
+          "name": "Recomputing",
+          "context": "apps/web/app/pages/vendor/plans/[id].vue:72"
+        },
+        {
+          "id": "Failed",
+          "name": "Failed",
+          "context": "apps/web/app/pages/vendor/plans/[id].vue:72"
+        },
+        {
+          "id": "Empty",
+          "name": "Empty",
+          "context": "apps/web/app/pages/vendor/plans/[id].vue:72"
+        }
+      ]
+    },
+    {
+      "name": "VendorPriceListEditor",
+      "file": "apps/web/app/components/vendor/PriceListEditor.vue",
+      "story": "apps/web/stories/vendor/PriceListEditor.stories.ts",
+      "title": "Vendor/PriceListEditor",
+      "props": [
+        {
+          "name": "modelValue",
+          "type": "globalThis.PriceDraft[]",
+          "required": true
+        },
+        {
+          "name": "label",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "hint",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "disabled",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
+        },
+        {
+          "name": "showErrors",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
+        },
+        {
+          "name": "serverError",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "events": [
+        {
+          "name": "update:modelValue",
+          "payload": "[globalThis.PriceDraft[]]"
+        }
+      ],
+      "slots": [],
+      "nuxtUi": [
+        "UButton",
+        "UFormField",
+        "UInput",
+        "USelect"
+      ],
+      "stories": [
+        {
+          "id": "Filled",
+          "name": "Filled",
+          "context": "apps/web/app/components/vendor/BundleForm.vue:90"
+        },
+        {
+          "id": "Empty",
+          "name": "Empty",
+          "context": "apps/web/app/components/vendor/BundleForm.vue:90"
+        },
+        {
+          "id": "Invalid",
+          "name": "Invalid",
+          "context": "apps/web/app/components/vendor/BundleForm.vue:90"
+        }
+      ]
+    },
+    {
+      "name": "VendorSubscriptionSummary",
+      "file": "apps/web/app/components/vendor/SubscriptionSummary.vue",
+      "story": "apps/web/stories/vendor/SubscriptionSummary.stories.ts",
+      "title": "Vendor/SubscriptionSummary",
+      "props": [
+        {
+          "name": "subscription",
+          "type": "{ id: string; customer_id: string; tenant_id: string | null; state: \"cancelled\" | \"active\" | \"pending\" | \"trialing\" | \"past_due\" | \"suspended\"; applied: { id: string; subscription_id: string; revision: number; customer_id: string; tenant_id: string; plan_revision_id: string; bundle_revision_ids: string[]; terms_revision_id: string | null; policy_revision_id: string; cadence: { unit: \"month\" | \"year\"; count: number; }; term_start: string; term_end: string; period_start: string; period_end: string; included_extra_branches: number; extra_branch_count: number; entitlement: { catalog_release_id: string; modules: string[]; features: Record<string, number | boolean | null>; compiler_version: string; digest: string; }; quote_id: string; created_at: string; } | null; target: { id: string; subscription_id: string; revision: number; customer_id: string; tenant_id: string; plan_revision_id: string; bundle_revision_ids: string[]; terms_revision_id: string | null; policy_revision_id: string; cadence: { unit: \"month\" | \"year\"; count: number; }; term_start: string; term_end: string; period_start: string; period_end: string; included_extra_branches: number; extra_branch_count: number; entitlement: { catalog_release_id: string; modules: string[]; features: Record<string, number | boolean | null>; compiler_version: string; digest: string; }; quote_id: string; created_at: string; } | null; pending_order: { id: string; customer_id: string; subscription_id: string; kind: \"change\" | \"renewal\" | \"new\" | \"branch_add\" | \"branch_archive\"; quote_id: string; target_revision_id: string; expected_applied_revision_id: string | null; payment_state: \"awaiting_payment\" | \"failed\" | \"paid\" | \"not_required\" | \"refund_pending\" | \"refunded\"; fulfillment_state: \"failed\" | \"applied\" | \"not_started\" | \"queued\" | \"applying\" | \"needs_intervention\"; effective_at: string | null; idempotency_key: string; request_digest: string; due_now: { currency: string; exponent: number; minor: number; }; created_at: string; } | null; revision: number; renewal_at: string | null; auto_renew: { enabled: boolean; consent_at: string | null; token_ref_present: boolean; }; trial_ends_at: string | null; grace_ends_at: string | null; }",
+          "required": true
+        },
+        {
+          "name": "planName",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "events": [],
+      "slots": [],
+      "nuxtUi": [
+        "UAlert",
+        "UBadge"
+      ],
+      "stories": [
+        {
+          "id": "Active",
+          "name": "Active",
+          "context": "apps/web/app/pages/vendor/customers/[id].vue:56"
+        },
+        {
+          "id": "AwaitingPayment",
+          "name": "AwaitingPayment",
+          "context": "apps/web/app/pages/vendor/customers/[id].vue:56"
+        },
+        {
+          "id": "FailedTarget",
+          "name": "FailedTarget",
+          "context": "apps/web/app/pages/vendor/customers/[id].vue:56"
+        }
+      ]
+    },
+    {
+      "name": "VendorUsageMeters",
+      "file": "apps/web/app/components/vendor/UsageMeters.vue",
+      "story": "apps/web/stories/vendor/UsageMeters.stories.ts",
+      "title": "Vendor/UsageMeters",
+      "props": [
+        {
+          "name": "usage",
+          "type": "{ tenant_id: string; observed_at: string | null; policy_revision_id: string; freshness: \"fresh\" | \"stale\" | \"unavailable\"; metrics: { key: string; used: number | null; limit: number | null; unit: \"users\" | \"projects\" | \"attachment_bytes\" | \"extra_branches\"; reason: \"source_unreachable\" | \"timeout\" | \"not_collected\" | \"forbidden\" | null; }[]; } | null",
+          "required": false
+        }
+      ],
+      "events": [],
+      "slots": [],
+      "nuxtUi": [
+        "UBadge",
+        "UProgress"
+      ],
+      "stories": [
+        {
+          "id": "Fresh",
+          "name": "Fresh",
+          "context": "apps/web/app/pages/vendor/customers/[id].vue:75"
+        },
+        {
+          "id": "Unavailable",
+          "name": "Unavailable",
+          "context": "apps/web/app/pages/vendor/customers/[id].vue:75"
+        },
+        {
+          "id": "NoData",
+          "name": "NoData",
+          "context": "apps/web/app/pages/vendor/customers/[id].vue:75"
         }
       ]
     }

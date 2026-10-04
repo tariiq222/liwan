@@ -65,7 +65,8 @@ from .managed_credentials import (
     parse_credentials,
 )
 from .managed_health import health as managed_health
-from .managed_policy import PolicyError, parse_create_policy
+from .catalog_source import CatalogSourceError, resolve_catalog_path
+from .managed_policy import PolicyError, _catalog_compositions, parse_create_policy
 from .managed_probe import DockerProbe, ProbeError
 from .managed_process import ProcessError, local_docker_runner
 from .managed_process import run as bounded_run
@@ -78,6 +79,21 @@ from .managed_verify import (
 )
 
 CATALOG_PATH = Path(__file__).resolve().parents[2] / 'deploy/catalog/solutions/platform.json'
+
+
+def _resolved_catalog_path(descriptor):
+    """Catalog bytes pinned by the descriptor's sha256 (per-version resolution).
+
+    CATALOG_PATH stays the legacy default and is used when it already matches or
+    when nothing known matches, so a mismatch still surfaces as digest mismatch.
+    """
+    pinned = descriptor['release_ref']['catalog_sha256']
+    try:
+        if 'sha256:' + hashlib.sha256(CATALOG_PATH.read_bytes()).hexdigest() == pinned:
+            return CATALOG_PATH
+        return resolve_catalog_path(pinned)
+    except (OSError, CatalogSourceError):
+        return CATALOG_PATH
 INVENTORY_SCHEMA_VERSION = 3
 PROJECTION_SCHEMA_VERSION = 1
 MANAGED_INVENTORY_ENV = 'NASQ_MANAGED_INVENTORY'
@@ -769,28 +785,23 @@ def _catalog_policies(descriptor):
     therefore accepted only when it matches one exact base-plus-tier policy.
     """
     try:
-        raw = CATALOG_PATH.read_bytes()
+        catalog_path = _resolved_catalog_path(descriptor)
+        raw = catalog_path.read_bytes()
         if 'sha256:' + hashlib.sha256(raw).hexdigest() != descriptor['release_ref']['catalog_sha256']:
             return []
         catalog = json.loads(raw)
-        base = catalog['base_modules']
         policies = []
-        for tier in catalog['tiers']:
-            modules = base + tier['modules']
-            features = {'users.limit': None, 'storage.limit_mb': None}
-            for feature in tier['features']:
-                kind, key = feature.split(':', 1)
-                features[key] = True if kind == 'boolean' else None
+        for modules, features in _catalog_compositions(catalog):
             policy = {'schema_version': 1, 'channel': 'control_plane',
                       'modules': modules, 'features': features}
             encoded = json.dumps(policy, sort_keys=True, separators=(',', ':')).encode()
             validated = parse_create_policy(
-                encoded, catalog_path=CATALOG_PATH,
+                encoded, catalog_path=catalog_path,
                 catalog_sha256=descriptor['release_ref']['catalog_sha256'],
                 commercial_mode=descriptor['commercial_mode'])
             policies.append(validated)
         return policies
-    except (OSError, ValueError, KeyError, TypeError, PolicyError):
+    except (OSError, ValueError, KeyError, TypeError, PolicyError, CatalogSourceError):
         return []
 
 
@@ -994,7 +1005,7 @@ def _status(fields, target_id, descriptor, fingerprint, state_root):
             and body.get('deployment_ready') is True):
         try:
             policy = parse_create_policy(
-                policy_bytes, catalog_path=CATALOG_PATH,
+                policy_bytes, catalog_path=_resolved_catalog_path(descriptor),
                 catalog_sha256=descriptor['release_ref']['catalog_sha256'],
                 commercial_mode=descriptor['commercial_mode'])
             profile = parse_snapshot('NASQ_MANAGED_POLICY:' + json.dumps(body.get('profile')),
@@ -1029,7 +1040,7 @@ def _dispatch(fields, *, runner, probe, resolver, clock):
     descriptor, fingerprint = descriptor_for(target_id, document)
     validate_descriptor(target_id, descriptor)
     if probe is None:
-        probe = DockerProbe(descriptor, catalog_path=CATALOG_PATH, runner=runner)
+        probe = DockerProbe(descriptor, catalog_path=_resolved_catalog_path(descriptor), runner=runner)
     # Receipt operations are admissible before the target allowlist, the
     # commercial-mode gate and the static resource checks: reading durable
     # evidence must not depend on the target's current world.
@@ -1061,7 +1072,7 @@ def _dispatch(fields, *, runner, probe, resolver, clock):
             policy_path, 'policy file', max_bytes=POLICY_MAX_BYTES)
         try:
             create_policy = parse_create_policy(
-                policy_bytes, catalog_path=CATALOG_PATH,
+                policy_bytes, catalog_path=_resolved_catalog_path(descriptor),
                 catalog_sha256=descriptor['release_ref']['catalog_sha256'],
                 commercial_mode=descriptor['commercial_mode'],
             )

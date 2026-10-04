@@ -24,7 +24,7 @@ it('source SSR replay: cookie-only local dispatch fails; validated event identit
     if (_url.startsWith('/api/v1/')) tenantRequest(event(options.headers))
     return { ok: true }
   })
-  new Function('exports', 'require', 'useRequestHeaders', 'useRequestEvent', '$fetch', js)(exports, () => ({ ApiErrorSchema }), (names: string[]) => Object.fromEntries(names.map(n => [n, headers[n]])), () => ({ context: { tenant } }), fetch)
+  new Function('exports', 'require', 'useRequestHeaders', 'useRequestEvent', '$fetch', 'useI18n', js)(exports, () => ({ ApiErrorSchema }), (names: string[]) => Object.fromEntries(names.map(n => [n, headers[n]])), () => ({ context: { tenant } }), fetch, () => ({ t: (key: string) => key }))
   const { $api } = exports.useApi()
   await expect($api('/api/v1/me')).resolves.toEqual({ ok: true })
   expect(fetch.mock.calls[0]![1].headers).toEqual(headers)

@@ -11,6 +11,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
     }
     throw createError({ statusCode: 502, statusMessage: $i18n.t('errors.serverUnreachable'), fatal: true })
   }
+  if (to.path === '/invite/accept') return
   if (to.path === '/login') {
     if (me.value) return navigateTo('/')
     return

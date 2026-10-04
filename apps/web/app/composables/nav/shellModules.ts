@@ -4,6 +4,7 @@ import type { RouteLocationRaw } from 'vue-router'
 import { canReach, INTERNAL_NASQ_ACCESS, type AccessIdentity } from '../../utils/accessPolicy'
 import { MODULE_FEATURES, hasFeature } from '../../modules/registry'
 import { normalizedPath } from './activeRoute'
+import { deriveCustomerCapabilities } from '../../utils/customerCapabilities'
 // NavIcon has one owner (nav/projectSections.ts); import for internal use only,
 // never re-export, or the auto-import namespace collision just moves here.
 import type { NavIcon } from './projectSections'
@@ -52,13 +53,25 @@ const items: NavItem[] = [
   { to: '/settings/roles', labelKey: 'nav.roles', icon: ShieldCheck, shortcut: '8', group: 'settings', module: 'settings', capability: 'access.roles.read' },
   { to: '/settings/access-log', labelKey: 'nav.accessLog', icon: History, shortcut: '9', group: 'settings', module: 'settings', capability: 'access.audit.read' },
   { to: '/vendor/overview', labelKey: 'nav.management', icon: 'i-lucide-building-2', shortcut: '', module: 'management', capability: 'vendor.read' },
-  // Billing pages are a later phase. Do not add /settings/billing here, even as a placeholder.
+  // The approved SaaS commercial spec (2026-10-02) puts the customer's subscription inside the workspace as /subscription,
+  // gated by the customer capability subscription.read (derived from Nasq settings capabilities, see utils/customerCapabilities.ts)
+  // and the customerCommercialEnabled runtime flag. /settings/billing stays absent: no billing placeholder under settings routes.
+  { to: '/subscription', labelKey: 'subscription.nav', icon: 'i-lucide-credit-card', shortcut: 'b', group: 'settings', module: 'settings', capability: 'subscription.read' },
 ]
+/** Runtime flag for the customer commercial BFF; false in tests/non_saas unless the runtime config enables it. */
+function customerCommercialOn(): boolean {
+  try {
+    const flag = typeof useRuntimeConfig === 'function' ? (useRuntimeConfig() as { public?: { customerCommercialEnabled?: unknown } }).public?.customerCommercialEnabled : false
+    return flag === true || flag === 'true'
+  } catch { return false }
+}
 export function useNav(identity: AccessIdentity): NavItem[] {
   const visible = items.filter(item => (
     item.capability === 'nasq.internal'
       ? Array.isArray(identity?.capabilities) && hasFeature(identity, MODULE_FEATURES.chat)
-      : canReach(identity, item.capability, item.to)
+      : item.capability.startsWith('subscription.')
+        ? customerCommercialOn() && (deriveCustomerCapabilities(identity?.capabilities) as string[]).includes(item.capability)
+        : canReach(identity, item.capability, item.to)
   ))
   if (identity?.role === 'vendor' && identity.capabilities?.length) visible.push({ to: '/odoo', labelKey: 'nav.console', icon: Wrench, shortcut: 's', module: 'vendor', capability: 'vendor' })
   return visible
@@ -160,7 +173,11 @@ export function contextLinksForModule(module: ShellModule, identity: AccessIdent
       { id: 'new-tenant', labelKey: 'vendor.tenants.new', icon: Plus, to: '/vendor/tenants/new', capability: 'vendor.tenants.manage', pinned: true },
       { id: 'vendor-overview', labelKey: 'vendor.overview.title', icon: House, to: '/vendor/overview', capability: 'vendor.read' },
       { id: 'vendor-tenants', labelKey: 'vendor.tenants.title', icon: 'i-lucide-building-2', to: '/vendor/tenants', capability: 'vendor.read' },
+      { id: 'vendor-customers', labelKey: 'vendor.customers.title', icon: 'i-lucide-users', to: '/vendor/customers', capability: 'vendor.read' },
+      { id: 'vendor-invoices', labelKey: 'vendor.invoices.title', icon: 'i-lucide-receipt', to: '/vendor/invoices', capability: 'vendor.read' },
       { id: 'vendor-catalog', labelKey: 'vendor.catalog.title', icon: 'i-lucide-library', to: '/vendor/catalog', capability: 'vendor.read' },
+      { id: 'vendor-bundles', labelKey: 'vendor.bundles.title', icon: 'i-lucide-boxes', to: '/vendor/bundles', capability: 'vendor.read' },
+      { id: 'vendor-plans', labelKey: 'vendor.plans.title', icon: 'i-lucide-badge-percent', to: '/vendor/plans', capability: 'vendor.read' },
       { id: 'vendor-operations', labelKey: 'vendor.operations.title', icon: Wrench, to: '/vendor/operations', capability: 'vendor.read' },
       { id: 'vendor-audit', labelKey: 'vendor.audit.title', icon: History, to: '/vendor/audit', capability: 'vendor.audit.read' },
     ],

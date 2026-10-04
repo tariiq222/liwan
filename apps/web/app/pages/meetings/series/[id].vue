@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { owningListBack, recordChildTo, SERIES_LIST_PATHS } from '@/utils/recordListOrigin'
 import FilterBar from '@/components/shared/FilterBar.vue'
 import MeetingEventList from '@/components/meetings/MeetingEventList.vue'
 import MeetingTimeline from '@/components/meetings/MeetingTimeline.vue'
@@ -24,14 +25,7 @@ const { me } = useMe()
 const id = computed(() => Number(route.params.id))
 const isDetail = computed(() => route.path === `/meetings/series/${id.value}`)
 const query = useMeetingSeries(computed(() => isDetail.value ? id.value : null))
-// The owning list is fixed by this page's own route, so the return trip is
-// literal and carries only the state the list was showing. A referrer's
-// returnTo is dropped rather than forwarded: on the list URL it would nest one
-// level deeper on every round trip and redirect that page's own controls.
-const backTo = computed(() => {
-  const { returnTo: _referrer, ...listQuery } = route.query
-  return { path: '/meetings/series', query: listQuery }
-})
+const backTo = computed(() => owningListBack(route.query, SERIES_LIST_PATHS, route.hash))
 const now = ref(new Date())
 const headerDescription = computed(() => query.data.value ? `${query.data.value.organizer?.name || t('meetingTimeline.noOrganizer')} · ${t(`meetingsUi.recurrence.${query.data.value.recurrence}`)}` : undefined)
 
@@ -185,7 +179,7 @@ function setHistoryPage(page: number) {
   <SharedPageContainer v-if="isDetail" width="detail">
     <SharedPageHeader :title="query.data.value?.name || t('nav.meetingSeries')" :description="headerDescription" :back-to="backTo">
       <template #actions>
-        <UButton v-if="query.data.value?.can_edit === true" color="neutral" variant="outline" :to="`/meetings/series/${id}/edit`" :label="t('meetingsUx.seriesSettingsLink')" />
+        <UButton v-if="query.data.value?.can_edit === true" color="neutral" variant="outline" :to="recordChildTo(`/meetings/series/${id}/edit`, route.query, SERIES_LIST_PATHS, route.hash)" :label="t('meetingsUx.seriesSettingsLink')" />
         <UButton v-if="canAddOccurrence" :disabled="!hydrated" :to="{ path: '/meetings/new', query: { series_id: String(id) } }" :label="t('meetingsUi.addOccurrence')" />
       </template>
     </SharedPageHeader>

@@ -1,0 +1,42 @@
+<script setup lang="ts">
+import { cadenceLabel, commercialReturnTo, formatVendorMoney, summaryLimits, type BundleView, type LifecycleAction } from '@/utils/vendorCommercial'
+import { useVendorCommercial } from '@/composables/useVendorCommercial'
+definePageMeta({ middleware: 'vendor', vendorCapability: 'vendor.read' })
+const { t, locale } = useI18n(); const route = useRoute(); const { can } = useVendorContext(); const api = useVendorCommercial()
+const id = computed(() => String(route.params.id)); const isEdit = computed(() => route.path.replace(/\/+$/, '').endsWith('/edit'))
+const backTo = computed(() => commercialReturnTo(route.query.returnTo, '/vendor/bundles'))
+const { data, error, pending, refresh } = await useAsyncData(() => `vendor:bundle:${id.value}`, async () => {
+  const view = await api.get<BundleView>('bundle', id.value)
+  const [releases, versions] = await Promise.all([api.releases().catch(() => []), api.bundleVersions(view.bundle_id).catch(() => null)])
+  return { view, release: releases.find(r => r.id === view.catalog_release_id), versions: versions ?? [] }
+}, { watch: [id] })
+const view = computed(() => data.value?.view)
+async function done(action: LifecycleAction, result: unknown) {
+  await refreshNuxtData()
+  if (action === 'delete') await navigateTo(backTo.value)
+  else if (action === 'revisions' && result && typeof result === 'object' && 'id' in result) await navigateTo({ path: `/vendor/bundles/${(result as BundleView).id}/edit`, query: { returnTo: backTo.value } })
+  else await refresh()
+}
+const editable = computed(() => view.value?.status === 'draft' && can('vendor.catalog.manage'))
+</script>
+<template>
+  <NuxtPage v-if="isEdit" />
+  <SharedPageContainer v-else width="list">
+    <SharedPageHeader :title="view?.name ?? t('vendor.bundles.details')" :description="view?.description" :back-to="backTo" :back-label="t('vendor.bundles.title')">
+      <template #actions><UButton v-if="view && editable" :to="{ path: `/vendor/bundles/${view.id}/edit`, query: { returnTo: backTo } }" color="neutral" variant="outline">{{ t('vendor.pricing.edit') }}</UButton></template>
+    </SharedPageHeader>
+    <SharedPageState :loading="pending" :error="error" @retry="refresh"><template v-if="view && data">
+      <div class="flex flex-wrap items-center gap-2"><VendorLifecycleBadge :status="view.status" :available="view.available" /><UBadge color="neutral" variant="outline">{{ t('vendor.pricing.version', { count: view.version }) }}</UBadge><p class="text-sm text-muted">{{ t('vendor.pricing.customers', { count: view.customer_count }) }}</p></div>
+      <SharedFormSection :title="t('vendor.pricing.sections.included')" class="mt-6"><VendorEntitlementSummary :release="data.release" :selections="view.selections" :limits="view.domain_limits" /></SharedFormSection>
+      <SharedFormSection :title="t('vendor.pricing.sections.prices')" class="mt-6">
+        <p v-if="!view.prices.length" class="text-sm text-warning">{{ t('vendor.pricing.prices.none') }}</p>
+        <ul class="grid gap-2 sm:grid-cols-2"><li v-for="p in view.prices" :key="`${p.cadence.unit}${p.cadence.count}`" class="flex justify-between rounded-lg p-3 ring ring-default"><span>{{ cadenceLabel(p.cadence, t) }}</span><span class="font-semibold tabular-nums">{{ formatVendorMoney(p.amount, locale) }}</span></li></ul>
+      </SharedFormSection>
+      <VendorLifecyclePanel class="mt-6" kind="bundle" :view="view" @done="done" @reload="refresh" />
+      <SharedFormSection class="mt-6" :title="t('vendor.pricing.history')"><ul class="space-y-2"><li v-for="item in data.versions" :key="item.id"><NuxtLink :to="{ path: `/vendor/bundles/${item.id}`, query: { returnTo: backTo } }" class="text-primary">{{ item.name }} · {{ t('vendor.pricing.version', { count: item.version }) }}</NuxtLink><span class="ms-2"><VendorLifecycleBadge :status="item.status" :available="item.available" /></span></li></ul></SharedFormSection>
+      <details class="mt-6"><summary class="cursor-pointer text-sm text-muted">{{ t('vendor.pricing.technical') }}</summary>
+        <dl class="mt-3 space-y-2 text-sm"><div><dt>{{ t('vendor.pricing.contentDigest') }}</dt><dd class="break-all" dir="ltr">{{ view.content_digest }}</dd></div><div v-if="view.validated_digest"><dt>{{ t('vendor.pricing.validatedDigest') }}</dt><dd class="break-all" dir="ltr">{{ view.validated_digest }}</dd></div><div><dt>{{ t('vendor.pricing.revisionId') }}</dt><dd dir="ltr">{{ view.id }}</dd></div><div><dt>{{ t('vendor.pricing.editRevision') }}</dt><dd dir="ltr">{{ view.edit_revision }}</dd></div></dl>
+      </details>
+    </template></SharedPageState>
+  </SharedPageContainer>
+</template>

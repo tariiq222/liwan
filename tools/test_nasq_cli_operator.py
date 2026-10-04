@@ -506,6 +506,42 @@ class OperatorCase(unittest.TestCase):
         self.assertEqual(replay['operation_id'], payload['operation_id'])
         self.assertEqual(len([c for c in calls if '-i' in c[0]]), 1)
 
+    def test_create_independent_readback_accepts_only_legacy_null_extension(self):
+        policy = {'schema_version': 1, 'channel': 'local_policy',
+                  'modules': ['nasq_core', 'nasq_platform', 'nasq_api'],
+                  'features': {'users.limit': None, 'storage.limit_mb': None}}
+        self.policy.write_text(json.dumps(policy))
+        original_bytes = self.policy.read_bytes()
+        for index, (extra, expected_code) in enumerate([
+            ({'branches.extra_limit': None}, 0),
+            ({'branches.extra_limit': 0}, 6),
+            ({'branches.extra_limit': False}, 6),
+            ({'branches.extra_limit': None, 'other.limit': None}, 6),
+            ({'branches.extra_limit': None, 'users.limit': False}, 6),
+        ]):
+            with self.subTest(extra=extra):
+                os.environ[operator.STATE_ENV] = str(self.root / f'legacy-state-{index}')
+                observed = {**policy['features'], **extra}
+                def runner(argv, env=None, stdin_text=None):
+                    if 'pg_database' in argv[-1]:
+                        return 0, '', ''
+                    if 'features::text' in argv[-1]:
+                        return 0, json.dumps(observed) + '\n', ''
+                    if "state = 'installed'" in argv[-1]:
+                        return 0, 'nasq_core\nnasq_platform\nnasq_api\n', ''
+                    if 'shell' in argv:
+                        return 0, 'NASQ_OPERATOR_RESULT:{"status":"ok","changed":false,"policy_revision":1}\n', ''
+                    if argv[0] == self.tools['createdb'] or '-i' in argv:
+                        return 0, '', ''
+                    if 'ir_module_module' in argv[-1]:
+                        return 0, '0\n', ''
+                    return 0, 'non_saas\x1flocal_policy\x1f\x1f1\x1f1\x1factive\n', ''
+                code, payload = operator.operation_adapter(self.fields(
+                    'tenant.create', policy_file=str(self.policy), request_id=f'legacy_create_{index}'), runner=runner)
+                self.assertEqual(code, expected_code, payload)
+                self.assertEqual(payload['stage'], 'health_verified' if expected_code == 0 else 'policy_verification')
+                self.assertEqual(self.policy.read_bytes(), original_bytes)
+
     def test_create_rejects_unowned_module_composition(self):
         self.policy.write_text(json.dumps({
             'schema_version': 1, 'channel': 'local_policy',
@@ -666,6 +702,45 @@ class OperatorCase(unittest.TestCase):
                                                   'nasq_api', 'nasq_pmo'])
             self.assertEqual(policy['features']['pmo.enabled'], True)
             self.assertEqual(entry['kind'], 'scratch')
+
+
+
+
+class EntitleScriptCompatibilityCase(unittest.TestCase):
+    def run_entitle(self, desired, actual, revision=3):
+        from unittest.mock import mock_open, patch
+        from test_managed_verify import Environment, execute_script
+        env = Environment()
+        env.profile.features = dict(actual)
+        env.profile.policy_revision = 3
+        policy = {'schema_version': 1, 'channel': 'control_plane', 'features': desired}
+        raw = json.dumps(policy)
+        with patch.dict(os.environ, {'NASQ_OPERATOR_POLICY_FILE': '/synthetic/policy.json', 'NASQ_EXPECTED_REVISION': str(revision)}), patch('builtins.open', mock_open(read_data=raw)):
+            stdout = execute_script(operator.ENTITLE_SCRIPT, env)
+        result = json.loads(stdout.split('NASQ_OPERATOR_RESULT:', 1)[1])
+        self.assertEqual(json.dumps(policy), raw)
+        return result, env
+
+    def test_migrated_null_is_legacy_noop_without_revision_bump(self):
+        desired = {'users.limit': 3, 'storage.limit_mb': None}
+        actual = {**desired, 'branches.extra_limit': None}
+        result, env = self.run_entitle(desired, actual)
+        self.assertEqual(result, {'status': 'ok', 'changed': False, 'policy_revision': 3})
+        self.assertEqual(env.profile.features, actual)
+        self.assertFalse(any(event[0] in ('write', 'commit') for event in env.events))
+
+    def test_explicit_zero_is_a_real_change(self):
+        actual = {'users.limit': 3, 'storage.limit_mb': None, 'branches.extra_limit': None}
+        result, env = self.run_entitle({**actual, 'branches.extra_limit': 0}, actual)
+        self.assertEqual(result, {'status': 'ok', 'changed': True, 'policy_revision': 4})
+        self.assertEqual(env.profile.features['branches.extra_limit'], 0)
+        self.assertIn(('commit',), env.events)
+
+    def test_stale_revision_still_refuses_legacy_noop(self):
+        desired = {'users.limit': 3, 'storage.limit_mb': None}
+        result, env = self.run_entitle(desired, {**desired, 'branches.extra_limit': None}, revision=2)
+        self.assertEqual(result['error_code'], 'revision_conflict')
+        self.assertFalse(any(event[0] in ('write', 'commit') for event in env.events))
 
 
 if __name__ == '__main__':

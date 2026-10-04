@@ -98,3 +98,11 @@ describe('createLinkTo', () => {
     expect(createLinkTo({ id: 'new-project', to }, routeOf('/projects'))).toBe(to)
   })
 })
+
+describe('vendor bundle and plan create return targets', () => {
+  it('keeps list filters and rejects foreign targets', () => {
+    expect(createListReturnTo('new-bundle', '/vendor/bundles', '/vendor/bundles?status=draft', {})).toBe('/vendor/bundles?status=draft')
+    expect(createListReturnTo('new-plan', '/vendor/overview', '/vendor/overview', { returnTo: '/vendor/plans?q=a' })).toBe('/vendor/plans?q=a')
+    expect(createListReturnTo('new-plan', '/vendor/overview', '/vendor/overview', { returnTo: '/vendor/bundles' })).toBe('/vendor/plans')
+  })
+})

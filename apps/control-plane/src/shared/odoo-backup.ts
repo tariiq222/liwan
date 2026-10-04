@@ -9,6 +9,8 @@ import {requireJobAuthority} from './job-store.js'
 import {REGISTRY_ADVISORY_LOCK,resolveRegistryBinding,registryTargetSchema,type RegistryActor} from './registry-store.js'
 import {assertSameBinding,businessKey,payloadDigest} from './provisioning.js'
 import {assertNoSymlink,type SharedRuntimeConfig} from './runtime-config.js'
+import {prepareCommercialRestorePublication,revalidateCommercialRestorePublication,type CommercialRestoreRunner} from './shared-backup.js'
+import {RegistryError} from './registry-store.js'
 
 const hash=z.string().regex(/^[a-f0-9]{64}$/)
 export const manifestSchema=z.strictObject({
@@ -105,7 +107,7 @@ export async function odooJobProgress(pool:Pool,tenantId:string,jobId:string){
  return {id:r.id,state:r.state,operation:r.operation,...(r.state==='verified' && r.backup_id?{backupId:r.backup_id}:{}),...(r.approval_id?{approvalId:r.approval_id}:{})}
 }
 /** Separate restore registry only. Caller must freshly observe the exact effect first. */
-export async function publishOdooRestore(pool:Pool,runtime:SharedRuntimeConfig,actor:RegistryActor,approvalId:string,observe:(job:SharedJob)=>Promise<unknown>){
+export async function publishOdooRestore(pool:Pool,runtime:SharedRuntimeConfig,actor:RegistryActor,approvalId:string,observe:(job:SharedJob)=>Promise<unknown>,options:{runner?:CommercialRestoreRunner}={}){
  z.uuid().parse(approvalId)
  const rows=await pool.query(`SELECT j.payload,j.receipt,j.payload_digest,j.control_tenant_id,t.target_database FROM shared_jobs j
   JOIN shared_odoo_restore_targets t ON t.approval_id::text=j.payload->>'approvalId'
@@ -120,6 +122,15 @@ export async function publishOdooRestore(pool:Pool,runtime:SharedRuntimeConfig,a
  if(result.state!=='present'||!result.verified||result.payloadDigest!==receipt.payloadDigest||result.businessKey!==receipt.businessKey)throw Error('shared_restore_unverified')
  assertSameBinding(result.binding,job.binding)
  const host=realRestoreHost(approvalId,runtime.domainSuffix)
+ // Observe/reconcile the approved target, never the source registry database.
+ // Enqueue commits independently so a 409 does not discard the repair work.
+ const preflight=await pool.connect()
+ let commercial:{ready:boolean;applied_revision_id:string|null}
+ try{
+  await requireJobAuthority(preflight,row.control_tenant_id,actor)
+  commercial=await prepareCommercialRestorePublication(pool,preflight,row.control_tenant_id,{database:row.target_database,filestore:row.target_database,host},options.runner,approvalId)
+ }finally{preflight.release()}
+ if(!commercial.ready)throw new RegistryError('commercial_reconciliation_pending')
  // Serialize only the small file publication, after external physical readback.
  await transaction(pool,async client=>{
   await client.query('SELECT pg_advisory_xact_lock($1)',[REGISTRY_ADVISORY_LOCK])
@@ -129,6 +140,7 @@ export async function publishOdooRestore(pool:Pool,runtime:SharedRuntimeConfig,a
   assertSameBinding(sourceBinding,job.binding)
   const current=await client.query("SELECT 1 FROM shared_jobs WHERE payload_digest=$1 AND state='verified' AND receipt=$2::jsonb FOR SHARE",[row.payload_digest,JSON.stringify(receipt)])
   if(current.rowCount!==1)throw Error('shared_restore_unverified')
+  if(!await revalidateCommercialRestorePublication(client,row.control_tenant_id,commercial.applied_revision_id))throw new RegistryError('commercial_reconciliation_pending')
   const dir=join(runtime.stateDir,'restore-registry');await mkdir(dir,{recursive:true});assertNoSymlink(dir)
   const path=join(dir,'registry.json')
   let existing:{schemaVersion:number;snapshotRevision:number;targets:Array<Record<string,unknown>>}={schemaVersion:1,snapshotRevision:0,targets:[]}

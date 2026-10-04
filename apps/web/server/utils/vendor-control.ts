@@ -67,7 +67,7 @@ export async function forwardVendorRequest(event: H3Event): Promise<unknown> {
   const config = useRuntimeConfig(event) as VendorRuntimeConfig & { odooUrl: string }
   if (!vendorEnabled(config)) fail(404, 'not_found', 'Not found')
   const method = getMethod(event).toUpperCase()
-  if (method !== 'GET' && method !== 'POST') fail(405, 'method_not_allowed', 'Method not allowed')
+  if (!['GET', 'POST', 'PATCH', 'DELETE'].includes(method)) fail(405, 'method_not_allowed', 'Method not allowed')
   const isMutation = !['GET', 'HEAD', 'OPTIONS'].includes(method)
   if (isMutation) assertVendorMutationOrigin(event, config)
   if (!config.vendorServiceKey || config.vendorServiceKey.length < 32 || !config.vendorInstallationId) fail(503, 'vendor_unavailable', 'Vendor service is not configured')

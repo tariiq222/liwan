@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { owningListBack, recordChildTo, MEETING_LIST_PATHS } from '@/utils/recordListOrigin'
 import FilterBar from '@/components/shared/FilterBar.vue'
 import MeetingEventList from '@/components/meetings/MeetingEventList.vue'
 import MeetingMinutesDocument from '@/components/meetings/MeetingMinutesDocument.vue'
@@ -43,14 +44,10 @@ const { mutateAsync: remove, isPending: deleting } = useDeleteMeetingAttachment(
 const { mutateAsync: convert, isPending: converting } = useConvertResolution()
 const { mutateAsync: runMeeting, isPending: transitioning } = useMeetingAction()
 const { mutateAsync: runResolution } = useResolutionAction()
-// The owning list is fixed by this page's own route, so the return trip is
-// literal and carries only the state the list was showing. A referrer's
-// returnTo is dropped rather than forwarded: on the list URL it would nest one
-// level deeper on every round trip and redirect that page's own controls.
-const backTo = computed(() => {
-  const { returnTo: _referrer, ...listQuery } = route.query
-  return { path: '/meetings', query: listQuery }
-})
+const backTo = computed(() => owningListBack(route.query, MEETING_LIST_PATHS, route.hash))
+function childTo(path: string, query = route.query) {
+  return recordChildTo(path, query, MEETING_LIST_PATHS, route.hash)
+}
 const projectByResolution = ref<Record<number, number>>({})
 const pendingDeleteId = ref<number | null>(null)
 const fileField = ref<{ reset: () => void } | null>(null)
@@ -335,8 +332,8 @@ async function confirmResolutionAction() {
         </span>
       </template>
       <template #actions>
-        <UButton color="neutral" variant="outline" :to="`/meetings/${id}/print`" :label="t('meetingMinutesForm.printPreview')" />
-        <UButton v-if="query.data.value?.can_edit && pendingResolutionIds.size === 0" color="neutral" variant="outline" :to="`/meetings/${id}/edit`" :label="t('app.edit')" />
+        <UButton color="neutral" variant="outline" :to="childTo(`/meetings/${id}/print`)" :label="t('meetingMinutesForm.printPreview')" />
+        <UButton v-if="query.data.value?.can_edit && pendingResolutionIds.size === 0" color="neutral" variant="outline" :to="childTo(`/meetings/${id}/edit`)" :label="t('app.edit')" />
         <UButton v-if="query.data.value?.can_edit && query.data.value.state === 'draft'" :disabled="!hydrated || transitioning" :label="t('meetingsUi.confirm')" @click="requestMeetingAction('confirm')" />
         <UButton v-if="query.data.value?.can_manage && query.data.value.state === 'confirmed'" :disabled="!hydrated || transitioning" :label="t('meetingsUi.complete')" @click="requestMeetingAction('complete')" />
         <UButton v-if="query.data.value?.can_manage && query.data.value.state !== 'cancelled' && query.data.value.state !== 'done'" color="neutral" variant="outline" :disabled="!hydrated || transitioning" :label="t('meetingsUi.cancelMeeting')" @click="requestMeetingAction('cancel')" />
@@ -410,7 +407,7 @@ async function confirmResolutionAction() {
               </UCard>
             </template>
             <template #minutes>
-              <div v-if="!historicalSnapshot && query.data.value.can_edit && pendingResolutionIds.size === 0" class="flex flex-wrap items-center justify-end gap-2"><UButton size="sm" :to="`/meetings/${id}/minutes`" :label="t('meetingsUx.editMinutes')" /></div>
+              <div v-if="!historicalSnapshot && query.data.value.can_edit && pendingResolutionIds.size === 0" class="flex flex-wrap items-center justify-end gap-2"><UButton size="sm" :to="childTo(`/meetings/${id}/minutes`)" :label="t('meetingsUx.editMinutes')" /></div>
               <MeetingMinutesDocument
                 v-if="historicalSnapshot || currentMinutesForm"
                 :meeting="query.data.value"
@@ -474,7 +471,7 @@ async function confirmResolutionAction() {
                 @select="selectVersion"
               />
               <div v-if="selectedVersion" class="flex justify-end">
-                <UButton color="neutral" variant="outline" size="sm" :to="{ path: `/meetings/${id}/print`, query: { version_id: selectedVersion.id } }" :label="t('meetingMinutesForm.printPreview')" />
+                <UButton color="neutral" variant="outline" size="sm" :to="childTo(`/meetings/${id}/print`, { ...route.query, version_id: String(selectedVersion.id) })" :label="t('meetingMinutesForm.printPreview')" />
               </div>
               <MeetingMinutesDocument
                 v-if="selectedVersion"
@@ -495,7 +492,7 @@ async function confirmResolutionAction() {
                     <h2 class="text-lg font-semibold text-highlighted">{{ t('meetingsUi.resolutions') }}</h2>
                     <UBadge color="neutral" variant="subtle">{{ query.data.value.resolutions.length }}</UBadge>
                     <span class="text-xs text-muted">{{ t('meetingsUx.currentFollowUp') }}</span>
-                    <UButton v-if="query.data.value.can_edit && !['done', 'cancelled'].includes(query.data.value.state)" size="sm" class="ms-auto" :to="{ path: `/meetings/${id}/resolutions/new`, query: { ...route.query, tab: 'resolutions' } }" :label="t('meetingsUi.newResolution')" />
+                    <UButton v-if="query.data.value.can_edit && !['done', 'cancelled'].includes(query.data.value.state)" size="sm" class="ms-auto" :to="childTo(`/meetings/${id}/resolutions/new`, { ...route.query, tab: 'resolutions' })" :label="t('meetingsUi.newResolution')" />
                   </div>
                 </template>
                 <div class="grid min-w-0 gap-4">
@@ -535,7 +532,7 @@ async function confirmResolutionAction() {
                         </template>
                         <UButton v-if="item.task_id" color="primary" variant="link" size="sm" class="p-0" :to="`/tasks/${item.task_id}`" :label="t('meetingsUi.openTask')" />
                         <span v-else-if="taskLinked(item)" class="text-xs text-muted">{{ t('meetingsUx.taskLinkedUnavailable') }}</span>
-                        <UButton v-if="!taskLinked(item) && (item.can_edit_decision || item.can_update_execution) && !pendingResolutionIds.has(item.id)" color="neutral" variant="outline" size="sm" :to="`/meetings/${id}/resolutions/${item.id}/edit`" :label="t('meetingsUi.editResolution')" />
+                        <UButton v-if="!taskLinked(item) && (item.can_edit_decision || item.can_update_execution) && !pendingResolutionIds.has(item.id)" color="neutral" variant="outline" size="sm" :to="childTo(`/meetings/${id}/resolutions/${item.id}/edit`)" :label="t('meetingsUi.editResolution')" />
                         <UButton v-if="resolutionCanReopen(item)" size="sm" color="neutral" variant="outline" :disabled="!hydrated || pendingResolutionIds.has(item.id)" :label="t('meetingsUi.reopen')" @click="requestResolutionAction(item.id, 'reopen')" />
                       </div>
                       <p v-if="resolutionErrors[item.id]" role="alert" class="text-sm text-error">{{ resolutionErrors[item.id] }}</p>

@@ -1,3 +1,15 @@
+import { packageHttp } from './package-http.js'
+import { PackageError } from './packages.js'
+import { commercialHttp } from './commercial/http.js'
+import { customerHttp, type PaymentRuntime } from './commercial/customer-http.js'
+import { routesB, paymentEventsHttp } from './commercial/routes-b.js'
+import { paymentAdapterFromEnv } from './commercial/payment-adapter.js'
+import { CommercialHttpError } from './commercial/lifecycle.js'
+import { invitationPublicHttp, invitationVendorHttp } from './commercial/invitation-http.js'
+import { odooSetPassword } from './commercial/invitation-odoo.js'
+import type { SetPassword } from './commercial/invitations.js'
+import { createOdooAdapter } from './shared/odoo-adapter.js'
+import { allOperationCounts, allOperations, sharedOperationDetail } from './operation-feed.js'
 import {approveOdooRestore,odooJobProgress} from './shared/odoo-backup.js'
 import {loadSharedRuntimeConfig} from './shared/runtime-config.js'
 import { sharedOnboardingRequestSchema } from '@nasq/commercial-contracts'
@@ -5,6 +17,7 @@ import { onboardSharedTenant, sharedProvisioningProgress, sharedOnboardingEnable
 import { z } from 'zod'
 import { enqueueSharedJob } from './shared/job-store.js'
 import { createHash, randomUUID } from 'node:crypto'
+import { resolveCatalogSource } from './shared/catalog-source.js'
 import { readFile, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
@@ -34,6 +47,12 @@ const restoreRequestSchema = z.strictObject({
 
 export class ApiError extends Error {
   constructor(public status: number, public code: string, message: string, public field?: string) { super(message) }
+}
+
+function operationSource(url: URL, allowed: string[]): string {
+  const values = url.searchParams.getAll('source')
+  if (values.length > 1 || (values.length === 1 && !allowed.includes(values[0]))) throw new ApiError(422, 'invalid', 'Invalid operation source', 'source')
+  return values[0] ?? 'legacy'
 }
 
 function respond(res: ServerResponse, status: number, data: unknown): void {
@@ -266,6 +285,15 @@ async function enqueue(pool: Pool, config: Config, auth: { actor: number }, tena
 }
 
 export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; cert: Buffer } }) {
+  const paymentRuntime: PaymentRuntime = {adapter:null,allowedOrigin:(process.env.NASQ_PAYMENT_RETURN_ORIGINS??'').split(',').map(s=>s.trim()).filter(Boolean)[0]??''}
+  try { paymentRuntime.adapter=paymentAdapterFromEnv(process.env) } catch { /* Fail payment routes closed; non-payment routes remain available. */ }
+  const invitationController = new AbortController()
+  let setPassword: SetPassword | undefined
+  try {
+    if (process.env.NASQ_TENANCY_MODE === 'shared') setPassword = odooSetPassword(createOdooAdapter(pool, config, invitationController.signal))
+  } catch { /* Fail invitation acceptance closed when the shared Odoo runtime is unavailable. */ }
+  const invitationAttempts = new Map<string, { count: number; expiresAt: number }>()
+  let invitationCleanupAt = 0
   const handler = async (req: IncomingMessage, res: ServerResponse) => {
     try {
       const method = req.method ?? ''
@@ -275,10 +303,47 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
         return respond(res, 200, { status: 'ok' })
       }
       if (!path.startsWith('/v1/')) throw new ApiError(404, 'not_found', 'Endpoint not found')
-      const raw = await bodyBytes(req)
-      const auth = await authorize(pool, req, raw, config)
       const url = new URL(path, 'http://localhost')
       const pathname = url.pathname
+      if (pathname === '/v1/invitations/accept') {
+        if (method !== 'POST') return respond(res, 404, { code: 'not_found', message: 'Endpoint not found' })
+        const now = Date.now()
+        if (now >= invitationCleanupAt) {
+          for (const [ip, attempt] of invitationAttempts) if (attempt.expiresAt <= now) invitationAttempts.delete(ip)
+          invitationCleanupAt = now + 60000
+        }
+        // Do not trust caller-supplied forwarding headers for this public limit.
+        const ip = req.socket.remoteAddress ?? 'unknown'
+        let attempt = invitationAttempts.get(ip)
+        if (!attempt || attempt.expiresAt <= now) {
+          attempt = { count: 0, expiresAt: now + 60000 }
+          invitationAttempts.set(ip, attempt)
+        }
+        if (++attempt.count > 10) return respond(res, 429, { code: 'rate_limited', message: 'Too many requests' })
+        try {
+          const response = await invitationPublicHttp(pool, { method, pathname, raw: await bodyBytes(req), setPassword })
+          return respond(res, response!.status, response!.data)
+        } catch (error) {
+          const status = error instanceof CommercialHttpError ? error.status : error instanceof ApiError ? 400 : 503
+          const code = status === 503 ? 'unavailable' : 'invalid_invitation'
+          return respond(res, status, { code, message: status === 503 ? 'Invitation acceptance is unavailable' : 'Invitation could not be accepted' })
+        }
+      }
+      const raw = await bodyBytes(req)
+      const customerResponse=await customerHttp(pool,config,{method,path,raw,headers:req.headers},paymentRuntime)
+      if(customerResponse)return respond(res,customerResponse.status,customerResponse.data)
+      const eventResponse=await paymentEventsHttp(pool,{method,pathname,raw,headers:req.headers},paymentRuntime)
+      if(eventResponse)return respond(res,eventResponse.status,eventResponse.data)
+      const auth = await authorize(pool, req, raw, config)
+      const packageResponse = await packageHttp(pool,{method,pathname,raw,issuer:config.installationId,actor:auth.actor,capabilities:auth.capabilities,repositoryRoot:config.repositoryRoot})
+      if(packageResponse)return respond(res,packageResponse.status,packageResponse.data)
+      const commercialInput={method,pathname,search:url.search,raw,issuer:config.installationId,actor:auth.actor,capabilities:auth.capabilities}
+      const invitationResponse = await invitationVendorHttp(pool, commercialInput)
+      if (invitationResponse) return respond(res, invitationResponse.status, invitationResponse.data)
+      let commercialResponse
+      try { commercialResponse=await commercialHttp(pool,commercialInput) }
+      catch(e){if(!(e instanceof CommercialHttpError)||e.code!=='not_found')throw e;commercialResponse=await routesB(pool,commercialInput,url,paymentRuntime);if(!commercialResponse)throw e}
+      if (commercialResponse) return respond(res,commercialResponse.status,commercialResponse.data)
       if (method === 'POST' && pathname === '/v1/shared/tenants') {
         requireCapability(auth, 'vendor.tenants.manage')
         requireCapability(auth, 'vendor.operations.run')
@@ -328,6 +393,7 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
       if (method === 'GET' && pathname === '/v1/context') return respond(res, 200, { enabled: true, capabilities: auth.capabilities, shared_onboarding_enabled: await sharedOnboardingEnabled(config) })
       if (method === 'GET' && pathname === '/v1/overview') {
         requireCapability(auth, 'vendor.read')
+        if (operationSource(url, ['legacy', 'all']) === 'all') return respond(res, 200, await allOperationCounts(pool))
         const counts = await pool.query(`SELECT (SELECT count(*)::int FROM tenants) AS tenants, (SELECT count(*)::int FROM tenants WHERE status='active') AS active, (SELECT count(*)::int FROM operations WHERE status IN ('queued','running')) AS pending_operations, (SELECT count(*)::int FROM operations WHERE status IN ('failed','needs_intervention')) AS failed_operations, (SELECT max(health_checked_at) FROM tenants) AS last_health_at`)
         return respond(res, 200, counts.rows[0])
       }
@@ -421,14 +487,24 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
         const page = pageFrom(url)
         const tenantId = url.searchParams.get('tenant_id') ?? ''
         if (tenantId && !new RegExp(`^${UUID}$`).test(tenantId)) throw new ApiError(422, 'invalid', 'Invalid tenant', 'tenant_id')
+        if (operationSource(url, ['legacy', 'all']) === 'all') return respond(res, 200, await allOperations(pool, tenantId, page))
         const result = await pool.query(`SELECT ${OP_FIELDS},count(*) OVER()::int AS total FROM operations WHERE ($1='' OR tenant_id=$1::uuid) ORDER BY created_at DESC,id DESC LIMIT 25 OFFSET $2`, [tenantId, (page - 1) * 25])
         return respond(res, 200, { items: result.rows.map(({ total: _total, ...row }) => row), total: result.rows[0]?.total ?? 0 })
       }
       const opMatch = pathname.match(new RegExp(`^/v1/operations/(${UUID})$`))
-      if (opMatch && method === 'GET') { requireCapability(auth, 'vendor.read'); return respond(res, 200, await operationDetail(pool, opMatch[1])) }
+      if (opMatch && method === 'GET') {
+        requireCapability(auth, 'vendor.read')
+        if (operationSource(url, ['legacy', 'shared']) === 'shared') {
+          const operation = await sharedOperationDetail(pool, opMatch[1])
+          if (!operation) throw new ApiError(404, 'not_found', 'Operation not found')
+          return respond(res, 200, operation)
+        }
+        return respond(res, 200, await operationDetail(pool, opMatch[1]))
+      }
       const retryMatch = pathname.match(new RegExp(`^/v1/operations/(${UUID})/retry$`))
       if (retryMatch && method === 'POST') {
         requireCapability(auth, 'vendor.operations.run')
+        if (operationSource(url, ['legacy', 'shared']) === 'shared') throw new ApiError(422, 'retry_forbidden', 'Shared operations cannot be retried here')
         const input = parseJson(raw, retryRequestSchema)
         const old = await pool.query('SELECT tenant_id,type,status FROM operations WHERE id=$1', [retryMatch[1]])
         if (!old.rowCount) throw new ApiError(404, 'not_found', 'Operation not found')
@@ -451,8 +527,8 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
         if (!current.rowCount) throw new ApiError(404, 'not_found', 'Catalog entry not found')
         if (current.rows[0].status !== (action === 'validate' ? 'draft' : 'validated')) throw new ApiError(409, 'conflict', 'Catalog transition is unavailable')
         if (action === 'validate') {
-          const catalogFile = await readFile(join(config.repositoryRoot, 'deploy/catalog/solutions/platform.json'))
-          if (createHash('sha256').update(catalogFile).digest('hex') !== current.rows[0].source_sha256) throw new ApiError(409, 'conflict', 'Catalog source changed; import a new version')
+          try { await resolveCatalogSource(config.repositoryRoot, current.rows[0].source_sha256) }
+          catch { throw new ApiError(409, 'conflict', 'Catalog source changed; import a new version') }
           try { await exec(config.python, ['-B', join(config.repositoryRoot, 'tools/catalog_check.py'), '--root', config.repositoryRoot], { cwd: config.repositoryRoot, timeout: 60000, maxBuffer: 65536 }) }
           catch { throw new ApiError(422, 'catalog_invalid', 'Trusted catalog validation failed') }
         }
@@ -473,9 +549,12 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
       throw new ApiError(404, 'not_found', 'Endpoint not found')
     } catch (error) {
       const known = error instanceof Error && ['shared_job_unavailable','shared_backup_unavailable','shared_restore_approval_unavailable','shared_artifact_mismatch','shared_job_forbidden','tenant_operations_unavailable','restore_target_reserved','shared_replay_forbidden','shared_onboarding_forbidden','idempotency_conflict','published_catalog_missing','catalog_tier_missing','shared_adapter_unavailable','shared_onboarding_missing'].includes(error.message) ? new ApiError(error.message.endsWith('forbidden') ? 403 : error.message === 'shared_adapter_unavailable' ? 503 : error.message === 'shared_onboarding_missing' ? 404 : 409,error.message,'Shared onboarding request rejected') : null
-      const failure = known ?? (error instanceof ApiError ? error : error instanceof RegistryError ? new ApiError(error.status, error.code, 'Registry operation rejected') : new ApiError(503, 'service_unavailable', 'Control service is unavailable'))
+      const failure = known ?? (error instanceof PackageError ? new ApiError(error.status,error.code,error.detail??'Package request rejected',error.field) : error instanceof z.ZodError ? new ApiError(422,'invalid','Invalid request body',String(error.issues[0]?.path[0]??'body')) : error instanceof ApiError ? error : error instanceof RegistryError ? new ApiError(error.status, error.code, 'Registry operation rejected') : new ApiError(503, 'service_unavailable', 'Control service is unavailable'))
+      if (error instanceof CommercialHttpError) return respond(res, error.status, { code: error.code, message: error.code, ...(error.field ? { field: error.field } : {}), ...(error.issues.length ? { issues: error.issues } : {}) })
       return respond(res, failure.status, { code: failure.code, message: failure.message, ...(failure.field ? { field: failure.field } : {}) })
     }
   }
-  return config.tls ? createHttpsServer(config.tls, handler) : createServer(handler)
+  const server = config.tls ? createHttpsServer(config.tls, handler) : createServer(handler)
+  server.once('close', () => invitationController.abort())
+  return server
 }

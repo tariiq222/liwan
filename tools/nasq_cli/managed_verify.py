@@ -56,6 +56,16 @@ def _features(value):
     )
 
 
+def _features_match(actual, expected):
+    # Only a migrated legacy null may extend a policy that omitted this key.
+    observed = dict(actual)
+    if 'branches.extra_limit' not in expected and observed.get('branches.extra_limit') is None:
+        observed.pop('branches.extra_limit', None)
+    return (set(observed) == set(expected)
+            and all(type(value) is type(expected[key]) and value == expected[key]
+                    for key, value in observed.items()))
+
+
 def _modules(value):
     return (type(value) is list and len(value) <= 1024
             and all(type(item) is str and MODULE_RE.fullmatch(item) for item in value)
@@ -124,9 +134,7 @@ def parse_snapshot(stdout: str, policy: dict, database: str) -> dict:
             or type(data['policy_revision']) is not int or data['policy_revision'] < 0):
         _fail('profile_invalid')
     features = data['features']
-    if (not _features(features) or set(features) != set(policy['features'])
-            or any(type(value) is not type(policy['features'][key])
-                   or value != policy['features'][key] for key, value in features.items())):
+    if not _features(features) or not _features_match(features, policy['features']):
         _fail('features_mismatch')
     modules = data['modules']
     if (not _modules(modules)
@@ -146,6 +154,15 @@ class ManagedPolicyRefusal(Exception):
 
 def refuse(code):
     raise ManagedPolicyRefusal(code)
+
+def _features_match(actual, expected):
+    # Only a migrated legacy null may extend a policy that omitted this key.
+    observed = dict(actual)
+    if 'branches.extra_limit' not in expected and observed.get('branches.extra_limit') is None:
+        observed.pop('branches.extra_limit', None)
+    return (set(observed) == set(expected)
+            and all(type(value) is type(expected[key]) and value == expected[key]
+                    for key, value in observed.items()))
 
 def read_profile():
     profile = env['nasq.tenant.profile'].search([], limit=2)
@@ -216,9 +233,7 @@ _APPLY = '''\
     check_profile(profile)
     result = read_snapshot(profile, installed_modules())
     check_modules(result['modules'], policy)
-    if (set(result['features']) != set(policy['features'])
-            or any(type(value) is not type(policy['features'][key])
-                   or value != policy['features'][key] for key, value in result['features'].items())
+    if (not _features_match(result['features'], policy['features'])
             or result['policy_revision'] != 1):
         refuse('features_mismatch')
     encoded = json.dumps(result, sort_keys=True, allow_nan=False)

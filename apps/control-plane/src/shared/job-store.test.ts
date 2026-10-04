@@ -10,7 +10,7 @@ it('persists one provisioning business key across distinct request IDs', async (
   const stored: Array<{id:string,payload_digest:string,state:string,issuer:string,actor_uid:number}> = []
   let inserts=0
   const audits:string[]=[]
-  const solution={base_modules:['nasq_core'],tiers:[{id:'core',modules:[],features:[]}]}
+  const solution={schema_version:1,base_modules:['nasq_core'],tiers:[{id:'core',modules:[],features:[]}]}
   const client={release(){},async query(sql:string,params:any[]=[]){
     const result=(rows:unknown[]=[])=>({rows,rowCount:rows.length})
     if (['BEGIN','COMMIT','ROLLBACK'].includes(sql)||sql.startsWith('SELECT pg_advisory')) return result()
@@ -93,8 +93,8 @@ it('rolls back queued insertion when durable audit cannot be written', async () 
   expect(rows).toEqual([]);expect(committed).toBe(0);expect(rolledBack).toBe(1)
 })
 it('derives policy only from published catalog module and feature definitions', () => {
-  expect(deriveSharedPolicy({ base_modules: ['nasq_core'], tiers: [{ id: 'core', modules: ['nasq_pmo'], features: ['boolean:pmo.projects', 'limit:users.limit'] }] }, 'core')).toEqual({ schema_version: 1, channel: 'control_plane', modules: ['nasq_core', 'nasq_pmo'], features: { 'users.limit': null, 'storage.limit_mb': null, 'pmo.projects': true } })
-  expect(() => deriveSharedPolicy({ base_modules: ['nasq_core'], tiers: [] }, 'core')).toThrow('catalog_tier_missing')
+  expect(deriveSharedPolicy({ schema_version: 1, base_modules: ['nasq_core'], tiers: [{ id: 'core', modules: ['nasq_pmo'], features: ['boolean:pmo.projects', 'limit:users.limit'] }] }, 'core')).toEqual({ schema_version: 1, channel: 'control_plane', modules: ['nasq_core', 'nasq_pmo'], features: { 'users.limit': null, 'storage.limit_mb': null, 'pmo.projects': true } })
+  expect(() => deriveSharedPolicy({ schema_version: 1, base_modules: ['nasq_core'], tiers: [] }, 'core')).toThrow('catalog_tier_missing')
 })
 it('binds only trusted registry identity and derives stable provisioning key across requests', () => {
   const a = bindQueuedRequest(request, binding)

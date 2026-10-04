@@ -66,3 +66,30 @@ Storybook هو فهرس المكونات الملزم: كل وكيل يأخذ ا
 
 تبقى خصائص Nuxt UI و`props` و`emits` و`slots` و`data-testid` والعقود والصلاحيات
 ملكًا للمكوّن الحالي. التوثيق لا يثبت قبولًا بصريًا أو سلوكيًا أو جاهزية نشر.
+
+
+## مكونات الإدارة والاشتراك التجاري — 2026-10-04
+
+الجرد التالي مشتق من المكونات والقصص الموجودة في المصدر الموحّد. الخصائص والأحداث والتفاصيل في `catalog.json` المولّد؛ وجود القصة لا يثبت اكتمال بوابات قبول المنتج.
+
+| المكوّن | القصة | مكونات الأساس المستخدمة فعليًا |
+| --- | --- | --- |
+| `apps/web/app/components/vendor/BundleForm.vue` | `apps/web/stories/vendor/BundleForm.stories.ts` | `SharedFormSection`, `SharedUnsavedChanges`, `UAlert`, `UButton`, `UCheckbox`, `UFormField`, `UIcon`, `UInput`, `USelect`, `UTextarea` |
+| `apps/web/app/components/vendor/CapacityLimitsEditor.vue` | `apps/web/stories/vendor/CapacityLimitsEditor.stories.ts` | `UFormField`, `UInput`, `USelect` |
+| `apps/web/app/components/vendor/CustomerTermsForm.vue` | `apps/web/stories/vendor/CustomerTermsForm.stories.ts` | `SharedFormSection`, `SharedUnsavedChanges`, `UAlert`, `UButton`, `UFormField`, `UInput`, `USelect`, `UTextarea` |
+| `apps/web/app/components/vendor/EntitlementSummary.vue` | `apps/web/stories/vendor/EntitlementSummary.stories.ts` | `UBadge` |
+| `apps/web/app/components/vendor/InvoiceLines.vue` | `apps/web/stories/vendor/InvoiceLines.stories.ts` | `UBadge` |
+| `apps/web/app/components/vendor/LifecycleBadge.vue` | `apps/web/stories/vendor/LifecycleBadge.stories.ts` | `UBadge` |
+| `apps/web/app/components/vendor/LifecyclePanel.vue` | `apps/web/stories/vendor/LifecyclePanel.stories.ts` | `SharedFormSection`, `SharedInlineConfirm`, `SharedUnsavedChanges`, `UAlert`, `UButton`, `UFormField`, `UTextarea` |
+| `apps/web/app/components/vendor/OrderStateBadge.vue` | `apps/web/stories/vendor/OrderStateBadge.stories.ts` | `UBadge` |
+| `apps/web/app/components/vendor/PackageForm.vue` | `apps/web/stories/vendor/PackageForm.stories.ts` | `SharedFormSection`, `SharedUnsavedChanges`, `UAlert`, `UBadge`, `UButton`, `UFormField`, `UInput`, `USelect`, `UTextarea` |
+| `apps/web/app/components/vendor/PlanForm.vue` | `apps/web/stories/vendor/PlanForm.stories.ts` | `SharedFormSection`, `SharedUnsavedChanges`, `UAlert`, `UButton`, `UCheckbox`, `UFormField`, `UInput`, `USelect`, `UTextarea` |
+| `apps/web/app/components/vendor/PriceBreakdown.vue` | `apps/web/stories/vendor/PriceBreakdown.stories.ts` | `UAlert`, `UButton` |
+| `apps/web/app/components/vendor/PriceListEditor.vue` | `apps/web/stories/vendor/PriceListEditor.stories.ts` | `UButton`, `UFormField`, `UInput`, `USelect` |
+| `apps/web/app/components/vendor/SubscriptionSummary.vue` | `apps/web/stories/vendor/SubscriptionSummary.stories.ts` | `UAlert`, `UBadge` |
+| `apps/web/app/components/vendor/UsageMeters.vue` | `apps/web/stories/vendor/UsageMeters.stories.ts` | `UBadge`, `UProgress` |
+| `apps/web/app/components/subscription/AutoRenewControl.vue` | `apps/web/stories/subscription/AutoRenewControl.stories.ts` | `UBadge`, `UButton`, `UCheckbox` |
+| `apps/web/app/components/subscription/BranchSummary.vue` | `apps/web/stories/subscription/BranchSummary.stories.ts` | `UBadge` |
+| `apps/web/app/components/subscription/InvoiceLines.vue` | `apps/web/stories/subscription/InvoiceLines.stories.ts` |  |
+| `apps/web/app/components/subscription/StateBadge.vue` | `apps/web/stories/subscription/StateBadge.stories.ts` | `UBadge` |
+| `apps/web/app/components/subscription/UsagePanel.vue` | `apps/web/stories/subscription/UsagePanel.stories.ts` | `UBadge` |

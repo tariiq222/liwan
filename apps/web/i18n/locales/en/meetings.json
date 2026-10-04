@@ -366,6 +366,7 @@
     "pageOf": "Page {page} of {pages}",
     "pagination": "Pagination",
     "printTitle": "Print meeting minutes",
+    "printEmpty": "There is no agenda, minutes or recommendations to print. Add content to the meeting to enable printing.",
     "printKicker": "Meeting minutes",
     "print": "Print",
     "printPreview": "Preview and print",

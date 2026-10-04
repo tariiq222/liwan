@@ -73,3 +73,8 @@ apps/web/storybook-static/
 # Local agent tool state
 .agent-teams/
 .dsh-auto/
+
+# saas_commercial_acceptance private state
+tools/saas_commercial_acceptance/.state/
+tools/saas_commercial_acceptance/.secrets/
+tools/saas_commercial_acceptance/test-results/

@@ -1,7 +1,8 @@
 export type SharedTenantInput = {
   name: string
-  catalog_version: string
-  catalog_tier: string
+  catalog_version?: string
+  catalog_tier?: string
+  package_revision_id?: string
   admin_name: string
   admin_login: string
   reason: string
@@ -15,7 +16,8 @@ export function createSharedTenantRequest(randomUUID: () => string = () => crypt
   return {
     body(input: SharedTenantInput) {
       requestId ??= randomUUID()
-      return { request_id: requestId, name: input.name, catalog_version: input.catalog_version, catalog_tier: input.catalog_tier, admin_name: input.admin_name, admin_login: input.admin_login, reason: input.reason }
+      const selection = input.package_revision_id ? { package_revision_id: input.package_revision_id } : { catalog_version: input.catalog_version, catalog_tier: input.catalog_tier }
+      return { request_id: requestId, name: input.name, ...selection, admin_name: input.admin_name, admin_login: input.admin_login, reason: input.reason }
     },
     acceptedNavigation() { requestId = null },
   }

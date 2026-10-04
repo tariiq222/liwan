@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { hrDocumentContext } from '@/utils/hrReturnTo'
 import DocumentEditor from '@/components/hr/DocumentEditor.vue'
 import { useHrDocument, useUpdateDocument, useUploadDocumentAttachment } from '@/composables/useHrDocuments'
 import { useSsrQuerySeed } from '@/lib/vueQuerySsr'
@@ -11,18 +12,12 @@ const toast = useToast()
 const departmentId = computed(() => Number(route.params.departmentId))
 const documentId = computed(() => Number(route.params.documentId))
 const query = useHrDocument(documentId)
-// An edit form returns to the record it edits, not past it to the list: being
-// thrown back to the list is exactly what the reader did not ask for. The
-// target is fixed by this page's own route and carries the list state through,
-// so the record's own back control still lands on a filtered list. A referrer's
-// returnTo is dropped rather than forwarded: on the destination URL it would
-// nest one level deeper on every round trip and redirect that page's controls.
-const backTo = computed(() => {
-  const { returnTo: _referrer, ...listQuery } = route.query
-  return { path: `/hr/departments/${departmentId.value}/documents/${documentId.value}`, query: listQuery }
-})
+const backTo = computed(() => ({ path: `/hr/departments/${departmentId.value}/documents/${documentId.value}`, query: hrDocumentContext(route.query, departmentId.value), ...(route.hash ? { hash: route.hash } : {}) }))
 const name = ref('')
 const body = ref('')
+const submitted = ref(false)
+const saveError = ref('')
+const titleError = computed(() => submitted.value && !name.value.trim() ? t('hr.docs.titleRequired') : undefined)
 const savedState = ref('')
 let initializedId: number | null = null
 const { mutateAsync: update, isPending: updating } = useUpdateDocument()
@@ -40,14 +35,18 @@ function seedDocument(document: typeof query.data.value) {
 watch(query.data, seedDocument, { immediate: true })
 useSsrQuerySeed({ data: query.data }, seedDocument)
 async function save() {
-  if (!query.data.value || !hydrated.value || !name.value.trim() || updating.value || uploading.value) return
+  if (!query.data.value || !hydrated.value || updating.value || uploading.value) return
+  submitted.value = true
+  saveError.value = ''
+  const title = name.value.trim()
+  if (!title) return
   try {
-    const saved = await update({ id: documentId.value, patch: { name: name.value.trim(), body: body.value } })
+    const saved = await update({ id: documentId.value, patch: { name: title, body: body.value } })
     name.value = saved.name
     body.value = saved.body
     savedState.value = JSON.stringify([name.value, body.value])
     await navigateTo(backTo.value)
-  } catch { toast.add({ title: t('errors.generic'), color: 'error' }) }
+  } catch { saveError.value = t('errors.generic') }
 }
 function readFile(file: File) {
   return new Promise<string>((resolve, reject) => {
@@ -73,10 +72,11 @@ async function uploadFile(event: Event) {
     <SharedPageState v-else :loading="query.isLoading.value" :error="query.error.value" :empty="!query.data.value" @retry="query.refetch">
       <UForm v-if="query.data.value" :state="{ name, body }" class="space-y-6" method="post" @submit="save">
         <SharedUnsavedChanges :dirty="dirty" />
+        <UAlert v-if="saveError" color="error" variant="subtle" :description="saveError" />
         <UCard class="rounded-lg ring ring-default bg-default overflow-hidden" :ui="{ header: '' }">
           <template #header><h2 class="text-lg font-semibold text-highlighted">{{ t('hr.docs.edit') }}</h2></template>
           <div class="grid gap-4">
-            <UFormField :label="t('hr.docs.columns.name')" name="hr-doc-title">
+            <UFormField :label="t('hr.docs.columns.name')" name="hr-doc-title" required :error="titleError">
               <UInput id="hr-doc-title" v-model="name" class="w-full" :disabled="!hydrated || updating" />
             </UFormField>
             <UFormField :label="t('hr.docs.body')" name="hr-doc-body">
@@ -99,7 +99,7 @@ async function uploadFile(event: Event) {
         </UCard>
         <footer class="nasq-form-footer justify-end">
           <UButton type="button" color="neutral" variant="outline" :disabled="updating" :to="backTo" :label="t('app.cancel')" />
-          <UButton type="submit" color="primary" :disabled="!hydrated || updating || uploading || !name.trim()" :label="t('app.save')" />
+          <UButton type="submit" color="primary" :loading="updating" :disabled="!hydrated || updating || uploading" :label="t('app.save')" />
         </footer>
       </UForm>
     </SharedPageState>

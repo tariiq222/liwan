@@ -26,6 +26,12 @@ class NasqFeatureRegistry(models.AbstractModel):
                 'owner': 'nasq_platform',
                 'module': 'nasq_platform',
             },
+            {
+                'key': 'branches.extra_limit',
+                'type': 'limit',
+                'owner': 'nasq_platform',
+                'module': 'nasq_platform',
+            },
         )
 
     @api.model

@@ -1,0 +1,20 @@
+{
+  "invite": {
+    "title": "Accept invitation",
+    "subtitle": "Choose a password to activate your account.",
+    "password": "Password",
+    "confirm": "Confirm password",
+    "rulesTitle": "Password rules",
+    "ruleLength": "At least 12 characters",
+    "ruleMatch": "Both passwords match",
+    "submit": "Activate account",
+    "invalidTitle": "This invitation link is invalid or has expired",
+    "invalidBody": "Ask your company administrator to send a new invitation.",
+    "unavailableTitle": "The service is currently unavailable",
+    "unavailableBody": "Please try again shortly.",
+    "successTitle": "Your account is active",
+    "successBody": "You can now sign in.",
+    "successLogin": "Login: {login}",
+    "signIn": "Go to sign in"
+  }
+}

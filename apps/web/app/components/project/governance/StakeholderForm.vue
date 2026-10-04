@@ -32,6 +32,8 @@ const userSelect = computed({
 })
 const baseline = JSON.stringify([name.value, organization.value, role.value, contact.value, notes.value, userId.value])
 const submitted = ref(false)
+const attempted = ref(false)
+const requiredError = computed(() => attempted.value && !name.value.trim() ? t('projects.governance.stakeholder.nameRequired') : undefined)
 const error = ref<string | null>(null)
 const dirty = computed(() => !submitted.value && JSON.stringify([name.value, organization.value, role.value, contact.value, notes.value, userId.value]) !== baseline)
 const create = useCreateProjectStakeholder()
@@ -39,6 +41,8 @@ const update = useUpdateProjectStakeholder()
 const pending = computed(() => create.isPending.value || update.isPending.value)
 
 async function submit() {
+  if (!hydrated.value || pending.value) return
+  attempted.value = true
   error.value = null
   if (!name.value.trim()) return
   const body: ProjectStakeholderWrite = {
@@ -64,11 +68,12 @@ async function submit() {
 </script>
 
 <template>
-  <form class="space-y-8" @submit.prevent="submit">
+  <form novalidate class="space-y-8" @submit.prevent="submit">
+    <UAlert v-if="error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="error" />
     <SharedUnsavedChanges :dirty="dirty" />
     <SharedFormSection :title="t('projects.refresh.workspace.stakeholderIdentity')" :description="t('projects.refresh.workspace.stakeholderIdentityDescription')">
       <div class="grid gap-5">
-        <UFormField :label="t('projects.governance.stakeholder.name')" required>
+        <UFormField :label="t('projects.governance.stakeholder.name')" required :error="requiredError">
           <UInput id="stakeholder-name" v-model="name" class="w-full" required :disabled="!hydrated || pending" />
         </UFormField>
         <UFormField :label="t('projects.governance.stakeholder.organization')">
@@ -105,10 +110,9 @@ async function submit() {
         </UFormField>
       </div>
     </SharedFormSection>
-    <UAlert v-if="error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="error" />
     <div class="flex flex-wrap gap-2 justify-end">
       <UButton type="button" color="neutral" :disabled="!hydrated || pending" @click="emit('cancel')" variant="outline">{{ t('app.cancel') }}</UButton>
-      <UButton type="submit" :disabled="!hydrated || pending || !name.trim()">{{ pending ? t('projects.governance.saving') : t('app.save') }}</UButton>
+      <UButton type="submit" :disabled="!hydrated || pending" :loading="pending">{{ pending ? t('projects.governance.saving') : t('app.save') }}</UButton>
     </div>
   </form>
 </template>

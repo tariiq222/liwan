@@ -1,4 +1,4 @@
-export const VENDOR_CAPABILITIES = ['vendor.read', 'vendor.tenants.manage', 'vendor.catalog.manage', 'vendor.operations.run', 'vendor.audit.read'] as const
+export const VENDOR_CAPABILITIES = ['vendor.read', 'vendor.tenants.manage', 'vendor.catalog.manage', 'vendor.operations.run', 'vendor.audit.read', 'vendor.pricing.manage', 'vendor.subscriptions.manage', 'vendor.billing.manage'] as const
 export type VendorCapability = typeof VENDOR_CAPABILITIES[number]
 export type VendorContext = { enabled: true; capabilities: VendorCapability[]; shared_onboarding_enabled?: boolean }
 export type VendorContextError = { statusCode: number | null; code: string; message: string }

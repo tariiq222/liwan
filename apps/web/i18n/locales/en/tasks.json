@@ -213,6 +213,8 @@
     },
     "quick": {
       "optional": "Optional details"
-    }
+    },
+    "nameRequired": "Enter a task name.",
+    "projectRequired": "Select a project for this task."
   }
 }

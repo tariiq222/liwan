@@ -1,15 +1,9 @@
 <script setup lang="ts">
+import { hrDocumentBack, hrDocumentContext } from '@/utils/hrReturnTo'
 import DocumentCreateForm from '@/components/hr/DocumentCreateForm.vue'
 const route = useRoute(); const { t } = useI18n(); const id = computed(() => Number(route.params.departmentId)); const { can } = useAccess()
-// The owning list is fixed by this page's own route, so the return trip is
-// literal and carries only the state the list was showing. A referrer's
-// returnTo is dropped rather than forwarded: on the list URL it would nest one
-// level deeper on every round trip and redirect that page's own controls.
-const backTo = computed(() => {
-  const { returnTo: _referrer, ...listQuery } = route.query
-  return { path: '/hr/documents', query: listQuery }
-})
-function saved(documentId: number) { void navigateTo(`/hr/departments/${id.value}/documents/${documentId}`) }
+const backTo = computed(() => hrDocumentBack(route.query, id.value, route.hash))
+function saved(documentId: number) { void navigateTo({ path: `/hr/departments/${id.value}/documents/${documentId}`, query: hrDocumentContext(route.query, id.value), ...(route.hash ? { hash: route.hash } : {}) }) }
 </script>
 <template>
   <SharedCreatePanel :title="t('hr.docs.new')" :back-to="backTo">

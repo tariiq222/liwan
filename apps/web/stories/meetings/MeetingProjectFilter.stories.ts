@@ -17,7 +17,7 @@ type Story = StoryObj<typeof meta>
 
 export const InFormField: Story = {
   name: 'داخل حقل نموذج',
-  parameters: storyContext('apps/web/app/pages/meetings/[id]/resolutions/new.vue:97'),
+  parameters: storyContext('apps/web/app/pages/meetings/[id]/resolutions/new.vue:92'),
   render: args => ({
     components: { FormSection, MeetingProjectFilter, PageContainer },
     setup: () => ({ args, t: useI18n().t, projectId: ref(args.modelValue) }),

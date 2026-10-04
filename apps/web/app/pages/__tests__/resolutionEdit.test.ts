@@ -1,3 +1,4 @@
+import * as recordNavigation from '../../utils/recordListOrigin'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { parse } from '@vue/compiler-sfc'
@@ -5,7 +6,7 @@ import ts from 'typescript'
 import { computed, nextTick, ref, watch } from 'vue'
 import { describe, expect, it, vi } from 'vitest'
 
-function page(flags: { can_edit_decision: boolean; can_update_execution: boolean }) {
+function page(flags: { can_edit_decision: boolean; can_update_execution: boolean }, listOrigin?: string) {
   const source = readFileSync(resolve('app/pages/meetings/[id]/resolutions/[resolutionId]/edit.vue'), 'utf8')
   const resolution = {
     id: 9,
@@ -29,8 +30,8 @@ function page(flags: { can_edit_decision: boolean; can_update_execution: boolean
   })
   const mutateAsync = vi.fn(async () => resolution)
   const navigateTo = vi.fn(async () => {})
-  const route = { params: { id: '7', resolutionId: '9' }, query: { returnTo: '/meetings?state=confirmed' } }
-  const scope = {
+  const route = { params: { id: '7', resolutionId: '9' }, query: listOrigin ? { listOrigin } : { returnTo: '/meetings?state=confirmed' }, hash: listOrigin ? '#resolutions' : '' }
+  const scope = { ...recordNavigation,
     ref,
     computed,
     watch,
@@ -58,6 +59,14 @@ function page(flags: { can_edit_decision: boolean; can_update_execution: boolean
 }
 
 describe('meeting resolution edit workflow', () => {
+  it('retains validated list context and the meeting hash after saving', async () => {
+    const origin = '/meetings/calendar?month=10#day-9'
+    const edit = page({ can_edit_decision: false, can_update_execution: true }, origin)
+    edit.result.value = '<p>Updated result.</p>'
+    await edit.save()
+    expect(edit.navigateTo).toHaveBeenCalledWith({ path: '/meetings/7', query: { returnTo: origin }, hash: '#resolutions' })
+  })
+
   it('saves all decision and execution fields for an organizer', async () => {
     const edit = page({ can_edit_decision: true, can_update_execution: true })
 

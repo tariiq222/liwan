@@ -19,6 +19,44 @@ import { ensureTenantStorageSchema } from './fenced-adapter.js'
 import { ensureAdminBindingSchema } from './provision-readiness.js'
 import { REGISTRY_ADVISORY_LOCK } from './registry-store.js'
 
+export type CommercialRestoreRunner = import('./subscription-reconcile.js').ObserveRunner
+export type CommercialRestoreObservation = Awaited<ReturnType<CommercialRestoreRunner>>
+export type CommercialRestoreGate = { ready: boolean; job_id?: string; reason?: string }
+
+/** Observe outside control transactions: the reconciler owns its enqueue
+ * transaction. Never substitute a historical receipt for restored DB readback. */
+export async function commercialRestoreGate(pool: Pool, input: { tenant_id: string; restore_id?: string; target?: { database: string; filestore: string; host: string }; runner?: CommercialRestoreRunner }): Promise<CommercialRestoreGate> {
+  z.uuid().parse(input.tenant_id)
+  const subscription = await pool.query('SELECT applied_revision_id FROM subscriptions WHERE tenant_id=$1 AND applied_revision_id IS NOT NULL', [input.tenant_id])
+  if (!subscription.rowCount) return { ready: true }
+  if (!input.runner) return { ready: false, reason: 'commercial_observer_unavailable' }
+  if (!input.restore_id || !input.target) return { ready: false, reason: 'commercial_restore_target_required' }
+  const { reconcileAfterRestore } = await import('./subscription-reconcile.js')
+  return reconcileAfterRestore(pool, { tenant_id: input.tenant_id, restore_id: input.restore_id, target: input.target, runner: input.runner })
+}
+
+/** Preflight for operator-driven restore reopening. Runs before BEGIN so an
+ * idempotently enqueued reconfigure survives a publication refusal. */
+export async function prepareCommercialRestorePublication(pool: Pool, client: PoolClient, tenantId: string, target: { database: string; filestore: string; host: string }, runner?: CommercialRestoreRunner, restoreId?: string): Promise<{ ready: boolean; applied_revision_id: string | null }> {
+  const result = await client.query(`SELECT id,
+    (SELECT a.id FROM shared_restore_approvals a WHERE a.control_tenant_id=tenants.id AND a.consumed_at IS NOT NULL
+      AND ($2::uuid IS NULL OR a.id=$2) AND a.target_database=$3 ORDER BY a.consumed_at DESC LIMIT 1) AS restore_id,
+    (SELECT applied_revision_id FROM subscriptions WHERE tenant_id=tenants.id AND applied_revision_id IS NOT NULL LIMIT 1) AS applied_revision_id
+    FROM tenants WHERE id=$1`, [tenantId, restoreId ?? null, target.database])
+  const row = result.rows[0]
+  if (!row?.restore_id || !row.applied_revision_id) return { ready: true, applied_revision_id: null }
+  const gate = await commercialRestoreGate(pool, { tenant_id: tenantId, restore_id: row.restore_id, target, runner })
+  return { ready: gate.ready, applied_revision_id: row.applied_revision_id }
+}
+
+/** Hold the current commercial revision through publication. A payment/revision
+ * change between physical readback and this lock invalidates that readback. */
+export async function revalidateCommercialRestorePublication(client: PoolClient, tenantId: string, expected: string | null): Promise<boolean> {
+  if (!expected) return true
+  const current = await client.query('SELECT applied_revision_id FROM subscriptions WHERE tenant_id=$1 FOR SHARE', [tenantId])
+  return current.rowCount === 1 && current.rows[0].applied_revision_id === expected
+}
+
 function digest(value: string): string {
   return createHash('sha256').update(value).digest('hex')
 }

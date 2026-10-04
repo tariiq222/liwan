@@ -292,6 +292,8 @@ describe('safe defaults and returned shape', () => {
   it('returns exactly the documented configuration keys', () => {
     applyEnv()
     expect(Object.keys(getConfig()).sort()).toEqual([
+      'customerCommercialIssuer',
+      'customerCommercialServiceKey',
       'databaseUrl',
       'host',
       'installationId',

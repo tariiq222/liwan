@@ -1,0 +1,1264 @@
+{
+  "grammar_v2": "limit:key | limit:key:<int> | boolean:key",
+  "cases": [
+    {
+      "name": "v1_valid_baseline",
+      "catalog": {
+        "schema_version": 1,
+        "base_modules": [
+          "nasq_core",
+          "nasq_platform",
+          "nasq_api"
+        ],
+        "tiers": [
+          {
+            "id": "core",
+            "modules": [],
+            "features": [
+              "limit:users.limit",
+              "limit:storage.limit_mb"
+            ]
+          },
+          {
+            "id": "projects",
+            "modules": [
+              "nasq_pmo"
+            ],
+            "features": [
+              "boolean:pmo.enabled"
+            ]
+          }
+        ]
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "v2_valid_baseline",
+      "catalog": {
+        "schema_version": 2,
+        "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
+        "base_modules": [
+          "nasq_core",
+          "nasq_platform",
+          "nasq_api"
+        ],
+        "tiers": [
+          {
+            "id": "core",
+            "modules": [],
+            "features": [
+              "limit:users.limit",
+              "limit:storage.limit_mb",
+              "limit:branches.extra_limit:0"
+            ]
+          },
+          {
+            "id": "projects",
+            "modules": [
+              "nasq_pmo"
+            ],
+            "features": [
+              "boolean:pmo.enabled"
+            ]
+          }
+        ]
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "schema_version_int_1",
+      "catalog": {
+        "schema_version": 1,
+        "base_modules": [
+          "nasq_core",
+          "nasq_platform",
+          "nasq_api"
+        ],
+        "tiers": [
+          {
+            "id": "core",
+            "modules": [],
+            "features": [
+              "limit:users.limit",
+              "limit:storage.limit_mb"
+            ]
+          },
+          {
+            "id": "projects",
+            "modules": [
+              "nasq_pmo"
+            ],
+            "features": [
+              "boolean:pmo.enabled"
+            ]
+          }
+        ]
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "schema_version_int_2",
+      "catalog": {
+        "schema_version": 2,
+        "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
+        "base_modules": [
+          "nasq_core",
+          "nasq_platform",
+          "nasq_api"
+        ],
+        "tiers": [
+          {
+            "id": "core",
+            "modules": [],
+            "features": [
+              "limit:users.limit",
+              "limit:storage.limit_mb",
+              "limit:branches.extra_limit:0"
+            ]
+          },
+          {
+            "id": "projects",
+            "modules": [
+              "nasq_pmo"
+            ],
+            "features": [
+              "boolean:pmo.enabled"
+            ]
+          }
+        ]
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "schema_version_3",
+      "catalog": {
+        "schema_version": 3,
+        "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
+        "base_modules": [
+          "nasq_core",
+          "nasq_platform",
+          "nasq_api"
+        ],
+        "tiers": [
+          {
+            "id": "core",
+            "modules": [],
+            "features": [
+              "limit:users.limit",
+              "limit:storage.limit_mb",
+              "limit:branches.extra_limit:0"
+            ]
+          },
+          {
+            "id": "projects",
+            "modules": [
+              "nasq_pmo"
+            ],
+            "features": [
+              "boolean:pmo.enabled"
+            ]
+          }
+        ]
+      },
+      "expect": "reject",
+      "error": "catalog_invalid"
+    },
+    {
+      "name": "schema_version_string_2",
+      "catalog": {
+        "schema_version": "2",
+        "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
+        "base_modules": [
+          "nasq_core",
+          "nasq_platform",
+          "nasq_api"
+        ],
+        "tiers": [
+          {
+            "id": "core",
+            "modules": [],
+            "features": [
+              "limit:users.limit",
+              "limit:storage.limit_mb",
+              "limit:branches.extra_limit:0"
+            ]
+          },
+          {
+            "id": "projects",
+            "modules": [
+              "nasq_pmo"
+            ],
+            "features": [
+              "boolean:pmo.enabled"
+            ]
+          }
+        ]
+      },
+      "expect": "reject",
+      "error": "catalog_invalid"
+    },
+    {
+      "name": "schema_version_missing",
+      "catalog": {
+        "base_modules": [
+          "nasq_core",
+          "nasq_platform",
+          "nasq_api"
+        ],
+        "tiers": [
+          {
+            "id": "core",
+            "modules": [],
+            "features": [
+              "limit:users.limit",
+              "limit:storage.limit_mb"
+            ]
+          },
+          {
+            "id": "projects",
+            "modules": [
+              "nasq_pmo"
+            ],
+            "features": [
+              "boolean:pmo.enabled"
+            ]
+          }
+        ]
+      },
+      "expect": "reject",
+      "error": "catalog_invalid"
+    },
+    {
+      "name": "schema_version_float_2_0",
+      "catalog": {
+        "schema_version": 2.0,
+        "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
+        "base_modules": [
+          "nasq_core",
+          "nasq_platform",
+          "nasq_api"
+        ],
+        "tiers": [
+          {
+            "id": "core",
+            "modules": [],
+            "features": [
+              "limit:users.limit",
+              "limit:storage.limit_mb",
+              "limit:branches.extra_limit:0"
+            ]
+          },
+          {
+            "id": "projects",
+            "modules": [
+              "nasq_pmo"
+            ],
+            "features": [
+              "boolean:pmo.enabled"
+            ]
+          }
+        ]
+      },
+      "expect": "reject",
+      "error": "catalog_invalid",
+      "runtimes": [
+        "python"
+      ],
+      "note": "JSON 2.0 is indistinguishable from 2 after JSON.parse in JavaScript; asserted by Python only."
+    },
+    {
+      "name": "schema_version_float_2_5",
+      "catalog": {
+        "schema_version": 2.5,
+        "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
+        "base_modules": [
+          "nasq_core",
+          "nasq_platform",
+          "nasq_api"
+        ],
+        "tiers": [
+          {
+            "id": "core",
+            "modules": [],
+            "features": [
+              "limit:users.limit",
+              "limit:storage.limit_mb",
+              "limit:branches.extra_limit:0"
+            ]
+          },
+          {
+            "id": "projects",
+            "modules": [
+              "nasq_pmo"
+            ],
+            "features": [
+              "boolean:pmo.enabled"
+            ]
+          }
+        ]
+      },
+      "expect": "reject",
+      "error": "catalog_invalid"
+    },
+    {
+      "name": "schema_version_bool_true",
+      "catalog": {
+        "schema_version": true,
+        "base_modules": [
+          "nasq_core",
+          "nasq_platform",
+          "nasq_api"
+        ],
+        "tiers": [
+          {
+            "id": "core",
+            "modules": [],
+            "features": [
+              "limit:users.limit",
+              "limit:storage.limit_mb"
+            ]
+          },
+          {
+            "id": "projects",
+            "modules": [
+              "nasq_pmo"
+            ],
+            "features": [
+              "boolean:pmo.enabled"
+            ]
+          }
+        ]
+      },
+      "expect": "reject",
+      "error": "catalog_invalid"
+    },
+    {
+      "name": "v2_grammar_missing",
+      "catalog": {
+        "schema_version": 2,
+        "base_modules": [
+          "nasq_core",
+          "nasq_platform",
+          "nasq_api"
+        ],
+        "tiers": [
+          {
+            "id": "core",
+            "modules": [],
+            "features": [
+              "limit:users.limit",
+              "limit:storage.limit_mb",
+              "limit:branches.extra_limit:0"
+            ]
+          },
+          {
+            "id": "projects",
+            "modules": [
+              "nasq_pmo"
+            ],
+            "features": [
+              "boolean:pmo.enabled"
+            ]
+          }
+        ]
+      },
+      "expect": "reject",
+      "error": "catalog_invalid"
+    },
+    {
+      "name": "v2_grammar_wrong",
+      "catalog": {
+        "schema_version": 2,
+        "descriptor_grammar": "limit:key | boolean:key",
+        "base_modules": [
+          "nasq_core",
+          "nasq_platform",
+          "nasq_api"
+        ],
+        "tiers": [
+          {
+            "id": "core",
+            "modules": [],
+            "features": [
+              "limit:users.limit",
+              "limit:storage.limit_mb",
+              "limit:branches.extra_limit:0"
+            ]
+          },
+          {
+            "id": "projects",
+            "modules": [
+              "nasq_pmo"
+            ],
+            "features": [
+              "boolean:pmo.enabled"
+            ]
+          }
+        ]
+      },
+      "expect": "reject",
+      "error": "catalog_invalid"
+    },
+    {
+      "name": "tier_id_uppercase",
+      "catalog": {
+        "schema_version": 2,
+        "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
+        "base_modules": [
+          "nasq_core",
+          "nasq_platform",
+          "nasq_api"
+        ],
+        "tiers": [
+          {
+            "id": "core",
+            "modules": [],
+            "features": [
+              "limit:users.limit",
+              "limit:storage.limit_mb",
+              "limit:branches.extra_limit:0"
+            ]
+          },
+          {
+            "id": "Projects",
+            "modules": [
+              "nasq_pmo"
+            ],
+            "features": [
+              "boolean:pmo.enabled"
+            ]
+          }
+        ]
+      },
+      "expect": "reject",
+      "error": "catalog_invalid"
+    },
+    {
+      "name": "tier_id_leading_digit",
+      "catalog": {
+        "schema_version": 2,
+        "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
+        "base_modules": [
+          "nasq_core",
+          "nasq_platform",
+          "nasq_api"
+        ],
+        "tiers": [
+          {
+            "id": "core",
+            "modules": [],
+            "features": [
+              "limit:users.limit",
+              "limit:storage.limit_mb",
+              "limit:branches.extra_limit:0"
+            ]
+          },
+          {
+            "id": "1projects",
+            "modules": [
+              "nasq_pmo"
+            ],
+            "features": [
+              "boolean:pmo.enabled"
+            ]
+          }
+        ]
+      },
+      "expect": "reject",
+      "error": "catalog_invalid"
+    },
+    {
+      "name": "tier_id_dash",
+      "catalog": {
+        "schema_version": 2,
+        "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
+        "base_modules": [
+          "nasq_core",
+          "nasq_platform",
+          "nasq_api"
+        ],
+        "tiers": [
+          {
+            "id": "core",
+            "modules": [],
+            "features": [
+              "limit:users.limit",
+              "limit:storage.limit_mb",
+              "limit:branches.extra_limit:0"
+            ]
+          },
+          {
+            "id": "pro-jects",
+            "modules": [
+              "nasq_pmo"
+            ],
+            "features": [
+              "boolean:pmo.enabled"
+            ]
+          }
+        ]
+      },
+      "expect": "reject",
+      "error": "catalog_invalid"
+    },
+    {
+      "name": "tier_id_duplicate",
+      "catalog": {
+        "schema_version": 2,
+        "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
+        "base_modules": [
+          "nasq_core",
+          "nasq_platform",
+          "nasq_api"
+        ],
+        "tiers": [
+          {
+            "id": "core",
+            "modules": [],
+            "features": [
+              "limit:users.limit",
+              "limit:storage.limit_mb",
+              "limit:branches.extra_limit:0"
+            ]
+          },
+          {
+            "id": "core",
+            "modules": [
+              "nasq_pmo"
+            ],
+            "features": [
+              "boolean:pmo.enabled"
+            ]
+          }
+        ]
+      },
+      "expect": "reject",
+      "error": "catalog_invalid"
+    },
+    {
+      "name": "base_modules_empty",
+      "catalog": {
+        "schema_version": 2,
+        "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
+        "base_modules": [],
+        "tiers": [
+          {
+            "id": "core",
+            "modules": [],
+            "features": [
+              "limit:users.limit",
+              "limit:storage.limit_mb",
+              "limit:branches.extra_limit:0"
+            ]
+          },
+          {
+            "id": "projects",
+            "modules": [
+              "nasq_pmo"
+            ],
+            "features": [
+              "boolean:pmo.enabled"
+            ]
+          }
+        ]
+      },
+      "expect": "reject",
+      "error": "catalog_invalid"
+    },
+    {
+      "name": "v2_no_core_tier",
+      "catalog": {
+        "schema_version": 2,
+        "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
+        "base_modules": [
+          "nasq_core",
+          "nasq_platform",
+          "nasq_api"
+        ],
+        "tiers": [
+          {
+            "id": "projects",
+            "modules": [
+              "nasq_pmo"
+            ],
+            "features": [
+              "boolean:pmo.enabled"
+            ]
+          }
+        ]
+      },
+      "expect": "reject",
+      "error": "catalog_invalid"
+    },
+    {
+      "name": "v1_no_core_tier_unchanged",
+      "catalog": {
+        "schema_version": 1,
+        "base_modules": [
+          "nasq_core",
+          "nasq_platform",
+          "nasq_api"
+        ],
+        "tiers": [
+          {
+            "id": "projects",
+            "modules": [
+              "nasq_pmo"
+            ],
+            "features": [
+              "boolean:pmo.enabled"
+            ]
+          }
+        ]
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "limit_no_ceiling",
+      "catalog": {
+        "schema_version": 2,
+        "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
+        "base_modules": [
+          "nasq_core",
+          "nasq_platform",
+          "nasq_api"
+        ],
+        "tiers": [
+          {
+            "id": "core",
+            "modules": [],
+            "features": [
+              "limit:users.limit",
+              "limit:storage.limit_mb",
+              "limit:branches.extra_limit"
+            ]
+          },
+          {
+            "id": "projects",
+            "modules": [
+              "nasq_pmo"
+            ],
+            "features": [
+              "boolean:pmo.enabled"
+            ]
+          }
+        ]
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "limit_ceiling_0",
+      "catalog": {
+        "schema_version": 2,
+        "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
+        "base_modules": [
+          "nasq_core",
+          "nasq_platform",
+          "nasq_api"
+        ],
+        "tiers": [
+          {
+            "id": "core",
+            "modules": [],
+            "features": [
+              "limit:users.limit",
+              "limit:storage.limit_mb",
+              "limit:branches.extra_limit:0"
+            ]
+          },
+          {
+            "id": "projects",
+            "modules": [
+              "nasq_pmo"
+            ],
+            "features": [
+              "boolean:pmo.enabled"
+            ]
+          }
+        ]
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "limit_ceiling_7",
+      "catalog": {
+        "schema_version": 2,
+        "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
+        "base_modules": [
+          "nasq_core",
+          "nasq_platform",
+          "nasq_api"
+        ],
+        "tiers": [
+          {
+            "id": "core",
+            "modules": [],
+            "features": [
+              "limit:users.limit",
+              "limit:storage.limit_mb",
+              "limit:branches.extra_limit:7"
+            ]
+          },
+          {
+            "id": "projects",
+            "modules": [
+              "nasq_pmo"
+            ],
+            "features": [
+              "boolean:pmo.enabled"
+            ]
+          }
+        ]
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "limit_ceiling_1e9",
+      "catalog": {
+        "schema_version": 2,
+        "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
+        "base_modules": [
+          "nasq_core",
+          "nasq_platform",
+          "nasq_api"
+        ],
+        "tiers": [
+          {
+            "id": "core",
+            "modules": [],
+            "features": [
+              "limit:users.limit",
+              "limit:storage.limit_mb",
+              "limit:branches.extra_limit:1000000000"
+            ]
+          },
+          {
+            "id": "projects",
+            "modules": [
+              "nasq_pmo"
+            ],
+            "features": [
+              "boolean:pmo.enabled"
+            ]
+          }
+        ]
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "limit_ceiling_1e9_plus_1",
+      "catalog": {
+        "schema_version": 2,
+        "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
+        "base_modules": [
+          "nasq_core",
+          "nasq_platform",
+          "nasq_api"
+        ],
+        "tiers": [
+          {
+            "id": "core",
+            "modules": [],
+            "features": [
+              "limit:users.limit",
+              "limit:storage.limit_mb",
+              "limit:branches.extra_limit:1000000001"
+            ]
+          },
+          {
+            "id": "projects",
+            "modules": [
+              "nasq_pmo"
+            ],
+            "features": [
+              "boolean:pmo.enabled"
+            ]
+          }
+        ]
+      },
+      "expect": "reject",
+      "error": "catalog_invalid"
+    },
+    {
+      "name": "limit_ceiling_negative",
+      "catalog": {
+        "schema_version": 2,
+        "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
+        "base_modules": [
+          "nasq_core",
+          "nasq_platform",
+          "nasq_api"
+        ],
+        "tiers": [
+          {
+            "id": "core",
+            "modules": [],
+            "features": [
+              "limit:users.limit",
+              "limit:storage.limit_mb",
+              "limit:branches.extra_limit:-1"
+            ]
+          },
+          {
+            "id": "projects",
+            "modules": [
+              "nasq_pmo"
+            ],
+            "features": [
+              "boolean:pmo.enabled"
+            ]
+          }
+        ]
+      },
+      "expect": "reject",
+      "error": "catalog_invalid"
+    },
+    {
+      "name": "limit_ceiling_fraction",
+      "catalog": {
+        "schema_version": 2,
+        "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
+        "base_modules": [
+          "nasq_core",
+          "nasq_platform",
+          "nasq_api"
+        ],
+        "tiers": [
+          {
+            "id": "core",
+            "modules": [],
+            "features": [
+              "limit:users.limit",
+              "limit:storage.limit_mb",
+              "limit:branches.extra_limit:1.5"
+            ]
+          },
+          {
+            "id": "projects",
+            "modules": [
+              "nasq_pmo"
+            ],
+            "features": [
+              "boolean:pmo.enabled"
+            ]
+          }
+        ]
+      },
+      "expect": "reject",
+      "error": "catalog_invalid"
+    },
+    {
+      "name": "limit_ceiling_true",
+      "catalog": {
+        "schema_version": 2,
+        "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
+        "base_modules": [
+          "nasq_core",
+          "nasq_platform",
+          "nasq_api"
+        ],
+        "tiers": [
+          {
+            "id": "core",
+            "modules": [],
+            "features": [
+              "limit:users.limit",
+              "limit:storage.limit_mb",
+              "limit:branches.extra_limit:true"
+            ]
+          },
+          {
+            "id": "projects",
+            "modules": [
+              "nasq_pmo"
+            ],
+            "features": [
+              "boolean:pmo.enabled"
+            ]
+          }
+        ]
+      },
+      "expect": "reject",
+      "error": "catalog_invalid"
+    },
+    {
+      "name": "limit_ceiling_leading_zero",
+      "catalog": {
+        "schema_version": 2,
+        "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
+        "base_modules": [
+          "nasq_core",
+          "nasq_platform",
+          "nasq_api"
+        ],
+        "tiers": [
+          {
+            "id": "core",
+            "modules": [],
+            "features": [
+              "limit:users.limit",
+              "limit:storage.limit_mb",
+              "limit:branches.extra_limit:01"
+            ]
+          },
+          {
+            "id": "projects",
+            "modules": [
+              "nasq_pmo"
+            ],
+            "features": [
+              "boolean:pmo.enabled"
+            ]
+          }
+        ]
+      },
+      "expect": "reject",
+      "error": "catalog_invalid"
+    },
+    {
+      "name": "limit_ceiling_empty",
+      "catalog": {
+        "schema_version": 2,
+        "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
+        "base_modules": [
+          "nasq_core",
+          "nasq_platform",
+          "nasq_api"
+        ],
+        "tiers": [
+          {
+            "id": "core",
+            "modules": [],
+            "features": [
+              "limit:users.limit",
+              "limit:storage.limit_mb",
+              "limit:branches.extra_limit:"
+            ]
+          },
+          {
+            "id": "projects",
+            "modules": [
+              "nasq_pmo"
+            ],
+            "features": [
+              "boolean:pmo.enabled"
+            ]
+          }
+        ]
+      },
+      "expect": "reject",
+      "error": "catalog_invalid"
+    },
+    {
+      "name": "limit_four_parts",
+      "catalog": {
+        "schema_version": 2,
+        "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
+        "base_modules": [
+          "nasq_core",
+          "nasq_platform",
+          "nasq_api"
+        ],
+        "tiers": [
+          {
+            "id": "core",
+            "modules": [],
+            "features": [
+              "limit:users.limit",
+              "limit:storage.limit_mb",
+              "limit:branches.extra_limit:1:2"
+            ]
+          },
+          {
+            "id": "projects",
+            "modules": [
+              "nasq_pmo"
+            ],
+            "features": [
+              "boolean:pmo.enabled"
+            ]
+          }
+        ]
+      },
+      "expect": "reject",
+      "error": "catalog_invalid"
+    },
+    {
+      "name": "boolean_with_ceiling",
+      "catalog": {
+        "schema_version": 2,
+        "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
+        "base_modules": [
+          "nasq_core",
+          "nasq_platform",
+          "nasq_api"
+        ],
+        "tiers": [
+          {
+            "id": "core",
+            "modules": [],
+            "features": [
+              "limit:users.limit",
+              "limit:storage.limit_mb",
+              "boolean:branches.extra_limit:1"
+            ]
+          },
+          {
+            "id": "projects",
+            "modules": [
+              "nasq_pmo"
+            ],
+            "features": [
+              "boolean:pmo.enabled"
+            ]
+          }
+        ]
+      },
+      "expect": "reject",
+      "error": "catalog_invalid"
+    },
+    {
+      "name": "unknown_kind",
+      "catalog": {
+        "schema_version": 2,
+        "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
+        "base_modules": [
+          "nasq_core",
+          "nasq_platform",
+          "nasq_api"
+        ],
+        "tiers": [
+          {
+            "id": "core",
+            "modules": [],
+            "features": [
+              "limit:users.limit",
+              "limit:storage.limit_mb",
+              "flag:branches.extra_limit"
+            ]
+          },
+          {
+            "id": "projects",
+            "modules": [
+              "nasq_pmo"
+            ],
+            "features": [
+              "boolean:pmo.enabled"
+            ]
+          }
+        ]
+      },
+      "expect": "reject",
+      "error": "catalog_invalid"
+    },
+    {
+      "name": "duplicate_feature_key",
+      "catalog": {
+        "schema_version": 2,
+        "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
+        "base_modules": [
+          "nasq_core",
+          "nasq_platform",
+          "nasq_api"
+        ],
+        "tiers": [
+          {
+            "id": "core",
+            "modules": [],
+            "features": [
+              "limit:users.limit",
+              "limit:storage.limit_mb",
+              "limit:users.limit:5"
+            ]
+          },
+          {
+            "id": "projects",
+            "modules": [
+              "nasq_pmo"
+            ],
+            "features": [
+              "boolean:pmo.enabled"
+            ]
+          }
+        ]
+      },
+      "expect": "reject",
+      "error": "catalog_invalid"
+    },
+    {
+      "name": "v1_numeric_ceiling",
+      "catalog": {
+        "schema_version": 1,
+        "base_modules": [
+          "nasq_core",
+          "nasq_platform",
+          "nasq_api"
+        ],
+        "tiers": [
+          {
+            "id": "core",
+            "modules": [],
+            "features": [
+              "limit:users.limit",
+              "limit:storage.limit_mb:5"
+            ]
+          }
+        ]
+      },
+      "expect": "reject",
+      "error": "catalog_invalid"
+    },
+    {
+      "name": "v1_boolean_required_key",
+      "catalog": {
+        "schema_version": 1,
+        "base_modules": [
+          "nasq_core",
+          "nasq_platform",
+          "nasq_api"
+        ],
+        "tiers": [
+          {
+            "id": "core",
+            "modules": [],
+            "features": [
+              "boolean:users.limit"
+            ]
+          }
+        ]
+      },
+      "expect": "reject",
+      "error": "catalog_invalid"
+    },
+    {
+      "name": "v2_boolean_users_limit",
+      "catalog": {
+        "schema_version": 2,
+        "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
+        "base_modules": [
+          "nasq_core",
+          "nasq_platform",
+          "nasq_api"
+        ],
+        "tiers": [
+          {
+            "id": "core",
+            "modules": [],
+            "features": [
+              "boolean:users.limit",
+              "limit:storage.limit_mb"
+            ]
+          },
+          {
+            "id": "projects",
+            "modules": [
+              "nasq_pmo"
+            ],
+            "features": [
+              "boolean:pmo.enabled"
+            ]
+          }
+        ]
+      },
+      "expect": "reject",
+      "error": "catalog_invalid"
+    },
+    {
+      "name": "v2_boolean_storage_limit",
+      "catalog": {
+        "schema_version": 2,
+        "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
+        "base_modules": [
+          "nasq_core",
+          "nasq_platform",
+          "nasq_api"
+        ],
+        "tiers": [
+          {
+            "id": "core",
+            "modules": [],
+            "features": [
+              "limit:users.limit",
+              "boolean:storage.limit_mb"
+            ]
+          },
+          {
+            "id": "projects",
+            "modules": [
+              "nasq_pmo"
+            ],
+            "features": [
+              "boolean:pmo.enabled"
+            ]
+          }
+        ]
+      },
+      "expect": "reject",
+      "error": "catalog_invalid"
+    },
+    {
+      "name": "v2_missing_storage_limit",
+      "catalog": {
+        "schema_version": 2,
+        "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
+        "base_modules": [
+          "nasq_core",
+          "nasq_platform",
+          "nasq_api"
+        ],
+        "tiers": [
+          {
+            "id": "core",
+            "modules": [],
+            "features": [
+              "limit:users.limit"
+            ]
+          },
+          {
+            "id": "projects",
+            "modules": [
+              "nasq_pmo"
+            ],
+            "features": [
+              "boolean:pmo.enabled"
+            ]
+          }
+        ]
+      },
+      "expect": "reject",
+      "error": "catalog_invalid"
+    },
+    {
+      "name": "v2_missing_users_limit",
+      "catalog": {
+        "schema_version": 2,
+        "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
+        "base_modules": [
+          "nasq_core",
+          "nasq_platform",
+          "nasq_api"
+        ],
+        "tiers": [
+          {
+            "id": "core",
+            "modules": [],
+            "features": [
+              "limit:storage.limit_mb"
+            ]
+          },
+          {
+            "id": "projects",
+            "modules": [
+              "nasq_pmo"
+            ],
+            "features": [
+              "boolean:pmo.enabled"
+            ]
+          }
+        ]
+      },
+      "expect": "reject",
+      "error": "catalog_invalid"
+    }
+  ]
+}

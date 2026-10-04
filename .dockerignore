@@ -18,3 +18,5 @@ deploy/data
 
 # Local acceptance credentials and runtime evidence never enter image layers.
 **/.state
+**/.secrets
+**/.evidence

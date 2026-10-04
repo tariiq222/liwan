@@ -301,5 +301,129 @@ class ManagedPolicyCase(unittest.TestCase):
         self.assertNotIn('sensitive-value', repr(caught))
 
 
+
+
+V2_PATH = CATALOG_PATH.with_name('platform_v2.json')
+
+
+class ManagedPolicyV2Case(unittest.TestCase):
+    def setUp(self):
+        self.raw = V2_PATH.read_bytes()
+        self.catalog = json.loads(self.raw)
+        self.digest = 'sha256:' + hashlib.sha256(self.raw).hexdigest()
+
+    def policy_for(self, tier_id):
+        core = self.catalog['tiers'][0]
+        tier = next(item for item in self.catalog['tiers'] if item['id'] == tier_id)
+        descriptors = core['features'] + ([] if tier is core else tier['features'])
+        features = {}
+        for descriptor in descriptors:
+            parts = descriptor.split(':')
+            features[parts[1]] = (True if parts[0] == 'boolean'
+                                  else int(parts[2]) if len(parts) == 3 else None)
+        return {'schema_version': 1, 'channel': 'control_plane',
+                'modules': self.catalog['base_modules'] + tier['modules'], 'features': features}
+
+    def parse(self, policy, catalog_raw=None):
+        raw = self.raw if catalog_raw is None else catalog_raw
+        digest = 'sha256:' + hashlib.sha256(raw).hexdigest()
+        with patch.object(Path, 'read_bytes', return_value=raw):
+            return managed_policy.parse_create_policy(
+                json.dumps(policy).encode(), catalog_path=V2_PATH,
+                catalog_sha256=digest, commercial_mode='saas')
+
+    def test_v2_complete_policy_round_trips_with_zero_branch_ceiling(self):
+        for tier in self.catalog['tiers']:
+            policy = self.policy_for(tier['id'])
+            self.assertEqual(policy['features']['branches.extra_limit'], 0)
+            self.assertIs(type(policy['features']['branches.extra_limit']), int)
+            self.assertEqual(self.parse(policy), policy)
+
+    def test_v2_refuses_missing_wrong_or_boolean_branch_ceiling(self):
+        for mutate in (lambda f: f.pop('branches.extra_limit'),
+                       lambda f: f.update({'branches.extra_limit': None}),
+                       lambda f: f.update({'branches.extra_limit': 3}),
+                       lambda f: f.update({'branches.extra_limit': False})):
+            policy = self.policy_for('core')
+            mutate(policy['features'])
+            with self.assertRaises(managed_policy.PolicyError) as caught:
+                self.parse(policy)
+            self.assertEqual(caught.exception.code, 'policy_composition_mismatch')
+
+    def test_legacy_bytes_still_parse_to_two_limit_policy(self):
+        raw = CATALOG_PATH.read_bytes()
+        catalog = json.loads(raw)
+        policy = {'schema_version': 1, 'channel': 'control_plane', 'modules': catalog['base_modules'],
+                  'features': {'users.limit': None, 'storage.limit_mb': None}}
+        with patch.object(Path, 'read_bytes', return_value=raw):
+            self.assertEqual(managed_policy.parse_create_policy(
+                json.dumps(policy).encode(), catalog_path=CATALOG_PATH,
+                catalog_sha256='sha256:' + hashlib.sha256(raw).hexdigest(),
+                commercial_mode='saas'), policy)
+
+    def test_malformed_descriptors_are_catalog_invalid(self):
+        for descriptor in ('limit:branches.extra_limit:0:1', 'limit:branches.extra_limit:-1',
+                           'limit:branches.extra_limit:x', 'boolean:pmo.enabled:1'):
+            catalog = json.loads(self.raw)
+            catalog['tiers'][0]['features'].append(descriptor)
+            with self.assertRaises(managed_policy.PolicyError) as caught:
+                self.parse(self.policy_for('core'), json.dumps(catalog).encode())
+            self.assertEqual(caught.exception.code, 'catalog_invalid', descriptor)
+
+    def test_legacy_schema_rejects_numeric_ceiling_descriptor(self):
+        catalog = json.loads(CATALOG_PATH.read_bytes())
+        catalog['tiers'][0]['features'].append('limit:branches.extra_limit:0')
+        raw = json.dumps(catalog).encode()
+        policy = {'schema_version': 1, 'channel': 'control_plane', 'modules': catalog['base_modules'],
+                  'features': {'users.limit': None, 'storage.limit_mb': None, 'branches.extra_limit': 0}}
+        with patch.object(Path, 'read_bytes', return_value=raw):
+            with self.assertRaises(managed_policy.PolicyError) as caught:
+                managed_policy.parse_create_policy(
+                    json.dumps(policy).encode(), catalog_path=CATALOG_PATH,
+                    catalog_sha256='sha256:' + hashlib.sha256(raw).hexdigest(), commercial_mode='saas')
+        self.assertEqual(caught.exception.code, 'catalog_invalid')
+
+    def test_catalog_features_cover_platform_registry_required_limits(self):
+        import re
+        registry = (Path(__file__).resolve().parents[1]
+                    / 'odoo-addons/nasq_platform/models/feature_registry.py').read_text()
+        required = set(re.findall(r"'key': '([a-z_.]+)',\s*'type': 'limit',\s*'owner': 'nasq_platform'", registry))
+        self.assertEqual(required, {'users.limit', 'storage.limit_mb', 'branches.extra_limit'})
+        for tier in self.catalog['tiers']:
+            self.assertLessEqual(required, set(self.policy_for(tier['id'])['features']))
+
+
 if __name__ == '__main__':
     unittest.main()
+
+
+PARITY_PATH = Path(__file__).resolve().parents[1] / 'deploy/catalog/fixtures/descriptor_parity.json'
+
+
+class DescriptorParityFixtureCase(unittest.TestCase):
+    """The same fixture is loaded by the TypeScript parser tests."""
+
+    def setUp(self):
+        self.fixture = json.loads(PARITY_PATH.read_text('utf-8'))
+
+    def test_grammar_constant_equals_fixture(self):
+        self.assertEqual(managed_policy.DESCRIPTOR_GRAMMAR_V2, self.fixture['grammar_v2'])
+
+    def test_every_case_agrees_with_the_expected_verdict(self):
+        names = set()
+        for case in self.fixture['cases']:
+            self.assertNotIn(case['name'], names)
+            names.add(case['name'])
+            if 'python' not in case.get('runtimes', ['python', 'ts']):
+                continue
+            with self.subTest(case=case['name']):
+                if case['expect'] == 'accept':
+                    managed_policy._catalog_compositions(copy.deepcopy(case['catalog']))
+                else:
+                    with self.assertRaises(managed_policy.PolicyError) as caught:
+                        managed_policy._catalog_compositions(copy.deepcopy(case['catalog']))
+                    self.assertEqual(caught.exception.code, case['error'])
+
+    def test_platform_v2_initial_branch_ceiling_is_integer_zero(self):
+        core = json.loads(V2_PATH.read_bytes())['tiers'][0]
+        self.assertIn('limit:branches.extra_limit:0', core['features'])

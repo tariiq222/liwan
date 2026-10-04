@@ -48,8 +48,7 @@ else describe('shared live PostgreSQL integration', () => {
     await migrate(pool)
     // Order matters: children first, then parents, then reseed the singleton.
     await pool.query('TRUNCATE shared_job_events, shared_jobs, shared_registry_audit, shared_registry_hosts, shared_registry_bindings, shared_registry_state CASCADE')
-    await pool.query('TRUNCATE tenants CASCADE')
-    await pool.query('TRUNCATE catalog_entries')
+    await pool.query('TRUNCATE tenants, package_revisions, commercial_packages, catalog_entries CASCADE')
     await pool.query('TRUNCATE vendor_memberships, service_nonces, audit_events, operation_events, operations, restore_approvals')
     await pool.query('INSERT INTO shared_registry_state(singleton,revision) VALUES(true,0)')
     await pool.query('INSERT INTO vendor_memberships(issuer,actor_uid,capabilities) VALUES ($1,7,$2),($1,8,ARRAY[\'vendor.operations.run\'])', [issuer, ['vendor.read','vendor.tenants.manage','vendor.operations.run']])

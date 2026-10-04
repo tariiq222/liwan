@@ -393,5 +393,79 @@ class VerifyCase(unittest.TestCase):
         self.reject(output({'error_code': 'target_mismatch'}), 'target_mismatch')
 
 
+
+class V2RevisionZeroTests(unittest.TestCase):
+    def test_revision_zero_accepts_complete_v2_policy_and_rejects_legacy_subset(self):
+        policy = {'schema_version': 1, 'channel': 'control_plane',
+                  'modules': ['nasq_core', 'nasq_platform', 'nasq_api'],
+                  'features': {'users.limit': None, 'storage.limit_mb': None, 'branches.extra_limit': 0}}
+        data = {'database': DATABASE, 'commercial_mode': 'saas', 'entitlement_source': 'control_plane',
+                'status': 'active', 'valid_until': None, 'features': dict(policy['features']),
+                'policy_revision': 0, 'modules': sorted([*policy['modules'], 'base', 'project'])}
+        self.assertEqual(verify.parse_snapshot(output(data), policy, DATABASE), data)
+        data['features'].pop('branches.extra_limit')
+        with self.assertRaises(verify.VerificationError) as caught:
+            verify.parse_snapshot(output(data), policy, DATABASE)
+        self.assertEqual(caught.exception.code, 'features_mismatch')
+
+
+
+class LegacyBranchCompatibilityTests(unittest.TestCase):
+    def test_host_readback_keeps_legacy_policy_bytes_and_observed_null(self):
+        policy = copy.deepcopy(POLICY)
+        before = json.dumps(policy, sort_keys=True)
+        data = snapshot()
+        data['features']['branches.extra_limit'] = None
+        actual = verify.parse_snapshot(output(data), policy, DATABASE)
+        self.assertEqual(actual, data)
+        self.assertIn('branches.extra_limit', actual['features'])
+        self.assertEqual(json.dumps(policy, sort_keys=True), before)
+
+    def test_host_branch_comparison_is_directional_and_type_exact(self):
+        absent = object()
+        for expected, actual, accepted in [
+            (absent, absent, True), (absent, None, True), (absent, 0, False),
+            (absent, 1, False), (absent, False, False), (0, 0, True),
+            (0, absent, False), (0, None, False), (0, False, False),
+            (0, 0.0, False), (None, absent, False), (None, None, True),
+        ]:
+            with self.subTest(expected=expected, actual=actual):
+                policy, data = copy.deepcopy(POLICY), snapshot()
+                if expected is not absent:
+                    policy['features']['branches.extra_limit'] = expected
+                if actual is not absent:
+                    data['features']['branches.extra_limit'] = actual
+                if accepted:
+                    self.assertEqual(verify.parse_snapshot(output(data), policy, DATABASE), data)
+                else:
+                    with self.assertRaises(verify.VerificationError):
+                        verify.parse_snapshot(output(data), policy, DATABASE)
+        data = snapshot()
+        data['features'].update({'branches.extra_limit': None, 'other.limit': None})
+        with self.assertRaises(verify.VerificationError):
+            verify.parse_snapshot(output(data), POLICY, DATABASE)
+
+    def test_generated_apply_uses_same_directional_readback(self):
+        for actual, accepted in [(None, True), (0, False), (1, False), (False, False)]:
+            with self.subTest(actual=actual):
+                env = Environment()
+                write = env.profile.write
+                def migrated_write(values):
+                    write(values)
+                    env.profile.features = {**env.profile.features, 'branches.extra_limit': actual}
+                env.profile.write = migrated_write
+                policy = copy.deepcopy(POLICY)
+                before = json.dumps(policy, sort_keys=True)
+                result = execute_script(verify.build_policy_script(policy, DATABASE), env)
+                self.assertEqual(json.dumps(policy, sort_keys=True), before)
+                if accepted:
+                    self.assertIsNone(verify.parse_snapshot(result, policy, DATABASE)['features']['branches.extra_limit'])
+                    self.assertIn(('commit',), env.events)
+                else:
+                    with self.assertRaises(verify.VerificationError):
+                        verify.parse_snapshot(result, policy, DATABASE)
+                    self.assertNotIn(('commit',), env.events)
+
+
 if __name__ == '__main__':
     unittest.main()

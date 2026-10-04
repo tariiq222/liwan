@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { contextLinksForModule, hidePinnedNewProject, visibleShellModules, useNav } from '../shellModules'
 import { activeShellModule } from '../activeRoute'
 
@@ -34,6 +34,8 @@ describe('capability-based navigation', () => {
     expect(visibleShellModules(admin).find(module => module.id === 'settings')?.to).toBe('/settings/users')
     expect(paths).not.toContain('/projects/settings')
     expect(paths).not.toContain('/odoo')
+    // The subscription page is the approved in-workspace commercial surface; the flag is off in tests, and /settings/billing stays absent.
+    expect(paths).not.toContain('/subscription')
     expect(paths).not.toContain('/settings/billing')
     expect(paths.some(path => path.startsWith('/settings/billing'))).toBe(false)
     expect(nav.find(item => item.to === '/settings/users')?.group).toBe('settings')
@@ -53,6 +55,22 @@ describe('capability-based navigation', () => {
     expect(new Set(nav.map(item => item.to)).size).toBe(nav.length)
     expect(new Set(nav.map(item => item.shortcut)).size).toBe(nav.length)
     for (const item of nav) expect(item.shortcut).toMatch(/^[a-z0-9]$/)
+  })
+})
+
+describe('subscription navigation', () => {
+  const settingsAdmin = { role: 'admin', capabilities: ['settings.branding.manage', 'access.users.read'] }
+  it('is shown to settings readers only when the customer commercial flag is on', () => {
+    expect(useNav(settingsAdmin).map(i => i.to)).not.toContain('/subscription')
+    vi.stubGlobal('useRuntimeConfig', () => ({ public: { customerCommercialEnabled: true } }))
+    try {
+      const nav = useNav(settingsAdmin)
+      expect(nav.find(i => i.to === '/subscription')).toMatchObject({ group: 'settings', module: 'settings', labelKey: 'subscription.nav' })
+      expect(useNav({ role: 'employee', capabilities: ['pmo.tasks.read'] }).map(i => i.to)).not.toContain('/subscription')
+      expect(nav.map(i => i.to)).not.toContain('/settings/billing')
+      expect(new Set(nav.map(i => i.shortcut)).size).toBe(nav.length)
+      expect(activeShellModule('/subscription/invoices/1')).toBe('settings')
+    } finally { vi.unstubAllGlobals() }
   })
 })
 

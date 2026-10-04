@@ -20,21 +20,42 @@ export const sharedPolicySchema = z.strictObject({
   features: z.record(z.string().regex(/^(?:[a-z][a-z0-9_]*\.)+[a-z][a-z0-9_]*$/).refine((key) => !/^(local_policy|support|status)\./.test(key)), z.union([z.boolean(), z.number().int().nonnegative().max(1000000000), z.null()]))
     .refine((features) => Object.hasOwn(features, 'users.limit') && Object.hasOwn(features, 'storage.limit_mb')),
 })
+export const packageAuthoritySchema = z.strictObject({
+  schemaVersion: z.literal(2), revisionId: z.uuid(), digest,
+  catalog: z.strictObject({ version: label, tier: label, sourceSha256: digest }), policy: sharedPolicySchema,
+})
+export type PackageAuthority = z.infer<typeof packageAuthoritySchema>
 export const sharedBackupSchema = z.strictObject({
   schemaVersion: z.literal(1), backupId: z.uuid(), binding: tenantBindingSchema,
   databaseSha256: digest, filestoreSha256: digest, consistency: z.literal('verified'),
 })
 const common = { schemaVersion: z.literal(1), requestId: z.uuid(), binding: tenantBindingSchema }
 export const sharedJobSchema = z.discriminatedUnion('operation', [
-  z.strictObject({ ...common, operation: z.literal('provision'), catalog: z.strictObject({ version: label, tier: label, sourceSha256: digest }), policy: sharedPolicySchema }),
+  z.strictObject({ ...common, operation: z.literal('provision'), catalog: z.strictObject({ version: label, tier: label, sourceSha256: digest }), policy: sharedPolicySchema, packageAuthority: packageAuthoritySchema.optional() }),
   z.strictObject({ ...common, operation: z.literal('backup') }),
   z.strictObject({ ...common, operation: z.literal('restore'), backup: sharedBackupSchema, approvalId: z.uuid() }),
 ])
 export type SharedJob = z.infer<typeof sharedJobSchema>
+
+/** Commercial reconfiguration has its own receipt protocol; legacy jobs keep
+ * their existing reconciliation schema and behavior. */
+export const sharedReconfigureJobSchema = z.strictObject({
+  ...common, operation: z.literal('reconfigure'), controlTenantId: z.uuid(), host: z.string().min(1),
+  authority: z.strictObject({
+    order_id: z.uuid(), operation_id: z.uuid(), previous_revision_id: z.uuid().nullable(), target_revision_id: z.uuid(),
+    entitlement: z.strictObject({ modules: sharedPolicySchema.shape.modules,
+      features: z.record(z.string(), z.union([z.boolean(), z.number().int().nonnegative(), z.null()])),
+      digest, compiler_version: z.union([z.string(), z.number().int()]) }),
+    branches: z.strictObject({ apply: z.array(z.strictObject({ branch_id: z.uuid(), name: z.string().min(1).max(120) })), archive: z.array(z.uuid()) }),
+  }),
+  restore: z.boolean().optional(), restoreId: z.uuid().optional(),
+})
+export type SharedReconfigureJob = z.infer<typeof sharedReconfigureJobSchema>
+export const sharedQueuedJobSchema = z.union([sharedJobSchema, sharedReconfigureJobSchema])
 export const sharedJournalSchema = z.strictObject({
   schemaVersion: z.literal(1), job: sharedJobSchema,
   attemptId: z.uuid(), sequence: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
-  stage: z.enum(['prepared', 'started', 'verified', 'needs_intervention']),
+  stage: z.enum(['prepared', 'started', 'verified', 'needs_intervention', 'waiting_commercial_reconcile']),
 })
 export const sharedReceiptSchema = z.strictObject({
   schemaVersion: z.literal(1), operation: z.enum(['provision', 'backup', 'restore']),

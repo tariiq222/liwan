@@ -76,6 +76,8 @@ const dueModel = computed({
 })
 const baseline = JSON.stringify([kind.value, title.value, description.value, priority.value, status.value, dueDate.value, response.value, probability.value, impact.value, taskId.value, ownerId.value])
 const submitted = ref(false)
+const attempted = ref(false)
+const requiredError = computed(() => attempted.value && !title.value.trim() ? t('projects.governance.register.titleRequired') : undefined)
 const error = ref<string | null>(null)
 const dirty = computed(() => !submitted.value && JSON.stringify([kind.value, title.value, description.value, priority.value, status.value, dueDate.value, response.value, probability.value, impact.value, taskId.value, ownerId.value]) !== baseline)
 const create = useCreateProjectRegister()
@@ -83,6 +85,8 @@ const update = useUpdateProjectRegister()
 const pending = computed(() => create.isPending.value || update.isPending.value)
 
 async function submit() {
+  if (!hydrated.value || pending.value) return
+  attempted.value = true
   error.value = null
   if (!title.value.trim()) return
   const body: ProjectRegisterWrite = {
@@ -112,7 +116,8 @@ async function submit() {
 </script>
 
 <template>
-  <form class="space-y-8" @submit.prevent="submit">
+  <form novalidate class="space-y-8" @submit.prevent="submit">
+    <UAlert v-if="error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="error" />
     <SharedUnsavedChanges :dirty="dirty" />
     <SharedFormSection :title="t('projects.refresh.workspace.registerDetailsTitle')" :description="t('projects.refresh.workspace.registerDetailsDescription')">
       <div class="grid gap-5">
@@ -122,7 +127,7 @@ async function submit() {
         <UFormField :label="t('projects.governance.register.priority')">
           <USelect id="register-priority" v-model="priority" :items="priorityItems" class="w-full" :disabled="!hydrated || pending" />
         </UFormField>
-        <UFormField class="sm:col-span-2" :label="t('projects.governance.register.itemTitle')" required>
+        <UFormField class="sm:col-span-2" :label="t('projects.governance.register.itemTitle')" required :error="requiredError">
           <UInput id="register-title" v-model="title" class="w-full" required :disabled="!hydrated || pending" />
         </UFormField>
         <UFormField class="sm:col-span-2" :label="t('projects.governance.register.description')">
@@ -198,10 +203,9 @@ async function submit() {
       </UFormField>
     </SharedFormSection>
 
-    <UAlert v-if="error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="error" />
     <div class="flex flex-wrap gap-2 justify-end">
       <UButton type="button" color="neutral" :disabled="!hydrated || pending" @click="emit('cancel')" variant="outline">{{ t('app.cancel') }}</UButton>
-      <UButton type="submit" :disabled="!hydrated || pending || !title.trim()">{{ t('app.save') }}</UButton>
+      <UButton type="submit" :disabled="!hydrated || pending" :loading="pending">{{ t('app.save') }}</UButton>
     </div>
   </form>
 </template>

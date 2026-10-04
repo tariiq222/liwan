@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { refDebounced } from '@vueuse/core'
 import FilterBar from '@/components/shared/FilterBar.vue'
-import { useProjectTemplateList } from '@/composables/useProjectTemplates'
+import { useProjectTemplateList, useProjectTemplateNavigation } from '@/composables/useProjectTemplates'
 
 const route = useRoute()
 const router = useRouter()
@@ -18,7 +18,8 @@ watch(q, value => { if ((route.path.replace(/\/+$/, '') || '/') !== '/project-te
 watch(() => route.query.q, value => { search.value = typeof value === 'string' ? value : '' })
 const list = useProjectTemplateList(computed(() => ({ q: typeof route.query.q === 'string' ? route.query.q : '', limit: pageSize, offset: offset.value })))
 const total = computed(() => list.data.value?.total ?? 0)
-const detailPath = (id?: number) => ({ path: id ? `/project-templates/${id}` : '/project-templates/new', query: { returnTo: route.fullPath } })
+const { templatePath } = useProjectTemplateNavigation()
+const detailPath = (id?: number) => templatePath(id, id ? undefined : 'new')
 function goPage(next: number) { router.push({ query: { ...route.query, offset: next || undefined } }) }
 const items = computed(() => list.data.value?.items ?? [])
 const canManage = computed(() => list.data.value?.can_manage ?? false)

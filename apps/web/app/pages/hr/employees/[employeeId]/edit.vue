@@ -1,18 +1,15 @@
 <script setup lang="ts">
+import { recordParentTo, EMPLOYEE_LIST_PATHS } from '@/utils/recordListOrigin'
 import EmployeeGeneralForm from '@/components/hr/EmployeeGeneralForm.vue'
 import { useHrDepartments } from '@/composables/useHrDepartments'
 import { useHrEmployee, useHrEmployees } from '@/composables/useHrEmployees'
 const route = useRoute(); const { t } = useI18n(); const { can } = useAccess(); const hydrated = useHydrated(); const id = computed(() => Number(route.params.employeeId)); const query = useHrEmployee(id)
-// An edit form returns to the record it edits, not past it to the list: being
-// thrown back to the list is exactly what the reader did not ask for. The
-// target is fixed by this page's own route and carries the list state through,
-// so the record's own back control still lands on a filtered list. A referrer's
-// returnTo is dropped rather than forwarded: on the destination URL it would
-// nest one level deeper on every round trip and redirect that page's controls.
-const backTo = computed(() => {
-  const { returnTo: _referrer, ...listQuery } = route.query
-  return { path: `/hr/employees/${id.value}`, query: listQuery }
-})
+// Child pages always return to their current record; only normalized list context follows.
+// Directory Manage opens this editor directly with returnTo; it is accepted
+// only as exact directory context, never as this editor's destination.
+const backTo = computed(() => recordParentTo(`/hr/employees/${id.value}`, {
+  ...route.query, listOrigin: route.query.listOrigin ?? route.query.returnTo ?? null,
+}, EMPLOYEE_LIST_PATHS, route.hash))
 const departments = useHrDepartments(); const employees = useHrEmployees({})
 const canManage = computed(() => can('hr.employees.manage'))
 const initialDataReady = computed(() => Boolean(query.data.value && departments.data.value && employees.data.value))

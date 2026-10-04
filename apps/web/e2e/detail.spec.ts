@@ -12,6 +12,7 @@ async function login(page) {
 async function createTask(page, name: string) {
   const projects = await (await page.request.get('/api/v1/projects?minimal=1')).json()
   const res = await page.request.post('/api/v1/tasks', { data: { name, project_id: projects[0].id } })
+  expect(res.status()).toBe(201)
   return (await res.json()).id as number
 }
 
@@ -34,13 +35,14 @@ test('task detail page: open, edit fields, nested layers, prev/next, return', as
   await titleInput.fill(newName)
   const titleSaved = page.waitForResponse((r) => r.url().includes(`/api/v1/tasks/${id}`) && r.request().method() === 'PATCH')
   await titleInput.press('Enter')
-  await titleSaved
+  expect((await titleSaved).status()).toBe(200)
   await page.reload()
   await expect(page.locator('h1')).toHaveText(newName)
+  await expect(detail.getByTestId('task-title-edit')).toBeEnabled()
   await page.keyboard.press('Escape')
   await expect(page).toHaveURL(/\/tasks$/)
   await page.getByPlaceholder('بحث في العناوين…').fill(newName)
-  await expect(page.getByRole('row', { name: new RegExp(newName) })).toBeVisible()
+  await expect(page.getByRole('table').getByRole('button', { name: newName, exact: true })).toBeVisible()
 
   // re-open for the rest of the flow
   await page.goto(`/tasks/${id}`)
@@ -49,25 +51,31 @@ test('task detail page: open, edit fields, nested layers, prev/next, return', as
   await page.getByRole('combobox').filter({ hasText: /عادية|مهمة|عالية|عاجلة/ }).first().click()
   const prioritySaved = page.waitForResponse((r) => r.url().includes(`/api/v1/tasks/${id}`) && r.request().method() === 'PATCH')
   await page.getByRole('option', { name: 'عاجلة' }).click()
-  await prioritySaved
+  expect((await prioritySaved).status()).toBe(200)
   await page.reload()
   await expect(page.getByRole('combobox').filter({ hasText: 'عاجلة' }).first()).toBeVisible()
 
   // 4. description
-  const editor = page.getByRole('textbox', { name: 'الوصف' })
-  await editor.click()
-  await editor.type('وصف تجريبي للمهمة')
-  await page.waitForTimeout(1200)
+  await detail.getByTestId('task-description-edit').click()
+  const editor = page.getByRole('textbox', { name: 'الوصف', exact: true })
+  await editor.fill('وصف تجريبي للمهمة')
+  const descriptionSaved = page.waitForResponse(r => new URL(r.url()).pathname === `/api/v1/tasks/${id}` && r.request().method() === 'PATCH')
+  await detail.getByTestId('task-description-editor').getByRole('button', { name: 'حفظ', exact: true }).click()
+  expect((await descriptionSaved).status()).toBe(200)
+  await expect(detail.getByTestId('task-description-editor')).toHaveCount(0)
   await page.reload()
-  await expect(page.getByRole('textbox', { name: 'الوصف' })).toContainText('وصف تجريبي للمهمة')
+  await expect(detail.getByTestId('task-description').locator('.nasq-rich-text')).toHaveText('وصف تجريبي للمهمة')
 
   // 5. sub-task — assert the URL lands on the exact id the create response returned,
   // not merely "some other id"
+  await detail.getByTestId('task-detail-tabs').getByRole('tab', { name: 'المهام الفرعية', exact: true }).click()
   const subtaskInput = page.getByPlaceholder('إضافة مهمة فرعية')
   await subtaskInput.fill('مهمة فرعية تجريبية')
   const subtaskCreated = page.waitForResponse((r) => r.url().includes('/api/v1/tasks') && r.request().method() === 'POST')
   await subtaskInput.press('Enter')
-  const subtaskId = (await (await subtaskCreated).json()).id as number
+  const subtaskResponse = await subtaskCreated
+  expect(subtaskResponse.status()).toBe(201)
+  const subtaskId = (await subtaskResponse.json()).id as number
   const subtaskRow = page.getByTestId('task-detail-page').getByText('مهمة فرعية تجريبية')
   await expect(subtaskRow).toBeVisible()
   await subtaskRow.click()
@@ -77,7 +85,6 @@ test('task detail page: open, edit fields, nested layers, prev/next, return', as
   await page.goto(`/tasks/${id}`)
 
   // 6. metrics
-  await page.locator('summary').filter({ hasText: 'تفاصيل إضافية' }).click()
   await expect(page.getByText('العمر')).toBeVisible()
 
   // 7. nested layer: deadline popover + calendar must not leave the page,
@@ -86,10 +93,10 @@ test('task detail page: open, edit fields, nested layers, prev/next, return', as
   const deadlineBefore = (await deadlineBadge.textContent()) ?? ''
   await page.getByRole('button', { name: 'الموعد' }).click()
   // any in-month day that isn't today, so the deadline is guaranteed to change
-  const calendarDay = page.locator('[data-slot="calendar-cell-trigger"]:not([data-today]):not([data-outside-view])').first()
+  const calendarDay = page.locator('[data-slot="cellTrigger"]:not([data-today]):not([data-outside-view]):not([disabled]):not([data-disabled])').first()
   const deadlineSaved = page.waitForResponse((r) => r.url().includes(`/api/v1/tasks/${id}`) && r.request().method() === 'PATCH')
   await calendarDay.click()
-  await deadlineSaved
+  expect((await deadlineSaved).status()).toBe(200)
   await expect(page.getByTestId('task-detail-page')).toBeVisible()
   await expect(deadlineBadge).not.toHaveText(deadlineBefore)
 
@@ -113,40 +120,44 @@ test('task detail page: open, edit fields, nested layers, prev/next, return', as
   // The list's default sort ties on date_deadline/priority for both (neither
   // set), so the API's `id desc` tiebreak puts the more-recently-created
   // idB first and idA second — open the first row and go `j` (next) to idA.
-  const rowB = page.getByRole('row', { name: nameB })
-  await rowB.click()
-  await expect.poll(() => new URL(page.url()).searchParams.get('returnTo')).toBe('/tasks')
+  const titleB = page.getByRole('table').getByRole('button', { name: nameB, exact: true })
+  await titleB.click()
+  await expect(detail.getByTestId('task-detail-back')).toHaveAttribute('href', '/tasks')
   await expect(page.getByTestId('task-detail-page').getByRole('button', { name: 'التالية' })).toBeEnabled()
   await page.keyboard.press('j')
   await expect.poll(() => new URL(page.url()).pathname).toBe(`/tasks/${idA}`)
 
-  // 9. close
+  // 9. close and preserve the list filter
+  await expect(detail.getByTestId('task-title-edit')).toBeEnabled()
   await page.keyboard.press('Escape')
   await expect(page).toHaveURL(/\/tasks$/)
   await expect(page.getByRole('table')).toBeVisible()
+  await expect(page.getByPlaceholder('بحث في العناوين…')).toHaveValue(prefix)
 })
 
-test('task detail uses the shared page title and keeps activity beside the work area', async ({ page }) => {
+test('task detail uses the shared page title and separates comments from the activity log', async ({ page }) => {
   await login(page)
   const name = `E2E layout ${Date.now()}`
   const id = await createTask(page, name)
 
   await page.goto(`/tasks/${id}`)
-  await expect(page.locator('.nasq-app-header h1')).toHaveText(name)
+  await expect(page.getByRole('main').getByRole('heading', { level: 1 })).toHaveText(name)
   await expect(page.getByRole('heading', { name })).toBeVisible()
   const detail = page.getByTestId('task-detail-page')
-  await expect(detail.getByRole('heading', { name: 'النشاط' })).toBeVisible()
+  const tabs = detail.getByTestId('task-detail-tabs')
+  await tabs.getByRole('tab', { name: 'التعليقات', exact: true }).click()
+  await expect(detail.getByTestId('task-comments-card')).toBeVisible()
+  await expect(detail.getByPlaceholder('اكتب تعليقًا…')).toBeVisible()
+  await tabs.getByRole('tab', { name: 'السجل', exact: true }).click()
+  await expect(detail.getByTestId('task-activity-card')).toBeVisible()
+  await expect(detail.getByPlaceholder('اكتب تعليقًا…')).toBeHidden()
+  await expect(detail.getByTestId('task-comments-card')).toBeHidden()
   await expect(page.locator('h1')).toHaveText(name)
   await expect(page.locator('[data-slot="dialog-content"], [data-slot="sheet-content"], [data-slot="dialog-overlay"], [data-slot="sheet-overlay"]')).toHaveCount(0)
 })
 
-// Code-review regression case: Vue Router/Nuxt can reuse the same
-// DescriptionEditor instance across a /tasks/A -> /tasks/B navigation. A
-// pending debounced edit from A must be flushed (emitted immediately)
-// instead of silently discarded when the instance moves on to B. The test
-// stays deterministic by navigating right after typing — no waitForTimeout
-// before it — so the assertion only passes if the edit was flushed, never
-// because the debounce timer happened to fire in the background.
+// Explicit-submit descriptions must protect a draft during immediate sibling
+// navigation, persist it only to its original task, and never leak it to the next.
 test('a description edit made just before navigating away is not lost', async ({ page }) => {
   await login(page)
   const stamp = Date.now()
@@ -156,34 +167,49 @@ test('a description edit made just before navigating away is not lost', async ({
   const name1 = `${prefix} 1`
   const name2 = `${prefix} 2`
   const id1 = await createTask(page, name1)
-  await createTask(page, name2)
+  const id2 = await createTask(page, name2)
 
   await page.goto('/tasks')
   // A matching row may already exist before the 300ms search debounce.
   const filtered = page.waitForResponse(r => new URL(r.url()).pathname === '/api/v1/tasks' && new URL(r.url()).searchParams.get('q') === prefix)
   await page.getByPlaceholder('بحث في العناوين…').fill(prefix)
   await filtered
-  await page.getByRole('row', { name: name1 }).click()
-  await expect.poll(() => new URL(page.url()).searchParams.get('returnTo')).toBe('/tasks')
-
-  const editor = page.getByRole('textbox', { name: 'الوصف' })
-  await editor.click()
-  const text = 'نص لم يُحفظ بعد'
-  await editor.type(text)
-
-  // Still well within the 800ms debounce window: leave immediately via
-  // whichever prev/next button is enabled for this task's position in the
-  // (two-item) filtered list.
+  await page.getByRole('table').getByRole('button', { name: name1, exact: true }).click()
   const detail = page.getByTestId('task-detail-page')
-  const nextBtn = detail.getByRole('button', { name: 'التالية' })
-  const prevBtn = detail.getByRole('button', { name: 'السابقة' })
-  if (await nextBtn.isEnabled()) await nextBtn.click()
-  else await prevBtn.click()
-  await expect(page).not.toHaveURL(new RegExp(`/tasks/${id1}(?:\\?|$)`))
+  await expect(detail.getByTestId('task-detail-back')).toHaveAttribute('href', '/tasks')
+  await detail.getByTestId('task-description-edit').click()
+  const editor = page.getByRole('textbox', { name: 'الوصف', exact: true })
+  const text = 'نص لم يُحفظ بعد'
+  await editor.fill(text)
 
-  // Reload the original task directly and confirm the edit reached the server.
+  // The older task is second in id-desc order: previous leads to id2.
+  const previous = detail.getByRole('button', { name: 'السابقة', exact: true })
+  await expect(previous).toBeEnabled()
+  await previous.click()
+  const guard = page.getByTestId('unsaved-changes-dialog')
+  await expect(guard).toBeVisible()
+  await expect.poll(() => new URL(page.url()).pathname).toBe(`/tasks/${id1}`)
+  await guard.getByRole('button', { name: 'البقاء في الصفحة', exact: true }).click()
+  await expect(guard).toBeHidden()
+  await expect(editor).toHaveText(text)
+
+  const saved = page.waitForResponse(r => new URL(r.url()).pathname === `/api/v1/tasks/${id1}` && r.request().method() === 'PATCH')
+  await detail.getByTestId('task-description-editor').getByRole('button', { name: 'حفظ', exact: true }).click()
+  const response = await saved
+  expect(response.status()).toBe(200)
+  expect((await response.json()).id).toBe(id1)
+  await expect(detail.getByTestId('task-description-editor')).toHaveCount(0)
+  await previous.click()
+  await expect.poll(() => new URL(page.url()).pathname).toBe(`/tasks/${id2}`)
+  await expect(detail.getByTestId('task-description-empty')).toBeVisible()
+  const other = await page.request.get(`/api/v1/tasks/${id2}`)
+  expect(other.status()).toBe(200)
+  expect((await other.json()).description_html).not.toContain(text)
+
   await page.goto(`/tasks/${id1}`)
-  await expect(page.getByRole('textbox', { name: 'الوصف' })).toContainText(text)
+  await expect(detail.getByTestId('task-description').locator('.nasq-rich-text')).toHaveText(text)
+  await detail.getByTestId('task-description-edit').click()
+  await expect(page.getByRole('textbox', { name: 'الوصف', exact: true })).toHaveText(text)
 })
 
 // Regression: useTaskSiblings used to be a `computed` whose only reactive
@@ -227,6 +253,10 @@ test('task archive and link editing stay inline on the direct detail page', asyn
   const detail = page.getByTestId('task-detail-page')
   await expect(detail).toBeVisible()
 
+  await detail.getByTestId('task-description-edit').click()
+  const editor = detail.getByRole('textbox', { name: 'الوصف', exact: true })
+  await editor.fill('رابط المهمة')
+  await editor.press('ControlOrMeta+A')
   await detail.getByRole('button', { name: 'عنوان الرابط' }).click()
   const linkEditor = detail.getByTestId('link-editor')
   await expect(linkEditor).toBeVisible()
@@ -234,6 +264,11 @@ test('task archive and link editing stay inline on the direct detail page', asyn
   await linkEditor.getByPlaceholder('عنوان الرابط').fill('https://example.com')
   await linkEditor.getByRole('button', { name: 'تطبيق الرابط' }).click()
   await expect(linkEditor).toHaveCount(0)
+  const saved = page.waitForResponse(r => new URL(r.url()).pathname === `/api/v1/tasks/${id}` && r.request().method() === 'PATCH')
+  await detail.getByTestId('task-description-editor').getByRole('button', { name: 'حفظ', exact: true }).click()
+  expect((await saved).status()).toBe(200)
+  await expect(detail.getByTestId('task-description-editor')).toHaveCount(0)
+  await expect(detail.getByTestId('task-description').getByRole('link', { name: 'رابط المهمة' })).toHaveAttribute('href', 'https://example.com')
 
   await detail.getByTestId('task-archive').click()
   const confirmation = detail.getByTestId('task-archive-confirm')
@@ -243,6 +278,6 @@ test('task archive and link editing stay inline on the direct detail page', asyn
   await detail.getByTestId('task-archive').click()
   const archived = page.waitForResponse((response) => response.url().includes(`/api/v1/tasks/${id}/archive`) && response.request().method() === 'POST')
   await detail.getByTestId('task-archive-confirm').getByRole('button', { name: 'أرشفة المهمة' }).click()
-  await archived
+  expect((await archived).status()).toBe(200)
   await expect(page).toHaveURL(/\/tasks$/)
 })

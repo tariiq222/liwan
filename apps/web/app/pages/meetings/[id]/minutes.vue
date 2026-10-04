@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { recordParentTo, recordSiblingTo, MEETING_LIST_PATHS } from '@/utils/recordListOrigin'
 import DescriptionEditor from '@/components/task/DescriptionEditor.vue'
 import MeetingMinutesDocument from '@/components/meetings/MeetingMinutesDocument.vue'
 import MeetingMinutesForm from '@/components/meetings/MeetingMinutesForm.vue'
@@ -12,14 +13,8 @@ const hydrated = useHydrated()
 const id = computed(() => Number(route.params.id))
 const query = useMeeting(id)
 const { mutateAsync, isPending, error } = usePatchMeeting()
-// The owning list is fixed by this page's own route, so the return trip is
-// literal and carries only the state the list was showing. A referrer's
-// returnTo is dropped rather than forwarded: on the list URL it would nest one
-// level deeper on every round trip and redirect that page's own controls.
-const backTo = computed(() => {
-  const { returnTo: _referrer, ...listQuery } = route.query
-  return { path: `/meetings/${id.value}`, query: listQuery }
-})
+// Child pages always return to their current record; only normalized list context follows.
+const backTo = computed(() => recordParentTo(`/meetings/${id.value}`, route.query, MEETING_LIST_PATHS, route.hash))
 const agenda = ref('')
 const minutes = ref('')
 const minutesForm = ref<MeetingMinutesFormValue>(createMeetingMinutesForm())
@@ -70,7 +65,7 @@ async function save(navigateToRecommendation = false) {
   baseline.value = snapshot()
   await nextTick()
   await navigateTo(navigateToRecommendation
-    ? `/meetings/${id.value}/resolutions/new`
+    ? recordSiblingTo(`/meetings/${id.value}/resolutions/new`, route.query, MEETING_LIST_PATHS, route.hash)
     : backTo.value)
 }
 

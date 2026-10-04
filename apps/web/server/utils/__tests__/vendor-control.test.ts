@@ -4,6 +4,30 @@ import { assertVendorMutationOrigin, forwardVendorRequest, vendorControlBase, ve
 afterEach(() => vi.unstubAllGlobals())
 
 describe('vendor BFF boundary', () => {
+  it.each(['PATCH', 'DELETE'])('forwards authenticated %s package requests with their exact JSON and rejects cross-origin replay', async (method) => {
+    const config = { vendorWorkspaceEnabled: true, vendorControlUrl: 'https://control.example', vendorServiceKey: 'a'.repeat(48), vendorInstallationId: 'company', vendorPublicOrigin: 'https://example.test', odooUrl: 'https://odoo.example' }
+    const body = method === 'DELETE' ? '{ "revision": 2, "reason": "Unused draft" }' : '{ "revision": 2, "name": "Projects" }'
+    const headers: Record<string, string> = { cookie: 'session_id=fixture', origin: config.vendorPublicOrigin, 'content-type': 'application/json' }
+    vi.stubGlobal('useRuntimeConfig', () => config)
+    vi.stubGlobal('getMethod', () => method)
+    vi.stubGlobal('getHeader', (_event: unknown, name: string) => headers[name])
+    vi.stubGlobal('getRequestURL', () => new URL('https://example.test/api/vendor/v1/packages/1fd30c4c-e742-4aaa-bca0-0e6f48f6a095'))
+    vi.stubGlobal('readRawBody', async () => body)
+    vi.stubGlobal('setResponseStatus', vi.fn())
+    vi.stubGlobal('createError', (error: { statusCode: number; data: unknown }) => Object.assign(new Error(), error))
+    const result = method === 'DELETE' ? { deleted: true } : { id: '1fd30c4c-e742-4aaa-bca0-0e6f48f6a095', name: 'Projects', revision: 3 }
+    const raw = vi.fn().mockResolvedValue({ status: 200, _data: result })
+    const fetch = Object.assign(vi.fn().mockResolvedValue({ id: 2, name: 'Owner', login: 'owner', email: '', lang: 'ar_001', tz: 'UTC', role: 'employee', company: { id: 1, name: 'Company' } }), { raw })
+    vi.stubGlobal('$fetch', fetch)
+
+    expect(await forwardVendorRequest({} as never)).toEqual(result)
+    expect(raw).toHaveBeenCalledWith('https://control.example/v1/packages/1fd30c4c-e742-4aaa-bca0-0e6f48f6a095', expect.objectContaining({ method, body }))
+    expect(raw.mock.calls[0]![1].headers).not.toHaveProperty('cookie')
+    headers.origin = 'https://elsewhere.example'
+    await expect(forwardVendorRequest({} as never)).rejects.toMatchObject({ statusCode: 403, data: { code: 'cross_site_request' } })
+    expect(raw).toHaveBeenCalledTimes(1)
+  })
+
   it('keeps the server API disabled unless explicitly enabled', async () => {
     vi.stubGlobal('useRuntimeConfig', () => ({ vendorWorkspaceEnabled: false }))
     vi.stubGlobal('createError', (error: { statusCode: number }) => Object.assign(new Error(), error))

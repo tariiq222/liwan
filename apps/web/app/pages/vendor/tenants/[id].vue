@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { sharedTenantLoginUrl, type SharedTenantProgress } from '@/composables/useSharedTenantOnboarding'
 import { buildVendorPolicy, type VendorFeatureValue } from '@/utils/vendorPolicy'
+import { useVendorSubscriptions } from '@/composables/useVendorSubscriptions'
 import { safeReturnTo } from '@/utils/safeReturnTo'
 definePageMeta({ middleware: 'vendor', vendorCapability: 'vendor.read' })
 type Tenant = { id: string; name: string; commercial_mode: string; hosting_model: string; inventory_target: string; catalog_version: string | null; catalog_tier: string | null; status: string; desired_policy: Record<string, any> | null; observed_policy: Record<string, any> | null; policy_revision: number | null; health_checked_at: string | null; operations_enabled: boolean; available_operations?: unknown; created_at: string }
@@ -13,6 +14,9 @@ const { request } = useVendorApi()
 const vendorContext = useVendorContext()
 const { can } = vendorContext
 const id = computed(() => String(route.params.id))
+const { data: commercialCustomer } = await useAsyncData(() => `vendor:tenant-customer:${id.value}`, async () => {
+  try { const page = await useVendorSubscriptions().listCustomers({ limit: 200, offset: 0 }); return page.items.find(c => c.tenant_id === id.value) ?? null } catch { return null }
+})
 const backTo = computed(() => safeReturnTo(route.query.returnTo, '/vendor/tenants', ['/vendor/tenants']))
 const { data, error, pending, refresh } = await useAsyncData(() => `vendor:tenant:${id.value}`, () => request<Tenant>(`tenants/${encodeURIComponent(id.value)}`))
 const { data: catalog } = await useAsyncData('vendor:catalog-features', () => request<{ items: Catalog[]; total: number }>('catalog'))
@@ -164,7 +168,7 @@ const operationsNeedEnabling = computed(() => Boolean(data.value && !data.value.
   <SharedPageContainer width="list">
     <SharedUnsavedChanges :dirty="dirty" />
     <SharedPageHeader :title="data?.name ?? t('vendor.tenants.details')" :back-to="backTo">
-      <template #actions><UButton v-if="data" :to="{ path: '/vendor/operations', query: { tenant_id: data.id } }" color="neutral" variant="outline">{{ t('vendor.tenants.viewOperations') }}</UButton></template>
+      <template #actions><UButton v-if="data && commercialCustomer" :to="{ path: `/vendor/customers/${encodeURIComponent(commercialCustomer.id)}`, query: { returnTo: route.fullPath } }" color="neutral" variant="outline">{{ t('vendor.customers.openProfile') }}</UButton><UButton v-if="data" :to="{ path: '/vendor/operations', query: { tenant_id: data.id } }" color="neutral" variant="outline">{{ t('vendor.tenants.viewOperations') }}</UButton></template>
     </SharedPageHeader>
     <SharedPageState :loading="pending" :error="error" :empty="!pending && !error && !data" @retry="refresh">
       <div v-if="data" class="grid gap-5 lg:grid-cols-2">

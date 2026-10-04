@@ -5,6 +5,9 @@ import { Pool } from 'pg'
 import { vendorCapabilitySchema } from '@nasq/commercial-contracts'
 import { getConfig } from './config.js'
 import { migrate, transaction } from './db.js'
+import { writeFile } from 'node:fs/promises'
+import { readKnownSource } from './shared/catalog-source.js'
+import { migrateLegacyToSaas } from './commercial/legacy-mapping.js'
 
 const config = getConfig()
 const pool = new Pool({ connectionString: config.databaseUrl })
@@ -43,7 +46,10 @@ try {
   } else if (command === 'catalog-import') {
     const [version, why] = args
     if (!version || !/^[a-zA-Z0-9._-]{1,100}$/.test(version)) throw new Error('valid catalog version required')
-    const source = await readFile(join(config.repositoryRoot, 'deploy/catalog/solutions/platform.json'))
+    // Optional --source <file> is restricted to a registered file under deploy/catalog/solutions.
+    const at = args.indexOf('--source')
+    const resolved = await readKnownSource(config.repositoryRoot, at >= 0 ? args[at + 1] : undefined)
+    const source = resolved.bytes
     const solution = JSON.parse(source.toString('utf8'))
     const id = randomUUID()
     await transaction(pool, async (client) => {
@@ -63,7 +69,16 @@ try {
       await client.query('INSERT INTO audit_events(id,actor,action,subject,reason) VALUES($1,$2,$3,$4,$5)', [randomUUID(),'operator','restore.approved',tenantId,reason(why)])
     })
     process.stdout.write(`${id}\n`)
-  } else throw new Error('commands: grant, revoke, catalog-import, approve-restore')
+  } else if (command === 'migrate-saas-commercial') {
+    const mode = args.includes('--run') ? 'run' : args.includes('--dry-run') ? 'dry_run' : undefined
+    if (!mode || (args.includes('--run') && args.includes('--dry-run'))) throw new Error('exactly one of --dry-run or --run required')
+    const at = args.indexOf('--report')
+    const report = await migrateLegacyToSaas(pool, { mode })
+    const text = JSON.stringify(report, null, 2)
+    if (at >= 0) { if (!args[at + 1]) throw new Error('--report path required'); await writeFile(args[at + 1]!, `${text}\n`) }
+    process.stdout.write(`${text}\n`)
+    if (report.counts.errors) process.exitCode = 2
+  } else throw new Error('commands: grant, revoke, catalog-import, approve-restore, migrate-saas-commercial')
 } catch (error) {
   process.stderr.write(`${error instanceof Error ? error.message : 'admin command failed'}\n`)
   process.exitCode = 1

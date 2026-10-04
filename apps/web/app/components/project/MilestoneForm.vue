@@ -26,6 +26,8 @@ const deliverables = ref<Array<{ name: string; done: boolean }>>([])
 const error = ref<string | null>(null)
 const projectScheduleMissing = ref(false)
 const submitted = ref(false)
+const attempted = ref(false)
+const requiredError = computed(() => attempted.value && !name.value.trim() ? t('projects.milestones.nameRequired') : undefined)
 const baseline = ref('')
 
 function state() {
@@ -40,6 +42,7 @@ watch(() => props.milestone, (milestone) => {
   deadline.value = milestone?.deadline ?? null
   deliverables.value = (milestone?.deliverables ?? []).map(item => ({ name: item.name, done: item.done }))
   submitted.value = false
+  attempted.value = false
   baseline.value = state()
 }, { immediate: true, flush: 'sync' })
 
@@ -54,10 +57,12 @@ const dateError = computed(() => validateMilestoneDates({
 }))
 
 async function submit() {
+  if (!hydrated.value || isPending.value) return
+  attempted.value = true
   error.value = null
   projectScheduleMissing.value = false
   const trimmed = name.value.trim()
-  if (!hydrated.value || isPending.value || !trimmed) return
+  if (!trimmed) return
   if (!props.milestone && (!props.projectStart || !props.projectEnd || !startDate.value || !deadline.value)) {
     error.value = t('projects.milestones.scheduleRequired')
     projectScheduleMissing.value = !props.projectStart || !props.projectEnd
@@ -89,8 +94,12 @@ async function submit() {
 
 <template>
   <SharedUnsavedChanges :dirty="dirty" />
-  <form data-testid="milestone-form" class="grid gap-5" @submit.prevent="submit">
-    <UFormField :label="t('projects.milestones.name')" required>
+  <form novalidate data-testid="milestone-form" class="grid gap-5" @submit.prevent="submit">
+    <div v-if="error" class="text-sm text-error sm:col-span-2">
+      <UAlert role="alert" color="error" variant="subtle" :title="error" />
+      <NuxtLink v-if="projectScheduleMissing" class="mt-1 inline-block underline underline-offset-4" :to="{ path: `/projects/${props.projectId}/charter`, query: { edit: '1' } }">{{ t('projects.milestones.openProjectFile') }}</NuxtLink>
+    </div>
+    <UFormField :label="t('projects.milestones.name')" required :error="requiredError">
       <UInput id="milestone-name" v-model="name" class="w-full" required :disabled="!hydrated || isPending" />
     </UFormField>
     <UFormField>
@@ -114,13 +123,9 @@ async function submit() {
       </div>
       <p v-else class="text-sm text-muted">{{ t('projects.milestones.noDeliverables') }}</p>
     </UFormField>
-    <div v-if="error" role="alert" class="text-sm text-error sm:col-span-2">
-      <p>{{ error }}</p>
-      <NuxtLink v-if="projectScheduleMissing" class="mt-1 inline-block underline underline-offset-4" :to="{ path: `/projects/${props.projectId}/charter`, query: { edit: '1' } }">{{ t('projects.milestones.openProjectFile') }}</NuxtLink>
-    </div>
     <div class="flex flex-wrap gap-2 justify-end sm:col-span-2">
       <UButton type="button" color="neutral" :disabled="isPending" :label="t('app.cancel')" @click="emit('cancel')" variant="outline" />
-      <UButton type="submit" :disabled="!hydrated || isPending || !name.trim()" :label="isEdit ? t('app.save') : t('app.create')" />
+      <UButton type="submit" :disabled="!hydrated || isPending" :loading="isPending" :label="isEdit ? t('app.save') : t('app.create')" />
     </div>
   </form>
 </template>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { recordParentTo, SERIES_LIST_PATHS } from '@/utils/recordListOrigin'
 import MeetingPeopleFields from '@/components/meetings/MeetingPeopleFields.vue'
 import { useMeetingSeries } from '@/composables/useMeetings'
 import { usePatchMeetingSeriesSettings } from '@/composables/useMeetingSeriesSettings'
@@ -11,16 +12,8 @@ const hydrated = useHydrated()
 const id = computed(() => Number(route.params.id))
 const query = useMeetingSeries(id)
 const { mutateAsync, isPending, error } = usePatchMeetingSeriesSettings()
-// An edit form returns to the record it edits, not past it to the list: being
-// thrown back to the list is exactly what the reader did not ask for. The
-// target is fixed by this page's own route and carries the list state through,
-// so the record's own back control still lands on a filtered list. A referrer's
-// returnTo is dropped rather than forwarded: on the destination URL it would
-// nest one level deeper on every round trip and redirect that page's controls.
-const backTo = computed(() => {
-  const { returnTo: _referrer, ...listQuery } = route.query
-  return { path: `/meetings/series/${id.value}`, query: listQuery }
-})
+// Child pages always return to their current record; only normalized list context follows.
+const backTo = computed(() => recordParentTo(`/meetings/series/${id.value}`, route.query, SERIES_LIST_PATHS, route.hash))
 const name = ref('')
 const location = ref('')
 const meetingUrl = ref('')

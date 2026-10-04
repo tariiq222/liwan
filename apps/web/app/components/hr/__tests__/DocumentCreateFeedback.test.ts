@@ -5,6 +5,7 @@ import { renderToString } from '@vue/server-renderer'
 import * as Vue from 'vue'
 import ts from 'typescript'
 import { expect, it, vi } from 'vitest'
+import * as hrNavigation from '../../../utils/hrReturnTo'
 
 const shared = 'components/hr/DocumentCreateForm.vue'
 const pages = ['pages/hr/documents/new.vue', 'pages/hr/departments/[departmentId]/documents/new.vue']
@@ -24,7 +25,7 @@ async function load(file = shared, allowed = true, selected = true) {
     useRoute: () => ({ params: { departmentId: '4' }, query: { department_id: selected ? '4' : undefined, returnTo: '/hr/departments/4?returnTo=%2Fhr%2Fdepartments%3Fview%3Dcanvas%23chart' }, hash: '' }),
     useCreateDocument: () => ({ mutateAsync: mutate, isPending: pending }),
     useHrDepartments: () => ({ data: Vue.ref({ items: [{ id: 4, name: 'Department' }] }), isLoading: Vue.ref(false), error: Vue.ref(null), refetch: vi.fn() }),
-    navigateTo: navigate, ApiError: class extends Error {}, DocumentEditor: {}, DocumentCreateForm: {},
+    navigateTo: navigate, ApiError: class extends Error {}, DocumentEditor: {}, DocumentCreateForm: {}, ...hrNavigation,
   }
   const component = new Function(...Object.keys(bindings), transpile(script))(...Object.values(bindings))
   const state = component.setup(props, { expose: () => {}, emit })

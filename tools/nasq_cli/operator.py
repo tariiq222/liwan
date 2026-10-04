@@ -21,6 +21,7 @@ from pathlib import Path
 from . import journal
 from .cli import SCHEMA_VERSION
 from .cli import main as cli_main
+from .managed_verify import _features_match
 
 INVENTORY_ENV = 'NASQ_CLI_INVENTORY'
 STATE_ENV = 'NASQ_CLI_STATE_DIR'
@@ -63,6 +64,15 @@ import os
 from odoo.addons.nasq_platform.commercial_config import load_classification
 from odoo.addons.nasq_platform.models.entitlement_service import OPERATOR_CONTEXT
 
+def _features_match(actual, expected):
+    # Only a migrated legacy null may extend a policy that omitted this key.
+    observed = dict(actual)
+    if 'branches.extra_limit' not in expected and observed.get('branches.extra_limit') is None:
+        observed.pop('branches.extra_limit', None)
+    return (set(observed) == set(expected)
+            and all(type(value) is type(expected[key]) and value == expected[key]
+                    for key, value in observed.items()))
+
 result = {'status': 'needs_intervention', 'changed': False, 'error_code': 'operator_script_failed'}
 try:
     with open(os.environ['NASQ_OPERATOR_POLICY_FILE'], encoding='utf-8') as stream:
@@ -80,7 +90,7 @@ try:
             result = {'status': 'conflict', 'changed': False, 'error_code': 'classification_conflict'}
         elif int(profile.policy_revision) != expected_revision:
             result = {'status': 'conflict', 'changed': False, 'error_code': 'revision_conflict'}
-        elif profile.features == policy['features']:
+        elif _features_match(profile.features, policy['features']):
             result = {'status': 'ok', 'changed': False,
                       'policy_revision': int(profile.policy_revision)}
         else:
@@ -331,7 +341,7 @@ def _feature_snapshot(runner, entry):
         allowed = {}
         for tier in catalog['tiers']:
             for descriptor in tier['features']:
-                kind, key = descriptor.split(':', 1)
+                kind, key = descriptor.split(':')[:2]
                 allowed[key] = kind
         if not isinstance(values, dict):
             _fail(6, 'profile_invalid', 'snapshot', 'tenant feature snapshot is invalid')
@@ -669,7 +679,8 @@ def _other_mutation(fields, entry, fingerprint, runner, store):
                 actual_features = json.loads(features[0][0]) if len(features) == 1 else None
             except (ValueError, IndexError):
                 actual_features = None
-            if actual_features != _decode(policy_raw, 'policy')['features']:
+            if (type(actual_features) is not dict
+                    or not _features_match(actual_features, _decode(policy_raw, 'policy')['features'])):
                 return _payload(fields, 'needs_intervention', 'policy_verification', changed=True,
                                 error={'code': 'policy_mismatch',
                                        'message': 'Installed feature policy does not match the approved composition'})

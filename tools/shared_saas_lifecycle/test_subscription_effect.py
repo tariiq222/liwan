@@ -1,0 +1,256 @@
+# Part of Odoo. See LICENSE file for full copyright and licensing details.
+"""Unit tests (no Odoo, no Docker): fake runner replaces script execution."""
+import json
+import tempfile
+import unittest
+from pathlib import Path
+
+from tools.shared_saas_lifecycle import subscription_effect as se
+from tools.shared_saas_lifecycle.odoo_effect import EffectError
+
+DB = 'nasq_scratch_' + 'a' * 32
+OP = '11111111-1111-4111-8111-111111111111'
+PREV = '22222222-2222-4222-8222-222222222222'
+TARGET = '33333333-3333-4333-8333-333333333333'
+OTHER = '44444444-4444-4444-8444-444444444444'
+B1 = '55555555-5555-4555-8555-555555555555'
+B2 = '66666666-6666-4666-8666-666666666666'
+DIGEST = 'b' * 64
+
+
+def make_request(**over):
+    request = {
+        'action': 'reconfigure', 'tenant': {'database': DB, 'host': 'acme.example.test'},
+        'order_id': 'order-1', 'operation_id': OP, 'previous_revision_id': PREV,
+        'target_revision_id': TARGET,
+        'entitlement': {'modules': ['nasq_core', 'nasq_platform', 'nasq_api', 'nasq_pmo'],
+                        'features': {'users.limit': 10, 'projects.max_projects': 5,
+                                     'storage.limit_mb': 100, 'branches.extra_limit': 2},
+                        'digest': DIGEST, 'compiler_version': 1},
+        'branches': {'apply': [], 'archive': []},
+    }
+    request.update(over)
+    return request
+
+
+def observation(**over):
+    value = {'database': DB, 'commercial_revision_id': PREV, 'commercial_digest': 'c' * 64,
+             'commercial_applied_at': None, 'features': {'users.limit': 3},
+             'modules': ['nasq_api', 'nasq_core', 'nasq_platform'], 'branches': [],
+             'usage': {'users': 1, 'projects': 0, 'attachment_bytes': 0, 'extra_branches': 0}}
+    value.update(over)
+    return value
+
+
+def wrap(value):
+    return 'noise\n' + se.SENTINEL + json.dumps(value) + '\n'
+
+
+class FakeRunner:
+    """Serves observations in order; 'apply' scripts update a simulated state."""
+    def __init__(self, state, *, exists=True, apply_state=None, crash_after_apply=False):
+        self.state, self.exists, self.apply_state = state, exists, apply_state
+        self.crash_after_apply = crash_after_apply
+        self.scripts, self.installed, self.applies = [], [], 0
+
+    def database_exists(self):
+        return self.exists
+
+    def install_modules(self, names):
+        self.installed.append(list(names))
+
+    def run_script(self, script, stage, mutate=False):
+        self.scripts.append((stage, mutate, script))
+        if stage == 'apply':
+            self.applies += 1
+            if self.apply_state is not None:
+                self.state = self.apply_state
+            if self.crash_after_apply:
+                raise EffectError('runtime_timeout')
+            return wrap({'applied': True})
+        return wrap(self.state)
+
+
+def applied_state(request, **over):
+    ent = request['entitlement']
+    branches = [{'branch_id': b['branch_id'], 'state': 'active', 'odoo_company_id': 7 + i,
+                 'active': True, 'parent_is_root': True} for i, b in enumerate(request['branches']['apply'])]
+    return observation(commercial_revision_id=TARGET, commercial_digest=ent['digest'],
+                       features=dict(ent['features']), branches=branches,
+                       modules=sorted(ent['modules']), **over)
+
+
+class Base(unittest.TestCase):
+    def setUp(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.dir = Path(tmp.name).resolve() / 'journal'
+
+    def effect(self, runner):
+        return se.SubscriptionEffect(runner, self.dir, clock=lambda: '2026-01-01T00:00:00Z')
+
+
+class ValidationTests(unittest.TestCase):
+    def bad(self, **over):
+        with self.assertRaises(EffectError):
+            se.validate_reconfigure(make_request(**over))
+
+    def test_valid(self):
+        se.validate_reconfigure(make_request())
+
+    def test_bad_database(self):
+        for db in ('odoo19', 'nasq_scratch_x', DB + ';'):
+            self.bad(tenant={'database': db, 'host': 'a.test'})
+
+    def test_bad_digest_and_modules(self):
+        ent = make_request()['entitlement']
+        self.bad(entitlement={**ent, 'digest': 'z' * 64})
+        self.bad(entitlement={**ent, 'digest': 'B' * 64})
+        self.bad(entitlement={**ent, 'modules': ['nasq_core', 'sale']})
+        self.bad(entitlement={**ent, 'features': {'users.limit': -1}})
+        self.bad(entitlement={**ent, 'features': {'x': 'yes'}})
+
+    def test_branch_validation(self):
+        self.bad(branches={'apply': [{'branch_id': B1, 'name': 'a'}, {'branch_id': B1, 'name': 'b'}], 'archive': []})
+        self.bad(branches={'apply': [{'branch_id': B1, 'name': 'a'}], 'archive': [B1]})
+        self.bad(branches={'apply': [{'branch_id': 'nope', 'name': 'a'}], 'archive': []})
+        self.bad(branches={'apply': [], 'archive': [B2, B2]})
+        self.bad(operation_id='x')
+
+
+class ReconfigureTests(Base):
+    def test_applies_and_receipt(self):
+        request = make_request(branches={'apply': [{'branch_id': B1, 'name': 'Riyadh'}], 'archive': []})
+        runner = FakeRunner(observation(), apply_state=applied_state(request))
+        receipt = self.effect(runner).reconfigure(request)
+        self.assertEqual(runner.installed, [['nasq_pmo']])
+        self.assertEqual(runner.applies, 1)
+        self.assertEqual(receipt['modules_installed'], ['nasq_pmo'])
+        self.assertEqual(receipt['observed_entitlement_digest'], DIGEST)
+        self.assertEqual(receipt['branch_bindings'], [{'branch_id': B1, 'odoo_company_id': 7}])
+        self.assertEqual(receipt['order_id'], 'order-1')
+        self.assertEqual(receipt['target_revision_id'], TARGET)
+
+    def test_idempotent_when_already_applied(self):
+        request = make_request()
+        runner = FakeRunner(applied_state(request))
+        receipt = self.effect(runner).reconfigure(request)
+        self.assertEqual(runner.applies, 0)
+        self.assertEqual(runner.installed, [])
+        self.assertEqual(receipt['observed_entitlement_digest'], DIGEST)
+
+    def test_stale_target(self):
+        request = make_request()
+        runner = FakeRunner(observation(commercial_revision_id=OTHER))
+        with self.assertRaises(EffectError) as ctx:
+            self.effect(runner).reconfigure(request)
+        self.assertEqual(str(ctx.exception), 'stale_target')
+        self.assertEqual(runner.applies, 0)
+
+    def test_first_revision_from_null(self):
+        request = make_request(previous_revision_id=None)
+        runner = FakeRunner(observation(commercial_revision_id=None), apply_state=applied_state(request))
+        self.effect(runner).reconfigure(request)
+        self.assertEqual(runner.applies, 1)
+
+    def test_same_revision_other_digest(self):
+        request = make_request()
+        runner = FakeRunner(observation(commercial_revision_id=TARGET, commercial_digest='d' * 64))
+        with self.assertRaises(EffectError) as ctx:
+            self.effect(runner).reconfigure(request)
+        self.assertEqual(str(ctx.exception), 'observed_mismatch')
+        self.assertEqual(runner.applies, 0)
+
+    def test_downgrade_below_usage(self):
+        for usage, over in [({'users': 11}, None), ({'projects': 6}, None), ({'attachment_bytes': 101 * 1048576}, None)]:
+            runner = FakeRunner(observation(usage={**observation()['usage'], **usage}))
+            with self.assertRaises(EffectError) as ctx:
+                self.effect(runner).reconfigure(make_request())
+            self.assertEqual(str(ctx.exception), 'downgrade_below_usage')
+            self.assertEqual((runner.applies, runner.installed), (0, []))
+        self.assertFalse(self.dir.exists())
+
+    def test_downgrade_branches(self):
+        active = [{'branch_id': str(i) * 8 + B1[8:], 'state': 'active', 'odoo_company_id': i,
+                   'active': True, 'parent_is_root': True} for i in range(1, 4)]
+        runner = FakeRunner(observation(branches=active, usage={**observation()['usage'], 'extra_branches': 3}))
+        with self.assertRaises(EffectError) as ctx:
+            self.effect(runner).reconfigure(make_request())
+        self.assertEqual(str(ctx.exception), 'downgrade_below_usage')
+        # archiving one in the same revision makes it legal
+        request = make_request(branches={'apply': [], 'archive': [active[0]['branch_id']]})
+        after = applied_state(request, usage=observation()['usage'])
+        after['branches'] = [{**active[0], 'state': 'archived', 'active': False}, *active[1:]]
+        runner = FakeRunner(observation(branches=active), apply_state=after)
+        self.effect(runner).reconfigure(request)
+
+    def test_observed_mismatch_after_apply(self):
+        request = make_request()
+        wrong = applied_state(request, )
+        wrong['features'] = {**wrong['features'], 'users.limit': 99}
+        runner = FakeRunner(observation(), apply_state=wrong)
+        with self.assertRaises(EffectError) as ctx:
+            self.effect(runner).reconfigure(request)
+        self.assertEqual(str(ctx.exception), 'observed_mismatch')
+
+    def test_unbound_branch_is_mismatch(self):
+        request = make_request(branches={'apply': [{'branch_id': B1, 'name': 'x'}], 'archive': []})
+        state = applied_state(request)
+        state['branches'][0]['parent_is_root'] = False
+        with self.assertRaises(EffectError) as ctx:
+            self.effect(FakeRunner(observation(), apply_state=state)).reconfigure(request)
+        self.assertEqual(str(ctx.exception), 'observed_mismatch')
+
+    def test_journal_resume_after_crash(self):
+        request = make_request(branches={'apply': [{'branch_id': B1, 'name': 'x'}], 'archive': []})
+        first = FakeRunner(observation(), apply_state=applied_state(request), crash_after_apply=True)
+        with self.assertRaises(EffectError):
+            self.effect(first).reconfigure(request)
+        self.assertEqual(len(list(self.dir.glob('*.json'))), 1)
+        second = FakeRunner(first.state)
+        receipt = self.effect(second).reconfigure(request)
+        self.assertEqual(second.applies, 0)
+        self.assertEqual(receipt['branch_bindings'][0]['branch_id'], B1)
+        self.assertEqual(len(list(self.dir.glob('*.done'))), 1)
+
+    def test_journal_conflict(self):
+        request = make_request()
+        self.dir.mkdir(mode=0o700)
+        (self.dir / (DB + '.' + OP + '.json')).write_text(json.dumps({'operation_id': OP, 'target_revision_id': OTHER, 'database': DB}))
+        with self.assertRaises(EffectError) as ctx:
+            self.effect(FakeRunner(observation(), apply_state=applied_state(request))).reconfigure(request)
+        self.assertEqual(str(ctx.exception), 'journal_conflict')
+
+    def test_missing_database(self):
+        with self.assertRaises(EffectError) as ctx:
+            self.effect(FakeRunner(observation(), exists=False)).reconfigure(make_request())
+        self.assertEqual(str(ctx.exception), 'database_missing')
+
+    def test_script_error_codes_are_whitelisted(self):
+        self.assertEqual(se.parse_output(wrap({'applied': True})), {'applied': True})
+        for payload, code in [({'error_code': 'stale_target'}, 'stale_target'),
+                              ({'error_code': 'secret detail'}, 'subscription_script_failed')]:
+            with self.assertRaises(EffectError) as ctx:
+                se.parse_output(wrap(payload))
+            self.assertEqual(str(ctx.exception), code)
+        with self.assertRaises(EffectError):
+            se.parse_output('nothing')
+
+
+class ObserveTests(Base):
+    def test_observe_snapshot(self):
+        runner = FakeRunner(observation())
+        value = self.effect(runner).observe({'tenant': {'database': DB, 'host': 'a.test'}})
+        self.assertEqual(value['observed_at'], '2026-01-01T00:00:00Z')
+        self.assertEqual(value['usage']['extra_branches'], 0)
+        self.assertTrue(all(not mutate for _, mutate, _ in runner.scripts))
+
+    def test_observation_shape_validated(self):
+        bad = observation()
+        bad['usage'] = {'users': -1, 'projects': 0, 'attachment_bytes': 0, 'extra_branches': 0}
+        with self.assertRaises(EffectError):
+            self.effect(FakeRunner(bad)).observe({'tenant': {'database': DB, 'host': 'a.test'}})
+
+
+if __name__ == '__main__':
+    unittest.main()

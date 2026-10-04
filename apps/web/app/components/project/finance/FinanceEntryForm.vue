@@ -211,12 +211,13 @@ async function saveOnLatest() {
 </script>
 
 <template>
-  <form data-testid="finance-form" class="space-y-8" @submit.prevent="submit()">
+  <form data-testid="finance-form" class="space-y-8" novalidate @submit.prevent="submit()">
     <SharedUnsavedChanges :dirty="dirty" />
+    <UAlert v-if="!canWrite" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('projects.finance.writeRevoked')" />
+    <UAlert v-if="error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="error" />
     <SharedFormSection :title="t('projects.refresh.finance.formDetailsTitle')" :description="t('projects.refresh.finance.formDetailsDescription')">
       <div class="grid gap-5">
-        <div class="space-y-2">
-          <label for="finance-kind" class="block font-medium text-default">{{ t('projects.finance.fields.kind') }}</label>
+        <UFormField name="kind" :label="t('projects.finance.fields.kind')">
           <USelect
             id="finance-kind"
             :model-value="draft.kind"
@@ -225,19 +226,16 @@ async function saveOnLatest() {
             class="w-full"
             @update:model-value="onKindChange"
           />
-        </div>
-        <div class="space-y-2">
-          <label for="finance-title" class="block font-medium text-default after:content-['*'] after:ms-0.5 after:text-error">{{ t('projects.finance.fields.title') }}</label>
-          <UInput id="finance-title" v-model="draft.title" class="w-full" required :disabled="!hydrated || pending" :color="fieldErrors.title ? 'error' : undefined" :highlight="!!fieldErrors.title" :aria-invalid="!!fieldErrors.title" :aria-describedby="fieldErrors.title ? 'finance-title-error' : undefined" />
-          <p v-if="fieldErrors.title" id="finance-title-error" role="alert" class="mt-2 text-sm text-error">{{ fieldErrors.title }}</p>
-        </div>
+        </UFormField>
+        <UFormField name="title" :label="t('projects.finance.fields.title')" required :error="fieldErrors.title">
+          <UInput id="finance-title" v-model="draft.title" class="w-full" required :disabled="!hydrated || pending" />
+        </UFormField>
       </div>
     </SharedFormSection>
 
     <SharedFormSection :title="t('projects.refresh.finance.formAmountTitle')" :description="t('projects.refresh.finance.formAmountDescription')">
       <div class="grid gap-5">
-        <div class="space-y-2">
-          <label for="finance-amount" class="block font-medium text-default after:content-['*'] after:ms-0.5 after:text-error">{{ t('projects.finance.fields.amount') }}</label>
+        <UFormField name="amount" :label="t('projects.finance.fields.amount')" required :help="currencyHelp" :error="fieldErrors.amount">
           <UInput
             id="finance-amount"
             v-model="draft.amountInput"
@@ -247,28 +245,17 @@ async function saveOnLatest() {
             dir="ltr"
             required
             :disabled="!hydrated || pending"
-            :color="fieldErrors.amount ? 'error' : undefined"
-            :highlight="!!fieldErrors.amount"
-            :aria-invalid="!!fieldErrors.amount"
-            :aria-describedby="fieldErrors.amount ? 'finance-amount-help finance-amount-error' : 'finance-amount-help'"
           />
-          <p id="finance-amount-help" class="mt-2 text-sm text-muted">{{ currencyHelp }}</p>
-          <p v-if="fieldErrors.amount" id="finance-amount-error" role="alert" class="mt-2 text-sm text-error">{{ fieldErrors.amount }}</p>
-        </div>
+        </UFormField>
         <template v-if="draft.kind === 'expense'">
-          <div class="space-y-2">
-            <label for="finance-expense-date" class="block font-medium text-default">{{ t('projects.finance.fields.expense_date') }}</label>
+          <UFormField name="expense_date" :label="t('projects.finance.fields.expense_date')" required :error="fieldErrors.expense_date">
             <SharedDateField
               id="finance-expense-date"
               v-model="draft.expenseDate"
               :disabled="!hydrated || pending"
-              :class="fieldErrors.expense_date ? 'ring-2 ring-error' : undefined"
               :aria-label="t('projects.finance.fields.expense_date')"
-              :aria-invalid="!!fieldErrors.expense_date"
-              :aria-describedby="fieldErrors.expense_date ? 'finance-expense-date-error' : undefined"
             />
-            <p v-if="fieldErrors.expense_date" id="finance-expense-date-error" role="alert" class="mt-2 text-sm text-error">{{ fieldErrors.expense_date }}</p>
-          </div>
+          </UFormField>
           <FinanceBudgetPicker :project-id="projectId" :model-value="draft.budgetEntryId" :disabled="!hydrated || pending" :selected-label="selectedBudgetTitle" :error="fieldErrors.budget_entry_id" @update:model-value="draft.budgetEntryId = $event" />
         </template>
       </div>
@@ -276,16 +263,12 @@ async function saveOnLatest() {
 
     <SharedFormSection :title="t('projects.refresh.finance.formReferenceTitle')" :description="t('projects.refresh.finance.formReferenceDescription')">
       <div class="grid gap-5">
-        <div class="space-y-2">
-          <label for="finance-reference" class="block font-medium text-default">{{ t('projects.finance.fields.reference') }}</label>
-          <UInput id="finance-reference" v-model="draft.reference" class="w-full" :disabled="!hydrated || pending" :color="fieldErrors.reference ? 'error' : undefined" :highlight="!!fieldErrors.reference" :aria-invalid="!!fieldErrors.reference" :aria-describedby="fieldErrors.reference ? 'finance-reference-error' : undefined" />
-          <p v-if="fieldErrors.reference" id="finance-reference-error" role="alert" class="mt-2 text-sm text-error">{{ fieldErrors.reference }}</p>
-        </div>
-        <div class="space-y-2 sm:col-span-2">
-          <label for="finance-notes" class="block font-medium text-default">{{ t('projects.finance.fields.notes') }}</label>
-          <UTextarea id="finance-notes" v-model="draft.notes" class="w-full" :disabled="!hydrated || pending" :color="fieldErrors.notes ? 'error' : undefined" :highlight="!!fieldErrors.notes" :aria-invalid="!!fieldErrors.notes" :aria-describedby="fieldErrors.notes ? 'finance-notes-error' : undefined" />
-          <p v-if="fieldErrors.notes" id="finance-notes-error" role="alert" class="mt-2 text-sm text-error">{{ fieldErrors.notes }}</p>
-        </div>
+        <UFormField name="reference" :label="t('projects.finance.fields.reference')" :error="fieldErrors.reference">
+          <UInput id="finance-reference" v-model="draft.reference" class="w-full" :disabled="!hydrated || pending" />
+        </UFormField>
+        <UFormField name="notes" :label="t('projects.finance.fields.notes')" :error="fieldErrors.notes" class="sm:col-span-2">
+          <UTextarea id="finance-notes" v-model="draft.notes" class="w-full" :disabled="!hydrated || pending" />
+        </UFormField>
       </div>
     </SharedFormSection>
 
@@ -311,12 +294,9 @@ async function saveOnLatest() {
       </template>
     </UAlert>
 
-    <UAlert v-if="!canWrite" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('projects.finance.writeRevoked')" />
-    <UAlert v-if="error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="error" />
-
     <div class="flex flex-wrap gap-2 justify-end">
       <UButton type="button" color="neutral" :disabled="pending" @click="emit('cancel')" variant="outline">{{ t('app.cancel') }}</UButton>
-      <UButton type="submit" :disabled="ordinarySaveDisabled">{{ isEdit ? t('app.save') : t('app.create') }}</UButton>
+      <UButton type="submit" :loading="pending" :disabled="ordinarySaveDisabled">{{ isEdit ? t('app.save') : t('app.create') }}</UButton>
     </div>
   </form>
 </template>

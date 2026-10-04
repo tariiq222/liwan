@@ -247,6 +247,14 @@ def _feature_parts(entry, errors, where):
         errors.append(f'{where}: feature {entry!r} must look like boolean:<key> or limit:<key>')
         return None, None
     kind, _, key = entry.partition(':')
+    if kind == 'limit' and ':' in key:
+        key, _, ceiling = key.partition(':')
+        if not re.fullmatch(r'0|[1-9][0-9]{0,8}|1000000000', ceiling):
+            errors.append(f'{where}: feature {entry!r} ceiling must be an integer between 0 and 1000000000')
+            return None, None
+    elif kind == 'boolean' and ':' in key:
+        errors.append(f'{where}: feature {entry!r} must look like boolean:<key> or limit:<key>[:<int>]')
+        return None, None
     return kind, key
 
 

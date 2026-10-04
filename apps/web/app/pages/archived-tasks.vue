@@ -25,7 +25,7 @@ const { data, isLoading, error, refetch, hasNextPage, fetchNextPage, isFetchingN
 const items = computed(() => (data.value?.pages ?? []).flatMap((page) => page.items))
 const total = computed(() => data.value?.pages[0]?.total ?? 0)
 const { mutate: restore, isPending } = useRestoreTask()
-const backTo = computed(() => safeReturnTo(route.query.returnTo, projectId.value ? `/projects/${projectId.value}` : '/tasks', ['/tasks', '/projects']))
+const backTo = computed(() => safeReturnTo(route.query.returnTo, projectId.value ? `/projects/${projectId.value}/tasks` : '/tasks', ['/tasks', '/projects']))
 const activeFilterCount = computed(() => Number(Boolean(q.value.trim())))
 
 function clearFilters() {

@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { createSharedTenantRequest, type SharedTenantCreated } from '@/composables/useSharedTenantOnboarding'
+import type { PackageRevision } from '@nasq/commercial-contracts'
+import { packageLabel } from '@/utils/vendorPackages'
 import { safeReturnTo } from '@/utils/safeReturnTo'
 definePageMeta({ middleware: 'vendor', vendorCapability: 'vendor.tenants.manage' })
 const { t } = useI18n(); const route = useRoute(); const { request } = useVendorApi(); const { can, sharedOnboardingEnabled: sharedEnabled, ready } = useVendorContext()
@@ -8,27 +10,36 @@ await ready
 const sharedRequest = createSharedTenantRequest()
 const { data: targets, pending, error, refresh } = await useAsyncData('vendor:targets', () => sharedEnabled.value ? Promise.resolve({ items: [], total: 0 }) : request<{ items: { id: string; kind: string }[]; total: number }>('targets'))
 const { data: catalog, error: catalogError, refresh: refreshCatalog } = await useAsyncData('vendor:catalog-published', () => request<{ items: { id: string; version: string; status: string; solution: { tiers?: { id: string; name: string }[] } }[]; total: number }>('catalog'))
+const { data: packages, error: packagesError, refresh: refreshPackages } = await useAsyncData('vendor:onboarding-packages', () => sharedEnabled.value ? request<{ items: PackageRevision[] }>('packages') : Promise.resolve({ items: [] }))
+const availablePackages = computed(() => packages.value?.items.filter(item => item.status === 'published' && item.available) ?? [])
+const legacySelection = ref(false)
+const usingPackage = computed(() => sharedEnabled.value && availablePackages.value.length > 0 && !legacySelection.value)
+const selectedPackage = computed(() => availablePackages.value.find(item => item.id === form.package_revision_id))
 const published = computed(() => catalog.value?.items.filter(item => item.status === 'published') ?? [])
 const selectedCatalog = computed(() => published.value.find(item => item.version === form.catalog_version))
-const form = reactive({ name: '', commercial_mode: 'saas', hosting_model: 'managed', inventory_target: '', catalog_version: '', catalog_tier: '', reason: '', admin_name: '', admin_login: '' })
+const form = reactive({ name: '', commercial_mode: 'saas', hosting_model: 'managed', inventory_target: '', catalog_version: '', catalog_tier: '', reason: '', package_revision_id: '', admin_name: '', admin_login: '' })
 const busy = ref(false); const saveError = ref<unknown>(null)
 const submitted = ref(false)
-const dirty = computed(() => !submitted.value && Boolean(form.admin_name.trim() || form.admin_login.trim() || form.name.trim() || form.inventory_target || form.catalog_version || form.catalog_tier || form.reason.trim() || form.commercial_mode !== 'saas' || form.hosting_model !== 'managed'))
+const attempted = ref(false)
+const selectionError = computed(() => attempted.value && usingPackage.value && !selectedPackage.value ? t('vendor.errors.field.package_revision_id') : undefined)
+const dirty = computed(() => !submitted.value && Boolean(form.package_revision_id || form.admin_name.trim() || form.admin_login.trim() || form.name.trim() || form.inventory_target || form.catalog_version || form.catalog_tier || form.reason.trim() || form.commercial_mode !== 'saas' || form.hosting_model !== 'managed'))
 function fieldError(error: unknown): string {
   if ((error as { incompleteOnboarding?: boolean } | null)?.incompleteOnboarding === true) return 'vendor.tenants.provisioning.incomplete'
   const value = error as { data?: { field?: unknown; data?: { field?: unknown } }; field?: unknown; response?: { _data?: { field?: unknown } } } | null
   const field = value?.data?.field ?? value?.data?.data?.field ?? value?.response?._data?.field ?? value?.field
-  return typeof field === 'string' && ['name', 'inventory_target', 'catalog_version', 'catalog_tier', 'reason', 'request_id', 'admin_name', 'admin_login'].includes(field) ? `vendor.errors.field.${field}` : 'vendor.errors.save'
+  return typeof field === 'string' && ['name', 'inventory_target', 'catalog_version', 'catalog_tier', 'reason', 'request_id', 'admin_name', 'admin_login', 'package_revision_id'].includes(field) ? `vendor.errors.field.${field}` : 'vendor.errors.save'
 }
 watch(() => form.catalog_version, () => { form.catalog_tier = '' })
 async function submit() {
   if (!hydrated.value || !can('vendor.tenants.manage') || busy.value) return
+  attempted.value = true
+  if (selectionError.value) return
   busy.value = true
   saveError.value = null
   try {
     let tenantId: string
     if (sharedEnabled.value) {
-      const result = await request<SharedTenantCreated>('shared/tenants', { method: 'POST', body: sharedRequest.body(form) })
+      const result = await request<SharedTenantCreated>('shared/tenants', { method: 'POST', body: sharedRequest.body({ ...form, package_revision_id: usingPackage.value ? form.package_revision_id : undefined, catalog_version: usingPackage.value ? undefined : form.catalog_version, catalog_tier: usingPackage.value ? undefined : form.catalog_tier }) })
       if (result.job_id === null) { saveError.value = { incompleteOnboarding: true }; return }
       tenantId = result.tenant_id
     } else {
@@ -48,16 +59,22 @@ const backTo = computed(() => safeReturnTo(route.query.returnTo, '/vendor/tenant
   <SharedCreatePanel :title="t('vendor.tenants.create')" :back-to="backTo" width="wide">
     <SharedUnsavedChanges :dirty="dirty" />
     <SharedPageState v-if="!can('vendor.tenants.manage')" :empty="true" :empty-text="t('vendor.forbidden')" />
-    <SharedPageState v-else :loading="pending || !catalog" :error="targets && catalog ? null : error || catalogError" @retry="async () => { await refresh(); await refreshCatalog() }">
-      <form v-if="targets && catalog" class="grid max-w-2xl gap-5" @submit.prevent="submit">
+    <SharedPageState v-else :loading="pending || (!catalog && !catalogError) || (!packages && !packagesError)" :error="error || catalogError || packagesError" @retry="async () => { await refresh(); await refreshCatalog(); await refreshPackages() }">
+      <form v-if="targets && catalog && packages" class="grid max-w-2xl gap-5" @submit.prevent="submit">
         <UAlert v-if="saveError" color="error" variant="subtle" :title="t(fieldError(saveError))" />
-        <UAlert v-if="!published.length" color="neutral" variant="subtle" :title="t('vendor.tenants.noPublishedCatalog')" />
+        <UAlert v-if="!usingPackage && !published.length" color="neutral" variant="subtle" :title="t('vendor.tenants.noPublishedCatalog')" />
         <UFormField :label="t('vendor.tenants.fields.name')" required><UInput v-model="form.name" required maxlength="200" class="w-full" /></UFormField>
         <UFormField v-if="!sharedEnabled" :label="t('vendor.tenants.fields.mode')" required><USelect v-model="form.commercial_mode" :items="[{ label: t('vendor.mode.saas'), value: 'saas' }, { label: t('vendor.mode.nonSaas'), value: 'non_saas' }]" class="w-full" /></UFormField>
         <UFormField v-if="!sharedEnabled" :label="t('vendor.tenants.fields.hosting')" required><USelect v-model="form.hosting_model" :items="[{ label: t('vendor.hosting.managed'), value: 'managed' }, { label: t('vendor.hosting.customerHosted'), value: 'customer_hosted' }]" class="w-full" /></UFormField>
         <UFormField v-if="!sharedEnabled" :label="t('vendor.tenants.fields.target')" required :help="t('vendor.tenants.targetHelp')"><USelect v-model="form.inventory_target" :items="targets.items.map(item => ({ label: `${item.id} · ${t(`vendor.targetKind.${item.kind}`)}`, value: item.id }))" required class="w-full" /><p v-if="!targets.items.length" class="mt-1 text-xs text-muted">{{ t('vendor.tenants.noTargets') }}</p></UFormField>
-        <UFormField :label="t('vendor.tenants.fields.catalogVersion')" required><USelect v-model="form.catalog_version" :items="published.map(item => ({ label: item.version, value: item.version }))" required class="w-full" /></UFormField>
-        <UFormField :label="t('vendor.tenants.fields.catalogTier')" required><USelect v-model="form.catalog_tier" :items="(selectedCatalog?.solution.tiers ?? []).map(tier => ({ label: `${tier.name} · ${t(`vendor.catalog.tiers.${tier.id}`, tier.id)}`, value: tier.id }))" required :disabled="!form.catalog_version" class="w-full" /></UFormField>
+        <template v-if="sharedEnabled">
+          <UFormField v-if="availablePackages.length" :label="t('vendor.packages.selectionMode')"><USelect :disabled="!hydrated || busy" :model-value="legacySelection ? 'legacy' : 'package'" :items="[{ label: t('vendor.packages.publishedChoice'), value: 'package' }, { label: t('vendor.packages.legacyChoice'), value: 'legacy' }]" class="w-full" @update:model-value="legacySelection = $event === 'legacy'" /></UFormField>
+          <UAlert v-if="!usingPackage" color="neutral" variant="subtle" :title="t('vendor.packages.legacyChoice')" :description="t('vendor.packages.legacyHint')" />
+          <UFormField v-if="usingPackage" :label="t('vendor.packages.selectPackage')" required :error="selectionError"><USelect v-model="form.package_revision_id" :disabled="!hydrated || busy" :items="availablePackages.map(item => ({ label: `${item.name} · ${t('vendor.packages.version', { count: item.version })}`, value: item.id }))" class="w-full" /></UFormField>
+          <UCard v-if="usingPackage && selectedPackage"><h2 class="font-semibold">{{ selectedPackage.name }}</h2><p class="mt-1 text-sm text-muted">{{ selectedPackage.description }}</p><p class="mt-2 text-sm">{{ packageLabel('tier', selectedPackage.catalog_tier, t) }}</p><dl class="mt-3 grid gap-2 sm:grid-cols-3"><div v-for="(value, key) in selectedPackage.limits" :key="key"><dt class="text-xs text-muted">{{ packageLabel('limit', key, t) }}</dt><dd>{{ value === null ? t('vendor.common.unlimited') : value }}</dd></div></dl><p class="mt-3 text-xs text-muted">{{ t('vendor.packages.storageHint') }}</p></UCard>
+        </template>
+        <UFormField v-if="!usingPackage" :label="t('vendor.tenants.fields.catalogVersion')" required><USelect v-model="form.catalog_version" :items="published.map(item => ({ label: item.version, value: item.version }))" required class="w-full" /></UFormField>
+        <UFormField v-if="!usingPackage" :label="t('vendor.tenants.fields.catalogTier')" required><USelect v-model="form.catalog_tier" :items="(selectedCatalog?.solution.tiers ?? []).map(tier => ({ label: `${tier.name} · ${t(`vendor.catalog.tiers.${tier.id}`, tier.id)}`, value: tier.id }))" required :disabled="!form.catalog_version" class="w-full" /></UFormField>
         <template v-if="sharedEnabled">
           <UFormField :label="t('vendor.tenants.fields.adminName')" required><UInput v-model="form.admin_name" required maxlength="200" autocomplete="name" class="w-full" /></UFormField>
           <UFormField :label="t('vendor.tenants.fields.adminLogin')" required><UInput v-model="form.admin_login" required maxlength="254" autocomplete="username" class="w-full" /></UFormField>

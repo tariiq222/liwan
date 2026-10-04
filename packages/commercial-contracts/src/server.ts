@@ -57,3 +57,7 @@ export function verifyServiceRequest(input: Omit<ServiceSignInput, 'actor' | 'is
   if (!timingSafeEqual(Buffer.from(received, 'hex'), Buffer.from(expected, 'hex'))) return null
   return { actor, issuer, nonce, timestamp }
 }
+
+export * from './commercial/catalog.js'
+export * from './commercial/entitlements.js'
+export * from './commercial/quotes.js'

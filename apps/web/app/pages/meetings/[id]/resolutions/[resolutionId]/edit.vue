@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { recordParentTo, MEETING_LIST_PATHS } from '@/utils/recordListOrigin'
 import DescriptionEditor from '@/components/task/DescriptionEditor.vue'
 import MeetingProjectFilter from '@/components/meetings/MeetingProjectFilter.vue'
 import { useMeeting, usePatchResolution } from '@/composables/useMeetings'
@@ -11,14 +12,8 @@ const meetingId = computed(() => Number(route.params.id))
 const resolutionId = computed(() => Number(route.params.resolutionId))
 const query = useMeeting(meetingId)
 const { mutateAsync, isPending, error } = usePatchResolution()
-// The owning list is fixed by this page's own route, so the return trip is
-// literal and carries only the state the list was showing. A referrer's
-// returnTo is dropped rather than forwarded: on the list URL it would nest one
-// level deeper on every round trip and redirect that page's own controls.
-const backTo = computed(() => {
-  const { returnTo: _referrer, ...listQuery } = route.query
-  return { path: `/meetings/${meetingId.value}`, query: listQuery }
-})
+// Child pages always return to their current record; only normalized list context follows.
+const backTo = computed(() => recordParentTo(`/meetings/${meetingId.value}`, route.query, MEETING_LIST_PATHS, route.hash))
 const resolution = computed(() => query.data.value?.resolutions.find(item => item.id === resolutionId.value) ?? null)
 const knownPeople = computed(() => {
   const meeting = query.data.value
@@ -93,7 +88,10 @@ async function save() {
   await mutateAsync({ meetingId: meetingId.value, resolutionId: resolutionId.value, body })
   baseline.value = snapshot()
   await nextTick()
-  await navigateTo(`/meetings/${meetingId.value}`)
+  const target = backTo.value
+  await navigateTo(typeof target !== 'string' && !target.hash && !Object.keys(target.query ?? {}).length
+    ? `/meetings/${meetingId.value}`
+    : target)
 }
 </script>
 

@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-export const vendorCapabilitySchema = z.enum(['vendor.read', 'vendor.tenants.manage', 'vendor.catalog.manage', 'vendor.operations.run', 'vendor.audit.read'])
+export const vendorCapabilitySchema = z.enum(['vendor.read', 'vendor.tenants.manage', 'vendor.catalog.manage', 'vendor.operations.run', 'vendor.audit.read', 'vendor.pricing.manage', 'vendor.subscriptions.manage', 'vendor.billing.manage'])
 export type VendorCapability = z.infer<typeof vendorCapabilitySchema>
 export const commercialModeSchema = z.enum(['saas', 'non_saas'])
 export const hostingModelSchema = z.enum(['managed', 'customer_hosted'])
@@ -59,9 +59,10 @@ export * from './shared/provisioning.js'
 
 export const sharedOnboardingRequestSchema = z.strictObject({
   request_id: z.uuid(), name: z.string().trim().min(1).max(200),
-  catalog_version: z.string().regex(/^[a-zA-Z0-9._-]{1,100}$/), catalog_tier: z.string().regex(/^[a-z][a-z0-9._-]{0,63}$/),
+  catalog_version: z.string().regex(/^[a-zA-Z0-9._-]{1,100}$/).optional(), catalog_tier: z.string().regex(/^[a-z][a-z0-9._-]{0,63}$/).optional(),
+  package_revision_id: z.uuid().optional(),
   admin_name: z.string().trim().min(1).max(120), admin_login: z.email().max(100), reason: z.string().trim().min(3).max(1000),
-})
+}).refine(input => input.package_revision_id ? !input.catalog_version && !input.catalog_tier : Boolean(input.catalog_version && input.catalog_tier), { path: ['package_revision_id'], message: 'Select exactly one package or catalog source' })
 export const sharedOnboardingResponseSchema = z.strictObject({
   tenant_id: z.uuid(), job_id: z.uuid().nullable(), status: tenantStatusSchema, host: z.string(), replay: z.boolean(),
 })
@@ -69,3 +70,23 @@ export const sharedProvisioningProgressSchema = z.strictObject({
   tenant_id: z.uuid(), job_id: z.uuid().nullable(), status: tenantStatusSchema, host: z.string(),
   admin_login: z.string(), stage: z.string(), error_code: z.string().nullable(),
 })
+
+// Additive vendor read model. Legacy operationSchema remains unchanged.
+export const sharedOperationFeedSchema = operationSchema.extend({
+  source: z.literal('shared'),
+  type: z.enum(['provision', 'backup', 'restore', 'unknown']),
+  status: z.enum(['queued', 'running', 'verified', 'needs_intervention']),
+  stage: z.enum(['queued', 'running', 'prepared', 'started', 'verified', 'needs_intervention']),
+  reason: z.enum(['shared_execution_pending', 'shared_execution_verified', 'shared_execution_needs_attention']),
+  result: z.null(), updated_at: z.null(), last_event_at: z.iso.datetime().nullable(),
+})
+export const operationFeedSchema = z.discriminatedUnion('source', [
+  operationSchema.extend({ source: z.literal('legacy'), last_event_at: z.null() }),
+  sharedOperationFeedSchema,
+])
+export type OperationFeed = z.infer<typeof operationFeedSchema>
+
+export * from './packages.js'
+export * from './commercial/index.js'
+export * from './commercial/feature-descriptor.js'
+export * from './commercial-http.js'

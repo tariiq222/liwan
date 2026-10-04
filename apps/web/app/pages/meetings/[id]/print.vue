@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { recordParentTo, MEETING_LIST_PATHS } from '@/utils/recordListOrigin'
 import MeetingMinutesDocument from '@/components/meetings/MeetingMinutesDocument.vue'
 import { formatMeetingDate, selectMeetingMinutesSource, type MeetingMinutesFormValue, type MeetingMinutesRecommendation, type MeetingMinutesSnapshotLike } from '@/utils/meetingMinutesForm'
 import { useMeeting } from '@/composables/useMeetings'
@@ -15,14 +16,8 @@ const versionId = computed(() => {
 })
 const meetingQuery = useMeeting(id)
 const versionQuery = useMeetingVersion(id, versionId)
-// The owning list is fixed by this page's own route, so the return trip is
-// literal and carries only the state the list was showing. A referrer's
-// returnTo is dropped rather than forwarded: on the list URL it would nest one
-// level deeper on every round trip and redirect that page's own controls.
-const backTo = computed(() => {
-  const { returnTo: _referrer, ...listQuery } = route.query
-  return { path: `/meetings/${id.value}`, query: listQuery }
-})
+// Child pages always return to their current record; only normalized list context follows.
+const backTo = computed(() => recordParentTo(`/meetings/${id.value}`, route.query, MEETING_LIST_PATHS, route.hash))
 
 const versionSnapshot = computed(() => (versionQuery.data.value as unknown as { snapshot?: MeetingMinutesSnapshotLike } | undefined)?.snapshot ?? null)
 const source = computed(() => {
@@ -65,7 +60,7 @@ function printPage() {
           </template>
         </SharedPageHeader>
       </div>
-      <SharedPageState :loading="meetingQuery.isLoading.value || versionQuery.isLoading.value" :error="printError" :empty="!meetingQuery.isLoading.value && !versionQuery.isLoading.value && !printReady" @retry="() => { meetingQuery.refetch(); versionQuery.refetch() }">
+      <SharedPageState :loading="meetingQuery.isLoading.value || versionQuery.isLoading.value" :error="printError" :empty-text="t('meetingMinutesForm.printEmpty')" :empty="!meetingQuery.isLoading.value && !versionQuery.isLoading.value && !printReady" @retry="() => { meetingQuery.refetch(); versionQuery.refetch() }">
         <article v-if="meetingQuery.data.value && printReady" class="meeting-print-sheet">
         <header class="meeting-print-brand">
           <img v-if="branding?.logo_url" :src="branding.logo_url" :alt="branding.name" class="meeting-print-logo">

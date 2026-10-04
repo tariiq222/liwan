@@ -29,6 +29,13 @@ describe('shared tenant onboarding browser contract', () => {
     expect(body).not.toHaveProperty('inventory_target')
   })
 
+  it('sends a selected package without historical source fields and preserves retry identity', () => {
+    const request = createSharedTenantRequest(() => 'request')
+    const body = request.body({ ...input, package_revision_id: 'revision' })
+    expect(body).toEqual({ request_id: 'request', name: input.name, admin_name: input.admin_name, admin_login: input.admin_login, reason: input.reason, package_revision_id: 'revision' })
+    expect(request.body({ ...input, package_revision_id: 'revision' })).toEqual(body)
+  })
+
   it('selects the shared form only through explicit server context and retains dedicated registration', () => {
     expect(form).toContain('sharedOnboardingEnabled: sharedEnabled')
     expect(form).toContain('sharedEnabled.value ? Promise.resolve({ items: [], total: 0 })')

@@ -15,6 +15,8 @@ const title = ref('')
 const description = ref('')
 const error = ref<string | null>(null)
 const submitted = ref(false)
+const attempted = ref(false)
+const requiredError = computed(() => attempted.value && !title.value.trim() ? t('projects.updates.titleRequired') : undefined)
 const baseline = ref(JSON.stringify(['', '']))
 
 function state() {
@@ -30,10 +32,12 @@ function onDescriptionDraft({ html }: { html: string; taskId: number }) {
   description.value = html
 }
 async function submit() {
+  if (!hydrated.value || isPending.value) return
+  attempted.value = true
   error.value = null
   descriptionEditor.value?.flush()
   const name = title.value.trim()
-  if (!hydrated.value || !name || isPending.value) return
+  if (!name) return
   try {
     await mutateAsync({ projectId: props.projectId, body: { name, description: description.value } })
     submitted.value = true
@@ -47,17 +51,17 @@ async function submit() {
 
 <template>
   <SharedUnsavedChanges :dirty="dirty" />
-  <form data-testid="project-update-form" class="grid gap-5" @submit.prevent="submit">
-    <UFormField :label="t('projects.updates.title')" required>
+  <form novalidate data-testid="project-update-form" class="grid gap-5" @submit.prevent="submit">
+    <UAlert v-if="error" role="alert" class="sm:col-span-2" color="error" variant="subtle" :title="error" />
+    <UFormField :label="t('projects.updates.title')" required :error="requiredError">
       <UInput id="project-update-title" v-model="title" class="w-full" required :disabled="!hydrated || isPending" />
     </UFormField>
     <UFormField class="sm:col-span-2" :label="t('projects.updates.body')">
       <DescriptionEditor ref="descriptionEditor" :model-value="description" :task-id="projectId" :readonly="isPending" @update:model-value="onDescriptionChange" @draft="onDescriptionDraft" />
     </UFormField>
-    <p v-if="error" role="alert" class="text-sm text-error sm:col-span-2">{{ error }}</p>
     <div class="flex flex-wrap gap-2 justify-end sm:col-span-2">
       <UButton type="button" color="neutral" :disabled="isPending" :label="t('app.cancel')" @click="emit('cancel')" variant="outline" />
-      <UButton type="submit" :disabled="!hydrated || isPending || !title.trim()" :label="t('app.create')" />
+      <UButton type="submit" :disabled="!hydrated || isPending" :loading="isPending" :label="t('app.create')" />
     </div>
   </form>
 </template>

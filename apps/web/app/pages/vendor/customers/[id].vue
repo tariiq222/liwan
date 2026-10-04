@@ -1,0 +1,102 @@
+<script setup lang="ts">
+import { formatVendorMoney } from '@/utils/vendorCommercial'
+import { branchSummaryText, customersReturnTo, invoiceStatusColor, isNotAvailable } from '@/utils/vendorSubscriptions'
+import { useVendorSubscriptions } from '@/composables/useVendorSubscriptions'
+import { useVendorCommercial } from '@/composables/useVendorCommercial'
+definePageMeta({ middleware: 'vendor', vendorCapability: 'vendor.read' })
+const { t, locale } = useI18n(); const route = useRoute(); const { can } = useVendorContext(); const api = useVendorSubscriptions()
+const id = computed(() => String(route.params.id))
+const isChild = computed(() => /\/terms\//.test(route.path))
+const backTo = computed(() => customersReturnTo(route.query.returnTo))
+const { data: customer, error, pending, refresh } = await useAsyncData(() => `vendor:customer:${id.value}`, async () => {
+  const c = await api.customer(id.value)
+  if (!c) throw createError({ statusCode: 404, statusMessage: 'not_found' })
+  return c
+})
+const sub = computed(() => customer.value?.subscription ?? null)
+const subId = computed(() => sub.value?.id)
+async function soft<T>(fn: () => Promise<T>): Promise<{ value: T | null; unavailable: boolean; failed: boolean }> {
+  try { return { value: await fn(), unavailable: false, failed: false } } catch (e) { return { value: null, unavailable: isNotAvailable(e), failed: !isNotAvailable(e) } }
+}
+const { data: extra, refresh: refreshExtra } = await useAsyncData(() => `vendor:customer-extra:${id.value}`, async () => {
+  const s = subId.value
+  const [full, branches, usage, invoices, plans, releases] = await Promise.all([
+    s ? soft(() => api.subscription(s)) : Promise.resolve({ value: null, unavailable: false, failed: false }),
+    s ? soft(() => api.branches(s)) : Promise.resolve({ value: null, unavailable: false, failed: false }),
+    s ? soft(() => api.usage(s)) : Promise.resolve({ value: null, unavailable: false, failed: false }),
+    soft(() => api.listInvoices({ customer_id: id.value, limit: 10 })),
+    soft(() => useVendorCommercial().listPlans({ limit: 200 })),
+    soft(() => useVendorCommercial().releases()),
+  ])
+  return { full, branches, usage, invoices, plans, releases }
+}, { watch: [subId] })
+const view = computed(() => extra.value?.full.value ?? sub.value)
+const planName = computed(() => extra.value?.plans.value?.items.find(p => p.id === view.value?.applied?.plan_revision_id)?.name)
+const release = computed(() => extra.value?.releases.value?.find(r => r.id === view.value?.applied?.entitlement.catalog_release_id) ?? null)
+const selections = computed(() => (view.value?.applied?.entitlement.modules ?? []).map(app_id => ({ app_id, feature_keys: [] as string[] })))
+const branchText = computed(() => (extra.value?.branches.value ? branchSummaryText(extra.value.branches.value) : null))
+const invoices = computed(() => extra.value?.invoices.value?.items ?? [])
+const selfTo = computed(() => ({ query: { returnTo: backTo.value } }))
+const canTerms = computed(() => can('vendor.pricing.manage') && can('vendor.subscriptions.manage'))
+const canChange = computed(() => can('vendor.subscriptions.manage') && Boolean(view.value?.applied))
+</script>
+<template>
+  <NuxtPage v-if="isChild" />
+  <SharedPageContainer v-else width="list">
+    <SharedPageHeader :title="customer?.name ?? t('vendor.customers.details')" :back-to="backTo">
+      <template #actions>
+        <UButton v-if="customer && canTerms && view" :to="{ path: `/vendor/customers/${encodeURIComponent(id)}/terms/new`, ...selfTo }" color="neutral" variant="outline" icon="i-lucide-sliders-horizontal">{{ t('vendor.customers.customizeTerms') }}</UButton>
+        <UButton v-if="customer && canChange" :to="{ path: `/vendor/customers/${encodeURIComponent(id)}/change`, ...selfTo }" icon="i-lucide-repeat">{{ t('vendor.customers.changeSubscription') }}</UButton>
+      </template>
+    </SharedPageHeader>
+    <SharedPageState :loading="pending" :error="error" @retry="refresh">
+      <div v-if="customer" class="space-y-6">
+        <UAlert v-if="customer.commercial_setup_required" color="warning" variant="subtle" icon="i-lucide-triangle-alert" :title="t('vendor.customers.setupRequired')" :description="t('vendor.customers.setupHint')" />
+        <UCard><template #header><h2 class="font-semibold">{{ t('vendor.customers.sections.subscription') }}</h2></template>
+          <VendorSubscriptionSummary v-if="view" :subscription="view" :plan-name="planName" />
+          <p v-else class="text-sm text-muted">{{ t('vendor.customers.noSubscription') }}</p>
+          <NuxtLink v-if="customer.tenant_id" :to="{ path: `/vendor/tenants/${encodeURIComponent(customer.tenant_id)}` }" class="mt-3 inline-block text-sm text-primary">{{ t('vendor.customers.openTenant') }}</NuxtLink>
+        </UCard>
+        <UCard v-if="view?.applied"><template #header><h2 class="font-semibold">{{ t('vendor.customers.sections.services') }}</h2></template>
+          <VendorEntitlementSummary :release="release" :selections="selections" include-core />
+        </UCard>
+        <UCard v-if="view"><template #header><h2 class="font-semibold">{{ t('vendor.customers.sections.branches') }}</h2></template>
+          <p v-if="extra?.branches.unavailable" class="text-sm text-muted">{{ t('vendor.customers.sectionUnavailable') }}</p>
+          <dl v-else-if="branchText" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 tabular-nums" data-testid="branch-summary">
+            <div><dt class="text-sm text-muted">{{ t('vendor.customers.branchesHq') }}</dt><dd class="font-semibold">{{ t('vendor.customers.included') }}</dd></div>
+            <div><dt class="text-sm text-muted">{{ t('vendor.customers.branchesFree') }}</dt><dd class="font-semibold">{{ branchText.freeUsed }} / {{ branchText.freeAllowed }}</dd></div>
+            <div><dt class="text-sm text-muted">{{ t('vendor.customers.branchesPaid') }}</dt><dd class="font-semibold">{{ branchText.paid }}</dd></div>
+            <div><dt class="text-sm text-muted">{{ t('vendor.customers.branchesLimit') }}</dt><dd class="font-semibold">{{ branchText.limit === null ? t('vendor.pricing.limit.unlimited') : branchText.limit }}</dd></div>
+          </dl>
+          <p v-else class="text-sm text-muted">{{ t('vendor.customers.usage.none') }}</p>
+        </UCard>
+        <UCard v-if="view"><template #header><h2 class="font-semibold">{{ t('vendor.customers.sections.usage') }}</h2></template>
+          <p v-if="extra?.usage.unavailable" class="text-sm text-muted">{{ t('vendor.customers.sectionUnavailable') }}</p>
+          <VendorUsageMeters v-else :usage="extra?.usage.value" />
+        </UCard>
+        <UCard><template #header><div class="flex items-center justify-between gap-3"><h2 class="font-semibold">{{ t('vendor.customers.sections.invoices') }}</h2><UButton :to="{ path: '/vendor/invoices', query: { customer_id: id } }" color="neutral" variant="link">{{ t('vendor.customers.allInvoices') }}</UButton></div></template>
+          <p v-if="extra?.invoices.unavailable" class="text-sm text-muted">{{ t('vendor.customers.sectionUnavailable') }}</p>
+          <p v-else-if="!invoices.length" class="text-sm text-muted">{{ t('vendor.invoices.empty') }}</p>
+          <ul v-else class="divide-y divide-default">
+            <li v-for="i in invoices" :key="i.id" class="flex flex-wrap items-center justify-between gap-3 py-2" data-testid="customer-invoice">
+              <NuxtLink :to="{ path: `/vendor/invoices/${encodeURIComponent(i.id)}`, query: { returnTo: route.fullPath } }">{{ i.number ?? t('vendor.invoices.draftNumber') }}</NuxtLink>
+              <span class="tabular-nums">{{ formatVendorMoney(i.total, locale) }}</span>
+              <UBadge :color="invoiceStatusColor(i.status)" variant="subtle">{{ t(`vendor.invoices.status.${i.status}`) }}</UBadge>
+            </li>
+          </ul>
+        </UCard>
+        <UCard><template #header><h2 class="font-semibold">{{ t('vendor.customers.sections.terms') }}</h2></template>
+          <p v-if="view?.applied?.terms_revision_id" class="text-sm">{{ t('vendor.customers.terms.active') }}</p>
+          <p v-else class="text-sm text-muted">{{ t('vendor.customers.terms.noneActive') }}</p>
+          <p class="mt-2 text-sm text-muted">{{ t('vendor.customers.terms.isolation') }}</p>
+        </UCard>
+        <UCard><template #header><h2 class="font-semibold">{{ t('vendor.customers.sections.audit') }}</h2></template>
+          <UButton to="/vendor/audit" color="neutral" variant="link">{{ t('vendor.customers.openAudit') }}</UButton>
+        </UCard>
+        <details v-if="view" class="text-sm"><summary class="cursor-pointer text-muted">{{ t('vendor.customers.technical') }}</summary>
+          <dl class="mt-3 space-y-2"><div><dt>{{ t('vendor.customers.techSubscription') }}</dt><dd dir="ltr">{{ view.id }}</dd></div><div><dt>{{ t('vendor.customers.techRevision') }}</dt><dd dir="ltr">{{ view.revision }}</dd></div><div v-if="view.applied"><dt>{{ t('vendor.customers.techDigest') }}</dt><dd class="break-all" dir="ltr">{{ view.applied.entitlement.digest }}</dd></div></dl>
+        </details>
+      </div>
+    </SharedPageState>
+  </SharedPageContainer>
+</template>

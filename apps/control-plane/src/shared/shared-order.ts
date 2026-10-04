@@ -32,8 +32,9 @@ export async function createSharedOrder(pool: Pool, input: { controlTenantId: st
   return transaction(pool, async client => {
     const existing = await client.query('SELECT id FROM shared_orders WHERE idempotency_key=$1', [input.idempotencyKey])
     if (existing.rowCount) return { orderId: existing.rows[0].id as string, replay: true }
-    const tenant = await client.query("SELECT id FROM tenants WHERE id=$1 AND commercial_mode='saas'", [input.controlTenantId])
+    const tenant = await client.query("SELECT id,package_revision_id FROM tenants WHERE id=$1 AND commercial_mode='saas'", [input.controlTenantId])
     if (!tenant.rowCount) throw new Error('order_tenant_unavailable')
+    if (tenant.rows[0].package_revision_id) throw new Error('package_order_unsupported')
     const orderId = randomUUID()
     await client.query("INSERT INTO shared_orders(id,control_tenant_id,idempotency_key,quote,status) VALUES($1,$2,$3,$4,'pending')", [orderId, input.controlTenantId, input.idempotencyKey, quote])
     await client.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)',
@@ -86,6 +87,8 @@ export async function provisionPaidOrder(pool: Pool, input: { orderId: string; a
   })
   const quote = read.quote as Quote
   await transaction(pool, async client => {
+    const tenant=await client.query('SELECT package_revision_id FROM tenants WHERE id=$1 FOR UPDATE',[read.control_tenant_id])
+    if(tenant.rows[0]?.package_revision_id)throw new Error('package_order_unsupported')
     await client.query('UPDATE tenants SET catalog_version=$1,catalog_tier=$2 WHERE id=$3', [quote.catalogVersion, quote.catalogTier, read.control_tenant_id])
   })
   const job = await enqueueSharedJob(pool, read.control_tenant_id, input.actor, { schemaVersion: 1, operation: 'provision', requestId: randomUUID() }, `Provision paid order ${input.orderId}`)

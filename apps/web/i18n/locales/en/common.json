@@ -113,7 +113,13 @@
     "generic": "An unexpected error occurred",
     "forbidden": "You do not have permission to view this page.",
     "notFound": "This record is unavailable or no longer exists.",
-    "conflict": "The data changed since you opened this page. Reload it and try again."
+    "conflict": "The data changed since you opened this page. Reload it and try again.",
+    "packageQuota": {
+      "users": "You have reached the user limit for your package.",
+      "projects": "You have reached the project limit for your package.",
+      "storage": "You have reached the attachment storage limit for your package.",
+      "generic": "You have reached a usage limit for your package."
+    }
   },
   "account": {
     "title": "Account",

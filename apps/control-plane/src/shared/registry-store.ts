@@ -1,6 +1,8 @@
+import { isCommercialEnrollmentActor, requireCommercialEnrollmentAuthority } from './commercial-enrollment-authority.js'
 import type { Pool, PoolClient } from 'pg'
 import { z } from 'zod'
 import { withPublicationLock, beginPublication, completePublication } from './registry-publisher.js'
+import { prepareCommercialRestorePublication, revalidateCommercialRestorePublication, type CommercialRestoreRunner } from './shared-backup.js'
 
 const revision = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER - 1)
 const resource = z.string().regex(/^[a-z][a-z0-9_]{0,62}$/)
@@ -21,6 +23,7 @@ export const REGISTRY_ADVISORY_LOCK = 1397969234
 const LOCK = REGISTRY_ADVISORY_LOCK
 const fields = 'tenant_id AS "tenantId",host,database_name AS database,filestore,enabled,registry_revision::float8 AS "registryRevision"'
 async function authorize(client: PoolClient, actor: RegistryActor) {
+  if(isCommercialEnrollmentActor(actor)){await requireCommercialEnrollmentAuthority(client,actor);return}
   if (!actor.issuer || !Number.isSafeInteger(actor.actorUid) || actor.actorUid < 1) throw new RegistryError('registry_forbidden', 403)
   const grant = await client.query("SELECT 1 FROM vendor_memberships WHERE issuer=$1 AND actor_uid=$2 AND revoked_at IS NULL AND 'vendor.tenants.manage'=ANY(capabilities) FOR SHARE", [actor.issuer, actor.actorUid])
   if (!grant.rowCount) throw new RegistryError('registry_forbidden', 403)
@@ -33,6 +36,7 @@ export async function requireOnboardingPublicationAuthority(client: PoolClient, 
   const owner = onboarding.rows[0]
   if (owner.stage !== 'activating') throw new RegistryError('shared_onboarding_readiness_required')
   for (const identity of [actor, {issuer: owner.issuer as string, actorUid: Number(owner.actor_uid)}]) {
+    if(isCommercialEnrollmentActor(actor) && identity.issuer===actor.issuer && identity.actorUid===actor.actorUid){await requireCommercialEnrollmentAuthority(client,actor,controlTenantId);continue}
     const grant = await client.query("SELECT 1 FROM vendor_memberships WHERE issuer=$1 AND actor_uid=$2 AND revoked_at IS NULL AND capabilities @> ARRAY['vendor.tenants.manage','vendor.operations.run']::text[] FOR SHARE", [identity.issuer, identity.actorUid])
     if (!grant.rowCount) throw new RegistryError('shared_onboarding_forbidden', 403)
   }
@@ -64,9 +68,17 @@ async function locked<T>(pool: Pool, action: (client: PoolClient) => Promise<T>)
     client.release(broken)
   }
 }
-export async function publishRegistryMutation(pool: Pool, path: string, actor: RegistryActor, value: unknown) {
+export async function publishRegistryMutation(pool: Pool, path: string, actor: RegistryActor, value: unknown, options: { runner?: CommercialRestoreRunner } = {}) {
   const input = registryMutationSchema.parse(value)
   return withPublicationLock(path, () => locked(pool, async client => {
+    // Authorize before external observation/enqueue. This preflight deliberately
+    // precedes BEGIN: rejecting publication must not roll back its repair job.
+    await authorize(client, actor)
+    if(isCommercialEnrollmentActor(actor))await requireCommercialEnrollmentAuthority(client,actor,input.controlTenantId)
+    const commercial = input.target.enabled
+      ? await prepareCommercialRestorePublication(pool, client, input.controlTenantId, input.target, options.runner)
+      : { ready: true, applied_revision_id: null }
+    if (!commercial.ready) throw new RegistryError('commercial_reconciliation_pending')
     await client.query('BEGIN')
     await authorize(client, actor)
     const state = await client.query('SELECT revision::float8 AS revision FROM shared_registry_state WHERE singleton=true FOR UPDATE')
@@ -82,6 +94,7 @@ export async function publishRegistryMutation(pool: Pool, path: string, actor: R
     if (target.registryRevision !== (previous?.registryRevision ?? 0) + 1) throw new RegistryError('registry_revision_conflict')
     const reserved = await client.query('SELECT control_tenant_id FROM shared_registry_hosts WHERE host=$1', [target.host])
     if (reserved.rowCount && reserved.rows[0].control_tenant_id !== input.controlTenantId) throw new RegistryError('registry_host_reserved')
+    if (!await revalidateCommercialRestorePublication(client, input.controlTenantId, commercial.applied_revision_id)) throw new RegistryError('commercial_reconciliation_pending')
     // Barrier precedes SQL writes/commit. Any subsequent failure requires explicit recovery.
     await beginPublication(path)
     if (previous) {

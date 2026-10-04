@@ -5,6 +5,7 @@ import ProjectGovernanceTabs from '@/components/project/workspace/ProjectGoverna
 import { ApiError } from '@/composables/useApi'
 import { activeGovernanceSection, activeProjectSection, projectIdFromPath } from '@/composables/nav/activeRoute'
 import { useProject } from '@/composables/useProjects'
+import { safeReturnTo } from '@/utils/safeReturnTo'
 
 const route = useRoute()
 const { t } = useI18n()
@@ -30,6 +31,22 @@ const isProjectSettings = computed(() => projectId.value !== null
 const showFrame = computed(() => !notFound.value
   && !(error.value && !projectData.value)
   && (activeProjectSection(route.path) !== null || isProjectSettings.value))
+// Only the summary borrows the frame's Back control; child records and forms
+// keep their own header and Escape target. Keep the same safe origins as the
+// summary's not-found route.
+const backTo = computed(() => showFrame.value && activeProjectSection(route.path) === 'summary'
+  ? safeReturnTo(route.query.returnTo, '/projects', ['/projects', '/tasks', '/hr', '/settings', '/account', '/search', '/notifications', '/reports'])
+  : undefined)
+const backLabel = computed(() => {
+  const section = backTo.value?.split(/[/?#]/)[1] ?? 'projects'
+  const labels: Record<string, string> = {
+    projects: 'nav.projects', tasks: 'nav.tasks', hr: 'nav.organization',
+    settings: 'nav.settings', account: 'nav.account', search: 'app.search',
+    notifications: 'notifications.title', reports: 'nav.reports',
+  }
+  return t(labels[section] ?? 'nav.projects')
+})
+useEscapeBack(backTo)
 // The project name below is the page heading whenever it is actually on screen;
 // SharedPageHeader inside a child page reads this and demotes its own heading a
 // level, so a project page never renders two top-level headings and never none.
@@ -44,6 +61,11 @@ provideProjectFrameHeading(computed(() => showFrame.value && Boolean(project.val
   <div class="flex flex-col gap-6">
     <SharedPageContainer v-if="showFrame" width="list" data-testid="project-workspace-frame">
       <div class="flex flex-col gap-4">
+        <div v-if="backTo" class="flex items-center gap-2 text-sm">
+          <UButton :to="backTo" :aria-label="backLabel" color="neutral" variant="outline" class="focus-visible:ring-2 focus-visible:ring-primary" data-testid="project-workspace-back">
+            <UIcon name="i-lucide-arrow-right" aria-hidden="true" class="size-4.5 ltr:rotate-180" />{{ backLabel }}
+          </UButton>
+        </div>
         <div class="flex min-h-9 flex-wrap items-start justify-between gap-3" data-testid="project-workspace-identity">
           <div v-if="project" class="min-w-0">
             <h1 class="truncate text-xl font-semibold text-highlighted" data-testid="project-workspace-name">{{ project.name }}</h1>

@@ -1,8 +1,11 @@
+import { isCommercialEnrollmentActor, requireCommercialEnrollmentAuthority } from './commercial-enrollment-authority.js'
+import { resolvePackageAuthority } from '../packages.js'
 import { randomUUID } from 'node:crypto'
 import type { Pool, PoolClient } from 'pg'
 import { z } from 'zod'
 import { sharedPolicySchema, type TenantBinding } from '@nasq/commercial-contracts/shared'
 import { transaction } from '../db.js'
+import { deriveFeatures, type CatalogLike } from './catalog-features.js'
 import { resolveRegistryBinding, type RegistryActor } from './registry-store.js'
 import { bindJob, businessKey, payloadDigest, assertSameBinding } from './provisioning.js'
 import type { TenantStorage } from './fenced-adapter.js'
@@ -19,15 +22,10 @@ const restoreInputSchema = z.strictObject({
 })
 
 export function deriveSharedPolicy(value: unknown, tierId: string) {
-  const catalog = z.object({ base_modules: z.array(z.string()), tiers: z.array(z.object({ id: z.string(), modules: z.array(z.string()), features: z.array(z.string()) })) }).parse(value)
+  const catalog = z.object({ base_modules: z.array(z.string()), tiers: z.array(z.object({ id: z.string(), modules: z.array(z.string()) }).passthrough()) }).passthrough().parse(value)
   const tier = catalog.tiers.find(t => t.id === tierId)
   if (!tier) throw new Error('catalog_tier_missing')
-  const features: Record<string, boolean | null> = { 'users.limit': null, 'storage.limit_mb': null }
-  for (const entry of tier.features) {
-    const parts = entry.split(':')
-    if (parts.length !== 2 || !['boolean', 'limit'].includes(parts[0]!)) throw new Error('catalog_feature_invalid')
-    features[parts[1]!] = parts[0] === 'boolean' ? true : null
-  }
+  const { features } = deriveFeatures(value as CatalogLike, tier)
   return sharedPolicySchema.parse({ schema_version: 1, channel: 'control_plane', modules: [...catalog.base_modules, ...tier.modules], features })
 }
 export function bindQueuedRequest(input: unknown, target: TenantBinding & { enabled: boolean }) {
@@ -38,11 +36,32 @@ export function bindQueuedRequest(input: unknown, target: TenantBinding & { enab
 }
 export async function requireJobAuthority(client: PoolClient, controlTenantId: string, actor: RegistryActor) {
   if (!Number.isSafeInteger(actor.actorUid) || actor.actorUid <= 0 || !actor.issuer) throw new Error('shared_job_forbidden')
-  const grant = await client.query("SELECT 1 FROM vendor_memberships WHERE issuer=$1 AND actor_uid=$2 AND revoked_at IS NULL AND 'vendor.operations.run'=ANY(capabilities) FOR SHARE", [actor.issuer,actor.actorUid])
-  if (!grant.rowCount) throw new Error('shared_job_forbidden')
+  if (isCommercialEnrollmentActor(actor)) await requireCommercialEnrollmentAuthority(client, actor, controlTenantId)
+  else {
+    const grant = await client.query("SELECT 1 FROM vendor_memberships WHERE issuer=$1 AND actor_uid=$2 AND revoked_at IS NULL AND 'vendor.operations.run'=ANY(capabilities) FOR SHARE", [actor.issuer,actor.actorUid])
+    if (!grant.rowCount) throw new Error('shared_job_forbidden')
+  }
   const tenant = await client.query("SELECT id FROM tenants WHERE id=$1 AND commercial_mode='saas' AND operations_enabled=true FOR SHARE", [controlTenantId])
   if (!tenant.rowCount) throw new Error('tenant_operations_unavailable')
 }
+/** Internal paid-order path: authority comes from locked commercial records, not a vendor/browser actor. */
+export async function enqueueReconfigureJob(client: PoolClient, value: unknown) {
+  const { sharedReconfigureJobSchema } = await import('@nasq/commercial-contracts/shared')
+  const { createHash } = await import('node:crypto')
+  const job = sharedReconfigureJobSchema.parse(value)
+  const key = `${job.controlTenantId}:${job.authority.target_revision_id}${job.restore ? ':restore:'+job.restoreId : ''}`
+  const digest = createHash('sha256').update(JSON.stringify(job)).digest('hex')
+  await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))', [job.controlTenantId])
+  const existing = await client.query('SELECT id,state,payload FROM shared_jobs WHERE control_tenant_id=$1 AND business_key=$2', [job.controlTenantId,key])
+  if (existing.rowCount) {
+    if (existing.rows[0].payload.authority.target_revision_id !== job.authority.target_revision_id || existing.rows[0].payload.authority.entitlement.digest !== job.authority.entitlement.digest) throw Error('idempotency_conflict')
+    return { id: existing.rows[0].id as string, state: existing.rows[0].state as string, replay: true }
+  }
+  const id=randomUUID()
+  await client.query('INSERT INTO shared_jobs(id,control_tenant_id,business_key,payload,payload_digest,issuer,actor_uid,reason) VALUES($1,$2,$3,$4,$5,$6,1,$7)',[id,job.controlTenantId,key,job,digest,'commercial-fulfillment',job.restore?'Reconcile restored commercial revision':'Apply paid subscription revision'])
+  return {id,state:'queued',replay:false}
+}
+
 export async function enqueueSharedJob(pool: Pool, controlTenantId: string, actor: RegistryActor, value: unknown, reason: string, options: SharedEnqueueOptions = {}) {
   z.uuid().parse(controlTenantId); z.string().trim().min(3).max(1000).parse(reason)
   return transaction(pool, async client => {
@@ -55,12 +74,13 @@ export async function enqueueSharedJob(pool: Pool, controlTenantId: string, acto
     let restoreApprovalAvailable = false
     if (value && typeof value === 'object' && (value as { operation?: unknown }).operation === 'provision') {
       const request = z.strictObject({ schemaVersion: z.literal(1), operation: z.literal('provision'), requestId: z.uuid() }).parse(value)
-      const tenant = await client.query('SELECT catalog_version,catalog_tier FROM tenants WHERE id=$1 FOR SHARE', [controlTenantId])
+      const tenant = await client.query('SELECT catalog_version,catalog_tier,package_revision_id FROM tenants WHERE id=$1 FOR SHARE', [controlTenantId])
       const version = tenant.rows[0]?.catalog_version, tier = tenant.rows[0]?.catalog_tier
       if (!version || !tier) throw new Error('catalog_required')
       const catalog = await client.query("SELECT source_sha256,solution FROM catalog_entries WHERE version=$1 AND status='published' FOR SHARE", [version])
       if (!catalog.rowCount) throw new Error('published_catalog_missing')
-      authoritative = { ...request, catalog: { version, tier, sourceSha256: catalog.rows[0].source_sha256 }, policy: deriveSharedPolicy(catalog.rows[0].solution, tier) }
+      const packageAuthority = tenant.rows[0].package_revision_id ? await resolvePackageAuthority(client,tenant.rows[0].package_revision_id) : undefined
+      authoritative = { ...request, catalog: { version, tier, sourceSha256: catalog.rows[0].source_sha256 }, policy: packageAuthority?.policy??deriveSharedPolicy(catalog.rows[0].solution, tier), ...(packageAuthority?{packageAuthority}:{}) }
     }
     if (value && typeof value === 'object' && (value as { operation?: unknown }).operation === 'restore') {
       const request = restoreInputSchema.parse(value)

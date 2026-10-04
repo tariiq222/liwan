@@ -5,6 +5,8 @@ from . import (
     ir_attachment,
     ir_binary,
     ir_http,
+    res_company,
     res_users,
+    tenant_branch,
     tenant_profile,
 )
