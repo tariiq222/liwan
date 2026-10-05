@@ -76,6 +76,11 @@ class TestPureRules(unittest.TestCase):
     def test_for_update_of_is_not_a_table(self):
         self.assertEqual(sql_on_odoo_tables("cr.execute('SELECT 1 FROM res_users u FOR UPDATE OF u')"), 1)
 
+    def test_each_sql_string_counts_once(self):
+        self.assertEqual(sql_on_odoo_tables("cr.execute(SQL('select id from res_users'))"), 1)
+        self.assertEqual(sql_on_odoo_tables("q = SQL('SELECT 1 FROM res_users')"), 1)
+        self.assertEqual(sql_on_odoo_tables("cr.execute('SELECT 1 FROM res_users')"), 1)
+
     def test_sql_ignores_prose_and_unrelated_calls(self):
         text = "def f():\n    \"\"\"returns rows from the cache\"\"\"\n    # select x from y\n    log('update res_users')\n"
         self.assertEqual(sql_on_odoo_tables(text), 0)

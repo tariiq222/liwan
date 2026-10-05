@@ -106,6 +106,7 @@ def routes_without_feature(text: str) -> list[str]:
 
 def _sql_strings(text: str) -> list[str]:
     """String constants (f-string literal parts included) inside arguments of `.execute(...)` / `SQL(...)`."""
+    seen: set[int] = set()
     strings: list[str] = []
     for node in ast.walk(ast.parse(text)):
         if not isinstance(node, ast.Call):
@@ -115,9 +116,10 @@ def _sql_strings(text: str) -> list[str]:
         if name not in ('execute', 'SQL'):
             continue
         for arg in [*node.args, *(kw.value for kw in node.keywords)]:
-            strings += [
-                n.value for n in ast.walk(arg) if isinstance(n, ast.Constant) and isinstance(n.value, str)
-            ]
+            for n in ast.walk(arg):
+                if isinstance(n, ast.Constant) and isinstance(n.value, str) and id(n) not in seen:
+                    seen.add(id(n))
+                    strings.append(n.value)
     return strings
 
 
