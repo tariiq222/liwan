@@ -28,6 +28,10 @@ class TestNasqGroups(TransactionCase):
 
         self.assertIn(self.env.ref('base.group_system'), vendor.all_implied_ids)
 
+    def test_core_depends_on_base_only(self):
+        module = self.env['ir.module.module']._get('nasq_core')
+        self.assertEqual(module.dependencies_id.mapped('name'), ['base'])
+
     def test_company_branding_defaults(self):
         company = self.env.ref('base.main_company')
         self.assertEqual(company.font, 'IBM_Plex_Sans_Arabic')

@@ -6,10 +6,11 @@
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
     'license': 'LGPL-3',
-    # project / hr: security/nasq_core_security.xml's groups imply
-    # project.group_project_user + _manager and hr.group_hr_manager; res.company.font /
-    # primary_color are base fields. No hr_timesheet: nasq has no time logging.
-    'depends': ['base', 'project', 'hr', 'cyan_meeting_minutes'],
+    # base only (spec R1): each application adds its own capabilities, groups,
+    # roles and record rules from its addon through nasq.access.service hooks.
+    # res.company.font / primary_color are base fields. No hr_timesheet: nasq
+    # has no time logging.
+    'depends': ['base'],
     'data': [
         'security/nasq_core_security.xml',
         'data/access_migration_pre.xml',

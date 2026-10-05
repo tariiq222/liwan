@@ -1,9 +1,5 @@
 {
-  "R1": {
-    "nasq_core depends on cyan_meeting_minutes": 1,
-    "nasq_core depends on hr": 1,
-    "nasq_core depends on project": 1
-  },
+  "R1": {},
   "R10": {
     "odoo-addons/nasq_pmo/controllers/notifications.py:mark_all_read has no requires_feature": 1,
     "odoo-addons/nasq_pmo/controllers/notifications.py:mark_read has no requires_feature": 1
