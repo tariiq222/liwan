@@ -63,8 +63,11 @@ never add an entry or raise a count to make a check pass.
 A new addon is registered in `tools/arch_layers.json` with its rank (0–2 foundation, 3 shared service,
 4 application, 5 bridge, 6 customer overlay) before it is merged. After removing or moving a violation,
 run `python3 -B tools/arch_policy.py --write-baseline` and commit the updated baseline with the change; the
-command refuses any rule whose total grows. Never delete or hand-edit `tools/arch_baseline.json`, and never
-add to the `exempt` list without the owner's approval; `--base` detects all three.
+command refuses any rule whose total grows. Never delete or hand-edit `tools/arch_baseline.json`. Weakening `tools/arch_layers.json` (changing a
+rank, growing `exempt` or `commercial.allowed`, removing a commercial page gate, moving a web folder to
+another application) needs the owner's approval, recorded by the owner as an
+`Architecture-approved-by:` trailer on the commit that changes it; agents never add that trailer.
+`--base` detects all of these.
 
 ### Git workflow
 
