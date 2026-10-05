@@ -60,9 +60,25 @@ class TestPureRules(unittest.TestCase):
         )
 
     def test_sql_counts_only_non_nasq_tables(self):
-        text = 'SELECT 1 FROM hr_employee e JOIN nasq_access_role r ON 1=1; UPDATE res_users SET x=1'
+        text = (
+            "cr.execute('SELECT 1 FROM hr_employee e JOIN nasq_access_role r ON 1=1; UPDATE res_users SET x=1')\n"
+        )
         self.assertEqual(sql_on_odoo_tables(text), 2)
-        self.assertEqual(sql_on_odoo_tables('returns rows from the cache'), 0)
+
+    def test_sql_counts_lowercase_quoted_fstring_and_sql_wrapper(self):
+        self.assertEqual(sql_on_odoo_tables("self.env.cr.execute('select id from hr_employee')"), 1)
+        self.assertEqual(sql_on_odoo_tables("cr.execute('SELECT 1 FROM \"res_users\"')"), 1)
+        self.assertEqual(sql_on_odoo_tables("cr.execute(f'SELECT 1 FROM res_partner WHERE id = {x}')"), 1)
+        self.assertEqual(sql_on_odoo_tables("q = SQL('delete from project_task WHERE id = %s', 1)"), 1)
+        self.assertEqual(sql_on_odoo_tables("q = odoo.tools.SQL('INSERT INTO mail_message (a) VALUES (1)')"), 1)
+        self.assertEqual(sql_on_odoo_tables("cr.execute('SELECT 1 FROM nasq_access_role')"), 0)
+
+    def test_for_update_of_is_not_a_table(self):
+        self.assertEqual(sql_on_odoo_tables("cr.execute('SELECT 1 FROM res_users u FOR UPDATE OF u')"), 1)
+
+    def test_sql_ignores_prose_and_unrelated_calls(self):
+        text = "def f():\n    \"\"\"returns rows from the cache\"\"\"\n    # select x from y\n    log('update res_users')\n"
+        self.assertEqual(sql_on_odoo_tables(text), 0)
 
     def test_access_overrides_count_only_on_odoo_models(self):
         override = '    def _search(self, domain):\n        pass\n    def check_access(self, operation):\n        pass\n'
@@ -73,6 +89,12 @@ class TestPureRules(unittest.TestCase):
     def test_sudo_counts_calls_not_comments_or_strings(self):
         text = "# x.sudo() in a comment\nA = 'y.sudo()'\nb = env['res.users'].sudo().browse(1).sudo()\n"
         self.assertEqual(sudo_calls(text), 2)
+
+    def test_su_true_and_superuser_id_are_counted(self):
+        self.assertEqual(sudo_calls("env = request.env(su=True)\nother = self.env(su=True, lang='ar')\n"), 2)
+        self.assertEqual(sudo_calls("env = request.env(su=False)\n"), 0)
+        self.assertEqual(sudo_calls("from odoo import SUPERUSER_ID\nenv = api.Environment(cr, SUPERUSER_ID, {})\n"), 1)
+        self.assertEqual(sudo_calls("from odoo import SUPERUSER_ID\n"), 0)
 
     def test_routes_need_requires_feature(self):
         text = (
@@ -175,7 +197,7 @@ class TestCollect(unittest.TestCase):
         violations, hard = collect(self.root, self.layers)
         self.assertEqual(hard, [])
         self.assertEqual(violations['R1'], {'nasq_core depends on project': 1})
-        self.assertEqual(violations['R2'], {'odoo-addons/nasq_core/models/access.py': 1})
+        self.assertEqual(violations['R2'], {'odoo-addons/nasq_core/models/access.py': 2})
         self.assertEqual(
             violations['R3'],
             {'nasq_core imports nasq_pmo': 1, 'web apps/web/app/components/hr/Card.vue': 1},
@@ -206,6 +228,27 @@ class TestCollect(unittest.TestCase):
                 'nasq_pmo registers no <app>.enabled feature it owns': 1,
                 'odoo-addons/nasq_pmo/controllers/tasks.py:tasks has no requires_feature': 1,
             },
+        )
+
+    def test_application_xml_ids_count_as_r2(self):
+        self.clean_tree()
+        self.write('odoo-addons/nasq_core/models/x.py', HEADER + "g = self.env.ref('nasq_pmo.group_x')\n")
+        violations, _ = collect(self.root, self.layers)
+        self.assertEqual(violations['R2'], {'odoo-addons/nasq_core/models/x.py': 1})
+
+    def test_bridge_routes_need_requires_feature(self):
+        self.clean_tree()
+        self.layers['ranks']['nasq_meetings_pmo'] = 5
+        self.addon('nasq_meetings_pmo', ['nasq_pmo'], extra='')
+        self.write('odoo-addons/nasq_meetings_pmo/__manifest__.py', HEADER + repr(
+            {'name': 'm', 'depends': ['nasq_pmo'], 'auto_install': True}))
+        self.write(
+            'odoo-addons/nasq_meetings_pmo/controllers/m.py',
+            HEADER + "class C:\n    @http.route('/api/v1/m')\n    def m(self):\n        pass\n",
+        )
+        violations, _ = collect(self.root, self.layers)
+        self.assertEqual(
+            violations['R10'], {'odoo-addons/nasq_meetings_pmo/controllers/m.py:m has no requires_feature': 1},
         )
 
     def test_upward_manifest_dependency_is_r4(self):

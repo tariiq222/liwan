@@ -22,12 +22,14 @@ BRIDGE_RANK = 5
 APP_RANK = 4
 FOUNDATION_MAX_RANK = 2
 
-APP_TOKEN = re.compile(r'\b(?:project|hr|pmo|meetings|chat|cyan_meeting_minutes)\.[a-z_]')
+APP_TOKEN = re.compile(r'\b(?:(?:project|hr|pmo|meetings|chat|cyan_meeting_minutes)\.[a-z_]|nasq_(?:pmo|hr|chat)\.)')
 ADDON_IMPORT = re.compile(r'odoo\.addons\.((?:nasq|customer)_\w+)')
 CONTROL_PLANE_IMPORT = re.compile(r"""(?:from|import|require\()\s*\(?['"][^'"\n]*control-plane""")
 COMMERCIAL_IMPORT = re.compile(r"""(?:from|import)\s*\(?['"]@nasq/commercial-contracts""")
 CUSTOMER_KIND = re.compile(r'\b(?:government|is_gov|gov_)', re.IGNORECASE)
-SQL_TABLE = re.compile(r'\b(?:FROM|JOIN|UPDATE|INSERT INTO|DELETE FROM)\s+([a-z][a-z0-9_]*)')
+SQL_TABLE = re.compile(
+    r'\b(?:FROM|JOIN|UPDATE|INSERT\s+INTO|DELETE\s+FROM)\s+(?!OF\b)"?([a-z][a-z0-9_]*)"?', re.IGNORECASE,
+)
 ODOO_INHERIT = re.compile(r'''_inherit\s*=\s*['"](?!nasq\.)''')
 ACCESS_OVERRIDE = re.compile(r'^\s+def (?:_search|check_access|_check_access)\(', re.MULTILINE)
 ENABLED_FEATURE = re.compile(r'''['"]key['"]\s*:\s*['"][a-z_]+\.enabled['"]''')
@@ -74,12 +76,21 @@ def _decorator_name(node: ast.expr) -> str:
     return target.attr if isinstance(target, ast.Attribute) else getattr(target, 'id', '')
 
 
-def sudo_calls(text: str) -> int:
-    """R7: real .sudo() calls; comments and strings are not counted."""
-    return sum(
-        1 for node in ast.walk(ast.parse(text))
-        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr == 'sudo'
-    )
+def sudo_calls(text: str, superuser_id: bool = True) -> int:
+    """R7: .sudo() calls, su=True keywords and used SUPERUSER_ID names; comments and strings are not counted."""
+    tree = ast.parse(text)
+    imported = {id(n) for imp in ast.walk(tree) if isinstance(imp, ast.ImportFrom) for n in ast.walk(imp)}
+    found = 0
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call):
+            found += isinstance(node.func, ast.Attribute) and node.func.attr == 'sudo'
+            found += sum(
+                1 for kw in node.keywords
+                if kw.arg == 'su' and isinstance(kw.value, ast.Constant) and kw.value.value is True
+            )
+        elif superuser_id and isinstance(node, ast.Name) and node.id == 'SUPERUSER_ID' and id(node) not in imported:
+            found += 1
+    return found
 
 
 def routes_without_feature(text: str) -> list[str]:
@@ -93,9 +104,28 @@ def routes_without_feature(text: str) -> list[str]:
     return missing
 
 
+def _sql_strings(text: str) -> list[str]:
+    """String constants (f-string literal parts included) inside arguments of `.execute(...)` / `SQL(...)`."""
+    strings: list[str] = []
+    for node in ast.walk(ast.parse(text)):
+        if not isinstance(node, ast.Call):
+            continue
+        func = node.func
+        name = func.attr if isinstance(func, ast.Attribute) else getattr(func, 'id', '')
+        if name not in ('execute', 'SQL'):
+            continue
+        for arg in [*node.args, *(kw.value for kw in node.keywords)]:
+            strings += [
+                n.value for n in ast.walk(arg) if isinstance(n, ast.Constant) and isinstance(n.value, str)
+            ]
+    return strings
+
+
 def sql_on_odoo_tables(text: str) -> int:
-    """R9: SQL keywords followed by a table that is not a nasq_ table."""
-    return sum(1 for table in SQL_TABLE.findall(text) if not table.startswith('nasq_'))
+    """R9: SQL passed to execute()/SQL() that names a table that is not a nasq_ table."""
+    return sum(
+        1 for sql in _sql_strings(text) for table in SQL_TABLE.findall(sql) if not table.lower().startswith('nasq_')
+    )
 
 
 def odoo_access_overrides(text: str) -> int:
@@ -248,8 +278,8 @@ def collect(root: Path, layers: dict) -> tuple[Violations, list[str]]:
             for key, n in layer_violations(addon, ADDON_IMPORT.findall(text), ranks, 'imports').items():
                 v['R3'][key] = v['R3'].get(key, 0) + n
             _put(v['R6'], rel, count(CUSTOMER_KIND, text))
-            _put(v['R7'], rel, sudo_calls(text))
-            if ranks[addon] == APP_RANK and 'controllers' in path.parts:
+            _put(v['R7'], rel, sudo_calls(text, superuser_id='migrations' not in path.parts))
+            if ranks[addon] in (APP_RANK, BRIDGE_RANK) and 'controllers' in path.parts:
                 for name in routes_without_feature(text):
                     v['R10'][f'{rel}:{name} has no requires_feature'] = 1
             if 'migrations' not in path.parts:
