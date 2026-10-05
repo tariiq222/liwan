@@ -43,7 +43,7 @@ class TestTransition(TransactionCase):
 
     def test_pmo_manager_can_approve(self):
         admin = new_test_user(
-            self.env, login='pmo_admin', groups='nasq_core.group_pmo_manager',
+            self.env, login='pmo_admin', groups='nasq_pmo.group_pmo_manager',
         )
         self.assertTrue(self.task.with_user(admin)._nasq_can_approve())
         self.task.with_user(admin)._nasq_transition('02_changes_requested')

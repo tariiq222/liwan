@@ -64,100 +64,12 @@
         <field name="group_xmlid">nasq_core.group_cap_access_audit_read</field>
         <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/><field name="project_contextual" eval="False"/>
     </record>
-    <record id="permission_pmo_projects_read" model="nasq.access.permission">
-        <field name="key">pmo.projects.read</field><field name="domain">pmo</field>
-        <field name="resource">projects</field><field name="action">read</field>
-        <field name="name_ar">قراءة المشاريع</field><field name="name_en">Read projects</field>
-        <field name="description_ar">قراءة المشاريع</field><field name="description_en">Read projects</field>
-        <field name="group_xmlid">nasq_core.group_cap_pmo_projects_read</field>
-        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/><field name="project_contextual" eval="False"/>
-    </record>
-    <record id="permission_pmo_projects_create" model="nasq.access.permission">
-        <field name="key">pmo.projects.create</field><field name="domain">pmo</field>
-        <field name="resource">projects</field><field name="action">create</field>
-        <field name="name_ar">إنشاء المشاريع</field><field name="name_en">Create projects</field>
-        <field name="description_ar">إنشاء المشاريع</field><field name="description_en">Create projects</field>
-        <field name="group_xmlid">nasq_core.group_cap_pmo_projects_create</field>
-        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/><field name="project_contextual" eval="False"/>
-    </record>
-    <record id="permission_pmo_projects_manage" model="nasq.access.permission">
-        <field name="key">pmo.projects.manage</field><field name="domain">pmo</field>
-        <field name="resource">projects</field><field name="action">manage</field>
-        <field name="name_ar">إدارة المشاريع</field><field name="name_en">Manage projects</field>
-        <field name="description_ar">إدارة المشاريع</field><field name="description_en">Manage projects</field>
-        <field name="group_xmlid">nasq_core.group_cap_pmo_projects_manage</field>
-        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/><field name="project_contextual" eval="True"/>
-    </record>
-    <record id="permission_pmo_settings_manage" model="nasq.access.permission">
-        <field name="key">pmo.settings.manage</field><field name="domain">pmo</field>
-        <field name="resource">settings</field><field name="action">manage</field>
-        <field name="name_ar">إدارة إعدادات المشاريع</field><field name="name_en">Manage PMO settings</field>
-        <field name="description_ar">إدارة إعدادات المشاريع</field><field name="description_en">Manage PMO settings</field>
-        <field name="group_xmlid">nasq_core.group_cap_pmo_settings_manage</field>
-        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/><field name="project_contextual" eval="False"/>
-    </record>
-    <record id="permission_pmo_tasks_read" model="nasq.access.permission">
-        <field name="key">pmo.tasks.read</field><field name="domain">pmo</field>
-        <field name="resource">tasks</field><field name="action">read</field>
-        <field name="name_ar">قراءة المهام</field><field name="name_en">Read tasks</field>
-        <field name="description_ar">قراءة المهام</field><field name="description_en">Read tasks</field>
-        <field name="group_xmlid">nasq_core.group_cap_pmo_tasks_read</field>
-        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/><field name="project_contextual" eval="False"/>
-    </record>
-    <record id="permission_pmo_tasks_create" model="nasq.access.permission">
-        <field name="key">pmo.tasks.create</field><field name="domain">pmo</field>
-        <field name="resource">tasks</field><field name="action">create</field>
-        <field name="name_ar">إنشاء المهام</field><field name="name_en">Create tasks</field>
-        <field name="description_ar">إنشاء المهام</field><field name="description_en">Create tasks</field>
-        <field name="group_xmlid">nasq_core.group_cap_pmo_tasks_create</field>
-        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/><field name="project_contextual" eval="False"/>
-    </record>
-    <record id="permission_pmo_tasks_write" model="nasq.access.permission">
-        <field name="key">pmo.tasks.write</field><field name="domain">pmo</field>
-        <field name="resource">tasks</field><field name="action">write</field>
-        <field name="name_ar">تعديل المهام</field><field name="name_en">Write tasks</field>
-        <field name="description_ar">تعديل المهام</field><field name="description_en">Write tasks</field>
-        <field name="group_xmlid">nasq_core.group_cap_pmo_tasks_write</field>
-        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/><field name="project_contextual" eval="True"/>
-    </record>
-    <record id="permission_pmo_tasks_approve" model="nasq.access.permission">
-        <field name="key">pmo.tasks.approve</field><field name="domain">pmo</field>
-        <field name="resource">tasks</field><field name="action">approve</field>
-        <field name="name_ar">اعتماد المهام</field><field name="name_en">Approve tasks</field>
-        <field name="description_ar">اعتماد المهام</field><field name="description_en">Approve tasks</field>
-        <field name="group_xmlid">nasq_core.group_cap_pmo_tasks_approve</field>
-        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/><field name="project_contextual" eval="True"/>
-    </record>
     <record id="permission_settings_branding_manage" model="nasq.access.permission">
         <field name="key">settings.branding.manage</field><field name="domain">settings</field>
         <field name="resource">branding</field><field name="action">manage</field>
         <field name="name_ar">إدارة الهوية</field><field name="name_en">Manage branding</field>
         <field name="description_ar">إدارة الهوية</field><field name="description_en">Manage branding</field>
         <field name="group_xmlid">nasq_core.group_cap_settings_branding_manage</field>
-        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/><field name="project_contextual" eval="False"/>
-    </record>
-    <record id="permission_meetings_read" model="nasq.access.permission">
-        <field name="key">meetings.read</field><field name="domain">meetings</field>
-        <field name="resource">meetings</field><field name="action">read</field>
-        <field name="name_ar">قراءة الاجتماعات والسلاسل</field><field name="name_en">Read meetings and series</field>
-        <field name="description_ar">قراءة الاجتماعات والسلاسل المتاحة ضمن الشركة الحالية وحسب نطاق المشاركة</field><field name="description_en">Read meetings and series available in the current company and the participant scope</field>
-        <field name="group_xmlid">nasq_core.group_cap_meetings_read</field>
-        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/><field name="project_contextual" eval="False"/>
-    </record>
-    <record id="permission_meetings_create" model="nasq.access.permission">
-        <field name="key">meetings.create</field><field name="domain">meetings</field>
-        <field name="resource">meetings</field><field name="action">create</field>
-        <field name="name_ar">إنشاء الاجتماعات والسلاسل</field><field name="name_en">Create meetings and series</field>
-        <field name="description_ar">إنشاء الاجتماعات والسلاسل الجديدة ضمن الشركة الحالية مع احترام نطاق المشاركة</field><field name="description_en">Create new meetings and series in the current company while respecting participant scope</field>
-        <field name="group_xmlid">nasq_core.group_cap_meetings_create</field>
-        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="False"/><field name="project_contextual" eval="False"/>
-    </record>
-    <record id="permission_meetings_manage" model="nasq.access.permission">
-        <field name="key">meetings.manage</field><field name="domain">meetings</field>
-        <field name="resource">meetings</field><field name="action">manage</field>
-        <field name="name_ar">إدارة ومتابعة الاجتماعات والسلاسل</field><field name="name_en">Manage and follow meetings and series</field>
-        <field name="description_ar">إدارة الاجتماعات والسلاسل ومتابعة سجلاتها ضمن الشركة الحالية وفق نطاق الإدارة</field><field name="description_en">Manage meetings and series and follow their records in the current company within the manager scope</field>
-        <field name="group_xmlid">nasq_core.group_cap_meetings_manage</field>
         <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/><field name="project_contextual" eval="False"/>
     </record>
 </odoo>

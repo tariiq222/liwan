@@ -10,24 +10,9 @@ SYSTEM_PERMISSIONS = {
     'access.users.disable', 'access.users.reset_password', 'access.roles.read',
     'access.roles.manage', 'access.audit.read', 'settings.branding.manage',
 }
-PMO_PERMISSIONS = {
-    'pmo.projects.read', 'pmo.projects.create', 'pmo.projects.manage',
-    'pmo.settings.manage', 'pmo.tasks.read', 'pmo.tasks.create',
-    'pmo.tasks.write', 'pmo.tasks.approve',
-}
-MEETINGS_PERMISSIONS = {
-    'meetings.read', 'meetings.create', 'meetings.manage',
-}
-EMPLOYEE_APP_PERMISSIONS = {
-    'pmo.projects.read', 'pmo.tasks.read', 'pmo.tasks.create', 'pmo.tasks.write',
-    'meetings.read',
-}
-PROJECT_CONTEXTUAL_PERMISSIONS = {
-    'pmo.projects.manage', 'pmo.tasks.write', 'pmo.tasks.approve',
-}
-CAPABILITIES = frozenset(
-    SYSTEM_PERMISSIONS | PMO_PERMISSIONS | MEETINGS_PERMISSIONS,
-)
+# The keys nasq_core owns. Each application adds its own through
+# _nasq_capability_definitions(); the composed map is the catalog.
+CAPABILITIES = frozenset(SYSTEM_PERMISSIONS)
 
 PERMISSION_DEPENDENCIES = {
     'access.users.grant': {'access.users.read', 'access.roles.read'},
@@ -35,14 +20,6 @@ PERMISSION_DEPENDENCIES = {
     'access.users.disable': {'access.users.read'},
     'access.users.reset_password': {'access.users.read'},
     'access.roles.manage': {'access.roles.read'},
-    'pmo.projects.create': {'pmo.projects.read'},
-    'pmo.projects.manage': {'pmo.projects.read'},
-    'pmo.settings.manage': {'pmo.projects.read'},
-    'pmo.tasks.create': {'pmo.tasks.read', 'pmo.projects.read'},
-    'pmo.tasks.write': {'pmo.tasks.read'},
-    'pmo.tasks.approve': {'pmo.tasks.read'},
-    'meetings.create': {'meetings.read'},
-    'meetings.manage': {'meetings.read'},
 }
 
 
@@ -79,10 +56,9 @@ class NasqAccessService(models.AbstractModel):
         links these grants on install and again on every upgrade.
         """
         return {
-            'nasq_core.role_employee': set(EMPLOYEE_APP_PERMISSIONS),
-            'nasq_core.role_pmo_manager': set(PMO_PERMISSIONS),
-            'nasq_core.role_system_admin': SYSTEM_PERMISSIONS | MEETINGS_PERMISSIONS,
-            'nasq_core.role_vendor_support': set(CAPABILITIES),
+            'nasq_core.role_employee': set(),
+            'nasq_core.role_system_admin': set(SYSTEM_PERMISSIONS),
+            'nasq_core.role_vendor_support': set(SYSTEM_PERMISSIONS),
         }
 
     @api.model
@@ -93,14 +69,7 @@ class NasqAccessService(models.AbstractModel):
             user.has_group('nasq_core.group_access_admin')
             or user.has_group('nasq_core.group_customer_admin')
         ):
-            keys |= SYSTEM_PERMISSIONS | MEETINGS_PERMISSIONS
-        if (
-            user.has_group('nasq_core.group_pmo_manager')
-            or user.has_group('project.group_project_manager')
-        ):
-            keys |= PMO_PERMISSIONS
-        if user.has_group('nasq_core.group_employee'):
-            keys |= EMPLOYEE_APP_PERMISSIONS
+            keys |= SYSTEM_PERMISSIONS
         return keys
 
     @api.model
@@ -108,47 +77,17 @@ class NasqAccessService(models.AbstractModel):
         """Company that scopes RECORD. Applications add fallbacks for records without company_id."""
         if 'company_id' in record._fields:
             return record.company_id
-        return record.project_id.company_id
+        return self.env['res.company']
 
     @api.model
     def _nasq_contextual_capability(self, user, key, record):
         """Grant KEY on RECORD beyond assigned roles. Applications extend this through super()."""
-        if key not in PROJECT_CONTEXTUAL_PERMISSIONS:
-            return False
-        project = record if record._name == 'project.project' else record.project_id
-        return bool(project and project.user_id == user)
+        return False
 
     @api.model
     def _nasq_identity_extra(self, user, capabilities):
         """Contextual roles for /me and the keys they add, as (roles, keys). Applications extend this."""
-        roles = []
-        extra = set()
-        company = self.env.company
-        if (
-            'project.project' in self.env.registry.models
-            and 'pmo.projects.read' in capabilities
-            and self.env['project.project'].with_user(user).search_count([
-            ('user_id', '=', user.id), ('company_id', '=', company.id),
-            ])
-        ):
-            roles.append({
-                'id': None, 'key': 'project_owner',
-                'name': {'ar': 'مسؤول مشروع', 'en': 'Project owner'},
-                'type': 'contextual', 'protected': True, 'source': 'project_owner',
-            })
-            extra |= PROJECT_CONTEXTUAL_PERMISSIONS
-        if (
-            'nasq.pmo.settings' in self.env.registry.models
-            and self._nasq_is_employee_principal(user, company=company)
-            and self.env['nasq.pmo.settings'].with_user(user).get()['project_creators'] == 'employees'
-        ):
-            roles.append({
-                'id': None, 'key': 'project_creation_policy',
-                'name': {'ar': 'سياسة إنشاء المشاريع', 'en': 'Project creation policy'},
-                'type': 'contextual', 'protected': True, 'source': 'policy',
-            })
-            extra.add('pmo.projects.create')
-        return roles, extra
+        return [], set()
 
     @api.model
     def _nasq_customer_actor_keys(self):
@@ -161,7 +100,7 @@ class NasqAccessService(models.AbstractModel):
     @api.model
     def _nasq_legacy_admin_roles(self):
         """Role keys granted to a preserved legacy administrator. Applications extend this through super()."""
-        return ['system_admin', 'pmo_manager']
+        return ['system_admin']
 
     @api.model
     def _nasq_capability_map(self):

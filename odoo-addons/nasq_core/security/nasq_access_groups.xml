@@ -8,26 +8,11 @@
     <record id="group_cap_access_roles_read" model="res.groups"><field name="name">Capability: read roles</field><field name="privilege_id" ref="res_groups_privilege_nasq"/></record>
     <record id="group_cap_access_roles_manage" model="res.groups"><field name="name">Capability: manage roles</field><field name="privilege_id" ref="res_groups_privilege_nasq"/></record>
     <record id="group_cap_access_audit_read" model="res.groups"><field name="name">Capability: read access audit</field><field name="privilege_id" ref="res_groups_privilege_nasq"/></record>
-    <record id="group_cap_pmo_projects_read" model="res.groups"><field name="name">Capability: read projects</field><field name="privilege_id" ref="res_groups_privilege_nasq"/><field name="implied_ids" eval="[Command.link(ref('project.group_project_user'))]"/></record>
-    <record id="group_cap_pmo_projects_create" model="res.groups"><field name="name">Capability: create projects</field><field name="privilege_id" ref="res_groups_privilege_nasq"/></record>
-    <record id="group_cap_pmo_projects_manage" model="res.groups"><field name="name">Capability: manage projects</field><field name="privilege_id" ref="res_groups_privilege_nasq"/></record>
-    <record id="group_cap_pmo_settings_manage" model="res.groups"><field name="name">Capability: manage PMO settings</field><field name="privilege_id" ref="res_groups_privilege_nasq"/></record>
-    <record id="group_cap_pmo_tasks_read" model="res.groups"><field name="name">Capability: read tasks</field><field name="privilege_id" ref="res_groups_privilege_nasq"/><field name="implied_ids" eval="[Command.link(ref('project.group_project_user'))]"/></record>
-    <record id="group_cap_pmo_tasks_create" model="res.groups"><field name="name">Capability: create tasks</field><field name="privilege_id" ref="res_groups_privilege_nasq"/></record>
-    <record id="group_cap_pmo_tasks_write" model="res.groups"><field name="name">Capability: write tasks</field><field name="privilege_id" ref="res_groups_privilege_nasq"/></record>
-    <record id="group_cap_pmo_tasks_approve" model="res.groups"><field name="name">Capability: approve tasks</field><field name="privilege_id" ref="res_groups_privilege_nasq"/></record>
     <record id="group_cap_settings_branding_manage" model="res.groups"><field name="name">Capability: manage branding</field><field name="privilege_id" ref="res_groups_privilege_nasq"/></record>
-    <record id="group_cap_meetings_read" model="res.groups"><field name="name">Capability: read meetings</field><field name="privilege_id" ref="res_groups_privilege_nasq"/><field name="implied_ids" eval="[Command.link(ref('cyan_meeting_minutes.group_meeting_user'))]"/></record>
-    <record id="group_cap_meetings_create" model="res.groups"><field name="name">Capability: create meetings</field><field name="privilege_id" ref="res_groups_privilege_nasq"/></record>
-    <record id="group_cap_meetings_manage" model="res.groups"><field name="name">Capability: manage meetings</field><field name="privilege_id" ref="res_groups_privilege_nasq"/><field name="implied_ids" eval="[Command.link(ref('cyan_meeting_minutes.group_meeting_manager'))]"/></record>
 
-    <record id="group_pmo_manager" model="res.groups">
-        <field name="name">PMO Manager</field><field name="privilege_id" ref="res_groups_privilege_nasq"/>
-        <field name="implied_ids" eval="[Command.set([ref('group_employee'),ref('project.group_project_manager'),ref('group_cap_pmo_projects_read'),ref('group_cap_pmo_projects_create'),ref('group_cap_pmo_projects_manage'),ref('group_cap_pmo_settings_manage'),ref('group_cap_pmo_tasks_read'),ref('group_cap_pmo_tasks_create'),ref('group_cap_pmo_tasks_write'),ref('group_cap_pmo_tasks_approve')])]"/>
-    </record>
     <record id="group_access_admin" model="res.groups">
         <field name="name">System Administrator</field><field name="privilege_id" ref="res_groups_privilege_nasq"/>
-        <field name="implied_ids" eval="[Command.set([ref('base.group_user'),ref('group_cap_meetings_manage'),ref('group_cap_access_users_read'),ref('group_cap_access_users_grant'),ref('group_cap_access_users_assign_roles'),ref('group_cap_access_users_disable'),ref('group_cap_access_users_reset_password'),ref('group_cap_access_roles_read'),ref('group_cap_access_roles_manage'),ref('group_cap_access_audit_read'),ref('group_cap_settings_branding_manage')])]"/>
+        <field name="implied_ids" eval="[Command.set([ref('base.group_user'),ref('group_cap_access_users_read'),ref('group_cap_access_users_grant'),ref('group_cap_access_users_assign_roles'),ref('group_cap_access_users_disable'),ref('group_cap_access_users_reset_password'),ref('group_cap_access_roles_read'),ref('group_cap_access_roles_manage'),ref('group_cap_access_audit_read'),ref('group_cap_settings_branding_manage')])]"/>
     </record>
     <record id="group_customer_admin" model="res.groups">
         <field name="name">Legacy Customer Administrator</field>
@@ -35,6 +20,6 @@
         <field name="implied_ids" eval="[Command.set([ref('group_access_admin')])]"/>
     </record>
     <record id="group_vendor_support" model="res.groups">
-        <field name="implied_ids" eval="[Command.set([ref('group_customer_admin'),ref('group_pmo_manager'),ref('group_cap_meetings_manage'),ref('base.group_system')])]"/>
+        <field name="implied_ids" eval="[Command.set([ref('group_customer_admin'),ref('base.group_system')])]"/>
     </record>
 </odoo>

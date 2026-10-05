@@ -9,12 +9,6 @@
     "odoo-addons/nasq_pmo/controllers/notifications.py:mark_read has no requires_feature": 1
   },
   "R2": {
-    "odoo-addons/nasq_core/data/access_permissions.xml": 11,
-    "odoo-addons/nasq_core/models/access_service.py": 45,
-    "odoo-addons/nasq_core/models/meeting_access.py": 9,
-    "odoo-addons/nasq_core/security/meeting_access.xml": 2,
-    "odoo-addons/nasq_core/security/nasq_access_groups.xml": 5,
-    "odoo-addons/nasq_core/security/nasq_core_security.xml": 2,
     "odoo-addons/nasq_platform/models/entitlement_service.py": 9
   },
   "R3": {
@@ -42,7 +36,6 @@
     "odoo-addons/nasq_api/serializers/user.py": 1,
     "odoo-addons/nasq_chat/controllers/chat.py": 1,
     "odoo-addons/nasq_chat/serializers/chat.py": 1,
-    "odoo-addons/nasq_core/models/meeting_access.py": 1,
     "odoo-addons/nasq_core/models/res_company.py": 1,
     "odoo-addons/nasq_platform/models/entitlement_service.py": 1,
     "odoo-addons/nasq_platform/models/feature_registry.py": 1,
@@ -55,6 +48,7 @@
     "odoo-addons/nasq_pmo/controllers/personal_stages.py": 1,
     "odoo-addons/nasq_pmo/controllers/tasks.py": 1,
     "odoo-addons/nasq_pmo/controllers/timeline.py": 2,
+    "odoo-addons/nasq_pmo/models/meeting_access.py": 1,
     "odoo-addons/nasq_pmo/models/meeting_history.py": 5,
     "odoo-addons/nasq_pmo/models/meeting_minute.py": 4,
     "odoo-addons/nasq_pmo/models/meeting_resolution.py": 1,

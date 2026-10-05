@@ -13,7 +13,6 @@
         <field name="privilege_id" ref="res_groups_privilege_nasq"/>
         <field name="implied_ids" eval="[
             (4, ref('base.group_user')),
-            (4, ref('project.group_project_user')),
         ]"/>
     </record>
 
@@ -24,7 +23,6 @@
         <field name="privilege_id" ref="res_groups_privilege_nasq"/>
         <field name="implied_ids" eval="[
             (4, ref('group_employee')),
-            (4, ref('project.group_project_manager')),
             (4, ref('base.group_erp_manager')),
         ]"/>
     </record>

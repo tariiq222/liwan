@@ -20,7 +20,6 @@
         'data/access_permission_dependencies.xml',
         'data/access_roles.xml',
         'data/access_migration_post.xml',
-        'security/meeting_access.xml',
         'data/res_company_data.xml',
         'data/res_users_data.xml',
     ],

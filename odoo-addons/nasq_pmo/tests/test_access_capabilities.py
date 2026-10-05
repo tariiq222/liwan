@@ -33,7 +33,7 @@ class TestPmoAccessCapabilityModels(TransactionCase):
         Assignment = cls.env['nasq.access.assignment']
         Assignment.create({
             'user_id': cls.pmo_manager.id,
-            'role_id': cls.env.ref('nasq_core.role_pmo_manager').id,
+            'role_id': cls.env.ref('nasq_pmo.role_pmo_manager').id,
             'company_id': cls.company.id,
         })
         Assignment.create({

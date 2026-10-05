@@ -1,5 +1,5 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_nasq_project_template_employee,nasq.project.template.employee,model_nasq_project_template,nasq_core.group_employee,1,0,0,0
-access_nasq_project_template_reader,nasq.project.template.reader,model_nasq_project_template,nasq_core.group_cap_pmo_projects_read,1,0,0,0
-access_nasq_project_template_creator,nasq.project.template.creator,model_nasq_project_template,nasq_core.group_cap_pmo_projects_create,1,0,0,0
-access_nasq_project_template_settings_manager,nasq.project.template.settings.manager,model_nasq_project_template,nasq_core.group_cap_pmo_settings_manage,1,1,1,1
+access_nasq_project_template_reader,nasq.project.template.reader,model_nasq_project_template,group_cap_pmo_projects_read,1,0,0,0
+access_nasq_project_template_creator,nasq.project.template.creator,model_nasq_project_template,group_cap_pmo_projects_create,1,0,0,0
+access_nasq_project_template_settings_manager,nasq.project.template.settings.manager,model_nasq_project_template,group_cap_pmo_settings_manage,1,1,1,1

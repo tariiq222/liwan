@@ -3,7 +3,7 @@ from odoo.exceptions import AccessError, ValidationError
 from odoo.fields import Command
 from odoo.tests import TransactionCase, new_test_user, tagged
 
-from odoo.addons.nasq_core.models.access_service import SYSTEM_PERMISSIONS
+from odoo.addons.nasq_core.models.access_service import CAPABILITIES, SYSTEM_PERMISSIONS
 
 
 @tagged('nasq', 'nasq_access')
@@ -46,6 +46,17 @@ class TestNasqAccessModels(TransactionCase):
         self.assertFalse(vendor.assignable)
         system_admin = self.env.ref('nasq_core.role_system_admin')
         self.assertTrue(set(system_admin.permission_ids.mapped('key')) >= SYSTEM_PERMISSIONS)
+
+    def test_core_owns_only_the_nine_system_capabilities(self):
+        catalog = self.service._nasq_capability_map()
+        self.assertEqual(
+            {key for key, item in catalog.items() if item['owner'] == 'nasq_core'}, SYSTEM_PERMISSIONS,
+        )
+        self.assertEqual(len(SYSTEM_PERMISSIONS), 9)
+        self.assertEqual(CAPABILITIES, frozenset(SYSTEM_PERMISSIONS))
+        group = self.env.ref('base.group_user')
+        self.assertFalse(self.service._nasq_record_company(group))
+        self.assertFalse(self.service._nasq_contextual_capability(self.employee, 'access.users.read', group))
 
     def test_custom_role_rejects_access_changing_permissions_and_dependencies(self):
         forbidden = self.env['nasq.access.permission'].search([

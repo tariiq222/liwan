@@ -16,7 +16,7 @@ class TestProjectSettingsControls(NasqPmoCase):
         super().setUpClass()
         cls.admin = new_test_user(
             cls.env, login='psc_admin', password='psc_admin_pass_123',
-            groups='nasq_core.group_pmo_manager',
+            groups='nasq_pmo.group_pmo_manager',
         )
         cls.company_b = cls.env['res.company'].create({'name': 'PSC company B'})
 

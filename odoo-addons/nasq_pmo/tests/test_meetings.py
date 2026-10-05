@@ -12,8 +12,8 @@ class TestMeetingsApi(NasqPmoCase):
 
     def _grant_meeting_create(self):
         self.employee.group_ids |= (
-            self.env.ref('nasq_core.group_cap_meetings_read')
-            | self.env.ref('nasq_core.group_cap_meetings_create')
+            self.env.ref('nasq_pmo.group_cap_meetings_read')
+            | self.env.ref('nasq_pmo.group_cap_meetings_create')
         )
         role = self.env['nasq.access.role'].create({
             'name_ar': 'إنشاء الاجتماعات للاختبار', 'key': 'meeting_http_create_tests',
@@ -139,8 +139,8 @@ class TestMeetingsApi(NasqPmoCase):
 
     def test_create_from_series_honors_explicit_null_and_empty_defaults(self):
         self.employee.group_ids |= (
-            self.env.ref('nasq_core.group_cap_meetings_read')
-            | self.env.ref('nasq_core.group_cap_meetings_create')
+            self.env.ref('nasq_pmo.group_cap_meetings_read')
+            | self.env.ref('nasq_pmo.group_cap_meetings_create')
         )
         role = self.env['nasq.access.role'].create({
             'name_ar': 'إنشاء اجتماع افتراضي', 'key': 'meeting_create_defaults',
@@ -168,7 +168,7 @@ class TestMeetingsApi(NasqPmoCase):
         self.assertEqual(body['meeting_url'], '')
 
     def test_minutes_pdf_requires_access_and_returns_pdf_response(self):
-        self.employee.group_ids |= self.env.ref('nasq_core.group_cap_meetings_read')
+        self.employee.group_ids |= self.env.ref('nasq_pmo.group_cap_meetings_read')
         meeting = self.env['cyan.meeting.minute'].create({
             'state': 'draft', 'name': 'PDF minutes', 'organizer_id': self.employee.id,
             'meeting_date': fields.Date.today(),
@@ -347,7 +347,7 @@ class TestMeetingsApi(NasqPmoCase):
         ))
 
     def test_employee_lists_participant_meetings_only(self):
-        user_group = self.env.ref('nasq_core.group_cap_meetings_read')
+        user_group = self.env.ref('nasq_pmo.group_cap_meetings_read')
         self.employee.group_ids |= user_group
         self.manager.group_ids |= user_group
         meeting = self.env['cyan.meeting.minute'].create({
@@ -375,7 +375,7 @@ class TestMeetingsApi(NasqPmoCase):
         self.assertEqual(hidden_res.json()['code'], 'forbidden')
 
     def test_meeting_search_by_location_preserves_ordinary_visibility(self):
-        user_group = self.env.ref('nasq_core.group_cap_meetings_read')
+        user_group = self.env.ref('nasq_pmo.group_cap_meetings_read')
         self.employee.group_ids |= user_group
         self.manager.group_ids |= user_group
         visible = self.env['cyan.meeting.minute'].create({
@@ -393,7 +393,7 @@ class TestMeetingsApi(NasqPmoCase):
         self.assertNotIn(hidden.id, [row['id'] for row in body['items']])
 
     def test_meeting_project_and_date_filters_are_combined_with_correct_total(self):
-        self.employee.group_ids |= self.env.ref('nasq_core.group_cap_meetings_read')
+        self.employee.group_ids |= self.env.ref('nasq_pmo.group_cap_meetings_read')
         target = self.env['cyan.meeting.minute'].create({
             'state': 'draft', 'name': 'Target project meeting', 'organizer_id': self.employee.id,
             'project_id': self.project.id, 'meeting_date': '2026-09-10',
@@ -417,7 +417,7 @@ class TestMeetingsApi(NasqPmoCase):
         self.assertEqual([row['id'] for row in body['items']], [target.id])
 
     def test_meeting_date_range_rejects_reversed_bounds(self):
-        self.employee.group_ids |= self.env.ref('nasq_core.group_cap_meetings_read')
+        self.employee.group_ids |= self.env.ref('nasq_pmo.group_cap_meetings_read')
         self.authenticate('api_emp', 'api_emp_pass_123')
         response = self.api('GET', '/api/v1/meetings?date_from=2026-09-11&date_to=2026-09-10')
         self.assertEqual(response.status_code, 422, response.text)
@@ -427,12 +427,12 @@ class TestMeetingsApi(NasqPmoCase):
         # Nasq-dependent coverage recovered from the Cyan source conflict.
         office = new_test_user(
             self.env, login='nasq_office_mgr',
-            groups='nasq_core.group_cap_meetings_manage',
+            groups='nasq_pmo.group_cap_meetings_manage',
             company_id=self.env.company.id, company_ids=self.env.company.ids,
         )
         self.env['nasq.access.assignment'].create({'user_id': office.id, 'role_id': self.env.ref('nasq_core.role_system_admin').id, 'company_id': self.env.company.id})
-        self.employee.group_ids |= self.env.ref('nasq_core.group_cap_meetings_read')
-        self.manager.group_ids |= self.env.ref('nasq_core.group_cap_meetings_read')
+        self.employee.group_ids |= self.env.ref('nasq_pmo.group_cap_meetings_read')
+        self.manager.group_ids |= self.env.ref('nasq_pmo.group_cap_meetings_read')
         meeting = self.env['cyan.meeting.minute'].create({
             'state': 'draft', 'name': 'Office meeting', 'organizer_id': self.manager.id,
         })
@@ -441,8 +441,8 @@ class TestMeetingsApi(NasqPmoCase):
         self.assertIn(meeting, meeting.with_user(self.manager).search([('id', '=', meeting.id)]))
 
     def test_meeting_notifications_visibility_read_states_and_recipient_ownership(self):
-        self.employee.group_ids |= self.env.ref('nasq_core.group_cap_meetings_read')
-        self.manager.group_ids |= self.env.ref('nasq_core.group_cap_meetings_read')
+        self.employee.group_ids |= self.env.ref('nasq_pmo.group_cap_meetings_read')
+        self.manager.group_ids |= self.env.ref('nasq_pmo.group_cap_meetings_read')
         Meeting = self.env['cyan.meeting.minute']
         visible = Meeting.create({'state': 'draft', 'name': 'Invite visible', 'organizer_id': self.manager.id,
                                   'attendee_ids': [(6, 0, self.employee.ids)]})
@@ -496,7 +496,7 @@ class TestMeetingsApi(NasqPmoCase):
     def test_meetings_only_role_can_open_detail_without_task_access(self):
         role = self.env['nasq.access.role'].create({
             'name_ar': 'قراءة الاجتماعات فقط', 'company_id': self.env.company.id,
-            'permission_ids': [(6, 0, self.env.ref('nasq_core.permission_meetings_read').ids)],
+            'permission_ids': [(6, 0, self.env.ref('nasq_pmo.permission_meetings_read').ids)],
         })
         self.env['nasq.access.assignment'].create({
             'user_id': self.employee.id, 'role_id': role.id, 'company_id': self.env.company.id,
