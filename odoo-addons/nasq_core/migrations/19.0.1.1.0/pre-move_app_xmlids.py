@@ -8,7 +8,14 @@ declares and the owning addon would then create duplicates.
 
 Rows are renamed even when the receiving addon is not installed; that addon
 adopts them when it is installed. Re-running the script changes nothing.
+
+The meeting record rules call a helper that only nasq_pmo defines. Without
+nasq_pmo they would raise on every read, so they are closed instead; installing
+nasq_pmo rewrites the domain from its own data file.
 """
+
+CLOSED_DOMAIN = "[(0, '=', 1)]"
+MEETING_RULES = ('rule_meeting_capability_scope', 'rule_resolution_capability_scope')
 
 MOVED_XMLIDS = {
     'nasq_hr': (
@@ -102,3 +109,15 @@ def migrate(cr, version):
                     'UPDATE nasq_access_permission SET group_xmlid = %s WHERE group_xmlid = %s',
                     [f'{module}.{name}', f'nasq_core.{name}'],
                 )
+    cr.execute(
+        "SELECT 1 FROM ir_module_module WHERE name = 'nasq_pmo' AND state IN ('installed', 'to upgrade', 'to install')",
+    )
+    if not cr.fetchone():
+        cr.execute(
+            """
+                UPDATE ir_rule SET domain_force = %s
+                 WHERE id IN (SELECT res_id FROM ir_model_data
+                               WHERE module = 'nasq_pmo' AND model = 'ir.rule' AND name = ANY(%s))
+            """,
+            [CLOSED_DOMAIN, list(MEETING_RULES)],
+        )

@@ -90,3 +90,30 @@ class TestAppXmlidMigration(TransactionCase):
         with self.assertRaisesRegex(ValueError, f'nasq_core.{name} and {module}.{name}'):
             self.migration.migrate(self.env.cr, '19.0.1.0.0')
         self.assertEqual(self._rows(), before)
+
+    def _meeting_rules(self):
+        rows = self._rows()
+        res_ids = [rows['nasq_pmo', name][1] for name in ('rule_meeting_capability_scope', 'rule_resolution_capability_scope')]
+        return self.env['ir.rule'].browse(res_ids)
+
+    def _set_pmo_state(self, state):
+        self.env.cr.execute("UPDATE ir_module_module SET state = %s WHERE name = 'nasq_pmo'", [state])
+
+    def test_meeting_rules_fail_closed_when_nasq_pmo_is_not_installed(self):
+        self._restore_release_state()
+        self._set_pmo_state('uninstalled')
+        self.migration.migrate(self.env.cr, '19.0.1.0.0')
+        rules = self._meeting_rules()
+        self.env.invalidate_all()
+        self.assertEqual(len(rules), 2)
+        self.assertEqual(rules.mapped('domain_force'), ["[(0, '=', 1)]"] * 2)
+        self.assertTrue(all(rules.mapped('active')))
+
+    def test_meeting_rules_are_left_alone_when_nasq_pmo_is_installed(self):
+        before = self._meeting_rules().mapped('domain_force')
+        self._restore_release_state()
+        self.migration.migrate(self.env.cr, '19.0.1.0.0')
+        self.env.invalidate_all()
+        after = self._meeting_rules().mapped('domain_force')
+        self.assertEqual(after, before)
+        self.assertNotIn("[(0, '=', 1)]", after)
