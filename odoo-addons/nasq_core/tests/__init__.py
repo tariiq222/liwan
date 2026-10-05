@@ -6,5 +6,6 @@ from . import (
     test_app_xmlid_migration,
     test_groups,
     test_nasq_scope,
+    test_record_company,
     test_record_rule_coverage,
 )

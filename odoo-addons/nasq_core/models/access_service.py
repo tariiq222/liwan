@@ -77,7 +77,8 @@ class NasqAccessService(models.AbstractModel):
         """Company that scopes RECORD. Applications add fallbacks for records without company_id."""
         if 'company_id' in record._fields:
             return record.company_id
-        return self.env['res.company']
+        msg = 'record_company_unknown'
+        raise ValidationError(msg)
 
     @api.model
     def _nasq_contextual_capability(self, user, key, record):

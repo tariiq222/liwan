@@ -55,7 +55,8 @@ class TestNasqAccessModels(TransactionCase):
         self.assertEqual(len(SYSTEM_PERMISSIONS), 9)
         self.assertEqual(CAPABILITIES, frozenset(SYSTEM_PERMISSIONS))
         group = self.env.ref('base.group_user')
-        self.assertFalse(self.service._nasq_record_company(group))
+        with self.assertRaisesRegex(ValidationError, 'record_company_unknown'):
+            self.service._nasq_record_company(group)
         self.assertFalse(self.service._nasq_contextual_capability(self.employee, 'access.users.read', group))
 
     def test_custom_role_rejects_access_changing_permissions_and_dependencies(self):
