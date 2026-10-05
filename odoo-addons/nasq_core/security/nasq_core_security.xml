@@ -8,7 +8,7 @@
 
     <record id="group_employee" model="res.groups">
         <field name="name">Employee</field>
-        <field name="comment">Uses the nasq app: projects and tasks.</field>
+        <field name="comment">Base group for everyone who uses nasq.</field>
         <field name="sequence">10</field>
         <field name="privilege_id" ref="res_groups_privilege_nasq"/>
         <field name="implied_ids" eval="[
@@ -18,7 +18,7 @@
 
     <record id="group_customer_admin" model="res.groups">
         <field name="name">Customer Administrator</field>
-        <field name="comment">Manages users, employees, departments, project settings and the primary colour for their company.</field>
+        <field name="comment">Manages users, roles and the primary colour for their company.</field>
         <field name="sequence">20</field>
         <field name="privilege_id" ref="res_groups_privilege_nasq"/>
         <field name="implied_ids" eval="[
