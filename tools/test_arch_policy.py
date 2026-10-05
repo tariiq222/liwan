@@ -1,5 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 import json
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -14,6 +15,7 @@ from arch_policy import (
     layer_violations,
     main,
     odoo_access_overrides,
+    ratchet_problems,
     routes_without_feature,
     rule_totals,
     sql_on_odoo_tables,
@@ -441,8 +443,8 @@ class TestMain(unittest.TestCase):
         self.assertEqual(self.baseline_file.read_text(), before)
 
 
-class TestBaseRef(unittest.TestCase):
-    """--base REF ratchets the baseline and exempt list against a git ref (real git repo)."""
+class BaseRefCase(unittest.TestCase):
+    """A temp git repo with a layers file, a baseline file and two addons; subclasses add the tests."""
 
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -463,10 +465,14 @@ class TestBaseRef(unittest.TestCase):
         self.git('init', '-q', '-b', 'main')
 
     def set_layers(self, exempt):
-        self.layers_file.write_text(json.dumps({
+        self.layers = {
             'ranks': {'nasq_core': 0, 'nasq_a': 4, 'nasq_b': 4}, 'exempt': exempt, 'web_apps': {},
             'commercial': {'pages': {}, 'allowed': []},
-        }), encoding='utf-8')
+        }
+        self.write_layers()
+
+    def write_layers(self):
+        self.layers_file.write_text(json.dumps(self.layers), encoding='utf-8')
 
     def sudo(self, name, n):
         path = self.root / 'odoo-addons' / f'nasq_{name}' / 'models' / 'm.py'
@@ -489,6 +495,10 @@ class TestBaseRef(unittest.TestCase):
     def adopt(self):
         self.assertEqual(self.run_main('--write-baseline'), 0)
         self.commit_base()
+
+
+class TestBaseRef(BaseRefCase):
+    """--base REF ratchets the baseline and exempt list against a git ref (real git repo)."""
 
     def test_unchanged_tree_passes(self):
         self.adopt()
@@ -539,6 +549,146 @@ class TestBaseRef(unittest.TestCase):
     def test_unknown_ref_exits_two(self):
         self.adopt()
         self.assertEqual(self.run_main('--base', 'no-such-ref'), 2)
+
+
+TRAILER = 'Architecture-approved-by: Owner <owner@example.com>'
+
+
+class TestLayersRatchet(BaseRefCase):
+    """--base REF also ratchets arch_layers.json; the owner trailer on a layers commit waives it."""
+
+    def setUp(self):
+        super().setUp()
+        self.layers.update({
+            'web_apps': {
+                'pmo': {'components': ['project'], 'pages': ['projects']},
+                'hr': {'components': ['hr'], 'pages': ['hr']},
+            },
+            'commercial': {
+                'pages': {'vendor': 'vendor', 'subscription': 'customer-commercial'},
+                'allowed': ['apps/web/app/pages/vendor/', 'apps/web/server/'],
+            },
+        })
+        self.write_layers()
+        for sub in ('components/project', 'components/hr', 'pages/projects', 'pages/hr'):
+            (self.root / 'apps/web/app' / sub).mkdir(parents=True)
+        self.commit_base()
+        self.git('checkout', '-q', '-b', 'work')
+
+    def problems(self):
+        return ratchet_problems('main', self.root, self.layers_file, self.baseline_file, {}, False)
+
+    def commit_layers(self, trailer=None):
+        self.write_layers()
+        self.git('add', '-A')
+        args = ['commit', '-q', '--allow-empty', '-m', 'change layers']
+        self.git(*args, *(['-m', trailer] if trailer else []))
+
+    def weaken(self, name):
+        layers = self.layers
+        if name == 'rank':
+            layers['ranks']['nasq_a'] = 3
+            return 'rank of nasq_a changed 4 -> 3'
+        if name == 'addon removed':
+            del layers['ranks']['nasq_b']
+            return 'nasq_b removed from arch_layers.json'
+        if name == 'exempt':
+            layers['exempt'].append('nasq_new')
+            return 'exempt list grew: nasq_new'
+        if name == 'allowed':
+            layers['commercial']['allowed'].append('apps/web/app/pages/hr/')
+            return 'commercial allowed list grew: apps/web/app/pages/hr/'
+        if name == 'page removed':
+            del layers['commercial']['pages']['vendor']
+            return 'commercial page gate weakened: vendor'
+        if name == 'middleware':
+            layers['commercial']['pages']['subscription'] = 'other'
+            return 'commercial page gate weakened: subscription'
+        if name == 'web moved':
+            layers['web_apps']['hr']['components'].remove('hr')
+            layers['web_apps']['pmo']['components'].append('hr')
+            return 'web app folder hr moved from hr to pmo'
+        if name == 'web unlisted':
+            layers['web_apps']['pmo']['pages'].remove('projects')
+            return 'web app folder projects moved from pmo to nowhere'
+        raise AssertionError(name)
+
+    WEAKENINGS = (
+        'rank', 'addon removed', 'exempt', 'allowed', 'page removed', 'middleware', 'web moved', 'web unlisted',
+    )
+
+    def test_each_weakening_is_reported(self):
+        for name in self.WEAKENINGS:
+            with self.subTest(name=name):
+                self.setUp_layers_reset()
+                expected = self.weaken(name)
+                self.write_layers()
+                self.assertIn(expected, self.problems())
+
+    def setUp_layers_reset(self):
+        self.layers = json.loads(self.git('show', 'main:tools/arch_layers.json').stdout)
+        self.write_layers()
+
+    def test_strengthening_is_not_reported(self):
+        layers = self.layers
+        layers['ranks']['nasq_c'] = 4
+        (self.root / 'odoo-addons/nasq_c').mkdir()
+        layers['web_apps']['hr']['pages'].append('hr-new')
+        (self.root / 'apps/web/app/pages/hr-new').mkdir()
+        layers['commercial']['pages']['invite'] = 'customer-commercial'
+        layers['commercial']['allowed'].remove('apps/web/server/')
+        self.write_layers()
+        self.assertEqual(self.problems(), [])
+
+    def test_removing_an_addon_whose_directory_is_gone_is_not_reported(self):
+        del self.layers['ranks']['nasq_b']
+        self.write_layers()
+        shutil.rmtree(self.root / 'odoo-addons/nasq_b')
+        self.assertEqual(self.problems(), [])
+
+    def test_web_folder_that_no_longer_exists_is_not_reported(self):
+        self.layers['web_apps']['pmo']['pages'].remove('projects')
+        self.write_layers()
+        shutil.rmtree(self.root / 'apps/web/app/pages/projects')
+        self.assertEqual(self.problems(), [])
+
+    def test_weakening_with_the_owner_trailer_passes(self):
+        for name in self.WEAKENINGS:
+            with self.subTest(name=name):
+                self.setUp_layers_reset()
+                self.git('reset', '-q', '--hard', 'main')
+                self.layers = json.loads(self.layers_file.read_text())
+                self.weaken(name)
+                self.commit_layers(TRAILER)
+                self.assertEqual(self.problems(), [])
+
+    def test_the_same_weakening_without_the_trailer_fails(self):
+        for name in self.WEAKENINGS:
+            with self.subTest(name=name):
+                self.git('reset', '-q', '--hard', 'main')
+                self.layers = json.loads(self.layers_file.read_text())
+                expected = self.weaken(name)
+                self.commit_layers()
+                self.assertIn(expected, self.problems())
+
+    def test_trailer_on_a_commit_that_does_not_touch_the_layers_file_does_not_waive(self):
+        expected = self.weaken('rank')
+        self.commit_layers()
+        (self.root / 'note.txt').write_text('x', encoding='utf-8')
+        self.git('add', '-A')
+        self.git('commit', '-q', '-m', 'unrelated', '-m', TRAILER)
+        self.assertIn(expected, self.problems())
+
+    def test_trailer_does_not_waive_baseline_total_growth(self):
+        self.adopt()
+        self.git('branch', '-f', 'main', 'work')
+        self.git('checkout', '-q', '-b', 'work2')
+        self.layers['exempt'].append('nasq_new')
+        self.commit_layers(TRAILER)
+        self.baseline_file.unlink()
+        self.sudo('a', 5)
+        self.assertEqual(self.run_main('--write-baseline', '--base', 'main'), 1)
+        self.assertEqual(self.run_main('--base', 'main'), 1)
 
 
 class TestRepository(unittest.TestCase):

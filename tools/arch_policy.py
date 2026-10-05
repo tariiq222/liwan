@@ -18,6 +18,7 @@ LAYERS_FILE = Path(__file__).resolve().parent / 'arch_layers.json'
 BASELINE_FILE = Path(__file__).resolve().parent / 'arch_baseline.json'
 
 # Rank bands: 0-2 foundation (core, platform, api), 3 shared service, 4 app, 5 bridge, 6 customer overlay.
+APPROVAL_TRAILER = 'Architecture-approved-by'
 BRIDGE_RANK = 5
 APP_RANK = 4
 FOUNDATION_MAX_RANK = 2
@@ -262,7 +263,7 @@ def _git_show(root: Path, ref: str, rel: str) -> str | None:
 def ratchet_problems(
     ref: str, root: Path, layers_file: Path, baseline_file: Path, totals: dict[str, int], baseline_exists: bool,
 ) -> list[str]:
-    """Compare the baseline totals and the exempt list with the same files at REF."""
+    """Compare the baseline totals and the layers file with the same files at REF."""
     ref_baseline = _git_show(root, ref, baseline_file.relative_to(root).as_posix())
     ref_layers = _git_show(root, ref, layers_file.relative_to(root).as_posix())
     problems = []
@@ -271,9 +272,50 @@ def ratchet_problems(
             problems.append(f'baseline file deleted; restore it from {ref}')
         problems += totals_growth(totals, rule_totals(json.loads(ref_baseline)), ref)
     if ref_layers is not None:
-        old_exempt = set(json.loads(ref_layers).get('exempt', []))
-        new_exempt = json.loads(_read(layers_file)).get('exempt', [])
-        problems += [f'exempt list grew: {addon}' for addon in new_exempt if addon not in old_exempt]
+        layer_problems = layers_weakened(json.loads(ref_layers), json.loads(_read(layers_file)), root)
+        if layer_problems and not layers_change_approved(ref, root, layers_file):
+            problems += layer_problems
+    return problems
+
+
+def layers_change_approved(ref: str, root: Path, layers_file: Path) -> bool:
+    """True when a commit in REF..HEAD that changes the layers file carries the owner approval trailer."""
+    done = subprocess.run(
+        ['git', 'log', '--format=%B', f'{ref}..HEAD', '--', layers_file.relative_to(root).as_posix()],
+        cwd=root, capture_output=True, text=True, check=False, shell=False,
+    )
+    return bool(re.search(rf'^{re.escape(APPROVAL_TRAILER)}: .+$', done.stdout, re.MULTILINE))
+
+
+def _web_owners(web_apps: dict, kind: str) -> dict[str, str]:
+    return {d: app for app, dirs in web_apps.items() for d in dirs.get(kind, [])}
+
+
+def layers_weakened(old: dict, new: dict, root: Path) -> list[str]:
+    """Changes to arch_layers.json that hide violations; strengthening changes are not listed."""
+    problems = [f'exempt list grew: {a}' for a in new.get('exempt', []) if a not in set(old.get('exempt', []))]
+    new_ranks = new.get('ranks', {})
+    for addon, rank in old.get('ranks', {}).items():
+        if addon in new_ranks and new_ranks[addon] != rank:
+            problems.append(f'rank of {addon} changed {rank} -> {new_ranks[addon]}')
+        elif addon not in new_ranks and (root / 'odoo-addons' / addon).is_dir():
+            problems.append(f'{addon} removed from arch_layers.json')
+    old_commercial, new_commercial = old.get('commercial', {}), new.get('commercial', {})
+    old_allowed = set(old_commercial.get('allowed', []))
+    problems += [
+        f'commercial allowed list grew: {prefix}' for prefix in new_commercial.get('allowed', [])
+        if prefix not in old_allowed
+    ]
+    new_pages = new_commercial.get('pages', {})
+    problems += [
+        f'commercial page gate weakened: {folder}' for folder, middleware in old_commercial.get('pages', {}).items()
+        if new_pages.get(folder) != middleware
+    ]
+    for kind, base in (('components', 'components'), ('pages', 'pages')):
+        old_owner, new_owner = _web_owners(old.get('web_apps', {}), kind), _web_owners(new.get('web_apps', {}), kind)
+        for directory, app in old_owner.items():
+            if new_owner.get(directory) != app and (root / 'apps' / 'web' / 'app' / base / directory).is_dir():
+                problems.append(f'web app folder {directory} moved from {app} to {new_owner.get(directory, "nowhere")}')
     return problems
 
 
@@ -378,7 +420,7 @@ def main(
 ) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--write-baseline', action='store_true', help='record the current violations; refuses any rule total increase')
-    parser.add_argument('--base', metavar='REF', help='also ratchet the baseline and exempt list against this git ref')
+    parser.add_argument('--base', metavar='REF', help='also ratchet the baseline and arch_layers.json against this git ref')
     args = parser.parse_args(argv)
     current, hard = collect(root, json.loads(_read(layers_file)))
     exists = baseline_file.is_file()
