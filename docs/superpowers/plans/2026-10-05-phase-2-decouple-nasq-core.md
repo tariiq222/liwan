@@ -36,7 +36,7 @@ No ruling (R-A to R-H) is impossible against the source. The items below are add
 - The 28 capability keys are unchanged: 9 `access.*`/`settings.*`, 8 `hr.*`, 8 `pmo.*`, 3 `meetings.*`. With all six addons installed, `_nasq_capability_map()` and `nasq.access.permission` each hold exactly those 28 keys.
 - `nasq_core` keeps the 9 system capabilities, the roles `employee`, `system_admin`, `vendor_support`, the access service, audit and identity protection (spec 3.2). `nasq.access.permission.domain` selection values and `project_contextual` stay in core unchanged (ruling R-D).
 - No edit under `apps/` except the four e2e fixtures `apps/web/e2e/fixtures/charter-flow.py`, `projects-phase2.py`, `project-dashboard.py`, `project-charts.py`. `nasq_chat` is not edited. `packages/` is not edited.
-- Never run anything against the `odoo19` database. Every scratch database is named `nasq_core_decouple_*`; `/tmp/nasq-core-decouple/odoo-run.sh` refuses any other name. Never point Odoo at a config whose `data_dir` or `logfile` is inside `/Users/tariq/code/odoo`.
+- Never run anything against the `odoo19` database. Every scratch database is named `nasq_scratch_core_decouple_*`; `/tmp/nasq-core-decouple/odoo-run.sh` refuses any other name. Never point Odoo at a config whose `data_dir` or `logfile` is inside `/Users/tariq/code/odoo`.
 - No new `sudo()` and no new SQL on Odoo tables: the R7 and R9 totals in `tools/arch_baseline.json` must not rise. Moved code keeps its existing `sudo()`/SQL (the per-file counts move with it; totals stay equal).
 - Every new Python file starts with `# Part of Odoo. See LICENSE file for full copyright and licensing details.` Manifests keep `'license': 'LGPL-3'` and `'author': 'Tariq Alwalidi'`.
 - Versions follow docs/migrations.md: `nasq_core` 19.0.1.0.0 → 19.0.1.1.0 with `migrations/19.0.1.1.0/pre-move_app_xmlids.py`; `nasq_hr` 19.0.1.0.0 → 19.0.1.1.0 and `nasq_pmo` 19.0.1.1.0 → 19.0.1.2.0, each with `migrations/<version>/README.md`. `nasq_platform`, `nasq_api`, `nasq_chat` keep their versions. The migration file is not released until the branch is tagged, so Task 3 may still extend it.
@@ -85,7 +85,7 @@ No ruling (R-A to R-H) is impossible against the source. The items below are add
 - Create: `docs/superpowers/plans/2026-10-05-phase-2-decouple-nasq-core.md` (copy of this plan)
 
 **Interfaces:**
-- Produces: `/tmp/nasq-core-decouple/odoo-run.sh test|install|baseline|upgrade|shell|drop` used by every later task; `/tmp/nasq-core-decouple/openapi-base.json`; the baseline test result in `/tmp/nasq-core-decouple/logs/nasq_core_decouple_base.log`.
+- Produces: `/tmp/nasq-core-decouple/odoo-run.sh test|install|baseline|upgrade|shell|drop` used by every later task; `/tmp/nasq-core-decouple/openapi-base.json`; the baseline test result in `/tmp/nasq-core-decouple/logs/nasq_scratch_core_decouple_base.log`.
 
 - [ ] **Step 1: Create the worktree**
 
@@ -110,7 +110,7 @@ printf '[options]\nlist_db = False\n' > /tmp/nasq-core-decouple/scratch-only.con
 cat > /tmp/nasq-core-decouple/odoo-run.sh <<'RUNNER'
 #!/usr/bin/env bash
 # Phase 2 scratch runner (plan 2026-10-05-phase-2-decouple-nasq-core.md).
-# Every database must be named nasq_core_decouple_*; odoo19 is never touched.
+# Every database must be named nasq_scratch_core_decouple_*; odoo19 is never touched.
 set -euo pipefail
 export PYTHONDONTWRITEBYTECODE=1
 ODOO_ROOT=/Users/tariq/code/odoo
@@ -122,7 +122,7 @@ HTTP_PORT=8179
 export PGHOST="${PGHOST:-127.0.0.1}" PGPORT="${PGPORT:-5432}" PGUSER="${PGUSER:-tariq}"
 
 die() { echo "odoo-run: $*" >&2; exit 2; }
-guard_db() { [[ "$1" == nasq_core_decouple_* ]] || die "refusing database '$1' (scratch names start with nasq_core_decouple_)"; }
+guard_db() { [[ "$1" == nasq_scratch_core_decouple_* ]] || die "refusing database '$1' (scratch names start with nasq_scratch_core_decouple_)"; }
 addons() { echo "$ODOO_ROOT/odoo/addons,$ODOO_ROOT/addons,$1/odoo-addons"; }
 classify() {
   python3 "$WORKTREE/deploy/classification.py" fixture --database "$1" --mode saas --output "$SCRATCH/$1-classification.json"
@@ -198,7 +198,7 @@ Expected: `runner-ok`, then `odoo-run: refusing database 'odoo19' ...` and `guar
 
 ```bash
 lsof -nP -iTCP:8179 -sTCP:LISTEN || echo "port 8179 free"
-psql -h 127.0.0.1 -U tariq -d postgres -Atc "SELECT datname FROM pg_database WHERE datname LIKE 'nasq_core_decouple_%'"
+psql -h 127.0.0.1 -U tariq -d postgres -Atc "SELECT datname FROM pg_database WHERE datname LIKE 'nasq_scratch_core_decouple_%'"
 ```
 
 Expected: `port 8179 free` and no database listed. If 8179 is taken, change `HTTP_PORT` in the runner to a free port and say so in your report.
@@ -242,12 +242,12 @@ Expected: `wrote docs/api/openapi.json: ...` and an empty status after the check
 - [ ] **Step 7: Run the full Odoo suite once on the unmodified branch**
 
 ```bash
-/tmp/nasq-core-decouple/odoo-run.sh test nasq_core_decouple_base \
+/tmp/nasq-core-decouple/odoo-run.sh test nasq_scratch_core_decouple_base \
   nasq_core,nasq_platform,nasq_api,nasq_pmo,nasq_hr,nasq_chat \
   /nasq_core,/nasq_platform,/nasq_api,/nasq_pmo,/nasq_hr,/nasq_chat
 ```
 
-Expected: `odoo.tests.result: 0 failed, 0 error(s) of N tests` and `ODOO_RUN_TEST_OK nasq_core_decouple_base`. Record N. If it is not green, list the failing tests with `grep -E '(FAIL|ERROR): ' /tmp/nasq-core-decouple/logs/nasq_core_decouple_base.log`; those are pre-existing and every later run is compared against that list, not against zero. Drop the kept database with `/tmp/nasq-core-decouple/odoo-run.sh drop nasq_core_decouple_base`.
+Expected: `odoo.tests.result: 0 failed, 0 error(s) of N tests` and `ODOO_RUN_TEST_OK nasq_scratch_core_decouple_base`. Record N. If it is not green, list the failing tests with `grep -E '(FAIL|ERROR): ' /tmp/nasq-core-decouple/logs/nasq_scratch_core_decouple_base.log`; those are pre-existing and every later run is compared against that list, not against zero. Drop the kept database with `/tmp/nasq-core-decouple/odoo-run.sh drop nasq_scratch_core_decouple_base`.
 
 ---
 
@@ -939,12 +939,12 @@ with:
 - [ ] **Step 3: Run the tests to verify they fail**
 
 ```bash
-/tmp/nasq-core-decouple/odoo-run.sh test nasq_core_decouple_t1 \
+/tmp/nasq-core-decouple/odoo-run.sh test nasq_scratch_core_decouple_t1 \
   nasq_core,nasq_platform,nasq_api,nasq_pmo,nasq_hr,nasq_chat \
   /nasq_core,/nasq_api:TestAccessComposition
 ```
 
-Expected: FAIL. The log shows `AttributeError` for `_nasq_builtin_role_grants`, `_nasq_repair_builtin_role_grants`, `_nasq_permission_dependencies`, `_nasq_customer_actor_keys` or `_nasq_legacy_admin_roles`. Drop the kept database: `/tmp/nasq-core-decouple/odoo-run.sh drop nasq_core_decouple_t1`.
+Expected: FAIL. The log shows `AttributeError` for `_nasq_builtin_role_grants`, `_nasq_repair_builtin_role_grants`, `_nasq_permission_dependencies`, `_nasq_customer_actor_keys` or `_nasq_legacy_admin_roles`. Drop the kept database: `/tmp/nasq-core-decouple/odoo-run.sh drop nasq_scratch_core_decouple_t1`.
 
 - [ ] **Step 4: Add the hooks to `access_service.py`**
 
@@ -1471,12 +1471,12 @@ with:
 
 ```bash
 ruff check odoo-addons
-/tmp/nasq-core-decouple/odoo-run.sh test nasq_core_decouple_t1 \
+/tmp/nasq-core-decouple/odoo-run.sh test nasq_scratch_core_decouple_t1 \
   nasq_core,nasq_platform,nasq_api,nasq_pmo,nasq_hr,nasq_chat \
   /nasq_core,/nasq_platform,/nasq_api,/nasq_pmo:TestPmoAccessCapabilityModels,/nasq_pmo:TestPmoAccessCapabilityApi,/nasq_hr:TestHrAccessSeparation
 ```
 
-Expected: `All checks passed!`, then `0 failed, 0 error(s)` and `ODOO_RUN_TEST_OK nasq_core_decouple_t1`.
+Expected: `All checks passed!`, then `0 failed, 0 error(s)` and `ODOO_RUN_TEST_OK nasq_scratch_core_decouple_t1`.
 
 - [ ] **Step 8: Lower the architecture baseline**
 
@@ -1778,12 +1778,12 @@ with:
 - [ ] **Step 2: Run the tests to verify they fail**
 
 ```bash
-/tmp/nasq-core-decouple/odoo-run.sh test nasq_core_decouple_t2 \
+/tmp/nasq-core-decouple/odoo-run.sh test nasq_scratch_core_decouple_t2 \
   nasq_core,nasq_platform,nasq_api,nasq_pmo,nasq_hr,nasq_chat \
   /nasq_core:TestAppXmlidMigration,/nasq_hr:TestHrAccessComposition,/nasq_hr:TestHrAccessSeparation
 ```
 
-Expected: FAIL with `ImportError` for `HR_PERMISSIONS` from `odoo.addons.nasq_hr.models.access_service`, `FileNotFoundError` for the migration file, and `ValueError: External ID not found ... nasq_hr.role_hr_manager`. Drop the database: `/tmp/nasq-core-decouple/odoo-run.sh drop nasq_core_decouple_t2`.
+Expected: FAIL with `ImportError` for `HR_PERMISSIONS` from `odoo.addons.nasq_hr.models.access_service`, `FileNotFoundError` for the migration file, and `ValueError: External ID not found ... nasq_hr.role_hr_manager`. Drop the database: `/tmp/nasq-core-decouple/odoo-run.sh drop nasq_scratch_core_decouple_t2`.
 
 - [ ] **Step 3: Add the migration and bump nasq_core**
 
@@ -2462,12 +2462,12 @@ Expected: `core is HR-free`.
 ```bash
 ruff check odoo-addons
 python3 -B tools/migration_guard.py --base main; echo "migration_guard exit=$?"
-/tmp/nasq-core-decouple/odoo-run.sh test nasq_core_decouple_t2 \
+/tmp/nasq-core-decouple/odoo-run.sh test nasq_scratch_core_decouple_t2 \
   nasq_core,nasq_platform,nasq_api,nasq_pmo,nasq_hr,nasq_chat \
   /nasq_core,/nasq_hr,/nasq_api
 ```
 
-Expected: `All checks passed!`, `migration_guard exit=0`, `0 failed, 0 error(s)`, `ODOO_RUN_TEST_OK nasq_core_decouple_t2`.
+Expected: `All checks passed!`, `migration_guard exit=0`, `0 failed, 0 error(s)`, `ODOO_RUN_TEST_OK nasq_scratch_core_decouple_t2`.
 
 - [ ] **Step 8: Lower the architecture baseline**
 
@@ -2766,12 +2766,12 @@ Expected: `no stale PMO ids in odoo-addons`. (`deploy/`, `tools/` and the e2e fi
 - [ ] **Step 2: Run the tests to verify they fail**
 
 ```bash
-/tmp/nasq-core-decouple/odoo-run.sh test nasq_core_decouple_t3 \
+/tmp/nasq-core-decouple/odoo-run.sh test nasq_scratch_core_decouple_t3 \
   nasq_core,nasq_platform,nasq_api,nasq_pmo,nasq_hr,nasq_chat \
   /nasq_pmo:TestPmoAccessComposition,/nasq_core:TestNasqAccessModels
 ```
 
-Expected: FAIL with `ImportError` for `PMO_PERMISSIONS` from `odoo.addons.nasq_pmo.models.access_service` and an assertion error in `test_core_owns_only_the_nine_system_capabilities`. Drop the database: `/tmp/nasq-core-decouple/odoo-run.sh drop nasq_core_decouple_t3`.
+Expected: FAIL with `ImportError` for `PMO_PERMISSIONS` from `odoo.addons.nasq_pmo.models.access_service` and an assertion error in `test_core_owns_only_the_nine_system_capabilities`. Drop the database: `/tmp/nasq-core-decouple/odoo-run.sh drop nasq_scratch_core_decouple_t3`.
 
 - [ ] **Step 3: Extend the migration**
 
@@ -3568,12 +3568,12 @@ Expected: `core names no application`.
 ```bash
 ruff check odoo-addons
 python3 -B tools/migration_guard.py --base main; echo "migration_guard exit=$?"
-/tmp/nasq-core-decouple/odoo-run.sh test nasq_core_decouple_t3 \
+/tmp/nasq-core-decouple/odoo-run.sh test nasq_scratch_core_decouple_t3 \
   nasq_core,nasq_platform,nasq_api,nasq_pmo,nasq_hr,nasq_chat \
   /nasq_core,/nasq_pmo,/nasq_hr,/nasq_api
 ```
 
-Expected: `All checks passed!`, `migration_guard exit=0`, `0 failed, 0 error(s)`, `ODOO_RUN_TEST_OK nasq_core_decouple_t3`.
+Expected: `All checks passed!`, `migration_guard exit=0`, `0 failed, 0 error(s)`, `ODOO_RUN_TEST_OK nasq_scratch_core_decouple_t3`.
 
 - [ ] **Step 8: Lower the architecture baseline**
 
@@ -3688,12 +3688,12 @@ In `odoo-addons/nasq_platform/tests/test_quotas.py`, replace the whole method `t
 - [ ] **Step 2: Run the tests to verify they fail**
 
 ```bash
-/tmp/nasq-core-decouple/odoo-run.sh test nasq_core_decouple_t4 \
+/tmp/nasq-core-decouple/odoo-run.sh test nasq_scratch_core_decouple_t4 \
   nasq_core,nasq_platform,nasq_api,nasq_pmo,nasq_hr,nasq_chat \
   /nasq_pmo:TestProjectQuota,/nasq_platform:TestTenantQuotas
 ```
 
-Expected: FAIL with `AttributeError: ... '_nasq_count_usage'`. Drop the database: `/tmp/nasq-core-decouple/odoo-run.sh drop nasq_core_decouple_t4`.
+Expected: FAIL with `AttributeError: ... '_nasq_count_usage'`. Drop the database: `/tmp/nasq-core-decouple/odoo-run.sh drop nasq_scratch_core_decouple_t4`.
 
 - [ ] **Step 3: Replace the project counter in nasq_platform**
 
@@ -3788,12 +3788,12 @@ with:
 ```bash
 ruff check odoo-addons
 python3 -B -m unittest discover -s tools/shared_saas_lifecycle -p 'test_subscription_effect.py'
-/tmp/nasq-core-decouple/odoo-run.sh test nasq_core_decouple_t4 \
+/tmp/nasq-core-decouple/odoo-run.sh test nasq_scratch_core_decouple_t4 \
   nasq_core,nasq_platform,nasq_api,nasq_pmo,nasq_hr,nasq_chat \
   /nasq_platform,/nasq_pmo:TestProjectQuota,/nasq_pmo:TestProjects,/nasq_pmo:TestProjectTemplates,/nasq_pmo:TestProjectTemplatesHttp
 ```
 
-Expected: `All checks passed!`, `OK` for the tools test, `0 failed, 0 error(s)`, `ODOO_RUN_TEST_OK nasq_core_decouple_t4`.
+Expected: `All checks passed!`, `OK` for the tools test, `0 failed, 0 error(s)`, `ODOO_RUN_TEST_OK nasq_scratch_core_decouple_t4`.
 
 - [ ] **Step 6: Lower the architecture baseline**
 
@@ -3847,12 +3847,12 @@ with:
 - [ ] **Step 2: Run the test to verify it fails**
 
 ```bash
-/tmp/nasq-core-decouple/odoo-run.sh test nasq_core_decouple_t5 \
+/tmp/nasq-core-decouple/odoo-run.sh test nasq_scratch_core_decouple_t5 \
   nasq_core,nasq_platform,nasq_api,nasq_pmo,nasq_hr,nasq_chat \
   /nasq_core:TestNasqGroups
 ```
 
-Expected: FAIL in `test_core_depends_on_base_only` (`['base', 'cyan_meeting_minutes', 'hr', 'project']` != `['base']`, in any order). Drop the database: `/tmp/nasq-core-decouple/odoo-run.sh drop nasq_core_decouple_t5`.
+Expected: FAIL in `test_core_depends_on_base_only` (`['base', 'cyan_meeting_minutes', 'hr', 'project']` != `['base']`, in any order). Drop the database: `/tmp/nasq-core-decouple/odoo-run.sh drop nasq_scratch_core_decouple_t5`.
 
 - [ ] **Step 3: Drop the application dependencies**
 
@@ -3879,12 +3879,12 @@ with:
 
 ```bash
 ruff check odoo-addons
-/tmp/nasq-core-decouple/odoo-run.sh test nasq_core_decouple_t5 \
+/tmp/nasq-core-decouple/odoo-run.sh test nasq_scratch_core_decouple_t5 \
   nasq_core,nasq_platform,nasq_api,nasq_pmo,nasq_hr,nasq_chat \
   /nasq_core,/nasq_platform,/nasq_api,/nasq_hr,/nasq_chat
 ```
 
-Expected: `All checks passed!`, `0 failed, 0 error(s)`, `ODOO_RUN_TEST_OK nasq_core_decouple_t5`. `nasq_core`'s `at_install` tests now run with only `base` loaded; if one fails only because an application record is missing, that assertion is app-specific: move it into `nasq_api/tests/test_access_composition.py` (post_install). Never add a dependency back to `nasq_core`.
+Expected: `All checks passed!`, `0 failed, 0 error(s)`, `ODOO_RUN_TEST_OK nasq_scratch_core_decouple_t5`. `nasq_core`'s `at_install` tests now run with only `base` loaded; if one fails only because an application record is missing, that assertion is app-specific: move it into `nasq_api/tests/test_access_composition.py` (post_install). Never add a dependency back to `nasq_core`.
 
 - [ ] **Step 5: Prove the two partial installs (spec 3.2 acceptance 1 and 2)**
 
@@ -3955,17 +3955,17 @@ for problem in problems:
 print(f'INSTALL_CHECK_FAILED {EXPECT}' if problems else f'INSTALL_CHECK_OK {EXPECT} modules={len(installed)} keys={len(keys)}')
 sys.exit(1 if problems else 0)
 CHECK
-/tmp/nasq-core-decouple/odoo-run.sh install nasq_core_decouple_core_alone nasq_core
-EXPECT=core /tmp/nasq-core-decouple/odoo-run.sh shell nasq_core_decouple_core_alone /Users/tariq/code/nasq-core-decouple \
+/tmp/nasq-core-decouple/odoo-run.sh install nasq_scratch_core_decouple_core_alone nasq_core
+EXPECT=core /tmp/nasq-core-decouple/odoo-run.sh shell nasq_scratch_core_decouple_core_alone /Users/tariq/code/nasq-core-decouple \
   < /tmp/nasq-core-decouple/check_install.py | tee /tmp/nasq-core-decouple/logs/check-core.log
 grep -q 'INSTALL_CHECK_OK core' /tmp/nasq-core-decouple/logs/check-core.log && echo "acceptance 1 ok"
-/tmp/nasq-core-decouple/odoo-run.sh drop nasq_core_decouple_core_alone
+/tmp/nasq-core-decouple/odoo-run.sh drop nasq_scratch_core_decouple_core_alone
 
-/tmp/nasq-core-decouple/odoo-run.sh install nasq_core_decouple_hr_only nasq_core,nasq_platform,nasq_api,nasq_hr
-EXPECT=hr /tmp/nasq-core-decouple/odoo-run.sh shell nasq_core_decouple_hr_only /Users/tariq/code/nasq-core-decouple \
+/tmp/nasq-core-decouple/odoo-run.sh install nasq_scratch_core_decouple_hr_only nasq_core,nasq_platform,nasq_api,nasq_hr
+EXPECT=hr /tmp/nasq-core-decouple/odoo-run.sh shell nasq_scratch_core_decouple_hr_only /Users/tariq/code/nasq-core-decouple \
   < /tmp/nasq-core-decouple/check_install.py | tee /tmp/nasq-core-decouple/logs/check-hr.log
 grep -q 'INSTALL_CHECK_OK hr' /tmp/nasq-core-decouple/logs/check-hr.log && echo "acceptance 2 ok"
-/tmp/nasq-core-decouple/odoo-run.sh drop nasq_core_decouple_hr_only
+/tmp/nasq-core-decouple/odoo-run.sh drop nasq_scratch_core_decouple_hr_only
 ```
 
 Expected: `ODOO_RUN_INSTALL_OK` twice, `INSTALL_CHECK_OK core modules=... keys=9`, `acceptance 1 ok`, `INSTALL_CHECK_OK hr modules=... keys=17`, `acceptance 2 ok`. An `INSTALL_CHECK_FAIL` line names the module, key or role that is wrong.
@@ -4257,7 +4257,7 @@ import sys
 
 from odoo import Command
 
-assert env.cr.dbname.startswith('nasq_core_decouple_'), env.cr.dbname  # noqa: F821
+assert env.cr.dbname.startswith('nasq_scratch_core_decouple_'), env.cr.dbname  # noqa: F821
 SNAPSHOT = '/tmp/nasq-core-decouple/upgrade-before.json'
 MODELS = ('res.groups', 'nasq.access.permission', 'nasq.access.role', 'ir.rule', 'ir.model.access')
 company = env.company  # noqa: F821
@@ -4407,8 +4407,8 @@ ASSERT
 ```bash
 git worktree add --detach /tmp/nasq-core-decouple/baseline release/19.0.1.0.0
 git -C /tmp/nasq-core-decouple/baseline log -1 --oneline
-/tmp/nasq-core-decouple/odoo-run.sh baseline nasq_core_decouple_upgrade nasq_core,nasq_api,nasq_pmo,nasq_hr,nasq_chat
-/tmp/nasq-core-decouple/odoo-run.sh shell nasq_core_decouple_upgrade /tmp/nasq-core-decouple/baseline \
+/tmp/nasq-core-decouple/odoo-run.sh baseline nasq_scratch_core_decouple_upgrade nasq_core,nasq_api,nasq_pmo,nasq_hr,nasq_chat
+/tmp/nasq-core-decouple/odoo-run.sh shell nasq_scratch_core_decouple_upgrade /tmp/nasq-core-decouple/baseline \
   < /tmp/nasq-core-decouple/upgrade_fixture.py | tee /tmp/nasq-core-decouple/logs/upgrade-fixture.log
 grep -q UPGRADE_FIXTURE_OK /tmp/nasq-core-decouple/logs/upgrade-fixture.log && echo "fixture ok"
 ```
@@ -4418,9 +4418,9 @@ Expected: `f9b961b5` for the tag, `ODOO_RUN_BASELINE_OK`, `UPGRADE_FIXTURE_OK xm
 - [ ] **Step 3: Upgrade with the branch code**
 
 ```bash
-/tmp/nasq-core-decouple/odoo-run.sh upgrade nasq_core_decouple_upgrade nasq_core,nasq_platform,nasq_api,nasq_pmo,nasq_hr,nasq_chat
-grep -n "pre-move_app_xmlids" /tmp/nasq-core-decouple/logs/nasq_core_decouple_upgrade-upgrade.log
-/tmp/nasq-core-decouple/odoo-run.sh shell nasq_core_decouple_upgrade /Users/tariq/code/nasq-core-decouple \
+/tmp/nasq-core-decouple/odoo-run.sh upgrade nasq_scratch_core_decouple_upgrade nasq_core,nasq_platform,nasq_api,nasq_pmo,nasq_hr,nasq_chat
+grep -n "pre-move_app_xmlids" /tmp/nasq-core-decouple/logs/nasq_scratch_core_decouple_upgrade-upgrade.log
+/tmp/nasq-core-decouple/odoo-run.sh shell nasq_scratch_core_decouple_upgrade /Users/tariq/code/nasq-core-decouple \
   < deploy/odoo/upgrade_smoke.py | tee /tmp/nasq-core-decouple/logs/upgrade-smoke.log
 grep -q UPGRADE_SMOKE_OK /tmp/nasq-core-decouple/logs/upgrade-smoke.log && echo "smoke ok"
 ```
@@ -4430,7 +4430,7 @@ Expected: `ODOO_RUN_UPGRADE_OK` (the log guard found no `ERROR`/`CRITICAL` line)
 - [ ] **Step 4: Assert that nothing was lost**
 
 ```bash
-/tmp/nasq-core-decouple/odoo-run.sh shell nasq_core_decouple_upgrade /Users/tariq/code/nasq-core-decouple \
+/tmp/nasq-core-decouple/odoo-run.sh shell nasq_scratch_core_decouple_upgrade /Users/tariq/code/nasq-core-decouple \
   < /tmp/nasq-core-decouple/upgrade_assert.py | tee /tmp/nasq-core-decouple/logs/upgrade-assert.log
 grep -q UPGRADE_PROOF_OK /tmp/nasq-core-decouple/logs/upgrade-assert.log && echo "upgrade proof ok"
 ```
@@ -4440,7 +4440,7 @@ Expected: `UPGRADE_PROOF_OK xmlids=... roles=6 users=7` and `upgrade proof ok`: 
 - [ ] **Step 5: Clean up**
 
 ```bash
-/tmp/nasq-core-decouple/odoo-run.sh drop nasq_core_decouple_upgrade
+/tmp/nasq-core-decouple/odoo-run.sh drop nasq_scratch_core_decouple_upgrade
 git worktree remove /tmp/nasq-core-decouple/baseline
 git worktree list
 ```
@@ -4554,17 +4554,17 @@ Expected: `All checks passed!`, `migration_guard exit=0`, `baseline already curr
 - [ ] **Step 3: Run all six addons' tests and the full-install key check**
 
 ```bash
-/tmp/nasq-core-decouple/odoo-run.sh test nasq_core_decouple_final \
+/tmp/nasq-core-decouple/odoo-run.sh test nasq_scratch_core_decouple_final \
   nasq_core,nasq_platform,nasq_api,nasq_pmo,nasq_hr,nasq_chat \
   /nasq_core,/nasq_platform,/nasq_api,/nasq_pmo,/nasq_hr,/nasq_chat
-/tmp/nasq-core-decouple/odoo-run.sh install nasq_core_decouple_full nasq_core,nasq_platform,nasq_api,nasq_pmo,nasq_hr,nasq_chat
-EXPECT=full /tmp/nasq-core-decouple/odoo-run.sh shell nasq_core_decouple_full /Users/tariq/code/nasq-core-decouple \
+/tmp/nasq-core-decouple/odoo-run.sh install nasq_scratch_core_decouple_full nasq_core,nasq_platform,nasq_api,nasq_pmo,nasq_hr,nasq_chat
+EXPECT=full /tmp/nasq-core-decouple/odoo-run.sh shell nasq_scratch_core_decouple_full /Users/tariq/code/nasq-core-decouple \
   < /tmp/nasq-core-decouple/check_install.py | tee /tmp/nasq-core-decouple/logs/check-full.log
 grep -q 'INSTALL_CHECK_OK full' /tmp/nasq-core-decouple/logs/check-full.log && echo "acceptance 3 ok"
-/tmp/nasq-core-decouple/odoo-run.sh drop nasq_core_decouple_full
+/tmp/nasq-core-decouple/odoo-run.sh drop nasq_scratch_core_decouple_full
 ```
 
-Expected: `0 failed, 0 error(s) of N tests` with N at least the Task 0 count plus the new tests, `ODOO_RUN_TEST_OK nasq_core_decouple_final`, `INSTALL_CHECK_OK full modules=... keys=28`, `acceptance 3 ok`. Compare any failure with the Task 0 list; only pre-existing failures are acceptable, and they must be named in the report.
+Expected: `0 failed, 0 error(s) of N tests` with N at least the Task 0 count plus the new tests, `ODOO_RUN_TEST_OK nasq_scratch_core_decouple_final`, `INSTALL_CHECK_OK full modules=... keys=28`, `acceptance 3 ok`. Compare any failure with the Task 0 list; only pre-existing failures are acceptable, and they must be named in the report.
 
 - [ ] **Step 4: Update the roadmap**
 
