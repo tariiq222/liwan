@@ -10,11 +10,6 @@ SYSTEM_PERMISSIONS = {
     'access.users.disable', 'access.users.reset_password', 'access.roles.read',
     'access.roles.manage', 'access.audit.read', 'settings.branding.manage',
 }
-HR_PERMISSIONS = {
-    'hr.employees.read', 'hr.employees.manage', 'hr.employees.archive',
-    'hr.employees.access_status.read', 'hr.departments.read',
-    'hr.departments.manage', 'hr.documents.read', 'hr.documents.manage',
-}
 PMO_PERMISSIONS = {
     'pmo.projects.read', 'pmo.projects.create', 'pmo.projects.manage',
     'pmo.settings.manage', 'pmo.tasks.read', 'pmo.tasks.create',
@@ -24,7 +19,6 @@ MEETINGS_PERMISSIONS = {
     'meetings.read', 'meetings.create', 'meetings.manage',
 }
 EMPLOYEE_APP_PERMISSIONS = {
-    'hr.employees.read', 'hr.departments.read', 'hr.documents.read',
     'pmo.projects.read', 'pmo.tasks.read', 'pmo.tasks.create', 'pmo.tasks.write',
     'meetings.read',
 }
@@ -32,7 +26,7 @@ PROJECT_CONTEXTUAL_PERMISSIONS = {
     'pmo.projects.manage', 'pmo.tasks.write', 'pmo.tasks.approve',
 }
 CAPABILITIES = frozenset(
-    SYSTEM_PERMISSIONS | HR_PERMISSIONS | PMO_PERMISSIONS | MEETINGS_PERMISSIONS,
+    SYSTEM_PERMISSIONS | PMO_PERMISSIONS | MEETINGS_PERMISSIONS,
 )
 
 PERMISSION_DEPENDENCIES = {
@@ -41,11 +35,6 @@ PERMISSION_DEPENDENCIES = {
     'access.users.disable': {'access.users.read'},
     'access.users.reset_password': {'access.users.read'},
     'access.roles.manage': {'access.roles.read'},
-    'hr.employees.manage': {'hr.employees.read'},
-    'hr.employees.archive': {'hr.employees.read'},
-    'hr.employees.access_status.read': {'hr.employees.read'},
-    'hr.departments.manage': {'hr.departments.read'},
-    'hr.documents.manage': {'hr.documents.read'},
     'pmo.projects.create': {'pmo.projects.read'},
     'pmo.projects.manage': {'pmo.projects.read'},
     'pmo.settings.manage': {'pmo.projects.read'},
@@ -92,7 +81,6 @@ class NasqAccessService(models.AbstractModel):
         return {
             'nasq_core.role_employee': set(EMPLOYEE_APP_PERMISSIONS),
             'nasq_core.role_pmo_manager': set(PMO_PERMISSIONS),
-            'nasq_core.role_hr_manager': set(HR_PERMISSIONS),
             'nasq_core.role_system_admin': SYSTEM_PERMISSIONS | MEETINGS_PERMISSIONS,
             'nasq_core.role_vendor_support': set(CAPABILITIES),
         }
@@ -106,11 +94,6 @@ class NasqAccessService(models.AbstractModel):
             or user.has_group('nasq_core.group_customer_admin')
         ):
             keys |= SYSTEM_PERMISSIONS | MEETINGS_PERMISSIONS
-        if (
-            user.has_group('nasq_core.group_hr_manager')
-            or user.has_group('hr.group_hr_manager')
-        ):
-            keys |= HR_PERMISSIONS
         if (
             user.has_group('nasq_core.group_pmo_manager')
             or user.has_group('project.group_project_manager')
@@ -173,13 +156,12 @@ class NasqAccessService(models.AbstractModel):
         return {
             'access.users.grant', 'access.users.assign_roles',
             'access.users.disable', 'access.users.reset_password',
-            'hr.employees.archive',
         }
 
     @api.model
     def _nasq_legacy_admin_roles(self):
         """Role keys granted to a preserved legacy administrator. Applications extend this through super()."""
-        return ['system_admin', 'hr_manager', 'pmo_manager']
+        return ['system_admin', 'pmo_manager']
 
     @api.model
     def _nasq_capability_map(self):
@@ -550,40 +532,6 @@ class NasqAccessService(models.AbstractModel):
         self._nasq_bump_policy(user.company_id)
         self.env.cr.postcommit.add(self.env.registry.clear_cache)
         return user
-
-    @api.model
-    def _nasq_disable_linked_user_from_hr(self, employee_id, user_id, expected_user_version):
-        self._nasq_require_capability('hr.employees.archive')
-        user = self.env['res.users'].browse(user_id).exists()
-        if not user:
-            msg = 'not_found'
-            raise NasqAccessRule(msg, status=404)
-        self._nasq_assert_user_scope(user)
-        if user == self.env.user:
-            msg = 'self_access_change'
-            raise NasqAccessRule(msg)
-        if user.has_group('nasq_core.group_vendor_support'):
-            msg = 'protected_user'
-            raise NasqAccessRule(msg, status=403)
-        self._nasq_lock_company(user.company_id)
-        self.env.invalidate_all()
-        self._nasq_require_capability('hr.employees.archive')
-        user = self.env['res.users'].with_context(active_test=False).browse(user.id).exists()
-        self._nasq_assert_user_scope(user)
-        self._nasq_check_user_version(user, expected_user_version)
-        self._nasq_assert_user_scope(user)
-        if self._nasq_has_capability(
-            user, 'access.users.assign_roles', company=user.company_id,
-        ):
-            self._nasq_assert_admin_survives(user.company_id, excluding_user=user)
-        user._nasq_access_write({'active': False}, 'hr.employees.archive')
-        self.env['nasq.access.audit']._nasq_log(
-            'employee.archived_access_disabled', user,
-            before={'active': True, 'employee_id': employee_id},
-            after={'active': False, 'employee_id': employee_id},
-        )
-        self._nasq_bump_policy(user.company_id)
-        self.env.cr.postcommit.add(self.env.registry.clear_cache)
 
     @api.model
     def _nasq_capture_legacy_admin_ids(self):

@@ -9,12 +9,12 @@
     "odoo-addons/nasq_pmo/controllers/notifications.py:mark_read has no requires_feature": 1
   },
   "R2": {
-    "odoo-addons/nasq_core/data/access_permissions.xml": 19,
-    "odoo-addons/nasq_core/models/access_service.py": 71,
+    "odoo-addons/nasq_core/data/access_permissions.xml": 11,
+    "odoo-addons/nasq_core/models/access_service.py": 45,
     "odoo-addons/nasq_core/models/meeting_access.py": 9,
     "odoo-addons/nasq_core/security/meeting_access.xml": 2,
-    "odoo-addons/nasq_core/security/nasq_access_groups.xml": 8,
-    "odoo-addons/nasq_core/security/nasq_core_security.xml": 3,
+    "odoo-addons/nasq_core/security/nasq_access_groups.xml": 5,
+    "odoo-addons/nasq_core/security/nasq_core_security.xml": 2,
     "odoo-addons/nasq_platform/models/entitlement_service.py": 9
   },
   "R3": {

@@ -24,7 +24,7 @@ class TestHrAccessSeparation(NasqHrCase):
 
     @classmethod
     def _assign_role(cls, user, key):
-        role = cls.env.ref(f'nasq_core.role_{key}', raise_if_not_found=False)
+        role = cls.env.ref(f'nasq_hr.role_{key}', raise_if_not_found=False)
         if not role:
             raise AssertionError(f'fixture role {key!r} must be installed')
         cls.env['nasq.access.service']._nasq_replace_assignments(
@@ -151,7 +151,7 @@ class TestHrAccessSeparation(NasqHrCase):
             groups='nasq_core.group_employee',
             company_id=isolated_company.id,
         )
-        hr_role = self.env.ref('nasq_core.role_hr_manager')
+        hr_role = self.env.ref('nasq_hr.role_hr_manager')
         self.env['nasq.access.service']._nasq_replace_assignments(
             isolated_hr_manager, [{
                 'role_id': hr_role.id,
