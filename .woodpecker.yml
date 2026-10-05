@@ -26,6 +26,8 @@ steps:
       - python3 -B -m unittest discover -s deploy -p 'test_*.py'
       - python3 -B tools/catalog_check.py
       - python3 -B tools/migration_guard.py --base origin/main
+      - python3 -B tools/git_policy.py --base "${CI_PREV_COMMIT_SHA:-origin/main}"
+      - python3 -B tools/arch_policy.py --base "${CI_PREV_COMMIT_SHA:-origin/main}"
       - npm ci --ignore-scripts
       - npm -w apps/web run postinstall
       - npx playwright install chromium

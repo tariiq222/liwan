@@ -1,0 +1,452 @@
+# Part of Odoo. See LICENSE file for full copyright and licensing details.
+"""Architecture rules R1-R10 with a shrinking baseline.
+
+Spec: docs/superpowers/specs/2026-10-05-nasq-reference-architecture-and-git-workflow-design.md
+"""
+from __future__ import annotations
+
+import argparse
+import ast
+import json
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+LAYERS_FILE = Path(__file__).resolve().parent / 'arch_layers.json'
+BASELINE_FILE = Path(__file__).resolve().parent / 'arch_baseline.json'
+
+# Rank bands: 0-2 foundation (core, platform, api), 3 shared service, 4 app, 5 bridge, 6 customer overlay.
+APPROVAL_TRAILER = 'Architecture-approved-by'
+BRIDGE_RANK = 5
+APP_RANK = 4
+FOUNDATION_MAX_RANK = 2
+
+APP_TOKEN = re.compile(r'\b(?:(?:project|hr|pmo|meetings|chat|cyan_meeting_minutes)\.[a-z_]|nasq_(?:pmo|hr|chat)\.)')
+ADDON_IMPORT = re.compile(r'odoo\.addons\.((?:nasq|customer)_\w+)')
+CONTROL_PLANE_IMPORT = re.compile(r"""(?:from|import|require\()\s*\(?['"][^'"\n]*control-plane""")
+COMMERCIAL_IMPORT = re.compile(r"""(?:from|import)\s*\(?['"]@nasq/commercial-contracts""")
+CUSTOMER_KIND = re.compile(r'\b(?:government|is_gov|gov_)', re.IGNORECASE)
+SQL_TABLE = re.compile(
+    r'\b(?:FROM|JOIN|UPDATE|INSERT\s+INTO|DELETE\s+FROM)\s+(?:ONLY\s+)?'
+    r'(?!(?:OF|SET|LATERAL|SELECT|ROWS?|UNNEST|GENERATE_SERIES)\b)"?([a-z][a-z0-9_]*)"?',
+    re.IGNORECASE,
+)
+# Constructs whose FROM is not a table reference: IS DISTINCT FROM and the argument of EXTRACT/SUBSTRING/...
+SQL_NON_TABLE_FROM = re.compile(
+    r'\bIS\s+(?:NOT\s+)?DISTINCT\s+FROM\b|\b(?:EXTRACT|SUBSTRING|TRIM|OVERLAY|POSITION)\s*\([^()]*\)', re.IGNORECASE,
+)
+ODOO_INHERIT = re.compile(r'''_inherit\s*=\s*['"](?!nasq\.)''')
+ACCESS_OVERRIDE = re.compile(r'^\s+def (?:_search|check_access|_check_access)\(', re.MULTILINE)
+ENABLED_FEATURE = re.compile(r'''['"]key['"]\s*:\s*['"][a-z_]+\.enabled['"]''')
+
+Violations = dict[str, dict[str, int]]
+
+
+def is_test_path(path: Path) -> bool:
+    parts = set(path.parts)
+    return bool(parts & {'tests', '__tests__', 'e2e'}) or '.test.' in path.name or '.spec.' in path.name
+
+
+def count(pattern: re.Pattern[str], text: str) -> int:
+    return len(pattern.findall(text))
+
+
+def manifest_depends(text: str) -> list[str]:
+    return list(ast.literal_eval(text).get('depends', []))
+
+
+def unregistered_addons(addons: list[str], ranks: dict[str, int], exempt: list[str]) -> list[str]:
+    return sorted(a for a in addons if a not in ranks and a not in exempt)
+
+
+def core_depends_violations(depends: list[str]) -> dict[str, int]:
+    """R1: nasq_core depends on base only."""
+    return {f'nasq_core depends on {dep}': 1 for dep in depends if dep != 'base'}
+
+
+def layer_violations(addon: str, targets: list[str], ranks: dict[str, int], kind: str) -> dict[str, int]:
+    """R3/R4: a layered addon may only reach a strictly lower rank."""
+    found: dict[str, int] = {}
+    for target in targets:
+        if target == addon or target not in ranks:
+            continue
+        if ranks[target] >= ranks[addon]:
+            key = f'{addon} {kind} {target}'
+            found[key] = found.get(key, 0) + 1
+    return found
+
+
+def _decorator_name(node: ast.expr) -> str:
+    target = node.func if isinstance(node, ast.Call) else node
+    return target.attr if isinstance(target, ast.Attribute) else getattr(target, 'id', '')
+
+
+def sudo_calls(text: str, superuser_id: bool = True) -> int:
+    """R7: .sudo() calls, su=True keywords and used SUPERUSER_ID names; comments and strings are not counted."""
+    tree = ast.parse(text)
+    imported = {id(n) for imp in ast.walk(tree) if isinstance(imp, ast.ImportFrom) for n in ast.walk(imp)}
+    found = 0
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call):
+            found += isinstance(node.func, ast.Attribute) and node.func.attr == 'sudo'
+            found += sum(
+                1 for kw in node.keywords
+                if kw.arg == 'su' and isinstance(kw.value, ast.Constant) and kw.value.value is True
+            )
+        elif superuser_id and isinstance(node, ast.Name) and node.id == 'SUPERUSER_ID' and id(node) not in imported:
+            found += 1
+    return found
+
+
+def routes_without_feature(text: str) -> list[str]:
+    """R10: controller functions with a route decorator and no requires_feature."""
+    missing = []
+    for node in ast.walk(ast.parse(text)):
+        if isinstance(node, ast.FunctionDef):
+            names = [_decorator_name(d) for d in node.decorator_list]
+            if 'route' in names and 'requires_feature' not in names:
+                missing.append(node.name)
+    return missing
+
+
+def _scope_nodes(scope: ast.AST) -> list[ast.AST]:
+    """Nodes of one function body (or the module), not descending into nested functions."""
+    found: list[ast.AST] = []
+    stack = list(ast.iter_child_nodes(scope))
+    while stack:
+        node = stack.pop()
+        found.append(node)
+        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            stack.extend(ast.iter_child_nodes(node))
+    return found
+
+
+def _string_constants(node: ast.AST) -> list[ast.Constant]:
+    return [n for n in ast.walk(node) if isinstance(n, ast.Constant) and isinstance(n.value, str)]
+
+
+def _sql_strings(text: str) -> list[str]:
+    """String constants (f-string literal parts included) inside arguments of `.execute(...)` / `SQL(...)`.
+
+    A Name argument also contributes the strings assigned to that name in the same function (module-level
+    calls: module-level assignments), through `=`, annotated `=` and `+=`.
+    """
+    tree = ast.parse(text)
+    seen: set[int] = set()
+    strings: list[str] = []
+
+    def collect(node: ast.AST) -> None:
+        for const in _string_constants(node):
+            if id(const) not in seen:
+                seen.add(id(const))
+                strings.append(const.value)
+
+    scopes = [tree, *(n for n in ast.walk(tree) if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)))]
+    for scope in scopes:
+        nodes = _scope_nodes(scope)
+        assigned: dict[str, list[ast.AST]] = {}
+        for node in nodes:
+            if isinstance(node, ast.Assign):
+                targets = [t.id for t in node.targets if isinstance(t, ast.Name)]
+            elif isinstance(node, (ast.AnnAssign, ast.AugAssign)) and isinstance(node.target, ast.Name):
+                targets = [node.target.id]
+            else:
+                continue
+            if node.value is not None:
+                for name in targets:
+                    assigned.setdefault(name, []).append(node.value)
+        for node in nodes:
+            if not isinstance(node, ast.Call):
+                continue
+            func = node.func
+            name = func.attr if isinstance(func, ast.Attribute) else getattr(func, 'id', '')
+            if name not in ('execute', 'SQL'):
+                continue
+            pending = [*node.args, *(kw.value for kw in node.keywords)]
+            resolved: set[str] = set()
+            while pending:
+                arg = pending.pop()
+                collect(arg)
+                for n in ast.walk(arg):
+                    if isinstance(n, ast.Name) and n.id not in resolved:
+                        resolved.add(n.id)
+                        pending.extend(assigned.get(n.id, []))
+    return strings
+
+
+def sql_on_odoo_tables(text: str) -> int:
+    """R9: SQL passed to execute()/SQL() that names a table that is not a nasq_ table."""
+    return sum(
+        1 for sql in _sql_strings(text) for table in SQL_TABLE.findall(SQL_NON_TABLE_FROM.sub(' ', sql)) if not table.lower().startswith('nasq_')
+    )
+
+
+def odoo_access_overrides(text: str) -> int:
+    """R9: _search/check_access overrides in a file that extends an Odoo model."""
+    return count(ACCESS_OVERRIDE, text) if ODOO_INHERIT.search(text) else 0
+
+
+def pascal(name: str) -> str:
+    return ''.join(part.capitalize() for part in name.split('-'))
+
+
+def foreign_component_uses(text: str, own_app: str, web_apps: dict) -> int:
+    """R3 (web): tags or imports of another app's components."""
+    total = 0
+    for app, dirs in web_apps.items():
+        if app == own_app:
+            continue
+        for directory in dirs['components']:
+            total += len(re.findall(rf'<{pascal(directory)}[A-Z]', text))
+            total += len(re.findall(rf'components/{re.escape(directory)}/', text))
+    return total
+
+
+def increases(current: Violations, baseline: Violations) -> list[str]:
+    problems = []
+    for rule in sorted(current):
+        base = baseline.get(rule, {})
+        for key, have in sorted(current[rule].items()):
+            if have > base.get(key, 0):
+                problems.append(f'{rule}: {key}: {have} found, baseline allows {base.get(key, 0)}')
+    return problems
+
+
+def stale(current: Violations, baseline: Violations) -> list[str]:
+    problems = []
+    for rule in sorted(baseline):
+        now = current.get(rule, {})
+        for key, allowed in sorted(baseline[rule].items()):
+            if now.get(key, 0) < allowed:
+                problems.append(
+                    f'{rule}: {key}: {now.get(key, 0)} found, baseline says {allowed}; '
+                    'lower the baseline with --write-baseline',
+                )
+    return problems
+
+
+def compare(current: Violations, baseline: Violations) -> list[str]:
+    return increases(current, baseline) + stale(current, baseline)
+
+
+def rule_totals(v: Violations) -> dict[str, int]:
+    return {rule: sum(keys.values()) for rule, keys in v.items()}
+
+
+def totals_growth(new: dict[str, int], old: dict[str, int], label: str) -> list[str]:
+    return [
+        f'{rule}: baseline total {have} exceeds {label} total {old.get(rule, 0)}'
+        for rule, have in sorted(new.items()) if have > old.get(rule, 0)
+    ]
+
+
+class UnknownRef(RuntimeError):
+    pass
+
+
+def _git_show(root: Path, ref: str, rel: str) -> str | None:
+    """File content at REF, or None when only that path is missing there."""
+    verify = subprocess.run(
+        ['git', 'rev-parse', '--verify', '--quiet', f'{ref}^{{commit}}'],
+        cwd=root, capture_output=True, text=True, check=False, shell=False,
+    )
+    if verify.returncode != 0:
+        raise UnknownRef(f"git rev-parse {ref} failed: unknown ref '{ref}'")
+    done = subprocess.run(
+        ['git', 'show', f'{ref}:{rel}'], cwd=root, capture_output=True, text=True, check=False, shell=False,
+    )
+    return done.stdout if done.returncode == 0 else None
+
+
+def ratchet_problems(
+    ref: str, root: Path, layers_file: Path, baseline_file: Path, totals: dict[str, int], baseline_exists: bool,
+) -> list[str]:
+    """Compare the baseline totals and the layers file with the same files at REF."""
+    ref_baseline = _git_show(root, ref, baseline_file.relative_to(root).as_posix())
+    ref_layers = _git_show(root, ref, layers_file.relative_to(root).as_posix())
+    problems = []
+    if ref_baseline is not None:
+        if not baseline_exists:
+            problems.append(f'baseline file deleted; restore it from {ref}')
+        problems += totals_growth(totals, rule_totals(json.loads(ref_baseline)), ref)
+    if ref_layers is not None:
+        layer_problems = layers_weakened(json.loads(ref_layers), json.loads(_read(layers_file)), root)
+        if layer_problems and not layers_change_approved(ref, root, layers_file):
+            problems += layer_problems
+    return problems
+
+
+def layers_change_approved(ref: str, root: Path, layers_file: Path) -> bool:
+    """True when a commit in REF..HEAD that changes the layers file carries the owner approval trailer."""
+    done = subprocess.run(
+        ['git', 'log', '--format=%B', f'{ref}..HEAD', '--', layers_file.relative_to(root).as_posix()],
+        cwd=root, capture_output=True, text=True, check=False, shell=False,
+    )
+    return bool(re.search(rf'^{re.escape(APPROVAL_TRAILER)}: .+$', done.stdout, re.MULTILINE))
+
+
+def _web_owners(web_apps: dict, kind: str) -> dict[str, str]:
+    return {d: app for app, dirs in web_apps.items() for d in dirs.get(kind, [])}
+
+
+def layers_weakened(old: dict, new: dict, root: Path) -> list[str]:
+    """Changes to arch_layers.json that hide violations; strengthening changes are not listed."""
+    problems = [f'exempt list grew: {a}' for a in new.get('exempt', []) if a not in set(old.get('exempt', []))]
+    new_ranks = new.get('ranks', {})
+    for addon, rank in old.get('ranks', {}).items():
+        if addon in new_ranks and new_ranks[addon] != rank:
+            problems.append(f'rank of {addon} changed {rank} -> {new_ranks[addon]}')
+        elif addon not in new_ranks and (root / 'odoo-addons' / addon).is_dir():
+            problems.append(f'{addon} removed from arch_layers.json')
+    old_commercial, new_commercial = old.get('commercial', {}), new.get('commercial', {})
+    old_allowed = set(old_commercial.get('allowed', []))
+    problems += [
+        f'commercial allowed list grew: {prefix}' for prefix in new_commercial.get('allowed', [])
+        if prefix not in old_allowed
+    ]
+    new_pages = new_commercial.get('pages', {})
+    problems += [
+        f'commercial page gate weakened: {folder}' for folder, middleware in old_commercial.get('pages', {}).items()
+        if new_pages.get(folder) != middleware
+    ]
+    for kind, base in (('components', 'components'), ('pages', 'pages')):
+        old_owner, new_owner = _web_owners(old.get('web_apps', {}), kind), _web_owners(new.get('web_apps', {}), kind)
+        for directory, app in old_owner.items():
+            if new_owner.get(directory) != app and (root / 'apps' / 'web' / 'app' / base / directory).is_dir():
+                problems.append(f'web app folder {directory} moved from {app} to {new_owner.get(directory, "nowhere")}')
+    return problems
+
+
+def _read(path: Path) -> str:
+    return path.read_text(encoding='utf-8', errors='replace')
+
+
+def _rel(path: Path, root: Path) -> str:
+    return path.relative_to(root).as_posix()
+
+
+def _put(found: dict[str, int], key: str, value: int) -> None:
+    if value:
+        found[key] = value
+
+
+def _addon_files(addon_dir: Path, suffixes: tuple[str, ...], root: Path | None = None) -> list[Path]:
+    return sorted(
+        p for p in addon_dir.rglob('*')
+        if p.is_file() and p.suffix in suffixes and not is_test_path(p.relative_to(root) if root else p)
+        and '__pycache__' not in p.parts and 'i18n' not in p.parts
+    )
+
+
+def collect(root: Path, layers: dict) -> tuple[Violations, list[str]]:
+    ranks, exempt, web_apps = layers['ranks'], layers['exempt'], layers['web_apps']
+    commercial = layers['commercial']
+    addons_root = root / 'odoo-addons'
+    addons = sorted(p.parent.name for p in addons_root.glob('*/__manifest__.py'))
+    hard = [f'unregistered addon {a}: add it to tools/arch_layers.json' for a in unregistered_addons(addons, ranks, exempt)]
+    hard += [f'arch_layers.json lists missing addon {a}' for a in sorted(ranks) if a not in addons]
+    v: Violations = {rule: {} for rule in ('R1', 'R2', 'R3', 'R4', 'R5', 'R6', 'R7', 'R8', 'R9', 'R10')}
+
+    for addon in addons:
+        if addon not in ranks:
+            continue
+        addon_dir = addons_root / addon
+        manifest = ast.literal_eval(_read(addon_dir / '__manifest__.py'))
+        depends = list(manifest.get('depends', []))
+        if addon == 'nasq_core':
+            v['R1'].update(core_depends_violations(depends))
+        v['R4'].update(layer_violations(addon, depends, ranks, 'depends on'))
+        if ranks[addon] == BRIDGE_RANK and not manifest.get('auto_install'):
+            hard.append(f'bridge addon {addon} must set auto_install')
+        if ranks[addon] == APP_RANK:
+            registry = addon_dir / 'models' / 'feature_registry.py'
+            text = _read(registry) if registry.is_file() else ''
+            if not (ENABLED_FEATURE.search(text) and f"'owner': '{addon}'" in text):
+                v['R10'][f'{addon} registers no <app>.enabled feature it owns'] = 1
+        for path in _addon_files(addon_dir, ('.py', '.xml', '.csv'), root):
+            text, rel = _read(path), _rel(path, root)
+            if ranks[addon] <= FOUNDATION_MAX_RANK and path.name != '__manifest__.py':
+                _put(v['R2'], rel, count(APP_TOKEN, text))
+            if path.suffix != '.py':
+                continue
+            for key, n in layer_violations(addon, ADDON_IMPORT.findall(text), ranks, 'imports').items():
+                v['R3'][key] = v['R3'].get(key, 0) + n
+            _put(v['R6'], rel, count(CUSTOMER_KIND, text))
+            _put(v['R7'], rel, sudo_calls(text, superuser_id='migrations' not in path.parts))
+            if ranks[addon] in (APP_RANK, BRIDGE_RANK) and 'controllers' in path.parts:
+                for name in routes_without_feature(text):
+                    v['R10'][f'{rel}:{name} has no requires_feature'] = 1
+            if 'migrations' not in path.parts:
+                _put(v['R9'], f'sql {rel}', sql_on_odoo_tables(text))
+                _put(v['R9'], f'override {rel}', odoo_access_overrides(text))
+
+    web = root / 'apps' / 'web'
+    for base in (web / 'app', web / 'server'):
+        for path in sorted(base.rglob('*')):
+            rel = _rel(path, root)
+            if not path.is_file() or path.suffix not in ('.ts', '.vue') or is_test_path(Path(rel)):
+                continue
+            text = _read(path)
+            _put(v['R5'], f'control-plane import {rel}', count(CONTROL_PLANE_IMPORT, text))
+            if not rel.startswith(tuple(commercial['allowed'])):
+                _put(v['R5'], f'commercial import {rel}', count(COMMERCIAL_IMPORT, text))
+            _put(v['R6'], rel, count(CUSTOMER_KIND, text))
+    for directory, middleware in commercial['pages'].items():
+        folder = web / 'app' / 'pages' / directory
+        for path in sorted(folder.rglob('*.vue')) if folder.is_dir() else []:
+            rel = _rel(path, root)
+            if not is_test_path(Path(rel)) and middleware not in _read(path):
+                v['R8'][f'{rel} lacks {middleware} middleware'] = 1
+    for app, dirs in web_apps.items():
+        folders = [web / 'app' / 'components' / d for d in dirs['components']]
+        folders += [web / 'app' / 'pages' / d for d in dirs['pages']]
+        for folder in folders:
+            if not folder.is_dir():
+                continue
+            for path in sorted(folder.rglob('*')):
+                rel = _rel(path, root)
+                if path.is_file() and path.suffix in ('.ts', '.vue') and not is_test_path(Path(rel)):
+                    _put(v['R3'], f'web {rel}', foreign_component_uses(_read(path), app, web_apps))
+    return v, hard
+
+
+def main(
+    argv: list[str] | None = None,
+    root: Path = ROOT,
+    layers_file: Path = LAYERS_FILE,
+    baseline_file: Path = BASELINE_FILE,
+) -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--write-baseline', action='store_true', help='record the current violations; refuses any rule total increase')
+    parser.add_argument('--base', metavar='REF', help='also ratchet the baseline and arch_layers.json against this git ref')
+    args = parser.parse_args(argv)
+    current, hard = collect(root, json.loads(_read(layers_file)))
+    exists = baseline_file.is_file()
+    baseline = json.loads(_read(baseline_file)) if exists else {}
+    # The totals that end up on disk: today's violations when writing, the file itself when checking.
+    totals = rule_totals(current) if args.write_baseline else rule_totals(baseline)
+    try:
+        ratchet = ratchet_problems(args.base, root, layers_file, baseline_file, totals, exists or args.write_baseline) if args.base else []
+    except UnknownRef as error:
+        sys.stderr.write(f'{error}\n')
+        return 2
+    if args.write_baseline:
+        # The first write records today's debt; every later write may only keep or shrink each rule total.
+        growth = totals_growth(totals, rule_totals(baseline), 'existing baseline') if exists else []
+        problems = hard + growth + ratchet
+        if not problems:
+            baseline_file.write_text(
+                json.dumps(current, indent=2, sort_keys=True, ensure_ascii=False) + '\n', encoding='utf-8',
+            )
+            print(f'wrote {baseline_file.name}')
+    else:
+        problems = hard + compare(current, baseline) + ratchet
+    for problem in problems:
+        print(problem, file=sys.stderr)
+    return 1 if problems else 0
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())

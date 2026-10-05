@@ -51,7 +51,7 @@ shared change must state the contract and the single writer before work starts.
 ## Starting a task
 
 1. Inspect the selected worktree's branch, status, remotes, and changed paths.
-   Preserve unrelated edits. Use `codex/<task>` for a task branch.
+   Preserve unrelated edits. Use `codex/<area>-<slug>` for a task branch.
 2. Decide file ownership and list collisions before editing. Keep dependent
    work sequential; run independent slices in separate worktrees.
 3. Give each worktree independent `node_modules` and `.nuxt` directories. Use

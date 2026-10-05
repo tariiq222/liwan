@@ -1,0 +1,67 @@
+{
+  "ranks": {
+    "nasq_core": 0,
+    "nasq_platform": 1,
+    "nasq_api": 2,
+    "nasq_pmo": 4,
+    "nasq_hr": 4,
+    "nasq_chat": 4
+  },
+  "exempt": [
+    "cyan_meeting_minutes",
+    "web_theme_shadcn",
+    "nasq_registry_probe"
+  ],
+  "web_apps": {
+    "pmo": {
+      "components": [
+        "project",
+        "task"
+      ],
+      "pages": [
+        "projects",
+        "tasks",
+        "project-templates"
+      ]
+    },
+    "meetings": {
+      "components": [
+        "meetings"
+      ],
+      "pages": [
+        "meetings"
+      ]
+    },
+    "hr": {
+      "components": [
+        "hr"
+      ],
+      "pages": [
+        "hr"
+      ]
+    },
+    "chat": {
+      "components": [
+        "chat"
+      ],
+      "pages": [
+        "chat"
+      ]
+    }
+  },
+  "commercial": {
+    "pages": {
+      "subscription": "customer-commercial",
+      "invite": "customer-commercial",
+      "vendor": "vendor"
+    },
+    "allowed": [
+      "apps/web/app/pages/vendor/",
+      "apps/web/app/pages/subscription/",
+      "apps/web/app/pages/invite/",
+      "apps/web/app/components/vendor/",
+      "apps/web/app/components/subscription/",
+      "apps/web/server/"
+    ]
+  }
+}

@@ -27,7 +27,7 @@ These are repository instructions for every coding agent, regardless of tool.
 
 - Verify the current branch, worktree, and dirty paths before editing. The
   canonical local development checkout is `/Users/tariq/code/nasq` on `main`.
-- Develop bounded tasks in temporary `codex/<task>` worktrees based on current
+- Develop bounded tasks in temporary `codex/<area>-<slug>` worktrees based on current
   `main`. Give each task explicit file ownership and independent dependencies,
   generated files, databases, and ports. One orchestrator owns Git integration,
   shared-file edits, runtime changes, and final checks.
@@ -49,6 +49,62 @@ These are repository instructions for every coding agent, regardless of tool.
   worktrees/branches, or discard work without authorization for that action.
 - Local verification does not prove production deployment. Report fresh test
   evidence and the actual branch/runtime state.
+
+## Architecture rules (R1–R10)
+
+Spec: [reference architecture and Git workflow](docs/superpowers/specs/2026-10-05-nasq-reference-architecture-and-git-workflow-design.md).
+`tools/arch_policy.py` (runs inside `npm test`) and `tools/git_policy.py` (CI `static` step) enforce these
+rules. Violations that predate them are recorded in `tools/arch_baseline.json`. That baseline only shrinks:
+never add an entry or raise a count to make a check pass.
+
+- **R1** `nasq_core` depends on `base` only and names no application model or group.
+- **R2** Each application owns its capabilities, groups, roles and record rules inside its own addon.
+- **R3** No application imports another application. Two applications are linked by a bridge addon
+  `nasq_<a>_<b>` with `auto_install`. The same holds in `apps/web`: an application folder under
+  `pages/` or `components/` does not use another application's components.
+- **R4** Dependencies point down only: foundation (`nasq_core` ← `nasq_platform` ← `nasq_api`) ← shared
+  services ← applications ← bridges ← `customer_<name>_*`.
+- **R5** The product runs without the control plane. Nothing in `odoo-addons` or `apps/web/app` imports
+  from `apps/control-plane`; no new file references the control plane.
+- **R6** No condition on a customer name or customer type. Differences come from `commercial_mode`,
+  entitlements and `customer_<name>_*` addons.
+- **R7** No new `sudo()` outside the documented cases.
+- **R8** Every feature works in `saas` and `non_saas`, or is explicitly commercial and hidden in `non_saas`.
+- **R9** Customise Odoo through its public extension points only: no edits to Odoo source, no new direct
+  SQL on Odoo tables, no new override of a private access method on an Odoo model without a documented
+  reason and a test, no copied Odoo methods.
+- **R10** Each application registers its `<app>.enabled` feature, sub-features, limits and counters in
+  `nasq.feature.registry` with `owner` set to its addon name, and every route checks its feature.
+
+A new addon is registered in `tools/arch_layers.json` with its rank (0–2 foundation, 3 shared service,
+4 application, 5 bridge, 6 customer overlay) before it is merged. After removing or moving a violation,
+run `python3 -B tools/arch_policy.py --write-baseline` and commit the updated baseline with the change; the
+command refuses any rule whose total grows. Never delete or hand-edit `tools/arch_baseline.json`. Weakening `tools/arch_layers.json` (changing a
+rank, growing `exempt` or `commercial.allowed`, removing a commercial page gate, moving a web folder to
+another application) needs the owner's approval, recorded by the owner as an
+`Architecture-approved-by:` trailer on the commit that changes it; agents never add that trailer.
+`--base` detects all of these.
+
+### Git workflow
+
+- `main` is the only long-lived branch and is always releasable. Task branches are
+  `codex/<area>-<slug>`; throwaway experiments are `spike/<slug>` and are never merged.
+  `<area>` is one of `core platform api pmo hr chat web cp deploy tools docs ci`.
+- Commit subjects are `type(scope): imperative subject`, at most 72 characters, with `type` in
+  `feat fix refactor perf test docs ci build chore` and `scope` from the `<area>` list. One logical change
+  per commit. No `wip` commit reaches `main`. A schema change carries its version bump and migration
+  directory in the same commit.
+- Merging is the orchestrator's job and needs the owner's authorization for that integration. Before
+  merging: merge current `main` into the task branch (never rebase a branch another worker owns); the
+  focused checks and `npm test` pass; `python3 -B tools/git_policy.py --base main` and
+  `python3 -B tools/arch_policy.py --base main` pass (this local run is the binding gate; CI repeats it
+  on push); addon or contract changes are reviewed by the `odoo-reviewer` agent; the working tree is
+  clean. Then `git merge --no-ff`. Removing the merged branch and its worktree also needs the owner's
+  authorization, and happens only after the content is preserved and no process uses it; unmerged work
+  is tagged `archive/<name>` before its branch is removed.
+- Only `main` and tags are pushed, each push with the owner's explicit authorization. Task branches stay
+  local unless the owner asks for a pull request. `release/19.0.X.Y.Z` tags on `main` are the releases;
+  there is no per-customer branch.
 
 ## Preserve approved work on every merge — 2026-09-08
 
