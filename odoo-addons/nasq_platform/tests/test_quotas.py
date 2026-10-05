@@ -28,21 +28,9 @@ class TestTenantQuotas(TransactionCase):
         self.assertEqual(error.exception.details['limit_key'], 'users.limit')
         self.assertEqual(self.service._nasq_count_users(), current)
 
-    def test_project_limit_blocks_create_and_restore(self):
-        project = self.env['project.project'].create({'name': 'Quota project'})
-        current = self.service._nasq_count_projects()
-        self._operator().write({'features': {**self.record.features, 'projects.max_projects': current}})
-        with self.assertRaises(NasqAccessRule):
-            self.env['project.project'].create({'name': 'Over quota'})
-        project.write({'active': False})
-        self.assertEqual(self.service._nasq_count_projects(), current - 1)
-        extra = self.env['project.project'].create({'name': 'Takes freed slot'})
-        self.assertEqual(self.service._nasq_count_projects(), current)
-        with self.assertRaises(NasqAccessRule):
-            project.write({'active': True})
-        extra.unlink()
-        project.write({'active': True})
-        self.assertEqual(self.service._nasq_count_projects(), current)
+    def test_usage_counter_counts_users_and_leaves_unknown_limits_at_zero(self):
+        self.assertEqual(self.service._nasq_count_usage('users.limit'), self.service._nasq_count_users())
+        self.assertEqual(self.service._nasq_count_usage('unknown.limit'), 0)
 
     def test_storage_limit_blocks_binary_attachment(self):
         self._operator().write({'features': {**self.record.features, 'storage.limit_mb': 0}})

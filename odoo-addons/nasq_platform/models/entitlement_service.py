@@ -274,11 +274,11 @@ class NasqEntitlementService(models.AbstractModel):
         return self.env.cr.fetchone()[0]
 
     @api.model
-    def _nasq_count_projects(self):
-        if 'project.project' not in self.env.registry:
-            return 0
-        self.env.cr.execute('SELECT count(*) FROM project_project WHERE active')
-        return self.env.cr.fetchone()[0]
+    def _nasq_count_usage(self, limit_key):
+        """Usage counted against LIMIT_KEY. The addon that registers a limit extends this through super()."""
+        if limit_key == 'users.limit':
+            return self._nasq_count_users()
+        return 0
 
     @api.model
     def _nasq_count_storage_bytes(self):
@@ -305,10 +305,6 @@ class NasqEntitlementService(models.AbstractModel):
     @api.model
     def _nasq_claim_users(self, delta):
         return self._nasq_claim('users.limit', self._nasq_count_users(), delta)
-
-    @api.model
-    def _nasq_claim_projects(self, delta):
-        return self._nasq_claim('projects.max_projects', self._nasq_count_projects(), delta)
 
     @api.model
     def _nasq_claim_storage(self, delta_bytes):

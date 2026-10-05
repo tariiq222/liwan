@@ -124,7 +124,7 @@ def collect(profile):
         c = b.company_id.with_context(active_test=False)
         branches.append({'branch_id': b.branch_uid, 'state': b.state, 'odoo_company_id': c.id,
                          'active': bool(c.active), 'parent_is_root': c.parent_id == root})
-    usage = {'users': service._nasq_count_users(), 'projects': service._nasq_count_projects(),
+    usage = {'users': service._nasq_count_users(), 'projects': service._nasq_count_usage('projects.max_projects'),
              'attachment_bytes': int(service._nasq_count_storage_bytes()),
              'extra_branches': len([b for b in branches if b['state'] == 'active'])}
     return {'database': env.cr.dbname, 'commercial_revision_id': profile.commercial_revision_id or None,
