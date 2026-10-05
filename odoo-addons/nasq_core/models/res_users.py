@@ -37,12 +37,9 @@ class NasqResUsers(models.Model):
 
     def _nasq_is_customer_actor(self):
         self.ensure_one()
+        service = self.env['nasq.access.service']
         return not self.has_group('base.group_system') and bool(
-            self.env['nasq.access.service']._nasq_capability_keys(self) & {
-                'access.users.grant', 'access.users.assign_roles',
-                'access.users.disable', 'access.users.reset_password',
-                'hr.employees.archive',
-            },
+            service._nasq_capability_keys(self) & service._nasq_customer_actor_keys(),
         )
 
     @api.model_create_multi

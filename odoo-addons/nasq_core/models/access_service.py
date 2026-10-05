@@ -1,6 +1,6 @@
+# Part of Odoo. See LICENSE file for full copyright and licensing details.
 import json
 
-# Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import api, models
 from odoo.exceptions import AccessError, ValidationError
 from odoo.fields import Command
@@ -23,13 +23,13 @@ PMO_PERMISSIONS = {
 MEETINGS_PERMISSIONS = {
     'meetings.read', 'meetings.create', 'meetings.manage',
 }
-# Keep this map aligned with the approved built-in role seeds.  The role XMLIDs
-# are intentional: protected roles may have been created before meeting access
-# was added to the seed files, so the upgrade must repair those exact records.
-BUILTIN_MEETING_PERMISSION_KEYS = {
-    'nasq_core.role_employee': {'meetings.read'},
-    'nasq_core.role_system_admin': MEETINGS_PERMISSIONS,
-    'nasq_core.role_vendor_support': MEETINGS_PERMISSIONS,
+EMPLOYEE_APP_PERMISSIONS = {
+    'hr.employees.read', 'hr.departments.read', 'hr.documents.read',
+    'pmo.projects.read', 'pmo.tasks.read', 'pmo.tasks.create', 'pmo.tasks.write',
+    'meetings.read',
+}
+PROJECT_CONTEXTUAL_PERMISSIONS = {
+    'pmo.projects.manage', 'pmo.tasks.write', 'pmo.tasks.approve',
 }
 CAPABILITIES = frozenset(
     SYSTEM_PERMISSIONS | HR_PERMISSIONS | PMO_PERMISSIONS | MEETINGS_PERMISSIONS,
@@ -74,8 +74,112 @@ class NasqAccessService(models.AbstractModel):
 
     @api.model
     def _nasq_capability_definitions(self):
-        """Pure descriptors composed through super(); preserve the 28 baseline keys."""
+        """Pure descriptors composed through super(); each addon adds only the keys it owns."""
         return tuple({'key': key, 'owner': 'nasq_core'} for key in sorted(CAPABILITIES))
+
+    @api.model
+    def _nasq_permission_dependencies(self):
+        """Permission key -> keys it requires. Applications extend this through super()."""
+        return {key: set(required) for key, required in PERMISSION_DEPENDENCIES.items()}
+
+    @api.model
+    def _nasq_builtin_role_grants(self):
+        """Built-in role xml id -> permission keys it must hold. Applications extend this through super().
+
+        Built-in roles are noupdate records, so _nasq_repair_builtin_role_grants()
+        links these grants on install and again on every upgrade.
+        """
+        return {
+            'nasq_core.role_employee': set(EMPLOYEE_APP_PERMISSIONS),
+            'nasq_core.role_pmo_manager': set(PMO_PERMISSIONS),
+            'nasq_core.role_hr_manager': set(HR_PERMISSIONS),
+            'nasq_core.role_system_admin': SYSTEM_PERMISSIONS | MEETINGS_PERMISSIONS,
+            'nasq_core.role_vendor_support': set(CAPABILITIES),
+        }
+
+    @api.model
+    def _nasq_legacy_capability_keys(self, user):
+        """Keys a user not yet managed by roles holds through legacy groups. Applications extend this."""
+        keys = set()
+        if (
+            user.has_group('nasq_core.group_access_admin')
+            or user.has_group('nasq_core.group_customer_admin')
+        ):
+            keys |= SYSTEM_PERMISSIONS | MEETINGS_PERMISSIONS
+        if (
+            user.has_group('nasq_core.group_hr_manager')
+            or user.has_group('hr.group_hr_manager')
+        ):
+            keys |= HR_PERMISSIONS
+        if (
+            user.has_group('nasq_core.group_pmo_manager')
+            or user.has_group('project.group_project_manager')
+        ):
+            keys |= PMO_PERMISSIONS
+        if user.has_group('nasq_core.group_employee'):
+            keys |= EMPLOYEE_APP_PERMISSIONS
+        return keys
+
+    @api.model
+    def _nasq_record_company(self, record):
+        """Company that scopes RECORD. Applications add fallbacks for records without company_id."""
+        if 'company_id' in record._fields:
+            return record.company_id
+        return record.project_id.company_id
+
+    @api.model
+    def _nasq_contextual_capability(self, user, key, record):
+        """Grant KEY on RECORD beyond assigned roles. Applications extend this through super()."""
+        if key not in PROJECT_CONTEXTUAL_PERMISSIONS:
+            return False
+        project = record if record._name == 'project.project' else record.project_id
+        return bool(project and project.user_id == user)
+
+    @api.model
+    def _nasq_identity_extra(self, user, capabilities):
+        """Contextual roles for /me and the keys they add, as (roles, keys). Applications extend this."""
+        roles = []
+        extra = set()
+        company = self.env.company
+        if (
+            'project.project' in self.env.registry.models
+            and 'pmo.projects.read' in capabilities
+            and self.env['project.project'].with_user(user).search_count([
+            ('user_id', '=', user.id), ('company_id', '=', company.id),
+            ])
+        ):
+            roles.append({
+                'id': None, 'key': 'project_owner',
+                'name': {'ar': 'مسؤول مشروع', 'en': 'Project owner'},
+                'type': 'contextual', 'protected': True, 'source': 'project_owner',
+            })
+            extra |= PROJECT_CONTEXTUAL_PERMISSIONS
+        if (
+            'nasq.pmo.settings' in self.env.registry.models
+            and self._nasq_is_employee_principal(user, company=company)
+            and self.env['nasq.pmo.settings'].with_user(user).get()['project_creators'] == 'employees'
+        ):
+            roles.append({
+                'id': None, 'key': 'project_creation_policy',
+                'name': {'ar': 'سياسة إنشاء المشاريع', 'en': 'Project creation policy'},
+                'type': 'contextual', 'protected': True, 'source': 'policy',
+            })
+            extra.add('pmo.projects.create')
+        return roles, extra
+
+    @api.model
+    def _nasq_customer_actor_keys(self):
+        """Keys that make a user a customer access actor. Applications extend this through super()."""
+        return {
+            'access.users.grant', 'access.users.assign_roles',
+            'access.users.disable', 'access.users.reset_password',
+            'hr.employees.archive',
+        }
+
+    @api.model
+    def _nasq_legacy_admin_roles(self):
+        """Role keys granted to a preserved legacy administrator. Applications extend this through super()."""
+        return ['system_admin', 'hr_manager', 'pmo_manager']
 
     @api.model
     def _nasq_capability_map(self):
@@ -123,49 +227,22 @@ class NasqAccessService(models.AbstractModel):
         )
         keys = {row[0] for row in self.env.cr.fetchall()}
         managed, main_company_id = self._nasq_identity_management_state(user)
-        legacy_current = not managed and main_company_id == company.id
-        if legacy_current and (
-            user.has_group('nasq_core.group_access_admin')
-            or user.has_group('nasq_core.group_customer_admin')
-        ):
-            keys |= SYSTEM_PERMISSIONS | MEETINGS_PERMISSIONS
-        if legacy_current and (
-            user.has_group('nasq_core.group_hr_manager')
-            or user.has_group('hr.group_hr_manager')
-        ):
-            keys |= HR_PERMISSIONS
-        if legacy_current and (
-            user.has_group('nasq_core.group_pmo_manager')
-            or user.has_group('project.group_project_manager')
-        ):
-            keys |= PMO_PERMISSIONS
-        if legacy_current and user.has_group('nasq_core.group_employee'):
-            keys |= {
-                'hr.employees.read', 'hr.departments.read', 'hr.documents.read',
-                'pmo.projects.read', 'pmo.tasks.read', 'pmo.tasks.create', 'pmo.tasks.write',
-                'meetings.read',
-            }
+        if not managed and main_company_id == company.id:
+            keys |= self._nasq_legacy_capability_keys(user)
         return keys
 
     @api.model
     def _nasq_has_capability(self, user, key, record=None, company=None):
         company = company or self.env.company
         if record:
-            record_company = (
-                record.company_id
-                if 'company_id' in record._fields
-                else record.project_id.company_id
-            )
+            record_company = self._nasq_record_company(record)
             if record_company and record_company != company:
                 return False
         if key in self._nasq_capability_keys(user, company=company):
             return True
-        if not record or key not in {
-            'pmo.projects.manage', 'pmo.tasks.write', 'pmo.tasks.approve',
-        }:
+        if not record:
             return False
-        project = record if record._name == 'project.project' else record.project_id
-        return bool(project and project.user_id == user)
+        return bool(self._nasq_contextual_capability(user, key, record))
 
     @api.model
     def _nasq_is_employee_principal(self, user=None, company=None):
@@ -225,33 +302,9 @@ class NasqAccessService(models.AbstractModel):
             'type': row[4], 'protected': row[5], 'source': 'assignment',
         } for row in self.env.cr.fetchall()]
         base_capabilities = self._nasq_capability_keys(user, company=company)
-        if (
-            'project.project' in self.env.registry.models
-            and 'pmo.projects.read' in base_capabilities
-            and self.env['project.project'].with_user(user).search_count([
-            ('user_id', '=', user.id), ('company_id', '=', company.id),
-            ])
-        ):
-            roles.append({
-                'id': None, 'key': 'project_owner',
-                'name': {'ar': 'مسؤول مشروع', 'en': 'Project owner'},
-                'type': 'contextual', 'protected': True, 'source': 'project_owner',
-            })
-        if (
-            'nasq.pmo.settings' in self.env.registry.models
-            and self._nasq_is_employee_principal(user, company=company)
-            and self.env['nasq.pmo.settings'].with_user(user).get()['project_creators'] == 'employees'
-        ):
-            roles.append({
-                'id': None, 'key': 'project_creation_policy',
-                'name': {'ar': 'سياسة إنشاء المشاريع', 'en': 'Project creation policy'},
-                'type': 'contextual', 'protected': True, 'source': 'policy',
-            })
-        capabilities = base_capabilities
-        if any(role['key'] == 'project_owner' for role in roles):
-            capabilities |= {'pmo.projects.manage', 'pmo.tasks.write', 'pmo.tasks.approve'}
-        if any(role['key'] == 'project_creation_policy' for role in roles):
-            capabilities.add('pmo.projects.create')
+        extra_roles, extra_capabilities = self._nasq_identity_extra(user, base_capabilities)
+        roles.extend(extra_roles)
+        capabilities = base_capabilities | extra_capabilities
         return {
             'roles': roles,
             'capabilities': sorted(capabilities),
@@ -558,45 +611,52 @@ class NasqAccessService(models.AbstractModel):
 
     @api.model
     def _nasq_configure_permission_dependencies(self):
+        """Write the composed dependency map. Every addon that adds permissions calls this from its data."""
         Permission = self.env['nasq.access.permission']
-        records = {permission.key: permission for permission in Permission.search([])}
-        for key, dependency_keys in PERMISSION_DEPENDENCIES.items():
+        dependencies = self._nasq_permission_dependencies()
+        keys = set(dependencies).union(*dependencies.values())
+        records = {
+            permission.key: permission
+            for permission in Permission.search([('key', 'in', sorted(keys))])
+        }
+        unknown = keys - set(records)
+        if unknown:
+            msg = 'permission dependency names unknown permissions: %s' % ', '.join(sorted(unknown))
+            raise ValidationError(msg)
+        for key, required in sorted(dependencies.items()):
             records[key].write({
-                'dependency_ids': [(6, 0, [records[item].id for item in dependency_keys])],
+                'dependency_ids': [Command.set([records[item].id for item in sorted(required)])],
             })
         return True
 
     @api.model
-    def _nasq_upgrade_builtin_meeting_permissions(self):
-        """Repair meeting grants on protected roles during a module upgrade.
+    def _nasq_repair_builtin_role_grants(self):
+        """Link every missing built-in grant and never remove a link.
 
-        The built-in role records are seeded with ``noupdate=1``.  Updating the
-        seed XML therefore cannot repair databases that were installed before
-        meeting permissions were added.  This hook links only the approved
-        missing meeting permissions and leaves every existing relation intact.
-        It is private and must run as the superuser from trusted module data.
+        Built-in roles are noupdate records, so seed XML cannot add a grant on
+        an existing database. Every addon that contributes grants calls this
+        from its data after its permission and role records. It is private and
+        must run as the superuser from trusted module data.
         """
         if not self.env.is_superuser():
-            msg = 'builtin meeting permission upgrade requires superuser'
+            msg = 'built-in role grant repair requires superuser'
             raise AccessError(msg)
-
         Permission = self.env['nasq.access.permission']
-        for role_xmlid, permission_keys in BUILTIN_MEETING_PERMISSION_KEYS.items():
-            if not permission_keys <= MEETINGS_PERMISSIONS:
-                msg = 'invalid built-in meeting permission upgrade'
+        for role_xmlid, keys in sorted(self._nasq_builtin_role_grants().items()):
+            role = self.env.ref(role_xmlid, raise_if_not_found=False)
+            if (
+                not role
+                or role._name != 'nasq.access.role'
+                or role.type != 'built_in'
+                or not role.protected
+            ):
+                msg = 'built-in role grant target is missing or not protected: %s' % role_xmlid
                 raise ValidationError(msg)
-
-            role = self.env.ref(role_xmlid)
-            if role.type != 'built_in' or not role.protected:
-                msg = 'built-in meeting permission upgrade target is not protected'
+            permissions = Permission.search([('key', 'in', sorted(keys))])
+            unknown = set(keys) - set(permissions.mapped('key'))
+            if unknown:
+                msg = 'built-in role grant names unknown permissions: %s' % ', '.join(sorted(unknown))
                 raise ValidationError(msg)
-
-            permissions = Permission.browse([
-                self.env.ref(
-                    'nasq_core.permission_%s' % key.replace('.', '_'),
-                ).id
-                for key in sorted(permission_keys)
-            ])
             missing = permissions - role.permission_ids
             if missing:
                 role.write({
@@ -623,8 +683,9 @@ class NasqAccessService(models.AbstractModel):
 
     @api.model
     def _nasq_migrate_legacy_admins(self, candidate_ids):
+        role_keys = self._nasq_legacy_admin_roles()
         roles = self.env['nasq.access.role'].search([
-            ('key', 'in', ['system_admin', 'hr_manager', 'pmo_manager']),
+            ('key', 'in', role_keys),
         ])
         for user in self.env['res.users'].with_context(active_test=False).browse(candidate_ids).exists():
             created = False
@@ -645,7 +706,7 @@ class NasqAccessService(models.AbstractModel):
                 self.env['nasq.access.audit']._nasq_log(
                     'migration.legacy_admin_preserved', user,
                     before={'groups': ['nasq_core.group_customer_admin']},
-                    after={'roles': ['system_admin', 'hr_manager', 'pmo_manager']},
+                    after={'roles': role_keys},
                     actor=False,
                 )
 

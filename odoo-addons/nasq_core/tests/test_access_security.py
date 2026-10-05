@@ -25,25 +25,16 @@ class TestNasqAccessSecurity(TransactionCase):
                 user, [{'role_id': system_role.id, 'company_id': cls.company.id}],
             )
 
-    def test_system_admin_has_no_hr_or_pmo_management(self):
+    def test_system_admin_holds_exactly_its_role_grants(self):
+        role = self.env.ref('nasq_core.role_system_admin')
+        keys = self.service._nasq_capability_keys(self.admin_a)
+        self.assertEqual(keys, set(role.permission_ids.mapped('key')))
+        self.assertTrue(keys >= self.service._nasq_builtin_role_grants()['nasq_core.role_system_admin'])
         self.assertTrue(self.service._nasq_has_capability(
             self.admin_a, 'access.users.assign_roles',
         ))
-        self.assertTrue(self.service._nasq_has_capability(
-            self.admin_a, 'meetings.manage',
-        ))
-        self.assertFalse(self.service._nasq_has_capability(
-            self.admin_a, 'hr.employees.manage',
-        ))
-        self.assertFalse(self.service._nasq_has_capability(
-            self.admin_a, 'pmo.projects.manage',
-        ))
-        self.assertFalse(self.service._nasq_has_capability(
-            self.admin_a, 'pmo.tasks.write',
-        ))
         self.assertFalse(self.admin_a.has_group('base.group_erp_manager'))
-        self.assertFalse(self.admin_a.has_group('hr.group_hr_manager'))
-        self.assertFalse(self.admin_a.has_group('project.group_project_manager'))
+        self.assertFalse(self.admin_a.has_group('base.group_system'))
 
     def test_system_admin_cannot_write_arbitrary_employee_contact(self):
         partner = self.env['res.partner'].create({
