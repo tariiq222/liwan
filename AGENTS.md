@@ -77,8 +77,10 @@ never add an entry or raise a count to make a check pass.
   `nasq.feature.registry` with `owner` set to its addon name, and every route checks its feature.
 
 A new addon is registered in `tools/arch_layers.json` with its rank (0–2 foundation, 3 shared service,
-4 application, 5 bridge, 6 customer overlay) before it is merged. After removing a violation, run
-`python3 -B tools/arch_policy.py --write-baseline` and commit the smaller baseline with the fix.
+4 application, 5 bridge, 6 customer overlay) before it is merged. After removing or moving a violation,
+run `python3 -B tools/arch_policy.py --write-baseline` and commit the updated baseline with the change; the
+command refuses any rule whose total grows. Never delete or hand-edit `tools/arch_baseline.json`, and never
+add to the `exempt` list without the owner's approval; `--base` detects all three.
 
 ### Git workflow
 
@@ -89,9 +91,14 @@ A new addon is registered in `tools/arch_layers.json` with its rank (0–2 found
   `feat fix refactor perf test docs ci build chore` and `scope` from the `<area>` list. One logical change
   per commit. No `wip` commit reaches `main`. A schema change carries its version bump and migration
   directory in the same commit.
-- The orchestrator merges with `git merge --no-ff` after the branch contains current `main`, the focused
-  checks and `npm test` pass, `python3 -B tools/git_policy.py --base origin/main` passes, and the working
-  tree is clean. The merged branch and its worktree are removed the same day.
+- Merging is the orchestrator's job and needs the owner's authorization for that integration. Before
+  merging: merge current `main` into the task branch (never rebase a branch another worker owns); the
+  focused checks and `npm test` pass; `python3 -B tools/git_policy.py --base main` and
+  `python3 -B tools/arch_policy.py --base main` pass (this local run is the binding gate; CI repeats it
+  on push); addon or contract changes are reviewed by the `odoo-reviewer` agent; the working tree is
+  clean. Then `git merge --no-ff`. Removing the merged branch and its worktree also needs the owner's
+  authorization, and happens only after the content is preserved and no process uses it; unmerged work
+  is tagged `archive/<name>` before its branch is removed.
 - Only `main` and tags are pushed, each push with the owner's explicit authorization. Task branches stay
   local unless the owner asks for a pull request. `release/19.0.X.Y.Z` tags on `main` are the releases;
   there is no per-customer branch.
