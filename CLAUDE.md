@@ -34,6 +34,52 @@ for the target and its pending gates; the older
 historical scope. Government packaging from one release line is preferred for
 assessment; a permanent fork is not approved by default.
 
+## Architecture rules (R1–R10)
+
+Spec: [reference architecture and Git workflow](docs/superpowers/specs/2026-10-05-nasq-reference-architecture-and-git-workflow-design.md).
+`tools/arch_policy.py` (runs inside `npm test`) and `tools/git_policy.py` (CI `static` step) enforce these
+rules. Violations that predate them are recorded in `tools/arch_baseline.json`. That baseline only shrinks:
+never add an entry or raise a count to make a check pass.
+
+- **R1** `nasq_core` depends on `base` only and names no application model or group.
+- **R2** Each application owns its capabilities, groups, roles and record rules inside its own addon.
+- **R3** No application imports another application. Two applications are linked by a bridge addon
+  `nasq_<a>_<b>` with `auto_install`. The same holds in `apps/web`: an application folder under
+  `pages/` or `components/` does not use another application's components.
+- **R4** Dependencies point down only: foundation (`nasq_core` ← `nasq_platform` ← `nasq_api`) ← shared
+  services ← applications ← bridges ← `customer_<name>_*`.
+- **R5** The product runs without the control plane. Nothing in `odoo-addons` or `apps/web/app` imports
+  from `apps/control-plane`; no new file references the control plane.
+- **R6** No condition on a customer name or customer type. Differences come from `commercial_mode`,
+  entitlements and `customer_<name>_*` addons.
+- **R7** No new `sudo()` outside the documented cases.
+- **R8** Every feature works in `saas` and `non_saas`, or is explicitly commercial and hidden in `non_saas`.
+- **R9** Customise Odoo through its public extension points only: no edits to Odoo source, no new direct
+  SQL on Odoo tables, no new override of a private access method on an Odoo model without a documented
+  reason and a test, no copied Odoo methods.
+- **R10** Each application registers its `<app>.enabled` feature, sub-features, limits and counters in
+  `nasq.feature.registry` with `owner` set to its addon name, and every route checks its feature.
+
+A new addon is registered in `tools/arch_layers.json` with its rank (0–2 foundation, 3 shared service,
+4 application, 5 bridge, 6 customer overlay) before it is merged. After removing a violation, run
+`python3 -B tools/arch_policy.py --write-baseline` and commit the smaller baseline with the fix.
+
+### Git workflow
+
+- `main` is the only long-lived branch and is always releasable. Task branches are
+  `codex/<area>-<slug>`; throwaway experiments are `spike/<slug>` and are never merged.
+  `<area>` is one of `core platform api pmo hr chat web cp deploy tools docs ci`.
+- Commit subjects are `type(scope): imperative subject`, at most 72 characters, with `type` in
+  `feat fix refactor perf test docs ci build chore` and `scope` from the `<area>` list. One logical change
+  per commit. No `wip` commit reaches `main`. A schema change carries its version bump and migration
+  directory in the same commit.
+- The orchestrator merges with `git merge --no-ff` after the branch contains current `main`, the focused
+  checks and `npm test` pass, `python3 -B tools/git_policy.py --base origin/main` passes, and the working
+  tree is clean. The merged branch and its worktree are removed the same day.
+- Only `main` and tags are pushed, each push with the owner's explicit authorization. Task branches stay
+  local unless the owner asks for a pull request. `release/19.0.X.Y.Z` tags on `main` are the releases;
+  there is no per-customer branch.
+
 ## Repository layout
 
 - `odoo-addons/nasq_core` owns the capability catalog, roles, assignments, access audit, migration and identity protection.
@@ -119,7 +165,7 @@ explicitly; do not assume an Odoo config points at a particular Nasq checkout.
 
 ## Safe worktree workflow
 
-Use one temporary worktree per bounded task, named `codex/<task>`. Worktrees
+Use one temporary worktree per bounded task, named `codex/<area>-<slug>`. Worktrees
 must have independent `node_modules` and `.nuxt` directories; do not symlink
 either one. One writer owns each file, and one orchestrator owns shared files,
 Git integration, runtime state, and final checks. The ownership and collision
@@ -295,8 +341,8 @@ PGHOST=${PGHOST:-127.0.0.1}; PGPORT=${PGPORT:-5432}; PGUSER=${PGUSER:-tariq}
 
 CI is Woodpecker (`.woodpecker.yml`, with the image gate in
 `deploy/woodpecker/image.yml`); GitHub
-Actions is not used. The main pipeline has seven steps—`prepare`, `static`,
-`control-plane`, `odoo`, `upgrade`, `restore-drill`, and `e2e-mock`—and each is
+Actions is not used. The main pipeline has seven steps—`static`,
+`control-plane`, `odoo`, `upgrade`, `restore-drill`, `image`, and `e2e-mock`—and each is
 runnable locally with the same command block in that file: static checks, the
 control-plane PostgreSQL contracts, explicit scratch Odoo install/upgrade
 commands, the backup and restore drill, and the mock Playwright run. The
