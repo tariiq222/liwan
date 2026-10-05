@@ -203,8 +203,8 @@ goes through the `nasq_core` capability service, roles and company-scoped assign
 
 1. the tenant admin `res.users` (Arabic `lang`, `base.group_system`);
 2. `nasq.access.assignment` rows for the built-in roles
-   `nasq_core.role_system_admin`, `nasq_core.role_pmo_manager`,
-   `nasq_core.role_hr_manager` through nasq_core's own model;
+   `nasq_core.role_system_admin`, `nasq_pmo.role_pmo_manager`,
+   `nasq_hr.role_hr_manager` through nasq_core's own model;
 3. the `ACCEPT-A-ONLY` / `ACCEPT-B-ONLY` project;
 4. the `ACCEPT-A-EMP` / `ACCEPT-B-EMP` HR employee.
 

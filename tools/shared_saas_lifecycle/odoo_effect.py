@@ -332,7 +332,7 @@ try:
         admin._nasq_access_write({'login': values['login'], 'name': values['name']}, 'access.users.update')
         profile.root_company_id.write({'name': values['companyName']})
         for key in keys:
-            role = env.ref('nasq_core.role_' + key)
+            role = env.ref({'pmo_manager': 'nasq_pmo', 'hr_manager': 'nasq_hr'}.get(key, 'nasq_core') + '.role_' + key)
             assignment = env['nasq.access.assignment'].search([('user_id', '=', admin.id), ('role_id', '=', role.id), ('company_id', '=', profile.root_company_id.id)])
             if not assignment:
                 env['nasq.access.assignment'].create({'user_id': admin.id, 'role_id': role.id, 'company_id': profile.root_company_id.id})

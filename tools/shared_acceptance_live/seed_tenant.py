@@ -20,10 +20,15 @@ assert env['res.lang'].search([('code', '=', 'ar_001'), ('active', '=', True)], 
 # The seeded admin owns a system role plus the built-in roles that actually grant
 # PMO and HR capability. base.group_system alone does NOT grant them: nasq_core
 # authorizes through the capability service, roles and company-scoped assignments.
-role_keys = ['system_admin', 'pmo_manager', 'hr_manager']
+role_xmlids = {
+    'system_admin': 'nasq_core.role_system_admin',
+    'pmo_manager': 'nasq_pmo.role_pmo_manager',
+    'hr_manager': 'nasq_hr.role_hr_manager',
+}
+role_keys = list(role_xmlids)
 roles = []
 for key in role_keys:
-    role = env.ref('nasq_core.role_%s' % key, raise_if_not_found=False)
+    role = env.ref(role_xmlids[key], raise_if_not_found=False)
     assert role, 'missing built-in role: %s' % key
     assert role.assignable, 'role not assignable: %s' % key
     roles.append(role)

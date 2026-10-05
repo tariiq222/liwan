@@ -6,8 +6,8 @@ env['res.lang']._activate_lang('ar_001')
 company = env.company
 company.currency_id = env.ref('base.SAR')
 for login, name, role in [
-    ('charter_manager', 'Charter Manager', 'role_pmo_manager'),
-    ('charter_reader', 'Charter Reader', 'role_employee'),
+    ('charter_manager', 'Charter Manager', 'nasq_pmo.role_pmo_manager'),
+    ('charter_reader', 'Charter Reader', 'nasq_core.role_employee'),
 ]:
     user = env['res.users'].search([('login', '=', login)], limit=1)
     if not user:
@@ -18,7 +18,7 @@ for login, name, role in [
             'group_ids': [Command.set([env.ref('base.group_user').id])],
         })
         env['nasq.access.assignment']._nasq_access_create([{
-            'user_id': user.id, 'role_id': env.ref('nasq_core.' + role).id,
+            'user_id': user.id, 'role_id': env.ref(role).id,
             'company_id': company.id,
         }])
         user.write({'nasq_access_managed': True})
