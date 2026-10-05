@@ -20,9 +20,10 @@ SPIKE_BRANCH = re.compile(rf'^spike/{SLUG}$')
 
 
 def check_subject(subject: str) -> str | None:
-    if subject.startswith(('Merge ', 'Revert "')):
-        return None
-    if re.match(r'wip\b', subject, re.IGNORECASE):
+    revert = re.fullmatch(r'Revert "(.+)"', subject)
+    if revert:
+        return check_subject(revert.group(1))
+    if re.search(r'\bwip\b', subject, re.IGNORECASE):
         return 'wip commits stay on the task branch and are squashed or reworded before merge'
     if not SUBJECT.match(subject):
         return f"expected 'type(scope): subject' with type in {TYPES} and scope in {AREAS}"

@@ -9,13 +9,21 @@ class TestSubject(unittest.TestCase):
         self.assertIsNone(check_subject('feat(pmo): add milestone reorder endpoint'))
         self.assertIsNone(check_subject('ci(tools): run arch_policy in the static step'))
 
-    def test_merge_and_revert_subjects_are_skipped(self):
-        self.assertIsNone(check_subject("Merge branch 'codex/pmo-reorder'"))
-        self.assertIsNone(check_subject('Revert "feat(pmo): add milestone reorder endpoint"'))
+    def test_merge_subjects_are_no_longer_exempt(self):
+        self.assertIn("expected 'type(scope): subject'", check_subject('Merge stuff'))
+        self.assertIn("expected 'type(scope): subject'", check_subject("Merge branch 'codex/pmo-reorder'"))
+
+    def test_revert_passes_only_when_the_inner_subject_passes(self):
+        self.assertIsNone(check_subject('Revert "feat(pmo): add x"'))
+        self.assertIn('wip commits', check_subject('Revert "wip"'))
+        self.assertIn("expected 'type(scope): subject'", check_subject('Revert "random text"'))
 
     def test_wip_is_rejected_in_any_form(self):
-        for subject in ('wip', 'WIP: stuff', 'wip(pmo): task updates'):
-            self.assertIn('wip commits', check_subject(subject))
+        for subject in ('wip', 'WIP: stuff', 'wip(pmo): task updates', 'fix(pmo): wip on tasks', 'fix(pmo): tasks WIP'):
+            self.assertIn('wip commits', check_subject(subject), subject)
+
+    def test_words_containing_wip_are_allowed(self):
+        self.assertIsNone(check_subject('fix(pmo): wipe stale cache'))
 
     def test_unknown_type_scope_or_missing_scope_is_rejected(self):
         for subject in (
