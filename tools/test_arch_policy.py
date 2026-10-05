@@ -247,6 +247,26 @@ class TestCollect(unittest.TestCase):
         violations, _ = collect(self.root, self.layers)
         self.assertEqual(compare(violations, json.loads(json.dumps(violations))), [])
 
+    def test_root_under_a_tests_directory_is_still_scanned(self):
+        # Root path contains 'tests'; violations in non-test files must still be counted.
+        self.root = Path(self.tmp.name) / 'tests' / 'repo'
+        self.root.mkdir(parents=True)
+        self.layers = {'ranks': {'nasq_core': 0, 'nasq_pmo': 4}, 'exempt': ['web_theme_shadcn'], 'web_apps': WEB_APPS,
+                       'commercial': COMMERCIAL}
+        self.addon('nasq_core', ['base'])
+        self.addon('nasq_pmo', ['nasq_core', 'project'])
+        self.write(
+            'odoo-addons/nasq_pmo/models/feature_registry.py',
+            HEADER + "X = {'key': 'pmo.enabled', 'owner': 'nasq_pmo'}\n",
+        )
+        self.write(
+            'odoo-addons/nasq_pmo/models/project_task.py',
+            HEADER + "class T:\n    def do(self):\n        x = env['res.users'].sudo()\n",
+        )
+        violations, hard = collect(self.root, self.layers)
+        self.assertEqual(hard, [])
+        self.assertEqual(violations['R7'], {'odoo-addons/nasq_pmo/models/project_task.py': 1})
+
 
 class TestMain(unittest.TestCase):
     def setUp(self):

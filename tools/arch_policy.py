@@ -158,10 +158,10 @@ def _put(found: dict[str, int], key: str, value: int) -> None:
         found[key] = value
 
 
-def _addon_files(addon_dir: Path, suffixes: tuple[str, ...]) -> list[Path]:
+def _addon_files(addon_dir: Path, suffixes: tuple[str, ...], root: Path | None = None) -> list[Path]:
     return sorted(
         p for p in addon_dir.rglob('*')
-        if p.is_file() and p.suffix in suffixes and not is_test_path(p)
+        if p.is_file() and p.suffix in suffixes and not is_test_path(p.relative_to(root) if root else p)
         and '__pycache__' not in p.parts and 'i18n' not in p.parts
     )
 
@@ -191,7 +191,7 @@ def collect(root: Path, layers: dict) -> tuple[Violations, list[str]]:
             text = _read(registry) if registry.is_file() else ''
             if not (ENABLED_FEATURE.search(text) and f"'owner': '{addon}'" in text):
                 v['R10'][f'{addon} registers no <app>.enabled feature it owns'] = 1
-        for path in _addon_files(addon_dir, ('.py', '.xml', '.csv')):
+        for path in _addon_files(addon_dir, ('.py', '.xml', '.csv'), root):
             text, rel = _read(path), _rel(path, root)
             if ranks[addon] <= FOUNDATION_MAX_RANK and path.name != '__manifest__.py':
                 _put(v['R2'], rel, count(APP_TOKEN, text))
@@ -211,9 +211,10 @@ def collect(root: Path, layers: dict) -> tuple[Violations, list[str]]:
     web = root / 'apps' / 'web'
     for base in (web / 'app', web / 'server'):
         for path in sorted(base.rglob('*')):
-            if not path.is_file() or path.suffix not in ('.ts', '.vue') or is_test_path(path):
+            rel = _rel(path, root)
+            if not path.is_file() or path.suffix not in ('.ts', '.vue') or is_test_path(Path(rel)):
                 continue
-            text, rel = _read(path), _rel(path, root)
+            text = _read(path)
             _put(v['R5'], f'control-plane import {rel}', count(CONTROL_PLANE_IMPORT, text))
             if not rel.startswith(tuple(commercial['allowed'])):
                 _put(v['R5'], f'commercial import {rel}', count(COMMERCIAL_IMPORT, text))
@@ -221,8 +222,9 @@ def collect(root: Path, layers: dict) -> tuple[Violations, list[str]]:
     for directory, middleware in commercial['pages'].items():
         folder = web / 'app' / 'pages' / directory
         for path in sorted(folder.rglob('*.vue')) if folder.is_dir() else []:
-            if not is_test_path(path) and middleware not in _read(path):
-                v['R8'][f'{_rel(path, root)} lacks {middleware} middleware'] = 1
+            rel = _rel(path, root)
+            if not is_test_path(Path(rel)) and middleware not in _read(path):
+                v['R8'][f'{rel} lacks {middleware} middleware'] = 1
     for app, dirs in web_apps.items():
         folders = [web / 'app' / 'components' / d for d in dirs['components']]
         folders += [web / 'app' / 'pages' / d for d in dirs['pages']]
@@ -230,8 +232,9 @@ def collect(root: Path, layers: dict) -> tuple[Violations, list[str]]:
             if not folder.is_dir():
                 continue
             for path in sorted(folder.rglob('*')):
-                if path.is_file() and path.suffix in ('.ts', '.vue') and not is_test_path(path):
-                    _put(v['R3'], f'web {_rel(path, root)}', foreign_component_uses(_read(path), app, web_apps))
+                rel = _rel(path, root)
+                if path.is_file() and path.suffix in ('.ts', '.vue') and not is_test_path(Path(rel)):
+                    _put(v['R3'], f'web {rel}', foreign_component_uses(_read(path), app, web_apps))
     return v, hard
 
 
