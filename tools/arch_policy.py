@@ -28,7 +28,13 @@ CONTROL_PLANE_IMPORT = re.compile(r"""(?:from|import|require\()\s*\(?['"][^'"\n]
 COMMERCIAL_IMPORT = re.compile(r"""(?:from|import)\s*\(?['"]@nasq/commercial-contracts""")
 CUSTOMER_KIND = re.compile(r'\b(?:government|is_gov|gov_)', re.IGNORECASE)
 SQL_TABLE = re.compile(
-    r'\b(?:FROM|JOIN|UPDATE|INSERT\s+INTO|DELETE\s+FROM)\s+(?!OF\b)"?([a-z][a-z0-9_]*)"?', re.IGNORECASE,
+    r'\b(?:FROM|JOIN|UPDATE|INSERT\s+INTO|DELETE\s+FROM)\s+(?:ONLY\s+)?'
+    r'(?!(?:OF|SET|LATERAL|SELECT|ROWS?|UNNEST|GENERATE_SERIES)\b)"?([a-z][a-z0-9_]*)"?',
+    re.IGNORECASE,
+)
+# Constructs whose FROM is not a table reference: IS DISTINCT FROM and the argument of EXTRACT/SUBSTRING/...
+SQL_NON_TABLE_FROM = re.compile(
+    r'\bIS\s+(?:NOT\s+)?DISTINCT\s+FROM\b|\b(?:EXTRACT|SUBSTRING|TRIM|OVERLAY|POSITION)\s*\([^()]*\)', re.IGNORECASE,
 )
 ODOO_INHERIT = re.compile(r'''_inherit\s*=\s*['"](?!nasq\.)''')
 ACCESS_OVERRIDE = re.compile(r'^\s+def (?:_search|check_access|_check_access)\(', re.MULTILINE)
@@ -126,7 +132,7 @@ def _sql_strings(text: str) -> list[str]:
 def sql_on_odoo_tables(text: str) -> int:
     """R9: SQL passed to execute()/SQL() that names a table that is not a nasq_ table."""
     return sum(
-        1 for sql in _sql_strings(text) for table in SQL_TABLE.findall(sql) if not table.lower().startswith('nasq_')
+        1 for sql in _sql_strings(text) for table in SQL_TABLE.findall(SQL_NON_TABLE_FROM.sub(' ', sql)) if not table.lower().startswith('nasq_')
     )
 
 

@@ -76,6 +76,25 @@ class TestPureRules(unittest.TestCase):
     def test_for_update_of_is_not_a_table(self):
         self.assertEqual(sql_on_odoo_tables("cr.execute('SELECT 1 FROM res_users u FOR UPDATE OF u')"), 1)
 
+    def test_sql_keywords_are_not_tables(self):
+        for sql in (
+            "INSERT INTO nasq_x (a) VALUES (1) ON CONFLICT (a) DO UPDATE SET a = 1",
+            "SELECT 1 FROM nasq_x a JOIN LATERAL (SELECT 1) l ON TRUE",
+            "SELECT EXTRACT(EPOCH FROM created_at) FROM nasq_x",
+            "SELECT 1 FROM nasq_x WHERE a IS DISTINCT FROM b",
+            "SELECT 1 FROM nasq_x WHERE a IS NOT DISTINCT FROM b",
+            "SELECT SUBSTRING(x FROM 2) FROM nasq_x",
+            "SELECT TRIM(BOTH ' ' FROM x) FROM nasq_x",
+            "SELECT 1 FROM nasq_x FOR UPDATE OF u",
+            "SELECT 1 FROM UNNEST(ids) i JOIN GENERATE_SERIES(1, 2) g ON TRUE JOIN nasq_x ON TRUE",
+        ):
+            with self.subTest(sql=sql):
+                self.assertEqual(sql_on_odoo_tables(f"cr.execute({sql!r})"), 0)
+
+    def test_from_only_still_captures_the_table(self):
+        self.assertEqual(sql_on_odoo_tables("cr.execute('SELECT 1 FROM ONLY res_users')"), 1)
+        self.assertEqual(sql_on_odoo_tables("cr.execute('select id from res_users')"), 1)
+
     def test_each_sql_string_counts_once(self):
         self.assertEqual(sql_on_odoo_tables("cr.execute(SQL('select id from res_users'))"), 1)
         self.assertEqual(sql_on_odoo_tables("q = SQL('SELECT 1 FROM res_users')"), 1)
