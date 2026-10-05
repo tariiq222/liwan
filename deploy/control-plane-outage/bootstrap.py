@@ -31,8 +31,8 @@ if user:
 else:
     values['login'] = login
     user = user_model.create(values)
-hr_role = env.ref('nasq_core.role_hr_manager')
-project_role = env.ref('nasq_core.role_pmo_manager')
+hr_role = env.ref('nasq_hr.role_hr_manager')
+project_role = env.ref('nasq_pmo.role_pmo_manager')
 service = env['nasq.access.service'].sudo()
 admin_role = env.ref('nasq_core.role_system_admin')
 service._nasq_replace_assignments(user, [

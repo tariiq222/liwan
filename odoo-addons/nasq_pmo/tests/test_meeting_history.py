@@ -16,12 +16,12 @@ class TestMeetingHistory(NasqPmoCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.employee.group_ids |= (
-            cls.env.ref('nasq_core.group_cap_meetings_read')
-            | cls.env.ref('nasq_core.group_cap_pmo_tasks_read')
+            cls.env.ref('nasq_pmo.group_cap_meetings_read')
+            | cls.env.ref('nasq_pmo.group_cap_pmo_tasks_read')
         )
         cls.manager.group_ids |= (
-            cls.env.ref('nasq_core.group_cap_meetings_manage')
-            | cls.env.ref('nasq_core.group_cap_pmo_tasks_read')
+            cls.env.ref('nasq_pmo.group_cap_meetings_manage')
+            | cls.env.ref('nasq_pmo.group_cap_pmo_tasks_read')
         )
         permissions = cls.env['nasq.access.permission']
         assignments = cls.env['nasq.access.assignment']
@@ -414,7 +414,7 @@ class TestMeetingHistory(NasqPmoCase):
     def test_unauthorized_user_cannot_receive_historical_snapshot(self):
         meeting = self._meeting(organizer_id=self.manager.id, secretary_id=False, attendee_ids=[])
         self._complete(meeting)
-        self.employee.group_ids |= self.env.ref('nasq_core.group_cap_meetings_read')
+        self.employee.group_ids |= self.env.ref('nasq_pmo.group_cap_meetings_read')
         self.authenticate('api_emp', 'api_emp_pass_123')
 
         response = self.api('GET', f'/api/v1/meetings/{meeting.id}')

@@ -344,7 +344,7 @@ class TestAccessAdminRoles(NasqApiCase):
             'user_id': user_b.id, 'role_id': role.id, 'company_id': company_b.id,
         })
 
-        other = self.env.ref('nasq_core.role_hr_manager')
+        other = self.env.ref('nasq_hr.role_hr_manager')
         counts = role_user_counts(role | other)
         self.assertEqual(counts[role.id], before + 1)
         self.assertEqual(counts[role.id], role_user_count(role))

@@ -11,7 +11,6 @@ class TestNasqGroups(TransactionCase):
         vendor = self.env.ref('nasq_core.group_vendor_support')
 
         self.assertIn(self.env.ref('base.group_user'), employee.all_implied_ids)
-        self.assertIn(self.env.ref('project.group_project_user'), employee.all_implied_ids)
 
         # nasq has no time logging (spec 2026-09-04): the employee role must not
         # carry the timesheet group even on a database where hr_timesheet happens
@@ -24,12 +23,14 @@ class TestNasqGroups(TransactionCase):
         self.assertIn(self.env.ref('base.group_user'), admin.all_implied_ids)
         self.assertIn(self.env.ref('nasq_core.group_cap_access_users_assign_roles'), admin.all_implied_ids)
         self.assertNotIn(employee, admin.all_implied_ids)
-        self.assertNotIn(self.env.ref('project.group_project_manager'), admin.all_implied_ids)
-        self.assertNotIn(self.env.ref('hr.group_hr_manager'), admin.all_implied_ids)
         self.assertNotIn(self.env.ref('base.group_erp_manager'), admin.all_implied_ids)
         self.assertNotIn(self.env.ref('base.group_system'), admin.all_implied_ids)
 
         self.assertIn(self.env.ref('base.group_system'), vendor.all_implied_ids)
+
+    def test_core_depends_on_base_only(self):
+        module = self.env['ir.module.module']._get('nasq_core')
+        self.assertEqual(module.dependencies_id.mapped('name'), ['base'])
 
     def test_company_branding_defaults(self):
         company = self.env.ref('base.main_company')
@@ -41,4 +42,3 @@ class TestNasqGroups(TransactionCase):
     def test_admin_is_vendor_support(self):
         admin = self.env.ref('base.user_admin')
         self.assertTrue(admin.has_group('nasq_core.group_vendor_support'))
-        self.assertTrue(admin.has_group('nasq_core.group_employee'))

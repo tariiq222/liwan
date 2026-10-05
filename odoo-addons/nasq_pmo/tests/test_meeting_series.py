@@ -13,8 +13,8 @@ class TestMeetingSeries(NasqPmoCase):
 
     def setUp(self):
         super().setUp()
-        self.employee.group_ids |= self.env.ref('nasq_core.group_cap_meetings_read') | self.env.ref('nasq_core.group_cap_meetings_create')
-        self.manager.group_ids |= self.env.ref('nasq_core.group_cap_meetings_read') | self.env.ref('nasq_core.group_cap_meetings_manage')
+        self.employee.group_ids |= self.env.ref('nasq_pmo.group_cap_meetings_read') | self.env.ref('nasq_pmo.group_cap_meetings_create')
+        self.manager.group_ids |= self.env.ref('nasq_pmo.group_cap_meetings_read') | self.env.ref('nasq_pmo.group_cap_meetings_manage')
 
     def _grant_meeting_create(self):
         role = self.env['nasq.access.role'].create({

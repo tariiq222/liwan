@@ -16,7 +16,7 @@ class TestProjectAdminModel(TransactionCase):
         cls.manager = new_test_user(cls.env, login='pa_mgr',
                                     groups='nasq_core.group_employee,project.group_project_manager')
         cls.admin = new_test_user(
-            cls.env, login='pa_admin', groups='nasq_core.group_pmo_manager',
+            cls.env, login='pa_admin', groups='nasq_pmo.group_pmo_manager',
         )
         cls.project = cls.env['project.project'].create({'name': 'Admin project', 'user_id': cls.employee.id})
         cls.Settings = cls.env['nasq.pmo.settings']

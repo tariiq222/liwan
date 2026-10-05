@@ -6,9 +6,9 @@ env['res.lang']._activate_lang('ar_001')
 company = env.company
 company.currency_id = env.ref('base.SAR')
 users = []
-for login, name, role in [('dashboard_manager', 'مدير المشاريع', 'role_pmo_manager'), ('dashboard_other', 'مدير آخر', 'role_pmo_manager'), ('dashboard_reader', 'قارئ المشاريع', 'role_employee')]:
+for login, name, role in [('dashboard_manager', 'مدير المشاريع', 'nasq_pmo.role_pmo_manager'), ('dashboard_other', 'مدير آخر', 'nasq_pmo.role_pmo_manager'), ('dashboard_reader', 'قارئ المشاريع', 'nasq_core.role_employee')]:
     user = env['res.users'].with_context(no_reset_password=True).create({'name': name, 'login': login, 'password': 'dashboard_test_only_2026', 'lang': 'ar_001', 'company_id': company.id, 'company_ids': [Command.set([company.id])], 'group_ids': [Command.set([env.ref('base.group_user').id])]})
-    env['nasq.access.assignment']._nasq_access_create([{'user_id': user.id, 'role_id': env.ref('nasq_core.' + role).id, 'company_id': company.id}])
+    env['nasq.access.assignment']._nasq_access_create([{'user_id': user.id, 'role_id': env.ref(role).id, 'company_id': company.id}])
     user.write({'nasq_access_managed': True})
     user._nasq_sync_capability_groups()
     users.append(user)

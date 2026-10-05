@@ -1,7 +1,10 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from . import (
+    access_service,
+    entitlement_service,
     feature_registry,
     mail_notification_nasq,
+    meeting_access,
     meeting_minute,
     meeting_resolution,
     meeting_series,

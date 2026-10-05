@@ -1,92 +1,85 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from unittest.mock import patch
 
-from odoo import fields
-from odoo.exceptions import AccessError
+from odoo.exceptions import AccessError, ValidationError
+from odoo.fields import Command
 from odoo.tests import TransactionCase, new_test_user, tagged
-
-from odoo.addons.nasq_core.models.access_service import MEETINGS_PERMISSIONS
 
 
 @tagged('nasq', 'nasq_access')
 class TestNasqAccessMigration(TransactionCase):
 
-    def test_builtin_meeting_upgrade_is_additive_and_idempotent(self):
-        role_xmlids = {
-            'employee': 'nasq_core.role_employee',
-            'pmo_manager': 'nasq_core.role_pmo_manager',
-            'hr_manager': 'nasq_core.role_hr_manager',
-            'system_admin': 'nasq_core.role_system_admin',
-            'vendor_support': 'nasq_core.role_vendor_support',
-        }
-        expected_meetings = {
-            'employee': {'meetings.read'},
-            'pmo_manager': set(),
-            'hr_manager': set(),
-            'system_admin': set(MEETINGS_PERMISSIONS),
-            'vendor_support': set(MEETINGS_PERMISSIONS),
-        }
-        roles = {
-            key: self.env.ref(xmlid).sudo()
-            for key, xmlid in role_xmlids.items()
-        }
-        meeting_permissions = self.env['nasq.access.permission'].sudo().search([
-            ('key', 'in', list(MEETINGS_PERMISSIONS)),
-        ])
+    def test_builtin_role_repair_is_additive_and_idempotent(self):
+        service = self.env['nasq.access.service']
+        grants = service._nasq_builtin_role_grants()
+        audit = self.env['nasq.access.permission'].search([('key', '=', 'access.audit.read')])
+        roles = {role_xmlid: self.env.ref(role_xmlid) for role_xmlid in grants}
 
-        # Recreate the pre-upgrade database state while retaining all other
-        # role links and a custom role for the isolation assertion.
-        for role in roles.values():
-            role.write({
-                'permission_ids': [
-                    fields.Command.unlink(permission.id)
-                    for permission in meeting_permissions
-                ],
-            })
-        nonmeeting_before = {
-            key: set(role.permission_ids.mapped('key')) - MEETINGS_PERMISSIONS
-            for key, role in roles.items()
+        # Recreate a database installed before access.audit.read was seeded.
+        for role_xmlid in ('nasq_core.role_system_admin', 'nasq_core.role_vendor_support'):
+            roles[role_xmlid].write({'permission_ids': [Command.unlink(audit.id)]})
+        before = {
+            role_xmlid: set(role.permission_ids.mapped('key'))
+            for role_xmlid, role in roles.items()
         }
-        custom = self.env['nasq.access.role'].sudo().create({
-            'name_ar': 'دور اختبار الترحيل',
-            'name_en': 'Migration test role',
+        custom = self.env['nasq.access.role'].create({
+            'name_ar': 'دور اختبار الإصلاح',
+            'name_en': 'Repair test role',
             'type': 'custom',
             'company_id': self.env.company.id,
-            'permission_ids': [fields.Command.link(
-                self.env.ref('nasq_core.permission_meetings_read').id,
-            )],
+            'permission_ids': [Command.link(audit.id)],
         })
         custom_keys = set(custom.permission_ids.mapped('key'))
         custom_version = custom.version
 
-        service = self.env['nasq.access.service'].sudo()
-        self.assertTrue(service._nasq_upgrade_builtin_meeting_permissions())
+        self.assertTrue(service._nasq_repair_builtin_role_grants())
 
-        for key, role in roles.items():
-            actual_meetings = set(role.permission_ids.mapped('key')) & MEETINGS_PERMISSIONS
-            self.assertEqual(actual_meetings, expected_meetings[key])
-            self.assertEqual(
-                set(role.permission_ids.mapped('key')) - MEETINGS_PERMISSIONS,
-                nonmeeting_before[key],
-            )
+        for role_xmlid, role in roles.items():
+            keys = set(role.permission_ids.mapped('key'))
+            self.assertTrue(grants[role_xmlid] <= keys, role_xmlid)
+            self.assertEqual(keys - before[role_xmlid], grants[role_xmlid] - before[role_xmlid], role_xmlid)
+        self.assertIn('access.audit.read', roles['nasq_core.role_system_admin'].permission_ids.mapped('key'))
+        self.assertIn('access.audit.read', roles['nasq_core.role_vendor_support'].permission_ids.mapped('key'))
         self.assertEqual(set(custom.permission_ids.mapped('key')), custom_keys)
         self.assertEqual(custom.version, custom_version)
 
-        versions_after_first_run = {
-            key: role.version for key, role in roles.items()
-        }
-        self.assertTrue(service._nasq_upgrade_builtin_meeting_permissions())
-        self.assertEqual(
-            {key: role.version for key, role in roles.items()},
-            versions_after_first_run,
-        )
+        versions = {role_xmlid: role.version for role_xmlid, role in roles.items()}
+        self.assertTrue(service._nasq_repair_builtin_role_grants())
+        self.assertEqual({role_xmlid: role.version for role_xmlid, role in roles.items()}, versions)
 
-    def test_builtin_meeting_upgrade_requires_superuser(self):
+    def test_builtin_role_repair_requires_superuser(self):
         user = new_test_user(
-            self.env, login='meeting_upgrade_non_superuser', groups='base.group_user',
+            self.env, login='role_repair_non_superuser', groups='base.group_user',
         )
         with self.assertRaisesRegex(AccessError, 'requires superuser'):
-            self.env['nasq.access.service'].with_user(user)._nasq_upgrade_builtin_meeting_permissions()
+            self.env['nasq.access.service'].with_user(user)._nasq_repair_builtin_role_grants()
+
+    def test_builtin_role_repair_refuses_an_unknown_permission(self):
+        service_class = type(self.env['nasq.access.service'])
+        with patch.object(
+            service_class, '_nasq_builtin_role_grants',
+            return_value={'nasq_core.role_employee': {'missing.capability.key'}},
+        ), self.assertRaisesRegex(ValidationError, 'missing.capability.key'):
+            self.env['nasq.access.service']._nasq_repair_builtin_role_grants()
+
+    def test_dependencies_are_written_from_the_composed_map(self):
+        service = self.env['nasq.access.service']
+        Permission = self.env['nasq.access.permission']
+        for key, required in service._nasq_permission_dependencies().items():
+            permission = Permission.search([('key', '=', key)])
+            self.assertEqual(set(permission.dependency_ids.mapped('key')), required, key)
+        grant = Permission.search([('key', '=', 'access.users.grant')])
+        grant.write({'dependency_ids': [Command.clear()]})
+        self.assertTrue(service._nasq_configure_permission_dependencies())
+        self.assertEqual(
+            set(grant.dependency_ids.mapped('key')), {'access.users.read', 'access.roles.read'},
+        )
+        service_class = type(service)
+        with patch.object(
+            service_class, '_nasq_permission_dependencies',
+            return_value={'access.users.grant': {'missing.capability.key'}},
+        ), self.assertRaisesRegex(ValidationError, 'missing.capability.key'):
+            service._nasq_configure_permission_dependencies()
 
     def test_legacy_admin_preservation_is_idempotent_and_excludes_vendor(self):
         legacy = new_test_user(
@@ -111,6 +104,8 @@ class TestNasqAccessMigration(TransactionCase):
         inactive.write({'active': False})
 
         service = self.env['nasq.access.service']
+        expected_roles = set(service._nasq_legacy_admin_roles())
+        self.assertIn('system_admin', expected_roles)
         candidate_ids = service._nasq_capture_legacy_admin_ids()
         self.assertIn(legacy.id, candidate_ids)
         self.assertIn(inherited.id, candidate_ids)
@@ -123,7 +118,7 @@ class TestNasqAccessMigration(TransactionCase):
             keys = set(self.env['nasq.access.assignment'].search([
                 ('user_id', '=', user.id),
             ]).role_id.mapped('key'))
-            self.assertEqual(keys, {'system_admin', 'hr_manager', 'pmo_manager'})
+            self.assertEqual(keys, expected_roles)
             self.assertEqual(self.env['nasq.access.audit'].search_count([
                 ('action', '=', 'migration.legacy_admin_preserved'),
                 ('target_id', '=', user.id),
@@ -139,9 +134,10 @@ class TestNasqAccessMigration(TransactionCase):
         service = self.env['nasq.access.service']
         params.set_param('nasq_core.legacy_access_admin_ids', '[%s]' % legacy.id)
         service._nasq_apply_legacy_admin_snapshot()
+        system_role = self.env.ref('nasq_core.role_system_admin')
         self.env['nasq.access.assignment'].search([
             ('user_id', '=', legacy.id),
-            ('role_id', '=', self.env.ref('nasq_core.role_hr_manager').id),
+            ('role_id', '=', system_role.id),
         ]).unlink()
 
         service._nasq_snapshot_legacy_admins()
@@ -149,7 +145,7 @@ class TestNasqAccessMigration(TransactionCase):
 
         self.assertFalse(self.env['nasq.access.assignment'].search_count([
             ('user_id', '=', legacy.id),
-            ('role_id', '=', self.env.ref('nasq_core.role_hr_manager').id),
+            ('role_id', '=', system_role.id),
         ]))
 
     def test_failed_migration_rolls_back_and_can_be_retried(self):
@@ -192,7 +188,7 @@ class TestNasqAccessMigration(TransactionCase):
         service._nasq_apply_legacy_admin_snapshot()
         self.assertEqual(self.env['nasq.access.assignment'].search_count([
             ('user_id', '=', legacy.id),
-        ]), 3)
+        ]), len(service._nasq_legacy_admin_roles()))
         self.assertEqual(self.env['nasq.access.audit'].search_count([
             ('action', '=', 'migration.legacy_admin_preserved'),
             ('target_id', '=', legacy.id),

@@ -4,6 +4,22 @@ from odoo.tools import email_normalize
 
 from odoo.addons.nasq_core.models.access_service import NasqAccessRule
 
+HR_PERMISSIONS = frozenset({
+    'hr.employees.read', 'hr.employees.manage', 'hr.employees.archive',
+    'hr.employees.access_status.read', 'hr.departments.read',
+    'hr.departments.manage', 'hr.documents.read', 'hr.documents.manage',
+})
+EMPLOYEE_HR_PERMISSIONS = frozenset({
+    'hr.employees.read', 'hr.departments.read', 'hr.documents.read',
+})
+HR_PERMISSION_DEPENDENCIES = {
+    'hr.employees.manage': {'hr.employees.read'},
+    'hr.employees.archive': {'hr.employees.read'},
+    'hr.employees.access_status.read': {'hr.employees.read'},
+    'hr.departments.manage': {'hr.departments.read'},
+    'hr.documents.manage': {'hr.documents.read'},
+}
+
 
 class NasqHrAccessService(models.AbstractModel):
     _inherit = 'nasq.access.service'
@@ -13,6 +29,84 @@ class NasqHrAccessService(models.AbstractModel):
         rule = self.env.ref('nasq_hr.nasq_hr_document_company_rule')
         rule.write({'domain_force': "[('company_id', '=', company_id)]"})
         return True
+
+    @api.model
+    def _nasq_capability_definitions(self):
+        return super()._nasq_capability_definitions() + tuple(
+            {'key': key, 'owner': 'nasq_hr'} for key in sorted(HR_PERMISSIONS)
+        )
+
+    @api.model
+    def _nasq_permission_dependencies(self):
+        dependencies = super()._nasq_permission_dependencies()
+        for key, required in HR_PERMISSION_DEPENDENCIES.items():
+            dependencies[key] = dependencies.get(key, set()) | required
+        return dependencies
+
+    @api.model
+    def _nasq_builtin_role_grants(self):
+        grants = super()._nasq_builtin_role_grants()
+        for role_xmlid, keys in (
+            ('nasq_hr.role_hr_manager', HR_PERMISSIONS),
+            ('nasq_core.role_employee', EMPLOYEE_HR_PERMISSIONS),
+            ('nasq_core.role_vendor_support', HR_PERMISSIONS),
+        ):
+            grants[role_xmlid] = grants.get(role_xmlid, set()) | keys
+        return grants
+
+    @api.model
+    def _nasq_legacy_capability_keys(self, user):
+        keys = super()._nasq_legacy_capability_keys(user)
+        if (
+            user.has_group('nasq_hr.group_hr_manager')
+            or user.has_group('hr.group_hr_manager')
+        ):
+            keys |= HR_PERMISSIONS
+        if user.has_group('nasq_core.group_employee'):
+            keys |= EMPLOYEE_HR_PERMISSIONS
+        return keys
+
+    @api.model
+    def _nasq_customer_actor_keys(self):
+        return super()._nasq_customer_actor_keys() | {'hr.employees.archive'}
+
+    @api.model
+    def _nasq_legacy_admin_roles(self):
+        return [*super()._nasq_legacy_admin_roles(), 'hr_manager']
+
+    @api.model
+    def _nasq_disable_linked_user_from_hr(self, employee_id, user_id, expected_user_version):
+        self._nasq_require_capability('hr.employees.archive')
+        user = self.env['res.users'].browse(user_id).exists()
+        if not user:
+            msg = 'not_found'
+            raise NasqAccessRule(msg, status=404)
+        self._nasq_assert_user_scope(user)
+        if user == self.env.user:
+            msg = 'self_access_change'
+            raise NasqAccessRule(msg)
+        if user.has_group('nasq_core.group_vendor_support'):
+            msg = 'protected_user'
+            raise NasqAccessRule(msg, status=403)
+        self._nasq_lock_company(user.company_id)
+        self.env.invalidate_all()
+        self._nasq_require_capability('hr.employees.archive')
+        user = self.env['res.users'].with_context(active_test=False).browse(user.id).exists()
+        self._nasq_assert_user_scope(user)
+        self._nasq_check_user_version(user, expected_user_version)
+        self._nasq_assert_user_scope(user)
+        if self._nasq_has_capability(
+            user, 'access.users.assign_roles', company=user.company_id,
+        ):
+            self._nasq_assert_admin_survives(user.company_id, excluding_user=user)
+        user._nasq_access_write({'active': False}, 'hr.employees.archive')
+        self.env['nasq.access.audit']._nasq_log(
+            'employee.archived_access_disabled', user,
+            before={'active': True, 'employee_id': employee_id},
+            after={'active': False, 'employee_id': employee_id},
+        )
+        self._nasq_bump_policy(user.company_id)
+        self.env.cr.postcommit.add(self.env.registry.clear_cache)
 
     def _nasq_hr_text(self, value):
         if not isinstance(value, dict):

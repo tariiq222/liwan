@@ -12,10 +12,10 @@ class TestMeetingWorkspace(NasqPmoCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.employee.group_ids |= (
-            cls.env.ref('nasq_core.group_cap_meetings_read')
-            | cls.env.ref('nasq_core.group_cap_meetings_create')
-            | cls.env.ref('nasq_core.group_cap_pmo_projects_read')
-            | cls.env.ref('nasq_core.group_cap_pmo_tasks_read')
+            cls.env.ref('nasq_pmo.group_cap_meetings_read')
+            | cls.env.ref('nasq_pmo.group_cap_meetings_create')
+            | cls.env.ref('nasq_pmo.group_cap_pmo_projects_read')
+            | cls.env.ref('nasq_pmo.group_cap_pmo_tasks_read')
         )
         permissions = cls.env['nasq.access.permission'].search([
             ('key', 'in', ['meetings.read', 'meetings.create', 'pmo.projects.read', 'pmo.tasks.read']),
@@ -37,7 +37,7 @@ class TestMeetingWorkspace(NasqPmoCase):
             name='Workspace outsider', groups='nasq_core.group_employee',
             company_id=cls.env.company.id, company_ids=[cls.env.company.id],
         )
-        cls.outsider.group_ids |= cls.env.ref('nasq_core.group_cap_meetings_read')
+        cls.outsider.group_ids |= cls.env.ref('nasq_pmo.group_cap_meetings_read')
         cls.env['nasq.access.assignment'].create({
             'user_id': cls.outsider.id,
             'role_id': role.id,

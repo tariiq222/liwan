@@ -2,7 +2,7 @@
 {
     'name': 'nasq PMO',
     'summary': 'nasq platform: the project pillar — /api/v1 tasks, timeline, projects (status, stages), people',
-    'version': '19.0.1.1.0',
+    'version': '19.0.1.2.0',
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
     'license': 'LGPL-3',
@@ -13,8 +13,13 @@
     # project: _inherit'd model and CLOSED_STATES. hr: hr.employee.public in
     # controllers/people.py. mail: message_post / _message_post_after_hook in the
     # timeline. bus: bus.bus in the task notifier.
+    # nasq_pmo owns the pmo.* and meetings.* capabilities, their groups, the
+    # pmo_manager role and the meeting record rules (spec R2); the meeting part
+    # moves to nasq_meetings in phase 2b.
     'depends': ['nasq_api', 'nasq_platform', 'project', 'hr', 'mail', 'bus', 'cyan_meeting_minutes'],
     'data': [
+        'security/pmo_capability_groups.xml',
+        'data/pmo_access_permissions.xml',
         'security/project_finance_rules.xml',
         'security/ir.model.access-finance.csv',
         'security/ir.model.access.csv',
@@ -25,6 +30,7 @@
         'security/nasq_pmo_rules.xml',
         'security/ir.model.access-meetings.csv',
         'security/meeting_series_rules.xml',
+        'security/meeting_access.xml',
         'security/project_charter_rules.xml',
         'data/nasq_pmo_data.xml',
         'data/nasq_project_sequence.xml',

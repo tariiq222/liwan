@@ -25,7 +25,7 @@ class TestEmployeeModel(TransactionCase):
             company_ids=[cls.company.id],
         )
         cls.service._nasq_replace_assignments(cls.hr_manager, [{
-            'role_id': cls.env.ref('nasq_core.role_hr_manager').id,
+            'role_id': cls.env.ref('nasq_hr.role_hr_manager').id,
             'company_id': cls.company.id,
         }])
         cls.hook_service = cls.env['nasq.access.service'].with_user(cls.access_admin)

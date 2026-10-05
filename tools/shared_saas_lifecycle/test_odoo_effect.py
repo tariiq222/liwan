@@ -124,8 +124,13 @@ class PackageAdministratorScriptTests(unittest.TestCase):
                     return admin
                 if xmlid == 'nasq_core.group_vendor_support':
                     return SimpleNamespace(id=99)
-                if xmlid.startswith('nasq_core.role_'):
-                    return SimpleNamespace(id=xmlid.removeprefix('nasq_core.role_'))
+                role_keys = {
+                    'nasq_core.role_system_admin': 'system_admin',
+                    'nasq_pmo.role_pmo_manager': 'pmo_manager',
+                    'nasq_hr.role_hr_manager': 'hr_manager',
+                }
+                if xmlid in role_keys:
+                    return SimpleNamespace(id=role_keys[xmlid])
                 raise AssertionError(xmlid)
             def invalidate_all(self, **kwargs):
                 pass

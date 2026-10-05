@@ -25,7 +25,7 @@ class TestHrDepartments(NasqHrCase):
             name='Dept Admin', groups='nasq_core.group_employee',
         )
         cls.env['nasq.access.service']._nasq_replace_assignments(cls.admin, [{
-            'role_id': cls.env.ref('nasq_core.role_hr_manager').id,
+            'role_id': cls.env.ref('nasq_hr.role_hr_manager').id,
             'company_id': cls.env.company.id,
         }])
         cls.dept_a = cls.env['hr.department'].create({'name': 'Engineering'})

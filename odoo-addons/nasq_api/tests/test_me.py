@@ -92,10 +92,10 @@ class TestMeEndpoint(HttpCase):
             self.env, login='me_multi_role', password='me_multi_role_pass_123',
             groups='nasq_core.group_employee',
         )
-        for key in ('hr_manager', 'pmo_manager'):
+        for role_xmlid in ('nasq_hr.role_hr_manager', 'nasq_pmo.role_pmo_manager'):
             self.env['nasq.access.assignment'].create({
                 'user_id': user.id,
-                'role_id': self.env.ref(f'nasq_core.role_{key}').id,
+                'role_id': self.env.ref(role_xmlid).id,
                 'company_id': self.env.company.id,
             })
         self.authenticate('me_multi_role', 'me_multi_role_pass_123')

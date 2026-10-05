@@ -15,7 +15,7 @@ class TestSettings(NasqPmoCase):
         super().setUpClass()
         cls.admin = new_test_user(
             cls.env, login='api_admin', password='api_admin_pass_123',
-            groups='nasq_core.group_pmo_manager',
+            groups='nasq_pmo.group_pmo_manager',
         )
 
     def setUp(self):

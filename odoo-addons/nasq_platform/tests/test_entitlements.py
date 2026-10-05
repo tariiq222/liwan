@@ -141,7 +141,7 @@ class TestEntitlements(TransactionCase):
             'branches.extra_limit',
         })
         capability_map = self.env['nasq.access.service']._nasq_capability_map()
-        self.assertEqual(set(capability_map), set(CAPABILITIES))
+        self.assertTrue(set(capability_map) >= CAPABILITIES)
         self.assertEqual(len(capability_map), 28)
         self.assertNotIn('probe.inspect', capability_map)
         self.assertNotIn('probe.enabled', self.features._nasq_feature_map())
