@@ -1,4 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+import unittest
+
 from odoo.tests import TransactionCase, new_test_user, tagged
 
 SYSTEM = frozenset({
@@ -53,6 +55,13 @@ class TestAccessComposition(TransactionCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
+        installed = {
+            module.name
+            for module in cls.env['ir.module.module'].search([('name', 'in', ['nasq_hr', 'nasq_pmo']), ('state', '=', 'installed')])
+        }
+        if installed != {'nasq_hr', 'nasq_pmo'}:
+            reason = 'needs nasq_hr and nasq_pmo installed'
+            raise unittest.SkipTest(reason)
         cls.service = cls.env['nasq.access.service']
         cls.Permission = cls.env['nasq.access.permission']
 
