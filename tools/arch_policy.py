@@ -9,6 +9,7 @@ import argparse
 import ast
 import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -145,6 +146,53 @@ def compare(current: Violations, baseline: Violations) -> list[str]:
     return increases(current, baseline) + stale(current, baseline)
 
 
+def rule_totals(v: Violations) -> dict[str, int]:
+    return {rule: sum(keys.values()) for rule, keys in v.items()}
+
+
+def totals_growth(new: dict[str, int], old: dict[str, int], label: str) -> list[str]:
+    return [
+        f'{rule}: baseline total {have} exceeds {label} total {old.get(rule, 0)}'
+        for rule, have in sorted(new.items()) if have > old.get(rule, 0)
+    ]
+
+
+class UnknownRef(RuntimeError):
+    pass
+
+
+def _git_show(root: Path, ref: str, rel: str) -> str | None:
+    """File content at REF, or None when only that path is missing there."""
+    verify = subprocess.run(
+        ['git', 'rev-parse', '--verify', '--quiet', f'{ref}^{{commit}}'],
+        cwd=root, capture_output=True, text=True, check=False, shell=False,
+    )
+    if verify.returncode != 0:
+        raise UnknownRef(f"git rev-parse {ref} failed: unknown ref '{ref}'")
+    done = subprocess.run(
+        ['git', 'show', f'{ref}:{rel}'], cwd=root, capture_output=True, text=True, check=False, shell=False,
+    )
+    return done.stdout if done.returncode == 0 else None
+
+
+def ratchet_problems(
+    ref: str, root: Path, layers_file: Path, baseline_file: Path, totals: dict[str, int], baseline_exists: bool,
+) -> list[str]:
+    """Compare the baseline totals and the exempt list with the same files at REF."""
+    ref_baseline = _git_show(root, ref, baseline_file.relative_to(root).as_posix())
+    ref_layers = _git_show(root, ref, layers_file.relative_to(root).as_posix())
+    problems = []
+    if ref_baseline is not None:
+        if not baseline_exists:
+            problems.append(f'baseline file deleted; restore it from {ref}')
+        problems += totals_growth(totals, rule_totals(json.loads(ref_baseline)), ref)
+    if ref_layers is not None:
+        old_exempt = set(json.loads(ref_layers).get('exempt', []))
+        new_exempt = json.loads(_read(layers_file)).get('exempt', [])
+        problems += [f'exempt list grew: {addon}' for addon in new_exempt if addon not in old_exempt]
+    return problems
+
+
 def _read(path: Path) -> str:
     return path.read_text(encoding='utf-8', errors='replace')
 
@@ -245,21 +293,30 @@ def main(
     baseline_file: Path = BASELINE_FILE,
 ) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--write-baseline', action='store_true', help='record the current violations; refuses any increase')
+    parser.add_argument('--write-baseline', action='store_true', help='record the current violations; refuses any rule total increase')
+    parser.add_argument('--base', metavar='REF', help='also ratchet the baseline and exempt list against this git ref')
     args = parser.parse_args(argv)
     current, hard = collect(root, json.loads(_read(layers_file)))
     exists = baseline_file.is_file()
     baseline = json.loads(_read(baseline_file)) if exists else {}
+    # The totals that end up on disk: today's violations when writing, the file itself when checking.
+    totals = rule_totals(current) if args.write_baseline else rule_totals(baseline)
+    try:
+        ratchet = ratchet_problems(args.base, root, layers_file, baseline_file, totals, exists or args.write_baseline) if args.base else []
+    except UnknownRef as error:
+        sys.stderr.write(f'{error}\n')
+        return 2
     if args.write_baseline:
-        # The first write records today's debt; every later write may only shrink it.
-        problems = hard + (increases(current, baseline) if exists else [])
+        # The first write records today's debt; every later write may only keep or shrink each rule total.
+        growth = totals_growth(totals, rule_totals(baseline), 'existing baseline') if exists else []
+        problems = hard + growth + ratchet
         if not problems:
             baseline_file.write_text(
                 json.dumps(current, indent=2, sort_keys=True, ensure_ascii=False) + '\n', encoding='utf-8',
             )
             print(f'wrote {baseline_file.name}')
     else:
-        problems = hard + compare(current, baseline)
+        problems = hard + compare(current, baseline) + ratchet
     for problem in problems:
         print(problem, file=sys.stderr)
     return 1 if problems else 0

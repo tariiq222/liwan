@@ -1,5 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 import json
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -14,6 +15,7 @@ from arch_policy import (
     main,
     odoo_access_overrides,
     routes_without_feature,
+    rule_totals,
     sql_on_odoo_tables,
     sudo_calls,
     unregistered_addons,
@@ -314,6 +316,124 @@ class TestMain(unittest.TestCase):
         self.layers_file.write_text('{', encoding='utf-8')
         with self.assertRaises(json.JSONDecodeError):
             self.run_main()
+
+    def test_rule_totals_sum_per_rule(self):
+        self.assertEqual(rule_totals({'R7': {'a': 2, 'b': 3}, 'R1': {}}), {'R7': 5, 'R1': 0})
+
+    def test_renamed_key_is_accepted_by_write_baseline_when_total_holds(self):
+        self.run_main('--write-baseline')
+        self.depends(['base', 'hr'])
+        self.assertEqual(self.run_main(), 1)
+        self.assertEqual(self.run_main('--write-baseline'), 0)
+        self.assertEqual(json.loads(self.baseline_file.read_text())['R1'], {'nasq_core depends on hr': 1})
+        self.assertEqual(self.run_main(), 0)
+
+    def test_total_increase_is_refused_even_when_a_key_is_renamed(self):
+        self.run_main('--write-baseline')
+        before = self.baseline_file.read_text()
+        self.depends(['base', 'hr', 'sale'])
+        self.assertEqual(self.run_main('--write-baseline'), 1)
+        self.assertEqual(self.baseline_file.read_text(), before)
+
+
+class TestBaseRef(unittest.TestCase):
+    """--base REF ratchets the baseline and exempt list against a git ref (real git repo)."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.root = Path(self.tmp.name)
+        self.layers_file = self.root / 'tools' / 'arch_layers.json'
+        self.baseline_file = self.root / 'tools' / 'arch_baseline.json'
+        self.layers_file.parent.mkdir()
+        self.set_layers(exempt=['web_theme_shadcn'])
+        for name in ('a', 'b'):
+            manifest = self.root / 'odoo-addons' / f'nasq_{name}' / '__manifest__.py'
+            manifest.parent.mkdir(parents=True)
+            manifest.write_text(HEADER + repr({'name': name, 'depends': ['nasq_core']}), encoding='utf-8')
+        core = self.root / 'odoo-addons' / 'nasq_core' / '__manifest__.py'
+        core.parent.mkdir(parents=True)
+        core.write_text(HEADER + repr({'name': 'core', 'depends': ['base']}), encoding='utf-8')
+        self.sudo('a', 2)
+        self.git('init', '-q', '-b', 'main')
+
+    def set_layers(self, exempt):
+        self.layers_file.write_text(json.dumps({
+            'ranks': {'nasq_core': 0, 'nasq_a': 4, 'nasq_b': 4}, 'exempt': exempt, 'web_apps': {},
+            'commercial': {'pages': {}, 'allowed': []},
+        }), encoding='utf-8')
+
+    def sudo(self, name, n):
+        path = self.root / 'odoo-addons' / f'nasq_{name}' / 'models' / 'm.py'
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(HEADER + "x = env['a']" + '.sudo()' * n + '\n' if n else HEADER, encoding='utf-8')
+
+    def git(self, *args):
+        return subprocess.run(
+            ['git', '-c', 'user.name=t', '-c', 'user.email=t@t', *args],
+            cwd=self.root, check=True, capture_output=True, text=True, shell=False,
+        )
+
+    def commit_base(self):
+        self.git('add', '-A')
+        self.git('commit', '-q', '-m', 'base')
+
+    def run_main(self, *argv):
+        return main(list(argv), root=self.root, layers_file=self.layers_file, baseline_file=self.baseline_file)
+
+    def adopt(self):
+        self.assertEqual(self.run_main('--write-baseline'), 0)
+        self.commit_base()
+
+    def test_unchanged_tree_passes(self):
+        self.adopt()
+        self.assertEqual(self.run_main('--base', 'main'), 0)
+
+    def test_first_adoption_has_no_ratchet_problems(self):
+        self.commit_base()
+        self.assertEqual(self.run_main('--write-baseline'), 0)
+        self.assertEqual(self.run_main('--base', 'main'), 0)
+
+    def test_deleted_baseline_then_rewrite_is_caught(self):
+        self.adopt()
+        self.baseline_file.unlink()
+        self.assertEqual(self.run_main('--base', 'main'), 1)
+        self.sudo('a', 5)
+        self.assertEqual(self.run_main('--write-baseline'), 0)
+        self.assertEqual(self.run_main('--base', 'main'), 1)
+
+    def test_write_baseline_with_base_refuses_growth_over_the_ref(self):
+        self.adopt()
+        self.baseline_file.unlink()
+        self.sudo('a', 5)
+        before_exists = self.baseline_file.exists()
+        self.assertEqual(self.run_main('--write-baseline', '--base', 'main'), 1)
+        self.assertEqual(self.baseline_file.exists(), before_exists)
+
+    def test_hand_raised_count_is_caught(self):
+        self.adopt()
+        data = json.loads(self.baseline_file.read_text())
+        key = next(iter(data['R7']))
+        data['R7'][key] += 3
+        self.baseline_file.write_text(json.dumps(data), encoding='utf-8')
+        self.sudo('a', 5)
+        self.assertEqual(self.run_main(), 0)
+        self.assertEqual(self.run_main('--base', 'main'), 1)
+
+    def test_exempt_growth_is_caught(self):
+        self.adopt()
+        self.set_layers(exempt=['web_theme_shadcn', 'nasq_new'])
+        self.assertEqual(self.run_main('--base', 'main'), 1)
+
+    def test_file_move_is_accepted_by_base(self):
+        self.adopt()
+        (self.root / 'odoo-addons/nasq_a/models/m.py').rename(self.root / 'odoo-addons/nasq_a/models/n.py')
+        self.assertEqual(self.run_main('--write-baseline', '--base', 'main'), 0)
+        self.assertEqual(self.run_main('--base', 'main'), 0)
+
+    def test_unknown_ref_exits_two(self):
+        self.adopt()
+        self.assertEqual(self.run_main('--base', 'no-such-ref'), 2)
 
 
 class TestRepository(unittest.TestCase):
