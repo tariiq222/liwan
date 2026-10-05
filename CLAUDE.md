@@ -92,7 +92,9 @@ another application) needs the owner's approval, recorded by the owner as an
 
 ## Repository layout
 
-- `odoo-addons/nasq_core` owns the capability catalog, roles, assignments, access audit, migration and identity protection.
+- `odoo-addons/nasq_core` depends on `base` only. It owns the access service, the nine system capabilities, the
+  built-in `employee`, `system_admin` and `vendor_support` roles, assignments, access audit, migration and identity
+  protection. Applications add their capabilities to the catalog through `nasq.access.service` hooks.
 - `odoo-addons/nasq_platform` owns the tenant profile singleton and `root_company_id`.
 - `odoo-addons/nasq_api` owns shared `/api/v1` plumbing, common serializers,
   authentication, branding, and the shared test fixture. It does not import a
@@ -102,11 +104,14 @@ another application) needs the owner's approval, recorded by the owner as an
   and `/api/v1/people` (the task assignee picker, whose ids are `res.users`
   ids).
 - `odoo-addons/nasq_hr` owns the HR directory, departments, documents, HR
-  serializers/controllers, and `/api/v1/hr/*` (employee ids are
-  `hr.employee` ids).
+  serializers/controllers, `/api/v1/hr/*` (employee ids are
+  `hr.employee` ids), and the eight `hr.*` capabilities, their groups and the
+  `hr_manager` role.
 - `odoo-addons/cyan_meeting_minutes` provides the preserved LGPL meeting engine.
   Nasq meeting routes, serializers, task conversion and recipient notifications
-  extend it through `nasq_pmo`; `nasq_core` owns meeting capability grants.
+  extend it through `nasq_pmo`, which also owns the eight `pmo.*` and three
+  `meetings.*` capabilities, their groups, the `pmo_manager` role and the meeting
+  record rules until `nasq_meetings` exists (spec 3.2.1).
 - `packages/contracts/src/common`, `src/access`, `src/pmo`, and `src/hr` hold the Zod wire
   contracts; each namespace has a barrel re-exported from `src/index.ts`.
 - `apps/web` holds Nuxt pages, components, composables, and per-pillar locale
@@ -239,6 +244,16 @@ worktrees only after their content is preserved and no process is using them.
   `not_found`, and 422 `invalid`. Never use `type='http'` for JSON or
   `auth='bearer'` for browser traffic. Never use `sudo()` to dodge an access
   error; fix the group or record rule.
+- An application registers its capabilities by extending `nasq.access.service`
+  through `super()`: `_nasq_capability_definitions` (with `owner` set to the
+  addon), `_nasq_permission_dependencies`, `_nasq_builtin_role_grants`, and when
+  needed `_nasq_legacy_capability_keys`, `_nasq_record_company`,
+  `_nasq_contextual_capability`, `_nasq_identity_extra`,
+  `_nasq_customer_actor_keys` and `_nasq_legacy_admin_roles`. Its data declares
+  its groups, permission records and role, then calls
+  `_nasq_configure_permission_dependencies` and `_nasq_repair_builtin_role_grants`.
+  Moving an xml id between addons needs a `pre-` migration that renames the
+  `ir_model_data` row.
 - Serializers whitelist fields explicitly: shared shapes belong in
   `nasq_api/serializers`, PMO shapes in `nasq_pmo/serializers`, and HR shapes
   in `nasq_hr/serializers`. Never send a raw ORM `read()` result. Every write

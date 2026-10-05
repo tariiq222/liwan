@@ -96,7 +96,9 @@ No production deployment or DNS cutover is implied by this repository.
 - `packages/contracts` contains the Zod wire contracts. Shared contracts live
   under `src/common`; PMO contracts under `src/pmo`; HR contracts under
   `src/hr`.
-- `odoo-addons/nasq_core` owns groups and branding defaults;
+- `odoo-addons/nasq_core` depends on `base` only and owns the access service,
+  the system capabilities and branding defaults; each application owns its own
+  capabilities, groups and roles;
   `nasq_api` owns shared API plumbing; `nasq_pmo` owns projects/tasks and the
   user-id people picker; `nasq_hr` owns HR routes, documents, and employee
   directory behavior.
