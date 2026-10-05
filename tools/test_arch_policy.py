@@ -100,6 +100,44 @@ class TestPureRules(unittest.TestCase):
         self.assertEqual(sql_on_odoo_tables("q = SQL('SELECT 1 FROM res_users')"), 1)
         self.assertEqual(sql_on_odoo_tables("cr.execute('SELECT 1 FROM res_users')"), 1)
 
+    def test_sql_through_a_local_variable_is_counted(self):
+        text = "def f(self):\n    query = 'SELECT id FROM res_users'\n    self.env.cr.execute(query)\n"
+        self.assertEqual(sql_on_odoo_tables(text), 1)
+        ann = "def f(self):\n    query: str = 'SELECT id FROM res_users'\n    self.env.cr.execute(query)\n"
+        self.assertEqual(sql_on_odoo_tables(ann), 1)
+        fstr = "def f(self, w):\n    query = f'SELECT id FROM res_users WHERE {w}'\n    self.env.cr.execute(query)\n"
+        self.assertEqual(sql_on_odoo_tables(fstr), 1)
+
+    def test_augmented_assignment_adds_its_table(self):
+        text = (
+            "def f(self):\n    query = 'SELECT 1 FROM nasq_x'\n    query += ' JOIN res_users u ON 1=1'\n"
+            "    self.env.cr.execute(query)\n"
+        )
+        self.assertEqual(sql_on_odoo_tables(text), 1)
+
+    def test_same_named_variable_in_another_function_is_not_counted(self):
+        text = (
+            "def a(self):\n    query = 'SELECT 1 FROM res_users'\n    return query\n"
+            "def b(self):\n    query = 'SELECT 1 FROM nasq_x'\n    self.env.cr.execute(query)\n"
+        )
+        self.assertEqual(sql_on_odoo_tables(text), 0)
+
+    def test_variable_passed_twice_or_to_two_executes_counts_once(self):
+        twice = "def f(self):\n    q = 'SELECT 1 FROM res_users'\n    self.env.cr.execute(q, (q,))\n"
+        self.assertEqual(sql_on_odoo_tables(twice), 1)
+        two = "def f(self):\n    q = 'SELECT 1 FROM res_users'\n    cr.execute(q)\n    cr.execute(q)\n"
+        self.assertEqual(sql_on_odoo_tables(two), 1)
+
+    def test_variable_holding_sql_wrapper_counts_once(self):
+        text = "def f(self):\n    query = 'SELECT 1 FROM res_users'\n    self.env.cr.execute(SQL(query))\n"
+        self.assertEqual(sql_on_odoo_tables(text), 1)
+        wrapped = "def f(self):\n    q = SQL('SELECT 1 FROM res_users')\n    self.env.cr.execute(q)\n"
+        self.assertEqual(sql_on_odoo_tables(wrapped), 1)
+
+    def test_module_level_variable_is_counted_for_module_level_calls(self):
+        text = "QUERY = 'SELECT 1 FROM res_users'\ncr.execute(QUERY)\n"
+        self.assertEqual(sql_on_odoo_tables(text), 1)
+
     def test_sql_ignores_prose_and_unrelated_calls(self):
         text = "def f():\n    \"\"\"returns rows from the cache\"\"\"\n    # select x from y\n    log('update res_users')\n"
         self.assertEqual(sql_on_odoo_tables(text), 0)

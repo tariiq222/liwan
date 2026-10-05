@@ -110,22 +110,68 @@ def routes_without_feature(text: str) -> list[str]:
     return missing
 
 
+def _scope_nodes(scope: ast.AST) -> list[ast.AST]:
+    """Nodes of one function body (or the module), not descending into nested functions."""
+    found: list[ast.AST] = []
+    stack = list(ast.iter_child_nodes(scope))
+    while stack:
+        node = stack.pop()
+        found.append(node)
+        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            stack.extend(ast.iter_child_nodes(node))
+    return found
+
+
+def _string_constants(node: ast.AST) -> list[ast.Constant]:
+    return [n for n in ast.walk(node) if isinstance(n, ast.Constant) and isinstance(n.value, str)]
+
+
 def _sql_strings(text: str) -> list[str]:
-    """String constants (f-string literal parts included) inside arguments of `.execute(...)` / `SQL(...)`."""
+    """String constants (f-string literal parts included) inside arguments of `.execute(...)` / `SQL(...)`.
+
+    A Name argument also contributes the strings assigned to that name in the same function (module-level
+    calls: module-level assignments), through `=`, annotated `=` and `+=`.
+    """
+    tree = ast.parse(text)
     seen: set[int] = set()
     strings: list[str] = []
-    for node in ast.walk(ast.parse(text)):
-        if not isinstance(node, ast.Call):
-            continue
-        func = node.func
-        name = func.attr if isinstance(func, ast.Attribute) else getattr(func, 'id', '')
-        if name not in ('execute', 'SQL'):
-            continue
-        for arg in [*node.args, *(kw.value for kw in node.keywords)]:
-            for n in ast.walk(arg):
-                if isinstance(n, ast.Constant) and isinstance(n.value, str) and id(n) not in seen:
-                    seen.add(id(n))
-                    strings.append(n.value)
+
+    def collect(node: ast.AST) -> None:
+        for const in _string_constants(node):
+            if id(const) not in seen:
+                seen.add(id(const))
+                strings.append(const.value)
+
+    scopes = [tree, *(n for n in ast.walk(tree) if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)))]
+    for scope in scopes:
+        nodes = _scope_nodes(scope)
+        assigned: dict[str, list[ast.AST]] = {}
+        for node in nodes:
+            if isinstance(node, ast.Assign):
+                targets = [t.id for t in node.targets if isinstance(t, ast.Name)]
+            elif isinstance(node, (ast.AnnAssign, ast.AugAssign)) and isinstance(node.target, ast.Name):
+                targets = [node.target.id]
+            else:
+                continue
+            if node.value is not None:
+                for name in targets:
+                    assigned.setdefault(name, []).append(node.value)
+        for node in nodes:
+            if not isinstance(node, ast.Call):
+                continue
+            func = node.func
+            name = func.attr if isinstance(func, ast.Attribute) else getattr(func, 'id', '')
+            if name not in ('execute', 'SQL'):
+                continue
+            pending = [*node.args, *(kw.value for kw in node.keywords)]
+            resolved: set[str] = set()
+            while pending:
+                arg = pending.pop()
+                collect(arg)
+                for n in ast.walk(arg):
+                    if isinstance(n, ast.Name) and n.id not in resolved:
+                        resolved.add(n.id)
+                        pending.extend(assigned.get(n.id, []))
     return strings
 
 
