@@ -4,6 +4,7 @@
     "nasq_platform": 1,
     "nasq_api": 2,
     "nasq_directory": 3,
+    "nasq_notify": 3,
     "nasq_pmo": 4,
     "nasq_hr": 4,
     "nasq_chat": 4

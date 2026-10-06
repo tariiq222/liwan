@@ -10,6 +10,7 @@ from . import (
     meeting_resolution,
     meeting_series,
     nasq_settings,
+    notification_types,
     project_charter_reference,
     project_finance,
     project_governance,

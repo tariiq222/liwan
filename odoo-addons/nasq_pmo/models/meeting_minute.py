@@ -4,7 +4,6 @@ from datetime import date, datetime, timedelta
 
 from odoo import api, fields, models
 from odoo.exceptions import AccessError, UserError, ValidationError
-from odoo.tools.mail import plaintext2html
 
 _CALENDAR_IMPORT = ContextVar('nasq_calendar_import', default=False)
 _CALENDAR_OUTBOUND = ContextVar('nasq_calendar_outbound', default=frozenset())
@@ -61,35 +60,15 @@ class CyanMeetingMinute(models.Model):
 
     def _nasq_notify_partners(self, partners, kind, body, key=None):
         self.ensure_one()
-        Message = self.env['mail.message'].sudo()
+        service = self.env['nasq.notify.service']
         for partner in partners:
-            if not partner:
-                continue
-            full_key = f'{key}:{partner.id}' if key else False
-            if full_key and Message.search_count([('nasq_notification_key', '=', full_key)]):
-                continue
-            values = {
-                'model': self._name,
-                'res_id': self.id,
-                'nasq_meeting_id': self.id,
-                'nasq_notification': True,
-                'nasq_notification_kind': kind,
-                'nasq_notification_key': full_key,
-                'message_type': 'notification',
-                'is_internal': True,
-                'author_id': self.env.user.partner_id.id,
-                'subtype_id': self.env.ref('mail.mt_note').id,
-                'body': plaintext2html(body),
-                'partner_ids': [(4, partner.id)],
-            }
-            message = Message.create(values)
-            self.env['mail.notification'].sudo().create({
-                'author_id': message.author_id.id,
-                'mail_message_id': message.id,
-                'notification_status': 'sent',
-                'notification_type': 'inbox',
-                'res_partner_id': partner.id,
-            })
+            # The per-recipient suffix keeps the pre-split key format, so a
+            # producer that runs again after an upgrade delivers nothing new.
+            service._nasq_deliver(
+                self._name, self.id, kind, partner, body,
+                key=f'{key}:{partner.id}' if key else None,
+                values={'nasq_meeting_id': self.id},
+            )
 
     def _nasq_sync_calendar(self):
         self.ensure_one()

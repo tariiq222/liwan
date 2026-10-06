@@ -31,6 +31,62 @@ class TestTaskNotifications(NasqPmoCase):
             ('mail_message_id.nasq_notification', '=', True),
         ]).unlink()
 
+    def test_pmo_registers_its_notification_kinds(self):
+        registry = self.env['nasq.notify.registry']
+        types = registry._nasq_notification_type_map()
+        pmo = [kind for kind, item in types.items() if item['owner'] == 'nasq_pmo']
+        self.assertEqual(pmo, [
+            'assignment', 'comment', 'mention', 'deadline', 'overdue_digest',
+            'meeting_invite', 'meeting_resolution', 'meeting_converted', 'meeting_changed',
+            'meeting_cancelled', 'meeting_reminder', 'meeting_resolution_overdue',
+        ])
+        self.assertEqual({types[kind]['feature_key'] for kind in pmo[:5]}, {'pmo.enabled'})
+        self.assertEqual({types[kind]['feature_key'] for kind in pmo[5:]}, {'meetings.enabled'})
+        self.assertEqual({types[kind]['model'] for kind in pmo[:4]}, {'project.task'})
+        self.assertEqual(types['overdue_digest']['model'], 'res.company')
+        self.assertEqual({types[kind]['model'] for kind in pmo[5:]}, {'cyan.meeting.minute'})
+        self.assertEqual(registry._nasq_notify_live_kinds(), ('overdue_digest',))
+        self.assertEqual(registry._nasq_notify_feature_keys(), ('pmo.enabled', 'meetings.enabled'))
+        self.assertEqual(self.env['mail.message']._fields['nasq_notification_kind'].get_values(self.env), pmo)
+
+    def test_delivery_keys_keep_their_pre_split_format(self):
+        Message = self.env['mail.message'].sudo()
+        Task = self.env['project.task']
+        now = fields.Datetime.now()
+        task = Task.create({
+            'name': 'Key format', 'project_id': self.project.id, 'company_id': self.env.company.id,
+            'user_ids': [(4, self.other.id)], 'date_deadline': now + timedelta(hours=6),
+        })
+        Task._nasq_run_deadline_notifications(now=now)
+        Task._nasq_run_deadline_notifications(now=now)
+        deadline = fields.Datetime.to_string(task.date_deadline)
+        self.assertEqual(
+            Message.search([('nasq_notification_kind', '=', 'deadline'), ('nasq_task_id', '=', task.id)]).mapped('nasq_notification_key'),
+            [f'deadline:{task.id}:{self.other.partner_id.id}:{deadline}'],
+        )
+        meeting = self.env['cyan.meeting.minute'].create({
+            'state': 'draft', 'name': 'Key format meeting', 'organizer_id': self.manager.id,
+        })
+        partners = self.other.partner_id | self.employee.partner_id
+        expected = sorted(f'meeting-invite:{meeting.id}:{partner.id}' for partner in partners)
+        meeting._nasq_notify_partners(partners, 'meeting_invite', 'Key format', key=f'meeting-invite:{meeting.id}')
+        count = Message.search_count([('nasq_meeting_id', '=', meeting.id)])
+        meeting._nasq_notify_partners(partners, 'meeting_invite', 'Key format', key=f'meeting-invite:{meeting.id}')
+        self.assertEqual(Message.search_count([('nasq_meeting_id', '=', meeting.id)]), count)
+        self.assertEqual(sorted(Message.search([('nasq_notification_key', 'in', expected)]).mapped('nasq_notification_key')), expected)
+        meeting._nasq_notify_partners(self.other.partner_id, 'meeting_changed', 'Moved')
+        meeting._nasq_notify_partners(self.other.partner_id, 'meeting_changed', 'Moved')
+        changed = Message.search([('nasq_meeting_id', '=', meeting.id), ('nasq_notification_kind', '=', 'meeting_changed')])
+        self.assertEqual(len(changed), 2, 'meeting_changed has no idempotency key')
+        self.assertEqual(set(changed.mapped('nasq_notification_key')), {False})
+        key = f'overdue_digest:{self.env.company.id}:{self.manager.partner_id.id}:2026-01-02'
+        for _attempt in range(2):
+            Task._nasq_create_digest_notification(
+                company=self.env.company, partner=self.manager.partner_id, body='1 overdue tasks',
+                key=key, overdue_count=1, local_date='2026-01-02',
+            )
+        self.assertEqual(Message.search_count([('nasq_notification_key', '=', key)]), 1)
+
     def test_assignment_is_recipient_owned_and_actor_is_excluded(self):
         task = self.env['project.task'].with_user(self.manager).create({
             'name': 'Notify Nora', 'project_id': self.project.id,

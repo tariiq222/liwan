@@ -12,13 +12,17 @@
     # `-u nasq_pmo` must install it directly instead of relying on the caller to
     # upgrade nasq_api as well.
     # nasq_directory: /api/v1/people and its population; nasq_pmo registers the
-    # feature keys that open it.
+    # feature keys that open it. nasq_notify: bell delivery and the type
+    # registry; nasq_pmo registers its kinds and keeps its producers.
     # project: _inherit'd model and CLOSED_STATES. mail: message_post /
     # _message_post_after_hook in the timeline. bus: bus.bus in the task notifier.
     # nasq_pmo owns the pmo.* and meetings.* capabilities, their groups, the
     # pmo_manager role and the meeting record rules (spec R2); the meeting part
     # moves to nasq_meetings in phase 2b-2.
-    'depends': ['nasq_api', 'nasq_platform', 'nasq_directory', 'project', 'mail', 'bus', 'cyan_meeting_minutes'],
+    'depends': [
+        'nasq_api', 'nasq_platform', 'nasq_directory', 'nasq_notify',
+        'project', 'mail', 'bus', 'cyan_meeting_minutes',
+    ],
     'data': [
         'security/pmo_capability_groups.xml',
         'data/pmo_access_permissions.xml',

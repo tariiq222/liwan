@@ -2,14 +2,13 @@
 import json
 from datetime import datetime, time, timedelta
 
-from psycopg2 import IntegrityError
 from pytz import UTC
 from pytz import timezone as pytz_timezone
 from pytz.exceptions import UnknownTimeZoneError
 
 from odoo import api, fields, models
 from odoo.exceptions import AccessError
-from odoo.tools import html2plaintext, plaintext2html
+from odoo.tools import html2plaintext
 
 SCAN_BATCH = 200
 
@@ -100,45 +99,10 @@ class ProjectTaskNotifications(models.Model):
 
     def _nasq_create_notification(self, *, kind, partner, body, key=None):
         self.ensure_one()
-        Message = self.env['mail.message'].sudo()
-        if key and Message.search_count([('nasq_notification_key', '=', key)]):
-            return False
-        values = {
-            'model': self._name,
-            'res_id': self.id,
-            'nasq_task_id': self.id,
-            'nasq_notification': True,
-            'nasq_notification_kind': kind,
-            'nasq_notification_key': key,
-            'message_type': 'notification',
-            'is_internal': True,
-            'author_id': self.env.user.partner_id.id,
-            'subtype_id': self.env.ref('mail.mt_note').id,
-            'body': plaintext2html(body),
-            'partner_ids': [(4, partner.id)],
-        }
-        try:
-            # A flushing savepoint executes and clears every precommit callback
-            # and policy marker. Keep notification uniqueness isolated without
-            # flushing unrelated task/access operations mid-transaction.
-            with self.env.cr.savepoint(flush=False):
-                message = Message.create(values)
-                self.env['mail.notification'].sudo().create({
-                    'author_id': message.author_id.id,
-                    'mail_message_id': message.id,
-                    'notification_status': 'sent',
-                    'notification_type': 'inbox',
-                    'res_partner_id': partner.id,
-                })
-        except IntegrityError as error:
-            # Concurrent cron workers may race on the deterministic key. The
-            # unique index makes the loser a harmless retry; other integrity
-            # failures must still reach the caller.
-            constraint = getattr(getattr(error, 'diag', None), 'constraint_name', '')
-            if key and 'nasq_notification_key' in constraint:
-                return False
-            raise
-        return message
+        messages = self.env['nasq.notify.service']._nasq_deliver(
+            self._name, self.id, kind, partner, body, key=key, values={'nasq_task_id': self.id},
+        )
+        return messages or False
 
     @api.model
     def _nasq_user_local_now(self, user, now):
@@ -152,42 +116,16 @@ class ProjectTaskNotifications(models.Model):
 
     @api.model
     def _nasq_create_digest_notification(self, *, company, partner, body, key, overdue_count, local_date, task_ids=()):
-        Message = self.env['mail.message'].sudo()
-        if key and Message.search_count([('nasq_notification_key', '=', key)]):
-            return False
-        values = {
-            'model': 'res.company',
-            'res_id': company.id,
-            'nasq_task_id': False,
-            'nasq_notification': True,
-            'nasq_notification_kind': 'overdue_digest',
-            'nasq_notification_key': key,
-            'nasq_digest_count': overdue_count,
-            'nasq_digest_date': local_date,
-            'nasq_digest_task_ids': json.dumps([int(task_id) for task_id in task_ids]),
-            'message_type': 'notification',
-            'is_internal': True,
-            'author_id': self.env.user.partner_id.id,
-            'subtype_id': self.env.ref('mail.mt_note').id,
-            'body': plaintext2html(body),
-            'partner_ids': [(4, partner.id)],
-        }
-        try:
-            with self.env.cr.savepoint(flush=False):
-                message = Message.create(values)
-                self.env['mail.notification'].sudo().create({
-                    'author_id': message.author_id.id,
-                    'mail_message_id': message.id,
-                    'notification_status': 'sent',
-                    'notification_type': 'inbox',
-                    'res_partner_id': partner.id,
-                })
-        except IntegrityError as error:
-            constraint = getattr(getattr(error, 'diag', None), 'constraint_name', '')
-            if key and 'nasq_notification_key' in constraint:
-                return False
-            raise
-        return message
+        messages = self.env['nasq.notify.service']._nasq_deliver(
+            'res.company', company.id, 'overdue_digest', partner, body, key=key,
+            values={
+                'nasq_task_id': False,
+                'nasq_digest_count': overdue_count,
+                'nasq_digest_date': local_date,
+                'nasq_digest_task_ids': json.dumps([int(task_id) for task_id in task_ids]),
+            },
+        )
+        return messages or False
 
     @api.model
     def _nasq_digest_snapshot_ids(self, message):

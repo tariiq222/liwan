@@ -5,24 +5,23 @@ from odoo import fields, models
 class NasqMailMessage(models.Model):
     _inherit = 'mail.message'
 
+    # nasq_notify declares nasq_notification, nasq_notification_key and the
+    # unique index too; nasq_pmo hands them over in 19.0.1.3.0.
     nasq_notification = fields.Boolean('nasq Notification', index=True, copy=False)
-    nasq_notification_kind = fields.Selection(
-        [
-            ('assignment', 'Assignment'),
-            ('comment', 'Comment'),
-            ('mention', 'Mention'),
-            ('deadline', 'Deadline'),
-            ('overdue_digest', 'Overdue digest'),
-            ('meeting_invite', 'Meeting invite'),
-            ('meeting_resolution', 'Meeting resolution'),
-            ('meeting_converted', 'Meeting converted'),
-            ('meeting_changed', 'Meeting changed'),
-            ('meeting_cancelled', 'Meeting cancelled'),
-            ('meeting_reminder', 'Meeting reminder'),
-            ('meeting_resolution_overdue', 'Meeting resolution overdue'),
-        ],
-        string='nasq Notification Kind', copy=False, index=True,
-    )
+    nasq_notification_kind = fields.Selection(selection_add=[
+        ('assignment', 'Assignment'),
+        ('comment', 'Comment'),
+        ('mention', 'Mention'),
+        ('deadline', 'Deadline'),
+        ('overdue_digest', 'Overdue digest'),
+        ('meeting_invite', 'Meeting invite'),
+        ('meeting_resolution', 'Meeting resolution'),
+        ('meeting_converted', 'Meeting converted'),
+        ('meeting_changed', 'Meeting changed'),
+        ('meeting_cancelled', 'Meeting cancelled'),
+        ('meeting_reminder', 'Meeting reminder'),
+        ('meeting_resolution_overdue', 'Meeting resolution overdue'),
+    ])
     nasq_meeting_id = fields.Integer(copy=False, index=True)
     nasq_notification_key = fields.Char('nasq Notification Key', copy=False, index=True)
     nasq_task_id = fields.Many2one('project.task', string='nasq Task', index=True, copy=False, ondelete='cascade')
