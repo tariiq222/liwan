@@ -52,10 +52,7 @@ class TimelineController(http.Controller):
 
     def _mentioned_users(self, ids):
         # Same population as the /api/v1/people picker, in the caller's environment.
-        users = request.env['res.users'].search([
-            ('id', 'in', ids), ('active', '=', True), ('share', '=', False),
-            ('company_ids', 'in', [request.env.company.id]),
-        ])
+        users = request.env['nasq.directory']._nasq_people(ids)
         if len(users) != len(ids):
             raise ApiError(422, 'invalid', "mentions must be people of the current company", field='mentions')
         return users

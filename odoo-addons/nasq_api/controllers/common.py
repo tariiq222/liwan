@@ -39,11 +39,7 @@ def error_response(status, code, message, field=None, details=None):
     return request.make_json_response(body, status=status)
 
 
-def requires_feature(*keys, operation='write', match='all'):
-    """Declare the entitlement key(s) a route needs. Default operation is write."""
-    if not keys:
-        msg = 'requires_feature keys are required'
-        raise ValueError(msg)
+def _check_feature_args(operation, match):
     if operation not in ('read', 'write'):
         msg = 'requires_feature operation must be read or write'
         raise ValueError(msg)
@@ -51,29 +47,85 @@ def requires_feature(*keys, operation='write', match='all'):
         msg = 'requires_feature match must be all or any'
         raise ValueError(msg)
 
+
+def _feature_error(keys, operation, match):
+    """The NasqAccessRule a feature gate raises for ``keys``, or None when the route may run.
+
+    With ``match='any'`` the error of the last failing key is kept.
+    """
+    service = request.env['nasq.entitlement.service']
+    check = service.require if operation == 'write' else service.require_read
+    error = None
+    for key in keys:
+        try:
+            check(key)
+            if match == 'any':
+                error = None
+                break
+        except NasqAccessRule as exc:
+            error = exc
+            if match == 'all':
+                break
+    return error
+
+
+def _raise_feature_error(func, error):
+    routing = getattr(func, 'routing', None) or {}
+    if routing.get('type') == 'http':
+        raise AccessError(error.message)
+    raise error
+
+
+def requires_feature(*keys, operation='write', match='all'):
+    """Declare the entitlement key(s) a route needs. Default operation is write."""
+    if not keys:
+        msg = 'requires_feature keys are required'
+        raise ValueError(msg)
+    _check_feature_args(operation, match)
+
     def decorator(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            service = request.env['nasq.entitlement.service']
-            check = service.require if operation == 'write' else service.require_read
-            error = None
-            for key in keys:
-                try:
-                    check(key)
-                    if match == 'any':
-                        error = None
-                        break
-                except NasqAccessRule as exc:
-                    error = exc
-                    if match == 'all':
-                        break
+            error = _feature_error(keys, operation, match)
             if error:
-                routing = getattr(func, 'routing', None) or {}
-                if routing.get('type') == 'http':
-                    raise AccessError(error.message)
-                raise error
+                _raise_feature_error(func, error)
             return func(*args, **kwargs)
         wrapper._nasq_feature_keys = keys
+        wrapper._nasq_feature_operation = operation
+        wrapper._nasq_feature_match = match
+        return wrapper
+    return decorator
+
+
+def requires_registered_feature(model, method, *, keys, operation='write', match='any'):
+    """Gate a route on the feature keys that installed addons register at request time.
+
+    ``request.env[model].<method>()`` returns those keys, so a shared service
+    names no application. When nothing is registered the route answers 403
+    ``feature_not_included``. ``keys`` only documents the gate: it is what
+    tools/api_surface.py records and what the route-coverage test reads; it
+    is never checked.
+    """
+    if not keys or not all(isinstance(key, str) and key for key in keys):
+        msg = 'requires_registered_feature keys must document the gate'
+        raise ValueError(msg)
+    _check_feature_args(operation, match)
+
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            registered = tuple(getattr(request.env[model], method)())
+            if registered:
+                error = _feature_error(registered, operation, match)
+            else:
+                error = NasqAccessRule(
+                    'feature_not_included', 'this feature is not included', status=403,
+                    details={'reason': 'feature', 'feature': None},
+                )
+            if error:
+                _raise_feature_error(func, error)
+            return func(*args, **kwargs)
+        wrapper._nasq_feature_keys = tuple(keys)
         wrapper._nasq_feature_operation = operation
         wrapper._nasq_feature_match = match
         return wrapper

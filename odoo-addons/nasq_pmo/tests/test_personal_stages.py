@@ -19,15 +19,3 @@ class TestPersonalStagesAndLookups(NasqPmoCase):
         self.authenticate('api_emp', 'api_emp_pass_123')
         items = self.api('GET', '/api/v1/projects?minimal=1').json()
         self.assertIn({'id': self.project.id, 'name': 'Erada Portal'}, items)
-
-    def test_people_minimal(self):
-        self.env['hr.employee'].create({'name': 'Sara E', 'user_id': self.employee.id})
-        self.authenticate('api_emp', 'api_emp_pass_123')
-        items = self.api('GET', '/api/v1/people?q=sara').json()
-        self.assertEqual(items, [{'id': self.employee.id, 'name': 'Sara', 'user_id': self.employee.id}])
-
-    def test_people_bad_limit_is_422(self):
-        self.authenticate('api_emp', 'api_emp_pass_123')
-        res = self.api('GET', '/api/v1/people?limit=abc')
-        self.assertEqual(res.status_code, 422)
-        self.assertEqual(res.json()['field'], 'limit')

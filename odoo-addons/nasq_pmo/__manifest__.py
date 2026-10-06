@@ -1,22 +1,24 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 {
     'name': 'nasq PMO',
-    'summary': 'nasq platform: the project pillar — /api/v1 tasks, timeline, projects (status, stages), people',
+    'summary': 'nasq platform: the project pillar — /api/v1 tasks, timeline, projects (status, stages)',
     'version': '19.0.1.2.0',
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
     'license': 'LGPL-3',
-    # nasq_api: shared api_handler/ApiError + the iso() serializer helper + NasqApiCase.
+    # nasq_api: shared api_handler/ApiError, the iso() serializer helper, the
+    # shared attachment validator and NasqApiCase.
     # nasq_platform: the pre-backfill migration reads nasq.tenant.profile, and a
     # `-u nasq_pmo` must install it directly instead of relying on the caller to
     # upgrade nasq_api as well.
-    # project: _inherit'd model and CLOSED_STATES. hr: hr.employee.public in
-    # controllers/people.py. mail: message_post / _message_post_after_hook in the
-    # timeline. bus: bus.bus in the task notifier.
+    # nasq_directory: /api/v1/people and its population; nasq_pmo registers the
+    # feature keys that open it.
+    # project: _inherit'd model and CLOSED_STATES. mail: message_post /
+    # _message_post_after_hook in the timeline. bus: bus.bus in the task notifier.
     # nasq_pmo owns the pmo.* and meetings.* capabilities, their groups, the
     # pmo_manager role and the meeting record rules (spec R2); the meeting part
-    # moves to nasq_meetings in phase 2b.
-    'depends': ['nasq_api', 'nasq_platform', 'project', 'hr', 'mail', 'bus', 'cyan_meeting_minutes'],
+    # moves to nasq_meetings in phase 2b-2.
+    'depends': ['nasq_api', 'nasq_platform', 'nasq_directory', 'project', 'mail', 'bus', 'cyan_meeting_minutes'],
     'data': [
         'security/pmo_capability_groups.xml',
         'data/pmo_access_permissions.xml',
