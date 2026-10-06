@@ -25196,7 +25196,7 @@
     },
     "/api/v1/notifications": {
       "get": {
-        "operationId": "nasq_pmo.NotificationController.list_notifications.get",
+        "operationId": "nasq_notify.NotificationController.list_notifications.get",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -25215,18 +25215,17 @@
         ],
         "summary": "list_notifications",
         "tags": [
-          "nasq_pmo"
+          "nasq_notify"
         ],
         "x-nasq": {
-          "addon": "nasq_pmo",
+          "addon": "nasq_notify",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "pmo",
           "controller": "NotificationController",
           "feature_keys": [
-            "pmo.enabled",
-            "meetings.enabled"
+            "registry:nasq.notify.registry"
           ],
           "feature_operation": "read",
           "handler": "list_notifications",
@@ -25237,7 +25236,7 @@
     },
     "/api/v1/notifications/read-all": {
       "post": {
-        "operationId": "nasq_pmo.NotificationController.mark_all_read.post",
+        "operationId": "nasq_notify.NotificationController.mark_all_read.post",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -25256,10 +25255,10 @@
         ],
         "summary": "mark_all_read",
         "tags": [
-          "nasq_pmo"
+          "nasq_notify"
         ],
         "x-nasq": {
-          "addon": "nasq_pmo",
+          "addon": "nasq_notify",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -25275,7 +25274,7 @@
     },
     "/api/v1/notifications/{notification_id}/read": {
       "post": {
-        "operationId": "nasq_pmo.NotificationController.mark_read.post",
+        "operationId": "nasq_notify.NotificationController.mark_read.post",
         "parameters": [
           {
             "in": "path",
@@ -25307,10 +25306,10 @@
         ],
         "summary": "mark_read",
         "tags": [
-          "nasq_pmo"
+          "nasq_notify"
         ],
         "x-nasq": {
-          "addon": "nasq_pmo",
+          "addon": "nasq_notify",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -25326,7 +25325,7 @@
     },
     "/api/v1/people": {
       "get": {
-        "operationId": "nasq_pmo.PeopleController.list_people.get",
+        "operationId": "nasq_directory.PeopleController.list_people.get",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -25345,18 +25344,17 @@
         ],
         "summary": "list_people",
         "tags": [
-          "nasq_pmo"
+          "nasq_directory"
         ],
         "x-nasq": {
-          "addon": "nasq_pmo",
+          "addon": "nasq_directory",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": null,
           "controller": "PeopleController",
           "feature_keys": [
-            "pmo.enabled",
-            "meetings.enabled"
+            "registry:nasq.directory"
           ],
           "feature_operation": "read",
           "handler": "list_people",
@@ -29674,7 +29672,9 @@
   "tags": [
     "nasq_api",
     "nasq_chat",
+    "nasq_directory",
     "nasq_hr",
+    "nasq_notify",
     "nasq_pmo"
   ]
 }
