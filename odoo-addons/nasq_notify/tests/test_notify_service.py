@@ -1,5 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from odoo.exceptions import MissingError, ValidationError
+from odoo.exceptions import AccessError, MissingError, ValidationError
 from odoo.tests import TransactionCase, new_test_user, tagged
 from odoo.tools import mute_logger
 
@@ -140,6 +140,17 @@ class TestNotifyService(NotifyProbe, TransactionCase):
         self.assertEqual(service._nasq_mark_all_read(), 1)
         hidden_row.invalidate_recordset(['is_read'])
         self.assertFalse(hidden_row.is_read)
+
+    def test_visibility_is_refused_under_sudo_and_scans_stay_recipient_scoped(self):
+        mine = self._deliver(self.sources[0], self.reader.partner_id).notification_ids
+        theirs = self._deliver(self.sources[1], self.other.partner_id).notification_ids
+        with self.assertRaises(AccessError):
+            self.service.sudo()._nasq_domain()
+        service = self.service.with_user(self.reader)
+        # A domain handed in without the recipient restriction must not widen the scan.
+        domain = [('id', 'in', (mine | theirs).ids)]
+        self.assertEqual([row.id for row, _extra in service._nasq_visible_rows(domain)], mine.ids)
+        self.assertEqual(service._nasq_visible_count(domain), 1)
 
     def test_live_rows_are_rechecked_one_by_one(self):
         dead, alive = self.sources[0], self.sources[1]

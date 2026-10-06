@@ -2,7 +2,7 @@
 from psycopg2 import IntegrityError
 
 from odoo import api, models
-from odoo.exceptions import MissingError
+from odoo.exceptions import AccessError, MissingError
 from odoo.fields import Domain
 from odoo.tools import plaintext2html
 
@@ -103,6 +103,11 @@ class NasqNotifyService(models.AbstractModel):
     @api.model
     def _nasq_domain(self):
         """The caller's inbox bell rows whose source an owning application still lets them read."""
+        if self.env.su:
+            # Under sudo the owners' record rules stop applying and ``env.user``
+            # may be the superuser, so visibility would not be the caller's.
+            msg = 'notification visibility must be computed for a real user'
+            raise AccessError(msg)
         branches = list(self.env['nasq.notify.registry']._nasq_notify_visible_domain())
         if any(not branch for branch in branches):
             # Domain([]) matches everything; an empty branch would leak rows.
@@ -116,10 +121,16 @@ class NasqNotifyService(models.AbstractModel):
         ]) & visible
 
     @api.model
+    def _nasq_recipient_domain(self):
+        """Elevated scans never leave the caller's own rows, whatever domain they were handed."""
+        return Domain('res_partner_id', '=', self.env.user.partner_id.id)
+
+    @api.model
     def _nasq_visible_rows(self, domain, limit=None, offset=0):
         """``(row, extra)`` pairs, newest first, after the owners' row checks."""
         registry = self.env['nasq.notify.registry']
         Notification = self.env['mail.notification'].sudo()
+        domain = Domain(domain) & self._nasq_recipient_domain()
         last_id = None
         collected = []
         needed = (offset or 0) + (limit if limit is not None else 10 ** 9)
@@ -146,6 +157,7 @@ class NasqNotifyService(models.AbstractModel):
         """Counted in SQL, except the rows of ``live`` kinds, which are re-checked one by one."""
         registry = self.env['nasq.notify.registry']
         Notification = self.env['mail.notification'].sudo()
+        domain = Domain(domain) & self._nasq_recipient_domain()
         live_kinds = list(registry._nasq_notify_live_kinds())
         if not live_kinds:
             return Notification.search_count(domain)
