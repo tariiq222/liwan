@@ -29,22 +29,29 @@ class TestEntitlements(TransactionCase):
     def _operator(self):
         return self.record.with_context(**{OPERATOR_CONTEXT: True})
 
+    # Fixed per-app literals; the installed apps come from ir.module.module,
+    # never from the registry under test.
+    APP_BOOLEANS = {
+        'nasq_pmo': {'pmo.enabled', 'meetings.enabled'},
+        'nasq_hr': {'hr.enabled'},
+        'nasq_chat': {'chat.enabled'},
+    }
+
     def _installed_apps(self):
-        return set(self.features._nasq_installed_module_ids())
+        return {
+            module.name for module in self.env['ir.module.module'].sudo().search([
+                ('name', 'in', list(self.APP_BOOLEANS)), ('state', '=', 'installed'),
+            ])
+        }
 
     def _require_app(self, app):
         if app not in self._installed_apps():
             raise unittest.SkipTest(f'needs {app} installed')
 
     def _installed_boolean_keys(self):
-        apps = self._installed_apps()
         keys = set()
-        if 'nasq_pmo' in apps:
-            keys |= {'pmo.enabled', 'meetings.enabled'}
-        if 'nasq_hr' in apps:
-            keys.add('hr.enabled')
-        if 'nasq_chat' in apps:
-            keys.add('chat.enabled')
+        for app in self._installed_apps():
+            keys |= self.APP_BOOLEANS[app]
         return keys
 
     def _readable_key(self):
@@ -66,6 +73,10 @@ class TestEntitlements(TransactionCase):
             set(self.record.retained_read_features),
             flags,
         )
+        if self._installed_apps() == {'nasq_pmo', 'nasq_hr', 'nasq_chat'}:
+            self.assertEqual(set(self.record.retained_read_features), {
+                'pmo.enabled', 'meetings.enabled', 'hr.enabled', 'chat.enabled',
+            })
         first_revision = self.record.policy_revision
         self.record._nasq_initialize_legacy_policy(('nasq_pmo',))
         self.assertEqual(self.record.policy_revision, first_revision)
@@ -156,7 +167,7 @@ class TestEntitlements(TransactionCase):
         self.assertEqual(self.env.ref('nasq_platform.tenant_profile'), self.record)
 
     def test_registry_exposes_owned_keys_and_baseline_capabilities(self):
-        apps = {'nasq_pmo', 'nasq_hr', 'nasq_chat'} & self._installed_apps()
+        apps = self._installed_apps()
         self.assertEqual(set(self.features._nasq_module_map()), apps)
         self.assertEqual(
             set(self.features._nasq_boolean_keys()), self._installed_boolean_keys(),
@@ -167,9 +178,21 @@ class TestEntitlements(TransactionCase):
         self.assertEqual(set(self.features._nasq_limit_keys()), limits)
         capability_map = self.env['nasq.access.service']._nasq_capability_map()
         self.assertTrue(set(capability_map) >= CAPABILITIES)
-        # 9 core capabilities, plus 8 for HR and 8 + 3 meetings for PMO.
+        # 9 core capabilities, plus 8 for HR and 8 + 3 meetings for PMO (28 in all).
         expected = 9 + 8 * ('nasq_hr' in apps) + 11 * ('nasq_pmo' in apps)
         self.assertEqual(len(capability_map), expected)
+        if apps == {'nasq_pmo', 'nasq_hr', 'nasq_chat'}:
+            self.assertEqual(set(self.features._nasq_module_map()), {
+                'nasq_pmo', 'nasq_hr', 'nasq_chat',
+            })
+            self.assertEqual(set(self.features._nasq_boolean_keys()), {
+                'pmo.enabled', 'meetings.enabled', 'hr.enabled', 'chat.enabled',
+            })
+            self.assertEqual(set(self.features._nasq_limit_keys()), {
+                'users.limit', 'projects.max_projects', 'storage.limit_mb',
+                'branches.extra_limit',
+            })
+            self.assertEqual(len(capability_map), 28)
         self.assertNotIn('probe.inspect', capability_map)
         self.assertNotIn('probe.enabled', self.features._nasq_feature_map())
 
