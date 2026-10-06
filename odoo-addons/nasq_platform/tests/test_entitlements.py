@@ -1,4 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+import unittest
 from datetime import datetime, timedelta, timezone
 
 from odoo.exceptions import AccessError, ValidationError
@@ -28,20 +29,42 @@ class TestEntitlements(TransactionCase):
     def _operator(self):
         return self.record.with_context(**{OPERATOR_CONTEXT: True})
 
+    def _installed_apps(self):
+        return set(self.features._nasq_installed_module_ids())
+
+    def _require_app(self, app):
+        if app not in self._installed_apps():
+            raise unittest.SkipTest(f'needs {app} installed')
+
+    def _installed_boolean_keys(self):
+        apps = self._installed_apps()
+        keys = set()
+        if 'nasq_pmo' in apps:
+            keys |= {'pmo.enabled', 'meetings.enabled'}
+        if 'nasq_hr' in apps:
+            keys.add('hr.enabled')
+        if 'nasq_chat' in apps:
+            keys.add('chat.enabled')
+        return keys
+
+    def _readable_key(self):
+        # pmo.enabled when nasq_pmo is installed, else the HR key.
+        return 'pmo.enabled' if 'nasq_pmo' in self._installed_apps() else 'hr.enabled'
+
     def test_legacy_initializer_grants_installed_pillars_once(self):
         self.assertGreaterEqual(self.record.policy_revision, 1)
         self.assertEqual(self.record.status, 'active')
         self.assertFalse(self.record.valid_until)
-        self.assertTrue(self.record.features['pmo.enabled'])
-        self.assertTrue(self.record.features['meetings.enabled'])
-        self.assertTrue(self.record.features['hr.enabled'])
-        self.assertTrue(self.record.features['chat.enabled'])
+        flags = self._installed_boolean_keys()
+        for key in flags:
+            self.assertTrue(self.record.features[key])
         self.assertIsNone(self.record.features['users.limit'])
-        self.assertIsNone(self.record.features['projects.max_projects'])
+        if 'nasq_pmo' in self._installed_apps():
+            self.assertIsNone(self.record.features['projects.max_projects'])
         self.assertIsNone(self.record.features['storage.limit_mb'])
         self.assertEqual(
             set(self.record.retained_read_features),
-            {'pmo.enabled', 'meetings.enabled', 'hr.enabled', 'chat.enabled'},
+            flags,
         )
         first_revision = self.record.policy_revision
         self.record._nasq_initialize_legacy_policy(('nasq_pmo',))
@@ -60,7 +83,7 @@ class TestEntitlements(TransactionCase):
         self._operator().write({'features': legacy})
         self.record.invalidate_recordset(['features'])
         self.assertEqual(self.record.features, original)
-        for key in ('users.limit', 'storage.limit_mb', 'pmo.enabled'):
+        for key in ('users.limit', 'storage.limit_mb', self._readable_key()):
             with self.subTest(key=key), self.assertRaises(ValidationError):
                 self.service._nasq_validate_features({k: v for k, v in legacy.items() if k != key})
 
@@ -83,13 +106,14 @@ class TestEntitlements(TransactionCase):
         with self.assertRaises(ValidationError):
             self._operator().write({'features': {**self.record.features, 'unknown.enabled': True}})
         with self.assertRaises(ValidationError):
-            self._operator().write({'features': {**self.record.features, 'pmo.enabled': 1}})
+            self._operator().write({'features': {**self.record.features, self._readable_key(): 1}})
         with self.assertRaises(ValidationError):
             self._operator().write({'features': {**self.record.features, 'users.limit': -1}})
         with self.assertRaises(ValidationError):
             self._operator().write({'features': {**self.record.features, 'users.limit': True}})
 
     def test_withdrawn_feature_keeps_retained_read(self):
+        self._require_app('nasq_pmo')
         self._operator().write({
             'features': {**self.record.features, 'meetings.enabled': False},
         })
@@ -102,6 +126,7 @@ class TestEntitlements(TransactionCase):
         self.assertEqual(error.exception.status, 403)
 
     def test_never_entitled_feature_is_not_readable(self):
+        self._require_app('nasq_chat')
         self._operator().write({
             'features': {**self.record.features, 'chat.enabled': False},
             'retained_read_features': [
@@ -116,9 +141,10 @@ class TestEntitlements(TransactionCase):
             'valid_until': datetime.now(timezone.utc).date() - timedelta(days=1),
         })
         self.assertEqual(self.service._nasq_effective_state(), 'expired')
-        self.service.require_read('pmo.enabled')
+        key = self._readable_key()
+        self.service.require_read(key)
         with self.assertRaises(NasqAccessRule) as error:
-            self.service.require('pmo.enabled')
+            self.service.require(key)
         self.assertEqual(error.exception.code, 'tenant_read_only')
 
     def test_xmlid_is_repaired_when_profile_row_survives(self):
@@ -130,19 +156,20 @@ class TestEntitlements(TransactionCase):
         self.assertEqual(self.env.ref('nasq_platform.tenant_profile'), self.record)
 
     def test_registry_exposes_owned_keys_and_baseline_capabilities(self):
-        self.assertEqual(set(self.features._nasq_module_map()), {
-            'nasq_pmo', 'nasq_hr', 'nasq_chat',
-        })
-        self.assertEqual(set(self.features._nasq_boolean_keys()), {
-            'pmo.enabled', 'meetings.enabled', 'hr.enabled', 'chat.enabled',
-        })
-        self.assertEqual(set(self.features._nasq_limit_keys()), {
-            'users.limit', 'projects.max_projects', 'storage.limit_mb',
-            'branches.extra_limit',
-        })
+        apps = {'nasq_pmo', 'nasq_hr', 'nasq_chat'} & self._installed_apps()
+        self.assertEqual(set(self.features._nasq_module_map()), apps)
+        self.assertEqual(
+            set(self.features._nasq_boolean_keys()), self._installed_boolean_keys(),
+        )
+        limits = {'users.limit', 'storage.limit_mb', 'branches.extra_limit'}
+        if 'nasq_pmo' in apps:
+            limits.add('projects.max_projects')
+        self.assertEqual(set(self.features._nasq_limit_keys()), limits)
         capability_map = self.env['nasq.access.service']._nasq_capability_map()
         self.assertTrue(set(capability_map) >= CAPABILITIES)
-        self.assertEqual(len(capability_map), 28)
+        # 9 core capabilities, plus 8 for HR and 8 + 3 meetings for PMO.
+        expected = 9 + 8 * ('nasq_hr' in apps) + 11 * ('nasq_pmo' in apps)
+        self.assertEqual(len(capability_map), expected)
         self.assertNotIn('probe.inspect', capability_map)
         self.assertNotIn('probe.enabled', self.features._nasq_feature_map())
 

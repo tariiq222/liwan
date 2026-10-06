@@ -92,7 +92,17 @@ class TestMeEndpoint(HttpCase):
             self.env, login='me_multi_role', password='me_multi_role_pass_123',
             groups='nasq_core.group_employee',
         )
-        for role_xmlid in ('nasq_hr.role_hr_manager', 'nasq_pmo.role_pmo_manager'):
+        installed = {
+            module.name for module in self.env['ir.module.module'].search([
+                ('name', 'in', ['nasq_hr', 'nasq_pmo']), ('state', '=', 'installed'),
+            ])
+        }
+        roles = {
+            'nasq_hr': ('nasq_hr.role_hr_manager', 'hr.employees.manage', 'hr_manager'),
+            'nasq_pmo': ('nasq_pmo.role_pmo_manager', 'pmo.projects.manage', 'pmo_manager'),
+        }
+        for app in installed:
+            role_xmlid = roles[app][0]
             self.env['nasq.access.assignment'].create({
                 'user_id': user.id,
                 'role_id': self.env.ref(role_xmlid).id,
@@ -101,10 +111,10 @@ class TestMeEndpoint(HttpCase):
         self.authenticate('me_multi_role', 'me_multi_role_pass_123')
         body = self.url_open('/api/v1/me').json()
         self.assertEqual(body['capabilities'], sorted(set(body['capabilities'])))
-        self.assertIn('hr.employees.manage', body['capabilities'])
-        self.assertIn('pmo.projects.manage', body['capabilities'])
+        for app in installed:
+            self.assertIn(roles[app][1], body['capabilities'])
         self.assertNotIn('access.users.assign_roles', body['capabilities'])
-        self.assertEqual({role['key'] for role in body['roles']}, {'hr_manager', 'pmo_manager'})
+        self.assertEqual({role['key'] for role in body['roles']}, {roles[app][2] for app in installed})
         self.assertGreaterEqual(body['access_policy_version'], 1)
 
     def test_vendor(self):

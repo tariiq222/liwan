@@ -3,10 +3,9 @@ from odoo.tests import TransactionCase, tagged
 
 from odoo.addons.nasq_core.models.nasq_model import NASQ_SCOPES
 
+# nasq.chat.service and nasq.pmo.settings are asserted by the owning apps.
 EXPLICIT_ABSTRACT = {
     'nasq.access.service': 'global',
-    'nasq.chat.service': 'global',
-    'nasq.pmo.settings': 'global',
     'nasq.entitlement.service': 'global',
     'nasq.feature.registry': 'global',
 }

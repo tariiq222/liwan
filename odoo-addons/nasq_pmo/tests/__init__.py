@@ -15,6 +15,7 @@ from . import (
     test_meeting_workspace,
     test_meetings,
     test_milestones,
+    test_nasq_scope,
     test_notifications,
     test_personal_stages,
     test_pmo_access_composition,
