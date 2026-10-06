@@ -11,6 +11,8 @@ from __future__ import annotations
 import json
 import re
 
+from .module_closure import REPO_ADDONS, ClosureError, install_closure
+
 SENTINEL = 'NASQ_MANAGED_POLICY:'
 OUTPUT_LIMIT = 65536
 POLICY_LIMIT = 16384
@@ -85,6 +87,14 @@ def _policy(policy):
         _fail('policy_invalid')
 
 
+def _expected_modules(policy):
+    """Installation closure of the selected modules (implied dependencies included)."""
+    try:
+        return sorted(install_closure([REPO_ADDONS], policy['modules']))
+    except ClosureError:
+        _fail('policy_invalid')
+
+
 def _object(pairs):
     result = {}
     for key, value in pairs:
@@ -138,7 +148,7 @@ def parse_snapshot(stdout: str, policy: dict, database: str) -> dict:
         _fail('features_mismatch')
     modules = data['modules']
     if (not _modules(modules)
-            or {name for name in modules if name.startswith('nasq_')} != set(policy['modules'])):
+            or {name for name in modules if name.startswith('nasq_')} != set(_expected_modules(policy))):
         _fail('modules_mismatch')
     return data
 
@@ -190,7 +200,7 @@ def installed_modules():
     return sorted(names)
 
 def check_modules(names, policy):
-    if {name for name in names if name.startswith('nasq_')} != set(policy['modules']):
+    if {name for name in names if name.startswith('nasq_')} != set(expected_modules):
         refuse('modules_mismatch')
 
 def read_snapshot(profile, names):
@@ -270,6 +280,7 @@ def build_policy_script(policy: dict, database: str) -> str:
     _policy(policy)
     prefix = 'import json\nexpected_database = json.loads(' + repr(json.dumps(database)) + ')\n'
     prefix += 'policy = json.loads(' + repr(json.dumps(policy, ensure_ascii=True)) + ')\n'
+    prefix += 'expected_modules = json.loads(' + repr(json.dumps(_expected_modules(policy))) + ')\n'
     return (prefix + _SCRIPT_COMMON + _APPLY + _ERRORS
             + "print('NASQ_MANAGED_POLICY:' + json.dumps(result, sort_keys=True, allow_nan=False))\n")
 

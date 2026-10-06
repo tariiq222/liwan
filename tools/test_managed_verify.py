@@ -357,9 +357,57 @@ class VerifyCase(unittest.TestCase):
             policy = {**POLICY, 'modules': base + selected,
                       'features': {'users.limit': None, 'storage.limit_mb': None, **extra_features}}
             env = Environment()
-            env.modules.names = base + selected + ['hr', 'project']
+            # Odoo also installs what the selection implies (pmo needs notify and directory).
+            implied = ['nasq_notify', 'nasq_directory'] if 'nasq_pmo' in selected else []
+            env.modules.names = base + selected + implied + ['hr', 'project']
             stdout = execute_script(verify.build_policy_script(policy, DATABASE), env)
             self.assertEqual(verify.parse_snapshot(stdout, policy, DATABASE)['features'], policy['features'])
+
+    def test_installed_set_is_compared_with_the_install_closure(self):
+        base = ['nasq_core', 'nasq_platform', 'nasq_api']
+        policy = {**POLICY, 'modules': base + ['nasq_pmo'],
+                  'features': {'users.limit': None, 'storage.limit_mb': None,
+                               'pmo.enabled': True, 'meetings.enabled': True,
+                               'projects.max_projects': None}}
+        closure = base + ['nasq_notify', 'nasq_directory', 'nasq_pmo']
+
+        def installed(extra):
+            data = snapshot()
+            data['features'] = copy.deepcopy(policy['features'])
+            data['modules'] = sorted([*closure, *extra, 'base', 'project'])
+            return output(data)
+
+        self.assertEqual(verify.parse_snapshot(installed([]), policy, DATABASE)['modules'].count('nasq_notify'), 1)
+        for extra in (['nasq_chat'], ['nasq_hr']):
+            with self.assertRaises(verify.VerificationError) as caught:
+                verify.parse_snapshot(installed(extra), policy, DATABASE)
+            self.assertEqual(caught.exception.code, 'modules_mismatch')
+        data = snapshot()
+        data['features'] = copy.deepcopy(policy['features'])
+        data['modules'] = sorted([*base, 'nasq_notify', 'nasq_pmo', 'base'])  # nasq_directory missing
+        with self.assertRaises(verify.VerificationError) as caught:
+            verify.parse_snapshot(output(data), policy, DATABASE)
+        self.assertEqual(caught.exception.code, 'modules_mismatch')
+
+    def test_apply_script_accepts_closure_and_refuses_extra_or_missing(self):
+        base = ['nasq_core', 'nasq_platform', 'nasq_api']
+        policy = {**POLICY, 'modules': base + ['nasq_pmo'],
+                  'features': {'users.limit': None, 'storage.limit_mb': None,
+                               'pmo.enabled': True, 'meetings.enabled': True,
+                               'projects.max_projects': None}}
+        closure = base + ['nasq_notify', 'nasq_directory', 'nasq_pmo']
+        for names, ok in [(closure, True), (closure + ['nasq_chat'], False),
+                          ([n for n in closure if n != 'nasq_notify'], False)]:
+            env = Environment()
+            env.modules.names = names + ['project']
+            stdout = execute_script(verify.build_policy_script(policy, DATABASE), env)
+            if ok:
+                verify.parse_snapshot(stdout, policy, DATABASE)
+                self.assertIn(('commit',), env.events)
+            else:
+                with self.assertRaises(verify.VerificationError):
+                    verify.parse_snapshot(stdout, policy, DATABASE)
+                self.assertNotIn(('commit',), env.events)
 
     def test_policy_and_module_bounds(self):
         policy = copy.deepcopy(POLICY)

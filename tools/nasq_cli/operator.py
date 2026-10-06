@@ -7,7 +7,6 @@ never accepts connection coordinates or executable paths from command flags.
 """
 from __future__ import annotations
 
-import ast
 import hashlib
 import json
 import os
@@ -22,6 +21,7 @@ from . import journal
 from .cli import SCHEMA_VERSION
 from .cli import main as cli_main
 from .managed_verify import _features_match
+from .module_closure import ClosureError, install_closure
 
 INVENTORY_ENV = 'NASQ_CLI_INVENTORY'
 STATE_ENV = 'NASQ_CLI_STATE_DIR'
@@ -511,22 +511,15 @@ def _module_available(entry, module):
 
 
 def _validate_module_closure(entry, modules):
-    selected = set(modules)
+    # Every Nasq dependency must be resolvable; Odoo installs it implicitly,
+    # so it need not be listed in the selection.
     for module in modules:
-        manifest = next((Path(directory) / module / '__manifest__.py'
-                         for directory in entry['addons_paths']
-                         if (Path(directory) / module / '__manifest__.py').is_file()), None)
-        if manifest is None:
+        if not _module_available(entry, module):
             _fail(2, 'invalid_input', 'inventory', 'selected module source is missing')
-        try:
-            value = ast.literal_eval(manifest.read_text(encoding='utf-8'))
-            dependencies = value.get('depends', [])
-        except (OSError, ValueError, SyntaxError, AttributeError):
-            _fail(2, 'invalid_input', 'inventory', 'selected module manifest is invalid')
-        if (not isinstance(dependencies, list) or
-                any(not isinstance(dep, str) or (dep.startswith('nasq_') and dep not in selected)
-                    for dep in dependencies)):
-            _fail(2, 'invalid_input', 'inventory', 'selected modules omit a required Nasq dependency')
+    try:
+        install_closure(entry['addons_paths'], modules)
+    except ClosureError:
+        _fail(2, 'invalid_input', 'inventory', 'selected modules omit a required Nasq dependency')
 
 
 def _candidate_backup(entry, runner, operation_id):
