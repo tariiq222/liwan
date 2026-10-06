@@ -58,7 +58,9 @@ never add an entry or raise a count to make a check pass.
   SQL on Odoo tables, no new override of a private access method on an Odoo model without a documented
   reason and a test, no copied Odoo methods.
 - **R10** Each application registers its `<app>.enabled` feature, sub-features, limits and counters in
-  `nasq.feature.registry` with `owner` set to its addon name, and every route checks its feature.
+  `nasq.feature.registry` with `owner` set to its addon name, and every route checks its feature. A
+  shared service (rank 3) gates its routes with `requires_registered_feature`, whose keys the
+  applications register in that service's registry.
 
 A new addon is registered in `tools/arch_layers.json` with its rank (0–2 foundation, 3 shared service,
 4 application, 5 bridge, 6 customer overlay) before it is merged. After removing or moving a violation,
@@ -99,10 +101,19 @@ another application) needs the owner's approval, recorded by the owner as an
 - `odoo-addons/nasq_api` owns shared `/api/v1` plumbing, common serializers,
   authentication, branding, and the shared test fixture. It does not import a
   pillar.
+- `odoo-addons/nasq_notify` (shared service, rank 3) owns the notification bell:
+  the generic `mail.message` columns `nasq_notification`, `nasq_notification_kind`
+  and `nasq_notification_key` with its unique index, the `nasq.notify.registry`
+  where applications register their notification kinds, delivery
+  (`nasq.notify.service._nasq_deliver`) and `/api/v1/notifications`. It names no
+  application.
+- `odoo-addons/nasq_directory` (shared service, rank 3) owns `/api/v1/people`
+  (the user-id picker, whose ids are `res.users` ids) and its population of
+  active internal users of the current company; applications that pick people
+  register their feature keys in `nasq.directory`.
 - `odoo-addons/nasq_pmo` owns projects, tasks, timelines, project settings,
-  attachments, dependencies, archive/restore, recipient notifications,
-  and `/api/v1/people` (the task assignee picker, whose ids are `res.users`
-  ids).
+  attachments, dependencies, archive/restore, and its notification kinds,
+  producers and `/api/v1/notification-digests`.
 - `odoo-addons/nasq_hr` owns the HR directory, departments, documents, HR
   serializers/controllers, `/api/v1/hr/*` (employee ids are
   `hr.employee` ids), and the eight `hr.*` capabilities, their groups and the
@@ -166,9 +177,11 @@ explicitly; do not assume an Odoo config points at a particular Nasq checkout.
 - Keep `/api/v1/people?q=` and its user-id `PersonRef` contract unchanged.
   HR employee ids and user ids are distinct resources and must not be merged.
 - `nasq_hr` has no `sudo()` path. In PMO, only the documented manager-write,
-  policy/config, display-lookup, integer-count, completion-status and notification cases use `sudo()` after the
-  caller's authorization check; do not add another case without documenting
-  it and fixing ACLs/rules where possible.
+  policy/config, display-lookup, integer-count, completion-status and notification
+  cron/candidate cases use `sudo()` after the caller's authorization check;
+  `nasq_notify` uses it only for bell delivery and recipient-owned bell reads.
+  Do not add another case without documenting it and fixing ACLs/rules where
+  possible.
 - The current delivery scope has no time logging or payroll product surface.
   These are stage constraints, not permanent exclusions from the product
   vision; adding them requires a separately scoped implementation request. Do not add
@@ -275,11 +288,14 @@ worktrees only after their content is preserved and no process is using them.
 - Documented PMO elevated operations are policy/config access, policy-based
   project creation, checked manager mutations, serializer display lookups,
   integer counts, automatic completion status after an authorized task
-  mutation, and notification delivery/recipient-owned reads. Notification
-  elevated reads must first restrict recipient and readable current-company
-  tasks or meetings; resource lookup stays in the caller's ordinary ACL and
-  record-rule environment. Meeting-only access must not reveal task/digest
-  notifications. Do not add an undocumented bypass.
+  mutation, the notification cron scans, and the recipient-owned candidate
+  lookups that build PMO's notification visibility branches. `nasq_notify`'s
+  documented elevated operations are bell delivery and recipient-owned bell
+  reads: every elevated read first restricts to the current partner's inbox
+  rows, and the owning application's branch decides, in the caller's ordinary
+  ACL and record-rule environment, which tasks or meetings are still readable.
+  Meeting-only access must not reveal task/digest notifications. Do not add an
+  undocumented bypass.
 - The project charter is written as a stepper: basics, then the optional
   steps the project type configures (`charter_steps` on `nasq.project.type`,
   exposed on the types catalog and on `charter.type`), then review. The
@@ -297,6 +313,8 @@ worktrees only after their content is preserved and no process is using them.
   read the task, and replaces that person's `comment` row.
 - Task attachment uploads accept PDF, PNG, JPEG, text, DOCX and XLSX up to
   10 MiB decoded, with exact binary task linkage and ordinary attachment ACLs.
+  The validator is `nasq_api/serializers/attachment.py`, shared by task,
+  meeting and chat uploads; HR documents keep their own parser.
   Dependency edits require project management, same active project, positive
   unique IDs and no cycles. Restores require a readable active parent project.
 
@@ -359,8 +377,8 @@ PGHOST=${PGHOST:-127.0.0.1}; PGPORT=${PGPORT:-5432}; PGUSER=${PGUSER:-tariq}
   --db_host="$PGHOST" --db_port="$PGPORT" --db_user="$PGUSER" \
   -d nasq_scratch --db-filter='^nasq_scratch$' \
   --data-dir="$SCRATCH_ROOT/data" --logfile="$SCRATCH_ROOT/logs/odoo.log" \
-  -i nasq_core,nasq_platform,nasq_api,nasq_pmo,nasq_hr,nasq_chat \
-  --test-tags /nasq_core,/nasq_platform,/nasq_api,/nasq_pmo,/nasq_hr,/nasq_chat \
+  -i nasq_core,nasq_platform,nasq_api,nasq_notify,nasq_directory,nasq_pmo,nasq_hr,nasq_chat \
+  --test-tags /nasq_core,/nasq_platform,/nasq_api,/nasq_notify,/nasq_directory,/nasq_pmo,/nasq_hr,/nasq_chat \
   --http-port=8169 --workers=0 --max-cron-threads=0 --stop-after-init
 ```
 

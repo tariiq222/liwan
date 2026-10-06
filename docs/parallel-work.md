@@ -21,9 +21,9 @@ own institution identity. PMO collaboration preserves record and company guards.
 
 | Surface | Shared | PMO | HR |
 | --- | --- | --- | --- |
-| Odoo addon | `nasq_api`, plus `nasq_core` system/access groups and branding; each app owns its capability groups | `nasq_pmo` | `nasq_hr` |
-| Controllers and serializers | `nasq_api` common/auth/branding/me | `nasq_pmo/**` | `nasq_hr/**` |
-| Tests | shared fixture and `nasq_api` tests | `nasq_pmo/tests/**` | `nasq_hr/tests/**` |
+| Odoo addon | `nasq_api`, `nasq_notify`, `nasq_directory`, plus `nasq_core` system/access groups and branding; each app owns its capability groups | `nasq_pmo` | `nasq_hr` |
+| Controllers and serializers | `nasq_api` common/auth/branding/me/attachment, `nasq_notify` bell routes, `nasq_directory` people route | `nasq_pmo/**` | `nasq_hr/**` |
+| Tests | shared fixture, `nasq_api`, `nasq_notify` and `nasq_directory` tests | `nasq_pmo/tests/**` | `nasq_hr/tests/**` |
 | Contracts | `packages/contracts/src/common/**` | `packages/contracts/src/pmo/**` | `packages/contracts/src/hr/**` |
 | Locale namespace | `common.json` | `tasks.json`, `projects.json`, `settings.json` | `hr.json` |
 | Web surface | layout, UI primitives, `useApi`, `useMe`, `useBranding` | task/project pages and components | `/hr`, HR composables/components |

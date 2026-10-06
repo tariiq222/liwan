@@ -33,7 +33,7 @@ These are repository instructions for every coding agent, regardless of tool.
   shared-file edits, runtime changes, and final checks.
 - Preserve stock Odoo source. Extend `project` through `nasq_pmo` and `hr`
   through `nasq_hr`. Do not recreate either pillar.
-- The HR page is `/hr`; `/api/v1/people` remains the PMO user-id picker. Preserve
+- The HR page is `/hr`; `/api/v1/people` remains the user-id picker (owned by `nasq_directory`). Preserve
   HR documents and the `{items, total}` list envelopes.
 - Presentation (pages, the one route-backed create panel `SharedCreatePanel`,
   and the three overlay exceptions: search, notification bell, unsaved draft)
@@ -74,7 +74,9 @@ never add an entry or raise a count to make a check pass.
   SQL on Odoo tables, no new override of a private access method on an Odoo model without a documented
   reason and a test, no copied Odoo methods.
 - **R10** Each application registers its `<app>.enabled` feature, sub-features, limits and counters in
-  `nasq.feature.registry` with `owner` set to its addon name, and every route checks its feature.
+  `nasq.feature.registry` with `owner` set to its addon name, and every route checks its feature. A
+  shared service (rank 3) gates its routes with `requires_registered_feature`, whose keys the
+  applications register in that service's registry.
 
 A new addon is registered in `tools/arch_layers.json` with its rank (0–2 foundation, 3 shared service,
 4 application, 5 bridge, 6 customer overlay) before it is merged. After removing or moving a violation,
@@ -179,10 +181,12 @@ coordinator owns planning, integration and review in both tools.
   `category: Hidden`, `installable: True`, `application: False`; versions use
   `19.0.X.Y.Z` (core/HR `19.0.1.0.0`, PMO `19.0.1.1.0`). Follow
   `docs/migrations.md` for schema/data version bumps and migrations.
-- Declare real dependencies: core uses `base`, `project`, `hr`,
-  `cyan_meeting_minutes`; HR uses `nasq_api`, `hr`, `mail`; PMO also uses
-  `nasq_platform`, `project`, `bus`, `cyan_meeting_minutes` (see manifests).
-  Preserve pillar direction: shared `nasq_api` never imports a pillar.
+- Declare real dependencies: core uses `base` only; HR uses `nasq_api`, `hr`,
+  `mail`; the shared services `nasq_notify` (`nasq_api`, `mail`) and
+  `nasq_directory` (`nasq_api`) know no application; PMO also uses
+  `nasq_platform`, `nasq_notify`, `nasq_directory`, `project`, `bus`,
+  `cyan_meeting_minutes` (see manifests). Preserve pillar direction: shared
+  `nasq_api` and the shared services never import a pillar.
 - Keep `models/`, `security/`, `data/`, `tests/`; API pillars additionally use
   `controllers/` and whitelist-based `serializers/`; PMO has `report/`, `i18n/`
   and `migrations/`. Import Python modules through their `__init__.py` files;
