@@ -260,10 +260,17 @@ class TestAccessAdminRoles(NasqApiCase):
         response = self.api('GET', '/api/v1/admin/permissions')
         self.assertEqual(response.status_code, 200, response.text)
         body = response.json()
-        self.assertEqual((len(body['items']), body['total']), (28, 28))
+        installed = {
+            module.name for module in self.env['ir.module.module'].search([
+                ('name', 'in', ['nasq_hr', 'nasq_pmo']), ('state', '=', 'installed'),
+            ])
+        }
+        # 9 core capabilities, plus 8 for HR and 11 (8 + 3 meetings) for PMO.
+        total = 9 + 8 * ('nasq_hr' in installed) + 11 * ('nasq_pmo' in installed)
+        self.assertEqual((len(body['items']), body['total']), (total, total))
         self.assertEqual(
             {item['key'] for item in body['items'] if item['key'].startswith('meetings.')},
-            {'meetings.read', 'meetings.create', 'meetings.manage'},
+            {'meetings.read', 'meetings.create', 'meetings.manage'} if 'nasq_pmo' in installed else set(),
         )
         permission = next(item for item in body['items'] if item['key'] == 'access.users.assign_roles')
         self.assertFalse(permission['custom_role_allowed'])
