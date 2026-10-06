@@ -45,8 +45,9 @@ class TestTaskNotifications(NasqPmoCase):
         self.assertEqual({types[kind]['model'] for kind in pmo[:4]}, {'project.task'})
         self.assertEqual(types['overdue_digest']['model'], 'res.company')
         self.assertEqual({types[kind]['model'] for kind in pmo[5:]}, {'cyan.meeting.minute'})
-        self.assertEqual(registry._nasq_notify_live_kinds(), ('overdue_digest',))
-        self.assertEqual(registry._nasq_notify_feature_keys(), ('pmo.enabled', 'meetings.enabled'))
+        # Other installed applications may contribute too: pmo's own values are included.
+        self.assertIn('overdue_digest', registry._nasq_notify_live_kinds())
+        self.assertLessEqual({'pmo.enabled', 'meetings.enabled'}, set(registry._nasq_notify_feature_keys()))
         self.assertLessEqual(set(pmo), set(self.env['mail.message']._fields['nasq_notification_kind'].get_values(self.env)))
 
     def test_delivery_keys_keep_their_pre_split_format(self):
@@ -154,6 +155,34 @@ class TestTaskNotifications(NasqPmoCase):
         second = self.api('POST', f'/api/v1/notifications/{notification.id}/read', {}).json()
         self.assertEqual(first, {'updated': 1})
         self.assertEqual(second, {'updated': 0})
+
+    def test_unregistered_kind_on_a_readable_task_is_hidden_everywhere(self):
+        task = self.env['project.task'].with_user(self.manager).create({
+            'name': 'Ghost kind', 'project_id': self.project.id,
+            'user_ids': [(4, self.other.id)],
+        })
+        self.env.flush_all()
+        row = self.env['mail.notification'].sudo().search([
+            ('mail_message_id.nasq_task_id', '=', task.id),
+            ('res_partner_id', '=', self.other.partner_id.id),
+            ('mail_message_id.nasq_notification', '=', True),
+        ], limit=1)
+        self.authenticate(self.other.login, 'api_nora_pass_123')
+        before = self.api('GET', '/api/v1/notifications').json()
+        self.assertIn(row.id, [item['id'] for item in before['items']])
+        # A kind no application registers can only arrive through the database.
+        self.env.cr.execute(
+            'UPDATE mail_message SET nasq_notification_kind = %s WHERE id = %s',
+            ('unregistered_kind', row.mail_message_id.id),
+        )
+        self.env.invalidate_all()
+        response = self.api('GET', '/api/v1/notifications')
+        self.assertEqual(response.status_code, 200)
+        after = response.json()
+        self.assertNotIn(row.id, [item['id'] for item in after['items']])
+        self.assertEqual(after['total'], before['total'] - 1)
+        self.assertEqual(after['unread_count'], before['unread_count'] - 1)
+        self.assertEqual(self.api('POST', f'/api/v1/notifications/{row.id}/read', {}).status_code, 404)
 
     def test_revoked_task_is_removed_from_rows_and_counts(self):
         task = self.env['project.task'].with_user(self.manager).create({

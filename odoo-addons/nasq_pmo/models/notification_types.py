@@ -125,6 +125,7 @@ class NasqPmoTaskNotificationTypes(models.AbstractModel):
                 ('mail_message_id.res_id', '=', self.env.company.id),
             ],
             [
+                ('mail_message_id.nasq_notification_kind', 'in', list(TASK_KINDS)),
                 ('mail_message_id.model', '=', 'project.task'),
                 ('mail_message_id.nasq_task_id', 'in', readable_active_task_ids(self.env)),
             ],
@@ -163,6 +164,7 @@ class NasqPmoMeetingNotificationTypes(models.AbstractModel):
         return [
             *super()._nasq_notify_visible_domain(),
             [
+                ('mail_message_id.nasq_notification_kind', 'in', list(MEETING_KINDS)),
                 ('mail_message_id.model', '=', 'cyan.meeting.minute'),
                 ('mail_message_id.res_id', 'in', meeting_ids),
                 ('mail_message_id.nasq_meeting_id', 'in', meeting_ids),
