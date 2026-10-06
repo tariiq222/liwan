@@ -1,4 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+import base64
 from unittest.mock import patch
 
 from odoo import fields
@@ -44,6 +45,26 @@ class TestMeetingsApi(NasqPmoCase):
         meeting.invalidate_recordset()
         self.assertFalse(meeting.start_datetime)
         self.assertFalse(meeting.end_datetime)
+
+    def test_meeting_attachment_upload_uses_the_shared_validator(self):
+        self._grant_meeting_create()
+        meeting = self.env['cyan.meeting.minute'].create({
+            'state': 'draft', 'name': 'Attachment meeting', 'organizer_id': self.employee.id,
+        })
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        url = f'/api/v1/meetings/{meeting.id}/attachments'
+        created = self.api('POST', url, {
+            'name': 'notes.txt', 'mimetype': 'text/plain',
+            'data': base64.b64encode(b'meeting notes').decode(),
+        })
+        self.assertEqual(created.status_code, 201, created.text)
+        item = created.json()
+        self.assertEqual(set(item), {'id', 'name', 'mimetype', 'url'})
+        self.assertEqual((item['name'], item['mimetype']), ('notes.txt', 'text/plain'))
+        self.assertEqual(self.api('GET', url).json(), {'items': [item], 'total': 1})
+        rejected = self.api('POST', url, {'name': 'x.gif', 'data': base64.b64encode(b'GIF89a' + bytes(10)).decode()})
+        self.assertEqual(rejected.status_code, 422)
+        self.assertEqual(rejected.json()['field'], 'data')
 
     def test_patch_title_only_normalizes_existing_odoo_datetimes(self):
         self._grant_meeting_create()

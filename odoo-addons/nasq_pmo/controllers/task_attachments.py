@@ -8,9 +8,9 @@ from odoo.addons.nasq_api.controllers.common import (
     get_record,
     requires_feature,
 )
-from odoo.addons.nasq_pmo.serializers.task_attachment import (
-    dump_task_attachment,
-    parse_task_attachment_upload,
+from odoo.addons.nasq_api.serializers.attachment import (
+    dump_attachment,
+    parse_attachment_upload,
 )
 
 
@@ -29,7 +29,7 @@ class TaskAttachmentController(http.Controller):
         for attachment in attachments:
             attachment.check_access('read')
         return {
-            'items': [dump_task_attachment(attachment) for attachment in attachments],
+            'items': [dump_attachment(attachment) for attachment in attachments],
             'total': len(attachments),
         }
 
@@ -46,7 +46,7 @@ class TaskAttachmentController(http.Controller):
             raise AccessError(request.env._("You are not allowed to change this task."))
         task.check_access('write')
         payload.pop('task_id', None)
-        values = parse_task_attachment_upload(payload)
+        values = parse_attachment_upload(payload)
         attachment = request.env['ir.attachment'].create({
             'name': values['name'],
             'raw': values['raw'],
@@ -57,7 +57,7 @@ class TaskAttachmentController(http.Controller):
             'res_model': 'project.task',
             'res_id': task.id,
         })
-        return request.make_json_response(dump_task_attachment(attachment), status=201)
+        return request.make_json_response(dump_attachment(attachment), status=201)
 
     @http.route(
         '/api/v1/tasks/<int:task_id>/attachments/<int:attachment_id>',

@@ -8,9 +8,9 @@ from odoo.addons.nasq_api.controllers.common import (
     get_record,
     requires_feature,
 )
-from odoo.addons.nasq_pmo.serializers.task_attachment import (
-    dump_task_attachment,
-    parse_task_attachment_upload,
+from odoo.addons.nasq_api.serializers.attachment import (
+    dump_attachment,
+    parse_attachment_upload,
 )
 
 
@@ -32,7 +32,7 @@ class MeetingAttachmentController(http.Controller):
         attachments = self._attachments(meeting)
         for attachment in attachments:
             attachment.check_access('read')
-        return {'items': [dump_task_attachment(item) for item in attachments], 'total': len(attachments)}
+        return {'items': [dump_attachment(item) for item in attachments], 'total': len(attachments)}
 
     @http.route('/api/v1/meetings/<int:meeting_id>/attachments', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
@@ -43,7 +43,7 @@ class MeetingAttachmentController(http.Controller):
         if not meeting.can_edit:
             raise AccessError(request.env._("You are not allowed to change this meeting."))
         payload.pop('meeting_id', None)
-        values = parse_task_attachment_upload(payload)
+        values = parse_attachment_upload(payload)
         attachment = request.env['ir.attachment'].create({
             'name': values['name'],
             'raw': values['raw'],
@@ -54,7 +54,7 @@ class MeetingAttachmentController(http.Controller):
             'res_model': 'cyan.meeting.minute',
             'res_id': meeting.id,
         })
-        return request.make_json_response(dump_task_attachment(attachment), status=201)
+        return request.make_json_response(dump_attachment(attachment), status=201)
 
     @http.route(
         '/api/v1/meetings/<int:meeting_id>/attachments/<int:attachment_id>',

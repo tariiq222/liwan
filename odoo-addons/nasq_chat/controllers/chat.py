@@ -12,6 +12,7 @@ from odoo.addons.nasq_api.controllers.common import (
     parse_positive_int,
     requires_feature,
 )
+from odoo.addons.nasq_api.serializers.attachment import parse_attachment_upload
 from odoo.addons.nasq_chat.models.chat_service import MAX_LIMIT
 from odoo.addons.nasq_chat.serializers.chat import (
     REACTION_CONTENTS,
@@ -20,7 +21,6 @@ from odoo.addons.nasq_chat.serializers.chat import (
     dump_member,
     dump_message,
     dump_user_ref,
-    parse_chat_attachment,
 )
 
 MUTE_UNTIL = datetime(9999, 12, 31, 23, 59, 59)
@@ -172,7 +172,7 @@ class ChatController(http.Controller):
         attachment_payload = payload.get('attachment')
         if attachment_payload is not None and not isinstance(attachment_payload, dict):
             raise ApiError(422, 'invalid', 'attachment must be an object', field='attachment')
-        parsed = parse_chat_attachment(attachment_payload) if attachment_payload else None
+        parsed = parse_attachment_upload(attachment_payload) if attachment_payload else None
         parent_id = payload.get('parent_id')
         if parent_id is not None:
             parent_id = parse_positive_int(parent_id, 'parent_id')
