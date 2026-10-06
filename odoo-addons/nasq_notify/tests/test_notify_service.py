@@ -1,9 +1,10 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from odoo.exceptions import ValidationError
+from odoo.exceptions import MissingError, ValidationError
 from odoo.tests import TransactionCase, new_test_user, tagged
 from odoo.tools import mute_logger
 
-from odoo.addons.nasq_api.tests.common import PROBE_FEATURE
+from odoo.addons.nasq_api.tests.common import PROBE_FEATURE, set_probe_feature
+from odoo.addons.nasq_core.models.access_service import NasqAccessRule
 from odoo.addons.nasq_notify.tests.common import PROBE_TYPES, NotifyProbe
 
 
@@ -108,3 +109,79 @@ class TestNotifyService(NotifyProbe, TransactionCase):
     def test_values_carry_the_owner_columns(self):
         message = self._deliver(self.sources[0], self.reader.partner_id, values={'subject': 'Owner column'})
         self.assertEqual(message.subject, 'Owner column')
+
+    def _list(self, user, limit=50, **kwargs):
+        return self.service.with_user(user)._nasq_list(limit, **kwargs)
+
+    def test_list_is_recipient_scoped_newest_first_and_paged(self):
+        for source in self.sources:
+            self._deliver(source, self.reader.partner_id)
+        self._deliver(self.sources[0], self.other.partner_id)
+        body = self._list(self.reader)
+        self.assertEqual([item['source_id'] for item in body['items']], list(reversed(self.sources.ids)))
+        self.assertEqual((body['total'], body['unread_count']), (3, 3))
+        page = self._list(self.reader, limit=1, offset=1)
+        self.assertEqual([item['source_id'] for item in page['items']], [self.sources[1].id])
+        self.assertEqual((page['total'], page['unread_count']), (3, 3))
+        self.assertEqual(self._list(self.reader, unread=False)['total'], 0)
+        self.assertEqual(self._list(self.other)['total'], 1)
+
+    def test_hidden_sources_are_not_listed_counted_or_marked(self):
+        hidden, shown = self.sources[0], self.sources[1]
+        hidden_row = self._deliver(hidden, self.reader.partner_id).notification_ids
+        self._deliver(shown, self.reader.partner_id)
+        self.hidden_sources.add(hidden.id)
+        service = self.service.with_user(self.reader)
+        body = service._nasq_list(50)
+        self.assertEqual([item['source_id'] for item in body['items']], [shown.id])
+        self.assertEqual((body['total'], body['unread_count']), (1, 1))
+        with self.assertRaises(MissingError):
+            service._nasq_mark_read(hidden_row.id)
+        self.assertEqual(service._nasq_mark_all_read(), 1)
+        hidden_row.invalidate_recordset(['is_read'])
+        self.assertFalse(hidden_row.is_read)
+
+    def test_live_rows_are_rechecked_one_by_one(self):
+        dead, alive = self.sources[0], self.sources[1]
+        dead_row = self._deliver(dead, self.reader.partner_id, kind='probe_live').notification_ids
+        self._deliver(alive, self.reader.partner_id, kind='probe_live')
+        self._deliver(self.sources[2], self.reader.partner_id)
+        self.dead_sources.add(dead.id)
+        service = self.service.with_user(self.reader)
+        body = service._nasq_list(50)
+        self.assertEqual(
+            [(item['kind'], item['source_id'], item['extra']) for item in body['items']],
+            [('probe_ping', self.sources[2].id, None), ('probe_live', alive.id, 'alive')],
+        )
+        self.assertEqual((body['total'], body['unread_count']), (2, 2))
+        with self.assertRaises(MissingError):
+            service._nasq_mark_read(dead_row.id)
+
+    def test_marking_read_is_idempotent_scoped_and_needs_the_owner_feature(self):
+        row = self._deliver(self.sources[0], self.reader.partner_id).notification_ids
+        service = self.service.with_user(self.reader)
+        self.assertEqual(service._nasq_mark_read(row.id), 1)
+        self.assertEqual(service._nasq_mark_read(row.id), 0)
+        with self.assertRaises(MissingError):
+            self.service.with_user(self.other)._nasq_mark_read(row.id)
+        unread = self._deliver(self.sources[1], self.reader.partner_id).notification_ids
+        set_probe_feature(self, enabled=False, retained=True)
+        self.assertEqual(service._nasq_list(50)['unread_count'], 1)
+        with self.assertRaises(NasqAccessRule) as caught:
+            service._nasq_mark_read(unread.id)
+        self.assertEqual(caught.exception.code, 'feature_not_included')
+        self.assertEqual(service._nasq_mark_all_read(), 0)
+        unread.invalidate_recordset(['is_read'])
+        self.assertFalse(unread.is_read)
+
+    def test_an_empty_branch_is_refused_and_no_branch_shows_nothing(self):
+        self._deliver(self.sources[0], self.reader.partner_id)
+        self.patch(self.registry_model, '_nasq_notify_visible_domain', lambda model: [[]])
+        with self.assertRaisesRegex(ValueError, 'must not be empty'):
+            self._list(self.reader)
+        self.patch(self.registry_model, '_nasq_notify_visible_domain', lambda model: [])
+        self.assertEqual(self._list(self.reader), {'items': [], 'total': 0, 'unread_count': 0})
+
+    def test_the_row_feature_comes_from_the_descriptor(self):
+        row = self._deliver(self.sources[0], self.reader.partner_id).notification_ids
+        self.assertEqual(self.env['nasq.notify.registry']._nasq_notify_feature_key(row), PROBE_FEATURE)

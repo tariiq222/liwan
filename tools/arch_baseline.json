@@ -1,9 +1,6 @@
 {
   "R1": {},
-  "R10": {
-    "odoo-addons/nasq_pmo/controllers/notifications.py:mark_all_read has no requires_feature": 1,
-    "odoo-addons/nasq_pmo/controllers/notifications.py:mark_read has no requires_feature": 1
-  },
+  "R10": {},
   "R2": {
     "odoo-addons/nasq_platform/models/entitlement_service.py": 8
   },
@@ -33,7 +30,7 @@
     "odoo-addons/nasq_chat/controllers/chat.py": 1,
     "odoo-addons/nasq_chat/serializers/chat.py": 1,
     "odoo-addons/nasq_core/models/res_company.py": 1,
-    "odoo-addons/nasq_notify/models/notify_service.py": 3,
+    "odoo-addons/nasq_notify/models/notify_service.py": 7,
     "odoo-addons/nasq_platform/models/entitlement_service.py": 1,
     "odoo-addons/nasq_platform/models/feature_registry.py": 1,
     "odoo-addons/nasq_platform/models/ir_attachment.py": 3,
@@ -41,7 +38,6 @@
     "odoo-addons/nasq_platform/models/ir_http.py": 1,
     "odoo-addons/nasq_platform/models/res_users.py": 2,
     "odoo-addons/nasq_pmo/controllers/milestones.py": 1,
-    "odoo-addons/nasq_pmo/controllers/notifications.py": 7,
     "odoo-addons/nasq_pmo/controllers/personal_stages.py": 1,
     "odoo-addons/nasq_pmo/controllers/tasks.py": 1,
     "odoo-addons/nasq_pmo/controllers/timeline.py": 2,
@@ -51,6 +47,7 @@
     "odoo-addons/nasq_pmo/models/meeting_resolution.py": 1,
     "odoo-addons/nasq_pmo/models/meeting_workspace.py": 6,
     "odoo-addons/nasq_pmo/models/nasq_settings.py": 2,
+    "odoo-addons/nasq_pmo/models/notification_types.py": 2,
     "odoo-addons/nasq_pmo/models/project_charter_reference.py": 1,
     "odoo-addons/nasq_pmo/models/project_milestone.py": 1,
     "odoo-addons/nasq_pmo/models/project_project.py": 19,

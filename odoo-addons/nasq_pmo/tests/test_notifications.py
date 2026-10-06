@@ -5,7 +5,7 @@ from unittest.mock import patch
 from odoo import fields
 from odoo.tests import new_test_user, tagged
 
-from odoo.addons.nasq_pmo.controllers.notifications import readable_active_task_ids
+from odoo.addons.nasq_pmo.models.notification_types import readable_active_task_ids
 from odoo.addons.nasq_pmo.tests.common import NasqPmoCase
 
 
@@ -47,7 +47,7 @@ class TestTaskNotifications(NasqPmoCase):
         self.assertEqual({types[kind]['model'] for kind in pmo[5:]}, {'cyan.meeting.minute'})
         self.assertEqual(registry._nasq_notify_live_kinds(), ('overdue_digest',))
         self.assertEqual(registry._nasq_notify_feature_keys(), ('pmo.enabled', 'meetings.enabled'))
-        self.assertEqual(self.env['mail.message']._fields['nasq_notification_kind'].get_values(self.env), pmo)
+        self.assertLessEqual(set(pmo), set(self.env['mail.message']._fields['nasq_notification_kind'].get_values(self.env)))
 
     def test_delivery_keys_keep_their_pre_split_format(self):
         Message = self.env['mail.message'].sudo()

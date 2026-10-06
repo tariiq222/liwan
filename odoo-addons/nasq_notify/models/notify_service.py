@@ -2,8 +2,13 @@
 from psycopg2 import IntegrityError
 
 from odoo import api, models
+from odoo.exceptions import MissingError
+from odoo.fields import Domain
 from odoo.tools import plaintext2html
 
+from odoo.addons.nasq_core.models.access_service import NasqAccessRule
+
+SCAN_BATCH = 200
 # The columns this service writes itself. ``values`` carries only the
 # producing application's own mail.message columns.
 GENERIC_VALUES = frozenset({
@@ -18,7 +23,11 @@ class NasqNotifyService(models.AbstractModel):
 
     Documented elevated operations (CLAUDE.md, R7): delivery creates the
     message and its inbox row as superuser, because the recipient, not the
-    actor, owns the row.
+    actor, owns the row; reads are elevated because a user cannot read other
+    partners' ``mail.notification`` rows, so every elevated search carries
+    ``res_partner_id = current partner`` in its domain, and the owning
+    application's branch decides, in the caller's environment, which sources
+    the caller may still read.
     """
     _name = 'nasq.notify.service'
     _description = 'Nasq notification service'
@@ -90,3 +99,120 @@ class NasqNotifyService(models.AbstractModel):
                 raise
             created |= message
         return created
+
+    @api.model
+    def _nasq_domain(self):
+        """The caller's inbox bell rows whose source an owning application still lets them read."""
+        branches = list(self.env['nasq.notify.registry']._nasq_notify_visible_domain())
+        if any(not branch for branch in branches):
+            # Domain([]) matches everything; an empty branch would leak rows.
+            msg = 'nasq_notify: a visibility branch must not be empty'
+            raise ValueError(msg)
+        visible = Domain.OR(Domain(branch) for branch in branches) if branches else Domain.FALSE
+        return Domain([
+            ('res_partner_id', '=', self.env.user.partner_id.id),
+            ('mail_message_id.nasq_notification', '=', True),
+            ('notification_type', '=', 'inbox'),
+        ]) & visible
+
+    @api.model
+    def _nasq_visible_rows(self, domain, limit=None, offset=0):
+        """``(row, extra)`` pairs, newest first, after the owners' row checks."""
+        registry = self.env['nasq.notify.registry']
+        Notification = self.env['mail.notification'].sudo()
+        last_id = None
+        collected = []
+        needed = (offset or 0) + (limit if limit is not None else 10 ** 9)
+        while len(collected) < needed:
+            batch_domain = domain if last_id is None else domain & Domain('id', '<', last_id)
+            batch = Notification.search(batch_domain, order='id desc', limit=SCAN_BATCH)
+            if not batch:
+                break
+            last_id = batch.ids[-1]
+            for row in batch:
+                visible, extra = registry._nasq_notify_row_visible(row)
+                if not visible:
+                    continue
+                collected.append((row, extra))
+                if len(collected) >= needed:
+                    break
+        start = offset or 0
+        if limit is None:
+            return collected[start:]
+        return collected[start:start + limit]
+
+    @api.model
+    def _nasq_visible_count(self, domain):
+        """Counted in SQL, except the rows of ``live`` kinds, which are re-checked one by one."""
+        registry = self.env['nasq.notify.registry']
+        Notification = self.env['mail.notification'].sudo()
+        live_kinds = list(registry._nasq_notify_live_kinds())
+        if not live_kinds:
+            return Notification.search_count(domain)
+        total = Notification.search_count(
+            domain & Domain('mail_message_id.nasq_notification_kind', 'not in', live_kinds),
+        )
+        live_domain = domain & Domain('mail_message_id.nasq_notification_kind', 'in', live_kinds)
+        last_id = None
+        while True:
+            batch_domain = live_domain if last_id is None else live_domain & Domain('id', '<', last_id)
+            batch = Notification.search(batch_domain, order='id desc', limit=SCAN_BATCH)
+            if not batch:
+                break
+            last_id = batch.ids[-1]
+            total += sum(1 for row in batch if registry._nasq_notify_row_visible(row)[0])
+        return total
+
+    @api.model
+    def _nasq_list(self, limit, offset=0, unread=None):
+        """One page of the caller's bell with its total and unread count."""
+        base = self._nasq_domain()
+        domain = base if unread is None else base & Domain('is_read', '=', not unread)
+        registry = self.env['nasq.notify.registry']
+        rows = self._nasq_visible_rows(domain, limit=limit, offset=offset)
+        return {
+            'items': [registry._nasq_notify_dump(row, extra) for row, extra in rows],
+            'total': self._nasq_visible_count(domain),
+            'unread_count': self._nasq_visible_count(base & Domain('is_read', '=', False)),
+        }
+
+    @api.model
+    def _nasq_find(self, notification_id):
+        """The caller's visible row and its row-check extra; MissingError otherwise."""
+        rows = self.env['mail.notification'].sudo().search(
+            self._nasq_domain() & Domain('id', '=', notification_id), limit=1,
+        )
+        if not rows:
+            raise MissingError(self.env._('Notification does not exist'))
+        visible, extra = self.env['nasq.notify.registry']._nasq_notify_row_visible(rows)
+        if not visible:
+            raise MissingError(self.env._('Notification does not exist'))
+        return rows, extra
+
+    @api.model
+    def _nasq_mark_read(self, notification_id):
+        """Mark one visible row read once its owner's feature allows writes; return 0 or 1."""
+        row, _extra = self._nasq_find(notification_id)
+        if row.is_read:
+            return 0
+        self.env['nasq.entitlement.service'].require(
+            self.env['nasq.notify.registry']._nasq_notify_feature_key(row),
+        )
+        row.write({'is_read': True})
+        return 1
+
+    @api.model
+    def _nasq_mark_all_read(self):
+        """Mark every visible unread row read whose owner's feature allows writes; return the count."""
+        registry = self.env['nasq.notify.registry']
+        entitlement = self.env['nasq.entitlement.service']
+        writable = []
+        for row, _extra in self._nasq_visible_rows(self._nasq_domain() & Domain('is_read', '=', False)):
+            try:
+                entitlement.require(registry._nasq_notify_feature_key(row))
+            except NasqAccessRule:
+                continue
+            writable.append(row.id)
+        if writable:
+            self.env['mail.notification'].sudo().browse(writable).write({'is_read': True})
+        return len(writable)

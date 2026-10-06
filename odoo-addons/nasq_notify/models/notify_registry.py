@@ -8,8 +8,9 @@ TYPE_FIELDS = ('owner', 'model', 'feature_key')
 class NasqNotifyRegistry(models.AbstractModel):
     """Notification types, composed through ``super()`` like ``nasq.feature.registry``.
 
-    nasq_notify knows no application: each application that sends bell rows
-    extends this model with its kinds.
+    nasq_notify knows no application. Each application that sends bell rows
+    extends this model: it registers its kinds, says which of its rows the
+    caller may still see, and serializes them.
     """
     _name = 'nasq.notify.registry'
     _description = 'Nasq notification type registry'
@@ -19,8 +20,8 @@ class NasqNotifyRegistry(models.AbstractModel):
     def _nasq_notification_types(self):
         """Pure descriptors ``{'kind', 'owner', 'model', 'feature_key'}``; never a process-global set.
 
-        ``'live': True`` marks a kind whose rows are re-checked one by one.
-        The kind is a value its owner added to
+        ``'live': True`` marks a kind whose rows ``_nasq_notify_row_visible``
+        re-checks one by one. The kind is a value its owner added to
         ``mail.message.nasq_notification_kind`` with ``selection_add``.
         """
         return ()
@@ -61,3 +62,35 @@ class NasqNotifyRegistry(models.AbstractModel):
     @api.model
     def _nasq_notify_live_kinds(self):
         return tuple(kind for kind, item in self._nasq_notification_type_map().items() if item.get('live'))
+
+    @api.model
+    def _nasq_notify_visible_domain(self):
+        """One ``mail.notification`` domain per readable source; the service ORs them.
+
+        An owner appends a non-empty branch for its own rows, built from ids
+        the caller can still read in the caller's environment. A row outside
+        every branch is never listed, counted or marked read.
+        """
+        return []
+
+    @api.model
+    def _nasq_notify_row_visible(self, row):
+        """``(visible, extra)`` for one row of a ``live`` kind; ``extra`` reaches the dump."""
+        return True, None
+
+    @api.model
+    def _nasq_notify_dump(self, row, extra):
+        """The wire shape of one row; its owner overrides this for its kinds."""
+        kind = row.mail_message_id.nasq_notification_kind
+        msg = f'nasq_notify: no owner serializes notification kind {kind!r}'
+        raise ValueError(msg)
+
+    @api.model
+    def _nasq_notify_feature_key(self, row):
+        """The feature that must allow writes before ``row`` is marked read."""
+        types = self._nasq_notification_type_map()
+        message = row.mail_message_id
+        item = types.get(message.nasq_notification_kind) or next(
+            (item for item in types.values() if item['model'] == message.model), None,
+        )
+        return item['feature_key'] if item else None
