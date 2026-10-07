@@ -1,4 +1,5 @@
 import { PACKAGE_LIMIT_MAX, packageActionSchema, packageCloneSchema, packageInputSchema, type PackageInput } from '@nasq/commercial-contracts'
+import { humanizeId } from './labelFallback'
 import { safeReturnTo } from './safeReturnTo'
 export type PackageCatalog = { id: string; version: string; status: string; solution: { base_modules?: string[]; tiers?: PackageTier[] } }
 export type PackageTier = { id?: string; name?: string; modules?: string[]; features?: string[] }
@@ -21,7 +22,9 @@ const labelKeys: Record<string, Record<string, string>> = {
 }
 export function packageLabel(kind: 'tier' | 'module' | 'feature' | 'limit', value: string, t: (key: string) => string): string {
   const key = labelKeys[kind]?.[value]
-  return key ? t(`vendor.packages.${kind === 'tier' ? 'tiers' : kind === 'module' ? 'apps' : kind === 'limit' ? 'limits' : 'features'}.${key}`) : value
+  if (key) return t(`vendor.packages.${kind === 'tier' ? 'tiers' : kind === 'module' ? 'apps' : kind === 'limit' ? 'limits' : 'features'}.${key}`)
+  // A newer application's module id reads as its name; other unknown values stay as sent (Phase 3 catalog names).
+  return kind === 'module' && /^(?:nasq|customer)_[a-z0-9_]+$/.test(value) ? humanizeId(value) : value
 }
 export function packageActionBody(action: PackageAction, revision: number, reason: string) {
   return action === 'revisions' ? packageCloneSchema.parse({ reason }) : packageActionSchema.parse({ revision, reason })

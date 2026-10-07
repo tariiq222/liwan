@@ -356,6 +356,14 @@ worktrees only after their content is preserved and no process is using them.
 - Nuxt UI components are the customer control surface. Preserve their RTL
   semantics, keyboard behavior and public props/slots; shared composite
   components are documented in `docs/design-system/components.md`.
+- Contracts accept any well-formed capability key (`<app>.<resource>.<action>`),
+  module id (`nasq_*`, `customer_*`) and permission domain; `KNOWN_CAPABILITIES`,
+  `KNOWN_NASQ_MODULE_IDS` and `KNOWN_PERMISSION_DOMAINS` keep today's values for
+  typed code. On the client a capability's feature is `<first segment>.enabled`
+  and it is a write unless its last segment is `read` (`app/modules/registry.ts`;
+  exceptions are listed there). A bell kind the build does not know renders as a
+  generic row; known kinds stay strict. A new application still adds its own
+  navigation, locale file and labels (Phase 4).
 - The data layer uses `@tanstack/vue-query` composables over `useApi()`, which
   throws `ApiError {status, code, message, field}`. Plain edits may be
   optimistic; transitions and approvals remain pending until the server

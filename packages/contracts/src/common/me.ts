@@ -19,7 +19,13 @@ export const MeAppearancePatchSchema = z.object({
   message: 'mode or font_size is required',
 })
 
-export const NasqModuleIdSchema = z.enum(['nasq_chat', 'nasq_hr', 'nasq_meetings', 'nasq_pmo'])
+/** An installed application module: a product addon `nasq_*` or a customer overlay `customer_*`. */
+export const NASQ_MODULE_ID_PATTERN = /^(nasq|customer)_[a-z0-9_]+$/
+/** The application modules of today's product, for typed code; a newer application's id is accepted too. */
+export const KNOWN_NASQ_MODULE_IDS = ['nasq_chat', 'nasq_hr', 'nasq_meetings', 'nasq_pmo'] as const
+export type KnownNasqModuleId = typeof KNOWN_NASQ_MODULE_IDS[number]
+export type NasqModuleId = KnownNasqModuleId | (string & {})
+export const NasqModuleIdSchema = z.string().regex(NASQ_MODULE_ID_PATTERN)
 export const TenantStateSchema = z.enum(['active', 'suspended', 'expired'])
 export const MePlatformSchema = z.object({
   schema_version: z.literal(1),

@@ -8,6 +8,7 @@ from . import (
     test_commercial_surface,
     test_feature_route_coverage,
     test_me,
+    test_new_app_catalog,
     test_pagination,
     test_totp,
 )

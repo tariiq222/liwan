@@ -14,9 +14,12 @@ export type TenantIdentity = {
   }
 } | null | undefined
 
-export type FeatureKey = 'pmo.enabled' | 'meetings.enabled' | 'hr.enabled' | 'chat.enabled'
+/** Today's application features; a newer application's `<app>.enabled` is any other string. */
+export const KNOWN_FEATURE_KEYS = ['pmo.enabled', 'meetings.enabled', 'hr.enabled', 'chat.enabled'] as const
+export type KnownFeatureKey = typeof KNOWN_FEATURE_KEYS[number]
+export type FeatureKey = KnownFeatureKey | (string & {})
 
-export const MODULE_FEATURES: Record<'home' | 'projects' | 'meetings' | 'chat' | 'hr' | 'settings' | 'vendor' | 'management', FeatureKey | null> = {
+export const MODULE_FEATURES: Record<'home' | 'projects' | 'meetings' | 'chat' | 'hr' | 'settings' | 'vendor' | 'management', KnownFeatureKey | null> = {
   home: 'pmo.enabled',
   projects: 'pmo.enabled',
   meetings: 'meetings.enabled',
@@ -27,25 +30,34 @@ export const MODULE_FEATURES: Record<'home' | 'projects' | 'meetings' | 'chat' |
   management: null,
 }
 
-const WRITE_CAPABILITIES = new Set([
-  'pmo.projects.create', 'pmo.projects.manage', 'pmo.settings.manage',
-  'pmo.tasks.create', 'pmo.tasks.write', 'pmo.tasks.approve',
-  'meetings.create',
-  'hr.employees.manage', 'hr.employees.archive', 'hr.departments.manage', 'hr.documents.manage',
-  'access.users.grant', 'access.users.assign_roles', 'access.users.disable', 'access.users.reset_password',
-  'access.roles.manage', 'settings.branding.manage',
-])
+/**
+ * A capability's application feature is `<first segment>.enabled` (pmo, meetings, hr and any
+ * newer application). Exceptions keep today's gates: chat's capability is `nasq.internal`,
+ * and the foundation (`access`, `settings`, `nasq`), the vendor console and the customer
+ * subscription prefixes belong to no application feature.
+ */
+const CAPABILITY_FEATURES: ReadonlyMap<string, FeatureKey> = new Map([[INTERNAL_NASQ_ACCESS, 'chat.enabled']])
+// Any unknown dotted prefix is gated by `<prefix>.enabled`, so a new foundation-like prefix must be added here.
+const FEATURELESS_PREFIXES: ReadonlySet<string> = new Set(['access', 'settings', 'nasq', 'vendor', 'subscription', 'billing', 'branches'])
+/** A capability is a write unless its action (last segment) is `read`; `nasq.internal` only opens chat for reading. */
+const READ_CAPABILITIES: ReadonlySet<string> = new Set([INTERNAL_NASQ_ACCESS])
 
 export function featureGateActive(identity: TenantIdentity): boolean {
   return Boolean(identity && (identity.modules || identity.entitlements || identity.platform))
 }
 
 export function featureForCapability(capability: string): FeatureKey | null {
-  if (capability.startsWith('pmo.')) return 'pmo.enabled'
-  if (capability.startsWith('meetings.')) return 'meetings.enabled'
-  if (capability.startsWith('hr.')) return 'hr.enabled'
-  if (capability === INTERNAL_NASQ_ACCESS) return 'chat.enabled'
-  return null
+  const explicit = CAPABILITY_FEATURES.get(capability)
+  if (explicit) return explicit
+  const dot = capability.indexOf('.')
+  if (dot < 1) return null
+  const prefix = capability.slice(0, dot)
+  return FEATURELESS_PREFIXES.has(prefix) ? null : `${prefix}.enabled`
+}
+
+export function isWriteCapability(capability: string): boolean {
+  if (READ_CAPABILITIES.has(capability)) return false
+  return capability.slice(capability.lastIndexOf('.') + 1) !== 'read'
 }
 
 export function featureForPath(path: string): FeatureKey | null {
@@ -81,6 +93,5 @@ export function canUse(identity: TenantIdentity, capability: string, write = fal
   if (capability === NOTIFICATION_ACCESS) {
     return hasFeature(identity, 'pmo.enabled') || hasFeature(identity, 'meetings.enabled')
   }
-  const needsWrite = write || WRITE_CAPABILITIES.has(capability)
-  return hasFeature(identity, featureForCapability(capability), needsWrite)
+  return hasFeature(identity, featureForCapability(capability), write || isWriteCapability(capability))
 }

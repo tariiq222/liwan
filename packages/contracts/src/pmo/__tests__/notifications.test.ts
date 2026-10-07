@@ -3,6 +3,7 @@ import {
   NotificationListSchema,
   NotificationReadResultSchema,
   NotificationSchema,
+  UnknownNotificationSchema,
 } from '../notification'
 
 describe('notification contracts', () => {
@@ -31,5 +32,46 @@ describe('notification contracts', () => {
     })).toThrow()
     expect(() => NotificationReadResultSchema.parse({ updated: 1, ignored: true })).toThrow()
   })
-})
 
+  it("lists a newer application's kind as a generic row and keeps known kinds strict", () => {
+    const known = {
+      id: 7, kind: 'comment', task_id: 12, task_name: 'Review brief',
+      body: 'A comment was added', created_at: '2026-09-05T10:00:00Z', is_read: false,
+    }
+    const unknown = {
+      id: 9, kind: 'sales_order_assigned', order_id: 5, title: 'SO-0005',
+      body: 'Order assigned to you', created_at: '2026-10-07T09:00:00Z', is_read: false,
+    }
+    const list = NotificationListSchema.parse({ items: [unknown, known], total: 2, unread_count: 2 })
+    expect(list.items).toEqual([unknown, known])
+    expect(UnknownNotificationSchema.parse({ id: 10, kind: 'sales_quote_expired', created_at: '2026-10-07T09:00:00Z', is_read: true }))
+      .toEqual({ id: 10, kind: 'sales_quote_expired', created_at: '2026-10-07T09:00:00Z', is_read: true })
+    expect(NotificationSchema.safeParse(unknown).success).toBe(false)
+    // A known kind never falls back to the generic row: a malformed known row still fails the list.
+    const { task_id: _taskId, ...withoutTask } = known
+    for (const bad of [{ ...known, extra: true }, withoutTask, { ...known, kind: 'meeting_invite' }]) {
+      expect(() => NotificationListSchema.parse({ items: [bad], total: 1, unread_count: 1 })).toThrow()
+    }
+    for (const bad of [
+      { ...unknown, kind: 'Sales-Order' },
+      { ...unknown, id: 0 },
+      { ...unknown, is_read: undefined },
+      { ...unknown, created_at: undefined },
+    ]) {
+      expect(() => NotificationListSchema.parse({ items: [bad], total: 1, unread_count: 1 })).toThrow()
+    }
+  })
+
+  it('tolerates null title and body on a generic row only', () => {
+    const generic = {
+      id: 11, kind: 'sales_order_assigned', title: null, body: null,
+      created_at: '2026-10-07T09:00:00Z', is_read: false,
+    }
+    expect(NotificationListSchema.parse({ items: [generic], total: 1, unread_count: 1 }).items).toEqual([generic])
+    const known = {
+      id: 1, kind: 'assignment', task_id: 3, task_name: 'T', body: 'x',
+      created_at: '2026-10-07T09:00:00Z', is_read: false,
+    }
+    expect(() => NotificationListSchema.parse({ items: [{ ...known, body: null }], total: 1, unread_count: 1 })).toThrow()
+  })
+})

@@ -23,7 +23,9 @@ BRIDGE_RANK = 5
 APP_RANK = 4
 FOUNDATION_MAX_RANK = 2
 
-APP_TOKEN = re.compile(r'\b(?:(?:project|hr|pmo|meetings|chat|cyan_meeting_minutes)\.[a-z_]|nasq_(?:pmo|hr|chat)\.)')
+# R2 tokens that are not an addon of this repository: Odoo models and the meeting engine.
+# app_token() adds every registered application and bridge (ranks 4 and 5 in arch_layers.json).
+STATIC_APP_TOKENS = ('project', 'hr', 'pmo', 'meetings', 'chat', 'cyan_meeting_minutes')
 ADDON_IMPORT = re.compile(r'odoo\.addons\.((?:nasq|customer)_\w+)')
 CONTROL_PLANE_IMPORT = re.compile(r"""(?:from|import|require\()\s*\(?['"][^'"\n]*control-plane""")
 COMMERCIAL_IMPORT = re.compile(r"""(?:from|import)\s*\(?['"]@nasq/commercial-contracts""")
@@ -51,6 +53,20 @@ def is_test_path(path: Path) -> bool:
 
 def count(pattern: re.Pattern[str], text: str) -> int:
     return len(pattern.findall(text))
+
+
+def app_token(ranks: dict[str, int]) -> re.Pattern[str]:
+    """R2: `<prefix>.x` and `<addon>.` tokens a foundation file must not contain.
+
+    Each registered application or bridge `nasq_<name>` contributes `<name>.` (its capability
+    and feature keys) and `nasq_<name>.` (its xml ids and imports). Shared services (rank 3),
+    the foundation and customer overlays contribute nothing. Longer alternatives come first,
+    and `\\b` keeps `meetings_pmo.` inside `nasq_meetings_pmo.` from counting twice.
+    """
+    addons = sorted((a for a, rank in ranks.items() if rank in (APP_RANK, BRIDGE_RANK)), key=lambda a: (-len(a), a))
+    prefixes = sorted({*STATIC_APP_TOKENS, *(a.removeprefix('nasq_') for a in addons)}, key=lambda p: (-len(p), p))
+    names = '|'.join(map(re.escape, addons)) or '(?!)'
+    return re.compile(rf'\b(?:(?:{"|".join(map(re.escape, prefixes))})\.[a-z_]|(?:{names})\.)')
 
 
 def manifest_depends(text: str) -> list[str]:
@@ -343,6 +359,7 @@ def _addon_files(addon_dir: Path, suffixes: tuple[str, ...], root: Path | None =
 def collect(root: Path, layers: dict) -> tuple[Violations, list[str]]:
     ranks, exempt, web_apps = layers['ranks'], layers['exempt'], layers['web_apps']
     commercial = layers['commercial']
+    token = app_token(ranks)
     addons_root = root / 'odoo-addons'
     addons = sorted(p.parent.name for p in addons_root.glob('*/__manifest__.py'))
     hard = [f'unregistered addon {a}: add it to tools/arch_layers.json' for a in unregistered_addons(addons, ranks, exempt)]
@@ -368,7 +385,7 @@ def collect(root: Path, layers: dict) -> tuple[Violations, list[str]]:
         for path in _addon_files(addon_dir, ('.py', '.xml', '.csv'), root):
             text, rel = _read(path), _rel(path, root)
             if ranks[addon] <= FOUNDATION_MAX_RANK and path.name != '__manifest__.py':
-                _put(v['R2'], rel, count(APP_TOKEN, text))
+                _put(v['R2'], rel, count(token, text))
             if path.suffix != '.py':
                 continue
             for key, n in layer_violations(addon, ADDON_IMPORT.findall(text), ranks, 'imports').items():

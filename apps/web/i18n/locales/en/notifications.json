@@ -13,7 +13,8 @@
       "assignment": "You were assigned a task",
       "comment": "New comment on a task",
       "mention": "You were mentioned in a comment",
-      "deadline": "A task deadline is near"
+      "deadline": "A task deadline is near",
+      "other": "Notification"
     },
     "openTask": "Open task",
     "close": "Close notifications",

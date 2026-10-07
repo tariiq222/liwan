@@ -171,3 +171,32 @@ class TestNasqAccessModels(TransactionCase):
         )
         with self.assertRaises(AccessError):
             event.with_user(self.employee).write({'reason': 'rewrite'})
+
+    def test_permission_key_and_domain_are_open_identifiers(self):
+        field = self.env['ir.model.fields']._get('nasq.access.permission', 'domain')
+        self.assertEqual(field.ttype, 'char')
+        self.assertFalse(self.env['ir.model.fields.selection'].search([('field_id', '=', field.id)]))
+        Permission = self.env['nasq.access.permission']
+        values = {
+            'resource': 'orders', 'action': 'read', 'name_ar': 'قراءة الطلبات',
+            'description_ar': 'قراءة الطلبات', 'group_xmlid': 'nasq_core.group_cap_settings_branding_manage',
+        }
+        sales = Permission.create({**values, 'key': 'sales.orders.read', 'domain': 'sales'})
+        self.assertEqual(sales.domain, 'sales')
+        for index, domain in enumerate(('Sales', 'sales-orders', '9sales', 'sales.orders', 'sales orders')):
+            with (
+                self.subTest(domain=domain),
+                self.assertRaisesRegex(ValidationError, 'permission_domain_invalid'),
+                self.env.cr.savepoint(),
+            ):
+                Permission.create({**values, 'key': f'probe.orders{index}.read', 'domain': domain})
+        for key in ('Sales.orders.read', 'sales', 'sales..read', 'sales.orders.', 'sales.orders read'):
+            with (
+                self.subTest(key=key),
+                self.assertRaisesRegex(ValidationError, 'permission_key_invalid'),
+                self.env.cr.savepoint(),
+            ):
+                Permission.create({**values, 'key': key, 'domain': 'sales'})
+        with self.assertRaisesRegex(ValidationError, 'permission_domain_invalid'), self.env.cr.savepoint():
+            sales.write({'domain': 'Sales'})
+        self.assertEqual(sales.domain, 'sales')

@@ -2,7 +2,17 @@ import { z } from 'zod'
 
 export const LocalizedLabelSchema = z.object({ ar: z.string(), en: z.string().nullable() }).strict()
 
-export const CapabilitySchema = z.enum([
+/** A capability key: two or more lowercase identifier segments joined by dots (`<app>.<resource>.<action>`). */
+export const CAPABILITY_KEY_PATTERN = /^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$/
+/** A lowercase identifier: a permission domain or a notification kind. */
+export const IDENTIFIER_PATTERN = /^[a-z][a-z0-9_]*$/
+
+/**
+ * The capability keys of today's applications, for typed code. A newer application registers
+ * its own keys on the server; the contract accepts any well-formed key and the server
+ * (nasq_core `nasq.access.permission`) validates the same pattern.
+ */
+export const KNOWN_CAPABILITIES = [
   'access.users.read',
   'access.users.grant',
   'access.users.assign_roles',
@@ -31,8 +41,17 @@ export const CapabilitySchema = z.enum([
   'meetings.read',
   'meetings.create',
   'meetings.manage',
-])
-export type Capability = z.infer<typeof CapabilitySchema>
+] as const
+export type KnownCapability = typeof KNOWN_CAPABILITIES[number]
+/** Any capability: today's keys keep their literal type for autocomplete. */
+export type Capability = KnownCapability | (string & {})
+export const CapabilitySchema = z.string().regex(CAPABILITY_KEY_PATTERN)
+
+/** The permission domains (role-screen groups) of today's applications; a newer application adds its own. */
+export const KNOWN_PERMISSION_DOMAINS = ['access', 'hr', 'pmo', 'meetings', 'settings'] as const
+export type KnownPermissionDomain = typeof KNOWN_PERMISSION_DOMAINS[number]
+export type PermissionDomain = KnownPermissionDomain | (string & {})
+export const PermissionDomainSchema = z.string().regex(IDENTIFIER_PATTERN)
 
 export const ScopeKindSchema = z.enum(['company', 'project'])
 export const ScopeRefSchema = z.object({
@@ -96,13 +115,15 @@ export type RoleDetail = z.infer<typeof RoleDetailSchema>
 export const RoleListSchema = z.object({ items: z.array(RoleSummarySchema), total: z.number().int().nonnegative() }).strict()
 export type RoleList = z.infer<typeof RoleListSchema>
 
-const ACCESS_CHANGING_CAPABILITIES = new Set<Capability>([
+// Typed as known keys so a misspelt entry fails the type check.
+const ACCESS_CHANGING: readonly KnownCapability[] = [
   'access.users.grant',
   'access.users.assign_roles',
   'access.users.disable',
   'access.users.reset_password',
   'access.roles.manage',
-])
+]
+const ACCESS_CHANGING_CAPABILITIES = new Set<Capability>(ACCESS_CHANGING)
 const RoleNameSchema = z.object({ ar: z.string().trim().min(1), en: z.string().trim().min(1).nullable() }).strict()
 const CustomRolePermissionsSchema = z.array(CapabilitySchema).refine(
   (permissions) => permissions.every((permission) => !ACCESS_CHANGING_CAPABILITIES.has(permission)),
@@ -127,7 +148,7 @@ export const RoleStateInputSchema = z.object({ expected_version: z.string().trim
 export type RoleStateInput = z.infer<typeof RoleStateInputSchema>
 export const PermissionDefinitionSchema = z.object({
   key: CapabilitySchema,
-  domain: z.enum(['access', 'hr', 'pmo', 'meetings', 'settings']),
+  domain: PermissionDomainSchema,
   resource: z.string(),
   action: z.string(),
   label: LocalizedLabelSchema,

@@ -1,5 +1,13 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+import re
+
 from odoo import api, fields, models
+from odoo.exceptions import ValidationError
+
+# The wire patterns of packages/contracts (access.ts): every application owns its
+# keys and its domain, so nasq_core lists none of them and checks only their form.
+CAPABILITY_KEY = re.compile(r'[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)+')
+IDENTIFIER = re.compile(r'[a-z][a-z0-9_]*')
 
 
 class NasqAccessPermission(models.Model):
@@ -9,10 +17,9 @@ class NasqAccessPermission(models.Model):
     _order = 'key'
 
     key = fields.Char(required=True, index=True)
-    domain = fields.Selection(
-        [('access', 'Access'), ('hr', 'HR'), ('pmo', 'PMO'), ('meetings', 'Meetings'), ('settings', 'Settings')],
-        required=True,
-    )
+    # The application area the permission is grouped under in role screens
+    # (today access, hr, pmo, meetings, settings; a new application adds its own).
+    domain = fields.Char(required=True)
     resource = fields.Char(required=True)
     action = fields.Char(required=True)
     name_ar = fields.Char(required=True)
@@ -30,6 +37,16 @@ class NasqAccessPermission(models.Model):
     project_contextual = fields.Boolean(default=False, required=True)
 
     _key_unique = models.Constraint('UNIQUE(key)', 'permission key must be unique')
+
+    @api.constrains('key', 'domain')
+    def _check_key_and_domain(self):
+        for permission in self:
+            if not CAPABILITY_KEY.fullmatch(permission.key or ''):
+                msg = 'permission_key_invalid'
+                raise ValidationError(msg)
+            if not IDENTIFIER.fullmatch(permission.domain or ''):
+                msg = 'permission_domain_invalid'
+                raise ValidationError(msg)
 
     @api.model
     def _search(

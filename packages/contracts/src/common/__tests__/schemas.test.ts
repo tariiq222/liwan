@@ -1,4 +1,4 @@
-import { BrandingSchema, MeAppearancePatchSchema, MeSchema } from '../index'
+import { BrandingSchema, KNOWN_NASQ_MODULE_IDS, MeAppearancePatchSchema, MeSchema } from '../index'
 
 describe('BrandingSchema', () => {
   it('accepts the shape served by GET /api/v1/branding', () => {
@@ -55,11 +55,16 @@ describe('MeSchema', () => {
     expect(me.terminology.ar.project).toBe('مبادرة')
     expect(me.modules).toEqual(['nasq_pmo', 'nasq_meetings', 'nasq_hr'])
   })
-  it('rejects an unknown module id', () => {
-    expect(() => MeSchema.parse({
+  it("accepts a newer application's module id and rejects malformed ones", () => {
+    const base = {
       id: 2, name: 'Sara', login: 'emp', email: 'sara@example.com', lang: 'ar_001',
       tz: 'Asia/Riyadh', role: 'employee', company: { id: 1, name: 'Erada' },
-      modules: ['nasq_unknown'],
-    })).toThrow()
+    }
+    expect(MeSchema.parse({ ...base, modules: ['nasq_sales', 'customer_acme_reports'] }).modules)
+      .toEqual(['nasq_sales', 'customer_acme_reports'])
+    expect(KNOWN_NASQ_MODULE_IDS).toEqual(['nasq_chat', 'nasq_hr', 'nasq_meetings', 'nasq_pmo'])
+    for (const id of ['sales', 'nasq_', 'NASQ_SALES', 'nasq-sales', 'odoo_sales']) {
+      expect(() => MeSchema.parse({ ...base, modules: [id] })).toThrow()
+    }
   })
 })

@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { NotificationSchema } from '@nasq/contracts'
-import { isDigestNotification, isMeetingNotification } from '../../../composables/useNotifications'
+import { NotificationListSchema, NotificationSchema, type BellNotification } from '@nasq/contracts'
+import { isDigestNotification, isKnownNotification, isMeetingNotification } from '../../../composables/useNotifications'
 
-function href(item: ReturnType<typeof NotificationSchema.parse>) {
+// Mirrors notificationHref() in NotificationCenter.vue.
+function href(item: BellNotification) {
   if (isDigestNotification(item)) return `/notification-digests/${item.digest_id}`
   if (isMeetingNotification(item)) return `/meetings/${item.meeting_id}`
-  return `/tasks/${item.task_id}`
+  if (isKnownNotification(item)) return `/tasks/${item.task_id}`
+  return null
 }
 
 describe('NotificationCenter digest routing', () => {
@@ -40,5 +42,25 @@ describe('NotificationCenter digest routing', () => {
     expect(isDigestNotification(digest)).toBe(true)
     expect(href(digest)).toBe('/notification-digests/90')
     expect('task_id' in digest).toBe(false)
+  })
+
+  it("keeps a newer application's row as a generic row without a link", () => {
+    const list = NotificationListSchema.parse({
+      items: [
+        { id: 93, kind: 'sales_order_assigned', order_id: 5, title: 'SO-0005', body: 'Order assigned to you', created_at: '2026-10-07T09:00:00Z', is_read: false },
+        { id: 92, kind: 'meeting_future_change', body: 'Changed', created_at: '2026-10-07T09:00:00Z', is_read: true },
+        { id: 91, kind: 'meeting_invite', meeting_id: 7, meeting_name: 'Review', body: '', created_at: '2026-09-07T12:00:00Z', is_read: false },
+      ],
+      total: 3,
+      unread_count: 2,
+    })
+    const [sales, future, invite] = list.items as [BellNotification, BellNotification, BellNotification]
+    expect(isKnownNotification(sales)).toBe(false)
+    expect(href(sales)).toBeNull()
+    // Not a meeting row: the old startsWith('meeting_') test would have linked /meetings/undefined.
+    expect(isMeetingNotification(future)).toBe(false)
+    expect(href(future)).toBeNull()
+    expect(isKnownNotification(invite)).toBe(true)
+    expect(href(invite)).toBe('/meetings/7')
   })
 })

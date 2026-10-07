@@ -2,10 +2,11 @@
 import type { PermissionDefinition, RoleDetail } from '@nasq/contracts'
 import { ApiError } from '@/composables/useApi'
 import { useUpdateAdminRole } from '@/composables/useAdminRoles'
+import { permissionDomainLabel } from '@/utils/labelFallback'
 
 const props = defineProps<{ role: RoleDetail; permissions: PermissionDefinition[]; readonly?: boolean }>()
 const emit = defineEmits<{ saved: []; conflict: [ApiError] }>()
-const { t, locale } = useI18n()
+const { t, te, locale } = useI18n()
 const hydrated = useHydrated()
 const update = useUpdateAdminRole()
 const nameAr = ref(props.role.name.ar)
@@ -19,7 +20,7 @@ const canEdit = computed(() => hydrated.value && !props.readonly && props.role.a
 const permissionByKey = computed(() => new Map<string, PermissionDefinition>(props.permissions.map((permission) => [permission.key, permission])))
 const permissionLabel = (key: string) => permissionByKey.value.get(key)?.label[locale.value === 'ar' ? 'ar' : 'en'] ?? permissionByKey.value.get(key)?.label.ar ?? t('access.roles.unknownPermission')
 const permissionDescription = (permission: PermissionDefinition) => permission.description[locale.value === 'ar' ? 'ar' : 'en'] ?? permission.description.ar
-const domainLabel = (domain: string) => t(`access.roles.domains.${domain}`)
+const domainLabel = (domain: string) => permissionDomainLabel(domain, t, te)
 const groupedPermissions = computed(() => Object.entries(props.permissions.reduce<Record<string, PermissionDefinition[]>>((groups, permission) => {
   (groups[permission.domain] ??= []).push(permission)
   return groups

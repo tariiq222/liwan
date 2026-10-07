@@ -17,6 +17,9 @@ describe('package presentation and editable request contract', () => {
     expect(packageLabel('tier', 'people', key => key)).toBe('vendor.packages.tiers.people')
     expect(packageLabel('module', 'future_module', key => key)).toBe('future_module')
     expect(packageLabel('module', 'nasq_meetings', key => key)).toBe('vendor.packages.apps.meetings')
+    expect(packageLabel('module', 'nasq_sales', key => key)).toBe('Sales')
+    expect(packageLabel('module', 'customer_acme_reports', key => key)).toBe('Acme reports')
+    expect(packageLabel('feature', 'boolean:sales.enabled', key => key)).toBe('boolean:sales.enabled')
     expect(packageLabel('feature', 'boolean:hr.enabled', key => key)).toBe('vendor.packages.features.hr')
   })
   it('sends the optimistic token for lifecycle actions and only reason for clone', () => {

@@ -3,8 +3,11 @@ import {
   NotificationDigestDetailSchema,
   NotificationListSchema,
   NotificationReadResultSchema,
+  type BellNotification,
   type Notification,
 } from '@nasq/contracts'
+// Relative, not '@/': the component unit tests import this file without the Nuxt alias.
+import { isKnownNotificationKind, isMeetingNotificationKind } from '../utils/notificationPresentation'
 
 export const notificationKeys = {
   all: ['notifications'] as const,
@@ -84,13 +87,18 @@ export function useNotificationDigest(id: { value: number | null }) {
   })
 }
 
-export function isDigestNotification(item: Notification): item is Extract<Notification, { kind: 'overdue_digest' }> {
+/** A row of a kind this build knows; a newer application's row is a generic row (title/body only, no link). */
+export function isKnownNotification(item: BellNotification): item is Notification {
+  return isKnownNotificationKind(item.kind)
+}
+
+export function isDigestNotification(item: BellNotification): item is Extract<Notification, { kind: 'overdue_digest' }> {
   return item.kind === 'overdue_digest'
 }
 
-export function isMeetingNotification(item: Notification): item is Extract<Notification, { meeting_id: number }> {
-  return item.kind.startsWith('meeting_')
+export function isMeetingNotification(item: BellNotification): item is Extract<Notification, { meeting_id: number }> {
+  return isMeetingNotificationKind(item.kind)
 }
 
-export type { Notification }
+export type { BellNotification, Notification }
 

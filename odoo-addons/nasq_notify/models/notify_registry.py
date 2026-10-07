@@ -80,7 +80,13 @@ class NasqNotifyRegistry(models.AbstractModel):
 
     @api.model
     def _nasq_notify_dump(self, row, extra):
-        """The wire shape of one row; its owner overrides this for its kinds."""
+        """The wire shape of one row; its owner overrides this for its kinds.
+
+        A new application's bell row must carry the generic envelope: ``id``, ``kind`` (the
+        registered identifier), ``created_at``, ``is_read`` and optional ``title`` / ``body``
+        strings. The bell shows the kind caption plus whichever of title/body is present. The
+        shapes of known kinds are owned by their contracts, not by this envelope.
+        """
         kind = row.mail_message_id.nasq_notification_kind
         msg = f'nasq_notify: no owner serializes notification kind {kind!r}'
         raise ValueError(msg)

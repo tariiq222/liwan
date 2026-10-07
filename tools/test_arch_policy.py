@@ -7,9 +7,11 @@ import unittest
 from pathlib import Path
 
 from arch_policy import (
+    app_token,
     collect,
     compare,
     core_depends_violations,
+    count,
     foreign_component_uses,
     is_test_path,
     layer_violations,
@@ -186,6 +188,36 @@ class TestPureRules(unittest.TestCase):
         self.assertFalse(is_test_path(Path('odoo-addons/nasq_pmo/models/project_task.py')))
 
 
+class TestAppToken(unittest.TestCase):
+    RANKS = {
+        'nasq_core': 0, 'nasq_platform': 1, 'nasq_api': 2, 'nasq_notify': 3,
+        'nasq_pmo': 4, 'nasq_sales': 4, 'nasq_meetings_pmo': 5, 'customer_acme_sales': 6,
+    }
+
+    def test_a_registered_application_contributes_its_key_prefix_and_its_xml_ids(self):
+        token = app_token(self.RANKS)
+        self.assertEqual(count(token, "k = 'sales.orders.read'"), 1)
+        self.assertEqual(count(token, "g = env.ref('nasq_sales.group_x')"), 1)
+        self.assertEqual(count(token, "from odoo.addons.nasq_sales.models import x"), 1)
+
+    def test_a_bridge_token_counts_once(self):
+        token = app_token(self.RANKS)
+        self.assertEqual(count(token, "r = 'nasq_meetings_pmo.rule_x'"), 1)
+        self.assertEqual(count(token, "k = 'meetings_pmo.thing'"), 1)
+
+    def test_odoo_models_and_the_meeting_engine_stay_tokens(self):
+        token = app_token({'nasq_core': 0})
+        self.assertEqual(count(token, "m = 'project.task'; e = 'hr.employee'; c = 'cyan_meeting_minutes.x'"), 3)
+        self.assertEqual(count(token, "a = 'pmo.tasks.read'; b = 'meetings.read'; d = 'chat.title'"), 3)
+
+    def test_unregistered_names_shared_services_and_overlays_are_not_tokens(self):
+        token = app_token(self.RANKS)
+        self.assertEqual(count(token, "a = 'crm.leads.read'; b = 'nasq_crm.group_x'"), 0)
+        self.assertEqual(count(token, "a = 'notify.kind'; b = 'nasq_notify.x'; c = 'api.v1'"), 0)
+        self.assertEqual(count(token, "a = 'customer_acme_sales.x'; b = 'acme_sales.y'"), 0)
+        self.assertEqual(count(token, "a = 'presales.x'"), 0)
+
+
 class TestCompare(unittest.TestCase):
     def test_equal_sets_pass(self):
         self.assertEqual(compare({'R7': {'a.py': 2}}, {'R7': {'a.py': 2}}), [])
@@ -299,6 +331,22 @@ class TestCollect(unittest.TestCase):
         self.write('odoo-addons/nasq_core/models/x.py', HEADER + "g = self.env.ref('nasq_pmo.group_x')\n")
         violations, _ = collect(self.root, self.layers)
         self.assertEqual(violations['R2'], {'odoo-addons/nasq_core/models/x.py': 1})
+
+    def test_a_registered_application_prefix_counts_as_r2(self):
+        self.clean_tree()
+        self.layers['ranks']['nasq_sales'] = 4
+        self.addon('nasq_sales', ['nasq_core'])
+        self.write(
+            'odoo-addons/nasq_sales/models/feature_registry.py',
+            HEADER + "X = {'key': 'sales.enabled', 'owner': 'nasq_sales'}\n",
+        )
+        self.write(
+            'odoo-addons/nasq_core/models/x.py',
+            HEADER + "KEY = 'sales.orders.read'\ng = 'nasq_sales.group_x'\n",
+        )
+        violations, hard = collect(self.root, self.layers)
+        self.assertEqual(hard, [])
+        self.assertEqual(violations['R2'], {'odoo-addons/nasq_core/models/x.py': 2})
 
     def test_bridge_routes_need_requires_feature(self):
         self.clean_tree()
