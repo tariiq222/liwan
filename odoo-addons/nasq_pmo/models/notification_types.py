@@ -2,9 +2,9 @@
 """nasq_pmo's notification kinds in the nasq_notify registry.
 
 Tasks and the overdue digest belong to the project pillar. The meeting kinds
-stay here until nasq_meetings exists (phase 2b-2). Keep the meeting class
-second: the bell's feature gate checks keys in registration order, and with
-both off it reports the last one (meetings.enabled), as it did before.
+stay here until nasq_meetings exists (phase 2b-2). The bell's feature gate
+checks the registered keys sorted, so the order of these classes does not
+matter.
 
 Documented notification sudo: the candidate lookups below read only the
 current partner's own inbox rows; whether the task or meeting is still

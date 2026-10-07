@@ -44,4 +44,5 @@ class TestPmoFeatureEnforcement(NasqPmoCase):
             response = self.api('GET', path)
             self.assertEqual(response.status_code, 403, path)
             self.assertEqual(response.json()['code'], 'feature_not_included', path)
-            self.assertEqual(response.json()['details'], {'reason': 'feature', 'feature': 'meetings.enabled'}, path)
+            # The gate checks the keys sorted: with both off it names pmo.enabled.
+            self.assertEqual(response.json()['details'], {'reason': 'feature', 'feature': 'pmo.enabled'}, path)
