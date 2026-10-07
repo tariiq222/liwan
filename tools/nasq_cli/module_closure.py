@@ -2,8 +2,11 @@
 """Installation closure of a selected Nasq module set, read from real manifests.
 
 Odoo installs a module's dependencies and any ``auto_install`` module whose
-dependencies are all present. The managed-tenant tooling therefore compares
-what is installed with this closure, not with the raw selection.
+dependencies are all installed. The managed-tenant tooling therefore compares
+what is installed with this closure, not with the raw selection. Odoo addons
+(project, hr, mail ...) are not resolvable here: an ``auto_install`` Nasq
+module joins only when each of its Odoo dependencies is ``base`` or a direct
+dependency of some module already in the closure.
 """
 from __future__ import annotations
 
@@ -23,6 +26,7 @@ def _owned(name):
 
 
 def _read_manifest(addons_paths, module):
+    """``(nasq dependencies, other dependencies, auto_install)`` of ``module``."""
     for directory in addons_paths:
         manifest = Path(directory) / module / '__manifest__.py'
         if manifest.is_file():
@@ -34,7 +38,9 @@ def _read_manifest(addons_paths, module):
                 raise ClosureError(module) from None
             if not isinstance(depends, list) or any(type(dep) is not str for dep in depends):
                 raise ClosureError(module)
-            return [dep for dep in depends if _owned(dep)], bool(auto)
+            owned = [dep for dep in depends if _owned(dep)]
+            other = [dep for dep in depends if not _owned(dep)]
+            return owned, other, bool(auto)
     raise ClosureError(module)
 
 
@@ -50,6 +56,10 @@ def install_closure(addons_paths, selected):
         manifests[name] = _read_manifest(paths, name)
         pending.extend(manifests[name][0])
     closure = set(manifests)
+    # Odoo addons the closure requires directly; Odoo installs them with it.
+    required = {'base'}
+    for _owned_deps, other_deps, _auto in manifests.values():
+        required.update(other_deps)
     # Auto-install candidates: every owned module present in the addons paths.
     candidates = {}
     for directory in paths:
@@ -66,10 +76,15 @@ def install_closure(addons_paths, selected):
             if name in closure:
                 continue
             try:
-                depends, auto = _read_manifest(paths, name)
+                owned_deps, other_deps, auto = _read_manifest(paths, name)
             except ClosureError:
                 continue
-            if auto and depends and all(dep in closure for dep in depends):
+            if (
+                auto and (owned_deps or other_deps)
+                and all(dep in closure for dep in owned_deps)
+                and all(dep in required for dep in other_deps)
+            ):
                 closure.add(name)
+                required.update(other_deps)
                 changed = True
     return closure

@@ -229,7 +229,7 @@ R3 و R4 تُطبَّقان على هذا التوزيع. الاعتماد ين�
 | مهمة | `codex/<area>-<slug>` | ساعات إلى أيام | من `main` ← إلى `main` |
 | تجربة | `spike/<slug>` | أيام | من `main` ← لا يُدمج، يُحذف بعد التقرير |
 
-- `<area>` من قائمة مغلقة: `core platform api pmo hr chat web cp deploy tools docs ci`.
+- `<area>` من قائمة مغلقة: `core platform api pmo hr chat meetings web cp deploy tools docs ci`.
   المهمة العابرة لأكثر من منطقة تأخذ منطقة مالكها الرئيسي.
 - البادئة `codex/` تبقى للجميع (Claude وCodex) لأنها الموثقة حالياً ولأن أدوات worktree تنشئها تلقائياً.
 - **لا فرع لكل عميل ولا فرع "حكومي".** الفرق بين العملاء إعدادات وإضافات، لا فروع.

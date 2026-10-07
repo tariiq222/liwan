@@ -32,7 +32,8 @@ class TestEntitlements(TransactionCase):
     # Fixed per-app literals; the installed apps come from ir.module.module,
     # never from the registry under test.
     APP_BOOLEANS = {
-        'nasq_pmo': {'pmo.enabled', 'meetings.enabled'},
+        'nasq_pmo': {'pmo.enabled'},
+        'nasq_meetings': {'meetings.enabled'},
         'nasq_hr': {'hr.enabled'},
         'nasq_chat': {'chat.enabled'},
     }
@@ -55,8 +56,12 @@ class TestEntitlements(TransactionCase):
         return keys
 
     def _readable_key(self):
-        # pmo.enabled when nasq_pmo is installed, else the HR key.
-        return 'pmo.enabled' if 'nasq_pmo' in self._installed_apps() else 'hr.enabled'
+        # A boolean of an installed application: pmo.enabled first, as before.
+        for app in ('nasq_pmo', 'nasq_hr', 'nasq_meetings', 'nasq_chat'):
+            if app in self._installed_apps():
+                return sorted(self.APP_BOOLEANS[app])[0]
+        reason = 'needs an application installed'
+        raise unittest.SkipTest(reason)
 
     def test_legacy_initializer_grants_installed_pillars_once(self):
         self.assertGreaterEqual(self.record.policy_revision, 1)
@@ -73,14 +78,15 @@ class TestEntitlements(TransactionCase):
             set(self.record.retained_read_features),
             flags,
         )
-        if self._installed_apps() == {'nasq_pmo', 'nasq_hr', 'nasq_chat'}:
+        if self._installed_apps() == {'nasq_pmo', 'nasq_meetings', 'nasq_hr', 'nasq_chat'}:
             self.assertEqual(set(self.record.retained_read_features), {
                 'pmo.enabled', 'meetings.enabled', 'hr.enabled', 'chat.enabled',
             })
         first_revision = self.record.policy_revision
         self.record._nasq_initialize_legacy_policy(('nasq_pmo',))
         self.assertEqual(self.record.policy_revision, first_revision)
-        self.assertTrue(self.record.features['hr.enabled'])
+        if 'nasq_hr' in self._installed_apps():
+            self.assertTrue(self.record.features['hr.enabled'])
 
     def test_legacy_missing_branch_preserves_feature_keys_and_input(self):
         legacy = {key: value for key, value in self.record.features.items()
@@ -124,7 +130,7 @@ class TestEntitlements(TransactionCase):
             self._operator().write({'features': {**self.record.features, 'users.limit': True}})
 
     def test_withdrawn_feature_keeps_retained_read(self):
-        self._require_app('nasq_pmo')
+        self._require_app('nasq_meetings')
         self._operator().write({
             'features': {**self.record.features, 'meetings.enabled': False},
         })
@@ -178,12 +184,12 @@ class TestEntitlements(TransactionCase):
         self.assertEqual(set(self.features._nasq_limit_keys()), limits)
         capability_map = self.env['nasq.access.service']._nasq_capability_map()
         self.assertTrue(set(capability_map) >= CAPABILITIES)
-        # 9 core capabilities, plus 8 for HR and 8 + 3 meetings for PMO (28 in all).
-        expected = 9 + 8 * ('nasq_hr' in apps) + 11 * ('nasq_pmo' in apps)
+        # 9 core capabilities, plus 8 for HR, 8 for PMO and 3 for meetings (28 in all).
+        expected = 9 + 8 * ('nasq_hr' in apps) + 8 * ('nasq_pmo' in apps) + 3 * ('nasq_meetings' in apps)
         self.assertEqual(len(capability_map), expected)
-        if apps == {'nasq_pmo', 'nasq_hr', 'nasq_chat'}:
+        if apps == {'nasq_pmo', 'nasq_meetings', 'nasq_hr', 'nasq_chat'}:
             self.assertEqual(set(self.features._nasq_module_map()), {
-                'nasq_pmo', 'nasq_hr', 'nasq_chat',
+                'nasq_pmo', 'nasq_meetings', 'nasq_hr', 'nasq_chat',
             })
             self.assertEqual(set(self.features._nasq_boolean_keys()), {
                 'pmo.enabled', 'meetings.enabled', 'hr.enabled', 'chat.enabled',

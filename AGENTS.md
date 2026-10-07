@@ -91,7 +91,7 @@ another application) needs the owner's approval, recorded by the owner as an
 
 - `main` is the only long-lived branch and is always releasable. Task branches are
   `codex/<area>-<slug>`; throwaway experiments are `spike/<slug>` and are never merged.
-  `<area>` is one of `core platform api pmo hr chat web cp deploy tools docs ci`.
+  `<area>` is one of `core platform api pmo hr chat meetings web cp deploy tools docs ci`.
 - Commit subjects are `type(scope): imperative subject`, at most 72 characters, with `type` in
   `feat fix refactor perf test docs ci build chore` and `scope` from the `<area>` list. One logical change
   per commit. No `wip` commit reaches `main`. A schema change carries its version bump and migration
@@ -179,17 +179,20 @@ coordinator owns planning, integration and review in both tools.
   Test execution needs authorization; this setup does not authorize Odoo startup.
 - Manifests: Odoo copyright header, `LGPL-3`, author `Tariq Alwalidi`,
   `category: Hidden`, `installable: True`, `application: False`; versions use
-  `19.0.X.Y.Z` (core/HR `19.0.1.0.0`, PMO `19.0.1.3.0`). Follow
+  `19.0.X.Y.Z` (core/HR/meetings `19.0.1.0.0`, PMO `19.0.1.4.0`). Follow
   `docs/migrations.md` for schema/data version bumps and migrations.
 - Declare real dependencies: core uses `base` only; HR uses `nasq_api`, `hr`,
   `mail`; the shared services `nasq_notify` (`nasq_api`, `mail`) and
   `nasq_directory` (`nasq_api`) know no application; PMO also uses
-  `nasq_platform`, `nasq_notify`, `nasq_directory`, `project`, `bus`,
-  `cyan_meeting_minutes` (see manifests). Preserve pillar direction: shared
-  `nasq_api` and the shared services never import a pillar.
+  `nasq_platform`, `nasq_notify`, `nasq_directory`, `project`, `bus`; meetings
+  use `nasq_platform`, `nasq_notify`, `nasq_directory`, `cyan_meeting_minutes`,
+  `calendar`, `mail`; the bridge `nasq_meetings_pmo` (`auto_install`) uses
+  `nasq_meetings` and `nasq_pmo` (see manifests). Preserve pillar direction:
+  shared `nasq_api` and the shared services never import a pillar, and one
+  application never imports another; only a bridge imports both.
 - Keep `models/`, `security/`, `data/`, `tests/`; API pillars additionally use
-  `controllers/` and whitelist-based `serializers/`; PMO has `report/`, `i18n/`
-  and `migrations/`. Import Python modules through their `__init__.py` files;
+  `controllers/` and whitelist-based `serializers/`; PMO has `i18n/` and
+  `migrations/`; `nasq_meetings` has `report/` (the meeting report moved there). Import Python modules through their `__init__.py` files;
   list every XML/CSV file in manifest `data` in the required dependency order.
 - New models use dotted `nasq.*` names and `Nasq*` classes; extend stock models
   with `_inherit`, not copies. Model files and local XML ids use snake_case

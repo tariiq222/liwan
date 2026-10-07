@@ -1,4 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+import unittest
+
 from odoo.http import root
 from odoo.tests import new_test_user, tagged
 from odoo.tests.common import HOST, Opener
@@ -27,6 +29,9 @@ class TestAccessAdminUsers(NasqApiCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
+        if 'hr.department' not in cls.env:
+            reason = 'needs nasq_hr installed'
+            raise unittest.SkipTest(reason)
         cls.admin = new_test_user(
             cls.env, login='access_api_admin', password='access_api_admin_pass_123',
             groups='nasq_core.group_access_admin',
@@ -262,15 +267,18 @@ class TestAccessAdminRoles(NasqApiCase):
         body = response.json()
         installed = {
             module.name for module in self.env['ir.module.module'].search([
-                ('name', 'in', ['nasq_hr', 'nasq_pmo']), ('state', '=', 'installed'),
+                ('name', 'in', ['nasq_hr', 'nasq_pmo', 'nasq_meetings']), ('state', '=', 'installed'),
             ])
         }
-        # 9 core capabilities, plus 8 for HR and 11 (8 + 3 meetings) for PMO.
-        total = 9 + 8 * ('nasq_hr' in installed) + 11 * ('nasq_pmo' in installed)
+        # 9 core capabilities, plus 8 for HR, 8 for PMO and 3 for meetings.
+        total = (
+            9 + 8 * ('nasq_hr' in installed) + 8 * ('nasq_pmo' in installed)
+            + 3 * ('nasq_meetings' in installed)
+        )
         self.assertEqual((len(body['items']), body['total']), (total, total))
         self.assertEqual(
             {item['key'] for item in body['items'] if item['key'].startswith('meetings.')},
-            {'meetings.read', 'meetings.create', 'meetings.manage'} if 'nasq_pmo' in installed else set(),
+            {'meetings.read', 'meetings.create', 'meetings.manage'} if 'nasq_meetings' in installed else set(),
         )
         permission = next(item for item in body['items'] if item['key'] == 'access.users.assign_roles')
         self.assertFalse(permission['custom_role_allowed'])
@@ -351,7 +359,7 @@ class TestAccessAdminRoles(NasqApiCase):
             'user_id': user_b.id, 'role_id': role.id, 'company_id': company_b.id,
         })
 
-        other = self.env.ref('nasq_hr.role_hr_manager')
+        other = self.env.ref('nasq_core.role_system_admin')
         counts = role_user_counts(role | other)
         self.assertEqual(counts[role.id], before + 1)
         self.assertEqual(counts[role.id], role_user_count(role))

@@ -57,10 +57,10 @@ class TestAccessComposition(TransactionCase):
         super().setUpClass()
         installed = {
             module.name
-            for module in cls.env['ir.module.module'].search([('name', 'in', ['nasq_hr', 'nasq_pmo']), ('state', '=', 'installed')])
+            for module in cls.env['ir.module.module'].search([('name', 'in', ['nasq_hr', 'nasq_pmo', 'nasq_meetings']), ('state', '=', 'installed')])
         }
-        if installed != {'nasq_hr', 'nasq_pmo'}:
-            reason = 'needs nasq_hr and nasq_pmo installed'
+        if installed != {'nasq_hr', 'nasq_pmo', 'nasq_meetings'}:
+            reason = 'needs nasq_hr, nasq_pmo and nasq_meetings installed'
             raise unittest.SkipTest(reason)
         cls.service = cls.env['nasq.access.service']
         cls.Permission = cls.env['nasq.access.permission']

@@ -5,10 +5,6 @@ from . import (
     entitlement_service,
     feature_registry,
     mail_notification_nasq,
-    meeting_access,
-    meeting_minute,
-    meeting_resolution,
-    meeting_series,
     nasq_settings,
     notification_types,
     project_charter_reference,
@@ -22,8 +18,3 @@ from . import (
     task_attachments,
     task_notifications,
 )
-
-# Load the history extension after the Cyan meeting model and PMO mixins so
-# its completion override remains the final layer in the model MRO.
-# isort: split
-from . import meeting_history, meeting_workspace

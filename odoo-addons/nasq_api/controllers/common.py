@@ -104,7 +104,9 @@ def requires_registered_feature(model, method, *, keys, operation='write', match
     names no application. When nothing is registered the route answers 403
     ``feature_not_included``. ``keys`` only documents the gate: it is what
     tools/api_surface.py records and what the route-coverage test reads; it
-    is never checked.
+    is never checked. The registered keys are checked sorted, so with
+    ``match='any'`` the reported key is the last failing one in sorted order,
+    whatever order the addons registered them in.
     """
     if not keys or not all(isinstance(key, str) and key for key in keys):
         msg = 'requires_registered_feature keys must document the gate'
@@ -114,7 +116,7 @@ def requires_registered_feature(model, method, *, keys, operation='write', match
     def decorator(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            registered = tuple(getattr(request.env[model], method)())
+            registered = tuple(sorted(set(getattr(request.env[model], method)())))
             if registered:
                 error = _feature_error(registered, operation, match)
             else:

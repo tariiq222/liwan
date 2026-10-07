@@ -19,7 +19,7 @@ export const MeAppearancePatchSchema = z.object({
   message: 'mode or font_size is required',
 })
 
-export const NasqModuleIdSchema = z.enum(['nasq_chat', 'nasq_hr', 'nasq_pmo'])
+export const NasqModuleIdSchema = z.enum(['nasq_chat', 'nasq_hr', 'nasq_meetings', 'nasq_pmo'])
 export const TenantStateSchema = z.enum(['active', 'suspended', 'expired'])
 export const MePlatformSchema = z.object({
   schema_version: z.literal(1),

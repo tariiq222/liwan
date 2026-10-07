@@ -19,7 +19,7 @@ describe('commercial catalog and entitlement compiler', () => {
     const apps = fixture().release.applications
     expect(apps.map(a => a.id)).toEqual(['core', 'projects', 'people', 'messaging'])
     expect(apps[0].name_ar).toBe('المنصة')
-    expect(apps[1].modules).toEqual(['nasq_pmo'])
+    expect(apps[1].modules).toEqual(['nasq_meetings', 'nasq_pmo'])
     expect(apps[1].features.map(f => f.key)).toEqual(['pmo.enabled', 'meetings.enabled', 'projects.max_projects'])
     expect(apps.flatMap(a => a.features).every(f => f.enforcement_refs.length > 0)).toBe(true)
     expect(apps[0].features.every(f => !f.selectable)).toBe(true)
@@ -27,7 +27,7 @@ describe('commercial catalog and entitlement compiler', () => {
   it('unions base and selected modules, keeps 0/null, and overrides only explicit limits', () => {
     const input = fixture()
     const result = compileEntitlements({ ...input, terms: { id: id(9), customer_id: id(10), reason: 'Special terms', limits: { 'users.limit': 0 } } })
-    expect(result.modules).toEqual(['nasq_api', 'nasq_core', 'nasq_hr', 'nasq_platform', 'nasq_pmo'])
+    expect(result.modules).toEqual(['nasq_api', 'nasq_core', 'nasq_hr', 'nasq_meetings', 'nasq_platform', 'nasq_pmo'])
     expect(result.features).toEqual({ 'branches.extra_limit': 8, 'hr.enabled': true, 'meetings.enabled': true, 'pmo.enabled': true, 'projects.max_projects': 0, 'storage.limit_mb': null, 'users.limit': 0 })
     expect(result.compiler_version).toBe('commercial-compiler/1')
     expect(input.plan.platform_limits['users.limit']).toBe(20)

@@ -455,7 +455,7 @@ class OperatorCase(unittest.TestCase):
     def test_create_initializes_only_absent_scratch_and_applies_policy(self):
         self.policy.write_text(json.dumps({
             'schema_version': 1, 'channel': 'local_policy',
-            'modules': ['nasq_core', 'nasq_platform', 'nasq_api', 'nasq_pmo'],
+            'modules': ['nasq_core', 'nasq_platform', 'nasq_api', 'nasq_pmo', 'nasq_meetings'],
             'features': {'users.limit': None, 'storage.limit_mb': None,
                          'pmo.enabled': True, 'meetings.enabled': True,
                          'projects.max_projects': None},
@@ -471,7 +471,7 @@ class OperatorCase(unittest.TestCase):
                                        'pmo.enabled': True, 'meetings.enabled': True,
                                        'projects.max_projects': None}) + '\n', ''
             if "state = 'installed'" in argv[-1]:
-                return 0, 'nasq_core\nnasq_platform\nnasq_api\nnasq_pmo\n', ''
+                return 0, 'nasq_core\nnasq_platform\nnasq_api\nnasq_pmo\nnasq_meetings\n', ''
             if argv[0] == self.tools['createdb']:
                 return 0, '', ''
             if 'shell' in argv:
@@ -489,7 +489,7 @@ class OperatorCase(unittest.TestCase):
         self.assertEqual(payload['policy_revision'], 1)
         self.assertEqual(payload['database'], 'nasq_scratch_demo')
         self.assertEqual(payload['installed_modules'], ['nasq_core', 'nasq_platform',
-                                                        'nasq_api', 'nasq_pmo'])
+                                                        'nasq_api', 'nasq_pmo', 'nasq_meetings'])
         self.assertEqual(payload['commercial_mode'], 'non_saas')
         self.assertFalse(payload['deployment_ready'])
         create = next(item[0] for item in calls if item[0][0] == self.tools['createdb'])
@@ -499,7 +499,7 @@ class OperatorCase(unittest.TestCase):
         self.assertIn('--no-http', install)
         self.assertIn('--addons-path=' + str(self.addons), install)
         self.assertEqual(install[install.index('-i') + 1],
-                         'nasq_core,nasq_platform,nasq_api,nasq_pmo')
+                         'nasq_core,nasq_platform,nasq_api,nasq_pmo,nasq_meetings')
         self.assertNotIn('hidden-password', ' '.join(install))
         replay_code, replay = operator.operation_adapter(fields, runner=runner)
         self.assertEqual(replay_code, 0)
@@ -699,7 +699,7 @@ class OperatorCase(unittest.TestCase):
             policy = json.loads((self.root / 'evidence' /
                                  f"{'non_saas' if name.endswith('non_saas') else 'saas'}-create-policy.json").read_text())
             self.assertEqual(policy['modules'], ['nasq_core', 'nasq_platform',
-                                                  'nasq_api', 'nasq_pmo'])
+                                                  'nasq_api', 'nasq_pmo', 'nasq_meetings'])
             self.assertEqual(policy['features']['pmo.enabled'], True)
             self.assertEqual(entry['kind'], 'scratch')
 

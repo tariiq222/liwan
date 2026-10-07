@@ -42,7 +42,7 @@ describe('MeSchema', () => {
     const me = MeSchema.parse({
       id: 2, name: 'Sara', login: 'emp', email: 'sara@example.com', lang: 'ar_001',
       tz: 'Asia/Riyadh', role: 'employee', company: { id: 1, name: 'Erada' },
-      modules: ['nasq_pmo', 'nasq_hr'],
+      modules: ['nasq_pmo', 'nasq_meetings', 'nasq_hr'],
       entitlements: { 'pmo.enabled': true, 'users.limit': null, 'projects.max_projects': 12 },
       platform: {
         schema_version: 1, policy_revision: 3, state: 'expired', valid_until: '2026-01-01',
@@ -53,6 +53,7 @@ describe('MeSchema', () => {
     expect(me.platform?.state).toBe('expired')
     expect(me.entitlements['projects.max_projects']).toBe(12)
     expect(me.terminology.ar.project).toBe('مبادرة')
+    expect(me.modules).toEqual(['nasq_pmo', 'nasq_meetings', 'nasq_hr'])
   })
   it('rejects an unknown module id', () => {
     expect(() => MeSchema.parse({

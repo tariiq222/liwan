@@ -71,3 +71,17 @@ class TestPeopleDirectory(NasqApiCase):
         response = self.api('GET', '/api/v1/people')
         self.assertEqual(response.status_code, 403)
         self.assertEqual(response.json()['details'], {'reason': 'feature', 'feature': PROBE_FEATURE})
+
+    def test_the_reported_key_does_not_follow_registration_order(self):
+        second = 'zz_probe.enabled'
+        register_probe_feature(self, second)
+        # Write the new key first: every registered platform boolean must be present.
+        set_probe_feature(self, second, enabled=False)
+        set_probe_feature(self, enabled=False)
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        directory = type(self.env['nasq.directory'])
+        for order in ((PROBE_FEATURE, second), (second, PROBE_FEATURE)):
+            self.patch(directory, '_nasq_directory_feature_keys', lambda model, order=order: order)
+            response = self.api('GET', '/api/v1/people')
+            self.assertEqual(response.status_code, 403, order)
+            self.assertEqual(response.json()['details'], {'reason': 'feature', 'feature': second}, order)

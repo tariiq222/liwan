@@ -130,7 +130,7 @@ class NasqTenantProfile(models.Model):
         profile = self._nasq_ensure_root_company()
         if self._nasq_policy_initialized(profile):
             return profile
-        unknown = set(selected_modules) - {'nasq_pmo', 'nasq_hr', 'nasq_chat'}
+        unknown = set(selected_modules) - set(self.env['nasq.feature.registry']._nasq_module_map())
         if unknown:
             raise ValidationError(self.env._(
                 'nasq_platform: unknown selected modules %(modules)s',

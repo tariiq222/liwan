@@ -8,6 +8,7 @@ class TestSubject(unittest.TestCase):
     def test_conventional_subject_passes(self):
         self.assertIsNone(check_subject('feat(pmo): add milestone reorder endpoint'))
         self.assertIsNone(check_subject('ci(tools): run arch_policy in the static step'))
+        self.assertIsNone(check_subject('test(meetings): pin meeting grants'))
 
     def test_merge_subjects_are_no_longer_exempt(self):
         self.assertIn("expected 'type(scope): subject'", check_subject('Merge stuff'))
@@ -48,7 +49,7 @@ class TestSubject(unittest.TestCase):
 
 class TestBranch(unittest.TestCase):
     def test_allowed_branches(self):
-        for name in ('main', 'HEAD', 'codex/pmo-milestone-reorder', 'codex/tools-arch-policy', 'spike/generic-app-layer'):
+        for name in ('main', 'HEAD', 'codex/pmo-milestone-reorder', 'codex/tools-arch-policy', 'codex/meetings-split', 'spike/generic-app-layer'):
             self.assertIsNone(check_branch(name), name)
 
     def test_rejected_branches(self):

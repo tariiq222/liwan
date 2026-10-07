@@ -15,7 +15,7 @@ export function packageLimitKeys(tier?: PackageTier) {
 }
 const labelKeys: Record<string, Record<string, string>> = {
   tier: { core: 'core', projects: 'projects', people: 'people', messaging: 'messaging' },
-  module: { nasq_core: 'core', nasq_platform: 'platform', nasq_api: 'api', nasq_pmo: 'projects', nasq_hr: 'people', nasq_chat: 'messaging' },
+  module: { nasq_core: 'core', nasq_platform: 'platform', nasq_api: 'api', nasq_pmo: 'projects', nasq_meetings: 'meetings', nasq_hr: 'people', nasq_chat: 'messaging' },
   feature: { 'boolean:pmo.enabled': 'projects', 'boolean:meetings.enabled': 'meetings', 'boolean:hr.enabled': 'hr', 'boolean:chat.enabled': 'chat', 'limit:users.limit': 'users', 'limit:storage.limit_mb': 'storage', 'limit:projects.max_projects': 'projectLimit' },
   limit: { 'users.limit': 'users', 'storage.limit_mb': 'storage', 'projects.max_projects': 'projects' },
 }

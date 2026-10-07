@@ -1,0 +1,53 @@
+# Part of Odoo. See LICENSE file for full copyright and licensing details.
+"""The meetings application's capabilities, grants and legacy keys (spec R2), composed through super()."""
+from odoo import api, models
+
+MEETINGS_PERMISSIONS = frozenset({
+    'meetings.read', 'meetings.create', 'meetings.manage',
+})
+EMPLOYEE_MEETINGS_PERMISSIONS = frozenset({'meetings.read'})
+MEETINGS_PERMISSION_DEPENDENCIES = {
+    'meetings.create': {'meetings.read'},
+    'meetings.manage': {'meetings.read'},
+}
+
+
+class NasqMeetingsAccessService(models.AbstractModel):
+    _inherit = 'nasq.access.service'
+
+    @api.model
+    def _nasq_capability_definitions(self):
+        return super()._nasq_capability_definitions() + tuple(
+            {'key': key, 'owner': 'nasq_meetings'}
+            for key in sorted(MEETINGS_PERMISSIONS)
+        )
+
+    @api.model
+    def _nasq_permission_dependencies(self):
+        dependencies = super()._nasq_permission_dependencies()
+        for key, required in MEETINGS_PERMISSION_DEPENDENCIES.items():
+            dependencies[key] = dependencies.get(key, set()) | required
+        return dependencies
+
+    @api.model
+    def _nasq_builtin_role_grants(self):
+        grants = super()._nasq_builtin_role_grants()
+        for role_xmlid, keys in (
+            ('nasq_core.role_employee', EMPLOYEE_MEETINGS_PERMISSIONS),
+            ('nasq_core.role_system_admin', MEETINGS_PERMISSIONS),
+            ('nasq_core.role_vendor_support', MEETINGS_PERMISSIONS),
+        ):
+            grants[role_xmlid] = grants.get(role_xmlid, set()) | keys
+        return grants
+
+    @api.model
+    def _nasq_legacy_capability_keys(self, user):
+        keys = super()._nasq_legacy_capability_keys(user)
+        if (
+            user.has_group('nasq_core.group_access_admin')
+            or user.has_group('nasq_core.group_customer_admin')
+        ):
+            keys |= MEETINGS_PERMISSIONS
+        if user.has_group('nasq_core.group_employee'):
+            keys |= EMPLOYEE_MEETINGS_PERMISSIONS
+        return keys

@@ -125,7 +125,16 @@ class TestMeEndpoint(HttpCase):
         vendor = self.env['res.users'].search([('login', '=', 'vendor')])
         # implied_ids: vendor_support ⊃ customer_admin ⊃ employee — role_of must pick the highest
         self.assertTrue(vendor.has_group('nasq_core.group_customer_admin'))
-        self.assertTrue(vendor.has_group('nasq_core.group_employee'))
+        # nasq_core's legacy chain stops at base.group_user: the link to the nasq employee
+        # group is made by an application (nasq_hr or nasq_pmo), so it holds only with one.
+        linked = self.env['ir.module.module'].search_count([
+            ('name', 'in', ['nasq_hr', 'nasq_pmo']), ('state', '=', 'installed'),
+        ])
+        if linked:
+            self.assertTrue(vendor.has_group('nasq_core.group_employee'))
+        else:
+            # meetings-only install: the vendor is not an employee
+            self.assertFalse(vendor.has_group('nasq_core.group_employee'))
 
         self.assertEqual(self.url_open('/api/v1/me').json()['role'], 'vendor')
 

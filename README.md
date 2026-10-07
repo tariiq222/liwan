@@ -101,8 +101,10 @@ No production deployment or DNS cutover is implied by this repository.
   capabilities, groups and roles;
   `nasq_api` owns shared API plumbing; the shared services `nasq_notify` (the
   notification bell) and `nasq_directory` (the user-id people picker) know no
-  application; `nasq_pmo` owns projects/tasks; `nasq_hr` owns HR routes,
-  documents, and employee directory behavior.
+  application; `nasq_pmo` owns projects/tasks; `nasq_meetings` owns meetings,
+  series and minutes, and the bridge `nasq_meetings_pmo` links them to projects
+  and tasks; `nasq_hr` owns HR routes, documents, and employee directory
+  behavior.
 - `deploy` contains per-customer provisioning and reverse-proxy templates.
 
 The detailed one-writer ownership and isolation workflow is in

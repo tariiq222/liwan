@@ -75,7 +75,7 @@ another application) needs the owner's approval, recorded by the owner as an
 
 - `main` is the only long-lived branch and is always releasable. Task branches are
   `codex/<area>-<slug>`; throwaway experiments are `spike/<slug>` and are never merged.
-  `<area>` is one of `core platform api pmo hr chat web cp deploy tools docs ci`.
+  `<area>` is one of `core platform api pmo hr chat meetings web cp deploy tools docs ci`.
 - Commit subjects are `type(scope): imperative subject`, at most 72 characters, with `type` in
   `feat fix refactor perf test docs ci build chore` and `scope` from the `<area>` list. One logical change
   per commit. No `wip` commit reaches `main`. A schema change carries its version bump and migration
@@ -112,17 +112,27 @@ another application) needs the owner's approval, recorded by the owner as an
   active internal users of the current company; applications that pick people
   register their feature keys in `nasq.directory`.
 - `odoo-addons/nasq_pmo` owns projects, tasks, timelines, project settings,
-  attachments, dependencies, archive/restore, and its notification kinds,
-  producers and `/api/v1/notification-digests`.
+  attachments, dependencies, archive/restore, its task and digest notification
+  kinds, producers and `/api/v1/notification-digests`, and the eight `pmo.*`
+  capabilities, their groups and the `pmo_manager` role. It does not depend on
+  the meeting engine.
 - `odoo-addons/nasq_hr` owns the HR directory, departments, documents, HR
   serializers/controllers, `/api/v1/hr/*` (employee ids are
   `hr.employee` ids), and the eight `hr.*` capabilities, their groups and the
   `hr_manager` role.
 - `odoo-addons/cyan_meeting_minutes` provides the preserved LGPL meeting engine.
-  Nasq meeting routes, serializers, task conversion and recipient notifications
-  extend it through `nasq_pmo`, which also owns the eight `pmo.*` and three
-  `meetings.*` capabilities, their groups, the `pmo_manager` role and the meeting
-  record rules until `nasq_meetings` exists (spec 3.2.1).
+- `odoo-addons/nasq_meetings` (application, rank 4) extends it: the meeting,
+  series, minutes and recommendation routes (`/api/v1/meetings`,
+  `/api/v1/meeting-series`), their serializers, the seven meeting notification
+  kinds, `meetings.enabled`, the three `meetings.*` capabilities, their groups
+  and the meeting record rules. It knows no other application: links to other
+  records go through the `nasq.meeting.links` hooks, which answer "no project,
+  no linked task" by default.
+- `odoo-addons/nasq_meetings_pmo` (bridge, rank 5, `auto_install`) is installed
+  whenever `nasq_meetings` and `nasq_pmo` both are. It owns the `project_id`
+  columns of meetings, series and recommendations, the task origin columns and
+  their unique index, recommendation-to-task conversion and its route, and the
+  project/task implementation of `nasq.meeting.links`.
 - `packages/contracts/src/common`, `src/access`, `src/pmo`, and `src/hr` hold the Zod wire
   contracts; each namespace has a barrel re-exported from `src/index.ts`.
 - `apps/web` holds Nuxt pages, components, composables, and per-pillar locale
@@ -180,8 +190,11 @@ explicitly; do not assume an Odoo config points at a particular Nasq checkout.
   policy/config, display-lookup, integer-count, completion-status and notification
   cron/candidate cases use `sudo()` after the caller's authorization check;
   `nasq_notify` uses it only for bell delivery and recipient-owned bell reads.
-  Do not add another case without documenting it and fixing ACLs/rules where
-  possible.
+  `nasq_meetings` uses it only for its server-controlled minutes, snapshot,
+  version and event records, the company-wide organizer-overlap check, the
+  meeting-manager group lookup and the recipient-owned bell candidates;
+  `nasq_meetings_pmo` only for the id-only lookup of converted tasks. Do not add
+  another case without documenting it and fixing ACLs/rules where possible.
 - The current delivery scope has no time logging or payroll product surface.
   These are stage constraints, not permanent exclusions from the product
   vision; adding them requires a separately scoped implementation request. Do not add
@@ -377,8 +390,8 @@ PGHOST=${PGHOST:-127.0.0.1}; PGPORT=${PGPORT:-5432}; PGUSER=${PGUSER:-tariq}
   --db_host="$PGHOST" --db_port="$PGPORT" --db_user="$PGUSER" \
   -d nasq_scratch --db-filter='^nasq_scratch$' \
   --data-dir="$SCRATCH_ROOT/data" --logfile="$SCRATCH_ROOT/logs/odoo.log" \
-  -i nasq_core,nasq_platform,nasq_api,nasq_notify,nasq_directory,nasq_pmo,nasq_hr,nasq_chat \
-  --test-tags /nasq_core,/nasq_platform,/nasq_api,/nasq_notify,/nasq_directory,/nasq_pmo,/nasq_hr,/nasq_chat \
+  -i nasq_core,nasq_platform,nasq_api,nasq_notify,nasq_directory,nasq_pmo,nasq_meetings,nasq_meetings_pmo,nasq_hr,nasq_chat \
+  --test-tags /nasq_core,/nasq_platform,/nasq_api,/nasq_notify,/nasq_directory,/nasq_pmo,/nasq_meetings,/nasq_meetings_pmo,/nasq_hr,/nasq_chat \
   --http-port=8169 --workers=0 --max-cron-threads=0 --stop-after-init
 ```
 

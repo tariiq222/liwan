@@ -23,20 +23,6 @@ def dump_notification(notification, live_tasks=None):
             'created_at': iso(message.date),
             'is_read': bool(notification.is_read),
         }
-    if message.nasq_notification_kind in {
-        'meeting_invite', 'meeting_resolution', 'meeting_converted',
-        'meeting_changed', 'meeting_cancelled', 'meeting_reminder', 'meeting_resolution_overdue',
-    }:
-        meeting = message.env['cyan.meeting.minute'].browse(message.nasq_meeting_id).exists()
-        return {
-            'id': notification.id,
-            'kind': message.nasq_notification_kind,
-            'meeting_id': message.nasq_meeting_id,
-            'meeting_name': meeting.name if meeting else '',
-            'body': html2plaintext(message.body or '', include_references=False).strip(),
-            'created_at': iso(message.date),
-            'is_read': bool(notification.is_read),
-        }
     task = message.nasq_task_id
     return {
         'id': notification.id,

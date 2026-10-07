@@ -24,7 +24,7 @@ from tools.nasq_cli.managed_policy import POLICY_ERROR_CODES, PolicyError, parse
 
 ALLOWED_MODULES = {
     'nasq_core', 'nasq_platform', 'nasq_api', 'nasq_notify', 'nasq_directory',
-    'nasq_pmo', 'nasq_hr', 'nasq_chat',
+    'nasq_pmo', 'nasq_meetings', 'nasq_meetings_pmo', 'nasq_hr', 'nasq_chat',
 }
 MAX_OUTPUT = 65536
 
