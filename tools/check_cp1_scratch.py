@@ -17,7 +17,7 @@ WORKTREE = Path(__file__).resolve().parents[1]
 BASELINE = WORKTREE.parents[1]
 ODOO = Path('/Users/tariq/code/odoo')
 PYTHON = ODOO / '.venv/bin/python'
-MODULES = 'nasq_core,nasq_platform,nasq_api,nasq_pmo,nasq_hr,nasq_chat'
+MODULES = 'nasq_core,nasq_platform,nasq_api,nasq_notify,nasq_directory,nasq_pmo,nasq_hr,nasq_chat'
 EXPECTED_BASE = 'd194f93f65c377a4f2e23e3ca067514bb692805b'
 # CP1-T1/T2 artifacts retained unchanged for the /me slice. This runner itself
 # is intentionally evolving and is reviewed/fingerprinted by the verification gate.

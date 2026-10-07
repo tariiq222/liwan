@@ -20,7 +20,10 @@ from urllib.parse import urlparse
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
 
-NASQ_ADDONS = ('nasq_core', 'nasq_platform', 'nasq_api', 'nasq_pmo', 'nasq_hr', 'nasq_chat')
+NASQ_ADDONS = (
+    'nasq_core', 'nasq_platform', 'nasq_api', 'nasq_notify', 'nasq_directory',
+    'nasq_pmo', 'nasq_hr', 'nasq_chat',
+)
 SCRATCH_LIFECYCLE_TOKEN = 'CREATE_NEW_SCRATCH'
 FORBIDDEN_DB_RE = re.compile(
     r'(?:^|_)(odoo19|production|postgres|template0|template1)(?:_|$)',

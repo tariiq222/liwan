@@ -41,8 +41,8 @@ PATH_KEYS = frozenset({
     'python', 'odoo_bin', 'data_dir', 'psql', 'pg_dump', 'pg_restore',
     'createdb', 'backup_root', 'release_root', 'classification_file',
 })
-CREATE_MODULES = ('nasq_core', 'nasq_platform', 'nasq_api', 'nasq_pmo',
-                  'nasq_hr', 'nasq_chat')
+CREATE_MODULES = ('nasq_core', 'nasq_platform', 'nasq_api', 'nasq_notify',
+                  'nasq_directory', 'nasq_pmo', 'nasq_hr', 'nasq_chat')
 CATALOG_PATH = Path(__file__).resolve().parents[2] / 'deploy' / 'catalog' / 'solutions' / 'platform.json'
 PROFILE_SQL = (
     "SELECT commercial_mode, entitlement_source, COALESCE(valid_until::text, ''), "
