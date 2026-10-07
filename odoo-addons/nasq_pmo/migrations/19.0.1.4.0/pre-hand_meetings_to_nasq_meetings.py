@@ -22,6 +22,9 @@ When nasq_meetings cannot be installed (not on the addons path, or not
 installable), the meeting record rules would call a helper nobody defines,
 so they are closed; the rows still move and wait for nasq_meetings.
 
+If the nasq_meetings install fails later in the same run, recovery needs
+-i nasq_meetings,nasq_meetings_pmo.
+
 LEFT_TO_ODOO lists rows nasq_pmo held only because it extended shared
 models for meetings. Their owners keep their own xml ids, so Odoo drops
 only nasq_pmo's; this script does not touch them.
