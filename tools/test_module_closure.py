@@ -58,6 +58,23 @@ class RealManifestClosureTest(unittest.TestCase):
                 (Path(root) / name / '__manifest__.py').write_text(manifest)
             self.assertEqual(module_closure.install_closure([root], ['nasq_a']), {'nasq_a', 'nasq_glue'})
 
+    def test_auto_install_module_needs_its_odoo_dependencies_in_the_closure(self):
+        with tempfile.TemporaryDirectory() as root:
+            for name, manifest in {
+                'nasq_a': "{'depends': ['project']}",
+                'nasq_b': "{'depends': ['hr']}",
+                'nasq_glue_project': "{'depends': ['nasq_a', 'project'], 'auto_install': True}",
+                'nasq_glue_mail': "{'depends': ['nasq_a', 'mail'], 'auto_install': True}",
+                'nasq_glue_base': "{'depends': ['base'], 'auto_install': True}",
+            }.items():
+                (Path(root) / name).mkdir()
+                (Path(root) / name / '__manifest__.py').write_text(manifest)
+            self.assertEqual(
+                module_closure.install_closure([root], ['nasq_a']),
+                {'nasq_a', 'nasq_glue_project', 'nasq_glue_base'},
+            )
+            self.assertEqual(module_closure.install_closure([root], ['nasq_b']), {'nasq_b', 'nasq_glue_base'})
+
 
 if __name__ == '__main__':
     sys.exit(unittest.main())
