@@ -84,8 +84,8 @@ export const UnknownNotificationSchema = z.object({
     (kind) => !KNOWN_NOTIFICATION_KINDS.has(kind),
     { message: 'a known notification kind must match its own shape' },
   ),
-  title: z.string().optional(),
-  body: z.string().optional(),
+  title: z.string().nullish(),
+  body: z.string().nullish(),
   created_at: z.string(),
   is_read: z.boolean(),
 }).loose()

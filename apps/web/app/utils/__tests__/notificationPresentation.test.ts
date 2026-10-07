@@ -62,9 +62,10 @@ describe('notification presentation', () => {
   })
 
   it('shows body as the secondary line of a generic row and the caption when it has no text', () => {
-    expect(genericNotificationText({ title: 'SO-1', body: 'Assigned' }, 'Notification')).toEqual({ title: 'SO-1', secondary: 'Assigned' })
-    expect(genericNotificationText({ title: 'SO-1', body: '' }, 'Notification')).toEqual({ title: 'SO-1', secondary: '' })
-    expect(genericNotificationText({ body: 'Assigned' }, 'Notification')).toEqual({ title: 'Assigned', secondary: '' })
-    expect(genericNotificationText({ body: '' }, 'إشعار')).toEqual({ title: 'إشعار', secondary: '' })
+    expect(genericNotificationText({ title: 'SO-1', body: 'Assigned' })).toEqual({ title: 'SO-1', secondary: 'Assigned' })
+    expect(genericNotificationText({ title: 'SO-1', body: '' })).toEqual({ title: 'SO-1', secondary: '' })
+    expect(genericNotificationText({ body: 'Assigned' })).toEqual({ title: 'Assigned', secondary: '' })
+    expect(genericNotificationText({ body: '' })).toEqual({ title: '', secondary: '' })
+    expect(genericNotificationText({ title: null, body: null })).toEqual({ title: '', secondary: '' })
   })
 })

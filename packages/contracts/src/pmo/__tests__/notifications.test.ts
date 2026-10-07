@@ -61,5 +61,17 @@ describe('notification contracts', () => {
       expect(() => NotificationListSchema.parse({ items: [bad], total: 1, unread_count: 1 })).toThrow()
     }
   })
-})
 
+  it('tolerates null title and body on a generic row only', () => {
+    const generic = {
+      id: 11, kind: 'sales_order_assigned', title: null, body: null,
+      created_at: '2026-10-07T09:00:00Z', is_read: false,
+    }
+    expect(NotificationListSchema.parse({ items: [generic], total: 1, unread_count: 1 }).items).toEqual([generic])
+    const known = {
+      id: 1, kind: 'assignment', task_id: 3, task_name: 'T', body: 'x',
+      created_at: '2026-10-07T09:00:00Z', is_read: false,
+    }
+    expect(() => NotificationListSchema.parse({ items: [{ ...known, body: null }], total: 1, unread_count: 1 })).toThrow()
+  })
+})

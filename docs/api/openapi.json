@@ -1749,7 +1749,10 @@
             "additionalProperties": {},
             "properties": {
               "body": {
-                "type": "string"
+                "type": [
+                  "string",
+                  "null"
+                ]
               },
               "created_at": {
                 "type": "string"
@@ -1767,7 +1770,10 @@
                 "type": "string"
               },
               "title": {
-                "type": "string"
+                "type": [
+                  "string",
+                  "null"
+                ]
               }
             },
             "required": [
@@ -10987,7 +10993,10 @@
                   "additionalProperties": {},
                   "properties": {
                     "body": {
-                      "type": "string"
+                      "type": [
+                        "string",
+                        "null"
+                      ]
                     },
                     "created_at": {
                       "type": "string"
@@ -11005,7 +11014,10 @@
                       "type": "string"
                     },
                     "title": {
-                      "type": "string"
+                      "type": [
+                        "string",
+                        "null"
+                      ]
                     }
                   },
                   "required": [
@@ -20589,7 +20601,10 @@
         "additionalProperties": {},
         "properties": {
           "body": {
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "created_at": {
             "type": "string"
@@ -20607,7 +20622,10 @@
             "type": "string"
           },
           "title": {
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "required": [

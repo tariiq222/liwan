@@ -35,12 +35,12 @@ function previewTitle(item: BellNotification): string {
   if (isDigestNotification(item)) return t('tasks.digest.count', item.overdue_count)
   if (isMeetingNotification(item)) return item.meeting_name
   if (isKnownNotification(item)) return item.task_name
-  return genericNotificationText(item, t(notificationPreviewCaptionKey(item.kind))).title
+  return genericNotificationText(item).title
 }
 
 function previewSecondary(item: BellNotification): string {
   if (isKnownNotification(item)) return ''
-  return genericNotificationText(item, '').secondary
+  return genericNotificationText(item).secondary
 }
 
 async function openNotification(item: BellNotification) {
@@ -111,7 +111,7 @@ async function openNotification(item: BellNotification) {
               <span class="grid min-w-0 w-full gap-1 text-start">
                 <span class="min-w-0 break-words text-xs text-muted">{{ t(notificationPreviewCaptionKey(item.kind)) }}</span>
                 <span v-if="!item.is_read" class="sr-only">{{ t('notifications.unread') }}</span>
-                <span class="min-w-0 break-words line-clamp-2 text-start text-sm font-medium"><bdi dir="auto">{{ previewTitle(item) }}</bdi></span>
+                <span v-if="previewTitle(item)" class="min-w-0 break-words line-clamp-2 text-start text-sm font-medium"><bdi dir="auto">{{ previewTitle(item) }}</bdi></span>
                 <span v-if="item.kind === 'comment' || item.kind === 'mention' || isDigestNotification(item)" class="min-w-0 break-words line-clamp-2 text-start text-xs text-muted"><bdi dir="auto">{{ item.body }}</bdi></span>
                 <span v-else-if="previewSecondary(item)" class="min-w-0 break-words line-clamp-2 text-start text-xs text-muted"><bdi dir="auto">{{ previewSecondary(item) }}</bdi></span>
                 <time v-if="notificationTimestamp(item)" :datetime="notificationTimestamp(item)?.datetime" class="text-xs text-muted">{{ notificationTimestamp(item)?.label }}</time>

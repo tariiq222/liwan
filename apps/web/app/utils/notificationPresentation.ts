@@ -87,8 +87,8 @@ export function notificationPreviewCaptionKey(kind: NotificationPreviewKind): st
   return 'notifications.preview.other'
 }
 
-/** Title and secondary line of a newer application's row: both set shows both; neither shows the generic caption. */
-export function genericNotificationText(item: { title?: string | null; body?: string | null }, caption: string): { title: string; secondary: string } {
-  const title = item.title || item.body || caption
+/** Title and secondary line of a newer application's row: both set shows both; neither leaves the title empty so only the caption shows. */
+export function genericNotificationText(item: { title?: string | null; body?: string | null }): { title: string; secondary: string } {
+  const title = item.title || item.body || ''
   return { title, secondary: item.title && item.body ? item.body : '' }
 }
