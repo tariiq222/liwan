@@ -72,8 +72,8 @@ steps:
           --db_host=127.0.0.1 --db_port=5432 --db_user=odoo --db_password=odoo \
           -d "$SCRATCH_DB" --db-filter="^${SCRATCH_DB}$" \
           --data-dir="$SCRATCH_ROOT/data" --logfile="$SCRATCH_ROOT/logs/odoo.log" \
-          -i nasq_core,nasq_platform,nasq_api,nasq_notify,nasq_directory,nasq_pmo,nasq_hr,nasq_chat \
-          --test-tags /nasq_core,/nasq_platform,/nasq_api,/nasq_notify,/nasq_directory,/nasq_pmo,/nasq_hr,/nasq_chat \
+          -i nasq_core,nasq_platform,nasq_api,nasq_notify,nasq_directory,nasq_pmo,nasq_meetings,nasq_meetings_pmo,nasq_hr,nasq_chat \
+          --test-tags /nasq_core,/nasq_platform,/nasq_api,/nasq_notify,/nasq_directory,/nasq_pmo,/nasq_meetings,/nasq_meetings_pmo,/nasq_hr,/nasq_chat \
           --http-port=8169 --workers=0 --max-cron-threads=0 --stop-after-init --log-level=test 2>&1 | tee "$SCRATCH_ROOT/odoo-test.log"
         grep -Eq 'odoo.tests.result: 0 failed, 0 error\(s\) of [1-9][0-9]* tests when loading database' "$SCRATCH_ROOT/odoo-test.log"
 
@@ -86,7 +86,7 @@ steps:
         ODOO_ROOT="/Users/tariq/code/odoo"
         ODOO_PYTHON="$ODOO_ROOT/.venv/bin/python"
         ODOO_COMMIT="$(cat deploy/odoo/ODOO_COMMIT)"
-        MODULES="nasq_core,nasq_platform,nasq_api,nasq_notify,nasq_directory,nasq_pmo,nasq_hr,nasq_chat"
+        MODULES="nasq_core,nasq_platform,nasq_api,nasq_notify,nasq_directory,nasq_pmo,nasq_meetings,nasq_meetings_pmo,nasq_hr,nasq_chat"
         BASE_TAG="$(git tag --list 'release/*' --sort=-v:refname | head -n1)"
         test -n "$BASE_TAG" || { echo "no release/* tag; upgrade job skipped"; exit 0; }
         SCRATCH_DB="nasq_ci_upgrade_scratch"
@@ -107,13 +107,14 @@ steps:
           --addons-path="$SCRATCH_ROOT/_odoo/addons,$PWD/_baseline/odoo-addons" \
           --data-dir="$SCRATCH_ROOT/data" --logfile="$SCRATCH_ROOT/logs/odoo.log" \
           -d "$SCRATCH_DB" -i "$MODULES" --without-demo=all --http-port=8169 --workers=0 --max-cron-threads=0 --stop-after-init
-        # Upgrade to this commit
+        # Upgrade to this commit. -i installs the addons the previous release did
+        # not have (nasq_meetings, nasq_meetings_pmo); Odoo skips the installed ones.
         python3 deploy/classification.py fixture --database "$SCRATCH_DB" --mode saas --output "$SCRATCH_ROOT/upgrade-classification.json"
         export NASQ_COMMERCIAL_CONFIG="$SCRATCH_ROOT/upgrade-classification.json"
         "$ODOO_PYTHON" "$SCRATCH_ROOT/_odoo/odoo-bin" $ODOO_DB_ARGS \
           --addons-path="$SCRATCH_ROOT/_odoo/addons,$PWD/odoo-addons" \
           --data-dir="$SCRATCH_ROOT/data" --logfile="$SCRATCH_ROOT/logs/upgrade.log" \
-          -d "$SCRATCH_DB" -u "$MODULES" --http-port=8169 --workers=0 --max-cron-threads=0 --stop-after-init 2>&1 | tee "$SCRATCH_ROOT/upgrade-output.log"
+          -d "$SCRATCH_DB" -u "$MODULES" -i "$MODULES" --http-port=8169 --workers=0 --max-cron-threads=0 --stop-after-init 2>&1 | tee "$SCRATCH_ROOT/upgrade-output.log"
         python3 -B tools/upgrade_log_guard.py "$SCRATCH_ROOT/upgrade-output.log"
         # Post-upgrade smoke
         "$ODOO_PYTHON" "$SCRATCH_ROOT/_odoo/odoo-bin" shell $ODOO_DB_ARGS \
@@ -149,7 +150,7 @@ steps:
         python3 deploy/classification.py fixture --database "$SRC_DB" --mode non_saas --output "$NASQ_COMMERCIAL_CONFIG"
         "$ODOO_PYTHON" "$W/_odoo/odoo-bin" --db_host=127.0.0.1 --db_user=odoo --db_password=odoo \
           --addons-path="$W/_odoo/addons,$PWD/odoo-addons" --data-dir="$W/data" \
-          -d "$SRC_DB" -i nasq_core,nasq_platform,nasq_api,nasq_notify,nasq_directory,nasq_pmo,nasq_hr,nasq_chat \
+          -d "$SRC_DB" -i nasq_core,nasq_platform,nasq_api,nasq_notify,nasq_directory,nasq_pmo,nasq_meetings,nasq_meetings_pmo,nasq_hr,nasq_chat \
           --without-demo=all --http-port=8169 --workers=0 --max-cron-threads=0 --stop-after-init
         python3 deploy/backup.py --opt-in MANUAL_BACKUP_OPT_IN --acknowledge-unverified CANDIDATE_BACKUP_UNVERIFIED \
           --db-name "$SRC_DB" --filestore "$W/data/filestore/$SRC_DB" \
@@ -199,7 +200,7 @@ steps:
         docker run --rm --network t -v /tmp/odoo.conf:/etc/odoo/odoo.conf:ro \
           -v /tmp/image-classification.json:/run/nasq/classification.json:ro \
           -e NASQ_COMMERCIAL_CONFIG=/run/nasq/classification.json nasq-odoo:ci \
-          -d "$SCRATCH_DB" -i nasq_core,nasq_platform,nasq_api,nasq_notify,nasq_directory,nasq_pmo,nasq_hr,nasq_chat --without-demo=all --http-port=8169 --stop-after-init
+          -d "$SCRATCH_DB" -i nasq_core,nasq_platform,nasq_api,nasq_notify,nasq_directory,nasq_pmo,nasq_meetings,nasq_meetings_pmo,nasq_hr,nasq_chat --without-demo=all --http-port=8169 --stop-after-init
         docker run --rm --entrypoint sh nasq-odoo:ci -c 'test ! -w /opt/nasq/addons && test "$(id -u)" = 10001 && ! command -v git'
 
   - name: e2e-mock

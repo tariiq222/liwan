@@ -11,8 +11,9 @@ ADDONS = Path(__file__).resolve().parents[1] / 'odoo-addons'
 BASE = ['nasq_core', 'nasq_platform', 'nasq_api']
 # Hand-computed from the manifests' `depends`; literals on purpose.
 EXPECTED = {
-    'projects': (BASE + ['nasq_pmo'],
-                 {'nasq_core', 'nasq_platform', 'nasq_api', 'nasq_notify', 'nasq_directory', 'nasq_pmo'}),
+    'projects': (BASE + ['nasq_pmo', 'nasq_meetings'],
+                 {'nasq_core', 'nasq_platform', 'nasq_api', 'nasq_notify', 'nasq_directory', 'nasq_pmo',
+                  'nasq_meetings', 'nasq_meetings_pmo'}),
     'people': (BASE + ['nasq_hr'], {'nasq_core', 'nasq_platform', 'nasq_api', 'nasq_hr'}),
     'messaging': (BASE + ['nasq_chat'], {'nasq_core', 'nasq_platform', 'nasq_api', 'nasq_chat'}),
     'core': (BASE, {'nasq_core', 'nasq_platform', 'nasq_api'}),
@@ -74,6 +75,27 @@ class RealManifestClosureTest(unittest.TestCase):
                 {'nasq_a', 'nasq_glue_project', 'nasq_glue_base'},
             )
             self.assertEqual(module_closure.install_closure([root], ['nasq_b']), {'nasq_b', 'nasq_glue_base'})
+
+    def test_the_real_meetings_bridge_joins_only_with_both_applications(self):
+        shared = {'nasq_core', 'nasq_platform', 'nasq_api', 'nasq_notify', 'nasq_directory'}
+        self.assertEqual(
+            module_closure.install_closure([ADDONS], BASE + ['nasq_meetings']), shared | {'nasq_meetings'},
+        )
+        self.assertEqual(module_closure.install_closure([ADDONS], BASE + ['nasq_pmo']), shared | {'nasq_pmo'})
+        self.assertIn(
+            'nasq_meetings_pmo', module_closure.install_closure([ADDONS], BASE + ['nasq_meetings', 'nasq_pmo']),
+        )
+
+    def test_projects_tier_closure_from_real_manifests_includes_the_bridge(self):
+        projects = module_closure.install_closure([ADDONS], BASE + ['nasq_pmo', 'nasq_meetings'])
+        self.assertIn('nasq_meetings_pmo', projects)
+        for tier_name in ('people', 'messaging', 'core'):
+            with self.subTest(tier=tier_name):
+                self.assertNotIn(
+                    'nasq_meetings_pmo', module_closure.install_closure([ADDONS], EXPECTED[tier_name][0]),
+                )
+        # Meetings without nasq_pmo: bridge stays out.
+        self.assertNotIn('nasq_meetings_pmo', module_closure.install_closure([ADDONS], BASE + ['nasq_meetings']))
 
 
 if __name__ == '__main__':

@@ -34,7 +34,11 @@ def main():
       'tasks',(SELECT count(*) FROM project_task),
       'attachment',(SELECT json_build_object('id',id,'bytes',file_size,'storeFname',store_fname,'checksum',checksum) FROM ir_attachment WHERE id={attachment_id}))"""
     observed = json.loads(compose(state, ['exec', '-T', 'db', 'psql', '-U', 'odoo', '-d', database, '-At', '-c', query], capture_output=True, text=True).stdout)
-    expected_modules = ['nasq_api', 'nasq_core', 'nasq_platform', 'nasq_pmo']
+    # The installation closure of the projects tier (base modules + nasq_pmo + nasq_meetings).
+    expected_modules = [
+        'nasq_api', 'nasq_core', 'nasq_directory', 'nasq_meetings', 'nasq_meetings_pmo',
+        'nasq_notify', 'nasq_platform', 'nasq_pmo',
+    ]
     assert observed['installedModules'] == expected_modules, observed['installedModules']
     assert observed['policyRevision'] == 1 and observed['commercialMode'] == 'saas'
     assert observed['projects'] >= 1 and observed['tasks'] >= 1 and observed['adminUid'] > 1
