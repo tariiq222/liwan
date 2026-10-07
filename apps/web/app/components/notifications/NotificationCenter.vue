@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ApiError } from '@/composables/useApi'
-import { useNotifications, useMarkNotificationRead, isDigestNotification, isMeetingNotification, type Notification } from '@/composables/useNotifications'
+import { useNotifications, useMarkNotificationRead, isDigestNotification, isKnownNotification, isMeetingNotification, type BellNotification } from '@/composables/useNotifications'
 import { formatNotificationTimestamp, notificationPreviewCaptionKey } from '@/utils/notificationPresentation'
 
 const { t, locale, localeProperties } = useI18n()
@@ -19,22 +19,32 @@ const notificationTimestamps = computed(() => new Map(
 ))
 watch(() => route.fullPath, () => { open.value = false })
 
-function notificationTimestamp(item: Notification) {
+function notificationTimestamp(item: BellNotification) {
   return notificationTimestamps.value.get(item.id) ?? null
 }
 
-function notificationHref(item: Notification) {
+function notificationHref(item: BellNotification): string | null {
   if (isDigestNotification(item)) return `/notification-digests/${item.digest_id}`
   if (isMeetingNotification(item)) return `/meetings/${item.meeting_id}`
-  return `/tasks/${item.task_id}`
+  if (isKnownNotification(item)) return `/tasks/${item.task_id}`
+  // A newer application's row has no client route in this build: opening it only marks it read.
+  return null
 }
 
-async function openNotification(item: Notification) {
+function previewTitle(item: BellNotification): string {
+  if (isDigestNotification(item)) return t('tasks.digest.count', item.overdue_count)
+  if (isMeetingNotification(item)) return item.meeting_name
+  if (isKnownNotification(item)) return item.task_name
+  return item.title || item.body || ''
+}
+
+async function openNotification(item: BellNotification) {
   if (isPending.value) return
   try {
     if (!item.is_read) await markRead(item.id)
     open.value = false
-    await navigateTo(notificationHref(item))
+    const href = notificationHref(item)
+    if (href) await navigateTo(href)
   } catch (error) {
     toast.add({ title: error instanceof ApiError ? error.message : t('errors.generic'), color: 'error' })
   }
@@ -96,7 +106,7 @@ async function openNotification(item: Notification) {
               <span class="grid min-w-0 w-full gap-1 text-start">
                 <span class="min-w-0 break-words text-xs text-muted">{{ t(notificationPreviewCaptionKey(item.kind)) }}</span>
                 <span v-if="!item.is_read" class="sr-only">{{ t('notifications.unread') }}</span>
-                <span class="min-w-0 break-words line-clamp-2 text-start text-sm font-medium"><bdi dir="auto">{{ isDigestNotification(item) ? t('tasks.digest.count', item.overdue_count) : isMeetingNotification(item) ? item.meeting_name : item.task_name }}</bdi></span>
+                <span class="min-w-0 break-words line-clamp-2 text-start text-sm font-medium"><bdi dir="auto">{{ previewTitle(item) }}</bdi></span>
                 <span v-if="item.kind === 'comment' || item.kind === 'mention' || isDigestNotification(item)" class="min-w-0 break-words line-clamp-2 text-start text-xs text-muted"><bdi dir="auto">{{ item.body }}</bdi></span>
                 <time v-if="notificationTimestamp(item)" :datetime="notificationTimestamp(item)?.datetime" class="text-xs text-muted">{{ notificationTimestamp(item)?.label }}</time>
               </span>

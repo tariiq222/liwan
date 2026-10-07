@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
   formatNotificationTimestamp,
@@ -46,4 +48,15 @@ describe('notification presentation', () => {
     }
   })
 
+  it("captions a newer application's kind with a generic label present in both locales", () => {
+    for (const kind of ['sales_order_assigned', 'meeting_future_change', 'reaction']) {
+      expect(notificationPreviewCaptionKey(kind)).toBe('notifications.preview.other')
+    }
+    expect(notificationPreviewCaptionKey('mention')).toBe('notifications.preview.mention')
+    for (const locale of ['ar', 'en']) {
+      const messages = JSON.parse(readFileSync(resolve(import.meta.dirname, `../../../i18n/locales/${locale}/notifications.json`), 'utf8'))
+      expect(typeof messages.notifications.preview.other, locale).toBe('string')
+      expect(messages.notifications.preview.other.length, locale).toBeGreaterThan(0)
+    }
+  })
 })

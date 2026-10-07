@@ -1,6 +1,19 @@
-import type { NotificationKind } from '@nasq/contracts'
+import { MeetingNotificationSchema, NotificationKindSchema, TaskNotificationKindSchema, type NotificationKind } from '@nasq/contracts'
 
-export type NotificationPreviewKind = NotificationKind
+/** Today's kinds keep their literal type; a newer application's kind is any other string. */
+export type NotificationPreviewKind = NotificationKind | (string & {})
+
+const KNOWN_KINDS: ReadonlySet<string> = new Set(NotificationKindSchema.options)
+const MEETING_KINDS: ReadonlySet<string> = new Set(MeetingNotificationSchema.shape.kind.options)
+const TASK_KINDS: ReadonlySet<string> = new Set(TaskNotificationKindSchema.options)
+
+export function isKnownNotificationKind(kind: string): boolean {
+  return KNOWN_KINDS.has(kind)
+}
+
+export function isMeetingNotificationKind(kind: string): boolean {
+  return MEETING_KINDS.has(kind)
+}
 
 const notificationDatePattern = /^(\d{4})-(\d{2})-(\d{2})(?:$|[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d{1,9})?)?(?:Z|[+-]\d{2}:?\d{2})?)$/i
 
@@ -69,6 +82,7 @@ export function formatNotificationTimestamp(
 
 export function notificationPreviewCaptionKey(kind: NotificationPreviewKind): string {
   if (kind === 'overdue_digest') return 'tasks.digest.kind'
-  if (kind.startsWith('meeting_')) return `meetingsUi.notify.${kind}`
-  return `notifications.preview.${kind}`
+  if (MEETING_KINDS.has(kind)) return `meetingsUi.notify.${kind}`
+  if (TASK_KINDS.has(kind)) return `notifications.preview.${kind}`
+  return 'notifications.preview.other'
 }

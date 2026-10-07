@@ -2,11 +2,12 @@
 import { ApiError } from '@/composables/useApi'
 import {
   isDigestNotification,
+  isKnownNotification,
   isMeetingNotification,
   useMarkAllNotificationsRead,
   useMarkNotificationRead,
   useNotificationsPage,
-  type Notification,
+  type BellNotification,
 } from '@/composables/useNotifications'
 import { formatNotificationTimestamp } from '@/utils/notificationPresentation'
 
@@ -40,31 +41,33 @@ const queryErrorMessage = computed(() => (
   queryError.value instanceof ApiError ? queryError.value.message : t('notifications.loadError')
 ))
 
-function kindLabel(item: Notification) {
+function kindLabel(item: BellNotification) {
+  if (!isKnownNotification(item)) return t('notifications.preview.other')
   if (isDigestNotification(item)) return t('tasks.digest.kind')
   if (isMeetingNotification(item)) return t(`meetingsUi.notify.${item.kind}`)
   if (item.kind === 'comment' || item.kind === 'mention') return t(`notifications.${item.kind}`)
   return t(`notifications.${item.kind}`, { task: item.task_name })
 }
 
-function itemTitle(item: Notification) {
+function itemTitle(item: BellNotification) {
   if (isDigestNotification(item)) return t('tasks.digest.count', { n: item.overdue_count })
   if (isMeetingNotification(item)) return item.meeting_name
-  return item.task_name
+  if (isKnownNotification(item)) return item.task_name
+  return item.title || item.body || ''
 }
 
-function notificationTimestamp(item: Notification) {
+function notificationTimestamp(item: BellNotification) {
   return notificationTimestamps.value.get(item.id) ?? null
 }
 
-async function openNotification(item: Notification) {
+async function openNotification(item: BellNotification) {
   if (actionPending.value) return
   pendingReadId.value = item.id
   try {
     await markRead(item.id)
     if (isDigestNotification(item)) await navigateTo(`/notification-digests/${item.id}`)
     else if (isMeetingNotification(item)) await navigateTo(`/meetings/${item.meeting_id}`)
-    else await navigateTo(`/tasks/${item.task_id}`)
+    else if (isKnownNotification(item)) await navigateTo(`/tasks/${item.task_id}`)
   } catch (error) {
     toast.add({ title: error instanceof ApiError ? error.message : t('errors.generic'), color: 'error' })
   } finally {
