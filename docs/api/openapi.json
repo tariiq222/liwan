@@ -5456,6 +5456,7 @@
               "enum": [
                 "nasq_chat",
                 "nasq_hr",
+                "nasq_meetings",
                 "nasq_pmo"
               ],
               "type": "string"
@@ -10242,6 +10243,7 @@
         "enum": [
           "nasq_chat",
           "nasq_hr",
+          "nasq_meetings",
           "nasq_pmo"
         ],
         "type": "string"
@@ -23779,7 +23781,7 @@
     },
     "/api/v1/meeting-series": {
       "get": {
-        "operationId": "nasq_pmo.MeetingSeriesController.list_series.get",
+        "operationId": "nasq_meetings.MeetingSeriesController.list_series.get",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -23798,10 +23800,10 @@
         ],
         "summary": "list_series",
         "tags": [
-          "nasq_pmo"
+          "nasq_meetings"
         ],
         "x-nasq": {
-          "addon": "nasq_pmo",
+          "addon": "nasq_meetings",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -23817,7 +23819,7 @@
         }
       },
       "post": {
-        "operationId": "nasq_pmo.MeetingSeriesController.create_series.post",
+        "operationId": "nasq_meetings.MeetingSeriesController.create_series.post",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -23836,10 +23838,10 @@
         ],
         "summary": "create_series",
         "tags": [
-          "nasq_pmo"
+          "nasq_meetings"
         ],
         "x-nasq": {
-          "addon": "nasq_pmo",
+          "addon": "nasq_meetings",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -23857,7 +23859,7 @@
     },
     "/api/v1/meeting-series/{series_id}": {
       "get": {
-        "operationId": "nasq_pmo.MeetingSeriesController.get_series.get",
+        "operationId": "nasq_meetings.MeetingSeriesController.get_series.get",
         "parameters": [
           {
             "in": "path",
@@ -23889,10 +23891,10 @@
         ],
         "summary": "get_series",
         "tags": [
-          "nasq_pmo"
+          "nasq_meetings"
         ],
         "x-nasq": {
-          "addon": "nasq_pmo",
+          "addon": "nasq_meetings",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -23908,7 +23910,7 @@
         }
       },
       "patch": {
-        "operationId": "nasq_pmo.MeetingSeriesController.patch_series.patch",
+        "operationId": "nasq_meetings.MeetingSeriesController.patch_series.patch",
         "parameters": [
           {
             "in": "path",
@@ -23940,10 +23942,10 @@
         ],
         "summary": "patch_series",
         "tags": [
-          "nasq_pmo"
+          "nasq_meetings"
         ],
         "x-nasq": {
-          "addon": "nasq_pmo",
+          "addon": "nasq_meetings",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -23961,7 +23963,7 @@
     },
     "/api/v1/meeting-series/{series_id}/events": {
       "get": {
-        "operationId": "nasq_pmo.MeetingWorkspaceController.series_events.get",
+        "operationId": "nasq_meetings.MeetingWorkspaceController.series_events.get",
         "parameters": [
           {
             "in": "path",
@@ -23993,10 +23995,10 @@
         ],
         "summary": "series_events",
         "tags": [
-          "nasq_pmo"
+          "nasq_meetings"
         ],
         "x-nasq": {
-          "addon": "nasq_pmo",
+          "addon": "nasq_meetings",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -24014,7 +24016,7 @@
     },
     "/api/v1/meeting-series/{series_id}/occurrences": {
       "post": {
-        "operationId": "nasq_pmo.MeetingSeriesController.add_occurrence.post",
+        "operationId": "nasq_meetings.MeetingSeriesController.add_occurrence.post",
         "parameters": [
           {
             "in": "path",
@@ -24046,10 +24048,10 @@
         ],
         "summary": "add_occurrence",
         "tags": [
-          "nasq_pmo"
+          "nasq_meetings"
         ],
         "x-nasq": {
-          "addon": "nasq_pmo",
+          "addon": "nasq_meetings",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -24067,7 +24069,7 @@
     },
     "/api/v1/meeting-series/{series_id}/resolutions": {
       "get": {
-        "operationId": "nasq_pmo.MeetingWorkspaceController.series_resolutions.get",
+        "operationId": "nasq_meetings.MeetingWorkspaceController.series_resolutions.get",
         "parameters": [
           {
             "in": "path",
@@ -24099,10 +24101,10 @@
         ],
         "summary": "series_resolutions",
         "tags": [
-          "nasq_pmo"
+          "nasq_meetings"
         ],
         "x-nasq": {
-          "addon": "nasq_pmo",
+          "addon": "nasq_meetings",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -24120,7 +24122,7 @@
     },
     "/api/v1/meetings": {
       "get": {
-        "operationId": "nasq_pmo.MeetingController.list_meetings.get",
+        "operationId": "nasq_meetings.MeetingController.list_meetings.get",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -24139,10 +24141,10 @@
         ],
         "summary": "list_meetings",
         "tags": [
-          "nasq_pmo"
+          "nasq_meetings"
         ],
         "x-nasq": {
-          "addon": "nasq_pmo",
+          "addon": "nasq_meetings",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -24158,7 +24160,7 @@
         }
       },
       "post": {
-        "operationId": "nasq_pmo.MeetingController.create_meeting.post",
+        "operationId": "nasq_meetings.MeetingController.create_meeting.post",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -24177,10 +24179,10 @@
         ],
         "summary": "create_meeting",
         "tags": [
-          "nasq_pmo"
+          "nasq_meetings"
         ],
         "x-nasq": {
-          "addon": "nasq_pmo",
+          "addon": "nasq_meetings",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -24198,7 +24200,7 @@
     },
     "/api/v1/meetings/{meeting_id}": {
       "get": {
-        "operationId": "nasq_pmo.MeetingController.get_meeting.get",
+        "operationId": "nasq_meetings.MeetingController.get_meeting.get",
         "parameters": [
           {
             "in": "path",
@@ -24230,10 +24232,10 @@
         ],
         "summary": "get_meeting",
         "tags": [
-          "nasq_pmo"
+          "nasq_meetings"
         ],
         "x-nasq": {
-          "addon": "nasq_pmo",
+          "addon": "nasq_meetings",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -24249,7 +24251,7 @@
         }
       },
       "patch": {
-        "operationId": "nasq_pmo.MeetingController.patch_meeting.patch",
+        "operationId": "nasq_meetings.MeetingController.patch_meeting.patch",
         "parameters": [
           {
             "in": "path",
@@ -24281,10 +24283,10 @@
         ],
         "summary": "patch_meeting",
         "tags": [
-          "nasq_pmo"
+          "nasq_meetings"
         ],
         "x-nasq": {
-          "addon": "nasq_pmo",
+          "addon": "nasq_meetings",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -24302,7 +24304,7 @@
     },
     "/api/v1/meetings/{meeting_id}/attachments": {
       "get": {
-        "operationId": "nasq_pmo.MeetingAttachmentController.list_meeting_attachments.get",
+        "operationId": "nasq_meetings.MeetingAttachmentController.list_meeting_attachments.get",
         "parameters": [
           {
             "in": "path",
@@ -24334,10 +24336,10 @@
         ],
         "summary": "list_meeting_attachments",
         "tags": [
-          "nasq_pmo"
+          "nasq_meetings"
         ],
         "x-nasq": {
-          "addon": "nasq_pmo",
+          "addon": "nasq_meetings",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -24353,7 +24355,7 @@
         }
       },
       "post": {
-        "operationId": "nasq_pmo.MeetingAttachmentController.upload_meeting_attachment.post",
+        "operationId": "nasq_meetings.MeetingAttachmentController.upload_meeting_attachment.post",
         "parameters": [
           {
             "in": "path",
@@ -24385,10 +24387,10 @@
         ],
         "summary": "upload_meeting_attachment",
         "tags": [
-          "nasq_pmo"
+          "nasq_meetings"
         ],
         "x-nasq": {
-          "addon": "nasq_pmo",
+          "addon": "nasq_meetings",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -24406,7 +24408,7 @@
     },
     "/api/v1/meetings/{meeting_id}/attachments/{attachment_id}": {
       "delete": {
-        "operationId": "nasq_pmo.MeetingAttachmentController.delete_meeting_attachment.delete",
+        "operationId": "nasq_meetings.MeetingAttachmentController.delete_meeting_attachment.delete",
         "parameters": [
           {
             "in": "path",
@@ -24446,10 +24448,10 @@
         ],
         "summary": "delete_meeting_attachment",
         "tags": [
-          "nasq_pmo"
+          "nasq_meetings"
         ],
         "x-nasq": {
-          "addon": "nasq_pmo",
+          "addon": "nasq_meetings",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -24467,7 +24469,7 @@
     },
     "/api/v1/meetings/{meeting_id}/cancel": {
       "post": {
-        "operationId": "nasq_pmo.MeetingController.cancel_meeting.post",
+        "operationId": "nasq_meetings.MeetingController.cancel_meeting.post",
         "parameters": [
           {
             "in": "path",
@@ -24499,10 +24501,10 @@
         ],
         "summary": "cancel_meeting",
         "tags": [
-          "nasq_pmo"
+          "nasq_meetings"
         ],
         "x-nasq": {
-          "addon": "nasq_pmo",
+          "addon": "nasq_meetings",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -24520,7 +24522,7 @@
     },
     "/api/v1/meetings/{meeting_id}/complete": {
       "post": {
-        "operationId": "nasq_pmo.MeetingController.complete_meeting.post",
+        "operationId": "nasq_meetings.MeetingController.complete_meeting.post",
         "parameters": [
           {
             "in": "path",
@@ -24552,10 +24554,10 @@
         ],
         "summary": "complete_meeting",
         "tags": [
-          "nasq_pmo"
+          "nasq_meetings"
         ],
         "x-nasq": {
-          "addon": "nasq_pmo",
+          "addon": "nasq_meetings",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -24573,7 +24575,7 @@
     },
     "/api/v1/meetings/{meeting_id}/confirm": {
       "post": {
-        "operationId": "nasq_pmo.MeetingController.confirm_meeting.post",
+        "operationId": "nasq_meetings.MeetingController.confirm_meeting.post",
         "parameters": [
           {
             "in": "path",
@@ -24605,10 +24607,10 @@
         ],
         "summary": "confirm_meeting",
         "tags": [
-          "nasq_pmo"
+          "nasq_meetings"
         ],
         "x-nasq": {
-          "addon": "nasq_pmo",
+          "addon": "nasq_meetings",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -24626,7 +24628,7 @@
     },
     "/api/v1/meetings/{meeting_id}/events": {
       "get": {
-        "operationId": "nasq_pmo.MeetingWorkspaceController.meeting_events.get",
+        "operationId": "nasq_meetings.MeetingWorkspaceController.meeting_events.get",
         "parameters": [
           {
             "in": "path",
@@ -24658,10 +24660,10 @@
         ],
         "summary": "meeting_events",
         "tags": [
-          "nasq_pmo"
+          "nasq_meetings"
         ],
         "x-nasq": {
-          "addon": "nasq_pmo",
+          "addon": "nasq_meetings",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -24679,7 +24681,7 @@
     },
     "/api/v1/meetings/{meeting_id}/minutes.pdf": {
       "get": {
-        "operationId": "nasq_pmo.MeetingController.minutes_pdf.get",
+        "operationId": "nasq_meetings.MeetingController.minutes_pdf.get",
         "parameters": [
           {
             "in": "path",
@@ -24711,10 +24713,10 @@
         ],
         "summary": "minutes_pdf",
         "tags": [
-          "nasq_pmo"
+          "nasq_meetings"
         ],
         "x-nasq": {
-          "addon": "nasq_pmo",
+          "addon": "nasq_meetings",
           "api_handler": false,
           "auth": "user",
           "contract_namespace": "pmo",
@@ -24731,7 +24733,7 @@
     },
     "/api/v1/meetings/{meeting_id}/reopen": {
       "post": {
-        "operationId": "nasq_pmo.MeetingController.reopen_meeting.post",
+        "operationId": "nasq_meetings.MeetingController.reopen_meeting.post",
         "parameters": [
           {
             "in": "path",
@@ -24763,10 +24765,10 @@
         ],
         "summary": "reopen_meeting",
         "tags": [
-          "nasq_pmo"
+          "nasq_meetings"
         ],
         "x-nasq": {
-          "addon": "nasq_pmo",
+          "addon": "nasq_meetings",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -24784,7 +24786,7 @@
     },
     "/api/v1/meetings/{meeting_id}/resolutions": {
       "post": {
-        "operationId": "nasq_pmo.MeetingController.create_resolution.post",
+        "operationId": "nasq_meetings.MeetingController.create_resolution.post",
         "parameters": [
           {
             "in": "path",
@@ -24816,10 +24818,10 @@
         ],
         "summary": "create_resolution",
         "tags": [
-          "nasq_pmo"
+          "nasq_meetings"
         ],
         "x-nasq": {
-          "addon": "nasq_pmo",
+          "addon": "nasq_meetings",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -24837,7 +24839,7 @@
     },
     "/api/v1/meetings/{meeting_id}/resolutions/{resolution_id}": {
       "patch": {
-        "operationId": "nasq_pmo.MeetingController.patch_resolution.patch",
+        "operationId": "nasq_meetings.MeetingController.patch_resolution.patch",
         "parameters": [
           {
             "in": "path",
@@ -24877,10 +24879,10 @@
         ],
         "summary": "patch_resolution",
         "tags": [
-          "nasq_pmo"
+          "nasq_meetings"
         ],
         "x-nasq": {
-          "addon": "nasq_pmo",
+          "addon": "nasq_meetings",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -24898,7 +24900,7 @@
     },
     "/api/v1/meetings/{meeting_id}/resolutions/{resolution_id}/convert": {
       "post": {
-        "operationId": "nasq_pmo.MeetingController.convert_resolution.post",
+        "operationId": "nasq_meetings_pmo.MeetingResolutionConvertController.convert_resolution.post",
         "parameters": [
           {
             "in": "path",
@@ -24938,15 +24940,15 @@
         ],
         "summary": "convert_resolution",
         "tags": [
-          "nasq_pmo"
+          "nasq_meetings_pmo"
         ],
         "x-nasq": {
-          "addon": "nasq_pmo",
+          "addon": "nasq_meetings_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "pmo",
-          "controller": "MeetingController",
+          "controller": "MeetingResolutionConvertController",
           "feature_keys": [
             "meetings.enabled",
             "pmo.enabled"
@@ -24960,7 +24962,7 @@
     },
     "/api/v1/meetings/{meeting_id}/resolutions/{resolution_id}/{action}": {
       "post": {
-        "operationId": "nasq_pmo.MeetingController.resolution_action.post",
+        "operationId": "nasq_meetings.MeetingController.resolution_action.post",
         "parameters": [
           {
             "in": "path",
@@ -25008,10 +25010,10 @@
         ],
         "summary": "resolution_action",
         "tags": [
-          "nasq_pmo"
+          "nasq_meetings"
         ],
         "x-nasq": {
-          "addon": "nasq_pmo",
+          "addon": "nasq_meetings",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -25029,7 +25031,7 @@
     },
     "/api/v1/meetings/{meeting_id}/versions": {
       "get": {
-        "operationId": "nasq_pmo.MeetingWorkspaceController.meeting_versions.get",
+        "operationId": "nasq_meetings.MeetingWorkspaceController.meeting_versions.get",
         "parameters": [
           {
             "in": "path",
@@ -25061,10 +25063,10 @@
         ],
         "summary": "meeting_versions",
         "tags": [
-          "nasq_pmo"
+          "nasq_meetings"
         ],
         "x-nasq": {
-          "addon": "nasq_pmo",
+          "addon": "nasq_meetings",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -25082,7 +25084,7 @@
     },
     "/api/v1/meetings/{meeting_id}/versions/{version_id}": {
       "get": {
-        "operationId": "nasq_pmo.MeetingWorkspaceController.meeting_version.get",
+        "operationId": "nasq_meetings.MeetingWorkspaceController.meeting_version.get",
         "parameters": [
           {
             "in": "path",
@@ -25122,10 +25124,10 @@
         ],
         "summary": "meeting_version",
         "tags": [
-          "nasq_pmo"
+          "nasq_meetings"
         ],
         "x-nasq": {
-          "addon": "nasq_pmo",
+          "addon": "nasq_meetings",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -29674,6 +29676,8 @@
     "nasq_chat",
     "nasq_directory",
     "nasq_hr",
+    "nasq_meetings",
+    "nasq_meetings_pmo",
     "nasq_notify",
     "nasq_pmo"
   ]
