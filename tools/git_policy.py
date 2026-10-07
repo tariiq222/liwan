@@ -8,7 +8,7 @@ import subprocess
 import sys
 
 TYPES = ('feat', 'fix', 'refactor', 'perf', 'test', 'docs', 'ci', 'build', 'chore')
-AREAS = ('core', 'platform', 'api', 'pmo', 'hr', 'chat', 'web', 'cp', 'deploy', 'tools', 'docs', 'ci')
+AREAS = ('core', 'platform', 'api', 'pmo', 'hr', 'chat', 'meetings', 'web', 'cp', 'deploy', 'tools', 'docs', 'ci')
 # Commits at or before this one predate the policy and are never checked.
 POLICY_START = '7208cf961ecbeb60e988e840fe2ca7cd4c3a3b9d'
 MAX_SUBJECT = 72

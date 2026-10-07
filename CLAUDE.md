@@ -75,7 +75,7 @@ another application) needs the owner's approval, recorded by the owner as an
 
 - `main` is the only long-lived branch and is always releasable. Task branches are
   `codex/<area>-<slug>`; throwaway experiments are `spike/<slug>` and are never merged.
-  `<area>` is one of `core platform api pmo hr chat web cp deploy tools docs ci`.
+  `<area>` is one of `core platform api pmo hr chat meetings web cp deploy tools docs ci`.
 - Commit subjects are `type(scope): imperative subject`, at most 72 characters, with `type` in
   `feat fix refactor perf test docs ci build chore` and `scope` from the `<area>` list. One logical change
   per commit. No `wip` commit reaches `main`. A schema change carries its version bump and migration
