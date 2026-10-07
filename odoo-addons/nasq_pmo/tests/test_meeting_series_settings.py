@@ -3,11 +3,11 @@ from datetime import datetime
 
 from odoo.tests import new_test_user, tagged
 
-from .common import NasqPmoCase
+from .meetings_common import NasqMeetingsCase
 
 
 @tagged('post_install', '-at_install', 'nasq')
-class TestMeetingSeriesSettings(NasqPmoCase):
+class TestMeetingSeriesSettings(NasqMeetingsCase):
 
     @classmethod
     def setUpClass(cls):

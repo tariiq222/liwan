@@ -6,12 +6,8 @@ PMO_PERMISSIONS = frozenset({
     'pmo.settings.manage', 'pmo.tasks.read', 'pmo.tasks.create',
     'pmo.tasks.write', 'pmo.tasks.approve',
 })
-MEETINGS_PERMISSIONS = frozenset({
-    'meetings.read', 'meetings.create', 'meetings.manage',
-})
 EMPLOYEE_PMO_PERMISSIONS = frozenset({
     'pmo.projects.read', 'pmo.tasks.read', 'pmo.tasks.create', 'pmo.tasks.write',
-    'meetings.read',
 })
 PROJECT_CONTEXTUAL_PERMISSIONS = frozenset({
     'pmo.projects.manage', 'pmo.tasks.write', 'pmo.tasks.approve',
@@ -23,8 +19,6 @@ PMO_PERMISSION_DEPENDENCIES = {
     'pmo.tasks.create': {'pmo.tasks.read', 'pmo.projects.read'},
     'pmo.tasks.write': {'pmo.tasks.read'},
     'pmo.tasks.approve': {'pmo.tasks.read'},
-    'meetings.create': {'meetings.read'},
-    'meetings.manage': {'meetings.read'},
 }
 
 
@@ -33,10 +27,9 @@ class NasqPmoAccessService(models.AbstractModel):
 
     @api.model
     def _nasq_capability_definitions(self):
-        # Meetings stay with nasq_pmo until nasq_meetings exists (spec 3.2.1).
         return super()._nasq_capability_definitions() + tuple(
             {'key': key, 'owner': 'nasq_pmo'}
-            for key in sorted(PMO_PERMISSIONS | MEETINGS_PERMISSIONS)
+            for key in sorted(PMO_PERMISSIONS)
         )
 
     @api.model
@@ -52,8 +45,7 @@ class NasqPmoAccessService(models.AbstractModel):
         for role_xmlid, keys in (
             ('nasq_pmo.role_pmo_manager', PMO_PERMISSIONS),
             ('nasq_core.role_employee', EMPLOYEE_PMO_PERMISSIONS),
-            ('nasq_core.role_system_admin', MEETINGS_PERMISSIONS),
-            ('nasq_core.role_vendor_support', PMO_PERMISSIONS | MEETINGS_PERMISSIONS),
+            ('nasq_core.role_vendor_support', PMO_PERMISSIONS),
         ):
             grants[role_xmlid] = grants.get(role_xmlid, set()) | keys
         return grants
@@ -61,11 +53,6 @@ class NasqPmoAccessService(models.AbstractModel):
     @api.model
     def _nasq_legacy_capability_keys(self, user):
         keys = super()._nasq_legacy_capability_keys(user)
-        if (
-            user.has_group('nasq_core.group_access_admin')
-            or user.has_group('nasq_core.group_customer_admin')
-        ):
-            keys |= MEETINGS_PERMISSIONS
         if (
             user.has_group('nasq_pmo.group_pmo_manager')
             or user.has_group('project.group_project_manager')

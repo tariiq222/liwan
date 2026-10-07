@@ -7,18 +7,10 @@ from odoo.exceptions import AccessError
 from odoo.tools import format_datetime
 
 from odoo.addons.nasq_api.serializers.common import iso
-from odoo.addons.nasq_pmo.serializers.meeting import (
-    _readable_task_ids_by_resolution,
-    dump_minutes_form,
-    dump_project_id,
-)
+from odoo.addons.nasq_pmo.serializers.meeting import dump_minutes_form
 
 _SNAPSHOT_WRITE = ContextVar('nasq_meeting_snapshot_write', default=False)
 _SNAPSHOT_FIELDS = frozenset({'minutes_snapshot', 'minutes_snapshot_data', 'minutes_snapshot_at'})
-_TASK_EXECUTION_STATES = {
-    '1_done': 'done',
-    '1_canceled': 'cancelled',
-}
 
 
 def _snapshot_person(user):
@@ -61,6 +53,7 @@ class NasqMeetingHistory(models.Model):
     @api.depends('state', 'minutes_snapshot_data', 'minutes_snapshot_at')
     @api.depends_context('uid', 'company')
     def _compute_minutes_snapshot(self):
+        links = self.env['nasq.meeting.links']
         for meeting in self:
             meeting.check_access('read')
             data = (
@@ -77,15 +70,10 @@ class NasqMeetingHistory(models.Model):
                 row.get('id') for row in rows
                 if isinstance(row, dict) and row.get('id')
             ]
-            task_by_resolution = {}
+            readable = {}
             if resolution_ids:
                 resolutions = self.env['cyan.meeting.resolution'].browse(resolution_ids).exists()
-                readable_ids = _readable_task_ids_by_resolution(meeting, resolutions)
-                if readable_ids:
-                    tasks = self.env['project.task'].browse(set(readable_ids.values())).exists()
-                    task_by_resolution = {
-                        task.resolution_id: task for task in tasks if task.resolution_id
-                    }
+                readable = links._nasq_readable_links(meeting, resolutions)
 
             projected = {
                 key: data.get(key)
@@ -107,10 +95,10 @@ class NasqMeetingHistory(models.Model):
                         'result', 'meeting_name', 'execution_period',
                     )
                 }
-                safe_row['project'] = dump_project_id(meeting, row.get('project_id'))
+                safe_row['project'] = links._nasq_project_ref_by_id(meeting, row.get('project_id'))
                 provenance = row.get('task_provenance') or {}
-                task = task_by_resolution.get(row.get('id'))
-                same_task = task and task.id == provenance.get('task_id')
+                link = readable.get(row.get('id'))
+                same_task = link and link['task_id'] == provenance.get('task_id')
                 safe_row['state'] = (
                     row.get('projected_state', row.get('state', 'open'))
                     if same_task else row.get('state', 'open')
@@ -204,28 +192,24 @@ class NasqMeetingHistory(models.Model):
             ] + origins
 
         all_resolution_ids = [resolution.id for _origin, resolution in origins]
-        task_by_resolution = {}
+        links = self.env['nasq.meeting.links']
+        readable = {}
         if all_resolution_ids:
             resolutions = self.env['cyan.meeting.resolution'].browse(all_resolution_ids).exists()
-            readable_ids = _readable_task_ids_by_resolution(self, resolutions)
-            if readable_ids:
-                tasks = self.env['project.task'].browse(set(readable_ids.values())).exists()
-                task_by_resolution = {
-                    task.resolution_id: task for task in tasks if task.resolution_id
-                }
+            readable = links._nasq_readable_links(self, resolutions)
 
         resolutions = []
         for origin, resolution in origins:
-            task = task_by_resolution.get(resolution.id)
+            link = readable.get(resolution.id)
             provenance = None
             projected_state = resolution.state
-            if task:
+            if link:
                 provenance = {
-                    'task_id': task.id,
-                    'company_id': task.company_id.id,
-                    'project_id': task.project_id.id,
+                    'task_id': link['task_id'],
+                    'company_id': link['company_id'],
+                    'project_id': link['project_id'],
                 }
-                projected_state = _TASK_EXECUTION_STATES.get(task.state, 'in_progress')
+                projected_state = link['state']
             resolutions.append({
                 'id': resolution.id,
                 'name': resolution.name,
@@ -237,7 +221,7 @@ class NasqMeetingHistory(models.Model):
                 'result': resolution.result or '',
                 'meeting_name': origin.name,
                 'execution_period': resolution.execution_period or '',
-                'project_id': resolution.project_id.id if resolution.project_id else None,
+                'project_id': links._nasq_project_id(resolution),
                 'task_provenance': provenance,
             })
         return {

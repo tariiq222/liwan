@@ -2,11 +2,11 @@
 from odoo.exceptions import AccessError, ValidationError
 from odoo.tests import new_test_user, tagged
 
-from .common import NasqPmoCase
+from .meetings_common import NasqMeetingsCase
 
 
 @tagged('post_install', '-at_install', 'nasq')
-class TestMeetingWorkspace(NasqPmoCase):
+class TestMeetingWorkspace(NasqMeetingsCase):
 
     @classmethod
     def setUpClass(cls):
@@ -14,11 +14,9 @@ class TestMeetingWorkspace(NasqPmoCase):
         cls.employee.group_ids |= (
             cls.env.ref('nasq_pmo.group_cap_meetings_read')
             | cls.env.ref('nasq_pmo.group_cap_meetings_create')
-            | cls.env.ref('nasq_pmo.group_cap_pmo_projects_read')
-            | cls.env.ref('nasq_pmo.group_cap_pmo_tasks_read')
         )
         permissions = cls.env['nasq.access.permission'].search([
-            ('key', 'in', ['meetings.read', 'meetings.create', 'pmo.projects.read', 'pmo.tasks.read']),
+            ('key', 'in', ['meetings.read', 'meetings.create']),
         ])
         role = cls.env['nasq.access.role'].create({
             'key': 'meeting_workspace_editor',
@@ -143,47 +141,6 @@ class TestMeetingWorkspace(NasqPmoCase):
         self.assertEqual(events.status_code, 200, events.text)
         self.assertGreaterEqual(events.json()['total'], 2)
 
-    def test_invalid_form_does_not_commit_ordinary_patch_and_foreign_access_is_denied(self):
-        meeting = self._meeting()
-        other = self._meeting(name='Foreign meeting')
-        foreign_resolution = self.env['cyan.meeting.resolution'].create({
-            'meeting_id': other.id, 'name': 'Foreign recommendation',
-            'responsible_id': self.employee.id, 'execution_period': 'مستمر',
-        })
-        self._authenticate_employee()
-        invalid_form = {
-            'opening': '', 'closing': '', 'chairperson': '',
-            'approver_name': '', 'approver_title': '', 'unsupported': [],
-        }
-        response = self.api('PATCH', f'/api/v1/meetings/{meeting.id}', {
-            'name': 'Should roll back', 'minutes_form': invalid_form,
-        })
-        self.assertEqual(response.status_code, 422, response.text)
-        meeting.invalidate_recordset()
-        self.assertEqual(meeting.name, 'Workspace review')
-        form = {
-            'opening': '', 'closing': '', 'chairperson': '',
-            'approver_name': '', 'approver_title': '',
-            'topics': [{
-                'key': 'foreign', 'title': 'Foreign', 'discussion': '',
-                'project_id': None, 'resolution_ids': [foreign_resolution.id],
-            }],
-        }
-        denied = self.api('PATCH', f'/api/v1/meetings/{meeting.id}', {'minutes_form': form})
-        self.assertEqual(denied.status_code, 422, denied.text)
-        foreign_company = self.env['res.company'].create({'name': 'Workspace foreign company'})
-        foreign_project = self.env['project.project'].create({
-            'name': 'Foreign project', 'company_id': foreign_company.id,
-        })
-        foreign_project_form = dict(form, topics=[{
-            'key': 'foreign-project', 'title': 'Foreign project', 'discussion': '',
-            'project_id': foreign_project.id, 'resolution_ids': [],
-        }])
-        project_denied = self.api(
-            'PATCH', f'/api/v1/meetings/{meeting.id}', {'minutes_form': foreign_project_form},
-        )
-        self.assertEqual(project_denied.status_code, 403, project_denied.text)
-
     def test_non_participant_cannot_read_workspace_records(self):
         meeting = self._meeting()
         self.authenticate('meeting_workspace_outsider', 'meeting_workspace_outsider_pass')
@@ -216,26 +173,6 @@ class TestMeetingWorkspace(NasqPmoCase):
             [item['snapshot']['minutes_form']['opening'] for item in response.json()['items']],
             ['Second', 'First'],
         )
-
-    def test_version_and_latest_snapshot_keep_captured_task_state(self):
-        meeting = self._meeting()
-        project = self.env['project.project'].create({
-            'name': 'Workspace task project', 'company_id': self.env.company.id,
-        })
-        resolution = self.env['cyan.meeting.resolution'].create({
-            'meeting_id': meeting.id, 'name': 'Captured task',
-            'responsible_id': self.employee.id, 'deadline': '2026-09-30',
-        })
-        task = resolution.action_convert_to_task(project.id)
-        meeting.write({'state': 'confirmed'})
-        meeting.write({'state': 'done'})
-        task.write({'state': '1_done'})
-        meeting.invalidate_recordset(['minutes_snapshot'])
-        self.assertEqual(meeting.minutes_snapshot['resolutions'][0]['state'], 'in_progress')
-        self._authenticate_employee()
-        response = self.api('GET', f'/api/v1/meetings/{meeting.id}/versions')
-        self.assertEqual(response.status_code, 200, response.text)
-        self.assertEqual(response.json()['items'][0]['snapshot']['resolutions'][0]['state'], 'in_progress')
 
     def test_series_resolution_filters_projected_state_before_pagination(self):
         series = self.env['nasq.meeting.series'].create({

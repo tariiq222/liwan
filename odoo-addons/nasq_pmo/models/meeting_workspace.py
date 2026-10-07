@@ -74,7 +74,7 @@ class NasqMeetingWorkspace(models.Model):
     _CONTENT_FIELDS = frozenset({
         'name', 'company_id', 'meeting_date', 'start_datetime', 'end_datetime',
         'location', 'organizer_id', 'secretary_id', 'attendee_ids', 'agenda',
-        'minutes', 'meeting_url', 'series_id', 'project_id', 'minutes_form_data',
+        'minutes', 'meeting_url', 'series_id', 'minutes_form_data',
     })
 
     @api.model_create_multi
@@ -118,10 +118,7 @@ class NasqMeetingWorkspace(models.Model):
             if topic['project_id'] is not None:
                 if isinstance(topic['project_id'], bool) or not isinstance(topic['project_id'], int) or topic['project_id'] <= 0:
                     raise ValidationError(self.env._('Minutes topic project is invalid.'))
-                project = self.env['project.project'].browse(topic['project_id']).exists()
-                if not project or project.company_id != self.env.company:
-                    raise ValidationError(self.env._('Minutes topic project is not available in the current company.'))
-                project.check_access('read')
+                self.env['nasq.meeting.links']._nasq_check_topic_project(topic['project_id'])
             ids = topic['resolution_ids']
             if not isinstance(ids, list) or len(ids) > 200 or any(isinstance(item, bool) or not isinstance(item, int) or item <= 0 for item in ids):
                 raise ValidationError(self.env._('Minutes topic recommendations are invalid.'))
@@ -225,11 +222,10 @@ class NasqMeetingResolutionWorkspace(models.Model):
 
     deadline = fields.Date(required=False, tracking=True, index=True)
     execution_period = fields.Char(size=500)
-    project_id = fields.Many2one('project.project', check_company=True, index=True)
 
     _DECISION_FIELDS = frozenset({
         'name', 'description', 'responsible_id', 'deadline', 'priority',
-        'meeting_id', 'sequence', 'execution_period', 'project_id',
+        'meeting_id', 'sequence', 'execution_period',
     })
 
     @api.constrains('deadline', 'execution_period')

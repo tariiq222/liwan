@@ -25,7 +25,9 @@
     ],
     'data': [
         'security/pmo_capability_groups.xml',
+        'security/meeting_capability_groups.xml',
         'data/pmo_access_permissions.xml',
+        'data/meeting_access_permissions.xml',
         'security/project_finance_rules.xml',
         'security/ir.model.access-finance.csv',
         'security/ir.model.access.csv',

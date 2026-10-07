@@ -35,16 +35,17 @@ class TestTaskNotifications(NasqPmoCase):
         registry = self.env['nasq.notify.registry']
         types = registry._nasq_notification_type_map()
         pmo = [kind for kind, item in types.items() if item['owner'] == 'nasq_pmo']
-        self.assertEqual(pmo, [
-            'assignment', 'comment', 'mention', 'deadline', 'overdue_digest',
+        task_kinds = ['assignment', 'comment', 'mention', 'deadline', 'overdue_digest']
+        meeting_kinds = [
             'meeting_invite', 'meeting_resolution', 'meeting_converted', 'meeting_changed',
             'meeting_cancelled', 'meeting_reminder', 'meeting_resolution_overdue',
-        ])
-        self.assertEqual({types[kind]['feature_key'] for kind in pmo[:5]}, {'pmo.enabled'})
-        self.assertEqual({types[kind]['feature_key'] for kind in pmo[5:]}, {'meetings.enabled'})
-        self.assertEqual({types[kind]['model'] for kind in pmo[:4]}, {'project.task'})
+        ]
+        self.assertEqual(sorted(pmo), sorted(task_kinds + meeting_kinds))
+        self.assertEqual({types[kind]['feature_key'] for kind in task_kinds}, {'pmo.enabled'})
+        self.assertEqual({types[kind]['feature_key'] for kind in meeting_kinds}, {'meetings.enabled'})
+        self.assertEqual({types[kind]['model'] for kind in task_kinds[:4]}, {'project.task'})
         self.assertEqual(types['overdue_digest']['model'], 'res.company')
-        self.assertEqual({types[kind]['model'] for kind in pmo[5:]}, {'cyan.meeting.minute'})
+        self.assertEqual({types[kind]['model'] for kind in meeting_kinds}, {'cyan.meeting.minute'})
         # Other installed applications may contribute too: pmo's own values are included.
         self.assertIn('overdue_digest', registry._nasq_notify_live_kinds())
         self.assertLessEqual({'pmo.enabled', 'meetings.enabled'}, set(registry._nasq_notify_feature_keys()))

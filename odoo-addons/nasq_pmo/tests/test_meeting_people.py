@@ -1,11 +1,11 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo.tests import new_test_user, tagged
 
-from .common import NasqPmoCase
+from .meetings_common import NasqMeetingsCase
 
 
 @tagged('post_install', '-at_install', 'nasq')
-class TestMeetingPeopleApi(NasqPmoCase):
+class TestMeetingPeopleApi(NasqMeetingsCase):
 
     def test_meetings_only_picker_searches_internal_current_company_users(self):
         for index in range(55):

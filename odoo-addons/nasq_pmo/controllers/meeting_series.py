@@ -4,6 +4,7 @@ from datetime import date, datetime, timezone
 from odoo import http
 from odoo.http import request
 
+from .meetings import _parse_url
 from odoo.addons.nasq_api.controllers.common import (
     ApiError,
     api_handler,
@@ -12,7 +13,6 @@ from odoo.addons.nasq_api.controllers.common import (
     parse_positive_int,
     requires_feature,
 )
-from odoo.addons.nasq_pmo.controllers.meetings import _parse_url
 from odoo.addons.nasq_pmo.serializers.meeting import dump_meeting, dump_series
 
 MAX_SERIES = 200
@@ -75,7 +75,9 @@ class MeetingSeriesController(http.Controller):
         if q:
             domain += ['|', ('name', 'ilike', q), ('location', 'ilike', q)]
         if args.get('project_id'):
-            domain.append(('project_id', '=', parse_positive_int(args.get('project_id'), 'project_id')))
+            domain += request.env['nasq.meeting.links']._nasq_project_domain(
+                parse_positive_int(args.get('project_id'), 'project_id'),
+            )
         Series = request.env['nasq.meeting.series']
         records = Series.search(domain, order='name, id', limit=limit, offset=offset)
         return {
@@ -142,7 +144,9 @@ class MeetingSeriesController(http.Controller):
             'organizer_id': request.env.uid,
         }
         if project_id:
-            vals['project_id'] = parse_positive_int(project_id, 'project_id')
+            vals.update(request.env['nasq.meeting.links']._nasq_project_vals(
+                parse_positive_int(project_id, 'project_id'),
+            ))
         if secretary_id:
             vals['secretary_id'] = parse_positive_int(secretary_id, 'secretary_id')
         if isinstance(attendee_ids, list):

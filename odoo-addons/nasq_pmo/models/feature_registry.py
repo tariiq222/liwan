@@ -15,12 +15,6 @@ class NasqPmoFeatureRegistry(models.AbstractModel):
                 'module': 'nasq_pmo',
             },
             {
-                'key': 'meetings.enabled',
-                'type': 'boolean',
-                'owner': 'nasq_pmo',
-                'module': 'nasq_pmo',
-            },
-            {
                 'key': 'projects.max_projects',
                 'type': 'limit',
                 'owner': 'nasq_pmo',

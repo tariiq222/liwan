@@ -144,7 +144,9 @@ class MeetingController(http.Controller):
         if args.get('organizer_id'):
             domain.append(('organizer_id', '=', parse_positive_int(args.get('organizer_id'), 'organizer_id')))
         if args.get('project_id'):
-            domain.append(('project_id', '=', parse_positive_int(args.get('project_id'), 'project_id')))
+            domain += request.env['nasq.meeting.links']._nasq_project_domain(
+                parse_positive_int(args.get('project_id'), 'project_id'),
+            )
         if args.get('series_id'):
             domain.append(('series_id', '=', parse_positive_int(args.get('series_id'), 'series_id')))
         if args.get('mine') in {'1', 'true'}:
@@ -216,7 +218,9 @@ class MeetingController(http.Controller):
         if series_id:
             vals['series_id'] = parse_positive_int(series_id, 'series_id')
         if project_id:
-            vals['project_id'] = parse_positive_int(project_id, 'project_id')
+            vals.update(request.env['nasq.meeting.links']._nasq_project_vals(
+                parse_positive_int(project_id, 'project_id'),
+            ))
         with request.env.cr.savepoint():
             meeting = request.env['cyan.meeting.minute'].create(vals)
             if minutes_form is not None:
@@ -283,7 +287,8 @@ class MeetingController(http.Controller):
         if payload.get('series_id'):
             vals['series_id'] = parse_positive_int(payload['series_id'], 'series_id')
         if 'project_id' in payload:
-            vals['project_id'] = parse_positive_int(payload['project_id'], 'project_id') if payload['project_id'] else False
+            project_id = parse_positive_int(payload['project_id'], 'project_id') if payload['project_id'] else False
+            vals.update(request.env['nasq.meeting.links']._nasq_project_vals(project_id))
         has_minutes_form = 'minutes_form' in payload
         if has_minutes_form:
             meeting._nasq_validate_minutes_form(payload['minutes_form'])
@@ -337,11 +342,10 @@ class MeetingController(http.Controller):
         if execution_period is not None:
             vals['execution_period'] = execution_period.strip()
         if project_id is not None:
-            project = get_record('project.project', parse_positive_int(project_id, 'project_id'))
-            if project.company_id != request.env.company:
-                raise ApiError(422, 'invalid', 'project_id must belong to the current company', field='project_id')
-            project.check_access('read')
-            vals['project_id'] = project.id
+            links = request.env['nasq.meeting.links']
+            vals.update(links._nasq_project_vals(
+                links._nasq_check_project(parse_positive_int(project_id, 'project_id')),
+            ))
         if priority is not None:
             if not isinstance(priority, str) or priority not in {'0', '1', '2', '3'}:
                 raise ApiError(422, 'invalid', 'priority must be one of 0, 1, 2, or 3', field='priority')
@@ -355,21 +359,6 @@ class MeetingController(http.Controller):
                 key=f'meeting-res:{resolution.id}',
             )
         return request.make_json_response(dump_resolution(resolution), status=201)
-
-    @http.route(
-        '/api/v1/meetings/<int:meeting_id>/resolutions/<int:resolution_id>/convert',
-        type='json2', auth='user', methods=['POST'], readonly=False,
-    )
-    @api_handler
-    @requires_feature('meetings.enabled', 'pmo.enabled', operation='write')
-    def convert_resolution(self, meeting_id, resolution_id, project_id=None, **_):
-        request.env['nasq.access.service']._nasq_require_capability('meetings.read')
-        meeting = get_record('cyan.meeting.minute', meeting_id)
-        resolution = get_record('cyan.meeting.resolution', resolution_id)
-        if resolution.meeting_id != meeting:
-            raise ApiError(404, 'not_found', 'resolution not found')
-        task = resolution.action_convert_to_task(parse_positive_int(project_id, 'project_id'))
-        return {'id': task.id, 'name': task.name}
 
     def _resolution(self, meeting_id, resolution_id):
         meeting = get_record('cyan.meeting.minute', meeting_id)
@@ -441,14 +430,12 @@ class MeetingController(http.Controller):
                 raise ApiError(422, 'invalid', 'execution_period must be a string of at most 500 characters', field='execution_period')
             vals['execution_period'] = (payload['execution_period'] or '').strip()
         if 'project_id' in payload:
-            if payload['project_id']:
-                project = get_record('project.project', parse_positive_int(payload['project_id'], 'project_id'))
-                if project.company_id != request.env.company:
-                    raise ApiError(422, 'invalid', 'project_id must belong to the current company', field='project_id')
-                project.check_access('read')
-                vals['project_id'] = project.id
-            else:
-                vals['project_id'] = False
+            links = request.env['nasq.meeting.links']
+            project_id = (
+                links._nasq_check_project(parse_positive_int(payload['project_id'], 'project_id'))
+                if payload['project_id'] else False
+            )
+            vals.update(links._nasq_project_vals(project_id))
         if 'deadline' in payload or 'execution_period' in payload:
             proposed_deadline = vals.get('deadline', resolution.deadline)
             proposed_period = vals.get('execution_period', resolution.execution_period)

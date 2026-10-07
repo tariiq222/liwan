@@ -17,7 +17,6 @@ class CyanMeetingMinute(models.Model):
     series_id = fields.Many2one(
         'nasq.meeting.series', index=True, ondelete='restrict', check_company=True,
     )
-    project_id = fields.Many2one('project.project', check_company=True, index=True)
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -26,8 +25,9 @@ class CyanMeetingMinute(models.Model):
             if series:
                 self._nasq_check_series_link(series)
                 series.check_access('read')
-                if series.project_id:
-                    vals.setdefault('project_id', series.project_id.id)
+                for field, value in series._nasq_extra_meeting_defaults().items():
+                    if value:
+                        vals.setdefault(field, value)
                 vals.setdefault('organizer_id', series.organizer_id.id)
                 if series.secretary_id:
                     vals.setdefault('secretary_id', series.secretary_id.id)
@@ -162,10 +162,9 @@ class CyanMeetingMinute(models.Model):
             ('state', 'not in', ('done', 'cancelled')),
             ('deadline', '<', today),
         ])
-        converted_ids = self.env['project.task'].with_context(active_test=False).sudo().search([
-            ('resolution_id', 'in', resolutions.ids),
-        ]).mapped('resolution_id')
-        for resolution in resolutions.filtered(lambda item: item.id not in converted_ids):
+        # A recommendation followed on a linked record (a converted task) gets no overdue reminder.
+        linked_ids = self.env['nasq.meeting.links']._nasq_linked_resolution_ids(resolutions)
+        for resolution in resolutions.filtered(lambda item: item.id not in linked_ids):
             if resolution.responsible_id:
                 resolution.meeting_id._nasq_notify_partners(
                     resolution.responsible_id.partner_id,
@@ -226,10 +225,11 @@ class CyanMeetingMinute(models.Model):
 
     def action_apply_schedule_scope(self, vals, scope='this'):
         self.ensure_one()
+        link_fields = self.env['nasq.meeting.links']._nasq_link_fields()
         allowed = {
             'name', 'location', 'start_datetime', 'end_datetime', 'meeting_url', 'meeting_date',
-            'agenda', 'minutes', 'attendee_ids', 'secretary_id', 'project_id',
-        }
+            'agenda', 'minutes', 'attendee_ids', 'secretary_id',
+        } | link_fields
         payload = {key: vals[key] for key in allowed if key in vals}
         targets = self._nasq_scope_meetings(scope)
         locked = targets.filtered(lambda meeting: meeting.state in meeting._LOCKED_STATES)
@@ -241,7 +241,7 @@ class CyanMeetingMinute(models.Model):
             return editable
 
         schedule_fields = {'name', 'location', 'start_datetime', 'end_datetime', 'meeting_url', 'meeting_date'}
-        content_fields = {'agenda', 'minutes', 'attendee_ids', 'secretary_id', 'project_id'}
+        content_fields = {'agenda', 'minutes', 'attendee_ids', 'secretary_id'} | link_fields
         schedule_payload = {key: payload[key] for key in schedule_fields if key in payload}
         content_payload = {key: payload[key] for key in content_fields if key in payload}
         if scope == 'this_and_following' and self in locked and content_payload:

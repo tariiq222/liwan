@@ -38,8 +38,6 @@ TASK_WRITABLE_FIELDS = {
     'stage_id', 'state', 'tag_ids', 'user_ids',
 }
 TASK_CREATE_FIELDS = TASK_WRITABLE_FIELDS | {'parent_id', 'project_id'}
-ORIGIN_FIELDS = frozenset({'meeting_id', 'resolution_id'})
-CONVERT_MARKER = 'nasq_pmo.resolution_convert_depth'
 
 
 def _validate_task_deliverables(value, env=None):
@@ -72,11 +70,16 @@ class ProjectTask(models.Model):
     nasq_completion_return_note = fields.Text(copy=False)
     nasq_planned_start = fields.Date(copy=False, index=True)
     nasq_deliverables = fields.Json(default=lambda self: [], copy=True)
-    meeting_id = fields.Integer(copy=False, index=True)
-    resolution_id = fields.Integer(copy=False, index=True)
-    _nasq_resolution_task_unique = models.UniqueIndex(
-        '(resolution_id) WHERE resolution_id IS NOT NULL AND resolution_id > 0',
-    )
+
+    @api.model
+    def _nasq_extra_create_fields(self):
+        """Fields a checked internal flow may set on create besides TASK_CREATE_FIELDS.
+
+        None here. An addon that mints tasks from its own records (the
+        meetings bridge) adds its origin fields while its cursor-local marker
+        is set; a client can never set them.
+        """
+        return frozenset()
 
     @api.model
     def _nasq_template_population_domain(self):
@@ -568,9 +571,7 @@ class ProjectTask(models.Model):
         if not trusted:
             service = self.env['nasq.access.service']
             for vals in vals_list:
-                allowed = TASK_CREATE_FIELDS
-                if self.env.cr.precommit.data.get(CONVERT_MARKER):
-                    allowed = allowed | ORIGIN_FIELDS
+                allowed = TASK_CREATE_FIELDS | self._nasq_extra_create_fields()
                 if set(vals) - allowed:
                     raise AccessError(self.env._("Task fields are not allowed."))
                 parent = self.browse(vals.get('parent_id')).exists()

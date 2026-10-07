@@ -1,8 +1,13 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+"""Meeting wire shapes.
+
+Links to other applications (a project, a converted task) come from the
+``nasq.meeting.links`` hooks; without a bridge they are null and every
+shape stays the same.
+"""
 from datetime import date, datetime
 
 from odoo import fields
-from odoo.exceptions import AccessError
 
 from odoo.addons.nasq_api.serializers.common import iso
 
@@ -11,50 +16,24 @@ def dump_person(user):
     return {'id': user.id, 'name': user.name} if user else None
 
 
-def dump_project_ref(record):
-    project = record.project_id
-    if not project:
-        return None
-    if project.company_id != record.env.company:
-        return None
-    service = record.env['nasq.access.service']
-    if not service._nasq_has_capability(record.env.user, 'pmo.projects.read'):
-        return None
-    try:
-        project.check_access('read')
-    except AccessError:
-        return None
-    return {'id': project.id, 'name': project.name}
-
-
-def dump_project_id(record, project_id):
-    if not project_id:
-        return None
-    project = record.env['project.project'].browse(project_id).exists()
-    if not project or project.company_id != record.env.company:
-        return None
-    service = record.env['nasq.access.service']
-    if not service._nasq_has_capability(record.env.user, 'pmo.projects.read'):
-        return None
-    try:
-        project.check_access('read')
-    except AccessError:
-        return None
-    return {'id': project.id, 'name': project.name}
+def _links(record):
+    return record.env['nasq.meeting.links']
 
 
 def dump_minutes_form(meeting, form):
     if not isinstance(form, dict):
         return None
+    links = _links(meeting)
     topics = []
     for topic in form.get('topics', []):
         if not isinstance(topic, dict):
             continue
+        project_id = topic.get('project_id')
         topics.append({
             'key': topic.get('key', ''),
             'title': topic.get('title', ''),
             'discussion': topic.get('discussion', ''),
-            'project_id': topic.get('project_id') if not topic.get('project_id') or dump_project_id(meeting, topic.get('project_id')) else None,
+            'project_id': project_id if not project_id or links._nasq_project_ref_by_id(meeting, project_id) else None,
             'resolution_ids': list(topic.get('resolution_ids') or []),
         })
     return {
@@ -67,29 +46,17 @@ def dump_minutes_form(meeting, form):
     }
 
 
-TASK_EXECUTION_STATES = {
-    '1_done': 'done',
-    '1_canceled': 'cancelled',
-}
-
-
-def _task_execution_state(task):
-    return TASK_EXECUTION_STATES.get(task.state, 'in_progress')
-
-
 def dump_snapshot_payload(meeting, snapshot):
     """Project a server-built snapshot through current visibility rules."""
     if not isinstance(snapshot, dict):
         return None
+    links = _links(meeting)
     snapshot_rows = [row for row in snapshot.get('resolutions', []) if isinstance(row, dict)]
-    task_by_resolution = {}
+    readable = {}
     resolution_ids = [row.get('id') for row in snapshot_rows if row.get('id')]
     if resolution_ids:
         resolutions = meeting.env['cyan.meeting.resolution'].browse(resolution_ids).exists()
-        readable_ids = _readable_task_ids_by_resolution(meeting, resolutions)
-        if readable_ids:
-            tasks = meeting.env['project.task'].browse(set(readable_ids.values())).exists()
-            task_by_resolution = {task.resolution_id: task for task in tasks if task.resolution_id}
+        readable = links._nasq_readable_links(meeting, resolutions)
     result = {
         'captured_at': snapshot.get('captured_at'),
         'name': snapshot.get('name', ''),
@@ -110,15 +77,15 @@ def dump_snapshot_payload(meeting, snapshot):
                 'priority': row.get('priority', '0'),
                 'state': (
                     row.get('projected_state', row.get('state', 'open'))
-                    if row.get('id') in task_by_resolution
-                    and task_by_resolution[row.get('id')].id == (row.get('task_provenance') or {}).get('task_id')
+                    if row.get('id') in readable
+                    and readable[row.get('id')]['task_id'] == (row.get('task_provenance') or {}).get('task_id')
                     else row.get('state', 'open')
                 ),
                 'responsible': row.get('responsible'),
                 'result': row.get('result', ''),
                 'meeting_name': row.get('meeting_name', snapshot.get('name', '')),
                 'execution_period': row.get('execution_period') or '',
-                'project': row.get('project') or dump_project_id(meeting, row.get('project_id')),
+                'project': row.get('project') or links._nasq_project_ref_by_id(meeting, row.get('project_id')),
             }
             for row in snapshot.get('resolutions', [])
             if isinstance(row, dict)
@@ -186,14 +153,13 @@ def _resolution_allowed_actions(resolution, *, linked, task_readable):
     return actions
 
 
-def dump_resolution(resolution, task_id=None):
-    has_task = bool(task_id or resolution.env['project.task'].with_context(active_test=False).sudo().search_count(
-        [('resolution_id', '=', resolution.id)], limit=1,
-    ))
-    task = resolution.env['project.task'].browse(task_id).exists() if task_id else resolution.env['project.task']
-    execution_state = _task_execution_state(task) if task else resolution.state
+def dump_resolution(resolution, link=None):
+    """``link`` is this recommendation's entry of ``_nasq_readable_links``, when the caller can read it."""
+    links = _links(resolution)
+    linked = bool(link) or resolution.id in links._nasq_linked_resolution_ids(resolution)
+    execution_state = link['state'] if link else resolution.state
     allowed_actions = _resolution_allowed_actions(
-        resolution, linked=has_task, task_readable=bool(task),
+        resolution, linked=linked, task_readable=bool(link),
     )
     return {
         'id': resolution.id,
@@ -202,15 +168,15 @@ def dump_resolution(resolution, task_id=None):
         'priority': resolution.priority,
         'state': resolution.state,
         'responsible': dump_person(resolution.responsible_id),
-        'task_id': task_id,
+        'task_id': link['task_id'] if link else None,
         'result': resolution.result or '',
         'can_update_execution': bool(set(allowed_actions) & {'start', 'complete', 'cancel'}),
-        'can_edit_decision': bool(resolution.can_edit_decision) and not has_task,
+        'can_edit_decision': bool(resolution.can_edit_decision) and not linked,
         'execution_state': execution_state,
-        'task_linked': has_task,
+        'task_linked': linked,
         'allowed_actions': allowed_actions,
         'execution_period': resolution.execution_period or '',
-        'project': dump_project_ref(resolution) if resolution.project_id else None,
+        'project': links._nasq_project_ref(resolution),
     }
 
 
@@ -220,32 +186,14 @@ def _meeting_order_key(meeting):
     return day, start, meeting.id
 
 
-def _readable_task_ids_by_resolution(meeting, resolutions):
-    Task = meeting.env['project.task']
-    can_read_tasks = meeting.env['nasq.access.service']._nasq_has_capability(
-        meeting.env.user, 'pmo.tasks.read',
-    ) and Task.has_access('read')
-    if not can_read_tasks or not resolutions:
-        return {}
-    tasks = Task.search([
-        ('resolution_id', 'in', resolutions.ids),
-        ('company_id', '=', meeting.env.company.id),
-        ('project_id.company_id', '=', meeting.env.company.id),
-        ('project_id.active', '=', True),
-        ('active', '=', True),
-    ])
-    return {task.resolution_id: task.id for task in tasks if task.resolution_id}
-
-
 def _projected_resolution_counts(meeting, resolutions=None):
     resolutions = resolutions if resolutions is not None else meeting.resolution_ids
-    task_by_resolution = _readable_task_ids_by_resolution(meeting, resolutions)
+    readable = _links(meeting)._nasq_readable_links(meeting, resolutions)
     now = fields.Date.context_today(meeting)
     open_count = overdue_count = 0
     for resolution in resolutions:
-        task_id = task_by_resolution.get(resolution.id)
-        task = meeting.env['project.task'].browse(task_id).exists() if task_id else meeting.env['project.task']
-        state = _task_execution_state(task) if task else resolution.state
+        link = readable.get(resolution.id)
+        state = link['state'] if link else resolution.state
         if state in ('done', 'cancelled'):
             continue
         open_count += 1
@@ -255,6 +203,7 @@ def _projected_resolution_counts(meeting, resolutions=None):
 
 
 def dump_meeting(meeting, *, detail=False):
+    links = _links(meeting)
     payload = {
         'id': meeting.id,
         'name': meeting.name,
@@ -266,10 +215,10 @@ def dump_meeting(meeting, *, detail=False):
         'organizer': dump_person(meeting.organizer_id),
         'open_resolution_count': _projected_resolution_counts(meeting)[0],
         'series_id': meeting.series_id.id or None,
-        'project_id': meeting.project_id.id or None,
+        'project_id': links._nasq_project_id(meeting),
     }
     if detail:
-        task_by_resolution = _readable_task_ids_by_resolution(meeting, meeting.resolution_ids)
+        readable = links._nasq_readable_links(meeting, meeting.resolution_ids)
         payload.update({
             'agenda': meeting.agenda or '',
             'minutes': meeting.minutes or '',
@@ -280,11 +229,11 @@ def dump_meeting(meeting, *, detail=False):
             'secretary': dump_person(meeting.secretary_id),
             'attendees': [dump_person(user) for user in meeting.attendee_ids],
             'resolutions': [
-                dump_resolution(item, task_by_resolution.get(item.id))
+                dump_resolution(item, readable.get(item.id))
                 for item in meeting.resolution_ids
             ],
             'series': dump_person(meeting.series_id) if meeting.series_id else None,
-            'project': dump_project_ref(meeting),
+            'project': links._nasq_project_ref(meeting),
             'previous_resolutions': dump_previous_resolutions(meeting),
             'minutes_snapshot': dump_minutes_snapshot(meeting),
         })
@@ -302,10 +251,10 @@ def dump_previous_resolutions(meeting):
     others = meeting.series_id.meeting_ids.filtered(
         lambda item: item.id != meeting.id and _meeting_order_key(item) < current_key,
     )
-    task_by_resolution = _readable_task_ids_by_resolution(meeting, others.mapped('resolution_ids'))
+    readable = _links(meeting)._nasq_readable_links(meeting, others.mapped('resolution_ids'))
     for other in others.sorted(key=_meeting_order_key):
         for resolution in other.resolution_ids:
-            row = dump_resolution(resolution, task_by_resolution.get(resolution.id))
+            row = dump_resolution(resolution, readable.get(resolution.id))
             row['meeting_id'] = other.id
             row['meeting_name'] = other.name
             rows.append(row)
@@ -321,7 +270,7 @@ def dump_series(series, *, detail=False):
         'until_date': str(series.until_date) if series.until_date else None,
         'until_count': series.until_count or None,
         'organizer': dump_person(series.organizer_id),
-        'project': dump_project_ref(series),
+        'project': _links(series)._nasq_project_ref(series),
         'open_resolution_count': sum(_projected_resolution_counts(meeting)[0] for meeting in meetings),
         'overdue_resolution_count': sum(_projected_resolution_counts(meeting)[1] for meeting in meetings),
     }

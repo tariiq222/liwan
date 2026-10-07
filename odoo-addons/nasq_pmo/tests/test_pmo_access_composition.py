@@ -4,9 +4,9 @@ from odoo.tests import TransactionCase, new_test_user, tagged
 
 from odoo.addons.nasq_pmo.models.access_service import (
     EMPLOYEE_PMO_PERMISSIONS,
-    MEETINGS_PERMISSIONS,
     PMO_PERMISSIONS,
 )
+from odoo.addons.nasq_pmo.models.meeting_access_service import MEETINGS_PERMISSIONS
 
 
 @tagged('nasq', 'nasq_access')

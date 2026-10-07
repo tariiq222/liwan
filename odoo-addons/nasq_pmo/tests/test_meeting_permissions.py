@@ -4,11 +4,11 @@ from datetime import date
 from odoo import fields
 from odoo.tests import new_test_user, tagged
 
-from .common import NasqPmoCase
+from .meetings_common import NasqMeetingsCase
 
 
 @tagged('post_install', '-at_install', 'nasq', 'nasq_access')
-class TestMeetingPermissions(NasqPmoCase):
+class TestMeetingPermissions(NasqMeetingsCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()

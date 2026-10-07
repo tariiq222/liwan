@@ -24,7 +24,6 @@ class NasqMeetingSeries(models.Model):
         'res.company', required=True, index=True,
         default=lambda self: self.env.company,
     )
-    project_id = fields.Many2one('project.project', check_company=True, index=True)
     organizer_id = fields.Many2one(
         'res.users', required=True, default=lambda self: self.env.user,
         domain="[('share', '=', False)]", check_company=True,
@@ -74,6 +73,11 @@ class NasqMeetingSeries(models.Model):
         self.ensure_one()
         return self.organizer_id | self.secretary_id | self.attendee_ids
 
+    def _nasq_extra_meeting_defaults(self):
+        """Occurrence defaults other applications add through super(); none here."""
+        self.ensure_one()
+        return {}
+
     def _nasq_meeting_defaults(self):
         self.ensure_one()
         attendees = self.attendee_ids
@@ -84,12 +88,12 @@ class NasqMeetingSeries(models.Model):
             'state': 'draft',
             'company_id': self.company_id.id,
             'series_id': self.id,
-            'project_id': self.project_id.id,
             'organizer_id': self.organizer_id.id,
             'secretary_id': self.secretary_id.id,
             'attendee_ids': [(6, 0, attendees.ids)],
             'location': self.location or False,
             'meeting_url': self.meeting_url or False,
+            **self._nasq_extra_meeting_defaults(),
         }
 
     @api.constrains('recurrence', 'until_date', 'until_count')
