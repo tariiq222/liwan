@@ -520,31 +520,22 @@ class NasqEntitlementService(models.AbstractModel):
 
     @api.model
     def _nasq_legacy_features_for(self, selected_modules):
+        """One-shot legacy grants, derived from the feature registry.
+
+        Every feature an application registers is granted when the
+        application is selected (booleans on, limits unlimited) and withheld
+        when it is installed but not selected (booleans off, limits
+        unlimited). Platform features are always present. Applications
+        register their features, so the platform names none of them.
+        """
         selected = set(selected_modules)
         installed = set(self._nasq_installed_modules())
-        features = {
-            'users.limit': None,
-            'storage.limit_mb': None,
-            'branches.extra_limit': None,
-        }
-        grants = {
-            'nasq_pmo': (
-                ('pmo.enabled', True),
-                ('meetings.enabled', True),
-                ('projects.max_projects', None),
-            ),
-            'nasq_hr': (
-                ('hr.enabled', True),
-            ),
-            'nasq_chat': (
-                ('chat.enabled', True),
-            ),
-        }
-        for module_id, items in grants.items():
-            if module_id in selected:
-                for key, value in items:
-                    features[key] = value
+        features = {}
+        for key, item in sorted(self._nasq_registry()._nasq_feature_map().items()):
+            module_id = item['module']
+            boolean = item['type'] == 'boolean'
+            if module_id == 'nasq_platform' or module_id in selected:
+                features[key] = True if boolean else None
             elif module_id in installed:
-                for key, value in items:
-                    features[key] = False if isinstance(value, bool) else None
+                features[key] = False if boolean else None
         return features

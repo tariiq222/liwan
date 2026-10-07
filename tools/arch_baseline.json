@@ -2,7 +2,7 @@
   "R1": {},
   "R10": {},
   "R2": {
-    "odoo-addons/nasq_platform/models/entitlement_service.py": 8
+    "odoo-addons/nasq_platform/models/entitlement_service.py": 4
   },
   "R3": {
     "web apps/web/app/pages/meetings/[id]/edit.vue": 1,
