@@ -170,13 +170,9 @@ try:
         refuse('observed_mismatch')
     operator = profile.with_context(**{OPERATOR_CONTEXT: True})
     if current != values['target_revision_id']:
-        features = dict(values['features'])
-        # Modules stay installed after removal from the target; switch their flags off.
-        installed = set(env['ir.module.module'].search([('state', '=', 'installed')]).mapped('name'))
-        for key, item in env['nasq.feature.registry']._nasq_feature_map().items():
-            if (item['type'] == 'boolean' and key not in features
-                    and item['module'] != 'nasq_platform' and item['module'] in installed):
-                features[key] = False
+        # Every application stays installed; keys the target omits close (booleans
+        # false, limits 0). Odoo still refuses a target without its platform keys.
+        features = env['nasq.entitlement.service']._nasq_close_unlisted_features(values['features'])
         operator.write({'features': features, 'commercial_revision_id': values['target_revision_id'],
                         'commercial_digest': values['digest'],
                         'commercial_applied_at': fields.Datetime.now()})

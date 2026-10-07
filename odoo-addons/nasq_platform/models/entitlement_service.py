@@ -519,6 +519,25 @@ class NasqEntitlementService(models.AbstractModel):
         return retained
 
     @api.model
+    def _nasq_close_unlisted_features(self, features):
+        """Return FEATURES plus the closed value of every installed application key it omits.
+
+        A target lists what it grants. Every other key whose application is
+        installed closes: booleans ``False``, limits ``0`` (default-deny). Keys
+        the target lists are never changed, and platform keys are never filled
+        in, so ``_nasq_validate_features`` still refuses a target without them.
+        Operator scripts call this before a policy write; it writes nothing.
+        """
+        result = dict(features or {})
+        installed = set(self._nasq_installed_modules())
+        for key, item in sorted(self._nasq_registry()._nasq_feature_map().items()):
+            module_id = item['module']
+            if key in result or module_id == 'nasq_platform' or module_id not in installed:
+                continue
+            result[key] = False if item['type'] == 'boolean' else 0
+        return result
+
+    @api.model
     def _nasq_legacy_features_for(self, selected_modules):
         """One-shot legacy grants, derived from the feature registry.
 

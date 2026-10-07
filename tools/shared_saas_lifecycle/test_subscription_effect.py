@@ -236,6 +236,11 @@ class ReconfigureTests(Base):
         with self.assertRaises(EffectError):
             se.parse_output('nothing')
 
+    def test_apply_script_closes_unlisted_keys_through_odoo(self):
+        script = se.build_apply_script(make_request())
+        self.assertIn("._nasq_close_unlisted_features(values['features'])", script)
+        self.assertNotIn("item['type'] == 'boolean' and key not in features", script)
+
 
 class ObserveTests(Base):
     def test_observe_snapshot(self):
