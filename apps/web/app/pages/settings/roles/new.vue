@@ -3,8 +3,10 @@ import type { Capability, PermissionDefinition } from '@nasq/contracts'
 import { ApiError } from '@/composables/useApi'
 import { useAdminPermissionCatalog, useAdminRole, useCreateAdminRole } from '@/composables/useAdminRoles'
 import { adminListQuery, adminPathWithQuery } from '@/composables/adminSettingsPaths'
+import { permissionDomainLabel } from '@/utils/labelFallback'
 
-const { t, locale } = useI18n()
+const { t, te, locale } = useI18n()
+const domainLabel = (domain: string) => permissionDomainLabel(domain, t, te)
 const route = useRoute()
 const { can } = useAccess()
 const hydrated = useHydrated()
@@ -106,7 +108,7 @@ async function submit() {
         <fieldset class="space-y-4" :disabled="!hydrated || create.isPending.value">
           <legend class="sr-only">{{ t('access.roles.permissions') }}</legend>
           <section v-for="[domain, domainPermissions] in groupedPermissions" :key="domain" class="space-y-3">
-            <h3 class="text-sm font-medium">{{ t(`access.roles.domains.${domain}`) }}</h3>
+            <h3 class="text-sm font-medium">{{ domainLabel(domain) }}</h3>
             <div class="space-y-3">
               <UCheckbox
                 v-for="permission in domainPermissions"
