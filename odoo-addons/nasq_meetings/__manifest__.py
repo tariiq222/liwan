@@ -27,6 +27,9 @@
         'data/meeting_reminder_cron.xml',
         'report/meeting_report_history_templates.xml',
     ],
+    # Adopts the meeting rows of an older nasq_pmo when an upgrade installs
+    # this addon before nasq_pmo's 19.0.1.4.0 migration (plan 2b-2, Deviation 1).
+    'pre_init_hook': 'pre_init_hook',
     'installable': True,
     'application': False,
 }
