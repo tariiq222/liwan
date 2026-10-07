@@ -1,4 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+import logging
+
 from odoo import api, fields, models
 from odoo.exceptions import AccessError, ValidationError
 
@@ -7,6 +9,8 @@ from odoo.addons.nasq_platform.models.entitlement_service import (
     OPERATOR_CONTEXT,
     POLICY_FIELDS,
 )
+
+_logger = logging.getLogger(__name__)
 
 
 class NasqTenantProfile(models.Model):
@@ -153,6 +157,40 @@ class NasqTenantProfile(models.Model):
             'quota_revision': profile.quota_revision or 0,
         })
         return profile
+
+    def _register_hook(self):
+        super()._register_hook()
+        self._nasq_register_missing_features()
+
+    @api.model
+    def _nasq_register_missing_features(self):
+        """Close, in the stored policy, every installed application key it lacks.
+
+        Runs once per registry load, so an application installed (or a key an
+        application adds in an upgrade) after the tenant's one-shot policy gets
+        its default-closed value once, and the next full policy write is not
+        refused for omitting it. It never grants and never changes a stored
+        value. An uninitialized tenant is left to its first policy write; a
+        policy that cannot be completed (a new platform key needs a migration)
+        is logged and left unchanged rather than stopping the server.
+        """
+        profiles = self.search([], limit=2)
+        if len(profiles) != 1 or not self._nasq_policy_initialized(profiles):
+            return False
+        if not isinstance(profiles.features, dict):
+            return False
+        profile = profiles._nasq_lock()
+        current = dict(profile.features)
+        completed = self.env['nasq.entitlement.service']._nasq_close_unlisted_features(current)
+        if completed == current:
+            return False
+        try:
+            with self.env.cr.savepoint():
+                profile.with_context(**{OPERATOR_CONTEXT: True}).write({'features': completed})
+        except ValidationError as error:
+            _logger.warning('nasq_platform: the stored policy cannot take its closed keys: %s', error)
+            return False
+        return True
 
     def _nasq_lock(self):
         self.ensure_one()

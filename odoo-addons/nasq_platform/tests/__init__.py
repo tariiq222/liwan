@@ -3,6 +3,7 @@ from . import (
     test_branch_service,
     test_commercial_mode,
     test_entitlements,
+    test_feature_registration,
     test_legacy_grants,
     test_lifecycle,
     test_quotas,
