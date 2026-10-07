@@ -1,0 +1,295 @@
+{
+  "description": "Release-complete derivation of schema-3 catalogs. Loaded by packages/commercial-contracts/src/__tests__/release-features.test.ts and tools/test_managed_policy.py; both runtimes must derive exactly these modules and features (false and 0 are distinct).",
+  "cases": [
+    {
+      "name": "v3_core_closes_every_application",
+      "catalog": {
+        "schema_version": 3,
+        "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
+        "base_modules": [
+          "nasq_core",
+          "nasq_platform",
+          "nasq_api"
+        ],
+        "tiers": [
+          {
+            "id": "core",
+            "modules": [],
+            "features": [
+              "limit:users.limit",
+              "limit:storage.limit_mb",
+              "limit:branches.extra_limit:0"
+            ]
+          },
+          {
+            "id": "projects",
+            "modules": [
+              "nasq_pmo",
+              "nasq_meetings"
+            ],
+            "features": [
+              "boolean:pmo.enabled",
+              "boolean:meetings.enabled",
+              "limit:projects.max_projects"
+            ]
+          },
+          {
+            "id": "people",
+            "modules": [
+              "nasq_hr"
+            ],
+            "features": [
+              "boolean:hr.enabled"
+            ]
+          }
+        ]
+      },
+      "tier": "core",
+      "modules": [
+        "nasq_core",
+        "nasq_platform",
+        "nasq_api",
+        "nasq_pmo",
+        "nasq_meetings",
+        "nasq_hr"
+      ],
+      "features": {
+        "users.limit": null,
+        "storage.limit_mb": null,
+        "branches.extra_limit": 0,
+        "pmo.enabled": false,
+        "meetings.enabled": false,
+        "projects.max_projects": 0,
+        "hr.enabled": false
+      }
+    },
+    {
+      "name": "v3_projects_opens_its_own_and_closes_people",
+      "catalog": {
+        "schema_version": 3,
+        "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
+        "base_modules": [
+          "nasq_core",
+          "nasq_platform",
+          "nasq_api"
+        ],
+        "tiers": [
+          {
+            "id": "core",
+            "modules": [],
+            "features": [
+              "limit:users.limit",
+              "limit:storage.limit_mb",
+              "limit:branches.extra_limit:0"
+            ]
+          },
+          {
+            "id": "projects",
+            "modules": [
+              "nasq_pmo",
+              "nasq_meetings"
+            ],
+            "features": [
+              "boolean:pmo.enabled",
+              "boolean:meetings.enabled",
+              "limit:projects.max_projects"
+            ]
+          },
+          {
+            "id": "people",
+            "modules": [
+              "nasq_hr"
+            ],
+            "features": [
+              "boolean:hr.enabled"
+            ]
+          }
+        ]
+      },
+      "tier": "projects",
+      "modules": [
+        "nasq_core",
+        "nasq_platform",
+        "nasq_api",
+        "nasq_pmo",
+        "nasq_meetings",
+        "nasq_hr"
+      ],
+      "features": {
+        "users.limit": null,
+        "storage.limit_mb": null,
+        "branches.extra_limit": 0,
+        "pmo.enabled": true,
+        "meetings.enabled": true,
+        "projects.max_projects": null,
+        "hr.enabled": false
+      }
+    },
+    {
+      "name": "v3_people_closes_the_projects_limit_to_zero",
+      "catalog": {
+        "schema_version": 3,
+        "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
+        "base_modules": [
+          "nasq_core",
+          "nasq_platform",
+          "nasq_api"
+        ],
+        "tiers": [
+          {
+            "id": "core",
+            "modules": [],
+            "features": [
+              "limit:users.limit",
+              "limit:storage.limit_mb",
+              "limit:branches.extra_limit:0"
+            ]
+          },
+          {
+            "id": "projects",
+            "modules": [
+              "nasq_pmo",
+              "nasq_meetings"
+            ],
+            "features": [
+              "boolean:pmo.enabled",
+              "boolean:meetings.enabled",
+              "limit:projects.max_projects"
+            ]
+          },
+          {
+            "id": "people",
+            "modules": [
+              "nasq_hr"
+            ],
+            "features": [
+              "boolean:hr.enabled"
+            ]
+          }
+        ]
+      },
+      "tier": "people",
+      "modules": [
+        "nasq_core",
+        "nasq_platform",
+        "nasq_api",
+        "nasq_pmo",
+        "nasq_meetings",
+        "nasq_hr"
+      ],
+      "features": {
+        "users.limit": null,
+        "storage.limit_mb": null,
+        "branches.extra_limit": 0,
+        "pmo.enabled": false,
+        "meetings.enabled": false,
+        "projects.max_projects": 0,
+        "hr.enabled": true
+      }
+    },
+    {
+      "name": "v3_a_selected_ceiling_is_kept",
+      "catalog": {
+        "schema_version": 3,
+        "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
+        "base_modules": [
+          "nasq_core",
+          "nasq_platform",
+          "nasq_api"
+        ],
+        "tiers": [
+          {
+            "id": "core",
+            "modules": [],
+            "features": [
+              "limit:users.limit",
+              "limit:storage.limit_mb",
+              "limit:branches.extra_limit:0"
+            ]
+          },
+          {
+            "id": "projects",
+            "modules": [
+              "nasq_pmo"
+            ],
+            "features": [
+              "boolean:pmo.enabled",
+              "limit:projects.max_projects:25"
+            ]
+          }
+        ]
+      },
+      "tier": "projects",
+      "modules": [
+        "nasq_core",
+        "nasq_platform",
+        "nasq_api",
+        "nasq_pmo"
+      ],
+      "features": {
+        "users.limit": null,
+        "storage.limit_mb": null,
+        "branches.extra_limit": 0,
+        "pmo.enabled": true,
+        "projects.max_projects": 25
+      }
+    },
+    {
+      "name": "v2_is_not_release_complete",
+      "catalog": {
+        "schema_version": 2,
+        "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
+        "base_modules": [
+          "nasq_core",
+          "nasq_platform",
+          "nasq_api"
+        ],
+        "tiers": [
+          {
+            "id": "core",
+            "modules": [],
+            "features": [
+              "limit:users.limit",
+              "limit:storage.limit_mb",
+              "limit:branches.extra_limit:0"
+            ]
+          },
+          {
+            "id": "projects",
+            "modules": [
+              "nasq_pmo",
+              "nasq_meetings"
+            ],
+            "features": [
+              "boolean:pmo.enabled",
+              "boolean:meetings.enabled",
+              "limit:projects.max_projects"
+            ]
+          },
+          {
+            "id": "people",
+            "modules": [
+              "nasq_hr"
+            ],
+            "features": [
+              "boolean:hr.enabled"
+            ]
+          }
+        ]
+      },
+      "tier": "people",
+      "modules": [
+        "nasq_core",
+        "nasq_platform",
+        "nasq_api",
+        "nasq_hr"
+      ],
+      "features": {
+        "users.limit": null,
+        "storage.limit_mb": null,
+        "branches.extra_limit": 0,
+        "hr.enabled": true
+      }
+    }
+  ]
+}

@@ -427,3 +427,24 @@ class DescriptorParityFixtureCase(unittest.TestCase):
     def test_platform_v2_initial_branch_ceiling_is_integer_zero(self):
         core = json.loads(V2_PATH.read_bytes())['tiers'][0]
         self.assertIn('limit:branches.extra_limit:0', core['features'])
+
+
+RELEASE_PATH = Path(__file__).resolve().parents[1] / 'deploy/catalog/fixtures/release_features.json'
+
+
+class ReleaseFeaturesFixtureCase(unittest.TestCase):
+    """The same fixture is loaded by release-features.test.ts."""
+
+    def test_every_case_derives_the_same_modules_and_features(self):
+        for case in json.loads(RELEASE_PATH.read_text('utf-8'))['cases']:
+            with self.subTest(case=case['name']):
+                catalog = copy.deepcopy(case['catalog'])
+                ids = [tier['id'] for tier in catalog['tiers']]
+                modules, features = managed_policy._catalog_compositions(catalog)[ids.index(case['tier'])]
+                self.assertEqual(modules, case['modules'])
+                self.assertTrue(managed_policy._same_features(features, case['features']), features)
+
+    def test_release_modules_lists_base_first(self):
+        catalog = json.loads(RELEASE_PATH.read_text('utf-8'))['cases'][0]['catalog']
+        self.assertEqual(managed_policy.release_modules(catalog),
+                         ['nasq_core', 'nasq_platform', 'nasq_api', 'nasq_pmo', 'nasq_meetings', 'nasq_hr'])

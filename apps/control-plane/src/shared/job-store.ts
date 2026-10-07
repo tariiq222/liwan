@@ -5,7 +5,7 @@ import type { Pool, PoolClient } from 'pg'
 import { z } from 'zod'
 import { sharedPolicySchema, type TenantBinding } from '@nasq/commercial-contracts/shared'
 import { transaction } from '../db.js'
-import { deriveFeatures, type CatalogLike } from './catalog-features.js'
+import { derivePolicy } from './catalog-features.js'
 import { resolveRegistryBinding, type RegistryActor } from './registry-store.js'
 import { bindJob, businessKey, payloadDigest, assertSameBinding } from './provisioning.js'
 import type { TenantStorage } from './fenced-adapter.js'
@@ -25,8 +25,8 @@ export function deriveSharedPolicy(value: unknown, tierId: string) {
   const catalog = z.object({ base_modules: z.array(z.string()), tiers: z.array(z.object({ id: z.string(), modules: z.array(z.string()) }).passthrough()) }).passthrough().parse(value)
   const tier = catalog.tiers.find(t => t.id === tierId)
   if (!tier) throw new Error('catalog_tier_missing')
-  const { features } = deriveFeatures(value as CatalogLike, tier)
-  return sharedPolicySchema.parse({ schema_version: 1, channel: 'control_plane', modules: [...catalog.base_modules, ...tier.modules], features })
+  const { modules, features } = derivePolicy(value, tier.id)
+  return sharedPolicySchema.parse({ schema_version: 1, channel: 'control_plane', modules, features })
 }
 export function bindQueuedRequest(input: unknown, target: TenantBinding & { enabled: boolean }) {
   if (!target.enabled) throw new Error('tenant_unavailable')

@@ -7,7 +7,7 @@ import { dedicatedExecutionEnabled, inventory, resolveTargetLane, type TargetLan
 import { hasUnresolvedMutation, transaction } from './db.js'
 import { runProcessGroup } from './process-group.js'
 import { resolveCatalogSource } from './shared/catalog-source.js'
-import { deriveFeatures } from './shared/catalog-features.js'
+import { derivePolicy } from './shared/catalog-features.js'
 
 const MUTATIONS = new Set(['tenant.create','tenant.entitle','backup','upgrade','restore'])
 // Only managed preflight refusals produced before any effect may return a
@@ -138,8 +138,8 @@ async function policyForCreate(pool: Pool, tenant: Record<string, unknown>, conf
   if (!tier || !Array.isArray(catalog.base_modules) || !Array.isArray(tier.modules) || !Array.isArray(tier.features)) throw new Error('catalog_tier_missing')
   // Keep the trusted catalog intact for the shared schema/descriptor parser;
     // schema-2 fields (grammar and inherited core descriptors) are policy inputs.
-    const { features } = deriveFeatures(catalog as { schema_version?: number; tiers: Array<{ id: string; features: string[] }> }, { id: tier.id, features: tier.features })
-  return { schema_version: 1, channel: tenant.commercial_mode === 'saas' ? 'control_plane' : 'local_policy', modules: [...catalog.base_modules, ...tier.modules], features }
+    const { modules, features } = derivePolicy(catalog, tier.id)
+  return { schema_version: 1, channel: tenant.commercial_mode === 'saas' ? 'control_plane' : 'local_policy', modules, features }
 }
 
 export function publicReceipt(value: Record<string, unknown>): Record<string, unknown> {

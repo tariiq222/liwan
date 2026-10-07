@@ -8,7 +8,7 @@ import { sharedPolicySchema, packageAuthoritySchema, type SharedJob } from '@nas
 import { transaction } from './db.js'
 import type { RegistryActor } from './shared/registry-store.js'
 import { resolveCatalogSource, KNOWN_SOURCES, SOLUTIONS_DIR } from './shared/catalog-source.js'
-import { deriveFeatures, type CatalogLike } from './shared/catalog-features.js'
+import { derivePolicy } from './shared/catalog-features.js'
 
 export class PackageError extends Error {
   constructor(public code: string, public status = 409, public field?: string, public detail?: string) { super(code) }
@@ -49,7 +49,7 @@ export function derivePackagePolicy(value: unknown, tierId: string, input: unkno
   const limits = packageLimitsSchema.parse(input)
   // The one shared parser owns the grammar and every catalog invariant.
   let derived
-  try { derived = deriveFeatures(value as CatalogLike, tier) } catch (error) {
+  try { derived = derivePolicy(value, tier.id) } catch (error) {
     if (error instanceof CatalogInvalidError) throw new PackageError('catalog_invalid',422)
     throw error
   }
@@ -59,7 +59,7 @@ export function derivePackagePolicy(value: unknown, tierId: string, input: unkno
   const allowed = Object.keys(features).filter(k=>features[k]===null && !fixed.has(k)).sort()
   if (JSON.stringify(allowed)!==JSON.stringify(Object.keys(limits).sort())) throw new PackageError('package_limits_invalid',422,'limits')
   Object.assign(features, limits)
-  return sharedPolicySchema.parse({schema_version:1,channel:'control_plane',modules:[...catalog.base_modules,...tier.modules],features})
+  return sharedPolicySchema.parse({schema_version:1,channel:'control_plane',modules:derived.modules,features})
 }
 export function assertPackageTransition(row:{status:string;revision:number}, action:string, revision:number) {
   if (row.revision!==revision) throw new PackageError('package_revision_conflict')

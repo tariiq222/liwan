@@ -17,7 +17,7 @@ POLICY_MAX_BYTES = 16384
 _POLICY_KEYS = frozenset({'schema_version', 'channel', 'modules', 'features'})
 _DIGEST = re.compile(r'sha256:[0-9a-f]{64}')
 _IDENTIFIER = re.compile(r'[a-z][a-z0-9_]*')
-# One grammar: boolean:<key> | limit:<key> | limit:<key>:<int> (schema 2 only).
+# One grammar: boolean:<key> | limit:<key> | limit:<key>:<int> (schema 2 and 3).
 _FEATURE = re.compile(r'(boolean|limit):([a-z][a-z0-9_.]*)(?::(0|[1-9][0-9]{0,8}|1000000000))?')
 _MAX_CEILING = 1000000000
 DESCRIPTOR_GRAMMAR_V2 = 'limit:key | limit:key:<int> | boolean:key'
@@ -86,23 +86,23 @@ def _catalog_compositions(catalog) -> list[tuple[list[str], dict]]:
 
     This is not the catalog publisher's schema/manifest/registry validation gate.
     Descriptive metadata and optional add-ons are not create-policy inputs.
+    Schema 3 composes every tier release-complete over the release module list:
+    the core tier, the tier's own descriptors, then every other application
+    closed (boolean False, limit 0). Mirrors feature-descriptor.ts.
     """
     if (type(catalog) is not dict
             or type(catalog.get('schema_version')) is not int
-            or catalog['schema_version'] not in (1, 2)
+            or catalog['schema_version'] not in (1, 2, 3)
             or not _module_list(catalog.get('base_modules'))
             or not catalog['base_modules']
             or type(catalog.get('tiers')) is not list or not catalog['tiers']):
         _fail('catalog_invalid')
-    compositions = []
-    tier_ids = set()
     schema = catalog['schema_version']
-    if schema == 2 and catalog.get('descriptor_grammar') != DESCRIPTOR_GRAMMAR_V2:
+    if schema >= 2 and catalog.get('descriptor_grammar') != DESCRIPTOR_GRAMMAR_V2:
         _fail('catalog_invalid')
-    core = next((t for t in catalog['tiers'] if type(t) is dict and t.get('id') == 'core'), None)
-    if schema == 2 and core is None:
-        _fail('catalog_invalid')  # schema 2 composes every tier from `core`; no fallback
-    for tier in catalog['tiers']:
+    tiers = catalog['tiers']
+    tier_ids = set()
+    for tier in tiers:
         if (type(tier) is not dict
                 or type(tier.get('id')) is not str
                 or not _IDENTIFIER.fullmatch(tier['id'])
@@ -111,33 +111,57 @@ def _catalog_compositions(catalog) -> list[tuple[list[str], dict]]:
                 or type(tier.get('features')) is not list):
             _fail('catalog_invalid')
         tier_ids.add(tier['id'])
-        modules = catalog['base_modules'] + tier['modules']
+    core = next((t for t in tiers if t['id'] == 'core'), None)
+    if schema >= 2 and core is None:
+        _fail('catalog_invalid')  # schema 2 and 3 compose every tier from `core`; no fallback
+    release = list(catalog['base_modules'])
+    for tier in tiers:
+        release += tier['modules']
+    if schema == 3 and len(release) != len(set(release)):
+        _fail('catalog_invalid')
+    compositions = []
+    for tier in tiers:
+        modules = list(release) if schema == 3 else catalog['base_modules'] + tier['modules']
         if len(modules) != len(set(modules)):
             _fail('catalog_invalid')
-        # Legacy bytes seed the two default limits; schema 2 derives the complete
+        # Legacy bytes seed the two default limits; schema 2 and 3 derive the complete
         # set purely from descriptors (every tier inherits the core tier's set).
         features = dict.fromkeys(_DEFAULT_LIMITS) if schema == 1 else {}
         feature_keys = set()
-        descriptors = list(tier['features'])
-        if schema == 2 and tier is not core:
-            if type(core.get('features')) is not list:
-                _fail('catalog_invalid')
-            descriptors = core['features'] + descriptors
-        for descriptor in descriptors:
+        descriptors = [(entry, False) for entry in tier['features']]
+        if schema >= 2 and tier is not core:
+            descriptors = [(entry, False) for entry in core['features']] + descriptors
+        if schema == 3:
+            for other in tiers:
+                if other is not core and other is not tier:
+                    descriptors += [(entry, True) for entry in other['features']]
+        for descriptor, closed in descriptors:
             match = _FEATURE.fullmatch(descriptor) if type(descriptor) is str else None
             if match is None:
                 _fail('catalog_invalid')
             kind, key, ceiling = match.groups()
             if (key in feature_keys or (key in _DEFAULT_LIMITS and kind != 'limit')
-                    or (ceiling is not None and (kind != 'limit' or schema != 2))):
+                    or (ceiling is not None and (kind != 'limit' or schema == 1))):
                 _fail('catalog_invalid')
             feature_keys.add(key)
-            features[key] = (True if kind == 'boolean'
-                             else None if ceiling is None else int(ceiling))
-        if schema == 2 and not set(_DEFAULT_LIMITS) <= set(features):
+            if closed:
+                features[key] = False if kind == 'boolean' else 0
+            else:
+                features[key] = (True if kind == 'boolean'
+                                 else None if ceiling is None else int(ceiling))
+        if schema >= 2 and not set(_DEFAULT_LIMITS) <= set(features):
             _fail('catalog_invalid')
         compositions.append((modules, features))
     return compositions
+
+
+def release_modules(catalog) -> list[str]:
+    """Every module of the release: base modules, then each tier's modules in order."""
+    _catalog_compositions(catalog)
+    modules = list(catalog['base_modules'])
+    for tier in catalog['tiers']:
+        modules += [name for name in tier['modules'] if name not in modules]
+    return modules
 
 
 def _same_features(actual: dict, expected: dict) -> bool:
