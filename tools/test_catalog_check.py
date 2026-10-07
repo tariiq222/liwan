@@ -5,6 +5,8 @@ Every negative case builds the smallest repository that must fail, so a passing 
 proves the rule fires instead of merely proving the committed catalog is accepted.
 """
 import ast
+import contextlib
+import io
 import json
 import shutil
 import tempfile
@@ -53,7 +55,9 @@ def feature(key, kind, owner, module):
     )
 
 
-class CatalogCase(unittest.TestCase):
+class CatalogFixture:
+    """A minimal synthetic repository; subclasses add the tests."""
+
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
@@ -121,6 +125,8 @@ class CatalogCase(unittest.TestCase):
             f'expected an error mentioning {fragment!r}, got {errors}',
         )
 
+
+class CatalogCase(CatalogFixture, unittest.TestCase):
     # ---------------------------------------------------------------- positive
 
     def test_synthetic_catalog_is_valid(self):
@@ -406,6 +412,94 @@ class CatalogCase(unittest.TestCase):
             keys.update(addon)
         offending = sorted(k for k in keys if any(word in k.lower() for word in commercial))
         self.assertEqual(offending, [], f'the catalog names a commercial field: {offending}')
+
+
+PLATFORM_REGISTRY = """# Part of Odoo. See LICENSE file for full copyright and licensing details.
+from odoo import api, models
+
+
+class DemoPlatform(models.AbstractModel):
+    _inherit = 'nasq.feature.registry'
+
+    @api.model
+    def _nasq_feature_definitions(self):
+        return super()._nasq_feature_definitions() + (
+%(features)s
+        )
+"""
+
+
+class ReleaseCatalogCase(CatalogFixture, unittest.TestCase):
+    """Schema 3: every release feature in exactly one tier; one release module list."""
+
+    def setUp(self):
+        super().setUp()
+        models = self.root / 'odoo-addons' / 'demo_core' / 'models'
+        models.mkdir()
+        (models / 'feature_registry.py').write_text(PLATFORM_REGISTRY % {'features': (
+            feature('users.limit', 'limit', 'nasq_platform', 'nasq_platform')
+            + feature('storage.limit_mb', 'limit', 'nasq_platform', 'nasq_platform')
+            + feature('branches.extra_limit', 'limit', 'nasq_platform', 'nasq_platform')
+        )})
+        self.data = {
+            'schema_version': 3,
+            'descriptor_grammar': 'limit:key | limit:key:<int> | boolean:key',
+            'id': 'demo', 'name': 'Demo', 'industry': 'none', 'base_modules': ['demo_core'],
+            'tiers': [
+                {'id': 'core', 'name': 'Core', 'modules': [],
+                 'features': ['limit:users.limit', 'limit:storage.limit_mb', 'limit:branches.extra_limit:0']},
+                {'id': 'projects', 'name': 'Projects', 'modules': ['demo_pmo'],
+                 'features': ['boolean:pmo.enabled', 'limit:projects.max_projects']},
+            ],
+        }
+        self.write('solutions/demo.json', self.data)
+
+    def test_complete_release_is_valid_and_prints_its_modules(self):
+        self.assertEqual(self.errors(), [])
+        self.assertEqual(catalog_check.current_release(self.root), ('demo.json', ['demo_core', 'demo_pmo']))
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            self.assertEqual(catalog_check.main(['--release-modules', '--root', str(self.root)]), 0)
+        self.assertEqual(output.getvalue().strip(), 'demo_core,demo_pmo')
+
+    def test_a_release_feature_in_no_tier_is_rejected(self):
+        self.data['tiers'][1]['features'] = ['boolean:pmo.enabled']
+        self.assert_rejected("feature 'projects.max_projects' of release module 'demo_pmo' is in no tier", self.data)
+
+    def test_a_feature_in_two_tiers_is_rejected(self):
+        self.data['tiers'].append({'id': 'twice', 'name': 'Twice', 'modules': [], 'features': ['boolean:pmo.enabled']})
+        self.assert_rejected("feature 'pmo.enabled' is declared by more than one tier", self.data)
+
+    def test_a_tier_with_modules_and_no_features_is_rejected(self):
+        self.data['tiers'][1]['features'] = []
+        self.assert_rejected("tier 'projects' lists modules but declares no feature", self.data)
+
+    def test_a_feature_owned_outside_the_release_is_rejected(self):
+        outside = self.root / 'odoo-addons' / 'demo_outside'
+        self.manifest(self.root / 'odoo-addons', 'demo_outside', ['demo_core'], 'Outside the release')
+        (outside / 'models').mkdir()
+        (outside / 'models' / 'feature_registry.py').write_text(PLATFORM_REGISTRY % {'features': (
+            feature('outside.enabled', 'boolean', 'demo_outside', 'demo_outside')
+        )})
+        self.data['tiers'][1]['features'].append('boolean:outside.enabled')
+        self.assert_rejected("feature 'outside.enabled' belongs to module 'demo_outside', which is not in the release", self.data)
+
+    def test_a_stale_copy_of_the_release_list_is_rejected(self):
+        (self.root / 'deploy').mkdir(exist_ok=True)
+        (self.root / 'deploy' / 'provision.sh').write_text('odoo -i demo_core,web_theme_shadcn --stop-after-init\n')
+        self.assert_rejected("deploy/provision.sh: module list ['demo_core'] differs from the release modules")
+
+    def test_no_schema_3_catalog_means_no_release(self):
+        self.data['schema_version'] = 2
+        self.write('solutions/demo.json', self.data)
+        self.assertIsNone(catalog_check.current_release(self.root))
+        self.assertEqual(catalog_check.main(['--release-modules', '--root', str(self.root)]), 1)
+
+    def test_the_committed_release_is_the_ten_addon_install(self):
+        self.assertEqual(catalog_check.current_release(ROOT), ('platform_v3.json', [
+            'nasq_api', 'nasq_chat', 'nasq_core', 'nasq_directory', 'nasq_hr', 'nasq_meetings',
+            'nasq_meetings_pmo', 'nasq_notify', 'nasq_platform', 'nasq_pmo',
+        ]))
 
 
 if __name__ == '__main__':

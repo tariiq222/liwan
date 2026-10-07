@@ -59,6 +59,8 @@ steps:
         ODOO_PYTHON="$ODOO_ROOT/.venv/bin/python"
         ODOO_COMMIT="$(cat deploy/odoo/ODOO_COMMIT)"
         SCRATCH_DB="nasq_ci_scratch_${CI_PIPELINE_NUMBER}"
+        MODULES="$(python3 -B tools/catalog_check.py --release-modules)"
+        TAGS="/${MODULES//,/,/}"
         SCRATCH_ROOT="$(mktemp -d)"
         mkdir -p "$SCRATCH_ROOT/data" "$SCRATCH_ROOT/logs"
         cleanup() { PGPASSWORD=odoo dropdb -h 127.0.0.1 -U odoo --if-exists "$SCRATCH_DB" 2>/dev/null || true; rm -rf "$SCRATCH_ROOT"; }
@@ -72,8 +74,8 @@ steps:
           --db_host=127.0.0.1 --db_port=5432 --db_user=odoo --db_password=odoo \
           -d "$SCRATCH_DB" --db-filter="^${SCRATCH_DB}$" \
           --data-dir="$SCRATCH_ROOT/data" --logfile="$SCRATCH_ROOT/logs/odoo.log" \
-          -i nasq_core,nasq_platform,nasq_api,nasq_notify,nasq_directory,nasq_pmo,nasq_meetings,nasq_meetings_pmo,nasq_hr,nasq_chat \
-          --test-tags /nasq_core,/nasq_platform,/nasq_api,/nasq_notify,/nasq_directory,/nasq_pmo,/nasq_meetings,/nasq_meetings_pmo,/nasq_hr,/nasq_chat \
+          -i "$MODULES" \
+          --test-tags "$TAGS" \
           --http-port=8169 --workers=0 --max-cron-threads=0 --stop-after-init --log-level=test 2>&1 | tee "$SCRATCH_ROOT/odoo-test.log"
         grep -Eq 'odoo.tests.result: 0 failed, 0 error\(s\) of [1-9][0-9]* tests when loading database' "$SCRATCH_ROOT/odoo-test.log"
 
@@ -86,7 +88,7 @@ steps:
         ODOO_ROOT="/Users/tariq/code/odoo"
         ODOO_PYTHON="$ODOO_ROOT/.venv/bin/python"
         ODOO_COMMIT="$(cat deploy/odoo/ODOO_COMMIT)"
-        MODULES="nasq_core,nasq_platform,nasq_api,nasq_notify,nasq_directory,nasq_pmo,nasq_meetings,nasq_meetings_pmo,nasq_hr,nasq_chat"
+        MODULES="$(python3 -B tools/catalog_check.py --release-modules)"
         BASE_TAG="$(git tag --list 'release/*' --sort=-v:refname | head -n1)"
         test -n "$BASE_TAG" || { echo "no release/* tag; upgrade job skipped"; exit 0; }
         SCRATCH_DB="nasq_ci_upgrade_scratch"
@@ -136,6 +138,7 @@ steps:
         SRC_DB="nasq_drill_src_scratch"
         RST_DB="nasq_drill_restored_scratch"
         RST2_DB="nasq_drill_restored2_scratch"
+        MODULES="$(python3 -B tools/catalog_check.py --release-modules)"
         cleanup() {
           if [ -n "${SERVER_PID:-}" ]; then kill "$SERVER_PID" 2>/dev/null || true; wait "$SERVER_PID" 2>/dev/null || true; fi
           for db in "$SRC_DB" "$RST_DB" "$RST2_DB"; do PGPASSWORD=odoo dropdb -h 127.0.0.1 -U odoo --if-exists "$db" 2>/dev/null || true; done
@@ -150,7 +153,7 @@ steps:
         python3 deploy/classification.py fixture --database "$SRC_DB" --mode non_saas --output "$NASQ_COMMERCIAL_CONFIG"
         "$ODOO_PYTHON" "$W/_odoo/odoo-bin" --db_host=127.0.0.1 --db_user=odoo --db_password=odoo \
           --addons-path="$W/_odoo/addons,$PWD/odoo-addons" --data-dir="$W/data" \
-          -d "$SRC_DB" -i nasq_core,nasq_platform,nasq_api,nasq_notify,nasq_directory,nasq_pmo,nasq_meetings,nasq_meetings_pmo,nasq_hr,nasq_chat \
+          -d "$SRC_DB" -i "$MODULES" \
           --without-demo=all --http-port=8169 --workers=0 --max-cron-threads=0 --stop-after-init
         python3 deploy/backup.py --opt-in MANUAL_BACKUP_OPT_IN --acknowledge-unverified CANDIDATE_BACKUP_UNVERIFIED \
           --db-name "$SRC_DB" --filestore "$W/data/filestore/$SRC_DB" \
@@ -189,6 +192,7 @@ steps:
         docker info
         docker build -f deploy/odoo/Dockerfile --build-arg ODOO_COMMIT="$(cat deploy/odoo/ODOO_COMMIT)" --build-arg NASQ_REVISION="${CI_COMMIT_SHA:0:12}" -t nasq-odoo:ci .
         SCRATCH_DB="nasq_image_scratch"
+        MODULES="$(python3 -B tools/catalog_check.py --release-modules)"
         cleanup() { docker rm -fv db 2>/dev/null || true; docker network rm t 2>/dev/null || true; PGPASSWORD=odoo dropdb -h 127.0.0.1 -U odoo --if-exists "$SCRATCH_DB" 2>/dev/null || true; }
         trap cleanup EXIT
         PGPASSWORD=odoo dropdb -h 127.0.0.1 -U odoo --if-exists "$SCRATCH_DB" || true
@@ -200,7 +204,7 @@ steps:
         docker run --rm --network t -v /tmp/odoo.conf:/etc/odoo/odoo.conf:ro \
           -v /tmp/image-classification.json:/run/nasq/classification.json:ro \
           -e NASQ_COMMERCIAL_CONFIG=/run/nasq/classification.json nasq-odoo:ci \
-          -d "$SCRATCH_DB" -i nasq_core,nasq_platform,nasq_api,nasq_notify,nasq_directory,nasq_pmo,nasq_meetings,nasq_meetings_pmo,nasq_hr,nasq_chat --without-demo=all --http-port=8169 --stop-after-init
+          -d "$SCRATCH_DB" -i "$MODULES" --without-demo=all --http-port=8169 --stop-after-init
         docker run --rm --entrypoint sh nasq-odoo:ci -c 'test ! -w /opt/nasq/addons && test "$(id -u)" = 10001 && ! command -v git'
 
   - name: e2e-mock

@@ -5,7 +5,7 @@ import { basename, join } from 'node:path'
 /** Known catalog source files, resolved by the sha256 of their bytes, never by
  * a version label or filename convention. */
 export const SOLUTIONS_DIR = 'deploy/catalog/solutions'
-export const KNOWN_SOURCES = ['platform.json', 'platform_v2.json'] as const
+export const KNOWN_SOURCES = ['platform.json', 'platform_v2.json', 'platform_v3.json'] as const
 export const LEGACY_SOURCE = KNOWN_SOURCES[0]
 
 export type ResolvedCatalogSource = { name: string; path: string; bytes: Buffer; sha256: string }
