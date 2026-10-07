@@ -21,7 +21,19 @@ describe('Me access extensions fail closed', () => {
   })
 
   it('rejects malformed capability keys instead of treating them as authority', () => {
-    expect(() => MeSchema.parse({ ...BASE_ME, capabilities: ['access.users.read', 'access.users.not_real'] })).toThrow()
+    for (const key of ['access.users read', 'ACCESS.users.read', 'access', 'access..read']) {
+      expect(() => MeSchema.parse({ ...BASE_ME, capabilities: ['access.users.read', key] })).toThrow()
+    }
+  })
+
+  it("carries a newer application's capabilities and module verbatim", () => {
+    const parsed = MeSchema.parse({
+      ...BASE_ME,
+      capabilities: ['pmo.tasks.read', 'sales.orders.write'],
+      modules: ['nasq_pmo', 'nasq_sales'],
+    })
+    expect(parsed.capabilities).toEqual(['pmo.tasks.read', 'sales.orders.write'])
+    expect(parsed.modules).toEqual(['nasq_pmo', 'nasq_sales'])
   })
 
   it('preserves exact sorted unique capability data from the server', () => {

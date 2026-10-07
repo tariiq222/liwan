@@ -11,12 +11,16 @@ import {
   ChangeUserStateInputSchema,
   EffectiveCapabilitySchema,
   GrantAccountInputSchema,
+  KNOWN_CAPABILITIES,
+  KNOWN_PERMISSION_DOMAINS,
+  type KnownCapability,
   MeRoleSchema,
   PermissionCatalogSchema,
   PermissionDefinitionSchema,
   ResetPasswordInputSchema,
   RoleAssignmentInputSchema,
   RoleAssignmentSchema,
+  RoleCreateInputSchema,
   RoleDetailSchema,
   RoleListSchema,
   RoleRefSchema,
@@ -103,9 +107,18 @@ const AUDIT_SUMMARY = {
 }
 
 describe('access capability and reference schemas', () => {
-  it('exposes exactly the frozen capability catalog', () => {
-    expect(CapabilitySchema.options).toEqual(CAPABILITIES)
-    expect(CapabilitySchema.options).toHaveLength(28)
+  it("lists today's capability catalog and accepts any well-formed key", () => {
+    expect(KNOWN_CAPABILITIES).toEqual(CAPABILITIES)
+    expect(KNOWN_CAPABILITIES).toHaveLength(28)
+    for (const key of [...CAPABILITIES, 'sales.orders.read', 'sales.orders.write', 'customer_acme.reports.export']) {
+      expect(CapabilitySchema.parse(key)).toBe(key)
+    }
+    for (const key of ['sales', 'Sales.orders.read', 'sales..read', 'sales.orders.', '.sales.read', 'sales.orders read', 'sales-orders.read', '']) {
+      expect(() => CapabilitySchema.parse(key)).toThrow()
+    }
+    // @ts-expect-error a misspelt key of today's catalog is not a KnownCapability (checked by `npm -w packages/contracts run build`)
+    const typo: KnownCapability = 'pmo.task.read'
+    expect(KNOWN_CAPABILITIES).not.toContain(typo)
   })
 
   it('accepts company scopes and rejects contextual project scopes for writes', () => {
@@ -146,7 +159,8 @@ describe('admin user schemas', () => {
   it('keeps effective capability sources explicit and exact', () => {
     const parsed = EffectiveCapabilitySchema.parse(USER_DETAIL.capabilities[0])
     expect(parsed.sources[0]).toMatchObject({ role_assignment_id: 44, source: 'assignment' })
-    expect(() => EffectiveCapabilitySchema.parse({ ...parsed, key: 'not.a.capability' })).toThrow()
+    expect(() => EffectiveCapabilitySchema.parse({ ...parsed, key: 'Not.A.Capability' })).toThrow()
+    expect(EffectiveCapabilitySchema.parse({ ...parsed, key: 'sales.orders.write' }).key).toBe('sales.orders.write')
   })
 })
 
@@ -198,6 +212,32 @@ describe('role and permission schemas', () => {
     expect(() => PermissionDefinitionSchema.parse({ ...definition, scopes: [{ kind: 'project', assignable: true }] })).toThrow()
     expect(() => RoleListSchema.parse([roleSummary])).toThrow()
     expect(() => RoleListSchema.parse({ items: [roleSummary], total: 1, extra: true })).toThrow()
+  })
+
+  it("accepts a newer application's permission with its own domain", () => {
+    const sales = {
+      key: 'sales.orders.write',
+      domain: 'sales',
+      resource: 'orders',
+      action: 'write',
+      label: { ar: 'تعديل طلبات البيع', en: 'Edit sales orders' },
+      description: { ar: 'تعديل طلبات البيع', en: 'Edit sales orders' },
+      dependencies: ['sales.orders.read'],
+      scopes: [{ kind: 'company' as const, assignable: true }],
+      custom_role_allowed: true,
+      sensitive: false,
+    }
+    expect(PermissionCatalogSchema.parse({ items: [sales], total: 1, version: 'access-catalog-v1' }).items[0]).toEqual(sales)
+    expect(KNOWN_PERMISSION_DOMAINS).toEqual(['access', 'hr', 'pmo', 'meetings', 'settings'])
+    for (const domain of ['Sales', 'sales-orders', 'sales.orders', '9sales', '']) {
+      expect(() => PermissionDefinitionSchema.parse({ ...sales, domain })).toThrow()
+    }
+    expect(() => PermissionDefinitionSchema.parse({ ...sales, scopes: [...sales.scopes, { kind: 'project', assignable: false }] })).toThrow()
+    expect(RoleDetailSchema.parse({ ...roleSummary, permissions: ['sales.orders.read', 'sales.orders.write'], allowed_actions: ['read'] }).permissions)
+      .toEqual(['sales.orders.read', 'sales.orders.write'])
+    expect(RoleCreateInputSchema.parse({ name: { ar: 'مبيعات', en: null }, description: '', permissions: ['sales.orders.read'] }).permissions)
+      .toEqual(['sales.orders.read'])
+    expect(() => RoleCreateInputSchema.parse({ name: { ar: 'مبيعات', en: null }, description: '', permissions: ['access.users.grant'] })).toThrow()
   })
 
   it('rejects access-changing permissions in custom role catalog entries', () => {
