@@ -174,23 +174,42 @@ class NasqTenantProfile(models.Model):
         policy that cannot be completed (a new platform key needs a migration)
         is logged and left unchanged rather than stopping the server.
         """
+        try:
+            return self._nasq_register_missing_features_unguarded()
+        except ValidationError as error:
+            _logger.warning('nasq_platform: the stored policy cannot take its closed keys: %s', error)
+        except Exception:
+            _logger.warning('nasq_platform: closed application keys were not registered', exc_info=True)
+        return False
+
+    @api.model
+    def _nasq_register_missing_features_unguarded(self):
         profiles = self.search([], limit=2)
         if len(profiles) != 1 or not self._nasq_policy_initialized(profiles):
             return False
-        if not isinstance(profiles.features, dict):
+        service = self.env['nasq.entitlement.service']
+        # Unlocked fast path: nothing missing means no lock and no write.
+        if not self._nasq_missing_features(profiles, service):
             return False
-        profile = profiles._nasq_lock()
-        current = dict(profile.features)
-        completed = self.env['nasq.entitlement.service']._nasq_close_unlisted_features(current)
-        if completed == current:
-            return False
-        try:
-            with self.env.cr.savepoint():
-                profile.with_context(**{OPERATOR_CONTEXT: True}).write({'features': completed})
-        except ValidationError as error:
-            _logger.warning('nasq_platform: the stored policy cannot take its closed keys: %s', error)
-            return False
+        with self.env.cr.savepoint():
+            profile = profiles._nasq_lock()
+            completed = self._nasq_missing_features(profile, service)
+            if not completed:
+                return False
+            profile.with_context(**{OPERATOR_CONTEXT: True}).write({
+                'features': completed,
+                'retained_read_features': list(profile.retained_read_features or []),
+            })
         return True
+
+    @api.model
+    def _nasq_missing_features(self, profile, service):
+        """The completed feature map when the stored one lacks a key, else an empty dict."""
+        current = profile.features
+        if not isinstance(current, dict):
+            return {}
+        completed = service._nasq_close_unlisted_features(current)
+        return completed if completed != current else {}
 
     def _nasq_lock(self):
         self.ensure_one()

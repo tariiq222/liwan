@@ -1,4 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+from psycopg2.extras import Json
+
 from odoo.tests import TransactionCase, tagged
 
 from odoo.addons.nasq_platform.models.entitlement_service import OPERATOR_CONTEXT
@@ -88,3 +90,46 @@ class TestFeatureRegistration(TransactionCase):
         self._grow_registry(*self._keys(app))
         self.assertFalse(self.record._nasq_register_missing_features())
         self.assertEqual(self.record.policy_revision, 0)
+
+    def test_nothing_missing_takes_no_lock_and_writes_nothing(self):
+        self._initialize()
+        self.record._nasq_register_missing_features()
+        before = self.record.policy_revision
+
+        def refuse(model):
+            message = 'the no-op path must not lock'
+            raise AssertionError(message)
+
+        self.patch(type(self.record), '_nasq_lock', refuse)
+        self.assertFalse(self.record._nasq_register_missing_features())
+        self.assertEqual(self.record.policy_revision, before)
+
+    def test_a_failure_while_writing_is_logged_not_raised(self):
+        app = self._app()
+        self._initialize()
+        before = dict(self.record.features)
+        self._grow_registry(*self._keys(app))
+
+        def broken(model, vals):
+            message = 'serialization failure'
+            raise RuntimeError(message)
+
+        self.patch(type(self.record), 'write', broken)
+        with self.assertLogs(LOGGER, level='WARNING'):
+            self.assertFalse(self.record._nasq_register_missing_features())
+        self.assertEqual(dict(self.record.features), before)
+
+    def test_a_stale_unknown_key_is_logged_not_raised(self):
+        app = self._app()
+        self._initialize()
+        self.env.flush_all()
+        stale = {**self.record.features, 'zz_stale.removed': True}
+        self.env.cr.execute(
+            'UPDATE nasq_tenant_profile SET features = %s WHERE id = %s',
+            [Json(stale), self.record.id],
+        )
+        self.record.invalidate_recordset()
+        self._grow_registry(*self._keys(app))
+        with self.assertLogs(LOGGER, level='WARNING'):
+            self.assertFalse(self.record._nasq_register_missing_features())
+        self.assertNotIn('zz_probe.enabled', self.record.features)
