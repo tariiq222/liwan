@@ -191,8 +191,8 @@ coordinator owns planning, integration and review in both tools.
   shared `nasq_api` and the shared services never import a pillar, and one
   application never imports another; only a bridge imports both.
 - Keep `models/`, `security/`, `data/`, `tests/`; API pillars additionally use
-  `controllers/` and whitelist-based `serializers/`; PMO has `report/`, `i18n/`
-  and `migrations/`. Import Python modules through their `__init__.py` files;
+  `controllers/` and whitelist-based `serializers/`; PMO has `i18n/` and
+  `migrations/`; `nasq_meetings` has `report/` (the meeting report moved there). Import Python modules through their `__init__.py` files;
   list every XML/CSV file in manifest `data` in the required dependency order.
 - New models use dotted `nasq.*` names and `Nasq*` classes; extend stock models
   with `_inherit`, not copies. Model files and local XML ids use snake_case
