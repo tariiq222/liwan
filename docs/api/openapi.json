@@ -702,36 +702,7 @@
               "additionalProperties": false,
               "properties": {
                 "key": {
-                  "enum": [
-                    "access.users.read",
-                    "access.users.grant",
-                    "access.users.assign_roles",
-                    "access.users.disable",
-                    "access.users.reset_password",
-                    "access.roles.read",
-                    "access.roles.manage",
-                    "access.audit.read",
-                    "hr.employees.read",
-                    "hr.employees.manage",
-                    "hr.employees.archive",
-                    "hr.employees.access_status.read",
-                    "hr.departments.read",
-                    "hr.departments.manage",
-                    "hr.documents.read",
-                    "hr.documents.manage",
-                    "pmo.projects.read",
-                    "pmo.projects.create",
-                    "pmo.projects.manage",
-                    "pmo.settings.manage",
-                    "pmo.tasks.read",
-                    "pmo.tasks.create",
-                    "pmo.tasks.write",
-                    "pmo.tasks.approve",
-                    "settings.branding.manage",
-                    "meetings.read",
-                    "meetings.create",
-                    "meetings.manage"
-                  ],
+                  "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
                   "type": "string"
                 },
                 "sources": {
@@ -1504,6 +1475,311 @@
         ],
         "type": "object"
       },
+      "BellNotificationSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "anyOf": [
+          {
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "body": {
+                    "type": "string"
+                  },
+                  "created_at": {
+                    "type": "string"
+                  },
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "is_read": {
+                    "type": "boolean"
+                  },
+                  "kind": {
+                    "const": "assignment",
+                    "type": "string"
+                  },
+                  "task_id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "task_name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "id",
+                  "task_id",
+                  "task_name",
+                  "body",
+                  "created_at",
+                  "is_read"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "body": {
+                    "type": "string"
+                  },
+                  "created_at": {
+                    "type": "string"
+                  },
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "is_read": {
+                    "type": "boolean"
+                  },
+                  "kind": {
+                    "const": "comment",
+                    "type": "string"
+                  },
+                  "task_id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "task_name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "id",
+                  "task_id",
+                  "task_name",
+                  "body",
+                  "created_at",
+                  "is_read"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "body": {
+                    "type": "string"
+                  },
+                  "created_at": {
+                    "type": "string"
+                  },
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "is_read": {
+                    "type": "boolean"
+                  },
+                  "kind": {
+                    "const": "mention",
+                    "type": "string"
+                  },
+                  "task_id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "task_name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "id",
+                  "task_id",
+                  "task_name",
+                  "body",
+                  "created_at",
+                  "is_read"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "body": {
+                    "type": "string"
+                  },
+                  "created_at": {
+                    "type": "string"
+                  },
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "is_read": {
+                    "type": "boolean"
+                  },
+                  "kind": {
+                    "const": "deadline",
+                    "type": "string"
+                  },
+                  "task_id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "task_name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "id",
+                  "task_id",
+                  "task_name",
+                  "body",
+                  "created_at",
+                  "is_read"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "body": {
+                    "type": "string"
+                  },
+                  "created_at": {
+                    "type": "string"
+                  },
+                  "digest_id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "is_read": {
+                    "type": "boolean"
+                  },
+                  "kind": {
+                    "const": "overdue_digest",
+                    "type": "string"
+                  },
+                  "local_date": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "overdue_count": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "id",
+                  "kind",
+                  "digest_id",
+                  "overdue_count",
+                  "local_date",
+                  "body",
+                  "created_at",
+                  "is_read"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "body": {
+                    "type": "string"
+                  },
+                  "created_at": {
+                    "type": "string"
+                  },
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "is_read": {
+                    "type": "boolean"
+                  },
+                  "kind": {
+                    "enum": [
+                      "meeting_invite",
+                      "meeting_resolution",
+                      "meeting_converted",
+                      "meeting_changed",
+                      "meeting_cancelled",
+                      "meeting_reminder",
+                      "meeting_resolution_overdue"
+                    ],
+                    "type": "string"
+                  },
+                  "meeting_id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "meeting_name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "kind",
+                  "meeting_id",
+                  "meeting_name",
+                  "body",
+                  "created_at",
+                  "is_read"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          {
+            "additionalProperties": {},
+            "properties": {
+              "body": {
+                "type": "string"
+              },
+              "created_at": {
+                "type": "string"
+              },
+              "id": {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              "is_read": {
+                "type": "boolean"
+              },
+              "kind": {
+                "pattern": "^[a-z][a-z0-9_]*$",
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "kind",
+              "created_at",
+              "is_read"
+            ],
+            "type": "object"
+          }
+        ]
+      },
       "BrandingPatchSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -1581,36 +1857,7 @@
       },
       "CapabilitySchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "enum": [
-          "access.users.read",
-          "access.users.grant",
-          "access.users.assign_roles",
-          "access.users.disable",
-          "access.users.reset_password",
-          "access.roles.read",
-          "access.roles.manage",
-          "access.audit.read",
-          "hr.employees.read",
-          "hr.employees.manage",
-          "hr.employees.archive",
-          "hr.employees.access_status.read",
-          "hr.departments.read",
-          "hr.departments.manage",
-          "hr.documents.read",
-          "hr.documents.manage",
-          "pmo.projects.read",
-          "pmo.projects.create",
-          "pmo.projects.manage",
-          "pmo.settings.manage",
-          "pmo.tasks.read",
-          "pmo.tasks.create",
-          "pmo.tasks.write",
-          "pmo.tasks.approve",
-          "settings.branding.manage",
-          "meetings.read",
-          "meetings.create",
-          "meetings.manage"
-        ],
+        "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
         "type": "string"
       },
       "CapabilitySourceSchema": {
@@ -3130,36 +3377,7 @@
         "additionalProperties": false,
         "properties": {
           "key": {
-            "enum": [
-              "access.users.read",
-              "access.users.grant",
-              "access.users.assign_roles",
-              "access.users.disable",
-              "access.users.reset_password",
-              "access.roles.read",
-              "access.roles.manage",
-              "access.audit.read",
-              "hr.employees.read",
-              "hr.employees.manage",
-              "hr.employees.archive",
-              "hr.employees.access_status.read",
-              "hr.departments.read",
-              "hr.departments.manage",
-              "hr.documents.read",
-              "hr.documents.manage",
-              "pmo.projects.read",
-              "pmo.projects.create",
-              "pmo.projects.manage",
-              "pmo.settings.manage",
-              "pmo.tasks.read",
-              "pmo.tasks.create",
-              "pmo.tasks.write",
-              "pmo.tasks.approve",
-              "settings.branding.manage",
-              "meetings.read",
-              "meetings.create",
-              "meetings.manage"
-            ],
+            "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
             "type": "string"
           },
           "sources": {
@@ -5332,36 +5550,7 @@
           "capabilities": {
             "default": [],
             "items": {
-              "enum": [
-                "access.users.read",
-                "access.users.grant",
-                "access.users.assign_roles",
-                "access.users.disable",
-                "access.users.reset_password",
-                "access.roles.read",
-                "access.roles.manage",
-                "access.audit.read",
-                "hr.employees.read",
-                "hr.employees.manage",
-                "hr.employees.archive",
-                "hr.employees.access_status.read",
-                "hr.departments.read",
-                "hr.departments.manage",
-                "hr.documents.read",
-                "hr.documents.manage",
-                "pmo.projects.read",
-                "pmo.projects.create",
-                "pmo.projects.manage",
-                "pmo.settings.manage",
-                "pmo.tasks.read",
-                "pmo.tasks.create",
-                "pmo.tasks.write",
-                "pmo.tasks.approve",
-                "settings.branding.manage",
-                "meetings.read",
-                "meetings.create",
-                "meetings.manage"
-              ],
+              "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
               "type": "string"
             },
             "type": "array"
@@ -5453,12 +5642,7 @@
           "modules": {
             "default": [],
             "items": {
-              "enum": [
-                "nasq_chat",
-                "nasq_hr",
-                "nasq_meetings",
-                "nasq_pmo"
-              ],
+              "pattern": "^(nasq|customer)_[a-z0-9_]+$",
               "type": "string"
             },
             "type": "array"
@@ -10240,12 +10424,7 @@
       },
       "NasqModuleIdSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "enum": [
-          "nasq_chat",
-          "nasq_hr",
-          "nasq_meetings",
-          "nasq_pmo"
-        ],
+        "pattern": "^(nasq|customer)_[a-z0-9_]+$",
         "type": "string"
       },
       "NotificationDigestDetailSchema": {
@@ -10536,265 +10715,302 @@
         "properties": {
           "items": {
             "items": {
-              "oneOf": [
+              "anyOf": [
                 {
-                  "additionalProperties": false,
-                  "properties": {
-                    "body": {
-                      "type": "string"
-                    },
-                    "created_at": {
-                      "type": "string"
-                    },
-                    "id": {
-                      "exclusiveMinimum": 0,
-                      "maximum": 9007199254740991,
-                      "type": "integer"
-                    },
-                    "is_read": {
-                      "type": "boolean"
-                    },
-                    "kind": {
-                      "const": "assignment",
-                      "type": "string"
-                    },
-                    "task_id": {
-                      "exclusiveMinimum": 0,
-                      "maximum": 9007199254740991,
-                      "type": "integer"
-                    },
-                    "task_name": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "kind",
-                    "id",
-                    "task_id",
-                    "task_name",
-                    "body",
-                    "created_at",
-                    "is_read"
-                  ],
-                  "type": "object"
-                },
-                {
-                  "additionalProperties": false,
-                  "properties": {
-                    "body": {
-                      "type": "string"
-                    },
-                    "created_at": {
-                      "type": "string"
-                    },
-                    "id": {
-                      "exclusiveMinimum": 0,
-                      "maximum": 9007199254740991,
-                      "type": "integer"
-                    },
-                    "is_read": {
-                      "type": "boolean"
-                    },
-                    "kind": {
-                      "const": "comment",
-                      "type": "string"
-                    },
-                    "task_id": {
-                      "exclusiveMinimum": 0,
-                      "maximum": 9007199254740991,
-                      "type": "integer"
-                    },
-                    "task_name": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "kind",
-                    "id",
-                    "task_id",
-                    "task_name",
-                    "body",
-                    "created_at",
-                    "is_read"
-                  ],
-                  "type": "object"
-                },
-                {
-                  "additionalProperties": false,
-                  "properties": {
-                    "body": {
-                      "type": "string"
-                    },
-                    "created_at": {
-                      "type": "string"
-                    },
-                    "id": {
-                      "exclusiveMinimum": 0,
-                      "maximum": 9007199254740991,
-                      "type": "integer"
-                    },
-                    "is_read": {
-                      "type": "boolean"
-                    },
-                    "kind": {
-                      "const": "mention",
-                      "type": "string"
-                    },
-                    "task_id": {
-                      "exclusiveMinimum": 0,
-                      "maximum": 9007199254740991,
-                      "type": "integer"
-                    },
-                    "task_name": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "kind",
-                    "id",
-                    "task_id",
-                    "task_name",
-                    "body",
-                    "created_at",
-                    "is_read"
-                  ],
-                  "type": "object"
-                },
-                {
-                  "additionalProperties": false,
-                  "properties": {
-                    "body": {
-                      "type": "string"
-                    },
-                    "created_at": {
-                      "type": "string"
-                    },
-                    "id": {
-                      "exclusiveMinimum": 0,
-                      "maximum": 9007199254740991,
-                      "type": "integer"
-                    },
-                    "is_read": {
-                      "type": "boolean"
-                    },
-                    "kind": {
-                      "const": "deadline",
-                      "type": "string"
-                    },
-                    "task_id": {
-                      "exclusiveMinimum": 0,
-                      "maximum": 9007199254740991,
-                      "type": "integer"
-                    },
-                    "task_name": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "kind",
-                    "id",
-                    "task_id",
-                    "task_name",
-                    "body",
-                    "created_at",
-                    "is_read"
-                  ],
-                  "type": "object"
-                },
-                {
-                  "additionalProperties": false,
-                  "properties": {
-                    "body": {
-                      "type": "string"
-                    },
-                    "created_at": {
-                      "type": "string"
-                    },
-                    "digest_id": {
-                      "exclusiveMinimum": 0,
-                      "maximum": 9007199254740991,
-                      "type": "integer"
-                    },
-                    "id": {
-                      "exclusiveMinimum": 0,
-                      "maximum": 9007199254740991,
-                      "type": "integer"
-                    },
-                    "is_read": {
-                      "type": "boolean"
-                    },
-                    "kind": {
-                      "const": "overdue_digest",
-                      "type": "string"
-                    },
-                    "local_date": {
-                      "type": [
-                        "string",
-                        "null"
-                      ]
-                    },
-                    "overdue_count": {
-                      "maximum": 9007199254740991,
-                      "minimum": 0,
-                      "type": "integer"
-                    }
-                  },
-                  "required": [
-                    "id",
-                    "kind",
-                    "digest_id",
-                    "overdue_count",
-                    "local_date",
-                    "body",
-                    "created_at",
-                    "is_read"
-                  ],
-                  "type": "object"
-                },
-                {
-                  "additionalProperties": false,
-                  "properties": {
-                    "body": {
-                      "type": "string"
-                    },
-                    "created_at": {
-                      "type": "string"
-                    },
-                    "id": {
-                      "exclusiveMinimum": 0,
-                      "maximum": 9007199254740991,
-                      "type": "integer"
-                    },
-                    "is_read": {
-                      "type": "boolean"
-                    },
-                    "kind": {
-                      "enum": [
-                        "meeting_invite",
-                        "meeting_resolution",
-                        "meeting_converted",
-                        "meeting_changed",
-                        "meeting_cancelled",
-                        "meeting_reminder",
-                        "meeting_resolution_overdue"
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "body": {
+                          "type": "string"
+                        },
+                        "created_at": {
+                          "type": "string"
+                        },
+                        "id": {
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991,
+                          "type": "integer"
+                        },
+                        "is_read": {
+                          "type": "boolean"
+                        },
+                        "kind": {
+                          "const": "assignment",
+                          "type": "string"
+                        },
+                        "task_id": {
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991,
+                          "type": "integer"
+                        },
+                        "task_name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "id",
+                        "task_id",
+                        "task_name",
+                        "body",
+                        "created_at",
+                        "is_read"
                       ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "body": {
+                          "type": "string"
+                        },
+                        "created_at": {
+                          "type": "string"
+                        },
+                        "id": {
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991,
+                          "type": "integer"
+                        },
+                        "is_read": {
+                          "type": "boolean"
+                        },
+                        "kind": {
+                          "const": "comment",
+                          "type": "string"
+                        },
+                        "task_id": {
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991,
+                          "type": "integer"
+                        },
+                        "task_name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "id",
+                        "task_id",
+                        "task_name",
+                        "body",
+                        "created_at",
+                        "is_read"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "body": {
+                          "type": "string"
+                        },
+                        "created_at": {
+                          "type": "string"
+                        },
+                        "id": {
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991,
+                          "type": "integer"
+                        },
+                        "is_read": {
+                          "type": "boolean"
+                        },
+                        "kind": {
+                          "const": "mention",
+                          "type": "string"
+                        },
+                        "task_id": {
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991,
+                          "type": "integer"
+                        },
+                        "task_name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "id",
+                        "task_id",
+                        "task_name",
+                        "body",
+                        "created_at",
+                        "is_read"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "body": {
+                          "type": "string"
+                        },
+                        "created_at": {
+                          "type": "string"
+                        },
+                        "id": {
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991,
+                          "type": "integer"
+                        },
+                        "is_read": {
+                          "type": "boolean"
+                        },
+                        "kind": {
+                          "const": "deadline",
+                          "type": "string"
+                        },
+                        "task_id": {
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991,
+                          "type": "integer"
+                        },
+                        "task_name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "id",
+                        "task_id",
+                        "task_name",
+                        "body",
+                        "created_at",
+                        "is_read"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "body": {
+                          "type": "string"
+                        },
+                        "created_at": {
+                          "type": "string"
+                        },
+                        "digest_id": {
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991,
+                          "type": "integer"
+                        },
+                        "id": {
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991,
+                          "type": "integer"
+                        },
+                        "is_read": {
+                          "type": "boolean"
+                        },
+                        "kind": {
+                          "const": "overdue_digest",
+                          "type": "string"
+                        },
+                        "local_date": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "overdue_count": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "kind",
+                        "digest_id",
+                        "overdue_count",
+                        "local_date",
+                        "body",
+                        "created_at",
+                        "is_read"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "body": {
+                          "type": "string"
+                        },
+                        "created_at": {
+                          "type": "string"
+                        },
+                        "id": {
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991,
+                          "type": "integer"
+                        },
+                        "is_read": {
+                          "type": "boolean"
+                        },
+                        "kind": {
+                          "enum": [
+                            "meeting_invite",
+                            "meeting_resolution",
+                            "meeting_converted",
+                            "meeting_changed",
+                            "meeting_cancelled",
+                            "meeting_reminder",
+                            "meeting_resolution_overdue"
+                          ],
+                          "type": "string"
+                        },
+                        "meeting_id": {
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991,
+                          "type": "integer"
+                        },
+                        "meeting_name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "kind",
+                        "meeting_id",
+                        "meeting_name",
+                        "body",
+                        "created_at",
+                        "is_read"
+                      ],
+                      "type": "object"
+                    }
+                  ]
+                },
+                {
+                  "additionalProperties": {},
+                  "properties": {
+                    "body": {
                       "type": "string"
                     },
-                    "meeting_id": {
+                    "created_at": {
+                      "type": "string"
+                    },
+                    "id": {
                       "exclusiveMinimum": 0,
                       "maximum": 9007199254740991,
                       "type": "integer"
                     },
-                    "meeting_name": {
+                    "is_read": {
+                      "type": "boolean"
+                    },
+                    "kind": {
+                      "pattern": "^[a-z][a-z0-9_]*$",
+                      "type": "string"
+                    },
+                    "title": {
                       "type": "string"
                     }
                   },
                   "required": [
                     "id",
                     "kind",
-                    "meeting_id",
-                    "meeting_name",
-                    "body",
                     "created_at",
                     "is_read"
                   ],
@@ -11140,36 +11356,7 @@
                 },
                 "dependencies": {
                   "items": {
-                    "enum": [
-                      "access.users.read",
-                      "access.users.grant",
-                      "access.users.assign_roles",
-                      "access.users.disable",
-                      "access.users.reset_password",
-                      "access.roles.read",
-                      "access.roles.manage",
-                      "access.audit.read",
-                      "hr.employees.read",
-                      "hr.employees.manage",
-                      "hr.employees.archive",
-                      "hr.employees.access_status.read",
-                      "hr.departments.read",
-                      "hr.departments.manage",
-                      "hr.documents.read",
-                      "hr.documents.manage",
-                      "pmo.projects.read",
-                      "pmo.projects.create",
-                      "pmo.projects.manage",
-                      "pmo.settings.manage",
-                      "pmo.tasks.read",
-                      "pmo.tasks.create",
-                      "pmo.tasks.write",
-                      "pmo.tasks.approve",
-                      "settings.branding.manage",
-                      "meetings.read",
-                      "meetings.create",
-                      "meetings.manage"
-                    ],
+                    "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
                     "type": "string"
                   },
                   "type": "array"
@@ -11194,46 +11381,11 @@
                   "type": "object"
                 },
                 "domain": {
-                  "enum": [
-                    "access",
-                    "hr",
-                    "pmo",
-                    "meetings",
-                    "settings"
-                  ],
+                  "pattern": "^[a-z][a-z0-9_]*$",
                   "type": "string"
                 },
                 "key": {
-                  "enum": [
-                    "access.users.read",
-                    "access.users.grant",
-                    "access.users.assign_roles",
-                    "access.users.disable",
-                    "access.users.reset_password",
-                    "access.roles.read",
-                    "access.roles.manage",
-                    "access.audit.read",
-                    "hr.employees.read",
-                    "hr.employees.manage",
-                    "hr.employees.archive",
-                    "hr.employees.access_status.read",
-                    "hr.departments.read",
-                    "hr.departments.manage",
-                    "hr.documents.read",
-                    "hr.documents.manage",
-                    "pmo.projects.read",
-                    "pmo.projects.create",
-                    "pmo.projects.manage",
-                    "pmo.settings.manage",
-                    "pmo.tasks.read",
-                    "pmo.tasks.create",
-                    "pmo.tasks.write",
-                    "pmo.tasks.approve",
-                    "settings.branding.manage",
-                    "meetings.read",
-                    "meetings.create",
-                    "meetings.manage"
-                  ],
+                  "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
                   "type": "string"
                 },
                 "label": {
@@ -11331,36 +11483,7 @@
           },
           "dependencies": {
             "items": {
-              "enum": [
-                "access.users.read",
-                "access.users.grant",
-                "access.users.assign_roles",
-                "access.users.disable",
-                "access.users.reset_password",
-                "access.roles.read",
-                "access.roles.manage",
-                "access.audit.read",
-                "hr.employees.read",
-                "hr.employees.manage",
-                "hr.employees.archive",
-                "hr.employees.access_status.read",
-                "hr.departments.read",
-                "hr.departments.manage",
-                "hr.documents.read",
-                "hr.documents.manage",
-                "pmo.projects.read",
-                "pmo.projects.create",
-                "pmo.projects.manage",
-                "pmo.settings.manage",
-                "pmo.tasks.read",
-                "pmo.tasks.create",
-                "pmo.tasks.write",
-                "pmo.tasks.approve",
-                "settings.branding.manage",
-                "meetings.read",
-                "meetings.create",
-                "meetings.manage"
-              ],
+              "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
               "type": "string"
             },
             "type": "array"
@@ -11385,46 +11508,11 @@
             "type": "object"
           },
           "domain": {
-            "enum": [
-              "access",
-              "hr",
-              "pmo",
-              "meetings",
-              "settings"
-            ],
+            "pattern": "^[a-z][a-z0-9_]*$",
             "type": "string"
           },
           "key": {
-            "enum": [
-              "access.users.read",
-              "access.users.grant",
-              "access.users.assign_roles",
-              "access.users.disable",
-              "access.users.reset_password",
-              "access.roles.read",
-              "access.roles.manage",
-              "access.audit.read",
-              "hr.employees.read",
-              "hr.employees.manage",
-              "hr.employees.archive",
-              "hr.employees.access_status.read",
-              "hr.departments.read",
-              "hr.departments.manage",
-              "hr.documents.read",
-              "hr.documents.manage",
-              "pmo.projects.read",
-              "pmo.projects.create",
-              "pmo.projects.manage",
-              "pmo.settings.manage",
-              "pmo.tasks.read",
-              "pmo.tasks.create",
-              "pmo.tasks.write",
-              "pmo.tasks.approve",
-              "settings.branding.manage",
-              "meetings.read",
-              "meetings.create",
-              "meetings.manage"
-            ],
+            "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
             "type": "string"
           },
           "label": {
@@ -11490,6 +11578,11 @@
           "sensitive"
         ],
         "type": "object"
+      },
+      "PermissionDomainSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "pattern": "^[a-z][a-z0-9_]*$",
+        "type": "string"
       },
       "PersonRefSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -18221,36 +18314,7 @@
           },
           "permissions": {
             "items": {
-              "enum": [
-                "access.users.read",
-                "access.users.grant",
-                "access.users.assign_roles",
-                "access.users.disable",
-                "access.users.reset_password",
-                "access.roles.read",
-                "access.roles.manage",
-                "access.audit.read",
-                "hr.employees.read",
-                "hr.employees.manage",
-                "hr.employees.archive",
-                "hr.employees.access_status.read",
-                "hr.departments.read",
-                "hr.departments.manage",
-                "hr.documents.read",
-                "hr.documents.manage",
-                "pmo.projects.read",
-                "pmo.projects.create",
-                "pmo.projects.manage",
-                "pmo.settings.manage",
-                "pmo.tasks.read",
-                "pmo.tasks.create",
-                "pmo.tasks.write",
-                "pmo.tasks.approve",
-                "settings.branding.manage",
-                "meetings.read",
-                "meetings.create",
-                "meetings.manage"
-              ],
+              "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
               "type": "string"
             },
             "type": "array"
@@ -18320,36 +18384,7 @@
           },
           "permissions": {
             "items": {
-              "enum": [
-                "access.users.read",
-                "access.users.grant",
-                "access.users.assign_roles",
-                "access.users.disable",
-                "access.users.reset_password",
-                "access.roles.read",
-                "access.roles.manage",
-                "access.audit.read",
-                "hr.employees.read",
-                "hr.employees.manage",
-                "hr.employees.archive",
-                "hr.employees.access_status.read",
-                "hr.departments.read",
-                "hr.departments.manage",
-                "hr.documents.read",
-                "hr.documents.manage",
-                "pmo.projects.read",
-                "pmo.projects.create",
-                "pmo.projects.manage",
-                "pmo.settings.manage",
-                "pmo.tasks.read",
-                "pmo.tasks.create",
-                "pmo.tasks.write",
-                "pmo.tasks.approve",
-                "settings.branding.manage",
-                "meetings.read",
-                "meetings.create",
-                "meetings.manage"
-              ],
+              "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
               "type": "string"
             },
             "type": "array"
@@ -18521,36 +18556,7 @@
           },
           "permissions": {
             "items": {
-              "enum": [
-                "access.users.read",
-                "access.users.grant",
-                "access.users.assign_roles",
-                "access.users.disable",
-                "access.users.reset_password",
-                "access.roles.read",
-                "access.roles.manage",
-                "access.audit.read",
-                "hr.employees.read",
-                "hr.employees.manage",
-                "hr.employees.archive",
-                "hr.employees.access_status.read",
-                "hr.departments.read",
-                "hr.departments.manage",
-                "hr.documents.read",
-                "hr.documents.manage",
-                "pmo.projects.read",
-                "pmo.projects.create",
-                "pmo.projects.manage",
-                "pmo.settings.manage",
-                "pmo.tasks.read",
-                "pmo.tasks.create",
-                "pmo.tasks.write",
-                "pmo.tasks.approve",
-                "settings.branding.manage",
-                "meetings.read",
-                "meetings.create",
-                "meetings.manage"
-              ],
+              "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
               "type": "string"
             },
             "type": "array"
@@ -20575,6 +20581,40 @@
           "kind",
           "author",
           "at"
+        ],
+        "type": "object"
+      },
+      "UnknownNotificationSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": {},
+        "properties": {
+          "body": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "is_read": {
+            "type": "boolean"
+          },
+          "kind": {
+            "pattern": "^[a-z][a-z0-9_]*$",
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "created_at",
+          "is_read"
         ],
         "type": "object"
       },
