@@ -1,0 +1,7 @@
+# 19.0.1.2.0
+
+الحقل `nasq.access.permission.domain` يتحول من `Selection` مغلق (access, hr, pmo, meetings, settings) إلى `Char`
+يقبل أي معرّف بصيغة `^[a-z][a-z0-9_]*$`، ليضيف كل تطبيق مجاله دون تعديل `nasq_core`. النوعان يستعملان عمود
+`varchar` نفسه، والقيم المخزنة لا تتغير، فلا ترحيل بيانات. يحذف Odoo بنفسه صفوف `ir_model_fields_selection`
+الخمسة للاختيار القديم عند تحديث `nasq_core` (`_process_end`؛ و`_process_ondelete` يتخطى حقلاً تغيّر نوعه).
+القيد الجديد يتحقق أيضاً من صيغة `key` (`a.b[.c]`)؛ مفاتيح القدرات الـ28 الحالية كلها مطابقة له.

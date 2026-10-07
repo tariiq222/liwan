@@ -165,3 +165,9 @@ class TestAccessComposition(TransactionCase):
         self.assertEqual(
             set(self.service._nasq_legacy_admin_roles()), {'system_admin', 'hr_manager', 'pmo_manager'},
         )
+
+    def test_permission_domains_are_unchanged_on_the_wire(self):
+        self.assertEqual(
+            {permission.key: permission.domain for permission in self.Permission.search([])},
+            {key: key.split('.')[0] for key in CATALOG},
+        )
