@@ -29,13 +29,13 @@ class TestAccessAdminUsers(NasqApiCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
+        if 'hr.department' not in cls.env:
+            reason = 'needs nasq_hr installed'
+            raise unittest.SkipTest(reason)
         cls.admin = new_test_user(
             cls.env, login='access_api_admin', password='access_api_admin_pass_123',
             groups='nasq_core.group_access_admin',
         )
-        if 'hr.department' not in cls.env:
-            reason = 'needs nasq_hr installed'
-            raise unittest.SkipTest(reason)
         cls.department = cls.env['hr.department'].create({'name': 'Access API'})
         cls.target_employee = cls.env['hr.employee'].create({
             'name': 'Access Target', 'work_email': 'access.target@example.com',

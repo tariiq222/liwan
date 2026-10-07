@@ -1,6 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo.tests import tagged
 
+from odoo.addons.nasq_meetings.models.meeting_access_service import MEETINGS_PERMISSIONS
 from odoo.addons.nasq_pmo.tests.common import NasqPmoCase
 
 
@@ -84,3 +85,8 @@ class TestMeetingsApiProjects(NasqPmoCase):
         self.assertEqual(self.api('POST', f'/api/v1/notifications/{row_id}/read', {}).status_code, 404)
         self.authenticate('api_mgr', 'api_mgr_pass_123')
         self.assertEqual(self.api('POST', f'/api/v1/notifications/{row_id}/read', {}).status_code, 404)
+
+    def test_the_pmo_manager_role_holds_no_meeting_permission_after_the_repair(self):
+        role = self.env.ref('nasq_pmo.role_pmo_manager')
+        self.assertTrue(self.env['nasq.access.service']._nasq_repair_builtin_role_grants())
+        self.assertFalse(set(role.permission_ids.mapped('key')) & MEETINGS_PERMISSIONS)

@@ -222,3 +222,44 @@ class TestMeetingsOwnershipMigration(TransactionCase):
         xmlids = self._xmlids()
         for name, owner in self.owners.items():
             self.assertIn((owner, name), xmlids, name)
+
+    def test_without_a_nasq_meetings_module_row_the_rules_close_and_nothing_unowned_moves(self):
+        m, cr = self.m, self.env.cr
+        self._restore_upgrade_state()
+        cr.execute("SELECT id FROM ir_module_module WHERE name = %s", [m.MEETINGS])
+        meetings_id = cr.fetchone()[0]
+        cr.execute("UPDATE ir_module_module SET name = 'nasq_meetings_absent_probe' WHERE id = %s", [meetings_id])
+        source = self._module_id(m.SOURCE)
+        cr.execute('SELECT name FROM ir_model_constraint WHERE module = %s AND name = ANY(%s) ORDER BY name',
+                   [source, list(m.MEETINGS_CONSTRAINTS)])
+        constraints = cr.fetchall()
+        cr.execute('SELECT name FROM ir_model_relation WHERE module = %s AND name = ANY(%s) ORDER BY name',
+                   [source, list(m.MEETINGS_RELATIONS)])
+        relations = cr.fetchall()
+        self.assertTrue(constraints and relations)
+        m.migrate(cr, '19.0.1.3.0')
+        self.assertEqual([domain for _name, domain in self._rule_domains()], [m.CLOSED_DOMAIN] * len(m.RULES))
+        cr.execute(
+            "SELECT count(*) FROM ir_rule r JOIN ir_model_data d ON d.model = 'ir.rule' AND d.res_id = r.id "
+            'WHERE d.name = ANY(%s) AND d.module IN %s AND NOT r.active',
+            [list(m.RULES), (m.SOURCE, m.MEETINGS)],
+        )
+        self.assertEqual(cr.fetchone()[0], 0)
+        # the constraint and relation rows have no receiving module: they stay with nasq_pmo
+        cr.execute('SELECT name FROM ir_model_constraint WHERE module = %s AND name = ANY(%s) ORDER BY name',
+                   [source, list(m.MEETINGS_CONSTRAINTS)])
+        self.assertEqual(cr.fetchall(), constraints)
+        cr.execute('SELECT name FROM ir_model_relation WHERE module = %s AND name = ANY(%s) ORDER BY name',
+                   [source, list(m.MEETINGS_RELATIONS)])
+        self.assertEqual(cr.fetchall(), relations)
+        cr.execute("SELECT state FROM ir_module_module WHERE name = %s", [m.BRIDGE])
+        self.assertEqual(cr.fetchone()[0], 'uninstalled')
+
+    def test_a_migration_followed_by_the_hook_changes_nothing_more(self):
+        before = self._snapshot()
+        self._restore_upgrade_state()
+        self.m.migrate(self.env.cr, '19.0.1.3.0')
+        migrated = self._snapshot()
+        self.assertEqual(migrated, before)
+        hooks.pre_init_hook(self.env)
+        self.assertEqual(self._snapshot(), migrated)

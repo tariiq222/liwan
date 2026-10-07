@@ -132,6 +132,9 @@ class TestMeEndpoint(HttpCase):
         ])
         if linked:
             self.assertTrue(vendor.has_group('nasq_core.group_employee'))
+        else:
+            # meetings-only install: the vendor is not an employee
+            self.assertFalse(vendor.has_group('nasq_core.group_employee'))
 
         self.assertEqual(self.url_open('/api/v1/me').json()['role'], 'vendor')
 

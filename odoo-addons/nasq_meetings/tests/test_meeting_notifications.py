@@ -41,3 +41,46 @@ class TestMeetingNotificationTypes(NasqMeetingsCase):
         changed = Message.search([('nasq_meeting_id', '=', meeting.id), ('nasq_notification_kind', '=', 'meeting_changed')])
         self.assertEqual(len(changed), 2, 'meeting_changed has no idempotency key')
         self.assertEqual(set(changed.mapped('nasq_notification_key')), {False})
+
+
+@tagged('post_install', '-at_install', 'nasq')
+class TestMeetingBellVisibility(NasqMeetingsCase):
+    """The bell lists meeting rows without any project: only readable, active, current-company, own rows."""
+
+    def test_meeting_rows_are_listed_only_for_a_recipient_who_can_read_the_meeting(self):
+        self.employee.group_ids |= self.env.ref('nasq_meetings.group_cap_meetings_read')
+        self.manager.group_ids |= self.env.ref('nasq_meetings.group_cap_meetings_read')
+        Meeting = self.env['cyan.meeting.minute']
+        visible = Meeting.create({'state': 'draft', 'name': 'Bell visible', 'organizer_id': self.manager.id,
+                                  'attendee_ids': [(6, 0, self.employee.ids)]})
+        inactive = Meeting.create({'state': 'draft', 'name': 'Bell inactive', 'organizer_id': self.manager.id,
+                                   'attendee_ids': [(6, 0, self.employee.ids)]})
+        company_b = self.env['res.company'].create({'name': 'Meeting bell company B'})
+        self.employee.company_ids |= company_b
+        self.manager.company_ids |= company_b
+        foreign = Meeting.with_company(company_b).create({
+            'state': 'draft', 'name': 'Bell foreign', 'organizer_id': self.manager.id,
+            'attendee_ids': [(6, 0, self.employee.ids)],
+        })
+        rows = self.env['mail.notification'].sudo().search([
+            ('res_partner_id', '=', self.employee.partner_id.id),
+            ('mail_message_id.model', '=', 'cyan.meeting.minute'),
+        ])
+        by_meeting = {row.mail_message_id.nasq_meeting_id: row for row in rows}
+        self.assertEqual(set(by_meeting), {visible.id, inactive.id, foreign.id})
+        inactive.write({'active': False})
+
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        body = self.api('GET', '/api/v1/notifications').json()
+        self.assertEqual([item['meeting_id'] for item in body['items']], [visible.id])
+        self.assertEqual((body['total'], body['unread_count']), (1, 1))
+        for meeting in (inactive, foreign):
+            response = self.api('POST', f'/api/v1/notifications/{by_meeting[meeting.id].id}/read', {})
+            self.assertEqual(response.status_code, 404, meeting.name)
+
+        # another recipient's row is not the caller's to read
+        self.authenticate('api_mgr', 'api_mgr_pass_123')
+        response = self.api('POST', f'/api/v1/notifications/{by_meeting[visible.id].id}/read', {})
+        self.assertEqual(response.status_code, 404)
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        self.assertEqual(self.api('POST', f'/api/v1/notifications/{by_meeting[visible.id].id}/read', {}).json(), {'updated': 1})
