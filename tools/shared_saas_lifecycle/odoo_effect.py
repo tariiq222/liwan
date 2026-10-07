@@ -22,7 +22,10 @@ from tools.shared_saas_lifecycle.catalog_source import CatalogSourceError, resol
 from tools.nasq_cli.managed_credentials import build_credentials_script, parse_credentials
 from tools.nasq_cli.managed_policy import POLICY_ERROR_CODES, PolicyError, parse_create_policy, parse_package_create_policy
 
-ALLOWED_MODULES = {'nasq_core', 'nasq_platform', 'nasq_api', 'nasq_pmo', 'nasq_hr', 'nasq_chat'}
+ALLOWED_MODULES = {
+    'nasq_core', 'nasq_platform', 'nasq_api', 'nasq_notify', 'nasq_directory',
+    'nasq_pmo', 'nasq_hr', 'nasq_chat',
+}
 MAX_OUTPUT = 65536
 
 class EffectError(ValueError):

@@ -1,6 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from . import (
     access_service,
+    directory,
     entitlement_service,
     feature_registry,
     mail_notification_nasq,
@@ -9,6 +10,7 @@ from . import (
     meeting_resolution,
     meeting_series,
     nasq_settings,
+    notification_types,
     project_charter_reference,
     project_finance,
     project_governance,

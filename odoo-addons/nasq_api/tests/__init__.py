@@ -3,6 +3,7 @@ from . import (
     common,
     test_access_admin,
     test_access_composition,
+    test_attachment_upload,
     test_branding,
     test_commercial_surface,
     test_feature_route_coverage,

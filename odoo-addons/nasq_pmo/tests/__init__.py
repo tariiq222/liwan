@@ -17,6 +17,7 @@ from . import (
     test_milestones,
     test_nasq_scope,
     test_notifications,
+    test_notify_ownership_migration,
     test_personal_stages,
     test_pmo_access_composition,
     test_project_admin_model,

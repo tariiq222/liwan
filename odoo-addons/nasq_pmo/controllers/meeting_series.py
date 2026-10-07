@@ -43,13 +43,7 @@ def _parse_series_date(value, field):
 
 def _validate_internal_user(user_id, field):
     parsed = parse_positive_int(user_id, field)
-    user = request.env['res.users'].search([
-        ('id', '=', parsed),
-        ('active', '=', True),
-        ('share', '=', False),
-        ('company_ids', 'in', [request.env.company.id]),
-    ], limit=1)
-    if not user:
+    if not request.env['nasq.directory']._nasq_people([parsed]):
         raise ApiError(422, 'invalid', '%s must be an active internal user in the current company' % field, field=field)
     return parsed
 
@@ -60,12 +54,7 @@ def _validate_internal_users(user_ids, field):
     parsed = [parse_positive_int(item, field) for item in user_ids]
     if not parsed:
         return []
-    users = request.env['res.users'].search([
-        ('id', 'in', parsed),
-        ('active', '=', True),
-        ('share', '=', False),
-        ('company_ids', 'in', [request.env.company.id]),
-    ])
+    users = request.env['nasq.directory']._nasq_people(parsed)
     if set(users.ids) != set(parsed):
         raise ApiError(422, 'invalid', '%s must contain only active internal users in the current company' % field, field=field)
     return parsed

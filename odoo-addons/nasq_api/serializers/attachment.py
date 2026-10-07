@@ -1,4 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+"""The one attachment upload validator and wire shape, shared by every
+application that stores a user-uploaded file as a binary ``ir.attachment``.
+HR documents keep their own, looser parser and shape."""
 import base64
 import binascii
 
@@ -22,8 +25,8 @@ GENERIC_MIMETYPE = 'application/octet-stream'
 UPLOAD_FIELDS = frozenset({'name', 'mimetype', 'data'})
 
 
-def dump_task_attachment(attachment):
-    """Return the intentionally small wire shape for one task attachment."""
+def dump_attachment(attachment):
+    """Return the intentionally small wire shape for one attachment."""
     return {
         'id': attachment.id,
         'name': attachment.name,
@@ -52,7 +55,7 @@ def _parse_mimetype(value):
     return mimetype
 
 
-def parse_task_attachment_upload(payload):
+def parse_attachment_upload(payload):
     extra = set(payload) - UPLOAD_FIELDS
     if extra:
         field = sorted(extra)[0]

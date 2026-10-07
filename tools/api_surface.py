@@ -78,6 +78,26 @@ def kw_const(call: ast.Call, name: str):
     return None
 
 
+FEATURE_DECORATORS = ("requires_feature", "requires_registered_feature")
+
+
+def feature_metadata(fn: ast.FunctionDef) -> tuple[list[str], str | None]:
+    """Documented feature keys and operation of a route.
+
+    ``requires_feature`` lists its keys as positional arguments.
+    ``requires_registered_feature`` resolves its keys at request time and
+    documents them in its ``keys=`` argument.
+    """
+    feature = next((d for d in fn.decorator_list if decorator_name(d) in FEATURE_DECORATORS), None)
+    if not isinstance(feature, ast.Call):
+        return [], None
+    if decorator_name(feature) == "requires_feature":
+        keys = [a.value for a in feature.args if isinstance(a, ast.Constant)]
+    else:
+        keys = next((const_strings(kw.value) for kw in feature.keywords if kw.arg == "keys"), [])
+    return keys, kw_const(feature, "operation")
+
+
 def api_version() -> str:
     manifest = ast.literal_eval((ADDONS / "nasq_api" / "__manifest__.py").read_text())
     return str(manifest.get("version", "0.0.0"))
@@ -102,12 +122,7 @@ def extract_routes() -> list[dict]:
                 paths = const_strings(route.args[0])
                 if not paths:
                     continue
-                feature_keys: list[str] = []
-                feature_operation = None
-                feature = next((d for d in fn.decorator_list if decorator_name(d) == "requires_feature"), None)
-                if isinstance(feature, ast.Call):
-                    feature_keys = [a.value for a in feature.args if isinstance(a, ast.Constant)]
-                    feature_operation = kw_const(feature, "operation")
+                feature_keys, feature_operation = feature_metadata(fn)
                 docstring = ast.get_docstring(fn) or ""
                 routes.append(
                     {

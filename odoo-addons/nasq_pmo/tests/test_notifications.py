@@ -5,7 +5,7 @@ from unittest.mock import patch
 from odoo import fields
 from odoo.tests import new_test_user, tagged
 
-from odoo.addons.nasq_pmo.controllers.notifications import readable_active_task_ids
+from odoo.addons.nasq_pmo.models.notification_types import readable_active_task_ids
 from odoo.addons.nasq_pmo.tests.common import NasqPmoCase
 
 
@@ -30,6 +30,63 @@ class TestTaskNotifications(NasqPmoCase):
         cls.env['mail.notification'].sudo().search([
             ('mail_message_id.nasq_notification', '=', True),
         ]).unlink()
+
+    def test_pmo_registers_its_notification_kinds(self):
+        registry = self.env['nasq.notify.registry']
+        types = registry._nasq_notification_type_map()
+        pmo = [kind for kind, item in types.items() if item['owner'] == 'nasq_pmo']
+        self.assertEqual(pmo, [
+            'assignment', 'comment', 'mention', 'deadline', 'overdue_digest',
+            'meeting_invite', 'meeting_resolution', 'meeting_converted', 'meeting_changed',
+            'meeting_cancelled', 'meeting_reminder', 'meeting_resolution_overdue',
+        ])
+        self.assertEqual({types[kind]['feature_key'] for kind in pmo[:5]}, {'pmo.enabled'})
+        self.assertEqual({types[kind]['feature_key'] for kind in pmo[5:]}, {'meetings.enabled'})
+        self.assertEqual({types[kind]['model'] for kind in pmo[:4]}, {'project.task'})
+        self.assertEqual(types['overdue_digest']['model'], 'res.company')
+        self.assertEqual({types[kind]['model'] for kind in pmo[5:]}, {'cyan.meeting.minute'})
+        # Other installed applications may contribute too: pmo's own values are included.
+        self.assertIn('overdue_digest', registry._nasq_notify_live_kinds())
+        self.assertLessEqual({'pmo.enabled', 'meetings.enabled'}, set(registry._nasq_notify_feature_keys()))
+        self.assertLessEqual(set(pmo), set(self.env['mail.message']._fields['nasq_notification_kind'].get_values(self.env)))
+
+    def test_delivery_keys_keep_their_pre_split_format(self):
+        Message = self.env['mail.message'].sudo()
+        Task = self.env['project.task']
+        now = fields.Datetime.now()
+        task = Task.create({
+            'name': 'Key format', 'project_id': self.project.id, 'company_id': self.env.company.id,
+            'user_ids': [(4, self.other.id)], 'date_deadline': now + timedelta(hours=6),
+        })
+        Task._nasq_run_deadline_notifications(now=now)
+        Task._nasq_run_deadline_notifications(now=now)
+        deadline = fields.Datetime.to_string(task.date_deadline)
+        self.assertEqual(
+            Message.search([('nasq_notification_kind', '=', 'deadline'), ('nasq_task_id', '=', task.id)]).mapped('nasq_notification_key'),
+            [f'deadline:{task.id}:{self.other.partner_id.id}:{deadline}'],
+        )
+        meeting = self.env['cyan.meeting.minute'].create({
+            'state': 'draft', 'name': 'Key format meeting', 'organizer_id': self.manager.id,
+        })
+        partners = self.other.partner_id | self.employee.partner_id
+        expected = sorted(f'meeting-invite:{meeting.id}:{partner.id}' for partner in partners)
+        meeting._nasq_notify_partners(partners, 'meeting_invite', 'Key format', key=f'meeting-invite:{meeting.id}')
+        count = Message.search_count([('nasq_meeting_id', '=', meeting.id)])
+        meeting._nasq_notify_partners(partners, 'meeting_invite', 'Key format', key=f'meeting-invite:{meeting.id}')
+        self.assertEqual(Message.search_count([('nasq_meeting_id', '=', meeting.id)]), count)
+        self.assertEqual(sorted(Message.search([('nasq_notification_key', 'in', expected)]).mapped('nasq_notification_key')), expected)
+        meeting._nasq_notify_partners(self.other.partner_id, 'meeting_changed', 'Moved')
+        meeting._nasq_notify_partners(self.other.partner_id, 'meeting_changed', 'Moved')
+        changed = Message.search([('nasq_meeting_id', '=', meeting.id), ('nasq_notification_kind', '=', 'meeting_changed')])
+        self.assertEqual(len(changed), 2, 'meeting_changed has no idempotency key')
+        self.assertEqual(set(changed.mapped('nasq_notification_key')), {False})
+        key = f'overdue_digest:{self.env.company.id}:{self.manager.partner_id.id}:2026-01-02'
+        for _attempt in range(2):
+            Task._nasq_create_digest_notification(
+                company=self.env.company, partner=self.manager.partner_id, body='1 overdue tasks',
+                key=key, overdue_count=1, local_date='2026-01-02',
+            )
+        self.assertEqual(Message.search_count([('nasq_notification_key', '=', key)]), 1)
 
     def test_assignment_is_recipient_owned_and_actor_is_excluded(self):
         task = self.env['project.task'].with_user(self.manager).create({
@@ -98,6 +155,34 @@ class TestTaskNotifications(NasqPmoCase):
         second = self.api('POST', f'/api/v1/notifications/{notification.id}/read', {}).json()
         self.assertEqual(first, {'updated': 1})
         self.assertEqual(second, {'updated': 0})
+
+    def test_unregistered_kind_on_a_readable_task_is_hidden_everywhere(self):
+        task = self.env['project.task'].with_user(self.manager).create({
+            'name': 'Ghost kind', 'project_id': self.project.id,
+            'user_ids': [(4, self.other.id)],
+        })
+        self.env.flush_all()
+        row = self.env['mail.notification'].sudo().search([
+            ('mail_message_id.nasq_task_id', '=', task.id),
+            ('res_partner_id', '=', self.other.partner_id.id),
+            ('mail_message_id.nasq_notification', '=', True),
+        ], limit=1)
+        self.authenticate(self.other.login, 'api_nora_pass_123')
+        before = self.api('GET', '/api/v1/notifications').json()
+        self.assertIn(row.id, [item['id'] for item in before['items']])
+        # A kind no application registers can only arrive through the database.
+        self.env.cr.execute(
+            'UPDATE mail_message SET nasq_notification_kind = %s WHERE id = %s',
+            ('unregistered_kind', row.mail_message_id.id),
+        )
+        self.env.invalidate_all()
+        response = self.api('GET', '/api/v1/notifications')
+        self.assertEqual(response.status_code, 200)
+        after = response.json()
+        self.assertNotIn(row.id, [item['id'] for item in after['items']])
+        self.assertEqual(after['total'], before['total'] - 1)
+        self.assertEqual(after['unread_count'], before['unread_count'] - 1)
+        self.assertEqual(self.api('POST', f'/api/v1/notifications/{row.id}/read', {}).status_code, 404)
 
     def test_revoked_task_is_removed_from_rows_and_counts(self):
         task = self.env['project.task'].with_user(self.manager).create({

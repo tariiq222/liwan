@@ -99,9 +99,10 @@ No production deployment or DNS cutover is implied by this repository.
 - `odoo-addons/nasq_core` depends on `base` only and owns the access service,
   the system capabilities and branding defaults; each application owns its own
   capabilities, groups and roles;
-  `nasq_api` owns shared API plumbing; `nasq_pmo` owns projects/tasks and the
-  user-id people picker; `nasq_hr` owns HR routes, documents, and employee
-  directory behavior.
+  `nasq_api` owns shared API plumbing; the shared services `nasq_notify` (the
+  notification bell) and `nasq_directory` (the user-id people picker) know no
+  application; `nasq_pmo` owns projects/tasks; `nasq_hr` owns HR routes,
+  documents, and employee directory behavior.
 - `deploy` contains per-customer provisioning and reverse-proxy templates.
 
 The detailed one-writer ownership and isolation workflow is in

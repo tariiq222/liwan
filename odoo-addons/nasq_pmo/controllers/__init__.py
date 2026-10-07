@@ -6,7 +6,6 @@ from . import (
     meetings,
     milestones,
     notifications,
-    people,
     personal_stages,
     project_charter_catalogs,
     project_finance,
