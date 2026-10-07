@@ -34,7 +34,7 @@ suite('real shared onboarding SQL identity and fail-closed publication',()=>{
     const replayed=await onboardSharedTenant(pool,config,actor,input)
     expect(replayed.tenant_id).toBe(first.tenant_id);expect(replayed.job_id).toBe(first.job_id);expect(replayed.replay).toBe(true)
     const jobs=await pool.query('SELECT payload FROM shared_jobs WHERE control_tenant_id=$1',[first.tenant_id])
-    expect(jobs.rowCount).toBe(1);expect(jobs.rows[0].payload.policy.modules).toEqual(['nasq_core','nasq_platform','nasq_api','nasq_pmo'])
+    expect(jobs.rowCount).toBe(1);expect(jobs.rows[0].payload.policy.modules).toEqual(['nasq_core','nasq_platform','nasq_api','nasq_pmo','nasq_meetings'])
     expect(jobs.rows[0].payload.policy.features['pmo.enabled']).toBe(true)
     const registry=JSON.parse(await readFile(config.tenantRegistryPath,'utf8'))
     expect(registry.targets.find((target:any)=>target.database===jobs.rows[0].payload.binding.database).enabled).toBe(false)

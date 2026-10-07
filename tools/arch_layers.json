@@ -6,8 +6,10 @@
     "nasq_directory": 3,
     "nasq_notify": 3,
     "nasq_pmo": 4,
+    "nasq_meetings": 4,
     "nasq_hr": 4,
-    "nasq_chat": 4
+    "nasq_chat": 4,
+    "nasq_meetings_pmo": 5
   },
   "exempt": [
     "cyan_meeting_minutes",

@@ -27,7 +27,8 @@
       "name": "Projects",
       "description": "Adds the project and meeting pillar over the base modules.",
       "modules": [
-        "nasq_pmo"
+        "nasq_pmo",
+        "nasq_meetings"
       ],
       "features": [
         "boolean:pmo.enabled",

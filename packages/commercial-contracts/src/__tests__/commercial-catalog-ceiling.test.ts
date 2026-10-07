@@ -32,6 +32,6 @@ describe('catalog feature ceilings', () => {
   it('keeps the legacy fieldless artifact digest unchanged', () => {
     const parsed = catalogFeatureSchema.parse({ ...featureFields, kind: 'limit' })
     expect(parsed).not.toHaveProperty('ceiling')
-    expect(catalogDigest(release(legacySolution))).toBe('e32b18ac87a308dc2b1adb6d3678e6c1085be0802daa979e750900dfa5974261')
+    expect(catalogDigest(release(legacySolution))).toBe('042dff06f20e928983869f3f5e5c3f63740a7d8e591fa90831b25b63f3e0c4e0')
   })
 })

@@ -1,10 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from . import (
-    meeting_attachments,
-    meeting_convert,
-    meeting_series,
-    meeting_workspace,
-    meetings,
     milestones,
     notifications,
     personal_stages,

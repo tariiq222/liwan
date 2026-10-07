@@ -6,6 +6,19 @@ from odoo.tests import TransactionCase, tagged
 from odoo.tools.misc import file_path
 
 MIGRATION = 'nasq_core/migrations/19.0.1.1.0/pre-move_app_xmlids.py'
+# Phase 2b-2 handed these rows on from nasq_pmo to nasq_meetings (nasq_pmo
+# 19.0.1.4.0). This test exercises the released Phase 2 step only: it reads
+# the rows under their current owner and expects the Phase 2 owner back.
+LATER_OWNER = {
+    name: 'nasq_meetings'
+    for name in (
+        'group_cap_meetings_read', 'group_cap_meetings_create', 'group_cap_meetings_manage',
+        'permission_meetings_read', 'permission_meetings_create', 'permission_meetings_manage',
+        'rule_meeting_capability_scope', 'rule_resolution_capability_scope',
+    )
+}
+MEETING_RULES = ('rule_meeting_capability_scope', 'rule_resolution_capability_scope')
+REQUIRED = {'nasq_hr', 'nasq_pmo', 'nasq_meetings'}
 
 
 def _load_migration():
@@ -24,10 +37,10 @@ class TestAppXmlidMigration(TransactionCase):
         super().setUpClass()
         installed = {
             module.name
-            for module in cls.env['ir.module.module'].search([('name', 'in', ['nasq_hr', 'nasq_pmo']), ('state', '=', 'installed')])
+            for module in cls.env['ir.module.module'].search([('name', 'in', sorted(REQUIRED)), ('state', '=', 'installed')])
         }
-        if installed != {'nasq_hr', 'nasq_pmo'}:
-            reason = 'needs nasq_hr and nasq_pmo installed'
+        if installed != REQUIRED:
+            reason = 'needs nasq_hr, nasq_pmo and nasq_meetings installed'
             raise unittest.SkipTest(reason)
         cls.migration = _load_migration()
         cls.moved = [
@@ -35,13 +48,20 @@ class TestAppXmlidMigration(TransactionCase):
             for module, names in cls.migration.MOVED_XMLIDS.items()
             for name in names
         ]
+        cls.current = {(module, name): (LATER_OWNER.get(name, module), name) for module, name in cls.moved}
+        cls.modules = ['nasq_core', *cls.migration.MOVED_XMLIDS, 'nasq_meetings']
 
     def _rows(self):
         self.env.cr.execute(
             'SELECT module, name, model, res_id, noupdate FROM ir_model_data WHERE module = ANY(%s) AND name = ANY(%s)',
-            [['nasq_core', *self.migration.MOVED_XMLIDS], [name for _module, name in self.moved]],
+            [self.modules, [name for _module, name in self.moved]],
         )
         return {(module, name): (model, res_id, noupdate) for module, name, model, res_id, noupdate in self.env.cr.fetchall()}
+
+    def _phase2_view(self, rows):
+        """The rows as the Phase 2 migration leaves them: the meeting rows under nasq_pmo."""
+        back = {current: phase2 for phase2, current in self.current.items()}
+        return {back.get(key, key): value for key, value in rows.items()}
 
     def _group_xmlids(self):
         self.env.cr.execute('SELECT key, group_xmlid FROM nasq_access_permission')
@@ -49,20 +69,23 @@ class TestAppXmlidMigration(TransactionCase):
 
     def _restore_release_state(self):
         for module, name in self.moved:
+            owner = LATER_OWNER.get(name, module)
             self.env.cr.execute(
                 "UPDATE ir_model_data SET module = 'nasq_core' WHERE module = %s AND name = %s",
-                [module, name],
+                [owner, name],
             )
             if name.startswith('group_cap_'):
                 self.env.cr.execute(
                     'UPDATE nasq_access_permission SET group_xmlid = %s WHERE group_xmlid = %s',
-                    [f'nasq_core.{name}', f'{module}.{name}'],
+                    [f'nasq_core.{name}', f'{owner}.{name}'],
                 )
 
     def test_release_rows_are_renamed_in_place_and_a_rerun_is_a_no_op(self):
-        installed = self._rows()
+        installed = self._phase2_view(self._rows())
         self.assertEqual(sorted(key for key in installed if key in self.moved), sorted(self.moved))
-        group_xmlids = self._group_xmlids()
+        group_xmlids = {
+            key: value.replace('nasq_meetings.', 'nasq_pmo.', 1) for key, value in self._group_xmlids().items()
+        }
 
         self._restore_release_state()
         release = self._rows()
@@ -101,7 +124,7 @@ class TestAppXmlidMigration(TransactionCase):
 
     def _meeting_rules(self):
         rows = self._rows()
-        res_ids = [rows['nasq_pmo', name][1] for name in ('rule_meeting_capability_scope', 'rule_resolution_capability_scope')]
+        res_ids = [(rows.get(('nasq_pmo', name)) or rows['nasq_meetings', name])[1] for name in MEETING_RULES]
         return self.env['ir.rule'].browse(res_ids)
 
     def _set_pmo_state(self, state):

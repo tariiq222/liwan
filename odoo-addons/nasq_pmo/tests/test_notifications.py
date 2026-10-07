@@ -35,20 +35,13 @@ class TestTaskNotifications(NasqPmoCase):
         registry = self.env['nasq.notify.registry']
         types = registry._nasq_notification_type_map()
         pmo = [kind for kind, item in types.items() if item['owner'] == 'nasq_pmo']
-        task_kinds = ['assignment', 'comment', 'mention', 'deadline', 'overdue_digest']
-        meeting_kinds = [
-            'meeting_invite', 'meeting_resolution', 'meeting_converted', 'meeting_changed',
-            'meeting_cancelled', 'meeting_reminder', 'meeting_resolution_overdue',
-        ]
-        self.assertEqual(sorted(pmo), sorted(task_kinds + meeting_kinds))
-        self.assertEqual({types[kind]['feature_key'] for kind in task_kinds}, {'pmo.enabled'})
-        self.assertEqual({types[kind]['feature_key'] for kind in meeting_kinds}, {'meetings.enabled'})
-        self.assertEqual({types[kind]['model'] for kind in task_kinds[:4]}, {'project.task'})
+        self.assertEqual(pmo, ['assignment', 'comment', 'mention', 'deadline', 'overdue_digest'])
+        self.assertEqual({types[kind]['feature_key'] for kind in pmo}, {'pmo.enabled'})
+        self.assertEqual({types[kind]['model'] for kind in pmo[:4]}, {'project.task'})
         self.assertEqual(types['overdue_digest']['model'], 'res.company')
-        self.assertEqual({types[kind]['model'] for kind in meeting_kinds}, {'cyan.meeting.minute'})
         # Other installed applications may contribute too: pmo's own values are included.
         self.assertIn('overdue_digest', registry._nasq_notify_live_kinds())
-        self.assertLessEqual({'pmo.enabled', 'meetings.enabled'}, set(registry._nasq_notify_feature_keys()))
+        self.assertIn('pmo.enabled', registry._nasq_notify_feature_keys())
         self.assertLessEqual(set(pmo), set(self.env['mail.message']._fields['nasq_notification_kind'].get_values(self.env)))
 
     def test_delivery_keys_keep_their_pre_split_format(self):
@@ -66,21 +59,6 @@ class TestTaskNotifications(NasqPmoCase):
             Message.search([('nasq_notification_kind', '=', 'deadline'), ('nasq_task_id', '=', task.id)]).mapped('nasq_notification_key'),
             [f'deadline:{task.id}:{self.other.partner_id.id}:{deadline}'],
         )
-        meeting = self.env['cyan.meeting.minute'].create({
-            'state': 'draft', 'name': 'Key format meeting', 'organizer_id': self.manager.id,
-        })
-        partners = self.other.partner_id | self.employee.partner_id
-        expected = sorted(f'meeting-invite:{meeting.id}:{partner.id}' for partner in partners)
-        meeting._nasq_notify_partners(partners, 'meeting_invite', 'Key format', key=f'meeting-invite:{meeting.id}')
-        count = Message.search_count([('nasq_meeting_id', '=', meeting.id)])
-        meeting._nasq_notify_partners(partners, 'meeting_invite', 'Key format', key=f'meeting-invite:{meeting.id}')
-        self.assertEqual(Message.search_count([('nasq_meeting_id', '=', meeting.id)]), count)
-        self.assertEqual(sorted(Message.search([('nasq_notification_key', 'in', expected)]).mapped('nasq_notification_key')), expected)
-        meeting._nasq_notify_partners(self.other.partner_id, 'meeting_changed', 'Moved')
-        meeting._nasq_notify_partners(self.other.partner_id, 'meeting_changed', 'Moved')
-        changed = Message.search([('nasq_meeting_id', '=', meeting.id), ('nasq_notification_kind', '=', 'meeting_changed')])
-        self.assertEqual(len(changed), 2, 'meeting_changed has no idempotency key')
-        self.assertEqual(set(changed.mapped('nasq_notification_key')), {False})
         key = f'overdue_digest:{self.env.company.id}:{self.manager.partner_id.id}:2026-01-02'
         for _attempt in range(2):
             Task._nasq_create_digest_notification(

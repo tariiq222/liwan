@@ -11,23 +11,21 @@
     # nasq_platform: the pre-backfill migration reads nasq.tenant.profile, and a
     # `-u nasq_pmo` must install it directly instead of relying on the caller to
     # upgrade nasq_api as well.
-    # nasq_directory: /api/v1/people and its population; nasq_pmo registers the
-    # feature keys that open it. nasq_notify: bell delivery and the type
-    # registry; nasq_pmo registers its kinds and keeps its producers.
+    # nasq_directory: /api/v1/people and its population; nasq_pmo registers
+    # pmo.enabled, which opens it. nasq_notify: bell delivery and the type
+    # registry; nasq_pmo registers its task and digest kinds and keeps its producers.
     # project: _inherit'd model and CLOSED_STATES. mail: message_post /
     # _message_post_after_hook in the timeline. bus: bus.bus in the task notifier.
-    # nasq_pmo owns the pmo.* and meetings.* capabilities, their groups, the
-    # pmo_manager role and the meeting record rules (spec R2); the meeting part
-    # moves to nasq_meetings in phase 2b-2.
+    # nasq_pmo owns the pmo.* capabilities, their groups and the pmo_manager role
+    # (spec R2). Meetings are nasq_meetings'; their links to projects and tasks
+    # are the bridge nasq_meetings_pmo's.
     'depends': [
         'nasq_api', 'nasq_platform', 'nasq_directory', 'nasq_notify',
-        'project', 'mail', 'bus', 'cyan_meeting_minutes',
+        'project', 'mail', 'bus',
     ],
     'data': [
         'security/pmo_capability_groups.xml',
-        'security/meeting_capability_groups.xml',
         'data/pmo_access_permissions.xml',
-        'data/meeting_access_permissions.xml',
         'security/project_finance_rules.xml',
         'security/ir.model.access-finance.csv',
         'security/ir.model.access.csv',
@@ -36,17 +34,12 @@
         'security/ir.model.access-templates.csv',
         'security/project_template_rules.xml',
         'security/nasq_pmo_rules.xml',
-        'security/ir.model.access-meetings.csv',
-        'security/meeting_series_rules.xml',
-        'security/meeting_access.xml',
         'security/project_charter_rules.xml',
         'data/nasq_pmo_data.xml',
         'data/nasq_project_sequence.xml',
         'data/project_charter_reference_data.xml',
         'data/nasq_notification_cron.xml',
-        'data/meeting_reminder_cron.xml',
         'data/project_completion_status_migration.xml',
-        'report/meeting_report_history_templates.xml',
     ],
     'installable': True,
     'application': False,

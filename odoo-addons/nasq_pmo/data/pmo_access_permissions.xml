@@ -71,7 +71,8 @@
             <field name="permission_ids" eval="[Command.set([ref('permission_pmo_projects_read'),ref('permission_pmo_projects_create'),ref('permission_pmo_projects_manage'),ref('permission_pmo_settings_manage'),ref('permission_pmo_tasks_read'),ref('permission_pmo_tasks_create'),ref('permission_pmo_tasks_write'),ref('permission_pmo_tasks_approve')])]"/>
         </record>
     </data>
-    <!-- Until nasq_meetings is its own addon (Task 6), the two grant hooks run at the end of
-         data/meeting_access_permissions.xml: the composed dependency map names meetings.*
-         permissions that exist only after that file has loaded. Task 6 restores them here. -->
+    <!-- Built-in roles are noupdate records: these hooks link this addon's grants and
+         dependencies on install and on every upgrade. -->
+    <function model="nasq.access.service" name="_nasq_configure_permission_dependencies"/>
+    <function model="nasq.access.service" name="_nasq_repair_builtin_role_grants"/>
 </odoo>

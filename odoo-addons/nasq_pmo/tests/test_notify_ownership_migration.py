@@ -80,7 +80,7 @@ class TestNotifyOwnershipMigration(TransactionCase):
         pmo = self._xmlids('nasq_pmo')
         self.assertFalse(set(pmo) & {*self.migration.MOVED_FIELDS, self.migration.CONSTRAINT_XMLID})
         self.assertEqual(set(self._constraints()), {'nasq_notify'})
-        for column in ('nasq_task_id', 'nasq_meeting_id', 'nasq_digest_count', 'nasq_digest_date', 'nasq_digest_task_ids'):
+        for column in ('nasq_task_id', 'nasq_digest_count', 'nasq_digest_date', 'nasq_digest_task_ids'):
             self.assertTrue(self.env.ref(f'nasq_pmo.field_mail_message__{column}', raise_if_not_found=False), column)
         self.assertTrue(self.env.ref('nasq_pmo.selection__mail_message__nasq_notification_kind__assignment'))
 
