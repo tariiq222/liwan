@@ -22,6 +22,10 @@ describe('label fallbacks for applications that ship no label', () => {
     expect(humanizeId('sales')).toBe('Sales')
     expect(humanizeId('field_service')).toBe('Field service')
     expect(humanizeId('')).toBe('')
+    expect(humanizeId('nasq_')).toBe('nasq_')
+    expect(humanizeId('nasq__x')).toBe('X')
+    expect(humanizeId('a..b')).toBe('A b')
+    expect(humanizeId('field.service')).toBe('Field service')
   })
 
   it("keeps today's domain labels and never shows an i18n key for a new domain", () => {

@@ -86,3 +86,9 @@ export function notificationPreviewCaptionKey(kind: NotificationPreviewKind): st
   if (TASK_KINDS.has(kind)) return `notifications.preview.${kind}`
   return 'notifications.preview.other'
 }
+
+/** Title and secondary line of a newer application's row: both set shows both; neither shows the generic caption. */
+export function genericNotificationText(item: { title?: string | null; body?: string | null }, caption: string): { title: string; secondary: string } {
+  const title = item.title || item.body || caption
+  return { title, secondary: item.title && item.body ? item.body : '' }
+}

@@ -37,6 +37,7 @@ export const MODULE_FEATURES: Record<'home' | 'projects' | 'meetings' | 'chat' |
  * subscription prefixes belong to no application feature.
  */
 const CAPABILITY_FEATURES: ReadonlyMap<string, FeatureKey> = new Map([[INTERNAL_NASQ_ACCESS, 'chat.enabled']])
+// Any unknown dotted prefix is gated by `<prefix>.enabled`, so a new foundation-like prefix must be added here.
 const FEATURELESS_PREFIXES: ReadonlySet<string> = new Set(['access', 'settings', 'nasq', 'vendor', 'subscription', 'billing', 'branches'])
 /** A capability is a write unless its action (last segment) is `read`; `nasq.internal` only opens chat for reading. */
 const READ_CAPABILITIES: ReadonlySet<string> = new Set([INTERNAL_NASQ_ACCESS])

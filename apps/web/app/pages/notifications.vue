@@ -9,7 +9,7 @@ import {
   useNotificationsPage,
   type BellNotification,
 } from '@/composables/useNotifications'
-import { formatNotificationTimestamp } from '@/utils/notificationPresentation'
+import { formatNotificationTimestamp, genericNotificationText } from '@/utils/notificationPresentation'
 
 const { t, locale } = useI18n()
 const toast = useToast()
@@ -53,7 +53,12 @@ function itemTitle(item: BellNotification) {
   if (isDigestNotification(item)) return t('tasks.digest.count', { n: item.overdue_count })
   if (isMeetingNotification(item)) return item.meeting_name
   if (isKnownNotification(item)) return item.task_name
-  return item.title || item.body || ''
+  return genericNotificationText(item, t('notifications.preview.other')).title
+}
+
+function itemSecondary(item: BellNotification) {
+  if (isKnownNotification(item)) return ''
+  return genericNotificationText(item, '').secondary
 }
 
 function notificationTimestamp(item: BellNotification) {
@@ -140,6 +145,7 @@ async function retryNextPage() {
             </span>
             <span class="font-medium">{{ itemTitle(item) }}</span>
             <span v-if="item.kind === 'comment' || item.kind === 'mention'" class="line-clamp-3 text-sm text-muted">{{ item.body }}</span>
+            <span v-else-if="itemSecondary(item)" class="line-clamp-3 text-sm text-muted">{{ itemSecondary(item) }}</span>
             <time v-if="notificationTimestamp(item)" class="text-xs text-muted" :datetime="notificationTimestamp(item)?.datetime">{{ notificationTimestamp(item)?.label }}</time>
           </UButton>
         </div>

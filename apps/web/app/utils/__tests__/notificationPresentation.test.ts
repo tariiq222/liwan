@@ -3,6 +3,7 @@ import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
   formatNotificationTimestamp,
+  genericNotificationText,
   notificationPreviewCaptionKey,
   parseNotificationDate,
 } from '../notificationPresentation'
@@ -58,5 +59,12 @@ describe('notification presentation', () => {
       expect(typeof messages.notifications.preview.other, locale).toBe('string')
       expect(messages.notifications.preview.other.length, locale).toBeGreaterThan(0)
     }
+  })
+
+  it('shows body as the secondary line of a generic row and the caption when it has no text', () => {
+    expect(genericNotificationText({ title: 'SO-1', body: 'Assigned' }, 'Notification')).toEqual({ title: 'SO-1', secondary: 'Assigned' })
+    expect(genericNotificationText({ title: 'SO-1', body: '' }, 'Notification')).toEqual({ title: 'SO-1', secondary: '' })
+    expect(genericNotificationText({ body: 'Assigned' }, 'Notification')).toEqual({ title: 'Assigned', secondary: '' })
+    expect(genericNotificationText({ body: '' }, 'إشعار')).toEqual({ title: 'إشعار', secondary: '' })
   })
 })
