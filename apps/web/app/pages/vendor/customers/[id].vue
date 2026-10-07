@@ -3,6 +3,7 @@ import { formatVendorMoney } from '@/utils/vendorCommercial'
 import { cancellationErrorKey, branchSummaryText, customersReturnTo, invoiceStatusColor, isNotAvailable } from '@/utils/vendorSubscriptions'
 import { useVendorSubscriptions } from '@/composables/useVendorSubscriptions'
 import { useVendorCommercial } from '@/composables/useVendorCommercial'
+import { entitledSelections } from '@/utils/entitlementApps'
 definePageMeta({ middleware: 'vendor', vendorCapability: 'vendor.read' })
 const { t, locale } = useI18n(); const route = useRoute(); const { can } = useVendorContext(); const api = useVendorSubscriptions()
 const id = computed(() => String(route.params.id))
@@ -35,7 +36,7 @@ const { data: extra, refresh: refreshExtra } = await useAsyncData(() => `vendor:
 const view = computed(() => extra.value?.full.value ?? sub.value)
 const planName = computed(() => extra.value?.plans.value?.items.find(p => p.id === view.value?.applied?.plan_revision_id)?.name)
 const release = computed(() => extra.value?.releases.value?.find(r => r.id === view.value?.applied?.entitlement.catalog_release_id) ?? null)
-const selections = computed(() => (view.value?.applied?.entitlement.modules ?? []).map(app_id => ({ app_id, feature_keys: [] as string[] })))
+const selections = computed(() => entitledSelections(release.value, view.value?.applied?.entitlement.features))
 const branchText = computed(() => (extra.value?.branches.value ? branchSummaryText(extra.value.branches.value) : null))
 const invoices = computed(() => extra.value?.invoices.value?.items ?? [])
 const selfTo = computed(() => ({ query: { returnTo: backTo.value } }))

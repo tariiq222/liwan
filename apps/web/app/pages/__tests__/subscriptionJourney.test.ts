@@ -12,6 +12,10 @@ const mem = () => { const m = new Map<string, string>(); return { getItem: (k: s
 const order = (payment_state: string, fulfillment_state: string) => ({ payment_state, fulfillment_state }) as never
 
 describe('display state mapping', () => {
+  it('shows entitled applications from features, not the release module list', () => {
+    expect(page('index.vue')).not.toContain('entitlement.modules')
+    expect(page('index.vue')).toContain('entitledFeaturePrefixes')
+  })
   it('maps honest states', () => {
     expect(subscriptionDisplayState({ state: 'pending', applied: null, pending_order: order('awaiting_payment', 'not_started') })).toBe('awaiting_payment')
     expect(subscriptionDisplayState({ state: 'active', applied: {} as never, pending_order: order('paid', 'queued') })).toBe('activating')

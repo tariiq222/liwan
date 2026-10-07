@@ -4,7 +4,9 @@ import { CommercialError } from './types.js'
 import type { BundleRevision, CapacityMap, CatalogApplication, CatalogRelease, CustomerTermsRevision, EntitlementSnapshot, PlanRevision } from './types.js'
 
 export { CommercialError }
-export const COMPILER_VERSION = 'commercial-compiler/1'
+/** /2: modules are the whole release (every application is installed in every tenant) and
+ * features carry every key of every release application (spec 3.6, rulings E2/E3/E6). */
+export const COMPILER_VERSION = 'commercial-compiler/2'
 
 export function compileEntitlements(input: {
   release: CatalogRelease; plan: PlanRevision; bundles: BundleRevision[]; terms: CustomerTermsRevision | null
@@ -55,11 +57,8 @@ export function compileEntitlements(input: {
   for (const id of selectedApps) for (const f of (apps.get(id) as CatalogApplication).features)
     if (booleanFeatures.has(f.key)) for (const r of f.requires) if (!knownBool.has(r)) throw new CommercialError('dependency_missing', 'selections')
 
-  // Modules
-  const modules = [...new Set([
-    ...(release.base_modules ?? []), ...coreApps.flatMap(a => a.modules),
-    ...[...selectedApps].flatMap(id => (apps.get(id) as CatalogApplication).modules),
-  ])].sort()
+  // Modules: the whole release. They decide nothing about access; features do.
+  const modules = [...new Set([...(release.base_modules ?? []), ...release.applications.flatMap(a => a.modules)])].sort()
 
   // Limits
   const platformKeys = new Set(coreApps.flatMap(a => a.features.filter(f => f.kind === 'limit').map(f => f.key)))
@@ -83,6 +82,15 @@ export function compileEntitlements(input: {
   }
   const branches = terms?.extra_branches_limit !== undefined ? terms.extra_branches_limit : plan.extra_branches_limit
   features['branches.extra_limit'] = branches
+
+  // Release-complete: every key of every application is present. A left-out application
+  // is closed (booleans false, limits 0); a core or included one keeps the catalog value
+  // for a limit nobody set. Odoo refuses a policy write that misses a key.
+  for (const app of release.applications) for (const f of app.features) {
+    if (Object.hasOwn(features, f.key)) continue
+    const open = !app.selectable || selectedApps.has(app.id)
+    features[f.key] = f.kind === 'boolean' ? false : open ? (f.ceiling ?? null) : 0
+  }
 
   const sorted = Object.fromEntries(Object.keys(features).sort().map(k => [k, features[k] as boolean | number | null]))
   const digest = createHash('sha256').update(canonicalJson({

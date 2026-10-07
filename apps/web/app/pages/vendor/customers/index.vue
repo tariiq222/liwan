@@ -2,6 +2,7 @@
 import { useVendorCommercial } from '@/composables/useVendorCommercial'
 import { CUSTOMER_STATE_FILTERS, customerDisplayState, customerListQuery, displayStateColor, isCustomerStateFilter, isNotAvailable, type VendorCustomer } from '@/utils/vendorSubscriptions'
 import { useVendorSubscriptions } from '@/composables/useVendorSubscriptions'
+import { entitledFeaturePrefixes } from '@/utils/entitlementApps'
 definePageMeta({ middleware: 'vendor', vendorCapability: 'vendor.read' })
 const { t } = useI18n(); const route = useRoute(); const router = useRouter(); const hydrated = useHydrated(); const api = useVendorSubscriptions()
 const PAGE = 25
@@ -18,7 +19,7 @@ const pages = computed(() => Math.max(1, Math.ceil((data.value?.total ?? 0) / PA
 const stateItems = computed(() => CUSTOMER_STATE_FILTERS.map(value => ({ value, label: t(`vendor.customers.filter.${value}`) })))
 const to = (c: VendorCustomer) => ({ path: `/vendor/customers/${encodeURIComponent(c.id)}`, query: { returnTo: route.fullPath } })
 const planOf = (c: VendorCustomer) => (c.subscription?.applied ? planName(c.subscription.applied.plan_revision_id) ?? t('vendor.customers.planAssigned') : t('vendor.customers.noPlan'))
-const services = (c: VendorCustomer) => c.subscription?.applied?.entitlement.modules.length ?? null
+const services = (c: VendorCustomer) => (c.subscription?.applied ? entitledFeaturePrefixes(c.subscription.applied.entitlement.features).length : null)
 const branches = (c: VendorCustomer) => (c.subscription?.applied ? 1 + c.subscription.applied.extra_branch_count : null)
 </script>
 <template>

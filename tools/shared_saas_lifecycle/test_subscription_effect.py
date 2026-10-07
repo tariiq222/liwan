@@ -241,6 +241,14 @@ class ReconfigureTests(Base):
         self.assertIn("._nasq_close_unlisted_features(values['features'])", script)
         self.assertNotIn("item['type'] == 'boolean' and key not in features", script)
 
+    def test_release_complete_target_installs_nothing(self):
+        modules = ['nasq_api', 'nasq_core', 'nasq_platform', 'nasq_pmo']
+        request = make_request(entitlement={**make_request()['entitlement'], 'modules': modules})
+        runner = FakeRunner(observation(modules=modules), apply_state=applied_state(request))
+        receipt = self.effect(runner).reconfigure(request)
+        self.assertEqual(runner.installed, [])
+        self.assertEqual(receipt['modules_installed'], [])
+
 
 class ObserveTests(Base):
     def test_observe_snapshot(self):

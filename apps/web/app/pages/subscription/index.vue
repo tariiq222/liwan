@@ -2,8 +2,10 @@
 import SettingsLayout from '@/components/settings/SettingsLayout.vue'
 import { subscriptionDisplayState } from '@nasq/commercial-contracts'
 import { formatSubscriptionMoney } from '@/utils/subscription'
+import { entitledFeaturePrefixes } from '@/utils/entitlementApps'
+import { humanizeId } from '@/utils/labelFallback'
 import { useCustomerCapabilities, useSubscriptionApi } from '@/composables/useSubscription'
-const { t, locale } = useI18n(); const api = useSubscriptionApi(); const { can } = useCustomerCapabilities(); const hydrated = useHydrated()
+const { t, te, locale } = useI18n(); const api = useSubscriptionApi(); const { can } = useCustomerCapabilities(); const hydrated = useHydrated()
 const allowed = computed(() => can('subscription.read'))
 const { data, error, pending, refresh } = await useAsyncData('subscription:overview', async () => {
   const [sub, usage, branches, invoices] = await Promise.all([
@@ -14,6 +16,8 @@ const { data, error, pending, refresh } = await useAsyncData('subscription:overv
 }, { immediate: allowed.value })
 const display = computed(() => (data.value ? subscriptionDisplayState(data.value.sub) : null))
 const entitlement = computed(() => data.value?.sub.applied?.entitlement ?? null)
+const entitledApps = computed(() => entitledFeaturePrefixes(entitlement.value?.features))
+const appLabel = (app: string) => (te(`subscription.apps.${app}`) ? t(`subscription.apps.${app}`) : humanizeId(app))
 const arBusy = ref(false); const arError = ref<unknown>(null)
 async function setAutoRenew(enabled: boolean) {
   if (arBusy.value || !can('subscription.manage')) return
@@ -45,8 +49,8 @@ definePageMeta({ middleware: 'customer-commercial' })
         </UCard>
         <UCard>
           <template #header><h2 class="font-semibold">{{ t('subscription.summary.services') }}</h2></template>
-          <p v-if="!entitlement" class="text-sm text-muted">{{ t('subscription.summary.noServices') }}</p>
-          <ul v-else class="flex flex-wrap gap-2"><li v-for="m in entitlement.modules" :key="m"><UBadge color="neutral" variant="subtle">{{ m }}</UBadge></li></ul>
+          <p v-if="!entitledApps.length" class="text-sm text-muted">{{ t('subscription.summary.noServices') }}</p>
+          <ul v-else class="flex flex-wrap gap-2"><li v-for="app in entitledApps" :key="app"><UBadge color="neutral" variant="subtle">{{ appLabel(app) }}</UBadge></li></ul>
         </UCard>
         <UCard>
           <template #header><h2 class="font-semibold">{{ t('subscription.usage.title') }}</h2></template>

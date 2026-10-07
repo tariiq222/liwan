@@ -24,13 +24,30 @@ describe('commercial catalog and entitlement compiler', () => {
     expect(apps.flatMap(a => a.features).every(f => f.enforcement_refs.length > 0)).toBe(true)
     expect(apps[0].features.every(f => !f.selectable)).toBe(true)
   })
-  it('unions base and selected modules, keeps 0/null, and overrides only explicit limits', () => {
+  it('installs the whole release, keeps 0/null, and overrides only explicit limits', () => {
     const input = fixture()
     const result = compileEntitlements({ ...input, terms: { id: id(9), customer_id: id(10), reason: 'Special terms', limits: { 'users.limit': 0 } } })
-    expect(result.modules).toEqual(['nasq_api', 'nasq_core', 'nasq_hr', 'nasq_meetings', 'nasq_platform', 'nasq_pmo'])
-    expect(result.features).toEqual({ 'branches.extra_limit': 8, 'hr.enabled': true, 'meetings.enabled': true, 'pmo.enabled': true, 'projects.max_projects': 0, 'storage.limit_mb': null, 'users.limit': 0 })
-    expect(result.compiler_version).toBe('commercial-compiler/1')
+    expect(result.modules).toEqual(['nasq_api', 'nasq_chat', 'nasq_core', 'nasq_hr', 'nasq_meetings', 'nasq_platform', 'nasq_pmo'])
+    expect(result.features).toEqual({ 'branches.extra_limit': 8, 'chat.enabled': false, 'hr.enabled': true, 'meetings.enabled': true, 'pmo.enabled': true, 'projects.max_projects': 0, 'storage.limit_mb': null, 'users.limit': 0 })
+    expect(result.compiler_version).toBe('commercial-compiler/2')
     expect(input.plan.platform_limits['users.limit']).toBe(20)
+  })
+  it('closes every application the plan leaves out (booleans false, limits 0)', () => {
+    const input = fixture()
+    input.plan.optional_bundle_revision_ids = [input.bundles[1]!.id]
+    const result = compileEntitlements({ ...input, bundles: [input.bundles[1]!] })
+    expect(result.features).toEqual({ 'branches.extra_limit': 8, 'chat.enabled': false, 'hr.enabled': true, 'meetings.enabled': false, 'pmo.enabled': false, 'projects.max_projects': 0, 'storage.limit_mb': null, 'users.limit': 20 })
+    expect(result.modules).toEqual(compileEntitlements(fixture()).modules)
+  })
+  it('keeps the catalog value for an included application limit no bundle sets', () => {
+    const input = fixture()
+    input.bundles[0]!.domain_limits = {}
+    expect(compileEntitlements(input).features['projects.max_projects']).toBeNull()
+  })
+  it('closes an included application boolean the bundle did not select', () => {
+    const input = fixture()
+    input.bundles[0]!.selections[0]!.feature_keys = ['pmo.enabled']
+    expect(compileEntitlements(input).features['meetings.enabled']).toBe(false)
   })
   it('is deterministic across bundle, selection, feature and object-key ordering', () => {
     const input = fixture()
