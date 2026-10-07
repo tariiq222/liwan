@@ -365,7 +365,8 @@
         "api": "Shared platform services",
         "projects": "Projects and meetings",
         "people": "Human resources",
-        "messaging": "Private messaging"
+        "messaging": "Private messaging",
+        "meetings": "Meetings and decisions"
       },
       "features": {
         "projects": "Project management",
