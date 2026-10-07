@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { hasCapability, firstAllowedPath, isNavPathActive, requiredCapabilityForPath, postLoginPath } from '../accessPolicy'
+import { canReach, hasCapability, firstAllowedPath, isNavPathActive, requiredCapabilityForPath, postLoginPath } from '../accessPolicy'
 
 describe('access policy navigation', () => {
   it('fails closed for legacy role names without server capabilities', () => {
@@ -102,5 +102,22 @@ describe('access policy navigation', () => {
     expect(postLoginPath(reader, '/project-templates/7?returnTo=%2Fprojects')).toBe('/project-templates/7?returnTo=%2Fprojects')
     expect(postLoginPath(reader, '/project-templates/7/edit')).toBe('/projects/dashboard')
     expect(postLoginPath({ capabilities: [] }, '/project-templates')).toBe('/account')
+  })
+
+  it("reaches a newer application's capability through its own feature, without navigation", () => {
+    const sales = (readable: string[], writable: string[]) => ({
+      capabilities: ['sales.orders.read', 'sales.orders.write'],
+      modules: ['nasq_sales'],
+      entitlements: { 'sales.enabled': readable.includes('sales.enabled') },
+      platform: { readable_features: readable, writable_features: writable },
+    })
+    expect(canReach(sales(['sales.enabled'], ['sales.enabled']), 'sales.orders.write')).toBe(true)
+    expect(canReach(sales(['sales.enabled'], []), 'sales.orders.read')).toBe(true)
+    expect(canReach(sales(['sales.enabled'], []), 'sales.orders.write')).toBe(false)
+    expect(canReach(sales([], []), 'sales.orders.read')).toBe(false)
+    expect(canReach({ capabilities: ['sales.orders.read'] }, 'sales.orders.write')).toBe(false)
+    // Nav entries and landing pages for new apps are Phase 4 (app manifest): a sales-only user lands on /account.
+    expect(firstAllowedPath(sales(['sales.enabled'], ['sales.enabled']))).toBe('/account')
+    expect(requiredCapabilityForPath('/sales/orders')).toBeNull()
   })
 })
