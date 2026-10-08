@@ -43,9 +43,11 @@ export function bundleIssues(row: Row, release: CatalogRelease): { code: string;
   const issues = priceIssues(row.prices)
   if (row.audience.kind === 'customer' && !row.audience.customer_id) issues.push({ code: 'audience_invalid', field: 'audience' })
   const rev = bundleRevision(row)
+  // Validation-only plan: every core limit is explicitly unlimited so a bundle is judged on its own content.
+  const coreLimits = Object.fromEntries(release.applications.filter(a => !a.selectable).flatMap(a => a.features.filter(f => f.kind === 'limit').map(f => [f.key, null])))
   const plan = {
     id: '00000000-0000-4000-8000-0000000000aa', plan_id: 'x', version: 1, edit_revision: 1, name: 'validation', status: 'draft', available: false,
-    audience: { kind: 'public' }, prices: [], term_months: 1, platform_limits: {}, included_bundle_revision_ids: [row.id], optional_bundle_revision_ids: [],
+    audience: { kind: 'public' }, prices: [], term_months: 1, platform_limits: coreLimits, included_bundle_revision_ids: [row.id], optional_bundle_revision_ids: [],
     included_extra_branches: 0, extra_branch_prices: [], extra_branches_limit: null, policy_revision_id: row.id, currency: 'SAR',
     trial_days: 0, grace_days: 0, auto_suspend: false, auto_renew_allowed: false,
   } as unknown as PlanRevision

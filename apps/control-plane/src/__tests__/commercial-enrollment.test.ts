@@ -86,7 +86,7 @@ suite('commercial first enrollment on scratch PostgreSQL', () => {
   })
   it('new customer without tenant reserves three extras and enrollment links all pending branches', async () => {
     const api = client(pool)
-    const draft = await api('POST', '/plans', { name: `New branches ${randomUUID()}`, audience: { kind: 'public' }, term_months: 12, currency: 'SAR', prices: [{ cadence: monthly, amount: money(10000) }], platform_limits: {}, included_bundle_revision_ids: [], optional_bundle_revision_ids: [], included_extra_branches: 1, extra_branch_prices: [{ cadence: monthly, amount: money(5000) }], extra_branches_limit: 8, policy_revision_id: '6f1c3d8e-0000-4000-8000-000000000001', trial_days: 0, grace_days: 0, auto_suspend: true, auto_renew_allowed: true })
+    const draft = await api('POST', '/plans', { name: `New branches ${randomUUID()}`, audience: { kind: 'public' }, term_months: 12, currency: 'SAR', prices: [{ cadence: monthly, amount: money(10000) }], platform_limits: { 'users.limit': null, 'storage.limit_mb': null }, included_bundle_revision_ids: [], optional_bundle_revision_ids: [], included_extra_branches: 1, extra_branch_prices: [{ cadence: monthly, amount: money(5000) }], extra_branches_limit: 8, policy_revision_id: '6f1c3d8e-0000-4000-8000-000000000001', trial_days: 0, grace_days: 0, auto_suspend: true, auto_renew_allowed: true })
     const validated = await api('POST', `/plans/${draft.body.id}/validate`, { edit_revision: 1, reason: 'New branches regression' })
     const plan = (await api('POST', `/plans/${draft.body.id}/publish`, { edit_revision: validated.body.edit_revision, reason: 'New branches regression' })).body
     const customer = randomUUID()

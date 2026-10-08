@@ -101,4 +101,26 @@ describe('commercial catalog and entitlement compiler', () => {
     const error = new CommercialError('dependency_missing', 'selections')
     expect(error.code).toBe('dependency_missing'); expect(error.field).toBe('selections')
   })
+  it('refuses a plan that leaves a platform limit unset, and allows an explicit null', () => {
+    const input = fixture()
+    input.plan.platform_limits = { 'users.limit': 5 }
+    expect(() => compileEntitlements(input)).toThrowError(expect.objectContaining({ code: 'platform_limit_missing', field: 'platform_limits' }))
+    input.plan.platform_limits = {}
+    expect(() => compileEntitlements(input)).toThrowError(expect.objectContaining({ code: 'platform_limit_missing' }))
+    input.plan.platform_limits = { 'users.limit': null, 'storage.limit_mb': null }
+    expect(compileEntitlements(input).features['users.limit']).toBeNull()
+  })
+  it('opens a non-selectable boolean of a core or included application', () => {
+    const input = fixture()
+    const core = input.release.applications.find(a => !a.selectable)!
+    core.features.push({ ...core.features[0]!, key: 'core.always', kind: 'boolean', selectable: false, ceiling: null })
+    expect(compileEntitlements(input).features['core.always']).toBe(true)
+  })
+  it('compiles the real v3 catalog into exactly the eight policy keys', () => {
+    const v3 = JSON.parse(readFileSync(new URL('../../../../deploy/catalog/solutions/platform_v3.json', import.meta.url), 'utf8'))
+    const input = fixture()
+    input.release.applications = catalogApplicationsFromSolution(v3, 'v3')
+    input.plan.platform_limits = { 'users.limit': 20, 'storage.limit_mb': null }
+    expect(compileEntitlements(input).features).toEqual({ 'branches.extra_limit': 8, 'chat.enabled': false, 'hr.enabled': true, 'meetings.enabled': true, 'pmo.enabled': true, 'projects.max_projects': 0, 'storage.limit_mb': null, 'users.limit': 20 })
+  })
 })

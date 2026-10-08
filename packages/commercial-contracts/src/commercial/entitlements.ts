@@ -75,6 +75,9 @@ export function compileEntitlements(input: {
   }
   const platform: CapacityMap = { ...plan.platform_limits }
   for (const k of Object.keys(platform)) if (!platformKeys.has(k)) throw new CommercialError('limit_not_supported', 'platform_limits')
+  // Code never invents a commercial value: every platform limit the plan does not derive is set by it
+  // (an explicit null means unlimited).
+  for (const k of platformKeys) if (k !== 'branches.extra_limit' && !Object.hasOwn(platform, k)) throw new CommercialError('platform_limit_missing', 'platform_limits')
   Object.assign(features, domain, platform)
   for (const [k, v] of Object.entries(terms?.limits ?? {})) {
     if (!platformKeys.has(k) && !domainKeys.has(k)) throw new CommercialError('limit_not_supported', 'limits')
@@ -89,7 +92,7 @@ export function compileEntitlements(input: {
   for (const app of release.applications) for (const f of app.features) {
     if (Object.hasOwn(features, f.key)) continue
     const open = !app.selectable || selectedApps.has(app.id)
-    features[f.key] = f.kind === 'boolean' ? false : open ? (f.ceiling ?? null) : 0
+    features[f.key] = f.kind === 'boolean' ? open && !f.selectable : open ? (f.ceiling ?? null) : 0
   }
 
   const sorted = Object.fromEntries(Object.keys(features).sort().map(k => [k, features[k] as boolean | number | null]))

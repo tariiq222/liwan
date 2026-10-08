@@ -11,7 +11,7 @@ suite('commercial quotes', () => {
   const reason = 'Test quote preview'
   let plan: any
   const plan0 = (over: any = {}) => ({ name: `P ${randomUUID()}`, audience: { kind: 'public' }, term_months: 12, currency: 'SAR',
-    prices: [{ cadence: monthly, amount: money(0) }], platform_limits: {}, included_bundle_revision_ids: [], optional_bundle_revision_ids: [],
+    prices: [{ cadence: monthly, amount: money(0) }], platform_limits: { 'users.limit': null, 'storage.limit_mb': null }, included_bundle_revision_ids: [], optional_bundle_revision_ids: [],
     included_extra_branches: 1, extra_branch_prices: [{ cadence: monthly, amount: money(50000) }], extra_branches_limit: null, policy_revision_id: POLICY,
     trial_days: 0, grace_days: 0, auto_suspend: true, auto_renew_allowed: true, ...over })
   async function publishPlan(over: any = {}) {
