@@ -220,6 +220,24 @@ class TestNewApp(unittest.TestCase):
             self.assertIn('NEW_APP_REFUSED', err)
         self.assertFalse((self.root / 'odoo-addons/nasq_reports').exists())
 
+    def test_ids_colliding_with_foundation_tokens_are_refused(self):
+        for app in ('mail', 'res', 'project'):
+            code, _, err = run(self.root, app, '--name-ar', 'س', '--name-en', 'S')
+            self.assertEqual(code, 1, app)
+            self.assertIn('NEW_APP_REFUSED', err)
+            self.assertIn('R2', err)
+            self.assertFalse((self.root / f'odoo-addons/nasq_{app}').exists())
+
+    def test_a_clean_id_passes_the_foundation_token_check(self):
+        code, _, err = run(self.root, *ARGS, '--dry-run')
+        self.assertEqual(code, 0, err)
+
+    def test_success_prints_the_catalog_warning(self):
+        code, out, err = run(self.root, *ARGS)
+        self.assertEqual(code, 0, err)
+        self.assertIn('platform_v3.json was edited in place', out)
+        self.assertIn('platform_vN.json', out)
+
     def test_existing_page_or_contracts_entry_blocks_the_id(self):
         (self.root / 'apps/web/app/pages/zzprobe.vue').write_text('<template><div /></template>\n', encoding='utf-8')
         code, _, err = run(self.root, *ARGS)

@@ -46,6 +46,13 @@ CONTRACTS_INDEX = 'packages/contracts/src/index.ts'
 APPLICATION_RANK = 4
 
 
+CATALOG_WARNING = (
+    f'WARNING {PLATFORM_SOLUTION} was edited in place, which changes its sha256. This is allowed only while '
+    'that catalog is unpublished; after the first publish a new application needs a new platform_vN.json, '
+    'decided before the first server deploy.'
+)
+
+
 class ScaffoldError(Exception):
     pass
 
@@ -203,6 +210,20 @@ def validate(root, app, name_ar, name_en):
     if app in existing:
         msg = f'{app!r} is already an addon, application or area'
         raise ScaffoldError(msg)
+    hits = _arch_policy_module().new_app_r2_hits(Path(root), layers, app)
+    if hits:
+        shown = ', '.join(f'{path} ({n})' for path, n in list(hits.items())[:3])
+        msg = (f'{app!r} collides with a name foundation or shared-service code already uses '
+               f'(R2 would fail in {len(hits)} file(s): {shown}); choose another id')
+        raise ScaffoldError(msg)
+
+
+def _arch_policy_module():
+    spec = importlib.util.spec_from_file_location('nasq_arch_policy', TOOLS / 'arch_policy.py')
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
 
 
 def _catalog_module():
@@ -293,6 +314,8 @@ def main(argv=None):
         print(f"{'WOULD EDIT' if args.dry_run else 'EDITED'} {relative}")
     for relative in synced:
         print(f'SYNCED {relative}')
+    if not args.dry_run:
+        print(CATALOG_WARNING)
     return 0
 
 

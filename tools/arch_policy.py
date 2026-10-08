@@ -389,6 +389,32 @@ def _addon_files(addon_dir: Path, suffixes: tuple[str, ...], root: Path | None =
     )
 
 
+def new_app_r2_hits(root: Path, layers: dict, app: str) -> dict[str, int]:
+    """R2 hits a new application `app` (addon `nasq_<app>`, rank 4) would add to files of rank 0-3.
+
+    The token set is built exactly as `collect` does, once for the current ranks and once with the
+    new application added; a file whose count grows would gain a violation.
+    """
+    ranks = layers['ranks']
+    before, after = app_token(ranks), app_token({**ranks, f'nasq_{app}': APP_RANK})
+    addons_root = root / 'odoo-addons'
+    hits: dict[str, int] = {}
+    if app in STATIC_APP_TOKENS:
+        # Already an R2 token (an Odoo model or the meeting engine), so no count can grow.
+        hits[f'STATIC_APP_TOKENS contains {app!r}'] = 1
+    for addon, rank in sorted(ranks.items()):
+        if rank >= APP_RANK or not (addons_root / addon).is_dir():
+            continue
+        for path in _addon_files(addons_root / addon, ('.py', '.xml', '.csv'), root):
+            if path.name == '__manifest__.py':
+                continue
+            text = _read(path)
+            grown = count(after, text) - count(before, text)
+            if grown > 0:
+                hits[_rel(path, root)] = grown
+    return hits
+
+
 def collect(root: Path, layers: dict) -> tuple[Violations, list[str]]:
     ranks, exempt, web_apps = layers['ranks'], layers['exempt'], layers['web_apps']
     commercial = layers['commercial']
