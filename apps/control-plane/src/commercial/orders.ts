@@ -107,7 +107,7 @@ export async function acceptQuote(pool: Pool, value: unknown, principal: Princip
       const previous = subscription.applied_revision_id ? (await client.query('SELECT snapshot FROM subscription_revisions WHERE id=$1', [subscription.applied_revision_id])).rows[0]?.snapshot : null
       if (previous) await assertDowngradeFitsUsage(client, {
         tenant_id: customer.tenant_id, subscription_id: subscription.id,
-        previous: previous.entitlement?.features ?? {}, target: entitlement.features, release: sources.release,
+        previous: previous.entitlement?.features ?? {}, target: entitlement.features,
       })
       const periodStart = previous ? previous.period_start : quote.effective_date
       const periodEnd = previous ? previous.period_end : quote.next_renewal_at

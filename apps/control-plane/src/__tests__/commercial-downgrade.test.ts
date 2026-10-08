@@ -66,6 +66,17 @@ suite('downgrade fail-closed usage guards',()=>{
       await pool.query('INSERT INTO commercial_branches(id,subscription_id,tenant_id,name,kind,billing,state) VALUES($1,$2,$3,$4,$5,$6,$7)',[randomUUID(),f.subscription,f.tenant,name,kind,kind==='hq'?'included':'paid',state])
     await expect(createQuoteForCustomer(pool,{customer_id:f.customer,request},now)).rejects.toMatchObject({status:422,code:'downgrade_below_usage',field:'branches.extra_limit'})
   })
+  it('checks the branch limit even when it is not lowered, and needs no usage sample for it',async()=>{
+    const f=await fixture()
+    for(const name of ['one','two','three'])
+      await pool.query('INSERT INTO commercial_branches(id,subscription_id,tenant_id,name,kind,billing,state) VALUES($1,$2,$3,$4,$5,$6,$7)',[randomUUID(),f.subscription,f.tenant,name,'extra','paid','active'])
+    const client=await pool.connect()
+    try{
+      const run=(limit:number)=>assertDowngradeFitsUsage(client,{tenant_id:f.tenant,subscription_id:f.subscription,previous:{'branches.extra_limit':limit},target:{'branches.extra_limit':limit}})
+      await expect(run(2)).rejects.toMatchObject({status:422,code:'downgrade_below_usage',field:'branches.extra_limit'})
+      await run(3)
+    }finally{client.release()}
+  })
   it.each(['missing','stale','not_collected','source_unavailable'] as const)('fails closed when lowering with %s usage',async fault=>{
     const f=await fixture(),request=await target(f,'users.limit',2)
     if(fault!=='missing') await usage(f,fault==='not_collected'?{'users.limit':null}:{},fault==='stale'?new Date(now.getTime()-15*60000-1):now)
