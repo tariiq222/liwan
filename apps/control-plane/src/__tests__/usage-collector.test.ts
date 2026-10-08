@@ -87,6 +87,16 @@ describe('usage collector yields to shared runtime jobs (no database)', () => {
       expect(await sharedRuntimeBusy(pool as never, {} as never)()).toBe(true) // no runtime config: the job check alone
     } finally { rmSync(dir, { recursive: true, force: true }) }
   })
+  it('sharedRuntimeBusy: an invalid runtime config pauses collection and is logged as such', async () => {
+    const dir = realpathSync(mkdtempSync(join(tmpdir(), 'usage-badcfg-')))
+    try {
+      const configPath = join(dir, 'runtime.json'); writeFileSync(configPath, '{not json')
+      const pool = { query: async () => { throw new Error('the job check must not run') } }
+      const logs: string[] = []
+      expect(await sharedRuntimeBusy(pool as never, { sharedRuntimeConfigPath: configPath } as never, m => logs.push(m))()).toBe(true)
+      expect(logs).toEqual(['invalid shared runtime config; usage collection stays paused'])
+    } finally { rmSync(dir, { recursive: true, force: true }) }
+  })
 })
 
 describe('usage collector lock connection (no database)', () => {

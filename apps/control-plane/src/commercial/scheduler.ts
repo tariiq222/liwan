@@ -36,9 +36,15 @@ const posInt = (v: string | undefined, d: number) => { const n = Number(v); retu
 
 /** True while the shared runtime is owned by someone else: the runtime-gate directory exists, or a shared
  * provision/backup/restore job is claimed (state 'running'). Reads only; a read failure counts as busy. */
-export function sharedRuntimeBusy(pool: Pool, config: Config): () => Promise<boolean> {
+export function sharedRuntimeBusy(pool: Pool, config: Config, log?: (message: string, error?: unknown) => void): () => Promise<boolean> {
   return async () => {
-    if (config.sharedRuntimeConfigPath && existsSync(join(loadSharedRuntimeConfig(config.sharedRuntimeConfigPath).stateDir, 'runtime-gate'))) return true
+    if (config.sharedRuntimeConfigPath) {
+      let stateDir: string
+      // An unreadable runtime config still pauses collection, but it is logged as what it is.
+      try { stateDir = loadSharedRuntimeConfig(config.sharedRuntimeConfigPath).stateDir }
+      catch (error) { try { log?.('invalid shared runtime config; usage collection stays paused', error) } catch { /* never throw */ } return true }
+      if (existsSync(join(stateDir, 'runtime-gate'))) return true
+    }
     return ((await pool.query("SELECT 1 FROM shared_jobs WHERE state='running' LIMIT 1")).rowCount ?? 0) > 0
   }
 }
@@ -93,7 +99,7 @@ export function createCommercialScheduler(o: CommercialSchedulerOptions) {
       if (o.usageRunner && !usageRun && now >= nextUsage && !o.signal?.aborted) {
         nextUsage = now + usageMs
         const runner = o.usageRunner
-        usageRun = collectUsage(pool, { runner, signal: o.signal, budget_ms: usageBudgetMs(usageMs), busy: sharedRuntimeBusy(pool, config) }).then(r => {
+        usageRun = collectUsage(pool, { runner, signal: o.signal, budget_ms: usageBudgetMs(usageMs), busy: sharedRuntimeBusy(pool, config, log) }).then(r => {
           // Another worker is collecting: retry soon rather than a full interval later.
           if (r.locked || r.busy) { nextUsage = clock() + USAGE_RETRY_MS; if (!lockSkipLogged) { lockSkipLogged = true; try { log(r.busy ? 'usage paused: a shared runtime job is running' : 'usage skipped: another collector holds the lock') } catch { /* never throw */ } } }
           else lockSkipLogged = false
