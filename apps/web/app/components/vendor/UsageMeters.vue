@@ -3,7 +3,7 @@ import type { UsageSnapshot } from '@nasq/commercial-contracts'
 import { formatBytes, usageDisplay } from '@/utils/vendorSubscriptions'
 const props = defineProps<{ usage?: UsageSnapshot | null }>()
 const { t, locale } = useI18n()
-const fmt = (unit: string, n: number) => (unit === 'attachment_bytes' ? formatBytes(n) : String(n))
+const fmt = (unit: string, n: number) => (unit === 'attachment_bytes' ? formatBytes(n) : unit === 'mebibytes' ? `${n} MiB` : String(n))
 const rows = computed(() => (props.usage?.metrics ?? []).map(m => ({ m, view: usageDisplay(m) })))
 </script>
 <template>

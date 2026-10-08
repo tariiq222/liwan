@@ -778,7 +778,9 @@
           "users": "المستخدمون",
           "projects": "المشاريع",
           "attachment_bytes": "مساحة المرفقات",
-          "extra_branches": "الفروع الإضافية"
+          "extra_branches": "الفروع الإضافية",
+          "count": "الاستخدام",
+          "mebibytes": "مساحة المرفقات (MiB)"
         },
         "reasons": {
           "source_unreachable": "المصدر لا يستجيب",

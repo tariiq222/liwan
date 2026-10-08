@@ -778,7 +778,9 @@
           "users": "Users",
           "projects": "Projects",
           "attachment_bytes": "Attachment storage",
-          "extra_branches": "Extra branches"
+          "extra_branches": "Extra branches",
+          "count": "Usage",
+          "mebibytes": "Attachment storage (MiB)"
         },
         "reasons": {
           "source_unreachable": "Source unreachable",

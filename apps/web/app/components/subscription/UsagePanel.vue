@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import type { UsageSnapshot } from '@nasq/commercial-contracts'
-import { usageFigure } from '@/utils/subscription'
+import { usageFigure, usageMetricLabel } from '@/utils/subscription'
 const props = defineProps<{ usage: UsageSnapshot }>()
 const { t, te, locale } = useI18n()
 const num = (n: number) => new Intl.NumberFormat(locale.value.startsWith('ar') ? 'ar-SA-u-nu-latn' : 'en-US').format(n)
 const rows = computed(() => props.usage.metrics.map(m => ({ m, f: usageFigure(m, props.usage.freshness) })))
-const label = (key: string) => (te(`subscription.usage.${key}`) ? t(`subscription.usage.${key}`) : key)
 </script>
 <template>
   <div class="space-y-3" data-slot="usage-panel" :data-freshness="usage.freshness">
@@ -16,7 +15,7 @@ const label = (key: string) => (te(`subscription.usage.${key}`) ? t(`subscriptio
     </p>
     <dl class="grid gap-3 sm:grid-cols-2">
       <div v-for="{ m, f } in rows" :key="m.key" class="rounded-lg p-3 ring ring-default" data-testid="usage-metric" :data-known="f.known">
-        <dt class="text-sm text-muted">{{ label(m.unit) }}</dt>
+        <dt class="text-sm text-muted">{{ usageMetricLabel(m, t, te) }}</dt>
         <dd class="mt-1 font-semibold tabular-nums">
           <span v-if="!f.known" class="text-muted">{{ t('subscription.usage.unavailable') }}</span>
           <span v-else>{{ num(f.value!) }} <span class="font-normal text-muted">{{ t('subscription.usage.of') }} {{ f.limit === null ? t('subscription.usage.unlimited') : num(f.limit) }}</span></span>

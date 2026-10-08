@@ -2028,7 +2028,7 @@
       "props": [
         {
           "name": "usage",
-          "type": "{ tenant_id: string; observed_at: string | null; policy_revision_id: string; freshness: \"fresh\" | \"stale\" | \"unavailable\"; metrics: { key: string; used: number | null; limit: number | null; unit: \"users\" | \"projects\" | \"attachment_bytes\" | \"extra_branches\"; reason: \"source_unreachable\" | \"timeout\" | \"not_collected\" | \"forbidden\" | null; }[]; }",
+          "type": "{ tenant_id: string; observed_at: string | null; policy_revision_id: string; freshness: \"fresh\" | \"stale\" | \"unavailable\"; metrics: { key: string; used: number | null; limit: number | null; unit: \"count\" | \"users\" | \"projects\" | \"attachment_bytes\" | \"extra_branches\" | \"mebibytes\"; reason: \"source_unreachable\" | \"timeout\" | \"not_collected\" | \"forbidden\" | null; }[]; }",
           "required": true
         }
       ],
@@ -3202,7 +3202,7 @@
       "props": [
         {
           "name": "usage",
-          "type": "{ tenant_id: string; observed_at: string | null; policy_revision_id: string; freshness: \"fresh\" | \"stale\" | \"unavailable\"; metrics: { key: string; used: number | null; limit: number | null; unit: \"users\" | \"projects\" | \"attachment_bytes\" | \"extra_branches\"; reason: \"source_unreachable\" | \"timeout\" | \"not_collected\" | \"forbidden\" | null; }[]; } | null",
+          "type": "{ tenant_id: string; observed_at: string | null; policy_revision_id: string; freshness: \"fresh\" | \"stale\" | \"unavailable\"; metrics: { key: string; used: number | null; limit: number | null; unit: \"count\" | \"users\" | \"projects\" | \"attachment_bytes\" | \"extra_branches\" | \"mebibytes\"; reason: \"source_unreachable\" | \"timeout\" | \"not_collected\" | \"forbidden\" | null; }[]; } | null",
           "required": false
         }
       ],

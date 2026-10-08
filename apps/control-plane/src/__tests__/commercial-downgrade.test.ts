@@ -5,7 +5,7 @@ import * as orders from '../commercial/orders.js'
 import * as settlements from '../commercial/settlements.js'
 import { createQuoteForCustomer } from '../commercial/quotes.js'
 import { createCustomerTerms } from '../commercial/customer-terms.js'
-import { getUsage, recordUsage } from '../commercial/usage.js'
+import { assertDowngradeFitsUsage, getUsage, recordUsage } from '../commercial/usage.js'
 import { url, setup, client, money, monthly } from './commercial-helpers.js'
 
 const POLICY='6f1c3d8e-0000-4000-8000-000000000001'
@@ -24,7 +24,7 @@ suite('downgrade fail-closed usage guards',()=>{
     const {version}=await setup(pool)
     const release=(await api('POST','/catalog/releases',{catalog_version:version,reason})).body
     const app=release.applications.find((a:any)=>a.features.some((f:any)=>f.key==='projects.max_projects'))
-    const b=await api('POST','/bundles',{name:`Projects ${randomUUID()}`,description:'Projects',audience:{kind:'public'},catalog_release_id:release.id,selections:[{app_id:app.id,feature_keys:[]}],domain_limits:{'projects.max_projects':10},prices:[{cadence:monthly,amount:money(0)}]})
+    const b=await api('POST','/bundles',{name:`Projects ${randomUUID()}`,description:'Projects',audience:{kind:'public'},catalog_release_id:release.id,selections:[{app_id:app.id,feature_keys:['pmo.enabled']}],domain_limits:{'projects.max_projects':10},prices:[{cadence:monthly,amount:money(0)}]})
     const bv=await api('POST',`/bundles/${b.body.id}/validate`,{edit_revision:1,reason})
     bundle=(await api('POST',`/bundles/${b.body.id}/publish`,{edit_revision:bv.body.edit_revision,reason})).body
     expect(bundle.status).toBe('published')
@@ -45,14 +45,14 @@ suite('downgrade fail-closed usage guards',()=>{
     await pool.query("UPDATE subscriptions SET applied_revision_id=target_revision_id,target_revision_id=NULL,state='active',revision=revision+1 WHERE id=$1",[order.subscription_id])
     return {tenant,customer,subscription:order.subscription_id,request:{...request,kind:'change'}}
   }
-  const metrics={users:1,projects:1,attachment_bytes:1024*1024,extra_branches:0}
+  const metrics={'users.limit':1,'projects.max_projects':1,'storage.limit_mb':1,'branches.extra_limit':0}
   async function usage(f:any,over:any={},at=now){await recordUsage(pool,{tenant_id:f.tenant,observed_at:at,metrics:{...metrics,...over},source:'regression'})}
   async function target(f:any,field:string,limit:number|null){
     const terms=await createCustomerTerms(pool,{customer_id:f.customer,reason,...(field==='branches.extra_limit'?{extra_branches_limit:limit}:{limits:{[field]:limit}})},vendor)
     return {...f.request,terms_revision_id:terms.id}
   }
   it.each([
-    ['users.limit','users',3,2],['projects.max_projects','projects',3,2],['storage.limit_mb','attachment_bytes',2*1024*1024+1,2],
+    ['users.limit','users.limit',3,2],['projects.max_projects','projects.max_projects',3,2],['storage.limit_mb','storage.limit_mb',3,2],
   ] as const)('rejects %s below latest usage with an exact field',async(field,key,used,limit)=>{
     const f=await fixture(),request=await target(f,field,limit)
     await usage(f,{[key]:used})
@@ -67,28 +67,40 @@ suite('downgrade fail-closed usage guards',()=>{
   })
   it.each(['missing','stale','not_collected','source_unavailable'] as const)('fails closed when lowering with %s usage',async fault=>{
     const f=await fixture(),request=await target(f,'users.limit',2)
-    if(fault!=='missing') await usage(f,fault==='not_collected'?{users:null}:{},fault==='stale'?new Date(now.getTime()-15*60000-1):now)
+    if(fault!=='missing') await usage(f,fault==='not_collected'?{'users.limit':null}:{},fault==='stale'?new Date(now.getTime()-15*60000-1):now)
     if(fault==='source_unavailable') await pool.query("UPDATE usage_snapshots SET freshness='unavailable' WHERE tenant_id=$1",[f.tenant])
     await expect(createQuoteForCustomer(pool,{customer_id:f.customer,request},now)).rejects.toMatchObject({status:409,code:'usage_unavailable',field:'users.limit'})
   })
   it('raising/unlimited limits does not require usage; equal usage is allowed',async()=>{
     const f=await fixture()
     for(const limit of [20,null]) expect(await createQuoteForCustomer(pool,{customer_id:f.customer,request:await target(f,'users.limit',limit)},now)).toHaveProperty('id')
-    await usage(f,{users:2})
+    await usage(f,{'users.limit':2})
     expect(await createQuoteForCustomer(pool,{customer_id:f.customer,request:await target(f,'users.limit',2)},now)).toHaveProperty('id')
   })
   it.each(['increased','stale'] as const)('acceptance rechecks %s usage transactionally',async fault=>{
     const f=await fixture(),request=await target(f,'users.limit',2)
     await usage(f)
     const q=await createQuoteForCustomer(pool,{customer_id:f.customer,request},now)
-    if(fault==='increased') await usage(f,{users:3},new Date(now.getTime()+1))
+    if(fault==='increased') await usage(f,{'users.limit':3},new Date(now.getTime()+1))
     else await pool.query("UPDATE usage_snapshots SET observed_at=now()-interval '16 minutes' WHERE tenant_id=$1",[f.tenant])
     await expect(orders.acceptQuote(pool,{quote_id:q.id,expected_subscription_revision:q.expected_subscription_revision,idempotency_key:randomUUID()},vendor)).rejects.toMatchObject({status:fault==='increased'?422:409,code:fault==='increased'?'downgrade_below_usage':'usage_unavailable'})
     expect((await pool.query('SELECT count(*)::int AS n FROM orders WHERE subscription_id=$1',[f.subscription])).rows[0].n).toBe(1)
     expect((await pool.query('SELECT target_revision_id FROM subscriptions WHERE id=$1',[f.subscription])).rows[0].target_revision_id).toBeNull()
   })
+  it('skips a limit whose application the target closes: removing an app keeps its rows',async()=>{
+    const f=await fixture()
+    await usage(f,{'projects.max_projects':9})
+    const release=(await api('GET',`/catalog/releases`)).body.items.find((r:any)=>r.id===bundle.catalog_release_id)
+    const app=release.applications.find((a:any)=>a.features.some((x:any)=>x.key==='projects.max_projects'))
+    const closed=Object.fromEntries(app.features.map((x:any)=>[x.key,x.kind==='boolean'?false:0]))
+    const client=await pool.connect()
+    try{
+      await assertDowngradeFitsUsage(client,{tenant_id:f.tenant,subscription_id:f.subscription,previous:{'projects.max_projects':10,'pmo.enabled':true},target:closed,release,now})
+      await expect(assertDowngradeFitsUsage(client,{tenant_id:f.tenant,subscription_id:f.subscription,previous:{'projects.max_projects':10,'pmo.enabled':true},target:{...closed,'pmo.enabled':true},release,now})).rejects.toMatchObject({code:'downgrade_below_usage',field:'projects.max_projects'})
+    }finally{client.release()}
+  })
   it('usage reports applied policy revision, not subscription revision UUID',async()=>{
     const f=await fixture();await usage(f)
-    expect((await getUsage(pool,{tenant_id:f.tenant,limits:{users:10},now})).policy_revision_id).toBe(POLICY)
+    expect((await getUsage(pool,{tenant_id:f.tenant,limits:{'users.limit':10},now})).policy_revision_id).toBe(POLICY)
   })
 })

@@ -1,41 +1,54 @@
 import type { Pool, PoolClient } from 'pg'
-import type { UsageSnapshot, UsageMetric } from '@nasq/commercial-contracts'
+import type { CatalogRelease, UsageSnapshot, UsageMetric } from '@nasq/commercial-contracts'
 import { transaction } from '../db.js'
 import { CommercialHttpError } from './lifecycle.js'
 
-/** Both quote preview and acceptance check against the applied entitlement. */
+type Features = Record<string, boolean | number | null>
+const BRANCH_LIMIT = 'branches.extra_limit'
+const FRESH_MS = 15 * 60 * 1000
+
+/** True when the target closes the release application that owns KEY (every boolean false).
+ * Removing an application keeps its rows read-only; it does not lower a limit in use. */
+function closedByTarget(release: Pick<CatalogRelease, 'applications'> | undefined, key: string, target: Features): boolean {
+  const app = release?.applications.find(a => a.features.some(f => f.key === key))
+  const gates = app?.features.filter(f => f.kind === 'boolean').map(f => f.key) ?? []
+  return gates.length > 0 && gates.every(gate => target[gate] === false)
+}
+
+/** Both quote preview and acceptance check against the applied entitlement.
+ * Metrics are keyed by limit key, in the limit's own unit (Odoo's _nasq_count_usage). */
 export async function assertDowngradeFitsUsage(client: Pick<PoolClient, 'query'>, input: {
-  tenant_id: string | null; subscription_id: string;
-  previous: Record<string, boolean | number | null>; target: Record<string, boolean | number | null>; now?: Date
+  tenant_id: string | null; subscription_id: string; previous: Features; target: Features
+  release?: Pick<CatalogRelease, 'applications'>; now?: Date
 }) {
-  const fields = [['users.limit','users',1], ['projects.max_projects','projects',1],
-    ['storage.limit_mb','attachment_bytes',1024*1024], ['branches.extra_limit','extra_branches',1]] as const
-  const lowering = fields.filter(([field]) => {
-    const next = input.target[field] === undefined ? 0 : input.target[field]
-    const previous = input.previous[field]
-    return typeof next === 'number' && (previous === null || (typeof previous === 'number' && next < previous))
+  const keys = [...new Set([...Object.keys(input.previous), ...Object.keys(input.target)])].sort()
+  const lowering = keys.filter(key => {
+    const previous = input.previous[key]
+    const next = input.target[key] === undefined ? 0 : input.target[key]
+    if (typeof previous === 'boolean' || typeof next !== 'number') return false
+    if (!(previous === null || (typeof previous === 'number' && next < previous))) return false
+    return !closedByTarget(input.release, key, input.target)
   })
   if (!lowering.length) return
   const now = input.now ?? new Date()
   if (input.tenant_id) await client.query('SELECT id FROM tenants WHERE id=$1 FOR SHARE', [input.tenant_id])
   const row = input.tenant_id ? (await client.query('SELECT observed_at,metrics,freshness FROM usage_snapshots WHERE tenant_id=$1 ORDER BY observed_at DESC,id DESC LIMIT 1 FOR SHARE', [input.tenant_id])).rows[0] : null
-  for (const [field,key,unit] of lowering) {
+  for (const key of lowering) {
     const used = row?.metrics?.[key]
     if (!row || row.freshness !== 'fresh' || now.getTime() - new Date(row.observed_at).getTime() > FRESH_MS
       || typeof used !== 'number' || !Number.isFinite(used) || used < 0)
-      throw new CommercialHttpError('usage_unavailable', 409, field)
+      throw new CommercialHttpError('usage_unavailable', 409, key)
     let observed = used
-    if (field === 'branches.extra_limit') {
+    if (key === BRANCH_LIMIT) {
       const count = (await client.query("SELECT count(*)::int AS n FROM commercial_branches WHERE subscription_id=$1 AND kind='extra' AND state IN ('active','pending')", [input.subscription_id])).rows[0].n
       observed = Math.max(observed, count)
     }
-    const limit = typeof input.target[field] === 'number' ? input.target[field] as number : 0
-    if (observed > limit * unit) throw new CommercialHttpError('downgrade_below_usage', 422, field)
+    const limit = typeof input.target[key] === 'number' ? input.target[key] as number : 0
+    if (observed > limit) throw new CommercialHttpError('downgrade_below_usage', 422, key)
   }
 }
 
-const FRESH_MS = 15 * 60 * 1000
-const UNITS: Record<string, UsageMetric['unit']> = { users: 'users', projects: 'projects', attachment_bytes: 'attachment_bytes', extra_branches: 'extra_branches' }
+const UNITS: Record<string, UsageMetric['unit']> = { 'users.limit': 'users', 'storage.limit_mb': 'mebibytes', [BRANCH_LIMIT]: 'extra_branches' }
 
 export async function getUsage(pool: Pool, input: { tenant_id: string; limits: Record<string, number | null>; now?: Date }): Promise<UsageSnapshot> {
   const now = input.now ?? new Date()
@@ -51,7 +64,7 @@ export async function getUsage(pool: Pool, input: { tenant_id: string; limits: R
   const metrics: UsageMetric[] = keys.map(key => {
     const v = freshness === 'unavailable' ? null : stored[key]
     const used = typeof v === 'number' ? v : null
-    return { key, used, limit: input.limits[key] ?? null, unit: UNITS[key] ?? 'users', reason: used === null ? 'not_collected' : null }
+    return { key, used, limit: input.limits[key] ?? null, unit: UNITS[key] ?? 'count', reason: used === null ? 'not_collected' : null }
   })
   return { tenant_id: input.tenant_id, observed_at: observed ? observed.toISOString() : null, policy_revision_id: policy, freshness, metrics }
 }
