@@ -16,12 +16,18 @@ const crm: AppManifest = {
 }
 
 describe('app manifests', () => {
-  it('discovers the four applications in rail order', () => {
-    expect(appManifests.map(manifest => manifest.id)).toEqual(['pmo', 'meetings', 'chat', 'hr'])
-    expect(appManifests.flatMap(manifest => manifest.rail.map(entry => entry.id))).toEqual(['home', 'projects', 'meetings', 'chat', 'hr'])
+  // Additional applications may be added without editing this test: today's applications must stay present, in the same relative order.
+  const inOrder = (actual: string[], expected: string[]) => actual.filter(id => expected.includes(id))
+  it('discovers today\'s four applications in rail order', () => {
+    const ids = appManifests.map(manifest => manifest.id)
+    expect(inOrder(ids, ['pmo', 'meetings', 'chat', 'hr'])).toEqual(['pmo', 'meetings', 'chat', 'hr'])
+    expect(new Set(ids).size).toBe(ids.length)
+    const rail = appManifests.flatMap(manifest => manifest.rail.map(entry => entry.id))
+    expect(inOrder(rail, ['home', 'projects', 'meetings', 'chat', 'hr'])).toEqual(['home', 'projects', 'meetings', 'chat', 'hr'])
+    expect(new Set(rail).size).toBe(rail.length)
   })
   it('keeps the module feature map', () => {
-    expect(MODULE_FEATURES).toEqual({
+    expect(MODULE_FEATURES).toMatchObject({
       home: 'pmo.enabled', projects: 'pmo.enabled', meetings: 'meetings.enabled', chat: 'chat.enabled', hr: 'hr.enabled',
       settings: null, vendor: null, management: null,
     })

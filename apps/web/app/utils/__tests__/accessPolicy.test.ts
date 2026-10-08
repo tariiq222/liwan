@@ -105,19 +105,19 @@ describe('access policy navigation', () => {
   })
 
   it("reaches a newer application's capability through its own feature, without navigation", () => {
-    const sales = (readable: string[], writable: string[]) => ({
-      capabilities: ['sales.orders.read', 'sales.orders.write'],
-      modules: ['nasq_sales'],
-      entitlements: { 'sales.enabled': readable.includes('sales.enabled') },
+    const unregistered = (readable: string[], writable: string[]) => ({
+      capabilities: ['zz_unregistered.orders.read', 'zz_unregistered.orders.write'],
+      modules: ['nasq_zz_unregistered'],
+      entitlements: { 'zz_unregistered.enabled': readable.includes('zz_unregistered.enabled') },
       platform: { readable_features: readable, writable_features: writable },
     })
-    expect(canReach(sales(['sales.enabled'], ['sales.enabled']), 'sales.orders.write')).toBe(true)
-    expect(canReach(sales(['sales.enabled'], []), 'sales.orders.read')).toBe(true)
-    expect(canReach(sales(['sales.enabled'], []), 'sales.orders.write')).toBe(false)
-    expect(canReach(sales([], []), 'sales.orders.read')).toBe(false)
-    expect(canReach({ capabilities: ['sales.orders.read'] }, 'sales.orders.write')).toBe(false)
-    // Nav entries and landing pages for new apps are Phase 4 (app manifest): a sales-only user lands on /account.
-    expect(firstAllowedPath(sales(['sales.enabled'], ['sales.enabled']))).toBe('/account')
-    expect(requiredCapabilityForPath('/sales/orders')).toBeNull()
+    expect(canReach(unregistered(['zz_unregistered.enabled'], ['zz_unregistered.enabled']), 'zz_unregistered.orders.write')).toBe(true)
+    expect(canReach(unregistered(['zz_unregistered.enabled'], []), 'zz_unregistered.orders.read')).toBe(true)
+    expect(canReach(unregistered(['zz_unregistered.enabled'], []), 'zz_unregistered.orders.write')).toBe(false)
+    expect(canReach(unregistered([], []), 'zz_unregistered.orders.read')).toBe(false)
+    expect(canReach({ capabilities: ['zz_unregistered.orders.read'] }, 'zz_unregistered.orders.write')).toBe(false)
+    // An application with no registered manifest has no nav entries or landing page (a manifest adds them): an unregistered-app-only user lands on /account.
+    expect(firstAllowedPath(unregistered(['zz_unregistered.enabled'], ['zz_unregistered.enabled']))).toBe('/account')
+    expect(requiredCapabilityForPath('/zz_unregistered/orders')).toBeNull()
   })
 })
