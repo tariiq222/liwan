@@ -6,11 +6,12 @@ export type UsageObservation = { database: string; observed_at: string; usage: R
 export type UsageObserveRunner = (input: { tenant_id: string; database: string; signal?: AbortSignal }) => Promise<unknown>
 
 const LIMIT_KEY = /^(?:[a-z][a-z0-9_]*\.)+[a-z][a-z0-9_]*$/
-const FRESH_MS = 15 * 60 * 1000
+export const FRESH_MS = 15 * 60 * 1000
 const SKEW_MS = 5 * 60 * 1000
-const PER_TENANT_MS = 30_000
+export const PER_TENANT_MS = 30_000
 const DEFAULT_LIMIT = 50
-const BUDGET_MS = 60_000
+/** Fallback per-run budget: 80% of the default 300 s scheduler interval (the scheduler passes 80% of the real interval). */
+export const BUDGET_MS = 240_000
 // Two-int advisory lock: a different key space from every single-bigint lock in the control plane
 // (1397969233 migrate, REGISTRY_ADVISORY_LOCK 1397969234, hashtext(...) worker locks), so it can never collide with them.
 export const USAGE_LOCK_CLASS = 1397969235
@@ -62,10 +63,10 @@ async function withDeadline<T>(work: (signal: AbortSignal) => Promise<T>, ms: nu
  * collects at a time across workers (advisory lock; a second caller returns { locked: true }).
  * Nothing is recorded unless the observation names the bound database, is fresh, complete, and the
  * binding is unchanged after the observation; a rejected sample leaves the previous snapshot untouched. */
-export async function collectUsage(pool: Pool, input: { runner: UsageObserveRunner; now?: () => Date; log?: (message: string) => void; limit?: number; timeout_ms?: number; budget_ms?: number; signal?: AbortSignal }) {
+export async function collectUsage(pool: Pool, input: { runner: UsageObserveRunner; now?: () => Date; log?: (message: string) => void; limit?: number; timeout_ms?: number; budget_ms?: number; signal?: AbortSignal; busy?: () => Promise<boolean> }) {
   const now = input.now ?? (() => new Date())
   const log = input.log ?? ((message: string) => console.error(`[usage-collector] ${message}`))
-  const result = { recorded: 0, skipped: 0, locked: false }
+  const result: { recorded: number; skipped: number; locked: boolean; busy?: boolean } = { recorded: 0, skipped: 0, locked: false }
   if (input.signal?.aborted) return result
   const lock = await pool.connect()
   let broken = false
@@ -84,6 +85,10 @@ export async function collectUsage(pool: Pool, input: { runner: UsageObserveRunn
       const deadline = Date.now() + (input.budget_ms ?? BUDGET_MS)
       for (const target of targets) {
         if (Date.now() >= deadline || input.signal?.aborted) break
+        // A provision, backup or restore owns the shared runtime: an observation container would
+        // collide with its writer check, so stop before this tenant (and retry soon). A check
+        // that cannot be answered counts as busy.
+        if (input.busy && await input.busy().catch(() => true)) { result.busy = true; break }
         try {
           // The attempt is recorded before observing, so a hang or failure still moves the tenant to the back.
           await pool.query('INSERT INTO usage_collection_attempts(tenant_id,attempted_at) VALUES($1,clock_timestamp()) ON CONFLICT (tenant_id) DO UPDATE SET attempted_at=excluded.attempted_at', [target.tenant_id])

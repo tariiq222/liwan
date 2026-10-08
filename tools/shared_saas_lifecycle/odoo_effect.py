@@ -32,6 +32,10 @@ class EffectError(ValueError):
     pass
 
 
+# Usage observations and read-back snapshots: `<project>-effect-<attempt8>-<kind>-<hex>`.
+OBSERVE_CONTAINER = re.compile(r'-effect-[a-f0-9]{8}-(?:observe|snapshot|read-admin)-[a-f0-9]+$')
+
+
 def validate_database(value):
     if not isinstance(value, str) or not re.fullmatch(r'nasq_scratch_[a-f0-9]{32}', value):
         raise EffectError('database_invalid')
@@ -263,19 +267,25 @@ class Runner:
         finally:
             self.current_container = None
 
-    def assert_no_effect_containers(self):
+    def assert_no_effect_containers(self, *, ignore_observe=False):
         rows = self.command(['docker', 'ps', '--filter', 'label=com.docker.compose.project=' + self.config['projectName'], '--format', '{{.Names}}']).splitlines()
-        if any('-effect-' in name for name in rows):
-            raise EffectError('runtime_writer_present')
+        for name in rows:
+            if '-effect-' in name and not (ignore_observe and OBSERVE_CONTAINER.search(name)):
+                raise EffectError('runtime_writer_present')
 
     def apply_owned(self):
         permit('runtime')
+        # Refuse a busy project BEFORE the gate exists: a refusal here has run no effect, so it
+        # leaves nothing behind and the job can simply be retried once the other container ended.
+        self.assert_no_effect_containers()
         gate = RuntimeGate(self.root, {'attemptId': self.request['attemptId'], 'fence': self.request['fence'], 'digest': self.request['payloadDigest']})
         gate.acquire()
-        self.assert_no_effect_containers()
         self.apply()
         permit('release')
-        self.assert_no_effect_containers()
+        # Our effects are done and verified. A read-only usage observation of another tenant that
+        # is still running must not wedge the lane (the gate would stay forever), so only a
+        # container that can write (a mutating effect) refuses the release.
+        self.assert_no_effect_containers(ignore_observe=True)
         gate.complete()
 
     def apply(self):

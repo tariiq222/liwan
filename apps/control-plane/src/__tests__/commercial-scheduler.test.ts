@@ -28,7 +28,7 @@ describe('commercial scheduler', () => {
     expect(calls).toBe(1)  // single flight: the first run is still in progress
   });
 
-  it('uses a wall-clock interval (default 300 s, clamped to 600 s), not a tick count', async () => {
+  it('uses a wall-clock interval (default 300 s, capped at 500 s), not a tick count', async () => {
     vi.spyOn(console, 'debug').mockImplementation(() => {})
     const run = async (env: Record<string, string>, stepMs: number, ticks: number) => {
       let calls = 0, now = 1_000_000
@@ -42,7 +42,7 @@ describe('commercial scheduler', () => {
     }
     expect(await run({}, 1000, 20)).toBe(1)                       // 20 s of ticks: one run
     expect(await run({}, 100_000, 7)).toBe(3)                     // 600 s: runs at 0, 300, 600 s
-    expect(await run({ NASQ_COMMERCIAL_USAGE_INTERVAL_SEC: '999999' }, 100_000, 7)).toBe(2)  // clamped to 600 s: runs at 0 and 600 s
+    expect(await run({ NASQ_COMMERCIAL_USAGE_INTERVAL_SEC: '999999' }, 100_000, 7)).toBe(2)  // capped at 500 s: runs at 0 and 500 s
     expect(await run({ NASQ_COMMERCIAL_USAGE_INTERVAL_SEC: 'junk' }, 100_000, 7)).toBe(3)    // invalid: default
   });
 

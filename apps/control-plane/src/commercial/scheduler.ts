@@ -9,7 +9,10 @@ import { generateRenewals, applyDunning } from './renewals.js'
 import * as settlements from './settlements.js'
 import type { PaymentAdapter } from './payment-adapter.js'
 import type { MailAdapter } from './mail-adapter.js'
-import { collectUsage, type UsageObserveRunner } from './usage-collector.js'
+import { existsSync } from 'node:fs'
+import { join } from 'node:path'
+import { loadSharedRuntimeConfig } from '../shared/runtime-config.js'
+import { collectUsage, FRESH_MS, type UsageObserveRunner } from './usage-collector.js'
 
 type Env = Record<string, string | undefined>
 export type CommercialSchedulerOptions = {
@@ -22,15 +25,31 @@ export type CommercialSchedulerOptions = {
   log?: (message: string, err?: unknown) => void
 }
 
+/** A usage run may use 80% of the interval, so the next one starts on time and a tenant is revisited about every interval. */
+export const usageBudgetMs = (intervalMs: number) => Math.floor(intervalMs * 0.8)
+
+/** A tenant sampled at the start of one run and at the end of the next is INTERVAL + BUDGET (1.8 x interval) apart;
+ * that must stay inside the freshness window (500 s for 15 min), or a downgrade check can find no fresh sample. */
+export const USAGE_MAX_INTERVAL_MS = Math.floor(FRESH_MS / 1.8)
+
 const posInt = (v: string | undefined, d: number) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? Math.floor(n) : d }
+
+/** True while the shared runtime is owned by someone else: the runtime-gate directory exists, or a shared
+ * provision/backup/restore job is claimed (state 'running'). Reads only; a read failure counts as busy. */
+export function sharedRuntimeBusy(pool: Pool, config: Config): () => Promise<boolean> {
+  return async () => {
+    if (config.sharedRuntimeConfigPath && existsSync(join(loadSharedRuntimeConfig(config.sharedRuntimeConfigPath).stateDir, 'runtime-gate'))) return true
+    return ((await pool.query("SELECT 1 FROM shared_jobs WHERE state='running' LIMIT 1")).rowCount ?? 0) > 0
+  }
+}
 
 export function createCommercialScheduler(o: CommercialSchedulerOptions) {
   const { pool, config, env } = o
   const clock = o.clock ?? Date.now
   const log = o.log ?? ((m: string, e?: unknown) => console.error(`[commercial-scheduler] ${m}`, e instanceof Error ? e.message : e ?? ''))
   const reconcileEvery = posInt(env.NASQ_COMMERCIAL_RECONCILE_EVERY, 10)
-  // Downgrade checks need a sample younger than 15 minutes (usage.ts): the interval defaults to 5 minutes and is clamped to 10.
-  const usageMs = Math.min(posInt(env.NASQ_COMMERCIAL_USAGE_INTERVAL_SEC, 300), 600) * 1000
+  // Downgrade checks need a sample younger than 15 minutes (usage.ts): the interval defaults to 5 minutes and is capped at USAGE_MAX_INTERVAL_MS.
+  const usageMs = Math.min(posInt(env.NASQ_COMMERCIAL_USAGE_INTERVAL_SEC, 300) * 1000, USAGE_MAX_INTERVAL_MS)
   let nextUsage = 0
   let lockSkipLogged = false
   const USAGE_RETRY_MS = 30_000
@@ -74,9 +93,9 @@ export function createCommercialScheduler(o: CommercialSchedulerOptions) {
       if (o.usageRunner && !usageRun && now >= nextUsage && !o.signal?.aborted) {
         nextUsage = now + usageMs
         const runner = o.usageRunner
-        usageRun = collectUsage(pool, { runner, signal: o.signal }).then(r => {
+        usageRun = collectUsage(pool, { runner, signal: o.signal, budget_ms: usageBudgetMs(usageMs), busy: sharedRuntimeBusy(pool, config) }).then(r => {
           // Another worker is collecting: retry soon rather than a full interval later.
-          if (r.locked) { nextUsage = clock() + USAGE_RETRY_MS; if (!lockSkipLogged) { lockSkipLogged = true; try { log('usage skipped: another collector holds the lock') } catch { /* never throw */ } } }
+          if (r.locked || r.busy) { nextUsage = clock() + USAGE_RETRY_MS; if (!lockSkipLogged) { lockSkipLogged = true; try { log(r.busy ? 'usage paused: a shared runtime job is running' : 'usage skipped: another collector holds the lock') } catch { /* never throw */ } } }
           else lockSkipLogged = false
         }, e => { try { log('usage failed', e) } catch { /* never throw */ } }).finally(() => { usageRun = undefined })
       }
