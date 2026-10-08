@@ -24,6 +24,7 @@ steps:
       - if git rev-parse --is-shallow-repository | grep -q true; then git fetch --unshallow origin; fi
       - ruff check odoo-addons
       - python3 -B -m unittest discover -s deploy -p 'test_*.py'
+      - python3 -B -m unittest tools/shared_saas_lifecycle/test_*.py
       - python3 -B tools/catalog_check.py
       - python3 -B tools/migration_guard.py --base origin/main
       - python3 -B tools/git_policy.py --base "${CI_PREV_COMMIT_SHA:-origin/main}"
