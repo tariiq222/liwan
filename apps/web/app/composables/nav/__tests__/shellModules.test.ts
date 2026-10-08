@@ -1,5 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
-import { contextLinksForModule, hidePinnedNewProject, visibleShellModules, useNav } from '../shellModules'
+import { allNavItems, contextLinksForModule, featureForRailModule, hidePinnedNewProject, shellModuleList, visibleShellModules, useNav } from '../shellModules'
+import { appManifests, withManifests } from '../../../modules/manifests'
+import type { AppManifest } from '../../../modules/types'
 import { activeShellModule } from '../activeRoute'
 
 const employee = { role: 'employee', capabilities: ['pmo.tasks.read', 'pmo.projects.read', 'meetings.read', 'hr.employees.read', 'hr.departments.read', 'hr.documents.read'] }
@@ -159,5 +161,54 @@ describe('projects dashboard navigation', () => {
   it('orders meetings as list, calendar, recurring series after the pinned create action', () => {
     expect(contextLinksForModule('meetings', full).map(link => link.id)).toEqual(['new-meeting', 'meetings', 'meeting-calendar', 'meeting-series'])
     expect(contextLinksForModule('hr', full, '/hr').map(link => link.labelKey)).toEqual(['nav.employees', 'nav.departments', 'nav.documents'])
+  })
+})
+
+const crm: AppManifest = {
+  id: 'crm',
+  feature: 'crm.enabled',
+  routePrefixes: ['/crm'],
+  rail: [{ id: 'crm', labelKey: 'nav.crm', icon: 'i-lucide-handshake', to: '/crm', order: 60 }],
+  nav: [
+    { to: '/crm', labelKey: 'nav.crmLeads', icon: 'i-lucide-handshake', shortcut: 'j', capability: 'crm.leads.read' },
+    { to: '/crm/deals', labelKey: 'nav.crmDeals', icon: 'i-lucide-banknote', shortcut: 'd', capability: 'crm.deals.read' },
+  ],
+  contextLinks: () => [{ id: 'new-lead', labelKey: 'nav.newLead', icon: 'i-lucide-plus', to: '/crm/leads/new', capability: 'crm.leads.create', pinned: true }],
+}
+const crmIdentity = {
+  role: 'employee',
+  capabilities: ['crm.leads.read', 'crm.leads.create', 'crm.deals.read'],
+  platform: { readable_features: ['crm.enabled'], writable_features: ['crm.enabled'] },
+}
+
+describe('navigation built from app manifests', () => {
+  it('keeps shortcuts unique across manifests and foundation items', () => {
+    const shortcuts = allNavItems().map(item => item.shortcut).filter(Boolean)
+    expect(new Set(shortcuts).size).toBe(shortcuts.length)
+    for (const shortcut of shortcuts) expect(shortcut).toMatch(/^[a-z0-9]$/)
+  })
+  it('lists the rail in order from the manifests', () => {
+    expect(shellModuleList().map(module => module.id)).toEqual(['home', 'projects', 'meetings', 'chat', 'hr', 'settings', 'management', 'vendor'])
+  })
+  it('shows a new application in the rail, nav, sidebar and active module with no foundation edit', () => {
+    withManifests([...appManifests, crm], () => {
+      expect(useNav(crmIdentity).map(item => [item.to, item.group, item.module])).toEqual([['/crm', 'crm', 'crm'], ['/crm/deals', 'crm', 'crm']])
+      expect(shellModuleList().map(module => module.id)).toContain('crm')
+      expect(visibleShellModules(crmIdentity).map(module => module.id)).toEqual(['crm'])
+      expect(activeShellModule('/crm/deals/4')).toBe('crm')
+      expect(contextLinksForModule('crm', crmIdentity).map(link => link.id)).toEqual(['new-lead'])
+      expect(featureForRailModule('crm')).toBe('crm.enabled')
+    })
+    expect(activeShellModule('/crm')).toBeNull()
+    expect(useNav(crmIdentity)).toEqual([])
+    expect(shellModuleList().map(module => module.id)).not.toContain('crm')
+  })
+  it('hides a new application whose feature is closed and treats unknown rail modules as gated', () => {
+    withManifests([...appManifests, crm], () => {
+      const closed = { ...crmIdentity, platform: { readable_features: ['hr.enabled'], writable_features: [] } }
+      expect(useNav(closed)).toEqual([])
+      expect(featureForRailModule('nope')).toBeUndefined()
+      expect(featureForRailModule('settings')).toBeNull()
+    })
   })
 })

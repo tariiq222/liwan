@@ -9,7 +9,7 @@ import {
   type ShellModule,
 } from './nav/shellModules'
 import { activeShellModule, contextModuleFor, projectIdFromPath } from './nav/activeRoute'
-import type { AccessIdentity } from '@/utils/accessPolicy'
+import { isNavPathActive, type AccessIdentity } from '../utils/accessPolicy'
 
 export function useModuleRail() {
   const expanded = useState('nasq-module-rail-expanded', () => false)
@@ -53,16 +53,7 @@ export function useShellNavigation(identity: MaybeRefOrGetter<AccessIdentity>) {
   return { activeModule, module, projectId, project, contextLinks }
 }
 
-export function isContextPathActive(path: string, to: ShellContextLink['to'], query: Record<string, unknown> = {}): boolean {
-  const target = typeof to === 'string' ? to : to.path
-  if (target === '/hr') return path === '/hr' || (path.startsWith('/hr/employees/') && path !== '/hr/employees/new')
-  if (target === '/hr/documents') return (path === target || (path.startsWith(`${target}/`) && path !== '/hr/documents/new') || /^\/hr\/departments\/[^/]+\/documents(?:\/|$)/.test(path))
-  if (target === '/hr/departments') return path === target || (path.startsWith(`${target}/`) && path !== '/hr/departments/new' && !/\/documents(?:\/|$)/.test(path))
-  if (target === '/meetings') return path === target || (path.startsWith(`${target}/`) && path !== '/meetings/new' && !path.startsWith('/meetings/calendar') && !path.startsWith('/meetings/series'))
-  if (target === '/chat') return path === target || (path.startsWith(`${target}/`) && !path.startsWith('/chat/new'))
-  if (target === '/meetings/calendar') return path === target
-  // «كل المشاريع» stays active on the list, its create form and every project record.
-  if (target === '/projects') return path === target || path === '/projects/new' || /^\/projects\/[1-9]\d*(?:\/|$)/.test(path)
-  if (target === '/tasks') return path === target || path.startsWith('/tasks/') || path === '/archived-tasks'
-  return path === target || path.startsWith(`${target}/`)
+/** Active test for a context link: the owning application's `isNavActive`, else same path or sub-path. */
+export function isContextPathActive(path: string, to: ShellContextLink['to'], _query: Record<string, unknown> = {}): boolean {
+  return isNavPathActive(path, typeof to === 'string' ? to : to.path ?? '')
 }
