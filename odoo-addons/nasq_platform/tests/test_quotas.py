@@ -40,3 +40,13 @@ class TestTenantQuotas(TransactionCase):
                 'raw': b'x' * 100,
                 'mimetype': 'text/plain',
             })
+
+    def test_storage_usage_is_counted_in_whole_mebibytes(self):
+        self.env['ir.attachment'].create({'name': 'counted.txt', 'raw': b'x' * 10, 'mimetype': 'text/plain'})
+        used = int(self.service._nasq_count_storage_bytes())
+        self.assertEqual(self.service._nasq_count_usage('storage.limit_mb'), -(-used // 1048576))
+        self.assertGreaterEqual(self.service._nasq_count_usage('storage.limit_mb'), 1)
+
+    def test_branch_usage_counts_active_branches(self):
+        active = self.env['nasq.tenant.branch'].search_count([('state', '=', 'active')])
+        self.assertEqual(self.service._nasq_count_usage('branches.extra_limit'), active)

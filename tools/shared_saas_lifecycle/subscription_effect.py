@@ -29,11 +29,6 @@ SCRIPT_ERRORS = frozenset({
     'branch_binding_invalid', 'branch_binding_conflict', 'branch_not_found',
     'feature_not_included', 'subscription_script_failed',
 })
-LIMITS = (
-    ('users.limit', 'users', 1),
-    ('projects.max_projects', 'projects', 1),
-    ('storage.limit_mb', 'attachment_bytes', 1048576),
-)
 BRANCH_LIMIT = 'branches.extra_limit'
 
 
@@ -124,13 +119,19 @@ def collect(profile):
         c = b.company_id.with_context(active_test=False)
         branches.append({'branch_id': b.branch_uid, 'state': b.state, 'odoo_company_id': c.id,
                          'active': bool(c.active), 'parent_is_root': c.parent_id == root})
-    usage = {'users': service._nasq_count_users(), 'projects': service._nasq_count_usage('projects.max_projects'),
-             'attachment_bytes': int(service._nasq_count_storage_bytes()),
-             'extra_branches': len([b for b in branches if b['state'] == 'active'])}
+    definitions = env['nasq.feature.registry']._nasq_feature_map()
+    usage, gates = {}, {}
+    for key, item in sorted(definitions.items()):
+        if item['type'] != 'limit':
+            continue
+        usage[key] = int(service._nasq_count_usage(key))
+        owner = item['module']
+        gates[key] = sorted(k for k, other in definitions.items()
+                            if other['type'] == 'boolean' and other['module'] == owner and owner != 'nasq_platform')
     return {'database': env.cr.dbname, 'commercial_revision_id': profile.commercial_revision_id or None,
             'commercial_digest': profile.commercial_digest or None,
             'commercial_applied_at': str(profile.commercial_applied_at) if profile.commercial_applied_at else None,
-            'features': feats, 'modules': modules, 'branches': branches, 'usage': usage}
+            'features': feats, 'modules': modules, 'branches': branches, 'usage': usage, 'limit_gates': gates}
 
 def read_profile():
     profile = env['nasq.tenant.profile'].search([], limit=2)
@@ -232,7 +233,7 @@ def parse_output(stdout):
 
 def validate_observation(value):
     keys = {'database', 'commercial_revision_id', 'commercial_digest', 'commercial_applied_at',
-            'features', 'modules', 'branches', 'usage'}
+            'features', 'modules', 'branches', 'usage', 'limit_gates'}
     if set(value) != keys:
         raise EffectError('observation_invalid')
     odoo_effect.validate_database(value['database'])
@@ -242,9 +243,14 @@ def validate_observation(value):
             raise EffectError('observation_invalid')
     if not isinstance(value['modules'], list) or not all(isinstance(m, str) for m in value['modules']):
         raise EffectError('observation_invalid')
-    usage = value['usage']
-    if (not isinstance(usage, dict) or set(usage) != {'users', 'projects', 'attachment_bytes', 'extra_branches'}
-            or not all(type(v) is int and v >= 0 for v in usage.values())):
+    usage, gates = value['usage'], value['limit_gates']
+    if (not isinstance(usage, dict) or not 1 <= len(usage) <= 256
+            or not all(isinstance(k, str) and FEATURE_RE.fullmatch(k) and type(v) is int and v >= 0
+                       for k, v in usage.items())):
+        raise EffectError('observation_invalid')
+    if (not isinstance(gates, dict) or set(gates) != set(usage)
+            or not all(isinstance(g, list) and all(isinstance(k, str) and FEATURE_RE.fullmatch(k) for k in g)
+                       for g in gates.values())):
         raise EffectError('observation_invalid')
     if not isinstance(value['branches'], list):
         raise EffectError('observation_invalid')
@@ -263,11 +269,23 @@ def _same(a, b):
 
 
 def check_downgrade(request, observed):
-    """Refuse (before any write) when the target limits sit below current usage."""
+    """Refuse (before any write) when a target limit sits below current usage.
+
+    A limit whose application the target closes (every one of its booleans false)
+    is not checked: removing an application keeps its rows read-only, it does not
+    lower a limit in use. Platform limits have no gates and are always checked.
+    """
     features, usage, br = request['entitlement']['features'], observed['usage'], request['branches']
-    for key, usage_key, factor in LIMITS:
+    gates = observed['limit_gates']
+    for key, used in sorted(usage.items()):
+        if key == BRANCH_LIMIT:
+            continue
         limit = features.get(key)
-        if limit is not None and not isinstance(limit, bool) and usage[usage_key] > limit * factor:
+        if limit is None or isinstance(limit, bool):
+            continue
+        if gates.get(key) and all(features.get(gate) is False for gate in gates[key]):
+            continue
+        if used > limit:
             raise EffectError('downgrade_below_usage')
     limit = features.get(BRANCH_LIMIT)
     if limit is not None and not isinstance(limit, bool):

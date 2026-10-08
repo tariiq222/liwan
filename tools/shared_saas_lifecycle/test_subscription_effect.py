@@ -37,7 +37,9 @@ def observation(**over):
     value = {'database': DB, 'commercial_revision_id': PREV, 'commercial_digest': 'c' * 64,
              'commercial_applied_at': None, 'features': {'users.limit': 3},
              'modules': ['nasq_api', 'nasq_core', 'nasq_platform'], 'branches': [],
-             'usage': {'users': 1, 'projects': 0, 'attachment_bytes': 0, 'extra_branches': 0}}
+             'usage': {'users.limit': 1, 'projects.max_projects': 0, 'storage.limit_mb': 0, 'branches.extra_limit': 0},
+             'limit_gates': {'users.limit': [], 'projects.max_projects': ['pmo.enabled'],
+                             'storage.limit_mb': [], 'branches.extra_limit': []}}
     value.update(over)
     return value
 
@@ -162,7 +164,7 @@ class ReconfigureTests(Base):
         self.assertEqual(runner.applies, 0)
 
     def test_downgrade_below_usage(self):
-        for usage, over in [({'users': 11}, None), ({'projects': 6}, None), ({'attachment_bytes': 101 * 1048576}, None)]:
+        for usage, over in [({'users.limit': 11}, None), ({'projects.max_projects': 6}, None), ({'storage.limit_mb': 101}, None)]:
             runner = FakeRunner(observation(usage={**observation()['usage'], **usage}))
             with self.assertRaises(EffectError) as ctx:
                 self.effect(runner).reconfigure(make_request())
@@ -173,7 +175,7 @@ class ReconfigureTests(Base):
     def test_downgrade_branches(self):
         active = [{'branch_id': str(i) * 8 + B1[8:], 'state': 'active', 'odoo_company_id': i,
                    'active': True, 'parent_is_root': True} for i in range(1, 4)]
-        runner = FakeRunner(observation(branches=active, usage={**observation()['usage'], 'extra_branches': 3}))
+        runner = FakeRunner(observation(branches=active, usage={**observation()['usage'], 'branches.extra_limit': 3}))
         with self.assertRaises(EffectError) as ctx:
             self.effect(runner).reconfigure(make_request())
         self.assertEqual(str(ctx.exception), 'downgrade_below_usage')
@@ -249,21 +251,35 @@ class ReconfigureTests(Base):
         self.assertEqual(runner.installed, [])
         self.assertEqual(receipt['modules_installed'], [])
 
+    def test_closing_an_application_is_not_below_usage(self):
+        ent = make_request()['entitlement']
+        request = make_request(entitlement={**ent, 'features': {**ent['features'], 'pmo.enabled': False, 'projects.max_projects': 0}})
+        runner = FakeRunner(observation(usage={**observation()['usage'], 'projects.max_projects': 6}),
+                            apply_state=applied_state(request))
+        self.effect(runner).reconfigure(request)
+        self.assertEqual(runner.applies, 1)
+
 
 class ObserveTests(Base):
     def test_observe_snapshot(self):
         runner = FakeRunner(observation())
         value = self.effect(runner).observe({'tenant': {'database': DB, 'host': 'a.test'}})
         self.assertEqual(value['observed_at'], '2026-01-01T00:00:00Z')
-        self.assertEqual(value['usage']['extra_branches'], 0)
+        self.assertEqual(value['usage']['branches.extra_limit'], 0)
         self.assertTrue(all(not mutate for _, mutate, _ in runner.scripts))
 
     def test_observation_shape_validated(self):
         bad = observation()
-        bad['usage'] = {'users': -1, 'projects': 0, 'attachment_bytes': 0, 'extra_branches': 0}
+        bad['usage'] = {**observation()['usage'], 'users.limit': -1}
         with self.assertRaises(EffectError):
             self.effect(FakeRunner(bad)).observe({'tenant': {'database': DB, 'host': 'a.test'}})
 
 
 if __name__ == '__main__':
     unittest.main()
+
+    def test_observation_gates_must_name_every_usage_key(self):
+        bad = observation()
+        bad['limit_gates'] = {'users.limit': []}
+        with self.assertRaises(EffectError):
+            self.effect(FakeRunner(bad)).observe({'tenant': {'database': DB, 'host': 'a.test'}})

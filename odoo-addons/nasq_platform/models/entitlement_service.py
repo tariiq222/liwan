@@ -275,9 +275,18 @@ class NasqEntitlementService(models.AbstractModel):
 
     @api.model
     def _nasq_count_usage(self, limit_key):
-        """Usage counted against LIMIT_KEY. The addon that registers a limit extends this through super()."""
+        """Usage counted against LIMIT_KEY, in the limit's own unit.
+
+        The addon that registers a limit extends this through super(); an
+        unknown key counts 0. Storage is whole MiB rounded up, so usage above a
+        limit in MiB means the bytes exceed it.
+        """
         if limit_key == 'users.limit':
             return self._nasq_count_users()
+        if limit_key == 'storage.limit_mb':
+            return -(-int(self._nasq_count_storage_bytes()) // 1048576)
+        if limit_key == 'branches.extra_limit':
+            return self.env['nasq.tenant.branch'].search_count([('state', '=', 'active')])
         return 0
 
     @api.model
