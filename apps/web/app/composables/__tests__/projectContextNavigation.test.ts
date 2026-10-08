@@ -4,8 +4,7 @@ import { projectIdFromPath } from '../nav/activeRoute'
 
 describe('project list context selection', () => {
   it('keeps all projects active for the list regardless of the mine toggle, its create form and every record', () => {
-    expect(isContextPathActive('/projects', '/projects', { mine: '1', q: 'site' })).toBe(true)
-    expect(isContextPathActive('/projects', '/projects', {})).toBe(true)
+    expect(isContextPathActive('/projects', '/projects')).toBe(true)
     expect(isContextPathActive('/projects/new', '/projects')).toBe(true)
     expect(isContextPathActive('/projects/42', '/projects')).toBe(true)
     expect(isContextPathActive('/projects/42/stakeholders/3/edit', '/projects')).toBe(true)

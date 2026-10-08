@@ -50,7 +50,6 @@ export interface AppBellKind {
   href: (row: Record<string, unknown>) => string | null
   /** Row title when it is not the generic one; `t` is the i18n translate function. */
   title?: (row: Record<string, unknown>, t: (key: string, count?: number) => string) => string
-  titleKey?: string
 }
 export interface AppLandingEntry {
   path: string; capability: string

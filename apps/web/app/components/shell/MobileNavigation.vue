@@ -3,7 +3,7 @@ import type { SlideoverProps } from '@nuxt/ui'
 import { useMediaQuery } from '@vueuse/core'
 import SidebarCreateAction from '@/components/shell/SidebarCreateAction.vue'
 import { useShellNavigation } from '@/composables/useShellNavigation'
-import { hidePinnedNewProject, shellModules, visibleShellModules } from '@/composables/nav/shellModules'
+import { hidePinnedNewProject, shellModuleList, visibleShellModules } from '@/composables/nav/shellModules'
 import { activeShellModule, contextModuleFor } from '@/composables/nav/activeRoute'
 import { createLinkTo } from '@/composables/nav/createActions'
 
@@ -21,7 +21,7 @@ const availableModules = computed(() => visibleShellModules(workspaceIdentity.va
 const activeModule = computed(() => activeShellModule(route.path))
 // `home` and `projects` share one projects sidebar heading (2026-09-11).
 const linksModule = computed(() => contextModuleFor(activeModule.value))
-const moduleDefinition = computed(() => shellModules.find(item => item.id === linksModule.value) ?? module.value)
+const moduleDefinition = computed(() => shellModuleList().find(item => item.id === linksModule.value) ?? module.value)
 const contextTitle = computed(() => moduleDefinition.value ? t(moduleDefinition.value.labelKey) : t('app.productName'))
 const primaryLinks = computed(() => contextLinks.value)
 // Pinned create actions first, then navigation — the same order as the desktop sidebar.

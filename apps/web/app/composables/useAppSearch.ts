@@ -36,6 +36,7 @@ export function useAppSearch(options: {
 }): AppSearchSection[] {
   const { term, debounced, can, api } = options
   const needle = computed(() => term.value.toLocaleLowerCase())
+  // Providers are read once at setup: each owns a vue-query observer created here, so the list cannot change per call.
   return searchProviders(options.surface).map((provider) => {
     const query = useInfiniteQuery({
       queryKey: computed(() => provider.queryKey(provider.serverSearch ? debounced.value : '')),
