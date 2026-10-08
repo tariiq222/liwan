@@ -6,7 +6,7 @@ export type UsageObservation = { database: string; observed_at: string; usage: R
 export type UsageObserveRunner = (input: { tenant_id: string; database: string; signal?: AbortSignal }) => Promise<unknown>
 
 const LIMIT_KEY = /^(?:[a-z][a-z0-9_]*\.)+[a-z][a-z0-9_]*$/
-const FRESH_MS = 15 * 60 * 1000
+export const FRESH_MS = 15 * 60 * 1000
 const SKEW_MS = 5 * 60 * 1000
 export const PER_TENANT_MS = 30_000
 const DEFAULT_LIMIT = 50
