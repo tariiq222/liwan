@@ -4,14 +4,16 @@ import { ApiError } from '@/composables/useApi'
 import { useAdminRoleDetails } from '@/composables/useAdminRoles'
 import { useUpdateAdminUserAccess } from '@/composables/useAdminUsers'
 import { permissionDiff } from '@/components/access/permissionDiff'
+import { builtinRoleDescription } from '@/utils/labelFallback'
 
 const props = defineProps<{ user: AdminUserDetail; roles: RoleSummary[]; permissions?: PermissionDefinition[]; permissionsLoading?: boolean; permissionsError?: unknown }>()
 const emit = defineEmits<{ saved: []; conflict: [ApiError]; retry: [] }>()
-const { t, locale } = useI18n()
+const { t, te, locale } = useI18n()
 const hydrated = useHydrated()
 const { me } = useMe()
 const update = useUpdateAdminUserAccess()
 const errorKey = ref('')
+const roleDescription = (role: RoleSummary) => builtinRoleDescription(role, t, te)
 const saved = ref(false)
 const selectedRoleIds = ref(props.user.assignments.map((assignment) => assignment.role.id).filter((id): id is number => id !== null))
 const dirty = computed(() => !saved.value && JSON.stringify(selectedRoleIds.value.slice().sort()) !== JSON.stringify(props.user.assignments.map((assignment) => assignment.role.id).filter((id): id is number => id !== null).sort()))
@@ -126,7 +128,7 @@ async function save() {
           >
             <template #label><span class="font-medium">{{ roleLabel(role) }}</span></template>
             <template #description>
-              <span class="block text-xs text-muted">{{ role.description }}</span>
+              <span class="block text-xs text-muted">{{ roleDescription(role) }}</span>
               <span class="block text-xs text-muted">{{ t('access.roles.companyScope') }}</span>
               <span v-if="!role.active" class="block text-xs text-warning">{{ t('access.roles.disabledExistingAssignments') }}</span>
             </template>

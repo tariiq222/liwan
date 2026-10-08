@@ -2,7 +2,7 @@
 import type { PermissionDefinition, RoleDetail } from '@nasq/contracts'
 import { ApiError } from '@/composables/useApi'
 import { useUpdateAdminRole } from '@/composables/useAdminRoles'
-import { permissionDomainLabel } from '@/utils/labelFallback'
+import { permissionDomainLabel, builtinRoleDescription } from '@/utils/labelFallback'
 
 const props = defineProps<{ role: RoleDetail; permissions: PermissionDefinition[]; readonly?: boolean }>()
 const emit = defineEmits<{ saved: []; conflict: [ApiError] }>()
@@ -17,6 +17,9 @@ const errorMessage = ref('')
 const saved = ref(false)
 const dirty = computed(() => !saved.value && (nameAr.value !== props.role.name.ar || nameEn.value !== (props.role.name.en ?? '') || description.value !== props.role.description || JSON.stringify([...selected.value].sort()) !== JSON.stringify([...props.role.permissions].sort())))
 const canEdit = computed(() => hydrated.value && !props.readonly && props.role.allowed_actions.includes('edit') && !props.role.protected && props.role.type === 'custom')
+// Built-in roles are read-only seed data with an unlocalized description; the readonly view shows
+// its localized purpose text, while an editable (custom) role always edits the stored value.
+const descriptionView = computed(() => canEdit.value ? description.value : builtinRoleDescription(props.role, t, te))
 const permissionByKey = computed(() => new Map<string, PermissionDefinition>(props.permissions.map((permission) => [permission.key, permission])))
 const permissionLabel = (key: string) => permissionByKey.value.get(key)?.label[locale.value === 'ar' ? 'ar' : 'en'] ?? permissionByKey.value.get(key)?.label.ar ?? t('access.roles.unknownPermission')
 const permissionDescription = (permission: PermissionDefinition) => permission.description[locale.value === 'ar' ? 'ar' : 'en'] ?? permission.description.ar
@@ -89,7 +92,7 @@ async function save() {
         <UFormField :label="t('access.roles.nameArabic')" name="nameAr"><UInput v-model="nameAr" class="w-full" :disabled="!canEdit" /></UFormField>
         <UFormField :label="t('access.roles.nameEnglish')" name="nameEn"><UInput v-model="nameEn" dir="ltr" class="w-full" :disabled="!canEdit" /></UFormField>
       </div>
-      <UFormField :label="t('access.roles.descriptionLabel')" name="description"><UTextarea v-model="description" class="w-full" :disabled="!canEdit" /></UFormField>
+      <UFormField :label="t('access.roles.descriptionLabel')" name="description"><UTextarea :model-value="descriptionView" class="w-full" :disabled="!canEdit" @update:model-value="(value) => { description = String(value ?? '') }" /></UFormField>
     </SharedFormSection>
     <SharedFormSection :title="t('access.roles.permissions')" class="space-y-4">
       <fieldset class="min-w-0 space-y-2" :disabled="!canEdit">
