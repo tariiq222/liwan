@@ -8,9 +8,10 @@ export type UsageObserveRunner = (input: { tenant_id: string; database: string; 
 const LIMIT_KEY = /^(?:[a-z][a-z0-9_]*\.)+[a-z][a-z0-9_]*$/
 const FRESH_MS = 15 * 60 * 1000
 const SKEW_MS = 5 * 60 * 1000
-const PER_TENANT_MS = 30_000
+export const PER_TENANT_MS = 30_000
 const DEFAULT_LIMIT = 50
-const BUDGET_MS = 60_000
+/** Fallback per-run budget: 80% of the default 300 s scheduler interval (the scheduler passes 80% of the real interval). */
+export const BUDGET_MS = 240_000
 // Two-int advisory lock: a different key space from every single-bigint lock in the control plane
 // (1397969233 migrate, REGISTRY_ADVISORY_LOCK 1397969234, hashtext(...) worker locks), so it can never collide with them.
 export const USAGE_LOCK_CLASS = 1397969235

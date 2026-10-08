@@ -25,6 +25,9 @@ export type CommercialSchedulerOptions = {
   log?: (message: string, err?: unknown) => void
 }
 
+/** A usage run may use 80% of the interval, so the next one starts on time and a tenant is revisited about every interval. */
+export const usageBudgetMs = (intervalMs: number) => Math.floor(intervalMs * 0.8)
+
 const posInt = (v: string | undefined, d: number) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? Math.floor(n) : d }
 
 /** True while the shared runtime is owned by someone else: the runtime-gate directory exists, or a shared
@@ -86,7 +89,7 @@ export function createCommercialScheduler(o: CommercialSchedulerOptions) {
       if (o.usageRunner && !usageRun && now >= nextUsage && !o.signal?.aborted) {
         nextUsage = now + usageMs
         const runner = o.usageRunner
-        usageRun = collectUsage(pool, { runner, signal: o.signal, busy: sharedRuntimeBusy(pool, config) }).then(r => {
+        usageRun = collectUsage(pool, { runner, signal: o.signal, budget_ms: usageBudgetMs(usageMs), busy: sharedRuntimeBusy(pool, config) }).then(r => {
           // Another worker is collecting: retry soon rather than a full interval later.
           if (r.locked || r.busy) { nextUsage = clock() + USAGE_RETRY_MS; if (!lockSkipLogged) { lockSkipLogged = true; try { log(r.busy ? 'usage paused: a shared runtime job is running' : 'usage skipped: another collector holds the lock') } catch { /* never throw */ } } }
           else lockSkipLogged = false
