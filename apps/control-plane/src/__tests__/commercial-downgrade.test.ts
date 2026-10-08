@@ -46,7 +46,8 @@ suite('downgrade fail-closed usage guards',()=>{
     return {tenant,customer,subscription:order.subscription_id,request:{...request,kind:'change'}}
   }
   const metrics={'users.limit':1,'projects.max_projects':1,'storage.limit_mb':1,'branches.extra_limit':0}
-  async function usage(f:any,over:any={},at=now){await recordUsage(pool,{tenant_id:f.tenant,observed_at:at,metrics:{...metrics,...over},source:'regression'})}
+  const gates:Record<string,string[]>={'users.limit':[],'projects.max_projects':['pmo.enabled'],'storage.limit_mb':[],'branches.extra_limit':[]}
+  async function usage(f:any,over:any={},at=now){await recordUsage(pool,{tenant_id:f.tenant,observed_at:at,metrics:{...metrics,...over},limit_gates:gates,source:'regression'})}
   async function target(f:any,field:string,limit:number|null){
     const terms=await createCustomerTerms(pool,{customer_id:f.customer,reason,...(field==='branches.extra_limit'?{extra_branches_limit:limit}:{limits:{[field]:limit}})},vendor)
     return {...f.request,terms_revision_id:terms.id}
@@ -87,17 +88,29 @@ suite('downgrade fail-closed usage guards',()=>{
     expect((await pool.query('SELECT count(*)::int AS n FROM orders WHERE subscription_id=$1',[f.subscription])).rows[0].n).toBe(1)
     expect((await pool.query('SELECT target_revision_id FROM subscriptions WHERE id=$1',[f.subscription])).rows[0].target_revision_id).toBeNull()
   })
-  it('skips a limit whose application the target closes: removing an app keeps its rows',async()=>{
-    const f=await fixture()
-    await usage(f,{'projects.max_projects':9})
-    const release=(await api('GET',`/catalog/releases`)).body.items.find((r:any)=>r.id===bundle.catalog_release_id)
-    const app=release.applications.find((a:any)=>a.features.some((x:any)=>x.key==='projects.max_projects'))
-    const closed=Object.fromEntries(app.features.map((x:any)=>[x.key,x.kind==='boolean'?false:0]))
+  async function gated(f:any,previous:any,target:any,over:any,withGates=true){
+    if(withGates) await usage(f,over); else await recordUsage(pool,{tenant_id:f.tenant,observed_at:now,metrics:{...metrics,...over},source:'regression'})
     const client=await pool.connect()
-    try{
-      await assertDowngradeFitsUsage(client,{tenant_id:f.tenant,subscription_id:f.subscription,previous:{'projects.max_projects':10,'pmo.enabled':true},target:closed,release,now})
-      await expect(assertDowngradeFitsUsage(client,{tenant_id:f.tenant,subscription_id:f.subscription,previous:{'projects.max_projects':10,'pmo.enabled':true},target:{...closed,'pmo.enabled':true},release,now})).rejects.toMatchObject({code:'downgrade_below_usage',field:'projects.max_projects'})
-    }finally{client.release()}
+    try{return await assertDowngradeFitsUsage(client,{tenant_id:f.tenant,subscription_id:f.subscription,previous,target,now})}finally{client.release()}
+  }
+  it('skips a limit whose app the target closes, even when a sibling gate stays open',async()=>{
+    const f=await fixture()
+    await gated(f,{'pmo.enabled':true,'meetings.enabled':true,'projects.max_projects':null},{'pmo.enabled':false,'meetings.enabled':true,'projects.max_projects':0},{'projects.max_projects':9})
+  })
+  it('checks a limit whose app reopens, even when the limit is not lowered',async()=>{
+    const f=await fixture()
+    await expect(gated(f,{'pmo.enabled':false,'projects.max_projects':0},{'pmo.enabled':true,'projects.max_projects':5},{'projects.max_projects':9})).rejects.toMatchObject({status:422,code:'downgrade_below_usage',field:'projects.max_projects'})
+  })
+  it('does not check a raised limit of an open app, and needs no usage for it',async()=>{
+    const f=await fixture()
+    await gated(f,{'pmo.enabled':true,'projects.max_projects':10},{'pmo.enabled':true,'projects.max_projects':20},{'projects.max_projects':25})
+    const g=await fixture()
+    const client=await pool.connect()
+    try{await assertDowngradeFitsUsage(client,{tenant_id:g.tenant,subscription_id:g.subscription,previous:{'pmo.enabled':true,'projects.max_projects':10},target:{'pmo.enabled':true,'projects.max_projects':20},now})}finally{client.release()}
+  })
+  it('fails closed when a checked key has no stored gates',async()=>{
+    const f=await fixture()
+    await expect(gated(f,{'pmo.enabled':true,'projects.max_projects':10},{'pmo.enabled':true,'projects.max_projects':5},{'projects.max_projects':1},false)).rejects.toMatchObject({status:409,code:'usage_unavailable',field:'projects.max_projects'})
   })
   it('usage reports applied policy revision, not subscription revision UUID',async()=>{
     const f=await fixture();await usage(f)

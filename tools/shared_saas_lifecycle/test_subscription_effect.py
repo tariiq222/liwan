@@ -44,6 +44,9 @@ def observation(**over):
     return value
 
 
+LOWERABLE = {'users.limit': 20, 'projects.max_projects': 20, 'storage.limit_mb': 200}
+
+
 def wrap(value):
     return 'noise\n' + se.SENTINEL + json.dumps(value) + '\n'
 
@@ -165,7 +168,7 @@ class ReconfigureTests(Base):
 
     def test_downgrade_below_usage(self):
         for usage, over in [({'users.limit': 11}, None), ({'projects.max_projects': 6}, None), ({'storage.limit_mb': 101}, None)]:
-            runner = FakeRunner(observation(usage={**observation()['usage'], **usage}))
+            runner = FakeRunner(observation(usage={**observation()['usage'], **usage}, features=LOWERABLE))
             with self.assertRaises(EffectError) as ctx:
                 self.effect(runner).reconfigure(make_request())
             self.assertEqual(str(ctx.exception), 'downgrade_below_usage')
@@ -175,7 +178,7 @@ class ReconfigureTests(Base):
     def test_limit_equal_to_usage_is_accepted(self):
         request = make_request()
         usage = {**observation()['usage'], 'users.limit': 10, 'projects.max_projects': 5, 'storage.limit_mb': 100}
-        runner = FakeRunner(observation(usage=usage), apply_state=applied_state(request))
+        runner = FakeRunner(observation(usage=usage, features=LOWERABLE), apply_state=applied_state(request))
         self.effect(runner).reconfigure(request)
         self.assertEqual(runner.applies, 1)
 
@@ -195,6 +198,39 @@ class ReconfigureTests(Base):
             self.effect(runner).reconfigure(request)
         self.assertEqual(str(ctx.exception), 'downgrade_below_usage')
         self.assertEqual(runner.applies, 0)
+
+    def _gated(self, previous, target, projects):
+        ent = make_request()['entitlement']
+        request = make_request(entitlement={**ent, 'features': {**ent['features'], **target}})
+        usage = {**observation()['usage'], 'projects.max_projects': projects}
+        return request, FakeRunner(observation(features=previous, usage=usage), apply_state=applied_state(request))
+
+    def test_closed_app_keeps_rows_while_another_gate_stays_open(self):
+        base = {'users.limit': 20, 'storage.limit_mb': 200, 'branches.extra_limit': 2}
+        request, runner = self._gated({**base, 'pmo.enabled': True, 'meetings.enabled': True, 'projects.max_projects': None},
+                                      {'pmo.enabled': False, 'meetings.enabled': True, 'projects.max_projects': 0}, 9)
+        runner.state['limit_gates'] = {**runner.state['limit_gates'], 'projects.max_projects': ['pmo.enabled', 'meetings.enabled']}
+        with self.assertRaises(EffectError) as ctx:
+            self.effect(runner).reconfigure(request)
+        self.assertEqual(str(ctx.exception), 'downgrade_below_usage')
+        runner.state['limit_gates']['projects.max_projects'] = ['pmo.enabled']
+        self.effect(runner).reconfigure(request)
+        self.assertEqual(runner.applies, 1)
+
+    def test_reopened_app_is_checked(self):
+        base = {'users.limit': 20, 'storage.limit_mb': 200, 'branches.extra_limit': 2}
+        request, runner = self._gated({**base, 'pmo.enabled': False, 'projects.max_projects': 0},
+                                      {'pmo.enabled': True, 'projects.max_projects': 5}, 9)
+        with self.assertRaises(EffectError) as ctx:
+            self.effect(runner).reconfigure(request)
+        self.assertEqual(str(ctx.exception), 'downgrade_below_usage')
+
+    def test_raised_limit_of_an_open_app_is_not_checked(self):
+        base = {'users.limit': 20, 'storage.limit_mb': 200, 'branches.extra_limit': 2}
+        request, runner = self._gated({**base, 'pmo.enabled': True, 'projects.max_projects': 10},
+                                      {'pmo.enabled': True, 'projects.max_projects': 20}, 25)
+        self.effect(runner).reconfigure(request)
+        self.assertEqual(runner.applies, 1)
 
     def test_downgrade_branches(self):
         active = [{'branch_id': str(i) * 8 + B1[8:], 'state': 'active', 'odoo_company_id': i,

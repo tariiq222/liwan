@@ -3,6 +3,7 @@ import { Pool } from 'pg'
 import { randomUUID } from 'node:crypto'
 import { url, setup, client, money, monthly } from './commercial-helpers.js'
 import { createQuoteForCustomer, getQuote, pricingBaseline } from '../commercial/quotes.js'
+import { recordUsage } from '../commercial/usage.js'
 
 const POLICY = '6f1c3d8e-0000-4000-8000-000000000001'
 const START = new Date('2026-10-01T09:00:00.000Z')
@@ -17,7 +18,7 @@ describe.skipIf(!url)('commercial server change quote proration', () => {
   const pool = new Pool({ connectionString: url, max: 5 })
   const api = client(pool)
   const reason = 'Change quote proration fixture'
-  let plan: { id: string }, bundle: { id: string }
+  let plan: { id: string }, bundle: { id: string }, releaseApps: any[] = []
 
   async function publish(kind: 'plans' | 'bundles', body: unknown) {
     const created = await api('POST', `/${kind}`, body)
@@ -33,6 +34,7 @@ describe.skipIf(!url)('commercial server change quote proration', () => {
     const released = await api('POST', '/catalog/releases', { catalog_version: version, reason })
     expect(released.status).toBe(201)
     const release = released.body
+    releaseApps = release.applications
     const app = release.applications.find((a: any) => a.selectable && a.features.some((f: any) => f.selectable))
     expect(app).toBeDefined()
     bundle = await publish('bundles', {
@@ -51,7 +53,12 @@ describe.skipIf(!url)('commercial server change quote proration', () => {
 
   async function appliedSubscription(withBundle: boolean) {
     const customer = randomUUID(), subscription = randomUUID(), revision = randomUUID()
-    await pool.query("INSERT INTO customers(id,name) VALUES($1,'Proration customer')", [customer])
+    const tenant = randomUUID()
+    await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'Proration','saas','managed',$2,true)", [tenant, `inv-${tenant}`])
+    await pool.query("INSERT INTO customers(id,name,tenant_id) VALUES($1,'Proration customer',$2)", [customer, tenant])
+    // A fresh observation with the limit gates Odoo reports: removing an application is judged from these.
+    const limits = releaseApps.flatMap(a => a.features.filter((f: any) => f.kind === 'limit').map((f: any) => [f.key, a.selectable ? a.features.filter((g: any) => g.kind === 'boolean').map((g: any) => g.key) : []] as const))
+    await recordUsage(pool, { tenant_id: tenant, observed_at: new Date(), metrics: Object.fromEntries(limits.map(([k]) => [k, 0])), limit_gates: Object.fromEntries(limits), source: 'proration' })
     const quote = await createQuoteForCustomer(pool, { customer_id: customer, request: {
       kind: 'new', plan_revision_id: plan.id, bundle_revision_ids: withBundle ? [bundle.id] : [], cadence: monthly, requested_extra_branches: 0,
     } }, START)

@@ -273,21 +273,31 @@ def _same(a, b):
 def check_downgrade(request, observed):
     """Refuse (before any write) when a target limit sits below current usage.
 
-    A limit whose application the target closes (every one of its booleans false)
-    is not checked: removing an application keeps its rows read-only, it does not
-    lower a limit in use. Platform limits have no gates and are always checked.
+    Same rule as the control plane's assertDowngradeFitsUsage. A numeric target limit is
+    CHECKED when it is lowered against the current policy (absent or null = unlimited) or
+    when its application reopens (closed now, open in the target). It is SKIPPED when the
+    target closes its application (it has gates and every one is false; an absent gate
+    key is not false). Usage equal to the limit is allowed. Platform limits have no gates.
     """
     features, usage, br = request['entitlement']['features'], observed['usage'], request['branches']
-    gates = observed['limit_gates']
+    previous, gates = observed['features'], observed['limit_gates']
+
+    def closed(keys, values):
+        return bool(keys) and all(values.get(gate) is False for gate in keys)
+
     for key, used in sorted(usage.items()):
         if key == BRANCH_LIMIT:
             continue
         limit = features.get(key)
         if limit is None or isinstance(limit, bool):
             continue
-        if gates.get(key) and all(features.get(gate) is False for gate in gates[key]):
+        keys = gates.get(key) or []
+        if closed(keys, features):
             continue
-        if used > limit:
+        before = previous.get(key)
+        lowered = before is None or (not isinstance(before, bool) and limit < before)
+        reopened = closed(keys, previous) and any(features.get(gate) is True for gate in keys)
+        if (lowered or reopened) and used > limit:
             raise EffectError('downgrade_below_usage')
     limit = features.get(BRANCH_LIMIT)
     if limit is not None and not isinstance(limit, bool):
