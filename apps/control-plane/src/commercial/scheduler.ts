@@ -91,7 +91,18 @@ export function createCommercialScheduler(o: CommercialSchedulerOptions) {
         await job('invitation.send', () => sendInvitationOutbox(pool, { mail, origin, smtpHost: env.NASQ_MAIL_SMTP_HOST }))
       }
       if (ticks % reconcileEvery === 0) {
-        if (o.paymentAdapter) { const a = o.paymentAdapter; await job('reconcile-payments', () => reconcileUnknownAttempts(pool, a)) }
+        if (o.paymentAdapter) {
+          const adapter = o.paymentAdapter
+          await job('reconcile-payments', async () => {
+            const results = await reconcileUnknownAttempts(pool, adapter, { clock })
+            const failures: Record<string, number> = {}
+            for (const result of results) {
+              if (result.outcome !== 'accepted' && result.outcome !== 'ignored')
+                failures[result.outcome] = (failures[result.outcome] ?? 0) + 1
+            }
+            if (Object.keys(failures).length) throw new Error(`payment_reconciliation_incomplete ${JSON.stringify(failures)}`)
+          })
+        }
         await job('recover-interrupted', () => recoverInterrupted(pool, { runner: o.subscriptionRunner }))
       }
       const now = clock()
