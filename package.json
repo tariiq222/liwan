@@ -17,6 +17,9 @@
     "e2e:smoke": "node tools/e2e_isolated.mjs e2e/tests/smoke.e2e.ts"
   },
   "overrides": {
+    "@nuxtjs/i18n": {
+      "devalue": "^5.9.4"
+    },
     "@unovis/ts": {
       "maplibre-gl": "6.4.1"
     }
