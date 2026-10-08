@@ -90,6 +90,11 @@ REVIEWED_STORYBOOK_TOOLING = {
     'storybook', '@storybook/vue3-vite', '@storybook/addon-docs',
     'msw', 'msw-storybook-addon', '@vitejs/plugin-vue', 'vite',
 }
+# Root-level dev-only agentic e2e runner tooling (e2e.config.ts, e2e/, docs/e2e.md).
+# Never imported by app source or shipped to customers; it drives the UI from outside.
+REVIEWED_E2E_TOOLING = {
+    '@ai-sdk/openai', '@ai-sdk/openai-compatible', '@e2e-dev/web', 'ai', 'e2e', 'playwright',
+}
 
 
 def source_file(path: str) -> bool:
@@ -754,7 +759,7 @@ def check(current: dict[str, str], baseline: dict[str, str], head: dict[str, str
     # The tooling manifest review accepts Storybook's own dev-time packages;
     # app runtime source importing them is still a finding (via allowed_source
     # below), since Storybook is a viewer, not a second UI library.
-    allowed_manifest = allowed_source | REVIEWED_STORYBOOK_TOOLING
+    allowed_manifest = allowed_source | REVIEWED_STORYBOOK_TOOLING | REVIEWED_E2E_TOOLING
     names = legacy_names(baseline)
     has_ui = '@nuxt/ui' in json.loads(current.get('apps/web/package.json', '{}')).get('dependencies', {})
     baseline_versions = dependency_versions(baseline)
