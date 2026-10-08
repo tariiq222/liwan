@@ -188,10 +188,12 @@ class NasqTenantProfile(models.Model):
         if len(profiles) != 1 or not self._nasq_policy_initialized(profiles):
             return False
         service = self.env['nasq.entitlement.service']
-        # Unlocked fast path: nothing missing means no lock and no write.
-        if not self._nasq_missing_features(profiles, service):
-            return False
         with self.env.cr.savepoint():
+            # Unlocked fast path: nothing missing means no lock and no write. It
+            # reads inside the savepoint so a failing read cannot poison the
+            # registry-load transaction.
+            if not self._nasq_missing_features(profiles, service):
+                return False
             profile = profiles._nasq_lock()
             completed = self._nasq_missing_features(profile, service)
             if not completed:

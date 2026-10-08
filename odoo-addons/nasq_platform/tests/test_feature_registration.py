@@ -58,8 +58,23 @@ class TestFeatureRegistration(TransactionCase):
         app = self._app()
         self._initialize()
         self._grow_registry(*self._keys(app))
-        self.record._register_hook()
+        # A real registry setup: with a ready registry it reinstalls every model hook.
+        self.registry._setup_models__(self.env.cr, [])
+        self.record.invalidate_recordset()
         self.assertIs(self.record.features['zz_probe.enabled'], False)
+        self.assertEqual(self.record.features['zz_probe.max_items'], 0)
+
+    def test_a_failing_fast_path_read_leaves_the_transaction_usable(self):
+        self._initialize()
+
+        def broken(model, profile, service):
+            model.env.cr.execute('SELECT * FROM nasq_no_such_table')
+
+        self.patch(type(self.record), '_nasq_missing_features', broken)
+        with self.assertLogs(LOGGER, level='WARNING'):
+            self.assertFalse(self.record._nasq_register_missing_features())
+        self.env.cr.execute('SELECT 1')  # the savepoint rolled back, the transaction is not aborted
+        self.assertEqual(self.env.cr.fetchone(), (1,))
 
     def test_an_existing_value_is_never_changed(self):
         app = self._app()
