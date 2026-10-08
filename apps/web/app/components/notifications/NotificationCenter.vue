@@ -24,15 +24,18 @@ function notificationTimestamp(item: BellNotification) {
   return notificationTimestamps.value.get(item.id) ?? null
 }
 
+// A bell row is a plain object, so it is assignable to the manifest callbacks' row type without a cast.
+const asRow = (item: BellNotification): Record<string, unknown> => item
+
 function notificationHref(item: BellNotification): string | null {
   // A kind no manifest declares (a newer application's row) has no client route in this build:
   // opening it only marks it read.
-  return bellKindFor(item.kind)?.href(item as unknown as Record<string, unknown>) ?? null
+  return bellKindFor(item.kind)?.href(asRow(item)) ?? null
 }
 
 function previewTitle(item: BellNotification): string {
   const declared = bellKindFor(item.kind)?.title
-  if (declared) return declared(item as unknown as Record<string, unknown>, (key, count) => (count === undefined ? t(key) : t(key, count)))
+  if (declared) return declared(asRow(item), (key, count) => (count === undefined ? t(key) : t(key, count)))
   return genericNotificationText(item).title
 }
 

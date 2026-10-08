@@ -223,4 +223,11 @@ describe('navigation built from app manifests', () => {
       expect(featureForRailModule('settings')).toBeNull()
     })
   })
+  it('hides an internal-access item whose rail module no manifest declares', () => {
+    const ghost: AppManifest = { ...crm, nav: [{ to: '/crm/ghost', labelKey: 'nav.ghost', icon: 'i-lucide-ghost', shortcut: '', capability: 'nasq.internal', module: 'ghost' }] }
+    withManifests([...appManifests, ghost], () => {
+      expect(featureForRailModule('ghost')).toBeUndefined()
+      expect(useNav(crmIdentity).map(item => item.to)).not.toContain('/crm/ghost')
+    })
+  })
 })

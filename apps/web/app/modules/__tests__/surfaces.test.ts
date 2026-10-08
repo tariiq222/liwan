@@ -59,6 +59,9 @@ describe('manifest bell kinds', () => {
     expect(bellKindFor('comment')?.href({ task_id: 44 })).toBe('/tasks/44')
     expect(bellKindFor('meeting_invite')?.href({ meeting_id: 7 })).toBe('/meetings/7')
     expect(bellKindFor('overdue_digest')?.href({ digest_id: 90 })).toBe('/notification-digests/90')
+    const titleArgs: unknown[][] = []
+    bellKindFor('overdue_digest')?.title?.({ overdue_count: '3' }, (...args) => { titleArgs.push(args); return '' })
+    expect(titleArgs).toEqual([['tasks.digest.count', 3]])
     expect(bellKindFor('meeting_future_change')).toBeUndefined()
     expect(bellKindFor('sales_order_assigned')).toBeUndefined()
   })

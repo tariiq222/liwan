@@ -47,13 +47,13 @@ export function useShellNavigation(identity: MaybeRefOrGetter<AccessIdentity>) {
       .map(link => route.path === '/projects' && link.id === 'projects'
         ? { ...link, to: { path: '/projects', query: { ...route.query, mine: undefined, offset: undefined } } }
         : link)
-      .map(link => ({ ...link, active: isContextPathActive(route.path, link.to, route.query) }))
+      .map(link => ({ ...link, active: isContextPathActive(route.path, link.to) }))
   })
   const module = computed(() => visibleShellModules(identityValue.value).find(item => item.id === activeModule.value) ?? null)
   return { activeModule, module, projectId, project, contextLinks }
 }
 
 /** Active test for a context link: the owning application's `isNavActive`, else same path or sub-path. */
-export function isContextPathActive(path: string, to: ShellContextLink['to'], _query: Record<string, unknown> = {}): boolean {
+export function isContextPathActive(path: string, to: ShellContextLink['to']): boolean {
   return isNavPathActive(path, typeof to === 'string' ? to : to.path ?? '')
 }
