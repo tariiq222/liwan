@@ -301,7 +301,8 @@ print('{}')
         while running() and clock() < deadline:
             sleep(1)
         for name in running():
-            self.command(['docker', 'kill', name], timeout=30)
+            # The observer may exit between the listing and the kill; the writer check decides.
+            subprocess.run(['docker', 'kill', name], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=15, check=False)
 
     def capture(self):
         # Refuse a busy project before anything is reserved or stopped (a usage observation opens

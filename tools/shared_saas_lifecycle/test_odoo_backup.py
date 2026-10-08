@@ -4,6 +4,7 @@ import io
 import tarfile
 import tempfile
 import unittest
+import unittest.mock
 from pathlib import Path
 from unittest.mock import patch
 from tools.shared_saas_lifecycle import odoo_effect
@@ -85,10 +86,30 @@ class BackupBoundaryTests(unittest.TestCase):
         runner, commands, live = self.drain_runner([name, 'nasq-shared-test-odoo-1'])
         now = [0]
         def sleep(seconds): now[0] += seconds
-        runner.drain_observers(wait=35, sleep=sleep, clock=lambda: now[0])
+        def run(args, **kwargs):
+            commands.append(args)
+            self.assertIs(kwargs.get('check'), False); self.assertEqual(kwargs.get('timeout'), 15)
+            live.remove(args[2])
+        with patch.object(odoo_backup.subprocess, 'run', run):
+            runner.drain_observers(wait=35, sleep=sleep, clock=lambda: now[0])
         self.assertGreaterEqual(now[0], 35)
         self.assertIn(['docker', 'kill', name], commands)
         self.assertEqual(live, ['nasq-shared-test-odoo-1'])
+
+    def test_observer_gone_before_the_kill_does_not_fail_the_drain(self):
+        name = 'nasq-shared-test-effect-12345678-observe-abcd1234'
+        runner, commands, live = self.drain_runner([name])
+        now = [0]
+        def sleep(seconds): now[0] += seconds
+        # `docker kill` exits non-zero ("No such container"); with check=False nothing is raised.
+        failed = unittest.mock.Mock(returncode=1)
+        with patch.object(odoo_backup.subprocess, 'run', return_value=failed) as run:
+            runner.drain_observers(wait=2, sleep=sleep, clock=lambda: now[0])
+        run.assert_called_once()
+        self.assertFalse(run.call_args.kwargs['check'])
+        # The writer check afterwards decides: nothing left running means no refusal.
+        live.clear()
+        runner.assert_no_effect_containers(code='runtime_writer_after_effect')
 
     def test_observer_that_exits_in_time_is_not_killed(self):
         name = 'nasq-shared-test-effect-12345678-observe-abcd1234'
