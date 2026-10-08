@@ -18,4 +18,8 @@ class Nasq{{App}}Case(NasqApiCase):
             'role_id': cls.env.ref('nasq_{{app}}.role_{{app}}_manager').id,
             'company_id': cls.env.company.id,
         }])
+        cls.outsider = new_test_user(
+            cls.env, login='{{app}}_outsider', password='{{app}}_outsider_pass_123',
+            name='No {{name_en}} access', groups='base.group_user',
+        )
         cls.record = cls.env['nasq.{{app}}.record'].create({'name': 'First record'})

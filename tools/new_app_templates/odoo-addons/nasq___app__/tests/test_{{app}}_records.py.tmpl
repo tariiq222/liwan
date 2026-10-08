@@ -1,4 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+from odoo.exceptions import AccessError
 from odoo.tests import tagged
 
 from .common import Nasq{{App}}Case
@@ -26,6 +27,19 @@ class Test{{App}}Records(Nasq{{App}}Case):
         self.authenticate('api_emp', 'api_emp_pass_123')
         result = self.api('GET', '/api/v1/{{app}}/records?limit=-1')
         self.assertEqual((result.status_code, result.json()['code']), (422, 'invalid'))
+
+    def test_a_user_without_the_read_capability_gets_403_forbidden(self):
+        self.authenticate('{{app}}_outsider', '{{app}}_outsider_pass_123')
+        result = self.api('GET', '/api/v1/{{app}}/records')
+        self.assertEqual((result.status_code, result.json()['code']), (403, 'forbidden'))
+
+    def test_the_manage_capability_writes_and_the_employee_role_does_not(self):
+        Record = self.env['nasq.{{app}}.record']
+        created = Record.with_user(self.manager).create({'name': 'Managed'})
+        created.with_user(self.manager).write({'name': 'Managed again'})
+        self.assertEqual(created.name, 'Managed again')
+        with self.assertRaises(AccessError):
+            Record.with_user(self.employee).create({'name': 'Not allowed'})
 
     def test_a_closed_feature_refuses_the_route(self):
         set_probe_feature(self, key='{{app}}.enabled', enabled=False)

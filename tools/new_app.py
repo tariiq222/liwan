@@ -12,6 +12,7 @@ import argparse
 import importlib.util
 import json
 import re
+import shutil
 import sys
 from pathlib import Path
 
@@ -19,16 +20,25 @@ TOOLS = Path(__file__).resolve().parent
 TEMPLATES = TOOLS / 'new_app_templates'
 DEFAULT_ROOT = TOOLS.parent
 
-APP_ID = re.compile(r'^[a-z][a-z0-9_]{1,20}$')
-SAFE_NAME = re.compile(r"^[^'\"\\<>&{}\r\n]+$")
+APP_ID = re.compile(r'^[a-z][a-z0-9]*(_[a-z0-9]+)*$')
+MAX_APP_ID = 21
+FORBIDDEN_PREFIXES = ('nasq_', 'customer')
+# Names end up inside Python, XML, JSON and vue-i18n messages: no quotes, escapes, markup,
+# interpolation (`{}`, `$`) or message syntax (`|`, `@`, `%`).
+SAFE_NAME = re.compile(r"^[^'\"\\<>&{}|@%$\r\n]+$")
 HEADER = '# Part of Odoo. See LICENSE file for full copyright and licensing details.'
 # Names an application may not take: git areas, foundation and shared-service
 # names, and web routes owned by the shell.
+# Single-key shortcuts that components handle themselves (GlobalSearch Ctrl/Cmd+K, list
+# navigation j/k, zero for reset, and +/- are outside the shortcut charset), so a nav item
+# must not take them.
+HARD_WIRED_SHORTCUTS = frozenset({'j', 'k', '0'})
+# Static names; the pages and contracts folders add every route and namespace already taken.
 RESERVED = frozenset({
     'core', 'platform', 'api', 'web', 'cp', 'deploy', 'tools', 'docs', 'ci',
     'notify', 'directory', 'common', 'access', 'settings', 'vendor', 'subscription',
     'invite', 'account', 'admin', 'login', 'logout', 'home', 'management', 'people',
-    'projects', 'tasks', 'search', 'notifications', 'me', 'new',
+    'projects', 'tasks', 'search', 'notifications', 'me', 'new', 'index',
 })
 ARCH_LAYERS = 'tools/arch_layers.json'
 PLATFORM_SOLUTION = 'deploy/catalog/solutions/platform_v3.json'
@@ -53,15 +63,24 @@ def render(text, tokens):
 def web_slots(root):
     """The next free rail order (highest + 10) and the first unused single-character nav shortcut."""
     web = Path(root) / 'apps/web/app'
-    sources = [*sorted((web / 'modules').glob('*/manifest.ts')), web / 'composables/nav/shellModules.ts']
-    text = '\n'.join(path.read_text(encoding='utf-8') for path in sources if path.is_file())
-    orders = [int(match) for match in re.findall(r'\border:\s*(\d+)', text)]
-    used = set(re.findall(r"shortcut:\s*'([a-z0-9]?)'", text))
+    manifests = sorted((web / 'modules').glob('*/manifest.ts'))
+    manifest_text = '\n'.join(path.read_text(encoding='utf-8') for path in manifests)
+    shell = web / 'composables/nav/shellModules.ts'
+    text = manifest_text + '\n' + (shell.read_text(encoding='utf-8') if shell.is_file() else '')
+    orders = [int(match) for match in re.findall(r'\border\s*:\s*(\d+)', manifest_text)]
+    if not manifests or not orders:
+        msg = 'no rail order found in apps/web/app/modules/*/manifest.ts; cannot place the new rail entry'
+        raise ScaffoldError(msg)
+    found = re.findall(r"""\bshortcut\s*:\s*(['"`])([^'"`]*)\1""", text)
+    if not found:
+        msg = 'no nav shortcut found in the manifests; cannot choose a free one'
+        raise ScaffoldError(msg)
+    used = {value for _, value in found} | HARD_WIRED_SHORTCUTS
     free = [char for char in 'abcdefghijklmnopqrstuvwxyz0123456789' if char not in used]
     if not free:
         msg = 'no free single-character nav shortcut is left'
         raise ScaffoldError(msg)
-    return max(orders, default=0) + 10, free[0]
+    return max(orders) + 10, free[0]
 
 
 def planned_files(root, tokens):
@@ -152,16 +171,28 @@ def registration_edits(root, tokens):
     }
 
 
+def taken_names(root):
+    """Route and namespace stems already used by pages and contracts (``-`` and ``_`` are alike)."""
+    names = set()
+    for folder in (Path(root) / 'apps/web/app/pages', Path(root) / 'packages/contracts/src'):
+        if folder.is_dir():
+            names |= {path.name.removesuffix('.vue').removesuffix('.ts').replace('-', '_') for path in folder.iterdir()}
+    return names
+
+
 def validate(root, app, name_ar, name_en):
-    if not APP_ID.fullmatch(app):
-        msg = f'application id {app!r} must match {APP_ID.pattern}'
+    if not APP_ID.fullmatch(app) or not 2 <= len(app) <= MAX_APP_ID:
+        msg = f'application id {app!r} must match {APP_ID.pattern} and be at most {MAX_APP_ID} characters'
         raise ScaffoldError(msg)
-    if app in RESERVED:
-        msg = f'{app!r} is reserved (git area, foundation, shared service or shell route)'
+    if app.startswith(FORBIDDEN_PREFIXES):
+        msg = f'application id {app!r} may not start with {" or ".join(FORBIDDEN_PREFIXES)}'
+        raise ScaffoldError(msg)
+    if app in RESERVED or app in taken_names(root):
+        msg = f'{app!r} is reserved (git area, foundation, shared service, page route or contracts namespace)'
         raise ScaffoldError(msg)
     for label, value in (('--name-ar', name_ar), ('--name-en', name_en)):
         if not value.strip() or not SAFE_NAME.fullmatch(value):
-            msg = f"{label} must be non-empty and contain none of ' \" \\ < > & {{ }} or a newline"
+            msg = f"{label} must be non-empty and contain none of ' \" \\ < > & {{ }} | @ % $ or a newline"
             raise ScaffoldError(msg)
     layers = _load_exact(root, ARCH_LAYERS)
     existing = {name.removeprefix('nasq_') for name in layers.get('ranks', {})}
@@ -174,12 +205,31 @@ def validate(root, app, name_ar, name_en):
         raise ScaffoldError(msg)
 
 
-def sync_release_copies(root):
+def _catalog_module():
     spec = importlib.util.spec_from_file_location('nasq_catalog_check', TOOLS / 'catalog_check.py')
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)
-    return module.sync_release_copies(root)
+    return module
+
+
+def _write_all(root, files, edits, catalog, created):
+    """Write new files and edits, then sync and re-check the catalog. Raises on any problem."""
+    for relative, text in files.items():
+        path = root / relative
+        missing = [parent for parent in reversed(path.parents) if not parent.exists() and root in parent.parents]
+        created.extend(missing)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text, encoding='utf-8')
+        created.append(path)
+    for relative, text in edits.items():
+        (root / relative).write_text(text, encoding='utf-8')
+    synced = catalog.sync_release_copies(root)
+    errors = catalog.check_catalog(root)
+    if errors:
+        msg = 'catalog check failed after scaffolding: ' + '; '.join(errors[:5])
+        raise ScaffoldError(msg)
+    return synced
 
 
 def scaffold(root, app, name_ar, name_en, dry_run=False):
@@ -198,13 +248,29 @@ def scaffold(root, app, name_ar, name_en, dry_run=False):
         raise ScaffoldError(msg)
     if dry_run:
         return sorted(files), sorted(edits), []
-    for relative, text in files.items():
+    catalog = _catalog_module()
+    # Everything that may be rewritten, kept in memory so a failure restores it exactly.
+    originals = {}
+    for relative in (*edits, *catalog.RELEASE_COPIES):
         path = root / relative
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(text, encoding='utf-8')
-    for relative, text in edits.items():
-        (root / relative).write_text(text, encoding='utf-8')
-    return sorted(files), sorted(edits), sync_release_copies(root)
+        if path.is_file():
+            originals[path] = path.read_bytes()
+    created = []
+    try:
+        synced = _write_all(root, files, edits, catalog, created)
+    except BaseException as error:
+        for path in reversed(created):
+            if path.is_dir():
+                shutil.rmtree(path, ignore_errors=True)
+            elif path.exists():
+                path.unlink()
+        for path, data in originals.items():
+            path.write_bytes(data)
+        if isinstance(error, ScaffoldError) or not isinstance(error, Exception):
+            raise
+        msg = f'{type(error).__name__}: {error}; all changes were rolled back'
+        raise ScaffoldError(msg) from error
+    return sorted(files), sorted(edits), synced
 
 
 def main(argv=None):
