@@ -352,6 +352,32 @@ class DiagnosticsAndCatalogTests(unittest.TestCase):
             parse_create_policy(json.dumps(policy).encode(), catalog_path=path,
                                 catalog_sha256='sha256:' + digest, commercial_mode='saas')
 
+class RuntimeWriterCodeTests(unittest.TestCase):
+    PROJECT = 'nasq-shared-test'
+
+    def test_codes_cross_the_boundary_by_name(self):
+        for code in ('runtime_writer_present', 'runtime_writer_after_effect'):
+            self.assertEqual(odoo_effect.classify_error(odoo_effect.EffectError(code)), code)
+        self.assertEqual(odoo_effect.classify_error(odoo_effect.EffectError('anything_else')), 'shared_effect_unverified')
+
+    def test_writer_found_after_effects_uses_the_after_effect_code_and_keeps_the_gate(self):
+        with tempfile.TemporaryDirectory() as raw:
+            runner = object.__new__(odoo_effect.Runner)
+            runner.root = Path(raw).resolve()
+            runner.config = {'projectName': self.PROJECT}
+            runner.request = {'attemptId': 'one', 'fence': 1, 'payloadDigest': 'a' * 64}
+            seen = []
+            def command(args, **_):
+                seen.append(1)
+                return '' if len(seen) == 1 else self.PROJECT + '-effect-12345678-install'
+            runner.command = command
+            runner.apply = lambda: None
+            with unittest.mock.patch.object(odoo_effect, 'permit', lambda stage: None), self.assertRaises(odoo_effect.EffectError) as caught:
+                runner.apply_owned()
+            self.assertEqual(str(caught.exception), 'runtime_writer_after_effect')
+            self.assertTrue((runner.root / 'runtime-gate').exists())
+
+
 class RuntimeWriterCheckOrderTests(unittest.TestCase):
     """The writer check runs before the gate exists, so a busy project never wedges the lane."""
     PROJECT = 'nasq-shared-test'

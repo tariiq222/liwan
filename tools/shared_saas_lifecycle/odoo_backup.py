@@ -301,7 +301,7 @@ print('{}')
         self.command(self.base+['stop','--timeout','30','odoo'],timeout=45)
         if self.inspect_service('odoo')['State']['Running']:
             raise EffectError('writers_not_stopped')
-        self.assert_no_effect_containers()
+        self.assert_no_effect_containers(code='runtime_writer_after_effect')
         # No ordinary application session may remain in any source tenant DB.
         script=CONNECTION+'''\nwith connect('postgres') as c:
  with c.cursor() as cr:

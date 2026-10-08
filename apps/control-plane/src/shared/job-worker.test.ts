@@ -85,6 +85,11 @@ it('requeues a provision refused by a running usage observer instead of quaranti
   const again=await runSharedJob(f.pool,id,{ observe:async()=>effects ? f.present : {state:'absent'},applyFenced:async()=>{ effects++ } })
   expect(again.state).toBe('verified'); expect(effects).toBe(1)
 })
+it('quarantines a writer found after the effects ran and never records it as absent', async () => {
+  const f=fixture()
+  await expect(runSharedJob(f.pool,id,{ observe:async()=>({state:'absent'}),applyFenced:async()=>{throw Error('runtime_writer_after_effect')} })).rejects.toThrow('runtime_writer_after_effect')
+  expect(f.row.state).toBe('needs_intervention'); expect(f.events).toEqual(['prepared','started','needs_intervention'])
+})
 it('still quarantines every other adapter error', async () => {
   const f=fixture()
   await expect(runSharedJob(f.pool,id,{ observe:async()=>({state:'absent'}),applyFenced:async()=>{throw Error('target_mismatch')} })).rejects.toThrow('target_mismatch')

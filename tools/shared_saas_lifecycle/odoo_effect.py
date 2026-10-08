@@ -267,11 +267,11 @@ class Runner:
         finally:
             self.current_container = None
 
-    def assert_no_effect_containers(self, *, ignore_observe=False):
+    def assert_no_effect_containers(self, *, ignore_observe=False, code='runtime_writer_present'):
         rows = self.command(['docker', 'ps', '--filter', 'label=com.docker.compose.project=' + self.config['projectName'], '--format', '{{.Names}}']).splitlines()
         for name in rows:
             if '-effect-' in name and not (ignore_observe and OBSERVE_CONTAINER.search(name)):
-                raise EffectError('runtime_writer_present')
+                raise EffectError(code)
 
     def apply_owned(self):
         permit('runtime')
@@ -285,7 +285,7 @@ class Runner:
         # Our effects are done and verified. A read-only usage observation of another tenant that
         # is still running must not wedge the lane (the gate would stay forever), so only a
         # container that can write (a mutating effect) refuses the release.
-        self.assert_no_effect_containers(ignore_observe=True)
+        self.assert_no_effect_containers(ignore_observe=True, code='runtime_writer_after_effect')
         gate.complete()
 
     def apply(self):
@@ -443,6 +443,8 @@ REPORTABLE_CODES = frozenset(ERROR_CODES) | {
     'catalog_source_unavailable', 'catalog_source_ambiguous',
 } | set(POLICY_ERROR_CODES)
 
+WRITER_REFUSALS = frozenset({'runtime_writer_present', 'runtime_writer_after_effect'})
+
 
 def classify_error(error):
     code = getattr(error, 'code', None)
@@ -451,6 +453,10 @@ def classify_error(error):
     # Policy/catalog validation refusals carry stable safe codes only.
     if isinstance(error, PolicyError) and error.code in POLICY_ERROR_CODES:
         return error.code
+    # Writer refusals are non-secret and the control plane tells them apart: only the
+    # pre-gate one (nothing ran) may be retried.
+    if isinstance(error, EffectError) and str(error) in WRITER_REFUSALS:
+        return str(error)
     return 'shared_effect_unverified'
 
 
