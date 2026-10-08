@@ -82,7 +82,6 @@ Storybook هو فهرس المكونات الملزم: كل وكيل يأخذ ا
 | `apps/web/app/components/vendor/LifecycleBadge.vue` | `apps/web/stories/vendor/LifecycleBadge.stories.ts` | `UBadge` |
 | `apps/web/app/components/vendor/LifecyclePanel.vue` | `apps/web/stories/vendor/LifecyclePanel.stories.ts` | `SharedFormSection`, `SharedInlineConfirm`, `SharedUnsavedChanges`, `UAlert`, `UButton`, `UFormField`, `UTextarea` |
 | `apps/web/app/components/vendor/OrderStateBadge.vue` | `apps/web/stories/vendor/OrderStateBadge.stories.ts` | `UBadge` |
-| `apps/web/app/components/vendor/PackageForm.vue` | `apps/web/stories/vendor/PackageForm.stories.ts` | `SharedFormSection`, `SharedUnsavedChanges`, `UAlert`, `UBadge`, `UButton`, `UFormField`, `UInput`, `USelect`, `UTextarea` |
 | `apps/web/app/components/vendor/PlanForm.vue` | `apps/web/stories/vendor/PlanForm.stories.ts` | `SharedFormSection`, `SharedUnsavedChanges`, `UAlert`, `UButton`, `UCheckbox`, `UFormField`, `UInput`, `USelect`, `UTextarea` |
 | `apps/web/app/components/vendor/PriceBreakdown.vue` | `apps/web/stories/vendor/PriceBreakdown.stories.ts` | `UAlert`, `UButton` |
 | `apps/web/app/components/vendor/PriceListEditor.vue` | `apps/web/stories/vendor/PriceListEditor.stories.ts` | `UButton`, `UFormField`, `UInput`, `USelect` |
