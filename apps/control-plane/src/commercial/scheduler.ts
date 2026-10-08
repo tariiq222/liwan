@@ -9,12 +9,14 @@ import { generateRenewals, applyDunning } from './renewals.js'
 import * as settlements from './settlements.js'
 import type { PaymentAdapter } from './payment-adapter.js'
 import type { MailAdapter } from './mail-adapter.js'
+import { collectUsage, type UsageObserveRunner } from './usage-collector.js'
 
 type Env = Record<string, string | undefined>
 export type CommercialSchedulerOptions = {
   pool: Pool; config: Config; env: Env; clock?: () => number
   paymentAdapter?: PaymentAdapter; mailAdapter?: MailAdapter
   subscriptionRunner?: Parameters<typeof recoverInterrupted>[1] extends infer O ? (O extends { runner?: infer R } ? R : never) : never
+  usageRunner?: UsageObserveRunner
   log?: (message: string, err?: unknown) => void
 }
 
@@ -25,6 +27,8 @@ export function createCommercialScheduler(o: CommercialSchedulerOptions) {
   const clock = o.clock ?? Date.now
   const log = o.log ?? ((m: string, e?: unknown) => console.error(`[commercial-scheduler] ${m}`, e instanceof Error ? e.message : e ?? ''))
   const reconcileEvery = posInt(env.NASQ_COMMERCIAL_RECONCILE_EVERY, 10)
+  // Downgrade checks need a sample younger than 15 minutes (usage.ts); keep ticks × interval below that.
+  const usageEvery = posInt(env.NASQ_COMMERCIAL_USAGE_EVERY, 10)
   const billingMs = posInt(env.NASQ_COMMERCIAL_BILLING_INTERVAL_SEC, 3600) * 1000
   const origin = (env.NASQ_PAYMENT_RETURN_ORIGINS ?? '').split(',')[0]?.trim() ?? ''
   let ticks = 0
@@ -56,6 +60,10 @@ export function createCommercialScheduler(o: CommercialSchedulerOptions) {
       if (ticks % reconcileEvery === 0) {
         if (o.paymentAdapter) { const a = o.paymentAdapter; await job('reconcile-payments', () => reconcileUnknownAttempts(pool, a)) }
         await job('recover-interrupted', () => recoverInterrupted(pool, { runner: o.subscriptionRunner }))
+      }
+      if (o.usageRunner && ticks % usageEvery === 0) {
+        const runner = o.usageRunner
+        await job('usage', () => collectUsage(pool, { runner }))
       }
       const now = clock()
       if (lastBilling === undefined || now - lastBilling >= billingMs) {

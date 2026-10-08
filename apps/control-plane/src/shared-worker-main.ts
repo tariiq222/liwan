@@ -21,6 +21,6 @@ try{
   let mailAdapter:ReturnType<typeof mailAdapterFromEnv>|undefined
   try{paymentAdapter=paymentAdapterFromEnv(process.env)}catch(e){console.error('commercial payment adapter unavailable:',e instanceof Error?e.message:e)}
   try{mailAdapter=mailAdapterFromEnv(process.env)}catch(e){console.error('commercial mail adapter unavailable:',e instanceof Error?e.message:e)}
-  const scheduler=createCommercialScheduler({pool,config,env:process.env,paymentAdapter,mailAdapter,subscriptionRunner:adapter.subscriptionRunner})
+  const scheduler=createCommercialScheduler({pool,config,env:process.env,paymentAdapter,mailAdapter,subscriptionRunner:adapter.subscriptionRunner,usageRunner:adapter.observeUsage})
   await runSharedWorker({pool,adapter,signal:controller.signal,afterDispatch:async()=>{await reconcileOdooOnboardings(pool,config,adapter);await scheduler.tick()}})
 }finally{await pool.end()}

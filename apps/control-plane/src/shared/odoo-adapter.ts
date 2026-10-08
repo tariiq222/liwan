@@ -152,8 +152,13 @@ export function createOdooAdapter(pool:Pool,config:Config,signal:AbortSignal):Sh
     if(!row.rowCount)throw Error('tenant_binding_mismatch')
     return await subscriptionExecute({action:'observe',tenant:{database:input.database,host:row.rows[0].host},attemptId:randomUUID(),fence:0}) as Awaited<ReturnType<ObserveRunner>>
   }
+  const observeUsage:NonNullable<SharedFencedAdapter['observeUsage']>=async input=>{
+    // The same read-only observe action; the collector validates every field it keeps.
+    const value=await observeSubscription(input) as unknown as {database?:unknown;observed_at?:unknown;usage?:unknown;limit_gates?:unknown}
+    return {database:String(value.database),observed_at:String(value.observed_at),usage:value.usage as Record<string,number>,limit_gates:value.limit_gates as Record<string,string[]>}
+  }
   return {
-    subscriptionRunner,observeSubscription,
+    subscriptionRunner,observeSubscription,observeUsage,
     async observe(job){
       try{return sharedObservationSchema.parse(await execute(job,'observe'))}catch{return {state:'unknown'}}
     },
