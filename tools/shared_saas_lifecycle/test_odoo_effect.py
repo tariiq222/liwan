@@ -15,8 +15,12 @@ class PhysicalBoundaryTests(unittest.TestCase):
         for value in ['odoo19', 'postgres', 'nasq_scratch_prod', 'nasq_scratch_a;drop']:
             with self.assertRaises(odoo_effect.EffectError):
                 odoo_effect.validate_database(value)
-        with self.assertRaises(odoo_effect.EffectError):
-            odoo_effect.validate_modules(['nasq_core', 'sale'])
+        for value in [['nasq_core', 'sale'], ['nasq_core', 'nasq_not_shipped'], ['nasq_core', 'nasq_registry_probe'], [{'a': 1}], [], ['nasq_core', 'nasq_core'], 'nasq_core']:
+            with self.subTest(value=value), self.assertRaises(odoo_effect.EffectError):
+                odoo_effect.validate_modules(value)
+        release = ['nasq_core', 'nasq_platform', 'nasq_api', 'nasq_pmo', 'nasq_meetings', 'nasq_hr', 'nasq_chat']
+        self.assertEqual(odoo_effect.validate_modules(release), release)
+        self.assertFalse(hasattr(odoo_effect, 'ALLOWED_MODULES'))
 
     def test_permanent_reservation_refuses_reclaim_or_symlink(self):
         with tempfile.TemporaryDirectory() as raw:
@@ -117,20 +121,16 @@ class PackageAdministratorScriptTests(unittest.TestCase):
                     return SimpleNamespace(
                         _nasq_excluded_user_ids=lambda: (1, 2) if admin.support_member else (1,),
                         _nasq_count_users=lambda: count if count is not None else (0 if admin.support_member else 1),
+                        _nasq_entitled_admin_roles=lambda: ['system_admin', 'pmo_manager', 'hr_manager'],
                     )
+                if model == 'nasq.access.role':
+                    return SimpleNamespace(search=lambda domain, limit=None: SimpleNamespace(id=domain[0][2]))
                 raise AssertionError(model)
             def ref(self, xmlid):
                 if xmlid == 'base.user_admin':
                     return admin
                 if xmlid == 'nasq_core.group_vendor_support':
                     return SimpleNamespace(id=99)
-                role_keys = {
-                    'nasq_core.role_system_admin': 'system_admin',
-                    'nasq_pmo.role_pmo_manager': 'pmo_manager',
-                    'nasq_hr.role_hr_manager': 'hr_manager',
-                }
-                if xmlid in role_keys:
-                    return SimpleNamespace(id=role_keys[xmlid])
                 raise AssertionError(xmlid)
             def invalidate_all(self, **kwargs):
                 pass
@@ -148,6 +148,16 @@ class PackageAdministratorScriptTests(unittest.TestCase):
             exec(compile(runner.admin_script('known-secret', snapshot=snapshot), '<generated-admin>', 'exec'), {'env': Environment()})
         result = json.loads(output.getvalue().strip().removeprefix('NASQ_SHARED_ADMIN:'))
         return result, writes, admin, roles
+
+    def test_admin_script_reads_roles_from_the_entitlement_not_modules(self):
+        script = object.__new__(odoo_effect.Runner)
+        script.database = 'nasq_scratch_' + 'a' * 32
+        script.request = {'admin': {'name': 'A', 'login': 'a@example.test'}, 'companyName': 'C',
+                          'job': {'policy': {'modules': ['nasq_core', 'nasq_platform', 'nasq_api', 'nasq_pmo', 'nasq_hr']}}}
+        text = script.admin_script('known-secret', snapshot=False)
+        self.assertIn('_nasq_entitled_admin_roles()', text)
+        self.assertNotIn("'nasq_pmo' in values['modules']", text)
+        self.assertNotIn('"modules"', text.split('\n', 2)[1])
 
     def test_package_apply_removes_only_support_and_preserves_customer_roles(self):
         result, writes, admin, roles = self.run_script()
@@ -341,6 +351,82 @@ class DiagnosticsAndCatalogTests(unittest.TestCase):
         with self.assertRaises(PolicyError):
             parse_create_policy(json.dumps(policy).encode(), catalog_path=path,
                                 catalog_sha256='sha256:' + digest, commercial_mode='saas')
+
+class RuntimeWriterCodeTests(unittest.TestCase):
+    PROJECT = 'nasq-shared-test'
+
+    def test_codes_cross_the_boundary_by_name(self):
+        for code in ('runtime_writer_present', 'runtime_writer_after_effect'):
+            self.assertEqual(odoo_effect.classify_error(odoo_effect.EffectError(code)), code)
+        self.assertEqual(odoo_effect.classify_error(odoo_effect.EffectError('anything_else')), 'shared_effect_unverified')
+
+    def test_writer_found_after_effects_uses_the_after_effect_code_and_keeps_the_gate(self):
+        with tempfile.TemporaryDirectory() as raw:
+            runner = object.__new__(odoo_effect.Runner)
+            runner.root = Path(raw).resolve()
+            runner.config = {'projectName': self.PROJECT}
+            runner.request = {'attemptId': 'one', 'fence': 1, 'payloadDigest': 'a' * 64}
+            seen = []
+            def command(args, **_):
+                seen.append(1)
+                return '' if len(seen) == 1 else self.PROJECT + '-effect-12345678-install'
+            runner.command = command
+            runner.apply = lambda: None
+            with unittest.mock.patch.object(odoo_effect, 'permit', lambda stage: None), self.assertRaises(odoo_effect.EffectError) as caught:
+                runner.apply_owned()
+            self.assertEqual(str(caught.exception), 'runtime_writer_after_effect')
+            self.assertTrue((runner.root / 'runtime-gate').exists())
+
+
+class RuntimeWriterCheckOrderTests(unittest.TestCase):
+    """The writer check runs before the gate exists, so a busy project never wedges the lane."""
+    PROJECT = 'nasq-shared-test'
+
+    def runner(self, root, containers, calls):
+        runner = object.__new__(odoo_effect.Runner)
+        runner.root = Path(root).resolve()
+        runner.config = {'projectName': self.PROJECT}
+        runner.request = {'attemptId': 'one', 'fence': 1, 'payloadDigest': 'a' * 64}
+        runner.command = lambda args, **_: '\n'.join(containers)
+        runner.apply = lambda: calls.append('effect')
+        return runner
+
+    def test_writer_found_before_acquire_leaves_no_gate_and_runs_no_effect(self):
+        for name in (self.PROJECT + '-effect-12345678-observe-abcd1234', self.PROJECT + '-effect-12345678-install'):
+            with self.subTest(name=name), tempfile.TemporaryDirectory() as raw:
+                calls = []
+                runner = self.runner(raw, [name], calls)
+                stages = []
+                with unittest.mock.patch.object(odoo_effect, 'permit', stages.append), self.assertRaises(odoo_effect.EffectError) as caught:
+                    runner.apply_owned()
+                self.assertEqual(str(caught.exception), 'runtime_writer_present')
+                self.assertEqual(calls, [])
+                self.assertEqual(stages, ['runtime'])
+                self.assertFalse((runner.root / 'runtime-gate').exists())
+                # A retry after the container ended acquires normally.
+                runner.command = lambda args, **_: ''
+                with unittest.mock.patch.object(odoo_effect, 'permit', lambda stage: None):
+                    runner.apply_owned()
+                self.assertEqual(calls, ['effect'])
+                self.assertFalse((runner.root / 'runtime-gate').exists())
+
+    def test_release_check_ignores_a_lingering_observation_but_not_a_writer(self):
+        observe = self.PROJECT + '-effect-ffffffff-observe-abcd1234'
+        for containers, ok in (([observe], True), ([observe, self.PROJECT + '-effect-ffffffff-apply'], False)):
+            with self.subTest(containers=containers), tempfile.TemporaryDirectory() as raw:
+                calls = []
+                runner = self.runner(raw, [], calls)
+                # Containers appear only once the effect has run.
+                runner.apply = lambda: (calls.append('effect'), setattr(runner, 'command', lambda args, **_: '\n'.join(containers)))
+                with unittest.mock.patch.object(odoo_effect, 'permit', lambda stage: None):
+                    if ok:
+                        runner.apply_owned()
+                        self.assertFalse((runner.root / 'runtime-gate').exists())
+                    else:
+                        with self.assertRaises(odoo_effect.EffectError):
+                            runner.apply_owned()
+                        self.assertTrue((runner.root / 'runtime-gate').exists())
+
 
 if __name__ == '__main__':
     unittest.main()

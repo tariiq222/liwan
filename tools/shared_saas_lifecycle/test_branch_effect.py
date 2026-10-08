@@ -34,8 +34,8 @@ class ScriptContentTests(unittest.TestCase):
 
     def test_removed_module_flags_turned_off_not_uninstalled(self):
         text = self.script()
-        self.assertIn('features[key] = False', text)
-        self.assertIn("item['module'] in installed", text)
+        self.assertIn("._nasq_close_unlisted_features(values['features'])", text)
+        self.assertNotIn('button_uninstall', text)
 
     def test_observe_is_read_only(self):
         text = se.build_observe_script(DB)

@@ -13,7 +13,7 @@ suite('commercial plans', () => {
   const bundleBody = (over: any = {}) => ({ name: `B ${randomUUID()}`, description: 'd', audience: { kind: 'public' }, catalog_release_id: release.id,
     selections: [{ app_id: sel.app, feature_keys: [sel.feature] }], domain_limits: {}, prices: [{ cadence: monthly, amount: money(0) }], ...over })
   const planBody = (over: any = {}) => ({ name: `P ${randomUUID()}`, audience: { kind: 'public' }, term_months: 12, currency: 'SAR',
-    prices: [{ cadence: monthly, amount: money(10000) }], platform_limits: {}, included_bundle_revision_ids: [], optional_bundle_revision_ids: [],
+    prices: [{ cadence: monthly, amount: money(10000) }], platform_limits: { 'users.limit': null, 'storage.limit_mb': null }, included_bundle_revision_ids: [], optional_bundle_revision_ids: [],
     included_extra_branches: 1, extra_branch_prices: [{ cadence: monthly, amount: money(50000) }], extra_branches_limit: 5, policy_revision_id: POLICY,
     trial_days: 0, grace_days: 7, auto_suspend: true, auto_renew_allowed: true, ...over })
   async function publishedBundle(over: any = {}) {
@@ -45,6 +45,12 @@ suite('commercial plans', () => {
     const rev = await api('POST', `/plans/${c.body.id}/revisions`, { edit_revision: r.body.edit_revision, reason })
     expect(rev.status).toBe(201); expect(rev.body.version).toBe(2)
     expect((await api('DELETE', `/bundles/${b.id}`, { edit_revision: b.edit_revision, reason })).status).toBe(409)
+  })
+  it('refuses a plan that leaves a platform limit unset', async () => {
+    const c = await api('POST', '/plans', planBody({ platform_limits: { 'users.limit': 5 } }))
+    expect(c.status).toBe(201)
+    const v = await validate(c.body.id)
+    expect(codes(v)).toContain('platform_limit_missing')
   })
   it('accepts a zero price', async () => {
     const c = await api('POST', '/plans', planBody({ prices: [{ cadence: monthly, amount: money(0) }] }))

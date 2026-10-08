@@ -2028,7 +2028,7 @@
       "props": [
         {
           "name": "usage",
-          "type": "{ tenant_id: string; observed_at: string | null; policy_revision_id: string; freshness: \"fresh\" | \"stale\" | \"unavailable\"; metrics: { key: string; used: number | null; limit: number | null; unit: \"users\" | \"projects\" | \"attachment_bytes\" | \"extra_branches\"; reason: \"source_unreachable\" | \"timeout\" | \"not_collected\" | \"forbidden\" | null; }[]; }",
+          "type": "{ tenant_id: string; observed_at: string | null; policy_revision_id: string; freshness: \"fresh\" | \"stale\" | \"unavailable\"; metrics: { key: string; used: number | null; limit: number | null; unit: \"count\" | \"users\" | \"projects\" | \"attachment_bytes\" | \"extra_branches\" | \"mebibytes\"; reason: \"source_unreachable\" | \"timeout\" | \"not_collected\" | \"forbidden\" | null; }[]; }",
           "required": true
         }
       ],
@@ -2858,78 +2858,6 @@
       ]
     },
     {
-      "name": "VendorPackageForm",
-      "file": "apps/web/app/components/vendor/PackageForm.vue",
-      "story": "apps/web/stories/vendor/PackageForm.stories.ts",
-      "title": "Vendor/PackageForm",
-      "props": [
-        {
-          "name": "catalogs",
-          "type": "globalThis.PackageCatalog[]",
-          "required": true
-        },
-        {
-          "name": "initial",
-          "type": "{ name: string; description: string; catalog_version: string; catalog_tier: string; limits: Record<string, number | null>; id: string; package_id: string; version: number; revision: number; status: \"draft\" | \"validated\" | \"published\"; available: boolean; source_sha256: string; modules: string[]; features: string[]; customer_count: number; created_at: string; published_at: string | null; }",
-          "required": false
-        },
-        {
-          "name": "busy",
-          "type": "boolean",
-          "required": false,
-          "default": "false"
-        },
-        {
-          "name": "error",
-          "type": "unknown",
-          "required": false
-        },
-        {
-          "name": "resetKey",
-          "type": "number",
-          "required": false,
-          "default": "0"
-        }
-      ],
-      "events": [
-        {
-          "name": "cancel",
-          "payload": "[]"
-        },
-        {
-          "name": "save",
-          "payload": "[{ name: string; description: string; catalog_version: string; catalog_tier: string; limits: Record<string, number | null>; }]"
-        }
-      ],
-      "slots": [],
-      "nuxtUi": [
-        "UAlert",
-        "UBadge",
-        "UButton",
-        "UFormField",
-        "UInput",
-        "USelect",
-        "UTextarea"
-      ],
-      "stories": [
-        {
-          "id": "Create",
-          "name": "Create",
-          "context": "apps/web/app/pages/vendor/catalog/new.vue:17"
-        },
-        {
-          "id": "Saving",
-          "name": "Saving",
-          "context": "apps/web/app/pages/vendor/catalog/new.vue:17"
-        },
-        {
-          "id": "SaveConflict",
-          "name": "SaveConflict",
-          "context": "apps/web/app/pages/vendor/catalog/new.vue:17"
-        }
-      ]
-    },
-    {
       "name": "VendorPlanForm",
       "file": "apps/web/app/components/vendor/PlanForm.vue",
       "story": "apps/web/stories/vendor/PlanForm.stories.ts",
@@ -3202,7 +3130,7 @@
       "props": [
         {
           "name": "usage",
-          "type": "{ tenant_id: string; observed_at: string | null; policy_revision_id: string; freshness: \"fresh\" | \"stale\" | \"unavailable\"; metrics: { key: string; used: number | null; limit: number | null; unit: \"users\" | \"projects\" | \"attachment_bytes\" | \"extra_branches\"; reason: \"source_unreachable\" | \"timeout\" | \"not_collected\" | \"forbidden\" | null; }[]; } | null",
+          "type": "{ tenant_id: string; observed_at: string | null; policy_revision_id: string; freshness: \"fresh\" | \"stale\" | \"unavailable\"; metrics: { key: string; used: number | null; limit: number | null; unit: \"count\" | \"users\" | \"projects\" | \"attachment_bytes\" | \"extra_branches\" | \"mebibytes\"; reason: \"source_unreachable\" | \"timeout\" | \"not_collected\" | \"forbidden\" | null; }[]; } | null",
           "required": false
         }
       ],

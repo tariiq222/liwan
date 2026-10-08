@@ -448,6 +448,7 @@ class ManagedRuntimeCase(unittest.TestCase):
         self.assertEqual(runner.argv[-1][-2:], ['up', '-d'])
         self.assertIs(payload['policy_verified'], True)
         self.assertEqual(payload['profile']['features'], CORE_POLICY['features'])
+        self.assertEqual(payload['expected_modules'], ['nasq_api', 'nasq_core', 'nasq_platform'])
         return code, payload, runner
 
     def failed_create(self, runner=None, request_id='req_0001'):
@@ -1123,7 +1124,23 @@ class StatusReceiptCase(ManagedRuntimeCase):
         self.assertIs(payload['policy_verified'], True)
         self.assertIs(payload['deployment_ready'], True)
         self.assertEqual(payload['profile']['features'], CORE_POLICY['features'])
+        self.assertEqual(payload['expected_modules'], ['nasq_api', 'nasq_core', 'nasq_platform'])
         self.assertEqual(payload['profile']['policy_revision'], 1)
+
+    def test_status_ignores_a_forged_journal_expected_modules(self):
+        self.successful_create()
+        stored = json.loads(self.raw_journal_row('req_0001')[5])
+        stored['expected_modules'] = ['nasq_core', 'nasq_forged']
+        connection = sqlite3.connect(str(self.state / 'operations.sqlite3'))
+        try:
+            connection.execute('UPDATE operations SET receipt = ? WHERE target = ? AND request_id = ?',
+                               (json.dumps(stored), TARGET_A, 'req_0001'))
+            connection.commit()
+        finally:
+            connection.close()
+        code, payload = self.adapter(self.status_fields(), runner=ForbiddenRunner(), probe=ForbiddenProbe())
+        self.assertEqual(code, 0, payload)
+        self.assertEqual(payload['expected_modules'], ['nasq_api', 'nasq_core', 'nasq_platform'])
 
     def test_legacy_incomplete_receipt_stays_unverified_and_read_only(self):
         self.seed_journal_row('req_legacy')

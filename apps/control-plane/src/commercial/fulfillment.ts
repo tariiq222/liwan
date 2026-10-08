@@ -21,7 +21,7 @@ export type FulfillmentAuthority = {
   entitlement: { modules: string[]; features: Record<string, unknown>; digest: string; compiler_version: string }
   branches: { apply: { branch_id: string; name: string }[]; archive: string[] }
 }
-export type SubscriptionReceipt = EffectReceipt & { database?: string; modules_installed?: string[]; root_company_id?: number; archived_branch_ids?: string[] }
+export type SubscriptionReceipt = EffectReceipt & { database?: string; modules_installed?: string[]; root_company_id?: number; archived_branch_ids?: string[]; roles_not_granted?: boolean; roles_not_granted_reason?: 'no_admin_login' | 'admin_not_found' | 'roles_missing' }
 
 /** Receipt application is atomic with branch activation and the commercial revision. */
 export async function applyReceipt(pool: Pool, input: { order_id: string; receipt: SubscriptionReceipt }) {

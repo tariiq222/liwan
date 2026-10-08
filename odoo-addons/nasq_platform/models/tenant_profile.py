@@ -1,4 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+import logging
+
 from odoo import api, fields, models
 from odoo.exceptions import AccessError, ValidationError
 
@@ -7,6 +9,8 @@ from odoo.addons.nasq_platform.models.entitlement_service import (
     OPERATOR_CONTEXT,
     POLICY_FIELDS,
 )
+
+_logger = logging.getLogger(__name__)
 
 
 class NasqTenantProfile(models.Model):
@@ -154,6 +158,61 @@ class NasqTenantProfile(models.Model):
         })
         return profile
 
+    def _register_hook(self):
+        super()._register_hook()
+        self._nasq_register_missing_features()
+
+    @api.model
+    def _nasq_register_missing_features(self):
+        """Close, in the stored policy, every installed application key it lacks.
+
+        Runs once per registry load, so an application installed (or a key an
+        application adds in an upgrade) after the tenant's one-shot policy gets
+        its default-closed value once, and the next full policy write is not
+        refused for omitting it. It never grants and never changes a stored
+        value. An uninitialized tenant is left to its first policy write; a
+        policy that cannot be completed (a new platform key needs a migration)
+        is logged and left unchanged rather than stopping the server.
+        """
+        try:
+            return self._nasq_register_missing_features_unguarded()
+        except ValidationError as error:
+            _logger.warning('nasq_platform: the stored policy cannot take its closed keys: %s', error)
+        except Exception:
+            _logger.warning('nasq_platform: closed application keys were not registered', exc_info=True)
+        return False
+
+    @api.model
+    def _nasq_register_missing_features_unguarded(self):
+        profiles = self.search([], limit=2)
+        if len(profiles) != 1 or not self._nasq_policy_initialized(profiles):
+            return False
+        service = self.env['nasq.entitlement.service']
+        with self.env.cr.savepoint():
+            # Unlocked fast path: nothing missing means no lock and no write. It
+            # reads inside the savepoint so a failing read cannot poison the
+            # registry-load transaction.
+            if not self._nasq_missing_features(profiles, service):
+                return False
+            profile = profiles._nasq_lock()
+            completed = self._nasq_missing_features(profile, service)
+            if not completed:
+                return False
+            profile.with_context(**{OPERATOR_CONTEXT: True}).write({
+                'features': completed,
+                'retained_read_features': list(profile.retained_read_features or []),
+            })
+        return True
+
+    @api.model
+    def _nasq_missing_features(self, profile, service):
+        """The completed feature map when the stored one lacks a key, else an empty dict."""
+        current = profile.features
+        if not isinstance(current, dict):
+            return {}
+        completed = service._nasq_close_unlisted_features(current)
+        return completed if completed != current else {}
+
     def _nasq_lock(self):
         self.ensure_one()
         self.env.cr.execute(
@@ -264,6 +323,48 @@ class NasqTenantProfile(models.Model):
         self.ensure_one()
         if not (self.env.su and self.env.context.get(OPERATOR_CONTEXT)):
             raise AccessError(self.env._('A trusted local operator is required.'))
+
+    def _nasq_grant_opened_admin_roles(self, login, roles_before):
+        """Give the enrolment administrator the roles a policy change newly opened.
+
+        ROLES_BEFORE are the administrator roles the previous policy opened. Only
+        the roles open now and not before are assigned, to the active internal
+        user whose login the control plane recorded at enrolment, in the root
+        company. Nothing is ever revoked; without a login or a matching user
+        nothing is granted. Returns the granted role keys.
+        """
+        self._nasq_require_operator()
+        previous = set(roles_before or ())
+        opened = [
+            key for key in self.env['nasq.entitlement.service']._nasq_entitled_admin_roles()
+            if key not in previous
+        ]
+        if not opened:
+            return []
+        if not login or not isinstance(login, str):
+            _logger.info('nasq_platform: no enrolment administrator login; opened roles %s not granted', opened)
+            return []
+        user = self.env['res.users'].search(
+            [('login', '=', login), ('active', '=', True), ('share', '=', False)], limit=1,
+        )
+        if not user:
+            _logger.info('nasq_platform: enrolment administrator is not an active internal user; roles not granted')
+            return []
+        company = self.root_company_id
+        granted = []
+        for key in opened:
+            role = self.env['nasq.access.role'].search([('key', '=', key)], limit=1)
+            if not role:
+                continue
+            assignment = self.env['nasq.access.assignment'].search([
+                ('user_id', '=', user.id), ('role_id', '=', role.id), ('company_id', '=', company.id),
+            ])
+            if not assignment:
+                self.env['nasq.access.assignment'].create({
+                    'user_id': user.id, 'role_id': role.id, 'company_id': company.id,
+                })
+            granted.append(key)
+        return granted
 
     def _nasq_apply_branches(self, operation_id, target_revision_id, branches):
         """Bind control-plane branches to child companies of the root company.

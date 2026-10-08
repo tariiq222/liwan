@@ -7,7 +7,7 @@
   "additionalProperties": false,
   "required": ["schema_version", "id", "name", "base_modules", "tiers"],
   "properties": {
-    "schema_version": { "enum": [1, 2] },
+    "schema_version": { "enum": [1, 2, 3] },
     "descriptor_grammar": { "type": "string", "minLength": 1 },
     "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
     "name": { "type": "string", "minLength": 1 },
@@ -37,7 +37,7 @@
     "featureName": {
       "type": "string",
       "pattern": "^(boolean:[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+|limit:[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+(:(0|[1-9][0-9]{0,8}|1000000000))?)$",
-      "description": "boolean:<key> grants a feature; limit:<key> leaves the ceiling to the operator; limit:<key>:<int> (schema_version 2) carries an explicit numeric ceiling."
+      "description": "boolean:<key> grants a feature; limit:<key> leaves the ceiling to the operator; limit:<key>:<int> (schema_version 2 and 3) carries an explicit numeric ceiling."
     },
     "moduleName": {
       "type": "string",

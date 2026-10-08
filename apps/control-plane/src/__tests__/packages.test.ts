@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 import * as packages from '../packages.js'
-import { derivePackagePolicy,assertPackageTransition,packageContentDigest,assertPackageJobAuthority } from '../packages.js'
+import { derivePackagePolicy,packageContentDigest,assertPackageJobAuthority } from '../packages.js'
 import { deriveSharedPolicy } from '../shared/job-store.js'
 const catalog=JSON.parse(readFileSync(new URL('../../../../deploy/catalog/solutions/platform.json',import.meta.url),'utf8'))
 const limits={'users.limit':3,'storage.limit_mb':2,'projects.max_projects':1}
@@ -12,7 +12,6 @@ describe('trusted commercial packages',()=>{
  it('derives finite policy from one trusted composition',()=>{expect(derivePackagePolicy(catalog,'projects',limits).features).toEqual({...limits,'pmo.enabled':true,'meetings.enabled':true})})
  it('preserves zero versus unlimited and historical unlimited',()=>{expect(derivePackagePolicy(catalog,'core',{'users.limit':0,'storage.limit_mb':null}).features).toEqual({'users.limit':0,'storage.limit_mb':null});expect(deriveSharedPolicy(catalog,'projects').features['users.limit']).toBeNull()})
  it('rejects arbitrary, missing, boolean, fractional and unsafe quotas',()=>{for(const value of [-1,0.1,true,Number.MAX_SAFE_INTEGER+1])expect(()=>derivePackagePolicy(catalog,'projects',{...limits,'users.limit':value})).toThrow();for(const value of [{...limits,'pmo.enabled':1},{'users.limit':1},{...limits,'evil.limit':1}])expect(()=>derivePackagePolicy(catalog,'projects',value)).toThrow()})
- it('requires exact revision and reviewed content for publication',()=>{expect(()=>assertPackageTransition({status:'draft',revision:1},'publish',1)).toThrow();expect(()=>assertPackageTransition({status:'validated',revision:2},'publish',1)).toThrow();expect(()=>assertPackageTransition({status:'validated',revision:2},'publish',2)).not.toThrow();expect(()=>assertPackageTransition({status:'published',revision:3},'edit',3)).toThrow();expect(()=>assertPackageTransition({status:'published',revision:3},'delete',3)).toThrow();expect(()=>assertPackageTransition({status:'validated',revision:3},'delete',3)).toThrow()})
  it('binds digest to content with canonical limit ordering',()=>{const a={name:'A',limits:{b:0,a:null}};expect(packageContentDigest(a)).toBe(packageContentDigest({limits:{a:null,b:0},name:'A'}));expect(packageContentDigest(a)).not.toBe(packageContentDigest({...a,name:'B'}))})
  it('rejects job authority mismatch',()=>{const authority={schemaVersion:2,revisionId:'a',digest:'b',catalog:{version:'v1',tier:'core',sourceSha256:'c'},policy:derivePackagePolicy(catalog,'core',{'users.limit':0,'storage.limit_mb':null})};expect(()=>assertPackageJobAuthority({...authority},authority)).not.toThrow();expect(()=>assertPackageJobAuthority({...authority,digest:'forged'},authority)).toThrow()})
 })

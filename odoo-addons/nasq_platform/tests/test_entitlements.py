@@ -2,6 +2,8 @@
 import unittest
 from datetime import datetime, timedelta, timezone
 
+from psycopg2.extras import Json
+
 from odoo.exceptions import AccessError, ValidationError
 from odoo.tests import TransactionCase, new_test_user, tagged
 
@@ -208,3 +210,125 @@ class TestEntitlements(TransactionCase):
         with self.assertRaises(NasqAccessRule) as error:
             self.service.require_within_limit('users.limit', 1)
         self.assertEqual(error.exception.details['reason'], 'limit')
+
+    def _grow_registry(self, *extra):
+        registry = type(self.features)
+        definitions = registry._nasq_feature_definitions
+        self.patch(registry, '_nasq_feature_definitions', lambda model: (*definitions(model), *extra))
+
+    def test_closing_unlisted_keys_adds_only_closed_values_of_installed_apps(self):
+        installed = self.features._nasq_installed_module_ids()
+        if not installed:
+            self.skipTest('needs an installed application')
+        app = installed[0]
+        self._grow_registry(
+            {'key': 'zz_probe.enabled', 'type': 'boolean', 'owner': app, 'module': app},
+            {'key': 'zz_probe.max_items', 'type': 'limit', 'owner': app, 'module': app},
+            {'key': 'zz_probe.listed', 'type': 'limit', 'owner': app, 'module': app},
+            {'key': 'zz_gone.enabled', 'type': 'boolean', 'owner': 'zz_not_installed', 'module': 'zz_not_installed'},
+            {'key': 'zz_gone.max_items', 'type': 'limit', 'owner': 'zz_not_installed', 'module': 'zz_not_installed'},
+        )
+        given = {'users.limit': None, 'zz_probe.listed': 9}
+        completed = self.service._nasq_close_unlisted_features(given)
+        self.assertIs(completed['zz_probe.enabled'], False)
+        self.assertEqual(completed['zz_probe.max_items'], 0)
+        self.assertIs(type(completed['zz_probe.max_items']), int)
+        self.assertEqual(completed['zz_probe.listed'], 9)  # a listed limit passes through
+        self.assertIsNone(completed['users.limit'])
+        self.assertNotIn('zz_gone.enabled', completed)  # an uninstalled app stays absent
+        self.assertNotIn('zz_gone.max_items', completed)
+        self.assertEqual(given, {'users.limit': None, 'zz_probe.listed': 9})
+        # Every added key is a closed value: nothing is granted.
+        for key in set(completed) - set(given):
+            self.assertTrue(completed[key] is False or (type(completed[key]) is int and completed[key] == 0), key)
+
+    def test_a_registered_limit_missing_from_the_payload_counts_as_zero(self):
+        installed = self.features._nasq_installed_module_ids()
+        if not installed:
+            self.skipTest('needs an installed application')
+        app = installed[0]
+        self._grow_registry(
+            {'key': 'zz_probe.max_items', 'type': 'limit', 'owner': app, 'module': app},
+            {'key': 'zz_gone.max_items', 'type': 'limit', 'owner': 'zz_not_installed', 'module': 'zz_not_installed'},
+        )
+        self.assertNotIn('zz_probe.max_items', self.record.features)
+        self.service.require_within_limit('zz_probe.max_items', 0)
+        with self.assertRaises(NasqAccessRule) as error:
+            self.service.require_within_limit('zz_probe.max_items', 1)
+        self.assertEqual(error.exception.details['limit_key'], 'zz_probe.max_items')
+        # An uninstalled owner keeps the old behaviour: absent means no stored limit.
+        self.service.require_within_limit('zz_gone.max_items', 1000)
+        # A key that is not registered is still refused as before.
+        with self.assertRaises(NasqAccessRule) as error:
+            self.service.require_within_limit('zz_unregistered.max_items', 0)
+        self.assertEqual(error.exception.details['reason'], 'limit')
+        # An explicit null stays unlimited.
+        self._operator().write({'features': {**self.record.features, 'zz_probe.max_items': None}})
+        self.service.require_within_limit('zz_probe.max_items', 1000)
+
+    def test_a_missing_platform_limit_keeps_its_legacy_unlimited_meaning(self):
+        features = dict(self.record.features)
+        del features['storage.limit_mb']
+        self.env.flush_all()
+        self.env.cr.execute(
+            'UPDATE nasq_tenant_profile SET features = %s WHERE id = %s',
+            [Json(features), self.record.id],
+        )
+        self.record.invalidate_recordset()
+        self.assertTrue(self.service._nasq_claim_storage(1))
+
+    def _admin_role_probe(self):
+        registry = self.features._nasq_feature_map()
+        if 'pmo.enabled' not in registry or 'pmo_manager' not in self.env['nasq.access.service']._nasq_legacy_admin_roles():
+            self.skipTest('needs nasq_pmo installed')
+        closed = self.service._nasq_close_unlisted_features(
+            {k: v for k, v in self.record.features.items() if k in ('users.limit', 'storage.limit_mb', 'branches.extra_limit')},
+        )
+        self._operator().write({'features': closed})
+        before = self.service._nasq_entitled_admin_roles()
+        self.assertNotIn('pmo_manager', before)
+        self._operator().write({'features': {**closed, 'pmo.enabled': True}})
+        return before
+
+    def _assigned(self, user):
+        return set(self.env['nasq.access.assignment'].search([
+            ('user_id', '=', user.id), ('company_id', '=', self.record.root_company_id.id),
+        ]).mapped('role_id.key'))
+
+    def test_newly_opened_roles_go_to_the_enrolment_admin_only(self):
+        before = self._admin_role_probe()
+        other = new_test_user(self.env, login='other_internal', groups='nasq_core.group_employee')
+        admin = new_test_user(self.env, login='enrolment_admin', groups='nasq_core.group_employee')
+        granted = self._operator()._nasq_grant_opened_admin_roles('enrolment_admin', before)
+        self.assertIn('pmo_manager', granted)
+        self.assertIn('pmo_manager', self._assigned(admin))
+        self.assertNotIn('pmo_manager', self._assigned(other))
+        self.assertTrue(set(granted).isdisjoint(before))  # roles already open are not re-granted
+        # Replays are idempotent and nothing is revoked when the app closes again.
+        self._operator()._nasq_grant_opened_admin_roles('enrolment_admin', before)
+        self.assertEqual(
+            self.env['nasq.access.assignment'].search_count([
+                ('user_id', '=', admin.id), ('role_id.key', '=', 'pmo_manager'),
+            ]), 1,
+        )
+        self._operator().write({'features': self.service._nasq_close_unlisted_features(
+            {k: v for k, v in self.record.features.items() if k in ('users.limit', 'storage.limit_mb', 'branches.extra_limit')},
+        )})
+        self.assertEqual(self._operator()._nasq_grant_opened_admin_roles('enrolment_admin', before), [])
+        self.assertIn('pmo_manager', self._assigned(admin))
+
+    def test_no_login_or_unusable_login_grants_nothing(self):
+        before = self._admin_role_probe()
+        inactive = new_test_user(self.env, login='inactive_admin', groups='nasq_core.group_employee')
+        inactive.active = False
+        portal = new_test_user(self.env, login='portal_admin', groups='base.group_portal')
+        with self.assertLogs('odoo.addons.nasq_platform.models.tenant_profile', level='INFO'):
+            self.assertEqual(self._operator()._nasq_grant_opened_admin_roles(None, before), [])
+        for login in ('inactive_admin', 'portal_admin', 'nobody_here'):
+            self.assertEqual(self._operator()._nasq_grant_opened_admin_roles(login, before), [], login)
+        self.assertNotIn('pmo_manager', self._assigned(inactive))
+        self.assertNotIn('pmo_manager', self._assigned(portal))
+
+    def test_granting_roles_needs_the_operator(self):
+        with self.assertRaises(AccessError):
+            self.record._nasq_grant_opened_admin_roles('enrolment_admin', [])

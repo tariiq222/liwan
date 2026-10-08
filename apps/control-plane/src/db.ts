@@ -37,6 +37,8 @@ export async function migrate(pool: Pool): Promise<void> {
   const sql16 = await readFile(new URL('./schema_016.sql', import.meta.url), 'utf8')
   const sql17 = await readFile(new URL('./schema_017.sql', import.meta.url), 'utf8')
   const sql18 = await readFile(new URL('./schema_018.sql', import.meta.url), 'utf8')
+  const sql19 = await readFile(new URL('./schema_019.sql', import.meta.url), 'utf8')
+  const sql20 = await readFile(new URL('./schema_020.sql', import.meta.url), 'utf8')
   const sql10 = await readFile(new URL('./schema_010.sql', import.meta.url), 'utf8')
   const sql9 = await readFile(new URL('./schema_009.sql', import.meta.url), 'utf8')
   await transaction(pool, async (client) => {
@@ -122,7 +124,7 @@ export async function migrate(pool: Pool): Promise<void> {
       await client.query(sql16)
       await client.query('INSERT INTO schema_migrations(version) VALUES(16)')
     }
-    for (const [version, body] of [[17, sql17], [18, sql18]] as const) {
+    for (const [version, body] of [[17, sql17], [18, sql18], [19, sql19], [20, sql20]] as const) {
       if (!(await client.query(`SELECT version FROM schema_migrations WHERE version=${version}`)).rowCount) {
         await client.query(body)
         await client.query(`INSERT INTO schema_migrations(version) VALUES(${version})`)

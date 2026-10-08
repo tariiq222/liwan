@@ -43,7 +43,7 @@ describe('catalog feature descriptor grammar', () => {
   })
   it('refuses a numeric ceiling under schema 1 and unknown schemas', () => {
     expect(() => parseFeatureDescriptor('limit:a.b:1', 1)).toThrow(CatalogInvalidError)
-    expect(() => parseFeatureDescriptor('limit:a.b', 3)).toThrow(CatalogInvalidError)
+    expect(() => parseFeatureDescriptor('limit:a.b', 4)).toThrow(CatalogInvalidError)
   })
 })
 
@@ -73,7 +73,7 @@ describe('policy derivation per catalog version', () => {
     // Schema-1 bytes never carry numeric ceilings.
     expect(() => deriveFeatures({ ...read('platform.json'), tiers: [tierOf(['limit:users.limit:5'])] }, tierOf(['limit:users.limit:5']))).toThrow('catalog_invalid')
     // Unknown schema versions refuse outright.
-    expect(() => deriveFeatures({ ...v2, schema_version: 3 }, v2.tiers[0])).toThrow('catalog_invalid')
+    expect(() => deriveFeatures({ ...v2, schema_version: 4 }, v2.tiers[0])).toThrow('catalog_invalid')
     // Schema-2 core must declare both required platform limits.
     expect(() => deriveFeatures({ ...v2, tiers: [tierOf(['limit:users.limit:5'])] }, tierOf(['limit:users.limit:5']))).toThrow('catalog_invalid')
     // The required limits are limits, never booleans.
@@ -85,5 +85,22 @@ describe('policy derivation per catalog version', () => {
     expect(ok.features['branches.extra_limit']).toBe(0)
     expect(() => derivePackagePolicy(v2, 'core', { 'users.limit': 5, 'storage.limit_mb': 100, 'branches.extra_limit': 3 })).toThrow('package_limits_invalid')
     expect(() => derivePackagePolicy(v2, 'core', { 'users.limit': 5 })).toThrow('package_limits_invalid')
+  })
+})
+
+describe('schema-3 release-complete policies through every control-plane derivation', () => {
+  const v3 = JSON.parse(readFileSync(join(root, 'deploy/catalog/fixtures/release_features.json'), 'utf8')).cases[0].catalog
+  it('shared onboarding installs the whole release and closes the other apps', () => {
+    const policy = deriveSharedPolicy(v3, 'people')
+    expect(policy.modules).toEqual(['nasq_core', 'nasq_platform', 'nasq_api', 'nasq_pmo', 'nasq_meetings', 'nasq_hr'])
+    expect(policy.features).toEqual({ 'users.limit': null, 'storage.limit_mb': null, 'branches.extra_limit': 0, 'pmo.enabled': false, 'meetings.enabled': false, 'projects.max_projects': 0, 'hr.enabled': true })
+  })
+  it('a package may only set the open tier limits, never a closed one', () => {
+    const policy = derivePackagePolicy(v3, 'projects', { 'users.limit': 5, 'storage.limit_mb': 100, 'projects.max_projects': 3 })
+    expect(policy.features).toMatchObject({ 'projects.max_projects': 3, 'hr.enabled': false })
+    expect(() => derivePackagePolicy(v3, 'people', { 'users.limit': 5, 'storage.limit_mb': 100, 'projects.max_projects': 3 })).toThrow('package_limits_invalid')
+  })
+  it('v2 stays base plus tier modules', () => {
+    expect(deriveSharedPolicy(read('platform_v2.json'), 'people').modules).toEqual(['nasq_core', 'nasq_platform', 'nasq_api', 'nasq_hr'])
   })
 })

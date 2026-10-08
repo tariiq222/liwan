@@ -5,7 +5,7 @@ import { randomUUID } from 'node:crypto'
 import { assertReconfigureAuthority, type SubscriptionRunner } from './subscription-reconfigure.js'
 import type { ObserveRunner } from './subscription-reconcile.js'
 import type { Pool } from 'pg'
-import type { SharedJob } from '@nasq/commercial-contracts/shared'
+import type { SharedJob,SharedReconfigureJob } from '@nasq/commercial-contracts/shared'
 import { sharedObservationSchema } from '@nasq/commercial-contracts/shared'
 import type { Config } from '../config.js'
 import { transaction } from '../db.js'
@@ -21,7 +21,12 @@ import { resolveOdooBackupAuthority,recordOdooBackup } from './odoo-backup.js'
 /** Non-secret refusal codes the provision effect may report; all others are opaque.
  * Mirrors tools/nasq_cli/managed_verify.py ERROR_CODES plus the managed-policy
  * and catalog-source codes classify_error allows across the IPC boundary. */
-export const PROVISION_ERROR_CODES=new Set(['target_mismatch','profile_invalid','classification_conflict','policy_already_initialized','modules_mismatch','features_mismatch','snapshot_invalid','policy_script_failed','catalog_source_unavailable','catalog_source_ambiguous','policy_invalid','policy_too_large','policy_duplicate_key','policy_channel_mismatch','commercial_mode_unsupported','catalog_reference_invalid','catalog_unavailable','catalog_digest_mismatch','catalog_invalid','policy_composition_mismatch','package_authority_invalid','package_authority_mismatch'])
+/** The request the subscription effect receives; `admin_login` is sent only when the control plane stored one. */
+export function subscriptionRequest(input:{job:SharedReconfigureJob;action:'observe'|'reconfigure';attemptId:string;fence:number},adminLogin?:string|null){
+  return {action:input.action,tenant:{database:input.job.binding.database,host:input.job.host},...input.job.authority,attemptId:input.attemptId,fence:input.fence,
+    ...(typeof adminLogin==='string' && adminLogin.length>0?{admin_login:adminLogin}:{})}
+}
+export const PROVISION_ERROR_CODES=new Set(['target_mismatch','profile_invalid','classification_conflict','policy_already_initialized','modules_mismatch','features_mismatch','snapshot_invalid','policy_script_failed','catalog_source_unavailable','catalog_source_ambiguous','policy_invalid','policy_too_large','policy_duplicate_key','policy_channel_mismatch','commercial_mode_unsupported','catalog_reference_invalid','catalog_unavailable','catalog_digest_mismatch','catalog_invalid','policy_composition_mismatch','package_authority_invalid','package_authority_mismatch','runtime_writer_present','runtime_writer_after_effect'])
 
 /** Non-reclaimable physical reservation + current durable claim per stage.
  * Losing the control connection cancels the owned child and cannot activate.
@@ -104,14 +109,16 @@ export function createOdooAdapter(pool:Pool,config:Config,signal:AbortSignal):Sh
       child.stdin.write(JSON.stringify({action,config:runtime,job,businessKey:businessKey(job),payloadDigest:payloadDigest(job),...(job.operation==='provision'?{admin:{name:row.admin_name,login:row.admin_login},companyName:row.name,...(packageAuthority?{packageAuthority}:{})}:{authority}),...(claim?{attemptId:claim.attemptId,fence:claim.fence}:{})})+'\n')
     })
   }
-  const subscriptionExecute=async(request:Record<string,unknown>,assertOwned?:()=>Promise<void>)=>{
+  const subscriptionExecute=async(request:Record<string,unknown>,assertOwned?:()=>Promise<void>,cancel?:AbortSignal)=>{
     if(signal.aborted)throw Error('shared_worker_stopping')
+    if(cancel?.aborted)throw Error('observe_aborted')
     return new Promise<unknown>((resolve,reject)=>{
       const child=spawn(config.python,['-B','-m','tools.shared_saas_lifecycle.subscription_effect'],{cwd:config.repositoryRoot,stdio:['pipe','pipe','ignore'],env:{...process.env,PYTHONUNBUFFERED:'1'}})
       let buffer='',result:unknown,error:Error|undefined,chain=Promise.resolve()
       const fail=(e:unknown)=>{error=e instanceof Error?e:Error('shared_effect_unverified');child.kill('SIGTERM')}
       const abort=()=>fail(Error('shared_worker_stopping'))
-      signal.addEventListener('abort',abort,{once:true})
+      const cancelled=()=>fail(Error('observe_aborted'))
+      signal.addEventListener('abort',abort,{once:true});cancel?.addEventListener('abort',cancelled,{once:true})
       const timer=setTimeout(()=>fail(Error('shared_effect_timeout')),30*60*1000)
       const heartbeat=setInterval(()=>{if(assertOwned)void assertOwned().catch(fail)},15000)
       child.on('error',fail);child.stdin.on('error',fail)
@@ -136,7 +143,7 @@ export function createOdooAdapter(pool:Pool,config:Config,signal:AbortSignal):Sh
         }
       })
       child.on('close',code=>{
-        clearTimeout(timer);clearInterval(heartbeat);signal.removeEventListener('abort',abort)
+        clearTimeout(timer);clearInterval(heartbeat);signal.removeEventListener('abort',abort);cancel?.removeEventListener('abort',cancelled)
         void chain.then(()=>error?reject(error):code!==0 || result===undefined?reject(Error('shared_effect_unverified')):resolve(result))
       })
       child.stdin.write(JSON.stringify({...request,config:runtime})+'\n')
@@ -145,15 +152,20 @@ export function createOdooAdapter(pool:Pool,config:Config,signal:AbortSignal):Sh
   const subscriptionRunner:SubscriptionRunner=async input=>{
     const assertCurrent=async()=>{await input.assertOwned();await transaction(pool,client=>assertReconfigureAuthority(client,input.job))}
     await assertCurrent()
-    return subscriptionExecute({action:input.action,tenant:{database:input.job.binding.database,host:input.job.host},...input.job.authority,attemptId:input.attemptId,fence:input.fence},assertCurrent)
+    // The enrolment administrator is the one stored in the control plane's onboarding record.
+    // Older tenants without it get no login, and the effect then grants no roles.
+    const admin=input.action==='reconfigure'?await pool.query("SELECT admin_login FROM shared_onboardings WHERE control_tenant_id=$1 AND database_name=$2 AND host=$3 AND stage='active'",[input.job.controlTenantId,input.job.binding.database,input.job.host]):undefined
+    return subscriptionExecute(subscriptionRequest(input,admin?.rowCount===1?admin.rows[0].admin_login:undefined),assertCurrent)
   }
   const observeSubscription:ObserveRunner=async input=>{
     const row=await pool.query('SELECT host FROM shared_registry_bindings WHERE control_tenant_id=$1',[input.tenant_id])
     if(!row.rowCount)throw Error('tenant_binding_mismatch')
-    return await subscriptionExecute({action:'observe',tenant:{database:input.database,host:row.rows[0].host},attemptId:randomUUID(),fence:0}) as Awaited<ReturnType<ObserveRunner>>
+    return await subscriptionExecute({action:'observe',tenant:{database:input.database,host:row.rows[0].host},attemptId:randomUUID(),fence:0},undefined,input.signal) as Awaited<ReturnType<ObserveRunner>>
   }
+  // The same read-only observe action; the collector validates every field it keeps.
+  const observeUsage:NonNullable<SharedFencedAdapter['observeUsage']>=async input=>await observeSubscription(input) as unknown
   return {
-    subscriptionRunner,observeSubscription,
+    subscriptionRunner,observeSubscription,observeUsage,
     async observe(job){
       try{return sharedObservationSchema.parse(await execute(job,'observe'))}catch{return {state:'unknown'}}
     },

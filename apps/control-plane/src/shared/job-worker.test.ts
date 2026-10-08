@@ -7,7 +7,7 @@ function fixture() {
   const binding = { tenantId: 'a', database: 'db_a', filestore: 'db_a', registryRevision: 1 }
   const job = { schemaVersion: 1, requestId: id, binding, operation: 'backup' }
   const row: Record<string, any> = { id, control_tenant_id: id, payload: job, business_key: businessKey(job), payload_digest: payloadDigest(job), issuer: 'vendor', actor_uid: 7, fence: 0, journal: null, state: 'queued' }
-  const flags = { owned: true, enabled: true, authorized: true, rejectCompletion: false, unresolved: false, registryRevision: 1, revokeAfterClaim: false, loseVerifiedCommitAck: false, approvalConsumed: false }
+  const flags = { owned: true, enabled: true, authorized: true, rejectCompletion: false, unresolved: false, registryRevision: 1, revokeAfterClaim: false, loseVerifiedCommitAck: false, approvalConsumed: false, retries: 0 }
   const events: string[] = []
   const actions: string[] = []
   let snapshot: { row: Record<string, any>; events: string[]; actions: string[]; approvalConsumed: boolean } | undefined
@@ -32,7 +32,7 @@ function fixture() {
     if (sql.startsWith('UPDATE shared_jobs SET lease_until=')) return result()
     if (sql.includes('FROM shared_onboardings')) return result()
     if (sql.includes("state IN ('running','needs_intervention')")) return result(flags.unresolved ? [{id:'another-job'}] : [])
-    if (sql.startsWith('SELECT * FROM shared_jobs')) return result((sql.includes("state='queued'") ? row.state === 'queued' : sql.includes("state='needs_intervention'") ? row.state === 'needs_intervention' : flags.owned && row.state === 'running') ? [{ ...row }] : [])
+    if (sql.startsWith('SELECT * FROM shared_jobs')) return result((sql.includes("state='queued'") ? row.state === 'queued' && !(sql.includes('lease_until IS NULL') && row.lease_until && row.lease_until > Date.now()) : sql.includes("state='needs_intervention'") ? row.state === 'needs_intervention' : flags.owned && row.state === 'running') ? [{ ...row }] : [])
     if (sql.includes('FROM vendor_memberships')) return result(flags.authorized ? [{}] : [])
     if (sql.includes('FROM tenants')) return result([{}])
     if (sql.includes('FROM shared_registry_bindings')) return result([{ ...binding, registryRevision:flags.registryRevision, host:'a.invalid', enabled:flags.enabled }])
@@ -43,9 +43,11 @@ function fixture() {
     }
     if (sql.startsWith("UPDATE shared_jobs SET state='running'")) { Object.assign(row,{ state:'running',attempt_id:values[0],fence:values[1] }); return result() }
     if (sql.startsWith('INSERT INTO audit_events')) { if (values[2]) actions.push(values[2]); return result() }
-    if (sql.startsWith('INSERT INTO shared_job_events')) { events.push(values[4]); return result() }
+    if (sql.startsWith('INSERT INTO shared_job_events')) { events.push(values[4]); if (values[5]?.retry) flags.retries++; return result() }
+    if (sql.includes('FROM shared_job_events')) return result([{ n: String(flags.retries) }])
     if (sql.startsWith('UPDATE shared_jobs SET journal=') && sql.includes("state='verified'") && flags.rejectCompletion) return result()
     if (sql.startsWith('UPDATE shared_jobs SET journal=')) { row.journal=values[0]; if (sql.includes("state='verified'")) { row.state='verified'; row.receipt=values[1] }; return result([{id}]) }
+    if (sql.startsWith("UPDATE shared_jobs SET state='queued',journal=$1,lease_until=")) { Object.assign(row,{ state:'queued',journal:values[0],lease_until:Date.now()+30000 }); return result([{id}]) }
     if (sql.startsWith("UPDATE shared_jobs SET state='needs_intervention'")) { row.state='needs_intervention'; return result() }
     throw Error('unexpected_sql:'+sql)
   } }
@@ -72,6 +74,52 @@ it('quarantines adapter crash without claiming success', async () => {
   const f=fixture()
   await expect(runSharedJob(f.pool,id,{ observe:async()=>({state:'absent'}),applyFenced:async()=>{throw Error('worker_crash')} })).rejects.toThrow('worker_crash')
   expect(f.events).toEqual(['prepared','started','needs_intervention']); expect(f.row.state).toBe('needs_intervention'); expect(f.row.receipt).toBeUndefined()
+})
+it('requeues a provision refused by a running usage observer instead of quarantining', async () => {
+  const f=fixture()
+  const result=await runSharedJob(f.pool,id,{ observe:async()=>({state:'absent'}),applyFenced:async()=>{throw Error('runtime_writer_present')} })
+  expect(result).toEqual({ state:'contended', reason:'runtime_writer_present' })
+  expect(f.row.state).toBe('queued'); expect(f.row.journal.stage).toBe('prepared'); expect(f.row.receipt).toBeUndefined()
+  expect(f.events).toEqual(['prepared','started','prepared'])
+  expect(f.row.journal.stage).toBe('prepared')
+  // Backoff: the job cannot be claimed until its lease_until has passed.
+  await expect(runSharedJob(f.pool,id,{ observe:async()=>({state:'absent'}),applyFenced:async()=>{} })).rejects.toThrow('shared_job_not_claimable')
+  f.row.lease_until=Date.now()-1
+  // The next claim executes the effect once from the prepared journal.
+  let effects=0
+  const again=await runSharedJob(f.pool,id,{ observe:async()=>effects ? f.present : {state:'absent'},applyFenced:async()=>{ effects++ } })
+  expect(again.state).toBe('verified'); expect(effects).toBe(1)
+})
+it('records the real observation in the retry evidence, not a literal absent', async () => {
+  const f=fixture(); const partial={ state:'absent' }
+  const inserts:any[]=[]
+  const connect=f.pool.connect as any
+  const pool={ connect: async()=>{ const c=await connect(); return { release:()=>c.release(), query:(sql:string,v:any[])=>{ if(sql.startsWith('INSERT INTO shared_job_events')) inserts.push(v[5]); return c.query(sql,v) } } } } as unknown as Pool
+  await runSharedJob(pool,id,{ observe:async()=>partial as any,applyFenced:async()=>{throw Error('runtime_writer_present')} })
+  expect(inserts.find(e=>e.retry)?.observation).toBe(partial)
+})
+it('does not retry runtime_writer_present thrown from an observe after apply', async () => {
+  const f=fixture(); let applied=false
+  await expect(runSharedJob(f.pool,id,{ observe:async()=>{ if(applied) throw Error('runtime_writer_present'); return {state:'absent'} },applyFenced:async()=>{applied=true} })).rejects.toThrow('runtime_writer_present')
+  expect(f.row.state).toBe('needs_intervention'); expect(f.events).toEqual(['prepared','started','needs_intervention'])
+})
+it('quarantines with runtime_writer_contended after 20 retries', async () => {
+  const f=fixture(); f.flags.retries=20
+  const result=await runSharedJob(f.pool,id,{ observe:async()=>({state:'absent'}),applyFenced:async()=>{throw Error('runtime_writer_present')} })
+  expect(result).toEqual({ state:'needs_intervention', reason:'runtime_writer_contended' })
+  expect(f.row.state).toBe('needs_intervention')
+  const g=fixture(); g.flags.retries=19
+  expect((await runSharedJob(g.pool,id,{ observe:async()=>({state:'absent'}),applyFenced:async()=>{throw Error('runtime_writer_present')} })).state).toBe('contended')
+})
+it('quarantines a writer found after the effects ran and never records it as absent', async () => {
+  const f=fixture()
+  await expect(runSharedJob(f.pool,id,{ observe:async()=>({state:'absent'}),applyFenced:async()=>{throw Error('runtime_writer_after_effect')} })).rejects.toThrow('runtime_writer_after_effect')
+  expect(f.row.state).toBe('needs_intervention'); expect(f.events).toEqual(['prepared','started','needs_intervention'])
+})
+it('still quarantines every other adapter error', async () => {
+  const f=fixture()
+  await expect(runSharedJob(f.pool,id,{ observe:async()=>({state:'absent'}),applyFenced:async()=>{throw Error('target_mismatch')} })).rejects.toThrow('target_mismatch')
+  expect(f.row.state).toBe('needs_intervention')
 })
 it.each(['partial','unknown'])('quarantines %s observation without an effect', async state => {
   const f=fixture(), applyFenced=vi.fn()

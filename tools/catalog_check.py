@@ -23,6 +23,11 @@ import re
 import sys
 from pathlib import Path
 
+try:  # run as a script (tools/ on the path) or imported as tools.catalog_check
+    from nasq_cli.module_closure import ClosureError, install_closure
+except ModuleNotFoundError:
+    from tools.nasq_cli.module_closure import ClosureError, install_closure
+
 ROOT_DEFAULT = Path(__file__).resolve().parents[1]
 
 CATALOG_DIR = 'deploy/catalog'
@@ -44,6 +49,20 @@ SUPPORTED_KEYWORDS = frozenset({
 # against its own manifest, so this list cannot silently rot (see check_test_only).
 TEST_ONLY_MODULES = frozenset({'nasq_registry_probe'})
 TEST_ONLY_MARKER = 'never installed in production'
+
+# A schema-3 solution installs its whole release in every tenant (spec 3.6).
+RELEASE_SCHEMA = 3
+# Files that still spell the release module list out (they run where the repository
+# tools are not available). Each list must equal the newest schema-3 release.
+RELEASE_COPIES = (
+    '.woodpecker.yml',
+    'deploy/provision.sh',
+    'deploy/woodpecker/image.yml',
+    'tools/shared_acceptance_live/up.sh',
+    'deploy/check_isolated.py',
+)
+_COMMA_LIST = re.compile(r'/?[a-z][a-z0-9_]*(?:,/?[a-z][a-z0-9_]*)+')
+_ADDON_TUPLE = re.compile(r'NASQ_ADDONS = \(([^)]*)\)')
 
 JSON_TYPES = {
     'object': dict,
@@ -303,6 +322,84 @@ def _nasq_owned(name, manifests, registry_modules):
     return name in manifests or name in registry_modules or name.startswith(ADDON_PREFIX)
 
 
+def release_modules(root, data):
+    """Sorted install closure of a solution's base and tier modules."""
+    selected = list(data.get('base_modules') or [])
+    for tier in data.get('tiers') or []:
+        selected += list(tier.get('modules') or [])
+    return sorted(install_closure([Path(root) / ADDONS_DIR], selected))
+
+
+def _solution_order(path):
+    """Order solution files by the numeric suffix of platform_vN, so v10 follows v3."""
+    match = re.search(r'_v(\d+)$', path.stem)
+    return (int(match.group(1)) if match else -1, path.name)
+
+
+def current_release(root, catalog_dir=CATALOG_DIR):
+    """(file name, release modules) of the newest schema-3 solution, or None."""
+    solutions = (Path(root) / catalog_dir / 'solutions').glob('*.json')
+    current = sorted((path for path in solutions if load_json(path).get('schema_version') == RELEASE_SCHEMA),
+                     key=_solution_order)
+    if not current:
+        return None
+    return current[-1].name, release_modules(root, load_json(current[-1]))
+
+
+def _check_release(root, where, data, registry, errors):
+    """Every feature of a release module (and of the platform) sits in exactly one tier."""
+    try:
+        release = set(release_modules(root, data))
+    except ClosureError as exc:
+        errors.append(f'{where}: release module {exc} has no readable manifest')
+        return
+    tiers_by_key = {}
+    for tier in data.get('tiers') or []:
+        tier_features = tier.get('features') or []
+        if (tier.get('modules') or []) and not tier_features:
+            errors.append(f'{where}: tier {tier.get("id")!r} lists modules but declares no feature')
+        for entry in tier_features:
+            if isinstance(entry, str) and entry.count(':') >= 1:
+                tiers_by_key.setdefault(entry.split(':')[1], []).append(str(tier.get('id')))
+    for key, tier_ids in sorted(tiers_by_key.items()):
+        if len(tier_ids) > 1:
+            errors.append(f'{where}: feature {key!r} is declared by more than one tier ({", ".join(tier_ids)})')
+        owner = (registry.get(key) or {}).get('module')
+        if owner and owner != 'nasq_platform' and owner not in release:
+            errors.append(f'{where}: feature {key!r} belongs to module {owner!r}, which is not in the release')
+    for key, definition in sorted(registry.items()):
+        module = definition.get('module')
+        if module in TEST_ONLY_MODULES:
+            continue
+        if (module == 'nasq_platform' or module in release) and key not in tiers_by_key:
+            errors.append(f'{where}: feature {key!r} of release module {module!r} is in no tier')
+
+
+def _check_release_copies(root, base_modules, modules, errors):
+    """Literal copies of the release list must equal it (names outside the release that
+    are not Nasq addons, such as the theme, are ignored)."""
+    expected = set(modules)
+    anchor = base_modules[0] if base_modules else None
+    for relative in RELEASE_COPIES:
+        path = Path(root) / relative
+        if not path.is_file() or anchor is None:
+            continue
+        text = path.read_text(encoding='utf-8')
+        found = []
+        for match in _COMMA_LIST.finditer(text):
+            names = [name.lstrip('/') for name in match.group(0).split(',')]
+            if anchor in names:
+                found.append(names)
+        for match in _ADDON_TUPLE.finditer(text):
+            found.append(re.findall(r"'([a-z0-9_]+)'", match.group(1)))
+        for names in found:
+            listed = {name for name in names if name in expected or name.startswith(ADDON_PREFIX)}
+            if listed != expected:
+                errors.append(
+                    f'{relative}: module list {sorted(listed)} differs from the release modules {sorted(expected)}',
+                )
+
+
 def check_catalog(root, catalog_dir=CATALOG_DIR):
     """Return every catalog error; an empty list means the catalog is valid."""
     root = Path(root)
@@ -355,6 +452,8 @@ def check_catalog(root, catalog_dir=CATALOG_DIR):
         validate(schemas['solution'], schemas['solution'], data, where, errors)
         if data.get('id') != path.stem:
             errors.append(f'{where}: id {data.get("id")!r} must match the file name')
+        if data.get('schema_version') == RELEASE_SCHEMA:
+            _check_release(root, where, data, registry, errors)
 
         industry = data.get('industry')
         if industry is not None and industry not in industry_ids:
@@ -468,6 +567,15 @@ def check_catalog(root, catalog_dir=CATALOG_DIR):
     for module in find_cycles(edges):
         errors.append(f'{module}: part of a dependency cycle in {ADDONS_DIR}')
 
+    try:
+        current = current_release(root, catalog_dir)
+    except ClosureError as exc:
+        current = None
+        errors.append(f'release module {exc} has no readable manifest')
+    if current is not None:
+        newest = load_json(base / 'solutions' / current[0])
+        _check_release_copies(root, list(newest.get('base_modules') or []), current[1], errors)
+
     for module in sorted(TEST_ONLY_MODULES):
         summary = manifests.get(module, {}).get('summary', '')
         if TEST_ONLY_MARKER not in summary:
@@ -481,11 +589,25 @@ def check_catalog(root, catalog_dir=CATALOG_DIR):
 def main(argv=None):
     argv = list(sys.argv[1:] if argv is None else argv)
     root = ROOT_DEFAULT
+    release_only = argv[:1] == ['--release-modules']
+    if release_only:
+        argv = argv[1:]
     if argv:
         if argv[0] != '--root' or len(argv) != 2:
-            print('usage: catalog_check.py [--root REPOSITORY]', file=sys.stderr)
+            print('usage: catalog_check.py [--release-modules] [--root REPOSITORY]', file=sys.stderr)
             return 2
         root = Path(argv[1]).resolve()
+    if release_only:
+        try:
+            current = current_release(root)
+        except ClosureError as exc:
+            print(f'CATALOG_INVALID release module {exc} has no readable manifest', file=sys.stderr)
+            return 1
+        if current is None:
+            print('CATALOG_INVALID no schema 3 solution defines the release', file=sys.stderr)
+            return 1
+        print(','.join(current[1]))
+        return 0
     try:
         errors = check_catalog(root)
     except SchemaError as exc:

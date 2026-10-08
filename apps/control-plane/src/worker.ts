@@ -7,7 +7,7 @@ import { dedicatedExecutionEnabled, inventory, resolveTargetLane, type TargetLan
 import { hasUnresolvedMutation, transaction } from './db.js'
 import { runProcessGroup } from './process-group.js'
 import { resolveCatalogSource } from './shared/catalog-source.js'
-import { deriveFeatures } from './shared/catalog-features.js'
+import { derivePolicy } from './shared/catalog-features.js'
 
 const MUTATIONS = new Set(['tenant.create','tenant.entitle','backup','upgrade','restore'])
 // Only managed preflight refusals produced before any effect may return a
@@ -68,10 +68,19 @@ function verifiedManagedCreate(receipt: Record<string, unknown>, policy: CreateP
   // This is initial creation, whose independent Python readback requires revision 1.
   if (profile.policy_revision !== 1 || receipt.policy_revision !== profile.policy_revision) return false
   const modules = profile.modules
-  if (!Array.isArray(modules) || modules.length > 1024 || modules.some((name) => typeof name !== 'string' || !/^[a-z][a-z0-9_]{0,127}$/.test(name)) || new Set(modules).size !== modules.length) return false
+  if (!moduleList(modules)) return false
+  // Odoo installs the closure of policy.modules (implied services, auto-install bridges).
+  // The Python readback proves that closure and reports it as expected_modules.
+  const expected = receipt.expected_modules
+  if (!moduleList(expected) || expected.some(name => !name.startsWith('nasq_'))) return false
+  if (!policy.modules.every(name => expected.includes(name))) return false
   // Stock Odoo dependencies are not additional Nasq pillars.
-  if (canonicalJson(modules.filter((name: string) => name.startsWith('nasq_')).sort()) !== canonicalJson([...policy.modules].sort())) return false
+  if (canonicalJson(modules.filter(name => name.startsWith('nasq_')).sort()) !== canonicalJson([...expected].sort())) return false
   return true
+}
+
+function moduleList(value: unknown): value is string[] {
+  return Array.isArray(value) && value.length <= 1024 && value.every(name => typeof name === 'string' && /^[a-z][a-z0-9_]{0,127}$/.test(name)) && new Set(value).size === value.length
 }
 
 export type Claimed = { client: PoolClient; operation: Record<string, unknown>; tenant: Record<string, unknown>; lockKey: string }
@@ -138,8 +147,8 @@ async function policyForCreate(pool: Pool, tenant: Record<string, unknown>, conf
   if (!tier || !Array.isArray(catalog.base_modules) || !Array.isArray(tier.modules) || !Array.isArray(tier.features)) throw new Error('catalog_tier_missing')
   // Keep the trusted catalog intact for the shared schema/descriptor parser;
     // schema-2 fields (grammar and inherited core descriptors) are policy inputs.
-    const { features } = deriveFeatures(catalog as { schema_version?: number; tiers: Array<{ id: string; features: string[] }> }, { id: tier.id, features: tier.features })
-  return { schema_version: 1, channel: tenant.commercial_mode === 'saas' ? 'control_plane' : 'local_policy', modules: [...catalog.base_modules, ...tier.modules], features }
+    const { modules, features } = derivePolicy(catalog, tier.id)
+  return { schema_version: 1, channel: tenant.commercial_mode === 'saas' ? 'control_plane' : 'local_policy', modules, features }
 }
 
 export function publicReceipt(value: Record<string, unknown>): Record<string, unknown> {

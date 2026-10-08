@@ -123,12 +123,18 @@
           "active": "Workspace ready",
           "needs_intervention": "Needs attention",
           "pending": "Setup is in progress"
-        },
-        "incomplete": "The installation was reserved but setup has not been queued. Submit again with the same details to resume this request."
+        }
+      },
+      "plan": {
+        "field": "Plan",
+        "cadence": "Billing cycle",
+        "hint": "Creates the customer and their plan order; the tenant is provisioned once the order is paid or needs no payment.",
+        "none": "No published plans. Publish a plan first.",
+        "forbidden": "Creating a tenant from a plan requires subscription management access."
       }
     },
     "catalog": {
-      "title": "Packages",
+      "title": "Legacy packages",
       "description": "Review the trusted solution catalog versions available to tenant operations.",
       "empty": "No catalog versions are available.",
       "noComposition": "No catalog composition",
@@ -283,7 +289,7 @@
       }
     },
     "packages": {
-      "title": "Packages",
+      "title": "Legacy packages",
       "description": "Define what each customer can use, review its limits, then make a version available for new customers.",
       "create": "Create package",
       "empty": "No packages yet. Create your first package from an available application composition.",
@@ -313,18 +319,11 @@
       "noSources": "No published software version is available. Ask the platform operator to provide a trusted published source before creating a package.",
       "publishedEdit": "Published content is preserved. Return to the package and choose Edit package to create a new draft version.",
       "editReviewHint": "Saving changes returns this version to draft and cancels its previous review.",
-      "nextAction": "Next action",
-      "preserveCustomers": "Existing customers stay on their selected version. Publishing or withdrawing another version never changes them automatically.",
       "history": "Package versions",
       "technical": "Technical source details",
       "sourceHash": "Source fingerprint",
       "revisionId": "Version identifier",
-      "reasonRequired": "Enter a reason between 3 and 1,000 characters.",
-      "selectionMode": "Customer offering",
-      "publishedChoice": "Published package",
-      "legacyChoice": "Historical software composition",
       "legacyHint": "This compatibility path uses the historical catalog without an approved commercial package. Existing unspecified quotas stay unlimited.",
-      "selectPackage": "Select a published package",
       "status": {
         "all": "All states",
         "draft": "Draft",
@@ -336,22 +335,6 @@
         "draft": "Review package",
         "validated": "Approve and publish",
         "published": "Manage availability"
-      },
-      "actions": {
-        "validate": "Review package",
-        "publish": "Approve and publish",
-        "withdraw": "Stop new enrollment",
-        "restore": "Restore availability",
-        "delete": "Delete draft",
-        "revisions": "Edit package"
-      },
-      "effects": {
-        "validate": "Checks the composition and quotas. Review alone does not make this package available to customers.",
-        "publish": "Approves this reviewed version and makes it selectable for new customers.",
-        "withdraw": "Prevents new customers from selecting this version. Existing customers and their limits are preserved.",
-        "restore": "Makes this published version selectable for new customers again.",
-        "delete": "Permanently deletes this unassigned draft. Published versions are preserved.",
-        "revisions": "Creates an editable draft of the next version. The published version remains available and its customers are unchanged."
       },
       "tiers": {
         "core": "Platform foundation",
@@ -395,11 +378,13 @@
         "package_source_unavailable": "The trusted software version is unavailable. Select an available published source.",
         "package_source_mismatch": "The trusted source changed. Select the current source and review this draft again.",
         "published_catalog_missing": "Select an available published software version."
-      }
+      },
+      "retired": "Legacy packages are read-only: they cannot be created, edited or offered.",
+      "retiredHint": "Plans are sold from the Plans page. Customers already on a legacy package keep it unchanged."
     },
     "bundles": {
       "title": "Bundles",
-      "description": "What each commercial bundle contains: apps, limits, prices and status.",
+      "description": "The app groups plans are built from: apps, limits, prices and status.",
       "create": "New bundle",
       "search": "Search bundles",
       "noResults": "No matching bundles.",
@@ -527,7 +512,7 @@
         "platformLimits": "Platform limits",
         "branches": "Branches",
         "lifecycle": "Trial, grace and renewal",
-        "included": "What is included"
+        "included": "What the bundle includes"
       },
       "fields": {
         "name": "Name",
@@ -688,7 +673,7 @@
       "plan": "Plan",
       "planAssigned": "Plan assigned",
       "noPlan": "No plan",
-      "services": "Active services",
+      "services": "Active applications",
       "branches": "Branches",
       "renewal": "Renewal date",
       "setupRequired": "Commercial setup required",
@@ -711,7 +696,7 @@
       "techDigest": "Entitlement digest",
       "sections": {
         "subscription": "Subscription",
-        "services": "Services",
+        "services": "Applications",
         "branches": "Branches",
         "usage": "Usage",
         "invoices": "Invoices",
@@ -773,12 +758,6 @@
           "fresh": "Fresh",
           "stale": "Stale",
           "unavailable": "Unavailable"
-        },
-        "units": {
-          "users": "Users",
-          "projects": "Projects",
-          "attachment_bytes": "Attachment storage",
-          "extra_branches": "Extra branches"
         },
         "reasons": {
           "source_unreachable": "Source unreachable",

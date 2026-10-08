@@ -13,10 +13,11 @@ from __future__ import annotations
 from datetime import datetime, timezone
 import json
 import re
+import signal
 import sys
 
 from tools.shared_saas_lifecycle import odoo_effect
-from tools.shared_saas_lifecycle.odoo_effect import EffectError, ALLOWED_MODULES, MAX_OUTPUT
+from tools.shared_saas_lifecycle.odoo_effect import EffectError, MAX_OUTPUT
 
 UUID_RE = re.compile(r'[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}')
 DIGEST_RE = re.compile(r'[a-f0-9]{64}')
@@ -29,11 +30,6 @@ SCRIPT_ERRORS = frozenset({
     'branch_binding_invalid', 'branch_binding_conflict', 'branch_not_found',
     'feature_not_included', 'subscription_script_failed',
 })
-LIMITS = (
-    ('users.limit', 'users', 1),
-    ('projects.max_projects', 'projects', 1),
-    ('storage.limit_mb', 'attachment_bytes', 1048576),
-)
 BRANCH_LIMIT = 'branches.extra_limit'
 
 
@@ -80,6 +76,10 @@ def validate_reconfigure(request):
         raise EffectError('entitlement_invalid')
     odoo_effect.validate_modules(ent['modules'])
     validate_features(ent['features'])
+    login = request.get('admin_login')
+    if login is not None and (not isinstance(login, str) or not 1 <= len(login) <= 254
+                              or any(ord(c) < 32 for c in login)):
+        raise EffectError('input_invalid')
     branches = request['branches']
     if not isinstance(branches, dict) or set(branches) != {'apply', 'archive'}:
         raise EffectError('branches_invalid')
@@ -124,13 +124,19 @@ def collect(profile):
         c = b.company_id.with_context(active_test=False)
         branches.append({'branch_id': b.branch_uid, 'state': b.state, 'odoo_company_id': c.id,
                          'active': bool(c.active), 'parent_is_root': c.parent_id == root})
-    usage = {'users': service._nasq_count_users(), 'projects': service._nasq_count_usage('projects.max_projects'),
-             'attachment_bytes': int(service._nasq_count_storage_bytes()),
-             'extra_branches': len([b for b in branches if b['state'] == 'active'])}
+    definitions = env['nasq.feature.registry']._nasq_feature_map()
+    usage, gates = {}, {}
+    for key, item in sorted(definitions.items()):
+        if item['type'] != 'limit':
+            continue
+        usage[key] = int(service._nasq_count_usage(key))
+        owner = item['module']
+        gates[key] = sorted(k for k, other in definitions.items()
+                            if other['type'] == 'boolean' and other['module'] == owner and owner != 'nasq_platform')
     return {'database': env.cr.dbname, 'commercial_revision_id': profile.commercial_revision_id or None,
             'commercial_digest': profile.commercial_digest or None,
             'commercial_applied_at': str(profile.commercial_applied_at) if profile.commercial_applied_at else None,
-            'features': feats, 'modules': modules, 'branches': branches, 'usage': usage}
+            'features': feats, 'modules': modules, 'branches': branches, 'usage': usage, 'limit_gates': gates}
 
 def read_profile():
     profile = env['nasq.tenant.profile'].search([], limit=2)
@@ -169,17 +175,27 @@ try:
     if current == values['target_revision_id'] and (profile.commercial_digest or None) != values['digest']:
         refuse('observed_mismatch')
     operator = profile.with_context(**{OPERATOR_CONTEXT: True})
+    not_granted = None
     if current != values['target_revision_id']:
-        features = dict(values['features'])
-        # Modules stay installed after removal from the target; switch their flags off.
-        installed = set(env['ir.module.module'].search([('state', '=', 'installed')]).mapped('name'))
-        for key, item in env['nasq.feature.registry']._nasq_feature_map().items():
-            if (item['type'] == 'boolean' and key not in features
-                    and item['module'] != 'nasq_platform' and item['module'] in installed):
-                features[key] = False
+        roles_before = env['nasq.entitlement.service']._nasq_entitled_admin_roles()
+        # Every application stays installed; keys the target omits close (booleans
+        # false, limits 0). Odoo still refuses a target without its platform keys.
+        features = env['nasq.entitlement.service']._nasq_close_unlisted_features(values['features'])
         operator.write({'features': features, 'commercial_revision_id': values['target_revision_id'],
                         'commercial_digest': values['digest'],
                         'commercial_applied_at': fields.Datetime.now()})
+        # Roles the policy newly opened go to the enrolment administrator only.
+        granted = operator._nasq_grant_opened_admin_roles(values['admin_login'], roles_before)
+        opened = [k for k in env['nasq.entitlement.service']._nasq_entitled_admin_roles() if k not in set(roles_before or ())]
+        if opened and not granted:
+            admin = values['admin_login'] and env['res.users'].search(
+                [('login', '=', values['admin_login']), ('active', '=', True), ('share', '=', False)], limit=1)
+            if not values['admin_login']:
+                not_granted = 'no_admin_login'
+            elif not admin:
+                not_granted = 'admin_not_found'
+            else:
+                not_granted = 'roles_missing'
     # Archive first so a swap never trips branches.extra_limit; data is kept.
     for uid in values['archive']:
         branch = env['nasq.tenant.branch'].search([('branch_uid', '=', uid)])
@@ -188,6 +204,8 @@ try:
     if values['apply']:
         operator._nasq_apply_branches(values['operation_id'], values['target_revision_id'], values['apply'])
     result = {'applied': True}
+    if not_granted:
+        result.update({'roles_not_granted': True, 'roles_not_granted_reason': not_granted})
     env.cr.commit()
 except Refusal as exc:
     result = {'error_code': str(exc)}
@@ -214,7 +232,8 @@ def build_apply_script(request):
     values = {'database': request['tenant']['database'], 'operation_id': request['operation_id'],
               'previous_revision_id': request['previous_revision_id'],
               'target_revision_id': request['target_revision_id'], 'digest': ent['digest'],
-              'features': ent['features'], 'apply': br['apply'], 'archive': br['archive']}
+              'features': ent['features'], 'apply': br['apply'], 'archive': br['archive'],
+              'admin_login': request.get('admin_login')}
     return _prefix(values) + _COMMON + _APPLY_BODY + _TAIL
 
 
@@ -236,7 +255,7 @@ def parse_output(stdout):
 
 def validate_observation(value):
     keys = {'database', 'commercial_revision_id', 'commercial_digest', 'commercial_applied_at',
-            'features', 'modules', 'branches', 'usage'}
+            'features', 'modules', 'branches', 'usage', 'limit_gates'}
     if set(value) != keys:
         raise EffectError('observation_invalid')
     odoo_effect.validate_database(value['database'])
@@ -246,9 +265,16 @@ def validate_observation(value):
             raise EffectError('observation_invalid')
     if not isinstance(value['modules'], list) or not all(isinstance(m, str) for m in value['modules']):
         raise EffectError('observation_invalid')
-    usage = value['usage']
-    if (not isinstance(usage, dict) or set(usage) != {'users', 'projects', 'attachment_bytes', 'extra_branches'}
-            or not all(type(v) is int and v >= 0 for v in usage.values())):
+    usage, gates = value['usage'], value['limit_gates']
+    if (not isinstance(usage, dict) or not 1 <= len(usage) <= 256
+            or not all(isinstance(k, str) and FEATURE_RE.fullmatch(k) and type(v) is int and v >= 0
+                       for k, v in usage.items())):
+        raise EffectError('observation_invalid')
+    if not {'users.limit', 'storage.limit_mb', BRANCH_LIMIT} <= set(usage):
+        raise EffectError('observation_invalid')
+    if (not isinstance(gates, dict) or set(gates) != set(usage)
+            or not all(isinstance(g, list) and all(isinstance(k, str) and FEATURE_RE.fullmatch(k) for k in g)
+                       for g in gates.values())):
         raise EffectError('observation_invalid')
     if not isinstance(value['branches'], list):
         raise EffectError('observation_invalid')
@@ -267,11 +293,33 @@ def _same(a, b):
 
 
 def check_downgrade(request, observed):
-    """Refuse (before any write) when the target limits sit below current usage."""
+    """Refuse (before any write) when a target limit sits below current usage.
+
+    Same rule as the control plane's assertDowngradeFitsUsage. A numeric target limit is
+    CHECKED when it is lowered against the current policy (absent or null = unlimited) or
+    when its application reopens (closed now, open in the target). It is SKIPPED when the
+    target closes its application (it has gates and every one is false; an absent gate
+    key is not false). Usage equal to the limit is allowed. Platform limits have no gates.
+    """
     features, usage, br = request['entitlement']['features'], observed['usage'], request['branches']
-    for key, usage_key, factor in LIMITS:
+    previous, gates = observed['features'], observed['limit_gates']
+
+    def closed(keys, values):
+        return bool(keys) and all(values.get(gate) is False for gate in keys)
+
+    for key, used in sorted(usage.items()):
+        if key == BRANCH_LIMIT:
+            continue
         limit = features.get(key)
-        if limit is not None and not isinstance(limit, bool) and usage[usage_key] > limit * factor:
+        if limit is None or isinstance(limit, bool):
+            continue
+        keys = gates.get(key) or []
+        if closed(keys, features):
+            continue
+        before = previous.get(key)
+        lowered = before is None or (not isinstance(before, bool) and limit < before)
+        reopened = closed(keys, previous) and any(features.get(gate) is True for gate in keys)
+        if (lowered or reopened) and used > limit:
             raise EffectError('downgrade_below_usage')
     limit = features.get(BRANCH_LIMIT)
     if limit is not None and not isinstance(limit, bool):
@@ -343,9 +391,10 @@ class SubscriptionEffect:
         observed = self._observe(database)
         return {**observed, 'observed_at': self.clock()}
 
-    def receipt(self, request, observed, installed):
+    def receipt(self, request, observed, installed, not_granted=None):
         by_id = {b['branch_id']: b for b in observed['branches']}
-        return {'order_id': request['order_id'], 'database': observed['database'],
+        extra = {'roles_not_granted': True, 'roles_not_granted_reason': not_granted} if not_granted else {}
+        return {**extra, 'order_id': request['order_id'], 'database': observed['database'],
                 'tenant_id': observed['database'],
                 'target_revision_id': request['target_revision_id'],
                 'observed_entitlement_digest': observed['commercial_digest'],
@@ -374,12 +423,13 @@ class SubscriptionEffect:
         missing = [m for m in request['entitlement']['modules'] if m not in observed['modules']]
         if missing:
             self.runner.install_modules(missing)
-        parse_output(self.runner.run_script(build_apply_script(request), 'apply', mutate=True))
+        applied = parse_output(self.runner.run_script(build_apply_script(request), 'apply', mutate=True))
+        not_granted = applied.get('roles_not_granted_reason') if applied.get('roles_not_granted') is True else None
         after = self._observe(database)
         if not verify(request, after):
             raise EffectError('observed_mismatch')
         journal.done()
-        return self.receipt(request, after, missing)
+        return self.receipt(request, after, missing, not_granted if not_granted in ('no_admin_login', 'admin_not_found', 'roles_missing') else None)
 
 
 # -------------------------------------------------------- default runner
@@ -452,6 +502,14 @@ def main(stdin=None, stdout=None):
             raise EffectError('operation_unavailable')
         validate_tenant(request['tenant'])
         runner = ComposeRunner(request)
+
+        def terminate(_signum, _frame):
+            signal.signal(signal.SIGTERM, signal.SIG_IGN)
+            # Kill the per-attempt effect container, not only the compose client.
+            runner.cancel()
+            raise EffectError('authority_lost')
+        signal.signal(signal.SIGTERM, terminate)
+        signal.signal(signal.SIGINT, terminate)
         if not isinstance(request.get('fence'), (int, str)) or not request.get('attemptId'):
             raise EffectError('input_invalid')
         effect = SubscriptionEffect(runner, odoo_effect.Path(request['config']['stateDir']) / 'reconfigure')

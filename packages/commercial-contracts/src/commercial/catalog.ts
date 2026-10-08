@@ -3,7 +3,7 @@ import { canonicalJson } from './calendar.js'
 import { parseCatalogTiers } from './feature-descriptor.js'
 import type { CatalogApplication, CatalogFeature, CatalogRelease } from './types.js'
 
-type SolutionTier = { id: string; modules?: string[]; features?: string[] }
+type SolutionTier = { id: string; name?: string; modules?: string[]; features?: string[] }
 type Solution = { schema_version?: unknown; descriptor_grammar?: unknown; base_modules?: string[]; tiers: SolutionTier[] }
 
 const NAMES: Record<string, [string, string]> = {
@@ -32,7 +32,8 @@ export function catalogApplicationsFromSolution(solution: Solution, _version: st
   const base = [...(solution.base_modules ?? [])].sort()
   return solution.tiers.map((tier, index) => {
     const core = tier.id === 'core'
-    const [name_ar, name_en] = NAMES[tier.id] ?? [tier.id, tier.id]
+    // A new application is named by its catalog tier until it ships translations (Phase 4).
+    const [name_ar, name_en] = NAMES[tier.id] ?? [tier.name || tier.id, tier.name || tier.id]
     const own = parsed.tiers[index]!.own
     // Schema-2 catalogs declare the platform limit themselves; do not duplicate it.
     const extra = core ? PLATFORM_EXTRA.filter(spec => !own.some(d => d.key === spec)) : []

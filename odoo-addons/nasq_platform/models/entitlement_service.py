@@ -165,6 +165,31 @@ class NasqEntitlementService(models.AbstractModel):
         return payload[key]
 
     @api.model
+    def _nasq_limit_value(self, key):
+        """Stored limit for KEY (None means unlimited).
+
+        A registered limit of an installed application that the policy omits
+        counts as 0, so an application whose keys were never registered fails
+        closed. Platform limits are required keys and an absent one keeps its
+        legacy meaning (unlimited), as does an unregistered key or a tenant
+        without a policy yet.
+        """
+        profile = self._nasq_profile()
+        payload = self._nasq_features_payload(profile)
+        if key in payload:
+            return payload[key]
+        definition = self._nasq_registry()._nasq_feature_map().get(key)
+        if (
+            definition
+            and definition['type'] == 'limit'
+            and definition['module'] != 'nasq_platform'
+            and self._nasq_owner_installed(key)
+            and self.env['nasq.tenant.profile']._nasq_policy_initialized(profile)
+        ):
+            return 0
+        return None
+
+    @api.model
     def _nasq_feature_read(self, key):
         definition = self._nasq_registry()._nasq_feature_map().get(key)
         if not definition or definition['type'] != 'boolean':
@@ -235,7 +260,7 @@ class NasqEntitlementService(models.AbstractModel):
                 code, 'this limit is not registered', status=403,
                 details={'reason': 'limit', 'limit_key': key},
             )
-        limit = self.get(key)
+        limit = self._nasq_limit_value(key)
         if limit is None:
             return True
         if not isinstance(limit, int) or isinstance(limit, bool) or limit < 0:
@@ -275,9 +300,18 @@ class NasqEntitlementService(models.AbstractModel):
 
     @api.model
     def _nasq_count_usage(self, limit_key):
-        """Usage counted against LIMIT_KEY. The addon that registers a limit extends this through super()."""
+        """Usage counted against LIMIT_KEY, in the limit's own unit.
+
+        The addon that registers a limit extends this through super(); an
+        unknown key counts 0. Storage is whole MiB rounded up, so usage above a
+        limit in MiB means the bytes exceed it.
+        """
         if limit_key == 'users.limit':
             return self._nasq_count_users()
+        if limit_key == 'storage.limit_mb':
+            return -(-int(self._nasq_count_storage_bytes()) // 1048576)
+        if limit_key == 'branches.extra_limit':
+            return self.env['nasq.tenant.branch'].search_count([('state', '=', 'active')])
         return 0
 
     @api.model
@@ -314,7 +348,7 @@ class NasqEntitlementService(models.AbstractModel):
             return True
         self._nasq_assert_lifecycle(write=True)
         self._nasq_profile()._nasq_lock()
-        limit_mb = self.get('storage.limit_mb')
+        limit_mb = self._nasq_limit_value('storage.limit_mb')
         if limit_mb is None:
             self._nasq_profile()._nasq_bump_quota_revision()
             return True
@@ -517,6 +551,52 @@ class NasqEntitlementService(models.AbstractModel):
             if value is True and key not in retained:
                 retained.append(key)
         return retained
+
+    @api.model
+    def _nasq_close_unlisted_features(self, features):
+        """Return FEATURES plus the closed value of every installed application key it omits.
+
+        A target lists what it grants. Every other key whose application is
+        installed closes: booleans ``False``, limits ``0`` (default-deny). Keys
+        the target lists are never changed, and platform keys are never filled
+        in, so ``_nasq_validate_features`` still refuses a target without them.
+        Operator scripts call this before a policy write; it writes nothing.
+        """
+        result = dict(features or {})
+        installed = set(self._nasq_installed_modules())
+        for key, item in sorted(self._nasq_registry()._nasq_feature_map().items()):
+            module_id = item['module']
+            if key in result or module_id == 'nasq_platform' or module_id not in installed:
+                continue
+            result[key] = False if item['type'] == 'boolean' else 0
+        return result
+
+    @api.model
+    def _nasq_entitled_admin_roles(self):
+        """Administrator role keys the current policy opens.
+
+        A role holding any platform permission (a permission domain without a
+        registered ``<domain>.enabled`` boolean, such as access or settings) is
+        always open, including a mixed role like ``system_admin`` that also holds
+        meetings permissions. A role made only
+        of application permissions opens when every one of those applications'
+        ``<domain>.enabled`` is granted. Installed modules never decide it: every
+        application of the release is installed in every tenant.
+        """
+        registry = self._nasq_registry()._nasq_feature_map()
+        payload = self._nasq_features_payload()
+        roles = self.env['nasq.access.role']
+        keys = []
+        for key in self.env['nasq.access.service']._nasq_legacy_admin_roles():
+            role = roles.search([('key', '=', key)], limit=1)
+            if not role:
+                continue
+            gates = {f'{domain}.enabled' for domain in role.permission_ids.mapped('domain')}
+            application = {gate for gate in gates if registry.get(gate, {}).get('type') == 'boolean'}
+            if application == gates and not all(payload.get(gate) is True for gate in gates):
+                continue
+            keys.append(key)
+        return keys
 
     @api.model
     def _nasq_legacy_features_for(self, selected_modules):

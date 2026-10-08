@@ -75,6 +75,7 @@ from .managed_verify import (
     VerificationError,
     build_policy_script,
     build_snapshot_script,
+    expected_modules,
     parse_snapshot,
 )
 
@@ -775,7 +776,8 @@ def _run_mutation(fields, target_id, descriptor, state, probe, resolver, runner,
     return _payload(fields, 'ok', 'provisioned', changed=True,
                     lifecycle='provisioned', deployment_ready=True,
                     policy_verified=True, profile=outcome['profile'],
-                    policy_revision=outcome['profile']['policy_revision'])
+                    policy_revision=outcome['profile']['policy_revision'],
+                    expected_modules=expected_modules(create_policy))
 
 
 def _catalog_policies(descriptor):
@@ -1013,7 +1015,8 @@ def _status(fields, target_id, descriptor, fingerprint, state_root):
             if profile['policy_revision'] != 1:
                 _verification_failed('profile_invalid')
             verified = {'policy_verified': True, 'deployment_ready': True,
-                        'profile': profile, 'policy_revision': profile['policy_revision']}
+                        'profile': profile, 'policy_revision': profile['policy_revision'],
+                        'expected_modules': expected_modules(policy)}
         except (PolicyError, VerificationError, TypeError, ValueError):
             _fail(EXIT_NEEDS_INTERVENTION, 'receipt_invalid', 'receipt',
                   'the stored creation evidence is not verifiable')

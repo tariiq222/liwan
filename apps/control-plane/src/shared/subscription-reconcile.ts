@@ -4,7 +4,7 @@ import { transaction } from '../db.js'
 import { enqueueReconfigureJob } from './job-store.js'
 import { listBranches } from '../commercial/branches.js'
 
-export type ObserveRunner = (input: {tenant_id:string;database:string}) => Promise<{
+export type ObserveRunner = (input: {tenant_id:string;database:string;signal?:AbortSignal}) => Promise<{
   commercial_revision_id:string|null;commercial_digest:string|null;
   branches:{branch_id:string;odoo_company_id:number|null;active:boolean}[]
 }>

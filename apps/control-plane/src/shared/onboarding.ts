@@ -1,5 +1,5 @@
 import { isCommercialEnrollmentActor, requireCommercialEnrollmentAuthority } from './commercial-enrollment-authority.js'
-import { resolvePackageAuthority } from '../packages.js'
+import { PackageError } from '../packages.js'
 import { createHash, randomUUID } from 'node:crypto'
 import { lstat } from 'node:fs/promises'
 import type { Pool, PoolClient } from 'pg'
@@ -49,14 +49,13 @@ export async function onboardSharedTenant(pool:Pool,config:Config,actor:Registry
     await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',[input.request_id])
     const existing=await client.query('SELECT * FROM shared_onboardings WHERE request_id=$1 FOR UPDATE',[input.request_id])
     if(existing.rowCount){assertOnboardingReplay(existing.rows[0],actor,identity.digest);return true}
-    const authority=input.package_revision_id?await resolvePackageAuthority(client,input.package_revision_id,true,{repositoryRoot:config.repositoryRoot}):undefined
-    const version=authority?.catalog.version??input.catalog_version!, tier=authority?.catalog.tier??input.catalog_tier!
-    if(!authority){
-      const catalog=await client.query("SELECT solution FROM catalog_entries WHERE version=$1 AND status='published' FOR SHARE",[version])
-      if(!catalog.rowCount)throw Error('published_catalog_missing')
-      deriveSharedPolicy(catalog.rows[0].solution,tier)
-    }
-    await client.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,catalog_version,catalog_tier,package_revision_id,operations_enabled,status) VALUES($1,$2,'saas','managed',$3,$4,$5,$6,true,'provisioning')",[identity.tenantId,input.name,`shared-${identity.slug}`,version,tier,input.package_revision_id??null])
+    // Owner decision O1: no new Track A assignment; existing pinned tenants keep theirs.
+    if(input.package_revision_id)throw new PackageError('package_retired',410,'package_revision_id','Packages are retired; subscribe the customer to a plan')
+    const version=input.catalog_version!, tier=input.catalog_tier!
+    const catalog=await client.query("SELECT solution FROM catalog_entries WHERE version=$1 AND status='published' FOR SHARE",[version])
+    if(!catalog.rowCount)throw Error('published_catalog_missing')
+    deriveSharedPolicy(catalog.rows[0].solution,tier)
+    await client.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,catalog_version,catalog_tier,package_revision_id,operations_enabled,status) VALUES($1,$2,'saas','managed',$3,$4,$5,NULL,true,'provisioning')",[identity.tenantId,input.name,`shared-${identity.slug}`,version,tier])
     await client.query('INSERT INTO shared_onboardings(request_id,control_tenant_id,issuer,actor_uid,request_digest,admin_name,admin_login,host,tenant_slug,database_name) VALUES($1,$1,$2,$3,$4,$5,$6,$7,$8,$9)',[input.request_id,actor.issuer,actor.actorUid,identity.digest,input.admin_name,input.admin_login,identity.host,identity.slug,identity.database])
     await client.query('INSERT INTO audit_events(id,actor,action,subject,reason) VALUES($1,$2,$3,$4,$5)',[randomUUID(),`${actor.issuer}:${actor.actorUid}`,'shared_onboarding.reserved',identity.tenantId,input.reason])
     return false

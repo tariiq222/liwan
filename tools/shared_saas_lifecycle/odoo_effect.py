@@ -22,14 +22,18 @@ from tools.shared_saas_lifecycle.catalog_source import CatalogSourceError, resol
 from tools.nasq_cli.managed_credentials import build_credentials_script, parse_credentials
 from tools.nasq_cli.managed_policy import POLICY_ERROR_CODES, PolicyError, parse_create_policy, parse_package_create_policy
 
-ALLOWED_MODULES = {
-    'nasq_core', 'nasq_platform', 'nasq_api', 'nasq_notify', 'nasq_directory',
-    'nasq_pmo', 'nasq_meetings', 'nasq_meetings_pmo', 'nasq_hr', 'nasq_chat',
-}
+from tools.catalog_check import TEST_ONLY_MODULES
+from tools.nasq_cli.module_closure import REPO_ADDONS
+
+MODULE_ID = re.compile(r'(?:nasq|customer)_[a-z0-9_]+')
 MAX_OUTPUT = 65536
 
 class EffectError(ValueError):
     pass
+
+
+# Usage observations and read-back snapshots: `<project>-effect-<attempt8>-<kind>-<hex>`.
+OBSERVE_CONTAINER = re.compile(r'-effect-[a-f0-9]{8}-(?:observe|snapshot|read-admin)-[a-f0-9]+$')
 
 
 def validate_database(value):
@@ -39,8 +43,15 @@ def validate_database(value):
 
 
 def validate_modules(value):
-    if (not isinstance(value, list) or not value or len(set(value)) != len(value)
-            or not set(value) <= ALLOWED_MODULES):
+    """A non-empty list of distinct Nasq or customer addons shipped in this repository.
+
+    Which modules a policy installs comes from the trusted catalog; this only refuses
+    names that cannot be an addon of this release (including test-only addons), so a new application needs no edit.
+    """
+    if (not isinstance(value, list) or not value
+            or not all(isinstance(name, str) for name in value) or len(set(value)) != len(value)
+            or not all(MODULE_ID.fullmatch(name) and name not in TEST_ONLY_MODULES
+                       and (REPO_ADDONS / name / '__manifest__.py').is_file() for name in value)):
         raise EffectError('modules_invalid')
     return value
 
@@ -256,19 +267,25 @@ class Runner:
         finally:
             self.current_container = None
 
-    def assert_no_effect_containers(self):
+    def assert_no_effect_containers(self, *, ignore_observe=False, code='runtime_writer_present'):
         rows = self.command(['docker', 'ps', '--filter', 'label=com.docker.compose.project=' + self.config['projectName'], '--format', '{{.Names}}']).splitlines()
-        if any('-effect-' in name for name in rows):
-            raise EffectError('runtime_writer_present')
+        for name in rows:
+            if '-effect-' in name and not (ignore_observe and OBSERVE_CONTAINER.search(name)):
+                raise EffectError(code)
 
     def apply_owned(self):
         permit('runtime')
+        # Refuse a busy project BEFORE the gate exists: a refusal here has run no effect, so it
+        # leaves nothing behind and the job can simply be retried once the other container ended.
+        self.assert_no_effect_containers()
         gate = RuntimeGate(self.root, {'attemptId': self.request['attemptId'], 'fence': self.request['fence'], 'digest': self.request['payloadDigest']})
         gate.acquire()
-        self.assert_no_effect_containers()
         self.apply()
         permit('release')
-        self.assert_no_effect_containers()
+        # Our effects are done and verified. A read-only usage observation of another tenant that
+        # is still running must not wedge the lane (the gate would stay forever), so only a
+        # container that can write (a mutating effect) refuses the release.
+        self.assert_no_effect_containers(ignore_observe=True, code='runtime_writer_after_effect')
         gate.complete()
 
     def apply(self):
@@ -310,7 +327,7 @@ class Runner:
 
     def admin_script(self, secret, *, snapshot):
         values = {'database': self.database, 'name': self.request['admin']['name'], 'login': self.request['admin']['login'],
-                  'companyName': self.request['companyName'], 'modules': self.request['job']['policy']['modules'],
+                  'companyName': self.request['companyName'],
                   'packageAdmin': self.request['job'].get('packageAuthority') is not None}
         prefix = 'import json\nvalues = json.loads(' + repr(json.dumps(values)) + ')\nsecret = ' + repr(secret) + '\nsnapshot = ' + repr(snapshot) + '\n'
         return prefix + '''
@@ -325,17 +342,15 @@ try:
     assert len(profile) == 1 and profile.policy_revision == 1
     admin = env.ref('base.user_admin')
     assert admin.id != 1 and admin.active and admin.company_id == profile.root_company_id
-    keys = ['system_admin']
-    if 'nasq_pmo' in values['modules']:
-        keys.append('pmo_manager')
-    if 'nasq_hr' in values['modules']:
-        keys.append('hr_manager')
+    # Every application is installed; the applied policy decides the roles.
+    keys = env['nasq.entitlement.service']._nasq_entitled_admin_roles()
     if not snapshot:
         assert admin.login == 'admin'
         admin._nasq_access_write({'login': values['login'], 'name': values['name']}, 'access.users.update')
         profile.root_company_id.write({'name': values['companyName']})
         for key in keys:
-            role = env.ref({'pmo_manager': 'nasq_pmo', 'hr_manager': 'nasq_hr'}.get(key, 'nasq_core') + '.role_' + key)
+            role = env['nasq.access.role'].search([('key', '=', key)], limit=1)
+            assert role
             assignment = env['nasq.access.assignment'].search([('user_id', '=', admin.id), ('role_id', '=', role.id), ('company_id', '=', profile.root_company_id.id)])
             if not assignment:
                 env['nasq.access.assignment'].create({'user_id': admin.id, 'role_id': role.id, 'company_id': profile.root_company_id.id})
@@ -428,6 +443,8 @@ REPORTABLE_CODES = frozenset(ERROR_CODES) | {
     'catalog_source_unavailable', 'catalog_source_ambiguous',
 } | set(POLICY_ERROR_CODES)
 
+WRITER_REFUSALS = frozenset({'runtime_writer_present', 'runtime_writer_after_effect'})
+
 
 def classify_error(error):
     code = getattr(error, 'code', None)
@@ -436,6 +453,10 @@ def classify_error(error):
     # Policy/catalog validation refusals carry stable safe codes only.
     if isinstance(error, PolicyError) and error.code in POLICY_ERROR_CODES:
         return error.code
+    # Writer refusals are non-secret and the control plane tells them apart: only the
+    # pre-gate one (nothing ran) may be retried.
+    if isinstance(error, EffectError) and str(error) in WRITER_REFUSALS:
+        return str(error)
     return 'shared_effect_unverified'
 
 

@@ -4,6 +4,7 @@ import io
 import tarfile
 import tempfile
 import unittest
+import unittest.mock
 from pathlib import Path
 from unittest.mock import patch
 from tools.shared_saas_lifecycle import odoo_effect
@@ -35,7 +36,7 @@ class BackupBoundaryTests(unittest.TestCase):
             runner.root = Path(raw).resolve()
             runner.request = {'attemptId':'one','fence':1,'payloadDigest':'a'*64}
             calls = []
-            runner.assert_no_effect_containers = lambda: calls.append('drained')
+            runner.assert_no_effect_containers = lambda **_: calls.append('drained')
             runner.apply = lambda: calls.append('effect')
             def permit(stage):
                 if stage == 'release': raise odoo_effect.EffectError('authority_lost')
@@ -45,6 +46,113 @@ class BackupBoundaryTests(unittest.TestCase):
             self.assertTrue((runner.root/'runtime-gate'/'owner.json').exists())
             with self.assertRaises(odoo_effect.EffectError):
                 odoo_effect.RuntimeGate(runner.root,{'attemptId':'second'}).acquire()
+
+    def test_capture_checks_writers_before_stopping_odoo(self):
+        self.assertTrue(odoo_backup)
+        with tempfile.TemporaryDirectory() as raw:
+            runner = object.__new__(odoo_backup.BackupRunner)
+            runner.root = Path(raw).resolve()
+            runner.config = {'projectName': 'nasq-shared-test'}
+            commands = []
+            def command(args, **_):
+                commands.append(args)
+                return 'nasq-shared-test-effect-12345678-observe-abcd1234' if args[:2] == ['docker', 'ps'] else ''
+            runner.command = command
+            stages = []
+            with patch.object(odoo_effect, 'permit', stages.append), patch.object(odoo_backup, 'permit', stages.append):
+                with self.assertRaises(odoo_effect.EffectError):
+                    runner.capture()
+            self.assertEqual(stages, [])
+            self.assertFalse(any('stop' in args for args in commands))
+            self.assertFalse((runner.root / 'backups').exists())
+
+    def drain_runner(self, observers):
+        runner = object.__new__(odoo_backup.BackupRunner)
+        runner.config = {'projectName': 'nasq-shared-test'}
+        commands = []
+        live = list(observers)
+        def command(args, **_):
+            commands.append(args)
+            if args[:2] == ['docker', 'ps']:
+                return '\n'.join(live)
+            if args[:2] == ['docker', 'kill']:
+                live.remove(args[2])
+            return ''
+        runner.command = command
+        return runner, commands, live
+
+    def test_observers_are_waited_for_then_killed_after_the_budget(self):
+        name = 'nasq-shared-test-effect-12345678-observe-abcd1234'
+        runner, commands, live = self.drain_runner([name, 'nasq-shared-test-odoo-1'])
+        now = [0]
+        def sleep(seconds): now[0] += seconds
+        def run(args, **kwargs):
+            commands.append(args)
+            self.assertIs(kwargs.get('check'), False); self.assertEqual(kwargs.get('timeout'), 15)
+            live.remove(args[2])
+        with patch.object(odoo_backup.subprocess, 'run', run):
+            runner.drain_observers(wait=35, sleep=sleep, clock=lambda: now[0])
+        self.assertGreaterEqual(now[0], 35)
+        self.assertIn(['docker', 'kill', name], commands)
+        self.assertEqual(live, ['nasq-shared-test-odoo-1'])
+
+    def test_observer_gone_before_the_kill_does_not_fail_the_drain(self):
+        name = 'nasq-shared-test-effect-12345678-observe-abcd1234'
+        runner, commands, live = self.drain_runner([name])
+        now = [0]
+        def sleep(seconds): now[0] += seconds
+        # `docker kill` exits non-zero ("No such container"); with check=False nothing is raised.
+        failed = unittest.mock.Mock(returncode=1)
+        with patch.object(odoo_backup.subprocess, 'run', return_value=failed) as run:
+            runner.drain_observers(wait=2, sleep=sleep, clock=lambda: now[0])
+        run.assert_called_once()
+        self.assertFalse(run.call_args.kwargs['check'])
+        # The writer check afterwards decides: nothing left running means no refusal.
+        live.clear()
+        runner.assert_no_effect_containers(code='runtime_writer_after_effect')
+
+    def test_observer_that_exits_in_time_is_not_killed(self):
+        name = 'nasq-shared-test-effect-12345678-observe-abcd1234'
+        runner, commands, live = self.drain_runner([name])
+        now = [0]
+        def sleep(seconds):
+            now[0] += seconds
+            if now[0] >= 3: live.clear()
+        runner.drain_observers(wait=35, sleep=sleep, clock=lambda: now[0])
+        self.assertEqual(now[0], 3)
+        self.assertFalse(any(args[:2] == ['docker', 'kill'] for args in commands))
+
+    def test_mutating_effect_after_stop_refuses_with_the_after_effect_code(self):
+        runner = object.__new__(odoo_backup.BackupRunner)
+        runner.config = {'projectName': 'nasq-shared-test'}
+        runner.command = lambda args, **_: 'nasq-shared-test-effect-12345678-install'
+        with self.assertRaises(odoo_effect.EffectError) as caught:
+            runner.assert_no_effect_containers(code='runtime_writer_after_effect')
+        self.assertEqual(str(caught.exception), 'runtime_writer_after_effect')
+
+    def run_main(self, error):
+        import contextlib, io as _io, json
+        class Boom:
+            def __init__(self, request): pass
+            def apply_owned(self): raise error
+        out = _io.StringIO()
+        with patch.object(odoo_backup, 'BackupRunner', Boom), patch('sys.stdin', _io.StringIO('{"action":"apply"}\n')), contextlib.redirect_stdout(out):
+            code = odoo_backup.main()
+        return code, json.loads(out.getvalue())
+
+    def test_main_reports_writer_refusals_by_name_and_hides_everything_else(self):
+        for name in ('runtime_writer_present', 'runtime_writer_after_effect'):
+            self.assertEqual(self.run_main(odoo_effect.EffectError(name)), (1, {'error_code': name}))
+        self.assertEqual(self.run_main(odoo_effect.EffectError('secret_path_/x')), (1, {'error_code': 'shared_effect_unverified'}))
+        self.assertEqual(self.run_main(RuntimeError('boom')), (1, {'error_code': 'shared_effect_unverified'}))
+
+    def test_restore_observe_writer_after_completion_is_not_retryable(self):
+        runner = object.__new__(odoo_backup.BackupRunner)
+        runner.config = {'projectName': 'nasq-shared-test'}
+        runner.command = lambda args, **_: 'nasq-shared-test-effect-12345678-install'
+        import inspect
+        source = inspect.getsource(odoo_backup.BackupRunner.observe)
+        self.assertIn("assert_no_effect_containers(code='runtime_writer_after_effect')", source)
 
     def test_database_binary_corruption_fails_without_exposing_bytes(self):
         self.assertTrue(hasattr(odoo_backup, 'database_attachment_digest'))

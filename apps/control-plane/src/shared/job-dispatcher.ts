@@ -11,7 +11,7 @@ export async function dispatchSharedOnce(pool: Pool, adapter?: SharedFencedAdapt
   const next = await pool.query(`SELECT queued.id FROM shared_jobs queued
     JOIN tenants tenant ON tenant.id=queued.control_tenant_id
     JOIN shared_registry_bindings binding ON binding.control_tenant_id=queued.control_tenant_id
-    WHERE queued.state='queued' AND tenant.commercial_mode='saas'
+    WHERE queued.state='queued' AND (queued.lease_until IS NULL OR queued.lease_until<=clock_timestamp()) AND tenant.commercial_mode='saas'
     AND tenant.operations_enabled=true AND (binding.enabled=true OR EXISTS (
       SELECT 1 FROM shared_onboardings onboarding WHERE onboarding.control_tenant_id=queued.control_tenant_id
       AND onboarding.job_id=queued.id AND onboarding.job_digest=queued.payload_digest

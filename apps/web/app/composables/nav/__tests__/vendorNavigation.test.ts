@@ -9,7 +9,7 @@ describe('company vendor administration navigation', () => {
   it('shows administration only from separate current vendor grants', () => {
     const identity = { capabilities: ['pmo.projects.read'], vendorCapabilities: ['vendor.read', 'vendor.audit.read'] }
     expect(visibleShellModules(identity).find(m => m.id === 'management')?.to).toBe('/vendor/overview')
-    expect(contextLinksForModule('management', identity).map(m => m.to)).toEqual(['/vendor/overview', '/vendor/tenants', '/vendor/customers', '/vendor/catalog', '/vendor/bundles', '/vendor/plans', '/vendor/operations', '/vendor/audit'])
+    expect(contextLinksForModule('management', identity).map(m => m.to)).toEqual(['/vendor/overview', '/vendor/tenants', '/vendor/customers', '/vendor/bundles', '/vendor/plans', '/vendor/operations', '/vendor/audit'])
     expect(activeShellModule('/vendor/tenants/example')).toBe('management')
   })
   it('keeps bundles and plans under management without a billing link', () => {

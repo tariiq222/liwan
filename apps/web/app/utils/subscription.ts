@@ -1,5 +1,7 @@
 import type { Money, Quote, SubscriptionDisplayState, UsageMetric, UsageSnapshot } from '@nasq/commercial-contracts'
 
+import { humanizeId } from './labelFallback'
+
 export type { SubscriptionDisplayState }
 export const DISPLAY_STATE_KEYS: Record<SubscriptionDisplayState, string> = {
   awaiting_payment: 'subscription.state.awaitingPayment', activating: 'subscription.state.activating',
@@ -58,4 +60,13 @@ export function safePaymentRedirect(url: string | null | undefined, origin: stri
     if (u.protocol === 'https:' || u.origin === origin) return u.toString()
   } catch { /* fall through */ }
   return null
+}
+
+/** A usage row's label: its limit key's translation, else its unit's, else a readable id. */
+export function usageMetricLabel(metric: Pick<UsageMetric, 'key' | 'unit'>, t: (key: string) => string, te: (key: string) => boolean): string {
+  const byKey = `subscription.usage.keys.${metric.key.replace(/\./g, '_')}`
+  if (te(byKey)) return t(byKey)
+  const byUnit = `subscription.usage.${metric.unit}`
+  if (te(byUnit)) return t(byUnit)
+  return humanizeId(metric.key)
 }

@@ -39,6 +39,10 @@ class CatalogSourceTests(unittest.TestCase):
                 catalog_source.resolve_catalog_path(digest('platform.json'), Path(raw))
             self.assertEqual(caught.exception.code, 'catalog_source_ambiguous')
 
+    def test_v3_resolves_to_its_own_file_and_is_registered_last(self):
+        self.assertEqual(catalog_source.resolve_catalog_path(digest('platform_v3.json')).name, 'platform_v3.json')
+        self.assertEqual(catalog_source.KNOWN_SOURCES[-1], 'platform_v3.json')
+
 
 if __name__ == '__main__':
     unittest.main()

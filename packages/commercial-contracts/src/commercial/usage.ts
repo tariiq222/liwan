@@ -1,7 +1,8 @@
 import { z } from 'zod'
 import { revisionIdSchema } from './schemas.js'
 
-export const usageUnitSchema = z.enum(['users', 'projects', 'attachment_bytes', 'extra_branches'])
+/** `count` and `mebibytes` describe limit-keyed metrics (Phase 3); the first four stay for compatibility. */
+export const usageUnitSchema = z.enum(['users', 'projects', 'attachment_bytes', 'extra_branches', 'count', 'mebibytes'])
 export const usageFreshnessSchema = z.enum(['fresh', 'stale', 'unavailable'])
 export const usageUnavailableReasonSchema = z.enum(['source_unreachable', 'timeout', 'not_collected', 'forbidden'])
 /** `used` is null (never 0) when the value could not be observed; `reason` then says why. */
