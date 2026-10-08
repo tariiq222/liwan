@@ -22,6 +22,12 @@ const ENFORCEMENT: Record<string, string[]> = {
   'hr.enabled': ['nasq_api.requires_feature:hr.enabled'],
   'chat.enabled': ['nasq_api.requires_feature:chat.enabled'],
 }
+/** An application's `<app>.enabled` key is gated by the shared feature check unless an entry above says otherwise. */
+export function enforcementRefs(key: string): string[] {
+  const explicit = ENFORCEMENT[key]
+  if (explicit) return explicit
+  return /^[a-z][a-z0-9_]*\.enabled$/.test(key) ? [`nasq_api.requires_feature:${key}`] : []
+}
 const PLATFORM_EXTRA = ['branches.extra_limit']
 
 export function catalogApplicationsFromSolution(solution: Solution, _version: string): CatalogApplication[] {
@@ -46,7 +52,7 @@ export function catalogApplicationsFromSolution(solution: Solution, _version: st
       modules: core ? base : [...(tier.modules ?? [])].sort(),
       requires_apps: [], conflicts_with_apps: [], selectable: !core,
       features: specs.map(({ kind, key, ceiling }): CatalogFeature => ({
-        key, kind, selectable: kind === 'boolean' && !core, requires: [], enforcement_refs: ENFORCEMENT[key] ?? [],
+        key, kind, selectable: kind === 'boolean' && !core, requires: [], enforcement_refs: enforcementRefs(key),
         // Emitted only when the descriptor carries a value; never defaulted.
         ...(ceiling !== undefined ? { ceiling } : {}),
       })),

@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -147,13 +148,15 @@ class TestScratchDbAndPorts(unittest.TestCase):
 
 class TestOdooWrapper(unittest.TestCase):
     def test_nasq_addons_cover_every_shipped_pillar(self) -> None:
-        self.assertEqual(
-            check_isolated.NASQ_ADDONS,
-            (
-                'nasq_core', 'nasq_platform', 'nasq_api', 'nasq_notify', 'nasq_directory',
-                'nasq_pmo', 'nasq_meetings', 'nasq_meetings_pmo', 'nasq_hr', 'nasq_chat',
-            ),
-        )
+        root = Path(__file__).resolve().parents[1]
+        sys.path.insert(0, str(root / 'tools'))
+        try:
+            import catalog_check
+        finally:
+            sys.path.pop(0)
+        _name, release = catalog_check.current_release(root)
+        self.assertEqual(check_isolated.NASQ_ADDONS[:3], ('nasq_core', 'nasq_platform', 'nasq_api'))
+        self.assertEqual(sorted(check_isolated.NASQ_ADDONS), release)
 
     def test_build_odoo_argv_is_explicit_and_overrides_conf(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

@@ -3,12 +3,25 @@
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import subprocess
 import sys
+from pathlib import Path
 
 TYPES = ('feat', 'fix', 'refactor', 'perf', 'test', 'docs', 'ci', 'build', 'chore')
-AREAS = ('core', 'platform', 'api', 'pmo', 'hr', 'chat', 'meetings', 'web', 'cp', 'deploy', 'tools', 'docs', 'ci')
+ARCH_LAYERS = Path(__file__).resolve().parent / 'arch_layers.json'
+APP_RANK = 4
+FIXED_AREAS = ('core', 'platform', 'api', 'web', 'cp', 'deploy', 'tools', 'docs', 'ci')
+
+
+def app_areas(layers_path: Path = ARCH_LAYERS) -> tuple[str, ...]:
+    """Application areas: the rank-4 addons of arch_layers.json without their `nasq_` prefix."""
+    ranks = json.loads(layers_path.read_text(encoding='utf-8')).get('ranks', {})
+    return tuple(sorted(name.removeprefix('nasq_') for name, rank in ranks.items() if rank == APP_RANK))
+
+
+AREAS = (*FIXED_AREAS[:3], *app_areas(), *FIXED_AREAS[3:])
 # Commits at or before this one predate the policy and are never checked.
 POLICY_START = '7208cf961ecbeb60e988e840fe2ca7cd4c3a3b9d'
 MAX_SUBJECT = 72
