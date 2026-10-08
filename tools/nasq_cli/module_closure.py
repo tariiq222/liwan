@@ -88,3 +88,21 @@ def install_closure(addons_paths, selected):
                 required.update(other_deps)
                 changed = True
     return closure
+
+
+def install_order(addons_paths, selected):
+    """Nasq modules of ``selected`` in dependency order: each module follows its
+    Nasq dependencies, visited in selection then manifest order."""
+    paths = [addons_paths] if isinstance(addons_paths, (str, Path)) else list(addons_paths)
+    ordered = []
+
+    def visit(name, stack):
+        if name in ordered or name in stack:
+            return
+        for dependency in _read_manifest(paths, name)[0]:
+            visit(dependency, (*stack, name))
+        ordered.append(name)
+
+    for name in selected:
+        visit(name, ())
+    return ordered

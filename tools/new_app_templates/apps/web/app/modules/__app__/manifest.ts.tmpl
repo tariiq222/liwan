@@ -1,0 +1,17 @@
+import type { AppManifest } from '../types'
+
+const manifest: AppManifest = {
+  id: '{{app}}',
+  feature: '{{app}}.enabled',
+  routePrefixes: ['/{{app}}'],
+  rail: [{ id: '{{app}}', labelKey: '{{app}}.title', icon: 'i-lucide-layout-grid', to: '/{{app}}', order: {{order}} }],
+  nav: [
+    { to: '/{{app}}', labelKey: '{{app}}.nav.records', icon: 'i-lucide-layout-grid', shortcut: '{{shortcut}}', capability: '{{app}}.records.read' },
+  ],
+  contextLinks: () => [
+    { id: '{{app}}-records', labelKey: '{{app}}.nav.records', icon: 'i-lucide-layout-grid', to: '/{{app}}', capability: '{{app}}.records.read' },
+  ],
+  landing: [{ path: '/{{app}}', capability: '{{app}}.records.read' }],
+  routeCapabilities: [{ pattern: /^\/{{app}}(?:\/|$)/, capability: '{{app}}.records.read' }],
+}
+export default manifest

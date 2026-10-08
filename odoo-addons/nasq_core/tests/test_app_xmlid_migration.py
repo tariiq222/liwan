@@ -65,7 +65,10 @@ class TestAppXmlidMigration(TransactionCase):
 
     def _group_xmlids(self):
         self.env.cr.execute('SELECT key, group_xmlid FROM nasq_access_permission')
-        return dict(self.env.cr.fetchall())
+        # Only the groups this migration moves; an application added later owns
+        # permissions (and groups) of its own that the migration never touches.
+        moved = {name for _module, name in self.moved}
+        return {key: xmlid for key, xmlid in self.env.cr.fetchall() if xmlid.split('.', 1)[1] in moved}
 
     def _restore_release_state(self):
         for module, name in self.moved:

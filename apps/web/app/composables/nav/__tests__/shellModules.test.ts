@@ -1,5 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
-import { contextLinksForModule, hidePinnedNewProject, visibleShellModules, useNav } from '../shellModules'
+import { allNavItems, contextLinksForModule, featureForRailModule, hidePinnedNewProject, shellModuleList, visibleShellModules, useNav } from '../shellModules'
+import { appManifests, withManifests } from '../../../modules/manifests'
+import type { AppManifest } from '../../../modules/types'
 import { activeShellModule } from '../activeRoute'
 
 const employee = { role: 'employee', capabilities: ['pmo.tasks.read', 'pmo.projects.read', 'meetings.read', 'hr.employees.read', 'hr.departments.read', 'hr.documents.read'] }
@@ -103,10 +105,14 @@ describe('contextual module links', () => {
   })
 })
 
+// Additional applications may join the rail without editing these tests: compare only today's module ids.
+const TODAY = ['home', 'projects', 'meetings', 'chat', 'hr', 'settings', 'management', 'vendor']
+const today = (ids: string[]) => ids.filter(id => TODAY.includes(id))
+
 describe('module rail', () => {
   it('orders rail modules home, projects, meetings, chat, organization with utilities anchored after them', () => {
-    expect(visibleShellModules(full).map(item => item.id)).toEqual(['home', 'projects', 'meetings', 'chat', 'hr', 'settings'])
-    expect(visibleShellModules({ ...full, role: 'vendor' }).map(item => item.id)).toEqual(['home', 'projects', 'meetings', 'chat', 'hr', 'settings', 'vendor'])
+    expect(today(visibleShellModules(full).map(item => item.id))).toEqual(['home', 'projects', 'meetings', 'chat', 'hr', 'settings'])
+    expect(today(visibleShellModules({ ...full, role: 'vendor' }).map(item => item.id))).toEqual(['home', 'projects', 'meetings', 'chat', 'hr', 'settings', 'vendor'])
     expect(visibleShellModules(full).find(item => item.id === 'home')?.to).toBe('/projects/dashboard')
     expect(visibleShellModules(full).find(item => item.id === 'projects')?.to).toBe('/projects')
     expect(visibleShellModules(full).find(item => item.id === 'hr')?.labelKey).toBe('nav.organization')
@@ -116,7 +122,7 @@ describe('module rail', () => {
 
   it('selects permitted module destinations without legacy group leakage', () => {
     const taskOnly = visibleShellModules({ capabilities: ['pmo.tasks.read'] })
-    expect(taskOnly.map(item => item.id)).toEqual(['projects', 'chat'])
+    expect(today(taskOnly.map(item => item.id))).toEqual(['projects', 'chat'])
     expect(taskOnly.find(item => item.id === 'projects')?.to).toBe('/tasks')
     const departmentOnly = visibleShellModules({ capabilities: ['hr.departments.read'] })
     expect(departmentOnly.find(item => item.id === 'hr')?.to).toBe('/hr/departments')
@@ -159,5 +165,69 @@ describe('projects dashboard navigation', () => {
   it('orders meetings as list, calendar, recurring series after the pinned create action', () => {
     expect(contextLinksForModule('meetings', full).map(link => link.id)).toEqual(['new-meeting', 'meetings', 'meeting-calendar', 'meeting-series'])
     expect(contextLinksForModule('hr', full, '/hr').map(link => link.labelKey)).toEqual(['nav.employees', 'nav.departments', 'nav.documents'])
+  })
+})
+
+const crm: AppManifest = {
+  id: 'crm',
+  feature: 'crm.enabled',
+  routePrefixes: ['/crm'],
+  rail: [{ id: 'crm', labelKey: 'nav.crm', icon: 'i-lucide-handshake', to: '/crm', order: 60 }],
+  nav: [
+    { to: '/crm', labelKey: 'nav.crmLeads', icon: 'i-lucide-handshake', shortcut: 'j', capability: 'crm.leads.read' },
+    { to: '/crm/deals', labelKey: 'nav.crmDeals', icon: 'i-lucide-banknote', shortcut: 'd', capability: 'crm.deals.read' },
+  ],
+  contextLinks: () => [{ id: 'new-lead', labelKey: 'nav.newLead', icon: 'i-lucide-plus', to: '/crm/leads/new', capability: 'crm.leads.create', pinned: true }],
+}
+const crmIdentity = {
+  role: 'employee',
+  capabilities: ['crm.leads.read', 'crm.leads.create', 'crm.deals.read'],
+  platform: { readable_features: ['crm.enabled'], writable_features: ['crm.enabled'] },
+}
+
+describe('navigation built from app manifests', () => {
+  it('keeps shortcuts unique across manifests and foundation items', () => {
+    const shortcuts = allNavItems().map(item => item.shortcut).filter(Boolean)
+    expect(new Set(shortcuts).size).toBe(shortcuts.length)
+    for (const shortcut of shortcuts) expect(shortcut).toMatch(/^[a-z0-9]$/)
+  })
+  it('lists the rail in order from the manifests', () => {
+    const ids = shellModuleList().map(module => module.id as string)
+    // Today's modules keep their relative order; any additional application sits between hr and the foundation modules.
+    expect(today(ids)).toEqual(TODAY)
+    expect(new Set(ids).size).toBe(ids.length)
+    const firstFoundation = ids.indexOf('settings')
+    for (const id of ids.filter(id => !TODAY.includes(id))) {
+      expect(ids.indexOf(id)).toBeGreaterThan(ids.indexOf('hr'))
+      expect(ids.indexOf(id)).toBeLessThan(firstFoundation)
+    }
+  })
+  it('shows a new application in the rail, nav, sidebar and active module with no foundation edit', () => {
+    withManifests([...appManifests, crm], () => {
+      expect(useNav(crmIdentity).map(item => [item.to, item.group, item.module])).toEqual([['/crm', 'crm', 'crm'], ['/crm/deals', 'crm', 'crm']])
+      expect(shellModuleList().map(module => module.id)).toContain('crm')
+      expect(visibleShellModules(crmIdentity).map(module => module.id)).toEqual(['crm'])
+      expect(activeShellModule('/crm/deals/4')).toBe('crm')
+      expect(contextLinksForModule('crm', crmIdentity).map(link => link.id)).toEqual(['new-lead'])
+      expect(featureForRailModule('crm')).toBe('crm.enabled')
+    })
+    expect(activeShellModule('/crm')).toBeNull()
+    expect(useNav(crmIdentity)).toEqual([])
+    expect(shellModuleList().map(module => module.id)).not.toContain('crm')
+  })
+  it('hides a new application whose feature is closed and treats unknown rail modules as gated', () => {
+    withManifests([...appManifests, crm], () => {
+      const closed = { ...crmIdentity, platform: { readable_features: ['hr.enabled'], writable_features: [] } }
+      expect(useNav(closed)).toEqual([])
+      expect(featureForRailModule('nope')).toBeUndefined()
+      expect(featureForRailModule('settings')).toBeNull()
+    })
+  })
+  it('hides an internal-access item whose rail module no manifest declares', () => {
+    const ghost: AppManifest = { ...crm, nav: [{ to: '/crm/ghost', labelKey: 'nav.ghost', icon: 'i-lucide-ghost', shortcut: '', capability: 'nasq.internal', module: 'ghost' }] }
+    withManifests([...appManifests, ghost], () => {
+      expect(featureForRailModule('ghost')).toBeUndefined()
+      expect(useNav(crmIdentity).map(item => item.to)).not.toContain('/crm/ghost')
+    })
   })
 })

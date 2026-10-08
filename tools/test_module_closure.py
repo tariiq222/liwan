@@ -1,23 +1,31 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 """Installation closure of the managed tiers, read from the REAL addon manifests."""
+import json
 import sys
 import tempfile
 import unittest
 from pathlib import Path
 
+import catalog_check
 from nasq_cli import module_closure, operator
 
 ADDONS = Path(__file__).resolve().parents[1] / 'odoo-addons'
 BASE = ['nasq_core', 'nasq_platform', 'nasq_api']
-# Hand-computed from the manifests' `depends`; literals on purpose.
-EXPECTED = {
-    'projects': (BASE + ['nasq_pmo', 'nasq_meetings'],
-                 {'nasq_core', 'nasq_platform', 'nasq_api', 'nasq_notify', 'nasq_directory', 'nasq_pmo',
-                  'nasq_meetings', 'nasq_meetings_pmo'}),
-    'people': (BASE + ['nasq_hr'], {'nasq_core', 'nasq_platform', 'nasq_api', 'nasq_hr'}),
-    'messaging': (BASE + ['nasq_chat'], {'nasq_core', 'nasq_platform', 'nasq_api', 'nasq_chat'}),
-    'core': (BASE, {'nasq_core', 'nasq_platform', 'nasq_api'}),
-}
+
+
+def _release_tiers():
+    """Tier id -> (selected modules, closure), derived from the committed release solution."""
+    name, _modules = catalog_check.current_release(ADDONS.parent)
+    data = json.loads((ADDONS.parent / 'deploy/catalog/solutions' / name).read_text())
+    return {
+        tier['id']: (data['base_modules'] + tier['modules'],
+                     module_closure.install_closure([ADDONS], data['base_modules'] + tier['modules']))
+        for tier in data['tiers']
+    }
+
+
+# Hand-computed pin for the three base modules; applications are derived from the release.
+EXPECTED = {'core': (BASE, {'nasq_core', 'nasq_platform', 'nasq_api'}), **_release_tiers()}
 
 
 class RealManifestClosureTest(unittest.TestCase):

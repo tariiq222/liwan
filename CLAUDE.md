@@ -75,7 +75,9 @@ another application) needs the owner's approval, recorded by the owner as an
 
 - `main` is the only long-lived branch and is always releasable. Task branches are
   `codex/<area>-<slug>`; throwaway experiments are `spike/<slug>` and are never merged.
-  `<area>` is one of `core platform api pmo hr chat meetings web cp deploy tools docs ci`.
+  `<area>` is one of `core platform api pmo hr chat meetings web cp deploy tools docs ci`; the
+  application areas (`pmo hr chat meetings`) are derived from the rank-4 addons in `tools/arch_layers.json`,
+  so a new application's id becomes a valid area when it is registered there.
 - Commit subjects are `type(scope): imperative subject`, at most 72 characters, with `type` in
   `feat fix refactor perf test docs ci build chore` and `scope` from the `<area>` list. One logical change
   per commit. No `wip` commit reaches `main`. A schema change carries its version bump and migration
@@ -339,6 +341,14 @@ worktrees only after their content is preserved and no process is using them.
   meeting and chat uploads; HR documents keep their own parser.
   Dependency edits require project management, same active project, positive
   unique IDs and no cycles. Restores require a readable active parent project.
+- A new application starts from `python3 -B tools/new_app.py <app> --name-ar <ar>
+  --name-en <en>` and the `nasq-new-app` skill. Outside its own folders it edits
+  only three registration files: `tools/arch_layers.json`,
+  `deploy/catalog/solutions/platform_v3.json` and `packages/contracts/src/index.ts`
+  (plus copies written by `python3 -B tools/catalog_check.py --sync-release-copies`).
+  It edits `platform_v3.json` in place only while that catalog is unpublished; after the
+  first publish a new application needs a new `platform_vN.json`, decided before the first
+  server deploy.
 
 ## Frontend and machine rules
 
@@ -371,8 +381,12 @@ worktrees only after their content is preserved and no process is using them.
   typed code. On the client a capability's feature is `<first segment>.enabled`
   and it is a write unless its last segment is `read` (`app/modules/registry.ts`;
   exceptions are listed there). A bell kind the build does not know renders as a
-  generic row; known kinds stay strict. A new application still adds its own
-  navigation, locale file and labels (Phase 4).
+  generic row; known kinds stay strict. An application declares its web surface
+  (feature, route prefixes, rail entry, navigation, context links, landing paths,
+  route capabilities, bell kinds, search providers) in
+  `apps/web/app/modules/<app>/manifest.ts`; manifests and the per-pillar locale
+  files under `apps/web/i18n/locales` are discovered automatically, so no
+  foundation file lists an application.
 - The data layer uses `@tanstack/vue-query` composables over `useApi()`, which
   throws `ApiError {status, code, message, field}`. Plain edits may be
   optimistic; transitions and approvals remain pending until the server
@@ -399,16 +413,20 @@ ODOO_CONF=/absolute/path/to/scratch-only.conf
 WORKTREE=/absolute/path/to/nasq-worktree
 SCRATCH_ROOT=$(mktemp -d)
 mkdir -p "$SCRATCH_ROOT/data" "$SCRATCH_ROOT/logs"
+export NASQ_COMMERCIAL_CONFIG="$SCRATCH_ROOT/odoo-classification.json"
+(cd "$WORKTREE" && python3 deploy/classification.py fixture --database nasq_scratch --mode saas --output "$NASQ_COMMERCIAL_CONFIG")
 # Set PGHOST, PGPORT, PGUSER, and PGPASSWORD in the environment as needed;
 # never put a password on the command line.
 PGHOST=${PGHOST:-127.0.0.1}; PGPORT=${PGPORT:-5432}; PGUSER=${PGUSER:-tariq}
+# The release module list is derived from the catalog, as in .woodpecker.yml.
+MODULES="$(cd "$WORKTREE" && python3 -B tools/catalog_check.py --release-modules)"
+TAGS="/${MODULES//,/,/}"
 "$ODOO_PYTHON" "$ODOO_ROOT/odoo-bin" -c "$ODOO_CONF" \
   --addons-path="$ODOO_ROOT/odoo/addons,$ODOO_ROOT/addons,$WORKTREE/odoo-addons" \
   --db_host="$PGHOST" --db_port="$PGPORT" --db_user="$PGUSER" \
   -d nasq_scratch --db-filter='^nasq_scratch$' \
   --data-dir="$SCRATCH_ROOT/data" --logfile="$SCRATCH_ROOT/logs/odoo.log" \
-  -i nasq_core,nasq_platform,nasq_api,nasq_notify,nasq_directory,nasq_pmo,nasq_meetings,nasq_meetings_pmo,nasq_hr,nasq_chat \
-  --test-tags /nasq_core,/nasq_platform,/nasq_api,/nasq_notify,/nasq_directory,/nasq_pmo,/nasq_meetings,/nasq_meetings_pmo,/nasq_hr,/nasq_chat \
+  -i "$MODULES" --test-tags "$TAGS" \
   --http-port=8169 --workers=0 --max-cron-threads=0 --stop-after-init
 ```
 

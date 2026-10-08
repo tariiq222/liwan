@@ -1,4 +1,5 @@
-const INTERNAL_NASQ_ACCESS = 'nasq.internal'
+import { activeManifests, appManifests, manifestForPath } from './manifests'
+
 const NOTIFICATION_ACCESS = 'nasq.notifications'
 
 export type TenantIdentity = {
@@ -19,35 +20,37 @@ export const KNOWN_FEATURE_KEYS = ['pmo.enabled', 'meetings.enabled', 'hr.enable
 export type KnownFeatureKey = typeof KNOWN_FEATURE_KEYS[number]
 export type FeatureKey = KnownFeatureKey | (string & {})
 
-export const MODULE_FEATURES: Record<'home' | 'projects' | 'meetings' | 'chat' | 'hr' | 'settings' | 'vendor' | 'management', KnownFeatureKey | null> = {
-  home: 'pmo.enabled',
-  projects: 'pmo.enabled',
-  meetings: 'meetings.enabled',
-  chat: 'chat.enabled',
-  hr: 'hr.enabled',
+/** Rail module id to its application feature, from the manifests; foundation modules carry no feature. */
+export const MODULE_FEATURES = {
+  ...Object.fromEntries(appManifests.flatMap(manifest => manifest.rail.map(entry => [entry.id, manifest.feature]))),
   settings: null,
   vendor: null,
   management: null,
-}
+} as Record<'home' | 'projects' | 'meetings' | 'chat' | 'hr' | 'settings' | 'vendor' | 'management', FeatureKey | null>
+  & Record<string, FeatureKey | null | undefined>
 
 /**
  * A capability's application feature is `<first segment>.enabled` (pmo, meetings, hr and any
- * newer application). Exceptions keep today's gates: chat's capability is `nasq.internal`,
- * and the foundation (`access`, `settings`, `nasq`), the vendor console and the customer
- * subscription prefixes belong to no application feature.
+ * newer application). An application manifest lists its exceptions in `capabilityAliases`
+ * (chat's capability is `nasq.internal`); the foundation (`access`, `settings`, `nasq`), the
+ * vendor console and the customer subscription prefixes belong to no application feature.
  */
-const CAPABILITY_FEATURES: ReadonlyMap<string, FeatureKey> = new Map([[INTERNAL_NASQ_ACCESS, 'chat.enabled']])
+function aliasedFeature(capability: string): string | undefined {
+  for (const manifest of activeManifests()) {
+    const feature = manifest.capabilityAliases?.[capability]
+    if (feature) return feature
+  }
+  return undefined
+}
 // Any unknown dotted prefix is gated by `<prefix>.enabled`, so a new foundation-like prefix must be added here.
 const FEATURELESS_PREFIXES: ReadonlySet<string> = new Set(['access', 'settings', 'nasq', 'vendor', 'subscription', 'billing', 'branches'])
-/** A capability is a write unless its action (last segment) is `read`; `nasq.internal` only opens chat for reading. */
-const READ_CAPABILITIES: ReadonlySet<string> = new Set([INTERNAL_NASQ_ACCESS])
 
 export function featureGateActive(identity: TenantIdentity): boolean {
   return Boolean(identity && (identity.modules || identity.entitlements || identity.platform))
 }
 
 export function featureForCapability(capability: string): FeatureKey | null {
-  const explicit = CAPABILITY_FEATURES.get(capability)
+  const explicit = aliasedFeature(capability)
   if (explicit) return explicit
   const dot = capability.indexOf('.')
   if (dot < 1) return null
@@ -56,22 +59,13 @@ export function featureForCapability(capability: string): FeatureKey | null {
 }
 
 export function isWriteCapability(capability: string): boolean {
-  if (READ_CAPABILITIES.has(capability)) return false
+  // An aliased capability (chat's `nasq.internal`) only opens its application for reading.
+  if (aliasedFeature(capability)) return false
   return capability.slice(capability.lastIndexOf('.') + 1) !== 'read'
 }
 
 export function featureForPath(path: string): FeatureKey | null {
-  if (path === '/chat' || path.startsWith('/chat/')) return 'chat.enabled'
-  if (path === '/hr' || path.startsWith('/hr/')) return 'hr.enabled'
-  if (path === '/meetings' || path.startsWith('/meetings/')) return 'meetings.enabled'
-  if (
-    path.startsWith('/projects')
-    || path.startsWith('/tasks')
-    || path.startsWith('/project-templates')
-    || path.startsWith('/reports')
-    || path === '/archived-tasks'
-  ) return 'pmo.enabled'
-  return null
+  return manifestForPath(path)?.feature ?? null
 }
 
 export function pathIsWrite(path: string): boolean {
@@ -91,7 +85,7 @@ export function hasFeature(identity: TenantIdentity, key: FeatureKey | null, wri
 
 export function canUse(identity: TenantIdentity, capability: string, write = false): boolean {
   if (capability === NOTIFICATION_ACCESS) {
-    return hasFeature(identity, 'pmo.enabled') || hasFeature(identity, 'meetings.enabled')
+    return activeManifests().some(manifest => manifest.bell && hasFeature(identity, manifest.feature))
   }
   return hasFeature(identity, featureForCapability(capability), write || isWriteCapability(capability))
 }

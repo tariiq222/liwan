@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <record id="nasq_{{app}}_record_company_rule" model="ir.rule">
+            <field name="name">nasq.{{app}}.record: multi-company</field>
+            <field name="model_id" ref="model_nasq_{{app}}_record"/>
+            <field name="domain_force">[('company_id', '=', company_id)]</field>
+        </record>
+    </data>
+</odoo>

@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { discoverLocaleFiles } from '../../../i18n/localeFiles'
 
 const root = resolve(import.meta.dirname, '../../..')
 const read = (p: string) => readFileSync(resolve(root, p), 'utf8')
@@ -21,7 +22,8 @@ describe('invite accept page', () => {
   })
   it('uses logical properties only and registers both locales', () => {
     expect(page).not.toMatch(/\b(ml|mr|pl|pr)-\d/)
-    expect(read('nuxt.config.ts')).toContain('ar/invite.json'); expect(read('nuxt.config.ts')).toContain('en/invite.json')
+    const files = discoverLocaleFiles(resolve(root, 'i18n/locales'))
+    expect(files.ar).toContain('ar/invite.json'); expect(files.en).toContain('en/invite.json')
     const keys = (l: string) => Object.keys(JSON.parse(read(`i18n/locales/${l}/invite.json`)).invite).sort()
     expect(keys('ar')).toEqual(keys('en'))
   })
