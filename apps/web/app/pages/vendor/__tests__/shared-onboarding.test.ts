@@ -36,21 +36,23 @@ describe('shared tenant onboarding browser contract', () => {
     expect(request.body({ ...input, package_revision_id: 'revision' })).toEqual(body)
   })
 
-  it('selects the shared form only through explicit server context and retains dedicated registration', () => {
+  it('creates a shared tenant from a plan (customer, quote, order) and retains dedicated registration', () => {
     expect(form).toContain('sharedOnboardingEnabled: sharedEnabled')
     expect(form).toContain('sharedEnabled.value ? Promise.resolve({ items: [], total: 0 })')
     for (const field of ['mode', 'hosting', 'target']) expect(form).toContain(`v-if="!sharedEnabled" :label="t('vendor.tenants.fields.${field}')"`)
-    expect(form).toContain('v-if="sharedEnabled"')
-    expect(form).toContain("request<SharedTenantCreated>('shared/tenants'")
+    expect(form).toContain('subscriptions.createCustomer(planTenantCustomerBody(form))')
+    expect(form).toContain('subscriptions.changeQuote(planTenantQuoteBody(')
+    expect(form).toContain('subscriptions.placeOrder(')
+    expect(form).not.toContain("'packages'")
+    expect(form).not.toContain('package_revision_id')
     expect(form).toContain("request<{ id: string }>('tenants'")
     expect(form).toContain('<SharedUnsavedChanges :dirty="dirty"')
     expect(form).toContain("can('vendor.tenants.manage')")
+    expect(form).toContain("can('vendor.subscriptions.manage')")
   })
 
-  it('keeps a partially accepted request on the form for same-request recovery', () => {
-    expect(form).toContain('if (result.job_id === null) { saveError.value = { incompleteOnboarding: true }; return }')
-    expect(form.indexOf('result.job_id === null')).toBeLessThan(form.indexOf('submitted.value = true'))
-    expect(form).toContain('else sharedRequest.acceptedNavigation()')
+  it('reuses the created customer when a later step fails, so a retry creates no duplicate', () => {
+    expect(form).toContain('createdCustomer.value ??= (await subscriptions.createCustomer(planTenantCustomerBody(form))).id')
   })
 
   it('does not publish a customer link for failed, stale, or partially activated progress', () => {

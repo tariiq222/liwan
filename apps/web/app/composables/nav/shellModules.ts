@@ -175,7 +175,6 @@ export function contextLinksForModule(module: ShellModule, identity: AccessIdent
       { id: 'vendor-tenants', labelKey: 'vendor.tenants.title', icon: 'i-lucide-building-2', to: '/vendor/tenants', capability: 'vendor.read' },
       { id: 'vendor-customers', labelKey: 'vendor.customers.title', icon: 'i-lucide-users', to: '/vendor/customers', capability: 'vendor.read' },
       { id: 'vendor-invoices', labelKey: 'vendor.invoices.title', icon: 'i-lucide-receipt', to: '/vendor/invoices', capability: 'vendor.billing.manage' },
-      { id: 'vendor-catalog', labelKey: 'vendor.catalog.title', icon: 'i-lucide-library', to: '/vendor/catalog', capability: 'vendor.read' },
       { id: 'vendor-bundles', labelKey: 'vendor.bundles.title', icon: 'i-lucide-boxes', to: '/vendor/bundles', capability: 'vendor.read' },
       { id: 'vendor-plans', labelKey: 'vendor.plans.title', icon: 'i-lucide-badge-percent', to: '/vendor/plans', capability: 'vendor.read' },
       { id: 'vendor-operations', labelKey: 'vendor.operations.title', icon: Wrench, to: '/vendor/operations', capability: 'vendor.read' },

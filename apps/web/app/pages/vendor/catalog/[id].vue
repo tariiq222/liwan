@@ -10,7 +10,7 @@ const history = computed(() => (revisions.value?.items ?? []).filter(item => ite
 const action = ref<PackageAction | null>(null); const reason = ref(''); const attempted = ref(false); const busy = ref(false); const failure = ref<unknown>(null)
 const dirty = computed(() => Boolean(action.value && reason.value.trim()))
 const reasonError = computed(() => attempted.value && (reason.value.trim().length < 3 || reason.value.trim().length > 1000) ? t('vendor.packages.reasonRequired') : undefined)
-const actions = computed<PackageAction[]>(() => !data.value ? [] : data.value.status === 'draft' ? ['validate', 'delete'] : data.value.status === 'validated' ? ['publish'] : ['revisions', data.value.available ? 'withdraw' : 'restore'])
+const actions = computed<PackageAction[]>(() => [])
 function choose(value: PackageAction) { action.value = value; reason.value = ''; attempted.value = false; failure.value = null }
 function cancelAction() { action.value = null; reason.value = ''; attempted.value = false }
 async function perform() {
@@ -32,7 +32,7 @@ async function perform() {
   <NuxtPage v-if="isEdit" />
   <SharedPageContainer v-else width="list">
     <SharedUnsavedChanges :dirty="dirty" guard-route-updates />
-    <SharedPageHeader :title="data?.name ?? t('vendor.packages.details')" :description="data?.description" :back-to="backTo" :back-label="t('vendor.packages.title')"><template #actions><UButton v-if="data && data.status !== 'published' && can('vendor.catalog.manage')" :to="{ path: `/vendor/catalog/${data.id}/edit`, query: { returnTo: backTo } }" color="neutral" variant="outline">{{ t('vendor.packages.edit') }}</UButton></template></SharedPageHeader>
+    <SharedPageHeader :title="data?.name ?? t('vendor.packages.details')" :description="data?.description" :back-to="backTo" :back-label="t('vendor.packages.title')"></SharedPageHeader>
     <SharedPageState :loading="pending" :error="error" @retry="refresh"><template v-if="data">
       <div class="flex flex-wrap gap-2"><UBadge color="neutral" variant="subtle">{{ t(`vendor.packages.status.${data.status === 'published' && !data.available ? 'unavailable' : data.status}`) }}</UBadge><UBadge color="neutral" variant="outline">{{ t('vendor.packages.version', { count: data.version }) }}</UBadge><p class="text-sm text-muted">{{ t('vendor.packages.customers', { count: data.customer_count }) }}</p></div>
       <SharedFormSection :title="t('vendor.packages.included')" class="mt-6"><p>{{ packageLabel('tier', data.catalog_tier, t) }}</p><div class="flex flex-wrap gap-2"><UBadge v-for="module in data.modules" :key="module" color="neutral" variant="subtle">{{ packageLabel('module', module, t) }}</UBadge><UBadge v-for="feature in data.features.filter(value => value.startsWith('boolean:'))" :key="feature" color="neutral" variant="outline">{{ packageLabel('feature', feature, t) }}</UBadge></div></SharedFormSection>

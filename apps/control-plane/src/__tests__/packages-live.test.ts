@@ -118,11 +118,13 @@ suite('package immutable lifecycle and enrollment authority SQL',()=>{
   const stale=await createPackage(pool,actor,{...input,catalog_version:staleVersion})
   await expect(mutatePackage(pool,actor,stale.id,'validate',{revision:1,reason})).rejects.toMatchObject({code:'package_source_mismatch',status:422,field:'catalog_version'})
  })
- it('enforces API capability, reason and field errors before mutation',async()=>{
+ it('keeps reads and refuses every HTTP write once Track A is retired',async()=>{
   const request={repositoryRoot:sourceOptions.repositoryRoot,method:'POST',pathname:'/v1/packages',raw:JSON.stringify(input),issuer:actor.issuer,actor:7,capabilities:['vendor.read'] as ('vendor.read')[]}
   await expect(packageHttp(pool,request)).rejects.toMatchObject({status:403})
-  await expect(packageHttp(pool,{...request,capabilities:['vendor.catalog.manage'],raw:JSON.stringify({...input,limits:{'evil.enabled':1}})})).rejects.toMatchObject({status:422,field:'limits'})
-  await expect(packageHttp(pool,{...request,capabilities:['vendor.catalog.manage'],pathname:`/v1/packages/${published.id}/restore`,raw:JSON.stringify({revision:published.revision+1,reason:'x'})})).rejects.toMatchObject({status:422,field:'reason'})
+  await expect(packageHttp(pool,{...request,capabilities:['vendor.catalog.manage']})).rejects.toMatchObject({status:410,code:'packages_retired'})
+  await expect(packageHttp(pool,{...request,capabilities:['vendor.catalog.manage'],pathname:`/v1/packages/${published.id}/restore`,raw:JSON.stringify({revision:published.revision,reason:'Retired'})})).rejects.toMatchObject({status:410})
+  const read=await packageHttp(pool,{...request,method:'GET',pathname:`/v1/packages/${published.id}`})
+  expect(read?.status).toBe(200)
   const list=await listPackages(pool);expect(list.items.some(p=>p.id===published.id)).toBe(true)
  })
 })

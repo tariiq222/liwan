@@ -125,6 +125,13 @@
           "pending": "Setup is in progress"
         },
         "incomplete": "The installation was reserved but setup has not been queued. Submit again with the same details to resume this request."
+      },
+      "plan": {
+        "field": "Plan",
+        "cadence": "Billing cycle",
+        "hint": "Creates the customer and their plan order; the tenant is provisioned once the order is paid or needs no payment.",
+        "none": "No published plans. Publish a plan first.",
+        "forbidden": "Creating a tenant from a plan requires subscription management access."
       }
     },
     "catalog": {
@@ -395,7 +402,9 @@
         "package_source_unavailable": "The trusted software version is unavailable. Select an available published source.",
         "package_source_mismatch": "The trusted source changed. Select the current source and review this draft again.",
         "published_catalog_missing": "Select an available published software version."
-      }
+      },
+      "retired": "Legacy packages are read-only: they cannot be created, edited or offered.",
+      "retiredHint": "Plans are sold from the Plans page. Customers already on a legacy package keep it unchanged."
     },
     "bundles": {
       "title": "Bundles",
