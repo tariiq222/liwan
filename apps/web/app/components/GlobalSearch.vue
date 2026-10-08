@@ -1,9 +1,8 @@
 <script setup lang="ts">
-import { useQuery, useInfiniteQuery } from '@tanstack/vue-query'
 import { refDebounced, useEventListener } from '@vueuse/core'
 import { returnToQuery } from '@/utils/safeReturnTo'
 import { useNav } from '@/composables/nav/shellModules'
-import { ProjectRefSchema, TaskListSchema } from '@nasq/contracts'
+import { useAppSearch } from '@/composables/useAppSearch'
 
 const { t, localeProperties } = useI18n()
 const { me } = useMe()
@@ -19,24 +18,9 @@ function navLabel(item: ReturnType<typeof useNav>[number]) {
   return item.to === '/projects/settings' ? t('nav.projectSettings') : t(item.labelKey)
 }
 const nav = computed(() => useNav(me.value).filter(item => navLabel(item).toLocaleLowerCase().includes(trimmed.value.toLocaleLowerCase())))
-const projectsQuery = useQuery({
-  queryKey: ['search', 'projects'],
-  enabled: computed(() => open.value && can('pmo.projects.read') && !!debounced.value),
-  queryFn: () => $api('/api/v1/projects', { query: { minimal: 1 }, schema: ProjectRefSchema.array() }),
-})
-const projects = computed(() => (projectsQuery.data.value ?? []).filter(item => item.name.toLocaleLowerCase().includes(trimmed.value.toLocaleLowerCase())))
-const tasksQuery = useInfiniteQuery({
-  queryKey: computed(() => ['search', 'tasks', debounced.value]),
-  enabled: computed(() => open.value && can('pmo.tasks.read') && !!debounced.value),
-  queryFn: ({ pageParam }) => $api('/api/v1/tasks', { query: { filter: 'mine', q: debounced.value, limit: 20, offset: pageParam }, schema: TaskListSchema }),
-  initialPageParam: 0,
-  getNextPageParam: (last, pages) => {
-    const loaded = pages.reduce((count, page) => count + page.items.length, 0)
-    return loaded < last.total ? loaded : undefined
-  },
-})
-const tasks = computed(() => trimmed.value && trimmed.value === debounced.value ? (tasksQuery.data.value?.pages ?? []).flatMap(page => page.items) : [])
-const waiting = computed(() => !!trimmed.value && (trimmed.value !== debounced.value || tasksQuery.isLoading.value))
+const sections = useAppSearch({ surface: 'dialog', term: trimmed, debounced, gate: open, requireTerm: true, can, api: $api })
+const noResults = computed(() => !nav.value.length && sections.every(section => !section.rows.value.length)
+  && (!trimmed.value || sections.every(section => !section.waiting.value && !section.error.value)))
 watch(() => route.fullPath, () => { open.value = false })
 watch(open, value => { if (value) query.value = '' })
 useEventListener('keydown', (event: KeyboardEvent) => {
@@ -127,64 +111,43 @@ function focusSearch() {
             </div>
           </section>
 
-          <section v-if="trimmed && can('pmo.projects.read') && (projects.length || projectsQuery.isLoading.value || projectsQuery.error.value)" class="grid gap-1">
-            <h2 class="mb-0.5 flex items-center gap-1.5 px-2 text-xs font-semibold text-muted">
-              <span>{{ t('nav.projects') }}</span>
-              <UBadge color="neutral" variant="subtle" size="sm" aria-hidden="true">{{ projects.length }}</UBadge>
-            </h2>
-            <p v-if="(projectsQuery.data.value?.length ?? 0) >= 200" class="px-2 text-xs text-muted" role="status">{{ t('projects.capped') }}</p>
-            <SharedPageState :loading="projectsQuery.isLoading.value" :error="projectsQuery.error.value" @retry="projectsQuery.refetch()" />
-            <UButton
-              v-for="project in projects"
-              :key="project.id"
-              :to="{ path: `/projects/${project.id}`, query: returnToQuery(route.fullPath) }"
-              color="neutral"
-              variant="ghost"
-              class="min-h-11 min-w-0 justify-start"
-              :title="project.name"
-              :label="project.name"
-              @click="open = false"
-            >
-              <template #leading>
-                <UIcon name="i-lucide-folder" class="size-4 shrink-0 text-muted" aria-hidden="true" />
-              </template>
-            </UButton>
-          </section>
+          <template v-for="section in sections" :key="section.provider.id">
+            <section v-if="trimmed && section.visible.value && (section.rows.value.length || section.waiting.value || section.error.value)" class="grid gap-1">
+              <h2 class="mb-0.5 flex items-center gap-1.5 px-2 text-xs font-semibold text-muted">
+                <span>{{ t(section.provider.labelKey) }}</span>
+                <UBadge color="neutral" variant="subtle" size="sm" aria-hidden="true">{{ section.rows.value.length }}</UBadge>
+              </h2>
+              <p v-if="section.truncated.value && section.provider.truncatedKey" class="px-2 text-xs text-muted" role="status">{{ t(section.provider.truncatedKey) }}</p>
+              <SharedPageState :loading="section.waiting.value" :error="section.error.value" @retry="section.refetch()" />
+              <UButton
+                v-for="row in section.rows.value"
+                :key="row.id"
+                :to="{ path: row.to, query: returnToQuery(route.fullPath) }"
+                color="neutral"
+                variant="ghost"
+                class="min-h-11 min-w-0 justify-start"
+                :title="row.label"
+                :label="row.label"
+                @click="open = false"
+              >
+                <template #leading>
+                  <UIcon :name="section.provider.icon" class="size-4 shrink-0 text-muted" aria-hidden="true" />
+                </template>
+              </UButton>
+              <UButton
+                v-if="section.hasNext.value"
+                color="neutral"
+                variant="outline"
+                block
+                class="mt-1.5"
+                :disabled="section.fetchingNext.value"
+                :label="t('app.loadMore')"
+                @click="section.fetchNext()"
+              />
+            </section>
+          </template>
 
-          <section v-if="trimmed && can('pmo.tasks.read') && (tasks.length || waiting || tasksQuery.error.value)" class="grid gap-1">
-            <h2 class="mb-0.5 flex items-center gap-1.5 px-2 text-xs font-semibold text-muted">
-              <span>{{ t('nav.tasks') }}</span>
-              <UBadge color="neutral" variant="subtle" size="sm" aria-hidden="true">{{ tasks.length }}</UBadge>
-            </h2>
-            <SharedPageState :loading="waiting" :error="tasksQuery.error.value" @retry="tasksQuery.refetch()" />
-            <UButton
-              v-for="task in tasks"
-              :key="task.id"
-              :to="{ path: `/tasks/${task.id}`, query: returnToQuery(route.fullPath) }"
-              color="neutral"
-              variant="ghost"
-              class="min-h-11 min-w-0 justify-start"
-              :title="task.name"
-              :label="task.name"
-              @click="open = false"
-            >
-              <template #leading>
-                <UIcon name="i-lucide-check-square" class="size-4 shrink-0 text-muted" aria-hidden="true" />
-              </template>
-            </UButton>
-            <UButton
-              v-if="tasksQuery.hasNextPage.value"
-              color="neutral"
-              variant="outline"
-              block
-              class="mt-1.5"
-              :disabled="tasksQuery.isFetchingNextPage.value"
-              :label="t('app.loadMore')"
-              @click="tasksQuery.fetchNextPage()"
-            />
-          </section>
-
-          <p v-if="!nav.length && !projects.length && !tasks.length && (!trimmed || (!waiting && !projectsQuery.isLoading.value && !projectsQuery.error.value && !tasksQuery.error.value))" class="px-4 py-10 text-center text-base text-muted">{{ t('app.noResults') }}</p>
+          <p v-if="noResults" class="px-4 py-10 text-center text-base text-muted">{{ t('app.noResults') }}</p>
         </div>
       </div>
     </template>
