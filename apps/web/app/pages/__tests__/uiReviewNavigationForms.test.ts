@@ -49,6 +49,13 @@ async function loadPage(page: string, url: RouteLocationRaw, overrides: Record<s
     firstAllowedPath: () => '/projects', useNav: () => [],
     useQuery: () => ({ data: Vue.ref([{ id: 7, name: 'Example' }]), isLoading: Vue.ref(false), error: Vue.ref(null) }),
     ProjectRefSchema: { array: () => ({}) }, findSearchShortcut: () => undefined,
+    // search.vue reads its sections from the manifest-driven composable; one PMO projects section.
+    manifestRoutePrefixes: () => ['/projects', '/tasks', '/hr'],
+    useAppSearch: () => [{
+      provider: { id: 'pmo-projects', labelKey: 'nav.projects', icon: 'i-lucide-folder' },
+      rows: Vue.ref([{ id: 7, label: 'Example', to: '/projects/7' }]), visible: Vue.ref(true),
+      loading: Vue.ref(false), error: Vue.ref(null), refetch: () => undefined,
+    }],
     useHrDocument: () => ({ data: Vue.ref(document), isLoading: Vue.ref(false), error: Vue.ref(null) }),
     useUpdateDocument: () => ({ mutateAsync: update, isPending: Vue.ref(false) }),
     useUploadDocumentAttachment: () => ({ mutateAsync: vi.fn(), isPending: Vue.ref(false) }),

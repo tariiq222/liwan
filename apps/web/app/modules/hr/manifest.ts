@@ -1,13 +1,34 @@
-import type { AppManifest } from '../types'
+import type { AppContextLink, AppManifest } from '../types'
 
 const departmentDocuments = (path: string) => /^\/hr\/departments\/[^/]+\/documents(?:\/|$)/.test(path)
+
+function createLink(path?: string): AppContextLink {
+  if (path?.startsWith('/hr/documents') || departmentDocuments(path ?? '')) {
+    return { id: 'new-document', labelKey: 'hr.docs.new', icon: 'i-lucide-plus', to: '/hr/documents/new', capability: 'hr.documents.manage', pinned: true }
+  }
+  if (path?.startsWith('/hr/departments')) {
+    return { id: 'new-department', labelKey: 'hr.depts.new', icon: 'i-lucide-plus', to: '/hr/departments/new', capability: 'hr.departments.manage', pinned: true }
+  }
+  return { id: 'new-employee', labelKey: 'hr.directory.newEmployee', icon: 'i-lucide-plus', to: '/hr/employees/new', capability: 'hr.employees.manage', pinned: true }
+}
 
 const manifest: AppManifest = {
   id: 'hr',
   feature: 'hr.enabled',
   routePrefixes: ['/hr'],
   rail: [{ id: 'hr', labelKey: 'nav.organization', icon: 'i-lucide-users', to: '/hr', order: 50 }],
-  nav: [],
+  nav: [
+    { to: '/hr', labelKey: 'nav.employees', icon: 'i-lucide-users', shortcut: '3', capability: 'hr.employees.read' },
+    { to: '/hr/departments', labelKey: 'nav.departments', icon: 'i-lucide-network', shortcut: '5', capability: 'hr.departments.read' },
+    { to: '/hr/documents', labelKey: 'nav.documents', icon: 'i-lucide-files', shortcut: '6', capability: 'hr.documents.read' },
+  ],
+  // The pinned create follows the page: documents, departments, otherwise employees.
+  contextLinks: path => [
+    createLink(path),
+    { id: 'employees', labelKey: 'nav.employees', icon: 'i-lucide-users', to: '/hr', capability: 'hr.employees.read' },
+    { id: 'departments', labelKey: 'nav.departments', icon: 'i-lucide-network', to: '/hr/departments', capability: 'hr.departments.read' },
+    { id: 'documents', labelKey: 'nav.documents', icon: 'i-lucide-files', to: '/hr/documents', capability: 'hr.documents.read' },
+  ],
   landing: [
     { path: '/hr', capability: 'hr.employees.read' },
     { path: '/hr/departments', capability: 'hr.departments.read' },
@@ -22,9 +43,10 @@ const manifest: AppManifest = {
     { pattern: /^\/hr\/employees\/[^/]+\/access$/, capability: 'access.users.grant' },
   ],
   isNavActive(path, target) {
-    if (target === '/hr') return path === '/hr' || path.startsWith('/hr/employees/')
-    if (target === '/hr/documents') return path === target || path.startsWith(`${target}/`) || departmentDocuments(path)
-    if (target === '/hr/departments' && departmentDocuments(path)) return false
+    // Create forms (`.../new`) belong to the pinned create link, not to a list entry.
+    if (target === '/hr') return path === '/hr' || (path.startsWith('/hr/employees/') && path !== '/hr/employees/new')
+    if (target === '/hr/documents') return path === target || (path.startsWith(`${target}/`) && path !== '/hr/documents/new') || departmentDocuments(path)
+    if (target === '/hr/departments') return path === target || (path.startsWith(`${target}/`) && path !== '/hr/departments/new' && !/\/documents(?:\/|$)/.test(path))
     return undefined
   },
 }
