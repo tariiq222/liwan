@@ -165,6 +165,31 @@ class NasqEntitlementService(models.AbstractModel):
         return payload[key]
 
     @api.model
+    def _nasq_limit_value(self, key):
+        """Stored limit for KEY (None means unlimited).
+
+        A registered limit of an installed application that the policy omits
+        counts as 0, so an application whose keys were never registered fails
+        closed. Platform limits are required keys and an absent one keeps its
+        legacy meaning (unlimited), as does an unregistered key or a tenant
+        without a policy yet.
+        """
+        profile = self._nasq_profile()
+        payload = self._nasq_features_payload(profile)
+        if key in payload:
+            return payload[key]
+        definition = self._nasq_registry()._nasq_feature_map().get(key)
+        if (
+            definition
+            and definition['type'] == 'limit'
+            and definition['module'] != 'nasq_platform'
+            and self._nasq_owner_installed(key)
+            and self.env['nasq.tenant.profile']._nasq_policy_initialized(profile)
+        ):
+            return 0
+        return None
+
+    @api.model
     def _nasq_feature_read(self, key):
         definition = self._nasq_registry()._nasq_feature_map().get(key)
         if not definition or definition['type'] != 'boolean':
@@ -235,7 +260,7 @@ class NasqEntitlementService(models.AbstractModel):
                 code, 'this limit is not registered', status=403,
                 details={'reason': 'limit', 'limit_key': key},
             )
-        limit = self.get(key)
+        limit = self._nasq_limit_value(key)
         if limit is None:
             return True
         if not isinstance(limit, int) or isinstance(limit, bool) or limit < 0:
@@ -323,7 +348,7 @@ class NasqEntitlementService(models.AbstractModel):
             return True
         self._nasq_assert_lifecycle(write=True)
         self._nasq_profile()._nasq_lock()
-        limit_mb = self.get('storage.limit_mb')
+        limit_mb = self._nasq_limit_value('storage.limit_mb')
         if limit_mb is None:
             self._nasq_profile()._nasq_bump_quota_revision()
             return True

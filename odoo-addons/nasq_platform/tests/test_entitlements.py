@@ -2,6 +2,8 @@
 import unittest
 from datetime import datetime, timedelta, timezone
 
+from psycopg2.extras import Json
+
 from odoo.exceptions import AccessError, ValidationError
 from odoo.tests import TransactionCase, new_test_user, tagged
 
@@ -208,3 +210,69 @@ class TestEntitlements(TransactionCase):
         with self.assertRaises(NasqAccessRule) as error:
             self.service.require_within_limit('users.limit', 1)
         self.assertEqual(error.exception.details['reason'], 'limit')
+
+    def _grow_registry(self, *extra):
+        registry = type(self.features)
+        definitions = registry._nasq_feature_definitions
+        self.patch(registry, '_nasq_feature_definitions', lambda model: (*definitions(model), *extra))
+
+    def test_closing_unlisted_keys_adds_only_closed_values_of_installed_apps(self):
+        installed = self.features._nasq_installed_module_ids()
+        if not installed:
+            self.skipTest('needs an installed application')
+        app = installed[0]
+        self._grow_registry(
+            {'key': 'zz_probe.enabled', 'type': 'boolean', 'owner': app, 'module': app},
+            {'key': 'zz_probe.max_items', 'type': 'limit', 'owner': app, 'module': app},
+            {'key': 'zz_probe.listed', 'type': 'limit', 'owner': app, 'module': app},
+            {'key': 'zz_gone.enabled', 'type': 'boolean', 'owner': 'zz_not_installed', 'module': 'zz_not_installed'},
+            {'key': 'zz_gone.max_items', 'type': 'limit', 'owner': 'zz_not_installed', 'module': 'zz_not_installed'},
+        )
+        given = {'users.limit': None, 'zz_probe.listed': 9}
+        completed = self.service._nasq_close_unlisted_features(given)
+        self.assertIs(completed['zz_probe.enabled'], False)
+        self.assertEqual(completed['zz_probe.max_items'], 0)
+        self.assertIs(type(completed['zz_probe.max_items']), int)
+        self.assertEqual(completed['zz_probe.listed'], 9)  # a listed limit passes through
+        self.assertIsNone(completed['users.limit'])
+        self.assertNotIn('zz_gone.enabled', completed)  # an uninstalled app stays absent
+        self.assertNotIn('zz_gone.max_items', completed)
+        self.assertEqual(given, {'users.limit': None, 'zz_probe.listed': 9})
+        # Every added key is a closed value: nothing is granted.
+        for key in set(completed) - set(given):
+            self.assertTrue(completed[key] is False or (type(completed[key]) is int and completed[key] == 0), key)
+
+    def test_a_registered_limit_missing_from_the_payload_counts_as_zero(self):
+        installed = self.features._nasq_installed_module_ids()
+        if not installed:
+            self.skipTest('needs an installed application')
+        app = installed[0]
+        self._grow_registry(
+            {'key': 'zz_probe.max_items', 'type': 'limit', 'owner': app, 'module': app},
+            {'key': 'zz_gone.max_items', 'type': 'limit', 'owner': 'zz_not_installed', 'module': 'zz_not_installed'},
+        )
+        self.assertNotIn('zz_probe.max_items', self.record.features)
+        self.service.require_within_limit('zz_probe.max_items', 0)
+        with self.assertRaises(NasqAccessRule) as error:
+            self.service.require_within_limit('zz_probe.max_items', 1)
+        self.assertEqual(error.exception.details['limit_key'], 'zz_probe.max_items')
+        # An uninstalled owner keeps the old behaviour: absent means no stored limit.
+        self.service.require_within_limit('zz_gone.max_items', 1000)
+        # A key that is not registered is still refused as before.
+        with self.assertRaises(NasqAccessRule) as error:
+            self.service.require_within_limit('zz_unregistered.max_items', 0)
+        self.assertEqual(error.exception.details['reason'], 'limit')
+        # An explicit null stays unlimited.
+        self._operator().write({'features': {**self.record.features, 'zz_probe.max_items': None}})
+        self.service.require_within_limit('zz_probe.max_items', 1000)
+
+    def test_a_missing_platform_limit_keeps_its_legacy_unlimited_meaning(self):
+        features = dict(self.record.features)
+        del features['storage.limit_mb']
+        self.env.flush_all()
+        self.env.cr.execute(
+            'UPDATE nasq_tenant_profile SET features = %s WHERE id = %s',
+            [Json(features), self.record.id],
+        )
+        self.record.invalidate_recordset()
+        self.assertTrue(self.service._nasq_claim_storage(1))
