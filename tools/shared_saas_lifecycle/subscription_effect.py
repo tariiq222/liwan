@@ -188,7 +188,14 @@ try:
         granted = operator._nasq_grant_opened_admin_roles(values['admin_login'], roles_before)
         opened = [k for k in env['nasq.entitlement.service']._nasq_entitled_admin_roles() if k not in set(roles_before or ())]
         if opened and not granted:
-            not_granted = 'no_admin_login' if not values['admin_login'] else 'admin_not_found'
+            admin = values['admin_login'] and env['res.users'].search(
+                [('login', '=', values['admin_login']), ('active', '=', True), ('share', '=', False)], limit=1)
+            if not values['admin_login']:
+                not_granted = 'no_admin_login'
+            elif not admin:
+                not_granted = 'admin_not_found'
+            else:
+                not_granted = 'roles_missing'
     # Archive first so a swap never trips branches.extra_limit; data is kept.
     for uid in values['archive']:
         branch = env['nasq.tenant.branch'].search([('branch_uid', '=', uid)])
@@ -422,7 +429,7 @@ class SubscriptionEffect:
         if not verify(request, after):
             raise EffectError('observed_mismatch')
         journal.done()
-        return self.receipt(request, after, missing, not_granted if not_granted in ('no_admin_login', 'admin_not_found') else None)
+        return self.receipt(request, after, missing, not_granted if not_granted in ('no_admin_login', 'admin_not_found', 'roles_missing') else None)
 
 
 # -------------------------------------------------------- default runner

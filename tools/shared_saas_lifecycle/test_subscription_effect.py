@@ -321,7 +321,8 @@ class ReconfigureTests(Base):
     def test_script_reports_a_due_grant_that_found_no_admin(self):
         script = se.build_apply_script(make_request())
         self.assertIn("'roles_not_granted': True", script)
-        self.assertIn("'no_admin_login' if not values['admin_login'] else 'admin_not_found'", script)
+        for reason in ("'no_admin_login'", "'admin_not_found'", "'roles_missing'"):
+            self.assertIn(reason, script)
 
     def test_receipt_carries_roles_not_granted_with_the_reason(self):
         request = make_request()
@@ -332,6 +333,12 @@ class ReconfigureTests(Base):
         self.assertEqual(receipt['roles_not_granted_reason'], 'admin_not_found')
         plain = self.effect(FakeRunner(observation(), apply_state=applied_state(request))).reconfigure(request)
         self.assertNotIn('roles_not_granted', plain)
+
+    def test_receipt_carries_roles_missing(self):
+        request = make_request()
+        runner = FakeRunner(observation(), apply_state=applied_state(request),
+                            apply_result={'applied': True, 'roles_not_granted': True, 'roles_not_granted_reason': 'roles_missing'})
+        self.assertEqual(self.effect(runner).reconfigure(request)['roles_not_granted_reason'], 'roles_missing')
 
     def test_sigterm_handler_ignores_further_sigterm_first(self):
         source = inspect.getsource(se.main)
