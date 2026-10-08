@@ -65,6 +65,50 @@ class BackupBoundaryTests(unittest.TestCase):
             self.assertFalse(any('stop' in args for args in commands))
             self.assertFalse((runner.root / 'backups').exists())
 
+    def drain_runner(self, observers):
+        runner = object.__new__(odoo_backup.BackupRunner)
+        runner.config = {'projectName': 'nasq-shared-test'}
+        commands = []
+        live = list(observers)
+        def command(args, **_):
+            commands.append(args)
+            if args[:2] == ['docker', 'ps']:
+                return '\n'.join(live)
+            if args[:2] == ['docker', 'kill']:
+                live.remove(args[2])
+            return ''
+        runner.command = command
+        return runner, commands, live
+
+    def test_observers_are_waited_for_then_killed_after_the_budget(self):
+        name = 'nasq-shared-test-effect-12345678-observe-abcd1234'
+        runner, commands, live = self.drain_runner([name, 'nasq-shared-test-odoo-1'])
+        now = [0]
+        def sleep(seconds): now[0] += seconds
+        runner.drain_observers(wait=35, sleep=sleep, clock=lambda: now[0])
+        self.assertGreaterEqual(now[0], 35)
+        self.assertIn(['docker', 'kill', name], commands)
+        self.assertEqual(live, ['nasq-shared-test-odoo-1'])
+
+    def test_observer_that_exits_in_time_is_not_killed(self):
+        name = 'nasq-shared-test-effect-12345678-observe-abcd1234'
+        runner, commands, live = self.drain_runner([name])
+        now = [0]
+        def sleep(seconds):
+            now[0] += seconds
+            if now[0] >= 3: live.clear()
+        runner.drain_observers(wait=35, sleep=sleep, clock=lambda: now[0])
+        self.assertEqual(now[0], 3)
+        self.assertFalse(any(args[:2] == ['docker', 'kill'] for args in commands))
+
+    def test_mutating_effect_after_stop_refuses_with_the_after_effect_code(self):
+        runner = object.__new__(odoo_backup.BackupRunner)
+        runner.config = {'projectName': 'nasq-shared-test'}
+        runner.command = lambda args, **_: 'nasq-shared-test-effect-12345678-install'
+        with self.assertRaises(odoo_effect.EffectError) as caught:
+            runner.assert_no_effect_containers(code='runtime_writer_after_effect')
+        self.assertEqual(str(caught.exception), 'runtime_writer_after_effect')
+
     def test_database_binary_corruption_fails_without_exposing_bytes(self):
         self.assertTrue(hasattr(odoo_backup, 'database_attachment_digest'))
         original = b'private attachment content'

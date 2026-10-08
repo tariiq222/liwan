@@ -16,7 +16,7 @@ import time
 from datetime import datetime, timezone
 from tools.shared_saas_lifecycle.odoo_effect import (
     Runner, EffectError, no_symlink, reserve, permit, emit, validate_database,
-    require_new_target, verified_observation, MAX_OUTPUT,
+    require_new_target, verified_observation, MAX_OUTPUT, OBSERVE_CONTAINER,
 )
 MAX_ARCHIVE = 2 * 1024 * 1024 * 1024
 MAX_MEMBERS = 100000
@@ -288,6 +288,21 @@ print('{}')
         validate_archive(self.artifact/'filestore.tar')
         return manifest
 
+    def drain_observers(self, wait=35, sleep=None, clock=None):
+        # A usage observation that started before odoo stopped is a one-off container that
+        # `compose stop` does not touch. Give it longer than the collector's 30 s per-tenant
+        # deadline, then kill it: these are transactional reads.
+        sleep = sleep or time.sleep
+        clock = clock or time.monotonic
+        def running():
+            rows = self.command(['docker', 'ps', '--filter', 'label=com.docker.compose.project=' + self.config['projectName'], '--format', '{{.Names}}']).splitlines()
+            return [name for name in rows if '-effect-' in name and OBSERVE_CONTAINER.search(name)]
+        deadline = clock() + wait
+        while running() and clock() < deadline:
+            sleep(1)
+        for name in running():
+            self.command(['docker', 'kill', name], timeout=30)
+
     def capture(self):
         # Refuse a busy project before anything is reserved or stopped (a usage observation opens
         # DB sessions); the check after the stop below still closes the race with a late starter.
@@ -301,6 +316,7 @@ print('{}')
         self.command(self.base+['stop','--timeout','30','odoo'],timeout=45)
         if self.inspect_service('odoo')['State']['Running']:
             raise EffectError('writers_not_stopped')
+        self.drain_observers()
         self.assert_no_effect_containers(code='runtime_writer_after_effect')
         # No ordinary application session may remain in any source tenant DB.
         script=CONNECTION+'''\nwith connect('postgres') as c:
