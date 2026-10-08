@@ -109,6 +109,30 @@ class BackupBoundaryTests(unittest.TestCase):
             runner.assert_no_effect_containers(code='runtime_writer_after_effect')
         self.assertEqual(str(caught.exception), 'runtime_writer_after_effect')
 
+    def run_main(self, error):
+        import contextlib, io as _io, json
+        class Boom:
+            def __init__(self, request): pass
+            def apply_owned(self): raise error
+        out = _io.StringIO()
+        with patch.object(odoo_backup, 'BackupRunner', Boom), patch('sys.stdin', _io.StringIO('{"action":"apply"}\n')), contextlib.redirect_stdout(out):
+            code = odoo_backup.main()
+        return code, json.loads(out.getvalue())
+
+    def test_main_reports_writer_refusals_by_name_and_hides_everything_else(self):
+        for name in ('runtime_writer_present', 'runtime_writer_after_effect'):
+            self.assertEqual(self.run_main(odoo_effect.EffectError(name)), (1, {'error_code': name}))
+        self.assertEqual(self.run_main(odoo_effect.EffectError('secret_path_/x')), (1, {'error_code': 'shared_effect_unverified'}))
+        self.assertEqual(self.run_main(RuntimeError('boom')), (1, {'error_code': 'shared_effect_unverified'}))
+
+    def test_restore_observe_writer_after_completion_is_not_retryable(self):
+        runner = object.__new__(odoo_backup.BackupRunner)
+        runner.config = {'projectName': 'nasq-shared-test'}
+        runner.command = lambda args, **_: 'nasq-shared-test-effect-12345678-install'
+        import inspect
+        source = inspect.getsource(odoo_backup.BackupRunner.observe)
+        self.assertIn("assert_no_effect_containers(code='runtime_writer_after_effect')", source)
+
     def test_database_binary_corruption_fails_without_exposing_bytes(self):
         self.assertTrue(hasattr(odoo_backup, 'database_attachment_digest'))
         original = b'private attachment content'

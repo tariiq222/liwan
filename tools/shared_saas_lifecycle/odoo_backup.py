@@ -16,7 +16,7 @@ import time
 from datetime import datetime, timezone
 from tools.shared_saas_lifecycle.odoo_effect import (
     Runner, EffectError, no_symlink, reserve, permit, emit, validate_database,
-    require_new_target, verified_observation, MAX_OUTPUT, OBSERVE_CONTAINER,
+    require_new_target, verified_observation, MAX_OUTPUT, OBSERVE_CONTAINER, classify_error,
 )
 MAX_ARCHIVE = 2 * 1024 * 1024 * 1024
 MAX_MEMBERS = 100000
@@ -425,7 +425,8 @@ with tempfile.TemporaryFile() as source:
         completion=json.loads(self.complete_path.read_text())
         expected={'approvalId':self.authority['approvalId'],'backupId':self.backup_id,'targetDatabase':self.target,'digest':self.request['payloadDigest'],'manifestSha256':self.authority['manifestSha256']}
         if any(completion.get(k)!=v for k,v in expected.items()):return {'state':'partial'}
-        self.assert_no_effect_containers()
+        # Effects ran by now: a writer here is not a retryable pre-gate refusal.
+        self.assert_no_effect_containers(code='runtime_writer_after_effect')
         manifest=self.read_artifact();self.verify_restore(manifest)
         return verified_observation(self.request,True)
 
@@ -443,8 +444,8 @@ def main():
         elif request['action']=='apply':runner.apply_owned()
         else:raise EffectError('operation_unavailable')
         return 0
-    except Exception:
-        emit({'error_code':'shared_effect_unverified'});return 1
+    except Exception as exc:
+        emit({'error_code':classify_error(exc)});return 1
 
 if __name__=='__main__':
     sys.exit(main())
