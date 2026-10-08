@@ -290,6 +290,15 @@ worktrees only after their content is preserved and no process is using them.
   04_waiting_normal | 1_done | 1_canceled`. Write and approve capabilities
   and record-specific allowed actions decide transitions; do not infer them
   from a legacy role label.
+- Plans («باقة») are what customers buy; bundles («حزمة», vendor console only) are
+  the app groups inside them; Track A packages are read-only history. Every
+  application of the release is installed in every shared-SaaS tenant, and a
+  policy or compiled entitlement carries every key of every release application
+  (closed: `false` / `0`; catalog `platform_v3.json`, `commercial-compiler/2`).
+  `_nasq_validate_features` stays strict; operator scripts complete a target with
+  `_nasq_close_unlisted_features`, and `nasq.tenant.profile._register_hook`
+  registers a newly installed application's keys closed. Usage is collected per
+  limit key; removing an application is not a downgrade below usage.
 - Branding source of truth is `res.company`; `deploy/branding.json` seeds it.
   The public branding response is cached. The customer UI edits and sends only
   `primary_color`, and ignores stored secondary colour for rendering. The API
