@@ -135,7 +135,7 @@
       }
     },
     "catalog": {
-      "title": "Packages",
+      "title": "Legacy packages",
       "description": "Review the trusted solution catalog versions available to tenant operations.",
       "empty": "No catalog versions are available.",
       "noComposition": "No catalog composition",
@@ -290,7 +290,7 @@
       }
     },
     "packages": {
-      "title": "Packages",
+      "title": "Legacy packages",
       "description": "Define what each customer can use, review its limits, then make a version available for new customers.",
       "create": "Create package",
       "empty": "No packages yet. Create your first package from an available application composition.",
@@ -408,7 +408,7 @@
     },
     "bundles": {
       "title": "Bundles",
-      "description": "What each commercial bundle contains: apps, limits, prices and status.",
+      "description": "The app groups plans are built from: apps, limits, prices and status.",
       "create": "New bundle",
       "search": "Search bundles",
       "noResults": "No matching bundles.",
@@ -697,7 +697,7 @@
       "plan": "Plan",
       "planAssigned": "Plan assigned",
       "noPlan": "No plan",
-      "services": "Active services",
+      "services": "Active applications",
       "branches": "Branches",
       "renewal": "Renewal date",
       "setupRequired": "Commercial setup required",
@@ -720,7 +720,7 @@
       "techDigest": "Entitlement digest",
       "sections": {
         "subscription": "Subscription",
-        "services": "Services",
+        "services": "Applications",
         "branches": "Branches",
         "usage": "Usage",
         "invoices": "Invoices",
