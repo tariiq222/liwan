@@ -2,7 +2,7 @@
 import { useMediaQuery } from '@vueuse/core'
 import ConversationList from '@/components/chat/ConversationList.vue'
 import { useContextSidebar, useShellNavigation } from '@/composables/useShellNavigation'
-import { hidePinnedNewProject, shellModules } from '@/composables/nav/shellModules'
+import { hidePinnedNewProject, shellModuleList } from '@/composables/nav/shellModules'
 import { activeShellModule, contextModuleFor } from '@/composables/nav/activeRoute'
 import { createLinkTo } from '@/composables/nav/createActions'
 import { parseChatListRoute, serializeChatListRoute, type ChatListRoute } from '@/utils/chatState'
@@ -19,7 +19,7 @@ const activeModule = computed(() => activeShellModule(route.path))
 // `home` and `projects` share one projects sidebar with one heading and one motion key (2026-09-11).
 const linksModule = computed(() => contextModuleFor(activeModule.value))
 const isProjectsArea = computed(() => linksModule.value === 'projects')
-const moduleDefinition = computed(() => shellModules.find(item => item.id === linksModule.value) ?? module.value)
+const moduleDefinition = computed(() => shellModuleList().find(item => item.id === linksModule.value) ?? module.value)
 const contextTitle = computed(() => moduleDefinition.value ? t(moduleDefinition.value.labelKey) : t('app.productName'))
 const isProject = computed(() => !!projectId.value && activeModule.value === 'projects')
 const { remember } = useProjectWorkspaceMemory()
@@ -80,7 +80,7 @@ function updateRoute(next: ChatListRoute) {
       <div :id="navigationId" :key="contextMotionKey" class="nasq-context-sidebar-inner">
       <div class="nasq-context-heading">
         <span class="nasq-context-emblem" aria-hidden="true">
-          <UIcon :name="moduleDefinition?.icon ?? shellModules[0]!.icon" class="nasq-shell-icon size-4.5" aria-hidden="true" />
+          <UIcon :name="moduleDefinition?.icon ?? shellModuleList()[0]!.icon" class="nasq-shell-icon size-4.5" aria-hidden="true" />
         </span>
         <div class="nasq-context-heading-copy">
           <h2>{{ contextTitle }}</h2>

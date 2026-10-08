@@ -2,15 +2,15 @@
  * Application manifest: the one place an application declares its web surface.
  * Data only. Manifests import nothing from components; icons are Iconify strings.
  */
+/** Iconify name from the local Lucide collection. */
+export type AppIcon = `i-lucide-${string}`
 export interface AppNavItem {
-  to: string; labelKey: string; icon: string; shortcut: string; capability: string
+  to: string; labelKey: string; icon: AppIcon; shortcut: string; capability: string
   /** Rail module this item opens; defaults to the manifest id. PMO uses 'home' for the dashboard. */
   module?: string
-  /** Optional custom active test, replacing the branches in isNavPathActive. */
-  isActive?: (path: string) => boolean
 }
-export interface AppContextLink { id: string; labelKey: string; icon: string; to: string; capability: string; pinned?: boolean }
-export interface AppRailEntry { id: string; labelKey: string; icon: string; to: string; order: number }
+export interface AppContextLink { id: string; labelKey: string; icon: AppIcon; to: string; capability: string; pinned?: boolean }
+export interface AppRailEntry { id: string; labelKey: string; icon: AppIcon; to: string; order: number }
 export interface AppSearchProvider {
   id: string; labelKey: string; capability: string
   /** Vue-query key + fetcher run through useApi(); returns rows with id and label. */
@@ -28,6 +28,11 @@ export interface AppManifest {
   routePrefixes: string[]            // feature gate + active rail module
   rail: AppRailEntry[]               // usually one; PMO declares 'home' (order 10) and 'projects' (order 20)
   nav: AppNavItem[]
+  /**
+   * Rail module (and nav group) for an owned path that no nav item claims, and the group of
+   * every nav item. Defaults to the manifest id. PMO sets 'projects'.
+   */
+  defaultRail?: string
   contextLinks?: (path: string | undefined) => AppContextLink[]  // keyed by rail id via link module in nav
   routeCapabilities?: Array<{ pattern: RegExp; capability: string }>
   landing?: AppLandingEntry[]                                     // firstAllowedPath order within the app
@@ -37,8 +42,8 @@ export interface AppManifest {
   /** Extra paths a post-login `next` may return to, beyond the landing paths. */
   returnToPaths?: string[]
   /**
-   * Overrides the default "same path or sub-path" nav match for a target this app owns.
-   * Return undefined to fall back to the default for that target.
+   * The one active-path test for a nav, landing or context-link target this app owns; it overrides
+   * the default "same path or sub-path" match. Return undefined to fall back to the default.
    */
   isNavActive?: (path: string, target: string) => boolean | undefined
 }

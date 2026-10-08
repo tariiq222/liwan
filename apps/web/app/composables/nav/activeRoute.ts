@@ -3,6 +3,8 @@ import { GOVERNANCE_SECTION_IDS, type GovernanceSectionId } from './governanceSe
 // Type-only: `ShellModule` lives with the rail model, and erasing this import
 // keeps the runtime dependency one-way (shellModules -> activeRoute).
 import type { ShellModule } from './shellModules'
+import { manifestForPath } from '../../modules/manifests'
+import type { AppManifest } from '../../modules/types'
 
 /** Strips the query and hash and any trailing slash, so `/projects/` and `/projects?x=1` compare as `/projects`. */
 export function normalizedPath(path: string): string {
@@ -38,17 +40,23 @@ export function activeGovernanceSection(path: string): GovernanceSectionId | nul
   return GOVERNANCE_SEGMENTS.has(head) ? head as GovernanceSectionId : null
 }
 
+/** The rail module of a path an application owns: its most specific nav item, else the application's default rail. */
+function moduleWithinApp(manifest: AppManifest, path: string): ShellModule {
+  const pathname = normalizedPath(path)
+  const item = [...manifest.nav]
+    .sort((a, b) => b.to.length - a.to.length)
+    .find(candidate => pathname === candidate.to || pathname.startsWith(`${candidate.to}/`))
+  if (item) return item.module ?? manifest.id
+  const fallback = manifest.defaultRail ?? manifest.id
+  return manifest.rail.some(entry => entry.id === fallback) ? fallback : manifest.rail[0]?.id ?? fallback
+}
+
 export function activeShellModule(path: string): ShellModule | null {
   if (path === '/vendor' || path.startsWith('/vendor/')) return 'management'
-  if (path === '/projects/dashboard' || path.startsWith('/projects/dashboard/')) return 'home'
-  if (path === '/chat' || path.startsWith('/chat/')) return 'chat'
-  if (path === '/meetings' || path.startsWith('/meetings/')) return 'meetings'
-  if (path === '/hr' || path.startsWith('/hr/')) return 'hr'
+  const owner = manifestForPath(path)
+  if (owner) return moduleWithinApp(owner, path)
   if (path === '/settings' || path.startsWith('/settings/')) return 'settings'
   if (path === '/subscription' || path.startsWith('/subscription/')) return 'settings'
-  if (path === '/reports' || path.startsWith('/reports/')) return 'projects'
-  if (path === '/tasks' || path.startsWith('/tasks/') || path === '/archived-tasks') return 'projects'
-  if (path === '/projects' || path.startsWith('/projects/') || path === '/project-templates' || path.startsWith('/project-templates/')) return 'projects'
   if (path === '/account' || path.startsWith('/account/')) return 'settings'
   if (path === '/search' || path.startsWith('/search/')) return 'projects'
   if (path === '/notifications' || path.startsWith('/notifications/')) return null

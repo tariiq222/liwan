@@ -10,7 +10,24 @@ const manifest: AppManifest = {
     { id: 'home', labelKey: 'nav.home', icon: 'i-lucide-house', to: '/projects/dashboard', order: 10 },
     { id: 'projects', labelKey: 'nav.projects', icon: 'i-lucide-folder-kanban', to: '/projects', order: 20 },
   ],
-  nav: [],
+  defaultRail: 'projects',
+  nav: [
+    { to: '/projects/dashboard', labelKey: 'nav.home', icon: 'i-lucide-house', shortcut: 'h', capability: 'pmo.projects.read', module: 'home' },
+    { to: '/projects', labelKey: 'nav.projects', icon: 'i-lucide-folder-kanban', shortcut: '2', capability: 'pmo.projects.read', module: 'projects' },
+    { to: '/tasks', labelKey: 'nav.tasks', icon: 'i-lucide-check-square', shortcut: '1', capability: 'pmo.tasks.read', module: 'projects' },
+    { to: '/project-templates', labelKey: 'nav.projectTemplates', icon: 'i-lucide-layout-template', shortcut: 't', capability: 'pmo.projects.read', module: 'projects' },
+    { to: '/projects/settings', labelKey: 'settings.projects.title', icon: 'i-lucide-settings', shortcut: '4', capability: 'pmo.settings.manage', module: 'projects' },
+  ],
+  // Shown for `home` and `projects`, including inside a project (2026-09-11). Project settings close
+  // the sidebar (user decision 2026-09-16); they are not a settings-module page.
+  contextLinks: () => [
+    { id: 'new-project', labelKey: 'nav.newProject', icon: 'i-lucide-plus', to: '/projects/new', capability: 'pmo.projects.create', pinned: true },
+    { id: 'project-dashboard', labelKey: 'nav.projectDashboard', icon: 'i-lucide-chart-no-axes-combined', to: '/projects/dashboard', capability: 'pmo.projects.read' },
+    { id: 'projects', labelKey: 'nav.allProjects', icon: 'i-lucide-folder-kanban', to: '/projects', capability: 'pmo.projects.read' },
+    { id: 'tasks', labelKey: 'nav.tasks', icon: 'i-lucide-check-square', to: '/tasks', capability: 'pmo.tasks.read' },
+    { id: 'project-templates', labelKey: 'nav.projectTemplates', icon: 'i-lucide-layout-template', to: '/project-templates', capability: 'pmo.projects.read' },
+    { id: 'project-settings', labelKey: 'settings.projects.title', icon: 'i-lucide-settings', to: '/projects/settings', capability: 'pmo.settings.manage' },
+  ],
   landing: [
     { path: '/projects/dashboard', capability: 'pmo.projects.read' },
     { path: '/tasks', capability: 'pmo.tasks.read' },
@@ -30,6 +47,7 @@ const manifest: AppManifest = {
   bell: { capabilities: ['pmo.tasks.read'] },
   returnToPaths: ['/archived-tasks'],
   isNavActive(path, target) {
+    if (target === '/tasks') return path === '/archived-tasks' ? true : undefined
     if (target !== '/projects') return undefined
     if (path === '/projects/dashboard' || path.startsWith('/projects/dashboard/')) return false
     if (isProjectSettings(path)) return false

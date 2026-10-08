@@ -5,7 +5,17 @@ const manifest: AppManifest = {
   feature: 'meetings.enabled',
   routePrefixes: ['/meetings'],
   rail: [{ id: 'meetings', labelKey: 'nav.meetings', icon: 'i-lucide-calendar-days', to: '/meetings', order: 30 }],
-  nav: [],
+  nav: [
+    { to: '/meetings', labelKey: 'nav.meetings', icon: 'i-lucide-calendar-days', shortcut: 'm', capability: 'meetings.read' },
+    { to: '/meetings/calendar', labelKey: 'nav.meetingCalendar', icon: 'i-lucide-calendar-days', shortcut: 'k', capability: 'meetings.read' },
+    { to: '/meetings/series', labelKey: 'nav.meetingSeries', icon: 'i-lucide-repeat', shortcut: 'y', capability: 'meetings.read' },
+  ],
+  contextLinks: () => [
+    { id: 'new-meeting', labelKey: 'nav.newMeeting', icon: 'i-lucide-plus', to: '/meetings/new', capability: 'meetings.create', pinned: true },
+    { id: 'meetings', labelKey: 'nav.meetings', icon: 'i-lucide-calendar-days', to: '/meetings', capability: 'meetings.read' },
+    { id: 'meeting-calendar', labelKey: 'nav.meetingCalendar', icon: 'i-lucide-calendar-days', to: '/meetings/calendar', capability: 'meetings.read' },
+    { id: 'meeting-series', labelKey: 'nav.meetingSeries', icon: 'i-lucide-repeat', to: '/meetings/series', capability: 'meetings.read' },
+  ],
   landing: [
     { path: '/meetings', capability: 'meetings.read' },
     { path: '/meetings/calendar', capability: 'meetings.read' },
@@ -19,7 +29,7 @@ const manifest: AppManifest = {
   bell: { capabilities: ['meetings.read'] },
   isNavActive(path, target) {
     if (target === '/meetings') {
-      if (path.startsWith('/meetings/calendar') || path.startsWith('/meetings/series')) return false
+      if (path === '/meetings/new' || path.startsWith('/meetings/calendar') || path.startsWith('/meetings/series')) return false
       return undefined
     }
     if (target === '/meetings/calendar') return path === '/meetings/calendar'
