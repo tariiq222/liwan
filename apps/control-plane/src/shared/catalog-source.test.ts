@@ -51,7 +51,7 @@ describe('catalog source resolution by sha256', () => {
 import { PROVISION_ERROR_CODES } from './odoo-adapter.js'
 describe('provision error_code allowlist', () => {
   it('pins every allowlisted non-secret code and excludes opaque ones', () => {
-    for (const code of ['policy_script_failed', 'target_mismatch', 'policy_already_initialized', 'features_mismatch', 'modules_mismatch', 'profile_invalid', 'classification_conflict', 'snapshot_invalid', 'catalog_source_unavailable', 'catalog_source_ambiguous']) expect(PROVISION_ERROR_CODES.has(code)).toBe(true)
+    for (const code of ['policy_script_failed', 'target_mismatch', 'policy_already_initialized', 'features_mismatch', 'modules_mismatch', 'profile_invalid', 'classification_conflict', 'snapshot_invalid', 'catalog_source_unavailable', 'catalog_source_ambiguous', 'runtime_writer_present']) expect(PROVISION_ERROR_CODES.has(code)).toBe(true)
     for (const code of ['shared_effect_unverified', 'Traceback (most recent call last)', 'runtime_path_invalid']) expect(PROVISION_ERROR_CODES.has(code)).toBe(false)
   })
 })

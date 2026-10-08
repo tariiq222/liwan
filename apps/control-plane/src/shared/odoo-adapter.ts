@@ -21,7 +21,7 @@ import { resolveOdooBackupAuthority,recordOdooBackup } from './odoo-backup.js'
 /** Non-secret refusal codes the provision effect may report; all others are opaque.
  * Mirrors tools/nasq_cli/managed_verify.py ERROR_CODES plus the managed-policy
  * and catalog-source codes classify_error allows across the IPC boundary. */
-export const PROVISION_ERROR_CODES=new Set(['target_mismatch','profile_invalid','classification_conflict','policy_already_initialized','modules_mismatch','features_mismatch','snapshot_invalid','policy_script_failed','catalog_source_unavailable','catalog_source_ambiguous','policy_invalid','policy_too_large','policy_duplicate_key','policy_channel_mismatch','commercial_mode_unsupported','catalog_reference_invalid','catalog_unavailable','catalog_digest_mismatch','catalog_invalid','policy_composition_mismatch','package_authority_invalid','package_authority_mismatch'])
+export const PROVISION_ERROR_CODES=new Set(['target_mismatch','profile_invalid','classification_conflict','policy_already_initialized','modules_mismatch','features_mismatch','snapshot_invalid','policy_script_failed','catalog_source_unavailable','catalog_source_ambiguous','policy_invalid','policy_too_large','policy_duplicate_key','policy_channel_mismatch','commercial_mode_unsupported','catalog_reference_invalid','catalog_unavailable','catalog_digest_mismatch','catalog_invalid','policy_composition_mismatch','package_authority_invalid','package_authority_mismatch','runtime_writer_present'])
 
 /** Non-reclaimable physical reservation + current durable claim per stage.
  * Losing the control connection cancels the owned child and cannot activate.
